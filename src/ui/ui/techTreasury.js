@@ -583,6 +583,8 @@ Object.assign(UI.prototype, {
             `;
         };
 
+        // Standing multi-stop lines with buy/sell orders at each stop (player/tradeLines.js)
+        routeHtml += `<button data-am-act="showTradeLines" style="width:100%; margin:0 0 10px; padding:8px; background:rgba(245,197,66,0.12); border:1px solid rgba(245,197,66,0.5); color:#ffe08a; border-radius:4px; cursor:pointer; font-weight:bold;">🔁 Trade Lines: standing caravan and ship loops with buy and sell orders</button>`;
         routeHtml += `<div class="info-section-title">Legal Trade Routes</div>`;
         if (player.tradeRoutes && player.tradeRoutes.length > 0) {
             routeHtml += player.tradeRoutes.map(r => renderRouteCard(r, false)).join('');

@@ -27,6 +27,7 @@ import { NPCLords } from '../world/npcLords.js';
 import { Technology } from './technology.js';
 import { Holdings } from './holdings.js';
 import { HoldingSieges } from './holdingSieges.js';
+import { Names } from '../core/names.js';
 
 const CONFIG = {
     checkCadence: 10,          // days between hostility checks
@@ -243,7 +244,7 @@ export const RealmWars = {
         player.gold = (player.gold || 0) + gold;
         RealmWars.endWar(player, world, kingdomId, 'victory');
         House.recordPlayerDeed(player, world, 'battleWon', {
-            scale: 3, reason: `victory over ${kingdom.name}`,
+            scale: 3, reason: `victory over ${Names.realm(kingdom.name)}`,
             chronicle: `${kingdom.name} sues for peace and pays ${gold} gold in reparations.`, tags: ['war', 'victory'],
         });
         return { success: true, gold };
@@ -348,7 +349,7 @@ export const RealmWars = {
                 const defense = Holdings.defenseRating(settlement) * Utils.randFloat(0.8, 1.4);
                 if (rec.strength > defense) {
                     RealmWars._captureHolding(player, world, kingdom, null, t);
-                    text = `${rec.name} storms your colony ${settlement.name}. It now belongs to ${kingdom.name}.`;
+                    text = `${rec.name} storms your colony ${settlement.name}. It now belongs to ${Names.realm(kingdom.name)}.`;
                     lost = true;
                 } else {
                     colony.loyalty = Math.max(0, (colony.loyalty || 0) - 10);

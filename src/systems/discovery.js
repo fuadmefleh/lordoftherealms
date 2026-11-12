@@ -51,6 +51,7 @@ import { Traits } from './traits.js';
 import { Holdings } from './holdings.js';
 import { Ailments } from './ailments.js';
 import { Quests } from './quests.js';
+import { Names } from '../core/names.js';
 
 const DEFAULT_CONFIG = {
     minDay: 1,
@@ -1108,8 +1109,8 @@ export const Discovery = {
         site.knownBy.push(k.id);
         const st = Discovery.state(player);
         st.stats.sold++;
-        Discovery._log(player, world, '📜', `Sold the chart of ${site.name} to the archive of ${k.name} for ${price}g.`, site.id);
-        return { success: true, price, kingdom: k, message: `The royal archive of ${k.name} pays ${price}g for your chart of ${site.name}. It is no longer your secret.` };
+        Discovery._log(player, world, '📜', `Sold the chart of ${site.name} to the archive of ${Names.realm(k.name)} for ${price}g.`, site.id);
+        return { success: true, price, kingdom: k, message: `The royal archive of ${Names.realm(k.name)} pays ${price}g for your chart of ${site.name}. It is no longer your secret.` };
     },
 
     // ──────────── SETTLING & CLAIMS ────────────

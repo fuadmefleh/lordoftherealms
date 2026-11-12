@@ -67,6 +67,7 @@ import { RealmEscort } from './realmEscort.js';
 import { Scenarios } from './scenarios.js';
 import { NpcMemory } from '../systems/npcMemory.js';
 import { TownMarks } from '../world/townMarks.js';
+import { Names } from '../core/names.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 // A rival at court may be a lady: the texts written of 'him' read of 'her'
@@ -160,7 +161,7 @@ export const Generalship = {
         if (Throne.ruledKingdom(player, world)) return { ok: false, reason: 'You wear a crown: you command, you do not serve.', kingdom: k };
         if (Throne.state(player).civilWar) return { ok: false, reason: 'You are fighting for a crown of your own.', kingdom: k };
         if (RealmWars.atWarWith(player, k.id)) return { ok: false, reason: `${k.name} is at war with you.`, kingdom: k };
-        if (Throne.isExiledFrom(player, world, k.id)) return { ok: false, reason: `You are exiled from ${k.name}.`, kingdom: k };
+        if (Throne.isExiledFrom(player, world, k.id)) return { ok: false, reason: `You are exiled from ${Names.realm(k.name)}.`, kingdom: k };
         if (player.allegiance != null && player.allegiance !== k.id) return { ok: false, reason: 'You are sworn to another crown. Renounce that oath first.', kingdom: k };
         const S = Generalship.config().seek || {};
         const rep = _num(player.reputation && player.reputation[k.id]);
@@ -180,7 +181,7 @@ export const Generalship = {
         Generalship._supplyFrom(player, world, c, tile.settlement, { days: _num(S.startSupplyDays, 8) });
         NPCLords.rememberDeed(world, k.lord, 'office_accepted', { note: 'a commission in the army' });
         const rd = Generalship.rankDef(c);
-        return { success: true, message: `${k.ruler || 'The crown'} grants you a commission: ${rd.name} in the army of ${k.name}, at the head of ${c.men} of its men.` };
+        return { success: true, message: `${k.ruler || 'The crown'} grants you a commission: ${rd.name} in the army of ${Names.realm(k.name)}, at the head of ${c.men} of its men.` };
     },
 
     /** Create the commission record (also used by the General start). */
@@ -210,14 +211,14 @@ export const Generalship = {
         for (let i = 0; i < Math.min(slots, Math.max(1, Math.floor(_num(opts.lieutenants, 1)))); i++) c.lieutenants.push(Generalship._makeLieutenant(c, k));
         c.rival = Generalship._makeRival(k, _num(opts.rivalInfluence, 25), world);
         Generalship._title(player, c, k);
-        Generalship._log(c, world, `Commissioned ${Generalship.rankDef(c).name} in the army of ${k.name}.`);
-        if (player.house) House._chronicle(player.house, world, `${player.name || 'The head of the House'} takes a commission as ${Generalship.rankDef(c).name} in the army of ${k.name}.`, ['war']);
+        Generalship._log(c, world, `Commissioned ${Generalship.rankDef(c).name} in the army of ${Names.realm(k.name)}.`);
+        if (player.house) House._chronicle(player.house, world, `${player.name || 'The head of the House'} takes a commission as ${Generalship.rankDef(c).name} in the army of ${Names.realm(k.name)}.`, ['war']);
         return c;
     },
 
     _title(player, c, k) {
         const rd = Generalship.rankDef(c);
-        player.title = `${rd.name} of ${k.name}`;
+        player.title = `${rd.name} of ${Names.realm(k.name)}`;
     },
 
     _names(k) {
@@ -774,15 +775,15 @@ export const Generalship = {
         NPCLords.rememberDeed(world, k.lord, 'war_aid', { note: `took ${s.name}` });
         // The town itself remembers who took it (systems/npcMemory.js)
         NpcMemory.rememberTown(world, { q: sg.q, r: sg.r }, { kind: 'conquered', player });
-        House.recordPlayerDeed(player, world, 'battleWon', { scale: 2, reason: `took ${s.name} for ${k.name}` });
+        House.recordPlayerDeed(player, world, 'battleWon', { scale: 2, reason: `took ${s.name} for ${Names.realm(k.name)}` });
         House.recordBattle(player, world, { kind: how === 'stormed' ? 'assault' : 'siege', outcome: 'victory', foe: enemy.name, place: s.name });
-        let text = `${s.name} ${how === 'stormed' ? 'is stormed' : 'opens its gates'} and passes to ${k.name}.`;
+        let text = `${s.name} ${how === 'stormed' ? 'is stormed' : 'opens its gates'} and passes to ${Names.realm(k.name)}.`;
         const loot = Generalship._plunder(player, world, c, s, enemy, c.siegePolicy === 'sack' ? S.sack : S.spare, c.siegePolicy === 'sack');
         text += ` ${loot.text}`;
         if (grant) text += ` The crown grants you the estate of ${grant}.`;
         if (fell === 'collapsed') text += ` ${enemy.name} is no more.`;
         Generalship._log(c, world, text);
-        if (Array.isArray(world.events)) world.events.push({ text: `🏰 ${player.name || 'A general'} takes ${s.name} for ${k.name}.`, type: 'military', category: 'MILITARY' });
+        if (Array.isArray(world.events)) world.events.push({ text: `🏰 ${player.name || 'A general'} takes ${s.name} for ${Names.realm(k.name)}.`, type: 'military', category: 'MILITARY' });
         return { message: text };
     },
 
@@ -1188,7 +1189,7 @@ export const Generalship = {
         if (_num(c.rank) < _num(C.minRank, 2)) return { ok: false, reason: `Only a ${(Generalship.ranks()[_num(C.minRank, 2)] || {}).name || 'General'} commands men enough to turn on the crown.` };
         if (_num(c.morale) < _num(C.minMorale, 55)) return { ok: false, reason: `The men would not follow you against the crown (morale ${Math.round(c.morale)}; needs ${_num(C.minMorale, 55)}).` };
         if (c.siege) return { ok: false, reason: 'Your host is tied down by a siege.' };
-        if (_dist(world, player, k.capital) > 2) return { ok: false, reason: `March the host to ${k.name}'s capital first.` };
+        if (_dist(world, player, k.capital) > 2) return { ok: false, reason: `March the host to ${Names.realm(k.name)}'s capital first.` };
         const lts = c.lieutenants || [];
         const loyal = lts.length ? lts.reduce((s, lt) => s + lt.loyalty, 0) / lts.length : 50;
         // The crown's household guard riding with you (player/realmEscort.js): loyal enough, it
@@ -1232,8 +1233,8 @@ export const Generalship = {
             Scenarios._stewardLord(player, k);
             const court = Generalship._seatCoupCourt(player, world, k, { old, heirApparent, rival, lieutenants: c.lieutenants });
             player.renown = _num(player.renown) + _num(C.renown, 60);
-            if (player.house) House.award(player.house, _num(C.prestige, 50), `seized the crown of ${k.name}`, day);
-            const text = `👑 The host of ${k.name} marches into the capital. ${oldRuler} is cast down, and ${k.ruler} takes the throne.`;
+            if (player.house) House.award(player.house, _num(C.prestige, 50), `seized the crown of ${Names.realm(k.name)}`, day);
+            const text = `👑 The host of ${Names.realm(k.name)} marches into the capital. ${oldRuler} is cast down, and ${k.ruler} takes the throne.`;
             Throne._log(player, world, text);
             if (Array.isArray(world.events)) world.events.push({ text, type: 'political', category: 'political', kingdom: k.id });
             const tail = ` ${court.lords} lords bend the knee${court.guard ? `, ${court.guard} of the host's best become your royal guard` : ''}${court.pretender ? `, but ${court.pretender} says the throne is theirs` : ''}. Open the Royal Court from the Dynasty menu.`;
@@ -1249,7 +1250,7 @@ export const Generalship = {
         player.reputation[k.id] = Math.min(_num(player.reputation[k.id]), _num(C.failReputation, -100));
         player.allegiance = null;
         player.kingdomTitle = null;
-        player.title = `Traitor to ${k.name}`;
+        player.title = `Traitor to ${Names.realm(k.name)}`;
         NPCLords.rememberDeed(world, k.lord, 'oath_broken', { note: 'turned the host on the crown' });
         RealmWars.declareWar(player, world, k, 'treason');
         const text = `${betrayedBy ? `${betrayedBy} betrayed the plot. ` : ''}The loyalists hold the capital and your host breaks. You flee ${k.name} with a price on your head.`;
@@ -1446,8 +1447,8 @@ export const Generalship = {
                 else {
                     // The realm's own armies took it without you: no credit, no blame — fresh orders
                     c.order = null;
-                    Generalship._log(c, world, `${o.target.name} fell to ${k.name}'s armies without you; the order lapses.`);
-                    out.notices.push({ icon: '📜', title: 'Taken Without You', text: `${o.target.name} has fallen to ${k.name}'s own armies before your host came up. The crown sends fresh orders.`, type: 'info' });
+                    Generalship._log(c, world, `${o.target.name} fell to ${Names.realm(k.name)}'s armies without you; the order lapses.`);
+                    out.notices.push({ icon: '📜', title: 'Taken Without You', text: `${o.target.name} has fallen to ${Names.realm(k.name)}'s own armies before your host came up. The crown sends fresh orders.`, type: 'info' });
                     Generalship._issueOrder(player, world, c, out);
                     if (!c.order) c.nextOrderDay = day + _num(O.cadence, 6);
                     return;
@@ -1537,7 +1538,7 @@ export const Generalship = {
             if (c.owed > _num(rd.wage) * _num(W.cadence, 7)) {
                 c.morale = Utils.clamp(c.morale + _num(W.arrearsMorale, -2), 0, 100);
                 for (const lt of c.lieutenants) lt.loyalty = Utils.clamp(lt.loyalty + _num(LT.arrearsLoyalty, -1), 0, 100);
-                out.notices.push({ icon: '💰', title: 'Wages in Arrears', text: `The treasury of ${k.name} owes you ${Math.round(c.owed)}g. The officers grumble.`, type: 'warning' });
+                out.notices.push({ icon: '💰', title: 'Wages in Arrears', text: `The treasury of ${Names.realm(k.name)} owes you ${Math.round(c.owed)}g. The officers grumble.`, type: 'warning' });
             }
         }
 
@@ -1559,7 +1560,7 @@ export const Generalship = {
                 const gone = Math.ceil(c.men * _num(S.hungerDesert, 0.03));
                 c.men -= gone;
                 k.military = Math.max(0, _num(k.military) - gone);
-                out.notices.push({ icon: '🍞', title: 'The Host Goes Hungry', text: `${gone} men desert for want of bread. Requisition grain from a town of ${k.name} in reach.`, type: 'warning' });
+                out.notices.push({ icon: '🍞', title: 'The Host Goes Hungry', text: `${gone} men desert for want of bread. Requisition grain from a town of ${Names.realm(k.name)} in reach.`, type: 'warning' });
             }
         }
 

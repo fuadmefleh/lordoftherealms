@@ -6,6 +6,7 @@ import { DevotionPanel } from './devotion.js';
 import { FeastPanel } from './feast.js';
 import { BTN_GOLD, BTN_PLAIN, esc, lede, chips, purse, sectionHead, kv, card, actRow, rowList, price } from './uiKit.js';
 import { Throne, PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, Festivals, PlayerEffects, Rivals } from './_imports.js';
+import { Names } from '../../core/names.js';
 
 const BOUT_NAMES = ['Opening bout', 'Semi-final', 'The final'];
 
@@ -174,7 +175,7 @@ Object.assign(ActionMenu, {
                 desertion = ` ${old ? old.name : 'Your former realm'} resents the desertion (−${penalty} reputation).`;
             }
             game.ui.showNotification('⚔️ Allegiance Pledged',
-                `You have sworn allegiance to ${kingdom.name}. You are now a citizen of the realm. +5 reputation.${desertion}`, 'success');
+                `You have sworn allegiance to ${Names.realm(kingdom.name)}. You are now a citizen of the realm. +5 reputation.${desertion}`, 'success');
             game.ui.updateStats(game.player, game.world);
         } else {
             game.ui.showNotification('Cannot Pledge', result.reason, 'error');

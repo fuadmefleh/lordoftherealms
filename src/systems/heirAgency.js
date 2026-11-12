@@ -47,6 +47,7 @@ import { Traits } from './traits.js';
 import { Ledger } from './ledger.js';
 import { CourtLetters } from './courtLetters.js';
 import { Holdings } from './holdings.js';
+import { Names } from '../core/names.js';
 
 const DEFAULTS = {
     fosterMinAge: 7, fosterYears: [1, 2, 3], fosterMinReputation: -10, fosterQuality: 1.4,
@@ -94,7 +95,7 @@ export const HeirAgency = {
     // ──────────── STATE ────────────
 
     _blankRecord() {
-        return { fostered: [], battles: { fought: 0, won: 0, lost: 0 }, captured: 0, wounds: 0, envoys: [], stewardDays: 0, bonds: {} };
+        return { fostered: [], battles: { fought: 0, won: 0, lost: 0 }, captured: 0, wounds: 0, envoys: [], stewardDays: 0, bonds: {}, wardmates: {} };
     },
 
     /** A child's agency record (created / backfilled; never draws RNG). */
@@ -108,6 +109,7 @@ export const HeirAgency = {
         for (const k of Object.keys(blank)) if (a.record[k] === undefined) a.record[k] = blank[k];
         if (!_obj(a.record.battles)) a.record.battles = { fought: 0, won: 0, lost: 0 };
         if (!_obj(a.record.bonds)) a.record.bonds = {};
+        if (!_obj(a.record.wardmates)) a.record.wardmates = {};
         if (!Array.isArray(a.record.fostered)) a.record.fostered = [];
         if (!Array.isArray(a.record.envoys)) a.record.envoys = [];
         for (const k of ['commission', 'betrothal', 'wounded', 'captive']) if (a[k] === undefined) a[k] = null;
@@ -125,8 +127,8 @@ export const HeirAgency = {
 
     _lordName(k) {
         const ruler = k && k.characterData && k.characterData.ruler;
-        if (ruler && ruler.firstName) return `${ruler.firstName} of ${k.name}`;
-        if (k && k.lord && k.lord.name) return `${k.lord.name} of ${k.name}`;
+        if (ruler && ruler.firstName) return `${ruler.firstName} of ${Names.realm(k.name)}`;
+        if (k && k.lord && k.lord.name) return `${k.lord.name} of ${Names.realm(k.name)}`;
         return (k && (k.ruler || k.name)) || 'a lord';
     },
 
@@ -252,7 +254,7 @@ export const HeirAgency = {
         if (up.fostered) return { success: false, reason: `${child.firstName} has already been fostered.` };
         const k = HeirAgency._kingdom(world, kid);
         if (!k || k.isAlive === false) return { success: false, reason: 'No such court.' };
-        if (CourtLetters.atWar(player, world, kid)) return { success: false, reason: `You are at war with ${k.name}.` };
+        if (CourtLetters.atWar(player, world, kid)) return { success: false, reason: `You are at war with ${Names.realm(k.name)}.` };
         const rep = _num(player.reputation && player.reputation[kid]);
         if (rep < cfg.fosterMinReputation) return { success: false, reason: `${k.name} will not take in the child of a House it distrusts (need ${cfg.fosterMinReputation} reputation).` };
         const yrs = (cfg.fosterYears || []).includes(years) ? years : (cfg.fosterYears || [2])[0];
@@ -298,34 +300,60 @@ export const HeirAgency = {
         if (up.spouse || a.betrothal) return { success: false, reason: `${child.firstName} is already promised.` };
         const k = HeirAgency._kingdom(world, kid);
         if (!k || k.isAlive === false) return { success: false, reason: 'No such realm.' };
-        if (CourtLetters.atWar(player, world, kid)) return { success: false, reason: `You are at war with ${k.name}.` };
+        if (CourtLetters.atWar(player, world, kid)) return { success: false, reason: `You are at war with ${Names.realm(k.name)}.` };
         const rep = _num(player.reputation && player.reputation[kid]);
         if (rep < _num(hc.allianceMinReputation)) return { success: false, reason: `${k.name}'s nobles will not promise a child to a House they distrust.` };
         const dowry = Math.round(_num(hc.allianceDowry) * cfg.betrothalDowryShare);
         if (_num(player.gold) < dowry) return { success: false, reason: `The betrothal gift is ${dowry} gold.` };
         player.gold -= dowry;
         Ledger.record(player, 'family', -dowry);
+        // The betrothal gift goes into their treasury; the rest is due at the wedding
+        k.treasury = _num(k.treasury) + dowry;
         HeirAgency._rep(player, kid, cfg.betrothalReputation);
         const gender = child.gender === 'female' ? 'male' : 'female';
-        a.betrothal = { kingdomId: kid, kingdomName: k.name, name: `${Heirs._name(world, gender, k.culture)} of ${k.name}`, day: _day(world), dowry };
+        const due = Math.max(0, Math.round(_num(hc.allianceDowry)) - dowry);
+        a.betrothal = { kingdomId: kid, kingdomName: k.name, name: `${Heirs._name(world, gender, k.culture)} of ${Names.realm(k.name)}`, day: _day(world), dowry, due, warSince: null };
         if (k.lord) NPCLords.rememberDeed(world, k.lord, 'betrothal_made', { note: child.firstName });
-        if (player.house) House._chronicle(player.house, world, `${child.firstName} is betrothed to ${a.betrothal.name}, binding ${player.house.name} to ${k.name}.`, ['marriage', 'heirs']);
+        if (player.house) House._chronicle(player.house, world, `${child.firstName} is betrothed to ${a.betrothal.name}, binding ${player.house.name} to ${Names.realm(k.name)}.`, ['marriage', 'heirs']);
         return { success: true, child, betrothal: a.betrothal, cost: dowry };
     },
 
-    /** Break a child's betrothal: the realm takes it hard. */
-    breakBetrothal(player, world, childId, why = null) {
+    /**
+     * Break a child's betrothal. Broken by the House, the realm takes it hard
+     * and keeps the betrothal gift, and the House loses Prestige for a word
+     * not kept. opts.byThem: the other side broke it (a war that would not
+     * end) - they send back what was paid, as far as their treasury allows.
+     */
+    breakBetrothal(player, world, childId, why = null, opts = {}) {
         const cfg = HeirAgency.config();
+        const R = HeirAgency._raisingCfg().betrothal || {};
         const child = HeirAgency._child(player, childId);
         const a = child && HeirAgency.ensure(child);
         if (!a || !a.betrothal) return { success: false, reason: 'No betrothal to break.' };
         const b = a.betrothal;
         a.betrothal = null;
         const k = HeirAgency._kingdom(world, b.kingdomId);
-        HeirAgency._rep(player, b.kingdomId, cfg.betrothalBreakReputation);
-        if (k && k.lord && k.isAlive !== false) NPCLords.rememberDeed(world, k.lord, 'betrothal_broken', { note: child.firstName });
+        let refund = 0;
+        let prestige = 0;
+        if (opts.byThem) {
+            refund = Math.min(_num(b.dowry), Math.max(0, Math.floor(_num(k && k.treasury))));
+            if (refund > 0) {
+                k.treasury = _num(k.treasury) - refund;
+                player.gold = _num(player.gold) + refund;
+                Ledger.record(player, 'family', refund);
+            }
+        } else {
+            HeirAgency._rep(player, b.kingdomId, cfg.betrothalBreakReputation);
+            if (k && k.lord && k.isAlive !== false) NPCLords.rememberDeed(world, k.lord, 'betrothal_broken', { note: child.firstName });
+            prestige = HeirAgency._prestige(player, -_num(R.breakPrestige), `${child.firstName}'s broken betrothal`, world);
+        }
         if (player.house) House._chronicle(player.house, world, `${child.firstName}'s betrothal to ${b.name} is broken${why ? ` (${why})` : ''}.`, ['marriage', 'heirs']);
-        return { success: true, child, betrothal: b };
+        return { success: true, child, betrothal: b, refund, prestige, byThem: !!opts.byThem };
+    },
+
+    /** data/upbringing.json -> raising (systems/raising.js), read here for the betrothal and payoff. */
+    _raisingCfg() {
+        return _obj(DataLoader.upbringing && DataLoader.upbringing.raising) || {};
     },
 
     /** The betrothal becomes a marriage when the child comes of age. */
@@ -340,17 +368,29 @@ export const HeirAgency = {
         }
         const hc = Heirs.config();
         const day = _day(world);
+        // The rest of the dowry, into their treasury; a short dowry is a slight
+        const due = Math.max(0, Math.round(_num(b.due)));
+        const paid = Math.min(due, Math.max(0, Math.floor(_num(player.gold))));
+        if (paid > 0) {
+            player.gold = _num(player.gold) - paid;
+            k.treasury = _num(k.treasury) + paid;
+            Ledger.record(player, 'family', -paid);
+        }
+        if (paid < due) {
+            HeirAgency._rep(player, b.kingdomId, _num((HeirAgency._raisingCfg().betrothal || {}).shortfallReputation));
+            out.notices.push({ icon: '💰', title: 'A Short Dowry', text: `The House could pay only ${paid} of the ${due} gold still owed on ${child.firstName}'s dowry. ${k.name} notices.`, type: 'warning' });
+        }
         up.spouse = { kind: 'alliance', kingdomId: b.kingdomId, kingdomName: k.name, name: b.name, day, betrothed: b.day };
         up.placement = { kind: 'alliance', kingdomId: b.kingdomId, kingdomName: k.name, day };
         HeirAgency._rep(player, b.kingdomId, Math.max(0, _num(hc.allianceReputation) - HeirAgency.config().betrothalReputation));
         if (player.house) {
-            House.award(player.house, _num(hc.alliancePrestige), `${child.firstName} weds into ${k.name}`, day);
-            House._chronicle(player.house, world, `Come of age, ${child.firstName} weds ${b.name} as was promised, binding ${player.house.name} to ${k.name}.`, ['marriage', 'heirs']);
+            House.award(player.house, _num(hc.alliancePrestige), `${child.firstName} weds into ${Names.realm(k.name)}`, day);
+            House._chronicle(player.house, world, `Come of age, ${child.firstName} weds ${b.name} as was promised, binding ${player.house.name} to ${Names.realm(k.name)}.`, ['marriage', 'heirs']);
         }
         Heirs._recordMatch(player, world, child, up.spouse);
         if (k.lord) NPCLords.rememberDeed(world, k.lord, 'child_wed', { note: child.firstName });
         HeirAgency.letter(player, world, child, `${child.firstName} is wed`, `The promise is kept: I am wed to ${b.name}. ${k.name} counts our House as kin now.`, b.kingdomId);
-        out.notices.push({ icon: '💍', title: 'A Promise Kept', text: `${child.firstName} weds ${b.name} of ${k.name}, as was promised.`, type: 'success' });
+        out.notices.push({ icon: '💍', title: 'A Promise Kept', text: `${child.firstName} weds ${b.name} of ${Names.realm(k.name)}, as was promised.`, type: 'success' });
     },
 
     // ──────────── COMMISSIONS ────────────
@@ -391,7 +431,7 @@ export const HeirAgency = {
         if (why) return { success: false, reason: why };
         const k = HeirAgency._kingdom(world, kid);
         if (!k || k.isAlive === false) return { success: false, reason: 'No such court.' };
-        if (CourtLetters.atWar(player, world, kid)) return { success: false, reason: `You are at war with ${k.name}; no envoy would be received.` };
+        if (CourtLetters.atWar(player, world, kid)) return { success: false, reason: `You are at war with ${Names.realm(k.name)}; no envoy would be received.` };
         if (_num(player.gold) < cfg.envoyCost) return { success: false, reason: `An embassy costs ${cfg.envoyCost} gold in gifts and retinue.` };
         player.gold -= cfg.envoyCost;
         Ledger.record(player, 'family', -cfg.envoyCost);
@@ -402,7 +442,7 @@ export const HeirAgency = {
         if (player.house && player.house.roles) {
             for (const r of House.ROLE_IDS) if (r !== 'heir' && player.house.roles[r] === child.id) player.house.roles[r] = null;
         }
-        if (player.house) House._chronicle(player.house, world, `${child.firstName} rides as envoy to the court of ${k.name}.`, ['heirs', 'court']);
+        if (player.house) House._chronicle(player.house, world, `${child.firstName} rides as envoy to the court of ${Names.realm(k.name)}.`, ['heirs', 'court']);
         return { success: true, child, commission: a.commission, cost: cfg.envoyCost };
     },
 
@@ -560,6 +600,19 @@ export const HeirAgency = {
                     HeirAgency.letter(player, world, child, `${child.firstName} comes home`, `I am home from the court of ${p.lordName}. I learned more there than I can write — and ${p.lordName} bids me remember them kindly.`, p.kingdomId);
                 }
             }
+            // A betrothal across a war that will not end: they break it, and send back the gift
+            if (a.betrothal && !up.spouse && !up.comeOfAge) {
+                const b = a.betrothal;
+                if (CourtLetters.atWar(player, world, b.kingdomId)) {
+                    if (b.warSince == null) b.warSince = day;
+                    if (day - b.warSince >= _num((HeirAgency._raisingCfg().betrothal || {}).warBreakDays, 60)) {
+                        const res = HeirAgency.breakBetrothal(player, world, child.id, 'the war between the Houses', { byThem: true });
+                        out.notices.push({ icon: '💔', title: 'A Betrothal Ended', text: `With no end to the war, ${b.kingdomName} breaks ${child.firstName}'s betrothal to ${b.name}${res.refund ? ` and sends back ${res.refund} gold of the gift` : ''}.`, type: 'warning' });
+                    }
+                } else if (b.warSince != null) {
+                    b.warSince = null;
+                }
+            }
             // The betrothed come of age (or are married elsewhere)
             if (a.betrothal) {
                 if (up.spouse) {
@@ -636,9 +689,9 @@ export const HeirAgency = {
         a.record.bonds[k.id] = Math.min(cfg.fosterBondCap, _num(a.record.bonds[k.id]) + cfg.envoyBond);
         a.record.envoys.push({ kingdomId: k.id, kingdomName: k.name, day, reputation: rep });
         HeirAgency._train(child, 'diplomacy', 1);
-        if (player.house) House._chronicle(player.house, world, `${child.firstName} returns from an embassy to ${k.name}.`, ['heirs', 'court']);
-        HeirAgency.letter(player, world, child, `The embassy to ${k.name}`, `My embassy is done. ${HeirAgency._lordName(k)} received me well; our standing at that court has risen (+${rep}).`, k.id);
-        out.notices.push({ icon: '📜', title: 'An Embassy Returns', text: `${child.firstName} is home from ${k.name}: +${rep} standing there.`, type: 'success' });
+        if (player.house) House._chronicle(player.house, world, `${child.firstName} returns from an embassy to ${Names.realm(k.name)}.`, ['heirs', 'court']);
+        HeirAgency.letter(player, world, child, `The embassy to ${Names.realm(k.name)}`, `My embassy is done. ${HeirAgency._lordName(k)} received me well; our standing at that court has risen (+${rep}).`, k.id);
+        out.notices.push({ icon: '📜', title: 'An Embassy Returns', text: `${child.firstName} is home from ${Names.realm(k.name)}: +${rep} standing there.`, type: 'success' });
     },
 
     // ──────────── SUCCESSION ────────────
@@ -673,7 +726,7 @@ export const HeirAgency = {
             if (!k || k.isAlive === false) continue;
             rep(kid, P.envoyReputation);
             plan.prestige += P.envoyPrestige;
-            plan.lines.push({ icon: '📜', text: `Once envoy to ${k.name} (+${P.envoyReputation} standing).` });
+            plan.lines.push({ icon: '📜', text: `Once envoy to ${Names.realm(k.name)} (+${P.envoyReputation} standing).` });
         }
         const won = _num(rec.battles.won);
         if (rec.battles.fought > 0) {
@@ -695,6 +748,29 @@ export const HeirAgency = {
             plan.prestige += P.stewardPrestige;
             plan.commerce += P.stewardCommerce;
             plan.lines.push({ icon: '🏛️', text: `Governed a holding for ${rec.stewardDays} days (+${P.stewardCommerce} commerce).` });
+        }
+        // Raised beside a ward of another realm (systems/raising.js)
+        const R = HeirAgency._raisingCfg();
+        const RP = _obj(R.payoff) || {};
+        for (const [kid, months] of Object.entries(rec.wardmates || {})) {
+            if (_num(months) < _num(RP.wardmateMonths, 6)) continue;
+            const k = HeirAgency._kingdom(world, kid);
+            if (!k || k.isAlive === false) continue;
+            const n = Math.min(_num(RP.wardmateRepCap, 8), Math.floor(_num(months) / Math.max(1, _num(RP.wardmateMonthsPerRep, 3))));
+            if (n <= 0) continue;
+            rep(kid, n);
+            plan.lines.push({ icon: '🎓', text: `Grew up beside a ward of ${Names.realm(k.name)} (+${n} standing).` });
+        }
+        // The bond with the parent (systems/raising.js)
+        const rb = up.raising;
+        if (rb && Number.isFinite(rb.bond)) {
+            if (rb.bond >= _num(R.closeBond, 70) && _num(RP.closePrestige)) {
+                plan.prestige += _num(RP.closePrestige);
+                plan.lines.push({ icon: '❤️', text: `Close to the late ruler: the court sees their work carried on (+${_num(RP.closePrestige)} Prestige).` });
+            } else if (rb.bond <= _num(R.distantBond, 25) && _num(RP.distantPrestige)) {
+                plan.prestige += _num(RP.distantPrestige);
+                plan.lines.push({ icon: '🥀', text: `Estranged from the late ruler: the court whispers of it (${_num(RP.distantPrestige)} Prestige).` });
+            }
         }
         const sp = up.spouse;
         if (sp && (sp.kind === 'alliance' || sp.kind === 'royal') && sp.kingdomId) {

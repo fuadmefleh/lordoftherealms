@@ -10,6 +10,22 @@
 
 export const Names = {
     /**
+     * A realm's name as it reads inside a sentence: a styled name takes "the"
+     * ('Kingdom of Valdoria' → 'the Kingdom of Valdoria', 'The Kharzun Khanate'
+     * → 'the Kharzun Khanate'); a bare one stands alone ('Westmarch'). So
+     * "the court of the Kingdom of Valdoria", never "of Kingdom of Valdoria".
+     * `cap`: capitalised, for the head of a sentence or a title.
+     */
+    realm(name, cap = false) {
+        const s = String(name == null ? '' : name).trim();
+        if (!s) return s;
+        let out = s;
+        if (/^the\s/i.test(s)) out = `the ${s.slice(4)}`;
+        else if (/^[A-Z][\w'-]*(?:[ -][A-Z][\w'-]*)?\s+of\s+\S/.test(s)) out = `the ${s}`;
+        return cap ? out.charAt(0).toUpperCase() + out.slice(1) : out;
+    },
+
+    /**
      * A name from `pool`, starting at index floor(r * pool.length) and walking
      * forward (wrapping) past every name `isTaken(name)` reports. `r` is one
      * draw in [0, 1). Null for an empty pool.

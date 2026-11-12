@@ -6,12 +6,13 @@ import { Camera, Renderer, Player, World, SaveLoad, Terrain, Banking, MarketDyna
 import { DayClock } from './dayClock.js';
 import { Infrastructure } from '../../systems/infrastructure.js';
 import { PlayerWorks } from '../../player/playerWorks.js';
+import { TradeLines } from '../../player/tradeLines.js';
 import { BackRooms } from '../../systems/backRooms.js';
 import { Afterlife } from '../../player/afterlife.js';
 import { DawnBirth } from '../../player/dawnBirth.js';
 import { Barter } from '../../world/barter.js';
 import { Parentage } from '../../player/parentage.js';
-import { AutoUpkeep } from '../../player/autoUpkeep.js';
+import { StandingOrders } from '../../player/standingOrders.js';
 import { Languages } from '../../systems/languages.js';
 import { Commissions } from '../../systems/commissions.js';
 import { Traits } from '../../systems/traits.js';
@@ -30,6 +31,7 @@ import { Nemesis } from '../../systems/nemesis.js';
 import { HouseQuests } from '../../systems/houseQuests.js';
 import { Upbringing } from '../../systems/upbringing.js';
 import { HeirAgency } from '../../systems/heirAgency.js';
+import { Raising } from '../../systems/raising.js';
 import { Regency } from '../../systems/regency.js';
 import { Abdication } from '../../systems/abdication.js';
 import { Townsfolk } from '../../systems/townsfolk.js';
@@ -225,8 +227,13 @@ export function endDay() {
         return;
     }
 
+    // A time skip (ui/timeSkip.js) runs its days back to back: no chime, no pause
+    // for the loading state, and the map, stats and panels are brought up to date
+    // once when it ends (TimeSkip.run → _settleUi), not after every day
+    const skipping = !!this._timeSkip;
+
     // Play end-turn SFX
-    audioManager.playSFX('turn');
+    if (!skipping) audioManager.playSFX('turn');
 
     // Confirm end day if enabled
     if (this.ui && this.ui._confirmEndDay && !this._endDayConfirmed) {
@@ -238,10 +245,10 @@ export function endDay() {
     this.isProcessingTurn = true;
     document.body.style.cursor = 'wait';
     // The panel open as the day ends redraws with the new day's values (ui/panelRefresh.js)
-    const panelBefore = PanelRefresh.snapshot(this.ui);
+    const panelBefore = skipping ? null : PanelRefresh.snapshot(this.ui);
 
     // Use setTimeout to allow UI to update (show loading state) before heavy processing
-    setTimeout(() => {
+    const runTurn = () => {
         let heldScan = false;
         try {
             // A choice scene left open (sea, digs, prison, duties) is settled first (ui/actionMenu/choiceScenes.js)
@@ -249,8 +256,12 @@ export function endDay() {
             // The day's last hours: points left over go on the character's own
             // upkeep — a wash, clean clothes, a bed, an evening's company
             // (player/autoUpkeep.js; Settings → The Day's Last Hours)
-            const upkeep = AutoUpkeep.run(this.player, this.world, { mode: this.ui && this.ui._autoUpkeep });
+            // — then the standing order with what's left: work, gather, train,
+            // tend the holdings, drill, pray (player/standingOrders.js; set in the Wait panel)
+            const lastHours = StandingOrders.endOfDay(this.player, this.world, { upkeepMode: this.ui && this.ui._autoUpkeep });
+            const upkeep = lastHours.upkeep;
             if (upkeep) this.ui.showNotification('🌙 The Day\'s Last Hours', upkeep.text, 'info');
+            if (lastHours.order) this.ui.showNotification(lastHours.order.title, lastHours.order.text, lastHours.order.ran ? 'info' : 'warning');
             // Process player's daily activities
             const playerResults = PlayerActions.endDay(this.player, this.world);
             // A night between: whatever a deep dive took, the breath is back (player/diving.js)
@@ -440,6 +451,13 @@ export function endDay() {
                 }
             }
 
+            // Standing trade lines: caravans and ships going round their stops,
+            // buying and selling by the player's rules (player/tradeLines.js)
+            {
+                const linesDay = TradeLines.processDay(this.world, this.player);
+                for (const n of linesDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            }
+
             // Building work on everything the player has under way: properties,
             // temples, cultural buildings, roads (player/playerWorks.js — paced by
             // season, weather and hired crews, systems/construction.js)
@@ -495,6 +513,8 @@ export function endDay() {
                 // Children abroad and at work (fosterings, betrothals, embassies, a commander's wounds),
                 // and a child's reign under a regent (systems/heirAgency.js, systems/regency.js)
                 for (const n of HeirAgency.processDay(this.player, this.world).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+                // Time together, tutors' wages, wards at court, the coming-of-age summary (systems/raising.js)
+                for (const n of Raising.processDay(this.player, this.world).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
                 for (const n of Regency.processDay(this.player, this.world).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
                 // The rulers who stepped down: pensions, counsel, plots; the court's pressure to step down (systems/abdication.js)
                 const abd = Abdication.processDay(this.player, this.world);
@@ -999,11 +1019,12 @@ export function endDay() {
             // The day's visibility pass re-fogs the map; standing cheats put it back
             if (this._cheats) this.ui.applyCheats(true);
 
-            // Show reachable hexes for the new day
-            this.renderer.reachableHexes = this.player.getReachableHexes(this.world);
-
-            this.ui.updateStats(this.player, this.world);
-            this.minimap.invalidate();
+            // Show reachable hexes for the new day (a time skip does it once, at its end)
+            if (!skipping) {
+                this.renderer.reachableHexes = this.player.getReachableHexes(this.world);
+                this.ui.updateStats(this.player, this.world);
+                this.minimap.invalidate();
+            }
 
             // Show player production notifications
             if (playerResults.production && Object.keys(playerResults.production).length > 0) {
@@ -1285,7 +1306,10 @@ export function endDay() {
             // (SaveLoad.shouldAutoSave; the run record: systems/metaLegacy.js, ui/game/ironman.js)
             MetaLegacy.ensureRun(this.world);
             settleIronmanDeath(this);
-            if (SaveLoad.shouldAutoSave(this)) {
+            // (a time skip saves once, when it ends: TimeSkip.run)
+            if (skipping && SaveLoad.shouldAutoSave(this)) {
+                this._timeSkip.saveDue = true;
+            } else if (SaveLoad.shouldAutoSave(this)) {
                 const result = SaveLoad.saveGame(this);
                 if (result.success && !SaveLoad.isIronman(this)) {
                     this.ui.showNotification('Auto-Saved', 'Game progress saved', 'default');
@@ -1385,7 +1409,9 @@ export function endDay() {
             const prevSeason = this._bannerSeason, prevYear = this._bannerYear;
             this._bannerSeason = this.world.season;
             this._bannerYear = this.world.year;
-            showDayBanner({
+            // (a time skip: no banner, brief or badge each day — ui/actionMenu/timeSkip.js
+            // shows the brief and the badge once the wait is over)
+            if (!skipping) showDayBanner({
                 dayOfSeason: ((this.world.day - 1) % 30) + 1,
                 season: this.world.season,
                 year: this.world.year,
@@ -1393,8 +1419,10 @@ export function endDay() {
                     : prevSeason != null && prevSeason !== this.world.season ? 'season' : 'day',
             });
             // The Steward's morning brief: the top three matters (setting: morningBrief)
-            showMorningBrief(this);
-            updateCounselBadge(this);
+            if (!skipping) {
+                showMorningBrief(this);
+                updateCounselBadge(this);
+            }
             // Waking in the town of a map-owner you robbed: he finds you at breakfast, not only on arrival (systems/mapTheft.js)
             if (!this._voyageDay) checkMapAccusation(this);
 
@@ -1411,11 +1439,14 @@ export function endDay() {
             if (heldScan) this.world.releaseSettlementScan();
             this.isProcessingTurn = false;
             document.body.style.cursor = 'default';
-            PanelRefresh.refreshAfterDay(this.ui, panelBefore);
+            if (!skipping) PanelRefresh.refreshAfterDay(this.ui, panelBefore);
             // A standing order to chart the area goes on in the morning (ui/game/autoChart.js)
             if (this.player && this.player.autoChart && !this.player.isMoving) setTimeout(() => this._autoChartStep(), 0);
         }
-    }, 50);
+    };
+    // (a time skip runs the turn at once: TimeSkip's _realDay waits on nothing)
+    if (skipping) runTurn();
+    else setTimeout(runTurn, 50);
 }
 
 /**

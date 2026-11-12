@@ -229,7 +229,7 @@ export const Stewards = {
             const list = Array.isArray(T.holding) ? T.holding : ['Reeve', 'Reeve', 'Steward', 'Governor'];
             return list[_clamp(Holdings.tierIndex(seat.settlement), 0, list.length - 1)] || 'Governor';
         }
-        return T[seat.kind] || { province: 'Royal Governor', estates: 'Bailiff', company: 'Chief Factor' }[seat.kind] || 'Steward';
+        return T[seat.kind] || { province: 'Royal Governor', estates: 'Bailiff', company: 'Chief Factor', trade: 'Master of the Lines' }[seat.kind] || 'Steward';
     },
 
     /** Demesne towns of the realm the player rules: no vassal seated there, not a holding. */
@@ -266,6 +266,11 @@ export const Stewards = {
         if (MerchantHouses.hasCompany(player)) {
             const c = MerchantHouses.company(player);
             out.push({ id: 'company', kind: 'company', place: c.name || 'the company', title: Stewards.titleFor({ kind: 'company' }) });
+        }
+        // The standing trade lines (player/tradeLines.js keeps them on player.tradeLines)
+        const tl = _obj(player.tradeLines);
+        if (tl && Array.isArray(tl.lines) && tl.lines.length) {
+            out.push({ id: 'trade', kind: 'trade', place: 'your trade lines', title: Stewards.titleFor({ kind: 'trade' }) });
         }
         return out;
     },
@@ -467,7 +472,7 @@ export const Stewards = {
         }
         for (const c of Stewards._folkCandidates(world, town, tq, tr, busy, cfg)) {
             if (seat.kind === 'province') c.wage = Math.round(c.wage * 1.5);
-            if (seat.kind === 'company') {
+            if (seat.kind === 'company' || seat.kind === 'trade') {
                 const [lo, hi] = cfg.companyWage;
                 c.wage = Math.round(lo + (c.stewardship / 10) * (hi - lo));
             }
@@ -640,6 +645,13 @@ export const Stewards = {
             const pf = _obj(seat.settlement.provinceFx) || {};
             const collect = s.defiant > _day(world) ? 0 : 1 + (_num(office.stewardship, 5) - 5) * 0.02 + (_num(o.collect) > 0 ? _num(o.collect) * f : _num(o.collect));
             seat.settlement.provinceFx = { collect: _r2(_clamp(collect, 0, 1.4)), skim: _r2(_num(s.skim)), pocket: _num(pf.pocket), by: office.id };
+        } else if (seat.kind === 'trade') {
+            // The Master of the Lines: their haggling and their skim, read by player/tradeLines.js
+            const tl = _obj(player.tradeLines);
+            if (tl) {
+                const prev = _obj(tl.factorFx) || {};
+                tl.factorFx = { haggle: _r2(_num(fx.haggle) * 1000) / 1000, skim: _r2(_num(s.skim)), pocket: _num(prev.pocket), by: office.id };
+            }
         } else if (seat.kind === 'estates') {
             const st = Stewards.state(player);
             const prev = _obj(st.estatesFx) || {};
@@ -694,6 +706,10 @@ export const Stewards = {
             delete st.seats[seat.id];
             if (seat.kind === 'province' && seat.settlement) delete seat.settlement.provinceFx;
             if (seat.kind === 'estates') st.estatesFx = null;
+            if (seat.kind === 'trade' && _obj(player.tradeLines)) {
+                // What they kept back of the takings goes with them
+                player.tradeLines.factorFx = null;
+            }
         }
         Stewards.state(player).pending = Stewards.state(player).pending.filter(p => p.seatId !== seat.id);
     },
@@ -908,6 +924,10 @@ export const Stewards = {
             const c = MerchantHouses.company(player);
             return Math.round(_num(c && c.weeks && c.weeks[0] && c.weeks[0].income));
         }
+        if (seat.kind === 'trade') {
+            const w = _obj(player.tradeLines) && _obj(player.tradeLines.week);
+            return Math.round(Math.max(_num(w && w.last), _num(w && w.revenue)));
+        }
         return 0;
     },
 
@@ -1056,6 +1076,11 @@ export const Stewards = {
                     taken = Math.min(Math.max(0, _num(c.capital)), Math.floor(income * s.skim));
                     c.capital -= taken;
                 }
+            } else if (seat.kind === 'trade') {
+                // (kept back of the lines' sales as they were made: player/tradeLines.js)
+                const ff = _obj(player.tradeLines) && _obj(player.tradeLines.factorFx);
+                taken = ff ? _num(ff.pocket) : 0;
+                if (ff) ff.pocket = 0;
             }
         }
         if (taken > 0) {
@@ -1137,13 +1162,14 @@ export const Stewards = {
                 if (c) c.reputation = _clamp(_num(c.reputation) + 2, 0, 100);
             }
             player.renown = _num(player.renown) + X.renown;
-            const what = seat.kind === 'company' ? 'wins the company good name with the guilds'
+            const what = seat.kind === 'trade' ? 'finds better buyers along the lines'
+                : seat.kind === 'company' ? 'wins the company good name with the guilds'
                 : seat.kind === 'estates' ? 'settles the tenants\' quarrels fairly' : 'settles an old feud and hurries the works';
             s.season.notes.push(what);
         }
         const cruel = s.traits.some(t => (Stewards.data().cruel || ['cruel', 'greedy']).includes(t));
         const ab = A.chance * _num(o.abuse, 1) * (cruel ? 2 : 1) * (1.2 - s.honesty);
-        if (seat.kind !== 'company' && Utils.random() < ab) {
+        if (seat.kind !== 'company' && seat.kind !== 'trade' && Utils.random() < ab) {
             s.abuses++;
             s.season.abuses++;
             st.stats.abuses++;
@@ -1266,8 +1292,8 @@ export const Stewards = {
         }
         Stewards._vacate(player, world, seat, office, 'fled', out);
         st.stats.defections++;
-        const text = `${name}, your ${seat.title.toLowerCase()}, flees with what they had of your rents.`;
-        Stewards._note(out, '🏃', 'The Bailiff Flees', text, 'error');
+        const text = `${name}, your ${seat.title.toLowerCase()}, flees with what they had of your ${seat.kind === 'trade' ? 'lines\' takings' : 'rents'}.`;
+        Stewards._note(out, '🏃', seat.kind === 'trade' ? 'The Master of the Lines Flees' : 'The Bailiff Flees', text, 'error');
         Stewards._log(player, world, text);
     },
 
@@ -1374,6 +1400,7 @@ export const Stewards = {
         if (seat.kind === 'holding') bits.push(`taxes ${claimed}g this season, unrest ${Math.round(unrest)}`);
         else if (seat.kind === 'province') bits.push(`the crown's dues ${claimed}g this season`);
         else if (seat.kind === 'estates') bits.push(`rents ${claimed}g this season`);
+        else if (seat.kind === 'trade') bits.push(`the lines' sales ${claimed}g this season`);
         else bits.push(`the company's trade ${claimed}g this season`);
         for (const n of (season.notes || []).slice(-2)) bits.push(n);
         let text = `${seat.title} ${office.name} of ${seat.place}: ${bits.join('; ')}. "${quote}"`;

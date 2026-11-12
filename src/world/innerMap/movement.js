@@ -2,6 +2,7 @@
 import { InnerMap } from './_ref.js';
 import { Utils, Hex, CustomObjects, CustomBuildings, CustomInteriors, generateSpriteInterior, SettlementGenerator, DataLoader, Terrain, NpcFamily } from './_imports.js';
 import { stepBlockedBySides } from '../../core/tileSides.js';
+import { Woodlands } from '../woodlands.js';
 
 // A step through a shut gate counts this much on a path (world/innerMap/gates.js)
 const GATE_PATH_COST = 2;
@@ -180,11 +181,8 @@ Object.assign(InnerMap, {
      *   str=10, luck=5 → ~35.5% (~3  swings)
      */
     _computeObjectDamage(player, def) {
-        const str    = (player && player.strength) || 5;
-        const luck   = (player && player.luck)     || 5;
-        const base   = str * 3 + luck * 0.5 + 3;         // base %
-        const resist = def && def.resistance != null ? Math.min(def.resistance, 95) : 0;
-        return base * (1 - resist / 100);
+        // (the one formula, shared with the "Fell timber" standing order: world/woodlands.js)
+        return Woodlands.blowDamage(player, def);
     },
 
     /**

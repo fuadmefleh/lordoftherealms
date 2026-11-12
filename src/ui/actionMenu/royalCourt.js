@@ -6,6 +6,7 @@ import { ActionMenu } from './_ref.js';
 import { Kingship } from '../../systems/kingship.js';
 import { Throne, House } from './_imports.js';
 import { panelTabs, lede, chips, sectionHead, kv, card, actRow, rowList, price, BTN_GOLD, BTN_RED, BTN_OFF } from './uiKit.js';
+import { Names } from '../../core/names.js';
 
 const MUTED = 'color: #9d937c; font-size: 11px;';
 const TABS = [['council', '🏛️ Council'], ['edicts', '📜 Edicts'], ['vassals', '🛡️ Vassals'], ['realm', '👑 Realm']];
@@ -264,18 +265,18 @@ Object.assign(ActionMenu, {
         const court = Kingship.court(player);
         let html = '<div style="font-size:12px;">';
         html += panelTabs(game, {
-            id: 'royalCourt', title: `🏛️ The Royal Court of ${k.name}`, tabs: TABS, active: tab,
+            id: 'royalCourt', title: `🏛️ The Royal Court of ${Names.realm(k.name)}`, tabs: TABS, active: tab,
             go: (id) => { ActionMenu.showRoyalCourt(game, tile, id); },
             attrsFor: (id) => `onclick="window._court.tab('${id}')"`,
         });
         if (!court.initialized) {
-            html += lede(`The lords of ${_esc(k.name)} will come to swear fealty at the end of the day.`);
+            html += lede(`The lords of ${_esc(Names.realm(k.name))} will come to swear fealty at the end of the day.`);
         } else if (tab === 'edicts') html += _edictsTab(player, world);
         else if (tab === 'vassals') html += _vassalsTab(player, world);
         else if (tab === 'realm') html += _realmTab(player, world);
         else html += _councilTab(player, world);
         html += '</div>';
-        game.ui.showCustomPanel(`🏛️ The Royal Court of ${k.name}`, html);
+        game.ui.showCustomPanel(`🏛️ The Royal Court of ${Names.realm(k.name)}`, html);
 
         const reopen = () => ActionMenu.showRoyalCourt(game, tile, tab);
         const result = (title, res) => ActionMenu._realmResult(game, title, res, reopen);

@@ -237,6 +237,8 @@ Object.assign(PlayerEconomy, {
         const caravanUnit = new WorldUnit('caravan', route.fromPos.q, route.fromPos.r, route.toPos.q, route.toPos.r);
         caravanUnit.playerOwned = true;
         caravanUnit.goods = { ...goods };
+        // What rides on the wagons is what a robber takes (world/units.js), not a trader's stock from nowhere
+        caravanUnit.inventory = { ...goods };
         caravanUnit.isSmugglingRoute = !!route.isSmuggling;
         PlayerEconomy._applyRoadLink(world, caravan, caravanUnit);
         world.units.push(caravanUnit);

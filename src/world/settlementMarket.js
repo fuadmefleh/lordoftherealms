@@ -67,6 +67,7 @@ const PLENTY_GROUPS = ['drink', 'luxury'];
 let _cfgSrc;
 let _cfg = null;
 const _shapes = new WeakMap();
+const _goodTables = new WeakMap();
 
 /** The built config: data/markets.json merged over empty defaults. */
 function buildConfig(src) {
@@ -260,7 +261,8 @@ export const SettlementMarket = {
 
     /**
      * Per-settlement need table for its current size and type (memoised:
-     * prices are read many times a day): { used, need, target } by good.
+     * prices are read many times a day): { usedA, needA, targetA }, typed
+     * arrays in config order (C.idx[goodId] → index).
      */
     _shape(settlement) {
         const C = SettlementMarket.config();
@@ -284,29 +286,45 @@ export const SettlementMarket = {
             return sh;
         }
         const n = C.goodIds.length;
+        // (always fresh arrays: a caller may still hold the old table mid-trade)
         sh = {
-            pop, type, cfg: C, dm, wm, used: {}, need: {}, target: {},
+            pop, type, cfg: C, dm, wm,
             usedA: new Uint8Array(n), needA: new Float64Array(n), targetA: new Float64Array(n),
             lab, lcfg, mk: lab ? lab.mk : undefined, lsh: lab ? lab.sh : undefined, fk: lab ? lab.fk : undefined,
         };
         const rank = Number.isFinite(C.typeRank[type]) ? C.typeRank[type] : 0;
         const td = _num(C.typeDemand[type], 1) || 1;
-        C.goodIds.forEach((id, i) => {
-            const g = C.goods[id];
-            const minRank = Number.isFinite(C.typeRank[g.minType]) ? C.typeRank[g.minType] : 0;
-            const used = g.perCapita > 0 && rank >= minRank;
-            const need = used ? pop * g.perCapita * td * (dm ? dm[i] : 1) * wm : 0;
+        const G = SettlementMarket._goodTable(C);
+        const usedA = sh.usedA, needA = sh.needA, targetA = sh.targetA;
+        for (let i = 0; i < n; i++) {
+            const perCapita = G.perCapita[i];
+            const used = perCapita > 0 && rank >= G.minRank[i];
+            const need = used ? pop * perCapita * td * (dm ? dm[i] : 1) * wm : 0;
             // (a town keeps at least the good's minStock of what its people use)
-            const target = Math.max(Math.max(0.05, need > 0 ? need : pop * g.perCapita * C.noNeedRef) * g.days, used ? g.minStock : 0);
-            sh.used[id] = used;
-            sh.need[id] = need;
-            sh.target[id] = target;
-            sh.usedA[i] = used ? 1 : 0;
-            sh.needA[i] = need;
-            sh.targetA[i] = target;
-        });
+            const target = Math.max(Math.max(0.05, need > 0 ? need : pop * perCapita * C.noNeedRef) * G.days[i], used ? G.minStock[i] : 0);
+            usedA[i] = used ? 1 : 0;
+            needA[i] = need;
+            targetA[i] = target;
+        }
         _shapes.set(settlement, sh);
         return sh;
+    },
+
+    /** The goods' per-head use, rank, days and minimum stock as arrays in config order (once per config). */
+    _goodTable(C) {
+        let G = _goodTables.get(C);
+        if (G) return G;
+        const ids = C.goodIds;
+        G = { perCapita: [], minRank: [], days: [], minStock: [] };
+        for (let i = 0; i < ids.length; i++) {
+            const g = C.goods[ids[i]];
+            G.perCapita.push(g.perCapita);
+            G.minRank.push(Number.isFinite(C.typeRank[g.minType]) ? C.typeRank[g.minType] : 0);
+            G.days.push(g.days);
+            G.minStock.push(g.minStock);
+        }
+        _goodTables.set(C, G);
+        return G;
     },
 
     /**
@@ -372,7 +390,7 @@ export const SettlementMarket = {
     /** Do this settlement's people use the good (its size is at least the good's minType)? */
     uses(settlement, goodId) {
         if (!settlement || !SettlementMarket.good(goodId)) return false;
-        return SettlementMarket._shape(settlement).used[goodId];
+        return SettlementMarket._shape(settlement).usedA[SettlementMarket.config().idx[goodId]] === 1;
     },
 
     _pop(settlement) {
@@ -387,19 +405,19 @@ export const SettlementMarket = {
     /** Units a day the settlement's people use of a good in fair weather (0 when they don't use it). */
     need(settlement, goodId) {
         if (!settlement || !SettlementMarket.good(goodId)) return 0;
-        return SettlementMarket._shape(settlement).need[goodId];
+        return SettlementMarket._shape(settlement).needA[SettlementMarket.config().idx[goodId]];
     },
 
     /** The daily need prices are measured against (a small trading need where nobody uses it). */
     refNeed(settlement, goodId) {
         const g = SettlementMarket.good(goodId);
-        return g && settlement ? SettlementMarket._shape(settlement).target[goodId] / g.days : 0;
+        return g && settlement ? SettlementMarket._shape(settlement).targetA[SettlementMarket.config().idx[goodId]] / g.days : 0;
     },
 
     /** The stock a market aims to hold: its reference need × the good's target days. */
     target(settlement, goodId) {
         if (!settlement || !SettlementMarket.good(goodId)) return 0;
-        return SettlementMarket._shape(settlement).target[goodId];
+        return SettlementMarket._shape(settlement).targetA[SettlementMarket.config().idx[goodId]];
     },
 
     // ── State ─────────────────────────────────────────────
@@ -735,7 +753,8 @@ export const SettlementMarket = {
         if (!m || !m.stock || !SettlementMarket.tracks(goodId)) return 1;
         const stock = level == null ? Math.max(0, _num(m.stock[goodId])) : Math.max(0, level);
         const sh = SettlementMarket._shape(settlement);
-        return SettlementMarket.curve(stock / sh.target[goodId], sh.used[goodId]);
+        const i = SettlementMarket.config().idx[goodId];
+        return SettlementMarket.curve(stock / sh.targetA[i], sh.usedA[i] === 1);
     },
 
     /**
@@ -1119,6 +1138,20 @@ export const SettlementMarket = {
         return 1 + (Seasons.settlementFoodMultiplier(day) - 1) * k;
     },
 
+    /**
+     * The distant years (player/afterlife.js passDay on a long wait sets
+     * world._distant): every market and link takes its turn together once
+     * every `marketSpan` days, worked as that many days (processSettlement's
+     * ctx.days, flows' opts.span) — the same goods made, eaten and carried,
+     * in fewer, larger steps. 0 in the ordinary day (each market on its
+     * tickDays slot).
+     */
+    span(world) {
+        const d = world && world._distant;
+        const n = d ? Math.floor(_num(d.marketSpan)) : 0;
+        return n > 1 ? n : 0;
+    },
+
     /** Days between a market's (or a trade link's) turns in the daily tick (data/markets.json tickDays). */
     tickDays() {
         const v = SettlementMarket.config().tickDays;
@@ -1457,9 +1490,12 @@ export const SettlementMarket = {
         const C = SettlementMarket.config();
         const T = C.trade;
         // Each link trades every `tickDays` (staggered by its towns), moving that many days' worth
+        // (opts.span, the distant years: every link at once, moving `span` days' worth)
         const k = SettlementMarket.tickDays();
-        const turn = Number.isFinite(day) && k > 1 ? ((day % k) + k) % k : null;
-        const share = turn !== null ? 1 - Math.pow(1 - T.share, k) : T.share;
+        const span = opts && opts.span > 1 ? Math.floor(opts.span) : 0;
+        const turn = !span && Number.isFinite(day) && k > 1 ? ((day % k) + k) % k : null;
+        const kk = span || (turn !== null ? k : 1);
+        const share = kk > 1 ? 1 - Math.pow(1 - T.share, kk) : T.share;
         const out = { moved: 0, value: 0, gold: 0, barter: 0 };
         const inKindOf = opts && typeof opts.inKind === 'function' ? opts.inKind : null;
         const shortKind = !!(opts && opts.short);
@@ -1509,7 +1545,7 @@ export const SettlementMarket = {
             if (!ma || !mb) continue;
             const sha = SettlementMarket._shape(a), shb = SettlementMarket._shape(b);
             const xa = arr(a), xb = arr(b);
-            let budget = link.capacity * link.factor * (turn !== null ? k : 1);
+            let budget = link.capacity * link.factor * kk;
             // (+ the money changers' spread between two realms' coins: world/moneySupply.js collectTrade)
             const fr = 1 + link.friction + (link.changers > 0 ? link.changers : 0);
             // The road's pace (world/transport.js applyLink: 1 = the old road)

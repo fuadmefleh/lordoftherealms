@@ -643,6 +643,8 @@
     "maxChance": 0.95,
     "_graceDays": "After any encounter on the road, no band waylays you again (nor sets off after you) for this many days.",
     "graceDays": 2,
+    "_newcomer": "A new life's first weeks are calmer (world/units.js newcomerCalm): at the start `spare` of the bands that reach you pass you by (and as much less does any set off after you), tapering to none by `days` days played. A harder difficulty divides it by its enemyStrength.",
+    "newcomer": { "days": 45, "spare": 0.7 },
     "_pursuit": "A band in sight of you (world/units.js updateRaider) sets off after you with this chance a day: alone, against an army it outmatches 3 to 1, against one at least half its match (evenly), else otherwise; a light purse (under poorGold coin and poorGoods goods) is chased poorMult as often.",
     "pursuit": { "alone": 0.45, "outmatched": 0.4, "evenly": 0.12, "otherwise": 0.3, "poorGold": 40, "poorGoods": 6, "poorMult": 0.5, "escortMult": 0.6 },
     "flee": { "base": 0.4, "stealth": 0.03, "mount": 0.2, "cavalry": 0.1, "perUnit": 0.02, "unitCap": 0.25, "cover": 0.05, "openGround": -0.05, "woundMovement": 0.08, "woundBattle": 0.3, "speed": 0.03, "craven": 0.05, "respiteDays": 3 },

@@ -111,6 +111,8 @@ const topLevel = [
     'graves',
     'ambient',
     'autoUpkeep',
+    // What the spare hours of each day go on (player/standingOrders.js)
+    'standingOrders',
     'riverDrift',
     'marketStalls',
     'npcTheft',
@@ -125,6 +127,10 @@ const topLevel = [
     'carts',
     // Stewards, bailiffs and governors (systems/stewards.js)
     'stewards',
+    // The Inventory window's filters by kind (ui/inventoryView.js, ui/ui/inventoryPanel.js)
+    'inventory',
+    // Standing trade and supply lines run by a caravan or a ship (player/tradeLines.js)
+    'tradeLines',
     // The Hall of Houses' unlocks, kept across games (systems/metaLegacy.js)
     'metaLegacy',
     'chronicleBook',
@@ -136,7 +142,9 @@ const topLevel = [
     // Personal quests from the House's own history (systems/houseQuests.js)
     'houseQuests',
     // The Timeline of the Realm (systems/realmTimeline.js)
-    'timeline'
+    'timeline',
+    // The Almanac of the World (systems/almanac.js)
+    'almanac'
 ];
 
 const merged = {};

@@ -41,6 +41,7 @@ import { Bourse } from './bourse.js';
 import { RealmWars } from './realmWars.js';
 import { Underworld } from './underworld.js';
 import { Ledger } from './ledger.js';
+import { Names } from '../core/names.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -373,7 +374,7 @@ export const Mints = {
         if (day >= _num(L.until)) {
             st.lease = null;
             rec.mint.lease = null;
-            out.notices.push({ icon: '💰', title: 'Mint Lease Ended', text: `Your lease of the mint of ${k.name} has run its term: it paid you ${Math.round(_num(L.earned))}g for ${Math.round(_num(L.fee))}g.`, type: 'info' });
+            out.notices.push({ icon: '💰', title: 'Mint Lease Ended', text: `Your lease of the mint of ${Names.realm(k.name)} has run its term: it paid you ${Math.round(_num(L.earned))}g for ${Math.round(_num(L.fee))}g.`, type: 'info' });
         }
     },
 
@@ -451,8 +452,8 @@ export const Mints = {
         st.stats.sold += n;
         st.stats.soldGold += gold;
         const name = PlayerInventory.describe ? PlayerInventory.describe({ [good]: n }) : `${n} ${good}`;
-        Mints._log(player, world, `Sold ${name} to the mint of ${q.kingdom.name} for ${gold}g.`);
-        return { success: true, gold, qty: n, text: `The mint of ${q.kingdom.name} weighs your ${name} and pays ${gold}g in new coin.` };
+        Mints._log(player, world, `Sold ${name} to the mint of ${Names.realm(q.kingdom.name)} for ${gold}g.`);
+        return { success: true, gold, qty: n, text: `The mint of ${Names.realm(q.kingdom.name)} weighs your ${name} and pays ${gold}g in new coin.` };
     },
 
     // ── Leasing a mint ────────────────────────────────────
@@ -487,8 +488,8 @@ export const Mints = {
         st.lease = { kingdomId: q.kingdom.id, realm: q.kingdom.name, day, until: day + q.days, share: q.share, fee: q.fee, earned: 0 };
         st.stats.leaseFees += q.fee;
         MoneySupply.realm(world, q.kingdom.id).mint.lease = 'player';
-        Mints._log(player, world, `Leased the mint of ${q.kingdom.name} for ${q.fee}g.`);
-        return { success: true, fee: q.fee, text: `You lease the mint of ${q.kingdom.name} for ${q.days} days: ${Math.round(q.share * 100)}% of its seigniorage is yours each week (lately about ${Math.round(q.avg)}g a week in all).` };
+        Mints._log(player, world, `Leased the mint of ${Names.realm(q.kingdom.name)} for ${q.fee}g.`);
+        return { success: true, fee: q.fee, text: `You lease the mint of ${Names.realm(q.kingdom.name)} for ${q.days} days: ${Math.round(q.share * 100)}% of its seigniorage is yours each week (lately about ${Math.round(q.avg)}g a week in all).` };
     },
 
     // ── As ruler ──────────────────────────────────────────
@@ -500,7 +501,7 @@ export const Mints = {
         if (!P[policy]) return { success: false, reason: 'No such policy.' };
         const rec = MoneySupply.ensureRealm(world, k);
         rec.mint.policy = policy;
-        return { success: true, text: `The mint of ${k.name} now takes ${Math.round(_num(P[policy].seigniorage) * 100)}% seigniorage.` };
+        return { success: true, text: `The mint of ${Names.realm(k.name)} now takes ${Math.round(_num(P[policy].seigniorage) * 100)}% seigniorage.` };
     },
 
     royalRecoin(player, world) {
@@ -520,8 +521,8 @@ export const Mints = {
         const f = Finance.kingdomState(k);
         f.treasurersCoin = !!on;
         return { success: true, text: on
-            ? `Your treasurers may now strike baser coin when the chests of ${k.name} run dry, and call it in for a recoinage when they are full again.`
-            : `Your treasurers will not touch the coin of ${k.name}: debasing and recoining are yours alone.` };
+            ? `Your treasurers may now strike baser coin when the chests of ${Names.realm(k.name)} run dry, and call it in for a recoinage when they are full again.`
+            : `Your treasurers will not touch the coin of ${Names.realm(k.name)}: debasing and recoining are yours alone.` };
     },
 
     /** May the ruler's treasurers touch the coin? */
@@ -570,7 +571,7 @@ export const Mints = {
                 const res = Underworld._arrest(player, world, tile.settlement, 'coining');
                 if (res) jail = ` ${res.text}`;
             }
-            Mints._log(player, world, `Caught passing false coin in ${q.kingdom.name}: lost ${loss}g.`);
+            Mints._log(player, world, `Caught passing false coin in ${Names.realm(q.kingdom.name)}: lost ${loss}g.`);
             return { success: true, caught: true, loss, text: `A money changer bites a piece and spits. The watch takes your false coin and fines you: ${loss}g lost, and ${q.kingdom.name} will know your face.${jail}` };
         }
         const gain = q.gain;
@@ -583,8 +584,8 @@ export const Mints = {
         MoneySupply.note(world, q.kingdom.id, gain, 'counterfeit');
         st.stats.passed++;
         st.stats.counterfeitGain += gain;
-        Mints._log(player, world, `Passed false coin in ${q.kingdom.name}: ${gain}g gained.`);
-        return { success: true, caught: false, gain, text: `The silvered pieces pass from hand to hand in the markets of ${q.kingdom.name}. You clear ${gain}g, and the realm has a little more coin than it knows.` };
+        Mints._log(player, world, `Passed false coin in ${Names.realm(q.kingdom.name)}: ${gain}g gained.`);
+        return { success: true, caught: false, gain, text: `The silvered pieces pass from hand to hand in the markets of ${Names.realm(q.kingdom.name)}. You clear ${gain}g, and the realm has a little more coin than it knows.` };
     },
 
     // ── Counsel ───────────────────────────────────────────

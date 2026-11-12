@@ -63,6 +63,7 @@ import { WorldEvents } from '../world/worldEvents.js';
 import { CrownBooks } from '../world/crownBooks.js';
 import { Couriers } from './couriers.js';
 import { NpcMemory } from './npcMemory.js';
+import { Names } from '../core/names.js';
 
 const OFFICES = ['chancellor', 'marshal', 'steward', 'spymaster', 'highPriest'];
 const TAX_STEPS = ['heavy', 'standard', 'light'];
@@ -505,9 +506,9 @@ export const Kingship = {
         if (def.royalPost) {
             Kingship.syncRoyalPost(player, world);
             const c = Couriers.get(world, opts.courierId);
-            return { success: true, message: `${def.icon} ${c ? c.name : 'The house'} carries the Royal Post of ${k.name}: no other house may carry the realm's mail, and its fee comes to the treasury each week.` };
+            return { success: true, message: `${def.icon} ${c ? c.name : 'The house'} carries the Royal Post of ${Names.realm(k.name)}: no other house may carry the realm's mail, and its fee comes to the treasury each week.` };
         }
-        return { success: true, message: `${def.label} is now the law of ${k.name}. ${def.blurb || ''}`.trim() };
+        return { success: true, message: `${def.label} is now the law of ${Names.realm(k.name)}. ${def.blurb || ''}`.trim() };
     },
 
     revokeEdict(player, world, id, opts = {}) {
@@ -601,7 +602,7 @@ export const Kingship = {
         up.spouse = { kind: 'vassal', kingdomId: t.k.id, kingdomName: t.k.name, name: `kin of ${Kingship.fullName(t.v)}`, day: _day(world) };
         t.v.kin = true;
         Kingship._granted(t.court, world, t.v, 0, `💍 ${child.firstName} weds into the house of ${Kingship.fullName(t.v)}.`);
-        if (player.house) House._chronicle(player.house, world, `${child.firstName} weds into the house of ${Kingship.fullName(t.v)}, a lord of ${t.k.name}.`, ['marriage', 'throne']);
+        if (player.house) House._chronicle(player.house, world, `${child.firstName} weds into the house of ${Kingship.fullName(t.v)}, a lord of ${Names.realm(t.k.name)}.`, ['marriage', 'throne']);
         return { success: true, message: `${child.firstName} weds into the house of ${Kingship.fullName(t.v)}. Kin now, they stand by the crown.` };
     },
 
@@ -633,7 +634,7 @@ export const Kingship = {
         }
         k.stability = Utils.clamp(_num(k.stability) + _num(F.stability), 0, 100);
         if (F.prestige) House.award(player.house, F.prestige, 'a royal feast', _day(world));
-        Kingship._log(court, world, `🍖 A royal feast for ${n} lords of ${k.name}.`);
+        Kingship._log(court, world, `🍖 A royal feast for ${n} lords of ${Names.realm(k.name)}.`);
         return { success: true, message: `${n} lords feast at your table (+${F.favour} favour each, +${F.stability} stability).` };
     },
 
@@ -894,7 +895,7 @@ export const Kingship = {
         for (const v of members) v.factionId = null;
         court.stats.revolts++;
         const d = Kingship.demandText(f.demand);
-        const text = `🔥 ${Kingship.fullName(leader)} and ${members.length - 1} other lord(s) rise in revolt against the crown of ${k.name}, demanding ${d.label}!`;
+        const text = `🔥 ${Kingship.fullName(leader)} and ${members.length - 1} other lord(s) rise in revolt against the crown of ${Names.realm(k.name)}, demanding ${d.label}!`;
         Kingship._log(court, world, text);
         Throne._log(player, world, text);
         if (Array.isArray(world.events)) world.events.push({ text, type: 'military', category: 'MILITARY', kingdom: k.id });
@@ -1258,7 +1259,7 @@ export const Kingship = {
                     if (s.monopolies && s.monopolies[good]) continue;
                     if (!s.monopolies) s.monopolies = {};
                     s.monopolies[good] = {
-                        holder: 'crown', holderName: `the Crown of ${k.name}`, kingdomId: k.id,
+                        holder: 'crown', holderName: `the Crown of ${Names.realm(k.name)}`, kingdomId: k.id,
                         sinceDay: day, untilDay: null, markup: _num(M.markup), revenue: 0,
                     };
                     res.set++;
@@ -1282,7 +1283,7 @@ export const Kingship = {
         if (!courierId) return 'Name the courier house that will carry the realm\'s mail.';
         const c = Couriers.get(world, courierId);
         if (!c || c.alive === false) return 'No such courier house.';
-        if (!Couriers.stationsIn(c, k.id)) return `${c.name} has no station in ${k.name}.`;
+        if (!Couriers.stationsIn(c, k.id)) return `${c.name} has no station in ${Names.realm(k.name)}.`;
         return null;
     },
 
@@ -1317,7 +1318,7 @@ export const Kingship = {
         Kingship.syncRoyalPost(player, world);
         const c = Couriers.get(world, courierId);
         Kingship._log(court, world, `📮 The Royal Post passes from ${old ? old.name : 'its holder'} to ${c.name}.`);
-        return { success: true, message: `📮 ${c.name} now carries the Royal Post of ${k.name}${old ? `, in place of ${old.name}` : ''}.` };
+        return { success: true, message: `📮 ${c.name} now carries the Royal Post of ${Names.realm(k.name)}${old ? `, in place of ${old.name}` : ''}.` };
     },
 
     /** Revoke the Royal Post (repeal the edict): any house may carry the realm's mail again. */
@@ -1489,7 +1490,7 @@ export const Kingship = {
         court.stats.doleGold += res.gold;
         if (res.short && !court.doleShortNoted) {
             court.doleShortNoted = true;
-            Kingship._note(out, '🍞', 'The Dole Runs Short', `The royal treasury cannot buy grain enough for every hungry town of ${k.name}.`, 'warning');
+            Kingship._note(out, '🍞', 'The Dole Runs Short', `The royal treasury cannot buy grain enough for every hungry town of ${Names.realm(k.name)}.`, 'warning');
         } else if (!res.short) {
             court.doleShortNoted = false;
         }
@@ -1694,7 +1695,7 @@ export const Kingship = {
             Kingship._generateVassals(player, world, k, court);
             court.initialized = true;
             court.lastNewVassalDay = day;
-            Kingship._note(out, '🏛️', 'The Royal Court', `${court.vassals.length} lords of ${k.name} owe you fealty. Name your council and proclaim your edicts from the Royal Court.`, 'info');
+            Kingship._note(out, '🏛️', 'The Royal Court', `${court.vassals.length} lords of ${Names.realm(k.name)} owe you fealty. Name your council and proclaim your edicts from the Royal Court.`, 'info');
         }
         Kingship._validateCouncil(player, world, court, out);
         Kingship._payUpkeep(player, world, court, k, out);

@@ -3,6 +3,25 @@ import { Renderer, HEX_FACE_DY } from './core.js';
 import { Hex, Religion, Economy, Infrastructure, Hinterland, Estates } from './_imports.js';
 import { drawIcon } from '../icons.js';
 
+// A colony founded in play keeps camp until this many souls (world/innerMap/camp.js CAMP_OUTGROWN)
+const CAMP_OUTGROWN = 150;
+
+/**
+ * Is this settlement still a camp of tents, as its street map draws it
+ * (world/innerMap/camp.js _isDawnVillage)? → 'hide' (a dawn village), 'canvas'
+ * (a colony freshly founded), or null. Reads only.
+ */
+function _campOf(s) {
+    if (!s) return null;
+    if (s.dawnBorn) {
+        if (s.campEra === true) return s.type === 'village' || s.type === 'town' ? 'hide' : null;
+        if (s.campEra === false) return null;
+        return s.type === 'village' ? 'hide' : null;
+    }
+    if (s.type !== 'village' || !s.colony || s.campOutgrown) return null;
+    return (Number(s.population) || 0) >= CAMP_OUTGROWN ? null : 'canvas';
+}
+
 // A hex's on-screen width in hex radii. Place art (towns, ruins, farms, rural
 // sites) is scaled so a full 256-wide hex-tile frame spans exactly one hex,
 // like the terrain beneath it — it used to be drawn 2.3 radii wide, a third
@@ -166,6 +185,8 @@ Object.assign(Renderer.prototype, {
 
                 const settlement = tile.settlement;
                 let imageName = '', labelSize = 10;
+                // A camp of tents still (as its street map: world/innerMap/camp.js _isDawnVillage)
+                const camp = _campOf(settlement);
 
                 switch (settlement.type) {
                     case 'capital':
@@ -187,6 +208,7 @@ Object.assign(Renderer.prototype, {
                     default:
                         labelSize = 9;
                 }
+                if (camp) imageName = camp === 'hide' ? 'campHide00.png' : 'campCanvas00.png';
 
                 // Draw Sprite
                 const sprite = this.tileSprites.get(imageName);

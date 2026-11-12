@@ -180,10 +180,13 @@ export const PlayerNeedsMethods = {
      * Eat one ration from the pack right now (world-map "Eat a Meal").
      * Best food first, same order as the daily ration. Returns
      * { success, food, hunger } or { success: false, reason }.
+     * `only` eats that food and no other (the Inventory window's Eat).
      */
-    eatMeal() {
+    eatMeal(only = null) {
         if (!this.inventory) return { success: false, reason: 'You have no food.' };
-        for (const food of Object.keys(MEAL_HUNGER)) {
+        if (only && !(only in MEAL_HUNGER)) return { success: false, reason: 'That is not something you can make a meal of.' };
+        if (only && !(this.inventory[only] > 0)) return { success: false, reason: 'You have none of that left.' };
+        for (const food of (only ? [only] : Object.keys(MEAL_HUNGER))) {
             if (this.inventory[food] > 0) {
                 this.inventory[food]--;
                 if (this.inventory[food] <= 0) delete this.inventory[food];

@@ -5,6 +5,7 @@
 import { Utils } from '../core/utils.js';
 import { DataLoader } from '../core/dataLoader.js';
 import { Hex } from '../core/hex.js';
+import { Difficulty } from '../core/difficulty.js';
 import { Kingdom } from './kingdom.js';
 import { Colonization } from './colonization.js';
 import { WEATHER_EFFECTS } from './weather.js';
@@ -130,11 +131,42 @@ export class WorldUnit {
     }
 
     /**
+     * The newcomer's calm: how far the roads let a new life be in its first
+     * weeks (encounters.newcomer: `spare` at the start, tapering to nothing by
+     * `days` days played), less on a harder difficulty (÷ its enemyStrength).
+     * 0..1: the share of bands that pass them by, and how much less any sets
+     * off after them. Reads only.
+     */
+    static newcomerCalm(player, day) {
+        const c = WorldUnit._encounterCfg().newcomer || {};
+        const days = Number.isFinite(Number(c.days)) ? Number(c.days) : 45;
+        const spare = Number.isFinite(Number(c.spare)) ? Number(c.spare) : 0.7;
+        if (!player || !(days > 0) || !(spare > 0)) return 0;
+        const start = player.scenario && Number.isFinite(player.scenario.startDay) ? player.scenario.startDay : 0;
+        const played = Math.max(0, (Number(day) || 0) - start);
+        if (played >= days) return 0;
+        const harder = Math.max(0.5, Difficulty.mult(player, 'enemyStrength'));
+        return Math.max(0, Math.min(1, (spare * (1 - played / days)) / harder));
+    }
+
+    /**
+     * Does this band pass the newcomer by today (newcomerCalm)? Hashed from the
+     * band and the day — the same answer all day, and no draw from the dice.
+     */
+    static passesNewcomer(player, unit, day) {
+        const calm = WorldUnit.newcomerCalm(player, day);
+        if (!(calm > 0) || !unit) return false;
+        let h = 2166136261;
+        for (const ch of `${unit.id}|${Math.floor(Number(day) || 0)}`) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); }
+        return ((h >>> 0) % 10000) / 10000 < calm;
+    }
+
+    /**
      * The chance a day that a band in sight of the player sets off after them
      * (encounters.pursuit): eager for a lone traveller with a full purse, much
      * less for a pauper or against a strong escort.
      */
-    static pursuitChance(player, unit) {
+    static pursuitChance(player, unit, day = null) {
         const p = WorldUnit._encounterCfg().pursuit || {};
         const n = (v, d) => (Number.isFinite(Number(v)) && v !== null && v !== '' ? Number(v) : d);
         const army = player && player.army ? player.army.length : 0;
@@ -147,6 +179,8 @@ export class WorldUnit {
         if (n(player && player.gold, 0) < n(p.poorGold, 40) && goods < n(p.poorGoods, 6)) chance *= n(p.poorMult, 0.5);
         // A party riding in a crown's livery (a realm's household guard: player/realmEscort.js) is let be
         if (player && (player.army || []).some(u => u && u.realmGuard != null)) chance *= n(p.escortMult, 0.6);
+        // A new life's first weeks are calmer (newcomerCalm)
+        if (day != null) chance *= 1 - WorldUnit.newcomerCalm(player, day);
         return chance;
     }
 
@@ -305,7 +339,7 @@ export class WorldUnit {
                 regionId = currentTile.regionId;
             }
 
-            const settlements = world.getAllSettlements();
+            const settlements = (world.getSettlementViews ? world.getSettlementViews() : world.getAllSettlements()); // read-only
             if (settlements.length > 1) {
                 const reachable = settlements.filter(s => {
                     if (s.q === this.q && s.r === this.r) return false;
@@ -420,10 +454,10 @@ export class WorldUnit {
                 if (canReach && WorldUnit.playerInGrace(player, world.day)) canReach = false;
                 if (canReach) {
                     // Chance to decide to pursue (by strength against the player's army, and what they carry)
-                    let pursuitChance = WorldUnit.pursuitChance(player, this);
+                    let pursuitChance = WorldUnit.pursuitChance(player, this, world.day);
 
-                    // Already adjacent? Always engage
-                    if (playerDist <= 1) pursuitChance = 1.0;
+                    // Already adjacent? Always engage (unless it passes a newcomer by today)
+                    if (playerDist <= 1) pursuitChance = WorldUnit.passesNewcomer(player, this, world.day) ? 0 : 1.0;
 
                     if (Utils.random() < pursuitChance) {
                         this.targetQ = player.q;
@@ -513,7 +547,7 @@ export class WorldUnit {
             const currentTile = world.getTile(this.q, this.r);
             const regionId = currentTile ? currentTile.regionId : null;
 
-            const settlements = world.getAllSettlements();
+            const settlements = (world.getSettlementViews ? world.getSettlementViews() : world.getAllSettlements()); // read-only
             const reachable = settlements.filter(s => {
                 const t = world.getTile(s.q, s.r);
                 return t && t.regionId === regionId;
@@ -538,6 +572,11 @@ export class WorldUnit {
      * Settler logic: Move to a far away spot and build a village
      */
     updateSettler(world, player = null) {
+        // A founding party walks its surveyed route (world/villageFounding.js via Colonization)
+        if (this.expedition && typeof Colonization !== 'undefined') {
+            Colonization.expeditionDay(this, world, player);
+            return;
+        }
         if (this.targetQ === null) {
             // Pick a distant, empty, passable tile
             const currentTile = world.getTile(this.q, this.r);
@@ -550,7 +589,7 @@ export class WorldUnit {
                 const r = Utils.randInt(5, world.height - 6);
                 const tile = world.getTile(q, r);
                 if (tile && tile.terrain.passable && !tile.settlement && tile.regionId === regionId) {
-                    const settlements = world.getAllSettlements();
+                    const settlements = (world.getSettlementViews ? world.getSettlementViews() : world.getAllSettlements()); // read-only
                     const dist = settlements.reduce((min, s) => Math.min(min, Hex.wrappingDistance(q, r, s.q, s.r, world.width)), Infinity);
                     if (dist > 6) {
                         this.targetQ = q;
@@ -676,7 +715,7 @@ export class WorldUnit {
         const regionId = currentTile ? currentTile.regionId : null;
 
         // Get all settlements belonging to this kingdom
-        const settlements = world.getAllSettlements().filter(s => {
+        const settlements = (world.getSettlementViews ? world.getSettlementViews() : world.getAllSettlements()).filter(s => { // read-only
             if (s.kingdom !== this.kingdomId) return false;
             if (s.q === this.q && s.r === this.r) return false;
             const t = world.getTile(s.q, s.r);

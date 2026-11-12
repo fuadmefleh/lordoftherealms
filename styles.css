@@ -5089,7 +5089,7 @@ button#turnDisplay:focus-visible { box-shadow: 0 0 0 1px var(--gold-dark); }
 
 /* Panels that filter or toggle their own content in place keep one height, so
    the window does not shrink and grow as the list changes */
-#customPanel:has(.bp-menu), #customPanel:has(.tech-tab-content) { height: calc(80vh / var(--ui-zoom)); }
+#customPanel:has(.bp-menu), #customPanel:has(.tech-tab-content), #customPanel:has(#almanacRoot) { height: calc(80vh / var(--ui-zoom)); }
 
 /* ════════════════════════════════════════════════════════════════════
    INTERFACE SCALE — every piece of chrome zooms by --ui-zoom; the map
@@ -6654,3 +6654,149 @@ body #customPanel.custom-panel--hub { width: min(760px, calc(94vw / var(--ui-zoo
 /* Before coin (world/barter.js): the top bar's purse is the worth of the goods carried — a pack, not coins */
 .tb-res-gold.tb-barter .tb-res-icon .ico { display: none; }
 .tb-res-gold.tb-barter .tb-res-icon::before { content: '🎒'; font-size: 17px; line-height: 1; }
+
+/* ════════════════════════════════════════════════════════════════════
+   INVENTORY — the Inventory window (ui/ui/inventoryPanel.js; the I key):
+   the packs' room, the hotbar strip, search / sort / filter chips, a grid
+   of tiles and the picked good's card (beside the grid; below it when the
+   window is narrow — a container query, so the UI zoom is allowed for).
+   Plus the street map's hotbar as a drop target (ui/hotbar.js).
+   ════════════════════════════════════════════════════════════════════ */
+#customPanel .inv { container-type: inline-size; }
+#customPanel .inv-top { display: flex; align-items: center; gap: 12px; margin: 0 0 10px; flex-wrap: wrap; }
+#customPanel .inv-cap { flex: 1 1 240px; min-width: 0; }
+#customPanel .inv-cap-label { display: flex; align-items: baseline; gap: 6px; font-size: 12px; color: #b9ae94; margin-bottom: 4px; }
+#customPanel .inv-cap-label b { color: #ece2c8; font-size: 13px; }
+#customPanel .inv-cap-label small { color: rgba(220, 210, 190, 0.55); font-size: 11px; }
+#customPanel .inv-cap-bar { height: 7px; border-radius: 999px; background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(245, 197, 66, 0.14); overflow: hidden; }
+#customPanel .inv-cap-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, #8a6414, #e2b23e); transition: width 0.2s; }
+#customPanel .inv-cap--near .inv-cap-fill { background: linear-gradient(90deg, #a2601a, #f0b35a); }
+#customPanel .inv-cap--full .inv-cap-fill { background: linear-gradient(90deg, #8a2d1c, #e0846a); }
+#customPanel .inv-cap--full .inv-cap-label b { color: #e0846a; }
+#customPanel .inv-worth { font-size: 12px; color: #b9ae94; white-space: nowrap; }
+
+#customPanel .inv-heirlooms { margin: 0 0 8px; }
+#customPanel .inv-heirlooms > summary { cursor: pointer; font-size: 12px; color: rgba(245, 197, 66, 0.85); letter-spacing: 0.5px; padding: 2px 0 4px; }
+#customPanel .inv-heirlooms > summary small { color: #9d937c; }
+
+/* The hotbar strip */
+#customPanel .inv-hb { margin: 0 0 10px; padding: 8px 10px 10px; border: 1px solid rgba(245, 197, 66, 0.12); border-radius: 8px; background: rgba(0, 0, 0, 0.18); }
+#customPanel .inv-hb-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
+#customPanel .inv-hb-head .pk-head { margin: 0; }
+#customPanel .inv-hb-hint { font-size: 11px; color: rgba(220, 210, 190, 0.5); flex: 1 1 auto; }
+#customPanel .inv-hb-note { font-size: 10.5px; color: #8fb98a; }
+#customPanel .custom-panel-body button.inv-hb-auto { font-size: 11px; padding: 2px 9px; border-radius: 999px; border: 1px solid rgba(245, 197, 66, 0.3); background: transparent; color: #d8ccaf; cursor: pointer; }
+#customPanel .inv-hb-slots { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+#customPanel .inv-hb-slot {
+    position: relative; aspect-ratio: 1 / 1; max-height: 58px; min-height: 40px;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid rgba(245, 197, 66, 0.2); border-radius: 8px; background: rgba(0, 0, 0, 0.32);
+    transition: border-color 0.12s, background 0.12s, box-shadow 0.12s;
+}
+#customPanel .inv-hb-slot[draggable="true"] { cursor: grab; }
+#customPanel .inv-hb-slot.empty { border-style: dashed; border-color: rgba(245, 197, 66, 0.14); }
+#customPanel .inv-hb-slot.kept .inv-hb-ico { filter: grayscale(1); opacity: 0.45; }
+#customPanel .inv-hb-slot.kept .inv-hb-qty { color: #9d937c; }
+body.inv-dragging #customPanel .inv-hb-slot { border-color: rgba(245, 197, 66, 0.45); }
+#customPanel .inv-hb-slot.drop-target { border-color: var(--gold); background: rgba(245, 197, 66, 0.16); box-shadow: 0 0 10px rgba(245, 197, 66, 0.3); }
+#customPanel .inv-hb-key { position: absolute; top: 2px; left: 5px; font-size: 9.5px; font-weight: 700; color: rgba(255, 255, 255, 0.4); pointer-events: none; }
+#customPanel .inv-hb-ico { line-height: 1; font-size: 22px; pointer-events: none; }
+#customPanel .inv-hb-qty { position: absolute; bottom: 2px; right: 5px; font-size: 10px; font-weight: 700; color: #ffcf6a; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8); pointer-events: none; }
+#customPanel .custom-panel-body button.inv-hb-clear {
+    position: absolute; top: -6px; right: -6px; width: 17px; height: 17px; padding: 0; margin: 0;
+    display: none; align-items: center; justify-content: center;
+    font-size: 9px; line-height: 1; border-radius: 50%; cursor: pointer;
+    border: 1px solid rgba(192, 83, 58, 0.7); background: #2a1612; color: #f0b4a2;
+}
+#customPanel .inv-hb-slot:hover .inv-hb-clear, #customPanel .inv-hb-slot:focus-within .inv-hb-clear { display: flex; }
+@media (hover: none) { #customPanel .custom-panel-body button.inv-hb-clear { display: flex; } }
+
+/* Search, sort, filters */
+#customPanel .inv-tools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 8px; }
+#customPanel .inv-search {
+    flex: 1 1 160px; min-width: 0; padding: 6px 10px; font: 12px var(--font-body); color: #ece2c8;
+    background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(245, 197, 66, 0.2); border-radius: 7px; outline: none;
+}
+#customPanel .inv-search:focus { border-color: rgba(245, 197, 66, 0.6); box-shadow: 0 0 0 2px rgba(245, 197, 66, 0.12); }
+#customPanel .inv-sorts { display: flex; gap: 2px; flex-wrap: wrap; padding: 2px; border-radius: 8px; background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(245, 197, 66, 0.1); }
+#customPanel .custom-panel-body button.inv-sort {
+    padding: 3px 9px; margin: 0; font: 600 11px var(--font-body); border-radius: 6px;
+    border: 1px solid transparent; background: transparent; color: #b9ae94; cursor: pointer;
+}
+#customPanel .custom-panel-body button.inv-sort.active { color: #ffe08a; background: rgba(245, 197, 66, 0.14); border-color: rgba(245, 197, 66, 0.4); }
+#customPanel .inv-filters { display: flex; flex-wrap: wrap; gap: 4px 6px; margin: 0 0 10px; }
+#customPanel .custom-panel-body button.inv-filter {
+    padding: 3px 10px; margin: 0; font: 12px var(--font-body); border-radius: 999px; cursor: pointer;
+    border: 1px solid rgba(245, 197, 66, 0.16); background: rgba(0, 0, 0, 0.28); color: #b9ae94;
+}
+#customPanel .custom-panel-body button.inv-filter b { color: #ece2c8; font-weight: 600; margin-left: 2px; }
+#customPanel .custom-panel-body button.inv-filter.active { border-color: rgba(245, 197, 66, 0.6); background: rgba(245, 197, 66, 0.14); color: #ffe08a; }
+/* a filter the search leaves nothing under (ui/ui/inventoryPanel.js _invSearch) */
+#customPanel .custom-panel-body button.inv-filter.inv-filter-none { opacity: 0.45; }
+
+/* The grid and the card */
+#customPanel .inv-body { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 12px; align-items: start; }
+#customPanel .inv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 6px; }
+#customPanel .custom-panel-body button.inv-tile {
+    position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+    gap: 3px; margin: 0; padding: 8px 4px 6px; min-height: 76px; cursor: pointer; text-align: center;
+    border: 1px solid rgba(245, 197, 66, 0.12); border-radius: 8px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.012));
+    color: inherit; font-family: var(--font-body);
+}
+#customPanel .custom-panel-body button.inv-tile:hover { background: rgba(245, 197, 66, 0.08); border-color: rgba(245, 197, 66, 0.35); filter: none; }
+#customPanel .custom-panel-body button.inv-tile.selected { border-color: var(--gold); background: rgba(245, 197, 66, 0.13); box-shadow: inset 0 0 0 1px rgba(245, 197, 66, 0.35); }
+#customPanel .custom-panel-body button.inv-tile.worn { box-shadow: inset 0 -2px 0 rgba(129, 199, 132, 0.8); }
+#customPanel .inv-tile-ico { font-size: 26px; line-height: 30px; height: 30px; pointer-events: none; }
+#customPanel .inv-tile-name { font-size: 11px; line-height: 1.2; color: #ece2c8; max-width: 100%; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; word-break: break-word; pointer-events: none; }
+#customPanel .inv-tile-qty { position: absolute; top: 3px; right: 5px; font-size: 10.5px; font-weight: 700; color: #ffcf6a; pointer-events: none; }
+#customPanel .inv-tile-key { position: absolute; top: 3px; left: 4px; min-width: 13px; height: 13px; padding: 0 2px; border-radius: 3px; font-size: 9px; font-weight: 700; line-height: 13px; color: #2a1a04; background: #e2b23e; pointer-events: none; }
+#customPanel .inv-tile-grade { position: absolute; bottom: 20px; right: 5px; font-size: 11px; pointer-events: none; }
+#customPanel .inv-none { color: rgba(220, 210, 190, 0.55); font-size: 12px; padding: 18px 4px; text-align: center; }
+
+#customPanel .inv-detail { position: sticky; top: 0; min-width: 0; }
+#customPanel .inv-detail .pk-card { margin-top: 0; }
+#customPanel .inv-detail .pk-rows { margin-bottom: 6px; }
+#customPanel .inv-detail-empty { font-size: 12px; color: rgba(220, 210, 190, 0.55); padding: 16px 12px; border: 1px dashed rgba(245, 197, 66, 0.14); border-radius: 8px; text-align: center; line-height: 1.5; }
+#customPanel .inv-d-head { display: flex; align-items: center; gap: 10px; }
+#customPanel .inv-d-ico { font-size: 38px; line-height: 44px; width: 44px; text-align: center; flex: 0 0 44px; }
+#customPanel .inv-d-title { min-width: 0; }
+#customPanel .inv-d-name { font-family: var(--font-display); font-size: 15px; font-weight: 700; color: #ffe9a8; }
+#customPanel .inv-d-sub { font-size: 11px; color: #9d937c; margin-top: 2px; }
+#customPanel .inv-d-desc { font-size: 12px; color: #cbbf9f; margin: 8px 0 0; line-height: 1.45; }
+#customPanel .inv-d-facts { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 8px; font-size: 11.5px; color: #9d937c; }
+#customPanel .inv-d-facts b { color: #ece2c8; font-weight: 600; }
+#customPanel .inv-d-facts .inv-good { color: #8fd18a; }
+#customPanel .inv-d-fx { margin-top: 6px; font-size: 11px; color: #ce93d8; line-height: 1.45; }
+#customPanel .inv-d-pick { margin: 2px 0 4px; }
+#customPanel .inv-d-pick-head { font-size: 11px; color: rgba(245, 197, 66, 0.85); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px; }
+#customPanel .inv-d-pick-slots { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+#customPanel .custom-panel-body button.inv-d-slot {
+    margin: 0; padding: 5px 0; font: 700 12px var(--font-body); border-radius: 6px; cursor: pointer;
+    border: 1px solid rgba(245, 197, 66, 0.25); background: rgba(0, 0, 0, 0.3); color: #d8ccaf;
+}
+#customPanel .custom-panel-body button.inv-d-slot.taken { color: #9d937c; border-style: dashed; }
+#customPanel .custom-panel-body button.inv-d-slot.active { color: #2a1a04; background: #e2b23e; border-color: #e2b23e; }
+
+/* A narrow window (phone width, or a big UI zoom): the card above the tiles once something is picked */
+@container (max-width: 560px) {
+    #customPanel .inv-body { grid-template-columns: minmax(0, 1fr); }
+    #customPanel .inv-detail { position: static; }
+    #customPanel .inv-detail.has-item { order: -1; }
+    #customPanel .inv-detail:not(.has-item) { display: none; }
+    #customPanel .inv-hb-slots { gap: 4px; }
+    #customPanel .inv-grid { grid-template-columns: repeat(auto-fill, minmax(66px, 1fr)); }
+}
+
+/* The top bar's shortcut hint (Kingdom → Inventory  I) */
+.civ-dropdown-item .civ-dd-key {
+    margin-left: auto; padding: 0 5px; font: 600 10px/16px var(--font-body); color: rgba(245, 197, 66, 0.75);
+    border: 1px solid rgba(245, 197, 66, 0.3); border-radius: 4px; background: rgba(0, 0, 0, 0.25);
+}
+
+/* The street map's hotbar takes drops from the Inventory and from its own slots (ui/hotbar.js) */
+.hotbar-slot[draggable="true"] { cursor: grab; }
+.hotbar-slot.kept { opacity: 0.55; }
+.hotbar-slot.kept .hotbar-icon { filter: grayscale(1); }
+body.inv-dragging .hotbar-slot { border-color: rgba(245, 197, 66, 0.4); opacity: 1; }
+.hotbar-slot.drop-target { border-color: var(--gold); background: rgba(245, 197, 66, 0.18); box-shadow: 0 0 10px rgba(245, 197, 66, 0.35); opacity: 1; }

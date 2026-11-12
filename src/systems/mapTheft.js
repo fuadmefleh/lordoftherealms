@@ -28,6 +28,7 @@ import { Cartography } from './cartography.js';
 import { Underworld } from './underworld.js';
 import { Gossip } from './gossip.js';
 import { Ledger } from './ledger.js';
+import { Names } from '../core/names.js';
 
 const DEFAULTS = {
     targets: {
@@ -185,7 +186,7 @@ export const MapTheft = {
             const k = s.kingdom && world.getKingdom ? world.getKingdom(s.kingdom) : null;
             if (k && k.capital) {
                 maps.push({
-                    ...base, type: 'kingdom', name: `Stolen Chart of ${k.name}`, kingdomId: k.id, centerQ: k.capital.q, centerR: k.capital.r,
+                    ...base, type: 'kingdom', name: `Stolen Chart of ${Names.realm(k.name)}`, kingdomId: k.id, centerQ: k.capital.q, centerR: k.capital.r,
                     radius: (Cartography.MAP_TYPES.stolen && Cartography.MAP_TYPES.stolen.radius) || radius,
                     tiles: Cartography._chartKingdomTiles(k, world, acc), notes: `Taken from ${owner}.`,
                 });

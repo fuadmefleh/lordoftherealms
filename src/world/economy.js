@@ -12,6 +12,9 @@ import { Coinage } from './coinage.js';
 import { Harvests } from './harvests.js';
 import { CrownBooks } from './crownBooks.js';
 
+/** The distant years' production profiles (calculateProduction): economy → { world, day, type, prod, rb }. */
+const _distantProd = new WeakMap();
+
 export const Economy = {
     /**
      * Production rates per settlement type (per day)
@@ -622,6 +625,20 @@ export const Economy = {
      * Calculate production for a settlement based on its tile and surroundings
      */
     calculateProduction(settlement, tile, world) {
+        // (the distant years, player/afterlife.js: a town's production is worked out afresh
+        // once every realmEvery days — its people and land hardly move in a week — and the
+        // day's output, food and growth still run daily on it: produceDaily)
+        const D = world && world._distant;
+        const every = D ? Math.floor(Number(D.realmEvery) || 0) : 0;
+        const econ = settlement.economy;
+        if (every > 1 && econ) {
+            const held = _distantProd.get(econ);
+            if (held && held.world === world && held.type === settlement.type && world.day >= held.day && world.day - held.day < every) {
+                econ.production = { ...held.prod };
+                econ.resourceBonuses = { ...held.rb };
+                return econ.production;
+            }
+        }
         const detailed = Economy.calculateDetailedProduction(settlement, tile, world);
 
         // Sum total goods for legacy/summary views
@@ -643,6 +660,9 @@ export const Economy = {
         settlement.economy.resourceBonuses = {
             goods: rb.goods || 0, military: rb.military || 0, trade: rb.trade || 0, construction: rb.construction || 0,
         };
+        if (every > 1 && econ) {
+            _distantProd.set(econ, { world, day: world.day, type: settlement.type, prod: { ...econ.production }, rb: { ...econ.resourceBonuses } });
+        }
 
         return settlement.economy.production;
     },
@@ -782,7 +802,11 @@ export const Economy = {
         // (with the crown's books switched off, data/fiscal.json enabled: false, the old
         // model stands: the treasury lives on the towns' growing purses, so production mints)
         const coinShare = CrownBooks.enabled() ? Math.max(0, Math.min(1, Number(Economy.TOWN_PURSE.productionCoin) || 0)) : 1;
-        if (coinShare > 0) settlement.economy.gold += prod.gold * coinShare;
+        // (mods.days: the distant years, KingdomAI.processTurn — `days` days on this day's
+        // production: the coin and goods that many times over, the granary, the people's
+        // growth and the lean weeks worked a day at a time)
+        const days = mods.days > 1 ? Math.floor(mods.days) : 1;
+        if (coinShare > 0) settlement.economy.gold += days > 1 ? prod.gold * coinShare * days : prod.gold * coinShare;
         // The agricultural year: little comes to market at planting time and
         // in winter, a glut at harvest (yearly mean 1 — world/seasons.js); the
         // year's harvest sets how big (world/harvests.js: 1 in a normal year)
@@ -790,26 +814,30 @@ export const Economy = {
         prod.seasonalFood = Math.round(prod.food * seasonal);
         // Aqueducts feed the player's colonies
         const foodBonus = settlement.colony && settlement.colony.isPlayerColony ? (playerBonuses.colonyFood || 0) : 0;
-        settlement.economy.food += foodBonus > 0 ? Math.round(prod.seasonalFood * (1 + foodBonus)) : prod.seasonalFood;
-
-        // The specific goods (prod.breakdown.items) reach the settlement's
-        // market through world/settlementMarket.js, which reads this
-        // breakdown in the daily market tick
-
-        // Legacy compatibility
-        settlement.economy.goods += prod.goods;
-
+        const foodIn = foodBonus > 0 ? Math.round(prod.seasonalFood * (1 + foodBonus)) : prod.seasonalFood;
         // Close-knit peoples (kinship) grow faster; a market dearth makes
         // the people eat harder into the granary (world/settlementMarket.js)
         const kinship = settlement.peoplesEffects ? (settlement.peoplesEffects.growth || 0) : 0;
         const strain = SettlementMarket.foodStrain(live);
-        Economy._feedPopulation(settlement, (kinship || strain)
+        const feedMods = (kinship || strain)
             ? { ...mods, growth: (mods.growth || 0) + kinship, consumption: (mods.consumption || 0) + strain }
-            : mods);
+            : mods;
+        for (let d = 0; d < days; d++) {
+            settlement.economy.food += foodIn;
 
-        // Thin granaries in the lean weeks sour the mood (on the live settlement;
-        // getAllSettlements hands out copies)
-        Economy.applyLeanSeason((tile && tile.settlement) || settlement, Seasons.today(world), settlement.economy);
+            // The specific goods (prod.breakdown.items) reach the settlement's
+            // market through world/settlementMarket.js, which reads this
+            // breakdown in the daily market tick
+
+            // Legacy compatibility
+            settlement.economy.goods += prod.goods;
+
+            Economy._feedPopulation(settlement, feedMods);
+
+            // Thin granaries in the lean weeks sour the mood (on the live settlement;
+            // getAllSettlements hands out copies)
+            Economy.applyLeanSeason((tile && tile.settlement) || settlement, Seasons.today(world), settlement.economy);
+        }
 
         return settlement.economy;
     },

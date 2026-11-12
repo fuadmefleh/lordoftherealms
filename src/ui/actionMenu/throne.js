@@ -5,6 +5,7 @@ import { ActionMenu } from './_ref.js';
 import { Sieges } from '../../systems/sieges.js';
 import { Throne, PlayerMilitary, House } from './_imports.js';
 import { chips, purse, sectionHead, card, actRow, rowList, price, BTN_GOLD, BTN_DARK, BTN_RED, BTN_OFF } from './uiKit.js';
+import { Names } from '../../core/names.js';
 
 const MUTED = 'color: #9d937c; font-size: 11px;';
 const AP = { battle: 2 };
@@ -130,7 +131,7 @@ Object.assign(ActionMenu, {
                 { icon: '⚔️', name: 'Lead the assault', desc: `≈${van} strength`, off: !(army > 0), why: 'You have no army', attrs: 'onclick="window._throne.assault()"', side: `${AP.battle} AP`, tone: 'gold' },
                 { icon: '🏳️', name: 'Abandon the claim', attrs: 'onclick="window._throne.abandon()"', tone: 'bad' },
             ]);
-            html += card(body, { icon: '🚩', title: `War for the throne of ${_esc(cwK.name)}`, side: `day ${days}/${cfg.civilWar.maxDays}`, tone: 'bad' });
+            html += card(body, { icon: '🚩', title: `War for the throne of ${_esc(Names.realm(cwK.name))}`, side: `day ${days}/${cfg.civilWar.maxDays}`, tone: 'bad' });
         }
 
         // ── Succession crises ──
@@ -164,7 +165,7 @@ Object.assign(ActionMenu, {
                     side: price(cfg.pressGold, (player.gold || 0) >= cfg.pressGold), tone: 'bad',
                 }]);
             }
-            html += card(body, { icon: '👑', title: `${_esc(c.causeLabel)} in ${_esc(k.name)}`, side: `${Math.max(0, c.endDay - world.day)} days left`, tone: 'warn' });
+            html += card(body, { icon: '👑', title: `${_esc(c.causeLabel)} in ${_esc(Names.realm(k.name))}`, side: `${Math.max(0, c.endDay - world.day)} days left`, tone: 'warn' });
         }
 
         // ── Your claims ──

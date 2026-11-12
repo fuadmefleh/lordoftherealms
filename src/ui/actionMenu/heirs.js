@@ -95,6 +95,9 @@ Object.assign(ActionMenu, {
             side: `${p.gender === 'female' ? '♀️' : '♂️'} Age ${p.age}${p.alive ? '' : ' · ⚰️ dead'}`,
         });
 
+        // The bond, time together, the coming-of-age summary (ui/actionMenu/raising.js)
+        if (p.alive) html += ActionMenu._raisingHtml(game, child);
+
         // A dilemma waiting for the parent
         if (p.pending) {
             const ev = p.pending;
@@ -127,14 +130,19 @@ Object.assign(ActionMenu, {
             html += sectionHead('Tutor');
             if (p.tutor) {
                 const t = p.tutor;
-                html += card(`${t.icon} <b>${_esc(t.name)}</b> — ${t.focus ? `teaches ${_esc((Upbringing.focus(t.focus) || {}).name || t.focus)}` : 'teaches a little of everything'}, learning ×${t.multiplier.toFixed(2)}${t.wage ? `, ${t.wage}g a month` : ''}${t.kind === 'companion' ? ' (while they travel with you)' : ''}.`
+                html += card(`${t.icon} <b>${_esc(t.name)}</b> — ${t.focus ? `teaches ${_esc((Upbringing.focus(t.focus) || {}).name || t.focus)}` : 'teaches a little of everything'}, learning ×${t.multiplier.toFixed(2)}${t.wage ? `, ${t.wage}g a month` : ''}${t.kind === 'companion' ? ' (while they travel with you)' : ''}${t.kind === 'person' && t.traits && t.traits.length ? ` · ${t.traits.map(_esc).join(', ')}` : ''}.`
                     + ` <button onclick="window._heirsUI.dismiss('${child.id}')" style="${BTN_DARK}">Dismiss</button>`);
             } else {
                 html += `<div style="${MUTED} margin:0 2px 6px;">No tutor. A tutor whose subject matches the focus speeds learning greatly.</div>`;
             }
             if (p.away) html += `<div style="color:#9cc8ff; margin:0 2px 6px;">Abroad, the host’s court teaches; tutors wait for the child’s return.</div>`;
             const tutorRows = [];
+            // Real people first: courtiers, people you know, the townsfolk where you stand (systems/raising.js)
+            if (!p.away) tutorRows.push(...ActionMenu._raisingTutorRows(game, child));
+            // (the one already teaching is not offered again: Dismiss them first to change)
+            const cur = p.tutor || null;
             for (const t of (p.away ? [] : Upbringing.tutors())) {
+                if (cur && cur.kind === 'court' && cur.id === t.id) continue;
                 const ok = (player.gold || 0) >= (t.hireCost || 0);
                 const subj = t.focus ? (Upbringing.focus(t.focus) || {}).name || t.focus : 'All subjects';
                 tutorRows.push({
@@ -147,6 +155,7 @@ Object.assign(ActionMenu, {
             }
             const occ = Upbringing.data().companionOccupations || {};
             for (const npc of (p.away ? [] : Companions.members(player, world))) {
+                if (cur && cur.npcId === npc.id) continue;
                 const subj = occ[npc.occupation] ? (Upbringing.focus(occ[npc.occupation]) || {}).name : 'All subjects';
                 tutorRows.push({
                     icon: '🧭', name: _esc(npc.firstName),

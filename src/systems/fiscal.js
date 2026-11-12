@@ -45,6 +45,7 @@ import { Harvests } from '../world/harvests.js';
 import { MoneySupply } from '../world/moneySupply.js';
 import { Finance } from './finance.js';
 import { Ledger } from './ledger.js';
+import { Names } from '../core/names.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -405,8 +406,8 @@ export const Fiscal = {
         // The coin: taxes out of the towns' purses into the chests, wages back (booked as they move)
         MoneySupply.note(world, k.id, -(collected - paidA - paidC), 'fisc');
         if (ruled && player) {
-            if (wasArrears === 0 && f.arrearsDays === 1) Fiscal._note(out, '⚔️', 'The Soldiers Go Unpaid', `The treasury of ${k.name} cannot meet the army's pay (${Math.round(f.arrears.army)}g owed). Unpaid men desert after a week.`, 'warning');
-            else if (f.arrearsDays === _num(A.desert.afterDays, 7) + 1) Fiscal._note(out, '🏳️', 'Desertion', `Unpaid for a week, the soldiers of ${k.name} begin to slip away.`, 'error');
+            if (wasArrears === 0 && f.arrearsDays === 1) Fiscal._note(out, '⚔️', 'The Soldiers Go Unpaid', `The treasury of ${Names.realm(k.name)} cannot meet the army's pay (${Math.round(f.arrears.army)}g owed). Unpaid men desert after a week.`, 'warning');
+            else if (f.arrearsDays === _num(A.desert.afterDays, 7) + 1) Fiscal._note(out, '🏳️', 'Desertion', `Unpaid for a week, the soldiers of ${Names.realm(k.name)} begin to slip away.`, 'error');
         }
         if (f.arrearsDays === 21) Fiscal._record(world, st, { kind: 'mutiny', kingdomId: k.id, kingdom: k.name, amount: Math.round(f.arrears.army) });
         Fiscal._closeDay(k, f);
@@ -571,7 +572,7 @@ export const Fiscal = {
         if (!said.length) return;
         const list = said.length > 1 ? `${said.slice(0, -1).join(', ')} and ${said[said.length - 1]}` : said[0];
         const days = Math.round(Fiscal.reserveDays(k));
-        Fiscal._note(out, '📒', 'The Treasurers\' Review', `With ${days} days of spending in the chests of ${k.name}, your treasurers ${list}. Set a lever yourself in the Treasury and they leave it to you.`, 'info');
+        Fiscal._note(out, '📒', 'The Treasurers\' Review', `With ${days} days of spending in the chests of ${Names.realm(k.name)}, your treasurers ${list}. Set a lever yourself in the Treasury and they leave it to you.`, 'info');
     },
 
     /** Weekly tax revolts in hard-pressed, heavily taxed towns (hash rolls). */
@@ -664,7 +665,7 @@ export const Fiscal = {
         const lot = Fiscal._openLot(world, player, st, k, f, pick, day);
         if (lot) f.lastLot = day;
         if (lot && player && player.allegiance === k.id) {
-            Fiscal._note(out, '📜', 'Taxes for Sale', `The crown of ${k.name} auctions the taxes of ${lot.town} for ${_num(F.term, 120)} days (reckoned at ${lot.est}g). Bids close on day ${lot.closes}.`, 'info');
+            Fiscal._note(out, '📜', 'Taxes for Sale', `The crown of ${Names.realm(k.name)} auctions the taxes of ${lot.town} for ${_num(F.term, 120)} days (reckoned at ${lot.est}g). Bids close on day ${lot.closes}.`, 'info');
         }
     },
 
@@ -712,7 +713,7 @@ export const Fiscal = {
             CrownBooks.state(k).stats.farmsSold = _num(CrownBooks.state(k).stats.farmsSold) + 1;
             if (holder === 'player') st.stats.playerFarms++;
             Fiscal._record(world, st, { kind: 'tax_farm', kingdomId: k.id, kingdom: k.name, town: lot.town, q: lot.q, r: lot.r, holder: holderName, amount: paid, own: holder === 'player' });
-            if (holder === 'player') Fiscal._note(out, '📜', 'Your Tax Farm', `You farm the taxes of ${lot.town} for ${_num(F.term, 120)} days (${paid}g paid to the crown of ${k.name}). Your collectors go out tomorrow.`, 'success');
+            if (holder === 'player') Fiscal._note(out, '📜', 'Your Tax Farm', `You farm the taxes of ${lot.town} for ${_num(F.term, 120)} days (${paid}g paid to the crown of ${Names.realm(k.name)}). Your collectors go out tomorrow.`, 'success');
         }
     },
 
@@ -879,7 +880,7 @@ export const Fiscal = {
         if (!k) return { success: false, reason: 'You rule no realm.' };
         if (level === 'auto') {
             Fiscal._hold(CrownBooks.state(k), 'tax', 'auto');
-            return { success: true, text: `The taxes of ${k.name} are left to your treasurers.` };
+            return { success: true, text: `The taxes of ${Names.realm(k.name)} are left to your treasurers.` };
         }
         if (!_levels().includes(level)) return { success: false, reason: 'Unknown level.' };
         const f = CrownBooks.state(k);
@@ -889,7 +890,7 @@ export const Fiscal = {
         f.level = level;
         Fiscal._hold(f, 'tax', level);
         const L = Fiscal.config().levels[level] || {};
-        return { success: true, text: `${tax === 'all' ? 'All taxes' : `The ${tax} tax`} of ${k.name}: ${L.label || level}.` };
+        return { success: true, text: `${tax === 'all' ? 'All taxes' : `The ${tax} tax`} of ${Names.realm(k.name)}: ${L.label || level}.` };
     },
 
     /** A ruler sets the army's pay (half / full / generous; 'auto': back to the treasurers). */
@@ -898,13 +899,13 @@ export const Fiscal = {
         if (!k) return { success: false, reason: 'You rule no realm.' };
         if (level === 'auto') {
             Fiscal._hold(CrownBooks.state(k), 'army', 'auto');
-            return { success: true, text: `The army's pay in ${k.name} is left to your treasurers.` };
+            return { success: true, text: `The army's pay in ${Names.realm(k.name)} is left to your treasurers.` };
         }
         const L = Fiscal.config().army.levels[level];
         if (!L) return { success: false, reason: 'Unknown pay.' };
         CrownBooks.state(k).armyPay = level;
         Fiscal._hold(CrownBooks.state(k), 'army', level);
-        return { success: true, text: `The army of ${k.name} goes on ${L.label.toLowerCase()}.` };
+        return { success: true, text: `The army of ${Names.realm(k.name)} goes on ${L.label.toLowerCase()}.` };
     },
 
     /** A ruler sets the court (frugal / standard / lavish; 'auto': back to the treasurers). */
@@ -913,13 +914,13 @@ export const Fiscal = {
         if (!k) return { success: false, reason: 'You rule no realm.' };
         if (level === 'auto') {
             Fiscal._hold(CrownBooks.state(k), 'court', 'auto');
-            return { success: true, text: `The court of ${k.name} is left to your treasurers.` };
+            return { success: true, text: `The court of ${Names.realm(k.name)} is left to your treasurers.` };
         }
         const L = Fiscal.config().court.levels[level];
         if (!L) return { success: false, reason: 'Unknown court.' };
         CrownBooks.state(k).courtLevel = level;
         Fiscal._hold(CrownBooks.state(k), 'court', level);
-        return { success: true, text: `The court of ${k.name} is to be ${L.label.toLowerCase()}.` };
+        return { success: true, text: `The court of ${Names.realm(k.name)} is to be ${L.label.toLowerCase()}.` };
     },
 
     /** A ruler auctions a town's taxes (not the capital's). */

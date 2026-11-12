@@ -4,6 +4,7 @@ import { beginVoyage } from './voyage.js';
 import { Pirates } from '../../systems/pirates.js';
 import { lede, bullets, chips, purse, sectionHead, kv, card, actRow, rowList, price, BTN_GOLD, BTN_PLAIN, BTN_DARK, BTN_RED } from './uiKit.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, InnerMap, KingdomNavy, Discovery } from './_imports.js';
+import { Names } from '../../core/names.js';
 
 // The action menu's voice (ui/actionMenu/uiKit.js): muted notes, the one
 // full-width button a panel ends on, small stat tags inside a row, a thin bar
@@ -962,8 +963,8 @@ Object.assign(ActionMenu, {
         if (blockade) {
             const by = blockade.blockaders.map(k => k.name).join(' and ');
             html += blockade.closed
-                ? `<div style="font-size:12px;color:#f0b35a;margin-bottom:8px;">⚓ The harbour is closed: ${by} blockades the ports of ${blockade.kingdom.name}. No merchant will trade until the blockade is broken.</div>`
-                : `<div style="font-size:11px;color:#f0b35a;margin-bottom:8px;">⚓ ${by} blockades the ports of ${blockade.kingdom.name}: goods are dear and buyers pay little.</div>`;
+                ? `<div style="font-size:12px;color:#f0b35a;margin-bottom:8px;">⚓ The harbour is closed: ${by} blockades the ports of ${Names.realm(blockade.kingdom.name)}. No merchant will trade until the blockade is broken.</div>`
+                : `<div style="font-size:11px;color:#f0b35a;margin-bottom:8px;">⚓ ${by} blockades the ports of ${Names.realm(blockade.kingdom.name)}: goods are dear and buyers pay little.</div>`;
         }
         html += rowList(market.map(e => {
             const held = (ship.cargo && ship.cargo[e.id]) || 0;
@@ -1258,6 +1259,8 @@ Object.assign(ActionMenu, {
             if (ship.status === 'moving') facts.push(`🧭 ${ship.travelDaysLeft || '?'} days ETA`);
             return { icon: st.icon, name: ship.name, desc: facts.join(' · '), side: `${statusIcon} ${ship.status}` };
         }), '⚓ Your Fleet');
+        // Standing routes for a ship (player/tradeLines.js)
+        html += rowList([{ icon: '🔁', name: 'Trade Lines', desc: 'Put a ship on a standing loop of harbours, buying and selling by your orders', act: 'showTradeLines', side: '›', tone: 'gold' }]);
         game.ui.showCustomPanel('⚓ Fleet Overview', html);
     },
 });

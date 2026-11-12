@@ -42,6 +42,7 @@ import { LandMarket } from '../../systems/landMarket.js';
 import { PuttingOut } from '../../systems/puttingOut.js';
 import { BackRooms } from '../../systems/backRooms.js';
 import { DataLoader } from '../../core/dataLoader.js';
+import { Names } from '../../core/names.js';
 
 export function addSettlementActions(actions, player, tile, world, ctx) {
     const { isCity, isVillage, isPlayerSettlement, playerSettlementCount, playerKingdom, hasPlayerFoundedKingdom } = ctx;
@@ -556,7 +557,10 @@ export function addSettlementActions(actions, player, tile, world, ctx) {
     const fin = player.finance;
     const owes = !!(fin && Array.isArray(fin.loans) && fin.loans.some(l => l && l.overdue > 0));
     if (banksHere.length || owes) {
-        const b = banksHere[0];
+        // (named for the house seated here, else the realm's own, before the foreign agents)
+        const b = banksHere.find(x => x.q === tile.q && x.r === tile.r)
+            || banksHere.find(x => tile.settlement.kingdom != null && x.kingdomId === tile.settlement.kingdom)
+            || banksHere[0];
         actions.push({
             type: 'bank',
             label: b ? b.name : 'Your Debts',
@@ -622,7 +626,7 @@ export function addSettlementActions(actions, player, tile, world, ctx) {
         const pur = mintHere.kingdom.finance && mintHere.kingdom.finance.purity != null ? mintHere.kingdom.finance.purity : 1;
         actions.push({
             type: 'mint',
-            label: `The Mint of ${mintHere.kingdom.name}`,
+            label: `The Mint of ${Names.realm(mintHere.kingdom.name)}`,
             icon: '💰',
             description: `Coin of ${Math.round(pur * 100)}% silver: sell gold and silver to the mint, lease it, and see every realm's coin and prices`,
         });
@@ -962,4 +966,12 @@ export function addSettlementActions(actions, player, tile, world, ctx) {
             description: 'View the status of all your ships'
         });
     }
+
+    // Standing trade and supply lines: a caravan or a ship going round its stops (player/tradeLines.js)
+    actions.push({
+        type: 'trade_lines',
+        label: 'Trade Lines',
+        icon: '🔁',
+        description: 'Standing caravan and ship routes: stops, buy and sell rules, a ledger for each line'
+    });
 }

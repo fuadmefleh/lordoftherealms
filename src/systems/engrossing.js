@@ -18,6 +18,7 @@ import { SettlementMarket } from '../world/settlementMarket.js';
 import { Harvests } from '../world/harvests.js';
 import { Seasons } from '../world/seasons.js';
 import { KingdomAI } from '../world/kingdomAI.js';
+import { Names } from '../core/names.js';
 
 const _num = (v, d = 0) => (Number.isFinite(v) ? v : d);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -237,7 +238,7 @@ export const Engrossing = {
             const ruled = player && player.throne && player.throne.ruling ? player.throne.ruling.kingdomId : null;
             const here = player && typeof world.getTile === 'function' ? world.getTile(player.q, player.r) : null;
             if (player && (ruled === kid || (here && here.settlement && here.settlement.kingdom === kid))) {
-                out.notices.push({ icon: '📜', title: 'An Edict against Engrossers', text: `The crown of ${k.name} forbids the hoarding of grain: the dealers' lofts are thrown open and ${Math.round(opened)} grain comes to market.`, type: 'info' });
+                out.notices.push({ icon: '📜', title: 'An Edict against Engrossers', text: `The crown of ${Names.realm(k.name)} forbids the hoarding of grain: the dealers' lofts are thrown open and ${Math.round(opened)} grain comes to market.`, type: 'info' });
             }
         }
         return out;

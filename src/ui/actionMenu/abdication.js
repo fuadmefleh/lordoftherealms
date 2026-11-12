@@ -9,6 +9,7 @@ import { Abdication } from '../../systems/abdication.js';
 import { Counsel } from '../../systems/counsel.js';
 import { lede, chips, sectionHead, rowList, card, price, bullets, kv, esc, BTN_GOLD } from './uiKit.js';
 
+const _num0 = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 const _tone = (v) => (v >= 60 ? 'good' : v >= 35 ? 'warn' : 'bad');
 
 function _elderCard(v, player, cfg) {
@@ -22,7 +23,8 @@ function _elderCard(v, player, cfg) {
         v.favourite ? ['💛', 'Favourite', esc(v.favourite)] : null,
     ].filter(Boolean));
     const lines = [];
-    lines.push(`Stepped down after ${e.reignYears} years${e.how === 'forced' ? ', made to by the court' : e.how === 'counselled' ? ', at the court’s urging' : ''}${e.passedOver ? ', passing over the rightful heir' : ''}.`);
+    const yrs = Math.round(Number(e.reignYears) || 0);
+    lines.push(`Stepped down after ${yrs < 1 ? 'less than a year' : `${yrs} year${yrs === 1 ? '' : 's'}`}${e.how === 'forced' ? ', made to by the court' : e.how === 'counselled' ? ', at the court’s urging' : ''}${e.passedOver ? ', passing over the rightful heir' : ''}.`);
     lines.push(`Pension ${e.pension}g a day${e.owed ? ` — <span style="color:#e0846a;">${Math.round(e.owed)}g owed</span>` : ''}; paid ${Math.round(e.paid)}g in all.`);
     if (v.regent) lines.push('Rules as regent in your name.');
     if (e.shadow) lines.push('<span style="color:#e0846a;">Their people hold the seals and skim the treasury.</span>');
@@ -32,7 +34,7 @@ function _elderCard(v, player, cfg) {
     const id = e.npcId;
     const rows = [
         { icon: '🗣️', name: 'Seek their counsel', desc: e.residence === 'court' ? 'They hear things at court, and know the craft of the seat' : 'They know the craft of the seat', act: 'abdicationAct', args: ['counsel', id], off: v.counselIn > 0, why: `Ask again in ${v.counselIn} days` },
-        { icon: '⭐', name: 'Honour them before the court', desc: 'Respect up, ambition down', side: `${cfg.honourPrestige} ⭐`, act: 'abdicationAct', args: ['honour', id] },
+        { icon: '⭐', name: 'Honour them before the court', desc: 'Respect up, ambition down', side: `${cfg.honourPrestige} ⭐`, act: 'abdicationAct', args: ['honour', id], off: _num0(player.house && player.house.prestige) < cfg.honourPrestige, why: `Needs ${cfg.honourPrestige} Prestige` },
         { icon: '🎁', name: 'A gift of gold', desc: 'From the House purse into theirs', side: price(cfg.giftGold, (player.gold || 0) >= cfg.giftGold), act: 'abdicationAct', args: ['gift', id] },
     ];
     const choices = Array.isArray(cfg.pensionChoices) ? cfg.pensionChoices : [0, 2, 4, 8, 15];
@@ -58,7 +60,8 @@ Object.assign(ActionMenu, {
         if (!player || !world) return;
         const v = Abdication.view(player, world);
         const cfg = v.cfg;
-        let html = '<div style="font-size:12px; max-height:560px; overflow-y:auto;">';
+        const prestige = Math.max(0, Number(player.house && player.house.prestige) || 0);
+        let html = '<div style="font-size:12px;">';
         if (message) html += card(message.html, { tone: message.tone || 'gold' });
         html += lede('You may set down the seat while you live. You go on as the heir you choose; the old ruler lives on — at court, on an estate or in a monastery — on a pension from the House, and remembers how they were treated.');
 
@@ -69,7 +72,7 @@ Object.assign(ActionMenu, {
             const heir = v.successors.find(s => s.rightful);
             body += rowList([
                 heir ? { icon: '🪑', name: `Step down for ${esc(heir.name)}`, desc: 'With grace: kinder to you than being deposed', act: 'abdicationAct', args: ['pick', heir.id], tone: 'gold' } : null,
-                { icon: '⭐', name: 'Face the lords down', desc: 'Hold the seat', side: `${cfg.pressure.holdPrestige} ⭐`, act: 'abdicationAct', args: ['hold', 'prestige'] },
+                { icon: '⭐', name: 'Face the lords down', desc: 'Hold the seat', side: `${cfg.pressure.holdPrestige} ⭐`, act: 'abdicationAct', args: ['hold', 'prestige'], off: cfg.pressure.holdPrestige > prestige, why: `Needs ${cfg.pressure.holdPrestige} Prestige` },
                 { icon: '💰', name: 'Buy the court’s loyalty', desc: 'Into your courtiers’ purses', side: price(cfg.pressure.holdGold, (player.gold || 0) >= cfg.pressure.holdGold), act: 'abdicationAct', args: ['hold', 'gold'] },
             ]);
             html += card(body, { icon: '⚔️', title: 'The lords demand you step down', side: `${v.demandDays} day(s)`, tone: 'bad' });
@@ -98,6 +101,8 @@ Object.assign(ActionMenu, {
             html += rowList(v.successors.map(s => ({
                 icon: s.minor ? '🧒' : '👑', name: esc(s.name), desc: `${s.age} years${s.rightful ? ' · the rightful heir' : ''}${s.minor ? ' · reigns under a regent' : ''}${s.passOver ? ' · passes over the rightful heir: a claim nursed' : ''}`,
                 side: s.prestige ? `${s.prestige} ⭐` : 'Choose ›', act: 'abdicationAct', args: ['pick', s.id], tone: s.rightful ? 'gold' : s.passOver ? 'warn' : '',
+                // (passing over the rightful heir costs Prestige the House may not have — Abdication.abdicate refuses it)
+                off: s.prestige > prestige, why: s.prestige > prestige ? `${s.age} years · passing over the rightful heir needs ${s.prestige} Prestige (you have ${Math.floor(prestige)})` : '',
             })));
         } else {
             const s = v.successors.find(x => x.id === step.pick);

@@ -31,6 +31,7 @@ import { Hex } from '../core/hex.js';
 import { Utils } from '../core/utils.js';
 import { SettlementMarket } from './settlementMarket.js';
 import { TownLabour } from './townLabour.js';
+import { Names } from '../core/names.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -175,8 +176,8 @@ export const Estates = {
         const [kind, ref, extra] = String(id).split(':');
         let name = 'a landholder', kid = null;
         const k = Estates.kingdom(world, ref);
-        if (kind === 'crown') { kid = k ? k.id : ref; name = k ? `the Crown of ${k.name}` : 'the crown'; }
-        else if (kind === 'church') { kid = k ? k.id : (ref === 'free' ? null : ref); name = k ? `the Church in ${k.name}` : 'the Church'; }
+        if (kind === 'crown') { kid = k ? k.id : ref; name = k ? `the Crown of ${Names.realm(k.name)}` : 'the crown'; }
+        else if (kind === 'church') { kid = k ? k.id : (ref === 'free' ? null : ref); name = k ? `the Church in ${Names.realm(k.name)}` : 'the Church'; }
         else if (kind === 'noble') {
             kid = k ? k.id : (ref === 'free' ? null : ref);
             const N = (Estates.config().names || {}).house || ['Ashby'];

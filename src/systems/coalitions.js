@@ -81,6 +81,7 @@ import { EconomyChronicle } from './economyChronicle.js';
 import { Taxation } from './marketDynamics.js';
 import { CourtLetters } from './courtLetters.js';
 import { Pressure } from './pressure.js';
+import { Names } from '../core/names.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -521,8 +522,8 @@ export const Coalitions = {
             const name = dyn && dyn.name ? `House ${dyn.name}` : k.name;
             house.rivals[k.id] = { kingdomId: k.id, name, feud: floor, lastActedDay: _day(world), vendetta: true };
             const lord = k.lord ? k.lord.name : 'its lord';
-            House._chronicle(house, world, `${name} of ${k.name} swears a blood feud against ${house.name}${a.generations ? `, as ${lord}'s fathers swore before him` : ''}.`, ['rival', 'feud', 'vendetta']);
-            out.notices.push({ icon: '🔴', title: 'A Blood Feud', text: `${lord} of ${k.name} will not forget ${NPCLords.vendettaOf(k.lord, _day(world)).causes[0]?.label || 'what you did'}. ${name} is now a rival of your House.`, type: 'warning' });
+            House._chronicle(house, world, `${name} of ${Names.realm(k.name)} swears a blood feud against ${house.name}${a.generations ? `, as ${lord}'s fathers swore before him` : ''}.`, ['rival', 'feud', 'vendetta']);
+            out.notices.push({ icon: '🔴', title: 'A Blood Feud', text: `${lord} of ${Names.realm(k.name)} will not forget ${NPCLords.vendettaOf(k.lord, _day(world)).causes[0]?.label || 'what you did'}. ${name} is now a rival of your House.`, type: 'warning' });
         }
     },
 
@@ -581,14 +582,14 @@ export const Coalitions = {
         st.pressure = 0;
         st.primed = null;
         st.stats.formed++;
-        Coalitions._log(c, day, `${name} is sworn at the court of ${leader.k.name}: ${pool.map(x => x.k.name).join(', ')}. ${casusBelli}`);
-        if (player.house) House._chronicle(player.house, world, `${name} is sworn against ${houseName} — ${pool.map(x => x.k.name).join(', ')}, led by ${leader.k.name}. ${casusBelli}`, ['coalition', 'war']);
+        Coalitions._log(c, day, `${name} is sworn at the court of ${Names.realm(leader.k.name)}: ${pool.map(x => x.k.name).join(', ')}. ${casusBelli}`);
+        if (player.house) House._chronicle(player.house, world, `${name} is sworn against ${houseName} — ${pool.map(x => x.k.name).join(', ')}, led by ${Names.realm(leader.k.name)}. ${casusBelli}`, ['coalition', 'war']);
         if (Array.isArray(world.events)) world.events.push({ text: `⚜️ ${name} is sworn against ${houseName}: ${pool.map(x => x.k.name).join(', ')}.`, type: 'diplomatic', category: 'POLITICAL' });
         // Rival Houses among them: the feud flares
         for (const { k } of pool) if (player.house && player.house.rivals && player.house.rivals[k.id]) House.accrueRivalFeud(player, world, k.id, 10, `sworn into ${name}`);
         Coalitions._sendTerms(player, world, c, leader.k);
         out.formed = c;
-        out.notices.push({ icon: '⚜️', title: `${name} Is Sworn`, text: `${pool.map(x => x.k.name).join(', ')} have sworn a league against you, led by ${leader.k.name}. ${casusBelli} Their terms: ${c.terms.gold} gold (or ${c.terms.prestige} Prestige) within ${_num(C.ultimatumDays, 14)} days — or war. Answer in Letters, or see Dynasty → Threats.`, type: 'error' });
+        out.notices.push({ icon: '⚜️', title: `${name} Is Sworn`, text: `${pool.map(x => x.k.name).join(', ')} have sworn a league against you, led by ${Names.realm(leader.k.name)}. ${casusBelli} Their terms: ${c.terms.gold} gold (or ${c.terms.prestige} Prestige) within ${_num(C.ultimatumDays, 14)} days — or war. Answer in Letters, or see Dynasty → Threats.`, type: 'error' });
         return c;
     },
 
@@ -709,7 +710,7 @@ export const Coalitions = {
         if (opts.endWars && k) {
             // (a disbanding league ends only the wars it started: opts.leagueWarsOnly)
             if (RealmWars.atWarWith(player, k.id) && !(opts.leagueWarsOnly && m.priorWar)) RealmWars.endWar(player, world, k.id, opts.how || 'exhaustion');
-            if (realm && (k.wars || []).includes(realm.id) && !(opts.leagueWarsOnly && m.priorRealmWar)) KingdomAI.endWar(k, realm, world, { text: `🕊️ ${k.name} makes peace with ${realm.name} and leaves ${c.name}.` });
+            if (realm && (k.wars || []).includes(realm.id) && !(opts.leagueWarsOnly && m.priorRealmWar)) KingdomAI.endWar(k, realm, world, { text: `🕊️ ${k.name} makes peace with ${Names.realm(realm.name)} and leaves ${c.name}.` });
         }
         Coalitions._log(c, day, `${m.name} leaves ${c.name}: ${why}.`);
     },
@@ -969,8 +970,8 @@ export const Coalitions = {
             player.reputation[k.id] = _num(player.reputation[k.id]) + _num(C.cede.reputation) - _num(C.buyoff.reputation);
             c.resolve += _num(C.cede.resolve) - _num(C.buyoff.resolve); // ceding land costs the league more than gold
             Coalitions.state(player).stats.ceded++;
-            if (player.house) House._chronicle(player.house, world, `${player.house.name} cedes ${t.name} to ${k.name} to break ${c.name}.`, ['coalition', 'holdings']);
-            text = `You cede ${t.name} to ${k.name}, and it leaves ${c.name}.`;
+            if (player.house) House._chronicle(player.house, world, `${player.house.name} cedes ${t.name} to ${Names.realm(k.name)} to break ${c.name}.`, ['coalition', 'holdings']);
+            text = `You cede ${t.name} to ${Names.realm(k.name)}, and it leaves ${c.name}.`;
         } else {
             return { success: false, reason: 'Unknown offer.' };
         }

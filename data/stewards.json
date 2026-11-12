@@ -31,11 +31,12 @@
         "holding": ["Reeve", "Reeve", "Steward", "Governor"],
         "province": "Royal Governor",
         "estates": "Bailiff",
-        "company": "Chief Factor"
+        "company": "Chief Factor",
+        "trade": "Master of the Lines"
     },
     "orders": {
         "balanced": {
-            "name": "Keep things as they are", "icon": "⚖️", "for": ["holding", "province", "estates", "company"],
+            "name": "Keep things as they are", "icon": "⚖️", "for": ["holding", "province", "estates", "company", "trade"],
             "desc": "No great push either way. Revenue, food and order as the town gives them.",
             "fx": {}, "embezzle": 1, "abuse": 1
         },
@@ -73,6 +74,11 @@
             "fx": { "growth": 0.003, "buildSpeed": 0.15, "tax": -0.03 }, "skill": "stewardship",
             "embezzle": 1.1, "abuse": 0.8,
             "works": ["market_square", "workshop_quarter", "tavern_inn", "granary"]
+        },
+        "bargain": {
+            "name": "Drive hard bargains", "icon": "🤝", "for": ["trade"],
+            "desc": "Haggle at every stop: the lines buy a little cheaper and sell a little dearer, and a crooked master has more chances to keep a cut.",
+            "fx": { "haggle": 0.02 }, "skill": "stewardship", "embezzle": 1.2, "abuse": 0.5
         },
         "watch": {
             "name": "Watch the factors", "icon": "🔎", "for": ["company"],

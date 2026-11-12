@@ -25,6 +25,7 @@ import { announceSkillUps } from '../skillUps.js';
 import { DayClock } from './dayClock.js';
 import { updateAPChip } from '../apChip.js';
 import { InnerMapBattle } from '../innerMapBattle.js';
+import { isInventoryKey } from '../inventoryHotkey.js';
 import { InnerMapEscort } from '../innerMapEscort.js';
 import { InnerMapBrawls } from '../innerMapBrawls.js';
 import { InnerMapCourting } from '../innerMapCourting.js';
@@ -690,6 +691,12 @@ export function setupInputHandlers() {
         if (e.key === '`' || e.key === 'F9') {
             e.preventDefault();
             this.ui.toggleCheatsPanel();
+            return;
+        }
+        // I: open or close the Inventory (ui/ui/inventoryPanel.js; not while typing, nor in a conversation)
+        if (isInventoryKey(e) && !document.getElementById('npcDialogOverlay') && !document.getElementById('wildsEncounterOverlay')) {
+            e.preventDefault();
+            if (typeof this.ui.toggleInventoryPanel === 'function') this.ui.toggleInventoryPanel();
             return;
         }
         if (e.key === 'Escape' && this._hexPick && typeof this._hexPick.onCancel === 'function') {

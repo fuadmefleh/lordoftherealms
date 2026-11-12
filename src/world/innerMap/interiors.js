@@ -145,6 +145,7 @@ Object.assign(InnerMap, {
                             break;
                         }
                     }
+                    k++; // (the next one tries the next spot: a break skips the loop's own step)
                 }
                 if (this._revealAround) this._revealAround(this.tiles, villageHub.q, villageHub.r, 18);
             }

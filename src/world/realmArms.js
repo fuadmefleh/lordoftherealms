@@ -227,7 +227,8 @@ export const RealmArms = {
      * composition ({ archer }), when the caller knows it. Draws no RNG.
      * → { bought: {good: n}, cost, sold: {good: n}, earned } or null.
      */
-    daily(kingdom, world, comp = null) {
+    daily(kingdom, world, comp = null, days = 1) {
+        const n = days > 1 ? Math.floor(days) : 1;
         if (!kingdom || !kingdom.isAlive) return null;
         const a = RealmArms.state(kingdom);
         if (comp && Number.isFinite(comp.archer)) a.archer = _r2(_clamp(comp.archer, 0, 1));
@@ -235,7 +236,8 @@ export const RealmArms = {
         const war = Array.isArray(kingdom.wars) && kingdom.wars.length > 0;
         // Pieces wear out: the realm's steady draw on its towns' armourers
         const rate = _clamp(_num(war ? C.wear.war : C.wear.peace), 0, 0.5);
-        if (rate > 0) {
+        // (`days`: the distant years — that many days' wear, and the buyers come round once)
+        for (let d = 0; d < n && rate > 0; d++) {
             let worn = 0;
             for (const id of Object.keys(a.stock)) {
                 if (!C.slotOf[id]) continue;
@@ -249,7 +251,7 @@ export const RealmArms = {
         const day = Math.floor(_num(world && world.day));
         const every = Math.max(1, Math.floor(_num(C.buyEvery, 3)));
         let res = null;
-        if ((day + (_hash(String(kingdom.id)) % every)) % every === 0) {
+        if (n > 1 || (day + (_hash(String(kingdom.id)) % every)) % every === 0) {
             res = RealmArms.buy(kingdom, world);
             const sold = RealmArms.sellSurplus(kingdom, world);
             res.sold = sold.sold;

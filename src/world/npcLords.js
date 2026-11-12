@@ -9,6 +9,7 @@ import { KingdomStability, LordInfluence } from './kingdomState.js';
 import { TradeRoutes, Economy } from './economy.js';
 import { Characters } from './characters.js';
 import { Colonization } from './colonization.js';
+import { Names } from '../core/names.js';
 
 export const NPCLords = {
     /** Opinion bonus a lord holds for the player married into their realm. */
@@ -430,7 +431,7 @@ export const NPCLords = {
         raider.destroyed = true;
         if (Array.isArray(world.events)) {
             world.events.push({
-                text: `⚖️ ${kingdom.lord.name}'s wardens hunt down a band of brigands in ${kingdom.name}.`,
+                text: `⚖️ ${kingdom.lord.name}'s wardens hunt down a band of brigands in ${Names.realm(kingdom.name)}.`,
                 type: 'political',
                 kingdom: kingdom.id,
             });
@@ -486,7 +487,7 @@ export const NPCLords = {
             kingdom.stability = Math.min(100, stability + T.crushStability);
             if (Array.isArray(world.events)) {
                 world.events.push({
-                    text: `🗡️ ${kingdom.lord.name}'s soldiers crush dissent in ${kingdom.name}.`,
+                    text: `🗡️ ${kingdom.lord.name}'s soldiers crush dissent in ${Names.realm(kingdom.name)}.`,
                     type: 'political',
                     kingdom: kingdom.id,
                 });

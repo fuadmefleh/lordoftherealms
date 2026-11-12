@@ -370,6 +370,9 @@ export const LordInfluence = {
     },
 };
 
+/** The distant years' stability targets (world._distant.realmEvery): kingdom → { world, day, value }. */
+const _distantTargets = new WeakMap();
+
 export const KingdomStability = {
     BASE: 60,
     /** Fraction of the gap to the target closed each day. */
@@ -443,7 +446,18 @@ export const KingdomStability = {
      */
     processDay(kingdom, world) {
         KingdomStability.ensure(kingdom);
-        const { value } = KingdomStability.target(kingdom, world);
+        // (the distant years, player/afterlife.js: the target is weighed afresh once every
+        // realmEvery days; the drift toward it and the roll for unrest stay daily)
+        const D = world && world._distant;
+        const every = D ? Math.floor(Number(D.realmEvery) || 0) : 0;
+        let value;
+        const held = every > 1 ? _distantTargets.get(kingdom) : null;
+        if (held && held.world === world && world.day >= held.day && world.day - held.day < every) {
+            value = held.value;
+        } else {
+            value = KingdomStability.target(kingdom, world).value;
+            if (every > 1) _distantTargets.set(kingdom, { world, day: world.day, value });
+        }
         kingdom.stability = Utils.clamp(kingdom.stability + (value - kingdom.stability) * KingdomStability.DRIFT_RATE, 0, 100);
         kingdom.stability = Math.round(kingdom.stability * 100) / 100;
 

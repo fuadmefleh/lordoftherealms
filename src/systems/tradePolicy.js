@@ -61,6 +61,7 @@ import { Ledger } from './ledger.js';
 import { EconomyIndex } from '../world/economyIndex.js';
 import { CrownBooks } from '../world/crownBooks.js';
 import { MoneySupply } from '../world/moneySupply.js';
+import { Names } from '../core/names.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -888,7 +889,7 @@ export const TradePolicy = {
                 g.lastHerald = _day(world);
                 TradePolicy._record(world, 'granary', { kingdomId: k.id, kingdom: k.name, n: Math.round(released), towns: fed });
             }
-            if (isRuled) TradePolicy._notice(out, '🌾', 'The Royal Granary', `${Math.round(released)} grain from the royal granary goes to ${fed} hungry town${fed === 1 ? '' : 's'} of ${k.name}.`, 'info');
+            if (isRuled) TradePolicy._notice(out, '🌾', 'The Royal Granary', `${Math.round(released)} grain from the royal granary goes to ${fed} hungry town${fed === 1 ? '' : 's'} of ${Names.realm(k.name)}.`, 'info');
         }
         // (it buys when the council sits; it feeds the hungry every week)
         if (!g.on || !buy) return;
@@ -1058,7 +1059,7 @@ export const TradePolicy = {
         if (!k) return { success: false, reason };
         p.granary.on = !!on;
         TradePolicy._merchants(player, on ? _num(TradePolicy.config().ruler.merchants.granary) : 0);
-        return { success: true, message: on ? `The royal granaries of ${k.name} will buy grain in good years and feed the hungry in bad.` : 'The royal granaries buy no more grain (what is stored still goes to the hungry).' };
+        return { success: true, message: on ? `The royal granaries of ${Names.realm(k.name)} will buy grain in good years and feed the hungry in bad.` : 'The royal granaries buy no more grain (what is stored still goes to the hungry).' };
     },
 
     // ── The player as a merchant ───────────────────────────
@@ -1449,7 +1450,7 @@ export const TradePolicy = {
         if (bar) return { ok: false, reason: `${k.name} is sworn to ${bar.why || 'a league against you'}; its court grants you nothing.` };
         const rep = _num(player.reputation && player.reputation[k.id]);
         if (rep < _num(L.minRep)) return { ok: false, reason: `${k.name}'s court will not hear you (reputation ${Math.round(rep)}).` };
-        if (Underworld.getHeat(player, k.id) >= _num(L.maxHeat)) return { ok: false, reason: `The watch of ${k.name} knows your name too well.` };
+        if (Underworld.getHeat(player, k.id) >= _num(L.maxHeat)) return { ok: false, reason: `The watch of ${Names.realm(k.name)} knows your name too well.` };
         const towns = world && typeof world.getSettlementsOf === 'function' ? world.getSettlementsOf(k.id).length : (k.settlements || []).length;
         let cost = Math.round(_num(L.base) + _num(L.perTown) * towns);
         if (rep >= _num(L.goodRep)) cost = Math.round(cost * _num(L.discount, 1));

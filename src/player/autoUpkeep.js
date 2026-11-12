@@ -376,8 +376,9 @@ export const AutoUpkeep = {
             if (pick.id !== 'market') budget = Math.max(0, budget - paid);
             apSpent += pick.ap;
             coinSpent += paid;
-            const last = steps[steps.length - 1];
-            if (step.merge && last && last.merge === step.merge) { last.ap += pick.ap; continue; }
+            // (a second chat or pastime folds into the first, even with something else between)
+            const same = step.merge ? steps.find(s => s.merge === step.merge) : null;
+            if (same) { same.ap += pick.ap; same.cost += paid; continue; }
             steps.push({ id: pick.id, icon: step.icon, text: step.text, ap: pick.ap, cost: paid, merge: step.merge || null });
         }
         if (!steps.length) return null;

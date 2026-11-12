@@ -687,10 +687,14 @@ Object.assign(ActionMenu, {
         // Every generation drawn as a tree, and the named things they handed down (ui/actionMenu/dynastyTree.js)
         nav.push({ icon: '🌳', name: 'Family Tree', desc: 'Every generation of the House', act: 'showDynastyTree' });
         nav.push({ icon: '🗝️', name: 'Heirlooms', act: 'showHeirlooms' });
+        // Other realms' children raised at your court (ui/actionMenu/raising.js)
+        if (player.house) nav.push({ icon: '🎓', name: 'Wards at Court', desc: (player.house.wards || []).length ? `${player.house.wards.length} at court` : "Raise another realm's child", act: 'showHouseWards' });
         // The Annals: the House's story as a book (ui/actionMenu/annals.js)
         nav.push({ icon: '📖', name: 'The Annals', act: 'showAnnals' });
         // The realm's borders and deeds season by season on a map (ui/actionMenu/timeline.js)
         nav.push({ icon: '🗺️', name: 'Timeline of the Realm', desc: 'The borders and deeds of every season', act: 'showTimeline' });
+        // Everything on record, searchable and cross-linked (ui/actionMenu/almanac.js)
+        nav.push({ icon: '📚', name: 'The Almanac', desc: 'People, Houses, places, realms, wars and ages', act: 'showAlmanac' });
         // The game's victory goal and its progress (ui/actionMenu/scenario.js)
         nav.push({ icon: '🏆', name: 'Ambition of this Life', act: 'showAmbitionPanel' });
         html += rowList(nav, 'The House');
@@ -1408,7 +1412,7 @@ Object.assign(ActionMenu, {
                 let body = '';
                 if (heir.traits?.length > 0) body += `<div style="${MUTED}">Born: ${traitStr}</div>`;
                 body += `<div style="text-align: left;">${ActionMenu._heirProfileHtml(player, heir)}</div>`;
-                body += `<button onclick="window._succeedAsHeir('${heir.id}')" style="${isDesignated ? BTN_GOLD : BTN_PLAIN} display:block; width:100%; margin-top:8px; padding:8px;">Play as ${heir.firstName}</button>`;
+                body += rowList([{ icon: '👑', name: `Play as ${esc(heir.firstName)}`, desc: isDesignated ? 'Your designated heir takes up the mantle' : 'Take up the mantle as them', side: '›', tone: isDesignated ? 'gold' : '', attrs: `onclick="window._succeedAsHeir('${heir.id}')"` }]);
                 const block = card(body, {
                     icon: genderIcon, title: `${heir.firstName} ${heir.dynasty}`,
                     side: `Age ${heir.age}${heir.isSibling ? ' · sibling' : ''}${isDesignated ? ' · 👑 Designated' : ''}`, tone: isDesignated ? 'gold' : '',
@@ -1420,7 +1424,7 @@ Object.assign(ActionMenu, {
             const minorHeir = (player.children || []).find(c => c && c.isAlive && c.id === player.heir && c.age < Relationships._getHeirSettings().minAgeToPlay);
             if (minorHeir) {
                 let body = ActionMenu._regencyChoiceHtml(game, minorHeir);
-                body += `<button onclick="window._succeedViaRegency('${minorHeir.id}')" style="${BTN_GOLD} display:block; width:100%; margin-top:8px; padding:8px;">Play ${minorHeir.firstName} under a regency</button>`;
+                body += rowList([{ icon: '🪑', name: `Play ${esc(minorHeir.firstName)} under a regency`, desc: 'The regent rules until they come of age', side: '›', tone: 'gold', attrs: `onclick="window._succeedViaRegency('${minorHeir.id}')"` }]);
                 html += card(body, { icon: '👑', title: `${minorHeir.firstName} ${minorHeir.dynasty}`, side: `Age ${minorHeir.age} · 👑 Designated`, tone: 'gold' });
             }
         } else {
@@ -1431,7 +1435,7 @@ Object.assign(ActionMenu, {
                 html += `<div style="${MUTED} margin:0 2px 8px;">No heir of your own line remains, but the House's blood runs on in its branches. Their head would bring the branch's purse and lands home.</div>`;
                 cadetLine.forEach((b, i) => {
                     let body = `<div style="${MUTED}">${esc(b.name)} · seat at ${esc(b.seat ? b.seat.name : '—')} · ${esc(RivalHouses.wealthLabel(b.gold))} · loyalty ${Math.round(b.loyalty)}${b.estranged ? ' (estranged)' : ''}</div>`;
-                    body += `<button onclick="window._succeedAsCadet('${b.id}')" style="${i === 0 ? BTN_GOLD : BTN_PLAIN} display:block; width:100%; margin-top:8px; padding:8px;">Play as ${esc(b.head.firstName)}</button>`;
+                    body += rowList([{ icon: '🌿', name: `Play as ${esc(b.head.firstName)}`, desc: 'The branch comes home to the main line', side: '›', tone: i === 0 ? 'gold' : '', attrs: `onclick="window._succeedAsCadet('${b.id}')"` }]);
                     html += card(body, { icon: '🌿', title: esc(CadetBranches.headName(b)), side: `Age ${b.head.age}${i === 0 ? ' · nearest' : ''}`, tone: i === 0 ? 'gold' : '' });
                 });
             }
@@ -1443,13 +1447,15 @@ Object.assign(ActionMenu, {
                 html += sectionHead('A Regency?');
                 let body = `<div style="color:#cbbf9f;">No heir has come of age. You may install a regency to raise <strong>${r.firstName}</strong> (age ${r.age}) to the throne — but the House will emerge weaker, shedding holdings.</div>`;
                 body += ActionMenu._regencyChoiceHtml(game, r);
-                body += `<button onclick="window._succeedViaRegency('${r.id}')" style="${BTN_GOLD} display:block; width:100%; margin-top:8px; padding:9px;">Install Regency for ${r.firstName}</button>`;
-                body += `<button onclick="window._endDynasty()" style="${BTN_RED} display:block; width:100%; margin-top:6px; padding:8px;">Let the Dynasty End</button>`;
+                body += rowList([
+                    { icon: '🪑', name: `Install a regency for ${esc(r.firstName)}`, desc: 'The House emerges weaker, shedding holdings', side: '›', tone: 'gold', attrs: `onclick="window._succeedViaRegency('${r.id}')"` },
+                    { icon: '🕯️', name: 'Let the Dynasty End', desc: 'Read the epitaph of the House', side: '›', tone: 'bad', attrs: 'onclick="window._endDynasty()"' },
+                ]);
                 html += card(body, { icon: '👑', title: `${r.firstName}`, side: `Age ${r.age}`, tone: 'gold' });
             } else if (!cadetLine.length) {
                 html += `<div style="${TITLE} color:#e0846a; font-size:15px; margin-top:12px;">No Eligible Heirs</div>`;
                 html += `<div style="${MUTED} text-align:center; margin:0 0 8px;">Without an heir, your dynasty ends here.</div>`;
-                html += `<button onclick="window._endDynasty()" style="${BTN_RED} display:block; width:100%; padding:10px;">🕯️ Read the Epitaph</button>`;
+                html += rowList([{ icon: '🕯️', name: 'Read the Epitaph', desc: 'The House ends here', side: '›', tone: 'bad', attrs: 'onclick="window._endDynasty()"' }]);
             }
         }
 

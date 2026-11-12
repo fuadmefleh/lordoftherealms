@@ -88,6 +88,7 @@ import { Generalship } from './generalship.js';
 import { Gangs } from '../systems/gangs.js';
 import { StartKnowledge } from './startKnowledge.js';
 import { Parentage } from './parentage.js';
+import { Names } from '../core/names.js';
 
 const FALLBACK = {
     wanderer: {
@@ -303,7 +304,7 @@ export const Scenarios = {
         const men = Scenarios._army(player, o);
         const claim = Throne.grantClaim(player, world, k.id, 'blood', _num(o.claim, 45));
         const dyn = k.characterData && k.characterData.dynasty;
-        Scenarios._rival(player, world, k, dyn && dyn.name ? `House ${dyn.name}, the usurpers` : `the usurpers of ${k.name}`, o.rivalFeud);
+        Scenarios._rival(player, world, k, dyn && dyn.name ? `House ${dyn.name}, the usurpers` : `the usurpers of ${Names.realm(k.name)}`, o.rivalFeud);
         if (o.crisis) Throne.startCrisis(player, world, k, 'disputed', k.ruler || 'the usurper');
         Object.assign(vars, { kingdom: k.name, ruler: k.ruler || 'A usurper', claim, men, town: home ? home.s.name : '' });
         player.scenario.realm = k.id;
@@ -527,8 +528,8 @@ export const Scenarios = {
         Throne._takeThrone(player, world, k);
         Throne.state(player).ruling.inherited = true;
         Scenarios._stewardLord(player, k);
-        Scenarios._standing(player, world, o, `crowned in ${k.name}`);
-        Throne._log(player, world, `👑 ${oldRuler} is dead. ${k.ruler} is crowned in ${k.name}.`);
+        Scenarios._standing(player, world, o, `crowned in ${Names.realm(k.name)}`);
+        Throne._log(player, world, `👑 ${oldRuler} is dead. ${k.ruler} is crowned in ${Names.realm(k.name)}.`);
         // A royal guard out of the realm's own host: the crown's household guard, paid and
         // armed by the realm (player/realmEscort.js), not by the player
         const men = RealmEscort.raise(player, world, k, 'crown', o.guard, { cap: false }).units;
@@ -682,7 +683,7 @@ export const Scenarios = {
         const seat = mine.filter(t => !isCap(t)).sort((a, b) => _num(b.s.population) - _num(a.s.population))[0] || mine[0] || null;
         if (!seat) return;
         Scenarios._moveTo(player, world, seat.q, seat.r);
-        Scenarios._standing(player, world, o, `head of a great house of ${k.name}`);
+        Scenarios._standing(player, world, o, `head of a great house of ${Names.realm(k.name)}`);
         const title = (player.gender === 'male' && o.titleMale) ? o.titleMale : (o.title || 'Lord');
         player.title = `${title} of ${seat.s.name}`;
         player.allegiance = k.id;
@@ -719,7 +720,7 @@ export const Scenarios = {
         const claim = Throne.grantClaim(player, world, k.id, 'blood', _num(o.claim, 20));
         // The crown fears an overmighty subject
         const dyn = k.characterData && k.characterData.dynasty;
-        Scenarios._rival(player, world, k, dyn && dyn.name ? `House ${dyn.name}, the crown` : `the crown of ${k.name}`, Math.round(_num(o.crownFeud, 30) * Scenarios._bite(player)));
+        Scenarios._rival(player, world, k, dyn && dyn.name ? `House ${dyn.name}, the crown` : `the crown of ${Names.realm(k.name)}`, Math.round(_num(o.crownFeud, 30) * Scenarios._bite(player)));
         player.scenario.realm = k.id;
         player.scenario.start = { kind: 'great_lord', kingdomId: k.id, seat: { q: seat.q, r: seat.r, town: seat.s.name }, estates, retinue: men, house: houseName };
         Object.assign(vars, { title, town: seat.s.name, kingdom: k.name, estates, claim, ruler: k.ruler || 'The crown' });
@@ -818,7 +819,7 @@ export const Scenarios = {
             : mine[0];
         if (!camp) return;
         Scenarios._moveTo(player, world, camp.q, camp.r);
-        Scenarios._standing(player, world, o, `commissioned General of ${k.name}`);
+        Scenarios._standing(player, world, o, `commissioned General of ${Names.realm(k.name)}`);
         player.reputation[k.id] = _num(player.reputation[k.id]) + _num(o.reputation);
         const bite = Scenarios._bite(player);
         const c = Generalship._grant(player, world, k, {

@@ -3,6 +3,7 @@ import { ActionMenu } from './_ref.js';
 import { DevotionPanel } from './devotion.js';
 import { esc, BTN_GOLD, BTN_DARK, BTN_PLAIN, lede, chips, purse, sectionHead, kv, card, actRow, rowList, price } from './uiKit.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, Culture, KingdomAtlas } from './_imports.js';
+import { Names } from '../../core/names.js';
 
 Object.assign(ActionMenu, {
     // ─────────────────────────────────────────────
@@ -315,79 +316,6 @@ Object.assign(ActionMenu, {
     },
 
     /**
-     * Show send pioneers menu — pick a target from map
-     */
-    showSendPioneersMenu(game, tile) {
-        const player = game.player;
-        const world = game.world;
-
-        // Find suitable wilderness targets
-        const targets = [];
-        for (let attempt = 0; attempt < 100; attempt++) {
-            const tq = Utils.randInt(0, world.width - 1);
-            const tr = Utils.randInt(5, world.height - 6);
-            const t = world.getTile(tq, tr);
-            if (t && t.terrain.passable && !t.settlement) {
-                const dist = Hex.wrappingDistance(player.q, player.r, tq, tr, world.width);
-                if (dist > 8 && dist < 30) {
-                    const score = Colonization.getWildernessScore(t, world, tq, tr);
-                    if (score > 0) {
-                        targets.push({ q: tq, r: tr, dist, score, terrain: t.terrain.name });
-                    }
-                }
-            }
-        }
-
-        // Sort by score descending and take top 5
-        targets.sort((a, b) => b.score - a.score);
-        const best = targets.slice(0, 5);
-
-        if (best.length === 0) {
-            game.ui.showNotification('No Targets', 'No suitable wilderness for pioneers found nearby.', 'default');
-            return;
-        }
-
-        let html = '<div style="max-height:400px; overflow-y:auto;">';
-        html += lede('Send a pioneering party to settle a distant region. Cost: <b>200 gold</b>');
-        html += chips([purse(player.gold)]);
-        html += rowList(best.map(target => {
-            const hasIndigenous = Colonization.getNearbyIndigenous(world, target.q, target.r, 2).length > 0;
-            return {
-                icon: '🗺️', name: target.terrain,
-                desc: `Distance: ${target.dist} hexes${hasIndigenous ? ' · <span style="color:#f0b35a;">⚠️ Indigenous nearby</span>' : ''}`,
-                note: `Suitability: ${'⭐'.repeat(Math.min(5, Math.ceil(target.score / 2)))}`,
-                act: 'executeSendPioneers', args: [target.q, target.r], side: price(200, player.gold >= 200),
-            };
-        }), 'Choose a target region:');
-        html += '</div>';
-
-        game.ui.showCustomPanel('Send Pioneers', html);
-    },
-
-    /**
-     * Execute sending pioneers
-     */
-    executeSendPioneers(game, targetQ, targetR) {
-        const player = game.player;
-        const world = game.world;
-        if (!ActionMenu.commitPendingAP(game)) return;
-
-        if (player.gold < 200) {
-            game.ui.showNotification('Not Enough Gold', 'You need 200 gold to send pioneers.', 'error');
-            return;
-        }
-
-        const result = Colonization.sendPioneerParty(player, world, targetQ, targetR);
-        if (result.success) {
-            game.ui.showNotification('Pioneers Dispatched!', result.message || 'A pioneering party has set out to settle new lands!', 'success');
-            game.ui.hideCustomPanel();
-        } else {
-            game.ui.showNotification('Cannot Send Pioneers', result.reason || 'Failed to dispatch pioneers.', 'error');
-        }
-        game.ui.updateStats(game.player, game.world);
-    },
-
-    /**
      * Show colony management menu
      */
     showManageColonyMenu(game, tile) {
@@ -477,6 +405,7 @@ Object.assign(ActionMenu, {
             { icon: '💰', name: 'Send Gold Aid', desc: '+15 loyalty', act: 'sendGoldToColony', args: [tile.q, tile.r], side: price(150, player.gold >= 150) },
             { icon: '🏰', name: 'Manage Holding', desc: 'projects, governor, garrison', act: 'openTileMenu', args: ['showHoldingPanel', tile.q, tile.r], side: '›' },
             { icon: '📜', name: 'Change Policy', desc: `Now: ${policy.name}`, act: 'changeColonyPolicy', args: [tile.q, tile.r], side: '›' },
+            { icon: '⛺', name: 'Found a Village', desc: 'send settlers out of here to found another', act: 'showFoundVillage', args: [tile.q, tile.r], side: '›' },
         ], 'Colony Actions:');
 
         if (colony.loyalty < Colonization.REVOLT_LOYALTY + 10) {
@@ -1075,7 +1004,7 @@ Object.assign(ActionMenu, {
         const sType = tile.settlement && tile.settlement.type;
         if (realm && realm.isAlive && ['capital', 'city', 'town'].includes(sType)) {
             const atlas = KingdomAtlas.summary(realm, world);
-            html += sectionHead(`🏛️ Royal Archive of ${realm.name}`);
+            html += sectionHead(`🏛️ Royal Archive of ${Names.realm(realm.name)}`);
             html += `<div style="font-size:11px; color:#9d937c;">${atlas.hired ? '🧭 Court cartographer employed' : 'No court cartographer'}`
                 + ` · ${atlas.mapsMade} maps drawn · Charts ${(atlas.accuracy * 100).toFixed(0)}% accurate`
                 + ` · Holds charts of: ${atlas.charts.length ? atlas.charts.map(c => c.name).join(', ') : 'none'}</div>`;
@@ -1152,7 +1081,7 @@ Object.assign(ActionMenu, {
         if (!ActionMenu.commitPendingAP(game)) return;
         const result = Cartography.sellMapToArchive(game.player, mapIndex, realm, game.world);
         if (result.success) {
-            const extra = result.planted > 0 ? ` Its ${result.planted} alteration(s) now sit in ${realm.name}'s war maps.` : '';
+            const extra = result.planted > 0 ? ` Its ${result.planted} alteration(s) now sit in ${Names.realm(realm.name)}'s war maps.` : '';
             game.ui.showNotification('Map Sold', `${realm.name}'s archive bought ${result.mapName} for ${result.gold} gold.${extra}`, 'success');
         } else {
             game.ui.showNotification(result.caught ? 'Forgery Spotted!' : 'Not Interested', result.reason, 'error');

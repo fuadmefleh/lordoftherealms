@@ -44,6 +44,7 @@ import { Underworld } from './underworld.js';
 import { Ledger } from './ledger.js';
 import { Holdings } from './holdings.js';
 import { Pirates } from './pirates.js';
+import { Names } from '../core/names.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -347,7 +348,7 @@ export const Landings = {
                     if (a) arrestText = ` ${a.text}`;
                 }
             }
-            const text = `The coast watch${kingdom ? ` of ${kingdom.name}` : ''} was waiting on the beach: ${n} ${_label(goodId)} seized${fine > 0 ? `, and a fine of ${fine}g` : ''}.${arrestText}`;
+            const text = `The coast watch${kingdom ? ` of ${Names.realm(kingdom.name)}` : ''} was waiting on the beach: ${n} ${_label(goodId)} seized${fine > 0 ? `, and a fine of ${fine}g` : ''}.${arrestText}`;
             Landings._log(player, world, text);
             return { success: true, caught: true, fine, seized: n, arrested: !!arrestText, text };
         }
@@ -364,7 +365,7 @@ export const Landings = {
         const guild = Underworld.ensure(player).guild;
         if (guild && guild.member && R.standing) Underworld._gainStanding(player, world, R.standing);
         const tail = q.contraband
-            ? ` They are contraband${kingdom ? ` in ${kingdom.name}` : ''}: the black market or a fence will take them.`
+            ? ` They are contraband${kingdom ? ` in ${Names.realm(kingdom.name)}` : ''}: the black market or a fence will take them.`
             : ' No customs house saw them: they sell free of import duty and of any embargo.';
         const text = `${n} ${_label(goodId)} came ashore by night${where ? ` below ${where}` : ''}, unseen.${tail}`;
         Landings._log(player, world, text);
@@ -435,14 +436,10 @@ export const Landings = {
         const L = Landings.config().landfall;
         if (_num(player.actionPoints) < L.ap) return { success: false, reason: `Founding a colony takes ${L.ap} action points.` };
         const tile = world.getTile(player.q, player.r);
-        // Colonization charges its full price; the landing party's own stores pay the rest back
-        const refund = Colonization.COLONY_COST - q.cost;
-        player.gold = _num(player.gold) + refund;
-        const res = Colonization.foundPlayerColony(player, tile, world, player.q, player.r, name, policyId);
-        if (!res.success) {
-            player.gold -= refund;
-            return { success: false, reason: res.reason };
-        }
+        // The landfall's own price, paid to a real purse (Colonization._payForColony);
+        // its first settlers are the ship's, landed below
+        const res = Colonization.foundPlayerColony(player, tile, world, player.q, player.r, name, policyId, { cost: q.cost, firstColonists: 0 });
+        if (!res.success) return { success: false, reason: res.reason };
         player.actionPoints -= L.ap;
         Ledger.record(player, 'holdings', -q.cost);
         const s = tile.settlement;

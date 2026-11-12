@@ -42,6 +42,7 @@ import { Traits } from './traits.js';
 import { Quests } from './quests.js';
 import { Relationships } from './relationships.js';
 import { Regency } from './regency.js';
+import { Names } from '../core/names.js';
 
 // Code defaults (data/throne.json → config overrides them key by key).
 const DEFAULT_CONFIG = {
@@ -233,7 +234,7 @@ export const Throne = {
         const before = src[source] || 0;
         src[source] = mode === 'add' ? Math.min(cap, before + amount) : Math.max(before, amount);
         if (src[source] > before) {
-            Throne._log(player, world, `${Throne.sourceInfo(source).icon} A claim on the throne of ${kingdom.name} (${Throne.sourceInfo(source).label}, now ${Throne.claimStrength(player, kid)}).`);
+            Throne._log(player, world, `${Throne.sourceInfo(source).icon} A claim on the throne of ${Names.realm(kingdom.name)} (${Throne.sourceInfo(source).label}, now ${Throne.claimStrength(player, kid)}).`);
         }
         return Throne.claimStrength(player, kid);
     },
@@ -285,7 +286,7 @@ export const Throne = {
         const capTile = k.capital ? world.getTile(k.capital.q, k.capital.r) : null;
         if (!capTile || !capTile.settlement) return { success: false, reason: `${k.name} has no court to hold the betrothal.` };
         if ((player.gold || 0) < cfg.royalMatchGold) return { success: false, reason: `The dowry is ${cfg.royalMatchGold} gold.` };
-        if (!House.spend(player.house, cfg.royalMatchPrestige, `royal match in ${k.name}`, world.day)) {
+        if (!House.spend(player.house, cfg.royalMatchPrestige, `royal match in ${Names.realm(k.name)}`, world.day)) {
             return { success: false, reason: `Need ${cfg.royalMatchPrestige} Prestige.` };
         }
         player.gold -= cfg.royalMatchGold;
@@ -305,10 +306,10 @@ export const Throne = {
         rel.affection = Math.max(rel.affection || 0, 70);
         rel.score = Math.max(rel.score || 0, 40);
         royal.spouseId = 'player'; // promised — the crown won't marry them elsewhere
-        Throne._log(player, world, `💍 ${npc.firstName} ${npc.dynasty} of the royal house of ${k.name} is promised to ${player.house ? player.house.name : 'you'}.`);
+        Throne._log(player, world, `💍 ${npc.firstName} ${npc.dynasty} of the royal house of ${Names.realm(k.name)} is promised to ${player.house ? player.house.name : 'you'}.`);
         return {
             success: true, npc,
-            message: `${npc.firstName} ${npc.dynasty}, of the blood royal of ${k.name}, awaits you at ${capTile.settlement.name}. Court and wed them there to gain a claim on the throne.`,
+            message: `${npc.firstName} ${npc.dynasty}, of the blood royal of ${Names.realm(k.name)}, awaits you at ${capTile.settlement.name}. Court and wed them there to gain a claim on the throne.`,
         };
     },
 
@@ -332,7 +333,7 @@ export const Throne = {
         const cfg = Throne.config();
         const k = Throne._kingdom(world, kid);
         if (!k || !k.isAlive) return { success: false, reason: 'No such kingdom.' };
-        if (Throne.isExiledFrom(player, world, kid)) return { success: false, reason: `You are exiled from ${k.name}.` };
+        if (Throne.isExiledFrom(player, world, kid)) return { success: false, reason: `You are exiled from ${Names.realm(k.name)}.` };
         const spy = Throne._idleSpy(player);
         if (!spy) return { success: false, reason: 'You need an idle spy to forge the documents.' };
         const c = Throne.state(player).claims[kid];
@@ -342,7 +343,7 @@ export const Throne = {
         const chance = Throne.forgeChance(player);
         if (Utils.random() < chance) {
             const strength = Throne.grantClaim(player, world, kid, 'forged', cfg.forgeStrength, { mode: 'add', cap: cfg.forgeCap });
-            return { success: true, message: `${spy.name || 'Your spy'} slips forged charters into the royal archives of ${k.name}. Claim strength ${strength}.` };
+            return { success: true, message: `${spy.name || 'Your spy'} slips forged charters into the royal archives of ${Names.realm(k.name)}. Claim strength ${strength}.` };
         }
         _addRep(player, kid, cfg.forgeFailReputation);
         spy.loyalty = Math.max(0, (spy.loyalty || 50) + cfg.forgeFailSpyLoyalty);
@@ -355,14 +356,14 @@ export const Throne = {
         const cfg = Throne.config();
         const k = Throne._kingdom(world, kid);
         if (!k || !k.isAlive) return { success: false, reason: 'No such kingdom.' };
-        if (Throne.isExiledFrom(player, world, kid)) return { success: false, reason: `You are exiled from ${k.name}.` };
+        if (Throne.isExiledFrom(player, world, kid)) return { success: false, reason: `You are exiled from ${Names.realm(k.name)}.` };
         const c = Throne.state(player).claims[kid];
         if (c && (c.sources.purchased || 0) >= cfg.purchaseCap) return { success: false, reason: 'The heralds have found every link there is.' };
         if (!House.spend(player.house, cfg.purchasePrestige, `heralds' claim on ${k.name}`, world.day)) {
             return { success: false, reason: `Need ${cfg.purchasePrestige} Prestige.` };
         }
         const strength = Throne.grantClaim(player, world, kid, 'purchased', cfg.purchaseStrength, { mode: 'add', cap: cfg.purchaseCap });
-        return { success: true, message: `Your heralds trace ${player.house ? player.house.name : 'your line'} to the royal blood of ${k.name}. Claim strength ${strength}.` };
+        return { success: true, message: `Your heralds trace ${player.house ? player.house.name : 'your line'} to the royal blood of ${Names.realm(k.name)}. Claim strength ${strength}.` };
     },
 
     /** Daily: claims from a royal marriage and from a royal office held long enough. */
@@ -523,7 +524,7 @@ export const Throne = {
             backing: null, // { claimantId, gold, prestige, battles }
         };
         st.crises.push(crisis);
-        Throne._log(player, world, `👑 Succession crisis in ${kingdom.name}: ${text.text}`);
+        Throne._log(player, world, `👑 Succession crisis in ${Names.realm(kingdom.name)}: ${text.text}`);
         return crisis;
     },
 
@@ -626,14 +627,14 @@ export const Throne = {
                 const gold = Math.round(b.gold * C.rewardGoldMultiplier + C.rewardGold);
                 player.gold = (player.gold || 0) + gold;
                 _addRep(player, kingdom.id, C.rewardReputation);
-                House.award(player.house, C.rewardPrestige, `kingmaker in ${kingdom.name}`, world.day);
+                House.award(player.house, C.rewardPrestige, `kingmaker in ${Names.realm(kingdom.name)}`, world.day);
                 Quests.track(player, 'kingmaker');
                 result.rewards = { gold, reputation: C.rewardReputation, prestige: C.rewardPrestige };
-                Throne._log(player, world, `👑 ${winner.name} wins the throne of ${kingdom.name} with your backing: +${gold}g, +${C.rewardReputation} reputation, +${C.rewardPrestige} Prestige.`);
+                Throne._log(player, world, `👑 ${winner.name} wins the throne of ${Names.realm(kingdom.name)} with your backing: +${gold}g, +${C.rewardReputation} reputation, +${C.rewardPrestige} Prestige.`);
             } else {
                 _addRep(player, kingdom.id, C.loserReputation);
                 result.rewards = { reputation: C.loserReputation };
-                Throne._log(player, world, `👑 ${winner.name} wins the throne of ${kingdom.name}; the claimant you backed is cast down (${C.loserReputation} reputation).`);
+                Throne._log(player, world, `👑 ${winner.name} wins the throne of ${Names.realm(kingdom.name)}; the claimant you backed is cast down (${C.loserReputation} reputation).`);
             }
         } else {
             Throne._log(player, world, `👑 The crisis in ${crisis.kingdomName} ends: ${winner.name} holds the throne.`);
@@ -667,7 +668,7 @@ export const Throne = {
         // A child under a regent raises no banners: pressing a claim is war (systems/regency.js)
         const minor = Regency.forbids(player, 'war');
         if (minor) return { ok: false, reason: minor };
-        if (Throne.isExiledFrom(player, world, kid)) return { ok: false, reason: `You are exiled from ${k.name} until day ${st.exile[kid]}.` };
+        if (Throne.isExiledFrom(player, world, kid)) return { ok: false, reason: `You are exiled from ${Names.realm(k.name)} until day ${st.exile[kid]}.` };
         const strength = Throne.claimStrength(player, kid);
         if (strength < cfg.pressMinStrength) return { ok: false, reason: `Your claim is too weak (${strength}; need ${cfg.pressMinStrength}).` };
         if ((opts.armyStrength || 0) < cfg.pressMinArmy) return { ok: false, reason: `You need an army of at least ${cfg.pressMinArmy} strength to raise your banners.` };
@@ -736,11 +737,11 @@ export const Throne = {
         st.civilWar.lastWarScore = war.score || 0;
         Throne.syncCrowns(player, world);
         const share = Math.round(fc.rebelShare * 100);
-        Throne._log(player, world, `🚩 ${player.name || 'The pretender'} raises the banners against ${k.ruler || 'the crown'} of ${k.name}. ${share}% of the realm and ${turncoats} great lord(s) declare for you.`);
-        if (Array.isArray(world.events)) world.events.push({ text: `🚩 Civil war in ${k.name}! ${player.name || 'A pretender'} claims the throne.`, type: 'military', category: 'MILITARY' });
+        Throne._log(player, world, `🚩 ${player.name || 'The pretender'} raises the banners against ${k.ruler || 'the crown'} of ${Names.realm(k.name)}. ${share}% of the realm and ${turncoats} great lord(s) declare for you.`);
+        if (Array.isArray(world.events)) world.events.push({ text: `🚩 Civil war in ${Names.realm(k.name)}! ${player.name || 'A pretender'} claims the throne.`, type: 'military', category: 'MILITARY' });
         return {
             success: true, civilWar: st.civilWar,
-            message: `Civil war! ${share}% of ${k.name} and ${turncoats} of its great lords rise for you, bringing ${levies} levies.`,
+            message: `Civil war! ${share}% of ${Names.realm(k.name)} and ${turncoats} of its great lords rise for you, bringing ${levies} levies.`,
         };
     },
 
@@ -805,7 +806,7 @@ export const Throne = {
             k.military = Math.floor((k.military || 0) * (1 - W.loyalistLoss));
             // (a vanguard broken sways a town now and then, not every time)
             if (Utils.random() < (W.vanguardFlipChance == null ? 1 : W.vanguardFlipChance)) flipped = Throne._flipOne(world, k, cw, 'pretender');
-            House.recordPlayerDeed(player, world, 'battleWon', { reason: `battle for the throne of ${k.name}` });
+            House.recordPlayerDeed(player, world, 'battleWon', { reason: `battle for the throne of ${Names.realm(k.name)}` });
         } else {
             cw.momentum += W.vanguardLoss;
             cw.battlesLost++;
@@ -1020,10 +1021,10 @@ export const Throne = {
         if (truces) delete truces[kingdom.id];
         Throne._takeThrone(player, world, kingdom);
         player.renown = (player.renown || 0) + cfg.crownedRenown;
-        House.award(player.house, cfg.crownedPrestige, `crowned in ${kingdom.name}`, world.day);
+        House.award(player.house, cfg.crownedPrestige, `crowned in ${Names.realm(kingdom.name)}`, world.day);
         const text = how === 'weariness'
-            ? `👑 The loyalists of ${kingdom.name} lay down their arms. ${kingdom.ruler} is crowned!`
-            : `👑 The civil war is won. ${kingdom.ruler} is crowned in ${kingdom.name}!`;
+            ? `👑 The loyalists of ${Names.realm(kingdom.name)} lay down their arms. ${kingdom.ruler} is crowned!`
+            : `👑 The civil war is won. ${kingdom.ruler} is crowned in ${Names.realm(kingdom.name)}!`;
         Throne._log(player, world, text);
         if (Array.isArray(world.events)) world.events.push({ text, type: 'political', category: 'political', kingdom: kingdom.id });
         return { kingdomName: kingdom.name, message: `${text} +${cfg.crownedPrestige} Prestige, +${cfg.crownedRenown} renown.` };
@@ -1044,8 +1045,8 @@ export const Throne = {
         if (player.allegiance === kingdom.id) { player.allegiance = null; player.kingdomTitle = null; }
         if (/^Pretender/.test(player.title || '')) player.title = 'Exile';
         const loss = Math.min(House.getPrestige(player), cfg.exilePrestigeLoss);
-        if (loss > 0) House.spend(player.house, loss, `exiled from ${kingdom.name}`, world.day);
-        const text = `🥀 The pretender's cause in ${kingdom.name} is lost. ${player.name || 'You'} flees into exile; the claim is gone (−${loss} Prestige).`;
+        if (loss > 0) House.spend(player.house, loss, `exiled from ${Names.realm(kingdom.name)}`, world.day);
+        const text = `🥀 The pretender's cause in ${Names.realm(kingdom.name)} is lost. ${player.name || 'You'} flees into exile; the claim is gone (−${loss} Prestige).`;
         Throne._log(player, world, text);
         if (Array.isArray(world.events)) world.events.push({ text, type: 'political', category: 'political', kingdom: kingdom.id });
         return { kingdomName: kingdom.name, message: text };
@@ -1271,8 +1272,8 @@ export const Throne = {
         player.kingdomTitle = 'citizen';
         player.title = `Citizen of ${Kingdom.rulerStyle(k, player.gender).realm}`;
         Throne.syncCrowns(player, world);
-        Throne._log(player, world, `👑 ${player.name || 'You'} sets down the crown of ${k.name}. ${k.ruler} rules now.`);
-        return { success: true, message: `You abdicate. ${k.ruler} takes the throne of ${k.name}.` };
+        Throne._log(player, world, `👑 ${player.name || 'You'} sets down the crown of ${Names.realm(k.name)}. ${k.ruler} rules now.`);
+        return { success: true, message: `You abdicate. ${k.ruler} takes the throne of ${Names.realm(k.name)}.` };
     },
 
     /**
@@ -1303,7 +1304,7 @@ export const Throne = {
         if (playerRuler) { playerRuler.isAlive = false; playerRuler.deposed = false; }
         if (player.allegiance === k.id) { player.allegiance = null; player.kingdomTitle = null; }
         Throne.syncCrowns(player, world);
-        const text = `👑 The crown of ${k.name} passes to ${k.ruler}.`;
+        const text = `👑 The crown of ${Names.realm(k.name)} passes to ${k.ruler}.`;
         Throne._log(player, world, text);
         if (world && Array.isArray(world.events)) world.events.push({ text, type: 'political', category: 'political', kingdom: k.id });
         return k.ruler;

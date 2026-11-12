@@ -200,16 +200,22 @@
         "fallback": { "male": "King", "female": "Queen" }
     },
     "rulerNames": {
-        "Imperial": ["Aldric", "Cedric", "Edmund", "Roland", "Theron", "Victor", "Helena", "Isabella", "Morgana", "Rowena", "Vivienne"],
-        "Woodland": ["Elara", "Sylvan", "Thalia", "Rowan", "Faelan", "Arden", "Lyra", "Elowen", "Briar", "Cypress", "Willow"],
-        "Nomadic": ["Borga", "Temur", "Khal", "Drogo", "Ragnar", "Ulfric", "Yara", "Khara", "Nara", "Zara", "Shara"],
-        "Religious": ["Solon", "Matthias", "Ezekiel", "Silas", "Tobias", "Miriam", "Seraphina", "Celeste", "Evangeline", "Theodora"],
-        "Maritime": ["Lyanna", "Marcus", "Octavia", "Tiberius", "Cassius", "Marina", "Cordelia", "Nerissa", "Portia", "Caspian"],
-        "Mountain": ["Grimvar", "Thorin", "Durak", "Bragni", "Tormund", "Helga", "Brynhild", "Gerta", "Steinra", "Ulfhild"],
-        "Swamp": ["Vasska", "Morwen", "Cressida", "Gregor", "Thane", "Hilda", "Nethra", "Sable", "Grendel", "Isolde"],
-        "Arcane": ["Thalendros", "Myrinda", "Vexius", "Solenne", "Caelum", "Oriana", "Zyphros", "Ilyana", "Ferenis", "Astraea"],
-        "Nordic": ["Sigrun", "Bjorn", "Freya", "Harald", "Ivar", "Astrid", "Gunnar", "Thyra", "Eirik", "Ragna"],
-        "Desert": ["Rashid", "Farid", "Zainab", "Khalil", "Amira", "Tariq", "Layla", "Harun", "Soraya", "Mustafa"]
+        "_doc": "A realm's ruler when the world names one (Kingdom.generateRulerName): a gender is drawn, then a name of that gender and a title that fits it (rulerTitleGender; a title not listed there suits either).",
+        "Imperial": { "male": ["Aldric", "Cedric", "Edmund", "Roland", "Theron", "Victor"], "female": ["Helena", "Isabella", "Morgana", "Rowena", "Vivienne"] },
+        "Woodland": { "male": ["Sylvan", "Rowan", "Faelan", "Arden", "Cypress"], "female": ["Elara", "Thalia", "Lyra", "Elowen", "Briar", "Willow"] },
+        "Nomadic": { "male": ["Borga", "Temur", "Khal", "Drogo", "Ragnar", "Ulfric"], "female": ["Yara", "Khara", "Nara", "Zara", "Shara"] },
+        "Religious": { "male": ["Solon", "Matthias", "Ezekiel", "Silas", "Tobias"], "female": ["Miriam", "Seraphina", "Celeste", "Evangeline", "Theodora"] },
+        "Maritime": { "male": ["Marcus", "Tiberius", "Cassius", "Caspian"], "female": ["Lyanna", "Octavia", "Marina", "Cordelia", "Nerissa", "Portia"] },
+        "Mountain": { "male": ["Grimvar", "Thorin", "Durak", "Bragni", "Tormund"], "female": ["Helga", "Brynhild", "Gerta", "Steinra", "Ulfhild"] },
+        "Swamp": { "male": ["Gregor", "Thane", "Grendel"], "female": ["Vasska", "Morwen", "Cressida", "Hilda", "Nethra", "Sable", "Isolde"] },
+        "Arcane": { "male": ["Thalendros", "Vexius", "Caelum", "Zyphros", "Ferenis"], "female": ["Myrinda", "Solenne", "Oriana", "Ilyana", "Astraea"] },
+        "Nordic": { "male": ["Bjorn", "Harald", "Ivar", "Gunnar", "Eirik"], "female": ["Sigrun", "Freya", "Astrid", "Thyra", "Ragna"] },
+        "Desert": { "male": ["Rashid", "Farid", "Khalil", "Tariq", "Harun", "Mustafa"], "female": ["Zainab", "Amira", "Layla", "Soraya"] }
+    },
+    "rulerTitleGender": {
+        "_doc": "Which ruler titles (rulerTitles, realmStyles) belong to one gender; any title not listed suits either.",
+        "King": "male", "Emperor": "male", "High Priest": "male", "Lord": "male", "Stone-King": "male", "Witch-King": "male", "Bog-Lord": "male", "Forgelord": "male", "Sultan": "male", "Khan": "male", "High King": "male", "High Sorcerer": "male", "Prince": "male", "Duke": "male",
+        "Queen": "female", "Empress": "female", "High Priestess": "female", "Lady": "female", "Stone-Queen": "female", "Witch-Queen": "female", "Hag-Mother": "female", "Sultana": "female", "Khatun": "female", "Shield-Maiden": "female", "High Queen": "female", "Princess": "female", "Duchess": "female"
     },
     "epithets": [
         "the Wise", "the Bold", "the Just", "the Great", "the Fair",

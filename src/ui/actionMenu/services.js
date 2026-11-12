@@ -7,6 +7,7 @@ import { PlayerActions, SettlementServices, SERVICE_CONFIG, Relationships } from
 import { Ailments } from '../../systems/ailments.js';
 import { TradeSkills } from '../../systems/tradeSkills.js';
 import { lede, chips, purse, sectionHead, card, actRow, rowList, price } from './uiKit.js';
+import { Names } from '../../core/names.js';
 
 // In the action menu's voice (ui/actionMenu/uiKit.js): a lede, then one row a
 // service, its price at the right, greyed with its reason when out of reach
@@ -288,8 +289,8 @@ Object.assign(ActionMenu, {
         if (!kingdom) {
             html += lede('This settlement answers to no crown. There is no one to pay.');
         } else {
-            html += lede(`The tax clerk of ${kingdom.name} looks up hopefully. A voluntary contribution to the crown is always remembered.`);
-            html += chips([{ icon: '👑', label: `Your standing with ${kingdom.name}`, value: rep, cls: 'gold' }, purse(player.gold)]);
+            html += lede(`The tax clerk of ${Names.realm(kingdom.name)} looks up hopefully. A voluntary contribution to the crown is always remembered.`);
+            html += chips([{ icon: '👑', label: `Your standing with ${Names.realm(kingdom.name)}`, value: rep, cls: 'gold' }, purse(player.gold)]);
             html += rowList(tiers.map((amount, i) => {
                 const gain = Math.floor(amount / SERVICE_CONFIG.tribute.goldPerReputation);
                 return _row({
@@ -320,7 +321,7 @@ Object.assign(ActionMenu, {
         let html = '<div>';
         const ruler = kingdom && kingdom.ruler ? (kingdom.ruler.name || kingdom.ruler) : null;
         html += lede(kingdom
-            ? `You are shown into the hall${ruler ? ` where the steward of ${ruler}` : ''} hears petitions on behalf of ${kingdom.name}.`
+            ? `You are shown into the hall${ruler ? ` where the steward of ${ruler}` : ''} hears petitions on behalf of ${Names.realm(kingdom.name)}.`
             : 'The hall is quiet. The local elders hear you out.');
         if (available.length === 0) {
             html += card('<div style="font-size: 12px; color: #cbbf9f;">There is nothing for you to petition here yet. Earn standing with the realm, and pledge yourself to it, to open the doors of office.</div>');

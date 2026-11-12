@@ -11,7 +11,7 @@
 // generation RNG, so pitching a camp leaves the map's own layout untouched.
 
 import { InnerMap } from './_ref.js';
-import { CustomObjects, Utils } from './_imports.js';
+import { CustomObjects, Utils, DataLoader } from './_imports.js';
 import { TownProps } from '../townProps.js';
 
 function _rng(seedA, seedB, salt) {
@@ -24,6 +24,17 @@ function _rng(seedA, seedB, salt) {
 
 // A colony founded in play is a camp of tents until it has this many souls
 const CAMP_OUTGROWN = 150;
+
+// The tents a camp is pitched with (data/townProps.json `camps`): a clan of the
+// dawn puts up hide shelters, settlers founding a colony canvas tents
+const CAMP_TENTS = { dawn: ['tp_tent_hide', 'tp_tent_fell'], colony: ['tp_tent_canvas', 'tp_tent_canvas_open'] };
+
+function _tentIds(kind) {
+    const tp = (DataLoader.get && DataLoader.get('townProps')) || (DataLoader._gamedata && DataLoader._gamedata.townProps) || null;
+    const listed = tp && tp.camps && Array.isArray(tp.camps[kind]) ? tp.camps[kind] : CAMP_TENTS[kind];
+    const ids = (listed || []).filter(id => CustomObjects.getDef(id));
+    return ids.length ? ids : CAMP_TENTS.dawn;
+}
 
 const _hashStr = (str) => {
     let h = 0;
@@ -119,7 +130,7 @@ Object.assign(InnerMap, {
         // Tents in a ring, doors toward the fire (the sprites face south: the
         // ring sits mostly north, east and west of the fire, a few south)
         const want = Math.max(2, Math.min(6, Math.round((clan.population || 30) / 12)));
-        const tentIds = ['tp_tent_hide', 'tp_tent_fell'];
+        const tentIds = _tentIds('dawn');
         let tents = 0;
         const start = rng() * Math.PI * 2;
         for (let i = 0; i < want * 4 && tents < want; i++) {
@@ -128,7 +139,7 @@ Object.assign(InnerMap, {
             // anchor is the bottom-left cell of a 3x3 tent: centre it on the ring point
             const q = Math.round(hub.q + Math.cos(a) * dist * 1.2) - 1;
             const r = Math.round(hub.r + Math.sin(a) * dist * 0.9) + 1;
-            if (put(tentIds[(tents + (rng() < 0.3 ? 1 : 0)) % 2], q, r)) tents++;
+            if (put(tentIds[(tents + (rng() < 0.3 ? 1 : 0)) % tentIds.length], q, r)) tents++;
         }
         // Firewood by the hearth, logs at the edge of camp
         for (const [id, dq, dr] of [['tp_firewood', 2, 1], ['tp_logs', -3, 2], ['tp_firewood', -2, -1]]) {
@@ -314,7 +325,7 @@ Object.assign(InnerMap, {
         tiles[hub.r][hub.q]._villageHub = true;
         // Tents in rings: about one to every dozen people
         const want = Math.max(4, Math.min(18, Math.round(pop / 12)));
-        const tentIds = ['tp_tent_hide', 'tp_tent_fell'];
+        const tentIds = _tentIds(settlement.dawnBorn ? 'dawn' : 'colony');
         let tents = 0;
         for (const [radius, share] of [[6.5, 0.45], [10.5, 0.4], [14, 0.3]]) {
             const ring = Math.round(want * share) + 1;
@@ -323,7 +334,7 @@ Object.assign(InnerMap, {
                 const a = start + (i / ring) * Math.PI * 2 + (rng() - 0.5) * 0.3;
                 const q = Math.round(hub.q + Math.cos(a) * radius * 1.25) - 1;
                 const r = Math.round(hub.r + Math.sin(a) * radius * 0.9) + 1;
-                if (put(tentIds[Math.floor(rng() * 2)], q, r)) tents++;
+                if (put(tentIds[Math.floor(rng() * tentIds.length)], q, r)) tents++;
             }
         }
         // Cook fires and woodpiles between the tents

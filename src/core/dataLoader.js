@@ -329,6 +329,7 @@ export const DataLoader = {
         Kingdom._rulerTitles = kingdomData.rulerTitles;
         Kingdom._realmStyles = kingdomData.realmStyles || null;
         Kingdom._rulerNames = kingdomData.rulerNames;
+        Kingdom._rulerTitleGender = kingdomData.rulerTitleGender || null;
         Kingdom._epithets = kingdomData.epithets;
         // What each kingdom trait does (read by KingdomBonuses.get)
         if (kingdomData.traitEffects) KingdomBonuses.TRAITS = kingdomData.traitEffects;
@@ -426,6 +427,8 @@ export const DataLoader = {
         const colData = data['colonization.json'];
         Colonization.INDIGENOUS_TRIBES = colData.indigenousTribes;
         Colonization.POLICIES = colData.policies;
+        // Founding villages with real settlers (world/villageFounding.js, systems/founding.js)
+        if (colData.founding) Colonization.FOUNDING = colData.founding;
 
         // ── Cartography ──
         const cartoData = data['cartography.json'];

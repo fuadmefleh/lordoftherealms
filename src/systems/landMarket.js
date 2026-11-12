@@ -42,6 +42,7 @@ import { Finance } from './finance.js';
 import { RealmWars } from './realmWars.js';
 import { House } from './house.js';
 import { Ledger } from './ledger.js';
+import { Names } from '../core/names.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -913,12 +914,12 @@ export const LandMarket = {
         const pres = Math.min(_num(D.maxPrestige, 10), Math.round(value / Math.max(1, _num(D.perPrestige, 500))));
         if (!player.reputation) player.reputation = {};
         player.reputation[k.id] = _num(player.reputation[k.id]) + rep;
-        if (player.house && pres > 0) House.award(player.house, pres, `${e.name} settled as a dowry in ${k.name}`, _day(world));
+        if (player.house && pres > 0) House.award(player.house, pres, `${e.name} settled as a dowry in ${Names.realm(k.name)}`, _day(world));
         const live = Estates._liveOfKey(world, e.town);
         LandMarket._setHolder(world, e, to, _day(world));
         LandMarket.playerState(player).stats.dowries++;
         Estates.record(world, { key: `es:dowry:${e.id}:${_day(world)}`, kind: 'dowry', day: _day(world), place: live ? live.name : e.town, q: live ? live.q : null, r: live ? live.r : null, kingdomId: k.id, estate: e.name, holder: player.name || 'you', buyer: Estates.holderName(world, to), own: true });
-        return { success: true, text: `${e.name} is settled on ${Estates.holderName(world, to)} as a dowry: +${rep} reputation in ${k.name}${pres ? `, +${pres} Prestige` : ''}.` };
+        return { success: true, text: `${e.name} is settled on ${Estates.holderName(world, to)} as a dowry: +${rep} reputation in ${Names.realm(k.name)}${pres ? `, +${pres} Prestige` : ''}.` };
     },
 
     /** Summary of the player's land: { n, value, rent (a year), paid, earned, yield }. */

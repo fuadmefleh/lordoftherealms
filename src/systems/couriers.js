@@ -48,6 +48,7 @@ import { OutlawLairs } from './outlawLairs.js';
 import { Ledger } from './ledger.js';
 import { CourtLetters } from './courtLetters.js';
 import { CrownBooks } from '../world/crownBooks.js';
+import { Names } from '../core/names.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _day = world => (world && Number.isFinite(world.day) ? world.day : 0);
@@ -783,8 +784,8 @@ export const Couriers = {
                 const holder = this.get(world, ch.courierId);
                 if (!holder || holder.alive === false || !this.stationsIn(holder, k.id)) {
                     delete st.charters[k.id];
-                    this._news(world, `The Royal Post of ${k.name} lapses: ${holder ? holder.name : 'its holder'} no longer carries the realm's mail.`, '📜');
-                    if (holder && holder.owner === 'player') out.notices.push({ icon: '📜', title: 'Royal Post Lost', text: `Your Royal Post charter in ${k.name} has lapsed.`, type: 'warning' });
+                    this._news(world, `The Royal Post of ${Names.realm(k.name)} lapses: ${holder ? holder.name : 'its holder'} no longer carries the realm's mail.`, '📜');
+                    if (holder && holder.owner === 'player') out.notices.push({ icon: '📜', title: 'Royal Post Lost', text: `Your Royal Post charter in ${Names.realm(k.name)} has lapsed.`, type: 'warning' });
                 }
                 continue;
             }
@@ -794,7 +795,7 @@ export const Couriers = {
             if (!cands.length || Utils.random() >= C.grantChance) continue;
             this.grant(world, k.id, cands[0].id);
             const ph = player ? this.playerHouse(world) : null;
-            if (ph && this.stationsIn(ph, k.id)) out.notices.push({ icon: '📜', title: 'A Royal Post Granted', text: `The crown of ${k.name} grants ${cands[0].name} the Royal Post: only it may carry the realm's mail. Your stations there fall idle.`, type: 'warning' });
+            if (ph && this.stationsIn(ph, k.id)) out.notices.push({ icon: '📜', title: 'A Royal Post Granted', text: `The crown of ${Names.realm(k.name)} grants ${cands[0].name} the Royal Post: only it may carry the realm's mail. Your stations there fall idle.`, type: 'warning' });
         }
     },
 
@@ -849,7 +850,7 @@ export const Couriers = {
                     vars, data: { courierId: c.id, kingdomId: k.id, enemyId: enemy ? enemy.id : null, price },
                     subject: fill(K.subject), body: fill(K.body), read: false,
                 });
-                out.notices.push({ icon: '🎒', title: 'A Sealed Letter', text: `A rider of ${c.name} carries a letter under the seal of ${k.name}. Journal → Letters.`, type: 'info' });
+                out.notices.push({ icon: '🎒', title: 'A Sealed Letter', text: `A rider of ${c.name} carries a letter under the seal of ${Names.realm(k.name)}. Journal → Letters.`, type: 'info' });
             }
         }
         // Rivals on the same roads: undercutting, sabotage
@@ -1022,7 +1023,7 @@ export const Couriers = {
         res.chance = Math.round(_clamp(0.25 + regard / 100 + (_num(c.reputation, 50) - 50) / 100 + (n - C.playerMinStations) * 0.05 - (holder ? 0.2 : 0), 0.05, 0.9) * 100) / 100;
         const st = this.state(world);
         const last = st.bids[`${kingdomId}`];
-        if (n < C.playerMinStations) return { ...res, ok: false, why: `You need ${C.playerMinStations} stations in ${k.name} (you have ${n}).` };
+        if (n < C.playerMinStations) return { ...res, ok: false, why: `You need ${C.playerMinStations} stations in ${Names.realm(k.name)} (you have ${n}).` };
         if (last != null && _day(world) - last < C.bidCooldown) return { ...res, ok: false, why: `The crown heard your petition lately (again after day ${last + C.bidCooldown}).` };
         if (_num(player.gold) < res.cost) return { ...res, ok: false, why: `You need ${res.cost} gold for the petition and the clerks.` };
         return res;
@@ -1041,7 +1042,7 @@ export const Couriers = {
             this.grant(world, kingdomId, c.id, 'petition');
             return { success: true, won: true, text: `${k.name} grants ${c.name} the Royal Post: all of the realm's mail is yours to carry, for a weekly fee to the crown.` };
         }
-        return { success: true, won: false, text: `The crown of ${k.name} takes your ${q.cost} gold and your petition, and grants nothing.` };
+        return { success: true, won: false, text: `The crown of ${Names.realm(k.name)} takes your ${q.cost} gold and your petition, and grants nothing.` };
     },
 
     /** Houses and charters as the panel shows them. */

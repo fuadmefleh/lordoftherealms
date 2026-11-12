@@ -274,7 +274,8 @@ Object.assign(InnerMap, {
         const night = this.townPeriod() === 'night';
         for (const npc of this.npcs) {
             npc._activity = null;
-            const spot = (npc.type === 'guard' && npc._post) ? npc._post : this.townSpot(rng);
+            // (a camp's folk keep the places among the tents they were given — world/innerMap/interiors.js)
+            const spot = npc.campHub ? null : (npc.type === 'guard' && npc._post) ? npc._post : this.townSpot(rng);
             if (spot) { npc.q = npc.prevQ = npc.targetQ = spot.q; npc.r = npc.prevR = npc.targetR = spot.r; }
             npc.path = null;
             npc.state = 'idle';

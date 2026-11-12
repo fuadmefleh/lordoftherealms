@@ -39,6 +39,7 @@ import { PlayerEffects } from '../player/playerEffects.js';
 import { Ailments } from './ailments.js';
 import { Traits } from './traits.js';
 import { Duels } from './duels.js';
+import { Names } from '../core/names.js';
 
 const DEFAULT_CONFIG = {
     minRivals: 6,
@@ -927,8 +928,8 @@ export const Rivals = {
             if (!k) return;
             rival.claim = k.id;
             rival.claimName = k.name;
-            Rivals._news(player, world, rival, '👑', `${rival.name} now styles themself pretender to the throne of ${k.name}.`, task.q, task.r);
-            if (Rivals._nearPlayer(player, world, task.q, task.r) || rival.met) notify('👑', 'A Pretender', `${rival.name} now claims the throne of ${k.name}.`, 'info');
+            Rivals._news(player, world, rival, '👑', `${rival.name} now styles themself pretender to the throne of ${Names.realm(k.name)}.`, task.q, task.r);
+            if (Rivals._nearPlayer(player, world, task.q, task.r) || rival.met) notify('👑', 'A Pretender', `${rival.name} now claims the throne of ${Names.realm(k.name)}.`, 'info');
         }
     },
 

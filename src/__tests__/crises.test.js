@@ -159,7 +159,9 @@ describe('Crises', () => {
         const boom0 = world.getTile(c.data.townQ, c.data.townR).settlement.population;
         pass(world, 60);
         expect(c.data.gained).toBeGreaterThan(0);
-        expect(world.getTile(c.data.townQ, c.data.townR).settlement.population).toBeGreaterThan(boom0 - 50);
+        // (a boom town is the realm's natural donor of settlers for new villages — world/kingdomAI.js
+        // _villageDonor — so a few dozen may leave; the rush still holds it up)
+        expect(world.getTile(c.data.townQ, c.data.townR).settlement.population).toBeGreaterThan(boom0 * 0.97);
     }, 60000);
 
     it('draws nothing from the shared RNG', () => {

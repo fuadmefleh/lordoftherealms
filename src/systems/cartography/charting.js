@@ -11,6 +11,7 @@
 // Tuning lives in data/cartography.json "charting".
 import { Cartography } from './_ref.js';
 import { Utils, Hex } from './_imports.js';
+import { Names } from '../../core/names.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _key = (q, r) => `${q},${r}`;
@@ -109,9 +110,9 @@ Object.assign(Cartography, {
             const territory = (kingdom.territory || []).length;
             const need = Math.max(_num(C.minTiles.kingdom, 15), Math.ceil(territory * _num(C.kingdomShare, 0.2)));
             out.push({
-                type: 'kingdom', name: `Map of ${kingdom.name}`, icon: Cartography.MAP_TYPES.kingdom.icon,
+                type: 'kingdom', name: `Map of ${Names.realm(kingdom.name)}`, icon: Cartography.MAP_TYPES.kingdom.icon,
                 have, need, ready: have >= need, cost: _num(C.inkCost.kingdom),
-                reason: have >= need ? '' : `Chart ${need - have} more of ${kingdom.name}'s tiles.`,
+                reason: have >= need ? '' : `Chart ${need - have} more of ${Names.realm(kingdom.name)}'s tiles.`,
             });
         }
         return out;
@@ -137,7 +138,7 @@ Object.assign(Cartography, {
         const map = {
             id: `map_${Utils.nextId()}_${Utils.randInt(0, 9999)}`,
             type,
-            name: type === 'kingdom' ? `Map of ${kingdom.name}` : type === 'survey' ? `Survey of ${region}` : `Regional Map of ${region}`,
+            name: type === 'kingdom' ? `Map of ${Names.realm(kingdom.name)}` : type === 'survey' ? `Survey of ${region}` : `Regional Map of ${region}`,
             icon: type === 'kingdom' ? '👑' : type === 'survey' ? '📐' : qualityData.icon,
             quality,
             accuracy: Math.min(1, qualityData.accuracy + skill * (type === 'survey' ? 0.03 : 0.02)),

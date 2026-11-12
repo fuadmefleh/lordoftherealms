@@ -24,6 +24,8 @@ import { RealmArms } from './realmArms.js';
 import { TownMarks } from './townMarks.js';
 
 const _fy = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
+/** The distant years' survey of each realm's recruiting ground (updateMilitary): kingdom → { world, day, … }. */
+const _distantGround = new WeakMap();
 
 export const KingdomAI = {
     /**
@@ -79,61 +81,74 @@ export const KingdomAI = {
     /**
      * Process AI turn for a kingdom
      */
-    processTurn(kingdom, world, playerBonuses = {}) {
+    /**
+     * `days` (the distant years: world/world/runtime.js runs each realm's turn
+     * once every realmEvery days, staggered): that many days of it at once —
+     * the economy's output, food and growth, stability, institutions, the
+     * court's daily rolls and the armies' and fleet's upkeep a day at a time
+     * on one survey of the realm. 1 in the ordinary day.
+     */
+    processTurn(kingdom, world, playerBonuses = {}, days = 1) {
         if (!kingdom.isAlive) return;
 
         const personality = KingdomAI.getPersonality(kingdom);
+        const n = days > 1 ? Math.floor(days) : 1;
 
         // Update kingdom economy
-        KingdomAI.updateEconomy(kingdom, world, playerBonuses);
+        KingdomAI.updateEconomy(kingdom, world, playerBonuses, n);
 
-        // Stability drifts toward its target; unrest may spark a rebellion
-        KingdomStability.processDay(kingdom, world);
+        for (let d = 0; d < n; d++) {
+            // Stability drifts toward its target; unrest may spark a rebellion
+            KingdomStability.processDay(kingdom, world);
 
-        // Faith, scholarship and culture from rulers, lords, traditions, events
-        KingdomAI.updateInstitutions(kingdom, world);
-
-        // Consider expansion (ambitious rulers and expansionist lords push out)
-        const expansionChance = personality.expansionChance * Math.max(0, 1 + KingdomBonuses.get(kingdom, 'expansion'));
-        if (Utils.random() < expansionChance) {
-            KingdomAI.tryExpand(kingdom, world);
+            // Faith, scholarship and culture from rulers, lords, traditions, events
+            KingdomAI.updateInstitutions(kingdom, world);
         }
 
-        // Consider establishing trade routes (merchant princes, masters of trade)
-        const tradeChance = personality.tradeChance
-            * Math.max(0, 1 + KingdomBonuses.get(kingdom, 'tradeBonus') + KingdomBonuses.get(kingdom, 'caravanProfitBonus'));
-        if (Utils.random() < tradeChance) {
-            TradeRoutes.establishRoutes(kingdom, world);
-        }
+        for (let d = 0; d < n; d++) {
+            // Consider expansion (ambitious rulers and expansionist lords push out)
+            const expansionChance = personality.expansionChance * Math.max(0, 1 + KingdomBonuses.get(kingdom, 'expansion'));
+            if (Utils.random() < expansionChance) {
+                KingdomAI.tryExpand(kingdom, world);
+            }
 
-        // Consider diplomatic actions — a realm the player rules sends envoys
-        // only on its ruler's word (Throne: alliances, gifts, peace), so the
-        // draw is kept (the stream stays put) but its court does not act
-        if (Utils.random() < 0.3 && !KingdomAI.isPlayerRuled(kingdom)) {
-            KingdomAI.considerDiplomacy(kingdom, world);
-        }
+            // Consider establishing trade routes (merchant princes, masters of trade)
+            const tradeChance = personality.tradeChance
+                * Math.max(0, 1 + KingdomBonuses.get(kingdom, 'tradeBonus') + KingdomBonuses.get(kingdom, 'caravanProfitBonus'));
+            if (Utils.random() < tradeChance) {
+                TradeRoutes.establishRoutes(kingdom, world);
+            }
 
-        // Consider war — summer and autumn are campaign season (the same one
-        // draw either way, so the season never shifts the RNG stream here)
-        if (Utils.random() < personality.warChance * Seasons.campaignFactor(Seasons.today(world))) {
-            KingdomAI.considerWar(kingdom, world);
-        }
+            // Consider diplomatic actions — a realm the player rules sends envoys
+            // only on its ruler's word (Throne: alliances, gifts, peace), so the
+            // draw is kept (the stream stays put) but its court does not act
+            if (Utils.random() < 0.3 && !KingdomAI.isPlayerRuled(kingdom)) {
+                KingdomAI.considerDiplomacy(kingdom, world);
+            }
 
-        // A realm ruled by the player is a real power: rivals, balancing
-        // alliances and wars of conquest (no RNG draws unless one exists)
-        KingdomAI.considerPlayerRealm(kingdom, world);
+            // Consider war — summer and autumn are campaign season (the same one
+            // draw either way, so the season never shifts the RNG stream here)
+            if (Utils.random() < personality.warChance * Seasons.campaignFactor(Seasons.today(world))) {
+                KingdomAI.considerWar(kingdom, world);
+            }
+
+            // A realm ruled by the player is a real power: rivals, balancing
+            // alliances and wars of conquest (no RNG draws unless one exists)
+            KingdomAI.considerPlayerRealm(kingdom, world);
+        }
 
         // Update military strength
-        KingdomAI.updateMilitary(kingdom, world);
+        KingdomAI.updateMilitary(kingdom, world, n);
 
         // Build, pay for and lay up the royal fleet (no RNG draws)
-        KingdomNavy.updateFleet(kingdom, world);
+        KingdomNavy.updateFleet(kingdom, world, n);
     },
 
     /**
      * Update kingdom economy from all settlements
      */
-    updateEconomy(kingdom, world, playerBonuses = {}) {
+    updateEconomy(kingdom, world, playerBonuses = {}, days = 1) {
+        const n = days > 1 ? Math.floor(days) : 1;
         let totalGold = 0;
         let totalFood = 0;
         let totalGoods = 0;
@@ -166,6 +181,7 @@ export const KingdomAI = {
                 damage: tile.settlement ? (tile.settlement.damage || 0) : 0,
                 // Frontier colonies work to their policy (Exploitation strips the land)
                 production: Colonization.getProductionBonus(tile.settlement, kingdom),
+                ...(n > 1 ? { days: n } : {}),
             });
 
             if (tile.settlement) {
@@ -175,16 +191,18 @@ export const KingdomAI = {
                 // waves swell it, plagues and strained granaries shrink it,
                 // healers and stewards help (0.1%/day per +1.0 of modifier)
                 const drift = (eventGrowth - eventConsumption * 0.5 + growthBonus * 0.5) * 0.001;
-                if (drift !== 0 && tile.settlement.population > 0) {
-                    tile.settlement.population = Math.max(10, Math.round(tile.settlement.population * (1 + drift)));
-                    settlement.population = tile.settlement.population;
-                }
-                // Builders repair storm and quake damage
-                if (tile.settlement.damage > 0) {
-                    // ...faster with stone and timber close at hand
-                    const rb = tile.settlement.economy && tile.settlement.economy.resourceBonuses;
-                    const localRepair = repairRate * (1 + ((rb && rb.construction) || 0) * Economy.effectScale('repair'));
-                    tile.settlement.damage = Math.max(0, Math.round((tile.settlement.damage - localRepair) * 1000) / 1000);
+                for (let d = 0; d < n; d++) {
+                    if (drift !== 0 && tile.settlement.population > 0) {
+                        tile.settlement.population = Math.max(10, Math.round(tile.settlement.population * (1 + drift)));
+                        settlement.population = tile.settlement.population;
+                    }
+                    // Builders repair storm and quake damage
+                    if (tile.settlement.damage > 0) {
+                        // ...faster with stone and timber close at hand
+                        const rb = tile.settlement.economy && tile.settlement.economy.resourceBonuses;
+                        const localRepair = repairRate * (1 + ((rb && rb.construction) || 0) * Economy.effectScale('repair'));
+                        tile.settlement.damage = Math.max(0, Math.round((tile.settlement.damage - localRepair) * 1000) / 1000);
+                    }
                 }
             }
 
@@ -193,7 +211,7 @@ export const KingdomAI = {
             // The day's taxable output for the Crown's Purse (systems/fiscal.js reads and clears it)
             if (books && settlement.economy) {
                 const e = settlement.economy;
-                e.fyProd = Math.round((_fy(e.fyProd) + Math.max(0, (e.production && e.production.gold) || 0)) * 100) / 100;
+                e.fyProd = Math.round((_fy(e.fyProd) + Math.max(0, (e.production && e.production.gold) || 0) * n) * 100) / 100;
                 e.fyTrade = Math.round((_fy(e.fyTrade) + Math.max(0, traded || 0)) * 100) / 100;
             }
 
@@ -230,7 +248,7 @@ export const KingdomAI = {
         // Armies in the field cost money (frugal rulers spend less; war events more)
         // — with the Crown's Purse, their field pay is the budget's army line
         if (!books && kingdom.wars && kingdom.wars.length > 0) {
-            kingdom.treasury = Math.max(0, kingdom.treasury - KingdomAI.warUpkeep(kingdom, world));
+            kingdom.treasury = Math.max(0, kingdom.treasury - (n > 1 ? KingdomAI.warUpkeep(kingdom, world) * n : KingdomAI.warUpkeep(kingdom, world)));
         }
     },
 
@@ -975,25 +993,36 @@ export const KingdomAI = {
     /**
      * Update military strength based on population and resources
      */
-    updateMilitary(kingdom, world) {
+    updateMilitary(kingdom, world, days = 1) {
+        const n = days > 1 ? Math.floor(days) : 1;
         // Base military from population (5% of population)
         let military = Math.floor(kingdom.population * 0.05);
 
         // Iron and horses near any settlement arm the realm — once each (they
         // used to multiply per deposit per town, snowballing big kingdoms)
-        const settlements = KingdomAI._settlementViewsOf(kingdom, world); // read-only: positions
         let hasIron = false, hasHorses = false;
         // Best recruiting ground in the realm: armies regrow faster where
         // iron, horses or coal are at hand (resourceBonuses.military)
         let recruiting = 0;
-        for (const settlement of settlements) {
-            const tile = world.getTile(settlement.q, settlement.r);
-            if (!tile) continue;
-            for (const res of Economy.getNearbyResources(settlement.q, settlement.r, world, 2)) {
-                if (res.id === 'iron') hasIron = true;
-                if (res.id === 'horses') hasHorses = true;
+        // (the distant years, player/afterlife.js: the realm's ground is surveyed once
+        // every realmEvery days — the deposits around its towns hardly move)
+        const D = world && world._distant;
+        const every = D ? Math.floor(Number(D.realmEvery) || 0) : 0;
+        const held = every > 1 ? _distantGround.get(kingdom) : null;
+        if (held && held.world === world && world.day >= held.day && world.day - held.day < every) {
+            ({ hasIron, hasHorses, recruiting } = held);
+        } else {
+            const settlements = KingdomAI._settlementViewsOf(kingdom, world); // read-only: positions
+            for (const settlement of settlements) {
+                const tile = world.getTile(settlement.q, settlement.r);
+                if (!tile) continue;
+                for (const res of Economy.getNearbyResources(settlement.q, settlement.r, world, 2)) {
+                    if (res.id === 'iron') hasIron = true;
+                    if (res.id === 'horses') hasHorses = true;
+                }
+                recruiting = Math.max(recruiting, Economy.resourceBonus(world, settlement.q, settlement.r, 'military'));
             }
-            recruiting = Math.max(recruiting, Economy.resourceBonus(world, settlement.q, settlement.r, 'military'));
+            if (every > 1) _distantGround.set(kingdom, { world, day: world.day, hasIron, hasHorses, recruiting });
         }
         if (hasIron) military *= 1.2;
         if (hasHorses) military *= 1.15;
@@ -1015,6 +1044,8 @@ export const KingdomAI = {
         // time, so battle losses matter, and shed men fast when land is lost
         const cap = Math.floor(military);
         kingdom.militaryCap = cap;
+        // (`days`: the distant years — the ranks refill or thin a day at a time on one survey)
+        for (let d = 0; d < n; d++) {
         if (!kingdom._militaryInit) {
             kingdom.military = cap;
             kingdom._militaryInit = true;
@@ -1035,9 +1066,10 @@ export const KingdomAI = {
             }
             if (attrition > 0 && kingdom.military > cap) kingdom.military = cap;
         }
+        }
         // Arm the men it keeps: kits bought from its own towns' stock, worn out,
         // the surplus sold back (world/realmArms.js; draws no RNG)
-        RealmArms.daily(kingdom, world, KingdomAI._getKingdomComposition(kingdom));
+        RealmArms.daily(kingdom, world, KingdomAI._getKingdomComposition(kingdom), n);
     },
 
     /**

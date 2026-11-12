@@ -25,6 +25,7 @@ import { Upbringing } from './upbringing.js';
 import { Traits } from './traits.js';
 import { Townsfolk } from './townsfolk.js';
 import { NPCLords } from '../world/npcLords.js';
+import { Names } from '../core/names.js';
 
 const DEFAULTS = {
     allianceDowry: 200, allianceReputation: 15, allianceMinReputation: 0, alliancePrestige: 4,
@@ -136,17 +137,19 @@ export const Heirs = {
         if (rep < minRep) return { success: false, reason: `${k.name}'s nobles will not wed a House they distrust (need ${minRep} reputation).` };
         if ((player.gold || 0) < dowry) return { success: false, reason: `The dowry is ${dowry} gold.` };
         player.gold -= dowry;
+        // The dowry goes into the realm's treasury (real coin)
+        if (dowry > 0) k.treasury = _num(k.treasury) + dowry;
         if (!player.reputation) player.reputation = {};
         player.reputation[kid] = rep + cfg.allianceReputation;
         const gender = child.gender === 'female' ? 'male' : 'female';
         up.spouse = {
             kind: 'alliance', kingdomId: kid, kingdomName: k.name,
-            name: `${Heirs._name(world, gender, k.culture)} of ${k.name}`, day: (world && world.day) || 0,
+            name: `${Heirs._name(world, gender, k.culture)} of ${Names.realm(k.name)}`, day: (world && world.day) || 0,
         };
         up.placement = { kind: 'alliance', kingdomId: kid, kingdomName: k.name, day: up.spouse.day };
         if (player.house) {
-            House.award(player.house, cfg.alliancePrestige, `${child.firstName} weds into ${k.name}`, world && world.day);
-            House._chronicle(player.house, world, `${child.firstName} weds ${up.spouse.name}, binding ${player.house.name} to ${k.name}.`, ['marriage', 'heirs']);
+            House.award(player.house, cfg.alliancePrestige, `${child.firstName} weds into ${Names.realm(k.name)}`, world && world.day);
+            House._chronicle(player.house, world, `${child.firstName} weds ${up.spouse.name}, binding ${player.house.name} to ${Names.realm(k.name)}.`, ['marriage', 'heirs']);
         }
         Heirs._recordMatch(player, world, child, up.spouse);
         NPCLords.rememberDeed(world, k.lord, opts.deed || 'child_wed', { note: child.firstName });
@@ -176,6 +179,7 @@ export const Heirs = {
             return { success: false, reason: `Need ${tcfg.royalMatchPrestige} Prestige.` };
         }
         player.gold -= tcfg.royalMatchGold;
+        k.treasury = _num(k.treasury) + _num(tcfg.royalMatchGold);
         royal.spouseId = child.id;
         if (!player.reputation) player.reputation = {};
         player.reputation[kid] = rep + cfg.royalReputation;
@@ -187,7 +191,7 @@ export const Heirs = {
         const claim = Throne.grantClaim(player, world, kid, 'marriage', cfg.royalClaim);
         const wed = NPCLords.deedDef('child_wed');
         NPCLords.rememberDeed(world, k.lord, 'child_wed', { note: child.firstName, weight: wed ? wed.weight * 1.5 : undefined });
-        House._chronicle(player.house, world, `${child.firstName} weds ${up.spouse.name} of the royal house of ${k.name}.`, ['marriage', 'heirs', 'throne']);
+        House._chronicle(player.house, world, `${child.firstName} weds ${up.spouse.name} of the royal house of ${Names.realm(k.name)}.`, ['marriage', 'heirs', 'throne']);
         Heirs._recordMatch(player, world, child, up.spouse);
         return { success: true, child, spouse: up.spouse, claim, cost: tcfg.royalMatchGold, prestige: tcfg.royalMatchPrestige };
     },
@@ -214,7 +218,7 @@ export const Heirs = {
         const k = Heirs._kingdom(world, kid);
         if (!k || !k.isAlive) return { success: false, reason: 'No such kingdom.' };
         const ruler = k.characterData && k.characterData.ruler;
-        const lordName = ruler && ruler.firstName ? `${ruler.firstName} of ${k.name}` : (k.ruler || k.name);
+        const lordName = ruler && ruler.firstName ? `${ruler.firstName} of ${Names.realm(k.name)}` : (k.ruler || k.name);
         const day = (world && world.day) || 0;
         // A ward cannot hold a House office from abroad
         if (player.house && player.house.roles) {

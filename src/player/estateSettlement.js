@@ -70,6 +70,7 @@ import { Relationships } from '../systems/relationships.js';
 import { Ledger } from '../systems/ledger.js';
 import { LlmProse } from '../systems/llmProse.js';
 import { CadetBranches } from '../systems/cadetBranches.js';
+import { TradeLines } from './tradeLines.js';
 
 // The prose writer (systems/llmProse.js) retells the chronicle line when the
 // model is on; the template line stands otherwise (and if it ever goes away).
@@ -290,6 +291,8 @@ export const EstateSettlement = {
             }
         };
         if (_obj(player.inventory)) sell(player.inventory, town);
+        // The trade lines are wound up: what the wagons carry is the estate's, sold where it lies (player/tradeLines.js)
+        for (const c of TradeLines.windUp(player, world)) sell(c.goods, _settlementAt(world, c.q, c.r) || town);
         const mp = _obj(player.merchantPrince);
         for (const w of (mp && Array.isArray(mp.warehouses) ? mp.warehouses : [])) {
             if (w && _obj(w.goods)) sell(w.goods, _settlementAt(world, w.q, w.r) || town);

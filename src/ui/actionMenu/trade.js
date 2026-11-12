@@ -16,6 +16,7 @@ import { goodInfoIcon } from '../goodInfo.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerInventory, NpcDisposition, Seasons, SettlementMarket } from './_imports.js';
 import { SocialSkills } from '../../systems/socialSkills.js';
 import { Livestock } from '../../systems/livestock.js';
+import { StandingOrders } from '../../player/standingOrders.js';
 import { lede, chips, purse, bullets, actRow, rowList, price, sectionHead, card, kv, BTN_GOLD, BTN_PLAIN, BTN_RED, BTN_OFF } from './uiKit.js';
 import { BackRooms } from '../../systems/backRooms.js';
 import { ParentsGuard } from '../parentsGuard.js';
@@ -158,26 +159,9 @@ Object.assign(ActionMenu, {
      * Collect stored goods from every property on this tile
      */
     collectGoods(game, tile) {
-        if (!game.player.inventory) game.player.inventory = {};
-        const parts = [];
-        let full = false;
-        for (const prop of PlayerEconomy.getPropertiesAt(tile)) {
-            // Taverns pay out directly; their storage only tallies earnings
-            if (!prop.produces || prop.produces === 'gold' || !(prop.storage > 0)) continue;
-            const good = prop.produces;
-            // No room for a new kind of good — it waits in the property's storage
-            if (!PlayerInventory.addItem(game.player, good, prop.storage).success) { full = true; continue; }
-            const goodDef = PlayerEconomy.GOODS[good.toUpperCase()];
-            parts.push(`${prop.storage} ${goodDef ? goodDef.name : good}`);
-            prop.storage = 0;
-        }
-        // ...and the eggs, milk, wool and feathers of your beasts kept here (systems/livestock.js)
-        const herd = Livestock.collectAt(game.world, game.player, tile.q, tile.r);
-        for (const [good, n] of Object.entries(herd.taken)) {
-            const goodDef = PlayerEconomy.GOODS[good.toUpperCase()];
-            parts.push(`${n} ${goodDef ? goodDef.name : good}`);
-        }
-        if (herd.full) full = true;
+        // Properties' storage and the herds' produce into the packs (player/standingOrders.js
+        // collectHere: the same collection the "Tend your holdings" standing order makes)
+        const { parts, full } = StandingOrders.collectHere(game.player, game.world, tile);
         if (full) game.ui.showNotification('🎒 Packs Full', `Some goods stay in storage. ${PlayerInventory.fullMessage(game.player)}`, 'warning');
         if (parts.length === 0) return;
 

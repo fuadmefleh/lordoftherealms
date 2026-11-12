@@ -57,6 +57,7 @@ import { Ledger } from './ledger.js';
 import { Mail } from './mail.js';
 import { Coalitions } from './coalitions.js';
 import { LlmProse } from './llmProse.js';
+import { Names } from '../core/names.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _day = world => (world && Number.isFinite(world.day) ? world.day : 0);
@@ -183,7 +184,7 @@ export const CourtLetters = {
     },
 
     _lordName(kingdom) {
-        return `${kingdom.lord.name || kingdom.ruler || 'The ruler'} of ${kingdom.name}`;
+        return `${kingdom.lord.name || kingdom.ruler || 'The ruler'} of ${Names.realm(kingdom.name)}`;
     },
 
     /** Grown, unwed children at home. */
@@ -779,8 +780,8 @@ export const CourtLetters = {
                 if (player.house) House.spend(player.house, Math.min(_num(K.heldPrestige, 8), Math.max(0, _num(player.house.prestige))), `${child.firstName} held at ${k.name}`, day);
                 this._rep(player, k.id, _num(K.heldReputation, -10));
                 Upbringing.ensure(child).heldBy = { kingdomId: k.id, day };
-                if (player.house) House._chronicle(player.house, world, `${child.firstName} is held as a hostage at the court of ${k.name}.`, ['heirs', 'war']);
-                out.notices.push({ icon: '⛓️', title: `${child.firstName} Held`, text: `The court of ${k.name} holds ${child.firstName} as a hostage. Your House is shamed.`, type: 'error' });
+                if (player.house) House._chronicle(player.house, world, `${child.firstName} is held as a hostage at the court of ${Names.realm(k.name)}.`, ['heirs', 'war']);
+                out.notices.push({ icon: '⛓️', title: `${child.firstName} Held`, text: `The court of ${Names.realm(k.name)} holds ${child.firstName} as a hostage. Your House is shamed.`, type: 'error' });
             } else {
                 out.notices.push({ icon: '🕊️', title: `${child.firstName} Safe`, text: `${k.name} kept faith: ${child.firstName} is safe among their spouse's kin.`, type: 'success' });
             }

@@ -575,7 +575,10 @@ export const Concessions = {
         if (st.lastDay === day) return out;
         st.lastDay = day;
         Hinterland.sync(world, day);
-        const k = SettlementMarket.tickDays();
+        // (the sites work at their town's market turn; in the distant years every town's
+        // together, once every `span` days, as that many days: SettlementMarket.span)
+        const span = SettlementMarket.span(world);
+        const k = span || SettlementMarket.tickDays();
         const turn = ((day % k) + k) % k;
         const views = typeof world.getSettlementViews === 'function' ? world.getSettlementViews() : world.getAllSettlements();
         const P = Hinterland.config().prospect;
@@ -583,7 +586,7 @@ export const Concessions = {
         const seed = Hinterland.seed(world);
         const seedN = Utils.hashStr(`hl:off:${seed}`) >>> 0;
         for (const town of views) {
-            if (k > 1 && SettlementMarket.slot(town.q, town.r) !== turn) continue;
+            if (span ? turn !== 0 : (k > 1 && SettlementMarket.slot(town.q, town.r) !== turn)) continue;
             const tk = _key(town.q, town.r);
             for (const site of Hinterland.sitesOf(world, town.q, town.r)) Concessions._siteTurn(world, player, site, town, k, day, out);
             // The search for new veins (not on a town's first look)

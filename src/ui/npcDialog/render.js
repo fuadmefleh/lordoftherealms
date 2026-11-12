@@ -29,6 +29,7 @@ import { _mem, _dispositionLabel, _pick, _getTimeOfDay, _getWeather, _getSettlem
 import { _handleChoice, _showGiftSubmenu, _giveGoldGift, _giveItemGift, _showAskAboutSubmenu, _showSkillCheckResult, _animateDispositionChange, _updateDispositionBar, _createOverlay, _taskChoice, _startFreeTalk, _renderFreeTalk } from './choices.js';
 import { NpcChat } from '../../systems/npcChat.js';
 import { IllnessPlayer } from '../../systems/illnessPlayer.js';
+import { Names } from '../../core/names.js';
 
 /**
  * The tongue the NPC speaks and what the player makes of it (systems/
@@ -455,7 +456,7 @@ export function _renderChoices(box) {
     if (kingdom && !askedKingdom && (npcType === 'noble' || npcType === 'guard' || npcType === 'merchant' || npcType === 'traveler' || npcType === 'priest')) {
         choices.push({
             icon: '👑', label: `What do you know about ${kingdom.name}?`, action: 'ask_kingdom',
-            tooltip: `Adds to what you know of ${kingdom.name}.`,
+            tooltip: `Adds to what you know of ${Names.realm(kingdom.name)}.`,
         });
     }
 

@@ -27,6 +27,7 @@ import { Throne } from './throne.js';
 import { Traits } from './traits.js';
 import { Heirlooms } from './heirlooms.js';
 import { MetaLegacy } from './metaLegacy.js';
+import { Names } from '../core/names.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = v => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -121,7 +122,7 @@ export const MetaLegacyStart = {
                 const strength = Throne.grantClaim(player, world, k.id, 'blood', _num(cfg.claimStrength));
                 if (strength > 0) {
                     lineage.claimKingdom = k.id;
-                    lines.push(`Through ${entry.house} you hold an old claim on the throne of ${k.name}.`);
+                    lines.push(`Through ${entry.house} you hold an old claim on the throne of ${Names.realm(k.name)}.`);
                 }
             }
         }

@@ -8,6 +8,7 @@ import { Ships } from '../../systems/ships.js';
 import { Landings } from '../../systems/landings.js';
 import { CoastalRaids } from '../../player/coastalRaids.js';
 import { BTN_GOLD, BTN_OFF, BTN_RED, BTN_PLAIN, CARD, esc, bullets } from './uiKit.js';
+import { Names } from '../../core/names.js';
 
 const HEAD = 'font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin: 10px 0 4px; color: var(--gold);';
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
@@ -64,7 +65,7 @@ function _runSection(game) {
     }
     const watch = Landings.coastWatch(world, player.q, player.r);
     html += `<div style="${NOTE}">Goods landed here skip the customs house: no import duty and no embargo when sold. Contraband stays contraband (the black market or a fence will take it). ` +
-        `${watch ? `The coast watch of ${esc(watch.kingdom.name)}${watch.settlement ? ` (from ${esc(watch.settlement.name)})` : ''} patrols these shores.` : 'No realm watches this shore.'}</div>`;
+        `${watch ? `The coast watch of ${esc(Names.realm(watch.kingdom.name))}${watch.settlement ? ` (from ${esc(watch.settlement.name)})` : ''} patrols these shores.` : 'No realm watches this shore.'}</div>`;
     const opts = Landings.runOptions(player, world);
     const ap = player.actionPoints || 0;
     const R = Landings.config().run;

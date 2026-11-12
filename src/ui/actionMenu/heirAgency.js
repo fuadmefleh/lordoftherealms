@@ -15,6 +15,7 @@ import { Regency } from '../../systems/regency.js';
 import { Heirs } from '../../systems/heirs.js';
 import { Upbringing } from '../../systems/upbringing.js';
 import { BTN_GOLD, esc, sectionHead, lede, card, actRow, rowList, price } from './uiKit.js';
+import { Names } from '../../core/names.js';
 
 const SEL = 'width:100%; padding:5px 6px; background:rgba(0,0,0,0.35); color:#ece2c8; border:1px solid rgba(245,197,66,0.18); border-radius:6px; margin-top:6px; font-family:var(--font-body); font-size:12px;';
 const MUTED = 'color:#9d937c; font-size:11px;';
@@ -131,7 +132,7 @@ Object.assign(ActionMenu, {
         for (const f of rec.fostered) lines.push(`🏰 Fostered at the court of ${esc(f.lordName)}${f.recalled ? ' (recalled)' : ''}`);
         for (const [kid, bond] of Object.entries(rec.bonds)) {
             const k = world.getKingdom ? world.getKingdom(kid) : null;
-            if (bond > 0 && k) lines.push(`🤝 Bond with the court of ${esc(k.name)}: ${bond}`);
+            if (bond > 0 && k) lines.push(`🤝 Bond with the court of ${esc(Names.realm(k.name))}: ${bond}`);
         }
         if (rec.battles.fought) lines.push(`⚔️ ${rec.battles.fought} battles led, ${rec.battles.won} won${rec.wounds ? `, wounded ${rec.wounds}×` : ''}${rec.captured ? `, captured ${rec.captured}×` : ''}`);
         for (const e of rec.envoys) lines.push(`📜 Envoy to ${esc(e.kingdomName)} (+${e.reputation} rep)`);

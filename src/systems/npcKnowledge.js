@@ -44,6 +44,7 @@ import { NpcTasks } from './npcTasks.js';
 import { Townsfolk } from './townsfolk.js';
 import { SocialSkills } from './socialSkills.js';
 import { Ledger } from './ledger.js';
+import { Names } from '../core/names.js';
 
 const DEFAULTS = {
     expertise: {
@@ -327,7 +328,7 @@ export const NpcKnowledge = {
         if (!settlement) return { text: 'Just a spot on the road, this. Nothing to tell.', revealed };
         const parts = [];
         const k = _kingdom(world, settlement.kingdom);
-        parts.push(`This is ${settlement.name}, ${/^[aeiou]/i.test(settlement.type || 'town') ? 'an' : 'a'} ${settlement.type || 'settlement'} of some ${Math.round(_num(settlement.population, 100) / 10) * 10} souls${k ? `, held by ${k.name}` : ', beholden to no crown'}.`);
+        parts.push(`This is ${settlement.name}, ${/^[aeiou]/i.test(settlement.type || 'town') ? 'an' : 'a'} ${settlement.type || 'settlement'} of some ${Math.round(_num(settlement.population, 100) / 10) * 10} souls${k ? `, held by ${Names.realm(k.name)}` : ', beholden to no crown'}.`);
 
         // Buildings and who keeps them
         const B = Array.isArray(opts.buildings) ? opts.buildings : [];

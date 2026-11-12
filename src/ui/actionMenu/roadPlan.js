@@ -44,6 +44,18 @@ function _endPick(game) {
     if (bar) bar.remove();
 }
 
+/** Bring the surveyed line into view below the panel (which sits over the top half of the map). */
+function _showLine(game, path) {
+    const cam = game && game.camera;
+    const R = game && game.renderer;
+    if (!cam || typeof cam.centerOn !== 'function' || !R || typeof R.getHexPixelPos !== 'function' || !path || !path.length) return;
+    const mid = path[Math.floor(path.length / 2)];
+    const pos = mid && R.getHexPixelPos(mid.q, mid.r);
+    if (!pos) return;
+    cam.following = false;
+    cam.centerOn(pos.x, pos.y - ((cam._cy || 400) * 0.5) / (cam.zoom || 1));
+}
+
 Object.assign(ActionMenu, {
     /** Where should the line run to? Towns near at hand, or any hex picked on the map. */
     showRoutePlanner(game, key, q, r) {
@@ -60,6 +72,8 @@ Object.assign(ActionMenu, {
         }], 'To a hex of your choosing');
         // Towns within a day or three of road-building
         const towns = (typeof world.getSettlementViews === 'function' ? world.getSettlementViews() : [])
+            // (only towns the player has found: the list must not lift the fog)
+            .filter(s => { const t = typeof world.getTile === 'function' ? world.getTile(s.q, s.r) : null; return !t || t.explored !== false; })
             .map(s => ({ s, d: Hex.wrappingDistance(q, r, s.q, s.r, world.width) }))
             .filter(x => x.d >= 2 && x.d <= 30)
             .sort((a, b) => a.d - b.d)
@@ -96,7 +110,7 @@ Object.assign(ActionMenu, {
             bar.style.cssText = 'position:fixed;left:0;right:0;top:64px;display:flex;justify-content:center;pointer-events:none;z-index:900;';
             document.body.appendChild(bar);
         }
-        bar.innerHTML = '<div style="pointer-events:auto;zoom:var(--ui-zoom, 1);max-width:96vw;background:rgba(18,20,28,0.94);border:1px solid rgba(245,197,66,0.45);border-radius:10px;padding:8px 12px;box-shadow:0 6px 24px rgba(0,0,0,0.5);font-size:12px;color:var(--text-primary);display:flex;gap:10px;align-items:center;">'
+        bar.innerHTML = '<div style="pointer-events:auto;max-width:calc(96vw / var(--ui-zoom, 1));background:rgba(18,20,28,0.94);border:1px solid rgba(245,197,66,0.45);border-radius:10px;padding:8px 12px;box-shadow:0 6px 24px rgba(0,0,0,0.5);font-size:12px;color:var(--text-primary);display:flex;gap:10px;align-items:center;">'
             + `<strong style="color:var(--gold);">${infra.icon} Click where the ${esc(infra.name.toLowerCase())} should run to</strong>`
             + '<span style="color:#9d937c;">drag to look around · Esc to cancel</span>'
             + `<button onclick="window._routePickCancel()" style="${BTN_PLAIN}">Cancel</button></div>`;
@@ -115,6 +129,7 @@ Object.assign(ActionMenu, {
             return;
         }
         if (game.renderer) game.renderer.roadPlan = { segments: plan.segments };
+        _showLine(game, plan.path);
         const canPay = (player.gold || 0) >= plan.cost;
         const blocked = plan.segments.filter(s => s.status === 'blocked');
         const has = plan.segments.filter(s => s.status === 'has').length;

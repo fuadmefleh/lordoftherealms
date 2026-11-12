@@ -59,5 +59,32 @@
         "maxKingdomGain": 0.05
       }
     }
+  },
+  "founding": {
+    "_doc": "Founding a village with real settlers (systems/founding.js plans and pays; world/villageFounding.js surveys, walks, founds and grows). Settlers leave a town the player holds (up to holdingShare of its people, keeping minLeft) or one that agrees (the player standing in it, reputation with its realm at least minReputation, not at war: up to otherShare, each paid settlerPurse gold, which goes with them as the new village's purse). Supplies per settler (supplies) come from the player's own packs first, the rest bought at the town's market at its price (coin to the town's purse); without the grain the party can't go. The fee (base + perHex of the walk) hires guides and carters in the town (coin to its purse). The site must be open land minSpacing hexes from any settlement and any party bound elsewhere, on the same land as the town, at most maxRange hexes off, and outside another realm's heartland (coreRadius hexes about its towns); in its outskirts they resent it (foreignRelation). The site is scored 0-5 on food, water, timber, stone and trade (scoreWeights). Founded villages are fed by the food model, grow growth.perSeason (default: the dawn's village rate) for growth.frontierYears, become towns by the dawn's town rule, and every bud.everyDays a village of bud.minPopulation sends bud.settlers of its people (chance) to found another bud.minRange..maxRange hexes off.",
+    "minSettlers": 10,
+    "maxSettlers": 60,
+    "holdingShare": 0.15,
+    "otherShare": 0.05,
+    "minLeft": 60,
+    "minReputation": -10,
+    "settlerPurse": 8,
+    "supplies": { "grain": 3, "tools": 0.25, "wood": 1 },
+    "fee": { "base": 40, "perHex": 4 },
+    "minSpacing": 3,
+    "coreRadius": 3,
+    "maxRange": 16,
+    "foreignRelation": -8,
+    "startLoyalty": 75,
+    "scoreWeights": { "food": 1.5, "water": 1.2, "timber": 1, "stone": 0.7, "trade": 1 },
+    "growth": { "frontierYears": 30 },
+    "bud": { "everyDays": 120, "minPopulation": 400, "chance": 0.25, "settlers": 30, "minRange": 3, "maxRange": 7 },
+    "lines": {
+      "founded": "🏘️ {people} settlers out of {from} have raised the first roofs of {name}.",
+      "budFounded": "🏘️ {people} of {from}'s people have founded {name}, a daughter village.",
+      "wentHome": "🧭 The settlers bound out of {from} have gone home: {why}.",
+      "town": "🏘️ {name} has grown into a town.",
+      "bud": "🧭 {people} of {name}'s people have set out to found a village of their own."
+    }
   }
 }

@@ -32,6 +32,9 @@
 //             news, realms risen and fallen, crowns and successions. Past
 //             `eventCap` the least weighty go first
 //   seen      what was already filed: crisis news, sieges, the crown
+//   pops      each town's population every `popEveryYears` years:
+//             { "q,r": "day.pop,…" } (base 36), at most `popCap` a town (the
+//             older half thinned) — the Almanac's town pages read it
 //
 // State: world.timeline (saved, systems/saveLoad.js); world.timelineFeed is
 // a transient inbox. processDay(world, player) runs from ui/game/endDay.js,
@@ -46,6 +49,7 @@ import { ChronicleMaps } from './chronicleMaps.js';
 
 const DEFAULTS = {
     every: 30, frameCap: 480, frameBytes: 60000, eventCap: 360, townCap: 400, warCap: 160,
+    popEveryYears: 5, popCap: 24,
     minBattleDead: 60, battleMergeDays: 120, battleMergeRange: 3,
     priority: { crisis: 9, rise: 8, fall: 8, crown: 8, siege: 6, taken: 5, battle: 3, succession: 2 },
     icons: {
@@ -141,6 +145,7 @@ export const RealmTimeline = {
         RealmTimeline._drainFeed(world, st, day);
         RealmTimeline._crisesDaily(world, st, day);
         RealmTimeline._playerDaily(world, st, player, day);
+        RealmTimeline._popsDaily(world, st, day);
 
         let frame = null;
         if (day >= _num(st.next, day)) {
@@ -212,6 +217,41 @@ export const RealmTimeline = {
         const n = String(name || 'crisis').trim();
         const t = /^(the|a|an)\s/i.test(n) ? n : `The ${n}`;
         return t.charAt(0).toUpperCase() + t.slice(1);
+    },
+
+    /**
+     * Every popEveryYears years, each town's population: st.pops = { "q,r":
+     * "day.pop,day.pop,…" } (base 36). Past popCap samples a town's older half
+     * is thinned to every other one, so a long game keeps its whole span.
+     */
+    _popsDaily(world, st, day) {
+        const C = RealmTimeline.config();
+        const every = Math.max(1, _num(C.popEveryYears, 5)) * Seasons.DAYS_PER_YEAR;
+        if (!_obj(st.pops)) st.pops = {};
+        if (st.popNext != null && day < st.popNext) return;
+        st.popNext = day + every;
+        const cap = Math.max(4, _num(C.popCap, 24));
+        for (const v of RealmTimeline._views(world)) {
+            const t = typeof world.getTile === 'function' ? world.getTile(v.q, v.r) : null;
+            const s = (t && t.settlement) || v;
+            const pop = Number(s && s.population);
+            if (!Number.isFinite(pop) || pop <= 0) continue;
+            const key = `${v.q},${v.r}`;
+            let list = st.pops[key] ? st.pops[key].split(',') : [];
+            list.push(`${_b36(Math.max(0, Math.round(day)))}.${_b36(Math.round(pop))}`);
+            if (list.length > cap) {
+                const half = Math.floor(list.length / 2);
+                list = [...list.slice(0, half).filter((x, i) => i % 2 === 0), ...list.slice(half)];
+            }
+            st.pops[key] = list.join(',');
+        }
+    },
+
+    /** A town's population over the years: [{ day, pop }], oldest first. */
+    populationOf(st, q, r) {
+        const raw = st && _obj(st.pops) && st.pops[`${q},${r}`];
+        if (!raw) return [];
+        return String(raw).split(',').map(x => { const [d, p] = x.split('.'); return { day: _int(d), pop: _int(p) }; }).filter(x => Number.isFinite(x.day) && Number.isFinite(x.pop));
     },
 
     _views(world) {

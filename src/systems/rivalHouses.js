@@ -931,21 +931,35 @@ export const RivalHouses = {
         const goods = Object.keys((SettlementMarket.config() && SettlementMarket.config().goods) || {});
         const budget = Math.max(0, rival.gold * C.spend);
         let best = null;
+        // (a town's price for a lot of a good is the same whichever source it came from: asked once)
+        const sales = new Map();
         for (const from of sources) {
             const tf = world.getTile(from.q, from.r);
+            // What each good costs here doesn't depend on where it goes: priced once a source
+            // (null where it can't be had), the destinations below only price the sale
+            const offers = goods.map(id => {
+                const have = SettlementMarket.available(from, id);
+                if (have < C.minQty) return null;
+                const base = _goodDef(id).basePrice;
+                const buy = SettlementMarket.value(world, from, tf, id, base);
+                if (!(buy > 0)) return null;
+                const qty = Math.min(C.maxQty, Math.floor(have / 2), Math.floor(budget / buy));
+                if (qty < C.minQty) return null;
+                return { base, qty, buyAt: SettlementMarket.value(world, from, tf, id, base, have - qty / 2) };
+            });
             for (const to of near(from, C.destinations)) {
                 if (to === from) continue;
                 const tt = world.getTile(to.q, to.r);
-                for (const id of goods) {
-                    const have = SettlementMarket.available(from, id);
-                    if (have < C.minQty) continue;
-                    const base = _goodDef(id).basePrice;
-                    const buy = SettlementMarket.value(world, from, tf, id, base);
-                    if (!(buy > 0)) continue;
-                    const qty = Math.min(C.maxQty, Math.floor(have / 2), Math.floor(budget / buy));
-                    if (qty < C.minQty) continue;
-                    const buyAt = SettlementMarket.value(world, from, tf, id, base, have - qty / 2);
-                    const sellAt = SettlementMarket.value(world, to, tt, id, base, SettlementMarket.stock(to, id) + qty / 2);
+                for (let gi = 0; gi < goods.length; gi++) {
+                    const o = offers[gi];
+                    if (!o) continue;
+                    const id = goods[gi];
+                    const { base, qty, buyAt } = o;
+                    let byTo = sales.get(to);
+                    if (!byTo) sales.set(to, byTo = new Map());
+                    const sk = gi * 100000 + qty;
+                    let sellAt = byTo.get(sk);
+                    if (sellAt === undefined) byTo.set(sk, sellAt = SettlementMarket.value(world, to, tt, id, base, SettlementMarket.stock(to, id) + qty / 2));
                     if (!(buyAt > 0) || sellAt / buyAt - 1 < C.minMargin) continue;
                     const gain = (sellAt - buyAt) * qty / (1 + _dist(world, from, to) / 10);
                     if (!best || gain > best.gain) best = { from, to, good: id, qty, buy: buyAt, sell: sellAt, gain };

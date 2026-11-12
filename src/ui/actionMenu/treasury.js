@@ -19,6 +19,7 @@ import { Coinage } from '../../world/coinage.js';
 import { Causes } from '../../player/causes.js';
 import { whyIcon, stabilityWhy } from '../whyPopover.js';
 import { LINE_LABEL, lineTip, crownTaxGuide, taxControlNote, taxTip, levelEffectText, armyLevelText, courtLevelText } from './taxGuide.js';
+import { Names } from '../../core/names.js';
 
 // The action menu's voice (uiKit): muted notes, quiet tables — a head in the
 // section-head style and hairline gold row rules
@@ -117,7 +118,7 @@ function budgetTab(game) {
     // The books themselves are for the ruler, the realm's officers and your spies (systems/realmIntel.js)
     const why = RealmIntel.whyLabel(player, world, k, 'books');
     if (!why) return html + publicBudget(game, k, b);
-    html += sectionHead(`The books of ${esc(k.name)}`);
+    html += sectionHead(`The books of ${esc(Names.realm(k.name))}`);
     html += chips([
         { icon: '💰', label: 'Treasury', value: `${g0(b.treasury)}g`, cls: 'gold' },
         sparkline(b.hist) || null,

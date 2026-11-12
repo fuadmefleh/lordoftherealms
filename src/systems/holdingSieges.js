@@ -61,6 +61,7 @@ import { Throne } from './throne.js';
 import { Kingship } from './kingship.js';
 import { Pressure } from './pressure.js';
 import { NpcMemory } from './npcMemory.js';
+import { Names } from '../core/names.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _day = (world) => (world && world.day) || 0;
@@ -543,7 +544,7 @@ export const HoldingSieges = {
         holder.pending = { kingdomId: k.id, name: k.name, q: target.q, r: target.r, target: target.name, day };
         HoldingSieges._clockLog(holder, day, `${k.name} demanded tribute for ${target.name}`);
         if (player.house) House._chronicle(player.house, world, `${k.name} casts covetous eyes on ${target.name} and demands tribute of ${player.house.name}.`, ['war', 'siege']);
-        out.notices.push({ title: `⚔️ ${k.name} Covets ${target.name}`, text: `${k.lord && k.lord.name ? `${k.lord.name} of ${k.name}` : k.name} watches your rise and wants ${target.name}. Pay ${u.tribute} gold within ${Math.max(1, u.dueDay - day)} days (Realm Wars), or its host marches on the town.`, type: 'warning' });
+        out.notices.push({ title: `⚔️ ${k.name} Covets ${target.name}`, text: `${k.lord && k.lord.name ? `${k.lord.name} of ${Names.realm(k.name)}` : k.name} watches your rise and wants ${target.name}. Pay ${u.tribute} gold within ${Math.max(1, u.dueDay - day)} days (Realm Wars), or its host marches on the town.`, type: 'warning' });
         return true;
     },
 

@@ -11,6 +11,11 @@ import { Transport } from '../world/transport.js';
 import { Construction } from './construction.js';
 
 
+/** Player-built works a road search may cross (Infrastructure._roadReach). */
+const ROAD_IDS = ['dirt_road', 'stone_road', 'bridge'];
+/** The distant years' road floods (hasRoadConnection): world → { day, map: 'q,r' → Set }. */
+const _distantReach = new WeakMap();
+
 export const Infrastructure = {
     // ── Infrastructure Types ──
     TYPES: {
@@ -518,6 +523,18 @@ export const Infrastructure = {
         // end up in what the search would have reached
         if (typeof world.isSimulatingDay === 'function' && world.isSimulatingDay()
             && Number.isInteger(startQ) && Number.isInteger(startR) && Number.isInteger(endQ) && Number.isInteger(endR)) {
+            // (the distant years, player/afterlife.js: the floods are kept for realmEvery days —
+            // nobody is building roads while the world turns without you, or hardly)
+            const D = world._distant;
+            const every = D ? Math.floor(Number(D.realmEvery) || 0) : 0;
+            if (every > 1) {
+                let c = _distantReach.get(world);
+                if (!c || !(world.day >= c.day && world.day - c.day < every)) _distantReach.set(world, c = { day: world.day, map: new Map() });
+                const sk = `${startQ},${startR}`;
+                let reach = c.map.get(sk);
+                if (!reach) c.map.set(sk, reach = Infrastructure._roadReach(world, startQ, startR));
+                return reach.has(`${endQ},${endR}`);
+            }
             return world.dayMemo('roadReach', startQ, startR, () => Infrastructure._roadReach(world, startQ, startR))
                 .has(`${endQ},${endR}`);
         }
@@ -578,6 +595,36 @@ export const Infrastructure = {
         const startTile = world.getTile(startQ, startR);
         if (!startTile || (!startTile.infrastructure && !startTile.hasRoad)) return reached;
         if (startTile.infrastructure && startTile.infrastructure.underConstruction && !startTile.hasRoad) return reached;
+        // The flood over a numeric visited grid (the same hexes, in the same order, as the
+        // keyed search below — which stays for a start given off the grid, e.g. unwrapped)
+        const W = world.width, H = world.height;
+        if (Number.isInteger(W) && Number.isInteger(H) && W > 0 && H > 0 && Number.isInteger(startQ) && Number.isInteger(startR)
+            && startQ >= 0 && startQ < W && startR >= 0 && startR < H && Array.isArray(world.tiles)) {
+            const seen = new Uint8Array(W * H);
+            seen[startR * W + startQ] = 1;
+            const qs = [startQ], rs = [startR];
+            for (let head = 0; head < qs.length; head++) {
+                const cq = qs[head], cr = rs[head];
+                reached.add(`${cq},${cr}`);
+                for (const n of Hex.neighbors(cq, cr)) {
+                    const wr = n.r;
+                    if (wr < 0 || wr >= H) continue;
+                    const wq = Hex.wrapQ(n.q, W);
+                    const i = wr * W + wq;
+                    if (seen[i]) continue;
+                    const nTile = world.getTile(wq, wr);
+                    if (!nTile) continue;
+                    if (!nTile.hasRoad) {
+                        if (!nTile.infrastructure || nTile.infrastructure.underConstruction) continue;
+                        if (!ROAD_IDS.includes(nTile.infrastructure.id)) continue;
+                    }
+                    seen[i] = 1;
+                    qs.push(wq);
+                    rs.push(wr);
+                }
+            }
+            return reached;
+        }
 
         const visited = new Set([`${startQ},${startR}`]);
         const queue = [{ q: startQ, r: startR }];

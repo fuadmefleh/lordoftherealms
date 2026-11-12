@@ -166,7 +166,7 @@ function _pickOnMap(game, cause, listState) {
         bar.style.cssText = 'position:fixed;left:0;right:0;top:64px;display:flex;justify-content:center;pointer-events:none;z-index:900;';
         document.body.appendChild(bar);
     }
-    bar.innerHTML = '<div style="pointer-events:auto;zoom:var(--ui-zoom, 1);max-width:96vw;background:rgba(18,20,28,0.94);border:1px solid rgba(245,197,66,0.45);border-radius:10px;padding:8px 12px;box-shadow:0 6px 24px rgba(0,0,0,0.5);font-size:12px;color:var(--text-primary);display:flex;gap:10px;align-items:center;">'
+    bar.innerHTML = '<div style="pointer-events:auto;max-width:calc(96vw / var(--ui-zoom, 1));background:rgba(18,20,28,0.94);border:1px solid rgba(245,197,66,0.45);border-radius:10px;padding:8px 12px;box-shadow:0 6px 24px rgba(0,0,0,0.5);font-size:12px;color:var(--text-primary);display:flex;gap:10px;align-items:center;">'
         + '<strong style="color:var(--gold);">🗺️ Click the settlement your new life begins in</strong>'
         + `<span style="color:#9d937c;">drag to look around · Esc to cancel</span>`
         + `<button onclick="window._afterlifePickCancel()" style="${BTN}">Cancel</button></div>`;
@@ -411,7 +411,7 @@ Object.assign(ActionMenu, {
         const auto = !!game._afterlifeAuto;
         const steps = [['1 day', 1], ['1 week', 7], ['1 month', 30], ['1 season', Math.round(Y / 4)], ['1 year', Y], ['5 years', Y * 5], ['10 years', Y * 10]];
 
-        let html = '<div style="pointer-events:auto;zoom:var(--ui-zoom, 1);max-width:96vw;background:rgba(18,20,28,0.94);border:1px solid rgba(245,197,66,0.45);border-radius:10px;padding:8px 12px;box-shadow:0 6px 24px rgba(0,0,0,0.5);font-size:12px;color:var(--text-primary);">';
+        let html = '<div style="pointer-events:auto;max-width:calc(96vw / var(--ui-zoom, 1));background:rgba(18,20,28,0.94);border:1px solid rgba(245,197,66,0.45);border-radius:10px;padding:8px 12px;box-shadow:0 6px 24px rgba(0,0,0,0.5);font-size:12px;color:var(--text-primary);">';
         html += '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;justify-content:space-between;margin-bottom:6px;">';
         html += `<div><strong style="color:var(--gold);">⏳ The world turns without you</strong> <span style="color:#aaa;">· Day ${world.day} · ${years ? `${_plural(years, 'year')}` : _plural(days, 'day')} since ${_esc(it.name)} died</span></div>`;
         html += `<div>${heirLine}</div>`;
@@ -465,8 +465,10 @@ Object.assign(ActionMenu, {
         if (game._afterlifeBusy || !Afterlife.active(game.player)) return;
         const busy = game._afterlifeBusy = { left: Math.max(1, Math.floor(n)), total: Math.max(1, Math.floor(n)), stop: false, events: [], cameOfAge: [] };
         game.isProcessingTurn = true;
-        // (a decade at a time: more days a frame, so the long waits don't crawl — the bar still counts them off)
-        const perFrame = n >= 600 ? 10 : n >= 30 ? 4 : 1;
+        // (as many days a frame as fit in FRAME_MS — the map and the bar still move, Stop is
+        // heard — and a long wait runs as the distant years: player/afterlife.js passDay)
+        const FRAME_MS = 40;
+        const distant = Afterlife.isDistant(busy.total);
         const fromDay = game.world.day;
         const finish = () => {
             game._afterlifeBusy = null;
@@ -500,8 +502,9 @@ Object.assign(ActionMenu, {
         const step = () => {
             if (game._afterlifeBusy !== busy) return;
             try {
-                for (let i = 0; i < perFrame && busy.left > 0 && !busy.stop; i++) {
-                    const d = Afterlife.passDay(game.world, game.player);
+                const t0 = performance.now();
+                for (let i = 0; busy.left > 0 && !busy.stop && (i === 0 || performance.now() - t0 < FRAME_MS); i++) {
+                    const d = Afterlife.passDay(game.world, game.player, { distant });
                     busy.events.push(...d.events);
                     busy.cameOfAge.push(...d.cameOfAge);
                     if (d.estate) game.ui.showNotification('⚖️ The Last of the Blood', `No heir of the blood remains. ${EstateSettlement.line(game.world, d.estate)}`, 'warning');
@@ -536,10 +539,10 @@ Object.assign(ActionMenu, {
         if (ready.length) {
             html += sectionHead('Take Up the Mantle');
             for (const heir of ready) {
-                const traitStr = heir.traits && heir.traits.length ? heir.traits.map(t => `${t.icon} ${t.name}`).join(', ') : 'None';
-                let body = `<div style="color:#9d937c;">Born: ${traitStr}</div>`;
+                // (birth traits only when there are any: the profile below lists the rest)
+                let body = heir.traits && heir.traits.length ? `<div style="color:#9d937c;">Born: ${heir.traits.map(t => `${t.icon} ${_esc(t.name)}`).join(', ')}</div>` : '';
                 if (typeof ActionMenu._heirProfileHtml === 'function') body += `<div style="text-align:left;">${ActionMenu._heirProfileHtml(player, heir)}</div>`;
-                body += `<button onclick="window._afterlifeHeir('${heir.id}')" style="${BTN_GOLD}display:block;width:100%;margin-top:8px;">Play as ${_esc(heir.firstName)}</button>`;
+                body += rowList([{ icon: '👑', name: `Play as ${_esc(heir.firstName)}`, desc: 'Take up the mantle', side: '›', tone: 'gold', attrs: `onclick="window._afterlifeHeir('${heir.id}')"` }]);
                 html += card(body, {
                     icon: heir.gender === 'male' ? '♂️' : '♀️',
                     title: `${_esc(heir.firstName)} ${_esc(heir.dynasty || '')}`,
@@ -557,7 +560,7 @@ Object.assign(ActionMenu, {
             html += sectionHead('The Cadet Line');
             cadets.forEach((b, i) => {
                 let body = `<div style="color:#9d937c;">${_esc(b.name)} · seat at ${_esc(b.seat ? b.seat.name : '—')} · ${Math.round(b.gold)} gold · loyalty ${Math.round(b.loyalty)}${b.estranged ? ' (estranged)' : ''}</div>`;
-                body += `<button onclick="window._afterlifeCadet('${b.id}')" style="${i === 0 ? BTN_GOLD : BTN_PLAIN}display:block;width:100%;margin-top:8px;">Play as ${_esc(b.head.firstName)}</button>`;
+                body += rowList([{ icon: '🌿', name: `Play as ${_esc(b.head.firstName)}`, desc: 'The branch comes home to the main line', side: '›', tone: i === 0 ? 'gold' : '', attrs: `onclick="window._afterlifeCadet('${b.id}')"` }]);
                 html += card(body, { icon: '🌿', title: `${_esc(b.head.firstName)} of ${_esc(b.name)}`, side: `Age ${b.head.age}${i === 0 ? ' · nearest' : ''}`, tone: i === 0 ? 'gold' : '' });
             });
         }

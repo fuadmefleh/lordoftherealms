@@ -31,6 +31,7 @@ import { Hex } from '../core/hex.js';
 import { Characters } from '../world/characters.js';
 import { Peoples } from './peoples.js';
 import { Religion } from './religion.js';
+import { Names } from '../core/names.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = v => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -419,7 +420,7 @@ export const Library = {
         const pages = [];
         const faith = k.religion && Religion.FAITHS[k.religion.faithId];
         pages.push(`${k.name} is a realm of the ${k.culture || 'old'} people${cap ? `, ruled from ${cap.s.name}` : ''}${faith ? `, keeping ${_the(faith.name)}` : ''}. It holds ${towns.length} ${towns.length === 1 ? 'settlement' : 'settlements'} today.`);
-        if (cap && Library._founding(world, cap) != null) pages.push(`In the year ${Library._founding(world, cap)}, ${cap.s.name} was founded: the first stone of ${k.name}.`);
+        if (cap && Library._founding(world, cap) != null) pages.push(`In the year ${Library._founding(world, cap)}, ${cap.s.name} was founded: the first stone of ${Names.realm(k.name)}.`);
         const dated = towns.filter(t => t !== cap && Library._founding(world, t) != null).sort((a, b) => Library._founding(world, a) - Library._founding(world, b));
         for (let i = 0; i < dated.length; i += 3) {
             pages.push(`The realm grew: ${dated.slice(i, i + 3).map(t => `${t.s.name} was raised in the year ${Library._founding(world, t)}`).join('; ')}.`);
@@ -427,7 +428,7 @@ export const Library = {
         for (const t of towns) {
             if (t.s.formerKingdom != null && t.s.formerKingdom !== k.id) {
                 const was = _kingdom(world, t.s.formerKingdom);
-                pages.push(`${t.s.name} was taken from ${was ? was.name : 'another realm'} by the sword, and is held by ${k.name} still.`);
+                pages.push(`${t.s.name} was taken from ${was ? was.name : 'another realm'} by the sword, and is held by ${Names.realm(k.name)} still.`);
             }
         }
         const lore = Library.realmLore(world, k);
@@ -440,10 +441,10 @@ export const Library = {
             pages.push(`At this writing, ${k.name} is at peace with every realm.`);
         }
         return Library._book(`lib_chronicle_${k.id}`, {
-            kind: 'history', title: `The Chronicle of ${k.name}`, author: 'the court historians', topic: `the history of ${k.name}`,
+            kind: 'history', title: `The Chronicle of ${Names.realm(k.name)}`, author: 'the court historians', topic: `the history of ${Names.realm(k.name)}`,
             pages,
             reward: { lore: lore.map(e => e.id), intel: [[k.id, ['basics', 'peoples', 'religion', 'diplomacy']]], skills: { diplomacy: 0.3 } },
-            finish: `You close the Chronicle of ${k.name}. Its towns, its wars and its founding are yours to quote now.`,
+            finish: `You close the Chronicle of ${Names.realm(k.name)}. Its towns, its wars and its founding are yours to quote now.`,
         });
     },
 
@@ -454,7 +455,7 @@ export const Library = {
         const dyn = data.dynasty || {};
         const pages = [];
         const name = c => (c ? Characters.getFullName(c) : null);
-        pages.push(`House ${dyn.name || 'of the crown'} has worn the crown of ${k.name}${Array.isArray(dyn.bloodline) && dyn.bloodline.length > 1 ? ` through ${dyn.bloodline.length} reigns` : ''}${dyn.prestige ? `, a house of ${Math.round(dyn.prestige)} prestige` : ''}.`);
+        pages.push(`House ${dyn.name || 'of the crown'} has worn the crown of ${Names.realm(k.name)}${Array.isArray(dyn.bloodline) && dyn.bloodline.length > 1 ? ` through ${dyn.bloodline.length} reigns` : ''}${dyn.prestige ? `, a house of ${Math.round(dyn.prestige)} prestige` : ''}.`);
         if (ctx.late) pages.push(`${ctx.late} ruled until ${ctx.lateDay != null ? `day ${ctx.lateDay}` : 'lately'}, and died.`);
         else if (data.ruler && !data.ruler.isPlayer) pages.push(`${name(data.ruler)} rules${Number.isFinite(data.ruler.age) ? `, aged ${data.ruler.age}` : ''}.`);
         if (data.spouse && data.spouse.isAlive !== false && !data.spouse.isPlayer) pages.push(`The royal consort is ${name(data.spouse)}.`);
@@ -479,14 +480,14 @@ export const Library = {
         if (!k) return null;
         const towns = Library.realmTowns(world, k.id);
         const tiles = Library.realmTiles(world, k.id).length;
-        const pages = [`A map of ${k.name}: ${tiles} leagues of land${towns.length ? `, its towns ${towns.map(t => t.s.name).join(', ')}` : ''}.`];
+        const pages = [`A map of ${Names.realm(k.name)}: ${tiles} leagues of land${towns.length ? `, its towns ${towns.map(t => t.s.name).join(', ')}` : ''}.`];
         const ruler = k.ruler ? `${k.ruler} rules it` : 'its crown is unclear';
         pages.push(`${k.name} is a ${k.culture || ''} realm; ${ruler}.`.replace(/ {2}/g, ' '));
         return Library._book(`lib_map_${k.id}`, {
-            kind: 'map', title: `A Map of ${k.name}`, author: 'the map-room', topic: 'geography',
+            kind: 'map', title: `A Map of ${Names.realm(k.name)}`, author: 'the map-room', topic: 'geography',
             pages,
             reward: { chart: [{ kind: 'realm', kid: k.id, ring }], intel: [[k.id, ['basics']]], skills: { cartography: 0.15 } },
-            finish: `You have the lie of ${k.name} by heart: its rivers, roads and borders.`,
+            finish: `You have the lie of ${Names.realm(k.name)} by heart: its rivers, roads and borders.`,
         });
     },
 
@@ -503,7 +504,7 @@ export const Library = {
             pages.push(`${n.name}${n.ruler ? `, under ${n.ruler}` : ''}: ${war ? 'at war with us' : ally ? 'our ally' : word(rel)}${nf ? `; they keep ${_the(nf.name)}` : ''}.`);
         }
         return Library._book(`lib_letters_${k.id}`, {
-            kind: 'letters', title: `Letters of the Chancery of ${k.name}`, author: 'the chancellors', topic: 'diplomacy',
+            kind: 'letters', title: `Letters of the Chancery of ${Names.realm(k.name)}`, author: 'the chancellors', topic: 'diplomacy',
             pages,
             reward: { intel: neighbours.map(n => [n.id, ['basics', 'ruler', 'diplomacy', 'religion']]), skills: { diplomacy: 0.4 } },
             finish: 'Every envoy, every treaty and every slight is in these letters. You know where you stand with your neighbours.',
@@ -595,7 +596,7 @@ export const Library = {
         if (!far.length) return null;
         const pages = far.map(t => {
             const k = t.s.kingdom != null ? _kingdom(world, t.s.kingdom) : null;
-            return `${t.s.name}, a ${t.s.type || 'town'}${k ? ` of ${k.name}` : ''}: ${Library.dist(world, home, t)} leagues from ${home.s.name}.`;
+            return `${t.s.name}, a ${t.s.type || 'town'}${k ? ` of ${Names.realm(k.name)}` : ''}: ${Library.dist(world, home, t)} leagues from ${home.s.name}.`;
         });
         return Library._book(`lib_itinerary_${home.q}_${home.r}`, {
             kind: 'map', title: 'A Factor\'s Itinerary', author: 'the guild\'s factors', topic: 'trade roads',

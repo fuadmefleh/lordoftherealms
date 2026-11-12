@@ -5,6 +5,7 @@ import { Chatter } from '../../systems/chatter.js';
 import { SettlementMarket } from '../../world/settlementMarket.js';
 import { MarketFairs } from '../../systems/marketFairs.js';
 import { PriceKnowledge } from '../../systems/priceKnowledge.js';
+import { Names } from '../../core/names.js';
 
 Object.assign(Tavern, {
     // ────────────────────────────────────────────────────────────────────
@@ -43,7 +44,7 @@ Object.assign(Tavern, {
                 const templates = [
                     () => `They say ${k.name} is ${accurate ? (k.treasury > 1000 ? 'swimming in gold' : 'struggling financially') : Utils.randPick(['swimming in gold', 'struggling financially'])}.`,
                     () => `I heard ${k.ruler} has been ${Utils.randPick(['making bold moves', 'acting strangely', 'strengthening the borders', 'hosting grand feasts', 'raising taxes'])}.`,
-                    () => `People from ${k.name} say the kingdom is ${accurate ? (k.population > 5000 ? 'thriving' : 'barely getting by') : Utils.randPick(['thriving', 'barely getting by'])}.`,
+                    () => `People from ${Names.realm(k.name)} say the kingdom is ${accurate ? (k.population > 5000 ? 'thriving' : 'barely getting by') : Utils.randPick(['thriving', 'barely getting by'])}.`,
                 ];
                 return {
                     category: Tavern.CATEGORIES.KINGDOM_AFFAIRS,
@@ -63,12 +64,12 @@ Object.assign(Tavern, {
                 const ruler = cd.ruler;
 
                 const templates = [
-                    () => `Word is that ${Characters.getFullName(ruler)} of ${k.name} is ${ruler.isIll ? 'gravely ill' : Utils.randPick(['in good health', 'looking tired lately', 'more paranoid than ever', 'celebrating a recent victory'])}.`,
+                    () => `Word is that ${Characters.getFullName(ruler)} of ${Names.realm(k.name)} is ${ruler.isIll ? 'gravely ill' : Utils.randPick(['in good health', 'looking tired lately', 'more paranoid than ever', 'celebrating a recent victory'])}.`,
                     () => cd.spouse && cd.spouse.isAlive
                         ? `${Characters.getFullName(ruler)}'s consort ${Characters.getFullName(cd.spouse)} is said to be ${Utils.randPick(['very influential at court', 'beloved by the people', 'plotting something', 'homesick for their homeland'])}.`
                         : `${Characters.getFullName(ruler)} remains unmarried. Many wonder who will be the next consort.`,
                     () => cd.children && cd.children.filter(c => c.isAlive).length > 0
-                        ? `The heir of ${k.name}, ${Characters.getFullName(cd.children.find(c => c.isAlive))}, is said to be ${Utils.randPick(['a capable youth', 'wild and reckless', 'studying diligently', 'training with the guard'])}.`
+                        ? `The heir of ${Names.realm(k.name)}, ${Characters.getFullName(cd.children.find(c => c.isAlive))}, is said to be ${Utils.randPick(['a capable youth', 'wild and reckless', 'studying diligently', 'training with the guard'])}.`
                         : `${k.name} lacks a clear heir. Nobles are worried about succession.`,
                 ];
                 return {
@@ -414,8 +415,8 @@ Object.assign(Tavern, {
         return {
             category: Tavern.CATEGORIES.CHARACTER_LOCATION,
             icon: role.icon,
-            title: `${role.name} of ${kingdom.name}`,
-            text: `${Characters.getFullName(advisor)} serves as ${role.name} of ${kingdom.name}. They are said to be ${loyaltyDesc}. Skill: ${accurate ? advisor.skills[role.primarySkill] : Utils.randInt(3, 18)}/20.`,
+            title: `${role.name} of ${Names.realm(kingdom.name)}`,
+            text: `${Characters.getFullName(advisor)} serves as ${role.name} of ${Names.realm(kingdom.name)}. They are said to be ${loyaltyDesc}. Skill: ${accurate ? advisor.skills[role.primarySkill] : Utils.randInt(3, 18)}/20.`,
             reliability, accurate,
             day: world.day,
             source: 'bribe',

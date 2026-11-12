@@ -255,7 +255,8 @@ export const Labour = {
         const views = typeof world.getSettlementViews === 'function' ? world.getSettlementViews() : world.getAllSettlements();
         const cache = MarketDynamics._cache(world);
         const links = (cache.links && cache.links.list) || [];
-        const k = SettlementMarket.tickDays();
+        // (a town's labour moves at its market's turn: `span` days of it in the distant years)
+        const k = SettlementMarket.span(world) || SettlementMarket.tickDays();
         const dctx = Labour._dangerCtx(world, player, links);
         const ruled = new Set();
         let taxRate = null;

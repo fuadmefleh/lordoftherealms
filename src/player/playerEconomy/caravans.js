@@ -197,6 +197,8 @@ Object.assign(PlayerEconomy, {
         caravanUnit.speed = (caravanUnit.speed || 1) * (1 + Technology.getEffectTotal(player, 'caravanSpeedBonus'));
         PlayerEconomy._applyRoadLink(world, caravan, caravanUnit);
         caravanUnit.goods = { ...goods }; // Give it the goods
+        // ...and they are what rides on the wagons: a robber takes these (world/units.js), not a trader's stock from nowhere
+        caravanUnit.inventory = { ...goods };
         world.units.push(caravanUnit);
         caravan.unitId = caravanUnit.id;
 

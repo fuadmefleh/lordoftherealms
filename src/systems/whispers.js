@@ -46,6 +46,7 @@ import { Hex } from '../core/hex.js';
 import { Gossip } from './gossip.js';
 import { Rivals } from './rivals.js';
 import { NPCLords } from '../world/npcLords.js';
+import { Names } from '../core/names.js';
 
 const _num = v => (Number.isFinite(v) ? v : 0);
 const _day = world => (world && Number.isFinite(world.day) ? world.day : 0);
@@ -302,7 +303,7 @@ export const Whispers = {
         const kinds = this.kindsFor('ruler', world, k);
         if (!kinds.length) return null;
         const s = Utils.randPick(towns.get(k.id));
-        return this._create(player, world, { type: 'ruler', kingdomId: k.id, name: k.ruler || `the ruler of ${k.name}` }, Utils.randPick(kinds), { q: s.q, r: s.r, name: s.name });
+        return this._create(player, world, { type: 'ruler', kingdomId: k.id, name: k.ruler || `the ruler of ${Names.realm(k.name)}` }, Utils.randPick(kinds), { q: s.q, r: s.r, name: s.name });
     },
 
     // ──────────── SPREAD & HEAT ────────────
@@ -796,7 +797,7 @@ export const Whispers = {
         for (const k of world.kingdoms || []) {
             if (k.isAlive === false || !(towns.get(k.id) || []).length) continue;
             const kinds = this.kindsFor('ruler', world, k);
-            if (kinds.length) out.push({ subjectType: 'ruler', kingdomId: k.id, name: k.ruler || `the ruler of ${k.name}`, realm: k.name, kinds });
+            if (kinds.length) out.push({ subjectType: 'ruler', kingdomId: k.id, name: k.ruler || `the ruler of ${Names.realm(k.name)}`, realm: k.name, kinds });
         }
         for (const rv of (player.rivals && player.rivals.list) || []) {
             if (!rv || rv.dead || !rv.met) continue;
@@ -823,7 +824,7 @@ export const Whispers = {
         } else {
             const k = this._kingdom(world, target.kingdomId);
             if (!k || k.isAlive === false) return { ok: false, reason: 'No such crown.' };
-            subject = { type: 'ruler', kingdomId: k.id, name: k.ruler || `the ruler of ${k.name}` };
+            subject = { type: 'ruler', kingdomId: k.id, name: k.ruler || `the ruler of ${Names.realm(k.name)}` };
         }
         const k = this._kingdom(world, subject.kingdomId);
         if (!this.kindsFor(subject.type, world, k).includes(target.kind)) return { ok: false, reason: 'Nobody would believe that of them.' };

@@ -34,6 +34,7 @@ import { Ledger } from './ledger.js';
 import { Fiscal } from './fiscal.js';
 import { Guilds } from './guilds.js';
 import { Schemes } from './schemes.js';
+import { Names } from '../core/names.js';
 
 const DEFAULTS = {
     enabled: true, every: 15, answerDays: 10,
@@ -193,8 +194,8 @@ export const Demands = {
             kind: 'crown', sub: loan ? 'loan' : 'benevolence', kingdomId: k.id, from: k.name, amount, icon: '👑',
             title: loan ? 'A Forced Loan' : 'A Benevolence',
             text: loan
-                ? `${ruler} of ${k.name}, the royal chests near empty, "invites" ${house.name} to lend the crown ${amount} gold, to be repaid in ${C.loanDays} days with interest.`
-                : `${ruler} of ${k.name} asks of ${house.name} a benevolence — a free gift of ${amount} gold to the crown in its need.`,
+                ? `${ruler} of ${Names.realm(k.name)}, the royal chests near empty, "invites" ${house.name} to lend the crown ${amount} gold, to be repaid in ${C.loanDays} days with interest.`
+                : `${ruler} of ${Names.realm(k.name)} asks of ${house.name} a benevolence — a free gift of ${amount} gold to the crown in its need.`,
         });
     },
 

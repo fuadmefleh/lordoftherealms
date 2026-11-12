@@ -174,6 +174,7 @@ export const Upbringing = {
         const cost = _num(def.hireCost);
         if ((player.gold || 0) < cost) return { success: false, reason: `The ${def.name} wants ${cost} gold up front.` };
         player.gold -= cost;
+        Upbringing._feeToRealm(player, world, cost);
         up.tutor = {
             kind: 'court', id: def.id, name: def.name, icon: def.icon || '👨‍🏫', focus: def.focus || null,
             quality: _num(def.quality) || 1, wage: _num(def.wage), seeds: { ...(def.seeds || {}) },
@@ -239,6 +240,22 @@ export const Upbringing = {
         const cfg = Upbringing.config();
         const base = focus ? cfg.companionMatchQuality : cfg.companionQuality;
         return Math.round((1 + (base - 1) * Math.max(0, _num(effectiveness) || 1)) * 100) / 100;
+    },
+
+    /**
+     * A master hired from the realm's schools and guilds (the data tutors):
+     * their fee goes into the treasury of the realm the ruler stands in (else
+     * the realm they serve, else the one they rule). Returns the realm, or null.
+     */
+    _feeToRealm(player, world, amount) {
+        if (!(amount > 0) || !world || typeof world.getKingdom !== 'function') return null;
+        const tile = typeof world.getTile === 'function' && player ? world.getTile(player.q, player.r) : null;
+        const kid = (tile && tile.settlement && tile.settlement.kingdom) || (tile && tile.kingdom)
+            || (player && player.allegiance) || (player && player.throne && player.throne.ruling && player.throne.ruling.kingdomId) || null;
+        const k = kid ? world.getKingdom(kid) : null;
+        if (!k) return null;
+        k.treasury = _num(k.treasury) + amount;
+        return k;
     },
 
     dismissTutor(player, childId) {
@@ -321,8 +338,10 @@ export const Upbringing = {
                 if (mood && mood.tooUnhappy) leave = `${t.name} is too unhappy with you to keep tutoring ${child.firstName}.`;
                 else if (mood) t.quality = Upbringing._companionQuality(t.focus, mood.effectiveness);
             } else if (t.kind === 'court' && t.wage > 0) {
-                if ((player.gold || 0) >= t.wage) player.gold -= t.wage;
-                else leave = `Unpaid, the ${t.name} leaves ${child.firstName}'s service.`;
+                if ((player.gold || 0) >= t.wage) {
+                    player.gold -= t.wage;
+                    Upbringing._feeToRealm(player, world, t.wage);
+                } else leave = `Unpaid, the ${t.name} leaves ${child.firstName}'s service.`;
             }
             if (leave) {
                 up.tutor = null;
@@ -335,8 +354,11 @@ export const Upbringing = {
         const university = fx && Number.isFinite(fx.education) ? Math.max(0, fx.education) : 0;
         Upbringing._growPure(child, years * (1 + university), true);
 
-        // The parent's example: each of the ruler's earned traits may rub off
-        const chance = cfg.parentRubOffChancePerYear * years;
+        // The parent's example: each of the ruler's earned traits may rub off —
+        // the more, the closer the child is to them (systems/raising.js bond)
+        const rb = up.raising;
+        const bondF = rb && Number.isFinite(rb.bond) ? Utils.clamp(0.5 + rb.bond / 100, 0.5, 1.5) : 1;
+        const chance = cfg.parentRubOffChancePerYear * years * bondF;
         for (const id of Traits.getEarned(player)) {
             if (Utils.random() < chance) {
                 Upbringing._addSeeds(child, { [id]: cfg.parentRubOff });
@@ -387,6 +409,14 @@ export const Upbringing = {
     comeOfAge(player, world, child) {
         const up = Upbringing.ensure(child);
         if (up.comeOfAge) return null;
+        // The bond with the parent leaves its mark (systems/raising.js): a
+        // close child leans gentle and true, an estranged one hard and restless
+        const rb = up.raising;
+        const R = Upbringing.data().raising || {};
+        if (rb && Number.isFinite(rb.bond)) {
+            if (Number.isFinite(R.closeBond) && rb.bond >= R.closeBond) Upbringing._addSeeds(child, R.closeSeeds || {});
+            else if (Number.isFinite(R.distantBond) && rb.bond <= R.distantBond) Upbringing._addSeeds(child, R.distantSeeds || {});
+        }
         up.adultTraits = Upbringing.childhoodTraits(child);
         up.comeOfAge = true;
         up.comeOfAgeDay = (world && world.day) || 0;

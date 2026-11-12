@@ -37,6 +37,7 @@
 import { Hex } from '../core/hex.js';
 import { Cultures } from '../world/cultures.js';
 import { Ledger } from './ledger.js';
+import { Names } from '../core/names.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -172,7 +173,7 @@ export const Languages = {
         if (c.value >= need) return { ok: true, via: c.via };
         return {
             ok: false,
-            reason: `The court of ${kingdom.name} speaks ${Cultures.languageName(lang)}, and you have ${c.level.name.toLowerCase()} of it. Learn it, or hire an interpreter, before you ask for an audience.`,
+            reason: `The court of ${Names.realm(kingdom.name)} speaks ${Cultures.languageName(lang)}, and you have ${c.level.name.toLowerCase()} of it. Learn it, or hire an interpreter, before you ask for an audience.`,
         };
     },
 

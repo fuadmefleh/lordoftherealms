@@ -91,6 +91,8 @@
         "envoy_received": { "weight": 5, "halfLife": 360, "icon": "📜", "label": "the envoy of your blood you sent to court", "recall": "Your child came to us as envoy. A courteous embassy." },
         "betrothal_made": { "weight": 8, "halfLife": 1200, "icon": "💍", "label": "the betrothal you made with our House", "recall": "Our Houses are promised to one another." },
         "betrothal_broken": { "weight": -14, "halfLife": 900, "icon": "💔", "label": "the betrothal you broke", "recall": "You broke the promise between our Houses." },
+        "ward_raised": { "weight": 10, "halfLife": 1200, "icon": "🎓", "label": "the child of ours you raised at your court", "recall": "You raised one of ours at your table, and sent them home whole." },
+        "ward_died": { "weight": -20, "halfLife": 1500, "icon": "🕯️", "label": "the child of ours who died in your keeping", "recall": "We sent you a child. You sent us back a coffin." },
         "amends_made": { "weight": 12, "halfLife": 900, "icon": "🕊️", "label": "the amends you made for an old wrong", "recall": "You came to set right what your House did. I respect that." },
         "amends_refused": { "weight": -8, "halfLife": 540, "icon": "🗡️", "label": "the old wrong you would not mend", "recall": "You knew what your House owed mine, and did nothing." }
     }

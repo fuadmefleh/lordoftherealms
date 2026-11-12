@@ -1,6 +1,7 @@
 // Characters — succession members (split from the original monolith).
 import { Characters } from './_ref.js';
 import { Utils } from './_imports.js';
+import { Names } from '../../core/names.js';
 
 /** Dead royal children kept this many days (the court still mourns them), then dropped. */
 const FAMILY_MOURN_DAYS = 360;
@@ -137,8 +138,8 @@ Object.assign(Characters, {
 
         // Event
         const eventText = crisisOccurred
-            ? `👑 Succession Crisis in ${kingdom.name}! ${oldRulerName} has died. After a disputed succession, ${Characters.getFullName(heir)} seizes power.`
-            : `👑 ${oldRulerName} of ${kingdom.name} has died at age ${oldRuler.age}. ${Characters.getDisplayName(heir, kingdom)} ascends to the throne (${successionType}).`;
+            ? `👑 Succession Crisis in ${Names.realm(kingdom.name)}! ${oldRulerName} has died. After a disputed succession, ${Characters.getFullName(heir)} seizes power.`
+            : `👑 ${oldRulerName} of ${Names.realm(kingdom.name)} has died at age ${oldRuler.age}. ${Characters.getDisplayName(heir, kingdom)} ascends to the throne (${successionType}).`;
 
         world.events.push({
             category: 'political',
@@ -360,7 +361,7 @@ Object.assign(Characters, {
                 if (advisor.loyalty < 10 && Utils.random() < 0.3) {
                     world.events.push({
                         category: 'political',
-                        text: `🚪 The ${Characters.ADVISOR_ROLES[roleId].name} of ${kingdom.name}, ${Characters.getFullName(advisor)}, has abandoned their post!`,
+                        text: `🚪 The ${Characters.ADVISOR_ROLES[roleId].name} of ${Names.realm(kingdom.name)}, ${Characters.getFullName(advisor)}, has abandoned their post!`,
                         kingdom: kingdom.id,
                         impact: 'negative',
                     });
@@ -408,7 +409,7 @@ Object.assign(Characters, {
                     if (char === data.spouse) {
                         world.events.push({
                             category: 'political',
-                            text: `${Characters.getFullName(char)} of ${kingdom.name}, spouse of the ruler, has died at age ${char.age}.`,
+                            text: `${Characters.getFullName(char)} of ${Names.realm(kingdom.name)}, spouse of the ruler, has died at age ${char.age}.`,
                             kingdom: kingdom.id,
                             impact: 'neutral',
                         });
@@ -489,7 +490,7 @@ Object.assign(Characters, {
 
         world.events.push({
             category: 'dynasty',
-            text: `👶 A child, ${Characters.getFullName(child)}, is born in the royal family of ${kingdom.name}!`,
+            text: `👶 A child, ${Characters.getFullName(child)}, is born in the royal family of ${Names.realm(kingdom.name)}!`,
             kingdom: kingdom.id,
             impact: 'positive',
         });
@@ -696,7 +697,7 @@ Object.assign(Characters, {
                     // Ruler dies from assassination
                     world.events.push({
                         category: 'political',
-                        text: `💀 The assassination of ${Characters.getFullName(ruler)} in ${kingdom.name} succeeds! The realm is thrown into chaos.`,
+                        text: `💀 The assassination of ${Characters.getFullName(ruler)} in ${Names.realm(kingdom.name)} succeeds! The realm is thrown into chaos.`,
                         kingdom: kingdom.id,
                         impact: 'negative',
                     });

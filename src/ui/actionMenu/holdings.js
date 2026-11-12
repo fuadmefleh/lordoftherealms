@@ -106,6 +106,8 @@ Object.assign(ActionMenu, {
         // ── The people (world/townLabour.js) ──
         const people = peopleLine(tile.settlement, world.day);
         if (people) html += rowList([{ icon: '👥', name: 'The people', desc: people, act: 'showTownPeople', args: [null, q, r], side: '›' }]);
+        // Settlers out of here to found another village of yours (ui/actionMenu/founding.js)
+        html += rowList([{ icon: '⛺', name: 'Found a Village', desc: 'send some of its people out to found a new village at a site you pick', act: 'showFoundVillage', args: [q, r], side: '›' }]);
         if (s.drifting) {
             html += '<div style="color:#f0b35a; font-size:11px; margin:2px 0 6px;">⚠️ Ungoverned and far from you, the town drifts: happiness and loyalty slip and unrest grows each day. Appoint a governor or come back.</div>';
         }

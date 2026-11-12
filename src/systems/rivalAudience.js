@@ -30,6 +30,7 @@ import { RivalHouses } from './rivalHouses.js';
 import { House } from './house.js';
 import { Ledger } from './ledger.js';
 import { LandMarket } from './landMarket.js';
+import { Names } from '../core/names.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _day = world => _num(world && world.day);
@@ -437,7 +438,7 @@ export const RivalAudience = {
             const kid = best ? best.kingdomId : rival.kingdomId;
             const k = Estates.kingdom(world, kid);
             const rep = _num(player.reputation && player.reputation[k ? k.id : kid]);
-            if (k && rep >= 10) push('speak', { realm: k.name, realmId: k.id }, `−5 reputation with ${k.name}; they gain favour there; feud −15.`);
+            if (k && rep >= 10) push('speak', { realm: k.name, realmId: k.id }, `−5 reputation with ${Names.realm(k.name)}; they gain favour there; feud −15.`);
         }
         // Buy an estate of yours
         if ((rival.ambition && rival.ambition.id === 'land') || RivalHouses.has(h, 'homebody')) {

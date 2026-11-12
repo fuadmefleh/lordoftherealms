@@ -68,6 +68,7 @@ import { Religion } from '../systems/religion.js';
 import { Devotion } from '../systems/devotion.js';
 import { Court } from '../systems/court.js';
 import { OddJobs } from './oddJobs.js';
+import { Names } from '../core/names.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = v => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -288,7 +289,7 @@ export const Parentage = {
         const elder = kids.filter(c => _num(c.age) > startAge).length;
         const st = Parentage.station('royal') || {};
         return {
-            key: `royal:${k.id}`, station: 'royal', name: `${st.name || 'The royal family'} of ${k.name}`, icon: st.icon || '👑',
+            key: `royal:${k.id}`, station: 'royal', name: `${st.name || 'The royal family'} of ${Names.realm(k.name)}`, icon: st.icon || '👑',
             q: k.capital.q, r: k.capital.r, town: cap.settlement.name, townType: cap.settlement.type, kingdom: k.name, kingdomId: k.id,
             culture: k.culture || Cultures.cultureOf(world, cap.settlement),
             father: { id: father.id, first: father.firstName, last: father.dynasty, age: _num(father.age), title: father === ruler ? 'the monarch' : 'consort' },
@@ -484,7 +485,7 @@ export const Parentage = {
         const elder = sibs.filter(c => _num(c.age) > age).length;
         const claim = Math.max(_num(st.claimMin, 15), _num(st.claim, 55) - elder * _num(st.claimPerElder, 12));
         Throne.grantClaim(player, world, k.id, 'blood', claim);
-        player.title = `${player.gender === 'female' ? 'Princess' : 'Prince'} of ${k.name}`;
+        player.title = `${player.gender === 'female' ? 'Princess' : 'Prince'} of ${Names.realm(k.name)}`;
         player.allegiance = k.id;
         player.parentage = Parentage._blank(player, world, {
             station: 'royal', home: { q: couple.q, r: couple.r, name: cap.settlement.name }, kid: k.id,

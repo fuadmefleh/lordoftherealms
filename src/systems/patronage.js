@@ -51,6 +51,7 @@ import { HoldingSieges } from './holdingSieges.js';
 import { Ships } from './ships.js';
 import { Fashions } from '../world/fashions.js';
 import { Ledger } from './ledger.js';
+import { Names } from '../core/names.js';
 
 const TYPE_RANK = { hamlet: 0, village: 1, town: 2, city: 3, capital: 3 };
 const FX_KEYS = ['research', 'conversion', 'education', 'vision', 'festivalRenown', 'riverCross', 'monthlyPrestige', 'care', 'woundHeal'];
@@ -271,11 +272,11 @@ export const Patronage = {
         const court = Patronage._court(world, tile);
         if (!court) return { ...out, reason: "Fashions are set at a royal court: stand in a realm's capital." };
         out.court = court;
-        if (!Patronage._present(player, tile.q, tile.r)) return { ...out, reason: `You must be at the court of ${court.kingdom.name}.` };
+        if (!Patronage._present(player, tile.q, tile.r)) return { ...out, reason: `You must be at the court of ${Names.realm(court.kingdom.name)}.` };
         const ruling = player.throne && player.throne.ruling;
         const ours = !!(ruling && ruling.kingdomId === court.kingdom.id);
         const rep = _num(player.reputation && player.reputation[court.kingdom.id]);
-        if (!ours && rep < _num(P.minReputation, 20)) return { ...out, reason: `The court of ${court.kingdom.name} pays you no heed (standing ${Math.round(rep)}, ${_num(P.minReputation, 20)} needed).` };
+        if (!ours && rep < _num(P.minReputation, 20)) return { ...out, reason: `The court of ${Names.realm(court.kingdom.name)} pays you no heed (standing ${Math.round(rep)}, ${_num(P.minReputation, 20)} needed).` };
         const patron = Patronage.state(player).clients.find(c => c && (c.profession === 'artist' || c.profession === 'architect')) || null;
         out.patron = patron;
         const mult = patron ? _num(P.patronDiscount, 0.5) : 1;
@@ -303,7 +304,7 @@ export const Patronage = {
         player.econ.setDay = _day(world);
         if (!player.econ.fashions || typeof player.econ.fashions !== 'object') player.econ.fashions = {};
         player.econ.fashions[f.uid] = _day(world);
-        const text = `${q.patron ? `With ${q.patron.name}'s eye for it, ` : ''}${q.def.text || q.def.name} at the court of ${q.court.kingdom.name}: it will spread from ${q.court.settlement.name} in the coming weeks.`;
+        const text = `${q.patron ? `With ${q.patron.name}'s eye for it, ` : ''}${q.def.text || q.def.name} at the court of ${Names.realm(q.court.kingdom.name)}: it will spread from ${q.court.settlement.name} in the coming weeks.`;
         Patronage._log(player, world, text.charAt(0).toUpperCase() + text.slice(1));
         return { success: true, fashion: f, text: text.charAt(0).toUpperCase() + text.slice(1), prestige: q.prestige, gold: q.gold };
     },

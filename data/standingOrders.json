@@ -1,0 +1,73 @@
+{
+    "_doc": "Standing orders (src/player/standingOrders.js). What the character does with the day's spare points when the day ends (End Turn, or each day of a Wait): self-care first (data/autoUpkeep.json), then the order uses what is left, once a day, through the game's own actions at their own costs: odd jobs (player/oddJobs.js, paid out of the town's purse), the quick forage (player/foraging.js) or the quick fishing trip (systems/foodSkills.js), sparring with the town's trainer (the fee to the town), collecting stored goods from your properties and herds, drilling your soldiers (their kits wear), prayer or meditation (systems/devotion.js). An order that can't run where you stand says why and you rest instead. Set from the Wait panel (Pass the Time).",
+    "enabled": true,
+    "minEnergy": 15,
+    "minHealthShare": 0.3,
+    "orders": {
+        "rest": { "name": "Rest only", "icon": "🛌", "desc": "Nothing more: the spare hours go on rest." },
+        "work": { "name": "Work in town", "icon": "🔨", "desc": "A day's labour in town; your trade's work first (a smith strikes at the forge, a woodcutter cuts wood)." },
+        "fell": {
+        "_comment": "One tree a day (player/gathering.js): the swings it takes (strength, luck, its hardness, Woodcutting, the best axe, a logging camp on the hex) each tire and teach as on the inner map; Gathering.felled gives the logs (a camp's yield boost), the extra share and what else it gives. maxSwings caps a day's work.",
+        "ap": 4,
+        "needs": { "hygiene": -5 },
+        "maxSwings": 40
+    },
+    "hunt": {
+        "_comment": "As Hunt (4 AP), its quick path: needs a bow and arrows or a crossbow and bolts (player/huntingBow.js quickShots: arrows used and recovered, bow wear); the quarry through Hunting.quickHunt.",
+        "ap": 4,
+        "energy": 12,
+        "needs": { "hygiene": -8, "fun": 10 }
+    },
+    "estates": { "name": "Tend your holdings", "icon": "📦", "desc": "Collect the goods your properties and beasts have stored where you stand." },
+        "train": { "name": "Train at arms", "icon": "⚔️", "desc": "Spar with the town's trainer for a fee; your soldiers drill alongside." },
+        "gather": { "name": "Forage or fish", "icon": "🌿", "desc": "Search the wilds for herbs and useful things, or fish where there is water." },
+        "fell": { "name": "Fell timber", "icon": "🪓", "desc": "Fell a tree in the woods: its logs and what else it gives, more with Woodcutting, an axe, and a logging camp of yours on the hex." },
+        "hunt": { "name": "Hunt", "icon": "🏹", "desc": "A day's hunt in the wilds with your bow or crossbow: arrows loosed, some recovered, the quarry if one strikes home." },
+        "drill": { "name": "Drill your soldiers", "icon": "🎖️", "desc": "Put your companies through their drill: experience for green men, wear on their kit." },
+        "devotion": { "name": "Pray and study", "icon": "🧘", "desc": "Prayer at a church or holy site, meditation elsewhere: rest, karma, sometimes insight." }
+    },
+    "work": {
+        "_comment": "ap and needs as the Look for Work action (ui/actionMenu/core.js AP_COSTS.odd_jobs). score: the performance the day's work is paid for (the quick path's 40). professionWeight: how much a practised skill a job trains counts when choosing the job.",
+        "ap": 4,
+        "energy": 8,
+        "needs": { "social": 5 },
+        "score": 40,
+        "professionWeight": 3
+    },
+    "gather": {
+        "_comment": "forage / fish as the Forage (3 AP) and Go Fishing (3 AP) actions. fishFirstBelow: with fewer meals than this in the pack, fishing comes before foraging.",
+        "forage": { "ap": 3, "energy": 8, "needs": { "hygiene": -5, "fun": 5 } },
+        "fish": { "ap": 3, "energy": 5, "needs": { "fun": 12, "comfort": 5 }, "secondChance": 0.4, "luckChance": 0.08 },
+        "fishFirstBelow": 3
+    },
+    "train": {
+        "_comment": "As Combat Training (4 AP), its quick path: the fee (capital/elsewhere) is paid into the town's purse; skillChance of +1 combat; armyXp to each unit. keepGold: the fee is never paid out of the last of the purse.",
+        "ap": 4,
+        "energy": 15,
+        "needs": { "hygiene": -10, "fun": 8 },
+        "fee": { "capital": 75, "other": 50 },
+        "skillChance": 0.15,
+        "armyXp": 8,
+        "keepGold": 20
+    },
+    "drill": {
+        "_comment": "Drilling: xp per unit a day; drill alone makes no veterans past maxLevel (battle does); kitWear: condition points off each unit's kit (systems/arms.js wearKits).",
+        "ap": 4,
+        "energy": 10,
+        "needs": { "hygiene": -6 },
+        "xp": 3,
+        "maxLevel": 2,
+        "levelAt": 100,
+        "kitWear": 0.5
+    },
+    "estates": {
+        "_comment": "As Collect Goods (1 AP).",
+        "ap": 1
+    },
+    "devotion": {
+        "_comment": "As Meditate (3 AP): its need effects; quality is the devotion model's 0..1 (the minigame's middle).",
+        "ap": 3,
+        "needs": { "comfort": 15, "energy": 8, "fun": 3 },
+        "quality": 0.5
+    }
+}

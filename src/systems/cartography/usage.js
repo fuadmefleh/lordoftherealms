@@ -4,6 +4,7 @@ import { Utils, Hex, KingdomAtlas } from './_imports.js';
 import { Quests } from '../quests.js';
 import { Discovery } from '../discovery.js';
 import { TreasureDigs } from '../treasureDigs.js';
+import { Names } from '../../core/names.js';
 
 Object.assign(Cartography, {
     // ── Map Reading / Applying ─────────────────
@@ -291,7 +292,7 @@ Object.assign(Cartography, {
                 map = {
                     id: `stolen_${Utils.nextId()}_${Utils.randInt(0, 9999)}`,
                     type: 'kingdom',
-                    name: `Stolen Map of ${kingdom.name}`,
+                    name: `Stolen Map of ${Names.realm(kingdom.name)}`,
                     icon: '🗡️',
                     quality: Utils.randPick(['basic', 'detailed']),
                     accuracy: 0.6 + Utils.random() * 0.2,
@@ -307,7 +308,7 @@ Object.assign(Cartography, {
                     isPropaganda: false,
                     isStolen: true,
                     isAncient: false,
-                    notes: `Stolen from ${kingdom.name}'s records.`,
+                    notes: `Stolen from ${Names.realm(kingdom.name)}'s records.`,
                 };
             }
         }
@@ -390,7 +391,7 @@ Object.assign(Cartography, {
                     map: {
                         id: `sale_kingdom_${tile.kingdom}`,
                         type: 'kingdom',
-                        name: `Official Map of ${kingdom.name}`,
+                        name: `Official Map of ${Names.realm(kingdom.name)}`,
                         icon: '👑',
                         quality: Cartography.getQualityForSkill(KingdomAtlas.skill(kingdom)),
                         accuracy: acc,
@@ -399,14 +400,14 @@ Object.assign(Cartography, {
                         centerR: kingdom.capital.r,
                         radius: 0,
                         createdDay: world.day,
-                        createdBy: `Royal Cartographer of ${kingdom.name}`,
+                        createdBy: `Royal Cartographer of ${Names.realm(kingdom.name)}`,
                         value: Math.round(100 * scale),
                         tiles: Cartography._chartKingdomTiles(kingdom, world, acc),
                         deliberateErrors: [],
                         isPropaganda: false,
                         isStolen: false,
                         isAncient: false,
-                        notes: `Official cartographic record of ${kingdom.name}.`,
+                        notes: `Official cartographic record of ${Names.realm(kingdom.name)}.`,
                     },
                     price: Math.round(120 * scale),
                 });
@@ -526,7 +527,7 @@ Object.assign(Cartography, {
                     centerR: subject.capital.r,
                     radius: 0,
                     createdDay: chart.day || 0,
-                    createdBy: `Royal Archive of ${kingdom.name}`,
+                    createdBy: `Royal Archive of ${Names.realm(kingdom.name)}`,
                     value: Math.round(60 + acc * 100),
                     tiles: Cartography._chartKingdomTiles(subject, world, acc),
                     deliberateErrors: [],
@@ -534,7 +535,7 @@ Object.assign(Cartography, {
                     isStolen: false,
                     isAncient: false,
                     fromArchive: true,
-                    notes: `Copied from ${kingdom.name}'s chart of ${subject.name}, drawn on day ${chart.day || 0}.`,
+                    notes: `Copied from ${Names.realm(kingdom.name)}'s chart of ${subject.name}, drawn on day ${chart.day || 0}.`,
                 },
                 price: Math.round(80 + acc * 120),
             });

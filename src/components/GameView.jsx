@@ -304,6 +304,10 @@ export default function GameView() {
             <button className="hud-speed-btn" id="simsTimeFast" title="Fast (2)"><Icon name="fast" /></button>
             <button className="hud-speed-btn" id="simsTimeUltra" title="Ultra (3)"><Icon name="ultra" /></button>
           </div>
+          {/* The standing order (player/standingOrders.js): its icon; a click opens the Wait panel's selector (ui/actionMenu/timeSkip.js fills and wires it) */}
+          <button className="hud-end-turn hud-skip-btn" id="simsOrder" title="Standing order: what your spare hours go on each day">
+            <span>🛌</span>
+          </button>
           {/* Pass the Time (ui/actionMenu/timeSkip.js): pick how long, or a week at a go */}
           <button className="hud-end-turn hud-skip-btn" id="simsWait" title="Pass the Time: a day, three, a week, a fortnight, a month, or to the season's turn">
             <span>Wait…</span>

@@ -1,0 +1,16 @@
+{
+    "_doc": "Standing trade and supply lines (player/tradeLines.js): a caravan or one of your ships goes round a loop of stops, buying and selling by your rules at each. Coin is your purse (a factor's letters of credit); goods ride on the wagons or in the hold. Days are game days.",
+    "config": {
+        "maxLines": 8,
+        "maxStops": 6,
+        "maxRules": 8,
+        "ledgerRuns": 12,
+        "logCap": 30,
+        "awayRange": 8,
+        "lossesBeforeHalt": 2,
+        "unpaidDaysBeforeHalt": 3,
+        "caravan": { "hire": 120, "wagePerDay": 3, "capacity": 60, "maxLegDist": 25 },
+        "tolls": { "rate": 0.03, "min": 1 },
+        "steward": { "skillHaggle": 0.005, "maxHaggle": 0.08 }
+    }
+}

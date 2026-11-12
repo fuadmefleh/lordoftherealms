@@ -25,7 +25,7 @@ Object.assign(UI.prototype, {
         // Top bar buttons (use ?. for safety in React mode where DOM may not be ready)
         document.getElementById('btnCharacter')?.addEventListener('click', () => this.toggleCharacterPanel());
         document.getElementById('btnSettings')?.addEventListener('click', () => this.showSettingsPanel());
-        document.getElementById('btnInventory')?.addEventListener('click', () => this.showInventoryPanel());
+        document.getElementById('btnInventory')?.addEventListener('click', () => this.toggleInventoryPanel()); // also the I key (ui/game/gameLoop.js)
         document.getElementById('btnQuests')?.addEventListener('click', () => this.showQuestsPanel());
         const btnHistory = document.getElementById('btnHistory');
         if (btnHistory) {
@@ -61,6 +61,8 @@ Object.assign(UI.prototype, {
         document.getElementById('btnLaws')?.addEventListener('click', () => ActionMenu.showLaws(this.game));
         // The Annals: the life and dynasty told as a book (systems/annals.js)
         document.getElementById('btnAnnals')?.addEventListener('click', () => ActionMenu.showAnnals(this.game));
+        // The Almanac of the World: every person, House, place, realm, war and age on record (ui/actionMenu/almanac.js)
+        document.getElementById('btnAlmanac')?.addEventListener('click', () => ActionMenu.showAlmanac(this.game));
         // The Timeline of the Realm: the borders and deeds of every season on a map (ui/actionMenu/timeline.js)
         document.getElementById('btnTimeline')?.addEventListener('click', () => ActionMenu.showTimeline(this.game));
         // The Season's Reckoning: what your doings changed last season (systems/reckoning.js)

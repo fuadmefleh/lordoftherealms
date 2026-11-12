@@ -56,6 +56,7 @@ import { Mail } from './mail.js';
 import { MerchantCaravans } from './merchantCaravans.js';
 import { CourtLetters } from './courtLetters.js';
 import { Underworld } from './underworld.js';
+import { Names } from '../core/names.js';
 
 export const RIDER_TYPE = 'courier_rider';
 
@@ -433,13 +434,13 @@ export const CourierRiders = {
             // The enemy's agents read a letter to a lord, a rival House or a child at court
             if ((L.road && L.road.intercepted) || !['lord', 'rival', 'child'].includes(L.to.type)) return false;
             if (Utils.random() < _num(C.warIntercept, 0.3) * (1 - cover * 0.5)) {
-                L.road = { ...(L.road || {}), intercepted: { kind: 'realm', kingdomId: k.id, name: `agents of ${k.name}`, q: u.q, r: u.r, day: _day(world) } };
+                L.road = { ...(L.road || {}), intercepted: { kind: 'realm', kingdomId: k.id, name: `agents of ${Names.realm(k.name)}`, q: u.q, r: u.r, day: _day(world) } };
                 st.stats.intercepted++;
             }
             return false;
         }
         if (Utils.random() < _num(C.warSeize, 0.2) * (1 - cover)) {
-            return this._waylaid(world, player, st, u, null, { kingdomId: k.id, seized: true, by: `soldiers of ${k.name}` }, out);
+            return this._waylaid(world, player, st, u, null, { kingdomId: k.id, seized: true, by: `soldiers of ${Names.realm(k.name)}` }, out);
         }
         return false;
     },

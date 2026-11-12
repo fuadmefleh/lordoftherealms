@@ -14,6 +14,7 @@ import { PerformTasks } from '../mapTasks/performTasks.js';
 import { SocialSkills } from '../../systems/socialSkills.js';
 import { Gangs } from '../../systems/gangs.js';
 import { Ledger } from '../../systems/ledger.js';
+import { StandingOrders } from '../../player/standingOrders.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerInventory } from './_imports.js';
 
 /** A result panel's head: a big icon over a title in its colour (the action menu's result voice). */
@@ -293,16 +294,13 @@ Object.assign(ActionMenu, {
         const settlement = tile.settlement;
         if (!settlement) return;
 
-        const cost = settlement.type === 'capital' ? 75 : 50;
-        if (player.gold < cost) {
+        // The trainer's fee goes into the town's purse (player/standingOrders.js payTrainer,
+        // shared with the "Train at arms" standing order)
+        const paid = StandingOrders.payTrainer(player, settlement);
+        const cost = paid.fee;
+        if (!paid.ok) {
             game.ui.showNotification('Not Enough Gold', `Training costs ${cost} gold.`, 'error');
             return;
-        }
-
-        player.gold -= cost;
-        if (player.financeToday) {
-            player.financeToday.expenses = player.financeToday.expenses || {};
-            player.financeToday.expenses.training = (player.financeToday.expenses.training || 0) + cost;
         }
 
         ActionMenu._showMinigamePrompt(game, {
@@ -313,7 +311,7 @@ Object.assign(ActionMenu, {
             onSkip: () => {
                 // Base reward: small chance of stat growth
                 let msg = `Trained with the ${settlement.type === 'capital' ? 'Royal Swordmaster' : 'Militia Sergeant'}.`;
-                if (Math.random() < 0.15) {
+                if (Utils.random() < StandingOrders.config().train.skillChance) {
                     player.skills = player.skills || {};
                     player.skills.combat = Math.min(10, (player.skills.combat || 1) + 1);
                     msg += ' ⚔️ Combat skill improved!';
@@ -353,7 +351,7 @@ Object.assign(ActionMenu, {
                 const combatChance = won ? (isCapital ? 0.65 : 0.45) :
                                      tied ? (isCapital ? 0.35 : 0.20) :
                                             (isCapital ? 0.20 : 0.10);
-                if (Math.random() < combatChance && player.skills) {
+                if (Utils.random() < combatChance && player.skills) {
                     player.skills.combat = Math.min((player.skills.combat || 1) + 1, 10);
                     msgs.push('⚔️ Combat skill improved!');
                 } else {
@@ -361,7 +359,7 @@ Object.assign(ActionMenu, {
                 }
 
                 // Strength improvement
-                if (Math.random() < (won ? 0.20 : 0.10)) {
+                if (Utils.random() < (won ? 0.20 : 0.10)) {
                     player.strength = (player.strength || 5) + 1;
                     msgs.push('💪 Strength increased!');
                 }

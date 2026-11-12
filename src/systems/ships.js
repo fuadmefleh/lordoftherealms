@@ -26,6 +26,7 @@ import { Ledger } from './ledger.js';
 import { TradePolicy } from './tradePolicy.js';
 import { CombatSkills } from './combatSkills.js';
 import { SocialSkills } from './socialSkills.js';
+import { Names } from '../core/names.js';
 
 /**
  * Ships System
@@ -1498,7 +1499,7 @@ export const Ships = {
     _closedPortMessage(world, q, r) {
         const b = this.getPortBlockade(world, q, r);
         if (!b || !b.closed) return null;
-        return `The harbour is closed: ${b.blockaders.map(k => k.name).join(' and ')} blockades the ports of ${b.kingdom.name}.`;
+        return `The harbour is closed: ${b.blockaders.map(k => k.name).join(' and ')} blockades the ports of ${Names.realm(b.kingdom.name)}.`;
     },
 
     /** The player's ship docked at a port on the player's hex, if any. */
@@ -1541,6 +1542,9 @@ export const Ships = {
             return { success: false, message: this.getCargoFree(ship) <= 0 ? 'The hold is full.' : 'You cannot afford any.' };
         }
         player.gold -= cost;
+        // The port's merchants are paid: the coin goes into the town's purse
+        // (a town that barters takes it in kind: Economy.payTown)
+        if (town) Economy.payTown(town, cost);
         if (!ship.cargo) ship.cargo = {};
         ship.cargo[goodId] = (ship.cargo[goodId] || 0) + n;
         // Booked by the realm it was bought in: another realm's customs read it on landing
@@ -1639,7 +1643,17 @@ export const Ships = {
             ? TradePolicy.consignCheck(player, world, ship.lots, held, portTown.settlement, goodId, n) : null;
         if (policy && !policy.ok) return { success: false, message: policy.reason, embargoed: true };
         const revenue = Math.max(0, Math.floor(n * this.portSaleUnitPrice(player, world, player.q, player.r, entry, n) * (policy ? policy.mult : 1)));
+        // The port's merchants pay out of the town's purse, the crown's duty inside it:
+        // a town without the coin can't buy the cargo (as a market sale: Trading.sellGoods)
+        const town = portTown && portTown.settlement;
+        const purse = Economy.townPurse(town);
+        const rate = policy && policy.rate > 0 ? policy.rate : 0;
+        const outlay = revenue + (rate > 0 ? Math.round(revenue * rate / Math.max(0.1, 1 - rate)) : 0);
+        if (purse != null && outlay > purse) {
+            return { success: false, message: `The merchants of ${town.name || 'this port'} have only ${Math.floor(purse)} gold to spend.`, townPurse: Math.floor(purse) };
+        }
         const duty = policy ? TradePolicy.consignSale(player, world, ship.lots, portTown.settlement, goodId, n, revenue, policy).duty : 0;
+        if (town) Economy.drawTown(town, revenue + duty);
         ship.cargo[goodId] -= n;
         if (ship.cargo[goodId] <= 0) delete ship.cargo[goodId];
         player.gold = (player.gold || 0) + revenue;

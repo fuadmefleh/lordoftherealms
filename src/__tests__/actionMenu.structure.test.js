@@ -36,8 +36,12 @@ import { DataLoader } from '../core/dataLoader.js';
 const EXPECTED_KEYS = [
     // Lay a line of works at once (ui/actionMenu/roadPlan.js, 2026-11-12): +4
     'showRoutePlanner', 'routePickOnMap', 'routeTo', 'commissionRoute',
+    // Trade Lines: standing caravan and ship loops (ui/actionMenu/tradeLines.js, 2026-11-12): +2
+    'showTradeLines', 'tradeLinesAct',
     // The Timeline of the Realm (ui/actionMenu/timeline.js) and the Annals' jump to it: +2
     'showTimeline', 'annalsTimelineDay',
+    // Found a Village with real settlers (ui/actionMenu/founding.js, 2026-11-12): +8
+    'showFoundVillage', '_foundVillagePlanHtml', 'foundVillageSource', 'foundVillageSettlers', 'foundVillageSite', 'foundVillagePick', 'foundVillageGo', 'foundVillageBudToggle',
     // Crises, nemesis, estate card, Annals scribe cache (2026-11-12): +7
     'showCrisesPanel', 'crisisAct', 'showNemesisPanel', 'nemesisAct', 'showAbdication', 'abdicationAct', '_estateHtml', 'annalsScribeFor', 'clearAnnalsScribe',
     'showSickness', 'sicknessAct',
@@ -102,7 +106,7 @@ const EXPECTED_KEYS = [
     // The Season's Reckoning (ui/actionMenu/reckoning.js): +1
     'showReckoning',
     // The Calendar (ui/actionMenu/calendar.js): +1
-    'showCalendar', 'showWaitMenu', 'waitDays', 'showSkipDigest', '_chartingSection', 'doChartTile', 'discardChartDraft', 'doWashClothes', 'autoChartArea', 'stopAutoChartArea',
+    'showCalendar', 'showWaitMenu', 'waitDays', 'showSkipDigest', 'showStandingOrders', 'setStandingOrder', '_chartingSection', 'doChartTile', 'discardChartDraft', 'doWashClothes', 'autoChartArea', 'stopAutoChartArea',
     'showAmbitionPanel', 'setVictoryGoal', 'showVictoryScene',
     'showCounsel', 'counselGo',
     'showPatronage', 'patronageAct',
@@ -148,7 +152,7 @@ const EXPECTED_KEYS = [
     'doCaptureFugitive', 'doCollectTax', 'doCraftCampfire', 'doSeaActivity', 'doFish', 'doForage', 'doFormKingdom',
     'denounceHeresy', 'doHoldCouncil', 'doHunt', 'doMeditate', 'doPickpocket', 'doPledgeAllegiance', 'doPostSignboard',
     'doProspect', 'doRenounceAllegiance', 'doRequestBounty', 'doTameHorse', 'doTrainCombat',
-    'executeAddErrors', 'executeChangePolicy', 'executeFoundColony', 'executeSendPioneers',
+    'executeAddErrors', 'executeChangePolicy', 'executeFoundColony',
     'explorePOI', 'getAPCost', 'getLogisticsDestinationsHtml', 'getVariablesFishingGrounds',
     'giftToIndigenous', 'handleAction', 'learnFromIndigenous', 'meetingAskAboutRealm',
     'meetingDemandTribute', 'meetingImproveRelations', 'meetingPledgeAllegiance',
@@ -165,7 +169,7 @@ const EXPECTED_KEYS = [
     'showMapCollection', 'showMapTradeMenu', 'showMeetPeopleMenu', 'showMiracleMenu',
     'showNegotiateIndigenousMenu', 'showNpcTradeMenu', 'showOddJobsMenu', 'showQuantityInput',
     'showRecruitMenu', 'showRecruitSettlersMenu', 'showReforgeArtifactMenu', 'showRelationshipsMenu',
-    'showSeekTitleMenu', 'showSendPioneersMenu', 'showShipPassageMenu', 'showShipyardMenu',
+    'showSeekTitleMenu', 'showShipPassageMenu', 'showShipyardMenu',
     'showSiegeConfirm', 'showSiegePanel', 'siegeAct', 'showSmuggleMenu', 'showTalkLocalsMenu', 'showTavernMenu', 'showTerraformMenu',
     'showTitleStatusPanel', 'showTournamentMenu', 'showTradeMenu', 'showTravelPartyMenu', 'spendAP',
     'tradeWithIndigenous', 'visitHolySite',
@@ -187,8 +191,8 @@ describe('ActionMenu split — structural equivalence', () => {
         expect(actual).toEqual([...EXPECTED_KEYS].sort());
     });
 
-    it('has 430 members', () => {
-        expect(Object.keys(ActionMenu)).toHaveLength(430);
+    it('has 442 members', () => {
+        expect(Object.keys(ActionMenu)).toHaveLength(442);
     });
 
     it('every member except the known data props is a function', () => {

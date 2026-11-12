@@ -54,6 +54,7 @@ import { MailVoice } from './mailVoice.js';
 import { Whispers } from './whispers.js';
 import { RivalAgents } from './rivalAgents.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
+import { Names } from '../core/names.js';
 
 // What a learned intel key means in a sentence ('military' → 'armies'), joined "a, b and c"
 const _INTEL_WORDS = { ruler: 'ruler', military: 'armies', diplomacy: 'alliances and quarrels', economy: 'trade and treasury' };
@@ -184,7 +185,7 @@ export const Mail = {
         const seat = this._seat(world, k.id);
         if (!seat) return null;
         return {
-            key: `lord:${k.id}`, type: 'lord', kingdomId: k.id, name: `${k.lord.name || k.ruler || 'The ruler'} of ${k.name}`,
+            key: `lord:${k.id}`, type: 'lord', kingdomId: k.id, name: `${k.lord.name || k.ruler || 'The ruler'} of ${Names.realm(k.name)}`,
             sub: k.name, q: seat.q, r: seat.r, townKey: seat.key, place: seat.name, ...extra,
         };
     },
@@ -221,7 +222,7 @@ export const Mail = {
             const seat = this._seat(world, a.kingdom.id);
             if (!seat) continue;
             seen.add(a.child.id);
-            out.push({ key: `child:${a.child.id}`, type: 'child', childId: a.child.id, kingdomId: a.kingdom.id, name: a.child.firstName || 'Your child', sub: `at the court of ${a.kingdom.name}`, q: seat.q, r: seat.r, townKey: seat.key, place: seat.name });
+            out.push({ key: `child:${a.child.id}`, type: 'child', childId: a.child.id, kingdomId: a.kingdom.id, name: a.child.firstName || 'Your child', sub: `at the court of ${Names.realm(a.kingdom.name)}`, q: seat.q, r: seat.r, townKey: seat.key, place: seat.name });
         }
         for (const c of (player.children || [])) {
             if (!c || c.isAlive === false || seen.has(c.id)) continue;
@@ -821,7 +822,7 @@ export const Mail = {
                     if (tone === 'warm') {
                         remember('letter_proposal');
                         outcome = ruled ? 'warm_alliance' : 'warm_pact';
-                        reply = { kind: 'mail_proposal', always: true, data: { seal: ruled ? 'alliance' : 'pact', ruledId: ruled ? ruled.id : null }, sealLabel: ruled ? `Seal the alliance with ${s.kingdom.name}` : `Seal a pact of friendship with ${s.kingdom.name}`, sealTip: ruled ? 'Your realms become allies.' : 'Reputation in the realm, and the lord remembers it.' };
+                        reply = { kind: 'mail_proposal', always: true, data: { seal: ruled ? 'alliance' : 'pact', ruledId: ruled ? ruled.id : null }, sealLabel: ruled ? `Seal the alliance with ${Names.realm(s.kingdom.name)}` : `Seal a pact of friendship with ${Names.realm(s.kingdom.name)}`, sealTip: ruled ? 'Your realms become allies.' : 'Reputation in the realm, and the lord remembers it.' };
                     } else if (tone === 'cool') remember('letter_proposal', { weight: 1 });
                     else remember('insult', { weight: -3, note: 'a presumptuous proposal' });
                 } else if (to.type === 'rival') {

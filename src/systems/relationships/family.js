@@ -3,6 +3,7 @@ import { Relationships } from './_ref.js';
 import { DataLoader, Utils, Characters, House, Traits, Upbringing, Legacy, Townsfolk } from './_imports.js';
 import { NPCLords } from '../../world/npcLords.js';
 import { HeirAgency } from '../heirAgency.js';
+import { Raising } from '../raising.js';
 import { Regency } from '../regency.js';
 import { PracticeSkills } from '../practiceSkills.js';
 import { DynastyTree } from '../dynastyTree.js';
@@ -682,6 +683,8 @@ Object.assign(Relationships, {
         // ...and the life they lived before the throne: fosterings, commands,
         // embassies, a marriage — lords' memories, standing, Prestige (systems/heirAgency.js)
         const heirRecord = HeirAgency.onSuccession(player, world, child);
+        // ...and the account of their childhood: the ruler's education (systems/raising.js)
+        const heirEducation = Raising.onSuccession(player, world, child);
         // A child on the throne reigns under a regent (systems/regency.js)
         player.regency = null;
         const regency = minorReign ? Regency.begin(player, world, regent) : null;
@@ -710,6 +713,7 @@ Object.assign(Relationships, {
             traitEcho,
             heirTraits,
             heirRecord,
+            heirEducation,
             regency,
             reign,
             ownChildren,

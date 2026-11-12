@@ -468,6 +468,8 @@ export const SaveLoad = {
         'parentage', 'ties',
         // A seat's own library and the books written for it (systems/library.js; player/startKnowledge.js)
         'library',
+        // Villages founded by the player's settlers, and whether theirs may bud (world/villageFounding.js)
+        'founding',
         // A commission in a realm's army, and the ones laid down (player/generalship.js)
         'commission', 'commissionPast',
         // The household guard a realm keeps for its lords and its crown (player/realmEscort.js; its companies ride in player.army)
@@ -500,6 +502,10 @@ export const SaveLoad = {
         // (inn, camp) and the last one slept (systems/hospitality.js, player/core/lifecycle.js;
         // _lastRestType is read by ailments.js, worldEvents.js and firstSteps.js)
         'lodging', '_restTypeOverride', '_lastRestType',
+        // What the day's spare hours go on, and what they went on last (player/standingOrders.js)
+        'standingOrder',
+        // The street map's hotbar: which goods sit in which slot, and whether the player laid it out (player/hotbarLayout.js)
+        'hotbar',
     ],
 
     _pickDefined(obj, keys) {
@@ -622,6 +628,8 @@ export const SaveLoad = {
             dynasty: player.dynasty || null,
             spouse: player.spouse || null,
             children: player.children || [],
+            // The ruler's own childhood, carried over when they inherited (systems/raising.js)
+            upbringingRecord: player.upbringingRecord || null,
             relationships: player.relationships || {},
             travelParty: player.travelParty || [],
             heir: player.heir || null,
@@ -688,6 +696,9 @@ export const SaveLoad = {
             holdings: Holdings.serialize(player),
             // Stewards, bailiffs and governors over the seats that are not holdings; proposals, dispatches (systems/stewards.js)
             stewards: player.stewards ? JSON.parse(JSON.stringify(player.stewards)) : null,
+            // Standing trade and supply lines: stops, rules, cargo, ledgers (player/tradeLines.js;
+            // a caravan's wagons on the road are a world unit, a ship line's hold is the ship's)
+            tradeLines: player.tradeLines ? JSON.parse(JSON.stringify(player.tradeLines)) : null,
             // Rival adventurers: the cast, their attitude/memory, news, partner, race (systems/rivals.js)
             rivals: Rivals.serialize(player),
             // Court scandals and whisper campaigns: live tales, what the player knows of them, the record (systems/whispers.js)

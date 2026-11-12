@@ -6,6 +6,7 @@ import { MerchantHouses, PlayerEconomy, Trading } from './_imports.js';
 import { BTN_GOLD, BTN_DARK, BTN_RED, panelTabs, lede, chips, sectionHead, kv, card, rowList, price } from './uiKit.js';
 import { RealmIntel } from '../../systems/realmIntel.js';
 import { companyDiagnosisHtml } from './merchantLedger.js';
+import { Names } from '../../core/names.js';
 
 // The action menu's voice (uiKit): section heads, rows, soft cards; inputs dark with a hairline gold edge
 const INPUT = 'width: 56px; background:rgba(0,0,0,0.3); color:#ece2c8; border:1px solid rgba(245,197,66,0.2); border-radius:5px; padding:3px 5px; font-size:11px;';
@@ -138,7 +139,7 @@ function _companyFoundingHtml(player, world, tile) {
         html += `<div style="${MUTED} font-size:12px; margin-bottom:6px;">You hold no charter. Buy one from a crown, earn one at court (merchant venturers petition your holdings), or hold a royal office.</div>`;
     }
     const can = MerchantHouses.canBuyCharter(player, world, tile);
-    if (can.ok) rows.push({ icon: '📜', name: `Buy a charter from ${_esc(can.kingdom.name)}`, desc: 'The crown seals your right to found a company', side: price(can.cost, (player.gold || 0) >= can.cost), attrs: 'onclick="window._company.buyCharter()"' });
+    if (can.ok) rows.push({ icon: '📜', name: `Buy a charter from ${_esc(Names.realm(can.kingdom.name))}`, desc: 'The crown seals your right to found a company', side: price(can.cost, (player.gold || 0) >= can.cost), attrs: 'onclick="window._company.buyCharter()"' });
     else if (can.cost) rows.push({ icon: '📜', name: 'Buy a charter', off: true, why: _esc(can.reason), side: _g(can.cost) });
     html += rowList(rows);
     const min = MerchantHouses.config().found.minCapital;

@@ -50,6 +50,7 @@ import { Titles } from '../systems/titles.js';
 import { RealmWars } from '../systems/realmWars.js';
 import { Arms } from '../systems/arms.js';
 import { PlayerMilitary } from './playerMilitary.js';
+import { Names } from '../core/names.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = v => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -133,11 +134,11 @@ export const RealmEscort = {
         const estates = RealmEscort.estatesIn(player, world, k.id);
         const start = player.scenario && player.scenario.start;
         const greatHouse = !!(start && start.kind === 'great_lord' && _same(start.kingdomId, k.id));
-        if (office >= _num(Q.greatOfficeRank, 4)) return { rank: 'great', kingdom: k, why: `you are ${t.name} of ${k.name}` };
-        if (greatHouse) return { rank: 'great', kingdom: k, why: `your House is the greatest of ${k.name}` };
-        if (estates >= _num(Q.greatEstates, 5)) return { rank: 'great', kingdom: k, why: `you hold ${estates} estates in ${k.name}` };
-        if (office >= _num(Q.lordOfficeRank, 3)) return { rank: 'lord', kingdom: k, why: `you are ${t.name} of ${k.name}` };
-        if (estates >= _num(Q.lordEstates, 2)) return { rank: 'lord', kingdom: k, why: `you hold ${estates} estates in ${k.name}` };
+        if (office >= _num(Q.greatOfficeRank, 4)) return { rank: 'great', kingdom: k, why: `you are ${t.name} of ${Names.realm(k.name)}` };
+        if (greatHouse) return { rank: 'great', kingdom: k, why: `your House is the greatest of ${Names.realm(k.name)}` };
+        if (estates >= _num(Q.greatEstates, 5)) return { rank: 'great', kingdom: k, why: `you hold ${estates} estates in ${Names.realm(k.name)}` };
+        if (office >= _num(Q.lordOfficeRank, 3)) return { rank: 'lord', kingdom: k, why: `you are ${t.name} of ${Names.realm(k.name)}` };
+        if (estates >= _num(Q.lordEstates, 2)) return { rank: 'lord', kingdom: k, why: `you hold ${estates} estates in ${Names.realm(k.name)}` };
         return null;
     },
 
@@ -314,7 +315,7 @@ export const RealmEscort = {
         const drawn = RealmEscort.draw(player, kingdom, want, { tag: kingdom.id, armed: true, cap });
         const men = drawn.reduce((s, u) => s + _num(u.strength), 0);
         g.men = RealmEscort.men(player, kingdom.id);
-        if (men > 0) RealmEscort._log(g, world, `${men} men of ${kingdom.name}'s army ride out to join you.`);
+        if (men > 0) RealmEscort._log(g, world, `${men} men of ${Names.realm(kingdom.name)}'s army ride out to join you.`);
         return { men: drawn.length, strength: men, units: drawn.length, guard: g };
     },
 
@@ -456,10 +457,10 @@ export const RealmEscort = {
         if (men > room) return { ok: false, reason: `${k.name}'s army (${Math.floor(_num(k.military))} men) cannot spare ${men} more for your guard.` };
         const totalWage = RealmEscort.wage(player, k.id) + wage;
         const reserve = _num(A.reserveBase, 300) + _num(A.reserveDays, 30) * totalWage;
-        if (_num(k.treasury) < reserve) return { ok: false, reason: `The treasury of ${k.name} is too poor to keep more men (${Math.floor(_num(k.treasury))}g; it would want ${Math.round(reserve)}g in hand).` };
+        if (_num(k.treasury) < reserve) return { ok: false, reason: `The treasury of ${Names.realm(k.name)} is too poor to keep more men (${Math.floor(_num(k.treasury))}g; it would want ${Math.round(reserve)}g in hand).` };
         const cost = sub ? _num(A.reputation, 8) : 0;
         const rep = _num(player.reputation && player.reputation[k.id]);
-        if (sub && rep - cost < _num(A.minReputation, 10)) return { ok: false, reason: `Your standing with ${k.name} (${Math.round(rep)}) is too low to ask the crown for more.` };
+        if (sub && rep - cost < _num(A.minReputation, 10)) return { ok: false, reason: `Your standing with ${Names.realm(k.name)} (${Math.round(rep)}) is too low to ask the crown for more.` };
         return { ok: true, kingdom: k, rank: s.rank, add, men, wage: _r2(wage), cost };
     },
 
@@ -606,10 +607,10 @@ export const RealmEscort = {
                 const R = RealmEscort.rankDef(s.rank) || {};
                 if (up) {
                     const r = RealmEscort.raise(player, world, k, s.rank, RealmEscort._missing(player, g));
-                    out.notices.push({ icon: '🛡️', title: R.label || 'Household Guard', text: `Your rank in ${k.name} has risen: your guard is now its ${R.label || 'guard'}${r.strength ? `, ${r.strength} more men riding out to join it` : ''}.`, type: 'success' });
+                    out.notices.push({ icon: '🛡️', title: R.label || 'Household Guard', text: `Your rank in ${Names.realm(k.name)} has risen: your guard is now its ${R.label || 'guard'}${r.strength ? `, ${r.strength} more men riding out to join it` : ''}.`, type: 'success' });
                 } else {
                     const home = RealmEscort._trim(player, world, g, k);
-                    out.notices.push({ icon: '🛡️', title: R.label || 'Household Guard', text: `Your rank in ${k.name} has fallen: your guard is cut to a ${String(R.label || 'guard').toLowerCase()}${home ? ` and ${home} men ride home` : ''}.`, type: 'warning' });
+                    out.notices.push({ icon: '🛡️', title: R.label || 'Household Guard', text: `Your rank in ${Names.realm(k.name)} has fallen: your guard is cut to a ${String(R.label || 'guard').toLowerCase()}${home ? ` and ${home} men ride home` : ''}.`, type: 'warning' });
                 }
             }
         }
@@ -674,7 +675,7 @@ export const RealmEscort = {
         if (g.owed > wage + 0.01) {
             g.arrearsDays = _num(g.arrearsDays) + 1;
             g.morale = _clamp(_num(g.morale) + _num(M.arrearsMorale, -3), 0, 100);
-            if (g.arrearsDays === 1) out.notices.push({ icon: '💰', title: 'The Guard Goes Unpaid', text: `The treasury of ${k.name} cannot pay your guard (${Math.round(g.owed)}g owed). Unpaid for a week, they will slip away.`, type: 'warning' });
+            if (g.arrearsDays === 1) out.notices.push({ icon: '💰', title: 'The Guard Goes Unpaid', text: `The treasury of ${Names.realm(k.name)} cannot pay your guard (${Math.round(g.owed)}g owed). Unpaid for a week, they will slip away.`, type: 'warning' });
         } else g.arrearsDays = 0;
 
         // The men spend their pay where they lodge

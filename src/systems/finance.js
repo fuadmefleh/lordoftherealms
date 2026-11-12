@@ -66,6 +66,7 @@ import { Gossip } from './gossip.js';
 import { Ships } from './ships.js';
 import { MerchantHouses } from './merchantHouses.js';
 import { Ledger } from './ledger.js';
+import { Names } from '../core/names.js';
 
 function _num(v, d = 0) {
     return typeof v === 'number' && Number.isFinite(v) ? v : d;
@@ -927,7 +928,7 @@ export const Finance = {
     _lenderName(player, world, loan) {
         if (loan.lender) return loan.lender;
         const k = _kingdom(world, loan.kingdomId);
-        return k ? `the Exchequer of ${k.name}` : 'your creditors';
+        return k ? `the Exchequer of ${Names.realm(k.name)}` : 'your creditors';
     },
 
     /**
@@ -1076,8 +1077,8 @@ export const Finance = {
         const rep = Math.min(_num(D.repCap, 10), Math.floor(amount / Math.max(1, _num(D.repPer, 500))));
         if (player.reputation && rep > 0) player.reputation[k.id] = Math.min(100, _num(player.reputation[k.id]) + rep);
         const prestige = Math.min(_num(D.prestigeCap, 25), Math.floor(amount / Math.max(1, _num(D.prestigePer, 400))));
-        if (prestige > 0 && player.house) House.award(player.house, prestige, `royal bond to ${k.name}`, day);
-        return { success: true, bond, text: `You lend ${amount}g to the crown of ${k.name} at ${(offer.apr * 100).toFixed(1)}% a year for ${days} days.${rep ? ` Reputation +${rep}.` : ''}${prestige ? ` Prestige +${prestige}.` : ''}` };
+        if (prestige > 0 && player.house) House.award(player.house, prestige, `royal bond to ${Names.realm(k.name)}`, day);
+        return { success: true, bond, text: `You lend ${amount}g to the crown of ${Names.realm(k.name)} at ${(offer.apr * 100).toFixed(1)}% a year for ${days} days.${rep ? ` Reputation +${rep}.` : ''}${prestige ? ` Prestige +${prestige}.` : ''}` };
     },
 
     /** Sell a bond back through the brokers at a discount. */
@@ -1438,7 +1439,7 @@ export const Finance = {
                     st.stats.couponsEarned += coupon;
                 } else if (coupon > 0) {
                     b.missed = _num(b.missed) + 1;
-                    Finance._note(out, '📉', 'Coupon Missed', `The crown of ${k.name} could not pay the interest on your bond.`, 'warning');
+                    Finance._note(out, '📉', 'Coupon Missed', `The crown of ${Names.realm(k.name)} could not pay the interest on your bond.`, 'warning');
                 }
             }
             if (day >= _num(b.maturity)) {
@@ -1447,11 +1448,11 @@ export const Finance = {
                     k.treasury -= due;
                     player.gold = _num(player.gold) + due;
                     st.bonds = st.bonds.filter(x => x !== b);
-                    Finance._note(out, '📜', 'Bond Redeemed', `The crown of ${k.name} repays your ${due}g bond (${Math.round(b.coupons)}g interest earned).`, 'success');
+                    Finance._note(out, '📜', 'Bond Redeemed', `The crown of ${Names.realm(k.name)} repays your ${due}g bond (${Math.round(b.coupons)}g interest earned).`, 'success');
                 } else {
                     b.maturity = day + _num(D.extendDays, 30);
                     b.missed = _num(b.missed) + 1;
-                    Finance._note(out, '📉', 'Bond Extended', `The crown of ${k.name} cannot repay your bond and puts you off for ${_num(D.extendDays, 30)} days.`, 'warning');
+                    Finance._note(out, '📉', 'Bond Extended', `The crown of ${Names.realm(k.name)} cannot repay your bond and puts you off for ${_num(D.extendDays, 30)} days.`, 'warning');
                 }
             }
         }
@@ -1662,7 +1663,7 @@ export const Finance = {
         const day = _day(world);
         f.levy = { until: day + _num(C.levyDays, 60), share: _num(C.levyShare, 0.3), day };
         Finance._record(st, world, { kind: 'levy', kingdomId: k.id, kingdom: k.name });
-        if (Finance._touches(player, k)) Finance._note(out, '💰', 'A War Levy', `The crown of ${k.name}, deep in debt, raises an extraordinary levy. The realm grumbles.`, 'warning');
+        if (Finance._touches(player, k)) Finance._note(out, '💰', 'A War Levy', `The crown of ${Names.realm(k.name)}, deep in debt, raises an extraordinary levy. The realm grumbles.`, 'warning');
     },
 
     /** Sell offices or crown land (the Crown's Purse, world/crownBooks.js): gold now, corruption or lost demesne after. */
@@ -1672,8 +1673,8 @@ export const Finance = {
         Finance._record(st, world, { kind: kind === 'offices' ? 'offices_sold' : 'land_sold', kingdomId: k.id, kingdom: k.name, amount: gain });
         if (Finance._touches(player, k)) {
             Finance._note(out, kind === 'offices' ? '📜' : '🌾', kind === 'offices' ? 'Offices for Sale' : 'Crown Land Sold',
-                kind === 'offices' ? `The crown of ${k.name} sells judgeships and collectorships for ${gain}g. Their buyers mean to have it back.`
-                    : `The crown of ${k.name} sells royal manors to the great houses for ${gain}g. Its own rents will be the less.`, 'warning');
+                kind === 'offices' ? `The crown of ${Names.realm(k.name)} sells judgeships and collectorships for ${gain}g. Their buyers mean to have it back.`
+                    : `The crown of ${Names.realm(k.name)} sells royal manors to the great houses for ${gain}g. Its own rents will be the less.`, 'warning');
         }
         return gain;
     },
@@ -1713,7 +1714,7 @@ export const Finance = {
         for (const b of st.banks) if (b.relations && b.relations[k.id] != null) b.relations[k.id] = Math.max(-100, b.relations[k.id] - _num(C.debaseRelation, 10));
         Finance._record(st, world, { kind: 'debased', kingdomId: k.id, kingdom: k.name, purity: f.purity });
         const full = Math.round((Coinage.purityFactor(k) - 1) * 100);
-        const text = `The mint of ${k.name} strikes its coin at ${Math.round(f.purity * 100)}% silver: ${gain}g for the crown now, and more as the old coin comes in to be restruck. Prices in its markets will rise by about ${full}% as the new coin spreads.`;
+        const text = `The mint of ${Names.realm(k.name)} strikes its coin at ${Math.round(f.purity * 100)}% silver: ${gain}g for the crown now, and more as the old coin comes in to be restruck. Prices in its markets will rise by about ${full}% as the new coin spreads.`;
         if (out && Finance._touches(player, k)) Finance._note(out, '💱', 'Coin Debased', text, 'warning');
         return { success: true, gain, purity: f.purity, text };
     },
@@ -1729,7 +1730,7 @@ export const Finance = {
         if (f.purity - _num(G.debaseStep, 0.1) < _num(G.floor, 0.5) - 1e-9) return null;
         const res = Finance.debase(world, player, k, null);
         if (res && res.success) {
-            Finance._note(out, '📒', 'The Treasurers Clip the Coin', `The chests of ${k.name} are empty and its debts unpaid: as you allowed, your treasurers have the mint strike baser coin (${Math.round(f.purity * 100)}% silver), ${res.gain}g for the crown now. Forbid it in the Treasury.`, 'warning');
+            Finance._note(out, '📒', 'The Treasurers Clip the Coin', `The chests of ${Names.realm(k.name)} are empty and its debts unpaid: as you allowed, your treasurers have the mint strike baser coin (${Math.round(f.purity * 100)}% silver), ${res.gain}g for the crown now. Forbid it in the Treasury.`, 'warning');
             f.missed = 0;
             f.unpaid = 0;
         }
@@ -1763,7 +1764,7 @@ export const Finance = {
             const before = Math.max(1, _num(b.capital));
             b.capital -= loss;
             b.relations[k.id] = Math.max(-100, _num(b.relations[k.id]) - _num(C.defaultRelation, 60));
-            if (b.status === 'open' && (b.capital <= 0 || loss / before >= _num(C.runIfLossShare, 0.25)) && run) Finance._startRun(world, player, st, b, out, `the default of ${k.name}`);
+            if (b.status === 'open' && (b.capital <= 0 || loss / before >= _num(C.runIfLossShare, 0.25)) && run) Finance._startRun(world, player, st, b, out, `the default of ${Names.realm(k.name)}`);
         }
         // Bondholders share the loss
         let bondLoss = 0;
@@ -1777,7 +1778,7 @@ export const Finance = {
         st.bonds = st.bonds.filter(b => _num(b.principal) >= 1);
         st.stats.lostInFailures += bondLoss;
         Finance._record(st, world, { kind: 'crown_default', kingdomId: k.id, kingdom: k.name, amount: total });
-        const text = `The crown of ${k.name} repudiates ${Math.round(cut * 100)}% of its debts (${total}g).${bondLoss ? ` Your bonds lose ${bondLoss}g.` : ''}`;
+        const text = `The crown of ${Names.realm(k.name)} repudiates ${Math.round(cut * 100)}% of its debts (${total}g).${bondLoss ? ` Your bonds lose ${bondLoss}g.` : ''}`;
         if (out && (bondLoss || Finance._touches(player, k))) Finance._note(out, '📛', 'A Crown Defaults', text, bondLoss ? 'error' : 'warning');
         return { success: true, amount: total, bondLoss, text };
     },
@@ -1856,7 +1857,7 @@ export const Finance = {
                     if (Finance._exposed(player, b) || Finance._touches(player, k)) {
                         Finance._note(out, seizure.icon || '👑', seizure.name || 'Royal seizure', Finance._fill(seizure.text, { bank: b.name, kingdom: k.name, amount }), 'warning');
                     }
-                    if (run && !Finance.inPanic(b, day)) Finance._startRun(world, player, st, b, out, `the seizure by ${k.name}`);
+                    if (run && !Finance.inPanic(b, day)) Finance._startRun(world, player, st, b, out, `the seizure by ${Names.realm(k.name)}`);
                 }
             }
             if (b.status === 'open' && _num(b.capital) <= 0 && !Finance.inPanic(b, day) && run) Finance._startRun(world, player, st, b, out, 'empty vaults');

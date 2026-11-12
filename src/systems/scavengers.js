@@ -104,6 +104,9 @@ function _merge(base, over) {
     return out;
 }
 
+let _cfg = null;
+let _cfgSrc;
+
 const _seed = world => (world && world.generationParams && world.generationParams.seed) || 0;
 const _byType = (table, type) => _num((table || {})[type], _num((table || {}).town, 0));
 
@@ -119,12 +122,17 @@ function _weighted(list, f) {
 export const Scavengers = {
     DEFAULTS,
 
+    /** data/digging.json's robbers and looters over the defaults (merged once per gamedata: read-only). */
     config() {
-        const d = (DataLoader._gamedata && DataLoader._gamedata.digging) || {};
-        return {
-            graveRobbers: _merge(DEFAULTS.graveRobbers, d.graveRobbers),
-            looters: _merge(DEFAULTS.looters, d.looters),
+        const d = (DataLoader._gamedata && DataLoader._gamedata.digging) || null;
+        if (_cfg && _cfgSrc === d) return _cfg;
+        const src = d || {};
+        _cfgSrc = d;
+        _cfg = {
+            graveRobbers: _merge(DEFAULTS.graveRobbers, src.graveRobbers),
+            looters: _merge(DEFAULTS.looters, src.looters),
         };
+        return _cfg;
     },
 
     // ══════════════════════════════════════════════

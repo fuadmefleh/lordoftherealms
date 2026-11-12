@@ -16,6 +16,7 @@ import { DataLoader } from '../core/dataLoader.js';
 import { TownLabour } from '../world/townLabour.js';
 import { CrownBooks } from '../world/crownBooks.js';
 import { Economy } from '../world/economy.js';
+import { Names } from '../core/names.js';
 
 /** Fallback preaching tuning (data/religion.json → preaching overrides). */
 const PREACH_DEFAULTS = {
@@ -982,7 +983,7 @@ export const PlayerReligion = {
         const religion = player.religion;
         const o = PlayerReligion.sermonOutlook(player, settlement, tile, world);
         if (o.cooldown) return { success: false, reason: 'Your voice is spent — you have already preached today.' };
-        if (o.banned) return { success: false, reason: `The clergy of ${o.church.kingdom.name} have banned your preaching until day ${o.banned}.` };
+        if (o.banned) return { success: false, reason: `The clergy of ${Names.realm(o.church.kingdom.name)} have banned your preaching until day ${o.banned}.` };
 
         const followersGained = Math.floor((settlement.population || 0) * C.baseShare * o.effectiveness);
         religion.followers = (religion.followers || 0) + followersGained;

@@ -92,6 +92,10 @@ export const MarketDynamics = {
         let spill = null;
         const k = SettlementMarket.tickDays();
         const turn = Number.isFinite(day) ? ((day % k) + k) % k : 0;
+        // The distant years (SettlementMarket.span): every market and link once every
+        // `span` days, worked as that many days; the days between, no market turn
+        const span = Number.isFinite(day) ? SettlementMarket.span(world) : 0;
+        if (span && ((day % span) + span) % span !== 0) return null;
         const lives = [];
         // Works stand idle in a town under siege
         const besieged = this._besieged(player);
@@ -107,7 +111,7 @@ export const MarketDynamics = {
             // so the old war flag that multiplied the town's own need is gone)
             if (m && m.war) delete m.war;
             // Markets take their turns (every tickDays, staggered by place)
-            if (k > 1 && Number.isFinite(day) && SettlementMarket.slot(s.q, s.r) !== turn) continue;
+            if (!span && k > 1 && Number.isFinite(day) && SettlementMarket.slot(s.q, s.r) !== turn) continue;
             // What the town brings to market, worked out afresh every few days
             // (kept on the market, so a loaded game carries on identically), and
             // when a sowing or a harvest changes its fields (world/harvests.js)
@@ -134,7 +138,7 @@ export const MarketDynamics = {
             }
             SettlementMarket.processSettlement(live, m.prod, {
                 day,
-                days: Number.isFinite(day) ? k : 1,
+                days: span || (Number.isFinite(day) ? k : 1),
                 cold: SettlementMarket.isCold(world, tile),
                 foodMult: foodSeason * Math.max(0, 1 + WorldEvents.getModifier(world, 'farmProduction', tile)),
                 // (the staples' season inside foodMult: produce swaps it for its own, SettlementMarket)
@@ -146,12 +150,12 @@ export const MarketDynamics = {
                 // (its named townsfolk at their trades: systems/townJobs.js; null for a town without a roster)
                 crew: TownJobs.crew(live, world, day),
                 // (its named producers' wares kept back: systems/townTrade.js; null without a roster)
-                withhold: TownTrade.withhold(live, world, day, Number.isFinite(day) ? k : 1),
+                withhold: TownTrade.withhold(live, world, day, span || (Number.isFinite(day) ? k : 1)),
             });
         }
         const links = this._links(world, cache, lives, day);
         for (const live of lives) if (live.market && live.market.trade) live.market.trade.cut = 0;
-        const turnArg = k > 1 && Number.isFinite(day) ? turn : null;
+        const turnArg = !span && k > 1 && Number.isFinite(day) ? turn : null;
         // A few links' trade travels as real caravans and ships this turn
         // (systems/merchantCaravans.js): their cargo lands only on arrival
         // (the caravan cap counts the towns: they are `lives`, no second scan of the map)
@@ -163,7 +167,8 @@ export const MarketDynamics = {
         this._ice(world, links, day);
         const bases = this._basePrices();
         // (goods for goods where a town barters: a world begun before coin, world/barter.js)
-        const flow = SettlementMarket.flows(links, bases, day, Barter.flowOpts(world));
+        const fo = Barter.flowOpts(world);
+        const flow = SettlementMarket.flows(links, bases, day, span ? { ...(fo || {}), span } : fo);
         // The duties the day's trade paid go to the crowns (systems/tradePolicy.js)
         flow.duties = TradePolicy.collect(world, links);
         // Tolls over the public works, and the roads' traffic (systems/publicWorks.js)

@@ -92,6 +92,7 @@ import { Ledger } from './ledger.js';
 import { TownMemory } from './townMemory.js';
 import { TownMarks } from '../world/townMarks.js';
 import { Interrupts } from '../core/interrupts.js';
+import { Names } from '../core/names.js';
 
 const YEAR = Seasons.DAYS_PER_YEAR || 120;
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
@@ -885,7 +886,7 @@ export const Crises = {
             const k = town ? _kingdom(world, town.kingdom) : null;
             const ofFaith = !!(k && k.religion && k.capital && (c.data.sides[k.id] || k.id === c.data.originId || _dist(world, k.capital, c.place) <= _num(c.data.reach, 30)));
             for (const side of ['orthodox', 'reformed']) {
-                out.push(Object.assign(Crises._choice('preach', '📣', `Preach for ${Crises.sideName(c, side)}${k ? ` in ${k.name}` : ''}`,
+                out.push(Object.assign(Crises._choice('preach', '📣', `Preach for ${Crises.sideName(c, side)}${k ? ` in ${Names.realm(k.name)}` : ''}`,
                     `${X.preachCost}g in alms and pamphlets to the clergy of ${town ? town.name : 'the town'}: the realm leans your way${k && k.religion && k.religion.rite ? ` (it holds to ${Crises.sideName(c, k.religion.rite)})` : ''}. Realms of that side think better of you; the other worse.`,
                     ofFaith && gold >= X.preachCost, !ofFaith ? 'Not in a realm the new church has reached.' : 'Not enough gold.', X.preachCost), { args: [side] }));
             }
@@ -990,8 +991,8 @@ export const Crises = {
                 NPCLords.rememberRealm(world, k.id, 'war_aid', { day, weight: Math.min(10, 2 + amt / 100), note: 'gold for the levies' });
                 if (!player.reputation) player.reputation = {};
                 player.reputation[k.id] = _num(player.reputation[k.id]) + Math.round(amt / 50);
-                Crises._record(player, world, c, 'fund', `${player.name || 'The House'} paid ${amt} gold toward the levies of ${k.name} against the invaders.`);
-                return { success: true, text: `${amt}g to ${k.name}: ${Math.floor(amt / X.goldPerSoldier)} more men under arms.` };
+                Crises._record(player, world, c, 'fund', `${player.name || 'The House'} paid ${amt} gold toward the levies of ${Names.realm(k.name)} against the invaders.`);
+                return { success: true, text: `${amt}g to ${Names.realm(k.name)}: ${Math.floor(amt / X.goldPerSoldier)} more men under arms.` };
             }
             case 'victual': {
                 const host = near.host;
@@ -1048,7 +1049,7 @@ export const Crises = {
                 const k = Laws.ruled(player, world);
                 const shut = Laws.value(world, k.id, 'pestilence') === 'quarantine';
                 const res = Laws.enact(player, world, 'pestilence', shut ? 'open' : 'quarantine');
-                if (res.success) Crises._record(player, world, c, 'quarantine', shut ? null : `${player.name || 'The crown'} shut the gates of ${k.name}'s sick towns against ${c.name}.`);
+                if (res.success) Crises._record(player, world, c, 'quarantine', shut ? null : `${player.name || 'The crown'} shut the gates of ${Names.realm(k.name)}'s sick towns against ${c.name}.`);
                 return { success: !!res.success, text: res.text || res.reason };
             }
             case 'preach': {
@@ -1205,7 +1206,7 @@ const HANDLERS = {
                 for (const h of hosts) { realm.military = _num(realm.military) + Math.round(_num(h.strength) * 0.5); h.destroyed = true; }
                 for (const id of [...(realm.wars || [])]) {
                     const o = _kingdom(world, id);
-                    if (o) KingdomAI.endWar(realm, o, world, { text: `🕊️ ${o.name} makes peace with ${realm.name}.` });
+                    if (o) KingdomAI.endWar(realm, o, world, { text: `🕊️ ${o.name} makes peace with ${Names.realm(realm.name)}.` });
                 }
                 Crises._log(world, c, 'settled', { realm: realm.name }, { big: true, at: realm.capital, kingdomId: realm.id });
                 Crises._finish(world, c, day, 'settled');

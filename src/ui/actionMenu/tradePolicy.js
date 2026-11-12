@@ -11,6 +11,7 @@ import { TradePolicy } from '../../systems/tradePolicy.js';
 import { Throne } from '../../systems/throne.js';
 import { BTN_GOLD, BTN_DIM, BTN_PLAIN, BTN_RED, CARD, panelTabs, intelBadge, lede, bullets, chips } from './uiKit.js';
 import { RealmIntel } from '../../systems/realmIntel.js';
+import { Names } from '../../core/names.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 const TABS = [['here', '📍 This realm'], ['realms', '🗺️ All realms'], ['crown', '👑 Your crown']];
@@ -89,7 +90,7 @@ function hereTab(game) {
     // ── A licence ──
     const lq = TradePolicy.licenceQuote(player, world, k.id);
     const until = TradePolicy.hasLicence(player, world, k.id) ? TradePolicy.playerState(player).licences[k.id] : null;
-    html += `<div style="${CARD}"><b>📜 A licence from the crown</b><div style="${NOTE}">A licensed merchant pays none of ${esc(k.name)}'s duties and may carry its goods out despite its export bans.${until ? ` <b style="color:#2ecc71;">Yours runs to day ${until}.</b>` : ''}</div>`;
+    html += `<div style="${CARD}"><b>📜 A licence from the crown</b><div style="${NOTE}">A licensed merchant pays none of ${esc(Names.realm(k.name))}'s duties and may carry its goods out despite its export bans.${until ? ` <b style="color:#2ecc71;">Yours runs to day ${until}.</b>` : ''}</div>`;
     html += lq.ok ? act(`${until ? 'Extend' : 'Petition'} (${lq.cost}g, ${lq.days} days)`, ['licence', k.id], BTN_GOLD, (player.gold || 0) >= lq.cost) : `<div style="${NOTE}">${esc(lq.reason)}</div>`;
     html += '</div>';
     return html;
@@ -128,7 +129,7 @@ function crownTab(game) {
     if (!k) return lede('You wear no crown. Those who do set the duties, bans and embargoes you trade under.');
     const s = TradePolicy.summary(world, k);
     const levels = TradePolicy.config().ruler.levels;
-    let html = `<div style="${CARD}"><b>👑 The trade of ${esc(k.name)}</b><div style="${NOTE}">${policyLine(world, k, { books: true })}</div>`;
+    let html = `<div style="${CARD}"><b>👑 The trade of ${esc(Names.realm(k.name))}</b><div style="${NOTE}">${policyLine(world, k, { books: true })}</div>`;
     html += `<div style="margin-top:6px;">${chips([['🛃', 'Customs last week', `${Math.round(s.revenue ? s.revenue.last : 0)}g`, 'gold'], ['', 'In all', `${Math.round(s.revenue ? s.revenue.total : 0)}g`]])}</div>`;
     html += bullets([
         'Cut duties and the Guild Coalition cheers.',

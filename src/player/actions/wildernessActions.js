@@ -7,6 +7,7 @@
 import { Hex } from '../../core/hex.js';
 import { Dawn } from '../../world/dawn.js';
 import { Colonization } from '../../world/colonization.js';
+import { Founding } from '../../systems/founding.js';
 import { Cartography } from '../../systems/cartography.js';
 import { Religion } from '../../systems/religion.js';
 import { Infrastructure } from '../../systems/infrastructure.js';
@@ -23,6 +24,7 @@ import { Hospitality } from '../../systems/hospitality.js';
 import { Livestock } from '../../systems/livestock.js';
 import { RivalHouses } from '../../systems/rivalHouses.js';
 import { DawnBirth } from '../dawnBirth.js';
+import { Names } from '../../core/names.js';
 
 export function addWildernessActions(actions, player, tile, world) {
     // The tongues you speak and the one spoken here; lessons and interpreters in town (systems/languages.js)
@@ -383,14 +385,23 @@ export function addWildernessActions(actions, player, tile, world) {
             });
         }
 
-        if (player.gold >= 200 && tile.settlement &&
-            tile.settlement.colony && tile.settlement.colony.isPlayerColony) {
-            actions.push({
-                type: 'send_pioneers',
-                label: 'Send Pioneers',
-                icon: '🧭',
-                description: 'Dispatch a pioneering party to settle distant lands (200 gold)'
-            });
+        // Found a village with settlers from this town: one you hold (greyed
+        // with the reason when it can't spare them), or one whose people will
+        // go with you (systems/founding.js; the planner is ui/actionMenu/founding.js)
+        if (tile.settlement) {
+            const src = Founding.source(player, world, tile.q, tile.r);
+            if (src.ok || src.held) {
+                actions.push({
+                    type: 'send_pioneers',
+                    label: 'Found a Village',
+                    icon: '⛺',
+                    description: src.held
+                        ? `Send settlers out of ${tile.settlement.name} to found a village of yours at a site you pick`
+                        : `Ask ${tile.settlement.name}'s people to go with you and found a village of yours (${src.purse}g a head)`,
+                    disabled: !src.ok,
+                    reason: src.ok ? null : src.reason,
+                });
+            }
         }
 
         if (tile.settlement && tile.settlement.colony &&
@@ -595,7 +606,7 @@ export function addWildernessActions(actions, player, tile, world) {
                     type: 'request_meeting',
                     label: `Meet Lord ${lordUnit.lordName}`,
                     icon: '👑',
-                    description: `Request an audience with ${lordUnit.lordName}, ruler of ${kingdom.name}`,
+                    description: `Request an audience with ${lordUnit.lordName}, ruler of ${Names.realm(kingdom.name)}`,
                     unitId: lordUnit.id
                 });
             }

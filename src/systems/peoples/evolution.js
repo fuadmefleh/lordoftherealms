@@ -149,6 +149,11 @@ Object.assign(Peoples, {
         // Read-only: positions only (the live settlement is read from its tile)
         const allSettlements = world.getSettlementViews ? world.getSettlementViews() : world.getAllSettlements();
         const kingdomTotals = {};
+        // The distant years (player/afterlife.js passDay on a long wait): what each town's
+        // peoples do is worked out afresh once every `peoplesEvery` days, staggered by place
+        // (the drift, harmony and growth below still run daily; it draws no RNG)
+        const every = world._distant ? Math.max(1, Math.floor(Number(world._distant.peoplesEvery) || 1)) : 1;
+        const day = Number.isFinite(world.day) ? world.day : 0;
 
         for (const s of allSettlements) {
             const tile = world.getTile(s.q, s.r);
@@ -185,7 +190,9 @@ Object.assign(Peoples, {
 
             // 5. What the peoples do: production, trade, growth, mood,
             // recruitment and the realm bonuses (systems/peoples/effects.js)
-            Peoples.refreshEffects(settlement);
+            if (every <= 1 || !settlement.peoplesEffects || (day + Math.abs(s.q) * 7 + Math.abs(s.r) * 13) % every === 0) {
+                Peoples.refreshEffects(settlement);
+            }
             Peoples.accumulateKingdom(kingdomTotals, settlement);
         }
 

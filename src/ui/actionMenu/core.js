@@ -90,7 +90,7 @@ const AMX_GROUPS = {
         { id: 'work', icon: '🔨', label: 'Work & Wages', types: ['odd_jobs', 'busking', 'bounty_board', 'commissions', 'planting_contract', 'putting_out', 'contract'] },
         { id: 'money', icon: '🏦', label: 'Money & Banking', types: ['bank', 'found_bank', 'underwriter', 'bourse', 'mint', 'trading_company', 'guildhall', 'post_house'] },
         { id: 'property', icon: '🏠', label: 'Property & Estates', types: ['collect_goods', 'manage_property', 'town_lots', 'estates', 'manage_lodging', 'graveyards', 'my_herds'] },
-        { id: 'transport', icon: '🐫', label: 'Caravans & Ships', types: ['start_caravan', 'ship_passage', 'visit_shipyard', 'board_ship', 'manage_fleet', 'hire_sailors'] },
+        { id: 'transport', icon: '🐫', label: 'Caravans & Ships', types: ['start_caravan', 'trade_lines', 'ship_passage', 'visit_shipyard', 'board_ship', 'manage_fleet', 'hire_sailors'] },
         { id: 'shady', icon: '🎲', label: 'Back Rooms', types: ['smuggle', 'pickpocket', 'gambling', 'underworld'] },
     ],
     folk: [
@@ -259,7 +259,7 @@ Object.assign(ActionMenu, {
             build_cultural: 'building', upgrade_cultural: 'building', build_infrastructure: 'building',
             demolish_infrastructure: 'building',
             buy_house: 'building', manage_house: 'building',
-            visit_shipyard: 'commerce', board_ship: 'commerce', manage_fleet: 'commerce',
+            visit_shipyard: 'commerce', board_ship: 'commerce', manage_fleet: 'commerce', trade_lines: 'commerce',
             found_colony: 'frontier', send_pioneers: 'frontier',
             manage_colony: 'frontier', negotiate_indigenous: 'frontier',
             recruit_settlers: 'frontier', post_signboard: 'frontier', wait_here: 'frontier',
@@ -742,7 +742,7 @@ Object.assign(ActionMenu, {
         jail_wait: 0, jail_bail: 0, jail_escape: 0, jail_cell: 0,
         servitude_wait: 0, servitude_escape: 0, servitude_buy_freedom: 0,
         view_relationships: 0, manage_dynasty: 0,
-        manage_fleet: 0, manage_house: 0, manage_property: 0, manage_colony: 0,
+        manage_fleet: 0, trade_lines: 0, manage_house: 0, manage_property: 0, manage_colony: 0,
         hold_court: 0, manage_holding: 0, patronage: 0, bank: 0, found_bank: 0,
         seek_physician: 0, // treatment costs gold, not time
         underworld: 0, // jobs inside the panel cost their own AP
@@ -1170,7 +1170,8 @@ Object.assign(ActionMenu, {
                 ActionMenu.showFoundColonyMenu(game, tile);
                 break;
             case 'send_pioneers':
-                ActionMenu.showSendPioneersMenu(game, tile);
+                // Found a Village with real settlers from this town (ui/actionMenu/founding.js)
+                ActionMenu.showFoundVillage(game, tile.q, tile.r);
                 break;
             case 'manage_colony':
                 ActionMenu.showManageColonyMenu(game, tile);
@@ -1416,6 +1417,9 @@ Object.assign(ActionMenu, {
                 break;
             case 'manage_fleet':
                 ActionMenu.showFleetMenu(game, tile);
+                break;
+            case 'trade_lines':
+                ActionMenu.showTradeLines(game);
                 break;
 
             // ── Title Actions ──

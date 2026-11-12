@@ -422,13 +422,27 @@ export const Kingdom = {
         const epithets = Kingdom._epithets || ['the Great'];
 
         const cultureTitles = titles[culture] || titles.Imperial || ['Ruler'];
-        const cultureNames = names[culture] || names.Imperial || ['Unknown'];
-
-        const title = Utils.randPick(cultureTitles);
-        const name = Utils.randPick(cultureNames);
+        const pool = names[culture] || names.Imperial || ['Unknown'];
+        // The name first (its pool says the gender), then a title that fits it — never "King Helena".
+        // (three draws, as ever: the dice that follow fall as they did)
+        const tg = (t) => Kingdom.titleGender(t);
+        const male = Array.isArray(pool) ? pool : (pool.male || []);
+        const female = Array.isArray(pool) ? [] : (pool.female || []);
+        const all = [...male, ...female];
+        const name = Utils.randPick(all.length ? all : ['Unknown']);
+        const gender = female.includes(name) && !male.includes(name) ? 'female' : (Array.isArray(pool) ? null : 'male');
+        const fits = gender ? cultureTitles.filter(t => !tg(t) || tg(t) === gender) : cultureTitles;
+        const title = Utils.randPick(fits.length ? fits : cultureTitles);
         const epithet = Utils.randPick(epithets);
 
         return `${title} ${name} ${epithet}`;
+    },
+
+    /** 'male' | 'female' for a ruler title that belongs to one (kingdoms.json rulerTitleGender), else null. */
+    titleGender(title) {
+        const map = Kingdom._rulerTitleGender || { King: 'male', Queen: 'female', Emperor: 'male', Empress: 'female' };
+        const g = map[String(title || '').trim()];
+        return g === 'male' || g === 'female' ? g : null;
     },
 
     /** kingdoms.json realmStyles (with a built-in minimum for bare test data). */

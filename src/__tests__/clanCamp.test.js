@@ -49,6 +49,16 @@ const objectsOf = (id) => {
     return out;
 };
 
+// every tent standing (hide shelters at the dawn, canvas tents in a colony: data/townProps.json camps)
+const tentCount = (kind) => {
+    let n = 0;
+    for (const row of InnerMap.tiles) for (const t of row) {
+        const id = t.customObject && t.customObject.defId;
+        if (id && /^tp_(tent|yurt|pavilion)_/.test(id) && (!kind || DataLoader._gamedata.townProps.camps[kind].includes(id))) n++;
+    }
+    return n;
+};
+
 beforeEach(() => {
     InnerMap.initialize(DataLoader._gamedata.innerMap || JSON.parse(fs.readFileSync('data/innerMap.json', 'utf8')));
     InnerMap._cache = {};
@@ -65,7 +75,7 @@ describe('a clan camp on the inner map', () => {
         const game = makeGame();
         InnerMap.enter(game, 5, 6);
         expect(objectsOf('tp_campfire').length).toBe(1);
-        const tents = objectsOf('tp_tent_hide').length + objectsOf('tp_tent_fell').length;
+        const tents = tentCount();
         expect(tents).toBeGreaterThanOrEqual(2);
         const folk = InnerMap.npcs.filter(n => n.campHub);
         expect(folk.length).toBeGreaterThanOrEqual(4);
@@ -80,10 +90,10 @@ describe('a clan camp on the inner map', () => {
     it('coming back: the same camp, not a second one', () => {
         const game = makeGame();
         InnerMap.enter(game, 5, 6);
-        const tents = objectsOf('tp_tent_hide').length + objectsOf('tp_tent_fell').length;
+        const tents = tentCount();
         InnerMap.enter(game, 5, 6);
         expect(objectsOf('tp_campfire').length).toBe(1);
-        expect(objectsOf('tp_tent_hide').length + objectsOf('tp_tent_fell').length).toBe(tents);
+        expect(tentCount()).toBe(tents);
     });
 
     it('once the clan has moved on, the tents are gone and a cold fire ring is left', () => {
@@ -92,7 +102,7 @@ describe('a clan camp on the inner map', () => {
         game.clan.q = 9;
         InnerMap.enter(game, 5, 6);
         expect(objectsOf('tp_campfire').length).toBe(0);
-        expect(objectsOf('tp_tent_hide').length + objectsOf('tp_tent_fell').length).toBe(0);
+        expect(tentCount()).toBe(0);
         expect(objectsOf('tp_campfire_out').length).toBe(1);
         expect(InnerMap.npcs.filter(n => n.campHub).length).toBe(0);
     });
@@ -106,7 +116,7 @@ describe('a clan camp on the inner map', () => {
         InnerMap.enter(game, 5, 6);
         expect(InnerMap.tiles.some(row => row.some(t => t.isRoad))).toBe(true);
         // (a dawn village: tents, not houses)
-        expect(objectsOf('tp_tent_hide').length + objectsOf('tp_tent_fell').length).toBeGreaterThan(0);
+        expect(tentCount()).toBeGreaterThan(0);
         expect(InnerMap.npcs.length).toBeGreaterThan(0);
     });
 });
@@ -117,8 +127,9 @@ describe('a dawn village on the inner map', () => {
         game.clan.destroyed = true;
         game.worldTile.settlement = { name: 'Moongrove', type: 'village', population: 160, q: 5, r: 6, kingdom: null, dawnBorn: true };
         InnerMap.enter(game, 5, 6);
-        const tents = objectsOf('tp_tent_hide').length + objectsOf('tp_tent_fell').length;
+        const tents = tentCount();
         expect(tents).toBeGreaterThanOrEqual(8);
+        expect(tentCount('dawn')).toBe(tents);
         expect(objectsOf('tp_campfire').length).toBeGreaterThanOrEqual(2);
         expect(InnerMap.tiles.some(row => row.some(t => t.customBuilding))).toBe(false);
         expect(InnerMap.tiles.some(row => row.some(t => t.paving))).toBe(false);
@@ -137,7 +148,7 @@ describe('a dawn village on the inner map', () => {
         game.worldTile.settlement.population = 700;
         InnerMap.enter(game, 5, 6);
         expect(InnerMap.tiles.some(row => row.some(t => t.customBuilding))).toBe(true);
-        expect(objectsOf('tp_tent_hide').length + objectsOf('tp_tent_fell').length).toBe(0);
+        expect(tentCount()).toBe(0);
     });
 });
 
@@ -149,7 +160,9 @@ describe('a colony freshly founded in play', () => {
         game.clan.destroyed = true;
         game.worldTile.settlement = colony(0);
         InnerMap.enter(game, 5, 6);
-        expect(objectsOf('tp_tent_hide').length + objectsOf('tp_tent_fell').length).toBeGreaterThanOrEqual(4);
+        expect(tentCount()).toBeGreaterThanOrEqual(4);
+        // (settlers' canvas tents, not the dawn's hide shelters)
+        expect(tentCount('colony')).toBe(tentCount());
         expect(InnerMap.tiles.some(row => row.some(t => t.customBuilding))).toBe(false);
         expect(InnerMap.tiles._graveyard || null).toBe(null);
     });

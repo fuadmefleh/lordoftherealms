@@ -1,6 +1,7 @@
 // Cartography — creation members (split from the original monolith).
 import { Cartography } from './_ref.js';
 import { Utils, Hex, KingdomAtlas } from './_imports.js';
+import { Names } from '../../core/names.js';
 
 Object.assign(Cartography, {
     // ── Configuration ──────────────────────────
@@ -161,7 +162,7 @@ Object.assign(Cartography, {
         const map = {
             id: `prop_${Utils.nextId()}_${Utils.randInt(0, 9999)}`,
             type: 'propaganda',
-            name: `Official Map of ${kingdom.name}`,
+            name: `Official Map of ${Names.realm(kingdom.name)}`,
             icon: '📣',
             quality: 'detailed',
             accuracy: 0.4,

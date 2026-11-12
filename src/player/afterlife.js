@@ -42,6 +42,7 @@ import { Illness } from '../systems/illness.js';
 import { Relationships } from '../systems/relationships.js';
 import { Upbringing } from '../systems/upbringing.js';
 import { HeirAgency } from '../systems/heirAgency.js';
+import { Raising } from '../systems/raising.js';
 import { Legacy } from '../systems/legacy.js';
 import { Annals } from '../systems/annals.js';
 import { House } from '../systems/house.js';
@@ -115,6 +116,16 @@ const DEFAULTS = {
     minAge: 17,
     maxAge: 42,
     autoPlayMs: 220,
+    // The distant years: a wait of at least `minDays` lets the world turn in coarser
+    // steps (passDay's opts.distant) — every market and its trade, the labour and the
+    // diggings around it once every `marketSpan` days, worked as that many days
+    // (SettlementMarket.span); each town's peoples' effects worked out afresh once
+    // every `peoplesEvery` days; and once every `realmEvery` days the realms' slow
+    // reads — each town's production profile (Economy.calculateProduction), the
+    // stability a realm drifts toward (KingdomStability), its recruiting ground
+    // (KingdomAI.updateMilitary) — and the crown's arms buyers (RealmArms). The
+    // day's output, food, growth, drift, rolls and everything else run daily.
+    distant: { minDays: 60, marketSpan: 16, peoplesEvery: 7, realmEvery: 7 },
     roleWeights: { villager: 4, farmer: 3, merchant: 1.4, guard: 1.4, blacksmith_npc: 1, priest: 0.6, noble: 0.35 },
     stations: {
         villager: { title: 'Commoner', gold: [60, 220], stats: { strength: 1 }, skills: {} },
@@ -204,6 +215,7 @@ export const Afterlife = {
         const src = _obj(DataLoader._gamedata && DataLoader._gamedata.afterlife) || {};
         return {
             ...DEFAULTS, ...src,
+            distant: { ...DEFAULTS.distant, ...(_obj(src.distant) || {}) },
             roleWeights: { ...DEFAULTS.roleWeights, ...(_obj(src.roleWeights) || {}) },
             stations: { ...DEFAULTS.stations, ...(_obj(src.stations) || {}) },
         };
@@ -247,15 +259,28 @@ export const Afterlife = {
     },
 
     /**
+     * Is a wait of `days` long enough for the distant years (config distant.minDays)?
+     */
+    isDistant(days) {
+        const D = Afterlife.config().distant;
+        return _num(D.minDays, 0) > 0 && _num(days, 0) >= _num(D.minDays, 0);
+    },
+
+    /**
      * One day of the world without the player. The House in trust: its
      * children grow up (Upbringing settles their childhood days by default).
+     * opts.distant: a day of the distant years (a long wait, config distant):
+     * the markets and the peoples' effects in coarser steps — deterministic,
+     * the same seed gives the same years, but not the same as day by day.
      * @returns {{ day, events: object[], cameOfAge: object[] }}
      */
-    passDay(world, estate) {
+    passDay(world, estate, opts = {}) {
         const out = { day: 0, events: [], cameOfAge: [] };
         if (!world) return out;
         const held = typeof world.holdSettlementScan === 'function';
         if (held) world.holdSettlementScan();
+        // (transient: set for this day only, never saved — the systems read it off the world)
+        if (opts && opts.distant) world._distant = { ...Afterlife.config().distant };
         try {
             const result = world.advanceDay(null, {});
             if (result && Array.isArray(result.events)) out.events.push(...result.events);
@@ -266,6 +291,8 @@ export const Afterlife = {
                 const up = Upbringing.processDay(estate, world);
                 // Children abroad come home, betrothals are kept, embassies end (systems/heirAgency.js)
                 HeirAgency.processDay(estate, world);
+                // Tutors paid from the estate, wards at court, coming-of-age summaries (systems/raising.js)
+                Raising.processDay(estate, world);
                 // The House's retired rulers grow old in the wait (no pensions run: systems/abdication.js)
                 Abdication.processDay(estate, world, { interregnum: true });
                 // The cadet branches go on with their lives (nobody to ask or answer them)
@@ -278,6 +305,7 @@ export const Afterlife = {
                 }
             }
         } finally {
+            if (world._distant) delete world._distant;
             if (held && world._scanHolds > 0) world.releaseSettlementScan();
         }
         out.day = world.day;

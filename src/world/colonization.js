@@ -12,6 +12,8 @@ import { Infrastructure } from '../systems/infrastructure.js';
 import { WorldUnit } from './units.js';
 import { KingdomBonuses } from './kingdomState.js';
 import { Religion } from '../systems/religion.js';
+import { VillageFounding } from './villageFounding.js';
+import { Barter } from './barter.js';
 
 export const Colonization = {
 
@@ -19,6 +21,13 @@ export const Colonization = {
 
     /** Cost for the player to found a colony */
     COLONY_COST: 500,
+
+    /**
+     * Founding a village with real settlers (world/villageFounding.js,
+     * systems/founding.js): data/colonization.json `founding`, installed by
+     * DataLoader. Empty here: those modules fall back to their own defaults.
+     */
+    FOUNDING: {},
 
     /** Minimum distance (hexes) from ANY existing settlement to found a colony */
     MIN_SETTLEMENT_DISTANCE: 4,
@@ -148,7 +157,7 @@ export const Colonization = {
             if (matching.length === 0) continue;
 
             // Distance check from settlements
-            const settlements = world.getAllSettlements();
+            const settlements = (world.getSettlementViews ? world.getSettlementViews() : world.getAllSettlements()); // read-only
             let tooClose = false;
             for (const s of settlements) {
                 if (Hex.wrappingDistance(q, r, s.q, s.r, world.width) < 3) { tooClose = true; break; }
@@ -178,15 +187,24 @@ export const Colonization = {
      */
     processTurn(world, playerBonuses = {}, player = null) {
         // 1. Process all colonies for every kingdom
-        for (const kingdom of world.kingdoms) {
-            if (!kingdom.isAlive || !kingdom.colonization) continue;
-            Colonization.processKingdomColonies(kingdom, world, playerBonuses, player);
+        // (the distant years, player/afterlife.js: once every realmEvery days, worked as that many)
+        const D = world._distant;
+        const every = D ? Math.floor(Number(D.realmEvery) || 0) : 0;
+        if (!(every > 1) || world.day % every === 0) {
+            for (const kingdom of world.kingdoms) {
+                if (!kingdom.isAlive || !kingdom.colonization) continue;
+                if (every > 1) Colonization.processKingdomColonies(kingdom, world, playerBonuses, player, every);
+                else Colonization.processKingdomColonies(kingdom, world, playerBonuses, player);
+            }
         }
 
-        // 2. Process indigenous population dynamics
+        // 2. The player's own villages: fed outside a realm, frontier growth, towns, budding (world/villageFounding.js)
+        VillageFounding.processDay(world, player, playerBonuses);
+
+        // 3. Process indigenous population dynamics
         Colonization.processIndigenous(world);
 
-        // 3. AI kingdom colonization attempts
+        // 4. AI kingdom colonization attempts
         Colonization.processKingdomColonization(world);
     },
 
@@ -199,8 +217,11 @@ export const Colonization = {
      * @param {Object} [player] - the player, whose faith the player's own
      *   Missionary colonies spread
      */
-    processKingdomColonies(kingdom, world, playerBonuses = {}, player = null) {
+    processKingdomColonies(kingdom, world, playerBonuses = {}, player = null, days = 1) {
         if (!kingdom.colonization || !kingdom.colonization.colonies) return;
+        // (`days`: the distant years — the loyalty of `days` days on one reckoning of its
+        // causes; growth, missions and the roll for revolt a day at a time)
+        const n = days > 1 ? Math.floor(days) : 1;
 
         const capitalQ = kingdom.capital ? kingdom.capital.q : 0;
         const capitalR = kingdom.capital ? kingdom.capital.r : 0;
@@ -269,8 +290,10 @@ export const Colonization = {
                 : 0;
 
             if (colonyData.isPlayerColony && playerBonuses.colonyLoyalty) loyaltyChange += playerBonuses.colonyLoyalty;
-            colonyData.loyalty = Utils.clamp(colonyData.loyalty + loyaltyChange, 0, 100);
+            colonyData.loyalty = Utils.clamp(colonyData.loyalty + (n > 1 ? loyaltyChange * n : loyaltyChange), 0, 100);
 
+            let revolted = false;
+            for (let d = 0; d < n && !revolted; d++) {
             // ── Missionary work (the Missionary policy's cultural influence) ──
             if (colonyPolicy.missionaryWork) {
                 Colonization.applyMissionaryWork(tile, colony, colonyPolicy, kingdom, world, player, missionBudget);
@@ -285,6 +308,10 @@ export const Colonization = {
                 if (colonyData.isPlayerColony && tile.settlement.population < 10) {
                     // Process settler arrivals from recruitment
                     Colonization._processSettlerArrivals(tile, world);
+                } else if (tile.settlement.playerFounded) {
+                    // A village founded by real settlers grows by the food it
+                    // grows and the frontier's rule (world/villageFounding.js),
+                    // not by people from nowhere
                 } else {
                     let growthRate = 1 + (colonyPolicy.expansionBonus - 1) * 0.5;
                     if (colonyData.isPlayerColony && playerBonuses.colonyGrowth) growthRate *= 1 + playerBonuses.colonyGrowth;
@@ -321,12 +348,14 @@ export const Colonization = {
                     type: 'colonization',
                     category: 'POLITICAL',
                 });
+                revolted = true;
                 continue;
             }
 
             // ── Independence revolt ──
             if (colonyData.loyalty <= Colonization.REVOLT_LOYALTY && Utils.random() < Colonization.REVOLT_CHANCE_PER_DAY) {
                 // Colony declares independence!
+                revolted = true;
                 toRemove.push(colony);
                 tile.kingdom = null;
                 tile.settlement.kingdom = null;
@@ -361,6 +390,7 @@ export const Colonization = {
                         category: 'POLITICAL',
                     });
                 }
+            }
             }
         }
 
@@ -494,7 +524,7 @@ export const Colonization = {
             if (!tile || !tile.terrain.passable || tile.settlement || tile.kingdom) continue;
 
             // Score by resources, distance from others
-            const settlements = world.getAllSettlements();
+            const settlements = (world.getSettlementViews ? world.getSettlementViews() : world.getAllSettlements()); // read-only
             const minDist = settlements.reduce((min, s) => Math.min(min, Hex.wrappingDistance(wq, tr, s.q, s.r, world.width)), Infinity);
             if (minDist < Colonization.MIN_SETTLEMENT_DISTANCE) continue;
 
@@ -535,11 +565,12 @@ export const Colonization = {
     /**
      * Check if the player can found a colony at (q, r)
      */
-    canPlayerFoundColony(player, tile, world, q, r) {
+    canPlayerFoundColony(player, tile, world, q, r, opts = {}) {
+        const cost = Number.isFinite(opts.cost) ? opts.cost : Colonization.COLONY_COST;
         if (!tile.terrain.passable) return { can: false, reason: 'Impassable terrain.' };
         if (tile.settlement) return { can: false, reason: 'A settlement already exists here.' };
         if (tile.playerProperty) return { can: false, reason: 'You already have a property here.' };
-        if (player.gold < Colonization.COLONY_COST) return { can: false, reason: `Requires ${Colonization.COLONY_COST} gold.` };
+        if (player.gold < cost) return { can: false, reason: `Requires ${cost} gold.` };
 
         // Distance from existing settlements
         const settlements = typeof world.getSettlementViews === 'function' ? world.getSettlementViews() : world.getAllSettlements();
@@ -553,16 +584,57 @@ export const Colonization = {
     },
 
     /**
-     * Found a colony for the player
+     * Who the price of a colony is paid to: the realm whose land it is (a
+     * land grant, into its treasury) when the player is sworn to it and the
+     * realm keeps coin; otherwise the nearest town (the hands, carts and
+     * timber hired there: its purse, or its market in kind if it barters).
+     * → { kingdom } | { town } | null
      */
-    foundPlayerColony(player, tile, world, q, r, name, policyId) {
-        const check = Colonization.canPlayerFoundColony(player, tile, world, q, r);
+    _colonyPayee(world, player, tile) {
+        const liege = player && player.allegiance ? world.getKingdom(player.allegiance) : null;
+        if (liege && liege.isAlive && (!tile.kingdom || tile.kingdom === liege.id) && !Barter.active(world)) return { kingdom: liege };
+        const views = typeof world.getSettlementViews === 'function' ? world.getSettlementViews() : world.getAllSettlements();
+        let best = null, bestD = Infinity;
+        for (const v of views) {
+            const d = Hex.wrappingDistance(tile.q, tile.r, v.q, v.r, world.width);
+            if (d >= bestD || (v.q === tile.q && v.r === tile.r)) continue;
+            const t = world.getTile(v.q, v.r);
+            if (t && t.settlement) { best = t.settlement; bestD = d; }
+        }
+        return best ? { town: best } : null;
+    },
+
+    /** Pay `cost` for a colony to its payee (see _colonyPayee): coin into a purse, goods into a barter town's market */
+    _payForColony(world, player, tile, cost) {
+        if (!(cost > 0)) return null;
+        const payee = Colonization._colonyPayee(world, player, tile);
+        if (payee && payee.town && Barter.active(world, payee.town) && Barter.installed(player)) {
+            Barter.pay(player, cost, payee.town);
+            return payee;
+        }
+        player.gold -= cost;
+        if (payee && payee.kingdom) payee.kingdom.treasury = (Number(payee.kingdom.treasury) || 0) + cost;
+        else if (payee && payee.town) {
+            Economy.initSettlement(payee.town);
+            payee.town.economy.gold = (Number(payee.town.economy.gold) || 0) + cost;
+        }
+        return payee;
+    },
+
+    /**
+     * Found a colony for the player. opts: { cost (default COLONY_COST),
+     * firstColonists (default 5: hands from the nearest town with people to
+     * spare, already on their way; 0 for none) }
+     */
+    foundPlayerColony(player, tile, world, q, r, name, policyId, opts = {}) {
+        const cost = Number.isFinite(opts.cost) ? opts.cost : Colonization.COLONY_COST;
+        const check = Colonization.canPlayerFoundColony(player, tile, world, q, r, { cost });
         if (!check.can) return { success: false, reason: check.reason };
 
         const policy = Colonization.POLICIES[policyId] || Colonization.POLICIES.coexistence;
 
-        // Deduct cost
-        player.gold -= Colonization.COLONY_COST;
+        // The price goes to someone: the liege's treasury or the nearest town
+        const payee = Colonization._payForColony(world, player, tile, cost);
 
         // Create the settlement
         const colonyName = name || Kingdom.generateCityName(
@@ -639,7 +711,24 @@ export const Colonization = {
             ind.discovered = true;
         }
 
-        return { success: true, name: colonyName, nearbyTribes: nearbyIndigenous.length };
+        // The first hands come from a real town: the nearest with people to spare
+        const first = Number.isFinite(opts.firstColonists) ? opts.firstColonists : 5;
+        let firstColonists = 0;
+        if (first > 0) {
+            const donor = Colonization._settlerDonor(tile, world);
+            if (donor) {
+                firstColonists = Math.min(first, Math.max(0, donor.population - 50));
+                donor.population -= firstColonists;
+                const rec = tile.settlement.colony.recruitment;
+                rec.enRoute += firstColonists;
+                rec.recruited += firstColonists;
+            }
+        }
+
+        return {
+            success: true, name: colonyName, nearbyTribes: nearbyIndigenous.length, firstColonists,
+            paidTo: payee ? (payee.kingdom ? payee.kingdom.name : payee.town.name) : null,
+        };
     },
 
     /**
@@ -693,10 +782,15 @@ export const Colonization = {
             tile.settlement.economy.gold = Math.max(0, (tile.settlement.economy.gold || 0) - incentiveDef.dailyCost);
         }
 
-        // Roll for passive settlers
+        // Roll for passive settlers: they leave the nearest town with people
+        // to spare (none near enough, none come)
         if (arrivalChance > 0 && Utils.random() < arrivalChance) {
-            const settlers = Utils.randInt(1, 3);
-            rec.enRoute += settlers;
+            const donor = Colonization._settlerDonor(tile, world);
+            if (donor) {
+                const settlers = Math.min(Utils.randInt(1, 3), Math.max(0, donor.population - 50));
+                donor.population -= settlers;
+                rec.enRoute += settlers;
+            }
         }
 
         // Milestone: first 10 settlers
@@ -708,6 +802,25 @@ export const Colonization = {
                 category: 'ECONOMIC',
             });
         }
+    },
+
+    /**
+     * The town passing settlers come from: the nearest within 15 hexes on the
+     * same land with more than 100 people (the live settlement), or null.
+     */
+    _settlerDonor(tile, world) {
+        const views = typeof world.getSettlementViews === 'function' ? world.getSettlementViews() : world.getAllSettlements();
+        let best = null, bestD = Infinity;
+        for (const v of views) {
+            if (v.q === tile.q && v.r === tile.r) continue;
+            const d = Hex.wrappingDistance(tile.q, tile.r, v.q, v.r, world.width);
+            if (d > 15 || d >= bestD) continue;
+            const t = world.getTile(v.q, v.r);
+            if (!t || !t.settlement || !(t.settlement.population > 100)) continue;
+            if (t.regionId != null && tile.regionId != null && t.regionId !== tile.regionId) continue;
+            best = t.settlement; bestD = d;
+        }
+        return best;
     },
 
     /**
@@ -813,21 +926,9 @@ export const Colonization = {
         return { success: true };
     },
 
-    /**
-     * Send a pioneer party (player action)
-     */
-    sendPioneerParty(player, world, targetQ, targetR) {
-        if (player.gold < 200) return { success: false, reason: 'Need at least 200 gold.' };
-
-        player.gold -= 200;
-
-        const settler = new WorldUnit('settler', player.q, player.r, targetQ, targetR);
-        settler.name = `${player.name}'s Pioneers`;
-        settler.isPlayerPioneer = true;
-        settler.ownerAllegiance = player.allegiance;
-        world.units.push(settler);
-
-        return { success: true };
+    /** One day of a founding party's walk (WorldUnit.updateSettler → world/villageFounding.js) */
+    expeditionDay(settler, world, player = null) {
+        VillageFounding.travel(settler, world, player);
     },
 
     /**
@@ -835,6 +936,8 @@ export const Colonization = {
      * (called from World.processUnits when a settler with isPlayerPioneer arrives)
      */
     onPioneerArrival(settler, world, player) {
+        // A founding party of real settlers (world/villageFounding.js)
+        if (settler.expedition) { VillageFounding.arrive(settler, world, player); return; }
         const tile = world.getTile(settler.q, settler.r);
         if (!tile || tile.settlement) return;
 

@@ -11,8 +11,10 @@
 
 import { DawnBirth } from '../../player/dawnBirth.js';
 import { PlayerWorks } from '../../player/playerWorks.js';
+import { TradeLines } from '../../player/tradeLines.js';
 import { Barter } from '../../world/barter.js';
 import { AutoUpkeep } from '../../player/autoUpkeep.js';
+import { StandingOrders } from '../../player/standingOrders.js';
 import { Languages } from '../../systems/languages.js';
 import { Lots } from '../../systems/lots.js';
 import { Infrastructure } from '../../systems/infrastructure.js';
@@ -81,6 +83,7 @@ import { Holdings } from '../../systems/holdings.js';
 import { Stewards } from '../../systems/stewards.js';
 import { Upbringing } from '../../systems/upbringing.js';
 import { HeirAgency } from '../../systems/heirAgency.js';
+import { Raising } from '../../systems/raising.js';
 import { DynastyTree } from '../../systems/dynastyTree.js';
 import { Heirlooms } from '../../systems/heirlooms.js';
 import { Regency } from '../../systems/regency.js';
@@ -226,7 +229,15 @@ function _endDay(game) {
     // The day's last hours (player/autoUpkeep.js). The bot sees to its own needs
     // and spends its points on work, so it's off unless a run asks for it
     // (game.autoUpkeep = 'full' | 'upkeep'); what it did is kept on game.upkeep.
-    game.upkeep = game.autoUpkeep ? AutoUpkeep.run(player, world, { mode: game.autoUpkeep }) : null;
+    // A standing order set on the player (player/standingOrders.js) runs after the upkeep,
+    // as ui/game/endDay.js does; what it did is kept on game.standingOrder.
+    if (StandingOrders.get(player) !== 'rest') {
+        const last = StandingOrders.endOfDay(player, world, { upkeepMode: game.autoUpkeep || 'off' });
+        game.upkeep = last.upkeep;
+        game.standingOrder = last.order;
+    } else {
+        game.upkeep = game.autoUpkeep ? AutoUpkeep.run(player, world, { mode: game.autoUpkeep }) : null;
+    }
     mark(game, 'AutoUpkeep.run');
     PlayerActions.endDay(player, world);
     mark(game, 'PlayerActions.endDay');
@@ -277,6 +288,9 @@ function _endDay(game) {
     const shipDay = Ships.processDaily(player, world);
     mark(game, 'Ships.processDaily');
     game.voyageDay = (shipDay && shipDay.voyage) || null;
+    // Standing trade lines (player/tradeLines.js) — as endDay.js
+    game.tradeLinesDay = TradeLines.processDay(world, player);
+    mark(game, 'TradeLines.processDay');
 
     // Construction ticks (properties, religious, infrastructure, cultural) — as endDay.js
     PlayerWorks.processDay(player, world);
@@ -294,6 +308,8 @@ function _endDay(game) {
     mark(game, 'Upbringing.processDay');
     HeirAgency.processDay(player, world);
     mark(game, 'HeirAgency.processDay');
+    Raising.processDay(player, world);
+    mark(game, 'Raising.processDay');
     Regency.processDay(player, world);
     mark(game, 'Regency.processDay');
     Abdication.processDay(player, world);

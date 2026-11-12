@@ -1,7 +1,7 @@
 // UI — panels methods.
 import { UI } from './core.js';
 import { applyUiScale } from '../uiScale.js';
-import { icon, titleCrest, glyphLabel, itemIcon } from '../icons.js';
+import { icon, titleCrest, glyphLabel } from '../icons.js';
 import { PanelRefresh } from '../panelRefresh.js';
 import { voice, inKind, money } from '../barterVoice.js';
 import { RealmIntel } from '../../systems/realmIntel.js';
@@ -9,20 +9,16 @@ import { Traits } from '../../systems/traits.js';
 import { Ailments } from '../../systems/ailments.js';
 import { Ledger } from '../../systems/ledger.js';
 import { Fame } from '../../systems/fame.js';
-import { Crafting } from '../../player/crafting.js';
 import { PracticeSkills } from '../../systems/practiceSkills.js';
 import { SocialSkills } from '../../systems/socialSkills.js';
 import { TradeSkills } from '../../systems/tradeSkills.js';
-import { goodInfoIcon } from '../goodInfo.js';
 import { Arms } from '../../systems/arms.js';
 import { Hotbar } from '../hotbar.js';
 import { Causes } from '../../player/causes.js';
 import { whyIcon, stabilityWhy } from '../whyPopover.js';
-import { Heirlooms } from '../../systems/heirlooms.js';
 import { HouseQuests } from '../../systems/houseQuests.js';
 import { houseQuestsHtml } from '../houseQuestsPanel.js';
-import { rowList as _hlRows, esc as _hlEsc } from '../actionMenu/uiKit.js';
-import { PlayerInventory, Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, Titles, KingdomBonuses, KingdomStability, Treasures, KingdomAI, KingdomNavy } from './_imports.js';
+import { PlayerInventory, Utils, ActionMenu, Religion, Economy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, Titles, KingdomBonuses, KingdomStability, Treasures, KingdomAI, KingdomNavy } from './_imports.js';
 
 Object.assign(UI.prototype, {
     /**
@@ -945,80 +941,7 @@ Object.assign(UI.prototype, {
         this.showCustomPanel('💰 Finances', html);
     },
 
-    /**
-     * Show inventory panel
-     */
-    showInventoryPanel() {
-        const player = this.game.player;
-
-        let inventoryHtml = '<p style="color: var(--text-secondary);">Your inventory is empty.</p>';
-
-        if (player.inventory && Object.keys(player.inventory).length > 0) {
-            inventoryHtml = '<div style="display: grid; gap: 8px;">';
-            for (const [itemId, quantity] of Object.entries(player.inventory)) {
-                if (quantity <= 0) continue;
-                // Try to find the item in PlayerEconomy.GOODS
-                const item = PlayerEconomy.GOODS ? PlayerEconomy.GOODS[itemId.toUpperCase()] : null;
-                const fallbackName = itemId.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-                const icon = (item && item.icon) ? item.icon : '📦';
-                const name = (item && item.name) ? item.name : fallbackName;
-                const worth = item && item.basePrice ? `<span style="color: var(--text-secondary); font-size: 11px; margin-left: 6px;">~${item.basePrice}g each</span>` : '';
-                // Treasures: what they do, plus enshrine / use buttons
-                const info = Treasures.info(itemId);
-                let extra = '';
-                if (info) {
-                    const lines = Treasures.describe(itemId);
-                    extra += `<div style="font-size: 11px; color: #ce93d8; margin-top: 4px;">${lines.join(' · ')}</div>`;
-                    const btn = 'padding: 3px 8px; margin: 4px 6px 0 0; font-size: 11px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.2); background: rgba(245,197,66,0.15); color: var(--text-primary); cursor: pointer;';
-                    if (info.prestige > 0 && player.house) extra += `<button data-ui-act="dedicateTreasure" data-ui-args='["${itemId}"]' style="${btn}">🏛️ Enshrine (+${info.prestige} Prestige)</button>`;
-                    if (info.consume) extra += `<button data-ui-act="useTreasure" data-ui-args='["${itemId}"]' style="${btn}">✋ Use</button>`;
-                }
-                // A masterwork or a treasure can become a named heirloom of the House (systems/heirlooms.js)
-                if (Heirlooms.eligible(player).some(e => e.itemId === itemId)) {
-                    extra += `<button data-am-act="heirloomForge" data-am-args='["${itemId}"]' style="padding: 3px 8px; margin: 4px 6px 0 0; font-size: 11px; border-radius: 4px; border: 1px solid rgba(245,197,66,0.5); background: rgba(245,197,66,0.12); color: var(--text-primary); cursor: pointer;">🗝️ Make an heirloom</button>`;
-                }
-                // Arms and armour: take it up in its slot, or put it away (systems/arms.js)
-                if (Arms.isArms(itemId)) {
-                    const btn = 'padding: 3px 8px; margin: 4px 6px 0 0; font-size: 11px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.2); background: rgba(129,199,132,0.15); color: var(--text-primary); cursor: pointer;';
-                    const slot = (Arms.config().slots[Arms.item(itemId).slot] || {}).label || '';
-                    extra += Arms.isEquipped(player, itemId)
-                        ? `<div style="font-size: 11px; color: #81c784; margin-top: 4px;">Worn (${slot.toLowerCase()}) <button data-ui-act="equipArms" data-ui-args='["${itemId}"]' style="${btn}">Put away</button></div>`
-                        : `<button data-ui-act="equipArms" data-ui-args='["${itemId}"]' style="${btn}">${Arms.item(itemId).slot === 'main' ? '✋ Wield' : '🧥 Wear'} (${slot.toLowerCase()})</button>`;
-                }
-                // (what it is: hover the i beside its name — ui/goodInfo.js)
-                const title = '';
-                // Crafted goods carry their quality (player/crafting.js)
-                // The grades held (core/grades.js): they scale the price and the effect
-                const qHtml = Crafting.qualityHtml(player, itemId);
-                const quality = qHtml ? `<span style="margin-left: 6px;" title="The grades of the ${name} you carry: they scale the price and the effect">${qHtml}</span>` : '';
-                inventoryHtml += `
-                    <div${title} style="padding: 8px; background: rgba(255,255,255,0.05); border-radius: 4px;">
-                        <div style="display: flex; justify-content: space-between;">
-                            <span>${itemIcon(itemId, icon, 20)} ${name}${goodInfoIcon(itemId)}${quality}${worth}</span>
-                            <span style="color: var(--gold);">×${quantity}</span>
-                        </div>${extra}
-                    </div>
-                `;
-            }
-            inventoryHtml += '</div>';
-        }
-
-        const used = PlayerInventory.getUsedSlots(player);
-        const cap = PlayerInventory.getCapacity(player);
-        inventoryHtml = `<div style="font-size: 12px; margin-bottom: 8px; color: ${used >= cap ? '#ff9800' : 'var(--text-secondary)'};"
-            title="Each kind of good takes a slot. A mount (+5) and each house (+3) add room.">🎒 Packs: ${used}/${cap} kinds of goods</div>` + inventoryHtml;
-
-        // The House's heirlooms: not in the packs (they pass to the heir), but shown here
-        const hl = Heirlooms.list(player);
-        if (hl.length) {
-            const where = { held: 'in hand', child: 'with a child', pawned: 'in pawn', stolen: 'stolen', lost: 'lost', sold: 'sold away', dowry: 'in dowry' };
-            inventoryHtml = _hlRows(hl.map(h => ({
-                icon: h.icon, name: _hlEsc(h.name), desc: `${_hlEsc(Heirlooms.tier(h).label)}${Heirlooms.describeBonus(h) ? ` · ${_hlEsc(Heirlooms.describeBonus(h))}` : ''}`,
-                act: 'showHeirloom', args: [h.id], side: where[h.status] || h.status, tone: h.status === 'held' ? 'good' : (['stolen', 'lost', 'sold'].includes(h.status) ? 'bad' : ''),
-            })), '🗝️ Heirlooms of the House') + inventoryHtml;
-        }
-        this.showCustomPanel('Inventory', inventoryHtml);
-    },
+    // The Inventory window: ui/ui/inventoryPanel.js (showInventoryPanel, toggleInventoryPanel)
 
     /** Take up a weapon, shield or armour from the packs in its slot, or put it away (systems/arms.js). */
     equipArms(itemId) {
@@ -1074,7 +997,7 @@ Object.assign(UI.prototype, {
         const r = HouseQuests.act(this.game.world, this.game.player, id, choice);
         if (r.success) this.showNotification('📜 The Matter Settled', r.text || 'It is done.', 'success');
         else this.showNotification('📜 Not Settled', r.reason || 'Nothing came of it.', r.failed ? 'warning' : 'info');
-        this.updateStats && this.updateStats();
+        if (this.updateStats) this.updateStats(this.game.player, this.game.world);
         this.showQuestsPanel();
     },
 

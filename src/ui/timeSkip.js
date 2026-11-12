@@ -4,7 +4,11 @@
 // `TimeSkip.start(game, days)` runs `days` real turns, one after another, each
 // through game.endDay() (ui/game/endDay.js), so every system ticks exactly as
 // it does when the player presses End Turn. Between days it yields to the
-// browser (the map keeps drawing, the progress bar moves, Stop / Escape work).
+// browser (the map keeps drawing, the progress bar moves, Stop / Escape work):
+// a macrotask after each day, a frame every FRAME_BUDGET_MS. While it runs,
+// endDay.js runs each turn at once (no 50 ms pause) and leaves the per-day view
+// work — chime, reachable hexes, stats, minimap, day banner, morning brief,
+// counsel badge, panel refresh, autosave — to `_settleUi` once at the end.
 //
 // The skip stops early on anything that needs the player (`check`):
 //   - the central interrupt queue (core/interrupts.js) — any system may raise
@@ -38,6 +42,7 @@ import { Hospitality } from '../systems/hospitality.js';
 import { CourtLetters } from '../systems/courtLetters.js';
 import { Ailments } from '../systems/ailments.js';
 import { Afterlife } from '../player/afterlife.js';
+import { SaveLoad } from '../systems/saveLoad.js';
 
 /** Hexes within which a hostile band counts as approaching. */
 const APPROACH = 3;
@@ -46,7 +51,7 @@ const THRESHOLDS = { hunger: 20, energy: 12, healthPct: 0.35 };
 /** Serious notices: these stop a skip whatever their type. */
 const SERIOUS = /war declared|besieged|siege|attacked|ambush|waylaid|crisis|rebellion|arrested|assassin|scheme strikes|struck without|ultimatum|kidnap|captured|abducted|fire!|plague in|starving/i;
 /** Routine notices folded away in the digest. */
-const ROUTINE_TITLES = /^(auto-saved|tax collection|army upkeep|mercenary wages|informants|loan payment|production|storage|faith income|cultural income|🌙 the day's last hours|🛏️ a good night)/i;
+const ROUTINE_TITLES = /^(auto-saved|tax collection|army upkeep|mercenary wages|informants|loan payment|production|storage|faith income|cultural income|🌙 the day's last hours|🛏️ a good night|\S+ standing order)/i;
 const BRIEF_TITLE = /steward's brief/i;
 /** Comfort needs running low (ui/game/innerMap.js _checkNeedWarnings): logged, never a reason to stop a wait. */
 const MINOR_NEEDS = /^\S*\s*(bored|lonely|dirty|uncomfortable)!?$/i;
@@ -71,6 +76,14 @@ function _yield() {
         else setTimeout(res, 0);
     });
 }
+
+/** A macrotask only: the timers a day queued (a march, a scene) run first; no frame waited for. */
+function _tick() {
+    return new Promise(res => setTimeout(res, 0));
+}
+
+/** Milliseconds of days run back to back before the map is given a frame (the bar moves, Stop is heard). */
+const FRAME_BUDGET_MS = 50;
 
 /** Run one real turn through game.endDay(); resolves true once the day has moved on. */
 async function _realDay(game) {
@@ -305,7 +318,15 @@ export const TimeSkip = {
         if (!can.ok) return { total, done: 0, refused: can.reason, digest: [] };
         const { world, player: p } = game;
         const runDay = opts.runDay || _realDay;
-        const yieldFn = opts.yieldFn || _yield;
+        // Between days: a frame when FRAME_BUDGET_MS of days have run since the last
+        // one, else only a macrotask (a day's queued timers still run before the check)
+        const yieldFn = opts.yieldFn || (() => {
+            const now = performance.now();
+            if (now - lastFrame < FRAME_BUDGET_MS) return _tick();
+            lastFrame = now;
+            return _yield();
+        });
+        let lastFrame = performance.now();
         const plan = this.lodgingPlan(game);
         const skip = game._timeSkip = {
             total, done: 0, stop: false, cancelled: false, reason: null,
@@ -313,6 +334,7 @@ export const TimeSkip = {
             startGold: _num(p.gold), startHealth: _num(p.health, 100),
             lodge: opts.lodge || (plan.kind === 'inn' ? { id: plan.id, tier: plan.tier, name: plan.name } : null),
             lodgingPaid: 0, nights: 0,
+            orders: { ran: 0, rested: 0, gold: 0, lines: [] },
             digest: [],
         };
         Interrupts.clear(world);
@@ -337,6 +359,7 @@ export const TimeSkip = {
                 if (!ok) { skip.reason = skip.reason || { icon: '⚠️', reason: 'The day could not end.' }; break; }
                 skip.done++;
                 skip.endDay = world.day;
+                this._tallyOrder(skip, game.player, before.day);
                 game.isProcessingTurn = true;
                 await yieldFn();
                 const why = this.check(game, before);
@@ -347,11 +370,55 @@ export const TimeSkip = {
             game.isProcessingTurn = false;
             restore();
             if (game._timeSkip === skip) game._timeSkip = null;
+            // What ui/game/endDay.js leaves undone while the days run back to back
+            if (skip.done > 0) this._settleUi(game, skip);
             skip.endDay = game.world ? game.world.day : skip.endDay;
             skip.goldChange = _num(game.player && game.player.gold) - skip.startGold;
             skip.healthChange = _num(game.player && game.player.health, 100) - skip.startHealth;
         }
         return skip;
+    },
+
+    /**
+     * The standing order's day (player/standingOrders.js keeps it on
+     * player.standingOrder.last) into the skip's tally: days it ran, days it
+     * fell back to rest and why, the coin it made or cost.
+     */
+    _tallyOrder(skip, player, day) {
+        const last = player && player.standingOrder && player.standingOrder.last;
+        if (!last || last.day !== day || !skip.orders) return;
+        const o = skip.orders;
+        if (last.ran) o.ran++;
+        else o.rested++;
+        o.gold += _num(last.gold);
+        const key = last.ran ? last.text : (last.why || last.text);
+        const row = o.lines.find(l => l.text === key && l.ran === !!last.ran);
+        if (row) row.count++;
+        else if (o.lines.length < 40) o.lines.push({ text: key, ran: !!last.ran, icon: last.icon, count: 1 });
+    },
+
+    /**
+     * Once a skip ends: the map, stats and minimap brought up to the last day,
+     * and the autosave a day of it was due (an Ironman run's included) made
+     * once — endDay.js skips these while the days run back to back.
+     */
+    _settleUi(game, skip) {
+        const p = game.player;
+        try {
+            if (game.renderer && p && game.world && typeof p.getReachableHexes === 'function') game.renderer.reachableHexes = p.getReachableHexes(game.world);
+            if (game.ui && typeof game.ui.updateStats === 'function' && p) game.ui.updateStats(p, game.world);
+            if (game.minimap && typeof game.minimap.invalidate === 'function') game.minimap.invalidate();
+        } catch (e) {
+            console.error('[TimeSkip] refreshing the view failed', e);
+        }
+        if (skip.saveDue && p && !p._isDead && !Afterlife.active(p)) {
+            try {
+                const res = SaveLoad.saveGame(game);
+                if (res && res.success && !SaveLoad.isIronman(game) && game.ui) game.ui.showNotification('Auto-Saved', 'Game progress saved', 'default');
+            } catch (e) {
+                console.error('[TimeSkip] autosave failed', e);
+            }
+        }
     },
 
     /** Ask a running skip to stop after the day under way. */

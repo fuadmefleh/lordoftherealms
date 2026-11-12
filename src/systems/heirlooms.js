@@ -34,6 +34,7 @@ import { Utils } from '../core/utils.js';
 import { Grades } from '../core/grades.js';
 import { House } from './house.js';
 import { Ledger } from './ledger.js';
+import { Names } from '../core/names.js';
 
 const DEFAULTS = {
     kinds: {
@@ -117,7 +118,7 @@ function _hereName(world, player) {
     const t = _tile(world, player);
     if (t && t.settlement && t.settlement.name) return t.settlement.name;
     const k = t && t.kingdom != null && typeof world.getKingdom === 'function' ? world.getKingdom(t.kingdom) : null;
-    return k ? `the lands of ${k.name}` : 'the wilds';
+    return k ? `the lands of ${Names.realm(k.name)}` : 'the wilds';
 }
 
 function _towns(world) {

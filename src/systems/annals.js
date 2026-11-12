@@ -41,6 +41,7 @@ import { LlmProse } from './llmProse.js';
 const _autoMemo = new WeakMap();
 import { Crises } from './crises.js';
 import { Climate } from '../world/climate.js';
+import { Names } from '../core/names.js';
 
 const DEFAULTS = {
     minWeight: 4, minEvents: 4, maxEventsPerChapter: 40, maxEventsPerYear: 6, quietGapYears: 3,
@@ -687,7 +688,7 @@ export const Annals = {
             for (const k of live) {
                 if (!k.lord) continue;
                 const op = NPCLords.memoryOpinion(k.lord, day);
-                const who = `${k.lord.name || 'the lord'} of ${k.name}`;
+                const who = `${k.lord.name || 'the lord'} of ${Names.realm(k.name)}`;
                 if (op <= C.enemyOpinion) enemies.push(who);
                 else if (op >= C.friendOpinion) friends.push(who);
             }

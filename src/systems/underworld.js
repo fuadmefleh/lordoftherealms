@@ -51,6 +51,7 @@ import { SettlementMarket } from '../world/settlementMarket.js';
 import { Ledger } from './ledger.js';
 import { Laws } from './laws.js';
 import { Gangs } from './gangs.js';
+import { Names } from '../core/names.js';
 
 const LOG_CAP = 20;
 const SETTLEMENT_ORDER = ['village', 'town', 'city', 'capital'];
@@ -433,7 +434,7 @@ export const Underworld = {
         const kingdom = Underworld._settlementKingdom(world, settlement);
         const status = Underworld.contrabandStatus(kingdom, goodId);
         if (status === 'illegal' && kingdom) {
-            return { ok: false, reason: `${_label(goodId)} is contraband in ${kingdom.name}. The black market will take it — at a risk.`, priceMult: 1 };
+            return { ok: false, reason: `${_label(goodId)} is contraband in ${Names.realm(kingdom.name)}. The black market will take it — at a risk.`, priceMult: 1 };
         }
         if (status === 'tariff' && kingdom) {
             const rate = _num((Underworld.data().contraband || {}).tariffRate, 0.25);
@@ -1294,7 +1295,7 @@ export const Underworld = {
             const kept = [];
             for (const rk of st.rackets) {
                 if (Underworld.getHeat(player, rk.kingdom) >= _num(job.bustHeat, 70) && Utils.random() < _num(Underworld.data().racketBustChance, 0.25)) {
-                    out.notices.push(`The watch broke up your racket in ${rk.name}.`);
+                    out.notices.push(`The watch broke up your racket in ${Names.realm(rk.name)}.`);
                     continue;
                 }
                 // The town's gangs don't share their streets with a freelancer (systems/gangs.js)
@@ -1304,7 +1305,7 @@ export const Underworld = {
                     const big = Gangs.gangsAt(world, rtile).filter(g => g.turf > 0.3).sort((a, b) => b.turf - a.turf)[0];
                     if (big && Utils.random() < Math.min(0.5, big.turf * 0.5)) {
                         big.turf = Math.min(1, big.turf + 0.03);
-                        out.notices.push(`${big.name} ran your racket out of ${rk.name}: those are their streets.`);
+                        out.notices.push(`${big.name} ran your racket out of ${Names.realm(rk.name)}: those are their streets.`);
                         continue;
                     }
                 }

@@ -20,6 +20,7 @@
 
 import { DataLoader } from '../core/dataLoader.js';
 import { CrownBooks } from '../world/crownBooks.js';
+import { Names } from '../core/names.js';
 
 const DEFAULTS = {
     changeCost: { treasury: 150, stability: 2 },
@@ -212,7 +213,7 @@ export const Laws = {
         if (!Array.isArray(k.laws.history)) k.laws.history = [];
         k.laws.history.push({ day, law: lawId, from: was ? was.id : null, to: optionId });
         if (k.laws.history.length > 30) k.laws.history.splice(0, k.laws.history.length - 30);
-        return { success: true, text: `By your proclamation, ${L.name.toLowerCase()} in ${k.name}: ${o.label.toLowerCase()}${was ? ` (was ${was.label.toLowerCase()})` : ''}. ${can.cost}g from the treasury; stability −${can.stability}.` };
+        return { success: true, text: `By your proclamation, ${L.name.toLowerCase()} in ${Names.realm(k.name)}: ${o.label.toLowerCase()}${was ? ` (was ${was.label.toLowerCase()})` : ''}. ${can.cost}g from the treasury; stability −${can.stability}.` };
     },
 
     // ──────────── THE AI RULERS' HAND ────────────

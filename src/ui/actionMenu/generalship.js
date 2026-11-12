@@ -10,6 +10,7 @@ import { NPCLords } from '../../world/npcLords.js';
 import { BTN_GOLD, BTN_DARK, BTN_OFF, esc, bullets, lede, chips, sectionHead, card, actRow, rowList, kv } from './uiKit.js';
 import { InnerMapBattle } from '../innerMapBattle.js';
 import { ParentsGuard } from '../parentsGuard.js';
+import { Names } from '../../core/names.js';
 
 // In the action menu's voice (ui/actionMenu/uiKit.js): cards for the commission's
 // state, one row an order to give, greyed with its reason when it can't be given
@@ -73,7 +74,7 @@ Object.assign(ActionMenu, {
             ]), { icon: '🎖️', title: 'A commission in a realm\'s army' });
             const ok = !!(can.kingdom && can.ok);
             html += rowList([_row({
-                icon: '🎖️', name: ok ? `Seek a commission in the army of ${esc(can.kingdom.name)}` : 'Seek a commission',
+                icon: '🎖️', name: ok ? `Seek a commission in the army of ${esc(Names.realm(can.kingdom.name))}` : 'Seek a commission',
                 why: esc(can.reason || 'Seek a commission at a realm\'s capital.'), tone: 'gold',
             }, 'seek', [], ok)]);
             html += _pastHtml(v.past);

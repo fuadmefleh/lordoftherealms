@@ -5,6 +5,8 @@
     "minAge": 17,
     "maxAge": 42,
     "autoPlayMs": 220,
+    "_distant": "The distant years: a wait of at least minDays (Let Time Pass) turns the world in coarser steps — every market, its trade, labour and diggings together once every marketSpan days, worked as that many days; each town's peoples' effects afresh every peoplesEvery days; the realms' slow reads (production profiles, stability targets, recruiting ground, the arms buyers, road floods) every realmEvery days. Same seed, same years; not the same as day by day.",
+    "distant": { "minDays": 60, "marketSpan": 16, "peoplesEvery": 7, "realmEvery": 7 },
     "roleWeights": { "villager": 4, "farmer": 3, "merchant": 1.4, "guard": 1.4, "blacksmith_npc": 1, "priest": 0.6, "noble": 0.35 },
     "stations": {
         "villager":       { "title": "Commoner",   "gold": [60, 220],    "stats": { "strength": 1 },                     "skills": {} },

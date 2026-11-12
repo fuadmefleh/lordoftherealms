@@ -7,6 +7,7 @@ import { Hex } from '../core/hex.js';
 import { Quests } from './quests.js';
 import { DataLoader } from '../core/dataLoader.js';
 import { Economy } from '../world/economy.js';
+import { Names } from '../core/names.js';
 
 
 export const Religion = {
@@ -586,7 +587,7 @@ export const Religion = {
 
                     world.events.push({
                         category: 'religious',
-                        text: `${newController.name} seized the ${tile.holySite.name} from ${kingdom.name}!`,
+                        text: `${newController.name} seized the ${tile.holySite.name} from ${Names.realm(kingdom.name)}!`,
                         kingdoms: [kingdom.id, newController.id],
                         impact: 'negative',
                     });

@@ -3,6 +3,7 @@ import { UI } from './core.js';
 import { Cultures } from '../../world/cultures.js';
 import { Languages } from '../../systems/languages.js';
 import { Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, KingdomBonuses, KingdomAtlas } from './_imports.js';
+import { Names } from '../../core/names.js';
 
 Object.assign(UI.prototype, {
     /**
@@ -731,7 +732,7 @@ Object.assign(UI.prototype, {
                     `;
                 }
             } else {
-                html += `<div style="color: #95a5a6; font-style: italic; padding: 8px 0;">You know nothing of the peoples of ${kingdom.name}. Visit their settlements, speak with locals, or ask their lord to learn more.</div>`;
+                html += `<div style="color: #95a5a6; font-style: italic; padding: 8px 0;">You know nothing of the peoples of ${Names.realm(kingdom.name)}. Visit their settlements, speak with locals, or ask their lord to learn more.</div>`;
             }
 
             html += `</div>`;

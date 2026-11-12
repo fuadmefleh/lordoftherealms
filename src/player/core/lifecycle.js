@@ -15,6 +15,7 @@ import { Ships } from '../../systems/ships.js';
 import { DawnBirth } from '../dawnBirth.js';
 import { Endurance } from '../endurance.js';
 import { DataLoader } from '../../core/dataLoader.js';
+import { Names } from '../../core/names.js';
 
 export const PlayerLifecycleMethods = {
     /**
@@ -190,7 +191,7 @@ export const PlayerLifecycleMethods = {
 
         this.allegiance = kingdomId;
         this.kingdomTitle = 'citizen'; // Default title
-        this.title = `Citizen of ${kingdom.name}`;
+        this.title = `Citizen of ${Names.realm(kingdom.name)}`;
 
         return { success: true, kingdom };
     },

@@ -17,6 +17,7 @@ import { Couriers } from '../../systems/couriers.js';
 import { CourierRiders } from '../../systems/courierRiders.js';
 import { Kingship } from '../../systems/kingship.js';
 import { BTN_GOLD, BTN_PLAIN, BTN_OFF, BTN_RED, esc, panelTabs, sectionHead, lede, chips, card, actRow, rowList, price } from './uiKit.js';
+import { Names } from '../../core/names.js';
 
 // A recipient's note, skipped when the name already says it ("King X of Valdoria" · "Valdoria")
 const _subOf = (r) => (r.sub && !String(r.name || '').includes(r.sub) ? r.sub : '');
@@ -177,7 +178,7 @@ function memoryTab(game) {
             body += `<div style="font-size:11.5px; color:${m.weight >= 0 ? '#8fd18a' : '#e0846a'};">${m.icon} ${line} <span style="color:#9d937c;">· day ${m.day}</span></div>`;
         }
         html += card(body, {
-            title: `<span style="color:${k.color || '#ffe9a8'};">${esc(k.lord.name)} of ${esc(k.name)}</span>`,
+            title: `<span style="color:${k.color || '#ffe9a8'};">${esc(k.lord.name)} of ${esc(Names.realm(k.name))}</span>`,
             side: `${total >= 0 ? '+' : ''}${total} opinion`, tone: total >= 0 ? 'good' : 'bad',
         });
     }

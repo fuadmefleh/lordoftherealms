@@ -62,6 +62,7 @@ import { Ledger } from './ledger.js';
 import { LlmProse } from './llmProse.js';
 import { Townsfolk } from './townsfolk.js';
 import { Interrupts } from '../core/interrupts.js';
+import { Names } from '../core/names.js';
 
 const DEFAULTS = {
     enabled: true, firstDay: 90, daysPerYear: 120, baseDays: 60, minDays: 24, retryDays: 30, jitter: 0.3,
@@ -391,14 +392,14 @@ export const HouseQuests = {
             q.title = _fill(def.title, vars);
         } else if (kind === 'lord_grievance') {
             const k = c.k, m = c.m;
-            const lord = k.lord.name || k.ruler || `the lord of ${k.name}`;
+            const lord = k.lord.name || k.ruler || `the lord of ${Names.realm(k.name)}`;
             const seat = HouseQuests._folkAt(world, k.capital.q, k.capital.r).settlement;
             target = { q: k.capital.q, r: k.capital.r, place: (seat && seat.name) || k.name };
             q.kingdomId = k.id;
             q.lordDeed = m.key;
             q.price = HouseQuests._price(def, m.weight);
             const fromLine = m.inherited && m.from ? _fill(W.fromLine || 'It came to {lord} from {from}. ', { lord, from: m.from }) + ' ' : '';
-            vars = { lord, realm: k.name || 'the realm', deed: m.label, seat: target.place, fromLine, price: q.price, years: HouseQuests._years(world, m.day), line: m.recall ? `"${m.recall}"` : '' };
+            vars = { lord, realm: Names.realm(k.name) || 'the realm', deed: m.label, seat: target.place, fromLine, price: q.price, years: HouseQuests._years(world, m.day), line: m.recall ? `"${m.recall}"` : '' };
             q.holder = { name: lord, lord: true };
             q.title = _fill(def.title, vars);
         } else if (kind === 'heirloom') {

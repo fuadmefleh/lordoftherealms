@@ -10,6 +10,7 @@
 import { ActionMenu } from './_ref.js';
 import { Reckoning } from '../../systems/reckoning.js';
 import { CARD, panelTabs, esc, lede, bullets, chips } from './uiKit.js';
+import { Names } from '../../core/names.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 const H = 'font-weight:bold; color:var(--gold); font-size:13px; margin-bottom:4px;';
@@ -54,7 +55,7 @@ function _lords(lords) {
     if (!lords.length) return '';
     return lords.map(l => {
         const deeds = l.deeds.map(d => `${esc(d.icon)} ${esc(d.label)}${d.note ? ` (${esc(d.note)})` : ''} ${num(d.weight)}`).join(' · ');
-        const head = l.newLord ? `${esc(l.lord)} now rules ${esc(l.realm)} (after ${esc(l.newLord)})` : `${esc(l.lord)} of ${esc(l.realm)}`;
+        const head = l.newLord ? `${esc(l.lord)} now rules ${esc(Names.realm(l.realm))} (after ${esc(l.newLord)})` : `${esc(l.lord)} of ${esc(Names.realm(l.realm))}`;
         return `<div style="margin-bottom:4px;"><div>${head}: ${l.from != null ? `${sgn(l.from)} → ${sgn(l.to)} (${num(l.delta)})` : sgn(l.to)}</div>${deeds ? `<div style="${NOTE} margin-left:8px;">Remembers: ${deeds}</div>` : ''}</div>`;
     }).join('');
 }

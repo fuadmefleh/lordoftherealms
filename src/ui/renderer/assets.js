@@ -191,6 +191,8 @@ Object.assign(Renderer.prototype, {
             'settlement_capital': ['walledCity.png'],
             'settlement_town': ['village00.png', 'village01.png', 'village02.png', 'village03.png'],
             'settlement_village': ['villageSmall00.png', 'villageSmall01.png', 'villageSmall02.png', 'villageSmall03.png'],
+            // a village still a camp of tents (scripts/make_world_camps.py)
+            'settlement_camp': ['campCanvas00.png', 'campHide00.png'],
             'property_farm': ['farm00.png', 'farm01.png', 'farm02.png', 'farm03.png'],
             'property_mine': ['mine00.png', 'mine01.png', 'mine02.png', 'mine03.png'],
             'property_workshop': ['smithy.png'],

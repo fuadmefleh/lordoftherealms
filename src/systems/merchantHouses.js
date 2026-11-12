@@ -56,6 +56,7 @@ import { Quests } from './quests.js';
 import { LossBook } from './lossBook.js';
 import { TradePolicy } from './tradePolicy.js';
 import { Guilds } from './guilds.js';
+import { Names } from '../core/names.js';
 
 const DEFAULT_CONFIG = {
     charter: { baseCost: 900, perSettlement: 60, maxCost: 2400, minReputation: 0 },
@@ -499,13 +500,13 @@ export const MerchantHouses = {
         if (!s || !s.kingdom) return { ok: false, reason: 'Charters are sold at a royal town.' };
         const k = world.getKingdom ? world.getKingdom(s.kingdom) : null;
         if (!k || !k.isAlive) return { ok: false, reason: 'No crown here to grant a charter.' };
-        if (MerchantHouses.hasCharter(player, k.id)) return { ok: false, reason: `You already hold a charter from ${k.name}.` };
+        if (MerchantHouses.hasCharter(player, k.id)) return { ok: false, reason: `You already hold a charter from ${Names.realm(k.name)}.` };
         if (RealmWars.atWarWith(player, k.id)) return { ok: false, reason: `${k.name} is at war with you.` };
         const rep = _num(player.reputation && player.reputation[k.id]);
         const cfg = MerchantHouses.config().charter;
         if (rep < cfg.minReputation) return { ok: false, reason: `${k.name} won't charter a merchant of your reputation (${rep}).` };
         const cost = MerchantHouses.charterCost(world, k);
-        if (_num(player.gold) < cost) return { ok: false, reason: `A charter from ${k.name} costs ${cost} gold.`, cost, kingdom: k };
+        if (_num(player.gold) < cost) return { ok: false, reason: `A charter from ${Names.realm(k.name)} costs ${cost} gold.`, cost, kingdom: k };
         return { ok: true, cost, kingdom: k };
     },
 

@@ -44,6 +44,7 @@ import { EconomyIndex } from '../world/economyIndex.js';
 import { Seasons } from '../world/seasons.js';
 import { Ledger } from './ledger.js';
 import { CrownBooks } from '../world/crownBooks.js';
+import { Names } from '../core/names.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -257,7 +258,7 @@ export const PublicWorks = {
             const k = _kingdom(world, kid);
             if (!k || k.isAlive === false) return { success: false, message: 'No crown to pay for it.' };
             if (opts.asRuler && q.kid !== kid) return { success: false, message: 'That lies outside your realm.' };
-            if (_num(k.treasury) < q.cost * 0.5) return { success: false, message: `The treasury of ${k.name} cannot bear it (${q.cost}g).` };
+            if (_num(k.treasury) < q.cost * 0.5) return { success: false, message: `The treasury of ${Names.realm(k.name)} cannot bear it (${q.cost}g).` };
             owner = kid; payer = 'crown';
         }
         const id = `pw${st.seq++}`;

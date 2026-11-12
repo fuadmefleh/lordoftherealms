@@ -14,6 +14,7 @@ import { Coalitions } from '../../systems/coalitions.js';
 import { npcVoice } from '../npcVoice.js';
 import { Causes } from '../../player/causes.js';
 import { whyIcon, opinionWhy } from '../whyPopover.js';
+import { Names } from '../../core/names.js';
 
 let _current = null; // the audience on stage: { unitId, used, paid, scene, total }
 
@@ -143,7 +144,7 @@ function _factsHtml(player, kingdom, lord, st, world = null) {
     if (player.allegiance === kingdom.id) tag = '<div class="npc-dialog-rel-badge" style="color:#4fc3f7">🏳️ Your liege</div>';
     else if (player.allegiance && (kingdom.wars || []).includes(player.allegiance)) tag = '<div class="npc-dialog-rel-badge" style="color:#f44336">⚔️ At war with your realm</div>';
     return `${tag}
-        <div class="npc-dialog-visits" title="The lord's own opinion, plus your reputation in ${kingdom.name}">💭 Opinion ${_sign(st.opinion)} · Rep ${_sign(st.reputation)}${why}</div>
+        <div class="npc-dialog-visits" title="The lord's own opinion, plus your reputation in ${Names.realm(kingdom.name)}">💭 Opinion ${_sign(st.opinion)} · Rep ${_sign(st.reputation)}${why}</div>
         <div class="npc-scene-stats">${pip('⚔️', 'Martial', lord.martial)}${pip('🗣️', 'Diplomacy', lord.diplomacy)}${pip('📊', 'Stewardship', lord.stewardship)}</div>
         ${traits ? `<div class="npc-dialog-traits">${traits}</div>` : ''}
         ${_memoryHtml(kingdom, lord)}`;
@@ -191,7 +192,7 @@ export function openLordAudience(game, unitId) {
         voice: npcVoice({
             id: `lord:${kingdom.id}:${lord.name}`, firstName: lord.name,
             traits: (lord.traits || []).map(t => t.name || t),
-            role: `a medieval ruler of ${kingdom.name} granting an audience`,
+            role: `a medieval ruler of ${Names.realm(kingdom.name)} granting an audience`,
             disposition: st.total >= 50 ? 'warm' : st.total >= 20 ? 'favourable' : st.total >= -10 ? 'neutral' : st.total >= -40 ? 'cool' : 'hostile',
             memories: () => _memoryPrompt(kingdom, lord),
         }),
@@ -267,7 +268,7 @@ function _choices(game, state) {
     if (!used.has('realm')) {
         list.push({
             icon: '📜', label: 'Tell me of your realm.', group: 'talk',
-            tooltip: `Hear of ${kingdom.name}'s peoples, faith, strength and history. They say more to those they favour.`,
+            tooltip: `Hear of ${Names.realm(kingdom.name)}'s peoples, faith, strength and history. They say more to those they favour.`,
             disabled: total < -40, disabledReason: 'they will not speak of it to you',
             onPick: act('realm', _askRealm),
         });
@@ -278,7 +279,7 @@ function _choices(game, state) {
         list.push({
             icon: '💰', label: 'Accept a gift of gold.', group: 'gift',
             extra: `<span class="npc-dialog-price">${amount}g</span>`,
-            tooltip: `Give ${amount} gold (a tenth of your purse, at least 50) for reputation in ${kingdom.name}.`,
+            tooltip: `Give ${amount} gold (a tenth of your purse, at least 50) for reputation in ${Names.realm(kingdom.name)}.`,
             disabled: player.gold < 50, disabledReason: 'you need at least 50 gold',
             onPick: act('gold', _giftGold),
         });
@@ -300,7 +301,7 @@ function _choices(game, state) {
         list.push({
             icon: '⚖️', label: 'Grant me favourable trade terms.', group: 'petition',
             check: 'Petition', chance: active || total < -10 ? null : chance, skillTag: _odds(chance),
-            tooltip: `10% better prices in ${kingdom.name} for 90 days. ${chance}% chance — their diplomacy and regard for you weigh in.`,
+            tooltip: `10% better prices in ${Names.realm(kingdom.name)} for 90 days. ${chance}% chance — their diplomacy and regard for you weigh in.`,
             disabled: active || total < -10, disabledReason: active ? 'an agreement is already in force' : 'they think too little of you',
             onPick: act('trade', _requestTrade),
         });
@@ -328,7 +329,7 @@ function _choices(game, state) {
         if (!pledged) {
             list.push({
                 icon: '🏳️', label: `I would swear fealty to ${_realm(kingdom)}.`, group: 'oath',
-                tooltip: `Become a vassal of ${kingdom.name}: +20 reputation, +5 renown. Your old liege will resent it.`,
+                tooltip: `Become a vassal of ${Names.realm(kingdom.name)}: +20 reputation, +5 renown. Your old liege will resent it.`,
                 disabled: total < 0, disabledReason: 'they must at least be on neutral terms with you',
                 onPick: act('oath', _pledge),
             });
@@ -420,7 +421,7 @@ function _presentTreasure(game, state, itemId) {
     NPCLords.rememberDeed(game.world, kingdom.lord, 'gift_treasure', { note: result.item });
     scene.exchange(`*presents the ${result.item}*`, () => {
         scene.npc('*turns it over in the light* A gift worthy of a crown. You honour this court.');
-        scene.note(`📈 Reputation with ${kingdom.name} ${_sign(result.reputation)}`, 'good');
+        scene.note(`📈 Reputation with ${Names.realm(kingdom.name)} ${_sign(result.reputation)}`, 'good');
         _after(game, state);
     });
 }
@@ -438,7 +439,7 @@ function _requestTrade(game, state, { kingdom, lord }) {
             const rep = PlayerEffects.scaleReputationGain(player, 5);
             _addRep(player, kingdom.id, rep);
             scene.npc('Very well. Let it be written: your goods pass at fair rates in my towns.');
-            scene.note(`⚖️ 10% better prices in ${kingdom.name} for 90 days · 📈 Reputation ${_sign(rep)}`, 'good');
+            scene.note(`⚖️ 10% better prices in ${Names.realm(kingdom.name)} for 90 days · 📈 Reputation ${_sign(rep)}`, 'good');
         } else {
             scene.npc(_has(lord, 'cautious') ? 'I must consider the risks more carefully.' : 'Perhaps another time.');
         }
@@ -453,7 +454,7 @@ function _pledge(game, state, { kingdom, lord }) {
     const old = player.allegiance;
     player.allegiance = kingdom.id;
     player.kingdomTitle = 'citizen';
-    player.title = `Citizen of ${kingdom.name}`;
+    player.title = `Citizen of ${Names.realm(kingdom.name)}`;
     if (typeof Titles !== 'undefined') Titles.initialize(player);
     _addRep(player, kingdom.id, 20);
     // Diplomacy Mastery (allianceCost) softens the old crown's resentment
@@ -465,7 +466,7 @@ function _pledge(game, state, { kingdom, lord }) {
     // The crown you left remembers the desertion (half an oath broken)
     if (oldKingdom && oldKingdom.lord) {
         const broke = NPCLords.deedDef('oath_broken');
-        NPCLords.rememberDeed(world, oldKingdom.lord, 'oath_broken', { weight: broke ? broke.weight / 2 : undefined, note: `went over to ${kingdom.name}` });
+        NPCLords.rememberDeed(world, oldKingdom.lord, 'oath_broken', { weight: broke ? broke.weight / 2 : undefined, note: `went over to ${Names.realm(kingdom.name)}` });
     }
 
     scene.exchange('*kneels* I offer you my sword and my loyalty.', () => {
@@ -473,8 +474,8 @@ function _pledge(game, state, { kingdom, lord }) {
         scene.npc(_has(lord, 'honorable') ? 'Rise, friend. Your service honours us both.'
             : _has(lord, 'ambitious') ? 'Good. Together we shall build an empire.'
                 : 'Welcome to our cause. Serve loyally and you will be rewarded.');
-        scene.note(`🏳️ Sworn to ${kingdom.name} · 📈 Reputation +20 · ⭐ Renown +5`, 'good');
-        if (oldKingdom) scene.note(`📉 Reputation −${desertion} with ${oldKingdom.name}`, 'bad');
+        scene.note(`🏳️ Sworn to ${Names.realm(kingdom.name)} · 📈 Reputation +20 · ⭐ Renown +5`, 'good');
+        if (oldKingdom) scene.note(`📉 Reputation −${desertion} with ${Names.realm(oldKingdom.name)}`, 'bad');
         _after(game, state);
     }, 900);
 }
@@ -493,7 +494,7 @@ function _renounce(game, state, { kingdom, lord }) {
         scene.seal('Oath', 'Broken', false);
         scene.npc(_has(lord, 'cruel') ? 'You dare betray me? You will regret this.'
             : 'So be it. Leave, and do not expect our welcome again.');
-        scene.note(`💔 Reputation −25 with ${kingdom.name}`, 'bad');
+        scene.note(`💔 Reputation −25 with ${Names.realm(kingdom.name)}`, 'bad');
         _refreshMood(game, state);
         game.ui.updateStats(player, game.world);
         scene.leave(1400);
@@ -542,14 +543,14 @@ function _demandTribute(game, state, { kingdom, lord }) {
             NPCLords.rememberDeed(game.world, lord, 'extorted', { note: `${gold} gold` });
             scene.npc(_has(lord, 'cruel') ? '*throws down a chest* You will pay for this humiliation… in time.'
                 : '*throws down a chest* Take it and be gone, brigand.');
-            scene.note(`💰 +${gold} gold · 📉 Reputation −30 with ${kingdom.name} · Karma −5`, 'gold');
+            scene.note(`💰 +${gold} gold · 📉 Reputation −30 with ${Names.realm(kingdom.name)} · Karma −5`, 'gold');
         } else {
             _addRep(player, kingdom.id, -15);
             player.karma = (player.karma || 0) - 3;
             NPCLords.rememberDeed(game.world, lord, 'threat');
             scene.npc(_has(lord, 'brave') ? 'You think I fear you? Guards! Remove this fool!'
                 : 'I… I will not be intimidated! Guards!');
-            scene.note(`📉 Reputation −15 with ${kingdom.name} · Karma −3 · You are driven off`, 'bad');
+            scene.note(`📉 Reputation −15 with ${Names.realm(kingdom.name)} · Karma −3 · You are driven off`, 'bad');
         }
         _refreshMood(game, state);
         game.ui.updateStats(player, game.world);
@@ -625,8 +626,8 @@ function _askRealm(game, state, { kingdom, lord }) {
                 : _has(lord, 'honorable') ? 'We are a people of honour. You will see it, should you travel our lands.'
                     : _has(lord, 'cunning') ? 'Knowledge is the truest weapon. Use what I tell you wisely.'
                         : 'Now you will know something of us. May it serve you well.');
-        scene.card(`<div class="npc-scene-card-title">📜 Tales of ${kingdom.name}</div>${tales}`);
-        scene.note(`📖 Learned of ${kingdom.name}${learned.length ? `: ${learned.join(', ')}` : ''} · 📈 Reputation +2`, 'info');
+        scene.card(`<div class="npc-scene-card-title">📜 Tales of ${Names.realm(kingdom.name)}</div>${tales}`);
+        scene.note(`📖 Learned of ${Names.realm(kingdom.name)}${learned.length ? `: ${learned.join(', ')}` : ''} · 📈 Reputation +2`, 'info');
         _after(game, state);
     }, 700);
 }
@@ -646,7 +647,7 @@ function realmTalesHtml(game, kingdom, detailLevel) {
     let html = '';
     // ── 1. The Peoples ──
     html += `<div style="${TALE_CARD}">`;
-    html += `<div style="${TALE_HEAD}">🏛️ The Peoples of ${kingdom.name}</div>`;
+    html += `<div style="${TALE_HEAD}">🏛️ The Peoples of ${Names.realm(kingdom.name)}</div>`;
 
     if (typeof Peoples !== 'undefined') {
         const tribes = Peoples.getTribesForCulture(kingdom.culture);

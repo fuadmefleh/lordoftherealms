@@ -64,6 +64,7 @@ import { Heirs } from './heirs.js';
 import { Ledger } from './ledger.js';
 import { NpcMemory } from './npcMemory.js';
 import { Interrupts } from '../core/interrupts.js';
+import { Names } from '../core/names.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -440,7 +441,7 @@ export const Nemesis = {
             const v = NPCLords.vendettaOf(k.lord, day);
             if (v.weight < B.lordVendetta || !v.causes.length) continue;
             const c = v.causes[0];
-            out.push({ kind: 'lord', ref: { kingdomId: k.id }, name: k.lord.name || k.ruler || `the lord of ${k.name}`, line: k.name, score: v.weight, deed: { key: c.key, label: c.label, note: c.note } });
+            out.push({ kind: 'lord', ref: { kingdomId: k.id }, name: k.lord.name || k.ruler || `the lord of ${Names.realm(k.name)}`, line: k.name, score: v.weight, deed: { key: c.key, label: c.label, note: c.note } });
         }
         const rivals = (player.house && player.house.rivals) || {};
         for (const r of Object.values(rivals)) {
@@ -1000,7 +1001,7 @@ export const Nemesis = {
         if (!player.reputation) player.reputation = {};
         player.reputation[realm.id] = _num(player.reputation[realm.id]) - n;
         player.renown = Math.max(0, _num(player.renown) - _num(A.renown));
-        return { outcome: 'struck', text: _fill(Nemesis._text('acts', 'slander'), { name: nm.name, place: place ? place.label : 'the towns', realm: realm.name, n }) };
+        return { outcome: 'struck', text: _fill(Nemesis._text('acts', 'slander'), { name: nm.name, place: place ? place.label : 'the towns', realm: Names.realm(realm.name), n }) };
     },
 
     _doSuit(player, world, nm, moment) {
@@ -1016,9 +1017,9 @@ export const Nemesis = {
             player.gold -= fine;
             Ledger.record(player, 'nemesisSuit', -fine);
             Nemesis._pay(player, world, nm, fine);
-            return { outcome: 'struck', text: _fill(Nemesis._text('acts', 'suitWon'), { name: nm.name, realm: realm.name, n: fine }) };
+            return { outcome: 'struck', text: _fill(Nemesis._text('acts', 'suitWon'), { name: nm.name, realm: Names.realm(realm.name), n: fine }) };
         }
-        return { outcome: 'foiled', text: _fill(Nemesis._text('acts', 'suitLost'), { name: nm.name, realm: realm.name }) };
+        return { outcome: 'foiled', text: _fill(Nemesis._text('acts', 'suitLost'), { name: nm.name, realm: Names.realm(realm.name) }) };
     },
 
     _doScheme(player, world, nm) {
@@ -1078,7 +1079,7 @@ export const Nemesis = {
         Nemesis._pay(player, world, nm, -A.cost);
         k.treasury = _num(k.treasury) + A.cost;
         NPCLords.rememberDeed(world, k.lord, 'nemesis_poison', { note: nm.name, weight: A.deedWeight, day });
-        return { outcome: 'struck', text: _fill(Nemesis._text('acts', 'allies'), { name: nm.name, lord: k.lord.name || 'the lord', realm: k.name }) };
+        return { outcome: 'struck', text: _fill(Nemesis._text('acts', 'allies'), { name: nm.name, lord: k.lord.name || 'the lord', realm: Names.realm(k.name) }) };
     },
 
     _doAssassin(player, world, nm, moment) {
@@ -1202,7 +1203,7 @@ export const Nemesis = {
         player.reputation[realm.id] = _num(player.reputation[realm.id]) + A.rep;
         nm.dueDay = _num(nm.dueDay, _day(world)) + A.stayDays;
         nm.hatred = Math.min(100, _num(nm.hatred) + A.hatred);
-        const text = `You lay the proof of ${nm.name}'s treachery before the court of ${realm.name}. Your standing there rises; ${nm.name} must lie low a while, and hates you the more for it.`;
+        const text = `You lay the proof of ${nm.name}'s treachery before the court of ${Names.realm(realm.name)}. Your standing there rises; ${nm.name} must lie low a while, and hates you the more for it.`;
         nm.acts.unshift({ day: _day(world), kind: 'accused', text, outcome: 'yours' });
         Nemesis._chronicle(player, world, text);
         return { success: true, text };

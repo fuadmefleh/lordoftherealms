@@ -6,6 +6,7 @@
 import { ActionMenu } from './_ref.js';
 import { Discovery } from './_imports.js';
 import { BTN_GOLD, BTN_DARK, CARD } from './uiKit.js';
+import { Names } from '../../core/names.js';
 
 const HEAD = 'font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin: 10px 0 4px;';
 
@@ -59,7 +60,7 @@ function _siteCard(player, world, site) {
     const acts = [];
     if (!Discovery.gatherReason(player, world, site)) acts.push(`<button onclick="window._disc.gather('${site.id}')" style="${BTN_GOLD}">🧺 Gather</button>`);
     const offer = Discovery.archiveOffer(player, world, site);
-    if (!offer.reason) acts.push(`<button onclick="window._disc.sell('${site.id}')" style="${BTN_GOLD}">📜 Sell chart to ${_esc(offer.kingdom.name)} (${offer.price}g)</button>`);
+    if (!offer.reason) acts.push(`<button onclick="window._disc.sell('${site.id}')" style="${BTN_GOLD}">📜 Sell chart to ${_esc(Names.realm(offer.kingdom.name))} (${offer.price}g)</button>`);
     const colonyWhy = Discovery.colonyReason(player, world, site);
     if (!colonyWhy) acts.push(`<button onclick="window._disc.colony('${site.id}')" style="${BTN_GOLD}">🏕️ Found a colony here</button>`);
     if (acts.length) html += `<div style="margin-top:4px;">${acts.join('')}</div>`;

@@ -7,6 +7,7 @@ import { Kingdom } from './kingdom.js';
 import { WEATHER_EFFECTS } from './weather.js';
 import { Seasons } from './seasons.js';
 import { Economy } from './economy.js';
+import { Names } from '../core/names.js';
 
 export const WorldEvents = {
     /**
@@ -122,7 +123,7 @@ export const WorldEvents = {
                 }
                 break;
             case 'plague':
-                text = `The ${Utils.randPick(['Red', 'Black', 'Blue', 'Shadow'])} Plague ravaged the lands of ${kingdom.name}.`;
+                text = `The ${Utils.randPick(['Red', 'Black', 'Blue', 'Shadow'])} Plague ravaged the lands of ${Names.realm(kingdom.name)}.`;
                 break;
             case 'founding':
                 text = `${kingdom.name} established a new major settlement during a period of expansion.`;
@@ -131,7 +132,7 @@ export const WorldEvents = {
                 text = `A massive ${Utils.randPick(['earthquake', 'flood', 'volcanic eruption', 'drought'])} struck ${kingdom.name}.`;
                 break;
             case 'discovery':
-                text = `Scholars in ${kingdom.name} discovered ${Utils.randPick(['ancient texts', 'new agricultural techniques', 'a new star', 'magical artifacts'])}.`;
+                text = `Scholars in ${Names.realm(kingdom.name)} discovered ${Utils.randPick(['ancient texts', 'new agricultural techniques', 'a new star', 'magical artifacts'])}.`;
                 break;
             case 'golden_age':
                 text = `${kingdom.name} entered a Golden Age of prosperity and art.`;

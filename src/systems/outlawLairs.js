@@ -56,6 +56,7 @@ import { PlayerMilitary } from '../player/playerMilitary.js';
 import { House } from './house.js';
 import { Traits } from './traits.js';
 import { Underworld } from './underworld.js';
+import { Names } from '../core/names.js';
 
 const WATER = new Set(['ocean', 'deep_ocean', 'coast', 'lake', 'sea']);
 const TYPE_WEIGHT = { village: 3, hamlet: 3, town: 2, city: 1, capital: 0.4 };
@@ -845,7 +846,7 @@ export const OutlawLairs = {
                     settlementName: null,
                     q: lair.q, r: lair.r,
                     daysLeft: _num(R.eventDays, 3),
-                    text: `${lair.leader.name}'s outlaws of ${lair.name} prey on the roads of ${kingdom.name}.`,
+                    text: `${lair.leader.name}'s outlaws of ${lair.name} prey on the roads of ${Names.realm(kingdom.name)}.`,
                     lairId: lair.id,
                 };
                 world.activeEvents.push(ev);

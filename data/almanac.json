@@ -1,0 +1,16 @@
+{
+    "_doc": "The Almanac of the World (systems/almanac.js, ui/actionMenu/almanac.js): a searchable, cross-linked encyclopedia over what the game already records. `cats` are the Almanac's parts (its tabs), in order. `caps` bound its lists so a long save stays quick: `townsfolk` acquaintances and `npcs` known people indexed, `lines` kept per page, `houseHistory` House Chronicle lines read, `search` results, `list` rows shown before 'Show more', `townAnnals` lines of a town's talk, `memories` remembered deeds shown per person or town. `eras` name the town eras (data/townEras.json ids). `kinds` are the entries' icons. `battleKinds` are the Timeline events that become battle pages. Names shorter than `minNameLength` are not linked in text.",
+    "cats": [
+        { "id": "person", "label": "People", "icon": "👤" },
+        { "id": "house", "label": "Houses", "icon": "🛡️" },
+        { "id": "place", "label": "Places", "icon": "🏘️" },
+        { "id": "realm", "label": "Realms", "icon": "👑" },
+        { "id": "war", "label": "Wars & Battles", "icon": "⚔️" },
+        { "id": "age", "label": "Ages", "icon": "🌋" },
+        { "id": "work", "label": "Great Works", "icon": "🏛️" }
+    ],
+    "caps": { "townsfolk": 240, "npcs": 160, "lines": 40, "houseHistory": 80, "search": 50, "list": 80, "townAnnals": 14, "memories": 8 },
+    "eras": { "hearth": "the Hearth Age", "timber": "the Timber Age", "stone": "the Age of Stone", "guild": "the Guild Age" },
+    "battleKinds": ["battle", "siege", "taken"],
+    "minNameLength": 4
+}

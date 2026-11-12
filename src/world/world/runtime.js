@@ -1,6 +1,7 @@
 // World — runtime methods.
 import { World } from './core.js';
 import { Terrain, Kingdom, WeatherSystem, NPCLords, Hex, Utils, WorldEvents, WorldUnit, Characters, Religion, Culture, Peoples, Colonization, Cartography, KingdomAI, Dawn, Barter, Shipcraft, Castles } from './_imports.js';
+import { Names } from '../../core/names.js';
 
 Object.assign(World.prototype, {
     /**
@@ -109,8 +110,15 @@ Object.assign(World.prototype, {
         }
 
         // Process kingdom AI turns
-        for (const kingdom of this.kingdoms) {
-            if (kingdom.isAlive) {
+        // (the distant years, player/afterlife.js: each realm's turn once every realmEvery
+        // days, staggered by realm, worked as that many days — KingdomAI.processTurn)
+        const realmEvery = this._distant ? Math.floor(Number(this._distant.realmEvery) || 0) : 0;
+        for (let i = 0; i < this.kingdoms.length; i++) {
+            const kingdom = this.kingdoms[i];
+            if (!kingdom.isAlive) continue;
+            if (realmEvery > 1) {
+                if ((this.day + i) % realmEvery === 0) KingdomAI.processTurn(kingdom, this, opts.playerBonuses || {}, realmEvery);
+            } else {
                 KingdomAI.processTurn(kingdom, this, opts.playerBonuses || {});
             }
         }
@@ -171,7 +179,7 @@ Object.assign(World.prototype, {
         if ((this.day - 1) % 120 === 0) {
             for (const l of Shipcraft.yearly(this)) {
                 const name = String(l.tech).replace(/_/g, ' ');
-                this.events.push({ text: `⚓ The shipwrights of ${l.kingdom.name} have learned ${name}.`, type: 'growth' });
+                this.events.push({ text: `⚓ The shipwrights of ${Names.realm(l.kingdom.name)} have learned ${name}.`, type: 'growth' });
             }
         }
 

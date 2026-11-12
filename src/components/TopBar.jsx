@@ -73,9 +73,10 @@ export default function TopBar() {
               <span className="civ-dd-icon"><Icon name="person" /></span>
               <span className="civ-dd-text">Character</span>
             </button>
-            <button className="civ-dropdown-item" id="btnInventory">
+            <button className="civ-dropdown-item" id="btnInventory" title="Inventory (I)">
               <span className="civ-dd-icon"><Icon name="satchel" /></span>
               <span className="civ-dd-text">Inventory</span>
+              <kbd className="civ-dd-key">I</kbd>
             </button>
             <button className="civ-dropdown-item" id="btnTreasury">
               <span className="civ-dd-icon"><Icon name="coins" /></span>
@@ -166,6 +167,10 @@ export default function TopBar() {
             <button className="civ-dropdown-item" id="btnAnnals">
               <span className="civ-dd-icon"><Icon name="book" /></span>
               <span className="civ-dd-text">The Annals</span>
+            </button>
+            <button className="civ-dropdown-item" id="btnAlmanac">
+              <span className="civ-dd-icon"><Icon name="book" /></span>
+              <span className="civ-dd-text">The Almanac</span>
             </button>
             <button className="civ-dropdown-item" id="btnTimeline">
               <span className="civ-dd-icon"><Icon name="map" /></span>

@@ -11,6 +11,7 @@ import { SoulPact } from '../../systems/soulPact.js';
 import { Fame } from '../../systems/fame.js';
 import { BackRooms } from '../../systems/backRooms.js';
 import { Utils, Hex, PlayerEconomy, MarketDynamics, Characters, Cartography, Religion, Gossip, Quests, Peoples, Sagas } from './_imports.js';
+import { Names } from '../../core/names.js';
 
 Object.assign(Tavern, {
     // ── Cost & Configuration ───────────────────────────────────────────
@@ -665,7 +666,7 @@ Object.assign(Tavern, {
                     rumors.push({
                         category: Tavern.CATEGORIES.KINGDOM_AFFAIRS,
                         icon: '🤝',
-                        title: `Friends of ${kingdom.name}`,
+                        title: `Friends of ${Names.realm(kingdom.name)}`,
                         text: `${kingdom.name} maintains good relations with ${friendlyKingdoms.map(k => k.name).join(', ')}.`,
                         reliability: Tavern.RELIABILITY.INFORMANT,
                         accurate: true,

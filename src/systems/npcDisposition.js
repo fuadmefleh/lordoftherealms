@@ -26,6 +26,7 @@ import { StreetCrime } from './streetCrime.js';
 import { Romance } from './romance.js';
 // (what a townsperson remembers of the player's House, years on: systems/npcMemory.js)
 import { NpcMemory } from './npcMemory.js';
+import { Names } from '../core/names.js';
 
 /**
  * What a flattered NPC actually hands over — aligned index-for-index with the
@@ -436,7 +437,7 @@ export const NpcDisposition = {
                 if (!kingdom) return { kind: 'reputation', summary: 'A kind word at court' };
                 if (!player.reputation) player.reputation = {};
                 player.reputation[kingdom.id] = (player.reputation[kingdom.id] || 0) + spec.amount;
-                return { kind: 'reputation', summary: `+${spec.amount} reputation with ${kingdom.name}` };
+                return { kind: 'reputation', summary: `+${spec.amount} reputation with ${Names.realm(kingdom.name)}` };
             }
             case 'reveal': {
                 const n = NpcDisposition._revealNearbyRegion(player, world);

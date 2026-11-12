@@ -11,6 +11,7 @@ import { ActionMenu } from './_ref.js';
 import { TimeSkip, SKIP_CHOICES } from '../timeSkip.js';
 import { Afterlife } from '../../player/afterlife.js';
 import { Seasons } from '../../world/seasons.js';
+import { StandingOrders } from '../../player/standingOrders.js';
 import { showMorningBrief } from './counsel.js';
 import { esc, lede, chips, rowList, card, price, sectionHead, more, BTN_GOLD, BTN_PLAIN } from './uiKit.js';
 
@@ -57,6 +58,43 @@ function _proseFor(game, skip, d) {
     });
 }
 const SHOWN = 40;
+
+/**
+ * The Wait panel's "Your spare hours" rows: each standing order, what it would
+ * do here on a full day (or why it can't, and you'd rest), the one set ticked.
+ */
+function _ordersSection(game, lodgeCheapest = false) {
+    const { world, player } = game;
+    const current = StandingOrders.get(player);
+    const fullDay = Math.max(Number(player.actionPoints) || 0, Number(player.maxActionPoints) || 10);
+    const rows = StandingOrders.list().map(o => {
+        const plan = StandingOrders.plan(player, world, { id: o.id, ap: fullDay });
+        const here = o.id === 'rest' ? esc(o.desc)
+            : plan.ok ? `Here: ${esc(plan.label)} · ${plan.ap} AP` : `<span style="color:#f0b35a;">Not here: ${esc(plan.why)}</span>`;
+        const on = o.id === current;
+        return {
+            icon: o.icon, name: on ? `<b>${esc(o.name)}</b>` : esc(o.name), desc: here,
+            side: on ? '<span style="color:#8fd18a;">✓ set</span>' : '<span style="font-size:10px;color:var(--text-secondary);">set</span>',
+            act: on ? null : 'setStandingOrder', args: on ? null : [o.id, !!lodgeCheapest], tone: on ? 'good' : '',
+            title: o.desc,
+        };
+    });
+    return '<div id="standingOrderRows"></div>' + rowList(rows, 'Your spare hours (standing order)')
+        + '<div style="font-size:11px;color:var(--text-secondary);margin:4px 0 6px;">At each day’s end, after seeing to yourself, the points left go on this — the real work at its real cost. Where it can’t be done, you rest.</div>';
+}
+
+/** The digest's card: what the standing order did over the skip. */
+function _ordersDigest(skip) {
+    const o = skip && skip.orders;
+    if (!o || !(o.ran + o.rested)) return '';
+    const gold = Math.round(o.gold || 0);
+    const head = `${_plural(o.ran, 'day')} carried out${o.rested ? `, ${_plural(o.rested, 'day')} rested` : ''}${gold ? ` · ${gold > 0 ? '+' : ''}${gold}g` : ''}`;
+    const rows = o.lines.slice(0, 12).map(l => ({
+        icon: esc(l.icon || ''), name: esc(l.text) + (l.count > 1 ? ` <span style="color:var(--text-secondary);">×${l.count}</span>` : ''),
+        tone: l.ran ? '' : 'warn',
+    }));
+    return card(rowList(rows), { title: 'Your standing order', icon: '📋', side: esc(head) });
+}
 
 function _plural(n, one, many = `${one}s`) {
     return `${n} ${n === 1 ? one : many}`;
@@ -128,6 +166,7 @@ Object.assign(ActionMenu, {
             }
             html += rowList(rows, 'Where you sleep');
         }
+        if (!can.interregnum) html += _ordersSection(game, lodgeCheapest);
         // (when the season turns on the same day as a fixed choice — a month from its first day —
         // the one row says so, not two rows ending the same day)
         const toSeason = TimeSkip.daysFor(world, 'season');
@@ -148,6 +187,21 @@ Object.assign(ActionMenu, {
         html += rowList(choices, 'How long');
         html += `<div style="font-size:11px;color:var(--text-secondary);margin-top:8px;">The wait stops early for a band on the road, a fight, a letter, an illness, a death in your House, hunger or exhaustion, a crisis — or press Stop / Escape.</div>`;
         game.ui.showCustomPanel('⏳ Pass the Time', html);
+    },
+
+    /** The Wait panel, scrolled to the standing-order selector (the HUD chip #simsOrder). */
+    showStandingOrders(game) {
+        ActionMenu.showWaitMenu(game);
+        const at = typeof document !== 'undefined' && document.getElementById('standingOrderRows');
+        if (at && typeof at.scrollIntoView === 'function') at.scrollIntoView({ block: 'start' });
+    },
+
+    /** Set the standing order (player/standingOrders.js) and show the Wait panel again. */
+    setStandingOrder(game, id, lodgeCheapest = false) {
+        const res = StandingOrders.set(game.player, id);
+        if (!res.ok) return;
+        refreshOrderChip(game);
+        ActionMenu.showWaitMenu(game, lodgeCheapest);
     },
 
     /** Let `choice` days pass (a number, or 'season'); `lodge` = a room to take each night. */
@@ -215,6 +269,7 @@ Object.assign(ActionMenu, {
         } else if (skip.cancelled) {
             html += card('<div>You stopped the wait.</div>', { title: 'Stopped', icon: '✋' });
         }
+        html += _ordersDigest(skip);
         if (d.important.length) {
             html += rowList(d.important.slice(-SHOWN).reverse().map(_entryRow), 'While the days passed…');
             if (d.important.length > SHOWN) html += `<div style="font-size:11px;color:var(--text-secondary);">…and ${d.important.length - SHOWN} earlier — all of it in the Event Log.</div>`;
@@ -258,6 +313,18 @@ export function installTimeSkipControls(game) {
             else ActionMenu.showWaitMenu(_game);
         });
     }
+    // The standing order's chip beside them: its icon; a click opens the selector
+    const order = document.getElementById('simsOrder');
+    if (order && !order._timeSkipWired) {
+        order._timeSkipWired = true;
+        order.addEventListener('click', () => {
+            if (!_game || _game._timeSkip) return;
+            ActionMenu.showStandingOrders(_game);
+        });
+    }
+    refreshOrderChip(game);
+    // (a loaded game, an heir, an order set from elsewhere: the chip follows the player)
+    if (!_orderTimer && typeof setInterval === 'function') _orderTimer = setInterval(() => refreshOrderChip(_game), 1500);
     const week = document.getElementById('simsSkipWeek');
     if (week && !week._timeSkipWired) {
         week._timeSkipWired = true;
@@ -275,6 +342,23 @@ export function installTimeSkipControls(game) {
 
 let _game = null;
 let _keysInstalled = false;
+let _orderTimer = null;
+
+/** The HUD chip (#simsOrder) shows the current standing order's icon and name. */
+export function refreshOrderChip(game) {
+    if (typeof document === 'undefined' || !game || !game.player) return;
+    const el = document.getElementById('simsOrder');
+    if (!el) return;
+    const o = StandingOrders.def(StandingOrders.get(game.player));
+    const last = game.player.standingOrder && game.player.standingOrder.last;
+    const key = `${o.id}|${last ? last.day : ''}`;
+    if (el.dataset.key === key) return;
+    el.dataset.key = key;
+    const span = el.querySelector('span') || el;
+    span.textContent = o.icon;
+    const why = last && !last.ran && last.id === o.id && last.why ? ` — last day: ${last.why}` : '';
+    el.title = `Standing order: ${o.name}${why}. Click to change.`;
+}
 
 function _onKey(e) {
     const game = _game;

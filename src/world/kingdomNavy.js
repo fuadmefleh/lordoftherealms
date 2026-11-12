@@ -163,8 +163,9 @@ export const KingdomNavy = {
      * Daily: count ports, set the cap, pay upkeep, build toward the cap or lay
      * up ships over it, and drop blockades that no longer apply.
      */
-    updateFleet(kingdom, world) {
+    updateFleet(kingdom, world, days = 1) {
         const n = KingdomNavy.ensure(kingdom);
+        const span = days > 1 ? Math.floor(days) : 1;
         const { ports, settlements } = KingdomNavy.survey(kingdom, world);
         n.ports = ports.length;
         n.settlements = settlements;
@@ -177,6 +178,8 @@ export const KingdomNavy = {
             n._init = true;
         }
 
+        // (`days`: the distant years — upkeep and building a day at a time on one survey of the ports)
+        for (let d = 0; d < span; d++) {
         // Upkeep — an unpaid fleet rots at its moorings
         const upkeep = Math.ceil(n.strength * CONFIG.upkeep);
         if (upkeep > 0) {
@@ -195,6 +198,7 @@ export const KingdomNavy = {
                 CrownBooks.spendAtCapital(world, kingdom, cost); // (the shipwrights are paid)
                 n.strength += want;
             }
+        }
         }
 
         // Blockades end with the war, or when there are no ports left to hold

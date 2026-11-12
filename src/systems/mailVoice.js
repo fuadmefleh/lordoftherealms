@@ -64,6 +64,7 @@ import { Upbringing } from './upbringing.js';
 import { NpcBrain } from './npcBrain.js';
 import { Whispers } from './whispers.js';
 import { Illness } from './illness.js';
+import { Names } from '../core/names.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -184,7 +185,7 @@ export const MailVoice = {
                 W.old = _num(lord.age) >= 60;
                 W.major = true;
                 W.sigName = lord.name || (k && k.ruler) || to.name;
-                W.sigStyle = k ? `of ${k.name}` : '';
+                W.sigStyle = k ? `of ${Names.realm(k.name)}` : '';
                 W.town = { ...W.town, name: to.place || W.town.name };
                 break;
             }

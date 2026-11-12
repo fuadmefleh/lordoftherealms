@@ -37,6 +37,7 @@ import { Religion } from '../systems/religion.js';
 import { Kingship } from '../systems/kingship.js';
 import { Gangs } from '../systems/gangs.js';
 import { Guilds } from '../systems/guilds.js';
+import { Names } from '../core/names.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = v => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -389,7 +390,7 @@ export const StartKnowledge = {
         return {
             id: `map_war_${k.id}_${enemy.id}`, type: 'kingdom', name: `Map of ${enemy.name}`, icon: '👑', quality: 'detailed',
             accuracy, centerQ: enemy.capital.q, centerR: enemy.capital.r, radius,
-            createdDay: _day(world), createdBy: `the map-room of ${k.name}`, value: 120,
+            createdDay: _day(world), createdBy: `the map-room of ${Names.realm(k.name)}`, value: 120,
             tiles, kingdomId: enemy.id, charted: false, deliberateErrors: [], isPropaganda: false, isStolen: false, isAncient: false,
             notes: `The crown's own map of ${enemy.name}, given to its general.`,
         };

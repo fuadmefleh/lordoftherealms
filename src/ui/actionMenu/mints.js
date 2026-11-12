@@ -14,6 +14,7 @@ import { Underworld } from '../../systems/underworld.js';
 import { PlayerInventory } from '../../core/inventory.js';
 import { BTN_GOLD, BTN_DIM, panelTabs, intelBadge, closedBooks, lede, bullets, chips, purse, sectionHead, card, actRow, rowList, price } from './uiKit.js';
 import { RealmIntel } from '../../systems/realmIntel.js';
+import { Names } from '../../core/names.js';
 
 const NOTE = 'font-size: 11px; color: #9d937c;';
 // A quiet table: the head in the section-head voice, hairline row rules
@@ -156,7 +157,7 @@ function crownTab(game) {
     const rec = MoneySupply.ensureRealm(world, k);
     const P = Mints.config().mint.policies;
     const purity = k.finance && k.finance.purity != null ? k.finance.purity : 1;
-    let html = lede(`<b>The mint of ${esc(k.name)}</b>.`);
+    let html = lede(`<b>The mint of ${esc(Names.realm(k.name))}</b>.`);
     html += chips([
         ['', 'Silver', `${Math.round(purity * 100)}%`],
         // (the coin in hand: old finer pieces not yet restruck, and the clipping — world/moneySupply.js fineness)
@@ -211,7 +212,7 @@ function coinersTab(game, tile) {
     for (const stake of [C.minStake, Math.round((C.minStake + C.maxStake) / 2), C.maxStake]) {
         const q = Mints.counterfeitQuote(player, world, tile, stake);
         if (!q.ok) { stop = `<div style="${NOTE}">${esc(q.reason)}</div>`; break; }
-        const desc = `Stake ${q.stake}g → clear ${q.gain}g · ${Math.round(q.chance * 100)}% chance of the watch (heat in ${esc(q.kingdom.name)} ${Math.round(Underworld.getHeat(player, q.kingdom.id))})`;
+        const desc = `Stake ${q.stake}g → clear ${q.gain}g · ${Math.round(q.chance * 100)}% chance of the watch (heat in ${esc(Names.realm(q.kingdom.name))} ${Math.round(Underworld.getHeat(player, q.kingdom.id))})`;
         rows.push({
             icon: '🕯️', name: `Pass ${q.stake}g of false coin`, desc,
             act: 'mintAct', args: ['counterfeit', q.stake], off: player.gold < q.stake, why: `${desc} · your purse is short`,

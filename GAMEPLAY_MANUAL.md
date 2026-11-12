@@ -52,6 +52,7 @@ Welcome to **Lord of the Realms**, a deep hex-grid strategy game where you begin
     - [The Annals: Your Story as a Book](#the-annals-your-story-as-a-book)
     - [The Illustrated Chronicle](#the-illustrated-chronicle) — the Annals saved as a book: arms, portraits, maps of the realm through the years, the family tree; HTML or PDF
     - [The Timeline of the Realm](#the-timeline-of-the-realm) — the world map season by season: borders as they were, battles, sieges, crises, crowns and towns, a year slider with play, a strip of ages, reigns and wars
+    - [The Almanac of the World](#the-almanac-of-the-world) — a searchable, cross-linked encyclopedia of the people, Houses, places, realms, wars, ages and great works on record
     - [Townsfolk at Work](#townsfolk-at-work-trades-wages-and-service) — trades, ranks, wages and spending, hiring servants, guards and hands · [Meals and Sleep in Town](#meals-and-sleep-in-town)
     - [Townsfolk Families, Ageing and School](#townsfolk-families-ageing-and-school) — pregnancy, births, orphans, inheritance, grey hair; schools, literacy, giving to and founding schools
     - [Sickness in the Towns](#sickness-in-the-towns) — colds to plague among the townsfolk, contagion, healers, quarantine; paying the healer, alms, nursing by hand · [Townsfolk Brawls](#townsfolk-brawls) — grudges, tavern fights, the crowd and the watch; cheer, bet, break it up or join in
@@ -85,6 +86,7 @@ Welcome to **Lord of the Realms**, a deep hex-grid strategy game where you begin
     - [Ironman and the Hall of Houses](#ironman-and-the-hall-of-houses) — one save you cannot load back; every ended House kept across games, and the legacy starts and heirlooms it earns
 30. [Controls & UI](#30-controls--ui)
     - [Pass the Time](#pass-the-time-letting-days-go-by) — wait a day to a season at once; where you sleep; what cuts the wait short; the digest
+    - [Standing Orders](#standing-orders-what-the-spare-hours-go-on) — what each day's spare points go on: work, holdings, training, foraging and fishing, drill, prayer; falling back to rest
     - [The Steward's Counsel](#the-stewards-counsel): the advisor that ranks today's threats, opportunities and goals, with a morning brief
     - [The AI Brain](#the-ai-brain-voiced-townsfolk-and-the-in-browser-model) — optional model-voiced townsfolk and letters: llama.cpp, OpenAI or a model run in the browser (WebLLM) · [The Court Scribe's Pen](#the-court-scribes-pen) — the model retells the chronicle, epitaphs, letters and heralds, from the facts only
 31. [Tips & Strategies](#31-tips--strategies)
@@ -2067,6 +2069,37 @@ Routes auto-dispatch when goods are available, based on a configurable frequency
 
 Every smuggling run raises **heat** with the destination's crown (more if intercepted — see [The Underworld](#the-underworld)). Running goods into a **blockaded** realm pays half again as much (more if its port is sealed by enemy fleets) but adds 15% to the catch chance; the **lean season** adds another 15% to the take.
 
+### Trade Lines: Standing Caravan and Ship Routes
+
+A **trade line** puts a caravan, or one of your ships, on a loop of two to six stops. It goes round from the first stop (its **home**) to each stop in turn and back home, again and again, until you pause it or wind it up. Open **Trade Lines** from Market → Caravans & Ships in any town, from the Fleet Overview, or from the Treasury's trade routes.
+
+**Orders at each stop.** Each stop has up to eight orders, carried out in this order on arrival: sell, then supply, then load, then buy.
+
+| Order | What it does |
+|-------|--------------|
+| **Buy** *good*, up to *qty* aboard, at *price* or less | Buys while the next unit costs no more than the price, until *qty* are aboard, the hold is full, the stock runs out or the purse runs low |
+| **Sell** *good* at *price* or more, keeping *keep* | Sells while the next unit fetches at least the price, keeping *keep* aboard (a ship's crew eats from the hold) |
+| **Supply** *good*, *qty* a visit | Delivers to your workshop on that hex whose recipe uses it (its inputs), or to a town you hold (food into its granary, other goods into its stores). 0 delivers everything aboard |
+| **Load** *good* | Takes what your property on that hex has made out of its store |
+
+**It trades with the real towns.** Prices move as the line trades: every unit bought takes the town's stock and costs a little more than the last, every unit sold adds to it and fetches a little less. Purchases are paid into the town's purse; sales are paid out of it, and a town short of coin buys only what it can pay for. Crown duties, guild tolls, monopolies, export bans and embargoes all apply as when you trade in person. When a price rule stops a deal, the line keeps the goods and writes down why.
+
+**Caravans.** Hiring the wagons costs 120g, paid to the town where they are hired. The drovers draw 3g a day on the road, paid to the line's home town. The wagons carry 60 loads, and a leg may be at most 25 hexes. On the map they are a caravan unit: a road joining the stops speeds them and its wardens see off half of all robbers, but raiders can still take them. A robbed caravan loses everything aboard to the robbers. The loss goes in the ledger and to the underwriters, and new wagons must be hired. After two robberies running, the drovers refuse the road until you resume the line. If the drovers go three days unpaid, they stop at the next stop.
+
+**Ships.** A ship line uses one of your ships between harbours. It sails by the ordinary rules: crew wages and upkeep, storms that wash cargo overboard, hostile fleets near their ports. It trades from her own hold. While you are aboard, she sails at your command, not the line's.
+
+**Tolls.** Crossing into another realm, the line pays that crown a toll of about 3% of the cargo's worth, or the realm's tariff if that is higher. A trade treaty waives the toll; an embargo doubles it. A caravan also pays every toll road, toll bridge or canal lock on its road (that work's rate on the cargo's worth, once a leg), to the work's owner. Your own works let it through free.
+
+**Coin.** Purchases, wages and tolls come out of your purse, and sales go back into it. Nothing but goods rides on the wagons. You can set a reserve so a line never buys below a given amount in your purse.
+
+**Away from home.** If you are more than 8 hexes from every one of its stops, a line finishes its round and waits at home for your word. You can **send it round once more**, or name a **Master of the Lines** in the Stewards panel to keep the lines running while you are away. Their stewardship skill helps them haggle (about ½% better prices per point above 5). The *Drive hard bargains* order adds 2% more. A dishonest master keeps back part of the takings, which an audit can find.
+
+**The ledger.** Each line keeps its last 12 rounds. A round shows what was sold and bought, the wages, crew, tolls and wagons it cost, the goods lost and the goods delivered to your own property. It also lists the net result and notes on why goods were kept back. The running totals appear on the line's page. When the line comes home, one notice sums up the round; robberies and stoppages get their own notices. Margins show in the Merchant's Ledger under *Trade lines*. Wages and wagon hire get their own lines there.
+
+**When the House passes.** An heir takes the lines on as they stand, wagons, ships, ledgers and the Master of the Lines with them. A line left untended while the House waits for an heir picks up where it was; wagons that wandered set off for their stop again. When the House ends (a new life, or a death with no heir), every line is wound up. What the wagons carry goes into the estate and is sold where it lies. A ship keeps her hold.
+
+Arbitrage closes as you trade: hauling grain from a glut to a dearth pays well at first, then less as your loads fill the dearth and drain the glut. Watch the ledger and adjust the price rules as the markets move.
+
 ### Merchant Houses: the Trading Company
 
 Caravans and routes are trade you run yourself. In the mid and late game you can found a **trading company**: a chartered house with its own name, capital, ledger and reputation, factors working for it in distant towns, supply contracts from the crowns, and rival merchant houses competing for the same markets. Open it from **Trading Company** in any town's action menu (shown once you have 1,500 gold, a charter, a royal office or a company).
@@ -3454,7 +3487,7 @@ With a ship docked at a port, **Port Market** (free) buys trade goods — spices
 - **Imports** — the port doesn't sell it but pays a premium (115–150% of base).
 - **Local market** — buys and sells around the base price (90–110%), with a spread.
 
-Port prices are on the **same scale as the land economy**: each good's base price is its land base price (silk 80, spices, wine and ivory 45, gems 60, iron 20, timber and fish 8), moved by the season as on land. For goods the town keeps in its own store (fish, timber, iron, gems, spices, wine), the port starts from what the town's stock makes them worth. A town with a glut exports the good, and a town in dearth imports it. Cargo you buy comes out of the town's store first, and cargo you land goes into it, so a big cargo of something the town already has fetches less a unit. Other roles are fixed per port; prices drift every 7 days. A town whose own market stocks a good (timber, gems) never imports it by sea. Buy where a good is exported, sail, and sell where it's imported. The margin comes from **distance and risk**: days of wages, upkeep and rations, storms, pirates and royal fleets, blockades and the season. The hold's cargo capacity caps how much each run carries. Carrying an export inland pays about what the land markets pay (70% of base), so it's no shortcut.
+Port prices are on the **same scale as the land economy**: each good's base price is its land base price (silk 80, spices, wine and ivory 45, gems 60, iron 20, timber and fish 8), moved by the season as on land. For goods the town keeps in its own store (fish, timber, iron, gems, spices, wine), the port starts from what the town's stock makes them worth. A town with a glut exports the good, and a town in dearth imports it. Cargo you buy comes out of the town's store first, and cargo you land goes into it, so a big cargo of something the town already has fetches less a unit. The coin is the town's too: what you pay goes into its purse (a barter town takes it in kind), and what it pays you comes out of its purse, the crown's duty inside it. A port with too little coin refuses the sale. Other roles are fixed per port; prices drift every 7 days. A town whose own market stocks a good (timber, gems) never imports it by sea. Buy where a good is exported, sail, and sell where it's imported. The margin comes from **distance and risk**: days of wages, upkeep and rations, storms, pirates and royal fleets, blockades and the season. The hold's cargo capacity caps how much each run carries. Carrying an export inland pays about what the land markets pay (70% of base), so it's no shortcut.
 
 **No buy-and-sell-back.** No outlet (a port, the town market, a fence or the black market) pays more for a good than it costs to buy on the same tile **or in a settlement on the next hex**.
 
@@ -4828,24 +4861,67 @@ Stats cap at 14 and skills at 8 during childhood.
 
 **Tutors.** A tutor multiplies the growth. The full bonus applies when their subject matches the focus; otherwise only 30% of it does.
 
-- *Court tutors* cost gold up front plus a monthly wage, paid every 30 days. An unpaid tutor leaves. The Hedge Tutor teaches all subjects (×1.25, 40g + 6g a month). The Master-at-Arms, Retired Steward, Court Envoy, Court Scholar, Whisperer and House Chaplain each teach one focus (×1.8–1.9, 120–180g + 14–22g a month). Each also passes on some of their own character: the Master-at-Arms breeds bravery, the Whisperer cunning.
+- *Tutors of flesh and blood* (see [Raising Them Yourself](#raising-them-yourself)) are real people — courtiers, people you know, the townsfolk of the town you stand in — paid a monthly wage into their own purse.
+- *Masters for hire* cost gold up front plus a monthly wage, paid every 30 days into the treasury of the realm you stand in (else the realm you serve or rule). An unpaid tutor leaves. The Hedge Tutor teaches all subjects (×1.25, 40g + 6g a month). The Master-at-Arms, Retired Steward, Court Envoy, Court Scholar, Whisperer and House Chaplain each teach one focus (×1.8–1.9, 120–180g + 14–22g a month). Each also passes on some of their own character: the Master-at-Arms breeds bravery, the Whisperer cunning.
 - *A companion* travelling with you teaches for free. Their occupation decides the subject: knights and guards teach martial arts, merchants stewardship, scholars and healers learning, priests piety, and so on. Their mood and their friendships in the party scale the bonus, re-checked every month: a content companion teaches at ×1.7 when they have a subject (×1.2 otherwise), a loyal or devoted one better still. A disgruntled or mutinous companion refuses to teach, and stops if their mood sours. Their values rub off: an honourable companion breeds honesty, a greedy one greed. They stop teaching when they leave your party.
 
 **Childhood events.** Every 40 days, each child aged 6–15 has a 45% chance of a dilemma for you to decide. The dilemmas are a bully, a fever, a prodigy moment, a scandal, a duel challenge, a religious calling, the first hunt, a beggar at the gate, the locked library, dice in the stables, the children's court, dreams of the sea, a sibling feud, a wandering mentor, a lie, and a harvest feast. Each choice shapes the child's skills, stats and character. Some choices cost gold and some are risky (⚠️): a fever left to run its course can weaken a child for life, or rarely kill them. Duels and hunts are contests of strength and combat skill. An event left unanswered for 20 days resolves itself with the household's default choice.
 
-**Character.** A child's personality grows from four sources: the focus, the tutor, your choices in their dilemmas, and **your example**. Each of your own earned traits has a 35% chance a year to rub off on each child. Once a tendency is strong enough it shows as a **childhood trait**. A child holds up to three, and of two opposites only the stronger counts. The panel also shows the traits still forming.
+**Character.** A child's personality grows from four sources: the focus, the tutor, your choices in their dilemmas, and **your example**. Each of your own earned traits has a 35% chance a year to rub off on each child — scaled by the child's **bond** with you, from half as likely (estranged) to half again as likely (devoted). Once a tendency is strong enough it shows as a **childhood trait**. A child holds up to three, and of two opposites only the stronger counts. The panel also shows the traits still forming.
 
 **Coming of age (16).** The child's childhood traits become fixed **adult traits**, their tutor is released, and the House chronicle records it. A grown child can then:
 
 - hold a **House office** (Steward, Marshal, Chancellor, Spymaster, Heir), which uses their skills;
-- make an **alliance match** into a kingdom's nobility: a 200 gold dowry, for +15 reputation with that kingdom and +4 Prestige;
-- make a **royal match** with an unwed prince or princess: 500 gold and 20 Prestige (needs 20 reputation), for +20 reputation and a claim of 15 on that throne;
+- make an **alliance match** into a kingdom's nobility: a 200 gold dowry (paid into that realm's treasury), for +15 reputation with that kingdom and +4 Prestige;
+- make a **royal match** with an unwed prince or princess: 500 gold (into that realm's treasury) and 20 Prestige (needs 20 reputation), for +20 reputation and a claim of 15 on that throne;
 - make a **match in town** with one of the townsfolk of the right sex, unwed and within 12 years of their age, from any town whose people you have walked among (people you have spoken with are listed first). There is no dowry. It costs 2 Prestige for marrying beneath the House, or gains 1 if the match is from a noble or merchant family. You gain +4 reputation with the town's realm, and the match's parents and siblings think 15 points better of you. The townsperson leaves home to live with the House (the town remembers: *"Wren Millbrook wed into House Vale in the spring of 861. Imagine that."*). If that child inherits, the townsperson becomes the new ruler's spouse;
 - be sent as a **ward** to a ruler's court for 120 days. A ward cannot hold an office while away. They return with +1 leadership, +1 diplomacy, +10 reputation with that realm, and often one of the host's traits: a devout ruler teaches piety, a cunning one cunning. Each child can be fostered once.
 
 Married and fostered children stay in the line of succession.
 
-**Succession.** The heir takes over with their own stats and skills, and their adult traits become real earned traits. A regency heir keeps the childhood traits they had. Like any earned trait, these can later be eroded by contrary deeds.
+**Succession.** The heir takes over with their own stats and skills, and their adult traits become real earned traits. A regency heir keeps the childhood traits they had. Like any earned trait, these can later be eroded by contrary deeds. Their coming-of-age summary goes with them as the ruler's own education.
+
+#### Raising Them Yourself
+
+Your own hand in a child's upbringing (`systems/raising.js`, tuned in `data/upbringing.json` → `raising`). Everything is on the child's page (**Dynasty → 📖 Upbringing**) and **Dynasty → 🎓 Wards at Court**.
+
+**Time together.** A few times a year you can spend a day with a child aged 3–15 who is at home: up to **3 days a year** per child, at least 20 days apart. Each pastime teaches, plants a little character and moves the child's **bond** with you (0–100, starting at 50). A pastime that uses one of your skills teaches at your level: from ×0.6 for a parent who knows nothing of it to ×1.8 for a master (8% per point above 3).
+
+| Pastime | Age | Teaches (per day) | Breeds | Bond |
+|---|---|---|---|---|
+| 🔥 Tales by the fire | 3+ | a little luck, cartography | your own character (20% + 0.4% per bond point: one of your earned traits takes root) | +9 |
+| 🎁 Spoil them | 3+ | — | Greedy (a little Generous) | +12 |
+| 🙏 Pray together | 5+ | faith (at your faith) | Pious | +6 |
+| 🪵 A hard lesson | 6+ | half a year of their focus at once | Honest, a little Cruel | −8 |
+| ♟️ Riddles and the chessboard | 7+ | intelligence, stealth (at your stealth) | Cunning | +5 |
+| 🗺️ Walk the land, read the maps | 7+ | cartography (at yours) | Wanderer | +6 |
+| 🏹 Take them hunting | 8+ | strength, combat, stealth (at your combat); 6% chance of a fall: −5 max health for life | Brave | +6 |
+| 📒 Go over the accounts | 8+ | intelligence, commerce (at your commerce) | Honest | +3 |
+| ⚔️ Spar in the yard | 9+ | strength, combat, leadership (at your combat) | Brave | +4 |
+| ⚖️ Hear petitions together | 10+ | charisma, diplomacy, leadership (at your leadership) | Merciful, Generous | +4 |
+
+Three days a year is worth about as much as a good tutor in one subject. **A child left alone** for a whole year drifts: their bond falls 1.5 a month (0.5 while fostered abroad) down to 15.
+
+**What the bond does.**
+- It scales how often your earned traits rub off (above).
+- At coming of age a child **close** to you (bond 70+) leans Merciful and Honest; an **estranged** one (25 or less) leans Cruel and restless (Wanderer).
+- At succession a close heir brings **+3 Prestige** (the court sees your work carried on); an estranged one costs **3**.
+
+**Tutors of flesh and blood.** The Tutor list on a child's page offers real people first:
+- your **courtiers** (they teach for half the usual wage);
+- **people you know** whose trade is a subject (knights, guards and soldiers teach martial arts; merchants and craftsmen stewardship; scholars and healers learning; priests piety; diplomats and nobles diplomacy…);
+- the **townsfolk of the town you stand in** — its priests, guards, merchants and nobles. Hiring one makes their acquaintance.
+
+Their **occupation** sets the subject. Their **skill** in it sets the pace: ×1 plus 0.11 per skill point, up to ×2.2 (scholarly or serious tutors a little better, fickle ones worse). Their **temper** passes on: a brave knight breeds bravery, a greedy merchant greed, a pious priest piety, a cunning one cunning. The wage is four days of what they would ask at court, paid each month **from your purse into theirs** (the first month up front). Unpaid, or gone from the world, they stop teaching. The child's page remembers every tutor and how many months they taught.
+
+**Wards at court.** A realm at peace with you whose standing with your House is 10 or more will send a child of its court to be raised at yours for 2 years — a real prince or princess aged 6–13 if it has one, else a child of its nobility. One ward at a time, plus one more per 120 Prestige (up to 3); one per realm, and a realm that sent one waits 240 days to send another.
+- Each month **its treasury pays you 10 gold** for their keep, and your standing there rises by 1 (up to +12).
+- Your own children within 4 years of the ward's age, at home, grow up beside them (a month counted each month). An heir raised 6+ months beside a ward gets **+1 standing with that realm per 3 months** (up to +8) at succession.
+- Sent home at the end: **+8 standing, +3 Prestige**, and that lord remembers *"You raised one of ours at your table"*. Sent home early: −4 standing.
+- **At war** with their realm the ward is a **hostage** in your keeping (no fee). Send them home through the lines and the realm is grateful: **+10 standing** and the same good memory.
+- A ward can sicken and die at your court (1% a year): **−25 standing** and a grief that lord remembers a long time.
+
+**Coming of age summary.** When a child comes of age you get an account of the childhood: what they gained since their education began, the tutors who taught them, the days you spent together, the bond, their traits, fosterage, wardmates and betrothal, and a grade (Exceptionally / Well / Adequately / Poorly schooled, by the points gained). It stays on their page, and if they inherit it becomes the ruler's own record.
 
 #### Playing the Heir Before They Inherit
 
@@ -4859,7 +4935,7 @@ What you do with your children while you live pays off when one of them succeeds
 - If the court comes to think ill of you (its regard falls to −30 in peacetime), it keeps the child as a **hostage**. A held child does not come home. Ransom them home by letter (Post); a fosterage cut short this way counts for nothing at succession. At open war the danger comes by letter instead: the child writes that they are afraid.
 - A grown child goes as a ward for a season instead (see above).
 
-**Betrothal (ages 4–15).** Promise a child to a realm's nobility. It costs half the alliance dowry (100 gold) and gives +8 reputation, and the lord remembers it. When the child comes of age the match is made, with the rest of the alliance's standing and Prestige. Breaking a betrothal costs 15 reputation and a lasting grudge. If the child is married elsewhere, the betrothal breaks itself.
+**Betrothal (ages 4–15).** Promise a child to a realm's nobility. The betrothal gift is half the alliance dowry (100 gold), paid into that realm's treasury; it gives +8 reputation, and the lord remembers it. When the child comes of age the match is made, with the rest of the alliance's standing and Prestige, and the **rest of the dowry** (another 100 gold) is paid into their treasury. If the House cannot pay it all, the wedding goes ahead short, at −6 standing. Breaking a betrothal yourself costs 15 reputation, **5 Prestige**, the gift (they keep it) and a lasting grudge. If the child is married elsewhere, the betrothal breaks itself the same way. If your realms are **at war for 60 days**, they break it — and send back the gift, as far as their treasury allows.
 
 **Kin are slow to turn on you.** A realm bound to your House by marriage (yours, or a child wed into it) counts only half its hostility toward a league against you. A realm bound by a betrothal counts three-quarters (see [Coalitions & Threats](#coalitions--threats)). The Threats panel shows the reason.
 
@@ -4884,6 +4960,8 @@ The child's outcomes come home as letters (✒️ in **Letters**). Writing back 
 | Taken captive | −3 Prestige each time |
 | Governed a holding 180+ days | +1 commerce, +3 Prestige |
 | Wed into a realm | Its lord counts the throne as kin (marriage memory), +3 Prestige |
+| Raised 6+ months beside a ward of a realm | +1 standing there per 3 months, up to +8 |
+| Close to you (bond 70+) / estranged (25 or less) | +3 / −3 Prestige |
 
 The new reign's chapter of the **Annals** opens with this life (*"Corin came to the seat with a life already lived: raised at the court of Maud of Arvenland; commanded the House's company in 3 battles…"*).
 
@@ -5172,6 +5250,17 @@ The whole world's history on one map, season by season. Open it from the top bar
 
 The record is kept from the first day of a new game, or from the day an older save is first loaded (nothing before that can be recovered). It keeps going while no one lives (the interregnum) and through every heir and new life. It is small: a map of the borders on the first day, then each season only the tiles that changed hands; past 480 seasons (or about 60 KB of border changes) the two closest seasons are merged, so the early centuries thin out evenly while every season still kept shows exactly what was. Up to 360 markers are kept (small battles and successions make way first), 400 towns and 160 wars. A century of play adds well under 100 KB to the save. (`systems/realmTimeline.js`, `ui/actionMenu/timeline.js`, `data/timeline.json`.)
 
+### The Almanac of the World
+
+An encyclopedia of everything the game has recorded, searchable and cross-linked. Open it from the top bar's **Journal → 📚 The Almanac** (beside the Annals and the Timeline) or from the Dynasty panel's **📚 The Almanac** row. It keeps nothing of its own: every page is read from the records described elsewhere in this manual, so it adds nothing to the save.
+
+- **The parts** (the tab bar): 👤 **People** — the House's whole lineage (rulers, spouses, children, siblings, the founder's parents), your courtiers and the people you know, the townsfolk you have spoken with, the ruling heads and the lords of every realm, the heads of the rival Houses and of your cadet branches, and your nemeses (living and past); 🛡️ **Houses** — yours, the rivals', your cadet branches; 🏘️ **Places** — every town standing and the towns the Timeline saw fall to ruin; 👑 **Realms** — risen and fallen, with their rulers over time; ⚔️ **Wars & Battles** — the wars between realms, the battles, sieges and towns taken on the Timeline, and your House's own battles; 🌋 **Ages** — the age-defining crises and the climate's eras; 🏛️ **Great Works**.
+- **Search** with the box at the top of the Index or of any part: every word must match (a name first, then what the page says of it) — "war Valdoria", "Ashford", "plague".
+- **A page** shows what is known in a card (dates, realm, culture, ruler, loyalty, feud, the town's era — Hearth, Timber, Stone or Guild Age — and so on), then **The record** (its dated lines, newest first: a town's fires, sacks, statues, cairns and plague pits, the eras it entered, the battles fought near it; a realm's rulers and names as they changed; a House's chronicle; a lord's memories of your House), the heavier parts read only when the page opens (a dynasty member's life told in full, with the deeds of the reign and the heirlooms they held; a townsperson's life, family and what they remember of your House; a town's talk and its memory of your House), and **See also**: every page it is linked to, by kind. Names of people, Houses, places and realms inside any line are links too.
+- **📍 See on the map** closes the Almanac and looks at the place; **🗺️ See on the Timeline** opens the Timeline of the Realm at that day, with the place ringed; **← Back** walks back through the pages read.
+
+The index is built when the Almanac is opened and kept for the rest of the day; long lists are capped (the first 80 rows, then **Show more**; at most 240 townsfolk and 160 other acquaintances indexed; 40 lines a page). Population is shown as it stands today — no record of a town's population over the years is kept. (`systems/almanac.js`, `ui/actionMenu/almanac.js`, `data/almanac.json`.)
+
 ---
 
 ## 19. Culture
@@ -5239,7 +5328,28 @@ Kingdoms commission their own cultural buildings (about once every three months,
 
 ### Founding Colonies
 
-You can found colonies on unclaimed wilderness (costs gold). Recruit settlers from other settlements to grow your colony's population.
+You can found colonies on unclaimed wilderness (costs gold). Recruit settlers from other settlements to grow your colony's population. Settlers drawn by a signboard or an incentive come from the nearest town within 15 hexes with more than 100 people, and that town loses them. If no town is near enough, none come. An empty colony outside any realm still takes in the settlers you recruit for it.
+
+### Founding a Village with Settlers
+
+The surest way to found a settlement is to send people out of a town. Choose **⛺ Found a Village** in the action menu at a town you hold. It also appears in the town you are standing in if its people will go with you, and you can open it from **Manage Holding** or the colony panel.
+
+1. **Whose people.** Up to 15% of a town you hold can go, and it always keeps at least 60 people. A town of a realm you rule counts as yours. A town that isn't yours lets up to 5% go, and only if you are standing in it, your reputation with its realm is at least −10 and its realm is not at war with yours. Each settler from such a town must be paid a purse of 8g. They take it with them, and it becomes the new village's first coin.
+2. **How many.** At least 10 and at most 60 people. The town's population drops by that many when they leave.
+3. **Where.** Click **Pick the site on the map**. A bar appears at the top of the screen; click any hex, or press Esc to cancel. The panel also lists the best open ground within 10 hexes. Each site is surveyed before anything is spent:
+   - **Allowed:** open, passable land that is not water, mountain, ice or snow. No settlement, ruin or works of yours may stand there. No other settlement may be within 3 hexes, and no other party may already be heading within 3 hexes. The site must be on the same landmass as the town and no more than 16 hexes away.
+   - **Other realms:** a hex claimed by another realm is refused within 3 hexes of any of that realm's towns. Further out in its borders you may settle, but the realm loses 8 relations with you.
+   - **Score:** the site is rated 0–5 stars on **food** (fertile ground, wheat, cattle, fish), **water** (a river, lake or shore), **timber** (forest within 2 hexes), **stone** (hills, quarries, iron, coal) and **trade** (a road nearby, the shore, a river, a town within a few days, valuable resources). The overall score weights food and water most heavily. The route the settlers will walk is drawn on the map.
+4. **The bill.** Each settler needs 3 grain, ¼ of a tool and 1 wood. These come from your own packs first. The rest is bought from the town's market at its current price; grain the market lacks is bought out of the town granary. The party cannot leave without enough grain, but it can go short of tools and wood. You also pay guides and carters 40g plus 4g per hex of the walk. The coin for the goods and the guides goes into the town's purse.
+5. **Send them** (6 AP). The settlers walk to the site as one party at about 2 hexes a day. They found the village on arrival. If someone else has taken the site in the meantime, they settle on the best free ground within 2 hexes, or go home with their goods. Your coin is returned if they go home.
+
+**The village.** It starts with only what the settlers brought. Their grain fills its granary, their tools and wood stock its market, and their purses are its coin. It belongs to you as a holding. It joins your realm if you rule one. If you are sworn to a liege, it joins the liege's realm when it stands on the liege's land or on unclaimed land. It then grows by the same rules as any other village:
+
+- It is fed by the food model. A holding outside any realm is fed too.
+- For its first 30 years it grows quickly, as frontier villages do at the dawn of the world: about 3% a season, slowing as it approaches the most people its land can feed.
+- It becomes a **town** once it has 450 people and is at least 12 years old. A village founded with 30 settlers takes about 20 years.
+- **Daughter villages.** Once a village you founded has 400 people, it may send 30 of its own people out to found another village 3–7 hexes away each year. They take grain from its granary, tools and wood from its stores, and a little of its purse. You can turn this off in the Found a Village panel. Villages in a realm you rule expand by the realm's own rules instead.
+- Three settlements held, with enough Prestige, let you **proclaim a realm** with one of them as its seat (see Claims & Crowns).
 
 ### Indigenous Tribes
 
@@ -5346,7 +5456,7 @@ Projects, governors, garrisons, unrest and rebellions are all saved with the gam
 
 You cannot ride to every seat you hold. Open **Dynasty → House → 🏛️ Stewards & Governors** (or *Orders, audit, reward or punish* on a holding's panel) to put a real person over each one and tell them what to put first. (`systems/stewards.js`, tuning in `data/stewards.json`.)
 
-**The seats.** Each holding (its officer is a **Reeve** in the smallest towns, a **Steward**, then a **Governor** as it grows; this office *is* the holding's governor). If you wear a crown, there is a **Royal Governor** for each demesne town of your realm that no vassal holds. Your estate lands get a **Bailiff**, and your trading company a **Chief Factor**.
+**The seats.** Each holding (its officer is a **Reeve** in the smallest towns, a **Steward**, then a **Governor** as it grows; this office *is* the holding's governor). If you wear a crown, there is a **Royal Governor** for each demesne town of your realm that no vassal holds. Your estate lands get a **Bailiff**, your trading company a **Chief Factor**, and your trade lines a **Master of the Lines**. The Master keeps the lines going round while you are away, haggles by skill, and is paid 6–12 a day from your purse; see [Trade Lines](#trade-lines-standing-caravan-and-ship-routes).
 
 **Who can serve.** Your spouse, children of 16 or over who are at home, your courtiers, travelling companions (holdings and demesne towns only), and up to four grown townsfolk (18–69) of the place. For the estates and the company, the townsfolk come from the town you stand in, or else your first holding. Each candidate shows Stewardship, Martial and Intrigue, a likely loyalty, an **ambition** (content, aspiring, ambitious) and a **reputation**: *spotless name*, *well spoken of*, *mixed talk* or *a doubtful past*. The reputation is the town's guess at their honesty, and it can be wrong by up to 20 points either way. Family and courtiers, and anyone Loyal, are **sworn to the House**; the rest serve you in person. Townsfolk draw 2–5 gold a day by skill (half as much again as a royal governor, paid from the realm's treasury), and a chief factor 6–12 a day from the company's capital. **Fill every vacant seat** names the best-suited of those free.
 
@@ -6719,12 +6829,39 @@ Click on your character or nearby hexes to open the **contextual radial action m
 ### UI Panels
 
 - **Stats Panel**: Your health, gold, stamina, AP, attributes, and skills.
-- **Inventory**: Goods, equipment, and food.
+- **Inventory** (press **I**, or Kingdom → Inventory): Goods, equipment, and food. See *The Inventory & the Hotbar* below.
 - **Army Panel**: Your military units, their levels, and total strength.
 - **Quest Log**: Active and completed quests.
 - **Minimap**: Clickable for quick navigation.
 - **Notification Toasts**: Stacked alerts for events, achievements, and quest completions.
 - **Finance Panel**: Click your gold to see a 90-day financial breakdown.
+
+### The Inventory & the Hotbar
+
+Press **I** anywhere (or choose **Inventory** under the top bar's Kingdom menu) to open the Inventory, and press **I** again to close it. The key does nothing while you are typing in a box, in a conversation, or while the death screen or a minigame has the window. Escape also closes it.
+
+- **The packs' room.** A bar across the top shows how many kinds of goods you carry out of the room you have. It turns amber near the limit and red when full. Beside it is about what everything you carry would fetch. The packs count kinds, not weight: 300 grain takes one place, like a single loaf.
+- **Filters, search and sort.** The chips filter by kind: Food & drink, Materials, Tools & gear, Arms & armour, Clothing, Physic, Seeds, Trade goods and Valuables. Only the kinds you carry are shown, each with its count. The search box finds goods by name or by kind as you type, and Escape in the box clears it. Sort by **Kind**, **Name**, **Quantity**, **Worth** (the whole stack) or **Price each**; click the same sort again to reverse it.
+- **A good's card.** Click a tile to open its card at the side (below the tiles in a narrow window). The card shows what the good is, its grades, its price each and for the stack, the meal it makes, the slot a piece of arms goes in and its weight, and a treasure's powers. Hover the ⓘ to see what it is made from and what it goes into. The card also lists what you can do with the good:
+  - **Eat one** (food: that food, not the best in the pack);
+  - **Use** (a treasure that is used up);
+  - **Wield / Wear / Put away** (arms and armour);
+  - **Enshrine** (a treasure, if you head a House);
+  - **Make an heirloom** (a masterwork or a treasure);
+  - **Put on / Take off the hotbar**;
+  - **Drop one / Drop them all**, onto the ground beside you. This works only on the street map, and you pick the goods up again from the ground's menu. A piece you wear must be put away first;
+  - to **give** a good to someone, talk to them and offer it as a gift.
+- **Heirlooms** of your House are listed at the top. They are not in the packs, since they pass to your heir.
+
+**The hotbar.** The street map's hotbar has seven slots, used with the keys **1–7**, and it is shown across the top of the Inventory too. To put a good on it:
+- **drag** a tile from the Inventory onto a slot, either in the window or on the bar at the bottom of the street map; or
+- open the good's card and press a **slot number** (1–7).
+
+A good can be in only one slot. Putting it in another slot moves it, and whatever was there takes its old place. Drag one slot onto another to swap them. **Right-click** a slot, or press its **✕** in the Inventory, to empty it.
+
+Until you arrange the bar yourself, it fills itself from your packs as before. Once you arrange it, the layout is yours. A slot whose good runs out stays assigned (shown greyed with a 0) and fills again when you get more, and nothing is put in a slot you emptied. **↺ Fill itself** hands the bar back to filling itself. The layout is saved with your game.
+
+A number key uses its slot only on the street map, and only when the slot holds something you still have. Otherwise 1–3 keep setting the game speed.
 
 ### Pass the Time: Letting Days Go By
 
@@ -6749,6 +6886,36 @@ Every day of the wait is an ordinary End Turn: the realms move, your properties 
 - a day that fails to end.
 
 **While the Days Passed.** The notices of the wait are not shown one by one. They go to the Event Log, and at the end you get one digest. It shows the days passed, the change in your purse and health, and the beds paid for. It also shows what cut the wait short and the news (latest first; repeats are folded together with a count). Routine notices (taxes, upkeep, production, auto-saves) are folded away under *The daily round*. With the AI on, the court scribe adds a short paragraph at the top. The steward's morning brief follows. **⏳ Wait longer** opens the menu again. If a panel opened by itself, the digest waits behind a notice with a **What happened** button.
+
+### Standing Orders: What the Spare Hours Go On
+
+A standing order tells your character what to do with each day's spare action points. It runs when the day ends, whether you press End Turn or let days pass with **Wait…**, **⏳** or **⏩ Week**. Self-care comes first (*The day's last hours*): eating, washing, clean clothes and a bed. Then the order uses the points that are left, once a day. If leisure is on, the evening's company and pastimes come last, with whatever points remain.
+
+Every order is the game's own action, with its real cost in action points, energy and coin. It gives the action's real results and nothing more:
+
+| Order | What it does | AP |
+|-------|--------------|----|
+| 🛌 **Rest only** | Nothing more. This is the default. | — |
+| 🔨 **Work in town** | A day's odd job, paid at a middling performance out of the town's purse at its going wage. It trains what the job trains, and adds goods to the market of a town short of hands. If you have a practised trade (Woodcutting, Smithing, Farming…), a job that uses it comes first. | 4 |
+| 📦 **Tend your holdings** | Collects the goods your properties have stored on your tile, and what your herds there have given, into your packs (as **Collect Goods** does). | 1 |
+| ⚔️ **Train at arms** | Spars with the town's trainer. The fee (50 g, 75 g in a capital) goes into the town's purse. There is a 15% chance of +1 combat, and your soldiers gain 8 experience. You never pay the fee if it would leave you under 20 g. | 4 |
+| 🌿 **Forage or fish** | In the wilds you forage, as the quick **Forage** does. Where there is water, you fish instead (1–2 catches into the packs, plus Fishing experience). Fishing comes first when you have fewer than 3 meals in your pack. | 3 |
+| 🪓 **Fell timber** | In the woods, fells one tree a day: an oak, a birch or a spruce, each drawn as the woods grow them. Every swing tires you and teaches Woodcutting, as felling on the map does. Your strength, Woodcutting level, best axe and a logging camp, lumber mill or sawmill of yours on the hex mean fewer swings. Such a camp also gives half as many logs again. You get the logs and what else the tree gives (firewood, resin, fruit in season), the same as felling that tree by hand. Each tree felled is gone from the hex until it grows back, a year (360 days) later, as on the map. A forest hex holds about 420–600 trees, and the trees you, the order and the town's woodcutters have cut all count against it. When none are left: *the woods here are cut over*, and you rest. | 4 |
+| 🏹 **Hunt** | In the wilds, the quick hunt: a few arrows (or bolts) loosed at one quarry, some recovered, the bow worn. If one strikes home you take the kill. It needs a bow and arrows or a crossbow and bolts. | 4 |
+| 🎖️ **Drill your soldiers** | Each green company gains 3 experience. A company reaching 100 experience rises a level, but drill alone takes no one past level 2: battle makes veterans. Each kit loses 0.5 condition, which a smith charges to mend. | 4 |
+| 🧘 **Pray and study** | You pray at a church or holy site and meditate elsewhere, through the devotion model: rest, health, karma within the day's cap, sometimes deeper faith, a clearer mind or an omen. | 3 |
+
+**When an order can't run, you rest.** The day's notice (📋 *Standing Order*) then says why, for example: *Work in town: There is no town here. You rested.* An order can't run:
+- where it doesn't fit (no town, no water and nothing to forage, no woods, no game, nothing stored, no soldiers);
+- with no bow and arrows (Hunt);
+- when the day left too few points;
+- when you are too worn out (energy under 15) or too hurt (health under 30%);
+- when the town turns you away as an outlaw;
+- when the trainer's fee is more than you can spare;
+- when your parents forbid it (an order never defies them);
+- in jail, in servitude, at a siege, below ground, under water, aboard ship or on the road.
+
+**Setting the order.** Open **Wait…** (or **⏳**, or **Pass the Time…** in the action menu). Under **Your spare hours**, every order shows what it would do where you stand on a full day, or why it can't. Click an order to set it. The order is kept in your save. Beside **Wait…** at the bottom of the screen, a small button shows the current order's icon (hover for its name and why it last fell back to rest). Clicking it opens the same list. The hand-run **Combat Training** pays its fee into the town's purse too. After a wait, the digest's **Your standing order** card shows the days it was carried out, the days you rested and why, and the coin it made or cost. Tuning: `data/standingOrders.json`.
 
 ### The AI Brain: Voiced Townsfolk and the In-Browser Model
 

@@ -22,21 +22,16 @@
 // Randomness: none. The world and the day are bound in by the caller (interiors.js enter).
 
 import { InnerMap } from './_ref.js';
-import { TownProps, CustomObjects, DataLoader } from './_imports.js';
+import { TownProps, CustomObjects } from './_imports.js';
+import { Woodlands } from '../woodlands.js';
 
 const _key = (q, r) => `${q},${r}`;
 let _propDefs = null;
 
+// (the felling rules — the pace of regrowth, the hex's stock — are world/woodlands.js's,
+// shared with the "Fell timber" standing order)
 function _config() {
-    const d = (DataLoader.get && DataLoader.get('townProps')) || (DataLoader._gamedata && DataLoader._gamedata.townProps) || {};
-    const f = d.felling || {};
-    return {
-        sproutDays: Number.isFinite(f.sproutDays) ? f.sproutDays : 120,
-        treeDays: Number.isFinite(f.treeDays) ? f.treeDays : 360,
-        sapling: f.sapling || 'tp_tree_sapling',
-        palmSapling: f.palmSapling || 'tp_palm_young',
-        fallSeconds: Number.isFinite(f.fallSeconds) ? f.fallSeconds : 1.1,
-    };
+    return Woodlands.config();
 }
 
 /** A def by id: the registered one, else the town prop's own (for maps built before CustomObjects loads, and the tests). */
@@ -64,13 +59,7 @@ export const Felling = {
 
     /** What stands where a tree was felled, by the day: 'stump' | 'sapling' | 'tree' | 'clear'. */
     stage(rec, day) {
-        if (!rec) return 'tree';
-        if (rec.grubbed) return 'clear';
-        const C = _config();
-        const age = Math.max(0, (day || 0) - (rec.day || 0));
-        if (age >= C.treeDays) return 'tree';
-        if (age >= C.sproutDays) return 'sapling';
-        return 'stump';
+        return Woodlands.stage(rec, day);
     },
 
     /** The sapling that springs up where this tree stood. */
@@ -118,6 +107,8 @@ Object.assign(InnerMap, {
         if (!this._fellRec || !this.tiles) return 0;
         let changed = 0;
         for (const k of Object.keys(this._fellRec)) {
+            // (a tree the standing order felled has no spot on the map: world/woodlands.js keeps it)
+            if (!Woodlands.isSpot(k)) continue;
             const rec = this._fellRec[k];
             const [q, r] = k.split(',').map(Number);
             const stage = Felling.stage(rec, d);
@@ -138,6 +129,7 @@ Object.assign(InnerMap, {
         if (!this._fellRec || !this.tiles || this._insideBuilding) return out;
         const sap = rec => Felling.saplingFor(rec);
         for (const k of Object.keys(this._fellRec)) {
+            if (!Woodlands.isSpot(k)) continue;
             const rec = this._fellRec[k];
             const [q, r] = k.split(',').map(Number);
             const stage = Felling.stage(rec, day);

@@ -9,6 +9,7 @@ import { ActionMenu } from './_ref.js';
 import { Estates } from '../../world/estates.js';
 import { LandMarket } from '../../systems/landMarket.js';
 import { BTN_GOLD, BTN_PLAIN, BTN_DIM, BTN_RED, CARD, panelTabs, lede, bullets, chips, purse, kv } from './uiKit.js';
+import { Names } from '../../core/names.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 const TH = 'text-align:left; padding:3px 6px; font-size:11px; color:var(--text-secondary); border-bottom:1px solid rgba(255,255,255,0.1);';
@@ -86,7 +87,7 @@ function estateCard(game, e, live) {
             html += sq.listed ? act('Take off the market', ['sell', e.id, 'withdraw'], BTN_PLAIN) : act(`List at ${sq.list.toLocaleString()}g`, ['sell', e.id, 'list'], BTN_PLAIN);
         }
         const realms = [live.kingdom, player.allegiance].filter((k, i, a) => k != null && a.indexOf(k) === i).map(k => Estates.kingdom(world, k)).filter(k => k && k.isAlive !== false);
-        for (const k of realms) html += act(`Settle as a dowry in ${esc(k.name)}`, ['dowry', e.id, k.id], BTN_PLAIN, true, 'Give the estate to a noble house of the realm: reputation there and Prestige');
+        for (const k of realms) html += act(`Settle as a dowry in ${esc(Names.realm(k.name))}`, ['dowry', e.id, k.id], BTN_PLAIN, true, 'Give the estate to a noble house of the realm: reputation there and Prestige');
     }
     html += '</div>';
     return html;

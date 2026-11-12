@@ -1,0 +1,30 @@
+{
+    "_note": "The Inventory window (ui/ui/inventoryPanel.js, ui/inventoryView.js): the filters along its top and which goods sit under each. A good not listed falls to a rule: arms and armour (systems/arms.js) → arms; anything eaten as a meal (player/core/needs.js MEAL_HUNGER) → food; a treasure (playerEconomy GOODS treasure flag) → valuables; *_seed → seeds; else the fallback. Order here is the order of the chips. The street map's hotbar layout is kept on the player (player/hotbarLayout.js).",
+    "fallback": "trade",
+    "categories": [
+        { "id": "food", "label": "Food & drink", "icon": "🍞",
+          "items": ["grain", "flour", "bread", "fish", "preserved_fish", "small_fish", "large_fish", "crab", "swordfish", "lobster", "golden_fish", "seaweed", "mussels", "oysters", "crayfish", "berries", "mushrooms", "meat", "cheese", "milk", "butter", "eggs", "dried_meat", "honey", "fruit", "vegetables", "cabbage", "turnips", "carrots", "onions", "beans", "apples", "pears", "plums", "cherries", "grapes", "olives", "dates", "food", "meat_pie", "honey_cake", "sausage", "jam", "pickles", "cooked_meal", "cooked_fish", "cooked_meat", "beer", "liquor", "wine", "mead", "cider", "tea", "game_meat", "truffles", "cactus_fruit"] },
+        { "id": "materials", "label": "Materials", "icon": "⛏️",
+          "items": ["wood", "firewood", "planks", "wool", "flax", "hemp", "textiles", "linen", "stone", "clay", "coal", "ore", "iron", "iron_ingot", "steel", "copper", "tin", "bronze", "bronze_bar", "gold_ore", "silver_ore", "pelts", "hide", "leather", "cured_furs", "antler", "feather", "sinew", "resin", "tallow", "oil", "lamp_oil", "salt", "rope", "dyes", "ink", "parchment", "glass", "haft", "grip", "shield_boss", "agri_parts", "industry_parts", "military_parts", "infra_parts", "commerce_parts"] },
+        { "id": "tools", "label": "Tools & gear", "icon": "🔧",
+          "items": ["tools", "steel_tools", "fishing_spear", "whetstone", "compass", "lantern", "candles", "barrel", "handcart", "saddle", "treasure_map", "book", "rare_book"] },
+        { "id": "arms", "label": "Arms & armour", "icon": "⚔️",
+          "items": ["weapons", "leather_armor", "shield", "bow", "arrows", "bolts", "crossbow", "spear", "steel_sword", "chainmail", "plate_armor", "helmet"] },
+        { "id": "clothing", "label": "Clothing", "icon": "👕",
+          "items": ["clothes", "boots", "wool_cloak", "fur_coat", "fine_garments"] },
+        { "id": "physic", "label": "Physic", "icon": "🌿",
+          "items": ["herbs", "rare_herbs", "healing_salve", "potion", "elixir", "antidote", "poultice", "tonic", "soap", "poison", "holy_water"] },
+        { "id": "seeds", "label": "Seeds", "icon": "🌱", "items": [] },
+        { "id": "trade", "label": "Trade goods", "icon": "📦",
+          "items": ["spices", "exotic_spices", "silk", "perfume", "luxuries", "horses", "horse", "ivory", "pottery", "leather_goods", "carvings", "ivory_carving", "quills", "glassware", "incense", "flowers", "joinery", "grave_cross", "headstone", "carved_headstone", "sea_sponge", "bear_rug", "stolen_goods", "boot"] },
+        { "id": "valuables", "label": "Valuables", "icon": "💎",
+          "items": ["gems", "gold_bar", "silver_bar", "ancient_coin", "amulet", "enchanted_ring", "silver_jewellery", "gold_jewellery", "cursed_idol"] }
+    ],
+    "sorts": [
+        { "id": "category", "label": "Kind" },
+        { "id": "name", "label": "Name" },
+        { "id": "qty", "label": "Quantity" },
+        { "id": "value", "label": "Worth" },
+        { "id": "unitValue", "label": "Price each" }
+    ]
+}

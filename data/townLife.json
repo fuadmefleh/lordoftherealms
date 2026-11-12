@@ -84,7 +84,7 @@
     "stay": {
         "home": [25, 50], "work": [20, 45], "tend": [12, 25], "errand": [8, 20], "market": [10, 22], "tavern": [20, 40],
         "church": [15, 30], "plaza": [8, 18], "well": [5, 12], "stroll": [2, 6], "play": [1, 3], "post": [30, 60], "patrol": [2, 5],
-        "chat": [6, 12], "sleep": [60, 120]
+        "chat": [6, 12], "sleep": [60, 120], "court": [25, 45], "mope": [15, 30], "wedding": [30, 50], "school": [150, 220], "chore": [10, 20], "rest": [30, 60]
     },
     "tendOutside": { "merchant": 0.6, "blacksmith_npc": 0.5, "farmer": 0.4, "beggar": 1 },
     "chat": {

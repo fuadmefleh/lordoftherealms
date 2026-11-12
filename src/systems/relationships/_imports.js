@@ -10,3 +10,4 @@ export { Gossip } from '../gossip.js';
 export { Whispers } from '../whispers.js';
 export { Townsfolk } from '../townsfolk.js';
 export { Duels } from '../duels.js';
+export { Romance } from '../romance.js';

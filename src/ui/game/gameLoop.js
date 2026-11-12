@@ -25,6 +25,11 @@ import { DayClock } from './dayClock.js';
 import { updateAPChip } from '../apChip.js';
 import { InnerMapBattle } from '../innerMapBattle.js';
 import { InnerMapEscort } from '../innerMapEscort.js';
+import { InnerMapBrawls } from '../innerMapBrawls.js';
+import { InnerMapCourting } from '../innerMapCourting.js';
+import { InnerMapSickness } from '../innerMapSickness.js';
+import { InnerMapRites } from '../innerMapRites.js';
+import { InnerMapKin } from '../innerMapKin.js';
 import { InnerMapRiverDrift } from '../innerMapRiverDrift.js';
 
 // Blows at a tree or a rock land harder with Woodcutting / Mining (player/gathering.js): the
@@ -423,11 +428,21 @@ export function gameLoop(timestamp, loopId) {
         // ── Update combat system (NPC attacks, float numbers, hit flashes) ──
         if (typeof InnerMapCombat !== 'undefined') {
             InnerMapCombat.update(simDelta, this);
+            // Townsfolk at each other: tavern brawls, grudges, the watch (ui/innerMapBrawls.js)
+            InnerMapBrawls.update(simDelta, this);
             InnerMapJail.update(this);
             InnerMapZones.update(this);
         }
         // Jobs done in person on the street map (ui/innerMapTasks.js)
         InnerMapTasks.update(simDelta, this);
+        // Sweethearts' words, flowers, a ♥, a wedding at the church (ui/innerMapCourting.js)
+        InnerMapCourting.update(simDelta, this);
+        // A funeral walked to the churchyard; the town's word on a ruler who missed the holy day (ui/innerMapRites.js)
+        InnerMapRites.update(simDelta, this);
+        // The sick coughing and abed, the healer's round, a frightened town, mourners (ui/innerMapSickness.js)
+        InnerMapSickness.update(simDelta, this);
+        // Children at play and at school, the old greying in the sun (ui/innerMapKin.js)
+        InnerMapKin.update(simDelta, this);
         // Digging, filling in, burying (ui/innerMapDigging.js)
         InnerMapDigging.update(simDelta, this);
         // Someone senseless over your shoulder: through doors with you, waking, laid down (ui/innerMapCarry.js)

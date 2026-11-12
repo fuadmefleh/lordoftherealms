@@ -16,12 +16,20 @@ vi.mock('@mlc-ai/web-llm', () => ({
     prebuiltAppConfig: { model_list: [] },
     CreateWebWorkerMLCEngine: (...args) => mlc.create(...args),
     CreateMLCEngine: (...args) => mlc.create(null, ...args),
+    // The main-thread fallback builds the engine itself (to prep its kernels) and reloads it
+    MLCEngine: function MLCEngine(cfg) {
+        const e = mlc.engine;
+        e.reload = vi.fn(async (id) => { await mlc.create(null, id, cfg); });
+        return e;
+    },
     hasModelInCache: (...args) => mlc.hasModelInCache(...args),
     deleteModelAllInfoInCache: (...args) => mlc.deleteModelAllInfoInCache(...args),
 }));
 
 import { LlmClient } from '../systems/llmClient.js';
-import { WebLlm } from '../systems/llm/webllmProvider.js';
+import { WebLlm, throttleProgress, progressText, LOAD_NOTICE } from '../systems/llm/webllmProvider.js';
+import { prepareShaders, installShaderPrep } from '../systems/llm/shaderPrep.js';
+import { makeLimiter } from '../systems/llm/gpuPacing.js';
 import { NpcBrain } from '../systems/npcBrain.js';
 
 const GPU = { requestAdapter: async () => ({ features: new Set() }) };
@@ -125,10 +133,60 @@ describe('WebLLM provider — loading', () => {
         expect(mlc.create.mock.calls[0][1]).toBe(MODEL);
     });
 
-    it('falls back to the main thread when no worker can be made', async () => {
+    it('falls back to the main thread when no worker can be made, and says which it took', async () => {
         WebLlm._setSeams({ workerFactory: () => { throw new Error('no workers'); } });
         expect(await WebLlm.load(MODEL)).toEqual({ ok: true });
         expect(mlc.create.mock.calls[0][0]).toBe(null);
+        expect(WebLlm.enginePath()).toBe('main');
+    });
+
+    it('records that the engine runs in the worker', async () => {
+        expect(WebLlm.enginePath()).toBe(null);
+        await WebLlm.load(MODEL);
+        expect(WebLlm.enginePath()).toBe('worker');
+    });
+
+    it('a worker whose script fails to load is an error, not a hang', async () => {
+        const listeners = {};
+        const worker = {
+            addEventListener: (type, fn) => { listeners[type] = fn; },
+            removeEventListener: vi.fn(),
+            terminate: vi.fn(),
+        };
+        WebLlm._setSeams({ workerFactory: () => worker });
+        mlc.create = vi.fn(() => new Promise(() => {}));   // WebLLM waits for a worker that never answers
+        const loading = WebLlm.load(MODEL);
+        await vi.waitFor(() => expect(mlc.create).toHaveBeenCalled());
+        listeners.error({ message: 'Failed to fetch module' });
+        const r = await loading;
+        expect(r.ok).toBe(false);
+        expect(r.reason).toMatch(/worker failed to start/);
+        expect(worker.terminate).toHaveBeenCalled();
+        expect(WebLlm.status().state).toBe('error');
+    });
+
+    it('throttles load progress to the listeners, and a late tick never undoes Ready', async () => {
+        mlc.create = vi.fn(async (worker, id, cfg) => {
+            for (let i = 1; i <= 200; i++) cfg.initProgressCallback({ progress: i / 200, text: `Fetching param cache[${i}/200]` });
+            return mlc.engine;
+        });
+        const seen = [];
+        WebLlm.onStatus((st) => seen.push(st));
+        expect(await WebLlm.load(MODEL)).toEqual({ ok: true });
+        await new Promise((r) => setTimeout(r, 150));
+        const ticks = seen.filter((st) => st.state === 'loading' && /Fetching/.test(st.text));
+        expect(ticks.length).toBeGreaterThan(0);
+        expect(ticks.length).toBeLessThan(5);
+        expect(seen[seen.length - 1].state).toBe('ready');
+        expect(WebLlm.status().state).toBe('ready');
+    });
+
+    it('says the kernel compile in the game\'s words, and what a load is like', () => {
+        expect(progressText('Preparing GPU kernels [3/31]')).toMatch(/graphics card \(3\/31\).*pause briefly/);
+        expect(progressText('Fetching param cache[1/8]')).toBe('Fetching param cache[1/8]');
+        expect(progressText(undefined)).toBe('');
+        expect(WebLlm.LOAD_NOTICE).toBe(LOAD_NOTICE);
+        expect(LOAD_NOTICE).toMatch(/up to a minute the first time/);
     });
 
     it('a failed load is an error state, not a throw', async () => {
@@ -236,5 +294,163 @@ describe('WebLLM provider — load warms the model up', () => {
         expect(cat.models.map((m) => m.id)).toContain(cat.defaultModel);
         expect(WebLlm.resolveModel('')).toBe(cat.defaultModel);
         expect(WebLlm.resolveModel('local')).toBe(cat.defaultModel);
+    });
+});
+
+describe('WebLLM provider — progress throttle', () => {
+    function fakeTime() {
+        let now = 0;
+        const timers = [];
+        return {
+            clock: () => now,
+            timer: {
+                set: (fn, ms) => { const t = { fn, at: now + ms, live: true }; timers.push(t); return t; },
+                clear: (t) => { t.live = false; },
+            },
+            advance(ms) {
+                now += ms;
+                for (const t of timers) if (t.live && t.at <= now) { t.live = false; t.fn(); }
+            },
+        };
+    }
+
+    it('passes the first report at once, holds the rest, and delivers the last one held', () => {
+        const ft = fakeTime();
+        const out = [];
+        const th = throttleProgress((r) => out.push(r), 100, ft);
+        th(1);
+        expect(out).toEqual([1]);
+        ft.advance(10); th(2);
+        ft.advance(10); th(3);
+        expect(out).toEqual([1]);
+        ft.advance(80);
+        expect(out).toEqual([1, 3]);
+        ft.advance(200); th(4);
+        expect(out).toEqual([1, 3, 4]);
+    });
+
+    it('cancel() drops a held report', () => {
+        const ft = fakeTime();
+        const out = [];
+        const th = throttleProgress((r) => out.push(r), 100, ft);
+        th('a');
+        ft.advance(5); th('b');
+        th.cancel();
+        ft.advance(500);
+        expect(out).toEqual(['a']);
+    });
+});
+
+describe('WebLLM shader prep — async kernel compiles before the first reply', () => {
+    /** A stand-in for an MLCEngine whose first reply asks for kernels the way TVM does (ctx.createShader). */
+    function fakeLoaded({ kernels = ['matmul', 'rms_norm', 'chunk_lse'], asyncFails = [] } = {}) {
+        const calls = [];
+        const ctx = {
+            createShader: vi.fn((finfo) => { calls.push(`sync:${finfo.name}`); return (...a) => calls.push(`run-sync:${finfo.name}:${a.join(',')}`); }),
+            createShaderAsync: vi.fn(async (finfo) => {
+                calls.push(`async:${finfo.name}`);
+                if (asyncFails.includes(finfo.name)) throw new Error('compile failed');
+                return (...a) => calls.push(`run:${finfo.name}:${a.join(',')}`);
+            }),
+        };
+        const funcs = new Map();
+        const engine = {
+            initProgressCallback: vi.fn(),
+            loadedModelIdToPipeline: new Map([[MODEL, { tvm: { lib: { webGPUContext: ctx } } }]]),
+            reload: vi.fn(async () => {}),
+            resetChat: vi.fn(async () => {}),
+            chat: { completions: { create: vi.fn(async () => {
+                // TVM asks for each kernel once (lazily), then dispatches it
+                for (const k of kernels) {
+                    if (!funcs.has(k)) funcs.set(k, ctx.createShader({ name: k }, `code ${k}`));
+                    funcs.get(k)(1, 2);
+                }
+                return { choices: [{ message: { content: 'x' } }] };
+            }) } },
+        };
+        return { engine, ctx, calls, funcs };
+    }
+
+    it('compiles every kernel the dry run asks for asynchronously, dispatching nothing meanwhile', async () => {
+        const { engine, ctx, calls, funcs } = fakeLoaded();
+        const reports = [];
+        const r = await prepareShaders(engine, MODEL, { report: (x) => reports.push(x), pacing: { concurrency: 1, gapMs: 0 } });
+        expect(r).toEqual({ ok: true, kernels: 3, failed: 0 });
+        expect(calls.filter((c) => c.startsWith('sync:'))).toEqual([]);
+        expect(calls.filter((c) => c.startsWith('run'))).toEqual([]);     // the dry run dispatched nothing
+        expect(ctx.createShaderAsync).toHaveBeenCalledTimes(3);
+        expect(engine.resetChat).toHaveBeenCalled();
+        expect(reports[reports.length - 1]).toEqual({ done: 3, total: 3 });
+        // Afterwards the stand-ins TVM kept run the real (async-built) kernels
+        funcs.get('chunk_lse')(7);
+        expect(calls[calls.length - 1]).toBe('run:chunk_lse:7');
+    });
+
+    it('a kernel first asked for after the prep, or whose async compile failed, is built the old way', async () => {
+        const { engine, ctx, calls, funcs } = fakeLoaded({ asyncFails: ['rms_norm'] });
+        const r = await prepareShaders(engine, MODEL, { pacing: { concurrency: 2, gapMs: 0 } });
+        expect(r).toMatchObject({ ok: true, kernels: 3, failed: 1 });
+        funcs.get('rms_norm')(1);
+        expect(calls).toContain('sync:rms_norm');
+        expect(calls[calls.length - 1]).toBe('run-sync:rms_norm:1');
+        const late = ctx.createShader({ name: 'apply_bitmask' }, 'code');
+        late(5);
+        expect(calls).toContain('sync:apply_bitmask');
+    });
+
+    it('missing WebLLM internals leave the load as it was, without throwing', async () => {
+        expect(await prepareShaders({}, MODEL)).toMatchObject({ ok: false });
+        expect(await prepareShaders(null, MODEL)).toMatchObject({ ok: false });
+        expect(await prepareShaders({ loadedModelIdToPipeline: new Map([[MODEL, {}]]) }, MODEL)).toMatchObject({ ok: false });
+    });
+
+    it('a dry run that throws (garbage logits, grammar) still finishes the prep', async () => {
+        const { engine, calls } = fakeLoaded();
+        const create = engine.chat.completions.create;
+        engine.chat.completions.create = vi.fn(async (req) => { await create(req); throw new Error('grammar rejected token'); });
+        const r = await prepareShaders(engine, MODEL, { pacing: { concurrency: 1, gapMs: 0 } });
+        expect(r).toMatchObject({ ok: true, kernels: 3 });
+        expect(calls.filter((c) => c.startsWith('sync:'))).toEqual([]);
+    });
+
+    it('installShaderPrep wraps reload once and reports progress through the engine callback', async () => {
+        const { engine } = fakeLoaded();
+        const realReload = engine.reload;
+        expect(installShaderPrep(engine, { pacing: { concurrency: 1, gapMs: 0 } })).toBe(true);
+        const wrapped = engine.reload;
+        expect(installShaderPrep(engine)).toBe(true);
+        expect(engine.reload).toBe(wrapped);
+        await engine.reload(MODEL);
+        expect(realReload).toHaveBeenCalledWith(MODEL);
+        const reports = engine.initProgressCallback.mock.calls.map((c) => c[0]);
+        expect(reports[reports.length - 1]).toMatchObject({ progress: 1, text: 'Preparing GPU kernels [3/3]' });
+        expect(installShaderPrep(null)).toBe(false);
+    });
+});
+
+describe('GPU pacing limiter', () => {
+    it('runs at most `concurrency` jobs at once and passes results and errors through', async () => {
+        const lim = makeLimiter({ concurrency: 2, gapMs: 0 });
+        let active = 0;
+        let peak = 0;
+        const job = (v) => async () => {
+            active++; peak = Math.max(peak, active);
+            await new Promise((r) => setTimeout(r, 5));
+            active--;
+            if (v === 'bad') throw new Error('bad');
+            return v;
+        };
+        const res = await Promise.allSettled(['a', 'b', 'bad', 'c', 'd'].map((v) => lim.run(job(v))));
+        expect(peak).toBe(2);
+        expect(res.map((x) => x.status)).toEqual(['fulfilled', 'fulfilled', 'rejected', 'fulfilled', 'fulfilled']);
+        expect(res[3].value).toBe('c');
+        expect(lim.stats.finished).toBe(5);
+    });
+
+    it('waits gapMs between jobs', async () => {
+        const waits = [];
+        const lim = makeLimiter({ concurrency: 1, gapMs: 16, wait: async (ms) => { waits.push(ms); } });
+        await Promise.all([1, 2, 3].map((v) => lim.run(async () => v)));
+        expect(waits).toEqual([16, 16, 16]);
     });
 });

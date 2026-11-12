@@ -20,6 +20,7 @@ import { Throne } from '../../systems/throne.js';
 import { PlayerReligion } from '../playerReligion.js';
 import { SeasonalWork } from '../seasonalWork.js';
 import { Underworld } from '../../systems/underworld.js';
+import { NpcTheft } from '../../systems/npcTheft.js';
 import { Rivals } from '../../systems/rivals.js';
 import { Hospitality } from '../../systems/hospitality.js';
 import { MerchantHouses } from '../../systems/merchantHouses.js';
@@ -34,6 +35,7 @@ import { Fiscal } from '../../systems/fiscal.js';
 import { Estates } from '../../world/estates.js';
 import { Lots } from '../../systems/lots.js';
 import { Graveyards } from '../../systems/graveyards.js';
+import { Illness } from '../../systems/illness.js';
 import { Livestock } from '../../systems/livestock.js';
 import { Couriers } from '../../systems/couriers.js';
 import { LandMarket } from '../../systems/landMarket.js';
@@ -200,6 +202,21 @@ export function addSettlementActions(actions, player, tile, world, ctx) {
                 icon: '🏘️',
                 description: `${held.length} held${here ? `, ${here} here` : ''}${tenants ? `, ${tenants} let` : ''}${owed ? `, ${owed}g in arrears` : ''}: build, let, put out, sell`,
                 notice: owed ? `${owed}g of rent in arrears` : null,
+            });
+        }
+    }
+
+    // The town's sick: who is down with what, its healer, paying for physic and alms (systems/illness.js)
+    if (tile.settlement && tile.settlement.folk && Illness.on()) {
+        const v = Illness.view(world, tile.settlement);
+        if (v.sick.length || v.out.length) {
+            const worst = v.out[0];
+            actions.push({
+                type: 'town_sickness',
+                label: 'The Sick of the Town',
+                icon: worst ? worst.icon : '🤒',
+                description: `${v.sick.length} sick${v.abed ? `, ${v.abed} abed` : ''}${worst ? ` — ${worst.name} is going round` : ''}: the healer's rounds, physic, alms`,
+                notice: worst ? `${worst.name.charAt(0).toUpperCase() + worst.name.slice(1)} in town` : null,
             });
         }
     }
@@ -818,6 +835,17 @@ export function addSettlementActions(actions, player, tile, world, ctx) {
             icon: '🎉',
             description: festivalDesc,
             disabled: typeof Festivals !== 'undefined' ? !Festivals.canHostFestival(player, world, tile).ok : false,
+        });
+    }
+
+    // What thieves took from you here: the clues, the watch, the thief (systems/npcTheft.js)
+    const stolen = NpcTheft.openCases(player, tile.q, tile.r);
+    if (stolen.length) {
+        actions.push({
+            type: 'stolen_goods',
+            label: 'Stolen Goods',
+            icon: '🔎',
+            description: `${stolen.length === 1 ? 'Something of yours was' : `${stolen.length} things of yours were`} stolen here: the clues, the watch, the thief`,
         });
     }
 

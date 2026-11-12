@@ -31,7 +31,7 @@ import { CustomObjects } from './_imports.js';
 import { GraveBook } from '../graveBook.js';
 import { GraveArt, GROUND_ART } from '../graveArt.js';
 import { Graveyards } from '../../systems/graveyards.js';
-import { Burials } from '../burials.js';
+import { Burials, DUG_GROUND } from '../burials.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 // Water laid over the ground after the planner marked it (a river, a pond, the sea's edge):
@@ -140,10 +140,13 @@ Object.assign(InnerMap, {
             const held = ground.crypt && Array.isArray(ground.crypt.plots) && ground.crypt.plots.includes(i);
             if (held) { head._graveShow = null; continue; }
             const grave = ground.plots[i];
-            const open = !grave && ground.open && ground.open[i] != null && day - ground.open[i] <= 30;
+            // (a cleared plot's pit stands a while; a robbed grave lies open, its marker still over it,
+            // until it is filled in again — then its earth shows disturbed for a while)
+            const open = grave ? grave.open != null : (ground.open && ground.open[i] != null && day - ground.open[i] <= 30);
             const m = grave ? GraveBook.markerNow(grave, day) : null;
-            const fresh = !!grave && GraveBook.yearsBetween(grave.interred != null ? grave.interred : grave.died, day) < _num(GraveBook.config().freshYears, 3);
-            head._graveShow = grave || open ? { marker: m, fresh: fresh || m === 'grave_mound', open, art: !!(m && GraveArt.hasArt(m)) } : null;
+            const fresh = !!grave && (GraveBook.yearsBetween(grave.interred != null ? grave.interred : grave.died, day) < _num(GraveBook.config().freshYears, 3)
+                || (grave.disturbed != null && day - grave.disturbed < _num(Burials.config().disturbedDays, 60)));
+            head._graveShow = grave || open ? { marker: m, fresh: fresh || m === 'grave_mound', open: !!open, askew: !!(grave && grave.askew), art: !!(m && GraveArt.hasArt(m)) } : null;
             if (m && !GROUND_ART.has(m) && GraveArt.hasArt(m)) this._standObject(GraveArt.defId(m), c.q, c.r);
         }
         // No one is buried where the water runs
@@ -236,16 +239,88 @@ Object.assign(InnerMap, {
      */
     _bindBurials(world, hexKey, day) {
         this._burialWorld = world || null;
-        const rec = Burials.record(world, hexKey);
-        if (!rec || !this.tiles || this._insideBuilding) return 0;
+        if (!this.tiles || this._insideBuilding) return 0;
+        const rec = Burials.record(world, hexKey) || {};
+        const caches = Burials.cacheRecord(world, hexKey) || {};
         const d = Number.isFinite(day) ? day : this._burialDay();
         let n = 0;
+        // The ground dug here before, as the days have left it (the map kept from an earlier visit)
+        n += this._settleDug(rec, caches, d);
         for (const k of Object.keys(rec)) {
             const [q, r] = k.split(',').map(Number);
             if (this.layBurial(q, r, rec[k], d, false)) n++;
         }
+        // Things buried here: an open hole with them in it, or the turned earth over them while it shows
+        const fade = _num(Burials.config().ground.filledFadeDays, 40);
+        for (const [k, c] of Object.entries(caches)) {
+            const [q, r] = k.split(',').map(Number);
+            const t = this.getTile(q, r);
+            if (!t || (t._dug && t._dug.kind === 'grave')) continue;
+            if (c.open) {
+                if (!t._dug || t._dug.kind !== 'hole') { this._digGround(t, 'hole', { day: _num(c.day, d) }); n++; }
+            } else if (!t._dug && d - _num(c.day) < fade) {
+                this._digGround(t, 'filled', { day: _num(c.day, d) });
+                n++;
+            }
+        }
         if (n) this._refreshGrassLayer(this.tiles);
         return n;
+    },
+
+    /**
+     * The dug ground on this map as the days have left it: a hole left open
+     * caves in (turned earth) after ground.holeCaveDays — not one with something
+     * in it; turned earth fades back into the ground after filledFadeDays; a
+     * burial whose record is gone (filled in by the sexton) is turned earth.
+     */
+    _settleDug(rec, caches, day) {
+        const G = Burials.config().ground;
+        const cave = _num(G.holeCaveDays, 20), fade = _num(G.filledFadeDays, 40);
+        let n = 0;
+        for (const row of this.tiles) for (const t of row) {
+            const dug = t && t._dug;
+            if (!dug) continue;
+            const k = `${t.q},${t.r}`;
+            if (dug.kind === 'grave' && !rec[k]) { this._digGround(t, 'filled', { day }); n++; continue; }
+            if (dug.kind === 'hole' && !(caches[k] && caches[k].open) && day - _num(dug.day, day) >= cave) {
+                this._digGround(t, 'filled', { day: _num(dug.day, day) + cave });
+                n++;
+            }
+            // (over a cache too: the earth grown back over it is the hiding of it)
+            if (t._dug.kind === 'filled' && day - _num(t._dug.day, day) >= fade) {
+                this._undigGround(t);
+                n++;
+            }
+        }
+        return n;
+    },
+
+    /** A tile's ground dug (a hole, turned earth, a mound): the ground before kept, the soil drawn over it. */
+    _digGround(tile, kind, extra = {}) {
+        const g = DUG_GROUND[kind];
+        if (!tile || !g) return;
+        if (!tile._dug && !tile._undug) tile._undug = { baseTerrain: tile.baseTerrain, subTerrain: tile.subTerrain ? { ...tile.subTerrain } : null, terrainDetail: tile.terrainDetail || null, tilled: !!tile._tilled };
+        tile._dug = { kind, ...extra };
+        const was = tile._undug;
+        if (was && was.baseTerrain) { tile.baseTerrain = was.baseTerrain; tile.terrainDetail = was.terrainDetail || null; }
+        tile._tilled = true;
+        tile._cachedFill = null;
+        tile._cachedOverlay = undefined;
+        tile.subTerrain = { ...g, name: kind === 'grave' ? Burials.label(tile._dug, extra.day || 0) || 'Burial Mound' : g.name };
+    },
+
+    /** Turned earth grown back over: the ground as it was before the spade. */
+    _undigGround(tile) {
+        const was = tile._undug;
+        delete tile._dug;
+        delete tile._undug;
+        tile._cachedFill = null;
+        tile._cachedOverlay = undefined;
+        if (!was || !was.subTerrain) { tile.subTerrain = { ...(tile.subTerrain || {}), id: 'grass', name: 'Grass', passable: true }; tile._tilled = false; return; }
+        tile.baseTerrain = was.baseTerrain;
+        tile.terrainDetail = was.terrainDetail || null;
+        tile.subTerrain = { ...was.subTerrain };
+        tile._tilled = !!was.tilled;
     },
 
     /**
@@ -277,7 +352,8 @@ Object.assign(InnerMap, {
             // ui/innerMapDigging.js; no square of bare dirt)
             if (undug && undug.baseTerrain) { tile.baseTerrain = undug.baseTerrain; tile.terrainDetail = undug.terrainDetail || null; }
             tile._tilled = true;
-            tile.subTerrain = { id: 'grave', name: Burials.label(g, day), icon: '⚰️', color: '#6b5034', passable: true };
+            // (dug open: a pit, no one walks across it)
+            tile.subTerrain = { id: 'grave', name: Burials.label(g, day), icon: '⚰️', color: '#6b5034', passable: g.open == null };
         }
         this._standBurialMarker(q, r, g, day);
         if (refresh) this._refreshGrassLayer(this.tiles);

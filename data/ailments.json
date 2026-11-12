@@ -55,7 +55,7 @@
                 "disease": "plague"
             },
             "lean": { "chance": 0.003, "hungerBelow": 35, "hungryMult": 3, "starvingMult": 4, "crowdMult": 1.5, "disease": "famine_fever" },
-            "scurvy": { "graceDays": 28, "perDay": 0.015, "max": 0.25, "fresh": ["fruit", "berries"], "freshEvery": 3, "disease": "scurvy" }
+            "scurvy": { "graceDays": 28, "perDay": 0.015, "max": 0.25, "fresh": ["fruit", "berries", "apples", "pears", "plums", "cherries", "grapes", "dates", "cabbage", "onions"], "freshEvery": 3, "disease": "scurvy" }
         },
         "contagion": { "toCompanion": 1, "fromCompanion": 0.5, "toCrew": 1.5, "healerMult": 0.6 },
         "companionSickness": { "days": [4, 10], "careFromPlayerRest": true },
@@ -200,6 +200,14 @@
             "stages": [
                 { "name": "Hunger Fever", "icon": "🤒", "days": [3, 5], "worsen": 0.3, "effects": { "movement": -1, "healthDrain": 2 } },
                 { "name": "Famine Fever", "icon": "🦠", "days": [4, 7], "deathChance": 0.02, "effects": { "movement": -2, "attrs": { "strength": -1 }, "healthDrain": 5 } }
+            ]
+        },
+        "pox": {
+            "kind": "disease", "name": "Pox", "icon": "🔴", "severity": 2, "contagion": 0.12, "companionDeath": 0.012,
+            "description": "The spotted sickness, caught from the sick of a town where it is going round.",
+            "stages": [
+                { "name": "Aches", "icon": "🤒", "days": [2, 3], "worsen": 0.7, "effects": { "movement": -1, "healthDrain": 2 } },
+                { "name": "Pox", "icon": "🔴", "days": [5, 8], "deathChance": 0.012, "effects": { "movement": -2, "attrs": { "strength": -1, "charisma": -1 }, "healthDrain": 4 } }
             ]
         },
         "wound_fever": {

@@ -322,6 +322,8 @@ Object.assign(InnerMap, {
 
         // The town's people persist, age and die between visits (systems/townsfolk.js)
         if (world) this._settleTownsfolk(settlement, world, pool, rng);
+        // A pedlar in town, and the world the street's trade is done in (world/innerMap/townTrading.js)
+        if (this._tradeSpawn) this._tradeSpawn(settlement, world);
     },
 
     /** First names of the culture of the map's settlement (both genders), or null */
@@ -454,6 +456,8 @@ Object.assign(InnerMap, {
         if (this.npcs.length === 0) return;
         // The town's woodcutters at their trees (world/innerMap/townWoodcutters.js)
         if (!this._insideBuilding && this._updateTownChopping) this._updateTownChopping(deltaTime);
+        // The player in the pews through a service (world/innerMap/townWork.js)
+        if (this._updateTownWork) this._updateTownWork(deltaTime);
 
         for (const npc of this.npcs) {
             // The downed lie where they were laid (a bed, a cell), the carried go with the player
@@ -490,6 +494,8 @@ Object.assign(InnerMap, {
 
             // Skip update for NPCs frozen in dialog
             if (npc._dialogFrozen || npc.state === 'dialog') continue;
+            // In a fight between townsfolk, or the ring round it: ui/innerMapBrawls.js moves them
+            if (npc._fight) continue;
 
             switch (npc.state) {
                 case 'idle':
@@ -551,6 +557,8 @@ Object.assign(InnerMap, {
                                     npc._targetBuilding = null;
                                     // A farmer's load carried into the granary (world/innerMap/townLife.js)
                                     if (npc._carry && this._townDelivered) this._townDelivered(npc, bldg);
+                                    // A bed or a supper paid for at the inn (world/innerMap/hospitality.js)
+                                    if (this._townEntered) this._townEntered(npc, bldg);
                                     // Traveler visited a place
                                     if (npc.visitsLeft > 0) npc.visitsLeft--;
                                 } else if (npc._activity) {

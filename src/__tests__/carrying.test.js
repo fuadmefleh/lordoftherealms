@@ -131,3 +131,103 @@ describe('Seen carrying', () => {
         expect(StreetCrime.foundReaction(guard, { name: 'Bram', _blood: true }, { blood: true, playerOver: true, seed: 's' }).act).toBe('arrest');
     });
 });
+
+describe('Laid in the gaol\'s cells', () => {
+    it('one who set on the player, a thief, an outlaw or one the town names is a citizen\'s arrest', () => {
+        expect(Carrying.handOver(npc({ _struckPlayerFirst: true })).verdict).toBe('arrest');
+        expect(Carrying.handOver(npc({ _thief: true })).verdict).toBe('arrest');
+        expect(Carrying.handOver(npc({ _graveRobber: true })).verdict).toBe('arrest');
+        expect(Carrying.handOver(npc({ type: 'bandit' })).verdict).toBe('arrest');
+        expect(Carrying.handOver(npc(), { npcCrime: { k: 'loot' } }).verdict).toBe('arrest');
+    });
+
+    it('anyone else is a kidnapping — always a child or one of the watch, whatever they did', () => {
+        expect(Carrying.handOver(npc()).verdict).toBe('kidnapping');
+        expect(Carrying.handOver(npc({ type: 'child', _thief: true })).verdict).toBe('kidnapping');
+        expect(Carrying.handOver(npc({ type: 'guard', _struckPlayerFirst: true })).verdict).toBe('kidnapping');
+        expect(Carrying.handOver(null).verdict).toBe('kidnapping');
+    });
+
+    it('the gaoler says so in the words of data/carrying.json, the same each time', () => {
+        const H = DataLoader._gamedata.carrying.handOver;
+        const a = Carrying.handOver(npc({ id: 77, _thief: true }), { seed: 4 });
+        expect(H.lines.arrest).toContain(a.line);
+        expect(Carrying.handOver(npc({ id: 77, _thief: true }), { seed: 4 }).line).toBe(a.line);
+        expect(H.lines.kidnapping).toContain(Carrying.handOver(npc({ id: 78 }), { seed: 4 }).line);
+    });
+});
+
+describe('A body carried through a door', () => {
+    it('comes too: it lies on the map the player is on, not left at the door', async () => {
+        const { InnerMap } = await import('../world/innerMap.js');
+        const { InnerMapCombat } = await import('../ui/innerMapCombat.js');
+        const { InnerMapDigging } = await import('../ui/innerMapDigging.js');
+        const keep = { active: InnerMap.active, wt: InnerMap.currentWorldTile, b: InnerMap._insideBuilding, q: InnerMap.playerInnerQ, r: InnerMap.playerInnerR };
+        try {
+            InnerMap.active = true;
+            InnerMap.currentWorldTile = { q: 4, r: 9 };
+            InnerMap._insideBuilding = null;
+            InnerMap.playerInnerQ = 10; InnerMap.playerInnerR = 12;
+            const body = { name: 'Odo', type: 'villager', q: 10, r: 12, at: 0, day: 0, key: InnerMapCombat._mapKey() };
+            InnerMapCombat._corpses.push(body);
+            InnerMapDigging.carry(body);
+            // Through the door of a house
+            InnerMap._insideBuilding = { q: 11, r: 12 };
+            InnerMap.playerInnerQ = 5; InnerMap.playerInnerR = 8;
+            InnerMapDigging._updateCarry();
+            expect(InnerMapCombat._carrying).toBe(body);
+            expect(body.key).toBe(InnerMapCombat._mapKey());
+            expect(InnerMapCombat.corpsesHere()).toContain(body);
+            expect([body.q, body.r]).toEqual([5, 8]);
+            // Off the town map altogether: left behind
+            InnerMap.active = false;
+            InnerMapDigging._updateCarry();
+            expect(InnerMapCombat._carrying).toBe(null);
+        } finally {
+            InnerMap.active = keep.active; InnerMap.currentWorldTile = keep.wt; InnerMap._insideBuilding = keep.b;
+            InnerMap.playerInnerQ = keep.q; InnerMap.playerInnerR = keep.r;
+        }
+    });
+});
+
+describe('Laying a captive in a cell on the gaol map', () => {
+    it('a thief is taken in; an innocent bound is cut loose and the player jailed for kidnapping', async () => {
+        const { InnerMap } = await import('../world/innerMap.js');
+        const { InnerMapCarry } = await import('../ui/innerMapCarry.js');
+        const keep = { active: InnerMap.active, jail: InnerMap._jail, b: InnerMap._insideBuilding, wt: InnerMap.currentWorldTile, ref: InnerMap._currentWorldTileRef, npcs: InnerMap.npcs };
+        const settlement = { name: 'Testby', type: 'town', kingdom: null, q: 3, r: 3 };
+        const tile = { q: 3, r: 3, settlement };
+        const world = { day: 12, getTile: () => tile, getKingdom: () => null, getSettlementViews: () => [settlement] };
+        const notes = [];
+        const game = { world, player: { name: 'Ada', gold: 50, reputation: 0, karma: 0, q: 3, r: 3, skills: {} }, ui: { showNotification: (t) => notes.push(t) } };
+        try {
+            InnerMap.active = true;
+            InnerMap._jail = { visitor: true, locked: false };
+            InnerMap._insideBuilding = { q: 6, r: 6, _jail: true };
+            InnerMap.currentWorldTile = tile;
+            InnerMap._currentWorldTileRef = tile;
+            InnerMap.npcs = [];
+            InnerMap.playerInnerQ = 8; InnerMap.playerInnerR = 8;
+            // The menu offers the cell to a visitor carrying someone
+            const thief = npc({ id: 501, _thief: true, _carried: true, _bound: true });
+            InnerMapCarry.person = thief;
+            expect(InnerMapCarry.menuItems(game, null, 8, 8, []).some(i => i.action === 'carry_hand_over')).toBe(true);
+            expect(InnerMapCarry.handOver(game)).toBe('arrest');
+            expect(thief.state).toBe('gone');
+            expect(InnerMapCarry.person).toBe(null);
+            expect(game.player.reputation).toBe(DataLoader._gamedata.carrying.handOver.arrest.reputation);
+            // An innocent townsman, bound and carried in
+            const man = npc({ id: 502, _carried: true, _bound: true, _gagged: true });
+            InnerMap.npcs.push(man);
+            InnerMapCarry.person = man;
+            expect(InnerMapCarry.handOver(game)).toBe('kidnapping');
+            expect(man._bound).toBe(false);
+            expect(man.state).toBe('idle');
+            expect(game.player.jailState && game.player.jailState.offense).toBe('kidnapping');
+        } finally {
+            InnerMapCarry.reset();
+            InnerMap.active = keep.active; InnerMap._jail = keep.jail; InnerMap._insideBuilding = keep.b;
+            InnerMap.currentWorldTile = keep.wt; InnerMap._currentWorldTileRef = keep.ref; InnerMap.npcs = keep.npcs;
+        }
+    });
+});

@@ -53,8 +53,14 @@ export const Seasons = {
         priceCurves: {
             food: {
                 label: 'Food',
-                goods: ['grain', 'flour', 'bread', 'fish', 'preserved_fish', 'meat', 'dried_meat', 'cheese', 'fruit', 'berries', 'honey', 'food', 'vegetables'],
+                goods: ['grain', 'flour', 'bread', 'fish', 'preserved_fish', 'meat', 'dried_meat', 'cheese', 'fruit', 'food', 'vegetables'],
                 points: [[1, 0.30], [25, 0.20], [50, 0.0], [70, -0.20], [88, -0.30], [100, -0.15], [112, 0.15], [120, 0.28]],
+            },
+            // Garden and orchard produce: milder, its stock swings with its own season already
+            produce: {
+                label: 'Produce',
+                goods: ['cabbage', 'turnips', 'carrots', 'onions', 'beans', 'apples', 'pears', 'plums', 'cherries', 'grapes', 'olives', 'dates', 'berries', 'mushrooms', 'eggs', 'honey', 'herbs'],
+                points: [[1, 0.18], [20, 0.2], [40, 0.05], [60, -0.08], [80, -0.15], [95, -0.05], [110, 0.1], [120, 0.16]],
             },
             furs: {
                 label: 'Furs & hides',

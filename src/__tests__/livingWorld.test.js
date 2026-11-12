@@ -115,6 +115,9 @@ describe('chatter data', () => {
             scandals: [{ kind: 'debts', subject: 'Queen Maud', tale: 'They say Queen Maud pawned the crown jewels.', place: 'Brindle', realm: 'Arvenland' }],
             // A rival House of the player's ruling here (systems/fame.js)
             rivalHouse: 'House Varr',
+            // Sickness here and near (systems/illness.js), the town's love stories (systems/romance.js annals)
+            sickness: { here: { k: 'flux', name: 'the flux', epi: true, closed: true }, near: { k: 'flux', name: 'the flux', town: 'Brindle' } },
+            romance: [{ kind: 'wed', a: 'Marta', b: 'Jon' }],
         };
         for (const g of Chatter.groups()) {
             for (const line of g.lines) {

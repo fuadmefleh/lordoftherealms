@@ -28,7 +28,7 @@
     "terrain": { "base": 0.7, "perMove": 0.15, "min": 0.85, "max": 1.45 },
 
     "_perish": "Perishable goods spoil on the way: extra friction perDay x the haul's days, and loss x days of what moves never arrives (at most maxLoss). Haul days: distance / (landSpeed x the road's speed factor), or seaSpeed by sea, canalSpeed by canal.",
-    "perish": { "goods": ["fish", "meat", "bread", "cheese"], "perDay": 0.025, "loss": 0.02, "maxLoss": 0.35, "landSpeed": 3, "roadSpeed": 4, "seaSpeed": 6, "canalSpeed": 5 },
+    "perish": { "goods": ["fish", "meat", "bread", "cheese", "milk", "crab", "cabbage", "pears", "plums", "cherries", "grapes", "berries", "mushrooms", "eggs"], "perDay": 0.025, "loss": 0.02, "maxLoss": 0.35, "landSpeed": 3, "roadSpeed": 4, "seaSpeed": 6, "canalSpeed": 5 },
 
     "_upkeep": "Each realm pays its roads' upkeep weekly (tier upkeep x hexes, x the Royal Road-Building edict's cost) when its treasury is above floor, it missed no payment and its debt ratio is under maxDebt; at war it pays warShare of it. A paid segment is repaired, an unpaid one only decays. Roads outside any realm are kept by their towns at freeRepair a week.",
     "upkeep": { "floor": 400, "maxDebt": 0.8, "warShare": 0.5, "freeRepair": 2 },

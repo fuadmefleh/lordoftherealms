@@ -119,6 +119,11 @@
     },
 
     "lines": {
+        "npcCrime": {
+            "_note": "A witness to someone else's crime against the player tells them who (StreetCrime.npcCrimeLine); burglary and pickpocket from systems/npcTheft.js",
+            "burglary": ["I saw {by} at your door that night. Thought it odd at the time.", "It was {by} — I saw them come out of your house with a sack."],
+            "pickpocket": ["I saw {by}'s hand in your purse, plain as day.", "Watch {by}. I saw them lift from you in the crowd."]
+        },
         "witness": {
             "vandalism": {"fear": ["*keeps their distance* You're the one who smashed {victim}. I don't want any trouble.", "*eyes you warily* I saw you take {victim} to pieces. What next, my door?"], "anger": ["I saw you smash {victim}, you vandal. Who's to mend it, eh?", "You've a nerve, after what you did to {victim}."], "old": ["You're the one who smashed {victim}. We haven't forgotten.", "Mind your hands. {victim} is still not mended."]},
             "assault": {

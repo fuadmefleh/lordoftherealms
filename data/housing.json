@@ -185,6 +185,24 @@
             "cost": 800,
             "effects": { "defenseBonus": 10, "renownBonus": 4 },
             "requiredHouse": ["estate"]
+        },
+        {
+            "id": "stout_lock",
+            "name": "Stout Lock",
+            "icon": "🔒",
+            "description": "The smith fits an iron lock and a barred door. Most housebreakers give it up and go elsewhere (systems/npcTheft.js).",
+            "cost": 45,
+            "effects": {},
+            "requiredHouse": ["shack", "cottage", "townhouse", "manor", "estate"]
+        },
+        {
+            "id": "watchdog",
+            "name": "Watchdog",
+            "icon": "🐕",
+            "description": "A big dog in the yard that barks at strangers by night. Thieves keep away.",
+            "cost": 30,
+            "effects": {},
+            "requiredHouse": ["cottage", "townhouse", "manor", "estate"]
         }
     ],
 

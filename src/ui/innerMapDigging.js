@@ -11,8 +11,20 @@
 //            plain earth with no name on it, settling into the ground
 //   mark   — a burial mound: raise a grave marker (one carried, or a cross
 //            carved from wood carried) and it is a named grave
-//   exhume — a grave or mound: a hole again, the body lying in it (the marker
-//            comes back to the pack)
+//   exhume — a grave or mound: dug OPEN — the earth heaped beside it, the body
+//            still lying in it, its grave goods out, the marker left standing.
+//            An open grave is still the grave (never a hole to dig again):
+//            take the body out, lay one in, fill it in again (its earth then
+//            shows disturbed a while), or pull up its marker (only ever on
+//            purpose). Seen at it, the street takes it for desecration.
+//   stash  — a hole (or an open grave): put things from the packs in it; fill
+//            it in and they are buried (a cache, world/burials.js, saved), dug
+//            up again by whoever digs there — you, someone who watched you, or
+//            now and then someone digging by chance. In with a body: grave goods.
+//
+// No digging into a grave in any state, the churchyard, a marker's tile, a
+// road, a bridge or pier, a doorway or the tile in front of one, under anyone
+// standing there. A hole left open caves in after a while; turned earth fades.
 //
 // Burials are kept on the world (world/burials.js, world.burials[hex], saved),
 // the tile's _dug the record itself; world/innerMap/graves.js lays them.
@@ -34,13 +46,20 @@ import { drawTilledSoil } from './tilledSoil.js';
 import { Endurance } from '../player/endurance.js';
 import { Carrying } from '../systems/carrying.js';
 import { InnerMapDowned } from './innerMapDowned.js';
-import { Burials } from '../world/burials.js';
+import { Burials, DUG_GROUND } from '../world/burials.js';
 import { GraveArt } from '../world/graveArt.js';
 import { GraveBook } from '../world/graveBook.js';
 import { CustomObjects } from '../world/customObjects.js';
+import { StreetCrime } from '../systems/streetCrime.js';
+import { SocialSkills } from '../systems/socialSkills.js';
+import { Arms } from '../systems/arms.js';
+import { PlayerEconomy } from '../player/playerEconomy.js';
+import { InnerMapReactions } from './innerMapReactions.js';
+import { InnerMapScavengers } from './innerMapScavengers.js';
+import { rowList, lede, esc, BTN_PLAIN } from './actionMenu/uiKit.js';
 
 const DEFAULTS = {
-    seconds: { dig: 5, fill: 3, bury: 4, exhume: 5 },
+    seconds: { dig: 5, fill: 3, bury: 4, exhume: 5, refill: 3 },
     toolSpeed: 0.6,
     tools: ['tools'],
     needs: { energy: -6, hygiene: -6 },
@@ -49,13 +68,21 @@ const DEFAULTS = {
     text: {},
 };
 
-const GROUND = {
-    hole: { id: 'dug_hole', name: 'Hole', icon: '🕳️', color: '#3b2a1c', passable: false },
-    filled: { id: 'turned_earth', name: 'Turned Earth', icon: '⬛', color: '#6b5034', passable: true },
-    grave: { id: 'grave', name: 'Burial Mound', icon: '⚰️', color: '#6b5034', passable: true },
-};
+const GROUND = DUG_GROUND;
 
-const VERB = { dig: 'Digging', fill: 'Filling in', bury: 'Burying', exhume: 'Digging up', mark: 'Raising the marker' };
+const VERB = { dig: 'Digging', fill: 'Filling in', bury: 'Burying', exhume: 'Digging up', mark: 'Raising the marker', refill: 'Filling in the grave' };
+
+/** A good's name and icon, for the stash picker and the finds. */
+function _goodOf(itemId) {
+    if (itemId === 'gold') return { name: 'Gold', icon: '💰' };
+    if (Arms.isArms(itemId)) return { name: Arms.nameOf(itemId), icon: Arms.iconOf(itemId) || '🗡️' };
+    const g = (PlayerEconomy.GOODS || {})[String(itemId).toUpperCase()];
+    return {
+        name: (g && g.name) || String(itemId).replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+        icon: (g && g.icon) || '📦',
+    };
+}
+const _nameOf = id => _goodOf(id).name.toLowerCase();
 
 function _cheb(aq, ar, bq, br) {
     return Math.max(Math.abs(aq - bq), Math.abs(ar - br));
@@ -64,6 +91,8 @@ function _cheb(aq, ar, bq, br) {
 function _fill(line, vars) {
     return String(line || '').replace(/\{(\w+)\}/g, (m, k) => (vars[k] != null ? vars[k] : m));
 }
+
+const _cap = s => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
 export const InnerMapDigging = {
     // { kind, q, r, t, total, corpse, then, game }
@@ -84,16 +113,29 @@ export const InnerMapDigging = {
         return (t && t._dug) || null;
     },
 
-    /** Bare outdoor ground a hole can go in (not a road, a doorway, a building or a thing). */
+    /** Bare outdoor ground a hole can go in (not a road, a doorway, a building, a grave or a thing). */
     canDig(tile) {
         if (!tile || tile._isInterior || InnerMap._insideBuilding) return false;
         if (tile._dug && tile._dug.kind !== 'filled') return false;
-        if (!tile.subTerrain || !tile.subTerrain.passable) return false;
-        // (no hole or grave in the shallows, a ford, a beach's wash)
+        // A grave in any state — the churchyard (its plots, paths and rail), a burial ground's plot,
+        // a burial of the player's however settled, the marker at its head — is dug only by its own
+        // grave actions (ui/innerMapGraves.js, the burial menu), never as a new hole
+        if (tile._grave || tile._plotRef || tile._plotHead || tile._burialOf) return false;
+        if (InnerMap.burialAt && InnerMap.burialAt(tile.q, tile.r)) return false;
+        if (!tile.subTerrain || !tile.subTerrain.passable || tile.subTerrain.id === 'grave') return false;
+        // (no hole or grave in the shallows, a ford, a beach's wash; nor through a bridge, a pier or a deck)
         if (tile._wet || tile._sea || tile._shallow || tile._ford || /water/.test(tile.subTerrain.id || '')) return false;
-        if (tile.isRoad || tile._doorMarker || tile.building || tile.customBuilding) return false;
+        if (tile._bridge || tile._pier || tile._deck) return false;
+        if (tile.isRoad || tile._doorMarker || tile.building || tile.customBuilding || tile.customBuildingPart) return false;
         if (tile.customObject || tile.customObjectPart || tile.groundItem) return false;
+        // Not across a doorway's step: the tile in front of a door stays clear
+        for (const [dq, dr] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) {
+            const n = InnerMap.getTile(tile.q + dq, tile.r + dr);
+            if (n && n._doorMarker) return false;
+        }
         if (InnerMap.playerInnerQ === tile.q && InnerMap.playerInnerR === tile.r && InnerMap._playerWalking) return false;
+        // Not under anyone's feet
+        if ((InnerMap.npcs || []).some(n => n && n.q === tile.q && n.r === tile.r && n.state !== 'gone' && n.state !== 'inside_building')) return false;
         return true;
     },
 
@@ -151,7 +193,8 @@ export const InnerMapDigging = {
         // time, label, needs and what to do when done: opts.seconds, opts.verb, opts.needs, opts.onDone;
         // opts.onTile: work on something lying on the ground (a carcass) may be done standing on it)
         const total = Number(opts.seconds) > 0 ? Number(opts.seconds) : this._seconds(game, kind);
-        const job = { kind, q, r, t: null, total, corpse: opts.corpse || null, then: opts.then || null, game, onDone: opts.onDone || null, verb: opts.verb || null, needs: opts.needs || null };
+        // (the map it is on: walking there and then leaving the map drops the work, never done on another)
+        const job = { kind, q, r, t: null, total, corpse: opts.corpse || null, then: opts.then || null, game, onDone: opts.onDone || null, verb: opts.verb || null, needs: opts.needs || null, key: InnerMapCombat._mapKey() };
         const pq = InnerMap.playerInnerQ, pr = InnerMap.playerInnerR;
         const near = _cheb(pq, pr, q, r);
         if (near === 1 || (opts.onTile && near === 0 && !InnerMap._playerWalking)) {
@@ -174,12 +217,17 @@ export const InnerMapDigging = {
         const walk = InnerMap.movePlayerTo(spot.q, spot.r);
         if (!walk || !walk.started) return 'unreachable';
         this._job = job;
-        InnerMap._pendingAction = { q, r, run: () => { if (this._job === job) this._begin(job); } };
+        InnerMap._pendingAction = { q, r, run: () => { if (this._job === job && this._sameMap(job)) this._begin(job); } };
         return 'walking';
     },
 
     cancel() {
         this._job = null;
+    },
+
+    /** Is the player still on the map (and outdoors) where the work was set? */
+    _sameMap(job) {
+        return !!(job && InnerMap.active && !InnerMap._insideBuilding && job.key === InnerMapCombat._mapKey());
     },
 
     _seconds(game, kind) {
@@ -200,9 +248,13 @@ export const InnerMapDigging = {
     /** Each frame, from the game loop. */
     update(deltaTime, game) {
         this._updateCarry(game);
+        // Grave robbers at night, looters over the fallen (ui/innerMapScavengers.js)
+        InnerMapScavengers.update(deltaTime, game || (this._job && this._job.game));
         const job = this._job;
-        if (!job || job.t == null) return;
-        if (!InnerMap.active || InnerMap._insideBuilding) { this.cancel(); return; }
+        if (!job) return;
+        // Left the map (or went indoors) on the way there or at the work: it is dropped
+        if (!this._sameMap(job)) { this.cancel(); return; }
+        if (job.t == null) return;
         // Walking away stops the work
         if (InnerMap._playerWalking || InnerMap.playerInnerQ !== job.startQ || InnerMap.playerInnerR !== job.startR) {
             this.cancel();
@@ -247,11 +299,29 @@ export const InnerMapDigging = {
                 else player.modifyNeed(need, v);
             }
         }
+        const world = game && game.world;
+        const hex = InnerMap._burialHex();
         if (job.kind === 'dig') {
-            if (!this.canDig(tile)) return;
+            if (!this.canDig(tile)) { this._note(game, '⛏️ Not there', 'You can\'t dig there now.', 'warning'); return; }
             this.setGround(tile, 'hole', { day });
-            const found = this._rollFind(game);
-            this._note(game, '⛏️ A hole', found || C.text.dig || 'You dig a hole.', found ? 'success' : 'info');
+            // Something buried here before: it comes up into the hole (world/burials.js caches)
+            const cache = Burials.digUpCache(world, hex, job.q, job.r);
+            if (cache && cache.cache) {
+                const { taken, left } = Burials.takeAll(cache.cache, player);
+                if (!left) Burials.dropCache(world, hex, job.q, job.r);
+                const got = Burials.isEmpty(taken) ? '' : ` You take ${Burials.describe(taken, _nameOf)}.`;
+                const stays = left ? ` ${_cap(Burials.describe(left, _nameOf))} still lie${Object.keys(left.items || {}).length + (left.gold ? 1 : 0) === 1 ? 's' : ''} in the hole: your packs are full.` : '';
+                this._note(game, '⛏️ Unearthed', `Your spade strikes what was buried here.${got}${stays}`, 'success');
+                if (game && game.ui && typeof game.ui.updateStats === 'function') game.ui.updateStats(player, world);
+            } else if (cache && cache.taken) {
+                const by = cache.taken.by;
+                const knew = (cache.seen || []).some(w => w.name === by);
+                const T = C.text;
+                this._note(game, '⛏️ Gone', _fill(T.cacheGone || 'The earth here has been dug over before you. Whatever was buried here is gone.', {}) + (knew ? ' ' + _fill(T.cacheGoneSeen || 'You remember {name} watching you bury it.', { name: by }) : ''), 'warning');
+            } else {
+                const found = this._rollFind(game);
+                this._note(game, '⛏️ A hole', found || C.text.dig || 'You dig a hole.', found ? 'success' : 'info');
+            }
             if (job.then && job.then.kind === 'bury' && job.then.corpse) {
                 this.start(game, 'bury', job.q, job.r, { corpse: job.then.corpse });
             }
@@ -260,30 +330,107 @@ export const InnerMapDigging = {
             // A body lying in the hole is buried by filling it
             const body = InnerMapCombat.corpsesHere().find(c => c.q === job.q && c.r === job.r && c !== InnerMapCombat._carrying);
             if (body) { this._buryBody(game, tile, body, day); return; }
+            // What was put in it is buried: a cache, on the world's record (and who saw it go in)
+            const seen = this._watchers(job.q, job.r, player);
+            const cache = Burials.closeCache(world, hex, job.q, job.r, day, seen.map(w => ({ id: StreetCrime.npcKey(w.npc), name: w.npc.name })));
             this.setGround(tile, 'filled', { day });
-            this._note(game, '⬛ Filled in', C.text.fill || 'You fill the hole in.');
+            if (cache) {
+                const who = seen.length ? ' ' + _fill(C.text.cacheSeen || '{names} saw you do it.', { names: seen.slice(0, 3).map(w => w.npc.name).join(', ') }) : '';
+                this._note(game, '⬛ Buried', _fill(C.text.cache || 'You bury {what} and fill the hole in over it.', { what: Burials.describe(cache, _nameOf) }) + who, seen.length ? 'warning' : 'info');
+            } else {
+                this._note(game, '⬛ Filled in', C.text.fill || 'You fill the hole in.');
+            }
         } else if (job.kind === 'bury') {
-            if (!tile._dug || tile._dug.kind !== 'hole') return;
+            const dug = tile._dug;
+            const intoGrave = dug && dug.kind === 'grave' && Burials.isOpen(dug) && !dug.body;
+            if (!dug || (dug.kind !== 'hole' && !intoGrave)) return;
             const body = job.corpse && InnerMapCombat._corpses.includes(job.corpse) ? job.corpse : this._bodyIn(job.q, job.r);
             if (!body) { this._note(game, '🕳️ Nothing to bury', 'There is no body to lay in it.'); return; }
-            this._buryBody(game, tile, body, day);
+            if (intoGrave) this._reburyBody(game, tile, dug, body, day);
+            else this._buryBody(game, tile, body, day);
         } else if (job.kind === 'exhume') {
-            if (!tile._dug || tile._dug.kind !== 'grave') return;
             const g = tile._dug;
+            if (!g || g.kind !== 'grave' || Burials.isOpen(g)) return;
             // Someone still breathing down there: dug out alive (ui/innerMapDowned.js)
             const live = InnerMapDowned.liveAt(job.q, job.r);
             if (live) { InnerMapDowned.rescue(game, live, null); return; }
-            // The marker comes down and back to the pack; the burial goes off the record (world/burials.js)
-            const item = Burials.takeMarker(g, player, day);
-            InnerMap.clearBurialMarker(job.q, job.r);
-            Burials.unbury(game && game.world, InnerMap._burialHex(), job.q, job.r);
-            this.setGround(tile, 'hole', { day });
-            const body = g.body || { name: g.name || 'someone', type: 'villager', preset: null };
-            InnerMapCombat.restoreBody(body, job.q, job.r, day);
-            const back = item ? ` You pull up the marker and keep it (${item.replace(/_/g, ' ')}).` : '';
-            this._note(game, '⛏️ Dug up', _fill(C.text.exhume || 'You dig {name} up.', { name: body.name }) + back, 'warning');
-            if (item && game.ui && typeof game.ui.updateStats === 'function') game.ui.updateStats(game.player, game.world);
+            // Dug open (world/burials.js): the body lies in it, the grave goods come out, the marker stays
+            const goods = Burials.openGrave(g, day, false);
+            let got = '';
+            if (goods) {
+                const { taken, left } = Burials.takeAll(goods, player);
+                if (left) g.goods = left;
+                if (!Burials.isEmpty(taken)) got = ` You take what was buried with them: ${Burials.describe(taken, _nameOf)}.`;
+                if (left) got += ' The rest lies in the grave: your packs are full.';
+            }
+            InnerMap.layBurial(job.q, job.r, g, day);
+            const name = g.name || 'someone';
+            this._note(game, '⛏️ Dug up', _fill(C.text.exhume || 'You dig down to {name}: the grave lies open.', { name }) + got, 'warning');
+            this._desecrate(game, job.q, job.r, name);
+            if (game.ui && typeof game.ui.updateStats === 'function') game.ui.updateStats(game.player, game.world);
+        } else if (job.kind === 'refill') {
+            const g = tile._dug;
+            if (!g || g.kind !== 'grave' || !Burials.isOpen(g)) return;
+            this._refillGrave(game, tile, g, day);
         }
+    },
+
+    /** Fill an open grave of the player's in: intact again (disturbed), or — nothing left to it — only a hole filled. */
+    _refillGrave(game, tile, g, day) {
+        const world = game && game.world;
+        const hex = InnerMap._burialHex();
+        if (!g.body && !Burials.markerNow(g, day)) {
+            // No one in it and nothing over it: only a hole filled in — over whatever was put in it (a cache)
+            const goods = g.goods && !Burials.isEmpty(g.goods) ? Burials.contents(g.goods) : null;
+            Burials.unbury(world, hex, tile.q, tile.r);
+            InnerMap.clearBurialMarker(tile.q, tile.r);
+            this.setGround(tile, 'filled', { day });
+            if (goods) {
+                const c = Burials.openCache(world, hex, tile.q, tile.r, day);
+                c.gold = (c.gold || 0) + goods.gold;
+                for (const [id, n] of Object.entries(goods.items)) c.items[id] = (c.items[id] || 0) + n;
+                const seen = this._watchers(tile.q, tile.r, game.player);
+                Burials.closeCache(world, hex, tile.q, tile.r, day, seen.map(w => ({ id: StreetCrime.npcKey(w.npc), name: w.npc.name })));
+            }
+            this._note(game, '⬛ Filled in', goods ? `You fill the empty grave in over ${Burials.describe(goods, _nameOf)}.` : 'You fill the empty grave in. There is nothing to show anyone lay there.');
+            return;
+        }
+        Burials.refillGrave(g, day);
+        InnerMap.layBurial(tile.q, tile.r, g, day);
+        this._note(game, '⚰️ Filled in', g.body ? `You shovel the earth back over ${g.name || 'them'}. It will show disturbed for a while.` : 'You fill the empty grave in under its marker.');
+    },
+
+    /** Lay a body in an open, empty grave and fill it in over them. */
+    _reburyBody(game, tile, g, body, day) {
+        if (InnerMapCombat._carrying === body) this.drop();
+        InnerMapCombat.removeBody(body);
+        // (in with what was put in the grave already: its goods stay with it)
+        Burials.layBody(g, body, day);
+        Burials.refillGrave(g, day);
+        InnerMap.layBurial(tile.q, tile.r, g, day);
+        this._note(game, '⚰️ Buried', _fill(this.config().text.bury || 'You bury {name}.', { name: body.name }), 'info');
+    },
+
+    /** Who watches the spot (q, r) from the street (StreetCrime's sight, cut by Stealth): [{ npc, seen }]. */
+    _watchers(q, r, player = null) {
+        if (!InnerMap.active || InnerMap._insideBuilding) return [];
+        let cut = 0;
+        try { cut = player ? SocialSkills.perk(player, 'stealth', 'sight') || 0 : 0; } catch { cut = 0; }
+        return StreetCrime.selectWitnesses(InnerMap.npcs || [], { q, r, indoors: false, sightCut: cut }, null)
+            .filter(w => w.seen && w.npc && !w.npc._asleep && w.npc.state !== 'unconscious');
+    },
+
+    /**
+     * Seen at a grave with a spade (dug open, its marker pulled up): desecration — the street takes it
+     * as it takes the smashing of the town's things (InnerMapReactions.onViolence 'vandalism': the
+     * witnesses' memory, the rumour, the watch). Only in a town. → the reaction, or null (unseen).
+     */
+    _desecrate(game, q, r, name) {
+        if (!game || !game.player || !InnerMap._graveSettlement || !InnerMap._graveSettlement()) return null;
+        if (!this._watchers(q, r, game.player).length) return null;
+        const hex = InnerMap._burialHex();
+        const victim = { id: `grave:${hex}|${q},${r}|${(game.world && game.world.day) || 0}`, name: `the grave of ${name || 'the dead'}`, type: 'property', q, r };
+        return InnerMapReactions.onViolence(game, victim, 'vandalism');
     },
 
     /** Lay a body in the hole: a plain, unmarked mound of earth (on the world's record, world/burials.js). */
@@ -291,10 +438,117 @@ export const InnerMapDigging = {
         const C = this.config();
         if (InnerMapCombat._carrying === body) this.drop();
         InnerMapCombat.removeBody(body);
-        const g = Burials.bury(game && game.world, InnerMap._burialHex(), tile.q, tile.r, body, day, InnerMap._graveSettlement());
+        // What was put in the hole goes in with them: grave goods
+        const world = game && game.world;
+        const hex = InnerMap._burialHex();
+        const c = Burials.cacheAt(world, hex, tile.q, tile.r);
+        const goods = c && !Burials.isEmpty(c) ? Burials.contents(c) : null;
+        const g = Burials.bury(world, hex, tile.q, tile.r, body, day, InnerMap._graveSettlement(), goods);
+        if (g && c) Burials.dropCache(world, hex, tile.q, tile.r);
         if (g) InnerMap.layBurial(tile.q, tile.r, g, day);
         else this.setGround(tile, 'grave', { day, name: body.name, body: Burials.plainBody(body) });
-        this._note(game, '⚰️ Buried', _fill(C.text.bury || 'You bury {name}.', { name: body.name }), 'info');
+        const with_ = g && g.goods ? ` With them: ${Burials.describe(g.goods, _nameOf)}.` : '';
+        this._note(game, '⚰️ Buried', _fill(C.text.bury || 'You bury {name}.', { name: body.name }) + with_, 'info');
+    },
+
+    // ══════════════════════════════════════════════
+    // WHAT GOES IN A HOLE (or an open grave)
+    // ══════════════════════════════════════════════
+
+    /** What lies in the hole or open grave at (q, r): its contents ({ items, gold }), or null. */
+    contentsAt(game, q, r) {
+        const t = InnerMap.getTile(q, r);
+        const d = t && t._dug;
+        if (!d) return null;
+        if (d.kind === 'grave') return Burials.isOpen(d) ? d.goods || null : null;
+        if (d.kind !== 'hole') return null;
+        const c = Burials.cacheAt(game && game.world, InnerMap._burialHex(), q, r);
+        return c && c.open ? c : null;
+    },
+
+    /** Can things be put in at (q, r)? An open hole, or an open grave — not one with water in it. */
+    canStash(q, r) {
+        const t = InnerMap.getTile(q, r);
+        const d = t && t._dug;
+        if (!d || InnerMap._insideBuilding) return false;
+        if (t._wet || t._sea || t._shallow) return false;
+        return d.kind === 'hole' || (d.kind === 'grave' && Burials.isOpen(d));
+    },
+
+    /** What the packs hold that could go in: [{ itemId, qty, name, icon }] (gold first; not what is worn). */
+    stashables(player) {
+        const out = [];
+        if (!player) return out;
+        if (Math.floor(Number(player.gold) || 0) > 0) out.push({ itemId: 'gold', qty: Math.floor(player.gold), ..._goodOf('gold') });
+        const inv = player.inventory || {};
+        for (const id of Object.keys(inv)) {
+            if (id === 'gold' || !(inv[id] > 0)) continue;
+            if (Arms.isArms(id) && Arms.isEquipped(player, id) && inv[id] <= 1) continue;
+            out.push({ itemId: id, qty: inv[id], ..._goodOf(id) });
+        }
+        return out;
+    },
+
+    /**
+     * Put qty of itemId (or 'gold') from the packs into the hole or open grave at
+     * (q, r). The player must stand by it. → how many went in.
+     */
+    stash(game, q, r, itemId, qty) {
+        const player = game && game.player;
+        if (!player || !this.canStash(q, r)) return 0;
+        if (_cheb(InnerMap.playerInnerQ, InnerMap.playerInnerR, q, r) > 1) return 0;
+        const t = InnerMap.getTile(q, r);
+        const day = (game.world && game.world.day) || 0;
+        let c;
+        if (t._dug.kind === 'grave') {
+            if (!t._dug.goods) t._dug.goods = { items: {}, gold: 0 };
+            c = t._dug.goods;
+        } else {
+            c = Burials.openCache(game.world, InnerMap._burialHex(), q, r, day);
+        }
+        const n = Burials.putIn(c, player, itemId, qty);
+        if (n && game.ui && typeof game.ui.updateStats === 'function') game.ui.updateStats(player, game.world);
+        return n;
+    },
+
+    /** Take back everything in the hole or open grave at (q, r) that the packs have room for. */
+    unstash(game, q, r) {
+        const player = game && game.player;
+        const c = this.contentsAt(game, q, r);
+        if (!player || !c) return null;
+        const t = InnerMap.getTile(q, r);
+        const { taken, left } = Burials.takeAll(c, player);
+        if (!left && t._dug.kind === 'grave') delete t._dug.goods;
+        if (game.ui && typeof game.ui.updateStats === 'function') game.ui.updateStats(player, game.world);
+        return { taken, left };
+    },
+
+    /** The packs, to pick what goes into the hole (or open grave) at (q, r): a stack, some of it, or gold. */
+    showStashPicker(game, q, r, msg = '') {
+        if (!game || !game.ui || typeof game.ui.showCustomPanel !== 'function') return;
+        const goods = this.stashables(game.player);
+        const inHole = this.contentsAt(game, q, r);
+        const grave = (InnerMap.getTile(q, r) || {})._dug;
+        const where = grave && grave.kind === 'grave' ? 'the grave' : 'the hole';
+        const rows = goods.slice(0, 40).map(g => {
+            const some = g.itemId === 'gold' ? Math.min(g.qty, 10) : 1;
+            const id = esc(g.itemId);
+            const btn = (n, label) => `<button type="button" style="${BTN_PLAIN} margin-left:4px;" onclick="event.stopPropagation(); window.__holeStash && window.__holeStash('${id}', ${n})">${label}</button>`;
+            return {
+                icon: g.icon, name: esc(g.name), desc: `You carry ${g.qty}${g.itemId === 'gold' ? 'g' : ''}`,
+                side: (g.qty > some ? btn(some, g.itemId === 'gold' ? `${some}g` : '1') : '') + btn(g.qty, g.qty > some ? 'All' : (g.itemId === 'gold' ? `${g.qty}g` : 'Put in')),
+            };
+        });
+        window.__holeStash = (itemId, n) => {
+            const put = this.stash(game, q, r, itemId, n);
+            const name = _goodOf(itemId).name;
+            this.showStashPicker(game, q, r, put ? `In it goes: ${itemId === 'gold' ? `${put} gold` : `${put} ${name}`}.` : 'You need to stand beside it.');
+        };
+        const now = inHole && !Burials.isEmpty(inHole) ? `<div style="font-size:11px; color:var(--text-secondary); margin:4px 0;">In ${where} now: ${esc(Burials.describe(inHole, _nameOf))}.</div>` : '';
+        const note = msg ? `<div style="font-size:11px; color:#9fd89f; margin:4px 0;">${esc(msg)}</div>` : '';
+        const body = rows.length ? rowList(rows) : '<div style="font-size:11px; color:var(--text-secondary);">Your packs are empty.</div>';
+        game.ui.showCustomPanel(`🕳️ Put Something in ${where === 'the grave' ? 'the Grave' : 'the Hole'}`,
+            `<div>${lede(`Pick what goes into ${where}. Fill it in and it is buried: dig here again to get it back. Anyone who watches you do it may come back for it.`)}${note}${now}${body}</div>`);
     },
 
     /**
@@ -316,9 +570,9 @@ export const InnerMapDigging = {
         const world = game && game.world;
         const head = InnerMap.burialHeadFree(q, r);
         const res = Burials.placeMarker(world, game && game.player, InnerMap._burialHex(), q, r, choice, day, head);
-        if (!res.success) { this._note(game, '🪦 No marker', res.reason, 'error'); return res; }
+        if (!res.success) { this._note(game, '⚰️ No marker', res.reason, 'error'); return res; }
         InnerMap.layBurial(q, r, res.grave, day);
-        this._note(game, '🪦 A grave', res.text, 'success');
+        this._note(game, '⚰️ A grave', res.text, 'success');
         if (game.ui && typeof game.ui.updateStats === 'function') game.ui.updateStats(game.player, world);
         return res;
     },
@@ -347,6 +601,39 @@ export const InnerMapDigging = {
         return null;
     },
 
+    /** Lift the body out of an open grave of the player's: it lies beside the pit, to carry off or lay back. */
+    takeBodyOut(game, q, r) {
+        const g = this.dugAt(q, r);
+        if (!g || g.kind !== 'grave' || !Burials.isOpen(g) || !g.body) return null;
+        const day = (game && game.world && game.world.day) || 0;
+        const body = Burials.takeBody(g);
+        // (beside the pit, on open ground: the nearest passable tile to the player)
+        let spot = null;
+        for (const [dq, dr] of [[0, 1], [1, 0], [-1, 0], [0, -1], [1, 1], [-1, 1], [1, -1], [-1, -1]]) {
+            const t = InnerMap.getTile(q + dq, r + dr);
+            if (!t || !t.subTerrain || !t.subTerrain.passable || t.building || t.customObject || t.customObjectPart) continue;
+            const n = _cheb(t.q, t.r, InnerMap.playerInnerQ, InnerMap.playerInnerR);
+            if (!spot || n < spot.n) spot = { q: t.q, r: t.r, n };
+        }
+        const b = InnerMapCombat.restoreBody({ ...body, name: body.name || g.name || 'someone' }, spot ? spot.q : q, spot ? spot.r : r, day);
+        InnerMap.layBurial(q, r, g, day);
+        this._note(game, '⚰️ Lifted out', `You haul ${b.name} up out of the grave.`, 'warning');
+        return b;
+    },
+
+    /** Pull up the marker over a burial of the player's (only ever on purpose): it goes back to the pack. */
+    pullMarker(game, q, r) {
+        const g = this.dugAt(q, r);
+        const day = (game && game.world && game.world.day) || 0;
+        if (!g || g.kind !== 'grave' || !Burials.markerNow(g, day)) return null;
+        const item = Burials.takeMarker(g, game && game.player, day);
+        InnerMap.clearBurialMarker(q, r);
+        InnerMap.layBurial(q, r, g, day);
+        this._note(game, '⚰️ Pulled up', item ? `You pull up the marker and keep it (${_nameOf(item)}).` : 'You pull up the old marker. It is past any use.', 'info');
+        if (game.ui && typeof game.ui.updateStats === 'function') game.ui.updateStats(game.player, game.world);
+        return item;
+    },
+
     /** A word over a grave. */
     payRespects(game, q, r) {
         const d = this.dugAt(q, r);
@@ -368,7 +655,7 @@ export const InnerMapDigging = {
         const day = (game && game.world && game.world.day) || 0;
         const m = Burials.markerNow(d, day);
         const title = m ? (GraveBook.markerDef(m) || {}).name || 'A Grave' : 'A Burial Mound';
-        this._note(game, `🪦 ${title}`, Burials.readLines(d, game && game.world, day).join(' '));
+        this._note(game, `⚰️ ${title}`, Burials.readLines(d, game && game.world, day).join(' '));
     },
 
     /**
@@ -418,9 +705,18 @@ export const InnerMapDigging = {
     _updateCarry() {
         const body = InnerMapCombat._carrying;
         if (!body) return;
-        // Leaving the street (a building, the world map): the body is left behind
-        if (!InnerMap.active || body.key !== InnerMapCombat._mapKey() || !InnerMapCombat._corpses.includes(body)) {
+        // Leaving the town for the world map (or the body gone): it is left behind
+        if (!InnerMap.active || !InnerMapCombat._corpses.includes(body)) {
             this.drop();
+            return;
+        }
+        // Through a door (into a building, up its stairs, back out to the street): the body comes too,
+        // as the living carried do (ui/innerMapCarry.js) — it lies on the map the player is on
+        const key = InnerMapCombat._mapKey();
+        if (body.key !== key) {
+            body.key = key;
+            body.q = InnerMap.playerInnerQ;
+            body.r = InnerMap.playerInnerR;
             return;
         }
         const q = InnerMap.playerInnerQ, r = InnerMap.playerInnerR;
@@ -449,9 +745,19 @@ export const InnerMapDigging = {
                 const s = camera.worldToScreenFast(q * T, r * T);
                 // (a burial of the player's: its mound and, wanting a standing one, its marker)
                 if (kind === 'grave') this._drawBurial(ctx, tile._dug, s.x, s.y, ds, q, r);
-                else this._drawFeature(ctx, kind, s.x, s.y, ds, q, r);
+                else if (kind === 'filled') {
+                    // Turned earth fades back into the ground (world/burials.js ground.filledFadeDays)
+                    const a = this._filledAlpha(tile._dug);
+                    if (a <= 0.02) continue;
+                    ctx.save();
+                    ctx.globalAlpha *= a;
+                    this._drawFeature(ctx, kind, s.x, s.y, ds, q, r);
+                    ctx.restore();
+                } else this._drawFeature(ctx, kind, s.x, s.y, ds, q, r);
             }
         }
+        // A grave robber's lantern (ui/innerMapScavengers.js)
+        InnerMapScavengers.render(ctx, camera, T);
         // The work under way: a ring filling round the spot
         const job = this._job;
         if (job && job.t != null) {
@@ -468,6 +774,14 @@ export const InnerMapDigging = {
             ctx.stroke();
             ctx.restore();
         }
+    },
+
+    /** How strongly turned earth still shows (1 fresh, 0 grown back over). */
+    _filledAlpha(d) {
+        const day = InnerMap._burialDay ? InnerMap._burialDay() : (InnerMap.worldDay || 0);
+        const fade = Math.max(1, Number(Burials.config().ground.filledFadeDays) || 40);
+        if (!d || d.day == null) return 1;
+        return Math.max(0, Math.min(1, 1 - (day - d.day) / fade));
     },
 
     /** Is (q, r) tilled ground? */
@@ -501,9 +815,12 @@ export const InnerMapDigging = {
         ctx.globalAlpha = Burials.moundAlpha(g, day);
         const mound = this._graveImg('grave_mound');
         // Fresh (burial.freshDays): bare, dark, damp turned earth with its clods — the churchyard's
-        // grassed mound, flowers and all, only once it has weathered
-        const fresh = !g.marker && (day - (Number(g.day) || 0)) < (Number((this.config().burial || {}).freshDays) || 30);
-        if (fresh) {
+        // grassed mound, flowers and all, only once it has weathered (a grave dug and put back is fresh again)
+        const fresh = Burials.isFresh(g, day);
+        if (Burials.isOpen(g)) {
+            // Dug open: the pit, the earth heaped beside it, whoever lies in it showing
+            this._openPit(ctx, x, y, ds, q, r, !!g.body);
+        } else if (fresh) {
             this._freshMound(ctx, x + ds / 2, y + ds / 2, ds, q, r);
         } else if (mound) {
             const w = mound.naturalWidth * ds / P, h = mound.naturalHeight * ds / P;
@@ -538,6 +855,38 @@ export const InnerMapDigging = {
             }
         }
         ctx.imageSmoothingEnabled = smooth;
+    },
+
+    /** An open grave: the long pit (the churchyard's open-grave art, else drawn), its spoil heaped beside, the body in its shroud. */
+    _openPit(ctx, x, y, ds, q, r, body) {
+        const cx = x + ds / 2, cy = y + ds / 2;
+        const img = this._graveImg('grave_open');
+        if (img) {
+            const P = Number(GraveBook.config().artTile) || 128;
+            const w = img.naturalWidth * ds / P, h = img.naturalHeight * ds / P;
+            ctx.imageSmoothingEnabled = true;
+            ctx.drawImage(img, Math.floor(x + (ds - w) / 2), Math.floor(y + (ds - h) / 2), w, h);
+        } else {
+            this._drawFeature(ctx, 'hole', x, y, ds, q, r);
+        }
+        if (!body) return;
+        // the shroud, pale in the dark of the pit
+        ctx.fillStyle = 'rgba(214, 204, 180, 0.85)';
+        ctx.beginPath();
+        ctx.ellipse(cx, cy + ds * 0.03, ds * 0.11, ds * 0.27, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = 'rgba(120, 104, 80, 0.6)';
+        ctx.beginPath();
+        ctx.ellipse(cx, cy - ds * 0.17, ds * 0.07, ds * 0.06, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(90, 76, 56, 0.6)';
+        ctx.lineWidth = Math.max(1, ds * 0.015);
+        for (let i = 0; i < 3; i++) {
+            ctx.beginPath();
+            ctx.moveTo(cx - ds * 0.09, cy - ds * 0.05 + i * ds * 0.1);
+            ctx.lineTo(cx + ds * 0.09, cy - ds * 0.03 + i * ds * 0.1);
+            ctx.stroke();
+        }
     },
 
     /**

@@ -188,8 +188,8 @@ Object.assign(ActionMenu, {
             trade: 'commerce', contract: 'commerce', ship_passage: 'commerce',
             collect_goods: 'commerce', manage_property: 'commerce', start_caravan: 'commerce',
             odd_jobs: 'commerce', bounty_board: 'commerce', busking: 'commerce', gambling: 'commerce',
-            smuggle: 'commerce', pickpocket: 'commerce',
-            tavern: 'social', talk_locals: 'social', lodging: 'social', manage_lodging: 'commerce', town_lots: 'commerce', graveyards: 'commerce', livestock_market: 'commerce', my_herds: 'commerce', furniture_maker: 'commerce', preach: 'social', denounce_heresy: 'social',
+            smuggle: 'commerce', pickpocket: 'commerce', stolen_goods: 'social',
+            tavern: 'social', talk_locals: 'social', lodging: 'social', manage_lodging: 'commerce', town_lots: 'commerce', graveyards: 'commerce', town_sickness: 'social', livestock_market: 'commerce', my_herds: 'commerce', furniture_maker: 'commerce', preach: 'social', denounce_heresy: 'social',
             pilgrimage: 'social', miracle: 'social', donate: 'social',
             pledge_allegiance: 'social', renounce_allegiance: 'social',
             realm_wars: 'social', fund_restoration: 'social',
@@ -643,7 +643,7 @@ Object.assign(ActionMenu, {
         buy_house: 1, meet_people: 0,
 
         // Moderate actions (2 AP)
-        pickpocket: 2, gambling: 0, smuggle: 0, // gambling/smuggle cost 2 AP per use inside their menus
+        pickpocket: 2, gambling: 0, smuggle: 0, stolen_goods: 0, // gambling/smuggle cost 2 AP per use inside their menus
         recruit: 2, cartography: 2, chart_tile: 1, wash_clothes: 3, bathe: 2, map_trade: 2, steal_map: 2,
         craft_campfire: 2, negotiate_indigenous: 2, preach: 2, denounce_heresy: 2,
 
@@ -684,7 +684,7 @@ Object.assign(ActionMenu, {
         // Outlaw lairs (the panel is free; each deed inside pays its own AP)
         meet_trader: 0, meet_courier: 0,
         // Lodgings (rooms and services are paid in gold, not time)
-        lodging: 0, manage_lodging: 0, town_lots: 0, graveyards: 0, livestock_market: 0, my_herds: 0, furniture_maker: 0,
+        lodging: 0, manage_lodging: 0, town_lots: 0, graveyards: 0, town_sickness: 0, livestock_market: 0, my_herds: 0, furniture_maker: 0,
         outlaw_lair: 0, lair_scout: 3, lair_assault: 8, lair_strike: 4, lair_parley: 1,
         rival_duel: 4, rival_race: 1, rival_sabotage: 2, rival_hire: 1, rival_team_up: 1,
     },
@@ -996,6 +996,9 @@ Object.assign(ActionMenu, {
             case 'manage_lodging':
                 ActionMenu.lodgingAct(game, 'tab', unitId, 'run');
                 break;
+            case 'town_sickness':
+                ActionMenu.showSickness(game);
+                break;
             case 'graveyards':
                 ActionMenu.showGraveyards(game);
                 break;
@@ -1194,6 +1197,9 @@ Object.assign(ActionMenu, {
                 break;
             case 'pickpocket':
                 ActionMenu.doPickpocket(game, tile);
+                break;
+            case 'stolen_goods':
+                ActionMenu.showScene(game, 'stolen_goods', { q: tile.q, r: tile.r });
                 break;
             case 'smuggle':
                 ActionMenu.showSmuggleMenu(game, tile);

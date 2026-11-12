@@ -17,7 +17,7 @@
 // turn draws from its own seeded stream (world seed + day), so it never
 // reshuffles anyone else's dice; answering a matter draws from Utils.random.
 import { Relationships } from './_ref.js';
-import { Utils, Gossip, Whispers, Duels } from './_imports.js';
+import { Utils, Gossip, Whispers, Duels, Townsfolk, Romance } from './_imports.js';
 
 const _day = world => (world && Number.isFinite(world.day) ? world.day : 0);
 const _num = v => (Number.isFinite(v) ? v : 0);
@@ -267,7 +267,7 @@ Object.assign(Relationships, {
             if (Utils.random() >= cfg.chancePerDay) continue;
             const kind = Relationships._pickMatterKind(player, npcId, rel, npc);
             if (!kind) continue;
-            const params = Relationships._matterParams(player, kind, npc);
+            const params = Relationships._matterParams(player, kind, npc, world);
             if (!params) continue;
             events.push(Relationships._startMatter(player, npc, rel, kind, params, world));
             open++;
@@ -300,7 +300,36 @@ Object.assign(Relationships, {
         return options[options.length - 1].id;
     },
 
-    _matterParams(player, kind, npc) {
+    /**
+     * The real rival for a townsperson's hand (systems/romance.js): the one
+     * courting them now, else the likeliest free suitor in their town.
+     * → { name, type, pid, uid } or null (not a townsperson, or none).
+     */
+    _realSuitor(world, npc) {
+        const fp = npc && npc.folkUid ? Relationships.folkPerson(world, npc.folkUid) : null;
+        if (!fp) return null;
+        const { folk, p } = fp;
+        const day = _day(world);
+        let rival = null;
+        const c = Romance.courtOf(folk, p.id);
+        if (c) rival = Townsfolk.get(folk, Romance.partnerId(c, p.id));
+        if (!rival || !Townsfolk.isHere(rival) || rival.died != null) {
+            rival = null;
+            let best = -Infinity;
+            for (const o of Townsfolk.residents(folk)) {
+                if (o === p || !Romance.eligible(folk, o, day) || !Romance.compatible(world, folk, p, o)) continue;
+                if (Romance.courtOf(folk, o.id)) continue;
+                const sc = Romance.score(world, folk, p, o, day).score;
+                if (sc > best) { best = sc; rival = o; }
+            }
+        }
+        if (!rival) return null;
+        const foes = (Relationships._matterKind('rival_suitor') || {}).suitorFoes || {};
+        const roles = new Set(Object.values(foes));
+        return { name: Townsfolk.name(rival), type: roles.has(rival.role) ? rival.role : 'villager', pid: rival.id, uid: `${folk.q},${folk.r}#${rival.id}` };
+    },
+
+    _matterParams(player, kind, npc, world = null) {
         const def = Relationships._matterKind(kind);
         const range = def.amount || [30, 90];
         switch (kind) {
@@ -308,8 +337,12 @@ Object.assign(Relationships, {
                 return { amount: Utils.randInt(range[0], range[1]), reason: Utils.randPick(def.reasons || ['Times are hard']) };
             case 'plea':
                 return { amount: Utils.randInt(range[0], range[1]), kin: Utils.randPick(def.kin || ['My brother']), reason: Utils.randPick(def.trouble || ['is in trouble']) };
-            case 'rival_suitor':
+            case 'rival_suitor': {
+                // A real townsperson where the beloved is one (their suitor, or the likeliest), else a stranger of the data's
+                const real = world ? Relationships._realSuitor(world, npc) : null;
+                if (real) return { suitor: real.name, suitorType: real.type, suitorUid: real.uid };
                 return { suitor: Utils.randPick(def.suitors || ['another suitor']) };
+            }
             case 'confidence': {
                 const sc = Whispers.secretIn(player, npc.kingdomId);
                 if (sc) return { scandalId: sc.id, subject: sc.subject.name, truth: sc.truth };
@@ -332,7 +365,7 @@ Object.assign(Relationships, {
     _suitorDuelists(player, m, opts = {}) {
         const def = Relationships._matterKind('rival_suitor') || {};
         const foes = def.suitorFoes || {};
-        const type = foes[m.suitor] || def.defaultFoe || 'villager';
+        const type = m.suitorType || foes[m.suitor] || def.defaultFoe || 'villager';
         const a = Duels.fromPlayer(player, { mods: opts.duelMods || {} });
         const b = Duels.fromNpc({ type, name: m.suitor, personalityTraits: [] });
         b.name = m.suitor;
@@ -527,6 +560,12 @@ Object.assign(Relationships, {
                 const { a, b } = Relationships._suitorDuelists(player, m, opts);
                 const fight = Duels.autoResolve(a, b, { mode: 'firstBlood' });
                 const rounds = `${fight.rounds} exchange${fight.rounds === 1 ? '' : 's'}`;
+                // A real townsperson remembers it: the rivalry in their life, and the beating if they lost
+                const sfp = m.suitorUid ? Relationships.folkPerson(world, m.suitorUid) : null;
+                if (sfp) {
+                    Townsfolk._log(sfp.p, _day(world), 'rivalInLove', null, player.firstName || player.name || 'a stranger');
+                    if (fight.playerWon) Townsfolk.injure(sfp.p, _day(world), 6, 10);
+                }
                 if (fight.playerWon) {
                     Gossip.spreadDeed(player, world, 'duel_won', { q: player.q, r: player.r, victim: m.suitor });
                     return done(`*eyes shining* You sent ${m.suitor} home with a bloody nose! Half the town saw it.`, `⚔️ Won (${rounds} against ${b.weapon}) · 💗 Affection ${love(15)} · word spreads`, 'good', { duel: fight });

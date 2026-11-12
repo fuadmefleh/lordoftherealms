@@ -155,6 +155,8 @@ Object.assign(InnerMap, {
             this._settleTownLife(worldTile.settlement, () => { tseed = (tseed * 1664525 + 1013904223) & 0x7fffffff; return tseed / 0x7fffffff; });
             // Its stalls kept, its crier, its faith and its news (world/innerMap/townScenes.js)
             if (this._settleTownScenes) this._settleTownScenes(worldTile.settlement, game.world);
+            // Each at their trade, the homeless in their doorways (world/innerMap/townWork.js)
+            if (this._settleTownWork) this._settleTownWork(worldTile.settlement, game.world, game.player);
         } else {
             // A roadhouse on the open road keeps its keeper and a guest or two
             this._spawnRoadhouseFolk(game.world);
@@ -968,6 +970,8 @@ Object.assign(InnerMap, {
         this.roads = [];
         // A home of the player's they've furnished: lay their furniture out (world/innerMap/furnishing.js)
         if (this.applyHomeFurnishings && game && game.player) this.applyHomeFurnishings(game.player);
+        // The marketplace hall's stalls: each its trade and its name (world/innerMap/stalls.js)
+        if (this._dressHallStalls) this._dressHallStalls(building);
 
         // Populate interior with NPCs that are currently inside this building: those
         // on the ground floor (upstairs folk are met upstairs, sleepers in their beds — world/innerMap/floors.js)

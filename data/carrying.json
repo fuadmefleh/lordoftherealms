@@ -16,5 +16,17 @@
             "fear": ["Help! HELP! Someone help me!", "No — no, let me go!", "*screams and wriggles free*", "Where are you taking me?!"]
         }
     },
-    "blood": { "dripSeconds": 90, "dripEvery": 2, "keepDays": 3 }
+    "blood": { "dripSeconds": 90, "dripEvery": 2, "keepDays": 3 },
+    "_note_handOver": "A captive carried into the town's gaol and laid in a cell (ui/innerMapCarry.js, systems/carrying.js handOver). Someone with a deed against them (offenderMarks on the street NPC, an offenderType, or the town's record of crimes naming them) is a citizen's arrest: the gaoler locks them up, and the player gains arrest.reputation and arrest.karma. Anyone else (always a child or one of the watch, neverOffender) is a kidnapping: the gaoler frees them, the player is jailed for it (underworld crime 'kidnapping', caught), and the captive's opinion drops by kidnapping.disposition.",
+    "handOver": {
+        "offenderMarks": ["_struckPlayerFirst", "_thief", "_graveRobber", "_outlaw", "_scav", "_pickpocket", "_wanted"],
+        "offenderTypes": ["bandit", "outlaw", "thief", "brigand"],
+        "neverOffender": ["child", "guard"],
+        "arrest": { "reputation": 2, "karma": 1 },
+        "kidnapping": { "disposition": -60 },
+        "lines": {
+            "arrest": ["I know this one. Into the cells.", "Good work. They'll answer to the magistrate.", "Another for the straw. Set them down there."],
+            "kidnapping": ["What have you done to them? Guards — seize this one!", "That's no criminal. You're under arrest.", "Cut them loose. And you — you're not going anywhere."]
+        }
+    }
 }

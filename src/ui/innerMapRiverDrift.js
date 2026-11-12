@@ -379,7 +379,7 @@ export const InnerMapRiverDrift = {
             if (pileLen < cfg.damCap) {
                 RiverDrift.catchAt(world, it, dam, now);
                 this._live.delete(it.id);
-                if (it.by === 'player') _note(game, '🪵 Caught on the Weir', `The ${it.name} fetches up against ${dam.kind === 'mill' ? 'the mill weir' : 'the dam'}, and stays there.`, 'info');
+                if (it.by === 'player') _note(game, '🌲 Caught on the Weir', `The ${it.name} fetches up against ${dam.kind === 'mill' ? 'the mill weir' : 'the dam'}, and stays there.`, 'info');
                 return 'caught';
             }
             it.passed = true; // a full weir: over it goes

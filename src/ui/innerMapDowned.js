@@ -82,12 +82,12 @@ export const InnerMapDowned = {
         out.push({ type: 'action', action: 'downed_look', label: 'Look at Them', icon: '👁️', desc: Downed.label(npc), npc });
         if (st === 'bleeding') {
             const t = Downed.tendItem(inv);
-            out.push(t ? { type: 'action', action: 'downed_tend', label: 'Bind the Wound', icon: '🩹', desc: `Stop the bleeding (uses 1 ${_nice(t)})`, npc, item: t }
+            out.push(t ? { type: 'action', action: 'downed_tend', label: 'Bind the Wound', icon: '💊', desc: `Stop the bleeding (uses 1 ${_nice(t)})`, npc, item: t }
                 : { type: 'disabled', label: 'Bind the Wound: you have no poultice or cloth' });
         }
         if (!npc._bound) {
             const b = Downed.bindItem(inv);
-            out.push(b ? { type: 'action', action: 'downed_bind', label: 'Tie Them Up', icon: '🪢', desc: `Hands and feet (uses 1 ${_nice(b)}). They won't run or fight when they wake.`, npc, item: b }
+            out.push(b ? { type: 'action', action: 'downed_bind', label: 'Tie Them Up', icon: '➰', desc: `Hands and feet (uses 1 ${_nice(b)}). They won't run or fight when they wake.`, npc, item: b }
                 : { type: 'disabled', label: 'Tie Them Up: you have no rope' });
         } else {
             out.push({ type: 'action', action: 'downed_untie', label: 'Untie Them', icon: '✂️', desc: st === 'bound' ? 'Let them go' : 'Cut the rope off them', npc });
@@ -159,16 +159,16 @@ export const InnerMapDowned = {
 
     tend(game, npc, id) {
         if (!npc._bleed) return;
-        if (!_use(game, id)) { _note(game, '🩹 Nothing to bind it with', 'You have no poultice or cloth.', 'warning'); return; }
+        if (!_use(game, id)) { _note(game, '💊 Nothing to bind it with', 'You have no poultice or cloth.', 'warning'); return; }
         npc._bleed = null;
-        _note(game, '🩹 The bleeding stops', `You bind ${npc.name}'s wound with ${_nice(id)}. They will live.`, 'success');
+        _note(game, '💊 The bleeding stops', `You bind ${npc.name}'s wound with ${_nice(id)}. They will live.`, 'success');
     },
 
     bind(game, npc, id) {
         if (npc._bound) return;
-        if (!_use(game, id)) { _note(game, '🪢 No rope', 'You have no rope.', 'warning'); return; }
+        if (!_use(game, id)) { _note(game, '➰ No rope', 'You have no rope.', 'warning'); return; }
         npc._bound = true;
-        _note(game, '🪢 Tied up', `You tie ${npc.name} hand and foot. When they wake, they won't get far.`, 'info');
+        _note(game, '➰ Tied up', `You tie ${npc.name} hand and foot. When they wake, they won't get far.`, 'info');
     },
 
     untie(game, npc) {
@@ -206,7 +206,7 @@ export const InnerMapDowned = {
         npc._bleed = Downed.rollBleed(_now(), overkill);
         if (npc._bleed) {
             InnerMapCombat._blood.push({ q: npc.q, r: npc.r, key: InnerMapCombat._mapKey(), at: _now(), day: _day(game), size: 0.85, name: npc.name, drip: false, victim: npc });
-            _note(game, '🩸 Bleeding out', `${npc.name} is bleeding badly. Bind the wound, or they will die where they lie.`, 'warning');
+            _note(game, '💧 Bleeding out', `${npc.name} is bleeding badly. Bind the wound, or they will die where they lie.`, 'warning');
         }
     },
 
@@ -241,7 +241,7 @@ export const InnerMapDowned = {
         npc.state = 'idle';
         npc._ko = null;
         InnerMapCombat._killNPC(npc, game);
-        _note(game, '🩸 Bled to death', `${npc.name} has bled to death.`, 'warning');
+        _note(game, '💧 Bled to death', `${npc.name} has bled to death.`, 'warning');
     },
 
     _boundTick(game, npc, now) {
@@ -249,6 +249,8 @@ export const InnerMapDowned = {
         npc.moveProgress = 0;
         npc.idleTimer = 9999;
         const C = Downed.config().boundCall;
+        // One who heard is on their way: at their side, they untie them
+        if (npc._helper && this._helperTick(game, npc, now, C)) return;
         const next = this._callAt.get(npc.id) || 0;
         if (now < next) return;
         this._callAt.set(npc.id, now + (Number(C.callSeconds) || 7) * 1000);
@@ -265,10 +267,77 @@ export const InnerMapDowned = {
         InnerMapReactions.onViolence(game, npc, 'assault');
         const helper = by.filter(n => n.type !== 'guard').sort((a, b) => _cheb(a.q, a.r, npc.q, npc.r) - _cheb(b.q, b.r, npc.q, npc.r))[0];
         if (helper) {
-            InnerMapReactions.bark(helper, Downed.line('hearCry', `${helper.id}|bound`) || 'Hold on!', 3);
+            InnerMapReactions.bark(helper, Downed.line('hearBound', `${helper.id}|bound`) || 'Hold on!', 3);
             InnerMapReactions._approach(helper, { q: npc.q, r: npc.r }, 8);
             npc._helper = { id: helper.id, at: now };
         }
+    },
+
+    /**
+     * The helper who heard a bound one's cry: walking over, kneeling to the
+     * rope (untieSeconds), then the freed one flees and the helper runs for
+     * the watch. Given up after giveUpSeconds (gone, downed, can't get there):
+     * the next cry may bring someone else. → true while the helper has it.
+     */
+    _helperTick(game, npc, now, C) {
+        const H = npc._helper;
+        const helper = (InnerMap.npcs || []).find(n => n.id === H.id);
+        const lost = !helper || helper.state === 'gone' || Downed.stateOf(helper) || helper._fight || helper._dialogFrozen;
+        if (lost || now - H.at > (Number(C.giveUpSeconds) || 40) * 1000) {
+            npc._helper = null;
+            npc._calledOut = false;
+            return false;
+        }
+        if (_cheb(helper.q, helper.r, npc.q, npc.r) > 1) {
+            // (still on the way: if they stopped short, set them going again)
+            if (helper.state !== 'walking' && now - (H.pushed || 0) > 3000) {
+                H.pushed = now;
+                InnerMapReactions._approach(helper, { q: npc.q, r: npc.r }, 8);
+            }
+            return true;
+        }
+        if (!H.kneel) {
+            H.kneel = now;
+            helper.path = null;
+            helper.state = InnerMap._insideBuilding ? 'inside_building' : 'idle';
+            helper.idleTimer = 9999;
+            helper.facing = Math.abs(npc.q - helper.q) >= Math.abs(npc.r - helper.r) ? (npc.q >= helper.q ? 3 : 1) : (npc.r >= helper.r ? 2 : 0);
+            helper.activity = { type: 'untie', icon: '✂️', label: 'Untying the ropes', anim: 'sitting', quiet: true };
+            return true;
+        }
+        if (now - H.kneel < (Number(C.untieSeconds) || 3) * 1000) return true;
+        this.untieBy(game, npc, helper);
+        return true;
+    },
+
+    /** A townsperson unties the bound: they flee, the helper runs for the nearest of the watch. */
+    untieBy(game, npc, helper) {
+        if (!npc || !npc._bound) return;
+        npc._bound = false;
+        npc._gagged = false;
+        npc._helper = null;
+        npc._calledOut = false;
+        if (helper.activity && helper.activity.type === 'untie') helper.activity = null;
+        helper.idleTimer = 2;
+        InnerMapReactions.bark(helper, Downed.line('untieHelper', `${helper.id}|${npc.id}|u`) || "There, you're loose.", 3);
+        if (npc.state === 'bound') {
+            npc.state = InnerMap._insideBuilding ? 'inside_building' : 'idle';
+            npc.idleTimer = 1;
+            npc._broke = true;
+            InnerMapReactions.bark(npc, Downed.line('untied', `${npc.id}|freed`) || 'Thank you...', 3.5);
+            InnerMapReactions._flee(npc, { indoors: !!InnerMap._insideBuilding });
+        }
+        // The helper goes for the watch (the crime was already cried: InnerMapReactions.onViolence)
+        const guard = (InnerMap.npcs || []).filter(n => n.type === 'guard' && !Downed.stateOf(n) && n.state !== 'gone' && n.state !== 'inside_building')
+            .sort((a, b) => _cheb(a.q, a.r, helper.q, helper.r) - _cheb(b.q, b.r, helper.q, helper.r))[0];
+        if (guard) {
+            // (after their word to the freed one)
+            const t = _now();
+            helper._bark = { text: Downed.line('fetchWatch', `${helper.id}|w`) || 'Guards!', from: t + 2600, until: t + 5600 };
+            InnerMapReactions._approach(helper, { q: guard.q, r: guard.r }, 6);
+        }
+        helper._untied = npc.id;
+        if (_cheb(InnerMap.playerInnerQ, InnerMap.playerInnerR, npc.q, npc.r) <= 12) _note(game, '✂️ Untied', `${helper.name} has untied ${npc.name}${guard ? ', and runs for the watch' : ''}.`, 'warning');
     },
 
     // ──────────── BURIED ALIVE ────────────
@@ -418,7 +487,11 @@ export const InnerMapDowned = {
         const day = _day(game), npc = lb.npc, player = game && game.player;
         const A = Downed.config().buryAlive;
         Downed.settleBurial(lb.g, 'rescued', day);
-        Burials.unbury(game && game.world, lb.hex, lb.q, lb.r);
+        // A grave with a marker over it or goods in it stays the grave, dug open and empty
+        // (world/burials.js lifecycle: the marker never comes off by the way); a bare mound is only a hole again
+        const g = lb.g;
+        const keep = !!(g && (Burials.markerNow(g, day) || (g.goods && !Burials.isEmpty(g.goods))) && Burials.at(game && game.world, lb.hex, lb.q, lb.r) === g);
+        if (keep) { g.open = day; g.body = null; } else Burials.unbury(game && game.world, lb.hex, lb.q, lb.r);
         // Terrified, and they hate (or fear) the one who did it
         npc._bound = by ? false : npc._bound;
         npc._gagged = by ? false : npc._gagged;
@@ -445,7 +518,8 @@ export const InnerMapDowned = {
         if (offMap) return lb;
         // Up out of the earth, beside an open hole
         const tile = InnerMap.getTile(lb.q, lb.r);
-        if (tile) {
+        if (tile && keep) InnerMap.layBurial(lb.q, lb.r, g, day);
+        else if (tile) {
             if (InnerMap.clearBurialMarker) InnerMap.clearBurialMarker(lb.q, lb.r);
             InnerMapDigging.setGround(tile, 'hole', { day });
         }

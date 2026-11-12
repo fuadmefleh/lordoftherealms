@@ -267,6 +267,8 @@ Object.assign(InnerMap, {
         if (this._seatLords) this._seatLords(rng);
 
         this._assignHomesAndWork(rng);
+        // ...and each to their own trade's place (world/innerMap/townWork.js)
+        if (this._assignJobPlaces) this._assignJobPlaces();
 
         // Where the hour finds them
         const night = this.townPeriod() === 'night';
@@ -278,7 +280,7 @@ Object.assign(InnerMap, {
             npc.state = 'idle';
             npc.idleTimer = rng() * 4;
             const onDuty = npc.type === 'guard' && this._guardOnDuty(npc);
-            if ((night || (npc.type === 'guard' && !onDuty)) && !onDuty && npc._home && npc.type !== 'traveler') {
+            if ((night || (npc.type === 'guard' && !onDuty) || (this._sickAbed && this._sickAbed(npc, true))) && (!onDuty || (this._sickAbed && this._sickAbed(npc, true))) && npc._home && npc.type !== 'traveler') {
                 const door = this._findPassableAdjacentTile(npc._home.q, npc._home.r);
                 npc.q = npc.prevQ = door.q; npc.r = npc.prevR = door.r;
                 npc.state = 'inside_building';
@@ -338,7 +340,7 @@ Object.assign(InnerMap, {
         }
         for (const npc of this.npcs) {
             if (npc._home) continue;
-            const kin = [npc.spouseId, ...(npc.parentIds || [])].map(i => byId.get(i)).find(k => k && k._home && k._home.type === 'house');
+            const kin = [npc.spouseId, ...(npc.parentIds || [])].map(i => byId.get(i)).find(k => k && k._home && k._home.type === 'house' && (npc._hh == null || k._hh == null || k._hh === npc._hh));
             const key = npc.familyGroupId != null ? `f${npc.familyGroupId}` : null;
             npc._home = (kin && kin._home) || (key && famHome.get(key)) || (houses.length ? houses[next++ % houses.length] : null);
             if (key && npc._home && !famHome.has(key)) famHome.set(key, npc._home);
@@ -362,9 +364,15 @@ Object.assign(InnerMap, {
         if (npc._field) this._leaveField(npc);
         if (npc._forage && this._leaveForage) this._leaveForage(npc);
         if (npc._chop && this._stopChopping) this._stopChopping(npc);
+        // A sack bought at a stall home, a producer's to market (world/innerMap/townTrading.js)
+        if (this._tradeCarry && this._tradeCarry(npc)) return true;
         // Carrying in what was cut: to the granary first
         if (npc._carry && this._goStore(npc)) return true;
         npc._carry = null;
+        // Walking a bier to the churchyard, at a wedding in the church (ui/innerMapRites.js, ui/innerMapCourting.js): stay put
+        if (npc._rite) { npc.state = 'idle'; npc.idleTimer = 3; return true; }
+        // The sick abed at home, the healer's round, a frightened town, mourners (world/innerMap/townSickness.js)
+        if (this._sickPick && this._sickPick(npc, period)) return true;
 
         // A guard: the night watch walks by night and sleeps by day's end; the day watch the reverse
         npc._awaiting = null;
@@ -375,9 +383,16 @@ Object.assign(InnerMap, {
             if (npc._post && rnd() < 0.55) return this._goStand(npc, npc._post, 'post', npc._post.face);
             return this._goPatrol(npc);
         }
+        // School, children at play and chores, the old in the sun (world/innerMap/townKin.js)
+        if (this._kinPick && this._kinPick(npc, period)) return true;
+        // Sweethearts walking out, flowers from the market, a broken heart at the well (world/innerMap/townCourting.js)
+        if (this._courtPick && this._courtPick(npc, period)) return true;
         // The stall, the service, the crier's round, a drunk's way home (world/innerMap/townScenes.js)
         if (this._scenePick && this._scenePick(npc, period)) return true;
-        const table = C.schedule[npc.type] || C.schedule.default || DEFAULTS.schedule.default;
+        // A producer's sack to market of a morning, a hawker's or a pedlar's round, a neighbour to swap with (world/innerMap/townTrading.js)
+        if (this._tradePick && this._tradePick(npc, period)) return true;
+        // (the hours of their own trade, meals and bed: world/innerMap/townWork.js)
+        const table = (this._jobSchedule && this._jobSchedule(npc)) || C.schedule[npc.type] || C.schedule.default || DEFAULTS.schedule.default;
         const act = _weighted(table[period] || table.morning, rnd) || 'stroll';
         return this._doActivity(npc, act, period);
     },
@@ -385,6 +400,8 @@ Object.assign(InnerMap, {
     _doActivity(npc, act, period) {
         const A = this.townArea();
         const rnd = Utils.random;
+        // At their trade, a meal, asleep in a doorway (world/innerMap/townWork.js)
+        if (this._jobActivity && this._jobActivity(npc, act, period)) return true;
         const C = this.townLifeConfig();
         const find = types => this._townBuildings().filter(b => types.includes(b.type));
         const pickB = types => { const l = find(types); return l.length ? l[Math.floor(rnd() * l.length)] : null; };
@@ -541,6 +558,8 @@ Object.assign(InnerMap, {
     _townDelivered(npc, bldg) {
         const c = npc._carry;
         if (!c || !bldg) return;
+        // (a sack bought at market, or a producer's goods for it: world/innerMap/townTrading.js)
+        if (this._tradeDelivered && this._tradeDelivered(npc, bldg)) return;
         if (this._isYardLoad && this._isYardLoad(c)) { this._yardDelivered(npc, bldg); return; }
         const types = this.townLifeConfig().harvestStores || DEFAULTS.harvestStores;
         if (!types.includes(bldg.type)) return;
@@ -573,6 +592,7 @@ Object.assign(InnerMap, {
 
     _enterNow(npc, bldg, act) {
         this._townDelivered(npc, bldg);
+        if (this._townEntered) this._townEntered(npc, bldg);
         npc.path = null;
         npc.state = 'inside_building';
         npc.currentBuilding = bldg.type;
@@ -629,7 +649,7 @@ Object.assign(InnerMap, {
         const radius = Number(C.chat.radius) || 10;
         const now = _now();
         const near = (this.npcs || []).filter(o => o !== npc && o.state === 'idle' && !o._dialogFrozen && !(o._bark && o._bark.until > now)
-            && o.type !== 'guard' && !o._chatWith && o._awaiting == null && !o.departing
+            && o.type !== 'guard' && !o._chatWith && o._awaiting == null && !o.departing && !o._fight   // (not in a brawl: ui/innerMapBrawls.js)
             && Math.max(Math.abs(o.q - npc.q), Math.abs(o.r - npc.r)) <= radius);
         if (!near.length) return null;
         // Kin and those they get on with first
@@ -651,6 +671,10 @@ Object.assign(InnerMap, {
         if (act === 'forage' && this._startForaging) this._startForaging(npc);
         // At the stall, the crier's spot, the anvil, the well (world/innerMap/townScenes.js)
         if (this._sceneArrived) this._sceneArrived(npc, act);
+        // The stall's real sale, a hawker's cry, a swap (world/innerMap/townTrading.js)
+        if (this._tradeArrived) this._tradeArrived(npc, act);
+        // At their trade, a bite at midday, a doorway to sleep in (world/innerMap/townWork.js)
+        if (this._jobArrived) this._jobArrived(npc, act);
         npc._activity = null;
         npc._face = null;
     },
@@ -692,7 +716,12 @@ Object.assign(InnerMap, {
     /** Indoors and the hour says stay put (abed at night, or a guard off watch): how much longer, else 0. */
     _townStayInside(npc) {
         if (!this.townArea() || this._insideBuilding) return 0;
+        // (the sick laid up stay abed, day or night: world/innerMap/townSickness.js)
+        if (this._sickAbed && this._sickAbed(npc)) return _span(this.townLifeConfig().stay.sleep, Utils.random);
         if (npc.type === 'guard' && npc._home && !this._guardOnDuty(npc)) return _span(this.townLifeConfig().stay.post, Utils.random);
+        // (abed by their trade's hours: the baker before dawn, the innkeeper late — world/innerMap/townWork.js)
+        const js = this._jobSleeps && !npc.departing ? this._jobSleeps(npc) : null;
+        if (js != null) return js && npc._home && npc._insideBuildingQ === npc._home.q && npc._insideBuildingR === npc._home.r ? _span(this.townLifeConfig().stay.sleep, Utils.random) : 0;
         const night = this.townPeriod() === 'night';
         if (!night || npc.departing) return 0;
         if (npc.type === 'guard' && npc._nightWatch) return 0;
@@ -718,7 +747,10 @@ Object.assign(InnerMap, {
         if (!npc || !(ref && ref.settlement) || npc.state !== 'inside_building' || npc.departing) return false;
         const home = npc._home;
         const atHome = !!(home && npc._insideBuildingQ === home.q && npc._insideBuildingR === home.r);
+        if (atHome && this._sickAbed && this._sickAbed(npc)) return true;
         if (npc.type === 'guard') return atHome && !this._guardOnDuty(npc);
+        const js = this._jobSleeps ? this._jobSleeps(npc) : null;
+        if (js != null) return js && atHome;
         if (this.townPeriod() !== 'night') return false;
         if (atHome) return true;
         const b = { type: npc.currentBuilding, q: npc._insideBuildingQ, r: npc._insideBuildingR };

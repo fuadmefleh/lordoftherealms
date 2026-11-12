@@ -1,0 +1,59 @@
+{
+    "_doc": "Who of the townsfolk goes to church, and what it does (systems/townWorship.js; on the map world/innerMap/townWork.js over the church scene of world/innerMap/townScenes.js). devotion: a person's 0..1 — base, plus traits, age, their trade, grief in the last year (bereaved), the realm's piety ((piety - 50) * pietyPer), and what they gained by going (p.devout, kept on the person, + attendGain a service, decaying by decay a season, capped at devoutMax). A person keeps the town's faith unless the hash of who they are falls under otherFaith (then another faith; the player's own where the player's faith has a hold here, by its presence): they pray at home on the holy day. holyShare / dailyShare: the chance (× devotion) of going to the holy day's service / dropping in to pray on another day. offering: coin each churchgoer gives a holy day by diet (poor, plain, rich), from their purse to the priest's (else the church box: the town's purse). piety: the realm's piety moves by (share of the town at church - pietyRef) * pietyStep each holy day, within ±pietyMax; playerPresence: the player's faith's hold grows by this × its churchgoers' share. feasts: high days of the year (day of the year 1..120): more go (share), with a procession. player: what attending, praying, giving and disrupting do. funerals: mourners at a burial (kin and friends, and the devout).",
+    "enabled": true,
+    "devotion": {
+        "base": 0.45,
+        "traits": { "devout": 0.35, "kind": 0.1, "generous": 0.08, "cautious": 0.05, "quiet": 0.05, "bold": -0.08, "stubborn": -0.05, "witty": -0.06, "curious": -0.04 },
+        "ageOld": 50, "old": 0.15, "ageYoung": 25, "young": -0.1,
+        "jobs": { "priest": 1, "beggar": 0.1, "unemployed": -0.12, "innkeeper": -0.15, "server": -0.1, "noble": 0.05 },
+        "bereaved": 0.2, "pietyPer": 0.004, "decay": 0.02, "attendGain": 0.01, "devoutMax": 0.2
+    },
+    "otherFaith": 0.07,
+    "holyShare": 0.95,
+    "dailyShare": 0.12,
+    "offering": { "poor": 0.05, "plain": 0.2, "rich": 0.8 },
+    "pietyRef": 0.35, "pietyStep": 0.6, "pietyMax": 1.5,
+    "playerPresence": 0.002,
+    "feasts": [
+        { "day": 1, "name": "the New Year's rite", "share": 1.25 },
+        { "day": 22, "name": "the Feast of Sowing", "share": 1.2 },
+        { "day": 52, "name": "Midsummer's Blessing", "share": 1.15 },
+        { "day": 82, "name": "the Harvest Thanksgiving", "share": 1.3 },
+        { "day": 110, "name": "the Midwinter Vigil", "share": 1.2 }
+    ],
+    "feastNames": {
+        "solaris": { "52": "the Sun's Crowning" },
+        "tidemother": { "82": "the Blessing of the Nets" },
+        "stormfather": { "110": "the Long Night of Storms" }
+    },
+    "player": {
+        "attendFaith": 0.15, "attendNeeds": { "social": 6, "fun": 2, "comfort": 4 }, "noticed": 2,
+        "prayFaith": 0.05, "prayNeeds": { "comfort": 3 },
+        "donate": [5, 25, 100], "donateFaith": 0.02, "donateRegard": 1,
+        "disruptRegard": -25, "disruptHappiness": -1.5,
+        "_ruler": "The realm's ruler in town on a holy day who sits out the service is noticed (TownWorship.rulerAbsent, the day after): the devout think less of them (absentRegard × devotion), the realm's piety slips (absentPiety), and the town talks of it (an annal).",
+        "absentRegard": -4, "absentPiety": 0.3, "absentDevotion": 0.45
+    },
+    "funerals": { "mournerShare": 0.6, "devoutShare": 0.25 },
+    "lines": {
+        "attended": ["Good to see you at prayers.", "You were at the service! The gods see it.", "I saw you in the pews on the holy day."],
+        "absent": ["We missed you at the holy day.", "No time for the gods, then?"],
+        "otherFaith": ["I keep my own faith, and pray at home.", "Not my temple. I pray in my own way, at home."],
+        "impious": ["Church? The gods never did me any favours."],
+        "devout": ["I'd not miss the holy day for anything.", "I pray every morning and every night."],
+        "prayHome": "Praying at home",
+        "wayside": "Praying at the wayside stone",
+        "hymn": ["♪ Holy, holy… ♪", "♪ Lift up your voices… ♪", "♪ All the earth sings… ♪"],
+        "funeral": "{a} was laid to rest {when}; {n} came to see {him} buried.",
+        "disrupt": "{a} shouted down the sermon {when}, and the whole town talks of it.",
+        "rulerAbsent": "{a} was in town on the holy day {when}, and never once came to church. The devout have not forgotten it.",
+        "rulerAbsentBark": ["The crown was in town and couldn't spare the gods an hour.", "Too grand for the holy day, our ruler.", "Not a sign of the sovereign in the pews. Folk noticed."],
+        "funeralBier": ["Gently, now.", "Step together.", "Mind the step."],
+        "funeralWalk": ["Walk on.", "Slowly, slowly.", "We bring you home."],
+        "funeralRite": ["Earth to earth, dust to dust. Go in peace.", "The gods keep you, and keep you well.", "We commit you to the ground, in sure hope."],
+        "funeralMourn": ["*weeps quietly*", "Gone too soon.", "We'll miss you.", "Rest now."],
+        "weddingPrayer": ["Before the gods and this house, will you take each other, in plenty and in want?", "Join hands. Let what the gods join, no one part.", "Bless this pair, and the hearth they make."],
+        "weddingVow": ["I will.", "With all my heart.", "I will, and gladly."],
+        "weddingBlessing": ["Go out wed, and be happy!", "You are wed before the gods. Go!"]
+    }
+}

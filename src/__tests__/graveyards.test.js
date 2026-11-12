@@ -344,11 +344,21 @@ describe('Your own dead, the sexton, the robber', () => {
         const caught = Graveyards.robGrave(ctx.player, ctx.world, ctx.settlement, 'town', i, { witnesses: 30, guards: 5, hour: 12 });
         expect(caught.caught).toBe(true);
         expect(ctx.player.reputation.k1).toBeLessThan(0);
+        // Caught or not, the grave lies open — still the grave, its marker over it, the goods still in it
         expect(town.plots[i]).toBeTruthy();
+        expect(town.plots[i].open).toBe(ctx.world.day);
+        expect(town.plots[i].marker).toBe('tomb');
+        expect(town.plots[i].goods).toBe(2);
+        // An open grave is not robbed again
+        expect(Graveyards.robGrave(ctx.player, ctx.world, ctx.settlement, 'town', i, {}).success).toBe(false);
+        Graveyards.refillGrave(ctx.world, ctx.settlement, 'town', i);
+        Utils.setSeed(3);
         const away = Graveyards.robGrave(ctx.player, ctx.world, ctx.settlement, 'town', i, { witnesses: 0, guards: 0, hour: 2 });
         if (away.success) {
             expect(ctx.player.inventory.grave_goods).toBe(2);
-            expect(town.plots[i]).toBe(null);
+            expect(town.plots[i].goods).toBe(0);
+            expect(town.plots[i].marker).toBe('tomb');
+            expect(town.plots[i].open).toBe(ctx.world.day);
         }
     });
 

@@ -14,6 +14,11 @@ import { StreetCrime } from '../../systems/streetCrime.js';
 import { Languages } from '../../systems/languages.js';
 import { Cultures } from '../../world/cultures.js';
 import { _suspectChoices } from './suspect.js';
+import { _heartChoices } from './hearts.js';
+// (their work, your service, the church: systems/townJobs.js, systems/townWorship.js)
+import { _workChoices } from './work.js';
+import { _schoolChoices } from './schooling.js';
+import { _waresChoices } from './wares.js';
 import { GREETINGS, RETURNING_GREETINGS, RESPECTFUL_GREETINGS, HOSTILE_GREETINGS, RUMORS, FAREWELLS, THREAT_RESPONSES, THREAT_SUCCESS, FLATTER_RESPONSES, FLATTER_SUCCESS, TIME_COMMENTS, WEATHER_COMMENTS, NPC_QUEST_HOOKS, LOCATION_INFO, KINGDOM_INFO } from '../npcDialog.data.js';
 import { dialogState } from './shared.js';
 import { renderChoiceGrid, formatSpokenLine } from '../conversationScene.js';
@@ -21,6 +26,7 @@ import { NpcDialog } from './index.js'; // call-time facade ref (ESM cycle-safe)
 import { _mem, _dispositionLabel, _pick, _getTimeOfDay, _getWeather, _getSettlement, _getKingdom, _skillCheck, _getAttributeBonus, _getSkillTotal, _getPlayerTitle, _isPlayerRenowned, _getGreeting, _getRumor, _getFarewell, _worldContext, _memoryLines } from './helpers.js';
 import { _handleChoice, _showGiftSubmenu, _giveGoldGift, _giveItemGift, _showAskAboutSubmenu, _showSkillCheckResult, _animateDispositionChange, _updateDispositionBar, _createOverlay, _taskChoice, _startFreeTalk, _renderFreeTalk } from './choices.js';
 import { NpcChat } from '../../systems/npcChat.js';
+import { IllnessPlayer } from '../../systems/illnessPlayer.js';
 
 /**
  * The tongue the NPC speaks and what the player makes of it (systems/
@@ -103,6 +109,9 @@ export function _buildConversation(npc) {
     if (world && !mem.threatened) {
         const reunion = street && street.kind === 'witness' ? null : Townsfolk.reunionLine(npc, world);
         if (reunion) greeting = reunion + ' ' + greeting;
+        // Sick, or sick kin at home (systems/illnessPlayer.js)
+        const sick = street ? null : IllnessPlayer.greetLine(npc, world);
+        if (sick) greeting = sick + ' ' + greeting;
         Townsfolk.noteSeen(npc, world.day || 1);
     }
     // The tongue between you (systems/languages.js): the gap, what's lost in it, and a word learned
@@ -401,6 +410,14 @@ export function _renderChoices(box) {
         }
         // A townsperson named in a rival House's plot (systems/schemes.js)
         for (const c of _suspectChoices()) choices.push(c);
+        // Sweethearts: who is sweet on whom, a love letter, a good word, a tale (systems/romance.js)
+        for (const c of _heartChoices()) choices.push(c);
+        // Their work; work in your service; the church (ui/npcDialog/work.js)
+        for (const c of _workChoices()) choices.push(c);
+        // The town's school: how it fares, a gift to it, a poor child's schooling paid (systems/townSchool.js)
+        for (const c of _schoolChoices()) choices.push(c);
+        // Buying from their own stock, or a pedlar's pack (ui/npcDialog/wares.js)
+        for (const c of _waresChoices()) choices.push(c);
     }
 
     // ── Say whatever you like, with the AI brain on (systems/npcChat.js) ──
@@ -482,8 +499,9 @@ export function _renderChoices(box) {
         });
     }
 
-    // ── Trade (merchants, blacksmiths, travelers) ──
-    if (npcType === 'merchant' || npcType === 'blacksmith_npc' || npcType === 'traveler') {
+    // ── Trade (merchants, blacksmiths, travelers, and whoever keeps a market stall — world/innerMap/stalls.js) ──
+    const keepsStall = !!(InnerMap.stallOfKeeper && InnerMap.stallOfKeeper(dialogState._npc));
+    if (npcType === 'merchant' || npcType === 'blacksmith_npc' || npcType === 'traveler' || keepsStall) {
         const g0 = dialogState._game;
         const pm = NpcDisposition.getPriceModifiers(dialogState._npc, g0 && g0.player ? { player: g0.player, kingdomId: Fame._kingdomAt(g0.world, g0.player.q, g0.player.r) } : null);
         if (pm.refuses) {

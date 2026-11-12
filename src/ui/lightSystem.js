@@ -378,6 +378,9 @@ export const LightSystem = {
                 // Extract base building type (strip "player_" prefix)
                 let bType = bldg.type;
                 if (bType.startsWith('player_')) bType = bType.slice(7);
+                // A house whose household is all abed (or out) shows no light at its windows
+                // (world/innerMap/townWork.js _householdDark)
+                if ((bType === 'house' || bType === 'farm') && !bldg.isPlayerOwned && InnerMap._householdDark && InnerMap._householdDark(bldg)) continue;
 
                 this.addBuildingLight(bsx, bsy, camera.zoom, bType);
             }

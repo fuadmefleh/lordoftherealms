@@ -17,6 +17,8 @@
 import { DataLoader } from '../core/dataLoader.js';
 
 const T = 32;
+/** The market stall prop (world/townPlanner.js puts it in the square). */
+export const STALL_ID = 'tp_stall';
 export const FIELD_W = [3, 4, 5, 6, 7, 8, 9, 10];
 export const FIELD_H = [2, 3, 4, 5, 6];
 
@@ -194,6 +196,9 @@ export const TownProps = {
                     def.seasonVariants[s] = _rectTiles(path, p.rect);
                 }
             }
+            // The market stall: a look for each trade, its goods on the counter
+            // (data/townProps.json stallArt; world/marketStalls.js picks one by colorVariantIdx)
+            if (p.id === STALL_ID && d.stallArt) def.colorVariants = TownProps._stallVariants(d, def.tiles);
             out.push(def);
         }
         const fence = d.fence;
@@ -221,6 +226,41 @@ export const TownProps = {
             for (const w of FIELD_W) for (const h of FIELD_H) out.push(_fieldDef(d, kind, w, h));
         }
         return out;
+    },
+
+    /** The stall's looks by trade, in stallArt's order: { key, tiles } (its own tiles, the wares over them). */
+    _stallVariants(d, base) {
+        const out = [];
+        for (const [key, a] of Object.entries(d.stallArt || {})) {
+            const over = [];
+            for (const o of (a && a.over) || []) {
+                const [sheet, c, r, atCol, atRow] = o || [];
+                if (!d.sheets[sheet]) continue;
+                over.push({ localCol: Number(atCol) || 0, localRow: Number(atRow) || 0, sheetPath: d.sheets[sheet], sx: c * T, sy: r * T, sw: T, sh: T });
+            }
+            out.push({ key, tiles: [...base, ...over] });
+        }
+        return out;
+    },
+
+    /** The stall's colour variant for a trade's art (1-based, as customObject.colorVariantIdx), 0 for the plain stall. */
+    stallVariant(key) {
+        const d = _data();
+        const keys = Object.keys((d && d.stallArt) || {});
+        return keys.indexOf(key) + 1;
+    },
+
+    /** A trade's stall art (data/townProps.json stallArt): { over, side } or null. */
+    stallArt(key) {
+        const d = _data();
+        return (d && d.stallArt && d.stallArt[key]) || null;
+    },
+
+    /** A prop's footprint and solidity, to swap it for another that stands the same: 'w x h / solid', or null. */
+    footprint(id) {
+        const d = _data();
+        const p = d && (d.props || []).find(x => x.id === id);
+        return p && Array.isArray(p.rect) ? `${p.rect[2]}x${p.rect[3]}/${p.solid == null ? 1 : p.solid}` : null;
     },
 
     /** Prop ids carrying a tag (data/townProps.json). */
@@ -267,6 +307,8 @@ export const TownProps = {
                 if (!m) continue;
                 if (obj.fieldCycle === undefined) obj.fieldCycle = cycleOf[m[1]] || null;
                 if (!obj.fieldCycle) continue;
+                // (where it lies: which of its kind's crops it grows each year, fieldCrop)
+                if (obj.fieldSeed === undefined) obj.fieldSeed = Math.abs((t.q * 73856093) ^ (t.r * 19349663)) % 9973;
                 const shift = Math.abs((t.q * 73856093) ^ (t.r * 19349663)) % 6;
                 // Brought in this year: bare earth till the new year
                 const kind = obj.harvestYear === _year(day) ? 'plowed' : TownProps.fieldStage(obj.fieldCycle, doy, shift);
@@ -299,7 +341,10 @@ export const TownProps = {
         const year = _year(day);
         const taken = obj.fieldTaken && obj.fieldTaken.year === year ? Number(obj.fieldTaken.qty) || 0 : 0;
         const ripe = (crop.stages || []).includes(f.kind) && obj.harvestYear !== year;
-        return { ripe, good: crop.good, total, left: ripe ? Math.max(0, total - taken) : 0, kind: f.kind };
+        // (a kind that grows several crops: one per field and year, by where the field lies)
+        const goods = Array.isArray(crop.goods) && crop.goods.length ? crop.goods : null;
+        const good = goods && Number.isFinite(obj.fieldSeed) ? goods[(obj.fieldSeed + year * 7) % goods.length] : crop.good;
+        return { ripe, good, total, left: ripe ? Math.max(0, total - taken) : 0, kind: f.kind };
     },
 
     /**

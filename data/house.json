@@ -16,7 +16,7 @@
     "sources": {
         "quest": 3, "contract": 2, "battleWon": 4, "titleGained": 6, "settlementHeld": 12,
         "religionFounded": 15, "templeRaised": 4, "miracle": 2, "artifactReforged": 10,
-        "nobleMarriage": 8, "festivalHosted": 3, "achievement": 2, "ambitionMilestone": 10
+        "nobleMarriage": 8, "festivalHosted": 3, "achievement": 2, "ambitionMilestone": 10, "schoolFunded": 3
     },
     "sourceScales": {
         "miracle": { "plague": 0, "smite": 0.5, "resurrection": 3, "revelation": 1.5 },

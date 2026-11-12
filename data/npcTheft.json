@@ -1,0 +1,131 @@
+{
+    "_note": "NPC theft (systems/npcTheft.js): burglars who break into houses and cutpurses who work the crowds. Every chance is a hash of the world seed, the town and the day; no shared RNG. Off the player's map it is resolved in processDay; on it the street map plays it out (ui/innerMapThieves.js) through the same plan and commit.",
+    "enabled": true,
+
+    "roleWealth": { "noble": 5, "merchant": 4, "blacksmith_npc": 3, "priest": 2, "guard": 2, "villager": 1, "farmer": 1, "beggar": 0, "child": 0 },
+    "workingRoles": ["merchant", "blacksmith_npc", "farmer", "villager", "priest", "guard"],
+    "guardedRoles": { "noble": 0.3, "merchant": 0.08 },
+
+    "thieves": {
+        "poorRoles": ["beggar", "villager", "farmer"],
+        "crookedTraits": ["bold", "stubborn"],
+        "honestTraits": ["kind", "generous", "devout"],
+        "poorPurse": 6,
+        "joblessShare": 0.45,
+        "joblessWeight": 2,
+        "_jobless": "The out-of-work (systems/townJobs.js person.job 'unemployed') who are poor: joblessShare of them (by a hash of who they are) turn to theft whatever their role, and a thief is picked from the town's crooked joblessWeight times likelier when out of work.",
+        "skill": { "townsfolk": [2, 4], "beggar": [1, 3], "urchin": [2, 5], "outlaw": [3, 6], "agent": [4, 7], "servant": [2, 4] },
+        "lairRadius": 4,
+        "lairShare": 0.35,
+        "agentShare": 0.6,
+        "servantShare": 0.12,
+        "urchinMinAge": 9,
+        "urchinMaxAge": 15,
+        "jailDays": 20
+    },
+
+    "burglary": {
+        "perNight": { "village": 0.01, "town": 0.025, "city": 0.04, "capital": 0.05 },
+        "dearthMult": 1.8,
+        "lairMult": 1.6,
+        "nightShare": 0.7,
+        "nightFrom": 22, "nightTo": 4,
+        "emptyMult": { "day": 1.8, "night": 1, "away": 2.5 },
+        "lockByWealth": [1, 2, 3, 4, 5, 7],
+        "forceAbove": 2,
+        "coinShare": [0.3, 0.7],
+        "maxKinds": 3,
+        "unitShare": [0.5, 1],
+        "catch": {
+            "base": { "village": 0.06, "town": 0.1, "city": 0.14, "capital": 0.17 },
+            "nightOccupied": 0.12,
+            "forced": 0.08,
+            "perSkill": -0.025,
+            "min": 0.02, "max": 0.8
+        },
+        "seenChance": 0.3,
+        "fenceDays": [2, 6],
+        "fenceShare": 0.35,
+        "watchLater": { "village": 0.03, "town": 0.05, "city": 0.06, "capital": 0.07 },
+        "reportedMult": 2.5,
+        "namedMult": 2,
+        "forcedDays": 6,
+        "againAfter": 20,
+        "rummageSeconds": 10
+    },
+
+    "playerHome": {
+        "perNight": { "village": 0.003, "town": 0.005, "city": 0.007, "capital": 0.008 },
+        "perValue": 0.0006,
+        "maxValueMult": 2.5,
+        "agentPerNight": 0.03,
+        "propertyShare": 0.35,
+        "defences": {
+            "stout_lock": { "mult": 0.45, "label": "a stout lock on the door" },
+            "watchdog": { "mult": 0.5, "label": "a watchdog in the yard" },
+            "servants": { "mult": 0.6, "label": "servants in the house" },
+            "fortification": { "mult": 0.5, "label": "fortified walls" },
+            "watchtower": { "mult": 0.8, "label": "a watchtower" }
+        },
+        "servantPilfer": 0.004,
+        "lockedPieces": { "iron_strongbox": 6 },
+        "doorLock": { "default": 2, "stout_lock": 6 },
+        "takeShare": [0.4, 0.9],
+        "clues": {
+            "witness": 0.4,
+            "dropped": 0.35,
+            "rumourDays": [3, 12],
+            "rumour": 0.5
+        }
+    },
+
+    "pickpocket": {
+        "perDay": { "village": 0.05, "town": 0.12, "city": 0.2, "capital": 0.26 },
+        "playerPerDay": { "village": 0.02, "town": 0.05, "city": 0.08, "capital": 0.1 },
+        "playerGoldLooks": 400,
+        "watchDeter": 0.08,
+        "rulerWatchMult": 0.5,
+        "heatPerLift": 1,
+        "heatDecay": 0.1,
+        "crackdownAt": 6,
+        "crackdownCatch": 0.15,
+        "annalAt": 4,
+        "annalEvery": 30,
+        "coinShare": [0.15, 0.45],
+        "playerCoinMax": 60,
+        "itemChance": 0.25,
+        "awareness": { "noble": 0.6, "merchant": 0.45, "guard": 0.7, "priest": 0.25, "blacksmith_npc": 0.35, "villager": 0.3, "farmer": 0.2, "beggar": 0.15, "traveler": 0.35, "child": 0.2 },
+        "playerAwareness": { "base": 0.3, "perIntelligence": 0.03, "perStealthLevel": 0.04, "wary": 0.2, "waryDays": 10, "max": 0.85 },
+        "lift": { "base": 0.5, "perSkill": 0.06, "perAwareness": -0.45, "min": 0.08, "max": 0.92 },
+        "notice": { "base": 0.2, "perAwareness": 0.5, "perSkill": -0.04, "min": 0.05, "max": 0.85 },
+        "watchCatch": { "village": 0.25, "town": 0.35, "city": 0.4, "capital": 0.45 },
+        "chaseCatch": { "base": 0.35, "perStrength": 0.03, "max": 0.8 },
+        "crowdMin": 4,
+        "everySeconds": [25, 55],
+        "tellAfterSeconds": [15, 40],
+        "watchRadius": 6,
+        "hearRadius": 12
+    },
+
+    "grab": { "base": 0.35, "perStrength": 0.04, "perSkill": -0.04, "min": 0.1, "max": 0.85 },
+    "confront": { "base": 0.4, "perCharisma": 0.04, "perStrength": 0.02, "meekTraits": ["cautious", "quiet", "kind"], "meek": 0.25, "boldTraits": ["bold", "stubborn"], "bold": -0.2 },
+
+    "dropped": {
+        "townsfolk": "a scrap of homespun caught on the latch",
+        "beggar": "a beggar's rag caught on the latch",
+        "outlaw": "a muddy boot-print, the kind the outlaws in the hills leave",
+        "agent": "a ribbon in {rival}'s colours by the strongbox",
+        "servant": "the door opened with a key, not forced",
+        "urchin": "small, bare footprints in the dust"
+    },
+
+    "barks": {
+        "creep": ["…", "Quiet now…", "Nobody home…"],
+        "sleight": ["✋"],
+        "victim": ["Thief! Stop, thief!", "My purse! Thief!", "Hey! That's mine!"],
+        "flee": ["Run!", "Not today!"],
+        "guard": ["Stop in the name of the watch!", "Halt, thief!"],
+        "caught": ["All right, all right!", "Let go of me!"],
+        "shout": ["Thief! Thief!"]
+    }
+}

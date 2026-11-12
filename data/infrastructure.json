@@ -78,7 +78,7 @@
     "RIVER_DAM": {
       "id": "river_dam",
       "name": "Timber Dam",
-      "icon": "🪵",
+      "icon": "🌲",
       "cost": 90,
       "buildTime": 3,
       "moveCostOverride": null,

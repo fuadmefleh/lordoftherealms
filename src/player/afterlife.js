@@ -21,6 +21,7 @@ import { DataLoader } from '../core/dataLoader.js';
 import { Utils } from '../core/utils.js';
 import { Difficulty } from '../core/difficulty.js';
 import { Townsfolk } from '../systems/townsfolk.js';
+import { Illness } from '../systems/illness.js';
 import { Relationships } from '../systems/relationships.js';
 import { Upbringing } from '../systems/upbringing.js';
 import { HeirAgency } from '../systems/heirAgency.js';
@@ -46,6 +47,8 @@ import { OutlawLairs } from '../systems/outlawLairs.js';
 import { Gangs } from '../systems/gangs.js';
 import { Lots } from '../systems/lots.js';
 import { Graveyards } from '../systems/graveyards.js';
+import { NpcTheft } from '../systems/npcTheft.js';
+import { Brawls } from '../systems/brawls.js';
 import { Discovery } from '../systems/discovery.js';
 import { Pirates } from '../systems/pirates.js';
 import { RealmWars } from '../systems/realmWars.js';
@@ -108,8 +111,11 @@ function _num(v, d = 0) { return typeof v === 'number' && isFinite(v) ? v : d; }
  */
 const WORLD_DAY = [
     (w) => Townsfolk.processDay(w, null),
+    (w) => Illness.processDay(w, null),
     (w) => Lots.processDay(w, null),
     (w) => Graveyards.processDay(w, null),
+    (w) => NpcTheft.processDay(w, null),
+    (w) => Brawls.processDay(w, null),
     (w) => Demands.processDay(w, null),
     (w) => Delves.processDay(w, null),
     (w) => Sagas.processDay(w, null),

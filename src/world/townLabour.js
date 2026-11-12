@@ -395,6 +395,13 @@ export const TownLabour = {
         const land = _clamp(1 - (1 - _clamp(_num(lab.fill.land, 1), 0, 1)) * _num(O.landSensitivity, 0.8), lo, 1);
         let craft = _clamp(_num(lab.fill.craft, 1), lo, 1);
         if (TownLabour.striking(settlement, day)) craft = Math.min(craft, _num(O.strikeFill, 0.4));
+        // The sick laid up at home (systems/illness.js → settlement.sickness, a few days fresh)
+        const sick = settlement.sickness;
+        if (sick && !sick.abs && _num(sick.share) > 0 && (day == null || day - _num(sick.d) <= 6)) {
+            const S = _num(O.sickSensitivity, 0.8);
+            const k = Math.max(_num(O.sickMin, 0.5), 1 - _num(sick.share) * S);
+            return { land: Math.max(lo, land * k), craft: Math.max(lo, craft * k) };
+        }
         return { land, craft };
     },
 

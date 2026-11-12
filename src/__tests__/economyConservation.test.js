@@ -15,6 +15,9 @@ import { PlayerEconomy, Trading } from '../player/playerEconomy.js';
 import { OddJobs } from '../player/oddJobs.js';
 import { SettlementServices } from '../player/settlementServices.js';
 import { loadData } from './playtest/harness.js';
+import { Townsfolk } from '../systems/townsfolk.js';
+import { TownJobs } from '../systems/townJobs.js';
+import { TownTrade } from '../systems/townTrade.js';
 
 beforeAll(async () => {
     await loadData();
@@ -187,5 +190,64 @@ describe('the crown\'s spending reaches its capital', () => {
         k.treasury -= 80;
         expect(CrownBooks.spendAtCapital(world, k, 80)).toBe(80);
         expect(cap.economy.gold + k.treasury).toBe(510);
+    });
+});
+
+describe('the townsfolk trade among themselves (systems/townTrade.js)', () => {
+    /** A town with a roster (every purse rolled) and a neighbour a pedlar can come from. */
+    function rosterTown() {
+        const a = town({ q: 5, r: 7, economy: { gold: 3000 } }), b = town({ name: 'Brightwater', q: 8, r: 7, economy: { gold: 3000 } });
+        const tiles = { '5,7': { q: 5, r: 7, settlement: a }, '8,7': { q: 8, r: 7, settlement: b } };
+        const world = { day: 40, generationParams: { seed: 99 }, activeEvents: [], units: [], getSettlementViews: () => [a, b], getKingdom: () => null, getTile: (q, r) => tiles[`${q},${r}`] || null };
+        SettlementMarket.ensure(a); SettlementMarket.ensure(b);
+        a.market.links = [[8, 7, 2, false, true, 1]];
+        Townsfolk.seed(a, world, { q: 5, r: 7 });
+        TownJobs.ensure(a.folk, a, world, world.day);
+        for (const p of a.folk.people) p.purse = Townsfolk.age(p, world.day) >= 16 ? 25 : 0;
+        return { a, b, world };
+    }
+    const goods = (towns) => {
+        const o = {};
+        for (const s of towns) {
+            for (const id of SettlementMarket.config().goodIds) o[id] = (o[id] || 0) + units(s, id);
+            const h = TownTrade.holdings(s);
+            for (const [id, n] of Object.entries(h.goods)) o[id] = (o[id] || 0) + n;
+            for (const [id, n] of Object.entries(h.gone)) o[id] = (o[id] || 0) + n;
+        }
+        return o;
+    };
+    const coin = (towns) => towns.reduce((t, s) => t + s.economy.gold + TownTrade.holdings(s).coin
+        + (s.folk ? s.folk.people.reduce((x, p) => x + (typeof p.purse === 'number' ? p.purse : 0), 0) : 0), 0);
+
+    it('shopping, eating, barter, producers and pedlars only move goods and coin between holders (what is eaten is booked gone)', () => {
+        const { a, b, world } = rosterTown();
+        const g0 = goods([a, b]), c0 = coin([a, b]);
+        for (let i = 0; i < 15; i++) {
+            if (i === 2) a.townTrade.lastPedlar = world.day - 100;
+            TownTrade.step(world, a, world.day);
+            world.day += 4;
+        }
+        expect(a.townTrade.book.bought).toBeGreaterThan(0);
+        expect(a.townTrade.book.eaten).toBeGreaterThan(0);
+        const g1 = goods([a, b]);
+        for (const id of SettlementMarket.config().goodIds) expect(g1[id] || 0, id).toBeCloseTo(g0[id] || 0, 5);
+        expect(coin([a, b])).toBeCloseTo(c0, 5);
+    });
+
+    it('what the producers keep back at the market turn is exactly what the market did not stock', () => {
+        const { a, world } = rosterTown();
+        TownTrade.step(world, a, world.day);
+        const W = TownTrade.withhold(a, world, world.day, 4);
+        const prod = SettlementMarket.productionList(Object.fromEntries(Object.keys(W.goods).map(id => [id, 4])));
+        const x = JSON.parse(JSON.stringify(a)), y = JSON.parse(JSON.stringify(a));
+        SettlementMarket.processSettlement(x, prod, { day: world.day, days: 4, withhold: W });
+        SettlementMarket.processSettlement(y, prod, { day: world.day, days: 4 });
+        const held = x.market.withheld;
+        expect(Object.keys(held).length).toBeGreaterThan(0);
+        // (the stock is kept to the hundredth, and what's held spoils not at all meanwhile; the raw
+        // produce no trade works up, so no mill or bakery makes up the difference)
+        const raw = new Set(['eggs', 'cabbage', 'turnips', 'onions', 'apples', 'fish', 'wool', 'carrots', 'beans']);
+        expect(Object.keys(held).some(id => raw.has(id))).toBe(true);
+        for (const [id, n] of Object.entries(held)) if (raw.has(id)) expect(y.market.stock[id] - x.market.stock[id], id).toBeCloseTo(n * Math.pow(1 - SettlementMarket.good(id).spoil, 4), 1);
     });
 });

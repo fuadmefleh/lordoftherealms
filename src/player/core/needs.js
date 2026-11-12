@@ -37,7 +37,10 @@ export const DAILY_RATION_HUNGER = 35;
 export const MEAL_HUNGER = {
     cooked_meat: 40, cooked_fish: 30, bread: 25, preserved_fish: 25, fish: 20, grain: 15, food: 20, vegetables: 15,
     // Wild foods: they keep you alive, they don't fill you up
-    fruit: 15, honey: 15, game_meat: 15, crabs: 12, berries: 10, mushrooms: 10, truffles: 12,
+    fruit: 15, honey: 15, game_meat: 15,
+    // From the gardens and orchards (data/markets.json produce)
+    cabbage: 12, turnips: 12, carrots: 10, onions: 8, beans: 18, apples: 12, pears: 12, plums: 10, cherries: 8,
+    grapes: 10, olives: 10, dates: 16, eggs: 10, crabs: 12, berries: 10, mushrooms: 10, truffles: 12,
     cactus_fruit: 10, seaweed: 8,
     // From the water's floor (player/diving.js)
     mussels: 10, oysters: 10, crayfish: 10,

@@ -78,6 +78,7 @@ describe('the estates about the towns', () => {
         const st = w.estates;
         Estates.derive(w, w.day); // (towns founded since the last survey)
         for (const s of towns(w)) {
+            if (!Estates._readyForEstates(w, s, w.day)) { expect(Estates.town(w, s.q, s.r)).toBeNull(); continue; } // (a place founded in play: no farmland yet)
             expect(Estates.town(w, s.q, s.r)).toBeTruthy();
             const ests = Estates.estatesOf(w, s.q, s.r);
             expect(ests.length).toBeGreaterThanOrEqual(1);
@@ -88,6 +89,33 @@ describe('the estates about the towns', () => {
         }
         const kinds = new Set(Object.values(st.estates).map(e => Estates.kindOf(e.holder)));
         expect(kinds.size).toBeGreaterThanOrEqual(4);
+    });
+
+    it('a place founded in play holds no estates (and shows no farm) until its land is broken; none at the dawn', () => {
+        const w = G.world;
+        const s = towns(w).find(t => Estates.town(w, t.q, t.r));
+        const save = { colony: s.colony, population: s.population };
+        try {
+            s.colony = { foundedDay: w.day };
+            s.population = 20;
+            Estates.derive(w, w.day);
+            expect(Estates.town(w, s.q, s.r)).toBeNull();
+            expect(Estates.fieldHexes(w).some(f => Estates.estate(w, f.id) && Estates.estate(w, f.id).town === `${s.q},${s.r}`)).toBe(false);
+            s.population = 200;
+            Estates.derive(w, w.day + 100);
+            expect(Estates.town(w, s.q, s.r)).toBeNull(); // (too young yet)
+            Estates.derive(w, w.day + 400);
+            expect(Estates.town(w, s.q, s.r)).toBeTruthy();
+            // A world still at its dawn has no manors to hold the land
+            w.dawn = { over: false };
+            Estates.derive(w, w.day + 400);
+            expect(Estates.town(w, s.q, s.r)).toBeNull();
+        } finally {
+            delete w.dawn;
+            s.colony = save.colony;
+            s.population = save.population;
+            Estates.derive(w, w.day);
+        }
     });
 
     it('derives from a hash of the seed: the same world gets the same estates, and no RNG is drawn', () => {

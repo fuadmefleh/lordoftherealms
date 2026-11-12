@@ -13,6 +13,7 @@
 // the same prices to caravans, the tavern and the market screens.
 // Deterministic; draws no RNG.
 
+import { DataLoader } from '../core/dataLoader.js';
 import { PlayerEconomy } from '../player/playerEconomy.js';
 import { Economy } from '../world/economy.js';
 import { WorldEvents } from '../world/worldEvents.js';
@@ -36,6 +37,10 @@ import { Transport } from '../world/transport.js';
 import { PublicWorks } from './publicWorks.js';
 import { MoneySupply } from '../world/moneySupply.js';
 import { Estates } from '../world/estates.js';
+import { TownJobs } from './townJobs.js';
+import { Illness } from './illness.js';
+// (the townsfolk's own trading: producers keep back their wares at the market turn)
+import { TownTrade } from './townTrade.js';
 
 const _key = (q, r) => `${q},${r}`;
 /** Days a settlement's production profile holds before it is worked out again. */
@@ -131,10 +136,16 @@ export const MarketDynamics = {
                 days: Number.isFinite(day) ? k : 1,
                 cold: SettlementMarket.isCold(world, tile),
                 foodMult: foodSeason * Math.max(0, 1 + WorldEvents.getModifier(world, 'farmProduction', tile)),
+                // (the staples' season inside foodMult: produce swaps it for its own, SettlementMarket)
+                foodSeason,
                 mineMult: Math.max(0, 1 + WorldEvents.getModifier(world, 'mineProduction', tile)),
                 intact: 1 - Math.min(0.9, Math.max(0, _num(live.damage))),
                 goodsMult: 1 + Economy.holdingFx(live, 'goods'),
                 worksMult: besieged.has(_key(s.q, s.r)) ? 0 : 1,
+                // (its named townsfolk at their trades: systems/townJobs.js; null for a town without a roster)
+                crew: TownJobs.crew(live, world, day),
+                // (its named producers' wares kept back: systems/townTrade.js; null without a roster)
+                withhold: TownTrade.withhold(live, world, day, Number.isFinite(day) ? k : 1),
             });
         }
         const links = this._links(world, cache, lives, day);
@@ -145,6 +156,8 @@ export const MarketDynamics = {
         // (the caravan cap counts the towns: they are `lives`, no second scan of the map)
         MerchantCaravans.selectLinks(world, links, turnArg, day, lives.length);
         this._disrupt(world, player, links, turnArg);
+        // A town shut by quarantine trades little, and few caravans take its road (systems/illness.js)
+        this._quarantine(world, links, day);
         const bases = this._basePrices();
         // (goods for goods where a town barters: a world begun before coin, world/barter.js)
         const flow = SettlementMarket.flows(links, bases, day, Barter.flowOpts(world));
@@ -159,6 +172,40 @@ export const MarketDynamics = {
         for (const live of lives) if (!live.kingdom) Economy.processTrade(live);
         this.lastFlow = flow;
         return flow;
+    },
+
+    /**
+     * Links to or from a town shut by quarantine (the Pestilence law and
+     * sickness in it): their goods cut to quarantineTrade.imports, their
+     * embodied traders kept off the road but for quarantineTrade.caravans
+     * (data/illness.json). → links cut
+     */
+    _quarantine(world, links, day) {
+        const Q = DataLoader._gamedata && DataLoader._gamedata.illness && DataLoader._gamedata.illness.quarantineTrade;
+        if (!Q || !Array.isArray(links)) return 0;
+        const shut = new Map();
+        const closed = (s) => {
+            if (!s) return false;
+            if (!shut.has(s)) {
+                let c = false;
+                try {
+                    const k = Illness.townSickness(s, _num(day));
+                    c = !!(k && k.k && (k.closed || Illness.quarantined(world, s)));
+                } catch (e) { c = false; }
+                shut.set(s, c);
+            }
+            return shut.get(s);
+        };
+        const imports = Math.max(0, Math.min(1, _num(Q.imports, 1)));
+        const caravans = Math.max(0, Math.min(1, _num(Q.caravans, 1)));
+        let n = 0;
+        for (const l of links) {
+            if (!l || !(l.factor > 0) || !(closed(l.a) || closed(l.b))) continue;
+            l.factor *= imports;
+            if (l.embody && (Utils.hashStr(`quarantine|${l.a.q},${l.a.r}|${l.b.q},${l.b.r}|${day}`) >>> 0) % 1000 >= caravans * 1000) l.embody = false;
+            n++;
+        }
+        return n;
     },
 
     /** Land profile of a settlement's hex, recomputed each 30-day stretch (terraforming is rare). */

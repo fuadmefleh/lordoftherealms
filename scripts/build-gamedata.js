@@ -103,7 +103,17 @@ const topLevel = [
     'graves',
     'ambient',
     'autoUpkeep',
-    'riverDrift'
+    'riverDrift',
+    'marketStalls',
+    'npcTheft',
+    'brawls',
+    'romance',
+    'townJobs',
+    'townWorship',
+    'illness',
+    'townFamily',
+    'townSchool',
+    'townTrade'
 ];
 
 const merged = {};

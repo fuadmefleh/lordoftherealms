@@ -13,6 +13,7 @@ import { GraveBook } from '../../world/graveBook.js';
 import { LotBook } from '../../world/lotBook.js';
 import { OddJobs } from '../../player/oddJobs.js';
 import { InnerMap } from '../../world/innerMap.js';
+import { Burials } from '../../world/burials.js';
 import { BTN_GOLD, BTN_PLAIN, BTN_RED, CARD, esc, lede, bullets } from './uiKit.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
@@ -162,6 +163,29 @@ function kinCard(game, s, k) {
     return html;
 }
 
+/** Where the player has put things in the ground: their own burials and caches, by place (world/burials.js). */
+function hiddenCard(game) {
+    const { world } = game;
+    const day = world.day || 0;
+    const where = (hex, q, r) => {
+        const [wq, wr] = String(hex).split(',').map(Number);
+        const t = world.getTile && world.getTile(wq, wr);
+        return `${t && t.settlement ? esc(t.settlement.name) : `the wilds (${wq}, ${wr})`}, at ${q},${r}`;
+    };
+    const rows = [];
+    for (const { hex, q, r, grave } of Burials.burials(world)) {
+        const state = grave.open != null ? ' — <span style="color:#e0a080;">dug open</span>' : grave.robbed != null ? ' — <span style="color:#e0a080;">robbed</span>' : '';
+        const goods = grave.goods && !Burials.isEmpty(grave.goods) ? `, with ${esc(Burials.describe(grave.goods))}` : '';
+        rows.push(`<div style="${NOTE}">⚰️ ${esc(Burials.label(grave, day))}${grave.name ? ` (${esc(grave.name)})` : ''}${goods} — ${where(hex, q, r)}${state}</div>`);
+    }
+    for (const { hex, q, r, cache } of Burials.caches(world)) {
+        const seen = (cache.seen || []).length ? ` <span style="color:#e0a080;">(${esc(cache.seen.map(w => w.name).join(', '))} saw you)</span>` : '';
+        rows.push(`<div style="${NOTE}">📦 ${cache.open ? 'In an open hole' : 'Buried'}: ${esc(Burials.isEmpty(cache) ? 'something' : Burials.describe(cache))} — ${where(hex, q, r)}${seen}</div>`);
+    }
+    if (!rows.length) return '';
+    return `<div style="${H}">🕳️ What You Have Put in the Ground</div><div style="${CARD}">${rows.join('')}</div>`;
+}
+
 Object.assign(ActionMenu, {
     /** Graveyards & the Dead: the town's churchyard, the bone trade, your grounds and works, your own dead. */
     showGraveyards(game, message = null) {
@@ -190,6 +214,7 @@ Object.assign(ActionMenu, {
             const away = sites.filter(v => !(v.q === player.q && v.r === player.r));
             for (const v of here.concat(away)) html += siteCard(game, v);
         }
+        html += hiddenCard(game);
         html += '</div>';
         game.ui.showCustomPanel('⚰️ Graveyards & the Dead', html);
     },

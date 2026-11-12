@@ -30,6 +30,10 @@ import { Regency } from '../../systems/regency.js';
 import { Townsfolk } from '../../systems/townsfolk.js';
 import { Lots } from '../../systems/lots.js';
 import { Graveyards } from '../../systems/graveyards.js';
+import { NpcTheft } from '../../systems/npcTheft.js';
+import { Brawls } from '../../systems/brawls.js';
+import { IllnessPlayer } from '../../systems/illnessPlayer.js';
+import { InnerMapSickness } from '../innerMapSickness.js';
 import { Livestock } from '../../systems/livestock.js';
 import { Sagas } from '../../systems/sagas.js';
 import { Whispers } from '../../systems/whispers.js';
@@ -534,6 +538,12 @@ export function endDay() {
                 for (const n of Lots.processDay(this.world, this.player).notices.slice(0, 3)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
                 // The dead to the ground: burials, leases run out and renewed, bone mills, ossuaries, your own dead (systems/graveyards.js)
                 for (const n of Graveyards.processDay(this.world, this.player).notices.slice(0, 3)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+                // Burglars and cutpurses: the townsfolk's houses and purses, and the player's own (systems/npcTheft.js;
+                // the town on the street map plays its own out: ui/innerMapThieves.js)
+                for (const n of NpcTheft.processDay(this.world, this.player, { onMap: !!InnerMap.active }).notices.slice(0, 4)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+                // Townsfolk at each other: grudges born and cooling, a brawl now and then, off the street map
+                // (the town on the street map plays its own: ui/innerMapBrawls.js) — systems/brawls.js
+                for (const n of Brawls.processDay(this.world, this.player, { onMap: !!InnerMap.active }).notices.slice(0, 2)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
                 // Word reaches the player of the people they have met.
                 const folkIcons = { died: '🕯️', wed: '💍', born: '👶', left: '🧳', arrived: '🏘️' };
@@ -543,6 +553,14 @@ export function endDay() {
                     const where = town && town.settlement ? town.settlement.name : 'afar';
                     this.ui.showNotification(`${folkIcons[n.kind] || '📜'} Word from ${where}`, n.text, n.kind === 'died' ? 'warning' : 'info');
                 }
+                // The townsfolk's sicknesses: caught, passed on, nursed, survived or not, town to town;
+                // the player may catch what the town they stand in has (systems/illness.js, systems/illnessPlayer.js)
+                const sickDay = IllnessPlayer.processDay(this.world, this.player, { contact: InnerMapSickness.takeContact() });
+                for (const n of sickDay.news.filter(x => x.text && (x.kind === 'died' || x.kind === 'fellIll')).slice(0, 3)) {
+                    const town = this.world.getTile && this.world.getTile(n.folk.q, n.folk.r);
+                    this.ui.showNotification(`${n.kind === 'died' ? '🕯️' : '🤒'} Word from ${town && town.settlement ? town.settlement.name : 'afar'}`, n.text, n.kind === 'died' ? 'warning' : 'info');
+                }
+                for (const n of sickDay.notices.slice(0, 3)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
                 // Townsfolk who are friends, lovers, companions or kin by marriage
                 Relationships.syncFolk(this.player, this.world);
 

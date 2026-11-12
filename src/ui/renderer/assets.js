@@ -152,7 +152,17 @@ Object.assign(Renderer.prototype, {
 
         // Cache for road variant lookup
         this.roadVariants = new Map();
+        this.pavedVariants = new Map();
         this.bridgeVariants = new Map();
+        // Paved highways and stone roads: the same runs as the dirt ones,
+        // laid in setts (scripts/make_paved_roads.py makes them from the dirt sprites)
+        for (const img of ROAD_IMAGES) {
+            const m = img.match(/^hexRoad-([01]{6})-(\d+)\.png$/);
+            if (!m) continue;
+            const paved = img.replace('hexRoad-', 'hexRoadPaved-');
+            if (!this.pavedVariants.has(m[1])) this.pavedVariants.set(m[1], []);
+            this.pavedVariants.get(m[1]).push(paved);
+        }
         for (const img of ROAD_IMAGES) {
             const roadMatch = img.match(/hexRoad-([01]{6})-(\d+)\.png/);
             const bridgeMatch = img.match(/hexRoadBridge-([01]{6})-(\d+)\.png/);
@@ -273,6 +283,11 @@ Object.assign(Renderer.prototype, {
         for (const imgName of ROAD_IMAGES) {
             if (!this.tileSprites.has(imgName)) {
                 promises.push(this.loadTileSprite(imgName, ROAD_PATH + imgName));
+            }
+        }
+        for (const list of (this.pavedVariants ? this.pavedVariants.values() : [])) {
+            for (const imgName of list) {
+                if (!this.tileSprites.has(imgName)) promises.push(this.loadTileSprite(imgName, ROAD_PATH + imgName));
             }
         }
 
@@ -528,7 +543,20 @@ Object.assign(Renderer.prototype, {
         if (!tile.hasRoad) return null;
         const dirs = this.roadDirections(tile, q, r, width, height);
         if (dirs.length === 0) return null;
-        return this.pickVariant(this.roadVariants && this.roadVariants.get(this.hexMaskKey(dirs)), tile);
+        const key = this.hexMaskKey(dirs);
+        if (this.isPavedRoad(tile)) {
+            const paved = this.pickVariant(this.pavedVariants && this.pavedVariants.get(key), tile);
+            if (paved && this.tileSprites && this.tileSprites.get(paved)) return paved;
+        }
+        return this.pickVariant(this.roadVariants && this.roadVariants.get(key), tile);
+    },
+
+    /** A road laid in stone: a paved highway (world/transport.js tier) or a built Stone Road. */
+    isPavedRoad(tile) {
+        if (!tile || !tile.hasRoad) return false;
+        if (tile.roadTier === 'highway') return true;
+        const inf = tile.infrastructure;
+        return !!(inf && inf.id === 'stone_road' && !inf.underConstruction);
     },
 
     /**

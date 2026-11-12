@@ -910,6 +910,7 @@ export const Colonization = {
             level: 0,
             kingdom: kingdom.id,
             founded: world.day,
+            foundedDay: world.day,
         };
         if (typeof world.invalidateSettlements === 'function') world.invalidateSettlements();
 

@@ -72,9 +72,24 @@ export const InnerMapGraves = {
             return items;
         }
         const g = info.grave;
-        items.push({ type: 'header', label: info.legible ? `⚰️ ${g.name}` : '⚰️ An Old Grave' });
-        items.push({ type: 'action', action: 'grave_read', label: info.legible ? 'Read the Grave' : 'Look at the Grave', icon: '📜', desc: info.legible ? 'Who lies here, and since when' : 'The marker is long gone', ...ref });
+        if (info.open) {
+            // Dug open (robbed): still the grave — its marker over it, the coffin bare in the pit
+            items.push({ type: 'header', label: info.legible ? `🕳️ The Open Grave of ${g.name}` : '🕳️ An Open Grave' });
+            items.push({ type: 'action', action: 'grave_read', label: info.legible ? 'Read the Grave' : 'Look at the Grave', icon: '📜', desc: 'Who lies here — and what has been done to it', ...ref });
+            items.push({ type: 'action', action: 'grave_refill', label: 'Fill the Grave In', icon: '⚰️', desc: 'Shovel the earth back and set the marker straight', ...ref });
+            if (!g.kin && !g.bonesTaken && !g.bodyTaken) items.push({ type: 'action', action: 'grave_bones', label: 'Take the Bones', icon: '🦴', desc: 'Lift what lies in the coffin out. A theft — and worse, if you are seen', ...ref });
+        } else {
+            items.push({ type: 'header', label: info.legible ? `⚰️ ${g.name}` : '⚰️ An Old Grave' });
+            items.push({ type: 'action', action: 'grave_read', label: info.legible ? 'Read the Grave' : 'Look at the Grave', icon: '📜', desc: info.legible ? 'Who lies here, and since when' : 'The marker is long gone', ...ref });
+        }
         items.push({ type: 'action', action: 'grave_respects', label: 'Pay Your Respects', icon: '🕯️', desc: 'Stand a while by the grave', ...ref });
+        // Taking a marker off a grave: only ever on purpose — a theft and a desecration
+        const pry = !g.kin ? Graveyards.pryableMarker(world, at.s, at.ground.id, at.i) : null;
+        if (pry) items.push({ type: 'action', action: 'grave_pry', label: `Pry Up the ${pry.name}`, icon: '⛏️', desc: 'Tear the marker out and carry it off. A theft, and a desecration if you are seen', ...ref });
+        if (info.open) {
+            if (info.mine) items.push(PANEL_ITEM);
+            return items;
+        }
         if (info.mine && info.expired && !g.kin) {
             items.push({ type: 'action', action: 'grave_dig', label: 'Dig Up the Lapsed Grave', icon: '⛏️', desc: 'The lease has run out: the bones (and any grave goods) are yours, the plot free', ...ref });
             const fee = Math.round(Number(GraveBook.byType(GraveBook.config().sextonFee, at.s.type)) || 4);
@@ -98,7 +113,11 @@ export const InnerMapGraves = {
                 const info = s && Graveyards.graveAt(world, s, item.groundId, item.plot);
                 if (!info) return true;
                 const g = info.grave;
-                if (!info.legible) { _note(game, '⚰️ An Old Grave', GraveBook.config().text.unmarked || 'Its marker is long gone.'); return true; }
+                if (!info.legible) {
+                    const extra = info.open ? ' It lies dug open.' : info.disturbed ? ' The earth over it has been disturbed.' : '';
+                    _note(game, '⚰️ An Old Grave', (GraveBook.config().text.unmarked || 'Its marker is long gone.') + extra);
+                    return true;
+                }
                 const lines = [GraveBook.epitaph(g, world)];
                 if (g.cause) lines.push(`Taken by ${g.cause}.`);
                 const years = GraveBook.yearsBetween(g.died, world.day);
@@ -107,6 +126,10 @@ export const InnerMapGraves = {
                 else if (g.until == null) lines.push('Held in perpetuity.');
                 else if (info.expired) lines.push('Its lease has run out.');
                 else lines.push(`Leased until ${GraveBook.yearOf(g.until, world)}.`);
+                if (info.open) lines.push(g.bonesTaken || g.bodyTaken ? 'It lies dug open, and empty.' : 'It lies dug open, the coffin bare in the pit.');
+                else if (info.disturbed) lines.push('The earth over it has been dug and put back.');
+                if (info.askew) lines.push('Its marker has been knocked askew.');
+                if (info.robbed && g.found != null) lines.push(g.robbedBy ? `It was robbed — by ${g.robbedBy}, folk say.` : 'It was robbed, and no one saw who did it.');
                 _note(game, `⚰️ ${(GraveBook.markerDef(info.marker) || {}).name || 'A Grave'}`, lines.join(' '));
                 return true;
             }
@@ -136,6 +159,28 @@ export const InnerMapGraves = {
                             ? Graveyards.robGrave(g.player, g.world, s, item.groundId, item.plot, _scene(item.gq, item.gr))
                             : Graveyards.clearPlot(g.player, g.world, s, item.groundId, item.plot, 'self');
                         this._after(g, res, rob ? '🌒 Grave Robbing' : '⛏️ Dug Up', res.caught ? 'error' : null);
+                        // Caught at it: the street sees a grave desecrated (the watch, the rumour)
+                        if (rob && res.caught) this._desecrated(g, item);
+                    },
+                });
+                if (out === 'unreachable') _note(game, '⛏️ Can\'t reach it', 'There is nowhere to stand beside that grave.', 'error');
+                return true;
+            }
+            case 'grave_refill':
+            case 'grave_bones':
+            case 'grave_pry': {
+                const secs = (InnerMapDigging.config().seconds || {}).refill || 3;
+                const verb = { grave_refill: 'Filling in the grave', grave_bones: 'Lifting out the bones', grave_pry: 'Prying up the marker' }[item.action];
+                const out = InnerMapDigging.start(game, 'exhume', item.gq, item.gr, {
+                    seconds: item.action === 'grave_refill' ? secs : secs + 1,
+                    verb,
+                    onDone: (g) => {
+                        let res;
+                        if (item.action === 'grave_refill') res = Graveyards.refillGrave(g.world, s, item.groundId, item.plot);
+                        else if (item.action === 'grave_bones') res = Graveyards.takeBones(g.player, g.world, s, item.groundId, item.plot, _scene(item.gq, item.gr));
+                        else res = Graveyards.pryMarker(g.player, g.world, s, item.groundId, item.plot, _scene(item.gq, item.gr));
+                        this._after(g, res, item.action === 'grave_refill' ? '⚰️ Filled In' : item.action === 'grave_bones' ? '🦴 The Bones' : '⛏️ The Marker', res.caught ? 'error' : null);
+                        if (res.caught) this._desecrated(g, item);
                     },
                 });
                 if (out === 'unreachable') _note(game, '⛏️ Can\'t reach it', 'There is nowhere to stand beside that grave.', 'error');
@@ -143,6 +188,14 @@ export const InnerMapGraves = {
             }
         }
         return false;
+    },
+
+    /** Caught at a grave: the street reacts as to the smashing of the town's things (the watch, the rumour). */
+    _desecrated(game, item) {
+        const s = InnerMap._graveSettlement && InnerMap._graveSettlement();
+        const info = s && Graveyards.graveAt(game.world, s, item.groundId, item.plot);
+        const name = info ? info.grave.name : 'the dead';
+        InnerMapDigging._desecrate(game, item.gq, item.gr + 1, name);
     },
 
     _after(game, res, title, kind = null) {

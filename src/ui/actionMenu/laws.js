@@ -6,6 +6,7 @@
 // Court and the Counsel. Buttons route through data-am-act → ActionMenu.lawsAct.
 import { ActionMenu } from './_ref.js';
 import { Laws } from '../../systems/laws.js';
+import { TownSchool } from '../../systems/townSchool.js';
 import { BTN_GOLD, BTN_DIM, CARD, panelTabs, lede, chips, bullets, sectionHead } from './uiKit.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
@@ -132,6 +133,30 @@ function crownTab(game) {
     return html;
 }
 
+/** The towns the player may found a school in: the one stood in (a holding or a town of the realm), and on the crown tab the realm's towns. */
+function schoolsSection(game, tab) {
+    const { player, world } = game;
+    const towns = [];
+    const here = world.getTile(player.q, player.r);
+    if (here && here.settlement && here.settlement.folk) towns.push(here.settlement);
+    const k = tab === 'crown' ? Laws.ruled(player, world) : null;
+    if (k && typeof world.getSettlementViews === 'function') {
+        for (const s of world.getSettlementViews()) if (s && s.folk && s.kingdom === k.id && !towns.includes(s)) towns.push(s);
+    }
+    const rows = [];
+    for (const s of towns) {
+        const can = TownSchool.canFound(player, world, s);
+        const founded = s.folk.school && s.folk.school.founded;
+        if (!can.ok && !founded && !/treasury|costs/.test(can.reason || '')) continue;
+        const lit = TownSchool.townLiteracy(s.folk, world.day || 1);
+        const note = founded ? `School founded on day ${founded.d}.` : `${can.cost}g ${can.payer === 'crown' ? 'from the treasury' : 'from your purse'}: half builds and furnishes it, half endows its fund; a schoolmaster from the town's lettered folk.`;
+        rows.push(`<div style="${CARD}"><div style="font-weight:bold;">🏫 ${esc(s.name)}</div><div style="${NOTE}">${esc(note)}${lit.known ? ` About ${Math.round(lit.share * 100)} in 100 of its grown folk can write.` : ''}</div>`
+            + (founded ? '' : `<div style="margin-top:4px;">${act(`Found a school (${can.cost}g)`, ['foundSchool', s.q, s.r], can.ok, can.ok ? 'More of the town sends its children to learn their letters, more each year.' : can.reason)}</div>`) + '</div>');
+    }
+    if (!rows.length) return '';
+    return sectionHead('🏫 Schools') + rows.join('');
+}
+
 Object.assign(ActionMenu, {
     /** The Laws panel: `tab` is 'here', 'realms' or 'crown'. */
     showLaws(game, tab = null) {
@@ -144,12 +169,22 @@ Object.assign(ActionMenu, {
             attrsFor: (k) => `data-am-act="showLaws" data-am-args='${esc(JSON.stringify([k]))}'`,
         });
         html += t === 'realms' ? realmsTab(game) : t === 'crown' ? crownTab(game) : hereTab(game);
+        // Founding a town's school by decree: the ruler for the realm's towns, a lord for a holding (systems/townSchool.js)
+        if (t !== 'realms') html += schoolsSection(game, t);
         html += '</div>';
         game.ui.showCustomPanel('📜 Laws', html);
     },
 
     /** Every button on the panel. */
     lawsAct(game, op, a = null, b = null) {
+        if (op === 'foundSchool') {
+            const tile = game.world.getTile(a, b);
+            const res = TownSchool.found(game.player, game.world, tile && tile.settlement);
+            game.ui.showNotification('🏫 A school founded', res.success ? res.text : res.reason, res.success ? 'success' : 'error');
+            if (res.success) game.ui.updateStats(game.player, game.world);
+            ActionMenu.showLaws(game, Laws.ruled(game.player, game.world) ? 'crown' : 'here');
+            return;
+        }
         if (op !== 'enact') return;
         const res = Laws.enact(game.player, game.world, a, b);
         game.ui.showNotification('📜 Laws', res.success ? res.text : res.reason, res.success ? 'success' : 'error');

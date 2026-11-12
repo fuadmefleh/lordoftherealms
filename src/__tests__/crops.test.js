@@ -243,11 +243,11 @@ describe('harvest', () => {
         expect(Crops.harvest(player, W.q, W.r, 9, 9).ok).toBe(false);
         const res = Crops.harvest(player, W.q, W.r, 2, 2);
         expect(res.ok).toBe(true);
-        expect(res.good).toBe('vegetables');
+        expect(res.good).toBe('cabbage');
         const [lo, hi] = Crops.crop('cabbage').yield;
         expect(res.qty).toBeGreaterThanOrEqual(lo);
         expect(res.qty).toBeLessThanOrEqual(hi);
-        expect(player.inventory.vegetables).toBe(res.qty);
+        expect(player.inventory.cabbage).toBe(res.qty);
         const cell = Crops.cell(player, W.q, W.r, 2, 2);
         expect(cell).toEqual({ crop: null });
         expect(Crops.status(cell).phase).toBe('tilled');

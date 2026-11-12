@@ -144,6 +144,34 @@ function buildConfig(src) {
         // (each trade's runs and capacity this turn, for the works that take a share of them)
         trRuns: new Float64Array(recipesI.length), trCap: new Float64Array(recipesI.length),
     };
+    // Produce (data/markets.json produce): the gardens', fields', orchards' and woods'
+    // goods, each with its climate, land, culture and season (normalised to a
+    // yearly mean of 1); A.produce marks them for the daily tick
+    const PR = d.produce && typeof d.produce === 'object' ? d.produce : {};
+    const produce = {};
+    const SEASONS = ['Spring', 'Summer', 'Autumn', 'Winter'];
+    A.produce = new Uint8Array(n);
+    A.prodSeason = new Float64Array(n * 4).fill(1);
+    A.demSeason = new Float64Array(n * 4).fill(1);
+    for (const [id, p] of Object.entries(PR.goods || {})) {
+        if (!p || typeof p !== 'object' || id.startsWith('_') || idx[id] === undefined) continue;
+        const raw = SEASONS.map(x => Math.max(0, _num(p.season && p.season[x], 1)));
+        const mean = raw.reduce((a, b) => a + b, 0) / 4;
+        const season = raw.map(v => (mean > 0 ? v / mean : 1));
+        const follow = _clamp(_num(p.follow), 0, 1);
+        const temp = Array.isArray(p.temp) && p.temp.length === 2 ? [_num(p.temp[0], 0), _num(p.temp[1], 1)] : [0, 1];
+        produce[id] = {
+            kind: p.kind || 'veg', fields: !!p.fields, temp, floor: _clamp(_num(p.floor), 0, 1), base: Math.max(0, _num(p.base, 1)),
+            land: p.land && typeof p.land === 'object' ? p.land : {}, cultures: p.cultures && typeof p.cultures === 'object' ? p.cultures : {},
+            season, follow,
+        };
+        const i = idx[id];
+        A.produce[i] = 1;
+        for (let x = 0; x < 4; x++) {
+            A.prodSeason[i * 4 + x] = season[x];
+            A.demSeason[i * 4 + x] = 1 + (season[x] - 1) * follow;
+        }
+    }
     const terrainClass = {};
     for (const [cls, ids] of Object.entries(d.terrain || {})) {
         if (!Array.isArray(ids)) continue;
@@ -170,6 +198,9 @@ function buildConfig(src) {
         fertility: d.fertility || {},
         food: { selfSupply: {}, fishWater: 0.6, fishResource: 0.25, meatPasture: 0.25, meatResource: 0.25, grainMin: 0.3, ...(d.food || {}) },
         supply: d.supply || {},
+        produce,
+        produceIds: Object.keys(produce),
+        produceFade: Math.max(0.01, _num(PR.fade, 0.2)),
         resourceScale: _num(d.resourceScale, 0.35),
         craftScale: _num(d.craftScale, 0.04),
         itemGoods: d.itemGoods || {},
@@ -382,7 +413,13 @@ export const SettlementMarket = {
     ensure(settlement) {
         if (!settlement || typeof settlement !== 'object') return null;
         let m = settlement.market;
-        if (m && typeof m === 'object' && m.stock && typeof m.stock === 'object') return m;
+        if (m && typeof m === 'object' && m.stock && typeof m.stock === 'object') {
+            // A market saved before a good was traded (an old save, new goods in
+            // data/markets.json): its people's new goods start at their target, as
+            // a new market's do, rather than at nothing
+            if (m.layout !== SettlementMarket.config().layout) SettlementMarket._seedNew(settlement, m);
+            return m;
+        }
         m = { stock: {}, trend: {}, short: { food: 0, tools: 0, fuel: 0 }, plenty: 0, trade: { in: 0, out: 0, cut: 0 } };
         for (const id of SettlementMarket.config().goodIds) {
             const used = SettlementMarket.uses(settlement, id);
@@ -393,6 +430,27 @@ export const SettlementMarket = {
         settlement.market = m;
         if ('marketStock' in settlement) delete settlement.marketStock;
         if (settlement.economy && settlement.economy.stockpile) delete settlement.economy.stockpile;
+        return m;
+    },
+
+    /**
+     * Stock the produce a market has never held (no key in its stock table: a
+     * save from before the gardens' and orchards' goods were traded) at its
+     * target where its people use it, and lay its tables out for the current
+     * goods list. Other missing goods start at nothing, as before.
+     */
+    _seedNew(settlement, m) {
+        const C = SettlementMarket.config();
+        const stock = m.stock, trend = m.trend || (m.trend = {});
+        for (const id of C.produceIds) {
+            if (id in stock) continue;
+            const used = SettlementMarket.uses(settlement, id);
+            stock[id] = used ? _round2(SettlementMarket.target(settlement, id)) : 0;
+            trend[id] = used ? 1 : 0;
+        }
+        SettlementMarket._canon(m);
+        // (its production profile was laid out for the old goods: worked out afresh)
+        if (Array.isArray(m.prod) && m.prod.length !== C.goodIds.length) delete m.prod;
         return m;
     },
 
@@ -849,6 +907,8 @@ export const SettlementMarket = {
         let best = null;
         for (const id of SettlementMarket.config().goodIds) {
             if (!SettlementMarket.uses(settlement, id)) continue;
+            // (nobody frets over cherries in winter: produce out of its season isn't a shortage)
+            if (SettlementMarket.offSeason(id, m.day)) continue;
             const s = SettlementMarket.scarcity(settlement, id);
             if (s >= min && (!best || s > best.scarcity)) best = { id, scarcity: s };
         }
@@ -899,6 +959,12 @@ export const SettlementMarket = {
         let fertility = fertN > 0 ? fert / fertN : _num(F._default, 0.8);
         if (river) fertility += _num(F.riverBonus);
         fertility = _clamp(fertility, _num(F.min, 0.35), _num(F.max, 1.4));
+        // (the climate where it stands: the town's own tile's temperature, 0 polar .. 1 tropical)
+        let temp = 0.5;
+        if (world && typeof world.getTile === 'function') {
+            const ct = world.getTile(world.width ? Hex.wrapQ(q, world.width) : q, r);
+            if (ct && typeof ct.temperature === 'number' && Number.isFinite(ct.temperature)) temp = ct.temperature;
+        }
         const resources = [];
         if (world && typeof world.getTile === 'function') {
             for (const h of Hex.hexesInRange(q, r, 2)) {
@@ -906,7 +972,54 @@ export const SettlementMarket = {
                 if (t && t.resource && t.resource.id) resources.push({ id: t.resource.id, direct: h.q === q && h.r === r });
             }
         }
-        return { shares, fertility, river, resources };
+        return { shares, fertility, river, resources, temp };
+    },
+
+    // ── Produce ───────────────────────────────────────────
+
+    /** A produce good's definition (data/markets.json produce.goods), or null. */
+    produceDef(goodId) {
+        return SettlementMarket.config().produce[goodId] || null;
+    },
+
+    /**
+     * How well a produce good grows by a town (0 = not at all): the climate
+     * (its temperature band, fading to its floor outside it) x (1 + the land's
+     * terrain shares x its land weights) x its culture's multiplier.
+     */
+    produceFit(goodId, land, culture = null) {
+        const p = SettlementMarket.produceDef(goodId);
+        if (!p) return 0;
+        const C = SettlementMarket.config();
+        const t = land && Number.isFinite(land.temp) ? land.temp : 0.5;
+        const [lo, hi] = p.temp;
+        let tf = 1;
+        if (t < lo) tf = 1 - (lo - t) / C.produceFade;
+        else if (t > hi) tf = 1 - (t - hi) / C.produceFade;
+        tf = Math.max(p.floor, tf);
+        if (!(tf > 0)) return 0;
+        const shares = (land && land.shares) || {};
+        let lm = 1;
+        for (const cls in p.land) lm += _num(shares[cls]) * _num(p.land[cls]);
+        const cm = culture && Number.isFinite(p.cultures[culture]) ? Math.max(0, p.cultures[culture]) : 1;
+        return tf * Math.max(0, lm) * cm;
+    },
+
+    /** A produce good's output multiplier on a day (its season, yearly mean 1); 1 for other goods or no date. */
+    produceSeason(goodId, day) {
+        const C = SettlementMarket.config();
+        const i = C.idx[goodId];
+        if (i === undefined || !C.A.produce[i] || !Number.isFinite(day)) return 1;
+        return C.A.prodSeason[i * 4 + SettlementMarket._seasonIx(day)];
+    },
+
+    /** Is the produce good out of its season on that day (it yields under a third of its mean)? */
+    offSeason(goodId, day) {
+        return Number.isFinite(day) && SettlementMarket.produceDef(goodId) !== null && SettlementMarket.produceSeason(goodId, day) < 0.34;
+    },
+
+    _seasonIx(day) {
+        return Math.max(0, Seasons.NAMES.indexOf(Seasons.seasonOf(day)));
     },
 
     /**
@@ -934,7 +1047,8 @@ export const SettlementMarket = {
         // Food: the land's grain, the waters' fish, the pastures' meat
         const groups = C.groups.food || [];
         let foodNeed = 0;
-        for (const id of groups) if (SettlementMarket.uses(settlement, id)) foodNeed += baseNeed(id);
+        // (the garden's and orchard's produce is grown on its own, below)
+        for (const id of groups) if (!C.produce[id] && SettlementMarket.uses(settlement, id)) foodNeed += baseNeed(id);
         // ...and the grain its brewers and distillers turn into drink
         for (const [id, per] of Object.entries(C.food.grainFor || {})) {
             if (C.goods[id] && SettlementMarket.uses(settlement, id)) foodNeed += baseNeed(id) * _num(per);
@@ -954,6 +1068,16 @@ export const SettlementMarket = {
         add('grain', food * wGrain / wSum);
         add('fish', food * wFish / wSum);
         add('meat', food * wMeat / wSum);
+
+        // Produce: the kitchen gardens, fields and orchards, the woods and the hen-yards,
+        // by the climate, the land and the town's culture (data/markets.json produce)
+        const fert = _num(land && land.fertility, 1);
+        for (const id of C.produceIds) {
+            const p = C.produce[id];
+            const fit = SettlementMarket.produceFit(id, land, settlement.culture || null);
+            if (!(fit > 0)) continue;
+            add(id, baseNeed(id) * selfSupply * p.base * fit * foodMult * (p.fields ? fert : 1));
+        }
 
         // The land and the craftsmen
         for (const [id, def] of Object.entries(C.supply)) {
@@ -1030,7 +1154,11 @@ export const SettlementMarket = {
      * industry, the people's consumption (staples stand in for each other
      * within food and fuel), the shortage gauges and their mood, spoilage,
      * and the price trend. `prod` from SettlementMarket.production; `ctx`:
-     * { day, cold, foodMult, mineMult, intact, goodsMult }.
+     * { day, cold, foodMult, mineMult, intact, goodsMult, crew, withhold }.
+     * The named townsfolk's own trade (systems/townTrade.js): `market.named`
+     * (what their households ate from their larders since the last turn)
+     * comes off the people's eating, and `ctx.withhold` keeps their
+     * producers' share of the output back on `market.withheld`.
      */
     processSettlement(settlement, prod, ctx = {}) {
         const m = SettlementMarket.ensure(settlement);
@@ -1051,7 +1179,16 @@ export const SettlementMarket = {
         // less, one short of artisans makes less, a strike idles the trades
         const lf = TownLabour.factors(settlement, ctx.day);
         const craftMask = TownLabour.craftMask(C);
+        // The named hands at each trade (ctx.crew, systems/townJobs.js): { g: { goodId: f }, r: { recipeId: f } }
+        // — a town at its trades' strength works at 1; one that lost its smith makes little iron
+        const crewG = ctx.crew && ctx.crew.g, crewR = ctx.crew && ctx.crew.r;
         const foodMult = _num(ctx.foodMult, 1) * toolF * k * lf.land;
+        // Produce keeps its own season (cherries in summer, apples in autumn) in place of the
+        // staples' food curve (ctx.foodSeason, which ctx.foodMult carries); the people eat more
+        // of what is in season (demSeason)
+        const dated = Number.isFinite(ctx.day);
+        const six = dated ? SettlementMarket._seasonIx(ctx.day) : 0;
+        const produceMult = foodMult / Math.max(0.05, _num(ctx.foodSeason, 1));
         const otherMult = _num(ctx.intact, 1) * _num(ctx.goodsMult, 1) * toolF * k;
         const minedMult = otherMult * _num(ctx.mineMult, 1) * lf.land;
         const landMult = otherMult * lf.land, craftMult = otherMult * lf.craft;
@@ -1094,9 +1231,15 @@ export const SettlementMarket = {
         // craftInputs.share of the output needs the recipe's inputs, from the stock
         // above the town's own need — no iron, no tools)
         const cShare = _clamp(_num(C.craftInputs.share), 0, 1);
+        // The town's named producers keep back their share of the turn's output (ctx.withhold,
+        // systems/townTrade.js: { goods: { goodId: units }, share }) — their wares, brought to
+        // market at their next step; what was kept is left on market.withheld for them
+        const whG = ctx.withhold && ctx.withhold.goods, whShare = _clamp(_num(ctx.withhold && ctx.withhold.share, 0.25), 0, 1);
         for (let i = 0; i < n; i++) {
             if (!(prodA[i] > 0)) continue;
-            let amt = prodA[i] * (A.food[i] ? foodMult : A.mined[i] ? minedMult : craftMask[i] ? craftMult : landMult);
+            let amt = prodA[i] * (A.produce[i] ? produceMult * (dated ? A.prodSeason[i * 4 + six] : 1)
+                : A.food[i] ? foodMult : A.mined[i] ? minedMult : craftMask[i] ? craftMult : landMult);
+            if (crewG && crewG[ids[i]] != null) amt *= crewG[ids[i]];
             const ri = cShare > 0 ? C.craftRc[i] : -1;
             if (ri >= 0) {
                 const rc = C.recipesI[ri];
@@ -1108,6 +1251,12 @@ export const SettlementMarket = {
                 if (!(runs > 0)) runs = 0;
                 for (let j = 0; j < rc.inIdx.length; j++) st[rc.inIdx[j]] = Math.max(0, st[rc.inIdx[j]] - runs * rc.inPer[j]);
                 amt = amt * (1 - cShare) + runs * C.craftOut[i];
+            }
+            if (whG && whG[ids[i]] > 0 && amt > 0) {
+                const kept = Math.min(whG[ids[i]], amt * whShare);
+                amt -= kept;
+                const wd = m.withheld || (m.withheld = {});
+                wd[ids[i]] = _num(wd[ids[i]]) + kept;
             }
             st[i] += amt;
         }
@@ -1125,6 +1274,7 @@ export const SettlementMarket = {
         for (const rc of C.recipesI) {
             if (rank < rc.rank || (idle && idle[rc.id])) continue;
             let runs = rc.cap * pop / 1000 * toolF * k * lf.craft;
+            if (crewR && crewR[rc.id] != null) runs *= crewR[rc.id];
             if (!(runs > 0)) continue;
             capAll += runs;
             capLeft[rc.ix] = runs;
@@ -1163,18 +1313,24 @@ export const SettlementMarket = {
         const needs = B.needs, unmet = B.unmet;
         needs.fill(0);
         unmet.fill(0);
+        // (what the named households ate from their own larders since the last turn is their
+        // share of the town's eating, not the market's: systems/townTrade.js books it on market.named)
+        const named = m.named;
+        if (named) delete m.named;
         for (let i = 0; i < n; i++) {
             let need = needOf[i];
             if (!(need > 0)) continue;
             need *= k;
             if (ctx.cold) need *= A.cold[i];
+            if (dated && A.produce[i]) need *= A.demSeason[i * 4 + six];
             needs[i] = need;
             // Short of a good, people make do rather than strip the stalls
             // bare: they buy at most `eatShare` of what's left (the rest
             // stays on sale, dear)
-            const avail = st[i] >= need ? need : st[i] * S.eatShare;
+            const rest = named ? need - Math.min(need, _num(named[ids[i]])) : need;
+            const avail = st[i] >= rest ? rest : st[i] * S.eatShare;
             st[i] -= avail;
-            if (avail < need) unmet[i] = need - avail;
+            if (avail < rest) unmet[i] = rest - avail;
         }
         const cover = {};
         for (const grp of C.groupNames) {

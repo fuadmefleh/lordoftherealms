@@ -464,6 +464,60 @@ export const StreetCrime = {
     },
 
     /**
+     * A crime by one of the townsfolk (a grave robbed, a body looted — systems/scavengers.js):
+     * on the town's record (settlement.npcCrimes, saved with it; the latest MAX kept) and in the
+     * memory of each who saw it (mem.sawNpc: who did what to whom — it moves no one's opinion
+     * of the player). Seen by the watch: caught. Told to the player when they ask a witness
+     * (npcCrimeLine). opts: { k: 'graveRobbing'|'loot', by, byKey, byPid, victim, vuid,
+     * d, seenBy: [names], witnesses: [npc], caught } → the entry.
+     */
+    recordNpcCrime(world, settlement, opts = {}) {
+        if (!settlement) return null;
+        if (!Array.isArray(settlement.npcCrimes)) settlement.npcCrimes = [];
+        const list = settlement.npcCrimes;
+        const entry = {
+            id: (list.length ? _num(list[list.length - 1].id) : 0) + 1,
+            k: opts.k || 'loot', by: opts.by || 'someone', byKey: opts.byKey || null, byPid: opts.byPid != null ? opts.byPid : null,
+            victim: opts.victim || 'someone', vuid: opts.vuid || null, d: _num(opts.d, _num(world && world.day)),
+            seenBy: (opts.seenBy || []).slice(0, 5), caught: !!opts.caught,
+        };
+        list.push(entry);
+        if (list.length > MAX_INCIDENTS) list.splice(0, list.length - MAX_INCIDENTS);
+        for (const npc of opts.witnesses || []) {
+            if (!npc) continue;
+            const mem = NpcDisposition.getMemory(npc);
+            if (!Array.isArray(mem.sawNpc)) mem.sawNpc = [];
+            mem.sawNpc.push({ k: entry.k, by: entry.by, v: entry.victim, vu: entry.vuid, d: entry.d, told: false });
+            if (mem.sawNpc.length > 4) mem.sawNpc.shift();
+        }
+        // The town talks (its annals): who did it, if anyone saw
+        if (settlement.folk && Array.isArray(settlement.folk.annals) && entry.k === 'loot') {
+            Townsfolk.record(settlement.folk, world, entry.d, { k: 'looted', a: entry.byPid, x: `${entry.victim}|${entry.by}|${entry.caught ? 1 : 0}` });
+        }
+        return entry;
+    },
+
+    /** The town's record of a crime against `vuid` (the player: 'player'), the latest first, or null. */
+    npcCrimeAgainst(settlement, vuid) {
+        const list = (settlement && settlement.npcCrimes) || [];
+        for (let i = list.length - 1; i >= 0; i--) if (list[i].vuid === vuid) return list[i];
+        return null;
+    },
+
+    /** A witness to someone else's crime against the player, telling them of it (once), or null. */
+    npcCrimeLine(npc, player = null) {
+        const mem = npc && npc._dialogMemory;
+        const e = mem && Array.isArray(mem.sawNpc) ? mem.sawNpc.slice().reverse().find(x => !x.told && x.vu === 'player') : null;
+        if (!e) return null;
+        e.told = true;
+        const L = (StreetCrime.config().lines || {}).npcCrime || {};
+        const pool = L[e.k] || (e.k === 'loot'
+            ? ['I saw {by} going through your things while you lay there.', 'It was {by} — knelt right over you and went through your pockets.']
+            : ['I saw {by} at the graves that night, with a spade.']);
+        return _cap(_fill(_pick(pool, `${StreetCrime.npcKey(npc)}|${e.d}`), { by: e.by, player: (player && player.name) || 'you' }));
+    },
+
+    /**
      * People who came on a fight already under way (a chase down the street):
      * they remember it as the first witnesses do, and join the incident.
      * @param {object} player
@@ -611,6 +665,9 @@ export const StreetCrime = {
         const day = _num(ctx.day, _num(world && world.day));
         const mem = NpcDisposition.getMemory(npc);
         const seed = `${StreetCrime.npcKey(npc)}|${day}|${_num(mem.timesSpoken)}`;
+        // Asking around: one who saw someone rob the player tells them who (systems/scavengers.js)
+        const told = StreetCrime.npcCrimeLine(npc, player);
+        if (told) return { kind: 'witness', role: 'bystander', crime: 'loot', mood: 'fear', text: told, refuse: false, arrest: false };
         let entry = StreetCrime.memoryOf(npc);
         // A guard speaks of the crime the watch still wants you for, not one already settled
         if (npc.type === 'guard') {

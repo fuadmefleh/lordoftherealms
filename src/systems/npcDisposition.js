@@ -23,6 +23,7 @@ import { Traits } from './traits.js';
 import { Underworld } from './underworld.js';
 import { Fame } from './fame.js';
 import { StreetCrime } from './streetCrime.js';
+import { Romance } from './romance.js';
 
 /**
  * What a flattered NPC actually hands over — aligned index-for-index with the
@@ -170,6 +171,12 @@ export const NpcDisposition = {
                 shift += m;
                 reasons.push({ label: t.charAt(0).toUpperCase() + t.slice(1), pct: Math.round(m * 100) });
             }
+        }
+        // In love, a trader is free with a bargain; heartbroken, short with you (systems/romance.js)
+        const heart = Romance.priceShift(npc);
+        if (heart) {
+            shift += heart.shift;
+            reasons.push({ label: heart.label, pct: Math.round(heart.shift * 100) });
         }
         if (mem.threatened) {
             shift += 0.10;

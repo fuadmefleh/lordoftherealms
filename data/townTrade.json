@@ -1,0 +1,156 @@
+{
+    "_doc": "Townsfolk trading with each other (systems/townTrade.js). Every good and coin moves between named holders: the market's stock, a household's larder, a producer's wares, a pedlar's pack; the buyer's purse, the town's purse, the seller's purse. Nothing is made or lost but what is eaten, worn out or spoils.",
+    "enabled": true,
+    "stepDays": 4,
+    "_stepDays": "Off the map every town with a roster trades every stepDays (staggered by place): the households eat from their larders, the producers bring their goods to market, the households shop, neighbours barter, pedlars sell door to door.",
+    "household": {
+        "_doc": "A household keeps a larder of what its people use (the market's per-head need: data/markets.json perCapita x the town's demand) and shops to keep coverDays of it. Children eat childShare of a grown share. minLot: the smallest lot sold (a hundredth of a market unit). The poor (the household's purse under poorBelow) buy only the groups in poorGroups; below hungryCover of their food eaten in a dearth they go hungry (person.hungry, read by systems/townJobs.js); out of a dearth a household that can't buy is fed as before, by the town's stores, alms and plainer fare (the market's own eating).",
+        "coverDays": 10,
+        "cover": { "food": 10, "drink": 10, "fuel": 20, "clothes": 90, "tools": 120, "other": 60 },
+        "_cover": "days of use kept by group: what lasts is bought in bigger lots, less often (a month of candles, a season of clothes, tools till they wear out)",
+        "childShare": 0.6,
+        "minLot": 0.01,
+        "groups": ["food", "fuel", "drink", "clothes", "tools"],
+        "goods": ["candles", "salt", "soap", "pottery", "boots"],
+        "order": ["food", "fuel", "drink", "clothes", "tools", "other"],
+        "poorBelow": 6,
+        "poorGroups": ["food", "fuel"],
+        "reserveDays": 20,
+        "_reserveDays": "what lasts (clothes, tools, candles, drink…) is bought only from coin over reserveDays of the household's food and fuel at today's prices: bread before boots",
+        "maxStockShare": 0.5,
+        "hungryCover": 0.5
+    },
+    "haggle": {
+        "_doc": "Every purchase is haggled: the price paid is the stall's price x (1 +/- spread), by a hash of the buyer, the good and the day. A trip's first bargain driven past souredAbove of the spread may sour the buyer on the seller (sourChance): a grudge (systems/brawls.js feuds, reason 'cheated') and a 'cheated' line in the buyer's life.",
+        "spread": 0.08,
+        "souredAbove": 0.85,
+        "sourChance": 0.06,
+        "sourHeat": [12, 24]
+    },
+    "cheats": {
+        "_doc": "A crooked seller (crookedTraits, or the share of the rest by a hash) now and then (chance, on a household's trip to market) gives short weight: the buyer gets (1 - short) of what was paid for, and the overcharge goes into the seller's purse. Caught (caughtChance), the market warden refunds the buyer and fines the seller fineMult x the overcharge into the town's purse; uncaught, the buyer may notice later (noticeChance): a grudge.",
+        "chance": 0.015,
+        "crookedTraits": ["bold", "stubborn"],
+        "crookedShare": 0.08,
+        "short": 0.2,
+        "caughtChance": 0.35,
+        "fineMult": 3,
+        "noticeChance": 0.4,
+        "heat": [25, 45]
+    },
+    "wares": {
+        "_doc": "Producers keep a little of what they make at home (their wares: what they sell a neighbour, the player, or cry in the street). At each market turn the named hands keep back perHand units a day of their share of the town's output (at most maxShare of what the town made of it that turn); at their next step whatever is over `keep` goes to market. New producers start with their keep from the market's stock where it can spare it.",
+        "perHand": 0.06,
+        "maxShare": 0.25,
+        "keep": 1,
+        "trades": {
+            "farmer": ["eggs", "cabbage", "onions", "apples"],
+            "herder": ["meat", "cheese", "hide"],
+            "shepherd": ["wool"],
+            "fisher": ["fish"],
+            "woodcutter": ["firewood", "wood"],
+            "miller": ["flour"],
+            "baker": ["bread"],
+            "butcher": ["sausage"],
+            "brewer": ["beer", "cider"],
+            "weaver": ["linen", "textiles"],
+            "tailor": ["clothes"],
+            "cobbler": ["boots"],
+            "carpenter": ["barrel", "planks"],
+            "smith": ["tools"]
+        }
+    },
+    "barter": {
+        "_doc": "Before the households go to market, one with something to spare (wares, or a larder over its target) calls on a neighbour: they swap goods for goods of the same worth (eggs for bread) — what the other has over and the first lacks; with nothing to swap, in a coin town the neighbour buys what they lack of it, purse to purse. pairs: calls a step; chance: per try in a coin town, inKind in a barter town (world/barter.js), poorBonus when either household is poor. Each swap warms the two households (ties) and cools a grudge between them.",
+        "pairs": 3,
+        "chance": 0.25,
+        "inKind": 0.8,
+        "poorBonus": 0.25,
+        "minValue": 0.02,
+        "warm": 4,
+        "cool": 6,
+        "maxTies": 40
+    },
+    "pedlars": {
+        "_doc": "Pedlars walk the roads between towns with a pack of real goods bought at one town's market (paid into its purse) for a town with a roster, sell door to door a little under the stalls' price (undercut), and sell what's left to that town's market before moving on with a new pack. A pedlar's purse is first drawn from the purse of the town they set out from, and is left to the town where they give up the road. everyDays: a town with a roster sees one when none has come for this long.",
+        "enabled": true,
+        "everyDays": 24,
+        "seed": 30,
+        "seedShare": 0.02,
+        "packValue": 36,
+        "packUnits": 4,
+        "minMargin": 1.12,
+        "daysPerHex": 1,
+        "stayDays": 6,
+        "undercut": 0.06,
+        "sellShare": 0.9,
+        "maxTrips": 8,
+        "minPurse": 6,
+        "goods": ["salt", "candles", "soap", "pottery", "clothes", "tools", "textiles", "linen", "spices", "rope", "boots", "cheese", "honey", "herbs"],
+        "names": ["Wat", "Hob", "Jory", "Tam", "Kit", "Ned", "Mog", "Bess", "Joan", "Nell", "Agnes", "Mab"],
+        "bynames": ["Pack", "Tinker", "Needle", "Ribbon", "Wayfarer", "Longstride", "Saltbag", "Pedlar"]
+    },
+    "merchants": {
+        "_doc": "A merchant caravan leaving a town with a roster is a named merchant's venture (one of its merchants): the caravan carries their name, their life remembers it (once per logEvery days).",
+        "jobs": ["merchant"],
+        "logEvery": 90
+    },
+    "deals": { "max": 30 },
+    "onMap": {
+        "_doc": "The street map: shoppers at a stall buy what their larder wants (world/innerMap/townTrading.js), carry a sack home; producers take their wares to market at dawn; bakers, fishers and brewers cry their wares in the street of a morning; neighbours stop to swap; a pedlar in town walks the streets crying his pack. Chances per pick of an hour's business.",
+        "deliverChance": 0.5,
+        "hawkChance": 0.25,
+        "hawkers": ["baker", "fisher", "brewer", "farmer", "butcher", "woodcutter"],
+        "barterChance": 0.08,
+        "barterRadius": 12,
+        "hawkStay": [18, 30],
+        "barterStay": [10, 16]
+    },
+    "lines": {
+        "buy": [
+            ["Two for a penny?", "Two? Robbery! Three, or nothing."],
+            ["What's the {good} today?", "Same as yesterday. Dearer than tomorrow."],
+            ["I'll have some {good}. Fair weight, mind.", "Fair weight, always. Here."],
+            ["How much for the {good}?", "For you, a fair price. For him, double."],
+            ["Is that the best you can do?", "It's the best anyone can do. Take it."],
+            ["A little {good}, and don't skimp.", "Skimp? Me? Look at that."]
+        ],
+        "paid": ["There. Pleasure doing business.", "Done. Mind how you go.", "Coin's good. Off you go.", "Come again."],
+        "dear": ["Robbery! That's robbery!", "You'll ruin me at these prices.", "Last week it was half that!"],
+        "broke": ["Not today. My purse is light.", "I'll come back when I've the coin.", "Too dear for me, I'm afraid."],
+        "look": ["Just looking.", "I'll think about it.", "Maybe tomorrow."],
+        "cheated": ["That's short weight! I paid for more than this!", "Your scales lie, and so do you!"],
+        "fined": ["The warden's fined {name} for short weight!", "Short weight at {name}'s stall: fined, and serves them right."],
+        "barter": [
+            ["Eggs for a loaf, neighbour?", "Done, and gladly."],
+            ["I've {give} to spare. Have you any {get}?", "I have. A fair swap."],
+            ["Trade you {give} for some {get}?", "Go on, then. You drive a hard bargain."],
+            ["Need any {give}? I'm short of {get}.", "Just the thing. Here."]
+        ],
+        "deliver": ["To market, before the crowd!", "Mind the sack, coming through!", "First at the stalls, best price."],
+        "hawk": {
+            "bread": ["Hot bread! Fresh from the oven!", "Loaves! Warm loaves!"],
+            "fish": ["Fresh fish! Caught this morning!", "Herring! Fine fresh herring!"],
+            "beer": ["Good ale! New brewed!", "Ale by the jug!"],
+            "cider": ["Sweet cider! Pressed this week!"],
+            "eggs": ["Eggs! New laid eggs!"],
+            "firewood": ["Firewood! Dry firewood!", "Kindling and logs!"],
+            "sausage": ["Sausages! Hot sausages!"],
+            "default": ["{good}! Fresh {good}!", "Who'll buy my {good}?", "{good}, cheap today!"]
+        },
+        "pedlar": ["Needles and pins, ribbons and salt!", "Pots and candles, soap and spice!", "What d'you lack? I've a little of everything!", "Fresh from {from}! Fine wares from {from}!"],
+        "sell": {
+            "ask": "Will you sell me some of your {good}?",
+            "yes": "For {price} gold it's yours.",
+            "done": "Done. Mind you use it well.",
+            "none": "I've nothing to spare, I'm afraid. It's all spoken for.",
+            "noCoin": "We've no coin here, friend. Bring goods to swap.",
+            "poor": "That's more than you can pay."
+        }
+    },
+    "annals": {
+        "fined": "{name} was fined at market for giving short weight.",
+        "pedlar": "{name} the pedlar came through from {from} with a pack of goods.",
+        "caravan": "{name} sent a caravan of {good} to {to}."
+    }
+}

@@ -41,7 +41,7 @@ export const HOLDER_KINDS = ['crown', 'noble', 'church', 'town', 'house', 'playe
 
 const DEFAULTS = {
     enabled: true,
-    derive: { count: { village: 1, town: 2, city: 3, capital: 4 }, estateShare: 0.6, householdSize: 5, holders: {}, nobles: 4, resyncDays: 60, turnDays: 30 },
+    derive: { count: { village: 1, town: 2, city: 3, capital: 4 }, estateShare: 0.6, householdSize: 5, holders: {}, nobles: 4, resyncDays: 60, turnDays: 30, minAgeDays: 365, minPop: 80, dawn: false },
     crops: { goods: ['grain', 'flax', 'wine'], scarcityMin: 0.6, scarcityMax: 1.6, woolYield: 0.55, sheepHands: 0.25 },
     rent: { levels: {}, enclosed: 0.6, capacity: 0.5, steward: 0.08, avgAlpha: 0.25 },
     value: {}, npc: {}, war: {}, works: {}, dowry: {}, holding: {}, puttingOut: {}, names: {}, counsel: {},
@@ -239,6 +239,24 @@ export const Estates = {
     },
 
     /**
+     * Whether a settlement has farmland to hold as estates yet. A place
+     * founded in play has none until its people have broken the land: it
+     * waits minAgeDays and needs minPop souls. A world still at its dawn
+     * (world/dawn.js) has no manors, lords or abbeys to hold estates at all
+     * (unless data says `dawn: true`). Towns seen at world generation and in
+     * old saves (no founding day) stand as they were.
+     */
+    _readyForEstates(world, live, day) {
+        const C = Estates.config().derive;
+        if (world && world.dawn && !world.dawn.over && !C.dawn) return false;
+        // (the founding DAY of a place founded in play; `founded` is a year at generation)
+        const born = _num(live && live.colony && live.colony.foundedDay, _num(live && live.foundedDay, NaN));
+        if (Number.isFinite(born) && day != null && day - born < _num(C.minAgeDays, 365)) return false;
+        if (Number.isFinite(born) && _num(live.population) < _num(C.minPop, 80)) return false;
+        return true;
+    },
+
+    /**
      * Give every settlement that has none its estates, and drop those of
      * settlements gone (every resyncDays — 10 —, and on the first tick). → towns added.
      */
@@ -250,8 +268,21 @@ export const Estates = {
         for (const s of Estates._views(world)) {
             const key = _key(s.q, s.r);
             seen.add(key);
-            if (st.towns[key]) continue;
             const live = Estates._live(world, s.q, s.r) || s;
+            const ready = Estates._readyForEstates(world, live, day);
+            if (st.towns[key]) {
+                // Estates handed too soon to a place with no farmland yet (before
+                // this rule): take them back, unless the player holds one
+                const rec = st.towns[key];
+                if (!ready && !(rec.ests || []).some(id => st.estates[id] && Estates.kindOf(st.estates[id].holder) === 'player')) {
+                    for (const id of rec.ests || []) delete st.estates[id];
+                    st.hv = _num(st.hv) + 1;
+                    st.sales = st.sales.filter(x => (rec.ests || []).indexOf(x.id) < 0);
+                    delete st.towns[key];
+                }
+                continue;
+            }
+            if (!ready) continue;
             const n = Math.max(1, Math.floor(_num(C.count[live.type], 1)));
             const ws = [];
             for (let i = 0; i < n; i++) ws.push(0.6 + 0.8 * _roll(`${Estates.seed(world)}:share:${key}:${i}`));

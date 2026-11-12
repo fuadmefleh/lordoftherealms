@@ -34,7 +34,7 @@ export const InnerMapSleepers = {
         ctx.clip();
         // The head on the pillow (only head and shoulders show above the blanket)
         const useSprite = npc.preset && InnerMapCharacters.isReady() && InnerMapCharacters.getComposited(npc.preset);
-        const scale = npc.type === 'child' ? 0.6 : 0.78;
+        const scale = 0.78 * (npc._scale || (npc.type === 'child' ? 0.77 : 1));
         const cw = ds * 1.2 * scale, ch = ds * 1.8 * scale;
         const headY = top + ds * 0.31;
         if (useSprite) {

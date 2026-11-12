@@ -1,0 +1,31 @@
+{
+    "_doc": "Schooling for the townsfolk's children (systems/townSchool.js). Kinds: parish (the priest teaches letters and scripture in the church or chapel), grammar (a schoolmaster, in towns and cities), tutor (at home, for the well-off), cloister (a few bright youths taught by the church for the clergy or the scribe's desk). Who goes: a share by the family's station (0 beggar … 3 noble) and the town's size, more where the school is funded; even-handed between girls and boys. Literacy (person.literacy, 0–100) grows each year at school; at 16 the home adds its bit; mailVoice reads it (writeAt). Fees are real coin from a parent's purse to the teacher's (the parish waives them for the poor and pays from the town's purse; a patron's fund pays first). Hours of a school day; no school every restEvery-th day.",
+    "enabled": true,
+    "ages": [6, 13],
+    "cloisterAges": [12, 15],
+    "hours": [8, 12],
+    "restEvery": 7,
+    "writeAt": 50,
+    "share": {
+        "byStation": { "0": 0.05, "1": 0.3, "2": 0.85, "3": 1 },
+        "byTown": { "village": 0.8, "town": 1, "city": 1.15, "capital": 1.25 },
+        "fundPerCoin": 0.004, "fundMax": 0.35
+    },
+    "kinds": {
+        "parish": { "label": "the parish school", "teacher": "priest", "fee": 1, "litPerYear": 12, "buildings": ["chapel", "church", "temple"] },
+        "grammar": { "label": "the town school", "teacher": "schoolmaster", "fee": 3, "litPerYear": 16, "towns": ["town", "city", "capital"], "buildings": ["library", "church", "chapel", "temple"] },
+        "tutor": { "label": "a tutor at home", "teacher": "schoolmaster", "fee": 8, "litPerYear": 20, "minStation": 2 },
+        "cloister": { "label": "the church's learning", "teacher": "priest", "fee": 0, "litPerYear": 25, "share": 0.08, "minSchooling": 3 }
+    },
+    "home": { "literateParent": 15, "base": 4 },
+    "truancy": 0.08,
+    "patron": { "standingPerCoin": 0.05, "maxStanding": 6, "sponsorCost": 40, "sponsorRegard": 20, "prestigeAt": 100, "loyalRegard": 85 },
+    "founding": { "cost": 300, "endowShare": 0.5, "share": 0.12, "perYear": 0.03, "max": 0.3 },
+    "lines": {
+        "parish": ["A, B, C, D…", "In the beginning was the Word…", "Our Father, who art…", "E, F, G…", "Blessed are the meek…"],
+        "grammar": ["Amo, amas, amat…", "Seven times eight is fifty-six!", "Ego sum, tu es…", "The quick fox leaps the brook…", "Nine and nine is eighteen."],
+        "teacher": ["Again, and clearly this time.", "Eyes on your slates.", "Who can tell me the next letter?", "Very good. Very good indeed.", "Quiet at the back!"],
+        "truant": ["Shh! Don't tell the priest.", "School's for slowcoaches.", "Bet I can skip it five times!"],
+        "toSchool": ["Late, late, late!", "Did you learn your letters?", "I hate sums."]
+    }
+}

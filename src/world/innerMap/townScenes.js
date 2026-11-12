@@ -30,7 +30,7 @@
 // shared RNG (Utils.random) is never drawn here. Data: data/townScenes.json.
 
 import { InnerMap } from './_ref.js';
-import { DataLoader, SettlementMarket } from './_imports.js';
+import { DataLoader, SettlementMarket, MarketStalls } from './_imports.js';
 
 const DIRS4 = [[0, 1], [1, 0], [-1, 0], [0, -1]];
 
@@ -180,6 +180,8 @@ Object.assign(InnerMap, {
         this._sceneQueue = [];
         this._spotBarks = [];
         this._scnIn = null;
+        // Each stall its trade, its goods on the counter (world/innerMap/stalls.js, world/marketStalls.js)
+        const trades = this._dressStalls ? this._dressStalls(settlement, world) : {};
         const A = this.townArea();
         if (!A || !settlement) return;
         const C = this.townScenesConfig();
@@ -206,7 +208,7 @@ Object.assign(InnerMap, {
                 const bt = this.tiles[behind.r] && this.tiles[behind.r][behind.q];
                 if (!(bt && bt.subTerrain && bt.subTerrain.passable && !bt.customObject && !bt.isWater)) continue;
                 const front = [0, 1, 2].map(d => ({ q: t.q + d, r: t.r + 1 })).filter(s => this._scenePassable(s.q, s.r));
-                S.stalls.push({ q: t.q, r: t.r, behind, front, vendorId: null });
+                S.stalls.push({ q: t.q, r: t.r, behind, front, vendorId: null, trade: trades[`o:${t.q},${t.r}`] || null });
             }
         }
         const owners = new Set((this.buildings || []).filter(b => b && b.type !== 'house' && b.ownerId != null).map(b => b.ownerId));
@@ -342,6 +344,9 @@ Object.assign(InnerMap, {
     _sceneAttends(npc, sv) {
         const C = this.townScenesConfig().church;
         if (!npc || !sv || npc.departing || npc._doorPost) return false;
+        // (who goes is their devotion and faith, where they're townsfolk: world/innerMap/townWork.js)
+        const own = this._worshipAttends ? this._worshipAttends(npc, sv) : null;
+        if (own != null) return own && !(npc._stall && this._sceneMarketOpen());
         if (!_arr(C.roles).includes(npc.type)) return false;
         if (npc._stall && this._sceneMarketOpen()) return false;
         const S = this._scn || { seed: 1 };
@@ -519,7 +524,7 @@ Object.assign(InnerMap, {
                 const v = st && (this.npcs || []).find(n => n.id === st.vendorId && n._vending === st);
                 if (v && near) {
                     const pair = this._scenePickLine(C.market.haggle, 'haggle');
-                    const good = this._sceneGoodName(this._scenePickLine(S.goods[v.type] || [], 'g') || 'wares');
+                    const good = this._sceneGoodName(this._scenePickLine(this._sceneStallGoods(v), 'g') || 'wares');
                     if (pair) {
                         this._sceneSay(npc, this._sceneFill(pair[0], { good, name: v.name }));
                         this._sceneSay(v, this._sceneFill(pair[1], { good, name: npc.name }), 2400);
@@ -652,12 +657,29 @@ Object.assign(InnerMap, {
     _sceneHawk(npc) {
         const C = this.townScenesConfig().market;
         const S = this._scn;
-        const goods = S.goods[npc.type] || [];
+        const goods = this._sceneStallGoods(npc);
+        // A trader cries their own trade (data/marketStalls.json cries), now and then the general cries
+        const trade = npc._stall && npc._stall.trade;
+        const u = _hs(S.seed, 'cry', npc.id, S.n = (S.n || 0) + 1);
+        if (trade && (u < 0.65 || !goods.length)) {
+            const gid = goods.length ? goods[Math.floor(_hs(S.seed, 'cryg', npc.id, S.n) * goods.length) % goods.length] : null;
+            const town = S.settlement && S.settlement.name;
+            const line = MarketStalls.cry(trade, _hs(S.seed, 'cryl', npc.id, S.n), gid ? this._sceneGoodName(gid) : null, town);
+            if (line) return line;
+        }
         if (!goods.length) return this._sceneFill(this._scenePickLine(C.hawk.none, 'hawk'));
         const id = this._scenePickLine(goods, 'hg');
         const grp = (SettlementMarket.good(id) || {}).group;
         const pool = [..._arr(C.hawk[grp]), ..._arr(C.hawk.any)];
         return _cap(this._sceneFill(this._scenePickLine(pool, 'hawk'), { good: this._sceneGoodName(id) }));
+    },
+
+    /** What a vendor's stall has to sell today: its trade's wares in stock, else the old wares of their kind. */
+    _sceneStallGoods(npc) {
+        const S = this._scn || {};
+        const trade = npc && npc._stall && npc._stall.trade;
+        if (trade && this.stallWares) return this.stallWares(trade);
+        return (S.goods && S.goods[npc && npc.type]) || [];
     },
 
     // ──────────── INSIDE ────────────
@@ -823,6 +845,15 @@ Object.assign(InnerMap, {
                 this._sceneCastAs(pulled, I, 'staff', I.stations[0], 1e9, first);
             }
         }
+        // Another priest in the church: stood beside the altar as the assistant, not wandering the nave
+        if (I.kind === 'church' && I.stations.length) {
+            for (const n of this.npcs) {
+                if (n._scene || n._asleep || !isStaff(n) || !this.npcs.some(o => o !== n && o._scene && o._scene.role === 'staff')) continue;
+                const spot = this._sceneAssistSpot(I, n);
+                if (!spot) break;
+                this._sceneCastAs(n, I, 'assistant', spot, 1e9, first);
+            }
+        }
         // The bard of an evening
         const BD = I.kind === 'tavern' ? C.tavern.bard : null;
         if (BD && I.stage && h >= BD.hours[0] && h < BD.hours[1] && !this.npcs.some(n => n._scene && n._scene.role === 'bard')) {
@@ -831,6 +862,14 @@ Object.assign(InnerMap, {
             if (pool[0]) {
                 this._scenePullIn(pool[0], I, first);
                 this._sceneCastAs(pool[0], I, 'bard', I.stage, this._sceneSecsTo(BD.hours[1]) + 1, first);
+            }
+        }
+        // A wedding in the church: the couple stood before the altar (ui/innerMapCourting.js); the guests take the pews
+        if (I.kind === 'church') {
+            for (const n of this.npcs) {
+                if (n._scene || n._asleep || n._weddingRole !== 'couple') continue;
+                const spot = this._sceneAltarFront(I, n);
+                if (spot) this._sceneCastAs(n, I, 'couple', spot, Math.max(20, Number(n.idleTimer) || 30), first);
             }
         }
         // Those already in when the player came in take seats
@@ -847,7 +886,7 @@ Object.assign(InnerMap, {
         if (present < want && (first || I.arriveIn <= 0)) {
             const roles = I.kind === 'church' ? null : _arr(I.K.roles);
             const sv = I.kind === 'church' ? this.serviceAt(h, day, false) : null;
-            const pool = outer.filter(n => this._sceneFree(n) && !isStaff(n) && (roles ? roles.includes(n.type) : (sv ? this._sceneAttends(n, sv) : _arr(C.church.roles).includes(n.type))))
+            const pool = outer.filter(n => this._sceneFree(n) && !isStaff(n) && !(I.kind === 'tavern' && this._sceneBarred(n)) && (roles ? roles.includes(n.type) : (sv ? this._sceneAttends(n, sv) : _arr(C.church.roles).includes(n.type))))
                 .sort((a, b) => _hs(S.seed, I.kind, day, Math.floor(h), a.uid || a.id) - _hs(S.seed, I.kind, day, Math.floor(h), b.uid || b.id));
             const n = first ? want - present : 1;
             for (const p of pool.slice(0, n)) {
@@ -861,10 +900,79 @@ Object.assign(InnerMap, {
             I.arriveIn = I.kind === 'church' ? 1 + u * 1.5 : 2 + u * 4;
         }
         // Off duty: the staff go
-        if (!duty) for (const n of this.npcs) if (n._scene && n._scene.role === 'staff' && n._scene.phase !== 'leave') n._scene.left = 0;
+        if (!duty) for (const n of this.npcs) if (n._scene && (n._scene.role === 'staff' || n._scene.role === 'assistant') && n._scene.phase !== 'leave') n._scene.left = 0;
+    },
+
+    /** Before the altar, facing it, for one of a couple being wed (two spots side by side). */
+    _sceneAltarFront(I, npc) {
+        const busy = new Set(this.npcs.filter(n => n !== npc && n._scene && n._scene.spot).map(n => `${n._scene.spot.q},${n._scene.spot.r}`));
+        const station = new Set(I.stations.map(x => `${x.q},${x.r}`));
+        const seat = new Set(I.seats.map(x => `${x.q},${x.r}`));
+        const altar = this.getFurnitureSpots().find(f => f.type === 'altar') || I.stations[0];
+        if (!altar) return null;
+        for (const [dq, dr] of [[0, 2], [1, 2], [-1, 2], [0, 1], [1, 1], [-1, 1], [0, 3], [1, 3], [-1, 3]]) {
+            const q = altar.q + dq, r = altar.r + dr;
+            const k = `${q},${r}`;
+            if (busy.has(k) || station.has(k) || seat.has(k) || !this._sceneFloorOk(q, r)) continue;
+            return { q, r, face: 0, type: 'altar' };
+        }
+        return null;
+    },
+
+    /**
+     * A wedding service in here (the couple at the altar): the priest's
+     * prayers, the vows, the blessing, the guests' hymn. → true while one is on
+     * (the day's own service waits).
+     */
+    _sceneWedding(I, step) {
+        const couple = this.npcs.filter(n => n._scene && n._scene.role === 'couple' && n._scene.phase === 'at');
+        if (!couple.length) { I.wed = null; return false; }
+        const L = (DataLoader._gamedata && DataLoader._gamedata.townWorship && DataLoader._gamedata.townWorship.lines) || {};
+        const priest = this.npcs.find(n => n._scene && n._scene.role === 'staff' && n._scene.phase === 'at');
+        const flock = this.npcs.filter(n => n._scene && n._scene.role === 'patron' && n._scene.phase === 'at');
+        const S = this._scn || {};
+        if (!I.wed) I.wed = { n: 0, next: 1.5 };
+        const W = I.wed;
+        if (priest && priest.activity) { priest.activity.anim = W.n < 4 ? 'emotes' : 'idle'; priest.activity.icon = '💍'; priest.activity.label = 'Marrying the couple'; }
+        for (const n of flock) { n._pose = n._scene.spot.on ? 2 : 0; if (n.activity) n.activity.label = 'At the wedding'; }
+        W.next -= step;
+        if (W.next > 0) return true;
+        W.next = 4 + _hs(S.seed, 'wed', W.n) * 2;
+        const pick = (list, salt) => { const a = _arr(list); return a.length ? a[Math.floor(_hs(S.seed, salt, W.n, this.worldDay || 0) * a.length) % a.length] : ''; };
+        const step0 = W.n++;
+        if (step0 === 0 && priest) this._sceneSay(priest, pick(L.weddingPrayer, 'wp'), 0, 4.5);
+        else if (step0 === 1) this._sceneSay(couple[0], pick(L.weddingVow, 'v1'), 0, 3);
+        else if (step0 === 2 && couple[1]) this._sceneSay(couple[1], pick(L.weddingVow, 'v2'), 0, 3);
+        else if (step0 === 3 && priest) this._sceneSay(priest, pick(L.weddingBlessing, 'wb'), 0, 4);
+        else if (flock.length) {
+            const who = flock[Math.floor(_hs(S.seed, 'wh', W.n) * flock.length) % flock.length];
+            this._sceneSay(who, pick(L.hymn, 'hy'), 0, 3);
+        }
+        return true;
+    },
+
+    /** A spot for a second priest: another altar or lectern's station, else beside the first, facing the same way. */
+    _sceneAssistSpot(I, npc) {
+        const busy = new Set(this.npcs.filter(n => n !== npc && n._scene && n._scene.spot).map(n => `${n._scene.spot.q},${n._scene.spot.r}`));
+        const st = I.stations.find((x, i) => i > 0 && !busy.has(`${x.q},${x.r}`));
+        if (st) return st;
+        const main = I.stations[0];
+        for (const [dq, dr] of [[1, 0], [-1, 0], [2, 0], [-2, 0], [0, 1], [1, 1], [-1, 1]]) {
+            const q = main.q + dq, r = main.r + dr;
+            if (busy.has(`${q},${r}`) || !this._sceneFloorOk(q, r) || I.seats.some(x => x.q === q && x.r === r) || (I.door && I.door.q === q && I.door.r === r)) continue;
+            return { q, r, face: main.face, type: main.type, assist: true };
+        }
+        return null;
     },
 
     /** Out in the street and free to come in (not on watch, not in a fight, not abed). */
+    /** Barred from the tavern by its keeper after a brawl (systems/brawls.js: settlement.brawls.barred[pid] = until day). */
+    _sceneBarred(n) {
+        const s = this._currentWorldTileRef && this._currentWorldTileRef.settlement;
+        const until = n && n._person && s && s.brawls && s.brawls.barred ? s.brawls.barred[n._person.id] : null;
+        return until != null && (this.worldDay || 0) < until;
+    },
+
     _sceneFree(n) {
         if (!n || this.npcs.includes(n)) return false;
         if (n.state !== 'idle' && n.state !== 'walking') return false;
@@ -931,6 +1039,14 @@ Object.assign(InnerMap, {
                 const st = this.getTile(sc.spot.q, sc.spot.r + 1), pc = st && st._furniture && st._furniture.piece;
                 n._behindCounter = { row: sc.spot.r + 1, piece: pc ? { q: pc.q, r: pc.r } : null };
             }
+        } else if (sc.role === 'couple') {
+            // (one of the pair being wed, stood before the altar)
+            n.activity = { type: 'scene', icon: '💍', label: 'Being wed', anim: 'idle', _scene: true, quiet: true };
+            n._pose = null;
+        } else if (sc.role === 'assistant') {
+            // (the second priest beside the altar: hands folded, at the prayers)
+            n.activity = { type: 'scene', icon: '🙏', label: 'Assisting at the altar', anim: 'idle', _scene: true, quiet: true };
+            n._pose = null;
         } else if (sc.role === 'bard') {
             n.activity = { type: 'scene', icon: '🎵', label: 'Playing for the room', anim: 'emotes', _scene: true };
             n._pose = null;
@@ -1019,6 +1135,8 @@ Object.assign(InnerMap, {
     // ──────────── THE SERVICE ────────────
 
     _sceneService(I, step) {
+        // (a wedding at the altar takes the church first)
+        if (this._sceneWedding(I, step)) return;
         const C = this.townScenesConfig().church;
         const S = this._scn || {};
         const h = this._sceneClock();
@@ -1081,7 +1199,7 @@ Object.assign(InnerMap, {
     _sceneTavern(I, step) {
         const T = this.townScenesConfig().tavern;
         const S = this._scn || {};
-        const sitting = this.npcs.filter(n => n._scene && n._scene.role === 'patron' && n._scene.phase === 'at' && !n._scuffle && !n._flash);
+        const sitting = this.npcs.filter(n => n._scene && n._scene.role === 'patron' && n._scene.phase === 'at' && !n._scuffle && !n._flash && !n._fight);
         const bard = this.npcs.find(n => n._scene && n._scene.role === 'bard' && n._scene.phase === 'at');
         const keeper = this.npcs.find(n => n._scene && n._scene.role === 'staff' && n._scene.phase === 'at');
         // The bard's songs, a cheer from the room
@@ -1134,6 +1252,8 @@ Object.assign(InnerMap, {
                 const pair = this._scenePickLine(T.argue, 'argue') || ['…', '…'];
                 this._sceneSay(a, this._sceneFill(pair[0], { name: b.name }));
                 this._sceneSay(b, this._sceneFill(pair[1], { name: a.name }), 2200);
+                // A real fight that may come of it (ui/innerMapBrawls.js: words, a shove, fists, the keeper)
+                if (this.onSceneArgue) { this.onSceneArgue(a, b); return; }
                 // It comes to blows: up off the benches, swinging, till the keeper breaks it up
                 const loserA = _hs(S.seed, 'loser', S.n) < 0.5;
                 for (const [n, other, loser] of [[a, b, loserA], [b, a, !loserA]]) {

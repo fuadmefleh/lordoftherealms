@@ -194,11 +194,13 @@ describe('the map remembers, and the wood grows back', () => {
 });
 
 describe('what a felled tree gives, and the axe', () => {
-    it('gives its extras: fruit only in season, chances rolled', () => {
+    it('gives its extras: its own fruit (an apple tree apples) only in season, chances rolled', () => {
         const apple = def('tp_tree_apple');
         const summer = Gathering.fellGives(apple, 'Summer');
-        expect(summer.find(g => g.item === 'fruit').qty).toBeGreaterThanOrEqual(2);
-        expect(Gathering.fellGives(apple, 'Winter').find(g => g.item === 'fruit')).toBeUndefined();
+        expect(summer.find(g => g.item === 'apples').qty).toBeGreaterThanOrEqual(2);
+        expect(Gathering.fellGives(apple, 'Winter').find(g => g.item === 'apples')).toBeUndefined();
+        expect(Gathering.fellGives(def('tp_tree_cherry'), 'Summer').find(g => g.item === 'cherries')).toBeTruthy();
+        expect(Gathering.fellGives(def('tp_tree_pear'), 'Autumn').find(g => g.item === 'pears')).toBeTruthy();
         expect(Gathering.fellGives(apple, 'winter').find(g => g.item === 'firewood')).toBeTruthy();
         // a spruce weeps resin most of the time
         let resin = 0;

@@ -139,6 +139,64 @@ describe('a town\'s chests hold what their owners bought', () => {
     });
 });
 
+describe('the market stall\'s produce follows the season', () => {
+    const stall = { worldQ: 5, worldR: 7, q: 3, r: 2, furnitureType: 'stall', building: null, inSettlement: false };
+    const marketCrate = { ...bankChest, furnitureType: 'crate', building: { type: 'marketplace', q: 20, r: 21, name: 'Market Hall' }, inSettlement: false };
+    // Days of the year: spring 1-30, summer 31-60, autumn 61-90, winter 91-120 (a period starting in it)
+    const SEASON_DAY = { Spring: 1, Summer: 43, Autumn: 71, Winter: 99 };
+    const seen = (base, day) => {
+        const out = new Set();
+        for (let i = 0; i < 120; i++) for (const id of Object.keys(Containers.stocked(world(day), { ...base, q: i }))) out.add(id);
+        return out;
+    };
+
+    it('no generic fruit: stalls and the market hall hold named produce the market trades', () => {
+        const rows = [...Containers.data().loot.stall, ...Containers.data().byBuilding.marketplace.crate];
+        expect(rows.map(r => r[0])).not.toContain('fruit');
+        for (const [pool, bySeason] of Object.entries(Containers.data().pools)) {
+            for (const [season, list] of Object.entries(bySeason)) {
+                for (const [id] of list) expect(SettlementMarket.tracks(id), `${pool}.${season}: ${id}`).toBe(true);
+            }
+        }
+        for (const base of [stall, marketCrate]) {
+            const ids = seen(base, SEASON_DAY.Autumn);
+            expect(ids.has('fruit')).toBe(false);
+            expect([...ids].some(id => id.startsWith('@'))).toBe(false);
+            for (const id of ids) expect(Containers.good(id).basePrice, id).toBeGreaterThan(0);
+        }
+    });
+
+    it('apples and pears after the harvest, cherries and plums in summer, no cherries in winter', () => {
+        expect(Containers.periodSeason(world(SEASON_DAY.Autumn))).toBe('Autumn');
+        const autumn = seen(stall, SEASON_DAY.Autumn), summer = seen(stall, SEASON_DAY.Summer), winter = seen(stall, SEASON_DAY.Winter);
+        expect(autumn.has('apples')).toBe(true);
+        expect(summer.has('cherries') || summer.has('plums')).toBe(true);
+        expect(winter.has('cherries')).toBe(false);
+        expect(winter.has('plums')).toBe(false);
+        // The same box holds the same things all period (the season of the period's first day)
+        const ctx = { ...stall, q: 7 };
+        expect(Containers.stocked(world(SEASON_DAY.Summer), ctx)).toEqual(Containers.stocked(world(SEASON_DAY.Summer + 2), ctx));
+    });
+
+    it('in a town the stallholder buys the produce from the market: none in the market, none on the stall', () => {
+        const s = { name: 'Varrholt', type: 'town', population: 2000, kingdom: 'k1', q: 5, r: 7, economy: { gold: 500 } };
+        SettlementMarket.ensure(s);
+        const tile = { q: 5, r: 7, settlement: s };
+        const w = { ...world(SEASON_DAY.Autumn), getTile: (q, r) => (q === 5 && r === 7 ? tile : null) };
+        const inTown = { ...stall, inSettlement: true };
+        let ctx = null;
+        for (let i = 0; i < 80 && !ctx; i++) if (Containers.stocked(w, { ...inTown, q: i }).apples) ctx = { ...inTown, q: i };
+        expect(ctx).not.toBeNull();
+        const apples = SettlementMarket.stock(s, 'apples');
+        const n = Containers.contents(null, w, ctx).apples;
+        expect(n).toBeGreaterThan(0);
+        expect(SettlementMarket.stock(s, 'apples')).toBeCloseTo(apples - n, 5);
+        const s2 = { ...s, larders: {}, market: { ...s.market, stock: { ...s.market.stock, apples: 0 } } };
+        const w2 = { ...w, getTile: (q, r) => (q === 5 && r === 7 ? { ...tile, settlement: s2 } : null) };
+        expect(Containers.contents(null, w2, ctx).apples).toBeUndefined();
+    });
+});
+
 describe('who may take what', () => {
     it('own, free and steal', () => {
         expect(Containers.access({ ...bankChest, building: { type: 'player_house' } })).toBe('own');

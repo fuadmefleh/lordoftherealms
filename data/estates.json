@@ -4,6 +4,7 @@
 
     "_derive": "Estates per settlement by size (count); estateShare of the farmland is held in estates (the rest is freehold and commons, which no one sells); householdSize people to a household. Shares between a town's estates are a hash of the seed and the town (weights 0.6-1.4). Holders: the first estate of a capital is the crown's demesne; the rest by hash with weights by size (independent towns: the crown's weight goes to the burghers). nobles: noble houses per realm (names: hash of the realm and the house's number).",
     "derive": {
+        "minAgeDays": 365, "minPop": 80, "dawn": false,
         "count": { "village": 1, "town": 2, "city": 3, "capital": 4 },
         "estateShare": 0.6,
         "householdSize": 5,

@@ -973,6 +973,22 @@
                 { "t": "I wed {first} this season. You would like {first}, I think.", "p": ["warm", "flowery"] },
                 { "t": "I got married. {first}. It's done.", "p": "blunt" }
             ],
+            "life_courting": [
+                { "t": "I have been walking out with {name}. There, I have told someone." },
+                { "t": "I am courting {first}, and my heart is light as a feather. Don't laugh.", "p": ["warm", "flowery"] },
+                { "t": "I'm courting {first}. That's all I'll say.", "p": "blunt" },
+                { "t": "{first} and I keep company now, with my family's blessing, God willing.", "p": "pious" }
+            ],
+            "life_betrothed": [
+                { "t": "I am to be married! {name} asked, and I said yes." },
+                { "t": "{first} and I are promised. Will you come to the wedding? Say you will.", "p": ["warm", "flowery"] },
+                { "t": "I'm getting wed. {first}. The banns are read.", "p": "blunt" }
+            ],
+            "life_heartbroken": [
+                { "t": "{first} and I are no more. I would rather not write of it." },
+                { "t": "My heart is broken, and {first} broke it. I shall mend, they say.", "p": ["warm", "flowery"] },
+                { "t": "{first} and I are done. Good riddance.", "p": "blunt" }
+            ],
             "life_birth": [
                 { "t": "We have a little {childWord}, {child}, born this season. Loud as a crow and twice as hungry." },
                 { "t": "The gods sent us a {childWord} this season; we named the child {child}.", "p": ["pious", "formal"] }
@@ -1000,6 +1016,38 @@
             "life_retired": [
                 { "t": "I have given up the work of a {work}; my back would not have it any longer." }
             ],
+            "sick": [
+                { "t": "I write this from my bed. I have {illness}, and the herbalist frowns when she thinks I'm not looking." },
+                { "t": "Forgive the hand: I am down with {illness}. It will pass, God willing.", "p": ["pious", "formal"] },
+                { "t": "I've {illness}. Don't fuss. I've had worse.", "p": ["blunt", "warm"] }
+            ],
+            "sick_still": [
+                { "t": "I am still abed with that sickness I wrote of." }
+            ],
+            "sick_over": [
+                { "t": "I am up and about again after {illness}. Thin as a rake, but alive." }
+            ],
+            "kin_sick": [
+                { "t": "My {kin} {name} is down with {illness}, and I sit up with them every night." },
+                { "t": "Pray for my {kin} {name}. It is {illness}, and a bad one.", "p": ["pious", "nervous"] }
+            ],
+            "kin_sick_still": [
+                { "t": "{name} is no better yet. We wait." }
+            ],
+            "kin_sick_over": [
+                { "t": "The sickness I wrote of has left our house at last." }
+            ],
+            "town_sick": [
+                { "t": "There is {illness} going round the town. We keep the children in." },
+                { "t": "Sickness has come to us: {illness}. The priest is out every day, and the sexton too.", "r": ["low", "kin"] },
+                { "t": "We have {illness} in the town. Some say it came with the carters. Come no nearer than you must.", "p": ["nervous", "sly"] }
+            ],
+            "town_sick_still": [
+                { "t": "The sickness is still in the town. More houses shut every week." }
+            ],
+            "town_sick_over": [
+                { "t": "The sickness that was in the town has passed. We have our dead to mourn, but the bells ring for the living again." }
+            ],
             "hurt": [
                 { "t": "I am still mending from a beating — it will heal, the wise-woman says." },
                 { "t": "I have been laid up hurt. Don't fuss; it is mending.", "p": ["blunt", "warm"] }
@@ -1021,6 +1069,10 @@
             "neighbour": [
                 { "t": "News of the town: {text}." },
                 { "t": "You'll remember the folk here, maybe. {text}.", "r": "low" }
+            ],
+            "neighbour_love": [
+                { "t": "The talk of the town: {text}." },
+                { "t": "And here is a bit of gossip for you. {text}.", "r": "low" }
             ]
         },
         "hooks": {
@@ -1232,6 +1284,12 @@
                     { "t": "We have heard that {yourRealm} is yours. We salute a fellow crown.", "type": "lord" },
                     { "t": "A crown! I knew you when you had holes in your boots.", "r": ["low", "comrade"] },
                     { "t": "The crown of {yourRealm}, they say. May you wear it better than most.", "p": ["blunt", "sly"] }
+                ],
+                "grateful": [
+                    { "t": "I am sixteen now, and done with my schooling, and I write this in my own hand, which I could never have done without you." },
+                    { "t": "You paid for my letters when no one else would. Here is the first letter I ever wrote, and it is to you.", "p": ["warm", "flowery"] },
+                    { "t": "I can read and write now. Thank you. If ever you need someone, send for me.", "p": ["blunt"] },
+                    { "t": "God bless you for my schooling. I pray for you every holy day.", "p": "pious" }
                 ],
                 "news": [
                     { "t": "Nothing has happened that you need to act upon; I only wanted you to know how things stand with us.", "r": "high" },

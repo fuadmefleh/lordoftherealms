@@ -65,6 +65,9 @@ function _webllmBlockHtml(s) {
                     <div class="gs-row">
                         <div id="gsLlmWebStatus" style="font-size:11px;color:var(--text-secondary);flex:1;word-break:break-word;">${_escAttr(_webllmStatusText(st))}</div>
                     </div>
+                    <div class="gs-row">
+                        <div id="gsLlmWebNotice" style="font-size:10px;color:var(--text-secondary);opacity:0.8;flex:1;${st.state === 'ready' ? 'display:none;' : ''}">${_escAttr(LlmClient.webllm.LOAD_NOTICE)}</div>
+                    </div>
                 </div>`;
 }
 
@@ -77,8 +80,11 @@ function _bindWebllmBlock() {
     const loadBtn = document.getElementById('gsLlmWebLoad');
     const delBtn = document.getElementById('gsLlmWebDelete');
     if (!sel || !line) return;
+    const notice = document.getElementById('gsLlmWebNotice');
     const paint = (st) => {
         if (bar) bar.style.width = `${Math.round((st.progress || 0) * 100)}%`;
+        // What a load is like, said before it starts and kept up while it runs
+        if (notice) notice.style.display = (st.state === 'ready' || st.state === 'unsupported') ? 'none' : '';
         line.textContent = _webllmStatusText(st);
         line.style.color = st.state === 'ready' ? '#7fd07f' : (st.state === 'error' || st.state === 'unsupported') ? '#e08080' : 'var(--text-secondary)';
         if (loadBtn) loadBtn.disabled = st.state === 'loading' || st.state === 'unsupported';

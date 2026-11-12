@@ -20,6 +20,7 @@ Welcome to **Lord of the Realms**, a deep hex-grid strategy game where you begin
     - [Specie, Mints & the Price Level](#specie-mints--the-price-level) — each realm's coin, where it flows and what it does to prices; selling bullion, leasing a mint, recoinage, money changers, false coin
     - [The Crown's Purse](#the-crowns-purse-taxes-wages--tax-farms) — every crown's budget: taxes out of its towns, wages back into them, arrears and desertion, tax levels, tax revolts, tax farms you can bid for, fiscal crises
     - [Land, Estates & the Putting-Out System](#land-estates--the-putting-out-system) — the estates about the towns, rents and tenants, land values, buying and selling land, drainage and enclosure; putting out wool and flax to the cottagers; flax and linen
+    - [Market Stalls](#market-stalls) — each stall one trader: its trade's goods from the town's real stock, a keeper who buys only their line, which trades a town sets up
 5. [Properties & Production](#5-properties--production)
     - [Livestock: Buying, Keeping and Breeding Beasts](#livestock-buying-keeping-and-breeding-beasts) — the livestock market, where beasts can be kept, fodder, eggs, milk and wool, births, sickness and wolves, the herd behind a Pasture, Dairy or Ranch, riding your own horse
 6. [Crafting](#6-crafting)
@@ -27,14 +28,17 @@ Welcome to **Lord of the Realms**, a deep hex-grid strategy game where you begin
     - [Merchant Houses: the Trading Company](#merchant-houses-the-trading-company) — charters, factors and standing orders, supply contracts, rival houses, monopolies, shares and royal ventures
 8. [Housing](#8-housing)
 9. [Military & Combat](#9-military--combat)
+    - [Knocked Down: the Senseless, the Bound and the Dead](#knocked-down-the-senseless-the-bound-and-the-dead) — knockouts, bleeding out, searching, binding and gagging, burying alive, carrying and dragging, what happens when you are the one knocked out
 10. [Mercenary Contracts](#10-mercenary-contracts)
 11. [Religion & Faith](#11-religion--faith)
+    - [Going to Church](#going-to-church) — who goes and why, holy days and feasts, offerings and piety; attend, pray, donate or disrupt
 12. [Technology & Research](#12-technology--research)
 13. [Infrastructure](#13-infrastructure)
     - [Roads, Canals & Logistics](#roads-canals--logistics) — road tiers and repair, upkeep, washouts and snowbound passes, haulage and spoilage, public works, canals, harbours and tolls
 14. [Espionage](#14-espionage)
     - [The Underworld](#the-underworld) — heat, the thieves' guild, contraband, fences
     - [Gangs & the Town Watch](#gangs--the-town-watch) — the towns' gangs, rackets, crackdowns, bought captains and magistrates, wars, betrayals; dirty coin and laundering
+    - [Thieves in Town: Burglars and Cutpurses](#thieves-in-town-burglars-and-cutpurses) — townsfolk burglaries and cutpurses, being robbed yourself, your homes' defences, cases and the watch, your own pickpocketing
 15. [Ships & Naval](#15-ships--naval)
     - [Landing Parties](#landing-parties) — raids from the sea, beach runs past the customs, landfall colonies, sea reavers
 16. [Kingdoms & Diplomacy](#16-kingdoms--diplomacy)
@@ -42,6 +46,9 @@ Welcome to **Lord of the Realms**, a deep hex-grid strategy game where you begin
     - [Claims & Crowns: the Path to the Throne](#claims--crowns-the-path-to-the-throne)
 18. [Relationships & Dynasty](#18-relationships--dynasty)
     - [The Annals: Your Story as a Book](#the-annals-your-story-as-a-book)
+    - [Townsfolk at Work](#townsfolk-at-work-trades-wages-and-service) — trades, ranks, wages and spending, hiring servants, guards and hands · [Meals and Sleep in Town](#meals-and-sleep-in-town)
+    - [Townsfolk Families, Ageing and School](#townsfolk-families-ageing-and-school) — pregnancy, births, orphans, inheritance, grey hair; schools, literacy, giving to and founding schools
+    - [Sickness in the Towns](#sickness-in-the-towns) — colds to plague among the townsfolk, contagion, healers, quarantine; paying the healer, alms, nursing by hand · [Townsfolk Brawls](#townsfolk-brawls) — grudges, tavern fights, the crowd and the watch; cheer, bet, break it up or join in
 19. [Culture](#19-culture)
 20. [Colonization](#20-colonization)
     - [Developing Your Holdings](#developing-your-holdings) — projects, governors, garrisons, unrest and rebellion
@@ -56,6 +63,7 @@ Welcome to **Lord of the Realms**, a deep hex-grid strategy game where you begin
     - [Mail & Courier Houses](#mail--courier-houses) — write to lords, rivals, loves and townsfolk; letters ride real days and can be lost, robbed or read; found and run a courier house, win the Royal Post
     - [Sagas](#sagas) — month-long world storylines: the wyrm, the plague cult, the lost heir, the long winter, sea reavers, schism, a rogue company, the comet
     - [Outlaw Lairs](#outlaw-lairs) — bandit camps, smugglers' dens, deserters' forts, cultist grottos and beast dens that grow, raid, and must be dealt with
+    - [Digging, Caches and Robbing the Dead](#digging-caches-and-robbing-the-dead) — digging holes, burying the dead and your goods, who finds a cache, grave robbing in numbers
 25. [Cartography](#25-cartography)
 26. [Legendary Artifacts](#26-legendary-artifacts)
 27. [Bounty Hunting](#27-bounty-hunting)
@@ -64,6 +72,7 @@ Welcome to **Lord of the Realms**, a deep hex-grid strategy game where you begin
 29. [Saving & Loading](#29-saving--loading)
 30. [Controls & UI](#30-controls--ui)
     - [The Steward's Counsel](#the-stewards-counsel): the advisor that ranks today's threats, opportunities and goals, with a morning brief
+    - [The AI Brain](#the-ai-brain-voiced-townsfolk-and-the-in-browser-model) — optional model-voiced townsfolk and letters: llama.cpp, OpenAI or a model run in the browser (WebLLM)
 31. [Tips & Strategies](#31-tips--strategies)
 
 ---
@@ -363,6 +372,8 @@ Six needs (0–100) sit under the mood meter in the bottom bar: **hunger, energy
   - **Below 15 (desperate):** you also lose 3 health a day, and movement drops by 4 instead.
 
 If you eat every day and sleep under a roof, hunger, energy and comfort stay high. Social, fun and hygiene drift down over about a week unless you visit taverns, talk to people or bathe.
+
+**What a meal fills.** **Eat a Meal** eats one food from your pack, taking the first you carry in this order. Each fills hunger by: cooked meat 40, cooked fish 30, bread and preserved fish 25, fish and food 20, grain, vegetables, fruit, honey and game meat 15, beans 18, dates 16, cabbage, turnips, apples, pears, crabs and truffles 12, carrots, plums, grapes, olives, eggs, berries, mushrooms, cactus fruit, mussels, oysters and crayfish 10, onions, cherries and seaweed 8. Every meal also gives +3 comfort, and a practised cook gets more out of a cooked ration. Garden produce and wild food keep you alive, but they don't fill you up.
 
 **The day's last hours.** End the day with action points left and your character spends them on itself, the most pressing need first, with what is to hand. It uses the real actions at their real costs: it eats from the pack, bathes at the river, the shore, a village well (1 g) or a town bathhouse (4 g), and washes its clothes at water (3 AP). In the wilds it makes a proper camp, and sits by a campfire if it carries 2 wood. In town it can take a private room for the night, or pay an inn for laundry, a bath or a supper. For leisure it talks with the locals (1 AP, at most twice) or spends the evening in a hotel's bathhouse or grand hall. It never risks anything: no drink, no dice, no common-room bunk, and no wild bath in cold water unless it is filthy. It spends at most 15 g an evening and never more than a fifth of your purse. The coin goes into the purse of the town that served you. A notice tells you what it did, for example: *With the day's last hours you scrubbed your clothes and bathed in the river and talked with the folk of Ashford.* It does nothing in jail or servitude, at a siege, below ground or under water. **Settings → The Day's Last Hours** chooses **Upkeep and leisure** (the default), **Upkeep only** (food, washing, clothes and a bed) or **Off**. Tuning: `data/autoUpkeep.json`.
 
@@ -772,6 +783,100 @@ A taken cargo goes to the band's packs (a lair banks it in its hoard). It never 
 - **Trade.** Buy from its cargo, or sell it the goods it carries. The price runs from the good's value at the origin toward its value at the destination as the journey goes, plus 10% when you buy and minus 12% when you sell. What you buy never reaches that market. The merchant will not touch stolen goods.
 - **Escort.** Hire on for about 7% of the cargo's value (15–300 gold), paid on arrival. Stay within 6 hexes, or after 2 days the merchant hires other blades. Ride within 2 hexes and any ambush becomes your fight (your army against the attackers, the usual battle). Win and the caravan rides on. Arrival also brings renown and +3 standing with the destination's realm. You can guard one trader at a time, and a ship only from your own deck. The Steward's **Counsel** mentions an escort job within 4 hexes.
 - **Rob.** This is an attack on the trader. Win and its goods are **hot** (only a fence takes them). You also suffer a `caravan_robbery` crime (10 heat with its realm, 22 if wardens or a town saw it, which also reports the crime and can bring a bounty) and lose 15 reputation with the realm. The road is shunned and the destination goes without. A failed robbery still costs half the heat and reputation.
+
+### Market Stalls
+
+The stalls on a town square, and the stalls inside a marketplace hall, each belong to one trader with one line of wares: a fishmonger, a baker, a draper and so on (`data/marketStalls.json`, `world/marketStalls.js`). Use a stall on the town map to open its own window:
+- **🛒 Buy.** The stall sells only its trade's goods, out of the **town market's real stock** and at the market's own prices. It never sells anything the market doesn't have. When the market is out of everything the trade sells, the stall says *Nothing on the stall today*.
+- **💰 Sell to** the keeper. The keeper buys only the goods of their trade and a few related ones: the fishmonger also takes crabs, lobster, mussels and oysters, the butcher and the cobbler take hides, the herbalist takes flowers, and the jeweller takes gold and silver ore. Anything else is refused (*The fishmonger doesn't deal in iron*). The sale itself is the town market's: its price, its purse and its stock.
+- **🏪 The Market** opens the whole town market, every stall at once.
+
+| Trade | Sells | Where it sets up |
+|---|---|---|
+| 🥬 Greengrocer | vegetables, fruit, garden seed | anywhere |
+| 🥩 Butcher | meat, sausage, dried meat, pies, tallow | anywhere (more among Nomadic and Mountain folk) |
+| 🐟 Fishmonger | fish, preserved fish | only by the sea, a lake or a river |
+| 🍞 Baker | bread, flour, grain, honey cakes, pies | anywhere |
+| 🧀 Cheesemonger | cheese, milk, eggs, honey | anywhere, most in pasture country |
+| 🧵 Draper | cloth, linen, clothes, cloaks, wool, flax, dyes, silk | anywhere |
+| 👢 Cobbler | boots, leather, saddles, leather goods | anywhere |
+| 🏺 Potter | pottery, glassware, glass, clay | anywhere (rare among Nomadic folk) |
+| 🕯️ Chandler | candles, soap, tallow, oil, rope, lanterns | anywhere |
+| 🔨 Ironmonger | tools, iron, steel, tin, copper, bronze, ingots | villages and up |
+| 🌶️ Spice Merchant | spices, salt, tea, incense, perfume, luxuries | towns and up, middling or rich; a poor town only when traders bring goods in |
+| 🌿 Herbalist | herbs, salves, poultices, tonics, mushrooms, berries, honey | anywhere the market has at least 2 of its wares |
+| 🌲 Woodworker | joinery, barrels, planks, bows, arrows, bolts, resin | anywhere, most by forests |
+| 💍 Jeweller | jewellery, gems, gold and silver bars | rich towns and up |
+| 🍷 Vintner | wine, beer, cider, mead, liquor, rum | anywhere |
+| 📜 Stationer | parchment, ink, quills, books | middling or rich towns and up |
+| 🔥 Woodmonger | firewood, coal, wood | anywhere, most by forests and in the cold |
+
+**Which trade a stall gets.** Each stall's trade is drawn once and then kept on the town, so a stall keeps its trade on every visit. The draw is weighted by the trade's own weight, the town's culture, the land around it, and how well the market is stocked in that trade's goods. While another trade is still free, no two stalls in the same square share a trade. A stall is drawn again only if the town no longer allows its trade, for example because the town has grown poorer. The keeper calls out the wares actually in stock (*"Good apples, picked this morning!"*). Some stalls change their look with what they hold: the greengrocer is heaped with fruit after the harvest and holds roots and cabbages through the winter.
+
+### Vegetables and Fruit
+
+Every market also keeps the kitchen garden's and the orchard's produce, as real goods with their own stores and prices (`data/markets.json` produce):
+
+| Kind | Goods | Keeps |
+|------|-------|-------|
+| Vegetables | Cabbages, Turnips, Carrots, Onions & Leeks, Beans & Peas | Cabbages a week or two; turnips, carrots and onions through the winter; dried beans a year |
+| Orchard fruit | Apples, Pears, Plums, Cherries | Late apples into the spring; pears, plums and cherries only days |
+| Warm-country fruit | Grapes, Olives, Dates | Grapes days (most go to the winepress); brined olives and dried dates for months |
+| Woods and yards | Berries, Mushrooms, Eggs, Honey, Herbs | Berries and mushrooms days; honey for ever |
+
+**Where it grows.** Each town's land grows produce beside its grain. How much depends on four things:
+
+- **Climate.** Each crop has a band of warmth it thrives in. Turnips and cabbages like cool land. Apples, pears and cherries like temperate land. Grapes and olives need warm country, and dates need the hot desert. Outside its band a crop fades quickly, and grapes, olives and dates don't grow at all.
+- **Land.** Woods bring berries, mushrooms and honey. Pasture brings eggs. Vines like hillsides, olives the coast, and dates the desert.
+- **Culture.** Nordic towns grow more turnips and cabbages, Desert towns more dates, Imperial towns more grapes and olives. Monasteries (Religious) keep herb gardens and bees.
+- **The harvest.** The year's veg and vine yields (blight, war, weather) scale the gardens and the orchards.
+
+Villages grow about twice what they eat, and the trade carries the rest to the towns. Olives and dates are a city taste: villages and towns don't eat them. Their growers sell them to the cities.
+
+**When it comes in.** Each good has its own season:
+
+- Cherries come in early summer, plums in late summer, and apples, pears and grapes at the autumn harvest.
+- Roots and beans come in at the autumn harvest. Olives are picked in winter.
+- Eggs are most plentiful in spring, and herbs in summer.
+
+People eat more of what is in season and little of it out of season.
+
+**What it's for.**
+
+- **Food.** Produce is food: it feeds the town alongside grain, bread, fish and meat, and each stands in for the others. In a lean spring, the town lives on its stored turnips and beans.
+- **Presses.** The cider and perry presses take the apple and pear glut after the harvest, the winepress the grapes, and towns' meaderies the honey. Half the craftsmen's cider, wine and mead is made from the town's own fruit and honey, so a town without orchards or vines buys them in.
+- **Cooking.** At the cook's station:
+  - Vegetable Pottage: cabbage, onions and beans.
+  - Pease Pottage: beans and onions.
+  - Root Stew: turnips, carrots and meat.
+  - Sauerkraut and Pickled Onions.
+  - Plum, Cherry and Bramble preserves.
+  - Cider from apples, perry from pears, and wine from grapes.
+
+**Prices.** Produce is cheap at the harvest and dear in late winter. Fresh fruit is all but gone out of its season. A seasonal curve adds the cost of keeping a cellar till spring (up to about +20% in early spring, −15% in late autumn). A one-year survey of a temperate world gave these medians against base:
+
+- Apples: about 0.7× after the harvest, 2.1× in early summer.
+- Cabbages: about 0.9× in autumn, 1.7× in spring.
+
+Nobody frets over cherries in winter: out-of-season produce never shows up as the town's worst shortage.
+
+**The greengrocer.** The greengrocer's stall sells and buys the vegetables and fruit, and seed for your garden. Its counter shows what it has:
+
+- Mixed produce through most of the year.
+- Heaped with fruit after the harvest.
+- Roots and cabbages in winter.
+
+The herbalist sells the market's herbs, mushrooms, berries and honey. The cheesemonger sells eggs and honey.
+
+**Your own.**
+
+- Fell an apple, pear or cherry tree in season and you get apples, pears or cherries. A palm gives dates.
+- Your garden beds grow cabbages, turnips, carrots, onions and beans and peas. The seed is sold at the markets and by the greengrocer.
+- A town's vegetable patch grows one of the five each year, depending on where it lies.
+- Your orchard grows apples, and a winery presses grapes.
+- Wild fruit from the wilds stays *Wild Fruit*, and a mixed bundle of greens stays *Mixed Greens*. You eat these yourself.
+
+**Older saves.** A market saved before produce gets it stocked at its target the first time it is opened, and its other goods are left as they were.
 
 ### Merchant Prince: Industry, Warehouses and Contracts
 
@@ -2248,6 +2353,54 @@ The other pairs are contested. In Strike against Feint, and Thrust against Guard
 
 **Brawls on the local map.** Attacking someone in a town is a running fight rather than a duel panel, but it uses the same numbers. Each swing does 2 + 1.2 × strength + 2 × your weapon's damage, scaled by traits, wounds, mood and treasures, so a sword hits much harder than fists. Guards wear mail that turns 20% of each blow. Guards, smiths and nobles fight back, and everyone else runs. Someone killed drops the coin they actually carry: a noble 30–120 gold, a merchant 15–60, a farmer a handful, a beggar almost nothing. You also take one or two of the wares they carry, if your packs have room. Townsfolk remember: a beaten townsperson you leave alive is still hurt the next time you meet them and heals about an eighth of their strength a day, and one you kill is dead for good, recorded in the town's annals, and missing from the streets on your next visit.
 
+### Knocked Down: the Senseless, the Bound and the Dead
+
+A street fight that takes someone to 0 health **knocks them out** instead of killing them (`systems/knockout.js`, `systems/downed.js`). They lie senseless for 45–90 seconds (a real minute is an hour of game time), then come round with 25% of their health, mutter, and run from you. Hover over them or use **Look at Them** to see their state: *Unconscious*, *Bleeding out*, *Bound* or *Gagged*.
+
+**What you can do to someone who is down:**
+- **Bleeding out.** A knockout leaves someone bleeding 25% of the time. They won't come round, and they die in 70–130 seconds unless you **Bind the Wound**, which uses one *poultice*, *linen*, *textiles* or *clothes*. A pool of blood marks where they fell.
+- **Slap Them Awake** brings them round within 6 seconds. **Douse Them** with one *wine*, *fine wine* or *holy water* does it within 2 seconds.
+- **Go Through Their Pockets**, once per person, takes their purse and some of their wares. They think 15 worse of you, and if the street sees it, it is an assault. A dead body can be **Searched** once in the same way.
+- **Finish Them Off** kills them. It is murder: the family grieves and the witnesses act (see *The street sees what you do* under [Craft, Brawls, Contracts and Small Debts](#craft-brawls-contracts-and-small-debts)). **Leave Them Be** walks away.
+- **Tie Them Up** uses 1 *rope*. **Gag Them** uses 1 *linen*, *textiles* or *clothes*. **Untie** and **Take the Gag Out** undo them. Someone who is untied runs.
+
+**Bound captives.** Someone who wakes up tied can't flee or fight. Every 7 seconds they speak to whoever can hear them. About half the time they shout for help. Otherwise the bold, stern, stubborn, aggressive and proud threaten you, and the rest plead. A gag turns it all into muffled noise that no one answers. The first shout heard by anyone within 9 tiles (or anyone in the room, indoors) brings the street: it counts as an assault, as a beating does, and the nearest passer-by comes over.
+
+**Burying alive.** Beside a hole, choose **Bury Them Alive**. With no hole near, choose **Dig a Hole and Bury Them Alive**. You can also carry or drag them to a hole.
+- **How long they last.** Someone senseless lasts 40 seconds under the earth, and someone bound and awake lasts 120. If they wake down there, they get at least 90 more seconds from that moment. While they live, the mound heaves and they cry out every 3.5 seconds, with longer gaps as the air runs out.
+- **Rescue.** Each cry gives a passer-by within 8 tiles a 12% chance to come and dig them out, which takes 10 seconds. You can also dig them out yourself with **Dig Up the Mound**. If you leave town while they still breathe, there is a 15% chance someone heard and dug. Otherwise they die, and a save made in the meantime settles it as a death.
+- **The crime.** If anyone sees you bury them, it is murder on your record and the onlookers cry out in horror. If they die unseen, it is still a murder (heat and karma), and the town's roll says they *went missing*. If they are rescued, they drop to −70 toward you, run in terror and report it, and the charge becomes a grave assault.
+
+**Carrying.** **Pick Them Up** throws someone senseless, or anyone bound, over your shoulder. **Drag Them** hauls them by the heels.
+- **Speed.** Carrying someone, you walk at 55% speed, +3% for each point of Strength above 5, up to 80%. A child is lighter (about 73% at base strength). Dragging is 38%.
+- **Hands full.** While you carry or drag, every order that needs your hands is refused: fighting, digging, searching, picking things up, farming, fishing, climbing, doors and furniture, binding and tending.
+- **Doors and stairs.** The person you carry or drag comes with you through doors and up stairs.
+- **Setting them down.** **Put Them Down** lays them on a free tile beside you. Indoors, **Lay Them on the Bed** puts them in a free bed beside you, where they sleep on. Someone left in a room comes round there in their own time and thinks 10 worse of you.
+- **Waking on your shoulder.** They kick free and think 15 worse of you. A guard, or anyone bold, stern, stubborn, aggressive or proud, comes at you, and children and everyone else flee. Someone bound can only thrash.
+- **Being seen.** Anyone who sees you carrying someone senseless takes it as evidence of the beating. The watch arrests you for assault, unless it is your own watch as ruler.
+- **Laying them in a cell.** Carry someone into the town's gaol as a visitor and **Lay Them in a Cell** hands them to the gaoler. Someone with a deed against them (they set on you first, were caught thieving, robbing graves or looting, an outlaw or bandit, or named in the town's record of crimes) is a **citizen's arrest**: the gaoler locks them up and you gain +2 reputation and +1 karma. Anyone else, and always a child or one of the watch, is a **kidnapping**: the gaoler cuts them loose, they think 60 worse of you, and you are taken to the cells for it (the underworld crime *kidnapping*, caught), unless you rule the town. Tuning: `data/carrying.json` (`handOver`).
+- **Children down.** A child knocked out or killed falls and lies on its back in its own child pose; a grown body is turned on its side.
+
+**Dead bodies.** **Carry the Body** slows you to 60% speed. A body comes with you through doors and up stairs, as the living do; leave the town map and you leave it behind. A fresh body drips blood behind you, one drop every 2 tiles, for 90 seconds after death. Blood pools stay 3 days, and a pool with no body beside it is evidence. Bystanders loot the fallen too: every 2 seconds, someone within 7 tiles of a body or a senseless person may kneel for 4 seconds and go through their things. An opportunist (beggars, outlaws, the bold and stubborn) does it 55% of the time, a soldier 60%, and kin and friends 70%, though they are only keeping it safe.
+
+**When you are knocked out.** You black out, and whoever downed you decides what happens next:
+
+| Who, and why | What they do |
+|---|---|
+| The watch | Arrests you if you are wanted here, otherwise lets you off with a warning. Never kills. |
+| You threw the first blow, in a town with a watch | 90% run for the guards, and you wake in the cells charged with assault. |
+| They set on you | They kill you 20% of the time (aggressive 40%, a grudge 50%, a grudge over a murder 80%). Where the realm's law allows private prisons, 60% carry you off to their **prison camp** instead. |
+| Anyone else | Kills you 2% of the time, a violent sort 5%. +8% if they dislike you (below 25). A grudge over kin you hurt makes it 35%, and kin you killed 75%. Children never kill. |
+| Otherwise | They rob you or leave. Beggars rob 85% of the time, travellers 60%, the aggressive at least 70%, nobles 10%, priests 5%, children 20%, others 45%. A robbery takes 30–70% of your gold. |
+
+- **The law.** The realm's punishment law scales every chance to kill or rob: harsh law deters, and lenient law emboldens.
+- **Coming round.** You wake 1–3 hours later at 15% health. If your attacker didn't rob you, a bystander within 7 tiles may have done it: a looter takes 60% of your purse and up to 2 kinds of gear (nothing you wear). If a guard saw it, the looter is taken and you lose nothing.
+- **Prison camp.** You lose 30% of your purse and serve 8–20 days of labour. You can buy your freedom at 12g for each day of the sentence, or try to escape (10%, +3% per point of Stealth).
+- **Householders.** If you walk into a house where someone has a grudge against you, hates you (below 15), or is aggressive and dislikes you (below 30), there is a 60% chance (scaled by the law) that they set on you, once a visit. That counts as them starting the fight.
+- **Arena bouts.** An arena opponent who knocks you out only wins the bout.
+
+Tuning: `data/knockout.json`, `data/downed.json`, `data/carrying.json`, `data/digging.json` (`looters`).
+
 ### Army Upkeep
 
 Your army costs gold every day. If you can't afford upkeep, 10% of your non-mercenary units desert.
@@ -2463,6 +2616,45 @@ Prayer and meditation (the world-map **Meditate** action, a temple's **🕯️ D
 | 🧑 Someone in need | A named townsperson from the living roster (a beggar, the hurt, the old, the penniless): their purse and their regard for you |
 
 Karma follows a square-root curve on the gift. Each town tires of the same giver: recent gifts there (decaying 4% a day) make the next count for less.
+
+### Going to Church
+
+Every town's church fills by who its people are (`systems/townWorship.js`). Every 7th day is a **holy day**. On ordinary days there are services at 8:00–9:30 and 18:00–19:00, and the bell rings half an hour before each one. A holy day adds a high service at 11:00–12:30.
+
+**Who goes.** Each townsperson has a devotion:
+- **Base.** Everyone starts at 0.45. The devout add 0.35. The kind, the generous, the cautious and the quiet add a little. The bold, the stubborn, the witty and the curious lose a little.
+- **Age.** 50 and over adds 0.15, and 12–24 takes away 0.1.
+- **Trade.** Innkeepers, potboys and the out-of-work go less often. Priests always go.
+- **Grief.** A death in the family within the last year adds 0.2.
+- **Realm.** The realm's piety adds or takes 0.004 for each point above or below 50.
+- **Habit.** Each holy day attended adds 0.01, up to 0.2. Each one missed takes away 0.005.
+
+On the holy day, a person's chance of going to the high service is about their devotion (×0.95), and about a third of that for the day's other services. On other days they drop in at their devotion ×0.12. The devout also slip into church in their spare hours, and the very devout pray at wayside stones. About 7% of townsfolk keep another faith and pray at home on the holy day. Where your own religion has a foothold, some of them keep yours.
+
+**Feasts** fill the church fuller:
+
+| Day of the year | Feast | Turnout |
+|---|---|---|
+| 1 | the New Year's rite | ×1.25 |
+| 22 | the Feast of Sowing | ×1.2 |
+| 52 | Midsummer's Blessing (Solaris: the Sun's Crowning) | ×1.15 |
+| 82 | the Harvest Thanksgiving (Tidemother: the Blessing of the Nets) | ×1.3 |
+| 110 | the Midwinter Vigil (Stormfather: the Long Night of Storms) | ×1.2 |
+
+**What a holy day does** in every town with a roll, whether you are there or not:
+- **Offerings.** Every churchgoer of 16 or older gives 0.05 gold if poor, 0.2 if comfortable or 0.8 if rich. The coin goes to the priest's purse, or to the town's purse if there is no priest.
+- **Piety.** The realm's piety moves by (the share of the town at church − 0.35) × 0.6, at most 1.5 either way. The change is smaller in a large world.
+- **Your faith.** Each of your own faithful who gather there adds 0.002 to your religion's foothold in the town.
+
+**Burials.** Everyone who dies on the roll is buried within 3 days. Their family attends, and so do others in proportion to their devotion. The town's annals record how many came.
+
+**Your part:**
+- **Attend.** Stay inside the church through 80% of a service. You gain +0.15 faith, +6 social, +2 fun and +4 comfort. Every churchgoer there notices you and thinks 2 better of you, and the priest greets you. This works once a day in each town.
+- **Pray.** Ask the priest **"Will you pray with me?"** for +0.05 faith and +3 comfort. The priest thinks 2 better of you.
+- **Donate.** Offer the priest 5, 25 or 100 gold (only amounts you can afford are shown). The coin goes into the priest's purse. You gain 0.02 × √gold faith, and the priest's regard rises by √gold, rounded: +2, +5 or +10.
+- **Disrupt.** During a service, shout **"Lies! All of it!"** It is a scandal. The priest's regard drops by 30, and every townsperson with devotion 0.5 or more loses up to 25 regard for you, by their devotion. The town's happiness falls by 1.5 and your faith by 0.5, and the town's annals remember it.
+
+Tuning: `data/townWorship.json`; service times in `data/townScenes.json` (`church`).
 
 ### Pilgrimages
 
@@ -2918,6 +3110,74 @@ Where the contents come from:
 - **Anyone else's**, in their house, shop or the town street, you can only **Steal**. Each button shows your chance of being caught, and hovering it lists why. Each other person within 6 tiles adds risk, each guard more, and the owner being present more again. So does the value of what you lift, and doing it out in the street. Night (22:00–05:00) and your Stealth lower the risk.
   - **Got away:** the goods are yours but *hot* (shunned by the open market, wanted by the fence), heat rises in the realm, and your Stealth improves.
   - **Caught:** you keep nothing, pay a fine of twice the goods' worth (at least 10g), lose 4 standing in the realm, and the theft spreads as gossip. From your third theft the watch jails you (2, 4, 7, then 10 days).
+
+### Thieves in Town: Burglars and Cutpurses
+
+The townsfolk steal too, from each other and from you (`systems/npcTheft.js`).
+
+**Who steals.** A townsperson steals if they are poor (a beggar, villager or farmer) and not kind, generous or devout, and also either a beggar, bold or stubborn, or short of coin (under 6g) in a dearth. Guards, priests and nobles never steal. A sly, bold or stubborn child of 9–15 may cut purses. An outlaw lair within 4 hexes sends men into town, and a rival House's bought agent may rob your property. Thieving skill (1–10) depends on the kind of thief: beggar 1–3, townsfolk 2–4, servant 2–4, urchin 2–5, outlaw 3–6, agent 4–7.
+
+**Burglaries.** The chance of a burglary in a town on any day is 1% in a village, 2.5% in a town, 4% in a city and 5% in a capital. It is ×1.8 in a dearth and ×1.6 with a lair nearby. 70% happen at night (22:00–04:00).
+- **Which house.** Rich households draw thieves: a noble or merchant household far more than a farmer's. By day, a house whose adults are all out at work counts ×1.8. No house is robbed twice within 20 days. On 12% of burglaries, a servant robs a merchant or noble household from inside.
+- **Lock or force.** A house's lock is 1, 2, 3, 4, 5 or 7, rising with the household's wealth. A thief picks a lock of at most their skill + 1. Otherwise they force the door, which shows splintered for 6 days. A servant never forces a door.
+- **What's taken.** 30–70% of each adult's purse, and the best of the household's chests: the most valuable goods first, up to 3 kinds, 50–100% of each. The chests really are emptier afterwards.
+- **Caught in the act.** The chance is 6% in a village, 10% in a town, 14% in a city and 17% in a capital. It is +30% for a noble household, +8% for a merchant's, +12% at night and +8% for a forced door, and −2.5% per point of the thief's skill (2–80%). A thief caught in the act takes nothing and is jailed for 20 days. Otherwise, 30% of the time a neighbour sees who it was.
+- **On the street map** you can see it happen at night: the thief creeps to the door, rummages inside for 10 seconds and slips away. A guard who spots them gives chase, and if you spot them, you get a choice (see *Catching a thief* below).
+
+**Cutpurses** work the crowds at the market, the square and the tavern. A lift is the thief's skill against the mark's awareness: guard 0.7, noble 0.6, merchant 0.45, smith or traveller 0.35, villager 0.3, priest 0.25, farmer or child 0.2, beggar 0.15.
+- **The lift** succeeds 50% + 6% per point of skill − 45% × awareness (8–92%), and takes 15–45% of the mark's purse.
+- **The mark notices** 20% + 50% × awareness − 4% per point of skill (5–85%). A noticed lift fails, and the mark cries "Thief!". The watch takes the thief 25% of the time in a village, 35% in a town, 40% in a city and 45% in a capital (20 days in jail), and the mark holds a grudge (see [Townsfolk Brawls](#townsfolk-brawls)).
+- **Off your map,** townsfolk lose purses on 5% of days in a village, 12% in a town, 20% in a city and 26% in a capital, less where more watchmen walk.
+- **Cutpurse heat.** Each lift adds 1 to the town's cutpurse heat, which loses 10% a day. Above 6 the watch cracks down: fewer lifts, more burglars caught, and fewer burglaries. From heat 4 the town's annals mention the cutpurses (at most once every 30 days).
+
+**Being robbed yourself.** Your purse is a target in town on 2% of days in a village, 5% in a town, 8% in a city and 10% in a capital. A fuller purse is a likelier target, up to ×2 when you carry 600g or more, and the chance is halved in a town you rule. On the street map, cutpurses only go after you in a crowd of 4 or more.
+- **Your awareness** is 0.3 + 0.03 per point of Intelligence + 0.04 per Stealth level, at most 0.85. For 10 days after you have been robbed you are wary (+0.2).
+- **A cut purse** takes 15–45% of your gold, at least 1g and never more than 60g. On 25% of lifts the thief also takes the most valuable small item in your pack (worth 5–120g). Off the map you find out at once. On the street map you find out 15–40 seconds later (*"Your purse feels light…"*), and 30% of the time someone nearby saw it, which names the thief.
+- **If you feel the hand** off the map, you run the thief down 35% + 3% per point of Strength of the time (at most 80%). If you fail they get away, but you lose nothing.
+
+**Your property.** Your homes (the goods in their furniture) and the stores of your town properties can be burgled while you are away from that town. Each place has a nightly chance of 0.3% in a village, 0.5% in a town, 0.7% in a city and 0.8% in a capital. It rises with what the place holds (up to ×2.5) and is ×0.35 for a property's store. A rival agent in town adds +3% a night and is the thief 60% of the time.
+
+| Defence | Effect |
+|---|---|
+| Stout Lock | ×0.45, and the door's lock rises from 2 to 6 |
+| Watchdog | ×0.5 |
+| Fortified Walls | ×0.5 |
+| Servants' Quarters | ×0.6; servants send word of a burglary at once (though a servant pilfers on 0.4% of nights, whatever the locks) |
+| Watchtower | ×0.8 |
+| Iron-bound Strongbox | Lock 6: it holds unless the thief's skill + 0–2 reaches 6 |
+
+A burglar takes 40–90% of each stack, gold included, or half that share from a property's store. Unless servants send word, you find out when you next enter the town. The clues are a witness (40%), something the thief dropped (35%, for example a ribbon in a rival's colours), or, if the thief is still unnamed, a rumour that names them 3–12 days later (on 50% of burglaries).
+
+**Cases.** Every theft is a case. Each day the watch may catch the thief: 3% in a village, 5% in a town, 6% in a city and 7% in a capital, ×2.5 once it is reported and ×2 once the thief is named. If not caught, the thief sells the goods within 2–6 days. They go into the town's market, and the thief is paid 35% of their worth from the town's purse (an outlaw's haul goes to the lair instead). Whatever the watch recovers is handed back to you when you are in that town. A townsperson who saw a theft tells you who did it when you talk to them.
+- **Stolen Goods** (a town action while you have an open case there) lists what was taken and the clues. From it you can **Tell the watch** (once per case), or **Confront** a named thief who is in town. Confronting works 40% + 4% per point of Charisma + 2% per point of Strength of the time, +25% if the thief is cautious, quiet or kind and −20% if bold or stubborn (5–95%). If it works, they hand back what they still have. If it fails, they deny it, and you can't confront them over that case again.
+
+**Catching a thief.** When you spot a burglar, or feel a cutpurse's hand, on the street map, you choose:
+- **Seize them:** 35% + 4% per point of Strength − 4% per point of the thief's skill (10–85%).
+- **Shout "Thief!":** up to two guards within 12 tiles give chase.
+- **Fight them:** if they yield, they are taken.
+- **Let it be.**
+
+A thief the watch catches goes to the cells, and what they took goes back.
+
+**Your own pickpocketing.** **Pickpocket** (2 AP) offers three marks to choose from. The bigger the town, the richer the choice:
+
+| Mark | Purse | Awareness | Where |
+|---|---|---|---|
+| Drunkard | 2–10g | 0.1 | anywhere |
+| Farmer | 3–12g | 0.2 | anywhere |
+| Priest | 5–20g | 0.25 | anywhere |
+| Traveller | 8–25g | 0.35 | anywhere |
+| Merchant | 10–35g | 0.45 | towns and larger |
+| Minor Noble | 25–60g | 0.6 | towns and larger |
+| Off-Duty Guard | 15–30g | 0.7 | towns and larger |
+| Aristocrat | 40–80g | 0.75 | capitals only |
+
+- **The quick roll** succeeds max(10%, 50% + 6% per Stealth level − 0.3 × awareness) of the time, and ends the day.
+- **In person,** stand still next to the mark to fill the lift bar, and step back when they start to turn. Their glance comes with a 0.8 s warning and lasts 1.2–2 s. A mark who catches your hand in their pocket gets much more suspicious, and being seen within their notice radius raises suspicion fast. At 100 suspicion you are caught.
+- **A lift** takes its coin from the town's own money, so a poor town yields less. It costs 1 karma, counts as a theft for heat, the coin is dirty, and you practise Stealth.
+- **Caught:** a 10–39g fine to the town, −3 karma, −5 reputation with the realm, a mark on your record, and jail for 2, 4, then 7 days, then 10 + 3 for each further offence. Bail is 25g for each day of the sentence, and the chance to escape is 8% + 3% per point of Stealth.
+
+Tuning: `data/npcTheft.json`, `data/wildTasks.json` (the in-person lift), `data/housing.json` (defences).
 
 ## 15. Ships & Naval
 
@@ -3994,6 +4254,19 @@ The people of a town are real and persistent. The first time you walk through a 
 
 Tuning (rates, names, causes of death) lives in `data/townsfolk.json`.
 
+### Townsfolk Fall in Love
+
+A town's weddings now come from real courtships (`systems/romance.js`, `data/romance.json`). Every ten days, in every town with a roll:
+
+- **Someone catches an eye.** A single grown townsperson notices someone they're drawn to. The pull comes from age (a few years apart is easiest), temper (the kind and the generous, the jovial and the witty get on; two stubborn ones don't), station (a lord's son and a beggar is unlikely, and the town would talk), tongue, working side by side, living next door, old grudges (a beating or a robbery sours it), and a spark that can't be put in words. Most folk love the other sex; a few love their own, a few either. Same-sex couples court and wed like anyone else. They keep their own names and don't have children.
+- **The stages.** Noticing → flirting → courting → in love → betrothed (the banns are read, and the wedding is set about a month off) → wed. Each stage can fail: rejected, cooled off, parted, or jilted at the last. The wedding is a real townsfolk wedding: the spouse is on the roll, and children follow.
+- **Trouble.** A family can **forbid** a match: a gap in station, or bad blood between the houses. It may be broken off, or the family may relent. Now and then the pair **elope** and leave town together, and the parents are beside themselves. A **rival suitor** can come between a couple and win the heart (the two rivals don't speak after). **Lovers' quarrels** cool things, and a death leaves a broken heart.
+- **The married mostly don't.** Rarely, an **affair** begins. When it is found out it is the town's scandal, and the wronged spouse remembers it.
+- **Hearts and work.** The lovestruck work a little harder and a trader in love gives you a small bargain. The heartbroken work less, mope at the well and charge a little more, for a couple of months.
+- **On the street map.** Flirting pairs trade a line and a blush as they pass (*"Lovely morning, isn't it, Marta?"*). Courting couples walk out together of an evening, sit together at the tavern, and bring each other flowers from the market. Now and then a ♥ shows over one of them. You'll also hear lovers' quarrels and the sighs of the heartbroken. On a **wedding day** the couple, their kin and neighbours gather at the church door and the guests cheer.
+- **The talk of the town.** Ask anyone **"Who's sweet on whom around here?"** (*"They say the smith's daughter is sweet on Tomas Hayward."*), and someone courting will tell you of their own. Betrothals, jiltings, elopements and scandals are in the town's news and the journal, and letters from townsfolk mention their courtship, their engagement or the town's gossip.
+- **Your part.** Talking to someone who is courting, you can **carry a love letter** to their sweetheart, or **put in a good word** (a Charm check). Either way the match warms and both think better of you. Or you can **meddle**: tell them their sweetheart has a wandering eye. The match cools and may break, and if they trace it to you, both will hate you for it. **Court one of a pair yourself**, and the other suitor becomes your rival and resents you.
+
 ### Townsfolk Talk & Heralds
 
 The world talks about itself. What townsfolk say depends on what is going on around them and on who you are (lines live in `data/chatter.json`):
@@ -4024,6 +4297,281 @@ You hear it when greeted (hostile folk keep their own greetings), when you ask *
 A rumour that only costs you reputation in a realm (the first time it reaches one of its towns at severity 10+) now says so: *Your Name Suffers*, with the loss.
 
 The same murder can bring a bounty in one town and a shrug in the next. At the tavern's **Whispering Corner** you can pay a bard (35g) to **sing down** a crime rumour in that town. Its telling there becomes *Sung down* (×0.3, and you aren't named), and that version spreads onward like any other.
+
+### Townsfolk at Work: Trades, Wages and Service
+
+Every grown townsperson (16 and up) on a town's roll has an occupation, and their work is the town's economy (`systems/townJobs.js`). A town fills its trades in a fixed order for its size. A village wants a farmer, a smith, a miller, another farmer, a fisher, a woodcutter and so on, and a capital wants about fifty places. It goes down that list as far as it has grown people of a fitting kind. A trade needs the right land nearby: fishers need water, miners need hills, and shepherds and herdsmen need pasture. Guards, priests, nobles and beggars keep their own work. People left over become labourers, and a quarter of them start out of work.
+
+**Ranks.** Each worker is an **apprentice**, a **journeyman** or a **master**:
+
+| Rank | Work done | Wage |
+|---|---|---|
+| Apprentice | ×0.45 | ×0.25 |
+| Journeyman | ×0.85 | ×0.7 |
+| Master | ×1 | ×1 |
+
+Each season (30 days):
+- A master of a goods-making trade may take one apprentice aged 12 or older (45% a season), their own children first.
+- An apprentice of 17 or older with 3 years at the trade becomes a journeyman.
+- A journeyman of 23 or older with 5 years at it becomes a master (35% a season).
+
+**Empty places fill themselves.** When a worker dies, their trade's place stays open, and its goods fall until it is filled. Each season the town tries these in order:
+1. A grown apprentice of that trade steps up.
+2. The widow or widower keeps the shop (70%), if they were a labourer, out of work or a washer.
+3. The out-of-work and the labourers take it up (60% each). Those under 22 start as apprentices, the rest as journeymen.
+4. If the place has stood empty for 60 days, there is a 30% chance a season that a master comes from elsewhere.
+
+Each season a quarter of the out-of-work find labour, and 4% of labourers lose it.
+
+**Work feeds the market.** Each trade's output is its workers' total effort against the number of places the plan gives it. Effort grows from ×0.9 to ×1.1 over a worker's first 12 years. An injury lowers it, and so does heartbreak (being in love raises it). Hunger is ×0.8, and a baby under 90 days old in the house is ×0.92. Someone in the cells, or away on your commission, does no work at all. Each trade has a floor, the share of its output that comes even with nobody at it: lose the only smith and the town's iron goods fall to 28% of normal, but farm goods hardly drop (82%), because labourers help in the fields.
+
+**Wages and spending** move coin around the town without making any:
+- **Who pays.** Masters are paid out of the town's purse for their goods. Masters pay their journeymen and apprentices (and are paid back 90% of it), households pay their servants, and the town pays its watch, priest, carters, scribes and labourers. Beggars get 0.15 gold a day in alms.
+- **How much.** Wages are ×0.8 in a village, ×1.15 in a city and ×1.3 in a capital.
+- **Living.** Every adult spends 0.32 gold a day on bread and board, and 0.12 for each child, back into the town's purse. Someone with under 6 gold eats plainer, at 60% of the cost. Someone with over 45 gold spends 35% of what is over each season. In a food dearth, anyone left with under 4 gold goes hungry.
+
+**What you see.** Ask anyone **"What's your work?"** to hear their trade, their master and how long they have been at it, and whether they are hurt, hungry or in love. **People → 🔨 Trades & Workers** lists each trade with its filled and planned places (for example 2/3) and its named workers. Each worker shows their rank, a master's years at the trade, and notes such as *at your order*, *in the cells*, *hurt* or *hungry*. The trade's output shows as a percentage: green from 90%, amber from 60% to 89%, red below 60%.
+
+**Commissions take a real worker.** When you commission a trade, the best available journeyman or master of it takes the job and leaves their town work until it is ready. The receipt names them, and they tell you *"I'm at your order… ready by day N."*
+
+**Hiring into your service.** If you own a house or property in the town, you can offer a grown townsperson work:
+
+| Post | Wage a week | Work |
+|---|---|---|
+| 🏠 Servant | 4g | Sweeps your step |
+| 🛡️ Guard | 7g | Keeps your door |
+| 📦 Hand | 5g | Carries |
+| 📜 Clerk | 10g | Works as a scribe; only one who can read and write (literacy 50+) |
+
+- **Their answer.** The base chance is 55%, ±0.8% for each point of their regard above or below 50. The out-of-work, beggars and labourers are 35% more willing. A master of a goods-making trade asks double the wage and is 25% less willing. The chance is shown on the choice (2–97%). Nobles, priests and anyone under 16 refuse.
+- **Pay.** The first week is paid into their hand when they accept, then every 7 days from your purse. If you can't pay, they leave your service.
+- **Dismissing.** **"I'll not need you any longer"** sends them back to their old trade as a journeyman, or out of work if they were a servant or guard before. Their regard for you drops by 3.
+- **Schooled children.** A child whose schooling you paid for may grow up loyal and offer to serve you as a clerk (if lettered), servant or guard (see *Townsfolk Families, Ageing and School*).
+
+Tuning: `data/townJobs.json`.
+
+### Meals and Sleep in Town
+
+On the street map each townsperson keeps the hours of their trade (`world/innerMap/townWork.js`, `data/townJobs.json` → `hours`):
+
+| Day | Trades | Abed | At work |
+|---|---|---|---|
+| Ordinary | miners, millers, butchers, brewers, weavers, cobblers, carpenters, masons, smiths, washers, carters, healers, guards | 21:30–05:30 | 7–12, 13–18 |
+| Before dawn | bakers | 20:00–03:30 | 4–11, 12:30–15 |
+| On the land | farmers, labourers, herders, shepherds, woodcutters | 21:00–05:00 | 5:30–12, 13–19 (in winter only about 45% of it) |
+| At the docks | fishers | 20:30–04:30 | 5–11, 14–18 |
+| In the shop | tailors, merchants, stallkeepers, scribes | 22:00–06:00 | 7–12:30, 13:30–18:30 |
+| Late | innkeepers, servers | 01:00–09:00 | 10–14, 16–23:30 |
+| Church | priests | 21:00–05:00 | 5–12, 13–20 |
+| In service | servants | 22:00–05:00 | 5:30–12:30, 13:30–21 |
+| Gentry | nobles | 23:00–08:00 | 10–15 |
+| Begging | beggars | 21:30–06:30 | 7–20 |
+| Out of work | the unemployed | 22:30–07:00 | 9–12 |
+
+- **Meals.** 70% of folk take **breakfast** at home just after they wake, sitting on a stool at the family table. At noon (12–13) most eat a bite out in front of their workplace. **Supper** (18:30–20:00, 85%) is at the family table. Single folk take supper at the tavern half the time, and those with no home always do. What they eat shows over their heads: *A bowl of pottage* for the poor, *Dining well* for the rich, and *Going without* for anyone who went hungry in the last 30 days, who grumble about it (*"Not a crust in the house."*).
+- **Sleep.** At night folk lie in their beds at home, under the blanket, breathing, with a z or two drifting up. When there are more sleepers than beds, the rest sleep on bedrolls on the floor. The homeless (beggars, and anyone without a home) **sleep rough** in a doorway or an alley beside a building that isn't a house. A baby under 90 days old in the house keeps its parents up (their work ×0.92).
+- **Leisure.** Out of work hours they chat, go to the market, the well, the square or the tavern of an evening, and the devout go to church (see [Going to Church](#going-to-church)).
+
+### Townsfolk Trade with Each Other
+
+The people on a town's roll buy, sell and swap among themselves (`systems/townTrade.js`). Every deal moves real goods and real coin between named holders: the market's stock, a household's larder, a producer's wares, a pedlar's pack, and the purses of the buyer, the seller and the town. Nothing is made from nothing, and nothing is lost except what is eaten, worn out or spoils. Off the map every town with a roll trades every 4 days.
+
+**Households and their larders.** A household (a family under one roof) keeps a larder of what its people use: bread, grain, fish, meat, produce, ale, firewood, clothes, tools, candles, salt and soap. Each good is kept at the market's own per-head need for that town. A child counts as 0.6 of a grown person. The household holds:
+
+| What | Days kept |
+|---|---|
+| Food, drink | 10 |
+| Fuel | 20 |
+| Candles, salt, soap, pottery, boots | 60 |
+| Clothes | 90 |
+| Tools | 120 |
+
+- **Shopping.** When the larder runs below that, the household buys at the stalls. The goods come off the market's stock and the coin goes from the household's purses (split between its grown people) into the town's purse. Each purchase is haggled up to 8% either way.
+- **Bread before boots.** Clothes, tools, drink and the rest are bought only from coin above 20 days of the household's food and fuel at today's prices. A household with under 6 gold buys only food and fuel.
+- **Eating.** Each day the household eats from its larder. One staple stands in for another, as at market. The market's next turn feeds the town that much less from its own stock, so the town eats no more than before. Larders spoil at the market's rates.
+- **Board.** What a person spent at the stalls in a season comes off their bread and board at payday, so the coin goes to the town once, not twice (see *Townsfolk at Work*).
+- **Hunger.** In a food dearth, a household that ate under half its food goes hungry, and the hungry work at ×0.8. Out of a dearth, a household that can't buy is fed as before, by the town's stores, alms and plainer fare.
+- **Barter towns.** In a town that barters (before coin), households draw on the common store with no coin.
+
+**Producers bring their goods to market.** Farmers, herders, shepherds, fishers, woodcutters, millers, bakers, butchers, brewers, weavers, tailors, cobblers, carpenters and smiths keep a little of what they make at home: their **wares**, up to 2 of each of their goods.
+- At each market turn the named hands keep back their share of the town's output: 0.06 units a day each, and never more than a quarter of what the town made of it.
+- At their next step, whatever is over their keep goes to the market's stock.
+- No coin moves when the goods do. Their wages are still townJobs' business.
+
+**Neighbours barter.** Three times a step, before anyone goes to market, a household with something to spare (its larder over its target, or its producers' wares) calls on a neighbour. They swap goods for goods of the same worth, such as fish for a loaf. If the neighbour has nothing it lacks, in a coin town the neighbour buys what they need of it, purse to purse. The chance of a call is:
+
+| Town | Chance |
+|---|---|
+| Coin town | 25% |
+| Coin town, either household poor | 50% |
+| Barter town | 80% |
+
+A swap warms the two households to each other and cools any grudge between them. Their first swap goes into both their lives ("Good neighbours").
+
+**Pedlars.** A town with a roll that has seen no pedlar for 24 days gets one from a neighbouring town by land.
+- **Setting out.** The pedlar's purse (up to 30 gold) comes out of that town's purse. They buy a pack there of up to 4 units and 36 gold: salt, candles, soap, pots, cloth, clothes, tools, rope, boots, cheese, honey and herbs. They only take what sells for at least 12% more in the town they are bound for. The pack's cost goes into the selling town's purse.
+- **On the road.** A day for each hex of the road.
+- **In town.** They go door to door for 6 days at 6% under the stalls' price, before the households shop.
+- **Moving on.** What's left of the pack goes to the market at 90% of its price, out of the town's purse. Then they buy a new pack and move on to the next town with a roll.
+- **Giving up the road.** After 8 trips, below 6 gold, or with nowhere to go, they settle. Their purse and pack stay in the town where they stop.
+- **The books.** Pedlars' purses count as coin on the roads in the realm's coin census. A pedlar coming through is told in the town's news.
+
+**Merchants.** A merchant caravan leaving a town with a roll is one of its merchants' ventures. The caravan carries their name, and their life remembers it ("I sent a caravan of salt to Brightwater"), at most once every 90 days.
+
+**Disputes.**
+- **A hard bargain.** On a household's trip to market, a first bargain driven hard (the dearest 15% of hagglings) sours the buyer on the seller 6% of the time.
+- **Short weight.** A crooked seller (bold or stubborn, or about 1 in 12 of the rest) gives short weight on 1.5% of trips. The buyer gets a fifth less than they paid for, and the overcharge goes into the seller's purse.
+- **Caught (35%).** The market warden refunds the buyer and fines the seller three times the overcharge into the town's purse. It goes into the town's annals ("was fined at market for giving short weight").
+- **Not caught.** The buyer notices later 40% of the time.
+
+Any of these starts or warms a grudge between the two (a **bad bargain at market**, which can come to blows: see *Townsfolk Brawls*) and puts a line in the buyer's life ("gave me short weight… I'll not buy from them again").
+
+**On the street map** (`world/innerMap/townTrading.js`):
+- **Stall shoppers.** A shopper at a staffed stall buys what their larder lacks of the stall's goods. After the haggle you hear the outcome ("Robbery!", "There. Pleasure doing business.", or "Just looking."). Then they carry a sack home.
+- **Producers.** Of a morning, a producer with more than their keep carries a sack to the marketplace, and their wares go into the stock when they arrive.
+- **Hawkers.** Bakers, fishers, brewers, farmers, butchers and woodcutters cry their wares in the street ("Hot bread! Fresh from the oven!"), and a passer-by whose larder lacks it buys, purse to purse.
+- **Neighbours.** Neighbours stop each other to swap ("I've fish to spare. Have you any bread?").
+- **Pedlars.** A pedlar in town walks door to door crying his pack ("Fresh from Brightwater!").
+
+**You.**
+- **Watching.** All of this happens around you on the street map.
+- **The same stock.** You buy from the same stock the townsfolk do. Buy a stall bare and the town's households find less, and dearer.
+- **Buying from a townsperson.** Ask a producer **"Will you sell me some of your eggs?"** (or a pedlar for what's in his pack). What they sell is their own real stock, at the stall's price (a pedlar 6% under), and the coin goes into their purse.
+- **Free talk.** With the AI brain on, a townsperson sells and gives from the same wares. Someone off the roll carries their town's goods on consignment: out of its market's stock for the day, back the next day. Coin you give them goes to their purse, and coin they give you comes out of it.
+
+Tuning: `data/townTrade.json`.
+
+### Townsfolk Families, Ageing and School
+
+Every 10 days, each town on the roll lives its family life (a year is 120 days; `systems/townFamily.js`).
+
+**Conception.** A wife at home with her husband conceives at a yearly rate by her age:
+
+| Age | Under 18 | 18–24 | 25–34 | 35–39 | 40–42 | 43+ |
+|---|---|---|---|---|---|---|
+| Rate | — | 50% | 45% | 30% | 12% | — |
+
+Each living child lowers it by 12%. A dearth halves it, plague makes it ×0.6, and her being hurt ×0.5. Wealthier families are a little more fertile. A wife never conceives in the first 30 days after the wedding, within 60 days of her last birth, or with 5 living children. An affair can also end in a child: the babe takes the mother's name and her husband is counted its father, but half the time the town finds out.
+
+**Pregnancy and birth.** A pregnancy lasts 90 days. Folk talk of it (*"She's expecting, due in the spring"*), and you hear of it if she is a friend. A grown woman of the town (35–74) attends as **midwife**. 3% of births are stillborn. After a birth the mother lies in for 30 days, and childbed fever is the danger (see *Sickness in the Towns*). Three days later the babe is **christened** at the church, if the town has a priest. Two godparents stand for it (kin if there are any, else friends of the family), and the parents give the priest a 1-coin offering.
+
+**Households and inheritance.** Each couple and their children live under one roof. Newly-weds set up house in a free house if the town has one, or else move in with the smaller of their two families. When someone dies, their purse goes to an heir: the spouse, else the eldest grown child, else the eldest grown sibling, else the eldest child. If no other grown member still lives in the house, the heir takes the house too.
+
+**Orphans.** A child under 16 with no parent at home is taken in by a grandparent, then an aunt or uncle, then a grown brother or sister. If there is no kin, a married couple next door under 55 with fewer than 3 young children takes them. Failing that, a childless couple from a town within 12 hexes adopts them away. Both sides remember it (*"They took me in when I'd no one left"*).
+
+**Ageing.**
+- **Stages.** Infant (under 4, kept indoors), child (4–11), youth (12–15), grown (16+), elder (60+).
+- **Retirement.** Guards, farmers and smiths give up their trade at 62.
+- **Frailty.** From 55, rising to full at 85, the old catch sickness more easily.
+- **Grey hair.** Each person starts to grey at their own age between 42 and 58, goes silver 12 years later and white 22 years later.
+- **On the street map.** Children are drawn smaller by age. Folk of 65 and over walk slowly and rest in the sun, and tell stories of the town's real past, three or more years back.
+
+**School** (`systems/townSchool.js`). Each year, a child of 6–13 is either at their letters or at work beside their family:
+
+| Kind | Where | Fee a season | Literacy a year |
+|---|---|---|---|
+| Parish school | the priest, at the church or chapel | 1 | 12 |
+| Town school | a schoolmaster; towns, cities and capitals (or any town with a founded school) | 3 | 16 |
+| Tutor at home | merchant, priest and noble families | 8 | 20 |
+| The church's learning | bright youths of 12–15 with 3+ years of school (8%) | free | 25 |
+
+How many go depends on the family: about 5% of beggars' children, 30% of common folk's, 85% of merchants' and priests', and all of nobles'. Villages send fewer and capitals more. Coin in the school's fund adds more pupils, up to +35%. Girls and boys go alike. Class runs from 8 to noon, there is no school on every 7th day, and some pupils play truant. Fees are paid each season (30 days). The school's fund pays for poor children first, then a parent's purse, and the parish pays for poor parish pupils out of the town's purse. A child nobody pays for is turned away for the year.
+
+At 16 a person's literacy is fixed for life: their schooling, plus 4, plus 15 if a parent could write. With literacy of 50 or more, they write their own letters to you. Otherwise the priest writes for them, or word comes by mouth.
+
+**What you can do.**
+- **Give to the school.** Ask the priest or schoolmaster **"How fares the school?"** to hear how many pupils it has, who teaches and how many grown folk can write. You can then give **25 or 100 gold** to its fund. The teacher and the parents of every pupil think better of you (+1 for 25 gold, +5 for 100). A gift of 100 gold or more earns Prestige.
+- **Pay for a child's schooling** (40 gold, into the fund). Offer it to a poor child of 6–13 who is not at school, or to their parent. The child goes to the town school if there is one, else the parish school. The child's regard rises by 20 and the parents' by 10. At 16 they come of age loyal to you: they write to you in their own hand, now and then, and offer to serve as your **servant** or **guard**.
+- **Found a school** (Laws panel → Schools, 300 gold). As ruler you pay from the treasury for any town of your realm. As lord of a holding you pay from your own purse. Half builds and furnishes it, and half endows its fund. A schoolmaster is appointed from the town's lettered folk, and it is a town school even in a village. More of the town's children go from then on: 12% more at first and 3% more each year, up to 30%. It earns Prestige.
+
+Tuning: `data/townFamily.json`, `data/townSchool.json`.
+
+### Sickness in the Towns
+
+Every town whose people are on the roll lives through its own sicknesses every 2 days, whether you are there or not (`systems/illness.js`). Each case belongs to a person, who catches it, sickens, is nursed or not, and recovers or dies. Once sickness is running, most of a town's deaths come from it. The plain age deaths of *Townsfolk Live Their Lives* keep only a share (40% for infants, up to 85% for the old): falls, failing hearts and old age.
+
+| Illness | How it starts | Incubation | Course | Abed | Deaths per case, adult / old (before care) | Immune after |
+|---|---|---|---|---|---|---|
+| 🤧 Cold | anyone, mostly in autumn and winter (×2.2 in winter) | 1–2 d | 4–8 d | 10% | 0.06% / 2.5% | 90 days |
+| 🤒 Fever | anyone, worse in winter | 2–4 d | 5–10 d | 85% | 3% / 16% | 240 days |
+| 🤢 Flux | bad water, ×2.6 in summer | 1–3 d | 4–9 d | 75% | 2.5% / 13% | 120 days |
+| 😷 Consumption | age 12+, rare and slow | 10–30 d | 120–420 d | 35% | 50% / 70% | 360 days |
+| 🔴 Pox | brought in by travellers where many never had it | 5–8 d | 8–14 d | all | 16% / 30% | for life |
+| 🔥 Wound fever | a beating not healed within 10 days | 1–2 d | 4–9 d | all | 12% / 30% | none (not catching) |
+| 🔥 Childbed fever | 8% of births, within 8 days | 1–3 d | 4–8 d | all | 28% / 30% | none (not catching) |
+| 🐀 Plague | only where a Plague world event rages | 2–5 d | 4–9 d | all | 25% / 48% | for life |
+
+Infants die of most of these far more often (fever 10%, flux 12%, plague 42%). Most grown folk already had the pox as children. Consumption may linger instead of ending: 35% of the time it runs on for another, milder stretch.
+
+**Who catches it.** The risk rises with age (infants ×1.6, the old ×1.3), with frailty from 55, and with poverty (beggars ×1.8, nobles ×0.65). A house of more than 4 adds 8% for each extra person, up to ×1.4. Cities and capitals are riskier, and so is a food dearth (×1.6). Poor towns run up to ×1.3 and rich ones down to ×0.8, and bathhouses help in cities and capitals. Water matters most for the flux.
+
+**How it spreads.** A sick person is catching from the day before it shows until the end of the course. They pass it on hardest to their own household, less to those they work beside (all children count as playing together), and least to the town at large. A town with catching sick may pass a case to towns within 14 hexes. The odds rise with how many are sick and how big the other town is, fall with distance, and are ×2.5 for plague. Consumption never travels between towns. A Plague event seeds 1–3 cases in its own town (35% a step) and the odd case elsewhere in its realm (2.5% a step).
+
+**Quarantine.** A ruler can proclaim the Pestilence law's **Quarantine** (stability −1). Sickness then passes into and out of the realm's towns at 15% of the usual rate, and the gate guards turn folk back (`data/laws.json`).
+
+**Care.** At the end of a course, the chance of death is multiplied by the care the person had:
+- **Family** nursing at home ×0.85. With nobody at home, ×1.15.
+- **The healer** (the town's healer, or else its best hand at Medicine) visits the worst cases first, about 4 visits per healer every 2 days. The family pays a fee (1, 2, 3 or 4 gold in a village, town, city or capital), though the healer sometimes comes for charity. A visit is ×0.7, better for a more skilled healer (down to ×0.45). Herbs from the town's market are another ×0.88.
+- **The priest** visits the bedridden the healer missed: ×0.9.
+- Nobles are ×0.75 and merchants ×0.85. A dearth makes it 1.3× deadlier.
+
+**In the streets.** The sick look pale, cough and sniff, and the bedridden stay home in bed and groan. The healer goes from house to house. In an **epidemic** (12% of the town sick, or any plague), the healthy keep indoors and mutter warnings. In plague the watch calls *"Bring out your dead"*, and plague houses are marked with a red cross on the door. When someone dies, their kin gather at the church door to mourn. Sick hands work at 70% and the bedridden not at all, so a sick town's fields and workshops slow down, to half at worst. An outbreak is declared at 3 cases of a serious catching illness, or 1 of plague. You hear of it if you know someone there or are in the town.
+
+**The Sick of the Town** is in a town's action menu while anyone there is ill. It shows who is sick and who nurses them, the healer, what is going round, and past outbreaks with their dead (`systems/illnessPlayer.js`). From it you can:
+- **Pay the healer to go round the sick** (40, 70, 110 or 150 gold by town size). For 30 days your coin pays every visit's fee and herbs, the healer makes twice the rounds, and each visit is at least ×0.6. Whatever is left at the end, the healer keeps. It needs a healer on their feet. Karma +2, and the sick think a little better of you.
+- **Give alms to the poor** (25, 45, 70 or 100 gold). The coin goes to the purses of up to 8 of the poorest grown folk, who think better of you. For 30 days, beggars, villagers, farmers and children fall ill at ×0.75. Karma +2.
+
+**Bring them something by hand.** Give medicine (herbs, rare herbs, salve, potion, elixir, holy water or antidote) or food (bread, meat, fish, cheese, fruit, vegetables, honey, cider, mead and the like) to a sick person, or to their spouse, parent or child for them. The gift menu lists medicine first. Medicine makes their chance of death ×0.55, and food ×0.85. Medicine may also break the fever at once: up to 30% of the time for a mild case, less for a bad one. They remember that you nursed them.
+
+**Catching it yourself.** While you are in a sick town, each catching case gives you a small daily chance of the matching ailment (a cold or fever gives you a Chill; the flux, pox and plague give you the same). Each catching person you pass within 2 tiles on the street map adds four times as much. The daily chance for each illness is at most 6%, and your Strength and Medicine lower it. Consumption, wound fever and childbed fever don't pass to you, and you are safe aboard ship. Once you catch it, it is an ordinary ailment (see [Wounds, Sickness & Medicine](#wounds-sickness--medicine)).
+
+Tuning: `data/illness.json`.
+
+### Townsfolk Brawls
+
+Townsfolk fight each other as well as you (`systems/brawls.js`). A fight needs a reason and a temper. A person's temper comes from their traits (bold ×1.6, stubborn ×1.5, stern ×1.35, witty ×1.1, kind ×0.45, cautious ×0.5, quiet and pious ×0.6), their role (guard ×1.2, beggar ×0.8, noble ×0.7, priest ×0.3) and drink (×1.9). Children never fight. When two people square up, the hotter of them counts for 70% and the cooler for 30%.
+
+**Causes.** On the street map the town is checked every 5–9 seconds within 20 tiles of you. Only one fight runs at a time, and after one ends the town stays quiet for 25–50 seconds. Indoors, fights start only in a tavern.
+
+| Cause | When | Chance a look |
+|---|---|---|
+| An old grudge (the two within 8 tiles) | any time | 32% + 0.6% per point of grudge heat |
+| A cutpurse the mark saw today | any time | 65% |
+| Drink in the tavern (drinkers within 3 tiles) | 17:00–03:00 | 16%, ×1.8 from 22:00 |
+| A drunk in the street | 20:00–04:00 | 10% |
+| A haggle gone wrong at a stall | 07:00–18:00 | 5% |
+
+A thief caught by the watch may fight instead of going quietly (35% × their temper, at most 90%), and that fight starts at fists. When rival Houses' retinues are in the same town, their men come to blows on 18% of days.
+
+**Grudges** form each day in every town: 4% in a village, 7% in a town, 10% in a city and 12% in a capital. The cause sets the starting heat: a debt (25–45), an insult (15–30), courting the same lass or lad (30–50), an affair found out (55–80) or a field boundary (20–40). A cutpurse whose mark spotted them adds 35–55. Grudges cool by 0.35 a day and are forgotten below 4, and a town keeps at most 24.
+
+**How a fight climbs.** It starts with words (3.5–5.5 s), then a shove (1.6–2.4 s), then fists. They back down at the end of the words 30% of the time, and at the end of the shove 15%; hot heads back down less often and cool ones more. Steel comes out only in a serious fight (a grudge, the watch or retainers), only when someone is armed (a guard, noble, traveller, soldier or retainer), and only once someone is below 60% health, with a 35% chance after each blow. A blow lands 58% of the time, ±5% for each point of attack over defence, −12% if the attacker is drunk (25–88%). A fighter below 30% health runs 45% of the time, unless they are aggressive.
+
+**The crowd.** Up to 7 onlookers form a ring. After 2–5 s, kin (55%), friends (30%) and retainers (60%) may wade in, up to 3 on a side. After 6–10 s someone tries to part them, at most twice: the tavern keeper succeeds 60% of the time, and a kind, cautious or pious bystander or a priest 45%. Once steel is out, parting them is ×0.6. The nearest guard within 20 tiles comes after 2–5 s, or after 10–16 s indoors (fetched in from the street), and the guard's arrival ends the fight. A fight still going after 45 s ends with both too tired to go on.
+
+**Endings and aftermath.** A fight ends in a knock-out, someone running, the two being parted, the watch, or both backing down. A knock-out can bleed: 2.5% at fists, 30% with steel. A bystander binds the wound 60% of the time after 4–8 s, or you can do it yourself (see [Knocked Down](#knocked-down-the-senseless-the-bound-and-the-dead)).
+- The fighters are hurt and remember it. The grudge between them grows by 30 when someone wins, 18 when they are parted and 9 when they back down. Each ally gains 12 heat against the other side.
+- When the watch takes the one who started it, they are fined (into the town's purse, never more than they carry) and jailed:
+
+| Stage reached | Fine | Jail |
+|---|---|---|
+| Shove | 2g | none |
+| Fists | 6g | 3 days |
+| Steel | 25g | 15 days |
+| Someone dead | 25g | 60 days |
+
+- A tavern fight gets the one who started it barred from the tavern for 20–45 days, 60% of the time (on the street map the keeper must be there).
+- A fight that reaches fists goes on the town's record of crimes and into its annals. A near thing is told only 30% of the time. Fights between retainers lead to no arrests.
+
+**Off the map.** In towns you aren't walking, a whole fight is played out on 1.2% of days in a village, 3% in a town, 5% in a city and 6% in a capital. The rate is ×(1 + 0.15 for each open grudge), up to ×3. You hear of it only when someone you know was in it.
+
+**Your part.** Click a fighter or an onlooker:
+- **Cheer for** a side. That side thinks 4 better of you and the other 4 worse, and the side you cheer lands blows 6% more often (at most +20%).
+- **Bet 10 gold** on a side with the richest onlooker (one bet a fight). The odds are 0.9 ÷ that side's chance to win, between 1.15× and 5×. A win pays the stake × the odds, stake included, but never more than the bookie carries, and a bookie who pays you short thinks 5 worse of you. If there is no winner (parted, the watch, backed down) you get your stake back. Where gaming is forbidden, the bet is still taken, quietly.
+- **Break It Up.** You walk over and step between them. The chance is 40% + 4% per point of Strength + 3% per point of Charisma, +35% if the town is yours and ×0.7 once steel is out (5–95%). Once steel is out, the attempt itself is then ×0.6 again. If it works, every fighter still standing thinks 5 better of you. If it fails, they shove you aside and carry on.
+- **Join a side.** That side thinks 10 better of you, and you take their opponent out of the brawl yourself. That is an assault, and the watch wants you unless the town is yours.
+
+Tuning: `data/brawls.json`.
 
 ### Relationship Tiers
 
@@ -5154,6 +5702,35 @@ When one of your children dies, or your spouse, or the head of your House before
 
 Every coin is entered in the Ledger: *Grave leases sold*, *Blessings & sexton's fees*, *Bone mills, ossuaries & crypts built*, *Bones & bone meal*, *Ossuary visitors* and *Funerals of your own*.
 
+### Digging, Caches and Robbing the Dead
+
+On any street or wild map, right-click bare ground outdoors and choose **Dig a Hole** (`ui/innerMapDigging.js`, `data/digging.json`). You can't dig indoors, on a road, bridge, pier or deck, in water or a ford, in a doorway or on the tile in front of one, under anyone, through a crop, or anywhere in a churchyard or on a grave. You walk to the spot and dig, and walking off stops the work.
+
+| Work | Seconds | With tools |
+|---|---|---|
+| Dig a hole | 5 | 3 |
+| Fill it in | 3 | 1.8 |
+| Bury a body | 4 | 2.4 |
+| Dig up a grave or mound | 5 | 3 |
+
+- **Tools.** Carrying *tools*, *bronze tools* or *improved tools* makes every job take 0.6 of the time. Each job costs 6 energy (less with Endurance) and 6 hygiene.
+- **Finds.** A new hole turns up 5–24 old gold coins 12% of the time. Otherwise it may hold a broken pot (12%) or an old bone (10%), worth nothing.
+- **The ground heals.** A hole left open caves in to turned earth after 20 days, and turned earth fades back into the ground over 40 days.
+
+**Burying the dead.** Click a body and choose **Bury Them in the Hole** (the hole must be on or beside it) or **Dig a Grave for Them**. You can also carry the body to a hole and choose **Lay … in the Hole**. The result is an unmarked **burial mound**. It stays bare, dark earth for 30 days, then grasses over and sinks level over 360 days, though the record stays.
+- **A marker.** Raise one from your pack: a *grave cross* takes 3 s, and a *headstone* or *carved headstone* 4 s (grave carvers and masons sell them at market). Or **Carve a Wooden Cross** on the spot from 1 plank or 1 wood (10 s). The mound becomes a named grave you can **Read**, and you can **Pay Your Respects** at it.
+- **Opening it.** **Dig Up the Mound** (or grave) opens it. The body lies in the open pit, and any goods come up to you. From an open grave you can **Lift the Body Out**, **Lay** another body in it, put goods in, **Fill the Grave In** (the earth then shows disturbed for 60 days), or **Pull Up the Marker**, which goes back to your pack. In a town, the sexton fills in a grave left open for 3 days. If anyone sees you open a grave in town, the street treats it as desecration, the same as vandalism.
+
+**Caches.** Into any open hole or open grave you can **Put Something in the Hole**: a stack or part of one, or gold (the arms you wear stay on you). **Fill In the Hole (Bury It)**, and the cache is kept on the world. Dig the same tile again to get it back. Anything your packs can't hold stays in the hole. Goods put in with a body are buried as its grave goods.
+- **Who else finds it.** Up to 3 people who saw you fill it in are remembered (Stealth shortens how far onlookers see). From the next day, each of them has a 25% chance a day to come back and dig it up. A stranger digging by chance finds it on 0.2% of days on a town map, 0.05% in the wilds. None of this happens on the map you are standing on. If you come back to an empty hole, you are told so, and who watched you bury it.
+- **Night grave robbers** in town prefer a cache someone watched you bury, and a burial of yours laid with goods.
+
+**Robbing a churchyard grave, in numbers.** **Rob the Grave** takes 7 s of digging, and tools don't speed it. A common grave holds 1 grave good 15% of the time, a tradesman's family's 1–2 (60% of the time), and the gentry's always 2–4. Grave goods are worth about 12g each and sell anywhere. Robbed or not, the grave is left open with its marker askew, and an empty grave still counts against you if you are seen digging.
+- **Being caught.** The chance starts at 18%. Each person within 7 tiles adds 16%, and each guard 20%. The dark (22:00–05:00) takes off 10%, and being out in the street adds 6%. Each 1g of the goods' worth adds 0.15%, and Stealth lowers it (4–92%).
+- **Take the Bones** (4 s) and **Pry Up the** marker (4 s) on any grave are thefts on the same terms. Prying up a marker costs the extra 6 standing if you're caught, as robbing does. A ruler is never stopped in their own town.
+
+Tuning: `data/digging.json`, `data/graves.json` (`robbery`, grave-goods classes), `data/containers.json` (`theft`).
+
 ## Sagas
 
 Beyond single events, the world tells **sagas**: storylines in 3–5 chapters that unfold over two to four months whether or not you take part. Each one is staged on the game's own systems. Its chapters start real timed events, plagues and famines, put monsters and fleets on the map, open delve sites, raise heresies and succession crises, bring petitioners to your court and post quests. Each saga ends in one of several ways, and every ending leaves the world changed.
@@ -5521,6 +6098,27 @@ Click on your character or nearby hexes to open the **contextual radial action m
 - **Minimap**: Clickable for quick navigation.
 - **Notification Toasts**: Stacked alerts for events, achievements, and quest completions.
 - **Finance Panel**: Click your gold to see a 90-day financial breakdown.
+
+### The AI Brain: Voiced Townsfolk and the In-Browser Model
+
+A language model can, if you wish, give a voice to the people you talk to: townsfolk's replies, letters rephrased in their writer's voice, the court scribe's chapters of the Annals, and the proposals of rulers and rival heads of House. It is **off by default**, and the written lines stay the default. The model only narrates, and when it proposes, it chooses from a fixed menu. The game still rolls every die and checks every proposal, so the world runs the same with the model on or off. When the model is off, slow or out of reach, the written lines are used.
+
+Open **AI Settings** on the title screen (in a game: Settings → *Enable AI NPCs*), turn on **Enable AI NPCs**, and choose a **Provider**:
+- **Local (llama.cpp):** a llama-server you run yourself, at the endpoint and model you give.
+- **OpenAI:** your own API key, kept in this browser's settings and sent only to the endpoint.
+- **In-browser (WebLLM):** a small model run inside the game on your graphics card (WebGPU), with no server to start. It needs a browser with WebGPU. Without it, the panel says *Unsupported*.
+
+| Model | Download | Graphics memory | |
+|---|---|---|---|
+| Llama 3.2 3B (the default) | about 1.8 GB | about 2.3 GB | the best writing |
+| Qwen 2.5 1.5B | about 0.9 GB | about 1.6 GB | faster, plainer lines |
+| Qwen 2.5 0.5B | about 0.3 GB | under 1 GB | for integrated graphics: fast but simple-minded |
+
+- **Nothing downloads until you press Download / Load model.** The model is downloaded once into the browser's storage, with a progress bar. Loading takes up to a minute the first time, and the game may pause briefly while your graphics card prepares the model. After that, a model you have already downloaded loads by itself in the background about 8 seconds after a game starts. **Delete downloaded model** frees the disk space.
+- **How it answers.** The model runs on its own thread, so the map doesn't stall. It answers one request at a time, in at most 160 tokens, and gives up after 60 seconds (a request that waits in line longer than that is dropped). The game then falls back to its written lines.
+- **Try it first.** **Test Connection** checks that the model answers. **💬 Talk to the model** lets you say something and see its reply and how long it took (nothing is saved). **Temperature** sets how freely it writes. Press **Save** to keep the settings.
+
+Tuning: `data/llmModels.json` (the models, the timeout and the reply length).
 
 ### The Steward's Counsel
 

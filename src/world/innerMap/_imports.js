@@ -18,3 +18,4 @@ export { TownProps } from '../townProps.js';
 export { Economy } from '../economy.js';
 export { SettlementMarket } from '../settlementMarket.js';
 export { Characters } from '../characters.js';
+export { MarketStalls } from '../marketStalls.js';

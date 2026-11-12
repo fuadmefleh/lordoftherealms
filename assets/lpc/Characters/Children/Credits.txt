@@ -10,3 +10,55 @@ Child Base and heads
 	Idle Pose: Standing design by Kheftel, edited by Eliza Wyatt. 
 	Walk Animation: Made by Nila122, edited by Eliza Wyatt.
 	Jump Animation: Original for LPC male base by Durrani. Translated to the child base by Eliza Wyatt and Bencreating.
+
+Child clothing, hair, and the sitting body and head
+---------------------------------------------------
+  Taken from the Universal LPC Spritesheet Character Generator
+  (https://github.com/LiberatedPixelCup/Universal-LPC-Spritesheet-Character-Generator),
+  cut to this folder's layout (walk 8 frames, idle the standing frame, sit 3 frames)
+  and the hair recoloured to the LPC Revised hair palettes. The clothing's sit
+  frames are derived from the child body's sit frames, coloured in each garment's
+  own shades. Per-file rows from the generator's CREDITS.csv: CREDITS-ulpc-children.csv.
+
+  Clothing/Shirt, Clothing/Pants, Clothing/Skirt, Hair/Messy
+    ARTIST(S): Nila122
+    SOURCE: https://opengameart.org/content/lpc-clothes-for-children
+    LICENSE: OGA-BY 3.0 (also CC-BY-SA 3.0, GPL 3.0)
+
+  Hair/Wavy
+    ARTIST(S): Nila122
+    SOURCE: https://opengameart.org/content/3-hairs-for-lpc
+    LICENSE: OGA-BY 3.0 (also CC-BY-SA 3.0, GPL 2.0, GPL 3.0)
+
+  Hair/Braid
+    ARTIST(S): Nila122, ElizaWy
+    SOURCE: https://opengameart.org/content/3-hairs-for-lpc
+    SOURCE: https://opengameart.org/content/lpc-hair
+    LICENSE: OGA-BY 3.0 (also CC-BY-SA 3.0, GPL 3.0, GPL 2.0)
+
+  Hair/Swoop, Hair/Parted Bangs, Hair/Parted Bangs 2, Hair/Curls (the generator's "jewfro")
+    ARTIST(S): JaidynReiman
+    SOURCE: https://opengameart.org/content/lpc-1-hairstyle-2-hair-extensions-3-previously-unofficially-released-hairstyles
+    LICENSE: OGA-BY 3.0+ (also CC-BY 3.0+, CC-BY-SA 3.0, GPL 3.0)
+
+  Hair/Relm
+    ARTIST(S): JaidynReiman
+    SOURCE: https://opengameart.org/content/lpc-relm-hair-xlong-ponytail
+    LICENSE: OGA-BY 3.0+ (also CC-BY 3.0+, GPL 3.0)
+
+  Body/<skin>/sit.png
+    ARTIST(S): bluecarrot16, Benjamin K. Smith (BenCreating), ElizaWy, MuffinElZangano,
+               Durrani, Nila122, kheftel, Stephen Challener (Redshrike)
+    LICENSE: OGA-BY 3.0 (also CC-BY-SA 3.0, GPL 3.0)
+
+  Head/Head 01 - Default/<skin>/sit.png
+    ARTIST(S): Stephen Challener (Redshrike), kheftel, bluecarrot16
+    LICENSE: OGA-BY 3.0 (also CC-BY 3.0, GPL 3.0)
+
+  Body/<skin>/hurt.png, Head/Head 01 - Default/<skin>/hurt.png, Hair/<style>/<colour>/hurt.png
+    The generator's child hurt sheets (the fall to lying), recoloured to each skin and to the
+    LPC Revised hair palettes (Messy and Braid fall as Curls and Wavy). The clothing's hurt
+    frames are derived from the child body's hurt frames, coloured in each garment's own shades.
+    ARTIST(S): bluecarrot16, Benjamin K. Smith (BenCreating), ElizaWy, Durrani, Nila122,
+               kheftel, Stephen Challener (Redshrike), JaidynReiman
+    LICENSE: OGA-BY 3.0 (also CC-BY-SA 3.0, GPL 3.0)

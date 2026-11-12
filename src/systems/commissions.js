@@ -40,6 +40,8 @@ import { MarketGrades } from '../world/marketGrades.js';
 import { Languages } from './languages.js';
 import { Ledger } from './ledger.js';
 import { TradeSkills } from './tradeSkills.js';
+// (the real worker who takes the job, away from the town's own work till it's done)
+import { TownJobs } from './townJobs.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -292,6 +294,8 @@ export const Commissions = {
             out: q.give, grades: q.grades, readyDay: _day(world) + q.days, collected: false, told: false,
         };
         player.commissions.push(job);
+        const hand = TownJobs.engage(world, s, offer, job.readyDay, offer.label);
+        if (hand) job.worker = `${hand.first} ${hand.last}`;
         const outText = Object.entries(q.give).filter(([, n]) => n > 0).map(([g, n]) => `${n} ${Commissions._goodName(g).toLowerCase()}`).join(', ');
         const when = q.days <= 0 ? 'by the end of the day' : `in ${q.days + 1} days`;
         return { success: true, job, text: `${offer.who[0].toUpperCase() + offer.who.slice(1)} will have ${outText} for you ${when}${pay === 'cut' ? ' (keeping their cut)' : ` (${q.fee} gold)`}.` };
@@ -318,6 +322,8 @@ export const Commissions = {
             out: q.give, grades: q.grades, readyDay: _day(world) + q.days, collected: false, told: false,
         };
         player.commissions.push(job);
+        const hand = TownJobs.engage(world, s, offer, job.readyDay, offer.label);
+        if (hand) job.worker = `${hand.first} ${hand.last}`;
         const outText = Object.entries(q.give).filter(([, n]) => n > 0).map(([g, n]) => `${n} ${name(g)}`).join(', ');
         const when = q.days <= 0 ? 'by the end of the day' : `in ${q.days + 1} days`;
         return { success: true, job, text: `${offer.who[0].toUpperCase() + offer.who.slice(1)} will have ${outText} for you ${when} (${q.total} gold, the stuff bought in ${s.name}).` };

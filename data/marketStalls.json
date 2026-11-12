@@ -1,0 +1,148 @@
+{
+    "_doc": "The trades of a town square's market stalls and the marketplace hall's stalls (world/marketStalls.js). Each stall is one trader: it sells only its trade's goods, out of the town market's real stock (settlement.market) at the market's own prices, and its keeper buys back only goods of its trade (goods + buys). A stall's trade is drawn once per stall by a hash of the world seed, the town and the stall's place, weighted by the trade's weight x its culture's multiplier x the land around the town (land: terrain class shares) x how well the market is stocked in its goods, never two alike in one square while another trade is open; it is kept on the settlement (settlement.stallTrades) and only drawn again if the town no longer allows it (tier, type, culture, water). tiers: the town's wealth tiers (world/settlementWealth.js standing) the trade sets up in; routeTiers: tiers it also sets up in when traders bring goods in (market.trade.in >= routeIn); minType: the smallest settlement with the trade; needsWater: only by the sea, a lake or a river; minWares: goods of its own the market must have in stock (>= 1 unit) for the trade to set up; cultures: weight multipliers by culture (0 bars it); stall: the stall's name ('Marta's Fish Stall'); art: its counter wares and side props (data/townProps.json stallArt; defaults to the trade id); cries: what its keeper calls out ({good} is one of the wares in stock, {town} the town); artVariants: other looks the stall wears by what it has in stock today, the first whose goods it has at least min (and at most max) of in stock (world/marketStalls.js artFor): the greengrocer heaped with fruit after the harvest, with roots and cabbages through the winter.",
+    "routeIn": 3,
+    "fallback": "greengrocer",
+    "trades": {
+        "greengrocer": {
+            "name": "Greengrocer", "stall": "Produce Stall", "icon": "🥬",
+            "goods": ["cabbage", "turnips", "carrots", "onions", "beans", "apples", "pears", "plums", "cherries", "grapes", "olives", "dates", "berries", "cabbage_seed", "carrot_seed", "turnip_seed", "onion_seed", "bean_seed", "strawberry_seed", "wheat_seed", "flax_seed"],
+            "buys": ["cabbage", "turnips", "carrots", "onions", "beans", "apples", "pears", "plums", "cherries", "grapes", "olives", "dates", "berries", "mushrooms", "vegetables", "fruit", "flowers"],
+            "artVariants": [
+                { "art": "greengrocer_orchard", "goods": ["apples", "pears", "plums", "cherries", "grapes", "olives", "dates"], "min": 4 },
+                { "art": "greengrocer_roots", "goods": ["apples", "pears", "plums", "cherries", "grapes", "olives", "dates"], "max": 1 }
+            ],
+            "tiers": ["poor", "mid", "rich"], "weight": 1, "land": { "pasture": 1 },
+            "cries": ["Fresh from the fields!", "Good {good}, picked this morning!", "Seed for your garden, and the best of the crop!", "{good}! Fine and fresh!", "Roots and greens, and fruit in its season!"]
+        },
+        "butcher": {
+            "name": "Butcher", "stall": "Meat Stall", "icon": "🥩",
+            "goods": ["meat", "sausage", "dried_meat", "meat_pie", "tallow"],
+            "buys": ["meat", "sausage", "dried_meat", "hide", "tallow"],
+            "tiers": ["poor", "mid", "rich"], "weight": 1, "land": { "pasture": 1.5, "forest": 0.5 },
+            "cultures": { "Nomadic": 1.6, "Mountain": 1.2 },
+            "cries": ["Fresh {good}! Killed this morning!", "Best cuts in {town}!", "{good}, fat and tender!", "Sausages! Hot from the smoke!"]
+        },
+        "fishmonger": {
+            "name": "Fishmonger", "stall": "Fish Stall", "icon": "🐟",
+            "goods": ["fish", "preserved_fish", "crab"],
+            "buys": ["fish", "preserved_fish", "small_fish", "large_fish", "crab", "lobster", "mussels", "oysters", "crayfish", "swordfish", "golden_fish", "seaweed"],
+            "tiers": ["poor", "mid", "rich"], "weight": 1.2, "needsWater": true, "land": { "water": 3 },
+            "cultures": { "Maritime": 2.5, "Nordic": 1.5, "Swamp": 1.3 },
+            "artVariants": [
+                { "art": "fishmonger_nocrab", "goods": ["crab"], "max": 0 }
+            ],
+            "cries": ["Fresh fish! Caught this morning!", "{good}! Still smelling of the sea!", "Fish off the boats, fresh as the tide!", "Who'll buy my {good}?"]
+        },
+        "baker": {
+            "name": "Baker", "stall": "Bread Stall", "icon": "🍞",
+            "goods": ["bread", "flour", "grain", "honey_cake", "meat_pie"],
+            "buys": ["bread", "flour", "grain"],
+            "tiers": ["poor", "mid", "rich"], "weight": 1.2, "land": { "pasture": 0.5 },
+            "cries": ["Fresh bread! Hot from the oven!", "{good}! Baked at dawn!", "Loaves, rolls, and good {good}!", "Bread for the table!"]
+        },
+        "cheesemonger": {
+            "name": "Cheesemonger", "stall": "Cheese Stall", "icon": "🧀",
+            "goods": ["cheese", "butter", "milk", "eggs", "honey"],
+            "buys": ["cheese", "butter", "milk", "eggs", "honey"],
+            "tiers": ["poor", "mid", "rich"], "weight": 0.8, "land": { "pasture": 2 },
+            "cultures": { "Nomadic": 1.5, "Mountain": 1.4 },
+            "cries": ["Cheese! Ripe and ready!", "Good {good} from the hill farms!", "Try a taste of my {good}!"]
+        },
+        "draper": {
+            "name": "Draper", "stall": "Cloth Stall", "icon": "🧵",
+            "goods": ["textiles", "linen", "clothes", "wool_cloak", "fine_garments", "wool", "flax", "dyes", "silk"],
+            "buys": ["textiles", "linen", "clothes", "wool_cloak", "fine_garments", "fur_coat", "wool", "flax", "dyes", "silk"],
+            "tiers": ["poor", "mid", "rich"], "weight": 1, "land": { "pasture": 0.6 },
+            "cultures": { "Imperial": 1.2 },
+            "cries": ["Fine cloth! Feel the weave!", "{good}, cut to your length!", "Wool and linen, warm and strong!", "Dress for the season, friends!"]
+        },
+        "cobbler": {
+            "name": "Cobbler", "stall": "Boot Stall", "icon": "👢",
+            "goods": ["boots", "leather", "saddle", "leather_goods"],
+            "buys": ["boots", "leather", "saddle", "leather_goods", "hide"],
+            "tiers": ["poor", "mid", "rich"], "weight": 0.8, "land": { "pasture": 0.6 },
+            "cultures": { "Nomadic": 1.4 },
+            "cries": ["Boots! Stout boots for the road!", "{good}, stitched to last!", "Mend your shoes, buy new ones!"]
+        },
+        "potter": {
+            "name": "Potter", "stall": "Pottery Stall", "icon": "🏺",
+            "goods": ["pottery", "glassware", "glass", "clay"],
+            "buys": ["pottery", "glassware", "glass", "clay"],
+            "tiers": ["poor", "mid", "rich"], "weight": 0.8,
+            "cultures": { "Desert": 1.4, "Imperial": 1.2, "Nomadic": 0.4 },
+            "cries": ["Pots and bowls! Fired this week!", "{good}, sound and true — tap it and hear!", "Jugs, crocks and good {good}!"]
+        },
+        "chandler": {
+            "name": "Chandler", "stall": "Candle Stall", "icon": "🕯️",
+            "goods": ["candles", "soap", "tallow", "lamp_oil", "oil", "rope", "lantern"],
+            "buys": ["candles", "soap", "tallow", "lamp_oil", "oil", "rope", "lantern"],
+            "tiers": ["poor", "mid", "rich"], "weight": 0.9,
+            "cultures": { "Maritime": 1.3, "Nordic": 1.2 },
+            "cries": ["Candles! Light against the dark!", "{good}! Good and cheap!", "Soap and candles, rope and oil!"]
+        },
+        "ironmonger": {
+            "name": "Ironmonger", "stall": "Ironmongery", "icon": "🔨",
+            "goods": ["tools", "steel_tools", "iron", "steel", "tin", "copper", "bronze", "iron_ingot", "bronze_bar", "fishing_spear"],
+            "buys": ["tools", "steel_tools", "iron", "steel", "tin", "copper", "bronze", "iron_ingot", "bronze_bar", "ore", "fishing_spear"],
+            "tiers": ["poor", "mid", "rich"], "weight": 0.9, "minType": "village", "land": { "upland": 1.2 },
+            "cultures": { "Mountain": 1.6, "Nordic": 1.2 },
+            "cries": ["Tools! Good iron tools!", "{good}, sharp and true!", "Pots mended, blades ground, tools for sale!"]
+        },
+        "spicer": {
+            "name": "Spice Merchant", "stall": "Spice Stall", "icon": "🌶️",
+            "goods": ["spices", "exotic_spices", "salt", "tea", "incense", "perfume", "luxuries"],
+            "buys": ["spices", "exotic_spices", "salt", "tea", "incense", "perfume", "luxuries"],
+            "tiers": ["mid", "rich"], "routeTiers": ["poor"], "weight": 0.8, "minType": "town", "land": { "arid": 2, "water": 0.5 },
+            "cultures": { "Desert": 2.5, "Nomadic": 1.4, "Maritime": 1.3 },
+            "cries": ["Spices from far away!", "{good}! Smell it, friend, smell it!", "Salt and spice, at a fair price!"]
+        },
+        "herbalist": {
+            "name": "Herbalist", "stall": "Herb Stall", "icon": "🌿",
+            "goods": ["herbs", "rare_herbs", "healing_salve", "poultice", "tonic", "mushrooms", "berries", "honey", "herb_seed"],
+            "buys": ["herbs", "rare_herbs", "healing_salve", "poultice", "tonic", "mushrooms", "berries", "honey", "flowers"],
+            "tiers": ["poor", "mid", "rich"], "weight": 0.7, "minWares": 2, "land": { "forest": 1.2 },
+            "cultures": { "Woodland": 2, "Swamp": 1.8, "Arcane": 1.4 },
+            "cries": ["Herbs for every ill!", "{good}, gathered by moonlight!", "Salves and simples!"]
+        },
+        "woodworker": {
+            "name": "Woodworker", "stall": "Woodware Stall", "icon": "🌲",
+            "goods": ["joinery", "barrel", "planks", "bow", "arrows", "bolts", "resin"],
+            "buys": ["joinery", "barrel", "planks", "bow", "arrows", "bolts", "resin", "wood"],
+            "tiers": ["poor", "mid", "rich"], "weight": 0.8, "land": { "forest": 1.5 },
+            "cultures": { "Woodland": 1.6, "Nordic": 1.2 },
+            "cries": ["Turned and carved! Good {good}!", "Barrels, bows and boards!", "{good}, made by these hands!"]
+        },
+        "jeweller": {
+            "name": "Jeweller", "stall": "Jewellery Stall", "icon": "💍",
+            "goods": ["silver_jewellery", "gold_jewellery", "gems", "silver_bar", "gold_bar"],
+            "buys": ["silver_jewellery", "gold_jewellery", "gems", "silver_bar", "gold_bar", "gold_ore", "silver_ore"],
+            "tiers": ["rich"], "weight": 0.7, "minType": "town",
+            "cultures": { "Imperial": 1.4, "Arcane": 1.2 },
+            "cries": ["Silver and gold! For your sweetheart!", "{good}! Fit for a lord!", "Rings and brooches, fine work!"]
+        },
+        "vintner": {
+            "name": "Vintner", "stall": "Wine & Ale Stall", "icon": "🍷",
+            "goods": ["wine", "beer", "cider", "mead", "liquor", "rum"],
+            "buys": ["wine", "beer", "cider", "mead", "liquor", "rum"],
+            "tiers": ["poor", "mid", "rich"], "weight": 0.8,
+            "cultures": { "Nordic": 1.3, "Imperial": 1.2, "Religious": 0.6 },
+            "cries": ["{good} by the jug!", "Wet your throat — good {good} here!", "Ale and wine, the best in {town}!"]
+        },
+        "stationer": {
+            "name": "Stationer", "stall": "Book Stall", "icon": "📜",
+            "goods": ["parchment", "ink", "book", "quills", "rare_book"],
+            "buys": ["parchment", "ink", "book", "quills", "rare_book"],
+            "tiers": ["mid", "rich"], "weight": 0.5, "minType": "town",
+            "cultures": { "Religious": 2, "Arcane": 2, "Imperial": 1.3, "Nomadic": 0.3 },
+            "cries": ["Ink and parchment!", "{good}! For scholars and clerks!", "Books, friend — wisdom by the page!"]
+        },
+        "woodmonger": {
+            "name": "Woodmonger", "stall": "Firewood Stall", "icon": "🔥",
+            "goods": ["firewood", "coal", "wood"],
+            "buys": ["firewood", "coal", "wood"],
+            "tiers": ["poor", "mid", "rich"], "weight": 0.6, "land": { "forest": 1, "cold": 1.5 },
+            "cultures": { "Nordic": 1.5, "Mountain": 1.2, "Desert": 0.5 },
+            "cries": ["Firewood! Dry and split!", "{good} for your hearth!", "Keep warm — {good} here!"]
+        }
+    }
+}

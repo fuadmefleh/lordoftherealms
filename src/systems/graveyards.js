@@ -47,6 +47,9 @@ import { Economy } from '../world/economy.js';
 import { Townsfolk } from './townsfolk.js';
 import { Ledger } from './ledger.js';
 import { Containers } from './containers.js';
+import { StreetCrime } from './streetCrime.js';
+import { Scavengers } from './scavengers.js';
+import { Burials } from '../world/burials.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -411,6 +414,8 @@ export const Graveyards = {
             Graveyards._sitesDay(world, player, day, notices);
             Graveyards._kinDay(world, player, day, notices);
         }
+        // The night's grave robbers, the sexton's round of open graves, the player's own burials and caches (systems/scavengers.js)
+        for (const n of Scavengers.processDay(world, player).notices) notices.push(n);
         return { notices };
     },
 
@@ -963,23 +968,113 @@ export const Graveyards = {
         if (!gr) return { success: false, reason: 'No one lies there.' };
         if (Graveyards.mayExhume(world, s, groundId, plot)) return Graveyards.clearPlot(player, world, s, groundId, plot, 'self');
         if (gr.kin) return { success: false, reason: 'Not your own blood.' };
-        const goodId = _num(gr.goods) > 0 ? 'grave_goods' : 'bones';
-        const n = goodId === 'grave_goods' ? _num(gr.goods) : 1;
-        const ctx = { kingdom: s.kingdom != null ? s.kingdom : null, inSettlement: true, settlementName: s.name, worldQ: s.q, worldR: s.r, building: null, furnitureType: 'grave', ownerName: `the family of ${gr.name}` };
-        const res = Containers.stealGoods(player, world, ctx, goodId, n, scene);
+        if (gr.open != null) return { success: false, reason: 'The grave already lies open.' };
+        const day = _day(world);
+        const ctx = Graveyards._theftCtx(s, gr);
+        // Dug open, whatever comes of it: the earth heaped beside it, the coffin bare, the marker
+        // still standing (knocked askew) — the grave stays the grave (world/burials.js lifecycle)
+        gr.open = day;
+        gr.robbed = day;
+        if (gr.marker) gr.askew = true;
+        Graveyards._noteOpen(s, groundId, plot);
+        const royal = StreetCrime.aboveLaw(player, world, s);
+        const n = _num(gr.goods);
+        let res;
+        if (n > 0) {
+            // The ruler in their own town: no watch will lay hands on them (the goods are no less taken)
+            if (royal) { _invGive(player, 'grave_goods', n); res = { ok: true, text: `You take ${n} grave good${n === 1 ? '' : 's'}. Your watch looks the other way.` }; }
+            else res = Containers.stealGoods(player, world, ctx, 'grave_goods', n, scene);
+            if (res.ok) gr.goods = 0;
+        } else {
+            // Nothing buried with them: a bare coffin — but anyone watching saw a grave dug up all the same
+            res = !royal && Containers.caughtAt(player, ctx, 'grave_goods', 1, scene)
+                ? Containers.punishTheft(player, world, ctx, 'grave_goods', 1)
+                : { ok: true, text: 'Nothing was buried with them but their bones.' };
+        }
         if (res.caught) {
+            gr.robbedBy = player.name || 'a stranger';
             const R = GraveBook.config().robbery;
             if (ctx.kingdom != null && player.reputation) player.reputation[ctx.kingdom] = _num(player.reputation[ctx.kingdom]) - _num(R.reputation, 6);
-            return { success: false, caught: true, reason: `${res.text} Robbing the dead: the town will not soon forget it.` };
+            return { success: false, caught: true, opened: true, reason: `${res.text} Robbing the dead: the town will not soon forget it.` };
+        }
+        if (!res.ok) return { success: false, opened: true, reason: res.text };
+        return { success: true, opened: true, text: `${res.text} ${gr.name}'s grave lies open, ${gr.marker ? 'its marker knocked askew over it' : 'the earth heaped beside it'}.` };
+    },
+
+    /** Where a theft from a grave is reckoned (Containers' ctx). */
+    _theftCtx(s, gr) {
+        return { kingdom: s.kingdom != null ? s.kingdom : null, inSettlement: true, settlementName: s.name, worldQ: s.q, worldR: s.r, building: null, furnitureType: 'grave', ownerName: `the family of ${gr.name}` };
+    },
+
+    /** An open grave, for the sexton to fill in and the town to find (systems/scavengers.js mend). */
+    _noteOpen(s, groundId, i) {
+        Scavengers._noteOpen(s, groundId, i);
+    },
+
+    /** Take the bones out of an open grave (a theft as robbing it is). */
+    takeBones(player, world, s, groundId, plot, scene = {}) {
+        const ground = Graveyards.ground(s, groundId);
+        const gr = ground && ground.plots[plot];
+        if (!gr || gr.open == null) return { success: false, reason: 'The grave is not open.' };
+        if (gr.kin) return { success: false, reason: 'Not your own blood.' };
+        if (gr.bonesTaken || gr.bodyTaken) return { success: false, reason: 'There is nothing left in it.' };
+        if (!PlayerInventory.canAdd(player, 'bones')) return { success: false, reason: PlayerInventory.fullMessage ? PlayerInventory.fullMessage(player) : 'Your packs are full.' };
+        const res = StreetCrime.aboveLaw(player, world, s)
+            ? (_invGive(player, 'bones', 1), { ok: true, text: 'You lift the bones out.' })
+            : Containers.stealGoods(player, world, Graveyards._theftCtx(s, gr), 'bones', 1, scene);
+        if (res.caught) { gr.robbedBy = player.name || 'a stranger'; return { success: false, caught: true, reason: res.text }; }
+        if (!res.ok) return { success: false, reason: res.text };
+        gr.bonesTaken = _day(world);
+        return { success: true, text: `${res.text} ${gr.name}'s grave is empty now.` };
+    },
+
+    /** Fill an open grave in again (the player, or the sexton): its earth disturbed a while, its marker set straight. */
+    refillGrave(world, s, groundId, plot) {
+        const ground = Graveyards.ground(s, groundId);
+        const gr = ground && ground.plots[plot];
+        if (!gr || gr.open == null) return { success: false, reason: 'The grave is not open.' };
+        gr.open = null;
+        gr.disturbed = _day(world);
+        gr.askew = false;
+        const g = GraveBook.of(s);
+        if (g && Array.isArray(g.openGraves)) g.openGraves = g.openGraves.filter(x => !(x.g === groundId && x.i === plot));
+        return { success: true, text: `You shovel the earth back into ${gr.name}'s grave and set the marker straight. The ground will show it was disturbed, for a while.` };
+    },
+
+    /** The marker over a grave that could be pried up and carried off (an item made of it), or null. */
+    pryableMarker(world, s, groundId, plot) {
+        const ground = Graveyards.ground(s, groundId);
+        const gr = ground && ground.plots[plot];
+        if (!gr || gr.kin) return null;
+        const m = GraveBook.markerNow(gr, _day(world));
+        const def = m && Burials.config().markers[m];
+        return def && def.item ? { marker: m, item: def.item, name: (GraveBook.markerDef(m) || {}).name || m } : null;
+    },
+
+    /**
+     * Pry up a grave's marker and carry it off: a theft and a desecration (never a side
+     * effect of anything else). The grave stays, marked by no one; legible no more.
+     */
+    pryMarker(player, world, s, groundId, plot, scene = {}) {
+        const ground = Graveyards.ground(s, groundId);
+        const gr = ground && ground.plots[plot];
+        const p = Graveyards.pryableMarker(world, s, groundId, plot);
+        if (!gr || !p) return { success: false, reason: 'There is no marker there to take.' };
+        if (!PlayerInventory.canAdd(player, p.item)) return { success: false, reason: PlayerInventory.fullMessage ? PlayerInventory.fullMessage(player) : 'Your packs are full.' };
+        const res = StreetCrime.aboveLaw(player, world, s)
+            ? (_invGive(player, p.item, 1), { ok: true, text: `You pry up the ${p.name.toLowerCase()}.` })
+            : Containers.stealGoods(player, world, Graveyards._theftCtx(s, gr), p.item, 1, scene);
+        if (res.caught) {
+            const R = GraveBook.config().robbery;
+            const k = s.kingdom != null ? s.kingdom : null;
+            if (k != null && player.reputation) player.reputation[k] = _num(player.reputation[k]) - _num(R.reputation, 6);
+            return { success: false, caught: true, reason: `${res.text} Tearing up a grave's marker: the town will not soon forget it.` };
         }
         if (!res.ok) return { success: false, reason: res.text };
-        // The bones come up with the goods (hot as well)
-        if (goodId === 'grave_goods' && PlayerInventory.canAdd(player, 'bones')) {
-            _invGive(player, 'bones', 1);
-        }
-        ground.plots[plot] = null;
-        ground.open[plot] = _day(world);
-        return { success: true, text: `${res.text} ${gr.name}'s grave lies open behind you.` };
+        gr.marker = 'grave_mound';
+        gr.markerTaken = _day(world);
+        gr.askew = false;
+        return { success: true, text: `${res.text} ${gr.name}'s grave is unmarked now.` };
     },
 
     // ──────────── THE PANEL ────────────
@@ -1038,6 +1133,10 @@ export const Graveyards = {
         const gr = ground && ground.plots[plot];
         if (!gr) return null;
         const day = _day(world);
-        return { grave: gr, ground, mine: ground.owner === 'player', legible: GraveBook.isLegible(gr, day), expired: GraveBook.isExpired(gr, day), marker: GraveBook.markerNow(gr, day) };
+        return {
+            grave: gr, ground, mine: ground.owner === 'player', legible: GraveBook.isLegible(gr, day), expired: GraveBook.isExpired(gr, day), marker: GraveBook.markerNow(gr, day),
+            open: gr.open != null, robbed: gr.robbed != null, askew: !!gr.askew,
+            disturbed: gr.disturbed != null && day - gr.disturbed < _num(Burials.config().disturbedDays, 60),
+        };
     },
 };

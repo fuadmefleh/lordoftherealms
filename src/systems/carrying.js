@@ -14,6 +14,7 @@
 //   bedSpot(...)          — a bed beside the player (or the one clicked) to lay them in
 //   struggle(npc, seed)   — coming round on the shoulder: they kick free, in fear or anger
 //   bloodPool / drips     — a body's pool stays where it fell; a carried body drips behind
+//   handOver(npc, ctx)    — a captive laid in the gaol's cells: a citizen's arrest or a kidnapping
 //
 // Data: data/carrying.json.
 
@@ -24,6 +25,14 @@ const DEFAULTS = {
     handsActions: [],
     struggle: { angerTraits: ['bold', 'stern', 'stubborn'], lines: { anger: ['Put me down!'], fear: ['Help!'] } },
     blood: { dripSeconds: 90, dripEvery: 2, keepDays: 3 },
+    handOver: {
+        offenderMarks: ['_struckPlayerFirst', '_thief', '_graveRobber', '_outlaw', '_scav', '_pickpocket', '_wanted'],
+        offenderTypes: ['bandit', 'outlaw', 'thief', 'brigand'],
+        neverOffender: ['child', 'guard'],
+        arrest: { reputation: 2, karma: 1 },
+        kidnapping: { disposition: -60 },
+        lines: { arrest: ['In the cells with you.'], kidnapping: ['What is this? Seize them!'] },
+    },
 };
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
@@ -66,6 +75,7 @@ export const Carrying = {
                     lines: { ...DEFAULTS.struggle.lines, ...(_obj(st.lines) || {}) },
                 },
                 blood: { ...DEFAULTS.blood, ...(_obj(d.blood) || {}) },
+                handOver: { ...DEFAULTS.handOver, ...(_obj(d.handOver) || {}) },
             };
         }
         return _cfg;
@@ -149,6 +159,36 @@ export const Carrying = {
         const pool = S.lines[mood] || [];
         const bark = pool.length ? pool[Math.floor(_frac(`${seed}|${npc && (npc.id != null ? npc.id : npc.name)}|struggle`) * pool.length) % pool.length] : null;
         return { mood, bark };
+    },
+
+    // ──────────── HANDED TO THE WATCH ────────────
+
+    /**
+     * A captive laid in the gaol's cells: what the watch makes of it. Someone with a deed against
+     * them — they set on the player, were caught thieving, robbing graves or looting, an outlaw, or
+     * named in the town's record of crimes (`ctx.npcCrime`) — is a citizen's arrest: the gaoler takes
+     * them. Anyone else, and always a child or one of the watch, is a kidnapping: the gaoler frees
+     * them and the player answers for it.
+     * @param {object} npc the captive (an inner-map NPC)
+     * @param {object} [ctx] { npcCrime: a record naming them (systems/streetCrime.js npcCrimes), seed }
+     * @returns {{ verdict:'arrest'|'kidnapping', why:string, line:string|null }}
+     */
+    handOver(npc, ctx = {}) {
+        const H = Carrying.config().handOver;
+        const pick = (list, k) => (Array.isArray(list) && list.length ? list[Math.floor(_frac(`${ctx.seed || ''}|${npc && npc.id}|${k}`) * list.length) % list.length] : null);
+        const lines = _obj(H.lines) || {};
+        const type = npc && npc.type;
+        const out = (verdict, why) => ({ verdict, why, line: pick(lines[verdict], verdict) });
+        if (!npc) return out('kidnapping', 'No one at all.');
+        if ((H.neverOffender || []).includes(type) || (npc._person && npc._person.role === 'child')) {
+            return out('kidnapping', type === 'guard' ? 'One of the watch, bound like a beast.' : 'A child, bound and carried off.');
+        }
+        const mark = (H.offenderMarks || []).find(m => npc[m]);
+        if (mark === '_struckPlayerFirst') return out('arrest', 'They set on you first.');
+        if (mark) return out('arrest', 'Caught in a crime of their own.');
+        if ((H.offenderTypes || []).includes(type)) return out('arrest', 'An outlaw.');
+        if (ctx.npcCrime) return out('arrest', 'The town has a crime against their name.');
+        return out('kidnapping', 'They have done nothing the watch knows of.');
     },
 
     // ──────────── BLOOD ────────────

@@ -608,7 +608,7 @@
         "provisions": {
             "_doc": "Ships away from port feed their crew from the hold: one unit of any listed food feeds sailorsPerRation sailors for a day. A ship's chandler at a port sells the provision item at chandlerMarkup over the town's food price (never below minPrice). A crew with nothing to eat loses hungerMoraleLoss morale a day; after scurvyAfterHungryDays hungry days scurvy breaks out aboard, and a broken crew deserts.",
             "item": "food",
-            "foods": ["food", "preserved_fish", "bread", "grain", "fish", "cooked_fish", "cooked_meat", "game_meat", "fruit", "berries", "honey", "crabs", "seaweed", "mushrooms"],
+            "foods": ["food", "preserved_fish", "bread", "grain", "fish", "cooked_fish", "cooked_meat", "game_meat", "fruit", "berries", "honey", "crabs", "seaweed", "mushrooms", "beans", "turnips", "onions", "apples", "dates", "olives"],
             "sailorsPerRation": 4,
             "chandlerMarkup": 1.5,
             "minPrice": 6,

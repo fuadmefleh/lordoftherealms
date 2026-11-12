@@ -3,7 +3,15 @@
 // world.hospitality, a roadhouse stands on the open road it serves, and the
 // player's own houses open their lodging and management.
 import { InnerMap } from './_ref.js';
-import { Hospitality } from './_imports.js';
+import { Hospitality, Utils } from './_imports.js';
+
+const PAY_AT = ['inn', 'tavern', 'guest_house', 'hotel', 'roadhouse'];
+
+function _frac(str) {
+    let h = Utils.hashStr(String(str)) >>> 0;
+    h ^= h >>> 16; h = Math.imul(h, 0x85ebca6b) >>> 0; h ^= h >>> 13; h = Math.imul(h, 0xc2b2ae35) >>> 0; h ^= h >>> 16;
+    return (h >>> 0) / 4294967296;
+}
 
 /** A hash stream for placements that must not draw on the generation RNG. */
 function _rng(q, r, salt) {
@@ -152,6 +160,34 @@ Object.assign(InnerMap, {
         npc.name = first;
         npc.lastName = last;
         npc.fullName = last ? `${first} ${last}` : first;
+    },
+
+    /**
+     * In at a door (npcs.js / townLife.js): a traveller come to their lodging
+     * for the night pays for the bed, and anyone come to supper at an inn or
+     * tavern pays for it — real coin, from their purse to the keeper's
+     * (systems/hospitality.js npcPays). Once a day each.
+     */
+    _townEntered(npc, bldg) {
+        const ctx = this._townWorkCtx;
+        if (!npc || !bldg || !ctx || !ctx.world || bldg.isPlayerOwned || !PAY_AT.includes(bldg.type)) return null;
+        const day = this.worldDay || 0;
+        const h = ((this.timeOfDay == null ? 12 : this.timeOfDay) % 24 + 24) % 24;
+        const lodging = npc.type === 'traveler' && npc._home === bldg && (h >= 18 || h < 6) && npc._paidRoom !== day;
+        const supper = npc._meal === 'tavern' && npc._paidMeal !== day;
+        if (!lodging && !supper) return null;
+        const payer = npc._person && npc._folk ? { folk: npc._folk, p: npc._person } : npc;
+        // (a traveller carries their own purse from elsewhere: a few coin, by who they are)
+        if (payer === npc && typeof npc._purse !== 'number') npc._purse = 6 + Math.floor(_frac(`tpurse|${npc.uid || npc.id}|${npc.name}`) * 26);
+        const all = [...(this.npcs || []), ...((this._outerMapState && this._outerMapState.npcs) || [])];
+        const kn = bldg.ownerId != null ? all.find(n => n.id === bldg.ownerId && n !== npc) : null;
+        const keeper = kn && kn._person && kn._folk ? { folk: kn._folk, p: kn._person } : null;
+        // (a traveller's purse rides on the walker: npc._purse)
+        const wallet = payer === npc ? { purse: npc._purse } : payer;
+        const res = Hospitality.npcPays(ctx.world, { houseId: bldg.establishmentId || null, what: lodging ? 'room' : 'meal', payer: wallet, keeper });
+        if (payer === npc) npc._purse = wallet.purse;
+        if (lodging) npc._paidRoom = day; else npc._paidMeal = day;
+        return res;
     },
 
     /** The keeper of a roadhouse and a traveller or two, on an open-road map. */

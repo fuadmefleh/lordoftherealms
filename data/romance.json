@@ -1,0 +1,259 @@
+{
+    "_doc": "Townsfolk courtship (systems/romance.js): who notices whom, the stages a courtship passes through, how it fails, and the words people say. Steps run every stepDays for every town with a roster; the wedding itself is the townsfolk wedding (Townsfolk._wed). Lines: a plain string, or { t, p: [tempers], s: 'high'|'low' } — a line with p/s is preferred for a speaker who matches. Tokens: {name} the other person's first name, {A}/{B} people as the town calls them, {when}, {days}, {to}, {player}.",
+    "enabled": true,
+    "stepDays": 10,
+    "maxAge": 55,
+    "outsiderShare": 0.6,
+    "leaning": { "same": 0.06, "both": 0.05 },
+    "notice": { "perStep": 0.09, "minScore": 0.36, "maxShare": 0.7, "pick": 3 },
+    "seed": { "share": 0.3, "stages": { "noticing": 2, "flirting": 3, "courting": 3, "love": 2, "betrothed": 1 } },
+    "stages": {
+        "noticing": { "next": "flirting", "advance": 0.42, "fail": 0.2, "minDays": 10, "fails": "rejected" },
+        "flirting": { "next": "courting", "advance": 0.36, "fail": 0.15, "minDays": 10, "fails": "cooled" },
+        "courting": { "next": "love", "advance": 0.27, "fail": 0.08, "minDays": 20, "fails": "parted" },
+        "love": { "next": "betrothed", "advance": 0.24, "fail": 0.04, "minDays": 20, "fails": "parted" },
+        "betrothed": { "next": "wed", "fail": 0.03, "fails": "jilted" }
+    },
+    "betrothalDays": 30,
+    "heat": { "start": 30, "perStep": 3, "max": 100, "goodWord": 15, "token": 25, "meddle": -35, "quarrel": -12 },
+    "score": {
+        "base": 0.36,
+        "ageFree": 4, "agePerYear": 0.035, "ageMax": 16, "youngMax": 7, "youngUnder": 21,
+        "sameTemper": 0.05,
+        "temperPairs": {
+            "kind|kind": 0.1, "kind|generous": 0.1, "jovial|witty": 0.14, "jovial|jovial": 0.08,
+            "quiet|curious": 0.08, "quiet|kind": 0.08, "bold|curious": 0.08, "witty|curious": 0.1,
+            "cautious|kind": 0.06, "generous|jovial": 0.06, "bold|witty": 0.06,
+            "stern|jovial": -0.08, "stubborn|stubborn": -0.14, "stern|stern": -0.08, "bold|cautious": -0.05,
+            "stubborn|bold": -0.06, "quiet|jovial": -0.03
+        },
+        "station": { "0": 0.08, "1": 0, "2": -0.16, "3": -0.26 },
+        "culture": -0.08,
+        "sameWork": 0.08,
+        "neighbours": { "share": 0.2, "bonus": 0.07 },
+        "spark": 0.16,
+        "foes": { "brawl": -0.3, "robbed": -0.4, "pickpocketed": -0.3, "rivalInLove": -0.25, "betrayed": -0.4 },
+        "pastParted": -0.18
+    },
+    "station": { "noble": 3, "merchant": 2, "priest": 2, "guard": 1, "blacksmith_npc": 1, "farmer": 1, "villager": 1, "child": 1, "beggar": 0 },
+    "forbid": { "stationGap": 2, "stationChance": 0.6, "stepDownChance": 0.3, "feudChance": 0.7, "feudHeat": 30, "relent": 0.08, "breakOff": 0.12, "elope": 0.06, "elopeInLove": 0.12 },
+    "rival": { "chance": 0.045, "minScore": 0.42 },
+    "quarrel": { "chance": 0.12, "days": 3 },
+    "affair": { "chance": 0.0012, "minScore": 0.52, "marriedDays": 120, "foundOut": 0.12, "ends": 0.08 },
+    "heartbreak": { "days": 60, "lightDays": 15 },
+    "mood": { "loveWork": 1.1, "brokenWork": 0.75, "loveDiscount": 0.04, "brokenMarkup": 0.03 },
+    "player": { "tokenDays": 20, "wordEveryDays": 10, "meddleCaught": 0.3, "meddleBreak": 0.45, "rivalAffection": 20, "regard": 6, "rivalResent": 15 },
+    "onMap": {
+        "scanEvery": [1.5, 3], "playerRadius": 22, "barkCooldown": [18, 34], "heartChance": 0.3,
+        "eveningTogether": 0.55, "middayTavern": 0.18, "giftChance": 0.25, "mopeChance": 0.35, "flirtRadius": 2,
+        "weddingHours": [9, 17], "weddingGuests": 8, "weddingSeconds": 40,
+        "_wedding": "A wedding with a church in town: the couple, their guests and the priest gather at the church door (weddingGather seconds), go in for the service (weddingService seconds: the couple before the altar, the guests in the pews, the priest's prayers and the vows, ui/innerMapCourting.js + world/innerMap/townScenes.js), then come out to the door to cheers (weddingSeconds).",
+        "weddingGather": 10, "weddingService": 45
+    },
+    "lines": {
+        "flirt": [
+            "Lovely morning, isn't it, {name}?",
+            "Oh! {name}. I didn't see you there.",
+            "You've done something different with your hair, {name}.",
+            "Will you be at the well later, {name}?",
+            { "t": "Ha! {name}, you'll be the death of me.", "p": ["jovial", "witty"] },
+            { "t": "I saved you the best of the bread, {name}. Don't tell anyone.", "p": ["generous", "kind"] },
+            { "t": "...Good day, {name}. *looks at their boots*", "p": ["quiet", "cautious"] },
+            { "t": "Walk with me a while, {name}? I'll not bite.", "p": ["bold"] },
+            { "t": "Tell me something I don't know, {name}.", "p": ["curious", "witty"] },
+            { "t": "My lady {name}. You grace the street this morning.", "s": "high" },
+            { "t": "You've a fine eye for a horse, {name}. And for other things, I hear.", "s": "high" }
+        ],
+        "flirtReply": [
+            "*blushes* Is it? I hadn't noticed.",
+            "Oh, go on with you.",
+            "Maybe I will be. Maybe not.",
+            "*laughs* You're a terrible tease.",
+            { "t": "Hmph. Flattery won't fill a basket. ...Say it again, though.", "p": ["stern", "stubborn"] },
+            { "t": "*goes pink to the ears*", "p": ["quiet", "cautious", "kind"] },
+            { "t": "Only if you ask nicely.", "p": ["bold", "witty", "jovial"] },
+            { "t": "You are too kind. Truly.", "s": "high" }
+        ],
+        "sweet": [
+            "I thought of you all day, {name}.",
+            "Look, the first star. Make a wish, {name}.",
+            "Stay a little longer, {name}.",
+            "Your hand's cold. Here.",
+            "I'd walk to the edge of the world with you, {name}. Or to the mill, at least.",
+            { "t": "When the harvest's in, I'll speak to your father, {name}.", "p": ["bold", "stubborn", "stern"], "y": true },
+            { "t": "When the harvest's in, I'll ask you properly, {name}. Before the whole town.", "p": ["bold", "stubborn", "stern"] },
+            { "t": "I wrote you a verse. It's dreadful. Don't laugh, {name}.", "p": ["witty", "curious", "quiet"] },
+            { "t": "I'll build us a house by the river, {name}. With a proper roof.", "p": ["generous", "kind"] },
+            { "t": "Our families' lands lie side by side, {name}. Fate, I'd call it.", "s": "high" }
+        ],
+        "sweetReply": [
+            "*smiles* Did you now?",
+            "Only a little longer, then.",
+            "You say the sweetest things.",
+            "*squeezes their hand*",
+            "Hush. Just walk with me.",
+            { "t": "I'll hold you to that.", "p": ["stubborn", "bold", "stern"] },
+            { "t": "*laughs softly* You're a fool. My fool.", "p": ["jovial", "witty"] }
+        ],
+        "gift": [
+            "Flowers from the market, {name}. For you.",
+            "I brought you a ribbon, {name}. Blue, like you said.",
+            "A honey cake, {name}. Still warm.",
+            { "t": "A little carving. It's meant to be a swan, {name}.", "p": ["quiet", "curious", "kind"] },
+            { "t": "Silk, {name}, from the south. Nothing less would do.", "s": "high" }
+        ],
+        "giftReply": [
+            "Oh! They're beautiful.",
+            "You shouldn't have. ...I'm glad you did.",
+            "*holds it close* I'll keep it always.",
+            { "t": "It's a duck. But I love it.", "p": ["witty", "jovial"] }
+        ],
+        "quarrel": [
+            "You were dancing with them at the fair, {name}. Don't deny it.",
+            "Always tomorrow with you, {name}. Always tomorrow!",
+            { "t": "My mother says I could do better, {name}. Maybe she's right.", "y": true },
+            "Folk say I could do better, {name}. Maybe they're right.",
+            "You never listen to me, {name}.",
+            { "t": "Fine! Go, then! See if I care!", "p": ["stubborn", "bold", "stern"] },
+            { "t": "*won't meet their eye* ...I'm not cross. I'm not.", "p": ["quiet", "cautious"] }
+        ],
+        "quarrelReply": [
+            "That's not fair and you know it.",
+            "Don't be like this. Please.",
+            "Fine. Fine!",
+            "*sighs* Can we not do this here?",
+            { "t": "I'm sorry. I'm sorry, all right?", "p": ["kind", "generous", "cautious"] }
+        ],
+        "mope": [
+            "*sighs heavily*",
+            "Everything reminds me of them.",
+            "I'll not love again. Never.",
+            "*stares into the well*",
+            { "t": "Hmph. Good riddance. ...Good riddance.", "p": ["stern", "stubborn"] },
+            { "t": "Who needs them? Not me. Pass the ale.", "p": ["jovial", "bold"] }
+        ],
+        "heart": ["♥", "♥ ♥"],
+        "weddingGuest": [
+            "Long life to the happy couple!",
+            "Don't they look lovely?",
+            "Don't they make a fine pair!",
+            "I cried at mine too.",
+            "To the church, to the church!",
+            "Mind the flowers, children!",
+            "There'll be dancing tonight!"
+        ],
+        "weddingCouple": [
+            "Is this real, {name}?",
+            "I've never been so happy, {name}.",
+            "Hold my hand, {name}. Don't let go."
+        ],
+        "rumour": {
+            "flirting": [
+                "They say {A} is sweet on {B}.",
+                "Have you seen how {A} goes red whenever {B} walks past?",
+                "{A} has been finding reasons to stand about near {B}. Every day. Funny, that."
+            ],
+            "courting": [
+                "{A} and {B} have been walking out of an evening. Everyone's seen them.",
+                "{A} is courting {B}, and making no secret of it.",
+                "{A} brought {B} flowers from the market. Flowers! The whole street talked of it."
+            ],
+            "love": [
+                "{A} and {B}? Head over heels, the pair of them.",
+                "Mark my words, {A} and {B} will be wed before the year's out.",
+                "You'd think {A} and {B} invented love, the way they carry on."
+            ],
+            "betrothed": [
+                "{A} and {B} are promised. The wedding's {when}.",
+                "The banns are read for {A} and {B}: they wed {when}."
+            ],
+            "forbidden": [
+                "{A} and {B} meet in secret, they say. Their families won't have it.",
+                "{A}'s people have forbidden the match with {B}. As if that ever stopped anyone."
+            ],
+            "rival": [
+                "{A} and {C} both have their eye on {B}. It'll end in tears, or in a fight.",
+                "{C} has started calling on {B} too, and {A} is fit to burst."
+            ],
+            "quarrel": [
+                "{A} and {B} had words in the street. A lovers' quarrel, nothing more.",
+                "{A} and {B} were shouting at each other by the well. They'll make it up."
+            ],
+            "playerRival": [
+                "{A} was courting {B}, until {player} came to town. {A} isn't pleased."
+            ]
+        },
+        "own": {
+            "noticing": [
+                "Me? Sweet on someone? *glances toward {name}'s door* ...No.",
+                "There's no one. Well. There might be someone."
+            ],
+            "flirting": [
+                "*blushes* Is it so plain? {name} has the loveliest laugh.",
+                "{name} and I... it's nothing. We talk. That's all. For now."
+            ],
+            "courting": [
+                { "t": "{name} and I have been walking out. Don't tell my mother. ...She knows.", "y": true },
+                "{name} and I have been walking out. The whole street knows, I expect.",
+                "I'm courting {name}, if you must know. And I don't care who knows it."
+            ],
+            "love": [
+                "I love {name}. There, I've said it out loud.",
+                "{name} is the best thing that's ever happened to me."
+            ],
+            "betrothed": [
+                "{name} and I are to be wed {when}! You'll come, won't you?",
+                "We're promised, {name} and I. {when}, at the church."
+            ],
+            "forbidden": [
+                "My family won't hear of {name}. They'll come round. They must.",
+                "They've forbidden me to see {name}. *lowers voice* I see them anyway."
+            ],
+            "broken": [
+                "Don't speak to me of love. Not now.",
+                "{name} and I are finished. I'd rather not talk of it.",
+                "It still hurts. It'll pass, they tell me."
+            ]
+        },
+        "gossipNone": [
+            "Courting? Not that I've seen. It's a quiet town for that.",
+            "No one's sweet on anyone just now. More's the pity."
+        ],
+        "tokenGive": [
+            "Would you? Then give {name} this, and tell them... no, just give them this.",
+            "*presses a folded letter into your hand* For {name}. Don't read it!"
+        ],
+        "tokenDeliver": [
+            "From {name}? *reads, and goes quite pink* Oh. Oh my.",
+            "*holds the letter to their heart* Tell {name}... tell them yes."
+        ],
+        "goodWord": [
+            "{name} said that? About me? *tries not to smile*",
+            "You really think {name} means it? *brightens*"
+        ],
+        "goodWordFail": [
+            "{name} can speak for themselves, thank you.",
+            "*frowns* Did {name} send you to say that?"
+        ],
+        "meddle": [
+            "{name}? With someone else? *goes white* I don't believe you. ...Do I?",
+            "*quietly* I wondered. I did wonder about {name}."
+        ],
+        "meddleCaught": [
+            "{name}? Never. I'll ask {name} myself, and if it's a lie you'll answer for it. *storms off to find them*",
+            "Why would you say such a thing about {name}? What are you to us?"
+        ],
+        "playerRival": [
+            "I know what you're about with {name}. Keep away.",
+            "You think a fine traveller turns {name}'s head? We'll see."
+        ]
+    },
+    "annals": {
+        "betrothed": "{A} and {B} were promised to each other {when}.",
+        "jilted": "{A} broke off the promise to {B} {when}. Poor {b}.",
+        "forbidden": "{A}'s family forbade the match with {B} {when}.",
+        "eloped": "{A} and {B} ran off together {when}, to {to}. Their families are beside themselves.",
+        "affair": "{A} was found out with {B} {when}. The whole town talks of nothing else.",
+        "rivalWon": "{C} won {B}'s heart from {A} {when}."
+    }
+}

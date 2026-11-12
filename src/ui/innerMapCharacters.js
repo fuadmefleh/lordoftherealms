@@ -49,6 +49,10 @@ export const InnerMapCharacters = {
         // scripts/make_arms_shoot.py); every other layer is cut from frames it already has (SHOOT_PICK).
         // Played by frame (InnerMapBattle times it to the volley): time = frame index
         { key: 'shoot',     file: 'Shoot',                 frames: 6, fps: 1, pick: true },
+        // Struck down: a child falls and lies on its back (only the child sprites have the sheet,
+        // CHILD_FILES; ui/innerMapCombat.js draws its last frame for a child knocked out or dead).
+        // Played by frame: time = frame index
+        { key: 'hurt',      file: 'Hurt',                  frames: 6, fps: 1, rows: 1, childOnly: true },
     ],
 
     // The body's frame in each of the 6 shoot frames, per facing row (up, left, down, right):
@@ -112,6 +116,7 @@ export const InnerMapCharacters = {
                 if (!k.startsWith('_')) { this._presets[k] = v; this._eraBases.add(k); }
             }
         }
+        if (configData.childLooks && typeof configData.childLooks === 'object') this._childCfg = configData.childLooks;
         if (configData.npcAppearanceMap) {
             this._npcTypeMap = {};
             for (const [k, v] of Object.entries(configData.npcAppearanceMap)) {
@@ -135,12 +140,11 @@ export const InnerMapCharacters = {
         for (const preset of Object.values(this._presets)) {
             if (!preset.layers) continue;
             for (const layerPath of preset.layers) {
-                pathSet.add(this._basePath + layerPath + '/Walk.png');
-                pathSet.add(this._basePath + layerPath + '/Idle.png');
-                pathSet.add(this._basePath + layerPath + '/Combat 1h - Slash.png');
-                for (const ea of this._EXTRA_ANIMS) {
-                    if (ea.pick && !layerPath.startsWith('Props/')) continue;
-                    pathSet.add(this._basePath + layerPath + '/' + ea.file + '.png');
+                for (const anim of ['Walk', 'Idle', 'Combat 1h - Slash', ...this._EXTRA_ANIMS.map(ea => ea.file)]) {
+                    const ea = this._EXTRA_ANIMS.find(e => e.file === anim);
+                    if (ea && ea.pick && !layerPath.startsWith('Props/')) continue;
+                    const path = this._sheetPath(layerPath, anim);
+                    if (path) pathSet.add(path);
                 }
             }
         }
@@ -191,8 +195,8 @@ export const InnerMapCharacters = {
         for (const layerPath of layers) {
             for (const anim of anims) {
                 if (picked.has(anim) && !layerPath.startsWith('Props/')) continue;
-                const fullPath = this._basePath + layerPath + '/' + anim + '.png';
-                if (this._imageCache.has(fullPath)) continue;
+                const fullPath = this._sheetPath(layerPath, anim);
+                if (!fullPath || this._imageCache.has(fullPath)) continue;
                 promises.push(new Promise(resolve => {
                     const img = new Image();
                     img.onload = () => { this._imageCache.set(fullPath, img); resolve(); };
@@ -261,8 +265,8 @@ export const InnerMapCharacters = {
         const cols = Math.round(width / cellSize), rows = Math.round(height / cellSize);
 
         for (const layerPath of layerPaths) {
-            const fullPath = this._basePath + layerPath + '/' + animType + '.png';
-            const img = this._imageCache.get(fullPath);
+            const fullPath = this._sheetPath(layerPath, animType);
+            const img = fullPath ? this._imageCache.get(fullPath) : null;
             const prop = layerPath.startsWith('Props/');
             // Gear carried (a sword, a shield) has sheets only for combat: on the
             // walk, hold its ready-stance frame steady in the hand
@@ -278,12 +282,15 @@ export const InnerMapCharacters = {
             // 128px look keeps it whole and sets the 64px sheets in its middle
             const k = Math.max(1, Math.round(img.height / (rows * this.FRAME_H)));
             const src = this.FRAME_W * k;
-            const n = Math.min(cols, Math.floor(img.width / src)), m = Math.min(rows, Math.floor(img.height / src));
+            // (a sheet of one frame, as a child's standing pose: held across every frame of the row,
+            // so no frame of the cycle is left empty)
+            const one = Math.floor(img.width / src) === 1;
+            const n = one ? cols : Math.min(cols, Math.floor(img.width / src)), m = Math.min(rows, Math.floor(img.height / src));
             const take = Math.min(src, cellSize);
             const so = (src - take) / 2, doff = (cellSize - take) / 2;
             for (let r = 0; r < m; r++) {
                 for (let f = 0; f < n; f++) {
-                    ctx.drawImage(img, f * src + so, r * src + so, take, take,
+                    ctx.drawImage(img, (one ? 0 : f) * src + so, r * src + so, take, take,
                         f * cellSize + doff, r * cellSize + doff, take, take);
                 }
             }
@@ -324,7 +331,8 @@ export const InnerMapCharacters = {
             for (let r = 0; r < this.DIR_ROWS; r++) {
                 for (let f = 0; f < frames; f++) {
                     const [anim, sf] = pick[r][f];
-                    const img = this._imageCache.get(this._basePath + layerPath + '/' + anim + '.png');
+                    const path = this._sheetPath(layerPath, anim);
+                    const img = path ? this._imageCache.get(path) : null;
                     if (img) cellOf(img, sf, r, f, r);
                 }
             }
@@ -354,6 +362,169 @@ export const InnerMapCharacters = {
     },
 
     // ══════════════════════════════════════════════
+    // SHEET PATHS
+    // ══════════════════════════════════════════════
+
+    // The child sprites (assets/lpc/Characters/Children, scripts in the credits there) keep their
+    // sheets in lowercase and have only these animations; every other one falls back to idle/walk
+    CHILD_ROOT: 'Children/',
+    CHILD_FILES: { Walk: 'walk', Idle: 'idle', Sitting: 'sit', Hurt: 'hurt' },
+
+    /** The sheet of `anim` ('Walk', 'Sitting', …) for a layer, or null when that layer has none. */
+    _sheetPath(layerPath, anim) {
+        if (layerPath.startsWith(this.CHILD_ROOT)) {
+            const f = this.CHILD_FILES[anim];
+            return f ? `${this._basePath}${layerPath}/${f}.png` : null;
+        }
+        // (a sheet only the child sprites have is never fetched for a grown look)
+        if (this._EXTRA_ANIMS.some(ea => ea.childOnly && ea.file === anim)) return null;
+        return `${this._basePath}${layerPath}/${anim}.png`;
+    },
+
+    // ══════════════════════════════════════════════
+    // CHILDREN'S LOOKS
+    // ══════════════════════════════════════════════
+    // A child under childLooks.under (data/innerMapRenderer.json) is drawn with the LPC child
+    // body, head, pants or skirt, shirt and hair, barefoot. Its look is a self-describing id —
+    // 'child:<skin>|<hair style>|<hair colour>|<shirt>|<Pants or Skirt>/<colour>' — registered
+    // on first need, so a save holding one draws it again.
+
+    _childCfg: null,
+    _childPending: new Set(),
+
+    /** data/innerMapRenderer.json childLooks (empty when not configured). */
+    childConfig() {
+        return this._childCfg || {};
+    },
+
+    /** Whether someone of `age` is drawn with the child sprites. */
+    isChildAge(age) {
+        const under = Number(this.childConfig().under);
+        return Number.isFinite(age) && Number.isFinite(under) && age < under;
+    },
+
+    /** How big to draw a child sprite of `age` (1 its natural size), or null past the child sprites. */
+    childScale(age) {
+        if (!this.isChildAge(age)) return null;
+        const S = this.childConfig().scale;
+        const band = Array.isArray(S) ? S.find(b => age < Number(b.under)) : null;
+        const s = band ? Number(band.s) : 1;
+        return Number.isFinite(s) && s > 0 ? s : 1;
+    },
+
+    /** How big to draw someone (1 the grown): their own scale by age (npc._scale), else a child 0.7. */
+    drawScale(who) {
+        const n = who && who._npc ? who._npc : who;   // (a body left where they fell keeps its NPC)
+        if (n && typeof n._scale === 'number' && n._scale > 0) return n._scale;
+        return who && who.type === 'child' ? 0.7 : 1;
+    },
+
+    /** The layers of a child look { skin, hairStyle, hair, shirt, legs }. */
+    childLayers(look) {
+        return [
+            `Children/Body/${look.skin}`,
+            `Children/Head/Head 01 - Default/${look.skin}`,
+            `Children/Clothing/${look.legs}`,
+            `Children/Clothing/Shirt/${look.shirt}`,
+            // (a pupil's satchel on a school day: strap over the shirt, under the hair)
+            ...(look.bag ? [`Children/Satchel/${look.bag}`] : []),
+            `Children/Hair/${look.hairStyle}/${look.hair}`,
+        ];
+    },
+
+    childPresetId(look) {
+        const id = `child:${[look.skin, look.hairStyle, look.hair, look.shirt, look.legs].join('|')}`;
+        return look.bag ? `${id}|bag:${look.bag}` : id;
+    },
+
+    /** The same child look with a school satchel (`bag` its colour), or without one (bag null). */
+    childWithSatchel(id, bag = 'Brown') {
+        const look = this.childLookOf(id);
+        if (!look) return id;
+        return this.childPresetId({ ...look, bag: bag || null });
+    },
+
+    /** The look a child id names, or null. */
+    childLookOf(id) {
+        if (typeof id !== 'string' || !id.startsWith('child:')) return null;
+        const [skin, hairStyle, hair, shirt, legs, extra] = id.slice(6).split('|');
+        if (!skin || !hairStyle || !hair || !shirt || !legs || !/^(Pants|Skirt)\//.test(legs)) return null;
+        const bag = extra && /^bag:/.test(extra) ? extra.slice(4) : null;
+        return bag ? { skin, hairStyle, hair, shirt, legs, bag } : { skin, hairStyle, hair, shirt, legs };
+    },
+
+    /** Register (once) and composite a child look by its id. Resolves true once it can be drawn. */
+    ensureChild(id) {
+        if (this._composited.has(id)) return Promise.resolve(true);
+        const look = this.childLookOf(id);
+        if (!look || this._childPending.has(id)) return Promise.resolve(false);
+        this._childPending.add(id);
+        return this.registerPreset(id, this.childLayers(look)).finally(() => this._childPending.delete(id));
+    },
+
+    /** Skin and natural hair colour of a look (an adult preset, its era or greyed fitting, a child id). */
+    looksOf(presetId) {
+        const kid = this.childLookOf(presetId);
+        if (kid) return { skin: kid.skin, hair: kid.hair };
+        let base = String(presetId || '');
+        let m = /^aged:[^:]+:(?:[^:]+#\d+:)?(.+)$/.exec(base);
+        if (m) base = m[1];
+        m = /^era:[^:]+:(.+)#\d+$/.exec(base);
+        if (m) base = m[1];
+        const pre = this._presets[base];
+        if (!pre || !Array.isArray(pre.layers)) return null;
+        const body = pre.layers.find(l => l.startsWith('Body/'));
+        const hair = pre.layers.find(l => l.startsWith('Hair/') && !/^Hair\/(Eyebrows|Facial)/.test(l));
+        const last = l => (l ? l.split('/').pop() : null);
+        return { skin: last(body), hair: last(hair) };
+    },
+
+    /**
+     * The look of a child: skin and hair colour from a parent (their presets, `parents`), else
+     * from the household (`family`, a key siblings share); hair style by gender; clothes from the
+     * family's means (`roles`: the parents' trades → childLooks.wealthByRole → wardrobe), in the cloth
+     * of the era (`era`, else the current one → childLooks.eraWardrobe). Picks are hashes of `seed`,
+     * never the RNG.
+     */
+    childLook({ seed = 0, gender = null, parents = [], family = null, roles = [], era = null } = {}) {
+        const C = this.childConfig();
+        const arr = v => (Array.isArray(v) ? v : []);
+        const frac = (...k) => EraWardrobe._hash(k.join('|')) / 4294967296;
+        const pick = (list, ...k) => (list.length ? list[Math.floor(frac(...k) * list.length) % list.length] : null);
+        const skins = arr(C.skins), colours = arr(C.hairColours);
+        const famKey = family != null ? String(family) : String(seed);
+        const parentLooks = arr(parents).map(p => this.looksOf(p)).filter(Boolean);
+        // Skin: a parent's (each child of the two takes after one), else the household's
+        const fromSkin = pick(parentLooks.filter(l => skins.includes(l.skin)), seed, 'skin');
+        const skin = (fromSkin && fromSkin.skin) || pick(skins, famKey, 'skin') || 'Peach';
+        // Hair: a parent's natural colour (the grey of their age not passed on)
+        const grey = C.greyHairBecomes || {};
+        const fromHair = pick(parentLooks.filter(l => l.hair), seed, 'hair');
+        let hair = fromHair ? (grey[fromHair.hair] || fromHair.hair) : pick(arr(C.familyHair), famKey, 'hair');
+        if (!colours.includes(hair)) hair = colours.includes(C.defaultHair) ? C.defaultHair : (colours[0] || 'Brown');
+        const g = gender === 'female' ? 'female' : 'male';
+        const styles = arr((C.hairStyles || {})[g]);
+        const hairStyle = pick(styles, seed, 'style') || 'Swoop';
+        // Clothes by the family's means: the best-off parent's trade
+        const rank = { common: 0, comfortable: 1, noble: 2 };
+        const byRole = C.wealthByRole || {};
+        let wealth = 'common';
+        for (const r of arr(roles)) {
+            const w = byRole[r];
+            if (w && (rank[w] || 0) > (rank[wealth] || 0)) wealth = w;
+        }
+        // (an era before the mature world dresses its children in its own cloth: childLooks.eraWardrobe,
+        // by the family's means or one wardrobe for all — the Dawn's earthy undyed tunics)
+        const EW = (C.eraWardrobe || {})[era || this.eraId()];
+        const eraW = EW ? (EW[wealth] || EW.common || (Array.isArray(EW.shirts) ? EW : null)) : null;
+        const W = eraW || (C.wardrobe || {})[wealth] || (C.wardrobe || {}).common || {};
+        const skirt = frac(seed, 'skirt') < Number((C.skirtChance || {})[g] || 0) && arr(W.skirts).length;
+        const shirt = pick(arr(W.shirts), seed, 'shirt') || 'White';
+        const legs = skirt ? `Skirt/${pick(arr(W.skirts), seed, 'legs')}` : `Pants/${pick(arr(W.pants), seed, 'legs') || 'Brown'}`;
+        return { skin, hairStyle, hair, shirt, legs };
+    },
+
+    // ══════════════════════════════════════════════
     // APPEARANCE ASSIGNMENT
     // ══════════════════════════════════════════════
 
@@ -375,7 +546,7 @@ export const InnerMapCharacters = {
             // Fallback: pick from all presets — but never the player's own
             // look (registerPreset 'player:…'), or a stranger wears your face
             // (nor an era's fitting of a preset: the preset itself is fitted below)
-            const allKeys = Object.keys(this._presets).filter(id => !id.startsWith('player:') && !id.startsWith('era:'));
+            const allKeys = Object.keys(this._presets).filter(id => !id.startsWith('player:') && !id.startsWith('era:') && !id.startsWith('child:'));
             if (allKeys.length === 0) return null;
             return this._eraPreset(allKeys[Math.abs(seed) % allKeys.length], seed);
         }
@@ -419,6 +590,8 @@ export const InnerMapCharacters = {
      */
     _live(presetId) {
         if (typeof presetId !== 'string') return presetId;
+        // A child's look (childPresetId) is made from its own id: one from a save, or not yet composited, is started
+        if (presetId.startsWith('child:')) { if (!this._composited.has(presetId)) this.ensureChild(presetId); return presetId; }
         let base = null, v = 0;
         if (presetId.startsWith('era:')) {
             const m = /^era:([^:]+):(.+)#(\d+)$/.exec(presetId);
@@ -551,5 +724,11 @@ export const InnerMapCharacters = {
      */
     getComposited(presetId) {
         return this._composited.get(this._live(presetId)) || null;
+    },
+
+    /** Whether a look has the fall-and-lie sheet (the child sprites): drawn lying, not turned on its side. */
+    hasHurt(presetId) {
+        const comp = this.getComposited(presetId);
+        return !!(comp && comp.hurt);
     },
 };

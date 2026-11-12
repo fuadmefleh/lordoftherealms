@@ -1,20 +1,46 @@
 {
     "_note": "Digging on the street map (ui/innerMapDigging.js): holes, filling them in, graves. Seconds are real seconds of work at the spot; carrying a set of tools (any item id in 'tools') multiplies them by toolSpeed. 'finds' are rolled once per hole, in order: the first whose chance hits is found.",
-    "seconds": { "dig": 5, "fill": 3, "bury": 4, "exhume": 5 },
+    "seconds": {
+        "dig": 5,
+        "fill": 3,
+        "bury": 4,
+        "exhume": 5,
+        "refill": 3
+    },
     "toolSpeed": 0.6,
-    "tools": ["tools", "bronze_tools", "improved_tools"],
-    "needs": { "energy": -6, "hygiene": -6 },
+    "tools": [
+        "tools",
+        "bronze_tools",
+        "improved_tools"
+    ],
+    "needs": {
+        "energy": -6,
+        "hygiene": -6
+    },
     "carrySpeed": 0.6,
     "finds": [
-        { "chance": 0.12, "gold": [5, 24], "text": "Your spade turns up {gold} gold coins, buried long ago." },
-        { "chance": 0.12, "text": "You turn up a broken clay pot. Nothing of worth." },
-        { "chance": 0.1, "text": "An old bone, brown with age. Best not to wonder whose." }
+        {
+            "chance": 0.12,
+            "gold": [
+                5,
+                24
+            ],
+            "text": "Your spade turns up {gold} gold coins, buried long ago."
+        },
+        {
+            "chance": 0.12,
+            "text": "You turn up a broken clay pot. Nothing of worth."
+        },
+        {
+            "chance": 0.1,
+            "text": "An old bone, brown with age. Best not to wonder whose."
+        }
     ],
     "text": {
         "dig": "You dig a hole, the spoil heaped beside it.",
         "fill": "You shovel the earth back in and tread it down.",
         "bury": "You lay {name} in the hole and heap the earth over them.",
-        "exhume": "You dig {name} back up out of the grave.",
+        "exhume": "You dig down to {name}: the grave lies open, the earth heaped beside it.",
         "respects": [
             "You stand a while by {name}'s grave.",
             "You bow your head over {name}'s grave.",
@@ -23,7 +49,11 @@
         "respectsMound": [
             "You stand a while by the bare mound where {name} lies.",
             "You bow your head over the turned earth. Only you know it is {name} under it."
-        ]
+        ],
+        "cache": "You bury {what} and fill the hole in over it.",
+        "cacheSeen": "{names} saw you do it.",
+        "cacheGone": "The earth here has been dug over before you. Whatever was buried here is gone.",
+        "cacheGoneSeen": "You remember {name} watching you bury it."
     },
     "_burial": "A body buried by the player (world/burials.js; ui/innerMapDigging.js) is a plain, unmarked mound: named 'Burial Mound', not the grave of anyone. freshDays: days a mound is bare, dark, freshly turned earth (no grass, no flowers) before it weathers into the churchyard's grassed mound; settleDays: days for an unmarked mound to settle level and the ground to grow back over it (drawn fading down to minAlpha; the record stays: still dug up, still marked). markers: what may be raised over it, the churchyards' kinds (data/graves.json markers, their art): item, a marker carried in the pack (bought at a market: grave carvers and masons make them, data/markets.json), used up when raised; carve, the wood or planks carried that a cross is carved from on the spot (the first the player has); seconds / carveSeconds the work at the spot. Dug up, a marker comes back to the pack as its item. Burials are saved on world.burials[hex]['q,r'].",
     "burial": {
@@ -31,14 +61,157 @@
         "settleDays": 360,
         "minAlpha": 0.12,
         "markers": {
-            "cross_wood": { "item": "grave_cross", "carve": [{ "planks": 1 }, { "wood": 1 }], "seconds": 3, "carveSeconds": 10 },
-            "headstone_plain": { "item": "headstone", "seconds": 4 },
-            "headstone_carved": { "item": "carved_headstone", "seconds": 4 }
+            "cross_wood": {
+                "item": "grave_cross",
+                "carve": [
+                    {
+                        "planks": 1
+                    },
+                    {
+                        "wood": 1
+                    }
+                ],
+                "seconds": 3,
+                "carveSeconds": 10
+            },
+            "headstone_plain": {
+                "item": "headstone",
+                "seconds": 4
+            },
+            "headstone_carved": {
+                "item": "carved_headstone",
+                "seconds": 4
+            }
         },
         "text": {
             "marked": "You raise a {marker} over {name}. It is a grave now, with a name on it.",
             "carved": "You carve a rough {marker}, cut {name}'s name into it and set it at the head of the mound.",
-            "alreadyMarked": "A marker already stands over this grave."
+            "alreadyMarked": "A marker already stands over this grave.",
+            "openNoMarker": "Fill the grave in first."
+        },
+        "disturbedDays": 60,
+        "refillDays": 3
+    },
+    "_ground": "How dug ground goes on the street map (world/innerMap/graves.js _settleDug, on entering a map): a hole left open (with nothing put in it) caves in to turned earth after holeCaveDays; turned earth fades back into the ground over filledFadeDays (drawn fading). A grave dug open and filled in again shows its disturbed earth for burial.disturbedDays; in a town the sexton fills in a grave left open after burial.refillDays.",
+    "ground": {
+        "holeCaveDays": 20,
+        "filledFadeDays": 40
+    },
+    "_cache": "Things buried in a hole (world/burials.js caches, saved on world.caches): whoever watched them go in (up to maxSeen) may come back after witnessDays at witnessChance a day; someone digging by chance turns one up at strayTown (a town map) or strayWild a day. Hash of the day, not the shared RNG.",
+    "cache": {
+        "witnessDays": 1,
+        "witnessChance": 0.25,
+        "strayTown": 0.002,
+        "strayWild": 0.0005,
+        "maxSeen": 3
+    },
+    "_graveRobbers": "NPC grave robbers (systems/scavengers.js; on the street map ui/innerMapScavengers.js). perNight[type]: the chance a night that someone in town robs a grave worth it (x lairMult with an outlaw lair within lairRadius hexes; lairShare of them are its men). Robbers are townsfolk of poorRoles who are beggars or crookedTraits (never honestTraits), outlaws, or in snatcherTypes towns a body-snatcher (snatcherShare) after a grave under snatcherFreshDays. weights: goods per grave good, playerGoods a burial of the player with goods, seenCache a cache someone watched buried. watchChance[type]: caught off the map. nightFrom/nightTo: the hours; digSeconds: the work on the map. Goods the town market keeps go into its stock; others are sold to a fence at fenceShare of their worth, his coin out of the town purse into a townsperson robber's purse (an outlaw or snatcher carries them off).",
+    "graveRobbers": {
+        "enabled": true,
+        "perNight": {
+            "village": 0.006,
+            "town": 0.01,
+            "city": 0.014,
+            "capital": 0.016
+        },
+        "lairMult": 2,
+        "lairRadius": 4,
+        "lairShare": 0.5,
+        "snatcherTypes": [
+            "city",
+            "capital"
+        ],
+        "snatcherShare": 0.2,
+        "snatcherFreshDays": 120,
+        "poorRoles": [
+            "beggar",
+            "villager",
+            "farmer"
+        ],
+        "crookedTraits": [
+            "bold",
+            "stubborn"
+        ],
+        "honestTraits": [
+            "kind",
+            "generous"
+        ],
+        "weights": {
+            "goods": 3,
+            "playerGoods": 4,
+            "seenCache": 6
+        },
+        "watchChance": {
+            "village": 0.05,
+            "town": 0.12,
+            "city": 0.18,
+            "capital": 0.22
+        },
+        "nightFrom": 22,
+        "nightTo": 4,
+        "digSeconds": 14,
+        "toolShare": 0.6,
+        "_digSeconds": "digSeconds: a robber's work at a grave bare-handed; with a spade × toolSpeed (the player's own rule above), a cache's shallow hole × seconds.dig / seconds.exhume. Body-snatchers and outlaws come with a spade, a townsperson toolShare of the time.",
+        "fenceShare": 0.5
+    },
+    "_looters": "NPC looters (systems/scavengers.js; ui/innerMapScavengers.js): every scanSeconds, someone within radius of a fallen person (dead, senseless, bound; the player knocked out) may go to them, kneel kneelSeconds and go through their things: chance[kind] by who they are (opportunist: opportunistTypes, beggars, crookedTraits; soldier; kin: the fallen's kin and friends, safekeeping, no theft). Coin and valuables first, then up to maxItems kinds of gear; the player loses playerGoldShare of the purse. Seen, it is the looter's crime (the watch takes them).",
+    "looters": {
+        "enabled": true,
+        "scanSeconds": 2,
+        "radius": 7,
+        "kneelSeconds": 4,
+        "chance": {
+            "opportunist": 0.55,
+            "soldier": 0.6,
+            "kin": 0.7
+        },
+        "opportunistTypes": [
+            "beggar",
+            "bandit",
+            "outlaw",
+            "thief",
+            "pirate"
+        ],
+        "soldierTypes": [
+            "soldier"
+        ],
+        "crookedTraits": [
+            "bold",
+            "stubborn"
+        ],
+        "honestTraits": [
+            "kind",
+            "generous",
+            "cautious"
+        ],
+        "valuables": [
+            "jewelry",
+            "gems",
+            "grave_goods",
+            "silver",
+            "gold_bar",
+            "pearls"
+        ],
+        "maxItems": 2,
+        "playerGoldShare": 0.6,
+        "barks": {
+            "loot": [
+                "Nobody'll miss this.",
+                "They won't be needing it.",
+                "Finders keepers."
+            ],
+            "kin": [
+                "I'll keep these safe for you.",
+                "Let me hold on to these for them."
+            ],
+            "alarm": [
+                "Help! Someone's down!",
+                "Fetch the watch!"
+            ],
+            "robber": [
+                "Dig, dig…",
+                "Quiet now…"
+            ]
         }
     }
 }

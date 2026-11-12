@@ -115,9 +115,11 @@
             "flour": 2
         },
         "farmer": {
-            "vegetables": 4,
+            "cabbage": 2,
+            "turnips": 2,
+            "onions": 2,
             "grain": 3,
-            "fruit": 2
+            "apples": 2
         },
         "shepherd": {
             "wool": 3,
@@ -181,7 +183,7 @@
         },
         "villager": {
             "bread": 1,
-            "vegetables": 1
+            "onions": 1
         },
         "traveler": {
             "dried_meat": 2,

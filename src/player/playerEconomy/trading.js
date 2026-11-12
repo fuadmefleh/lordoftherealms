@@ -16,6 +16,7 @@ import { Crafting } from '../crafting.js';
 import { Grades } from '../../core/grades.js';
 import { MarketGrades } from '../../world/marketGrades.js';
 import { Difficulty } from '../../core/difficulty.js';
+import { MarketStalls } from '../../world/marketStalls.js';
 
 export const Trading = {
     /**
@@ -32,34 +33,78 @@ export const Trading = {
         // Contraband isn't sold openly where the realm has banned it
         const kingdom = world && settlement.kingdom && world.getKingdom ? world.getKingdom(settlement.kingdom) : null;
         for (const { key, qtyMult } of Economy.marketGoods(settlement, tile)) {
-            const good = PlayerEconomy.GOODS[key];
-            if (!good) continue;
-            if (kingdom && Underworld.contrabandStatus(kingdom, good.id) === 'illegal') continue;
-
-            const tracked = SettlementMarket.tracks(good.id);
-            const askBase = Economy.marketAskBase(good, settlement, tile, world);
-            const info = SettlementMarket.info(settlement, good.id);
-            // A town guild holds a floor under its goods' ask (systems/guilds.js)
-            const floor = Guilds.askFloor(settlement, good.id);
-            const quantity = tracked ? SettlementMarket.available(settlement, good.id) : Math.floor((settlement.population || 0) * qtyMult);
-            goods.push({
-                ...good,
-                quantity,
-                // Made goods come in grades: the stall's lots by grade (world/marketGrades.js)
-                lots: Grades.gradeable(good.id) ? MarketGrades.lots(settlement, good.id, quantity, world ? world.day : 0) : null,
-                price: Math.max(1, Math.floor(askBase * Math.max(info.scarcity, floor))), // (never free: a glut still asks a coin)
-                guildFloor: floor > info.scarcity ? floor : 0,
-                askBase,
-                stock: info.stock,
-                scarcity: info.scarcity,
-                stockLabel: info.label,
-                stockColor: info.color,
-                stockDays: info.days,
-                trend: info.trend,
-            });
+            const entry = Trading._marketEntry(PlayerEconomy.GOODS[key], settlement, tile, world, kingdom, qtyMult);
+            if (entry) goods.push(entry);
         }
 
         return goods;
+    },
+
+    /**
+     * One good as the market offers it: its price for the next unit, the stock
+     * on hand (quantity) and the stock reading — or null when it isn't sold here
+     * (unknown, or contraband in this realm). Untracked goods (seed) come by
+     * the head of population × qtyMult.
+     */
+    _marketEntry(good, settlement, tile, world, kingdom, qtyMult = 0) {
+        if (!good || !settlement) return null;
+        if (kingdom && Underworld.contrabandStatus(kingdom, good.id) === 'illegal') return null;
+        const tracked = SettlementMarket.tracks(good.id);
+        const askBase = Economy.marketAskBase(good, settlement, tile, world);
+        const info = SettlementMarket.info(settlement, good.id);
+        // A town guild holds a floor under its goods' ask (systems/guilds.js)
+        const floor = Guilds.askFloor(settlement, good.id);
+        const quantity = tracked ? SettlementMarket.available(settlement, good.id) : Math.floor((settlement.population || 0) * qtyMult);
+        return {
+            ...good,
+            quantity,
+            // Made goods come in grades: the stall's lots by grade (world/marketGrades.js)
+            lots: Grades.gradeable(good.id) ? MarketGrades.lots(settlement, good.id, quantity, world ? world.day : 0) : null,
+            price: Math.max(1, Math.floor(askBase * Math.max(info.scarcity, floor))), // (never free: a glut still asks a coin)
+            guildFloor: floor > info.scarcity ? floor : 0,
+            askBase,
+            stock: info.stock,
+            scarcity: info.scarcity,
+            stockLabel: info.label,
+            stockColor: info.color,
+            stockDays: info.days,
+            trend: info.trend,
+        };
+    },
+
+    /**
+     * One market stall's wares (world/marketStalls.js): the goods of its trade the
+     * town's market has in store, each the market's own entry — the same stock,
+     * the same price as at the town market. Nothing the market hasn't got.
+     */
+    stallGoods(settlement, tile, world, tradeId) {
+        if (!settlement || !MarketStalls.trade(tradeId)) return [];
+        SettlementMarket.ensure(settlement);
+        const kingdom = world && settlement.kingdom && world.getKingdom ? world.getKingdom(settlement.kingdom) : null;
+        const mults = new Map(Economy.marketGoods(settlement, tile).map(g => [g.key, g.qtyMult]));
+        const out = [];
+        for (const id of MarketStalls.wares(settlement, tradeId, tile)) {
+            const key = id.toUpperCase();
+            const entry = Trading._marketEntry(PlayerEconomy.GOODS[key], settlement, tile, world, kingdom, mults.get(key) || 0);
+            if (entry && entry.quantity > 0) out.push(entry);
+        }
+        return out;
+    },
+
+    /**
+     * Sell to a stall's keeper: only goods of their trade (MarketStalls.accepts);
+     * the sale itself is the town market's (Trading.sellGoods): its price, its
+     * purse, its stock.
+     */
+    sellToStall(player, tradeId, goodId, quantity, settlement = null, world = null, grade = null) {
+        const t = MarketStalls.trade(tradeId);
+        if (!t) return { success: false, reason: 'No such stall' };
+        if (!MarketStalls.accepts(tradeId, goodId)) {
+            const good = PlayerEconomy.GOODS[String(goodId).toUpperCase()];
+            const what = String((good && good.name) || goodId).toLowerCase();
+            return { success: false, reason: `The ${t.name.toLowerCase()} doesn't deal in ${what}.`, notTrade: true };
+        }
+        return Trading.sellGoods(player, goodId, quantity, settlement, world, grade);
     },
 
     /**

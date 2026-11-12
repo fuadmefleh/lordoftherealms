@@ -1,0 +1,181 @@
+{
+    "_comment": "NPC-on-NPC fights (systems/brawls.js; on the street map ui/innerMapBrawls.js). Causes and their rates, how a fight climbs from words to blows, who joins, who breaks it up, the watch, death (rare, through systems/downed.js), grudges and what the town says after. Every roll is a hash stream of the world seed, the town and the day.",
+    "enabled": true,
+
+    "temper": {
+        "_comment": "How quick a person is to fight, by their personality traits (multiplied; the hottest of a pair counts most).",
+        "traits": { "bold": 1.6, "stubborn": 1.5, "stern": 1.35, "witty": 1.1, "curious": 1.0, "kind": 0.45, "cautious": 0.5, "quiet": 0.6, "pious": 0.6 },
+        "roles": { "guard": 1.2, "noble": 0.7, "priest": 0.3, "child": 0, "beggar": 0.8 },
+        "drunk": 1.9,
+        "minAge": 16
+    },
+
+    "causes": {
+        "_comment": "base: chance a candidate pair comes to words at one look (on the map: one look every onMap.scanEvery seconds; off the map: weights of the day's fight). serious: may come to steel when someone is armed.",
+        "tavern": { "label": "drink and hot tempers", "base": 0.16, "hours": [17, 3], "late": 22, "lateMult": 1.8, "serious": false, "offWeight": 4 },
+        "grudge": { "label": "an old grudge", "base": 0.32, "perHeat": 0.006, "serious": true, "offWeight": 5 },
+        "market": { "label": "a haggle gone wrong", "base": 0.05, "hours": [7, 18], "serious": false, "offWeight": 2 },
+        "cutpurse": { "label": "a cutpurse caught by their mark", "base": 0.65, "serious": false, "offWeight": 3 },
+        "drunk": { "label": "a drunk spoiling for a fight", "base": 0.1, "hours": [20, 4], "serious": false, "offWeight": 2 },
+        "watch": { "label": "a thief resisting the watch", "resist": 0.35, "serious": true, "offWeight": 0 },
+        "retainers": { "label": "rival Houses' retainers", "perDay": 0.18, "serious": true, "offWeight": 0, "onMap": 0.6, "onMapMen": 2, "_onMap": "two Houses' retinues in the town the player walks: the day's chance their men clash in the street before the player (ui/innerMapBrawls.js), onMapMen a side" }
+    },
+
+    "grudges": {
+        "_comment": "Feuds between townsfolk (settlement.brawls.feuds, saved): what starts one, how hot, how fast it cools.",
+        "perDay": { "village": 0.04, "town": 0.07, "city": 0.1, "capital": 0.12 },
+        "decayPerDay": 0.35,
+        "forgetBelow": 4,
+        "max": 24,
+        "loveDays": 90,
+        "_loveDays": "rivalSuitor and affair grudges come only from real rivalries and affairs found out (systems/romance.js: folk.romance.grudges, the 'rivalInLove' / 'betrayed' logs) within loveDays; never a random pair.",
+        "reasons": {
+            "debt": { "weight": 3, "heat": [25, 45], "text": "a debt unpaid" },
+            "insult": { "weight": 4, "heat": [15, 30], "text": "an insult in the street" },
+            "rivalSuitor": { "weight": 2, "heat": [30, 50], "text": "courting the same {gender}" },
+            "affair": { "weight": 1, "heat": [55, 80], "text": "an affair found out" },
+            "boundary": { "weight": 2, "heat": [20, 40], "text": "a field boundary" },
+            "cutpurse": { "weight": 0, "heat": [35, 55], "text": "a hand in a purse" },
+            "fight": { "weight": 0, "heat": [20, 35], "text": "the last fight" },
+            "cheated": { "weight": 0, "heat": [15, 40], "text": "a bad bargain at market", "_note": "only from a real bargain gone wrong or short weight (systems/townTrade.js grudge), never a random pair" }
+        },
+        "afterFight": { "loser": 30, "winner": 8, "parted": 18, "ally": 12 }
+    },
+
+    "escalation": {
+        "_comment": "Words, then a shove, then fists; steel only when someone is armed and it is serious. Seconds per stage on the map; backDown: the chance they leave it there at the end of the stage.",
+        "stages": ["words", "shove", "fists", "weapons"],
+        "seconds": { "words": [3.5, 5.5], "shove": [1.6, 2.4] },
+        "backDown": { "words": 0.3, "shove": 0.15 },
+        "temperBackDown": 0.5,
+        "toSteel": 0.35,
+        "toSteelBelowHp": 0.6,
+        "armedTypes": ["guard", "noble", "traveler", "soldier", "retainer"]
+    },
+
+    "fight": {
+        "swingEvery": [0.85, 1.35],
+        "hit": { "base": 0.58, "perPoint": 0.05, "min": 0.25, "max": 0.88, "drunk": -0.12 },
+        "scale": { "fists": 3.0, "weapons": 2.0 },
+        "fleeBelow": 0.3,
+        "fleeChance": 0.45,
+        "maxSeconds": 45,
+        "knockback": 0.16
+    },
+
+    "bystanders": {
+        "ringRadius": 9,
+        "ringMax": 7,
+        "ringDistance": [2, 3],
+        "joinChance": { "kin": 0.55, "friend": 0.3, "retainer": 0.6 },
+        "maxPerSide": 3,
+        "joinAfter": [2, 5],
+        "peacemakerTraits": ["kind", "cautious", "pious"],
+        "peacemakerRoles": ["priest"],
+        "peacemakerAfter": [6, 10],
+        "separate": 0.45,
+        "keeperSeparate": 0.6,
+        "tendChance": 0.6,
+        "tendAfter": [4, 8]
+    },
+
+    "watch": {
+        "hearRadius": 20,
+        "hearDelay": [2, 5],
+        "indoorDelay": [10, 16],
+        "arrestSeconds": 6,
+        "fine": { "words": 0, "shove": 2, "fists": 6, "weapons": 25 },
+        "jailDays": { "fists": 3, "weapons": 15, "death": 60 },
+        "arrestChance": { "village": 0.25, "town": 0.4, "city": 0.55, "capital": 0.65 },
+        "resistStance": 4
+    },
+
+    "death": {
+        "_comment": "Death is rare: a knock-out may bleed (by stage), the bleeding may be bound by someone in time.",
+        "bleed": { "fists": 0.025, "weapons": 0.3 },
+        "tended": 0.65
+    },
+
+    "aftermath": {
+        "barDays": [20, 45],
+        "barChance": 0.6,
+        "logMax": 12
+    },
+
+    "offscreen": {
+        "perDay": { "village": 0.012, "town": 0.03, "city": 0.05, "capital": 0.06 },
+        "perFeud": 0.15,
+        "maxMult": 3,
+        "watchShare": { "village": 0.15, "town": 0.3, "city": 0.45, "capital": 0.55 },
+        "partedShare": 0.35,
+        "fledShare": 0.2
+    },
+
+    "onMap": {
+        "scanEvery": [5, 9],
+        "playerRadius": 20,
+        "pairRadius": 3,
+        "grudgeRadius": 8,
+        "cooldown": [25, 50],
+        "maxActive": 1
+    },
+
+    "betting": {
+        "stake": 10,
+        "stakes": [5, 10, 25],
+        "margin": 0.1,
+        "minOdds": 1.15,
+        "maxOdds": 5
+    },
+
+    "player": {
+        "cheer": { "side": 4, "foe": -4, "spirit": 0.06 },
+        "breakUp": { "base": 0.4, "perStrength": 0.04, "perCharisma": 0.03, "ruler": 0.35, "guardBonus": 0.15, "thanks": 5, "shove": 6 },
+        "join": { "side": 10, "foe": -25 }
+    },
+
+    "barks": {
+        "words": {
+            "tavern": [["You spilled my ale, {name}!", "Then drink off the floor."], ["Say that again, I dare you.", "I'll say it slower for you."], ["You cheated at dice, {name}!", "Sore loser!"], ["Your round, {name}. It's always your round.", "Says the man who never pays."]],
+            "grudge": [["I've not forgotten {why}, {name}.", "Then you've a long memory and a short wit."], ["You've a nerve, showing your face, {name}.", "It's a free street."], ["{name}! We've a score to settle.", "Settle it, then."]],
+            "market": [["That's robbery, not a price!", "Then buy elsewhere!"], ["You've short-weighted me, {name}!", "Call me a cheat again."], ["Your bread's half chalk!", "Out of my stall!"]],
+            "cutpurse": [["That's my purse, you thief!", "I never touched it!"], ["Hand it back, {name}!", "Get your hands off me!"]],
+            "drunk": [["What're YOU lookin' at?", "Go home, {name}, you're drunk."], ["I can take anyone in this town!", "Not tonight you can't."]],
+            "watch": [["In the name of the watch — stand!", "Not today!"]],
+            "retainers": [["Out of our road, dog!", "Make me."]],
+            "any": [["Watch your tongue, {name}.", "Or what?"], ["You want trouble?", "I'm not afraid of you."]]
+        },
+        "shove": ["Get away from me!", "Back off!", "Don't you push me!", "Hands off!"],
+        "taunt": ["Is that all?", "Come on then!", "My gran hits harder!", "You'll pay for that!", "Hold still!"],
+        "hurt": ["Oof!", "Agh!", "My nose!", "Argh!"],
+        "steel": ["Right — steel it is!", "You asked for this!", "Draw, then!"],
+        "cheer": ["Hit him!", "Go on!", "Ha! Give it to 'em!", "Fight! Fight!", "Get up, man!", "Ooh!", "A crown on the big one!", "Mind his left!"],
+        "cry": ["Stop them!", "Someone fetch the watch!", "They'll kill each other!", "Not again…"],
+        "ally": ["Leave {name} be!", "That's my {kin} you're hitting!", "I'm with you, {name}!"],
+        "peace": ["Enough, the both of you!", "Break it up!", "Peace, friends, peace!", "Stop this now!"],
+        "parted": ["Fine. This isn't over.", "Bah. Not worth it.", "Let go of me — I'm done."],
+        "backDown": ["Not worth my time.", "Pah. Another day.", "Keep your hair on."],
+        "flee": ["Enough! Enough!", "I yield — I yield!", "Mercy!"],
+        "win": ["And stay down!", "Who's next?", "That'll learn you."],
+        "watch": ["Break it up, in the name of the watch!", "Stand apart! Watch!", "That's enough!"],
+        "arrest": ["You're coming with me.", "You'll cool off in the cells.", "Come along quiet."],
+        "keeper": ["Not in my house!", "Out! Take it outside!", "You'll pay for those stools!"],
+        "barred": ["And don't come back! You're barred!", "You're not welcome here — out!"],
+        "tend": ["He's bleeding — bind it, quick!", "Hold still, I've got you.", "Press here — hard!"],
+        "bet": ["Done — a bet's a bet.", "You're on."]
+    },
+
+    "rumours": {
+        "_comment": "What the town says after ({a}, {b}, {place}, {when}). By outcome.",
+        "ko": ["{a} knocked {b} senseless {place} {when}.", "{a} and {b} came to blows {place} {when}; {b} didn't get up for a while."],
+        "fled": ["{a} and {b} came to blows {place} {when}, and {b} ran for it.", "{b} took a beating from {a} {place} {when} and fled."],
+        "parted": ["{a} and {b} came to blows {place} {when}, till folk pulled them apart.", "There was a scrap {place} {when} — {a} and {b}, pulled apart before it went far."],
+        "watch": ["{a} and {b} were fighting {place} {when}; the watch took {a} away.", "The watch broke up {a} and {b} {place} {when} and hauled {a} off."],
+        "backDown": ["{a} and {b} had hard words {place} {when}.", "{a} and {b} nearly came to blows {place} {when}."],
+        "joined": ["{a} and {b} came to blows {place} {when}, and a stranger waded in.", "A stranger took a side when {a} and {b} fought {place} {when}."],
+        "death": ["{b} was killed in a fight with {a} {place} {when}. A terrible thing.", "{a} killed {b} in a brawl {place} {when}."],
+        "retainers": ["Men of {a} and {b} came to blows {place} {when}; there was blood in the street.", "{a}'s men started a brawl {place} {when}, with {b}."]
+    },
+
+    "places": { "tavern": "at the tavern", "market": "at the market", "street": "in the street", "square": "in the square" }
+}

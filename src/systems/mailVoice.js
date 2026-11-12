@@ -56,11 +56,14 @@ import { Couriers } from './couriers.js';
 import { CourtLetters } from './courtLetters.js';
 import { Chatter } from './chatter.js';
 import { Townsfolk } from './townsfolk.js';
+import { Romance } from './romance.js';
+import { TownSchool } from './townSchool.js';
 import { Languages } from './languages.js';
 import { Throne } from './throne.js';
 import { Upbringing } from './upbringing.js';
 import { NpcBrain } from './npcBrain.js';
 import { Whispers } from './whispers.js';
+import { Illness } from './illness.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -78,7 +81,7 @@ function _hash(str) {
 }
 
 const PERSONAS = ['formal', 'blunt', 'flowery', 'pious', 'sly', 'nervous', 'warm'];
-const THREADS = ['ruler_ill', 'war', 'lord_war', 'siege', 'dearth', 'outlaws', 'plague', 'famine', 'hurt', 'widowed', 'harvest_failing', 'strike'];
+const THREADS = ['ruler_ill', 'war', 'lord_war', 'siege', 'dearth', 'outlaws', 'plague', 'famine', 'hurt', 'widowed', 'harvest_failing', 'strike', 'sick', 'kin_sick', 'town_sick'];
 const DAYS_PER_YEAR = 120;
 
 /** "a fortnight", "a month", "two months" — how long ago, in a letter's words. */
@@ -262,6 +265,9 @@ export const MailVoice = {
                 W.roleTitle = Townsfolk.roleTitle(p);
                 const lit = { priest: 100, noble: 100, merchant: 85, blacksmith_npc: 35, guard: 30, farmer: 12, villager: 18, beggar: 0 };
                 W.literate = (_hash(`lit:${to.key}`) % 100) < _num(lit[role], 20);
+                // Their own letters, if they were schooled to them (systems/townSchool.js; null: the guess above stands)
+                const writes = TownSchool.canWrite(p);
+                if (writes != null) W.literate = writes;
                 W.lang = townLang;
                 W.old = Townsfolk.age(p, _day(world)) >= 60;
                 W.person = settlement && settlement.folk ? { person: p, folk: settlement.folk, settlement } : null;
@@ -445,9 +451,15 @@ export const MailVoice = {
                     case 'parentDied': if (o) add('life_parent_died', `${e.d}`, { name: o.first, parentWord: Townsfolk.kinWord(o, 'parent') }, 2.5, true); break;
                     case 'kidLeft': if (o) add('life_kid_left', `${e.d}`, { name: o.first, to: e.x || 'the city', childWord: Townsfolk.kinWord(o, 'child') }, 2, true); break;
                     case 'retired': add('life_retired', `${e.d}`, { work: Townsfolk.title(e.x, p.gender) }, 1.5, true); break;
+                    // Their heart (systems/romance.js): a courtship, a betrothal, a heart broken
+                    case 'courting': if (o && Townsfolk.isHere(o) && o.id !== p.spouse) add('life_courting', `${e.d}`, { name: Townsfolk.name(o), first: o.first }, 2.5, true); break;
+                    case 'betrothed': if (o && o.id !== p.spouse) add('life_betrothed', `${e.d}`, { name: Townsfolk.name(o), first: o.first }, 3, true); break;
+                    case 'heartbroken': if (o && e.x !== 'death') add('life_heartbroken', `${e.d}`, { first: o.first }, 2, true); break;
                     default: break;
                 }
             }
+            // Sick themselves, sick kin at home, sickness going round the town (systems/illness.js)
+            for (const f of Illness.mailFacts(folk, p, day)) add(f.k, f.x, f.vars, f.w, true);
             if (p.hurt && _num(p.hurt.hp) > 0) {
                 const left = Math.max(0, Math.round(_num(p.hurt.hp) - (day - _num(p.hurt.d)) * 0.12 * _num(p.hurt.max, 1)));
                 if (left > 0) add('hurt', 'self', {}, 2.5, true);
@@ -463,12 +475,15 @@ export const MailVoice = {
             const since = day - 60;
             // (their own family's news they tell as their own, not as the town's)
             const own = new Set([p.id, p.spouse, ...(p.kids || []), ...(p.parents || [])].filter(x => x != null));
-            const ann = (folk.annals || []).filter(a => a && a.d > since && !own.has(a.a) && !own.has(a.b) && ['died', 'wed', 'born', 'left', 'exiled', 'beaten', 'plotFoiled'].includes(a.k)).slice(-4);
+            const ann = (folk.annals || []).filter(a => a && a.d > since && !own.has(a.a) && !own.has(a.b) && ['died', 'wed', 'born', 'left', 'exiled', 'beaten', 'plotFoiled', 'betrothed', 'eloped', 'jilted', 'affair'].includes(a.k)).slice(-4);
             if (ann.length) {
                 const a = ann[_hash(`ann:${p.id}:${day}`) % ann.length];
                 const text = Townsfolk.annalText(folk, a, world);
                 if (text) add('neighbour', `${a.k}:${a.a}:${a.d}`, { text: text.replace(/[.\s]+$/, '') }, 1.2);
             }
+            // Who is sweet on whom in their town (systems/romance.js)
+            const tale = Romance.rumours(folk, world, 1, p)[0];
+            if (tale) add('neighbour_love', `${tale.court.a}:${tale.court.b}:${tale.court.st}`, { text: tale.text.replace(/[.\s]+$/, '') }, 1);
         }
     },
 

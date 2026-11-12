@@ -100,7 +100,10 @@
             "repDrift": 0.15,
             "maxHistory": 8,
             "cashKeep": 800,
-            "spendShare": 0.5
+            "spendShare": 0.5,
+            "_keeper": "Real coin to the innkeeper: each week the keeper (a townsperson, keeperUid) draws keeperShare of what the house cleared to their own purse. On the street map a traveller lodging the night pays a common-room bed (or the house's cheapest tier), and anyone sat to supper at an inn, tavern or roadhouse pays a supper, from their own purse into the keeper's (Hospitality.npcPays); a house with no townsperson keeper banks it. walkIn: the prices at a tavern with no house of hospitality behind it.",
+            "keeperShare": 0.25,
+            "walkIn": { "room": 2, "meal": 1 }
         },
         "player": {
             "priceSteps": [0.6, 0.8, 1, 1.25, 1.5, 2],

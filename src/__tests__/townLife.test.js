@@ -91,7 +91,8 @@ describe('Town life', () => {
                 const end = n.path && n.path.length ? n.path[n.path.length - 1] : { q: n.q, r: n.r };
                 // (hands out in the fields, and the woodcutters, miners and herbalists out at their trees,
                 //  rocks and bushes, keep to the map but not the town)
-                if (n._field || n._carry || n._chop || n._forage) {
+                // (and fishers on the shore, herders with the flocks, washerwomen at the river: world/innerMap/townWork.js)
+                if (n._field || n._carry || n._chop || n._forage || n._outWork) {
                     expect(end.q >= m && end.r >= m && end.q < InnerMap.width - m && end.r < InnerMap.height - m).toBe(true);
                     continue;
                 }

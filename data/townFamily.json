@@ -1,0 +1,97 @@
+{
+    "_doc": "Family life among the townsfolk (systems/townFamily.js): conception, pregnancy and birth, households and who inherits, orphans taken in, children growing into youths, and the old greying, slowing and telling stories. A game year is 120 days, so a nine-month pregnancy is pregnancyDays 90. Rates are per year (spread over the 10-day steps). Lines: a plain string, or { t, p: [tempers] }. Tokens: {name}, {when}, {story}, {child}, {kid}.",
+    "enabled": true,
+    "stepDays": 10,
+    "pregnancyDays": 90,
+    "conception": {
+        "byAge": [
+            { "under": 18, "rate": 0 },
+            { "under": 25, "rate": 0.5 },
+            { "under": 35, "rate": 0.45 },
+            { "under": 40, "rate": 0.3 },
+            { "under": 43, "rate": 0.12 },
+            { "under": 999, "rate": 0 }
+        ],
+        "afterWedDays": 30,
+        "gapAfterBirthDays": 60,
+        "perLivingChild": 0.12,
+        "maxChildren": 5,
+        "dearth": 0.5,
+        "plague": 0.6,
+        "hurt": 0.5,
+        "station": { "0": 0.85, "1": 1, "2": 1.05, "3": 1.1 },
+        "affair": 0.04,
+        "affairFoundOut": 0.5
+    },
+    "birth": { "childbedDeath": 0, "_childbedDeath": "0: deaths after a birth are childbed fever, systems/illness.js (data/illness.json childbed, read from isPostpartum)", "postpartumDays": 30, "midwifeMinAge": 35, "stillbirth": 0.03 },
+    "youthAge": 12,
+    "elderAge": 60,
+    "frailFrom": 55,
+    "frailFull": 85,
+    "retire": { "heavy": 62, "all": 75, "heavyRoles": ["guard", "farmer", "blacksmith_npc"] },
+    "grey": { "from": [42, 58], "silver": 12, "white": 22 },
+    "houses": { "perResident": 0.3, "slack": 1 },
+    "maxComingOfAge": 30,
+    "christening": { "afterDays": 3, "offering": 1, "godparents": 2, "lateDays": 60 },
+    "adoption": { "maxAge": 55, "neighbourMaxKids": 3, "range": 12 },
+    "onMap": {
+        "scanEvery": [2, 4], "playerRadius": 18, "barkCooldown": [20, 40],
+        "playChance": 0.5, "choreChance": 0.25, "homeAtMeals": 0.6, "elderRest": 0.45,
+        "elderSlow": 0.75, "elderAge": 65, "storyChance": 0.5, "newsDays": 30,
+        "scale": [{ "under": 8, "s": 0.6 }, { "under": 12, "s": 0.68 }, { "under": 14, "s": 0.78 }, { "under": 16, "s": 0.88 }]
+    },
+    "lines": {
+        "play": [
+            "Tag! You're it!",
+            "Can't catch me!",
+            "Wait for me!",
+            "My turn! My turn!",
+            "I'm the king of the castle!",
+            "Race you to the well!",
+            "You cheated!",
+            "Hide! Quick!"
+        ],
+        "chore": [
+            "Mam says fill it to the top.",
+            "Here, chick-chick-chick!",
+            "This bucket's heavier than me.",
+            "Nearly done. Then I can play."
+        ],
+        "childToPlayer": [
+            "Are you a real adventurer?",
+            "Is that a real sword?",
+            "My da says not to talk to strangers.",
+            "Where are you from?"
+        ],
+        "story": [
+            "I remember it well. {story}",
+            "Ah, the old days. {story}",
+            "You young ones don't remember. {story}",
+            "Sit a while, I'll tell you. {story}",
+            { "t": "Mark me, nothing's been the same since. {story}", "p": ["stern", "stubborn"] },
+            { "t": "Ha! Those were the days. {story}", "p": ["jovial", "witty"] }
+        ],
+        "elder": [
+            "Oh, my knees.",
+            "In my day, bread cost a copper.",
+            "Slow down, slow down.",
+            "The sun's good on old bones.",
+            { "t": "Hmph. Young folk. Always running.", "p": ["stern", "stubborn"] }
+        ],
+        "birthNews": [
+            "Did you hear? {name} has had a {kid}!",
+            "{name} had a {kid}. Mother and babe both well, they say.",
+            "A {kid} for {name}! There'll be no sleep in that house now."
+        ],
+        "expectingNews": [
+            "They say {name} is with child.",
+            "{name}'s expecting, did you know? Due {when}."
+        ],
+        "christeningGuest": ["Bless the little one!", "Look at those cheeks.", "Hush now, the priest is speaking.", "I stood godparent to your father, you know."],
+        "christeningPriest": ["In the name of all that is holy, we welcome this child.", "What name is given this child?", "May the gods keep you all your days, little one."],
+        "expectingOwn": [
+            "*rests a hand on her belly* The little one's due {when}.",
+            "We're expecting! {when}, the midwife says."
+        ]
+    }
+}

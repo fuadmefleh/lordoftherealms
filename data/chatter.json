@@ -695,6 +695,62 @@
         { "id": "plague_merchant", "when": { "event": ["plague"], "occupation": ["merchant"] }, "weight": 3, "lines": [
             "Herbs and remedies, very dear while the plague's at {eventPlace}. I won't apologise."
         ]},
+        { "id": "sick_here", "when": { "sickness": "here" }, "weight": 2, "lines": [
+            "There's {sickName} going round. Half my street is abed.",
+            "Mind who you share a cup with — {sickName} is about.",
+            "The herbalist's run off her feet with all this {sickName}.",
+            "My neighbour's little ones are down with {sickName}. We pray it passes."
+        ]},
+        { "id": "sick_epidemic", "when": { "sickness": "epidemic" }, "weight": 3, "lines": [
+            "The church bell's rung for the dead every day this week.",
+            "Folk keep their doors shut. You can hear the coughing through the walls.",
+            "Don't linger here, stranger. {sickName} is in every house."
+        ]},
+        { "id": "sick_quarantine", "when": { "sickness": "quarantine" }, "weight": 3, "lines": [
+            "The gates are shut by the crown's law till the sickness passes. No carts in, no carts out.",
+            "Quarantine. Bread's dear and getting dearer, but better that than the {sickName} spreading."
+        ]},
+        { "id": "romance_wed", "when": { "romance": ["wed"] }, "weight": 2, "lines": [
+            "Did you see {loverA} and {loverB} come out of the church? Wed at last, and about time.",
+            "{loverA} and {loverB} are married. The whole street was at the church door, cheering.",
+            "A wedding! {loverA} wed {loverB}. I cried, I don't mind saying."
+        ]},
+        { "id": "romance_betrothed", "when": { "romance": ["betrothed"] }, "weight": 2, "lines": [
+            "{loverA} and {loverB} are promised. Mark me, there'll be a wedding before the season's out.",
+            "They say {loverA} asked for {loverB}'s hand, and was given it."
+        ]},
+        { "id": "romance_jilted", "when": { "romance": ["jilted"] }, "weight": 2, "lines": [
+            "Poor {loverB}. {loverA} broke it off, and in front of half the market.",
+            "{loverA} and {loverB}? Over. Don't mention it near either of them."
+        ]},
+        { "id": "romance_forbidden", "when": { "romance": ["forbidden"] }, "weight": 2, "lines": [
+            "{loverA}'s family won't hear of {loverB}. Forbidden, and the pair of them moping about the well.",
+            "They'd wed tomorrow, {loverA} and {loverB}, if the family let them."
+        ]},
+        { "id": "romance_eloped", "when": { "romance": ["eloped"] }, "weight": 3, "lines": [
+            "{loverA} and {loverB} ran off together in the night! Not a word to anyone.",
+            "Eloped, the two of them. {loverA}'s mother hasn't stopped weeping."
+        ]},
+        { "id": "romance_affair", "when": { "romance": ["affair"] }, "weight": 3, "lines": [
+            "Keep it under your hat, but {loverA} has been seen with {loverB}. And {loverA} a married one.",
+            "The whole town knows about {loverA} and {loverB} now. There'll be blood over it, you watch.",
+            "{loverA} and {loverB}, caught at it. Shameful. Tell me everything."
+        ]},
+        { "id": "romance_rival", "when": { "romance": ["rivalWon"] }, "weight": 2, "lines": [
+            "{loverA} lost {loverB} to another suitor. Hasn't been the same since.",
+            "Two suitors after {loverB}, and {loverA} came off worst."
+        ]},
+        { "id": "sick_near", "when": { "sickness": "near" }, "weight": 2, "lines": [
+            "They say there's {sickName} at {sickTown}. I'd not go there if I were you.",
+            "A carter from {sickTown} says {sickName} is going through the houses there.",
+            "Fever at {sickTown}, I heard. Gods keep it from our door."
+        ]},
+        { "id": "sick_near_priest", "when": { "sickness": "near", "occupation": ["priest"] }, "weight": 2, "lines": [
+            "I've had word from the priest at {sickTown}: {sickName}, and many to bury. Pray for them."
+        ]},
+        { "id": "sick_merchant", "when": { "sickness": "here", "occupation": ["merchant"] }, "weight": 2, "lines": [
+            "Herbs are dear with all this {sickName} about. Everyone wants a posset."
+        ]},
         { "id": "famine_any", "when": { "event": ["famine"] }, "weight": 3, "lines": [
             "The granaries of {eventPlace} are bare. People are eating bark bread.",
             "Hungry months. My neighbour sold his cow for a sack of oats.",

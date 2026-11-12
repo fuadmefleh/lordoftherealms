@@ -102,11 +102,15 @@ describe('Town scenes', () => {
         expect(InnerMap._scenePick(v, 'night')).toBe(false);
     });
 
-    it('hawks what the market really has in stock', () => {
+    it('hawks what the market really has in stock, of its own stall trade (world/marketStalls.js)', () => {
         enter('city', 10, 3, { stock: { salt: 80 } });
-        const v = InnerMap.npcs.find(n => n._vending && n.type === 'merchant');
+        const v = InnerMap.npcs.find(n => n._vending && n._stall);
         expect(v).toBeTruthy();
-        for (let i = 0; i < 8; i++) expect(InnerMap._sceneHawk(v).toLowerCase()).toContain('salt');
+        // A spice merchant's stall, with only salt in the market: salt is the one ware it names
+        v._stall.trade = 'spicer';
+        const lines = Array.from({ length: 24 }, () => InnerMap._sceneHawk(v).toLowerCase());
+        expect(lines.some(l => l.includes('salt'))).toBe(true);
+        for (const l of lines) for (const g of ['tea', 'incense', 'perfume', 'exotic', 'luxur']) expect(l).not.toContain(g);
     });
 
     it('a service gathers the congregation into the pews, and ends', () => {

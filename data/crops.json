@@ -32,7 +32,7 @@
         "cabbage": {
             "name": "Cabbage", "icon": "🥬",
             "seed": "cabbage_seed",
-            "product": "vegetables", "yield": [2, 4],
+            "product": "cabbage", "yield": [2, 4],
             "stages": [3, 4, 5],
             "sow": ["Spring", "Summer", "Autumn"],
             "hardy": true, "water": "medium",
@@ -42,7 +42,7 @@
         "turnip": {
             "name": "Turnips", "icon": "🥔",
             "seed": "turnip_seed",
-            "product": "vegetables", "yield": [2, 3],
+            "product": "turnips", "yield": [2, 3],
             "stages": [2, 3, 3],
             "sow": ["Spring", "Autumn"],
             "hardy": true, "water": "medium",
@@ -52,12 +52,32 @@
         "carrot": {
             "name": "Carrots", "icon": "🥕",
             "seed": "carrot_seed",
-            "product": "vegetables", "yield": [2, 4],
+            "product": "carrots", "yield": [2, 4],
             "stages": [3, 3, 4],
             "sow": ["Spring", "Summer"],
             "hardy": false, "water": "medium",
             "markets": ["town", "city", "capital"], "qtyMult": 0.01,
             "art": { "sheet": "crops", "stages": [[0, 1], [0, 3], [0, 5]], "ripe": [0, 7] }
+        },
+        "onion": {
+            "name": "Onions", "icon": "🌱",
+            "seed": "onion_seed",
+            "product": "onions", "yield": [2, 4],
+            "stages": [3, 4, 5],
+            "sow": ["Spring", "Summer"],
+            "hardy": false, "water": "low",
+            "markets": ["village", "town", "city", "capital"], "qtyMult": 0.01,
+            "art": { "sheet": "crops", "stages": [[11, 1], [11, 3], [11, 5]], "ripe": [11, 7] }
+        },
+        "beans": {
+            "name": "Beans & Peas", "icon": "🥜",
+            "seed": "bean_seed",
+            "product": "beans", "yield": [2, 4],
+            "stages": [3, 5, 6],
+            "sow": ["Spring"],
+            "hardy": false, "water": "medium",
+            "markets": ["village", "town", "city", "capital"], "qtyMult": 0.01,
+            "art": { "sheet": "crops", "stages": [[25, 11], [25, 13], [25, 15]], "ripe": [25, 17] }
         },
         "flax": {
             "name": "Flax", "icon": "🌿",

@@ -31,6 +31,9 @@ import { Relationships } from './relationships.js';
 import { NpcDisposition } from './npcDisposition.js';
 import { Chatter } from './chatter.js';
 import { PlayerInventory } from '../core/inventory.js';
+// (what they carry and the coin they take: real stock and purses, systems/townTrade.js)
+import { TownTrade } from './townTrade.js';
+import { Economy } from '../world/economy.js';
 
 const DEFAULTS = {
     apCost: 1,
@@ -70,24 +73,34 @@ function _good(id) {
     return goods[String(id || '').toUpperCase()] || null;
 }
 
+/** A settlement by its name (the live record on its tile), or null. */
+function _townNamed(world, name) {
+    if (!world || !name || typeof world.getSettlementViews !== 'function') return null;
+    const v = world.getSettlementViews().find(x => x && x.name === name);
+    if (!v) return null;
+    const t = typeof world.getTile === 'function' ? world.getTile(v.q, v.r) : null;
+    return (t && t.settlement) || null;
+}
+
+/** The live settlement a roster person lives in, or null. */
+function _townOfFolk(world, folk) {
+    if (!world || !folk || typeof world.getTile !== 'function') return null;
+    const t = world.getTile(folk.q, folk.r);
+    return (t && t.settlement) || null;
+}
+
 /**
  * What someone carries by their trade (data/npcChat.json carries), kept on
  * their store for the day so what they gave away is gone until tomorrow:
- * { itemId: { qty, price } }.
+ * { itemId: { qty, price } }. It is real: their town's market's goods on
+ * consignment (systems/townTrade.js consign — yesterday's leftovers go back,
+ * today's come out of its stock), so someone with no town to draw on, or a
+ * market without the goods, carries nothing — nothing is conjured.
  */
-function _carried(store, kinds, world) {
-    const day = _num(world && world.day);
-    if (!store.stock || store.stock.day !== day) {
-        const carries = NpcChat.config().carries || {};
-        const kind = kinds.find(k => k && carries[k]) || 'default';
-        const items = {};
-        for (const [id, qty] of Object.entries(carries[kind] || {})) {
-            const g = _good(id);
-            if (g && qty > 0) items[id] = { qty, price: g.basePrice || 1 };
-        }
-        store.stock = { day, items };
-    }
-    return store.stock.items;
+function _carried(store, kinds, world, settlement = null) {
+    const carries = NpcChat.config().carries || {};
+    const kind = kinds.find(k => k && carries[k]) || 'default';
+    return TownTrade.consign(world, settlement, store, carries[kind] || {});
 }
 
 export const NpcChat = {
@@ -131,7 +144,21 @@ export const NpcChat = {
                 return lines;
             },
             regard: () => rel().score || 0,
-            stock: (world) => _carried(rel(), [npc.occupation], world),
+            stock: (world) => _carried(rel(), [npc.occupation], world, _townNamed(world, npc.settlementName)),
+            // (a sale's coin goes to the town whose goods they were; coin given them, to their purse; what they give is their own purse's)
+            receive: (world, n, why = 'sale') => {
+                const paid = why === 'sale' ? TownTrade.consignPaid(world, rel(), n) : 0;
+                if (paid >= n) return paid;
+                npc.purse = Math.round(((typeof npc.purse === 'number' ? npc.purse : 0) + n - paid) * 100) / 100;
+                return n;
+            },
+            purse: () => (typeof npc.purse === 'number' ? Math.max(0, npc.purse) : 0),
+            payOut: (world, n) => {
+                const have = typeof npc.purse === 'number' ? Math.max(0, npc.purse) : 0;
+                const paid = Math.min(have, Math.max(0, n));
+                if (paid > 0) npc.purse = Math.round((have - paid) * 100) / 100;
+                return paid;
+            },
             warm(n) { const r = rel(); const b = _num(r.score); r.score = _clamp(b + n, -100, 100); return r.score - b; },
             sour(n) { const r = rel(); const b = _num(r.score); r.score = _clamp(b - n, -100, 100); return b - r.score; },
             canFeel: () => (npc.attraction || 0) >= 25,
@@ -178,8 +205,40 @@ export const NpcChat = {
                 return lines;
             },
             regard: () => _num(mem().disposition, 50) * 2 - 100,
-            stock: (world) => (npc.shopInventory && typeof npc.shopInventory === 'object' && Object.keys(npc.shopInventory).length
-                ? npc.shopInventory : _carried(mem(), [npc.type, String(npc.roleTitle || '').toLowerCase()], world)),
+            // What they have: a townsperson's own wares (systems/townTrade.js), a trader's shop,
+            // else their town's goods on consignment — never conjured
+            stock: (world) => {
+                const town = _townOfFolk(world, npc._folk);
+                if (npc._person && town && TownTrade.enabled()) {
+                    const k = `${_num(world && world.day)}`;
+                    if (!npc._chatWares || npc._chatWares.k !== k) {
+                        Object.defineProperty(npc, '_chatWares', { value: { k, items: TownTrade.personStock(world, town, npc._person) }, configurable: true, enumerable: false, writable: true });
+                    }
+                    return npc._chatWares.items;
+                }
+                if (npc.shopInventory && typeof npc.shopInventory === 'object' && Object.keys(npc.shopInventory).length) return npc.shopInventory;
+                return _carried(mem(), [npc.type, String(npc.roleTitle || '').toLowerCase()], world, town || _townNamed(world, opts.place));
+            },
+            take: (world, id, qty) => {
+                const town = _townOfFolk(world, npc._folk);
+                if (npc._person && town && TownTrade.enabled()) TownTrade.takeWares(town, npc._person, id, qty);
+            },
+            receive: (world, n, why = 'sale') => {
+                const town = _townOfFolk(world, npc._folk) || _townNamed(world, opts.place);
+                if (npc._person) { npc._person.purse = Math.round(((typeof npc._person.purse === 'number' ? npc._person.purse : 0) + n) * 100) / 100; return n; }
+                const paid = why === 'sale' ? (TownTrade.consignPaid(world, mem(), n) || (town ? Economy.payTown(town, n) : 0)) : 0;
+                if (paid >= n) return paid;
+                npc.purse = Math.round(((typeof npc.purse === 'number' ? npc.purse : 0) + n - paid) * 100) / 100;
+                return n;
+            },
+            purse: () => (npc._person && typeof npc._person.purse === 'number' ? Math.max(0, npc._person.purse) : typeof npc.purse === 'number' ? Math.max(0, npc.purse) : 0),
+            payOut: (world, n) => {
+                const holder = npc._person && typeof npc._person.purse === 'number' ? npc._person : typeof npc.purse === 'number' ? npc : null;
+                if (!holder) return 0;
+                const paid = Math.min(Math.max(0, holder.purse), Math.max(0, n));
+                if (paid > 0) holder.purse = Math.round((holder.purse - paid) * 100) / 100;
+                return paid;
+            },
             warm: (n) => NpcDisposition.adjustDisposition(npc, n, player),
             sour: (n) => -NpcDisposition.adjustDisposition(npc, -n, player),
             canFeel: () => false,
@@ -246,7 +305,8 @@ export const NpcChat = {
         const stock = who.stock ? who.stock(world) : null;
         const have = stock ? Object.entries(stock).filter(([, e]) => e && e.qty > 0)
             .map(([id, e]) => `${id} x${e.qty} (${e.price || (_good(id) || {}).basePrice || 1} gold each)`) : [];
-        lines.push('', `WHAT YOU HAVE WITH YOU (item ids): ${have.length ? have.join(', ') : 'nothing to spare'}. Coin in your purse: about ${_num(NpcChat.config().limits.purse, 25)} gold.`);
+        const coin = who.purse ? Math.floor(who.purse(world)) : _num(NpcChat.config().limits.purse, 25);
+        lines.push('', `WHAT YOU HAVE WITH YOU (item ids): ${have.length ? have.join(', ') : 'nothing to spare'}. Coin in your purse: about ${coin} gold.`);
         if (player.gold != null) lines.push(`(The player looks to have about ${Math.round(_num(player.gold))} gold on them.)`);
 
         // The world around you (systems/chatter.js: the same facts the town talks of)
@@ -442,6 +502,8 @@ Answer with ONE JSON object and nothing else:
                         const r = PlayerInventory.addItem(player, id, qty);
                         if (!r.success) { notes.push({ text: `🎒 ${r.reason}`, tone: 'bad' }); break; }
                         entry.qty -= qty;
+                        // (out of their own real stock: systems/townTrade.js)
+                        if (who.take) who.take(world, id, qty);
                         t.given = _num(t.given) + value;
                         notes.push({ text: `🎁 ${who.firstName} gives you ${qty} ${label}`, tone: 'good' });
                     } else {
@@ -452,6 +514,9 @@ Answer with ONE JSON object and nothing else:
                         if (!r.success) { notes.push({ text: `🎒 ${r.reason}`, tone: 'bad' }); break; }
                         player.gold -= price;
                         entry.qty -= qty;
+                        // (the goods out of their real stock, the coin into their purse or their town's)
+                        if (who.take) who.take(world, id, qty);
+                        if (who.receive) who.receive(world, price, 'sale');
                         notes.push({ text: `🛒 You buy ${qty} ${label} for ${price} gold`, tone: 'info' });
                     }
                     break;
@@ -460,13 +525,16 @@ Answer with ONE JSON object and nothing else:
                     const n = Math.min(Math.max(0, Math.round(_num(a.amount, 0))), Math.floor(_num(player.gold)));
                     if (!(n > 0)) break;
                     player.gold -= n;
+                    if (who.receive) who.receive(world, n, 'gift');
                     notes.push({ text: `💰 You give ${who.firstName} ${n} gold`, tone: 'info' });
                     break;
                 }
                 case 'give_gold': {
                     const room = Math.max(0, _num(L.coinPerDay, 12) - _num(t.coin));
-                    const n = Math.min(Math.max(0, Math.round(_num(a.amount, 0))), room);
-                    if (!(n > 0)) break;
+                    let n = Math.min(Math.max(0, Math.round(_num(a.amount, 0))), room);
+                    // (out of their own purse: none to give, none given)
+                    if (n > 0 && who.payOut) n = Math.floor(who.payOut(world, n) * 100) / 100;
+                    if (!(n > 0)) { if (a.amount > 0) notes.push({ text: `💰 ${who.firstName} has no coin to spare`, tone: 'info' }); break; }
                     player.gold = _num(player.gold) + n;
                     t.coin = _num(t.coin) + n;
                     notes.push({ text: `💰 ${who.firstName} gives you ${n} gold`, tone: 'good' });

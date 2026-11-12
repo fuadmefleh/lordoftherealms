@@ -39,6 +39,8 @@ function _card(a, world) {
     const meta = [];
     if (a.spouse) meta.push(`💍 ${_esc(a.spouse)}`);
     if (a.kids.length) meta.push(`👪 ${_esc(a.kids.join(', '))}`);
+    // The generations: grandparents, grandchildren, orphans taken in, with child (systems/townFamily.js)
+    if (a.family) meta.push(`🌳 ${_esc(a.family)}`);
     if (meta.length) html += `<div style="font-size:11px; color:#aaa; margin-top:2px;">${meta.join(' · ')}</div>`;
     const seen = p.seen ? `last spoke ${_esc(Townsfolk.when(p.seen.d, world))}${p.seen.role === 'child' ? `, as a child of ${p.seen.age}` : ''}` : '';
     html += `<div style="font-size:10px; color:#888; margin-top:2px;">${dead ? '' : `<span style="color:${color};">${icon} ${feel}</span> · `}spoken with ${p.mem.timesSpoken}×${seen ? ` · ${seen}` : ''}</div>`;

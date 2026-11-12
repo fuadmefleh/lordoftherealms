@@ -7,6 +7,11 @@
 // llama-server. The package is imported dynamically — players who never pick
 // this provider never download its ~6 MB of code — and the engine runs in a
 // Web Worker (./webllm.worker.js) so generation never stalls the canvas.
+// The worker also compiles the model's GPU kernels asynchronously before a
+// load resolves (./shaderPrep.js): WebLLM would otherwise compile them
+// synchronously on the first reply, which freezes Chrome's painting for
+// tens of seconds the first time. Load progress reaches listeners at most
+// ~10 times a second (a React panel re-renders on each).
 //
 // Same contract as llmClient: nothing here throws, nothing blocks the game
 // loop, and every failure resolves to { ok:false, reason }. Nothing is ever
@@ -17,6 +22,7 @@
 // timeout and token defaults) is data: data/llmModels.json → `webllm`.
 
 import { DataLoader } from '../../core/dataLoader.js';
+import { installShaderPrep } from './shaderPrep.js';
 
 const JSON_ANY_OBJECT = JSON.stringify({ type: 'object' });
 const FALLBACK = { defaultModel: 'Llama-3.2-3B-Instruct-q4f16_1-MLC', timeoutMs: 60000, maxTokens: 160, models: [] };
@@ -45,7 +51,55 @@ let loadPromise = null;
 let support = null;            // Promise<{ ok, detail }>, checked once
 let queue = Promise.resolve(); // one generation at a time
 let status = { state: 'idle', progress: 0, text: '', model: null, detail: '' };
+let enginePath = null;         // 'worker' | 'main': where the engine runs (null before a load)
 const listeners = new Set();
+
+/** How often load progress may reach the listeners (ms). */
+export const PROGRESS_INTERVAL_MS = 100;
+
+/** What the settings panels say before a load: the first one compiles the model for this GPU. */
+export const LOAD_NOTICE = 'Loading takes up to a minute the first time; the game may pause briefly while your graphics card prepares the model.';
+
+/**
+ * Leading + trailing throttle for progress reports: the first report goes
+ * out at once, later ones at most every `ms`, and the last one held back is
+ * delivered when its turn comes (so the bar never stops short). cancel()
+ * drops a held-back report — call it before a newer status (ready, error)
+ * so a late progress tick can't overwrite it. `clock`/`timer` are test seams.
+ */
+export function throttleProgress(emit, ms = PROGRESS_INTERVAL_MS, { clock = () => Date.now(), timer = { set: (f, d) => setTimeout(f, d), clear: (h) => clearTimeout(h) } } = {}) {
+    let last = -Infinity;
+    let held = null;
+    let handle = null;
+    const flush = () => {
+        handle = null;
+        if (!held) return;
+        const r = held;
+        held = null;
+        last = clock();
+        emit(r);
+    };
+    const fn = (r) => {
+        const t = clock();
+        if (t - last >= ms && !handle) {
+            last = t;
+            emit(r);
+            return;
+        }
+        held = r;
+        if (!handle) handle = timer.set(flush, Math.max(0, ms - (t - last)));
+    };
+    fn.cancel = () => { held = null; if (handle) { timer.clear(handle); handle = null; } };
+    return fn;
+}
+
+/** WebLLM's progress line in the game's words (the kernel compile is the part that can pause the page). */
+export function progressText(text) {
+    const t = String(text || '');
+    const m = /^Preparing GPU kernels \[(\d+)\/(\d+)\]/.exec(t);
+    if (m) return `Preparing the model on your graphics card (${m[1]}/${m[2]}); the game may pause briefly`;
+    return t;
+}
 
 function setStatus(patch) {
     status = { ...status, ...patch };
@@ -103,7 +157,55 @@ function enqueue(timeoutMs, job) {
     return run.catch(() => ({ ok: false, reason: 'webllm error' }));
 }
 
+function logPath(msg) {
+    try { console.info(`[webllm] ${msg}`); } catch { /* no console */ }
+}
+
+/**
+ * Build the engine: in the Web Worker when one can be made, else on the main
+ * thread (with the same kernel prep). A worker whose script fails to load
+ * rejects instead of hanging the load forever.
+ */
+async function createEngine(id, cfg) {
+    let worker = null;
+    try { worker = workerFactory(); } catch (e) {
+        worker = null;
+        logPath(`no Web Worker (${(e && e.message) || e}); running the model on the main thread`);
+    }
+    if (worker) {
+        let onError = null;
+        const failed = new Promise((_, reject) => {
+            onError = (ev) => reject(new Error(`the model's worker failed to start${ev && ev.message ? `: ${ev.message}` : ''}`));
+            try { worker.addEventListener('error', onError, { once: true }); } catch { /* a fake */ }
+        });
+        failed.catch(() => {});
+        try {
+            const eng = await Promise.race([lib.CreateWebWorkerMLCEngine(worker, id, cfg), failed]);
+            enginePath = 'worker';
+            logPath('engine running in a Web Worker');
+            return eng;
+        } catch (e) {
+            try { worker.terminate(); } catch { /* gone */ }
+            throw e;
+        } finally {
+            try { worker.removeEventListener('error', onError); } catch { /* a fake */ }
+        }
+    }
+    // No workers here (some file:// hosts): run on the main thread rather than not at all
+    enginePath = 'main';
+    if (typeof lib.MLCEngine === 'function') {
+        const eng = new lib.MLCEngine(cfg);
+        installShaderPrep(eng);
+        await eng.reload(id);
+        return eng;
+    }
+    return lib.CreateMLCEngine(id, cfg);
+}
+
 export const WebLlm = {
+
+    /** The line the settings panels show before / during a load (see LOAD_NOTICE). */
+    LOAD_NOTICE,
 
     // ── Catalogue ───────────────────────────────────────────────
 
@@ -152,6 +254,11 @@ export const WebLlm = {
     /** The current state, sync: { state: idle|loading|ready|error|unsupported, progress 0..1, text, model, detail }. */
     status() {
         return { ...status };
+    },
+
+    /** Where the engine runs: 'worker', 'main' (no Worker could be made), or null before a load. */
+    enginePath() {
+        return enginePath;
     },
 
     /** Listen to status changes (download progress); returns an unsubscribe function. */
@@ -218,25 +325,21 @@ export const WebLlm = {
                 return { ok: false, reason: 'unsupported' };
             }
             setStatus({ state: 'loading', progress: 0, text: 'Starting…', model: id, detail: '' });
+            let onProgress = null;
             try {
                 await ensureLib();
-                const onProgress = (r) => setStatus({
+                onProgress = throttleProgress((r) => setStatus({
                     state: 'loading',
                     progress: Math.max(0, Math.min(1, Number(r && r.progress) || 0)),
-                    text: (r && r.text) || '',
-                });
+                    text: progressText(r && r.text),
+                }));
                 if (engine) {
                     if (typeof engine.setInitProgressCallback === 'function') engine.setInitProgressCallback(onProgress);
                     await engine.reload(id);
                 } else {
-                    const cfg = { appConfig: appConfig(), initProgressCallback: onProgress };
-                    let worker = null;
-                    try { worker = workerFactory(); } catch { worker = null; }
-                    engine = worker
-                        ? await lib.CreateWebWorkerMLCEngine(worker, id, cfg)
-                        // No workers here (some file:// hosts): run on the main thread rather than not at all
-                        : await lib.CreateMLCEngine(id, cfg);
+                    engine = await createEngine(id, { appConfig: appConfig(), initProgressCallback: onProgress });
                 }
+                onProgress.cancel();
                 engineModel = id;
                 // The first reply compiles the GPU pipelines (tens of seconds on
                 // some machines): do it now, so the first real line isn't the slow one
@@ -249,6 +352,7 @@ export const WebLlm = {
                 setStatus({ state: 'ready', progress: 1, text: 'Ready', model: id, detail: '' });
                 return { ok: true };
             } catch (e) {
+                if (onProgress) onProgress.cancel();
                 engineModel = null;
                 const msg = (e && e.message) ? String(e.message).slice(0, 200) : 'the model failed to load';
                 setStatus({ state: 'error', detail: msg });
@@ -371,6 +475,7 @@ export const WebLlm = {
         lib = null;
         engine = null;
         engineModel = null;
+        enginePath = null;
         loadPromise = null;
         support = null;
         queue = Promise.resolve();

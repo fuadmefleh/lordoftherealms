@@ -32,7 +32,8 @@
 //
 // No import-time effects; randomness only through Utils (the contents roll
 // from their own seeded stream, the theft roll from the game's stream).
-// Tables in data/containers.json.
+// Tables in data/containers.json; a row's good may be '@pool', one of a pool's
+// goods in the season (the stall's fruit: apples in autumn, cherries in summer).
 
 import { DataLoader } from '../core/dataLoader.js';
 import { Utils } from '../core/utils.js';
@@ -41,6 +42,7 @@ import { Laws } from './laws.js';
 import { Ledger } from './ledger.js';
 import { SocialSkills } from './socialSkills.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
+import { Seasons } from '../world/seasons.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _day = world => (world && Number.isFinite(world.day) ? world.day : 0);
@@ -65,6 +67,7 @@ const DEFAULTS = {
     loot: {},
     byBuilding: {},
     outdoors: {},
+    pools: {},
     publicBuildings: ['ruin', 'abandoned', 'camp', 'cave', 'lair'],
     theft: {
         base: 0.18, perWitness: 0.16, witnessRange: 6, ownerInside: 0.12, guardWitness: 0.2,
@@ -136,13 +139,48 @@ export const Containers = {
         return Math.floor(_day(world) / Math.max(1, _num(Containers.cfg('restockDays'), 14)));
     },
 
+    /**
+     * The season a restock period was stocked in (the season of its first day), so a
+     * box keeps the same things all period.
+     */
+    periodSeason(world) {
+        return Seasons.seasonOf(Containers.period(world) * Math.max(1, _num(Containers.cfg('restockDays'), 14)) + 1);
+    },
+
+    /**
+     * A loot row's good: its id, or for '@pool' one of that pool's goods in the
+     * season (data/containers.json pools: { pool: { Season: [[goodId, weight], ...] } }),
+     * drawn from the box's own stream; null when the pool has nothing that season.
+     */
+    resolveGood(id, season, rng) {
+        if (typeof id !== 'string' || id[0] !== '@') return id;
+        const pool = (Containers.cfg('pools') || {})[id.slice(1)];
+        const rows = (pool && (pool[season] || pool.all)) || [];
+        const total = rows.reduce((s, r) => s + Math.max(0, _num(r[1])), 0);
+        if (!(total > 0)) return null;
+        let x = rng() * total;
+        for (const r of rows) {
+            x -= Math.max(0, _num(r[1]));
+            if (x < 0) return r[0];
+        }
+        return rows[rows.length - 1][0];
+    },
+
     /** What the container was stocked with this period, before anything was taken. */
     stocked(world, ctx) {
         const rng = Utils.seededRandom((_hash(`${_seed(world)}:box:${Containers.key(ctx)}:${Containers.period(world)}`) % 233279) + 1);
         const out = {};
+        let season = null;
         for (const row of Containers.table(ctx)) {
-            const [id, chance, min, max] = row;
+            const [rowId, chance, min, max] = row;
+            let id = rowId;
             if (rng() >= _num(chance)) continue;
+            // (a pool's good for the season: the stall's fruit is apples in autumn, cherries in summer)
+            if (typeof id === 'string' && id[0] === '@') {
+                if (!season) season = Containers.periodSeason(world);
+                id = Containers.resolveGood(id, season, rng);
+                if (!id) continue;
+            }
             const lo = Math.max(1, _num(min, 1));
             const hi = Math.max(lo, _num(max, lo));
             out[id] = (out[id] || 0) + lo + Math.floor(rng() * (hi - lo + 1));
@@ -357,13 +395,36 @@ export const Containers = {
      * cells; away → the goods, hot. → { ok, caught, qty, fine, jailDays, text }
      */
     stealGoods(player, world, ctx, goodId, n, scene = {}) {
-        const T = Containers.cfg('theft');
         const g = Containers.good(goodId);
         const { chance } = Containers.stealOdds(player, ctx, goodId, n, scene);
         const kingdom = ctx.kingdom || null;
         if (!player.skills) player.skills = {};
 
-        if (Utils.random() < chance) {
+        if (Utils.random() < chance) return Containers.punishTheft(player, world, ctx, goodId, n);
+
+        Containers._give(player, goodId, n);
+        Underworld.markHot(player, goodId, n, _day(world));
+        Underworld.recordCrime(player, world, 'theft', { kingdom, caught: false, scale: Math.min(2, 0.5 + (_num(g.basePrice) * n) / 100) });
+        Containers._stealthXp(player, ctx.furnitureType === 'field' ? 'fieldSteal' : 'steal', _num(g.basePrice) * n);
+        return { ok: true, caught: false, qty: n, text: `You slip ${n} ${g.name} into your pack unseen. Mind where you sell it: it's hot.` };
+    },
+
+    /**
+     * Would a theft be seen here (one roll from the game's RNG, the theft odds)? For a deed
+     * that takes nothing (a grave dug open and found bare): caught → punishTheft as for the good.
+     */
+    caughtAt(player, ctx, goodId, n, scene = {}) {
+        const { chance } = Containers.stealOdds(player, ctx, goodId, n, scene);
+        return Utils.random() < chance;
+    },
+
+    /** Caught stealing: the fine, the standing, the record, maybe the cells. → { ok:false, caught:true, fine, jailDays, text } */
+    punishTheft(player, world, ctx, goodId, n) {
+        const T = Containers.cfg('theft');
+        const g = Containers.good(goodId);
+        const kingdom = ctx.kingdom || null;
+        if (!player.skills) player.skills = {};
+        {
             const value = _num(g.basePrice) * n;
             // The realm's law on punishment scales the fine and the days in the cells (systems/laws.js)
             const law = Laws.punishment(world, kingdom);
@@ -399,11 +460,5 @@ export const Containers = {
             const jail = jailDays ? ` Theft number ${offences}: the watch hauls you off for ${jailDays} days.` : '';
             return { ok: false, caught: true, fine, jailDays, text: `Caught with your hand in it! The ${g.name} goes back. Fined ${fine}g${rep}.${jail}` };
         }
-
-        Containers._give(player, goodId, n);
-        Underworld.markHot(player, goodId, n, _day(world));
-        Underworld.recordCrime(player, world, 'theft', { kingdom, caught: false, scale: Math.min(2, 0.5 + (_num(g.basePrice) * n) / 100) });
-        Containers._stealthXp(player, ctx.furnitureType === 'field' ? 'fieldSteal' : 'steal', _num(g.basePrice) * n);
-        return { ok: true, caught: false, qty: n, text: `You slip ${n} ${g.name} into your pack unseen. Mind where you sell it: it's hot.` };
     },
 };

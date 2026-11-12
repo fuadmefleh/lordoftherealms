@@ -229,6 +229,8 @@ export const SaveLoad = {
             felled: world.felled ? JSON.parse(JSON.stringify(world.felled)) : null,
             // The player's own dead buried on the maps, and the markers raised over them (world/burials.js)
             burials: world.burials ? JSON.parse(JSON.stringify(world.burials)) : null,
+            // Things the player buried in the ground with no one: caches (world/burials.js)
+            caches: world.caches ? JSON.parse(JSON.stringify(world.caches)) : null,
             // Things adrift on the rivers, caught on weirs, lying in lakes (systems/riverDrift.js)
             riverDrift: RiverDrift.serialize(world),
             // Ids for characters, maps, spies, ... keep counting from here
@@ -425,6 +427,8 @@ export const SaveLoad = {
         'lastJailRelease',
         // The furniture of the homes you own, and the pieces in store (systems/furnishing.js)
         'homeFurnishings', 'furnitureStore', 'furnitureSeq',
+        // What thieves took from you: the watch's and the fence's part in it, the clues (systems/npcTheft.js)
+        'theftBook',
         // Tilled ground and crops on the hexes' inner maps (systems/crops.js; re-laid by world/innerMap/farmPlots.js)
         'farmPlots',
         // Your beasts, head by head, at the places you keep them (systems/livestock.js;
@@ -815,6 +819,8 @@ export const SaveLoad = {
         world.felled = saveData.felled && typeof saveData.felled === 'object' ? saveData.felled : {};
         // The player's burials (older saves: none)
         world.burials = saveData.burials && typeof saveData.burials === 'object' ? saveData.burials : {};
+        // The player's caches (older saves: none)
+        world.caches = saveData.caches && typeof saveData.caches === 'object' ? saveData.caches : {};
         // Things adrift on the rivers (older saves: none)
         RiverDrift.restore(saveData.riverDrift, world);
         // Never hand out an id the save already used

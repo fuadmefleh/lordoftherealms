@@ -32,7 +32,7 @@ const DEFAULTS = {
     gag: { items: ['linen'] },
     rouse: { slapSeconds: 6, douseSeconds: 2, douseItems: ['wine'] },
     drag: { speed: 0.38 },
-    boundCall: { callSeconds: 7, hearRadius: 9 },
+    boundCall: { callSeconds: 7, hearRadius: 9, untieSeconds: 3, giveUpSeconds: 40 },
     buryAlive: { cryEvery: 3.5, windowSeconds: 40, awakeWindowSeconds: 120, hearRadius: 8, rescueChance: 0.12, rescueSeconds: 10, offMapRescue: 0.15, rescuedDisposition: -70, cause: 'buried alive' },
     lines: {},
 };

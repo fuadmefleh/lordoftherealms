@@ -20,6 +20,7 @@ import { lede, chips, purse, bullets, actRow, rowList, price, sectionHead, card,
 import { BackRooms } from '../../systems/backRooms.js';
 import { ParentsGuard } from '../parentsGuard.js';
 import { Barter } from '../../world/barter.js';
+import { MarketStalls } from '../../world/marketStalls.js';
 
 /**
  * The market's tab bar: Buy and Sell here, and the town's other trade views
@@ -902,20 +903,24 @@ Object.assign(ActionMenu, {
     /**
      * Show trade menu
      */
-    showTradeMenu(game, tile, section = null) {
+    showTradeMenu(game, tile, section = null, stall = null) {
         // A town that doesn't use coin yet barters (world/barter.js): one table, goods for goods
         if (tile && tile.settlement && Barter.active(game.world, tile.settlement)) return ActionMenu.showBarterTable(game, tile);
         // Buy or Sell: the one asked for, else the one last shown (a purchase re-renders the window)
         const tab = section === 'sell' || section === 'buy' ? section : (game.ui && game.ui._tradeTab === 'sell' ? 'sell' : 'buy');
         if (game.ui) game.ui._tradeTab = tab;
-        const goods = Trading.getAvailableGoods(tile.settlement, tile, game.world);
+        // A market stall is one trader (world/marketStalls.js): only its trade's goods, from the
+        // town market's own stock at its prices; its keeper buys back only goods of the trade
+        const ST = stall && MarketStalls.trade(stall.trade) ? MarketStalls.trade(stall.trade) : null;
+        if (!ST) stall = null;
+        const goods = ST ? Trading.stallGoods(tile.settlement, tile, game.world, stall.trade) : Trading.getAvailableGoods(tile.settlement, tile, game.world);
         const playerGold = game.player.gold || 0;
         const settlementName = tile.settlement?.name || 'Market';
         const settlementType = tile.settlement?.type || 'village';
 
         // ── Categorise goods ──
         const CATEGORIES = {
-            food:      { label: 'Food & Drink', icon: '🍞', keys: new Set(['grain','vegetables','flour','bread','fish','preserved_fish','beer','liquor','meat','berries','mushrooms','small_fish','large_fish','crab','swordfish','lobster','mussels','oysters','crayfish','golden_fish','cheese','dried_meat','honey','salt','tea','wine','mead','cider','sausage','meat_pie','honey_cake','jam','pickles','cooked_meal','cooked_fish','cooked_meat']) },
+            food:      { label: 'Food & Drink', icon: '🍞', keys: new Set(['grain','vegetables','cabbage','turnips','carrots','onions','beans','apples','pears','plums','cherries','grapes','olives','dates','eggs','flour','bread','fish','preserved_fish','beer','liquor','meat','berries','mushrooms','small_fish','large_fish','crab','swordfish','lobster','mussels','oysters','crayfish','golden_fish','cheese','dried_meat','honey','salt','tea','wine','mead','cider','sausage','meat_pie','honey_cake','jam','pickles','cooked_meal','cooked_fish','cooked_meat']) },
             materials: { label: 'Materials',     icon: '⛏️', keys: new Set(['wood','firewood','stone','iron','copper','ore','wool','hide','pelts','rope','candles','dyes','incense','pottery','lantern','arrows','compass','planks','resin','tallow','soap','parchment','ink','steel','silver_bar','glass','leather','linen']) },
             crafted:   { label: 'Crafted Goods', icon: '🔧', keys: new Set(['tools','steel_tools','bronze','weapons','textiles','clothes','agri_parts','industry_parts','military_parts','infra_parts','commerce_parts','leather_armor','shield','bow','joinery','barrel','boots','saddle','wool_cloak','fur_coat','chainmail','plate_armor','helmet','steel_sword','spear','crossbow','glassware','grave_cross','headstone','carved_headstone']) },
             // Seed for your own fields (data/crops.json)
@@ -940,6 +945,7 @@ Object.assign(ActionMenu, {
                 if (quantity <= 0) continue;
                 const good = PlayerEconomy.GOODS[goodId.toUpperCase()];
                 if (!good) continue;
+                if (ST && !MarketStalls.accepts(stall.trade, goodId)) continue;
                 // What this town pays for the first unit (its stock sets it)
                 // ...less the crown's duty on goods bought in another realm (systems/tradePolicy.js)
                 const policy = TradePolicy.saleCheck(game.player, game.world, tile.settlement, goodId, 1);
@@ -1108,7 +1114,7 @@ Object.assign(ActionMenu, {
         </style>
 
         <div class="trade-header">
-            <span class="trade-settlement-badge" style="text-transform:capitalize;">${settlementType} market${craftBadge}</span>
+            <span class="trade-settlement-badge" style="text-transform:capitalize;">${ST ? `${ST.icon || '🏪'} ${ST.name} · ${settlementType} market` : `${settlementType} market`}${craftBadge}</span>
             <span class="trade-purse">💰 ${Math.floor(playerGold).toLocaleString()} gold</span>
         </div>
         ${outlookHtml}
@@ -1168,7 +1174,8 @@ Object.assign(ActionMenu, {
             html += '</div></div>';
         }
         if (!hasBuyGoods) {
-            html += '<div class="trade-empty">No goods available at this market.</div>';
+            html += ST ? `<div class="trade-empty">Nothing on the stall today: the market is out of what a ${ST.name.toLowerCase()} sells.</div>`
+                : '<div class="trade-empty">No goods available at this market.</div>';
         }
 
         html += `</div>
@@ -1195,13 +1202,30 @@ Object.assign(ActionMenu, {
             }
             html += '</div>';
         } else {
-            html += '<div class="trade-empty">You have no goods to sell.</div>';
+            html += ST ? `<div class="trade-empty">You carry nothing a ${ST.name.toLowerCase()} buys.</div>`
+                : '<div class="trade-empty">You have no goods to sell.</div>';
         }
 
         html += '</div>';
 
-        setMarketNav(game, tile, tab);
-        game.ui.showCustomPanel(`🏪 Trade — ${settlementName}`, html);
+        if (ST) {
+            // The stall's own window: its Buy and Sell, and the way to the town's whole market
+            const title = `${ST.icon || '🏪'} ${stall.name || MarketStalls.stallName(stall.trade)}`;
+            if (game.ui && typeof game.ui.setPanelNav === 'function') {
+                game.ui.setPanelNav({
+                    id: 'stall', title, active: tab,
+                    items: [
+                        { key: 'buy', label: '🛒 Buy', run: () => ActionMenu.showTradeMenu(game, tile, 'buy', stall) },
+                        { key: 'sell', label: `💰 Sell${stall.keeper && stall.keeper.name ? ` to ${String(stall.keeper.name).split(' ')[0]}` : ''}`, run: () => ActionMenu.showTradeMenu(game, tile, 'sell', stall) },
+                        { key: 'market', label: '🏪 The Market', title: `Every stall of ${settlementName}`, run: () => ActionMenu.showTradeMenu(game, tile, tab) },
+                    ],
+                });
+            }
+            game.ui.showCustomPanel(title, html);
+        } else {
+            setMarketNav(game, tile, tab);
+            game.ui.showCustomPanel(`🏪 Trade — ${settlementName}`, html);
+        }
 
 
         // ── Buy / Sell handlers ──
@@ -1226,7 +1250,7 @@ Object.assign(ActionMenu, {
                             }
                         }
                         game.ui.updateStats(game.player, game.world);
-                        ActionMenu.showTradeMenu(game, tile);
+                        ActionMenu.showTradeMenu(game, tile, null, stall);
                     } else {
                         game.ui.showNotification('Cannot Buy', result.reason, 'error');
                     }
@@ -1238,7 +1262,8 @@ Object.assign(ActionMenu, {
             const gName = grade ? `${Grades.get(grade).name} ` : '';
             ActionMenu.showQuantityInput(`Sell ${gName}${PlayerEconomy.GOODS[goodId.toUpperCase()]?.name || goodId}`, maxQty, (qty) => {
                 if (!ActionMenu.commitPendingAP(game)) return;
-                const result = Trading.sellGoods(game.player, goodId, qty, tile.settlement, game.world, grade);
+                const result = stall ? Trading.sellToStall(game.player, stall.trade, goodId, qty, tile.settlement, game.world, grade)
+                    : Trading.sellGoods(game.player, goodId, qty, tile.settlement, game.world, grade);
                 if (result.success) {
                     const good = PlayerEconomy.GOODS[goodId.toUpperCase()];
                     game.ui.showNotification('Sale Complete', `Sold ${qty}x ${gName}${good.name} for ${result.earned} gold`, 'success');
@@ -1246,7 +1271,7 @@ Object.assign(ActionMenu, {
                         game.player.learnAboutKingdom(tile.settlement.kingdom, 'economy');
                     }
                     game.ui.updateStats(game.player, game.world);
-                    ActionMenu.showTradeMenu(game, tile);
+                    ActionMenu.showTradeMenu(game, tile, null, stall);
                 } else {
                     game.ui.showNotification('Cannot Sell', result.reason, 'error');
                 }
@@ -1292,7 +1317,7 @@ Object.assign(ActionMenu, {
 
         // Build goods list from NPC inventory
         const CATEGORIES = {
-            food:      { label: 'Food & Drink',   icon: '🍞', keys: new Set(['grain','vegetables','flour','bread','fish','preserved_fish','beer','liquor','meat','berries','mushrooms','cheese','dried_meat','honey','salt','tea','wine']) },
+            food:      { label: 'Food & Drink',   icon: '🍞', keys: new Set(['grain','vegetables','cabbage','turnips','carrots','onions','beans','apples','pears','plums','cherries','grapes','olives','dates','eggs','flour','bread','fish','preserved_fish','beer','liquor','meat','berries','mushrooms','cheese','dried_meat','honey','salt','tea','wine']) },
             materials: { label: 'Materials',       icon: '⛏️', keys: new Set(['wood','firewood','stone','iron','copper','ore','wool','hide','pelts','rope','candles','dyes','incense','pottery','lantern','arrows','compass']) },
             crafted:   { label: 'Equipment',       icon: '⚔️', keys: new Set(['tools','bronze','weapons','textiles','clothes','leather_armor','shield','bow','agri_parts','industry_parts','military_parts','infra_parts','commerce_parts']) },
             rare:      { label: 'Exotic & Rare',   icon: '✨', keys: new Set(['luxuries','gems','gold_ore','spices','exotic_spices','silk','perfume','horses','horse','herbs','antler','feather','healing_salve','potion','elixir','treasure_map','ancient_coin','rare_book','amulet','enchanted_ring']) },

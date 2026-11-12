@@ -6,6 +6,8 @@ import { ActionMenu } from './_ref.js';
 import { TownLabour } from '../../world/townLabour.js';
 import { Labour } from '../../systems/labour.js';
 import { CARD } from './uiKit.js';
+// (the town's trades and who works them: systems/townJobs.js)
+import { tradesHtml } from './trades.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 const SECTOR = { land: '🌾 Land, mines & hauling', craft: '🔨 Trades & works', trade: '⚖️ Trade' };
@@ -39,7 +41,7 @@ export function peopleHtml(game, settlement, q, r) {
     const { player, world } = game;
     const day = world.day;
     const sum = TownLabour.summary(settlement, day);
-    if (!sum) return '<div style="color:#aaa;">No one has counted the people here yet. Come back after market day.</div>';
+    if (!sum) return '<div style="color:#aaa;">No one has counted the people here yet. Come back after market day.</div>' + tradesHtml(game, settlement);
     const wl = TownLabour.welfareLabel(sum.welfare);
     let html = `<p style="margin:0 0 6px; color:var(--text-secondary);">${esc(settlement.name)} · ${esc(settlement.type)} · ${Math.round(settlement.population || 0).toLocaleString()} people · <b style="color:${wl.color};">${wl.label}</b> (${Math.round(sum.welfare * 100)})${sum.mood ? ` · mood ${sum.mood > 0 ? '+' : ''}${sum.mood.toFixed(1)}` : ''}</p>`;
     if (sum.strike) html += `<div style="${CARD} border-color:#c0392b;">✊ <b>The artisans are on strike</b> until day ${sum.strike}: the trades and the works stand idle.</div>`;
@@ -65,6 +67,9 @@ export function peopleHtml(game, settlement, q, r) {
     const crimeColor = sum.crime > 0.3 ? '#e74c3c' : sum.crime > 0.1 ? '#e8a040' : '#9fd59f';
     html += `<div style="margin-top:6px;">Crime <b style="color:${crimeColor};">${Math.round(sum.crime * 100)}</b> · danger ${Math.round(sum.danger * 100)}${sum.refugees ? ` · ${sum.refugees} refugees` : ''} · last week ${sum.moved.in || 0} came, ${sum.moved.out || 0} left</div>`;
     html += `<div style="${NOTE}">A town short of hands makes and reaps less, and its wages climb; idle hands breed thieves and unrest and sour the mood.</div></div>`;
+
+    // ── Trades & Workers: the named hands at each trade ──
+    html += tradesHtml(game, settlement);
 
     // ── The player's hands here ──
     const mine = [];

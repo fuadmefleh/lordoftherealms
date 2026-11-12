@@ -149,6 +149,12 @@ export const ObjectActions = {
             }
         }
 
+        // A market stall is one trader: its own wares and its keeper's trade (world/innerMap/stalls.js)
+        if (actionKey === 'shop' && anchorQ != null && InnerMap.stallAt) {
+            const stall = InnerMap.stallAt(anchorQ, anchorR);
+            const tile = stall && _settlementTile(game);
+            if (tile) { ActionMenu.showTradeMenu(game, tile, null, stall); return; }
+        }
         // Settlement services reuse the world action menu's handlers
         if (actionDef.service) {
             ActionMenu.handleAction(game, _settlementTile(game), actionDef.service);

@@ -61,6 +61,8 @@ import { TradePolicy } from './tradePolicy.js';
 import { PriceKnowledge } from './priceKnowledge.js';
 import { Ledger } from './ledger.js';
 import { PublicWorks } from './publicWorks.js';
+// (a caravan from a town with a roster is one of its merchants' ventures: systems/townTrade.js)
+import { TownTrade } from './townTrade.js';
 
 export const TRADER_TYPES = ['trade_caravan', 'trade_ship'];
 const WATER = new Set(['ocean', 'deep_ocean', 'coast', 'lake', 'sea']);
@@ -562,6 +564,7 @@ export const MerchantCaravans = {
             tradeCaravan: true,
         });
         MerchantCaravans._syncInventory(unit);
+        TownTrade.caravanMerchant(world, from, to, unit, day);
         world.units.push(unit);
         st.stats.spawned++;
         st.traffic[key] = Math.min(999, _num(st.traffic[key]) + 1);

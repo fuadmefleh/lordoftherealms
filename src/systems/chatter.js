@@ -47,6 +47,7 @@ import { MoneySupply } from '../world/moneySupply.js';
 import { CrownBooks } from '../world/crownBooks.js';
 import { Engrossing } from './engrossing.js';
 import { Fame } from './fame.js';
+import { Illness } from './illness.js';
 
 const DEFAULT_CONFIG = {
     localRadius: 8, eventRadius: 10, sagaRadius: 14, siegeRadius: 6, rivalRadius: 6, outlawRadius: 10,
@@ -64,6 +65,10 @@ const CONDITIONS = {
     saga: 'boolOrList', proclamation: 'boolOrList', deed: 'boolOrList', scandal: 'boolOrList',
     houseGen: 'num', prestige: 'num', karmaMin: 'num', karmaMax: 'num', renownMin: 'num',
     fame: 'list', rivalHouse: 'bool',
+    // (systems/illness.js: 'here' | 'near' | 'epidemic' | 'quarantine' | true | false, or a list of illness ids)
+    sickness: 'sickness',
+    // (the town's own hearts, its annals of late: systems/romance.js; true/false or a list of ROMANCE_TALK_KINDS)
+    romance: 'boolOrList',
     dispositionMin: 'num', dispositionMax: 'num',
 };
 
@@ -78,6 +83,8 @@ export const PRICE_KINDS = ['dear_food', 'cheap_food', 'inflation', 'linen_glut'
 export const HARVEST_KINDS = ['failing', 'bumper', 'poor', 'plenty'];
 /** What townsfolk say of the roads out of town (world/transport.js talk): the `roads` condition's kinds. */
 export const ROAD_KINDS = ['pass_closed', 'flood', 'ruined', 'rutted', 'washed_out', 'ford', 'highway', 'toll', 'mud', 'canal', 'works'];
+/** What townsfolk whisper of their own neighbours' hearts (systems/romance.js annals): the `romance` condition's kinds. */
+export const ROMANCE_TALK_KINDS = ['wed', 'betrothed', 'jilted', 'forbidden', 'eloped', 'affair', 'rivalWon'];
 export const OCCUPATIONS = ['merchant', 'guard', 'farmer', 'priest', 'blacksmith_npc', 'villager', 'child', 'noble', 'traveler', 'beggar'];
 export const PERSONALITIES = ['kind', 'stern', 'jovial', 'quiet', 'bold', 'cautious', 'witty', 'generous', 'stubborn', 'curious'];
 export const COURT_AXES = ['mercy', 'severity', 'justice', 'piety', 'generosity'];
@@ -93,6 +100,8 @@ const TOKEN_NEEDS = {
     pricePct: 'prices', sinceSeason: 'prices', fashionPlace: 'fashion', fashionText: 'fashion', fashionGoods: 'fashion',
     scandalSubject: 'scandal', scandalTale: 'scandal', scandalPlace: 'scandal', scandalRealm: 'scandal',
     rivalHouse: 'rivalHouse',
+    sickName: 'sickness', sickTown: 'sickness',
+    loverA: 'romance', loverB: 'romance',
 };
 const ALWAYS_TOKENS = ['settlement', 'kingdom', 'ruler', 'player', 'house', 'season', 'title'];
 
@@ -293,6 +302,10 @@ export const Chatter = {
         if (settlement && world) ctx.harvest = Harvests.talk(world, settlement);
         // The roads out of town: a pass snowed shut, a bridge down, ruts and mud, a new highway, a canal (world/transport.js)
         if (settlement && world) ctx.roads = Transport.talk(world, settlement);
+        // Sickness here, or the worst near here (systems/illness.js)
+        ctx.sickness = (world && q != null) ? Illness.talk(world, settlement, q, r) : { here: null, near: null };
+        // The town's hearts of late: who wed, who was jilted, an affair found out (systems/romance.js annals)
+        ctx.romance = Chatter._romanceTalk(settlement, day, cfg);
         ctx.dearth = null;
         ctx.glut = null;
         if (settlement && settlement.market) {
@@ -425,6 +438,25 @@ export const Chatter = {
         return ctx;
     },
 
+    /** The town's love stories of the last romanceDays, newest first: [{ kind, a, b }] (first names). */
+    _romanceTalk(settlement, day, cfg) {
+        const folk = settlement && settlement.folk;
+        if (!folk || !Array.isArray(folk.annals) || !Array.isArray(folk.people) || day == null) return [];
+        const days = _num(cfg.romanceDays) || 20;
+        const byId = new Map(folk.people.map(p => [p.id, p]));
+        const out = [];
+        for (let i = folk.annals.length - 1; i >= 0 && out.length < 4; i--) {
+            const e = folk.annals[i];
+            if (!e || !ROMANCE_TALK_KINDS.includes(e.k) || day - _num(e.d) > days || _num(e.d) > day) continue;
+            if (e.k === 'wed' && e.x != null) continue;
+            const a = byId.get(e.a);
+            const b = byId.get(e.b);
+            if (!a || !b) continue;
+            out.push({ kind: e.k, a: a.first, b: b.first });
+        }
+        return out;
+    },
+
     /** The player's standing, as the townsfolk see it from realm `kid`. */
     _titles(world, player, kid) {
         const out = [];
@@ -472,6 +504,16 @@ export const Chatter = {
             case 'glut': return !!ctx.glut === !!v;
             case 'labour': { const l = ctx.labour || []; return v === true ? l.length > 0 : v === false ? l.length === 0 : Chatter._anyIn(v, l); }
             case 'strike': return !!ctx.strike === !!v;
+            // { sickness: 'here' | 'near' | 'epidemic' | 'quarantine' | false } or a list of illness kinds here or near
+            case 'sickness': {
+                const sk = ctx.sickness || {};
+                if (v === false) return !sk.here && !sk.near;
+                if (v === 'here' || v === true) return !!sk.here;
+                if (v === 'near') return !sk.here && !!sk.near;
+                if (v === 'epidemic') return !!(sk.here && sk.here.epi);
+                if (v === 'quarantine') return !!(sk.here && sk.here.closed);
+                return Array.isArray(v) && ((sk.here && v.includes(sk.here.k)) || (!sk.here && sk.near && v.includes(sk.near.k)));
+            }
             case 'money': { const m = ctx.money || []; return v === true ? m.length > 0 : v === false ? m.length === 0 : Chatter._anyIn(v, m.map(x => x.kind)); }
             case 'prices': { const l = ctx.prices || []; return v === true ? l.length > 0 : v === false ? l.length === 0 : Chatter._anyIn(v, l); }
             case 'fashion': { const l = ctx.fashions || []; return v === true ? l.length > 0 : v === false ? l.length === 0 : Chatter._anyIn(v, l.map(x => x.id)); }
@@ -481,6 +523,7 @@ export const Chatter = {
             case 'saga': return v === true ? ctx.sagas.length > 0 : v === false ? ctx.sagas.length === 0 : Chatter._anyIn(v, ctx.sagas.map(s => s.id));
             case 'proclamation': return v === true ? ctx.proclamations.length > 0 : v === false ? ctx.proclamations.length === 0 : Chatter._anyIn(v, ctx.proclamations.map(p => p.kind));
             case 'deed': return v === true ? ctx.deeds.length > 0 : v === false ? ctx.deeds.length === 0 : Chatter._anyIn(v, ctx.deeds.map(d => d.type));
+            case 'romance': { const l = ctx.romance || []; return v === true ? l.length > 0 : v === false ? l.length === 0 : Chatter._anyIn(v, l.map(x => x.kind)); }
             case 'scandal': { const l = ctx.scandals || []; return v === true ? l.length > 0 : v === false ? l.length === 0 : Chatter._anyIn(v, l.map(s => s.kind)); }
             case 'season': return ctx.season != null && Array.isArray(v) && v.includes(ctx.season);
             case 'trait': return Chatter._anyIn(v, ctx.traits);
@@ -517,6 +560,7 @@ export const Chatter = {
         const deed = Chatter._first(ctx.deeds, when.deed, 'type');
         const scandal = Chatter._first(ctx.scandals || [], when.scandal, 'kind');
         const money = Chatter._first((ctx.money || []).filter(m => m.bank || m.listing), when.money, 'kind');
+        const love = Chatter._first(ctx.romance || [], when.romance, 'kind');
         const map = {
             settlement: ctx.settlementName, kingdom: ctx.kingdomName, ruler: ctx.ruler,
             player: ctx.playerName, house: ctx.houseName, season: (ctx.season || 'the season').toLowerCase(),
@@ -540,6 +584,9 @@ export const Chatter = {
             fashionText: (Chatter._first(ctx.fashions || [], when.fashion, 'id') || {}).text,
             fashionGoods: (Chatter._first(ctx.fashions || [], when.fashion, 'id') || {}).goods,
             rivalHouse: ctx.rivalHouse,
+            sickName: ctx.sickness && (ctx.sickness.here || ctx.sickness.near || {}).name,
+            sickTown: ctx.sickness && ctx.sickness.near ? ctx.sickness.near.town : ctx.settlementName,
+            loverA: love && love.a, loverB: love && love.b,
         };
         return String(text).replace(/\{(\w+)\}/g, (m, k) => (map[k] != null ? map[k] : m));
     },
@@ -754,7 +801,7 @@ export const Chatter = {
         const scandalIds = Object.keys(Whispers.kinds());
         const heraldKinds = Object.keys(((Chatter.data().heralds || {}).templates) || {});
         const fashionIds = Fashions.config().list.map(x => x && x.id).filter(Boolean);
-        const enums = { fame: Fame.config().stages.map(x => x.id), season: SEASONS, trait: traits, court: COURT_AXES, title: TITLES, occupation: OCCUPATIONS, personality: PERSONALITIES, event: eventIds, saga: sagaIds, deed: deedIds, scandal: scandalIds, proclamation: heraldKinds, money: MONEY_KINDS, labour: LABOUR_KINDS, prices: PRICE_KINDS, fashion: fashionIds, harvest: [...HARVEST_KINDS, ...Harvests.config().blightIds], roads: ROAD_KINDS };
+        const enums = { fame: Fame.config().stages.map(x => x.id), season: SEASONS, trait: traits, court: COURT_AXES, title: TITLES, occupation: OCCUPATIONS, personality: PERSONALITIES, event: eventIds, saga: sagaIds, deed: deedIds, scandal: scandalIds, proclamation: heraldKinds, money: MONEY_KINDS, labour: LABOUR_KINDS, prices: PRICE_KINDS, fashion: fashionIds, harvest: [...HARVEST_KINDS, ...Harvests.config().blightIds], roads: ROAD_KINDS, romance: ROMANCE_TALK_KINDS };
         const seen = new Set();
         for (const g of Chatter.groups()) {
             const gid = g && g.id;
@@ -772,6 +819,11 @@ export const Chatter = {
                 const isList = Array.isArray(v);
                 if (kind === 'list' && (!isList || !v.length)) problems.push(`${gid}: '${k}' must be a non-empty list`);
                 if (kind === 'boolOrList' && typeof v !== 'boolean' && (!isList || !v.length)) problems.push(`${gid}: '${k}' must be true/false or a non-empty list`);
+                if (kind === 'sickness') {
+                    const ill = Object.keys(Illness.config().illnesses || {});
+                    const ok = typeof v === 'boolean' || ['here', 'near', 'epidemic', 'quarantine'].includes(v) || (isList && v.length && v.every(x => ill.includes(x)));
+                    if (!ok) problems.push(`${gid}: '${k}' must be here/near/epidemic/quarantine, true/false or a list of illnesses`);
+                }
                 if (isList && enums[k]) {
                     for (const x of v) if (!enums[k].includes(x)) problems.push(`${gid}: unknown ${k} '${x}'`);
                 }

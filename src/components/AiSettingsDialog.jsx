@@ -211,6 +211,10 @@ export default function AiSettingsDialog({ onClose }) {
                   <div style={{ height: '100%', width: `${Math.round((webStatus.progress || 0) * 100)}%`, background: 'var(--accent-gold, #c9a227)', transition: 'width 0.2s' }} />
                 </div>
                 <div style={{ fontSize: '12px', color: line.color, wordBreak: 'break-word' }}>{line.text}</div>
+                {/* What a load is like, said before it starts and kept up while it runs */}
+                {webStatus.state !== 'ready' && webStatus.state !== 'unsupported' && (
+                  <div style={{ fontSize: '11px', color: 'var(--text-secondary, #aaa)', opacity: 0.85, marginTop: '4px' }}>{W.LOAD_NOTICE}</div>
+                )}
               </>
             );
           })()}

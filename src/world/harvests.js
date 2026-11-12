@@ -398,6 +398,16 @@ export const Harvests = {
         }
         const stock = Harvests.stockFactor(s);
         if (stock !== 1) for (const id of C.stockSet) if (prod[id] > 0) prod[id] *= stock;
+        // Produce (data/markets.json produce): the garden crops follow the veg share and
+        // its yield, the orchards and vineyards the vine's (the climate is in their fit already)
+        const vegF = _clamp(_num(f.mix.veg) * _num(y.veg, 1) / Math.max(0.005, _num(f.ref.veg)), 0.2, 2.5);
+        const vineF = _clamp(_num(f.mix.vine) * _num(y.vine, 1) / Math.max(0.005, _num(f.ref.vine)), 0.2, 2.5);
+        for (const id of SettlementMarket.config().produceIds) {
+            if (!(prod[id] > 0)) continue;
+            const kind = SettlementMarket.produceDef(id).kind;
+            if (kind === 'veg') prod[id] *= vegF;
+            else if (kind === 'orchard') prod[id] *= vineF;
+        }
         return prod;
     },
 

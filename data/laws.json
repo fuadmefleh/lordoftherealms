@@ -48,6 +48,14 @@
                 "tolerated": { "label": "Tolerated", "desc": "The watch looks the other way, so long as nobody is killed in one.", "share": 0.5, "stability": 0 },
                 "licensed": { "label": "Licensed", "desc": "Dens may trade openly for a licence: they take more, the crackdown eases, and a fifth of their take goes to the crown's treasury.", "share": 0.2, "stability": 0 }
             }
+        },
+        "pestilence": {
+            "name": "Pestilence", "icon": "🐀",
+            "desc": "When sickness goes round a town, do its gates stay open to travellers and trade, or are they shut? (systems/illness.js: a sick town under quarantine passes a case on to the realm's other towns, and takes one in, at a fraction of the usual rate. Every realm keeps its gates open by custom; only a ruler who proclaims it shuts them.)",
+            "options": {
+                "open": { "label": "Gates open", "desc": "Trade and travellers come and go, and the sickness with them.", "share": 1, "stability": 0 },
+                "quarantine": { "label": "Quarantine", "desc": "A town with sickness going round shuts its gates: hardly a case gets in or out. Merchants and the shut-in grumble.", "share": 0, "stability": -1 }
+            }
         }
     }
 }

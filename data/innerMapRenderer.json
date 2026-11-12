@@ -375,6 +375,27 @@
             "table_2x1": { "sheet": "assets/buildingKit/furniture_big.png", "sx": 48, "sy": 0, "sw": 96, "sh": 62 },
             "tub_2x1": { "sheet": "assets/buildingKit/furniture_big.png", "sx": 144, "sy": 0, "sw": 96, "sh": 52, "rim": 0.36 },
             "stall_2x1": { "sheet": "assets/buildingKit/furniture_big.png", "sx": 240, "sy": 0, "sw": 96, "sh": 92 },
+            "stall_greengrocer_2x1": { "sheet": "assets/buildingKit/stalls_trade.png", "sx": 0, "sy": 0, "sw": 96, "sh": 92 },
+            "stall_greengrocer_orchard_2x1": { "sheet": "assets/buildingKit/stalls_trade.png", "sx": 96, "sy": 0, "sw": 96, "sh": 92 },
+            "stall_greengrocer_roots_2x1": { "sheet": "assets/buildingKit/stalls_trade.png", "sx": 192, "sy": 0, "sw": 96, "sh": 92 },
+            "stall_butcher_2x1": { "sheet": "assets/buildingKit/stalls_trade.png", "sx": 288, "sy": 0, "sw": 96, "sh": 92 },
+            "stall_fishmonger_2x1": { "sheet": "assets/buildingKit/stalls_trade.png", "sx": 384, "sy": 0, "sw": 96, "sh": 92 },
+            "stall_fishmonger_nocrab_2x1": { "sheet": "assets/buildingKit/stalls_trade.png", "sx": 384, "sy": 0, "sw": 96, "sh": 92 },
+            "stall_baker_2x1": { "sheet": "assets/buildingKit/stalls_trade.png", "sx": 0, "sy": 92, "sw": 96, "sh": 92 },
+            "stall_cheesemonger_2x1": { "sheet": "assets/buildingKit/stalls_trade.png", "sx": 96, "sy": 92, "sw": 96, "sh": 92 },
+            "stall_draper_2x1": { "sheet": "assets/buildingKit/stalls_trade.png", "sx": 192, "sy": 92, "sw": 96, "sh": 92 },
+            "stall_cobbler_2x1": { "sheet": "assets/buildingKit/stalls_trade.png", "sx": 288, "sy": 92, "sw": 96, "sh": 92 },
+            "stall_potter_2x1": { "sheet": "assets/buildingKit/stalls_trade.png", "sx": 384, "sy": 92, "sw": 96, "sh": 92 },
+            "stall_chandler_2x1": { "sheet": "assets/buildingKit/stalls_trade.png", "sx": 0, "sy": 184, "sw": 96, "sh": 92 },
+            "stall_ironmonger_2x1": { "sheet": "assets/buildingKit/stalls_trade.png", "sx": 96, "sy": 184, "sw": 96, "sh": 92 },
+            "stall_spicer_2x1": { "sheet": "assets/buildingKit/stalls_trade.png", "sx": 192, "sy": 184, "sw": 96, "sh": 92 },
+            "stall_herbalist_2x1": { "sheet": "assets/buildingKit/stalls_trade.png", "sx": 288, "sy": 184, "sw": 96, "sh": 92 },
+            "stall_woodworker_2x1": { "sheet": "assets/buildingKit/stalls_trade.png", "sx": 384, "sy": 184, "sw": 96, "sh": 92 },
+            "stall_jeweller_2x1": { "sheet": "assets/buildingKit/stalls_trade.png", "sx": 0, "sy": 276, "sw": 96, "sh": 92 },
+            "stall_vintner_2x1": { "sheet": "assets/buildingKit/stalls_trade.png", "sx": 96, "sy": 276, "sw": 96, "sh": 92 },
+            "stall_stationer_2x1": { "sheet": "assets/buildingKit/stalls_trade.png", "sx": 192, "sy": 276, "sw": 96, "sh": 92 },
+            "stall_woodmonger_2x1": { "sheet": "assets/buildingKit/stalls_trade.png", "sx": 288, "sy": 276, "sw": 96, "sh": 92 },
+            "stall_bare_2x1": { "sheet": "assets/buildingKit/stalls_trade.png", "sx": 384, "sy": 276, "sw": 96, "sh": 92 },
             "altar_2x1": { "sheet": "assets/buildingKit/furniture_big.png", "sx": 336, "sy": 0, "sw": 96, "sh": 47 },
             "forge_2x1": { "sheet": "assets/buildingKit/furniture_big.png", "sx": 432, "sy": 0, "sw": 96, "sh": 74 },
             "desk_2x1": { "sheet": "assets/buildingKit/furniture_big.png", "sx": 624, "sy": 0, "sw": 96, "sh": 50 }
@@ -661,5 +682,57 @@
         "child":          ["male_light_1", "female_light_1", "male_tan_1", "female_bronze_1"],
         "traveler":       ["male_dark_1", "male_tan_1", "female_bronze_1"],
         "beggar":         ["male_beggar"]
+    },
+
+    "childLooks": {
+        "_note": "Children under `under` years are drawn with the LPC child sprites (assets/lpc/Characters/Children: body, head, pants or skirt, shirt, hair; barefoot) at `scale` by age, instead of a shrunken adult. Skin and hair colour come from a parent on the map (else the household's hash); clothes from the family's means (`wealthByRole` → `wardrobe`). Names are the folder names under Children/.",
+        "under": 13,
+        "scale": [{ "under": 4, "s": 0.84 }, { "under": 7, "s": 0.9 }, { "under": 10, "s": 0.95 }, { "under": 13, "s": 1.0 }],
+        "skins": ["Ivory", "Porcelain", "Peach", "Tan", "Honey", "Tawny", "Bronze", "Brown", "Coffee"],
+        "hairColours": ["Ash Brown", "Black", "Blonde", "Brown", "Charcoal", "Chestnut", "Gray", "Orange", "Platinum", "Raven", "Red", "Ruby", "Silver", "White"],
+        "familyHair": ["Brown", "Black", "Chestnut", "Blonde", "Ash Brown", "Raven", "Red"],
+        "greyHairBecomes": { "Gray": "Charcoal", "Silver": "Ash Brown", "White": "Platinum" },
+        "defaultHair": "Brown",
+        "hairStyles": {
+            "male": ["Swoop", "Parted Bangs", "Curls", "Messy", "Relm"],
+            "female": ["Wavy", "Braid", "Parted Bangs 2", "Relm", "Messy"]
+        },
+        "skirtChance": { "female": 0.65, "male": 0 },
+        "wealthByRole": { "noble": "noble", "merchant": "comfortable", "priest": "comfortable", "blacksmith_npc": "comfortable", "guard": "common", "farmer": "common", "villager": "common" },
+        "wardrobe": {
+            "common": {
+                "shirts": ["Brown", "Gray", "White", "Green"],
+                "pants": ["Brown", "Black", "Green"],
+                "skirts": ["Green", "Maroon", "Dark Blue", "White"]
+            },
+            "comfortable": {
+                "shirts": ["Blue", "Green", "Red", "White", "Light Blue", "Brown"],
+                "pants": ["Blue", "Dark Blue", "Brown", "Maroon"],
+                "skirts": ["Blue", "Red", "Light Blue", "Green", "Dark Blue"]
+            },
+            "noble": {
+                "shirts": ["Red", "Lavender", "White", "Blue", "Pink"],
+                "pants": ["Maroon", "Dark Blue", "Red", "White"],
+                "skirts": ["Red", "Lavender", "Pink", "Maroon", "Light Blue"]
+            }
+        },
+        "_note_eraWardrobe": "Before the mature world (data/eras.json ids) children wear their era's cloth instead of `wardrobe`: by the family's means (common/comfortable/noble) or one list for all. The Dawn's are undyed earthy tunics and leggings; the early kingdoms add the plain dyes (madder, woad, weld); the high kingdoms everything but the bright modern colours.",
+        "eraWardrobe": {
+            "dawn": {
+                "shirts": ["Brown", "Gray"],
+                "pants": ["Brown", "Black"],
+                "skirts": ["Maroon", "Black"]
+            },
+            "early": {
+                "common": { "shirts": ["Brown", "Gray", "White"], "pants": ["Brown", "Black"], "skirts": ["Maroon", "Black", "White"] },
+                "comfortable": { "shirts": ["Brown", "Gray", "White", "Green", "Red"], "pants": ["Brown", "Green", "Maroon"], "skirts": ["Maroon", "Green", "Dark Blue"] },
+                "noble": { "shirts": ["Red", "White", "Blue", "Green"], "pants": ["Maroon", "Dark Blue", "Brown"], "skirts": ["Red", "Maroon", "Dark Blue", "Green"] }
+            },
+            "high": {
+                "common": { "shirts": ["Brown", "Gray", "White", "Green"], "pants": ["Brown", "Black", "Green"], "skirts": ["Green", "Maroon", "Dark Blue", "White"] },
+                "comfortable": { "shirts": ["Blue", "Green", "Red", "White", "Brown"], "pants": ["Blue", "Dark Blue", "Brown", "Maroon"], "skirts": ["Blue", "Red", "Green", "Dark Blue"] },
+                "noble": { "shirts": ["Red", "White", "Blue"], "pants": ["Maroon", "Dark Blue", "Red", "White"], "skirts": ["Red", "Maroon", "Dark Blue", "Blue"] }
+            }
+        }
     }
 }

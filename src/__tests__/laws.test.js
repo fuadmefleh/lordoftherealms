@@ -31,7 +31,9 @@ describe('Laws of the realms', () => {
             expect(Laws.value(w, k.id, law.id)).toBe(option.id);
         }
         // Realms differ: each law has more than one custom among them
-        for (const ids of Object.values(seen)) expect(ids.size).toBeGreaterThan(1);
+        // (but Pestilence: every realm keeps its gates open by custom, systems/illness.js)
+        for (const [id, ids] of Object.entries(seen)) expect(ids.size).toBeGreaterThan(id === 'pestilence' ? 0 : 1);
+        expect([...seen.pestilence]).toEqual(['open']);
     });
 
     it('only the ruler proclaims a law: it costs the treasury and stability, and must wait to change again', () => {

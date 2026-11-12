@@ -1,0 +1,179 @@
+{
+    "_doc": "Townsfolk sickness (systems/illness.js): the people of every town with a roster (settlement.folk) fall ill, pass it on, are nursed and doctored, and recover or die. Each case lives on the person (p.ill = { k, d caught, on symptoms, end, sv severity 0..1, care, visits, by }); immunity on p.imm = { k: until-day (-1 for life) }; the town's outbreaks, the player's funded physician and alms on folk.ill; a town summary (share sick, abed, worst illness) on settlement.sickness, read by world/townLabour.js (hands at work), the street map and the talk. Steps every stepDays on the town's own hash stream (never the shared RNG). Each illness: ailment = the player's disease of the same kind in data/ailments.json (caught from the sick); spont = a person's own chance a day (by risk), contagion = the force a sick person puts on each one they live, work or mingle with (a day); incubation, days = [min,max] days; abed = share of cases laid up in bed (the worst); mortality = deaths per case by age band before care; season multipliers; immunityDays (-1 for life). Risk (how likely to catch it and how hard it goes): age, hunger (a dearth), station (beggar to noble), household crowding, the town's size, its wealth (clean water, a bathhouse), alms. Care at the end of a course (multiplies the death chance): family at home, the town's physician or herbalist (its best hand at Medicine, a fee from the family's purse to the healer's, herbs out of the town's market and paid into its purse), the priest's charity, wealth, a gift from the player. baseShare: with sickness on, the age mortality of systems/townsfolk.js keeps only this share (accidents, failing hearts, old age); the rest of the dying is this sim's.",
+    "enabled": true,
+    "stepDays": 2,
+    "ageBands": [
+        { "under": 5, "k": "infant" },
+        { "under": 16, "k": "child" },
+        { "under": 50, "k": "adult" },
+        { "under": 65, "k": "elder" },
+        { "under": 999, "k": "old" }
+    ],
+    "baseShare": { "infant": 0.4, "child": 0.45, "adult": 0.55, "elder": 0.65, "old": 0.85 },
+    "otherCauses": {
+        "infant": ["a fall from the cradle", "a weakness from birth", "smothering in the night"],
+        "old": ["old age", "a long sleep in the night", "a failing heart", "the weight of years"],
+        "common": ["a bad fall", "a kick from a horse", "drowning in the river", "a falling beam", "a sudden seizure"],
+        "winter": ["the winter cold", "a fall on the ice"],
+        "dearth": ["hunger in the dearth"]
+    },
+    "risk": {
+        "age": { "infant": 1.6, "child": 1.15, "adult": 1, "elder": 1.15, "old": 1.3 },
+        "frailty": 0.6,
+        "dearth": 1.6,
+        "alms": 0.75,
+        "station": { "beggar": 1.8, "villager": 1.1, "farmer": 1.05, "child": 1, "guard": 1, "blacksmith_npc": 1, "merchant": 0.85, "priest": 0.95, "noble": 0.65 },
+        "household": { "over": 4, "per": 0.08, "max": 1.4 },
+        "townType": { "village": 0.85, "town": 1, "city": 1.15, "capital": 1.25 },
+        "wealth": { "poor": 1.3, "rich": 0.8 },
+        "bathhouse": { "city": 0.92, "capital": 0.88 }
+    },
+    "contact": { "household": 1, "work": 0.3, "town": 0.12, "townRef": 12 },
+    "travel": {
+        "_doc": "Between towns: each step a town with sick folk may pass a case to each town within radius hexes (perStep × its share of contagious cases × the contagion × the other town's size, falling with distance); plague × plague. A realm under quarantine (the Pestilence law: data/laws.json) lets quarantine of it through, in or out. A town with no roster keeps an abstract settlement.sickness for days.",
+        "radius": 14,
+        "perStep": 0.6,
+        "plague": 2.5,
+        "quarantine": 0.15,
+        "size": { "village": 0.6, "town": 1, "city": 1.4, "capital": 1.7 },
+        "abstractDays": 20
+    },
+    "quarantineTrade": {
+        "_doc": "Quarantine cuts trade too (systems/marketDynamics.js): a market link to or from a town shut by quarantine (the Pestilence law in its realm and sickness in it: Illness.townSickness closed) moves only `imports` of its goods, and only `caravans` of its embodied traders take the road (a hash of the link and the day).",
+        "imports": 0.35,
+        "caravans": 0.25
+    },
+    "plagueEvent": { "eventTown": 0.35, "realm": 0.025, "seedCases": [1, 3] },
+    "care": {
+        "family": 0.85,
+        "alone": 1.15,
+        "healerBase": 0.7,
+        "healerPerLevel": 0.025,
+        "healerMin": 0.45,
+        "herbs": 0.88,
+        "herbsPerVisit": 0.5,
+        "herbPrice": 2,
+        "visitsPerHealer": 4,
+        "visitsPerPriest": 2,
+        "priest": 0.9,
+        "fee": { "village": 1, "town": 2, "city": 3, "capital": 4 },
+        "charityShare": 0.5,
+        "wealth": { "noble": 0.75, "merchant": 0.85 },
+        "giftMedicine": 0.55,
+        "giftFood": 0.85,
+        "giftSaveChance": 0.3,
+        "min": 0.2,
+        "medicines": ["herbs", "rare_herbs", "healing_salve", "potion", "elixir", "holy_water", "antidote"],
+        "foods": ["bread", "food", "meat", "fish", "cheese", "sausage", "apples", "pears", "eggs", "honey", "berries", "cabbage", "carrots", "turnips", "beans", "game_meat", "cider", "mead"]
+    },
+    "fund": {
+        "_doc": "The player pays a physician to go round the town's sick for days (the gold a pool: each visit's fee to the healer's purse, its herbs bought from the town's market into its purse; what is left when the days run out the healer keeps), or gives alms (the coin into the poorest households' purses; they eat better: risk × alms for days).",
+        "physician": { "village": 40, "town": 70, "city": 110, "capital": 150 },
+        "physicianDays": 30,
+        "fundedCare": 0.6,
+        "alms": { "village": 25, "town": 45, "city": 70, "capital": 100 },
+        "almsDays": 30,
+        "karma": 2
+    },
+    "player": { "perCase": 0.0035, "cap": 0.06, "contactMult": 4, "contactDays": 1 },
+    "outbreak": { "minCases": 3, "plagueMin": 1, "epidemicShare": 0.12 },
+    "work": { "sensitivity": 0.8, "min": 0.5 },
+    "illnesses": {
+        "cold": {
+            "name": "a cold", "label": "Cold", "icon": "🤧", "ailment": "chill",
+            "spont": 0.0012, "contagion": 0.06, "incubation": [1, 2], "days": [4, 8], "abed": 0.1,
+            "mortality": { "infant": 0.008, "child": 0.002, "adult": 0.0006, "elder": 0.006, "old": 0.025 },
+            "season": { "spring": 0.8, "summer": 0.3, "autumn": 1.2, "winter": 2.2 },
+            "immunityDays": 90, "serious": false,
+            "symptoms": "coughing and sneezing",
+            "cause": ["a cold that settled in the chest", "the coughing sickness"]
+        },
+        "fever": {
+            "name": "a fever", "label": "Fever", "icon": "🤒", "ailment": "chill",
+            "spont": 0.00025, "contagion": 0.035, "incubation": [2, 4], "days": [5, 10], "abed": 0.85,
+            "mortality": { "infant": 0.1, "child": 0.04, "adult": 0.03, "elder": 0.08, "old": 0.16 },
+            "season": { "spring": 1, "summer": 0.8, "autumn": 1.1, "winter": 1.4 },
+            "immunityDays": 240, "serious": true,
+            "symptoms": "burning with fever",
+            "cause": ["a fever", "a burning fever", "a fever in the cradle"]
+        },
+        "flux": {
+            "name": "the flux", "label": "Flux", "icon": "🤢", "ailment": "flux",
+            "spont": 0.00035, "contagion": 0.018, "incubation": [1, 3], "days": [4, 9], "abed": 0.75,
+            "water": true,
+            "mortality": { "infant": 0.12, "child": 0.05, "adult": 0.025, "elder": 0.07, "old": 0.13 },
+            "season": { "spring": 0.7, "summer": 2.6, "autumn": 1.2, "winter": 0.3 },
+            "immunityDays": 120, "serious": true,
+            "symptoms": "griping in the bowels",
+            "cause": ["the bloody flux", "the flux"]
+        },
+        "consumption": {
+            "name": "consumption", "label": "Consumption", "icon": "😷", "ailment": null,
+            "spont": 0.000012, "contagion": 0.0015, "incubation": [10, 30], "days": [120, 420], "abed": 0.35,
+            "chronic": true, "minAge": 12,
+            "mortality": { "infant": 0.6, "child": 0.5, "adult": 0.5, "elder": 0.6, "old": 0.7 },
+            "season": { "spring": 1, "summer": 0.8, "autumn": 1, "winter": 1.3 },
+            "immunityDays": 360, "serious": true,
+            "symptoms": "wasting, with a cough that will not leave",
+            "cause": ["a wasting sickness", "consumption"]
+        },
+        "pox": {
+            "name": "the pox", "label": "Pox", "icon": "🔴", "ailment": "pox",
+            "spont": 0, "importPerStep": 0.0018, "contagion": 0.07, "incubation": [5, 8], "days": [8, 14], "abed": 1,
+            "mortality": { "infant": 0.22, "child": 0.1, "adult": 0.16, "elder": 0.22, "old": 0.3 },
+            "season": { "spring": 1.3, "summer": 1, "autumn": 0.9, "winter": 0.9 },
+            "immunityDays": -1, "serious": true, "scars": 0.4,
+            "symptoms": "covered in pocks",
+            "cause": ["the pox", "the spotted sickness"]
+        },
+        "wound_fever": {
+            "name": "wound fever", "label": "Wound fever", "icon": "🔥", "ailment": "wound_fever",
+            "spont": 0, "fromHurt": 0.05, "hurtDays": 10, "contagion": 0, "incubation": [1, 2], "days": [4, 9], "abed": 1,
+            "mortality": { "infant": 0.3, "child": 0.15, "adult": 0.12, "elder": 0.2, "old": 0.3 },
+            "season": { "spring": 1, "summer": 1.3, "autumn": 1, "winter": 0.8 },
+            "immunityDays": 0, "serious": true,
+            "symptoms": "a wound gone hot and foul",
+            "cause": ["a wound gone foul", "wound fever"]
+        },
+        "childbed": {
+            "name": "childbed fever", "label": "Childbed fever", "icon": "🔥", "ailment": null,
+            "spont": 0, "afterBirth": 0.08, "birthDays": 8, "contagion": 0, "incubation": [1, 3], "days": [4, 8], "abed": 1,
+            "mortality": { "infant": 0.3, "child": 0.3, "adult": 0.28, "elder": 0.3, "old": 0.3 },
+            "season": { "spring": 1, "summer": 1, "autumn": 1, "winter": 1 },
+            "immunityDays": 0, "serious": true,
+            "symptoms": "feverish since the birth",
+            "cause": ["childbed fever", "childbed"]
+        },
+        "plague": {
+            "name": "the plague", "label": "Plague", "icon": "🐀", "ailment": "plague",
+            "spont": 0, "contagion": 0.045, "incubation": [2, 5], "days": [4, 9], "abed": 1,
+            "plague": true,
+            "mortality": { "infant": 0.42, "child": 0.28, "adult": 0.25, "elder": 0.35, "old": 0.48 },
+            "season": { "spring": 1, "summer": 1.25, "autumn": 1, "winter": 0.7 },
+            "immunityDays": -1, "serious": true,
+            "symptoms": "swollen with buboes",
+            "cause": ["the plague", "the pestilence"]
+        }
+    },
+    "lines": {
+        "greet": {
+            "cold": ["*sniffs* Forgive me — I've a cold coming on.", "*coughs into a sleeve* Just a cold. It'll pass."],
+            "fever": ["*shivering* I've a fever on me. You'd best not stand too close.", "I'm burning up... I shouldn't be out of bed."],
+            "flux": ["My guts are griping something terrible. The water, I think.", "*pale* The flux. Don't drink from the well by the tannery."],
+            "consumption": ["*a long, rattling cough* It's my chest. It has been for a while now.", "I'm not as strong as I was. This cough..."],
+            "pox": ["Keep back! I've the pox on me.", "*scratching at the pocks* It itches like fire."],
+            "wound_fever": ["The wound's gone hot. The herbalist says it's turned.", "*sweating* That cut went bad on me."],
+            "childbed": ["*weakly* The baby is well. It's me that is not.", "I've not been right since the birth."],
+            "plague": ["*gasping* Get away from me... the plague...", "It's in me. The swellings came this morning."]
+        },
+        "kinSick": ["My {kin} {name} is down with {illness}. I'm sick with worry.", "{name} — my {kin} — has {illness}. We pray it breaks soon."],
+        "cough": ["*cough*", "*cough cough*", "*sniff*", "*achoo!*", "*hacking cough*"],
+        "abed": ["*groans*", "Water... please...", "*shivers under the blanket*"],
+        "healer": ["Let's have a look at you.", "Drink this. All of it.", "Keep them warm and give them broth.", "The fever should break by morning, gods willing.", "Who else in this house is poorly?"],
+        "fear": ["Keep your distance, stranger.", "Don't touch anything. They say it's in the air.", "Shut your door and burn rosemary.", "The gods have turned their faces from us."],
+        "dead": ["Bring out your dead...", "Another one from Tanner's Row.", "Make way for the cart."],
+        "quarantine": ["The gates are shut. No one in or out, by order of the crown.", "Turn back — this town is under quarantine."],
+        "mourn": ["Rest well.", "*weeps quietly*", "We'll not forget you.", "Gone too soon.", "*bows their head*"],
+        "thanks": ["Bless you. Bless you for this.", "You didn't have to do this. Thank you.", "The gods see what you've done."]
+    }
+}

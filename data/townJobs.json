@@ -1,0 +1,363 @@
+{
+    "_doc": "Occupations of the townsfolk (systems/townJobs.js, world/innerMap/townWork.js). Every grown resident of a town with a roster holds one (p.job = { id, rank, since, master?, employer?, hired? }), assigned to fit the town: plan[type] is the order the town fills its trades in (occupation ids, repeated for a second hand), as far as it has grown people of a fitting role; an occupation's land ('water', 'hills', 'pasture', 'forest') must be near or its places go to the next. roles: who may hold it (their roster role); role: the role an apprentice takes on coming of age. work: what they do at it on the map — field, herd, fish, chop, mine, prop (stand at a prop by their workplace: props, with activity), inside (in the workplace: furniture they use), stall, carry, sweep, wash, beg, none. workplaces: building types (their own first). hours: the day profile (hours[...]). goods / recipes: the market goods it brings in and the trades (data/markets.json recipes) it works — the town's output of them scales with the hands at it (crew: staff weight against the plan's count, floor + (1 - floor) * min(cap, ratio) ^ elasticity). wage: coin a day at master rank; pay: who pays (sales: the town's buyers out of the town purse; master: their master; employer: the household or house they serve; town: the town purse; none). say: their answer to 'What's your work?' ({place}, {master}, {years}, {town}). barks: said at work now and then (barkChance, barkGap seconds per person).",
+    "enabled": true,
+    "adultAge": 16,
+    "apprenticeAge": 12,
+    "ranks": {
+        "apprentice": { "weight": 0.45, "wage": 0.25, "title": "apprentice {name}" },
+        "journeyman": { "weight": 0.85, "wage": 0.7, "title": "journeyman {name}" },
+        "master": { "weight": 1, "wage": 1, "title": "{name}" }
+    },
+    "promotion": { "journeymanYears": 3, "journeymanAge": 17, "masterYears": 5, "masterAge": 23, "masterChance": 0.35, "apprenticeChance": 0.45, "maxApprentices": 1 },
+    "refWeight": 0.92,
+    "capRatio": 1.3,
+    "skillYears": 12,
+    "vacancy": { "takeUpChance": 0.6, "widowChance": 0.7, "arrivalChance": 0.3, "arrivalAfterDays": 60, "quitChance": 0.04 },
+    "living": { "_doc": "coin a day each grown person spends on bread, board and the rest, back into the town's purse (poor folk eat plainer: poorBelow; the well-off spend a share of what's over richAbove a season). In a dearth the poorest (purse under hungryBelow) skip meals: hungry (work weight × hungryWork, a bark of it).", "perDay": 0.32, "child": 0.12, "poorBelow": 6, "richAbove": 45, "richSpend": 0.35, "hungryBelow": 4, "hungryWork": 0.8, "tavernShare": 0.5, "alms": 0.15 },
+    "tired": { "_doc": "kept from sleep: a babe in the house under babyDays old (work × baby). A fight (systems/brawls.js: person.brawled) leaves them sore the day of it and the next (work × brawl), and one fought late at night (from lateFrom, or before lateTo) up late besides (× late).", "babyDays": 90, "baby": 0.92, "brawlDays": 1, "brawl": 0.9, "late": 0.88, "lateFrom": 21, "lateTo": 5 },
+    "hours": {
+        "day":     { "sleep": [21.5, 5.5], "work": [[7, 12], [13, 18]] },
+        "dawn":    { "sleep": [20, 3.5], "work": [[4, 11], [12.5, 15]] },
+        "land":    { "sleep": [21, 5], "work": [[5.5, 12], [13, 19]], "winterWork": 0.45 },
+        "dock":    { "sleep": [20.5, 4.5], "work": [[5, 11], [14, 18]] },
+        "shop":    { "sleep": [22, 6], "work": [[7, 12.5], [13.5, 18.5]] },
+        "late":    { "sleep": [1, 9], "work": [[10, 14], [16, 23.5]] },
+        "church":  { "sleep": [21, 5], "work": [[5, 12], [13, 20]] },
+        "service": { "sleep": [22, 5], "work": [[5.5, 12.5], [13.5, 21]] },
+        "idle":    { "sleep": [22.5, 7], "work": [[9, 12]] },
+        "beg":     { "sleep": [21.5, 6.5], "work": [[7, 20]] },
+        "gentry":  { "sleep": [23, 8], "work": [[10, 15]] }
+    },
+    "leisure": {
+        "day":     { "chat": 3, "market": 1.5, "well": 1, "plaza": 1.5, "stroll": 1, "home": 1.5, "church": 0.4 },
+        "evening": { "tavern": 3, "chat": 2.5, "plaza": 1.5, "home": 3, "church": 0.4 }
+    },
+    "meals": {
+        "_doc": "Meals of the day: breakfast at home just after waking, a midday meal (bread at the work, or a pie from a stall), supper at the family table (single folk and travellers at the tavern). hours: [from, to] of each; share: the chance one eats it when the hour comes.",
+        "breakfast": { "after": 0.3, "len": 0.7, "share": 0.7 },
+        "midday": { "hours": [12, 13], "share": 0.8 },
+        "supper": { "hours": [18.5, 20], "share": 0.85 },
+        "labels": {
+            "breakfast": "Breaking fast", "supper": "At supper", "midday": "Eating at midday", "tavern": "Supper at the tavern",
+            "poor": "A bowl of pottage", "rich": "Dining well", "hungry": "Going without",
+            "hearth": "Supper by the hearth", "secondSitting": "Eating off the knee"
+        },
+        "barks": {
+            "midday": ["Bread and a bit of cheese. Can't complain.", "Ah, that's better.", "Is it noon already?"],
+            "poor": ["Pottage again.", "Better than nothing, I suppose."],
+            "hungry": ["My belly's empty as a beggar's bowl.", "Not a crust in the house.", "When did I last eat proper?"]
+        }
+    },
+    "commute": {
+        "_doc": "A fisher with no shore, a miner with no rock on the town's map walks out at the nearest gate when the day's work begins and comes back in at its end (world/innerMap/townWork.js _jobCommute). What they say going.",
+        "fish": ["Off to the boats.", "The river won't fish itself.", "Back by dusk, with luck and a full creel."],
+        "mine": ["Off to the pits.", "Another day underground.", "Back when the light goes."]
+    },
+    "sleepRough": { "_doc": "The homeless (beggars, and anyone without a home) sleep out in a doorway or an alley under a blanket.", "label": "Sleeping rough", "icon": "💤" },
+    "plan": {
+        "village": ["farmer", "smith", "miller", "farmer", "fisher", "woodcutter", "miner", "brewer", "shepherd", "carpenter", "herder", "weaver", "merchant", "washer", "baker", "labourer", "farmer", "labourer"],
+        "town": ["farmer", "smith", "miller", "baker", "merchant", "farmer", "fisher", "woodcutter", "miner", "brewer", "carpenter", "weaver", "tailor", "butcher", "cobbler", "stallkeeper", "innkeeper", "shepherd", "herder", "mason", "carter", "healer", "servant", "washer", "farmer", "labourer", "server", "fisher", "merchant", "labourer"],
+        "city": ["farmer", "smith", "miller", "baker", "merchant", "farmer", "fisher", "woodcutter", "miner", "brewer", "carpenter", "weaver", "tailor", "butcher", "cobbler", "stallkeeper", "innkeeper", "smith", "baker", "shepherd", "herder", "mason", "carter", "healer", "scribe", "servant", "servant", "washer", "server", "merchant", "stallkeeper", "weaver", "carpenter", "carter", "fisher", "labourer", "labourer", "farmer", "labourer"],
+        "capital": ["farmer", "smith", "miller", "baker", "merchant", "farmer", "fisher", "woodcutter", "miner", "brewer", "carpenter", "weaver", "tailor", "butcher", "cobbler", "stallkeeper", "innkeeper", "smith", "baker", "shepherd", "herder", "mason", "carter", "healer", "scribe", "servant", "servant", "servant", "washer", "server", "merchant", "stallkeeper", "stallkeeper", "weaver", "tailor", "carpenter", "carter", "brewer", "fisher", "scribe", "innkeeper", "server", "labourer", "labourer", "labourer", "farmer", "labourer"]
+    },
+    "fallback": { "villager": "labourer", "farmer": "labourer", "merchant": "merchant", "blacksmith_npc": "smith", "guard": "guard", "priest": "priest", "noble": "noble", "beggar": "beggar" },
+    "idleShare": 0.25,
+    "occupations": {
+        "farmer": {
+            "name": "farmer", "female": "farmer", "icon": "🌾", "roles": ["farmer", "villager"], "role": "farmer",
+            "work": "field", "workplaces": ["farm", "barn", "granary"], "hours": "land",
+            "goods": ["grain", "flax", "cabbage", "turnips", "carrots", "onions", "beans", "apples", "pears", "plums", "cherries", "grapes", "olives", "dates", "eggs"],
+            "floor": 0.82, "elasticity": 0.3, "wage": 0.45, "pay": "sales",
+            "say": ["I work the land, same as my father. {years}", "Fields out past the houses — mine and the lord's. It's sowing, weeding and reaping, year in, year out.", "I'm a farmer. The weather's my master, and a hard one."],
+            "barks": ["Rain'd do no harm.", "Mind the furrows!", "Good soil, this."]
+        },
+        "labourer": {
+            "name": "labourer", "female": "labourer", "icon": "⛏️", "roles": ["villager", "farmer"],
+            "work": "field", "workplaces": ["farm", "warehouse", "granary", "barn"], "hours": "land", "assists": "farmer", "assistWeight": 0.35,
+            "floor": 1, "elasticity": 0, "wage": 0.32, "pay": "town",
+            "say": ["I take what work there is — the fields at harvest, hauling the rest of the year.", "Day labour. Whoever pays, I dig, carry or reap for them."],
+            "barks": ["Heave!", "My back…"]
+        },
+        "herder": {
+            "name": "herdsman", "female": "herdswoman", "icon": "🐄", "roles": ["farmer", "villager"], "role": "farmer", "land": "pasture",
+            "work": "herd", "workplaces": ["farm", "barn", "stable"], "hours": "land",
+            "goods": ["meat", "hide", "cheese", "horses", "horse", "tallow"], "recipes": ["dairy"],
+            "floor": 0.78, "elasticity": 0.35, "wage": 0.4, "pay": "sales",
+            "say": ["I keep the cattle on the common, and see to the milking.", "Cows, a few pigs. They're better company than most."],
+            "barks": ["Hup! Come on, you.", "Easy, girl."]
+        },
+        "shepherd": {
+            "name": "shepherd", "female": "shepherdess", "icon": "🐑", "roles": ["farmer", "villager"], "role": "farmer", "land": "pasture",
+            "work": "herd", "workplaces": ["farm", "barn"], "hours": "land",
+            "goods": ["wool"],
+            "floor": 0.75, "elasticity": 0.35, "wage": 0.38, "pay": "sales",
+            "say": ["I keep the flock up on the grazing. Shearing's the busy time.", "Sheep. Wool for the weavers, mutton now and then."],
+            "barks": ["Away by, away!", "Count's right, thank the gods."]
+        },
+        "fisher": {
+            "name": "fisherman", "female": "fisherwoman", "icon": "🎣", "roles": ["villager", "farmer"], "land": "water",
+            "work": "fish", "workplaces": ["dock", "harbour", "warehouse", "marketplace"], "hours": "dock",
+            "goods": ["fish"],
+            "floor": 0.7, "elasticity": 0.4, "wage": 0.4, "pay": "sales",
+            "say": ["I fish, from the shore and the boats. Out before dawn, back when they stop biting.", "Fish. What else is there, by the water?"],
+            "barks": ["Bite, curse you.", "There's a fat one!", "Quiet — you'll scare them off."]
+        },
+        "woodcutter": {
+            "name": "woodcutter", "female": "woodcutter", "icon": "🌲", "roles": ["villager", "farmer"],
+            "work": "chop", "workplaces": ["sawmill", "lumber_yard", "carpenter", "warehouse"], "hours": "land",
+            "props": ["tp_logs", "tp_firewood", "tp_firewood_big"], "activity": { "icon": "🌲", "label": "Splitting firewood", "anim": "slash", "tool": "axe", "swing": 0.85 },
+            "goods": ["wood", "firewood", "resin"], "recipes": ["charcoal"],
+            "floor": 0.6, "elasticity": 0.45, "wage": 0.38, "pay": "sales",
+            "say": ["I fell timber and split firewood for the town.", "The woods out past the houses. Every winter fire in town, I cut it."],
+            "barks": ["Timber!", "Good straight trunk, that.", "Hah!"]
+        },
+        "miner": {
+            "name": "miner", "female": "miner", "icon": "⛏️", "roles": ["villager", "farmer"], "land": "hills",
+            "work": "mine", "workplaces": ["mine", "quarry", "mason", "warehouse"], "hours": "day",
+            "goods": ["stone", "iron", "coal", "copper", "tin", "silver_ore", "gold_ore", "gems"],
+            "floor": 0.6, "elasticity": 0.45, "wage": 0.45, "pay": "sales",
+            "say": ["I break stone and dig ore up in the hills.", "Miner. Dark work, and dusty, but it pays."],
+            "barks": ["Hah!", "Stubborn rock, this."]
+        },
+        "miller": {
+            "name": "miller", "female": "miller", "icon": "🌾", "roles": ["villager", "merchant", "farmer"],
+            "work": "prop", "workplaces": ["mill", "windmill", "watermill", "granary"], "hours": "day",
+            "props": ["tp_sacks", "tp_sack"], "activity": { "icon": "🌾", "label": "Hauling sacks of flour", "anim": "idle" },
+            "furniture": ["millstone", "crate"],
+            "goods": ["flour"], "recipes": ["mill"],
+            "floor": 0.45, "elasticity": 0.5, "wage": 0.5, "pay": "sales",
+            "say": ["I keep the mill. Bring me your grain and I'll grind it — for my share.", "Miller. Flour for every loaf in {town} comes through my stones."],
+            "barks": ["Flour! Fresh-ground!", "Mind the sacks."]
+        },
+        "baker": {
+            "name": "baker", "female": "baker", "icon": "🍞", "roles": ["villager", "merchant"],
+            "work": "inside", "workplaces": ["bakery"], "hours": "dawn",
+            "furniture": ["oven", "fireplace", "table"],
+            "goods": ["bread"], "recipes": ["bakery"],
+            "floor": 0.4, "elasticity": 0.5, "wage": 0.5, "pay": "sales",
+            "say": ["I bake. Up before the cock, the oven lit, the dough proved by dawn.", "Baker. Every loaf you've eaten in {town}, near enough."],
+            "barks": ["Bread! Warm bread!", "Fresh loaves!", "Mind, it's hot."]
+        },
+        "butcher": {
+            "name": "butcher", "female": "butcher", "icon": "🍖", "roles": ["villager", "merchant"],
+            "work": "prop", "workplaces": ["butcher", "marketplace"], "hours": "day",
+            "props": ["tp_barrel", "tp_crate"], "activity": { "icon": "🍖", "label": "Butchering", "anim": "halfslash" },
+            "goods": ["sausage"], "recipes": ["butcher"],
+            "floor": 0.5, "elasticity": 0.45, "wage": 0.48, "pay": "sales",
+            "say": ["Butcher. I take the beasts the herdsmen bring and make them sausage and joints."],
+            "barks": ["Good cuts today!", "Sausages! Fresh sausages!"]
+        },
+        "brewer": {
+            "name": "brewer", "female": "alewife", "icon": "🍺", "roles": ["villager", "merchant"],
+            "work": "prop", "workplaces": ["brewery", "tavern", "inn"], "hours": "day",
+            "props": ["tp_barrels", "tp_barrel", "tp_water_barrel"], "activity": { "icon": "🍺", "label": "Brewing", "anim": "swing" },
+            "furniture": ["barrel", "cauldron"],
+            "goods": ["beer", "liquor", "cider", "mead"], "recipes": ["brewery", "distillery", "cider_press", "perry_press", "meadery"],
+            "floor": 0.45, "elasticity": 0.5, "wage": 0.48, "pay": "sales",
+            "say": ["I brew the ale for the tavern and half the houses in {town}.", "Malt, water and patience. That's the whole of brewing."],
+            "barks": ["Smells like a good batch.", "Don't touch the mash!"]
+        },
+        "weaver": {
+            "name": "weaver", "female": "weaver", "icon": "🧶", "roles": ["villager"],
+            "work": "inside", "workplaces": ["weaver", "tailor", "house"], "hours": "day",
+            "furniture": ["table", "desk", "chest"],
+            "goods": ["textiles", "linen"], "recipes": ["weaver", "linen_weaver"],
+            "floor": 0.45, "elasticity": 0.5, "wage": 0.45, "pay": "sales",
+            "say": ["I weave — wool and linen, at the loom from dawn to dark.", "Weaver. Warp and weft. It gets in your dreams."],
+            "barks": ["Clack, clack, clack…"]
+        },
+        "tailor": {
+            "name": "tailor", "female": "seamstress", "icon": "🧶", "roles": ["villager", "merchant"],
+            "work": "inside", "workplaces": ["tailor", "weaver", "marketplace"], "hours": "shop",
+            "furniture": ["table", "desk"],
+            "goods": ["clothes", "wool_cloak", "gambeson"], "recipes": ["tailor", "quilter"],
+            "floor": 0.45, "elasticity": 0.5, "wage": 0.48, "pay": "sales",
+            "say": ["I cut and sew. Shirts, cloaks, a wedding dress when there's coin for one.", "Tailoring. Half of {town} wears my stitches."],
+            "barks": ["Hold still, I'll take your measure."]
+        },
+        "cobbler": {
+            "name": "cobbler", "female": "cobbler", "icon": "🔨", "roles": ["villager"],
+            "work": "prop", "workplaces": ["cobbler", "tannery", "tailor"], "hours": "day",
+            "props": ["tp_crate", "tp_barrel"], "activity": { "icon": "🔨", "label": "Mending boots", "anim": "slash", "tool": "hammer", "swing": 0.6 },
+            "furniture": ["table", "anvil"],
+            "goods": ["boots", "leather"], "recipes": ["cobbler", "tannery", "leather_armourer"],
+            "floor": 0.5, "elasticity": 0.45, "wage": 0.45, "pay": "sales",
+            "say": ["Cobbler — and I tan the hides for it, out back. You can smell it, can't you."],
+            "barks": ["Tap, tap…", "Good leather, that."]
+        },
+        "carpenter": {
+            "name": "carpenter", "female": "carpenter", "icon": "🔨", "roles": ["villager"],
+            "work": "prop", "workplaces": ["carpenter", "sawmill", "lumber_yard", "workshop"], "hours": "day",
+            "props": ["tp_sawhorse", "tp_lumber", "tp_logs"], "activity": { "icon": "🔨", "label": "At the joinery", "anim": "slash", "tool": "hammer", "swing": 0.75, "sound": "anvil" },
+            "furniture": ["table", "crate", "anvil"],
+            "goods": ["planks", "joinery", "barrel", "grave_cross", "bow", "arrows", "bolts", "crossbow", "shield"],
+            "recipes": ["sawyer", "joiner", "grave_carver", "bowyer", "crossbowyer", "fletcher", "bolter", "shieldwright"],
+            "floor": 0.5, "elasticity": 0.45, "wage": 0.48, "pay": "sales",
+            "say": ["Carpenter. Beams, doors, barrels, a coffin now and then — wood's wood.", "I work the timber the woodcutters bring in."],
+            "barks": ["Measure twice…", "Pass me that plank."]
+        },
+        "mason": {
+            "name": "mason", "female": "mason", "icon": "🧱", "roles": ["villager"],
+            "work": "prop", "workplaces": ["mason", "stonemason", "quarry", "warehouse"], "hours": "day",
+            "props": ["tp_rock_slab", "tp_rock_rubble", "tp_crate_stack"], "activity": { "icon": "🧱", "label": "Dressing stone", "anim": "slash", "tool": "hammer", "swing": 0.9 },
+            "goods": ["headstone", "carved_headstone"], "recipes": ["monument_mason", "master_mason"],
+            "floor": 0.5, "elasticity": 0.4, "wage": 0.5, "pay": "sales",
+            "say": ["Mason. Walls, hearths, and the stones over the dead.", "I dress the stone the quarrymen bring."],
+            "barks": ["Chip, chip…"]
+        },
+        "smith": {
+            "name": "smith", "female": "smith", "icon": "🔨", "roles": ["blacksmith_npc", "villager"], "role": "blacksmith_npc",
+            "work": "prop", "workplaces": ["blacksmith", "forge", "smithy"], "hours": "day",
+            "props": ["tp_anvil"], "activity": { "icon": "🔨", "label": "Hammering at the anvil", "anim": "slash", "tool": "hammer", "swing": 0.9, "sound": "anvil" },
+            "furniture": ["anvil", "forge", "rack"],
+            "goods": ["tools", "weapons", "bronze", "steel", "chainmail", "helmet", "spear", "fishing_spear"],
+            "recipes": ["smithy", "forge", "armoury", "founder", "helmsmith", "spearmaker", "steelworks", "mailer"],
+            "floor": 0.28, "elasticity": 0.55, "wage": 0.55, "pay": "sales",
+            "say": ["I keep the forge. Horseshoes, nails, ploughshares — and a blade, if you've the coin.", "Smith. If it's iron in {town}, it passed my anvil."],
+            "barks": ["Another horseshoe…", "Mind the sparks!", "Hot iron waits for no one."]
+        },
+        "merchant": {
+            "name": "merchant", "female": "merchant", "icon": "⚖️", "roles": ["merchant"],
+            "work": "stall", "workplaces": ["marketplace", "warehouse"], "hours": "shop",
+            "furniture": ["scales", "crate", "chest"],
+            "floor": 1, "elasticity": 0, "wage": 0.6, "pay": "sales",
+            "say": ["I trade. Buy where it's cheap, sell where it's dear, and pray the roads are kind.", "Merchant. Cloth, salt, whatever the caravans bring."],
+            "barks": ["Fair prices! Fair prices!", "Come and see!"]
+        },
+        "stallkeeper": {
+            "name": "stallholder", "female": "stallholder", "icon": "🧺", "roles": ["merchant", "villager"],
+            "work": "stall", "workplaces": ["marketplace"], "hours": "shop",
+            "floor": 1, "elasticity": 0, "wage": 0.42, "pay": "sales",
+            "say": ["I keep a stall in the square. Whatever's in season.", "Stallholder. Come by in the morning — the best goes early."],
+            "barks": ["Fresh today!", "Two for a copper!"]
+        },
+        "innkeeper": {
+            "name": "innkeeper", "female": "innkeeper", "icon": "🍺", "roles": ["merchant", "villager"],
+            "work": "inside", "workplaces": ["tavern", "inn", "guest_house", "roadhouse"], "hours": "late",
+            "furniture": ["bar", "barrel", "fireplace"],
+            "floor": 1, "elasticity": 0, "wage": 0.55, "pay": "sales",
+            "say": ["I keep the {place}. Beds upstairs, ale down here, and no fighting.", "Innkeeper. I hear everything, and say nothing."],
+            "barks": ["Another round?"]
+        },
+        "server": {
+            "name": "potboy", "female": "serving girl", "icon": "🍺", "roles": ["villager"],
+            "work": "inside", "workplaces": ["tavern", "inn", "guest_house"], "hours": "late", "employer": "innkeeper",
+            "furniture": ["bar", "table", "barrel"],
+            "floor": 1, "elasticity": 0, "wage": 0.3, "pay": "employer",
+            "say": ["I serve at the {place} — fetch and carry, and keep my ears shut.", "I work for {master} at the {place}."],
+            "barks": ["Coming!", "Mind your hands."]
+        },
+        "servant": {
+            "name": "servant", "female": "maidservant", "icon": "🏠", "roles": ["villager"],
+            "work": "sweep", "workplaces": ["manor", "town_hall", "castle", "house"], "hours": "service", "employer": "noble",
+            "floor": 1, "elasticity": 0, "wage": 0.28, "pay": "employer",
+            "say": ["I'm in service to {master}. Sweeping, fetching, the fires lit before they wake.", "Servant. The house is clean, and no one notices — that's how you know I've done it."],
+            "barks": ["Wipe your feet!", "Out of the way, please."]
+        },
+        "washer": {
+            "name": "washerman", "female": "washerwoman", "icon": "🧺", "roles": ["villager"], "gender": "female",
+            "work": "wash", "workplaces": ["house"], "hours": "day",
+            "floor": 1, "elasticity": 0, "wage": 0.25, "pay": "sales",
+            "say": ["I take in washing. Half the linen in {town} passes through my hands.", "Washerwoman. Lye and cold water. Look at my hands."],
+            "barks": ["Out, you stain!", "Cold as a grave, this water."]
+        },
+        "carter": {
+            "name": "carter", "female": "carter", "icon": "📦", "roles": ["villager", "merchant"],
+            "work": "carry", "workplaces": ["warehouse", "granary", "marketplace", "stable"], "hours": "day",
+            "floor": 1, "elasticity": 0, "wage": 0.34, "pay": "town",
+            "say": ["I carry — sacks from the mill, crates to the market, whatever wants moving.", "Carter and porter. If it's heavy, they send for me."],
+            "barks": ["Make way!", "Heavy, this one."]
+        },
+        "healer": {
+            "name": "healer", "female": "wise woman", "icon": "🌿", "roles": ["villager"],
+            "work": "inside", "workplaces": ["apothecary", "herbalist", "temple", "church"], "hours": "day",
+            "furniture": ["cauldron", "shelf", "table"],
+            "floor": 1, "elasticity": 0, "wage": 0.45, "pay": "sales",
+            "say": ["I see to the sick. Herbs, poultices, a steady hand with a needle.", "Healer. Fevers, breaks, babies — they all come to me."],
+            "barks": ["Let me see that."]
+        },
+        "scribe": {
+            "name": "scribe", "female": "scribe", "icon": "✒️", "roles": ["villager", "merchant"],
+            "work": "inside", "workplaces": ["town_hall", "library", "church", "temple"], "hours": "shop",
+            "furniture": ["desk", "bookshelf", "lectern"],
+            "goods": ["parchment", "ink", "book"],
+            "floor": 0.6, "elasticity": 0.4, "wage": 0.5, "pay": "town",
+            "say": ["I write letters for those who can't, and keep the town's rolls.", "Scribe. Ink to the elbow, most days."],
+            "barks": ["Hm. Where was I…"]
+        },
+        "guard": {
+            "name": "guard", "female": "guard", "icon": "🛡️", "roles": ["guard"], "role": "guard",
+            "work": "none", "workplaces": ["barracks", "guard_tower"], "hours": "day",
+            "floor": 1, "elasticity": 0, "wage": 0.5, "pay": "town",
+            "say": ["I'm of the watch. I keep the peace, and the gates.", "Watch. Twelve years now. Seen everything."],
+            "barks": []
+        },
+        "priest": {
+            "name": "priest", "female": "priestess", "icon": "🙏", "roles": ["priest"], "role": "priest",
+            "work": "inside", "workplaces": ["church", "temple", "chapel"], "hours": "church",
+            "furniture": ["altar", "lectern", "pew"],
+            "floor": 1, "elasticity": 0, "wage": 0.4, "pay": "town",
+            "say": ["I keep the {place}, and the souls of {town}, as best I can.", "The faith is my work. Prayers at dawn and dusk, the dying, the newborn."],
+            "barks": []
+        },
+        "noble": {
+            "name": "gentleman", "female": "lady", "icon": "👑", "roles": ["noble"], "role": "noble",
+            "work": "none", "workplaces": ["manor", "town_hall", "castle"], "hours": "gentry",
+            "floor": 1, "elasticity": 0, "wage": 0, "pay": "none",
+            "say": ["Work? I have lands, and stewards to see to them.", "I see to my family's estates, and the town's business at the hall."],
+            "barks": []
+        },
+        "beggar": {
+            "name": "beggar", "female": "beggar", "icon": "🍲", "roles": ["beggar"], "role": "beggar",
+            "work": "beg", "workplaces": [], "hours": "beg",
+            "floor": 1, "elasticity": 0, "wage": 0, "pay": "none",
+            "say": ["Work? Who'd take on the likes of me. I beg, and bless those who give.", "Alms. That's my work, such as it is."],
+            "barks": []
+        },
+        "unemployed": {
+            "name": "out of work", "female": "out of work", "icon": "💰", "roles": ["villager", "farmer", "merchant"],
+            "work": "none", "workplaces": [], "hours": "idle",
+            "floor": 1, "elasticity": 0, "wage": 0, "pay": "none",
+            "say": ["There's no work to be had. I ask at every door.", "Out of work since {since}. If you hear of anything…"],
+            "barks": ["Any work going?"]
+        }
+    },
+    "titles": { "unemployed": "out of work" },
+    "lines": {
+        "apprentice": "I'm apprenticed to {master}, the {trade}. {left}",
+        "apprenticeLeft": ["A few years yet before I'm a journeyman.", "One day I'll have my own shop.", "Hard master, but fair."],
+        "journeyman": "I'm a journeyman {trade}{under}.",
+        "master": " I've been at it {years} years now.",
+        "hired": "Just now I'm at your order — {label}. It'll be ready by day {day}.",
+        "playerServant": "I'm in your service, as you know — {wage} a week, and glad of it.",
+        "love": "Though my mind's not always on the work these days, if you take my meaning.",
+        "broken": "I can't put my heart in it, lately.",
+        "hurt": "My arm's still bad from that beating. I can barely work.",
+        "hungry": "And there's little enough to eat, this season.",
+        "sore": "Head's still ringing from that scrap. I'm slow at it today.",
+        "late": "Up half the night after that fight. I can hardly keep my eyes open."
+    },
+    "annals": {
+        "apprenticed": "{a} was apprenticed to {b}, the {trade}, {when}.",
+        "journeyman": "{a} finished an apprenticeship as a {trade} {when}.",
+        "master": "{a} became a master {trade} {when}.",
+        "tookUp": "{a} took up the trade of {trade} {when}.",
+        "widow": "{a} kept on {b}'s {trade} shop after {b} died, {when}.",
+        "arrived": "{a}, a {trade}, came to settle {when}, there being none in town.",
+        "jobless": "{a} lost work as a {trade} {when}.",
+        "hiredPlayer": "{a} took service with {x} {when}.",
+        "leftPlayer": "{a} left {x}'s service {when}."
+    },
+    "playerJobs": {
+        "_doc": "What the player may offer a townsperson: a weekly wage from the player's purse to theirs (paid every 7 days; unpaid, they leave). accept: the base chance; a master leaving their trade asks masterAsk more; the jobless, joblessBonus more willing.",
+        "kinds": {
+            "servant": { "name": "servant", "icon": "🏠", "wage": 4, "work": "sweep" },
+            "guard": { "name": "guard", "icon": "🛡️", "wage": 7, "work": "post" },
+            "hand": { "name": "hand", "icon": "📦", "wage": 5, "work": "carry" },
+            "clerk": { "name": "clerk", "icon": "📜", "wage": 10, "work": "desk", "job": "scribe", "minLiteracy": 50, "_doc": "Keeps the player's accounts and letters: paid more, and only one who can read and write (townSchool literacy at least minLiteracy — the schooled, a sponsored child grown). Works as the town's scribe does, at the player's door." }
+        },
+        "every": 7, "accept": 0.55, "joblessBonus": 0.35, "masterAsk": 2, "dispositionPer": 0.008
+    },
+    "barkChance": 0.18,
+    "barkGap": 90
+}

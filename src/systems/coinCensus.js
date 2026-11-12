@@ -18,7 +18,8 @@
 //     • roads         coin carried by units on the map — merchant caravans' and
 //                     trade ships' purses, raiders', riders', armies' bags —
 //                     counted in the realm whose land they stand on (none in
-//                     the wilds or at sea)
+//                     the wilds or at sea); pedlars' purses (systems/townTrade.js)
+//                     in the realm of the town they are bound for or in
 //     • court         court and relationship NPCs' purses, in their realm
 //     • outlaws       outlaw lairs' hoards (none in the wilds)
 //     • rivals        adventurer rivals' gold, where they stand
@@ -116,6 +117,9 @@ export const CoinCensus = {
             }
             const gs = _obj(s.guilds);
             if (gs) for (const g of Object.values(gs)) if (g) { add(kid, 'guilds', g.treasury); if (g.lobbying) add(kid, 'guilds', g.lobbying.purse); }
+            // Pedlars on the road to this town or in it (systems/townTrade.js): coin carried on the roads
+            const tt = _obj(s.townTrade);
+            if (tt && Array.isArray(tt.pedlars)) for (const ped of tt.pedlars) if (ped) add(kid, 'roads', ped.purse);
         }
 
         // Inns and courier companies

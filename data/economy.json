@@ -77,8 +77,14 @@
         "priceCurves": {
             "food": {
                 "label": "Food",
-                "goods": ["grain", "flour", "bread", "fish", "preserved_fish", "meat", "dried_meat", "cheese", "fruit", "berries", "honey", "food"],
+                "goods": ["grain", "flour", "bread", "fish", "preserved_fish", "meat", "dried_meat", "cheese", "fruit", "food", "vegetables"],
                 "points": [[1, 0.30], [25, 0.20], [50, 0.0], [70, -0.20], [88, -0.30], [100, -0.15], [112, 0.15], [120, 0.28]]
+            },
+            "produce": {
+                "_doc": "Garden and orchard produce (data/markets.json produce): a milder curve than the staples', since its stock already swings with its own season (a glut of apples at the harvest is cheap by itself, an empty cherry stall in winter dear). This is the carrying cost on top: what it takes to keep a cellar of roots and apples till the spring.",
+                "label": "Produce",
+                "goods": ["cabbage", "turnips", "carrots", "onions", "beans", "apples", "pears", "plums", "cherries", "grapes", "olives", "dates", "berries", "mushrooms", "eggs", "honey", "herbs"],
+                "points": [[1, 0.18], [20, 0.2], [40, 0.05], [60, -0.08], [80, -0.15], [95, -0.05], [110, 0.1], [120, 0.16]]
             },
             "furs": {
                 "label": "Furs & hides",

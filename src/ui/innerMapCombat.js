@@ -47,6 +47,8 @@ import { PlayerInventory } from '../player/inventory.js';
 import { Utils } from '../core/utils.js';
 import { drawGlyph } from './icons.js';
 import { InnerMapReactions } from './innerMapReactions.js';
+import { InnerMapThieves } from './innerMapThieves.js';
+import { InnerMapScavengers } from './innerMapScavengers.js';
 import { drawMapText, labelZoom, textPx } from './mapInk.js';
 import { ParentsGuard } from './parentsGuard.js';
 
@@ -342,6 +344,8 @@ export const InnerMapCombat = {
 
         // ── The street's reaction: guards and kin coming for the player ──
         InnerMapReactions.update(deltaTime, game);
+        // ── Burglars at the doors, cutpurses in the crowd (ui/innerMapThieves.js) ──
+        InnerMapThieves.update(deltaTime, game);
 
         // ── Object combat: float numbers are spawned by onObjectHit ──
     },
@@ -442,6 +446,8 @@ export const InnerMapCombat = {
         // The NPC's armour (a guard's mail) turns part of the blow
         const dmg      = Math.max(1, Math.round(rawDmg * (1 - (ia.npcArmour || 0))));
         const isCrit   = !!label || rawDmg > ia.baseDamage * 1.09;
+        // (how far past senseless the blow went, as a share of their health: a crushing one may leave them bleeding)
+        const overkill = Math.max(0, dmg - health.current) / Math.max(1, health.max);
         health.current = Math.max(0, health.current - dmg);
         this._skillXp(g, sk, 'hit');
         // A brawler's moves: a haymaker fells one already reeling, a stagger costs them their next blow
@@ -481,7 +487,7 @@ export const InnerMapCombat = {
             // Beaten senseless, not dead: the player chooses what comes next (systems/knockout.js)
             this.cancelAttack();
             this._skillXp(g, sk, 'knockout');
-            this._knockOutNPC(npc, game || ia.game);
+            this._knockOutNPC(npc, game || ia.game, overkill);
             return;
         }
         // While the fight lasts, a fighter keeps coming; one beaten low may break and run
@@ -512,8 +518,9 @@ export const InnerMapCombat = {
     // ══════════════════════════════════════════════
 
     /** The NPC collapses where they stand: lying senseless until they come round. */
-    _knockOutNPC(npc, game) {
+    _knockOutNPC(npc, game, overkill = 0) {
         const wake = Knockout.npcWake();
+        npc._downedBy = null;   // (the player's doing, not a brawl's: ui/innerMapBrawls.js)
         npc.state = 'unconscious';
         npc.path = null;
         npc.moveProgress = 0;
@@ -524,7 +531,7 @@ export const InnerMapCombat = {
         // (beaten down indoors: they lie in that room, not out on the street — ui/innerMapCarry.js)
         InnerMapCarry.markLying(npc);
         // A hard blow may leave them bleeding out (ui/innerMapDowned.js)
-        InnerMapDowned.onKnockedOut(npc, game);
+        InnerMapDowned.onKnockedOut(npc, game, overkill);
         InnerMapReactions._responders.delete(npc.id);
         this._npcReactions.delete(npc.id);
         const T = InnerMapRenderer.TILE_SIZE;
@@ -543,6 +550,8 @@ export const InnerMapCombat = {
         if (InnerMapCarry.person === npc) InnerMapCarry.putDown(game);
         npc.state = 'idle';
         npc._ko = null;
+        // (whoever beat them down, this blow is the player's)
+        npc._downedBy = null;
         this._killNPC(npc, game);
         return true;
     },
@@ -690,7 +699,9 @@ export const InnerMapCombat = {
                 const what = verdict.act === 'rob'
                     ? (res.stolen > 0 ? `${who} went through your purse: ${res.stolen} gold gone.` : `${who} went through your purse and found nothing.`)
                     : verdict.act === 'warn' ? `${who} left you with a warning.` : `${who} left you lying there.`;
-                game.ui.showNotification('💫 You Come Round', `You were out for ${hrs}. ${what} You ache all over.`, verdict.act === 'rob' ? 'error' : 'warning');
+                // Lying there for hours: someone else may have gone through your things (ui/innerMapScavengers.js)
+                const looted = verdict.act === 'rob' ? '' : InnerMapScavengers.whileOut(game, attacker);
+                game.ui.showNotification('💫 You Come Round', `You were out for ${hrs}. ${what}${looted ? ` ${looted}` : ''} You ache all over.`, verdict.act === 'rob' || looted ? 'error' : 'warning');
             }
             if (typeof game.ui.updateStats === 'function') game.ui.updateStats(player, game.world);
         });
@@ -773,6 +784,12 @@ export const InnerMapCombat = {
         // Clean up health and reaction state
         this._npcHealth.delete(npc.id);
         this._npcReactions.delete(npc.id);
+
+        // Felled in a brawl between townsfolk and bled out (ui/innerMapBrawls.js): not the player's deed
+        if (npc._downedBy) {
+            if (typeof this.onBrawlDeath === 'function') this.onBrawlDeath(npc, game);
+            return;
+        }
 
         // ── Family ripple: relatives grieve and hate the killer ──
         const ripple = NpcDisposition.onNpcHarmed(npc, InnerMap.npcs || [], 'murder');
@@ -1288,7 +1305,7 @@ export const InnerMapCombat = {
     drawCarriedCorpse(ctx, camera, c, px, py, facing = InnerMapCharacters.DIR_DOWN, part = 'front') {
         const T = InnerMapRenderer.TILE_SIZE;
         const ds = T * camera.zoom;
-        const scale = (c.type === 'child' ? 0.7 : 1) * 0.8;
+        const scale = InnerMapCharacters.drawScale(c) * 0.8;
         if (!(c.preset && InnerMapCharacters.isReady() && InnerMapCharacters.getComposited(c.preset))) {
             if (part === 'front') drawGlyph(ctx, 'skull', px, py - ds * 0.6, Math.max(10, ds * 0.35), '#d8cfc4', 2);
             return;
@@ -1340,6 +1357,19 @@ export const InnerMapCombat = {
         }
     },
 
+    /**
+     * A look with the fall-and-lie sheet (the child sprites' hurt) falling as it goes (`ease` 0 → 1)
+     * and then lying on its back, unturned, about the tile's middle. False when the look has none.
+     */
+    _drawFallen(ctx, preset, ease, sx, sy, ds, scale) {
+        if (!InnerMapCharacters.hasHurt(preset)) return false;
+        const frames = 6;
+        const f = Math.min(frames - 1, Math.floor(ease * frames));
+        const cw = ds * 1.2 * scale * 0.85, ch = ds * 1.8 * scale * 0.85;
+        // (the figure lies in the frame's lower half: raised to sit on the tile)
+        return InnerMapCharacters.drawCharacter(ctx, preset, 'hurt', InnerMapCharacters.DIR_DOWN, f, sx - cw / 2, sy - ch * 0.78, cw, ch);
+    },
+
     /** A body lying on the ground: falls over, a pool of blood spreads under it. */
     drawCorpse(ctx, camera, c, sx, sy) {
         const T = InnerMapRenderer.TILE_SIZE;
@@ -1348,10 +1378,15 @@ export const InnerMapCombat = {
         const fall = Math.min(1, age / 450);
         const ease = 1 - (1 - fall) * (1 - fall);
         // (the blood under it is the ground's — renderBlood — and stays where they fell)
-        const scale = c.type === 'child' ? 0.7 : 1;
+        const scale = InnerMapCharacters.drawScale(c);
         ctx.save();
         const useSprite = c.preset && InnerMapCharacters.isReady() && InnerMapCharacters.getComposited(c.preset);
-        if (useSprite) {
+        if (useSprite && InnerMapCharacters.hasHurt(c.preset)) {
+            // A child: its own fall, flat on its back (greyed as any body)
+            ctx.filter = `grayscale(${0.45 * ease}) brightness(${1 - 0.25 * ease})`;
+            this._drawFallen(ctx, c.preset, ease, sx, sy, ds, scale);
+            ctx.filter = 'none';
+        } else if (useSprite) {
             // Falls over to lie across its own tile (centred on it, so a click
             // anywhere on the body is a click on its tile)
             const cw = ds * 1.2 * scale * 0.85, ch = ds * 1.8 * scale * 0.85;
@@ -1382,10 +1417,12 @@ export const InnerMapCombat = {
         const ko = npc._ko || { at: 0, side: 1 };
         const fall = Math.min(1, (_nowMs() - ko.at) / 400);
         const ease = 1 - (1 - fall) * (1 - fall);
-        const scale = npc.type === 'child' ? 0.7 : 1;
+        const scale = InnerMapCharacters.drawScale(npc);
         ctx.save();
         const useSprite = npc.preset && InnerMapCharacters.isReady() && InnerMapCharacters.getComposited(npc.preset);
-        if (useSprite) {
+        if (useSprite && !npc._bound && !npc._gagged && this._drawFallen(ctx, npc.preset, ease, sx, sy, ds, scale)) {
+            // (a child: its own fall, flat on its back — the child sprites' hurt sheet)
+        } else if (useSprite) {
             const cw = ds * 1.2 * scale * 0.85, ch = ds * 1.8 * scale * 0.85;
             ctx.translate(sx, sy - ds * 0.35 * (1 - ease));
             ctx.rotate(ko.side * (Math.PI / 2) * ease);
@@ -1471,7 +1508,8 @@ export const InnerMapCombat = {
         const barW  = ds * 0.95;
         const barH  = Math.max(3, ds * 0.075);
         const bx    = screen.x - barW / 2;
-        const by    = screen.y - (charH || ds * 1.4) - barH - 2;
+        // (just over the head: the LPC figure's head sits ~0.3 of its cell below the cell's top)
+        const by    = screen.y - (charH ? charH * 0.7 : ds * 1.25) - barH - 2;
 
         // Shadow
         ctx.fillStyle = 'rgba(0,0,0,0.55)';
@@ -1622,6 +1660,7 @@ export const InnerMapCombat = {
         }
 
         // ── Witnesses' barks over their heads ──
+        InnerMapThieves.render(ctx, camera);
         InnerMapReactions.render(ctx, camera);
     },
 };

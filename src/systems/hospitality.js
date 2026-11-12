@@ -44,6 +44,7 @@ import { Fame } from './fame.js';
 import { FoodSkills } from './foodSkills.js';
 import { PracticeSkills } from './practiceSkills.js';
 import { Economy } from '../world/economy.js';
+import { Townsfolk } from './townsfolk.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _day = world => (world && Number.isFinite(world.day) ? world.day : 0);
@@ -553,6 +554,73 @@ export const Hospitality = {
         return tile && tile.settlement ? Economy.payTown(tile.settlement, amount) : 0;
     },
 
+    /** The townsperson who keeps a house (keeperUid 'q,r#pid'): { folk, p } or null. */
+    keeperPerson(world, h) {
+        const m = /^(-?\d+),(-?\d+)#(\d+)$/.exec(String((h && h.keeperUid) || ''));
+        if (!m || !world || typeof world.getTile !== 'function') return null;
+        const t = world.getTile(Number(m[1]), Number(m[2]));
+        const folk = t && t.settlement && t.settlement.folk;
+        const p = folk && Array.isArray(folk.people) ? Townsfolk.get(folk, Number(m[3])) : null;
+        return p && p.died == null ? { folk, p } : null;
+    },
+
+    /** Coin from the house's cash to its keeper's purse (none without a townsperson keeper). → paid */
+    _payKeeper(world, h, amount) {
+        const k = this.keeperPerson(world, h);
+        const g = Math.max(0, Math.floor(_num(amount)));
+        if (!k || !(g > 0)) return 0;
+        h.cash = Math.round(_num(h.cash) - g);
+        Townsfolk.purse(k.folk, k.p, world);
+        k.p.purse = Math.round((_num(k.p.purse) + g) * 100) / 100;
+        return g;
+    },
+
+    /**
+     * What a townsperson or a traveller pays at a house for a bed ('room')
+     * or a supper ('meal'): the house's cheapest tier, or its supper, at its
+     * prices; a tavern with no house behind it (house null) its walk-in price.
+     */
+    npcBill(house, what) {
+        const N = this.config().npc;
+        const W = N.walkIn || {};
+        if (!house) return Math.max(1, Math.round(_num(W[what], what === 'room' ? 2 : 1)));
+        const K = this.kind(house.kind) || {};
+        const mult = _num(house.priceMult, 1) * this._starsPrice(house.stars);
+        if (what === 'room') {
+            const tiers = (K.tiers || ['private']).map(t => _num((this.tier(t) || {}).price, 8));
+            return Math.max(1, Math.round(Math.min(...tiers) * mult));
+        }
+        const sid = (K.services || []).find(x => x === 'supper' || x === 'fine_dining');
+        const S = sid ? this.service(sid) : null;
+        return Math.max(1, Math.round((S ? _num(S.price, 3) : _num(W.meal, 1)) * mult));
+    },
+
+    /**
+     * A guest of the street map pays for a bed or a supper: from `payer`
+     * (an object with a numeric purse, or a townsperson { folk, p }) into the
+     * keeper's purse — the keeper townsperson given (keeper { folk, p }), else
+     * the house's bound keeper, else the house's cash. What they can't pay
+     * they don't get. → { paid, price } (paid 0: turned away)
+     */
+    npcPays(world, opts = {}) {
+        const house = opts.houseId ? this.state(world).houses[opts.houseId] || null : null;
+        const price = this.npcBill(house, opts.what === 'room' ? 'room' : 'meal');
+        let have = 0;
+        const fromPerson = opts.payer && opts.payer.p && opts.payer.folk;
+        if (fromPerson) have = Townsfolk.purse(opts.payer.folk, opts.payer.p, world);
+        else if (opts.payer && typeof opts.payer.purse === 'number') have = opts.payer.purse;
+        if (have < price) return { paid: 0, price };
+        if (fromPerson) opts.payer.p.purse = Math.round((have - price) * 100) / 100;
+        else opts.payer.purse = Math.round((have - price) * 100) / 100;
+        const keeper = (opts.keeper && opts.keeper.p && opts.keeper.folk) ? opts.keeper : (house ? this.keeperPerson(world, house) : null);
+        if (keeper) {
+            Townsfolk.purse(keeper.folk, keeper.p, world);
+            keeper.p.purse = Math.round((_num(keeper.p.purse) + price) * 100) / 100;
+        } else if (house) house.cash = Math.round(_num(house.cash) + price);
+        if (house) house.walkIns = _num(house.walkIns) + 1;
+        return { paid: price, price };
+    },
+
     /** Whether tonight's rooms are all taken (only ever at a near-full NPC house). */
     noVacancy(world, view) {
         if (!view || view.owner === 'player') return false;
@@ -899,6 +967,9 @@ export const Hospitality = {
                 const paid = Math.min(costs, Math.max(0, Math.floor(cash0)));
                 if (town && paid > 0) Economy.payTown(town, paid);
                 h.cash = Math.round(cash0 - costs);
+                // (the keeper takes their share of what the house cleared, into their own purse)
+                const cleared = takings - paid;
+                if (cleared > 0 && h.cash > 0) this._payKeeper(world, h, Math.min(h.cash, Math.floor(cleared * _num(N.keeperShare, 0.25))));
                 const keep = _num(N.cashKeep, 800);
                 if (town && h.cash > keep) {
                     const spend = Math.floor((h.cash - keep) * _num(N.spendShare, 0.5));

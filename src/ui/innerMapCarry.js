@@ -31,6 +31,7 @@ import { InnerMapCombat } from './innerMapCombat.js';
 import { InnerMapReactions } from './innerMapReactions.js';
 import { InnerMapAnimals } from './innerMapAnimals.js';
 import { Downed } from '../systems/downed.js';
+import { Underworld } from '../systems/underworld.js';
 
 function _now() {
     return (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
@@ -104,7 +105,7 @@ export const InnerMapCarry = {
         InnerMap._playerSpeed = this._baseSpeed * (opts.drag ? Downed.dragSpeed() : Carrying.speedFactor(game && game.player, npc));
         if (opts.drag) { npc.q = npc.prevQ = npc.targetQ = npc.q; } else this._follow();
         if (opts.drag) _note(game, '🦶 Dragging', `You take ${npc.name} by the heels and haul them along the ground.`, 'info');
-        else _note(game, '🧍 Over your shoulder', `You heave ${npc.name} up over your shoulder. Anyone who sees you will wonder why.`, 'info');
+        else _note(game, '🚶 Over your shoulder', `You heave ${npc.name} up over your shoulder. Anyone who sees you will wonder why.`, 'info');
         return true;
     },
 
@@ -176,6 +177,76 @@ export const InnerMapCarry = {
         if (outer && !outer.includes(npc)) outer.push(npc);
         this.person = null;
         if (this._baseSpeed != null) { InnerMap._playerSpeed = this._baseSpeed; this._baseSpeed = null; }
+    },
+
+    // ──────────── HANDED TO THE WATCH ────────────
+
+    /**
+     * Lay the one carried in the gaol's cells (systems/carrying.js handOver): someone with a deed
+     * against them is a citizen's arrest — the gaoler locks them up, the player is thanked; anyone
+     * else is a kidnapping — the gaoler cuts them loose and the player is taken for it.
+     * @returns {'arrest'|'kidnapping'|null}
+     */
+    handOver(game) {
+        const npc = this.person;
+        if (!npc || !game || !(InnerMap.inJail && InnerMap.inJail()) || InnerMap.jailLocked()) return null;
+        const player = game.player, world = game.world;
+        const day = (world && world.day) || 0;
+        const wt = InnerMap.currentWorldTile || {};
+        const settlement = (InnerMap._currentWorldTileRef && InnerMap._currentWorldTileRef.settlement) || wt.settlement || null;
+        const vuid = StreetCrime.npcKey(npc);
+        const npcCrime = settlement && Array.isArray(settlement.npcCrimes)
+            ? settlement.npcCrimes.find(c => (c.byKey && c.byKey === vuid) || (npc._person && c.byPid != null && c.byPid === npc._person.id)) || null : null;
+        const v = Carrying.handOver(npc, { npcCrime, seed: day });
+        const H = Carrying.config().handOver;
+        const gaoler = (InnerMap.npcs || []).find(n => n._gaoler && n.state !== 'unconscious' && n.state !== 'gone');
+        if (gaoler && v.line) InnerMapReactions.bark(gaoler, v.line, 4);
+        // Off the shoulder
+        npc._carried = false;
+        npc._dragged = false;
+        npc._carryBody = null;
+        this.person = null;
+        if (this._baseSpeed != null) { InnerMap._playerSpeed = this._baseSpeed; this._baseSpeed = null; }
+        if (v.verdict === 'arrest') {
+            // Behind the bars: gone from the street (the town deals its people again on the next visit)
+            npc._ko = null;
+            npc._lyingIn = null;
+            npc._handedToWatch = day;
+            npc.state = 'gone';
+            const A = H.arrest || {};
+            if (player) {
+                player.reputation = (player.reputation || 0) + (Number(A.reputation) || 0);
+                player.karma = Math.min(100, (player.karma || 0) + (Number(A.karma) || 0));
+            }
+            _note(game, "⛓️ A citizen's arrest", `${gaoler ? gaoler.name : 'The gaoler'} takes ${npc.name} into the cells. ${v.why}`, 'success');
+            return 'arrest';
+        }
+        // A kidnapping: the captive cut loose, the player taken
+        npc._bound = false;
+        npc._gagged = false;
+        npc._ko = null;
+        npc._lyingIn = null;
+        const pq = InnerMap.playerInnerQ, pr = InnerMap.playerInnerR;
+        const spot = Carrying.dropSpot(pq, pr, (q, r) => this._freeTile(q, r)) || { q: pq, r: pr };
+        npc.q = npc.prevQ = npc.targetQ = spot.q;
+        npc.r = npc.prevR = npc.targetR = spot.r;
+        npc.state = 'idle';
+        npc.idleTimer = 2;
+        npc._broke = true;
+        NpcDisposition.adjustDisposition(npc, Number((H.kidnapping || {}).disposition) || -60, player);
+        if (player && world) {
+            Underworld.recordCrime(player, world, 'kidnapping', {
+                kingdom: settlement ? settlement.kingdom : null, caught: true, q: wt.q, r: wt.r,
+                victim: { name: npc.name || 'someone', type: npc.type || 'villager', icon: npc.icon },
+            });
+        }
+        const arrest = player && world && settlement && !StreetCrime.aboveLaw(player, world, settlement)
+            ? Underworld._arrest(player, world, settlement, 'kidnapping') : null;
+        _note(game, '🚨 Kidnapping', `${v.why} The gaoler cuts ${npc.name} loose.${arrest ? ` ${arrest.text}` : ' He knows better than to lay hands on you.'}`, 'error');
+        if (arrest && typeof game.enterJailMap === 'function') {
+            game.enterJailMap().then(ok => { if (!ok && InnerMap.active && typeof game.exitInnerMap === 'function') game.exitInnerMap({ force: true }); });
+        }
+        return 'kidnapping';
     },
 
     // ──────────── COMING ROUND ────────────
@@ -324,14 +395,18 @@ export const InnerMapCarry = {
         const out = [];
         const npc = this.person;
         if (npc) {
-            out.push({ type: 'header', label: `${npc._dragged ? '🦶 Dragging' : '🧍 Carrying'} ${npc.name} (${Downed.label(npc) || 'awake'})` });
+            out.push({ type: 'header', label: `${npc._dragged ? '🦶 Dragging' : '🚶 Carrying'} ${npc.name} (${Downed.label(npc) || 'awake'})` });
             const bed = tile && tile._furniture && tile._furniture.type === 'bed' ? this.bedNear({ q, r }) : this.bedNear();
             if (bed) out.push({ type: 'action', action: 'carry_lay_bed', label: 'Lay Them on the Bed', icon: '🛏️', desc: 'In the bed, under the blanket, still senseless', q: bed.q, r: bed.r });
             out.push({ type: 'action', action: npc._dragged ? 'carry_put_down' : 'carry_put_down', label: npc._dragged ? 'Let Go of Them' : 'Put Them Down', icon: '⬇️', desc: 'Set them on the ground beside you', q, r });
+            // In the town's gaol (a visitor, not locked in): lay them in a cell — the watch takes them
+            if (InnerMap.inJail && InnerMap.inJail() && !InnerMap.jailLocked()) {
+                out.push({ type: 'action', action: 'carry_hand_over', label: 'Lay Them in a Cell', icon: '⛓️', desc: npc._bound ? "Hand your captive to the gaoler: a citizen's arrest, if they have done wrong" : "Hand them to the gaoler: a citizen's arrest, if they have done wrong" });
+            }
         }
         for (const n of (npcsHere || []).filter(x => Downed.isDown(x) && !x._carried).slice(0, 2)) {
             if (this.handsFull()) out.push({ type: 'disabled', label: `Pick Up ${n.name}: your hands are full` });
-            else out.push({ type: 'action', action: 'ko_carry', label: 'Pick Them Up', icon: '🧍', desc: 'Carry them over your shoulder (you walk slower, hands full)', npc: n });
+            else out.push({ type: 'action', action: 'ko_carry', label: 'Pick Them Up', icon: '🚶', desc: 'Carry them over your shoulder (you walk slower, hands full)', npc: n });
         }
         return out;
     },
@@ -349,6 +424,7 @@ export const InnerMapCarry = {
             }
             case 'carry_put_down': this.putDown(game, item.q != null ? { q: item.q, r: item.r } : null); return true;
             case 'carry_lay_bed': this.layInBed(game, item.q != null ? { q: item.q, r: item.r } : null); return true;
+            case 'carry_hand_over': this.handOver(game); return true;
             default: return false;
         }
     },

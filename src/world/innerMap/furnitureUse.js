@@ -204,7 +204,8 @@ Object.assign(InnerMap, {
             !(pa && pa.q === s.q && pa.r === s.r) &&
             !this.isPlayerNextTo(s.q, s.r));
         if (!free.length) return null;
-        const liked = this.NPC_FURNITURE_AFFINITY[npc.type] || [];
+        // (the table at a meal, the trade's own at work: world/innerMap/townWork.js)
+        const liked = (this._jobFurniture && this._jobFurniture(npc)) || this.NPC_FURNITURE_AFFINITY[npc.type] || [];
         const preferred = free.filter(s => liked.includes(s.type));
         const pool = preferred.length && Utils.random() < 0.85 ? preferred : free;
         return pool[Math.floor(Utils.random() * pool.length)];
@@ -314,6 +315,8 @@ Object.assign(InnerMap, {
             if (this._townAbed && this._townAbed(npc)) { npc.idleTimer = Math.max(npc.idleTimer || 0, 5); return; }
             this._wakeNpc(npc);
         }
+        // The household at its table for a meal (world/innerMap/townWork.js)
+        if (this._jobTableMeal && this._jobTableMeal(npc, deltaTime)) return;
         if (!npc._act) npc._act = { phase: 'rest', timer: 0.5 + Utils.random() * 2, spot: null };
         const act = npc._act;
 

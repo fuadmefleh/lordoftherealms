@@ -18,6 +18,7 @@ import { NpcChat } from '../../systems/npcChat.js';
 import { renderTalkBox } from '../conversationScene.js';
 import { NpcPortrait } from '../npcPortrait.js';
 import { SocialSkills } from '../../systems/socialSkills.js';
+import { IllnessPlayer } from '../../systems/illnessPlayer.js';
 
 /** The questions a disliked player can be refused, by rebuff topic. */
 const ASK_TOPICS = {
@@ -518,7 +519,12 @@ export function _handleChoice(action) {
                 const npc = dialogState._npc;
                 NpcDialog.close();
                 if (shouldClose === 'trade' && game) {
-                    if (npc && npc.shopInventory && Object.keys(npc.shopInventory).length > 0) {
+                    // A stall's keeper sells their stall's wares (world/innerMap/stalls.js)
+                    const stall = npc && InnerMap.stallOfKeeper ? InnerMap.stallOfKeeper(npc) : null;
+                    const here = stall && game.world ? game.world.getTile(game.player.q, game.player.r) : null;
+                    if (here && here.settlement) {
+                        ActionMenu.showTradeMenu(game, here, null, stall);
+                    } else if (npc && npc.shopInventory && Object.keys(npc.shopInventory).length > 0) {
                         ActionMenu.showNpcTradeMenu(game, npc);
                     } else {
                         const worldTile = game.world ? game.world.getTile(game.player.q, game.player.r) : null;
@@ -720,6 +726,11 @@ export function _showGiftSubmenu() {
     // Inventory item gifts
     if (dialogState._game?.player?.inventory) {
         const items = Object.entries(dialogState._game.player.inventory).filter(([, qty]) => qty > 0);
+        // (for the sick, medicine and food first: systems/illnessPlayer.js)
+        if (IllnessPlayer.greetLine(dialogState._npc, dialogState._game?.world)) {
+            const rank = id => ({ medicine: 0, food: 1 }[IllnessPlayer.giftKind(id)] ?? 2);
+            items.sort((a, b) => rank(a[0]) - rank(b[0]));
+        }
         for (const [itemId, qty] of items.slice(0, 6)) {
             const displayName = itemId.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
             choices.push({
@@ -798,6 +809,9 @@ export function _giveItemGift(itemId) {
     let boost = 5;
     if (itemId === 'bread' || itemId === 'food') boost = npcType === 'beggar' ? 15 : 6;
     if (itemId === 'ale' || itemId === 'wine') boost = npcType === 'traveler' ? 10 : 6;
+    // Medicine or food for the sick: their care the better, now and then the fever breaks (systems/illnessPlayer.js)
+    const nursed = IllnessPlayer.giveToSick(dialogState._npc, itemId, dialogState._game?.world, dialogState._game?.player);
+    if (nursed) boost = Math.max(boost, nursed.boost);
 
     boost = NpcDisposition.adjustDisposition(dialogState._npc, boost, dialogState._game?.player);
     const giftResult = NpcDisposition.recordGift(dialogState._npc, dialogState._game?.player);
@@ -809,6 +823,7 @@ export function _giveItemGift(itemId) {
         child:    `*eyes go wide* For ME?! Thank you thank you thank you!`,
     };
     let responseText = responses[npcType] || `*accepts the ${displayName}* How thoughtful of you. Thank you.`;
+    if (nursed) responseText = nursed.text;
     if (giftResult.forgiven) responseText += ' ...All right. Let\'s forget about those threats.';
 
     dialogState._lines.push({ speaker: 'You', text: `*gives ${displayName}*`, isNpc: false, _action: 'give_gift' });

@@ -8,6 +8,7 @@ import { NpcChat } from '../systems/npcChat.js';
 import { NpcBrain } from '../systems/npcBrain.js';
 import { LlmClient } from '../systems/llmClient.js';
 import { Relationships } from '../systems/relationships.js';
+import { SettlementMarket } from '../world/settlementMarket.js';
 
 beforeAll(async () => {
     if (!DataLoader._gamedata) {
@@ -17,6 +18,12 @@ beforeAll(async () => {
 });
 
 const world = () => ({ day: 12, season: 'Spring', year: 853, width: 40, height: 40, getTile: () => null, units: [], kingdoms: [] });
+/** A world with their town in it: what they carry comes out of its market (systems/townTrade.js consign). */
+const townWorld = () => {
+    const town = { name: 'Riptide', type: 'town', q: 3, r: 3, population: 1500, economy: { gold: 1000 } };
+    SettlementMarket.ensure(town);
+    return { ...world(), town, getSettlementViews: () => [town], getTile: (q, r) => (q === 3 && r === 3 ? { q, r, settlement: town } : null) };
+};
 const player = () => ({ name: 'Ash', q: 1, r: 1, relationships: {}, gold: 100, actionPoints: 5, army: [], inventory: {} });
 
 let _n = 0;
@@ -159,7 +166,8 @@ describe('what is said makes things happen', () => {
     });
 
     it('give_item hands over what they carry, and it is gone from their stock; only what they have', () => {
-        const p = player(), w = world();
+        const p = player(), w = townWorld();
+        const bread0 = SettlementMarket.stock(w.town, 'bread');
         const baker = npc({ occupation: 'baker' });
         const s = NpcChat.startSession(p, w, baker);
         const sheet = NpcChat.persona(p, w, baker);
@@ -171,18 +179,25 @@ describe('what is said makes things happen', () => {
         expect(p.inventory.dragon_scale).toBeUndefined();
         const rel = Relationships.getRelationship(p, baker.id);
         expect(rel.stock.items.bread.qty).toBe(NpcChat.config().carries.baker.bread - 1);
+        // (what they carried came out of Riptide's market: real goods, not conjured)
+        expect(SettlementMarket.stock(w.town, 'bread')).toBeCloseTo(bread0 - NpcChat.config().carries.baker.bread, 6);
     });
 
     it('sell_item takes a fair price at least, accept_gold and give_gold move coin within limits', () => {
-        const p = player(), w = world();
-        const baker = npc({ occupation: 'baker' });
+        const p = player(), w = townWorld();
+        const baker = npc({ occupation: 'baker', purse: 50 });
+        const town0 = w.town.economy.gold;
         const s = NpcChat.startSession(p, w, baker);
         NpcChat.applyActions(p, w, baker, s, [{ fn: 'sell_item', item: 'bread', qty: 2, price: 0 }]);
         expect(p.inventory.bread).toBe(2);
         expect(p.gold).toBeLessThan(100);
+        // (the coin for the town's goods went to the town)
+        expect(w.town.economy.gold).toBeCloseTo(town0 + (100 - p.gold), 6);
         const g0 = p.gold;
         NpcChat.applyActions(p, w, baker, s, [{ fn: 'accept_gold', amount: 5 }, { fn: 'give_gold', amount: 999 }]);
         expect(p.gold).toBe(g0 - 5 + NpcChat.config().limits.coinPerDay);
+        // (out of their own purse, and the coin given them into it)
+        expect(baker.purse).toBe(50 + 5 - NpcChat.config().limits.coinPerDay);
     });
 });
 

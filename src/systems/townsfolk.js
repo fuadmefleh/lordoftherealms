@@ -27,6 +27,17 @@ import { WorldEvents } from '../world/worldEvents.js';
 import { Cultures } from '../world/cultures.js';
 import { Characters } from '../world/characters.js';
 import { PracticeSkills } from './practiceSkills.js';
+// (courtship: who notices whom, and the weddings it comes to — systems/romance.js; called at run time only)
+import { Romance } from './romance.js';
+// (conception, birth, households, orphans, inheritance, ageing — systems/townFamily.js; run time only)
+import { TownFamily } from './townFamily.js';
+// (everyone's work: systems/townJobs.js; called at run time only)
+import { TownJobs } from './townJobs.js';
+import { TownWorship } from './townWorship.js';
+// (the townsfolk's sicknesses: systems/illness.js; called at run time only)
+import { Illness } from './illness.js';
+// (the townsfolk trading among themselves: systems/townTrade.js; called at run time only)
+import { TownTrade } from './townTrade.js';
 
 const DEFAULTS = {
     enabled: true,
@@ -113,6 +124,7 @@ function _seasonal(rate) {
 }
 
 function _article(word) { return /^[aeiou]/i.test(word) ? `an ${word}` : `a ${word}`; }
+function _cap2(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
 
 export const Townsfolk = {
     config() {
@@ -200,6 +212,8 @@ export const Townsfolk = {
         } else {
             Townsfolk.catchUp(world, settlement, day);
         }
+        // Every grown resident at a trade (an old save's on first sight: systems/townJobs.js)
+        TownJobs.ensure(folk, settlement, world, day);
         if (opts.target) folk.target = opts.target;
         folk.prevVisit = folk.visit != null ? folk.visit : null;
         folk.visit = day;
@@ -321,6 +335,9 @@ export const Townsfolk = {
             if (lo <= hi && par.born < lo) par.born = lo + Math.floor(rng() * Math.min(hi - lo + 1, 8 * Y));
         }
         settlement.folk = folk;
+        // The town's courtships, a few already under way (systems/romance.js)
+        if (Romance.config().enabled) Romance.state(folk, world, folk.tick);
+        if (TownFamily.config().enabled) TownFamily.state(folk, world, folk.tick);
         return folk;
     },
 
@@ -336,22 +353,80 @@ export const Townsfolk = {
         const C = Townsfolk.config();
         const news = [];
         let t = _num(folk.tick, day);
+        // The town's courtships step between its seasons (systems/romance.js)
+        const love = Romance.config().enabled || TownFamily.config().enabled;
         // At most a lifetime at a time (a very old save opening)
         let guard = 0;
         while (t + C.tickDays <= day && guard++ < 400) {
             t += C.tickDays;
+            if (love) Townsfolk._lives(world, settlement, folk, t - 1, news, player);
+            // (the town's trade and its sick, day by day, between the seasons: systems/townTrade.js, systems/illness.js)
+            Townsfolk._days(world, settlement, folk, t - 1, news, player);
+            // (the season's own day worshipped and traded first, as it is lived day by day: they run before the seasons)
+            TownWorship.catchUp(world, settlement, t, player);
+            TownTrade.catchUp(world, settlement, t, player);
             Townsfolk._season(world, settlement, folk, t, news, player);
         }
         folk.tick = Math.max(_num(folk.tick, 0), t);
+        if (love) Townsfolk._lives(world, settlement, folk, day, news, player);
+        Townsfolk._days(world, settlement, folk, day, news, player);
         return news;
     },
 
-    /** The daily hook: every tickDays, every town with a roster lives a season. */
+    /**
+     * The town's worship, trade and sick up to `upTo`, interleaved by the day
+     * in the order a day is lived (worship, trade, then the sick) — so a town
+     * caught up late comes out the same as one lived day by day
+     * (systems/townWorship.js, systems/townTrade.js, systems/illness.js; each
+     * a no-op on a day it has nothing to do).
+     */
+    _days(world, settlement, folk, upTo, news, player, sick = true) {
+        const ill = sick && Illness.on();
+        const st = ill ? Illness.state(world, settlement, folk, upTo) : null;
+        const tt = settlement.townTrade;
+        const anchor = Math.min(upTo, _num(folk.tick, upTo)) - 1;
+        let d = Math.min(st ? st.tick : Infinity, tt && Number.isFinite(tt.day) ? tt.day : anchor, Number.isFinite(folk.worshipDay) ? folk.worshipDay : anchor);
+        if (!Number.isFinite(d)) d = upTo - 1;
+        for (let guard = 0; ++d <= upTo && guard < 20000; guard++) {
+            // (the day pass before the seasons: yesterday's sick are lived first, whoever drives the days)
+            if (!sick && Illness.on()) Illness.catchUp(world, settlement, folk, d - 1, news, player);
+            TownWorship.catchUp(world, settlement, d, player);
+            TownTrade.catchUp(world, settlement, d, player);
+            if (ill) Illness.catchUp(world, settlement, folk, d, news, player);
+        }
+    },
+
+    /** Courtships and family life step together, day by day (systems/romance.js, systems/townFamily.js). */
+    _lives(world, settlement, folk, upTo, news, player) {
+        const fam = TownFamily.config().enabled;
+        const step = Math.max(1, _num(Romance.config().stepDays, 10));
+        const from = Math.min(Romance.state(folk, world, _num(folk.tick, upTo)).tick, fam ? TownFamily.state(folk, world, _num(folk.tick, upTo)).tick : Infinity);
+        for (let d = from + step, guard = 0; d <= upTo && guard < 1500; d += step, guard++) {
+            // (the sick first, up to the same day: systems/illness.js — the same order lived day by day)
+            Townsfolk._days(world, settlement, folk, d, news, player);
+            Romance.catchUp(world, settlement, folk, d, news, player);
+            if (fam) TownFamily.catchUp(world, settlement, folk, d, news, player);
+        }
+    },
+
+    /** The daily hook: every tickDays, every town with a roster lives a season (its courtships step more often). */
     processDay(world, player = null) {
         const C = Townsfolk.config();
-        if (!C.enabled || !world || _num(world.day) % C.tickDays !== 0) return [];
-        const views = typeof world.getSettlementViews === 'function' ? world.getSettlementViews() : [];
+        const step = Romance.config().enabled ? Math.max(1, _num(Romance.config().stepDays, C.tickDays)) : C.tickDays;
+        // Every day: the player's own servants paid (systems/townJobs.js), the holy day and the burials (systems/townWorship.js)
+        const views = world && typeof world.getSettlementViews === 'function' ? world.getSettlementViews() : [];
         const news = [];
+        if (C.enabled && world) {
+            // (one who leaves unpaid says so in the town's annals)
+            TownJobs.processDay(world, player);
+            // Each town's day: its worship and its trade (shopping, producers to market, barter, pedlars:
+            // systems/townTrade.js) — before the seasons, as a late catch-up lives them (_days). Its sick
+            // come after (here on a season's or a step's day, else systems/illness.js processDay)
+            for (const s of views) if (s && _obj(s.folk) && Array.isArray(s.folk.people)) Townsfolk._days(world, s, s.folk, _num(world.day, 1), news, player, false);
+            // (the ruler in town who sat out the holy day: systems/townWorship.js)
+            TownWorship.processDay(world, player);
+        }
+        if (!C.enabled || !world || (_num(world.day) % C.tickDays !== 0 && _num(world.day) % step !== 0)) return news;
         for (const s of views) {
             if (s && s.folk) news.push(...Townsfolk.catchUp(world, s, world.day, player));
         }
@@ -388,11 +463,13 @@ export const Townsfolk = {
         for (const p of Townsfolk.residents(folk)) {
             const age = Townsfolk.age(p, day);
             let rate = (C.mortality.find(m => age < m.under) || { rate: 0.4 }).rate;
+            // (with sickness on, its share of the dying — fevers, the flux, the plague — is systems/illness.js's)
+            rate *= Illness.baseShare(age);
             if (ctx.dearth && (age < 5 || age >= 60)) rate *= H.dearth;
-            if (ctx.plague) rate *= H.plague;
+            if (ctx.plague && !Illness.handlesPlague()) rate *= H.plague;
             if (ctx.winter && age >= 60) rate *= 1 + (H.winterOld - 1) * 4;   // the whole year's extra falls in winter
             let cause = null;
-            if (rng() < _seasonal(rate)) cause = Townsfolk._cause(age, ctx, rng);
+            if (rng() < _seasonal(rate)) cause = Illness.baseCause(age, ctx, rng) || Townsfolk._cause(age, ctx, rng);
             else if (ctx.enemy && p.role === 'guard' && rng() < H.warSoldierDeath) {
                 cause = (_pick(C.causes.war, rng) || 'the war').replace('{enemy}', ctx.enemy);
             }
@@ -407,6 +484,8 @@ export const Townsfolk = {
             const age = Townsfolk.age(p, day);
             if (p.role === 'child' && age >= C.comeOfAge) {
                 p.role = Townsfolk._chooseRole(folk, p, rng);
+                // (an apprentice grows into the trade's role: systems/townJobs.js)
+                p.role = TownJobs.comingOfAgeRole(folk, p) || p.role;
                 Townsfolk._log(p, day, 'grown', null, p.role);
                 note('grown', p.id, null, p.role);
             } else if (age >= C.retireAge && C.retiringRoles.includes(p.role)) {
@@ -427,7 +506,26 @@ export const Townsfolk = {
             return a >= M.minAge && a <= M.maxAge && single(p) && p.role !== 'priest';
         };
         const pool = Townsfolk.residents(folk).filter(eligible);
-        for (const a of pool) {
+        // With courtship (systems/romance.js) the town's own matches are made
+        // there, step by step; a season brings only the match met elsewhere
+        if (Romance.config().enabled) {
+            for (const a of pool) {
+                if (!eligible(a) || Romance.courtOf(folk, a.id) || rng() >= _seasonal(M.outsiderChance * _num(Romance.config().outsiderShare, 0.6))) continue;
+                const ageA = Townsfolk.age(a, day);
+                const from = _pick(ctx.towns, rng) || 'a distant town';
+                // (whom they could love: systems/romance.js leaning)
+                const lean = Romance.leaning(world, folk, a);
+                const same = lean === 'same' || (lean === 'both' && rng() < 0.5);
+                const b = Townsfolk._newcomer(folk, day, rng, {
+                    gender: same ? a.gender : (a.gender === 'male' ? 'female' : 'male'),
+                    age: Math.max(M.minAge, ageA - 4 + Math.floor(rng() * 9)),
+                    from,
+                });
+                Townsfolk._wed(folk, a, b, day);
+                note('wed', a.id, b.id, from);
+            }
+        }
+        for (const a of Romance.config().enabled ? [] : pool) {
             if (!eligible(a) || rng() >= _seasonal(M.chance)) continue;
             const kin = new Set([...a.parents, ...a.kids, ...Townsfolk.siblings(folk, a).map(s => s.id)]);
             const ageA = Townsfolk.age(a, day);
@@ -450,12 +548,13 @@ export const Townsfolk = {
 
         // Births
         const B = C.birth;
-        for (const mother of Townsfolk.residents(folk)) {
+        // (with family life on, births come of real pregnancies: systems/townFamily.js)
+        for (const mother of TownFamily.config().enabled ? [] : Townsfolk.residents(folk)) {
             if (mother.gender !== 'female') continue;
             const age = Townsfolk.age(mother, day);
             if (age < B.motherMin || age > B.motherMax) continue;
             const father = Townsfolk.get(folk, mother.spouse);
-            if (!Townsfolk.isHere(father)) continue;
+            if (!Townsfolk.isHere(father) || father.gender === mother.gender) continue;
             if (mother.wedDay != null && day - mother.wedDay < C.daysPerYear * 0.75) continue;
             const living = mother.kids.map(id => Townsfolk.get(folk, id)).filter(k => k && k.died == null).length;
             if (living >= B.maxChildren) continue;
@@ -481,7 +580,8 @@ export const Townsfolk = {
             const to = _pick(ctx.towns, rng) || 'the wider world';
             p.away = { d: day, to };
             Townsfolk._log(p, day, 'left', null, to);
-            for (const pid of p.parents) Townsfolk._log(Townsfolk.get(folk, pid), day, 'kidLeft', p.id, to);
+            // (word of it in the parents' lives: the living ones)
+            for (const pid of p.parents) { const par = Townsfolk.get(folk, pid); if (par && par.died == null) Townsfolk._log(par, day, 'kidLeft', p.id, to); }
             note('left', p.id, null, to);
         }
 
@@ -520,8 +620,12 @@ export const Townsfolk = {
         for (const p of Townsfolk.residents(folk)) {
             const who = Townsfolk.skillWho(folk, p, day, coastal, mountain);
             PracticeSkills.seedNpc(p, who);
-            PracticeSkills.growNpc(p, who, C.tickDays);
+            // (the lovestruck work a little harder, the heartbroken less: systems/romance.js)
+            PracticeSkills.growNpc(p, who, Math.round(C.tickDays * Romance.workFactor(folk, p, day)));
         }
+
+        // A season of work: apprentices, masters, the empty trades filled, wages and board (systems/townJobs.js)
+        TownJobs.season(world, settlement, folk, day, news, player);
 
         Townsfolk._prune(folk, day);
     },
@@ -612,7 +716,8 @@ export const Townsfolk = {
         b.wedDay = day;
         const bride = a.gender === 'female' ? a : b;
         const groom = bride === a ? b : a;
-        if (bride.last !== groom.last) { bride.maiden = bride.maiden || bride.last; bride.last = groom.last; }
+        // (two brides or two grooms keep their own names)
+        if (a.gender !== b.gender && bride.last !== groom.last) { bride.maiden = bride.maiden || bride.last; bride.last = groom.last; }
         if (!quiet) {
             Townsfolk._log(a, day, 'wed', b.id);
             Townsfolk._log(b, day, 'wed', a.id);
@@ -736,6 +841,9 @@ export const Townsfolk = {
         npc.type = p.role;
         npc.personalityTraits = (p.traits || []).slice();
         npc.roleTitle = Townsfolk.roleTitle(p);
+        // Their occupation (systems/townJobs.js): the inner map puts them to it
+        npc.job = p.job ? p.job.id : null;
+        if (p.job && !p.retired) npc.roleTitle = TownJobs.title(p) || npc.roleTitle;
         npc.uid = `${folk.q},${folk.r}#${p.id}`;
         npc.familyGroupId = null;
         npc.spouseId = null;
@@ -767,6 +875,8 @@ export const Townsfolk = {
             n.parentIds = p.parents.map(id => byPerson.get(id)).filter(Boolean).map(o => o.id);
             n.childIds = p.kids.map(id => byPerson.get(id)).filter(Boolean).map(o => o.id);
             n.siblingIds = Townsfolk.siblings(n._folk, p).map(s => byPerson.get(s.id)).filter(Boolean).map(o => o.id);
+            // One household under one roof (systems/townFamily.js)
+            n._hh = p.hh != null ? p.hh : null;
         }
     },
 
@@ -866,7 +976,7 @@ export const Townsfolk = {
         } else if (p.role === 'child' && nowAge - p.seen.age >= 1) {
             parts.push(`You came before! I was only ${p.seen.age} then. I'm ${nowAge} now.`);
         }
-        const rank = { widowed: 6, childDied: 5, rescued: 5, spared: 5, wed: 4, informant: 4, birth: 3, wronged: 3, raided: 3, parentDied: 2, favour: 2, retired: 1 };
+        const rank = { ...Romance.reunionRanks(), ...Illness.reunionRanks(), takenIn: 5, tookIn: 4, inherited: 3, expecting: 3, stillborn: 4, widowed: 6, childDied: 5, rescued: 5, spared: 5, wed: 4, informant: 4, birth: 3, wronged: 3, raided: 3, robbed: 3, parentDied: 2, favour: 2, pickpocketed: 1, retired: 1, job: 2 };
         const since = p.log.filter(e => e.d > p.seen.d && rank[e.k]).sort((a, b) => rank[b.k] - rank[a.k] || b.d - a.d);
         for (const e of since.slice(0, 2)) {
             const t = Townsfolk.lifeText(folk, p, e, world);
@@ -899,7 +1009,24 @@ export const Townsfolk = {
             case 'spared': return `You let me go ${when}, when you could have had me hanged for ${e.x || 'what I did'}. I'll not forget it.`;
             case 'informant': return `I've kept my ears open for you since ${when}, as we agreed. ${e.x || 'They'} still don't suspect me.`;
             case 'raided': return `${e.x || 'Raiders'} came ${when} and the fighting reached our door. We've not slept easy since.`;
-            default: return null;
+            // Thieves (systems/npcTheft.js): o = the thief, if anyone saw who; x = what was taken
+            case 'robbed': return `Our house was broken into ${when}${e.x && e.x !== 'little' ? ` — they took ${e.x}` : ''}.${o ? ` It was ${Townsfolk.name(o)}. I'll not forgive it.` : ' We never found out who.'}`;
+            case 'pickpocketed': return o ? `${Townsfolk.name(o)} had a hand in my purse ${when}${e.x === 'caught' ? ', and the watch took them for it' : ''}. I keep my eye on them now.` : null;
+            // Fights (systems/brawls.js): x = won | lost | parted | words
+            case 'brawl': {
+                const who = o ? Townsfolk.name(o) : 'someone';
+                if (e.x === 'won') return `I came to blows with ${who} ${when}, and I gave better than I got.`;
+                if (e.x === 'lost') return `${who} gave me a beating ${when}. I've not forgotten it.`;
+                if (e.x === 'words') return `${who} and I had hard words ${when}.`;
+                return `${who} and I came to blows ${when}, till we were pulled apart.`;
+            }
+            case 'jailed': return `I spent some days in the cells ${when}${e.x ? ` for ${e.x}` : ''}.`;
+            // Matters of the heart (systems/romance.js)
+            // Their work (systems/townJobs.js)
+            case 'job': return TownJobs.lifeText(folk, p, e, world);
+            // Bargains, barter and caravans (systems/townTrade.js)
+            case 'cheated': case 'fined': case 'bartered': case 'dealt': return TownTrade.lifeText(folk, p, e, world);
+            default: return (Illness.isLog(e.k) ? Illness.lifeText(folk, p, e, world) : null) || Romance.lifeText(folk, p, e, world) || TownFamily.lifeText(folk, p, e, world);
         }
     },
 
@@ -927,6 +1054,34 @@ export const Townsfolk = {
             const [rival, house] = String(entry.x || '').split('|');
             return `Men in the colours of ${rival || 'a great House'} came through ${when}, asking questions about ${house || 'your House'}.`;
         }
+        // The dead robbed (systems/scavengers.js, systems/graveyards.js): x = "name|robber" — the robber if anyone saw
+        if (entry.k === 'graveRobbed') {
+            const [name, by] = String(entry.x || '').split('|');
+            const kin = !!(a && speaker && a.id !== speaker.id && [a.spouse, ...(a.kids || []), ...(a.parents || [])].includes(speaker.id));
+            const whose = kin ? `My own ${a.gender === 'female' ? 'kinswoman' : 'kinsman'} ${a.first}'s grave was` : `The grave of ${name || 'one of ours'} was`;
+            return `${whose} found dug open ${when}, its goods gone. The priest preached hellfire on whoever did it${by ? `, and folk say it was ${by}` : ''}.`;
+        }
+        // A body looted in the street: x = "victim|looter|caught"
+        if (entry.k === 'looted') {
+            const [victim, by, caught] = String(entry.x || '').split('|');
+            return `${_cap2(by || 'Someone')} was seen going through ${victim || 'a body'}'s things in the street ${when}${caught === '1' ? ', and the watch took them for it' : ''}.`;
+        }
+        // Burglaries and cutpurses (systems/npcTheft.js): x = the told line, {when} filled in
+        if (entry.k === 'npcTheft') return _cap2(String(entry.x || '').replace('{when}', when)) || null;
+        // Fights between townsfolk (systems/brawls.js): x = the told line, {when} filled in
+        if (entry.k === 'brawl') return _cap2(String(entry.x || '').replace('{when}', when)) || null;
+        // Apprenticed, made master, a trade taken up (systems/townJobs.js)
+        if (entry.k === 'job') return TownJobs.annalText(folk, entry, world, speaker);
+        // Burials and a service shouted down (systems/townWorship.js)
+        if (entry.k === 'worship') return TownWorship.annalText(folk, entry, world);
+        // Short weight fined, a pedlar come through (systems/townTrade.js)
+        if (TownTrade.isAnnal(entry.k)) return TownTrade.annalText(folk, entry, world);
+        // Betrothals, jiltings, elopements, scandals (systems/romance.js)
+        if (Romance.isRomanceAnnal(entry.k)) return Romance.annalText(folk, entry, world, speaker);
+        // Sickness come and gone (systems/illness.js)
+        if (Illness.isAnnal(entry.k)) return Illness.annalText(folk, entry, world, speaker);
+        // Inheritance, orphans taken in (systems/townFamily.js)
+        if (TownFamily.isFamilyAnnal(entry.k)) return TownFamily.annalText(folk, entry, world, speaker);
         if (!a) return null;
         const A = Townsfolk._call(folk, a, speaker);
         const self = speaker && a.id === speaker.id;
@@ -941,7 +1096,7 @@ export const Townsfolk = {
                 const from = entry.x ? ` (${b.gender === 'female' ? 'she' : 'he'} came from ${entry.x})` : '';
                 if (self) t = `I wed ${B} ${when}${from}.`;
                 else if (called === 'I') t = `I wed ${A} ${when}.`;
-                else t = `${A} and ${B} were wed ${when}${from}.`;
+                else t = `${A === Townsfolk.name(a) ? `${a.first} ${a.maiden || a.last}` : A} and ${B} were wed ${when}${from}.`;
                 break;
             }
             case 'born': {
@@ -987,7 +1142,7 @@ export const Townsfolk = {
         const own = e => speaker && (e.a === speaker.id || (e.b === speaker.id && e.k !== 'died'));
         let entries = folk.annals.filter(e => e.d > since && !own(e));
         if (!entries.length) return [];
-        const weight = { plot: 6, exiled: 5, died: 5, beaten: 4, plotFoiled: 4, born: 4, wed: 3, rivalMen: 2, left: 2, arrived: 1, grown: 1 };
+        const weight = { plot: 6, exiled: 5, died: 5, graveRobbed: 5, looted: 3, npcTheft: 3, beaten: 4, plotFoiled: 4, born: 4, wed: 3, rivalMen: 2, left: 2, arrived: 1, grown: 1, affair: 5, eloped: 5, jilted: 4, forbidden: 3, betrothed: 3, rivalWon: 3, job: 2, worship: 3, inherited: 3, tookIn: 4, ...Illness.newsWeights() };
         const knows = e => [e.a, e.b].some(id => { const p = Townsfolk.get(folk, id); return p && p.mem && p.mem.timesSpoken > 0; });
         entries = entries.slice().sort((x, y) => (knows(y) - knows(x)) || (weight[y.k] - weight[x.k]) || (y.d - x.d));
         return entries.slice(0, limit).sort((x, y) => x.d - y.d).map(e => Townsfolk.annalText(folk, e, world, speaker)).filter(Boolean);
@@ -1019,7 +1174,9 @@ export const Townsfolk = {
             case 'spared': return `You spared them ${when}.`;
             case 'informant': return `Became your informant ${when}.`;
             case 'exiled': return `Driven out of town ${when}.`;
-            default: return null;
+            case 'job': return TownJobs.biographyLine(folk, p, e, world);
+            case 'cheated': case 'fined': case 'bartered': case 'dealt': return TownTrade.biographyLine(folk, p, e, world);
+            default: return (Illness.isLog(e.k) ? Illness.biographyLine(folk, p, e, world) : null) || Romance.biographyLine(folk, p, e, world) || TownFamily.biographyLine(folk, p, e, world);
         }
     },
 
@@ -1029,7 +1186,7 @@ export const Townsfolk = {
         if (p.died != null) return { kind: 'dead', text: `Died ${Townsfolk.when(p.died, world)}, aged ${Townsfolk.age(p, day)} — ${p.cause}` };
         if (p.away && p.away.withPlayer) return { kind: 'away', text: `Away — ${p.away.to}, since ${Townsfolk.when(p.away.d, world).replace(/^in /, '')}` };
         if (p.away) return { kind: 'away', text: `Moved to ${p.away.to} ${Townsfolk.when(p.away.d, world)}` };
-        return { kind: 'here', text: `${Townsfolk.roleTitle(p)}, ${Townsfolk.age(p, day)}` };
+        return { kind: 'here', text: `${Townsfolk.roleTitle(p)}, ${Townsfolk.age(p, day)}${p.preg && !p.preg.aff ? ', with child' : ''}` };
     },
 
     /**
@@ -1051,6 +1208,8 @@ export const Townsfolk = {
                     spouse: sp ? `${Townsfolk.kinWord(sp, 'spouse')} ${Townsfolk.name(sp)}${sp.died != null ? ' (late)' : ''}` : null,
                     kids: p.kids.map(id => Townsfolk.get(folk, id)).filter(Boolean).map(k => `${k.first}${k.died != null ? ' †' : (k.away ? ' (away)' : ` (${Townsfolk.age(k, _num(world.day, 1))})`)}`),
                     lines: p.log.map(e => Townsfolk.biographyLine(folk, p, e, world)).filter(Boolean),
+                    // (the generations: systems/townFamily.js)
+                    family: TownFamily.familyLine(folk, p, world),
                 });
             }
         }
@@ -1115,6 +1274,8 @@ export const Townsfolk = {
             if (n) lines.push(`I'm named for my grand${p.gender === 'female' ? 'mother' : 'father'}, ${n.first}.`);
         }
         if (!lines.length) return null;
+        // (with child, grandchildren, the orphans they took in: systems/townFamily.js)
+        lines.push(...TownFamily.familyTalk(folk, p, world));
         return `We're the ${p.last} family. ` + lines.join(' ');
     },
 };

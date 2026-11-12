@@ -610,7 +610,8 @@ export const WorldEvents = {
     DAILY_EVENT_CHANCE: 0.08,
 
     /** Goods whose price follows `foodPrices` effects. */
-    FOOD_GOODS: ['grain', 'flour', 'bread', 'fish', 'preserved_fish', 'meat', 'dried_meat', 'cheese', 'fruit', 'berries', 'honey'],
+    FOOD_GOODS: ['grain', 'flour', 'bread', 'fish', 'preserved_fish', 'meat', 'dried_meat', 'cheese', 'fruit', 'berries', 'honey',
+        'cabbage', 'turnips', 'carrots', 'onions', 'beans', 'apples', 'pears', 'plums', 'cherries', 'grapes', 'olives', 'dates', 'eggs', 'mushrooms'],
 
     /**
      * Every effect key a template may use, how it reads in the UI, and what

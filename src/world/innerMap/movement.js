@@ -7,6 +7,8 @@ import { stepBlockedBySides } from '../../core/tileSides.js';
 const GATE_PATH_COST = 2;
 // A step through standing crops counts this much: folk keep to the lanes unless the field is where they go
 const FIELD_PATH_COST = 3;
+// A fight under way in the street (ui/innerMapBrawls.js sets InnerMap._avoidTiles): passers-by walk round it
+const AVOID_PATH_COST = 8;
 
 Object.assign(InnerMap, {
     /**
@@ -605,6 +607,8 @@ Object.assign(InnerMap, {
         const levels = !!(opts && (opts.levels || climb));
         const climbCost = Math.max(1, Number(this._climbPathCost) || 4);
         const tiles = this.tiles;
+        // Tiles to keep clear of (a brawl's ground), for everyone's paths but the player's
+        const avoid = !levels && this._avoidTiles && this._avoidTiles.size && this._avoidTiles.w === W ? this._avoidTiles : null;
         // Flat index helpers
         const idx = (q, r) => r * W + q;
         const endIdx = idx(endQ, endR);
@@ -718,6 +722,8 @@ Object.assign(InnerMap, {
                     continue; // under the water: no land, no shallows (world/innerMap/swimming.js)
                 }
                 if (tile._fieldSoil && !high) ng += FIELD_PATH_COST - 1;
+                // (not the player's walk: theirs keeps to its levels)
+                if (avoid && ni !== endIdx && avoid.has(ni)) ng += AVOID_PATH_COST;
                 // Blocked tile sides (interior floor edges, see core/tileSides.js)
                 if ((tile.blockedSides || tiles[cr][cq].blockedSides) &&
                     stepBlockedBySides(tiles[cr][cq].blockedSides, tile.blockedSides, dq[d], dr[d])) continue;

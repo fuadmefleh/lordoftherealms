@@ -284,7 +284,8 @@ export class Player {
      */
     // Proper rations first; wild foods (foraged or hunted) are eaten last
     static FOOD_TYPES = ['cooked_meat', 'cooked_fish', 'bread', 'preserved_fish', 'fish', 'grain', 'food',
-        'vegetables', 'fruit', 'honey', 'game_meat', 'crabs', 'mussels', 'crayfish', 'oysters', 'berries', 'mushrooms', 'truffles', 'cactus_fruit', 'seaweed'];
+        'vegetables', 'fruit', 'cabbage', 'turnips', 'carrots', 'onions', 'beans', 'apples', 'pears', 'plums', 'cherries',
+        'grapes', 'olives', 'dates', 'eggs', 'honey', 'game_meat', 'crabs', 'mussels', 'crayfish', 'oysters', 'berries', 'mushrooms', 'truffles', 'cactus_fruit', 'seaweed'];
 
     /**
      * Get total food count across all food types

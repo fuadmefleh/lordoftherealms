@@ -634,7 +634,7 @@ export const InnerMapReactions = {
         } else if (body._blood && !body._announced) {
             body._announced = true;
             const guard = fresh.find(f => f.r.act === 'investigate');
-            game.ui.showNotification('🩸 Blood Found',
+            game.ui.showNotification('💧 Blood Found',
                 guard ? `${guard.npc.name} of the watch has found blood on the ground where ${body.name} fell — and no body. They are asking questions.` : `${first} has found a pool of blood with no body by it. Folk are talking.`,
                 'info');
         } else if (!body._announced && !body._alive) {
@@ -766,7 +766,7 @@ export const InnerMapReactions = {
                 wy += (t.r * T + T / 2 - wy) * (npc.moveProgress || 0);
             }
             const s = camera.worldToScreen(wx, wy);
-            const charScale = npc.type === 'child' ? 0.7 : 1.0;
+            const charScale = InnerMapCharacters.drawScale(npc);
             const left = (b.until - now) / 1000;
             const alpha = Math.min(1, left / 0.4);
             // (someone lying on the ground or in a bed speaks from there, not from a standing head's height)

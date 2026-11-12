@@ -41,7 +41,7 @@
         "call": ["To prayers! The bell is rung!", "Come, friends — the service begins."],
         "open": ["Let us begin, in the name of {faith}.", "Welcome, all. Let us pray."],
         "close": ["Go in peace.", "Hold to {tenet} this week, friends.", "Blessings on {town}. Go in peace."],
-        "amen": ["Amen.", "Amen…", "So it is.", "Blessed be."],
+        "amen": ["Amen.", "Amen…", "So it is.", "Blessed be.", "♪ Holy, holy… ♪", "♪ Lift up your voices… ♪", "♪ All the earth sings… ♪"],
         "between": ["(murmured prayers)", "Grant us a good harvest…", "Keep my children safe…", "Forgive me…"],
         "sermon": {
             "any": ["Hold fast to {tenet}, as {faith} teaches!", "{tenet} is the road, and the road is long.", "Who among us has not strayed? Return!", "Give to the poor, and the gods give to you.", "The harvest is the gods' gift — waste none of it.", "Be at peace with your neighbour, friends."],
@@ -85,7 +85,7 @@
         "bakery": { "activity": { "icon": "🍞", "label": "Selling bread", "anim": "idle" }, "barks": ["Bread! Warm bread!", "Fresh loaves!"] },
         "marketplace": { "activity": { "icon": "📦", "label": "Hauling crates", "anim": "idle" } },
         "warehouse": { "activity": { "icon": "📦", "label": "Hauling crates", "anim": "idle" } },
-        "beggar": { "activity": { "icon": "🪙", "label": "Begging", "anim": "sitting", "pose": 0 }, "barks": ["Alms… alms for the poor…", "Spare a coin?"] }
+        "beggar": { "activity": { "icon": "💰", "label": "Begging", "anim": "sitting", "pose": 0 }, "barks": ["Alms… alms for the poor…", "Spare a coin?"] }
     },
     "well": { "activity": { "icon": "💧", "label": "Drawing water", "anim": "idle" }, "lines": ["Did you hear? {news}", "They say {news}", "Water's low again.", "Heavy bucket, this."] },
     "play": ["Tag! You're it!", "Can't catch me!", "Wait for me!", "My turn!"],

@@ -363,6 +363,49 @@ export const KingdomAI = {
         return null;
     },
 
+    /** A small string hash (FNV-1a) for picks that must not touch the shared dice. */
+    _hash(str) {
+        let h = 2166136261;
+        for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+        return h >>> 0;
+    },
+
+    /**
+     * Where a new village's settlers come from, or null when it can't be
+     * founded on `target`: another settlement within minSpacing hexes, a realm
+     * already holding a settlement per hexesPerSettlement of its land, or none
+     * of its own settlements within donorRange with more than donorMinPop people.
+     * Reads only — no randomness. → the donor settlement | null
+     */
+    _villageDonor(kingdom, world, target, G = {}) {
+        const spacing = Number.isFinite(G.minSpacing) ? G.minSpacing : 3;
+        const perHexes = Number.isFinite(G.hexesPerSettlement) ? G.hexesPerSettlement : 14;
+        const range = Number.isFinite(G.donorRange) ? G.donorRange : 10;
+        const minPop = Number.isFinite(G.donorMinPop) ? G.donorMinPop : 300;
+        const W = world.width || 0;
+        const dist = (a, b) => (W && typeof Hex.wrappingDistance === 'function' ? Hex.wrappingDistance(a.q, a.r, b.q, b.r, W) : Hex.distance(a.q, a.r, b.q, b.r));
+        const all = typeof world.getAllSettlements === 'function' ? world.getAllSettlements() : [];
+        if (all.length) {
+            if (all.some(s => s && Number.isFinite(s.q) && dist(s, target) <= spacing)) return null;
+            const own = all.filter(s => s && s.kingdom === kingdom.id);
+            if (own.length >= Math.max(1, Math.floor((kingdom.territory || []).length / perHexes))) return null;
+        }
+        let best = null;
+        for (const s of all) {
+            if (!s || s.kingdom !== kingdom.id || !Number.isFinite(s.q) || dist(s, target) > range) continue;
+            const live = world.getTile ? (world.getTile(s.q, s.r) || {}).settlement : null;
+            const t = live || s;
+            if (!(t.population > minPop)) continue;
+            if (!best || t.population > best.population) best = t;
+        }
+        // (a bare test world with no settlement list: the capital sends them, if it has the people)
+        if (!best && !all.length && kingdom.capital && world.getTile) {
+            const cap = (world.getTile(kingdom.capital.q, kingdom.capital.r) || {}).settlement;
+            if (cap && cap.population > minPop) best = cap;
+        }
+        return best;
+    },
+
     /**
      * Try to expand territory
      */
@@ -387,24 +430,51 @@ export const KingdomAI = {
             }
         }
 
-        if (borderTiles.length === 0) return;
-
-        // Claim a border tile — of the realm's favoured terrain when it can
-        // (still one pick, so expansion draws no extra randomness)
-        const favoured = borderTiles.filter(t => Kingdom.prefersTerrain(kingdom, t.tile.terrain && t.tile.terrain.id));
-        const target = Utils.randPick(favoured.length ? favoured : borderTiles);
-        target.tile.kingdom = kingdom.id;
-        kingdom.territory.push({ q: target.q, r: target.r });
+        let target;
+        let inside = false;
+        if (borderTiles.length === 0) {
+            // Hemmed in: the realm fills its own land instead — a site inside its borders to settle
+            const inner = [];
+            for (const hex of kingdom.territory) {
+                const t = world.getTile(hex.q, hex.r);
+                if (t && t.terrain && t.terrain.passable && !t.settlement) inner.push({ q: hex.q, r: hex.r, tile: t });
+            }
+            if (!inner.length) return;
+            // (a hashed pick and chance, not the shared dice: a hemmed-in realm used to draw nothing here)
+            const h = KingdomAI._hash(`${world.day || 0}|${kingdom.id}|inner`);
+            target = inner[h % inner.length];
+            inside = true;
+        } else {
+            // Claim a border tile — of the realm's favoured terrain when it can
+            // (still one pick, so expansion draws no extra randomness)
+            const favoured = borderTiles.filter(t => Kingdom.prefersTerrain(kingdom, t.tile.terrain && t.tile.terrain.id));
+            target = Utils.randPick(favoured.length ? favoured : borderTiles);
+            target.tile.kingdom = kingdom.id;
+            kingdom.territory.push({ q: target.q, r: target.r });
+        }
 
         // Small chance to found a new settlement
         // Master builders and stewards found more villages
-        if (Utils.random() < 0.1 * Math.max(0.2, 1 + KingdomBonuses.get(kingdom, 'construction')) && !target.tile.settlement) {
+        // (data/realmGrowth.json: room around it, a realm not yet crowded, and settlers from its own towns)
+        const G = (DataLoader._gamedata && DataLoader._gamedata.realmGrowth) || {};
+        const foundChance = Number.isFinite(G.foundChance) ? G.foundChance : 0.1;
+        const roll = inside ? (KingdomAI._hash(`${world.day || 0}|${kingdom.id}|found`) % 10000) / 10000 : Utils.random();
+        if (roll < foundChance * Math.max(0.2, 1 + KingdomBonuses.get(kingdom, 'construction')) && !target.tile.settlement) {
+            // (the same draw the old 100-500 souls took, so the dice run on as before)
+            const draw = inside ? 100 + KingdomAI._hash(`${world.day || 0}|${kingdom.id}|souls`) % 401 : Utils.randInt(100, 500);
+            const donor = KingdomAI._villageDonor(kingdom, world, target, G);
+            if (!donor) return;
+            const S = G.settlers || {};
+            const lo = Number.isFinite(S.min) ? S.min : 30, hi = Number.isFinite(S.max) ? S.max : 80;
+            const settlers = Math.min(lo + ((draw - 100) % (hi - lo + 1)), Math.max(0, donor.population - 1));
+            donor.population -= settlers;
             target.tile.settlement = {
                 type: 'village',
                 name: Kingdom.generateCityName(kingdom.culture, world),
-                population: Utils.randInt(100, 500),
+                population: settlers,
                 level: 0,
                 kingdom: kingdom.id,
+                founded: world.year,
             };
             if (typeof world.invalidateSettlements === 'function') world.invalidateSettlements();
             // (in a world begun before coin a new village has no coin it wasn't given: world/barter.js)

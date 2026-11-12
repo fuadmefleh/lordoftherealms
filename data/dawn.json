@@ -5,7 +5,14 @@
         "_doc": "Barter before coin (world/barter.js). A world begun at the dawn has no coin: goods are traded for goods. Coin EMERGES when barter breaks down: every checkDays the season's barter books close, and once the world's people reach popPerLand a land tile, the goods its towns bartered that season are worth tradePerLand a land tile and at least tradingShare of its towns traded (minTradingTowns at least), with the busiest town's own barter at hubTrade or more — per land tile, so a small island and a wide continent reach coin at the same stage of their growth — the first coin is struck at the busiest trading hub (the barter town with the most barter trade) from its gold and silver and its realm's (firstCoin: share of the stock above keep of target, fine = coin per unit; booked as new coin). fallbackYear: the first coin comes that year even if trade never thickens (a soft fallback). Coin then SPREADS: a barter town that traded at least spread.minValue with coin towns in a season takes up coin (up to spread.perSeason towns a season, the busiest first), its purse seeded from its own metal; and a barter town that comes to hold spread.adoptAtCoin or more in real coin (the crown's wages, a realm's payments carried in after the first coin) takes up coin too. The player deals in kind in a barter town (their purse reads the worth of the goods they carry, base prices; paying hands over goods, cheapest first and food last; being paid takes goods out of the payer's stock) and in coin in a coin town (coin is not taken in barter places). cut: the market's cut on a barter (ask = worth x (1 + cut/2), offer = worth x (1 - cut/2)). keep: a town pays in kind only from stock above this share of its target. startKit: a start purse at the dawn is given as these goods (shares of its worth). notTender: goods never handed over in payment. hintGood: the good worths are told in.",
         "cut": 0.12,
         "keep": 0.35,
-        "startKit": { "grain": 0.2, "meat": 0.15, "hide": 0.2, "wool": 0.15, "tools": 0.2, "salt": 0.1 },
+        "startKit": {
+            "grain": 0.2,
+            "meat": 0.15,
+            "hide": 0.2,
+            "wool": 0.15,
+            "tools": 0.2,
+            "salt": 0.1
+        },
         "notTender": [],
         "hintGood": "grain",
         "coinEmerges": {
@@ -17,11 +24,18 @@
             "hubTrade": 1500,
             "fallbackYear": 600
         },
-        "spread": { "minValue": 100, "perSeason": 4, "adoptAtCoin": 40 },
+        "spread": {
+            "minValue": 100,
+            "perSeason": 4,
+            "adoptAtCoin": 40
+        },
         "firstCoin": {
             "share": 0.6,
             "keep": 0.25,
-            "fine": { "gold_ore": 36, "silver_ore": 16 }
+            "fine": {
+                "gold_ore": 36,
+                "silver_ore": 16
+            }
         },
         "lines": {
             "noCoin": "There is no coin here: offer goods.",
@@ -35,36 +49,90 @@
     "eraBuildings": {
         "_doc": "Buildings come with the age (world/innerMap/state.js settlementLayout, by the world's current year): a building type appears in a town's plan from its year on; before it a required one is a house instead, an optional one is left out; houses of hospitality (inns, hotels) likewise. Every year here is at or before 853, so a full-grown world is laid out as it always was. A town laid out under an earlier age is laid out anew when one of these years passes.",
         "since": {
-            "marketplace": 200, "tavern": 200, "stable": 200, "blacksmith": 200,
-            "chapel": 250, "temple": 250, "bathhouse": 250,
-            "church": 300, "bakery": 300, "mill": 300, "manor": 300,
-            "warehouse": 350, "barracks": 350,
-            "guard_tower": 400, "jail": 400,
-            "town_hall": 450, "mint": 450,
-            "library": 550, "apothecary": 600, "guildhall": 600,
-            "bank": 700, "post_house": 760,
-            "guest_house": 300, "inn": 400, "roadhouse": 500, "hotel": 800
+            "marketplace": 200,
+            "tavern": 200,
+            "stable": 200,
+            "blacksmith": 200,
+            "chapel": 250,
+            "temple": 250,
+            "bathhouse": 250,
+            "church": 300,
+            "bakery": 300,
+            "mill": 300,
+            "manor": 300,
+            "warehouse": 350,
+            "barracks": 350,
+            "guard_tower": 400,
+            "jail": 400,
+            "town_hall": 450,
+            "mint": 450,
+            "library": 550,
+            "apothecary": 600,
+            "guildhall": 600,
+            "bank": 700,
+            "post_house": 760,
+            "guest_house": 300,
+            "inn": 400,
+            "roadhouse": 500,
+            "hotel": 800
         }
     },
     "age": {
         "_doc": "The world's age (world/worldAge.js): a start year from dawnYear up to matureYear gives a younger world, t = (year - dawnYear) / (matureYear - dawnYear), 0..1; matureYear and later is the full-grown world as it always was (byte for byte at the default year). A curve is at0 + (1 - at0) x t^pow. realmTowns / independents / ruins: the share of the realms' towns, the free villages and the human-made points of interest (ruins, shrines, monuments; caves and oases always stand) still standing, the oldest kept first. population: every settlement's people (a town under townMinPop becomes a village; capitals stay capitals). claim: a realm's reach about its capital (its towns keep a hex about them). roads: the longest road (hexes) laid between two towns (roadsAt0 at the dawn, no limit when mature). hinterland: the rural sites a town works. holySites: the holy sites placed. Founding years are told faster: a place founded in year Y of the full-grown world was founded dawnYear + (Y - dawnYear) x t, so nothing is founded at or after the start year, and the world's history begins at dawnYear. bands: the New Game screen's hint for a start year (upTo: t).",
         "matureYear": 853,
-        "realmTowns": { "at0": 0.15, "pow": 1 },
-        "independents": { "at0": 0.1, "pow": 1 },
-        "ruins": { "at0": 0.1, "pow": 1 },
-        "population": { "at0": 0.25, "pow": 0.8 },
-        "claim": { "at0": 0.4, "pow": 1 },
-        "hinterland": { "at0": 0.4, "pow": 1 },
-        "holySites": { "at0": 0.3, "pow": 1 },
+        "realmTowns": {
+            "at0": 0.15,
+            "pow": 1
+        },
+        "independents": {
+            "at0": 0.1,
+            "pow": 1
+        },
+        "ruins": {
+            "at0": 0.1,
+            "pow": 1
+        },
+        "population": {
+            "at0": 0.25,
+            "pow": 0.8
+        },
+        "claim": {
+            "at0": 0.4,
+            "pow": 1
+        },
+        "hinterland": {
+            "at0": 0.4,
+            "pow": 1
+        },
+        "holySites": {
+            "at0": 0.3,
+            "pow": 1
+        },
         "roadsAt0": 6,
         "roadsAt1": 40,
         "townMinPop": 500,
         "villageMinPop": 30,
         "bands": [
-            { "upTo": 0.25, "label": "a young world", "hint": "few towns, small realms, little built — most of the land is wilderness" },
-            { "upTo": 0.55, "label": "a growing world", "hint": "scattered towns, modest realms and the first roads between them" },
-            { "upTo": 0.9, "label": "a settled world", "hint": "most towns founded, the realms near their full reach" },
-            { "upTo": 1, "label": "a mature world", "hint": "the realms long founded, their towns grown and their roads laid" }
+            {
+                "upTo": 0.25,
+                "label": "a young world",
+                "hint": "few towns, small realms, little built — most of the land is wilderness"
+            },
+            {
+                "upTo": 0.55,
+                "label": "a growing world",
+                "hint": "scattered towns, modest realms and the first roads between them"
+            },
+            {
+                "upTo": 0.9,
+                "label": "a settled world",
+                "hint": "most towns founded, the realms near their full reach"
+            },
+            {
+                "upTo": 1,
+                "label": "a mature world",
+                "hint": "the realms long founded, their towns grown and their roads laid"
+            }
         ]
     },
     "clans": {
@@ -72,8 +140,8 @@
         "min": 6,
         "max": 40,
         "wanderDays": {
-            "min": 25,
-            "max": 110
+            "min": 60,
+            "max": 240
         },
         "scanRadius": 4,
         "stepsPerDay": 1,
@@ -111,26 +179,26 @@
             "min": 60,
             "max": 150
         },
-        "growthPerSeason": 0.08,
+        "growthPerSeason": 0.03,
         "pathRange": 9
     },
     "budding": {
-        "everyDays": 30,
-        "minPopulation": 320,
-        "chance": 0.2,
+        "everyDays": 120,
+        "minPopulation": 400,
+        "chance": 0.25,
         "clanSize": 40,
         "settlementsPerLandHexes": 40
     },
     "town": {
         "population": 450,
-        "minAgeYears": 3
+        "minAgeYears": 12
     },
     "chiefdom": {
         "everyDays": 60,
         "radius": 6,
         "minVillages": 2,
-        "minTownAgeYears": 4,
-        "loneTownAgeYears": 9,
+        "minTownAgeYears": 8,
+        "loneTownAgeYears": 20,
         "names": [
             "Chiefdom of",
             "Tribal Lands of",
@@ -267,5 +335,6 @@
             "settleAction": "Make camp for good",
             "settleDesc": "Your clan settles here for good and founds a village: your home. Choose well — fresh water, fertile land and the shore make a village grow."
         }
-    }
+    },
+    "_pace": "2026-11-12: the dawn unfolds over generations, not a decade (a game runs 80+ years): villages grow ~12% a year (growthPerSeason 0.03), bud a new clan about once in four years past 400 souls (a 25% chance each year), new clans wander 60-240 days, a village is a town no sooner than 12 years old, chiefdoms gather from 8-year-old towns and a lone town becomes a realm at 20. Before: 8%/season, 20% a month past 320, 25-110 days, 3, 4 and 9 years — the land was full by year 13."
 }

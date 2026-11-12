@@ -14,6 +14,7 @@ import { PlayerMilitary } from '../playerMilitary.js';
 import { Ships } from '../../systems/ships.js';
 import { DawnBirth } from '../dawnBirth.js';
 import { Endurance } from '../endurance.js';
+import { DataLoader } from '../../core/dataLoader.js';
 
 export const PlayerLifecycleMethods = {
     /**
@@ -162,6 +163,10 @@ export const PlayerLifecycleMethods = {
         if (mood.effects.movementPenalty) {
             this.movementRemaining = Math.max(1, this.movementRemaining + mood.effects.movementPenalty);
         }
+        // How far a day's walk goes (data/travel.json dayScale): the whole budget, bonuses and all
+        const T = DataLoader._gamedata && DataLoader._gamedata.travel;
+        const dayScale = T && Number.isFinite(T.dayScale) && T.dayScale > 0 ? T.dayScale : 1;
+        if (dayScale !== 1 && this.movementRemaining > 0) this.movementRemaining = Math.max(1, Math.round(this.movementRemaining * dayScale));
         // The day's full strength (stepAlongPath lets it carry you one hex, however rough)
         this._dayMovement = this.movementRemaining;
 

@@ -11,6 +11,7 @@ import { showWildsEncounter } from '../wildsEncounter.js';
 import { BTN_GOLD, BTN_PLAIN, BTN_OFF, lede, chips, purse, sectionHead, kv, card, actRow, rowList, price } from './uiKit.js';
 import { ParentsGuard } from '../parentsGuard.js';
 import { worksCard } from './worksUI.js';
+import { lineTypes } from './roadPlan.js';
 
 /** The lot chosen on this town's map to build on (ui/innerMapLots.js lot_build), or null. */
 function _pendingLotFor(tile) {
@@ -365,6 +366,12 @@ Object.assign(ActionMenu, {
             });
         }
         html += rowList(rows, 'Build Infrastructure');
+        // Many hexes at once: a road (or channel) from here to a town or any hex picked on the map (ui/actionMenu/roadPlan.js)
+        html += rowList(lineTypes(game.player).map(({ key, infra }) => ({
+            icon: infra.icon, name: `Lay a ${infra.name} to…`,
+            desc: 'Every hex along the way, commissioned at once',
+            act: 'showRoutePlanner', args: [key, tile.q, tile.r],
+        })), 'Lay a Line of Works');
 
         // Show all locked types for awareness
         const locked = [];

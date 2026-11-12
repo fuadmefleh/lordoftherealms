@@ -1,0 +1,12 @@
+{
+    "_doc": "New villages a realm founds as its borders grow (world/kingdomAI.js tryExpand). Each border hex the realm claims has foundChance of a village on it (scaled by the realm's construction bonus) — but only with no settlement within minSpacing hexes, while the realm holds fewer than one settlement per hexesPerSettlement of its territory, and only when one of its own settlements within donorRange hexes has more than donorMinPop people to send out: settlers (min..max) leave it to found the village. Before 2026-11-12 the village (100-500 souls) appeared from nowhere, beside any other, and a young realm's land filled in a few years.",
+    "foundChance": 0.1,
+    "minSpacing": 2,
+    "hexesPerSettlement": 8,
+    "donorRange": 10,
+    "donorMinPop": 80,
+    "settlers": {
+        "min": 15,
+        "max": 40
+    }
+}

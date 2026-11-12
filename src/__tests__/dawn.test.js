@@ -71,13 +71,20 @@ describe('a world begun at the dawn', () => {
     it('over the years clans settle, villages become towns, and chiefdoms become realms', () => {
         const world = dawnWorld();
         const log = [];
-        for (let d = 0; d < 120 * 25; d++) {
+        const byYear = {};
+        for (let d = 0; d < 120 * 50; d++) {
             world.advanceDay(null, {});
             if (world.day % 120 === 0) {
                 const s = world.getAllSettlements();
+                byYear[world.year] = { settlements: s.length, towns: s.filter(x => x.type !== 'village').length };
                 log.push(`y${world.year}: clans ${clans(world).length} villages ${s.filter(x => x.type === 'village').length} towns ${s.filter(x => x.type === 'town').length} realms ${world.kingdoms.filter(k => k.isAlive).length} roads ${roads(world)}`);
             }
         }
+        // The dawn unfolds over generations (data/dawn.json _pace): no town in the first decade,
+        // the land far from full at year 12, still filling at year 30
+        expect(byYear[10].towns).toBe(0);
+        expect(byYear[12].settlements).toBeLessThan(byYear[40].settlements);
+        expect(byYear[30].settlements).toBeLessThan(byYear[50].settlements + 1);
         if (VERBOSE) console.info(log.join('\n'));
         const st = world.dawn;
         expect(st.villagesFounded).toBeGreaterThan(5);
@@ -89,7 +96,7 @@ describe('a world begun at the dawn', () => {
             expect(world.getTile(k.capital.q, k.capital.r).settlement.type).toBe('capital');
             expect(k.territory.length).toBeGreaterThan(0);
         }
-    }, 120000);
+    }, 400000);
 
     it('a village grows by its season\'s rate each season (checked every 30 days), tapering as it fills', () => {
         const world = dawnWorld();

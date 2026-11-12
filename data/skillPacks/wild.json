@@ -61,6 +61,11 @@
         "byResource": { "wood": "woodcutting", "stone": "mining" },
         "energyPerSwing": 0.6,
         "extraShare": 0.4,
+        "_campsDoc": "A works of yours standing finished on the hex (player/gathering.js campBoost): a logging camp for trees, a mine or quarry for rock. Its cut paths, sawpits and gear make every blow land harder (speed ×) and each felled tree or broken rock give more (yield ×, rounded up).",
+        "camps": {
+            "woodcutting": { "types": ["logging_camp", "lumber_mill", "sawmill"], "speed": 1.35, "yield": 1.5, "name": "logging camp" },
+            "mining": { "types": ["mine", "quarry"], "speed": 1.35, "yield": 1.5, "name": "workings" }
+        },
         "_axesDoc": "The best edge in your packs makes every blow at a tree or a stump land harder (×mult; player/gathering.js toolFor/damageMult) and is named when the tree comes down. Tools (an iron axe among them) or steel tools; with neither, your knife and a borrowed hatchet. On rock the same goods are the pick (picks).",
         "axes": [{ "item": "steel_tools", "mult": 1.4, "name": "steel axe" }, { "item": "tools", "mult": 1.2, "name": "iron axe" }],
         "picks": [{ "item": "steel_tools", "mult": 1.4, "name": "steel pick" }, { "item": "tools", "mult": 1.2, "name": "iron pick" }],

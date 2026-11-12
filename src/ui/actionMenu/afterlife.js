@@ -409,7 +409,7 @@ Object.assign(ActionMenu, {
         else heirLine = '<span style="color:#aaa;">No heir of the blood remains</span>';
         const busy = game._afterlifeBusy;
         const auto = !!game._afterlifeAuto;
-        const steps = [['1 day', 1], ['1 week', 7], ['1 month', 30], ['1 season', Math.round(Y / 4)], ['1 year', Y]];
+        const steps = [['1 day', 1], ['1 week', 7], ['1 month', 30], ['1 season', Math.round(Y / 4)], ['1 year', Y], ['5 years', Y * 5], ['10 years', Y * 10]];
 
         let html = '<div style="pointer-events:auto;zoom:var(--ui-zoom, 1);max-width:96vw;background:rgba(18,20,28,0.94);border:1px solid rgba(245,197,66,0.45);border-radius:10px;padding:8px 12px;box-shadow:0 6px 24px rgba(0,0,0,0.5);font-size:12px;color:var(--text-primary);">';
         html += '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;justify-content:space-between;margin-bottom:6px;">';
@@ -465,7 +465,8 @@ Object.assign(ActionMenu, {
         if (game._afterlifeBusy || !Afterlife.active(game.player)) return;
         const busy = game._afterlifeBusy = { left: Math.max(1, Math.floor(n)), total: Math.max(1, Math.floor(n)), stop: false, events: [], cameOfAge: [] };
         game.isProcessingTurn = true;
-        const perFrame = n >= 30 ? 4 : 1;
+        // (a decade at a time: more days a frame, so the long waits don't crawl — the bar still counts them off)
+        const perFrame = n >= 600 ? 10 : n >= 30 ? 4 : 1;
         const fromDay = game.world.day;
         const finish = () => {
             game._afterlifeBusy = null;

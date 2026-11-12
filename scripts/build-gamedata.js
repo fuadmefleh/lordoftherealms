@@ -70,6 +70,8 @@ const topLevel = [
     'couriers',
     'pirates',
     'hospitality',
+    'travel',
+    'realmGrowth',
     'firstSteps',
     'afterlife',
     'scenarios',

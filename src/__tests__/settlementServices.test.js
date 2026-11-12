@@ -90,7 +90,12 @@ describe('temple blessing and mounts add daily movement', () => {
         const player = new Player();
         player.mount = { name: 'Bramble', price: 160 };
         player.endDay();
-        expect(player.movementRemaining).toBeGreaterThanOrEqual(player.maxStamina + SERVICE_CONFIG.mount.movementBonus);
+        // (the day's budget is scaled by data/travel.json dayScale)
+        const scale = (DataLoader._gamedata && DataLoader._gamedata.travel && DataLoader._gamedata.travel.dayScale) || 1;
+        expect(player.movementRemaining).toBeGreaterThanOrEqual(Math.round((player.maxStamina + SERVICE_CONFIG.mount.movementBonus) * scale));
+        const bare = new Player();
+        bare.endDay();
+        expect(player.movementRemaining).toBeGreaterThan(bare.movementRemaining);
     });
 });
 

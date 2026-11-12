@@ -7,6 +7,7 @@ import './core.js';
 import './trade.js';
 import './barterTable.js';
 import './build.js';
+import './roadPlan.js';
 import './colony.js';
 import './combat.js';
 import './battle.js';

@@ -74,6 +74,62 @@ const AMX_WAX = {
     athand: '#a8781c', hearth: '#8a3a22', market: '#2f6b45', folk: '#8a5a1c', court: '#5b3277',
     arms: '#7f1f1f', works: '#5e4630', frontier: '#24676a', maps: '#2c4f7c', jail: '#3d3d46', servitude: '#3d3d46',
 };
+// Submenus: inside a district with many actions, they gather into folders
+// (open one, act, or go back). A district of a few actions stays one list.
+const AMX_GROUP_MIN = 8;
+const AMX_GROUPS = {
+    hearth: [
+        { id: 'rest', icon: '🛏️', label: 'Rest & Body', types: ['rest', 'pass_time', 'eat_meal', 'seek_physician', 'craft_campfire', 'meditate', 'wait_here'] },
+        { id: 'gather', icon: '🧺', label: 'Gather & Hunt', types: ['forage', 'hunt', 'fish', 'trap_furs', 'ice_fish', 'clear_trees', 'prospect', 'tame_horse', 'dig_treasure'] },
+        { id: 'explore', icon: '🔭', label: 'Explore', types: ['explore_poi', 'delve', 'delve_resume', 'explore_inner_map', 'explore_ocean'] },
+        { id: 'sea', icon: '⛵', label: 'Ship & Shore', types: ['disembark', 'row_ashore', 'row_to_ship', 'make_for_port'] },
+        { id: 'clan', icon: '🔥', label: 'The Clan', types: ['dawn_settle', 'dawn_instep'] },
+    ],
+    market: [
+        { id: 'trade', icon: '⚖️', label: 'Buy & Sell', types: ['trade', 'port_market', 'livestock_market', 'meet_trader', 'furniture_maker', 'ship_hold', 'stolen_goods'] },
+        { id: 'work', icon: '🔨', label: 'Work & Wages', types: ['odd_jobs', 'busking', 'bounty_board', 'commissions', 'planting_contract', 'putting_out', 'contract'] },
+        { id: 'money', icon: '🏦', label: 'Money & Banking', types: ['bank', 'found_bank', 'underwriter', 'bourse', 'mint', 'trading_company', 'guildhall', 'post_house'] },
+        { id: 'property', icon: '🏠', label: 'Property & Estates', types: ['collect_goods', 'manage_property', 'town_lots', 'estates', 'manage_lodging', 'graveyards', 'my_herds'] },
+        { id: 'transport', icon: '🐫', label: 'Caravans & Ships', types: ['start_caravan', 'ship_passage', 'visit_shipyard', 'board_ship', 'manage_fleet', 'hire_sailors'] },
+        { id: 'shady', icon: '🎲', label: 'Back Rooms', types: ['smuggle', 'pickpocket', 'gambling', 'underworld'] },
+    ],
+    folk: [
+        { id: 'talk', icon: '🍺', label: 'Tavern & Talk', types: ['tavern', 'talk_locals', 'meet_people', 'view_relationships', 'languages', 'your_parents', 'lodging'] },
+        { id: 'faith', icon: '⛪', label: 'Faith', types: ['preach', 'denounce_heresy', 'pilgrimage', 'miracle', 'donate', 'bless_settlement'] },
+    ],
+    court: [
+        { id: 'realm', icon: '👑', label: 'Crown & Realm', types: ['pledge_allegiance', 'renounce_allegiance', 'realm_wars', 'form_kingdom', 'claims_crowns', 'royal_court', 'treasury', 'collect_tax', 'hold_council', 'hold_court'] },
+        { id: 'titles', icon: '📜', label: 'Titles', types: ['seek_title', 'view_title_status', 'resign_title'] },
+        { id: 'house', icon: '🏰', label: 'House & Rivals', types: ['manage_dynasty', 'rivals_here', 'meet_rival_house', 'request_meeting', 'hall_of_heroes', 'patronage', 'meet_courier'] },
+        { id: 'feasts', icon: '🎉', label: 'Feasts & Works of Fame', types: ['host_feast', 'hold_tournament', 'host_festival', 'fund_restoration'] },
+        { id: 'intrigue', icon: '🗝️', label: 'Intrigue & the Law', types: ['espionage_menu', 'manage_spies', 'request_bounty', 'capture_fugitive'] },
+    ],
+    arms: [
+        { id: 'army', icon: '🛡️', label: 'The Army', types: ['recruit', 'army_command', 'train_combat', 'arms_armour', 'reforge_artifact'] },
+        { id: 'fight', icon: '⚔️', label: 'Fight', types: ['attack_unit', 'attack_settlement', 'siege_camp', 'capture_criminal', 'outlaw_lair'] },
+        { id: 'sea', icon: '⚓', label: 'At Sea', types: ['hunt_pirates', 'commit_piracy', 'raid_haven', 'landing_party', 'sea_rovers'] },
+    ],
+    works: [
+        { id: 'build', icon: '🏗️', label: 'Build', types: ['build_property', 'build_temple', 'build_cultural', 'upgrade_cultural'] },
+        { id: 'land', icon: '🛤️', label: 'Roads & Land', types: ['build_infrastructure', 'demolish_infrastructure', 'terraform', 'public_works'] },
+        { id: 'home', icon: '🏡', label: 'Your Home', types: ['buy_house', 'manage_house'] },
+    ],
+};
+/** A district's actions in its folders → [{ id, icon, label, actions }] (null: too few to fold). */
+function _amxGroupsOf(d) {
+    const defs = AMX_GROUPS[d.id];
+    if (!defs || d.actions.length < AMX_GROUP_MIN) return null;
+    const out = defs.map(g => ({ id: g.id, icon: g.icon, label: g.label, actions: [] }));
+    const other = { id: 'other', icon: '📋', label: 'More', actions: [] };
+    for (const a of d.actions) {
+        const i = defs.findIndex(g => g.types.includes(a.type));
+        (i >= 0 ? out[i] : other).actions.push(a);
+    }
+    if (other.actions.length) out.push(other);
+    const full = out.filter(g => g.actions.length);
+    return full.length >= 2 ? full : null;
+}
+
 // Actions that charge their AP per use inside their own menus
 const AMX_PER_USE = { gambling: 2, smuggle: 2 };
 // Pins and recent actions are a per-player-of-this-browser convenience, not game state
@@ -333,7 +389,27 @@ Object.assign(ActionMenu, {
         html += '<div class="amx-sec" data-sec="athand"></div>';
         for (const d of districts) {
             html += `<div class="amx-sec" data-sec="${d.id}"><div class="amx-sec-head">${d.icon} ${_escHtml(d.label)}</div>`;
-            for (const a of d.actions) html += ActionMenu._renderActionTile(a, { dist: d, ap, pins: state.pins });
+            const groups = flat ? null : _amxGroupsOf(d);
+            if (!groups) {
+                for (const a of d.actions) html += ActionMenu._renderActionTile(a, { dist: d, ap, pins: state.pins });
+            } else {
+                // The folders, then each folder's actions (one open at a time; all at once while searching)
+                html += '<div class="amx-folders">';
+                for (const g of groups) {
+                    const names = g.actions.slice(0, 3).map(a => _escHtml(a.label)).join(' · ') + (g.actions.length > 3 ? ' …' : '');
+                    html += `<button class="amx-dir amx-folder" data-grp="${g.id}" style="--wax:${AMX_WAX[d.id] || AMX_WAX.hearth}">
+                        <span class="amx-dir-wax">${g.icon}</span>
+                        <span class="amx-txt"><span class="amx-name">${_escHtml(g.label)}</span><span class="amx-desc">${names}</span></span>
+                        <span class="amx-dir-n">${g.actions.length} ›</span></button>`;
+                }
+                html += '</div>';
+                for (const g of groups) {
+                    html += `<div class="amx-grp" data-grp="${g.id}" hidden>`
+                        + `<button class="amx-back" type="button" title="Back to ${_escHtml(d.label)} (Backspace)">‹ ${_escHtml(d.label)} <span class="amx-back-sep">/</span> ${g.icon} ${_escHtml(g.label)}</button>`;
+                    for (const a of g.actions) html += ActionMenu._renderActionTile(a, { dist: d, ap, pins: state.pins });
+                    html += '</div>';
+                }
+            }
             html += '</div>';
         }
         html += '<div class="amx-empty" hidden>Nothing by that name here. Try another word, or clear the search.</div>';
@@ -402,6 +478,8 @@ Object.assign(ActionMenu, {
             let shown = 0;
             for (const sec of list.querySelectorAll('.amx-sec')) {
                 const id = sec.getAttribute('data-sec');
+                const folders = sec.querySelector('.amx-folders');
+                const grps = [...sec.querySelectorAll('.amx-grp')];
                 if (searching || flat) {
                     if (id === 'athand') { sec.hidden = true; continue; }
                     let n = 0;
@@ -411,11 +489,27 @@ Object.assign(ActionMenu, {
                         row.hidden = !ok;
                         if (ok) n++;
                     }
+                    // Searching sees through the folders: every match, folders and back-links put away
+                    if (folders) folders.hidden = true;
+                    for (const g of grps) {
+                        g.hidden = !g.querySelector('.amx-row:not([hidden])');
+                        const back = g.querySelector('.amx-back');
+                        if (back) back.hidden = true;
+                    }
                     sec.hidden = n === 0;
                     shown += n;
                 } else {
                     sec.hidden = id !== current;
                     for (const row of sec.querySelectorAll('.amx-row')) row.hidden = false;
+                    if (folders) {
+                        const open = openGroup[id] || null;
+                        folders.hidden = !!open;
+                        for (const g of grps) {
+                            g.hidden = g.getAttribute('data-grp') !== open;
+                            const back = g.querySelector('.amx-back');
+                            if (back) back.hidden = false;
+                        }
+                    }
                     if (!sec.hidden) shown = 1;
                 }
             }
@@ -441,8 +535,22 @@ Object.assign(ActionMenu, {
             }
         };
 
+        // The folder open in each district (null: the folders themselves)
+        const openGroup = {};
+        const openFolder = (grp) => {
+            openGroup[current] = grp;
+            apply();
+            list.scrollTop = 0;
+            const sec = list.querySelector(`.amx-sec[data-sec="${current}"]`);
+            const first = grp && sec && sec.querySelector(`.amx-grp[data-grp="${grp}"] .amx-main:not([disabled])`);
+            const folder = !grp && sec && sec.querySelector('.amx-folder');
+            const f = first || folder;
+            if (f && f.focus) f.focus();
+        };
+
         const select = (id) => {
             current = id;
+            openGroup[id] = null;
             if (search.value) search.value = '';
             apply();
             list.scrollTop = 0;
@@ -495,6 +603,9 @@ Object.assign(ActionMenu, {
         menu.addEventListener('click', (e) => {
             const pin = e.target.closest('.amx-pin');
             if (pin) { setPin(pin.getAttribute('data-pin'), !pin.classList.contains('on')); return; }
+            const folder = e.target.closest('.amx-folder');
+            if (folder) { openFolder(folder.getAttribute('data-grp')); return; }
+            if (e.target.closest('.amx-back')) { openFolder(null); return; }
             const dirRow = e.target.closest('.amx-dir');
             if (dirRow) { select(dirRow.getAttribute('data-goto')); return; }
             const seal = e.target.closest('.amx-seal');
@@ -515,13 +626,13 @@ Object.assign(ActionMenu, {
         });
         search.addEventListener('input', () => { apply(); list.scrollTop = 0; });
 
-        const visibleButtons = () => [...list.querySelectorAll('.amx-main, .amx-dir')].filter(b => b.offsetParent !== null);
+        const visibleButtons = () => [...list.querySelectorAll('.amx-main, .amx-dir, .amx-back')].filter(b => b.offsetParent !== null);
         menu.addEventListener('keydown', (e) => {
             const inSearch = e.target === search;
             if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
                 const btns = visibleButtons();
                 if (!btns.length) return;
-                const i = btns.indexOf(e.target.closest ? e.target.closest('.amx-main, .amx-dir') : null);
+                const i = btns.indexOf(e.target.closest ? e.target.closest('.amx-main, .amx-dir, .amx-back') : null);
                 let next;
                 if (e.key === 'ArrowDown') next = inSearch || i < 0 ? btns[0] : btns[Math.min(btns.length - 1, i + 1)];
                 else if (i <= 0) { search.focus(); e.preventDefault(); return; } else next = btns[i - 1];
@@ -534,6 +645,10 @@ Object.assign(ActionMenu, {
                 select(ids[(i + (e.key === 'ArrowRight' ? 1 : ids.length - 1)) % ids.length]);
                 const s = sealOf(current);
                 if (s) s.focus();
+                e.preventDefault();
+            } else if (e.key === 'Backspace' && !inSearch && !flat && openGroup[current]) {
+                // Back out of a folder to its district's folders
+                openFolder(null);
                 e.preventDefault();
             } else if (e.key === 'Enter' && inSearch) {
                 const first = visibleButtons().find(b => !b.disabled);

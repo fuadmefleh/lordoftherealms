@@ -38,7 +38,7 @@ import { InnerMapRiverDrift } from '../innerMapRiverDrift.js';
 if (!InnerMap._computeObjectDamage._practised) {
     const baseDamage = InnerMap._computeObjectDamage;
     InnerMap._computeObjectDamage = function (player, def) {
-        return baseDamage.call(this, player, def) * Gathering.damageMult(player, def);
+        return baseDamage.call(this, player, def) * Gathering.damageMult(player, def, InnerMap.currentWorldTile || null);
     };
     InnerMap._computeObjectDamage._practised = true;
 }
@@ -350,7 +350,7 @@ export function gameLoop(timestamp, loopId) {
                 const wt = InnerMap.currentWorldTile;
                 const gotDef = CustomObjects.getDef(interactionResult.defId);
                 const got = Gathering.felled(this.player, gotDef, interactionResult.resource,
-                    wt && wt.terrain ? wt.terrain.id : null, InnerMap.season);
+                    wt && wt.terrain ? wt.terrain.id : null, InnerMap.season, wt || null);
                 // the creak as it goes, the XP over the stump (ui/innerMapFelling.js)
                 if (got.skill === 'woodcutting') InnerMapFelling.onFelled(gotDef, interactionResult.anchorQ, interactionResult.anchorR, got.xp);
                 const resAmt = got.skill ? got.amount : (interactionResult.resource.amount || 1);
@@ -362,7 +362,8 @@ export function gameLoop(timestamp, loopId) {
                 }
                 // Format resource name for display
                 const displayName = resType.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-                const bonus = got.extra ? ` (${got.extra} more for a practised hand)` : '';
+                const bonus = (got.extra ? ` (${got.extra} more for a practised hand)` : '')
+                    + (got.campExtra ? ` (${got.campExtra} more from your ${got.camp.name})` : '');
                 // What else came of it: the branches for firewood, resin, fruit in season, a bees' nest (fellGives)
                 const more = [];
                 for (const g of got.gives || []) {

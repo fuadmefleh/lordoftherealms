@@ -220,6 +220,103 @@ export const Infrastructure = {
     /**
      * Remove infrastructure from a tile (refund 25%)
      */
+    /**
+     * Plan a line of works (a road, most often) from one hex to another: the
+     * route the surveyors would take (A* over passable land, cheapest ground
+     * and existing roads first) and what each hex on it needs.
+     * → { ok, reason?, infra, path: [{q,r}], segments: [{ q, r, status, cost, days, reason }],
+     *     build: [segments to build], cost, days (the longest single segment), skipped }
+     * status: 'build' | 'has' (already there or better) | 'town' (a settlement's streets) | 'blocked'
+     * Gold is not checked here — commissionRoute does that for the whole line.
+     */
+    planRoute(player, infraType, world, from, to) {
+        const infra = Infrastructure.TYPES[String(infraType || '').toUpperCase()];
+        if (!infra) return { ok: false, reason: 'Unknown infrastructure type' };
+        if (!world || typeof world.getTile !== 'function' || !from || !to) return { ok: false, reason: 'Nowhere to build' };
+        if (from.q === to.q && from.r === to.r) return { ok: false, reason: 'Pick a hex further away' };
+        // A survey that ignores the purse: the cost of each hex, as if coin were no object
+        const rich = Object.create(player || {});
+        Object.defineProperty(rich, 'gold', { value: Number.MAX_SAFE_INTEGER, writable: true });
+        const same = (tile) => {
+            const cur = tile && tile.infrastructure;
+            if (!cur) return false;
+            if (cur.id === infra.id) return true;
+            // a stone road already stands where a dirt one is asked for
+            const better = Object.values(Infrastructure.TYPES).find(t => t.id === cur.id);
+            return !!(better && better.upgradesFrom === infra.id);
+        };
+        const checkCache = new Map();
+        const check = (q, r) => {
+            const k = `${q},${r}`;
+            if (checkCache.has(k)) return checkCache.get(k);
+            const tile = world.getTile(q, r);
+            let res;
+            if (!tile || !tile.terrain || !tile.terrain.passable) res = { status: 'blocked', reason: 'Impassable ground' };
+            else if (tile.settlement) res = { status: 'town', reason: `${tile.settlement.name || 'A town'}'s own streets` };
+            else if (same(tile)) res = { status: 'has', reason: tile.infrastructure.underConstruction ? 'Already being built' : `${tile.infrastructure.name} already here` };
+            else {
+                const c = Infrastructure.canBuild(rich, infraType, tile, world);
+                res = c.can ? { status: 'build', cost: c.cost, days: c.buildDays || 0 } : { status: 'blocked', reason: c.reason };
+            }
+            checkCache.set(k, res);
+            return res;
+        };
+        const W = world.width, H = world.height;
+        const passable = (q, r) => {
+            const t = world.getTile(q, r);
+            return !!(t && t.terrain && t.terrain.passable);
+        };
+        const stepCost = (q, r) => {
+            const c = check(q, r);
+            if (c.status === 'has' || c.status === 'town') return 0.25;
+            if (c.status === 'build') return 1 + (c.days || 0) / 40;
+            return 8; // passable but this work can't go here: go round if at all possible
+        };
+        const path = Hex.findPath(from.q, from.r, to.q, to.r, W, H, passable, stepCost);
+        if (!path || path.length < 2) return { ok: false, reason: 'No way overland to there (too far, or water between)' };
+        const segments = path.map(h => ({ q: h.q, r: h.r, ...check(h.q, h.r) }));
+        const build = segments.filter(s => s.status === 'build');
+        const cost = build.reduce((a, s) => a + (s.cost || 0), 0);
+        const days = build.reduce((a, s) => Math.max(a, s.days || 0), 0);
+        return { ok: true, infra, path, segments, build, cost, days, skipped: segments.length - build.length };
+    },
+
+    /**
+     * Commission every buildable hex of a planned line at once: each hex is
+     * its own work site (hands from the nearest town, its own crews), paid for
+     * now. All or nothing on the purse — the whole line or none of it.
+     * → { success, built: [{q,r}], cost, reason? }
+     */
+    commissionRoute(player, infraType, world, plan) {
+        if (!plan || !plan.ok) return { success: false, reason: (plan && plan.reason) || 'No route' };
+        if (!plan.build.length) return { success: false, reason: 'Nothing to build along that way' };
+        // Re-price now (the purse, the ground or a neighbour's work may have changed)
+        let total = 0;
+        const sites = [];
+        const rich = Object.create(player || {});
+        Object.defineProperty(rich, 'gold', { value: Number.MAX_SAFE_INTEGER, writable: true });
+        for (const s of plan.build) {
+            const tile = world.getTile(s.q, s.r);
+            const c = tile && Infrastructure.canBuild(rich, infraType, tile, world);
+            if (c && c.can) { total += c.cost; sites.push(tile); }
+        }
+        if (!sites.length) return { success: false, reason: 'Nothing left to build along that way' };
+        if ((player.gold || 0) < total) return { success: false, reason: `The whole line costs ${total} gold (you have ${Math.floor(player.gold || 0)})` };
+        const built = [];
+        let paid = 0;
+        for (const tile of sites) {
+            const r = Infrastructure.build(player, infraType, tile, world);
+            if (!r.success) continue;
+            paid += r.cost;
+            built.push({ q: tile.q, r: tile.r, days: r.buildDays });
+            if (r.buildDays > 0) {
+                if (!Array.isArray(player.infrastructureUnderConstruction)) player.infrastructureUnderConstruction = [];
+                if (!player.infrastructureUnderConstruction.some(x => x.q === tile.q && x.r === tile.r)) player.infrastructureUnderConstruction.push({ q: tile.q, r: tile.r });
+            }
+        }
+        return { success: built.length > 0, built, cost: paid, days: built.reduce((a, b) => Math.max(a, b.days || 0), 0) };
+    },
+
     demolish(player, tile, world = null) {
         if (!tile.infrastructure) return { success: false, reason: 'No infrastructure here' };
 

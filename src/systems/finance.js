@@ -57,6 +57,7 @@ import { Hex } from '../core/hex.js';
 import { PlayerInventory } from '../core/inventory.js';
 import { Coinage } from '../world/coinage.js';
 import { MoneySupply } from '../world/moneySupply.js';
+import { Economy } from '../world/economy.js';
 import { CrownBooks } from '../world/crownBooks.js';
 import { KingdomAI } from '../world/kingdomAI.js';
 import { Technology } from './technology.js';
@@ -251,7 +252,7 @@ export const Finance = {
 
     _initBanks(world, st) {
         st.initialized = true;
-        if (st.banks.length) return;
+        if (st.banks.length) { Finance._crownHouses(world, st); return; }
         const B = Finance.cfg('banks');
         const alive = (world.kingdoms || []).filter(k => k && k.isAlive !== false);
         if (!alive.length) return;
@@ -271,6 +272,58 @@ export const Finance = {
             realms.add(s.kingdom);
             Finance._newBank(world, st, s);
         }
+        // ...and then every realm that strikes coin keeps a house of its own
+        Finance._crownHouses(world, st);
+    },
+
+    /**
+     * A realm that strikes its own coin has a banking house of its own: found
+     * one in its capital (else its largest city or town) for every living
+     * realm with a mint and no open house — a new realm, or one whose house
+     * is gone and not about to be refounded. banks.everyRealm turns it off.
+     * → the houses founded
+     */
+    _crownHouses(world, st, opts = {}) {
+        const B = Finance.cfg('banks');
+        if (B.everyRealm === false) return [];
+        const made = [];
+        const day = _day(world);
+        const seats = _settlements(world).filter(s => s && s.kingdom != null && Number.isFinite(s.q));
+        const rank = { capital: 4, city: 3, town: 2, village: 1 };
+        for (const k of world.kingdoms || []) {
+            if (!k || k.isAlive === false || k.id == null) continue;
+            // Only a realm with coin of its own (world/moneySupply.js) — not the barter of the dawn
+            if (MoneySupply.enabled() && !MoneySupply.realm(world, k.id)) continue;
+            const has = st.banks.some(b => b && b.kingdomId === k.id && (b.status === 'open'
+                || (b.status === 'failed' && !b.refounded && day - _num(b.failedDay) < _num(B.refoundDays, 90))));
+            if (has) continue;
+            const mine = seats.filter(s => s.kingdom === k.id && s.type !== 'village')
+                .sort((a, b) => (rank[b.type] || 0) - (rank[a.type] || 0) || _num(b.population) - _num(a.population) || (a.q - b.q) || (a.r - b.r));
+            const seat = mine[0];
+            if (!seat) continue;
+            const nb = Finance._newBank(world, st, seat);
+            // Founded in a running world, its capital is raised in the realm — the crown's chests and
+            // the seat's merchants — not struck from nothing (the coin census counts the vaults)
+            if (opts.funded) {
+                const want = _num(nb.capital);
+                const fromCrown = Math.min(want * 0.5, Math.max(0, _num(k.treasury)) * 0.5);
+                const town = (world.getTile && world.getTile(seat.q, seat.r) || {}).settlement || seat;
+                const fromTown = Economy.drawTown(town, Math.min(want - fromCrown, Math.max(0, _num(Economy.townPurse(town))) * 0.5)) || 0;
+                const raised = Math.floor(fromCrown + fromTown);
+                if (raised < _num(B.minCrownHouse, 3000)) {
+                    // Not enough coin in the realm yet: give it back and try another week
+                    if (fromTown > 0) Economy.payTown(town, fromTown);
+                    st.banks.splice(st.banks.indexOf(nb), 1);
+                    continue;
+                }
+                k.treasury = _num(k.treasury) - fromCrown;
+                nb.capital = raised;
+                nb.baseCapital = raised;
+            }
+            made.push(nb);
+            if (st.initialized && day > 0) Finance._record(st, world, { kind: 'bank_founded', bankId: nb.id, bank: nb.name, kingdomId: nb.kingdomId, place: nb.seat });
+        }
+        return made;
     },
 
     _newBank(world, st, seat) {
@@ -330,7 +383,11 @@ export const Finance = {
     banksAt(player, world, tile) {
         const s = tile && tile.settlement;
         if (!s) return [];
-        const branch = Finance.cfg('banks').branchTypes || ['capital', 'city'];
+        const B = Finance.cfg('banks');
+        const branch = B.branchTypes || ['capital', 'city'];
+        // Every great house keeps an agent in every capital (banks.agentsIn), so no crown's seat is without a bank
+        const agents = Array.isArray(B.agentsIn) ? B.agentsIn : ['capital'];
+        if (agents.includes(s.type)) return Finance.openBanks(player);
         return Finance.openBanks(player).filter(b => (b.q === tile.q && b.r === tile.r)
             || (branch.includes(s.type) && s.kingdom != null && s.kingdom === b.kingdomId));
     },
@@ -1086,6 +1143,8 @@ export const Finance = {
         Finance._eventsDay(world, player, st, out);
         Finance._prisonDay(world, player, st, out);
         Finance._refoundDay(world, player, st, day);
+        // A new realm (or one whose house is gone) gets its own banking house, once a week
+        if (day % 7 === 0) Finance._crownHouses(world, st, { funded: true });
     },
 
     _banksDay(world, player, st, out) {

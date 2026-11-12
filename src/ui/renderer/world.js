@@ -92,6 +92,11 @@ Object.assign(Renderer.prototype, {
             // Camped for the night: the rest of the way, taken up in the morning
             this.renderPath(ctx, [{ q: this.player.q, r: this.player.r }, ...this.player.queuedPath.slice(this.player.queuedPathIndex || 0)]);
         }
+        // A line of works being surveyed (ui/actionMenu/roadPlan.js): shown while its panel is open
+        if (this.roadPlan) {
+            if (typeof document !== 'undefined' && document.getElementById && !document.getElementById('customPanel')) this.roadPlan = null;
+            else this.renderRoadPlan(ctx, this.roadPlan);
+        }
         // Where a right-click would take you, with the nights' camps (ui/game/gameLoop.js _updateHoverRoute)
         if (this.hoverRoute && this.player && !this.player.isMoving) {
             this.renderRoutePreview(ctx, this.hoverRoute);

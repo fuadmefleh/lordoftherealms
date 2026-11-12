@@ -38,6 +38,10 @@ const DEFAULTS = {
     axes: [],
     picks: [],
     xpPerHardness: 0,
+    camps: {
+        woodcutting: { types: ['logging_camp', 'lumber_mill', 'sawmill'], speed: 1.35, yield: 1.5, name: 'logging camp' },
+        mining: { types: ['mine', 'quarry'], speed: 1.35, yield: 1.5, name: 'workings' },
+    },
 };
 
 export const Gathering = {
@@ -72,12 +76,29 @@ export const Gathering = {
         return best;
     },
 
-    /** How much harder the player's blows land on it (1 = no skill to it): the skill and the tool */
-    damageMult(player, def) {
+    /**
+     * A works of the player's standing finished on this hex for the skill — a
+     * logging camp for trees, a mine or quarry for rock (gathering.camps).
+     * tile: the world hex (InnerMap.currentWorldTile). → { type, name, speed, yield } | null
+     */
+    campBoost(player, def, tile) {
+        const id = Gathering.skillFor(def);
+        if (!id || !player || !tile) return null;
+        const camp = ((Gathering.config().camps || {})[id]) || null;
+        if (!camp || !Array.isArray(camp.types)) return null;
+        const props = Array.isArray(tile.playerProperties) && tile.playerProperties.length ? tile.playerProperties : (tile.playerProperty ? [tile.playerProperty] : []);
+        const p = props.find(x => x && camp.types.includes(x.type) && !x.underConstruction);
+        if (!p) return null;
+        return { type: p.type, name: p.name || camp.name || p.type, speed: _num(camp.speed, 1), yield: _num(camp.yield, 1) };
+    },
+
+    /** How much harder the player's blows land on it (1 = no skill to it): the skill, the tool, and a camp on the hex */
+    damageMult(player, def, tile = null) {
         const id = Gathering.skillFor(def);
         if (!id || !player) return 1;
         const tool = Gathering.toolFor(player, def);
-        return (1 + PracticeSkills.perk(player, id, 'blows') / 100) * (tool ? tool.mult : 1);
+        const camp = Gathering.campBoost(player, def, tile);
+        return (1 + PracticeSkills.perk(player, id, 'blows') / 100) * (tool ? tool.mult : 1) * (camp ? camp.speed : 1);
     },
 
     /**
@@ -143,11 +164,20 @@ export const Gathering = {
      * season, for the fruit a tree gives (fellGives).
      * → { skill, amount, extra, rare, gives, xp, tool, levelUps: [event] }
      */
-    felled(player, def, resource, terrainId = null, season = null) {
+    felled(player, def, resource, terrainId = null, season = null, tile = null) {
         const id = Gathering.skillFor(def);
-        const base = Math.max(0, Math.round(_num(resource && resource.amount, 1)));
-        const out = { skill: id, amount: base, extra: 0, rare: null, gives: [], xp: 0, tool: null, levelUps: [] };
+        let base = Math.max(0, Math.round(_num(resource && resource.amount, 1)));
+        const out = { skill: id, amount: base, extra: 0, rare: null, gives: [], xp: 0, tool: null, levelUps: [], camp: null, campExtra: 0 };
         if (!id || !player) return out;
+        // A camp of yours on the hex: more from every tree or rock (campBoost)
+        const camp = Gathering.campBoost(player, def, tile);
+        if (camp && camp.yield > 1 && base > 0) {
+            const boosted = Math.ceil(base * camp.yield);
+            out.camp = { type: camp.type, name: camp.name };
+            out.campExtra = boosted - base;
+            base = boosted;
+            out.amount = base;
+        }
         const C = Gathering.config();
         const perkId = id === 'mining' ? 'stone' : 'logs';
         const chance = PracticeSkills.perk(player, id, perkId) / 100;

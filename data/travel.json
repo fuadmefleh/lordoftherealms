@@ -1,0 +1,4 @@
+{
+    "_doc": "How far a day's walk goes (src/player/core/lifecycle.js). The day's movement budget — stamina plus every bonus (horse, technology, housing, scouts, endurance), after starvation and mood — is multiplied by dayScale and rounded. Open ground costs 2 a hex and a road 1, so at 10 stamina and 0.6 a day covers about 3 hexes cross-country, or 6 along a road. A day's full strength still carries you at least one hex.",
+    "dayScale": 0.6
+}

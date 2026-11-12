@@ -853,6 +853,48 @@ Object.assign(Renderer.prototype, {
     /**
      * Render movement path
      */
+    /**
+     * A surveyed line of works (ui/actionMenu/roadPlan.js): the route, and a
+     * marker on each hex — green to build, pale already done or a town's
+     * streets, red where this work can't go.
+     */
+    renderRoadPlan(ctx, plan) {
+        const segs = plan && plan.segments;
+        if (!segs || segs.length < 2) return;
+        const z = this.camera.zoom;
+        const s = this.hexSize * z;
+        const pts = segs.map(h => {
+            const pos = this.getHexPixelPos(h.q, h.r);
+            const c = this.camera.worldToScreen(pos.x, pos.y);
+            return { x: c.x, y: c.y + 0.13 * s, status: h.status };
+        });
+        ctx.save();
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        ctx.moveTo(pts[0].x, pts[0].y);
+        for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+        ctx.strokeStyle = 'rgba(12, 10, 6, 0.6)';
+        ctx.lineWidth = 7 * z;
+        ctx.stroke();
+        ctx.strokeStyle = 'rgba(214, 190, 130, 0.9)';
+        ctx.lineWidth = 3 * z;
+        ctx.setLineDash([6 * z, 5 * z]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        const fill = { build: '#6fd36a', has: '#d8c99a', town: '#d8c99a', blocked: '#e5603f' };
+        for (const p of pts) {
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, (p.status === 'build' ? 0.16 : 0.11) * s, 0, Math.PI * 2);
+            ctx.fillStyle = fill[p.status] || '#d8c99a';
+            ctx.fill();
+            ctx.lineWidth = 1.5 * z;
+            ctx.strokeStyle = 'rgba(20, 16, 8, 0.85)';
+            ctx.stroke();
+        }
+        ctx.restore();
+    },
+
     renderPath(ctx, path) {
         if (!path || path.length < 2) return;
 

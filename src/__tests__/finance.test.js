@@ -12,6 +12,7 @@ import { Utils } from '../core/utils.js';
 import { Economy } from '../world/economy.js';
 import { Coinage } from '../world/coinage.js';
 import { KingdomStability } from '../world/kingdomState.js';
+import { MoneySupply } from '../world/moneySupply.js';
 import { Finance, Banking } from '../systems/finance.js';
 import { Fiscal } from '../systems/fiscal.js';
 import { Technology } from '../systems/technology.js';
@@ -121,8 +122,61 @@ describe('content and banking houses', () => {
         const game = fresh();
         const bank = firstBank(game);
         expect(Finance.banksAt(game.player, game.world, game.world.getTile(bank.q, bank.r)).map(b => b.id)).toContain(bank.id);
-        const foreign = game.world.getSettlementViews().find(s => s.kingdom !== bank.kingdomId);
+        const foreign = game.world.getSettlementViews().find(s => s.kingdom !== bank.kingdomId && s.type !== 'capital');
         expect(Finance.banksAt(game.player, game.world, game.world.getTile(foreign.q, foreign.r)).some(b => b.id === bank.id)).toBe(false);
+    });
+
+    it('a realm that strikes its own coin keeps a banking house of its own, in its capital', () => {
+        const game = fresh();
+        const { world, player } = game;
+        const st = Finance.state(player);
+        // Each living realm strikes its own coin (world/moneySupply.js)
+        for (const k of world.kingdoms) if (k && k.isAlive !== false) MoneySupply.ensureRealm(world, k);
+        Finance._crownHouses(world, st);
+        const minting = world.kingdoms.filter(k => k && k.isAlive !== false && (!MoneySupply.enabled() || MoneySupply.realm(world, k.id)));
+        expect(minting.length).toBeGreaterThan(0);
+        for (const k of minting) {
+            const house = Finance.openBanks(player).find(b => b.kingdomId === k.id);
+            const towns = world.getSettlementViews().filter(s => s.kingdom === k.id && s.type !== 'village');
+            if (!towns.length) continue;
+            expect(house, k.name).toBeTruthy();
+        }
+        // Founding again changes nothing
+        const n = Finance.openBanks(player).length;
+        Finance._crownHouses(world, st);
+        expect(Finance.openBanks(player).length).toBe(n);
+    });
+
+    it('a house founded in a running world raises its capital in its realm: no coin from nowhere', () => {
+        const game = fresh();
+        const { world, player } = game;
+        const st = Finance.state(player);
+        for (const k of world.kingdoms) if (k && k.isAlive !== false) MoneySupply.ensureRealm(world, k);
+        Finance._crownHouses(world, st);
+        // A realm loses its house for good
+        const bank = Finance.openBanks(player)[0];
+        const k = world.kingdoms.find(x => x.id === bank.kingdomId);
+        for (const b of st.banks) if (b.kingdomId === k.id) { b.status = 'failed'; b.refounded = true; }
+        k.treasury = 20000;
+        const seats = world.getSettlementViews().filter(s => s.kingdom === k.id && s.type !== 'village');
+        const purses = () => seats.reduce((a, s) => a + (Economy.townPurse(world.getTile(s.q, s.r).settlement) || 0), 0);
+        const before = k.treasury + purses();
+        const made = Finance._crownHouses(world, st, { funded: true });
+        const nb = made.find(b => b.kingdomId === k.id);
+        expect(nb).toBeTruthy();
+        expect(k.treasury + purses() + nb.capital).toBeCloseTo(before, 1);
+        expect(nb.capital).toBe(nb.baseCapital);
+    });
+
+    it('every capital has a bank: each house keeps an agent there, even in a realm with no house of its own', () => {
+        const game = fresh();
+        const open = Finance.openBanks(game.player).map(b => b.id).sort();
+        expect(open.length).toBeGreaterThan(0);
+        const capitals = game.world.getSettlementViews().filter(s => s.type === 'capital');
+        expect(capitals.length).toBeGreaterThan(0);
+        for (const c of capitals) {
+            expect(Finance.banksAt(game.player, game.world, game.world.getTile(c.q, c.r)).map(b => b.id).sort()).toEqual(open);
+        }
     });
 });
 
@@ -187,7 +241,7 @@ describe('deposits', () => {
         expect(bal).toBeGreaterThan(1030);
         expect(bal).toBeLessThan(1080);
         // Not from a foreign town
-        const foreign = game.world.getSettlementViews().find(s => s.kingdom !== bank.kingdomId);
+        const foreign = game.world.getSettlementViews().find(s => s.kingdom !== bank.kingdomId && s.type !== 'capital');
         game.player.q = foreign.q; game.player.r = foreign.r;
         expect(Finance.withdraw(game.player, game.world, bank.id).success).toBe(false);
         atBank(game, bank);
@@ -260,7 +314,7 @@ describe('loans', () => {
     it('need the house (or a branch) and refuse beyond the credit limit', () => {
         const game = fresh();
         const bank = firstBank(game);
-        const foreign = game.world.getSettlementViews().find(s => s.kingdom !== bank.kingdomId);
+        const foreign = game.world.getSettlementViews().find(s => s.kingdom !== bank.kingdomId && s.type !== 'capital');
         game.player.q = foreign.q; game.player.r = foreign.r;
         game.player.gold = 5000;
         expect(Finance.takeLoan(game.player, game.world, bank.id, 'small').success).toBe(false);

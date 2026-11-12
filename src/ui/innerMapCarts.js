@@ -1087,7 +1087,8 @@ export const InnerMapCarts = {
                     ctx.restore();
                 }
                 // Someone laid on it: lying in the bed of the cart
-                if (load) InnerMapCombat.drawKnockedOut(ctx, camera, load, lx, ly);
+                // (along the bed: across it when the cart goes east or west, lengthwise when up or down the street)
+                if (load) InnerMapCombat.drawKnockedOut(ctx, camera, load, lx, ly, face === 0 || face === 2 ? { along: 'ns', headUp: face === 0 } : {});
             } });
         }
     },

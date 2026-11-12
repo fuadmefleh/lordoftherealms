@@ -1365,6 +1365,8 @@ export function endDay() {
                 if (InnerMap.tiles && InnerMap._currentWorldTileRef && InnerMap._currentWorldTileRef.settlement) {
                     InnerMap.worldDay = this.world.day;
                     TownProps.growFields(InnerMap.tiles, this.world.day);
+                    // A pedlar come into town overnight, or moved on (world/innerMap/townTrading.js)
+                    if (InnerMap._tradeNewDay) InnerMap._tradeNewDay(this.world);
                 }
             }
             this._midnightRollover = false;

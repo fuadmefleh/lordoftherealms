@@ -43,7 +43,7 @@ Object.assign(InnerMap, {
     _tradeSpawn(settlement, world) {
         this._tradeWorld = world || null;
         if (!world || !TownTrade.enabled() || !settlement) return;
-        const ped = TownTrade.pedlarIn(settlement, _num(world.day, 1));
+        const ped = TownTrade.seePedlars(world, settlement, _num(world.day, 1));
         if (!ped || !this._makeNpc) return;
         let seed = (Utils.hashStr(`ped|${ped.id}`) >>> 0) || 1;
         const rng = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
@@ -56,6 +56,23 @@ Object.assign(InnerMap, {
         npc.shopInventory = null;
         Object.defineProperty(npc, '_pedlar', { value: ped.id, configurable: true, enumerable: false, writable: true });
         (this.npcs || (this.npcs = [])).push(npc);
+    },
+
+    /**
+     * A new day while in town (ui/game/endDay.js): a pedlar come in off the
+     * road walks in from the town's edge; one moved on is off down the road.
+     */
+    _tradeNewDay(world) {
+        const s = this._currentWorldTileRef && this._currentWorldTileRef.settlement;
+        if (!s || !world || !TownTrade.enabled() || this._insideBuilding) return;
+        const day = _num(world.day, 1);
+        const ped = TownTrade.pedlarIn(s, day);
+        for (const n of this.npcs || []) {
+            if (!n._pedlar || (ped && n._pedlar === ped.id)) continue;
+            n._pedlar = null;
+            n.visitsLeft = 0;   // (a traveller with no visits left heads for the map's edge: npcs.js)
+        }
+        if (ped && !(this.npcs || []).some(n => n._pedlar === ped.id)) this._tradeSpawn(s, world);
     },
 
     /** The pedlar this NPC is (its record in the town's trade), or null. */

@@ -234,9 +234,12 @@ export const TownProps = {
         for (const [key, a] of Object.entries(d.stallArt || {})) {
             const over = [];
             for (const o of (a && a.over) || []) {
-                const [sheet, c, r, atCol, atRow] = o || [];
+                const [sheet, c, r, atCol, atRow, scale] = o || [];
                 if (!d.sheets[sheet]) continue;
-                over.push({ localCol: Number(atCol) || 0, localRow: Number(atRow) || 0, sheetPath: d.sheets[sheet], sx: c * T, sy: r * T, sw: T, sh: T });
+                const cell = { localCol: Number(atCol) || 0, localRow: Number(atRow) || 0, sheetPath: d.sheets[sheet], sx: c * T, sy: r * T, sw: T, sh: T };
+                // (drawn smaller, on the bottom middle of its place: ui/innerMapLayers/entities.js)
+                if (Number(scale) > 0 && Number(scale) !== 1) cell.scale = Number(scale);
+                over.push(cell);
             }
             out.push({ key, tiles: [...base, ...over] });
         }

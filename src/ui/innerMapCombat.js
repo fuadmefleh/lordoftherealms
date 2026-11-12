@@ -1414,16 +1414,29 @@ export const InnerMapCombat = {
      * Someone beaten senseless: fallen across their own tile like a body, but
      * no blood and no greying — and little stars turning over them.
      */
-    drawKnockedOut(ctx, camera, npc, sx, sy) {
+    /**
+     * One lying down at (sx, sy). opts.along 'ns': laid lengthwise north to south (in the bed of a
+     * cart drawn up or down the street: ui/innerMapCarts.js), the head to the north when opts.headUp.
+     */
+    drawKnockedOut(ctx, camera, npc, sx, sy, opts = {}) {
         const T = InnerMapRenderer.TILE_SIZE;
         const ds = T * camera.zoom;
         const ko = npc._ko || { at: 0, side: 1 };
         const fall = Math.min(1, (_nowMs() - ko.at) / 400);
         const ease = 1 - (1 - fall) * (1 - fall);
         const scale = InnerMapCharacters.drawScale(npc);
+        const ns = opts.along === 'ns';
         ctx.save();
         const useSprite = npc.preset && InnerMapCharacters.isReady() && InnerMapCharacters.getComposited(npc.preset);
-        if (useSprite && !npc._bound && !npc._gagged && this._drawFallen(ctx, npc.preset, ease, sx, sy, ds, scale)) {
+        if (useSprite && ns) {
+            // (seen from above and in front, one lying along the street: the figure foreshortened, head to the handles)
+            const cw = ds * 1.2 * scale * 0.8, ch = ds * 1.8 * scale * 0.8;
+            ctx.translate(sx, sy);
+            if (!opts.headUp) ctx.rotate(Math.PI);
+            ctx.scale(1, 0.72);
+            InnerMapCharacters.drawCharacter(ctx, npc.preset, 'idle', InnerMapCharacters.DIR_DOWN, 0, -cw / 2, -ch / 2, cw, ch);
+            if (npc._bound || npc._gagged) this._drawBonds(ctx, npc, cw, ch, ds);
+        } else if (useSprite && !npc._bound && !npc._gagged && this._drawFallen(ctx, npc.preset, ease, sx, sy, ds, scale)) {
             // (a child: its own fall, flat on its back — the child sprites' hurt sheet)
         } else if (useSprite) {
             const cw = ds * 1.2 * scale * 0.85, ch = ds * 1.8 * scale * 0.85;
@@ -1440,7 +1453,8 @@ export const InnerMapCombat = {
         if (fall >= 1 && npc.state === 'unconscious') {
             // Stars circling the head (the head lies toward the side they fell)
             const t = _nowMs() / 1000;
-            const hx = sx + ko.side * ds * 0.45 * scale, hy = sy - ds * 0.15;
+            const hx = ns ? sx : sx + ko.side * ds * 0.45 * scale;
+            const hy = ns ? sy + (opts.headUp ? -1 : 1) * ds * 0.42 * scale : sy - ds * 0.15;
             ctx.save();
             ctx.fillStyle = '#ffe08a';
             ctx.font = `${Math.max(9, Math.round(ds * 0.22))}px sans-serif`;

@@ -250,6 +250,54 @@ describe('pedlars', () => {
     });
 });
 
+describe('pedlars turn up', () => {
+    it('a town finds its pedlars on a link kept on either end, or before the links are drawn, on its nearest towns', () => {
+        const { world, s, other } = setup();
+        // (a link is kept on one end's market only)
+        s.market.links = [];
+        expect(TownTrade.neighbours(world, s).map(n => n.s)).toContain(other);
+        // (no links drawn yet: the nearest towns on the same land)
+        other.market.links = [];
+        world.getTile(5, 7).regionId = 1;
+        world.getTile(8, 7).regionId = 1;
+        world.width = 100;
+        expect(TownTrade.neighbours(world, s).map(n => n.s)).toContain(other);
+        world.getTile(8, 7).regionId = 2;
+        expect(TownTrade.neighbours(world, s)).toEqual([]);
+    });
+
+    it('a town first seen may have a pedlar in its streets already, staked and packed at a neighbour, every coin and good kept', () => {
+        tune('pedlars', { firstInTown: 1 });
+        const { world, s, other } = setup();
+        const g0 = goodsTotal([s, other]), c0 = coinTotal([s, other]);
+        const ped = TownTrade.seePedlars(world, s, world.day);
+        expect(ped).toBeTruthy();
+        expect(ped.fromName).toBe('Brightwater');
+        expect(TownTrade.pedlarIn(s, world.day)).toBe(ped);
+        expect(ped.until).toBeGreaterThanOrEqual(world.day + 2);
+        // (seen once: the second look finds the same one, none new)
+        TownTrade.seePedlars(world, s, world.day);
+        expect(TownTrade.pedlars(s).length).toBe(1);
+        const g1 = goodsTotal([s, other]);
+        for (const g of GOODS()) expect(g1[g] || 0, g).toBeCloseTo(g0[g] || 0, 6);
+        expect(coinTotal([s, other])).toBeCloseTo(c0, 6);
+        // ...and the trade's steps carry on from there
+        TownTrade.catchUp(world, s, world.day + 12);
+        expect(coinTotal([s, other])).toBeCloseTo(c0, 6);
+    });
+
+    it('a town first seen without one saw its last a while ago: the next comes within everyDays', () => {
+        tune('pedlars', { firstInTown: 0 });
+        const { world, s } = setup();
+        expect(TownTrade.seePedlars(world, s, world.day)).toBe(null);
+        const P = TownTrade.config().pedlars;
+        expect(s.townTrade.lastPedlar).toBeLessThanOrEqual(world.day);
+        expect(s.townTrade.lastPedlar).toBeGreaterThan(world.day - P.everyDays - 1);
+        TownTrade.catchUp(world, s, world.day + P.everyDays + 8);
+        expect(s.townTrade.book.pedlarsSettled || TownTrade.pedlars(s).length || (s.folk.annals || []).some(e => e.k === 'pedlar')).toBeTruthy();
+    });
+});
+
 describe('free talk sells from real stock', () => {
     it('a townsperson sells their own wares: out of their stock, the coin into their purse', () => {
         const { world, s } = setup();

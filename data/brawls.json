@@ -121,6 +121,9 @@
     },
 
     "betting": {
+        "_bookie": "A bookie stands up in the ring (ui/innerMapBrawls.js): once bookieRing onlookers are watching, bookieChance of fights (a hash of the fight) have one of them taking bets, the best-pursed grown-up in the crowd. Where gaming is forbidden (Laws.gambling) the Bet entries show greyed with the law's reason.",
+        "bookieRing": 4,
+        "bookieChance": 0.85,
         "stake": 10,
         "stakes": [5, 10, 25],
         "margin": 0.1,

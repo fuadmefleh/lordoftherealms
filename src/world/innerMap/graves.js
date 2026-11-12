@@ -147,7 +147,12 @@ Object.assign(InnerMap, {
             const fresh = !!grave && (GraveBook.yearsBetween(grave.interred != null ? grave.interred : grave.died, day) < _num(GraveBook.config().freshYears, 3)
                 || (grave.disturbed != null && day - grave.disturbed < _num(Burials.config().disturbedDays, 60)));
             head._graveShow = grave || open ? { marker: m, fresh: fresh || m === 'grave_mound', open: !!open, askew: !!(grave && grave.askew), art: !!(m && GraveArt.hasArt(m)) } : null;
-            if (m && !GROUND_ART.has(m) && GraveArt.hasArt(m)) this._standObject(GraveArt.defId(m), c.q, c.r);
+            if (m && !GROUND_ART.has(m) && GraveArt.hasArt(m) && this._standObject(GraveArt.defId(m), c.q, c.r) && grave && grave.askew) {
+                // (knocked askew by a robber: the marker leans about its base, left or right by its plot)
+                const deg = _num(GraveBook.config().askewDeg, 15);
+                const left = ((Math.imul(c.q * 73856093 ^ c.r * 19349663, 2654435761) >>> 16) & 1) === 1;
+                head.customObject.tilt = (left ? -deg : deg) * Math.PI / 180;
+            }
         }
         // No one is buried where the water runs
         if (drowned.length) ground.drowned = drowned; else delete ground.drowned;

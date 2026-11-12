@@ -96,7 +96,7 @@ const DEFAULTS = {
         watchShare: { village: 0.15, town: 0.3, city: 0.45, capital: 0.55 }, partedShare: 0.35, fledShare: 0.2,
     },
     onMap: { scanEvery: [5, 9], playerRadius: 20, pairRadius: 3, grudgeRadius: 8, cooldown: [25, 50], maxActive: 1 },
-    betting: { stake: 10, stakes: [5, 10, 25], margin: 0.1, minOdds: 1.15, maxOdds: 5 },
+    betting: { bookieRing: 4, bookieChance: 0.85, stake: 10, stakes: [5, 10, 25], margin: 0.1, minOdds: 1.15, maxOdds: 5 },
     player: {
         cheer: { side: 4, foe: -4, spirit: 0.06 },
         breakUp: { base: 0.4, perStrength: 0.04, perCharisma: 0.03, ruler: 0.35, guardBonus: 0.15, thanks: 5, shove: 6 },

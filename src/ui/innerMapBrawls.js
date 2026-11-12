@@ -59,6 +59,8 @@ const _cheb = (a, b) => Math.max(Math.abs(a.q - b.q), Math.abs(a.r - b.r));
 const _nowS = () => ((typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now()) / 1000;
 const _nowMs = () => _nowS() * 1000;
 const _span = (range, u) => { const [a, b] = Array.isArray(range) ? range : [range, range]; return _num(a) + (_num(b, _num(a)) - _num(a)) * u; };
+/** A fraction in [0, 1) from a string (FNV-1a): no shared RNG. */
+const _hash01 = (str) => { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0) / 4294967296; };
 const _fill = (t, vars) => { let s = String(t || ''); for (const [k, v] of Object.entries(vars || {})) s = s.split(`{${k}}`).join(v == null ? '' : v); return s; };
 const STAGE_WORD = { words: 'hard words', shove: 'shoving', fists: 'fists', weapons: 'steel drawn' };
 
@@ -1159,8 +1161,25 @@ export const InnerMapBrawls = {
         return this._fights.find(F => F.fight.key === npc._fight.fid) || null;
     },
 
+    /**
+     * The bookie in the ring, taking bets (or null): once bookieRing are watching, in
+     * bookieChance of fights (a hash of the fight), the best-pursed grown-up among them.
+     * Kept on the fight while they stay in the ring.
+     */
     _bookie(F) {
-        return F.ring.filter(n => n._person && !n.path).sort((a, b) => _num(b._person.purse) - _num(a._person.purse))[0] || F.ring[0] || null;
+        if (F.bookie && F.ring.includes(F.bookie)) return F.bookie;
+        F.bookie = null;
+        const Bt = Brawls.config().betting || {};
+        if (F.ring.length < _num(Bt.bookieRing, 4)) return null;
+        if (F.noBookie == null) F.noBookie = _hash01(`bookie|${F.fight.key}`) >= _num(Bt.bookieChance, 0.85);
+        if (F.noBookie) return null;
+        const adult = n => n.type !== 'child' && !(n._person && Number(n._person.age) < 16);
+        const pick = F.ring.filter(n => adult(n) && n._person).sort((a, b) => _num(b._person.purse) - _num(a._person.purse) || a.id - b.id)[0]
+            || F.ring.find(adult) || null;
+        if (!pick) return null;
+        F.bookie = pick;
+        pick.activity = { type: 'brawl', icon: '🎲', label: 'Taking bets on the fight', anim: 'emotes', quiet: true };
+        return pick;
     },
 
     /** Menu entries when the player clicks someone in a fight or the ring round it. */
@@ -1181,11 +1200,17 @@ export const InnerMapBrawls = {
         const bookie = this._bookie(F);
         const Bt = Brawls.config().betting;
         const stake = _num(Bt.stake, 10);
-        if (!F.bet && bookie && _num(game.player.gold) >= stake) {
+        if (F.bet) {
+            out.push({ type: 'disabled', label: `🎲 Your bet: ${F.bet.stake} gold at ${F.bet.odds}×`, desc: `With ${F.bet.bookie ? F.bet.bookie.name : 'the bookie'}, paid when it's over` });
+        } else if (bookie) {
             const law = Brawls.betting(game.world, F.town);
+            const short = _num(game.player.gold) < stake;
             for (const side of [0, 1]) {
                 const o = Brawls.odds(fight, side);
-                out.push({ type: 'action', action: 'brawl_bet', label: `Bet ${stake} gold on ${names[side]} (${o.odds}×)`, icon: '🎲', desc: `${bookie.name} takes the bet${law.legal ? '' : ' — quietly: gaming is forbidden here'}`, npc: side ? B : A, side, stake });
+                const label = `Bet ${stake} gold on ${names[side]} (${o.odds}×)`;
+                if (!law.legal) out.push({ type: 'disabled', label: `🎲 ${label}`, desc: `${String(law.why || 'Gaming is forbidden here.').replace(/\.*$/, '.')} ${bookie.name} won't take it in the open.` });
+                else if (short) out.push({ type: 'disabled', label: `🎲 ${label}`, desc: `Your purse is too light (${stake} gold)` });
+                else out.push({ type: 'action', action: 'brawl_bet', label, icon: '🎲', desc: `${bookie.name} takes the bet`, npc: side ? B : A, side, stake });
             }
         }
         const ruler = StreetCrime.aboveLaw(game.player, game.world, F.town);
@@ -1220,7 +1245,7 @@ export const InnerMapBrawls = {
             case 'brawl_bet': {
                 const bookie = this._bookie(F);
                 const stake = _num(item.stake, _num(Brawls.config().betting.stake, 10));
-                if (!bookie || _num(game.player.gold) < stake) { _note(game, '🎲 No bet', 'There is no one to take it, or your purse is too light.', 'info'); return true; }
+                if (!bookie || _num(game.player.gold) < stake || !Brawls.betting(game.world, F.town).legal) { _note(game, '🎲 No bet', 'There is no one to take it, or your purse is too light.', 'info'); return true; }
                 const o = Brawls.odds(fight, side);
                 game.player.gold -= stake;
                 Ledger.record(game.player, 'gambling', -stake);

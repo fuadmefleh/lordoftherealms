@@ -42,6 +42,8 @@
     "artDir": "assets/lpc/new/graves",
     "artTile": 128,
     "freshYears": 3,
+    "_askew": "A robbed grave's marker knocked askew (grave.askew) is drawn tilted about its base by askewDeg degrees, leaning left or right by a hash of its plot (world/innerMap/graves.js sets the marker's tilt; ui/innerMapLayers/entities.js draws it).",
+    "askewDeg": 15,
     "_coffins": "A coffin takes `planks` planks a size from the town's stock (the coffin-maker's timber); none to be had, the dead go in a shroud.",
     "coffinPlanks": 1,
     "_seed": "A town's churchyard is not new when the player first sees it: seedFill of its plots hold the dead of the years before (seedRecent of them recent, on leases still running; the rest old graves held in perpetuity).",

@@ -69,6 +69,7 @@
 
 import { DataLoader } from '../core/dataLoader.js';
 import { Utils } from '../core/utils.js';
+import { Hex } from '../core/hex.js';
 import { PlayerInventory } from '../core/inventory.js';
 import { Economy } from '../world/economy.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
@@ -392,6 +393,8 @@ export const TownTrade = {
         const anchor = Math.min(_num(upTo, 1), _num(s.folk.tick, _num(upTo, 1)));
         const st = TownTrade.state(s, anchor);
         if (fresh || st.day == null) st.day = anchor - step;
+        // (a town first seen is not between pedlars by chance on the day: one may be in its streets already)
+        if (!st.pedSeeded) TownTrade._seedPedlars(world, s, st, anchor);
         const slot = (Utils.hashStr(`tt|${s.q},${s.r}`) >>> 0) % step;
         // (the first slot day after the last step at least a step on)
         let d = st.day + step;
@@ -928,18 +931,45 @@ export const TownTrade = {
 
     // ──────────── PEDLARS ────────────
 
-    /** The town's trade-link neighbours by land (market.links): [{ s, d }]. */
+    /**
+     * The town's trade-link neighbours by land: [{ s, d }]. A link is kept on
+     * one end's market only (systems/marketDynamics.js: market.links), so the
+     * links of the towns round about that name this one count too; before the
+     * links are first drawn (the first day), the nearest towns on the same land
+     * within pedlars.nearRange.
+     */
     neighbours(world, s) {
-        const links = s && s.market && Array.isArray(s.market.links) ? s.market.links : [];
+        if (!s || !world || typeof world.getTile !== 'function') return [];
         const out = [];
-        for (const l of links) {
-            if (!Array.isArray(l)) continue;
-            const [q, r, d, sea] = l;
-            if (sea) continue;
-            const t = world && typeof world.getTile === 'function' ? world.getTile(q, r) : null;
-            const o = t && t.settlement;
-            if (o && o !== s) out.push({ s: o, d: Math.max(1, _num(d, 1)) });
+        const seen = new Set();
+        const add = (o, d) => {
+            if (!o || o === s || seen.has(o)) return;
+            seen.add(o);
+            out.push({ s: o, d: Math.max(1, _num(d, 1)) });
+        };
+        const own = s.market && Array.isArray(s.market.links) ? s.market.links : [];
+        for (const l of own) {
+            if (!Array.isArray(l) || l[3]) continue;
+            const t = world.getTile(l[0], l[1]);
+            add(t && t.settlement, l[2]);
         }
+        const views = typeof world.getSettlementViews === 'function' ? world.getSettlementViews() : [];
+        const range = _num(TownTrade.config().pedlars.nearRange, 8);
+        const here = world.getTile(s.q, s.r);
+        const near = [];
+        let drawn = own.length > 0;
+        for (const v of views) {
+            const t = world.getTile(v.q, v.r);
+            const o = (t && t.settlement) || v;
+            if (!o || o === s) continue;
+            const links = o.market && Array.isArray(o.market.links) ? o.market.links : null;
+            if (links && links.length) drawn = true;
+            for (const l of links || []) if (Array.isArray(l) && !l[3] && l[0] === s.q && l[1] === s.r) add(o, l[2]);
+            if (Math.abs(v.r - s.r) > range) continue;
+            const d = Hex.wrappingDistance(s.q, s.r, v.q, v.r, world.width || 0);
+            if (d <= range && here && t && here.regionId !== undefined && t.regionId === here.regionId) near.push({ o, d });
+        }
+        if (!drawn) for (const x of near.sort((a, b) => a.d - b.d || a.o.q - b.o.q || a.o.r - b.o.r).slice(0, 3)) add(x.o, x.d);
         return out;
     },
 
@@ -950,7 +980,9 @@ export const TownTrade = {
 
     /** A pedlar in this town today (walking its streets), or null. */
     pedlarIn(s, day) {
-        return TownTrade.pedlars(s).find(p => p.phase === 'town' && _num(p.arrive) <= day) || null;
+        // (one come in off the road today walks the streets, though the town's trade step hasn't seen them yet)
+        return TownTrade.pedlars(s).find(p => (p.phase === 'town' || p.phase === 'road') && _num(p.arrive) <= day
+            && (p.until == null || _num(p.until) >= day)) || null;
     },
 
     /** Fill a pedlar's pack at `from`'s market for `to`: what's dearer there, within the pack's limits. → value bought. */
@@ -986,7 +1018,9 @@ export const TownTrade = {
 
     _spawnPedlar(world, s, st, day) {
         const P = TownTrade.config().pedlars;
-        const opts = TownTrade.neighbours(world, s).filter(n => !TownTrade.inKind(n.s) && Economy.townPurse(n.s) != null);
+        // (from a town whose purse can stake one: a village with an empty purse sends none)
+        const opts = TownTrade.neighbours(world, s).filter(n => !TownTrade.inKind(n.s) && Economy.townPurse(n.s) != null
+            && Math.min(_num(P.seed, 30), Economy.townPurse(n.s) * _num(P.seedShare, 0.02)) >= _num(P.minPurse, 6));
         if (!opts.length) return null;
         const o = _pick(opts, _frac(_seed(world), 'pedfrom', s.q, s.r, day));
         const have = Economy.townPurse(o.s);
@@ -1004,6 +1038,43 @@ export const TownTrade = {
         st.pedlars.push(ped);
         st.lastPedlar = day;
         return ped;
+    },
+
+    /**
+     * A town's pedlars on first sight: firstInTown of towns have one in their
+     * streets already (come from a neighbour, purse and pack drawn there as
+     * any pedlar's), the rest saw their last one a while ago by a hash of the place.
+     */
+    _seedPedlars(world, s, st, day) {
+        st.pedSeeded = true;
+        const P = TownTrade.config().pedlars;
+        if (!P.enabled || TownTrade.inKind(s) || st.pedlars.length) return null;
+        const every = Math.max(1, _num(P.everyDays, 10));
+        const u = _frac(_seed(world), 'pedseed', s.q, s.r);
+        if (u < _num(P.firstInTown, 0)) {
+            const ped = TownTrade._spawnPedlar(world, s, st, day);
+            if (ped) {
+                ped.phase = 'town';
+                ped.arrive = day;
+                // (part way through their stay, a couple of days of it left at least)
+                ped.until = day + 2 + Math.floor(_frac(u, 'stay') * Math.max(1, _num(P.stayDays, 6) - 1));
+                return ped;
+            }
+        }
+        st.lastPedlar = day - Math.floor(_frac(u, 'last') * every);
+        return null;
+    },
+
+    /**
+     * The player comes into a town (world/innerMap/townTrading.js): its pedlars
+     * as first seen, before its trade has run a step (the state is left for
+     * catchUp to anchor to the roster's clock).
+     */
+    seePedlars(world, s, day) {
+        if (!TownTrade.enabled() || !s || !_obj(s.folk) || !Array.isArray(s.folk.people)) return null;
+        const st = TownTrade.state(s, null);
+        if (!st.pedSeeded) TownTrade._seedPedlars(world, s, st, _num(day, 1));
+        return TownTrade.pedlarIn(s, _num(day, 1));
     },
 
     _pedlarStep(world, s, st, folk, hhs, rates, price, day, player) {

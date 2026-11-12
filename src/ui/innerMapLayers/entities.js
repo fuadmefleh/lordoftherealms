@@ -23,6 +23,9 @@ import { InnerMapSickness } from '../innerMapSickness.js';
 import { InnerMapRites } from '../innerMapRites.js';
 import { glyphFor } from '../icons.js';
 import { drawMapText, drawMapMarker, labelZoom } from '../mapInk.js';
+
+/** How far one sat in a pew (seen from behind, facing the altar) sinks below their standing place, in tiles. */
+const PEW_SINK = 0.26;
 import { BareBushes } from '../bareBushes.js';
 
 // Where the rod's tip is in its line-out frame (frame 3 of
@@ -744,6 +747,18 @@ Object.assign(InnerMapRenderer, {
                             const afr = anim ? self._ambientFrameOf(anim, oq, or2) : 0;
                             const fdx = anim ? afr * (anim.step ? anim.step[0] : 1) * 32 : 0;
                             const fdy = anim ? afr * (anim.step ? anim.step[1] : 0) * 32 : 0;
+                            // A marker knocked askew (a robbed grave: world/innerMap/graves.js `tilt`, radians):
+                            // the whole object leans about the middle of its base, its bottom row kept on its plot
+                            const tilt = Number(customObjRef.tilt) || 0;
+                            if (tilt && activeTiles && activeTiles.length) {
+                                let c0 = Infinity, c1 = -Infinity, r1 = -Infinity;
+                                for (const td of activeTiles) { c0 = Math.min(c0, td.localCol); c1 = Math.max(c1, td.localCol); r1 = Math.max(r1, td.localRow); }
+                                const px = ax + ((c0 + c1 + 1) / 2) * ds, py = ay + (r1 + 1) * ds;
+                                ctx.save();
+                                ctx.translate(px, py);
+                                ctx.rotate(tilt);
+                                ctx.translate(-px, -py);
+                            }
                             for (const td of bare ? [] : activeTiles) {
                                 const img = td.sheetPath ? CustomObjects.getImage(td.sheetPath) : singleImg;
                                 if (!img || !img.complete) continue;
@@ -755,9 +770,13 @@ Object.assign(InnerMapRenderer, {
                                 const veiled = uw && !self._veiledTile(oq + td.localCol, or2 + td.localRow)
                                     ? self._veiledSprite(img, (td.sx + fdx) * k, (td.sy + fdy) * k, td.sw * k, td.sh * k) : null;
                                 ctx.imageSmoothingEnabled = k > 1;   // (a painted sheet draws smooth, pixel art crisp)
-                                if (veiled) ctx.drawImage(veiled, tdx, tdy, cs, cs);
-                                else ctx.drawImage(img, (td.sx + fdx) * k, (td.sy + fdy) * k, td.sw * k, td.sh * k, tdx, tdy, cs, cs);
+                                // (a cell drawn smaller, stood on the bottom middle of its place: a stall's wares, data/townProps.json stallArt)
+                                const tsz = td.scale > 0 && td.scale !== 1 ? Math.round(cs * td.scale) : cs;
+                                const tox = tsz === cs ? 0 : Math.floor((cs - tsz) / 2), toy = cs - tsz;
+                                if (veiled) ctx.drawImage(veiled, tdx + tox, tdy + toy, tsz, tsz);
+                                else ctx.drawImage(img, (td.sx + fdx) * k, (td.sy + fdy) * k, td.sw * k, td.sh * k, tdx + tox, tdy + toy, tsz, tsz);
                             }
+                            if (tilt && activeTiles && activeTiles.length) ctx.restore();
                             ctx.imageSmoothingEnabled = smooth0;
 
                             if (isInteracting && !chopped && alpha < 1.0) ctx.globalAlpha = 1.0;
@@ -1050,12 +1069,14 @@ Object.assign(InnerMapRenderer, {
                 const stallScr = stallS0 ? { x: stallS0.x, y: stallS0.y } : null;
                 // (a hall stall: head and shoulders over the counter, before the awning's valance — the gap under
                 // the awning is too narrow for a face, and any lower the counter and its wares hide them whole)
-                const sy = stallBox ? stallFoot - ds * 0.45 : counter ? stallFoot - ds * 0.6 : screen.y + (kbK ? fkb.dy * kbK * ds : 0);
-                if (sx < -ds * 2 || sx > ctx.canvas.width + ds * 2) continue;
-                if (sy < -ds * 2 || sy > ctx.canvas.height + ds * 2) continue;
-                // (sat in a pew facing the altar: its back hides them below the shoulders)
+                // (sat in a pew facing the altar: down on its seat, its back hiding them below the shoulders —
+                // drawn at the standing height, the rest of the body showed over the back as if stood behind it)
                 const pewT = !counter && npc._seatOn ? InnerMap.getTile(npc.q, npc.r) : null;
                 const pewBack = !!(pewT && pewT._furniture && pewT._furniture.type === 'pew' && pewT._furniture.facing === 'up');
+                const sy = stallBox ? stallFoot - ds * 0.45 : counter ? stallFoot - ds * 0.6
+                    : screen.y + (kbK ? fkb.dy * kbK * ds : 0) + (pewBack ? ds * PEW_SINK : 0);
+                if (sx < -ds * 2 || sx > ctx.canvas.width + ds * 2) continue;
+                if (sy < -ds * 2 || sy > ctx.canvas.height + ds * 2) continue;
                 const clipY = stallBox ? stallFoot : counter ? stallFoot - ds * 0.95
                     : soakAt != null ? camera.worldToScreenFast(worldX, soakAt).y
                     : pewBack ? camera.worldToScreenFast(worldX, npc.r * T).y + ds * 0.54 : null;

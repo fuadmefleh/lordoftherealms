@@ -9,7 +9,7 @@ import { LightSystem } from './lightSystem.js';
 import { InnerMapCombat } from './innerMapCombat.js';
 import { drawHoverCoords } from './hoverCoords.js';
 import { resetCanvasTransform } from './hiDpi.js';
-import { CustomSheets, loadSheetInto } from '../core/customSheets.js';
+import { CustomSheets, loadSheetInto, warmSheet } from '../core/customSheets.js';
 import { sheetScale } from './sheetScale.js';
 
 // Keyed sheets with a repaint (data/innerMapRenderer.json `modernSheets`, at 4x in
@@ -266,7 +266,10 @@ export const InnerMapRenderer = {
         const img = new Image();
         this._sheetPathCache.set(path, { status: 'loading', img: null });
         img.onload = () => {
-            this._sheetPathCache.set(path, { status: 'ready', img });
+            // (decoded and uploaded as it loads: else its first draw does it, a long frame)
+            const ready = () => { warmSheet(img); this._sheetPathCache.set(path, { status: 'ready', img }); };
+            if (typeof img.decode === 'function') img.decode().then(ready, ready);
+            else ready();
         };
         img.onerror = () => {
             console.warn(`InnerMapRenderer: failed to load sheet path ${path}`);
@@ -652,6 +655,9 @@ export const InnerMapRenderer = {
         // (alpha, shadow, clip) into every following frame
         try {
 
+        // The frame's start: the caches (ground chunks, buildings) draw anew within a budget of it
+        this._frameT0 = performance.now();
+        this._renderFrame = (this._renderFrame || 0) + 1;
         // Cache visible tile range once per frame for all layers
         this._frameRange = this._getVisibleTileRange(camera);
         // Ambient life on screen: fires, chimney smoke, steam, moving parts (innerMapLayers/ambient.js)

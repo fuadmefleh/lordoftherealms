@@ -53,7 +53,7 @@ describe('the arms catalogue', () => {
         const recipes = Crafting.recipes();
         for (const [id, def] of Object.entries(Arms.items())) {
             expect(G()[id.toUpperCase()], id).toBeTruthy();
-            expect(['main', 'off', 'head', 'body'], id).toContain(def.slot);
+            expect(['main', 'off', 'head', 'body', 'legs', 'feet', 'hands'], id).toContain(def.slot);
             expect(Arms.config().classes[def.class], id).toBeTruthy();
             const sp = Arms.spriteOf(id);
             expect(sp.weaponClass, id).toBeTruthy();
@@ -398,6 +398,8 @@ describe('soldiers look the part', () => {
         const base = path.join(__dirname, '..', '..', 'assets', 'lpc', 'Characters');
         for (const id of Object.keys(Arms.items())) {
             const sp = Arms.spriteOf(id);
+            // (gloves have no LPC sheets: they are not drawn)
+            if (sp.slot === 'hands') continue;
             expect(sp.layer, id).toBeTruthy();
             const sheet = sp.slot === 'main' || sp.slot === 'off' ? 'Combat 1h - Idle.png' : 'Walk.png';
             expect(fs.existsSync(path.join(base, sp.layer, sheet)), `${id}: ${sp.layer}/${sheet}`).toBe(true);

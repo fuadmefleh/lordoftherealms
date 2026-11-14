@@ -13,6 +13,11 @@ import { BuildingWear } from '../buildingWear.js';
 
 // The pixels the kept building canvases may hold between them (~64 MB)
 const BUILDING_CACHE_PX = 16e6;
+// How long a frame may spend drawing buildings into their canvases (ms) while an older
+// drawing of them can stand in (a new zoom: the old size, scaled, until the new one is ready)
+const BUILDING_BUILD_MS = 5;
+// Frames the old size's drawings are kept after the last one stood in for a new one
+const BUILDING_PREV_FRAMES = 120;
 
 Object.assign(InnerMapRenderer, {
     // ══════════════════════════════════════════════
@@ -256,8 +261,7 @@ Object.assign(InnerMapRenderer, {
         // cells, a worn one each through a canvas filter, then its moss and grime (ui/buildingWear.js)
         if (this._buildingCacheUsable(ctx, camera, def, ruin, site, wear, spire)) {
             try {
-                this._blitCachedBuilding(ctx, camera, def, anchorQ, anchorR, ds, ruin, wear, spire);
-                return;
+                if (this._blitCachedBuilding(ctx, camera, def, anchorQ, anchorR, ds, ruin, wear, spire)) return;
             } catch (err) {
                 console.warn('[InnerMapRenderer] building cache:', err);
                 this._buildingCacheOff = true;
@@ -270,15 +274,15 @@ Object.assign(InnerMapRenderer, {
     // (set true to draw every building cell by cell every frame, as before)
     _buildingCacheOff: false,
     _buildingCache: null,
+    // (the drawings at the zoom before, scaled to stand in while the new size is drawn)
+    _buildingCachePrev: null,
 
     _buildingCacheUsable(ctx, camera, def, ruin, site, wear, spire) {
         if (this._buildingCacheOff || typeof document === 'undefined' || typeof HTMLCanvasElement === 'undefined') return false;
         if (!ctx || !(ctx.canvas instanceof HTMLCanvasElement) || !camera || !def || !def.layers) return false;
         // (a site changes as the work goes on; a fallen-in shell is rare and drawn as it is)
         if ((site != null && site < 1) || ruin === 'burnt' || ruin === 'sacked') return false;
-        // (while the zoom glides every frame is a new size)
-        const z = camera.zoom, tz = Number.isFinite(camera.targetZoom) ? camera.targetZoom : z;
-        if (!(z > 0) || Math.abs(z - tz) > tz * 1e-4) return false;
+        if (!(camera.zoom > 0)) return false;
         if (!BuildingWear.artReady(ruin ? 0 : wear, ruin ? null : spire)) return false;
         for (const lyr of ['floor', 'walls', 'roof', 'overlay']) {
             for (const cell of def.layers[lyr] || []) if (cell.sheetPath && !CustomBuildings.getImg(cell.sheetPath)) return false;
@@ -286,31 +290,61 @@ Object.assign(InnerMapRenderer, {
         return true;
     },
 
-    /** A building from its kept canvas (drawn by _drawCustomBuildingDirect on first sight), 1:1 on the device pixels. */
+    /**
+     * A building from its kept canvas (drawn by _drawCustomBuildingDirect on first sight),
+     * 1:1 on the device pixels. While the zoom glides the drawings at the size it left
+     * are scaled to the frame's (every frame of a glide is a new size: drawing them anew
+     * each frame, worn ones through a filter, dropped the frame rate to a crawl); once it
+     * settles they are drawn at the new size a few milliseconds a frame, the old ones
+     * scaled standing in till then. → false when the building must be drawn directly.
+     */
     _blitCachedBuilding(ctx, camera, def, anchorQ, anchorR, ds, ruin, wear, spire) {
         const T = this.TILE_SIZE;
         const k = (ctx.canvas && ctx.canvas.pixelRatio) || 1;
+        const z = camera.zoom, tz = Number.isFinite(camera.targetZoom) ? camera.targetZoom : z;
+        const gliding = Math.abs(z - tz) > tz * 1e-4;
+        const frame = this._renderFrame || 0;
         let bc = this._buildingCache;
-        if (!bc || bc.ds !== ds || bc.k !== k) {
-            bc = this._buildingCache = { ds, k, byDef: new WeakMap(), entries: new Set(), px: 0 };
+        if (!bc || bc.k !== k) {
+            bc = this._buildingCache = this._newBuildingCache(ds, k);
+            this._buildingCachePrev = null;
+        } else if (bc.ds !== ds && !gliding) {
+            // Settled on a new size: the old drawings stand in while the new ones are made
+            this._buildingCachePrev = bc;
+            bc = this._buildingCache = this._newBuildingCache(ds, k);
+            bc.lastFallback = frame;
         }
-        let perDef = bc.byDef.get(def);
-        if (!perDef) { perDef = new Map(); bc.byDef.set(def, perDef); }
+        const prev = this._buildingCachePrev;
+        if (prev && frame - (bc.lastFallback || 0) > BUILDING_PREV_FRAMES) this._buildingCachePrev = null;
         // (and the snow on its roof today: innerMapLayers/streetSeasons.js)
         const key = `${anchorQ},${anchorR}|${ruin || ''}|${wear || 0}|${spire || ''}|${this._ssRoofLevel ? this._ssRoofLevel() : 0}`;
-        let e = perDef.get(key);
         const p = camera.worldToScreenFast(anchorQ * T, anchorR * T);
         const sx = p.x, sy = p.y;
+        let perDef = bc.byDef.get(def);
+        let e = perDef && perDef.get(key);
         if (!e) {
-            e = this._drawBuildingToCache(def, anchorQ, anchorR, ds, k, ruin, wear, spire, sx, sy);
+            const late = performance.now() - (this._frameT0 || 0) > BUILDING_BUILD_MS;
+            const stand = late && prev ? prev.byDef.get(def) : null;
+            const old = stand && stand.get(key);
+            if (old) {
+                // Not this frame: the old size's drawing, scaled
+                bc.lastFallback = frame;
+                old.used = performance.now();
+                this._blitBuildingEntry(ctx, old, sx, sy, ds / prev.ds, k);
+                return true;
+            }
+            // Gliding past a building not yet drawn, with the frame's time spent: drawn directly
+            if (gliding && late) return false;
+            if (!perDef) { perDef = new Map(); bc.byDef.set(def, perDef); }
+            e = this._drawBuildingToCache(def, anchorQ, anchorR, bc.ds, k, ruin, wear, spire, sx, sy);
             e.perDef = perDef; e.key = key;
             perDef.set(key, e);
             bc.entries.add(e);
             bc.px += e.canvas.width * e.canvas.height;
             // Kept within a budget of pixels, the longest unseen let go first
             if (bc.px > BUILDING_CACHE_PX) {
-                const old = [...bc.entries].sort((a, b) => a.used - b.used);
-                for (const o of old) {
+                const olds = [...bc.entries].sort((a, b) => a.used - b.used);
+                for (const o of olds) {
                     if (bc.px <= BUILDING_CACHE_PX * 0.75 || o === e) break;
                     bc.entries.delete(o);
                     o.perDef.delete(o.key);
@@ -319,11 +353,67 @@ Object.assign(InnerMapRenderer, {
             }
         }
         e.used = performance.now();
-        // (on a whole device pixel, its anchor where the cells floor it to: _drawBuildingToCache)
-        const X = Math.floor((Math.floor(sx) - e.ox) * k), Y = Math.floor((Math.floor(sy) - e.oy) * k);
+        this._blitBuildingEntry(ctx, e, sx, sy, ds / bc.ds, k);
+        return true;
+    },
+
+    /**
+     * A scratch canvas over a building's cells, on the device pixels of `ctx` (its
+     * transform carried over: a cache canvas's scale, the screen's): { g, canvas, x, y, w, h }
+     * — draw on g, then blit (x, y, w, h) at identity. Null where it can't be done (no DOM,
+     * a rotated context): the caller filters cell by cell as before.
+     */
+    _filterLayer(ctx, def, ax, ay, ds, cs) {
+        if (typeof document === 'undefined' || !ctx || typeof ctx.getTransform !== 'function') return null;
+        const M = ctx.getTransform();
+        if (M.b || M.c || !(M.a > 0) || !(M.d > 0)) return null;
+        let q0 = Infinity, q1 = -Infinity, r0 = Infinity, r1 = -Infinity;
+        for (const lyr of ['floor', 'walls', 'roof', 'overlay']) {
+            for (const cell of def.layers[lyr] || []) {
+                q0 = Math.min(q0, cell.q); r0 = Math.min(r0, cell.r);
+                q1 = Math.max(q1, cell.q + Math.ceil((cell.sw || 32) / 32));
+                r1 = Math.max(r1, cell.r + Math.ceil((cell.sh || 32) / 32));
+            }
+        }
+        if (!Number.isFinite(q0)) return null;
+        // (a cell each way round it: the overlap pixel, an old roof's sag)
+        const bx0 = ax + (q0 - 1) * ds, by0 = ay + (r0 - 1) * ds;
+        const bx1 = ax + (q1 + 1) * ds + cs, by1 = ay + (r1 + 1) * ds + cs;
+        const dx0 = Math.floor(M.a * bx0 + M.e), dy0 = Math.floor(M.d * by0 + M.f);
+        const dx1 = Math.ceil(M.a * bx1 + M.e), dy1 = Math.ceil(M.d * by1 + M.f);
+        // (only the part on the target canvas)
+        const cw = ctx.canvas ? ctx.canvas.width : dx1, chh = ctx.canvas ? ctx.canvas.height : dy1;
+        const x = Math.max(0, dx0), y = Math.max(0, dy0);
+        const w = Math.min(cw, dx1) - x, h = Math.min(chh, dy1) - y;
+        if (!(w > 0) || !(h > 0)) return null;
+        let c = this._wearScratch;
+        if (!c) c = this._wearScratch = document.createElement('canvas');
+        if (c.width < w || c.height < h) { c.width = Math.max(c.width, w); c.height = Math.max(c.height, h); }
+        const g = c.getContext('2d');
+        g.setTransform(1, 0, 0, 1, 0, 0);
+        g.globalAlpha = 1;
+        g.filter = 'none';
+        g.clearRect(0, 0, w, h);
+        g.setTransform(M.a, 0, 0, M.d, M.e - x, M.f - y);
+        g.imageSmoothingEnabled = false;
+        return { g, canvas: c, x, y, w, h };
+    },
+
+    _newBuildingCache(ds, k) {
+        return { ds, k, byDef: new WeakMap(), entries: new Set(), px: 0, lastFallback: 0 };
+    },
+
+    /** Blit a kept drawing with its anchor at (sx, sy): 1:1 on whole device pixels, or scaled by `s` (another size's). */
+    _blitBuildingEntry(ctx, e, sx, sy, s, k) {
         const smooth = ctx.imageSmoothingEnabled;
         ctx.imageSmoothingEnabled = false;
-        ctx.drawImage(e.canvas, X / k, Y / k, e.canvas.width / k, e.canvas.height / k);
+        if (Math.abs(s - 1) < 1e-6) {
+            // (on a whole device pixel, its anchor where the cells floor it to: _drawBuildingToCache)
+            const X = Math.floor((Math.floor(sx) - e.ox) * k), Y = Math.floor((Math.floor(sy) - e.oy) * k);
+            ctx.drawImage(e.canvas, X / k, Y / k, e.canvas.width / k, e.canvas.height / k);
+        } else {
+            ctx.drawImage(e.canvas, sx - e.ox * s, sy - e.oy * s, (e.canvas.width / k) * s, (e.canvas.height / k) * s);
+        }
         ctx.imageSmoothingEnabled = smooth;
     },
 
@@ -408,14 +498,18 @@ Object.assign(InnerMapRenderer, {
                 }
             }
         }
-        if (worn) {
+        // A worn or sooty house is drawn through a filter: its cells drawn plain onto a scratch
+        // canvas the building's size and that put through the filter once (a filter on each of
+        // a hundred-odd cell draws took a long frame by itself)
+        const filter = sooty
+            ? (ruin === 'burnt' ? 'brightness(0.38) sepia(0.35) saturate(0.6)'
+                : ruin === 'sacked' ? 'brightness(0.55) saturate(0.45)' : 'brightness(0.7) saturate(0.7)')
+            : (worn ? BuildingWear.wearFilter(worn) : '');
+        const layer = filter ? this._filterLayer(ctx, def, ax, ay, ds, cs) : null;
+        const dc = layer ? layer.g : ctx;
+        if (filter && !layer) {
             ctx.save();
-            ctx.filter = BuildingWear.wearFilter(worn);
-        }
-        if (sooty) {
-            ctx.save();
-            ctx.filter = ruin === 'burnt' ? 'brightness(0.38) sepia(0.35) saturate(0.6)'
-                : ruin === 'sacked' ? 'brightness(0.55) saturate(0.45)' : 'brightness(0.7) saturate(0.7)';
+            ctx.filter = filter;
         }
         for (const lyrName of ['floor', 'walls', 'roof', 'overlay']) {
             const lyrArr = def.layers[lyrName];
@@ -430,8 +524,8 @@ Object.assign(InnerMapRenderer, {
                 const y = Math.floor(ay + cell.r * ds) + (worn ? sagOf(cell) : 0);
                 // A shell's door has fallen in: a dark gap in the frame where it hung
                 if (shell && /\/Doors\//i.test(cell.sheetPath || '') && !/doorframe/i.test(cell.sheetPath)) {
-                    ctx.fillStyle = 'rgb(14, 11, 9)';
-                    ctx.fillRect(x + Math.round(cs * 0.12), y, Math.round(cs * 0.76), cs);
+                    dc.fillStyle = 'rgb(14, 11, 9)';
+                    dc.fillRect(x + Math.round(cs * 0.12), y, Math.round(cs * 0.76), cs);
                     continue;
                 }
                 if (x + cs < 0 || x > ctx.canvas.width  + cs) continue;
@@ -440,23 +534,30 @@ Object.assign(InnerMapRenderer, {
                 if (!img) continue;
                 // (a sheet repainted at more than 32px a cell is drawn smooth: ui/sheetScale.js)
                 const k = this._sheetScale ? this._sheetScale(img) : 1;
-                ctx.imageSmoothingEnabled = k > 1;
+                dc.imageSmoothingEnabled = k > 1;
                 // (a part wider or taller than a cell, an awning across a doorway, draws to its size)
                 const sw = cell.sw || 32, sh = cell.sh || 32;
-                ctx.drawImage(img,
+                dc.drawImage(img,
                     cell.sx * k, cell.sy * k, sw * k, sh * k,
                     x, y, sw === 32 ? cs : Math.round(cs * sw / 32), sh === 32 ? cs : Math.round(cs * sh / 32));
                 // (and its windows are empty holes, the glass and shutters gone)
                 if (shell && /\/Windows\//i.test(cell.sheetPath || '')) {
                     const w = sw === 32 ? cs : Math.round(cs * sw / 32), h = sh === 32 ? cs : Math.round(cs * sh / 32);
-                    ctx.fillStyle = 'rgb(14, 11, 9)';
-                    ctx.fillRect(x + Math.round(w * 0.28), y + Math.round(h * 0.28), Math.round(w * 0.44), Math.round(h * 0.44));
+                    dc.fillStyle = 'rgb(14, 11, 9)';
+                    dc.fillRect(x + Math.round(w * 0.28), y + Math.round(h * 0.28), Math.round(w * 0.44), Math.round(h * 0.44));
                 }
             }
         }
-        if (sooty) ctx.restore();
-        if (worn) {
+        if (layer) {
+            // (the scratch canvas through the filter, on the same device pixels it was drawn for)
+            ctx.save();
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.filter = filter;
+            ctx.imageSmoothingEnabled = false;
+            ctx.drawImage(layer.canvas, 0, 0, layer.w, layer.h, layer.x, layer.y, layer.w, layer.h);
             ctx.restore();
+        } else if (filter) ctx.restore();
+        if (worn) {
             BuildingWear.grimeOn(ctx, def, ax, ay, ds, cs, worn);
             BuildingWear.mossOn(ctx, def, ax, ay, ds, worn, `${anchorQ},${anchorR}`, wornRoof ? sagOf : null);
         }

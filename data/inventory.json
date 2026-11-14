@@ -9,7 +9,7 @@
         { "id": "tools", "label": "Tools & gear", "icon": "🔧",
           "items": ["tools", "steel_tools", "fishing_spear", "fishing_net", "whetstone", "compass", "lantern", "candles", "barrel", "handcart", "saddle", "treasure_map", "book", "rare_book"] },
         { "id": "arms", "label": "Arms & armour", "icon": "⚔️",
-          "items": ["weapons", "leather_armor", "shield", "bow", "arrows", "bolts", "crossbow", "spear", "steel_sword", "chainmail", "plate_armor", "helmet"] },
+          "items": ["weapons", "leather_armor", "shield", "bow", "arrows", "bolts", "crossbow", "spear", "steel_sword", "chainmail", "plate_armor", "helmet", "padded_chausses", "leather_leggings", "mail_chausses", "plate_greaves", "sabatons", "leather_gloves", "gauntlets"] },
         { "id": "clothing", "label": "Clothing", "icon": "👕",
           "items": ["clothes", "boots", "wool_cloak", "fur_coat", "fine_garments"] },
         { "id": "physic", "label": "Physic", "icon": "🌿",

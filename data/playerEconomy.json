@@ -881,7 +881,14 @@
         "LEATHER_CAP": { "id": "leather_cap", "name": "Leather Cap", "icon": "⛑️", "basePrice": 45, "description": "A cap of boiled leather." },
         "STEEL_HELM": { "id": "steel_helm", "name": "Steel Bascinet", "icon": "⛑️", "basePrice": 160, "description": "A close steel helm with a padded lining." },
         "GAMBESON": { "id": "gambeson", "name": "Gambeson", "icon": "🧥", "basePrice": 40, "description": "A quilted coat of cloth and wool: the poor man's armour, and worn under mail." },
-        "BRIGANDINE": { "id": "brigandine", "name": "Brigandine", "icon": "🥋", "basePrice": 240, "description": "Steel plates riveted inside a cloth coat." }
+        "BRIGANDINE": { "id": "brigandine", "name": "Brigandine", "icon": "🥋", "basePrice": 240, "description": "Steel plates riveted inside a cloth coat." },
+        "PADDED_CHAUSSES": { "id": "padded_chausses", "name": "Padded Chausses", "icon": "🦵", "basePrice": 30, "description": "Quilted cloth leggings: the gambeson's match for the legs, and worn under mail." },
+        "LEATHER_LEGGINGS": { "id": "leather_leggings", "name": "Leather Leggings", "icon": "🦵", "basePrice": 50, "description": "Boiled-leather thigh and shin guards laced over the hose." },
+        "MAIL_CHAUSSES": { "id": "mail_chausses", "name": "Mail Chausses", "icon": "⛓️", "basePrice": 110, "description": "Riveted mail leggings tied up to the belt: they turn a cut at the knee." },
+        "PLATE_GREAVES": { "id": "plate_greaves", "name": "Steel Cuisses & Greaves", "icon": "🦿", "basePrice": 165, "description": "Fitted steel plate for the thigh, knee and shin." },
+        "SABATONS": { "id": "sabatons", "name": "Steel Sabatons", "icon": "🥾", "basePrice": 140, "description": "Laminated steel shoes over a leather sole." },
+        "LEATHER_GLOVES": { "id": "leather_gloves", "name": "Leather Gloves", "icon": "🧤", "basePrice": 24, "description": "Stout leather gloves: a grip that will not slip, and knuckles that keep their skin." },
+        "GAUNTLETS": { "id": "gauntlets", "name": "Steel Gauntlets", "icon": "🧤", "basePrice": 145, "description": "Steel plates over the back of the hand and fingers, on a leather glove." }
     },
     "RECIPES": {
         "FIREWOOD": { "id": "firewood", "name": "Split Firewood", "input": "wood", "inputQty": 2, "output": "firewood", "outputQty": 5, "description": "Prepare fuel for heating." },

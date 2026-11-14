@@ -11,6 +11,13 @@
 // drag slot to slot to swap, ✕ or right-click to empty one. The layout is the
 // player's and is saved with them (player/hotbarLayout.js).
 //
+// Above the packs, the Kit: what is worn in each slot (head, body, hands,
+// legs, feet, main and off hand — systems/arms.js) with its grade, soundness
+// and edge, and the harness's totals (what it stops, its weight and the
+// breath that costs in a fight). Picking a slot lists the pieces carried that
+// fit it, best first, and "Nothing"; picking one takes it up (a two-hander
+// leaves no hand for a shield).
+//
 // What is listed and how it is filtered and sorted: ui/inventoryView.js (pure).
 
 import { UI } from './core.js';
@@ -108,6 +115,9 @@ export function inventoryPanelHtml(game, st = {}) {
         })))}</details>`;
     }
 
+    // ── The kit worn ──
+    html += kitHtml(player, st);
+
     // ── The hotbar ──
     html += hotbarStripHtml(player);
 
@@ -161,6 +171,95 @@ export function inventoryGridHtml(game, list, st = {}, total = list.length) {
             + `</button>`;
     });
     return `<div class="inv-grid">${tiles.join('')}</div>`;
+}
+
+/** The kit's slots in the order a figure is read: head to foot, then the hands' arms. */
+export const KIT_ORDER = ['head', 'body', 'hands', 'legs', 'feet', 'main', 'off'];
+
+const _pct = (v) => `${Math.round((Number(v) || 0) * 100)}%`;
+
+/** A piece's one line: what it does, and its weight. */
+function _kitStat(s) {
+    if (!s) return '';
+    const parts = [];
+    if (s.slot === 'main') {
+        if (s.melee) parts.push(`⚔️ ${s.dmg.toFixed(1)} ${s.dtype || ''}`.trim(), `reach ${s.reach}`);
+        else parts.push('missile weapon');
+        if (s.hands >= 2) parts.push('two hands');
+    } else if (s.slot === 'off') parts.push(`🛡️ guard +${s.block.toFixed(1)}`, `covers ${_pct(s.cover)}`);
+    else parts.push(`stops ${_pct(s.prot)}`);
+    parts.push(`${s.weight} kg`);
+    return parts.join(' · ');
+}
+
+function _gradeTag(g) {
+    const gr = Grades.get(g);
+    return gr && gr.id !== 'common' ? ` <span style="color:${gr.color}">${gr.icon} ${esc(gr.name)}</span>` : '';
+}
+
+/**
+ * The Kit: a tile a slot (what is worn, its grade, soundness and edge), the
+ * harness's totals, and — for the slot picked (st.kitSlot) — the pieces
+ * carried that fit it, best first, with "Nothing". Exported for the render test.
+ */
+export function kitHtml(player, st = {}) {
+    const lo = Arms.loadout(player);
+    const gear = Arms.personal(player);
+    const D = Arms.config().duel || {};
+    const over = Math.max(0, gear.weight - (Number(D.freeKg) || 0));
+    const breath = Math.round(over * (Number(D.staminaPerKg) || 0));
+    const twoHander = lo.main && lo.main.stats.hands >= 2 ? lo.main : null;
+    const tiles = KIT_ORDER.map(slot => {
+        const def = Arms.config().slots[slot] || { label: slot, icon: '⚔️' };
+        const p = lo[slot];
+        const on = st.kitSlot === slot;
+        let what;
+        if (p) {
+            const worn = p.cond < 50 || (p.stats.edge != null && p.edge < 50);
+            what = `<span class="inv-kit-ico">${itemIcon(p.id, esc(Arms.iconOf(p.id)), 24)}</span>`
+                + `<span class="inv-kit-txt"><span class="inv-kit-name">${esc(p.stats.name)}${_gradeTag(p.grade)}</span>`
+                + `<span class="inv-kit-cond${worn ? ' inv-kit-worn' : ''}">${Math.round(p.cond)}% sound${p.stats.edge != null ? ` · ${Math.round(p.edge)}% edge` : ''}</span></span>`;
+        } else {
+            const none = slot === 'off' && twoHander ? `Both hands on the ${esc(twoHander.stats.name.toLowerCase())}` : (slot === 'main' ? 'Bare hands' : 'Nothing');
+            what = `<span class="inv-kit-ico inv-kit-empty">${def.icon}</span><span class="inv-kit-txt"><span class="inv-kit-name inv-kit-none">${none}</span></span>`;
+        }
+        const n = Arms.candidates(player, slot).length;
+        const tip = `${def.label}: ${p ? p.stats.name : 'nothing worn'} — ${n ? `${n} kind${n > 1 ? 's' : ''} carried that fit; click to change` : 'you carry nothing that fits'}`;
+        return `<button type="button" class="inv-kit-slot${on ? ' active' : ''}${p ? '' : ' bare'}" data-ui-act="invKitSlot" data-ui-args="${_args([slot])}" data-kit-slot="${esc(slot)}" title="${esc(tip)}">`
+            + `<span class="inv-kit-label">${def.icon} ${esc(def.label)}</span>${what}</button>`;
+    }).join('');
+    const free = Number(D.freeKg) || 0;
+    const totals = `<span title="The share of a blow your armour stops (all the pieces together)">🧥 Stops <b>${_pct(gear.armour)}</b></span>`
+        + `<span title="By the blow: cut, point, blunt">cut <b>${_pct(gear.armourVs.cut)}</b> · point <b>${_pct(gear.armourVs.pierce)}</b> · blunt <b>${_pct(gear.armourVs.blunt)}</b></span>`
+        + `<span title="All you wield and wear. Over ${free} kg it costs breath in a fight">⚖️ <b>${gear.weight} kg</b>${breath > 0 ? ` <span class="inv-kit-worn">(−${breath} breath)</span>` : ''}</span>`;
+    let pick = '';
+    const slot = KIT_ORDER.includes(st.kitSlot) ? st.kitSlot : null;
+    if (slot) {
+        const def = Arms.config().slots[slot] || { label: slot, icon: '⚔️' };
+        const p = lo[slot];
+        const blocked = slot === 'off' && twoHander ? `Your ${esc(twoHander.stats.name.toLowerCase())} takes both hands: wield a one-handed weapon first.` : '';
+        const rows = Arms.candidates(player, slot).map(c => {
+            const s = Arms.stats(c.id, c.grade);
+            const here = !!p && p.id === c.id;
+            const lost = slot === 'main' && s.hands >= 2 && lo.off ? ` · the ${esc(lo.off.stats.name.toLowerCase())} goes on your back` : '';
+            return {
+                icon: itemIcon(c.id, esc(Arms.iconOf(c.id)), 20),
+                name: `${esc(s.name)}${_gradeTag(c.grade)}${c.count > 1 ? ` <span class="inv-kit-count">×${c.count}</span>` : ''}`,
+                desc: esc(_kitStat(s)) + lost,
+                side: here ? 'worn' : '', tone: here ? 'good' : null,
+                off: !here && !!blocked, why: blocked,
+                attrs: here ? '' : `data-ui-act="invKitEquip" data-ui-args="${_args([slot, c.id])}"`,
+            };
+        });
+        if (!rows.length) rows.push({ icon: '⚒️', name: 'You carry nothing for it', desc: 'Forge it at an anvil, buy it at a market, or order it from a town&#39;s armourer.' });
+        const bare = slot === 'main' ? 'Bare hands' : 'Nothing';
+        rows.push(p
+            ? { icon: '🎒', name: bare, desc: 'Put it back in the packs and leave the slot empty', attrs: `data-ui-act="invKitEquip" data-ui-args="${_args([slot, null])}"` }
+            : { icon: '🎒', name: bare, desc: 'Nothing worn here', side: 'now', tone: 'good' });
+        pick = `<div class="inv-kit-pick">${rowList(rows, `${def.icon} ${esc(def.label)} — what you could wear`)}</div>`;
+    }
+    return `<details class="inv-kit" open><summary>🛡️ Kit <small>${_pct(gear.armour)} stopped · ${gear.weight} kg</small></summary>`
+        + `<div class="inv-kit-grid">${tiles}</div><div class="inv-kit-totals">${totals}</div>${pick}</details>`;
 }
 
 /** The hotbar's slots, for dropping goods on, dragging between and clearing. */
@@ -236,9 +335,13 @@ export function itemDetailHtml(game, e, st = {}) {
     if (isArms) {
         const def = Arms.item(id) || {};
         const slotLabel = ((Arms.config().slots[def.slot] || {}).label || '').toLowerCase();
+        const cur = worn ? null : Arms.equipped(player, def.slot);
+        const main = def.slot === 'off' ? Arms.equipped(player, 'main') : null;
+        const blocked = main && main.stats.hands >= 2 ? `Your ${esc(main.stats.name.toLowerCase())} takes both hands` : '';
+        const verb = def.slot === 'main' || def.slot === 'off' ? 'Equip' : 'Wear';
         rows.push(worn
-            ? { icon: '🎒', name: 'Put away', desc: `Worn (${esc(slotLabel)}): back into the packs`, attrs: `data-ui-act="equipArms" data-ui-args="${_args([id])}"` }
-            : { icon: def.slot === 'main' ? '✋' : '🧥', name: def.slot === 'main' ? 'Wield' : 'Wear', desc: `Take it up (${esc(slotLabel)})`, attrs: `data-ui-act="equipArms" data-ui-args="${_args([id])}"` });
+            ? { icon: '🎒', name: 'Unequip', desc: `Worn (${esc(slotLabel)}): back into the packs`, attrs: `data-ui-act="equipArms" data-ui-args="${_args([id])}"` }
+            : { icon: def.slot === 'main' ? '✋' : '🧥', name: verb, desc: `Take it up (${esc(slotLabel)})${cur ? ` in place of the ${esc(cur.stats.name.toLowerCase())}` : ''}`, off: !!blocked, why: blocked, attrs: `data-ui-act="equipArms" data-ui-args="${_args([id])}"` });
     }
     if (info && info.prestige > 0) {
         rows.push(player.house
@@ -319,6 +422,25 @@ Object.assign(UI.prototype, {
     /** Redraw the Inventory window if it is the one up (the hotbar changed under it). */
     refreshInventoryPanel() {
         if (_inventoryOpen()) this.showInventoryPanel();
+    },
+
+    /** Open (or close) a kit slot's list of the pieces that fit it. */
+    invKitSlot(slot) {
+        const st = this._invState || (this._invState = {});
+        st.kitSlot = st.kitSlot === slot ? null : slot;
+        this.showInventoryPanel();
+    },
+
+    /** Take up `itemId` in `slot` from the kit's list, or (null) leave the slot empty. */
+    invKitEquip(slot, itemId = null) {
+        const player = this.game.player;
+        const r = itemId ? Arms.equip(player, itemId) : Arms.unequip(player, slot);
+        const def = Arms.config().slots[slot] || {};
+        this.showNotification(`${def.icon || '⚔️'} ${def.label || 'Kit'}`, r.success ? r.text : (r.reason || 'Not possible.'), r.success ? 'success' : 'error');
+        if (r.success && this._invState) this._invState.kitSlot = null;
+        this.updateStats(player, this.game.world);
+        Hotbar.refresh();
+        this.showInventoryPanel();
     },
 
     invSelect(itemId) {

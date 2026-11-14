@@ -13,8 +13,11 @@
 // so past its edges, so what spills over from its neighbours (kerbs, tufts, tall
 // shore decals) lies in it as it would on the screen. Every frame each chunk on
 // screen checks the cells it reads (what explored / visible / paved / laned …
-// them) and is redrawn when one has changed. While the zoom glides, inside a
-// building, or where there is no DOM, the layers draw directly as before.
+// them) and is redrawn when one has changed. While the zoom glides the chunks
+// of the size it left are scaled to each frame's; once it settles they are
+// drawn at the new size a few milliseconds a frame, the old ones (scaled)
+// standing in till they are all done. Inside a building, or where there is no
+// DOM, the layers draw directly as before.
 
 import { InnerMapRenderer } from '../innerMapRenderer.js';
 import { InnerMap } from '../../world/innerMap.js';
@@ -62,6 +65,8 @@ function cellChanged(sig, i, t) {
 
 Object.assign(InnerMapRenderer, {
     _groundCache: null,
+    // (the chunks at the zoom before, scaled to stand in while the new size is drawn)
+    _groundCachePrev: null,
     // (set true to draw the ground cell by cell every frame, as before)
     _groundCacheOff: false,
 
@@ -98,50 +103,108 @@ Object.assign(InnerMapRenderer, {
         if (InnerMap._insideBuilding || !InnerMap.tiles || !InnerMap.tiles.length) return false;
         if (!ctx || !(ctx.canvas instanceof HTMLCanvasElement) || !camera) return false;
         if (camera.worldPixelWidth > 0) return false;
-        // (while the zoom glides every frame is a new size: draw directly till it settles)
-        const z = camera.zoom, tz = Number.isFinite(camera.targetZoom) ? camera.targetZoom : z;
-        return z > 0 && Math.abs(z - tz) <= tz * 1e-4;
+        return camera.zoom > 0;
     },
 
     _renderGroundCached(ctx, camera) {
         const T = this.TILE_SIZE;
-        const zoom = Number.isFinite(camera.targetZoom) ? camera.targetZoom : camera.zoom;
+        const z = camera.zoom, tz = Number.isFinite(camera.targetZoom) ? camera.targetZoom : z;
+        const gliding = Math.abs(z - tz) > tz * 1e-4;
         const k = (ctx.canvas && ctx.canvas.pixelRatio) || 1;
-        const ds = T * zoom;
-        const n = Math.max(4, Math.min(16, Math.floor(CHUNK_PX / (ds * k))));
         const mapH = InnerMap.tiles.length, mapW = InnerMap.tiles[0].length;
 
-        // Anything the whole ground hangs on: a change starts the cache afresh
+        // Anything the whole ground hangs on (but the size): a change starts the cache afresh
         const terrainKey = this._seasonKey('terrain');
         const cliffKey = this._seasonKey('cliff');
         // (and the day's season on the ground: world/innerMap/streetSeasons.js)
-        const key = [zoom, k, n, terrainKey, cliffKey, (InnerMap.roads || []).length, InnerMap._ssKey || ''].join('|');
+        const base = [k, terrainKey, cliffKey, (InnerMap.roads || []).length, InnerMap._ssKey || ''].join('|');
         let gc = this._groundCache;
-        if (!gc || gc.key !== key || gc.tiles !== InnerMap.tiles || gc.roads !== InnerMap.roads
-            || gc.fills !== this._terrainFills || gc.sheet !== this._sheets.get(terrainKey)
-            || gc.cliff !== this._sheets.get(cliffKey)) {
+        const sameGround = gc && gc.base === base && gc.tiles === InnerMap.tiles && gc.roads === InnerMap.roads
+            && gc.fills === this._terrainFills && gc.sheet === this._sheets.get(terrainKey)
+            && gc.cliff === this._sheets.get(cliffKey);
+        // While the zoom glides the chunks stay at the size they were drawn at, scaled to the frame
+        const zoom = sameGround && gliding ? gc.zoom : tz;
+        if (!sameGround || gc.zoom !== zoom) {
             const pool = gc ? gc.pool : [];
-            if (gc) for (const c of gc.chunks.values()) if (c.canvas && pool.length < POOL) pool.push(c.canvas);
+            const keepPrev = sameGround && gc;
+            // (the old size's chunks stand in while the new ones are drawn; any older let go)
+            this._releaseGroundCache(this._groundCachePrev, pool);
+            this._groundCachePrev = null;
+            if (keepPrev) this._groundCachePrev = gc;
+            else this._releaseGroundCache(gc, pool);
+            const ds0 = T * zoom;
             gc = this._groundCache = {
-                key, tiles: InnerMap.tiles, roads: InnerMap.roads, fills: this._terrainFills,
+                base, zoom, k, ds: ds0, n: Math.max(4, Math.min(16, Math.floor(CHUNK_PX / (ds0 * k)))),
+                tiles: InnerMap.tiles, roads: InnerMap.roads, fills: this._terrainFills,
                 sheet: this._sheets.get(terrainKey), cliff: this._sheets.get(cliffKey),
                 chunks: new Map(), pool, frame: 0,
             };
         }
         gc.frame++;
+        const now = performance.now();
+        const t0 = Math.min(now, this._frameT0 || now);
+        const { onScreen, pending } = this._groundChunksOnScreen(gc, camera, mapW, mapH, now, t0);
+        if (!pending) {
+            this._blitGround(ctx, camera, gc, onScreen, k);
+            // (all at the new size now: the old ones go back to the pool)
+            if (this._groundCachePrev && !gliding) {
+                this._releaseGroundCache(this._groundCachePrev, gc.pool);
+                this._groundCachePrev = null;
+            }
+        } else {
+            // Not all drawn yet: the old size's chunks, scaled, under those that are — else directly
+            const prev = this._groundCachePrev;
+            const pr = prev ? this._groundChunksOnScreen(prev, camera, mapW, mapH, now, Infinity, true) : null;
+            if (pr && !pr.pending) {
+                this._blitGround(ctx, camera, prev, pr.onScreen, k);
+                this._blitGround(ctx, camera, gc, onScreen.filter(ch => ch.canvas && !ch.dirty), k);
+            } else {
+                this._renderGroundDirect(ctx, camera);
+            }
+        }
 
+        // Chunks off screen a while go back to the pool
+        if (gc.frame % 30 === 0) {
+            for (const [id, ch] of gc.chunks) {
+                if (gc.frame - ch.used <= STALE_FRAMES) continue;
+                if (ch.canvas && gc.pool.length < POOL) gc.pool.push(ch.canvas);
+                gc.chunks.delete(id);
+            }
+        }
+    },
+
+    /** Let a cache's canvases go back to the pool. */
+    _releaseGroundCache(gc, pool) {
+        if (!gc) return;
+        for (const c of gc.chunks.values()) if (c.canvas && pool.length < POOL) pool.push(c.canvas);
+        gc.chunks.clear();
+    },
+
+    /**
+     * A cache's chunks over the frame's view, each checked against its cells (a change
+     * marks it dirty till drawn) and the dirty ones drawn while the frame's budget (from
+     * t0) lasts. `look` only: nothing checked or drawn, only whether all are ready.
+     * → { onScreen, pending }
+     */
+    _groundChunksOnScreen(gc, camera, mapW, mapH, now, t0, look = false) {
+        const T = this.TILE_SIZE;
+        const n = gc.n;
         const { qMin, qMax, rMin, rMax } = this._frameRange;
         const cq0 = Math.floor(qMin / n), cq1 = Math.floor(qMax / n);
         const cr0 = Math.floor(rMin / n), cr1 = Math.floor(rMax / n);
-        const now = performance.now();
-        // The chunks on screen, each checked against its cells (a change marks it dirty till drawn)
         const onScreen = [];
+        let pending = 0;
         for (let cr = cr0; cr <= cr1; cr++) {
             for (let cq = cq0; cq <= cq1; cq++) {
                 const q0 = cq * n, r0 = cr * n;
                 if (q0 >= mapW || r0 >= mapH) continue;
                 const id = cq + ',' + cr;
                 let ch = gc.chunks.get(id);
+                if (look) {
+                    if (!ch || !ch.canvas) pending++;
+                    else onScreen.push(ch);
+                    continue;
+                }
                 if (!ch) {
                     ch = { canvas: null, sig: [], missAt: 0, used: 0, dirty: true, q0, r0 };
                     gc.chunks.set(id, ch);
@@ -154,40 +217,39 @@ Object.assign(InnerMapRenderer, {
                 onScreen.push(ch);
             }
         }
+        if (look) return { onScreen, pending };
         // Draw the dirty ones, a few milliseconds' worth a frame (entering a town or a new zoom
         // needs them all: spread over a few frames rather than one long stall)
-        let pending = 0;
         for (const ch of onScreen) {
             if (!ch.dirty && ch.canvas) continue;
-            if (performance.now() - now > BUILD_BUDGET_MS) { pending++; continue; }
+            if (performance.now() - t0 > BUILD_BUDGET_MS) { pending++; continue; }
             const at = camera.worldToScreenFast(ch.q0 * T, ch.r0 * T);
-            this._drawGroundChunk(gc, ch, ch.q0, ch.r0, n, ds, zoom, k, at.x, at.y);
+            this._drawGroundChunk(gc, ch, ch.q0, ch.r0, n, gc.ds, gc.zoom, gc.k, at.x, at.y);
             ch.dirty = false;
         }
-        if (pending) {
-            // (not all ready yet: this frame's ground drawn directly, the rest of the chunks next frame)
-            this._renderGroundDirect(ctx, camera);
-        } else {
-            const smooth = ctx.imageSmoothingEnabled;
-            ctx.imageSmoothingEnabled = false;
-            for (const ch of onScreen) {
-                // the chunk's corner where its first cell would be drawn (floored, as the layers place
-                // a cell), on a whole device pixel: its pixels 1:1 on the screen's (_drawGroundChunk)
-                const p = camera.worldToScreenFast(ch.q0 * T, ch.r0 * T);
+        return { onScreen, pending };
+    },
+
+    /** Blit chunks: 1:1 on whole device pixels at their own size, else scaled to the frame's zoom. */
+    _blitGround(ctx, camera, gc, chunks, k) {
+        const T = this.TILE_SIZE;
+        const s = camera.zoom / gc.zoom;
+        const exact = Math.abs(s - 1) < 1e-6;
+        const smooth = ctx.imageSmoothingEnabled;
+        ctx.imageSmoothingEnabled = false;
+        for (const ch of chunks) {
+            if (!ch.canvas) continue;
+            // the chunk's corner where its first cell would be drawn (floored, as the layers place
+            // a cell), on a whole device pixel: its pixels 1:1 on the screen's (_drawGroundChunk)
+            const p = camera.worldToScreenFast(ch.q0 * T, ch.r0 * T);
+            if (exact) {
                 const X = Math.floor(Math.floor(p.x) * k), Y = Math.floor(Math.floor(p.y) * k);
                 ctx.drawImage(ch.canvas, X / k, Y / k, ch.canvas.width / k, ch.canvas.height / k);
-            }
-            ctx.imageSmoothingEnabled = smooth;
-        }
-
-        // Chunks off screen a while go back to the pool
-        if (gc.frame % 30 === 0) {
-            for (const [id, ch] of gc.chunks) {
-                if (gc.frame - ch.used <= STALE_FRAMES) continue;
-                if (ch.canvas && gc.pool.length < POOL) gc.pool.push(ch.canvas);
-                gc.chunks.delete(id);
+            } else {
+                ctx.drawImage(ch.canvas, p.x, p.y, (ch.canvas.width / k) * s, (ch.canvas.height / k) * s);
             }
         }
+        ctx.imageSmoothingEnabled = smooth;
     },
 
     /**

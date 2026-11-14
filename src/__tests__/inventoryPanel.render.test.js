@@ -93,7 +93,7 @@ describe('the Inventory window', () => {
         ui.invSelect('iron_sword');
         const sword = last();
         expect(sword).toContain('data-ui-act="equipArms"');
-        expect(sword).toMatch(Arms.isEquipped(game.player, 'iron_sword') ? /Put away/ : /Wield/);
+        expect(sword).toMatch(Arms.isEquipped(game.player, 'iron_sword') ? />Unequip</ : />Equip</);
     });
 
     it('eats, wields and puts away from the card', () => {
@@ -102,7 +102,7 @@ describe('the Inventory window', () => {
         const wasWorn = Arms.isEquipped(game.player, 'iron_sword');
         ui.equipArms('iron_sword'); // (still the picked good: its card redraws)
         expect(Arms.isEquipped(game.player, 'iron_sword')).toBe(!wasWorn);
-        expect(last()).toMatch(wasWorn ? /Wield/ : /Put away/);
+        expect(last()).toMatch(wasWorn ? />Equip</ : />Unequip</);
         ui.invSelect('iron_sword'); // a second click on the picked tile unpicks it
         expect(last()).toMatch(/inv-detail-empty/);
         ui.invSelect('iron_sword');

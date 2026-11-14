@@ -6584,6 +6584,35 @@ body #customPanel.custom-panel--hub { width: min(760px, calc(94vw / var(--ui-zoo
 #customPanel .inv-heirlooms > summary { cursor: pointer; font-size: 12px; color: rgba(245, 197, 66, 0.85); letter-spacing: 0.5px; padding: 2px 0 4px; }
 #customPanel .inv-heirlooms > summary small { color: #9d937c; }
 
+/* The kit worn (ui/ui/inventoryPanel.js kitHtml): a tile a slot, the harness's totals, the picked slot's pieces */
+#customPanel .inv-kit { margin: 0 0 10px; padding: 6px 10px 8px; border: 1px solid rgba(245, 197, 66, 0.12); border-radius: 8px; background: rgba(0, 0, 0, 0.18); }
+#customPanel .inv-kit > summary { cursor: pointer; font-size: 12px; color: rgba(245, 197, 66, 0.85); letter-spacing: 0.5px; padding: 2px 0 6px; }
+#customPanel .inv-kit > summary small { color: #9d937c; margin-left: 4px; }
+#customPanel .inv-kit-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
+#customPanel .custom-panel-body button.inv-kit-slot {
+    display: grid; grid-template-columns: 28px minmax(0, 1fr); grid-template-rows: auto auto; column-gap: 6px; align-items: center;
+    margin: 0; padding: 5px 8px 6px; min-height: 52px; text-align: left; cursor: pointer;
+    border: 1px solid rgba(245, 197, 66, 0.16); border-radius: 8px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.012));
+    color: inherit; font-family: var(--font-body);
+}
+#customPanel .custom-panel-body button.inv-kit-slot:hover { background: rgba(245, 197, 66, 0.08); border-color: rgba(245, 197, 66, 0.35); filter: none; }
+#customPanel .custom-panel-body button.inv-kit-slot.active { border-color: var(--gold); background: rgba(245, 197, 66, 0.13); box-shadow: inset 0 0 0 1px rgba(245, 197, 66, 0.35); }
+#customPanel .custom-panel-body button.inv-kit-slot.bare { border-style: dashed; }
+#customPanel .inv-kit-label { grid-column: 1 / -1; font-size: 9.5px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: rgba(245, 197, 66, 0.7); margin-bottom: 2px; pointer-events: none; }
+#customPanel .inv-kit-ico { font-size: 20px; line-height: 24px; width: 28px; text-align: center; pointer-events: none; }
+#customPanel .inv-kit-ico.inv-kit-empty { opacity: 0.35; filter: grayscale(1); }
+#customPanel .inv-kit-txt { display: flex; flex-direction: column; min-width: 0; pointer-events: none; }
+#customPanel .inv-kit-name { font-size: 12px; color: #ece2c8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#customPanel .inv-kit-name.inv-kit-none { color: #9d937c; font-style: italic; white-space: normal; }
+#customPanel .inv-kit-cond { font-size: 10.5px; color: #9d937c; }
+#customPanel .inv-kit-worn { color: #e6a05a; }
+#customPanel .inv-kit-count { font-weight: normal; color: #9d937c; }
+#customPanel .inv-kit-totals { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 7px; font-size: 11.5px; color: #9d937c; }
+#customPanel .inv-kit-totals b { color: #ece2c8; font-weight: 600; }
+#customPanel .inv-kit-pick { margin-top: 6px; }
+#customPanel .inv-kit-pick .pk-rows { margin-bottom: 0; }
+
 /* The hotbar strip */
 #customPanel .inv-hb { margin: 0 0 10px; padding: 8px 10px 10px; border: 1px solid rgba(245, 197, 66, 0.12); border-radius: 8px; background: rgba(0, 0, 0, 0.18); }
 #customPanel .inv-hb-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }

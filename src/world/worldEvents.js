@@ -234,7 +234,9 @@ export const WorldEvents = {
                     if (settlement) {
                         const tile = world.getTile(settlement.q, settlement.r);
                         if (tile && tile.settlement) {
-                            tile.settlement.population = Math.floor(tile.settlement.population * 0.9);
+                            // (the fighting's dead: a tenth of the town every time, at a rebellion
+                            // every few weeks somewhere, bled the realms white over a long game)
+                            tile.settlement.population = Math.floor(tile.settlement.population * 0.97);
                             WorldEvents._nudgeStability(kingdom, -8);
                             return {
                                 category: WorldEvents.CATEGORIES.POLITICAL,
@@ -453,8 +455,12 @@ export const WorldEvents = {
                     if (settlement) {
                         const tile = world.getTile(settlement.q, settlement.r);
                         if (tile && tile.settlement) {
-                            tile.settlement.population = Math.floor(tile.settlement.population * 0.7);
-                            kingdom.population = Math.floor(kingdom.population * 0.9);
+                            // A sickness passing through, not the Plague: the great plague is the real
+                            // outbreak among the townsfolk (systems/illness.js, systems/plague.js,
+                            // the age's crisis) — a flat third of the town on top of it emptied the
+                            // realms over a long game
+                            tile.settlement.population = Math.floor(tile.settlement.population * 0.92);
+                            kingdom.population = Math.floor(kingdom.population * 0.97);
                             return {
                                 category: WorldEvents.CATEGORIES.NATURAL,
                                 text: `${kingdom.name}: Plague strikes ${settlement.name}! Population devastated.`,

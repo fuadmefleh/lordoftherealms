@@ -163,7 +163,7 @@ export function randomAppearance(gender, rand = Math.random, year = null, eraDat
 
 /**
  * The arms the player has on (systems/arms.js player.equipment), as a kit
- * for Arms.lookLayers: { main, off, head, body } item ids, or null when
+ * for Arms.lookLayers: { main, off, head, body, legs, feet, hands } item ids, or null when
  * nothing is worn. Reads only: pieces no longer in the packs are left off.
  */
 export function gearKit(player) {

@@ -46,6 +46,23 @@ export function modernBaseWidth(src, gamedata) {
  * @param {object} [gamedata]               DataLoader._gamedata
  * @param {function} [onError]
  */
+// Sheets of this many pixels or more are uploaded to the graphics card as they load
+const WARM_PX = 2e6;
+let _warm = null;
+/** Draw a pixel of a big sheet into a scratch canvas: the browser uploads it now, not at its first use. */
+export function warmSheet(img) {
+    try {
+        const w = img && (img.naturalWidth || img.width), h = img && (img.naturalHeight || img.height);
+        if (!(w * h >= WARM_PX) || typeof document === 'undefined') return;
+        if (!_warm) {
+            const c = document.createElement('canvas');
+            c.width = 1; c.height = 1;
+            _warm = c.getContext('2d');
+        }
+        if (_warm) _warm.drawImage(img, 0, 0, 1, 1, 0, 0, 1, 1);
+    } catch { /* (no canvas here: nothing to warm) */ }
+}
+
 export function loadSheetInto(img, path, gamedata, onError) {
     const modern = modernSheet(path, gamedata);
     const fail = () => { if (onError) onError(); };
@@ -56,6 +73,18 @@ export function loadSheetInto(img, path, gamedata, onError) {
             console.warn(`[sheets] repaint missing, using the original: ${modern}`);
             img.onerror = fail;
             img.src = CustomSheets.resolve(path);
+        };
+    }
+    // A repainted sheet runs to millions of pixels (a door sheet 3584x4096), and the first
+    // draw from it uploads the whole of it to the graphics card: a fifth of a second, which
+    // left to the street map stalls the first frame a house with that door comes on screen.
+    // Decoded and drawn once as it loads instead, so the cost falls in the loading.
+    const loaded = img.onload;
+    if (typeof loaded === 'function' && typeof img.decode === 'function') {
+        img.onload = function (...a) {
+            img.onload = null;
+            const done = () => { warmSheet(img); loaded.apply(this, a); };
+            img.decode().then(done, done);
         };
     }
     img.src = CustomSheets.resolve(modern);

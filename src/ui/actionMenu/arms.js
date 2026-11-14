@@ -1,5 +1,5 @@
 // ActionMenu — Arms & Armour: what the player wields and wears (main hand,
-// off hand, head, body), its stats, grade, condition and edge; take up,
+// off hand, head, body, legs, feet, hands), its stats, grade, condition and edge; take up,
 // put away, sharpen and mend; and the troops' kits — arm them from your
 // stores or the town's armourers, mend them at the smithy
 // (systems/arms.js). Buttons route through data-am-act → ActionMenu.armsAct.

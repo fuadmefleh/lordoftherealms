@@ -10,14 +10,18 @@
 // at the anvil (data/crafting.json station `arms`), bought, looted, ordered
 // from a town smith (systems/commissions.js).
 //
-// The player's equipment: player.equipment = { main, off, head, body }, each
+// The player's equipment: player.equipment = { main, off, head, body, legs,
+// feet, hands }, each
 //   undefined — nothing chosen: the best piece carried for the slot is taken
 //               up (and recorded) the first time it is asked for;
 //   null      — deliberately empty (fists, no shield...);
 //   { id, cond, edge } — the piece worn: its condition and its edge (0..100).
 // The piece stays in the packs (sold, stolen or dropped, the slot empties);
 // a stack of several is worn at its best grade. A two-handed weapon leaves
-// no hand for a shield.
+// no hand for a shield. The armour slots (ARMOUR_SLOTS: head, body, legs,
+// feet, hands) each stop their share of a blow and add their weight; a save
+// from before the legs, feet and hands has them unset, so they take up the
+// best piece carried the first time they are asked for.
 //
 // Wear: a duel dulls the blade and dents the harness (wearFromDuel, from
 // Duels.result), harm on the road wears the armour (PlayerEffects.scaleDamage),
@@ -51,7 +55,12 @@ const _clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const _r2 = (v) => Math.round(v * 100) / 100;
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
 
-export const ARMS_SLOTS = ['main', 'off', 'head', 'body'];
+export const ARMS_SLOTS = ['main', 'off', 'head', 'body', 'legs', 'feet', 'hands'];
+/** The slots that are armour (they stop a share of each blow). */
+export const ARMOUR_SLOTS = ['head', 'body', 'legs', 'feet', 'hands'];
+/** How much of a knock each piece of armour takes, the body's being whole (road harm, a duel's blows). */
+const ARMOUR_WEAR_SHARE = { body: 1, head: 0.6, legs: 0.5, hands: 0.4, feet: 0.3 };
+const DUEL_WEAR_SHARE = { body: 1, head: 0.5, legs: 0.35, hands: 0.3, feet: 0.2 };
 
 const DEFAULT_WEAR = {
     edgePerBlow: 2.5, condPerBlow: 0.5, condPerHit: 1.2, sparShare: 0.25, guardPerBlock: 0.4,
@@ -80,6 +89,7 @@ function _withArticle(name) {
 
 export const Arms = {
     SLOTS: ARMS_SLOTS,
+    ARMOUR_SLOTS,
 
     // ── The catalogue ─────────────────────────────────
 
@@ -313,7 +323,7 @@ export const Arms = {
         return { id: e.id, grade, cond: _num(e.cond, 100), edge: _num(e.edge, 100), stats: Arms.stats(e.id, grade, e.cond, e.edge) };
     },
 
-    /** { main, off, head, body } as equipped() gives them. */
+    /** { main, off, head, body, legs, feet, hands } as equipped() gives them. */
     loadout(player) {
         const out = {};
         for (const s of ARMS_SLOTS) out[s] = Arms.equipped(player, s);
@@ -336,7 +346,7 @@ export const Arms = {
         eq[def.slot] = Arms._takeUp(player, eq, id);
         if (def.slot === 'main' && _num(def.hands, 1) >= 2) { Arms._stow(eq, eq.off); eq.off = null; }
         if (player.equipped && player.equipped.weapon && def.slot === 'main') player.equipped.weapon = id;
-        return { success: true, text: `You take up the ${Arms.nameOf(id).toLowerCase()}.` };
+        return { success: true, text: `${ARMOUR_SLOTS.includes(def.slot) ? 'You put on' : 'You take up'} the ${Arms.nameOf(id).toLowerCase()}.` };
     },
 
     /** Is this piece the one worn in its slot? */
@@ -397,7 +407,7 @@ export const Arms = {
         const w = lo.main && lo.main.stats.melee ? lo.main : null;
         const keep = { all: 1, cut: 1, pierce: 1, blunt: 1 };
         let weight = 0;
-        for (const slot of ['head', 'body']) {
+        for (const slot of ARMOUR_SLOTS) {
             const p = lo[slot];
             if (!p) continue;
             weight += p.stats.weight;
@@ -431,7 +441,7 @@ export const Arms = {
     harmMultiplier(player) {
         let mult = 1;
         const lo = Arms.loadout(player);
-        for (const slot of ['head', 'body']) if (lo[slot]) mult *= 1 - Math.min(0.45, lo[slot].stats.prot);
+        for (const slot of ARMOUR_SLOTS) if (lo[slot]) mult *= 1 - Math.min(0.45, lo[slot].stats.prot);
         if (lo.off) mult *= 1 - Math.min(0.45, lo.off.stats.cover);
         return mult;
     },
@@ -466,8 +476,8 @@ export const Arms = {
         const pts = Math.max(0, _num(harm)) * W.perHarm;
         if (!(pts > 0)) return [];
         const broke = [];
-        for (const slot of ['body', 'head', 'off']) {
-            const r = Arms.wear(player, slot, slot === 'body' ? pts : pts * 0.6);
+        for (const slot of [...ARMOUR_SLOTS, 'off']) {
+            const r = Arms.wear(player, slot, pts * _num(ARMOUR_WEAR_SHARE[slot], 0.6));
             if (r && r.broke) broke.push(r.id);
         }
         return broke;
@@ -487,8 +497,8 @@ export const Arms = {
         const push = (r) => { if (r && r.broke) broke.push(r.id); };
         if (landed > 0 && !Arms.barehanded(player)) push(Arms.wear(player, 'main', landed * W.condPerBlow * k, landed * W.edgePerBlow * k));
         if (taken > 0) {
-            push(Arms.wear(player, 'body', taken * W.condPerHit * k));
-            push(Arms.wear(player, 'head', taken * W.condPerHit * 0.5 * k));
+            // (the body takes the most of them; the head half, the limbs less)
+            for (const slot of ARMOUR_SLOTS) push(Arms.wear(player, slot, taken * W.condPerHit * _num(DUEL_WEAR_SHARE[slot], 0.3) * k));
         }
         if (guarded > 0) push(Arms.wear(player, 'off', guarded * W.guardPerBlock * k));
         return broke;
@@ -658,7 +668,7 @@ export const Arms = {
         }).join(', ');
     },
 
-    /** Item ids of a unit's kit by slot ({ main, off, head, body }; null when bare) — for the renderers. */
+    /** Item ids of a unit's kit by slot ({ main, off, head, body, legs, feet, hands }; null when bare) — for the renderers. */
     kitView(unit) {
         const kit = _obj(unit && unit.kit) || {};
         const out = {};
@@ -698,9 +708,13 @@ export const Arms = {
      * A slot the kit leaves empty takes its lines away; a piece the recipe
      * has no line for is added (weapons and shields in front of everything,
      * their back frames under everything, the helm over the hair, the armour
-     * over the clothes). opts: build ('Feminine, Thin' for the feminine
-     * body's armour sheets), paint (the livery colour when the recipe names
-     * none). A recipe without a kit is left as it is.
+     * over the clothes). Leg harness (kit.legs) is drawn in place of the
+     * recipe's trousers and footwear (kit.feet) in place of its shoes (after
+     * the legs when it has none); a kit with nothing on the legs or feet
+     * leaves the recipe's own (the soldiers' kits never name them). Gloves
+     * have no sheets: not drawn. opts: build ('Feminine, Thin' for the
+     * feminine body's sheets), paint (the livery colour when the recipe
+     * names none). A recipe without a kit is left as it is.
      */
     lookLayers(layers, kit, opts = {}) {
         if (!Array.isArray(layers) || !kit) return layers;
@@ -727,10 +741,25 @@ export const Arms = {
             shield.behind,
             ...(!isHeater && shield.paint ? [`${shield.paint.replace(/\/Paint$/, '/_Behind/Paint')}/${paint}`] : []),
         ];
-        const armour = body ? body.layer.replace('Masculine, Thin', opts.build || 'Masculine, Thin') : null;
+        const build = (l) => l.replace('Masculine, Thin', opts.build || 'Masculine, Thin');
+        const armour = body ? build(body.layer) : null;
+        const legsP = sp('legs');
+        const feetP = sp('feet');
+        const legs = legsP ? build(legsP.layer) : null;
+        const feet = feetP ? build(feetP.layer) : null;
         const out = [];
-        const done = { back: false, front: false, sback: false, sfront: false, helm: false, armour: false };
+        const done = { back: false, front: false, sback: false, sfront: false, helm: false, armour: false, legs: false, feet: false };
         for (const l of layers) {
+            if (legs && /^Clothing\/[^/]+\/Legs\//.test(l)) {
+                if (!done.legs) out.push(legs);
+                done.legs = true;
+                continue;
+            }
+            if (feet && /^Clothing\/[^/]+\/Feet\//.test(l)) {
+                if (!done.feet) out.push(feet);
+                done.feet = true;
+                continue;
+            }
             if (l.startsWith('Props/Shield ')) {
                 const back = /\/_Behind(\/|$)/.test(l);
                 // the recipe's own heater lines stand when the kit's shield is a heater
@@ -756,6 +785,8 @@ export const Arms = {
             out.forEach((l, j) => { if (re.test(l)) i = j; });
             return i + 1;
         };
+        if (legs && !done.legs) out.splice(after(/^(Body|Head)\//), 0, legs);
+        if (feet && !done.feet) out.splice(after(/^(Body|Head)\/|^Clothing\/[^/]+\/Legs\//), 0, feet);
         if (armour && !done.armour) out.splice(after(/^(Clothing|Body|Head)\//), 0, armour);
         if (helm && !done.helm) out.splice(after(/^(Hair|Clothing|Body|Head)\//), 0, helm.layer);
         if (shield && !done.sback) out.unshift(...shieldBack);

@@ -108,6 +108,22 @@ export const BuildingWear = {
             : wear >= 1 ? 'saturate(0.76) brightness(0.9) sepia(0.16)' : '';
     },
 
+    /**
+     * Is the art a building of this wear and spire draws with loaded — the moss and
+     * the belltower sheet? (The renderer keeps a drawn building only once it is.)
+     */
+    artReady(wear, spire) {
+        if (wear && !_mossDecals()) return false;
+        if (spire) {
+            const S = DataLoader._gamedata && DataLoader._gamedata.townEras && DataLoader._gamedata.townEras.art && DataLoader._gamedata.townEras.art.spires;
+            if (S && Array.isArray(S.styles) && S.styles.includes(spire)) {
+                const img = _sheet(S.sheet);
+                if (!img || !img.complete || !img.naturalWidth) return false;
+            }
+        }
+        return true;
+    },
+
     /** Is this cell of a building its roof (a kit roof, a thatch or shingle sheet)? */
     isRoof(cell) {
         return !!cell && ROOF.test(cell.sheetPath || '');

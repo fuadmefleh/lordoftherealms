@@ -7,51 +7,50 @@
 import { ActionMenu } from './_ref.js';
 import { RivalHouses } from '../../systems/rivalHouses.js';
 import { openRivalAudience } from './rivalAudience.js';
-import { CARD, esc, lede, bullets } from './uiKit.js';
+import { esc, lede, bullets, chips, card, more } from './uiKit.js';
 
-const NOTE = 'font-size: 11px; color: var(--text-secondary);';
-
-function feudColor(f) {
-    return f >= 60 ? '#e08080' : f >= 30 ? '#e0b040' : '#88aabb';
-}
+const NOTE = 'font-size: 11px; color: #9d937c;';
 
 function feudLabel(f) {
     return f >= 60 ? 'Hostile' : f >= 30 ? 'Wary' : 'Cool';
 }
 
-/** The head's card: name, age, temper, family, purse, errand. */
+function ordinal(n) {
+    return n === 2 ? 'second' : n === 3 ? 'third' : `${n}th`;
+}
+
+/** The head's card: who they are, where they are and what they are about, then the rest folded away. */
 function headCard(v) {
-    let html = `<div style="${CARD}">`;
-    html += `<div style="display:flex; justify-content:space-between; align-items:baseline;"><div style="font-weight:bold; color:var(--gold);">🏰 ${esc(v.name)}, ${v.age}</div>`;
-    html += `<span style="color:${feudColor(v.feud)}; font-size:12px;">${feudLabel(v.feud)} (feud ${v.feud})</span></div>`;
-    html += `<div style="${NOTE}">Head of ${esc(v.house)}${v.heads > 1 ? ` (the ${v.heads === 2 ? 'second' : v.heads === 3 ? 'third' : `${v.heads}th`} head in your time)` : ''}${v.seat ? ` · seat at ${esc(v.seat)}` : ''} · ${esc(v.wealth)}</div>`;
-    if (v.traits.length) html += `<div style="font-size:12px; margin-top:3px;">${v.traits.map(t => `${t.icon} ${esc(t.name)}`).join(' · ')} <span style="${NOTE}">· diplomacy ${v.skills.diplomacy}, stewardship ${v.skills.stewardship}, intrigue ${v.skills.intrigue}</span></div>`;
-    const kids = v.children.map(c => `${esc(c.name)} (${c.age}${c.wed ? `, wed${c.wed !== 'another House' ? ` to your ${esc(c.wed)}` : ''}` : ''})`);
-    html += `<div style="font-size:12px; margin-top:3px;">${v.spouse ? `Married to ${esc(v.spouse)}` : 'Unmarried'}${kids.length ? ` · children: ${kids.join(', ')}` : ' · no children'}</div>`;
-    if (v.ambition) {
-        const a = v.ambition;
-        const prog = a.id === 'wealth' ? `${a.have.toLocaleString()} / ${a.target.toLocaleString()}g` : `${a.have} / ${a.target}`;
-        html += `<div style="font-size:12px; margin-top:3px;">${a.icon} Ambition: <b>${esc(a.name)}</b> <span style="${NOTE}">(${prog})</span>${v.renown ? ` <span style="${NOTE}">· renown ${v.renown}</span>` : ''}</div>`;
-    }
-    const extras = [];
-    if (v.estates.length) extras.push(`🌾 ${v.estates.length} estate${v.estates.length > 1 ? 's' : ''} (~${v.landValue.toLocaleString()}g)`);
-    if (v.favourite.length) extras.push(`👑 favourite at the court of ${v.favourite.map(esc).join(', ')}`);
-    if (v.allies.length) extras.push(`🤝 allied with ${v.allies.map(esc).join(', ')}`);
-    if (v.enemies.length) extras.push(`💢 at odds with ${v.enemies.map(esc).join(', ')}`);
-    if (v.guards) extras.push(`🛡️ ${v.guards} hired guards`);
-    extras.push(`⚔️ retinue strength ${v.strength}${v.armed != null && v.armed < 0.95 ? ` (ill-armed: ${Math.round(v.armed * 100)}%)` : v.armed > 1.02 ? ` (well armed: ${Math.round(v.armed * 100)}%)` : ''}`);
-    if (v.arms) extras.push(`🛡️ ${esc(v.arms)}`);
-    html += `<div style="${NOTE} margin-top:3px;">${extras.join(' · ')}</div>`;
-    // The errand names the town when they are in it; else say where the road has them
     const where = !v.where ? ' · nowhere to be found'
         : v.where.atTown ? (v.doing.includes(v.where.near) ? '' : ` · in ${esc(v.where.near)}`)
-            : v.where.near ? ` · on the road near ${esc(v.where.near)} (${v.where.q}, ${v.where.r})` : ` · at (${v.where.q}, ${v.where.r})`;
-    html += `<div style="font-size:12px; margin-top:3px; color:${v.hunting ? '#ff8080' : '#ddd'};">${v.hunting ? '⚔️' : '🧭'} ${esc(v.doing)}${where}</div>`;
-    if (v.log.length) {
-        html += `<div style="${NOTE} margin-top:4px;">${v.log.map(e => `Day ${e.day}: ${esc(e.text)}`).join('<br>')}</div>`;
+            : v.where.near ? ` · on the road near ${esc(v.where.near)}` : ` · at (${v.where.q}, ${v.where.r})`;
+    let body = `<div style="${NOTE}">Head of ${esc(v.house)}${v.heads > 1 ? ` (the ${ordinal(v.heads)} in your time)` : ''}${v.seat ? ` · seat at ${esc(v.seat)}` : ''}${v.traits.length ? ` · ${v.traits.map(t => `${t.icon} ${esc(t.name)}`).join(', ')}` : ''}</div>`;
+    body += `<div style="margin:4px 0; color:${v.hunting ? '#ff8080' : '#ddd'};">${v.hunting ? '⚔️' : '🧭'} ${esc(v.doing)}${where}</div>`;
+    const armed = v.armed != null && v.armed < 0.95 ? ', ill-armed' : v.armed > 1.02 ? ', well armed' : '';
+    body += chips([
+        ['💰', 'Purse', esc(v.wealth)],
+        ['⚔️', 'Retinue', `${v.strength}${armed}`],
+        v.guards ? ['🛡️', 'Guards', v.guards] : null,
+        v.estates.length ? ['🌾', 'Estates', `${v.estates.length} (~${v.landValue.toLocaleString()}g)`] : null,
+        v.renown ? ['⭐', 'Renown', v.renown] : null,
+    ]);
+    const facts = [];
+    if (v.ambition) {
+        const am = v.ambition;
+        const prog = am.id === 'wealth' ? `${am.have.toLocaleString()} / ${am.target.toLocaleString()}g` : `${am.have} / ${am.target}`;
+        facts.push(`${am.icon} Ambition: <b>${esc(am.name)}</b> (${prog})`);
     }
-    html += '</div>';
-    return html;
+    const kids = v.children.map(c => `${esc(c.name)} (${c.age}${c.wed ? `, wed${c.wed !== 'another House' ? ` to your ${esc(c.wed)}` : ''}` : ''})`);
+    facts.push(`💍 ${v.spouse ? `Married to ${esc(v.spouse)}` : 'Unmarried'}${kids.length ? ` · children: ${kids.join(', ')}` : ' · no children'}`);
+    if (v.allies.length) facts.push(`🤝 Stands allied with ${v.allies.map(esc).join(', ')}`);
+    if (v.enemies.length) facts.push(`💢 At odds with ${v.enemies.map(esc).join(', ')}`);
+    if (v.favourite.length) facts.push(`👑 Favourite at the court of ${v.favourite.map(esc).join(', ')}`);
+    if (v.arms) facts.push(`🛡️ ${esc(v.arms)}`);
+    facts.push(`<span style="${NOTE}">Diplomacy ${v.skills.diplomacy} · stewardship ${v.skills.stewardship} · intrigue ${v.skills.intrigue}</span>`);
+    body += bullets(facts);
+    if (v.log.length) body += more(`Latest doings (${v.log.length})`, `<div style="${NOTE}">${v.log.map(e => `Day ${e.day}: ${esc(e.text)}`).join('<br>')}</div>`);
+    const tone = v.feud >= 60 ? 'bad' : v.feud >= 30 ? 'warn' : '';
+    return card(body, { icon: '🏰', title: `${esc(v.name)}, ${v.age}`, side: `<span title="Their feud with your House, 0–100">${feudLabel(v.feud)} · feud ${v.feud}</span>`, tone });
 }
 
 Object.assign(ActionMenu, {
@@ -65,13 +64,9 @@ Object.assign(ActionMenu, {
         const { player, world } = game;
         const rivals = RivalHouses.rivals(player).filter(r => r.head);
         let html = '<div style="font-size:12px; max-height:var(--panel-max-h, 560px); overflow-y:auto; min-width:440px;">';
-        html += lede('The Houses that resent yours, and the lords who lead them.');
-        html += bullets([
-            'Their retinues ride the map (🏰): meet one within a hex to talk with its lord.',
-            'They remember what you have done to them, have moods of their own, and make offers of their own.',
-            'They trade in the same markets you do, sit at the same courts, and pay for their plots out of their own purses.',
-        ]);
-        if (!rivals.length) html += `<div style="${CARD}">No rival House has shown its face yet.</div>`;
+        html += lede(rivals.length
+            ? 'The Houses that resent yours. Their lords ride the map (🏰) with their retinues: come within a hex of one to talk. They remember what you do to them, trade in your markets and pay for their plots from their own purses.'
+            : 'No rival House has shown its face yet.');
         for (const r of rivals) html += headCard(RivalHouses.view(player, world, r));
         html += '</div>';
         game.ui.showCustomPanel('🏰 Rival Houses', html);

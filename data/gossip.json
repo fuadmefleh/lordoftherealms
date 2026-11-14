@@ -133,6 +133,50 @@
             "spreadChance": 0.85,
             "description": "{perpetrator} sacked {location} and left it burning"
         },
+        "massacre": {
+            "label": "Massacre",
+            "icon": "⚔️",
+            "deed": true,
+            "localRenown": false,
+            "baseSeverity": 95,
+            "credibility": 0.95,
+            "decayDays": 360,
+            "spreadChance": 0.95,
+            "description": "{perpetrator} took the surrender of {location} and then put it to the sword"
+        },
+        "hostages_hanged": {
+            "label": "Hostages Hanged",
+            "icon": "💀",
+            "deed": true,
+            "localRenown": false,
+            "baseSeverity": 70,
+            "credibility": 0.9,
+            "decayDays": 180,
+            "spreadChance": 0.85,
+            "description": "{perpetrator} hanged hostages before the walls of {location}"
+        },
+        "fields_salted": {
+            "label": "Fields Salted",
+            "icon": "🧂",
+            "deed": true,
+            "localRenown": false,
+            "baseSeverity": 60,
+            "credibility": 0.9,
+            "decayDays": 240,
+            "spreadChance": 0.8,
+            "description": "{perpetrator} sowed the fields of {location} with salt"
+        },
+        "plague_flung": {
+            "label": "Plague Dead Flung",
+            "icon": "☠️",
+            "deed": true,
+            "localRenown": false,
+            "baseSeverity": 70,
+            "credibility": 0.8,
+            "decayDays": 180,
+            "spreadChance": 0.85,
+            "description": "{perpetrator} flung the plague dead over the walls of {location}"
+        },
         "famine_dole": {
             "label": "Famine Dole",
             "icon": "🥖",
@@ -255,6 +299,56 @@
             "spreadChance": 0.7,
             "description": "{perpetrator} has been reading other people's letters: the seal of {victim} was found lifted in {location}"
         },
+        "boast": {
+            "label": "Tall Talk",
+            "icon": "🗣️",
+            "talk": true,
+            "baseSeverity": 15,
+            "credibility": 0.6,
+            "decayDays": 30,
+            "spreadChance": 0.5,
+            "_note": "What the player told a townsperson about themselves in free talk, and asked them to pass on (systems/npcChatImpact.js spread_word): idle talk, no penalty. {victim} is the claim.",
+            "description": "{perpetrator}, folk in {location} say, {victim}"
+        },
+        "well_poisoning": {
+            "label": "Well Poisoner",
+            "icon": "☠️",
+            "baseSeverity": 85,
+            "reputationPenalty": -30,
+            "renownPenalty": -10,
+            "karmaPenalty": -12,
+            "bountyGold": 150,
+            "decayDays": 240,
+            "spreadChance": 0.8,
+            "_note": "A town's well poisoned (systems/townCrimes.js), the culprit named by a witness.",
+            "description": "{perpetrator} poisoned the well of {location}, and {victim} drank of it"
+        },
+        "granary_arson": {
+            "label": "Granary Burner",
+            "icon": "🔥",
+            "baseSeverity": 65,
+            "reputationPenalty": -20,
+            "renownPenalty": -6,
+            "karmaPenalty": -8,
+            "bountyGold": 90,
+            "decayDays": 180,
+            "spreadChance": 0.7,
+            "_note": "A town's granary burnt (systems/townCrimes.js), the culprit named by a witness.",
+            "description": "{perpetrator} burnt the granary of {location} and left {victim} to go hungry"
+        },
+        "plague_lie": {
+            "label": "Plague Liar",
+            "icon": "🐀",
+            "baseSeverity": 40,
+            "reputationPenalty": -12,
+            "renownPenalty": -4,
+            "karmaPenalty": -4,
+            "bountyGold": 20,
+            "decayDays": 90,
+            "spreadChance": 0.6,
+            "_note": "A false plague scare (systems/townCrimes.js) traced to the player, or the player seen paying the criers.",
+            "description": "{perpetrator} cried plague on {location} for profit, and {victim} paid for it"
+        },
         "whisperer": {
             "label": "Whisperer Exposed",
             "icon": "🐍",
@@ -267,6 +361,58 @@
             "spreadChance": 0.7,
             "description": "{perpetrator} was the one spreading those lies about {victim}, it's been traced back to {location}"
         },
+        "desecration": {
+            "label": "Crypt Desecrated",
+            "icon": "⚰️",
+            "baseSeverity": 70,
+            "reputationPenalty": -18,
+            "renownPenalty": -6,
+            "karmaPenalty": -12,
+            "bountyGold": 120,
+            "decayDays": 120,
+            "spreadChance": 0.75,
+            "_note": "The player seen breaking a rival House's crypt (systems/profaneCrimes.js, Gossip.accuse). {victim} is the House.",
+            "description": "{perpetrator} broke open the crypt of {victim} at {location} and scattered their dead"
+        },
+        "relic_fraud": {
+            "label": "False Relic",
+            "icon": "📿",
+            "baseSeverity": 50,
+            "reputationPenalty": -14,
+            "renownPenalty": -6,
+            "karmaPenalty": -6,
+            "bountyGold": 60,
+            "decayDays": 90,
+            "spreadChance": 0.65,
+            "_note": "A fake relic the player sold to a temple, found out (systems/profaneCrimes.js). {victim} is the relic.",
+            "description": "{perpetrator} sold the temple at {location} {victim}, and it was pig bones in a gilt box"
+        },
+        "relic_betrayal": {
+            "label": "Relic Sold to Heretics",
+            "icon": "⚱️",
+            "baseSeverity": 45,
+            "reputationPenalty": -8,
+            "renownPenalty": -4,
+            "karmaPenalty": -8,
+            "bountyGold": 0,
+            "decayDays": 90,
+            "spreadChance": 0.6,
+            "_note": "A true relic of the player's own faith sold to another (systems/profaneCrimes.js). {victim} is the relic.",
+            "description": "{perpetrator} sold {victim} to the priests of another god at {location}"
+        },
+        "false_witch": {
+            "label": "False Accuser",
+            "icon": "🔥",
+            "baseSeverity": 40,
+            "reputationPenalty": -10,
+            "renownPenalty": -6,
+            "karmaPenalty": -6,
+            "bountyGold": 0,
+            "decayDays": 90,
+            "spreadChance": 0.6,
+            "_note": "The player cried witch and the trial acquitted her, or a mob burned her (systems/profaneCrimes.js). {victim} is the accused.",
+            "description": "{perpetrator} cried witch on {victim} at {location}, and folk say it was for her land"
+        },
         "blackmailer": {
             "label": "Blackmail",
             "icon": "✉️",
@@ -278,6 +424,30 @@
             "decayDays": 70,
             "spreadChance": 0.75,
             "description": "{perpetrator} tried to blackmail {victim}, and the crown's men know it ({location})"
+        },
+        "vanished_talk": {
+            "label": "Gone Missing",
+            "icon": "🚪",
+            "talk": true,
+            "baseSeverity": 20,
+            "credibility": 0.7,
+            "decayDays": 60,
+            "spreadChance": 0.5,
+            "_note": "A townsperson who left with the player and never came home (systems/vanishings.js, the doubt tier): talk, no penalty. {victim} is the one lost.",
+            "description": "{victim} of {location} took the road with {perpetrator} and never came home, folk say"
+        },
+        "vanished_companion": {
+            "label": "Foul Play Suspected",
+            "icon": "🗡️",
+            "baseSeverity": 60,
+            "reputationPenalty": -10,
+            "renownPenalty": -4,
+            "karmaPenalty": -4,
+            "bountyGold": 40,
+            "decayDays": 90,
+            "spreadChance": 0.6,
+            "_note": "A companion lost with the player in a way that looks like foul play (systems/vanishings.js, the foul tier, Gossip.accuse); credibility from the suspicion. Grown in the telling it can turn the watch.",
+            "description": "{victim} of {location} took the road with {perpetrator} and was never seen again, and folk say it was no accident"
         }
     },
 

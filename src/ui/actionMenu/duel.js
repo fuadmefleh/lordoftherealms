@@ -6,7 +6,7 @@
 // engine decides everything; this file only draws it and routes the clicks.
 import { Duels } from '../../systems/duels.js';
 import { CombatSkills } from '../../systems/combatSkills.js';
-import { BTN, BTN_GOLD, BTN_DARK, BTN_RED, CARD, esc } from './uiKit.js';
+import { BTN, BTN_DARK, BTN_RED, CARD, esc, rowList } from './uiKit.js';
 
 function _bar(cur, max, color) {
     const pct = Math.max(0, Math.min(100, Math.round((cur / Math.max(1, max)) * 100)));
@@ -110,7 +110,7 @@ export const DuelPanel = {
                 const word = r.draw ? 'A draw' : r.playerWon ? (r.yielded === 'b' ? `${esc(state.b.name)} yields!` : 'Victory!') : (r.yielded === 'a' ? 'You yield.' : 'Defeated!');
                 h += `<div style="text-align: center; font-size: 18px; font-weight: bold; color: ${color}; margin: 6px 0;">${r.draw ? '🤝' : r.playerWon ? '🏆' : '😤'} ${word}</div>`;
                 h += `<div style="text-align: center; font-size: 11px; color: var(--text-secondary);">${r.rounds} exchange${r.rounds === 1 ? '' : 's'} · dealt ${r.dealt} · took ${r.taken}</div>`;
-                h += `<button onclick="window._duel.done()" style="${BTN_GOLD} width: 100%; margin-top: 8px; padding: 10px;">${esc(continueLabel)}</button>`;
+                h += rowList([{ icon: '➡️', name: esc(continueLabel), tone: 'gold', attrs: 'onclick="window._duel.done()"' }]);
             }
             h += '</div>';
             game.ui.showCustomPanel(title, h);

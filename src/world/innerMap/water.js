@@ -53,7 +53,7 @@ const WATER_IDS = new Set(['ocean', 'deep_ocean', 'coast', 'sea', 'lake']);
 
 const DEFAULTS = {
     rivers: {
-        radius: [2.8, 3.8], radiusPerInflow: 0.4, maxRadius: 5, edgeJitter: 10, meander: 5, bend: [3, 7], bendLength: [28, 48],
+        radius: [3.6, 4.8], radiusPerInflow: 0.5, maxRadius: 6.5, edgeJitter: 10, meander: 5, bend: [3, 7], bendLength: [28, 48],
         roadCost: 60, roadNearCost: 6, borderCost: 6, clearance: 2, wildFords: [1, 2],
         springRadius: 3.5, poolRadius: [5, 7],
     },

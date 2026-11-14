@@ -2464,6 +2464,17 @@ Each day the town eats a day of its stores. A **port** still fed by sea eats the
 
 Tuning lives in `data/military.json` → `sieges`.
 
+#### Dark Deeds of War
+
+From the siege panel (**💀 Darker means…**), a siege's result, or **Dark deeds** in the action list of a town you besiege or lately took:
+
+- **Salt the fields** (4 AP, 4–20 salt by the town's size, from your packs or the taken town's market) — of a town you besiege or took in the last 120 days. Its crops yield nothing for 6–10 years: the market's grain, the granary food its people eat, the rents of whoever holds it, farms there. When the salt lifts the soil is spent and recovers only slowly. Under siege it costs the defenders 10 morale.
+- **Take hostages** (2 AP) — 1% of the people (4–40) caught outside the walls, under an ultimatum of 5 days. While it stands every term is 15% likelier and the defenders lose 1 morale a day. Once it runs out you may **hang them** (−25 morale, 8% of the garrison slips away) or **release them**; leave it 2 days more and the threat rings hollow (their morale +10, your camp −5). When the siege ends, hostages still held go home.
+- **Fling the dead over the walls** (3 AP) — needs sick dead: plague dead when a great plague runs within 14 hexes (the town is struck by the plague and your camp may catch it back), else your own camp's fever dead. The town sickens and its people fall ill.
+- **Put a surrendered town to the sword** (4 AP) — within 30 days of its surrender. Most of its people die, its purse and stores are carried off, it is left in ruins.
+
+Every deed costs karma, earns cruelty and dread, hardens your court's name for severity, lowers your standing with the realm (and every realm, for the worst), is remembered by their lords (and through them war and diplomacy), is talked of from town to town and cried by the heralds, goes into the House chronicle, and is remembered by the town itself — its mood darkens for decades. Two marks stay on your name and fade only slowly: **cruelty** (a dreaded name makes ransom and tribute likelier) and **broken faith** (a massacred surrender). With broken faith at 25 or more no town will surrender to you: they refuse terms of surrender, keep their gates shut even starving and broken, and fight harder when stormed (+20%) until the last defender is dead. One massacre is remembered for about a generation. Tuning: `data/atrocities.json`.
+
 ### Creatures and Travelers
 
 Besides caravans, raiders and patrols, the world holds **mercenary companies, pilgrims, smugglers, envoys and refugee columns** travelling between settlements (refugees add to the population where they arrive), **war fleets** that sink pirate ships, and **wild beasts** and **legendary creatures** that hunt travellers like raiders do. Unarmed, a creature mauls you rather than robbing you. Attacking pilgrims, refugees or envoys costs karma; slaying beasts and legendary creatures earns renown. Their coin goes to your purse and their goods into your packs (if there is room).
@@ -3062,6 +3073,16 @@ On the street map the rivers flow: flecks of foam and darker ripples stream down
 
 **Weirs catch it.** A finished **Timber Dam** (Build Infrastructure on a river hex) and a town's water mill on a river (worlds made since terrainGen 5) both weir the river. Whatever comes down fetches up against the weir, up to 12 things, and the rest spill over. On the street map the dam lies across the river (logs on stakes, the mill's a stone sill), the water pooled dark above and white below. Things caught on it are piled against it: click one and take it off from the weir's end on the bank. The world keeps them all on `world.riverDrift`, saved with the game (`systems/riverDrift.js`).
 
+**Still water.** You can throw things into a lake, a pond, a deep pool or the sea too: anywhere too deep to stand in. There is no current, so it floats where it lands, turning slowly, and you can fish it out again from the shore (or swim out to it). After 20 days it sinks. At sea the ocean current takes it away, and after a day it is gone.
+
+**What the rivers bring down.** Rivers carry things on their own: sticks and broken branches, floating logs, bleached driftwood, rafts of torn-up reeds. Below the towns they also carry what people lose, such as a loose plank, an old boot, a stoppered jug, a basket of apples, a child's toy boat or a barrel. Rarely you will find a purse with a few coins in it, or a bottle with a note. There is more in the spring floods and after rain or a storm, and more in a river's lower reaches, where more water has gathered. Stand by a river on the street map and something will come floating by every few hours. Fish it out like anything else. Sticks bundle into firewood at a craft bench (4 → 1), driftwood breaks up into firewood (2 → 1), and reeds dipped in tallow make rushlights (4 reeds + 1 tallow → 2 candles). (`systems/riverFlotsam.js`, `data/riverDrift.json` `flotsam`.)
+
+**Nets.** A **Fishing Net** is knotted from 3 rope at a craft bench, or bought from a chandler's stall. Netmakers in towns by the water make them from rope. Click river water and choose **Set a Net Here** to stake it across the river. You can also pay it out on a pond, a lake or the sea. You can have one net to a hex and six in all. It fishes while you are away:
+- A river net catches whatever drifts down into it, the river's own flotsam and anything thrown in upstream, until it holds 16 things. After that the rest slips by. A net and a weir in the same hex catch in the order things reach them.
+- Every net takes fish each day: small fry, fish and crayfish in rivers, mussels in ponds and lakes, cod, crabs and lobster at sea. In winter it catches much less. A river net also snags a stray find now and then. Fish left in it more than 3 days are lost to eels and rot.
+- Nets wear. One can tear, more often in a storm and the longer it has been in the water, and then it loses half its catch and catches nothing until you **Mend the Net** (1 rope). A net left alone may be stolen, more often near a town.
+- Click the net (its floats lie across the river, or curve out on the water) to **Haul In the Net**, **Mend** it, or **Take the Net Up** with its catch. A torn net comes up only good for rope. (`systems/riverNets.js`, `data/riverDrift.json` `nets`.)
+
 ---
 
 ## 14. Espionage
@@ -3348,6 +3369,26 @@ A thief the watch catches goes to the cells, and what they took goes back.
 - **Caught:** a 10–39g fine to the town, −3 karma, −5 reputation with the realm, a mark on your record, and jail for 2, 4, then 7 days, then 10 + 3 for each further offence. Bail is 25g for each day of the sentence, and the chance to escape is 8% + 3% per point of Stealth.
 
 Tuning: `data/npcTheft.json`, `data/wildTasks.json` (the in-person lift), `data/housing.json` (defences).
+
+### Foul Deeds Against a Town
+
+A town's **🎲 Back Rooms** list **🐀 Foul Deeds**: crimes against a whole town rather than one person. Every row shows what the deed takes and your odds of being seen. The base odds are 42% for the well, 18% for the plague lie and 50% for the granary. Each point of Stealth takes 3.5% off, and the Underworld traits (Cunning, Deceitful) take more off. Each point of the realm's heat on you adds 0.4%, and a city or capital has more eyes than a village. Of those who see you, about half know your face and name you at once. The others saw only a figure. While the town's **hunt** runs (60 days), such a witness may come forward any week (18%).
+
+- **Poison the well** (2 AP) with a vial of poison, or with rotting meat or fish (weaker). The flux takes about 12% of the townsfolk at once. For 8 days the well stays foul and strikes 3% more each day. The sick go through the town's real sickness: the healer, alms and the dying. Those laid up idle the town's hands, so its output falls. A town with no roster yet keeps an abstract sickness that idles its hands in the same way.
+- **Cry a false plague** (2 AP, 40g to the criers and beggars, paid into the town's purse). For a month, traders keep away: every trade link to the town carries a quarter of its goods. About 12% of the people flee to the nearest town and come home when the panic ends. With fewer mouths and the same stores, the stalls go cheap. Each day there is a 5% chance the physicians find no plague and say so. This cannot happen while the town really is sick (a poisoned well makes the lie half true). Once the lie is exposed, it may be traced to you: 45%, less 3% for each point of Stealth.
+- **Burn the granary** (3 AP; lamp oil, oil or firewood). About 55% of the granary's store burns, along with the market's grain and flour. In the lean weeks, 85% burns. One time in five, the fire spreads to the street as a real town fire. Hunger follows: thin reserves, a sour mood in the lean weeks, dearer bread and starvation. For 45 days the crown buys grain at 1.5× the market price (**Sell grain to the crown**). The coin comes from its treasury, and the grain goes to the market cross.
+- **Hoard grain** (1 AP) in a hungry town. A town counts as hungry during a famine of the age, a market dearth, the lean weeks with under 4 days in store, or after its granary burned. You buy off the real market (the price climbs as its stock falls) into a rented loft at 2g a week. Each week, 1% of the grain rots. Selling it back works the other way: the town's purse pays, and the price falls as the stock fills. Hoarding is **legal** unless the crown forbids engrossing. If it does, your loft is thrown open and you get nothing. If you sell to a hungry town at 1.5× what you paid or more, the town and some of its folk remember whose loft it came from (*grain hoarded*). A full loft in a hungry town is noticed as well.
+
+**Whether or not you are caught**, the deed raises heat, records the Underworld's deeds and karma, and puts the watch on alert. It goes into the town's history and its annals (*"The well of Ashford was poisoned in the year 14; 31 fell sick and 4 died"*), and it darkens the town's mood for years. **When you are named**, you also take:
+
+- More heat, and a rumour that spreads town to town (*Well Poisoner*, *Granary Burner*, *Plague Liar*) with its reputation hit and bounty.
+- The town's memory. For the well, the sick remember drinking it and the kin of the dead remember them. That grudge is a blood grudge and can raise a Nemesis.
+- The lord's memory: a town of his you put to the torch.
+- Lost Prestige (40, 15 or 30), and a line in the House chronicle that the Annals read.
+- Your name in the town's history.
+- If you stay in the town, the watch takes you: 30% a day.
+
+Tuning: `data/townCrimes.json`; the logic is `systems/townCrimes.js`.
 
 ## 15. Ships & Naval
 
@@ -5096,6 +5137,20 @@ What moves loyalty:
 
 The dynasty tree shows each branch head as a person of the blood, with the branch named beneath. Branch heads are listed after your children and siblings in the line of succession.
 
+### Dark Counsel: Crimes Against Your Own Blood
+
+A child's page (**Dynasty → a child → 🌑 Dark counsel**) and the House panel (**🌑 Dark Counsel**) hold what no ruler should do — and what some do (`systems/kinCrimes.js`, tuned in `data/kinCrimes.json`):
+
+- **A hunting accident / a cup of poison** — for an inconvenient heir, or a **sibling** kept from the last succession (killed for the inheritance: their portion comes to your purse). It can fail: the target lives, knows, and becomes a sworn enemy of your own blood (a Nemesis).
+- **Give them to the Church** — an endowment to the abbey at the nearest town; the child leaves the household and the line for good, their portion with them. A pious child who loves you goes gladly; an unwilling one may one day flee the abbey swearing vengeance.
+- **Declare them sickly and unfit** — they can never be chosen as heir (death screen, regency, interregnum). A hale child makes the court doubt it. You can declare them fit again, at a little Prestige; their grievance stays.
+- **Disinherit and cast out** — a grown child founds a cadet branch born **estranged**, with a grudge that holds its loyalty down for its first two heads: it speaks against you at court and presses claims at your successions. Cast out with nothing (their portion seized) for a deeper grudge.
+- **Wed them against their will** — to a realm, for a **bride-price** out of its treasury or for an **alliance** (standing, Prestige, the bond of kinship). The child never forgives it: their bond with you is capped for life. Unhappy, they may flee the match (the realm's standing falls) or swear a feud. If they inherit, they come to the seat hardened (Cruel or Cunning) and will never sell a child of their own.
+
+**Suspicion.** Every hidden deed has a suspicion. Children of the household may see it — they *suspect*, and their grievance caps their bond with you for good. Each week the deed may come out; suspicion fades, but a murder's never fully, and a suspecting sibling keeps the talk alive. An heir who suspected may tell the truth when they take the seat. **Found out**: Prestige and standing in every realm lost, the ruler marked **Kinslayer**, the dead's cause rewritten in the family tree, the deed written in the Annals as betrayal, the victim's siblings sworn to a feud — and the House's **stain** grows. The stain halves with each generation; while it lasts, men say another of the blood should hold the seat, and your successions may be contested.
+
+**The elder passed over.** An eldest grown child passed over for a younger heir resents it year by year, and in time says the seat is theirs by right — which is why an inconvenient heir is inconvenient.
+
 ### The House Chronicle and Legacy
 
 **Dynasty → 📜 House Chronicle** tells your House's story one ruler at a time. Each reign shows:
@@ -6323,6 +6378,41 @@ On any street or wild map, right-click bare ground outdoors and choose **Dig a H
 - **Take the Bones** (4 s) and **Pry Up the** marker (4 s) on any grave are thefts on the same terms. Prying up a marker costs the extra 6 standing if you're caught, as robbing does. A ruler is never stopped in their own town.
 
 Tuning: `data/digging.json`, `data/graves.json` (`robbery`, grave-goods classes), `data/containers.json` (`theft`).
+
+### Profane Crimes: Crypts, Relics and Witches
+
+Three acts against the dead and the faithful (`systems/profaneCrimes.js`, tuned in `data/profaneCrimes.json`). Each one is written in your House's chronicle and the Annals.
+
+**A rival House's crypt.** In a rival House's seat town, **Graveyards & the Dead** shows its crypt: how many of its dead lie there and the grave goods beside them. When a head dies after the first, more goods are laid in, paid for from the House's purse.
+- **Rob the crypt** takes up to 4 grave goods. **Scatter the bones of their fathers** takes 6 sets of bones (and a few goods), and it is the worse insult.
+- **Being seen.** The chance starts at 42%, plus 12% for scattering. Each point of Stealth takes off 3%, and each of the House's guards adds 1.5%. If you are seen, the House knows at once. The town spreads the rumour "Crypt Desecrated" and remembers what you did.
+- **If no one sees you**, the House finds the crypt broken. Each week it has a 5% chance (more as the feud runs hotter) of learning whose hand it was.
+- **Once they know, they never forget.** The feud jumps by 22 (40 for scattering), and it can never fall below a floor of 35 (60 for scattering). The floor holds through every new head of the House. The head remembers the deed, a nemesis grudge is offered, and every new head swears it again over the bones.
+- Your own faith sees it either way: you lose clergy standing (6, or 14 for scattering) and karma.
+- **Making amends.** Bring the bones back and pay 160g for a requiem. The floor is halved but never goes away.
+
+**Relics.** The **Relics** section of the Devotions journal (in a town whose realm keeps a faith):
+- **Lift a relic** from the temple's reliquary, which holds 1–3. The chance of being seen starts at 40%, less 3% for each point of Stealth. If you are seen, you pay an 80g fine into the town's purse and lose standing with that realm and its faith. If you get away, the realm's piety drops.
+- **Forge a relic** from 2 sets of bones (the charnel sells them) and a 30g gilt box. Intelligence and craft make it more convincing.
+- **Selling.** A temple pays out of its realm's towns' purses, and more for the relic of another god. Sell a relic of your own faith to another god and you lose 18 standing with your own clergy. There is also a 35% chance it gets out: a further 20 standing lost and the rumour "Relic Sold to Heretics". A relic brought back to its own faith's temple earns half the price and its priests' regard. Your House's relic heirloom can be sold too, and bought back later from the temple's town.
+- **A fake** can be found out on any day for two years (better fakes last longer). If it is, the temple takes back 1.5× what it paid. If you can't pay, the realm's anger doubles. You also lose 25 standing with that faith, the realm thinks less of you, and the rumour "False Relic" spreads.
+
+**Crying witch.** Talk to a healer, or to a woman of 55 or more, and say **"I know what you are. Witch."**
+- **Before the priest (a trial).** The chance she is condemned starts at 42%. Your charisma and renown raise it, and so does the realm's piety. A healer's trade and her kin lower it. A 60g word in the priest's ear adds 18%.
+- **If she is condemned**, she is burned and the town loses her (and its healer). A third of her purse goes to you and the rest to the town. Her land passes to you if the realm's law lets you hold land there: the lot she held, or else a free lot of the town. If the town's faith is your own, its zealots think the better of you.
+- **If she is acquitted**, she lives and you are the false accuser. The rumour "False Accuser" spreads, and you lose renown and reputation.
+- **To the street (a mob).** She dies for certain. You take half her purse and none of her land, and everyone knows who started it.
+- **Either way her kin remember** it as a blood wrong. It sets their prices and their work against you, and their testimony to the watch. A grown son or daughter may become a nemesis. The town remembers it too.
+
+### Crimes Against People: Framing, Bondage, Cellars, the Stocks and the Brand
+
+Five acts against living townsfolk (`systems/peopleCrimes.js`, tuned in `data/peopleCrimes.json`). Each victim is a real person on the town's roster. Their kin remember it for generations, and the bitterest of them may become a **nemesis**. A deed that comes out costs reputation in the realm, Prestige, heat with the crown, karma and marks on your character, and it is written into the Annals.
+
+- **Frame an innocent.** Inside a townsperson's house, a chest or crate shows **Hide goods here**. Pick goods you carry worth at least 8g; stolen goods that were reported against you are the most damning. The chance of being seen is the same as for stealing from that box. If you are seen, you keep the goods, the household remembers what you tried, and the realm hears of it. Within 6 days, tell any guard in that town "I saw them with stolen goods". If you don't, the household finds the goods and keeps them. The trial comes 2–4 days later. The chance of a conviction starts at 45%. Hot goods add 20%, the goods' value adds up to 20%, and a thief's brand already on the accused adds 15%. A priest's or noble's word subtracts, and so does each lie of yours already exposed. The realm's punishment law sets the sentence. The accused is hanged if the goods are worth at least the law's limit (400g lenient, 120g customary, 40g harsh); otherwise they are flogged and driven out. The goods go to the town's market, and the crown pays you a quarter of their worth as an informer's reward. On an acquittal you pay 30g as a false witness. The kin never believe it, and every year there is a chance the truth comes out (6%, plus 3% for each lie already exposed). When it does, the whole realm learns that an innocent hanged for your lie.
+- **Sell someone into bondage.** Bind a townsperson (rope), then choose **Sell Them to the Galleys** in a harbour town. The galley master pays out of the town's purse. A captive held in your cellar can also be sold this way, from the Lots panel, while you stand in that town. Dock hands may see it (25%, half that at night). Three in ten of those sold come home 3–10 years later, branded at the oar. They tell everyone who sold them and swear enmity. The rest die at the oar, and no one at home ever learns how.
+- **A captive in your cellar.** Where you keep a house or property in town, a bound townsperson can be **locked in your cellar**. Their kin know only that they vanished. Feeding them costs 2g a day, which goes to the town's bakers. Unfed, they starve to death in 14–22 days. Each day the cellar may be found. More kin in town make that more likely, and a starving or dead captive makes it more likely still; a realm that allows private prisons halves the chance. If a captive is found alive, or let go, they tell. If a body is found, it is a starving: the worst name a House can earn. Manage captives under **In Your Cellars** on the Lots & Town Houses panel.
+- **The stocks and the snow.** A tenant who owes you rent can be **put in the stocks** for 3 days. Their kin pay what they can toward the debt, up to 60% of their purses. In winter the stocks can kill. Putting a tenant out in winter turns the household into the snow, and the old, the young and sometimes a grown one may freeze to death within days. All of this is lawful, but the town and the family remember a hard landlord.
+- **Brand or maim a thief yourself.** When you catch a thief in the act, you can seize them and **brand them** or **take a hand** instead of calling the watch. You get the goods back all the same. The town's culture decides what folk make of it. In Nordic, Mountain, Nomadic and Desert towns it is the fathers' justice, and the town approves. Woodland and Swamp towns look away from a brand. In Imperial, Religious, Arcane and Maritime towns only a court may punish, so it counts as assault: heat with the crown and lost standing. A realm with harsh punishment softens the reaction by one step. The mark stays on them. A branded person is convicted more easily at any later trial, a slaver pays less for a maimed one, and if you ask about the mark they tell you whose it is.
 
 ## Sagas
 

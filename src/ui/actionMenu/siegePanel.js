@@ -59,6 +59,7 @@ export function siegePanelHtml(player, info) {
     if (s.port) html += `<div style="${MUTED}">${info.navalBlockade ? '⛵ The harbour is blockaded — no food by sea.' : '⛵ Ships still bring food by sea (stores fall at half pace). Galleys or a blockading fleet would close the port.'}</div>`;
     if (s.townSick) html += `<div style="color:#e57373;">🤒 Disease rages inside the walls</div>`;
     if (s.stores <= 0) html += `<div style="color:#e57373;">The town is starving.</div>`;
+    if (s.lastStand > 0) html += `<div style="color:#e57373;">⚔️ They expect no quarter from you: no surrender, a fight to the last.</div>`;
     html += '</div></div>';
     html += `<div style="${MUTED}margin-bottom:8px;">Odds if you storm now: ${ratio >= 2 ? 'overwhelming' : ratio >= 1.3 ? 'favourable' : ratio >= 0.8 ? 'even' : ratio >= 0.5 ? 'poor' : 'hopeless'} (${info.army} vs ${info.defense}).</div>`;
 
@@ -96,6 +97,8 @@ export function siegePanelHtml(player, info) {
     html += '</div><div style="margin-top:8px;">';
     html += _btn('⏳ Hold the siege (end day)', 'wait', null, true, 'border-color:rgba(79,195,247,0.6);');
     html += _btn('🏳️ Lift the siege', 'lift', null, true);
+    // Hostages, salt, the dead over the walls (systems/atrocities.js, ./atrocities.js)
+    html += `<button data-am-act="showAtrocities" title="Hostages, salt, plague dead: deeds the realms will remember." style="${BTN}border-color:rgba(120,0,0,0.7);">💀 Darker means…</button>`;
     html += '</div></div>';
 
     // Log
@@ -123,6 +126,7 @@ export function siegeResultHtml(result, extrasHtml, ongoing) {
     if (result.captured) html += `<div style="color:#ff6666;">⛓️ You are captured into servitude for ${result.servitudeDays} days.</div>`;
     if (result.chance != null && result.accepted === false) html += `<div style="color:var(--text-secondary);">They refused (chance was ${Math.round(result.chance * 100)}%). Their spirits rise a little.</div>`;
     html += extrasHtml || '';
+    if (result.atrocities && !ongoing) html += '<button data-am-act="showAtrocities" style="width:100%;padding:8px;margin-top:10px;background:#2a1414;border:1px solid rgba(120,0,0,0.7);border-radius:6px;color:#eee;cursor:pointer;">💀 What becomes of the town…</button>';
     html += ongoing
         ? '<button data-am-act="showSiegePanel" style="width:100%;padding:10px;margin-top:10px;background:#444;border:1px solid #666;border-radius:6px;color:#eee;cursor:pointer;">Back to the siege</button>'
         : '<button data-am-act="closePanelAndRefresh" style="width:100%;padding:10px;margin-top:10px;background:#444;border:1px solid #666;border-radius:6px;color:#eee;cursor:pointer;">Continue</button>';

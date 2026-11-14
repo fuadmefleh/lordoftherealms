@@ -1,0 +1,122 @@
+{
+    "_doc": "Crimes against your own blood (systems/kinCrimes.js): a 'hunting accident' or a cup of poison for an heir or a sibling, the cloister for an unwanted child, a child declared sickly and unfit to rule, a child disinherited and cast out to found a bitter cadet branch, a child wed against their will for a bride-price or an alliance. Suspicion (0–100) is per deed: it decays slowly to a floor and is exposed by a weekly roll on the House's own seeded stream. Exposure costs Prestige and standing, marks the ruler Kinslayer (a murder), adds to the House's stain (halved at each succession, read yearly as a claimant's grievance), and is written in the chronicle as betrayal. Children who suspect a deed remember it: their bond with the parent is capped by their grievance for good, and an heir who knew may tell the truth when they take the seat.",
+    "witnessMinAge": 10,
+    "witnessFactor": 0.6,
+    "witnessBond": -15,
+    "witnessGrievance": 15,
+    "exposeWeekly": 0.02,
+    "decayWeekly": 0.15,
+    "heirSuspicion": 10,
+    "stealthPer": 1.5,
+    "murder": {
+        "minAge": 6,
+        "methods": {
+            "hunt": { "icon": "🏹", "name": "A hunting accident", "desc": "A stray arrow, a boar, a fall from a horse in the deep wood", "minAge": 10, "success": 0.85, "suspicion": 35, "cause": "a hunting accident", "cover": "{name} is killed in a hunting accident.", "failText": "The arrow went wide. {name} lives, and saw who loosed it." },
+            "poison": { "icon": "🍷", "name": "A cup of poison", "desc": "A wasting fever, the physicians will say", "minAge": 0, "success": 0.75, "suspicion": 28, "cause": "a sudden fever", "cover": "{name} is taken by a sudden fever.", "failText": "{name} retched the cup up and lived — and knows what was in it." }
+        },
+        "floor": 15,
+        "failSuspicion": 30,
+        "failGrievance": 60,
+        "failBond": -50,
+        "failNemesisScore": 75,
+        "exposePrestige": 40,
+        "exposeReputation": -10,
+        "exposeKinslaying": 3,
+        "stain": 40,
+        "exposedCause": "murdered by their own blood"
+    },
+    "cloister": {
+        "minAge": 7,
+        "endowment": 150,
+        "vocationFaith": 7,
+        "vocationBond": 65,
+        "vocationPrestige": 2,
+        "forcedSuspicion": 20,
+        "forcedGrievance": 40,
+        "forcedBond": -30,
+        "exposePrestige": 8,
+        "stain": 5,
+        "floor": 0,
+        "deathAge": 50,
+        "deathChance": 0.04,
+        "fleeChance": 0.03,
+        "fleeMinAge": 16,
+        "fleeNemesisScore": 55
+    },
+    "unfit": {
+        "suspicion": 15,
+        "strongSuspicion": 20,
+        "strongAt": 6,
+        "grievance": 30,
+        "awareAge": 12,
+        "bond": -25,
+        "exposePrestige": 10,
+        "stain": 5,
+        "floor": 0,
+        "restorePrestige": 5,
+        "restoreBond": 10
+    },
+    "disinherit": {
+        "prestige": 4,
+        "loyalty": 12,
+        "seizedLoyalty": 5,
+        "grudgeCap": 30,
+        "grudgeHeads": 2,
+        "siblingBond": -5
+    },
+    "forced": {
+        "priceShare": 0.12,
+        "priceCap": 900,
+        "priceMin": 40,
+        "allianceReputation": 20,
+        "alliancePrestige": 2,
+        "priceReputation": 6,
+        "grievance": 45,
+        "bond": -40,
+        "unhappyBond": 25,
+        "fleeChance": 0.06,
+        "fleeReputation": -15,
+        "nemesisChance": 0.05,
+        "nemesisScore": 50,
+        "rulerTraitBitter": "cruel",
+        "rulerTraitCold": "cunning",
+        "bitterBond": 25
+    },
+    "succession": {
+        "knewExposeChance": 0.5,
+        "knewBond": -10,
+        "stainDecay": 0.5,
+        "stainMin": 2
+    },
+    "stain": {
+        "claimAt": 20,
+        "claimPer": 0.004
+    },
+    "passedOver": {
+        "years": 2,
+        "bond": -5,
+        "claimChance": 0.25
+    },
+    "lines": {
+        "exposeMurder": "It comes out that {name}'s death was no accident: {ruler} had {obj} killed.",
+        "exposeAttempt": "It is known now that {ruler} tried to have {name} killed.",
+        "exposeUnfit": "The court learns {name} was never sickly: {ruler} declared {obj} unfit to put another in the seat.",
+        "exposeCloister": "It is said openly that {name} never had a vocation: {ruler} walled {obj} up in the abbey at {place}.",
+        "cloisterVocation": "{name} takes holy orders at the abbey of {place}, gladly.",
+        "cloisterForced": "{name} is given to the abbey of {place}.",
+        "unfit": "{name} is declared sickly and unfit to rule.",
+        "restore": "{name} is declared fit after all: the physicians were wrong.",
+        "disinherit": "{name} is disinherited and cast out of {house}, and founds {branch} at {seat} in bitterness.",
+        "forcedPrice": "{name} is wed to {spouse} of {realm} against {poss} will, for a bride-price of {price} gold.",
+        "forcedAlliance": "{name} is wed to {spouse} of {realm} against {poss} will, to bind {house} to the realm.",
+        "forcedFled": "{name} flees an unhappy marriage in {realm} and comes home in disgrace.",
+        "forcedRuler": "{name} comes to the seat remembering the match forced on {obj}.",
+        "knewTold": "{name}, now head of {house}, will not keep the late ruler's secret.",
+        "stainClaim": "Men say the seat of {house} is stained with kin-blood, and that another of the blood should hold it.",
+        "stainFades": "The stain of kin-blood on {house} fades a little with the new generation.",
+        "passedOver": "{name}, passed over for the seat, says it is {poss} by right.",
+        "cloisterDied": "{name} dies at the abbey of {place}, aged {age}.",
+        "cloisterFled": "{name} flees the abbey of {place}, swearing vengeance on {house}.",
+        "grudgeFades": "The old grudge of {branch} against the main line fades with the generations."
+    }
+}

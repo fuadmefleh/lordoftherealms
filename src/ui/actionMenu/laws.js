@@ -7,18 +7,13 @@
 import { ActionMenu } from './_ref.js';
 import { Laws } from '../../systems/laws.js';
 import { TownSchool } from '../../systems/townSchool.js';
-import { BTN_GOLD, BTN_DIM, CARD, panelTabs, lede, chips, bullets, sectionHead } from './uiKit.js';
+import { panelTabs, lede, chips, rowList, card, price, more } from './uiKit.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 const TABS = [['here', '📍 This realm'], ['realms', '🗺️ All realms'], ['crown', '👑 Your crown']];
 
 function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-}
-
-function act(label, args, enabled = true, title = '') {
-    if (!enabled) return `<button disabled style="${BTN_DIM}"${title ? ` title="${esc(title)}"` : ''}>${label}</button>`;
-    return `<button data-am-act="lawsAct" data-am-args='${esc(JSON.stringify(args))}' style="${BTN_GOLD}"${title ? ` title="${esc(title)}"` : ''}>${label}</button>`;
 }
 
 /** The realm the player stands in (a town's crown, or whoever holds the land). */
@@ -61,17 +56,20 @@ function forYou(game, k, lawId, option) {
 
 function hereTab(game) {
     const k = hereKingdom(game);
-    if (!k) return `<div style="${CARD}">No crown holds this land. Out here there is no law but what a stronger arm makes.</div>`;
-    let html = lede(`The laws of <b>${esc(k.name)}</b>, under ${esc(k.ruler || 'its crown')}.`);
-    for (const { law, option, set } of Laws.of(game.world, k.id)) {
-        html += `<div style="${CARD}">`;
-        html += `<div style="font-weight:bold;">${law.icon} ${esc(law.name)}: <span style="color:var(--gold);">${esc(option ? option.label : '—')}</span>${set ? '' : ` <small style="${NOTE}">(by old custom)</small>`}</div>`;
-        html += `<div style="${NOTE}">${esc(law.desc)}</div>`;
-        if (option && option.desc) html += `<div style="margin-top:2px;">${esc(option.desc)}</div>`;
+    if (!k) return lede('No crown holds this land. Out here there is no law but what a stronger arm makes.');
+    let html = lede(`The laws of <b>${esc(k.name)}</b>, under ${esc(k.ruler || 'its crown')}. What each means for you is on its line.`);
+    html += rowList(Laws.of(game.world, k.id).map(({ law, option, set }) => {
         const you = forYou(game, k, law.id, option);
-        if (you) html += bullets([`<b>For you:</b> ${esc(you)}`]);
-        html += '</div>';
-    }
+        return {
+            icon: law.icon,
+            name: esc(law.name),
+            desc: esc(option && option.desc ? option.desc : law.desc),
+            note: you ? `<b>For you:</b> ${esc(you)}` : '',
+            side: `${esc(option ? option.label : '—')}${set ? '' : '<br><small style="color:#8f8a7e;">old custom</small>'}`,
+            tone: 'gold',
+            title: law.desc,
+        };
+    }));
     return html;
 }
 
@@ -94,42 +92,35 @@ function realmsTab(game) {
 function crownTab(game) {
     const { player, world } = game;
     const k = Laws.ruled(player, world);
-    if (!k) return `<div style="${CARD}">You rule no realm. Only a ruler may change a realm's laws.</div>`;
+    if (!k) return lede('You rule no realm. Only a ruler may change a realm\'s laws.');
     const C = Laws.config();
-    let html = chips([
+    let html = lede(`Proclaim the laws of <b>${esc(k.name)}</b>. Each change costs the treasury and some stability (more for a hard law); a law can't be changed again for ${C.cooldownDays} days.`);
+    html += chips([
         ['💰', 'Treasury', `${Math.floor(k.treasury || 0)}g`, 'gold'],
         ['⚖️', 'Stability', Math.round(k.stability || 0)],
     ]);
-    html += lede(`Proclaim the laws of <b>${esc(k.name)}</b>.`);
-    html += bullets([
-        `Each change costs the treasury ${Math.round(C.changeCost.treasury)}g and the realm ${Math.round(C.changeCost.stability)} stability (more for a hard law).`,
-        `A law can't be changed again for ${C.cooldownDays} days.`,
-    ]);
     for (const { law, option } of Laws.of(world, k.id)) {
-        html += `<div style="${CARD}">`;
-        html += `<div style="font-weight:bold;">${law.icon} ${esc(law.name)}: <span style="color:var(--gold);">${esc(option ? option.label : '—')}</span></div>`;
-        html += `<div style="${NOTE}">${esc(law.desc)}</div>`;
-        html += '<div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:4px;">';
-        for (const o of law.options) {
-            if (option && o.id === option.id) continue;
-            const can = Laws.canEnact(player, world, law.id, o.id);
-            const tip = `${o.desc || ''}${can.ok ? ` — ${can.cost}g, stability −${can.stability}` : ` — ${can.reason}`}`;
-            html += act(`Make it ${esc(o.label.toLowerCase())}${can.ok ? ` (${can.cost}g, −${can.stability} stab.)` : ''}`, ['enact', law.id, o.id], can.ok, tip);
-        }
-        html += '</div>';
         const last = k.laws && k.laws.changed && k.laws.changed[law.id];
-        if (last != null) html += `<div style="${NOTE} margin-top:2px;">Last changed on day ${last}.</div>`;
-        html += '</div>';
+        const rows = law.options.filter(o => !(option && o.id === option.id)).map(o => {
+            const can = Laws.canEnact(player, world, law.id, o.id);
+            return {
+                icon: '📜',
+                name: `Make it ${esc(o.label.toLowerCase())}`,
+                desc: esc(o.desc || ''),
+                side: can.ok ? `${price(can.cost, (k.treasury || 0) >= can.cost)}<br><small style="color:#e0846a;">−${can.stability} stab.</small>` : '',
+                off: !can.ok, why: esc(can.reason || ''),
+                act: 'lawsAct', args: ['enact', law.id, o.id],
+            };
+        });
+        const head = `<div style="font-size:11px; color:#9d937c; margin-bottom:2px;">${esc(law.desc)}${last != null ? ` · last changed on day ${last}` : ''}</div>`;
+        html += card(head + rowList(rows), { icon: law.icon, title: esc(law.name), side: esc(option ? option.label : '—'), tone: 'gold' });
     }
     const hist = (k.laws && Array.isArray(k.laws.history)) ? k.laws.history.slice(-6).reverse() : [];
-    if (hist.length) {
-        html += sectionHead('📖 Proclamations');
-        for (const h of hist) {
-            const L = Laws.law(h.law);
-            const to = L && L.options.find(o => o.id === h.to);
-            html += `<div style="${NOTE}">Day ${h.day}: ${esc(L ? L.name : h.law)} — ${esc(to ? to.label : h.to)}</div>`;
-        }
-    }
+    html += more(`Proclamations (${hist.length})`, rowList(hist.map(h => {
+        const L = Laws.law(h.law);
+        const to = L && L.options.find(o => o.id === h.to);
+        return { icon: L ? L.icon : '📜', name: esc(L ? L.name : h.law), desc: esc(to ? to.label : h.to), side: `day ${h.day}` };
+    })));
     return html;
 }
 
@@ -149,12 +140,21 @@ function schoolsSection(game, tab) {
         const founded = s.folk.school && s.folk.school.founded;
         if (!can.ok && !founded && !/treasury|costs/.test(can.reason || '')) continue;
         const lit = TownSchool.townLiteracy(s.folk, world.day || 1);
-        const note = founded ? `School founded on day ${founded.d}.` : `${can.cost}g ${can.payer === 'crown' ? 'from the treasury' : 'from your purse'}: half builds and furnishes it, half endows its fund; a schoolmaster from the town's lettered folk.`;
-        rows.push(`<div style="${CARD}"><div style="font-weight:bold;">🏫 ${esc(s.name)}</div><div style="${NOTE}">${esc(note)}${lit.known ? ` About ${Math.round(lit.share * 100)} in 100 of its grown folk can write.` : ''}</div>`
-            + (founded ? '' : `<div style="margin-top:4px;">${act(`Found a school (${can.cost}g)`, ['foundSchool', s.q, s.r], can.ok, can.ok ? 'More of the town sends its children to learn their letters, more each year.' : can.reason)}</div>`) + '</div>');
+        const literate = lit.known ? ` · about ${Math.round(lit.share * 100)} in 100 grown folk can write` : '';
+        if (founded) {
+            rows.push({ icon: '🏫', name: esc(s.name), desc: `School founded on day ${founded.d}${literate}`, side: 'founded', tone: 'good' });
+            continue;
+        }
+        rows.push({
+            icon: '🏫', name: `Found a school in ${esc(s.name)}`,
+            desc: `Half builds it, half endows its fund; ${can.payer === 'crown' ? 'paid from the treasury' : 'paid from your purse'}${literate}`,
+            title: 'More of the town sends its children to learn their letters, more each year.',
+            side: can.cost != null ? price(can.cost, can.ok) : '',
+            off: !can.ok, why: esc(can.reason || ''),
+            act: 'lawsAct', args: ['foundSchool', s.q, s.r],
+        });
     }
-    if (!rows.length) return '';
-    return sectionHead('🏫 Schools') + rows.join('');
+    return rowList(rows, '🏫 Schools');
 }
 
 Object.assign(ActionMenu, {

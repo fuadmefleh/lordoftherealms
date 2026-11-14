@@ -5,82 +5,95 @@
 // this panel presents it.
 import { ActionMenu } from './_ref.js';
 import { OutlawLairs } from './_imports.js';
-import { BTN_GOLD, BTN_OFF, BTN_RED, CARD } from './uiKit.js';
+import { esc, lede, card, rowList, sectionHead, more } from './uiKit.js';
 
-const HEAD = 'font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin: 10px 0 4px;';
-
-function _esc(s) {
-    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}
+// In the action menu's voice (ui/actionMenu/uiKit.js): each lair a card; at a
+// lair, one row a deed with its odds and AP at the right, greyed with its
+// reason. Clicks route through window._lairs (set on each render).
+const NOTE = 'font-size:11px; color:#bbb; margin:1px 0;';
+const _esc = esc;
 
 function _pct(p) {
     return `${Math.round(p * 100)}%`;
 }
 
-function _btn(ok, label, call, style = BTN_GOLD, reason = '') {
-    if (ok) return `<button onclick="${call}" style="${style}">${label}</button>`;
-    return `<button disabled title="${_esc(reason)}" style="${BTN_OFF}">${label}</button>`;
+/** A deed row: onclick into window._lairs.act(id, what). */
+function _deed(lair, what, o, ok) {
+    return { ...o, off: !ok, attrs: ok ? `onclick="window._lairs.act(${lair.id}, '${what}')"` : '' };
 }
 
-function _lairCard(game, lair, here) {
+function _lairCard(game, lair) {
     const player = game.player;
     const world = game.world;
     const kind = OutlawLairs.kind(lair.kind) || {};
     const trait = OutlawLairs.leaderTrait(lair);
     const day = world.day || 0;
-    let html = `<div style="${CARD}">`;
-    html += `<div style="display:flex; justify-content:space-between; gap:8px;"><strong style="color:var(--gold); font-size:13px;">${kind.icon || '🏕️'} ${_esc(lair.name)}</strong>`;
     const where = lair.known ? `(${lair.q}, ${lair.r})` : `near (${lair.hintQ}, ${lair.hintR})?`;
-    html += `<span style="color:#aaa; white-space:nowrap; font-size:11px;">${_esc(kind.name || 'Lair')} · ${where}</span></div>`;
+    const head = { icon: kind.icon || '🏕️', title: _esc(lair.name), side: `${_esc(kind.name || 'Lair')} · ${where}` };
     if (lair.status !== 'active') {
         const how = lair.status === 'cleared' ? `Cleared by ${_esc(lair.endedByName || 'the wardens')}` : 'Scattered';
-        html += `<div style="font-size:11px; color:#9ab;">${how} on day ${lair.endedDay}.</div></div>`;
-        return html;
+        return card(`<div style="${NOTE}">${how} on day ${lair.endedDay}.</div>`, head);
     }
+    let html = '';
     const leader = lair.leader.slain ? `<span style="color:#e0b040;">Leaderless</span> (a new chief by day ${lair.leaderlessUntil || '?'})` : `${_esc(lair.leader.name)}${lair.scouted && trait.label ? ` · <span style="color:#c9a;">${_esc(trait.label)}: ${_esc(trait.desc || '')}</span>` : ''}`;
-    html += `<div style="font-size:11px; color:#ccc;">Chief: ${leader}</div>`;
+    html += `<div style="${NOTE}">Chief: ${leader}</div>`;
     const strength = lair.scouted ? `about ${OutlawLairs.garrison(lair)} at home` : OutlawLairs.strengthLabel(lair.strength || 0);
-    html += `<div style="font-size:11px; color:#ccc;">${_esc(OutlawLairs.notorietyLabel(lair.notoriety || 0))} · ${_esc(strength)} · ${lair.raids} raid(s) since day ${lair.founded}</div>`;
+    html += `<div style="${NOTE}">${_esc(OutlawLairs.notorietyLabel(lair.notoriety || 0))} · ${_esc(strength)} · ${lair.raids} raid${lair.raids === 1 ? '' : 's'} since day ${lair.founded}</div>`;
     for (const p of lair.parties) {
-        html += `<div style="font-size:11px; color:#e0a070;">🏇 A band of ${p.strength} ${p.phase === 'home' ? 'rides home with its plunder' : `rides on ${_esc(p.targetName || 'a town')}`} (out since day ${p.sentDay})</div>`;
+        html += `<div style="${NOTE} color:#e0a070;">🏇 A band of ${p.strength} ${p.phase === 'home' ? 'rides home with its plunder' : `rides on ${_esc(p.targetName || 'a town')}`} (out since day ${p.sentDay})</div>`;
     }
-    if (lair.scouted) html += `<div style="font-size:11px; color:#c8b070;">💰 Hoard: some ${Math.round(lair.hoard.gold || 0)} gold and ${Object.values(lair.hoard.goods || {}).reduce((a, b) => a + b, 0)} goods (scouted day ${lair.scouted.day})</div>`;
-    if (lair.allied) html += `<div style="font-size:11px; color:#e0c060;">🗝️ Your partners since day ${lair.allied.since}: a weekly cut, and heat with the realm.</div>`;
-    else if (lair.tribute && lair.tribute.until >= day) html += `<div style="font-size:11px; color:#e0c060;">💰 Tribute paid (${lair.tribute.paid}g): they spare you and yours until day ${lair.tribute.until}.</div>`;
-    if (lair.alertUntil != null && day <= lair.alertUntil) html += `<div style="font-size:11px; color:#e08080;">⚠️ The camp is on its guard (until day ${lair.alertUntil}).</div>`;
+    if (lair.scouted) html += `<div style="${NOTE} color:#c8b070;">💰 Hoard: some ${Math.round(lair.hoard.gold || 0)} gold and ${Object.values(lair.hoard.goods || {}).reduce((a, b) => a + b, 0)} goods (scouted day ${lair.scouted.day})</div>`;
+    if (lair.allied) html += `<div style="${NOTE} color:#e0c060;">🗝️ Your partners since day ${lair.allied.since}: a weekly cut, and heat with the realm.</div>`;
+    else if (lair.tribute && lair.tribute.until >= day) html += `<div style="${NOTE} color:#e0c060;">💰 Tribute paid (${lair.tribute.paid}g): they spare you and yours until day ${lair.tribute.until}.</div>`;
+    if (lair.alertUntil != null && day <= lair.alertUntil) html += `<div style="${NOTE} color:#e08080;">⚠️ The camp is on its guard (until day ${lair.alertUntil}).</div>`;
     const bounty = (player.activeBounties || []).find(b => b && b.type === 'lair_leader' && b.lairId === lair.id);
-    if (bounty) html += `<div style="font-size:11px; color:#7fd07f;">🎯 You hold the notice on ${_esc(bounty.targetName)}: ${bounty.actualPay}g.</div>`;
+    if (bounty) html += `<div style="${NOTE} color:#7fd07f;">🎯 You hold the notice on ${_esc(bounty.targetName)}: ${bounty.actualPay}g.</div>`;
     if (lair.log.length) {
-        html += `<div style="${HEAD} color:#9ab;">Lately</div>`;
-        for (const e of lair.log.slice(-4).reverse()) html += `<div style="font-size:11px; color:#bbb;">• <span style="color:#777;">day ${e.day}</span> ${_esc(e.text)}</div>`;
+        html += more('Lately', lair.log.slice(-4).reverse().map(e => `<div style="${NOTE}"><span style="color:#777;">day ${e.day}</span> ${_esc(e.text)}</div>`).join(''));
     }
+    return card(html, head);
+}
 
-    if (here) {
-        const ap = player.actionPoints || 0;
-        const army = (player.army || []).length > 0;
-        html += `<div style="${HEAD} color:#7fd07f;">Your Move</div>`;
-        if (kind.intro) html += `<div style="font-size:11px; color:#aaa; font-style:italic; margin-bottom:4px;">${_esc(kind.intro)}</div>`;
-        const costs = { scout: ActionMenu.getAPCost('lair_scout'), assault: ActionMenu.getAPCost('lair_assault'), strike: ActionMenu.getAPCost('lair_strike'), parley: ActionMenu.getAPCost('lair_parley') };
-        html += _btn(ap >= costs.scout, `🔭 Scout (${costs.scout} AP, ${_pct(OutlawLairs.scoutChance(player, lair))})`, `window._lairs.act(${lair.id}, 'scout')`, BTN_GOLD, `Needs ${costs.scout} AP`);
-        const stages = ((OutlawLairs.config().assault || {}).stages || []).map(s => OutlawLairs.stageStrength(player, world, lair, s));
-        const odds = lair.scouted ? ` vs ${stages.join(' / ')}` : '';
-        html += _btn(ap >= costs.assault && army, `⚔️ Storm the lair (${costs.assault} AP${odds})`, `window._lairs.act(${lair.id}, 'assault')`, BTN_RED, army ? `Needs ${costs.assault} AP` : 'You need an army');
-        if (!lair.leader.slain) {
-            html += _btn(ap >= costs.strike, `🗡️ Strike at the chief alone (${costs.strike} AP, ${_pct(OutlawLairs.strikeChance(player, lair))})`, `window._lairs.act(${lair.id}, 'strike')`, BTN_RED, `Needs ${costs.strike} AP`);
-        }
-        if (kind.parley && !lair.leader.slain && !lair.allied) {
-            const price = OutlawLairs.tributePrice(player, lair);
-            html += _btn(ap >= costs.parley && (player.gold || 0) >= price, `💰 Pay tribute (${price}g)`, `window._lairs.act(${lair.id}, 'tribute')`, BTN_GOLD, (player.gold || 0) < price ? `You need ${price} gold` : `Needs ${costs.parley} AP`);
-        }
-        if (kind.ally) {
-            const can = OutlawLairs.canAlly(player, lair);
-            html += _btn(can.ok && ap >= costs.parley, '🗝️ Become partners', `window._lairs.act(${lair.id}, 'ally')`, BTN_GOLD, can.reason || `Needs ${costs.parley} AP`);
-            if (!can.ok && !lair.allied) html += `<div style="font-size:10px; color:#888;">${_esc(can.reason)}</div>`;
-        }
-        html += '<div style="font-size:10px; color:#888; margin-top:4px;">Storming is three battles — palisade, camp, the chief\'s hold; lose one and the assault fails. Scouting first lowers their strength and reveals the hoard.</div>';
+/** The deeds at a lair the player stands beside. */
+function _deedsHtml(game, lair) {
+    const player = game.player;
+    const world = game.world;
+    const kind = OutlawLairs.kind(lair.kind) || {};
+    const ap = player.actionPoints || 0;
+    const army = (player.army || []).length > 0;
+    const costs = { scout: ActionMenu.getAPCost('lair_scout'), assault: ActionMenu.getAPCost('lair_assault'), strike: ActionMenu.getAPCost('lair_strike'), parley: ActionMenu.getAPCost('lair_parley') };
+    const rows = [];
+    rows.push(_deed(lair, 'scout', {
+        icon: '🔭', name: 'Scout the camp', desc: 'Lowers their strength for a storming and reveals the hoard',
+        why: `Needs ${costs.scout} AP`, side: `${_pct(OutlawLairs.scoutChance(player, lair))} · ${costs.scout} AP`,
+    }, ap >= costs.scout));
+    const stages = ((OutlawLairs.config().assault || {}).stages || []).map(s => OutlawLairs.stageStrength(player, world, lair, s));
+    rows.push(_deed(lair, 'assault', {
+        icon: '⚔️', name: 'Storm the lair', tone: 'bad',
+        desc: `Three battles: palisade, camp, the chief's hold. Lose one and the assault fails.${lair.scouted ? ` Their strength: ${stages.join(' / ')}.` : ''}`,
+        why: army ? `Needs ${costs.assault} AP` : 'You need an army', side: `${costs.assault} AP`,
+    }, ap >= costs.assault && army));
+    if (!lair.leader.slain) {
+        rows.push(_deed(lair, 'strike', {
+            icon: '🗡️', name: 'Strike at the chief alone', desc: 'By night, by your own hand', tone: 'bad',
+            why: `Needs ${costs.strike} AP`, side: `${_pct(OutlawLairs.strikeChance(player, lair))} · ${costs.strike} AP`,
+        }, ap >= costs.strike));
     }
-    html += '</div>';
-    return html;
+    if (kind.parley && !lair.leader.slain && !lair.allied) {
+        const price = OutlawLairs.tributePrice(player, lair);
+        rows.push(_deed(lair, 'tribute', {
+            icon: '💰', name: 'Pay tribute', desc: 'They spare you and yours for a while', tone: 'gold',
+            why: (player.gold || 0) < price ? `You need ${price} gold` : `Needs ${costs.parley} AP`, side: `${price}g`,
+        }, ap >= costs.parley && (player.gold || 0) >= price));
+    }
+    if (kind.ally) {
+        const can = OutlawLairs.canAlly(player, lair);
+        rows.push(_deed(lair, 'ally', {
+            icon: '🗝️', name: 'Become partners', desc: 'A weekly cut of their take, and heat with the realm',
+            why: _esc(can.reason || `Needs ${costs.parley} AP`), side: `${costs.parley} AP`,
+        }, can.ok && ap >= costs.parley));
+    }
+    return (kind.intro ? `<div style="${NOTE} font-style:italic;">${_esc(kind.intro)}</div>` : '') + rowList(rows, 'Your move');
 }
 
 function _resultHtml(res) {
@@ -110,21 +123,20 @@ Object.assign(ActionMenu, {
         const player = game.player;
         const world = game.world;
         const known = OutlawLairs.known(player);
-        let html = '<div style="max-height: 540px; overflow-y: auto; font-size: 12px;">';
-        if (message) html += `<div style="${CARD} border-color: rgba(245,197,66,0.4);">${message}</div>`;
-        html += '<p style="margin:0 0 6px; color:var(--text-secondary);">Bandits, smugglers, deserters, cultists and beasts dig in where the law is thin. Left alone they grow, raid the roads and burn villages; the realm\'s wardens come for some. Hear of them in taverns and on notice boards, and deal with them as you will.</p>';
+        let html = '<div style="font-size: 12px;">';
+        if (message) html += card(message, { tone: 'gold' });
         const here = lairId != null ? OutlawLairs.find(player, lairId) : OutlawLairs.lairNear(player, world, player.q, player.r, 1);
-        if (here && here.status === 'active') html += _lairCard(game, here, true);
+        const atLair = here && here.status === 'active';
+        if (!atLair) html += lede('Bandits, smugglers, deserters, cultists and beasts dig in where the law is thin. Left alone they grow and raid; the realm\'s wardens burn out some. Hear of them in taverns and on notice boards.');
+        if (atLair) html += _lairCard(game, here) + _deedsHtml(game, here);
         const rest = known.filter(l => !here || l.id !== here.id);
-        if (!known.length) html += `<div style="${CARD} color:#999;">You know of no outlaw lairs. Ask in the taverns, or read the notice boards.</div>`;
-        const ws = (player.outlawLairs && player.outlawLairs.stats) || {};
-        if (ws.formed) html += `<div style="font-size:11px; color:#888;">Across the realms: ${ws.formed} lair(s) have taken root, ${ws.raids || 0} raid(s) struck, ${ws.expeditions || 0} expedition(s) sent, ${ws.clearedByRealms || 0} lair(s) burned out by the realms' wardens and ${ws.clearedByPlayer || 0} by you.</div>`;
+        if (!known.length) html += `<div style="${NOTE}">You know of no outlaw lairs. Ask in the taverns, or read the notice boards.</div>`;
         const standing = rest.filter(l => l.status === 'active');
         const gone = rest.filter(l => l.status !== 'active');
-        if (standing.length) html += `<div style="${HEAD} color:var(--gold);">Known Lairs</div>`;
-        for (const l of standing) html += _lairCard(game, l, false);
-        if (gone.length) html += `<div style="${HEAD} color:#999;">Gone</div>`;
-        for (const l of gone.slice(-6)) html += _lairCard(game, l, false);
+        if (standing.length) html += sectionHead(atLair ? 'Other lairs you know' : 'Known lairs') + standing.map(l => _lairCard(game, l)).join('');
+        if (gone.length) html += more(`Gone (${gone.length})`, gone.slice(-6).map(l => _lairCard(game, l)).join(''));
+        const ws = (player.outlawLairs && player.outlawLairs.stats) || {};
+        if (ws.formed) html += `<div style="${NOTE} color:#888; margin-top:6px;">Across the realms: ${ws.formed} lairs have taken root, ${ws.raids || 0} raids struck, ${ws.expeditions || 0} expeditions sent; ${ws.clearedByRealms || 0} burned out by the realms' wardens, ${ws.clearedByPlayer || 0} by you.</div>`;
         html += '</div>';
 
         window._lairs = {

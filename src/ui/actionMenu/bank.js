@@ -1,16 +1,20 @@
-// ActionMenu — Banks, Credit & Coin: the banking house panel (deposit and
-// withdraw, loans with their terms, royal bonds, the credit report, the
-// realms' coin, and the crown's purse for a ruling player). Logic lives in
+// ActionMenu — Banks & Credit: the banking house panel (deposit and withdraw,
+// loans with their terms and the credit report, bills, royal bonds, your own
+// banking house, and a ruling player's crown borrowing). The realms' coin is
+// the Mint's panel (mints.js); debasing is the Crown's Treasury's. Logic lives in
 // systems/finance.js; this panel presents it. Buttons route through
 // data-am-act → ActionMenu.bankAct.
 import { ActionMenu } from './_ref.js';
 import { Finance } from '../../systems/finance.js';
 import { Bills } from '../../systems/bills.js';
 import { Underworld } from '../../systems/underworld.js';
-import { BTN_GOLD, BTN_PLAIN, BTN_DIM, BTN_RED, panelTabs, lede, bullets, chips, purse, sectionHead, kv, card, rowList, price } from './uiKit.js';
-import { RealmIntel } from '../../systems/realmIntel.js';
+import { BTN_GOLD, BTN_PLAIN, BTN_DIM, BTN_RED, panelTabs, lede, bullets, chips, purse, sectionHead, kv, card, more, rowList, price } from './uiKit.js';
+import { Mints } from '../../systems/mints.js';
 
-const TABS = [['house', '🏛️ Your House'], ['accounts', '🏦 Accounts'], ['loans', '📜 Loans'], ['bills', '✉️ Bills'], ['bonds', '👑 Royal Bonds'], ['credit', '📊 Credit'], ['coin', '💱 Coin']];
+// (Credit sits on the Loans tab, beside what it buys; the realms' coin is the
+// Mint's panel; a ruler's crown borrowing gets a tab of its own)
+const TABS = [['house', '🏛️ Your House'], ['accounts', '🏦 Accounts'], ['loans', '📜 Loans & credit'], ['bills', '✉️ Bills'], ['bonds', '👑 Royal Bonds']];
+const CROWN_TAB = ['crown', '🏰 Crown debts'];
 
 let _tab = 'accounts';
 
@@ -100,7 +104,7 @@ function accountsTab(player, world, here) {
 
 function loansTab(player, world, here) {
     const st = Finance.state(player);
-    let html = '';
+    let html = creditHtml(player, world);
     if (st.loans.length) {
         html += rowList(st.loans.map(l => {
             const owed = Math.ceil(l.totalOwed);
@@ -240,54 +244,40 @@ function bondsTab(player, world) {
     return html;
 }
 
-function creditTab(player, world) {
+/** Your credit as the houses see it: the score and what you may borrow up front, the reckoning folded away. */
+function creditHtml(player, world) {
     const rep = Finance.creditReport(player, world);
     const col = rep.collateral;
-    let body = `<div style="font-size:20px; font-weight:700; color:#ece2c8;">${rep.score} <span style="font-size:13px; font-weight:400; color:#9d937c;">${esc(rep.label)}</span></div>${bar(rep.score - 300, 550, rep.score >= 670 ? GOOD : rep.score >= 580 ? WARN : BAD)}`;
-    body += `<div style="margin-top:6px;">Borrowing limit <b>${rep.limit}g</b> · owed ${rep.debt}g · available <b style="color:#ffcf6a;">${rep.available}g</b></div>`;
-    let html = card(body, { icon: '📊', title: 'Your credit' });
-    html += sectionHead('What the houses see');
-    for (const p of rep.parts) html += kv(esc(p.label), `<span style="color:${p.value >= 0 ? GOOD : BAD};">${p.value >= 0 ? '+' : ''}${p.value}</span>`);
-    html += sectionHead('Collateral');
-    html += kv('Properties', `${Math.round(col.properties)}g`) + kv('Ships', `${Math.round(col.ships)}g`) + kv('Company', `${Math.round(col.company)}g`)
-        + kv('Holdings', `${Math.round(col.holdings)}g`) + kv('Deposits', `${col.deposits}g`) + kv('<b>Total</b>', `<b style="color:#ffcf6a;">${col.total}g</b>`);
     const st = Finance.state(player);
-    html += `<div style="${NOTE} margin-top:6px;">Loans repaid ${st.credit.repaid} · payments missed ${st.credit.missed} · defaults ${st.credit.defaults}${st.credit.settled ? ` · debts made good ${st.credit.settled}` : ''}</div>`;
-    return html;
+    let body = `<div style="display:flex; align-items:baseline; gap:8px;"><span style="font-size:18px; font-weight:700; color:#ece2c8;">${rep.score}</span><span style="color:#9d937c;">${esc(rep.label)}</span></div>${bar(rep.score - 300, 550, rep.score >= 670 ? GOOD : rep.score >= 580 ? WARN : BAD)}`;
+    body += `<div>Borrowing limit <b>${rep.limit}g</b> · owed ${rep.debt}g · available <b style="color:#ffcf6a;">${rep.available}g</b></div>`;
+    let detail = sectionHead('What the houses see');
+    for (const p of rep.parts) detail += kv(esc(p.label), `<span style="color:${p.value >= 0 ? GOOD : BAD};">${p.value >= 0 ? '+' : ''}${p.value}</span>`);
+    detail += sectionHead('Collateral');
+    detail += kv('Properties', `${Math.round(col.properties)}g`) + kv('Ships', `${Math.round(col.ships)}g`) + kv('Company', `${Math.round(col.company)}g`)
+        + kv('Holdings', `${Math.round(col.holdings)}g`) + kv('Deposits', `${col.deposits}g`) + kv('<b>Total</b>', `<b style="color:#ffcf6a;">${col.total}g</b>`);
+    detail += `<div style="${NOTE} margin-top:6px;">Loans repaid ${st.credit.repaid} · payments missed ${st.credit.missed} · defaults ${st.credit.defaults}${st.credit.settled ? ` · debts made good ${st.credit.settled}` : ''}</div>`;
+    body += more('Why this score: the reckoning and your collateral', detail);
+    return card(body, { icon: '📊', title: 'Your credit' });
 }
 
-function coinTab(player, world) {
-    let html = lede('Each realm strikes its own coin. A crown in trouble may clip it: gold for the mint now, dearer prices in every market of the realm after.');
-    const rows = [];
-    for (const k of (world.kingdoms || []).filter(x => x && x.isAlive !== false)) {
-        const r = Finance.realmReport(world, k);
-        // What a crown owes is in its books, and known to those who lent it (your bonds)
-        const lent = Finance.state(player).bonds.some(b => b.kingdomId === k.id);
-        const debt = RealmIntel.can(player, world, k, 'books') || lent ? ` · crown debt ${r.debt}g` : '';
-        rows.push({
-            icon: '💱',
-            name: `<span style="color:${k.color || 'inherit'};">${esc(k.name)}</span>`,
-            desc: `trust ${r.trust}${debt}${r.levy ? ` · <span style="color:${WARN};">war levy</span>` : ''}${r.defaults ? ` · ${r.defaults} default(s)` : ''}`,
-            side: `coin ${Math.round(r.purity * 100)}% silver${r.priceMult > 1 ? ` (prices +${Math.round((r.priceMult - 1) * 100)}%)` : ''}`,
-            tone: r.purity < 0.9 ? 'warn' : '',
-        });
-    }
-    html += rowList(rows, 'The realms\' coin');
+/** A ruling player's crown as a borrower: its purse, loans from the houses, repudiation. */
+function crownTab(player, world) {
     const ruled = Finance.ruledKingdom(player, world);
-    if (ruled) {
-        const r = Finance.realmReport(world, ruled);
-        html += sectionHead(`👑 The crown's purse (${esc(ruled.name)})`);
-        html += chips([
-            { icon: '💰', label: 'Treasury', value: `${Math.floor(ruled.treasury || 0)}g`, cls: 'gold' },
-            ['📈', 'Income', `≈${r.income}g a day`],
-            ['📜', 'Debt', `${r.debt}g (${Math.round(r.ratio * 100)}% of capacity)`],
-        ]);
-        const crownRows = [5000, 20000].map(amt => ({ icon: '🏦', name: `Borrow ${amt}g for the crown`, desc: 'From the banking houses, at the crown\'s rate', act: 'bankAct', args: ['royalBorrow', amt], side: `+${amt}g`, tone: 'gold' }));
-        crownRows.push({ icon: '⚖️', name: 'Debase the coin', desc: 'Gold for the mint now; prices rise and stability falls', off: !(r.purity > 0.55), why: 'The coin is already too base to clip further', act: 'bankAct', args: ['royalDebase'], tone: 'bad', side: '›' });
-        crownRows.push({ icon: '⚠️', name: 'Repudiate the debts', desc: 'The lenders lose; your realm loses stability and credit', off: !(r.debt > 0), why: 'The crown owes nothing', act: 'bankAct', args: ['royalDefault'], tone: 'bad', side: '›' });
-        html += rowList(crownRows);
-    }
-    return html;
+    if (!ruled) return lede('Only a ruler borrows for a crown.');
+    const r = Finance.realmReport(world, ruled);
+    let html = lede(`The crown of ${esc(ruled.name)} borrows from the banking houses at the crown's rate. Its taxes and coin are run from the Crown's Treasury.`);
+    html += chips([
+        { icon: '💰', label: 'Treasury', value: `${Math.floor(ruled.treasury || 0)}g`, cls: 'gold' },
+        ['📈', 'Income', `≈${r.income}g a day`],
+        ['📜', 'Debt', `${r.debt}g (${Math.round(r.ratio * 100)}% of capacity)`],
+    ]);
+    const rows = [5000, 20000].map(amt => ({ icon: '🏦', name: `Borrow ${amt}g for the crown`, desc: 'From the banking houses, at the crown\'s rate', act: 'bankAct', args: ['royalBorrow', amt], side: `+${amt}g`, tone: 'gold' }));
+    // (debasement lives with the coin on the Treasury; here only while the mints are off)
+    if (!Mints.enabled()) rows.push({ icon: '⚖️', name: 'Debase the coin', desc: 'Gold for the mint now; prices rise and stability falls', off: !(r.purity > 0.55), why: 'The coin is already too base to clip further', act: 'bankAct', args: ['royalDebase'], tone: 'bad', side: '›' });
+    rows.push({ icon: '⚠️', name: 'Repudiate the debts', desc: 'The lenders lose; your realm loses stability and credit', off: !(r.debt > 0), why: 'The crown owes nothing', act: 'bankAct', args: ['royalDefault'], tone: 'bad', side: '›' });
+    rows.push({ icon: '🧾', name: 'The Crown\'s Treasury', desc: 'Taxes, the army\'s pay, the court and the coin', act: 'bankAct', args: ['treasury'], side: '›' });
+    return html + rowList(rows);
 }
 
 function money(v) {
@@ -399,6 +389,11 @@ Object.assign(ActionMenu, {
         if (tab) _tab = tab;
         const player = game.player;
         const world = game.world;
+        // Old tab keys: the credit report is on Loans; the realms' coin is the Mint's
+        if (_tab === 'credit') _tab = 'loans';
+        if (_tab === 'coin') { _tab = 'accounts'; ActionMenu.showMint(game, tile); return; }
+        const ruler = !!Finance.ruledKingdom(player, world);
+        if (_tab === 'crown' && !ruler) _tab = 'accounts';
         const t = tile || world.getTile(player.q, player.r);
         const here = Finance.banksAt(player, world, t);
         const s = Finance.summary(player, world);
@@ -415,19 +410,18 @@ Object.assign(ActionMenu, {
             html += `<div class="pk-row-why" style="font-size:11px; margin-bottom:6px;">No banking house serves this place: deposits, loans and bonds are arranged at ${open.length ? open.map(b => `${esc(b.name)} (${esc(b.seat)})`).join(', ') : 'a house in a great city'} or its branches in their realm's cities. You can still repay a loan from here.</div>`;
         }
         html += panelTabs(game, {
-            id: 'bank', title: '🏦 Banks, Credit & Coin', tabs: TABS, active: _tab,
+            id: 'bank', title: '🏦 Banks & Credit', tabs: ruler ? [...TABS, CROWN_TAB] : TABS, active: _tab,
             go: (k) => { _tab = k; ActionMenu.showBank(game, t); },
             attrsFor: (k) => `data-am-act="bankAct" data-am-args='${esc(JSON.stringify(['tab', k]))}'`,
         });
         if (_tab === 'house') html += houseTab(player, world);
         else if (_tab === 'loans') html += loansTab(player, world, here);
         else if (_tab === 'bonds') html += here.length ? bondsTab(player, world) : lede('Royal bonds are sold through a banking house.');
-        else if (_tab === 'credit') html += creditTab(player, world);
         else if (_tab === 'bills') html += billsTab(player, world, here);
-        else if (_tab === 'coin') html += coinTab(player, world);
+        else if (_tab === 'crown') html += crownTab(player, world);
         else html += accountsTab(player, world, here);
         html += '</div>';
-        game.ui.showCustomPanel('🏦 Banks, Credit & Coin', html);
+        game.ui.showCustomPanel('🏦 Banks & Credit', html);
     },
 
     /** Every button on the panel: op + its arguments. */
@@ -438,6 +432,7 @@ Object.assign(ActionMenu, {
         let res = null;
         switch (op) {
             case 'tab': _tab = a || 'accounts'; break;
+            case 'treasury': ActionMenu.showTreasury(game, 'crown'); return;
             case 'deposit': res = Finance.deposit(player, world, a, b); break;
             case 'withdraw': res = Finance.withdraw(player, world, a, b); break;
             case 'borrow': res = Finance.takeLoan(player, world, a, b); break;

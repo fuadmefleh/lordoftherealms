@@ -12,6 +12,7 @@ import { ActionMenu } from './_ref.js';
 import { NPCLords } from './_imports.js';
 import { CourtLetters } from '../../systems/courtLetters.js';
 import { Mail } from '../../systems/mail.js';
+import { LetterChat } from '../../systems/letterChat.js';
 import { MailVoice } from '../../systems/mailVoice.js';
 import { Couriers } from '../../systems/couriers.js';
 import { CourierRiders } from '../../systems/courierRiders.js';
@@ -59,6 +60,7 @@ export function letterSheet(player, letter) {
     if (!r) return '';
     let html = '';
     for (const n of r.notes) html += `<div style="font-size:11px; color:#b9ad8e; font-style:italic; margin:2px 0;">✒️ ${esc(n)}</div>`;
+    if (letter.yours) html += `<div style="${MUTED} font-style:italic; margin:2px 0 4px;">In answer to yours: “${esc(letter.yours)}”</div>`;
     html += `<div style="${SHEET}">`;
     if (r.salutation) html += `<div style="margin-bottom:6px;">${esc(r.salutation)}</div>`;
     for (const p of r.paras) html += `<p style="margin:0 0 7px; text-indent:1.2em;">${esc(p)}</p>`;
@@ -73,6 +75,9 @@ export function letterSheet(player, letter) {
     const came = [...(r.enclosed || []).map(e => `📎 ${esc(e)}`), ...((letter.received || []).map(x => esc(x)))];
     if (came.length) html += `<div style="font-size:11px; color:#d8c89f; margin:2px 0 4px;">${came.join(' · ')}</div>`;
     if (r.voiced) html += `<div style="${MUTED}">(in their own words, by the AI voice)</div>`;
+    // A letter answered in the writer's own words (systems/letterChat.js): what came of it
+    if (Array.isArray(letter.effects) && letter.effects.length) html += `<div style="font-size:11px; color:#d8c89f; margin:2px 0 4px;">${letter.effects.map(esc).join(' · ')}</div>`;
+    if (letter.free) html += `<div style="${MUTED}">(written by the AI brain, in their voice)</div>`;
     return html;
 }
 
@@ -237,7 +242,28 @@ function writeTab(game) {
             side: on ? '✓ chosen' : '', tone: on ? 'gold' : '',
         }, ['kind', k.id], k.ok, esc(k.why || ''));
     }), 'What to write');
-    const K = _draft.kind ? kinds.find(k => k.id === _draft.kind) : null;
+    // Or in your own words (systems/letterChat.js): they answer in their own voice
+    const fw = LetterChat.canWrite(player, world, to);
+    if (fw.ok) {
+        const F = Mail.kind('free') || {};
+        const on = _draft.kind === 'free';
+        html += rowList([row({
+            icon: F.icon || '🖋️', name: `${esc(F.name || 'A letter in your own words')}…`,
+            desc: LetterChat.available() ? 'Write what you like. They answer in their own voice, and what they write can carry weight: goodwill, a grudge, a promise, coin, a meeting.'
+                : 'The AI brain is off (AI Settings): your letter is still sent, and read as the nearest plain kind of letter.',
+            side: on ? '✓ chosen' : '', tone: on ? 'gold' : '',
+        }, ['kind', 'free'])]);
+    }
+    const K = _draft.kind === 'free' && fw.ok ? { id: 'free', free: true } : _draft.kind ? kinds.find(k => k.id === _draft.kind) : null;
+    if (K && K.free) {
+        const max = LetterChat.config().maxChars;
+        html += sectionHead('Your letter');
+        html += `<textarea id="freeLetterText" maxlength="${max}" rows="7" spellcheck="true" placeholder="Write to ${esc(to.name)} as you would…" onkeydown="event.stopPropagation()" onkeyup="event.stopPropagation()" style="display:block; width:100%; box-sizing:border-box; padding:8px 10px; margin:0 0 6px; background:linear-gradient(175deg,#efe1bd 0%,#e6d3a6 100%); color:#3a2a17; border:1px solid rgba(120,84,30,0.5); border-radius:4px; font-family:Georgia,serif; font-size:13px; line-height:1.45; resize:vertical;">${esc(_draft.text || '')}</textarea>`;
+        html += `<div style="${MUTED} margin:0 0 6px;">Up to ${max} letters. Insults and threats are taken as such, whatever you meant. Enclose coin if you like:</div>`;
+        html += '<div style="margin:0 0 8px;">';
+        for (const g of Mail.config().giftPresets || []) html += act(`💰 ${g}g`, ['gold', _draft.gold === g ? 0 : g], _draft.gold === g ? BTN_GOLD : BTN_PLAIN, (player.gold || 0) >= g);
+        html += '</div>';
+    }
     if (K && K.enclose) {
         html += sectionHead('Enclose');
         html += '<div style="margin:0 0 8px;">';
@@ -265,7 +291,7 @@ function writeTab(game) {
             }, ['courier', String(c.id)]);
         }));
         const chosen = opts.find(c => String(c.id) === String(_draft.courier));
-        const cost = (chosen ? chosen.price : 0) + (K.enclose ? (_draft.gold || 0) : 0);
+        const cost = (chosen ? chosen.price : 0) + (K.enclose || K.free ? (_draft.gold || 0) : 0);
         const ready = !!chosen && (!K.enclose || _draft.gold > 0 || _draft.item);
         html += `<div style="margin-top:6px;">${act(`✉️ Send${cost ? ` (${cost}g)` : ''}`, ['send'], BTN_GOLD, ready, ready ? '' : (chosen ? 'Enclose something first.' : 'Choose a courier.'))}</div>`;
     }
@@ -483,6 +509,9 @@ Object.assign(ActionMenu, {
     lettersAct(game, op, a = null, b = null) {
         const player = game.player;
         const world = game.world;
+        // (the page being written survives the panel redrawing)
+        const page = typeof document !== 'undefined' && typeof document.getElementById === 'function' ? document.getElementById('freeLetterText') : null;
+        if (page) _draft.text = page.value;
         const done = (res, okText) => {
             if (game.ui.updateStats) game.ui.updateStats(player, world);
             if (!res || !res.success) {
@@ -517,7 +546,7 @@ Object.assign(ActionMenu, {
             case 'item': _draft.item = a || null; break;
             case 'courier': _draft.courier = a; break;
             case 'send': {
-                const res = Mail.send(player, world, { to: _draft.to, kind: _draft.kind, courier: _draft.courier, gold: _draft.gold, item: _draft.item });
+                const res = Mail.send(player, world, { to: _draft.to, kind: _draft.kind, courier: _draft.courier, gold: _draft.gold, item: _draft.item, text: _draft.text });
                 if (res.success) {
                     _draft = { to: null, kind: null, courier: null, gold: 0, item: null };
                     _tab = 'transit';

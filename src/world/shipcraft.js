@@ -26,6 +26,7 @@ export const Shipcraft = {
             order: Array.isArray(c.order) ? c.order : ['shipbuilding', 'deep_sea_fishing', 'navigation', 'lighthouse', 'naval_warfare'],
             firstAfterYears: _num(c.firstAfterYears, 4),
             learnEveryYears: Math.max(1, _num(c.learnEveryYears, 6)),
+            pierAfterYears: Math.max(0, _num(c.pierAfterYears, 3)),
         };
     },
 

@@ -312,6 +312,8 @@ function _freeTalk(game, npcId) {
     player.actionPoints -= ap;
     game.ui.updateStats(player, game.world);
     const session = NpcChat.startSession(player, game.world, npc);
+    // (what was just said in the scene: the model picks up the thread, and knows who said what)
+    if (typeof scene.recentLines === 'function') session.lines.push(...scene.recentLines(6).map(l => ({ ...l, seeded: true })));
     const before = Relationships.getRelationship(player, npcId).score || 0;
     const back = () => {
         if (!scene.isOpen) return;

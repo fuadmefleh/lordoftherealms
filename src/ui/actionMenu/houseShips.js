@@ -2,7 +2,7 @@
 import { ActionMenu } from './_ref.js';
 import { beginVoyage } from './voyage.js';
 import { Pirates } from '../../systems/pirates.js';
-import { lede, bullets, chips, purse, sectionHead, kv, card, actRow, rowList, price, BTN_GOLD, BTN_PLAIN, BTN_DARK, BTN_RED } from './uiKit.js';
+import { esc, lede, bullets, chips, purse, sectionHead, kv, card, actRow, rowList, price, BTN_GOLD, BTN_PLAIN, BTN_DARK, BTN_RED } from './uiKit.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, InnerMap, KingdomNavy, Discovery } from './_imports.js';
 import { Names } from '../../core/names.js';
 
@@ -321,15 +321,16 @@ Object.assign(ActionMenu, {
             const p = [['🔧', `${condition}%`], ['⚓', eff.speed], ['📦', eff.cargoCapacity]];
             if (ship.customizations && ship.customizations.length > 0) p.push(['🔧 Mods', ship.customizations.length]);
             p.push(['👥', `<span style="color:${crewHere >= eff.crewRequired ? '#8fd18a' : crewHere >= Ships.getMinCrew(ship) ? '#f0b35a' : '#e0846a'}">${crewHere}/${eff.crewRequired} crew</span>`]);
-            let body = condBar(condition, conditionColor) + pills(p);
-            body += '<div style="margin-top:6px;">';
+            // One row the ship (opens its management), then its errands: not buttons on a card
+            const shipRows = [{
+                icon: st.icon, name: esc(ship.name), desc: esc(st.name), note: condBar(condition, conditionColor) + pills(p),
+                side: 'Manage ›', tone: 'gold', attrs: `onclick="window._manageShip('${ship.id}')"`,
+            }];
             if (crewHere < eff.crewRequired && Ships.isPortTile(game.world, ship.q, ship.r)) {
-                body += `<button onclick="window._hireSailorsHere()" style="${BTN_GOLD}">👥 Hire Sailors</button>`;
+                shipRows.push({ icon: '👥', name: 'Hire sailors', desc: `${eff.crewRequired - crewHere} berths empty`, attrs: 'onclick="window._hireSailorsHere()"' });
             }
-            body += `<button onclick="window._manageShip('${ship.id}')" style="${BTN_PLAIN}">⚙️ Manage</button>`;
-            body += `<button onclick="window._moveShipMenu('${ship.id}')" style="${BTN_PLAIN}">🧭 Move</button>`;
-            body += '</div>';
-            html += card(body, { icon: st.icon, title: ship.name, side: st.name });
+            shipRows.push({ icon: '🧭', name: 'Move her', desc: 'Send her to another of your ports', attrs: `onclick="window._moveShipMenu('${ship.id}')"` });
+            html += rowList(shipRows);
         }
         html += '</div>';
         game.ui.showCustomPanel('⚓ Shipyard', html);
@@ -799,19 +800,15 @@ Object.assign(ActionMenu, {
             const crew = Ships.getCrew(ship);
             const canSail = crew >= Ships.getMinCrew(ship);
             const affordable = Math.min(open, Math.floor((player.gold || 0) / Math.max(1, crewCfg.hireCostPerSailor)));
-            let hire;
-            if (affordable >= open) {
-                hire = `<button onclick="window._hireSailors('${ship.id}')" style="${BTN_GOLD}">Hire ${open} sailors (${cost}g)</button>`;
-            } else if (affordable > 0) {
-                hire = `<button onclick="window._hireSailors('${ship.id}')" style="${BTN_GOLD}">Hire ${affordable} of ${open} (${Ships.getHireCost(affordable)}g, all you can afford)</button>`;
-            } else {
-                hire = `<span style="font-size:11px; color:#c98a6a; margin-right:6px;">Not enough gold: ${crewCfg.hireCostPerSailor}g per sailor.</span>`;
-            }
+            // The row hires: all the berths, or as many as the purse allows
+            const n = Math.min(open, affordable);
             shipRows.push(actRow({
-                icon: st.icon || '⛵', name: ship.name,
-                desc: `${canSail ? 'Can sail, but short-handed.' : `Needs ${Ships.getMinCrew(ship)} to leave port.`} ${open} berth${open === 1 ? '' : 's'} empty · wages afterwards ${need * crewCfg.wagePerSailorPerDay}g/day`,
-                note: `<span style="display:block; margin-top:3px;">${hire}<button onclick="window._hireSailorsManage('${ship.id}')" style="${BTN_PLAIN}">⚙️ Ship</button></span>`,
-                side: `<span style="color:${canSail ? '#f0b35a' : '#e0846a'};">${crew}/${need} crew</span>`,
+                icon: st.icon || '⛵', name: n > 0 ? `Hire ${n}${n < open ? ` of ${open}` : ''} sailors for the ${esc(ship.name)}` : esc(ship.name),
+                desc: `${crew}/${need} crew. ${canSail ? 'She can sail, short-handed.' : `She needs ${Ships.getMinCrew(ship)} to leave port.`} Wages afterwards ${need * crewCfg.wagePerSailorPerDay}g/day.`,
+                note: n > 0 && n < open ? 'All your purse allows' : '',
+                off: n <= 0, why: `${crew}/${need} crew. Not enough gold: ${crewCfg.hireCostPerSailor}g per sailor.`,
+                side: n > 0 ? price(Ships.getHireCost(n), true) : '', tone: 'gold',
+                attrs: n > 0 ? `onclick="window._hireSailors('${ship.id}')"` : '',
             }));
         }
         html += rowList(shipRows, '👥 Hire Sailors');

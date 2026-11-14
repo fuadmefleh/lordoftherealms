@@ -118,10 +118,113 @@ describe('what they do', () => {
         expect(res.notes[0].text).toMatch(/Relationship \+1/);
         expect(chat.mock.calls[0][1].json).toBe(true);
         expect(chat.mock.calls[0][0][0].content).toContain('Hadrian');
-        expect(chat.mock.calls[0][0].at(-1)).toEqual({ role: 'user', content: 'Do you sell wool?' });
+        expect(chat.mock.calls[0][0].at(-1).role).toBe('user');
+        // (the player's words, tagged as theirs, and the model told whose voice it speaks in)
+        expect(chat.mock.calls[0][0].at(-1).content).toMatch(/says to you: "Do you sell wool\?"[\s\S]*Answer as /);
         expect(s.lines).toHaveLength(2);
         const left = NpcChat.canTalk(p, w, n).left;
         expect(left).toBe(NpcChat.config().limits.messagesPerDay - 1);
+    });
+
+    it('an insult stings whatever the model made of it, and the model is told it was one', async () => {
+        const p = player(), w = world(), n = npc();
+        NpcBrain.enable(true);
+        vi.spyOn(LlmClient, 'isAvailable').mockResolvedValue(true);
+        // a cheerful model that shrugs it off
+        const chat = vi.spyOn(LlmClient, 'chat').mockResolvedValue({ ok: true, text: '{"say":"Ha! Good one.","feeling":{"change":2,"why":"funny"}}' });
+        const s = NpcChat.startSession(p, w, n);
+        const res = await NpcChat.say(p, w, n, s, 'You are an ugly stupid fool.');
+        expect(res.ok).toBe(true);
+        expect(chat.mock.calls[0][0].at(-1).content).toMatch(/insulting/);
+        const minus = res.notes.find(x => /Relationship -/.test(x.text));
+        expect(minus).toBeTruthy();
+        expect(Number(minus.text.match(/-(\d+)/)[1])).toBeGreaterThanOrEqual(6);
+        expect(res.notes.some(x => /Relationship \+/.test(x.text))).toBe(false);
+    });
+
+    it('asks for the reply by one schema for everyone; the game keeps to the functions open in this talk', async () => {
+        const p = player(), w = world(), n = npc();
+        const sch = NpcChat.replySchema();
+        expect(sch.required).toEqual(['say', 'feeling', 'actions']);
+        expect(Object.keys(sch.properties)).toEqual(['say', 'feeling', 'actions']);
+        const fns = sch.properties.actions.items.properties.fn.enum;
+        expect(fns).toContain('sour_on');
+        expect(fns).toContain('feel_attraction');
+        // (the same schema every time: WebLLM recompiles, and disposes, on a change)
+        expect(JSON.stringify(NpcChat.replySchema())).toBe(JSON.stringify(sch));
+        // (no romance with the folk of the town map: offered to no one there, and refused if called)
+        const town = NpcChat.townSubject(p, { name: 'Bram Cole', id: 'tw1', type: 'merchant' }, { place: 'Riptide' });
+        expect(NpcChat._offered(p, w, town).map(([k]) => k)).not.toContain('feel_attraction');
+        const tsess = NpcChat.startSession(p, w, town);
+        const done = NpcChat.applyActions(p, w, town, tsess, [{ fn: 'feel_attraction', amount: 3 }]);
+        expect(done.notes.some(x => /Affection/.test(x.text))).toBe(false);
+        NpcBrain.enable(true);
+        vi.spyOn(LlmClient, 'isAvailable').mockResolvedValue(true);
+        const chat = vi.spyOn(LlmClient, 'chat').mockResolvedValue({ ok: true, text: '{"say":"Morning.","feeling":{"change":0,"why":"-"},"actions":[]}' });
+        await NpcChat.say(p, w, n, NpcChat.startSession(p, w, n), 'Morning.');
+        expect(chat.mock.calls[0][1].schema).toMatchObject({ type: 'object', required: ['say', 'feeling', 'actions'] });
+    });
+
+    it('reads the tone of a line: rude, crude, threatening, or nothing', () => {
+        expect(NpcChat.toneOf('Good morning, how is the wool?').kind).toBe(null);
+        expect(NpcChat.toneOf('you are an idiot').kind).toBe('rude');
+        expect(NpcChat.toneOf('Fuck off, you bastard').kind).toBe('crude');
+        expect(NpcChat.toneOf("I'll kill you, idiot").kind).toBe('threat');
+        // whole words only: "dogma" is no "dog"
+        expect(NpcChat.toneOf('Speak to me of dogma').kind).toBe(null);
+        expect(NpcChat.parseReply('{"say":"Hmph.","feeling":-5}').actions[0]).toMatchObject({ fn: 'sour_on', amount: 5 });
+    });
+
+    it('a threat ends the talk at once, and they won\'t speak again today', async () => {
+        const p = player(), w = world(), n = npc();
+        NpcBrain.enable(true);
+        vi.spyOn(LlmClient, 'isAvailable').mockResolvedValue(true);
+        vi.spyOn(LlmClient, 'chat').mockResolvedValue({ ok: true, text: '{"say":"*steps back*"}' });
+        const res = await NpcChat.say(p, w, n, NpcChat.startSession(p, w, n), "I'll kill you where you stand.");
+        expect(res.ended).toBe(true);
+        expect(res.notes.some(x => /had enough of you/.test(x.text))).toBe(true);
+        expect(NpcChat.canTalk(p, w, n).ok).toBe(false);
+        expect(NpcChat.canTalk(p, w, n).reason).toMatch(/won't speak to you again today/);
+        // a new day, a new chance
+        expect(NpcChat.canTalk(p, { ...w, day: w.day + 1 }, n).ok).toBe(true);
+    });
+
+    it('rudeness adds up: past their patience they walk off', async () => {
+        const p = player(), w = world(), n = npc();
+        NpcBrain.enable(true);
+        vi.spyOn(LlmClient, 'isAvailable').mockResolvedValue(true);
+        vi.spyOn(LlmClient, 'chat').mockResolvedValue({ ok: true, text: '{"say":"Hmph."}' });
+        const s = NpcChat.startSession(p, w, n);
+        const first = await NpcChat.say(p, w, n, s, 'You idiot.');
+        expect(first.ended).toBeFalsy();
+        let res = first;
+        for (let i = 0; i < 4 && !res.ended; i++) res = await NpcChat.say(p, w, n, s, 'You useless fool.');
+        expect(res.ended).toBe(true);
+        expect(NpcChat.canTalk(p, w, n).ok).toBe(false);
+    });
+
+    it('remembers past talks: what you said and how it went, and an apology is marked', async () => {
+        const p = player(), w = world(), n = npc();
+        NpcBrain.enable(true);
+        vi.spyOn(LlmClient, 'isAvailable').mockResolvedValue(true);
+        const chat = vi.spyOn(LlmClient, 'chat').mockResolvedValue({ ok: true, text: '{"say":"Hmph."}' });
+        const s1 = NpcChat.startSession(p, w, n);
+        await NpcChat.say(p, w, n, s1, 'Your sheep are a sorry lot, you fool.');
+        const w2 = { ...w, day: w.day + 3 };
+        const s2 = NpcChat.startSession(p, w2, n);
+        // (the talk in hand is not recalled as a past one; the last one is)
+        const sheet = NpcChat.persona(p, w2, n, s2);
+        expect(sheet).toMatch(/3 days ago you talked with them, and it left a sour taste/);
+        expect(sheet).toContain('Your sheep are a sorry lot, you fool.');
+        await NpcChat.say(p, w2, n, s2, 'I am sorry for what I said.');
+        expect(chat.mock.calls.at(-1)[0].at(-1).content).toMatch(/apologising/);
+        // seeded scene lines are context, not the gist
+        const s3 = NpcChat.startSession(p, w2, n);
+        s3.lines.push({ npc: false, text: 'Seeded line', seeded: true });
+        await NpcChat.say(p, w2, n, s3, 'Fine weather.');
+        const talks = Relationships.getRelationship(p, n.id).talks;
+        expect(talks.length).toBeLessThanOrEqual(NpcChat.patience().talksKept);
+        expect(talks.at(-1).said).toEqual(['Fine weather.']);
     });
 
     it('refuses without the AI brain, and when they have talked enough today', async () => {

@@ -64,13 +64,18 @@ function run(game, seconds, step = 0.25, watch = null) {
     } finally { performance.now = real; }
 }
 
-/** Anyone on their feet in the street on a cart's ground (not its own driver). */
+/**
+ * Anyone standing about in the street on a parked cart's ground (not its own driver).
+ * (Moving carts and the walking pass through each other.)
+ */
 function overlaps() {
     const bad = [];
     for (const c of InnerMap.streetCarts()) {
+        if (!c.parked) continue;
         for (const t of c.trail) {
             for (const n of InnerMap.npcs) {
                 if (n === c.driver || n === c.load || n.state === 'gone' || n.state === 'inside_building' || n.state === 'unconscious' || n._onCart) continue;
+                if (n.state === 'walking') continue;
                 if (n.q === t.q && n.r === t.r) bad.push(`${n.name} on ${c.id} at ${t.q},${t.r}`);
             }
         }
@@ -188,7 +193,7 @@ describe('Carts on the street map', () => {
         expect(InnerMap._playerMayEnter(InnerMap.tiles[s.r][s.q], s.q, s.r)).toBe(true);
     }, 60000);
 
-    it('carters pull loaded handcarts between the stores in the morning, never onto anyone', () => {
+    it('carters pull loaded handcarts between the stores in the morning, none left standing on a parked one', () => {
         const game = enter(7);
         const C = Carts.config().carters;
         // (a carter on the map for certain: the first grown townsman about)
@@ -214,6 +219,76 @@ describe('Carts on the street map', () => {
         expect(Math.max(...[...moved.values()].map(s => s.size))).toBeGreaterThan(3);
         expect(bad).toEqual([]);
     }, 120000);
+
+    it('townsfolk walk straight through a moving cart and its puller, and the cart rolls on through them', () => {
+        const game = enter(14);
+        const s = openRun();
+        expect(s).toBeTruthy();
+        const [puller, walker, stander] = InnerMap.npcs.filter(x => x.state !== 'inside_building' && x.state !== 'gone' && x.type !== 'guard' && x.type !== 'child');
+        expect(stander).toBeTruthy();
+        for (const n of [puller, walker, stander]) { n.state = 'idle'; n.idleTimer = 999; n.path = null; n.moveProgress = 0; n.speed = 1; }
+        // A handcart at s, its puller at s+1, bound two tiles to the right
+        puller.q = puller.prevQ = s.q + 1; puller.r = puller.prevR = s.r;
+        const c = InnerMapCarts._add('handcart', [{ q: s.q, r: s.r }], { owner: 'town', facing: 3 });
+        InnerMapCarts._takeHandles(c, puller, 'Pulling a cart');
+        c.path = [{ q: s.q + 2, r: s.r }];
+        c.pi = 0;
+        c.dest = { q: s.q + 2, r: s.r };
+        // Not a solid thing to the townsfolk: not the cart, not its puller, not the ground it is about to take
+        expect(InnerMap._cartBlocks(s.q, s.r, walker)).toBe(false);
+        expect(InnerMap._cartBlocks(s.q + 1, s.r, walker)).toBe(false);
+        // (the player still keeps off it)
+        expect(InnerMap._cartBlocks(s.q, s.r, 'player')).toBe(true);
+        // Someone stands where the cart goes next: it does not wait on them, nor shove them aside
+        stander.q = stander.prevQ = s.q + 2; stander.r = stander.prevR = s.r;
+        // Someone walks the length of the street through the cart and its puller
+        walker.q = walker.prevQ = s.q - 2; walker.r = walker.prevR = s.r;
+        walker.path = [{ q: s.q - 1, r: s.r }, { q: s.q, r: s.r }, { q: s.q + 1, r: s.r }, { q: s.q + 2, r: s.r }];
+        walker.pathIndex = 0;
+        walker.state = 'walking';
+        const real = performance.now;
+        performance.now = () => simNow;
+        const trailBefore = { ...c.trail[0] };
+        try {
+            for (let i = 0; i < 4; i++) {
+                simNow += 500;
+                InnerMap.updateNPCs(0.5);
+                InnerMapCarts.update(0.5, game);
+            }
+        } finally { performance.now = real; }
+        expect(walker._cartWait || 0).toBe(0);
+        expect(walker.q).toBe(s.q + 2);
+        expect(walker.r).toBe(s.r);
+        // The cart rolled on through the one standing in its way, who was left where they stood
+        expect(c.trail[0]).not.toEqual(trailBefore);
+        expect(puller.q).toBe(s.q + 2);
+        expect(stander.q).toBe(s.q + 2);
+        expect(stander.r).toBe(s.r);
+        expect(c.blockT || 0).toBe(0);
+    }, 60000);
+
+    it('a parked cart is gone round at once, and one standing on it steps off freely', () => {
+        enter(14);
+        const s = openRun();
+        expect(s).toBeTruthy();
+        const w = InnerMapCarts._add('wagon', [{ q: s.q, r: s.r }, { q: s.q - 1, r: s.r }], { owner: 'town' });
+        expect(w.parked).toBe(true);
+        const n = InnerMap.npcs.find(x => x.state !== 'inside_building' && x.state !== 'gone' && x.type !== 'guard');
+        // Standing on its ground (it was set down on them): every step off it, even over it, is free
+        n.q = s.q; n.r = s.r;
+        expect(InnerMap._cartBlocks(s.q - 1, s.r, n)).toBe(false);
+        // Walking up to it: blocked, and a way round is taken on the spot (no waiting about)
+        n.q = n.prevQ = s.q + 1; n.r = n.prevR = s.r;
+        n.path = [{ q: s.q, r: s.r }, { q: s.q - 1, r: s.r }, { q: s.q - 2, r: s.r }];
+        n.pathIndex = 0;
+        n.state = 'walking';
+        expect(InnerMap._cartBlocks(s.q, s.r, n)).toBe(true);
+        expect(InnerMap._npcWaitForCart(n, n.path[0])).toBe(true);
+        const ok = n.path && n.path.length && !n.path.some(p => InnerMap.cartAt(p.q, p.r) === w);
+        // (round it, or — with no way round — the walk given up at once)
+        expect(ok || (n.state === 'idle' && !n.path)).toBe(true);
+        expect(n._cartWait).toBe(0);
+    }, 60000);
 
     it('the player lays someone senseless on their own cart and wheels them off at a slow walk', () => {
         const game = enter(14, 40, { inventory: { handcart: 1 } });

@@ -306,6 +306,35 @@ export const Harvests = {
         return f;
     },
 
+    /** Fields salted by a conqueror (systems/atrocities.js): the crops' yield while the salt lies, else null. */
+    saltedYield(s, day) {
+        const sl = s && _obj(s.salted);
+        return sl && _num(day) < _num(sl.until) ? _clamp(_num(sl.yield, 0), 0, 1) : null;
+    },
+
+    /**
+     * Salt a town's fields until `until`: the harvest in force fails at once
+     * (and every harvest reckoned while the salt lies), the herds thin, and
+     * the soil is left spent when it lifts. → settlement.salted
+     */
+    saltFields(world, s, until, opts = {}) {
+        if (!s) return null;
+        const C = Harvests.config();
+        s.salted = { until: Math.round(_num(until)), yield: _clamp(_num(opts.yield, 0), 0, 1), d: _num(world && world.day), by: opts.by || null };
+        const f = Harvests.ensureFarm(world, s);
+        if (f) {
+            const y = { ...Harvests.townYield(s) };
+            for (const c of YIELDS) y[c] = c === 'stock' ? _r3(_num(y[c], 1) * 0.6) : s.salted.yield;
+            y.salted = 1;
+            f.y = y;
+            if (!Number.isFinite(f.yr)) f.yr = Harvests.yearOf(_num(world && world.day));
+            f.soil = C.soil.min;
+        }
+        const st = world && _obj(world.harvests);
+        if (st) st.ver = _num(st.ver) + 1;
+        return s.salted;
+    },
+
     /** Each crop's yield at a town for the harvest in force (1s before the first harvest). */
     townYield(s) {
         const f = s && _obj(s.farm);
@@ -331,11 +360,11 @@ export const Harvests = {
         const C = Harvests.config();
         const K = C.crops;
         const y = f.y;
-        const veg = 1 + (_num(y.veg, 1) - 1) * _num(K.vegDamp, 0.6);
+        const veg = y.salted ? _num(y.veg, 0) : 1 + (_num(y.veg, 1) - 1) * _num(K.vegDamp, 0.6);
         const now = _num(f.mix.grain) * _num(y.grain, 1) + _num(f.mix.veg) * K.vegFood * veg;
         const ref = _num(f.ref.grain) + _num(f.ref.veg) * K.vegFood;
         if (!(ref > 0)) return 1;
-        return _clamp(now / ref, C.effects.grainMin, C.effects.grainMax);
+        return _clamp(now / ref, y.salted ? 0 : C.effects.grainMin, C.effects.grainMax);
     },
 
     /** Multiplier on the granary food a town grows for its people (world/economy.js). */
@@ -343,7 +372,7 @@ export const Harvests = {
         const f = s && _obj(s.farm);
         if (!f || !_obj(f.y)) return 1;
         const E = Harvests.config().effects;
-        return _clamp(1 + (Harvests.grainFactor(s) - 1) * E.econShare, E.econMin, E.econMax);
+        return _clamp(1 + (Harvests.grainFactor(s) - 1) * E.econShare, f.y.salted ? _num(E.saltedEconMin, 0.15) : E.econMin, E.econMax);
     },
 
     /** Multiplier on the tithe and rents of a town the player holds (Taxation.collectTaxes). */
@@ -351,7 +380,7 @@ export const Harvests = {
         const f = s && _obj(s.farm);
         if (!f || !_obj(f.y)) return 1;
         const E = Harvests.config().effects;
-        return _clamp(1 + (Harvests.grainFactor(s) - 1) * _num(E.rentShare, 0.5), 0.4, 1.4);
+        return _clamp(1 + (Harvests.grainFactor(s) - 1) * _num(E.rentShare, 0.5), f.y.salted ? 0.05 : 0.4, 1.4);
     },
 
     /** The herds' yield at a town (murrain, war, the fodder on its fallow): hinterland sheep runs, ranches and studs. */
@@ -740,6 +769,13 @@ export const Harvests = {
                 const base = o ? _num(o[c], 1) : 1;
                 y[c] = _r3(_clamp(c === 'stock' ? base * (1 - dmg * 0.5) : base * soil * (1 - dmg) * hands, 0.1, 1.6));
             }
+            // Salted fields (systems/atrocities.js): nothing grows while the salt lies; the soil is spent after
+            const salt = Harvests.saltedYield(live, day);
+            if (salt != null) {
+                for (const c of YIELDS) y[c] = c === 'stock' ? _r3(y[c] * 0.6) : salt;
+                y.salted = 1;
+                f.soil = C.soil.min;
+            }
             f.y = y;
             f.yr = Y;
             f.rg = id;
@@ -936,6 +972,9 @@ export const Harvests = {
         let y = o ? _num(o[crop], 1) : 1;
         if (prop.type === 'irrigated_farm' && y < 1) y = 1 + (y - 1) * _num(C.irrigatedDamp, 0.5);
         if (crop === 'stock') return _clamp(y, 0.1, 1.6);
+        // A farm in a town whose fields were salted grows nothing (systems/atrocities.js)
+        const salt = Harvests.saltedYield(tile.settlement, _num(world && world.day));
+        if (salt != null) return salt;
         const rot = Harvests.rotation(prop);
         return _clamp(y * _num(prop.soil, 1) * _num(rot.yield, 1), 0.1, 2);
     },

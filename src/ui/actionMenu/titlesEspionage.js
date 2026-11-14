@@ -161,11 +161,7 @@ Object.assign(ActionMenu, {
             html += kv(label, display);
         }
 
-        // Resign button
-        html += `<div style="margin-top:12px; display:flex; gap:8px;">
-            <button data-am-act="closePanel" style="${BTN_PLAIN} flex:1; padding:8px; margin:0;">Close</button>
-            <button data-am-act="_resignTitle" style="${BTN_RED} flex:1; padding:8px; margin:0;">Resign Office</button>
-        </div>`;
+        html += rowList([{ icon: '🚪', name: 'Resign Office', desc: 'Give up the title, its duties and its perks', tone: 'bad', act: '_resignTitle' }]);
 
         game.ui.showCustomPanel(`${title.icon || '🏅'} ${title.name}`, html);
     },
@@ -353,19 +349,23 @@ Object.assign(ActionMenu, {
         ]);
 
         html += rowList([{
-            icon: '🏛️', name: 'Convene Council', desc: 'Call the lords to session',
-            act: 'councilConvene', side: canConveneIn > 0 ? `(available in ${canConveneIn}d)` : '', tone: canConveneIn > 0 ? 'warn' : 'gold',
+            icon: '🏛️', name: 'Convene Council', desc: 'Call the lords to session: approval rises',
+            act: 'councilConvene', off: canConveneIn > 0, why: `The lords can be called again in ${canConveneIn} day${canConveneIn === 1 ? '' : 's'}`,
         }]);
 
+        // A card a faction: its support, then what you can do with it (a row each, never a button in a row)
         html += sectionHead('Factions');
-        html += rowList(summary.factions.map(faction => actRow({
-            icon: faction.icon, name: faction.name,
-            desc: `Support ${faction.support}% ${faction.trend === 'rising' ? '▲' : faction.trend === 'falling' ? '▼' : '•'} • Influence ${faction.influence}`,
-            note: `<span style="display:block; height:5px; background:rgba(255,255,255,0.06); border-radius:3px; overflow:hidden; margin:3px 0;"><span style="display:block; height:100%; width:${Math.max(0, Math.min(100, faction.support))}%; background:${faction.support >= 55 ? '#8fd18a' : faction.support >= 40 ? '#f0b35a' : '#e0846a'};"></span></span>`
-                + (faction.suppressed ? `<span style="color:#e0846a;">Suppressed until day ${faction.suppressedUntilDay}</span>` : ''),
-            side: `<button data-am-act="councilManageFaction" data-am-args='["${faction.id}", "manage"]' style="${BTN_GOLD}">🤝 Manage (80g)</button>`
-                + `<button data-am-act="councilManageFaction" data-am-args='["${faction.id}", "suppress"]' style="${BTN_RED}">🛡️ Suppress</button>`,
-        })));
+        for (const faction of summary.factions) {
+            const bar = `<div style="height:5px; background:rgba(255,255,255,0.06); border-radius:3px; overflow:hidden; margin:2px 0 4px;"><div style="height:100%; width:${Math.max(0, Math.min(100, faction.support))}%; background:${faction.support >= 55 ? '#8fd18a' : faction.support >= 40 ? '#f0b35a' : '#e0846a'};"></div></div>`;
+            const status = faction.suppressed ? `<div style="font-size:11px; color:#e0846a;">Suppressed until day ${faction.suppressedUntilDay}</div>` : '';
+            html += card(bar + status + rowList([
+                { icon: '🤝', name: 'Negotiate', desc: 'Their support rises; approval +2', side: price(80, (player.gold || 0) >= 80), off: !summary.sessionActive, why: 'Only while the council sits', act: 'councilManageFaction', args: [faction.id, 'manage'] },
+                { icon: '🛡️', name: 'Suppress', desc: 'Their support falls and they are silenced 10 days; approval −5', tone: 'bad', off: !summary.sessionActive, why: 'Only while the council sits', act: 'councilManageFaction', args: [faction.id, 'suppress'] },
+            ]), {
+                icon: faction.icon, title: faction.name,
+                side: `${faction.support}% ${faction.trend === 'rising' ? '▲' : faction.trend === 'falling' ? '▼' : '•'} · influence ${faction.influence}`,
+            });
+        }
 
         html += sectionHead('Votes & Decrees');
 
@@ -392,15 +392,10 @@ Object.assign(ActionMenu, {
         } else if (!targets.length) {
             html += `<div style="${MUTED}">No valid war targets at this time.</div>`;
         } else {
-            html += rowList(targets.map(target => {
-                const hasMandate = Councils.hasWarMandate(player, game.world, target.id);
-                return actRow({
-                    icon: '🗳️', name: `Vote War: ${target.name}`,
-                    desc: hasMandate ? 'The council has granted a war mandate' : 'Put the war to the council',
-                    side: `<button data-am-act="councilVoteWar" data-am-args='["${target.id}"]' style="${BTN_DARK}">🗳️ Vote</button>`
-                        + `<button data-am-act="councilDeclareWar" data-am-args='["${target.id}"]' style="${hasMandate ? BTN_RED : BTN_OFF}" ${hasMandate ? '' : 'disabled'}>⚔️ Declare</button>`,
-                });
-            }));
+            // A mandate in hand: declare; else put it to the vote first
+            html += rowList(targets.map(target => (Councils.hasWarMandate(player, game.world, target.id)
+                ? { icon: '⚔️', name: `Declare war on ${target.name}`, desc: 'The council has granted a war mandate', tone: 'bad', act: 'councilDeclareWar', args: [target.id] }
+                : { icon: '🗳️', name: `Put war on ${target.name} to the vote`, desc: 'A war mandate lets you declare it', act: 'councilVoteWar', args: [target.id] })));
         }
 
         if (summary.history && summary.history.length) {
@@ -646,14 +641,12 @@ Object.assign(ActionMenu, {
                 </div>
                 <div style="margin-top:4px; font-size:10px; color:#9d937c;">XP: ${spy.experience}/${xpNeeded}${_bar(xpPct, '#b48ad8')}</div>
                 ${missionInfo}
-                <div style="margin-top:6px;">
-                    ${spy.status === 'idle' ? `
-                        <button onclick="window._assignSpyMission(${spy.id})" style="${BTN_GOLD}">📋 Assign Mission</button>
-                        <button onclick="window._dismissSpy(${spy.id})" title="Dismiss" style="${BTN_RED}">🗑️</button>
-                    ` : spy.status === 'on_mission' ? `
-                        <button onclick="window._recallSpy(${spy.id})" style="${BTN_DARK}">↩️ Recall Spy</button>
-                    ` : ''}
-                </div>`;
+                ${rowList(spy.status === 'idle' ? [
+                    { icon: '📋', name: 'Assign a mission', desc: 'Choose the work and the realm', side: '›', attrs: `onclick="window._assignSpyMission(${spy.id})"` },
+                    { icon: '🗑️', name: 'Dismiss', desc: 'Release them from your service', tone: 'bad', attrs: `onclick="window._dismissSpy(${spy.id})"` },
+                ] : spy.status === 'on_mission' ? [
+                    { icon: '↩️', name: 'Recall', desc: 'Abandon the mission and bring them home', attrs: `onclick="window._recallSpy(${spy.id})"` },
+                ] : [])}`;
             html += card(body, {
                 icon: levelTitle.icon,
                 title: `${spy.name} <span style="font-size:11px; color:#b48ad8; font-family:var(--font-body);">Lv${spy.level}</span>`,

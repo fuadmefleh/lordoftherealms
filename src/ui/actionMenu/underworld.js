@@ -420,7 +420,9 @@ function marketTab(game, tile) {
         html += rowList(offers.slice(0, 14).map(o => actRow({
             icon: '🏴‍☠️', name: `${label(o.item)} ×${o.qty}`,
             desc: `<span style="color:${STATUS_COLOR[o.status]};">${o.status}</span> · ${pct(o.risk)} risk`,
-            side: `<span class="pk-price">${o.price}<small>g</small></span> <button onclick="window._uw.bm('${o.item}', 1)" style="${BTN_RED}${SMALL}">Sell 1</button>`,
+            // One choice: the row itself sells one
+            note: 'Sell one', tone: 'bad', attrs: `onclick="window._uw.bm('${o.item}', 1)"`,
+            side: `<span class="pk-price">${o.price}<small>g</small></span>`,
         })));
     }
 

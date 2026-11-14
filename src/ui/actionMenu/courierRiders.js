@@ -6,11 +6,9 @@
 // Buttons route through data-am-act → ActionMenu.riderAct.
 import { ActionMenu } from './_ref.js';
 import { CourierRiders } from '../../systems/courierRiders.js';
-import { BTN_GOLD, BTN_PLAIN, BTN_RED, CARD, esc } from './uiKit.js';
+import { card, chips, rowList, esc } from './uiKit.js';
 
-function act(label, args, style = BTN_PLAIN) {
-    return `<button data-am-act="riderAct" data-am-args='${esc(JSON.stringify(args))}' style="${style}">${label}</button>`;
-}
+const MUTED = 'font-size:11px; color:#a99a78;';
 
 Object.assign(ActionMenu, {
     /** Hail a post rider within a hex. */
@@ -23,21 +21,23 @@ Object.assign(ActionMenu, {
         }
         const v = CourierRiders.describe(world, player, u);
         let html = '<div style="font-size:12px;">';
-        if (message) html += `<div style="${CARD} border-color:${message.ok ? 'rgba(159,216,159,0.5)' : 'rgba(224,128,128,0.5)'};">${esc(message.text)}</div>`;
-        html += `<div style="${CARD}"><div style="font-weight:bold; color:var(--gold);">${v.icon} ${esc(v.name)}</div>`;
-        html += `<div style="font-size:11px; color:#aaa;">${esc(v.house)}${v.own ? ' · <span style="color:#9fd89f;">your house</span>' : ''} · ${esc(v.from)} → ${esc(v.to)} · ${v.progress}% of the way${v.daysLeft ? ` · due in ${v.daysLeft} day${v.daysLeft === 1 ? '' : 's'}` : ' · due today'}</div>`;
-        html += `<div style="font-size:11px; color:#bbb; margin-top:4px;">🛡️ ${v.guards} guard strength · ✉️ ${v.letters} letter${v.letters === 1 ? '' : 's'} in the bag${v.coin ? ` · 💰 about ${v.coin} gold` : ''}${v.sealed && !v.own ? ' · a letter under a lord\'s seal, by the look of it' : ''}</div>`;
+        if (message) html += card(esc(message.text), { tone: message.ok ? 'good' : 'bad' });
+        let body = `<div style="${MUTED}">${esc(v.from)} → ${esc(v.to)} · ${v.progress}% of the way${v.daysLeft ? ` · due in ${v.daysLeft} day${v.daysLeft === 1 ? '' : 's'}` : ' · due today'}</div>`;
+        body += chips([['🛡️', 'Guard', v.guards], ['✉️', 'Letters', v.letters], v.coin ? ['💰', 'Coin', `~${v.coin}g`] : null]);
+        if (v.sealed && !v.own) body += `<div style="${MUTED}">A letter under a lord's seal, by the look of it.</div>`;
         if (v.yourLetter) {
             const L = v.yourLetter;
-            html += `<div style="margin-top:6px; color:#ddd;">${L.icon} Your ${esc(L.kind.toLowerCase())} to <b>${esc(L.to)}</b> rides with them${L.gold ? `, with ${L.gold} gold enclosed` : ''}${L.item ? `, with your ${esc(String(L.item.id).replace(/_/g, ' '))}` : ''}.${L.delayed ? ' <span style="color:#d8c89f;">They are held up on the road.</span>' : ''}</div>`;
+            body += `<div style="margin-top:4px;">${L.icon} Your ${esc(L.kind.toLowerCase())} to <b>${esc(L.to)}</b> rides with them${L.gold ? `, with ${L.gold} gold enclosed` : ''}${L.item ? `, with your ${esc(String(L.item.id).replace(/_/g, ' '))}` : ''}.${L.delayed ? ' <span style="color:#d8c89f;">They are held up on the road.</span>' : ''}</div>`;
         }
-        if (v.yourReply) html += `<div style="margin-top:6px; color:#ddd;">📨 They carry <b>${esc(v.yourReply.from)}</b>'s answer to your letter${v.yourReply.gold ? `, with ${v.yourReply.gold} gold` : ''}.</div>`;
-        html += '</div><div>';
-        if (v.own || v.yourLetter || v.yourReply) html += `<div style="font-size:11px; color:#999;">"${v.yourReply ? 'An answer for you, as it happens. I will bring it on.' : v.yourLetter ? 'Your letter is safe with me.' : 'All well on the road, master.'}" The rider touches a hat and rides on.</div>`;
-        else html += `<div style="font-size:11px; color:#999;">"Post for ${esc(v.to)}. Mind the road, traveller."</div>`;
-        html += `<div style="margin-top:6px;">${act('Let them ride on', ['close', u.id], BTN_GOLD)}`;
-        if (!v.own && !v.yourLetter && !v.yourReply) html += act('🗡️ Rob the mailbag', ['rob', u.id], BTN_RED);
-        html += '</div></div></div>';
+        if (v.yourReply) body += `<div style="margin-top:4px;">📨 They carry <b>${esc(v.yourReply.from)}</b>'s answer to your letter${v.yourReply.gold ? `, with ${v.yourReply.gold} gold` : ''}.</div>`;
+        const mine = v.own || v.yourLetter || v.yourReply;
+        body += `<div style="${MUTED} font-style:italic; margin-top:4px;">${mine ? `“${v.yourReply ? 'An answer for you, as it happens. I will bring it on.' : v.yourLetter ? 'Your letter is safe with me.' : 'All well on the road, master.'}” The rider touches a hat.` : `“Post for ${esc(v.to)}. Mind the road, traveller.”`}</div>`;
+        html += card(body, { icon: v.icon, title: esc(v.name), side: `${esc(v.house)}${v.own ? ' · <span style="color:#9fd89f;">your house</span>' : ''}` });
+        html += rowList([
+            { icon: '👋', name: 'Let them ride on', act: 'riderAct', args: ['close', u.id] },
+            mine ? null : { icon: '🗡️', name: 'Rob the mailbag', desc: 'Fight the guard for the bag: its coin and letters; the house and its realm will hear of it', act: 'riderAct', args: ['rob', u.id], tone: 'bad' },
+        ]);
+        html += '</div>';
         game.ui.showCustomPanel(`${v.icon} A Post Rider`, html);
     },
 

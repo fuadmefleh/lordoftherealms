@@ -18,6 +18,7 @@ import { InnerMapZones } from '../innerMapZones.js';
 import { InnerMapDeck } from '../innerMapDeck.js';
 import { InnerMapAnimals } from '../innerMapAnimals.js';
 import { Swimming } from '../../player/swimming.js';
+import { OceanCurrents } from '../../world/oceanCurrents.js';
 import { Gathering } from '../../player/gathering.js';
 import { InnerMapFurnish } from '../innerMapFurnish.js';
 import { InnerMapFelling } from '../innerMapFelling.js';
@@ -27,11 +28,13 @@ import { updateAPChip } from '../apChip.js';
 import { InnerMapBattle } from '../innerMapBattle.js';
 import { isInventoryKey } from '../inventoryHotkey.js';
 import { InnerMapEscort } from '../innerMapEscort.js';
+import { InnerMapCompanions } from '../innerMapCompanions.js';
 import { InnerMapBrawls } from '../innerMapBrawls.js';
 import { InnerMapCourting } from '../innerMapCourting.js';
 import { InnerMapSickness } from '../innerMapSickness.js';
 import { InnerMapRites } from '../innerMapRites.js';
 import { InnerMapKin } from '../innerMapKin.js';
+import { InnerMapOverheard } from '../innerMapOverheard.js';
 import { InnerMapRiverDrift } from '../innerMapRiverDrift.js';
 
 // Blows at a tree or a rock land harder with Woodcutting / Mining (player/gathering.js): the
@@ -165,6 +168,8 @@ export function gameLoop(timestamp, loopId) {
             _swimStep(this);
             InnerMapClimbing.onStep(this);
         }
+        // The current takes a swimmer: down the river, along the sea (world/innerMap/currents.js)
+        _currentStep(this, simDelta);
         // Wilderness encounters come into sight a few paces off (player/wilds.js)
         if (InnerMap._playerWalking || playerStepResult) {
             for (const e of InnerMap.spotWildEncounters(6)) {
@@ -446,6 +451,8 @@ export function gameLoop(timestamp, loopId) {
         InnerMapSickness.update(simDelta, this);
         // Children at play and at school, the old greying in the sun (ui/innerMapKin.js)
         InnerMapKin.update(simDelta, this);
+        // Townsfolk talking about the player within earshot (ui/innerMapOverheard.js)
+        InnerMapOverheard.update(simDelta, this);
         // Digging, filling in, burying (ui/innerMapDigging.js)
         InnerMapDigging.update(simDelta, this);
         // Someone senseless over your shoulder: through doors with you, waking, laid down (ui/innerMapCarry.js)
@@ -461,6 +468,8 @@ export function gameLoop(timestamp, loopId) {
         // A battle on the field: its own clock (paused / 1× / 2× / 4×), not the day's (ui/innerMapBattle.js)
         InnerMapBattle.update(deltaTime, this);
         // The realm's household guard walking behind you (ui/innerMapEscort.js)
+        // Your travelling companions, walking with you ahead of the guard (ui/innerMapCompanions.js)
+        InnerMapCompanions.update(simDelta, this);
         InnerMapEscort.update(simDelta, this);
 
         // Update light system from time of day
@@ -1132,6 +1141,32 @@ export function handleDoubleClick(screenX, screenY) {
  * Enter the inner map for a given world tile
  */
 
+
+/**
+ * The current carries a swimmer on the street map: the river down its
+ * course, the sea with the hex's ocean current; a better swimmer holds
+ * against it (data/currents.json swim.skillResist). Told once a swim.
+ */
+let _seaCur = { key: null, cur: null };
+function _currentStep(game, dt) {
+    const at = InnerMap.currentWorldTile;
+    const world = game.world;
+    let sea = null;
+    if (world && at) {
+        const key = `${at.q},${at.r}|${world.generationParams && world.generationParams.seed}`;
+        if (_seaCur.key !== key) _seaCur = { key, cur: OceanCurrents.near(world, at.q, at.r) };
+        sea = _seaCur.cur;
+    }
+    const sw = OceanCurrents.config().swim || {};
+    const resist = game.player ? Swimming.practice(game.player) * (Number(sw.skillResist) || 0) : 0;
+    const res = InnerMap.driftPlayer(dt, sea, resist);
+    if (!InnerMap.isPlayerSwimming()) { game._currentTold = false; return; }
+    if (res && res.carried && !game._currentTold) {
+        game._currentTold = true;
+        if (res.kind === 'river') game.ui.showNotification('🌊 The Current', 'The river takes you — it carries you downstream. Swim across it, or make for the bank.', 'info');
+        else game.ui.showNotification('🌊 The Current', `The sea runs ${OceanCurrents.sideName(sea && sea.dir)} here and carries you with it.`, 'info');
+    }
+}
 
 /**
  * The player has moved a tile on the inner map: in deep water that is a

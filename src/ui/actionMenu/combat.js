@@ -5,7 +5,7 @@ import { Ailments } from '../../systems/ailments.js';
 import { Sieges } from '../../systems/sieges.js';
 import { siegePanelHtml, siegeResultHtml } from './siegePanel.js';
 import { FieldBattle } from '../../player/fieldBattle.js';
-import { fieldChoiceHtml, BTN_GOLD, lede, chips, card, bullets, rowList } from './uiKit.js';
+import { lede, chips, card, bullets, rowList, esc } from './uiKit.js';
 import { InnerMapBattle } from '../innerMapBattle.js';
 import { Arms } from '../../systems/arms.js';
 import { openLordAudience, lordAudienceAct } from './lordAudience.js';
@@ -42,15 +42,15 @@ function _resultHead(icon, title, color, line) {
         + `${line ? `<div style="font-size: 12px; color: #9d937c;">${line}</div>` : ''}</div>`;
 }
 
-/** The result screen's one button. */
+/** The result screen's one way on: a Continue row. */
 function _continue(act) {
-    return `<button data-am-act="${act}" style="${BTN_GOLD} width: 100%; padding: 9px; margin-top: 10px;">Continue</button>`;
+    return rowList([{ icon: '➡️', name: 'Continue', act, tone: 'gold' }]);
 }
 
-/** A battle's tactics footnote. */
+/** A battle's tactics footnote, in words: how your companies matched theirs, the ground, the morale. */
 function _tacticsHtml(t, broke) {
-    const terrain = t.terrainId || 'mixed ground';
-    let h = `📐 Tactical: counters x${t.playerCounterMult} • terrain x${t.playerTerrainMult} (${terrain}) • morale ${t.playerMorale}`;
+    const terrain = String(t.terrainId || 'mixed ground').replace(/_/g, ' ');
+    let h = `📐 Your companies against theirs ×${t.playerCounterMult} · the ground (${terrain}) ×${t.playerTerrainMult} · your morale ${t.playerMorale}`;
     if (broke) h += `<br>${broke}`;
     return `<div style="margin-top: 8px; font-size: 11px; color: #9d937c;">${h}</div>`;
 }
@@ -60,7 +60,7 @@ function _attackOddsHtml(game, unit) {
     const { enemy, ctx } = FieldBattle.unitEnemy(game.player, unit, game.world);
     const est = FieldBattle.preview(game.player, enemy, game.world, ctx);
     if (!est) return '';
-    return `Estimated: win ~${Math.round(est.win * 100)}% · ~${Math.round(est.loss * 100)}% of your force lost (default stances; you choose a stance each phase)`;
+    return `Win ~${Math.round(est.win * 100)}% · ~${Math.round(est.loss * 100)}% of your force lost (with the usual stances)`;
 }
 
 /** You fought in the line yourself: maybe a wound (systems/ailments.js). */
@@ -111,7 +111,7 @@ Object.assign(ActionMenu, {
         html += lede(`${typeIcon} <b>${settlement.name}</b>, ${typeName}${kingdom ? ` — ${kingdom.name}` : ' — Independent'}. Pop: ${Utils.formatNumber(settlement.population)}.`);
         html += chips([
             { icon: '⚔️', label: 'Your army', value: `<span style="color: #7cc7e8;">${playerStrength}</span>` },
-            ['⚔️', 'Units', game.player.army.length],
+            ['👥', 'Companies', game.player.army.length],
             { icon: '🛡️', label: 'Garrison', value: `<span style="color: #e0846a;">${garrisonStrength}</span>` },
             { icon: '⚖️', label: '', value: `<span style="color: ${oddsColor};">${oddsLabel}</span>` },
         ]);
@@ -120,18 +120,15 @@ Object.assign(ActionMenu, {
 
         // Warnings
         const C = Sieges.config();
+        const owner = kingdom ? kingdom.name : 'the defenders';
         const warn = [
-            'Your army camps before the walls: starve the town, build engines, dig mines, storm it or offer terms — day by day',
-            `The camp eats ${Math.ceil(PlayerMilitary.getArmyStrength(game.player) > 0 ? game.player.army.length / C.camp.rationsPerUnits : 0)} food a day beyond what it forages; it may sicken and desert`,
-            `${kingdom ? kingdom.name : 'The owner'} may send a relief army`,
-            `Investing: reputation ${C.investReputation} with ${kingdom ? kingdom.name : 'the defenders'}, karma ${C.investKarma}. Taking it by storm:`,
-            'Massive karma penalty (-10)',
-            'Reputation with <strong>ALL</strong> kingdoms drops',
-            settlement.kingdom ? `Reputation with ${kingdom ? kingdom.name : 'defender'} drops by -50` : null,
-            'Settlement population suffers (-30%)',
-            settlement.type === 'capital' ? '<span style="color: #e0846a; font-weight: bold;">This is a CAPITAL — expect maximum resistance!</span>' : null,
+            'You camp before the walls and take it day by day: starve it, build engines, dig mines, storm it or offer terms.',
+            `The camp eats ${Math.ceil(PlayerMilitary.getArmyStrength(game.player) > 0 ? game.player.army.length / C.camp.rationsPerUnits : 0)} food a day beyond what it forages; hungry, it sickens and deserts. ${kingdom ? esc(kingdom.name) : 'The owner'} may send a relief army.`,
+            `Laying siege: reputation ${C.investReputation} with ${esc(owner)}, karma ${C.investKarma}.`,
+            `Taking it by storm: karma −10, reputation falls with every realm${settlement.kingdom ? ` (−50 with ${esc(owner)})` : ''}, and the town loses 30% of its people.`,
+            settlement.type === 'capital' ? '<span style="color: #e0846a; font-weight: bold;">A capital: expect its fiercest resistance.</span>' : null,
         ];
-        html += card(`<div style="font-size: 12px; color: #cbbf9f;">${bullets(warn)}</div>`, { icon: '⚠️', title: 'Consequences of a Siege', tone: 'bad' });
+        html += card(`<div style="font-size: 12px; color: #cbbf9f;">${bullets(warn)}</div>`, { icon: '⚠️', title: 'What a siege costs', tone: 'bad' });
 
         // Raid option: hit and run instead of a full siege
         const raidStrength = Math.max(1, Math.floor(garrisonStrength * PlayerMilitary.RAID_DEFENSE_SHARE));
@@ -271,10 +268,14 @@ Object.assign(ActionMenu, {
         const [arg0, how] = String(arg == null ? '' : arg).split('|');
         if ((act === 'storm' || act === 'relief') && how !== 'captains') {
             if ((player.actionPoints || 0) < C.storm.apCost) { spend(C.storm.apCost); return; }
-            game.ui.showCustomPanel(act === 'storm' ? `⚔️ Storm ${s.name}` : '🚩 The Relief Host', fieldChoiceHtml(
-                ['siegeAct', act === 'storm' ? 'stormField' : 'reliefField', arg0],
-                ['siegeAct', act, `${arg0}|captains`],
-                act === 'storm' ? `Fought in ${s.name}'s own streets: the garrison holds them, your army comes on from outside the walls.` : undefined));
+            game.ui.showCustomPanel(act === 'storm' ? `⚔️ Storm ${s.name}` : '🚩 The Relief Host', rowList([
+                {
+                    icon: '⚔️', name: 'Take the field — command them yourself', tone: 'gold',
+                    desc: act === 'storm' ? `Fought in ${esc(s.name)}'s own streets: the garrison holds them, your army comes on from outside the walls.` : 'Your companies drawn up on the ground where it happens: march, hold, charge, loose, sound the retreat.',
+                    act: 'siegeAct', args: [act === 'storm' ? 'stormField' : 'reliefField', arg0],
+                },
+                { icon: '🎲', name: 'Let the captains fight it', desc: 'Settled at once on the odds.', act: 'siegeAct', args: [act, `${arg0}|captains`] },
+            ]));
             return;
         }
         if (act === 'stormField' || act === 'reliefField') {
@@ -345,20 +346,19 @@ Object.assign(ActionMenu, {
         const playerStr = PlayerMilitary.getTheatreStrength(game.player, theatre);
 
         let html = '<div>';
-        html += lede('Choose a target to engage in combat:');
+        html += lede(`Who here will you fall on? ${theatre === 'sea' ? 'At sea your galleys fight at full strength, soldiers from the decks at half.' : 'You choose a stance for each phase of the battle.'}`);
         html += chips([
             { icon: '⚔️', label: `Your ${theatre === 'sea' ? 'strength at sea' : 'army strength'}`, value: playerStr, cls: 'gold' },
-            ['⚔️', 'Units', game.player.army.length],
+            ['👥', 'Companies', game.player.army.length],
         ]);
         if (theatre === 'land' && PlayerMilitary.getNavalStrength(game.player) > 0) html += '<div style="font-size: 11px; color: #9d937c; margin: 2px 0;">⛵ Your war galleys cannot fight on land.</div>';
-        if (theatre === 'sea') html += '<div style="font-size: 11px; color: #9d937c; margin: 2px 0;">⛵ At sea your galleys fight at full strength, soldiers from the decks at half.</div>';
 
         html += rowList(unitsOnTile.map(unit => {
             const stronger = unit.strength > playerStr;
             const warn = unit.type === 'caravan' || unit.type === 'ship' || unit.type === 'fishing_boat' ? '⚠️ Attacking traders hurts your karma' : unit.type === 'patrol' ? '⚠️ Attacking patrols angers kingdoms' : '💀 Hostile unit';
             return {
                 icon: unit.icon, name: unit.name,
-                desc: `Population: ${unit.population} · ${_attackOddsHtml(game, unit) || 'Strength ' + unit.strength}`,
+                desc: _attackOddsHtml(game, unit) || `${unit.population} strong`,
                 note: `<span style="color: #c98a6a;">${warn}</span>`,
                 side: `Strength ${unit.strength}`, tone: stronger ? 'bad' : 'good',
                 act: 'performAttack', args: [unit.id],

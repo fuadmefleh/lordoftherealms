@@ -18,6 +18,9 @@ import { Commissions } from '../../systems/commissions.js';
 import { Traits } from '../../systems/traits.js';
 import { Hospitality } from '../../systems/hospitality.js';
 import { RiverDrift } from '../../systems/riverDrift.js';
+import { RiverFlotsam } from '../../systems/riverFlotsam.js';
+import { RiverNets } from '../../systems/riverNets.js';
+import { OceanCurrents } from '../../world/oceanCurrents.js';
 import { Crops } from '../../systems/crops.js';
 import { Delves } from '../../systems/delves.js';
 import { Ailments } from '../../systems/ailments.js';
@@ -28,6 +31,8 @@ import { Holdings } from '../../systems/holdings.js';
 import { Stewards } from '../../systems/stewards.js';
 import { Rivals } from '../../systems/rivals.js';
 import { Nemesis } from '../../systems/nemesis.js';
+import { ProfaneCrimes } from '../../systems/profaneCrimes.js';
+import { KinCrimes } from '../../systems/kinCrimes.js';
 import { HouseQuests } from '../../systems/houseQuests.js';
 import { Upbringing } from '../../systems/upbringing.js';
 import { HeirAgency } from '../../systems/heirAgency.js';
@@ -36,8 +41,11 @@ import { Regency } from '../../systems/regency.js';
 import { Abdication } from '../../systems/abdication.js';
 import { Townsfolk } from '../../systems/townsfolk.js';
 import { TownMemory } from '../../systems/townMemory.js';
+import { TownCrimes } from '../../systems/townCrimes.js';
 import { TownEras } from '../../world/townEras.js';
 import { NpcMemory } from '../../systems/npcMemory.js';
+import { Vanishings } from '../../systems/vanishings.js';
+import { PeopleCrimes } from '../../systems/peopleCrimes.js';
 import { Lots } from '../../systems/lots.js';
 import { Graveyards } from '../../systems/graveyards.js';
 import { NpcTheft } from '../../systems/npcTheft.js';
@@ -47,6 +55,7 @@ import { InnerMapSickness } from '../innerMapSickness.js';
 import { Livestock } from '../../systems/livestock.js';
 import { Sagas } from '../../systems/sagas.js';
 import { Whispers } from '../../systems/whispers.js';
+import { NpcChatImpact } from '../../systems/npcChatImpact.js';
 import { Devotion } from '../../systems/devotion.js';
 import { DynastyTree } from '../../systems/dynastyTree.js';
 import { Heirlooms } from '../../systems/heirlooms.js';
@@ -61,6 +70,7 @@ import { PanelRefresh } from '../panelRefresh.js';
 import { Fame } from '../../systems/fame.js';
 import { Demands } from '../../systems/demands.js';
 import { Sieges } from '../../systems/sieges.js';
+import { Atrocities } from '../../systems/atrocities.js';
 import { HoldingSieges } from '../../systems/holdingSieges.js';
 import { Discovery } from '../../systems/discovery.js';
 import { MerchantHouses } from '../../systems/merchantHouses.js';
@@ -111,6 +121,7 @@ import { MapTheft } from '../../systems/mapTheft.js';
 import { checkMapAccusation } from '../actionMenu/treasureScenes.js';
 import { MetaLegacy } from '../../systems/metaLegacy.js';
 import { settleIronmanDeath } from './ironman.js';
+import { fadeOut, fadeIn } from '../dayFade.js';
 
 // The prose pen handed to the systems with a prose seam (systems/llmProse.js), on the first day
 let _proseWired = false;
@@ -244,6 +255,8 @@ export function endDay() {
 
     this.isProcessingTurn = true;
     document.body.style.cursor = 'wait';
+    // Ended on the street map (not a midnight roll-over, not a skip): the night passes in the dark
+    const fading = !skipping && !this._midnightRollover && typeof InnerMap !== 'undefined' && !!InnerMap.active;
     // The panel open as the day ends redraws with the new day's values (ui/panelRefresh.js)
     const panelBefore = skipping ? null : PanelRefresh.snapshot(this.ui);
 
@@ -422,7 +435,7 @@ export function endDay() {
                 }
                 // A harbour frozen in: the ship stands off the ice (world/climate.js icebound)
                 for (const rep of (shipDay && shipDay.iceReports) || []) {
-                    this.ui.showNotification('🧊 Icebound', `${rep.name} cannot make ${rep.port}: the harbour is frozen. She stands off the ice until the thaw.`, 'warning');
+                    this.ui.showNotification('❄️ Icebound', `${rep.name} cannot make ${rep.port}: the harbour is frozen. She stands off the ice until the thaw.`, 'warning');
                 }
                 // Sailing rose a level (systems/ships.js _sailingDay); on a voyage it is in the log too
                 if (shipDay && shipDay.sailing) this.ui.showNotification(`${shipDay.sailing.icon} ${shipDay.sailing.name} Improved`, shipDay.sailing.text, 'success');
@@ -557,10 +570,16 @@ export function endDay() {
                 // The world remembers: town fires and their rebuilding, statues raised and pulled down,
                 // cairns, new quarters (systems/townMemory.js)
                 for (const n of TownMemory.processDay(this.world, this.player).notices.slice(0, 3)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+                // Crimes done to towns: a foul well, a plague scare, the hunt for the culprit, your grain lofts (systems/townCrimes.js)
+                for (const n of TownCrimes.processDay(this.world, this.player).notices.slice(0, 3)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
                 // The towns age: a new era of building, walls raised (world/townEras.js; once a year)
                 for (const n of TownEras.processDay(this.world, this.player).notices.slice(0, 2)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
                 // Townsfolk who are friends, lovers, companions or kin by marriage
                 Relationships.syncFolk(this.player, this.world);
+                // Companions who never came home: word brought to their families, or none (systems/vanishings.js)
+                for (const n of Vanishings.processDay(this.world, this.player).notices.slice(0, 2)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+                // Crimes against people: trials of the framed, captives fed or starved, the stocks, the cold, the sold coming home (systems/peopleCrimes.js)
+                for (const n of PeopleCrimes.processDay(this.world, this.player).notices.slice(0, 3)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
                 // Prepare relationship data for save
                 Relationships.prepareForSave(this.player);
@@ -651,6 +670,11 @@ export function endDay() {
 
             // Nemeses — named enemies who remember you, learn your habits and strike at your worst (systems/nemesis.js)
             for (const n of Nemesis.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            // Profane crimes: fake relics found out, a desecrated House's grudge held and passed on (systems/profaneCrimes.js)
+            for (const n of ProfaneCrimes.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+
+            // Crimes against the blood — suspicion, exposure, grudges and the household's long memory (systems/kinCrimes.js)
+            for (const n of KinCrimes.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
             // Unfinished business of the House: quests from its own history — old grudges, debts, favours, lost heirlooms (systems/houseQuests.js)
             for (const n of HouseQuests.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
@@ -662,6 +686,8 @@ export function endDay() {
             // Whispers — court scandals hatching, spreading, proven or debunked; your planted tales traced (systems/whispers.js)
             const whisperDay = Whispers.processDay(this.world, this.player);
             for (const n of whisperDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            // Promises made in free talk that came due unkept: the one promised, and their family, remember (systems/npcChatImpact.js)
+            for (const n of NpcChatImpact.processDay(this.world, this.player).notices.slice(0, 3)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
             // Devotion — vows kept or broken, pilgrimages overdue (systems/devotion.js); the soul pact's debt (systems/soulPact.js)
             for (const n of Devotion.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
@@ -682,9 +708,20 @@ export function endDay() {
             for (const n of Mail.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             // Hospitality — the morning after a night's lodging, your houses' week, the town houses' prices (systems/hospitality.js)
             for (const n of Hospitality.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            // A ship lying at sea overnight goes with the current (world/oceanCurrents.js)
+            if (this.player && this.player.boardedShip && !InnerMap.active && typeof this.player.driftWithCurrent === 'function') {
+                const d = this.player.driftWithCurrent(this.world);
+                if (d) this.ui.showNotification('🌊 The Current', `In the night ${d.name} carried your ship a league to the ${OceanCurrents.sideName(d.dir)}.`, 'info');
+            }
             // Things adrift on the rivers: carried on through the night, hex by hex (systems/riverDrift.js;
             // the game loop carries them by the hour, ui/innerMapRiverDrift.js)
+            // ...and the rivers bring down things of their own: sticks, logs, reeds, what people lose (systems/riverFlotsam.js)
+            RiverFlotsam.processDay(this.world, this.player, this.world.day);
             RiverDrift.processDay(this.world, this.player, this.world.day * 24);
+            // Your fishing nets: the day's fish, what drifted in, a tear, a thief (systems/riverNets.js)
+            for (const n of RiverNets.processDay(this.world, this.player, this.world.day, {
+                goodOf: (id) => { const g = (PlayerEconomy.GOODS || {})[String(id).toUpperCase()]; return { name: (g && g.name) || id, icon: (g && g.icon) || '🐟' }; },
+            }).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             // Your beasts: fodder, eggs and milk, births, sickness, wolves (systems/livestock.js)
             for (const n of Livestock.processDay(this.world, this.player).notices.slice(0, 4)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             // Your own fields: crops grow, thirst, ripen, freeze or rot (systems/crops.js)
@@ -786,6 +823,8 @@ export function endDay() {
             // Sieges — the siege in progress, tribute owed (systems/sieges.js)
             const siegeDay = Sieges.processDay(this.world, this.player);
             for (const n of siegeDay.notices) this.ui.showNotification(n.title, n.text, n.type);
+            // Atrocities — hostages' ultimatum, the name for cruelty fading (systems/atrocities.js)
+            for (const n of Atrocities.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
             // Holdings — construction, governors, garrisons, unrest and rebellion, bandit raids
             const holdingsDay = Holdings.processDay(this.player, this.world);
@@ -1417,6 +1456,8 @@ export function endDay() {
                     // A pedlar come into town overnight, or moved on (world/innerMap/townTrading.js)
                     if (InnerMap._tradeNewDay) InnerMap._tradeNewDay(this.world);
                 }
+                // A night slept on the street map: the town's people are where the morning finds them (world/innerMap/townLife.js)
+                if (fading && InnerMap.reshuffleTownForNewDay) InnerMap.reshuffleTownForNewDay(this.world.day);
             }
             this._midnightRollover = false;
 
@@ -1461,6 +1502,8 @@ export function endDay() {
     };
     // (a time skip runs the turn at once: TimeSkip's _realDay waits on nothing)
     if (skipping) runTurn();
+    // On the street map the night passes in the dark: fade out, the day turns, fade back in (ui/dayFade.js)
+    else if (fading) fadeOut(() => { try { runTurn(); } finally { fadeIn(); } });
     else setTimeout(runTurn, 50);
 }
 

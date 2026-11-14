@@ -12,6 +12,7 @@ import { MODAL_STYLE, MODAL_HEADER_STYLE, MODAL_BODY_STYLE, MODAL_FOOTER_STYLE }
 import { _btn, _removeModal, _showStoreModal } from './logic.js';
 import { goodInfoIcon } from '../goodInfo.js';
 import { ParentsGuard } from '../parentsGuard.js';
+import { PeopleCrimes } from '../../systems/peopleCrimes.js';
 
 const MODAL_ID = 'objActionModal';
 
@@ -176,6 +177,7 @@ export function showContentsModal(game, objDef, anchorQ, anchorR) {
                 ${lock ? _lockHtml(player, lock, scene, picking) : `<div style="display:flex;flex-direction:column;gap:3px">
                     ${rows || '<div style="font-size:12px;color:#777;padding:8px">Empty. Nothing worth having.</div>'}
                 </div>`}
+                ${access === 'steal' && !lock ? _plantHtml(game, ctx, scene) : ''}
             </div>
             <div style="${MODAL_FOOTER_STYLE}">
                 ${_btn('Close', false, `document.getElementById('${MODAL_ID}').remove()`)}
@@ -226,6 +228,55 @@ export function showContentsModal(game, objDef, anchorQ, anchorR) {
         render();
     };
 
+    // Hide goods here to frame whoever lives in the house (systems/peopleCrimes.js)
+    window._containerPlant = (goodId, qty) => {
+        const player = game.player;
+        const who = _houseResident(ctx);
+        if (!who) return;
+        const scene = theftScene(game, ctx);
+        ctx.ownerName = scene.ownerName;
+        const res = PeopleCrimes.plant(player, game.world, {
+            q: ctx.worldQ, r: ctx.worldR, pid: who._person.id, goodId, qty, box: String(name).toLowerCase(),
+            larder: Containers.larder(player, game.world, ctx), lk: Containers.key(ctx),
+            seenChance: Containers.stealOdds(player, ctx, goodId, qty, scene).chance,
+        });
+        lastMsg = { text: res.ok ? `${res.text} Now tell the watch: any guard in ${ctx.settlementName || 'town'} will listen, for the next few days.` : res.text, bad: !res.ok };
+        if (res.seen) game.ui.showNotification('🚨 Seen!', res.text, 'error');
+        game.ui.updateStats(player, game.world);
+        Hotbar.refresh();
+        render();
+    };
+
     render();
     document.body.appendChild(modal);
+}
+
+/** The grown townsperson who lives in the house the player stands in (their home), or null. */
+function _houseResident(ctx) {
+    const b = ctx && ctx.building;
+    if (!b || b.type !== 'house') return null;
+    return (InnerMap.npcs || []).find(n => n && n._person && n._home && n._home.q === b.q && n._home.r === b.r
+        && n.type !== 'child' && n.type !== 'guard' && n.state !== 'gone') || null;
+}
+
+/** "Hide goods here": what you carry that would put the household on the gallows. */
+function _plantHtml(game, ctx, scene) {
+    const who = _houseResident(ctx);
+    if (!who) return '';
+    const goods = PeopleCrimes.plantable(game.player, (game.world && game.world.day) || 0).slice(0, 3);
+    const head = `<div style="font-size:11px;color:#c9a96a;margin-top:6px">🤫 Hide goods here, and ${esc(who.name)} answers for them when the watch comes looking.</div>`;
+    if (!goods.length) return `${head}<div style="font-size:11px;color:#777;padding:4px 8px">You carry nothing worth a trial.</div>`;
+    const rows = goods.map(g => {
+        const n = PeopleCrimes.plantQty(g);
+        const c = Containers.stealOdds(game.player, ctx, g.id, n, scene).chance;
+        return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 8px;background:rgba(255,255,255,0.03);border-radius:4px;font-size:12px">
+            <span>${esc(g.id.replace(/_/g, ' '))} ×${n} <span style="color:#888">· ${g.value * n}g${g.hot ? ' · stolen, and reported' : ''}</span></span>
+            <button onclick="window._containerPlant('${g.id}',${n})" style="background:rgba(224,106,90,0.18);color:#e8a090;border:none;border-radius:3px;padding:3px 8px;cursor:pointer;font-size:11px">Hide it <span style="color:${_riskColour(c)}">(${Math.round(c * 100)}% seen)</span></button>
+        </div>`;
+    }).join('');
+    return `${head}<div style="display:flex;flex-direction:column;gap:3px">${rows}</div>`;
+}
+
+function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 }

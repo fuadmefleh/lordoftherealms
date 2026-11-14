@@ -966,7 +966,8 @@ export const House = {
 
     /** Classify a player's heirs so the death screen can branch. */
     assessSuccession(player, minAge = 16) {
-        const children = (player && player.children || []).filter(c => c.isAlive);
+        // (a child declared unfit to rule — systems/kinCrimes.js — is no heir)
+        const children = (player && player.children || []).filter(c => c.isAlive && !(c.kin && c.kin.unfit));
         const adults = children.filter(c => (c.age || 0) >= minAge);
         const minors = children.filter(c => (c.age || 0) < minAge);
         return {

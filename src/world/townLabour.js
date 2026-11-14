@@ -397,7 +397,9 @@ export const TownLabour = {
         if (TownLabour.striking(settlement, day)) craft = Math.min(craft, _num(O.strikeFill, 0.4));
         // The sick laid up at home (systems/illness.js → settlement.sickness, a few days fresh)
         const sick = settlement.sickness;
-        if (sick && !sick.abs && _num(sick.share) > 0 && (day == null || day - _num(sick.d) <= 6)) {
+        // (an abstract sickness with a share — a poisoned well in a town without a roster, systems/townCrimes.js — idles hands till it ends)
+        const fresh = sick && (sick.abs ? (day == null || day <= _num(sick.until, -1)) : (day == null || day - _num(sick.d) <= 6));
+        if (sick && fresh && _num(sick.share) > 0) {
             const S = _num(O.sickSensitivity, 0.8);
             const k = Math.max(_num(O.sickMin, 0.5), 1 - _num(sick.share) * S);
             return { land: Math.max(lo, land * k), craft: Math.max(lo, craft * k) };

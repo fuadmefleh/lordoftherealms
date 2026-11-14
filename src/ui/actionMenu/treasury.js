@@ -106,13 +106,7 @@ function budgetTab(game) {
     const { k } = realmFor(game);
     if (!k) return `<div style="${NOTE}">Stand in a town of a realm to read its books, or rule one.</div>`;
     const b = Fiscal.budget(world, k);
-    let html = lede('The crown\'s taxes come out of its towns\' purses, and its wages and upkeep go back into them: the treasury is what is left.');
-    html += bullets([
-        '<b>Land tax</b> falls on the peasants\' earnings (and swells with the harvest).',
-        '<b>Hearth tax</b> falls on every working head (clergy and nobles are exempt).',
-        '<b>Excise</b> falls on the artisans\' work and the merchants\' trade.',
-        'Unpaid soldiers desert after a week; unpaid clerks help themselves.',
-    ]);
+    let html = lede('The crown\'s taxes come out of its towns\' purses, and its wages and upkeep go back into them: the treasury is what is left. Unpaid soldiers desert after a week; unpaid clerks help themselves.');
     // What every tax, level and line is (the posted rates are public: the guide shows them to anyone)
     html += crownTaxGuide(b);
     // The books themselves are for the ruler, the realm's officers and your spies (systems/realmIntel.js)
@@ -240,6 +234,17 @@ function coinSection(game, ruled) {
         { icon: '🔨', name: 'Proclaim a recoinage', desc: q.ok ? `Call in ${g0(q.called)}g of town coin and strike it anew at full weight: the crown makes up the silver (${g0(q.cost)}g), the towns hold less coin and prices ease` : 'Call in the coin and strike it anew at full weight', off: !q.ok || (Number(ruled.treasury) || 0) < q.cost, why: q.ok ? `The treasury needs ${g0(q.cost)}g` : q.reason, act: 'treasuryAct', args: ['coin', 'recoin'], side: q.ok ? `${g0(q.cost)}g ›` : '' },
         { icon: '📒', name: leave ? 'Forbid the treasurers the coin' : 'Leave the coin to the treasurers', desc: leave ? 'They may now debase when the chests run dry and recoin when they are full again' : 'As it is, only you debase or recoin; allow it and they will in a crisis and once it passes', act: 'treasuryAct', args: ['coin', 'leave', leave ? 0 : 1], side: leave ? 'Forbid ›' : 'Allow ›' },
     ]);
+    // The mint's charge (moved here from the Mint's old "Your coin" tab: one place for a ruler's coin)
+    const rec = MoneySupply.ensureRealm(world, ruled);
+    const P = Mints.config().mint.policies || {};
+    html += rowList(Object.entries(P).map(([id, p]) => {
+        const on = rec.mint.policy === id;
+        return {
+            icon: on ? '✅' : '⚖️', name: `Seigniorage: ${esc(p.label)}`,
+            desc: `the mint keeps ${Math.round((p.seigniorage || 0) * 100)}% of each piece · draws ×${p.draw} the bullion (a greedy mint sends sellers elsewhere)`,
+            act: on ? null : 'treasuryAct', args: ['coin', 'policy', id], side: on ? 'current' : 'Set ›', tone: on ? 'gold' : '',
+        };
+    }));
     return html;
 }
 
@@ -276,15 +281,13 @@ function crownTab(game) {
     html += `</div><div class="pk-card"><b style="color:#ffe9a8;">Court</b> <span style="${NOTE}">now ${esc((C.court.levels[b.courtLevel] || {}).label || b.courtLevel)} · ${esc(courtLevelText(b.courtLevel))}</span>${keeper(held.court, ['court', 'auto'], 'court')}<br>`;
     for (const [id, L] of Object.entries(C.court.levels)) html += act(esc(L.label), ['court', id], b.courtLevel === id ? BTN_GOLD : BTN_PLAIN, b.courtLevel !== id, tipOf(L.blurb, courtLevelText(id)));
     html += '</div>';
-    html += `<div style="${NOTE} margin-top:4px;">Hover a level for what it does in figures.</div>`;
     html += crownTaxGuide(b);
-    html += `<div style="${NOTE} margin-top:6px;">Burden ${Math.round((b.burden || 0) * 100)}% · stability ${b.stability >= 0 ? '+' : ''}${b.stability} · last week +${g0(CrownBooks.revenue(b.week))}g / −${g0(CrownBooks.expense(b.week))}g · ${b.reserveDays} days in hand</div>`;
     html += sectionHead('Raise money');
-    html += `<div style="${NOTE} margin-bottom:4px;">Sell offices (gold now, corruption for years) or crown land (gold now, the crown's rents less for ever). Borrow and debase from the Bank and the Mint.</div>`;
     const landLeft = b.demesne > (C.demesne.min || 0.05) + 1e-9;
     html += rowList([
         { icon: '📜', name: 'Sell offices', desc: 'Gold now, corruption for years', act: 'treasuryAct', args: ['sale', 'offices'], tone: 'bad', side: 'Sell ›' },
         { icon: '🌾', name: 'Sell crown land', desc: 'Gold now, the crown\'s rents less for ever', why: 'The crown has no estates left to sell', off: !landLeft, act: 'treasuryAct', args: ['sale', 'land'], tone: 'bad', side: landLeft ? 'Sell ›' : '' },
+        { icon: '🏦', name: 'Borrow for the crown', desc: 'From the banking houses at the crown\'s rate, or repudiate its debts', act: 'treasuryAct', args: ['bank'], side: '›' },
     ]);
     html += coinSection(game, ruled);
     html += sectionHead('Farm out a town\'s taxes');
@@ -337,6 +340,7 @@ Object.assign(ActionMenu, {
         let res = null;
         switch (op) {
             case 'tab': _tab = a || 'budget'; break;
+            case 'bank': ActionMenu.showBank(game, null, 'crown'); return;
             case 'bid': res = Fiscal.bid(player, world, a, b); break;
             case 'squeeze': res = Fiscal.setSqueeze(player, world, a, b); break;
             case 'rate': res = Fiscal.setRate(player, world, a, b); break;
@@ -348,6 +352,7 @@ Object.assign(ActionMenu, {
                 if (a === 'debase') res = Mints.royalDebase(player, world);
                 else if (a === 'recoin') res = Mints.royalRecoin(player, world);
                 else if (a === 'leave') res = Mints.setTreasurersCoin(player, world, !!b);
+                else if (a === 'policy') res = Mints.setPolicy(player, world, b);
                 break;
             default: return;
         }

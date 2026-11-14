@@ -62,6 +62,7 @@ import { PlayerMilitary } from '../player/playerMilitary.js';
 import { WorldUnit } from '../world/units.js';
 import { RealmArms } from '../world/realmArms.js';
 import { TownMemory } from './townMemory.js';
+import { Atrocities } from './atrocities.js';
 
 const STANCES = ['blockade', 'works', 'sap'];
 const TERMS = ['surrender', 'ransom', 'tribute'];
@@ -217,6 +218,42 @@ export const Sieges = {
         return id && world && world.getKingdom ? world.getKingdom(id) : null;
     },
 
+    /**
+     * What a besieged town pays (a ransom, its tribute): raised from its own
+     * purse first, the rest from its crown's treasury, as far as both go.
+     * → the coin raised (no coin from nowhere).
+     */
+    _townPays(world, settlement, kingdomId, amount) {
+        const want = Math.max(0, Math.floor(_num(amount)));
+        if (!(want > 0)) return 0;
+        let got = 0;
+        if (settlement) {
+            if (!settlement.economy && _num(settlement.population) > 0) Economy.initSettlement(settlement);
+            got = Math.floor(Economy.drawTown(settlement, want));
+        }
+        const k = got < want ? Sieges._kingdom(world, kingdomId) : null;
+        if (k) {
+            const t = Math.min(want - got, Math.max(0, Math.floor(_num(k.treasury))));
+            k.treasury = _num(k.treasury) - t;
+            got += t;
+        }
+        return got;
+    },
+
+    /** The camp's spending (timber, iron, carpenters' wages): into the nearest other town's purse. */
+    _spendNear(world, s, amount) {
+        const a = _num(amount);
+        if (!(a > 0) || !world || typeof world.getSettlementViews !== 'function') return 0;
+        let best = null, bestD = Infinity;
+        for (const v of world.getSettlementViews()) {
+            if (v.q === s.q && v.r === s.r) continue;
+            const d = Hex.wrappingDistance(s.q, s.r, v.q, v.r, world.width);
+            if (d < bestD) { bestD = d; best = v; }
+        }
+        const t = best && world.getTile(best.q, best.r);
+        return t && t.settlement ? Economy.payTown(t.settlement, a) : 0;
+    },
+
     /** Land units (galleys don't man siege lines). */
     _landUnits(player) {
         return (player.army || []).filter(u => !PlayerMilitary.isNavalUnit(u));
@@ -290,6 +327,8 @@ export const Sieges = {
         d *= T.moraleFloor + (1 - T.moraleFloor) * Utils.clamp(s.morale, 0, 100) / 100;
         if (s.stores <= 0) d *= T.starvingDefense;
         if (s.townSick) d *= T.sickDefense;
+        // Men who expect no quarter fight harder (systems/atrocities.js)
+        if (_num(s.lastStand) > 0) d *= 1 + _num(s.lastStand);
         return Math.max(1, Math.round(d));
     },
 
@@ -350,6 +389,8 @@ export const Sieges = {
         const s = Sieges.active(player);
         const T = Sieges.config().terms;
         if (!s || !TERMS.includes(term)) return 0;
+        // You broke a surrender once: no town opens its gates to you (systems/atrocities.js)
+        if (term === 'surrender' && Atrocities.refusesSurrender(player)) return 0;
         let p = _num(T[term] && T[term].base);
         p += (1 - Utils.clamp(s.morale, 0, 100) / 100) * T.moraleWeight;
         if (s.stores <= 0) p += T.starving;
@@ -361,6 +402,8 @@ export const Sieges = {
         p -= Traits.effect(player, 'intimidation') * T.intimidation; // a feared name opens gates
         const court = (player.petitions && player.petitions.court) || {};
         p += _num(court.mercy) * T.mercy + _num(court.severity) * T.severity;
+        // Hostages under an ultimatum, a dreaded name, a broken surrender (systems/atrocities.js)
+        p += Atrocities.termsShift(player, s, term);
         return Utils.clamp(p, T.min, T.max);
     },
 
@@ -482,6 +525,8 @@ export const Sieges = {
         // Rebels hold their own walls: their men, not the crown's army
         if (s.revolt) s.garrison = Math.max(1, Math.round(Kingship.rebelStrength(player) * _num((Kingship.config().revolt || {}).garrisonShare) + s.population * 0.02));
         s.garrisonStart = s.garrison;
+        // They know what you did to a town that surrendered: they will fight to the last (systems/atrocities.js)
+        s.lastStand = Atrocities.lastStand(player);
         st.active = s;
         st.stats.invested++;
 
@@ -683,6 +728,7 @@ export const Sieges = {
             if (!opt.can) return { success: false, reason: opt.reason || 'Cannot build that.' };
             if (!opt.building) {
                 player.gold -= opt.cost;
+                Sieges._spendNear(world, s, opt.cost);
                 s.building = { id, progress: 0 };
                 Sieges._log(s, world, `Carpenters start on a ${opt.name.toLowerCase()} (${opt.cost} gold).`);
             }
@@ -783,18 +829,18 @@ export const Sieges = {
         }
         const v = Sieges.termsValue(s);
         const kingdom = Sieges._kingdom(world, s.kingdomId);
+        // (the town raises it from its purse, its crown the rest: Sieges._townPays)
         const pay = (amount) => {
-            if (kingdom && kingdom.treasury > 0) kingdom.treasury = Math.max(0, kingdom.treasury - amount);
-            player.gold = _num(player.gold) + amount;
+            const got = Sieges._townPays(world, tile && tile.settlement, kingdom ? kingdom.id : s.kingdomId, amount);
+            player.gold = _num(player.gold) + got;
+            return got;
         };
         if (term === 'ransom') {
-            pay(v.ransom);
-            out.gold = v.ransom;
+            out.gold = pay(v.ransom);
             Traits.recordDeeds(player, { greed: 1 });
-            out.outcome = Sieges._finish(player, world, 'terms', `${s.name} pays a ransom of ${v.ransom} gold and your army marches away.`);
+            out.outcome = Sieges._finish(player, world, 'terms', `${s.name} pays a ransom of ${out.gold} gold and your army marches away.`);
         } else {
-            pay(v.tributeUpfront);
-            out.gold = v.tributeUpfront;
+            out.gold = pay(v.tributeUpfront);
             const st = Sieges.state(player);
             st.tributes.push({ name: s.name, q: s.q, r: s.r, kingdomId: s.kingdomId, amount: v.tributeWeekly, weeksLeft: v.tributeWeeks, nextDay: day + 7 });
             Traits.recordDeeds(player, { mercy: 1 });
@@ -904,7 +950,22 @@ export const Sieges = {
         Sieges._worksDay(player, world, s, out);
         Sieges._campDay(player, world, s, tile, out);
 
-        if (s.morale <= 0 || s.garrison <= 0) {
+        // A town that expects no quarter does not open its gates when its heart breaks (systems/atrocities.js)
+        s.lastStand = Atrocities.lastStand(player);
+        if (s.lastStand > 0 && s.garrison > 0 && s.morale <= 0) {
+            if (!s.lastStandNoted) {
+                s.lastStandNoted = true;
+                const text = `${s.name} is broken and starving, but will not open its gates to you. They remember what you did to a town that surrendered.`;
+                Sieges._log(s, world, text);
+                out.notices.push({ title: '⚔️ No Surrender', text, type: 'warning' });
+            }
+        } else if (s.lastStand > 0 && s.garrison <= 0) {
+            const res = { victory: true };
+            out.ended = Sieges._take(player, world, s, tile, res, 'storm');
+            out.notices.push({ title: '🏰 The Walls Stand Empty', text: `The last defenders of ${s.name} are dead. You walk in over them.`, type: 'success' });
+            out.result = res;
+            return out;
+        } else if (s.morale <= 0 || s.garrison <= 0) {
             const res = { victory: true };
             out.ended = Sieges._take(player, world, s, tile, res, 'surrender');
             out.notices.push({ title: '🏳️ The Gates Open', text: `Starving and broken, ${s.name} surrenders.`, type: 'success' });
@@ -1051,10 +1112,11 @@ export const Sieges = {
             const tile = world.getTile ? world.getTile(t.q, t.r) : null;
             const s = tile && tile.settlement;
             if (!s || (s.kingdom || null) !== t.kingdomId) { t.weeksLeft = 0; continue; }
-            player.gold = _num(player.gold) + t.amount;
+            const paid = Sieges._townPays(world, s, t.kingdomId, t.amount);
+            player.gold = _num(player.gold) + paid;
             t.weeksLeft--;
             t.nextDay = day + 7;
-            out.notices.push({ title: '💰 Siege Tribute', text: `${t.name} pays its tribute: ${t.amount} gold${t.weeksLeft ? ` (${t.weeksLeft} week(s) to go)` : ' — the last of it'}.`, type: 'success' });
+            out.notices.push({ title: '💰 Siege Tribute', text: `${t.name} pays its tribute: ${paid} gold${t.weeksLeft ? ` (${t.weeksLeft} week(s) to go)` : ' — the last of it'}.`, type: 'success' });
         }
         st.tributes = st.tributes.filter(t => t.weeksLeft > 0);
     },
@@ -1103,6 +1165,8 @@ export const Sieges = {
         const settlement = tile && tile.settlement;
         if (!settlement) return Sieges._finish(player, world, 'lifted', 'The town is gone.');
         const surrender = how === 'surrender';
+        // Taken: its fields may be salted, a surrendered town put to the sword (systems/atrocities.js)
+        result.atrocities = Atrocities.noteTaken(player, world, s, how);
         // A rebel seat of your own realm returns to the crown; its lord is broken
         if (s.revolt) {
             const back = Kingship.onRebelSeatTaken(player, world, s.q, s.r);
@@ -1145,7 +1209,11 @@ export const Sieges = {
         const K = Sieges.config().sack;
         const settlement = tile.settlement;
         if (s.revolt) Kingship.onRebelSeatTaken(player, world, s.q, s.r);
-        const plunder = Math.floor(_num(settlement.population) * Utils.randFloat(K.plunder[0], K.plunder[1]));
+        Atrocities.noteTaken(player, world, s, 'sack');
+        // (out of the town's purse, as much as is in it: no coin from nowhere)
+        const want = Math.floor(_num(settlement.population) * Utils.randFloat(K.plunder[0], K.plunder[1]));
+        if (!settlement.economy && _num(settlement.population) > 0) Economy.initSettlement(settlement);
+        const plunder = Math.floor(Economy.drawTown(settlement, want));
         player.gold = _num(player.gold) + plunder;
         result.plunder = plunder;
         settlement.population = Math.max(1, Math.floor(_num(settlement.population) * K.popKeep));

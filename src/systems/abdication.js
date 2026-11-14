@@ -607,7 +607,7 @@ export const Abdication = {
             e.championed = day;
             house._pendingClaim = true;
             House._chronicle(house, world, `${e.name} speaks for ${fav.firstName} at court, as though the seat were still theirs to give.`, ['abdication', 'heirs']);
-            out.notices.push({ icon: '🪑', title: 'The Old Ruler Meddles', text: `${name} speaks for ${fav.firstName} at court. The lords listen: a claim may be pressed when the seat next passes.`, type: 'warning' });
+            out.notices.push({ icon: '💺', title: 'The Old Ruler Meddles', text: `${name} speaks for ${fav.firstName} at court. The lords listen: a claim may be pressed when the seat next passes.`, type: 'warning' });
         }
 
         if (regent) return;
@@ -619,7 +619,7 @@ export const Abdication = {
                 e.plot = 0;
                 e.rumoured = false;
                 House._chronicle(house, world, `${e.name}'s people give up the seals; ${player.name} rules in their own name again.`, ['abdication']);
-                out.notices.push({ icon: '🪑', title: 'The Seals Return', text: `${name}'s people give the seals back. The skimming ends.`, type: 'info' });
+                out.notices.push({ icon: '💺', title: 'The Seals Return', text: `${name}'s people give the seals back. The skimming ends.`, type: 'info' });
                 return;
             }
             const take = Math.min(cfg.shadowSkimMax, Math.floor(Inheritance.coin(player) * cfg.shadowSkimShare));
@@ -675,7 +675,7 @@ export const Abdication = {
             st.demand = null;
             st.pressureWeeks = 0;
             st.cooldownUntil = day + Math.floor(_num(P.cooldownDays) / 2);
-            out.notices.push({ icon: '🪑', title: 'The Court Relents', text: 'The lords\' demand that you step down lapses: the crisis has eased.', type: 'info' });
+            out.notices.push({ icon: '💺', title: 'The Court Relents', text: 'The lords\' demand that you step down lapses: the crisis has eased.', type: 'info' });
             return;
         }
         if (pr.score >= P.demandAt && heir && day >= _num(st.cooldownUntil)) {
@@ -683,7 +683,7 @@ export const Abdication = {
             if (st.pressureWeeks >= P.weeksToDemand) {
                 st.demand = { day, due: day + P.answerDays, score: pr.score, reasons: pr.reasons.map(r => r.text) };
                 House._chronicle(player.house, world, `The lords of the court ask ${player.name} to step down: ${st.demand.reasons.slice(0, 3).join('; ')}.`, ['succession', 'abdication']);
-                out.notices.push({ icon: '🪑', title: 'The Court Demands You Step Down', text: `The lords ask you to set down the seat for your heir: ${st.demand.reasons.slice(0, 3).join('; ')}. Answer within ${P.answerDays} days (House → Succession & Retirement), or they will act.`, type: 'error' });
+                out.notices.push({ icon: '💺', title: 'The Court Demands You Step Down', text: `The lords ask you to set down the seat for your heir: ${st.demand.reasons.slice(0, 3).join('; ')}. Answer within ${P.answerDays} days (House → Succession & Retirement), or they will act.`, type: 'error' });
             }
         } else if (st.pressureWeeks > 0) {
             st.pressureWeeks = Math.max(0, st.pressureWeeks - 1);

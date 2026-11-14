@@ -900,7 +900,7 @@ Object.assign(ActionMenu, {
             html += `</div>`;
         }
 
-        html += `<button data-am-act="closePanel" style="width: 100%; padding: 10px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-family: var(--font-body); color: #1a1a2e;">Continue</button>`;
+        html += rowList([{ icon: '➡️', name: 'Continue', act: 'closePanel', tone: 'gold' }]);
         html += '</div>';
 
         game.ui.showCustomPanel(`🔍 Exploring ${poi.name}`, html);
@@ -1162,43 +1162,18 @@ Object.assign(ActionMenu, {
         if (!game.player.visitedTaverns.includes(tavernKey)) game.player.visitedTaverns.push(tavernKey);
         const options = Tavern.getTavernOptions(game.player, tile, game.world);
 
-        let html = '<div style="max-height: 450px; overflow-y: auto;">';
-        html += '<p style="font-size: 12px; color: var(--text-secondary); margin-top: 0; margin-bottom: 14px;">The tavern is smoky and loud. You might learn something useful here — for a price.</p>';
-
-        for (const opt of options) {
-            const costLabel = opt.cost > 0 ? `${opt.cost}g` : 'Free';
-            html += `
-                <button onclick="window.tavernAction('${opt.id}')"
-                    ${!opt.available ? 'disabled' : ''}
-                    style="display: flex; align-items: center; gap: 10px; width: 100%;
-                        padding: 12px; margin-bottom: 8px;
-                        background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-                        border-radius: 4px; cursor: ${opt.available ? 'pointer' : 'default'};
-                        text-align: left; color: ${opt.available ? 'white' : '#666'};
-                        font-family: var(--font-body); transition: all 0.2s;"
-                    onmouseover="this.style.background='rgba(245,197,66,0.15)'; this.style.borderColor='var(--gold)'"
-                    onmouseout="this.style.background='rgba(255,255,255,0.05)'; this.style.borderColor='rgba(255,255,255,0.1)'">
-                    <span style="font-size: 22px;">${opt.icon}</span>
-                    <div style="flex: 1;">
-                        <div style="font-weight: bold; font-size: 13px;">${opt.label}</div>
-                        <div style="font-size: 11px; color: var(--text-secondary);">${opt.description}</div>
-                    </div>
-                    <span style="font-weight: bold; color: ${opt.cost > 0 ? 'var(--gold)' : '#27ae60'}; font-size: 12px;">${costLabel}</span>
-                </button>
-            `;
-        }
-
-        // View intel journal link
-        html += `
-            <div style="margin-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 12px;">
-                <button onclick="window.showIntelJournal()"
-                    style="width: 100%; padding: 10px; background: rgba(52,152,219,0.15); border: 1px solid rgba(52,152,219,0.4);
-                    border-radius: 4px; cursor: pointer; color: #3498db; font-family: var(--font-body); font-weight: bold;">
-                    📖 View Intel Journal (${game.player.intel ? game.player.intel.rumors.length : 0} entries)
-                </button>
-            </div>
-        `;
-
+        // In the action menu's voice (ui/actionMenu/uiKit.js): one row an option, its price at the right
+        let html = '<div style="font-size: 12px;">';
+        html += lede('The tavern is smoky and loud. You might learn something useful here, for a price.');
+        html += chips([purse(game.player.gold)]);
+        html += rowList(options.map(opt => ({
+            icon: opt.icon, name: opt.label, desc: opt.description,
+            off: !opt.available, why: opt.cost > 0 && (game.player.gold || 0) < opt.cost ? `Your purse is short. ${opt.description}` : opt.description,
+            side: opt.cost > 0 ? price(opt.cost, (game.player.gold || 0) >= opt.cost) : 'free',
+            attrs: opt.available ? `onclick="window.tavernAction('${opt.id}')"` : '',
+        })));
+        const intelN = game.player.intel ? game.player.intel.rumors.length : 0;
+        html += rowList([{ icon: '📖', name: 'Intel Journal', desc: 'Everything you have heard, by kind', side: `${intelN} entr${intelN === 1 ? 'y' : 'ies'}`, attrs: 'onclick="window.showIntelJournal()"' }]);
         html += '</div>';
         game.ui.showCustomPanel(`🍺 Tavern — ${tile.settlement.name}`, html);
 
@@ -1367,20 +1342,10 @@ Object.assign(ActionMenu, {
             `;
         }
 
-        html += `
-            <div style="margin-top: 12px; display: flex; gap: 8px;">
-                <button data-am-act="closePanel"
-                    style="flex: 1; padding: 8px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
-                    border-radius: 4px; cursor: pointer; color: white; font-family: var(--font-body);">
-                    Done
-                </button>
-                <button onclick="window.showIntelJournal()"
-                    style="flex: 1; padding: 8px; background: rgba(52,152,219,0.15); border: 1px solid rgba(52,152,219,0.4);
-                    border-radius: 4px; cursor: pointer; color: #3498db; font-family: var(--font-body);">
-                    📖 View All Intel
-                </button>
-            </div>
-        `;
+        html += rowList([
+            { icon: '📖', name: 'All your intel', desc: 'The Intel Journal', attrs: 'onclick="window.showIntelJournal()"' },
+            { icon: '➡️', name: 'Done', act: 'closePanel', tone: 'gold' },
+        ]);
 
         html += '</div>';
         game.ui.showCustomPanel('🗨️ Intelligence Gathered', html);
@@ -1481,16 +1446,6 @@ Object.assign(ActionMenu, {
                 html += '</div>';
             }
         }
-
-        html += `
-            <div style="margin-top: 8px;">
-                <button data-am-act="closePanel"
-                    style="width: 100%; padding: 8px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
-                    border-radius: 4px; cursor: pointer; color: white; font-family: var(--font-body);">
-                    Close
-                </button>
-            </div>
-        `;
 
         html += '</div>';
         game.ui.showCustomPanel('📖 Intel Journal', html);

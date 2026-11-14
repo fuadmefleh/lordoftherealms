@@ -14,6 +14,8 @@ import { NpcKnowledge } from '../../systems/npcKnowledge.js';
 import { SocialSkills } from '../../systems/socialSkills.js';
 import { Fame } from '../../systems/fame.js';
 import { Hospitality } from '../../systems/hospitality.js';
+import { Brawls } from '../../systems/brawls.js';
+import { InnerMapBrawls } from '../innerMapBrawls.js';
 
 export function _mem(npc) {
     return NpcDisposition.getMemory(npc);
@@ -260,7 +262,27 @@ export function _worldContext(npc) {
     const g = dialogState._game;
     if (!g || !g.world || !g.player) return '';
     const mem = _mem(npc);
-    return Chatter.promptFacts(Chatter.context(g.world, g.player, { q: g.player.q, r: g.player.r, npc, disposition: mem.disposition }));
+    const facts = Chatter.promptFacts(Chatter.context(g.world, g.player, { q: g.player.q, r: g.player.r, npc, disposition: mem.disposition }));
+    return [facts, ..._ownFights(npc, g.world)].filter(Boolean).join(' ');
+}
+
+/**
+ * The fights this person was in, for the AI voice: one on the street now, the
+ * brawls they were in lately and the grudges they hold (systems/brawls.js
+ * selfLines). Without this they cannot say why they were fighting.
+ */
+function _ownFights(npc, world) {
+    const day = world && Number.isFinite(world.day) ? world.day : 0;
+    let live = null;
+    try { live = InnerMapBrawls.liveFightOf(npc); } catch { live = null; }
+    const lf = npc && npc._lastFight;
+    if (!live && lf && lf.foe && day - (lf.d || 0) <= 2) {
+        live = { foe: lf.foe, cause: lf.cause };
+    }
+    let lines = [];
+    try { lines = Brawls.selfLines(world, _getSettlement(), npc && npc._person, day, live); } catch { lines = []; }
+    if (!lines.length) return [];
+    return ['Your own fights:', ...lines, 'If asked about a fight, answer from this, in your own voice: own it, justify it, or play it down, but do not pretend it did not happen.'];
 }
 
 /**

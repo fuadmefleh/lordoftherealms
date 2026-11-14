@@ -13,11 +13,14 @@
 // Buttons route through data-am-act → ActionMenu.encounterAct / battleAct.
 import { ActionMenu } from './_ref.js';
 import { Arms } from '../../systems/arms.js';
-import { BTN_GOLD, esc, chips, lede, card, actRow, rowList } from './uiKit.js';
+import { esc, chips, purse, lede, card, actRow, rowList } from './uiKit.js';
 import { RoadEncounters } from '../../player/roadEncounters.js';
 import { FieldBattle } from '../../player/fieldBattle.js';
 import { Ailments } from '../../systems/ailments.js';
 import { InnerMapBattle } from '../innerMapBattle.js';
+
+/** A result's one way on. */
+const CONTINUE = rowList([{ icon: '➡️', name: 'Continue', act: 'closePanelAndRefresh', tone: 'gold' }]);
 
 const ODDS_COLOR = { 'very likely': '#8fd18a', likely: '#b5d77f', 'even odds': '#f0b35a', risky: '#e0a060', desperate: '#e0846a', certain: '#9ecbff' };
 
@@ -70,7 +73,7 @@ Object.assign(ActionMenu, {
         html += chips([
             { icon: '⚔️', label: 'Their strength', value: `<span style="color:#e0a060;">${unit.strength}</span>` },
             opts.find(o => o.battle) ? null : { icon: '⚔️', label: 'You have no soldiers here', cls: 'dim' },
-            { icon: '💰', label: 'Gold', value: Math.floor(player.gold || 0), cls: 'gold' },
+            purse(player.gold),
             ['❤️', 'Health', Math.round(player.health || 0)],
         ]);
         html += rowList(opts.map(o => _optionRow('encounterAct', [unit.id, o.id], o, _oddsHtml(o.chance))), 'What will you do?');
@@ -103,7 +106,7 @@ Object.assign(ActionMenu, {
         const n = out.notification;
         const color = n.type === 'success' ? '#8fd18a' : n.type === 'warning' ? '#f0b35a' : '#e0846a';
         game.ui.showCustomPanel(n.title, `<div>${lede(`<span style="color:${color}; line-height:1.5;">${esc(n.body)}</span>`)}
-            <button data-am-act="closePanelAndRefresh" style="${BTN_GOLD}width:100%; padding:9px; margin-top:8px;">Continue</button></div>`);
+            ${CONTINUE}</div>`);
         game.ui.showNotification(n.title, n.body, n.type);
     },
 
@@ -115,7 +118,7 @@ Object.assign(ActionMenu, {
         let html = `<div>
             <div class="pk-card" style="display:flex; gap:14px;"><div style="flex:1;">${_bar('⚔️ Your force', b.sim.pStr, b.pStr0, '#7cc7e8')}</div>
             <div style="flex:1;">${_bar(`${b.enemyIcon} ${esc(b.enemyName)}`, b.sim.eStr, b.eStr0, '#e0a060')}</div></div>
-            <div style="font-size:11px; color:#9d937c; margin:4px 0;">📐 ${esc((b.terrainId || 'mixed ground').replace(/_/g, ' '))} · ${esc(b.weather || 'clear')} · counters ×${b.pCounter.toFixed(2)} vs ×${b.eCounter.toFixed(2)}${b.ambushed ? ' · <span style="color:#e0a060;">they caught you unready</span>' : ''}${b.commanderSlain ? ' · <span style="color:#ce93d8;">your assassins slew their commander</span>' : ''}</div>`;
+            <div style="font-size:11px; color:#9d937c; margin:4px 0;">📐 ${esc((b.terrainId || 'mixed ground').replace(/_/g, ' '))} · ${esc(b.weather || 'clear')} <span title="How well your companies' kinds answer theirs (horse against foot, spears against horse...)">· matchup ×${b.pCounter.toFixed(2)} against their ×${b.eCounter.toFixed(2)}</span>${b.ambushed ? ' · <span style="color:#e0a060;">they caught you unready</span>' : ''}${b.commanderSlain ? ' · <span style="color:#ce93d8;">your assassins slew their commander</span>' : ''}</div>`;
         html += _phaseLogHtml(b.log);
         if (!b.done && !b.log.length && b.theatre === 'land') {
             // Before the first blow: fight it on the ground yourself, or leave it to the captains
@@ -153,7 +156,7 @@ Object.assign(ActionMenu, {
             }
             rep += '</div>';
             html += card(rep, { tone: r.withdrew ? 'warn' : r.victory ? 'good' : 'bad' });
-            html += `<button data-am-act="closePanelAndRefresh" style="${BTN_GOLD}width:100%; padding:9px; margin-top:8px;">Continue</button>`;
+            html += CONTINUE;
         }
         html += '</div>';
         game.ui.showCustomPanel(`⚔️ Battle: ${b.enemyName}`, html);

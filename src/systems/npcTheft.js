@@ -107,6 +107,7 @@ const DEFAULTS = {
         watchCatch: { village: 0.25, town: 0.35, city: 0.4, capital: 0.45 }, chaseCatch: { base: 0.35, perStrength: 0.03, max: 0.8 },
         crowdMin: 4, everySeconds: [25, 55], tellAfterSeconds: [15, 40], watchRadius: 6, hearRadius: 12,
     },
+    smallPlace: { minPopulation: 150, dawnMinPopulation: 400, dawnVillages: false },
     grab: { base: 0.35, perStrength: 0.04, perSkill: -0.04, min: 0.1, max: 0.85 },
     confront: { base: 0.4, perCharisma: 0.04, perStrength: 0.02, meekTraits: ['cautious', 'quiet', 'kind'], meek: 0.25, boldTraits: ['bold', 'stubborn'], bold: -0.2 },
     dropped: {},
@@ -186,6 +187,24 @@ export const NpcTheft = {
             _cfg = _merge(DEFAULTS, _obj(src) || {});
         }
         return _cfg;
+    },
+
+    /**
+     * Is this place big enough to have thieves at all? A hamlet where everyone
+     * knows everyone has none (smallPlace.minPopulation), and at the Dawn of
+     * Man a village has none, nor any place below dawnMinPopulation.
+     */
+    hasThieves(world, s) {
+        if (!s) return false;
+        const S = NpcTheft.config().smallPlace || {};
+        // (a place whose numbers are not kept is taken as big enough)
+        const pop = Number.isFinite(s.population) ? s.population : Infinity;
+        if (pop < _num(S.minPopulation, 0)) return false;
+        if (world && world.dawn) {
+            if (s.type === 'village' && !S.dawnVillages) return false;
+            if (pop < _num(S.dawnMinPopulation, 0)) return false;
+        }
+        return true;
     },
 
     /** Is the hour (0-24) a burglar's? */
@@ -381,7 +400,7 @@ export const NpcTheft = {
     planBurglary(world, s, day, player = null) {
         const C = NpcTheft.config();
         const B = C.burglary;
-        if (!C.enabled || !s || !s.folk) return null;
+        if (!C.enabled || !s || !s.folk || !NpcTheft.hasThieves(world, s)) return null;
         const st = NpcTheft.state(s);
         if (st.night === day) return null;
         const key = `${_seed(world)}|burgle|${s.q},${s.r}|${day}`;
@@ -766,7 +785,7 @@ export const NpcTheft = {
         if (!C.enabled || !site) return null;
         const tile = world && typeof world.getTile === 'function' ? world.getTile(site.q, site.r) : null;
         const s = tile && tile.settlement;
-        if (!s) return null;
+        if (!s || !NpcTheft.hasThieves(world, s)) return null;
         // At home: no one tries
         if (player.q === site.q && player.r === site.r) return null;
         const value = NpcTheft.siteValue(site);
@@ -985,7 +1004,7 @@ export const NpcTheft = {
     /** Today's background lift among the townsfolk, off the player's map. → case or null */
     pickNpcs(world, s, day) {
         const C = NpcTheft.config();
-        if (!C.enabled || !s || !s.folk) return null;
+        if (!C.enabled || !s || !s.folk || !NpcTheft.hasThieves(world, s)) return null;
         const st = NpcTheft.state(s);
         if (st.pickDay === day) return null;
         const key = `${_seed(world)}|pick|${s.q},${s.r}|${day}`;
@@ -1005,7 +1024,7 @@ export const NpcTheft = {
     planPickPlayer(world, player, s, day) {
         const C = NpcTheft.config();
         const P = C.pickpocket;
-        if (!C.enabled || !player || !s || !s.folk) return null;
+        if (!C.enabled || !player || !s || !s.folk || !NpcTheft.hasThieves(world, s)) return null;
         if (_num(player.gold) <= 0) return null;
         const key = `${_seed(world)}|pickP|${s.q},${s.r}|${day}`;
         let p = _byType(P.playerPerDay, s.type) * NpcTheft.watchFactor(s) * Math.min(2, 0.5 + _num(player.gold) / Math.max(1, _num(P.playerGoldLooks, 400)));

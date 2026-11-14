@@ -74,8 +74,8 @@
         },
         "chandler": {
             "name": "Chandler", "stall": "Candle Stall", "icon": "🕯️",
-            "goods": ["candles", "soap", "tallow", "lamp_oil", "oil", "rope", "lantern"],
-            "buys": ["candles", "soap", "tallow", "lamp_oil", "oil", "rope", "lantern"],
+            "goods": ["candles", "soap", "tallow", "lamp_oil", "oil", "rope", "fishing_net", "lantern"],
+            "buys": ["candles", "soap", "tallow", "lamp_oil", "oil", "rope", "fishing_net", "lantern"],
             "tiers": ["poor", "mid", "rich"], "weight": 0.9,
             "cultures": { "Maritime": 1.3, "Nordic": 1.2 },
             "cries": ["Candles! Light against the dark!", "{good}! Good and cheap!", "Soap and candles, rope and oil!"]

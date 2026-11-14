@@ -7,11 +7,13 @@ import { ActionMenu } from './_ref.js';
 import { Ships } from '../../systems/ships.js';
 import { Landings } from '../../systems/landings.js';
 import { CoastalRaids } from '../../player/coastalRaids.js';
-import { BTN_GOLD, BTN_OFF, BTN_RED, BTN_PLAIN, CARD, esc, bullets } from './uiKit.js';
+import { esc, rowList, sectionHead, more, chips } from './uiKit.js';
 import { Names } from '../../core/names.js';
 
-const HEAD = 'font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin: 10px 0 4px; color: var(--gold);';
-const NOTE = 'font-size: 11px; color: var(--text-secondary);';
+// In the action menu's voice (ui/actionMenu/uiKit.js): a section a kind of
+// landing, one row a thing to do (greyed with its reason), its cost at the
+// right. Clicks route through window._landing (set on each render).
+const NOTE = 'font-size: 11px; color: var(--text-secondary); margin: 2px 0;';
 
 function _pct(p) {
     return `${Math.round(p * 100)}%`;
@@ -21,9 +23,9 @@ function _label(id) {
     return String(id).replace(/_/g, ' ');
 }
 
-function _btn(ok, label, call, style = BTN_GOLD, reason = '') {
-    if (ok) return `<button onclick="${call}" style="${style}">${label}</button>`;
-    return `<button disabled title="${esc(reason)}" style="${BTN_OFF}">${label}</button>`;
+/** A row routed through window._landing.<call>. */
+function _row(o, call, ok = true) {
+    return { ...o, off: !ok, attrs: ok ? `onclick="window._landing.${call}"` : '' };
 }
 
 function _raidSection(game) {
@@ -32,54 +34,46 @@ function _raidSection(game) {
     if (!targets.length) return '';
     const C = CoastalRaids.cfg();
     const ap = player.actionPoints || 0;
-    let html = `<div style="${HEAD}">⚔️ Raid from the Sea</div>`;
-    html += `<div style="${NOTE}">Each ship's boats put ${C.troopsPerShip} soldiers ashore a day (your strongest go first); war galleys bombard. A town caught unready turns out only part of its garrison.</div>`;
+    let html = sectionHead('⚔️ Raid from the sea');
+    html += `<div style="${NOTE}">Each ship's boats put ${C.troopsPerShip} soldiers ashore (your strongest first); war galleys bombard. Either way it costs karma and reputation, and the realm's coast stays on alarm for ${C.alarmDays} days.</div>`;
     for (const t of targets) {
         const q = CoastalRaids.quote(player, world, t.q, t.r);
         const s = t.settlement;
-        html += `<div style="${CARD}">`;
-        html += `<div style="display:flex; justify-content:space-between; gap:8px;"><strong style="font-size:13px;">${esc(s.name)}</strong>`;
-        html += `<span style="${NOTE}">${esc(s.type || 'town')}${t.kingdom ? ` · ${esc(t.kingdom.name)}` : ' · free town'}</span></div>`;
-        html += `<div style="font-size:11px; color:#ccc;">Landing party: ${q.troops || 0} of ${q.landed || 0} soldiers · strength ${q.strength || 0} vs about ${q.defense || '?'}${q.alarmed ? ' <span style="color:#e08080;">(the coast is on alarm)</span>' : ''}</div>`;
-        const why = q.ok ? (ap < C.ap ? `Needs ${C.ap} AP` : '') : q.reason;
+        const why = q.ok ? `Needs ${C.ap} AP` : esc(q.reason || '');
         const ok = q.ok && ap >= C.ap;
-        html += _btn(ok, `💰 Plunder (${C.ap} AP)`, `window._landing.raid(${t.q}, ${t.r}, 'plunder')`, BTN_RED, why);
-        html += _btn(ok, '🔥 Burn the stores', `window._landing.raid(${t.q}, ${t.r}, 'burn')`, BTN_RED, why);
-        if (!q.ok) html += `<div style="font-size:10px; color:#888;">${esc(q.reason)}</div>`;
-        html += '</div>';
+        const where = `${esc(s.type || 'town')}${t.kingdom ? `, ${esc(t.kingdom.name)}` : ', a free town'}`;
+        const odds = `${q.troops || 0} of ${q.landed || 0} soldiers ashore · strength ${q.strength || 0} against about ${q.defense || '?'}${q.alarmed ? ' · <span style="color:#e08080;">the coast is on alarm</span>' : ''}`;
+        html += rowList([
+            _row({ icon: '💰', name: `Plunder ${esc(s.name)}`, desc: `${where} · ${odds}`, note: 'Gold and the best of the market to your hold, a boat-load a ship', why, side: `${C.ap} AP`, tone: 'bad' }, `raid(${t.q}, ${t.r}, 'plunder')`, ok),
+            _row({ icon: '🔥', name: `Burn ${esc(s.name)}'s stores`, desc: 'Little gold, but the town goes hungry', why, side: `${C.ap} AP`, tone: 'bad' }, `raid(${t.q}, ${t.r}, 'burn')`, ok),
+        ]);
     }
-    html += bullets([
-        'Plunder carries gold and the best of the market to your hold (a boat-load per ship).',
-        'Burning leaves little gold but starves the town.',
-        `Either way: karma, reputation, the lord remembers, and the realm’s coast stays on alarm for ${C.alarmDays} days.`,
-    ]);
     return html;
 }
 
 function _runSection(game) {
     const { player, world } = game;
     if (player.boardedShip || !Landings._anchored(player).length) return '';
-    let html = `<div style="${HEAD}">🌙 Run Goods Ashore</div>`;
+    let html = sectionHead('🌙 Run goods ashore');
     if (!Landings.onOpenCoast(player, world)) {
         return html + `<div style="${NOTE}">A port or jetty has a customs house. Run goods ashore on open coast.</div>`;
     }
     const watch = Landings.coastWatch(world, player.q, player.r);
-    html += `<div style="${NOTE}">Goods landed here skip the customs house: no import duty and no embargo when sold. Contraband stays contraband (the black market or a fence will take it). ` +
+    html += `<div style="${NOTE}">No customs house here: no duty and no embargo when sold. Contraband stays contraband. ` +
         `${watch ? `The coast watch of ${esc(Names.realm(watch.kingdom.name))}${watch.settlement ? ` (from ${esc(watch.settlement.name)})` : ''} patrols these shores.` : 'No realm watches this shore.'}</div>`;
     const opts = Landings.runOptions(player, world);
     const ap = player.actionPoints || 0;
     const R = Landings.config().run;
-    let any = false;
+    const rows = [];
     for (const o of opts) {
         if (!o.ok && /no duty/.test(o.reason || '')) continue;
-        any = true;
-        html += '<div style="display:flex; justify-content:space-between; align-items:center; gap:8px; padding:4px 0; border-bottom:1px solid rgba(255,255,255,0.06);">';
-        html += `<div style="font-size:12px;">⛵ ${esc(o.shipName)}: ${esc(_label(o.goodId))}${o.ok ? ` <span style="${NOTE}">×${o.units} this trip · ${o.contraband ? 'contraband' : `${o.booked} booked`} · caught ${_pct(o.chance)}</span>` : ''}</div>`;
-        html += _btn(o.ok && ap >= R.ap, `Run ashore (${R.ap} AP)`, `window._landing.run('${esc(o.shipId)}', '${esc(o.goodId)}')`, BTN_GOLD, o.ok ? `Needs ${R.ap} AP` : o.reason);
-        html += '</div>';
+        rows.push(_row({
+            icon: '⛵', name: `${esc(_label(o.goodId))} from the ${esc(o.shipName)}`,
+            desc: o.ok ? `×${o.units} this trip · ${o.contraband ? 'contraband' : `${o.booked} booked`} · ${_pct(o.chance)} to be caught` : '',
+            why: o.ok ? `Needs ${R.ap} AP` : esc(o.reason || ''), side: `${R.ap} AP`,
+        }, `run('${esc(o.shipId)}', '${esc(o.goodId)}')`, o.ok && ap >= R.ap));
     }
-    if (!any) html += `<div style="${NOTE}">Nothing aboard owes duty or is forbidden here.</div>`;
-    return html;
+    return html + (rows.length ? rowList(rows) : `<div style="${NOTE}">Nothing aboard owes duty or is forbidden here.</div>`);
 }
 
 function _landfallSection(game) {
@@ -89,55 +83,46 @@ function _landfallSection(game) {
     if (tile && tile.settlement) return '';
     const L = Landings.config().landfall;
     const q = Landings.landfallQuote(player, world);
-    let html = `<div style="${HEAD}">🏕️ Found a Colony Here</div>`;
-    html += `<div style="${NOTE}">The landing party brings its own stores:</div>` + bullets([
-        `${q.cost}g instead of the usual price.`,
-        `${L.supplies} founding stores (food, timber, stone, tools) off the hold, and ${L.settlers} settlers from the ship.`,
-        'It has no quay: build a jetty there so ships can berth — until then supplies come ashore a boat-load a day.',
-    ]);
     const ok = q.ok && (player.actionPoints || 0) >= L.ap;
-    html += _btn(ok, `🏕️ Found a landfall colony (${L.ap} AP, ${q.cost}g)`, 'window._landing.landfall()', BTN_GOLD, q.ok ? `Needs ${L.ap} AP` : q.reason);
-    if (!q.ok) html += `<div style="font-size:10px; color:#888;">${esc(q.reason)}</div>`;
-    return html;
+    return rowList([_row({
+        icon: '🏕️', name: 'Found a landfall colony here',
+        desc: `${L.supplies} founding stores off the hold and ${L.settlers} settlers from the ship. No quay: until a jetty is built, supplies come ashore a boat-load a day.`,
+        why: q.ok ? `Needs ${L.ap} AP` : esc(q.reason || ''), side: `${q.cost}g · ${L.ap} AP`, tone: 'gold',
+    }, 'landfall()', ok)], '🏕️ Found a colony');
 }
 
 function _supplySection(game) {
     const { player, world } = game;
     const q = Landings.supplyQuote(player, world);
     if (!q.ok) return '';
-    let html = `<div style="${HEAD}">📦 Land Stores for ${esc(q.settlement.name)}</div>`;
     const quay = !Ships.awaitsQuay(q.tile);
-    html += `<div style="${NOTE}">Food goes to the colony's granary, every good to its market; word of a well-supplied colony draws settlers. ${quay ? 'The quay takes any amount.' : 'No quay yet: a boat-load a day (build a jetty here).'}</div>`;
-    let any = false;
+    let html = sectionHead(`📦 Land stores for ${esc(q.settlement.name)}`);
+    html += `<div style="${NOTE}">Food to the colony's granary, every good to its market; a well-supplied colony draws settlers. ${quay ? 'The quay takes any amount.' : 'No quay yet: a boat-load a day.'}</div>`;
+    const rows = [];
     for (const ship of q.ships) {
         const allowance = Ships.getFerryAllowance(ship, world, player.q, player.r);
         for (const [id, n] of Object.entries(ship.cargo || {})) {
             if (!(n > 0)) continue;
-            any = true;
-            html += '<div style="display:flex; justify-content:space-between; align-items:center; gap:8px; padding:4px 0;">';
-            html += `<div style="font-size:12px;">⛵ ${esc(ship.name)}: ${esc(_label(id))} <span style="${NOTE}">×${n}</span></div>`;
-            html += _btn(allowance > 0, 'Land', `window._landing.supply('${esc(ship.id)}', '${esc(id)}')`, BTN_PLAIN, 'The boat has made all its trips today');
-            html += '</div>';
+            rows.push(_row({ icon: '⛵', name: `Land the ${esc(_label(id))}`, desc: `From the ${esc(ship.name)}`, why: 'The boat has made all its trips today', side: `×${n}` }, `supply('${esc(ship.id)}', '${esc(id)}')`, allowance > 0));
         }
     }
-    if (!any) html += `<div style="${NOTE}">The hold is empty.</div>`;
-    return html;
+    return html + (rows.length ? rowList(rows) : `<div style="${NOTE}">The hold is empty.</div>`);
 }
 
 Object.assign(ActionMenu, {
     /** The landing party: raids from the sea, beach runs, a landfall colony, stores for a colony. */
     showLandingParty(game) {
         const { player, world } = game;
-        let html = '<div style="max-height:470px; overflow-y:auto;">';
-        html += _raidSection(game) + _runSection(game) + _landfallSection(game) + _supplySection(game);
+        let html = '<div style="font-size:12px;">';
+        html += chips([['⚡', 'AP', player.actionPoints || 0], ['⚔️', 'Soldiers', (player.army || []).length]]);
+        const body = _raidSection(game) + _runSection(game) + _landfallSection(game) + _supplySection(game);
+        html += body || `<div style="${NOTE}">Nothing to do from here: anchor a ship off open coast, or sail within reach of a coastal town.</div>`;
         const sum = Landings.summary(player, world);
         if (sum.alarms.length) {
-            html += `<div style="${HEAD}">⚠️ Coasts on Alarm</div>`;
-            for (const a of sum.alarms) html += `<div style="${NOTE}">${esc(a.name)} watches its shores until day ${a.until}.</div>`;
+            html += sectionHead('⚠️ Coasts on alarm') + sum.alarms.map(a => `<div style="${NOTE}">${esc(a.name)} watches its shores until day ${a.until}.</div>`).join('');
         }
         if (sum.log.length) {
-            html += `<div style="${HEAD}">Lately</div>`;
-            for (const e of sum.log.slice().reverse()) html += `<div style="${NOTE}">• day ${e.day}: ${esc(e.text)}</div>`;
+            html += more('Lately', sum.log.slice().reverse().map(e => `<div style="${NOTE}">day ${e.day}: ${esc(e.text)}</div>`).join(''));
         }
         html += '</div>';
         game.ui.showCustomPanel('🛶 Landing Party', html);

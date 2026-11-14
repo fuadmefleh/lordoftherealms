@@ -245,12 +245,16 @@ export const InnerMapRenderer = {
     _getSheetByPath(path) {
         if (!path) return null;
 
-        // First resolve against known configured sheet paths
-        for (const [key, p] of Object.entries(this.SHEET_PATHS || {})) {
-            if (p === path) {
-                return this._sheets.get(key) || null;
-            }
+        // First resolve against known configured sheet paths (path → first key, rebuilt
+        // when SHEET_PATHS is replaced: this runs hundreds of times a frame)
+        const sp = this.SHEET_PATHS || {};
+        if (this._sheetKeyByPathFor !== sp) {
+            this._sheetKeyByPath = new Map();
+            for (const [key, p] of Object.entries(sp)) if (!this._sheetKeyByPath.has(p)) this._sheetKeyByPath.set(p, key);
+            this._sheetKeyByPathFor = sp;
         }
+        const sheetKey = this._sheetKeyByPath.get(path);
+        if (sheetKey !== undefined) return this._sheets.get(sheetKey) || null;
 
         // Then dynamic per-path cache for editor-authored brush tiles
         const cached = this._sheetPathCache.get(path);
@@ -653,14 +657,9 @@ export const InnerMapRenderer = {
         // Ambient life on screen: fires, chimney smoke, steam, moving parts (innerMapLayers/ambient.js)
         if (this._ambCollect) this._ambCollect(camera);
 
-        // ── Layer 0: Terrain (ground) ──
-        this._renderTerrainLayer(ctx, camera);
-
-        // ── Layer 0.5: Terrain detail (9-tile brush paint over base) ──
-        this._renderTerrainDetailLayer(ctx, camera);
-
-        // ── Layer 1: Roads ──
-        this._renderRoadLayer(ctx, camera);
+        // ── Layers 0 – 1: Terrain, terrain detail (brush paint, paving, lanes, kerbs) and roads ──
+        // drawn once into chunks and blitted (innerMapLayers/groundCache.js)
+        this._renderGround(ctx, camera);
         // Building lots: stakes, cord and a sign (world/innerMap/lots.js)
         if (this._renderLotLayer) this._renderLotLayer(ctx, camera);
 

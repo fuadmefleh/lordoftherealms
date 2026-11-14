@@ -1,0 +1,92 @@
+{
+    "_comment": "Questioned by the watch (systems/watchQuestioning.js, ui/watchStop.js): when what a town holds against the player adds up, a guard of the watch stops them on the street map and questions them. Charges come from crime rumours that reached the town (Gossip), what its folk remember the player did to them (NpcMemory: the wronged themselves, then their kin), unseen street incidents (StreetCrime) and companions who left with the player and never came home (Vanishings). Each charge has a weight (suspicion points) and a proof: 0 nothing but talk or a planted tale, 1 hearsay (an accusation, a report, no witness), 2 testimony (witnesses, the victim, kin, the player's own words to the watch), 3 caught red-handed. Suspicion = the charges' weights + the town's adjustment (answers given before, lies, bribes refused; fading adjustDecayPerDay a day toward 0), 0..100.",
+
+    "enabled": true,
+
+    "_watch": "No organised watch in a Dawn of Man world, nor in a place below minPopulation, nor in a hamlet or camp (types noWatchTypes).",
+    "watch": { "minPopulation": 300, "noWatchTypes": ["hamlet", "camp", "outpost", "ruin"] },
+
+    "_stop": "A stop: suspicion at least stopAt, no stop in this town for cooldownDays (clearedCooldownDays after a clean answer), not with an open street incident (the watch arrests for that) nor when the guards are hostile or a warrant is out (past questioning). The day's chance: chanceBase + (suspicion - stopAt) * chancePerPoint, at most chanceMax, by a hash of the seed, the town and the day (one roll per town per day). On the street map: after delaySeconds [min, max] of walking about, the nearest guard within reach tiles walks up (speed times speedMult) and has giveUpSeconds to reach the player.",
+    "stop": {
+        "stopAt": 25, "arrestAt": 70, "cooldownDays": 5, "clearedCooldownDays": 20,
+        "chanceBase": 0.35, "chancePerPoint": 0.02, "chanceMax": 0.9,
+        "delaySeconds": [8, 20], "reach": 34, "speedMult": 1.5, "giveUpSeconds": 40
+    },
+
+    "_charges": "rumourWeight: suspicion per point of a rumour's severity as told in this town (capped at rumourCap); memoryWeight: per point of a remembered harm's present weight (victim; kin take kinShare of it), capped at memoryCap; memoryDays: older harms the watch no longer acts on. redHandedDays: a theft caught (robbed memory) or a rumour seen by many (credibility at least redHandedCredibility) this recent is caught red-handed. unseen: weight of an unanswered street incident no one saw. vanishedWeight: per point of a vanishing's suspicion (Vanishings, s 0..2) in the doubt or foul tier, capped at vanishedCap. A confession told to the watch (free talk's report_to_watch at the guard's credibility) is testimony: confessedCredibility.",
+    "charges": {
+        "rumourWeight": 0.6, "rumourCap": 45, "memoryWeight": 1.4, "memoryCap": 40, "kinShare": 0.6, "memoryDays": 240,
+        "redHandedDays": 7, "redHandedCredibility": 0.9, "confessedCredibility": 0.75,
+        "unseen": { "assault": 6, "murder": 12, "vandalism": 4 },
+        "vanishedWeight": 15, "vanishedCap": 30,
+        "maxShown": 5
+    },
+
+    "_groups": "What each rumour type and remembered kind is charged as. grave: charges that go to the cells, never a fine.",
+    "groups": {
+        "murder": "murder", "child_murder": "murder", "guard_murder": "murder", "noble_murder": "murder", "priest_murder": "murder",
+        "assault": "assault", "theft": "theft", "vandalism": "vandalism",
+        "slander": "slander", "merchant_slander": "slander", "contract_broken": "broken word",
+        "whisperer": "whispering", "blackmailer": "blackmail", "vanished_companion": "vanished",
+        "murdered": "murder", "assaulted": "assault", "robbed": "theft", "grave_robbed": "grave robbing",
+        "threatened": "threats", "slandered": "slander", "insulted": "insults",
+        "vanished_with": "vanished", "foul_play": "vanished", "no_word": "vanished"
+    },
+    "grave": ["murder", "grave robbing"],
+    "labels": {
+        "murder": "the killing of {victim}", "assault": "the beating of {victim}", "theft": "theft from {victim}",
+        "vandalism": "damage done in {town}", "slander": "slander against {victim}", "broken word": "a broken contract with {victim}",
+        "whispering": "whispers spread against {victim}", "blackmail": "the blackmail of {victim}", "vanished": "{victim}, who left with you and never came home",
+        "grave robbing": "a grave robbed in {town}", "threats": "threats made to {victim}", "insults": "insults to {victim}"
+    },
+    "proofText": {
+        "0": "only talk; no one has come forward",
+        "1": "hearsay: an accusation, no witness",
+        "2": "testimony: {who}",
+        "3": "caught in the act: {who}"
+    },
+
+    "_fines": "Fines by charge (gold), times the town's size (fineTown) and the realm's law on punishment (Laws.punishment fine). An honest admission pays admitMult of it; a fine after lies, lieMult. Days: the cells by the gravest charge, on top of the watch's own sentence (Underworld._arrest), times the realm's law; admitting it takes admitDays off.",
+    "fines": { "assault": 40, "theft": 30, "vandalism": 25, "slander": 15, "broken word": 20, "whispering": 30, "blackmail": 60, "vanished": 40, "threats": 10, "insults": 5 },
+    "fineTown": { "village": 0.6, "town": 1, "city": 1.6, "capital": 2 },
+    "admitMult": 0.75, "lieMult": 1.25,
+    "days": { "murder": 20, "grave robbing": 6, "blackmail": 5, "assault": 3, "theft": 2, "vanished": 4, "default": 1 },
+    "admitDays": 0.3,
+
+    "_answers": "The choices when the AI brain is off (and the moves the free talk is weighed by). talkPer: per point of Persuasion's talk perk; charisma: per point of charisma above 5. plainBase: an honest answer clearing a charge with no more than hearsay behind it. denyBase by the strongest proof: a denial believed. Raises (suspicion points): lieRaise caught in a lie, refuseRaise refusing to answer (or walking off), fleeRaise for running and getting away, bribeRefusedRaise a bribe turned down; clearDrop the drop left after a credible answer.",
+    "answers": {
+        "talkPer": 0.01, "charisma": 0.03, "plainBase": 0.55, "suspicionDrag": 0.005,
+        "denyBase": [0.8, 0.5, 0.2, 0],
+        "min": 0.03, "max": 0.95,
+        "lieRaise": 20, "refuseRaise": 12, "fleeRaise": 15, "bribeRefusedRaise": 25, "clearDrop": 15,
+        "adjustDecayPerDay": 1, "adjustMin": -40, "adjustMax": 60
+    },
+
+    "_bribe": "price: base + perPoint * suspicion, times the town's size (fineTown) and graveMult when a grave charge stands; less Persuasion's bribe perk. odds: base, less perProof per point of the strongest proof, honest/greedy guards (by their traits), plus Persuasion's bribeOdds; grave charges times graveOdds. A bribe that fails is a bribe reported: heat with the crown (heat) and bribeRefusedRaise. In free talk the guard may only take a sum the player offers, at least minShare of the price.",
+    "bribe": { "base": 20, "perPoint": 1.2, "graveMult": 3, "odds": 0.75, "perProof": 0.15, "graveOdds": 0.5, "honest": -0.25, "greedy": 0.15, "minShare": 0.7, "heat": 5,
+        "honestTraits": ["honest", "just", "zealous", "brave"], "greedyTraits": ["greedy", "deceitful", "cunning", "lazy"] },
+
+    "_run": "Running: StreetCrime's escape odds. Away: heat with the crown (heat), a bounty posted in the realm (bountyBase + bountyPer * suspicion gold), fleeRaise. Caught: the cells, failDays more.",
+    "run": { "heat": 6, "bountyBase": 20, "bountyPer": 0.8, "failDays": 3 },
+
+    "_llm": "Free talk with the guard (the AI brain on): at most maxTurns answers, then the guard decides. Per turn: credible -3..3 moves suspicion by credibleStep a point (lowering at most credibleCap a talk), a lie (only where a fact contradicts it) lieRaise/2, refusing refuseRaise/2, a threat threatRaise, rudeness rudeRaise.",
+    "llm": { "maxTurns": 5, "maxTokens": 300, "timeoutMs": 60000, "credibleStep": 4, "credibleCap": 24, "threatRaise": 15, "rudeRaise": 4, "clearCredible": 3 },
+
+    "lines": {
+        "bark": ["You there! A word.", "Hold, you. The watch would speak with you.", "Not so fast, friend.", "You. Stay where you are."],
+        "greeting": [
+            "*steps into your path, hand on the cudgel* A word, {player}. There's talk in {town} about you: {charge}. I'd hear your side of it.",
+            "*looks you up and down* You're {player}, aren't you? Folk have been coming to the watch-house about {charge}. Talk.",
+            "*blocks the way* The watch has questions for you, {player}. About {charge}. Answer straight and we'll get along."
+        ],
+        "cleared": ["*grunts* Fair enough. Go on, then, and keep your nose clean in {town}.", "*steps aside* That squares with what I know. Off with you."],
+        "suspicious": ["*narrows their eyes* I'll let you go. For now. The watch will be keeping an eye on you, {player}.", "*spits* I don't believe a word, but I can't hold you on it. Not yet."],
+        "fined": ["That'll be {fine} gold for the town, and we'll call it done.", "*holds out a hand* {fine} gold. The magistrate's due. Pay it and go."],
+        "arrest": ["*seizes your arm* That's enough. You're coming to the cells.", "*whistles for the watch* {player}, in the name of the town, you're under arrest."],
+        "bribed": ["*the coin vanishes into a glove* I never saw you. Move along.", "*weighs the purse, nods once* Seems I had the wrong face. Go."],
+        "bribeRefused": ["*knocks the coin from your hand* Buying the watch, is it? That's another charge.", "*face hardening* You'll regret offering me that."],
+        "ran": ["*shouts after you* Stop! Stop that one!", "*gives chase, then falls back* Run, then. There'll be a price on you now."],
+        "caught": ["*brings you down hard* Where d'you think you're going?", "*grabs your collar* Running only makes it worse."],
+        "silent": ["*folds their arms* Nothing to say? That says plenty.", "*frowns* Silence won't help you, {player}."]
+    }
+}

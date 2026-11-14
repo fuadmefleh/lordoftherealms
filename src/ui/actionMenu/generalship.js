@@ -7,7 +7,7 @@ import { ActionMenu } from './_ref.js';
 import { Generalship } from '../../player/generalship.js';
 import { RealmEscort } from '../../player/realmEscort.js';
 import { NPCLords } from '../../world/npcLords.js';
-import { BTN_GOLD, BTN_DARK, BTN_OFF, esc, bullets, lede, chips, sectionHead, card, actRow, rowList, kv } from './uiKit.js';
+import { esc, bullets, lede, chips, sectionHead, card, actRow, rowList, kv, more } from './uiKit.js';
 import { InnerMapBattle } from '../innerMapBattle.js';
 import { ParentsGuard } from '../parentsGuard.js';
 import { Names } from '../../core/names.js';
@@ -21,13 +21,6 @@ const HOW = { resigned: 'resigned', dismissed: 'dismissed in disgrace', crowned:
 function _bar(value, max, color) {
     const pct = Math.max(0, Math.min(100, Math.round((value / Math.max(1, max)) * 100)));
     return `<div style="height:5px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden;margin:3px 0 5px;"><div style="width:${pct}%;height:100%;background:${color};"></div></div>`;
-}
-
-function _btn(label, action, args, style, ok = true, title = '') {
-    const a = esc(JSON.stringify([action, ...args]));
-    return ok
-        ? `<button data-am-act="armyAct" data-am-args="${a}" style="${style}" title="${esc(title)}">${label}</button>`
-        : `<button style="${BTN_OFF}" disabled title="${esc(title)}">${label}</button>`;
 }
 
 /** One order as an action-menu row: data-am-act="armyAct" data-am-args=[action, ...args]. */
@@ -98,14 +91,13 @@ Object.assign(ActionMenu, {
         // ── The host ──
         html += sectionHead('The host');
         const mc = c.morale >= 60 ? '#8fd18a' : c.morale >= 35 ? '#ffcf6a' : '#e0846a';
-        html += lede(`<b>${c.men}</b> of the realm's ${Math.round(k && k.military || 0)} soldiers${(player.army || []).length ? `, and your own retinue of ${player.army.length}` : ''} · quality ×${v.quality} · power ${v.power}`);
+        html += lede(`<b>${c.men}</b> of the realm's ${Math.round(k && k.military || 0)} soldiers${(player.army || []).length ? `, and your own retinue of ${player.army.length}` : ''}. Your leadership, lieutenants, veterancy, morale and bread make each man count ×${v.quality}.`);
         html += chips([
+            { icon: '⚔️', label: 'Power', value: v.power, cls: 'gold' },
             { icon: '🔥', label: 'Morale', value: `<span style="color:${mc};">${Math.round(c.morale)}</span>` },
             ['🎖️', 'Veterancy', `${Math.round(c.veterancy * 100)}%`],
-            ['🌾', 'Supplies', `${v.supplyDays} days`],
+            ['🌾', 'Supplies', v.consuming ? `${v.supplyDays} days` : 'in garrison, fed by the realm'],
         ]);
-        html += _bar(c.morale, 100, mc);
-        if (!v.consuming) html += `<div style="${NOTE}">(in garrison: fed by the realm)</div>`;
         if (v.mult > 1) html += `<div style="font-size:11px;color:#8fd18a;">At the front: the realm's armies fight ×${v.mult} with you there.</div>`;
         const hostRows = [_row({ icon: '📣', name: 'Address the men', side: `${AP.address} AP` }, 'address')];
         for (const amt of [50, 200]) {
@@ -115,14 +107,14 @@ Object.assign(ActionMenu, {
                 why: 'Coin from your purse to the men — your purse is short', side: `${amt}g`, tone: gold >= amt ? 'gold' : 'bad',
             }, 'spoils', [amt], gold >= amt));
         }
-        html += rowList(hostRows);
         if (v.supplyTown) {
-            // Two ways to pay for one requisition: a row for it, the payer as its buttons
-            html += rowList([actRow({
-                icon: '🌾', name: `Requisition from ${esc(v.supplyTown.name)}`, desc: 'Grain for the wagons',
-                side: _btn('the crown pays', 'supply', [false], BTN_GOLD) + _btn('…pay yourself', 'supply', [true], BTN_DARK),
-            })]);
-        } else if (v.consuming) {
+            // Two ways to pay for one requisition: a row each
+            const town = esc(v.supplyTown.name);
+            hostRows.push(_row({ icon: '🌾', name: `Requisition grain from ${town}`, desc: 'For the wagons; the crown pays the town', side: 'crown pays', tone: 'gold' }, 'supply', [false]));
+            hostRows.push(_row({ icon: '🌾', name: `Buy grain in ${town} yourself`, desc: 'From your own purse, when the crown cannot pay' }, 'supply', [true]));
+        }
+        html += rowList(hostRows);
+        if (!v.supplyTown && v.consuming) {
             html += `<div style="font-size:11px;color:#c98a6a;">No town of ${esc(c.kingdomName)} within reach of your wagons.</div>`;
         }
 
@@ -132,12 +124,16 @@ Object.assign(ActionMenu, {
             const lc = lt.loyalty >= 60 ? '#8fd18a' : lt.loyalty >= 40 ? '#ffcf6a' : '#e0846a';
             return actRow({
                 icon: '🎖️', name: esc(lt.name),
-                desc: `skill ${lt.skill}, ${esc((T[lt.trait] || {}).label || lt.trait)}, loyalty <span style="color:${lc};">${Math.round(lt.loyalty)}</span>`,
-                side: _btn('Dismiss', 'dismissLt', [lt.id], BTN_DARK),
+                desc: `${esc((T[lt.trait] || {}).label || lt.trait)} · loyalty <span style="color:${lc};">${Math.round(lt.loyalty)}</span>`,
+                side: `skill ${lt.skill}`,
             });
         });
-        if (c.lieutenants.length < rd.lieutenants) ltRows.push(_row({ icon: '⬆️', name: 'Raise an officer from the ranks' }, 'appoint'));
+        if (c.lieutenants.length < rd.lieutenants) ltRows.push(_row({ icon: '⬆️', name: 'Raise an officer from the ranks', desc: 'A lieutenant from among the men' }, 'appoint'));
         html += rowList(ltRows, `Lieutenants (${c.lieutenants.length}/${rd.lieutenants})`) || sectionHead(`Lieutenants (${c.lieutenants.length}/${rd.lieutenants})`);
+        // Dismissal kept a fold away: not a button inside a lieutenant's row
+        if (c.lieutenants.length) {
+            html += more('Dismiss a lieutenant', rowList(c.lieutenants.map(lt => _row({ icon: '✖', name: `Dismiss ${esc(lt.name)}`, tone: 'bad' }, 'dismissLt', [lt.id]))));
+        }
 
         // ── Orders ──
         html += sectionHead('The crown\'s orders');

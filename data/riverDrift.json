@@ -10,9 +10,495 @@
     "damCap": 12,
     "millWeirs": true,
     "millWeirGen": 5,
-    "restDays": { "lake": 20, "pool": 120, "bank": 60 },
+    "restDays": {
+        "lake": 20,
+        "pool": 120,
+        "bank": 60,
+        "still": 20,
+        "sea": 1
+    },
     "maxItems": 150,
     "reach": 2,
     "damReach": 3,
-    "sinkers": ["stone", "iron", "iron_ore", "copper_ore", "gold_ore", "silver_ore", "tin_ore", "coal", "gems", "marble", "salt", "tools", "weapons", "armor"]
+    "sinkers": [
+        "stone",
+        "iron",
+        "iron_ore",
+        "copper_ore",
+        "gold_ore",
+        "silver_ore",
+        "tin_ore",
+        "coal",
+        "gems",
+        "marble",
+        "salt",
+        "tools",
+        "weapons",
+        "armor"
+    ],
+    "_docStill": "Thrown into still water (a lake, a pond, a deep pool, the sea: water too deep to stand in): no current, it floats where it landed, bobbing (restDays.still, then it sinks). At sea the ocean current takes it (seaSpeed: cells an hour on the street map; restDays.sea: then it is carried off and lost).",
+    "seaSpeed": 4,
+    "flotsam": {
+        "_doc": "Things rivers carry on their own (systems/riverFlotsam.js). Each day perDay finds go in somewhere along the world's rivers (weighted toward the lower reaches: 1 + upstream hexes ^ downstreamPow), more in a flood season or under rain or storm (seasonMult, rainMult, stormMult; natural finds only), human junk more near towns (townMult). While the player watches a river hex's street map, watchPerHour is the chance each hour that something comes down into it from upstream. maxWild: the most wild things in the world at once (the oldest at rest go first). finds: id, item (the good you get), name, icon, sprite (optional: its picture), qty [min,max], w (weight), kind natural|human, coins [min,max] (a purse: coin, out of a lost purse), note (a bottle: one of notes is read).",
+        "enabled": true,
+        "perDay": 5,
+        "maxWild": 60,
+        "downstreamPow": 0.5,
+        "rebuildDays": 30,
+        "seasonMult": {
+            "spring": 2,
+            "summer": 0.8,
+            "autumn": 1.3,
+            "winter": 0.5
+        },
+        "rainMult": 1.5,
+        "stormMult": 2.5,
+        "townMult": 3,
+        "watchPerHour": 0.35,
+        "finds": [
+            {
+                "id": "sticks",
+                "item": "sticks",
+                "name": "Tangle of Sticks",
+                "icon": "🥢",
+                "qty": [
+                    2,
+                    5
+                ],
+                "w": 30,
+                "kind": "natural"
+            },
+            {
+                "id": "branch",
+                "item": "sticks",
+                "name": "Broken Branch",
+                "icon": "🥢",
+                "qty": [
+                    2,
+                    3
+                ],
+                "w": 14,
+                "kind": "natural"
+            },
+            {
+                "id": "log",
+                "item": "wood",
+                "name": "Floating Log",
+                "icon": "🪵",
+                "qty": [
+                    1,
+                    1
+                ],
+                "w": 10,
+                "kind": "natural"
+            },
+            {
+                "id": "driftwood",
+                "item": "driftwood",
+                "name": "Driftwood",
+                "icon": "🪵",
+                "qty": [
+                    1,
+                    2
+                ],
+                "w": 14,
+                "kind": "natural"
+            },
+            {
+                "id": "reeds",
+                "item": "reeds",
+                "name": "Raft of Reeds",
+                "icon": "🌾",
+                "qty": [
+                    2,
+                    4
+                ],
+                "w": 12,
+                "kind": "natural"
+            },
+            {
+                "id": "sapling",
+                "item": "wood",
+                "name": "Uprooted Sapling",
+                "icon": "🌳",
+                "sprite": "sticks",
+                "qty": [
+                    1,
+                    1
+                ],
+                "w": 3,
+                "kind": "natural"
+            },
+            {
+                "id": "plank",
+                "item": "planks",
+                "name": "Loose Plank",
+                "icon": "🪵",
+                "qty": [
+                    1,
+                    1
+                ],
+                "w": 4,
+                "kind": "human"
+            },
+            {
+                "id": "oar",
+                "item": "planks",
+                "name": "Broken Oar",
+                "icon": "🛶",
+                "sprite": "planks",
+                "qty": [
+                    1,
+                    1
+                ],
+                "w": 2,
+                "kind": "human"
+            },
+            {
+                "id": "boot",
+                "item": "boot",
+                "name": "Old Boot",
+                "icon": "👢",
+                "qty": [
+                    1,
+                    1
+                ],
+                "w": 4,
+                "kind": "human"
+            },
+            {
+                "id": "jug",
+                "item": "pottery",
+                "name": "Stoppered Jug",
+                "icon": "🏺",
+                "qty": [
+                    1,
+                    1
+                ],
+                "w": 3,
+                "kind": "human"
+            },
+            {
+                "id": "rope",
+                "item": "rope",
+                "name": "Tangle of Rope",
+                "icon": "🧶",
+                "qty": [
+                    1,
+                    1
+                ],
+                "w": 3,
+                "kind": "human"
+            },
+            {
+                "id": "apples",
+                "item": "apples",
+                "name": "Lost Basket of Apples",
+                "icon": "🧺",
+                "sprite": "apples",
+                "qty": [
+                    2,
+                    4
+                ],
+                "w": 3,
+                "kind": "human"
+            },
+            {
+                "id": "fleece",
+                "item": "wool",
+                "name": "Sodden Fleece",
+                "icon": "🐑",
+                "qty": [
+                    1,
+                    1
+                ],
+                "w": 2,
+                "kind": "human"
+            },
+            {
+                "id": "toy_boat",
+                "item": "carvings",
+                "name": "Child's Toy Boat",
+                "icon": "⛵",
+                "qty": [
+                    1,
+                    1
+                ],
+                "w": 2,
+                "kind": "human"
+            },
+            {
+                "id": "barrel",
+                "item": "barrel",
+                "name": "Barrel",
+                "icon": "🛢️",
+                "qty": [
+                    1,
+                    1
+                ],
+                "w": 2,
+                "kind": "human"
+            },
+            {
+                "id": "net",
+                "item": "fishing_net",
+                "name": "Torn-loose Fishing Net",
+                "icon": "🥅",
+                "qty": [
+                    1,
+                    1
+                ],
+                "w": 1,
+                "kind": "human"
+            },
+            {
+                "id": "purse",
+                "item": "leather_goods",
+                "name": "Purse",
+                "icon": "👛",
+                "sprite": "coin_purse",
+                "qty": [
+                    1,
+                    1
+                ],
+                "w": 1,
+                "kind": "human",
+                "coins": [
+                    2,
+                    14
+                ]
+            },
+            {
+                "id": "bottle",
+                "item": "glassware",
+                "name": "Bottle with a Note",
+                "icon": "🍾",
+                "sprite": "message_bottle",
+                "qty": [
+                    1,
+                    1
+                ],
+                "w": 1,
+                "kind": "human",
+                "note": true
+            }
+        ],
+        "notes": [
+            "In a careful hand: \"If you find this, tell my mother in the river town that I am well, and that I am not coming home.\"",
+            "Scratched in charcoal: \"Owed to Hob the miller, three pence. Paid. Paid! PAID.\"",
+            "A child's drawing of a fish with legs, and a name you cannot read.",
+            "\"To whoever finds this: the eels in this river are the size of a man's arm. Do not swim at the bend.\"",
+            "A love-letter, smudged past reading but for the last line: \"...at the willow, when the bells ring.\"",
+            "A list: \"Salt. Nails. A new rope for the well. Do NOT buy from the tinker again.\"",
+            "\"I threw this in at the source. How far did it get? Write the place here:\" Below, three names of towns in three different inks.",
+            "A prayer to the river, asking it to carry away a fever. Whoever wrote it hoped hard."
+        ]
+    },
+    "nets": {
+        "_doc": "Fishing nets the player sets in a river (across it), a pond, a lake or the sea (systems/riverNets.js; on the street map ui/innerMapRiverDrift.js). One net to a hex, maxNets in all. A river net catches what drifts down into it (cap things in all, then the rest slips by); every net takes fish day by day: fishRolls tries a day, each fishChance x seasonMult, from the fish table of its water. A river net also snags a stray find now and then (snagChance a day). Fish left in a net longer than fishKeepDays are lost (eels, crabs, rot). Each day a net may tear (tearChance x (1 + days set / ageDays), x stormMult in a storm; a torn net catches nothing until mended with mendCost) or be stolen while you are away (theftChance; townTheft near a town). stillReach: cells from a pond net within which a thing thrown in is gathered up. reach: how near (cells) you must stand to set, haul or take up a net. catchUpDays: days caught up at most when time passes at a stroke.",
+        "enabled": true,
+        "maxNets": 6,
+        "cap": 16,
+        "fishRolls": 3,
+        "fishChance": 0.4,
+        "seasonMult": {
+            "spring": 1.1,
+            "summer": 1,
+            "autumn": 1,
+            "winter": 0.4
+        },
+        "snagChance": 0.2,
+        "fishKeepDays": 3,
+        "tearChance": 0.008,
+        "ageDays": 90,
+        "stormMult": 4,
+        "theftChance": 0.004,
+        "townTheft": 0.015,
+        "mendCost": {
+            "rope": 1
+        },
+        "stillReach": 4,
+        "reach": 3,
+        "catchUpDays": 30,
+        "fish": {
+            "river": [
+                {
+                    "item": "small_fish",
+                    "w": 5,
+                    "qty": [
+                        1,
+                        3
+                    ]
+                },
+                {
+                    "item": "fish",
+                    "w": 4,
+                    "qty": [
+                        1,
+                        2
+                    ]
+                },
+                {
+                    "item": "crayfish",
+                    "w": 2,
+                    "qty": [
+                        1,
+                        3
+                    ]
+                },
+                {
+                    "item": "boot",
+                    "w": 0.3,
+                    "qty": [
+                        1,
+                        1
+                    ]
+                },
+                {
+                    "item": "golden_fish",
+                    "w": 0.05,
+                    "qty": [
+                        1,
+                        1
+                    ]
+                }
+            ],
+            "pond": [
+                {
+                    "item": "small_fish",
+                    "w": 6,
+                    "qty": [
+                        1,
+                        3
+                    ]
+                },
+                {
+                    "item": "fish",
+                    "w": 2,
+                    "qty": [
+                        1,
+                        1
+                    ]
+                },
+                {
+                    "item": "crayfish",
+                    "w": 2,
+                    "qty": [
+                        1,
+                        2
+                    ]
+                },
+                {
+                    "item": "mussels",
+                    "w": 1,
+                    "qty": [
+                        1,
+                        3
+                    ]
+                }
+            ],
+            "lake": [
+                {
+                    "item": "small_fish",
+                    "w": 4,
+                    "qty": [
+                        1,
+                        3
+                    ]
+                },
+                {
+                    "item": "fish",
+                    "w": 5,
+                    "qty": [
+                        1,
+                        2
+                    ]
+                },
+                {
+                    "item": "crayfish",
+                    "w": 2,
+                    "qty": [
+                        1,
+                        2
+                    ]
+                },
+                {
+                    "item": "mussels",
+                    "w": 1,
+                    "qty": [
+                        1,
+                        3
+                    ]
+                },
+                {
+                    "item": "golden_fish",
+                    "w": 0.05,
+                    "qty": [
+                        1,
+                        1
+                    ]
+                }
+            ],
+            "sea": [
+                {
+                    "item": "small_fish",
+                    "w": 3,
+                    "qty": [
+                        1,
+                        4
+                    ]
+                },
+                {
+                    "item": "fish",
+                    "w": 4,
+                    "qty": [
+                        1,
+                        2
+                    ]
+                },
+                {
+                    "item": "large_fish",
+                    "w": 2,
+                    "qty": [
+                        1,
+                        1
+                    ]
+                },
+                {
+                    "item": "crab",
+                    "w": 2,
+                    "qty": [
+                        1,
+                        1
+                    ]
+                },
+                {
+                    "item": "seaweed",
+                    "w": 1,
+                    "qty": [
+                        1,
+                        2
+                    ]
+                },
+                {
+                    "item": "lobster",
+                    "w": 0.4,
+                    "qty": [
+                        1,
+                        1
+                    ]
+                }
+            ]
+        },
+        "perishable": [
+            "small_fish",
+            "fish",
+            "large_fish",
+            "crayfish",
+            "crab",
+            "lobster",
+            "mussels",
+            "golden_fish"
+        ]
+    }
 }

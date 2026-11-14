@@ -37,6 +37,7 @@ import { DataLoader } from '../core/dataLoader.js';
 import { Utils } from '../core/utils.js';
 import { Hex } from '../core/hex.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
+import { Economy } from '../world/economy.js';
 import { TownLabour } from '../world/townLabour.js';
 import { Seasons } from '../world/seasons.js';
 import { PlayerEconomy, Trading } from '../player/playerEconomy.js';
@@ -700,7 +701,13 @@ export const MerchantPrince = {
         const legal = Underworld.legalSaleCheck(player, goodId, n, x.s, world);
         if (!legal.ok) return { success: false, reason: legal.reason };
         const earned = Math.floor(Trading.saleUnitPrice(player, g, x.s, world, legal.priceMult, n) * n);
+        // The town's merchants pay out of its purse (the price and the guild's toll inside it)
+        const purse = Economy.townPurse(x.s);
+        if (purse != null && earned + Trading._guildToll(player, x.s, goodId, earned) > purse) {
+            return { success: false, reason: `The merchants of ${x.s.name || 'this town'} have only ${Math.floor(purse)} gold to spend.` };
+        }
         MerchantPrince._take(x.w, goodId, n);
+        Economy.drawTown(x.s, earned);
         player.gold += earned;
         SettlementMarket.add(x.s, goodId, n);
         Guilds.onSale(player, x.s, goodId, n, earned);

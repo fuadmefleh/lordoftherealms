@@ -121,6 +121,21 @@ export const Gathering = {
         return out;
     },
 
+    /**
+     * The seed a wild plant gives when it is cut down (gathering.plantSeeds:
+     * by what it gives — berries, herbs, flowers — or by a word in its name;
+     * { item, chance, qty: [min, max], seasons? }), rolled now. → [{ item, qty }]
+     */
+    plantSeeds(def, season = null) {
+        const P = Gathering.config().plantSeeds || {};
+        const name = String((def && def.name) || '').toLowerCase();
+        let rule = null;
+        for (const [word, r] of Object.entries(P.byName || {})) if (name.includes(word)) { rule = r; break; }
+        if (!rule) rule = (P.byResource || {})[def && def.resource && def.resource.type];
+        if (!rule) return [];
+        return Gathering.fellGives({ gives: Array.isArray(rule) ? rule : [rule] }, season);
+    },
+
     /** The energy one swing costs the player */
     swingEnergy(player, def) {
         const id = Gathering.skillFor(def);
@@ -168,6 +183,8 @@ export const Gathering = {
         const id = Gathering.skillFor(def);
         let base = Math.max(0, Math.round(_num(resource && resource.amount, 1)));
         const out = { skill: id, amount: base, extra: 0, rare: null, gives: [], xp: 0, tool: null, levelUps: [], camp: null, campExtra: 0 };
+        // A wild plant cut down: now and then its seed, to sow (plantSeeds)
+        if (def && def.objectType === 'plant') out.gives = Gathering.plantSeeds(def, season);
         if (!id || !player) return out;
         // A camp of yours on the hex: more from every tree or rock (campBoost)
         const camp = Gathering.campBoost(player, def, tile);

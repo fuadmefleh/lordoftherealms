@@ -3,7 +3,7 @@
 // investments. Logic lives in systems/merchantHouses.js; this presents it.
 import { ActionMenu } from './_ref.js';
 import { MerchantHouses, PlayerEconomy, Trading } from './_imports.js';
-import { BTN_GOLD, BTN_DARK, BTN_RED, panelTabs, lede, chips, sectionHead, kv, card, rowList, price } from './uiKit.js';
+import { BTN_GOLD, BTN_DARK, BTN_RED, panelTabs, lede, chips, sectionHead, kv, card, more, rowList, price } from './uiKit.js';
 import { RealmIntel } from '../../systems/realmIntel.js';
 import { companyDiagnosisHtml } from './merchantLedger.js';
 import { Names } from '../../core/names.js';
@@ -167,13 +167,15 @@ function _companyLedgerHtml(player, world) {
     html += sectionHead(`Profit &amp; Loss — net <span style="color:${pnl.net >= 0 ? GOOD : BAD};">${_g(pnl.net)}</span>`);
     html += `<div style="display:flex; gap:16px;"><div style="flex:1;"><div style="font-weight:600; color:${GOOD}; margin-bottom:2px;">Income ${_g(pnl.income)}</div>${_pnlRows(pnl.incomeBy)}</div><div style="flex:1;"><div style="font-weight:600; color:${BAD}; margin-bottom:2px;">Expenses ${_g(pnl.expenses)}</div>${_pnlRows(pnl.expensesBy)}</div></div>`;
     html += companyDiagnosisHtml(player, world);
+    // The raw books (week by week, line by line) folded away under the reading of them
+    let books = '';
     if (c.weeks.length) {
-        html += `${sectionHead('Recent Weeks')}<table style="${TABLE}">`;
-        html += `<tr style="${THEAD}"><td>Day</td><td style="text-align:right;">In</td><td style="text-align:right;">Out</td><td style="text-align:right;">Capital</td></tr>`;
+        books += `${sectionHead('Week by week')}<table style="${TABLE}">`;
+        books += `<tr style="${THEAD}"><td>Day</td><td style="text-align:right;">In</td><td style="text-align:right;">Out</td><td style="text-align:right;">Capital</td></tr>`;
         for (const w of c.weeks.slice(0, 8)) {
-            html += `<tr style="${TR}"><td>${w.day}</td><td style="text-align:right; color:${GOOD};">${_g(w.income)}</td><td style="text-align:right; color:${BAD};">${_g(w.expenses)}</td><td style="text-align:right;">${_g(w.capital)}</td></tr>`;
+            books += `<tr style="${TR}"><td>${w.day}</td><td style="text-align:right; color:${GOOD};">${_g(w.income)}</td><td style="text-align:right; color:${BAD};">${_g(w.expenses)}</td><td style="text-align:right;">${_g(w.capital)}</td></tr>`;
         }
-        html += '</table>';
+        books += '</table>';
     }
     const st = c.stats;
     html += `<div style="font-size:11px; ${MUTED} margin-top:6px;">Contracts ${st.contractsDone} done, ${st.contractsFailed} broken · robberies ${st.robberies} · convoys lost ${st.convoysLost}</div>`;
@@ -181,13 +183,14 @@ function _companyLedgerHtml(player, world) {
     if (news.length) {
         html += rowList(news.map(n => ({ icon: n.icon, name: `<span style="font-weight:400; font-size:12px;">${_esc(n.text)}</span>`, side: `<span style="${MUTED} font-size:10.5px;">Day ${n.day}</span>` })), 'News of the Trade');
     }
-    html += sectionHead('Ledger');
+    if (c.ledger.length) books += sectionHead('Line by line');
     for (const e of c.ledger.slice(0, 20)) {
         // (a memo line — stock thieves took — moves no coin)
         const color = e.kind === 'income' ? GOOD : e.kind === 'memo' ? WARN : BAD;
         const sign = e.kind === 'income' ? '+' : e.kind === 'memo' ? '' : '−';
-        html += `<div class="pk-kv" style="font-size:11px;"><span><span style="color:#7d7564;">${e.day}</span> ${_esc(e.text)}</span><span style="color:${color};">${sign}${_g(e.amount)}${e.kind === 'memo' ? ' of stock' : ''}</span></div>`;
+        books += `<div class="pk-kv" style="font-size:11px;"><span><span style="color:#7d7564;">${e.day}</span> ${_esc(e.text)}</span><span style="color:${color};">${sign}${_g(e.amount)}${e.kind === 'memo' ? ' of stock' : ''}</span></div>`;
     }
+    html += more('📜 The books, week by week and line by line', books);
     return html;
 }
 

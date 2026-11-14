@@ -394,9 +394,16 @@ export const HoldingSieges = {
                 existing.arms = existing.arms || {};
                 for (const [g, n] of Object.entries(rec.arms)) existing.arms[g] = Math.round((_num(existing.arms[g]) + _num(n)) * 100) / 100;
             }
+            const host = HoldingSieges._hostUnit(world, existing);
+            // (its war chest joins the lines' chest, or goes home without one)
+            const chest = unit.inventory ? Math.max(0, Math.floor(_num(unit.inventory.gold))) : 0;
+            if (host && chest > 0) {
+                if (!host.inventory) host.inventory = { gold: 0 };
+                host.inventory.gold = _num(host.inventory.gold) + chest;
+                unit.inventory.gold = 0;
+            } else RealmWars._homeChest(kingdom, unit, rec);
             unit.destroyed = true;
             war.hosts = war.hosts.filter(h => h.id !== rec.id);
-            const host = HoldingSieges._hostUnit(world, existing);
             if (host) host.strength = Math.round(existing.besiegers);
             const text = `${rec.name} joins the siege of ${settlement.name} (besiegers now ${Math.round(existing.besiegers)}).`;
             HoldingSieges._log(existing, world, text);
@@ -683,6 +690,13 @@ export const HoldingSieges = {
             const what = [c.food ? `${c.food} food` : '', c.gold ? `${c.gold} gold` : ''].filter(Boolean).join(' and ');
             if (Utils.random() < c.catch) {
                 s.besiegerStores += c.food / HoldingSieges.foodPerDay(s);
+                // (the gold into the besiegers' chest: their host's bags, else their crown's)
+                if (c.gold > 0) {
+                    const host = HoldingSieges._hostUnit(world, s);
+                    const k = host ? null : (world.getKingdom ? world.getKingdom(s.kingdomId) : null);
+                    if (host) { if (!host.inventory) host.inventory = { gold: 0 }; host.inventory.gold = _num(host.inventory.gold) + c.gold; }
+                    else if (k) k.treasury = _num(k.treasury) + c.gold;
+                }
                 const text = `Your ${c.via === 'ship' ? 'supply ship' : 'supply caravan'} is caught by the besiegers of ${s.name}: ${what} lost.`;
                 HoldingSieges._log(s, world, text);
                 out.notices.push({ title: '🚫 Supplies Taken', text, type: 'error' });
@@ -693,6 +707,9 @@ export const HoldingSieges = {
                 s.morale = Utils.clamp(s.morale + C.morale.fed, 0, 100);
             }
             if (c.gold) {
+                // (the men are hired and paid in the town: the gold into its purse)
+                const town = HoldingSieges._settlement(world, s);
+                if (town) Economy.payTown(town, c.gold);
                 s.garrison += Math.floor(c.gold / C.supply.goldPerGarrison);
                 s.morale = Utils.clamp(s.morale + Math.min(C.morale.suppliedMax, c.gold / C.morale.goldPerPoint), 0, 100);
             }
@@ -973,6 +990,7 @@ export const HoldingSieges = {
         }
         player.gold -= price;
         const kingdom = world.getKingdom(s.kingdomId);
+        if (kingdom) kingdom.treasury = _num(kingdom.treasury) + price; // (the price, into the besiegers' crown's chests)
         const war = HoldingSieges._war(player, s);
         if (kingdom && war) HoldingSieges._sendHome(world, kingdom, war, s);
         const text = `${c.name} buys off the besiegers of ${s.name} for ${price} gold; ${s.hostName} marches away.`;
@@ -1034,7 +1052,7 @@ export const HoldingSieges = {
     /** The host marches home with what is left of it. */
     _sendHome(world, kingdom, war, s) {
         const unit = HoldingSieges._hostUnit(world, s);
-        if (unit) unit.destroyed = true;
+        if (unit) { RealmWars._homeChest(kingdom, unit); unit.destroyed = true; }
         war.hosts = war.hosts.filter(h => h.id !== s.hostId);
         const back = s.besiegers * HoldingSieges.config().besiegers.returnShare;
         kingdom.military = _num(kingdom.military) + Math.round(back);

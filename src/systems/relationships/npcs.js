@@ -1,6 +1,7 @@
 // Relationships — npcs members (split from the original monolith).
 import { Relationships } from './_ref.js';
 import { DataLoader, Utils, Characters } from './_imports.js';
+import { Vanishings } from '../vanishings.js';
 
 Object.assign(Relationships, {
     // ── Runtime storage ──
@@ -316,6 +317,13 @@ Object.assign(Relationships, {
             return { success: false, reason: 'You need to meet this person first.' };
         }
 
+        // Others from their town took the road with you and never came home (systems/vanishings.js)
+        const wary = Vanishings.joinWariness(world, player, npc);
+        if (wary.refuse) {
+            rel.history.push({ day: world?.day || 0, action: 'join_travel_party', result: 'refused' });
+            return { success: true, accepted: false, npc, chance: 0, roll: null, reason: wary.refuse, wary: true };
+        }
+
         let chance = 0.20;
         chance += (rel.score || 0) * 0.006;
         chance += (rel.affection || 0) * 0.004;
@@ -331,6 +339,7 @@ Object.assign(Relationships, {
         if (traitList.includes('loyal')) chance += 0.10;
         if (traitList.includes('homebody')) chance -= 0.22;
         if (traitList.includes('fickle')) chance -= 0.08;
+        chance -= wary.penalty;
 
         chance = Math.max(0.05, Math.min(0.95, chance));
         const roll = Utils.random();

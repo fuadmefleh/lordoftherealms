@@ -22,11 +22,31 @@
             "calm": { "speed": 1, "reach": 1, "splash": 1, "glint": 1 }
         }
     },
+    "surfaceFish": {
+        "_doc": "Fish seen from above in the water of the street map (ui/innerMapLayers/surfaceFish.js), drawn over the water and under its sparkles and foam: dark backs swimming loose shoals in the deep water on screen (never in the shallows, under bridges or on ice), holding against a river's current (each cell's t._flow) with a slow drift down it now and then. The species are the divers' (data/diving.json fish, by the waters they live in), seen as their backs darkened by the water (depth = how much of the water's colour; breadth = width seen from above, of the side-on height; alpha = how plainly they show; night = alpha by night). perCell: fish to each deep cell on screen by water kind, up to max; seasons scale it (winter: few). Now and then one turns and flashes silver (glint: chance a second per fish) or jumps (jump: chance a second per fish, a ring of ripples and a splash). Within shy tiles of the player in or at the water they dart away at fleeSpeed times their speed. drift: how much the river's current carries a fish; upstream: share of new marks taken up the river.",
+        "enabled": true,
+        "max": 28,
+        "perCell": { "river": 0.2, "lake": 0.1, "pond": 0.14, "sea": 0.06 },
+        "seasons": { "winter": 0.3, "spring": 1, "summer": 1.15, "autumn": 0.85, "fall": 0.85 },
+        "pxPerTile": 28,
+        "breadth": 0.7,
+        "depth": 0.72,
+        "water": "#050d14",
+        "alpha": 0.85,
+        "night": 0.35,
+        "shy": 2.6,
+        "fleeSpeed": 3,
+        "drift": 0.35,
+        "upstream": 0.75,
+        "glint": 0.025,
+        "jump": 0.006,
+        "ripples": 8
+    },
     "innerMapSize": { "width": 128, "height": 128 },
     "waterSubTerrain": { "id": "pond_water", "name": "Water", "icon": "💧", "color": "#3a6ea5", "passable": false },
     "water": {
         "_doc": "Ponds, rivers, lakes and their shores on the inner map (world/innerMap/water.js). Ponds per terrain: subTerrains.*.waterFeatures { chance, count, radius (cells), lobes }, scaled up on a wet hex. rivers: radius (half-width in cells) and how it widens per river flowing in, how far its gates wander along the map edge, meander, the bends it swings in (bend: how far to either side, bendLength: cells per bend), what crossing a street (and running beside one, and the map border) costs the route, how far it keeps from buildings, fords in the wilds [min, max]. lake: the band of shore along the sides of a lake hex that face land. deep: how many cells from land water turns deep, by kind. dressing: chances per cell (reeds on shallows/bank, cattails and lilies on still water by the shore, stones on the bank, stepping stones on a ford) and the sprite cells ([col, row], 32px) of the LPC plants and rocks sheets.",
-        "rivers": { "radius": [2.8, 3.8], "radiusPerInflow": 0.4, "maxRadius": 5, "edgeJitter": 10, "meander": 5, "bend": [3, 7], "bendLength": [28, 48], "roadCost": 60, "roadNearCost": 6, "borderCost": 6, "clearance": 2, "wildFords": [1, 2], "springRadius": 3.5, "poolRadius": [5, 7] },
+        "rivers": { "radius": [3.6, 4.8], "radiusPerInflow": 0.5, "maxRadius": 6.5, "edgeJitter": 10, "meander": 5, "bend": [3, 7], "bendLength": [28, 48], "roadCost": 60, "roadNearCost": 6, "borderCost": 6, "clearance": 2, "wildFords": [1, 2], "springRadius": 3.5, "poolRadius": [5, 7] },
         "lake": { "shoreDepth": [14, 22], "wobble": 4 },
         "deep": { "pond": 3, "river": 2, "lake": 3, "sea": 3 },
         "dressing": {

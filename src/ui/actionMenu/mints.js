@@ -1,9 +1,9 @@
 // ActionMenu — the Royal Mint & the realms' coin: each realm's coin purity,
 // price level, coin in circulation and its trend, and the exchange rates
 // between the coins (the 💰 Coin tab, anywhere); at a capital, selling gold
-// and silver to the mint and leasing it (🏛️ The Mint); for a ruler the mint's
-// policy, a recoinage edict and debasement (👑 Your coin); for a Thieves'
-// Guild hand, passing false coin (🕯️ Coiners). Logic lives in
+// and silver to the mint and leasing it (🏛️ The Mint); for a Thieves' Guild
+// hand, passing false coin (🕯️ Coiners). A ruler's own coin (seigniorage,
+// recoinage, debasement) is on the Crown's Treasury 👑 tab (treasury.js). Logic lives in
 // systems/mints.js and world/moneySupply.js; buttons route through
 // data-am-act → ActionMenu.mintAct.
 import { ActionMenu } from './_ref.js';
@@ -21,7 +21,7 @@ const NOTE = 'font-size: 11px; color: #9d937c;';
 const TH = 'text-align:left; padding:3px 6px; font-size:9.5px; letter-spacing:1.2px; text-transform:uppercase; font-weight:600; color:rgba(245,197,66,0.7); border-bottom:1px solid rgba(245,197,66,0.14);';
 const TD = 'padding:4px 6px; border-bottom:1px solid rgba(245,197,66,0.07);';
 const SMALL = 'padding:2px 8px; margin:0 0 0 4px; font-size:11px;';
-const TABS = [['coin', '💰 Coin'], ['mint', '🏛️ The Mint'], ['crown', '👑 Your coin'], ['coiners', '🕯️ Coiners']];
+const TABS = [['coin', '💰 Coin'], ['mint', '🏛️ The Mint'], ['coiners', '🕯️ Coiners']];
 const FLOW_LABEL = { trade: 'Trade', tribute: 'Tribute (chests)', loans: 'Crown loans (chests)', plunder: 'Plunder (chests)', gresham: 'Gresham', flight: 'Flight', mint: 'Mint', wear: 'Wear', debase: 'Debasement (chests)', recoin: 'Recoinage', counterfeit: 'False coin (purse)', cheat: 'Conjured (purse)', drift: 'Travellers & pilgrims', fisc: 'Taxes & crown spending', other: 'Wages, rents & spending' };
 
 let _tab = 'coin';
@@ -93,6 +93,8 @@ function coinTab(game) {
     }
     const st = player.mints;
     if (st && st.stats && st.stats.exchangeFees > 0) html += `<div style="${NOTE}">The money changers have had ${Math.round(st.stats.exchangeFees)}g of you.</div>`;
+    const ruled = Finance.ruledKingdom(player, world);
+    if (ruled) html += rowList([{ icon: '👑', name: `Run the coin of ${esc(Names.realm(ruled.name))}`, desc: 'Seigniorage, recoinage and debasement: the Crown\'s Treasury', act: 'mintAct', args: ['crown'], side: '›', tone: 'gold' }]);
     return html;
 }
 
@@ -150,53 +152,6 @@ function mintTab(game, tile) {
     return html;
 }
 
-function crownTab(game) {
-    const { player, world } = game;
-    const k = Finance.ruledKingdom(player, world);
-    if (!k) return `<div style="${NOTE}">When you rule a realm, its mint is yours to run: what it charges, when to call in clipped coin, and — in a crisis — when to clip it.</div>`;
-    const rec = MoneySupply.ensureRealm(world, k);
-    const P = Mints.config().mint.policies;
-    const purity = k.finance && k.finance.purity != null ? k.finance.purity : 1;
-    let html = lede(`<b>The mint of ${esc(Names.realm(k.name))}</b>.`);
-    html += chips([
-        ['', 'Silver', `${Math.round(purity * 100)}%`],
-        // (the coin in hand: old finer pieces not yet restruck, and the clipping — world/moneySupply.js fineness)
-        ['', 'In hand', `${Math.round(MoneySupply.fineness(world, k).circulating * 100)}%`],
-        ['', 'Clipped', `${Math.round(MoneySupply.fineness(world, k).clip * 100)}%`],
-        ['', 'Price level', Math.round(MoneySupply.level(world, k.id) * 100)],
-        ['', 'Coin about', `${Math.round(rec.coin).toLocaleString()}g`],
-        ['', 'Last week', `${Math.round(rec.mint.lastStruck)}g struck, ${Math.round(rec.mint.lastSeign)}g seigniorage`, 'gold'],
-    ]);
-    html += sectionHead('Seigniorage');
-    html += `<div style="${NOTE} margin:-2px 0 4px;">A greedy mint keeps more of each piece, and sellers take their bullion elsewhere.</div>`;
-    html += rowList(Object.entries(P).map(([id, p]) => {
-        const on = rec.mint.policy === id;
-        return {
-            icon: on ? '✅' : '⚖️', name: esc(p.label),
-            desc: `keeps ${Math.round((p.seigniorage || 0) * 100)}% of each piece · draws ×${p.draw} the bullion`,
-            act: 'mintAct', args: ['policy', id], side: on ? 'current' : '', tone: on ? 'gold' : '',
-        };
-    }));
-    const rq = Mints.recoinQuote(world, k);
-    html += sectionHead('Recoinage');
-    const recoinDesc = 'Call in the debased and clipped coin and strike it anew at full weight.';
-    const recoinNote = 'The crown makes up half the missing silver; the holders lose the rest, so there is less coin about and prices fall.';
-    html += rowList([rq.ok ? {
-        icon: '💰', name: `Proclaim a recoinage (${rq.cost}g)`, desc: recoinDesc, note: recoinNote,
-        act: 'mintAct', args: ['recoin'], off: k.treasury < rq.cost, why: 'The treasury cannot pay for it.',
-        side: price(rq.cost, k.treasury >= rq.cost),
-    } : { icon: '💰', name: 'Proclaim a recoinage', desc: recoinDesc, note: recoinNote, off: true, why: esc(rq.reason) }]);
-    html += sectionHead('Debase the coin');
-    html += rowList([{
-        icon: '✂️', name: 'Clip the coin',
-        desc: 'Recoin at a tenth less silver: gold for the crown now; more coin about (prices rise); trust lost, and the good coin flees abroad.',
-        act: 'mintAct', args: ['debase'], off: purity <= 0.55,
-        why: `Recoin at a tenth less silver · the coin is down to ${Math.round(purity * 100)}% silver already`,
-        side: `${Math.round(purity * 100)}% silver`, tone: 'bad',
-    }]);
-    return html;
-}
-
 function coinersTab(game, tile) {
     const { player, world } = game;
     const uw = player.underworld;
@@ -226,8 +181,11 @@ function coinersTab(game, tile) {
 
 Object.assign(ActionMenu, {
     /** The Royal Mint & the realms' coin. */
-    showMint(game, tile = null) {
+    showMint(game, tile = null, tab = null) {
         const { player, world } = game;
+        if (tab) _tab = tab;
+        // A ruler's coin (seigniorage, recoinage, debasement) is run from the Crown's Treasury
+        if (_tab === 'crown') { _tab = 'coin'; ActionMenu.showTreasury(game, 'crown'); return; }
         const t = tile || world.getTile(player.q, player.r);
         if (!Mints.enabled()) {
             game.ui.showCustomPanel('💰 The Mint', `<div style="${NOTE}">The realms' mints are closed.</div>`);
@@ -241,7 +199,6 @@ Object.assign(ActionMenu, {
             attrsFor: (k) => `data-am-act="mintAct" data-am-args='${esc(JSON.stringify(['tab', k]))}'`,
         });
         if (_tab === 'mint') html += mintTab(game, t);
-        else if (_tab === 'crown') html += crownTab(game);
         else if (_tab === 'coiners') html += coinersTab(game, t);
         else html += coinTab(game);
         html += '</div>';
@@ -254,6 +211,7 @@ Object.assign(ActionMenu, {
         let res = null;
         switch (op) {
             case 'tab': _tab = a || 'coin'; break;
+            case 'crown': ActionMenu.showTreasury(game, 'crown'); return;
             case 'sell': res = Mints.sellBullion(player, world, tile, a, b); break;
             case 'lease': res = Mints.leaseMint(player, world, tile); break;
             case 'policy': res = Mints.setPolicy(player, world, a); break;

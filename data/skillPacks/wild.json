@@ -71,6 +71,21 @@
         "picks": [{ "item": "steel_tools", "mult": 1.4, "name": "steel pick" }, { "item": "tools", "mult": 1.2, "name": "iron pick" }],
         "_xpDoc": "xpPerHardness: more Woodcutting / Mining XP for a harder tree or rock, per point of its hardness (resistance), on top of the skill's perFell / perBreak.",
         "xpPerHardness": 0.2,
+        "_plantSeedsDoc": "A wild plant cut down on the map may give its seed to sow (player/gathering.js plantSeeds): by a word in its name first, else by what it gives. Each rule: item (a crop's seed, data/crops.json), chance, qty [min, max], seasons (optional).",
+        "plantSeeds": {
+            "byName": {
+                "strawberr": { "item": "strawberry_seed", "chance": 0.6, "qty": [1, 3] },
+                "flax": { "item": "flax_seed", "chance": 0.6, "qty": [2, 4] },
+                "hemp": { "item": "hemp_seed", "chance": 0.6, "qty": [2, 4] },
+                "wheat": { "item": "wheat_seed", "chance": 0.6, "qty": [2, 5] },
+                "grass": { "item": "wheat_seed", "chance": 0.15, "qty": [1, 3] }
+            },
+            "byResource": {
+                "berries": { "item": "strawberry_seed", "chance": 0.35, "qty": [1, 3] },
+                "herbs": { "item": "herb_seed", "chance": 0.5, "qty": [1, 3] },
+                "flowers": { "item": "herb_seed", "chance": 0.3, "qty": [1, 2] }
+            }
+        },
         "rareFinds": {
             "mountain": [{ "item": "ore", "weight": 5, "qty": [1, 2] }, { "item": "coal", "weight": 4, "qty": [1, 3] }, { "item": "silver_ore", "weight": 1.5, "qty": [1, 1] }, { "item": "gold_ore", "weight": 0.6, "qty": [1, 1] }, { "item": "gems", "weight": 0.4, "qty": [1, 1] }, { "item": "copper", "weight": 2, "qty": [1, 2] }, { "item": "tin", "weight": 1, "qty": [1, 2] }],
             "snow_peak": [{ "item": "ore", "weight": 5, "qty": [1, 2] }, { "item": "silver_ore", "weight": 1.5, "qty": [1, 1] }, { "item": "gems", "weight": 0.6, "qty": [1, 1] }],

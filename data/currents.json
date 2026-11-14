@@ -1,0 +1,16 @@
+{
+    "_doc": "Ocean currents (world/oceanCurrents.js). Every sea hex has one, set by the latitude bands (|latitude| 0 at the equator to 1 at the poles; angle in degrees: 0 runs east, 180 west, 90 north) and wandering up to `wander` degrees either way over stretches of `scale` hexes (smooth noise of the world's seed); strength from minStrength to 1, dying away within edgeFade of a band's edge where two streams meet; coastal water runs at `coast` of it. sail: a ship on the world map (player/core/movement.js) pays a hex's sailing cost less by with x strength going with the current, more by against x strength going into it; lying at sea overnight (not in a port) it is carried driftPerDay x strength of a hex downstream each night, a whole hex when that adds up to one (ui/game/endDay.js). swim: cells a second a swimmer on the street map is carried (world/innerMap/currents.js) in the sea (sea x strength) and mid-river (river; bankShare of that next to the bank or over a ford; lakes and ponds lie still); the Swimming skill holds against it, up to skillResist of it at the top.",
+    "enabled": true,
+    "bands": [
+        { "to": 0.3, "angle": 180, "name": "the equatorial current" },
+        { "to": 0.68, "angle": 0, "name": "the westerly drift" },
+        { "to": 1, "angle": 180, "name": "the polar current" }
+    ],
+    "wander": 45,
+    "scale": 9,
+    "minStrength": 0.25,
+    "edgeFade": 0.08,
+    "coast": 0.6,
+    "sail": { "with": 0.35, "against": 0.35, "driftPerDay": 0.55 },
+    "swim": { "sea": 0.45, "river": 1.05, "bankShare": 0.4, "skillResist": 0.5 }
+}

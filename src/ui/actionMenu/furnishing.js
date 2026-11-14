@@ -6,13 +6,11 @@
 // (ui/innerMapFurnish.js). Buttons route through data-am-act → furnitureAct.
 import { ActionMenu } from './_ref.js';
 import { Furnishing } from '../../systems/furnishing.js';
-import { BTN_GOLD, BTN_OFF, BTN_PLAIN, CARD, esc } from './uiKit.js';
+import { esc, lede, chips, purse, card, rowList, sectionHead, price } from './uiKit.js';
 
+// In the action menu's voice (ui/actionMenu/uiKit.js): one row a piece, its
+// price at the right; a stored piece's row sells it back.
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
-
-function act(label, args, style = BTN_PLAIN, title = '') {
-    return `<button data-am-act="furnitureAct" data-am-args='${esc(JSON.stringify(args))}' style="${style}"${title ? ` title="${esc(title)}"` : ''}>${label}</button>`;
-}
 
 function _settlement(game) {
     const wt = game.world && game.world.getTile ? game.world.getTile(game.player.q, game.player.r) : null;
@@ -36,27 +34,25 @@ Object.assign(ActionMenu, {
         const { player } = game;
         const s = _settlement(game);
         const type = (s && s.type) || 'village';
-        let html = '<div style="font-size:12px;">';
-        if (message) html += `<div style="${CARD} border-color:${message.ok ? 'rgba(159,216,159,0.5)' : 'rgba(224,128,128,0.5)'};">${esc(message.text)}</div>`;
-        html += `<p style="${NOTE}">${s ? `The joiner of ${esc(s.name)}` : 'A joiner'} makes what a ${esc(type)} can make — bigger places, finer pieces. What you buy waits in your furniture store until you set it down in a home you own: go inside it and choose <b>Furnish</b>.</p>`;
-
-        html += `<div style="font-weight:bold; color:var(--gold); margin-top:8px;">💺 For sale</div>`;
-        for (const item of Furnishing.shopList(player, type)) {
-            html += `<div style="${CARD} display:flex; justify-content:space-between; gap:8px; align-items:center;">`;
-            html += `<div><div><span style="font-size:15px;">${item.icon || '💺'}</span> <b>${esc(item.name)}</b> <span style="color:var(--gold);">${item.price}g</span></div>`;
-            html += `<div style="${NOTE}">${esc(item.desc || '')}${_does(item) ? ` <i>(${esc(_does(item))})</i>` : ''}</div></div>`;
-            html += `<div style="flex-shrink:0;">${item.affordable ? act('Buy', ['buy', item.id], BTN_GOLD) : `<button style="${BTN_OFF}" title="Not enough gold">Buy</button>`}</div>`;
-            html += '</div>';
-        }
-
         const stored = Furnishing.storeView(player);
-        html += `<div style="font-weight:bold; color:var(--gold); margin-top:12px;">📦 Your furniture store (${stored.length})</div>`;
-        if (!stored.length) html += `<p style="${NOTE}">Nothing in store.</p>`;
-        for (const { piece, view, value } of stored) {
-            html += `<div style="${CARD} display:flex; justify-content:space-between; gap:8px; align-items:center;">`;
-            html += `<div><span style="font-size:15px;">${view.icon}</span> ${esc(view.name)}${view.original ? ` <span style="${NOTE}">(from a house of yours)</span>` : ''}</div>`;
-            html += `<div style="flex-shrink:0;">${act(`Sell (${value}g)`, ['sell', piece.uid], BTN_PLAIN, 'The joiner buys it back')}</div></div>`;
-        }
+        let html = '<div style="font-size:12px;">';
+        if (message) html += card(esc(message.text), { tone: message.ok ? 'good' : 'bad' });
+        html += lede(`${s ? `The joiner of ${esc(s.name)}` : 'A joiner'} makes what a ${esc(type)} can make: bigger places, finer pieces. What you buy waits in your store until you go inside a home you own and choose <b>Furnish</b>.`);
+        html += chips([purse(player.gold), ['📦', 'In store', stored.length]]);
+
+        html += rowList(Furnishing.shopList(player, type).map(item => ({
+            icon: item.icon || '💺', name: esc(item.name),
+            desc: `${esc(item.desc || '')}${_does(item) ? ` <i>(${esc(_does(item))})</i>` : ''}`,
+            side: price(item.price, item.affordable), off: !item.affordable, why: `Your purse is short. ${esc(item.desc || '')}`,
+            act: 'furnitureAct', args: ['buy', item.id],
+        })), '💺 For sale');
+
+        html += rowList(stored.map(({ piece, view, value }) => ({
+            icon: view.icon, name: `Sell the ${esc(view.name)}`,
+            desc: view.original ? 'From a house of yours' : 'The joiner buys it back',
+            side: price(value), act: 'furnitureAct', args: ['sell', piece.uid],
+        })), `📦 Your furniture store (${stored.length})`);
+        if (!stored.length) html += sectionHead('📦 Your furniture store') + `<div style="${NOTE}">Nothing in store.</div>`;
         const homes = Furnishing.homesView(player);
         if (homes.length) {
             html += `<div style="${NOTE} margin-top:8px;">Furnished: ${homes.map(h => `${esc(h.name)}${h.town ? ` in ${esc(h.town)}` : ''} (${h.pieces})`).join(' · ')}</div>`;

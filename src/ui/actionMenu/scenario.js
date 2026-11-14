@@ -5,12 +5,13 @@
 // Annals panel exists, "Read the Annals".
 // Rules live in systems/victory.js, core/difficulty.js and player/scenarios.js.
 import { ActionMenu } from './_ref.js';
-import { BTN_GOLD, BTN_PLAIN, BTN_DARK, CARD, esc } from './uiKit.js';
+import { card, chips, rowList, sectionHead, esc } from './uiKit.js';
 import { registerScene } from './choiceScenes.js';
 import { Victory } from '../../systems/victory.js';
 import { Difficulty } from '../../core/difficulty.js';
 import { Scenarios } from '../../player/scenarios.js';
 
+const MUTED = 'font-size:11px; color:#a99a78;';
 const KNOB_LABELS = {
     startGold: 'Starting purse',
     buyPrice: 'Prices you pay',
@@ -43,44 +44,36 @@ Object.assign(ActionMenu, {
 
         let html = '<div style="font-size:12px; min-width:340px; max-height:560px; overflow-y:auto;">';
         // The goal
-        html += `<div style="${CARD}">`;
-        html += `<div style="font-size:11px; color:#888; text-transform:uppercase;">Ambition of this life</div>`;
-        html += `<div style="font-size:15px; font-weight:bold; color:var(--gold); margin-top:2px;">${p.icon || ''} ${esc(p.name)}</div>`;
-        html += `<div style="color:#aaa; margin-top:2px;">${esc(p.blurb)}</div>`;
+        let goal = `<div style="color:#bfb39a;">${esc(p.blurb)}</div>`;
         if (p.id !== 'none') {
-            html += bar(p.pct);
-            html += `<div>${esc(p.text)}</div>`;
-            for (const l of p.lines) html += `<div style="color:#999; font-size:11px;">· ${esc(l)}</div>`;
+            goal += bar(p.pct);
+            goal += `<div>${esc(p.text)}</div>`;
+            for (const l of p.lines) goal += `<div style="${MUTED}">· ${esc(l)}</div>`;
         }
         if (sc.victoryAchieved) {
-            html += `<div style="color:#7fd07f; margin-top:6px; font-weight:bold;">🏆 Achieved on day ${sc.victoryAchieved.day} by ${esc(sc.victoryAchieved.by || player.name)}.</div>`;
+            goal += `<div style="color:#9fd89f; margin-top:6px; font-weight:bold;">🏆 Achieved on day ${sc.victoryAchieved.day} by ${esc(sc.victoryAchieved.by || player.name)}.</div>`;
         }
         for (const v of sc.pastVictories || []) {
-            html += `<div style="color:#8a8; font-size:11px;">🏆 ${Victory.wonThisLife(sc, v) ? 'Won earlier in this life' : 'In a past life'}: ${esc(v.name)} (day ${v.day}, ${esc(v.by || '')})</div>`;
+            goal += `<div style="${MUTED} color:#8a8;">🏆 ${Victory.wonThisLife(sc, v) ? 'Won earlier in this life' : 'In a past life'}: ${esc(v.name)} (day ${v.day}, ${esc(v.by || '')})</div>`;
         }
-        html += '</div>';
+        html += card(goal, { icon: p.icon || '🏆', title: esc(p.name), side: p.id !== 'none' ? `${Math.round(Math.max(0, Math.min(1, p.pct)) * 100)}%` : '', tone: 'gold' });
 
         // Choose / change the goal
-        html += `<div style="${CARD}"><div style="font-size:11px; color:#888; text-transform:uppercase; margin-bottom:4px;">Set your ambition</div>`;
-        for (const v of Object.values(Victory.defs())) {
+        html += rowList(Object.values(Victory.defs()).map(v => {
             const on = v.id === sc.victory;
-            html += `<button ${on ? 'disabled' : `data-am-act="setVictoryGoal" data-am-args='${esc(JSON.stringify([v.id]))}'`} style="${on ? BTN_GOLD : BTN_PLAIN} display:block; width:100%; text-align:left;" title="${esc(v.blurb)}">${v.icon} ${esc(v.name)}${on ? ' — current' : ''}<div style="font-weight:normal; font-size:11px; opacity:0.75;">${esc(v.blurb)}</div></button>`;
-        }
-        html += '<div style="font-size:11px; color:#777; margin-top:4px;">Changing your ambition starts it afresh.</div></div>';
+            return { icon: v.icon, name: esc(v.name), desc: esc(v.blurb), side: on ? 'current' : '', tone: on ? 'gold' : '', ...(on ? {} : { act: 'setVictoryGoal', args: [v.id] }) };
+        }), 'Set your ambition');
+        html += `<div style="${MUTED} margin:2px 0 8px;">Changing your ambition starts it afresh.</div>`;
 
         // Origin & difficulty
-        html += `<div style="${CARD}">`;
-        html += `<div><b>Origin:</b> ${origin ? `${origin.icon || ''} ${esc(origin.name)}` : (sc.id === 'stranger' ? '🌱 A new life in the world' : esc(sc.id))}</div>`;
-        html += `<div style="margin-top:2px;"><b>Difficulty:</b> ${esc(lvl.name)}${lvl.blurb ? ` <span style="color:#999;">— ${esc(lvl.blurb)}</span>` : ''}</div>`;
-        if (lvl.key !== 'normal') {
-            for (const k of Difficulty.KNOBS) {
-                const m = lvl[k];
-                if (m === 1) continue;
-                html += `<div style="font-size:11px; color:#aaa;">· ${KNOB_LABELS[k] || k}: ×${m}</div>`;
-            }
-        }
-        html += '</div>';
-        html += `<button data-am-act="openTileMenu" data-am-args='["showDynastyMenu"]' style="${BTN_DARK} width:100%; margin-top:6px;">← Back to Dynasty</button>`;
+        const knobs = lvl.key !== 'normal' ? Difficulty.KNOBS.filter(k => lvl[k] !== 1).map(k => ['', KNOB_LABELS[k] || k, `×${lvl[k]}`]) : [];
+        html += sectionHead('This life');
+        html += rowList([
+            { icon: origin ? (origin.icon || '🌱') : '🌱', name: origin ? esc(origin.name) : (sc.id === 'stranger' ? 'A new life in the world' : esc(sc.id)), desc: 'Origin' },
+            { icon: '⚖️', name: esc(lvl.name), desc: lvl.blurb ? esc(lvl.blurb) : 'Difficulty' },
+        ]);
+        html += chips(knobs);
+        html += rowList([{ icon: '←', name: 'Back to Dynasty', act: 'openTileMenu', args: ['showDynastyMenu'] }]);
         html += '</div>';
         game.ui.showCustomPanel('🏆 Ambition of this Life', html);
     },

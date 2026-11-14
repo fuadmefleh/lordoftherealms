@@ -282,6 +282,39 @@ export const InnerMapBrawls = {
         return f;
     },
 
+    /**
+     * Each fighter keeps who they fought and over what, for when someone asks
+     * them (the AI chat's prompt, ui/npcDialog/helpers.js _worldContext): a
+     * townsperson's own record is the brawl log; this covers the others.
+     */
+    _remember(F, game) {
+        const fight = F && F.fight;
+        if (!fight || !F.npcs) return;
+        const a = Brawls.instigatorOf(fight);
+        const b = Brawls.foeOf(fight);
+        const day = this._day(game);
+        for (const f of Brawls.fighters(fight)) {
+            const npc = F.npcs.get(f.key);
+            if (!npc) continue;
+            const foe = f.side === 0 ? b : a;
+            npc._lastFight = { d: day, foe: foe ? foe.name : null, cause: fight.cause, started: f === a, how: fight.ended ? fight.ended.how : 'parted' };
+        }
+    },
+
+    /** The fight this NPC is in on the street now: { foe, cause } or null */
+    liveFightOf(npc) {
+        for (const F of this._fights) {
+            if (!F.npcs) continue;
+            for (const [key, n] of F.npcs) {
+                if (n !== npc) continue;
+                const me = Brawls.find(F.fight, key);
+                const foe = me ? (me.side === 0 ? Brawls.foeOf(F.fight) : Brawls.instigatorOf(F.fight)) : null;
+                return { foe: foe ? foe.name : 'someone', cause: F.fight.cause };
+            }
+        }
+        return null;
+    },
+
     // ──────────── STARTING ────────────
 
     /**
@@ -1065,6 +1098,7 @@ export const InnerMapBrawls = {
             const names = { ...(F.names || {}) };
             if (F.playerJoined && how !== 'backDown') fight.ended.how = fight.ended.winner != null ? 'joined' : fight.ended.how;
             res = Brawls.settle(game.world, s, fight, { day: this._day(game), seenBy, witnesses, arrest: watchCase ? !!arrestee : false, bar, names });
+            this._remember(F, game);
         }
         // Each in it: the winners stand, the losers go; the arrested are led away
         const fighters = Brawls.fighters(fight);
@@ -1127,6 +1161,7 @@ export const InnerMapBrawls = {
         }
         const s = F.town;
         if (s && game && game.world) Brawls.settle(game.world, s, fight, { day: this._day(game), seenBy: F.seen ? ['you'] : [], names: F.names || {} });
+        this._remember(F, game);
         if (F.onEnd) { try { F.onEnd(!!(fight.ended && fight.ended.winner === 1)); } catch (e) { /* the caller's own */ } F.onEnd = null; }
         if (F.retainers) this._sendOff(F.retainers);
         for (const npc of [...F.npcs.values(), ...F.ring, F.peace, F.watch]) {

@@ -457,3 +457,15 @@ describe('the household\'s pantry (systems/townTrade.js larders and purses)', ()
         expect(Object.keys(c.from).some(k => k.startsWith('tt|'))).toBe(false);
     });
 });
+
+describe('no thieves in a hamlet, nor in a village at the dawn', () => {
+    it('hasThieves weighs the size and the age', async () => {
+        const { NpcTheft: T } = await import('../systems/npcTheft.js');
+        expect(T.hasThieves({}, { type: 'village', population: 60 })).toBe(false);
+        expect(T.hasThieves({}, { type: 'village', population: 300 })).toBe(true);
+        expect(T.hasThieves({ dawn: true }, { type: 'village', population: 300 })).toBe(false);
+        expect(T.hasThieves({ dawn: true }, { type: 'town', population: 250 })).toBe(false);
+        expect(T.hasThieves({ dawn: true }, { type: 'town', population: 900 })).toBe(true);
+        expect(T.hasThieves({}, { type: 'city' })).toBe(true);
+    });
+});

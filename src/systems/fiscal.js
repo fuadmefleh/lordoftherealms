@@ -340,9 +340,10 @@ export const Fiscal = {
             if (!(due > 0) || !(purse > 0)) continue;
             if (farm) {
                 // The farmer collects in the crown's place, and squeezes
+                // (only what reaches a holder leaves the town: Fiscal._farmCollect)
                 const take = Math.min(purse, due * _num(farm.squeeze, 1));
-                s.economy.gold = _r2(purse - take);
-                Fiscal._farmCollect(world, farmPlayer, st, k, s, farm, take);
+                const got = Fiscal._farmCollect(world, farmPlayer, st, k, s, farm, take);
+                s.economy.gold = _r2(purse - got);
                 continue;
             }
             const pay = Math.min(purse, due);
@@ -396,7 +397,9 @@ export const Fiscal = {
         page.army += paidA;
         page.court += paidC;
         // Wages go back into the towns' purses: soldiers and clerks spend where they live
-        Fiscal._spendBack(paidTo.length ? paidTo : towns, cap, paidA, paidC, towns);
+        const placed = Fiscal._spendBack(paidTo.length ? paidTo : towns, cap, paidA, paidC, towns);
+        // (no town of the realm keeps a purse to spend it in: the coin stays in the chests)
+        if (placed < paidA + paidC - 0.005) k.treasury = _num(k.treasury) + _r2(paidA + paidC - placed);
         const wasArrears = f.arrearsDays;
         if (f.arrears.army > 0.5) f.arrearsDays++;
         else f.arrearsDays = Math.max(0, f.arrearsDays - 3);
@@ -426,23 +429,26 @@ export const Fiscal = {
      * Wages back into the purses (the towns the collectors visited today): the
      * army's by people × where the garrisons lie (army.spendWeights: the soldiers
      * are quartered in the capital and the towns more than the villages), the
-     * court's to the capital.
+     * court's to the capital. → the coin placed in purses (the caller keeps the rest).
      */
     _spendBack(towns, cap, army, court, all = towns) {
-        if (!towns.length) return;
+        if (!towns.length) return 0;
         const W = _obj(Fiscal.config().army.spendWeights) || {};
         const wt = (t) => Math.max(0, _num(t.s.population)) * _num(W[t.key === cap ? 'capital' : t.s.type], 1);
-        let capTown = null, pop = 0;
+        let capTown = null, pop = 0, unspent = 0;
         for (const t of towns) pop += wt(t);
         for (const t of towns) {
-            if (!t.s.economy) continue;
-            if (t.key === cap) capTown = t;
             const share = pop > 0 ? wt(t) / pop : 1 / towns.length;
+            // (a place keeping no purse: its garrison's pay is spent in the capital below)
+            if (!t.s.economy) { unspent += army * share; continue; }
+            if (t.key === cap) capTown = t;
             t.s.economy.gold = _r2(_num(t.s.economy.gold) + army * share);
         }
         // (the court sits in the capital whether or not the collectors called there today)
         const to = capTown || (all || []).find(t => t.key === cap && t.s.economy) || towns.find(t => t.s.economy);
-        if (to) to.s.economy.gold = _r2(_num(to.s.economy.gold) + court);
+        if (!to) return army - unspent;
+        to.s.economy.gold = _r2(_num(to.s.economy.gold) + court + unspent);
+        return army + court;
     },
 
     /** Close the day's books: lines into `last` and the week, the rest of the change under 'other'. */
@@ -724,27 +730,35 @@ export const Fiscal = {
     },
 
     /** A farmer's take from a town: to the house's capital, or the player's purse (less the collectors' wages). */
+    /**
+     * A tax farmer's take from a town → the coin that left the town's purse:
+     * the player's net (the collectors' wages, `cost`, are spent in the town and
+     * stay there), a banking house's whole take; nothing while the holder is
+     * out of reach (the player's farms in the interregnum, a house the day's
+     * books cannot see) — the coin stays in the town, never vanishes.
+     */
     _farmCollect(world, player, st, k, s, marker, take) {
         const farm = Fiscal._farmById(st, marker.id);
-        if (!farm || !(take > 0)) return;
+        if (!farm || !(take > 0)) return 0;
         if (farm.holder === 'player') {
+            if (!player) return 0;
             const F = Fiscal.config().farms;
             const cost = take * _num(F.collectCost, 0.05);
             const net = _r2(take - cost);
             farm.collected = _r2(farm.collected + net);
             farm.cost = _r2(farm.cost + cost);
-            if (player) {
-                player.gold = _num(player.gold) + net;
-                Ledger.record(player, 'taxFarms', net);
-                const lv = (F.squeeze || {})[farm.squeezeId] || {};
-                if (_num(lv.rep) > 0 && player.reputation) player.reputation[k.id] = Math.max(-100, _num(player.reputation[k.id]) - _num(lv.rep));
-                if (_num(lv.happiness) > 0) s.happiness = _clamp(_num(s.happiness, 50) - _num(lv.happiness), 0, 100);
-            }
-            return;
+            player.gold = _num(player.gold) + net;
+            Ledger.record(player, 'taxFarms', net);
+            const lv = (F.squeeze || {})[farm.squeezeId] || {};
+            if (_num(lv.rep) > 0 && player.reputation) player.reputation[k.id] = Math.max(-100, _num(player.reputation[k.id]) - _num(lv.rep));
+            if (_num(lv.happiness) > 0) s.happiness = _clamp(_num(s.happiness, 50) - _num(lv.happiness), 0, 100);
+            return net;
         }
-        farm.collected = _r2(farm.collected + take);
         const bank = Fiscal._banks ? Fiscal._banks.get(farm.holder) : (player ? Finance.bank(player, farm.holder) : null);
-        if (bank) bank.capital = _num(bank.capital) + take;
+        if (!bank) return 0;
+        farm.collected = _r2(farm.collected + take);
+        bank.capital = _num(bank.capital) + take;
+        return take;
     },
 
     _farmById(st, id) {

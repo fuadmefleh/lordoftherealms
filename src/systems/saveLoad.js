@@ -51,6 +51,7 @@ import { Climate } from '../world/climate.js';
 import { RealmTimeline } from './realmTimeline.js';
 import { Sagas } from './sagas.js';
 import { Sieges } from './sieges.js';
+import { Atrocities } from './atrocities.js';
 import { HoldingSieges } from './holdingSieges.js';
 import { Discovery } from './discovery.js';
 import { Heralds } from './heralds.js';
@@ -455,6 +456,8 @@ export const SaveLoad = {
         'landings',
         // Map owners you robbed, and whether they found out (systems/mapTheft.js)
         'mapGrudges',
+        // What each town's watch has made of the player's answers (systems/watchQuestioning.js)
+        'watchQuestioning',
         // Dead and waiting out the years; or a new life begun in the world (player/afterlife.js)
         'interregnum', 'origin',
         // An heirless House's money settled once: creditors paid, the rest to the crown (player/estateSettlement.js)
@@ -476,10 +479,14 @@ export const SaveLoad = {
         'realmEscort',
         // Lots, rented and bought houses in town (systems/lots.js: rent day reads it)
         'lotHoldings',
+        // Relics carried and sold (fakes awaiting exposure), witches cried (systems/profaneCrimes.js)
+        'profane',
         // The month's rents taken and paid, for the rent-day summary (systems/lots.js)
         'lotRentBook',
         // Burial grounds, bone mills, ossuaries, your dead awaiting burial and the trade's book (systems/graveyards.js)
         'graves',
+        // Grain lofts in hungry towns and the deeds done to towns (systems/townCrimes.js; each town's own record travels with it: settlement.townCrimes)
+        'townCrimes',
         // Skills learned by doing — diving, swimming — as XP (systems/practiceSkills.js);
         // swimPractice is an old save's swimming practice, turned into XP on first touch
         'practiceSkills', 'swimPractice',
@@ -708,6 +715,12 @@ export const SaveLoad = {
             rivals: Rivals.serialize(player),
             // Court scandals and whisper campaigns: live tales, what the player knows of them, the record (systems/whispers.js)
             whispers: Whispers.serialize(player),
+            // Promises made to townsfolk in free talk, kept, broken or still open (systems/npcChatImpact.js)
+            npcChat: player.npcChat ? JSON.parse(JSON.stringify(player.npcChat)) : null,
+            // Companions lost on the road and never brought home: suspicion, word brought or not (systems/vanishings.js)
+            vanishings: player.vanishings ? JSON.parse(JSON.stringify(player.vanishings)) : null,
+            // Crimes against people: frames awaiting trial or exposure, captives, the sold, the stocks (systems/peopleCrimes.js)
+            peopleCrimes: player.peopleCrimes ? JSON.parse(JSON.stringify(player.peopleCrimes)) : null,
             // Devotion: creed, vows, omens, alms by town, pilgrimages, clergy standing (systems/devotion.js);
             // the soul pact (systems/soulPact.js); books read and in hand (systems/books.js); feasts held (systems/feasts.js)
             devotion: Devotion.serialize(player),
@@ -736,6 +749,8 @@ export const SaveLoad = {
             sagas: Sagas.serialize(player),
             // A siege in progress, tribute owed, past sieges (systems/sieges.js)
             sieges: Sieges.serialize(player),
+            // Atrocities: hostages held, towns lately taken, the name for cruelty and broken faith (systems/atrocities.js)
+            atrocities: Atrocities.serialize(player),
             // Uncharted lands: the hidden places, who found them, claims (systems/discovery.js)
             discovery: Discovery.serialize(player),
             // The trading company, charters, rival merchant houses, contracts, ventures (systems/merchantHouses.js)
@@ -1105,6 +1120,8 @@ export const SaveLoad = {
         Sagas.loadState(player);
         // Sieges — older saves get a blank record
         Sieges.loadState(player);
+        // Atrocities — older saves get a blank record
+        Atrocities.loadState(player);
         // Sieges of your holdings — the ledger on player.realmWars, backfilled for older saves
         HoldingSieges.loadState(player);
         // Uncharted lands — older saves get a blank record (the places are chosen next day)

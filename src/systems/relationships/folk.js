@@ -11,6 +11,7 @@
 import { Relationships } from './_ref.js';
 import { Utils, Townsfolk, House } from './_imports.js';
 import { NpcMemory } from '../npcMemory.js';
+import { Vanishings } from '../vanishings.js';
 
 // Townsfolk temper → relationship personality and NPC traits
 const PERSONALITY = {
@@ -158,6 +159,11 @@ Object.assign(Relationships, {
                 if (player.house) House._chronicle(player.house, world, `${npc.firstName}, ${npc.gender === 'male' ? 'husband' : 'wife'} of ${player.name}, dies${p.cause ? ` of ${p.cause}` : ''}.`, ['widowed']);
             }
         } else if (!npc.isAlive && p.died == null) {
+            // Died away on the road with the player, by a way that has not said so itself:
+            // the family waits for word (systems/vanishings.js; idempotent)
+            if (p.away && p.away.withPlayer === 'party' && player.name) {
+                Vanishings.onPartyLoss(world, player, npc, { how: 'unknown', cause: npc.deathCause || null, witnesses: Relationships.getTravelPartyMembers(player).filter(o => o.id !== npc.id) });
+            }
             Townsfolk._die(folk, p, Number.isFinite(npc.deathDay) ? npc.deathDay : day, npc.deathCause || (p.away && p.away.withPlayer ? 'on the road' : 'misfortune'));
         }
         if (!npc.isAlive) {

@@ -22,7 +22,7 @@
         "stages": [
             { "id": "grudge", "min": 0, "label": "Grudge", "icon": "😠", "every": 240 },
             { "id": "enmity", "min": 35, "label": "Enmity", "icon": "😡", "every": 150 },
-            { "id": "vendetta", "min": 60, "label": "Vendetta", "icon": "🩸", "every": 100 },
+            { "id": "vendetta", "min": 60, "label": "Vendetta", "icon": "🗡️", "every": 100 },
             { "id": "obsession", "min": 85, "label": "Obsession", "icon": "💀", "every": 70 }
         ],
         "growthPerYear": 3,
@@ -52,7 +52,7 @@
         "lord": { "icon": "👑", "label": "a ruling lord" },
         "house": { "icon": "🛡️", "label": "the head of a rival House" },
         "rival": { "icon": "🗡️", "label": "an adventurer" },
-        "kin": { "icon": "🩸", "label": "your own blood" },
+        "kin": { "icon": "🗡️", "label": "your own blood" },
         "blood": { "icon": "⚔️", "label": "a sworn avenger" }
     },
     "hows": {

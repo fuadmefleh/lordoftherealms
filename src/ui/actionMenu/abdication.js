@@ -1,4 +1,4 @@
-// ActionMenu — 🪑 Succession & Retirement (House → Succession & Retirement):
+// ActionMenu — 💺 Succession & Retirement (House → Succession & Retirement):
 // step down for a child while alive (the rightful heir, or another at a
 // cost; a child under a regent — the old ruler themself, if you like), the
 // court's pressure and demand to step down, and the rulers who stepped down
@@ -71,13 +71,13 @@ Object.assign(ActionMenu, {
             body += kv('Days to answer', v.demandDays);
             const heir = v.successors.find(s => s.rightful);
             body += rowList([
-                heir ? { icon: '🪑', name: `Step down for ${esc(heir.name)}`, desc: 'With grace: kinder to you than being deposed', act: 'abdicationAct', args: ['pick', heir.id], tone: 'gold' } : null,
+                heir ? { icon: '💺', name: `Step down for ${esc(heir.name)}`, desc: 'With grace: kinder to you than being deposed', act: 'abdicationAct', args: ['pick', heir.id], tone: 'gold' } : null,
                 { icon: '⭐', name: 'Face the lords down', desc: 'Hold the seat', side: `${cfg.pressure.holdPrestige} ⭐`, act: 'abdicationAct', args: ['hold', 'prestige'], off: cfg.pressure.holdPrestige > prestige, why: `Needs ${cfg.pressure.holdPrestige} Prestige` },
                 { icon: '💰', name: 'Buy the court’s loyalty', desc: 'Into your courtiers’ purses', side: price(cfg.pressure.holdGold, (player.gold || 0) >= cfg.pressure.holdGold), act: 'abdicationAct', args: ['hold', 'gold'] },
             ]);
             html += card(body, { icon: '⚔️', title: 'The lords demand you step down', side: `${v.demandDays} day(s)`, tone: 'bad' });
         } else if (v.pressure.score > 0) {
-            html += sectionHead(`🪑 The court’s mood — pressure ${v.pressure.score}`);
+            html += sectionHead(`💺 The court’s mood — pressure ${v.pressure.score}`);
             html += bullets(v.pressure.reasons.map(r => `${esc(r.text)} <span style="color:#9d937c;">(+${r.weight})</span>`));
             if (v.pressure.score >= v.counselAt) html += `<div style="color:#f0b35a; margin:2px 2px 8px;">At ${v.demandAt} for some weeks, the lords will demand that you step down.</div>`;
         }
@@ -94,7 +94,7 @@ Object.assign(ActionMenu, {
         }
 
         // Stepping down
-        html += sectionHead('🪑 Step Down');
+        html += sectionHead('💺 Step Down');
         if (v.blocked) {
             html += `<div style="color:#9d937c; margin:0 2px 8px;">${esc(v.blocked)}</div>`;
         } else if (!step || !step.pick) {
@@ -122,10 +122,10 @@ Object.assign(ActionMenu, {
             }
         }
         if (v.record.length) {
-            html += rowList(v.record.map(r => ({ icon: r.how === 'forced' ? '⚔️' : '🪑', name: `${esc(r.name)} → ${esc(r.to)}`, desc: `Day ${r.day}${r.how === 'forced' ? ' · deposed' : r.how === 'counselled' ? ' · at the court’s urging' : ''}${r.passedOver ? ' · the rightful heir passed over' : ''}${r.minor ? ' · under a regent' : ''}` })), 'Past Abdications');
+            html += rowList(v.record.map(r => ({ icon: r.how === 'forced' ? '⚔️' : '💺', name: `${esc(r.name)} → ${esc(r.to)}`, desc: `Day ${r.day}${r.how === 'forced' ? ' · deposed' : r.how === 'counselled' ? ' · at the court’s urging' : ''}${r.passedOver ? ' · the rightful heir passed over' : ''}${r.minor ? ' · under a regent' : ''}` })), 'Past Abdications');
         }
         html += '</div>';
-        game.ui.showCustomPanel('🪑 Succession & Retirement', html);
+        game.ui.showCustomPanel('💺 Succession & Retirement', html);
     },
 
     /** The panel's rows (data-am-act="abdicationAct"). */
@@ -139,7 +139,7 @@ Object.assign(ActionMenu, {
         if (action === 'do') {
             res = Abdication.abdicate(player, world, { childId: a, regent: b, residence: c, secure: true });
             if (!res.success) {
-                game.ui.showNotification('🪑 Step Down', res.reason || 'That cannot be done.', 'error');
+                game.ui.showNotification('💺 Step Down', res.reason || 'That cannot be done.', 'error');
                 return;
             }
             Counsel.invalidate(player);
@@ -167,7 +167,7 @@ Object.assign(ActionMenu, {
         else if (action === 'move') res = Abdication.setResidence(player, world, a, b);
         else return;
         if (!res || !res.success) {
-            game.ui.showNotification('🪑 Succession & Retirement', (res && res.reason) || 'That cannot be done.', 'error');
+            game.ui.showNotification('💺 Succession & Retirement', (res && res.reason) || 'That cannot be done.', 'error');
             return;
         }
         Counsel.invalidate(player);

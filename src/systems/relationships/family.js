@@ -4,12 +4,14 @@ import { DataLoader, Utils, Characters, House, Traits, Upbringing, Legacy, Towns
 import { NPCLords } from '../../world/npcLords.js';
 import { HeirAgency } from '../heirAgency.js';
 import { Raising } from '../raising.js';
+import { KinCrimes } from '../kinCrimes.js';
 import { Regency } from '../regency.js';
 import { PracticeSkills } from '../practiceSkills.js';
 import { DynastyTree } from '../dynastyTree.js';
 import { Heirlooms } from '../heirlooms.js';
 import { Names } from '../../core/names.js';
 import { Inheritance } from '../inheritance.js';
+import { Vanishings } from '../vanishings.js';
 
 Object.assign(Relationships, {
     // ────────────────────────────────────────────────────────────────────
@@ -379,6 +381,10 @@ Object.assign(Relationships, {
                 npc.isAlive = false;
                 npc.deathDay = world.day;
                 npc.deathCause = 'old age';
+                // Died on the road with the player: their family waits for word (systems/vanishings.js)
+                if (Array.isArray(player.travelParty) && player.travelParty.includes(npc.id)) {
+                    Vanishings.onPartyLoss(world, player, npc, { how: 'old_age', witnesses: Relationships.getTravelPartyMembers(player).filter(o => o.id !== npc.id) });
+                }
                 const rel = player.relationships && player.relationships[npc.id];
                 if (player.spouse === npc.id || (rel && rel.score >= 20)) deaths.push(npc);
                 if (player.spouse === npc.id) {
@@ -423,7 +429,8 @@ Object.assign(Relationships, {
         if (!player.children) return [];
         const settings = Relationships._getHeirSettings();
         // The ruler's own children first (eldest first), then siblings kept from the last succession
-        return player.children.filter(c => c.isAlive && c.age >= settings.minAgeToPlay)
+        // (a child declared unfit to rule — systems/kinCrimes.js — is never offered the seat)
+        return player.children.filter(c => c.isAlive && c.age >= settings.minAgeToPlay && !(c.kin && c.kin.unfit))
             .sort((a, b) => (a.isSibling ? 1 : 0) - (b.isSibling ? 1 : 0) || (b.age || 0) - (a.age || 0));
     },
 
@@ -434,6 +441,7 @@ Object.assign(Relationships, {
         const child = (player.children || []).find(c => c.id === childId);
         if (!child) return { success: false, reason: 'Child not found' };
         if (!child.isAlive) return { success: false, reason: 'That child has passed away' };
+        if (child.kin && child.kin.unfit) return { success: false, reason: `${child.firstName} has been declared unfit to rule` };
 
         player.heir = childId;
         return { success: true, heir: child };
@@ -685,6 +693,8 @@ Object.assign(Relationships, {
         const heirRecord = HeirAgency.onSuccession(player, world, child);
         // ...and the account of their childhood: the ruler's education (systems/raising.js)
         const heirEducation = Raising.onSuccession(player, world, child);
+        // ...and what they remember of the late ruler's crimes against the blood (systems/kinCrimes.js)
+        KinCrimes.onSuccession(player, world, child);
         // A child on the throne reigns under a regent (systems/regency.js)
         player.regency = null;
         const regency = minorReign ? Regency.begin(player, world, regent) : null;

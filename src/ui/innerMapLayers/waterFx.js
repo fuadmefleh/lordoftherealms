@@ -214,6 +214,8 @@ Object.assign(InnerMapRenderer, {
     _renderWaterFx(ctx, camera) {
         const cfg = this._waterFxCfg();
         if (!cfg.enabled || InnerMap._insideBuilding) return;
+        // Fish in the water first, under all the surface's play (innerMapLayers/surfaceFish.js)
+        if (this._renderSurfaceFish) this._renderSurfaceFish(ctx, camera);
         const rows = this._waterFxCells();
         if (!rows) return;
         const T = this.TILE_SIZE;

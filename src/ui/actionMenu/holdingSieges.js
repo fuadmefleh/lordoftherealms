@@ -8,20 +8,13 @@ import { ActionMenu } from './_ref.js';
 import { HoldingSieges } from '../../systems/holdingSieges.js';
 import { RealmWars } from '../../systems/realmWars.js';
 import { Sieges } from '../../systems/sieges.js';
-import { fieldChoiceHtml } from './uiKit.js';
+import { lede, card, rowList, price, more } from './uiKit.js';
 import { InnerMapBattle } from '../innerMapBattle.js';
 
-const CARD = 'background:rgba(0,0,0,0.3);padding:10px;border-radius:8px;margin-bottom:10px;';
 const MUTED = 'color:var(--text-secondary);font-size:11px;';
-const BTN = 'padding:6px 9px;margin:3px 3px 0 0;border-radius:6px;cursor:pointer;font-family:var(--font-body);font-size:12px;color:#eee;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.25);';
 
 function _esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
-}
-
-function _btn(label, act, key, arg = null, enabled = true, title = '', extra = '') {
-    const args = JSON.stringify(arg == null ? [act, key] : [act, key, arg]);
-    return `<button data-am-act="holdingSiegeAct" data-am-args='${_esc(args)}' ${enabled ? '' : 'disabled'} title="${_esc(title)}" style="${BTN}${extra}${enabled ? '' : 'opacity:0.45;cursor:not-allowed;'}">${label}</button>`;
 }
 
 function _bar(value, max, color) {
@@ -33,8 +26,7 @@ function _bar(value, max, color) {
 function siegeCardHtml(player, d) {
     const s = d.siege;
     const k = s.key;
-    let html = `<div style="${CARD}border:1px solid rgba(231,76,60,0.55);">`;
-    html += `<div style="display:flex;justify-content:space-between;align-items:baseline;"><strong style="color:#ff8a70;font-size:13px;">🏰 ${_esc(s.name)}</strong><span style="${MUTED}">day ${d.day} of the siege · (${s.q}, ${s.r})</span></div>`;
+    let html = '';
     html += `<div style="${MUTED}margin-bottom:6px;">Besieged by ${_esc(s.hostName)} of ${_esc(s.kingdomName)}${s.port ? (d.enemyFleet ? ' · ⛵ their fleet closes the harbour' : ' · ⛵ ships still bring food (stores fall at half pace)') : ''}</div>`;
 
     html += '<div style="display:flex;gap:8px;">';
@@ -65,38 +57,38 @@ function siegeCardHtml(player, d) {
         }
     }
 
-    // Options
-    html += '<div style="margin-top:6px;">';
+    // Options: one row each, greyed with the reason when it can't be done
     const army = d.army;
-    html += d.canRelieve
-        ? _btn(`⚔️ Relieve it (your army ${army} vs ${Math.round(s.besiegers)})`, 'relieve', k, null, true, 'Attack the besiegers; the garrison sallies to help if its heart is in it.', 'border-color:rgba(231,76,60,0.7);')
-        : `<div style="${MUTED}">⚔️ To relieve it, march your army to ${_esc(s.name)} (${d.distance === Infinity ? '?' : d.distance} hexes away) and fight the war host there.</div>`;
-    html += '</div><div style="margin-top:4px;">';
+    const gold = player.gold || 0;
+    const go = (act, arg = null) => ({ act: 'holdingSiegeAct', args: arg == null ? [act, k] : [act, k, arg] });
     const packs = Sieges._foodInPacks(player);
     const food = Math.min(50, packs);
     const routes = d.supply;
-    html += _btn(`🐫 Caravan: ${food} food (${routes.caravan.days}d, ${Math.round(routes.caravan.catch * 100)}% risk)`, 'supply', k, `caravan:${food}:0`, food > 0, `${d.foodPerDay} food is one day of stores here.`);
-    html += _btn(`🐫 Caravan: 300 gold (${routes.caravan.days}d)`, 'supply', k, 'caravan:0:300', player.gold >= 300, 'Hires men inside the walls and lifts their spirits.');
-    if (s.port) {
-        html += _btn(`⛵ Ship: ${food} food + 200 gold (${routes.ship.days}d, ${Math.round(routes.ship.catch * 100)}% risk)`, 'supply', k, `ship:${food}:200`,
-            routes.ship.can && player.gold >= 200, routes.ship.reason || 'Runs the blockade by sea.');
-    }
-    html += '</div><div style="margin-top:4px;">';
-    html += _btn(`🗡️ Order a sally`, 'sally', k, null, d.canSally, d.canSally ? `${d.commander.name} leads part of the garrison against the lines.` : `Not again until day ${s.nextSallyDay}.`);
-    html += _btn(`🤝 Governor's terms: ${d.termsPrice}g (${Math.round(d.termsChance * 100)}%)`, 'terms', k, null, d.canParley && player.gold >= d.termsPrice,
-        d.canParley ? 'Your gold, if they agree to march away. A refusal disheartens the town.' : `They won't parley again until day ${s.nextParleyDay}.`);
-    html += _btn(`💰 Pay ${_esc(s.kingdomName)} to lift it: ${d.buyOffPrice}g`, 'buyoff', k, null, player.gold >= d.buyOffPrice, 'The host marches home; the war goes on.');
-    if (d.peacePrice != null) html += _btn(`🕊️ Buy peace: ${d.peacePrice}g`, 'peace', k, null, player.gold >= d.peacePrice, 'End the whole war; every siege it brought is lifted.');
-    html += _btn('🏳️ Let it fall', 'yield', k, null, true, 'Order the gates opened. The town goes to the enemy.', 'border-color:rgba(150,150,150,0.5);');
-    html += '</div>';
+    const rows = [
+        { icon: '⚔️', name: 'Relieve it', desc: `Your army ${army} against ${Math.round(s.besiegers)}; the garrison sallies to help if its heart is in it`,
+            off: !d.canRelieve, why: `March your army to ${_esc(s.name)} (${d.distance === Infinity ? '?' : d.distance} hexes away) to fight the host there`, tone: 'bad', ...go('relieve') },
+        { icon: '🐫', name: `Caravan: ${food} food`, desc: `${routes.caravan.days} days · ${Math.round(routes.caravan.catch * 100)}% risk of capture · ${d.foodPerDay} food feeds the town a day`,
+            off: food <= 0, why: 'You carry no food to send', ...go('supply', `caravan:${food}:0`) },
+        { icon: '🐫', name: 'Caravan: 300 gold', desc: `${routes.caravan.days} days · hires men inside the walls and lifts their spirits`, side: price(300, gold >= 300),
+            off: gold < 300, why: 'Needs 300g', ...go('supply', 'caravan:0:300') },
+        s.port ? { icon: '⛵', name: `Ship: ${food} food + 200 gold`, desc: `${routes.ship.days} days · ${Math.round(routes.ship.catch * 100)}% risk · runs the blockade by sea`, side: price(200, gold >= 200),
+            off: !(routes.ship.can && gold >= 200), why: _esc(routes.ship.reason || 'Needs 200g'), ...go('supply', `ship:${food}:200`) } : null,
+        { icon: '🗡️', name: 'Order a sally', desc: `${_esc(d.commander.name)} leads part of the garrison against the lines`,
+            off: !d.canSally, why: `Not again until day ${s.nextSallyDay}`, ...go('sally') },
+        { icon: '🤝', name: 'Governor\'s terms', desc: `${Math.round(d.termsChance * 100)}% they take your gold and march away; a refusal disheartens the town`, side: price(d.termsPrice, gold >= d.termsPrice),
+            off: !(d.canParley && gold >= d.termsPrice), why: d.canParley ? `Needs ${d.termsPrice}g` : `They won't parley again until day ${s.nextParleyDay}`, ...go('terms') },
+        { icon: '💰', name: `Pay ${_esc(s.kingdomName)} to lift it`, desc: 'The host marches home; the war goes on', side: price(d.buyOffPrice, gold >= d.buyOffPrice),
+            off: gold < d.buyOffPrice, why: `Needs ${d.buyOffPrice}g`, ...go('buyoff') },
+        d.peacePrice != null ? { icon: '🕊️', name: 'Buy peace', desc: 'End the whole war; every siege it brought is lifted', side: price(d.peacePrice, gold >= d.peacePrice),
+            off: gold < d.peacePrice, why: `Needs ${d.peacePrice}g`, ...go('peace') } : null,
+        { icon: '🏳️', name: 'Let it fall', desc: 'Order the gates opened. The town goes to the enemy', tone: 'bad', ...go('yield') },
+    ];
+    html += rowList(rows, 'What you can do');
 
     if (s.log && s.log.length) {
-        html += `<div style="margin-top:6px;">`;
-        for (const e of s.log.slice(-3).reverse()) html += `<div style="${MUTED}">Day ${e.day}: ${_esc(e.text)}</div>`;
-        html += '</div>';
+        html += more('The siege so far', s.log.slice(-3).reverse().map(e => `<div style="${MUTED}">Day ${e.day}: ${_esc(e.text)}</div>`).join(''));
     }
-    html += '</div>';
-    return html;
+    return card(html, { icon: '🏰', title: _esc(s.name), side: `day ${d.day} of the siege`, tone: 'bad' });
 }
 
 Object.assign(ActionMenu, {
@@ -106,7 +98,9 @@ Object.assign(ActionMenu, {
         const world = game.world;
         const sieges = HoldingSieges.list(player);
         let html = '<div style="max-height:560px;overflow-y:auto;font-size:12px;">';
-        if (!sieges.length) html += `<div style="${MUTED}">None of your holdings is under siege.</div>`;
+        html += lede(sieges.length
+            ? 'An enemy host sits before your walls. Stores run down each day; when they are gone the town starves, and a ram brings the storm.'
+            : 'None of your holdings is under siege.');
         for (const s of sieges) {
             const d = HoldingSieges.describe(player, world, s.key);
             if (d) html += siegeCardHtml(player, d);
@@ -114,9 +108,7 @@ Object.assign(ActionMenu, {
         const hist = (player.realmWars && player.realmWars.siegeHistory) || [];
         if (hist.length) {
             const label = { relieved: 'relieved', held: 'held', terms: 'bought off by the governor', bought: 'bought off', fallen: 'fell', lifted: 'lifted by peace' };
-            html += `<div style="${CARD}"><div style="font-weight:bold;margin-bottom:4px;">Past sieges</div>`;
-            for (const h of hist.slice().reverse()) html += `<div style="${MUTED}">${_esc(h.name)} — ${label[h.outcome] || h.outcome} after ${h.days} day(s) (${_esc(h.kingdomName || '')})</div>`;
-            html += '</div>';
+            html += rowList(hist.slice().reverse().map(h => ({ icon: h.outcome === 'fallen' ? '🏴' : '🏰', name: _esc(h.name), desc: `${label[h.outcome] || h.outcome} after ${h.days} day${h.days === 1 ? '' : 's'}${h.kingdomName ? ` · ${_esc(h.kingdomName)}` : ''}`, tone: h.outcome === 'fallen' ? 'bad' : 'good' })), 'Past sieges');
         }
         html += '</div>';
         game.ui.showCustomPanel(`🏰 Holdings Under Siege${sieges.length ? ` (${sieges.length})` : ''}`, html);
@@ -133,8 +125,10 @@ Object.assign(ActionMenu, {
         if (act === 'relieve' && arg !== 'captains') {
             const why = HoldingSieges._relieveBlock(player, world, HoldingSieges._get(player, key));
             if (why) { game.ui.showNotification('🏰 Siege', why, 'error'); return; }
-            game.ui.showCustomPanel(`⚔️ Relieve ${siege.name}`, fieldChoiceHtml(['holdingSiegeAct', 'relieveField', key], ['holdingSiegeAct', 'relieve', key, 'captains'],
-                `Fought on ${siege.name}'s own ground against the besiegers; the garrison's sally keeps some of them busy.`));
+            game.ui.showCustomPanel(`⚔️ Relieve ${siege.name}`, `<div style="font-size:12px;">${rowList([
+                { icon: '⚔️', name: 'Take the field — command the relief yourself', desc: `Fought on ${_esc(siege.name)}'s own ground against the besiegers; the garrison's sally keeps some of them busy`, side: 'on the ground', tone: 'gold', act: 'holdingSiegeAct', args: ['relieveField', key] },
+                { icon: '🎲', name: 'Let the captains fight it', desc: 'Settled at once on the odds', side: 'at once', act: 'holdingSiegeAct', args: ['relieve', key, 'captains'] },
+            ])}</div>`);
             return;
         }
         if (act === 'relieveField') {

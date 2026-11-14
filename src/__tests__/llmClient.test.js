@@ -20,6 +20,14 @@ function mockChatOk(content) {
 }
 
 describe('LlmClient — Phase A transport', () => {
+    it("chat() sends a schema as llama-server's json_object + schema", async () => {
+        mockChatOk('{"say":"hi"}');
+        const schema = { type: 'object', properties: { say: { type: 'string' } }, required: ['say'] };
+        await LlmClient.chat([{ role: 'user', content: 'hi' }], { json: true, schema });
+        const body = JSON.parse(globalThis.fetch.mock.calls[0][1].body);
+        expect(body.response_format).toEqual({ type: 'json_object', schema });
+    });
+
     it('chat() parses an OpenAI-style success response', async () => {
         mockChatOk('  A rival sharpens their knives.  ');
         const res = await LlmClient.chat([{ role: 'user', content: 'hi' }]);

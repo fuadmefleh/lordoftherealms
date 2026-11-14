@@ -68,7 +68,7 @@ const DEFAULTS = {
     eras: { hearth: 'the Hearth Age', timber: 'the Timber Age', stone: 'the Age of Stone', guild: 'the Guild Age' },
     kinds: {
         ruler: '👑', blood: '🧬', spouse: '💍', parent: '🌿', courtier: '🎩', npc: '👤', townsfolk: '🧑', lord: '🤴',
-        rivalHead: '⚔️', nemesis: '🩸', cadetHead: '🌱', battle: '⚔️', siege: '🏰', taken: '🚩', war: '🔥',
+        rivalHead: '⚔️', nemesis: '🗡️', cadetHead: '🌱', battle: '⚔️', siege: '🏰', taken: '🚩', war: '🔥',
         house: '🛡️', rival: '🗡️', cadet: '🌱', town: '🏘️', ruin: '🏚️', realm: '👑', fallen: '💀', crisis: '🌋', climate: '🌦️', work: '🏛️',
     },
     battleKinds: ['battle', 'siege', 'taken'],
@@ -314,7 +314,7 @@ export const Almanac = {
             const era = Almanac._era(world, s);
             const e = add({
                 id: `s:${at}`, cat: 'place', kind: 'town', name: s.name || 'A settlement', q, r,
-                icon: s.type === 'capital' ? '🏰' : s.type === 'city' ? '🏙️' : s.type === 'village' ? '🛖' : '🏘️',
+                icon: s.type === 'capital' ? '🏰' : s.type === 'city' ? '🏙️' : s.type === 'village' ? '🏚️' : '🏘️',
                 sub: `${_cap(s.type || 'settlement')}${k ? ` of ${Names.realm(k.name)}` : ''}${foundedYear != null ? ` · founded ${foundedYear}` : ''}`,
                 day: foundedDay, tlDay: foundedDay,
             });
@@ -339,7 +339,7 @@ export const Almanac = {
             }
             for (const m of _arr(_try(() => TownMarks.marks(s), []))) {
                 const text = _try(() => TownMemory.markText(s, m, world));
-                if (text) line(e, m.d, text, { fire: '🔥', sack: '🏚️', statue: '🗿', name: '🪧', cairn: '🪨', mound: '⚰️', district: '🏗️' }[m.k] || '•');
+                if (text) line(e, m.d, text, { fire: '🔥', sack: '🏚️', statue: '🗿', name: '📜', cairn: '⛰️', mound: '⚰️', district: '🏗️' }[m.k] || '•');
             }
             e.more = () => Almanac._placeMore(ctx, s, e);
         }
@@ -672,7 +672,7 @@ export const Almanac = {
             if (nm.generation > 1) e.facts.push(['Generation of the feud', String(nm.generation)]);
             const bearers = _arr(nm.bearers).map(b => (typeof b === 'string' ? b : b && b.name)).filter(Boolean);
             if (bearers.length) e.facts.push(['Borne before by', bearers.join(', ')]);
-            if (nm.bornDay != null) line(e, nm.bornDay, `${nm.name} swore enmity against ${(nm.origin && nm.origin.against) || 'the House'}${nm.origin && nm.origin.label ? ` over ${nm.origin.label}` : ''}.`, '🩸');
+            if (nm.bornDay != null) line(e, nm.bornDay, `${nm.name} swore enmity against ${(nm.origin && nm.origin.against) || 'the House'}${nm.origin && nm.origin.label ? ` over ${nm.origin.label}` : ''}.`, '🗡️');
             for (const a of _arr(nm.acts).slice(-10)) if (a && (a.text || a.label)) line(e, a.day, a.text || a.label, '🗡️');
             if (nm.ended && nm.ended.text) line(e, nm.ended.day, nm.ended.text, '🕊️');
             const ref = nm.ref || {};

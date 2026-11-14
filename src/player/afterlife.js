@@ -36,6 +36,7 @@ import { Utils } from '../core/utils.js';
 import { Difficulty } from '../core/difficulty.js';
 import { Townsfolk } from '../systems/townsfolk.js';
 import { TownMemory } from '../systems/townMemory.js';
+import { TownCrimes } from '../systems/townCrimes.js';
 import { TownEras } from '../world/townEras.js';
 import { NpcMemory } from '../systems/npcMemory.js';
 import { Illness } from '../systems/illness.js';
@@ -157,6 +158,7 @@ const WORLD_DAY = [
     (w) => NpcTheft.processDay(w, null),
     (w) => Brawls.processDay(w, null),
     (w) => TownMemory.processDay(w, null),
+    (w) => TownCrimes.processDay(w, null),
     (w) => TownEras.processDay(w, null),
     (w) => Demands.processDay(w, null), // waits (player-held)
     (w) => Delves.processDay(w, null), // waits (player-held)
@@ -331,7 +333,7 @@ export const Afterlife = {
         if (!estate || !Array.isArray(estate.children)) return [];
         const min = Relationships._getHeirSettings().minAgeToPlay;
         return estate.children
-            .filter(c => c.isAlive && _num(c.age) < min)
+            .filter(c => c.isAlive && _num(c.age) < min && !(c.kin && c.kin.unfit))
             .map(child => ({ child, years: min - _num(child.age) }))
             .sort((a, b) => a.years - b.years);
     },

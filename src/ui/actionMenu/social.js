@@ -665,17 +665,6 @@ Object.assign(ActionMenu, {
             nav.push({ icon: '✉️', name: 'Letters', desc: open ? `${open} open${unread ? `, ${unread} new` : ''}` : '', act: 'showLetters', side: unread ? `${unread} new` : '', tone: unread ? 'gold' : '' });
         }
         {
-            // Directed opposition: the realms' regard, a league against you, rival agents (systems/coalitions.js)
-            const league = player.coalitions && player.coalitions.active;
-            nav.push({ icon: '⚜️', name: 'Threats', desc: league ? league.name : '', act: 'showThreatsPanel', side: league ? 'league' : '', tone: league ? 'bad' : '' });
-            // Named enemies who remember you (ui/actionMenu/nemesis.js)
-            const foes = (player.nemesis && player.nemesis.list) || [];
-            nav.push({ icon: '🩸', name: 'Nemeses', desc: foes.length ? foes.map(n => n.name).join(', ') : '', act: 'showNemesisPanel', side: foes.length ? String(foes.length) : '', tone: foes.length ? 'bad' : '' });
-            // The age's crisis: an invasion, a great plague, a schism, a famine, a gold rush (systems/crises.js)
-            const crisis = game.world && game.world.crises && game.world.crises.active;
-            nav.push({ icon: '🌋', name: 'The Age', desc: crisis ? crisis.name.charAt(0).toUpperCase() + crisis.name.slice(1) : 'The great crises of the world', act: 'showCrisesPanel', side: crisis ? 'crisis' : '', tone: crisis ? 'bad' : '' });
-        }
-        {
             // A commission in a realm's army (ui/actionMenu/generalship.js)
             const cm = player.commission;
             nav.push({ icon: '🎖️', name: 'Army Command', desc: cm ? cm.kingdomName : '', act: 'showArmyCommand' });
@@ -683,21 +672,40 @@ Object.assign(ActionMenu, {
             const hg = player.realmEscort && player.realmEscort.guard;
             nav.push({ icon: '🛡️', name: 'Household Guard', desc: hg ? hg.kingdomName : '', act: 'showHouseholdGuard' });
         }
-        nav.push({ icon: '📜', name: 'House Chronicle', act: 'showHouseChronicle' });
+        const record = [];
+        record.push({ icon: '📜', name: 'House Chronicle', desc: "Every reign at a glance, and the House's legacy score", act: 'showHouseChronicle' });
         // Every generation drawn as a tree, and the named things they handed down (ui/actionMenu/dynastyTree.js)
-        nav.push({ icon: '🌳', name: 'Family Tree', desc: 'Every generation of the House', act: 'showDynastyTree' });
-        nav.push({ icon: '🗝️', name: 'Heirlooms', act: 'showHeirlooms' });
+        record.push({ icon: '🌳', name: 'Family Tree', desc: 'Every generation of the House', act: 'showDynastyTree' });
+        record.push({ icon: '🗝️', name: 'Heirlooms', desc: 'The named things handed down', act: 'showHeirlooms' });
         // Other realms' children raised at your court (ui/actionMenu/raising.js)
         if (player.house) nav.push({ icon: '🎓', name: 'Wards at Court', desc: (player.house.wards || []).length ? `${player.house.wards.length} at court` : "Raise another realm's child", act: 'showHouseWards' });
         // The Annals: the House's story as a book (ui/actionMenu/annals.js)
-        nav.push({ icon: '📖', name: 'The Annals', act: 'showAnnals' });
+        record.push({ icon: '📖', name: 'The Annals', desc: 'Your life and line told as a book, to read or save', act: 'showAnnals' });
         // The realm's borders and deeds season by season on a map (ui/actionMenu/timeline.js)
-        nav.push({ icon: '🗺️', name: 'Timeline of the Realm', desc: 'The borders and deeds of every season', act: 'showTimeline' });
+        record.push({ icon: '🗺️', name: 'Timeline of the Realm', desc: 'The borders and deeds of every season', act: 'showTimeline' });
         // Everything on record, searchable and cross-linked (ui/actionMenu/almanac.js)
-        nav.push({ icon: '📚', name: 'The Almanac', desc: 'People, Houses, places, realms, wars and ages', act: 'showAlmanac' });
+        record.push({ icon: '📚', name: 'The Almanac', desc: 'People, Houses, places, realms, wars and ages', act: 'showAlmanac' });
         // The game's victory goal and its progress (ui/actionMenu/scenario.js)
         nav.push({ icon: '🏆', name: 'Ambition of this Life', act: 'showAmbitionPanel' });
         html += rowList(nav, 'The House');
+
+        // Who is set against you (one section, not mixed into the House's business)
+        const against = [];
+        {
+            // Directed opposition: the realms' regard, a league against you, rival agents (systems/coalitions.js)
+            const league = player.coalitions && player.coalitions.active;
+            against.push({ icon: '⚜️', name: 'Threats', desc: league ? league.name : "The realms' regard, leagues, rival agents", act: 'showThreatsPanel', side: league ? 'league' : '', tone: league ? 'bad' : '' });
+            // Named enemies who remember you (ui/actionMenu/nemesis.js)
+            const foes = (player.nemesis && player.nemesis.list) || [];
+            against.push({ icon: '🗡️', name: 'Nemeses', desc: foes.length ? foes.map(n => n.name).join(', ') : '', act: 'showNemesisPanel', side: foes.length ? String(foes.length) : '', tone: foes.length ? 'bad' : '' });
+            // The age's crisis: an invasion, a great plague, a schism, a famine, a gold rush (systems/crises.js)
+            const crisis = game.world && game.world.crises && game.world.crises.active;
+            against.push({ icon: '🌋', name: 'The Age', desc: crisis ? crisis.name.charAt(0).toUpperCase() + crisis.name.slice(1) : 'The great crises of the world', act: 'showCrisesPanel', side: crisis ? 'crisis' : '', tone: crisis ? 'bad' : '' });
+        }
+        html += rowList(against, 'Against you');
+
+        // The record: the House's story and the world's, each told one way
+        html += rowList(record, 'The record');
 
         // Children
         if (!player.children || player.children.length === 0) {
@@ -876,7 +884,7 @@ Object.assign(ActionMenu, {
         const eldersAlive = ((abd && abd.elders) || []).filter(e => e && e.alive);
         html += rowList([
             {
-                icon: '🪑', name: 'Succession & Retirement',
+                icon: '💺', name: 'Succession & Retirement',
                 desc: eldersAlive.length
                     ? `${eldersAlive.map(e => esc(e.firstName || e.name)).join(', ')} ${eldersAlive.length === 1 ? 'lives' : 'live'} on in retirement`
                     : 'Step down while you live, in favour of your heir',
@@ -915,6 +923,11 @@ Object.assign(ActionMenu, {
             }));
             rows.push({ icon: '🌱', name: cadets.length ? 'Cadet Branches' : 'Found a Cadet Branch', desc: cadets.length ? 'Gifts, asks and summons; send a child out to found another' : `${cadetKids.map(c => esc(c.firstName)).join(', ')} could found a House of your blood`, act: 'showCadetBranches', side: '›', tone: 'gold' });
             html += rowList(rows, '🌿 Cadet Branches');
+        }
+
+        // Dark counsel: crimes against the House's own blood (ui/actionMenu/kinCrimes.js)
+        if ((player.children || []).some(c => c && c.isAlive !== false) || ((house.kinCrimes && house.kinCrimes.acts) || []).length) {
+            html += rowList([{ icon: '🌑', name: 'Dark Counsel', desc: 'What could be done about your own blood, and what the household suspects', act: 'showKinCrimes', side: '›' }]);
         }
 
         // Rivals
@@ -1424,7 +1437,7 @@ Object.assign(ActionMenu, {
             const minorHeir = (player.children || []).find(c => c && c.isAlive && c.id === player.heir && c.age < Relationships._getHeirSettings().minAgeToPlay);
             if (minorHeir) {
                 let body = ActionMenu._regencyChoiceHtml(game, minorHeir);
-                body += rowList([{ icon: '🪑', name: `Play ${esc(minorHeir.firstName)} under a regency`, desc: 'The regent rules until they come of age', side: '›', tone: 'gold', attrs: `onclick="window._succeedViaRegency('${minorHeir.id}')"` }]);
+                body += rowList([{ icon: '💺', name: `Play ${esc(minorHeir.firstName)} under a regency`, desc: 'The regent rules until they come of age', side: '›', tone: 'gold', attrs: `onclick="window._succeedViaRegency('${minorHeir.id}')"` }]);
                 html += card(body, { icon: '👑', title: `${minorHeir.firstName} ${minorHeir.dynasty}`, side: `Age ${minorHeir.age} · 👑 Designated`, tone: 'gold' });
             }
         } else {
@@ -1448,7 +1461,7 @@ Object.assign(ActionMenu, {
                 let body = `<div style="color:#cbbf9f;">No heir has come of age. You may install a regency to raise <strong>${r.firstName}</strong> (age ${r.age}) to the throne — but the House will emerge weaker, shedding holdings.</div>`;
                 body += ActionMenu._regencyChoiceHtml(game, r);
                 body += rowList([
-                    { icon: '🪑', name: `Install a regency for ${esc(r.firstName)}`, desc: 'The House emerges weaker, shedding holdings', side: '›', tone: 'gold', attrs: `onclick="window._succeedViaRegency('${r.id}')"` },
+                    { icon: '💺', name: `Install a regency for ${esc(r.firstName)}`, desc: 'The House emerges weaker, shedding holdings', side: '›', tone: 'gold', attrs: `onclick="window._succeedViaRegency('${r.id}')"` },
                     { icon: '🕯️', name: 'Let the Dynasty End', desc: 'Read the epitaph of the House', side: '›', tone: 'bad', attrs: 'onclick="window._endDynasty()"' },
                 ]);
                 html += card(body, { icon: '👑', title: `${r.firstName}`, side: `Age ${r.age}`, tone: 'gold' });

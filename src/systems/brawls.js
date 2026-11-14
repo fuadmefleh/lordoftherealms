@@ -303,6 +303,45 @@ export const Brawls = {
         return R && R.text ? R.text.replace('{gender}', (f && f.suitor) || 'lass') : 'what happened';
     },
 
+    /**
+     * What a person knows of their own fights, for their voice (the AI chat's
+     * prompt): the brawls they were in lately (whom with, over what, how it
+     * went) and the grudges they hold. live: { foe, cause } of a fight on the
+     * street map right now. → [sentence]
+     */
+    selfLines(world, s, p, day, live = null, withinDays = 30) {
+        const out = [];
+        const folk = s && s.folk;
+        const C = Brawls.config();
+        const label = (cause) => ((C.causes || {})[cause] || {}).label || null;
+        const nameOf = (pid) => { const o = folk && pid != null ? Townsfolk.get(folk, pid) : null; return o ? o.name : null; };
+        const d0 = _num(day);
+        if (live && live.foe) {
+            const why = label(live.cause);
+            out.push(`You are in a fight right now (or just broke off from one) with ${live.foe}${why ? `, over ${why}` : ''}. You know exactly why, and you have feelings about it.`);
+        }
+        if (!p) return out;
+        const st = s && s.brawls;
+        const log = (st && Array.isArray(st.log) ? st.log : []).filter(e => (e.ap === p.id || e.bp === p.id) && d0 - _num(e.d) <= withinDays);
+        const HOW = { ko: 'it ended with someone knocked senseless', fled: 'it ended with someone running off', death: 'someone died of it', watch: 'the watch broke it up', parted: 'you were pulled apart', backDown: 'it never came to blows', won: 'it was settled' };
+        for (const e of log.slice(-3).reverse()) {
+            const started = e.ap === p.id;
+            const other = started ? e.b : e.a;
+            const ago = d0 - _num(e.d);
+            const when = ago <= 0 ? 'today' : ago === 1 ? 'yesterday' : `${ago} days ago`;
+            const why = label(e.cause);
+            let line = `${when[0].toUpperCase()}${when.slice(1)} you came to blows with ${other}${why ? ` over ${why}` : ''}${e.place ? ` (in the ${e.place})` : ''}; ${started ? 'you started it' : 'they started it'}; ${HOW[e.how] || 'it ended'}.`;
+            if (started && e.arrested) line += ' The watch took you for it.';
+            out.push(line);
+        }
+        for (const { feud, other } of Brawls.feudsOf(s, p.id).sort((x, y) => _num(y.feud.heat) - _num(x.feud.heat)).slice(0, 2)) {
+            const n = nameOf(other);
+            if (!n || _num(feud.heat) < 5) continue;
+            out.push(`You hold a grudge against ${n} over ${Brawls.whyText(feud)}${_num(feud.heat) >= 50 ? ', and it runs hot' : ''}.`);
+        }
+        return out;
+    },
+
     /** Feuds of one person: [{ feud, other }]. */
     feudsOf(s, pid) {
         const st = s && s.brawls;

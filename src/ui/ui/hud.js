@@ -17,7 +17,7 @@ import { updateAPChip } from '../apChip.js';
 import { Calendar } from '../../systems/calendar.js';
 import { Climate } from '../../world/climate.js';
 import { Barter } from '../../world/barter.js';
-import { setCoinless } from '../actionMenu/uiKit.js';
+import { setCoinless, lede, chips, rowList } from '../actionMenu/uiKit.js';
 import { installTimeSkipControls } from '../actionMenu/timeSkip.js';
 
 Object.assign(UI.prototype, {
@@ -144,11 +144,15 @@ Object.assign(UI.prototype, {
             this.showNotification('Display', `Kingdom Borders: ${renderer.showTerritories ? 'ON' : 'OFF'}`, 'info');
         });
 
-        // Map Modes button
-        const btnMapModes = document.getElementById('btnMapModes');
-        if (btnMapModes) {
-            btnMapModes.addEventListener('click', () => this.showMapModeSelector());
-        }
+        // Map modes: listed in the Map dropdown itself (M cycles them; ui/game/gameLoop.js)
+        if (typeof document.querySelectorAll === 'function') document.querySelectorAll('[data-map-mode]').forEach(el => {
+            el.addEventListener('click', () => this.setMapMode(el.getAttribute('data-map-mode')));
+        });
+        // Realm ▸ Ledgers and Journal ▸ World Events (they used to hide in the map-mode popup)
+        document.getElementById('btnEconomy')?.addEventListener('click', () => ActionMenu.showEconomy(this.game));
+        document.getElementById('btnTrends')?.addEventListener('click', () => this.showEconomicTrends());
+        document.getElementById('btnCompare')?.addEventListener('click', () => this.showKingdomComparison());
+        document.getElementById('btnWorldEvents')?.addEventListener('click', () => this.showEventLog());
 
         document.getElementById('btnEndTurn')?.addEventListener('click', () => this.game.endDay());
 
@@ -161,11 +165,12 @@ Object.assign(UI.prototype, {
         // --- Redesigned HUD navigation (top tabs, left rail, zoom, log) ---
         this._setupHudNav();
 
-        // Gold stat click — show finance tracker
-        const goldStat = document.getElementById('goldStat');
-        if (goldStat) {
-            goldStat.style.cursor = 'pointer';
-            goldStat.addEventListener('click', () => this.showFinancesPanel(this.game.player, this.game.world));
+        // The purse in the top bar opens the finance tracker (income and spending by kind)
+        const goldChip = document.getElementById('tbGoldChip');
+        if (goldChip) {
+            goldChip.style.cursor = 'pointer';
+            goldChip.title = 'Gold: click for your income and spending';
+            goldChip.addEventListener('click', () => this.showFinancesPanel(this.game.player, this.game.world));
         }
 
         // Panel close buttons
@@ -259,6 +264,7 @@ Object.assign(UI.prototype, {
         const menuPairs = [
             { btn: 'civMapBtn', dropdown: 'civMapDropdown' },
             { btn: 'civEmpireBtn', dropdown: 'civEmpireDropdown' },
+            { btn: 'civRealmBtn', dropdown: 'civRealmDropdown' },
             { btn: 'civJournalBtn', dropdown: 'civJournalDropdown' },
         ];
 
@@ -1160,7 +1166,7 @@ Object.assign(UI.prototype, {
                 const coin = Barter.coinOf(player);
                 const tip = inKind
                     ? `Goods worth ~${Math.floor(Number(player.gold) || 0)} — there is no coin here: you pay and are paid in goods${coin > 0 ? ` (your ${Math.floor(coin)} coin waits for a town that uses coin)` : ''}`
-                    : 'Gold';
+                    : 'Gold: click for your income and spending';
                 if (res.title !== tip) res.title = tip;
             }
         }
@@ -1359,27 +1365,32 @@ Object.assign(UI.prototype, {
         const tileAt = () => game.world.getTile(game.player.q, game.player.r);
         const recenter = () => game.recenterCamera();
 
-        // Top tabs — Map/Kingdom/Journal are dropdown buttons (see setupCivDropdowns);
-        // Quests and Diplomacy are direct-action tabs.
+        // Top tabs — Map/Character/Realm/Journal are dropdown buttons (see setupCivDropdowns);
+        // Quests and Counsel are direct-action tabs.
         bind('navTabQuests', () => this.showQuestsPanel());
-        bind('navTabDiplomacy', () => this._showDiplomacyPanel(game.player, game.world));
         bind('navTabCounsel', () => ActionMenu.showCounsel(game));
-        bind('tbPrestige', () => { if (game.player && game.player.house) ActionMenu.showHousePanel(game, tileAt()); });
+        // Realm dropdown: the realms and the settlements of the world
+        bind('btnDiplomacy', () => this._showDiplomacyPanel(game.player, game.world));
+        bind('btnSettlements', () => this._showSettlementsPanel(game.player, game.world));
+        // Your House: the Character dropdown and the Prestige chip both open it
+        const openHouse = () => {
+            if (game.player && game.player.house) ActionMenu.showHousePanel(game, tileAt());
+            else this.showNotification('🏰 Your House', 'Your House has not yet been founded.', 'info');
+        };
+        bind('btnHouse', openHouse);
+        bind('tbPrestige', () => { if (game.player && game.player.house) openHouse(); });
         const chip = document.getElementById('tbPrestige');
-        if (chip) chip.addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && game.player && game.player.house) { e.preventDefault(); ActionMenu.showHousePanel(game, tileAt()); } });
+        if (chip) chip.addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && game.player && game.player.house) { e.preventDefault(); openHouse(); } });
+        // The portrait in the top bar opens the Character Sheet
+        const portrait = document.getElementById('tbPortrait');
+        if (portrait) {
+            portrait.style.cursor = 'pointer';
+            portrait.addEventListener('click', () => this.toggleCharacterPanel());
+            portrait.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this.toggleCharacterPanel(); } });
+        }
 
-        // Left rail
-        bind('railOverview', () => this.showCharacterPanel());
-        bind('railArmies', () => ActionMenu.showTravelPartyMenu(game, tileAt()));
-        bind('railSettlements', () => this._showSettlementsPanel(game.player, game.world));
-        bind('railResources', () => this.showTreasuryPanel(game.player, game.world));
-        bind('railFactions', () => this._showDiplomacyPanel(game.player, game.world));
-
-        // Help
-        bind('btnHelp', () => this.showNotification(
-            'How to Play',
-            'Click a hex to travel, end each day to advance time, and complete objectives to grow your influence.',
-            'info'));
+        // Help: where everything is, and the keys
+        bind('btnHelp', () => this.showHelpPanel());
 
         // Activity log collapse toggle
         const logToggle = document.getElementById('activityLogToggle');
@@ -1406,46 +1417,72 @@ Object.assign(UI.prototype, {
         bind('minimapZoomReset', () => { const m = innerMinimap(); if (m) m.resetInnerZoom(); else recenter(); });
     },
 
-    /** Lightweight Diplomacy / Factions panel listing the realm's kingdoms. */
+    /** Realms & Diplomacy (Realm ▸): every living realm, your standing with it; a row opens the realm. */
     _showDiplomacyPanel(player, world) {
         const kingdoms = (world.kingdoms || []).filter(k => k.isAlive !== false);
-        let html = '<div>';
-        if (kingdoms.length === 0) {
-            html += '<p style="color: var(--text-secondary); text-align:center; padding: 24px;">No known realms.</p>';
-        } else {
-            for (const k of kingdoms) {
-                const rep = (player.reputation && player.reputation[k.id]) || 0;
-                const relLabel = rep >= 50 ? 'Friendly' : rep <= -50 ? 'Hostile' : 'Neutral';
-                const relColor = rep >= 50 ? 'var(--accent-green)' : rep <= -50 ? 'var(--accent-red)' : 'var(--text-secondary)';
-                html += `<div class="hud-faction-row" data-ui-act="showKingdomDetails" data-ui-args='["${k.id}"]'>`
-                    + `<span class="hud-faction-swatch" style="background:${k.color || '#888'};"></span>`
-                    + `<span class="hud-faction-name">${hudEscHtml(k.name)}</span>`
-                    + `<span class="hud-faction-rep" style="color:${relColor};">${relLabel} (${rep >= 0 ? '+' : ''}${rep})</span>`
-                    + `</div>`;
-            }
-        }
-        html += '</div>';
-        this.showCustomPanel('🤝 Diplomacy', html);
+        const repOf = (k) => (player.reputation && player.reputation[k.id]) || 0;
+        kingdoms.sort((a, b) => repOf(b) - repOf(a));
+        let html = lede('The realms of the world and how each regards you. Choose one to see its ruler, lands and wars.');
+        const liege = player.allegiance ? kingdoms.find(k => k.id === player.allegiance) : null;
+        html += chips([
+            ['👑', 'Realms', kingdoms.length],
+            liege ? ['🛡️', 'Sworn to', hudEscHtml(liege.name)] : ['🛡️', 'Sworn to', 'none', 'dim'],
+        ]);
+        html += kingdoms.length ? rowList(kingdoms.map(k => {
+            const rep = repOf(k);
+            const label = rep >= 50 ? 'Friendly' : rep <= -50 ? 'Hostile' : 'Neutral';
+            return {
+                icon: `<span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:${hudEscHtml(k.color || '#888')};"></span>`,
+                name: hudEscHtml(k.name),
+                desc: liege === k ? 'Your liege' : '',
+                side: `${label} ${rep >= 0 ? '+' : ''}${rep}`,
+                tone: rep >= 50 ? 'good' : rep <= -50 ? 'bad' : null,
+                attrs: `data-ui-act="showKingdomDetails" data-ui-args='${hudEscHtml(JSON.stringify([k.id]))}'`,
+            };
+        })) : rowList([{ icon: '🌫️', name: 'No known realms', desc: 'The world has no living realm' }]);
+        this.showCustomPanel('🤝 Realms & Diplomacy', html);
     },
 
-    /** Lightweight Settlements panel listing all settlements in the world. */
+    /** Settlements (Realm ▸): every settlement, largest first; a row opens its details. */
     _showSettlementsPanel(player, world) {
-        const settlements = (world.getAllSettlements ? world.getAllSettlements() : []);
+        const settlements = (world.getAllSettlements ? world.getAllSettlements() : []).slice();
         settlements.sort((a, b) => (b.population || 0) - (a.population || 0));
-        let html = '<div>';
-        if (settlements.length === 0) {
-            html += '<p style="color: var(--text-secondary); text-align:center; padding: 24px;">No settlements discovered yet.</p>';
-        } else {
-            for (const s of settlements) {
-                const typeLabel = (s.type || 'settlement').replace(/\b\w/g, c => c.toUpperCase());
-                html += `<div class="hud-settle-row" data-ui-act="showSettlementDetails" data-ui-args="[${s.q}, ${s.r}]">`
-                    + `<span class="hud-settle-name">${hudEscHtml(s.name || 'Unknown')}</span>`
-                    + `<span class="hud-settle-type">${hudEscHtml(typeLabel)}</span>`
-                    + `<span class="hud-settle-pop">👥 ${Utils.formatNumber(s.population || 0)}</span>`
-                    + `</div>`;
-            }
-        }
-        html += '</div>';
+        const realmName = (s) => {
+            const k = s.kingdom && world.getKingdom ? world.getKingdom(s.kingdom) : null;
+            return k ? k.name : 'Unclaimed';
+        };
+        let html = lede('The towns and villages of the world, the largest first. Choose one for its people, trade and lord.');
+        html += settlements.length ? rowList(settlements.map(s => ({
+            icon: s.type === 'capital' ? '👑' : s.type === 'city' ? '🏰' : s.type === 'town' ? '🏘️' : '🏚️',
+            name: hudEscHtml(s.name || 'Unknown'),
+            desc: `${hudEscHtml((s.type || 'settlement').replace(/\b\w/g, c => c.toUpperCase()))} · ${hudEscHtml(realmName(s))}`,
+            side: `👥 ${Utils.formatNumber(s.population || 0)}`,
+            attrs: `data-ui-act="showSettlementDetails" data-ui-args="[${Number(s.q)}, ${Number(s.r)}]"`,
+        }))) : rowList([{ icon: '🌫️', name: 'No settlements yet', desc: 'None has been discovered' }]);
         this.showCustomPanel('🏰 Settlements', html);
+    },
+
+    /** How to Play (the top bar's ?): where every kind of thing is found, and the keys. */
+    showHelpPanel() {
+        const where = [
+            { icon: '🖱️', name: 'Click a hex', desc: 'Travel there; click your own hex (or a town) for what you can do there' },
+            { icon: '📋', name: 'The action menu', desc: 'Everything done in a place: trade, work, court, arms, building. Type to search it; ☆ pins an action' },
+            { icon: '🧭', name: 'Map', desc: 'Resource icons, borders and the map modes' },
+            { icon: '🧑', name: 'Character', desc: 'Your sheet, inventory, party, relationships, House, treasury and properties' },
+            { icon: '🏰', name: 'Realm', desc: 'Realms & diplomacy, settlements, council, laws, technology, faith and peoples' },
+            { icon: '🚩', name: 'Quests', desc: 'Your quest journal' },
+            { icon: '📖', name: 'Journal', desc: 'Letters, people, annals and records; world history; calendar and event log' },
+            { icon: '🗝️', name: 'Counsel', desc: 'What needs you now: threats, opportunities and goals, each a click from its panel' },
+            { icon: '⏳', name: 'The turn bar', desc: 'Speed, standing order, Wait…, a week at a go, and End Turn' },
+        ];
+        const keys = [
+            ['Enter', 'End the day'], ['Shift+Enter', 'Pass a week (Esc stops it)'], ['Space', 'Pause / resume'],
+            ['1 2 3', 'Time speed'], ['I', 'Inventory'], ['M', 'Next map mode'], ['G', 'Next good on the trade map'],
+            ['C', 'Centre on yourself'], ['Esc', 'Close the top panel, stop travel, leave a town'],
+        ];
+        let html = lede('Click a hex to travel; end each day to let the world move. What you can do in a place is in its action menu; overviews live in the top bar.');
+        html += rowList(where, 'Where things are');
+        html += rowList(keys.map(([k, d]) => ({ icon: '⌨️', name: d, side: `<kbd>${k}</kbd>` })), 'Keys');
+        this.showCustomPanel('❓ How to Play', html);
     },
 });

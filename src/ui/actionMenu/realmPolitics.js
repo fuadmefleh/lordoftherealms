@@ -3,7 +3,7 @@
 // player/realmPolitics.js; these panels present it.
 import { ActionMenu } from './_ref.js';
 import { RealmPolitics, REALM_POLITICS, KingdomNavy } from './_imports.js';
-import { BTN_GOLD, BTN_DIM, BTN_DARK, CARD } from './uiKit.js';
+import { lede, chips, rowList, card, price, purse, esc } from './uiKit.js';
 import { RealmIntel } from '../../systems/realmIntel.js';
 
 /** A realm's army or fleet as the player may know it (systems/realmIntel.js). */
@@ -41,92 +41,86 @@ Object.assign(ActionMenu, {
         const campaign = RealmPolitics.campaignOptions(player, world);
         const here = tile && tile.settlement ? tile.settlement.kingdom : null;
 
+        const AP = ActionMenu.REALM_POLITICS_AP;
+        const gold = player.gold || 0;
+        const hasArmy = (player.army || []).length > 0;
+        const league = player.coalitions && player.coalitions.active;
         let html = '<div style="font-size:12px;">';
-        // Who stands against you, and the league if one is sworn (ui/actionMenu/threats.js)
-        html += `<button data-am-act="showThreatsPanel" style="${BTN_DARK} width:100%;">⚜️ Threats: the realms' regard${player.coalitions && player.coalitions.active ? ` — ${player.coalitions.active.name}` : ''}</button>`;
+        html += lede(wars.length
+            ? `${wars.length === 1 ? 'A war burns' : `${wars.length} wars burn`} between the realms. Broker peace from a town of either side, fight for your liege, or bind friendly crowns together.`
+            : 'The realms are at peace — for now.');
+        html += chips([['⚔️', 'Wars', wars.length], ['🕊️', 'Truces', truces.length], purse(gold)]);
+        html += rowList([
+            { icon: '⚜️', name: 'Threats', desc: league ? `${esc(league.name)} is sworn against you` : 'How the realms regard you', act: 'showThreatsPanel', side: '›', tone: league ? 'bad' : '' },
+            { icon: '🎖️', name: 'Army Command', desc: player.commission ? `Your host in the army of ${esc(player.commission.kingdomName)}` : 'Serve in a realm\'s army', act: 'showArmyCommand', side: '›' },
+        ]);
 
-        html += `<button data-am-act="showArmyCommand" style="${BTN_DARK} width:100%;">🎖️ Army Command${player.commission ? `: your host in the army of ${player.commission.kingdomName}` : ': serve in a realm\'s army'}</button>`;
         if (campaign) {
-            html += `<div style="${CARD}border-color:rgba(245,197,66,0.4);">`;
-            html += `<div style="font-weight:bold;color:var(--gold);">🛡️ Your liege, ${campaign.liege.name}, is at war</div>`;
-            html += `<div style="color:var(--text-secondary);margin:4px 0;">Ride out against the enemy (${ActionMenu.REALM_POLITICS_AP.campaign} AP). Each victory pushes your liege toward its war goal, pays up to ${REALM_POLITICS.campaign.wage}g from your liege's treasury, and earns you a share of the tribute if your liege wins.</div>`;
-            for (const enemy of campaign.enemies) {
-                const strength = RealmPolitics.campaignStrength(enemy);
-                html += `<button onclick="window._realm.campaign('${enemy.id}')" style="${(player.army || []).length ? BTN_GOLD : BTN_DIM}" ${(player.army || []).length ? '' : 'disabled'}>⚔️ Fight ${enemy.name} (≈${strength} strength)</button>`;
-            }
             const merit = Object.entries((player.politics && player.politics.merit) || {})
                 .filter(([k]) => k.startsWith(campaign.liege.id + ':'))
                 .reduce((sum, [, v]) => sum + v, 0);
-            if (merit) html += `<div style="margin-top:6px;color:#8fd88f;">🎖️ Victories this war: ${merit}</div>`;
-            // Lend the war galleys to the liege's fleet
+            const rows = campaign.enemies.map(enemy => ({
+                icon: '⚔️', name: `Ride against ${esc(enemy.name)}`,
+                desc: `Their strength ≈${RealmPolitics.campaignStrength(enemy)} · up to ${REALM_POLITICS.campaign.wage}g a victory`,
+                side: `${AP.campaign} AP`, off: !hasArmy, why: 'You have no army to ride with',
+                attrs: `onclick="window._realm.campaign('${enemy.id}')"`,
+            }));
             const serving = player.politics && player.politics.fleetService;
             const fleet = RealmPolitics.fleetServiceOptions(player, world);
             const liegeNavy = campaign.liege.navy;
             if (serving) {
-                html += `<div style="margin-top:6px;color:#4fc3f7;">⚓ Your galleys sail with ${campaign.liege.name}'s fleet (+${RealmPolitics.fleetContribution(player)} strength, ${KingdomNavy.CONFIG.liegeService.wagePerGalley}g a day per galley). They do not escort your ships meanwhile.</div>`;
-                html += `<button onclick="window._realm.recallFleet()" style="${BTN_GOLD}">⛵ Recall your galleys</button>`;
+                rows.push({ icon: '⛵', name: 'Recall your galleys', desc: `They sail with the fleet (+${RealmPolitics.fleetContribution(player)} strength, ${KingdomNavy.CONFIG.liegeService.wagePerGalley}g a day each) and escort none of your ships meanwhile`, attrs: 'onclick="window._realm.recallFleet()"' });
             } else if (fleet && liegeNavy && liegeNavy.ports) {
-                html += `<div style="margin-top:6px;color:var(--text-secondary);">⚓ ${campaign.liege.name}'s fleet: ${liegeNavy.strength}. Your ${fleet.galleys} galley${fleet.galleys === 1 ? '' : 's'} would add ${fleet.contribution}; each sea victory counts as campaign merit.</div>`;
-                html += `<button onclick="window._realm.lendFleet()" style="${BTN_GOLD}">⚓ Send your galleys to the fleet</button>`;
+                rows.push({ icon: '⚓', name: 'Send your galleys to the fleet', desc: `Your ${fleet.galleys} galley${fleet.galleys === 1 ? '' : 's'} add ${fleet.contribution} to a fleet of ${liegeNavy.strength}; sea victories count as merit`, attrs: 'onclick="window._realm.lendFleet()"' });
             }
-            html += '</div>';
+            html += card(`<div style="color:#cfc3a5; margin-bottom:4px;">Each victory pushes your liege toward the war goal and earns you a share of the tribute if your liege wins.</div>${rowList(rows)}`, {
+                icon: '🛡️', title: `Your liege, ${esc(campaign.liege.name)}, is at war`, side: merit ? `🎖️ ${merit} won` : '', tone: 'gold',
+            });
         }
 
-        if (wars.length === 0) {
-            html += '<p style="color:var(--text-secondary);">The realms are at peace — for now.</p>';
-        }
+        const navyLine = (k, foe) => {
+            const n = k.navy;
+            if (!n || !(n.ports || n.strength)) return `${esc(k.name)}: no fleet`;
+            const held = n.blockades && n.blockades[foe.id] != null;
+            return `${esc(k.name)}: fleet ${_force(player, world, k, 'fleet', n.strength)}${held ? ' <span style="color:#e67e22;">(ports blockaded)</span>' : ''}`;
+        };
         for (const w of wars) {
             const involvesHere = here && (w.a.id === here || w.b.id === here);
             const chance = Math.round(RealmPolitics.brokerChance(player, w) * 100);
-            html += `<div style="${CARD}">`;
-            html += `<div style="font-weight:bold;">⚔️ ${w.a.name} vs ${w.b.name} <span style="color:var(--text-secondary);font-weight:normal;">· day ${w.days}</span></div>`;
-            html += `<div style="margin-top:4px;">${w.a.name} — war goal ${w.aGains}/${w.aGoal} · army ${_force(player, world, w.a, 'military', w.a.military)}</div>${_bar(w.aGains, w.aGoal, w.a.color || '#c96')}`;
-            html += `<div>${w.b.name} — war goal ${w.bGains}/${w.bGoal} · army ${_force(player, world, w.b, 'military', w.b.military)}</div>${_bar(w.bGains, w.bGoal, w.b.color || '#69c')}`;
-            // The war at sea
-            const navyLine = (k, foe) => {
-                const n = k.navy;
-                if (!n || !(n.ports || n.strength)) return `${k.name}: no fleet`;
-                const held = n.blockades && n.blockades[foe.id] != null;
-                return `${k.name}: fleet ${_force(player, world, k, 'fleet', n.strength)}${held ? ' <span style="color:#e67e22;">(ports blockaded)</span>' : ''}`;
-            };
-            html += `<div style="color:var(--text-secondary);font-size:11px;">⚓ ${navyLine(w.a, w.b)} · ${navyLine(w.b, w.a)}</div>`;
-            if (involvesHere) {
-                html += `<button onclick="window._realm.broker('${w.a.id}','${w.b.id}')" style="${BTN_GOLD}">🕊️ Broker peace (${REALM_POLITICS.broker.fee}g, ${ActionMenu.REALM_POLITICS_AP.broker} AP, ~${chance}%)</button>`;
-            } else {
-                html += `<div style="color:var(--text-secondary);font-size:11px;">Visit a town of either realm to broker peace.</div>`;
-            }
-            html += '</div>';
+            const fee = REALM_POLITICS.broker.fee;
+            let body = `<div>${esc(w.a.name)} — war goal ${w.aGains}/${w.aGoal} · army ${_force(player, world, w.a, 'military', w.a.military)}</div>${_bar(w.aGains, w.aGoal, w.a.color || '#c96')}`;
+            body += `<div>${esc(w.b.name)} — war goal ${w.bGains}/${w.bGoal} · army ${_force(player, world, w.b, 'military', w.b.military)}</div>${_bar(w.bGains, w.bGoal, w.b.color || '#69c')}`;
+            body += `<div style="color:#9d937c; font-size:11px;">⚓ ${navyLine(w.a, w.b)} · ${navyLine(w.b, w.a)}</div>`;
+            body += rowList([{
+                icon: '🕊️', name: 'Broker peace', desc: `~${chance}% they agree · ${AP.broker} AP`, side: price(fee, gold >= fee),
+                off: !involvesHere, why: 'Go to a town of either realm to broker peace',
+                attrs: `onclick="window._realm.broker('${w.a.id}','${w.b.id}')"`,
+            }]);
+            html += card(body, { icon: '⚔️', title: `${esc(w.a.name)} vs ${esc(w.b.name)}`, side: `day ${w.days}` });
         }
 
         // Forge alliances — envoys work from a town of one of the two crowns
         const alliances = here ? RealmPolitics.allianceCandidates(world, here) : [];
         if (alliances.length) {
             const A = REALM_POLITICS.alliance;
-            html += '<h5 style="margin:10px 0 4px;color:#8fd88f;">🤝 Forge an alliance</h5>';
-            html += `<div style="color:var(--text-secondary);font-size:11px;">Crowns already on warm terms (${A.minRelations}+) can be bound into an alliance by a persuasive envoy.</div>`;
-            for (const p of alliances) {
-                const chance = Math.round(RealmPolitics.allianceChance(player, p.a, p.b) * 100);
-                html += `<div style="${CARD}">`;
-                html += `<div style="font-weight:bold;">${p.a.name} & ${p.b.name} <span style="color:var(--text-secondary);font-weight:normal;">· relations ${Math.round(p.relations)}</span></div>`;
-                html += `<button onclick="window._realm.ally('${p.a.id}','${p.b.id}')" style="${player.gold >= A.fee ? BTN_GOLD : BTN_DIM}" ${player.gold >= A.fee ? '' : 'disabled'}>🤝 Broker alliance (${A.fee}g, ${ActionMenu.REALM_POLITICS_AP.alliance} AP, ~${chance}%)</button>`;
-                html += '</div>';
-            }
+            html += rowList(alliances.map(pr => ({
+                icon: '🤝', name: `${esc(pr.a.name)} & ${esc(pr.b.name)}`,
+                desc: `Relations ${Math.round(pr.relations)} · ~${Math.round(RealmPolitics.allianceChance(player, pr.a, pr.b) * 100)}% an envoy binds them · ${AP.alliance} AP`,
+                side: price(A.fee, gold >= A.fee), off: gold < A.fee, why: `Needs ${A.fee}g for the envoys`,
+                attrs: `onclick="window._realm.ally('${pr.a.id}','${pr.b.id}')"`,
+            })), `Forge an alliance (crowns on warm terms, ${A.minRelations}+)`);
         }
 
         if (truces.length) {
-            html += '<h5 style="margin:10px 0 4px;color:#9bc;">🕊️ Truces</h5>';
-            for (const t of truces) {
-                html += `<div style="color:var(--text-secondary);">${t.a.name} & ${t.b.name} — ${t.daysLeft} days left</div>`;
-            }
+            html += rowList(truces.map(t => ({ icon: '🕊️', name: `${esc(t.a.name)} & ${esc(t.b.name)}`, side: `${t.daysLeft} days left` })), 'Truces');
         }
 
         const fallen = (world.kingdoms || []).filter(k => !k.isAlive && k.conqueredDay != null);
         if (fallen.length) {
-            html += '<h5 style="margin:10px 0 4px;color:#e88;">💀 Fallen realms</h5>';
-            for (const k of fallen) {
+            html += rowList(fallen.map(k => {
                 const by = k.conqueredBy ? world.getKingdom(k.conqueredBy) : null;
-                html += `<div style="color:var(--text-secondary);">${k.name} — conquered by ${by ? by.name : 'unknown'} on day ${k.conqueredDay}. Its old towns may rise again.</div>`;
-            }
+                return { icon: '💀', name: esc(k.name), desc: `Conquered by ${by ? esc(by.name) : 'unknown'} · its old towns may rise again`, side: `day ${k.conqueredDay}` };
+            }), 'Fallen realms');
         }
         html += '</div>';
 
@@ -165,18 +159,24 @@ Object.assign(ActionMenu, {
             return;
         }
         const sworn = player.allegiance === t.occupier.id;
+        const R = REALM_POLITICS.restoration;
+        const gold = player.gold || 0;
         let html = '<div style="font-size:12px;">';
-        html += `<p style="margin-top:0;color:var(--text-secondary);">${tile.settlement.name} once flew the banner of <strong>${t.fallen.name}</strong>, conquered by ${t.occupier.name}. Old loyalists whisper of a rising — they need gold for arms and bribes.</p>`;
-        html += `<div style="${CARD}">`;
-        html += `<div>💰 Cost: <strong>${t.cost}g</strong></div>`;
-        html += `<div>🎲 Chance: <strong>${Math.round(t.chance * 100)}%</strong>${t.unrest ? ' <span style="color:#8fd88f;">(the occupier\'s realm is restless)</span>' : ''}</div>`;
-        html += `<div style="color:var(--text-secondary);margin-top:4px;">Success restores ${t.fallen.name} here, at war with ${t.occupier.name}: +${REALM_POLITICS.restoration.renown} renown and +${REALM_POLITICS.restoration.reputationRestored} reputation with the restored crown, ${REALM_POLITICS.restoration.reputationOccupier} with ${t.occupier.name}. Failure loses the gold, and the occupier may learn who paid.</div>`;
-        if (sworn) {
-            html += `<div style="color:#e88;margin-top:6px;">You are sworn to ${t.occupier.name} — funding rebels would be treason.</div>`;
-        } else {
-            html += `<button onclick="window._realm.fund()" style="${player.gold >= t.cost ? BTN_GOLD : BTN_DIM}" ${player.gold >= t.cost ? '' : 'disabled'}>🔥 Fund the rising (${t.cost}g)</button>`;
-        }
-        html += '</div></div>';
+        html += lede(`${esc(tile.settlement.name)} once flew the banner of <b>${esc(t.fallen.name)}</b>, conquered by ${esc(t.occupier.name)}. Old loyalists whisper of a rising; they need gold for arms and bribes.`);
+        html += chips([
+            ['🎲', 'Chance', `${Math.round(t.chance * 100)}%`, t.unrest ? 'gold' : ''],
+            t.unrest ? ['🔥', 'The occupier is restless', ''] : null,
+            purse(gold),
+        ]);
+        html += rowList([{
+            icon: '🔥', name: 'Fund the rising',
+            desc: `Success restores ${esc(t.fallen.name)} here, at war with ${esc(t.occupier.name)}: +${R.renown} renown, +${R.reputationRestored} with the restored crown, ${R.reputationOccupier} with the occupier. Failure loses the gold, and the occupier may learn who paid.`,
+            side: price(t.cost, gold >= t.cost),
+            off: sworn || gold < t.cost,
+            why: sworn ? `You are sworn to ${esc(t.occupier.name)}: funding rebels would be treason` : `Needs ${t.cost}g`,
+            attrs: 'onclick="window._realm.fund()"',
+        }]);
+        html += '</div>';
 
         game.ui.showCustomPanel(`🔥 Restore ${t.fallen.name}`, html);
         window._realm = {

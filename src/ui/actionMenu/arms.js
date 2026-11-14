@@ -12,20 +12,17 @@ import { PlayerInventory } from '../../core/inventory.js';
 import { PlayerEffects } from '../../player/playerEffects.js';
 import { PlayerMilitary } from '../../player/playerMilitary.js';
 import { PracticeSkills } from '../../systems/practiceSkills.js';
-import { BTN_GOLD, BTN_PLAIN, BTN_DIM, CARD, esc } from './uiKit.js';
+import { esc, lede, chips, purse, rowList, sectionHead } from './uiKit.js';
 
+// In the action menu's voice (ui/actionMenu/uiKit.js): a section a slot — what
+// is worn as a listing row, then one row a thing to do with it (greyed with its
+// reason), then the pieces carried that could take its place.
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 const pct = (v) => `${Math.round(v * 100)}%`;
 
-function act(label, args, style = BTN_GOLD, enabled = true, title = '') {
-    if (!enabled) return `<button disabled style="${BTN_DIM}"${title ? ` title="${esc(title)}"` : ''}>${label}</button>`;
-    return `<button data-am-act="armsAct" data-am-args='${esc(JSON.stringify(args))}' style="${style}"${title ? ` title="${esc(title)}"` : ''}>${label}</button>`;
-}
-
-/** A small bar for condition / edge. */
-function bar(v, color) {
-    const w = Math.max(0, Math.min(100, Math.round(v)));
-    return `<span style="display:inline-block; width:60px; height:6px; background:rgba(255,255,255,0.1); border-radius:3px; vertical-align:middle;"><span style="display:block; width:${w}%; height:100%; background:${color}; border-radius:3px;"></span></span>`;
+/** One armsAct row: data-am-act="armsAct" data-am-args=[op, arg]. */
+function opRow(o, args, ok = true) {
+    return { ...o, act: 'armsAct', args, off: !ok };
 }
 
 function gradeChip(g) {
@@ -62,64 +59,100 @@ Object.assign(ActionMenu, {
         const s = tile && tile.settlement;
         const lo = Arms.loadout(player);
         const me = Duels.fromPlayer(player, { mods: PlayerEffects.duelModifiers(player), fresh: true });
-        let html = `<div style="font-size:12px; max-height:640px; overflow-y:auto;">`;
-        html += `<p style="margin:0 0 6px; ${NOTE}">💰 ${Math.floor(player.gold || 0)} gold · In a fight you hit for <b>${me.power.toFixed(1)}</b> (attack ${me.attack.toFixed(1)}, guard ${me.defense.toFixed(1)}); your harness stops ${pct(me.armour)} of a blow; ${me.maxStamina} breath. On the road: ${pct(1 - PlayerEffects.personalDamageMultiplier(player))} of harm turned.</p>`;
+        const gold = player.gold || 0;
+        let html = '<div style="font-size:12px;">';
+        html += lede(`What you carry decides how you fare in a duel or a brawl, and how much of the road's harm you turn: ${pct(1 - PlayerEffects.personalDamageMultiplier(player))} of it.`);
+        html += chips([
+            { icon: '⚔️', label: 'Blow', value: me.power.toFixed(1), cls: 'gold' },
+            ['🎯', 'Attack', me.attack.toFixed(1)],
+            ['🛡️', 'Guard', me.defense.toFixed(1)],
+            ['🧥', 'Armour stops', pct(me.armour)],
+            ['💨', 'Breath', me.maxStamina],
+            purse(gold),
+        ]);
 
-        // ── Equipment ──
+        // ── Equipment: a section a slot ──
         for (const slot of Arms.SLOTS) {
             const def = Arms.config().slots[slot] || { label: slot, icon: '⚔️' };
             const p = lo[slot];
-            html += `<div style="${CARD}"><b>${def.icon} ${esc(def.label)}</b>: `;
+            const rows = [];
             if (p) {
-                html += `${itemIcon(p.id, esc(Arms.iconOf(p.id)), 22)} ${esc(p.stats.name)}${gradeChip(p.grade)}<br><span style="${NOTE}">${esc(statLine(p.stats))}</span><br>`;
-                html += `<span style="${NOTE}">Condition ${bar(p.cond, p.cond < 50 ? '#e67e22' : '#2ecc71')} ${Math.round(p.cond)}%`;
-                if (p.stats.edge != null) html += ` · Edge ${bar(p.edge, p.edge < 50 ? '#e67e22' : '#5dade2')} ${Math.round(p.edge)}%`;
-                html += '</span><br>';
-                html += act('Put away', ['unequip', slot], BTN_PLAIN);
+                const worn = p.cond < 50 || (p.stats.edge != null && p.edge < 50);
+                rows.push({
+                    icon: itemIcon(p.id, esc(Arms.iconOf(p.id)), 22),
+                    name: `${esc(p.stats.name)}${gradeChip(p.grade)}`,
+                    desc: esc(statLine(p.stats)),
+                    side: `${Math.round(p.cond)}% sound${p.stats.edge != null ? ` · ${Math.round(p.edge)}% edge` : ''}`,
+                    tone: worn ? 'warn' : null,
+                });
                 if (p.stats.edge != null && p.edge < 99.5) {
                     const hasStone = (player.inventory.whetstone || 0) > 0;
-                    html += act(hasStone ? '⬛ Hone on the whetstone' : `Grindstone (${Arms.config().wear.grindFee}g)`, ['sharpen'], BTN_PLAIN, hasStone || Arms.hasSmith(s), 'You need a whetstone, or a town smith.');
+                    rows.push(opRow({
+                        icon: '⬛', name: hasStone ? 'Hone it on your whetstone' : 'Have it ground at the smithy',
+                        desc: 'Restores the edge', why: 'You need a whetstone, or a town smith.',
+                        side: hasStone ? '' : `${Arms.config().wear.grindFee}g`,
+                    }, ['sharpen'], hasStone || Arms.hasSmith(s)));
                 }
                 if (p.cond < 99.5) {
                     const q = Arms.mendQuote(player, slot, s, world);
                     const goods = PlayerInventory.describe(q.goods) || 'nothing';
-                    html += act(`🔨 Mend it yourself (${goods})`, ['mendSelf', slot], BTN_PLAIN, q.self, `It takes ${goods}.`);
-                    if (q.smith) html += act(`Smith mends it (${q.smith.total}g)`, ['mendSmith', slot], BTN_PLAIN, !q.smith.short.length && (player.gold || 0) >= q.smith.total, q.smith.short.length ? `The smith has no ${q.smith.short.join(', ')}.` : `${q.smith.total} gold.`);
+                    rows.push(opRow({ icon: '🔨', name: 'Mend it yourself', desc: `Takes ${esc(goods)}; trains smithing`, why: `You need ${esc(goods)}.` }, ['mendSelf', slot], q.self));
+                    if (q.smith) {
+                        const short = q.smith.short.length;
+                        rows.push(opRow({
+                            icon: '⚒️', name: 'The smith mends it', desc: 'Good as new',
+                            why: short ? `The smith has no ${esc(q.smith.short.join(', '))}.` : 'Your purse is short.',
+                            side: `${q.smith.total}g`, tone: 'gold',
+                        }, ['mendSmith', slot], !short && gold >= q.smith.total));
+                    }
                 }
+                rows.push(opRow({ icon: '🎒', name: 'Put it away', desc: 'Back in your packs' }, ['unequip', slot]));
             } else {
-                html += `<span style="${NOTE}">${slot === 'main' ? 'bare hands' : 'nothing'}</span><br>`;
+                rows.push({ icon: def.icon, name: slot === 'main' ? 'Bare hands' : 'Nothing', desc: 'Nothing worn here' });
             }
-            // What else is carried for the slot
+            // What else is carried for the slot (no shield goes on while a two-hander fills both hands)
             const others = Arms.candidates(player, slot).filter(c => !p || c.id !== p.id);
-            // (no shield goes on while a two-hander fills both hands: say so on the button)
-            const bothHands = slot === 'off' && lo.main && lo.main.stats.hands >= 2 ? `Your ${lo.main.stats.name.toLowerCase()} takes both hands: put it away or take up a one-handed weapon first.` : '';
+            const bothHands = slot === 'off' && lo.main && lo.main.stats.hands >= 2 ? `Your ${esc(lo.main.stats.name.toLowerCase())} takes both hands: put it away first.` : '';
             for (const c of others.slice(0, 6)) {
-                html += act(`${itemIcon(c.id, esc(Arms.iconOf(c.id)), 18)} ${esc(Arms.nameOf(c.id))}${c.count > 1 ? ` ×${c.count}` : ''}`, ['equip', c.id], BTN_GOLD, !bothHands, bothHands || statLine(Arms.stats(c.id, c.grade)));
+                rows.push(opRow({
+                    icon: itemIcon(c.id, esc(Arms.iconOf(c.id)), 18),
+                    name: `Take up the ${esc(Arms.nameOf(c.id))}${c.count > 1 ? ` <span style="font-weight:normal;color:#9d937c;">×${c.count}</span>` : ''}`,
+                    desc: esc(statLine(Arms.stats(c.id, c.grade))), why: bothHands,
+                }, ['equip', c.id], !bothHands));
             }
-            if (bothHands && others.length) html += `<br><span style="${NOTE}">${esc(bothHands)}</span>`;
-            if (!p && !others.length) html += `<span style="${NOTE}">You carry none. Forge one at an anvil, buy one, or order one from a town's weaponsmith.</span>`;
-            html += '</div>';
+            if (!p && !others.length) rows.push({ icon: '⚒️', name: 'You carry none', desc: 'Forge one at an anvil, buy one, or order one from a town\'s weaponsmith.' });
+            html += rowList(rows, `${def.icon} ${esc(def.label)}`);
         }
 
         // ── The troops ──
         const kitted = (player.army || []).filter(u => Arms.kitSpec(u.type) && !u.mercenary);
         if (kitted.length) {
-            html += `<div style="${CARD}"><b>⚔️ Your soldiers' arms</b><br>`;
             const byType = {};
             for (const u of kitted) (byType[u.type] = byType[u.type] || []).push(u);
-            for (const [type, units] of Object.entries(byType)) {
+            const troopRows = Object.entries(byType).map(([type, units]) => {
                 const f = units.reduce((t, u) => t + Arms.unitFactor(u), 0) / units.length;
                 const gaps = units.filter(u => u.kit && Arms.kitGaps(u).length).length;
                 const old = units.filter(u => !u.kit).length;
                 const sample = units.find(u => u.kit) || null;
-                html += `<div style="margin:3px 0;">${esc(units[0].icon || '')} ${units.length} ${esc(units[0].name || type)} — fighting at <b>${pct(f)}</b>${sample ? ` <span style="${NOTE}">(${esc(Arms.kitLabel(sample) || 'unarmed')})</span>` : ''}${gaps ? ` <span style="color:#e67e22">${gaps} short of arms</span>` : ''}${old ? ` <span style="${NOTE}">${old} armed of old</span>` : ''}</div>`;
-            }
+                const notes = [sample ? esc(Arms.kitLabel(sample) || 'unarmed') : '', gaps ? `<span style="color:#e67e22">${gaps} short of arms</span>` : '', old ? `${old} armed of old` : ''].filter(Boolean);
+                return {
+                    icon: esc(units[0].icon || '⚔️'), name: `${units.length} ${esc(units[0].name || type)}`, desc: notes.join(' · '),
+                    side: `fights at ${pct(f)}`, tone: f >= 0.95 ? 'good' : 'warn',
+                    title: 'Unarmed a soldier is worth half a man; with a Common iron kit his full worth; with Fine steel more. Battles wear kits; the fallen take theirs with them.',
+                };
+            });
             const shortAny = kitted.some(u => u.kit && Arms.kitGaps(u).length);
-            html += act('Issue arms from your stores', ['armPack'], BTN_PLAIN, shortAny, 'Nobody is short, or you carry nothing for them.');
-            if (Arms._mkt(s)) {
-                const q = kitted.filter(u => u.kit && Arms.kitGaps(u).length).length;
-                html += act(`Buy the shortfall in ${esc(s.name)}`, ['armBuy'], BTN_GOLD, q > 0, 'Nobody is short of arms.');
+            troopRows.push(opRow({ icon: '🎒', name: 'Issue arms from your stores', desc: 'Fill the gaps from what you carry', why: 'Nobody is short of arms.' }, ['armPack'], shortAny));
+            if (Arms._mkt(s)) troopRows.push(opRow({ icon: '💰', name: `Buy the shortfall in ${esc(s.name)}`, desc: 'From the town\'s armourers, at their prices', why: 'Nobody is short of arms.', tone: 'gold' }, ['armBuy'], shortAny));
+            if (Arms.hasSmith(s)) {
+                const mq = Arms.kitMendQuote(player, s, world);
+                troopRows.push(opRow({
+                    icon: '🔨', name: 'Mend their arms', desc: mq.iron ? `Takes ${mq.iron} iron` : 'At the town smithy',
+                    why: mq.units ? 'Your purse is short.' : 'Their arms need no mending.', side: mq.units ? `${mq.total}g` : '',
+                }, ['mendKits'], mq.units > 0 && gold >= mq.total));
             }
+            html += rowList(troopRows, '⚔️ Your soldiers\' arms');
+
             // Arrows and bolts: what the shooters carry, and what filling their quivers takes
             const shooters = (player.army || []).filter(u => Arms.ammoGood(u) && !u.mercenary);
             if (shooters.length) {
@@ -132,26 +165,28 @@ Object.assign(ActionMenu, {
                     o.have += have; o.quiver += q.quiver; o.units++;
                     if (have < q.perBattle) o.dry++;
                 }
-                const lines = Object.entries(byGood).map(([g, o]) => `${esc(Arms.iconOf(g))} ${esc(Arms.nameOf(g))}: ${o.have}/${o.quiver} in ${o.units} quiver${o.units > 1 ? 's' : ''} (${PlayerInventory.describe({ [g]: Math.floor(player.inventory[g] || 0) }) || 'none'} in your packs)${o.dry ? ` <span style="color:#e67e22">${o.dry} short of a battle's worth: they fight at ${pct(Arms.dryMult())}</span>` : ''}`);
-                html += `<div style="margin:4px 0;">${lines.join('<br>')}</div>`;
+                const qRows = Object.entries(byGood).map(([g, o]) => ({
+                    icon: esc(Arms.iconOf(g)), name: `${esc(Arms.nameOf(g))} in ${o.units} quiver${o.units > 1 ? 's' : ''}`,
+                    desc: `${esc(PlayerInventory.describe({ [g]: Math.floor(player.inventory[g] || 0) }) || 'none')} in your packs${o.dry ? ` · <span style="color:#e67e22">${o.dry} short of a battle's worth: they fight at ${pct(Arms.dryMult())}</span>` : ''}`,
+                    side: `${o.have}/${o.quiver}`, tone: o.dry ? 'warn' : null,
+                }));
                 const qq = Arms.quiverQuote(player, s, world);
                 const want = Object.values(qq).reduce((t, o) => t + o.want, 0);
-                html += act('Fill the quivers from your packs', ['quiversPack'], BTN_PLAIN, want > 0 && Object.keys(qq).some(g => (player.inventory[g] || 0) > 0), want > 0 ? 'You carry none.' : 'Every quiver is full.');
+                qRows.push(opRow({ icon: '🎒', name: 'Fill the quivers from your packs', why: want > 0 ? 'You carry none.' : 'Every quiver is full.' }, ['quiversPack'], want > 0 && Object.keys(qq).some(g => (player.inventory[g] || 0) > 0)));
                 if (Arms._mkt(s)) {
                     const cost = Object.values(qq).reduce((t, o) => t + (o.price || 0) * Math.min(o.want, o.stock || 0), 0);
                     const stock = Object.values(qq).reduce((t, o) => t + Math.min(o.want, o.stock || 0), 0);
-                    html += act(`Buy for the quivers in ${esc(s.name)}${stock ? ` (${stock} for ${cost}g)` : ''}`, ['quiversBuy'], BTN_GOLD, stock > 0 && (player.gold || 0) >= 1, want > 0 ? 'The town has none to sell.' : 'Every quiver is full.');
+                    qRows.push(opRow({
+                        icon: '💰', name: `Buy for the quivers in ${esc(s.name)}`, desc: stock ? `${stock} to be had` : '',
+                        why: want > 0 ? 'The town has none to sell.' : 'Every quiver is full.', side: stock ? `${cost}g` : '', tone: 'gold',
+                    }, ['quiversBuy'], stock > 0 && gold >= 1));
                 }
+                html += rowList(qRows, '🏹 Arrows and bolts');
             }
-            if (Arms.hasSmith(s)) {
-                const mq = Arms.kitMendQuote(player, s, world);
-                html += act(`🔨 Mend their arms (${mq.total}g${mq.iron ? `, ${mq.iron} iron` : ''})`, ['mendKits'], BTN_PLAIN, mq.units > 0 && (player.gold || 0) >= mq.total, mq.units ? `${mq.total} gold.` : 'Their arms need no mending.');
-            }
-            html += `<div style="${NOTE}; margin-top:4px;">A soldier fights by what he carries: unarmed he is worth half a man, with a Common iron kit his full worth, with Fine steel more. Battles wear the kits; the fallen take theirs with them.</div></div>`;
         }
         // Smithing: where to make arms
         const smith = PracticeSkills.def('smithing') ? PracticeSkills.level(player, 'smithing') : null;
-        html += `<div style="${NOTE}; margin:6px 0;">⚒️ ${smith != null ? `Smithing ${smith}. ` : ''}Forge arms at any anvil (Weaponsmith &amp; Armoury): smelt ore to iron, copper and tin to bronze, carve hafts, bind grips, then forge. Or order a piece from a town's weaponsmith (Hire the Tradesmen).</div>`;
+        html += sectionHead('Making arms') + `<div style="${NOTE}">⚒️ ${smith != null ? `Smithing ${smith}. ` : ''}Forge at any anvil (Weaponsmith &amp; Armoury), or order a piece from a town's weaponsmith (Hire the Tradesmen).</div>`;
         html += '</div>';
         game.ui.showCustomPanel('⚔️ Arms & Armour', html);
     },

@@ -563,7 +563,13 @@ export function _startFreeTalk() {
     }
     game.player.actionPoints -= ap;
     if (game.ui.updateStats) game.ui.updateStats(game.player, game.world);
-    dialogState._freeTalk = { subject, session: NpcChat.startSession(game.player, game.world, subject) };
+    const session = NpcChat.startSession(game.player, game.world, subject);
+    // (what was just said in this dialog: the model picks up the thread, knowing who said what)
+    for (const l of (dialogState._lines || []).slice(-6)) {
+        const text = l && typeof l.text === 'string' ? l.text.replace(/<[^>]*>/g, '').trim() : '';
+        if (text && (l.isNpc || l.speaker === 'You')) session.lines.push({ npc: !!l.isNpc, text, seeded: true });
+    }
+    dialogState._freeTalk = { subject, session };
     _renderChoices(dialogState._overlay.querySelector('.npc-dialog-box'));
 }
 

@@ -259,11 +259,17 @@ Object.assign(InnerMap, {
         if (!side) return null;
         const s = worldTile.settlement;
         if (!s) return { side };
+        // A pier is built, not found: none until the town's people know how to
+        // build boats, and none in a place only just founded (data/ships.json
+        // shipcraft.pierAfterYears)
+        const craft = new Set(Shipcraft.townKnows(world, s));
+        if (!craft.has('shipbuilding')) return { side };
+        const year = world && Number.isFinite(world.year) ? world.year : null;
+        if (year != null && Number.isFinite(s.founded) && year - s.founded < Shipcraft.config().pierAfterYears) return { side };
         const pier = this._layPier(tiles, side, worldQ, worldR);
         if (!pier) return { side };
         tiles[pier.tip.r][pier.tip.q]._pierTip = side;
         // The town's own ships: as many as it is big, of the kinds its shipwrights build
-        const craft = new Set(Shipcraft.townKnows(world, s));
         // a hull the town keeps if its shipwrights can build any ship type it stands for
         // (a rowboat is no sailing ship: the skiff stands for the fishing vessel here)
         const canHull = (hullId) => ShipHulls.typesFor(hullId).filter(t => t !== 'rowboat').some(t => {

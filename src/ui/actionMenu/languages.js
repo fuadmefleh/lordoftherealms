@@ -4,18 +4,9 @@
 import { ActionMenu } from './_ref.js';
 import { Languages } from '../../systems/languages.js';
 import { Cultures } from '../../world/cultures.js';
-import { BTN_GOLD, BTN_PLAIN, BTN_DIM, CARD, lede, chips, bullets, sectionHead, purse } from './uiKit.js';
+import { lede, chips, bullets, sectionHead, rowList, card, price, purse, esc } from './uiKit.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
-
-function esc(s) {
-    return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-}
-
-function act(label, args, style = BTN_GOLD, enabled = true, title = '') {
-    if (!enabled) return `<button disabled style="${BTN_DIM}"${title ? ` title="${esc(title)}"` : ''}>${label}</button>`;
-    return `<button data-am-act="languagesAct" data-am-args='${esc(JSON.stringify(args))}' style="${style}"${title ? ` title="${esc(title)}"` : ''}>${label}</button>`;
-}
 
 const LEVEL_COLOR = { none: '#e74c3c', broken: '#e8a040', conversational: '#9acd32', fluent: '#5fbf6a' };
 
@@ -40,60 +31,61 @@ Object.assign(ActionMenu, {
         if (here.lang) {
             const name = Cultures.languageName(here.lang);
             const fam = Cultures.data().families && Cultures.data().families[Cultures.family(here.lang)];
-            html += `<div style="${CARD}"><b>Spoken here:</b> ${esc(name)}${fam ? ` <span style="${NOTE}">(${esc(fam.name)} tongues)</span>` : ''}<br>`;
-            html += `You: ${bar(here.value, here.level.id)} <b>${esc(here.level.name)}</b>${here.via === 'translator' ? ' — through your interpreter' : here.via === 'kin' ? ' — through a kindred tongue' : ''}`;
+            let here2 = `You: ${bar(here.value, here.level.id)} <b>${esc(here.level.name)}</b>${here.via === 'translator' ? ' — through your interpreter' : here.via === 'kin' ? ' — through a kindred tongue' : ''}`;
             const fx = (Cultures.data().effects || {}).trade || {};
             const t = fx[here.level.id];
             const notes = [];
             if (t) notes.push(t < 0 ? `Haggling in a tongue you lack: prices ${Math.round(-t * 100)}% against you.` : `Speaking it well: a fair deal (+${Math.round(t * 100)}%).`);
             if (here.level.id === 'none' || here.level.id === 'broken') notes.push(`Talk is ${here.level.id === 'none' ? 'by gesture only' : 'simple questions only'}, and a lord's court will not hear you without ${Cultures.level((Cultures.data().effects || {}).audience || 50).name.toLowerCase()} speech or an interpreter.`);
-            html += bullets(notes);
-            html += '</div>';
+            here2 += bullets(notes);
+            html += card(here2, { icon: '📍', title: `Spoken here: ${esc(name)}`, side: fam ? `<span style="${NOTE}">${esc(fam.name)} tongues</span>` : '' });
         } else {
-            html += `<div style="${CARD}"><span style="${NOTE}">No one lives here to speak to.</span></div>`;
+            html += lede('No one lives here to speak to.');
         }
 
         // Your tongues
-        html += sectionHead('Your tongues');
-        if (!known.length) html += `<div style="${NOTE}">None yet.</div>`;
-        for (const k of known) {
-            html += `<div style="margin:3px 0;">${bar(k.fluency, k.level.id)} <b>${esc(k.name)}</b> — ${esc(k.level.name)} (${k.fluency}/100)${k.native ? ` <span style="${NOTE}">· mother tongue</span>` : ''}</div>`;
-        }
-        html += bullets([
-            'You learn a tongue by living among its speakers and talking with them; a tutor’s lessons go faster.',
-            'Kindred tongues are partly understood.',
-        ]);
+        html += rowList(known.map(k => ({
+            icon: k.native ? '🏠' : '🗣️', name: esc(k.name),
+            desc: `${esc(k.level.name)}${k.native ? ' · mother tongue' : ''}`,
+            side: `${bar(k.fluency, k.level.id)} ${k.fluency}`,
+        })), 'Your tongues') || (sectionHead('Your tongues') + lede('None yet.'));
+        html += `<div style="${NOTE} margin:2px 0 6px;">You learn a tongue by living among its speakers and talking with them; a tutor's lessons go faster. Kindred tongues are partly understood.</div>`;
 
         // Lessons
         if (s) {
             const T = (Cultures.data().learning || {}).tutor || {};
-            const teach = Languages.teachable(world, s);
-            html += sectionHead(`Tutors in ${esc(s.name)}`);
-            html += `<div style="${CARD}"><span style="${NOTE}">${T.cost || 18} gold a lesson, one a day.</span><br>`;
-            for (const l of teach) {
+            const cost = T.cost || 18;
+            const can = (player.gold || 0) >= cost;
+            html += rowList(Languages.teachable(world, s).map(l => {
                 const f = Math.round(Languages.fluency(player, l));
-                html += act(`📖 ${esc(Cultures.languageName(l))} (${f})`, ['lesson', l], BTN_PLAIN, f < 100 && (player.gold || 0) >= (T.cost || 18), f >= 100 ? 'You speak it like a native.' : `Not enough gold (${T.cost || 18}g).`);
-            }
-            html += '</div>';
+                return {
+                    icon: '📖', name: `${esc(Cultures.languageName(l))} lesson`, desc: `You: ${f}/100 · one lesson a day`,
+                    side: price(cost, can), off: f >= 100 || !can, why: f >= 100 ? 'You speak it like a native.' : `Needs ${cost}g.`,
+                    act: 'languagesAct', args: ['lesson', l],
+                };
+            }), `Tutors in ${esc(s.name)}`);
         }
 
         // Interpreter
-        html += sectionHead('Interpreter');
-        html += `<div style="${CARD}">`;
         const t = player.translator;
         if (t) {
-            html += `${esc(t.name)}, in your service since day ${t.since}: ${t.tongues.map(x => esc(Cultures.languageName(x))).join(', ')} · ${t.wage} gold a day<br>`;
-            html += act('Dismiss', ['dismiss'], BTN_PLAIN);
+            html += rowList([{
+                icon: '🤝', name: `Dismiss ${esc(t.name)}`, desc: `In your service since day ${t.since}: ${t.tongues.map(x => esc(Cultures.languageName(x))).join(', ')}`,
+                side: `${t.wage}g/day`, act: 'languagesAct', args: ['dismiss'],
+            }], 'Interpreter');
         } else if (s) {
             const offer = Languages.translatorOffer(player, world);
             if (offer) {
-                html += `${esc(offer.name)} offers service: ${offer.tongues.map(x => esc(Cultures.languageName(x))).join(', ')} — ${offer.hire} gold to hire, then ${offer.wage} a day.<br>`;
-                html += act(`Hire (${offer.hire}g)`, ['hire'], BTN_GOLD, (player.gold || 0) >= offer.hire, `Not enough gold (${offer.hire}g).`);
+                const ok = (player.gold || 0) >= offer.hire;
+                html += rowList([{
+                    icon: '🤝', name: `Hire ${esc(offer.name)}`, desc: `Speaks ${offer.tongues.map(x => esc(Cultures.languageName(x))).join(', ')}; then ${offer.wage}g a day`,
+                    side: price(offer.hire, ok), off: !ok, why: `Needs ${offer.hire}g.`, act: 'languagesAct', args: ['hire'],
+                }], 'Interpreter');
             }
         } else {
-            html += `<span style="${NOTE}">Interpreters are hired in towns and villages.</span>`;
+            html += sectionHead('Interpreter') + `<div style="${NOTE}">Interpreters are hired in towns and villages.</div>`;
         }
-        html += '</div></div>';
+        html += '</div>';
         game.ui.showCustomPanel('🗣️ Languages', html);
     },
 

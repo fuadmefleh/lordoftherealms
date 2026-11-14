@@ -20,6 +20,7 @@ import { Hex } from '../core/hex.js';
 import { ActionMenu } from './actionMenu/_ref.js';
 import { PlayerActions } from '../player/playerActions.js';
 import { Afterlife } from '../player/afterlife.js';
+import { actRow, rowList } from './actionMenu/uiKit.js';
 
 const CARD_ID = 'firstStepsCard';
 const BTN = 'border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;padding:5px 9px;';
@@ -207,5 +208,6 @@ export function updateFirstStepsCard(game) {
 export function firstStepsResumeHtml(player) {
     if (!FirstSteps.canResume(player)) return '';
     const v = FirstSteps.view(player);
-    return `<button data-fs-act="resume" style="width:100%;margin-top:8px;padding:7px;border:1px solid rgba(245,197,66,0.35);border-radius:4px;background:rgba(245,197,66,0.08);color:var(--gold);cursor:pointer;font-weight:bold;font-size:12px;">📜 Show the First Steps guidance (${v.doneCount}/${v.total} done)</button>`;
+    // A row in the panels' voice (ui/actionMenu/uiKit.js actRow), routed by data-fs-act
+    return rowList([actRow({ icon: '📜', name: 'First Steps', desc: 'Show the opening guidance again', side: `${v.doneCount}/${v.total} done`, attrs: 'data-fs-act="resume"' })]);
 }

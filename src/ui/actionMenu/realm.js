@@ -256,13 +256,11 @@ Object.assign(ActionMenu, {
         const status = Throne.foundingStatus(player, world);
         const blocked = status.ok ? '' : `<p style="font-size: 12px; color: #c98a6a; margin: 0 0 10px;">${status.reasons.join(' ')}</p>`;
         let html = '<div>';
-        html += lede(`👑 <b>Proclaim a New Kingdom.</b> You will rule it: set its taxes, war stance and faith, and conduct its diplomacy from Claims & Crowns.`);
+        html += lede(`👑 <b>Proclaim a New Kingdom.</b> Your <b>${controlledSettlements.length}</b> settlements unite under your crown; rule it (taxes, war stance, faith, diplomacy) from the Royal Court.`);
         html += chips([
             { icon: '✨', label: 'Costs', value: `${status.cost} Prestige`, cls: 'gold' },
-            ['🏘️', 'Settlements', controlledSettlements.length],
         ]);
         html += blocked;
-        html += `<p style="font-size: 12px; color: #9d937c; margin: 0 0 10px;">You will unite <b style="color:#ece2c8;">${controlledSettlements.length}</b> settlements under a new crown.</p>`;
         html += card(`
                 <input id="newKingdomNameInput" type="text" maxlength="48" value="${suggestedName.replace(/"/g, '&quot;')}"
                     style="width: 100%; box-sizing: border-box; padding: 8px 10px; border-radius: 6px; border: 1px solid rgba(245,197,66,0.22); background: rgba(0,0,0,0.3); color: #ece2c8; font-size: 13px; margin-bottom: 10px;" />

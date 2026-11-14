@@ -1,6 +1,6 @@
 {
-    "_shipcraft": "What shipwrights must know to build (ship type `requires`: technology ids, data/technology.json). A shipyard builds what its realm's shipwrights know, plus anything the player has researched (they can teach them). Realms of an ordinary start know the era's whole craft; a realm born at the Dawn of Man (world/dawn.js) starts knowing nothing and learns `order` one technique at a time: the first `firstAfterYears` after its founding, then one every `learnEveryYears` (world/shipcraft.js). Independent towns of a dawn world know only what the player brings.",
-    "shipcraft": { "order": ["shipbuilding", "deep_sea_fishing", "navigation", "lighthouse", "naval_warfare"], "firstAfterYears": 4, "learnEveryYears": 6 },
+    "_shipcraft": "What shipwrights must know to build (ship type `requires`: technology ids, data/technology.json). A shipyard builds what its realm's shipwrights know, plus anything the player has researched (they can teach them). Realms of an ordinary start know the era's whole craft; a realm born at the Dawn of Man (world/dawn.js) starts knowing nothing and learns `order` one technique at a time: the first `firstAfterYears` after its founding, then one every `learnEveryYears` (world/shipcraft.js). Independent towns of a dawn world know only what the player brings. A town lays its pier only once its shipwrights know `shipbuilding` and it is `pierAfterYears` old (world/innerMap/harbour.js).",
+    "shipcraft": { "order": ["shipbuilding", "deep_sea_fishing", "navigation", "lighthouse", "naval_warfare"], "firstAfterYears": 4, "learnEveryYears": 6, "pierAfterYears": 3 },
     "shipTypes": [
         {
             "id": "rowboat", "requires": [],

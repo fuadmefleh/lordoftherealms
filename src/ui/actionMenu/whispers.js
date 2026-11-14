@@ -3,45 +3,45 @@
 // the player as it is told in this town (and a bard to sing it down), a tale
 // of the player's own to start, and how past tales ended. Logic lives in
 // systems/whispers.js and systems/gossip.js; this panel presents it.
+// The action menu's voice (uiKit.js): a card a tale, its moves as rows (cost
+// at the right, greyed with the reason).
 import { ActionMenu } from './_ref.js';
 import { Gossip } from './_imports.js';
 import { Whispers } from '../../systems/whispers.js';
-import { BTN_GOLD, BTN_PLAIN, BTN_RED, BTN_OFF, CARD } from './uiKit.js';
+import { BTN_GOLD, BTN_OFF, lede, chips, card, rowList, sectionHead, more, price, purse, esc } from './uiKit.js';
 
-const HEAD = 'font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin: 12px 0 4px;';
-const OUTCOME = { proven: ['🔥', '#e08080', 'Proven'], debunked: ['🕊️', '#7fd07f', 'Debunked'], faded: ['🌫️', '#999', 'Forgotten'], buried: ['🤐', '#c5b358', 'Bought silent'] };
-
-function _esc(s) {
-    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
-function _btn(ok, label, call, style = BTN_GOLD, why = '') {
-    return ok ? `<button onclick="${call}" style="${style}">${label}</button>` : `<button disabled title="${_esc(why)}" style="${BTN_OFF}">${label}</button>`;
-}
+const OUTCOME = { proven: ['🔥', 'bad', 'Proven'], debunked: ['🕊️', 'good', 'Debunked'], faded: ['🌫️', '', 'Forgotten'], buried: ['🤐', 'warn', 'Bought silent'] };
+const MUTED = 'font-size:11px; color:#a99a78;';
+const SELECT = 'max-width:100%; margin:2px 4px 6px 0; padding:4px 6px; background:rgba(0,0,0,0.3); border:1px solid rgba(245,197,66,0.22); border-radius:6px; color:#ece2c8;';
 
 function _heatBar(heat) {
     const color = heat >= 70 ? '#e05050' : heat >= 40 ? '#e0a040' : '#c5b358';
-    return `<span title="Heat ${heat}/100" style="display:inline-block; width:90px; height:6px; background:rgba(255,255,255,0.08); border-radius:3px; vertical-align:middle; overflow:hidden;">`
+    return `<span title="Heat ${heat}/100: how hotly it is told" style="display:inline-block; width:70px; height:6px; background:rgba(255,255,255,0.08); border-radius:3px; vertical-align:middle; overflow:hidden;">`
         + `<span style="display:block; height:100%; width:${Math.max(3, heat)}%; background:${color};"></span></span>`;
 }
 
-function _taleCard(v) {
-    let html = `<div style="${CARD}">`;
-    html += `<div style="display:flex; justify-content:space-between; gap:8px;"><strong style="color:var(--gold);">${v.icon} ${_esc(v.label)}: ${_esc(v.subject)}</strong>`;
-    html += `<span style="color:#999; font-size:11px; white-space:nowrap;">${v.subjectType === 'ruler' ? _esc(v.kingdomName) : 'adventurer'}</span></div>`;
-    html += `<div style="color:#ddd; font-style:italic; margin:4px 0;">"${_esc(v.text)}"</div>`;
-    const truth = v.truthKnown ? (v.truth ? '<span style="color:#e08080;">✔ True. You know it.</span>' : '<span style="color:#7fd07f;">✘ A lie. You know it.</span>') : '<span style="color:#888;">Truth unknown</span>';
-    html += `<div style="font-size:11px; color:#aaa;">${_heatBar(v.heat)} heat ${v.heat} · ${v.towns} town${v.towns === 1 ? '' : 's'} · ${v.daysLeft} days left · ${truth}${v.planted ? ' · <span style="color:#c9a0ff;">your tale</span>' : v.fanned ? ' · <span style="color:#c9a0ff;">you fanned it</span>' : ''}${v.hotDays > 0 ? ` · <span style="color:#e0a040;" title="Kept this hot for ${v.hardenDays} days, a lie comes to a reckoning: believed, or debunked">running hot ${v.hotDays}/${v.hardenDays} days</span>` : ''}</div>`;
-    html += '<div style="margin-top:4px;">';
-    html += _btn(v.can.fan, `🔥 Fan it (${v.costs.fan}g)`, `window._whispers.act('fan', ${v.id})`, BTN_PLAIN, 'Not told here, or not enough gold');
-    html += _btn(v.can.quash, `🤫 Quash it (${v.costs.quash}g)`, `window._whispers.act('quash', ${v.id})`, BTN_PLAIN, `Only in ${v.kingdomName}, and it costs ${v.costs.quash}g`);
-    if (!v.truthKnown) html += _btn(v.can.dig, `🔍 Dig for the truth (${v.costs.dig}g)`, `window._whispers.act('dig', ${v.id})`, BTN_PLAIN, 'Asked already today, or not enough gold');
+/** A move on a tale as a row: live when `ok`, greyed with `why` otherwise. */
+function _move(ok, icon, name, desc, call, cost, gold, why, tone = '') {
+    return { icon, name, desc, side: cost != null ? price(cost, gold >= cost) : '', off: !ok, why, attrs: ok ? `onclick="${call}"` : '', tone };
+}
+
+function _taleCard(v, gold) {
+    const truth = v.truthKnown ? (v.truth ? '<span style="color:#e08080;">✔ true — you know it</span>' : '<span style="color:#9fd89f;">✘ a lie — you know it</span>') : 'truth unknown';
+    const mine = v.planted ? 'your tale' : v.fanned ? 'you fanned it' : '';
+    let body = `<div style="font-style:italic; margin:2px 0 4px;">“${esc(v.text)}”</div>`;
+    body += `<div style="${MUTED}">${_heatBar(v.heat)} heat ${v.heat} · told in ${v.towns} town${v.towns === 1 ? '' : 's'} · fades in ${v.daysLeft} days · ${truth}${mine ? ` · <span style="color:#c9a0ff;">${mine}</span>` : ''}</div>`;
+    if (v.hotDays > 0) body += `<div style="${MUTED} color:#e0a040;">Running hot ${v.hotDays}/${v.hardenDays} days: kept hot that long, a lie is either believed for good or debunked.</div>`;
+    const rows = [
+        _move(v.can.fan, '🔥', 'Fan it', 'Tell it louder here', `window._whispers.act('fan', ${v.id})`, v.costs.fan, gold, 'Not told here, or not enough gold'),
+        _move(v.can.quash, '🤫', 'Quash it', `Pay to hush it (only in ${esc(v.kingdomName)})`, `window._whispers.act('quash', ${v.id})`, v.costs.quash, gold, `Only in ${esc(v.kingdomName)}, and it costs ${v.costs.quash}g`),
+    ];
+    if (!v.truthKnown) rows.push(_move(v.can.dig, '🔍', 'Dig for the truth', 'Ask the right people', `window._whispers.act('dig', ${v.id})`, v.costs.dig, gold, 'Asked already today, or not enough gold'));
     if (v.subjectType === 'ruler' && v.truthKnown && v.truth) {
-        html += _btn(v.can.blackmail, `✉️ Blackmail (~${v.blackmailGold}g)`, `window._whispers.act('blackmail', ${v.id})`, BTN_RED, `You must be in ${v.kingdomName}`);
-        for (const b of v.buyers) html += _btn(v.can.sell, `📜 Sell proof to ${_esc(b.name)} (~${v.sellGold}g)`, `window._whispers.sell(${v.id}, '${b.id}')`, BTN_RED);
+        rows.push(_move(v.can.blackmail, '✉️', 'Blackmail', `Gold to keep quiet (about ${v.blackmailGold}g)`, `window._whispers.act('blackmail', ${v.id})`, null, gold, `You must be in ${esc(v.kingdomName)}`, 'bad'));
+        for (const b of v.buyers) rows.push(_move(v.can.sell, '📜', `Sell the proof to ${esc(b.name)}`, `About ${v.sellGold}g`, `window._whispers.sell(${v.id}, '${esc(b.id)}')`, null, gold, 'Not possible here', 'bad'));
     }
-    html += '</div></div>';
-    return html;
+    body += rowList(rows);
+    return card(body, { icon: v.icon, title: `${esc(v.label)}: ${esc(v.subject)}`, side: v.subjectType === 'ruler' ? esc(v.kingdomName) : 'adventurer' });
 }
 
 Object.assign(ActionMenu, {
@@ -50,58 +50,62 @@ Object.assign(ActionMenu, {
         const player = game.player;
         const world = game.world;
         const { q, r } = tile;
+        const gold = player.gold || 0;
         let html = '<div style="max-height: 560px; overflow-y: auto; font-size: 12px;">';
-        if (message) html += `<div style="${CARD} border-color: ${message.color || 'rgba(245,197,66,0.4)'}; color:#eee;">${message.html}</div>`;
-        html += '<p style="margin:0 0 6px; color:var(--text-secondary);">A corner table, a guttering candle, people talking low. The great are talked about here, and so are you. Some of it is true.</p>';
+        if (message) html += card(message.html, { tone: message.color ? 'bad' : 'gold' });
+        html += lede('A corner table, a guttering candle, people talking low. The great are talked about here, and so are you. Some of it is true.');
+        html += chips([purse(gold)]);
 
         // Tales about the great told in this town
         const tales = Whispers.listenAt(player, q, r);
-        html += `<div style="${HEAD} color: var(--gold);">Tales Told Here</div>`;
-        if (!tales.length) html += `<div style="${CARD} color:#999;">Nothing about the great is going round ${_esc(tile.settlement.name)} just now.</div>`;
-        for (const sc of tales) html += _taleCard(Whispers.view(player, world, sc, q, r));
+        html += sectionHead('Tales told here');
+        if (!tales.length) html += lede(`Nothing about the great is going round ${esc(tile.settlement.name)} just now.`);
+        for (const sc of tales) html += _taleCard(Whispers.view(player, world, sc, q, r), gold);
 
         // Talk about the player, as it is told here
         const talk = Gossip.getTavernGossip(player, q, r, world);
         const bard = Whispers.config().bard.cost;
-        html += `<div style="${HEAD} color:#9ab;">Talk of You</div>`;
-        if (!talk.length) html += `<div style="${CARD} color:#999;">Nobody here is talking about you. Yet.</div>`;
-        for (const t of talk) {
-            html += `<div style="${CARD}"><div>${t.icon || '🗣️'} <span style="color:#ddd;">"${_esc(t.text)}"</span></div>`;
-            html += `<div style="font-size:11px; color:#999;">${_esc(t.freshness)}${t.telling ? ` · told here as: <span style="color:#e0b040;">${_esc(t.telling.label)}</span>` : ''}${t.hasBounty ? ` · <span style="color:#e08080;">bounty ${t.bountyGold}g</span>` : ''}</div>`;
-            if (t.refutable) html += _btn((player.gold || 0) >= bard, `🎻 Pay a bard to sing it down (${bard}g)`, `window._whispers.sing(${t.id})`, BTN_PLAIN, `The bard wants ${bard}g`);
-            html += '</div>';
+        if (!talk.length) html += sectionHead('Talk of you') + lede('Nobody here is talking about you. Yet.');
+        else {
+            html += rowList(talk.map(t => {
+                const meta = [esc(t.freshness), t.telling ? `told here as: <span style="color:#e0b040;">${esc(t.telling.label)}</span>` : '', t.hasBounty ? `<span style="color:#e08080;">bounty ${t.bountyGold}g</span>` : ''].filter(Boolean).join(' · ');
+                if (!t.refutable) return { icon: t.icon || '🗣️', name: `“${esc(t.text)}”`, desc: meta };
+                const ok = gold >= bard;
+                return { icon: t.icon || '🗣️', name: `“${esc(t.text)}”`, desc: meta, note: '🎻 Pay a bard to sing it down', side: price(bard, ok), off: !ok, why: `${meta} · the bard wants ${bard}g`, attrs: ok ? `onclick="window._whispers.sing(${t.id})"` : '' };
+            }), 'Talk of you');
         }
 
         // Start a tale of your own
         const targets = Whispers.plantTargets(player, world);
         const kinds = Whispers.kinds();
         const cost = Whispers.config().plant.cost;
-        html += `<div style="${HEAD} color:#c9a0ff;">Start a Tale</div>`;
-        html += `<div style="${CARD}"><div style="color:#aaa; margin-bottom:4px;">Say it loud enough, in enough taverns, and it becomes true, or near enough: keep a lie red-hot for ${Whispers.config().harden.days} days and it is either believed for good (likelier the more of the realm tells it and the shakier its subject) or debunked. If it's traced back to you, the talk will be about you instead.</div>`;
+        html += sectionHead('Start a tale');
+        let start = `<div style="${MUTED} margin-bottom:6px;">Keep a lie red-hot for ${Whispers.config().harden.days} days and it is either believed for good (likelier the more of the realm tells it) or debunked. Traced back to you, the talk turns on you.</div>`;
         if (!targets.length) {
-            html += '<div style="color:#888;">There is no one worth talking about.</div>';
+            start += `<div style="${MUTED}">There is no one worth talking about.</div>`;
         } else {
-            html += '<select id="whispers-target" onchange="window._whispers.kinds()" style="max-width:100%; margin:2px 4px 2px 0;">';
-            targets.forEach((t, i) => { html += `<option value="${i}">${_esc(t.name)}${t.realm ? ` (${_esc(t.realm)})` : ' (adventurer)'}</option>`; });
-            html += '</select><select id="whispers-kind" style="max-width:100%; margin:2px 4px 2px 0;"></select>';
-            html += `<br>${_btn((player.gold || 0) >= cost, `🕯️ Start the tale (${cost}g)`, 'window._whispers.plant()', BTN_GOLD, `It costs ${cost}g to set tongues wagging`)}`;
+            start += `<select id="whispers-target" onchange="window._whispers.kinds()" style="${SELECT}" aria-label="About whom">`;
+            targets.forEach((t, i) => { start += `<option value="${i}">${esc(t.name)}${t.realm ? ` (${esc(t.realm)})` : ' (adventurer)'}</option>`; });
+            start += `</select><select id="whispers-kind" style="${SELECT}" aria-label="What tale"></select><br>`;
+            start += gold >= cost
+                ? `<button onclick="window._whispers.plant()" style="${BTN_GOLD}">🕯️ Start the tale (${cost}g)</button>`
+                : `<button disabled title="It costs ${cost}g to set tongues wagging" style="${BTN_OFF}">🕯️ Start the tale (${cost}g)</button>`;
         }
-        html += '</div>';
+        html += card(start);
 
-        // How tales ended
+        // How tales ended, and the player's tallies
         const done = Whispers.record(player, 6);
-        if (done.length) {
-            html += `<div style="${HEAD} color:#999;">How the Tales Ended</div>`;
-            for (const d of done) {
-                const [icon, color, word] = OUTCOME[d.state] || OUTCOME.faded;
-                html += `<div style="padding:3px 0; color:#bbb;"><span style="color:${color};">${icon} ${word}</span> <span style="color:#777; font-size:10px;">day ${d.day}</span> ${_esc(d.text)}${d.planted || d.fanned ? ` <span style="color:#c9a0ff; font-size:10px;">(${d.planted ? 'your tale' : 'you fanned it'}${d.hardened ? ', a lie now believed' : ''}${d.traced ? ', traced to you' : ''})</span>` : ''}</div>`;
-            }
-        }
-
-        // The player's tallies
         const ws = Whispers.stats(player);
-        if (Object.values(ws).some(n => n > 0)) {
-            html += `<div style="margin-top:8px; font-size:10px; color:#888;">Your whispering: ${ws.planted} planted · ${ws.fanned} fanned · ${ws.quashed} quashed · ${ws.hardened} lies believed · ${ws.debunked} debunked · ${ws.traced} traced to you · ${ws.blackmailed} blackmailed · ${ws.sold} proofs sold</div>`;
+        if (done.length || Object.values(ws).some(n => n > 0)) {
+            let past = rowList(done.map(d => {
+                const [icon, tone, word] = OUTCOME[d.state] || OUTCOME.faded;
+                const mine = d.planted || d.fanned ? `${d.planted ? 'your tale' : 'you fanned it'}${d.hardened ? ', a lie now believed' : ''}${d.traced ? ', traced to you' : ''}` : '';
+                return { icon, name: esc(d.text), desc: mine, side: `${word} <span style="${MUTED}">· day ${d.day}</span>`, tone };
+            }));
+            if (Object.values(ws).some(n => n > 0)) {
+                past += chips([['🕯️', 'Planted', ws.planted], ['🔥', 'Fanned', ws.fanned], ['🤫', 'Quashed', ws.quashed], ['✔', 'Lies believed', ws.hardened], ['🕊️', 'Debunked', ws.debunked], ['👣', 'Traced to you', ws.traced], ['✉️', 'Blackmailed', ws.blackmailed], ['📜', 'Proofs sold', ws.sold]].filter(c => c[2] > 0));
+            }
+            html += more('How the tales ended', past);
         }
         html += '</div>';
 
@@ -112,7 +116,7 @@ Object.assign(ActionMenu, {
             }
             game.ui.updateStats(player, world);
             const bad = res.refused || res.noticed;
-            ActionMenu.showWhispersPanel(game, tile, { html: `🕯️ ${_esc(res.text)}`, color: bad ? 'rgba(224,80,80,0.5)' : null });
+            ActionMenu.showWhispersPanel(game, tile, { html: `🕯️ ${esc(res.text)}`, color: bad ? 'rgba(224,80,80,0.5)' : null });
         };
         window._whispers = {
             act: (what, id) => {
@@ -128,7 +132,7 @@ Object.assign(ActionMenu, {
                 const out = document.getElementById('whispers-kind');
                 if (!sel || !out) return;
                 const t = targets[Number(sel.value)];
-                out.innerHTML = (t ? t.kinds : []).map(k => `<option value="${k}">${(kinds[k] && kinds[k].icon) || ''} ${_esc((kinds[k] && kinds[k].label) || k)}</option>`).join('');
+                out.innerHTML = (t ? t.kinds : []).map(k => `<option value="${k}">${(kinds[k] && kinds[k].icon) || ''} ${esc((kinds[k] && kinds[k].label) || k)}</option>`).join('');
             },
             plant: () => {
                 const sel = document.getElementById('whispers-target');

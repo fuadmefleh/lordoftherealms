@@ -12,7 +12,7 @@ function makeWorld(day = 10) {
     for (let q = 0; q < 12; q++) {
         for (let r = 0; r < 12; r++) tiles.set(`${q},${r}`, { q, r, terrain: plains });
     }
-    const kingdom = { id: 'k1', name: 'Varr', isAlive: true, military: 1000, territory: [], population: 5000 };
+    const kingdom = { id: 'k1', name: 'Varr', isAlive: true, military: 1000, treasury: 5000, territory: [], population: 5000 };
     const enemySettlement = { name: 'Varrholt', q: 9, r: 9, kingdom: 'k1', population: 2000 };
     tiles.get('9,9').settlement = enemySettlement;
     return {

@@ -25,6 +25,8 @@ import { DataLoader } from '../../core/dataLoader.js';
 import { installShaderPrep } from './shaderPrep.js';
 
 const JSON_ANY_OBJECT = JSON.stringify({ type: 'object' });
+// (a schema the grammar compiler refused once is not tried again this session)
+let schemaRefused = false;
 const FALLBACK = { defaultModel: 'Llama-3.2-3B-Instruct-q4f16_1-MLC', timeoutMs: 60000, maxTokens: 160, models: [] };
 
 // ── Injectable seams (tests swap these; the game uses the defaults) ──
@@ -47,6 +49,7 @@ let gpuSource = defaultGpu;
 let lib = null;                // the imported module
 let engine = null;             // WebWorkerMLCEngine (or MLCEngine on the main thread as a fallback)
 let engineModel = null;        // the model id the engine has loaded
+let lastLoadedId = null;       // the last model loaded (to reload after a fatal error)
 let loadPromise = null;
 let support = null;            // Promise<{ ok, detail }>, checked once
 let queue = Promise.resolve(); // one generation at a time
@@ -154,7 +157,47 @@ function enqueue(timeoutMs, job) {
         run.catch(() => null),
         new Promise((r) => setTimeout(r, timeoutMs + 5000)),
     ]);
-    return run.catch(() => ({ ok: false, reason: 'webllm error' }));
+    return run.catch((e) => { logFail('generation', e); return { ok: false, reason: `webllm: ${errText(e)}` }; });
+}
+
+/**
+ * What went wrong, as text. WebLLM's worker rejects with a plain string
+ * (the error's toString()), not an Error, so `.message` alone loses it.
+ */
+function errText(e, fallback = 'webllm error') {
+    const t = e == null ? '' : (typeof e === 'string' ? e : (e.message || String(e)));
+    return t && t !== '[object Object]' ? t.slice(0, 200) : fallback;
+}
+
+/**
+ * An error after which the engine has no usable model: WebLLM disposed an
+ * object out from under a generation (its grammar matcher, the model's
+ * tensors), it reports the model unloaded, or the GPU device was lost.
+ */
+function isFatal(e) {
+    return /disposed|ModelNotLoaded|not loaded|device (was )?lost|DeviceLost/i.test(errText(e, ''));
+}
+
+/** Load the model the engine had again, after a fatal error. → whether it is back. */
+async function revive() {
+    const id = engineModel || lastLoadedId;
+    if (!engine || !id) return false;
+    logPath(`reloading ${id} after an error`);
+    try {
+        await engine.reload(id);
+        engineModel = id;
+        setStatus({ state: 'ready', progress: 1, text: 'Ready', model: id, detail: '' });
+        return true;
+    } catch (e) {
+        logFail('reload', e);
+        engineModel = null;
+        setStatus({ state: 'error', detail: errText(e, 'the model failed to reload') });
+        return false;
+    }
+}
+
+function logFail(where, e) {
+    try { console.warn(`[webllm] ${where} failed:`, e); } catch { /* no console */ }
 }
 
 function logPath(msg) {
@@ -341,6 +384,7 @@ export const WebLlm = {
                 }
                 onProgress.cancel();
                 engineModel = id;
+                lastLoadedId = id;
                 // The first reply compiles the GPU pipelines (tens of seconds on
                 // some machines): do it now, so the first real line isn't the slow one
                 setStatus({ state: 'loading', progress: 1, text: 'Warming up the model…' });
@@ -354,7 +398,8 @@ export const WebLlm = {
             } catch (e) {
                 if (onProgress) onProgress.cancel();
                 engineModel = null;
-                const msg = (e && e.message) ? String(e.message).slice(0, 200) : 'the model failed to load';
+                logFail('load', e);
+                const msg = errText(e, 'the model failed to load');
                 setStatus({ state: 'error', detail: msg });
                 return { ok: false, reason: msg };
             }
@@ -390,7 +435,7 @@ export const WebLlm = {
             await lib.deleteModelAllInfoInCache(id, appConfig());
             return { ok: true };
         } catch (e) {
-            return { ok: false, reason: (e && e.message) || 'could not delete' };
+            return { ok: false, reason: errText(e, 'could not delete') };
         }
     },
 
@@ -406,8 +451,12 @@ export const WebLlm = {
         };
         if (opts.temperature != null) req.temperature = opts.temperature;
         // One JSON object. WebLLM 0.2.86 compiles json_object's `schema` even when
-        // there is none (and fails), so it always gets the loosest one
-        if (opts.json) req.response_format = { type: 'json_object', schema: JSON_ANY_OBJECT };
+        // there is none (and fails), so it always gets one: the caller's (opts.schema,
+        // the reply's shape, enforced token by token), else the loosest
+        if (opts.json || opts.schema) {
+            const schema = opts.schema && !schemaRefused ? (typeof opts.schema === 'string' ? opts.schema : JSON.stringify(opts.schema)) : JSON_ANY_OBJECT;
+            req.response_format = { type: 'json_object', schema };
+        }
         if (stream) req.stream_options = { include_usage: false };
         return req;
     },
@@ -416,17 +465,42 @@ export const WebLlm = {
     async chat(messages, opts = {}) {
         if (!engine || status.state !== 'ready') return { ok: false, reason: 'model not loaded' };
         const timeoutMs = opts.timeoutMs || WebLlm.catalog().timeoutMs;
+        const once = async (o) => {
+            const res = await engine.chat.completions.create(WebLlm._request(messages, o, false));
+            const text = res && res.choices && res.choices[0] && res.choices[0].message && res.choices[0].message.content;
+            return typeof text === 'string' ? { ok: true, text: text.trim() } : { ok: false, reason: 'malformed response' };
+        };
         return enqueue(timeoutMs, () => withTimeout((async () => {
             try {
-                const res = await engine.chat.completions.create(WebLlm._request(messages, opts, false));
-                const text = res && res.choices && res.choices[0] && res.choices[0].message && res.choices[0].message.content;
-                if (typeof text !== 'string') return { ok: false, reason: 'malformed response' };
-                return { ok: true, text: text.trim() };
+                return await once(opts);
             } catch (e) {
-                return { ok: false, reason: (e && e.message) ? `webllm: ${String(e.message).slice(0, 120)}` : 'webllm error' };
+                logFail('reply', e);
+                // The engine lost its model (a disposed object, a lost device):
+                // load it again and ask once more
+                if (isFatal(e)) {
+                    if (!(await revive())) return { ok: false, reason: `webllm: ${errText(e)}` };
+                    try { return await once(opts); } catch (e2) {
+                        logFail('reply after reloading', e2);
+                        if (isFatal(e2)) await revive();
+                        return { ok: false, reason: `webllm: ${errText(e2)}` };
+                    }
+                }
+                // A schema the grammar compiler can't take: once more with any object
+                if (opts.schema && !schemaRefused) {
+                    schemaRefused = true;
+                    try { return await once(opts); } catch (e2) {
+                        logFail('reply without the schema', e2);
+                        if (isFatal(e2)) await revive();
+                        return { ok: false, reason: `webllm: ${errText(e2)}` };
+                    }
+                }
+                return { ok: false, reason: `webllm: ${errText(e)}` };
             }
         })(), timeoutMs, () => { try { engine.interruptGenerate(); } catch { /* gone */ } }));
     },
+
+    /** Test seam: forget that a schema was refused. */
+    _resetSchemaRefused() { schemaRefused = false; },
 
     /** A streamed reply; onDelta(textSoFar). Resolves like llmClient.chatStream; never throws. */
     async chatStream(messages, opts = {}, onDelta = null) {
@@ -450,7 +524,9 @@ export const WebLlm = {
                 return { ok: true, text: text.trim(), streamed: true };
             } catch (e) {
                 if (text.trim()) return { ok: true, text: text.trim(), streamed: true, partial: true };
-                return { ok: false, reason: 'webllm error' };
+                logFail('streamed reply', e);
+                if (isFatal(e)) await revive();
+                return { ok: false, reason: `webllm: ${errText(e)}` };
             }
         })(), timeoutMs, () => {
             timedOut = true;
@@ -475,6 +551,7 @@ export const WebLlm = {
         lib = null;
         engine = null;
         engineModel = null;
+        lastLoadedId = null;
         enginePath = null;
         loadPromise = null;
         support = null;

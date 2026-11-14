@@ -130,8 +130,14 @@ Object.assign(ActionMenu, {
             html += sectionHead('Tutor');
             if (p.tutor) {
                 const t = p.tutor;
-                html += card(`${t.icon} <b>${_esc(t.name)}</b> — ${t.focus ? `teaches ${_esc((Upbringing.focus(t.focus) || {}).name || t.focus)}` : 'teaches a little of everything'}, learning ×${t.multiplier.toFixed(2)}${t.wage ? `, ${t.wage}g a month` : ''}${t.kind === 'companion' ? ' (while they travel with you)' : ''}${t.kind === 'person' && t.traits && t.traits.length ? ` · ${t.traits.map(_esc).join(', ')}` : ''}.`
-                    + ` <button onclick="window._heirsUI.dismiss('${child.id}')" style="${BTN_DARK}">Dismiss</button>`);
+                html += rowList([{
+                    icon: t.icon, name: _esc(t.name),
+                    desc: `${t.focus ? `Teaches ${_esc((Upbringing.focus(t.focus) || {}).name || t.focus)}` : 'Teaches a little of everything'} · learning ×${t.multiplier.toFixed(2)}${t.wage ? ` · ${t.wage}g a month` : ''}${t.kind === 'companion' ? ' (while they travel with you)' : ''}${t.kind === 'person' && t.traits && t.traits.length ? ` · ${t.traits.map(_esc).join(', ')}` : ''}`,
+                    side: 'teaching', tone: 'gold',
+                }, {
+                    icon: '🚪', name: 'Dismiss the tutor', desc: 'To hire another in their place', tone: 'bad',
+                    attrs: `onclick="window._heirsUI.dismiss('${child.id}')"`,
+                }]);
             } else {
                 html += `<div style="${MUTED} margin:0 2px 6px;">No tutor. A tutor whose subject matches the focus speeds learning greatly.</div>`;
             }
@@ -176,7 +182,7 @@ Object.assign(ActionMenu, {
             const pl = Heirs.config();
             const tcfg = Throne.config();
             html += sectionHead('A Place in the World');
-            html += lede('Offices are granted from the House panel; skills decide how well they serve.');
+            html += lede('Give them an office in the House; the skill on the right decides how well they serve.');
             html += rowList(House.ROLE_IDS.map(r => {
                 const def = House.roleDefs()[r];
                 const on = p.role === r;
@@ -237,6 +243,8 @@ Object.assign(ActionMenu, {
                 desc: _esc(e.text), side: `Age ${e.age}`,
             })), 'Childhood');
         }
+        // What could be done about them, that no one should hear (ui/actionMenu/kinCrimes.js)
+        if (p.alive) html += rowList([{ icon: '🌑', name: 'Dark counsel', desc: 'Remove them from the succession, cast them out, or wed them against their will', act: 'showKinCrimes', args: [child.id], side: '›' }]);
         html += rowList([BACK_TO_DYNASTY]);
         html += '</div>';
 
@@ -316,9 +324,20 @@ Object.assign(ActionMenu, {
             ['📜', 'Legacy', d.score],
             [d.rank.icon, _esc(d.rank.label), ''],
         ]));
-        html += sectionHead('Reigns');
-        html += ActionMenu._reignsHtml(d.reigns);
-        html += rowList([BACK_TO_DYNASTY]);
+        // One row a reign: the full tellings live in the Annals, the people in the Family Tree
+        html += rowList(d.reigns.slice().reverse().map(r => ({
+            icon: r.live ? '👑' : '⚰️',
+            name: `${_esc(r.name)}${r.epithet ? ` <i style="color:#c9b27a; font-weight:400;">${_esc(r.epithet)}</i>` : ''}`,
+            desc: `Gen ${r.generation} · day ${r.startDay}–${r.live ? 'now' : r.endDay} · ${r.years} years${r.crown ? ` · 👑 ${_esc(r.crown)}` : ''}${r.cause ? ` · died of ${_esc(r.cause)}` : ''}`,
+            side: `📜 ${r.score}`, tone: r.live ? 'gold' : '',
+            title: 'Legacy earned in this reign; click for the realm in those years',
+            act: 'showTimeline', args: [{ day: r.startDay }],
+        })), 'Reigns');
+        html += rowList([
+            { icon: '📖', name: 'The Annals', desc: 'Each reign told in full: deeds, rulings, crowns won and lost', act: 'showAnnals', side: '›' },
+            { icon: '🌳', name: 'The Family Tree', desc: 'Everyone of the blood, living and dead', act: 'showDynastyTree', side: '›' },
+            BACK_TO_DYNASTY,
+        ]);
         html += '</div>';
         game.ui.showCustomPanel('📜 House Chronicle', html);
     },

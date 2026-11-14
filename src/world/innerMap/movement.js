@@ -564,20 +564,21 @@ Object.assign(InnerMap, {
             const fy = this.playerInnerR * T + T / 2;
             const tx = target.q * T + T / 2;
             const ty = target.r * T + T / 2;
-            return {
+            // (plus the way the current has carried a swimmer off the cell: world/innerMap/currents.js)
+            return this._drifted({
                 x: fx + (tx - fx) * progress,
                 y: fy + (ty - fy) * progress,
                 walking: true,
                 dq: target.q - this.playerInnerQ,
                 dr: target.r - this.playerInnerR
-            };
+            });
         }
-        return {
+        return this._drifted({
             x: this.playerInnerQ * T + T / 2,
             y: this.playerInnerR * T + T / 2,
             walking: false,
             dq: 0, dr: 0
-        };
+        });
     },
 
     /**

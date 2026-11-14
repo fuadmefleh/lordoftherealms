@@ -1,0 +1,173 @@
+{
+    "_doc": "Overheard talk (systems/overheard.js, ui/innerMapOverheard.js): when the player walks close by two townsfolk chatting on the street map, now and then one of them is talking about the player — a deed they remember, a rumour going round, the player's fame, a fight, a statue — and the tone is the speaker's own feeling. Frames: praise (a good thing, warmly), grudging (a good thing, sourly), defend (an ill thing, but they like the player), slander (an ill thing, told against the player), plain (neither). {Who}/{who} = the player (or a forebear), {gist} = what was done, {From}/{from} = who told them, {tale} = a court tale.",
+    "config": {
+        "enabled": true,
+        "radius": 6,
+        "chance": 0.35,
+        "cooldownSecs": [45, 90],
+        "perTownDay": 4,
+        "repeatDays": 12,
+        "warmAt": 6,
+        "coldAt": -6,
+        "dispositionShare": 0.5,
+        "relayScan": 60,
+        "relayMin": 4,
+        "relayShare": 0.7,
+        "brawlDays": 60,
+        "brawlKeep": 6,
+        "markDays": 90,
+        "chunk": 44,
+        "maxChunks": 3,
+        "lineSecs": 2.8,
+        "toastIll": true,
+        "llm": { "perDay": 2, "chance": 0.5, "maxLen": 150 }
+    },
+    "frames": {
+        "praise": ["{Who} {gist}. Good on {them}.", "{Who} {gist}, you know. A decent sort.", "Say what you like, {who} {gist}."],
+        "grudging": ["So {who} {gist}. Buying friends, I'd say.", "{Who} {gist}? Wants thanking for it, no doubt.", "Aye, {who} {gist}. I'm not fooled."],
+        "defend": ["They say {who} {gist}. I don't believe it.", "Folk say {who} {gist}. Lies, I reckon.", "{Who} {gist}? There's more to it, mark me."],
+        "slander": ["{Who} {gist}. A bad lot, that one.", "You know {who} {gist}? Keep clear of {them}.", "{Who} {gist}, and walks about bold as brass."],
+        "plain": ["{Who} {gist}, I hear.", "Did you know {who} {gist}?", "They're saying {who} {gist}."]
+    },
+    "sourced": {
+        "praise": ["{From} says {who} {gist}. Good on {them}.", "Had it from {from}: {who} {gist}."],
+        "grudging": ["{From} says {who} {gist}. Buying friends, I'd say.", "{From} won't stop on about how {who} {gist}. Pah."],
+        "defend": ["{From} says {who} {gist}. I don't believe it.", "{From} swears {who} {gist}. I'll believe it when I see it."],
+        "slander": ["{From} says {who} {gist}. A bad lot, that one.", "Had it from {from}: {who} {gist}. Keep clear."],
+        "plain": ["{From} says {who} {gist}.", "Had it from {from}: {who} {gist}."]
+    },
+    "tale": {
+        "plain": ["{tale}", "Have you heard? {tale}"],
+        "sourced": ["{From} told me. {tale}", "Had it from {from}. {tale}"]
+    },
+    "replies": {
+        "warm": ["Bless {them} for it.", "So I heard. Good.", "We could do with more like that."],
+        "cold": ["Hmph. Figures.", "I'd not trust {them} an inch.", "Doesn't surprise me."],
+        "plain": ["Is that so?", "You don't say.", "Well, well."],
+        "doubtIll": ["I don't believe a word of it.", "That's not the {who} I know.", "Careful who hears you say that."],
+        "doubtGood": ["Hmph. We'll see.", "I've heard otherwise.", "Don't be taken in."]
+    },
+    "witnessed": " I saw it myself.",
+    "roles": {
+        "blacksmith_npc": "the smith", "merchant": "the trader", "farmer": "the farmer", "priest": "the priest",
+        "guard": "of the watch", "noble": "the lord's man", "traveler": "the traveller", "beggar": "the beggar"
+    },
+    "from": {
+        "travelled": ["a carter from {place}", "folk in from {place}", "a pedlar out of {place}"],
+        "parent": "my {rel}"
+    },
+    "gists": {
+        "memory": {
+            "gift": "gave {whom} a gift",
+            "alms": "gave {whom} alms",
+            "healed": "nursed {whom} back to health",
+            "burial": "paid to bury {whom}",
+            "hired": "gave {whom} work",
+            "dismissed": "turned {whom} out of service",
+            "wages_unpaid": "never paid {whom} the wages owed",
+            "wed": "married into {whom}'s family",
+            "assaulted": "beat {whom}",
+            "murdered": "killed {whom}",
+            "robbed": "robbed {whom}",
+            "grave_robbed": "dug up {whom}'s grave",
+            "hanged": "had {whom} hanged",
+            "ruled_merciful": "showed mercy at court",
+            "ruled_harsh": "gave a harsh judgement at court",
+            "ruled_generous": "was open-handed at court",
+            "ruled_unjust": "gave an unjust ruling",
+            "dole": "fed this town in the famine",
+            "raided": "raided this town",
+            "conquered": "took this town by force",
+            "defended": "defended this town",
+            "amends": "made amends to {whom}",
+            "spurned": "never made amends to {whom}",
+            "threatened": "threatened {whom}",
+            "kept_faith": "kept faith with {whom}",
+            "abandoned": "left {whom} in the lurch",
+            "protected": "stood up for {whom}",
+            "insulted": "insulted {whom}",
+            "promise_kept": "kept a promise to {whom}",
+            "promise_broken": "broke a promise to {whom}",
+            "spoke_well": "has a good name with {whom}",
+            "spoke_ill": "has a bad name with {whom}",
+            "slandered": "has been spreading talk about {whom}",
+            "praised": "has been speaking up for {whom}"
+        },
+        "rumour": {
+            "murder": "murdered {victim} in {location}",
+            "vandalism": "smashed {victim} in {location}",
+            "assault": "attacked {victim} in {location}",
+            "theft": "stole from {victim} in {location}",
+            "slander": "is a coward and a cheat, says {victim}",
+            "merchant_slander": "pays late and sells short weight",
+            "contract_broken": "promised {victim} goods and never delivered",
+            "child_murder": "killed a child in {location}",
+            "guard_murder": "killed a guard in {location}",
+            "noble_murder": "killed a noble in {location}",
+            "priest_murder": "killed a holy person in {location}",
+            "sack": "sacked {location} and left it burning",
+            "famine_dole": "fed the hungry of {location}",
+            "feast_given": "kept a feast at {location} folk still talk of",
+            "pilgrimage_made": "walked the pilgrim's road to {location}",
+            "feast_brawl": "was brawling at {their} own feast",
+            "pardon": "pardoned {victim}",
+            "duel_won": "beat {victim} in a duel",
+            "beast_slain": "faced down {victim} in the wilds",
+            "wilds_rescue": "saved {victim} out in the wilds",
+            "wilds_find": "came back from the wilds with {victim}",
+            "affair": "is carrying on with {victim}",
+            "mail_opened": "reads other folk's letters",
+            "boast": "{victim}",
+            "whisperer": "was the one spreading lies about {victim}",
+            "blackmailer": "tried to blackmail {victim}"
+        },
+        "tellings": {
+            "grown": ", and worse besides",
+            "monstrous": ", and worse than you'd think",
+            "softened": ", though maybe not so bad",
+            "misplaced": "",
+            "garbled": ", or something like it",
+            "legend": ", single-handed",
+            "soured": ", for show",
+            "refuted": ", though there's a song says not"
+        },
+        "bounty": "has a price of {gold} gold on {their} head",
+        "wanted": "is wanted by the watch here for {crime}",
+        "crimes": { "assault": "a beating", "murder": "a killing", "theft": "a theft" },
+        "fame": {
+            "known": "is about these parts",
+            "celebrated": "is the talk of the realm",
+            "legend": "is a living legend",
+            "distrusted": "is not to be trusted",
+            "shunned": "is cursed by half the realm"
+        },
+        "townMark": {
+            "statue": "has a statue in our square",
+            "statueDefaced": "had {their} statue daubed, and earned it",
+            "name": "has our square named after {their} House",
+            "sack": "sacked this town"
+        },
+        "brawl": {
+            "parted": "pulled {a} and {b} apart at the {place}",
+            "joined": "waded into {a} and {b}'s fight at the {place}"
+        },
+        "tracedTale": "started that tale about {subject}"
+    },
+    "weights": {
+        "fame": { "known": 2, "celebrated": 5, "legend": 8, "distrusted": 4, "shunned": 7 },
+        "bounty": 8, "wanted": 9, "tale": 3, "tracedTale": 6, "townMark": 5, "brawl": 5, "rumourPer": 0.12, "rumourMax": 10
+    },
+    "persona": {
+        "ill": "Lately (day {day}) the player overheard you telling {to} that {said} If they bring it up, you may deny it, stand by it, or be caught out — as fits you; you know you said it.",
+        "good": "Lately (day {day}) the player overheard you telling {to} that {said} You need not be ashamed of it.",
+        "header": "SOMETHING THE PLAYER OVERHEARD YOU SAY:"
+    },
+    "log": {
+        "title": "👂 Overheard",
+        "line": "{speaker} ({role}) to {to}: \"{said}\"",
+        "spreading": "{first} is spreading it about you.",
+        "heardFrom": "{first} had it from {from}.",
+        "good": "Word of you is getting about {town}."
+    },
+    "llmStyle": "Say it as one line of street gossip spoken by a townsperson to a neighbour, in their own plain words, no more than twenty-five words, no quotation marks. Keep the feeling given."
+}

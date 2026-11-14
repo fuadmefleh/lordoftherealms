@@ -115,11 +115,23 @@ describe('the shore and the harbour', () => {
         expect(objects(o => o.harbour).length).toBe(0);
     });
 
-    it('at the dawn the shipwrights know nothing: a pier but no ships', () => {
+    it('at the dawn the shipwrights know nothing: no pier, no ships', () => {
         const g = coastGame({ settlement: { name: 'Fishby', type: 'town', population: 900, kingdom: null }, dawn: true });
         InnerMap.enter(g, 5, 6);
-        expect(InnerMap.tiles.some(row => row.some(t => t._pier))).toBe(true);
+        expect(InnerMap.tiles.some(row => row.some(t => t._sea))).toBe(true);
+        expect(InnerMap.tiles.some(row => row.some(t => t._pier))).toBe(false);
         expect(objects(o => o.harbour).length).toBe(0);
+    });
+
+    it('a village founded this year has no pier yet; a few years on it has one', () => {
+        const g = coastGame({ settlement: { name: 'Newby', type: 'village', population: 40, kingdom: null, founded: 1000 } });
+        g.world.year = 1001;
+        InnerMap.enter(g, 5, 6);
+        expect(InnerMap.tiles.some(row => row.some(t => t._pier))).toBe(false);
+        const old = coastGame({ settlement: { name: 'Oldby', type: 'village', population: 40, kingdom: null, founded: 1000 } });
+        old.world.year = 1004;
+        InnerMap.enter(old, 5, 6);
+        expect(InnerMap.tiles.some(row => row.some(t => t._pier))).toBe(true);
     });
 
     it('your ships docked here lie at the pier — once, however often you come', () => {

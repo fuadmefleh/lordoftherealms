@@ -31,6 +31,7 @@ import { OutlawLairs } from './outlawLairs.js';
 import { Sieges } from './sieges.js';
 import { HoldingSieges } from './holdingSieges.js';
 import { MerchantCaravans } from './merchantCaravans.js';
+import { TownCrimes } from './townCrimes.js';
 import { TradePolicy } from './tradePolicy.js';
 import { Harvests } from '../world/harvests.js';
 import { Transport } from '../world/transport.js';
@@ -491,6 +492,8 @@ export const MarketDynamics = {
             // Crown trade policy: embargoes cut, treaties widen; tariffs and bans per good (systems/tradePolicy.js)
             f *= TradePolicy.linkFactor(world, link, ka, kb);
             if (f > 0) f *= MerchantCaravans.fearFactor(world, link);
+            // A town under a plague scare: the traders keep away (systems/townCrimes.js)
+            if (f > 0) f *= TownCrimes.shunFactor(world, link);
             if (f > 0 && !link.embody && (lairs.length || raiders.length)) {
                 let dq = b.q - a.q;
                 if (W && Math.abs(dq) > W / 2) dq -= Math.sign(dq) * W;

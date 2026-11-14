@@ -1,0 +1,37 @@
+{
+    "_doc": "Letters written freely (systems/letterChat.js): the player writes in their own words to someone they know (Journal → Letters → Write → 'A letter in your own words'). The letter rides by the post like any other (systems/mail.js: travel days, loss, robbery, interception). Delivered, the AI brain writes the recipient's answer in their voice, from the same character sheet as free talk (systems/npcChat.js), and may act through the functions below; the answer rides back the same way. What they do is clamped as free talk is (data/npcChat.json limits: warmPerTurn, sourPerTurn, per day) plus the caps here. With the brain off at delivery, or failing to answer within waitDays of the reply's due day, the letter is read as the nearest plain kind (fallback) and answered by the usual letter writer (systems/mailVoice.js).",
+    "to": ["lord", "rival", "spouse", "npc", "folk", "companion"],
+    "minChars": 8,
+    "maxChars": 1200,
+    "maxTokens": 520,
+    "timeoutMs": 90000,
+    "_waitDays": "Days a reply due home may wait for the model to finish writing it before the plain letter writer answers instead.",
+    "waitDays": 3,
+    "replyMax": 1400,
+    "memoryLength": 160,
+    "gistLength": 140,
+    "_coin": "send_coin: coin they send back with the answer, out of their own real purse (a townsperson's purse, a lord's treasury, a rival head's purse): at most cap[type] and maxShare of what they have, once per letter. It rides with the reply and is lost if its messenger is robbed.",
+    "coin": { "maxShare": 0.25, "cap": { "folk": 15, "npc": 40, "spouse": 80, "companion": 30, "lord": 200, "rival": 120 } },
+    "_lord": "A lord's goodwill and offence are lord memories (data/lordMemory.json letter_heartfelt / letter_offence) weighted by the regard moved × warmWeight / sourWeight; a threat in the player's words is also remembered as letter_threat. Same-kind memories stack only up to the table's cap.",
+    "lord": { "warmWeight": 0.75, "sourWeight": 1.0 },
+    "_rival": "A rival House: regard moved is feud (1 feud per point, the other way), and the head remembers a warm letter as 'flattered', a sharp one as 'insult' (at insultAt or more).",
+    "rival": { "feudPerPoint": 1, "insultAt": 7 },
+    "_companion": "A companion away: a share of the regard moved is their approval too (systems/companions.js).",
+    "companion": { "approvalShare": 0.5 },
+    "_meet": "agree_to_meet: they will receive the player at their own town within days (clamped); kept or missed like a promised visit (systems/mail.js visits).",
+    "meet": { "minDays": 5, "maxDays": 60, "defaultDays": 30 },
+    "_offer": "The functions open in a letter, in order (those also in npcChat.json functions take their description from there unless given here). Each is offered only where it makes sense: feel_attraction to friends, loves and spouses; send_coin when they have coin; tell_family/grudges where they live on a town roster; keep_promise when promises are open.",
+    "offer": ["feel_attraction", "remember", "promise", "keep_promise", "send_coin", "agree_to_meet", "tell_family", "spread_word", "share_secret", "grow_grudge", "cool_grudge", "report_to_watch"],
+    "functions": {
+        "remember": "A lasting memory of the player from their letter, kept for future letters and talks: { \"fn\": \"remember\", \"fact\": \"...\" }. A promise, a confession, an insult, news worth keeping.",
+        "send_coin": "You send the player coin with your answer, out of your own purse: { \"fn\": \"send_coin\", \"amount\": <gold>, \"why\": \"...\" }. Only if you truly would: a loan asked of a friend, a gift to kin, help for someone you owe. Most people send nothing.",
+        "agree_to_meet": "You will receive the player in person at your home town: { \"fn\": \"agree_to_meet\", \"days\": <within how many days, 5-60>, \"why\": \"...\" }. Only if they asked to meet or visit and you would see them.",
+        "promise": "The player gave you their word in the letter and you hold them to it: { \"fn\": \"promise\", \"text\": \"what they promised, in a few words\", \"days\": <days to do it, 1-60>, \"gold\": <coin promised to you, if any> }. If they don't keep it in time, you will hold it against them."
+    },
+    "_fallback": "With no model: a letter carrying coin is read as a gift, words of threat (npcChat.json tone threat) as a threat, an apology (npcChat.json patience apology) as an apology, loving words to a love or spouse as a love letter, anything else as courtesy — each only where that kind may go to that recipient, else courtesy.",
+    "fallback": {
+        "loveWords": ["love", "beloved", "darling", "my heart", "miss you", "kiss", "sweetheart", "dearest", "adore"]
+    },
+    "deliveredText": "{to} has your letter in hand.",
+    "pendingText": "{to} is writing back."
+}

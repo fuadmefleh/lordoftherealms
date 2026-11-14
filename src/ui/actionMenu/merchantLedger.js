@@ -5,7 +5,9 @@
 // last, and the player's books: an income statement by source over a season
 // or a year (systems/ledger.js — every flow, from the stalls and ports to the
 // works, dividends, dues and interest), their net worth
-// (systems/economyChronicle.js) and their trading margins by good and route.
+// (systems/economyChronicle.js — one line here, the breakdown on the Chronicle's
+// 💰 Your Worth tab) and their trading margins by good and route. The trading
+// company's diagnosis lives on its own Ledger tab (merchantHouses.js).
 // Everything comes from the player's price book (systems/priceKnowledge.js) —
 // what they have seen or been told, never the live markets. Buttons route
 // through data-am-act → ActionMenu.merchantLedgerAct.
@@ -90,8 +92,7 @@ function bookTab(game) {
 function spreadsTab(game) {
     const { player, world } = game;
     const C = PriceKnowledge.config();
-    let html = lede(`The best margins your news shows between two towns within reach (days on foot, the quickest way: roads ¼–½ day a hex, open land ¾, a forest a day, mountains three): buy at the cheapest known asking price, sell where the stalls are known to pay most.`);
-    html += bullets(['Old news may be wrong.', 'A big lot moves the price against you.']);
+    let html = lede('The best known buy-here, sell-there margins within a few days on foot. Old news may be wrong, and a big lot moves the price against you.');
     html += `<div style="margin:6px 0;"><span style="${NOTE}">Within</span> ${RANGES.map(d => act(`${d} days`, ['days', d], d === view.days ? BTN_GOLD : BTN_PLAIN)).join('')}</div>`;
     const list = PriceKnowledge.spreads(player, world, { days: view.days, limit: 15 });
     if (!list.length) return html + `<div style="${NOTE}">Your news shows no margin within ${view.days} days. Learn more markets.</div>`;
@@ -143,15 +144,14 @@ function historyTab(game) {
 
 const col = (n) => `<span style="color:${n >= 0 ? GOOD : BAD};">${n >= 0 ? '+' : ''}${Math.round(n).toLocaleString()}g</span>`;
 
-/** The income statement over the chosen period, by group and category, and the net worth. */
+/** The income statement over the chosen period, by group and category, and the net worth (one line). */
 function statementHtml(game) {
     const { player, world } = game;
     const periods = Ledger.config().periods || [30, 120];
     if (!periods.includes(view.period)) view.period = periods[0];
     const st = Ledger.statement(player, world, view.period);
     let html = `<div style="margin:6px 0;"><span style="${NOTE}">Over the last</span> ${periods.map(d => act(d === 30 ? '30 days (a season)' : d === 120 ? '120 days (a year)' : `${d} days`, ['period', d], d === view.period ? BTN_GOLD : BTN_PLAIN)).join('')}</div>`;
-    html += lede(`Every gold flow you had, by source.${st.from != null ? ` Days ${st.from}–${st.to}.` : ''}`);
-    html += bullets(['Trading lines are margins: each sale against the average cost of what you bought (the cash for the goods is under capital and stock).']);
+    html += lede(`Every gold flow you had, by source${st.from != null ? ` (days ${st.from}–${st.to})` : ''}. Trading lines are margins; the cash paid for goods sits under capital and stock.`);
     if (!st.op.income.length && !st.op.expenses.length && !st.cap.length) return html + `<div style="${NOTE}">Nothing on the books yet: the ledger fills as the days pass.</div>`;
     html += kv('Net income', col(st.op.net));
     if (st.groups.length) html += chips(st.groups.map(g => [g.icon, esc(g.name), col(g.net)]));
@@ -160,16 +160,9 @@ function statementHtml(game) {
     html += `<tr><th style="${TH}">Expenses</th><th style="${TH}"></th></tr>${lines(st.op.expenses)}</table>`;
     if (st.cap.length) html += `${sectionHead('📦 Capital and stock (not profit or loss)')}<table style="width:100%; border-collapse:collapse; font-size:12px;">${lines(st.cap)}</table>`;
     if (st.memo.length) html += `<div style="${NOTE} margin-top:4px;">Of which inside your prices: ${st.memo.map(l => `${esc(l.name)} ${Math.abs(l.amount).toLocaleString()}g`).join(' · ')}</div>`;
+    // Net worth in one line: the breakdown and its history are the Chronicle's 💰 Your Worth tab
     const nw = EconomyChronicle.netWorth(player, world);
-    const A = nw.assets;
-    html += sectionHead(`💰 Net worth: ${col(nw.total)}`);
-    const debts = nw.debts.loans + nw.debts.guildLoans + nw.debts.arrears;
-    const nwChip = (label, v) => ['', label, v.toLocaleString(), v ? '' : 'dim'];
-    html += chips([
-        nwChip('Gold', A.gold), nwChip('Deposits', A.deposits), nwChip('Bonds', A.bonds), nwChip('Goods', A.goods),
-        nwChip('Properties', A.properties), nwChip('Works', A.works), nwChip('Ships', A.ships), nwChip('Company', A.company),
-        A.bank ? nwChip('Bank', A.bank) : null, ['', 'Debts', `−${debts.toLocaleString()}`, debts ? '' : 'dim'],
-    ]) + `<div style="margin:-4px 0 6px;">${act('📰 More', ['economy', 'worth'])}</div>`;
+    html += rowList([{ icon: '💰', name: 'Net worth', desc: 'What you own less what you owe, week by week', act: 'merchantLedgerAct', args: ['economy', 'worth'], side: col(nw.total), tone: 'gold' }]);
     return html;
 }
 
@@ -206,13 +199,12 @@ export function companyDiagnosisHtml(player, world) {
 function pnlTab(game) {
     const p = PriceKnowledge.pnl(game.player);
     let html = statementHtml(game);
-    html += companyDiagnosisHtml(game.player, game.world);
-    html += sectionHead('⚖️ Trading margins by good');
-    html += lede('Your dealings at the stalls, ports, store-rooms, forward contracts and with traders on the road.');
-    html += bullets([
-        'Each sale is set against the average cost of what you bought of that good (goods found, looted or made count as free).',
-        'Routes run from where you last bought the good to where you sold it.',
-    ]);
+    // The company's own books (and why it makes or loses money) live on the Trading Company's Ledger tab
+    if (MerchantHouses.company(game.player)) {
+        html += rowList([{ icon: '⚖️', name: 'Your trading company’s books', desc: 'Its profit and loss, each post, and why it makes or loses money', act: 'merchantLedgerAct', args: ['company'], side: '›' }]);
+    }
+    html += sectionHead('⚖️ Your own trading, by good');
+    html += lede('Each sale set against the average cost of what you bought of that good (goods found, looted or made count as free).');
     html += kv('Trading profit so far', col(p.total));
     if (!p.goods.length) return html + `<div style="${NOTE}">No trades yet.</div>`;
     html += `<table style="width:100%; border-collapse:collapse; font-size:12px;"><tr><th style="${TH}">Good</th><th style="${TH}">Bought</th><th style="${TH}">Sold</th><th style="${TH}">Profit</th></tr>`;
@@ -260,6 +252,7 @@ Object.assign(ActionMenu, {
             case 'days': view.days = Number(a) || 8; break;
             case 'period': view.period = Number(a) || 30; break;
             case 'economy': ActionMenu.showEconomy(game, a || null); return;
+            case 'company': ActionMenu.showTradingCompany(game, game.world.getTile(game.player.q, game.player.r), 'overview'); return;
             case 'map':
                 // The trade map, on this good
                 if (game.renderer) {

@@ -226,6 +226,9 @@ body {
     top: calc(100% + 6px);
     left: 0;
     min-width: 210px;
+    /* The Journal is long: it scrolls rather than run off a short window (the bar is --ui-zoom'd) */
+    max-height: calc(100vh / var(--ui-zoom, 1) - 80px);
+    overflow-y: auto;
     background: linear-gradient(180deg, rgba(16, 22, 38, 0.97) 0%, rgba(10, 14, 24, 0.98) 100%);
     border: 1px solid rgba(245, 197, 66, 0.2);
     border-radius: var(--radius-md);
@@ -309,6 +312,21 @@ body {
     height: 1px;
     background: rgba(245, 197, 66, 0.1);
     margin: 4px 8px;
+}
+
+/* A small caption over a group of a dropdown's items (TopBar.jsx) */
+.civ-dd-heading {
+    padding: 7px 12px 2px;
+    font-family: var(--font-display);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: var(--text-muted, #8f8a7e);
+}
+.civ-dd-heading:not(:first-child) {
+    margin-top: 4px;
+    border-top: 1px solid rgba(245, 197, 66, 0.1);
 }
 
 /* Vertical separator between groups and end-turn */
@@ -1501,11 +1519,10 @@ body {
    ============================================ */
 
 .side-panel {
-    /* Docked beside the left icon rail (#hudLeftRail: left 12px, 84px wide),
-       above the character card, so the rail never shows through it */
+    /* Docked at the left edge under the top bar, above the character card */
     position: fixed;
     top: 72px;
-    left: 108px;
+    left: 12px;
     width: 300px;
     max-height: calc(100vh / var(--ui-zoom) - 72px - 132px);
     background: var(--bg-panel-solid);
@@ -4475,51 +4492,6 @@ button#turnDisplay:focus-visible { box-shadow: 0 0 0 1px var(--gold-dark); }
 .tb-portrait.has-sprite, .hud-char-portrait.has-sprite { font-size: 0; }
 .hud-char-portrait .hud-portrait-canvas { top: -4px; }
 
-/* ── Left icon rail ── */
-#hudLeftRail {
-    position: fixed;
-    left: 12px;
-    top: 72px;
-    width: 84px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    padding: 8px 6px;
-    z-index: 90;
-}
-.hud-rail-btn {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 3px;
-    padding: 9px 4px;
-    border: 1px solid transparent;
-    border-radius: var(--radius-md);
-    background: transparent;
-    color: var(--text-secondary);
-    cursor: pointer;
-    transition: all var(--transition-fast);
-}
-.hud-rail-icon { font-size: 20px; line-height: 1; }
-.hud-rail-label {
-    font-family: var(--font-display);
-    font-size: 8.5px;
-    font-weight: 600;
-    letter-spacing: 0.6px;
-    text-transform: uppercase;
-}
-.hud-rail-btn:hover {
-    background: rgba(245, 197, 66, 0.08);
-    border-color: rgba(245, 197, 66, 0.2);
-    color: var(--gold-light);
-}
-.hud-rail-btn.active {
-    background: linear-gradient(180deg, rgba(245, 197, 66, 0.16), rgba(245, 197, 66, 0.04));
-    border-color: var(--gold-dark);
-    color: var(--gold-light);
-    box-shadow: inset 0 0 10px rgba(245, 197, 66, 0.12);
-}
-
 /* ── Right info panel ── */
 #hudRightRail {
     position: fixed;
@@ -4848,33 +4820,10 @@ button#turnDisplay:focus-visible { box-shadow: 0 0 0 1px var(--gold-dark); }
 }
 .minimap-zoom-btn:hover { border-color: var(--gold); background: rgba(245, 197, 66, 0.12); }
 
-/* ── Rows for the lightweight Diplomacy / Settlements panels ── */
-.hud-faction-row, .hud-settle-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 9px 12px;
-    margin-bottom: 6px;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(245, 197, 66, 0.1);
-    border-radius: var(--radius-md);
-    cursor: pointer;
-    transition: all var(--transition-fast);
-}
-.hud-faction-row:hover, .hud-settle-row:hover { background: rgba(245, 197, 66, 0.08); border-color: var(--gold-dark); }
-.hud-faction-swatch { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.4); }
-.hud-faction-name, .hud-settle-name { flex: 1; font-weight: 600; color: var(--text-primary); }
-.hud-faction-rep { font-size: 12px; font-weight: 600; }
-.hud-settle-type { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
-.hud-settle-pop { font-size: 12px; color: var(--gold-light); min-width: 70px; text-align: right; }
-
 /* ── Responsive: tighten on narrower viewports ── */
 @media (max-width: 1320px) {
     #hudRightRail { width: 264px; }
     #simsBottomHUD { min-width: 540px; }
-    .hud-rail-label { display: none; }
-    #hudLeftRail { width: 56px; }
-    .side-panel { left: 80px; }
 }
 @media (max-width: 1080px) {
     #hudCharCard { width: 240px; }
@@ -5108,8 +5057,6 @@ body > :not(#root):not(script):not(style):not(#buildingCreatorOverlay):not(a) {
 /* ── Readable floor: the HUD's smallest labels (8.5–10px) ── */
 .hud-tab.civ-menu-btn .civ-menu-label { font-size: 10.5px; }
 .hud-tab.civ-menu-btn .civ-menu-icon { font-size: 19px; }
-.hud-rail-label { font-size: 10px; }
-.hud-rail-icon { font-size: 22px; }
 #turnDisplay { font-size: 11px; }
 .tb-res-sub, .hud-bb-res-sub { font-size: 10px; }
 .hud-region-stat-label { font-size: 10px; }
@@ -5120,7 +5067,7 @@ body > :not(#root):not(script):not(style):not(#buildingCreatorOverlay):not(a) {
 .hud-bb-date { font-size: 13px; }
 
 /* Keyboard focus is visible on every HUD control */
-.hud-tab:focus-visible, .hud-rail-btn:focus-visible, .tb-icon-btn:focus-visible,
+.hud-tab:focus-visible, .tb-icon-btn:focus-visible,
 .hud-speed-btn:focus-visible, .hud-end-turn:focus-visible, .minimap-zoom-btn:focus-visible,
 .title-btn:focus-visible, .panel-nav-tab:focus-visible, .panel-subtab:focus-visible {
     outline: 2px solid var(--gold);
@@ -5220,15 +5167,8 @@ body > :not(#root):not(script):not(style):not(#buildingCreatorOverlay):not(a) {
 }
 .settings-actions .title-btn { min-width: 170px; }
 
-/* Rail fits its longest label (SETTLEMENTS); panels docked beside it follow */
-#hudLeftRail { width: 92px; }
-.hud-rail-label { letter-spacing: 0.3px; white-space: nowrap; }
-.side-panel { left: 116px; }
 .hud-bb-datecol { min-width: 176px; }
-@media (max-width: 1320px) {
-    #hudLeftRail { width: 56px; }
-    .side-panel { left: 80px; }
-}
+
 
 /* Settings: the toggle is itself a <label>, so `.gs-row > label` stretched it */
 .gs-row > label.gs-toggle { min-width: 0; width: 42px; flex-shrink: 0; }
@@ -5993,42 +5933,6 @@ body #customPanel:has(.tech-tab-content) { height: var(--panel-max-h); }
 }
 .civ-dropdown-item:hover::before { opacity: 1; transform: scaleY(1); }
 
-/* Left rail: glyph on a struck medallion; the active one hangs a gold notch */
-.hud-rail-icon,
-#hudLeftRail .hud-rail-icon {
-    width: 38px;
-    height: 38px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 22px;
-    color: #a98a4c;
-    border-radius: 50%;
-    background: radial-gradient(circle at 50% 30%, rgba(60, 72, 100, 0.55), rgba(8, 11, 20, 0.85));
-    box-shadow: inset 0 0 0 1px rgba(245, 197, 66, 0.18), inset 0 -3px 6px rgba(0, 0, 0, 0.5);
-    transition: all var(--transition-fast);
-}
-.hud-rail-btn { position: relative; }
-#hudLeftRail .hud-rail-btn:hover .hud-rail-icon { color: var(--gold-light); box-shadow: inset 0 0 0 1px rgba(245, 197, 66, 0.45), 0 0 12px rgba(245, 197, 66, 0.15); }
-#hudLeftRail .hud-rail-btn.active .hud-rail-icon {
-    color: #1a1206;
-    background: radial-gradient(circle at 50% 30%, var(--gold-light), var(--gold) 45%, var(--gold-dark));
-    box-shadow: 0 0 14px rgba(245, 197, 66, 0.45), inset 0 -2px 4px rgba(120, 80, 10, 0.6);
-}
-.hud-rail-btn.active .hud-rail-icon .ico { filter: drop-shadow(0 1px 0 rgba(255, 240, 200, 0.5)); }
-.hud-rail-btn.active::before {
-    content: '';
-    position: absolute;
-    left: -7px;
-    top: 50%;
-    width: 8px;
-    height: 8px;
-    background: var(--gold);
-    transform: translateY(-50%) rotate(45deg);
-    box-shadow: 0 0 8px var(--gold-glow);
-}
-.hud-rail-btn.active { background: transparent; box-shadow: none; border-color: transparent; }
-
 /* Purse, renown, arms — each in its own metal */
 .tb-res-icon, .hud-bb-res-icon { display: flex; font-size: 19px; color: var(--gold); }
 .hud-bb-res-icon { font-size: 17px; }
@@ -6290,10 +6194,9 @@ body #customPanel:has(.tech-tab-content) { height: var(--panel-max-h); }
 
 /* ============================================
    TOWN VIEW — on the street map the kingdom-level chrome steps aside:
-   the left rail (armies, settlements…) and the world region card mean
-   nothing while you walk a village street. Set by innerMap.js.
+   the world region card means nothing while you walk a village street.
+   Set by innerMap.js.
    ============================================ */
-body.inner-map-view #hudLeftRail,
 body.inner-map-view #hudRegionCard,
 body.inner-map-view #hexInfoPanel { display: none; }
 
@@ -6525,6 +6428,8 @@ body #customPanel.custom-panel--hub { width: min(760px, calc(94vw / var(--ui-zoo
 }
 #customPanel .pk-chip b { color: #ece2c8; }
 #customPanel .pk-chip.gold b { color: #ffcf6a; }
+#customPanel .pk-chip.good b { color: #8fd18a; }
+#customPanel .pk-chip.bad b { color: #e58a7a; }
 #customPanel .pk-kv { border-bottom-color: rgba(245, 197, 66, 0.07); }
 #customPanel .pk-kv > :first-child { color: #9d937c; }
 #customPanel .pk-kv > :last-child { color: #ece2c8; }

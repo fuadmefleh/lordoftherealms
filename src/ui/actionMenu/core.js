@@ -79,23 +79,23 @@ const AMX_WAX = {
 const AMX_GROUP_MIN = 8;
 const AMX_GROUPS = {
     hearth: [
-        { id: 'rest', icon: '🛏️', label: 'Rest & Body', types: ['rest', 'pass_time', 'eat_meal', 'seek_physician', 'craft_campfire', 'meditate', 'wait_here'] },
+        { id: 'rest', icon: '🛏️', label: 'Rest & Body', types: ['rest', 'pass_time', 'eat_meal', 'seek_physician', 'craft_campfire', 'meditate', 'bathe', 'wash_clothes'] },
         { id: 'gather', icon: '🧺', label: 'Gather & Hunt', types: ['forage', 'hunt', 'fish', 'trap_furs', 'ice_fish', 'clear_trees', 'prospect', 'tame_horse', 'dig_treasure'] },
         { id: 'explore', icon: '🔭', label: 'Explore', types: ['explore_poi', 'delve', 'delve_resume', 'explore_inner_map', 'explore_ocean'] },
         { id: 'sea', icon: '⛵', label: 'Ship & Shore', types: ['disembark', 'row_ashore', 'row_to_ship', 'make_for_port'] },
         { id: 'clan', icon: '🔥', label: 'The Clan', types: ['dawn_settle', 'dawn_instep'] },
     ],
     market: [
-        { id: 'trade', icon: '⚖️', label: 'Buy & Sell', types: ['trade', 'port_market', 'livestock_market', 'meet_trader', 'furniture_maker', 'ship_hold', 'stolen_goods'] },
+        { id: 'trade', icon: '⚖️', label: 'Buy & Sell', types: ['trade', 'port_market', 'livestock_market', 'meet_trader', 'furniture_maker', 'ship_hold'] },
         { id: 'work', icon: '🔨', label: 'Work & Wages', types: ['odd_jobs', 'busking', 'bounty_board', 'commissions', 'planting_contract', 'putting_out', 'contract'] },
         { id: 'money', icon: '🏦', label: 'Money & Banking', types: ['bank', 'found_bank', 'underwriter', 'bourse', 'mint', 'trading_company', 'guildhall', 'post_house'] },
         { id: 'property', icon: '🏠', label: 'Property & Estates', types: ['collect_goods', 'manage_property', 'town_lots', 'estates', 'manage_lodging', 'graveyards', 'my_herds'] },
         { id: 'transport', icon: '🐫', label: 'Caravans & Ships', types: ['start_caravan', 'trade_lines', 'ship_passage', 'visit_shipyard', 'board_ship', 'manage_fleet', 'hire_sailors'] },
-        { id: 'shady', icon: '🎲', label: 'Back Rooms', types: ['smuggle', 'pickpocket', 'gambling', 'underworld'] },
+        { id: 'shady', icon: '🎲', label: 'Back Rooms', types: ['smuggle', 'pickpocket', 'stolen_goods', 'gambling', 'underworld', 'town_crimes'] },
     ],
     folk: [
         { id: 'talk', icon: '🍺', label: 'Tavern & Talk', types: ['tavern', 'talk_locals', 'meet_people', 'view_relationships', 'languages', 'your_parents', 'lodging'] },
-        { id: 'faith', icon: '⛪', label: 'Faith', types: ['preach', 'denounce_heresy', 'pilgrimage', 'miracle', 'donate', 'bless_settlement'] },
+        { id: 'faith', icon: '⛪', label: 'Faith & Healing', types: ['preach', 'denounce_heresy', 'pilgrimage', 'miracle', 'donate', 'bless_settlement', 'town_sickness'] },
     ],
     court: [
         { id: 'realm', icon: '👑', label: 'Crown & Realm', types: ['pledge_allegiance', 'renounce_allegiance', 'realm_wars', 'form_kingdom', 'claims_crowns', 'royal_court', 'treasury', 'collect_tax', 'hold_council', 'hold_court'] },
@@ -105,8 +105,8 @@ const AMX_GROUPS = {
         { id: 'intrigue', icon: '🗝️', label: 'Intrigue & the Law', types: ['espionage_menu', 'manage_spies', 'request_bounty', 'capture_fugitive'] },
     ],
     arms: [
-        { id: 'army', icon: '🛡️', label: 'The Army', types: ['recruit', 'army_command', 'train_combat', 'arms_armour', 'reforge_artifact'] },
-        { id: 'fight', icon: '⚔️', label: 'Fight', types: ['attack_unit', 'attack_settlement', 'siege_camp', 'capture_criminal', 'outlaw_lair'] },
+        { id: 'army', icon: '🛡️', label: 'The Army', types: ['recruit', 'army_command', 'household_guard', 'train_combat', 'arms_armour', 'reforge_artifact'] },
+        { id: 'fight', icon: '⚔️', label: 'Fight', types: ['attack_unit', 'attack_settlement', 'siege_camp', 'dark_deeds', 'capture_criminal', 'outlaw_lair'] },
         { id: 'sea', icon: '⚓', label: 'At Sea', types: ['hunt_pirates', 'commit_piracy', 'raid_haven', 'landing_party', 'sea_rovers'] },
     ],
     works: [
@@ -237,14 +237,14 @@ Object.assign(ActionMenu, {
 
         const mapping = {
             rest: 'general', pass_time: 'general', eat_meal: 'general', seek_physician: 'general', explore_poi: 'general', delve: 'general', delve_resume: 'general', clear_trees: 'general', dig_treasure: 'general',
-            forage: 'general', hunt: 'general', meditate: 'general', fish: 'general',
+            forage: 'general', hunt: 'general', meditate: 'general', fish: 'general', bathe: 'general', wash_clothes: 'general',
             trap_furs: 'general', ice_fish: 'general', planting_contract: 'commerce',
             prospect: 'general', tame_horse: 'general', craft_campfire: 'general', languages: 'social', dawn_settle: 'general', dawn_instep: 'general', your_parents: 'social', commissions: 'commerce',
             disembark: 'general', row_ashore: 'general', row_to_ship: 'general', ship_hold: 'commerce', port_market: 'commerce', explore_ocean: 'general', make_for_port: 'general', hunt_pirates: 'military', commit_piracy: 'military', raid_haven: 'military', landing_party: 'military', explore_inner_map: 'general',
             trade: 'commerce', contract: 'commerce', ship_passage: 'commerce',
             collect_goods: 'commerce', manage_property: 'commerce', start_caravan: 'commerce',
             odd_jobs: 'commerce', bounty_board: 'commerce', busking: 'commerce', gambling: 'commerce',
-            smuggle: 'commerce', pickpocket: 'commerce', stolen_goods: 'social',
+            smuggle: 'commerce', pickpocket: 'commerce', stolen_goods: 'commerce', town_crimes: 'commerce',
             tavern: 'social', talk_locals: 'social', lodging: 'social', manage_lodging: 'commerce', town_lots: 'commerce', graveyards: 'commerce', town_sickness: 'social', livestock_market: 'commerce', my_herds: 'commerce', furniture_maker: 'commerce', preach: 'social', denounce_heresy: 'social',
             pilgrimage: 'social', miracle: 'social', donate: 'social',
             pledge_allegiance: 'social', renounce_allegiance: 'social',
@@ -252,7 +252,7 @@ Object.assign(ActionMenu, {
             form_kingdom: 'social', claims_crowns: 'social', royal_court: 'social',
             host_feast: 'social', hold_tournament: 'social', host_festival: 'social',
             meet_people: 'social', view_relationships: 'social', manage_dynasty: 'social',
-            recruit: 'military', attack_unit: 'military', attack_settlement: 'military', siege_camp: 'military',
+            recruit: 'military', attack_unit: 'military', attack_settlement: 'military', siege_camp: 'military', dark_deeds: 'military',
             train_combat: 'military', reforge_artifact: 'military', capture_criminal: 'military',
             request_meeting: 'social', meet_rival_house: 'social',
             build_property: 'building', build_temple: 'building',
@@ -279,7 +279,7 @@ Object.assign(ActionMenu, {
             guildhall: 'commerce',
             post_house: 'commerce',
             // (these used to fall through to General, swelling it to half the list)
-            arms_armour: 'military', army_command: 'military', outlaw_lair: 'military', sea_rovers: 'military',
+            arms_armour: 'military', army_command: 'military', household_guard: 'military', outlaw_lair: 'military', sea_rovers: 'military',
             hire_sailors: 'commerce', trading_company: 'commerce', underwriter: 'commerce', bourse: 'commerce',
             mint: 'commerce', estates: 'commerce', putting_out: 'commerce', meet_trader: 'commerce',
             treasury: 'social', meet_courier: 'social',
@@ -782,7 +782,7 @@ Object.assign(ActionMenu, {
         demolish_infrastructure: 6, send_pioneers: 6,
 
         // Combat / Major ship operations (8 AP)
-        attack_unit: 8, attack_settlement: 8, siege_camp: 0,
+        attack_unit: 8, attack_settlement: 8, siege_camp: 0, dark_deeds: 0,
         board_ship: 8, visit_shipyard: 1, row_ashore: 4, row_to_ship: 4, ship_hold: 0, port_market: 0, explore_ocean: 6, make_for_port: 0, hunt_pirates: 10, commit_piracy: 10, raid_haven: 10, landing_party: 0, sea_rovers: 0,
 
         // Title actions
@@ -799,7 +799,7 @@ Object.assign(ActionMenu, {
         // Outlaw lairs (the panel is free; each deed inside pays its own AP)
         meet_trader: 0, meet_courier: 0,
         // Lodgings (rooms and services are paid in gold, not time)
-        lodging: 0, manage_lodging: 0, town_lots: 0, graveyards: 0, town_sickness: 0, livestock_market: 0, my_herds: 0, furniture_maker: 0,
+        lodging: 0, manage_lodging: 0, town_lots: 0, graveyards: 0, town_crimes: 0, town_sickness: 0, livestock_market: 0, my_herds: 0, furniture_maker: 0,
         outlaw_lair: 0, lair_scout: 3, lair_assault: 8, lair_strike: 4, lair_parley: 1,
         rival_duel: 4, rival_race: 1, rival_sabotage: 2, rival_hire: 1, rival_team_up: 1,
     },
@@ -1397,6 +1397,9 @@ Object.assign(ActionMenu, {
             case 'siege_camp':
                 ActionMenu.showSiegePanel(game);
                 break;
+            case 'dark_deeds':
+                ActionMenu.showAtrocities(game);
+                break;
             case 'request_meeting':
                 ActionMenu.showLordMeetingMenu(game, tile, { type: actionType, unitId });
                 break;
@@ -1449,6 +1452,9 @@ Object.assign(ActionMenu, {
                 break;
             case 'underworld':
                 ActionMenu.showUnderworldPanel(game, tile);
+                break;
+            case 'town_crimes':
+                ActionMenu.showTownCrimes(game);
                 break;
             case 'guildhall':
                 ActionMenu.showGuildhall(game, tile);

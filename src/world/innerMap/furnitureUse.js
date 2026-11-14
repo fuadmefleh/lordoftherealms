@@ -253,17 +253,59 @@ Object.assign(InnerMap, {
         const t = this.getTile(act.spot.q, act.spot.r);
         const f = t && t._furniture;
         if (!f) return;
-        const head = f.piece ? { q: f.piece.q, r: f.piece.r } : { q: act.spot.q, r: act.spot.r };
-        if (this.npcs.some(n => n !== npc && n.activity && n.activity.on && n.activity.at && n.activity.at.q === head.q && n.activity.at.r === head.r)) return;
+        const head = this._pieceHead(act.spot.q, act.spot.r);
+        if (this._pieceTaken(head, npc)) return;
         act.from = { q: npc.q, r: npc.r };
         npc.q = npc.prevQ = head.q;
         npc.r = npc.prevR = head.r;
         npc.path = null;
         Object.assign(npc.activity, { on: def.on, at: head, piece: f.piece || null });
         npc._pose = def.on === 'lie' ? null : 2;
-        const backTo = f.type === 'pew' && f.facing === 'up';
         npc._seatOn = true;     // (on an impassable tile on purpose: world/innerMap/npcs.js leaves them be)
-        npc.facing = backTo ? 0 : 2;
+        npc.facing = this._pieceFacing(f);
+    },
+
+    /** The head tile of the piece at (q, r): where one sits on it (a big piece's origin, else the tile). */
+    _pieceHead(q, r) {
+        const t = this.getTile(q, r);
+        const f = t && t._furniture;
+        return f && f.piece ? { q: f.piece.q, r: f.piece.r } : { q, r };
+    },
+
+    /** True when someone other than `who` is sat (or lain) on the piece headed at `head`. */
+    _pieceTaken(head, who = null) {
+        return (this.npcs || []).some(n => n !== who && n.activity && n.activity.on && n.activity.at && n.activity.at.q === head.q && n.activity.at.r === head.r);
+    },
+
+    /** Which way one sat on a piece faces: out (down), or toward the altar from a pew that faces it (up). */
+    _pieceFacing(f) {
+        return f && f.type === 'pew' && f.facing === 'up' ? 0 : 2;
+    },
+
+    /**
+     * Where the player sits to use the furniture at (q, r) — the same seat an NPC takes:
+     * on the piece itself (FURNITURE_ACTIVITIES[type].on 'sit': a pew, the throne) at its head
+     * tile, facing out or toward the altar, held in the seated frame (_onPiece); or on a stool
+     * at a table's edge, facing it (def.seat). Null when it isn't a seat, or someone's on it.
+     * @returns {{ on?: 'sit', seat?: string, at: {q:number,r:number}, facing: number, pose: number|null, pew?: boolean }|null}
+     *   (pew: sat in a pew facing the altar, seen from behind — its back hides them below the shoulders)
+     */
+    playerSeatAt(q, r) {
+        const t = this.getTile(q, r);
+        const f = t && t._furniture;
+        const def = f && this.FURNITURE_ACTIVITIES[f.type];
+        if (!def || def.anim !== 'sitting') return null;
+        if (def.on === 'sit') {
+            const head = this._pieceHead(q, r);
+            // (an NPC there through the furniture visits steps off for you: yieldFurniture)
+            for (const n of (this.npcs || []).filter(n => n.activity && n.activity.on && n.activity.at && n.activity.at.q === head.q && n.activity.at.r === head.r)) {
+                if (n._act) this.yieldFurniture(n);
+            }
+            if (this._pieceTaken(head)) return null;
+            return { on: 'sit', at: head, facing: this._pieceFacing(f), pose: 2, pew: f.type === 'pew' && f.facing === 'up' };
+        }
+        if (def.seat) return { seat: def.seat, at: { q, r }, facing: this.getDirectionToward(q, r), pose: null };
+        return null;
     },
 
     /** Up off the piece, back onto the floor where they stood. */

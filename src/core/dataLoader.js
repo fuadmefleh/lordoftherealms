@@ -143,7 +143,9 @@ export const DataLoader = {
     async _doLoadGamedata() {
         // Always load the base gamedata.json from disk first
         console.log('[DataLoader] Fetching gamedata.json...');
-        const response = await fetch('/data/gamedata.json');
+        // (always asked of the server: the dev server's assets cache for an hour, and a
+        // rebuilt gamedata.json must not wait that long to be seen)
+        const response = await fetch('/data/gamedata.json', { cache: 'no-cache' });
         if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         this._gamedata = await response.json();
         console.log('[DataLoader] gamedata.json parsed successfully');

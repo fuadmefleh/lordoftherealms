@@ -166,3 +166,18 @@ describe('Town life', () => {
         expect(InnerMap.npcs.some(n => n.type === 'guard' && n.state !== 'inside_building')).toBe(true);
     });
 });
+
+describe('a night passed on the street map', () => {
+    it('everyone is somewhere new in the morning, and chats are dropped', () => {
+        enter('town', 15);
+        run(30, 0.5);
+        const before = new Map(InnerMap.npcs.map(n => [n.id, `${n.q},${n.r},${n.state}`]));
+        const someone = InnerMap.npcs.find(n => n.type !== 'guard');
+        someone._chatWith = 999;
+        InnerMap.timeOfDay = 8;
+        expect(InnerMap.reshuffleTownForNewDay(12)).toBe(true);
+        const moved = InnerMap.npcs.filter(n => before.get(n.id) !== `${n.q},${n.r},${n.state}`).length;
+        expect(moved / InnerMap.npcs.length).toBeGreaterThan(0.6);
+        expect(someone._chatWith).toBe(null);
+    });
+});

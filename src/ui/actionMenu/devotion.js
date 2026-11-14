@@ -202,6 +202,8 @@ export const DevotionPanel = {
                 return f ? [f.icon, esc(f.name), Math.round(v)] : null;
             }));
         }
+        // Relics: lifted, forged, sold (ui/actionMenu/profane.js)
+        if (ActionMenu._relicTradeHtml) h += ActionMenu._relicTradeHtml(game, tile);
         // The soul
         const pact = SoulPact.state(player);
         if (SoulPact.isSold(player)) {

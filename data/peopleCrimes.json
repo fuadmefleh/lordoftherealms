@@ -1,0 +1,88 @@
+{
+    "_note": "Deplorable acts against people (systems/peopleCrimes.js; UI: ui/objectActions/contents.js plant, ui/npcDialog/darkDeeds.js tip-off, ui/innerMapDowned.js cellar/galleys, ui/actionMenu/peopleCrimes.js captives/stocks/eviction rows on the Lots panel, ui/innerMapThieves.js brand/maim). frame: goods hidden in a townsperson's house (planted, the seen-roll is the containers theft odds); tip off the watch within tipDays (else the household finds them, sells them, and the plot fizzles); the trial sits trialDays later: conviction base + hot (truly stolen, reported goods) + value + branded (a thief's brand speaks against them) - status (a priest or noble is believed) - liar (each frame of yours already exposed); sentence by the realm's punishment law: hang at or over hangValue[law] of goods, else flogged and exiled; the informer's reward (rewardShare of the value) out of the crown's treasury; the goods seized and sold in the town's market. A conviction is a secret: exposeYearly chance (plus exposePerLiar) each year the truth comes out. bondage: sold at a coastal town (the harbour's dealers pay out of the town's purse: price by role, a maimed body cheaper), seenChance on the docks (night halves it); the sold may come home (returnChance) after returnYears, else die at the oar (dieYears). captive: held in a cellar of a property of yours in the town; fed at feedCost a day out of your purse into the town's purse (no coin: they starve); starving, they die after starveDays; discoveryDaily (+ discoveryPerKin per grown kin in town, x starvingMult while starving) the cellar is found. stocks: a tenant in arrears put in the stocks for stocksDays; the kin pay what they can (familyPays share of their purses) toward the debt; in winter each day in the stocks risks death (stocksWinterDeath). evict: a tenant turned out in winter — each of the household rolls froze (old/young/adult) and dies within frozeDays. thief: brand or maim a caught thief yourself; culture stance (approve/tolerate/condemn) sets the town's reaction and the law's; harsh punishment law softens it one step. expose: what each act costs when it comes out (reputation in the realm, Prestige, heat, karma, deeds of character).",
+    "daysPerYear": 120,
+    "frame": {
+        "tipDays": 6, "trialDays": [2, 4], "minValue": 8,
+        "base": 0.45, "hot": 0.2, "perValue": 0.002, "valueCap": 0.2, "branded": 0.15, "status": { "noble": 0.3, "priest": 0.25, "merchant": 0.08 }, "liar": 0.15,
+        "min": 0.08, "max": 0.92,
+        "hangValue": { "lenient": 400, "standard": 120, "harsh": 40 },
+        "rewardShare": 0.25,
+        "exposeYearly": 0.06, "exposePerLiar": 0.03, "exposeMaxYears": 40,
+        "seenWeight": -10, "acquitFine": 30
+    },
+    "bondage": {
+        "price": { "base": 90, "child": 40, "old": 30, "laborer": 30, "farmer": 25, "noble": 60, "maimed": -45, "branded": -15 },
+        "seenChance": 0.25, "nightShare": 0.5,
+        "returnChance": 0.3, "returnYears": [3, 10], "dieYears": [2, 12]
+    },
+    "captive": {
+        "feedCost": 2, "starveDays": [14, 22],
+        "discoveryDaily": 0.004, "discoveryPerKin": 0.0015, "starvingMult": 2.5, "seenPerWitness": 0.15, "seenMax": 0.9
+    },
+    "stocks": { "stocksDays": 3, "familyPays": 0.6, "stocksWinterDeath": 0.06, "hurt": 0.35 },
+    "evict": { "froze": { "old": 0.3, "young": 0.25, "adult": 0.06 }, "frozeDays": [3, 12], "oldAge": 60, "youngAge": 8, "rep": -3 },
+    "thief": {
+        "stances": {
+            "Imperial": "condemn", "Religious": "condemn", "Arcane": "condemn", "Maritime": "condemn",
+            "Woodland": "tolerate", "Swamp": "tolerate",
+            "Nordic": "approve", "Mountain": "approve", "Nomadic": "approve", "Desert": "approve"
+        },
+        "stanceLabels": {
+            "approve": "Here a thief is marked by whoever catches them, as the fathers did.",
+            "tolerate": "Folk here look away when a thief is marked, so long as it is quick.",
+            "condemn": "Here only a court may punish. A brand in the street is an assault."
+        },
+        "brand": {
+            "approve": { "heat": 0, "rep": 2, "town": "rough_justice" },
+            "tolerate": { "heat": 4, "rep": -2, "town": null },
+            "condemn": { "heat": 12, "rep": -8, "town": "branded" }
+        },
+        "maim": {
+            "approve": { "heat": 4, "rep": 0, "town": "rough_justice" },
+            "tolerate": { "heat": 12, "rep": -8, "town": "maimed" },
+            "condemn": { "heat": 25, "rep": -15, "town": "maimed" }
+        }
+    },
+    "expose": {
+        "frame": { "rep": -30, "prestige": 25, "heat": 25, "karma": -15, "deeds": { "deceit": 3, "cruelty": 2 } },
+        "frameSeen": { "rep": -12, "prestige": 5, "heat": 12, "karma": -5, "deeds": { "deceit": 2 } },
+        "captive": { "rep": -25, "prestige": 15, "heat": 30, "karma": -10, "deeds": { "cruelty": 2, "dread": 1 } },
+        "starved": { "rep": -40, "prestige": 30, "heat": 45, "karma": -20, "deeds": { "cruelty": 4, "dread": 2 } },
+        "bondage": { "rep": -35, "prestige": 25, "heat": 30, "karma": -18, "deeds": { "cruelty": 3, "greed": 2 } },
+        "brand": { "karma": -3, "deeds": { "cruelty": 1, "dread": 0.5 } },
+        "maim": { "karma": -8, "deeds": { "cruelty": 2, "dread": 1, "maiming": 1 } },
+        "stocks": { "rep": -2, "karma": -2, "deeds": { "greed": 1, "cruelty": 0.5 } },
+        "evict": { "karma": -5, "deeds": { "greed": 1.5, "cruelty": 1 } }
+    },
+    "nemesis": { "hanged": 70, "exiled": 35, "bondage": 85, "starved": 75, "captive": 45, "maim": 40, "froze": 55, "stocksDied": 50 },
+    "lines": {
+        "plantSeen": "{owner} sees you at the {box} with goods that aren't theirs. \"What are you putting in there?\"",
+        "planted": "You slip the {good} into the {box}, under what is there. No one saw.",
+        "tipped": "The sergeant hears you out. \"{name}? We'll search the house.\"",
+        "tipNoGoods": "The watch searches {name}'s house and finds nothing. The sergeant looks at you a long while.",
+        "fizzled": "The goods you hid at {name}'s are gone: the household found them, and sold them quietly at the market.",
+        "hanged": "{name} of {town} was hanged for the theft of {good}. They swore their innocence on the gallows.",
+        "exiled": "{name} of {town} was flogged in the square for the theft of {good} and driven out of the town.",
+        "acquitted": "The court in {town} would not convict {name} on your word. You pay {fine}g for a false witness.",
+        "exposedFrame": "The truth is out in {town}: you hid the goods in {name}'s house. The whole realm knows {name} hanged for your lie.",
+        "exposedFrameExiled": "The truth is out in {town}: you hid the goods in {name}'s house and swore them out of their home.",
+        "sold": "The galley master looks {name} over, pays {price}g and has them taken aboard before dawn.",
+        "soldSeen": "Dock hands saw you hand {name} to the slavers. Word is on its way to {town}.",
+        "returned": "{name} has come home to {town} after {years} years at the oar, and tells everyone who sold them.",
+        "diedOar": "{name} died at the oar, far from {town}. No one there knows.",
+        "locked": "You lock {name} in the cellar of your {place} in {town}.",
+        "lockedSeen": "Someone saw you haul {name} into your {place}. The watch will hear of it.",
+        "starvedDied": "{name} has died of hunger in your cellar in {town}.",
+        "discovered": "{name} has been found in your cellar in {town}. The town is in uproar.",
+        "discoveredDead": "The watch broke into your cellar in {town} and found what is left of {name}.",
+        "released": "You unchain {name} and turn them out of your cellar in {town}. They run for home.",
+        "stocked": "{name} is put in the stocks in {town}'s square for {owed}g of rent. Their kin scrape together {paid}g.",
+        "stocksDied": "{name} died of the cold in the stocks in {town}.",
+        "stocksFreed": "{name} is let out of the stocks in {town}, bruised and filthy.",
+        "evictedWinter": "{name} and their household are turned out into the snow in {town}.",
+        "froze": "{name} froze to death in the lanes of {town}, turned out of your house in the winter.",
+        "brand": "You hold {name} down and burn a thief's mark into their cheek with a hot iron.",
+        "maim": "You take {name}'s hand at the wrist, there in the street.",
+        "thiefTaken": "{name} staggers off, clutching the wound."
+    }
+}

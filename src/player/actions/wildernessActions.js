@@ -17,6 +17,7 @@ import { PlayerEconomy } from '../playerEconomy.js';
 import { SeasonalWork } from '../seasonalWork.js';
 import { Delves } from '../../systems/delves.js';
 import { Sieges } from '../../systems/sieges.js';
+import { Atrocities } from '../../systems/atrocities.js';
 import { OutlawLairs } from '../../systems/outlawLairs.js';
 import { MerchantCaravans } from '../../systems/merchantCaravans.js';
 import { CourierRiders } from '../../systems/courierRiders.js';
@@ -525,6 +526,15 @@ export function addWildernessActions(actions, player, tile, world) {
             label: `Siege of ${tile.settlement.name} (day ${(world.day || 0) - siegeHere.startDay})`,
             icon: '🏰',
             description: 'Your camp before the walls: stance, siege works, storm, terms, relief',
+        });
+    }
+    // Dark deeds of war at a town besieged or lately taken: salt, hostages, the dead over the walls, the sword (systems/atrocities.js)
+    if (tile.settlement && Atrocities.hasDeedsAt(player, world, tile)) {
+        actions.push({
+            type: 'dark_deeds',
+            label: `Dark deeds at ${tile.settlement.name}`,
+            icon: '💀',
+            description: 'Salt its fields, take hostages, fling the dead over the walls, or put a surrendered town to the sword',
         });
     }
 

@@ -35,6 +35,8 @@ import { InnerMapReactions } from './innerMapReactions.js';
 import { InnerMapRenderer } from './innerMapRenderer.js';
 import { InnerMapCombat } from './innerMapCombat.js';
 import { ActionMenu } from './actionMenu.js';
+// (a thief branded or maimed by your own hand: systems/peopleCrimes.js)
+import { PeopleCrimes } from '../systems/peopleCrimes.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _dist = (a, b) => Math.max(Math.abs(a.q - b.q), Math.abs(a.r - b.r));
@@ -118,6 +120,8 @@ export const InnerMapThieves = {
             else this._cutpurseStep(game, s, npc, a);
         }
         if (InnerMap._insideBuilding) return;
+        // (a hamlet, or a village at the dawn, has no thieves: NpcTheft.hasThieves)
+        if (!NpcTheft.hasThieves(game.world, s)) return;
         const night = NpcTheft.isNight(InnerMap.timeOfDay);
         if (night) this._maybeBurgle(game, s);
         else this._maybeCutpurse(game, s);
@@ -504,6 +508,9 @@ export const InnerMapThieves = {
                 { id: 'grab', icon: '✊', label: 'Seize them', hint: near ? 'Grab them and hold on until the watch comes.' : 'Run at them and grab hold.', chance: NpcTheft.grabChance(game.player, thief) },
                 { id: 'shout', icon: '📣', label: 'Shout "Thief!"', hint: 'Raise the alarm: the watch gives chase.', chance: null, odds: false },
                 { id: 'fight', icon: '⚔️', label: 'Fight them', hint: 'A thief caught in the act is fair game.', chance: null, odds: false },
+                // Your own justice, not the watch's (systems/peopleCrimes.js): the town's culture decides what it makes of it
+                { id: 'brand', icon: '🔥', label: 'Seize them and brand them', hint: `A thief's mark on the cheek, by your hand. ${PeopleCrimes.stanceAt(game.world, s).label}`, chance: NpcTheft.grabChance(game.player, thief) },
+                { id: 'maim', icon: '🔪', label: 'Seize them and take a hand', hint: `The old penalty, in the street. ${PeopleCrimes.stanceAt(game.world, s).label}`, chance: NpcTheft.grabChance(game.player, thief) },
                 { id: 'let', icon: '🤷', label: 'Let it be', hint: pick ? 'Let them go.' : 'Not your house, not your business.', chance: null, odds: false },
             ],
         };
@@ -525,6 +532,23 @@ export const InnerMapThieves = {
                 }
                 this._fleeFrom(game, s, npc, a, { q: npc.q, r: npc.r });
                 return { notification: { title: '🏃 Slipped Away', body: `${npc.name} twists out of your grip and runs.`, type: 'warning' } };
+            }
+            case 'brand':
+            case 'maim': {
+                if (_frac(`${a.key || a.plan.key}|${choice}|${Math.floor(this._clock)}`) >= NpcTheft.grabChance(game.player, thief)) {
+                    this._fleeFrom(game, s, npc, a, { q: npc.q, r: npc.r });
+                    return { notification: { title: '🏃 Slipped Away', body: `${npc.name} twists out of your grip and runs.`, type: 'warning' } };
+                }
+                a.seenBy.push(game.player.name || 'you');
+                this._caught(game, s, npc, a, game.player.name || 'you');
+                // Not to the cells: marked by your hand and let go (the goods are back all the same)
+                this._taken = this._taken.filter(t => t.npc !== npc);
+                const pid = thief.pid != null ? thief.pid : (npc._person ? npc._person.id : null);
+                const res = PeopleCrimes.punishThief(game.player, game.world, { q: s.q, r: s.r, pid, name: npc.name, how: choice });
+                InnerMapReactions.bark(npc, choice === 'maim' ? 'AAAGH! My hand!' : 'AAAH! You devil!', 3);
+                this._leave(npc, true);
+                if (game.ui && typeof game.ui.updateStats === 'function') game.ui.updateStats(game.player, game.world);
+                return { notification: { title: choice === 'maim' ? '🔪 A Hand Taken' : '🔥 Branded', body: res.text, type: res.stance === 'approve' ? 'info' : 'warning' } };
             }
             case 'shout': {
                 const n = this._fleeFrom(game, s, npc, a, this._player());

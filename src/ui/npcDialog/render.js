@@ -16,9 +16,11 @@ import { StreetCrime } from '../../systems/streetCrime.js';
 import { Languages } from '../../systems/languages.js';
 import { Cultures } from '../../world/cultures.js';
 import { _suspectChoices } from './suspect.js';
+import { _witchChoices } from './witchcraft.js';
 import { _heartChoices } from './hearts.js';
 // (their work, your service, the church: systems/townJobs.js, systems/townWorship.js)
 import { _workChoices } from './work.js';
+import { _darkChoices } from './darkDeeds.js';
 import { _schoolChoices } from './schooling.js';
 import { _waresChoices, _pedlarEmptyChoice } from './wares.js';
 import { GREETINGS, RETURNING_GREETINGS, RESPECTFUL_GREETINGS, HOSTILE_GREETINGS, RUMORS, FAREWELLS, THREAT_RESPONSES, THREAT_SUCCESS, FLATTER_RESPONSES, FLATTER_SUCCESS, TIME_COMMENTS, WEATHER_COMMENTS, NPC_QUEST_HOOKS, LOCATION_INFO, KINGDOM_INFO } from '../npcDialog.data.js';
@@ -417,6 +419,8 @@ export function _renderChoices(box) {
         }
         // A townsperson named in a rival House's plot (systems/schemes.js)
         for (const c of _suspectChoices()) choices.push(c);
+        // Cry witch on a healer or an old woman (systems/profaneCrimes.js)
+        for (const c of _witchChoices()) choices.push(c);
         // Sweethearts: who is sweet on whom, a love letter, a good word, a tale (systems/romance.js)
         for (const c of _heartChoices()) choices.push(c);
         // Their work; work in your service; the church (ui/npcDialog/work.js)
@@ -425,6 +429,8 @@ export function _renderChoices(box) {
         for (const c of _schoolChoices()) choices.push(c);
         // Buying from their own stock, or a pedlar's pack (ui/npcDialog/wares.js)
         for (const c of _waresChoices()) choices.push(c);
+        // A tip to the watch about goods you hid; a mark of yours on them (ui/npcDialog/darkDeeds.js)
+        for (const c of _darkChoices()) choices.push(c);
     }
 
     // ── Say whatever you like, with the AI brain on (systems/npcChat.js) ──
@@ -630,11 +636,35 @@ export function _renderChoices(box) {
         const hint = tongue.level.id === 'none'
             ? `You share no tongue with them (${tongue.name}): you can only point and gesture. Learn it, or hire an interpreter in town.`
             : `Your ${tongue.name} is broken: simple questions only.`;
-        _renderChoiceList(choicesEl, keep, { hint });
+        _renderChoiceList(choicesEl, _foldQuestions(box, choicesEl, keep), { hint });
         return;
     }
 
-    _renderChoiceList(choicesEl, choices);
+    _renderChoiceList(choicesEl, _foldQuestions(box, choicesEl, choices));
+}
+
+// The questions about the place, the realm, the folk and the family: folded
+// into one "I'd like to ask about…" when there are three or more of them, so
+// the first screen of a conversation is not a wall of buttons. (News stays
+// out front: it is the one most asked.)
+const FOLDED_ASKS = new Set(['ask_location', 'ask_kingdom', 'ask_folk_news', 'ask_family', 'ask_about_npc']);
+
+function _foldQuestions(box, choicesEl, choices) {
+    const asks = choices.filter(c => FOLDED_ASKS.has(c.action));
+    if (asks.length < 3) return choices;
+    const at = choices.indexOf(asks[0]);
+    const rest = choices.filter(c => !FOLDED_ASKS.has(c.action));
+    const back = () => _renderChoices(box);
+    const ask = {
+        icon: '❓', label: 'I\'d like to ask about…', group: 'talk',
+        tooltip: `Ask about ${asks.length} things: the place, the realm, its people, their family.`,
+        onPick: () => _renderChoiceList(choicesEl, [
+            ...asks,
+            { icon: '↩️', label: 'Something else.', group: 'leave', tooltip: 'Back to the other things to say.', onPick: back },
+        ], { back, hint: 'What would you ask? Esc goes back.' }),
+    };
+    rest.splice(Math.min(at, rest.length), 0, ask);
+    return rest;
 }
 
 /** The choices one task option offers (systems/npcTasks.js talkOptions). */

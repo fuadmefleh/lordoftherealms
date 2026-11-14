@@ -1,0 +1,65 @@
+{
+    "_comment": "Companions who leave town with the player and never come home (systems/vanishings.js). Each loss is scored for suspicion: the base for how they died, plus what makes it look like foul play. The tier picks the memory kind (data/npcMemory.json) their kin and town keep, the regard lost, the talk and the wariness of the next who are asked to join.",
+    "config": {
+        "enabled": true,
+        "how": { "battle": 0.1, "sickness": 0.3, "old_age": 0.05, "unknown": 0.55 },
+        "unwitnessed": 0.25,
+        "witnessCut": 0.1,
+        "townWitnessCut": 0.2,
+        "witnessCutMax": 0.35,
+        "lowRegard": 0.4,
+        "quarrel": 0.15,
+        "quarrelApproval": 30,
+        "criminal": 0.25,
+        "criminalBounty": 50,
+        "criminalKarma": -30,
+        "profit": 0.15,
+        "profitMin": 10,
+        "pattern": 0.2,
+        "patternTown": 0.15,
+        "patternDays": 1800,
+        "patternMax": 4,
+        "max": 2,
+        "doubtAt": 0.4,
+        "foulAt": 0.9,
+        "noWordDays": 60,
+        "noWordRise": 0.2,
+        "tellCloseDays": 30,
+        "keep": 40,
+        "accuseBase": 0.4,
+        "accusePer": 0.5,
+        "accuseMax": 0.95,
+        "joinMax": 0.6,
+        "joinOwnPer": 0.01,
+        "joinRefuseAt": 10
+    },
+    "tiers": {
+        "grief": { "kind": "lost_with", "regard": 3, "disposition": 4, "town": false, "talk": null, "join": 0.03, "keepOnTell": 0.3 },
+        "doubt": { "kind": "vanished_with", "regard": 10, "disposition": 12, "town": true, "talk": "vanished_talk", "join": 0.1, "keepOnTell": 0.6 },
+        "foul": { "kind": "foul_play", "regard": 25, "disposition": 25, "town": true, "talk": "vanished_companion", "accuse": true, "join": 0.2, "keepOnTell": 0.85 }
+    },
+    "howWords": {
+        "battle": "fell in battle{enemy}",
+        "sickness": "died of {cause} on the road",
+        "old_age": "died of old age on the road",
+        "unknown": "never came back"
+    },
+    "notices": {
+        "doubt": { "icon": "🤨", "title": "Questions in {town}", "text": "{name} left {town} with you and will not come home. Their family will want to know what happened." },
+        "foul": { "icon": "🗡️", "title": "Whispers in {town}", "text": "{name} left {town} with you and will not come home. Folk there already wonder whether it was the road that killed them." },
+        "told": { "icon": "🕯️", "title": "Word brought to {town}", "text": "You tell {name}'s family how it happened: {name} {how}." },
+        "noWord": { "icon": "🚪", "title": "No word in {town}", "text": "{name}'s family in {town} have waited for word of them, and none has come from you." }
+    },
+    "refuseJoin": "Go with you? My {vr} {vn} went with you, and never came home.",
+    "persona": {
+        "lost": "Your {vr} {vn} left with {player} on the road {when} and never came home: {vn} {how}.",
+        "lostNoHow": "Your {vr} {vn} left with {player} on the road {when} and never came home. You do not know what became of them.",
+        "told": "{player} came and told your family how it happened.",
+        "untold": "{player} has never come to tell your family what happened.",
+        "grief": "You grieve; you would want to hear of their last days.",
+        "doubt": "You wonder what {player} is not telling. You are wary of them.",
+        "foul": "You suspect {player} had a hand in it. You are cold and guarded with them, and it may come out.",
+        "town": "Folk in your town whisper that {vn}, who left with {player}, met with foul play.",
+        "townDoubt": "Folk in your town remember that {vn} left with {player} and never came back."
+    }
+}

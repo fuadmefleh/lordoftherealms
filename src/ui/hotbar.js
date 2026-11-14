@@ -300,9 +300,9 @@ export const Hotbar = {
      * Different item types have different placement effects.
      */
     _placeItem(itemId, q, r, tile) {
-        // Clicked on a river: into the water it goes, and off downstream (ui/innerMapRiverDrift.js;
-        // the packs are emptied below)
-        if (InnerMapRiverDrift.isRiverCell(q, r)) return InnerMapRiverDrift.throwItem(_game, itemId, q, r, { keep: true });
+        // Clicked on a river, or water too deep to stand in: into it it goes — off downstream, or
+        // afloat where it lands (ui/innerMapRiverDrift.js; the packs are emptied below)
+        if (InnerMapRiverDrift.isThrowCell(q, r)) return InnerMapRiverDrift.throwItem(_game, itemId, q, r, { keep: true });
 
         // Don't place on impassable tiles
         if (tile.subTerrain && tile.subTerrain.passable === false) {

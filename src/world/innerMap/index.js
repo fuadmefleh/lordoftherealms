@@ -34,6 +34,7 @@ import './deckLife.js';
 import './water.js';
 import './mills.js';
 import './swimming.js';
+import './currents.js';
 import './animals.js';
 import './farmPlots.js';
 import './cliffs.js';

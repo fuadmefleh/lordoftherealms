@@ -1,4 +1,4 @@
-// ActionMenu — 🩸 Nemeses: the dossier on the named enemies who remember you
+// ActionMenu — 🗡️ Nemeses: the dossier on the named enemies who remember you
 // (Dynasty → Nemeses). Each: who carries the feud now and how far it has
 // come (stage, hatred, generations), the deed it was born of, what they
 // have learnt of your habits, their last blows and letters, and what you can
@@ -100,7 +100,7 @@ Object.assign(ActionMenu, {
             }), 'Feuds that ended');
         }
         html += '</div>';
-        game.ui.showCustomPanel('🩸 Nemeses', html);
+        game.ui.showCustomPanel('🗡️ Nemeses', html);
     },
 
     /** The dossier's rows (data-am-act="nemesisAct"). */
@@ -113,7 +113,7 @@ Object.assign(ActionMenu, {
         else if (action === 'accuse') res = Nemesis.accuse(player, world, id);
         else return;
         if (!res || !res.success) {
-            game.ui.showNotification('🩸 Nemeses', (res && res.reason) || 'That cannot be done.', 'error');
+            game.ui.showNotification('🗡️ Nemeses', (res && res.reason) || 'That cannot be done.', 'error');
             return;
         }
         game.ui.updateStats(player, world);

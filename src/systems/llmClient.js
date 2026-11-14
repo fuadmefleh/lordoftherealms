@@ -65,8 +65,14 @@ function chatBody(messages, opts, stream) {
     const temperature = opts.temperature != null ? opts.temperature : config.temperature;
     const maxTokens = opts.maxTokens || config.maxTokens;
     const body = { model: opts.model || config.model, messages, stream };
-    // A reply that must be one JSON object (OpenAI and llama-server both honour this)
-    if (opts.json) body.response_format = { type: 'json_object' };
+    // A reply that must be one JSON object (OpenAI and llama-server both honour this);
+    // with opts.schema, one of that shape: OpenAI's json_schema, llama-server's
+    // json_object + schema (turned into a grammar, so even a small model keeps to it)
+    if (opts.schema && typeof opts.schema === 'object') {
+        body.response_format = isOpenAI()
+            ? { type: 'json_schema', json_schema: { name: opts.schemaName || 'reply', schema: opts.schema, strict: false } }
+            : { type: 'json_object', schema: opts.schema };
+    } else if (opts.json) body.response_format = { type: 'json_object' };
     if (isOpenAI()) {
         body.max_completion_tokens = maxTokens;
         const effort = opts.reasoningEffort || config.reasoningEffort;
@@ -201,7 +207,7 @@ export const LlmClient = {
             return { ok: false, reason: 'no messages' };
         }
         if (isWebLlm()) {
-            try { return await WebLlm.chat(messages, webllmOpts(opts)); } catch { return { ok: false, reason: 'webllm error' }; }
+            try { return await WebLlm.chat(messages, webllmOpts(opts)); } catch (e) { return { ok: false, reason: `webllm: ${(e && e.message) || String(e)}` }; }
         }
         const timeoutMs = opts.timeoutMs || config.timeoutMs;
         const ctrl = new AbortController();
@@ -221,6 +227,8 @@ export const LlmClient = {
             const text = data && data.choices && data.choices[0]
                 && data.choices[0].message && data.choices[0].message.content;
             if (typeof text !== 'string') return { ok: false, reason: 'malformed response' };
+            // (it answered: it is up, whatever a health check said a moment ago)
+            availability = { ok: true, checkedAt: nowMs(), state: 'ready', detail: `${config.endpoint} answered` };
             return { ok: true, text: text.trim() };
         } catch (e) {
             clearTimeout(timer);
@@ -242,7 +250,7 @@ export const LlmClient = {
             return { ok: false, reason: 'no messages' };
         }
         if (isWebLlm()) {
-            try { return await WebLlm.chatStream(messages, webllmOpts(opts), onDelta); } catch { return { ok: false, reason: 'webllm error' }; }
+            try { return await WebLlm.chatStream(messages, webllmOpts(opts), onDelta); } catch (e) { return { ok: false, reason: `webllm: ${(e && e.message) || String(e)}` }; }
         }
         const timeoutMs = opts.timeoutMs || config.timeoutMs;
         const ctrl = new AbortController();

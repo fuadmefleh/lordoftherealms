@@ -25,9 +25,11 @@
 // settled with its handler's abandon() when another starts or the day ends
 // (settleScene, called from ui/game/endDay.js).
 //
-// Buttons route through data-am-act → ActionMenu.sceneAct.
+// Drawn in the action menu's voice (ui/actionMenu/uiKit.js): the scene's text
+// as a lede, its stats as chips, one row a choice with its odds at the right
+// (greyed with its reason). Rows route through data-am-act → ActionMenu.sceneAct.
 import { ActionMenu } from './_ref.js';
-import { BTN_GOLD, BTN_PLAIN, BTN_OFF, CARD, esc } from './uiKit.js';
+import { esc, lede, chips, card, actRow, rowList } from './uiKit.js';
 import { FieldBattle } from '../../player/fieldBattle.js';
 
 const HANDLERS = {};
@@ -70,14 +72,17 @@ function _oddsHtml(chance) {
     return `<span style="color:${ODDS_COLOR[label] || '#ccc'}; font-weight:bold;">${label}${pct}</span>`;
 }
 
+/** One choice as an action-menu row: its odds at the right, greyed with its reason. */
 function _optionHtml(o) {
-    const style = (o.can === false ? BTN_OFF : (o.isDefault ? BTN_GOLD : BTN_PLAIN)) + 'display:block; width:100%; text-align:left; padding:8px 10px; margin:5px 0 0;';
-    const attrs = o.can === false ? 'disabled' : `data-am-act="sceneAct" data-am-args='${esc(JSON.stringify([o.id]))}'`;
-    const sub = o.can === false ? `<span style="color:#e08a50;">${esc(o.reason || 'Not possible')}</span>` : (o.odds === false ? '' : _oddsHtml(o.chance));
-    return `<button ${attrs} style="${style}">
-        <div>${o.icon || '•'} ${esc(o.label)}${o.cost ? ` <span style="font-weight:normal; opacity:0.8;">(${esc(o.cost)})</span>` : ''}${sub ? ` — ${sub}` : ''}</div>
-        ${o.hint ? `<div style="font-weight:normal; font-size:11px; opacity:0.75; margin-top:2px;">${esc(o.hint)}</div>` : ''}
-    </button>`;
+    const off = o.can === false;
+    return actRow({
+        icon: o.icon || '•',
+        name: `${esc(o.label)}${o.cost ? ` <span style="font-weight:normal; color:#9d937c;">(${esc(o.cost)})</span>` : ''}`,
+        desc: esc(o.hint || ''), off, why: `${esc(o.reason || 'Not possible')}${o.hint ? ` — ${esc(o.hint)}` : ''}`,
+        side: off || o.odds === false ? '' : _oddsHtml(o.chance),
+        act: 'sceneAct', args: [o.id], tone: o.isDefault ? 'gold' : null,
+        title: o.isDefault ? 'The usual choice' : '',
+    });
 }
 
 Object.assign(ActionMenu, {
@@ -98,17 +103,15 @@ Object.assign(ActionMenu, {
             game.ui.hideCustomPanel();
             return;
         }
-        let html = '<div style="padding:4px 2px;">';
-        html += `<div style="text-align:center; margin-bottom:6px;"><span style="font-size:38px;">${v.icon || '❔'}</span>
-            <h3 style="margin:4px 0; color:var(--gold);">${esc(v.title)}</h3>
-            ${(v.stats || []).length ? `<div style="font-size:12px; color:#aaa;">${v.stats.map(esc).join(' · ')}</div>` : ''}</div>`;
-        if (v.text) html += `<p style="font-size:13px; line-height:1.5; margin:6px 0;">${esc(v.text)}</p>`;
+        let html = '<div style="font-size:12px;">';
+        html += chips((v.stats || []).map(esc));
+        if (v.text) html += lede(esc(v.text));
         for (const line of v.lines || []) html += `<div style="font-size:12px; color:var(--text-secondary); margin:2px 0;">${esc(line)}</div>`;
         if ((v.log || []).length) {
-            html += `<div style="${CARD}"><div style="font-size:11px; color:#888; text-transform:uppercase; margin-bottom:4px;">So far</div>${v.log.slice(-6).map(l => `<div style="font-size:12px; margin:2px 0;">${esc(l)}</div>`).join('')}</div>`;
+            html += card(v.log.slice(-6).map(l => `<div style="font-size:12px; margin:2px 0;">${esc(l)}</div>`).join(''), { icon: '📜', title: 'So far' });
         }
-        for (const o of v.options || []) html += _optionHtml(o);
-        if (v.footer) html += `<div style="font-size:11px; color:#777; margin-top:8px;">${esc(v.footer)}</div>`;
+        html += rowList((v.options || []).map(_optionHtml), (v.options || []).length > 1 ? 'What will you do?' : '');
+        if (v.footer) html += `<div style="font-size:11px; color:#9d937c; margin-top:6px;">${esc(v.footer)}</div>`;
         html += '</div>';
         game.ui.showCustomPanel(v.panelTitle || `${v.icon || ''} ${v.title}`.trim(), html);
     },
@@ -143,9 +146,9 @@ Object.assign(ActionMenu, {
         const n = out.notification || { title: 'Done', body: '', type: 'info' };
         const color = TYPE_COLOR[n.type] || TYPE_COLOR.default;
         const next = out.endDay ? 'closePanelAndEndDay' : 'closePanelAndRefresh';
-        game.ui.showCustomPanel(n.title, `<div style="padding:8px;">
+        game.ui.showCustomPanel(n.title, `<div style="font-size:12px;">
             ${(out.log || []).map(l => `<div style="font-size:12px; color:var(--text-secondary); margin:2px 0;">${esc(l)}</div>`).join('')}
-            <p style="color:${color}; line-height:1.5;">${esc(n.body)}</p>
-            <button data-am-act="${next}" style="${BTN_PLAIN}width:100%; padding:9px; margin-top:8px;">${out.endDay ? 'Continue (ends the day)' : 'Continue'}</button></div>`);
+            ${lede(`<span style="color:${color};">${esc(n.body)}</span>`)}
+            ${rowList([{ icon: '➡️', name: 'Continue', desc: out.endDay ? 'The day ends' : '', act: next, tone: 'gold' }])}</div>`);
     },
 });

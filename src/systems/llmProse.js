@@ -47,7 +47,7 @@ const PERMANENT = new Set(['annals', 'chapter', 'reign', 'epitaph', 'foreword', 
 const PRIORITY = {
     annals: 100, chapter: 100, reign: 95, epitaph: 95, foreword: 80, epilogue: 80,
     crisis: 60, estate: 55, nemesis: 55, deeds: 50, town: 50, townHistory: 50, townMark: 45,
-    letter: 40, familyStory: 35, skip_digest: 30, heralds: 20, default: 10,
+    letter: 40, familyStory: 35, skip_digest: 30, heralds: 20, default: 10, overheard: 5,
 };
 
 /** The settings category ("Scribe writes: …") each kind falls under. */
@@ -76,6 +76,7 @@ const BRIEFS = {
     crisis: { ask: 'Write the chronicle\'s entry for this turn of the crisis in two or three sentences.', maxTokens: 200, maxLen: 900 },
     estate: { ask: 'Write how the late ruler\'s estate was settled, as the clerk of the court records it, in two to four sentences.', maxTokens: 220, maxLen: 900 },
     familyStory: { ask: 'Tell this family story as kin retell it, in two or three sentences.', maxTokens: 180, maxLen: 800 },
+    overheard: { ask: 'Say this piece of town talk as one short spoken line, as a townsperson tells it to a neighbour.', maxTokens: 70, maxLen: 200 },
     default: { ask: 'Write a short passage from the facts below.', maxTokens: 260, maxLen: 1400 },
 };
 

@@ -145,3 +145,45 @@ describe('interior NPCs use furniture', () => {
         expect(InnerMap.inferFurnitureTypeFromName('Rock')).toBe(null);
     });
 });
+
+describe('the player sits as the townsfolk sit', () => {
+    /** A pew at (q, r); facing 'up' toward an altar, seen from behind. */
+    const pew = (q, r, facing) => {
+        const t = InnerMap.tiles[r][q];
+        t._furniture = { type: 'pew', name: 'Pew', icon: '💺', passable: false, facing };
+        t.subTerrain = { id: 'furniture_pew', passable: false };
+    };
+
+    it('sits on a pew facing the altar, held in the seated frame, after walking over', () => {
+        pew(3, 2, 'up');
+        let seat = null;
+        expect(InnerMap.approachAndThen(3, 2, () => { seat = InnerMap.playerSeatAt(3, 2); })).toBe('walking');
+        expect(seat).toBe(null);
+        expect(walkPlayer()).toBe(true);
+        expect(seat).toMatchObject({ on: 'sit', at: { q: 3, r: 2 }, facing: 0, pose: 2, pew: true });
+    });
+
+    it('faces out from a pew that does not face an altar, as an NPC on it does', () => {
+        pew(3, 2);
+        const npc = makeNpc('villager', 3, 3);
+        npc._act = { spot: { q: 3, r: 2, type: 'pew' } };
+        npc.activity = { type: 'pew', anim: 'sitting' };
+        InnerMap.npcs = [npc];
+        InnerMap._onPiece(npc, npc._act, InnerMap.FURNITURE_ACTIVITIES.pew);
+        const npcFacing = npc.facing;
+        // (the NPC steps off for the player)
+        const seat = InnerMap.playerSeatAt(3, 2);
+        expect(seat.facing).toBe(npcFacing);
+        expect(seat.facing).toBe(2);
+        expect(npc.activity).toBe(null);
+        expect(npc._seatOn).toBe(false);
+    });
+
+    it('takes a stool at a table, facing it; nothing to sit on at an anvil', () => {
+        InnerMap.tiles[3][4]._furniture = { type: 'table', name: 'Table', icon: '🍲', passable: false };
+        InnerMap.playerInnerQ = 4;
+        InnerMap.playerInnerR = 4;
+        expect(InnerMap.playerSeatAt(4, 3)).toMatchObject({ seat: 'stool', at: { q: 4, r: 3 }, facing: 0 });
+        expect(InnerMap.playerSeatAt(7, 1)).toBe(null);
+    });
+});

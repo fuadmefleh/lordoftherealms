@@ -37,7 +37,8 @@
             "boundary": { "weight": 2, "heat": [20, 40], "text": "a field boundary" },
             "cutpurse": { "weight": 0, "heat": [35, 55], "text": "a hand in a purse" },
             "fight": { "weight": 0, "heat": [20, 35], "text": "the last fight" },
-            "cheated": { "weight": 0, "heat": [15, 40], "text": "a bad bargain at market", "_note": "only from a real bargain gone wrong or short weight (systems/townTrade.js grudge), never a random pair" }
+            "cheated": { "weight": 0, "heat": [15, 40], "text": "a bad bargain at market", "_note": "only from a real bargain gone wrong or short weight (systems/townTrade.js grudge), never a random pair" },
+            "whispered": { "weight": 0, "heat": [10, 20], "text": "talk a stranger stirred up", "_note": "only from the player's free talk (systems/npcChatImpact.js: turning someone against a named neighbour, or a slander they repeat), never a random pair" }
         },
         "afterFight": { "loser": 30, "winner": 8, "parted": 18, "ally": 12 }
     },

@@ -14,7 +14,7 @@ React UI components. These are pure display/interaction shells — they read fro
 | `TitleScreen.jsx` | Title screen with New Game / Load Game / Editor buttons |
 | `Icon.jsx` | `<Icon name="…" />` — one engraved glyph from `ui/icons.js`, used across the HUD chrome |
 | `TitleBackdrop.jsx` | Canvas for `ui/titleBackdrop.js`; mounted once by `App` across title → settings → loading so the flight never cuts |
-| `TopBar.jsx` | In-game top bar: player stats, turn info, quick-access buttons |
+| `TopBar.jsx` | In-game top bar: the menus (Map, Character, Realm, Quests, Journal, Counsel — see `ui/README.md` "Where panels are reached"), date, AP, resources, Help/audio/settings, portrait |
 
 ## Notes
 

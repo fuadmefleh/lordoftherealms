@@ -55,6 +55,8 @@ import { Whispers } from './whispers.js';
 import { RivalAgents } from './rivalAgents.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
 import { Names } from '../core/names.js';
+// (a letter in the player's own words, answered by the AI brain: systems/letterChat.js)
+import { LetterChat } from './letterChat.js';
 
 // What a learned intel key means in a sentence ('military' → 'armies'), joined "a, b and c"
 const _INTEL_WORDS = { ruler: 'ruler', military: 'armies', diplomacy: 'alliances and quarrels', economy: 'trade and treasury' };
@@ -327,7 +329,8 @@ export const Mail = {
         const day = _day(world);
         const st = this.state(player);
         for (const [id, K] of Object.entries(this.kinds())) {
-            if (!K || typeof K !== 'object' || !(K.to || []).includes(to.type)) continue;
+            // (a letter in your own words has its own row: LetterChat.canWrite)
+            if (!K || typeof K !== 'object' || K.free || !(K.to || []).includes(to.type)) continue;
             let ok = true;
             let why = '';
             if (K.needsHeld && !(to.held && to.held.length)) continue;
@@ -399,14 +402,17 @@ export const Mail = {
         const to = this.recipient(player, world, opts.to);
         if (!to) return { success: false, reason: 'You have no way to reach them.' };
         const K = this.kind(opts.kind);
-        const kindOpt = this.kindOptions(player, world, to).find(k => k.id === opts.kind);
+        const kindOpt = K && K.free ? LetterChat.canWrite(player, world, to) : this.kindOptions(player, world, to).find(k => k.id === opts.kind);
         if (!K || !kindOpt) return { success: false, reason: 'That is not a letter you can send them.' };
         if (!kindOpt.ok) return { success: false, reason: kindOpt.why };
         if (st.outbox.length >= M.maxInTransit) return { success: false, reason: `${M.maxInTransit} letters are already on the road; wait for one to arrive.` };
         if (st.today.day === day && st.today.n >= M.perDay) return { success: false, reason: `You have written ${M.perDay} letters today. Your hand aches.` };
         const courier = this.courierOptions(player, world, to).find(c => String(c.id) === String(opts.courier));
         if (!courier) return { success: false, reason: 'Choose a courier.' };
-        const gold = K.enclose ? Math.max(0, Math.round(_num(opts.gold))) : 0;
+        // Your own words (systems/letterChat.js): checked here, coin may go with them
+        const text = K.free ? LetterChat.clean(opts.text) : null;
+        if (K.free && LetterChat.checkText(text)) return { success: false, reason: LetterChat.checkText(text) };
+        const gold = K.enclose || K.free ? Math.max(0, Math.round(_num(opts.gold))) : 0;
         let item = null;
         if (K.enclose && opts.item) {
             const have = _num(player.inventory && player.inventory[opts.item]);
@@ -444,6 +450,7 @@ export const Mail = {
             courier: { id: courier.id, name: courier.name, reliability: courier.reliability, guardCover: courier.guardCover || 0, own: !!courier.own },
             sentDay: day, days: courier.days, arriveDay: day + courier.days, danger: courier.danger || 0,
             gold, item, childId, enemyId, postage: courier.price, status: 'transit', delayed: false,
+            ...(text ? { text } : {}),
         };
         st.outbox.push(letter);
         if (!st.recent[to.key]) st.recent[to.key] = [];
@@ -482,6 +489,7 @@ export const Mail = {
             Utils.withRng(this._rng(world, `R${R.id}`, day), () => this._reply(world, player, R, out));
         }
         this._visits(world, player, out);
+        LetterChat.processDay(world, player, out);
         Utils.withRng(this._rng(world, 'unprompted', day), () => this._unprompted(world, player, out));
         return out;
     },
@@ -540,7 +548,10 @@ export const Mail = {
             return;
         }
         st.stats.delivered++;
-        const r = this._react(world, player, L, to, sub, K);
+        // Your own words: the AI brain answers (systems/letterChat.js); off, they are read as the nearest plain kind
+        const free = L.kind === 'free' ? LetterChat.deliver(world, player, L, to, sub) : null;
+        const LK = free && free.fallback ? { ...L, kind: free.fallback } : L;
+        const r = free && !free.fallback ? free : this._react(world, player, LK, to, sub, free ? (this.kind(free.fallback) || {}) : K);
         L.tone = r.tone;
         this._done(player, L, 'delivered', r.text);
         out.delivered.push(L);
@@ -548,7 +559,8 @@ export const Mail = {
             const R = { id: L.id, due: day + Math.max(1, L.days), sentDay: day, from: { ...L.to }, back: L.from ? { ...L.from } : null, kind: L.kind, tone: r.tone, ...r.reply };
             R.inReplyTo = L.kind;
             if (R.kind === 'plain' || !R.kind) R.kind = 'plain';
-            this._write(world, player, R, { L, to, sub });
+            if (R.free) LetterChat.write(world, player, R);
+            else this._write(world, player, R, { L: LK, to, sub });
             st.replies.push(R);
         } else if (!r.reply) {
             out.notices.push({ icon: K.icon || '✉️', title: 'A Letter Delivered', text: r.text, type: 'info' });
@@ -1447,6 +1459,12 @@ export const Mail = {
     _reply(world, player, R, out) {
         const st = this.state(player);
         const day = _day(world);
+        // A letter in its writer's own words still being written waits a day; never written, it is answered plainly (systems/letterChat.js)
+        if (R.free && LetterChat.hold(world, player, R)) return;
+        if (R.free && R.free.state !== 'done' && R.free.state !== 'fallback' && !LetterChat.fallbackReply(world, player, R)) {
+            st.replies = st.replies.filter(x => x !== R);
+            return;
+        }
         st.replies = st.replies.filter(x => x !== R);
         st.stats.replies++;
         // Its messenger was waylaid on the road (systems/courierRiders.js): the purse is gone, the letter comes on

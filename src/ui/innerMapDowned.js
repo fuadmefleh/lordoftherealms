@@ -38,6 +38,7 @@ import { InnerMapReactions } from './innerMapReactions.js';
 import { InnerMapCarry } from './innerMapCarry.js';
 import { InnerMapDigging } from './innerMapDigging.js';
 import { ActionMenu } from './actionMenu.js';
+import { InnerMapPeopleCrimes } from './innerMapPeopleCrimes.js';
 
 function _now() {
     return (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
@@ -110,6 +111,8 @@ export const InnerMapDowned = {
             const spot = InnerMapDigging.diggableNear(npc.q, npc.r);
             if (spot) out.push({ type: 'action', action: 'downed_dig_bury', label: 'Dig a Hole and Bury Them Alive', icon: '⛏️', desc: 'Dig beside them, then bury them living. A grave crime.', npc, holeQ: spot.q, holeR: spot.r });
         }
+        // Bound: your cellar, or the galleys (ui/innerMapPeopleCrimes.js)
+        for (const it of InnerMapPeopleCrimes.downedItems(game, npc)) out.push(it);
         return out;
     },
 
@@ -143,6 +146,8 @@ export const InnerMapDowned = {
             case 'downed_drag': act(() => InnerMapCarry.pickUp(game, npc, { drag: true })); return true;
             case 'downed_bury': this.startBury(game, npc, item.holeQ, item.holeR, false); return true;
             case 'downed_dig_bury': this.startBury(game, npc, item.holeQ, item.holeR, true); return true;
+            case 'downed_cellar':
+            case 'downed_galleys': act(() => InnerMapPeopleCrimes.handle(game, item)); return true;
             default: return true;
         }
     },

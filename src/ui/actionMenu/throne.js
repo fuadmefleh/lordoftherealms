@@ -1,5 +1,6 @@
-// ActionMenu — Claims & Crowns: claims on thrones, succession crises, the war
-// for a crown, and ruling a realm. Logic lives in systems/throne.js; this
+// ActionMenu — Claims & Crowns: claims on thrones, succession crises and the
+// war for a crown (ruling the realm you hold — policies, diplomacy — lives on
+// the Royal Court's Realm tab, built here as crownRuleHtml). Logic lives in systems/throne.js; this
 // panel presents it in the action menu's voice (ui/actionMenu/uiKit.js).
 import { ActionMenu } from './_ref.js';
 import { Sieges } from '../../systems/sieges.js';
@@ -46,6 +47,89 @@ function _leanings(fc, sides = null) {
     return html;
 }
 
+/**
+ * Ruling the realm you hold: the levy and why it is what it is, the crown's
+ * policies, abdication, and diplomacy with each other realm. Shown on the
+ * Royal Court's Realm tab (ui/actionMenu/royalCourt.js), which binds its
+ * handlers with bindCrownRule — Claims & Crowns only points there.
+ */
+export function crownRuleHtml(game) {
+    const { player, world } = game;
+    const ruled = Throne.ruledKingdom(player, world);
+    if (!ruled) return '';
+    const cfg = Throne.config();
+    const r = Throne.state(player).ruling;
+    // Why the levy is what it is (Throne.levyQuote): the rate, the realm's temper, the crown's upkeep
+    const lq = Throne.levyQuote(player, world, ruled);
+    const LIMIT = {
+        rate: 'the tax policy',
+        stability: `the realm's unrest (only ${Math.round(lq.stabilityMult * 100)}% of the dues reach you)`,
+        surplus: lq.surplus > 0 ? `the crown's upkeep (only ${Math.floor(lq.surplus)}g a day is left over the army, court and works)` : `the crown's deficit (its upkeep ${Math.floor(lq.upkeep)}g a day outruns its ${Math.floor(lq.revenue)}g of revenue)`,
+        reserve: `the treasury's reserve (it keeps ${lq.reserve}g, ${cfg.ruling.levyReserveDays || 0} days of upkeep)`,
+        cap: `the customary cap of ${lq.cap}g a day`,
+    };
+    let html = `<div style="${MUTED} margin:4px 0;">Ruling since day ${r.since}${r.founded ? ', the realm founded by your hand' : ''}. Today's levy to your purse: <b style="color:#ffcf6a;">${lq.levy}g</b> (${Math.round(lq.rate * 100)}% of ${Math.floor(lq.revenue)}g in daily dues), held down by ${LIMIT[lq.limit] || lq.limit}. ${r.levyTotal || 0}g levied so far.</div>`;
+
+    // The crown's policies: the one in force marked, the others a click away
+    for (const axis of Throne.POLICY_AXES) {
+        const def = Throne.policies()[axis];
+        if (!def) continue;
+        html += rowList(Object.entries(def.options || {}).map(([id, opt]) => {
+            const active = r.policies[axis] === id;
+            return {
+                icon: opt.icon || '📜', name: _esc(opt.label), desc: _esc(opt.blurb || ''),
+                side: active ? 'in force' : '', tone: active ? 'gold' : '',
+                attrs: active ? '' : `onclick="window._throne.policy('${axis}','${id}')"`,
+            };
+        }), _esc(def.label));
+    }
+
+    // Diplomacy: a row a realm; its choices one click in (bindCrownRule's realm())
+    html += rowList(Throne.diplomacyTargets(player, world).map(d => ({
+        icon: d.atWar ? '⚔️' : d.allied ? '🤝' : '🏰', name: _esc(d.kingdom.name),
+        desc: `${d.atWar ? 'At war' : d.allied ? 'Allied' : d.truce ? 'Under truce' : `Relations ${d.relations}`} · army ${Math.floor(d.kingdom.military || 0)}`,
+        tone: d.atWar ? 'bad' : d.allied ? 'good' : '', side: '›',
+        attrs: `onclick="window._throne.realm('${d.kingdom.id}')"`,
+    })), 'Diplomacy');
+    html += rowList([{ icon: '👑', name: 'Abdicate', desc: 'Lay down the crown', attrs: 'onclick="window._throne.abdicate()"', tone: 'bad' }]);
+    return html;
+}
+
+/** The crown-rule handlers (window._throne), for whichever panel shows crownRuleHtml; reopen() redraws it. */
+export function bindCrownRule(game, reopen) {
+    const { player, world } = game;
+    const result = (title, res) => ActionMenu._realmResult(game, title, res, reopen);
+    window._throne = Object.assign(window._throne || {}, {
+        policy: (axis, id) => result('👑 Royal Policy', Throne.setPolicy(player, world, axis, id)),
+        war: (id) => result('⚔️ War', Throne.declareRealmWar(player, world, id)),
+        peace: (id) => result('🕊️ Peace', Throne.proposePeace(player, world, id)),
+        ally: (id) => result('🤝 Alliance', Throne.proposeAlliance(player, world, id)),
+        gift: (id) => result('🎁 Royal Gifts', Throne.sendRoyalGifts(player, world, id)),
+        abdicate: () => result('👑 Abdication', Throne.abdicate(player, world)),
+        back: reopen,
+        // One realm's choices: peace while at war; else war, alliance, gifts
+        realm: (id) => {
+            const d = Throne.diplomacyTargets(player, world).find(x => String(x.kingdom.id) === String(id));
+            const ruled = Throne.ruledKingdom(player, world);
+            if (!d || !ruled) return;
+            const cfg = Throne.config();
+            const rows = d.atWar
+                ? [{ icon: '🕊️', name: 'Propose peace', desc: `~${Math.round(Throne.peaceChance(player, world, d.kingdom.id) * 100)}% they accept`, attrs: `onclick="window._throne.peace('${id}')"` }]
+                : [
+                    { icon: '🎁', name: 'Send royal gifts', desc: 'Warm their court toward yours', side: price(cfg.ruling.giftCost, (ruled.treasury || 0) >= cfg.ruling.giftCost), off: (ruled.treasury || 0) < cfg.ruling.giftCost, why: `The treasury lacks ${cfg.ruling.giftCost}g`, attrs: `onclick="window._throne.gift('${id}')"` },
+                    { icon: '🤝', name: 'Propose an alliance', desc: `Needs relations of ${cfg.ruling.allianceMinRelations}+`, off: d.allied || d.relations < cfg.ruling.allianceMinRelations, why: d.allied ? 'Already allied' : `Relations ${d.relations}; they need ${cfg.ruling.allianceMinRelations}+`, attrs: `onclick="window._throne.ally('${id}')"` },
+                    { icon: '⚔️', name: 'Declare war', desc: 'Their towns become your war goal', tone: 'bad', off: d.allied || !!d.truce, why: d.allied ? 'You are allied' : 'A truce holds', attrs: `onclick="window._throne.war('${id}')"` },
+                ];
+            rows.push({ icon: '←', name: 'Back to the realm', attrs: 'onclick="window._throne.back()"' });
+            const html = '<div style="font-size:12px;">' + chips([
+                ['🤝', 'Relations', d.relations], ['⚔️', 'Army', Math.floor(d.kingdom.military || 0)],
+                d.atWar ? { icon: '⚔️', label: 'At war', value: '' } : d.allied ? ['🤝', 'Allied', ''] : d.truce ? ['🕊️', 'Truce', ''] : null,
+            ]) + rowList(rows) + '</div>';
+            game.ui.showCustomPanel(`🏰 ${d.kingdom.name}`, html);
+        },
+    });
+}
+
 Object.assign(ActionMenu, {
     /** Claims & Crowns: claims, crises, the war for a throne, and the realm you rule. */
     showClaimsPanel(game, tile) {
@@ -65,54 +149,11 @@ Object.assign(ActionMenu, {
         // ── The realm you rule ──
         const ruled = Throne.ruledKingdom(player, world);
         if (ruled) {
-            const r = st.ruling;
-            let body = `<div style="${MUTED}">Since day ${r.since}${r.founded ? ' · founded by your hand' : ''} · Treasury ${Math.floor(ruled.treasury || 0)}g · Army ${Math.floor(ruled.military || 0)} · Stability ${Math.round(ruled.stability || 0)} · Levy so far ${r.levyTotal || 0}g</div>`;
-            // Why the levy is what it is (Throne.levyQuote): the rate, the realm's temper, the crown's upkeep
-            const lq = Throne.levyQuote(player, world, ruled);
-            const LIMIT = {
-                rate: 'the tax policy',
-                stability: `the realm's unrest (stability ${Math.round(lq.stability)}: ${Math.round(lq.stabilityMult * 100)}% of the dues reach you)`,
-                surplus: lq.surplus > 0 ? `the crown's upkeep (only ${Math.floor(lq.surplus)}g a day is left over the army, court and works)` : `the crown's deficit (its upkeep ${Math.floor(lq.upkeep)}g a day outruns its ${Math.floor(lq.revenue)}g of revenue, so only the purse's first charge is paid)`,
-                reserve: `the treasury's reserve (it keeps ${lq.reserve}g, ${cfg.ruling.levyReserveDays || 0} days of upkeep)`,
-                cap: `the customary cap of ${lq.cap}g a day`,
-            };
-            body += `<div style="${MUTED}">Today's levy: <b>${lq.levy}g</b>, ${Math.round(lq.rate * 100)}% of the crown's ${Math.floor(lq.revenue)}g of daily dues, held down by ${LIMIT[lq.limit] || lq.limit}.</div>`;
-            for (const axis of Throne.POLICY_AXES) {
-                const def = Throne.policies()[axis];
-                if (!def) continue;
-                body += sectionHead(_esc(def.label));
-                body += '<div>';
-                for (const [id, opt] of Object.entries(def.options || {})) {
-                    const active = r.policies[axis] === id;
-                    body += `<button title="${_esc(opt.blurb || '')}" onclick="window._throne.policy('${axis}','${id}')" style="${active ? BTN_GOLD : BTN_DARK}">${opt.icon || ''} ${_esc(opt.label)}</button>`;
-                }
-                body += '</div>';
-                const cur = def.options && def.options[r.policies[axis]];
-                if (cur && cur.blurb) body += `<div style="${MUTED} margin-top:3px;">${_esc(cur.blurb)}</div>`;
-            }
-            const diplo = [];
-            for (const d of Throne.diplomacyTargets(player, world)) {
-                const status = d.atWar ? '<span style="color:#e0846a;">at war</span>' : d.allied ? '<span style="color:#8fd18a;">allied</span>' : d.truce ? '<span style="color:#9bc;">truce</span>' : `relations ${d.relations}`;
-                let acts;
-                if (d.atWar) {
-                    acts = _btn(`🕊️ Propose peace (~${Math.round(Throne.peaceChance(player, world, d.kingdom.id) * 100)}%)`, `window._throne.peace('${d.kingdom.id}')`);
-                } else {
-                    acts = _btn('⚔️ Declare war', `window._throne.war('${d.kingdom.id}')`, !d.allied && !d.truce, BTN_RED)
-                        + _btn('🤝 Propose alliance', `window._throne.ally('${d.kingdom.id}')`, !d.allied && d.relations >= cfg.ruling.allianceMinRelations)
-                        + _btn(`🎁 Royal gifts (${cfg.ruling.giftCost}g)`, `window._throne.gift('${d.kingdom.id}')`, (ruled.treasury || 0) >= cfg.ruling.giftCost);
-                }
-                diplo.push(actRow({
-                    icon: d.atWar ? '⚔️' : d.allied ? '🤝' : '🏰', name: _esc(d.kingdom.name),
-                    desc: `${status} · army ${Math.floor(d.kingdom.military || 0)}`,
-                    note: `<span style="display:block; margin-top:2px;">${acts}</span>`,
-                }));
-            }
-            body += rowList(diplo, 'Diplomacy');
-            body += rowList([
-                { icon: '🏛️', name: 'Open the Royal Court', desc: 'The council, edicts, vassals and the realm', attrs: 'onclick="window._throne.court()"', side: '›', tone: 'gold' },
-                { icon: '👑', name: 'Abdicate', desc: 'Lay down the crown', attrs: 'onclick="window._throne.abdicate()"', tone: 'bad' },
-            ]);
-            html += card(body, { icon: '👑', title: `${_esc(ruled.ruler)} — ${_esc(ruled.name)}`, tone: 'gold' });
+            html += rowList([{
+                icon: '👑', name: `You rule ${_esc(ruled.name)}`,
+                desc: 'Policies, diplomacy, the council, edicts and vassals: all in the Royal Court',
+                attrs: 'onclick="window._throne.court()"', side: '›', tone: 'gold',
+            }]);
         }
 
         // ── The war for a throne ──
@@ -244,13 +285,7 @@ Object.assign(ActionMenu, {
             return PlayerMilitary.combat(player, enemyStrength, name, { world, terrainId: t && t.terrain && t.terrain.id, lootKingdom: realm });
         };
         window._throne = {
-            policy: (axis, id) => result('👑 Royal Policy', Throne.setPolicy(player, world, axis, id)),
-            war: (id) => result('⚔️ War', Throne.declareRealmWar(player, world, id)),
-            peace: (id) => result('🕊️ Peace', Throne.proposePeace(player, world, id)),
-            ally: (id) => result('🤝 Alliance', Throne.proposeAlliance(player, world, id)),
-            gift: (id) => result('🎁 Royal Gifts', Throne.sendRoyalGifts(player, world, id)),
-            abdicate: () => result('👑 Abdication', Throne.abdicate(player, world)),
-            court: () => ActionMenu.showRoyalCourt(game, tile),
+            court: () => ActionMenu.showRoyalCourt(game, tile, 'realm'),
             match: (id) => result('💍 Royal Match', Throne.arrangeRoyalMatch(player, world, id)),
             forge: (id) => result('📜 Forgery', Throne.forgeClaim(player, world, id)),
             buy: (id) => result('🛡️ Heralds', Throne.purchaseClaim(player, world, id)),

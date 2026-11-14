@@ -5,8 +5,9 @@
 import { ActionMenu } from './_ref.js';
 import { Kingship } from '../../systems/kingship.js';
 import { Throne, House } from './_imports.js';
-import { panelTabs, lede, chips, sectionHead, kv, card, actRow, rowList, price, BTN_GOLD, BTN_RED, BTN_OFF } from './uiKit.js';
+import { panelTabs, lede, chips, sectionHead, kv, card, more, actRow, rowList, price, BTN_GOLD, BTN_RED, BTN_OFF } from './uiKit.js';
 import { Names } from '../../core/names.js';
+import { crownRuleHtml, bindCrownRule } from './throne.js';
 
 const MUTED = 'color: #9d937c; font-size: 11px;';
 const TABS = [['council', '🏛️ Council'], ['edicts', '📜 Edicts'], ['vassals', '🛡️ Vassals'], ['realm', '👑 Realm']];
@@ -178,7 +179,7 @@ function _vassalsTab(player, world) {
     }
     // Vassals
     html += sectionHead('🛡️ Your vassals');
-    html += `<div style="${MUTED} margin-bottom:6px;">💰 Gold ${G.gold.treasury}g (treasury) · 🎖️ Title ${G.title.prestige} Prestige · 🌾 Land (the crown's taxes −${Math.round(G.land.taxLoss * 100)}%) · 💍 Marriage ${G.marriage.prestige} Prestige + ${G.marriage.gold}g · 🤝 Favour ${G.favour.gold}g · ⛓️ Break a lord weaker than half the crown's power.</div>`;
+    html += `<div style="${MUTED} margin-bottom:6px;">Open a lord to grant them gold, a title, land, a match or a favour, or to break them.</div>`;
     const feast = Kingship.canFeast(player, world);
     html += rowList([{
         icon: '🍖', name: 'Royal feast', desc: `+${G.feast.favour} favour to all`,
@@ -190,16 +191,7 @@ function _vassalsTab(player, world) {
         let body = `<div style="${MUTED}">of ${_esc(s.seatName)} · age ${v.age} · ${_esc(s.traits.join(', '))}</div>`;
         body += `<div style="font-size:11px; margin-top:2px;">Opinion <span style="color:${_opinionColor(s.opinion)};font-weight:bold;">${_sign(s.opinion)}</span> (heading ${_sign(s.forecast.target)}) · power ${s.power} · ambition ${v.ambition} · honor ${v.honor} · seeks ${_esc(s.goals.join(', '))}${v.kin ? ' · 💍 kin' : ''}${s.refusing ? ' · <span style="color:#e0846a;">refusing the levy</span>' : ''}${s.cowed ? ' · cowed' : ''}${s.faction && s.faction.revealed ? ' · <span style="color:#f0b35a;">in a faction</span>' : ''}</div>`;
         body += `<div style="${MUTED}">${s.forecast.parts.map(p => `${_esc(p.label)} ${_sign(p.value)}`).join(' · ')}</div>`;
-        if (!v.rebel) {
-            body += '<div style="margin-top:4px;">';
-            body += _btn('💰', `window._court.grant('gold','${v.id}')`, true, BTN_GOLD, 'Grant gold');
-            body += _btn('🎖️', `window._court.grant('title','${v.id}')`, true, BTN_GOLD, 'Grant a title');
-            body += _btn('🌾', `window._court.grant('land','${v.id}')`, true, BTN_GOLD, 'Grant crown land');
-            body += _btn('💍', `window._court.grant('marriage','${v.id}')`, !v.kin, BTN_GOLD, 'Marry a grown child into their house');
-            body += _btn('🤝', `window._court.grant('favour','${v.id}')`, true, BTN_GOLD, 'Settle a quarrel in their favour');
-            body += _btn('⛓️', `window._court.grant('break','${v.id}')`, true, BTN_RED, 'Break this lord');
-            body += '</div>';
-        }
+        if (!v.rebel) body += rowList([{ icon: '🎁', name: 'Grant or punish', desc: 'Gold, a title, land, a match, a favour, or break them', side: '›', attrs: `onclick="window._court.vassal('${v.id}')"` }]);
         const title = `${v.pretender ? '<span title="Of the old royal line: says the throne is theirs" style="color:#f0b35a;">🗡️ Pretender</span> ' : ''}${_esc(s.name)}`;
         html += card(body, {
             icon: v.rebel ? '🔥' : '🛡️', title,
@@ -210,45 +202,73 @@ function _vassalsTab(player, world) {
     return html;
 }
 
-function _realmTab(player, world) {
+/** One vassal's page: who they are, and a row for each grant (its price on the row) or for breaking them. */
+function _vassalPage(player, world, id) {
+    const s = Kingship.vassalSummary(player, world).find(x => String(x.vassal.id) === String(id));
+    if (!s) return '';
+    const v = s.vassal;
+    const G = Kingship.config().grants || {};
+    const k = Throne.ruledKingdom(player, world);
+    const treasury = (k && k.treasury) || 0;
+    const prestige = House.getPrestige(player);
+    const gold = player.gold || 0;
+    let html = lede(`<b>${_esc(s.name)}</b> of ${_esc(s.seatName)}, age ${v.age} · ${_esc(s.traits.join(', '))}. Seeks ${_esc(s.goals.join(', '))}.`);
+    html += chips([
+        { icon: '💭', label: 'Opinion', value: `<span style="color:${_opinionColor(s.opinion)};">${_sign(s.opinion)}</span> → ${_sign(s.forecast.target)}` },
+        ['⚔️', 'Power', s.power], ['🔥', 'Ambition', v.ambition], ['🛡️', 'Honour', v.honor],
+        v.kin ? ['💍', 'Kin', ''] : null,
+        s.refusing ? { icon: '⚠️', label: 'Refusing the levy', value: '' } : null,
+    ]);
+    html += `<div style="${MUTED} margin-bottom:4px;">${s.forecast.parts.map(pt => `${_esc(pt.label)} ${_sign(pt.value)}`).join(' · ')}</div>`;
+    const row = (icon, name, desc, kind, sideHtml, ok = true, why = '', tone = '') => ({
+        icon, name, desc, side: sideHtml, off: !ok, why, tone, attrs: `onclick="window._court.grant('${kind}','${v.id}')"`,
+    });
+    html += rowList([
+        row('💰', 'Grant gold', 'From the treasury', 'gold', price(G.gold && G.gold.treasury, treasury >= ((G.gold && G.gold.treasury) || 0))),
+        row('🎖️', 'Grant a title', `Costs ${(G.title && G.title.prestige) || 0} Prestige`, 'title', `⭐${(G.title && G.title.prestige) || 0}`, prestige >= ((G.title && G.title.prestige) || 0), 'Not enough Prestige'),
+        row('🌾', 'Grant crown land', `The crown's taxes fall ${Math.round(((G.land && G.land.taxLoss) || 0) * 100)}%`, 'land', ''),
+        row('💍', 'Marry a grown child into their house', `${(G.marriage && G.marriage.prestige) || 0} Prestige and a dowry`, 'marriage', price(G.marriage && G.marriage.gold, gold >= ((G.marriage && G.marriage.gold) || 0)), !v.kin, 'Already your kin'),
+        row('🤝', 'Settle a quarrel in their favour', 'Paid from your purse', 'favour', price(G.favour && G.favour.gold, gold >= ((G.favour && G.favour.gold) || 0))),
+        row('⛓️', 'Break this lord', 'Only a lord weaker than half the crown\'s power; the others will remember', 'break', '', true, '', 'bad'),
+        { icon: '←', name: 'Back to the vassals', attrs: `onclick="window._court.tab('vassals')"` },
+    ], 'Grants');
+    return html;
+}
+
+function _realmTab(game) {
+    const { player, world } = game;
     const s = Kingship.realmStats(player, world);
     const k = s.kingdom;
-    let html = lede(`👑 <b>${_esc(k.ruler)}</b> — ${_esc(k.name)}`);
+    let html = lede(`👑 <b>${_esc(k.ruler)}</b> — ${_esc(k.name)}${s.wars.length ? ` · at war with ${s.wars.map(_esc).join(', ')}` : ''}${s.allies.length ? ` · allied with ${s.allies.map(_esc).join(', ')}` : ''}`);
     html += chips([
         { icon: '🏦', label: 'Treasury', value: `${s.treasury}g`, cls: 'gold' },
         ['⚔️', 'Army', s.military],
         ['⚖️', 'Stability', s.stability],
         ['🏘️', 'Towns', s.towns],
         ['👥', 'People', s.population],
+        ['⭐', 'Prestige', House.getPrestige(player)],
+        ['🛡️', 'Vassals', `${s.vassals} (${s.disloyal} discontented)`],
+        ['📜', 'Edicts', `${s.edicts}/${s.edictSlots} · ${s.upkeep}g/day`],
+        ['🙏', 'Faith', `piety ${s.piety == null ? '—' : s.piety}, unity ${s.unity == null ? '—' : s.unity}`],
     ]);
-    let body = kv('Faith', `piety ${s.piety == null ? '—' : s.piety}, unity ${s.unity == null ? '—' : s.unity}`);
-    body += kv('Levy rate', `${Math.round(Throne.levyRate(player) * 100)}%`);
-    body += kv('Prestige', House.getPrestige(player));
-    body += kv('Wars', s.wars.length ? s.wars.map(_esc).join(', ') : 'none');
-    body += kv('Allies', s.allies.length ? s.allies.map(_esc).join(', ') : 'none');
-    body += kv('Vassals', `${s.vassals} (${s.loyal} loyal, ${s.disloyal} discontented)`);
-    body += kv('Edicts', `${s.edicts}/${s.edictSlots}, upkeep ${s.upkeep}g/day`);
-    html += card(body);
+    // The levy, the crown's policies, diplomacy and abdication (ui/actionMenu/throne.js)
+    html += crownRuleHtml(game);
     html += rowList([
         // The crown's trade: duties, export bans, embargoes, treaties, the granaries (ui/actionMenu/tradePolicy.js)
-        { icon: '⚖️', name: 'Trade policy', desc: 'Set duties on each kind of goods, ban exports, lay embargoes, sign treaties and fill the royal granaries.', act: 'showTradePolicy', args: ['crown'], side: 'Open the trade policy', tone: 'gold' },
+        { icon: '⚖️', name: 'Trade policy', desc: 'Duties, export bans, embargoes, treaties, the royal granaries', act: 'showTradePolicy', args: ['crown'], side: '›' },
         // The realm's laws: private prisons, land for foreigners, punishment (ui/actionMenu/laws.js)
-        { icon: '📜', name: 'The laws', desc: 'Proclaim the realm\'s laws: whether free folk may keep prison camps, who may hold land in its towns, and how hard the watch punishes.', act: 'showLaws', args: ['crown'], side: 'Open the laws', tone: 'gold' },
+        { icon: '📜', name: 'The laws', desc: 'Prison camps, land for foreigners, how hard the watch punishes', act: 'showLaws', args: ['crown'], side: '›' },
         // The crown's books: taxes, the army's pay, the court, tax farms (ui/actionMenu/treasury.js)
-        { icon: '🧾', name: 'The treasury', desc: 'The budget line by line, the taxes, the army\'s pay and the court, tax farms, offices and crown land for sale.', act: 'showTreasury', args: ['crown'], side: 'Open the treasury', tone: 'gold' },
+        { icon: '🧾', name: 'The treasury', desc: 'The budget line by line, tax farms, offices and crown land for sale', act: 'showTreasury', args: ['crown'], side: '›' },
     ], 'Governing the realm');
-    html += card(`<div style="${MUTED}">${_esc(_modsText(s.mods)) || 'Nothing yet — name a council and proclaim edicts.'}${s.peaceChance ? ` · peace odds +${Math.round(s.peaceChance * 100)}%` : ''}</div>`, { title: 'What the court adds to the realm' });
+    html += `<div style="${MUTED} margin:6px 0;"><b>The court adds:</b> ${_esc(_modsText(s.mods)) || 'nothing yet — name a council and proclaim edicts'}${s.peaceChance ? ` · peace odds +${Math.round(s.peaceChance * 100)}%` : ''}</div>`;
     const st = s.stats;
-    html += chips([
+    const court = Kingship.court(player);
+    html += more('The reign in numbers, and the court\'s chronicle', chips([
         ['📜', 'Edicts proclaimed', st.edictsPassed], ['🎁', 'Grants', st.grants], ['🍖', 'Feasts', st.feasts],
         ['🕵️', 'Plots revealed', st.plotsRevealed], ['⛓️', 'Lords broken', st.lordsBroken],
         ['🔥', 'Revolts', `${st.revolts} (crushed ${st.revoltsCrushed}, conceded ${st.revoltsConceded})`],
-    ]);
-    const court = Kingship.court(player);
-    if (court.log.length) {
-        html += sectionHead('📖 The court\'s chronicle');
-        for (const h of court.log.slice(-8).reverse()) html += `<div style="${MUTED} padding:2px 0;">Day ${h.day}: ${_esc(h.text)}</div>`;
-    }
+    ]) + court.log.slice(-8).reverse().map(h => `<div style="${MUTED} padding:2px 0;">Day ${h.day}: ${_esc(h.text)}</div>`).join(''));
     return html;
 }
 
@@ -273,12 +293,14 @@ Object.assign(ActionMenu, {
             html += lede(`The lords of ${_esc(Names.realm(k.name))} will come to swear fealty at the end of the day.`);
         } else if (tab === 'edicts') html += _edictsTab(player, world);
         else if (tab === 'vassals') html += _vassalsTab(player, world);
-        else if (tab === 'realm') html += _realmTab(player, world);
+        else if (tab === 'realm') html += _realmTab(game);
         else html += _councilTab(player, world);
         html += '</div>';
         game.ui.showCustomPanel(`🏛️ The Royal Court of ${Names.realm(k.name)}`, html);
 
         const reopen = () => ActionMenu.showRoyalCourt(game, tile, tab);
+        // The Realm tab's policies and diplomacy (ui/actionMenu/throne.js crownRuleHtml)
+        if (tab === 'realm') bindCrownRule(game, reopen);
         const result = (title, res) => ActionMenu._realmResult(game, title, res, reopen);
         window._court = {
             tab: (id) => ActionMenu.showRoyalCourt(game, tile, id),
@@ -291,12 +313,16 @@ Object.assign(ActionMenu, {
             concede: (id) => result('🏳️ Faction', Kingship.concede(player, world, id)),
             arrest: (id) => result('⛓️ Faction', Kingship.arrestLeader(player, world, id)),
             parley: () => result('🕊️ Parley', Kingship.parley(player, world)),
+            vassal: (id) => {
+                const html = _vassalPage(player, world, id);
+                if (html) game.ui.showCustomPanel('🛡️ Your Vassal', `<div style="font-size:12px;">${html}</div>`);
+            },
             grant: (kind, id) => {
                 const fn = {
                     gold: Kingship.grantGold, title: Kingship.grantTitle, land: Kingship.grantLand,
                     marriage: Kingship.arrangeMarriage, favour: Kingship.grantFavour, break: Kingship.breakVassal,
                 }[kind];
-                if (fn) result('🛡️ Your Vassals', fn(player, world, id));
+                if (fn) ActionMenu._realmResult(game, '🛡️ Your Vassals', fn(player, world, id), () => (_vassalPage(player, world, id) ? window._court.vassal(id) : reopen()));
             },
         };
     },

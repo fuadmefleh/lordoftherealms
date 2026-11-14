@@ -10,7 +10,10 @@
 //   - _cartBlocks(q, r, who): a cart is in the way of `who` there (an NPC, or
 //     'player') — its own driver and the one pushing it are never blocked by it;
 //   - a cart parked (no one at its handles) is a solid thing: paths go round
-//     it (InnerMap._findPath reads _cartParkedIdx); a moving cart is waited for.
+//     it (InnerMap._findPath reads _cartParkedIdx). A moving cart the player
+//     waits for; townsfolk walk straight through it and its puller (as they do
+//     through each other), and it rolls on through them — no waiting on each
+//     other, no shoving aside (that stand-off was the street's jitter).
 //
 // Carts never go indoors: indoors (InnerMap._insideBuilding) there are none.
 // Nothing here is saved: the street maps are dealt again on the next visit.
@@ -54,32 +57,35 @@ Object.assign(InnerMap, {
      * @param {object|'player'} who an NPC, or 'player'
      */
     _cartBlocks(q, r, who) {
-        let c = this.cartAt(q, r);
-        // (an NPC keeps off the ground a moving cart is about to take: its leader's tile and the next)
-        if (!c && who !== 'player') c = this.streetCarts().find(x => x.claim && x.claim.some(t => t.q === q && t.r === r)) || null;
+        const c = this.cartAt(q, r);
         if (!c) return false;
         if (who === 'player') return !(c.pusher === 'player');
         if (who && (c.driver === who || c.load === who)) return false;
+        // Townsfolk pass through a moving cart (and its puller) as through anyone else
+        if (!c.parked) return false;
+        // (one already standing on its ground — it parked on them — steps off freely)
+        if (who && who.q != null && this.cartAt(who.q, who.r) === c) return false;
         return true;
     },
 
     /**
-     * An NPC's next step is onto a cart (npcs.js updateNPCs): they wait a moment; a cart
-     * that is parked they go round; one that does not move on, they give up on the walk.
+     * An NPC's next step is onto a parked cart (npcs.js updateNPCs — moving carts never
+     * stop them): they go round it at once; with no way round, they give up on the walk.
      * @returns {boolean} true: the step is not taken this time
      */
     _npcWaitForCart(npc, step) {
         npc._cartWait = (npc._cartWait || 0) + 1;
         const c = this.cartAt(step.q, step.r);
-        if (npc._cartWait >= 3 && c && c.parked && npc.path && npc.path.length) {
+        if (c && c.parked && npc.path && npc.path.length) {
             const end = npc.path[npc.path.length - 1];
             const path = this._findPath(npc.q, npc.r, end.q, end.r);
             npc._cartWait = 0;
-            if (path && path.length >= 2) {
+            if (path && path.length >= 2 && !(path[1].q === step.q && path[1].r === step.r)) {
                 npc.path = path.slice(1);
                 npc.pathIndex = 0;
                 return true;
             }
+            npc._cartWait = 12;
         }
         if (npc._cartWait >= 12) {
             npc._cartWait = 0;
@@ -90,9 +96,14 @@ Object.assign(InnerMap, {
         return true;
     },
 
-    /** Is anyone standing on (q, r) — the player, or an NPC on their feet (not `except`)? */
-    _cartTileTaken(q, r, except = null) {
+    /**
+     * Is anyone standing on (q, r) — the player, or an NPC on their feet (not `except`)?
+     * `playerOnly`: a cart rolling on (ui/innerMapCarts.js _drive) stops for the player
+     * only; townsfolk it rolls through.
+     */
+    _cartTileTaken(q, r, except = null, playerOnly = false) {
         if (q === this.playerInnerQ && r === this.playerInnerR) return true;
+        if (playerOnly) return false;
         for (const n of this.npcs || []) {
             if (n === except || n.state === 'gone' || n.state === 'inside_building' || n._onCart) continue;
             if (n.q === q && n.r === r) return true;

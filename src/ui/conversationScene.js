@@ -203,6 +203,7 @@ class Scene {
     constructor(cfg) {
         this.cfg = cfg;
         this._queue = [];       // lines waiting for the speaker to finish
+        this._said = [];        // what was said so far, { npc, text } (for the AI chat's memory of the scene)
         this._typing = null;    // { el, text, timer }
         this._closed = false;
         /** Pending exchange / afterSpoken timers, cleared on close. */
@@ -353,13 +354,21 @@ class Scene {
      * false keeps the written line. The thinking dots stay up while it comes.
      */
     npc(text, how = null) {
+        if (text) this._said.push({ npc: true, text: String(text).replace(/<[^>]+>/g, '') });
         const voice = how !== false && typeof this.cfg.voice === 'function' ? this.cfg.voice : null;
         this._enqueue({ kind: 'npc', text, voice, how: how || {} });
         return this;
     }
 
     /** The player says a line. */
-    player(text) { this._enqueue({ kind: 'player', text }); return this; }
+    player(text) {
+        if (text) this._said.push({ npc: false, text: String(text).replace(/<[^>]+>/g, '') });
+        this._enqueue({ kind: 'player', text });
+        return this;
+    }
+
+    /** The last n lines said in this scene: [{ npc, text }] */
+    recentLines(n = 6) { return this._said.slice(-n); }
 
     /** An outcome ribbon in the transcript: tone is good / bad / gold / info. */
     note(html, tone = 'info') { this._enqueue({ kind: 'note', html, tone }); return this; }

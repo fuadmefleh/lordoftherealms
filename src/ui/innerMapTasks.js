@@ -36,6 +36,10 @@ import { drawMapMarker, drawMarkerPlate } from './mapInk.js';
 import { JobItems } from './jobItems.js';
 import { pictureIcon } from './icons.js';
 import { Utils } from '../core/utils.js';
+import { NpcTheft } from '../systems/npcTheft.js';
+
+/** The task foes who are thieves: none of them in a place too small for thieves */
+const THIEF_FOES = new Set(['cutpurse', 'thief', 'burglar']);
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _ri = (rng, [a, b]) => a + Math.floor(rng() * (b - a + 1));
@@ -372,6 +376,10 @@ const TEMPLATES = {
             const route = ctx.pickNear(places, ctx.total, 10);
             ctx.total = route.length;
             ctx.troubleAt = Math.floor(ctx.rng() * route.length);
+            // (no thief to catch in a hamlet, or a village at the dawn: NpcTheft.hasThieves)
+            const foeKey = p.foe || 'cutpurse';
+            const wt = InnerMap.currentWorldTile;
+            if (THIEF_FOES.has(foeKey) && wt && wt.settlement && ctx.game && !NpcTheft.hasThieves(ctx.game.world, wt.settlement)) ctx.troubleAt = route.length;
             route.forEach((at, i) => {
                 ctx.mark(at, { glyph: 'shield', label: 'Check this post', work: p.workSeconds || 1, onDone: () => {
                     ctx.done++;

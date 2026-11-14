@@ -1,0 +1,118 @@
+{
+    "_note": "Deplorable acts against a town (systems/townCrimes.js; ui/actionMenu/townCrimes.js, opened from the town's Back Rooms). daysPerYear: the calendar. odds: the chance someone sees the deed — base per act, less stealthPerPoint per point of Stealth and the Underworld trait bonus, more per point of the realm's heat on you (heatPer) and by the town's size (size); of those who see, `named` share know your face (the rest saw a figure and may name you later, nameChance a week while the hunt runs). hunt: the town's search for the culprit (days it runs; while named and in the town the watch takes you: arrestChance a day). caught: what being named costs — prestige lost from the House, the lord's memory (lordDeed), the town's memory (npcMemory kinds), a rumour (gossip rumorTypes), heat (underworld crimes). well: poisoning the town's well — needs one of `means` (poison, or carrion: rotting meat thrown down); the first draught strikes `firstShare` of the residents with the flux (more with poison), and the well stays foul `foulDays`, striking `dailyShare` more each day (a town without a roster keeps an abstract sickness `share` that idles its hands). scare: a false plague scare — `cost` gold to the criers and beggars (into the town's purse); traders shun the town (`tradeFactor` on its trade links) for `days`, `fleeShare` of its people go to the nearest town till it passes (fewer mouths, the same stores: its prices fall); each day `exposeChance` the physicians find no plague and say so (none when the town truly is sick), and then `traceChance` (less per point of Stealth) the lie is traced to you. granary: burn the town's granary — needs one of `tinder`; `share` of the granary and of the market's grain and flour burn (`leanShare` in the lean weeks, when the stores are thin and it bites hardest); `spreadChance` the fire takes the street around it (a town fire, systems/townMemory.js); the crown then buys grain at `crownPremium` over the market for `wantDays`. hoard: buy up grain in a hungry town (a famine of the age, a dearth, or the lean weeks with thin stores) and hold it in a rented loft (`loftFee` a week, to the town): legal unless the crown has forbidden engrossing (the loft is thrown open, nothing paid); `spoil` of it rots a week; selling it back in a hungry town at `grudgeRatio` or more of what you paid earns the town's lasting grudge. lines: the prose.",
+    "daysPerYear": 120,
+    "odds": {
+        "base": { "well": 0.42, "scare": 0.18, "granary": 0.5 },
+        "named": { "well": 0.45, "scare": 0.35, "granary": 0.5 },
+        "stealthPerPoint": 0.035,
+        "heatPer": 0.004,
+        "size": { "village": -0.08, "town": 0, "city": 0.08, "capital": 0.12 },
+        "min": 0.04,
+        "max": 0.9
+    },
+    "hunt": { "days": 60, "nameChance": 0.18, "arrestChance": 0.3, "townHeat": 10 },
+    "caught": {
+        "prestige": { "well": 40, "scare": 15, "granary": 30 },
+        "lordDeed": { "well": "raid", "granary": "raid", "scare": "insult" },
+        "rumor": { "well": "well_poisoning", "scare": "plague_lie", "granary": "granary_arson" },
+        "crime": { "well": "well_poisoning", "scare": "false_alarm", "granary": "arson" },
+        "memory": { "well": "well_poisoned", "scare": "plague_lie", "granary": "granary_burnt" },
+        "happiness": { "well": -8, "scare": -4, "granary": -6 }
+    },
+    "well": {
+        "means": [
+            { "item": "poison", "qty": 1, "label": "a vial of poison", "strength": 1.0 },
+            { "item": "meat", "qty": 4, "label": "four joints of rotting meat", "strength": 0.6 },
+            { "item": "fish", "qty": 6, "label": "a sack of rotting fish", "strength": 0.5 }
+        ],
+        "firstShare": 0.12,
+        "dailyShare": 0.03,
+        "foulDays": 8,
+        "abstractShare": 0.25,
+        "maxTracked": 80,
+        "happiness": -5
+    },
+    "scare": {
+        "cost": 40,
+        "days": 30,
+        "tradeFactor": 0.25,
+        "fleeShare": 0.12,
+        "exposeChance": 0.05,
+        "traceChance": 0.45,
+        "tracePerStealth": 0.03,
+        "happiness": -4,
+        "minPop": 150
+    },
+    "granary": {
+        "tinder": [
+            { "item": "lamp_oil", "qty": 1, "label": "a flask of lamp oil" },
+            { "item": "oil", "qty": 1, "label": "a jar of oil" },
+            { "item": "firewood", "qty": 3, "label": "an armful of firewood" }
+        ],
+        "share": 0.55,
+        "leanShare": 0.85,
+        "marketGoods": ["grain", "flour"],
+        "spreadChance": 0.2,
+        "spreadShare": [0.04, 0.12],
+        "crownPremium": 1.5,
+        "wantDays": 45,
+        "happiness": -6
+    },
+    "hoard": {
+        "loftFee": 2,
+        "spoil": 0.01,
+        "grudgeRatio": 1.5,
+        "lowReserveDays": 4,
+        "maxPerBuy": 200,
+        "batch": 5
+    },
+    "lines": {
+        "wellDone": [
+            "You tip {means} into {town}'s well and walk away before the bucket comes up again.",
+            "Under cover of the washing-day crowd, {means} goes down {town}'s well. By morning the water will taste of it."
+        ],
+        "wellSeen": [
+            "A washerwoman at the trough looks up as you step back from the well. She saw something.",
+            "Someone in a doorway watched you at the well — you could not see their face. They could see yours, maybe."
+        ],
+        "wellNamed": [
+            "{witness} saw you at the well, and knows who you are. The town will know by nightfall.",
+            "\"That one! At the well!\" {witness} is already shouting your name."
+        ],
+        "scareDone": [
+            "Coin changes hands with criers and beggars: by evening half of {town} has heard a sailor died of the black buboes in the harbour inn.",
+            "You pay the town's gossips well. \"Plague,\" they whisper in {town}, \"plague at the tannery\" — and the carters turn their wagons round."
+        ],
+        "scareNamed": [
+            "{witness} saw you paying the criers, and knows your face. The lie has your name on it."
+        ],
+        "granaryDone": [
+            "The granary of {town} goes up in the night. The roof falls in on the grain, and the smell of burnt bread hangs over the town for days.",
+            "Oil, a flint, and the dry thatch of {town}'s granary does the rest. By dawn the winter's bread is ash."
+        ],
+        "granarySpread": [
+            "The fire jumps the lane and takes the houses beside the granary."
+        ],
+        "granaryNamed": [
+            "{witness} saw you running from the granary as the flames went up, and knows who you are."
+        ],
+        "hunt": [
+            "The folk of {town} are hunting whoever did it: the watch asks questions in every tavern."
+        ],
+        "exposed": [
+            "The physicians of {town} find no plague after all: the scare was a lie, and the traders come back."
+        ],
+        "traced": [
+            "The lie of the plague at {town} is traced to you: the criers you paid have talked."
+        ],
+        "arrested": [
+            "The watch of {town}, told who poisoned their people, take you at the gate."
+        ],
+        "hoardSeized": [
+            "The crown has forbidden engrossing: your loft in {town} is thrown open and its grain sold off at the market cross. You see nothing of it."
+        ],
+        "hoardGrudge": [
+            "You sold {town} its own bread back at a famine price. They will not forget whose loft it came from."
+        ]
+    }
+}

@@ -760,6 +760,13 @@ Object.assign(InnerMapRenderer, {
                 // Hammering at an anvil must not damage it — swap in a harmless emote.
                 const anim = activity.anim === 'slash' ? 'emotes' : activity.anim;
                 InnerMap.startInteraction(tq, tr, null, 0, anim);
+                // Sat down as the townsfolk sit (world/innerMap/furnitureUse.js playerSeatAt): on the
+                // pew or throne facing out or toward the altar, on a stool at a table's edge
+                const seat = anim === 'sitting' && item._furniture ? InnerMap.playerSeatAt(tq, tr) : null;
+                if (seat && InnerMap._activeInteraction) {
+                    InnerMap._activeInteraction.seat = seat;
+                    InnerMapRenderer._playerFacing = seat.facing;
+                }
             }
             this._handleContextAction(game, { ...item, _approached: true }, q, r);
         });

@@ -243,7 +243,7 @@ Object.assign(UI.prototype, {
     // MAP MODES & DATA VISUALIZATION
     // ============================================
     /**
-     * Toggle the map mode selector dropdown
+     * The old map-mode popup (kept as a fallback: the modes now sit in the top bar's Map dropdown)
      */
     showMapModeSelector() {
         const existing = document.getElementById('mapModeDropdown');
@@ -299,45 +299,6 @@ Object.assign(UI.prototype, {
             </div>`;
         }
 
-        // Extra buttons for data panels
-        html += `<div style="border-top: 1px solid rgba(255,255,255,0.08); margin-top: 4px; padding-top: 4px;">`;
-        html += `<div class="map-mode-option" data-action="graphs" style="display:flex;align-items:center;gap:10px;padding:8px 14px;cursor:pointer;">
-            <span style="font-size:18px;">📊</span>
-            <div>
-                <div style="color:var(--text-primary);font-size:13px;">Economic Trends</div>
-                <div style="color:var(--text-secondary);font-size:11px;">Graphs & kingdom stats</div>
-            </div>
-        </div>`;
-        html += `<div class="map-mode-option" data-action="eventlog" style="display:flex;align-items:center;gap:10px;padding:8px 14px;cursor:pointer;">
-            <span style="font-size:18px;">📜</span>
-            <div>
-                <div style="color:var(--text-primary);font-size:13px;">Event Log</div>
-                <div style="color:var(--text-secondary);font-size:11px;">Major world events</div>
-            </div>
-        </div>`;
-        html += `<div class="map-mode-option" data-action="ledger" style="display:flex;align-items:center;gap:10px;padding:8px 14px;cursor:pointer;">
-            <span style="font-size:18px;">📒</span>
-            <div>
-                <div style="color:var(--text-primary);font-size:13px;">Merchant's Ledger</div>
-                <div style="color:var(--text-secondary);font-size:11px;">Known prices, spreads, your trading</div>
-            </div>
-        </div>`;
-        html += `<div class="map-mode-option" data-action="economy" style="display:flex;align-items:center;gap:10px;padding:8px 14px;cursor:pointer;">
-            <span style="font-size:18px;">📰</span>
-            <div>
-                <div style="color:var(--text-primary);font-size:13px;">Economic Chronicle</div>
-                <div style="color:var(--text-secondary);font-size:11px;">Realms' prices, fashions, your worth</div>
-            </div>
-        </div>`;
-        html += `<div class="map-mode-option" data-action="compare" style="display:flex;align-items:center;gap:10px;padding:8px 14px;cursor:pointer;">
-            <span style="font-size:18px;">⚖️</span>
-            <div>
-                <div style="color:var(--text-primary);font-size:13px;">Kingdom Comparison</div>
-                <div style="color:var(--text-secondary);font-size:11px;">Side-by-side analysis</div>
-            </div>
-        </div>`;
-        html += `</div>`;
-
         dropdown.innerHTML = html;
         document.body.appendChild(dropdown);
 
@@ -350,19 +311,7 @@ Object.assign(UI.prototype, {
             });
 
             el.addEventListener('click', () => {
-                if (el.dataset.mode) {
-                    this.setMapMode(el.dataset.mode);
-                } else if (el.dataset.action === 'graphs') {
-                    this.showEconomicTrends();
-                } else if (el.dataset.action === 'eventlog') {
-                    this.showEventLog();
-                } else if (el.dataset.action === 'ledger') {
-                    ActionMenu.showMerchantLedger(this.game);
-                } else if (el.dataset.action === 'economy') {
-                    ActionMenu.showEconomy(this.game);
-                } else if (el.dataset.action === 'compare') {
-                    this.showKingdomComparison();
-                }
+                if (el.dataset.mode) this.setMapMode(el.dataset.mode);
                 dropdown.remove();
             });
         });
@@ -393,10 +342,13 @@ Object.assign(UI.prototype, {
         };
         this.showNotification('Map Mode', `${labels[mode] || mode} view active`, 'info');
 
-        // Update button indicator
-        const btn = document.getElementById('btnMapModes');
-        if (btn) {
-            btn.style.borderBottom = mode !== 'normal' ? '2px solid var(--gold)' : 'none';
+        // Mark the active mode in the top bar's Map dropdown (TopBar.jsx [data-map-mode])
+        if (typeof document !== 'undefined' && document.querySelectorAll) {
+            document.querySelectorAll('[data-map-mode]').forEach(el => {
+                const on = el.getAttribute('data-map-mode') === mode;
+                const mark = el.querySelector('.civ-dd-toggle');
+                if (mark) { mark.textContent = on ? 'ON' : ''; mark.classList.toggle('on', on); }
+            });
         }
     },
 

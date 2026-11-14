@@ -21,6 +21,8 @@ import { Utils } from '../core/utils.js';
 import { Hex } from '../core/hex.js';
 import { Difficulty } from '../core/difficulty.js';
 import { WorldUnit } from '../world/units.js';
+import { Economy } from '../world/economy.js';
+import { CrownBooks } from '../world/crownBooks.js';
 import { RealmArms } from '../world/realmArms.js';
 import { House } from './house.js';
 import { NPCLords } from '../world/npcLords.js';
@@ -49,6 +51,8 @@ const CONFIG = {
     peaceScoreDiscount: 10,    // gold off the peace price per point of war score
     reparationsBase: 100,
     reparationsPerMilitary: 0.2,
+    musterPerMan: 1,           // gold a host's muster costs its crown per man (paid into the capital)
+    chestPerMan: 2,            // gold a host carries per man, out of the treasury (back when it comes home)
     peaceReputation: -10,      // standing with a realm once a war with it ends (at least)
     // Old wrongs fade: a realm's grudge against the player eases a point at a
     // time, so a war or a slander from a generation ago is not held forever.
@@ -165,6 +169,9 @@ export const RealmWars = {
         if (!u) return { success: false, reason: 'No such ultimatum.' };
         if ((player.gold || 0) < u.tribute) return { success: false, reason: `Need ${u.tribute} gold.` };
         player.gold -= u.tribute;
+        // (into the demanding crown's chests)
+        const k = world.getKingdom ? world.getKingdom(kingdomId) : null;
+        if (k) k.treasury = (k.treasury || 0) + u.tribute;
         delete s.ultimatums[kingdomId];
         s.truces[kingdomId] = world.day + Math.round(CONFIG.truceDays / 2);
         if (player.reputation) player.reputation[kingdomId] = (player.reputation[kingdomId] || 0) + 20;
@@ -203,9 +210,10 @@ export const RealmWars = {
         const war = s.wars[kingdomId];
         if (!war) return null;
         HoldingSieges.onWarEnded(player, world, kingdomId);
+        const kingdom = world.getKingdom ? world.getKingdom(kingdomId) : null;
         for (const h of war.hosts) {
             const unit = (world.units || []).find(u => u.id === h.id);
-            if (unit) unit.destroyed = true;
+            if (unit) { RealmWars._homeChest(kingdom, unit, h); unit.destroyed = true; }
         }
         delete s.wars[kingdomId];
         s.truces[kingdomId] = world.day + CONFIG.truceDays;
@@ -227,6 +235,7 @@ export const RealmWars = {
         const cost = RealmWars.peacePrice(player, kingdom);
         if ((player.gold || 0) < cost) return { success: false, reason: `Need ${cost} gold.` };
         player.gold -= cost;
+        kingdom.treasury = (kingdom.treasury || 0) + cost; // (the price of peace, into its chests)
         RealmWars.endWar(player, world, kingdomId, 'bought');
         return { success: true, cost };
     },
@@ -240,7 +249,9 @@ export const RealmWars = {
         if (war.score < CONFIG.enforcePeaceScore) {
             return { success: false, reason: `Need a war score of ${CONFIG.enforcePeaceScore} (now ${war.score}). Defeat their war hosts.` };
         }
-        const gold = RealmWars.reparations(kingdom);
+        // Reparations out of the beaten crown's chests, the rest levied on its towns
+        // (as much as they hold: no coin from nowhere)
+        const gold = RealmWars._exact(kingdom, world, RealmWars.reparations(kingdom));
         player.gold = (player.gold || 0) + gold;
         RealmWars.endWar(player, world, kingdomId, 'victory');
         House.recordPlayerDeed(player, world, 'battleWon', {
@@ -248,6 +259,37 @@ export const RealmWars = {
             chronicle: `${kingdom.name} sues for peace and pays ${gold} gold in reparations.`, tags: ['war', 'victory'],
         });
         return { success: true, gold };
+    },
+
+    /**
+     * Draw `amount` from a crown: its treasury first, then its towns' purses
+     * (none emptied: Economy.drawTowns' share cap). → what was raised.
+     */
+    _exact(kingdom, world, amount) {
+        const want = Math.max(0, Math.round(Number(amount) || 0));
+        if (!kingdom || !(want > 0)) return 0;
+        const fromChest = Math.min(want, Math.max(0, Math.floor(kingdom.treasury || 0)));
+        kingdom.treasury = (kingdom.treasury || 0) - fromChest;
+        let got = fromChest;
+        if (got < want) {
+            const towns = Economy.realmTowns(kingdom, world).map(t => ({ settlement: t.settlement, weight: Math.max(1, t.settlement.population || 0) }));
+            got += Math.floor(Economy.drawTowns(towns, want - got, 0.5).paid);
+        }
+        return got;
+    },
+
+    /**
+     * A host's war chest goes home with it (marched home, struck and returned,
+     * the war over, beaten and its survivors fled): what is left in the unit's
+     * bags back into its crown's treasury. → the coin returned.
+     */
+    _homeChest(kingdom, unit, rec = null) {
+        const inv = unit && unit.inventory;
+        const coin = inv ? Math.max(0, Math.floor(Number(inv.gold) || 0)) : 0;
+        if (inv) inv.gold = 0;
+        if (rec) rec.chest = 0;
+        if (kingdom && coin > 0) kingdom.treasury = (kingdom.treasury || 0) + coin;
+        return coin;
     },
 
     // ── War hosts ───────────────────────────────────────────────
@@ -265,7 +307,8 @@ export const RealmWars = {
         unit.objectiveQ = rec.targetQ;
         unit.objectiveR = rec.targetR;
         unit.maxAge = 100000;
-        unit.inventory = { gold: Math.round(rec.strength * 2), food: rec.strength };
+        // (its war chest, drawn from the treasury when it marched: rec.chest)
+        unit.inventory = { gold: Math.max(0, Math.floor(Number(rec.chest) || 0)), food: rec.strength };
         if (rec.besieging) unit.besieging = rec.besieging;
         world.units.push(unit);
         return unit;
@@ -285,6 +328,18 @@ export const RealmWars = {
             }
         }
         const strength = Utils.clamp(Math.round(20 + (kingdom.military || 0) * 0.04), 25, 180);
+        // A host marches on its crown's coin: its muster (paid to the captains and the
+        // sutlers in the capital) and its war chest (carried, the spoils of beating it).
+        // A crown that cannot pay the muster sends none
+        const muster = Math.round(strength * CONFIG.musterPerMan);
+        if ((kingdom.treasury || 0) < muster) return null;
+        // (no capital purse to spend it in: the muster costs nothing, the coin stays in the chests)
+        if (CrownBooks.spendAtCapital(world, kingdom, muster) > 0) {
+            kingdom.treasury -= muster;
+            CrownBooks.note(kingdom, 'army', muster);
+        }
+        const chest = Math.min(Math.max(0, Math.floor(kingdom.treasury || 0)), Math.round(strength * CONFIG.chestPerMan));
+        kingdom.treasury -= chest;
         kingdom.military = Math.max(0, (kingdom.military || 0) - strength);
         // The host takes its share of the realm's armoury (and quivers) with it
         const arms = RealmArms.detach(kingdom, strength);
@@ -297,6 +352,7 @@ export const RealmWars = {
             strength,
             arms: arms ? arms.stock : null,
             armed: arms ? arms.armed : 1,
+            chest,
         };
         war.hosts.push(rec);
         war.lastHostDay = world.day;
@@ -316,6 +372,8 @@ export const RealmWars = {
         House.recordPlayerDeed(player, world, 'battleWon', { reason: `broke the ${unit.name}` });
         // A host broken before a besieged holding relieves it
         if (unit.besieging) HoldingSieges.onHostDefeated(player, world, { besieging: unit.besieging });
+        // (what the victor did not take of its chest goes home with the survivors)
+        RealmWars._homeChest(world.getKingdom ? world.getKingdom(unit.kingdomId) : null, unit);
         return war;
     },
 
@@ -359,7 +417,8 @@ export const RealmWars = {
                 }
             }
         }
-        // The host goes home either way.
+        // The host goes home either way (with what is left of its chest).
+        RealmWars._homeChest(kingdom, unit, rec);
         unit.destroyed = true;
         war.hosts = war.hosts.filter(h => h.id !== rec.id);
         kingdom.military = (kingdom.military || 0) + Math.round(rec.strength * 0.8);
@@ -405,8 +464,10 @@ export const RealmWars = {
             if (rec.besieging) continue;  // camped before a holding (systems/holdingSieges.js)
             rec.stuckDays = (unit.q === rec.q && unit.r === rec.r) ? (rec.stuckDays || 0) + 1 : 0;
             rec.q = unit.q; rec.r = unit.r;
+            rec.chest = unit.inventory ? Math.max(0, Math.floor(Number(unit.inventory.gold) || 0)) : 0;
             if (rec.stuckDays >= 8) {
                 // No way through — the host gives up and marches home.
+                RealmWars._homeChest(kingdom, unit, rec);
                 unit.destroyed = true;
                 war.hosts = war.hosts.filter(h => h.id !== rec.id);
                 kingdom.military = (kingdom.military || 0) + rec.strength;

@@ -10,7 +10,7 @@ import { ActionMenu } from './_ref.js';
 import { EconomyChronicle } from '../../systems/economyChronicle.js';
 import { PriceKnowledge } from '../../systems/priceKnowledge.js';
 import { EconomyIndex } from '../../world/economyIndex.js';
-import { BTN_GOLD, BTN_PLAIN, panelTabs, closedBooks, lede, bullets, sectionHead, chips, kv, card, rowList } from './uiKit.js';
+import { BTN_GOLD, BTN_PLAIN, panelTabs, closedBooks, lede, bullets, more, sectionHead, chips, kv, card, rowList } from './uiKit.js';
 import { RealmIntel } from '../../systems/realmIntel.js';
 
 /** The crown's own figures (treasury, debt) are for those whose books are open (systems/realmIntel.js). */
@@ -74,12 +74,12 @@ function realmsTab(game) {
         return lede('You have read no gazette yet. Every town with a market posts one each week: the realms’ prices, trade, work and money.') + bullets(['Stand in a market town to read it.']);
     }
     let html = lede(`From the gazettes you have read${g.at ? `, the last at <b>${esc(g.at)}</b> on day ${g.read}` : ''}.`);
-    html += bullets([
+    html += more('ℹ️ What the numbers mean', bullets([
         'Indices: 100 = goods at their base price (season, scarcity, debased coin and the coin about all count).',
         '“Coin” is the realm’s price level from its coin in circulation; 100 = the world’s norm.',
         'Your own realm’s gazette is this week’s; other realms’ news is a week older.',
-        `Changes are over the last ${EconomyIndex.config().changeWeeks} weeks.`,
-    ]);
+        `Changes are over the last ${EconomyIndex.config().changeWeeks} weeks. Click a realm for its charts.`,
+    ]));
     html += `<table style="width:100%; border-collapse:collapse; font-size:12px; margin-top:6px;"><tr><th style="${TH}">Realm</th><th style="${TH}">Food</th><th style="${TH}">Cost of living</th><th style="${TH}">Change</th><th style="${TH}">Trade</th><th style="${TH}">Short / dearth</th><th style="${TH}">Idle</th><th style="${TH}">Treasury</th><th style="${TH}">Debt · coin</th><th style="${TH}">As of</th></tr>`;
     const { player, world } = game;
     const row = (name, x, link, kid = null) => {
@@ -158,13 +158,7 @@ function marketsTab(game) {
 function fashionsTab(game) {
     const { player, world } = game;
     const list = EconomyChronicle.knownFashions(player, world);
-    let html = lede('Fashions at court move what the nobles and merchants buy for a season.');
-    html += bullets([
-        'Their goods grow dear where the fashion reaches, and exotic goods no market keeps fetch more.',
-        'They spread from a capital and fade.',
-        'The heralds, the gazette and the tavern carry the news.',
-        'A patron with standing at a court can set one (Patronage → Fashion at Court).',
-    ]);
+    let html = lede('Fashions at court make their goods dear for a season: they spread from a capital and fade. A patron with standing at a court can set one (Patronage → Fashion at Court).');
     if (!list.length) return html + `<div style="${NOTE} margin-top:6px;">You have heard of no fashion yet.</div>`;
     html += rowList(list.map(x => {
         const d = x.def || {};

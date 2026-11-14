@@ -140,6 +140,11 @@
             "warm": "{to} thanks you for the warning.",
             "cool": "{to} thanks you, though they knew most of it.",
             "hostile": "{to} suspects your motives."
+        },
+        "free": {
+            "icon": "🖋️", "name": "A letter in your own words", "to": ["lord", "rival", "spouse", "npc", "folk", "companion"], "free": true,
+            "desc": "Write what you like. They answer in their own voice (the AI brain), and the answer can carry real weight: goodwill or a grudge, a promise held, coin from their own purse, a meeting agreed. With the AI brain off it is read as the nearest plain kind of letter. Tuning: data/letterChat.json (systems/letterChat.js).",
+            "subject": "A letter"
         }
     },
 

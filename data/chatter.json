@@ -31,6 +31,7 @@
             "coronation": 9, "realm_fallen": 10, "realm_restored": 8, "peace": 7, "war": 6,
             "saga_end": 6, "revolt": 8, "revolt_end": 7, "rebellion": 5, "discovery": 5,
             "siege_won": 6, "siege_lost": 7, "wonder": 7, "wonder_begun": 4, "lair_cleared": 5, "lair_risen": 5,
+            "atrocity_salt": 6, "atrocity_hostages": 7, "atrocity_plague": 7, "atrocity_massacre": 9,
             "bank_failed": 6, "crown_default": 7, "coin_debased": 5, "caravan_taken": 4,
             "coin_recoinage": 4, "coin_shortage": 3, "coin_flood": 3,
             "tax_revolt": 5, "tax_farm": 3, "taxes_raised": 4, "army_unpaid": 6, "offices_sold": 4, "crown_land_sold": 4,
@@ -51,6 +52,7 @@
             "coronation": "👑", "realm_fallen": "🏴", "realm_restored": "🚩", "peace": "🕊️", "war": "⚔️",
             "saga_end": "📜", "revolt": "🔥", "revolt_end": "🛡️", "rebellion": "🔥", "discovery": "🗺️",
             "siege_won": "🏰", "siege_lost": "🏳️", "wonder": "🏛️", "wonder_begun": "🏗️", "lair_cleared": "🛡️", "lair_risen": "🏕️",
+            "atrocity_salt": "🧂", "atrocity_hostages": "💀", "atrocity_plague": "☠️", "atrocity_massacre": "⚔️",
             "bank_failed": "🏚️", "crown_default": "📛", "coin_debased": "💱", "caravan_taken": "🐫",
             "coin_recoinage": "💰", "coin_shortage": "💰", "coin_flood": "💰",
             "tax_revolt": "🔥", "tax_farm": "📜", "taxes_raised": "💰", "army_unpaid": "⚔️", "offices_sold": "📜", "crown_land_sold": "🌾",
@@ -361,6 +363,22 @@
             "siege_lost": [
                 "Hear ye! The siege of {place} is broken. {by}'s host is driven off.",
                 "{place} holds! After {days} day(s), {by} gives up the siege."
+            ],
+            "atrocity_salt": [
+                "Hear ye! {by} has sown the fields of {place} with salt. Nothing will grow there for years.",
+                "Grim word from {place}: {by} salted its fields. Its people will go hungry for a generation."
+            ],
+            "atrocity_hostages": [
+                "Hear ye! {by} hanged {n} hostages before the walls of {place}.",
+                "From {place}: {n} townsfolk taken outside the walls hang from {by}'s gallows."
+            ],
+            "atrocity_plague": [
+                "Hear ye! {by} flung the sick dead over the walls of {place}.",
+                "Sickness at {place}: the corpses came over the walls from {by}'s engines."
+            ],
+            "atrocity_massacre": [
+                "Hear ye, and remember! {place} opened its gates to {by}, and {by} put it to the sword. {n} are dead.",
+                "Every town should know: {place} surrendered to {by} in good faith and was butchered for it. {n} dead."
             ],
             "lair_cleared": [
                 "Hear ye! The outlaws of {place} are put down by {by}. {leader} will trouble the roads no more.",

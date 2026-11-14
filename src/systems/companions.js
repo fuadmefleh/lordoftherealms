@@ -42,6 +42,7 @@ import { SocialSkills } from './socialSkills.js';
 import { Quests } from './quests.js';
 import { House } from './house.js';
 import { Schemes } from './schemes.js';
+import { Vanishings } from './vanishings.js';
 
 const FALLBACK = {
     config: {
@@ -955,12 +956,20 @@ export const Companions = {
         return out;
     },
 
-    /** A companion dies (in battle). Mourned by the party and the House chronicle. */
-    fall(player, npc, world, enemyName = null) {
+    /**
+     * A companion dies (in battle, or of a sickness: opts.how 'sickness'). Mourned by
+     * the party and the House chronicle; the family at home waits for word of it
+     * (systems/vanishings.js).
+     */
+    fall(player, npc, world, enemyName = null, opts = {}) {
         const cfg = Companions.config();
         const day = (world && world.day) || 0;
         const st = Companions.getState(player);
         Companions._abandonQuest(player, npc);
+        // Those who saw it: the rest of the party (before they are counted without the fallen)
+        const witnesses = Companions.members(player, world).filter(o => o.id !== npc.id);
+        const how = opts.how || 'battle';
+        Vanishings.onPartyLoss(world, player, npc, { how, enemy: how === 'battle' ? enemyName : null, cause: how === 'sickness' ? enemyName : null, witnesses });
         Relationships.removeFromTravelParty(player, npc.id);
         npc.isAlive = false;
         npc.diedDay = day;

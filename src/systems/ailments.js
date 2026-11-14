@@ -802,7 +802,7 @@ export const Ailments = {
             }
             if (Utils.random() < _num(def.companionDeath) * care) {
                 delete st.party[npc.id];
-                try { Companions.fall(player, npc, world, def.name.toLowerCase()); } catch (e) { /* companion bookkeeping unavailable */ }
+                try { Companions.fall(player, npc, world, def.name.toLowerCase(), { how: 'sickness' }); } catch (e) { /* companion bookkeeping unavailable */ }
                 out.companions.push({ npcId: npc.id, name: npc.firstName, disease: def.name, event: 'died' });
                 continue;
             }

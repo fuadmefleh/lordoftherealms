@@ -6,6 +6,7 @@
 
 import { Hex } from '../../core/hex.js';
 import { Dawn } from '../../world/dawn.js';
+import { OceanCurrents } from '../../world/oceanCurrents.js';
 import { Endurance } from '../endurance.js';
 import { Utils } from '../../core/utils.js';
 import { Infrastructure } from '../../systems/infrastructure.js';
@@ -125,6 +126,46 @@ export const PlayerMovementMethods = {
         }
         const days = this._hexDays(tile);
         return Number.isFinite(days) ? days * this._travelPace() : Infinity;
+    },
+
+    /**
+     * Aboard ship, the sea's current on a hex sailed from (fromQ, fromR) into
+     * (toQ, toR): its cost times this — less going with the current, more
+     * against it (world/oceanCurrents.js). 1 on foot, or with no current.
+     */
+    _sailCurrent(world, fromQ, fromR, toQ, toR) {
+        if (!this.boardedShip || !world) return 1;
+        const dir = OceanCurrents.sideTo(Hex.neighbors(fromQ, fromR), toQ, toR, world.width);
+        return dir < 0 ? 1 : OceanCurrents.sailFactor(world, toQ, toR, dir);
+    },
+
+    /**
+     * The night at sea: a ship lying at sea (not under way, not in a port)
+     * is carried downstream by the current — driftPerDay x its strength of a
+     * hex a night, a whole hex when that adds up to one (data/currents.json
+     * sail). → { moved, q, r, dir, name } when carried a hex, else null.
+     */
+    driftWithCurrent(world) {
+        if (!world || !this.boardedShip || this.isMoving || (this.queuedPath && this.queuedPath.length)) { this._currentDrift = 0; return null; }
+        const tile = world.getTile(this.q, this.r);
+        const cur = tile && !tile.settlement ? OceanCurrents.at(world, this.q, this.r) : null;
+        if (!cur || !(cur.strength > 0)) { this._currentDrift = 0; return null; }
+        const per = Number(OceanCurrents.config().sail.driftPerDay) || 0;
+        this._currentDrift = (Number(this._currentDrift) || 0) + per * cur.strength;
+        if (this._currentDrift < 1) return null;
+        this._currentDrift -= 1;
+        const n = Hex.neighbors(this.q, this.r)[cur.dir];
+        const q = Hex.wrapQ(n.q, world.width), r = n.r;
+        if (r < 0 || r >= world.height || !this._canEnterHex(q, r, world) || !OceanCurrents.isSea(world.getTile(q, r))) return null;
+        this.prevQ = this.q;
+        this.prevR = this.r;
+        this.q = q;
+        this.r = r;
+        const t = world.getTile(q, r);
+        if (t) { t.explored = true; t.visible = true; }
+        this.revealArea(world, 4);
+        this.updateVisibility(world, 4);
+        return { moved: true, q, r, dir: cur.dir, name: cur.name };
     },
 
     /** Days to cross a tile on foot (or, aboard ship, its sailing cost as a share of the day). */
@@ -279,7 +320,7 @@ export const PlayerMovementMethods = {
         for (let i = 1; i < path.length && days <= 365; i++) {
             const tile = world.getTile(path[i].q, path[i].r);
             const under = i === 1 ? this._crossingTo(path[1].q, path[1].r) : null;
-            const full = under ? under.need : (tile ? this._hexMoveCost(tile) : 1);
+            const full = under ? under.need : (tile ? this._hexMoveCost(tile) * this._sailCurrent(world, path[i - 1].q, path[i - 1].r, path[i].q, path[i].r) : 1);
             let left = under ? Math.max(0, under.need - under.done) : full;
             travelDays += left / pace;
             // Setting out across a hex takes an action point (going on with one doesn't)
@@ -388,7 +429,7 @@ export const PlayerMovementMethods = {
             // way. Setting out across a hex costs 1 AP; going on with one doesn't.
             const EPS = this.MOVE_EPS;
             const under = this.boardedShip ? null : this._crossingTo(nextHex.q, nextHex.r);
-            const moveCost = under ? Math.max(0, under.need - under.done) : this._hexMoveCost(tile);
+            const moveCost = under ? Math.max(0, under.need - under.done) : this._hexMoveCost(tile) * this._sailCurrent(world, this.q, this.r, nextHex.q, nextHex.r);
             const queueRest = () => {
                 this.queuedPath = this.path;
                 this.queuedPathIndex = this.pathIndex;
@@ -558,7 +599,7 @@ export const PlayerMovementMethods = {
 
                 // A crossing under way: only what is left of it
                 const under = current.cost === 0 && current.q === this.q && current.r === this.r ? this._crossingTo(wq, wr) : null;
-                const step = under ? Math.max(0, under.need - under.done) : this._hexMoveCost(world.getTile(wq, wr));
+                const step = under ? Math.max(0, under.need - under.done) : this._hexMoveCost(world.getTile(wq, wr)) * this._sailCurrent(world, current.q, current.r, wq, wr);
                 const newCost = current.cost + step;
                 const key = `${wq},${wr}`;
 

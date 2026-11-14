@@ -1,6 +1,8 @@
 {
     "_note": "NPC theft (systems/npcTheft.js): burglars who break into houses and cutpurses who work the crowds. Every chance is a hash of the world seed, the town and the day; no shared RNG. Off the player's map it is resolved in processDay; on it the street map plays it out (ui/innerMapThieves.js) through the same plan and commit.",
     "enabled": true,
+    "_smallPlace": "No thieves at all in a place below minPopulation (everyone knows everyone); in a Dawn of Man world none in a village (unless dawnVillages) nor below dawnMinPopulation (NpcTheft.hasThieves: burglary, pickpockets, on and off the street map).",
+    "smallPlace": { "minPopulation": 150, "dawnMinPopulation": 400, "dawnVillages": false },
 
     "roleWealth": { "noble": 5, "merchant": 4, "blacksmith_npc": 3, "priest": 2, "guard": 2, "villager": 1, "farmer": 1, "beggar": 0, "child": 0 },
     "workingRoles": ["merchant", "blacksmith_npc", "farmer", "villager", "priest", "guard"],

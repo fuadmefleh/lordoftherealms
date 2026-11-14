@@ -35,6 +35,7 @@ import { Fiscal } from '../../systems/fiscal.js';
 import { Estates } from '../../world/estates.js';
 import { Lots } from '../../systems/lots.js';
 import { Graveyards } from '../../systems/graveyards.js';
+import { TownCrimes } from '../../systems/townCrimes.js';
 import { Illness } from '../../systems/illness.js';
 import { Livestock } from '../../systems/livestock.js';
 import { Couriers } from '../../systems/couriers.js';
@@ -193,7 +194,9 @@ export function addSettlementActions(actions, player, tile, world, ctx) {
     // Building lots and houses in town (systems/lots.js): the ones you hold, everywhere — their state, tenants and rents
     {
         const held = Lots.holdingsView(world, player);
-        if (held.length) {
+        // (captives in your cellars are kept on the same panel: systems/peopleCrimes.js)
+        const cellars = player.peopleCrimes && Array.isArray(player.peopleCrimes.captives) ? player.peopleCrimes.captives.length : 0;
+        if (held.length || cellars) {
             const here = held.filter(v => v.q === tile.q && v.r === tile.r).length;
             const tenants = held.filter(v => v.tenant).length;
             const owed = held.reduce((a, v) => a + (v.owed || 0), 0);
@@ -201,7 +204,7 @@ export function addSettlementActions(actions, player, tile, world, ctx) {
                 type: 'town_lots',
                 label: 'Your Lots & Town Houses',
                 icon: '🏘️',
-                description: `${held.length} held${here ? `, ${here} here` : ''}${tenants ? `, ${tenants} let` : ''}${owed ? `, ${owed}g in arrears` : ''}: build, let, put out, sell`,
+                description: `${held.length} held${here ? `, ${here} here` : ''}${tenants ? `, ${tenants} let` : ''}${owed ? `, ${owed}g in arrears` : ''}${cellars ? `, ${cellars} in your cellars` : ''}: build, let, put out, sell`,
                 notice: owed ? `${owed}g of rent in arrears` : null,
             });
         }
@@ -891,6 +894,19 @@ export function addSettlementActions(actions, player, tile, world, ctx) {
                     : 'Your notoriety here: bribe the watch or lie low'
             });
         }
+    }
+
+    // Foul deeds against the town itself: its well, its granary, a plague lie, grain hoarded in hunger (systems/townCrimes.js)
+    if (tile.settlement && !(tile.settlement.dawnBorn && tile.settlement.campEra === true)) {
+        const hungry = TownCrimes.hungry(world, tile.settlement);
+        const loft = TownCrimes.hoardAt(player, tile.settlement);
+        actions.push({
+            type: 'town_crimes',
+            label: 'Foul Deeds',
+            icon: '🐀',
+            description: `The town's well, its granary, a plague lie told for profit${hungry ? ` — and grain to hoard in ${hungry}` : ''}${loft ? ` (${Math.floor(loft.grain)} measures in your loft)` : ''}`,
+            notice: loft && hungry ? 'Your loft of grain, in a hungry town' : null,
+        });
     }
 
     // The guildhall — the town's craft and merchant guilds (systems/guilds.js)

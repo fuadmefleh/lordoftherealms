@@ -247,8 +247,12 @@ export const KingdomAI = {
 
         // Armies in the field cost money (frugal rulers spend less; war events more)
         // — with the Crown's Purse, their field pay is the budget's army line
+        // (the soldiers spend their pay where they are quartered: the capital's purse)
         if (!books && kingdom.wars && kingdom.wars.length > 0) {
-            kingdom.treasury = Math.max(0, kingdom.treasury - (n > 1 ? KingdomAI.warUpkeep(kingdom, world) * n : KingdomAI.warUpkeep(kingdom, world)));
+            const due = n > 1 ? KingdomAI.warUpkeep(kingdom, world) * n : KingdomAI.warUpkeep(kingdom, world);
+            const paid = Math.min(Math.max(0, kingdom.treasury || 0), due);
+            kingdom.treasury = (kingdom.treasury || 0) - paid;
+            CrownBooks.spendAtCapital(world, kingdom, paid);
         }
     },
 
@@ -863,8 +867,33 @@ export const KingdomAI = {
         return true;
     },
 
-    /** A defeated realm leaves every war; its last tiles pass to the conqueror. */
+    /**
+     * A fallen crown's chests — its treasury and its royal bank's — pass to
+     * `heir` (the conqueror's treasury), or with none into `town`'s purse (the
+     * court's coin scattered in the town that fell): a dead realm's coin is
+     * counted nowhere, so none may stay in it. → the coin moved.
+     */
+    seizeChests(fallen, heir, world, town = null) {
+        if (!fallen) return 0;
+        let coin = Math.max(0, Number(fallen.treasury) || 0);
+        fallen.treasury = 0;
+        const bank = fallen.royalBank;
+        if (bank && Number(bank.treasury) > 0) { coin += Number(bank.treasury); bank.treasury = 0; }
+        coin = Math.round(coin * 100) / 100;
+        if (!(coin > 0)) return 0;
+        if (heir && heir !== fallen) {
+            heir.treasury = Math.round(((Number(heir.treasury) || 0) + coin) * 100) / 100;
+            return coin;
+        }
+        return town ? Economy.payTown(town, coin) : 0;
+    },
+
+    /** A defeated realm leaves every war; its last tiles pass to the conqueror, and its chests. */
     _collapse(defender, attacker, world) {
+        // (booked across the border while both still stand: world/moneySupply.js)
+        const chests = Math.max(0, Number(defender.treasury) || 0);
+        if (chests > 0) MoneySupply.transfer(world, defender.id, attacker.id, chests, 'plunder');
+        KingdomAI.seizeChests(defender, attacker, world);
         defender.isAlive = false;
         defender.conqueredBy = attacker.id;
         defender.conqueredDay = KingdomAI._day(world);
@@ -980,7 +1009,9 @@ export const KingdomAI = {
         fallen.military = Math.floor(fallen.population * 0.08);
         fallen._militaryInit = true;
         fallen.stability = 55;
-        fallen.treasury = Math.max(fallen.treasury || 0, 200);
+        // The rising's war chest: what the old crown kept (none: its chests went to the
+        // conqueror), else raised from the town that rises
+        if (!((fallen.treasury || 0) >= 200)) fallen.treasury = (fallen.treasury || 0) + Economy.drawTown(tile.settlement, 200 - Math.max(0, fallen.treasury || 0));
         fallen.wars = [];
         fallen.truces = {};
         fallen.navy = null; // the old fleet is long gone; a new one is counted tomorrow

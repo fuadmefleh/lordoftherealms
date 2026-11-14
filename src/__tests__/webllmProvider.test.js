@@ -229,6 +229,57 @@ describe('WebLLM provider — generation', () => {
         expect(req.messages[0].content).toBe('Decide.');
     });
 
+    it("holds the reply to the caller's schema, and falls back to any object if it won't compile", async () => {
+        await WebLlm.load(MODEL);
+        WebLlm._resetSchemaRefused();
+        const schema = { type: 'object', properties: { say: { type: 'string' } }, required: ['say'] };
+        await LlmClient.chat([{ role: 'user', content: 'Hi' }], { json: true, schema });
+        let req = mlc.engine.chat.completions.create.mock.lastCall[0];
+        expect(JSON.parse(req.response_format.schema)).toEqual(schema);
+        mlc.engine.chat.completions.create.mockRejectedValueOnce(new Error('grammar compile failed'));
+        const res = await LlmClient.chat([{ role: 'user', content: 'Hi' }], { json: true, schema });
+        expect(res.ok).toBe(true);
+        req = mlc.engine.chat.completions.create.mock.lastCall[0];
+        expect(JSON.parse(req.response_format.schema)).toEqual({ type: 'object' });
+        WebLlm._resetSchemaRefused();
+    });
+
+    it("reports the worker's error text (it rejects with a plain string, not an Error)", async () => {
+        await WebLlm.load(MODEL);
+        WebLlm._resetSchemaRefused();
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        mlc.engine.chat.completions.create.mockRejectedValueOnce('Error: Prompt tokens exceed context window size');
+        const res = await LlmClient.chat([{ role: 'user', content: 'Hi' }], { json: true });
+        expect(res.ok).toBe(false);
+        expect(res.reason).toContain('context window');
+        // with a schema: the retry's failure is the one reported
+        mlc.engine.chat.completions.create.mockRejectedValueOnce('first').mockRejectedValueOnce('Error: device lost');
+        const res2 = await LlmClient.chat([{ role: 'user', content: 'Hi' }], { json: true, schema: { type: 'object' } });
+        expect(res2.reason).toContain('device lost');
+        warn.mockRestore();
+        WebLlm._resetSchemaRefused();
+    });
+
+    it('reloads the model and asks again when the engine lost it (a disposed object, model not loaded)', async () => {
+        await WebLlm.load(MODEL);
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        mlc.engine.reload = vi.fn(async () => {});
+        mlc.engine.chat.completions.create.mockRejectedValueOnce('Error: The current Object has already been disposed.');
+        const res = await LlmClient.chat([{ role: 'user', content: 'Hi' }], { json: true });
+        expect(mlc.engine.reload).toHaveBeenCalledWith(MODEL);
+        expect(res.ok).toBe(true);
+        expect(WebLlm.status().state).toBe('ready');
+        // still lost after reloading: the error is told, and the next ask reloads again
+        mlc.engine.chat.completions.create
+            .mockRejectedValueOnce('ModelNotLoadedError: Model not loaded before trying to complete ChatCompletionRequest.')
+            .mockRejectedValueOnce('ModelNotLoadedError: Model not loaded before trying to complete ChatCompletionRequest.');
+        const res2 = await LlmClient.chat([{ role: 'user', content: 'Hi' }], { json: true });
+        expect(res2.ok).toBe(false);
+        expect(res2.reason).toContain('Model not loaded');
+        expect(mlc.engine.reload.mock.calls.length).toBeGreaterThanOrEqual(3);
+        warn.mockRestore();
+    });
+
     it('uses its own token default when the caller gives none', async () => {
         await WebLlm.load(MODEL);
         await LlmClient.chat([{ role: 'user', content: 'hi' }]);

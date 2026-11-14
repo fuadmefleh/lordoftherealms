@@ -369,7 +369,7 @@
             { "min": 14, "label": "Exceptionally schooled", "icon": "🌟" },
             { "min": 9, "label": "Well schooled", "icon": "🎓" },
             { "min": 5, "label": "Adequately schooled", "icon": "📘" },
-            { "min": 0, "label": "Poorly schooled", "icon": "🪶" }
+            { "min": 0, "label": "Poorly schooled", "icon": "✒️" }
         ],
         "activities": [
             { "id": "tales", "name": "Tales by the fire", "icon": "🔥", "minAge": 3, "bond": 9, "stats": { "luck": 0.1 }, "skills": { "cartography": 0.1 }, "rubOff": 1,
@@ -397,7 +397,7 @@
             { "id": "maps", "name": "Walk the land and read the maps", "icon": "🗺️", "minAge": 7, "bond": 6, "stats": { "luck": 0.1 }, "skills": { "cartography": 0.45 }, "seeds": { "wanderer": 0.4 }, "parentSkill": "cartography",
                 "blurb": "Boundary stones and old charts. Cartography; breeds a wanderer's itch.",
                 "result": "You walk the bounds with {child}, map in hand, and {child} wants to see what lies past the last hill." },
-            { "id": "discipline", "name": "A hard lesson", "icon": "🪵", "minAge": 6, "bond": -8, "focusBoost": 0.5, "seeds": { "honest": 0.3, "cruel": 0.2 },
+            { "id": "discipline", "name": "A hard lesson", "icon": "🌲", "minAge": 6, "bond": -8, "focusBoost": 0.5, "seeds": { "honest": 0.3, "cruel": 0.2 },
                 "blurb": "Drill them in their studies without mercy: half a year's learning in their focus in a week — and a cooler heart toward you.",
                 "result": "You keep {child} at the books from dawn to dark and brook no tears. {child} learns, and does not thank you." },
             { "id": "indulge", "name": "Spoil them", "icon": "🎁", "minAge": 3, "bond": 12, "seeds": { "greedy": 0.4, "generous": 0.1 },

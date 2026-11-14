@@ -21,7 +21,7 @@
     "estates": { "name": "Tend your holdings", "icon": "📦", "desc": "Collect the goods your properties and beasts have stored where you stand." },
         "train": { "name": "Train at arms", "icon": "⚔️", "desc": "Spar with the town's trainer for a fee; your soldiers drill alongside." },
         "gather": { "name": "Forage or fish", "icon": "🌿", "desc": "Search the wilds for herbs and useful things, or fish where there is water." },
-        "fell": { "name": "Fell timber", "icon": "🪓", "desc": "Fell a tree in the woods: its logs and what else it gives, more with Woodcutting, an axe, and a logging camp of yours on the hex." },
+        "fell": { "name": "Fell timber", "icon": "⚒️", "desc": "Fell a tree in the woods: its logs and what else it gives, more with Woodcutting, an axe, and a logging camp of yours on the hex." },
         "hunt": { "name": "Hunt", "icon": "🏹", "desc": "A day's hunt in the wilds with your bow or crossbow: arrows loosed, some recovered, the quarry if one strikes home." },
         "drill": { "name": "Drill your soldiers", "icon": "🎖️", "desc": "Put your companies through their drill: experience for green men, wear on their kit." },
         "devotion": { "name": "Pray and study", "icon": "🧘", "desc": "Prayer at a church or holy site, meditation elsewhere: rest, karma, sometimes insight." }

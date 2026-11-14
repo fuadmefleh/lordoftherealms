@@ -49,6 +49,7 @@ import { NpcShops } from '../systems/npcShops.js';
 import { drawGlyph } from './icons.js';
 import { InnerMapReactions } from './innerMapReactions.js';
 import { InnerMapThieves } from './innerMapThieves.js';
+import { InnerMapWatchStop } from './watchStop.js';
 import { InnerMapScavengers } from './innerMapScavengers.js';
 import { drawMapText, labelZoom, textPx } from './mapInk.js';
 import { ParentsGuard } from './parentsGuard.js';
@@ -347,6 +348,8 @@ export const InnerMapCombat = {
         InnerMapReactions.update(deltaTime, game);
         // ── Burglars at the doors, cutpurses in the crowd (ui/innerMapThieves.js) ──
         InnerMapThieves.update(deltaTime, game);
+        // ── A guard stops the player to question them when the town's suspicion adds up (ui/watchStop.js) ──
+        InnerMapWatchStop.update(deltaTime, game);
 
         // ── Object combat: float numbers are spawned by onObjectHit ──
     },

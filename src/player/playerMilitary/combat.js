@@ -13,6 +13,7 @@ import { CadetBranches } from '../../systems/cadetBranches.js';
 import { SettlementMarket } from '../../world/settlementMarket.js';
 import { NPCLords } from '../../world/npcLords.js';
 import { RealmArms } from '../../world/realmArms.js';
+import { KingdomAI } from '../../world/kingdomAI.js';
 import { Difficulty } from '../../core/difficulty.js';
 import { Utils, Technology, House, Quests, RealmWars, Throne, PlayerEffects, Housing, Culture, PlayerReligion, PlayerInventory, WorldEvents, WEATHER_EFFECTS, Economy, Arms } from './_imports.js';
 
@@ -667,7 +668,9 @@ Object.assign(PlayerMilitary, {
                         if (remainingSettlements.length > 0) {
                             oldKingdom.capital = remainingSettlements[0];
                         } else {
-                            // Kingdom destroyed!
+                            // Kingdom destroyed! Its chests go to the player's liege, or are
+                            // scattered in the fallen town (a dead realm's coin is counted nowhere)
+                            KingdomAI.seizeChests(oldKingdom, player.allegiance && world.getKingdom ? world.getKingdom(player.allegiance) : null, world, settlement);
                             oldKingdom.isAlive = false;
                             result.kingdomDestroyed = true;
                         }

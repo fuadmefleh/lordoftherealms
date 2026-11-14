@@ -11,6 +11,9 @@ import { buildingGlyph, drawGlyph, glyphFor } from '../icons.js';
 import { drawMapText, drawMapMarker, inkText, labelZoom, textPx } from '../mapInk.js';
 import { BuildingWear } from '../buildingWear.js';
 
+// The pixels the kept building canvases may hold between them (~64 MB)
+const BUILDING_CACHE_PX = 16e6;
+
 Object.assign(InnerMapRenderer, {
     // ══════════════════════════════════════════════
     // LAYER 2 — OBJECTS (trees, plants, rocks, flowers)
@@ -249,6 +252,122 @@ Object.assign(InnerMapRenderer, {
      * shell (no roof, no overlay); 'scorched' — standing, soot-blackened.
      */
     _drawCustomBuilding(ctx, camera, def, anchorQ, anchorR, ds, ruin = null, site = null, wear = 0, spire = null) {
+        // Drawn once into a canvas of its own and blitted after: a building is a hundred-odd
+        // cells, a worn one each through a canvas filter, then its moss and grime (ui/buildingWear.js)
+        if (this._buildingCacheUsable(ctx, camera, def, ruin, site, wear, spire)) {
+            try {
+                this._blitCachedBuilding(ctx, camera, def, anchorQ, anchorR, ds, ruin, wear, spire);
+                return;
+            } catch (err) {
+                console.warn('[InnerMapRenderer] building cache:', err);
+                this._buildingCacheOff = true;
+                this._buildingCache = null;
+            }
+        }
+        return this._drawCustomBuildingDirect(ctx, camera, def, anchorQ, anchorR, ds, ruin, site, wear, spire);
+    },
+
+    // (set true to draw every building cell by cell every frame, as before)
+    _buildingCacheOff: false,
+    _buildingCache: null,
+
+    _buildingCacheUsable(ctx, camera, def, ruin, site, wear, spire) {
+        if (this._buildingCacheOff || typeof document === 'undefined' || typeof HTMLCanvasElement === 'undefined') return false;
+        if (!ctx || !(ctx.canvas instanceof HTMLCanvasElement) || !camera || !def || !def.layers) return false;
+        // (a site changes as the work goes on; a fallen-in shell is rare and drawn as it is)
+        if ((site != null && site < 1) || ruin === 'burnt' || ruin === 'sacked') return false;
+        // (while the zoom glides every frame is a new size)
+        const z = camera.zoom, tz = Number.isFinite(camera.targetZoom) ? camera.targetZoom : z;
+        if (!(z > 0) || Math.abs(z - tz) > tz * 1e-4) return false;
+        if (!BuildingWear.artReady(ruin ? 0 : wear, ruin ? null : spire)) return false;
+        for (const lyr of ['floor', 'walls', 'roof', 'overlay']) {
+            for (const cell of def.layers[lyr] || []) if (cell.sheetPath && !CustomBuildings.getImg(cell.sheetPath)) return false;
+        }
+        return true;
+    },
+
+    /** A building from its kept canvas (drawn by _drawCustomBuildingDirect on first sight), 1:1 on the device pixels. */
+    _blitCachedBuilding(ctx, camera, def, anchorQ, anchorR, ds, ruin, wear, spire) {
+        const T = this.TILE_SIZE;
+        const k = (ctx.canvas && ctx.canvas.pixelRatio) || 1;
+        let bc = this._buildingCache;
+        if (!bc || bc.ds !== ds || bc.k !== k) {
+            bc = this._buildingCache = { ds, k, byDef: new WeakMap(), entries: new Set(), px: 0 };
+        }
+        let perDef = bc.byDef.get(def);
+        if (!perDef) { perDef = new Map(); bc.byDef.set(def, perDef); }
+        const key = `${anchorQ},${anchorR}|${ruin || ''}|${wear || 0}|${spire || ''}`;
+        let e = perDef.get(key);
+        const p = camera.worldToScreenFast(anchorQ * T, anchorR * T);
+        const sx = p.x, sy = p.y;
+        if (!e) {
+            e = this._drawBuildingToCache(def, anchorQ, anchorR, ds, k, ruin, wear, spire, sx, sy);
+            e.perDef = perDef; e.key = key;
+            perDef.set(key, e);
+            bc.entries.add(e);
+            bc.px += e.canvas.width * e.canvas.height;
+            // Kept within a budget of pixels, the longest unseen let go first
+            if (bc.px > BUILDING_CACHE_PX) {
+                const old = [...bc.entries].sort((a, b) => a.used - b.used);
+                for (const o of old) {
+                    if (bc.px <= BUILDING_CACHE_PX * 0.75 || o === e) break;
+                    bc.entries.delete(o);
+                    o.perDef.delete(o.key);
+                    bc.px -= o.canvas.width * o.canvas.height;
+                }
+            }
+        }
+        e.used = performance.now();
+        // (on a whole device pixel, its anchor where the cells floor it to: _drawBuildingToCache)
+        const X = Math.floor((Math.floor(sx) - e.ox) * k), Y = Math.floor((Math.floor(sy) - e.oy) * k);
+        const smooth = ctx.imageSmoothingEnabled;
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(e.canvas, X / k, Y / k, e.canvas.width / k, e.canvas.height / k);
+        ctx.imageSmoothingEnabled = smooth;
+    },
+
+    /**
+     * Draw a building into a canvas of its own, at the screen's resolution, its anchor
+     * (ox, oy) whole pixels in. (sx, sy) is the anchor on the screen now: its cells are
+     * placed as they would be drawn there, and the canvas shifted by what the floored
+     * corner falls short of a whole device pixel, so the blit lands them exactly (a
+     * camera moved on since, a pixel off at most). As the ground chunks (groundCache.js).
+     */
+    _drawBuildingToCache(def, anchorQ, anchorR, ds, k, ruin, wear, spire, sx = 0, sy = 0) {
+        const T = this.TILE_SIZE;
+        let q0 = Infinity, q1 = -Infinity, r0 = Infinity, r1 = -Infinity;
+        for (const lyr of ['floor', 'walls', 'roof', 'overlay']) {
+            for (const cell of def.layers[lyr] || []) {
+                q0 = Math.min(q0, cell.q); r0 = Math.min(r0, cell.r);
+                q1 = Math.max(q1, cell.q + Math.ceil((cell.sw || 32) / 32));
+                r1 = Math.max(r1, cell.r + Math.ceil((cell.sh || 32) / 32));
+            }
+        }
+        if (!Number.isFinite(q0)) { q0 = 0; q1 = 1; r0 = 0; r1 = 1; }
+        // room round it: a cell each way, and a belltower's height over the roof
+        const padX = spire ? 2 : 1, padTop = spire ? 9 : 1, padBottom = 1;
+        const ox = Math.ceil((padX - q0) * ds), oy = Math.ceil((padTop - r0) * ds);
+        const fx = sx - Math.floor(sx), fy = sy - Math.floor(sy);
+        const px = (Math.floor(sx) - ox) * k, py = (Math.floor(sy) - oy) * k;
+        const c = document.createElement('canvas');
+        c.width = Math.ceil((q1 - q0 + 2 * padX) * ds * k) + 2;
+        c.height = Math.ceil((r1 - r0 + padTop + padBottom) * ds * k) + 2;
+        const g = c.getContext('2d');
+        g.setTransform(k, 0, 0, k, px - Math.floor(px), py - Math.floor(py));
+        g.imageSmoothingEnabled = false;
+        const ax = anchorQ * T, ay = anchorR * T, zoom = ds / T;
+        const pt = { x: 0, y: 0 };
+        const cam = {
+            zoom,
+            targetZoom: zoom,
+            worldToScreenFast(x, y) { pt.x = (x - ax) * zoom + ox + fx; pt.y = (y - ay) * zoom + oy + fy; return pt; },
+            worldToScreen(x, y) { return { x: (x - ax) * zoom + ox + fx, y: (y - ay) * zoom + oy + fy }; },
+        };
+        this._drawCustomBuildingDirect(g, cam, def, anchorQ, anchorR, ds, ruin, null, wear, spire);
+        return { canvas: c, ox, oy, used: 0 };
+    },
+
+    _drawCustomBuildingDirect(ctx, camera, def, anchorQ, anchorR, ds, ruin = null, site = null, wear = 0, spire = null) {
         // A building still going up (the player's property on its lot): a building site
         if (site != null && site < 1 && !ruin) return this._drawBuildingSite(ctx, camera, def, anchorQ, anchorR, ds, site);
         const T  = this.TILE_SIZE;

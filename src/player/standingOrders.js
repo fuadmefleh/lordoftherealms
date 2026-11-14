@@ -76,7 +76,7 @@ const DEFAULTS = {
         estates: { name: 'Tend your holdings', icon: '📦' },
         train: { name: 'Train at arms', icon: '⚔️' },
         gather: { name: 'Forage or fish', icon: '🌿' },
-        fell: { name: 'Fell timber', icon: '🪓' },
+        fell: { name: 'Fell timber', icon: '⚒️' },
         hunt: { name: 'Hunt', icon: '🏹' },
         drill: { name: 'Drill your soldiers', icon: '🎖️' },
         devotion: { name: 'Pray and study', icon: '🧘' },
@@ -366,7 +366,7 @@ export const StandingOrders = {
         if (p) return { why: p };
         const camp = Gathering.campBoost(player, { objectType: 'tree' }, tile);
         return {
-            ap: _num(F.ap, 4), label: `🪓 Fell a tree (${standing} standing)${camp ? ` (your ${camp.name})` : ''}`,
+            ap: _num(F.ap, 4), label: `⚒️ Fell a tree (${standing} standing)${camp ? ` (your ${camp.name})` : ''}`,
             run: () => {
                 const def = StandingOrders.pickTree();
                 const swings = Math.min(_num(F.maxSwings, 40), StandingOrders.swingsFor(player, def, tile));
@@ -396,7 +396,7 @@ export const StandingOrders = {
                 if (more.length) text += `, and ${more.join(', ')}`;
                 const named = ups.map(u => u && u.name).filter(Boolean);
                 if (named.length) text += ` (${named.join(', ')})`;
-                return { icon: '🪓', text };
+                return { icon: '⚒️', text };
             },
         };
     },

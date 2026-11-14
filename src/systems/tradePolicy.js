@@ -921,11 +921,14 @@ export const TradePolicy = {
             if (_num(k.treasury) - cost < _num(G.minTreasury) / 2) break;
             const got = SettlementMarket.take(s, 'grain', qty);
             if (!(got > 0)) continue;
-            k.treasury = _num(k.treasury) - cost;
-            CrownBooks.note(k, 'dole', cost);
+            // (the crown pays for the grain it takes: the coin to the selling town's purse)
+            const paid = got < qty ? Math.ceil(price * got) : cost;
+            k.treasury = _num(k.treasury) - paid;
+            Economy.payTown(s, paid);
+            CrownBooks.note(k, 'dole', paid);
             g.grain = _r3(g.grain + got);
             g.bought = _r3(g.bought + got);
-            g.spent = _r3(g.spent + cost);
+            g.spent = _r3(g.spent + paid);
             buys++;
         }
     },

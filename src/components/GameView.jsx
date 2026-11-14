@@ -115,29 +115,8 @@ export default function GameView() {
       {/* Top Bar HUD — always rendered so UI.setupEventListeners can bind */}
       <TopBar />
 
-      {/* ═══ Left icon rail ═══ */}
-      <div id="hudLeftRail" className="hud-frame">
-        <button className="hud-rail-btn active" id="railOverview" title="Overview">
-          <span className="hud-rail-icon"><Icon name="crown" /></span>
-          <span className="hud-rail-label">Overview</span>
-        </button>
-        <button className="hud-rail-btn" id="railArmies" title="Armies">
-          <span className="hud-rail-icon"><Icon name="swords" /></span>
-          <span className="hud-rail-label">Armies</span>
-        </button>
-        <button className="hud-rail-btn" id="railSettlements" title="Settlements">
-          <span className="hud-rail-icon"><Icon name="castle" /></span>
-          <span className="hud-rail-label">Settlements</span>
-        </button>
-        <button className="hud-rail-btn" id="railResources" title="Resources">
-          <span className="hud-rail-icon"><Icon name="pickaxe" /></span>
-          <span className="hud-rail-label">Resources</span>
-        </button>
-        <button className="hud-rail-btn" id="railFactions" title="Factions">
-          <span className="hud-rail-icon"><Icon name="shield" /></span>
-          <span className="hud-rail-label">Factions</span>
-        </button>
-      </div>
+      {/* (The old left icon rail — Overview/Armies/Settlements/Resources/Factions — only
+          repeated the top bar's menus; its Settlements list now lives under Realm.) */}
 
       {/* ═══ Right info panel ═══ */}
       <div id="hudRightRail">

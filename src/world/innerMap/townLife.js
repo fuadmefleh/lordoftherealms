@@ -270,9 +270,37 @@ Object.assign(InnerMap, {
         // ...and each to their own trade's place (world/innerMap/townWork.js)
         if (this._assignJobPlaces) this._assignJobPlaces();
 
-        // Where the hour finds them
+        this._placeForHour(rng);
+        // Guards at the seats' doors, day and night (world/innerMap/seats.js)
+        if (this._postSeatGuards) this._postSeatGuards(rng);
+    },
+
+    /**
+     * A night has passed with the player on the map (End Turn): everyone is
+     * somewhere new — where the morning finds them, abed or about — not
+     * frozen where they stood. Chats, scenes and errands are dropped; the
+     * fallen and anyone carried or in a fight are left as they are.
+     * Hash-seeded by the day (no shared RNG).
+     */
+    reshuffleTownForNewDay(day = 0) {
+        if (!this.active || this._insideBuilding || !this.townArea()) return false;
+        let seed = ((Math.floor(day) * 2654435761) ^ 0x5bd1e995) >>> 0 || 1;
+        const rng = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
+        this._placeForHour(rng, true);
+        if (this._postSeatGuards) this._postSeatGuards(rng);
+        return true;
+    },
+
+    /** Where the hour finds them (on arrival, and after a night passed: reshuffleTownForNewDay) */
+    _placeForHour(rng, overnight = false) {
         const night = this.townPeriod() === 'night';
+        const stuck = (n) => n.state === 'dead' || n.state === 'unconscious' || n.state === 'gone' || n._fight || n._carried || n.departing || n._downed;
         for (const npc of this.npcs) {
+            if (overnight) {
+                if (stuck(npc)) continue;
+                npc._chatWith = null; npc._awaiting = null; npc._scene = null; npc._scuffle = null;
+                npc._field = null; npc._carry = null; npc.activity = null; npc.currentBuilding = null;
+            }
             npc._activity = null;
             // (a camp's folk keep the places among the tents they were given — world/innerMap/interiors.js)
             const spot = npc.campHub ? null : (npc.type === 'guard' && npc._post) ? npc._post : this.townSpot(rng);
@@ -293,8 +321,6 @@ Object.assign(InnerMap, {
                 npc.idleTimer = 10 + rng() * 60;
             }
         }
-        // Guards at the seats' doors, day and night (world/innerMap/seats.js)
-        if (this._postSeatGuards) this._postSeatGuards(rng);
     },
 
     /** Each person's home (a family shares one) and work (what they keep, else by trade). */
@@ -698,6 +724,8 @@ Object.assign(InnerMap, {
         partner.facing = _dirTo(npc.q - partner.q, npc.r - partner.r);
         const pr = Number(C.chat.playerRadius) || 22;
         if (Math.max(Math.abs(npc.q - this.playerInnerQ), Math.abs(npc.r - this.playerInnerR)) > pr) return;
+        // Now and then, within earshot, they are talking about the player (ui/innerMapOverheard.js)
+        if (this._overhearChat && this._overhearChat(npc, partner)) return;
         const L = C.chat.lines || {};
         const pool = [...(L[this.townPeriod()] || []), ...(L[npc.type] || []), ...(L.any || [])];
         if (!pool.length) return;

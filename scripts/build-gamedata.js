@@ -27,6 +27,7 @@ const topLevel = [
     'sagas', 'discovery', 'merchantHouses', 'kingship', 'counsel', 'chatter',
     'patronage', 'digging', 'carrying', 'downed', 'npcChat', 'llmModels',
     'outlawLairs',
+    'atrocities',
     'finance',
     'markets',
     'merchantCaravans',
@@ -84,6 +85,8 @@ const topLevel = [
     'rivalVoice',
     // Cadet branches of the House (systems/cadetBranches.js)
     'cadetBranches',
+    // Crimes against your own blood (systems/kinCrimes.js)
+    'kinCrimes',
     'realmIntel',
     'containers',
     'townProps',
@@ -114,6 +117,10 @@ const topLevel = [
     // What the spare hours of each day go on (player/standingOrders.js)
     'standingOrders',
     'riverDrift',
+    // Pixel sprites for goods lying on the inner map, dropped or afloat (ui/itemSprites.js)
+    'itemSprites',
+    // The set of the sea (world/oceanCurrents.js)
+    'currents',
     'marketStalls',
     'npcTheft',
     'brawls',
@@ -135,16 +142,30 @@ const topLevel = [
     'metaLegacy',
     'chronicleBook',
     'npcMemory',
+    // Companions lost on the road with the player (systems/vanishings.js)
+    'vanishings',
     'townMemory',
+    // Deplorable acts against a town: a poisoned well, a plague lie, a burnt granary, hoarded grain (systems/townCrimes.js)
+    'townCrimes',
     // The towns' architectural eras, weathering and walls (world/townEras.js)
     'townEras',
+    // Questioned by the watch when a town's suspicion adds up (systems/watchQuestioning.js)
+    'watchQuestioning',
     'nemesis',
     // Personal quests from the House's own history (systems/houseQuests.js)
     'houseQuests',
     // The Timeline of the Realm (systems/realmTimeline.js)
     'timeline',
     // The Almanac of the World (systems/almanac.js)
-    'almanac'
+    'almanac',
+    // Letters written freely, answered by the AI brain (systems/letterChat.js)
+    'letterChat',
+    // Townsfolk talking about the player within earshot (systems/overheard.js)
+    'overheard',
+    // Profane crimes: crypts desecrated, relics stolen/sold/faked, witch accusations (systems/profaneCrimes.js)
+    'profaneCrimes',
+    // Crimes against people: framing, bondage, the stocks, winter evictions, branding, starving captives (systems/peopleCrimes.js)
+    'peopleCrimes'
 ];
 
 const merged = {};

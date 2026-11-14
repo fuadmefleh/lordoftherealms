@@ -28,6 +28,7 @@ import { RealmEscort } from '../player/realmEscort.js';
 import { Arms } from '../systems/arms.js';
 import { InnerMapCombat } from './innerMapCombat.js';
 import { InnerMapRenderer } from './innerMapRenderer.js';
+import { InnerMapCompanions } from './innerMapCompanions.js';
 import { Utils } from '../core/utils.js';
 
 const T_PX = 32;
@@ -171,7 +172,9 @@ export const InnerMapEscort = {
                 }
             } else {
                 m.swingT = null;
-                const back = E._along(at, SPACING * T_PX * (Math.floor(i / 2) + 1));
+                // (behind your companions, when they walk with you: ui/innerMapCompanions.js)
+                const lead = InnerMapCompanions.count() * 0.9;
+                const back = E._along(at, SPACING * T_PX * (Math.floor(i / 2) + 1 + lead));
                 // (two abreast: each of a pair a little to its side of the trail)
                 const side = (i % 2 ? 1 : -1) * T_PX * 0.32;
                 tx = back.x + side; ty = back.y;
@@ -279,10 +282,10 @@ export const InnerMapEscort = {
         return { x: foe.npc.q * T_PX + T_PX / 2, y: foe.npc.r * T_PX + T_PX / 2 };
     },
 
-    /** One guardsman's blow. */
-    _strike(game, m, foe) {
+    /** One guardsman's blow (or a companion's: `baseDmg` their own, ui/innerMapCompanions.js). */
+    _strike(game, m, foe, baseDmg = null) {
         const C = InnerMapEscort._fightCfg();
-        const base = Number(C.damage[m.unit.type] != null ? C.damage[m.unit.type] : C.damage._default) || 8;
+        const base = baseDmg != null ? baseDmg : (Number(C.damage[m.unit.type] != null ? C.damage[m.unit.type] : C.damage._default) || 8);
         const dmg = Math.max(1, Math.round(base * (0.8 + Utils.random() * 0.4)));
         const T = InnerMapRenderer.TILE_SIZE;
         if (foe.kind === 'beast') {

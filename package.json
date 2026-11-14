@@ -16,8 +16,8 @@
     "format": "prettier --write \"src/**/*.{js,jsx}\"",
     "format:check": "prettier --check \"src/**/*.{js,jsx}\"",
     "electron": "electron .",
-    "dist": "vite build && electron-builder --win",
-    "dist:all": "vite build && electron-builder --win --linux --mac",
+    "dist": "npm run build:data && vite build && electron-builder --win",
+    "dist:all": "npm run build:data && vite build && electron-builder --win --linux --mac",
     "build:data": "node scripts/build-gamedata.js",
     "compose:buildings": "node scripts/compose-buildings.js"
   },

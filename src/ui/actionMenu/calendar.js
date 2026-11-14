@@ -5,7 +5,7 @@
 // The dates come from systems/calendar.js.
 import { ActionMenu } from './_ref.js';
 import { Calendar } from '../../systems/calendar.js';
-import { CARD, esc, sectionHead, bullets } from './uiKit.js';
+import { esc, sectionHead, card, chips, rowList, more } from './uiKit.js';
 import { Dawn } from '../../world/dawn.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
@@ -82,7 +82,7 @@ function _grid(world, today, marks, mine) {
         + `<span><span style="display:inline-block; width:10px; height:10px; background:${KIND_TINT.lean}; margin-right:4px;"></span>lean weeks</span>`
         + '<span><span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:#f5c542; margin-right:4px;"></span>the year\'s days</span>'
         + '<span><span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:#e57373; margin-right:4px;"></span>your deadlines</span>'
-        + '<span>Hover a day for what falls on it.</span></div>';
+        + `<span>Hover a day for what falls on it. Four seasons of ${today.daysInSeason} days; everyone ages on the year's last day.</span></div>`;
     return html;
 }
 
@@ -97,12 +97,12 @@ Object.assign(ActionMenu, {
         const mine = Calendar.upcoming(world, player, today.daysInYear * 20);
 
         let html = '<div style="max-height:var(--panel-max-h, 560px); overflow-y:auto; min-width:440px;">';
-        html += `<div style="${CARD} display:flex; justify-content:space-between; align-items:center; gap:12px;">`;
-        html += `<div><div style="font-family:var(--font-display); font-size:18px; color:var(--gold);">${today.icon} ${esc(Calendar.label(world))}</div>`;
-        html += `<div style="${NOTE}">Day ${today.dayOfYear} of ${today.daysInYear} of the year · day ${today.dayInSeason} of ${today.daysInSeason} of ${esc(today.season)}${today.lean ? ' · the lean weeks' : ''}</div></div>`;
-        html += `<div style="text-align:right;"><div style="font-size:16px; font-weight:bold;">${_n(played)}</div><div style="${NOTE}">days played (${esc(_span(played, today.daysInYear))})</div>`;
-        if (player && Number.isFinite(player.age)) html += `<div style="${NOTE}">${esc(player.name || 'You')}: age ${player.age}</div>`;
-        html += '</div></div>';
+        let head = `<div style="${NOTE}">Day ${today.dayOfYear} of ${today.daysInYear} of the year · day ${today.dayInSeason} of ${today.daysInSeason} of ${esc(today.season)}${today.lean ? ' · the lean weeks' : ''}</div>`;
+        head += chips([
+            `⏳ <b>${_n(played)}</b> days played (${esc(_span(played, today.daysInYear))})`,
+            player && Number.isFinite(player.age) ? ['🎂', esc(player.name || 'You'), `age ${player.age}`] : null,
+        ]);
+        html += card(head, { icon: today.icon, title: esc(Calendar.label(world)), tone: 'gold' });
 
         // A world begun at the Dawn of Man names its age (world/dawn.js)
         const era = Dawn.eraName(world);
@@ -112,30 +112,20 @@ Object.assign(ActionMenu, {
         // Your own matters first on a shared day, then the year's
         const ahead = [...Calendar.upcoming(world, player, SHOWN_AHEAD).map(e => ({ ...e, own: true })), ...Calendar.yearAhead(world, SHOWN_AHEAD)]
             .sort((a, b) => a.day - b.day || (a.own ? 0 : 1) - (b.own ? 0 : 1));
-        html += sectionHead(`⏭️ Coming up (next ${SHOWN_AHEAD} days)`);
-        html += `<div style="${CARD}">`;
-        if (!ahead.length) html += `<div style="${NOTE}">Nothing marked in the next ${SHOWN_AHEAD} days.</div>`;
-        for (const e of ahead.slice(0, SHOWN_ROWS)) {
-            html += '<div style="display:flex; gap:8px; align-items:baseline; padding:2px 0; border-bottom:1px solid rgba(255,255,255,0.05);">'
-                + `<span style="width:92px; flex:none; ${NOTE}">${esc(_when(e.inDays))}</span>`
-                + `<span style="flex:1; font-size:12px; color:${e.own ? '#f2c4c4' : '#ddd'};">${esc(e.icon)} ${esc(e.text)}</span>`
-                + `<span style="${NOTE} white-space:nowrap;">${esc(_short(world, e.day))}</span></div>`;
-        }
-        if (ahead.length > SHOWN_ROWS) html += `<div style="${NOTE} margin-top:4px;">…and ${ahead.length - SHOWN_ROWS} more.</div>`;
-        html += '</div>';
+        const rows = ahead.slice(0, SHOWN_ROWS).map(e => ({
+            icon: esc(e.icon), name: esc(e.text), desc: esc(_short(world, e.day)),
+            side: esc(_when(e.inDays)), tone: e.own ? 'warn' : '',
+        }));
+        if (ahead.length > SHOWN_ROWS) rows.push({ icon: '⋯', name: `…and ${ahead.length - SHOWN_ROWS} more` });
+        html += rowList(rows, `⏭️ Coming up (next ${SHOWN_AHEAD} days)`) || (sectionHead(`⏭️ Coming up (next ${SHOWN_AHEAD} days)`) + `<div style="${NOTE}">Nothing marked in the next ${SHOWN_AHEAD} days.</div>`);
 
         // Deadlines further off than the list shows (a child's coming of age, a regency's end)
         const later = mine.filter(e => e.inDays > SHOWN_AHEAD);
         if (later.length) {
-            html += sectionHead('🔭 Further off');
-            html += `<div style="${CARD}">`;
-            for (const e of later.slice(0, 8)) {
-                const yr = _dateOf(world, e.day).year;
-                html += `<div style="font-size:12px; padding:1px 0;">${esc(e.icon)} ${esc(e.text)} <span style="${NOTE}">· ${esc(_short(world, e.day))}, Year ${yr}</span></div>`;
-            }
-            html += '</div>';
+            html += more(`🔭 Further off (${Math.min(8, later.length)})`, rowList(later.slice(0, 8).map(e => ({
+                icon: esc(e.icon), name: esc(e.text), side: `${esc(_short(world, e.day))}, Year ${_dateOf(world, e.day).year}`, tone: 'warn',
+            }))));
         }
-        html += bullets([`A year is ${today.daysInYear} days: four seasons of ${today.daysInSeason}.`, 'Everyone ages on the year’s last day.']);
         html += '</div>';
         game.ui.showCustomPanel('📅 Calendar', html);
     },

@@ -488,7 +488,7 @@ export const Trading = {
         if (settlement) {
             Reckoning.noteTrade(player, settlement, goodId, quantity, 'sell', totalEarned);
             SettlementMarket.add(settlement, goodId, quantity);
-            Guilds.onSale(player, settlement, goodId, quantity, totalEarned);
+            Guilds.onSale(player, settlement, goodId, quantity, totalEarned, { tollPaid: true }); // (drawn with the price above)
         }
 
         // Food sold to a settlement also eases its granary — a town short of

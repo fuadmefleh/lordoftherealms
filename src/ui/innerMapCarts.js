@@ -27,8 +27,9 @@
 //     in, they leave it at the step); someone carried senseless can be laid on
 //     it ("Lay Them on the Cart") and wheeled about, and lifted off again.
 //
-// Carts block their ground: a parked one is gone round (InnerMap._findPath),
-// a moving one is waited for, and a cart never rolls onto anyone. Nothing is
+// Carts block their ground: a parked one is gone round (InnerMap._findPath);
+// a moving one the player waits for, and it never rolls onto the player, but
+// townsfolk and carts pass through each other (no stand-off, no shoving). Nothing is
 // saved: like the carry (ui/innerMapCarry.js), the street map is dealt again
 // on the next visit; the player's own cart is the good in their pack. Picks
 // are hashes of the clock and the people, never the shared RNG.
@@ -310,20 +311,21 @@ export const InnerMapCarts = {
         if (!c.path || c.pi >= c.path.length) { this._arrived(c, game); return; }
         const next = c.path[c.pi];
         if (!d.path) {
-            // A step begins: only onto ground the wheels can take, clear of everyone
+            // A step begins: only onto ground the wheels can take, clear of the player
+            // (townsfolk it rolls through, as they walk through it: world/innerMap/carts.js)
             const ok = Carts.stepAllowed(c, next, {
                 ground: (q, r) => InnerMap._cartGround(q, r),
-                taken: (q, r) => InnerMap._cartTileTaken(q, r, d),
+                taken: (q, r) => InnerMap._cartTileTaken(q, r, d, true),
                 cartAt: (q, r) => InnerMap.cartAt(q, r),
             });
             if (!ok) {
                 d.state = 'idle';
                 d.facing = Carts.facingOf(d, next);
                 c.blockT = _num(c.blockT) + dt;
-                // "Mind the cart!": whoever stands in the way steps aside; else round them, else it gives up
+                // "Mind the cart!" (only the player stops it: townsfolk are rolled through, never shoved
+                // aside); else round them, else it gives up
                 if (c.blockT > 1.5 && this._ready(`blk${c.id}`, 4, 8)) {
                     this._say(d, Carts.line(Carts.config().carters.lines, `${c.id}|${this._n++}`));
-                    this._nudge(next, c);
                 }
                 if (c.blockT > 4 && Math.floor(c.blockT / 4) !== Math.floor((c.blockT - dt) / 4) && c.dest) this._routeAround(c, next);
                 if (c.blockT > 25) { c.path = null; this._arrived(c, game, true); }
@@ -366,18 +368,6 @@ export const InnerMapCarts = {
         try { return this._routeTo(c, c.dest); } finally { InnerMap._cartParkedIdx = keep; }
     },
 
-    /** Someone standing on (q, r) (not in a talk or a fight) steps aside, off the cart's way. */
-    _nudge(at, c) {
-        for (const n of InnerMap.npcs || []) {
-            if (n.q !== at.q || n.r !== at.r || n === c.driver || n.state === 'inside_building' || n.state === 'gone') continue;
-            if (n._dialogFrozen || n._fight || n.state === 'unconscious' || n.state === 'bound' || n._cartDriver || n._carried) continue;
-            const on = new Set((c.path || []).map(p => `${p.q},${p.r}`));
-            const spot = AROUND8.map(([dq, dr]) => ({ q: at.q + dq, r: at.r + dr }))
-                .find(p => !on.has(`${p.q},${p.r}`) && this._free(p.q, p.r, n) && InnerMap.tiles[p.r][p.q].subTerrain.passable);
-            if (spot) this._stepAside(n, spot);
-        }
-    },
-
     _stepAside(n, spot) {
         n.q = n.prevQ = spot.q;
         n.r = n.prevR = spot.r;
@@ -386,14 +376,17 @@ export const InnerMapCarts = {
     },
 
     /**
-     * Each frame: no one stands on a cart's body (someone come out of a house onto the step it
-     * stands on, set down on it by a scene): they step off it.
+     * Each frame: no one stands about on a parked cart's body (someone come out of a house onto
+     * the step it stands on, set down on it by a scene): they step off it. A moving cart and
+     * anyone walking are let be — they pass through each other.
      */
     _shoo() {
         for (const c of InnerMap.streetCarts()) {
+            if (!c.parked) continue;
             for (const t of c.trail) {
                 for (const n of InnerMap.npcs || []) {
                     if (n.q !== t.q || n.r !== t.r || n === c.driver || n === c.load || n._onCart || n._carried) continue;
+                    if (n.state === 'walking') continue;
                     if (n.state === 'inside_building' || n.state === 'gone' || n.state === 'unconscious' || n.state === 'bound') continue;
                     const spot = AROUND8.map(([dq, dr]) => ({ q: t.q + dq, r: t.r + dr })).find(p => this._free(p.q, p.r, n) && InnerMap.tiles[p.r][p.q].subTerrain.passable);
                     if (spot) this._stepAside(n, spot);

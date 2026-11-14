@@ -221,7 +221,7 @@ export const TownMemory = {
             s.happiness = _clamp(_num(s.happiness, 50) - Math.min(15, 3 + fd / 100), 0, 100);
             delete m.fresh; delete m.freshDead;
             TownMemory._remember(world, s, m, day);
-            if (known) out.notices.push({ icon: '🪦', title: `A Cairn at ${s.name}`, text: `The folk of ${s.name} heap a cairn for the ${_num(m.dead)} who fell in the fighting there.`, type: 'info' });
+            if (known) out.notices.push({ icon: '⚰️', title: `A Cairn at ${s.name}`, text: `The folk of ${s.name} heap a cairn for the ${_num(m.dead)} who fell in the fighting there.`, type: 'info' });
         }
 
         // A fire?
@@ -320,6 +320,10 @@ export const TownMemory = {
             else if (m.k === 'mound') mood += _num(C.plague.grief, -6) * fade;
             else if (m.k === 'fire') mood += -12 * _num(m.share) * fade;
             else if (m.k === 'sack') mood += -8 * fade;
+            // A crime done to the town (systems/townCrimes.js): a poisoned well, a burnt granary, a plague lie
+            else if (m.k === 'crime') mood += (m.crime === 'well' ? -6 : m.crime === 'granary' ? -4 : -1.5) * fade;
+            // An atrocity (systems/atrocities.js): salt, hanged hostages, plague dead, a massacre — grief that lasts `long` times as long
+            else if (m.k === 'atrocity') mood += _num(m.grief, -8) * Math.max(0, 1 - age / (span * Math.max(1, _num(m.long, 3))));
         }
         mem.mood = Math.round(_clamp(mood, C.moodMin, C.moodMax) * 10) / 10;
         return mem.mood;
@@ -385,7 +389,7 @@ export const TownMemory = {
                 TownMemory._remember(world, s, m, day);
                 if (ours && player) {
                     player.renown = Math.max(0, _num(player.renown) + _num(S.renownTopple, -4));
-                    out.notices.push({ icon: '🪨', title: `Your Statue Toppled`, text: `The folk of ${s.name} have pulled down the statue of your House (${_num(S.renownTopple, -4)} renown).`, type: 'error' });
+                    out.notices.push({ icon: '⛰️', title: `Your Statue Toppled`, text: `The folk of ${s.name} have pulled down the statue of your House (${_num(S.renownTopple, -4)} renown).`, type: 'error' });
                 }
                 for (const n of marks) if (n.k === 'name' && n.house === m.house && (n.state || 'kept') === 'kept') { n.state = 'reverted'; n.changed = day; }
             } else if (state === 'defaced' && ours && loved) {
@@ -421,7 +425,7 @@ export const TownMemory = {
         if (st.tie > 0 && st.score >= _num(C.name.at, 110) && !marks.some(m => m.k === 'name' && m.house === mine && (m.state || 'kept') === 'kept')) {
             const nm = `${_surname(mine)} Square`;
             TownMemory.mark(s, 'name', { house: mine, what: 'square', name: nm, state: 'kept' }, world);
-            out.notices.push({ icon: '🪧', title: 'A Square Renamed', text: `The market square of ${s.name} is now ${nm}, after your House.`, type: 'success' });
+            out.notices.push({ icon: '📜', title: 'A Square Renamed', text: `The market square of ${s.name} is now ${nm}, after your House.`, type: 'success' });
         }
     },
 
@@ -491,6 +495,10 @@ export const TownMemory = {
         case 'cairn': return `A cairn was raised ${w} for the ${_num(m.dead)} who fell fighting at ${s.name}${m.victor ? ` (${m.victor} held the field)` : ''}.`;
         case 'mound': return `${_num(m.dead)} dead of the ${m.cause || 'plague'} were buried in a pit outside ${s.name} ${w}.`;
         case 'district': return `A new quarter was built ${w}, when ${s.name} was ${m.tier === 'rich' ? 'rich' : 'prospering'}.`;
+        case 'atrocity': return String(m.line || `${s.name} remembers a cruelty {when}.`).replace('{when}', w);
+        case 'crime': return m.crime === 'well' ? `The well of ${s.name} was poisoned ${w}${m.by ? ` by ${m.by}` : ''}${m.struck ? `; ${m.struck} fell sick${m.dead ? ` and ${m.dead} died` : ''}` : ''}.`
+            : m.crime === 'granary' ? `The granary of ${s.name} was burnt ${w}${m.by ? ` by ${m.by}` : ''}${m.lean ? ', in the lean weeks' : ''}.`
+            : `A false plague was cried on ${s.name} ${w}${m.by ? `, a lie of ${m.by}'s` : ''}; the traders stayed away.`;
         default: return `${s.name} remembers something ${w}.`;
         }
     },

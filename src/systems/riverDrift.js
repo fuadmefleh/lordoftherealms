@@ -19,7 +19,23 @@
 //     state   — 'drift' | 'caught' (on a weir) | 'rest' (lake, pool, bank),
 //     where   — for caught/rest: 'dam' | 'mill' | 'lake' | 'pool' | 'bank',
 //     since   — the hour it was caught or came to rest,
-//     passed  — it went over this hex's weir (a full one) }
+//     passed  — it went over this hex's weir (a full one),
+//     netPast — it slipped past this hex's net (a full or torn one),
+//     cell    — thrown into still water: the street-map cell it floats at
+//               ({ x, y }), with water 'pond' | 'lake' | 'sea' (where 'still'
+//               or 'sea'; at sea cur = { x, y } the ocean current's way),
+//     wild, findId, sprite, coins, note — a find the river brought down on its
+//               own (systems/riverFlotsam.js): a purse's coin, a bottle's note }
+//
+// Still water (a lake, a pond, a deep pool, the sea): no current. A thing
+// thrown in floats where it landed (state 'rest', where 'still') until it
+// sinks (restDays.still); at sea the ocean current takes it (where 'sea'),
+// off the map and lost after restDays.sea.
+//
+// The player's fishing nets live here too (world.riverDrift.nets, made and
+// tended by systems/riverNets.js): a river net catches what drifts down
+// into it like a weir of the player's own (net.frac down the hex, room for
+// nets.cap things); a still-water net gathers what was thrown in near it.
 //
 // Time is passed in (`now`, the world clock in hours) — the caller owns it
 // (ui/innerMapRiverDrift.js: world.day × 24 + the day clock's hour). The hex
@@ -41,7 +57,8 @@ const DEFAULTS = {
     damCap: 12,
     millWeirs: true,
     millWeirGen: 5,
-    restDays: { lake: 20, pool: 120, bank: 60 },
+    restDays: { lake: 20, pool: 120, bank: 60, still: 20, sea: 1 },
+    seaSpeed: 4,
     maxItems: 150,
     reach: 2,
     damReach: 3,
@@ -75,8 +92,9 @@ export const RiverDrift = {
         if (!world) return null;
         if (!world.riverDrift || typeof world.riverDrift !== 'object' || !Array.isArray(world.riverDrift.items)) {
             if (!create) return null;
-            world.riverDrift = { seq: 0, items: [] };
+            world.riverDrift = { seq: 0, items: [], nets: [] };
         }
+        if (!Array.isArray(world.riverDrift.nets)) world.riverDrift.nets = [];
         return world.riverDrift;
     },
 
@@ -213,12 +231,84 @@ export const RiverDrift = {
             passed: false,
         };
         if (opts.by) item.by = opts.by;
+        this._extras(item, what);
         // A weir below where it went in: it fetches up there; one above it: already past
         const dam = this.damAt(world, item.q, item.r);
         if (dam && frac > cfg.damAt) item.passed = true;
+        const net = this.netAt(world, item.q, item.r);
+        if (net && frac > net.frac) item.netPast = true;
         st.items.push(item);
         this._trim(world);
         return { ok: true, item };
+    },
+
+    /** A find's own fields carried onto the thing adrift (and into a net's catch) */
+    _extras(item, what) {
+        for (const k of ['wild', 'findId', 'sprite', 'coins', 'note']) if (what[k] != null) item[k] = what[k];
+        return item;
+    },
+
+    /**
+     * Throw a thing into still water on hex (q, r): a lake, a pond, a deep
+     * pool, the sea. It floats where it landed, at street-map cell opts.cell
+     * ({ x, y }). opts.water: 'pond' | 'lake' | 'sea'; opts.cur ({ x, y }, at
+     * sea): the way the ocean current runs, which carries it off.
+     * @returns {{ ok, sank?, item?, reason? }}
+     */
+    throwStill(world, q, r, what, now, opts = {}) {
+        const cfg = this.config();
+        if (!cfg.enabled) return { ok: false, reason: 'off' };
+        if (!this._tile(world, q, r)) return { ok: false, reason: 'There is no water here.' };
+        if (!what || !what.itemId) return { ok: false, reason: 'Nothing to throw.' };
+        if (this.sinks(what.itemId)) return { ok: true, sank: true };
+        const st = this.state(world);
+        const water = ['pond', 'lake', 'sea'].includes(opts.water) ? opts.water : 'pond';
+        const cell = opts.cell && Number.isFinite(opts.cell.x) ? { x: opts.cell.x, y: opts.cell.y } : { x: 0, y: 0 };
+        const atSea = water === 'sea' && opts.cur && (opts.cur.x || opts.cur.y);
+        const item = {
+            id: `rd${++st.seq}`,
+            itemId: what.itemId,
+            name: what.name || what.itemId,
+            icon: what.icon || '📦',
+            qty: Math.max(1, Math.floor(_num(what.qty, 1))),
+            q, r, t0: now, inDir: null,
+            state: 'rest', where: atSea ? 'sea' : 'still', since: now, passed: false,
+            cell, water,
+        };
+        if (atSea) item.cur = { x: opts.cur.x, y: opts.cur.y };
+        if (opts.by) item.by = opts.by;
+        this._extras(item, what);
+        st.items.push(item);
+        this._trim(world);
+        return { ok: true, item };
+    },
+
+    // ── Nets (made and tended by systems/riverNets.js; here only what the current needs) ──
+
+    /** The player's net set in this hex, or null */
+    netAt(world, q, r) {
+        const st = world && world.riverDrift;
+        if (!st || !Array.isArray(st.nets) || !st.nets.length) return null;
+        return st.nets.find(n => n.q === q && n.r === r) || null;
+    },
+
+    /** Has this net room for another thing (and is it whole)? */
+    netHasRoom(net) {
+        const nc = this.config().nets || {};
+        const cap = Math.max(1, _num(nc.cap, 16) | 0);
+        return !!(net && !net.torn && (net.catch || []).length < cap);
+    },
+
+    /**
+     * A thing adrift (or afloat on still water) goes into a net at hour `at`:
+     * out of the water, into the net's catch. -> true when it went in (the
+     * caller drops it from the drift: advance does, by its `gone` set).
+     */
+    snare(world, it, net, at) {
+        if (!this.netHasRoom(net)) return false;
+        if (!net.catch) net.catch = [];
+        net.catch.push(this._extras({ itemId: it.itemId, name: it.name, icon: it.icon, qty: it.qty || 1, since: at }, it));
+        return true;
     },
 
     /** Keep the world's drift to maxItems: the oldest at rest go first, then the oldest of all */
@@ -226,7 +316,9 @@ export const RiverDrift = {
         const st = this.state(world, false);
         const max = Math.max(1, this.config().maxItems | 0);
         if (!st || st.items.length <= max) return;
-        const order = [...st.items].sort((a, b) => (a.state === 'rest') === (b.state === 'rest') ? a.since - b.since : (a.state === 'rest' ? -1 : 1));
+        // (the river's own finds before anything thrown in; then those at rest; then the oldest)
+        const rank = it => (it.wild ? 0 : 2) + (it.state === 'rest' ? 0 : 1);
+        const order = [...st.items].sort((a, b) => rank(a) - rank(b) || a.since - b.since);
         const drop = new Set(order.slice(0, st.items.length - max).map(it => it.id));
         st.items = st.items.filter(it => !drop.has(it.id));
     },
@@ -242,14 +334,26 @@ export const RiverDrift = {
         const cfg = this.config();
         const hph = cfg.hoursPerHex;
         const hold = opts.hold || null;
+        const stillReach = _num(cfg.nets && cfg.nets.stillReach, 4);
+        if (!Array.isArray(st.nets)) st.nets = [];
         const events = [];
         const gone = new Set();
         for (const it of st.items) {
             if (it.state === 'rest') {
+                // afloat on still water near a net of the player's: gathered into it
+                if (it.where === 'still' && it.cell && st.nets.length) {
+                    const net = this.netAt(world, it.q, it.r);
+                    if (net && net.still && net.cell && Math.hypot(net.cell.x - it.cell.x, net.cell.y - it.cell.y) <= stillReach
+                        && this.snare(world, it, net, now)) {
+                        gone.add(it.id);
+                        events.push({ type: 'netted', item: it, net });
+                        continue;
+                    }
+                }
                 const days = _num(cfg.restDays[it.where], 0);
                 if (days > 0 && now - it.since >= days * 24) {
                     gone.add(it.id);
-                    events.push({ type: 'sank', item: it });
+                    events.push({ type: it.where === 'sea' ? 'lost' : 'sank', item: it });
                 }
                 continue;
             }
@@ -257,17 +361,35 @@ export const RiverDrift = {
             // (a long way at most in one go: a river is not that long)
             for (let guard = 0; guard < 400; guard++) {
                 if (hold && it.q === hold.q && it.r === hold.r) break;
+                // The net and the weir of this hex, in the order it meets them
+                const net = it.netPast || !st.nets.length ? null : this.netAt(world, it.q, it.r);
                 const dam = it.passed ? null : this.damAt(world, it.q, it.r);
-                if (dam) {
-                    const at = it.t0 + hph * cfg.damAt;
-                    if (now < at) break;
-                    if (this.pileAt(world, it.q, it.r).length < cfg.damCap) {
-                        this.catchAt(world, it, dam, at);
-                        events.push({ type: 'caught', item: it });
-                        break;
+                const stops = [];
+                if (net && !net.still) stops.push({ at: it.t0 + hph * Math.max(0, Math.min(1, _num(net.frac, 0.5))), net });
+                if (dam) stops.push({ at: it.t0 + hph * cfg.damAt, dam });
+                if (stops.length > 1 && stops[1].at < stops[0].at) stops.reverse();
+                let halt = false;
+                for (const s of stops) {
+                    if (now < s.at) { halt = true; break; }
+                    if (s.net) {
+                        if (this.snare(world, it, s.net, s.at)) {
+                            gone.add(it.id);
+                            events.push({ type: 'netted', item: it, net: s.net });
+                            halt = true;
+                            break;
+                        }
+                        it.netPast = true; // full, or torn: it slips by
+                    } else {
+                        if (this.pileAt(world, it.q, it.r).length < cfg.damCap) {
+                            this.catchAt(world, it, s.dam, s.at);
+                            events.push({ type: 'caught', item: it });
+                            halt = true;
+                            break;
+                        }
+                        it.passed = true; // a full weir: over it goes
                     }
-                    it.passed = true; // a full weir: over it goes
                 }
+                if (halt) break;
                 const out = it.t0 + hph;
                 if (now < out) break;
                 const ev = this.passOn(world, it, out);
@@ -301,6 +423,7 @@ export const RiverDrift = {
             it.inDir = (next.dir + 3) % 6;
             it.t0 = at;
             it.passed = false;
+            it.netPast = false;
             return 'moved';
         }
         if (next.kind === 'lake') {
@@ -343,15 +466,18 @@ export const RiverDrift = {
 
     serialize(world) {
         const st = this.state(world, false);
-        return st && st.items.length ? JSON.parse(JSON.stringify(st)) : null;
+        return st && (st.items.length || (st.nets && st.nets.length)) ? JSON.parse(JSON.stringify(st)) : null;
     },
 
     restore(data, world) {
         if (!world) return;
         if (data && typeof data === 'object' && Array.isArray(data.items)) {
-            world.riverDrift = { seq: _num(data.seq, data.items.length), items: data.items.filter(it => it && it.id && it.itemId) };
+            const nets = Array.isArray(data.nets) ? data.nets.filter(n => n && n.id && Number.isFinite(n.q)) : [];
+            for (const n of nets) if (!Array.isArray(n.catch)) n.catch = [];
+            world.riverDrift = { seq: _num(data.seq, data.items.length), items: data.items.filter(it => it && it.id && it.itemId), nets };
+            for (const k of ['netSeq', 'flotsamDay', 'watchHour']) if (Number.isFinite(data[k])) world.riverDrift[k] = data[k];
         } else {
-            world.riverDrift = { seq: 0, items: [] };
+            world.riverDrift = { seq: 0, items: [], nets: [] };
         }
     },
 };

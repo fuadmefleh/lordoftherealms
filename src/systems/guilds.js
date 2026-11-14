@@ -62,6 +62,7 @@ import { Taxation } from './marketDynamics.js';
 import { Trading } from '../player/playerEconomy.js';
 import { PriceKnowledge } from './priceKnowledge.js';
 import { Ledger } from './ledger.js';
+import { CrownBooks } from '../world/crownBooks.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -270,8 +271,9 @@ export const Guilds = {
         const g = {
             id: gid, name: `${def.name} of ${s.name || 'the town'}`, founded: day,
             master: { name: Guilds._name(`${seed}:m0`), player: false },
-            // (one founded by a ruler's charter starts with an empty hall — no charter/abolish money loop)
-            members, treasury: opts.chartered ? 0 : Math.round(members * C.dues * C.startTreasuryWeeks),
+            // (one founded by a ruler's charter starts with an empty hall — no charter/abolish money loop;
+            // the founders' first weeks of dues come out of the town's purse below)
+            members, treasury: 0,
             crown: Math.round(_roll(`${seed}:crown`) * _num(C.crown.startMax, 30)),
             prosperity: 1, squeeze: 0, squeezeWeeks: 0, strike: null, lastStrike: null, chartered: !!opts.chartered,
             feud: 0, low: 0, week: { outsider: {}, toll: 0 }, toll: 0,
@@ -280,14 +282,37 @@ export const Guilds = {
             candidates: null,
         };
         s.guilds[gid] = g;
+        // The founders pay in their first weeks of dues: real coin out of the town's purse
+        if (!opts.chartered) g.treasury = _round2(Economy.drawTown(s, Math.round(members * C.dues * C.startTreasuryWeeks)));
         Guilds._refreshToll(null, null, s, g);
         return g;
+    },
+
+    /**
+     * A guild's coin leaves its hall for good (dissolved or abolished): the
+     * chest, a lobbying purse still out and the escrow held for the player's
+     * open contracts go into the town's purse, where the members live.
+     * → the coin paid out.
+     */
+    releaseHall(s, g, player = null) {
+        if (!s || !g) return 0;
+        let coin = Math.max(0, _num(g.treasury));
+        if (g.lobbying) { coin += Math.max(0, _num(g.lobbying.purse)); g.lobbying = null; }
+        const st = player && _obj(player.guilds);
+        if (st && Array.isArray(st.contracts)) {
+            const key = Guilds._key(s, g.id);
+            for (const c of st.contracts) if (c && c.key === key && c.escrow > 0) { coin += c.escrow; c.escrow = 0; }
+        }
+        g.treasury = 0;
+        return coin > 0 ? Economy.payTown(s, _round2(coin)) : 0;
     },
 
     _dissolve(world, player, s, gid, why, out = null) {
         const g = Guilds.guild(s, gid);
         if (!g) return;
         Guilds._endStrike(s, g);
+        // The hall's coin is shared out among the members: back into the town's purse
+        Guilds.releaseHall(s, g, player);
         // ...and its monopoly lapses
         const def = Guilds.def(gid);
         if (s.monopolies) {
@@ -462,7 +487,7 @@ export const Guilds = {
      * (systems/merchantHouses.js) sell as the player's outsiders too, with
      * `standing: false`: their trade is the company's, not the player's.
      */
-    onSale(player, s, goodId, qty, earned, { standing = true } = {}) {
+    onSale(player, s, goodId, qty, earned, { standing = true, tollPaid = false } = {}) {
         if (!s || !s.guilds || !(qty > 0)) return;
         const g = Guilds.guardOf(s, goodId);
         if (g && !Guilds._monopolyOver(s, goodId, g.id)) {
@@ -474,7 +499,10 @@ export const Guilds = {
                 g.week.outsider[goodId] = _num(g.week.outsider[goodId]) + qty;
             }
             if (f < 1 && earned > 0) {
-                const toll = Math.round(earned * (1 - f) / f);
+                // (the buyer pays it on top of the seller's price: Trading.sellGoods draws it from
+                // the town with the price, tollPaid; any other sale has the town pay it here)
+                let toll = Math.round(earned * (1 - f) / f);
+                if (!tollPaid) toll = _round2(Economy.drawTown(s, toll));
                 // Paid inside the sale price: a memo line in the player's ledger
                 Ledger.record(player, 'guildTolls', -toll);
                 g.treasury = _num(g.treasury) + toll;
@@ -930,7 +958,8 @@ export const Guilds = {
         const g = Guilds.guild(s, gid);
         if (!g) return { success: false, reason: 'There is no such guild here.' };
         const C = Guilds.config().crown;
-        const take = Math.floor(_num(g.treasury) * 0.5);
+        const take = Math.floor(Math.max(0, _num(g.treasury)) * 0.5);
+        g.treasury = _num(g.treasury) - take; // (the rest goes back to the members: releaseHall)
         const k = s.kingdom && world.getKingdom ? world.getKingdom(s.kingdom) : null;
         if (k && Throne.ruledKingdom(player, world) === k) k.treasury = _num(k.treasury) + take;
         else player.gold += take;
@@ -1132,7 +1161,7 @@ export const Guilds = {
             const had = _num(g.treasury);
             let want = Math.round(Math.min(Math.max(had, cap), had + g.members * C.dues * g.prosperity));
             if (want > cap) want = Math.round(Math.max(cap, want * 0.97));
-            if (want > had) g.treasury = had + Math.floor(Economy.drawTown(s, want - had));
+            if (want > had) g.treasury = had + _round2(Economy.drawTown(s, want - had));
             else {
                 g.treasury = want;
                 if (had - want > 0) Economy.payTown(s, had - want);
@@ -1140,7 +1169,10 @@ export const Guilds = {
             Guilds._refreshToll(player, world, s, g);
             // Strikes run their course (or the strike fund runs dry)
             if (g.strike) {
-                g.treasury = Math.max(0, g.treasury - Math.round(g.members * _num(C.squeeze.strikeCost)));
+                // (the strike pay goes to the members, who spend it in the town)
+                const pay = Math.min(Math.max(0, g.treasury), Math.round(g.members * _num(C.squeeze.strikeCost)));
+                g.treasury -= pay;
+                Economy.payTown(s, pay);
                 if (day >= g.strike.until || g.treasury <= 0) Guilds._endStrike(s, g);
             }
             // The squeeze, and a strike when it bites for weeks
@@ -1156,7 +1188,12 @@ export const Guilds = {
             if (g.strike && _num(g.crown) <= _num(C.crown.abolishBelow, -40) && !Guilds.canRule(player, world, s)
                 && _roll(`abolish:${Guilds._key(s, gid)}:${day}`) < _num(C.crown.abolishChance, 0.25)) {
                 const k = s.kingdom && world.getKingdom ? world.getKingdom(s.kingdom) : null;
-                if (k) k.treasury = _num(k.treasury) + Math.floor(_num(g.treasury) * 0.5);
+                if (k) {
+                    // (half the chest to the crown; the rest back to the members: releaseHall)
+                    const take = Math.floor(Math.max(0, _num(g.treasury)) * 0.5);
+                    g.treasury -= take;
+                    k.treasury = _num(k.treasury) + take;
+                }
                 Guilds._abolish(world, player, s, gid, `by the crown of ${(k && k.name) || 'the realm'}`, out);
                 continue;
             }
@@ -1292,10 +1329,17 @@ export const Guilds = {
             }
             return;
         }
-        // An NPC crown weighs the guild's purse and standing
-        g.treasury -= _num(L.cost, 250);
+        // An NPC crown weighs the guild's purse and standing: the purse leaves the hall —
+        // half of it a fee to the crown if the suit wins, the rest the courtiers' and
+        // clerks' palms (spent in the capital); a free town's council is its own town
+        const cost = Math.min(Math.max(0, _num(g.treasury)), _num(L.cost, 250));
+        g.treasury -= cost;
         const p = _num(L.chance) + _num(g.crown) * _num(L.perStanding);
         const k = s.kingdom && world.getKingdom ? world.getKingdom(s.kingdom) : null;
+        const toCourt = (amount) => {
+            if (!(amount > 0)) return;
+            if (!(k && CrownBooks.spendAtCapital(world, k, amount) > 0)) Economy.payTown(s, amount);
+        };
         if (_roll(`lobby:${key}:${day}`) < p && k) {
             if (!g.chartered && _num(g.crown) >= _num(L.charterStanding, 20)) {
                 g.chartered = true;
@@ -1305,9 +1349,12 @@ export const Guilds = {
                 if (!s.monopolies) s.monopolies = {};
                 s.monopolies[good] = { holder: 'guild', holderName: g.name, guildId: g.id, sinceDay: day, untilDay: day + _num(L.monopolyDays, 120) };
             }
-            k.treasury = _num(k.treasury) + Math.floor(_num(L.cost, 250) * 0.5);
+            const fee = Math.floor(cost * 0.5);
+            k.treasury = _num(k.treasury) + fee;
+            toCourt(cost - fee);
             g.crown = _clamp(_num(g.crown) + _num(C.lobbyWin), -100, 100);
         } else {
+            toCourt(cost);
             g.crown = _clamp(_num(g.crown) + _num(C.lobbyFail), -100, 100);
         }
     },
@@ -1414,7 +1461,7 @@ export const Guilds = {
             if (g) {
                 g.treasury += Math.max(0, c.escrow);
                 g.feud = _clamp(_num(g.feud) + _num(K.failFeud), 0, 100);
-            }
+            } else if (s && c.escrow > 0) Economy.payTown(s, c.escrow); // (the hall is gone: its members' coin)
             const m = st.memberships[c.key];
             if (m) m.standing = Math.max(0, _num(m.standing) - _num(K.failStanding, 15));
             st.stats.contractsFailed++;

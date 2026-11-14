@@ -9,11 +9,10 @@
 // Opener: ActionMenu.showReckoning(game, tab) — tab 'last' | 'now' | 'past'.
 import { ActionMenu } from './_ref.js';
 import { Reckoning } from '../../systems/reckoning.js';
-import { CARD, panelTabs, esc, lede, bullets, chips } from './uiKit.js';
+import { panelTabs, esc, lede, bullets, chips, card, more } from './uiKit.js';
 import { Names } from '../../core/names.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
-const H = 'font-weight:bold; color:var(--gold); font-size:13px; margin-bottom:4px;';
 const UP = '#7bd88f', DOWN = '#e57373';
 const TABS = [['last', '⏳ Last season'], ['now', '📅 This season so far'], ['past', '📚 Earlier seasons']];
 
@@ -22,8 +21,11 @@ const col = (n) => (n > 0 ? UP : n < 0 ? DOWN : 'var(--text-secondary)');
 const num = (n) => `<span style="color:${col(n)}; font-weight:bold;">${sgn(n)}</span>`;
 const _cap = (s) => (s ? String(s).charAt(0).toUpperCase() + String(s).slice(1) : '');
 
+/** A section of the report as a card: '💰 Money by source' → icon + title; nothing when empty. */
 function _card(title, body) {
-    return body ? `<div style="${CARD}"><div style="${H}">${title}</div>${body}</div>` : '';
+    if (!body) return '';
+    const sp = title.indexOf(' ');
+    return card(body, { icon: title.slice(0, sp), title: title.slice(sp + 1) });
 }
 
 function _money(m) {
@@ -126,12 +128,11 @@ Object.assign(ActionMenu, {
         else if (active === 'past') {
             const past = st.history.slice(0, -1).reverse();
             body = past.length
-                ? past.map(r => `<details style="${CARD}"><summary style="cursor:pointer;">${esc(r.headline)}</summary>${reckoningHtml(r)}</details>`).join('')
+                ? past.map(r => more(esc(r.headline), reckoningHtml(r))).join('')
                 : `<div style="${NOTE}">No earlier seasons are kept yet.</div>`;
         } else body = reckoningHtml(st.last);
         const html = `${sub}<div style="max-height:var(--panel-max-h, 560px); overflow-y:auto; min-width:380px;">
-            ${lede('Your steward’s account of what your doings changed in the world.')}
-            ${bullets(['The popup at each season’s turn can be switched off in Settings; it is always here in the Journal.'])}
+            ${lede('Your steward’s account of what your doings changed in the world. It opens at each season’s turn (Settings can switch that off).')}
             ${body}</div>`;
         game.ui.showCustomPanel('⏳ The Season\'s Reckoning', html);
     },

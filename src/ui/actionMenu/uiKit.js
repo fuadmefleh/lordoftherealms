@@ -159,19 +159,6 @@ export function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
-/**
- * Before a battle: fight it on the ground yourself (ui/innerMapBattle.js) or
- * let the captains settle it. Two data-am-act buttons: `field` and `auto` are
- * [act, ...args] for ActionMenu[act](game, ...args).
- */
-export function fieldChoiceHtml(field, auto, blurb = 'Your companies drawn up on the ground where it happens: march, hold, charge, loose, sound the retreat.') {
-    const btn = (spec, label, style) => `<button data-am-act="${esc(spec[0])}" data-am-args="${esc(JSON.stringify(spec.slice(1)))}" style="${style}display:block;width:100%;text-align:left;padding:9px 10px;">${label}</button>`;
-    return `<div style="padding:4px 2px;">${btn(field, '⚔️ Take the field — command them yourself', BTN_GOLD)}
-        <div style="font-size:11px;color:#999;margin:2px 0 8px;">${blurb}</div>
-        ${btn(auto, '🎲 Let the captains fight it', BTN_DARK)}
-        <div style="font-size:11px;color:#999;margin-top:2px;">Settled at once on the odds.</div></div>`;
-}
-
 /** [key, label, title?] or { key, label, title? } → { key, label, title }. */
 function tabItem(t) {
     return Array.isArray(t) ? { key: t[0], label: t[1], title: t[2] || '' } : { key: t.key, label: t.label, title: t.title || '' };

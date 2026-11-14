@@ -12,7 +12,10 @@ import { ActionMenu } from './_ref.js';
 import { Lots } from '../../systems/lots.js';
 import { LotBook } from '../../world/lotBook.js';
 import { Graveyards } from '../../systems/graveyards.js';
-import { BTN_GOLD, BTN_PLAIN, BTN_RED, CARD, esc, lede, bullets } from './uiKit.js';
+import { esc, lede, chips, card, rowList, price } from './uiKit.js';
+// (a hard landlord: the stocks, winter evictions, your cellars — ui/actionMenu/peopleCrimes.js)
+import { landlordRows, evictNote, captivesHtml } from './peopleCrimes.js';
+import { PeopleCrimes } from '../../systems/peopleCrimes.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 const STATE = {
@@ -22,10 +25,6 @@ const STATE = {
     rented: ['🔑', 'You rent it', '#8fc7ff'],
     owned: ['🏠', 'Yours outright', '#9fd89f'],
 };
-
-function act(label, args, style = BTN_PLAIN, title = '') {
-    return `<button data-am-act="townLotsAct" data-am-args='${esc(JSON.stringify(args))}' style="${style}"${title ? ` title="${esc(title)}"` : ''}>${label}</button>`;
-}
 
 function daysAgo(world, d) {
     if (d == null) return 'not yet';
@@ -37,11 +36,7 @@ function row(game, v) {
     const { world, player } = game;
     const [icon, label, color] = STATE[v.state] || STATE.empty;
     const here = player.q === v.q && player.r === v.r;
-    const args = (op) => [op, v.q, v.r, v.ref];
-    let html = `<div style="${CARD}">`;
-    html += `<div style="display:flex; justify-content:space-between; gap:8px; align-items:baseline;">`;
-    html += `<div style="font-weight:bold; color:var(--gold);">${icon} ${esc(v.name || 'House')} <span style="font-weight:normal; color:#aaa;">· ${esc(v.town)}${here ? ' (here)' : ''}</span></div>`;
-    html += `<div style="font-size:11px; color:${color}; flex-shrink:0;">${label}${v.state === 'building' && v.daysLeft ? ` — ${v.daysLeft} day${v.daysLeft === 1 ? '' : 's'} left` : ''}</div></div>`;
+    const act = (op) => ({ act: 'townLotsAct', args: [op, v.q, v.r, v.ref] });
 
     const facts = [];
     if (v.what) facts.push(`On it: ${esc(v.what)}`);
@@ -56,22 +51,23 @@ function row(game, v) {
     } else if (v.rent != null) {
         facts.push(v.letting ? (v.ready ? `To let at ${v.rent}g a day — no tenant yet` : `To let at ${v.rent}g a day once it stands`) : `Not let (${v.rent}g a day if it were)`);
     }
-    if (facts.length) html += `<div style="${NOTE} margin-top:3px;">${facts.join(' · ')}</div>`;
-
-    const btns = [];
-    if (v.canBuildHouse) btns.push(act(`🏗️ Build a House to Let (${v.houseCost}g)`, args('build'), BTN_GOLD, `Stands in ${LotBook.houseDays(worldTypeOf(world, v) || 'village')} days; let to the townsfolk for a daily rent. Other works (a shop, a workshop) are built on the lot on the town map.`));
+    const gold = player.gold || 0;
+    const rows = [];
     if (v.canBuildHouse) {
+        rows.push({ icon: '🏗️', name: 'Build a House to Let', desc: `Stands in ${LotBook.houseDays(worldTypeOf(world, v) || 'village')} days, then let for a daily rent. Shops and workshops are built on the town map.`, side: price(v.houseCost, gold >= v.houseCost), ...act('build') });
         const fee = Graveyards.consecrateFee(world.getTile(v.q, v.r) && world.getTile(v.q, v.r).settlement);
-        btns.push(act(`⛪ Make it a Burial Ground (${fee}g)`, args('consecrate'), BTN_GOLD, 'The priest blesses the lot (a fee to the temple); the townsfolk lease its plots from you. More (a bone mill, an ossuary) under Graveyards & the Dead.'));
+        rows.push({ icon: '⛪', name: 'Make it a Burial Ground', desc: 'The priest blesses it; the townsfolk lease its plots from you', side: price(fee, gold >= fee), ...act('consecrate') });
     }
-    if (v.canLet) btns.push(act('🔑 Let it', args('let'), BTN_GOLD, 'Offer it to the townsfolk: a tenant pays you rent each day'));
-    if (v.canStopLetting) btns.push(act('Stop letting', args('unlet'), BTN_PLAIN, 'Take it off the letting'));
-    if (v.canEvict) btns.push(act('🚪 Put the Tenant Out', args('evict'), BTN_RED, v.owed > 0 ? `Their ${v.owed}g of arrears is lost` : 'The house goes back to let'));
-    if (v.canLeave) btns.push(act('🚪 Give up the House', args('leave'), BTN_RED, 'Hand back the key: no more rent'));
-    if (v.canSell) btns.push(act(`💰 Sell (${v.value}g)`, args('sell'), BTN_PLAIN, 'A townsperson buys it'));
-    if (btns.length) html += `<div style="margin-top:4px;">${btns.join('')}</div>`;
-    html += '</div>';
-    return html;
+    if (v.canLet) rows.push({ icon: '🔑', name: 'Let it', desc: 'Offer it to the townsfolk: a tenant pays you rent each day', ...act('let') });
+    if (v.canStopLetting) rows.push({ icon: '🔒', name: 'Stop letting', desc: 'Take it off the letting', ...act('unlet') });
+    if (v.canEvict) rows.push({ icon: '🚪', name: 'Put the Tenant Out', desc: (v.owed > 0 ? `Their ${v.owed}g of arrears is lost` : 'The house goes back to let') + evictNote(game), tone: 'bad', ...act('evict') });
+    for (const r of landlordRows(game, v)) rows.push(r);
+    if (v.canLeave) rows.push({ icon: '🚪', name: 'Give up the House', desc: 'Hand back the key: no more rent', tone: 'bad', ...act('leave') });
+    if (v.canSell) rows.push({ icon: '💰', name: 'Sell', desc: 'A townsperson buys it', side: price(v.value), tone: 'good', ...act('sell') });
+
+    const state = `<span style="color:${color};">${label}${v.state === 'building' && v.daysLeft ? ` — ${v.daysLeft} day${v.daysLeft === 1 ? '' : 's'} left` : ''}</span>`;
+    const body = `<div style="${NOTE}">${esc(v.town)}${here ? ' (here)' : ''}${facts.length ? ` · ${facts.join(' · ')}` : ''}</div>${rowList(rows)}`;
+    return card(body, { icon, title: esc(v.name || 'House'), side: state });
 }
 
 function worldTypeOf(world, v) {
@@ -85,27 +81,26 @@ Object.assign(ActionMenu, {
         const { world, player } = game;
         const list = Lots.holdingsView(world, player);
         let html = '<div style="font-size:12px;">';
-        if (message) html += `<div style="${CARD} border-color:${message.ok ? 'rgba(159,216,159,0.5)' : 'rgba(224,128,128,0.5)'};">${esc(message.text)}</div>`;
+        if (message) html += card(esc(message.text), { tone: message.ok ? 'good' : 'bad' });
         if (!list.length) {
-            html += lede('You hold no building lots or houses in town.') + bullets([
-                'Walk a town’s streets: the staked-out lots are for sale.',
-                'A house or two stands empty, to rent or to buy.',
-            ]);
+            html += lede('You hold no building lots or houses in town. Walk a town’s streets: the staked-out lots are for sale, and a house or two stands empty to rent or buy.');
         } else {
             const income = list.filter(v => v.tenant).reduce((a, v) => a + (v.rent || 0), 0);
             const outgo = list.filter(v => v.state === 'rented').reduce((a, v) => a + (v.rent || 0), 0);
             const owed = list.reduce((a, v) => a + (v.owed || 0), 0);
             const b = player.lotRentBook;
-            const parts = [`${list.length} holding${list.length === 1 ? '' : 's'}`];
-            if (income) parts.push(`<span style="color:#9fd89f;">+${income}g a day in rents</span>`);
-            if (outgo) parts.push(`<span style="color:#e0a080;">−${outgo}g a day in rent you pay</span>`);
-            if (owed) parts.push(`<span style="color:#e08080;">${owed}g in arrears</span>`);
-            html += `<div style="${NOTE}">${parts.join(' · ')}</div>`;
-            if (b && (b.collected || b.paid)) html += `<div style="${NOTE}">This month so far: ${Math.round(b.collected || 0)}g collected, ${Math.round(b.paid || 0)}g paid.</div>`;
+            html += chips([
+                ['🏘️', 'Holdings', list.length],
+                income ? ['🔑', 'Rents in', `+${income}g/day`, 'gold'] : null,
+                outgo ? ['🏠', 'Rent you pay', `−${outgo}g/day`] : null,
+                owed ? ['⚠️', 'Arrears', `${owed}g`] : null,
+                b && (b.collected || b.paid) ? ['📅', 'This month', `${Math.round(b.collected || 0)}g in, ${Math.round(b.paid || 0)}g out`] : null,
+            ]);
             const here = list.filter(v => v.q === player.q && v.r === player.r);
             const away = list.filter(v => !(v.q === player.q && v.r === player.r));
             for (const v of here.concat(away)) html += row(game, v);
         }
+        html += captivesHtml(game);
         html += '</div>';
         game.ui.showCustomPanel('🏘️ Lots & Town Houses', html);
     },
@@ -120,7 +115,12 @@ Object.assign(ActionMenu, {
             case 'consecrate': res = Graveyards.consecrate(player, world, s, ref); break;
             case 'let': res = Lots.letHouse(player, world, q, r, ref); break;
             case 'unlet': res = Lots.stopLetting(player, world, q, r, ref); break;
-            case 'evict': res = Lots.evictTenant(player, world, q, r, ref); break;
+            case 'evict': {
+                // (in winter the household goes into the snow: systems/peopleCrimes.js)
+                const e = PeopleCrimes.evictInWinter(player, world, q, r, ref);
+                res = { success: e.ok, text: e.text, reason: e.text };
+                break;
+            }
             case 'leave': res = Lots.leaveHouse(player, world, s, ref); break;
             case 'sell': {
                 const h = (player.lotHoldings || []).find(x => x.q === q && x.r === r && (x.kind === 'lot' ? x.id : x.key) === ref);

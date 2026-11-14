@@ -3,7 +3,7 @@
 // systems/rivals.js; these panels present it.
 import { ActionMenu } from './_ref.js';
 import { Rivals } from './_imports.js';
-import { BTN_GOLD, BTN_DARK, BTN_RED, CARD } from './uiKit.js';
+import { lede, chips, rowList, card, price, sectionHead } from './uiKit.js';
 import { DuelPanel } from './duel.js';
 
 
@@ -23,36 +23,33 @@ Object.assign(ActionMenu, {
         const world = game.world;
         const here = Rivals.rivalsAt(player, world, tile.q, tile.r);
         let html = '<div style="max-height: 500px; overflow-y: auto; font-size: 12px;">';
-        if (message) {
-            html += `<div style="${CARD} border-color: ${message.color || 'rgba(245,197,66,0.4)'}; color:#eee;">${message.html}</div>`;
-        }
-        if (!here.length) {
-            html += '<div style="color:#aaa;">No adventurers are resting here now.</div>';
-        }
+        if (message) html += card(message.html, { tone: message.tone || 'gold' });
+        html += lede(here.length
+            ? 'Other adventurers resting here. They chase the same ruins and the same renown you do.'
+            : 'No adventurers are resting here now.');
+        const cfg = Rivals.config();
+        const racing = !!Rivals.state(player).race;
+        const gold = player.gold || 0;
         for (const r of here) {
             const att = Rivals.attitudeOf(r);
             const arch = Rivals.archetype(r.archetype);
-            html += `<div style="${CARD}">`;
-            html += `<div style="display:flex; justify-content:space-between;"><div><span style="font-size:16px;">${r.icon}</span> <b>${_esc(r.name)}</b> <span style="color:#aaa;">— ${_esc(arch.label)}</span></div>`;
-            html += `<div style="color:${att.color};">${att.icon} ${_esc(att.label)} (${r.attitude})</div></div>`;
-            html += `<div style="font-size:11px; color:#bbb; margin:2px 0;">⭐ ${r.renown} renown · ${_statBar(r)}${r.claimName ? ` · 👑 pretender to ${_esc(r.claimName)}` : ''}</div>`;
-            if (r.memory.length) {
-                const m = r.memory[0];
-                html += `<div style="font-size:11px; color:#999; font-style:italic;">Remembers: you ${_esc(m.text)} (day ${m.day})</div>`;
-            }
             const team = Rivals.canTeamUp(player, r);
             const hire = Rivals.canHire(player, r);
-            html += '<div style="margin-top:4px;">';
-            html += `<button onclick="window._rivals.talk('${r.id}')" style="${BTN_DARK}">💬 Talk</button>`;
-            html += `<button onclick="window._rivals.duel('${r.id}', false)" style="${BTN_GOLD}">⚔️ Duel (${ActionMenu.getAPCost('rival_duel')} AP)</button>`;
-            if (Rivals.willDuel(r, true)) html += `<button onclick="window._rivals.duel('${r.id}', true)" style="${BTN_RED}">💀 To the death</button>`;
-            if (team.ok) html += `<button onclick="window._rivals.teamUp('${r.id}')" style="${BTN_DARK}">🤝 Team up (${Math.round(Rivals.config().teamUp.share * 100)}% share)</button>`;
-            if (hire.ok) html += `<button onclick="window._rivals.hire('${r.id}')" style="${BTN_DARK}">💰 Hire (${hire.cost}g)</button>`;
-            if (!Rivals.state(player).race) html += `<button onclick="window._rivals.race('${r.id}')" style="${BTN_DARK}">🏁 Race (${Rivals.config().race.wager}g)</button>`;
-            html += `<button onclick="window._rivals.sabotage('${r.id}')" style="${BTN_RED}">🗡️ Sabotage (${Rivals.config().sabotage.cost}g, ${Math.round(Rivals.sabotageChance(player) * 100)}%)</button>`;
-            html += '</div></div>';
+            let body = `<div style="font-size:11px; color:#bbb; margin:0 0 2px;">${_esc(arch.label)} · ⭐ ${r.renown} renown · ${_statBar(r)}${r.claimName ? ` · 👑 pretender to ${_esc(r.claimName)}` : ''}</div>`;
+            if (r.memory.length) body += `<div style="font-size:11px; color:#9d937c; font-style:italic;">Remembers: you ${_esc(r.memory[0].text)} (day ${r.memory[0].day})</div>`;
+            const go = (fn, ...a) => `onclick="window._rivals.${fn}(${a.map(x => (typeof x === 'string' ? `'${x}'` : x)).join(', ')})"`;
+            body += rowList([
+                { icon: '💬', name: 'Talk', desc: 'Hear what they are after', attrs: go('talk', r.id) },
+                { icon: '⚔️', name: 'Duel', desc: 'To first blood, fought move by move', side: `${ActionMenu.getAPCost('rival_duel')} AP`, attrs: go('duel', r.id, false) },
+                Rivals.willDuel(r, true) ? { icon: '💀', name: 'Duel to the death', desc: 'One of you does not walk away', tone: 'bad', attrs: go('duel', r.id, true) } : null,
+                { icon: '🤝', name: 'Team up', desc: `Delve together; they take ${Math.round(cfg.teamUp.share * 100)}% of the gold`, off: !team.ok, why: team.reason, attrs: go('teamUp', r.id) },
+                { icon: '💰', name: 'Hire their sword', desc: `They join your army for ${cfg.hire.days} days`, side: hire.ok ? price(hire.cost, gold >= hire.cost) : '', off: !hire.ok, why: hire.reason, attrs: go('hire', r.id) },
+                { icon: '🏁', name: 'Race them to a ruin', desc: 'First to delve it takes the pot', side: price(cfg.race.wager, gold >= cfg.race.wager), off: racing, why: 'You are already in a race', attrs: go('race', r.id) },
+                { icon: '🗡️', name: 'Sabotage', desc: `${Math.round(Rivals.sabotageChance(player) * 100)}% it goes unnoticed`, side: price(cfg.sabotage.cost, gold >= cfg.sabotage.cost), tone: 'bad', attrs: go('sabotage', r.id) },
+            ]);
+            html += card(body, { icon: r.icon, title: _esc(r.name), side: `<span style="color:${att.color};">${att.icon} ${_esc(att.label)}</span>` });
         }
-        html += `<button onclick="window._rivals.hall()" style="${BTN_DARK} width:100%;">🏆 Hall of Heroes</button>`;
+        html += rowList([{ icon: '🏆', name: 'Hall of Heroes', desc: 'Every adventurer by renown, their news, and the fallen', attrs: 'onclick="window._rivals.hall()"', side: '›' }]);
         html += '</div>';
 
         const refresh = (msg) => {
@@ -100,7 +97,7 @@ Object.assign(ActionMenu, {
                 h += `<span style="color:#e08080;">You lose the duel. -${res.harm} health.${res.wound ? ` ${res.wound.icon || '🔴'} ${_esc(res.wound.name)}.` : ''}</span>`;
             }
             if (res.after) h += `<br><i>"${_esc(res.after)}"</i>`;
-            refresh({ html: h, color: res.playerWon ? 'rgba(127,208,127,0.4)' : 'rgba(224,96,96,0.4)' });
+            refresh({ html: h, tone: res.playerWon ? 'good' : 'bad' });
         };
         Object.assign(window._rivals, {
             teamUp: (id) => {
@@ -130,7 +127,7 @@ Object.assign(ActionMenu, {
                 if (!ap('rival_sabotage')) return;
                 const res = Rivals.sabotage(player, world, id);
                 if (!res.success) return fail(res.reason);
-                refresh({ html: `🗡️ ${_esc(res.text)}`, color: res.caught ? 'rgba(224,96,96,0.4)' : 'rgba(127,208,127,0.4)' });
+                refresh({ html: `🗡️ ${_esc(res.text)}`, tone: res.caught ? 'bad' : 'good' });
             },
             hall: () => ActionMenu.showHallOfHeroes(game, tile),
         });
@@ -144,42 +141,32 @@ Object.assign(ActionMenu, {
         const world = game.world;
         const rows = Rivals.leaderboard(player, world);
         const st = Rivals.state(player);
+        const s = st.stats;
         let html = '<div style="max-height: 520px; overflow-y: auto; font-size: 12px;">';
-        html += '<table style="width:100%; border-collapse:collapse;">';
-        for (const row of rows) {
-            const bg = row.isPlayer ? 'background: rgba(245,197,66,0.12);' : '';
-            html += `<tr style="${bg} border-bottom: 1px solid rgba(255,255,255,0.06);">`;
-            html += `<td style="padding:4px; color:#aaa; width:22px;">${row.rank}.</td>`;
-            html += `<td style="padding:4px;">${row.icon} <b>${_esc(row.name)}</b><div style="font-size:10px; color:#999;">${_esc(row.label)}${row.status ? ` · ${_esc(row.status)}` : ''}${row.claim ? ` · 👑 ${_esc(row.claim)}` : ''}</div></td>`;
-            html += `<td style="padding:4px; text-align:right; color:var(--gold);">⭐ ${row.renown}</td>`;
-            html += `<td style="padding:4px; text-align:right; color:${row.attitude ? row.attitude.color : '#ccc'}; font-size:11px;">${row.attitude ? `${row.attitude.icon} ${_esc(row.attitude.label)}` : ''}</td>`;
-            html += '</tr>';
-        }
-        html += '</table>';
-
+        html += chips([
+            ['⚔️', 'Duels', `${s.duelsWon}–${s.duelsLost}`],
+            ['🏁', 'Races', `${s.racesWon}–${s.racesLost}`],
+            s.slain ? ['💀', 'Slain', s.slain] : null,
+        ]);
         const p = st.partner;
         const race = st.race;
-        if (p || race) {
-            html += `<div style="${CARD}">`;
-            if (p) html += `<div>🤝 Delving partner: <b>${_esc(p.name)}</b> until day ${p.until}${p.earned ? ` (${p.earned}g taken so far)` : ''}</div>`;
-            if (race) html += `<div>🏁 Racing ${_esc((Rivals.get(player, race.rivalId) || {}).name || 'a rival')} to <b>${_esc(race.siteName)}</b> (${race.q}, ${race.r}) — they arrive about day ${race.deadline}.</div>`;
-            html += '</div>';
-        }
-
-        const s = st.stats;
-        html += `<div style="font-size:11px; color:#999; margin:6px 0;">Duels ${s.duelsWon}–${s.duelsLost} · Races ${s.racesWon}–${s.racesLost} · Rivals slain ${s.slain}</div>`;
-
-        html += '<div style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--gold); margin: 10px 0 4px;">Tales of the Road</div>';
+        html += rowList([
+            p ? { icon: '🤝', name: `Delving with ${_esc(p.name)}`, desc: `Until day ${p.until}${p.earned ? ` · ${p.earned}g taken so far` : ''}`, tone: 'good' } : null,
+            race ? { icon: '🏁', name: `Racing ${_esc((Rivals.get(player, race.rivalId) || {}).name || 'a rival')} to ${_esc(race.siteName)}`, desc: `At (${race.q}, ${race.r}); they arrive about day ${race.deadline}`, tone: 'warn' } : null,
+        ], 'Under way');
+        html += rowList(rows.map(row => ({
+            icon: row.icon,
+            name: `${row.rank}. ${_esc(row.name)}${row.isPlayer ? ' (you)' : ''}`,
+            desc: `${_esc(row.label)}${row.status ? ` · ${_esc(row.status)}` : ''}${row.claim ? ` · 👑 ${_esc(row.claim)}` : ''}${row.attitude ? ` · <span style="color:${row.attitude.color};">${row.attitude.icon} ${_esc(row.attitude.label)}</span>` : ''}`,
+            side: `⭐ ${row.renown}`,
+            tone: row.isPlayer ? 'gold' : '',
+        })), 'By renown');
         const news = Rivals.news(player, 15);
-        if (!news.length) html += '<div style="color:#888;">No word yet of the other adventurers.</div>';
-        for (const n of news) {
-            html += `<div style="padding:3px 0; color:#ccc;"><span style="color:#888; font-size:10px;">Day ${n.day}</span> ${n.icon} ${_esc(n.text)}</div>`;
-        }
+        html += news.length
+            ? rowList(news.map(n => ({ icon: n.icon, name: _esc(n.text), side: `day ${n.day}` })), 'Tales of the road')
+            : sectionHead('Tales of the road') + '<div style="color:#888;">No word yet of the other adventurers.</div>';
         const fallen = Rivals.fallen(player);
-        if (fallen.length) {
-            html += '<div style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #999; margin: 10px 0 4px;">The Fallen</div>';
-            html += `<div style="color:#888; font-size:11px;">${fallen.map(r => `⚰️ ${_esc(r.name)} (day ${r.dead.day})`).join(' · ')}</div>`;
-        }
+        if (fallen.length) html += sectionHead('The fallen') + `<div style="color:#888; font-size:11px;">${fallen.map(r => `⚰️ ${_esc(r.name)} (day ${r.dead.day})`).join(' · ')}</div>`;
         html += '</div>';
         game.ui.showCustomPanel('🏆 Hall of Heroes', html);
     },

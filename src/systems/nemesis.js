@@ -111,7 +111,7 @@ const DEFAULTS = {
     stages: [
         { id: 'grudge', min: 0, label: 'Grudge', icon: '😠', every: 240 },
         { id: 'enmity', min: 35, label: 'Enmity', icon: '😡', every: 150 },
-        { id: 'vendetta', min: 60, label: 'Vendetta', icon: '🩸', every: 100 },
+        { id: 'vendetta', min: 60, label: 'Vendetta', icon: '🗡️', every: 100 },
         { id: 'obsession', min: 85, label: 'Obsession', icon: '💀', every: 70 },
     ],
     growthPerYear: 3, fadeBelow: 8, revengeSated: 120,
@@ -542,8 +542,8 @@ export const Nemesis = {
         Nemesis._letter(player, world, nm, 'birth', vars);
         const text = `${nm.name}, ${Nemesis.kindDef(nm.kind).label}, has sworn enmity against you for ${nm.origin.label}${nm.origin.note ? ` (${nm.origin.note})` : ''}.`;
         Nemesis._chronicle(player, world, text);
-        out.notices.push({ icon: '🩸', title: 'A Nemesis Is Born', text: `${text} See Dynasty → Nemeses.`, type: 'warning' });
-        Interrupts.raise(world, { reason: `${nm.name} has sworn enmity against you`, icon: '🩸', source: 'nemesis' });
+        out.notices.push({ icon: '🗡️', title: 'A Nemesis Is Born', text: `${text} See Dynasty → Nemeses.`, type: 'warning' });
+        Interrupts.raise(world, { reason: `${nm.name} has sworn enmity against you`, icon: '🗡️', source: 'nemesis' });
         return nm;
     },
 
@@ -655,7 +655,7 @@ export const Nemesis = {
         Nemesis._letter(player, world, nm, 'inherit', vars);
         const text = `${old} is dead, and ${newName} takes up the quarrel with ${(player.house && player.house.name) || 'you'}${slain ? ', swearing to avenge the blood you spilt' : ''}.`;
         Nemesis._chronicle(player, world, text);
-        out.notices.push({ icon: '🩸', title: 'The Feud Passes On', text, type: 'warning' });
+        out.notices.push({ icon: '🗡️', title: 'The Feud Passes On', text, type: 'warning' });
         return nm;
     },
 
@@ -788,7 +788,7 @@ export const Nemesis = {
             nm.hatred = Math.round(_num(nm.hatred) * _num(C.inherit.heirCarry, 0.9));
             nm.dueDay = Math.min(_num(nm.dueDay, day), day + _roll(C.inherit.testWithin, [20, 45]));
             Nemesis._letter(player, world, nm, 'succession', Nemesis._vars(player, world, nm));
-            out.notices.push({ icon: '🩸', title: 'An Old Enemy Waits', text: `${nm.name} has not forgotten ${nm.origin.label}. The quarrel passes to you with the seat.`, type: 'warning' });
+            out.notices.push({ icon: '🗡️', title: 'An Old Enemy Waits', text: `${nm.name} has not forgotten ${nm.origin.label}. The quarrel passes to you with the seat.`, type: 'warning' });
         }
         // Brothers and sisters older than the new head, passed over for the seat
         for (const c of player.children || []) {
@@ -980,8 +980,8 @@ export const Nemesis = {
             if (!(nm.letters || []).some(l => l.kind === 'moment' && day - l.day < 240)) Nemesis._letter(player, world, nm, 'moment', { ...Nemesis._vars(player, world, nm), why });
         }
         text += ` "${Nemesis.taunt(player, world, nm)}"`;
-        out.notices.push({ icon: Nemesis.stage(nm).icon || '🩸', title: `${nm.name} Strikes`, text, type: res.outcome === 'foiled' ? 'warning' : 'error' });
-        if (res.outcome !== 'foiled') Interrupts.raise(world, { reason: `${nm.name} strikes`, icon: '🩸', source: 'nemesis' });
+        out.notices.push({ icon: Nemesis.stage(nm).icon || '🗡️', title: `${nm.name} Strikes`, text, type: res.outcome === 'foiled' ? 'warning' : 'error' });
+        if (res.outcome !== 'foiled') Interrupts.raise(world, { reason: `${nm.name} strikes`, icon: '🗡️', source: 'nemesis' });
         if (res.outcome === 'struck') Nemesis._sate(player, world, nm, pick, out);
         return rec;
     },

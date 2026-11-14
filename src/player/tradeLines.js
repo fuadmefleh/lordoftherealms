@@ -996,7 +996,7 @@ export const TradeLines = {
         if (!TradeLines._isPort(ctx)) {
             Reckoning.noteTrade(player, s, g, n, 'sell', earned);
             SettlementMarket.add(s, g, n);
-            Guilds.onSale(player, s, g, n, earned);
+            Guilds.onSale(player, s, g, n, earned, { tollPaid: true }); // (drawn with the price above)
             if (Seasons.priceGroup(g) === 'food') {
                 if (!s.economy) Economy.initSettlement(s);
                 s.economy.food = _num(s.economy.food) + n;

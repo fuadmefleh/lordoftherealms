@@ -56,13 +56,18 @@ import './crises.js';
 import './nemesis.js';
 import './lodging.js';
 import './townLots.js';
+import './peopleCrimes.js';
 import './graveyards.js';
+import './townCrimes.js';
+// Profane crimes: a rival House's crypt, the relic trade (systems/profaneCrimes.js)
+import './profane.js';
 import './sickness.js';
 import './livestock.js';
 import './furnishing.js';
 import './courierRiders.js';
 import './rivalHouses.js';
 import './cadetBranches.js';
+import './kinCrimes.js';
 import './townsfolk.js';
 import './discovery.js';
 import './outlawLairs.js';
@@ -99,6 +104,7 @@ import './reckoning.js';
 import './calendar.js';
 import './timeSkip.js';
 import './scenario.js';
+import './atrocities.js';
 
 // Every panel's show* method is remembered, so the open panel redraws after the day (ui/panelRefresh.js)
 trackShows(ActionMenu);

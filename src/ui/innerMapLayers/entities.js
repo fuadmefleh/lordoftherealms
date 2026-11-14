@@ -19,9 +19,11 @@ import { InnerMapDowned } from '../innerMapDowned.js';
 import { InnerMapFelling } from '../innerMapFelling.js';
 import { InnerMapBattle } from '../innerMapBattle.js';
 import { InnerMapEscort } from '../innerMapEscort.js';
+import { InnerMapCompanions } from '../innerMapCompanions.js';
 import { InnerMapSickness } from '../innerMapSickness.js';
 import { InnerMapRites } from '../innerMapRites.js';
 import { glyphFor } from '../icons.js';
+import { drawItemSprite, drawItemAfloat } from '../itemSprites.js';
 import { drawMapText, drawMapMarker, labelZoom, textPx, BODY_FONT } from '../mapInk.js';
 import { layoutLabels, labelPriority } from '../labelLayout.js';
 
@@ -181,18 +183,35 @@ Object.assign(InnerMapRenderer, {
         const size = textPx(10.5 * labelZoom(zoom), 10);
         const hov = this._hoveredInnerHex;
         const pq = InnerMap.playerInnerQ, pr = InnerMap.playerInnerR;
-        ctx.save();
-        ctx.font = `600 ${size}px ${BODY_FONT}`;
+        const font = `600 ${size}px ${BODY_FONT}`;
+        // (the names' widths kept by font: measuring every name every frame was a good part of this)
+        // (and measured afresh once the web fonts have come in)
+        const fonts = typeof document !== 'undefined' && document.fonts ? document.fonts.status : '';
+        const lw = this._labelWidths;
+        if (!lw || lw.font !== font || lw.fonts !== fonts || lw.map.size > 2000) {
+            this._labelWidths = { font, fonts, map: new Map() };
+        }
+        const widths = this._labelWidths.map;
+        let fontSet = false;
+        const widthOf = text => {
+            let w = widths.get(text);
+            if (w === undefined) {
+                if (!fontSet) { ctx.save(); ctx.font = font; fontSet = true; }
+                w = ctx.measureText(text).width;
+                widths.set(text, w);
+            }
+            return w;
+        };
         const labels = reqs.map(q => {
             const n = q.npc;
             const hovered = !!(hov && hov.q === n.q && (hov.r === n.r || hov.r === n.r - 1));
             const dist = Number.isFinite(pq) && Number.isFinite(pr) ? Math.hypot(n.q - pq, n.r - pr) : 50;
             return {
-                npc: n, x: q.x, y: q.y, w: ctx.measureText(String(q.text || '')).width, h: size * 1.15,
+                npc: n, x: q.x, y: q.y, w: widthOf(String(q.text || '')), h: size * 1.15,
                 always: hovered, priority: labelPriority(dist, { hovered, keeper: q.keeper }),
             };
         });
-        ctx.restore();
+        if (fontSet) ctx.restore();
         for (const l of layoutLabels(labels, { gap: 1, steps: 2, pad: 1 })) plan.set(l.npc, { dy: l.dy, hidden: l.hidden });
         return plan;
     },
@@ -836,13 +855,20 @@ Object.assign(InnerMapRenderer, {
                 } else
                 // ── Ground items (placed from hotbar) ──
                 if (tile.groundItem) {
-                    const gq = q, gr = r;
+                    const gq = q, gr = r, gItem = tile.groundItem.itemId;
                     const gIcon = glyphFor(tile.groundItem.icon) || 'satchel';
+                    // (set down in the water — the shallows, a pond, the sea: it floats)
+                    const afloat = !!((tile._wet || tile._sea) && !tile._bridge && !tile._pier && !tile._deck && !tile._ford);
                     const sortY = (r + 0.5) * T; // slightly above ground
                     items.push({ sortY, zLayer: 0, sortX: q, draw() {
                         const screen = camera.worldToScreenFast(gq * T, gr * T);
                         const dx = Math.floor(screen.x);
                         const dy = Math.floor(screen.y);
+                        if (afloat) {
+                            const ph = (gq * 1.7 + gr * 2.3) % (Math.PI * 2);
+                            const bob = Math.sin(now * 1.8 + ph) * cs * 0.04;
+                            if (drawItemAfloat(ctx, gItem, dx + cs / 2, dy + cs * 0.62 + bob, cs * 0.55, { rock: Math.sin(now * 1.3 + ph) * 0.1 })) return;
+                        }
                         // Draw a subtle shadow ellipse under the item
                         const cx = dx + cs / 2;
                         const cy = dy + cs * 0.6;
@@ -854,8 +880,9 @@ Object.assign(InnerMapRenderer, {
                         ctx.ellipse(cx, cy, rad, rad * 0.5, 0, 0, Math.PI * 2);
                         ctx.fill();
                         ctx.restore();
-                        // The item, as a small token on the ground
-                        drawMapMarker(ctx, gIcon, cx, dy + cs * 0.45, Math.max(8, cs * 0.22));
+                        // The item itself, as pixel art lying on the ground (ui/itemSprites.js);
+                        // a small token only while its sheet loads
+                        if (!drawItemSprite(ctx, gItem, cx, cy + rad * 0.3, cs * 0.6)) drawMapMarker(ctx, gIcon, cx, dy + cs * 0.45, Math.max(8, cs * 0.22));
                     }});
                 }
             }
@@ -1265,6 +1292,8 @@ Object.assign(InnerMapRenderer, {
         InnerMapBattle.collect(items, ctx, camera, T);
         // ── Phase 3f: The realm's household guard behind you (ui/innerMapEscort.js) ──
         InnerMapEscort.collect(items, ctx, camera, T);
+        // ── Phase 3f2: Your travelling companions beside you (ui/innerMapCompanions.js) ──
+        InnerMapCompanions.collect(items, ctx, camera, T);
         // ── Phase 3g: Handcarts and wagons, and whoever lies on one (ui/innerMapCarts.js) ──
         InnerMapCarts.collect(items, ctx, camera, T);
 
@@ -1323,8 +1352,38 @@ Object.assign(InnerMapRenderer, {
             // Chopping (ui/innerMapFelling.js): the slash frames timed to the blows, the axe in hand
             const chopP = !deathState && !pos.walking && (anim === 'slash' || anim === 'halfslash') ? InnerMapFelling.swingPhase() : null;
             if (chopP != null) anim = 'slash';
-            const sortY = pos.y + T / 2;
-            const px = screen.x, py = screen.y;
+            // (copied now: worldToScreenFast hands back one shared object, overwritten by the next call)
+            let px = screen.x, py = screen.y;
+            let sortY = pos.y + T / 2;
+            // Sat down as the townsfolk sit (world/innerMap/furnitureUse.js playerSeatAt; the NPC draw
+            // above): on the pew or throne at its seat, facing out — or, in a pew facing the altar, seen
+            // from behind, its back hiding you below the shoulders; on a stool at a table's edge
+            const pIa = InnerMap._activeInteraction;
+            const pSeat = !deathState && !pos.walking && !pos.climbing && anim === 'sitting' && pIa && !pIa.done ? pIa.seat || null : null;
+            let pSeatArt = null, pClipY = null, pSeatTime = null;
+            if (pSeat) {
+                direction = pSeat.facing;
+                this._playerFacing = direction;
+                let wx = pos.x, wy = pos.y;
+                const rect = pSeat.on ? this._pieceRect(pSeat.at, T) : null;
+                if (rect) {
+                    wx = rect.x + rect.w / 2;
+                    wy = rect.y + ((rect.art && rect.art.seat) || 0.6) * rect.h + T * 0.38;
+                    sortY = rect.y + rect.h - 0.5;
+                } else if (pSeat.seat) {
+                    pSeatArt = this._interiorArt && this._interiorArt.furniture && this._interiorArt.furniture[pSeat.seat];
+                    wx += Math.sign(pSeat.at.q - InnerMap.playerInnerQ) * T * 0.22;
+                    wy += Math.sign(pSeat.at.r - InnerMap.playerInnerR) * T * 0.22;
+                    sortY = wy + T / 2;
+                }
+                const ss = camera.worldToScreenFast(wx, wy);
+                px = ss.x;
+                py = ss.y + (pSeat.pew ? ds * PEW_SINK : 0);
+                if (pSeat.pew) pClipY = camera.worldToScreenFast(wx, pSeat.at.r * T).y + ds * 0.54;
+                // (held in the seated frame, as an NPC's _pose)
+                const poseDef = pSeat.pose != null ? InnerMapCharacters._EXTRA_ANIMS.find(e => e.key === 'sitting') : null;
+                if (poseDef) pSeatTime = (pSeat.pose + 0.5) / poseDef.fps;
+            }
             const pAnim = anim, pDir = direction;
             const pTime = chopP != null ? InnerMapFelling.swingTime(chopP, InnerMapCharacters.SLASH_FPS) : null;
             const playerPreset = this._playerPreset || InnerMapCharacters.playerPreset || 'male_noble';
@@ -1395,6 +1454,12 @@ Object.assign(InnerMapRenderer, {
                         }
                     } else {
                         const cx = px - charW / 2, cy = py - charH + ds * 0.3;
+                        if (pClipY != null) { ctx.save(); ctx.beginPath(); ctx.rect(-1e4, -1e4, 2e4, pClipY + 1e4); ctx.clip(); }
+                        const pSeatImg = pSeatArt && self._getSheetByPath(pSeatArt.sheet);
+                        if (pSeatImg) {
+                            const ks = self._sheetScale(pSeatImg);
+                            ctx.drawImage(pSeatImg, pSeatArt.sx * ks, pSeatArt.sy * ks, (pSeatArt.sw || 32) * ks, (pSeatArt.sh || 32) * ks, px - ds / 2, py - ds * 0.68, ds, ds);
+                        }
                         ctx.beginPath();
                         ctx.ellipse(px, py + ds * 0.15, charW * 0.2, ds * 0.06, 0, 0, Math.PI * 2);
                         ctx.fillStyle = 'rgba(0,0,0,0.25)';
@@ -1413,10 +1478,11 @@ Object.assign(InnerMapRenderer, {
                         // A job's load or tool (ui/innerMapTasks.js): behind the body or in front, by facing
                         InnerMapTasks.drawCarried(ctx, px, py, ds, pDir, pAnim, now, true);
                         if (chopP != null) InnerMapFelling.drawAxe(ctx, px, py, ds, pDir, chopP, true);
-                        InnerMapCharacters.drawCharacter(ctx, playerPreset, pAnim, pDir, pTime != null ? pTime : now, cx, cy, charW, charH);
+                        InnerMapCharacters.drawCharacter(ctx, playerPreset, pAnim, pDir, pTime != null ? pTime : pSeatTime != null ? pSeatTime : now, cx, cy, charW, charH);
                         if (chopP != null) InnerMapFelling.drawAxe(ctx, px, py, ds, pDir, chopP, false);
                         InnerMapTasks.drawCarried(ctx, px, py, ds, pDir, pAnim, now, false);
                         if (rodSheet && pDir !== InnerMapCharacters.DIR_UP) drawRod();
+                        if (pClipY != null) ctx.restore();
                     }
                 } else {
                     self._drawPlayerStandIn(ctx, pDeathState, px, py, ds);

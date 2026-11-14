@@ -1,0 +1,124 @@
+{
+    "_doc": "Seasons on the street map (world/streetSeasons.js, world/innerMap/streetSeasons.js, ui/innerMapLayers/streetSeasons.js). The ground's state is worked out day by day from the weather's own precipitation field and a smooth seasonal temperature: snow piles up on cold wet days and melts on warm ones (slush, then mud), ponds and rivers freeze over in a hard winter and go thin again near the thaw, rain softens the unpaved ground into mud, and autumn leaves fall and lie. Nothing here draws randomness: it is a pure function of the world, the hex and the day.",
+    "enabled": true,
+    "lookbackDays": 50,
+    "temperature": {
+        "_doc": "Celsius = (tile.temperature + curve + climate era + daily wobble) * 80 - 30. The curve is a cosine through the year, coldest on `coldestDay` of the year (1-120).",
+        "amplitude": 0.17,
+        "coldestDay": 104,
+        "wobble": 0.035
+    },
+    "snow": {
+        "_doc": "Precipitation over `wetAbove` falls as snow below `snowBelowC`; it melts by `meltPerDegree` a warm day (rain melts `rainMelt` more). Depth 0..1.",
+        "wetAbove": 0.58,
+        "fallPerWet": 1.1,
+        "snowBelowC": 1,
+        "meltPerDegree": 0.035,
+        "rainMelt": 0.08,
+        "sunMelt": 0.01,
+        "max": 1,
+        "lookWinterAt": 0.32,
+        "lookWinterSpringAt": 0.5,
+        "lookWinterAutumnAt": 0.45,
+        "roofAt": 0.12,
+        "bankAt": 0.38,
+        "slushDays": 3
+    },
+    "ice": {
+        "_doc": "Freezing degree-days build ice (its thickness 0..max); warm ones eat it. Ponds and lakes are walkable at `solid`; rivers (running water) count only `riverRate` of the ice. Under `thin` (or while thawing under `rottenBelow`) the ice is thin and may crack under the player: each step on it `crackBase` x (1 - strength). The sea never freezes on the street map.",
+        "perDegreeFrost": 0.02,
+        "perDegreeThaw": 0.045,
+        "rainThaw": 0.05,
+        "max": 1.4,
+        "thin": 0.22,
+        "solid": 0.55,
+        "riverRate": 0.45,
+        "rottenBelow": 0.75,
+        "crackBase": 0.22,
+        "warnEvery": 6,
+        "thinPathCost": 6,
+        "holeRefreezeDays": 2
+    },
+    "mud": {
+        "_doc": "Rain on soft ground (precipitation over `wetAbove`, above freezing) wets it; dry days dry it; snowmelt soaks it. Mud 0..1 on unpaved roads, trodden soil, bare earth and fields.",
+        "wetAbove": 0.6,
+        "perWet": 0.9,
+        "meltSoak": 1.6,
+        "dryPerDay": 0.09,
+        "warmDry": 0.004,
+        "showAt": 0.18,
+        "puddlesAt": 0.45
+    },
+    "leaves": {
+        "_doc": "Leaves lie by the day of the year: [day, density 0..1] points, interpolated (autumn days 61-90; the first days of winter they rot and blow away).",
+        "points": [[58, 0], [64, 0.15], [72, 0.55], [80, 0.9], [88, 1], [94, 0.7], [100, 0.3], [106, 0]],
+        "fallingAt": 0.15,
+        "fallingPerBlock": 5
+    },
+    "pace": {
+        "_doc": "How fast feet (and carts, the second number) go over the ground: x speed. Deep snow off the cleared streets drags (scaled by the snow's depth), mud on soft ground (scaled by the mud), slush and ice a little.",
+        "deepSnow": [0.62, 0.45],
+        "mud": [0.68, 0.45],
+        "slush": [0.88, 0.8],
+        "ice": [0.92, 0.75],
+        "thinIce": [0.8, 0.6]
+    },
+    "harvestFair": {
+        "_doc": "Every town (not a camp) keeps a harvest fair a few days in autumn, its first day `firstDay` plus a hash of the town up to `spread` (days of the season, 1-30); a great fair on (systems/marketFairs.js) counts too. Stalls, produce and bunting go up on the square, the town comes out, a fiddler plays.",
+        "firstDay": 16,
+        "spread": 6,
+        "days": 3,
+        "hours": [9, 20],
+        "join": { "morning": 0.25, "midday": 0.6, "afternoon": 0.6, "evening": 0.45 },
+        "radius": 7,
+        "props": ["tp_tent_market_bunting", "tp_tent_market", "tp_produce_1", "tp_produce_3", "tp_hay_gold", "tp_sheaf", "tp_produce_5", "tp_barrels", "tp_sacks", "tp_haystack", "tp_produce_2", "tp_tent_market_crates"],
+        "lines": ["Fine turnips this year!", "Three for a penny, the apples!", "Who'll dance?", "Best harvest in years, they say.", "Try the cider, friend.", "A ribbon for your sweetheart?", "Look at the size of that marrow!", "Play us another, fiddler!"],
+        "music": ["♪ ♫ ♪", "♫ La-la-lee ♫", "♪ A jig! ♪", "♫ ♪ ♫"]
+    },
+    "midwinter": {
+        "_doc": "The longest nights: a great bonfire on the square `days` of winter (days of the season), lit from `hours[0]` till `hours[1]`; folk gather round it.",
+        "days": [14, 16],
+        "hours": [16, 24],
+        "join": { "afternoon": 0.25, "evening": 0.65, "night": 0.4 },
+        "props": ["tp_campfire", "tp_firewood_big", "tp_firewood"],
+        "ring": [2, 3],
+        "lines": ["Midwinter! The days grow longer now.", "Warm your hands, there's room.", "Here's to the spring!", "Another log on, lads!", "Mind the sparks!", "Sing us the old song."]
+    },
+    "shovelling": {
+        "_doc": "After snow, of a morning, folk clear the street by their door (the street stays clear: snow banks either side).",
+        "snowAt": 0.3,
+        "hours": [6, 12],
+        "share": { "villager": 0.3, "farmer": 0.25, "merchant": 0.15, "blacksmith_npc": 0.2, "noble": 0.0, "priest": 0.1 },
+        "stay": [14, 26],
+        "lines": ["Snow again! My back...", "Mind the drift.", "That's the path clear, at least.", "Morning! Cold enough for you?"]
+    },
+    "snowPlay": {
+        "_doc": "Children out in the snow: snowmen and snowballs. A few snowmen stand about the square while the snow lasts.",
+        "snowAt": 0.3,
+        "share": 0.55,
+        "snowmen": 3,
+        "lines": ["Snowball!", "Got you!", "He needs a nose!", "Bigger! Make it bigger!"]
+    },
+    "sowing": {
+        "_doc": "Spring: folk out working the fields round town, sowing and breaking the soil, these days of spring (1-30); `extra` is the added chance a working hand goes out to the fields.",
+        "days": [1, 22],
+        "extra": { "farmer": 0.5, "villager": 0.3, "child": 0.1 },
+        "labels": ["Sowing the field", "Breaking the soil", "Sowing seed in the furrows"],
+        "lines": ["Good soft soil this year.", "Rain, please, just a little.", "Barley this end, beans that."]
+    },
+    "stay": {
+        "ss_fair": [14, 30],
+        "ss_music": [40, 70],
+        "ss_bonfire": [20, 40],
+        "ss_shovel": [14, 26],
+        "ss_play": [10, 20]
+    },
+    "notices": {
+        "thinIce": ["🧊 Thin Ice", "The ice groans underfoot. It's thin here."],
+        "crack": ["🧊 The Ice Gives Way", "The ice cracks and you plunge into the freezing water!"],
+        "fair": ["🎪 Harvest Fair", "{town} keeps its harvest fair: stalls on the square, music and dancing."],
+        "midwinter": ["🔥 Midwinter", "{town} lights its midwinter bonfire on the square tonight."],
+        "frozen": ["🧊 Frozen Over", "The water here is frozen hard enough to walk on."],
+        "mud": ["🟫 Mud", "The rain has turned the unpaved ground to mud: slow going on foot and for carts."]
+    }
+}

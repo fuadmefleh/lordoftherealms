@@ -50,6 +50,8 @@ const DEFAULTS = {
     stillReach: 4,
     reach: 3,
     catchUpDays: 30,
+    // Casting a line from beside your set net (ui/innerMapRiverDrift.js fishFromNet): this much more chance of a bite
+    stakeBite: 0.15,
     fish: {},
     perishable: [],
 };
@@ -233,7 +235,9 @@ export const RiverNets = {
         const sm = _num(cfg.seasonMult[season], 1) * (wx && wx.type === 'blizzard' ? 0.3 : 1);
         const table = (cfg.fish && cfg.fish[net.water]) || (cfg.fish && cfg.fish.river) || [];
         const tw = table.reduce((a, f) => a + _num(f.w, 0), 0);
-        for (let i = 0; i < cfg.fishRolls && tw > 0; i++) {
+        // (water whose fishing rights are leased: more chances, systems/riverLife.js)
+        const rolls = cfg.fishRolls + Math.max(0, Math.floor(_num(ctx.rollBonus, 0)));
+        for (let i = 0; i < rolls && tw > 0; i++) {
             if (flotsamHash(key, 'fish', i) >= cfg.fishChance * sm) continue;
             let x = flotsamHash(key, 'kind', i) * tw, f = table[table.length - 1];
             for (const t of table) { x -= _num(t.w, 0); if (x < 0) { f = t; break; } }
@@ -271,6 +275,7 @@ export const RiverNets = {
                 here: !!(player && player.q === net.q && player.r === net.r),
                 town: this._nearTown(world, net.q, net.r),
                 goodOf: opts.goodOf,
+                rollBonus: typeof opts.rollBonus === 'function' ? opts.rollBonus(net) : 0,
             };
             for (let d = from; d <= day; d++) {
                 const res = this._day(world, net, d, ctx);

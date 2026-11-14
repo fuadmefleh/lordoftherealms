@@ -44,6 +44,7 @@ import { Arms } from '../systems/arms.js';
 import { PlayerInventory } from '../core/inventory.js';
 import { PlayerEconomy } from '../player/playerEconomy.js';
 import { DayClock } from './game/dayClock.js';
+import { ActionMenu } from './actionMenu.js';
 import { rowList, lede, esc } from './actionMenu/uiKit.js';
 
 const SIDE_NAMES = ['east', 'north-east', 'north-west', 'west', 'south-west', 'south-east'];
@@ -819,6 +820,44 @@ export const InnerMapRiverDrift = {
         return true;
     },
 
+    /** The extra chance of a bite for a line cast at (or beside) your set net: data/riverDrift.json nets.stakeBite */
+    stakeBite() {
+        const v = RiverNets.config().stakeBite;
+        return typeof v === 'number' && Number.isFinite(v) ? Math.max(0, v) : 0.15;
+    },
+
+    /**
+     * What a line cast from beside a net needs (ActionMenu.doFish opts): the dry
+     * bank to stand on (where you are, else the stake), the net's water to cast
+     * into, its depth and the stake's bonus. null when no dry bank is near.
+     */
+    netFishing(world, net) {
+        if (!net) return null;
+        const dry = t => !!(t && t.subTerrain && t.subTerrain.passable && !t._wet && !t._sea && !t.building && !t.customObjectPart);
+        const pq = Math.round(InnerMap.playerInnerQ), pr = Math.round(InnerMap.playerInnerR);
+        const target = net.cell ? { q: Math.round(net.cell.x), r: Math.round(net.cell.y) } : null;
+        const stand = this._netStand(world, net);
+        let bank = dry(InnerMap.getTile(pq, pr)) ? { q: pq, r: pr } : null;
+        if (!bank && stand && dry(InnerMap.getTile(stand.q, stand.r))) bank = { q: stand.q, r: stand.r };
+        if (!bank || !target) return null;
+        const depth = net.water === 'sea' || net.water === 'lake' ? 'mid' : 'shallow';
+        return { spots: [bank], depth, target, biteBonus: this.stakeBite() * (net.torn ? 0.5 : 1) };
+    },
+
+    /** Cast a line from beside your net (ui/actionMenu/skills.js doFish → the casting task) */
+    fishFromNet(game, id) {
+        const net = RiverNets.find(game.world, id);
+        if (!net) { _note(game, '🥅 Gone', 'The net is gone.', 'warning'); return false; }
+        if (InnerMap.isPlayerSwimming && InnerMap.isPlayerSwimming()) { _note(game, '🎣 Fishing', 'Not while you are swimming. Get to the bank first.', 'warning'); return false; }
+        const opts = this.netFishing(game.world, net);
+        if (!opts) { _note(game, '🎣 Fishing', 'There is no dry bank by the net to cast from.', 'warning'); return false; }
+        const wt = game.world.getTile(game.player.q, game.player.r);
+        if (!wt) return false;
+        _note(game, '🎣 By the Stake', 'You cast in beside your net, where the fish come nosing at the meshes.', 'info');
+        ActionMenu.doFish(game, wt, opts);
+        return true;
+    },
+
     mendNet(game, id) {
         const res = RiverNets.mend(game.world, game.player, id);
         if (!res.ok) { _note(game, '🥅 Mend', res.reason, 'warning'); return false; }
@@ -855,6 +894,8 @@ export const InnerMapRiverDrift = {
                 out.push({ type: 'action', action: 'drift_net_mend', icon: '🧶', label: 'Mend the Net', desc: `Knot the torn meshes (${cost || 'nothing'})`, netId: net.id });
             }
             out.push({ type: 'action', action: 'drift_net_up', icon: '🥅', label: 'Take the Net Up', desc: 'Out of the water, catch and all, back into your packs', netId: net.id });
+            // A line from beside the stake: the fish gather at a net (fishFromNet)
+            out.push({ type: 'action', action: 'drift_net_fish', icon: '🎣', label: 'Fish from Your Net Stake', desc: 'Cast a line beside your net: the fish gather at it, and bite the readier', netId: net.id });
         }
         if (this.isThrowCell(q, r)) {
             const any = this.throwables(game.player).length > 0;
@@ -880,6 +921,7 @@ export const InnerMapRiverDrift = {
         if (item.action === 'drift_net_haul') { this._reachThen(game, at.q, at.r, () => this.haulNet(game, net.id), 'the net'); return true; }
         if (item.action === 'drift_net_up') { this._reachThen(game, at.q, at.r, () => this.takeUpNet(game, net.id), 'the net'); return true; }
         if (item.action === 'drift_net_mend') { this._reachThen(game, at.q, at.r, () => this.mendNet(game, net.id), 'the net'); return true; }
+        if (item.action === 'drift_net_fish') { this._reachThen(game, at.q, at.r, () => this.fishFromNet(game, net.id), 'the net'); return true; }
         return false;
     },
 

@@ -82,19 +82,19 @@ const AMX_GROUPS = {
         { id: 'rest', icon: '🛏️', label: 'Rest & Body', types: ['rest', 'pass_time', 'eat_meal', 'seek_physician', 'craft_campfire', 'meditate', 'bathe', 'wash_clothes'] },
         { id: 'gather', icon: '🧺', label: 'Gather & Hunt', types: ['forage', 'hunt', 'fish', 'trap_furs', 'ice_fish', 'clear_trees', 'prospect', 'tame_horse', 'dig_treasure'] },
         { id: 'explore', icon: '🔭', label: 'Explore', types: ['explore_poi', 'delve', 'delve_resume', 'explore_inner_map', 'explore_ocean'] },
-        { id: 'sea', icon: '⛵', label: 'Ship & Shore', types: ['disembark', 'row_ashore', 'row_to_ship', 'make_for_port'] },
+        { id: 'sea', icon: '⛵', label: 'Ship & Shore', types: ['disembark', 'row_ashore', 'row_to_ship', 'make_for_port', 'river_life'] },
         { id: 'clan', icon: '🔥', label: 'The Clan', types: ['dawn_settle', 'dawn_instep'] },
     ],
     market: [
         { id: 'trade', icon: '⚖️', label: 'Buy & Sell', types: ['trade', 'port_market', 'livestock_market', 'meet_trader', 'furniture_maker', 'ship_hold'] },
         { id: 'work', icon: '🔨', label: 'Work & Wages', types: ['odd_jobs', 'busking', 'bounty_board', 'commissions', 'planting_contract', 'putting_out', 'contract'] },
         { id: 'money', icon: '🏦', label: 'Money & Banking', types: ['bank', 'found_bank', 'underwriter', 'bourse', 'mint', 'trading_company', 'guildhall', 'post_house'] },
-        { id: 'property', icon: '🏠', label: 'Property & Estates', types: ['collect_goods', 'manage_property', 'town_lots', 'estates', 'manage_lodging', 'graveyards', 'my_herds'] },
+        { id: 'property', icon: '🏠', label: 'Property & Estates', types: ['collect_goods', 'manage_property', 'my_household', 'town_lots', 'estates', 'manage_lodging', 'graveyards', 'my_herds'] },
         { id: 'transport', icon: '🐫', label: 'Caravans & Ships', types: ['start_caravan', 'trade_lines', 'ship_passage', 'visit_shipyard', 'board_ship', 'manage_fleet', 'hire_sailors'] },
         { id: 'shady', icon: '🎲', label: 'Back Rooms', types: ['smuggle', 'pickpocket', 'stolen_goods', 'gambling', 'underworld', 'town_crimes'] },
     ],
     folk: [
-        { id: 'talk', icon: '🍺', label: 'Tavern & Talk', types: ['tavern', 'talk_locals', 'meet_people', 'view_relationships', 'languages', 'your_parents', 'lodging'] },
+        { id: 'talk', icon: '🍺', label: 'Tavern & Talk', types: ['tavern', 'talk_locals', 'meet_people', 'view_relationships', 'languages', 'town_school', 'hearsay', 'your_parents', 'lodging'] },
         { id: 'faith', icon: '⛪', label: 'Faith & Healing', types: ['preach', 'denounce_heresy', 'pilgrimage', 'miracle', 'donate', 'bless_settlement', 'town_sickness'] },
     ],
     court: [
@@ -239,13 +239,13 @@ Object.assign(ActionMenu, {
             rest: 'general', pass_time: 'general', eat_meal: 'general', seek_physician: 'general', explore_poi: 'general', delve: 'general', delve_resume: 'general', clear_trees: 'general', dig_treasure: 'general',
             forage: 'general', hunt: 'general', meditate: 'general', fish: 'general', bathe: 'general', wash_clothes: 'general',
             trap_furs: 'general', ice_fish: 'general', planting_contract: 'commerce',
-            prospect: 'general', tame_horse: 'general', craft_campfire: 'general', languages: 'social', dawn_settle: 'general', dawn_instep: 'general', your_parents: 'social', commissions: 'commerce',
-            disembark: 'general', row_ashore: 'general', row_to_ship: 'general', ship_hold: 'commerce', port_market: 'commerce', explore_ocean: 'general', make_for_port: 'general', hunt_pirates: 'military', commit_piracy: 'military', raid_haven: 'military', landing_party: 'military', explore_inner_map: 'general',
+            prospect: 'general', tame_horse: 'general', craft_campfire: 'general', languages: 'social', town_school: 'social', hearsay: 'social', dawn_settle: 'general', dawn_instep: 'general', your_parents: 'social', commissions: 'commerce',
+            disembark: 'general', river_life: 'general', row_ashore: 'general', row_to_ship: 'general', ship_hold: 'commerce', port_market: 'commerce', explore_ocean: 'general', make_for_port: 'general', hunt_pirates: 'military', commit_piracy: 'military', raid_haven: 'military', landing_party: 'military', explore_inner_map: 'general',
             trade: 'commerce', contract: 'commerce', ship_passage: 'commerce',
             collect_goods: 'commerce', manage_property: 'commerce', start_caravan: 'commerce',
             odd_jobs: 'commerce', bounty_board: 'commerce', busking: 'commerce', gambling: 'commerce',
             smuggle: 'commerce', pickpocket: 'commerce', stolen_goods: 'commerce', town_crimes: 'commerce',
-            tavern: 'social', talk_locals: 'social', lodging: 'social', manage_lodging: 'commerce', town_lots: 'commerce', graveyards: 'commerce', town_sickness: 'social', livestock_market: 'commerce', my_herds: 'commerce', furniture_maker: 'commerce', preach: 'social', denounce_heresy: 'social',
+            tavern: 'social', talk_locals: 'social', lodging: 'social', manage_lodging: 'commerce', town_lots: 'commerce', graveyards: 'commerce', town_sickness: 'social', livestock_market: 'commerce', my_herds: 'commerce', furniture_maker: 'commerce', my_household: 'commerce', preach: 'social', denounce_heresy: 'social',
             pilgrimage: 'social', miracle: 'social', donate: 'social',
             pledge_allegiance: 'social', renounce_allegiance: 'social',
             realm_wars: 'social', fund_restoration: 'social',
@@ -742,7 +742,7 @@ Object.assign(ActionMenu, {
         jail_wait: 0, jail_bail: 0, jail_escape: 0, jail_cell: 0,
         servitude_wait: 0, servitude_escape: 0, servitude_buy_freedom: 0,
         view_relationships: 0, manage_dynasty: 0,
-        manage_fleet: 0, trade_lines: 0, manage_house: 0, manage_property: 0, manage_colony: 0,
+        manage_fleet: 0, trade_lines: 0, river_life: 0, manage_house: 0, manage_property: 0, manage_colony: 0,
         hold_court: 0, manage_holding: 0, patronage: 0, bank: 0, found_bank: 0,
         seek_physician: 0, // treatment costs gold, not time
         underworld: 0, // jobs inside the panel cost their own AP
@@ -799,7 +799,7 @@ Object.assign(ActionMenu, {
         // Outlaw lairs (the panel is free; each deed inside pays its own AP)
         meet_trader: 0, meet_courier: 0,
         // Lodgings (rooms and services are paid in gold, not time)
-        lodging: 0, manage_lodging: 0, town_lots: 0, graveyards: 0, town_crimes: 0, town_sickness: 0, livestock_market: 0, my_herds: 0, furniture_maker: 0,
+        lodging: 0, manage_lodging: 0, town_lots: 0, graveyards: 0, town_crimes: 0, town_sickness: 0, town_school: 0, livestock_market: 0, my_herds: 0, furniture_maker: 0, my_household: 0,
         outlaw_lair: 0, lair_scout: 3, lair_assault: 8, lair_strike: 4, lair_parley: 1,
         rival_duel: 4, rival_race: 1, rival_sabotage: 2, rival_hire: 1, rival_team_up: 1,
     },
@@ -1115,6 +1115,9 @@ Object.assign(ActionMenu, {
             case 'manage_lodging':
                 ActionMenu.lodgingAct(game, 'tab', unitId, 'run');
                 break;
+            case 'town_school':
+                ActionMenu.showSchool(game);
+                break;
             case 'town_sickness':
                 ActionMenu.showSickness(game);
                 break;
@@ -1132,6 +1135,9 @@ Object.assign(ActionMenu, {
                 break;
             case 'furniture_maker':
                 ActionMenu.showFurnitureShop(game);
+                break;
+            case 'my_household':
+                ActionMenu.showHousehold(game);
                 break;
             case 'talk_locals':
                 ActionMenu.showTalkLocalsMenu(game, tile);
@@ -1333,6 +1339,9 @@ Object.assign(ActionMenu, {
             case 'languages':
                 ActionMenu.showLanguages(game);
                 break;
+            case 'hearsay':
+                ActionMenu.showHearsay(game);
+                break;
             case 'commissions':
                 ActionMenu.showCommissions(game);
                 break;
@@ -1423,6 +1432,9 @@ Object.assign(ActionMenu, {
                 break;
             case 'trade_lines':
                 ActionMenu.showTradeLines(game);
+                break;
+            case 'river_life':
+                ActionMenu.showRiverLife(game);
                 break;
 
             // ── Title Actions ──

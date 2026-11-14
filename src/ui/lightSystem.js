@@ -28,6 +28,10 @@ export const LightSystem = {
     // ── Configuration ──
     enabled: true,
     ambientDarkness: 0,  // 0 = full daylight, 1 = pitch black night
+    // The player's lantern shuttered (L on the street map: ui/innerMapNight.js): only a glimmer to see by
+    playerLightDoused: false,
+    // More lights from the night's street life (ui/innerMapNight.js): fn(lightSystem, camera), each frame
+    extraLights: null,
     ambientColor: { r: 10, g: 10, b: 40 },  // Night tint color
     // The light map's base colour (multiplied over the scene): white by day
     ambientLight: { r: 255, g: 255, b: 255 },
@@ -151,6 +155,17 @@ export const LightSystem = {
      * Add a player light (always present, larger during night)
      */
     addPlayerLight(screenX, screenY, zoom, darkness) {
+        // Underground: the lantern, the candle or the bare glimmer the player has (ui/innerMapMining.js)
+        const under = InnerMap._insideBuilding && InnerMap._insideBuilding._underground;
+        if (under && under.lightRadius > 0) {
+            this.addLight(screenX, screenY, under.lightRadius * zoom, { r: 255, g: 186, b: 96 }, 0.95, 'torch');
+            return;
+        }
+        // A shuttered lantern: starlight and a glimmer, enough to find your feet
+        if (this.playerLightDoused && darkness > 0.1) {
+            this.addLight(screenX, screenY, 38 * zoom, { r: 150, g: 165, b: 200 }, 0.45, 'point');
+            return;
+        }
         // Player carries a torch at night, subtle visibility during day
         const baseRadius = 60 * zoom;
         const nightBonus = darkness * 110 * zoom;
@@ -332,6 +347,13 @@ export const LightSystem = {
             this.ambientColor = { r: 20, g: 15, b: 10 };
             light = lerp({ r: 255, g: 255, b: 255 }, this.INDOOR_NIGHT_LIGHT, n);
         }
+        // Underground (world/innerMap/mines.js): dark at any hour, but for the light you carry
+        const under = InnerMap._insideBuilding && InnerMap._insideBuilding._underground;
+        if (under) {
+            this.ambientDarkness = Number.isFinite(under.dark) ? under.dark : 0.9;
+            this.ambientColor = { r: 4, g: 3, b: 2 };
+            light = { r: 16, g: 13, b: 11 };
+        }
         this.ambientLight = light;
     },
 
@@ -410,6 +432,9 @@ export const LightSystem = {
                 }
             }
         }
+
+        // ── The night's street life: the smugglers' shuttered lantern, the night market's lamp (ui/innerMapNight.js) ──
+        if (typeof this.extraLights === 'function') this.extraLights(this, camera);
 
         // ── NPC-carried lights at night ──
         if (this.ambientDarkness > 0.2 && InnerMap.npcs) {

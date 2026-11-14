@@ -19,6 +19,9 @@ import { InnerMapDeck } from '../innerMapDeck.js';
 import { InnerMapAnimals } from '../innerMapAnimals.js';
 import { Swimming } from '../../player/swimming.js';
 import { OceanCurrents } from '../../world/oceanCurrents.js';
+import { InnerMapKeys } from '../innerMapKeys.js';
+import { InnerMapNight } from '../innerMapNight.js';
+import { InnerMapRoadWalk } from '../innerMapRoadWalk.js';
 import { Gathering } from '../../player/gathering.js';
 import { InnerMapFurnish } from '../innerMapFurnish.js';
 import { InnerMapFelling } from '../innerMapFelling.js';
@@ -32,10 +35,12 @@ import { InnerMapCompanions } from '../innerMapCompanions.js';
 import { InnerMapBrawls } from '../innerMapBrawls.js';
 import { InnerMapCourting } from '../innerMapCourting.js';
 import { InnerMapSickness } from '../innerMapSickness.js';
+import { InnerMapPlague } from '../innerMapPlague.js';
 import { InnerMapRites } from '../innerMapRites.js';
 import { InnerMapKin } from '../innerMapKin.js';
 import { InnerMapOverheard } from '../innerMapOverheard.js';
 import { InnerMapRiverDrift } from '../innerMapRiverDrift.js';
+import { InnerMapSeasons } from '../innerMapSeasons.js';
 
 // Blows at a tree or a rock land harder with Woodcutting / Mining (player/gathering.js): the
 // world's swing damage (world/innerMap/movement.js), wrapped once, for every caller
@@ -160,6 +165,10 @@ export function gameLoop(timestamp, loopId) {
 
         // Up and down the crags' faces; the body skills' level-ups told (ui/innerMapClimbing.js)
         InnerMapClimbing.update(simDelta, this);
+        // WASD / the arrow keys walk the street map (ui/innerMapKeys.js); not in a battle on it
+        if (!InnerMapBattle.active) InnerMapKeys.update(this, this.innerMapCamera && this.innerMapCamera.keys);
+        // Following the road (ui/innerMapRoadWalk.js): a takeover noticed, the road taken up across an edge
+        if (!InnerMapBattle.active) InnerMapRoadWalk.update(this);
         // Update player walking animation
         const preQ = InnerMap.playerInnerQ, preR = InnerMap.playerInnerR;
         const playerStepResult = InnerMap.updatePlayer(simDelta);
@@ -170,6 +179,8 @@ export function gameLoop(timestamp, loopId) {
         }
         // The current takes a swimmer: down the river, along the sea (world/innerMap/currents.js)
         _currentStep(this, simDelta);
+        // The season on the street: a new day's ground, the ice underfoot, the fair or the fire told (ui/innerMapSeasons.js)
+        InnerMapSeasons.update(this);
         // Wilderness encounters come into sight a few paces off (player/wilds.js)
         if (InnerMap._playerWalking || playerStepResult) {
             for (const e of InnerMap.spotWildEncounters(6)) {
@@ -449,6 +460,8 @@ export function gameLoop(timestamp, loopId) {
         InnerMapRites.update(simDelta, this);
         // The sick coughing and abed, the healer's round, a frightened town, mourners (ui/innerMapSickness.js)
         InnerMapSickness.update(simDelta, this);
+        // A plague town: empty streets, boarded doors, masked healers, herb fires, the open grave (ui/innerMapPlague.js)
+        InnerMapPlague.update(simDelta, this);
         // Children at play and at school, the old greying in the sun (ui/innerMapKin.js)
         InnerMapKin.update(simDelta, this);
         // Townsfolk talking about the player within earshot (ui/innerMapOverheard.js)
@@ -550,6 +563,8 @@ export function gameLoop(timestamp, loopId) {
     // Update player movement
     if (this.player.isMoving) {
         const moved = this.player.stepAlongPath(this.world, deltaTime);
+        // Turned back at a town's gate shut against the plague (player/core/movement.js; ui/innerMapPlague.js)
+        if (this.player.turnedAway) InnerMapPlague.turnedAway(this);
         if (moved) {
             // The miles build Endurance: a level-up told (player/endurance.js)
             InnerMapClimbing.flushSkillUps(this);
@@ -723,6 +738,11 @@ export function setupInputHandlers() {
             this.ui.showNotification('🧪 Teleport', 'Cancelled', 'default');
             return;
         }
+        // L: shutter or light your lantern on the street map (ui/innerMapNight.js)
+        if ((e.key === 'l' || e.key === 'L') && InnerMap.active && !e.ctrlKey && !e.metaKey && !e.altKey) {
+            InnerMapNight.toggleLight(this);
+            return;
+        }
         // C: snap the world camera back to the player
         if ((e.key === 'c' || e.key === 'C') && !InnerMap.active && !e.ctrlKey && !e.metaKey) {
             this.recenterCamera();
@@ -783,16 +803,20 @@ export function setupInputHandlers() {
         // R key: rotate selected custom object (cycle rotation variants)
         if ((e.key === 'r' || e.key === 'R') && InnerMap.active) {
             const sel = InnerMapRenderer._selectedObject;
+            let rotated = false;
             if (sel && typeof CustomObjects !== 'undefined') {
                 const def = CustomObjects.getDef(sel.defId);
                 if (def && def.rotationVariants && def.rotationVariants.length > 0) {
                     const tile = InnerMap.getTile(sel.anchorQ, sel.anchorR);
                     if (tile && tile.customObject) {
+                        rotated = true;
                         const total = def.rotationVariants.length + 1; // +1 for default
                         tile.customObject.rotationIdx = ((tile.customObject.rotationIdx || 0) + 1) % total;
                     }
                 }
             }
+            // Nothing to turn: R follows the road, or stops (ui/innerMapRoadWalk.js)
+            if (!rotated && !e.ctrlKey && !e.metaKey && !document.getElementById('npcDialogOverlay') && !document.getElementById('customPanel')) InnerMapRoadWalk.toggle(this);
         }
         // T key: cycle color variants on selected custom object
         if ((e.key === 't' || e.key === 'T') && InnerMap.active) {

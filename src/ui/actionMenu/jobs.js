@@ -4,6 +4,7 @@ import { panelClosed, lede, chips, sectionHead, actRow, rowList, price, BTN_GOLD
 import { InnerMap, PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerInventory, Seasons, SeasonalWork, OutlawLairs } from './_imports.js';
 import { MinigameHost, startForge } from '../minigames/index.js';
 import { Ailments } from '../../systems/ailments.js';
+import { Wanted } from '../../systems/wanted.js';
 import { Foraging, Hunting } from '../../player/foraging.js';
 import { HuntingBow } from '../../player/huntingBow.js';
 import { OddJobs } from '../../player/oddJobs.js';
@@ -1011,6 +1012,13 @@ Object.assign(ActionMenu, {
         // Show active bounties first. The action menu's voice (ui/actionMenu/uiKit.js):
         // the hunter's standing as the lede, then one row a bounty, its pay at the right
         let html = '<div style="max-height: 500px; overflow-y: auto;">';
+        // Your own face on the board, if this realm wants you (systems/wanted.js)
+        const poster = Wanted.posterAt(game.player, game.world, tile && tile.settlement);
+        if (poster) {
+            html += `<div class="pk-card pk-tone-bad" style="text-align:center;"><div style="font-family:var(--font-display); font-size:15px; letter-spacing:2px; color:#e0846a;">WANTED</div>`
+                + `<div style="font-size:12px; color:#ece2c8; margin:3px 0;">by the crown of ${poster.realm}, for ${poster.charges}</div>`
+                + `<div style="font-size:11px; color:#cbbf9f;">The likeness is not kind, but it is yours. Reward: <b style="color:#ffe08a;">${poster.bounty} gold</b>${poster.grave ? ', dead or alive' : ''}.</div></div>`;
+        }
         if (typeof BountyHunting !== 'undefined') {
             const rank = BountyHunting.getRankInfo(game.player);
             const payPct = Math.round(rank.payBonus * 100);

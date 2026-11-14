@@ -246,6 +246,8 @@
         "oil": ["oil"], "hide": ["hide"]
     },
     "_saltResource": "Map resources that add goods not in the breakdown: each nearby deposit adds `perDeposit` x popMod units a day (half when not on the town's own hex).",
+    "_docWaterside": "watersideDemand: how much more of a good a town on a river, a lake or the sea eats than an inland one (settlement.waterside, set by systems/riverLife.js).",
+    "watersideDemand": { "fish": 2.2 },
     "extraResources": { "salt": { "salt": 3 } },
     "craftScale": 0.04,
     "_propertySpill": "2026-11: share 0 (was 0.25). The spill added a quarter of every player property's output to each town within radius, on top of the player keeping all of it: goods made twice, and once more for each town in range. A property's goods now reach a market only when they are sold there (by hand, by a caravan, or the property's auto-sell, which lands them in its town's market and is paid from its purse).",

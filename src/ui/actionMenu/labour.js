@@ -8,6 +8,8 @@ import { Labour } from '../../systems/labour.js';
 import { CARD } from './uiKit.js';
 // (the town's trades and who works them: systems/townJobs.js)
 import { tradesHtml } from './trades.js';
+// (the town's comings and goings and why: systems/migration.js)
+import { migrationHtml } from './migration.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 const SECTOR = { land: '🌾 Land, mines & hauling', craft: '🔨 Trades & works', trade: '⚖️ Trade' };
@@ -67,6 +69,9 @@ export function peopleHtml(game, settlement, q, r) {
     const crimeColor = sum.crime > 0.3 ? '#e74c3c' : sum.crime > 0.1 ? '#e8a040' : '#9fd59f';
     html += `<div style="margin-top:6px;">Crime <b style="color:${crimeColor};">${Math.round(sum.crime * 100)}</b> · danger ${Math.round(sum.danger * 100)}${sum.refugees ? ` · ${sum.refugees} refugees` : ''} · last week ${sum.moved.in || 0} came, ${sum.moved.out || 0} left</div>`;
     html += `<div style="${NOTE}">A town short of hands makes and reaps less, and its wages climb; idle hands breed thieves and unrest and sour the mood.</div></div>`;
+
+    // ── Comings and goings: the trend, who came and left and why ──
+    html += migrationHtml(game, settlement);
 
     // ── Trades & Workers: the named hands at each trade ──
     html += tradesHtml(game, settlement);

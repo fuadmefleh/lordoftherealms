@@ -15,7 +15,9 @@ import { Titles } from '../../systems/titles.js';
 import { Technology } from '../../systems/technology.js';
 import { Housing } from '../../systems/housing.js';
 import { Ships } from '../../systems/ships.js';
+import { RiverBoats } from '../../systems/riverBoats.js';
 import { PlayerMilitary } from '../playerMilitary.js';
+import { Plague } from '../../systems/plague.js';
 
 export const PlayerMovementMethods = {
     /**
@@ -99,6 +101,8 @@ export const PlayerMovementMethods = {
     _canEnterHex(q, r, world) {
         const tile = world.getTile(q, r);
         if (!tile) return false;
+        // Aboard a river boat: the rivers and the lakes they run into (systems/riverBoats.js)
+        if (this._onRiverBoat()) return (q === this.q && r === this.r) || RiverBoats.navigable(world, q, r);
         if (!this.boardedShip) return !!tile.terrain.passable;
         if (q === this.q && r === this.r) return true;
         if (this.SHIP_TERRAINS.includes(tile.terrain.id)) return true;
@@ -119,6 +123,8 @@ export const PlayerMovementMethods = {
      * (stepAlongPath, this.crossing).
      */
     _hexMoveCost(tile) {
+        // A river boat: its days a hex at slack water (the current's factor is _sailCurrent's)
+        if (this._onRiverBoat()) return RiverBoats.hexDays(this) * this._travelPace();
         if (this.boardedShip) {
             // 2 per hex fully crewed; a short-handed ship is slower going
             const ship = Ships.getShipById(this, this.boardedShip);
@@ -134,6 +140,8 @@ export const PlayerMovementMethods = {
      * against it (world/oceanCurrents.js). 1 on foot, or with no current.
      */
     _sailCurrent(world, fromQ, fromR, toQ, toR) {
+        // Aboard a river boat: quick with the current, slow against it, no way where no water joins
+        if (world && this._onRiverBoat()) return RiverBoats.legFactor(world, this, fromQ, fromR, toQ, toR);
         if (!this.boardedShip || !world) return 1;
         const dir = OceanCurrents.sideTo(Hex.neighbors(fromQ, fromR), toQ, toR, world.width);
         return dir < 0 ? 1 : OceanCurrents.sailFactor(world, toQ, toR, dir);
@@ -171,6 +179,7 @@ export const PlayerMovementMethods = {
     /** Days to cross a tile on foot (or, aboard ship, its sailing cost as a share of the day). */
     _hexDays(tile) {
         if (this.boardedShip) return this._hexMoveCost(tile) / this._travelPace();
+        if (this._onRiverBoat()) return RiverBoats.hexDays(this);
         return Infrastructure.getPlayerHexDays(tile, this);
     },
 
@@ -247,8 +256,20 @@ export const PlayerMovementMethods = {
     /** Route-planning cost of entering a tile: stamina plus the off-road weight on foot. */
     _hexPathCost(tile) {
         const cost = this._hexMoveCost(tile);
-        if (this.boardedShip || !Number.isFinite(cost)) return cost;
+        if (this.boardedShip || this._onRiverBoat() || !Number.isFinite(cost)) return cost;
         return this._isRoadHex(tile) ? cost : cost + this.OFF_ROAD_PATH_PENALTY;
+    },
+
+    /** Is the player aboard their own river boat (systems/riverBoats.js)? */
+    _onRiverBoat() {
+        const b = this.riverBoat;
+        return !!(b && b.aboard && !this.boardedShip);
+    },
+
+    /** Route-planning cost of entering (q, r) from (fq, fr): a river boat's leg goes by the current. */
+    _pathCostFrom(world, q, r, fq, fr) {
+        const c = this._hexPathCost(world.getTile(q, r));
+        return this._onRiverBoat() && Number.isFinite(fq) ? c * this._sailCurrent(world, fq, fr, q, r) : c;
     },
 
     /**
@@ -264,7 +285,7 @@ export const PlayerMovementMethods = {
             targetQ, targetR,
             world.width, world.height,
             (q, r) => this._canEnterHex(q, r, world),
-            (q, r) => this._hexPathCost(world.getTile(q, r))
+            (q, r, fq, fr) => this._pathCostFrom(world, q, r, fq, fr)
         );
 
         if (path && path.length > 1) {
@@ -297,7 +318,7 @@ export const PlayerMovementMethods = {
         const path = Hex.findPath(
             this.q, this.r, targetQ, targetR, world.width, world.height,
             (q, r) => this._canEnterHex(q, r, world),
-            (q, r) => this._hexPathCost(world.getTile(q, r))
+            (q, r, fq, fr) => this._pathCostFrom(world, q, r, fq, fr)
         );
         if (!path || path.length < 2) return null;
         const EPS = this.MOVE_EPS;
@@ -423,6 +444,18 @@ export const PlayerMovementMethods = {
                 this.path = null;
                 return false;
             }
+            // A town shut against the sickness: the guards turn you back at its gate unless you
+            // have leave (systems/plague.js; the game loop tells it: ui/innerMapPlague.js turnedAway)
+            if (tile && tile.settlement && !(nextHex.q === this.q && nextHex.r === this.r)) {
+                const gate = Plague.canEnter(this, world, tile.settlement);
+                if (!gate.ok) {
+                    this.isMoving = false;
+                    this.path = null;
+                    this.queuedPath = null;
+                    this.turnedAway = { q: nextHex.q, r: nextHex.r, why: gate.why, bribe: gate.bribe };
+                    return false;
+                }
+            }
 
             // Travel is counted in days per hex (data/travel.json): what the
             // next hex still takes — all of it, or the rest of a crossing under
@@ -460,7 +493,7 @@ export const PlayerMovementMethods = {
                             days: 1 + Math.max(1, Math.ceil((moveCost - spent) / full - EPS)),
                             longHex: moveCost / this._travelPace() > 1 + EPS,
                             terrain: tile.terrain && tile.terrain.id,
-                            name: Infrastructure.crossingName(tile.terrain),
+                            name: this._onRiverBoat() ? 'the river' : Infrastructure.crossingName(tile.terrain),
                         };
                         this.actionPoints = Math.max(0, (this.actionPoints || 0) - 1);
                     } else if (c.lastDay !== today) {
@@ -503,7 +536,9 @@ export const PlayerMovementMethods = {
             Endurance.walked(this, 'hex', 1);
 
             // A toll gate or a ferry on the road (systems/publicWorks.js)
-            if (currentTile && (currentTile.tollGate || currentTile.roadCross === 'ferry')) PublicWorks.playerCrossing(world, this, currentTile);
+            // (a river boat pays a town's mill weir and bridge instead: systems/riverBoats.js)
+            if (this._onRiverBoat()) RiverBoats.passHex(world, this, this.q, this.r);
+            else if (currentTile && (currentTile.tollGate || currentTile.roadCross === 'ferry')) PublicWorks.playerCrossing(world, this, currentTile);
 
             // Reveal area
             this.revealArea(world, 4);

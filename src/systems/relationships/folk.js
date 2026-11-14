@@ -47,9 +47,17 @@ Object.assign(Relationships, {
     folkPerson(world, uid) {
         const m = /^(-?\d+),(-?\d+)#(\d+)$/.exec(String(uid || ''));
         if (!m || !world || typeof world.getTile !== 'function') return null;
-        const tile = world.getTile(Number(m[1]), Number(m[2]));
-        const folk = tile && tile.settlement && tile.settlement.folk;
-        const p = folk ? Townsfolk.get(folk, Number(m[3])) : null;
+        let tile = world.getTile(Number(m[1]), Number(m[2]));
+        let folk = tile && tile.settlement && tile.settlement.folk;
+        let p = folk ? Townsfolk.get(folk, Number(m[3])) : null;
+        // Moved away to another town (systems/migration.js): follow them there
+        for (let hop = 0; p && p.away && p.away.mig && p.away.nid != null && hop < 6; hop++) {
+            const t2 = world.getTile(p.away.q, p.away.r);
+            const f2 = t2 && t2.settlement && t2.settlement.folk;
+            const p2 = f2 ? Townsfolk.get(f2, p.away.nid) : null;
+            if (!p2) break;
+            tile = t2; folk = f2; p = p2;
+        }
         return p ? { folk, p, settlement: tile.settlement, tile } : null;
     },
 

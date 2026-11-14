@@ -66,6 +66,7 @@ Welcome to **Lord of the Realms**, a deep hex-grid strategy game where you begin
 23. [Achievements](#23-achievements)
 24. [World Events](#24-world-events)
     - [Court Scandals & Whispers](#court-scandals--whispers) — tales about rulers and rivals that spread, sap stability and are proven or debunked; fan, quash, dig, blackmail, sell, or start your own
+    - [Hearsay: What People Say of You](#hearsay-what-people-say-of-you) — townsfolk remember your talks and repeat what you claimed, boasted, swore or threatened, town to town; two tales get you caught out
     - [Lords' Memory & Court Letters](#lords-memory--court-letters) — rulers remember your deeds (and their heirs half-remember); lords, your liege, rival Houses, your spouse and children abroad write letters that demand an answer
     - [What the Townsfolk Remember](#what-the-townsfolk-remember) — townsfolk and towns remember your House's kindnesses and wrongs for generations: prices, refusals, silent witnesses, unrest
     - [Coalitions & Threats](#coalitions--threats) — the realms weigh your power; past a mark they swear a league against you (terms, wars, trade levies, cold lords); buy members out, wed them, cede towns; blood feuds down the generations; rival Houses' informants, saboteurs and bribed officials in your towns
@@ -594,6 +595,8 @@ Click any visible hex to set a destination. The game uses A* pathfinding to calc
 
 **Long journeys.** When your strength or action points run out partway, you make camp (on the way into the next hex, if you had strength left): the day ends by itself and you set off again at first light, until you arrive. Setting out across a hex takes an action point; going on with a crossing the next morning doesn't. This also happens if you give the order with nothing left today. While you are camped, the rest of the route stays drawn on the map. Press **Escape** to cancel the journey.
 
+**Following the road (street map).** Press **R** (with nothing selected to turn), or right-click a road and choose **Follow the Road**, and you walk on along the road the way you face (or toward the spot you clicked), round its bends, until it meets a crossroads or a square, runs out, or reaches the edge of the map. At the edge you go on into the next hex as walking off the edge does, and pick the road up again there. Any WASD/arrow key, a click elsewhere, or R again stops you.
+
 **Ending the day.** Press **Enter** (or the End Turn button) to end the day. Enter works on the open map only, not while a panel, menu or dialog is open. Once your action points are spent, the End Turn button glows.
 
 ### Weather
@@ -614,6 +617,22 @@ Weather fronts drift east across the map and change every day; the season decide
 - **Storms at sea** damage the hulls of ships under way or at anchor, may hold a voyage back a day, and can wash cargo overboard. Docked ships ride it out in harbour.
 - A Granary halves bad-weather losses at nearby farms, just as it does for droughts.
 - **The world feels it too:** caravans, armies, beasts and raiders cover fewer hexes in bad weather, ships at sea slow in storms, and kingdoms fight fewer pitched battles when the front is snowed in (a blizzard halves the chance).
+
+### Seasons on the Street
+
+Walk into a town or across a hex and the season is on the ground — worked out day by day from the weather's own fronts and a temperature that climbs and falls smoothly through the year (`data/streetSeasons.json`). Nothing about it is random: the same day always lies the same way.
+
+- **Snow builds up.** Cold wet days pile it up, warm days melt it. The first falls are a dusting over brown ground; once it lies deep the whole map turns white, snow sits on the roofs, and banks of it are shovelled up along both sides of the streets — the townsfolk come out with shovels of a snowy morning and the streets stay clear. Off the streets deep snow **drags at your feet** (and harder at a cart's wheels); footprints follow everyone across it and fade. A winter with no snow lying looks bare and brown, not white; deep snow in late autumn or early spring turns the map white early or keeps it so.
+- **The thaw.** Melting snow goes to slush on the streets and lingering grey patches on the grass, then **mud**.
+- **Mud.** Rain (and snowmelt) softens unpaved roads, trodden soil, bare earth and fields: dark wet patches, wheel ruts and puddles. Mud slows walking and slows carts more. Paved streets don't go to mud — they only shine with puddles in the rain.
+- **Frozen water.** In a hard winter ponds and lakes freeze over (rivers, running water, need a harder frost; the sea never freezes). You, the townsfolk and the beasts can **walk straight across** solid ice; nothing swims in it.
+- **Thin ice.** Ice that has not yet set, or is going rotten near the thaw, is darker and cracked. Paths go round it when they can. Step on it and it may groan — and it may **give way**, dropping you into freezing water (swim out, or drown; the cold of the water is the swimming rules'). The hole stays open a couple of days.
+- **Autumn leaves** lie on the ground and drift down on the wind, thickest late in autumn.
+- **Seasonal town life:**
+  - **Harvest fair** (autumn, each town on its own few days — or whenever a great market fair is on): stalls, produce, hay and bunting go up on the square, the town turns out, folk dance and a fiddler plays.
+  - **Midwinter** (winter days 14–16): a great bonfire on the square from late afternoon into the night, the town gathered round it.
+  - **Snow play:** children build snowmen and throw snowballs; a few snowmen stand about the square while the snow lasts.
+  - **Spring sowing** (spring days 1–22): more hands go out to the fields round town, sowing and breaking the soil.
 
 ### Fog of War
 
@@ -1051,6 +1070,42 @@ A town's welfare above or below the ordinary moves its mood by a point or two.
 **Refugees.** A town in danger or famine loses up to 5% of its people a week to linked towns that are safe, weighted by their size and welfare. The nobles flee first, the poor on foot. They remember home: once it is safe again, a quarter of them go back each week. A refugee column of 40 or more is cried by the heralds. A town crowded with refugees has idle hands and dear bread.
 
 **Strikes and booms.** Artisans whose wages no longer buy their bread may strike for 7 days (towns and larger; not again within 45 days). Most of the town's trades and your works stand idle, and the heralds cry it. A thriving town that draws newcomers booms, and the heralds cry that too. The tavern talks of idle hands, refugees, strikes, booms and hard times. The Steward's Counsel warns when your works or properties can't find hands, and when a town you rule has many idle hands or is on strike.
+
+#### Families on the Move
+
+Over the decades whole towns rise and empty as families move toward prosperous, safe towns and away from war, famine and plague.
+
+**What drives people.** On top of a class's welfare (food, work, the wage against the price of bread, safety, taxes), people weigh:
+
+- **Plague.** A plagued town's people flee as refugees, the same as from a siege. If its gates are shut by quarantine, no one leaves and no one comes.
+- **Crime and harsh laws.** Thieves, a curfew and harsh punishments push people out.
+- **Prosperity and contentment.** A rich, contented town draws people.
+- **Kin.** People follow those who went before them. A town that took in families from somewhere draws more from the same place for a few years.
+
+**Real households.** A town's living roster of named townspeople stands for all its people. When enough people leave, a whole household goes with them: husband, wife and children, with their purse, skills and letters. In the old town they are marked as gone ("moved to Brindle"). In the new town they appear as newcomers who find a trade there. A town without a roster sends newcomer families instead. The number of people about in the streets follows the town's size, so a town that has doubled is twice as busy.
+
+**Columns on the roads.** When a week's flow between two towns is big (25 or more people), it walks the roads as a party on the world map. Refugees carry a sack banner, and settlers walk at about a hex every two days. Their households reach the new town when the party arrives. Click the hex to see where the party came from and where it is heading.
+
+**Empty and new houses.** A town that has fallen well below its peak stands with houses empty, weathered and going to ruin on the street map. A town that has grown has fresh new-built houses along its lanes.
+
+**Your towns.** Open Holdings, then **Settlers & borders**:
+
+- **Settlers' grants** (1g a head) or **land and grants** (2g a head) draw more settlers to every town you rule. The coin goes into the town's purse as the settlers spend it. If your purse can't meet a week's grants, the offer lapses.
+- **Open gates**, **refugees only**, or **closed borders**. With closed borders, no newcomers settle in your towns and refugees are turned back at the gates. You hear of it at most once a month.
+- Lower taxes draw people too.
+
+You hear when a column arrives at one of your towns, and once a month when one of your towns gains or loses people in numbers.
+
+**Seeing it.** The hex info shows a town's **Trend**: growing, shrinking or steady, the change over the last year and the main reason. Click it to open the town's People panel. There, **Comings and goings** shows:
+
+- a line of the town's head count over the years
+- this year's arrivals and departures and why
+- its empty or new houses
+- the newcomers and leavers by name
+- recent moves
+
+**Where the people go** (from that card, or from Settlers & borders) shows the towns drawing and losing people this year and the great movements on record. It also lists the columns on the roads now.
+
 ### The Hinterland: Mines, Leases and Prospecting
 
 The villages and countryside around every town specialise by their land. Open a town's **Trade** window and use its **⛏️ Hinterland** tab; the sites also show on the map as small icons beside their hexes (zoomed in), with a bar for what is left in a deposit and a gold ring round your own leases. Tuned in `data/hinterland.json`.
@@ -2239,6 +2294,17 @@ Inside any building you own — a house you bought, a town house rented or bough
 
 The arrangement is kept for each home and survives leaving and saving. What it does is what the furniture does: a bed of your own to sleep in (a featherbed restores a quarter more, a canopy bed 40% more), chests to store goods in, a hearth or stove to cook at and warm by, tables and benches to sit at, a tub to wash in. Each piece also adds a little to your comfort every hour you spend in the home (up to +1.2 an hour).
 
+### Your Household: Rooms, Servants, Guests and the Larder
+
+In a town where you own a home, the action menu has **Your Household** (Property & Estates). Its four tabs:
+
+- **Rooms.** Go inside the house, stand in a corner and mark it as the **hall, bedchamber, kitchen, larder, study, chapel or nursery** (one of each; marking again moves it). The furniture within three steps of the mark, not behind a wall, belongs to that room (a tile goes to the nearest mark), and sets its quality: nothing without its needed piece (a bed, a hearth or stove, a chest or barrel, a desk or bookshelf, an altar or statue, a table for the hall), then better with more of the right pieces and finer (dearer) ones. What each does, each day you are home: a **bedchamber** makes sleep in your own bed restore up to 40% more (less in a dirty house) and gives a little energy; a **kitchen** with a cook gives a hot supper from the larder (hunger and comfort) and stretches the food up to a quarter; a **larder** holds more food (30 portions, up to 120) and slows spoiling; a **study** trains Intelligence and Diplomacy; a **chapel** raises faith (a little, capped) and your standing with your god; a **nursery** keeps the House's small children healthy and grows their wits, the more with a nurse.
+- **Servants.** Hire a **cook** (works the kitchen hearth), **maid** (cleans: the house dirties by the day and by its rooms), **house steward** (keeps the accounts at the desk and restocks the larder from the market within the allowance you set) or **nurse**, from the town's own people where it keeps a roster. Each has a skill and a daily wage, paid from your purse wherever you are, into their own pocket, which they spend in the home town. Their mood rises with pay, food and good rooms to work in, and with your thanks or a raise; unpaid, hungry or overworked, they grumble, then quit after a few resentful days. They walk the house when you are in it, each to their own furniture, and greet you at the door.
+- **Larder.** Every mouth eats from it each day: servants, guests, and you when home. Put food by from your packs or buy at the home town's market straight into it (the coin to the town, the goods off its stalls). Food spoils slowly (grain, beans, honey, olives, dates and salt fish keep). A bare larder means no supper, hungry servants and insulted guests.
+- **Hall & Guests.** Set **heirlooms** of the House and **trophies** you have earned (a captured banner after your first victory, a great stag's antlers after many hunts, a tourney prize, the coronation cup…) on the hall's display pieces: each rack, statue or banner there (the Furniture Maker sells a **Trophy Stand**) holds one. While you are home with a hall, kin, courtiers and the envoys of rival Houses come to stay a night or three (or **Keep open table** to send for them). They sit in the hall and remark on what is shown: Prestige and renown for the House (capped each year), and a line in an heirloom's legend. Fed in a clean house with a decent hall they leave pleased (better opinion; a rival's feud cools; a little Prestige); hungry or in a dirty, bare house, the reverse. Guests go home when you leave.
+
+Selling the house pays off its servants and ends its household.
+
 ---
 
 ## 9. Military & Combat
@@ -3082,6 +3148,18 @@ On the street map the rivers flow: flecks of foam and darker ripples stream down
 - Every net takes fish each day: small fry, fish and crayfish in rivers, mussels in ponds and lakes, cod, crabs and lobster at sea. In winter it catches much less. A river net also snags a stray find now and then. Fish left in it more than 3 days are lost to eels and rot.
 - Nets wear. One can tear, more often in a storm and the longer it has been in the water, and then it loses half its catch and catches nothing until you **Mend the Net** (1 rope). A net left alone may be stolen, more often near a town.
 - Click the net (its floats lie across the river, or curve out on the water) to **Haul In the Net**, **Mend** it, or **Take the Net Up** with its catch. A torn net comes up only good for rope. (`systems/riverNets.js`, `data/riverDrift.json` `nets`.)
+- **Fish from Your Net Stake** (in the net's menu) casts a line from the bank beside it, at the net: fish gather at the meshes, so a bite comes more readily (+15% a cast, half that while the net is torn; `data/riverDrift.json` `nets.stakeBite`). **Fish Here** on the water by your net gets the same.
+
+
+### River & Sea as a Way of Life
+
+**River boats.** The boatwrights of any town standing on a river (or on a lake shore) build a **Punt** (60g, a hold of 25) and, in a town or larger, a **River Barge** (420g, a hold of 160). Open **River & Water** (🎣 / 🛶, under Ship & Shore). The price goes into the town's purse; sell the boat back there (or trade it in for another) out of the same purse. **Step aboard** and you travel the world map by water only: river hexes, the lakes they run into, and lakeside towns. Going **with the current** is quick (about a quarter of a day a hex in a punt); **against it** you pole and tow, four times slower or worse; where no water joins two hexes there is no way. Each town on the river takes its **toll** as you pass, for its mill weir and its bridge (more for a barge), paid into the town's purse; with an empty purse the toll-keeper takes one of the dearest goods from your hold, and with nothing aboard you are waved through. **Load** goods from your packs into the hold and **unload** them where you land: the hold takes any goods, kinds and all, without using pack slots. **Go ashore** to tie up; the boat waits for you where you left it (on the map you are drawn as a boat while aboard).
+
+**Fishing rights.** The water by a hex belongs to the town on it or beside it, else to the crown whose land it is; far from both it is free water. Lease the fishing from River & Water (roughly 20–80g for 90 days, more by a big town, paid to the town or the crown). On water you hold, your nets take more fish (two more chances a day) and the lord's water bailiff keeps poachers down. A net set on someone's water without a lease may be found by the bailiff: a 12g fine to the holder, or the net taken if you cannot pay. **Poachers** empty part of a net's catch now and then (more near towns, fewer on water you lease); the fish turn up for sale in the nearest town's market. Be there and you catch the poacher at it: he drops the fish and runs.
+
+**Fish spoil.** Raw fish keep 2 days in summer, 3 in spring and autumn, 6 in winter, in your packs or a boat's hold; then they go bad and are thrown out. **Salt** them (one salt to every 4 fish, from River & Water, anywhere) and they become preserved fish that keep for months. Towns on a river, a lake or the sea eat more than twice the fish an inland town does, so fresh fish sell best by the water and salt fish travel.
+
+**Spring floods.** In the first weeks of spring, in rain and storm and the thaw, a river can rise over its banks, more often on the big lower rivers. A flood lasts several days and its crest runs on downstream, a hex a day, lower each time. While it is up: nets in it are swept away or torn; your growing crops on the hex drown; a house of yours to let in a town on it takes the water and needs days of repairs (no rent till they are done); the town's granary loses grain; and the river brings down a surge of wrack and lost things. Boats run quicker downstream in a flood and harder against it. On the street map the river stands over its banks, brown water through the fields and lanes beside it. River & Water lists the floods near you; you get word of one within a few leagues, or wherever it touches what is yours.
 
 ---
 
@@ -3390,7 +3468,55 @@ A town's **🎲 Back Rooms** list **🐀 Foul Deeds**: crimes against a whole to
 
 Tuning: `data/townCrimes.json`; the logic is `systems/townCrimes.js`.
 
+
+### The Town After Dark: Curfews, Smugglers and the Night Market
+
+Night on the street map is its own world (`systems/nightStreets.js`, `ui/innerMapNight.js`).
+
+**The dark.** After dusk, folk see a deed on the street from less far: up to 4 tiles off the usual 7 at full dark. Indoors, the dark makes no difference. A guard still hears a fight he cannot see. Your lantern undoes all of this: while it is lit, everyone sees you as they would by day. Press **L** on the street map to shutter it or light it again. Shuttered, you see only a glimmer round your feet. This applies to every street crime and every theft from a chest or barrel out of doors.
+
+**Curfew.** A realm may keep a curfew by law. It is a new law in the Laws panel: about a third of realms keep one by custom, and a ruler can proclaim it or lift it. Where the realm keeps none, about 15% of towns ring their own curfew bell anyway.
+- **Hours.** A realm's curfew runs from 21:00 to 05:00, a town's from 22:00 to 05:00.
+- **The streets.** From the bell, townsfolk go home and stay in. Half of the day watch turns out to join the night watch, and they walk their beat with lanterns rather than standing at posts.
+- **Being spotted.** A guard who sees you out calls a halt and walks up. With your lantern lit he sees you from 11 tiles away. With it shuttered he must come within about 3–7 tiles, depending on how dark it is.
+- **Your answer.**
+  - *Talk your way home:* 45% ± 4% per point of Charisma, plus your Persuasion. Less with heat in the realm, and 15% less for each earlier stop tonight.
+  - *Bribe:* about 70%. The cost is 1.2× the fine, more with heat, and the coin goes into the guard's own purse.
+  - *Run:* your street escape chance, +15% with your lantern shuttered and −10% with it lit. If they catch you, you go to the cells.
+  - *Pay the fine:* 8g in a village, 15g in a town, 25g in a city or 40g in a capital, scaled by the realm's punishment law. Each further stop the same night costs ×1.5. If you cannot pay, you spend a night in the cells.
+- **Walking off** from the guard counts as paying the fine. After any stop the watch leaves you be for an hour and a half. The ruler of the realm is never stopped.
+
+**Smugglers' landings.** On about 30% of nights, one of a town's gangs lands contraband between 22:00 and 04:00. The load is a good that is forbidden or tariffed here, bought over the border from a foreign town's market: that town's stock falls and its purse is paid. The landing comes ashore at a quiet cove, beach or river bank away from the pier. You will see a skiff drawn up (or packhorses where no boat can lie), a shuttered lantern, crates, and 2–4 smugglers hauling. Walk close and you choose:
+- **Lend a hand** (1 AP, 2 hours). You take a cut of about 30% of the load, with no tariff paid; the rest goes into the gang's stash. There is a 6% chance of a raid, +0.4% per point of the town's crackdown, and ×0.3 if your gang has bought the captain. A raid seizes the goods and may jail you.
+- **Tell the watch.** The load is seized and sold on the town's market. You get 35% of its worth from the town's purse, the crackdown rises, and the gang holds a grudge for 60 days: no landings and no night market for you. If you ran with that gang, you are out.
+- **Rob them.** Your chance is 47% + 3% per point of Strength above 5 + 2% per point of Agility above 5, − 6% per smuggler. Win, and the whole load is yours, stolen and hot. Lose, and you take a 10–25 health beating and the gang takes 30% of your purse. Either way, they bear the grudge.
+
+**The night market.** From 21:00 to 04:00, a lantern hangs over a cellar door behind a warehouse, tannery, stable or house on the far side of town. A fence sits among the crates. Only someone the underworld knows gets in: a guild contact met in the tavern, a guild member, or one of a town gang. The Underworld panel's Market tab tells you where to find it.
+- **Buying.** The gangs' stash sells at 60% of their black-market price, and the coin goes into the gang's purse. Goods still cooling at the fence sell at 45% of their worth, but they come to you hot.
+- **Selling.** The fence buys anything, hot or not, at the fence's usual rate.
+
+Tuning: `data/nightStreets.json`, `data/laws.json` (`curfew`), `data/underworld.json` (crimes `curfew`, `robbery`).
+
+## Wanted: Consequences That Follow You
+
+Heat cools in weeks; a crown's memory does not. Every realm keeps a **charge sheet** on you (Family → Against you → 📜 **Crimes & Enemies**).
+
+- **What goes on it.** Every crime that raises heat in a realm adds to the price on your head there, by name ("theft ×3, murder"). A crime the watch saw counts in full, an unseen one only in part. When word of a witnessed crime reaches the crown as a rumour and it posts a bounty, that goes on the sheet too. **Grave** charges (murder, kidnapping, a poisoned well, arson, rumours of killings) are kept apart from the **lesser** ones.
+- **Posters.** Once the price passes about 60 gold, or after any grave charge, posters with your face go up in every town of that realm, and the notice board shows one. The price **grows** while you are at large (grave charges faster), up to a cap.
+- **The watch knows your face.** When you arrive in a town of a realm that wants you, the watch may recognise you. The odds rise with the bounty and the town's guard, and fall with your Stealth. Past 150 gold they may arrest you on the spot: days in the cells according to the price and the realm's law on punishment. Serving the time answers every charge in that realm.
+- **Bounty hunters.** With 150 gold or more on your head, a party may take the crown's notice. They ride out of that realm's nearest town and track you across the map, stronger the higher the price. They wait outside towns. On the road you can flee, hide, parley or fight as usual, **buy them off** (about half the bounty; the posters stay up) or **give yourself up** (to that realm's cells, and the charges are answered). If they run you down they drag you there in irons. If you beat them, the slaying goes on your sheet and the next party will be bigger. They will not ride into a realm at war with theirs, and they give up after about 45 days.
+- **Avengers across generations.** When you or your House kill someone, the townsfolk remember it, and so do their children. A son or daughter under 16 whose parent or sibling died by your hand is noted as a **blood debt**. When they come of age, years later, they swear vengeance and become a sworn avenger in the Nemesis system, who hunts you or your heir.
+- **Ways out.**
+  - **Pardon.** A crown that thinks well of you (standing 60+), or a realm you rule, grants one freely. Otherwise buy one from the chancery in any town of that realm: the bounty and then some, paid into the crown's treasury. A crown that hates you (standing −50 or worse) sells no mercy.
+  - **Weregild.** Pay the family of the one you killed. The coin goes to the child's household, the debt is cancelled, their memory of you softens and the realm's grave charge for that killing eases.
+  - **Penance.** Spend a night on your knees at the church of a town where you are wanted and give alms (about an eighth of the bounty). The lesser charges there drop by 60% and the grave ones by 15%. Once a season.
+  - **Fines.** The Guard Tower's "settle everything" covers the lesser charges. No fine settles a killing.
+  - **Flight and time.** The charges are per realm, so you are unknown elsewhere. After two years without a new crime the lesser charges begin to fade, twice as fast while you stay out of that realm. Grave charges never fade.
+  - **Death.** The crowns' charges die with the one they were against. Blood debts do not.
+
 ## 15. Ships & Naval
+
+**Currents on the map.** Every sea hex has its current. On the world map faint pale streaks drift the way it runs over charted sea, more and brighter where it runs strong. On the trade map they show bolder, with arrowheads. A sea hex's info panel names it, for example *Current: the westerly drift, running east, strong*. The look can be changed in `data/currents.json` `display`.
 
 ### Ship Types
 
@@ -4407,6 +4533,57 @@ While a nemesis lives, the old grudge behind it stays hot. A rival House's feud 
 
 **Not the same as an adventurer's "Nemesis" tier.** In [Rival Adventurers](#rival-adventurers), *Nemesis* is the adventurer's own attitude (−60 or worse), and it brings slander and ambushes. This layer is separate and wider: it can raise a lord, a House head, an avenger or your own kin, and it only takes an adventurer at −70 or worse.
 
+### Friends & Bonds: Friendships Beyond Romance
+
+The relationship score says how much someone likes you. A **bond** is more: a friendship the two of you have built, with a *kind* and a *strength* (0–100). Open it from **Relationships → 🤝 Friends & Bonds**.
+
+**How one forms.** Anyone you know with a relationship score of **40 or more** (not your spouse) becomes a bond the next day, at strength about 22. If their score was once **−30 or worse**, the bond is a **⚔️ Rival Turned Friend** instead. Someone who has betrayed you, or whom you betrayed, never forms one again.
+
+| Kind | How you get it |
+|------|----------------|
+| 🤝 Friend | The usual start |
+| 🍺 Drinking Companion | Most of what you share is drinking (4+ drinks, more than twice your other deeds together) |
+| ⚔️ Rival Turned Friend | Your old quarrel turned into friendship. It fades a little slower |
+| 📜 Mentor | You asked them to teach you |
+| 🌱 Protégé | A youth you raised to adulthood |
+| 🏛️ Old Family Friend | A friend of the late head of your House |
+| 🩸 Sworn Brother / Sister | You swore the oath of kinship (this sits on top of the kind) |
+
+**What builds it.** Each shared deed adds strength. The stronger the bond already is, the less each deed adds.
+- 🍺 **Drink together** (4g, once a day, paid to the town). This also lifts your Social and Fun needs.
+- 🍻 Buying a round at the tavern while they are in town (+3).
+- ⚔️ **Fighting side by side**: a battle with them in your party, or with them coming to your aid (+8 for a win, +5 for a loss).
+- 🧭 Each day on the road together in your party (+0.35).
+- 🫱 **Helping them in need**: a matter they brought you, answered well (+10). Answer it badly and they hold a grievance.
+- 🎁 A gift (15g, which goes into their purse; once every 10 days).
+- 🤞 A promise you made them in free talk, kept (+7). A broken one adds a grievance.
+- 💬 Talking with them (+1 a day), and their visits (+3).
+
+**What wears it down.** After 30 days without seeing them, a bond loses 0.2 a day. That is slower for mentors, protégés and family friends, and much slower for sworn kin. Letting a strong bond fall 30 below its best breeds a **grievance**. At strength 0 you have **drifted apart**, and your regard for each other cools below 40.
+
+**Milestones.**
+- 🩸 **Sworn kinship.** This needs bond strength 75+, the friend beside you, and a settlement: you swear before its church, chapel or cathedral, or at your own hearth if you own a house there. It costs 30g for the feast and the priest. The chance they swear is 55% + 1.5% per point of strength above 75, adjusted by their loyalty. If they refuse, ask again later. Sworn kin fight harder at your side, warn you more often, lend more, barely drift, and are far harder to buy. The oath goes into the House Chronicle and earns +1 Prestige.
+- 📜 **A mentor.** A friend aged 28 or older, at strength 40+, who is better than you at something can teach it. Townsfolk teach their own best skill; others teach their trade (a blacksmith teaches Smithing, a guard teaches Blades, a merchant teaches Haggling). Every day you keep company (in your party, at your court, or in their town), you gain XP in that skill. The gap between your level and theirs speeds it up. When you match them, they have taught you all they know.
+- 🌱 **A protégé.** In a town, take a youth aged 10–17 under your wing (30g, which goes to the town). You can have at most 2 at a time. You teach them your best skill, and every day you spend in their town is a lesson that gives them real skill XP. After **240 days of lessons**, once they are grown (16+), they come of age as a capable, loyal ally: loyalty 90, regard 65, a Protégé bond at 70. They will take a place at your court, or take the road with you if you have no House.
+
+**What friends do for you.**
+- ⚔️ **Take up arms beside you.** In a battle, each friend at strength 50+ who is in your party, in your town or within one hex adds (strength/100) × 5% to your army's power (double for sworn kin). The total bonus is capped at +20%.
+- 🫱 **Lend you coin.** When your purse falls below 10g, your strongest friend (strength 55+) lends you 25g + 0.6 per point of strength (×1.5 for sworn kin). The coin comes out of their own purse. Repay it within 60 days, or they hold a grievance and the bond drops by 10. This happens at most once every 90 days.
+- 🗣️ **Vouch for you** before their realm: reputation there rises by strength × 0.12 (×1.5 for sworn kin). Needs strength 50+, and they can do it once every 60 days.
+- 🛡️ **Warn you.** When a nemesis strikes (anything but a hidden plot), a friend at strength 45+ may have got wind of it in time. The chance is up to 35% from strength, plus 15% for sworn kin. The blow is foiled, which also gives you proof against the nemesis. Friends at strength 40+ also send word when a damaging rumour about you takes hold in their town.
+- 🚪 **Visit.** A friend at strength 50+ may come to find you in whatever settlement you are in.
+
+**Betrayal.** Each week, a friend may turn on you:
+- **Bought.** If you have a nemesis or a rival House with a feud of 30+, they can buy a friend. A weak bond and a greedy, fickle or cunning friend make it likelier; loyalty, honesty and an oath make it much less likely. A bought friend sells your habits to the enemy (who then counters you better) and costs you reputation. A greedy one in your party may instead vanish with part of your purse.
+- **Slighted.** A friend with a grievance of 60+ may turn and badmouth you in their town. This starts a rumour and costs you some reputation.
+- **Your crimes against their kin.** If you harm them or their family (their memory of the House: assault, murder, a hanging…), they turn at once and may become a **nemesis**.
+
+**You can betray them too.** **🗡️ Betray them** sells their confidences for an informer's fee of 30g + 1.2 per point of strength. Their realm's treasury pays it, or failing that their town's purse. The cost: they become a grudge waiting to be a nemesis, a rumour of it spreads from their town, their family remembers ("called me friend and sold me"), you lose karma and gain the Deceit deed, and a broken oath goes into the Chronicle.
+
+**Heirs.** When your heir takes the seat, the late ruler's bonds at strength 30+ pass on as **Old Family Friends**. They keep half their strength (65% for sworn kin), and their regard for the new head is reseeded. Weaker bonds end with the old ruler. Protégés stay with the House. Starting a new life as a stranger leaves the old bonds behind.
+
+**In free talk.** The person you talk to knows what is between you: sworn kin, a drinking companion, a mentor, an old rivalry, a grievance, a debt.
+
 ### Ambitions That Follow
 
 Fulfilling an ambition's capstone pays a **reward** (data/house.json), records the deed in the chronicle, and gives the House an **honour** it keeps forever. Each honour adds to your good fame in every realm (see *Fame* below). A fulfilled ambition cannot be taken up again. Instead it opens a greater one:
@@ -4754,6 +4931,43 @@ At 16 a person's literacy is fixed for life: their schooling, plus 4, plus 15 if
 
 Tuning: `data/townFamily.json`, `data/townSchool.json`.
 
+### Literacy: Who Can Read, and What It Changes
+
+Every grown townsperson either can read or cannot (`systems/literacy.js`). A child's letters are settled at 16 by their schooling (above). A grown person the school book never saw gets theirs once, from their trade, the size of their town and its era. Priests and nobles nearly always read. About 70% of merchants do, and few farmers. Their letters stay with them if they move to another town.
+
+**A town's letters.** Once a month the game counts each town: the share of its grown folk who can read and write. A town with no roster yet is estimated from its size, its building era and its schools, and its rate moves slowly toward that estimate. One reading a year is kept. The town info box shows **Letters: 18 in 100 read & write (↑ from 12)**, measured against 30 years before. Over decades the rate climbs as schooled children grow up and the unlettered old die, or falls when the schools close.
+
+**Who keeps schools.**
+- **The parish school** (the priest) and **the town school** (a schoolmaster), as above.
+- **The church** keeps a school in cities and capitals, and in about a third of lesser towns that have a priest. Each year it puts 12 gold of tithe from the town's purse into the school fund.
+- **The richest guild** in a town with 60 gold or more in its hall pays up to 15 gold a year into the fund for its apprentices.
+- **You can endow a school** in any town whose people you know. Open the town's **Schools & Letters** action. It costs 400 gold, plus 20 planks and 15 stone, taken from your packs first and the rest bought from the town's market. Part of the coin goes into the school's fund and the rest to the town's builders. You pick the schoolmaster from the town's lettered grown folk (aged 25–69, letters 60+). From then on it is a town school, and more children go each year it stands. Each month it costs 8 gold for the master's wage (paid into their own purse) and 4 gold for the fund. If you can't pay for three months running, it closes. You can also close it yourself.
+
+**What letters change** (from an unlettered town to one where half or more can write; a town not yet counted counts as neither):
+
+| | Unlettered | Half lettered |
+|---|---|---|
+| Taxes collected | −7% | +7% |
+| Stability a new law costs the realm (laws are posted and read) | ×1.3 | ×0.6 |
+| The watch knowing you from the wanted posters | ×0.6 | ×1.4 |
+| A tale changing as it passes by word of mouth | ×1.35 | ×0.8 |
+| How fast a tale printed on broadsheets spreads | ×0.3 | ×1.8 |
+| Trust in a bank's written receipts (deposits it draws) | −0.08 | +0.12 |
+
+**Broadsheets.** In the Whispering Corner, **📰 Print broadsheets** has a tale printed and posted for 30 gold, paid to the town. It runs hotter where people can read, and for 40 days it spreads fastest to lettered towns.
+
+**Letters to people who can't read.** A letter to a townsperson who can't read waits for someone to read it to them. That may be the priest, the schoolmaster or a lettered neighbour (kin first). It arrives 1–3 days late, or 3–6 days if nobody in the town reads. The reader then knows what it says and may tell others (30% of the time, more for a love letter or a threat; a priest keeps half of those secrets). Then the town talks (rumour 'Read Aloud'). A love letter from a married player that gets out is also a scandal.
+
+**Your own letters** (0–100, worked out for each new life from your intelligence and your station; a Wanderer starts at about 40):
+- **Below 40** you can't read: books stay closed, and letters that come to you are read aloud (the town's teacher charges 2 gold).
+- **From 40** you can read, slowly at first. Below 50 a scribe writes your letters for 2 gold each, paid to the town.
+- **Lessons.** Pay the town's schoolmaster or priest 6 gold for one lesson a day. Each sitting with a book also improves your letters a little.
+- **Your children** learn their letters from 5 to 16. They learn a little at home, more if you can write, more again with a tutor (Raising), and most with a learning focus. An heir brings their letters with them when they take over.
+
+The **Schools & Letters** panel shows the town's rate and how it has moved, what it changes, the schools and their pupils, giving to the fund, endowing a school, your lessons and your children's letters.
+
+Tuning: `data/literacy.json`.
+
 ### Sickness in the Towns
 
 Every town whose people are on the roll lives through its own sicknesses every 2 days, whether you are there or not (`systems/illness.js`). Each case belongs to a person, who catches it, sickens, is nursed or not, and recovers or dies. Once sickness is running, most of a town's deaths come from it. The plain age deaths of *Townsfolk Live Their Lives* keep only a share (40% for infants, up to 85% for the old): falls, failing hearts and old age.
@@ -4794,6 +5008,40 @@ Infants die of most of these far more often (fever 10%, flux 12%, plague 42%). M
 **Catching it yourself.** While you are in a sick town, each catching case gives you a small daily chance of the matching ailment (a cold or fever gives you a Chill; the flux, pox and plague give you the same). Each catching person you pass within 2 tiles on the street map adds four times as much. The daily chance for each illness is at most 6%, and your Strength and Medicine lower it. Consumption, wound fever and childbed fever don't pass to you, and you are safe aboard ship. Once you catch it, it is an ordinary ailment (see [Wounds, Sickness & Medicine](#wounds-sickness--medicine)).
 
 Tuning: `data/illness.json`.
+
+**Between towns, along the roads.** A town's catching sick may carry it to any town within 14 hexes, but the trade links count: along a town's market link the chance is ×1.4 (×1.25 more on a road, ×1.4 more by sea), off any link ×0.35 (`travel.routes`).
+
+### Plague in the Streets
+
+When plague — or a bad epidemic — is in a town, you see it on the street map, and you can do something about it (`systems/plague.js`, `ui/innerMapPlague.js`). How much shows depends on the town's **severity**, from 0 to 100%: a plague town is never under 40% and climbs with its sick (×3 their share), a town struck by the age's Great Plague is at least 55% while its course runs, and a lesser epidemic is capped at 60%. Other systems read it too (`Plague.severityAt`, `Plague.isQuarantined`).
+
+**What you see.**
+- **Empty streets.** The healthy keep indoors 35% of the hours, plus half the severity (at most 75%). Up to 90% × severity of the market stalls stand with a sackcloth over their wares and their keepers at home. Up to 70% × severity of the shops are shuttered, with boards across the door, and won't trade. Churches, the apothecary, the watch and the houses are never shuttered.
+- **Marked houses.** Every house with plague abed has a red cross on its door, and from 30% severity planks nailed across it too. Houses that nobody lives in any more are taken for the dead's — one for every two deaths these 60 days, at most 6 — boarded and crossed.
+- **Plague doctors.** From 20% severity the town's healers go about in black, with a wide-brimmed hat and a beaked mask, between the sick houses. They say what plague doctors say.
+- **Herb fires.** From 25% severity, up to 3 fires burn in the square against the miasma, with their smoke and glow. A fire also burns before every house whose dead's goods were burnt, for 3 days.
+- **The death cart** rings its handbell as it goes round the marked doors.
+- **The open grave.** Once 2 or more have died of the plague in 60 days, an open trench lies at the back of the churchyard (or beside the church), the shrouded dead in it and lime over them. When the plague is over and enough have died, the town keeps a grave mound outside its walls.
+- **Shut gates** have a barrier across every road in.
+
+**The gates.** A town's lord shuts its gates against the sickness. From 30% severity (25% for plague), each week there is a 45% chance (75% for plague) he orders it. Under the realm's Pestilence law of Quarantine, a sick town's gates are shut at once. They open again once the town has been clean for 14 days, and never before 21 days shut. Every week shut the town's mood drops by 1. While shut:
+- the sickness crosses to and from the town at 15% of the usual rate;
+- its trade links move only 35% of their goods, and few caravans take its roads;
+- **you are turned back at the gate** when you try to enter it on the world map. You are let in if you rule its realm, hold the town, keep a house there, or paid its physicians this month. Otherwise you can **bribe the gate guards** (8, 15, 25 or 40 gold by town size; the coin goes into the town's purse) for 3 days' leave. There is a 20% chance their sergeant sees it, which is a smuggling crime at half weight.
+
+A town **you hold** is never shut for you. You are told once per outbreak, and you shut or open its gates from **The Sick of the Town**, which also shows the pestilence's severity, the gates, and the dead. A realm you rule follows its own Pestilence law.
+
+**Helping.** Every one of these is a choice on the street map:
+- **Nurse the Sick Within** (a house with a cross on its door). You sit with everyone laid up there. Each one gets care at least as good as the healer's (×0.6 on the death chance), thinks 6 better of you and remembers it. Karma +1 (once per house per day), mercy, and the town remembers you **healed** its people. It takes 2 hours, and it is the closest you can come to catching it.
+- **Burn the Dead's Goods** (a dead household's house). Their bedding and clothes go on a fire before the door. For 20 days the sickness spreads within the town at ×0.6 (the household and work are unchanged). Karma +1, mercy and piety, and the town remembers it. It takes 1 hour. Each house can only be burnt once, and not after it has been looted.
+
+**Profiting.**
+- **Sell remedies to the frightened** (at the market, apothecary or church, or from The Sick of the Town): herbs, rare herbs, salves, potions, antidotes, elixirs and holy water. The price is the good's price × the market's scarcity × (1.3 + 2.4 × severity). The coin comes out of the townsfolk's own purses, fullest first, and each remedy goes to a sick house, which helps them. At most 12 a day per town. Anything sold above 2.2× its fair price counts as profiteering: −1 karma for each one, greed, and after 3 the town remembers you spoke ill of it.
+- **Loot the Empty House** (a dead household's house). You take whatever coin the dead left in their purses, plus their goods: clothes, linen, candles, pottery, sometimes tools, old coin or wine. It is a burglary at 0.7 weight. Someone sees you with a chance of 30% × (1 − 0.6 × severity), because the streets are empty. If seen, you are caught: heat, a rumour, and the town remembers you **robbed** it. The dead's goods carry the sickness: in a plague town there is a 35% × severity (at least 30%) chance you catch the plague. Each house can only be looted once.
+
+**Catching it on the street.** On top of passing the sick within 2 tiles, going into a house where the sick lie counts as 3 close contacts with each catching person there (once a house a day). Nursing counts as 4, looting as 5, and burning as 1.
+
+Tuning: `data/plague.json`.
 
 ### Townsfolk Brawls
 
@@ -6062,6 +6310,30 @@ The great are talked about. From about day 20, a new tale hatches every 14–28 
 
 **Getting caught.** A tale you started can be traced back to you: each day there is a 2.5% chance, scaled up by its heat and down to 40% of that if the tale is true. If a lie is debunked, there is a further 50% chance it is traced, +20% if you also fanned it, and a 20% chance for a lie you only fanned (you are named as the one who paid to keep it going). Fanning a tale you started makes the daily chance half as large again. Once traced, a *Whisperer Exposed* crime rumour starts in the town where you began it, you lose 15 reputation with the subject's realm (5 if the tale was true), a rival's attitude toward you drops by 35, and a lie is debunked at once. The corner's footer, and Deeds & Records, keep your tally: tales planted, fanned and quashed, lies believed and debunked, whispers traced, rulers blackmailed and proofs sold.
 
+## Hearsay: What People Say of You
+
+Townsfolk remember what you tell them in free talk, and they repeat it.
+
+**They remember the talk.** Each conversation leaves a short record with the person: when and where it was, what you said about yourself (your name, where you are from, your trade, your rank, how rich you are), what you boasted of or confessed to, what you swore to do, whether you threatened them, and how they felt about it. The next time you talk, they bring it up ("You spoke with them 12 days ago in Ashford: said they are a merchant; promised you: bring wine"). Each person remembers up to four talks. A talk that left nothing owed is forgotten after about a year.
+
+**A sworn word is a promise.** If you say "I promise…", "I swear…" or "I give you my word…", they hold you to it, even if the AI did not make it a promise. If the day comes and you have not done it, they and their family hold it against you (see Free talk), and word of the broken promise goes around their town.
+
+**Talk travels.** Claims, boasts, threats, confessions, contradictions and broken promises become hearsay:
+- It starts with the person you told. Each day more of their town hears it, until most of the town knows.
+- Once enough of a town has heard, the word can reach a neighbouring town within 4 hexes. A closer town is likelier to hear it, and talk fades as it ages: 90 days for a plain claim, up to 180 for a confession.
+- It grows in the telling. A town may hear the version as first told, a grown one, a much grown one, or a garbled one ("Folk say Ash slew a bear twice over, with one hand tied").
+- A false claim may be seen through. If you lied about your name, rank or purse, a town that hears it may know better, and there you are known as a liar.
+- Talk can get to the next town before you do. You get a notice ("Talk Has Gone Ahead of You") when hearsay reaches the town you are in.
+
+Folk who have heard something about you bring it up. Through the AI they raise it, doubt it or believe it. Without the AI they mention it once in their greeting ("Is it true what they say, that you slew a bear?") and tell it when you ask **"What news do you have?"**. Hearing that you threaten people, break your word, or lie about yourself costs you a little of their goodwill, once per person.
+
+**Caught out.** Suppose you tell one person one name, home, trade, rank or purse, and someone else another. If the second person was the first one you told, or has heard what you said before, they catch you out. They trust you less (−8), they say so the next time they greet you ("You told me X. Now I hear you told Brom Y. Which is it?"), and the contradiction spreads as its own story.
+
+**The panel.** Open *What People Say of You* from Tavern & Talk in any settlement. It shows:
+- What the town says of you: each tale as it is told there, how many have heard it, how much it has grown, who first told it and where, and how many towns it has reached.
+- The folk here who remember talking with you.
+- The tales you have told about yourself, with warnings wherever you have told two different stories.
+
 ## Lords' Memory & Court Letters
 
 **The lords remember.** Every ruler keeps a memory of what you have done to them and their realm (`world/npcLords.js`, the deed table in `data/lordMemory.json`). Each deed carries a weight and a half-life: a purse of gold is worth +4 and is half-forgotten in 120 days; a broken oath is −25 and lasts two years; a town torn from the realm is −30 for most of three. The memories add up (capped at ±40) into the lord's **opinion** of you — the same opinion the royal audience's mood ring, your odds of being granted trade terms or soldiers, and a claim's support at court read — and into how much a realm **wants war with you** (a lord who remembers wrongs is quicker to send an ultimatum). The same deed repeated within five days adds to the last one, up to three times its weight.
@@ -6349,6 +6621,24 @@ When one of your children dies, or your spouse, or the head of your House before
 - **Rob a grave.** Right-click someone else's grave and choose **Rob the Grave**. You dig at the spot, then it plays out as a theft. Witnesses, guards and daylight raise your odds of being caught. If you're caught, you pay a fine, lose standing, get a criminal record and can end up in the cells, the same as any theft. On top of that you lose another 6 standing. If you get away, you have the grave goods (and the bones), but they are **hot**, and the grave lies open.
 
 Every coin is entered in the Ledger: *Grave leases sold*, *Blessings & sexton's fees*, *Bone mills, ossuaries & crypts built*, *Bones & bone meal*, *Ossuary visitors* and *Funerals of your own*.
+
+### Caves and Mines
+
+In mountains, highlands and hills the crags of a world made with the newest generator (terrainGen 9) are bigger: a big crag carries a second step up on its top, and that one sometimes a third, each behind its own rock face three rows tall or more. Climbing a face takes Climbing skill to match its height. A few faces have a **cave mouth** at their foot, mostly at ground level.
+
+**Caves.** Right-click a cave mouth and choose *Enter the Cave*. Underground it is dark at any hour. You see as far as the light you carry: a lantern lights the most, candles less, and with nothing you get a glimmer. A cave is a maze of passages and chambers that is the same on every visit. It has ore showing in its walls (iron, copper, tin, silver, gold, coal, gems or salt, depending on the hex's rock and its resource), loose stones and crystal on the floor, and bats. To leave, walk back to the daylit mouth and choose *Exit*, or press Esc.
+
+**Digging into a rock face (a drift).** With a pick in your packs (Tools; Steel Tools cut faster), stand at the foot of a face and right-click its bottom row: *Dig into the Rock*. Cutting a drift takes three stages of work, and each stage gives stone. When it is through you can *Enter the Drift*, which leads into a mine of your own. The mine starts as solid rock except for the first cell.
+
+**Sinking a shaft.** On open ground (not a road, a doorway or a crag's top), carrying a pick: *Sink a Mine Shaft*. It takes four stages of digging. Before the last stage you need timber to line the shaft (4 wood or 3 planks) and something for a ladder (1 rope or 2 wood). Then *Climb Down the Shaft*.
+
+**Working the rock.** You can cut any rock that has open ground beside it. *Cut into the Rock* breaks a cell down to **rubble**. Any ore in that cell goes into your packs, and a practised hand sometimes finds a stray lump of ore. The space is not open until you *Haul the Rubble Out*, which puts the stone in your packs. If your packs are full, the rubble stays where it is. Every cell of a mine has to be cleared by hand like this.
+
+How fast the work goes depends on your Mining & Quarrying skill (harder blows) and your pick. Each piece of work costs energy and hygiene and trains Mining.
+
+**Timbers and cave-ins.** The roof over ground you have dug is unpropped. Once more than three dug cells near a new cut have no timbers over them, each cut has a chance of bringing the roof down. That chance is about 10% and climbs the more open ground there is, up to 60% in a wide gallery. The menu warns you of the risk. In a cave-in, the cell and up to two of its unpropped neighbours fill with rubble, and if you are standing under it you are hurt. To prevent this, *Shore Up with Timbers* on a dug floor cell (2 wood or 2 planks). A set of timbers holds the roof for two cells around it, so one every four or five cells keeps a drift safe.
+
+Everything a mine yields comes out of that hex's own rock and is counted against the site. Caves, drifts, shafts and every cell cut, hauled or timbered are kept in your save. Tuning is in `data/mining.json`.
 
 ### Digging, Caches and Robbing the Dead
 
@@ -7182,6 +7472,8 @@ Companions are more than their trade. Each one holds **one or two values** and k
 | ⛪ Loyal to the faith | zeal, piety, crushing heresies, holy sites | deceit |
 
 Approval reacts each day to what you did: the deeds behind your character traits, any trait you earn, your rulings at Court, piracy, big karma swings (2 or more in a day), battles won or lost, and wages. When something moves a companion by 3 or more in a day, they **say so** in a short notification. One day can move them by at most 12.
+
+**Talk moves them too.** In free talk (the AI conversation) with a companion who travels with you, warmth and hard words move their approval as well as your relationship: half a point of approval for each point of regard, at most +4 or −8 a turn (`data/companions.json` `chatPerRegard`, `chatMaxUp`, `chatMaxDown`). The talk shows it (*😊 Mira is pleased (+2 approval)*, and the new mood if it changed), and on the street map a short bubble rises over them: **+ pleased** or **− hurt**.
 
 **Mood.** Approval sets a mood, and the mood scales the companion's trade bonus:
 

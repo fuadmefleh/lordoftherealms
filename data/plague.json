@@ -1,0 +1,89 @@
+{
+    "_doc": "Plague in the streets (systems/plague.js, ui/innerMapPlague.js): how bad a town's sickness is (severityAt 0..1, from settlement.sickness — systems/illness.js — and the great plague's struck towns, systems/crises.js), its gates shut against travellers (per town: settlement.plagueGate, shut by its ruler or by the player who rules or holds it; Illness.quarantined reads it, so the sickness crosses less to the next towns and trade on its links is cut: systems/marketDynamics.js), and what the player can do in a sick town: nurse the sick in a marked house, burn a dead household's goods (the town's spread slowed a while), sell remedies at a plague price, loot a dead household's house (a crime, and the goods may carry it). State on the settlement (plagueGate, plague: saved with the tile).",
+
+    "severity": {
+        "_doc": "0..1. A plague: plagueBase + its sick share × plaguePerShare (at most 1); a great plague's struck town at least crisisFloor while its course runs. Another serious epidemic: epiBase + share × epiPerShare, at most epiMax; a serious sickness short of an epidemic: minorMax at most. A town with no roster keeps an abstract sickness: abstractPlague / abstractOther.",
+        "plagueBase": 0.4,
+        "plaguePerShare": 3,
+        "crisisFloor": 0.55,
+        "epiBase": 0.18,
+        "epiPerShare": 1.6,
+        "epiMax": 0.6,
+        "minorMax": 0.15,
+        "abstractPlague": 0.5,
+        "abstractOther": 0.2
+    },
+
+    "gates": {
+        "_doc": "A town's ruler shuts its gates (AI): at a severity of closeAt or more, each week a roll of closeChance (always, where the realm's Pestilence law is quarantine); a plague town at closeAtPlague with plagueChance. They open again openAfterDays after the town is free of it (no severity), and not before minDays shut. A town the player rules (their realm) or holds (settlement.owner) is never shut for them: they are told, and choose (the Sick of the Town panel). The player is turned away at the gates (player/core/movement.js) unless permitted: they rule its realm, hold it, keep a house there, paid its physicians this month (folk.ill.fund by the player, or the crisis's physicians), or slipped the guards a bribe (bribe by town type; bribeDays the leave lasts; caught with bribeCaught: the crime 'smuggling' × bribeScale). happiness: the town's mood a week shut.",
+        "closeAt": 0.3,
+        "closeChance": 0.45,
+        "closeAtPlague": 0.25,
+        "plagueChance": 0.75,
+        "openAfterDays": 14,
+        "minDays": 21,
+        "happiness": -1,
+        "bribe": { "village": 8, "town": 15, "city": 25, "capital": 40 },
+        "bribeDays": 3,
+        "bribeCaught": 0.2,
+        "bribeScale": 0.5
+    },
+
+    "street": {
+        "_doc": "On the street map (ui/innerMapPlague.js; world/innerMap/townSickness.js). stayHome: the healthy keep in (base + perSev × severity, at most max) each hour's pick. stallAbandon × severity: share of the square's stalls left with their wares under a cloth; shopShut × severity: share of the shops shuttered (no trade at them; world/innerMap/npcs.js) — never shuttered: neverShut. boardAt: from this severity the doors of the plague houses are boarded as well as crossed. bonfireAt: herb fires burn in the square (bonfires: at most); a dead household's goods burnt keep a fire before its door burnDays. doctorAt: the healers go masked (doctorLayers: their LPC look). pitDeaths: plague dead in pitDays for the open grave in the churchyard. abandon: of the houses no one lives in now, the share taken for a dead household's (× the plague dead of pitDays / 3, at most abandonMax). bellEvery: secs between the death cart's bell.",
+        "stayHome": { "base": 0.35, "perSev": 0.5, "max": 0.75 },
+        "stallAbandon": 0.9,
+        "shopShut": 0.7,
+        "neverShut": ["church", "temple", "chapel", "apothecary", "barracks", "guard_tower", "town_hall", "castle", "manor", "house"],
+        "boardAt": 0.3,
+        "bonfireAt": 0.25,
+        "bonfires": 3,
+        "burnDays": 3,
+        "doctorAt": 0.2,
+        "doctorLayers": [
+            "Body/Body 02 - Masculine, Thin/Ivory",
+            "Head/Head 02 - Masculine/Ivory",
+            "Clothing/Masculine, Thin/Legs/Pants 03 - Pants/Black",
+            "Clothing/Masculine, Thin/Feet/Shoes 02 - Boots/Black",
+            "Clothing/Masculine, Thin/Torso/Shirt 01 - Longsleeve Shirt/Black",
+            "Clothing/Masculine, Thin/Torso 2/Sweater 01 - Cardigan/Charcoal",
+            "Head Accessories/Mask 01 - Plague Doctor/Black"
+        ],
+        "pitDeaths": 2,
+        "pitDays": 60,
+        "abandonMax": 6,
+        "bellEvery": [7, 12],
+        "contact": { "sickHouse": 3, "nurse": 4, "burn": 1, "loot": 5 }
+    },
+
+    "actions": {
+        "_doc": "nurse: tend the sick laid up in a marked house — each one's care × careMult (as the healer's best), their regard + regard, karma once a house a day, mercy deeds. burn: a dead household's bedding and clothes on a fire before its door — the town's spread within its walls × cleanseMult for cleanseDays (systems/illness.js town contact), karma, mercy and piety deeds; once a house. remedies: medicines from the packs sold to the frightened (the townsfolk's purses, the fullest first) at the good's price × (premiumBase + premiumPerSev × severity), at most perDay a day; the remedy goes to a sick house (their care the better); above greedAt × the price it is profiteering (greed deeds, karma −1 a sale, the town remembers). loot: a dead household's house — what the dead left in their purses and the goods of the table (rolls on Utils' stream), the crime 'burglary' × crimeScale (seen at seenBase × (1 − severity × emptyStreets): caught heat, the town remembers 'robbed'); the goods may carry it: catch × severity of the plague ailment.",
+        "nurse": { "careMult": 0.6, "regard": 6, "karma": 1, "deeds": { "mercy": 1 } },
+        "burn": { "cleanseMult": 0.6, "cleanseDays": 20, "karma": 1, "deeds": { "mercy": 0.5, "piety": 0.5 } },
+        "remedies": {
+            "goods": ["herbs", "rare_herbs", "healing_salve", "potion", "antidote", "elixir", "holy_water"],
+            "premiumBase": 1.3,
+            "premiumPerSev": 2.4,
+            "perDay": 12,
+            "greedAt": 2.2,
+            "deeds": { "greed": 0.5 }
+        },
+        "loot": {
+            "crime": "burglary",
+            "crimeScale": 0.7,
+            "seenBase": 0.3,
+            "emptyStreets": 0.6,
+            "catch": 0.35,
+            "table": [["clothes", 0.45, 1, 2], ["linen", 0.4, 1, 3], ["candles", 0.45, 1, 4], ["pottery", 0.3, 1, 2], ["tools", 0.15, 1, 1], ["ancient_coin", 0.12, 1, 2], ["wine", 0.1, 1, 1]]
+        }
+    },
+
+    "lines": {
+        "bell": ["*clang... clang...*", "*the handbell tolls*", "*clang*"],
+        "doctor": ["Stand back. The miasma clings to the living.", "Vinegar and rue — breathe through it.", "Let me see the swellings.", "Burn the bedding. All of it.", "Lance it, and pray."],
+        "gateTurn": ["Turn back! The gates are shut — no one in or out.", "Not one step further. There's plague in the town.", "The lord has closed the gates. Go round, stranger."],
+        "bonfire": ["Burn rosemary — it clears the air.", "Keep the fires high, keep the miasma off."],
+        "looted": ["Someone's been in the Weavers' house... and them hardly cold.", "Thieves, robbing the dead!"],
+        "nursed": ["Bless you... water... please.", "You came in? Into this house? Gods keep you.", "*a weak grip on your hand*"]
+    }
+}

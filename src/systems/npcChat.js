@@ -46,6 +46,11 @@ import { NpcShops } from './npcShops.js';
 import { Economy } from '../world/economy.js';
 // (what the talk does beyond the one person: tales, grudges, promises, the watch, their family — systems/npcChatImpact.js)
 import { NpcChatImpact } from './npcChatImpact.js';
+import { CompanionChatMood } from './companionChatMood.js';
+// (what they remember you told them, and what folk say of you: systems/hearsay.js)
+import { Hearsay } from './hearsay.js';
+// (the friendship between you, if any: systems/bonds.js)
+import { Bonds } from './bonds.js';
 
 const DEFAULTS = {
     apCost: 1,
@@ -325,6 +330,10 @@ export const NpcChat = {
         lines.push(...NpcChat._talkLines(store, world, session));
         // Promises they owe you, what came of past talks, folk you could name (systems/npcChatImpact.js)
         lines.push(...NpcChatImpact.personaLines(player, world, who));
+        // Your past talks' digests, and the hearsay about you they have heard (systems/hearsay.js)
+        lines.push(...Hearsay.personaLines(player, world, who, session));
+        // A friendship between you: sworn kin, a drinking companion, a mentor (systems/bonds.js)
+        lines.push(...Bonds.personaLines(player, world, who));
 
         // What they have on them to give or sell
         const stock = who.stock ? who.stock(world) : null;
@@ -618,6 +627,8 @@ Answer with ONE JSON object and nothing else:
             done.notes.push({ text: `🚪 ${who.firstName} has had enough of you and turns away. They won't speak to you again today.`, tone: 'bad' });
         }
         NpcChat._keepGist(store, world, session, walked);
+        // What was claimed, boasted, sworn or threatened: remembered, checked, repeated (systems/hearsay.js)
+        Hearsay.afterTurn(player, world, who, session, said, done.notes, { tone, reply, today });
         if (who.noteTalk) who.noteTalk(world);
         if (due.length) done.notes.unshift(...due);
         return { ok: true, say: sayText, ...done };
@@ -763,6 +774,8 @@ Answer with ONE JSON object and nothing else:
         }
         // How it landed reaches their family a little; a sharp insult is remembered
         if (net) NpcChatImpact.afterTurn(player, world, who, t, net, notes);
+        // A travelling companion's mood follows (systems/companionChatMood.js: a note, and a bubble over them)
+        if (net && who.npc) CompanionChatMood.afterTalk(player, world, who.npc, net, notes);
         return { notes, ended, travel };
     },
 };

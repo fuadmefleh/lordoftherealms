@@ -12,6 +12,7 @@ import { MinigameHost, startForge } from '../minigames/index.js';
 import { OBJECT_ACTIONS } from './actions.js';
 import { goodInfoIcon } from '../goodInfo.js';
 import { FoodSkills } from '../../systems/foodSkills.js';
+import { Household } from '../../player/household.js';
 
 export function _getPlayerFoods(game) {
     const inv = game.player.inventory || {};
@@ -110,7 +111,9 @@ export function _showSleepModal(game, objDef, cost = 0) {
     const currentHour = Math.floor(InnerMap.timeOfDay || 8);
     const maxHours = Math.max(1, 24 - currentHour);
     // A good bed of your own: sleep restores more (data/furniture.json restBonus)
-    const bed = 1 + Math.max(0, Number(objDef && objDef.restBonus) || 0);
+    // (and your own bedchamber, by its furniture and how clean the maids keep it: player/household.js)
+    const own = InnerMap.isOwnHome && InnerMap.isOwnHome() ? Household.sleepBonus(game.player, InnerMap.furnishHomeKey()) : 0;
+    const bed = 1 + Math.max(0, Number(objDef && objDef.restBonus) || 0) + own;
     const energyFor = h => Math.round(_calcSleepEnergy(h) * bed * Endurance.recoveryMult(game.player)); // (more for the hardy: player/endurance.js)
     const healthFor = h => Math.round(_calcSleepHealth(h) * bed);
     const comfortFor = h => Math.round(_calcSleepComfort(h) * bed);

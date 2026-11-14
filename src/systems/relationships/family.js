@@ -12,6 +12,7 @@ import { Heirlooms } from '../heirlooms.js';
 import { Names } from '../../core/names.js';
 import { Inheritance } from '../inheritance.js';
 import { Vanishings } from '../vanishings.js';
+import { Literacy } from '../literacy.js';
 
 Object.assign(Relationships, {
     // ────────────────────────────────────────────────────────────────────
@@ -591,6 +592,8 @@ Object.assign(Relationships, {
             stealth: Math.max(1, child.skills?.stealth || 0),
             cartography: child.skills?.cartography || 0,
         };
+        // Their letters, learned at home and from their tutors (systems/literacy.js)
+        Literacy.takeHeir(player, child);
         // The late ruler's wounds and sickness die with them (stats above are
         // the heir's own, so nothing is given back) — systems/ailments.js
         if (player.ailments && Array.isArray(player.ailments.list)) {

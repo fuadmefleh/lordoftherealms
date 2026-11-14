@@ -376,8 +376,12 @@ export function planTown(tiles, settlement, rng, W, H, layoutIn = null, planOpts
         putBuilding(def, q, r);
         // (how worn it stands: its era's weather, world/townEras.js; drawn by ui/innerMapLayers/objectsBuildings.js)
         if (eraLook && def.culture) {
-            const wear = eraLook.building(q + door.q, r).wear;
+            const bs = eraLook.building(q + door.q, r);
+            // (a house left empty by those who moved away stands weathered and dark; landmarks keep their era's wear)
+            const house = ['house', 'farm'].includes(def.buildingType || 'house');
+            const wear = house ? bs.wear : (bs.base != null ? bs.base : bs.wear);
             if (wear) tiles[r][q].customBuilding.wear = wear;
+            if (house && bs.vacant) tiles[r][q].customBuilding.vacant = true;
             // (a Guild Age church, temple, guildhall or town hall: a belltower over its roof)
             if (eraLook.spireStyle && eraLook.spires.includes(def.buildingType)) tiles[r][q].customBuilding.spire = TownEras.spireStyle(arch.culture, def.wall) || eraLook.spireStyle;
         }

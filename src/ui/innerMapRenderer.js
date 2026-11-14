@@ -669,6 +669,8 @@ export const InnerMapRenderer = {
         if (this._renderWaterFx) this._renderWaterFx(ctx, camera);
         // ── Layer 1.65: Things adrift on the river, and the weir that catches them (innerMapLayers/riverDrift.js) ──
         if (this._renderRiverDrift) this._renderRiverDrift(ctx, camera);
+        // ── Layer 1.68: Footprints in the snow and the mud, snowmen (innerMapLayers/streetSeasons.js) ──
+        if (this._renderSeasonFx) this._renderSeasonFx(ctx, camera);
         // ── Layer 1.7: Under the water, diving — the bottom and its finds (innerMapLayers/underwater.js) ──
         if (this._renderUnderwaterFloor) this._renderUnderwaterFloor(ctx, camera);
 
@@ -679,6 +681,8 @@ export const InnerMapRenderer = {
         this._renderDepthSortedSprites(ctx, camera, deltaTime);
         // ── Layer 2.2: Smoke and steam rising over the roofs (innerMapLayers/ambient.js) ──
         if (this._renderAmbient) this._renderAmbient(ctx, camera);
+        // ── Layer 2.3: Leaves drifting down, the fiddler's notes at the fair (innerMapLayers/streetSeasons.js) ──
+        if (this._renderSeasonAir) this._renderSeasonAir(ctx, camera);
         // ── Layer 2.5: Under the water — all above it dimmed (innerMapLayers/underwater.js) ──
         if (this._renderUnderwaterVeil) this._renderUnderwaterVeil(ctx, camera);
 

@@ -42,6 +42,8 @@ import { SocialSkills } from './socialSkills.js';
 import { Throne } from './throne.js';
 // (what the townsfolk remember of the player's House: systems/npcMemory.js)
 import { NpcMemory } from './npcMemory.js';
+// (the dark cuts how far folk see on the street: systems/nightSight.js)
+import { NightSight } from './nightSight.js';
 
 const DEFAULTS = {
     sight: { radius: 7, guardHearRadius: 16, hiddenStates: ['inside_building', 'leaving_building', 'gone'] },
@@ -196,8 +198,11 @@ export const StreetCrime = {
         if (!Array.isArray(npcs) || !scene) return out;
         const hidden = new Set(C.sight.hiddenStates || []);
         // (scene.sightCut: a stealthy player is seen and heard from less far off — systems/socialSkills.js)
+        // (and the night: out on the dark street, folk see less far — unless you carry a light: systems/nightSight.js)
         const cut = Math.max(0, _num(scene.sightCut));
-        const radius = Math.max(1, _num(C.sight.radius, 7) - cut);
+        const dark = scene.indoors || scene.noDark ? 0 : NightSight.cut();
+        const radius = Math.max(1, _num(C.sight.radius, 7) - cut - dark);
+        // (the dark hides a deed from the eye, not the ear)
         const hear = Math.max(radius, _num(C.sight.guardHearRadius, radius) - cut);
         for (const npc of npcs) {
             if (!npc || npc === victim || (victim && npc.id === victim.id)) continue;

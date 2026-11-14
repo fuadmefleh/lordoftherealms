@@ -43,6 +43,7 @@ import { Culture } from '../systems/culture.js';
 import { Traits } from '../systems/traits.js';
 import { Companions } from '../systems/companions.js';
 import { HeirAgency } from '../systems/heirAgency.js';
+import { Bonds } from '../systems/bonds.js';
 import { Ledger } from '../systems/ledger.js';
 import { CombatSkills } from '../systems/combatSkills.js';
 import { Duels } from '../systems/duels.js';
@@ -543,6 +544,8 @@ export const FieldBattle = {
         if (!withdrew) Companions.onBattle(player, victory, { enemyName: battle.enemyName, roleOf: n => PlayerEffects.companionRole(n) }, world);
         // The commanding child's record and fate (wounded, captured, killed)
         if (!withdrew) HeirAgency.onBattle(player, world, victory, battle.enemyName);
+        // Friends who fought beside you: the bond grows (systems/bonds.js)
+        if (!withdrew) Bonds.onBattle(player, world, victory, battle.enemyName);
         // The realm's household guard riding with you: its morale and loyalty (player/realmEscort.js)
         if (!withdrew && battle.theatre !== 'sea') RealmEscort.afterBattle(player, victory);
         if (battle.sim.routed === 'player') Traits.recordDeed(player, 'cowardice', 2); // the army broke and ran

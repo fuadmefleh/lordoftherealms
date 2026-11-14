@@ -1,0 +1,104 @@
+{
+    "_note": "Caves and mines on the street map (world/innerMap/mines.js, ui/innerMapMining.js, ui/innerMapLayers/caves.js). Seconds are real seconds of work at the spot, divided by the Mining skill's blows perk and the pick carried (picks: best first). A cut rock leaves rubble that must be hauled out before the space is open; every unsupported run of dug cells risks a cave-in until it is shored up with timber.",
+    "picks": [
+        { "item": "steel_tools", "mult": 1.4, "name": "steel pick" },
+        { "item": "tools", "mult": 1.2, "name": "iron pick" }
+    ],
+    "seconds": {
+        "cut": 9,
+        "haul": 3.5,
+        "loose": 2,
+        "prop": 5,
+        "adit": 8,
+        "shaft": 7
+    },
+    "needs": {
+        "cut": { "energy": -4, "hygiene": -3 },
+        "haul": { "energy": -2, "hygiene": -1 },
+        "prop": { "energy": -2 },
+        "adit": { "energy": -4, "hygiene": -3 },
+        "shaft": { "energy": -5, "hygiene": -4 }
+    },
+    "xp": { "cut": 4, "haul": 1, "adit": 5, "shaft": 5, "vein": 6 },
+    "adit": {
+        "_note": "Cutting into a cliff face from its foot: stages of work before the drift is open and leads into the rock (the mine underground). Each stage gives stone.",
+        "stages": 3,
+        "stone": [2, 4]
+    },
+    "shaft": {
+        "_note": "Sinking a shaft in open ground: stages of digging, the last lining it with timber (one of `lining`) and hanging a ladder (one of `ladder`) before you can climb down.",
+        "stages": 4,
+        "stone": [1, 3],
+        "lining": [{ "wood": 4 }, { "planks": 3 }],
+        "ladder": [{ "rope": 1 }, { "wood": 2 }]
+    },
+    "cell": {
+        "stone": [2, 4],
+        "veinQty": [1, 3],
+        "strayChance": 0.08
+    },
+    "support": {
+        "_note": "A set of timbers (two posts and a cap) holds the roof for `reach` cells round it. A cut with more than `free` dug cells within `span` of it and no timbers over them may bring the roof down: base chance, more for each cell past free (a timber every four or five cells along a drift keeps it up).",
+        "reach": 2,
+        "span": 3,
+        "free": 3,
+        "base": 0.1,
+        "per": 0.06,
+        "max": 0.6,
+        "cost": [{ "wood": 2 }, { "planks": 2 }],
+        "hurt": [4, 10]
+    },
+    "map": {
+        "_note": "The underground map: its size, how much of a natural cave is open passage, how many veins of ore run through the rock (per 100 rock cells), loose stones and crystal on a cave floor.",
+        "width": 40,
+        "height": 40,
+        "caveOpen": 0.2,
+        "veins": 1.6,
+        "veinRadius": [1, 2],
+        "loose": 0.05,
+        "crystal": 0.012,
+        "bats": 0.5
+    },
+    "light": {
+        "_note": "Underground it is dark at any hour: the radius (px at zoom 1) of the light the player carries, the best they have.",
+        "darkness": 0.9,
+        "none": 46,
+        "candles": 92,
+        "lantern": 140
+    },
+    "geology": {
+        "_note": "What the rock of a hex's terrain holds: weights for the veins (stone is the rock itself, no vein). The hex's own resource (world tile .resource) is weighted up by resourceBoost.",
+        "resourceBoost": 6,
+        "resourceItem": { "iron": "ore", "gold_ore": "gold_ore", "coal": "coal", "gems": "gems", "stone": "stone", "silver": "silver_ore", "copper": "copper", "tin": "tin", "salt": "salt" },
+        "terrains": {
+            "mountain":  [{ "item": "ore", "weight": 5 }, { "item": "coal", "weight": 3 }, { "item": "copper", "weight": 2 }, { "item": "tin", "weight": 1 }, { "item": "silver_ore", "weight": 1.2 }, { "item": "gold_ore", "weight": 0.5 }, { "item": "gems", "weight": 0.5 }],
+            "snow_peak": [{ "item": "ore", "weight": 5 }, { "item": "silver_ore", "weight": 1.5 }, { "item": "gems", "weight": 0.7 }, { "item": "gold_ore", "weight": 0.4 }],
+            "highlands": [{ "item": "ore", "weight": 4 }, { "item": "copper", "weight": 2.5 }, { "item": "tin", "weight": 1.5 }, { "item": "coal", "weight": 2 }, { "item": "silver_ore", "weight": 0.6 }, { "item": "gems", "weight": 0.2 }],
+            "hills":     [{ "item": "copper", "weight": 3 }, { "item": "coal", "weight": 3 }, { "item": "ore", "weight": 3 }, { "item": "tin", "weight": 1.2 }, { "item": "silver_ore", "weight": 0.6 }, { "item": "salt", "weight": 0.8 }],
+            "desert":    [{ "item": "salt", "weight": 4 }, { "item": "copper", "weight": 1.5 }, { "item": "gold_ore", "weight": 0.3 }],
+            "default":   [{ "item": "coal", "weight": 1 }, { "item": "ore", "weight": 1 }, { "item": "salt", "weight": 0.3 }]
+        },
+        "veinChance": {
+            "_note": "How richly the rock of a terrain is veined (multiplies map.veins).",
+            "mountain": 1.3, "snow_peak": 1.1, "highlands": 1.0, "hills": 0.8, "desert": 0.5, "default": 0.35
+        }
+    },
+    "crags": {
+        "_note": "Worlds made since terrainGen 9 (world/innerMap/cliffs.js): bigger crags in tiers (a second step on a big one's top, a third on the second's), taller faces, and now and then a cave mouth in a face three rows tall (caves: the chance a square crag has one; maxCaves on a hex).",
+        "mountain":  { "count": [16, 24], "width": [6, 18], "height": [6, 13], "face": [3, 4], "tier": 0.8, "tier3": 0.55, "angled": 0.35, "caves": 0.25, "maxCaves": 2 },
+        "snow_peak": { "count": [16, 24], "width": [6, 16], "height": [6, 12], "face": [3, 4], "tier": 0.8, "tier3": 0.5, "angled": 0.3, "caves": 0.2, "maxCaves": 2 },
+        "highlands": { "count": [8, 14],  "width": [5, 13], "height": [4, 9],  "face": [3, 3], "tier": 0.45, "tier3": 0.2, "angled": 0.45, "caves": 0.18, "maxCaves": 1 },
+        "hills":     { "count": [3, 6],   "width": [5, 10], "height": [3, 6],  "face": [2, 3], "tier": 0.25, "tier3": 0, "angled": 0.6, "caves": 0.2, "maxCaves": 1 }
+    },
+    "text": {
+        "noPick": "You need a pick to break rock: carry tools.",
+        "caveIn": "The roof gives with a crack and a roar: rock comes down round you.",
+        "caveInHurt": "Stone strikes you as it falls (-{hp} health).",
+        "unsupported": "The roof creaks over the open ground behind you. Shore it up with timber.",
+        "packsFull": "Your packs are full: the rubble stays where it lies.",
+        "enterCave": "You duck under the rock into the cave. Only the light you carry shows the way.",
+        "enterMine": "Into the mine. The dark closes in behind the light you carry.",
+        "enterShaft": "You climb down the ladder into the dark.",
+        "leave": "Back out into the open air."
+    }
+}

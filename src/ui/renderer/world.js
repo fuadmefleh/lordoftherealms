@@ -42,6 +42,9 @@ Object.assign(Renderer.prototype, {
         // Render rivers
         this.renderRivers(ctx);
 
+        // The set of the sea: streaks drifting with each sea hex's current (renderer/currents.js)
+        this.renderOceanCurrents(ctx);
+
         // Render territory borders
         this.renderTerritoryBorders(ctx);
 

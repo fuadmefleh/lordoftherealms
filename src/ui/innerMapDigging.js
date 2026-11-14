@@ -195,7 +195,7 @@ export const InnerMapDigging = {
         // opts.onTile: work on something lying on the ground (a carcass) may be done standing on it)
         const total = Number(opts.seconds) > 0 ? Number(opts.seconds) : this._seconds(game, kind);
         // (the map it is on: walking there and then leaving the map drops the work, never done on another)
-        const job = { kind, q, r, t: null, total, corpse: opts.corpse || null, then: opts.then || null, game, onDone: opts.onDone || null, verb: opts.verb || null, needs: opts.needs || null, key: InnerMapCombat._mapKey() };
+        const job = { kind, q, r, t: null, total, corpse: opts.corpse || null, then: opts.then || null, game, onDone: opts.onDone || null, verb: opts.verb || null, needs: opts.needs || null, key: InnerMapCombat._mapKey(), anywhere: !!opts.anywhere };
         const pq = InnerMap.playerInnerQ, pr = InnerMap.playerInnerR;
         const near = _cheb(pq, pr, q, r);
         if (near === 1 || (opts.onTile && near === 0 && !InnerMap._playerWalking)) {
@@ -228,7 +228,8 @@ export const InnerMapDigging = {
 
     /** Is the player still on the map (and outdoors) where the work was set? */
     _sameMap(job) {
-        return !!(job && InnerMap.active && !InnerMap._insideBuilding && job.key === InnerMapCombat._mapKey());
+        // (work underground — cutting rock in a cave or mine, ui/innerMapMining.js — is set with opts.anywhere)
+        return !!(job && InnerMap.active && (!InnerMap._insideBuilding || job.anywhere) && job.key === InnerMapCombat._mapKey());
     },
 
     _seconds(game, kind) {

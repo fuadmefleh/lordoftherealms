@@ -10,6 +10,7 @@
 import { Utils } from '../core/utils.js';
 import { PlayerEffects } from './playerEffects.js';
 import { Gossip } from '../systems/gossip.js';
+import { Wanted } from '../systems/wanted.js';
 import { TradeSkills } from '../systems/tradeSkills.js';
 import { Economy } from '../world/economy.js';
 
@@ -185,7 +186,8 @@ export const SettlementServices = {
     /** Bounty gold the local crown has posted on the player over gossip of their crimes. */
     bountyOwed(player, settlement) {
         const kingdomId = settlement && settlement.kingdom;
-        return kingdomId ? Gossip.bountyTotalForKingdom(player, kingdomId) : 0;
+        // (plus the lesser part of the crown's long charge sheet, systems/wanted.js; a killing is not fined away)
+        return kingdomId ? Gossip.bountyTotalForKingdom(player, kingdomId) + Wanted.lesserBounty(player, kingdomId) : 0;
     },
 
     /** True when the local crown has a warrant out for the player. */

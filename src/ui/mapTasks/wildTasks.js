@@ -679,7 +679,7 @@ export const WildTaskRunner = {
                         ctx.note(c.shy);
                     }
                     this._markSpot(ctx);
-                }, () => this._markSpot(ctx), skill);
+                }, () => this._markSpot(ctx), o.biteBonus ? { ...skill, bites: _num(skill && skill.bites) + o.biteBonus } : skill);
             },
             tick(dt, ctx) { _lineTick(ctx, dt); _rodPose(ctx, dt); },
             buttons(ctx) { return _lineButtons(ctx); },

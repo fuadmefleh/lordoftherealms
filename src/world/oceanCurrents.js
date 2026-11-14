@@ -192,6 +192,14 @@ export const OceanCurrents = {
         return a >= 0 ? 1 - a * _num(s.with, 0.35) : 1 - a * _num(s.against, 0.35);
     },
 
+    /** A current in words: 'the westerly drift, running east, strong' ('' for none) */
+    describe(cur) {
+        if (!cur) return '';
+        const s = cur.strength || 0;
+        const how = s < 0.2 ? 'slack' : s < 0.4 ? 'gentle' : s < 0.65 ? 'steady' : 'strong';
+        return `${cur.name || 'the current'}, running ${this.sideName(cur.dir)}, ${how}`;
+    },
+
     /** A hex side's name ('east', 'south-west', …) */
     sideName(dir) {
         return SIDE_NAMES[dir] || 'away';

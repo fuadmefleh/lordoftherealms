@@ -23,6 +23,8 @@ import { DataLoader } from '../core/dataLoader.js';
 import { Hex } from '../core/hex.js';
 import { Devotion } from './devotion.js';
 import { Library } from './library.js';
+// (the player's own letters: can they read it, and how fast — systems/literacy.js)
+import { Literacy } from './literacy.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = v => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -119,6 +121,8 @@ export const Books = {
         const book = Books.nextBook(player, ctx);
         if (!book) return { text: 'You have read every book this shelf holds. You leaf through an old favourite instead.', book: null, counted: false, rewards: [] };
         const day = _day(world);
+        const unread = Literacy.readingGate(player);
+        if (unread) return { text: unread, book, progress: _num(st.progress[book.id]), sittings: Math.max(1, _num(book.sittings, 3)), counted: false, rewards: [], cannotRead: true };
         if (st.today.day !== day) st.today = { day, n: 0 };
         st.current = book.id;
         const sittings = Math.max(1, _num(book.sittings, 3));
@@ -126,7 +130,8 @@ export const Books = {
             return { text: `You try to go on with ${book.title}, but the words swim. Enough for today.`, book, progress: _num(st.progress[book.id]), sittings, counted: false, rewards: [] };
         }
         st.today.n += 1;
-        const pace = 1 + Devotion.tenet(player, 'reading');
+        const pace = (1 + Devotion.tenet(player, 'reading')) * Literacy.readingPace(player);
+        Literacy.practice(player);
         const before = _num(st.progress[book.id]);
         st.progress[book.id] = _r2(Math.min(sittings, before + pace));
         const progress = st.progress[book.id];

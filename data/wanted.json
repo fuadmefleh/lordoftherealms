@@ -1,0 +1,59 @@
+{
+    "_doc": "Consequences that follow you (systems/wanted.js): each realm's long charge sheet (bounty from heat gains, witnessed crimes and the rumours that reach the crown), wanted posters and the watch who know your face, bounty hunters who ride you down on the world map, the orphans of those you killed who come of age as avengers (handed to systems/nemesis.js), and the ways out: a pardon bought or granted, weregild paid to the family, penance at a church, flight to another realm, and time. Days are game days (120 a year).",
+    "config": {
+        "daysPerYear": 120,
+        "goldPerHeat": 3,
+        "graveMult": 2,
+        "gossipShare": 0.6,
+        "postAt": 60,
+        "graveCrimes": ["murder", "kidnapping", "well_poisoning", "arson"],
+        "graveRumourWords": ["murder", "kill", "assassin", "massacre", "slaughter", "poison", "burn"],
+        "growth": { "lesserPerYear": 0.1, "gravePerYear": 0.2, "lesserCap": 1500, "graveCap": 6000 },
+        "fade": { "afterDays": 240, "perYear": 0.5, "abroadMult": 2, "clearBelow": 10 },
+        "watch": { "base": 0.12, "perGold": 0.0006, "perGuard": 0.05, "stealthPer": 0.025, "max": 0.8, "arrestFrom": 150, "arrestChance": 0.35, "cooldownDays": 3, "jailPerGold": 0.04, "jailMax": 60 },
+        "hunters": {
+            "from": 150, "chanceBase": 0.06, "chancePerGold": 0.0001, "chanceMax": 0.35, "cooldownDays": 90, "range": 30,
+            "days": 45, "speed": 2, "strengthBase": 6, "strengthPerGold": 0.02, "strengthMax": 80, "payoffShare": 0.5, "payoffMin": 30,
+            "beatenGold": 40, "beatenShare": 0.15, "takenJailMult": 1.25, "giveUpRange": 45
+        },
+        "pardon": { "buyMult": 1.25, "graveMult": 1.5, "min": 80, "grantRep": 60, "refuseRep": -50, "repGain": 5, "heatLeft": 10 },
+        "penance": { "almsShare": 0.12, "almsMin": 20, "cooldownDays": 120, "lesserKeep": 0.4, "graveKeep": 0.85, "karma": 3, "heatRelief": 15 },
+        "weregild": { "base": 120, "perWeight": 4, "memorySoften": 0.3 },
+        "debts": { "scanDays": 30, "comeOfAge": 16, "maxDebts": 12, "score": 75, "minWeight": -20, "maxAgeAtDeed": 15 }
+    },
+    "labels": {
+        "murder": "murder", "kidnapping": "kidnapping", "well_poisoning": "poisoning a well", "arson": "arson",
+        "assault": "assault", "theft": "theft", "pickpocket": "cutpursing", "burglary": "burglary", "racket": "extortion",
+        "heist": "a great robbery", "black_market": "black-marketeering", "smuggling": "smuggling", "smuggling_route": "smuggling",
+        "piracy": "piracy", "caravan_robbery": "robbing caravans", "mail_robbery": "robbing the post", "jailbreak": "breaking jail",
+        "map_theft": "stealing charts", "vandalism": "vandalism", "false_alarm": "raising false alarms", "gang_war": "gang violence",
+        "fence": "fencing stolen goods", "racket_weekly": "extortion", "troubles": "troubles with the watch",
+        "hunters_slain": "slaying the crown's bounty hunters"
+    },
+    "captains": {
+        "male": ["Gerold", "Brannoc", "Hask", "Odo", "Ulric", "Tamsin", "Wace", "Corbin", "Rook", "Anselm"],
+        "female": ["Maud", "Ysolt", "Kerra", "Agnes", "Brisa", "Hild"],
+        "epithets": ["the Hound", "Crow-eye", "of the Long Rope", "Ironhand", "the Patient", "Blackcloak", "the Tracker", "Saltboot"]
+    },
+    "text": {
+        "posted": "Wanted posters with a face very like yours have gone up across {realm}: {bounty} gold for {charges}.",
+        "grown": "The price on your head in {realm} has risen to {bounty} gold.",
+        "recognised": "A watchman's eyes go from a poster to your face. They know you in {town}.",
+        "arrested": "The watch of {town} know you from the posters: taken for {charges}, {days} days in the cells.",
+        "huntStart": "{captain} has taken the crown's notice on you in {realm}: {men} riders on your trail (strength {strength}).",
+        "huntGaveUp": "{captain}'s hunters have lost your trail and turned back.",
+        "huntRefuge": "{captain}'s hunters will not ride into {realm}, at war with their masters. The trail ends at the border.",
+        "huntBeaten": "{captain}'s hunters are broken. {realm} adds the slaying to your sheet: the price is now {bounty} gold.",
+        "paidOff": "{captain} weighs the purse, spits, and rides off to report you lost. The posters in {realm} stay up.",
+        "surrender": "You give yourself up to {captain}. They deliver you to {town}: {days} days in the cells, and {realm}'s charges against you are answered.",
+        "taken": "{captain}'s hunters drag you to {town} in irons: {days} days in the cells. {realm}'s charges against you are answered.",
+        "pardonBought": "The chancery of {realm} takes {cost} gold and writes your pardon. The posters come down.",
+        "pardonGranted": "The crown of {realm} pardons you out of favour. The posters come down.",
+        "penance": "You kneel through the night in {town}'s church and give {cost} gold in alms. The priest speaks for you to the watch of {realm}.",
+        "weregild": "You pay {cost} gold weregild to the family of {victim}. {name} takes it, and does not spit.",
+        "debtNoted": "{name}, {age}, the {rel} of {victim}, will not forget who did it.",
+        "risen": "{name} is grown now. The child whose {vr} {victim} you killed has sworn to avenge them.",
+        "faded": "Your old charges in {realm} have been forgotten.",
+        "succession": "The charges the crowns held against {old} died with them. The grudges did not."
+    }
+}

@@ -78,6 +78,10 @@ Object.assign(InnerMap, {
                 const rTop = r;
                 while (r < H && this.isCliffFace(tiles[r][q])) r++;
                 const rBot = r - 1;
+                // (a cave's mouth or a drift cut into the face: no way up the rock there — world/innerMap/mines.js)
+                let holed = false;
+                for (let y = rTop; y <= rBot && !holed; y++) holed = !!(tiles[y][q]._caveMouthOf || tiles[y][q]._adit);
+                if (holed) continue;
                 const top = rTop > 0 ? tiles[rTop - 1][q] : null;
                 const foot = r < H ? tiles[r][q] : null;
                 const toLevel = this.standLevel(top), fromLevel = this.standLevel(foot);

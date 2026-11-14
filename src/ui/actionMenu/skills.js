@@ -455,7 +455,7 @@ Object.assign(ActionMenu, {
         // From the town map: "Fish Here" on the water you see — straight to the cast,
         // from the bank by that water, with the catch of its depth (ui/innerMapUI.js)
         if (opts.spots && opts.depth && WildTaskRunner.inWorld(game)) {
-            WildTaskRunner.fish(game, { player, casts: maxCasts, rollFish: () => rollFish(opts.depth), spots: opts.spots, target: opts.target }, (catches, tally) => {
+            WildTaskRunner.fish(game, { player, casts: maxCasts, rollFish: () => rollFish(opts.depth), spots: opts.spots, target: opts.target, biteBonus: opts.biteBonus || 0 }, (catches, tally) => {
                 if (catches === null) { game.ui.showNotification('🎣 Fishing', 'You can\'t get a line in the water from here.', 'warning'); return; }
                 const up = FoodSkills.fishXp(player, { ...(tally || {}), catches });
                 game.ui.showCustomPanel('🎣 Fishing', `<div style="max-width: 500px;">${ActionMenu._renderFishingResults(catches, player, up)}</div>`);

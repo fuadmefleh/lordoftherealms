@@ -106,6 +106,8 @@ Object.assign(ActionMenu, {
         // ── The people (world/townLabour.js) ──
         const people = peopleLine(tile.settlement, world.day);
         if (people) html += rowList([{ icon: '👥', name: 'The people', desc: people, act: 'showTownPeople', args: [null, q, r], side: '›' }]);
+        // Settlers' grants and the borders of your towns; where the people go (ui/actionMenu/migration.js)
+        html += rowList([{ icon: '🧭', name: 'Settlers & borders', desc: 'draw settlers with grants and land, or close your gates; see where the people go', act: 'showMigration', side: '›' }]);
         // Settlers out of here to found another village of yours (ui/actionMenu/founding.js)
         html += rowList([{ icon: '⛺', name: 'Found a Village', desc: 'send some of its people out to found a new village at a site you pick', act: 'showFoundVillage', args: [q, r], side: '›' }]);
         if (s.drifting) {

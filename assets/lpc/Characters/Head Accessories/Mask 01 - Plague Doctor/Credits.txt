@@ -1,0 +1,2 @@
+Mask 01 - Plague Doctor: drawn by scripts/make_plague_mask.py over the frames of the
+LPC "Head 02 - Masculine" head (see ../../Head/Credits.txt for its authors).

@@ -362,7 +362,8 @@ export const Hex = {
                 if (!isPassable(nq, nr)) continue;
 
                 // Use actual movement cost if provided, otherwise default to 1
-                const moveCost = getCost ? getCost(nq, nr) : 1;
+                // (the hex it is entered from too: a river boat's cost depends on the way the water runs)
+                const moveCost = getCost ? getCost(nq, nr, cq, cr) : 1;
                 const tentG = current.g + moveCost;
 
                 if (tentG < (gScore.has(nKey) ? gScore.get(nKey) : Infinity)) {

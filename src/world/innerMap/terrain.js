@@ -680,7 +680,8 @@ Object.assign(InnerMap, {
         // --- Crags in mountainous and rocky country, on ground nothing else has
         // taken; before the scatter, which grows round them (world/innerMap/cliffs.js;
         // hash-placed: draws nothing from rng) ---
-        if (this._layCliffs) this._layCliffs(tiles, worldTile, worldQ, worldR);
+        // (worlds since terrainGen 9: bigger, in tiers, with caves — the world's generationParams say)
+        if (this._layCliffs) this._layCliffs(tiles, worldTile, worldQ, worldR, game && game.world ? game.world.generationParams : null);
 
         // --- Scatter custom editor-authored objects on terrain ---
         if (typeof CustomObjects !== 'undefined' && CustomObjects.isLoaded() && CustomObjects.hasAnyBindings()) {

@@ -215,7 +215,8 @@ export const Townsfolk = {
         }
         // Every grown resident at a trade (an old save's on first sight: systems/townJobs.js)
         TownJobs.ensure(folk, settlement, world, day);
-        if (opts.target) folk.target = opts.target;
+        // (scaled by how far the town has grown or shrunk since its roster was made: systems/migration.js)
+        if (opts.target) folk.target = Math.max(1, Math.round(opts.target * (Number.isFinite(folk.mScale) ? folk.mScale : 1)));
         folk.prevVisit = folk.visit != null ? folk.visit : null;
         folk.visit = day;
         const shown = Townsfolk.residents(folk).filter(p => Townsfolk.age(p, day) >= C.onMapMinAge);

@@ -89,6 +89,8 @@ Object.assign(InnerMapRenderer, {
         this._renderTerrainDetailLayer(ctx, camera);
         // ── Layer 1: Roads ──
         this._renderRoadLayer(ctx, camera);
+        // ── Layer 1.2: The season on the ground — snow, slush, mud, leaves, thin ice (innerMapLayers/streetSeasons.js) ──
+        if (this._renderSeasonGround) this._renderSeasonGround(ctx, camera);
     },
 
     _groundCacheUsable(ctx, camera) {
@@ -112,7 +114,8 @@ Object.assign(InnerMapRenderer, {
         // Anything the whole ground hangs on: a change starts the cache afresh
         const terrainKey = this._seasonKey('terrain');
         const cliffKey = this._seasonKey('cliff');
-        const key = [zoom, k, n, terrainKey, cliffKey, (InnerMap.roads || []).length].join('|');
+        // (and the day's season on the ground: world/innerMap/streetSeasons.js)
+        const key = [zoom, k, n, terrainKey, cliffKey, (InnerMap.roads || []).length, InnerMap._ssKey || ''].join('|');
         let gc = this._groundCache;
         if (!gc || gc.key !== key || gc.tiles !== InnerMap.tiles || gc.roads !== InnerMap.roads
             || gc.fills !== this._terrainFills || gc.sheet !== this._sheets.get(terrainKey)

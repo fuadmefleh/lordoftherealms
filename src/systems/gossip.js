@@ -24,6 +24,8 @@
 import { DataLoader } from '../core/dataLoader.js';
 import { Utils } from '../core/utils.js';
 import { Hex } from '../core/hex.js';
+// (word of mouth grows more in an unlettered town: systems/literacy.js; run time only)
+import { Literacy } from './literacy.js';
 
 export const Gossip = {
 
@@ -419,7 +421,7 @@ export const Gossip = {
      * heard, or changes it. Draws from the RNG only when a rumour spreads.
      * @param {string|null} rivalName - who a deed may be credited to instead
      */
-    _retell(rumor, typeDef, fromKey, toKey, rivalName = null) {
+    _retell(rumor, typeDef, fromKey, toKey, rivalName = null, world = null) {
         const data = this._getData();
         const cfg = data && data.tellings;
         if (!cfg) return;
@@ -430,7 +432,9 @@ export const Gossip = {
             rumor.tellings[toKey] = { ...from, d: depth };
             return;
         }
-        if (Utils.random() >= (cfg.chance ?? 0.35)) return;
+        // (the town's letters: an unlettered town changes a tale more in the telling — systems/literacy.js)
+        const oral = world ? Literacy.oralDistort(world, Literacy.at(world, toKey)) : 1;
+        if (Utils.random() >= (cfg.chance ?? 0.35) * oral) return;
         const list = (cfg[this._tellingKind(typeDef)] || [])
             .filter(t => depth >= (t.minDepth || 0) && (!t.needsRival || rivalName));
         if (!list.length) return;
@@ -700,7 +704,7 @@ export const Gossip = {
             if (Utils.random() < chance + tradeBonus) {
                 rumor.spreadTo.push(sKey);
                 if (load) load.set(sKey, (load.get(sKey) || 0) + 1);
-                this._retell(rumor, typeDef, sourceKey, sKey, rivalName);
+                this._retell(rumor, typeDef, sourceKey, sKey, rivalName, world);
                 return; // One spread per call
             }
         }
@@ -864,6 +868,14 @@ export const Gossip = {
         const uw = player.underworld && player.underworld.heat;
         if (uw && uw[kingdomId] > 20) uw[kingdomId] = 20;
         if (player.underworld && player.underworld.posters) delete player.underworld.posters[kingdomId];
+        // The crown's long charge sheet (systems/wanted.js): the lesser charges are answered too;
+        // a grave one (a killing) still wants a pardon, weregild or the cells
+        const wr = player.wanted && player.wanted.realms && player.wanted.realms[String(kingdomId)];
+        if (wr) {
+            wr.lesser = 0;
+            for (const [label, c] of Object.entries(wr.charges || {})) if (!c || !c.grave) delete wr.charges[label];
+            if (!(wr.grave > 0)) delete player.wanted.realms[String(kingdomId)];
+        }
         return owed.length;
     },
 

@@ -17,6 +17,7 @@ const UNIT_GLYPHS = {
     lair_expedition: 'swords', pilgrim_group: 'chalice', smuggler: 'moon', refugee: 'sack',
     beast: 'paw', monster: 'claw', diplomatic_envoy: 'seal', courier_rider: 'horseshoe', rival_retinue: 'crown', cadet_retinue: 'crown',
     clan: 'fire', // a wandering clan's campfire of the Dawn of Man (world/dawn.js)
+    migrants: 'sack', // families moving to a new town, refugees fleeing (systems/migration.js)
 };
 
 /** Token metal by allegiance: rim/glyph colour and the enamel behind it. */
@@ -109,6 +110,9 @@ Object.assign(Renderer.prototype, {
             drawIcon(ctx, 'skull', screen.x, screen.y, glyphSize, '#e8604f', 2);
         } else if (this.player.boardedShip) {
             drawIcon(ctx, 'ship', screen.x, screen.y, glyphSize, '#ffe08a', 2);
+        } else if (this.player.riverBoat && this.player.riverBoat.aboard) {
+            // Aboard a river boat of your own (systems/riverBoats.js)
+            drawIcon(ctx, 'boat', screen.x, screen.y, glyphSize, '#bfe7ff', 2);
         } else if (!this._drawPlayerBust(ctx, screen.x, screen.y, discR)) {
             drawIcon(ctx, 'person', screen.x, screen.y, glyphSize, '#f4efe4', 2);
         }
@@ -825,6 +829,7 @@ Object.assign(Renderer.prototype, {
                 // NPC merchants (systems/merchantCaravans.js): gold, brighter when you guard them
                 if (unit.type === 'trade_caravan' || unit.type === 'trade_ship') color = unit.escort && unit.escort.by === 'player' ? '#ffe680' : '#e8c070';
                 if (unit.type === 'settler') color = '#ccff66';
+                if (unit.type === 'migrants') color = unit.migKind === 'refugees' ? '#f0c890' : '#e6dcc4';
                 if (unit.type === 'courier_rider') color = unit.own || unit.mine ? '#b8e0a0' : '#e0d0a0';
 
                 // Add to label queue with medium-low priority

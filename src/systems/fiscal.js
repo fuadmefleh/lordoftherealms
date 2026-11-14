@@ -46,6 +46,8 @@ import { MoneySupply } from '../world/moneySupply.js';
 import { Finance } from './finance.js';
 import { Ledger } from './ledger.js';
 import { Names } from '../core/names.js';
+// (a lettered town reads the tax rolls and pays what is posted: systems/literacy.js; run time only)
+import { Literacy } from './literacy.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -332,7 +334,7 @@ export const Fiscal = {
             // A royal governor over a demesne town (systems/stewards.js publishes settlement.provinceFx)
             const pf = ruled ? _obj(s.provinceFx) : null;
             const gm = pf ? _clamp(_num(pf.collect, 1), 0, 2) : 1;
-            const due = revolt ? 0 : d.due * eff * gm;
+            const due = revolt ? 0 : d.due * eff * gm * Literacy.taxFactor(world, s);
             // Recent dues a day (what a tax farmer would bid on)
             const perDay = due / days;
             const avg = _num(f.towns[t.key], perDay);

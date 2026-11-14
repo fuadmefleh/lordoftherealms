@@ -504,6 +504,8 @@ Object.assign(Relationships, {
         const love = d => { Relationships._bump(rel, 'affection', d, 0, 100); return `${d >= 0 ? '+' : ''}${d}`; };
         const done = (reply, note, tone, extra = {}) => {
             delete rel.matter;
+            // How it was answered: a friend remembers being helped, or let down (systems/bonds.js)
+            rel.lastMatter = { kind: m.kind, opt: optionId, tone, day: _day(world) };
             npc.lastInteraction = _day(world);
             return { ok: true, reply, note, tone, ...extra };
         };

@@ -44,7 +44,9 @@
         "well_poisoning":  { "heat": 20, "caughtHeat": 40, "deeds": { "cruelty": 3, "dread": 2, "cunning": 0.5 }, "karma": -10 },
         "arson":           { "heat": 15, "caughtHeat": 30, "deeds": { "cruelty": 2, "dread": 1 }, "karma": -6 },
         "false_alarm":     { "heat": 4,  "caughtHeat": 14, "deeds": { "deceit": 2, "cunning": 1, "greed": 0.5 }, "karma": -3 },
-        "gang_war":        { "heat": 4,  "caughtHeat": 12, "deeds": { "cruelty": 0.5, "dread": 0.5 }, "karma": -1 }
+        "gang_war":        { "heat": 4,  "caughtHeat": 12, "deeds": { "cruelty": 0.5, "dread": 0.5 }, "karma": -1 },
+        "curfew":          { "heat": 1,  "caughtHeat": 3,  "deeds": {}, "karma": 0 },
+        "robbery":         { "heat": 6,  "caughtHeat": 14, "deeds": { "greed": 1, "cruelty": 0.5 }, "karma": -2 }
     },
     "guardStrength": {
         "village": 1,

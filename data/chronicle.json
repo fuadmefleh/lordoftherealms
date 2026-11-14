@@ -69,6 +69,8 @@
             "tariffs": { "name": "Tariffs", "group": "levies", "desc": "Trade licences bought from a realm's customs." },
             "saleDuties": { "name": "Import duties in your sale prices", "group": "levies", "kind": "memo", "desc": "Import duties already in the prices you sold at (a memo: the buyer's town paid the crown)." },
             "roadTolls": { "name": "Road tolls", "group": "levies", "desc": "Tolls you paid on roads, bridges and ferries, and tolls your own roads took (a foreign crown keeps its share)." },
+            "fishingRights": { "name": "Fishing rights leased", "group": "levies", "desc": "Leases of the fishing on a river, lake or shore, paid to the town or crown that holds the water." },
+            "riverBoats": { "name": "River boats bought and sold", "group": "capital", "kind": "cap", "desc": "Punts and barges bought from a river town's boatwrights, or sold back to them." },
             "fines": { "name": "Fines", "group": "levies", "desc": "Fines paid to the law." },
             "bail": { "name": "Bail", "group": "levies" },
             "bribes": { "name": "Bribes (gaolers, overseers, accusers)", "group": "levies" },
@@ -118,6 +120,8 @@
             "coalitionTerms": { "name": "Terms paid to leagues", "group": "state" },
             "rivalAgents": { "name": "Rival agents: inquiries, turned informants", "group": "state" },
             "housing": { "name": "Housing", "group": "household" },
+            "servantWages": { "name": "Servants' wages", "group": "household" },
+            "larder": { "name": "Larder stores", "group": "household" },
             "medicine": { "name": "Medicine", "group": "household" },
             "companions": { "name": "Companions", "group": "household" },
             "courting": { "name": "Courting", "group": "household" },
@@ -150,6 +154,7 @@
             "lordLoanInterest": { "name": "Interest from lords' loans", "group": "finance" },
             "postage": { "name": "Postage and riders", "group": "household" },
             "mailGifts": { "name": "Gold sent in letters", "group": "household" },
+            "schools": { "name": "Schools endowed, schoolmasters, lessons and scribes", "group": "household" },
             "mailReceipts": { "name": "Gold sent to you by letter", "group": "other" },
             "hushMoney": { "name": "Hush money", "group": "other" },
             "courierHouse": { "name": "Courier house: postage takings", "group": "enterprise" },
@@ -172,7 +177,8 @@
             "funerals": {"name": "Funerals of your own", "group": "household"},
             "townLand": { "name": "Building lots & town houses bought", "group": "capital", "kind": "cap" },
             "livestock": { "name": "Livestock bought & sold", "group": "capital", "kind": "cap" },
-            "livestockFeed": { "name": "Fodder for your beasts", "group": "household" }
+            "livestockFeed": { "name": "Fodder for your beasts", "group": "household" },
+            "settlerGrants": { "name": "Grants to settlers in your towns", "group": "state" }
         }
     },
 

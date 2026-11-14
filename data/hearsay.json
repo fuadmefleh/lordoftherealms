@@ -1,0 +1,160 @@
+{
+    "_doc": "Hearsay (systems/hearsay.js): what the player says in free talk is remembered and repeated. Each talk leaves a digest on the person (who, when, where, what was claimed, boasted, promised, threatened, how they felt), read back into their character sheet next time and into the canned dialogue when the AI brain is off. Claims (a name, a home, a trade, a rank, a purse), boasts, threats and confessions become hearsay that spreads through the town (reach: the share of folk who have heard it) and on to neighbouring towns, growing in the telling (level 0..3). Telling two people different things on the same topic, when the second has heard of the first, is a contradiction: they trust you less and that spreads too. All spread rolls are hashes of the rumour, the town and the day (no RNG).",
+
+    "digests": {
+        "_doc": "perNpc: talks remembered per person; npcs: people remembered in all (the least recent forgotten); forgetDays: a talk with nothing owed in it is forgotten after this; promptTalks: past talks read into their sheet; itemLength: each claim or promise cut to this.",
+        "perNpc": 4, "npcs": 80, "forgetDays": 360, "promptTalks": 2, "itemLength": 60, "itemsPerTalk": 5
+    },
+
+    "claims": {
+        "_doc": "kept: the player's claims remembered for contradictions; perLine: claims taken from one line. topics: which claims can contradict one another.",
+        "kept": 60, "perLine": 2,
+        "topics": ["name", "origin", "trade", "rank", "wealth"]
+    },
+
+    "spread": {
+        "_doc": "townDaily: reach gained in a town each day (fading as the rumour ages); startReach: reach where it was first said; neighbourAt: reach a town needs before it carries the word on; neighbourChance: daily chance to reach one neighbour (less with distance, up to maxDist hexes); distortChance: chance a new town hears it grown one level (to maxLevel); exposeChance: chance a town that hears a false claim knows better (rankExpose for a false rank or name); maxRumours, maxTowns: caps; promptRumours: what an NPC who has heard it brings to the talk.",
+        "townDaily": 0.2, "startReach": 0.15, "neighbourAt": 0.45, "neighbourChance": 0.4, "maxDist": 4,
+        "distortChance": 0.45, "maxLevel": 3, "exposeChance": 0.25, "rankExpose": 0.55,
+        "maxRumours": 40, "maxTowns": 8, "promptRumours": 2
+    },
+
+    "trust": {
+        "_doc": "contradictionSour: regard lost (in the subject's own units) when caught out mid-talk; heardSour: disposition (0..100) a townsperson loses, once, on hearing you are a liar or a threatener; brokenPromiseLife: days a broken promise is talked of.",
+        "contradictionSour": 8, "heardSour": 4
+    },
+
+    "kinds": {
+        "claim":        { "icon": "💬", "life": 90,  "label": "A claim" },
+        "boast":        { "icon": "🦚", "life": 120, "label": "A boast" },
+        "threat":       { "icon": "🗡️", "life": 120, "label": "A threat" },
+        "confession":   { "icon": "🙊", "life": 180, "label": "A confession" },
+        "contradiction":{ "icon": "🎭", "life": 150, "label": "Caught in a lie" },
+        "broken_promise": { "icon": "💔", "life": 150, "label": "A broken promise" },
+        "betrayal":     { "icon": "🗡️", "life": 240, "label": "A friend betrayed" },
+        "friend_turned":{ "icon": "🥀", "life": 150, "label": "An old friend's bitterness" }
+    },
+
+    "_patterns": "Read from the player's own lines (lower case, whole line). Each: topic, kind, a regular expression whose first capture is the value. The kind is what spreads; a 'claim' is checked against the truth where the game knows it (name, rank, purse).",
+    "patterns": [
+        { "topic": "name",   "kind": "claim", "re": "\\b(?:my name is|my name's|i am called|i'm called|call me|they call me)\\s+([a-z][a-z'-]{1,20}(?: [a-z][a-z'-]{1,20})?)" },
+        { "topic": "origin", "kind": "claim", "re": "\\b(?:i am from|i'm from|i come from|i hail from|i was born in)\\s+(?:the )?([a-z][a-z' -]{2,28}?)(?:\\s+(?:and|but|where|so)\\b|[.,!?;]|$)" },
+        { "topic": "rank",   "kind": "claim", "re": "\\bi(?: am|'m)\\s+(?:a |an |the )?(?:true |rightful |real )?(king|queen|prince|princess|duke|duchess|count|countess|baron|baroness|lord|lady|knight|noble|nobleman|noblewoman|emperor|empress)\\b" },
+        { "topic": "trade",  "kind": "claim", "re": "\\bi(?: am|'m)\\s+(?:a|an)\\s+(?:humble |simple |travelling |traveling |wandering )?(merchant|trader|soldier|mercenary|sellsword|priest|monk|nun|farmer|smith|blacksmith|hunter|sailor|bard|minstrel|physician|healer|scholar|pilgrim|guard|carpenter|mason|fisherman|herald|tax collector|tinker|pedlar|peddler|cook|shepherd|miner|scribe|sailor)\\b" },
+        { "topic": "wealth", "kind": "claim", "value": "rich", "re": "\\b(?:i(?: am|'m)\\s+(?:very |filthy |quite |rather )?(rich|wealthy)|i have (?:plenty of|lots of|a fortune in|chests of|a great deal of) (?:gold|coin|money))\\b" },
+        { "topic": "wealth", "kind": "claim", "value": "poor", "re": "\\b(?:i(?: am|'m)\\s+(?:very |dirt |quite )?(poor|penniless|broke|skint)|i have no (?:gold|coin|money)|i haven't (?:a coin|any coin|a penny))\\b" },
+        { "topic": "deed",   "kind": "boast", "re": "\\bi(?:'ve| have| once| single-handedly| alone)?\\s+((?:killed|slew|slain|defeated|bested|conquered|tamed|outwitted|beat|fought|wrestled|hunted down|sailed) [^.!?,;]{3,40})" },
+        { "topic": "deed",   "kind": "boast", "prefix": "are ", "re": "\\bi(?: am|'m)\\s+((?:the (?:best|greatest|finest|strongest)|the best|stronger than|richer than|faster than) [^.!?,;]{2,40})" },
+        { "topic": "crime",  "kind": "confession", "re": "\\bi(?:'ve| have| once)?\\s+((?:stole|stolen|robbed|murdered|poisoned|cheated|swindled|burned|deserted|betrayed|smuggled) [^.!?,;]{2,40})" },
+        { "topic": "crime",  "kind": "confession", "re": "\\bi\\s+(?:confess|admit)\\s+(?:that |to )?(?:i\\s+)?([^.!?]{3,50})" },
+        { "topic": "promise","kind": "promise", "re": "\\bi\\s+(?:promise|swear|vow|give you my word)\\s+(?:to |that |i'll |i will |you )?(?:i'll |i will )?([^.!?]{3,60})" }
+    ],
+
+    "phrases": {
+        "_doc": "How a claim is put in the third person: {v} is the value.",
+        "name": "their name is {v}",
+        "origin": "they hail from {v}",
+        "rank": "they are a {v}",
+        "trade": "they are a {v}",
+        "wealth": "they are {v}",
+        "deed": "they {v}",
+        "crime": "they {v}",
+        "threat": "they threatened {teller}",
+        "contradiction": "they told {teller} {v}",
+        "broken_promise": "they promised {teller} {v} and never did it",
+        "betrayal": "they {v}",
+        "friend_turned": "{v}"
+    },
+    "phrasesYou": {
+        "name": "your name is {v}",
+        "origin": "you hail from {v}",
+        "rank": "you're a {v}",
+        "trade": "you're a {v}",
+        "wealth": "you're {v}",
+        "deed": "you {v}",
+        "crime": "you {v}",
+        "betrayal": "you {v}",
+        "friend_turned": "{v}"
+    },
+
+    "tellings": {
+        "_doc": "How a rumour is told where it has reached, by its level (0: as first said, 1: grown, 2: much grown, 3: garbled). {player}, {teller}, {town} (where it was first said), {what}. 'exposed' is how a town tells a false claim it knows better about.",
+        "claim": [
+            "{teller} of {town} says {player} told them {what}.",
+            "Word from {town} is that {player} goes about saying {what}.",
+            "They say {player} claims {what}, and swears to it in every tavern.",
+            "Folk have it that {player} says {what}, though nobody can agree who heard it first."
+        ],
+        "boast": [
+            "{player} told {teller} of {town} that {what}.",
+            "They say {player} brags that {what}, and not quietly.",
+            "Folk say {player} {whatBare} twice over, with one hand tied, or so the tale goes now.",
+            "The tale's run wild: {player} {whatBare}, and half the realm besides."
+        ],
+        "threat": [
+            "{player} threatened {teller}, in {town}, to their face.",
+            "Word is {player} goes about threatening honest folk in {town}.",
+            "They say {player} swore to kill a {town} man for a sideways look.",
+            "Folk whisper that {player} is a killer who leaves a trail of threats from {town} on."
+        ],
+        "confession": [
+            "{player} owned to {teller} of {town} that {what}.",
+            "They say {player} let slip in {town} that {what}.",
+            "Word is {player} boasts of it: {what}, and worse they won't say.",
+            "Folk say {player} is wanted for something done in {town}, though the tale changes with the teller."
+        ],
+        "contradiction": [
+            "{player} told folk in {town} one thing and {teller} another: {what}.",
+            "They say {player} can't keep their own story straight.",
+            "Word is {player} lies to every face they meet.",
+            "Folk say {player} has a new name and a new tale in every town."
+        ],
+        "broken_promise": [
+            "{player} gave {teller} of {town} their word, and broke it: {what}.",
+            "They say {player}'s word is worth nothing; ask {teller} of {town}.",
+            "Word is {player} promises the moon and pays in nothing.",
+            "Folk say {player} owes half of {town} something they swore to."
+        ],
+        "betrayal": [
+            "{player} {what}. {teller} of {town} trusted them.",
+            "They say {player} sells their friends; ask anyone in {town}.",
+            "Word is {player} would sell their own sworn kin for a purse of silver.",
+            "Folk say never call {player} friend: it ends with a knife or a magistrate."
+        ],
+        "friend_turned": [
+            "{teller} of {town} was {player}'s friend once. Now they say {player}: {what}.",
+            "They say {player}'s friends all end up bitter; ask {teller} of {town}.",
+            "Word is {player} drops a friend the moment they're no use.",
+            "Folk say {player} has no friends left who'll speak well of them."
+        ],
+        "exposed": [
+            "{player} has been telling folk in {town} {what}. Anyone here knows better.",
+            "They say {player} lies about who they are; it was found out in {town}.",
+            "Word is {player} is a fraud who fools the simple folk of {town}.",
+            "Folk say {player} is a known liar, from {town} to the coast."
+        ]
+    },
+
+    "lines": {
+        "_doc": "Canned lines for the town dialog (no AI brain needed) and the character sheet. {what} third person, {you} second person.",
+        "promptHeard": "WHAT FOLK SAY OF THEM (hearsay; you may raise it, believe it or doubt it):",
+        "promptTalk": "You spoke with them {ago} in {town}: {items}.",
+        "promptCaught": "You caught them out: they told you {mine}, but you've heard they told {other} {theirs}. You trust them less.",
+        "promptWary": "You have heard they lie or threaten folk; you are wary of them.",
+        "greetCaught": "You told me {mine}. Now I hear you told {other} {theirs}. Which is it?",
+        "greetPromise": "You gave me your word: {text}. I haven't forgotten.",
+        "greetBack": "Back again? Last time you told me {item}.",
+        "greet": {
+            "claim": "I hear you say {you}. Is that so?",
+            "boast": "Is it true what they say, that you {youBare}?",
+            "threat": "I know what you are. Word gets about. Keep your distance.",
+            "confession": "Folk say you {youBare}. I'd keep that quiet, if I were you.",
+            "contradiction": "They say you can't keep your story straight. I'll take what you tell me with salt.",
+            "broken_promise": "They say your word's worth nothing. Ask anyone in {town}.",
+            "exposed": "I've heard the tales you tell about yourself. Not here, friend.",
+            "betrayal": "I know what you did to your friend. Don't call me friend.",
+            "friend_turned": "Your old friend has a lot to say about you. None of it kind."
+        },
+        "newsHeard": "Talk about town? Mostly about you. {telling}"
+    }
+}

@@ -37,6 +37,8 @@ import { Hinterland } from '../world/hinterland.js';
 import { Transport } from '../world/transport.js';
 import { Fiscal } from './fiscal.js';
 import { Climate } from '../world/climate.js';
+// (who moves and why beyond the welfare, the households, columns and policy: systems/migration.js)
+import { Migration } from './migration.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -304,6 +306,8 @@ export const Labour = {
         const M = TownLabour.config().migration;
         const every = Math.max(1, Math.floor(_num(M.every, 7)));
         if (day % every === 3 % every) Labour._week(world, player, lives, links, dctx, ruled, day, out);
+        // The columns on the roads, each town's trend (systems/migration.js)
+        Migration.processDay(world, player, out);
         return out;
     },
 
@@ -315,10 +319,12 @@ export const Labour = {
         const at = new Map(lives.map(s => [_key(s.q, s.r), s]));
         const danger = new Map();
         const distress = new Map();
+        // The plague, crime, laws, prosperity, kin, the player's settlers and borders (systems/migration.js)
+        const mig = Migration.week(world, player, lives, ruled, day);
         for (const s of lives) {
             const d = Labour.danger(world, s, dctx, day);
             danger.set(s, d);
-            distress.set(s, Labour.distress(s, d));
+            distress.set(s, Math.max(Labour.distress(s, d), mig.push(s)));
             const lab = s.labour;
             lab.moved = { in: 0, out: 0 };
             lab.refugees = Math.round(_num(lab.refugees) * _num(Rf.decay, 0.85));
@@ -334,6 +340,7 @@ export const Labour = {
             const lab = s.labour;
             if (lab && Number.isFinite(lab.conq) && day - lab.conq <= _num(C.danger.conquestDays, 30)) return 'conquest';
             if (dctx.border.has(s)) return 'war';
+            if (mig.plague(s) >= 0.3) return 'plague';
             if (SettlementMarket.inDearth(s)) return 'famine';
             return 'danger';
         };
@@ -344,8 +351,8 @@ export const Labour = {
             if (!(ds >= _num(Rf.from, 0.25))) continue;
             const pop = _num(s.population);
             const n = Math.floor(pop * Math.min(_num(Rf.maxShare, 0.05), _num(Rf.rate, 0.03) * ds));
-            if (n < 1 || pop - n < minPop) continue;
-            const safe = (partners.get(s) || []).filter(t => distress.get(t) < _num(Rf.safe, 0.2));
+            if (n < 1 || pop - n < minPop || mig.sealed(s)) continue;
+            const safe = (partners.get(s) || []).filter(t => distress.get(t) < _num(Rf.safe, 0.2) && mig.admits(t, true));
             if (!safe.length) continue;
             const wts = safe.map(t => Math.sqrt(Math.max(1, _num(t.population))) * Math.max(0.05, TownLabour.welfare(t)));
             const wsum = wts.reduce((a, b) => a + b, 0);
@@ -362,6 +369,7 @@ export const Labour = {
                 lt.from = _obj(lt.from) || {};
                 lt.from[fk] = _num(lt.from[fk]) + got;
                 Labour._trimFrom(lt, _num(Rf.keep, 4));
+                mig.flow(s, t, got, 'refugees', why(s));
                 if (got > bestN) { best = t; bestN = got; }
             });
             if (!(moved > 0)) continue;
@@ -395,7 +403,7 @@ export const Labour = {
                 const got = back > 0 ? TownLabour.moveMix(s, home, back, minPop) : 0;
                 const left = _num(n) - Math.max(got, back);
                 if (left >= 3) from[fk] = left; else delete from[fk];
-                if (got > 0) { s.labour.moved.out += got; home.labour.moved.in += got; }
+                if (got > 0) { s.labour.moved.out += got; home.labour.moved.in += got; mig.flow(s, home, got, 'return', 'return'); }
             }
         }
 
@@ -410,7 +418,7 @@ export const Labour = {
             return climPull.get(t);
         };
         const pull = (t) => {
-            const clim = climate(t);
+            const clim = climate(t) + mig.pull(t);
             if (!ruled.has(_key(t.q, t.r))) return clim;
             const lab = t.labour;
             return clim + (lab && _num(lab.idle && lab.idle.land) < 0.03 ? _num(M.colonyPull) : 0);
@@ -421,11 +429,12 @@ export const Labour = {
             const la = a.labour, lb = b.labour;
             if (!la || !lb || !la.wel || !lb.wel) continue;
             const pa = pull(a), pb = pull(b);
+            const kin = mig.pair(a, b);
             for (const s of STRATA) {
-                const gap = (_num(lb.wel[s]) + pb) - (_num(la.wel[s]) + pa);
+                const gap = (_num(lb.wel[s]) + pb) - (_num(la.wel[s]) + pa) + kin;
                 if (Math.abs(gap) <= _num(M.threshold, 0.05)) continue;
                 const [from, to] = gap > 0 ? [a, b] : [b, a];
-                if (distress.get(to) >= _num(Rf.safe, 0.2)) continue;
+                if (distress.get(to) >= _num(Rf.safe, 0.2) || mig.sealed(from) || !mig.admits(to, false)) continue;
                 const popF = _num(from.population);
                 if (popF <= minPop) continue;
                 const left = budget.has(from) ? budget.get(from) : Math.floor(popF * _num(M.maxShare, 0.01));
@@ -439,6 +448,7 @@ export const Labour = {
                 budget.set(from, left - got);
                 from.labour.moved.out += got;
                 to.labour.moved.in += got;
+                mig.flow(from, to, got, 'migrants', mig.reason(from, to, s));
             }
         }
 
@@ -472,6 +482,8 @@ export const Labour = {
                 if (h) out.news.push(h);
             }
         }
+        // The households who went, the columns on the roads, the grants, the news (systems/migration.js)
+        Migration.endWeek(world, player, mig, out);
     },
 
     /** Keep the `keep` largest homelands a town's refugees remember. */

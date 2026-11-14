@@ -1,6 +1,7 @@
 // Tavern — actions members (split from the original monolith).
 import { Tavern } from './_ref.js';
 import { Traits } from '../../systems/traits.js';
+import { Bonds } from '../../systems/bonds.js';
 import { Underworld } from '../../systems/underworld.js';
 import { Discovery } from '../../systems/discovery.js';
 import { Chatter } from '../../systems/chatter.js';
@@ -449,6 +450,7 @@ Object.assign(Tavern, {
     _buyDrinks(player, tile, world) {
         player.gold -= Tavern.DRINK_COST;
         Traits.recordDeeds(player, { drinking: 1.5, generosity: 0.5 }); // a round for the house
+        Bonds.onTavernRound(player, world); // friends in town drink it with you (systems/bonds.js)
         const rumors = [];
         const numRumors = Utils.randInt(1, 3);
         // When something is happening in the region, the drinkers talk of it most

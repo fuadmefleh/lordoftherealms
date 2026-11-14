@@ -35,6 +35,7 @@ import { DataLoader } from '../core/dataLoader.js';
 import { Utils } from '../core/utils.js';
 import { Difficulty } from '../core/difficulty.js';
 import { Townsfolk } from '../systems/townsfolk.js';
+import { Plague } from '../systems/plague.js';
 import { TownMemory } from '../systems/townMemory.js';
 import { TownCrimes } from '../systems/townCrimes.js';
 import { TownEras } from '../world/townEras.js';
@@ -88,6 +89,7 @@ import { LandMarket } from '../systems/landMarket.js';
 import { PuttingOut } from '../systems/puttingOut.js';
 import { TradePolicy } from '../systems/tradePolicy.js';
 import { PublicWorks } from '../systems/publicWorks.js';
+import { Literacy } from '../systems/literacy.js';
 import { MarketDynamics } from '../systems/marketDynamics.js';
 import { Labour } from '../systems/labour.js';
 import { MerchantPrince } from '../systems/merchantPrince.js';
@@ -153,6 +155,7 @@ const WORLD_DAY = [
     (w) => Townsfolk.processDay(w, null),
     (w) => NpcMemory.processDay(w, null),
     (w) => Illness.processDay(w, null),
+    (w) => Plague.processDay(w, null),
     (w) => Lots.processDay(w, null),
     (w) => Graveyards.processDay(w, null),
     (w) => NpcTheft.processDay(w, null),
@@ -190,6 +193,7 @@ const WORLD_DAY = [
     (w) => PuttingOut.processDay(w, null),
     (w) => TradePolicy.processDay(w, null),
     (w) => PublicWorks.processDay(w, null),
+    (w) => Literacy.processDay(w, null), // the towns' letters reckoned (systems/literacy.js)
     (w) => MarketDynamics.updatePrices(w, null),
     (w) => Labour.processDay(w, null),
     (w) => MerchantPrince.processDay(null, w), // waits (player-held)

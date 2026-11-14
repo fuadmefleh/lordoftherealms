@@ -1,0 +1,493 @@
+{
+    "_note": "The player's own house, lived in (player/household.js, world/innerMap/household.js, ui/actionMenu/household.js). Rooms are corners of a home the player marks while standing in it; each room's furniture (by type, valued by data/furniture.json price) sets its quality 0..1, and quality drives its effect. Servants are hired from the town's own people, paid daily from the purse into their own pockets (and spent in the home town's market). The larder holds food goods (player/core/needs.js MEAL_HUNGER values) eaten by every mouth in the house.",
+    "roomRadius": 3,
+    "maxRooms": 8,
+    "rooms": {
+        "hall": {
+            "name": "Hall",
+            "icon": "🏰",
+            "furniture": {
+                "table": 1,
+                "pew": 0.6,
+                "throne": 1.6,
+                "fireplace": 0.8,
+                "rug": 0.5,
+                "candle": 0.4,
+                "banner": 0.6,
+                "statue": 0.8,
+                "rack": 0.6
+            },
+            "needs": [
+                "table"
+            ],
+            "full": 260,
+            "desc": "Where guests sit and the House's heirlooms and trophies are shown. Seats guests; the display pieces here (racks, statues, banners) each hold one thing on show."
+        },
+        "bedchamber": {
+            "name": "Bedchamber",
+            "icon": "🛏️",
+            "furniture": {
+                "bed": 1.4,
+                "chest": 0.4,
+                "rug": 0.5,
+                "candle": 0.3,
+                "bucket": 0.3,
+                "tub": 0.6
+            },
+            "needs": [
+                "bed"
+            ],
+            "full": 300,
+            "desc": "Sleep here restores more, by its bed and comforts."
+        },
+        "kitchen": {
+            "name": "Kitchen",
+            "icon": "🍲",
+            "furniture": {
+                "fireplace": 1,
+                "oven": 1.4,
+                "cauldron": 1,
+                "table": 0.5,
+                "barrel": 0.4,
+                "crate": 0.3
+            },
+            "needs": [
+                "fireplace",
+                "oven",
+                "cauldron"
+            ],
+            "full": 160,
+            "desc": "Where the cook makes the household's meals: a better kitchen feeds better and stretches the larder."
+        },
+        "larder": {
+            "name": "Larder",
+            "icon": "🧺",
+            "furniture": {
+                "chest": 0.8,
+                "crate": 0.8,
+                "barrel": 1,
+                "shelf": 1
+            },
+            "needs": [
+                "chest",
+                "crate",
+                "barrel",
+                "shelf"
+            ],
+            "full": 80,
+            "desc": "A cool room of crates and barrels: it holds more food, and food keeps longer in it."
+        },
+        "study": {
+            "name": "Study",
+            "icon": "📖",
+            "furniture": {
+                "desk": 1.4,
+                "bookshelf": 1.2,
+                "lectern": 1,
+                "candle": 0.4,
+                "table": 0.3
+            },
+            "needs": [
+                "desk",
+                "bookshelf",
+                "lectern"
+            ],
+            "full": 180,
+            "desc": "An hour at your books each day you are home: Intelligence and Diplomacy grow."
+        },
+        "chapel": {
+            "name": "Chapel",
+            "icon": "🕯️",
+            "furniture": {
+                "altar": 1.6,
+                "statue": 1,
+                "pew": 0.6,
+                "candle": 0.6
+            },
+            "needs": [
+                "altar",
+                "statue"
+            ],
+            "full": 240,
+            "desc": "Prayers at home: faith and a little standing with your god each day you are home."
+        },
+        "nursery": {
+            "name": "Nursery",
+            "icon": "🧸",
+            "furniture": {
+                "bed": 1,
+                "chest": 0.5,
+                "rug": 0.6,
+                "candle": 0.3
+            },
+            "needs": [
+                "bed"
+            ],
+            "full": 140,
+            "desc": "Small children of the House grow up healthier and better taught here, the more with a nurse."
+        }
+    },
+    "effects": {
+        "sleepBonus": 0.4,
+        "homeRestEnergy": 8,
+        "kitchenHunger": 12,
+        "kitchenComfort": 6,
+        "kitchenStretch": 0.25,
+        "studyXp": 0.6,
+        "chapelFaith": 0.01,
+        "chapelStanding": 0.3,
+        "nurseryHealth": 1,
+        "nurseryXp": 0.012,
+        "chapelFaithCap": 3
+    },
+    "servants": {
+        "cook": {
+            "name": "Cook",
+            "icon": "👩‍🍳",
+            "wage": 3,
+            "needs": "kitchen",
+            "desc": "Cooks at the kitchen hearth: a hot supper from the larder every night you are home, and the larder goes further.",
+            "furniture": [
+                "fireplace",
+                "oven",
+                "cauldron",
+                "table",
+                "barrel"
+            ],
+            "acts": {
+                "fireplace": [
+                    "🍲",
+                    "cooking"
+                ],
+                "oven": [
+                    "🍞",
+                    "baking"
+                ],
+                "cauldron": [
+                    "🥣",
+                    "stirring the pot"
+                ],
+                "table": [
+                    "🔪",
+                    "chopping"
+                ],
+                "barrel": [
+                    "🧂",
+                    "fetching"
+                ]
+            }
+        },
+        "maid": {
+            "name": "Maid",
+            "icon": "🧹",
+            "wage": 2,
+            "needs": null,
+            "desc": "Sweeps, scrubs and makes the beds: the house stays clean (comfort at home; guests notice a dirty house).",
+            "furniture": [
+                "bed",
+                "chest",
+                "table",
+                "bucket",
+                "rug",
+                "fireplace",
+                "tub"
+            ],
+            "acts": {
+                "bed": [
+                    "🧺",
+                    "making the bed"
+                ],
+                "chest": [
+                    "🧹",
+                    "dusting"
+                ],
+                "table": [
+                    "🧽",
+                    "scrubbing"
+                ],
+                "bucket": [
+                    "💧",
+                    "washing"
+                ],
+                "rug": [
+                    "🧹",
+                    "beating the rug"
+                ],
+                "fireplace": [
+                    "🪵",
+                    "laying the fire"
+                ],
+                "tub": [
+                    "🧽",
+                    "scrubbing the tub"
+                ]
+            }
+        },
+        "steward": {
+            "name": "House Steward",
+            "icon": "🗝️",
+            "wage": 5,
+            "needs": null,
+            "desc": "Keeps the accounts at the desk and stocks the larder from the market when it runs low, within the allowance you set.",
+            "furniture": [
+                "desk",
+                "table",
+                "lectern",
+                "chest"
+            ],
+            "acts": {
+                "desk": [
+                    "✒️",
+                    "keeping the accounts"
+                ],
+                "table": [
+                    "📜",
+                    "going over the bills"
+                ],
+                "lectern": [
+                    "📖",
+                    "checking the ledger"
+                ],
+                "chest": [
+                    "🗝️",
+                    "counting the stores"
+                ]
+            }
+        },
+        "nurse": {
+            "name": "Nurse",
+            "icon": "🍼",
+            "wage": 2,
+            "needs": "nursery",
+            "desc": "Minds the little ones in the nursery.",
+            "furniture": [
+                "bed",
+                "rug",
+                "chest",
+                "fireplace"
+            ],
+            "acts": {
+                "bed": [
+                    "🎶",
+                    "singing a lullaby"
+                ],
+                "rug": [
+                    "🧸",
+                    "playing"
+                ],
+                "chest": [
+                    "🧺",
+                    "folding linen"
+                ],
+                "fireplace": [
+                    "🔥",
+                    "warming the milk"
+                ]
+            }
+        }
+    },
+    "hire": {
+        "minAge": 16,
+        "maxAge": 58,
+        "candidates": 4,
+        "skillRange": [
+            1,
+            5
+        ],
+        "wagePerSkill": 0.25
+    },
+    "mood": {
+        "start": 70,
+        "paid": 0.6,
+        "unpaid": -12,
+        "fed": 0.3,
+        "hungry": -8,
+        "overworked": -1.2,
+        "goodRoom": 0.4,
+        "raise": 15,
+        "praise": 6,
+        "praiseEvery": 10,
+        "quitBelow": 20,
+        "quitDays": 3,
+        "warnBelow": 35,
+        "max": 100
+    },
+    "cleanliness": {
+        "decayPerRoom": 1.2,
+        "decayBase": 2,
+        "maidRestores": 9,
+        "dirtyBelow": 40,
+        "comfortPerHour": 0.15
+    },
+    "larder": {
+        "baseCapacity": 30,
+        "perLarderQuality": 90,
+        "ration": 35,
+        "spoilPerDay": 0.02,
+        "larderSpoilCut": 0.75,
+        "stewardTarget": 20,
+        "stewardAllowance": 40,
+        "bareStrikes": 2
+    },
+    "guests": {
+        "chancePerDay": 0.12,
+        "maxAtOnce": 3,
+        "stay": [
+            1,
+            3
+        ],
+        "needHall": true,
+        "kinds": {
+            "kin": {
+                "icon": "👪",
+                "label": "kin",
+                "weight": 3
+            },
+            "courtier": {
+                "icon": "🎭",
+                "label": "a courtier",
+                "weight": 2
+            },
+            "envoy": {
+                "icon": "📜",
+                "label": "an envoy of a rival House",
+                "weight": 1
+            }
+        },
+        "welcomePrestige": 1,
+        "remarkPrestige": 2,
+        "remarkRenown": 1,
+        "remarkCapPerYear": 24,
+        "envoyFeudCut": 2,
+        "kinOpinion": 3,
+        "badStayPrestige": -2,
+        "badStayOpinion": -4
+    },
+    "displayTypes": [
+        "rack",
+        "statue",
+        "banner"
+    ],
+    "trophies": [
+        {
+            "id": "captured_banner",
+            "name": "A Captured Banner",
+            "icon": "🚩",
+            "from": "house.stats.battleWon",
+            "min": 1,
+            "prestige": 1,
+            "remark": "the enemy's banner hanging torn above the hearth"
+        },
+        {
+            "id": "war_trophies",
+            "name": "Arms of the Fallen Foe",
+            "icon": "⚔️",
+            "from": "house.stats.battleWon",
+            "min": 10,
+            "prestige": 2,
+            "remark": "the broken arms of the House's beaten foes"
+        },
+        {
+            "id": "stag_antlers",
+            "name": "Antlers of a Great Stag",
+            "icon": "🦌",
+            "from": "huntingTrips",
+            "min": 8,
+            "prestige": 1,
+            "remark": "the great stag's antlers on the wall"
+        },
+        {
+            "id": "bear_skull",
+            "name": "A Bear's Skull",
+            "icon": "🐻",
+            "from": "huntingTrips",
+            "min": 30,
+            "prestige": 1,
+            "remark": "the skull of a bear taken in the hunt"
+        },
+        {
+            "id": "tourney_prize",
+            "name": "A Tourney Prize",
+            "icon": "🏆",
+            "from": "lastTournamentDay",
+            "min": 1,
+            "prestige": 1,
+            "remark": "the tourney prize on its stand"
+        },
+        {
+            "id": "crown_hall",
+            "name": "The Coronation Cup",
+            "icon": "🏺",
+            "from": "house.stats.crowned",
+            "min": 1,
+            "prestige": 2,
+            "remark": "the cup drunk from at the crowning"
+        },
+        {
+            "id": "great_works",
+            "name": "A Builder's Model",
+            "icon": "🏛️",
+            "from": "house.stats.greatWork",
+            "min": 1,
+            "prestige": 1,
+            "remark": "the carved model of the House's great work"
+        }
+    ],
+    "remarks": [
+        "{guest} stops before {thing} and asks to hear its story.",
+        "{guest} cannot take their eyes off {thing}.",
+        "Over supper, {guest} talks of nothing but {thing}.",
+        "{guest} says they will tell everyone of {thing}."
+    ],
+    "bareLines": [
+        "There was nothing in the larder for your guests: {guest} left early and hungry.",
+        "{guest} was served thin gruel from a bare larder, and will remember it."
+    ],
+    "names": {
+        "male": [
+            "Alard",
+            "Bennet",
+            "Colin",
+            "Diggory",
+            "Elric",
+            "Fulk",
+            "Gilbert",
+            "Hamo",
+            "Jory",
+            "Osric",
+            "Piers",
+            "Roger",
+            "Wat"
+        ],
+        "female": [
+            "Agnes",
+            "Beatrix",
+            "Cecily",
+            "Dulcie",
+            "Emma",
+            "Isolde",
+            "Joan",
+            "Mabel",
+            "Maud",
+            "Nell",
+            "Rose",
+            "Sybil",
+            "Tibby"
+        ],
+        "last": [
+            "Ash",
+            "Brook",
+            "Cole",
+            "Dale",
+            "Fletcher",
+            "Green",
+            "Hale",
+            "Marsh",
+            "Mill",
+            "Reed",
+            "Stone",
+            "Thatcher",
+            "Wood"
+        ]
+    }
+}

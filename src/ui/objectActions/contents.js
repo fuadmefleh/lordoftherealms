@@ -13,6 +13,7 @@ import { _btn, _removeModal, _showStoreModal } from './logic.js';
 import { goodInfoIcon } from '../goodInfo.js';
 import { ParentsGuard } from '../parentsGuard.js';
 import { PeopleCrimes } from '../../systems/peopleCrimes.js';
+import { NightSight } from '../../systems/nightSight.js';
 
 const MODAL_ID = 'objActionModal';
 
@@ -40,7 +41,8 @@ export function theftScene(game, ctx) {
     // indoors, everyone in the room does (as for street violence, systems/streetCrime.js)
     const hidden = ctx.building ? new Set(['gone']) : new Set(StreetCrime.config().sight.hiddenStates || []);
     // (Stealth: onlookers see a thief from less far off — systems/socialSkills.js)
-    const range = Math.max(1, T.witnessRange - SocialSkills.perk(game.player, 'stealth', 'sight'));
+    // (and out on the dark street, the night hides you unless you carry a light: systems/nightSight.js)
+    const range = Math.max(1, T.witnessRange - SocialSkills.perk(game.player, 'stealth', 'sight') - (ctx.building ? 0 : NightSight.cut()));
     const near = (InnerMap.npcs || []).filter(n => n && !hidden.has(n.state) && n.state !== 'unconscious' && !n.departed
         && Math.abs(n.q - pq) + Math.abs(n.r - pr) <= range);
     const guards = near.filter(n => /guard|soldier|watch/i.test(String(n.type || ''))).length;

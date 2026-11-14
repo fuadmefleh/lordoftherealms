@@ -6,6 +6,7 @@ import { DevotionPanel } from './devotion.js';
 import { PlayerActions, SettlementServices, SERVICE_CONFIG, Relationships } from './_imports.js';
 import { Ailments } from '../../systems/ailments.js';
 import { TradeSkills } from '../../systems/tradeSkills.js';
+import { Wanted } from '../../systems/wanted.js';
 import { lede, chips, purse, sectionHead, card, actRow, rowList, price } from './uiKit.js';
 import { Names } from '../../core/names.js';
 
@@ -261,6 +262,9 @@ Object.assign(ActionMenu, {
                 .map(([crime, n]) => `${crime.replace(/([A-Z])/g, ' $1').replace(/^./, c => c.toUpperCase())} ×${n}`);
             if (bounty) lines.push(`Bounty on your head: ${bounty}g`);
             if (warrant) lines.push(`Royal warrant for your arrest (+${SERVICE_CONFIG.fines.warrantFee}g)`);
+            // A killing on the crown's long sheet is not fined away (systems/wanted.js)
+            const graveGold = Wanted.bounty(player, settlement && settlement.kingdom) - Wanted.lesserBounty(player, settlement && settlement.kingdom);
+            if (graveGold > 0) lines.push(`Grave charges (${graveGold}g) no fine settles: a pardon, weregild or the cells (Family → Crimes & Enemies)`);
             html += lede(`The captain taps the ledger. "${warrant ? "There's a warrant out for you. Pay up, or hang." : "You've a record, friend."}"`);
             html += chips([purse(player.gold), { icon: '⚖️', label: 'Owed', value: `<span style="color: #e0846a;">${fine}g</span>` }]);
             html += card(`<div style="font-size: 12px; color: #e0846a;">${lines.join(', ')}</div>`, { icon: '🗂️', title: 'Your record', tone: 'bad' });

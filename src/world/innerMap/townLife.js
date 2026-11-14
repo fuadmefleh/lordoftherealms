@@ -388,6 +388,8 @@ Object.assign(InnerMap, {
         npc._chatWith = null;
         // Down tools at a scene: the stall, the anvil, the pew (world/innerMap/townScenes.js)
         if (this._sceneClear) this._sceneClear(npc);
+        // Down from the fair, the bonfire, the shovel (world/innerMap/streetSeasons.js)
+        if (this._seasonClear) this._seasonClear(npc);
         if (npc._field) this._leaveField(npc);
         if (npc._forage && this._leaveForage) this._leaveForage(npc);
         if (npc._chop && this._stopChopping) this._stopChopping(npc);
@@ -407,13 +409,18 @@ Object.assign(InnerMap, {
         if (npc._doorPost) return this._goStand(npc, npc._doorPost, 'post', npc._doorPost.face);
         if (npc.type === 'guard') {
             if (!this._guardOnDuty(npc, period)) return this._goHome(npc, 'sleep');
-            if (npc._post && rnd() < 0.55) return this._goStand(npc, npc._post, 'post', npc._post.face);
+            // (under a curfew the watch walks its beat more than it stands at posts: world/innerMap/nightWatch.js)
+            if (npc._post && rnd() < (this._curfewPostShare ? this._curfewPostShare(0.55) : 0.55)) return this._goStand(npc, npc._post, 'post', npc._post.face);
             return this._goPatrol(npc);
         }
+        // The curfew bell has rung: home, all of you (world/innerMap/nightWatch.js)
+        if (this._curfewSendsHome && this._curfewSendsHome(npc)) return this._goHome(npc, 'sleep');
         // School, children at play and chores, the old in the sun (world/innerMap/townKin.js)
         if (this._kinPick && this._kinPick(npc, period)) return true;
         // Sweethearts walking out, flowers from the market, a broken heart at the well (world/innerMap/townCourting.js)
         if (this._courtPick && this._courtPick(npc, period)) return true;
+        // The harvest fair, the midwinter fire, snow to shovel or play in, the spring sowing (world/innerMap/streetSeasons.js)
+        if (this._seasonPick && this._seasonPick(npc, period)) return true;
         // The stall, the service, the crier's round, a drunk's way home (world/innerMap/townScenes.js)
         if (this._scenePick && this._scenePick(npc, period)) return true;
         // A producer's sack to market of a morning, a hawker's or a pedlar's round, a neighbour to swap with (world/innerMap/townTrading.js)
@@ -703,6 +710,8 @@ Object.assign(InnerMap, {
         if (this._tradeArrived) this._tradeArrived(npc, act);
         // At their trade, a bite at midday, a doorway to sleep in (world/innerMap/townWork.js)
         if (this._jobArrived) this._jobArrived(npc, act);
+        // At the fair, the fire, the shovel; sowing in spring (world/innerMap/streetSeasons.js)
+        if (this._seasonArrived) this._seasonArrived(npc, act);
         npc._activity = null;
         npc._face = null;
     },
@@ -740,6 +749,8 @@ Object.assign(InnerMap, {
     /** The day watch sleeps at night; the night watch sleeps the morning away. */
     _guardOnDuty(npc, period = this.townPeriod()) {
         if (npc._nightWatch) return period !== 'morning';
+        // (a curfew turns more of the day watch out for the night: world/innerMap/nightWatch.js)
+        if (this._curfewWatch && this._curfewWatch(npc, period)) return true;
         return period !== 'night';
     },
 
@@ -752,9 +763,12 @@ Object.assign(InnerMap, {
         // (abed by their trade's hours: the baker before dawn, the innkeeper late — world/innerMap/townWork.js)
         const js = this._jobSleeps && !npc.departing ? this._jobSleeps(npc) : null;
         if (js != null) return js && npc._home && npc._insideBuildingQ === npc._home.q && npc._insideBuildingR === npc._home.r ? _span(this.townLifeConfig().stay.sleep, Utils.random) : 0;
+        // (the curfew keeps folk in from the bell: world/innerMap/nightWatch.js)
+        const cs = this._curfewStay ? this._curfewStay(npc) : 0;
+        if (cs) return cs;
         const night = this.townPeriod() === 'night';
         if (!night || npc.departing) return 0;
-        if (npc.type === 'guard' && npc._nightWatch) return 0;
+        if (npc.type === 'guard' && (npc._nightWatch || (this._curfewWatch && this._curfewWatch(npc, 'night')))) return 0;
         const home = npc._home;
         const atHome = home && npc._insideBuildingQ === home.q && npc._insideBuildingR === home.r;
         const lodging = npc.type === 'traveler' && (this.townLifeConfig().lodgings || []).includes(npc.currentBuilding);

@@ -12,5 +12,6 @@
     "edgeFade": 0.08,
     "coast": 0.6,
     "sail": { "with": 0.35, "against": 0.35, "driftPerDay": 0.55 },
-    "swim": { "sea": 0.45, "river": 1.05, "bankShare": 0.4, "skillResist": 0.5 }
+    "swim": { "sea": 0.45, "river": 1.05, "bankShare": 0.4, "skillResist": 0.5 },
+    "display": { "_doc": "The world map's current streaks (ui/renderer/currents.js): drawn on charted sea hexes from minZoom up, `streaks` a hex at full strength, `length` in hex radii, drifting `speed` of a hex a second, colour as r,g,b at `alpha`; `modes` multiplies the alpha in a map mode (and draws arrowheads there when arrowsInModes).", "enabled": true, "minZoom": 0.3, "color": "220,236,255", "alpha": 0.28, "streaks": 3, "length": 0.55, "speed": 0.22, "modes": { "trade": 2.2 }, "arrowsInModes": true }
 }

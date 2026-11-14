@@ -50,6 +50,8 @@ import { drawGlyph } from './icons.js';
 import { InnerMapReactions } from './innerMapReactions.js';
 import { InnerMapThieves } from './innerMapThieves.js';
 import { InnerMapWatchStop } from './watchStop.js';
+// (the town after dark: curfew, smugglers, the night market — ui/innerMapNight.js)
+import { InnerMapNight } from './innerMapNight.js';
 import { InnerMapScavengers } from './innerMapScavengers.js';
 import { drawMapText, labelZoom, textPx } from './mapInk.js';
 import { ParentsGuard } from './parentsGuard.js';
@@ -350,6 +352,8 @@ export const InnerMapCombat = {
         InnerMapThieves.update(deltaTime, game);
         // ── A guard stops the player to question them when the town's suspicion adds up (ui/watchStop.js) ──
         InnerMapWatchStop.update(deltaTime, game);
+        // ── After dark: the curfew watch, smugglers' landings, the night market (ui/innerMapNight.js) ──
+        InnerMapNight.update(deltaTime, game);
 
         // ── Object combat: float numbers are spawned by onObjectHit ──
     },
@@ -1680,6 +1684,8 @@ export const InnerMapCombat = {
         }
 
         // ── Witnesses' barks over their heads ──
+        // (the watch's lanterns, the smugglers' crates, the night market: ui/innerMapNight.js)
+        InnerMapNight.render(ctx, camera);
         InnerMapThieves.render(ctx, camera);
         InnerMapReactions.render(ctx, camera);
     },

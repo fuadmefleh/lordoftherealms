@@ -36,7 +36,9 @@
         "plague": 2.5,
         "quarantine": 0.15,
         "size": { "village": 0.6, "town": 1, "city": 1.4, "capital": 1.7 },
-        "abstractDays": 20
+        "abstractDays": 20,
+        "_routes": "Along the towns' trade links (market.links) a sickness travels the more: linked x this, x road where the link runs on a road, x sea on a sea lane; between towns with no link, unlinked (systems/illness.js _route). Towns that keep no links travel as before.",
+        "routes": { "linked": 1.4, "road": 1.25, "sea": 1.4, "unlinked": 0.35 }
     },
     "quarantineTrade": {
         "_doc": "Quarantine cuts trade too (systems/marketDynamics.js): a market link to or from a town shut by quarantine (the Pestilence law in its realm and sickness in it: Illness.townSickness closed) moves only `imports` of its goods, and only `caravans` of its embodied traders take the road (a hash of the link and the day).",

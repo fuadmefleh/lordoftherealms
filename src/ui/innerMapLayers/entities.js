@@ -7,6 +7,7 @@ import { CustomInteriors } from '../../world/customInteriors.js';
 import { InnerMapCharacters } from '../innerMapCharacters.js';
 import { InnerMapCombat } from '../innerMapCombat.js';
 import { InnerMapDigging } from '../innerMapDigging.js';
+import { InnerMapMining } from '../innerMapMining.js';
 import { InnerMapGraves } from '../innerMapGraves.js';
 import { InnerMapDiving } from '../innerMapDiving.js';
 import { InnerMapFarming } from '../innerMapFarming.js';
@@ -21,6 +22,7 @@ import { InnerMapBattle } from '../innerMapBattle.js';
 import { InnerMapEscort } from '../innerMapEscort.js';
 import { InnerMapCompanions } from '../innerMapCompanions.js';
 import { InnerMapSickness } from '../innerMapSickness.js';
+import { InnerMapPlague } from '../innerMapPlague.js';
 import { InnerMapRites } from '../innerMapRites.js';
 import { glyphFor } from '../icons.js';
 import { drawItemSprite, drawItemAfloat } from '../itemSprites.js';
@@ -955,6 +957,8 @@ Object.assign(InnerMapRenderer, {
 
         // ── Phase 2a: Dug ground (holes, turned earth, graves): flat, under every sprite ──
         InnerMapDigging.renderGround(ctx, camera, this._frameRange, T);
+        // ── Drifts and shafts dug into the rock and the ground; underground, the work's ring and the bats (ui/innerMapMining.js) ──
+        InnerMapMining.renderGround(ctx, camera, this._frameRange, T, this);
         // ── Graves: a fresh grave's mound, a cleared grave's open pit (ui/innerMapGraves.js) ──
         InnerMapGraves.renderGround(ctx, camera, this._frameRange, T);
         // ── Blood on the ground: where the dead fell, drops where a body was carried (ui/innerMapCombat.js) ──
@@ -1282,6 +1286,8 @@ Object.assign(InnerMapRenderer, {
         InnerMapAnimals.collect(items, ctx, camera, T);
         // ── The plague crosses on the doors (ui/innerMapSickness.js) ──
         InnerMapSickness.collect(items, ctx, camera, T);
+        // ── The plague's boards, covered stalls, the open grave, barriers at a shut gate (ui/innerMapPlague.js) ──
+        InnerMapPlague.collect(items, ctx, camera, T);
         // ── A bier on its bearers' shoulders (ui/innerMapRites.js) ──
         InnerMapRites.collect(items, ctx, camera, T);
         // ── Phase 3c: The player's crops (ui/innerMapFarming.js) ──

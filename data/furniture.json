@@ -37,6 +37,7 @@
         { "id": "woven_carpet", "name": "Woven Carpet", "type": "rug", "icon": "♦️", "price": 50, "footprint": [2, 1], "minSettlement": "city", "comfort": 0.2, "passable": true, "desc": "Bright wool from the south." },
         { "id": "candelabra", "name": "Candelabra", "type": "candle", "icon": "🕯️", "price": 20, "footprint": [1, 1], "minSettlement": "town", "comfort": 0.08, "passable": true, "desc": "Light in the dark evenings." },
         { "id": "house_banner", "name": "House Banner", "type": "banner", "icon": "🚩", "price": 25, "footprint": [1, 1], "minSettlement": "town", "comfort": 0.05, "passable": true, "desc": "Your colours on the wall." },
-        { "id": "statue", "name": "Statue", "type": "statue", "icon": "🗿", "price": 150, "footprint": [1, 1], "minSettlement": "city", "comfort": 0.15, "desc": "Marble on a plinth: a saint, an ancestor, a god." }
+        { "id": "statue", "name": "Statue", "type": "statue", "icon": "🗿", "price": 150, "footprint": [1, 1], "minSettlement": "city", "comfort": 0.15, "desc": "Marble on a plinth: a saint, an ancestor, a god." },
+        { "id": "trophy_stand", "name": "Trophy Stand", "type": "rack", "icon": "🏆", "price": 40, "footprint": [1, 1], "minSettlement": "village", "comfort": 0.05, "desc": "An oak stand for a sword, an heirloom or a trophy: set in your hall, it shows one thing to your guests." }
     ]
 }

@@ -559,10 +559,13 @@ export function _leaveBuilding() {
         return false;
     }
     const wasJail = InnerMap.inJail && InnerMap.inJail();
+    // (up out of a cave, a drift or a shaft: world/innerMap/mines.js)
+    const wasUnder = !!(InnerMap._insideBuilding && InnerMap._insideBuilding._underground);
     if (!InnerMap.exitBuilding(this)) return false;
     this._configureInnerMapCamera('outer');
     this._updateBuildingExitButton();
-    this.ui.showNotification(wasJail ? '🚪 Free' : '🚪 Exited Building', wasJail ? 'You step out of the jail into the street, blinking at the light.' : 'You step back outside.', 'info');
+    if (wasUnder) this.ui.showNotification('☀️ Out', 'Back out into the open air.', 'info');
+    else this.ui.showNotification(wasJail ? '🚪 Free' : '🚪 Exited Building', wasJail ? 'You step out of the jail into the street, blinking at the light.' : 'You step back outside.', 'info');
     return true;
 }
 

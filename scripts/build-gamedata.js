@@ -33,6 +33,7 @@ const topLevel = [
     'merchantCaravans',
     'merchantPrince',
     'labour',
+    'migration',
     'guilds',
     'priceKnowledge',
     'hinterland',
@@ -48,6 +49,7 @@ const topLevel = [
     'npcTasks',
     'npcKnowledge',
     'townLife',
+    'streetSeasons',
     'townScenes',
     'knockout',
     'jail',
@@ -108,6 +110,8 @@ const topLevel = [
     'practiceSkills',
     'wrecks',
     'furniture',
+    // The player's own house, lived in: rooms, servants, guests, larder (player/household.js)
+    'household',
     'crops',
     'craftGrades',
     'livestock',
@@ -117,6 +121,10 @@ const topLevel = [
     // What the spare hours of each day go on (player/standingOrders.js)
     'standingOrders',
     'riverDrift',
+    // Caves and mines: the rock cut by hand, its geology, the bigger crags of terrainGen 9 (world/innerMap/mines.js)
+    'mining',
+    // River boats, fishing rights, salting and spring floods (systems/riverBoats.js, systems/riverLife.js)
+    'riverLife',
     // Pixel sprites for goods lying on the inner map, dropped or afloat (ui/itemSprites.js)
     'itemSprites',
     // The set of the sea (world/oceanCurrents.js)
@@ -128,8 +136,12 @@ const topLevel = [
     'townJobs',
     'townWorship',
     'illness',
+    // Plague in the streets: severity, shut gates, nursing, burning, remedies, looting (systems/plague.js)
+    'plague',
     'townFamily',
     'townSchool',
+    // Who can read, town by town, and what letters change (systems/literacy.js)
+    'literacy',
     'townTrade',
     'carts',
     // Stewards, bailiffs and governors (systems/stewards.js)
@@ -152,6 +164,8 @@ const topLevel = [
     // Questioned by the watch when a town's suspicion adds up (systems/watchQuestioning.js)
     'watchQuestioning',
     'nemesis',
+    // Friends & Bonds: sworn kin, drinking companions, mentors, protégés (systems/bonds.js)
+    'bonds',
     // Personal quests from the House's own history (systems/houseQuests.js)
     'houseQuests',
     // The Timeline of the Realm (systems/realmTimeline.js)
@@ -162,10 +176,16 @@ const topLevel = [
     'letterChat',
     // Townsfolk talking about the player within earshot (systems/overheard.js)
     'overheard',
+    // What townsfolk remember you told them, and the hearsay that travels town to town (systems/hearsay.js)
+    'hearsay',
     // Profane crimes: crypts desecrated, relics stolen/sold/faked, witch accusations (systems/profaneCrimes.js)
     'profaneCrimes',
     // Crimes against people: framing, bondage, the stocks, winter evictions, branding, starving captives (systems/peopleCrimes.js)
-    'peopleCrimes'
+    'peopleCrimes',
+    // Consequences that follow you: charge sheets, posters, bounty hunters, blood debts (systems/wanted.js)
+    'wanted',
+    // The night-time underworld on the street map: curfews, smugglers' landings, the thieves' market (systems/nightStreets.js)
+    'nightStreets'
 ];
 
 const merged = {};

@@ -65,6 +65,7 @@ import { Ledger } from './ledger.js';
 import { NpcMemory } from './npcMemory.js';
 import { Interrupts } from '../core/interrupts.js';
 import { Names } from '../core/names.js';
+import { Bonds } from './bonds.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -962,7 +963,9 @@ export const Nemesis = {
         let pick = opts[opts.length - 1].id;
         for (const o of opts) { roll -= o.w; if (roll <= 0) { pick = o.id; break; } }
         const fn = { slander: '_doSlander', suit: '_doSuit', scheme: '_doScheme', raid: '_doRaid', allies: '_doAllies', assassin: '_doAssassin' }[pick];
-        const res = Nemesis[fn](player, world, nm, moment);
+        // A friend who got wind of it warns you in time (systems/bonds.js); a hidden plot stays hidden
+        const warned = pick !== 'scheme' ? Bonds.forewarn(player, world, nm.name, pick) : null;
+        const res = warned ? { outcome: 'foiled', text: warned.text } : Nemesis[fn](player, world, nm, moment);
         if (!res) return null;
         const rec = { day, kind: pick, text: res.text, outcome: res.outcome };
         if (res.schemeId != null) rec.schemeId = res.schemeId;

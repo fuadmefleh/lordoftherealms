@@ -20,6 +20,7 @@ import { Hospitality } from '../../systems/hospitality.js';
 import { RiverDrift } from '../../systems/riverDrift.js';
 import { RiverFlotsam } from '../../systems/riverFlotsam.js';
 import { RiverNets } from '../../systems/riverNets.js';
+import { RiverLife } from '../../systems/riverLife.js';
 import { OceanCurrents } from '../../world/oceanCurrents.js';
 import { Crops } from '../../systems/crops.js';
 import { Delves } from '../../systems/delves.js';
@@ -31,6 +32,8 @@ import { Holdings } from '../../systems/holdings.js';
 import { Stewards } from '../../systems/stewards.js';
 import { Rivals } from '../../systems/rivals.js';
 import { Nemesis } from '../../systems/nemesis.js';
+import { Bonds } from '../../systems/bonds.js';
+import { Wanted } from '../../systems/wanted.js';
 import { ProfaneCrimes } from '../../systems/profaneCrimes.js';
 import { KinCrimes } from '../../systems/kinCrimes.js';
 import { HouseQuests } from '../../systems/houseQuests.js';
@@ -43,6 +46,7 @@ import { Townsfolk } from '../../systems/townsfolk.js';
 import { TownMemory } from '../../systems/townMemory.js';
 import { TownCrimes } from '../../systems/townCrimes.js';
 import { TownEras } from '../../world/townEras.js';
+import { Literacy } from '../../systems/literacy.js';
 import { NpcMemory } from '../../systems/npcMemory.js';
 import { Vanishings } from '../../systems/vanishings.js';
 import { PeopleCrimes } from '../../systems/peopleCrimes.js';
@@ -56,9 +60,11 @@ import { Livestock } from '../../systems/livestock.js';
 import { Sagas } from '../../systems/sagas.js';
 import { Whispers } from '../../systems/whispers.js';
 import { NpcChatImpact } from '../../systems/npcChatImpact.js';
+import { Hearsay } from '../../systems/hearsay.js';
 import { Devotion } from '../../systems/devotion.js';
 import { DynastyTree } from '../../systems/dynastyTree.js';
 import { Heirlooms } from '../../systems/heirlooms.js';
+import { Household } from '../../player/household.js';
 import { SoulPact } from '../../systems/soulPact.js';
 import { CourtLetters } from '../../systems/courtLetters.js';
 import { Couriers } from '../../systems/couriers.js';
@@ -109,6 +115,7 @@ import { LawCouncil } from '../../systems/lawCouncil.js';
 import { FirstSteps } from '../../systems/firstSteps.js';
 import { Reckoning } from '../../systems/reckoning.js';
 import { Crises } from '../../systems/crises.js';
+import { Plague } from '../../systems/plague.js';
 import { Climate } from '../../world/climate.js';
 import { RealmTimeline } from '../../systems/realmTimeline.js';
 import { onVoyageDay } from '../actionMenu/voyage.js';
@@ -118,6 +125,7 @@ import { settleScene } from '../actionMenu/choiceScenes.js';
 import { Pirates } from '../../systems/pirates.js';
 import { Landings } from '../../systems/landings.js';
 import { MapTheft } from '../../systems/mapTheft.js';
+import { NightStreets } from '../../systems/nightStreets.js';
 import { checkMapAccusation } from '../actionMenu/treasureScenes.js';
 import { MetaLegacy } from '../../systems/metaLegacy.js';
 import { settleIronmanDeath } from './ironman.js';
@@ -172,6 +180,8 @@ export function onPlayerArrived() {
         );
         // Underworld heat: a warning at the gate, and perhaps a guard search
         const gate = Underworld.onEnterSettlement(this.player, this.world, tile);
+        // The posters: the watch may know your face, and take you (systems/wanted.js)
+        for (const n of Wanted.onEnterSettlement(this.player, this.world, tile)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
         if (gate.warning) {
             this.ui.showNotification(`🔥 Heat ${Math.round(gate.heat)}`, gate.warning, gate.level === 'watched' ? 'warning' : 'error');
         }
@@ -417,6 +427,8 @@ export function endDay() {
             if (typeof Housing !== 'undefined') {
                 Housing.processDaily(this.player, this.world);
             }
+            // Your household: wages, the larder, guests, the rooms' good (player/household.js)
+            for (const n of Household.processDay(this.player, this.world).notices.slice(0, 4)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
             // Process ship daily events
             if (typeof Ships !== 'undefined') {
@@ -567,6 +579,8 @@ export function endDay() {
                     this.ui.showNotification(`${n.kind === 'died' ? '🕯️' : '🤒'} Word from ${town && town.settlement ? town.settlement.name : 'afar'}`, n.text, n.kind === 'died' ? 'warning' : 'info');
                 }
                 for (const n of sickDay.notices.slice(0, 3)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+                // Plague towns shut and open their gates; a town of yours asks you (systems/plague.js)
+                for (const n of Plague.processDay(this.world, this.player).notices.slice(0, 2)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
                 // The world remembers: town fires and their rebuilding, statues raised and pulled down,
                 // cairns, new quarters (systems/townMemory.js)
                 for (const n of TownMemory.processDay(this.world, this.player).notices.slice(0, 3)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
@@ -574,12 +588,16 @@ export function endDay() {
                 for (const n of TownCrimes.processDay(this.world, this.player).notices.slice(0, 3)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
                 // The towns age: a new era of building, walls raised (world/townEras.js; once a year)
                 for (const n of TownEras.processDay(this.world, this.player).notices.slice(0, 2)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+                // Who can read: towns' letters reckoned, the schools you endowed paid, your children's lessons (systems/literacy.js)
+                for (const n of Literacy.processDay(this.world, this.player).notices.slice(0, 2)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
                 // Townsfolk who are friends, lovers, companions or kin by marriage
                 Relationships.syncFolk(this.player, this.world);
                 // Companions who never came home: word brought to their families, or none (systems/vanishings.js)
                 for (const n of Vanishings.processDay(this.world, this.player).notices.slice(0, 2)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
                 // Crimes against people: trials of the framed, captives fed or starved, the stocks, the cold, the sold coming home (systems/peopleCrimes.js)
                 for (const n of PeopleCrimes.processDay(this.world, this.player).notices.slice(0, 3)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+                // The night's business: last nights' landings and curfew stops forgotten, grudges run out (systems/nightStreets.js)
+                NightStreets.processDay(this.player, this.world);
 
                 // Prepare relationship data for save
                 Relationships.prepareForSave(this.player);
@@ -670,6 +688,8 @@ export function endDay() {
 
             // Nemeses — named enemies who remember you, learn your habits and strike at your worst (systems/nemesis.js)
             for (const n of Nemesis.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            // Wanted: each realm's long charge sheet, posters, bounty hunters on your trail, orphans who grow into avengers (systems/wanted.js)
+            for (const n of Wanted.processDay(this.world, this.player).notices.slice(0, 3)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             // Profane crimes: fake relics found out, a desecrated House's grudge held and passed on (systems/profaneCrimes.js)
             for (const n of ProfaneCrimes.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
@@ -688,6 +708,10 @@ export function endDay() {
             for (const n of whisperDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             // Promises made in free talk that came due unkept: the one promised, and their family, remember (systems/npcChatImpact.js)
             for (const n of NpcChatImpact.processDay(this.world, this.player).notices.slice(0, 3)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            // Hearsay: what you told folk spreads through town and on to the next (systems/hearsay.js)
+            for (const n of Hearsay.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            // Friends & Bonds: friendships grow, fade, act for you or turn on you (systems/bonds.js)
+            for (const n of Bonds.processDay(this.world, this.player).notices.slice(0, 3)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
             // Devotion — vows kept or broken, pilgrimages overdue (systems/devotion.js); the soul pact's debt (systems/soulPact.js)
             for (const n of Devotion.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
@@ -721,7 +745,10 @@ export function endDay() {
             // Your fishing nets: the day's fish, what drifted in, a tear, a thief (systems/riverNets.js)
             for (const n of RiverNets.processDay(this.world, this.player, this.world.day, {
                 goodOf: (id) => { const g = (PlayerEconomy.GOODS || {})[String(id).toUpperCase()]; return { name: (g && g.name) || id, icon: (g && g.icon) || '🐟' }; },
+                rollBonus: (net) => RiverLife.netRollBonus(this.world, net),
             }).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            // River life: spring floods, the water bailiff and poachers at your nets, fish going off (systems/riverLife.js)
+            for (const n of RiverLife.processDay(this.world, this.player, this.world.day).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             // Your beasts: fodder, eggs and milk, births, sickness, wolves (systems/livestock.js)
             for (const n of Livestock.processDay(this.world, this.player).notices.slice(0, 4)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             // Your own fields: crops grow, thirst, ripen, freeze or rot (systems/crops.js)

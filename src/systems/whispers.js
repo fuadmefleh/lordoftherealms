@@ -47,6 +47,8 @@ import { Gossip } from './gossip.js';
 import { Rivals } from './rivals.js';
 import { NPCLords } from '../world/npcLords.js';
 import { Names } from '../core/names.js';
+// (a tale on broadsheets goes where people read: systems/literacy.js; run time only)
+import { Literacy } from './literacy.js';
 
 const _num = v => (Number.isFinite(v) ? v : 0);
 const _day = world => (world && Number.isFinite(world.day) ? world.day : 0);
@@ -317,7 +319,9 @@ export const Whispers = {
             if (sc.spreadTo.includes(key)) continue;
             const d = Hex.wrappingDistance(sq, sr, s.q, s.r, world.width);
             if (d > cfg.maxSpreadDistance) continue;
-            if (Utils.random() < cfg.spreadChance * (1 - d / (cfg.maxSpreadDistance + 1))) {
+            // (on broadsheets, while they are fresh: faster where people read, slower where they don't)
+            const written = sc.written && _day(world) - _num(sc.written.d) < 40 ? Literacy.writtenSpread(world, Literacy.at(world, key)) : 1;
+            if (Utils.random() < cfg.spreadChance * written * (1 - d / (cfg.maxSpreadDistance + 1))) {
                 sc.spreadTo.push(key);
                 return true;
             }

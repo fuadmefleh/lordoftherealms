@@ -32,6 +32,7 @@ import { Whispers } from './whispers.js';
 import { Devotion } from './devotion.js';
 import { SoulPact } from './soulPact.js';
 import { Books } from './books.js';
+import { Literacy } from './literacy.js';
 import { Feasts } from './feasts.js';
 import { Fame } from './fame.js';
 import { CourtLetters } from './courtLetters.js';
@@ -40,11 +41,14 @@ import { Abdication } from './abdication.js';
 import { Coalitions } from './coalitions.js';
 import { RivalAgents } from './rivalAgents.js';
 import { Nemesis } from './nemesis.js';
+import { Bonds } from './bonds.js';
+import { Wanted } from './wanted.js';
 import { HouseQuests } from './houseQuests.js';
 import { Mail } from './mail.js';
 import { Couriers } from './couriers.js';
 import { Hospitality } from './hospitality.js';
 import { RiverDrift } from './riverDrift.js';
+import { RiverLife } from './riverLife.js';
 import { LlmProse } from './llmProse.js';
 import { Crises } from './crises.js';
 import { Climate } from '../world/climate.js';
@@ -84,6 +88,7 @@ import { Bills } from './bills.js';
 import { Bourse } from './bourse.js';
 import { LossBook } from './lossBook.js';
 import { Labour } from './labour.js';
+import { Migration } from './migration.js';
 import { Hinterland } from '../world/hinterland.js';
 import { Harvests } from '../world/harvests.js';
 import { Transport } from '../world/transport.js';
@@ -240,6 +245,9 @@ export const SaveLoad = {
             // Refugees, strikes and booms on record for the heralds (systems/labour.js;
             // each town's classes, wages and welfare travel with it: settlement.labour)
             labour: Labour.serialize(world),
+            // The player's settlers & borders policy and the great flows of people (systems/migration.js;
+            // each town's trend travels with it: settlement.migr; the columns are world units above)
+            migration: Migration.serialize(world),
             // The rural sites around the towns (deposits, reserves), mining leases,
             // auctions and prospectors (world/hinterland.js, systems/concessions.js)
             hinterland: Hinterland.serialize(world),
@@ -273,6 +281,8 @@ export const SaveLoad = {
             gates: world.gates ? JSON.parse(JSON.stringify(world.gates)) : null,
             // The trees felled on the maps, their stumps and what grows back (world/innerMap/felling.js)
             felled: world.felled ? JSON.parse(JSON.stringify(world.felled)) : null,
+            // The caves entered, the drifts and shafts dug, every cell cut, hauled and timbered (world/innerMap/mines.js)
+            mines: world.mines ? JSON.parse(JSON.stringify(world.mines)) : null,
             // The player's own dead buried on the maps, and the markers raised over them (world/burials.js)
             burials: world.burials ? JSON.parse(JSON.stringify(world.burials)) : null,
             // Things the player buried in the ground with no one: caches (world/burials.js)
@@ -282,6 +292,8 @@ export const SaveLoad = {
             fieldMarks: world.fieldMarks ? JSON.parse(JSON.stringify(world.fieldMarks)) : null,
             // Things adrift on the rivers, caught on weirs, lying in lakes (systems/riverDrift.js)
             riverDrift: RiverDrift.serialize(world),
+            // Fishing rights leased, spring floods up and coming down the rivers (systems/riverLife.js)
+            riverLife: RiverLife.serialize(world),
             // The age-defining crises: the one running and those on record (systems/crises.js)
             crises: Crises.serialize(world),
             // The climate's eras begun and their chronicle (world/climate.js)
@@ -458,6 +470,8 @@ export const SaveLoad = {
         'mapGrudges',
         // What each town's watch has made of the player's answers (systems/watchQuestioning.js)
         'watchQuestioning',
+        // The night's business: the lantern shuttered, curfew stops, landings, the gangs' grudges (systems/nightStreets.js)
+        'nightStreets',
         // Dead and waiting out the years; or a new life begun in the world (player/afterlife.js)
         'interregnum', 'origin',
         // An heirless House's money settled once: creditors paid, the rest to the crown (player/estateSettlement.js)
@@ -498,6 +512,8 @@ export const SaveLoad = {
         'lastJailRelease',
         // The furniture of the homes you own, and the pieces in store (systems/furnishing.js)
         'homeFurnishings', 'furnitureStore', 'furnitureSeq',
+        // The household of each home: rooms, servants, guests, larder, displays (player/household.js)
+        'household',
         // What thieves took from you: the watch's and the fence's part in it, the clues (systems/npcTheft.js)
         'theftBook',
         // Tilled ground and crops on the hexes' inner maps (systems/crops.js; re-laid by world/innerMap/farmPlots.js)
@@ -513,6 +529,8 @@ export const SaveLoad = {
         'standingOrder',
         // The street map's hotbar: which goods sit in which slot, and whether the player laid it out (player/hotbarLayout.js)
         'hotbar',
+        // Your river boat (its hold, where it lies) and the days your raw fish were caught (systems/riverBoats.js, systems/riverLife.js)
+        'riverBoat', 'fishLots',
     ],
 
     _pickDefined(obj, keys) {
@@ -717,6 +735,8 @@ export const SaveLoad = {
             whispers: Whispers.serialize(player),
             // Promises made to townsfolk in free talk, kept, broken or still open (systems/npcChatImpact.js)
             npcChat: player.npcChat ? JSON.parse(JSON.stringify(player.npcChat)) : null,
+            // What townsfolk remember of your talks, your claims, and the hearsay spreading about you (systems/hearsay.js)
+            hearsay: player.hearsay ? JSON.parse(JSON.stringify(player.hearsay)) : null,
             // Companions lost on the road and never brought home: suspicion, word brought or not (systems/vanishings.js)
             vanishings: player.vanishings ? JSON.parse(JSON.stringify(player.vanishings)) : null,
             // Crimes against people: frames awaiting trial or exposure, captives, the sold, the stocks (systems/peopleCrimes.js)
@@ -726,6 +746,8 @@ export const SaveLoad = {
             devotion: Devotion.serialize(player),
             soulPact: SoulPact.serialize(player),
             reading: Books.serialize(player),
+            // The player's own letters, lessons and the schools they endowed (systems/literacy.js)
+            literacy: Literacy.serialize(player),
             feasts: Feasts.serialize(player),
             // Local fame: free meals and rooms taken, crowds met, town by town (systems/fame.js)
             fame: Fame.serialize(player),
@@ -741,6 +763,10 @@ export const SaveLoad = {
             rivalAgents: RivalAgents.serialize(player),
             // Nemeses: named enemies, their hatred, what they learnt of your habits, past feuds (systems/nemesis.js)
             nemesis: Nemesis.serialize(player),
+            // Friends & Bonds: friendships, sworn kin, mentors, protégés, past friends (systems/bonds.js)
+            bonds: Bonds.serialize(player),
+            // Wanted: each realm's charge sheet, the hunt on your trail, the blood debts owed to orphans (systems/wanted.js)
+            wanted: Wanted.serialize(player),
             // The House's unfinished business: quests from its own history, open and settled (systems/houseQuests.js)
             houseQuests: HouseQuests.serialize(player),
             // Letters the player sent: on the road, replies awaited, the record (systems/mail.js)
@@ -897,6 +923,8 @@ export const SaveLoad = {
         if (!world.barter) Barter.migrate(world, saveData.generationParams || world.generationParams);
         // The labour news (older saves: none)
         Labour.restore(saveData.labour, world);
+        // The settlers & borders policy and the great flows (older saves: open gates, no grants)
+        Migration.restore(saveData.migration, world);
         // The hinterland (older saves: none — the sites are derived from the terrain on the next day)
         Hinterland.restore(saveData.hinterland, world);
         // Trade policy news (older saves: none; realms set their policy on their next turn)
@@ -924,6 +952,8 @@ export const SaveLoad = {
         world.gates = saveData.gates && typeof saveData.gates === 'object' ? saveData.gates : {};
         // The trees felled (older saves: none — the woods stand whole)
         world.felled = saveData.felled && typeof saveData.felled === 'object' ? saveData.felled : {};
+        // The mines (older saves: none — the rock stands whole)
+        world.mines = saveData.mines && typeof saveData.mines === 'object' ? saveData.mines : {};
         // The player's burials (older saves: none)
         world.burials = saveData.burials && typeof saveData.burials === 'object' ? saveData.burials : {};
         // The player's caches (older saves: none)
@@ -932,6 +962,7 @@ export const SaveLoad = {
         world.fieldMarks = saveData.fieldMarks && typeof saveData.fieldMarks === 'object' ? saveData.fieldMarks : {};
         // Things adrift on the rivers (older saves: none)
         RiverDrift.restore(saveData.riverDrift, world);
+        RiverLife.restore(saveData.riverLife, world);
         // The chronicler's prose (older saves: none — the Annals' scribe writes again)
         LlmProse.restore(saveData.prose, world);
         // The crises (older saves: none yet; the first is scheduled on the next day)
@@ -1112,6 +1143,10 @@ export const SaveLoad = {
         RivalAgents.loadState(player);
         // Nemeses — older saves get a blank record
         Nemesis.loadState(player);
+        // Friends & Bonds — older saves have none (formed from the relationships next day)
+        Bonds.loadState(player);
+        // The crowns' long charge sheets and the blood debts — older saves get a blank record
+        Wanted.loadState(player);
         // The House's unfinished business — older saves get a blank record
         HouseQuests.loadState(player);
         // Mail sent — older saves get a blank record

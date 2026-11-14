@@ -408,6 +408,7 @@ export const TownEras = {
         const lateStreets = idx === E.length - 1 && cult.streets ? cult.streets : null;
         let walls = st.walls ? st.walls.kind : null;
         if (F && F.walls !== undefined) walls = F.walls || null;
+        const mig = _obj(settlement.migr);
         return {
             era: era.id,
             eraIdx: idx,
@@ -427,7 +428,15 @@ export const TownEras = {
                 const forcedWear = F && Number.isFinite(F.wear) ? F.wear : null;
                 // (a forced era: every building of it, as fresh or worn as asked)
                 const eIdx = F && F.era != null ? idx : b.eraIdx;
-                return { tierCap: TownEras.tierCap(eIdx), wear: forcedWear != null ? forcedWear : b.wear, eraIdx: eIdx, built: b.built };
+                // A town that has lost its people stands with houses empty and gone to ruin; one that
+                // has grown with new-built ones (settlement.migr.vac / fresh: systems/migration.js)
+                let wear = forcedWear != null ? forcedWear : b.wear;
+                let vacant = false;
+                if (forcedWear == null && mig) {
+                    if (_num(mig.vac) > 0 && _h(st.salt, 'vacant', q, r) < _num(mig.vac)) { wear = 2; vacant = true; }
+                    else if (_num(mig.fresh) > 0 && _h(st.salt, 'fresh', q, r) < _num(mig.fresh)) wear = 0;
+                }
+                return { tierCap: TownEras.tierCap(eIdx), wear, base: forcedWear != null ? forcedWear : b.wear, eraIdx: eIdx, built: b.built, vacant };
             },
         };
     },
@@ -469,7 +478,10 @@ export const TownEras = {
         const st = TownEras.ensure(world, settlement);
         const F = _obj(st && st.forced);
         const year = _yearOf(world);
-        return `|age${TownEras.eraIndexAt(st, year)}:${st.walls ? st.walls.kind[0] : '-'}:${Math.floor(year / 10)}${F ? ':f' + JSON.stringify(F) : ''}`;
+        // (and its empty and new-built houses: systems/migration.js)
+        const mig = _obj(settlement.migr);
+        const houses = mig && (mig.vac || mig.fresh) ? `:v${_num(mig.vac)}/${_num(mig.fresh)}` : '';
+        return `|age${TownEras.eraIndexAt(st, year)}:${st.walls ? st.walls.kind[0] : '-'}:${Math.floor(year / 10)}${houses}${F ? ':f' + JSON.stringify(F) : ''}`;
     },
 
     /**

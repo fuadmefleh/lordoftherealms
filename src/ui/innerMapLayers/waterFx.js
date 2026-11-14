@@ -216,6 +216,8 @@ Object.assign(InnerMapRenderer, {
         if (!cfg.enabled || InnerMap._insideBuilding) return;
         // Fish in the water first, under all the surface's play (innerMapLayers/surfaceFish.js)
         if (this._renderSurfaceFish) this._renderSurfaceFish(ctx, camera);
+        // ...and the river over its banks in a spring flood (innerMapLayers/floodWater.js)
+        if (this._renderFloodWater) this._renderFloodWater(ctx, camera);
         const rows = this._waterFxCells();
         if (!rows) return;
         const T = this.TILE_SIZE;

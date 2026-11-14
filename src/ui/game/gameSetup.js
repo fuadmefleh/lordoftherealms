@@ -429,8 +429,9 @@ export async function _doStartNewGame(settingsOverride) {
         // with a churchyard planned beside the church (world/churchyard.js); 6 = a start
         // year before the mature year ages the world back (world/worldAge.js); 7 = a town's house
         // mix humbler or grander by its wealth (world/settlementWealth.js, world/townPlanner.js); 8 =
-        // towns that age through architectural eras, weather, rebuild, pave and wall themselves (world/townEras.js)
-        terrainGen: 8,
+        // towns that age through architectural eras, weather, rebuild, pave and wall themselves (world/townEras.js); 9 =
+        // bigger crags in up to three tiers, with caves in their faces (world/innerMap/cliffs.js, mines.js)
+        terrainGen: 9,
         continentCount,
         terrainFreq,
         riverCount,

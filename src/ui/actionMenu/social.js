@@ -397,6 +397,13 @@ Object.assign(ActionMenu, {
             ['📇', 'Known', knownPeople.length],
         ]);
 
+        // Friendships beyond romance: sworn kin, drinking companions, mentors, protégés (ui/actionMenu/bonds.js)
+        {
+            const bl = (player.bonds && player.bonds.list) || [];
+            const sworn = bl.filter(b => b.sworn).length;
+            html += rowList([{ icon: '🤝', name: 'Friends & Bonds', desc: bl.length ? `${bl.length} friend${bl.length === 1 ? '' : 's'}${sworn ? `, ${sworn} sworn kin` : ''}` : 'Sworn kin, drinking companions, mentors, protégés', act: 'showBondsPanel', side: '›', tone: 'gold' }]);
+        }
+
         // Unfinished business: matters people have brought to you (systems/relationships/matters.js)
         const matters = Relationships.openMatters(player);
         if (matters.length) {
@@ -698,6 +705,13 @@ Object.assign(ActionMenu, {
             // Named enemies who remember you (ui/actionMenu/nemesis.js)
             const foes = (player.nemesis && player.nemesis.list) || [];
             against.push({ icon: '🗡️', name: 'Nemeses', desc: foes.length ? foes.map(n => n.name).join(', ') : '', act: 'showNemesisPanel', side: foes.length ? String(foes.length) : '', tone: foes.length ? 'bad' : '' });
+            // The crowns' charge sheets, bounty hunters, the orphans growing up (ui/actionMenu/wanted.js)
+            {
+                const wr = Object.values((player.wanted && player.wanted.realms) || {});
+                const head = Math.round(wr.reduce((s, r) => s + (r.lesser || 0) + (r.grave || 0), 0));
+                const hunted = !!(player.wanted && player.wanted.hunt);
+                against.push({ icon: '📜', name: 'Crimes & Enemies', desc: wr.length ? `Wanted in ${wr.length} realm${wr.length === 1 ? '' : 's'}${hunted ? ' · hunters on your trail' : ''}` : 'Bounties, hunters, blood debts', act: 'showWantedPanel', side: head ? `${head}g` : '', tone: head || hunted ? 'bad' : '' });
+            }
             // The age's crisis: an invasion, a great plague, a schism, a famine, a gold rush (systems/crises.js)
             const crisis = game.world && game.world.crises && game.world.crises.active;
             against.push({ icon: '🌋', name: 'The Age', desc: crisis ? crisis.name.charAt(0).toUpperCase() + crisis.name.slice(1) : 'The great crises of the world', act: 'showCrisesPanel', side: crisis ? 'crisis' : '', tone: crisis ? 'bad' : '' });

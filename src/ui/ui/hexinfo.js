@@ -10,6 +10,10 @@ import { Fame } from '../../systems/fame.js';
 import { Kingship } from '../../systems/kingship.js';
 import { Pirates } from '../../systems/pirates.js';
 import { Construction } from '../../systems/construction.js';
+import { OceanCurrents } from '../../world/oceanCurrents.js';
+import { Literacy } from '../../systems/literacy.js';
+import { Migration } from '../../systems/migration.js';
+import { Plague } from '../../systems/plague.js';
 
 // '42% · ~37d' for a build under way (systems/construction.js)
 const _works = (rec, world, q, r) => `${Math.round(Construction.progress(rec) * 100)}% · ~${Construction.eta(rec, world, q, r)}d`;
@@ -85,6 +89,8 @@ Object.assign(UI.prototype, {
         const riverPenalty = (typeof Infrastructure !== 'undefined' && Infrastructure.getRiverPenalty)
             ? Infrastructure.getRiverPenalty(tile, this.game?.player) : 0;
 
+        // The set of the sea (world/oceanCurrents.js)
+        const seaCurrent = OceanCurrents.describe(OceanCurrents.at(this.game.world, q, r));
         let html = `
             <div class="info-row">
                 <span class="info-label">Terrain</span>
@@ -108,6 +114,10 @@ Object.assign(UI.prototype, {
                 <span class="info-label">Forecast</span>
                 <span class="info-value">${forecast}</span>
             </div>
+            ${seaCurrent ? `<div class="info-row">
+                <span class="info-label">Current</span>
+                <span class="info-value" style="color:#9fc8e8">🌊 ${seaCurrent}</span>
+            </div>` : ''}
             ${mapClaim ? `<div class="info-row">
                 <span class="info-label">Your Map</span>
                 <span class="info-value" style="color:#d8b878; font-style:italic;">Shows ${mapClaim} <span style="opacity:0.7;">(${mapClaimSource})</span></span>
@@ -134,6 +144,15 @@ Object.assign(UI.prototype, {
                 if (effects) html += `<span style="font-size: 10px; color: var(--text-secondary); padding-left: 18px;">${effects}</span>`;
             }
             html += '</div>';
+        }
+
+        // The pestilence in a town, and its gates shut against it (systems/plague.js)
+        if (tile.settlement) {
+            const sev = Plague.severityAt(this.game.world, tile.settlement);
+            const shut = Plague.isQuarantined(this.game.world, tile.settlement);
+            if (sev > 0 || shut) {
+                html += `<div class="info-row"><span class="info-label">${Plague.isPlague(this.game.world, tile.settlement) ? '🐀 Plague' : '🤒 Sickness'}</span><span class="info-value">${sev > 0 ? `${Math.round(sev * 100)}%` : 'passed'}${shut ? ' · 🚧 gates shut' : ''}</span></div>`;
+            }
         }
 
         // Show infrastructure info
@@ -216,6 +235,16 @@ Object.assign(UI.prototype, {
                     <span class="info-value">${Utils.formatNumber(tile.settlement.population)}</span>
                 </div>
                 ${(() => {
+                    // Growing or shrinking, and the year's comings and goings (systems/migration.js)
+                    const tr = Migration.trend(tile.settlement, this.game.world.day);
+                    if (!tr || !tr.history.length || tr.span < 30) return '';
+                    const pct = Math.round(tr.change * 100);
+                    const top = tr.why[0];
+                    const R = top ? Migration.reasonDef(top.id) : null;
+                    const why = R ? ` · ${top.in ? 'in' : 'out'}: ${R.short || top.id}` : '';
+                    return `<div class="info-row" data-am-act="showTownPeople" data-am-args="[null, ${q}, ${r}]" style="cursor:pointer;" title="This year ${tr.yearIn} came and ${tr.yearOut} left"><span class="info-label">Trend</span><span class="info-value" style="color:${tr.color} !important;">${tr.label} ${pct >= 0 ? '+' : ''}${pct}%${why}</span></div>`;
+                })()}
+                ${(() => {
                     // Its culture and tongue, and how well you speak it (world/cultures.js, systems/languages.js)
                     const culture = Cultures.cultureOf(this.game.world, tile.settlement);
                     const tongue = Languages.describeHere(this.game.player, this.game.world, q, r);
@@ -224,6 +253,16 @@ Object.assign(UI.prototype, {
                     return `<div class="info-row" title="Click to see your tongues, lessons and interpreters">
                     <span class="info-label">Culture</span>
                     <span class="info-value">${culture} · <span style="cursor:pointer; text-decoration:underline; text-underline-offset:3px; color:${col};" data-am-act="showLanguages">${tongue.name} (you: ${tongue.level.name.toLowerCase()}${tongue.via === 'translator' ? ', via interpreter' : ''})</span></span>
+                </div>`;
+                })()}
+                ${(() => {
+                    // Who reads here (systems/literacy.js): the Schools & Letters panel when you stand in it
+                    const line = Literacy.infoLine(this.game.world, tile.settlement);
+                    if (!line) return '';
+                    const here = this.game.player.q === q && this.game.player.r === r;
+                    return `<div class="info-row" title="The share of grown folk who read and write: taxes, posted laws, posters, rumour and trust follow it">
+                    <span class="info-label">Letters</span>
+                    <span class="info-value"${here ? ' style="cursor:pointer; text-decoration:underline; text-underline-offset:3px;" data-am-act="showSchool"' : ''}>📖 ${line}</span>
                 </div>`;
                 })()}
                 ${typeof tile.settlement.growthRate === 'number' ? `

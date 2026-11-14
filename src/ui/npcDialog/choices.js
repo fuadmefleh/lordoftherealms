@@ -20,6 +20,7 @@ import { NpcPortrait } from '../npcPortrait.js';
 import { SocialSkills } from '../../systems/socialSkills.js';
 import { IllnessPlayer } from '../../systems/illnessPlayer.js';
 import { NpcMemory } from '../../systems/npcMemory.js';
+import { Hearsay } from '../../systems/hearsay.js';
 
 /** The questions a disliked player can be refused, by rebuff topic. */
 const ASK_TOPICS = {
@@ -85,7 +86,9 @@ export function _handleChoice(action) {
             dispositionChange = NpcKnowledge.config().rebuff.pester || 0;
         } else switch (action) {
             case 'ask_rumor': {
-                responseText = _getNews(dialogState._npc);
+                // (the talk about you comes first, once per tale: systems/hearsay.js)
+                const hwt = InnerMap.currentWorldTile || {};
+                responseText = (hwt.q != null && Hearsay.newsLine(dialogState._game?.player, dialogState._game?.world, dialogState._npc, `${hwt.q},${hwt.r}`)) || _getNews(dialogState._npc);
                 mem.rumorsTold++;
                 dispositionChange = 2; // Sharing gossip builds minor rapport
                 // Slight social need boost
@@ -354,6 +357,9 @@ export function _handleChoice(action) {
                 const game = dialogState._game;
                 const threatNpc = dialogState._npc;
                 const outcome = NpcDisposition.resolveThreat(threatNpc, game?.player, success);
+                // (a threat is talked of about town, and beyond: systems/hearsay.js)
+                const twt = InnerMap.currentWorldTile || {};
+                if (game?.player && twt.q != null) Hearsay.noteThreat(game.player, game.world, threatNpc, `${twt.q},${twt.r}`);
                 if (outcome.gold > 0) responseText += ` *hands over ${outcome.gold} gold*`;
                 if (game?.ui?.showNotification) {
                     setTimeout(() => {

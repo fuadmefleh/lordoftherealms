@@ -194,6 +194,8 @@ function buildConfig(src) {
         isFood,
         isMined,
         noNeedRef: _num(d.noNeedRef, 0.25),
+        // A town on a river, a lake or the sea eats more of these (settlement.waterside, systems/riverLife.js)
+        watersideA: goodIds.map(id => Math.max(0, _num(d.watersideDemand && d.watersideDemand[id], 1)) || 1),
         terrainClass,
         terrainClasses: Object.keys(d.terrain || {}),
         fertility: d.fertility || {},
@@ -272,23 +274,25 @@ export const SettlementMarket = {
         // ...and the coin in its purse: a town with money to spend buys more, a
         // broke one does without (data/markets.json wealth; in steps, so the table holds)
         const wm = SettlementMarket.wealthMult(settlement);
+        // ...and the water by it: a river, lake or sea town eats more fish (settlement.waterside, systems/riverLife.js)
+        const ws = settlement.waterside ? 1 : 0;
         let sh = _shapes.get(settlement);
         // (the same labour record at the same mix key gives the same class demand:
         // skip asking for it — this is read hundreds of times a day)
         const lab = settlement.labour;
         const lcfg = TownLabour.config();
-        if (sh && sh.pop === pop && sh.type === type && sh.cfg === C && sh.lab === lab && sh.lcfg === lcfg && sh.wm === wm
+        if (sh && sh.pop === pop && sh.type === type && sh.cfg === C && sh.lab === lab && sh.lcfg === lcfg && sh.wm === wm && sh.ws === ws
             && (!lab || (sh.mk === lab.mk && sh.lsh === lab.sh && sh.fk === lab.fk))) return sh;
         // ...and the class mix: nobles buy wine, peasants grain (world/townLabour.js)
         const dm = TownLabour.demandMults(settlement, C);
-        if (sh && sh.pop === pop && sh.type === type && sh.cfg === C && sh.dm === dm && sh.wm === wm) {
+        if (sh && sh.pop === pop && sh.type === type && sh.cfg === C && sh.dm === dm && sh.wm === wm && sh.ws === ws) {
             sh.lab = lab; sh.lcfg = lcfg; sh.mk = lab ? lab.mk : undefined; sh.lsh = lab ? lab.sh : undefined; sh.fk = lab ? lab.fk : undefined;
             return sh;
         }
         const n = C.goodIds.length;
         // (always fresh arrays: a caller may still hold the old table mid-trade)
         sh = {
-            pop, type, cfg: C, dm, wm,
+            pop, type, cfg: C, dm, wm, ws,
             usedA: new Uint8Array(n), needA: new Float64Array(n), targetA: new Float64Array(n),
             lab, lcfg, mk: lab ? lab.mk : undefined, lsh: lab ? lab.sh : undefined, fk: lab ? lab.fk : undefined,
         };
@@ -299,7 +303,7 @@ export const SettlementMarket = {
         for (let i = 0; i < n; i++) {
             const perCapita = G.perCapita[i];
             const used = perCapita > 0 && rank >= G.minRank[i];
-            const need = used ? pop * perCapita * td * (dm ? dm[i] : 1) * wm : 0;
+            const need = used ? pop * perCapita * td * (dm ? dm[i] : 1) * wm * (ws ? C.watersideA[i] : 1) : 0;
             // (a town keeps at least the good's minStock of what its people use)
             const target = Math.max(Math.max(0.05, need > 0 ? need : pop * perCapita * C.noNeedRef) * G.days[i], used ? G.minStock[i] : 0);
             usedA[i] = used ? 1 : 0;

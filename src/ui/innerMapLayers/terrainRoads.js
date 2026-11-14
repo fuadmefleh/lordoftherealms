@@ -249,12 +249,14 @@ Object.assign(InnerMapRenderer, {
                 if (!ov) {
                     // (no ground detail here: only the decals)
                 } else if (ov.sheetPath) {
-                    const ovImg = this._getSheetByPath(ov.sheetPath);
+                    // Frozen water: the same piece from the ice sheet (innerMapLayers/streetSeasons.js)
+                    const iv = tile._iced && this._iceDetail ? this._iceDetail(ov) : ov;
+                    const ovImg = this._getSheetByPath(iv.sheetPath);
                     if (ovImg) {
-                        const sw = Number.isFinite(ov.sw) ? ov.sw : 32;
-                        const sh = Number.isFinite(ov.sh) ? ov.sh : 32;
-                        const sx = Number.isFinite(ov.sx) ? ov.sx : 0;
-                        const sy = Number.isFinite(ov.sy) ? ov.sy : 0;
+                        const sw = Number.isFinite(iv.sw) ? iv.sw : 32;
+                        const sh = Number.isFinite(iv.sh) ? iv.sh : 32;
+                        const sx = Number.isFinite(iv.sx) ? iv.sx : 0;
+                        const sy = Number.isFinite(iv.sy) ? iv.sy : 0;
                         const k = this._sheetScale(ovImg);
                         ctx.drawImage(ovImg, sx * k, sy * k, sw * k, sh * k, dx, dy, sz, sz);
                     }
@@ -391,6 +393,8 @@ Object.assign(InnerMapRenderer, {
      * Supports both procedural (INTERIOR_LAYOUTS) and custom spritesheet tiles.
      */
     _renderInteriorTile(ctx, tile, dx, dy, sz) {
+        // ── Underground: a cave's or mine's rock and floor (ui/innerMapLayers/caves.js) ──
+        if (tile._cave && this._renderCaveTile && this._renderCaveTile(ctx, tile, dx, dy, sz)) return;
         // ── Custom spritesheet-based tile ──
         if (tile._customTile) {
             this._renderCustomInteriorTile(ctx, tile, dx, dy, sz);

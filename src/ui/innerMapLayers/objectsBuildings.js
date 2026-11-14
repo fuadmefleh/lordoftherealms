@@ -296,7 +296,8 @@ Object.assign(InnerMapRenderer, {
         }
         let perDef = bc.byDef.get(def);
         if (!perDef) { perDef = new Map(); bc.byDef.set(def, perDef); }
-        const key = `${anchorQ},${anchorR}|${ruin || ''}|${wear || 0}|${spire || ''}`;
+        // (and the snow on its roof today: innerMapLayers/streetSeasons.js)
+        const key = `${anchorQ},${anchorR}|${ruin || ''}|${wear || 0}|${spire || ''}|${this._ssRoofLevel ? this._ssRoofLevel() : 0}`;
         let e = perDef.get(key);
         const p = camera.worldToScreenFast(anchorQ * T, anchorR * T);
         const sx = p.x, sy = p.y;
@@ -364,6 +365,9 @@ Object.assign(InnerMapRenderer, {
             worldToScreen(x, y) { return { x: (x - ax) * zoom + ox + fx, y: (y - ay) * zoom + oy + fy }; },
         };
         this._drawCustomBuildingDirect(g, cam, def, anchorQ, anchorR, ds, ruin, null, wear, spire);
+        // Snow lying on the roof (innerMapLayers/streetSeasons.js)
+        const snow = !ruin && this._ssRoofLevel ? this._ssRoofLevel() : 0;
+        if (snow) this._seasonRoofSnow(g, c, cam, def, anchorQ, anchorR, ds, snow);
         return { canvas: c, ox, oy, used: 0 };
     },
 

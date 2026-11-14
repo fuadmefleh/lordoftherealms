@@ -26,11 +26,17 @@ import { Livestock } from '../../systems/livestock.js';
 import { RivalHouses } from '../../systems/rivalHouses.js';
 import { DawnBirth } from '../dawnBirth.js';
 import { Names } from '../../core/names.js';
+import { RiverBoats } from '../../systems/riverBoats.js';
+import { RiverLife } from '../../systems/riverLife.js';
 
 export function addWildernessActions(actions, player, tile, world) {
     // The tongues you speak and the one spoken here; lessons and interpreters in town (systems/languages.js)
     if (tile.settlement || tile.kingdom) {
         actions.push({ type: 'languages', label: 'Languages', icon: '🗣️', description: 'The tongue spoken here and yours: lessons with a tutor, an interpreter for hire' });
+    }
+    // What people say of you here: the hearsay of your own words (systems/hearsay.js)
+    if (tile.settlement) {
+        actions.push({ type: 'hearsay', label: 'What People Say of You', icon: '👂', description: 'The talk about you in this town: what you told folk, how far it has spread, how it has grown' });
     }
 
     // The Dawn of Man: lead your clan to ground worth keeping, and stay (player/dawnBirth.js)
@@ -89,6 +95,29 @@ export function addWildernessActions(actions, player, tile, world) {
                 label: 'Go Fishing',
                 icon: '🎣',
                 description: 'Spend the day fishing — sell the catch or keep it as food'
+            });
+        }
+    }
+
+    // River & water: your boat, fishing rights, salting the catch, the floods (systems/riverBoats.js, riverLife.js)
+    {
+        const boat = RiverBoats.boat(player);
+        const water = RiverLife.waterAt(world, tile.q, tile.r);
+        const buy = RiverBoats.canBuyAt(world, tile.q, tile.r);
+        const flood = RiverLife.floodAt(world, tile.q, tile.r);
+        const fish = player.inventory && player.inventory.fish > 0;
+        if (boat || water || buy || fish) {
+            const bits = [];
+            if (boat) bits.push(boat.aboard ? `aboard your ${boat.name.toLowerCase()}` : boat.q === tile.q && boat.r === tile.r ? `your ${boat.name.toLowerCase()} is moored here` : `your ${boat.name.toLowerCase()} lies elsewhere`);
+            else if (buy) bits.push('boatwrights build punts and barges here');
+            if (water) bits.push(RiverLife.leaseAt(world, tile.q, tile.r) ? 'you hold the fishing here' : 'fishing rights');
+            if (fish) bits.push('salt your catch');
+            actions.push({
+                type: 'river_life',
+                label: boat && boat.aboard ? 'Your Boat & the River' : 'River & Water',
+                icon: boat ? '🛶' : '🎣',
+                description: (flood ? 'The river is in flood! ' : '') + bits.join(' · '),
+                notice: flood ? 'In flood' : null,
             });
         }
     }

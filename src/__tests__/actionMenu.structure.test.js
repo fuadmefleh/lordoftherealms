@@ -34,6 +34,8 @@ import { DataLoader } from '../core/dataLoader.js';
 // showEpitaph, _heirProfileHtml, _reignsHtml) = 252, plus showSagasJournal (world storylines) = 253, plus showDiscoveries (uncharted lands) = 254, plus showTradingCompany (merchant houses) = 255, plus showHoldingSiegesPanel and holdingSiegeAct (holdings under siege) = 259, plus showDeeds (Deeds & Records) = 260, plus showRoyalCourt (kingship) = 261, plus showCounsel and counselGo (the Steward's Counsel) = 263, plus showPatronage and patronageAct (patronage & great works) = 265, plus showOutlawLairs (outlaw lairs) = 266, plus showBank and bankAct (banks, credit & coin) = 268, plus showTrader, traderBuy, traderSell, traderEscort, traderQuitEscort and traderRob (merchant caravans on the road) = 274, plus showMerchantPrince and merchantPrinceAct (invest, warehouse, contracts) = 276, plus showGuildhall and guildAct (town guilds) = 278.
 // showEpitaph, _heirProfileHtml, _reignsHtml) = 252, plus showSagasJournal (world storylines) = 253, plus showDiscoveries (uncharted lands) = 254, plus showTradingCompany (merchant houses) = 255, plus showHoldingSiegesPanel and holdingSiegeAct (holdings under siege) = 259, plus showDeeds (Deeds & Records) = 260, plus showRoyalCourt (kingship) = 261, plus showCounsel and counselGo (the Steward's Counsel) = 263, plus showPatronage and patronageAct (patronage & great works) = 265, plus showOutlawLairs (outlaw lairs) = 266, plus showBank and bankAct (banks, credit & coin) = 268, plus showTrader, traderBuy, traderSell, traderEscort, traderQuitEscort and traderRob (merchant caravans on the road) = 274, plus showMerchantPrince and merchantPrinceAct (invest, warehouse, contracts) = 276, plus showMerchantLedger and merchantLedgerAct (the Merchant's Ledger) = 278, plus showTownPeople (labour, classes & migration) = 281, plus showEconomy and economyAct (the Economic Chronicle) = 283, plus showTradePolicy and tradePolicyAct (kingdom trade policy) = 285, plus showHinterland and hinterlandAct (mines, leases and prospecting) = 287, plus showHarvests and harvestAct (harvests & the agricultural year) = 289, plus showUnderwriter, underwriterAct, showBourse and bourseAct (underwriters & the Bourse) = 293, plus showPublicWorks and publicWorksAct (roads, canals & public works) = 295, plus showMint and mintAct (specie, mints & the price level) = 297, plus showTreasury and treasuryAct (the Crown's Purse) = 299, plus showEstates, estateAct, showPuttingOut and puttingOutAct (estates & the putting-out system) = 303, plus showTownsfolkJournal (People You've Known) = 304, minus _meetingOptionButton (the Royal Audience is now a conversation scene) = 303, plus showWhispersPanel (the whispering corner: court scandals) = 304, plus showEncounter, encounterAct, showFieldBattle, battleAct and _settleFieldBattle (road encounters & phased battles) = 309, plus showScene and sceneAct (choice scenes: sea, stone & shackles) = 311, plus showLetters, lettersAct and updateLettersBadge (court letters & mail) = 314, plus showRider and riderAct (post riders on the road) = 316, plus showLodgings, _lodgingStayHtml, _lodgingRunHtml and lodgingAct (guest houses, inns, hotels & roadhouses) = 320. plus showHireSailorsMenu (the docks' hiring hall) = 321, plus the afterlife's 8 (a new life, the interregnum bar and jumping back in) = 329, plus showAmbitionPanel, setVictoryGoal and showVictoryScene (origins, difficulty & victory) = 332.
 const EXPECTED_KEYS = [
+    // Your Household: rooms, servants, larder, hall & guests (ui/actionMenu/household.js): +7
+    'showHousehold', 'householdAct', '_hhRooms', '_hhRoomEffect', '_hhServants', '_hhLarder', '_hhHall',
     // Profane crimes: a rival House's crypt, the relic trade (ui/actionMenu/profane.js): +3
     '_profaneCryptHtml', '_relicTradeHtml', 'profaneAct',
     // Raising heirs, house wards, the Almanac (2026-11-12): +10
@@ -42,15 +44,26 @@ const EXPECTED_KEYS = [
     'showRoutePlanner', 'routePickOnMap', 'routeTo', 'commissionRoute',
     // Trade Lines: standing caravan and ship loops (ui/actionMenu/tradeLines.js, 2026-11-12): +2
     'showTradeLines', 'tradeLinesAct',
+    // River & Water: river boats, fishing rights, salting, floods (ui/actionMenu/riverLife.js, 2026-11-13): +2
+    'showRiverLife', 'riverLifeAct',
+    'showHearsay',
+    // Schools & Letters: a town's literacy and schools, lessons, endowing a school (ui/actionMenu/school.js, 2026-11-14): +2
+    'showSchool', 'schoolAct',
+    // Your Crimes & Enemies: charge sheets, bounty hunters, blood debts (ui/actionMenu/wanted.js, 2026-11-13): +2
+    'showWantedPanel', 'wantedAct',
     // The Timeline of the Realm (ui/actionMenu/timeline.js) and the Annals' jump to it: +2
     'showTimeline', 'annalsTimelineDay',
     // Found a Village with real settlers (ui/actionMenu/founding.js, 2026-11-12): +8
     'showFoundVillage', '_foundVillagePlanHtml', 'foundVillageSource', 'foundVillageSettlers', 'foundVillageSite', 'foundVillagePick', 'foundVillageGo', 'foundVillageBudToggle',
     // Crises, nemesis, estate card, Annals scribe cache (2026-11-12): +7
+    // Friends & Bonds (ui/actionMenu/bonds.js, 2026-11-13): +2
+    'showBondsPanel', 'bondsAct',
     'showCrisesPanel', 'crisisAct', 'showNemesisPanel', 'nemesisAct', 'showAbdication', 'abdicationAct', '_estateHtml', 'annalsScribeFor', 'clearAnnalsScribe',
     'showSickness', 'sicknessAct',
     // Stewards & governors (ui/actionMenu/stewards.js): +2
     'showStewards', 'stewardsAct',
+    // Migration: where the people go, settlers & borders (ui/actionMenu/migration.js, 2026-11-14): +2
+    'showMigration', 'migrationAct',
     'showCourtPanel', 'showDelvePanel', 'showClaimsPanel', 'showHoldingPanel',
     'showRivalsPanel', 'showHallOfHeroes', 'showPhysicianMenu',
     'showChildPanel', 'showHouseChronicle', 'showEpitaph', '_heirProfileHtml', '_reignsHtml',
@@ -204,7 +217,7 @@ describe('ActionMenu split — structural equivalence', () => {
     });
 
     it('has 461 members', () => {
-        expect(Object.keys(ActionMenu)).toHaveLength(461);
+        expect(Object.keys(ActionMenu)).toHaveLength(479);
     });
 
     it('every member except the known data props is a function', () => {

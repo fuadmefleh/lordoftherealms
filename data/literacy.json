@@ -1,0 +1,64 @@
+{
+    "_doc": "Literacy (systems/literacy.js). Each townsperson can read or not (person.literacy 0-100, settled at 16 by systems/townSchool.js; grown folk the school book never saw are given their letters once from their trade and their town: baseline). A town's rate is the share of its grown folk at writeAt or better (settlement.letters: rate, hist by year), estimated for towns with no roster (estimate by type, era, schools). Effects scale between lo (an unlettered town) and hi (rate >= span): taxes collected, the stability a new law costs, posters on the notice board, how oral rumour distorts, how written tales spread, a bank's trust. The player's own letters (player.literacy.lv): readAt to read books and letters, writeAt to write without a scribe; lessons with a teacher; heirs learn at home and from tutors.",
+    "enabled": true,
+    "readAt": 40,
+    "writeAt": 50,
+    "refreshDays": 30,
+    "minKnown": 6,
+    "histCap": 200,
+    "baseline": {
+        "roles": { "priest": 0.95, "noble": 0.9, "merchant": 0.7, "guard": 0.18, "blacksmith_npc": 0.22, "farmer": 0.06, "villager": 0.13, "beggar": 0.02 },
+        "byTown": { "village": 0.7, "town": 1, "city": 1.25, "capital": 1.45 },
+        "byEra": [0.75, 0.9, 1.1, 1.3],
+        "lettered": [55, 90],
+        "unlettered": [0, 35]
+    },
+    "estimate": {
+        "byType": { "village": 0.05, "town": 0.13, "city": 0.22, "capital": 0.3 },
+        "eraStep": 0.03,
+        "school": 0.1,
+        "church": 0.04,
+        "guild": 0.05,
+        "driftPerYear": 0.12
+    },
+    "effects": {
+        "span": 0.5,
+        "tax": [0.93, 1.07],
+        "lawStability": [1.3, 0.6],
+        "notices": [0.6, 1.4],
+        "oralDistort": [1.35, 0.8],
+        "writtenSpread": [0.3, 1.8],
+        "bankTrust": [-0.08, 0.12]
+    },
+    "letters": {
+        "aloudDays": [1, 3],
+        "noReaderDays": [3, 6],
+        "leakChance": 0.3,
+        "leakWeight": { "love": 1.6, "threat": 1.3, "proposal": 1.2, "warning": 1.2, "favour": 1, "free": 1, "apology": 0.8, "courtesy": 0.5, "gift": 0.7 },
+        "readerLiteracy": 50
+    },
+    "player": {
+        "base": 15,
+        "perIntelligence": 5,
+        "station": { "monarch": 60, "high_priest": 65, "great_lord": 55, "guildmaster": 40, "crime_lord": 10, "noble": 45, "royal": 55, "merchant": 30, "priest": 50, "clergy": 50 },
+        "scribeFee": 2,
+        "readPace": [0.6, 1],
+        "practicePerSitting": 0.4,
+        "lessons": { "fee": 6, "gain": 7, "cap": 95, "perDay": 1 }
+    },
+    "heirs": { "startAge": 5, "endAge": 16, "home": 2, "literateParent": 3, "tutor": 9, "focus": { "learning": 7, "piety": 4, "diplomacy": 3, "stewardship": 3, "intrigue": 2, "martial": 0 } },
+    "endow": {
+        "cost": 400,
+        "materials": { "planks": 20, "stone": 15 },
+        "endowShare": 0.4,
+        "wage": 8,
+        "fund": 4,
+        "everyDays": 30,
+        "graceMonths": 2,
+        "regard": 8,
+        "prestigeScale": 2
+    },
+    "church": { "types": ["city", "capital"], "townShare": 0.35, "tithe": 12 },
+    "guild": { "minTreasury": 60, "give": 15, "share": 0.1 },
+    "pamphlet": { "cost": 30, "spreads": 4, "heat": 6, "days": 40 }
+}

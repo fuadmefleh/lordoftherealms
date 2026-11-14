@@ -67,10 +67,15 @@ Object.assign(InnerMap, {
             const b = homes[npc._roundIx];
             if (b && !(npc._home && b.q === npc._home.q && b.r === npc._home.r) && this._goInto(npc, b, 'tend')) return true;
         }
-        // An epidemic: the healthy keep to their houses more
+        // A stall left under a cloth for the plague (ui/innerMapPlague.js lists them): its keeper stays home
+        const st = npc._stall;
+        if (st && this._plagueStalls && this._plagueStalls.has(`${st.q},${st.r}`) && npc._home && period !== 'night') return this._goHome(npc, 'home');
+        // An epidemic: the healthy keep to their houses more — the worse it is, the emptier the streets
+        // (ui/innerMapPlague.js sets _plagueStay from systems/plague.js: 0 with no plague)
         const s = this._currentWorldTileRef && this._currentWorldTileRef.settlement;
         const sk = s && s.sickness;
-        if (sk && sk.epi && !sk.abs && npc.type !== 'guard' && period !== 'night' && npc._home && rnd() < 0.35) return this._goHome(npc, 'home');
+        const stay = Math.max(0.35, _num(this._plagueStay));
+        if (sk && (sk.epi || _num(this._plagueStay) > 0) && !sk.abs && npc.type !== 'guard' && period !== 'night' && npc._home && rnd() < stay) return this._goHome(npc, 'home');
         return false;
     },
 });

@@ -134,7 +134,7 @@ describe('Thieves on the street map', () => {
         InnerMapThieves._liftPlayer(game, settlement, thiefNpc, a);
         expect(shown).toHaveBeenCalledWith(game, 'catch_thief', expect.objectContaining({ npcId: thiefNpc.id, kind: 'pickpocket' }));
         const v = InnerMapThieves.view(game, { npcId: thiefNpc.id, kind: 'pickpocket' });
-        expect(v.options.map(o => o.id)).toEqual(['grab', 'shout', 'fight', 'let']);
+        expect(v.options.map(o => o.id)).toEqual(['grab', 'shout', 'fight', 'brand', 'maim', 'let']);
         expect(game.player.gold).toBe(200);
         // Shout: the watch gives chase
         const out = InnerMapThieves.act(game, { npcId: thiefNpc.id, kind: 'pickpocket' }, 'shout');

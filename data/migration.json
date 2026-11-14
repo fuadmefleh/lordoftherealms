@@ -1,0 +1,117 @@
+{
+    "_doc": "Migration (systems/migration.js): who moves between towns and why, the families who carry it, the columns on the roads and the player's settler and border policy. The weekly flows themselves are worked out by systems/labour.js (refugees, homecomings, each class drifting toward a better-off town); these are the extra pulls and pushes it reads, and what is made visible of it.",
+    "enabled": true,
+    "pull": {
+        "_doc": "Added to a town's draw (welfare units, 0..1) on top of what its labour welfare already counts (work, wages, food, safety, taxes).",
+        "plague": 0.09,
+        "crime": 0.05,
+        "laws": 0.025,
+        "prosperity": 0.05,
+        "reputation": 0.025,
+        "kin": 0.02,
+        "kinFade": 0.9,
+        "kinPer": 0.002,
+        "plagueRefugee": 0.7
+    },
+    "policy": {
+        "_doc": "The player's settlers and borders over the towns they rule. pull: added draw; cost: gold a settler, paid into the town's purse (seed, tools, a roof).",
+        "settlers": {
+            "none": { "label": "No grants", "pull": 0, "cost": 0, "hint": "Settlers come as they please." },
+            "grants": { "label": "Settlers' grants", "pull": 0.04, "cost": 1, "hint": "A purse of coin for each family that comes to settle (1g a head)." },
+            "land": { "label": "Land and grants", "pull": 0.08, "cost": 2, "hint": "Land, seed and a roof for every settler (2g a head): they come in numbers." }
+        },
+        "borders": {
+            "open": { "label": "Open gates", "hint": "Anyone may come and settle." },
+            "refugees": { "label": "Refugees only", "hint": "Only those fleeing war, famine or plague are let in." },
+            "closed": { "label": "Closed borders", "hint": "No newcomers settle: refugees are turned back at the gates." }
+        },
+        "closedRefusedFame": -1
+    },
+    "folk": {
+        "_doc": "Real households of the roster (systems/townsfolk.js) move with the flows: a town's roster stands for its people, so for every (population / roster) movers one roster person goes.",
+        "minHousehold": 1,
+        "maxHouseholdsWeek": 3,
+        "scaleMin": 0.5,
+        "scaleMax": 2.2
+    },
+    "columns": {
+        "_doc": "Parties of migrants and refugees seen on the roads (world units of type 'migrants').",
+        "min": 25,
+        "max": 14,
+        "minDistance": 2,
+        "daysPerHex": 2,
+        "maxDays": 80,
+        "refugeeIcon": "🧳",
+        "migrantIcon": "🎒"
+    },
+    "trend": {
+        "_doc": "Each town's head count every sampleDays (keep samples); the log of comings and goings.",
+        "sampleDays": 30,
+        "keep": 48,
+        "logKeep": 14,
+        "growing": 0.03,
+        "shrinking": -0.03
+    },
+    "houses": {
+        "_doc": "A town that has lost people stands with houses empty (weathered on the street map); one that has grown has new-built ones. Share of houses = (loss against its peak − lossFree) × perLoss (growth on its oldest sample − growFree, × perGrowth), capped.",
+        "lossFree": 0.1,
+        "growFree": 0.1,
+        "perLoss": 0.8,
+        "maxVacant": 0.35,
+        "perGrowth": 0.6,
+        "maxNew": 0.25,
+        "peakDecay": 0.002
+    },
+    "known": {
+        "_doc": "People the player has dealt with (spoken with, or come to know) may move away like anyone else, but are slower to: their household's pick is pushed back by stayBias. Anyone the player courts, is wed or sworn to, travels with or is mentored by stays, as do their wards, court, officers and protégés. The player is told when someone they know goes (noticesWeek at most), their memory of the player goes with them, and every reference to them follows them to their new town.",
+        "stayBias": 0.45,
+        "noticesWeek": 2
+    },
+    "size": {
+        "_doc": "A town's size class follows its people (sampled each trend.sampleDays): a village of `town` people becomes a town, a town of `city` a city; a city under `cityToTown` is a town again, a town under `townToVillage` a village - once it has held there `months` samples running. Capitals never change; villages founded at the dawn or by the player rise by their own rule and only fall here.",
+        "enabled": true,
+        "town": 650,
+        "city": 5000,
+        "cityToTown": 3500,
+        "townToVillage": 300,
+        "months": 3
+    },
+    "attack": {
+        "_doc": "Falling on a column on the road (PlayerMilitary.attackUnit). Won: the households' purses are taken, killShare of the column is cut down (they never arrive; their old roster marks them slain), the rest straggle on at once; karma by kind; `crime` recorded as seen (heat, a charge, a rumour); `reputation` lost with the realm they left (half with the one they were bound for); the kin pull along that road x kinFear. Beaten off: failKarma, failCrime, failReputation.",
+        "killShare": 0.3,
+        "karma": { "refugees": -12, "migrants": -8, "return": -8 },
+        "crime": "murder",
+        "reputation": 15,
+        "kinFear": 0.5,
+        "failKarma": -3,
+        "failCrime": "assault",
+        "failReputation": 5
+    },
+    "news": {
+        "bigShift": 120,
+        "keep": 40,
+        "noticeShare": 0.05
+    },
+    "reasons": {
+        "war": { "icon": "⚔️", "push": "fleeing the war", "short": "war" },
+        "siege": { "icon": "🏰", "push": "fleeing the siege", "short": "siege" },
+        "conquest": { "icon": "🚩", "push": "fearing their new masters", "short": "conquest" },
+        "famine": { "icon": "🌾", "push": "fleeing the hunger", "short": "famine" },
+        "plague": { "icon": "☠️", "push": "fleeing the plague", "short": "plague" },
+        "danger": { "icon": "🗡️", "push": "fleeing bandits and danger", "short": "danger" },
+        "taxes": { "icon": "💰", "push": "driven out by the taxes", "short": "taxes" },
+        "crime": { "icon": "🦹", "push": "tired of the thieves", "short": "crime" },
+        "laws": { "icon": "⚖️", "push": "chafing at harsh laws", "short": "harsh laws" },
+        "idle": { "icon": "🪓", "push": "out of work", "short": "no work" },
+        "crowding": { "icon": "🏚️", "push": "short of land", "short": "crowding" },
+        "climate": { "icon": "❄️", "push": "driven off by the hard seasons", "short": "hard seasons" },
+        "wages": { "icon": "🪙", "pull": "for better wages", "short": "wages" },
+        "work": { "icon": "🔨", "pull": "for work", "short": "work" },
+        "prosperity": { "icon": "✨", "pull": "drawn by its prosperity", "short": "prosperity" },
+        "grants": { "icon": "📜", "pull": "for the settlers' grants", "short": "grants" },
+        "kin": { "icon": "👪", "pull": "to join kin who went before", "short": "kin" },
+        "safety": { "icon": "🛡️", "pull": "for safety", "short": "safety" },
+        "return": { "icon": "🏠", "pull": "going home", "short": "homecoming" },
+        "better": { "icon": "➡️", "pull": "for a better life", "short": "a better life" }
+    }
+}

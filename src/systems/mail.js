@@ -57,6 +57,8 @@ import { SettlementMarket } from '../world/settlementMarket.js';
 import { Names } from '../core/names.js';
 // (a letter in the player's own words, answered by the AI brain: systems/letterChat.js)
 import { LetterChat } from './letterChat.js';
+// (who can read: a scribe for the player who can't write, a reader for a recipient who can't read — systems/literacy.js)
+import { Literacy } from './literacy.js';
 
 // What a learned intel key means in a sentence ('military' → 'armies'), joined "a, b and c"
 const _INTEL_WORDS = { ruler: 'ruler', military: 'armies', diplomacy: 'alliances and quarrels', economy: 'trade and treasury' };
@@ -420,7 +422,9 @@ export const Mail = {
             item = { id: opts.item, qty: 1, value: PlayerInventory.goodValue(opts.item) };
         }
         if (K.enclose && !gold && !item) return { success: false, reason: 'Enclose gold or one of your goods.' };
-        if (_num(player.gold) < courier.price + gold) return { success: false, reason: `You need ${courier.price + gold} gold.` };
+        // (a player who can't write pays a scribe to write it for them)
+        const scribe = Literacy.scribeFee(player);
+        if (_num(player.gold) < courier.price + gold + scribe) return { success: false, reason: `You need ${courier.price + gold + scribe} gold${scribe ? ` (${scribe}g of it for the scribe who writes it for you)` : ''}.` };
         let childId = null;
         if (opts.kind === 'ransom') {
             const held = (to.held || []).find(h => opts.childId == null || h.childId === opts.childId);
@@ -438,6 +442,7 @@ export const Mail = {
         // Pay, enclose
         if (courier.price > 0) { player.gold = _num(player.gold) - courier.price; Ledger.record(player, 'postage', -courier.price); }
         if (gold > 0) { player.gold = _num(player.gold) - gold; Ledger.record(player, 'mailGifts', -gold); }
+        if (scribe > 0) Literacy.payScribe(player, world);
         if (item) {
             player.inventory[item.id] -= 1;
             if (player.inventory[item.id] <= 0) delete player.inventory[item.id];
@@ -451,6 +456,7 @@ export const Mail = {
             sentDay: day, days: courier.days, arriveDay: day + courier.days, danger: courier.danger || 0,
             gold, item, childId, enemyId, postage: courier.price, status: 'transit', delayed: false,
             ...(text ? { text } : {}),
+            ...(scribe > 0 ? { scribe } : {}),
         };
         st.outbox.push(letter);
         if (!st.recent[to.key]) st.recent[to.key] = [];
@@ -459,7 +465,7 @@ export const Mail = {
         if (opts.kind === 'favour') st.favours[to.key] = day;
         st.today = st.today.day === day ? { day, n: st.today.n + 1 } : { day, n: 1 };
         st.stats.sent++;
-        return { success: true, letter, text: `${K.icon || '✉️'} Your letter to ${to.name} rides with ${courier.name}: due at ${to.place} in about ${courier.days} day${courier.days === 1 ? '' : 's'}.` };
+        return { success: true, letter, text: `${K.icon || '✉️'} ${scribe ? `A scribe writes it out for you (${scribe}g). ` : ''}Your letter to ${to.name} rides with ${courier.name}: due at ${to.place} in about ${courier.days} day${courier.days === 1 ? '' : 's'}.` };
     },
 
     // ──────────── THE DAY ────────────
@@ -509,15 +515,17 @@ export const Mail = {
         const day = _day(world);
         const K = this.kind(L.kind) || {};
         L.resolvedDay = day;
+        // (a letter already at the door, waiting on someone to read it aloud, is past the road: systems/literacy.js)
+        const atDoor = !!L.aloud;
         // Held up on the road (once)
-        if (!L.delayed && Utils.random() < M.delay + (world.season === 'Winter' ? M.winterDelay : 0)) {
+        if (!atDoor && !L.delayed && Utils.random() < M.delay + (world.season === 'Winter' ? M.winterDelay : 0)) {
             L.delayed = true;
             L.arriveDay = day + Utils.randInt(M.delayDays[0], M.delayDays[1]);
             st.stats.delayed++;
             return;
         }
         // Lost
-        if (Utils.random() < (1 - _num(L.courier.reliability, 0.85)) * M.lossShare) {
+        if (!atDoor && Utils.random() < (1 - _num(L.courier.reliability, 0.85)) * M.lossShare) {
             st.stats.lost++;
             if (L.courier.id !== 'own') Couriers.recordLoss(world, L.courier.id, 1);
             const text = `Your letter to ${L.to.name} never arrived: ${L.courier.name} lost it on the road${L.gold || L.item ? ', and what it carried' : ''}.`;
@@ -526,11 +534,11 @@ export const Mail = {
             return;
         }
         // Robbed (a letter with a rider on the map met its road already: systems/courierRiders.js)
-        if (!L.rider && L.danger > 0 && Utils.random() < L.danger * D.robChance * (1 - _num(L.courier.guardCover))) {
+        if (!atDoor && !L.rider && L.danger > 0 && Utils.random() < L.danger * D.robChance * (1 - _num(L.courier.guardCover))) {
             if (this.robLetter(world, player, L, out)) return;
         }
         // Intercepted and read (by a warring realm's agents on the rider's road, or here)
-        const by = L.road && L.road.intercepted ? { ...L.road.intercepted } : this._interceptor(world, player, L, !!L.rider);
+        const by = atDoor ? null : L.road && L.road.intercepted ? { ...L.road.intercepted } : this._interceptor(world, player, L, !!L.rider);
         if (by) {
             st.stats.intercepted++;
             L.intercepted = { ...by, foundOut: Utils.random() < M.foundOut };
@@ -547,12 +555,17 @@ export const Mail = {
             this._done(player, L, 'undelivered', `Your letter to ${L.to.name} came back: they are gone.`);
             return;
         }
+        // One who can't read waits for someone to read it to them (systems/literacy.js): days late
+        if (Literacy.atDoor(world, player, L, to, sub)) return;
         st.stats.delivered++;
         // Your own words: the AI brain answers (systems/letterChat.js); off, they are read as the nearest plain kind
         const free = L.kind === 'free' ? LetterChat.deliver(world, player, L, to, sub) : null;
         const LK = free && free.fallback ? { ...L, kind: free.fallback } : L;
         const r = free && !free.fallback ? free : this._react(world, player, LK, to, sub, free ? (this.kind(free.fallback) || {}) : K);
         L.tone = r.tone;
+        // (read aloud: the reader knows it now, and may tell it)
+        const aloud = Literacy.afterAloud(world, player, L, to, out);
+        if (aloud) r.text = `${r.text}${aloud}`;
         this._done(player, L, 'delivered', r.text);
         out.delivered.push(L);
         if (r.reply && Utils.random() < (r.reply.always ? 1 : M.replyChance)) {
@@ -1467,6 +1480,9 @@ export const Mail = {
         }
         st.replies = st.replies.filter(x => x !== R);
         st.stats.replies++;
+        // A player who can't read has it read to them (systems/literacy.js): a fee to the town's scribe, and a note on the letter
+        const readTo = Literacy.readToPlayer(player, world);
+        if (readTo && R.letter) R.letter.handNote = [R.letter.handNote, readTo].filter(Boolean).join(' ');
         // Its messenger was waylaid on the road (systems/courierRiders.js): the purse is gone, the letter comes on
         if (R.robbed) R.body = `${R.body || ''} (The messenger was robbed by ${R.robbed.by} near ${R.robbed.where}${R.robbed.gold ? `; the ${R.robbed.gold} gold they carried is gone` : ''}.)`.trim();
         if (R.gold > 0) {

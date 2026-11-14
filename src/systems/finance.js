@@ -67,6 +67,8 @@ import { Ships } from './ships.js';
 import { MerchantHouses } from './merchantHouses.js';
 import { Ledger } from './ledger.js';
 import { Names } from '../core/names.js';
+// (written receipts and contracts trusted where people read: systems/literacy.js; run time only)
+import { Literacy } from './literacy.js';
 
 function _num(v, d = 0) {
     return typeof v === 'number' && Number.isFinite(v) ? v : d;
@@ -466,6 +468,8 @@ export const Finance = {
         const years = Math.max(0, day - _num(bank.founded, day)) / Finance.yearDays();
         let t = _num(T.base, 0.6) + rep * _num(T.perRep, 0.006) + Math.min(_num(T.ageMax, 0.3), years * _num(T.agePerYear, 0.1));
         if (bank.lastRunDay != null && day - bank.lastRunDay < _num(T.afterRunDays, 60)) t -= _num(T.runPenalty, 0.3);
+        // (a lettered town trusts a written receipt and a contract: systems/literacy.js)
+        t += Literacy.bankTrust(world, Finance._seatOf(world, bank));
         return _clamp(t, _num(T.min, 0.25), _num(T.max, 1.3));
     },
 

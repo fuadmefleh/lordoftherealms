@@ -9,6 +9,7 @@ import './overlays.js';
 import './tradeMap.js';
 import './transport.js';
 import './fog.js';
+import './currents.js';
 import './atmosphere.js';
 
 export { Renderer };

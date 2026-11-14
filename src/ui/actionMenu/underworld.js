@@ -14,6 +14,7 @@
 import { ActionMenu } from './_ref.js';
 import { Underworld } from '../../systems/underworld.js';
 import { Gangs } from '../../systems/gangs.js';
+import { NightStreets } from '../../systems/nightStreets.js';
 import { BTN_GOLD, BTN_DIM, BTN_DARK, BTN_RED, panelTabs, esc, lede, chips, sectionHead, kv, card, actRow, rowList } from './uiKit.js';
 import { ParentsGuard } from '../parentsGuard.js';
 
@@ -390,6 +391,9 @@ function marketTab(game, tile) {
     if (!fenceHere) html += lede('You know no fence here. A guild contact opens the fence and the black market to you.');
     const buyer = fenceHere ? Gangs.buyer(player, world, tile) : null;
     if (buyer) html += lede(`The buyer here is ${esc(buyer.name)}: they pay from a purse of ${Math.floor(buyer.purse)}g.`);
+    // The night market in a back alley after dark (systems/nightStreets.js; walk to it on the street map)
+    const nightHint = NightStreets.marketHint(player, world, tile);
+    if (nightHint) html += `<div style="${NOTE}">🏮 ${esc(nightHint)}</div>`;
 
     if (fenceHere) {
         html += sectionHead('🧺 The Fence');

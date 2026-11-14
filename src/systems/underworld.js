@@ -259,6 +259,11 @@ export const Underworld = {
         else st.heat[kingdomId] = Math.round(after * 100) / 100;
         if (amount > 0) Underworld._wantedCheck(player, kingdomId, after, world);
         if (after < h.posterAt) delete st.posters[kingdomId];
+        // The crown's long memory reads what was gained (systems/wanted.js consumes it daily)
+        if (amount > 0) {
+            if (!st.heatGained || typeof st.heatGained !== 'object') st.heatGained = {};
+            st.heatGained[kingdomId] = Math.round((_num(st.heatGained[kingdomId]) + amount) * 100) / 100;
+        }
         return after;
     },
 
@@ -316,6 +321,12 @@ export const Underworld = {
         const kingdom = opts.kingdom || null;
         const heatGain = (opts.caught ? _num(def.caughtHeat, def.heat) : _num(def.heat)) * scale;
         const heat = kingdom ? Underworld.addHeat(player, kingdom, heatGain, world) : 0;
+        // The named crime behind the heat, for the realm's charge sheet (systems/wanted.js)
+        if (kingdom && heatGain > 0) {
+            if (!Array.isArray(st.charges)) st.charges = [];
+            st.charges.push({ crime: crimeId, kingdom, heat: heatGain, caught: !!opts.caught });
+            if (st.charges.length > 40) st.charges.splice(0, st.charges.length - 40);
+        }
         // The town's watch feels it too: its crackdown rises (systems/gangs.js)
         if (world && opts.q != null && opts.r != null && heatGain > 0) {
             Gangs.addCrackdown(world, opts.q, opts.r, heatGain * _num((Underworld.data().gangs || {}).crackdownPerHeat, 0.8));

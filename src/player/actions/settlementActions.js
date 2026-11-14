@@ -34,6 +34,7 @@ import { Mints } from '../../systems/mints.js';
 import { Fiscal } from '../../systems/fiscal.js';
 import { Estates } from '../../world/estates.js';
 import { Lots } from '../../systems/lots.js';
+import { Literacy } from '../../systems/literacy.js';
 import { Graveyards } from '../../systems/graveyards.js';
 import { TownCrimes } from '../../systems/townCrimes.js';
 import { Illness } from '../../systems/illness.js';
@@ -239,6 +240,20 @@ export function addSettlementActions(actions, player, tile, world, ctx) {
         });
     }
 
+    // Schools & Letters: who reads here, its schools, lessons, endowing a school (systems/literacy.js)
+    if (tile.settlement && tile.settlement.folk && Literacy.config().enabled) {
+        const line = Literacy.infoLine(world, tile.settlement);
+        const sc = tile.settlement.folk.school;
+        const mine = !!(sc && sc.endowed && !sc.endowed.closed);
+        actions.push({
+            type: 'town_school',
+            label: 'Schools & Letters',
+            icon: '📖',
+            description: `${line ? `${line}: ` : ''}its schools, lessons for you, ${mine ? 'the school you endowed' : 'endow a school'}`,
+            notice: mine && sc.endowed.missed ? 'Your schoolmaster is unpaid' : null,
+        });
+    }
+
     // Tavern / Talk to Locals. A clan's camp at the dawn, or a world before the tavern's
     // age (data/dawn.json eraBuildings), has no tavern: its people talk round the fire
     const stl = tile.settlement;
@@ -352,6 +367,16 @@ export function addSettlementActions(actions, player, tile, world, ctx) {
                 description: 'Upgrade, repair, or sell your property'
             });
         }
+    }
+
+    // Your household: rooms, servants, guests and the larder of a home you own (player/household.js)
+    if ((player.houses || []).some(h => h.q === tile.q && h.r === tile.r) || Object.values((player.household && player.household.homes) || {}).some(h => h.q === tile.q && h.r === tile.r)) {
+        actions.push({
+            type: 'my_household',
+            label: 'Your Household',
+            icon: '🏡',
+            description: 'Lay out your rooms, keep servants and a larder, receive guests, show off heirlooms',
+        });
     }
 
     // A joiner in every settlement: furniture for the homes you own (systems/furnishing.js)

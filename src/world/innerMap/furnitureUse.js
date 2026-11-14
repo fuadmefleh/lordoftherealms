@@ -411,7 +411,7 @@ Object.assign(InnerMap, {
             case 'walk':
                 if (!this._npcStep(npc, deltaTime)) return;
                 if (act.spot && Math.max(Math.abs(act.spot.q - npc.q), Math.abs(act.spot.r - npc.r)) <= 1) {
-                    const def = this.FURNITURE_ACTIVITIES[act.spot.type];
+                    const def = (npc._homeActs && npc._homeActs[act.spot.type]) || this.FURNITURE_ACTIVITIES[act.spot.type];
                     const [lo, hi] = def.duration;
                     act.phase = 'use';
                     act.timer = lo + Utils.random() * (hi - lo);

@@ -1,0 +1,47 @@
+{
+    "_doc": "River & sea as a way of life (systems/riverBoats.js, systems/riverLife.js; the panel ui/actionMenu/riverLife.js; flood water on the street map ui/innerMapLayers/floodWater.js). boats: what the boatwrights of a river town build (price in gold, paid into the town's purse; hold: units of cargo it carries; hexDays: days to pole or row one hex on slack water — a lake, or across a river's run; down/up: that times this going with the current or against it; flood: the extra factor on both while the river is in flood (up is worse, down quicker); sellBack: share of the price a town's boatwright pays back, out of the town's purse). tolls: what a boat pays passing a town's mill weir and bridge (weir, bridge, in gold; perHold: extra gold per 40 units of hold, so a barge pays more), to the town's purse; owed in kind from the hold when the purse is empty.",
+    "enabled": true,
+    "boats": {
+        "punt": { "name": "Punt", "icon": "🛶", "price": 60, "hold": 25, "hexDays": 0.5, "down": 0.55, "up": 2.2, "sellBack": 0.5, "desc": "A flat-bottomed punt poled along the shallows: cheap, handy, and a fair load of goods." },
+        "barge": { "name": "River Barge", "icon": "⛴️", "price": 420, "hold": 160, "hexDays": 0.6, "down": 0.6, "up": 3, "sellBack": 0.55, "minTown": "town", "desc": "A broad-beamed barge with a mast to step and a tow rope for the hard pulls upstream: slow against the current, a warehouse on the water going with it." }
+    },
+    "flood": { "down": 0.75, "up": 1.6 },
+    "tolls": { "weir": 2, "bridge": 1, "perHold": 1 },
+    "townRank": { "hamlet": 0, "village": 1, "town": 2, "city": 3, "capital": 4 },
+
+    "_docFishing": "Fishing as a trade. leaseDays: how long a lease of fishing rights runs. fee: gold for a lease, by water (river, lake, sea), times townMult by the size of the town that holds the water (else the crown's rate crownMult); paid to the town's purse (or the crown's treasury). rollBonus: extra chances a day for a fish in a net set on water you hold the rights to (the good pools). bailiff: on water a town or a crown holds, a net set without a lease may be found (chance a day; near a town townMult times it): fined (fine gold, to the holder) or, with no coin, the net taken. poach: rival fishers empty part of a net's catch (chance a day, times leasedMult on water you hold, townMult near a town; share of the fish taken) — the fish go to the nearest town's market. fresh: days raw fish keep in your packs or a boat's hold, by season; then they rot. salt: one salt cures saltPer raw fish into preserved fish. waterside: how much more fish a market by a river, lake or the sea eats than an inland one (data/markets.json watersideDemand).",
+    "leaseDays": 90,
+    "fee": { "river": 30, "lake": 25, "sea": 40 },
+    "townMult": { "hamlet": 0.6, "village": 0.8, "town": 1.2, "city": 1.6, "capital": 2 },
+    "crownMult": 1,
+    "rollBonus": 2,
+    "bailiff": { "chance": 0.02, "townMult": 2.5, "fine": 12 },
+    "poach": { "chance": 0.03, "leasedMult": 0.6, "townMult": 1.5, "share": 0.5 },
+    "fresh": { "spring": 3, "summer": 2, "autumn": 3, "winter": 6 },
+    "saltPer": 4,
+
+    "_docFloods": "Spring floods. In spring (dayFrom..dayTo of the season) each river hex may rise: chance a day x (1 + its upstream size ^ 0.5 / sizeDiv) x rainMult in rain, stormMult in a storm (snowmelt early in the season: thawMult on days up to thawDays). A flood lasts days [min, max] and its crest runs downstream crest hexes, a day a hex, a little lower each time (fall). maxActive: the most hexes in flood at once. While a hex is in flood: nets there are washed away (washAway x severity, else torn), growing crops on it drown (drown x severity), a let house in a town on it takes repairDays of repairs (houseChance x severity), the town's granary loses grainLoss x severity of its grain, and the river brings down surge extra finds. The street map of a flooded hex shows the river over its banks: bankCells cells of water beyond the banks at full severity.",
+    "floods": {
+        "enabled": true,
+        "dayFrom": 1,
+        "dayTo": 26,
+        "chance": 0.0015,
+        "sizeDiv": 3,
+        "rainMult": 3,
+        "stormMult": 7,
+        "thawDays": 10,
+        "thawMult": 1.8,
+        "days": [3, 7],
+        "crest": 4,
+        "fall": 0.8,
+        "maxActive": 40,
+        "washAway": 0.6,
+        "drown": 0.55,
+        "houseChance": 0.5,
+        "repairDays": 6,
+        "grainLoss": 0.08,
+        "surge": 2,
+        "noticeReach": 6,
+        "bankCells": 3
+    }
+}

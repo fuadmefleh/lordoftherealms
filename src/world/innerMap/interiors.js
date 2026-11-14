@@ -25,6 +25,8 @@ Object.assign(InnerMap, {
         // Snowfields and ice stay white the year round (the season is only the map's look)
         const coldId = worldTile.terrain ? worldTile.terrain.id : null;
         this.season = ['snow', 'ice', 'snow_peak'].includes(coldId) ? 'Winter' : (game.world ? game.world.season : 'Spring');
+        // …or as the ground lies today: a snowless winter bare, a snowy spring white (world/innerMap/streetSeasons.js)
+        if (this._streetLookSeason) this.season = this._streetLookSeason(game.world, worldTile, worldQ, worldR, this.season);
 
         // Generate/retrieve inner map
         this.tiles = this.getOrGenerate(worldTile, worldQ, worldR, game);
@@ -108,6 +110,8 @@ Object.assign(InnerMap, {
         this._bindGates(game.world, `${worldQ},${worldR}`);
         // ── The trees felled here: their stumps, saplings, or the trees grown back (world/innerMap/felling.js) ──
         if (this._bindFelling) this._bindFelling(game.world, `${worldQ},${worldR}`, this.worldDay);
+        // ── The drifts and shafts dug here, as the record has them (world/innerMap/mines.js) ──
+        if (this._bindMines) this._bindMines(game.world, `${worldQ},${worldR}`);
         // ── The player's own dead buried here: mounds, graves and their markers (world/burials.js, world/innerMap/graves.js) ──
         if (this._bindBurials) this._bindBurials(game.world, `${worldQ},${worldR}`, this.worldDay);
         // ── Its granary stocked from the first day (world/economy.js), for the farmers to carry into and the keeper to sell from ──
@@ -170,6 +174,8 @@ Object.assign(InnerMap, {
         }
         // The hex's deer, grazing where the hash puts their herds (world/innerMap/animals.js)
         if (this._spawnAnimals) this._spawnAnimals(game, worldTile, worldQ, worldR);
+        // The season on the ground: ice, mud, the going, the fair or the bonfire (world/innerMap/streetSeasons.js)
+        if (this._bindStreetSeason) this._bindStreetSeason(game.world, worldTile, worldQ, worldR);
 
         // For settlements, reveal all tiles (you're visiting a known location)
         if (hasSettlement) {
@@ -987,6 +993,8 @@ Object.assign(InnerMap, {
         // The castle: its garrison and household, the lord before the throne (world/innerMap/seats.js)
         this._seatVisit = seatVerdict ? { building, held: this.playerHoldsSeat(building, game), verdict: seatVerdict } : null;
         if (String(building.type).replace(/^player_/, '') === 'castle' && this._populateCastle) this._populateCastle(building);
+        // The player's own household: its rooms, servants and guests (world/innerMap/household.js)
+        if (this._householdArrive) this._householdArrive(game);
 
         // Walking into the gaol free: its prisoners behind their bars, the gaoler about (world/innerMap/jail.js)
         if (isJail && !building._jail && this._visitJail) this._visitJail(building);
@@ -1121,6 +1129,8 @@ Object.assign(InnerMap, {
     _generateInterior(building, interiorKey) {
         // The jail: cells, bars, the gaoler's room (world/innerMap/jail.js) — the same gaol each visit
         if (building && (building._jail || building.type === 'jail') && this._generateJailInterior) return this._generateJailInterior();
+        // A way underground: a cave, a drift or a shaft (world/innerMap/mines.js)
+        if (building && building._underground && this._generateUnderground) return this._generateUnderground(building);
         // The castle: gatehouse, courtyard and keep (world/innerMap/seats.js)
         if (building && String(building.type).replace(/^player_/, '') === 'castle' && this._generateCastleInterior) return this._generateCastleInterior(building);
         // ── Try linked custom interior first (by building def ID) ──

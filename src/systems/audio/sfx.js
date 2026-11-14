@@ -185,6 +185,8 @@ Object.assign(AudioManager.prototype, {
             // Town scenes (world/innerMap/townScenes.js): the smith at the anvil, the church bell
             case 'anvil':         this._sfxAnvil(); break;
             case 'bell':          this._sfxBell(); break;
+            // The death cart's handbell in a plague town (ui/innerMapPlague.js)
+            case 'handbell':      this._sfxHandbell(); break;
             // Someone buried alive (ui/innerMapDowned.js): a cry through the earth, the soil shifting
             case 'muffled_cry':   this._sfxMuffledCry(); break;
         }
@@ -281,6 +283,15 @@ Object.assign(AudioManager.prototype, {
             this._knock('sine', 392, 388, 2.2, 0.14, i * 1.4);
             this._knock('sine', 784, 780, 1.6, 0.05, i * 1.4);
             this._knock('triangle', 196, 195, 2.6, 0.06, i * 1.4);
+        }
+    },
+
+    /** A small handbell, rung twice: bright, thin, quickly gone. */
+    _sfxHandbell() {
+        for (let i = 0; i < 2; i++) {
+            this._knock('sine', 1320, 1316, 0.9, 0.07, i * 0.55);
+            this._knock('triangle', 2640, 2630, 0.5, 0.025, i * 0.55);
+            this._knock('sine', 660, 659, 1.1, 0.03, i * 0.55);
         }
     },
 

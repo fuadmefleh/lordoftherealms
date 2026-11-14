@@ -16,11 +16,14 @@
 // systems/gangs.js (the gangs' dens and the crown's licence) and, with a
 // town's own ban (localVice), by Laws.gambling: where gaming is forbidden no
 // gaming house opens and dice go underground, behind a front
-// (systems/backRooms.js). The panel is ui/actionMenu/laws.js.
+// (systems/backRooms.js); curfew by systems/nightStreets.js (the streets
+// emptied after the bell, the watch stopping anyone out). The panel is ui/actionMenu/laws.js.
 
 import { DataLoader } from '../core/dataLoader.js';
 import { CrownBooks } from '../world/crownBooks.js';
 import { Names } from '../core/names.js';
+// (a law posted in a lettered realm is read and understood: systems/literacy.js; run time only)
+import { Literacy } from './literacy.js';
 
 const DEFAULTS = {
     changeCost: { treasury: 150, stability: 2 },
@@ -185,7 +188,8 @@ export const Laws = {
         const C = Laws.config();
         const cost = Math.round(_num(C.changeCost.treasury, 150));
         // The upheaval of any change, and more for a hard law (a law the people like costs nothing extra)
-        const stability = Math.round(_num(C.changeCost.stability, 2) + Math.max(0, -_num(o.stability)));
+        // (a realm that reads its posted laws grumbles less at a change: systems/literacy.js)
+        const stability = Math.round((_num(C.changeCost.stability, 2) + Math.max(0, -_num(o.stability))) * Literacy.lawStabilityFactor(world, k.id));
         const last = k.laws && k.laws.changed && k.laws.changed[lawId];
         const readyDay = last != null ? _num(last) + _num(C.cooldownDays, 30) : 0;
         const day = _num(world && world.day);
@@ -243,7 +247,7 @@ export const Laws = {
         const was = Laws.option(world, k.id, lawId);
         k.laws[lawId] = optionId;
         k.laws.changed[lawId] = day;
-        k.stability = Math.max(0, Math.min(100, _num(k.stability, 50) - Math.max(0, -_num(o.stability))));
+        k.stability = Math.max(0, Math.min(100, _num(k.stability, 50) - Math.max(0, -_num(o.stability)) * Literacy.lawStabilityFactor(world, k.id)));
         if (!Array.isArray(k.laws.history)) k.laws.history = [];
         k.laws.history.push({ day, law: lawId, from: was ? was.id : null, to: optionId, by: 'crown', why: opts.why || null });
         if (k.laws.history.length > 30) k.laws.history.splice(0, k.laws.history.length - 30);

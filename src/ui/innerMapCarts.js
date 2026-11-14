@@ -343,7 +343,9 @@ export const InnerMapCarts = {
             // (the ground it is about to take: no one steps in under it)
             c.claim = [{ q: d.q, r: d.r }, { q: next.q, r: next.r }];
         }
-        d.moveProgress += dt * _num(d._cartPace, 1) * 2 * _num(Carts.kind(c.kind).speed, 0.8);
+        // (wheels drag in mud and snow, slip on ice: world/innerMap/streetSeasons.js)
+        const ground = InnerMap._groundPace ? InnerMap._groundPace(next.q, next.r, true) : 1;
+        d.moveProgress += dt * _num(d._cartPace, 1) * 2 * _num(Carts.kind(c.kind).speed, 0.8) * ground;
         if (d.moveProgress >= 1) {
             const from = { q: d.q, r: d.r };
             d.q = next.q;

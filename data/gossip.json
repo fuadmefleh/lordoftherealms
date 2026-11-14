@@ -299,6 +299,17 @@
             "spreadChance": 0.7,
             "description": "{perpetrator} has been reading other people's letters: the seal of {victim} was found lifted in {location}"
         },
+        "letter_aloud": {
+            "label": "Read Aloud",
+            "icon": "📖",
+            "talk": true,
+            "baseSeverity": 18,
+            "credibility": 0.75,
+            "decayDays": 40,
+            "spreadChance": 0.6,
+            "_note": "A letter of the player's to one who cannot read, read out to them by a neighbour or the priest, who told what was in it (systems/literacy.js afterAloud)",
+            "description": "{perpetrator} wrote to {victim} of {location}, who cannot read: whoever read it out has told the whole street what was in it"
+        },
         "boast": {
             "label": "Tall Talk",
             "icon": "🗣️",

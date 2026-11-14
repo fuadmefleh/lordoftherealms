@@ -292,6 +292,9 @@ Object.assign(InnerMap, {
             actions = ['closed'];
         }
 
+        // Shuttered against the plague (ui/innerMapPlague.js lists them, systems/plague.js shopShut)
+        if (this._plagueShops && this._plagueShops.has(`${building.q},${building.r}`)) actions = ['closed'];
+
         return actions;
     },
 
@@ -516,7 +519,9 @@ Object.assign(InnerMap, {
 
                 case 'walking':
                     if (npc.path && npc.pathIndex < npc.path.length) {
-                        npc.moveProgress += deltaTime * npc.speed * 2;
+                        // (slower through snow and mud off the cleared streets: world/innerMap/streetSeasons.js)
+                        const nx = npc.path[npc.pathIndex];
+                        npc.moveProgress += deltaTime * npc.speed * 2 * (this._ssPace && nx ? this._groundPace(nx.q, nx.r) : 1);
                         if (npc.moveProgress >= 1.0) {
                             npc.moveProgress = 0;
                             npc.prevQ = npc.q;

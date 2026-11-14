@@ -31,6 +31,7 @@ import { _mem, _dispositionLabel, _pick, _getTimeOfDay, _getWeather, _getSettlem
 import { _handleChoice, _showGiftSubmenu, _giveGoldGift, _giveItemGift, _showAskAboutSubmenu, _showSkillCheckResult, _animateDispositionChange, _updateDispositionBar, _createOverlay, _taskChoice, _startFreeTalk, _renderFreeTalk } from './choices.js';
 import { NpcChat } from '../../systems/npcChat.js';
 import { IllnessPlayer } from '../../systems/illnessPlayer.js';
+import { Hearsay } from '../../systems/hearsay.js';
 import { Names } from '../../core/names.js';
 
 /**
@@ -118,6 +119,10 @@ export function _buildConversation(npc) {
         // ...or, when it is open business of the House's (systems/houseQuests.js), the matter itself
         const remembered = street || !player ? null : (HouseQuests.dialogLine(world, player, npc) || NpcMemory.greetLine(world, npc, player));
         if (remembered) greeting = remembered + ' ' + greeting;
+        // What they remember you told them, or have heard said of you (systems/hearsay.js)
+        const wt = InnerMap.currentWorldTile || player || {};
+        const heard = street || !player ? null : Hearsay.greetLine(player, world, npc, wt.q != null ? `${wt.q},${wt.r}` : null);
+        if (heard) greeting = heard + ' ' + greeting;
         // Sick, or sick kin at home (systems/illnessPlayer.js)
         const sick = street ? null : IllnessPlayer.greetLine(npc, world);
         if (sick) greeting = sick + ' ' + greeting;

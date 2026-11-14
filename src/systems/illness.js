@@ -73,7 +73,13 @@ function _seedOf(world) { return (world && world.generationParams && world.gener
 
 /** A deterministic stream keyed by the world seed and the given parts. */
 function _rng(world, key) {
-    let s = (Utils.hashStr(`${_seedOf(world)}|ill|${key}`) >>> 0) || 1;
+    // (the string hash mixed: alone it barely moves with the key's last characters, so the
+    // same towns' rolls on following days came out all but the same — town-to-town spread
+    // fired in bursts or never)
+    let s = Utils.hashStr(`${_seedOf(world)}|ill|${key}`) >>> 0;
+    s = Math.imul(s ^ (s >>> 16), 0x85ebca6b) >>> 0;
+    s = Math.imul(s ^ (s >>> 13), 0xc2b2ae35) >>> 0;
+    s = ((s ^ (s >>> 16)) >>> 0) || 1;
     return () => {
         s = (Math.imul(s, 1664525) + 1013904223) >>> 0;
         return s / 4294967296;
@@ -287,6 +293,9 @@ export const Illness = {
             if (ev) { env.plague = ev; env.plagueHere = ev.q === folk.q && ev.r === folk.r; }
         } catch (e) { env.plague = null; }
         env.quarantine = Illness.quarantined(world, s);
+        // A dead household's goods burnt, the herb fires lit (systems/plague.js): it goes the slower within the walls
+        const cl = s && s.plague && s.plague.cleanse;
+        env.townMult = cl && _num(cl.until) >= day ? _clamp(_num(cl.mult, 1), 0, 1) : 1;
         // The climate's era: fevers in wet decades and warm ages, winter sickness in a cold one (world/climate.js)
         try { env.clim = Climate.diseaseMult(world, folk.q, folk.r, day); } catch (e) { env.clim = 1; }
         return env;
@@ -294,6 +303,8 @@ export const Illness = {
 
     /** Does the town's realm shut a sick town's gates (the Pestilence law, systems/laws.js)? */
     quarantined(world, s) {
+        // (a town's own gates shut against the sickness, by its ruler or the player: systems/plague.js)
+        if (s && s.plagueGate && s.plagueGate.shut) return true;
         if (!s || s.kingdom == null) return false;
         try { return Laws.value(world, s.kingdom, 'pestilence') === 'quarantine'; } catch (e) { return false; }
     },
@@ -430,7 +441,7 @@ export const Illness = {
                 const nw = c.wk.get(w) || 0;
                 const nt = Math.max(0, c.town - nh - nw);
                 const crowd = Math.min(1, 6 / Math.max(1, wkSize.get(w) || 1));
-                const lam = _num(d.contagion) * (_num(K.household) * nh + _num(K.work) * nw * crowd + _num(K.town) * nt * _num(K.townRef, 12) / N)
+                const lam = _num(d.contagion) * (_num(K.household) * nh + _num(K.work) * nw * crowd + _num(K.town) * nt * _num(K.townRef, 12) / N * _num(env.townMult, 1))
                     * _num(_obj(d.season) && d.season[env.season], 1) * Illness.risk(p, k, env, hh.size.get(h) || 1, day) * step;
                 if (lam > 0 && rng() < 1 - Math.exp(-lam)) {
                     fresh.push([p, k, nh ? 'household' : nw ? 'work' : 'town']);
@@ -791,7 +802,7 @@ export const Illness = {
                 if (dist > radius) continue;
                 const qb = Illness.quarantined(world, b) ? _num(T.quarantine, 0.15) : 1;
                 const chance = _num(T.perStep, 0.6) * src.share * Math.min(1, _num(d.contagion) * 10) * (d.plague ? _num(T.plague, 2.5) : 1)
-                    * _num(_obj(T.size) && T.size[b.type], 1) * (1 - dist / (radius + 1)) * qa * qb;
+                    * _num(_obj(T.size) && T.size[b.type], 1) * (1 - dist / (radius + 1)) * qa * qb * Illness._route(src.s, b);
                 const rng = _rng(world, `${src.s.q},${src.s.r}>${b.q},${b.r}|${src.k}|${day}`);
                 if (!(rng() < chance)) continue;
                 if (_obj(b.folk) && Array.isArray(b.folk.people)) {
@@ -803,6 +814,21 @@ export const Illness = {
                 }
             }
         }
+    },
+
+    /**
+     * How well the road between two towns carries a sickness (data travel.routes):
+     * along their trade link (market.links: a road, a sea lane) the more, off any
+     * link the less. Towns that keep no links (no market drawn yet) as before.
+     */
+    _route(a, b) {
+        const R = _obj(Illness.config().travel.routes);
+        const la = a && a.market && Array.isArray(a.market.links) ? a.market.links : null;
+        if (!R || !la || !la.length) return 1;
+        const l = la.find(x => Array.isArray(x) && x[0] === b.q && x[1] === b.r)
+            || (b.market && Array.isArray(b.market.links) ? (b.market.links.find(x => Array.isArray(x) && x[0] === a.q && x[1] === a.r) || null) : null);
+        if (!l) return _num(R.unlinked, 0.35);
+        return _num(R.linked, 1.4) * (l[4] ? _num(R.road, 1.25) : 1) * (l[3] ? _num(R.sea, 1.4) : 1);
     },
 
     // ── The town in words ────────────────────────────────

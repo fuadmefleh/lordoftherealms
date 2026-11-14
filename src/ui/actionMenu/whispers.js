@@ -8,6 +8,8 @@
 import { ActionMenu } from './_ref.js';
 import { Gossip } from './_imports.js';
 import { Whispers } from '../../systems/whispers.js';
+// (broadsheets: a tale printed and posted, spreading by the towns' letters — systems/literacy.js)
+import { Literacy } from '../../systems/literacy.js';
 import { BTN_GOLD, BTN_OFF, lede, chips, card, rowList, sectionHead, more, price, purse, esc } from './uiKit.js';
 
 const OUTCOME = { proven: ['🔥', 'bad', 'Proven'], debunked: ['🕊️', 'good', 'Debunked'], faded: ['🌫️', '', 'Forgotten'], buried: ['🤐', 'warn', 'Bought silent'] };
@@ -33,6 +35,7 @@ function _taleCard(v, gold) {
     if (v.hotDays > 0) body += `<div style="${MUTED} color:#e0a040;">Running hot ${v.hotDays}/${v.hardenDays} days: kept hot that long, a lie is either believed for good or debunked.</div>`;
     const rows = [
         _move(v.can.fan, '🔥', 'Fan it', 'Tell it louder here', `window._whispers.act('fan', ${v.id})`, v.costs.fan, gold, 'Not told here, or not enough gold'),
+        v.pamphlet ? _move(v.pamphlet.ok, '📰', 'Print broadsheets', 'Post it written: it spreads fast where people read, and is told as written', `window._whispers.act('pamphlet', ${v.id})`, v.pamphlet.cost, gold, esc(v.pamphlet.reason || '')) : null,
         _move(v.can.quash, '🤫', 'Quash it', `Pay to hush it (only in ${esc(v.kingdomName)})`, `window._whispers.act('quash', ${v.id})`, v.costs.quash, gold, `Only in ${esc(v.kingdomName)}, and it costs ${v.costs.quash}g`),
     ];
     if (!v.truthKnown) rows.push(_move(v.can.dig, '🔍', 'Dig for the truth', 'Ask the right people', `window._whispers.act('dig', ${v.id})`, v.costs.dig, gold, 'Asked already today, or not enough gold'));
@@ -60,7 +63,7 @@ Object.assign(ActionMenu, {
         const tales = Whispers.listenAt(player, q, r);
         html += sectionHead('Tales told here');
         if (!tales.length) html += lede(`Nothing about the great is going round ${esc(tile.settlement.name)} just now.`);
-        for (const sc of tales) html += _taleCard(Whispers.view(player, world, sc, q, r), gold);
+        for (const sc of tales) html += _taleCard({ ...Whispers.view(player, world, sc, q, r), pamphlet: Literacy.pamphletTerms(player, world, sc.id, q, r) }, gold);
 
         // Talk about the player, as it is told here
         const talk = Gossip.getTavernGossip(player, q, r, world);
@@ -121,6 +124,7 @@ Object.assign(ActionMenu, {
         window._whispers = {
             act: (what, id) => {
                 if (what === 'fan') reopen(Whispers.fan(player, world, id, q, r));
+                else if (what === 'pamphlet') reopen(Literacy.pamphlet(player, world, id, q, r));
                 else if (what === 'quash') reopen(Whispers.quash(player, world, id, q, r));
                 else if (what === 'dig') reopen(Whispers.dig(player, world, id));
                 else if (what === 'blackmail') reopen(Whispers.blackmail(player, world, id, q, r));

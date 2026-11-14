@@ -495,7 +495,9 @@ Object.assign(InnerMap, {
         const nextTile = next && this.tiles[next.r] && this.tiles[next.r][next.q];
         const inWater = (nextTile && !nextTile.subTerrain.passable && !this._isShutGateTile(nextTile)) || this.isPlayerSwimming();
         const under = this._underwater ? (this._underwaterSpeed || 0.75) : 1; // (slower again under the surface)
-        this._playerMoveProgress += deltaTime * this._playerSpeed * (inWater ? this.swimConfig().speed * (this._swimSpeedBonus || 1) * under : 1);
+        // (deep snow off the cleared streets, mud, slush, ice: world/innerMap/streetSeasons.js)
+        const pace = !inWater && next && this._groundPace ? this._groundPace(next.q, next.r) : 1;
+        this._playerMoveProgress += deltaTime * this._playerSpeed * (inWater ? this.swimConfig().speed * (this._swimSpeedBonus || 1) * under : pace);
 
         if (this._playerMoveProgress >= 1.0) {
             this._playerMoveProgress = 0;
@@ -521,6 +523,12 @@ Object.assign(InnerMap, {
 
             // Reveal fog
             this._revealAround(this.tiles, step.q, step.r, 2);
+
+            // Thin ice may give way underfoot (world/innerMap/streetSeasons.js): in the water, the walk is over
+            if (this._iceStep && this._iceStep(step.q, step.r) && this._ssEvent && this._ssEvent.kind === 'crack') {
+                this.cancelPlayerWalk();
+                return { moved: true, encounter: null, arrived: false, fellThrough: true };
+            }
 
             // Check encounter
             let encounter = null;
@@ -723,6 +731,8 @@ Object.assign(InnerMap, {
                     continue; // under the water: no land, no shallows (world/innerMap/swimming.js)
                 }
                 if (tile._fieldSoil && !high) ng += FIELD_PATH_COST - 1;
+                // (thin ice: a walk round is taken when there is one — world/innerMap/streetSeasons.js)
+                if (tile._iceCost) ng += tile._iceCost;
                 // (not the player's walk: theirs keeps to its levels)
                 if (avoid && ni !== endIdx && avoid.has(ni)) ng += AVOID_PATH_COST;
                 if (parked && ni !== endIdx && parked.has(ni)) continue;

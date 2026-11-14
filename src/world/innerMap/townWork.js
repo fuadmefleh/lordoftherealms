@@ -573,6 +573,7 @@ Object.assign(InnerMap, {
 
     /** Indoors: what furniture they go to — the table at a meal, the trade's own at work, the altar at home on the holy day. */
     _jobFurniture(npc) {
+        if (npc._homeRole && this._homeFurnitureFor) return this._homeFurnitureFor(npc); // (the player's servants and guests: world/innerMap/household.js)
         if (npc._meal === 'breakfast' || npc._meal === 'supper') return ['table'];
         if (npc._prayHome) return ['altar', 'statue', 'table'];
         const job = this._jobOf(npc);

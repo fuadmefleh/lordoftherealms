@@ -75,6 +75,14 @@
                 "licensed": { "label": "Licensed", "desc": "Dens may trade openly for a licence: they take more, the crackdown eases, and a fifth of their take goes to the crown's treasury.", "share": 0.2, "stability": 0 }
             }
         },
+        "curfew": {
+            "name": "Curfew", "icon": "🔔",
+            "desc": "Must the streets of the realm's towns be empty after the curfew bell? (systems/nightStreets.js: townsfolk keep indoors, the watch walks its beat with lanterns and stops anyone out; a town may keep a curfew of its own where the realm keeps none.)",
+            "options": {
+                "none": { "label": "No curfew", "desc": "Folk come and go as they please by night.", "share": 0.65, "stability": 0 },
+                "curfew": { "label": "Curfew", "desc": "From the curfew bell till dawn the streets are the watch's: anyone out is stopped, fined or jailed. Quieter nights; the taverns and the night folk grumble.", "share": 0.35, "stability": -1 }
+            }
+        },
         "pestilence": {
             "name": "Pestilence", "icon": "🐀",
             "desc": "When sickness goes round a town, do its gates stay open to travellers and trade, or are they shut? (systems/illness.js: a sick town under quarantine passes a case on to the realm's other towns, and takes one in, at a fraction of the usual rate. Every realm keeps its gates open by custom; only a ruler who proclaims it shuts them.)",

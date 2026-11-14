@@ -46,6 +46,7 @@ import { Quests } from '../systems/quests.js';
 import { Ledger } from '../systems/ledger.js';
 import { Difficulty } from '../core/difficulty.js';
 import { WorldUnit } from '../world/units.js';
+import { Wanted } from '../systems/wanted.js';
 
 const DEFAULTS = {
     minChance: 0.05,
@@ -292,6 +293,8 @@ export const RoadEncounters = {
             out.push(opt('fight', '⚔️', 'Stand and fight', 'Alone, with your own blade. Win and they scatter; lose and they take what they like.',
                 RoadEncounters.duelChance(player, attacker, sit)));
         }
+        // Bounty hunters (systems/wanted.js): no toll, but a bribe — or give yourself up
+        if (attacker && attacker.bountyHunt) Wanted.encounterOptions(player, attacker, world, out);
         return out;
     },
 
@@ -318,6 +321,8 @@ export const RoadEncounters = {
 
     /** Caught after all: the old resolution, its money flows on the Ledger. */
     _caught(player, attacker, world, lead) {
+        // Bounty hunters want you, not your purse: dragged to the realm's cells (systems/wanted.js)
+        if (attacker && attacker.bountyHunt) return Wanted.taken(player, attacker, world, lead);
         const out = RoadEncounters.ambush(player, attacker, world);
         if (out.goldStolen > 0) Ledger.record(player, 'robbery', -out.goldStolen);
         out.notification.body = `${lead} ${out.notification.body}`;
@@ -380,6 +385,7 @@ export const RoadEncounters = {
         const icon = attacker.icon || (sit.kind === 'beast' ? '🐺' : '⚔️');
         const roll = (chance) => Utils.random() < chance;
         const done = (kind, success, title, body, type, extra = {}) => ({ kind, choice, success, notification: { title, body, type }, ...extra });
+        if (attacker && attacker.bountyHunt && (choice === 'payoff' || choice === 'surrender')) return Wanted.resolveEncounter(player, attacker, world, choice);
 
         switch (choice) {
             case 'flee': {

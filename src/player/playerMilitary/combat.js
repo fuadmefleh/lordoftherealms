@@ -3,6 +3,7 @@ import { PlayerMilitary } from './_ref.js';
 import { Traits } from '../../systems/traits.js';
 import { Companions } from '../../systems/companions.js';
 import { HeirAgency } from '../../systems/heirAgency.js';
+import { Bonds } from '../../systems/bonds.js';
 import { SocialSkills } from '../../systems/socialSkills.js';
 import { Underworld } from '../../systems/underworld.js';
 import { Kingship } from '../../systems/kingship.js';
@@ -10,6 +11,7 @@ import { MerchantCaravans } from '../../systems/merchantCaravans.js';
 import { CourierRiders } from '../../systems/courierRiders.js';
 import { RivalHouses } from '../../systems/rivalHouses.js';
 import { CadetBranches } from '../../systems/cadetBranches.js';
+import { Migration } from '../../systems/migration.js';
 import { SettlementMarket } from '../../world/settlementMarket.js';
 import { NPCLords } from '../../world/npcLords.js';
 import { RealmArms } from '../../world/realmArms.js';
@@ -65,6 +67,8 @@ Object.assign(PlayerMilitary, {
         let playerPower = playerStrength * Utils.randFloat(0.8, 1.2) * playerCounterMult * playerTerrainMult * playerWeatherMult * playerMorale;
         // Fighting companions in the travel party
         playerPower *= 1 + PlayerEffects.companionBonus(player, 'power');
+        // Friends near enough take up arms beside you (systems/bonds.js)
+        playerPower *= Bonds.battleAid(player, context.world).mult;
         // The Sword of the First King
         playerPower *= 1 + PlayerEffects.artifactBonus(player, 'battlePower');
         // An enchanted weapon from a legendary hoard
@@ -114,6 +118,8 @@ Object.assign(PlayerMilitary, {
         Companions.onBattle(player, victory, { enemyName, roleOf: n => PlayerEffects.companionRole(n) }, context.world);
         // The commanding child's record and fate (wounded, captured, killed)
         HeirAgency.onBattle(player, context.world, victory, enemyName);
+        // Friends who fought beside you: the bond grows (systems/bonds.js)
+        Bonds.onBattle(player, context.world, victory, enemyName);
 
         // Calculate casualties
         let casualtyRate = victory ?
@@ -945,6 +951,16 @@ Object.assign(PlayerMilitary, {
                     Traits.recordDeeds(player, { cruelty: 4, dread: 1 });
                     player.karma += karmaChange;
                     break;
+                case 'migrants': {
+                    // A column of settlers or refugees (systems/migration.js): their purses,
+                    // their dead, murder before the realm they left
+                    const before = player.karma || 0;
+                    Traits.recordDeeds(player, { cruelty: 4, dread: 1, greed: 1 });
+                    const text = Migration.onAttacked(player, world, worldUnit, true, inventoryLoot);
+                    karmaChange = (player.karma || 0) - before;
+                    if (text && world.events) world.events.push({ text, type: 'military' });
+                    break;
+                }
                 case 'smuggler':
                     karmaChange = 1;
                     player.karma += karmaChange;
@@ -974,6 +990,10 @@ Object.assign(PlayerMilitary, {
             if (CourierRiders.isRider(worldUnit)) CourierRiders.onRobberyFailed(player, world, worldUnit);
             if (RivalHouses.isRetinue(worldUnit)) RivalHouses.onAttacked(player, world, worldUnit, false);
             if (CadetBranches.isRetinue(worldUnit)) CadetBranches.onAttacked(player, world, worldUnit, false);
+            if (Migration.isColumn(worldUnit)) {
+                const text = Migration.onAttacked(player, world, worldUnit, false);
+                if (text && world.events) world.events.push({ text, type: 'military' });
+            }
             // Log defeat event
             if (world.events) {
                 world.events.push({

@@ -30,6 +30,7 @@ import { NpcPortrait } from './npcPortrait.js';
 import { InnerMapJail } from './innerMapJail.js';
 import { InnerMapLots } from './innerMapLots.js';
 import { InnerMapGraves } from './innerMapGraves.js';
+import { InnerMapPlague } from './innerMapPlague.js';
 import { InnerMapScavengers } from './innerMapScavengers.js';
 import { InnerMapBrawls } from './innerMapBrawls.js';
 import { InnerMapLocks } from './innerMapLocks.js';
@@ -43,7 +44,9 @@ import { InnerMapGates } from './innerMapGates.js';
 import { InnerMapMemory } from './innerMapMemory.js';
 import { InnerMapDiving } from './innerMapDiving.js';
 import { InnerMapClimbing } from './innerMapClimbing.js';
+import { InnerMapMining } from './innerMapMining.js';
 import { InnerMapRiverDrift } from './innerMapRiverDrift.js';
+import { InnerMapRoadWalk } from './innerMapRoadWalk.js';
 import { NpcDisposition } from '../systems/npcDisposition.js';
 import { Townsfolk } from '../systems/townsfolk.js';
 import { PracticeSkills } from '../systems/practiceSkills.js';
@@ -314,6 +317,8 @@ Object.assign(InnerMapRenderer, {
             else menuItems.push({ type: 'action', action: 'enter_building', label: 'Enter', icon: '🚪', desc: `Enter ${building.name}`, building });
             // A barred seat's lock to pick (ui/innerMapLocks.js)
             menuItems.push(...InnerMapLocks.menuItems(game, building));
+            // A plague town: nurse the sick, burn or loot the dead's house, sell remedies (ui/innerMapPlague.js)
+            menuItems.push(...InnerMapPlague.buildingItems(game, building));
             // A building of several floors: straight up to one from the front door (world/innerMap/floors.js)
             const floors = InnerMap.floorsOf ? InnerMap.floorsOf(building, game) : 1;
             for (let k = 1; k < floors; k++) {
@@ -493,6 +498,8 @@ Object.assign(InnerMapRenderer, {
                 }
 
                 // A home of your own: furnish it, move or put away a piece (ui/innerMapFurnish.js)
+                // Underground: cut the rock, haul the rubble, set timbers (ui/innerMapMining.js)
+                menuItems.push(...InnerMapMining.menuItems(game, tile, q, r));
                 menuItems.push(...InnerMapFurnish.menuItems(game, tile, q, r));
 
                 // Always show exit option when inside a building
@@ -512,6 +519,8 @@ Object.assign(InnerMapRenderer, {
                     else if (InnerMap._swimAllowed) menuItems.push({ type: 'action', action: 'move_here', label: 'Swim Here', icon: '🏊', desc: 'Into the water: slow, tiring — and cold in winter' });
                     else menuItems.push({ type: 'disabled', label: `🏊 Swim — ${InnerMap._swimRefusal || 'not now'}` });
                 }
+                // A road: walk on along it (ui/innerMapRoadWalk.js)
+                menuItems.push(...InnerMapRoadWalk.menuItems(game, tile, q, r));
                 // Water: cast a line into it, from the bank (or pier, bridge or deck) beside it
                 if ((tile._wet || tile._sea) && !/frozen|ice/.test(tile.subTerrain.id || '')) {
                     menuItems.push({ type: 'action', action: 'fish_here', label: 'Fish Here', icon: '🎣', desc: tile._deep ? 'Deep water: bigger fish, and a harder fight' : 'Cast a line from the bank' });
@@ -522,6 +531,8 @@ Object.assign(InnerMapRenderer, {
                 menuItems.push(...InnerMapDiving.menuItems(game, tile, q, r));
                 // A crag's rock face: up it or down it (ui/innerMapClimbing.js)
                 menuItems.push(...InnerMapClimbing.menuItems(game, tile, q, r));
+                // A cave's mouth, a drift into the face, a shaft into the ground (ui/innerMapMining.js)
+                menuItems.push(...InnerMapMining.menuItems(game, tile, q, r));
 
                 // Terrain interaction actions: till, sow, water, harvest (ui/innerMapFarming.js)
                 menuItems.push(...InnerMapFarming.menuItems(game, tile, q, r));
@@ -989,9 +1000,11 @@ Object.assign(InnerMapRenderer, {
         if (InnerMapDeck.handle(game, item)) return;
         if (/^(lot|vacancy)_/.test(item.action || '') && InnerMapLots.handle(game, item)) return;
         if (/^grave_/.test(item.action || '') && InnerMapGraves.handle(game, item)) return;
+        if (/^plague_/.test(item.action || '') && InnerMapPlague.handle(game, item)) return;
         if (/^scav_/.test(item.action || '') && InnerMapScavengers.handle(game, item)) return;
         if (/^brawl_/.test(item.action || '') && InnerMapBrawls.handle(game, item)) return;
         if (/^furnish_/.test(item.action || '') && InnerMapFurnish.handle(game, item)) return;
+        if (/^mine_/.test(item.action || '') && InnerMapMining.handle(game, item, q, r)) return;
         if (/^farm_/.test(item.action || '') && InnerMapFarming.handle(game, item, q, r)) return;
         if (/^drift_/.test(item.action || '') && InnerMapRiverDrift.handle(game, item, q, r)) return;
         if (item.action === 'hunt_animal') {
@@ -1045,6 +1058,7 @@ Object.assign(InnerMapRenderer, {
         if (action === 'lock_door' && InnerMapLocks.handle(game, item, q, r, it => this._handleContextAction(game, it, q, r))) return;
         if (/^dive_/.test(action) && InnerMapDiving.handle(game, item, q, r)) return;
         if (/^climb_/.test(action) && InnerMapClimbing.handle(game, item, q, r)) return;
+        if (/^roadwalk_/.test(action) && InnerMapRoadWalk.handle(game, item, q, r)) return;
 
         // (fishing goes to the bank, never out to the water it casts into)
         if (dist > 1 && !item._approached && action !== 'fish_here') {
@@ -1403,7 +1417,9 @@ Object.assign(InnerMapRenderer, {
                 const kind = water._waterKind || (water._sea ? 'sea' : 'pond');
                 const depth = kind === 'sea' ? (water._deep ? 'deep' : 'mid') : kind === 'lake' ? (water._deep ? 'mid' : 'shallow') : 'shallow';
                 const wt = game.world.getTile(game.player.q, game.player.r);
-                if (wt) ActionMenu.doFish(game, wt, { spots: [bank], depth, target: { q, r } });
+                // Water by your own set net: the fish gather at it (ui/innerMapRiverDrift.js stakeBite)
+                const stake = InnerMapRiverDrift.netNear(game.world, q, r);
+                if (wt) ActionMenu.doFish(game, wt, { spots: [bank], depth, target: { q, r }, biteBonus: stake ? InnerMapRiverDrift.stakeBite() * (stake.torn ? 0.5 : 1) : 0 });
                 break;
             }
             case 'interact_object': {

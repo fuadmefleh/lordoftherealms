@@ -20,9 +20,22 @@
 //     a face, the ground at its foot. Climbers go up and down the faces
 //     (world/innerMap/climbing.js); nobody else does.
 //
+// Worlds made since terrainGen 9 (BIG_GEN) lay them bigger (data/mining.json →
+// crags[terrain]): a big crag carries a second step and that maybe a third
+// (_tierUp), faces run three rows tall and more, and a few faces have a cave's
+// mouth at their foot (_cutCaveMouth: the sheet's cave cells; its entry tile
+// _caveMouth, every tile of it _caveMouthOf) leading underground
+// (world/innerMap/mines.js). A face with a mouth (or a drift cut in it) is not climbed.
+//
 // Hash-placed from the hex's coordinates: draws nothing from the map's rng.
 
 import { InnerMap } from './_ref.js';
+import { DataLoader } from './_imports.js';
+
+// The terrainGen from which crags are laid bigger, in up to three tiers, with caves
+export const BIG_GEN = 9;
+// The cave mouths on the sheet: one cell wide (col 6) or three (cols 7-9), rows 9-11
+const MOUTH_ROWS = [9, 10, 11];
 
 // Sheet cells (col, row) of a crag with a grassy top, 32px each
 const TOP = {
@@ -83,9 +96,24 @@ Object.assign(InnerMap, {
         return c && Array.isArray(c.count) && c.count[1] > 0 ? c : null;
     },
 
-    /** Stand crags on the map (see the head of this file). Returns how many. */
-    _layCliffs(tiles, worldTile, wq, wr) {
+    /**
+     * The bigger crags of worlds made since terrainGen 9 (data/mining.json →
+     * crags[terrain]), or null when the terrain has none.
+     */
+    bigCragConfig(terrainId) {
+        const g = DataLoader._gamedata;
+        const c = g && g.mining && g.mining.crags && g.mining.crags[terrainId];
+        return c && Array.isArray(c.count) && c.count[1] > 0 ? c : null;
+    },
+
+    /** Stand crags on the map (see the head of this file). Returns how many. gp: the world's generationParams. */
+    _layCliffs(tiles, worldTile, wq, wr, gp = null) {
         const terrainId = worldTile && worldTile.terrain && worldTile.terrain.id;
+        // Worlds made since terrainGen 9: bigger crags in tiers, with caves (_layBigCliffs)
+        if ((Number(gp && gp.terrainGen) || 1) >= BIG_GEN) {
+            const big = this.bigCragConfig(terrainId);
+            if (big && tiles && tiles.length) return this._layBigCliffs(tiles, worldTile, wq, wr, big);
+        }
         const cfg = this.cliffConfig(terrainId);
         if (!cfg || !tiles || !tiles.length) return 0;
         const H = tiles.length, W = tiles[0].length;
@@ -134,6 +162,117 @@ Object.assign(InnerMap, {
             laid++;
         }
         return laid;
+    },
+
+    /**
+     * Worlds since terrainGen 9: bigger crags, each big one carrying a second
+     * step up and that one maybe a third, faces three rows tall and more, and
+     * now and then a cave mouth at a face's foot (_cutCaveMouth). The same rules
+     * of ground as _layCliffs; its own hash stream (an older world never comes here).
+     */
+    _layBigCliffs(tiles, worldTile, wq, wr, cfg) {
+        const H = tiles.length, W = tiles[0].length;
+        const rng = _hashRng(wq * 31 + 7, wr * 17 + 3);
+        const want = Math.round(_range(rng, cfg.count, 0) * (worldTile.settlement ? 0.4 : 1));
+        const taken = Array.from({ length: H }, () => new Uint8Array(W));
+        const cq = Math.floor(W / 2), cr = Math.floor(H / 2);
+        const caves = { n: 0, max: worldTile.settlement ? 0 : Math.max(0, Number(cfg.maxCaves) || 0), chance: Number(cfg.caves) || 0 };
+        let laid = 0;
+        for (let tries = 0; laid < want && tries < want * 40; tries++) {
+            const w = _range(rng, cfg.width, 6);
+            const angled = w >= 5 && rng() < (Number(cfg.angled) || 0);
+            const h = angled ? Math.max(1, _range(rng, cfg.height, 5) - 2) : _range(rng, cfg.height, 5);
+            const face = angled ? ANGLED.length : _range(rng, cfg.face, 3);
+            const full = h + face;
+            const q0 = EDGE + Math.floor(rng() * Math.max(1, W - 2 * EDGE - w));
+            const r0 = EDGE + Math.floor(rng() * Math.max(1, H - 2 * EDGE - full));
+            if (q0 + w > W - EDGE || r0 + full > H - EDGE) continue;
+            const nq = Math.max(q0, Math.min(cq, q0 + w - 1)), nr = Math.max(r0, Math.min(cr, r0 + full - 1));
+            if (Math.max(Math.abs(nq - cq), Math.abs(nr - cr)) < CENTRE) continue;
+            let ok = true;
+            for (let r = r0 - GAP; ok && r < r0 + full + GAP; r++) {
+                for (let q = q0 - GAP; q < q0 + w + GAP; q++) {
+                    if (taken[r][q]) { ok = false; break; }
+                    const inner = r >= r0 - 1 && r <= r0 + full && q >= q0 - 1 && q <= q0 + w;
+                    if (inner && !this._cragGround(tiles[r][q])) { ok = false; break; }
+                }
+            }
+            if (!ok) continue;
+            if (angled) this._standAngledCrag(tiles, q0, r0, w, h);
+            else {
+                this._standCrag(tiles, q0, r0, w, h, face);
+                this._maybeCave(tiles, rng, caves, q0, r0, w, h, face);
+            }
+            this._tierUp(tiles, rng, cfg, caves, { q0, r0, w, h, angled }, 1);
+            for (let r = r0; r < r0 + full; r++) for (let q = q0; q < q0 + w; q++) taken[r][q] = 1;
+            laid++;
+        }
+        return laid;
+    },
+
+    /** A step up on a crag's top, clear of its rim: and on that, maybe another (depth: the steps already). */
+    _tierUp(tiles, rng, cfg, caves, base, depth) {
+        if (depth >= 3) return;
+        const tw = base.w - 4, room = base.angled ? base.h - 1 : base.h - 2;
+        const chance = depth === 1 ? Number(cfg.tier) || 0 : Number(cfg.tier3) || 0;
+        if (tw < 3 || room < 4 || !(rng() < chance)) return;
+        const tf = Math.max(2, Math.min(_range(rng, cfg.face, 3), room - 2));
+        // (a step up fills most of the top under it: room on it for the next)
+        const th = Math.max(2, room - tf - Math.floor(rng() * Math.min(3, Math.max(1, room - tf - 1))));
+        if (th + tf > room) return;
+        const tW = 3 + Math.floor((0.45 + rng() * 0.55) * (tw - 2));
+        const tq = base.q0 + 2 + Math.floor(rng() * (tw - tW + 1));
+        const tr = base.r0 + 1 + Math.floor(rng() * (room - th - tf + 1));
+        if (th >= 2 && tW >= 5 && tf <= ANGLED.length && rng() < 0.3) {
+            const ah = Math.max(1, th + tf - ANGLED.length);
+            this._standAngledCrag(tiles, tq, tr, tW, ah);
+            this._tierUp(tiles, rng, cfg, caves, { q0: tq, r0: tr, w: tW, h: ah, angled: true }, depth + 1);
+        } else {
+            this._standCrag(tiles, tq, tr, tW, th, tf);
+            this._maybeCave(tiles, rng, caves, tq, tr, tW, th, tf, depth);
+            this._tierUp(tiles, rng, cfg, caves, { q0: tq, r0: tr, w: tW, h: th, angled: false }, depth + 1);
+        }
+    },
+
+    /** Now and then a square crag's face, three rows tall or more, has a cave in it. */
+    _maybeCave(tiles, rng, caves, q0, r0, w, h, face, depth = 0) {
+        if (face < MOUTH_ROWS.length || w < 3 || caves.n >= caves.max) return;
+        // (most open at the ground, where anyone can walk in; fewer up on the steps)
+        if (!(rng() < caves.chance * (depth > 0 ? 0.4 : 1))) return;
+        const wide = w >= 6 && rng() < 0.5;
+        const mw = wide ? 3 : 1;
+        const x = q0 + 1 + Math.floor(rng() * (w - 1 - mw));
+        if (this._cutCaveMouth(tiles, x, r0 + h + face - MOUTH_ROWS.length, mw)) caves.n++;
+    },
+
+    /**
+     * A cave's mouth in a rock face: mw (1 or 3) columns from q, its three rows
+     * from rTop down to the face's foot row. Its entry is the foot row's middle
+     * tile (_caveMouth); each of its tiles knows it (_caveMouthOf). False if the
+     * ground below the entry is no place to stand.
+     */
+    _cutCaveMouth(tiles, q, rTop, mw = 1) {
+        const at = (r, x) => (tiles[r] || [])[x];
+        const eq = q + (mw >> 1), er = rTop + MOUTH_ROWS.length - 1;
+        const foot = at(er + 1, eq);
+        if (!foot || !foot.subTerrain || (foot.subTerrain.id === 'cliff' && !foot._cragTop)) return false;
+        for (let i = 0; i < MOUTH_ROWS.length; i++) {
+            for (let j = 0; j < mw; j++) {
+                const t = at(rTop + i, q + j);
+                if (!t || t.subTerrain.id !== 'cliff' || t._cragTop) return false;
+            }
+        }
+        for (let i = 0; i < MOUTH_ROWS.length; i++) {
+            for (let j = 0; j < mw; j++) {
+                const t = at(rTop + i, q + j);
+                t._crag = { c: mw === 1 ? 6 : 7 + j, r: MOUTH_ROWS[i] };
+                t._caveMouthOf = { q: eq, r: er };
+            }
+        }
+        const entry = at(er, eq);
+        entry._caveMouth = true;
+        entry.subTerrain = { ...entry.subTerrain, name: 'Cave Mouth' };
+        return true;
     },
 
     _markCrag(t, cell, name) {

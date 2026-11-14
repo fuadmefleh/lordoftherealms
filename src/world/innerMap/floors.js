@@ -71,7 +71,8 @@ Object.assign(InnerMap, {
     floorsOf(building, game) {
         if (!building) return 1;
         const type = _type(building);
-        if (building._jail || type === 'jail' || type === 'castle') return 1;
+        // (the jail, the castle, and a way underground — world/innerMap/mines.js — are one floor)
+        if (building._jail || building._underground || type === 'jail' || type === 'castle') return 1;
         const C = _cfg();
         const most = Number(C.maxFloors[type] != null ? C.maxFloors[type] : C.maxFloors._default) || 1;
         const cap = Math.max(1, Math.min(most, this.buildersCraft(building, game)));
@@ -450,6 +451,7 @@ Object.assign(InnerMap, {
         const b = this._insideBuilding;
         this.npcs = this._peopleOnFloor(interior, k);
         if (k === 0 && this.applyHomeFurnishings && game && game.player) this.applyHomeFurnishings(game.player);
+        if (this._householdArrive) this._householdArrive(game);
         // Stand beside the stairs that brought you (up: this floor's stairs down; down: its stairs up)
         const st = interior._stairs || {};
         const by = k > from ? st.down : st.up;

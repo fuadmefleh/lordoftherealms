@@ -43,6 +43,7 @@ import { PlayerEffects } from './playerEffects.js';
 import { Traits } from '../systems/traits.js';
 import { Ailments } from '../systems/ailments.js';
 import { Ledger } from '../systems/ledger.js';
+import { PlayerCoin } from './playerCoin.js';
 import { Peoples } from '../systems/peoples.js';
 import { Cartography } from '../systems/cartography.js';
 import { PriceKnowledge } from '../systems/priceKnowledge.js';
@@ -373,8 +374,8 @@ export const Wilds = {
         }
         if (cost.health > 0) player.health = Math.max(1, _num(player.health) - cost.health);
         if (cost.gold > 0) {
-            player.gold = _num(player.gold) - cost.gold;
-            Ledger.record(player, 'exploration', -cost.gold);
+            // (the herbalist, the prospector, the nomads: folk who spend it in the nearest town)
+            PlayerCoin.pay(world, player, cost.gold, null, 'exploration');
             lines.push(`-${cost.gold} gold`);
         }
         for (const [item, qty] of Object.entries(cost.items || {})) {
@@ -427,12 +428,13 @@ export const Wilds = {
         if (o.gold) {
             const g = Math.round(_roll(o.gold));
             if (g > 0) {
-                player.gold = _num(player.gold) + g;
-                Ledger.record(player, 'exploration', g);
+                // (a cache, a dead man's purse, old offerings: coin in no one's purse, found)
+                PlayerCoin.found(world, player, g, 'wildFinds', 'exploration');
                 lines.push(`+${g} gold`);
             } else if (g < 0) {
                 const lost = Math.min(_num(player.gold), -g);
-                player.gold = _num(player.gold) - lost;
+                // (the bandits and pirates who take it spend it in the nearest town)
+                PlayerCoin.pay(world, player, lost, null, null);
                 if (lost) {
                     Ledger.record(player, 'exploration', -lost);
                     lines.push(`-${lost} gold`);

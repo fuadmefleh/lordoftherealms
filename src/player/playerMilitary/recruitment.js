@@ -1,5 +1,6 @@
 // PlayerMilitary — recruitment members (split from the original monolith).
 import { PlayerMilitary } from './_ref.js';
+import { PlayerCoin } from '../playerCoin.js';
 import { Utils, Technology, House, SettlementServices, PlayerEffects, Peoples, Ships, Economy, SettlementSize, Arms } from './_imports.js';
 
 Object.assign(PlayerMilitary, {
@@ -658,7 +659,8 @@ Object.assign(PlayerMilitary, {
             result.paid = false;
             result.unitsLost = unitsLost;
         } else {
-            player.gold -= cost;
+            // (the men's pay is spent in the town nearest the camp; booked by the day's results)
+            PlayerCoin.pay(world, player, cost, null);
             result.cost = cost;
         }
 

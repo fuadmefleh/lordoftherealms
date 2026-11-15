@@ -351,6 +351,10 @@ describe('the Guildmaster', () => {
         const guild = stm.op.income.find(l => l.id === 'guilds');
         const court = stm.op.expenses.find(l => l.id === 'courtStipends');
         expect(guild.amount).toBeGreaterThan(-court.amount);
-        expect(stm.op.net).toBeGreaterThan(-40);
+        // (what the office pays against what it costs: a cutpurse's luck in the crowd is not
+        // the office's — since 2026-11 lifts are booked as `pursesCut` (systems/npcTheft.js),
+        // two 60-gold lifts in two months on this seed — so the theft line is left out)
+        const cut = stm.op.expenses.find(l => l.id === 'pursesCut');
+        expect(stm.op.net - (cut ? cut.amount : 0)).toBeGreaterThan(-40);
     }, 300000);
 });

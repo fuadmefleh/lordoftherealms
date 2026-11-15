@@ -20,6 +20,10 @@
 //              keeping a pilgrimage vow to a shrine of your own faith
 //              (systems/devotion.js).
 //
+// Coin: the stranger is no townsman — his gold comes from no purse in the
+// world and what he takes back leaves it, both booked (MoneySupply.leak,
+// 'pact'); the temple's offerings go into the nearest town's purse.
+//
 // State on player.soulPact (saved); the legacy counters soulSoldCount /
 // lastSoulSoldDay are kept for the character panel. Rolls come from the
 // pact's own seeded stream. Content: data/devotion.json → pact.
@@ -28,6 +32,8 @@ import { DataLoader } from '../core/dataLoader.js';
 import { Utils } from '../core/utils.js';
 import { Traits } from './traits.js';
 import { Ledger } from './ledger.js';
+import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = v => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -119,6 +125,20 @@ export const SoulPact = {
         return { name: who.name, look: who.look, price, state: st.state };
     },
 
+    /**
+     * Coin the stranger pays (a soul's price, a deed's purse): out of what
+     * they were paid before (st.purse — counted coin, systems/coinCensus.js),
+     * the rest from no purse of the world's (booked found).
+     */
+    _fromStranger(player, world, amount) {
+        const st = SoulPact.state(player);
+        const a = Math.max(0, _num(amount));
+        const held = Math.min(a, Math.max(0, _num(st.purse)));
+        if (held > 0) st.purse = Math.round((_num(st.purse) - held) * 100) / 100;
+        if (a - held > 0) MoneySupply.leak(world, a - held, 'pact');
+        return a;
+    },
+
     /** Sell the soul (once — a redeemed soul can be sold again). */
     sell(player, world, tile) {
         const st = SoulPact.state(player);
@@ -135,6 +155,7 @@ export const SoulPact = {
         st.dueDay = _day(world) + due[0] + Math.floor(rng() * (due[1] - due[0] + 1));
         st.demand = null;
         player.gold = _num(player.gold) + o.price;
+        SoulPact._fromStranger(player, world, o.price);
         Ledger.record(player, 'pact', o.price);
         player.karma = _r1(_num(player.karma) + _num(C.karma, -10));
         player.renown = Math.max(0, _num(player.renown) + _num(C.renown, -2));
@@ -194,7 +215,7 @@ export const SoulPact = {
         if (how === 'deed') {
             player.karma = _r1(_num(player.karma) + _num(C.keptKarma, -4));
             const g = Math.round(_num(C.keptGold));
-            if (g > 0) { player.gold = _num(player.gold) + g; Ledger.record(player, 'pact', g); }
+            if (g > 0) { player.gold = _num(player.gold) + g; SoulPact._fromStranger(player, world, g); Ledger.record(player, 'pact', g); }
             text = `${st.buyer} is pleased. A purse of ${g} gold appears in your pack. "Until next time."`;
         } else {
             text = `${st.buyer} weighs the coin and smiles. "Paid — this time."`;
@@ -232,6 +253,8 @@ export const SoulPact = {
             const gold = SoulPact.payCost(player);
             if (_num(player.gold) < gold) return { success: false, reason: `${st.buyer} wants ${gold} gold.` };
             player.gold -= gold;
+            // (into the stranger's purse: counted coin, it is paid out again to the next soul sold)
+            st.purse = Math.round((_num(st.purse) + gold) * 100) / 100;
             Ledger.record(player, 'pact', -gold);
             return { success: true, text: SoulPact._settled(player, world, 'gold', null) };
         }
@@ -267,6 +290,8 @@ export const SoulPact = {
             cost = SoulPact.redeemCost(player, discount);
             if (_num(player.gold) < cost) return { success: false, reason: `The rite of redemption takes ${cost} gold in offerings.` };
             player.gold -= cost;
+            // (the offerings go to the temple's town)
+            if (cost > 0 && !Economy.payNearest(world, player.q, player.r, cost)) MoneySupply.leak(world, -cost, 'pact');
             Ledger.record(player, 'pact', -cost);
         }
         if (st.curse && st.curse.luck) player.luck = Math.min(10, _num(player.luck, 5) - st.curse.luck);

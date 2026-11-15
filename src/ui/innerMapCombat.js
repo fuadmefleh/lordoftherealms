@@ -25,6 +25,7 @@
 // ============================================
 
 import { InnerMap } from '../world/innerMap.js';
+import { PlayerCoin } from '../player/playerCoin.js';
 import { InnerMapRenderer } from './innerMapRenderer.js';
 import { InnerMapCharacters } from './innerMapCharacters.js';
 import { Relationships } from '../systems/relationships.js';
@@ -668,7 +669,7 @@ export const InnerMapCombat = {
                 if (typeof game._triggerDeath === 'function') game._triggerDeath(`beaten to death by ${who} in ${town}`);
                 return;
             }
-            const res = Knockout.playerWakes(player, verdict);
+            const res = Knockout.playerWakes(player, verdict, undefined, game.world);
             InnerMap.passHours(res.hours);
             if (attacker) {
                 attacker._broke = true;
@@ -677,7 +678,7 @@ export const InnerMapCombat = {
             const hrs = `${res.hours} hour${res.hours === 1 ? '' : 's'}`;
             // Taken for their own prison camp (the realm allows it): servitude, off the town map
             if (verdict.act === 'capture') {
-                const cap = Knockout.capturePlayer(player, verdict, { campName, keeper: who, kingdom });
+                const cap = Knockout.capturePlayer(player, verdict, { campName, keeper: who, kingdom, world: game.world });
                 if (typeof game.ui.hideCustomPanel === 'function') game.ui.hideCustomPanel();
                 game.ui.showNotification('⛓️ Taken Prisoner', `${who} set on you, and while you lay senseless had you chained and carted off to ${campName}. ${town}'s law lets a free man keep prisoners. ${cap.days} days of their labour${cap.took ? `, and ${cap.took} gold taken` : ''} — unless you buy your way out or slip your chains.`, 'error');
                 if (typeof game.exitInnerMap === 'function') game.exitInnerMap({ force: true });
@@ -1166,16 +1167,20 @@ export const InnerMapCombat = {
         const player = game && game.player;
         const range = Duels.purseRange(npc.type);
         let gold = 0;
+        let townCoin = false;
         if (npc._person && npc._folk) {
             gold = Townsfolk.takePurse(npc._folk, npc._person, game.world, range);
         } else {
             if (typeof npc._purse !== 'number') npc._purse = Utils.randInt(range[0], range[1]);
             gold = npc._purse;
             npc._purse = 0;
+            townCoin = true;
         }
         const items = [];
         if (player) {
-            player.gold = (player.gold || 0) + gold;
+            // (one with no roll in town carries the town's coin: out of its purse, what it holds)
+            if (townCoin) gold = PlayerCoin.receive(game.world, player, gold, (InnerMap._currentWorldTileRef && InnerMap._currentWorldTileRef.settlement) || null);
+            else player.gold = (player.gold || 0) + gold;
             // (a trader's wares are real: out of their own stock or their market's — systems/npcShops.js)
             const town = (InnerMap._currentWorldTileRef && InnerMap._currentWorldTileRef.settlement) || null;
             for (const it of Duels.brawlSpoils(npc)) {

@@ -49,6 +49,8 @@
 import { DataLoader } from '../core/dataLoader.js';
 import { PlayerInventory } from '../core/inventory.js';
 import { GraveBook } from './graveBook.js';
+import { MoneySupply } from './moneySupply.js';
+import { Economy } from './economy.js';
 
 const DEFAULTS = {
     settleDays: 360,
@@ -424,8 +426,12 @@ export const Burials = {
         return parts.join(', ');
     },
 
-    /** Move up to qty of itemId (or 'gold') from the player's packs into contents → how many went in. */
-    putIn(c, player, itemId, qty = 1) {
+    /**
+     * Move up to qty of itemId (or 'gold') from the player's packs into contents → how many went in.
+     * Coin in the ground is out of the world's purses (the coin census counts no hole): it is
+     * booked as lost under 'buried' (`world`), and found again when it comes up (takeAll).
+     */
+    putIn(c, player, itemId, qty = 1, world = null) {
         if (!c || !player || !itemId) return 0;
         if (!c.items) c.items = {};
         if (itemId === 'gold') {
@@ -433,6 +439,7 @@ export const Burials = {
             if (n <= 0) return 0;
             player.gold = _num(player.gold) - n;
             c.gold = _num(c.gold) + n;
+            MoneySupply.leak(world, -n, 'buried');
             return n;
         }
         const inv = player.inventory || {};
@@ -445,12 +452,14 @@ export const Burials = {
     },
 
     /** Take everything out of contents the packs have room for → { taken, left } (left: what stays, or null). */
-    takeAll(c, player) {
+    takeAll(c, player, world = null) {
         const taken = { items: {}, gold: 0 };
         if (!c || !player) return { taken, left: c || null };
         if (_num(c.gold) > 0) {
             player.gold = _num(player.gold) + _num(c.gold);
             taken.gold = _num(c.gold);
+            // (buried coin comes back into the world's purses: booked found, as putIn booked it lost)
+            MoneySupply.leak(world, _num(c.gold), 'buried');
             c.gold = 0;
         }
         for (const [id, n] of Object.entries(c.items || {})) {
@@ -593,6 +602,12 @@ export const Burials = {
             if (!by) continue;
             cache.taken = { by, day: d };
             cache.items = {};
+            // (the coin dug up is spent in the nearest town: back into the world's purses)
+            const coin = Math.floor(_num(cache.gold));
+            if (coin > 0) {
+                const [hq, hr] = String(hex).split(',').map(Number);
+                if (Economy.payNearest(world, hq, hr, coin)) MoneySupply.leak(world, coin, 'buried');
+            }
             cache.gold = 0;
             out.push({ kind: 'cacheTaken', hex, q, r, by });
         }

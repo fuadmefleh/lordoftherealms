@@ -772,7 +772,9 @@ export const Taxation = {
             const taxDue = Math.floor(taxBase * taxPolicy.rate * landBonus * Taxation.officeTaxMultiplier(player) * eventMult * moodMult * holdingMult * harvestMult);
             // (real coin: the tax comes out of the town's purse — a drained town pays what it has)
             const live = (tile && tile.settlement) || settlement;
-            const taxCollected = dryRun ? Math.min(taxDue, Math.floor(Economy.townPurse(live) ?? taxDue)) : Math.floor(Economy.drawTown(live, taxDue));
+            // (whole coin drawn: no fraction of a piece taken from the purse and dropped)
+            const canPay = Math.min(taxDue, Math.floor(Economy.townPurse(live) ?? taxDue));
+            const taxCollected = dryRun ? canPay : Math.floor(Economy.drawTown(live, canPay));
 
             totalCollected += taxCollected;
             const growthRate = Taxation.getGrowthRate(settlement, taxPolicy);

@@ -39,6 +39,7 @@ import { Utils } from '../core/utils.js';
 import { Hex } from '../core/hex.js';
 import { Difficulty } from '../core/difficulty.js';
 import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
 import { Seasons } from '../world/seasons.js';
 import { PlayerEconomy, Trading } from '../player/playerEconomy.js';
@@ -253,10 +254,42 @@ export const MerchantHouses = {
     },
 
     _debit(c, world, amount, cat, text) {
-        const amt = Math.max(0, Math.ceil(amount));
+        // (never more than the company holds: what it pays out is what it had)
+        const amt = Math.min(Math.max(0, Math.ceil(amount)), Math.max(0, Math.floor(_num(c.capital))));
         c.capital = Math.max(0, c.capital - amt);
         MerchantHouses._book(c, world, 'expenses', cat, amt, text);
         return amt;
+    },
+
+    // ── The company's coin and the world's ──────────────────────
+    // The company's coffers (company.capital) are counted coin (systems/coinCensus.js,
+    // in its charter realm): every coin it takes in comes out of a real purse and
+    // every coin it pays goes into one.
+
+    /** Coin the company pays into a town's purse (rent, wages, fees, goods bought there). → what reached it. */
+    _toTown(world, s, amount, near = null) {
+        const a = _num(amount);
+        if (!(a > 0)) return 0;
+        if (Economy.payTown(s, a)) return a;
+        // (a town that keeps no coin: the nearest that does; none at all, the coin is lost)
+        const at = s && Number.isFinite(s.q) ? s : near;
+        if (at && Number.isFinite(at.q) && Economy.payNearest(world, at.q, at.r, a)) return a;
+        MoneySupply.leak(world, -a, 'merchantCompany');
+        return 0;
+    },
+
+    /**
+     * Coin a town's buyers pay the company for goods sold there: `earned` to the
+     * company and `duty` (already credited to the crown by TradePolicy) out of the
+     * town's purse, as far as it holds them. → what the company keeps.
+     */
+    _fromTown(world, s, earned, duty = 0) {
+        const want = Math.max(0, Math.floor(_num(earned))) + Math.max(0, Math.round(_num(duty)));
+        const have = Economy.townPurse(s);
+        if (have == null) return Math.max(0, Math.floor(_num(earned)));
+        const paid = Economy.drawTown(s, Math.min(want, Math.floor(have)));
+        const keep = Math.max(0, Math.floor(paid - Math.max(0, Math.round(_num(duty)))));
+        return keep;
     },
 
     /** Profit and loss, all time: { income, expenses, net, byCategory }. */
@@ -589,6 +622,12 @@ export const MerchantHouses = {
         if (amt <= 0 || amt + theirs > c.capital) return { success: false, reason: theirs ? `Drawing ${amt}g pays the shareholders ${theirs}g too: the company has not that much.` : 'The company has not that much.' };
         c.capital -= amt + theirs;
         player.gold = _num(player.gold) + amt;
+        // (the outside shareholders spend their part where the company trades)
+        if (theirs > 0) {
+            const p0 = c.posts && c.posts[0];
+            const t0 = p0 && world.getTile ? world.getTile(p0.q, p0.r) : null;
+            MerchantHouses._toTown(world, t0 && t0.settlement, theirs, player);
+        }
         MerchantHouses._book(c, world, 'expenses', 'drawn', amt, 'Drawn by the owner');
         if (theirs) {
             c.flows.dividendsOut = _num(c.flows.dividendsOut) + theirs;
@@ -785,7 +824,8 @@ export const MerchantHouses = {
         const list = MerchantHouses.candidates(player, world, tile);
         const factor = list[candidateIdx] || list[0];
         if (!factor) return { success: false, reason: 'Nobody here will work for you.' };
-        MerchantHouses._debit(c, world, can.cost, 'posts', `Post opened at ${tile.settlement.name}${can.foreign ? ' (foreign licence)' : ''}`);
+        // (the licence, the lease and the fitting-out: into the town's purse)
+        MerchantHouses._toTown(world, tile.settlement, MerchantHouses._debit(c, world, can.cost, 'posts', `Post opened at ${tile.settlement.name}${can.foreign ? ' (foreign licence)' : ''}`));
         const post = {
             id: MerchantHouses._nextId(player, 'post'),
             q: tile.q, r: tile.r, name: tile.settlement.name, kingdom: tile.settlement.kingdom || null,
@@ -829,8 +869,9 @@ export const MerchantHouses = {
             // A clearance sale: the guild takes its toll but sets no cap; goods under embargo here are let go
             const sale = MerchantHouses._factorSale(player, world, tile, post.lots, qty, id, qty, { cap: false });
             if (!(sale.n > 0)) continue;
-            MerchantHouses._settleFactorSale(player, world, tile.settlement, post.lots, id, sale);
-            earned += sale.earned;
+            const duty = MerchantHouses._settleFactorSale(player, world, tile.settlement, post.lots, id, sale);
+            // (the town's buyers pay for it out of its purse)
+            earned += MerchantHouses._fromTown(world, tile.settlement, sale.earned, duty);
         }
         if (earned > 0) MerchantHouses._credit(c, world, earned, 'sales', `Stock sold off closing ${post.name}`);
         c.posts = c.posts.filter(p => p !== post);
@@ -873,10 +914,14 @@ export const MerchantHouses = {
         if (!c || !post) return { success: false, reason: 'No such post.' };
         const f = MerchantHouses.config().factor;
         if (c.capital < f.auditCost) return { success: false, reason: `An audit costs ${f.auditCost} gold.` };
-        MerchantHouses._debit(c, world, f.auditCost, 'audits', `Audit of ${post.name}`);
+        const auditTile = world.getTile(post.q, post.r);
+        const auditTown = auditTile && auditTile.settlement;
+        // (the clerks who go over the books are paid in the post's town)
+        MerchantHouses._toTown(world, auditTown, MerchantHouses._debit(c, world, f.auditCost, 'audits', `Audit of ${post.name}`));
         if (post.skimmed > 0 && Utils.random() < f.auditFindChance) {
             const found = post.skimmed;
-            const recovered = MerchantHouses._credit(c, world, found * f.auditRecover, 'recovered', `Recovered from ${post.factor ? post.factor.name : 'the factor'}`);
+            // (clawed back from the factor: what he skimmed was spent in the town, it comes out of its purse)
+            const recovered = MerchantHouses._credit(c, world, MerchantHouses._fromTown(world, auditTown, found * f.auditRecover), 'recovered', `Recovered from ${post.factor ? post.factor.name : 'the factor'}`);
             post.skimmed = 0;
             post.suspicion = 0;
             if (post.factor) post.factor.caught = true;
@@ -986,7 +1031,10 @@ export const MerchantHouses = {
         const c = MerchantHouses.company(player);
         const post = MerchantHouses.getPost(player, postId);
         const s = world.getTile(post.q, post.r).settlement;
-        MerchantHouses._debit(c, world, can.cost, 'lobbying', `Lobbying for ${_label(goodId)} at ${post.name}`);
+        const lobbied = MerchantHouses._debit(c, world, can.cost, 'lobbying', `Lobbying for ${_label(goodId)} at ${post.name}`);
+        // (into the crown's chests, or the town's purse where no crown takes it)
+        const lk = s && s.kingdom != null && world.getKingdom ? world.getKingdom(s.kingdom) : null;
+        if (lk && lk.isAlive !== false) { lk.treasury = _num(lk.treasury) + lobbied; } else MerchantHouses._toTown(world, s, lobbied);
         const won = can.own || Utils.random() < can.chance;
         if (!won) return { success: true, granted: false, text: `The court takes your gold and grants nothing.` };
         const days = MerchantHouses.config().monopoly.days;
@@ -1006,8 +1054,9 @@ export const MerchantHouses = {
         if (k <= 0 || r.shares.player + _num(r.shares.purse) + k > 100) return { success: false, reason: 'Not that many shares for sale.' };
         const cost = Math.ceil(k * MerchantHouses.sharePrice(r) * MerchantHouses.config().rivals.sharePremium);
         if (c.capital < cost) return { success: false, reason: `${k} shares cost ${cost} gold.` };
-        MerchantHouses._debit(c, world, cost, 'shares', `${k} shares in ${r.name}`);
-        r.shares.player += k; // bought from the house's partners: its capital is unchanged
+        // (bought from the house's partners: its capital is unchanged; they spend the price in its towns)
+        MerchantHouses._toTown(world, MerchantHouses._rivalTown(world, r), MerchantHouses._debit(c, world, cost, 'shares', `${k} shares in ${r.name}`), player);
+        r.shares.player += k;
         return { success: true, cost, shares: r.shares.player };
     },
 
@@ -1017,7 +1066,13 @@ export const MerchantHouses = {
         const k = Math.floor(_num(n));
         if (!c || !r || r.status !== 'active') return { success: false, reason: 'No such house.' };
         if (k <= 0 || k > r.shares.player) return { success: false, reason: 'You hold fewer shares than that.' };
-        const paid = Math.floor(k * MerchantHouses.sharePrice(r) * MerchantHouses.config().rivals.sellDiscount);
+        // (its partners buy them back out of their purses in its towns: as far as they hold)
+        const want = Math.floor(k * MerchantHouses.sharePrice(r) * MerchantHouses.config().rivals.sellDiscount);
+        const towns = MerchantHouses._rivalTowns(world, r);
+        const drawn = towns.length ? Economy.drawTowns(towns.map(s => ({ settlement: s, weight: Math.max(1, _num(s.population)) })), want, 0.1).paid : 0;
+        const paid = Math.floor(drawn);
+        // (the odd coppers stay in its seat's town)
+        if (drawn > paid) Economy.payTown(towns[0], Math.round((drawn - paid) * 100) / 100);
         r.shares.player -= k;
         MerchantHouses._credit(c, world, paid, 'shares', `${k} shares in ${r.name} sold`);
         return { success: true, earned: paid, shares: r.shares.player };
@@ -1036,12 +1091,14 @@ export const MerchantHouses = {
         if (r.shares.player < 51) return { success: false, reason: `You need a majority of ${r.name}'s shares first.` };
         const cost = MerchantHouses.buyOutCost(player, r);
         if (c.capital < cost) return { success: false, reason: `Buying the rest of ${r.name} costs ${cost} gold.` };
-        MerchantHouses._debit(c, world, cost, 'buyouts', `The rest of ${r.name}`);
+        // (the other shareholders are paid, and spend it in the house's towns)
+        MerchantHouses._toTown(world, MerchantHouses._rivalTown(world, r), MerchantHouses._debit(c, world, cost, 'buyouts', `The rest of ${r.name}`), player);
         const assets = Math.floor(r.capital);
         r.capital = 0;
         r.status = 'bought';
         r.endedDay = _day(world);
         r.shares.player = 0;
+        // (its coffers were counted coin: they leave the census books with it, into the company)
         MerchantHouses._credit(c, world, assets, 'buyouts', `${r.name}'s coffers`);
         c.reputation = _clamp(c.reputation + 8, 0, 100);
         // Its monopolies pass to the company
@@ -1063,9 +1120,12 @@ export const MerchantHouses = {
         if (!c || !r || r.status !== 'active') return { success: false, reason: 'No such house.' };
         if (amt < cfg.minSpend) return { success: false, reason: `A price war needs at least ${cfg.minSpend} gold.` };
         if (c.capital < amt) return { success: false, reason: 'The company has not that much.' };
-        MerchantHouses._debit(c, world, amt, 'priceWar', `Price war on ${r.name}`);
-        const damage = Math.round(amt * Utils.randFloat(cfg.damage[0], cfg.damage[1]));
+        // (the war is fought in cheap goods: the coin both houses lose is the buyers' gain, in the rival's towns)
+        const spent = MerchantHouses._debit(c, world, amt, 'priceWar', `Price war on ${r.name}`);
+        if (spent > 0 && !MerchantHouses._rivalSpend(world, r, spent)) MoneySupply.leak(world, -spent, 'merchantCompany');
+        const damage = Math.min(Math.round(amt * Utils.randFloat(cfg.damage[0], cfg.damage[1])), Math.max(0, Math.floor(r.capital)));
         r.capital = Math.max(0, r.capital - damage);
+        MerchantHouses._rivalSpend(world, r, damage);
         r.rivalry = _clamp(r.rivalry + cfg.rivalry, 0, 100);
         c.reputation = _clamp(c.reputation - cfg.reputationCost, 0, 100);
         const ruined = r.capital < MerchantHouses.config().rivals.ruinCapital;
@@ -1266,10 +1326,12 @@ export const MerchantHouses = {
         const unit = MerchantHouses.contractUnitPay(world, contract);
         const earned = Math.floor(unit * n * (check ? check.mult : 1));
         contract.delivered += n;
-        MerchantHouses._credit(c, world, earned, 'contracts', `${n} ${_label(contract.good)} to ${contract.town} (${how})`);
-        // (the duty inside `earned` to the crown; the units' bookings drawn down)
-        if (check && src.player) TradePolicy.onSale(player, world, s, contract.good, n, earned, check);
-        else if (check) TradePolicy.consignSale(player, world, src.lots, s, contract.good, n, earned, check);
+        // (the duty inside the price to the crown; the units' bookings drawn down)
+        const duty = !check ? 0 : src.player ? TradePolicy.onSale(player, world, s, contract.good, n, earned, check).duty
+            : TradePolicy.consignSale(player, world, src.lots, s, contract.good, n, earned, check).duty;
+        // (the town that ordered the goods pays out of its purse, as far as it holds: the
+        // price and the crown's duty inside it, as a market sale does — the duty is not made from nothing)
+        MerchantHouses._credit(c, world, MerchantHouses._fromTown(world, s, earned, duty), 'contracts', `${n} ${_label(contract.good)} to ${contract.town} (${how})`);
         // The goods reach the town's market (world/settlementMarket.js); food fills its granary too
         if (tile && tile.settlement) SettlementMarket.add(tile.settlement, contract.good, n);
         if (tile && tile.settlement && Seasons.priceGroup(contract.good) === 'food') {
@@ -1407,7 +1469,8 @@ export const MerchantHouses = {
         }
         const plan = MerchantHouses.convoyPlan(player, world, post, dest.q, dest.r, n);
         if (c.capital < plan.fee) return { success: false, reason: `The ${plan.mode} costs ${plan.fee} gold.` };
-        MerchantHouses._debit(c, world, plan.fee, 'convoys', `${plan.mode === 'ship' ? 'Ship' : 'Caravan'}: ${n} ${_label(goodId)} ${post.name} → ${dest.name}`);
+        // (the carters or the shipmaster are hired in the post's town)
+        MerchantHouses._toTown(world, fromTile && fromTile.settlement, MerchantHouses._debit(c, world, plan.fee, 'convoys', `${plan.mode === 'ship' ? 'Ship' : 'Caravan'}: ${n} ${_label(goodId)} ${post.name} → ${dest.name}`));
         // The goods' bookings by realm travel with them
         const lots = {};
         TradePolicy.addLots(lots, goodId, TradePolicy.takeLots(post.lots, goodId, n, have));
@@ -1458,8 +1521,8 @@ export const MerchantHouses = {
         const tile = world.getTile(convoy.q, convoy.r);
         const sale = MerchantHouses._factorSale(player, world, tile, convoy.lots, qty, convoy.good, qty, { cap: false });
         if (!(sale.earned > 0)) return;
-        MerchantHouses._settleFactorSale(player, world, tile.settlement, convoy.lots, convoy.good, sale);
-        MerchantHouses._credit(c, world, sale.earned, 'sales', `${sale.n} ${_label(convoy.good)} sold off at ${convoy.to}`);
+        const duty = MerchantHouses._settleFactorSale(player, world, tile.settlement, convoy.lots, convoy.good, sale);
+        MerchantHouses._credit(c, world, MerchantHouses._fromTown(world, tile.settlement, sale.earned, duty), 'sales', `${sale.n} ${_label(convoy.good)} sold off at ${convoy.to}`);
     },
 
     // ── Royal ventures ──────────────────────────────────────────
@@ -1502,11 +1565,11 @@ export const MerchantHouses = {
         if (amt < cfg.minStake) return { success: false, reason: `The least stake is ${cfg.minStake} gold.` };
         if (held + amt > v.maxStake) return { success: false, reason: `The crown sells at most ${v.maxStake} gold of shares in this.` };
         if (c.capital < amt) return { success: false, reason: 'The company has not that much.' };
-        MerchantHouses._debit(c, world, amt, 'ventures', `Stake in ${v.name}`);
+        const staked = MerchantHouses._debit(c, world, amt, 'ventures', `Stake in ${v.name}`);
         const k = world.getKingdom(v.kingdomId);
-        if (k) k.treasury = _num(k.treasury) + amt;
+        if (k) { k.treasury = _num(k.treasury) + staked; } else MerchantHouses._toTown(world, Economy.nearestPurse(world, player.q, player.r), staked);
         c.investments.ventures.push({
-            ventureId: v.id, name: v.name, icon: v.icon, kingdom: v.kingdom, stake: amt,
+            ventureId: v.id, name: v.name, icon: v.icon, kingdom: v.kingdom, kingdomId: v.kingdomId, stake: amt,
             resolveDay: _day(world) + v.days, success: v.success, returnMult: v.returnMult, salvage: v.salvage,
         });
         return { success: true, stake: amt };
@@ -1516,7 +1579,10 @@ export const MerchantHouses = {
         const c = MerchantHouses.company(player);
         const won = Utils.random() < stake.success;
         const mult = won ? Utils.randFloat(stake.returnMult[0], stake.returnMult[1]) : Utils.randFloat(stake.salvage[0], stake.salvage[1]);
-        const back = Math.floor(stake.stake * mult);
+        // (the crown that sold the shares pays out: its chests, then its towns, as far as they hold)
+        const vk = (stake.kingdomId != null && world.getKingdom ? world.getKingdom(stake.kingdomId) : null) || (world.kingdoms || []).find(k => k && k.name === stake.kingdom) || null;
+        const want = Math.floor(stake.stake * mult);
+        const back = want > 0 && vk && vk.isAlive !== false ? Math.floor(Economy.crownPays(vk, world, want)) : 0;
         if (back > 0) MerchantHouses._credit(c, world, back, 'ventures', `${stake.name} ${won ? 'comes home' : 'salvage'}`);
         const text = won ? `${stake.icon} ${stake.name} comes home laden: your ${stake.stake} gold returns ${back}.`
             : `${stake.icon} ${stake.name} is lost${back ? `; ${back} of your ${stake.stake} gold is salvaged` : ` with your ${stake.stake} gold`}.`;
@@ -1558,7 +1624,7 @@ export const MerchantHouses = {
         // Wages and rent: paid to the town's landlords and the factor, who
         // spend them where they live (the town's purse)
         const rent = cfg.post.weeklyRent;
-        const toTown = (amt) => { if (amt > 0 && s.economy && Number.isFinite(s.economy.gold)) s.economy.gold = Math.round((s.economy.gold + amt) * 100) / 100; return amt; };
+        const toTown = (amt) => { MerchantHouses._toTown(world, s, amt); return amt; };
         if (!post.totals) post.totals = { sales: 0, purchases: 0, wages: 0, rent: 0, robbed: 0 };
         if (c.capital >= rent) post.totals.rent += toTown(MerchantHouses._debit(c, world, rent, 'rent', `Rent at ${post.name}`));
         if (post.factor) {
@@ -1594,8 +1660,9 @@ export const MerchantHouses = {
             if (sellN > 0) {
                 const unit = sale.unit;
                 if (unit > 0 && unit >= order.sellAbove) {
-                    const earned = sale.earned;
-                    MerchantHouses._settleFactorSale(player, world, s, post.lots, good.id, sale);
+                    const duty = MerchantHouses._settleFactorSale(player, world, s, post.lots, good.id, sale);
+                    // (the town's buyers pay out of its purse)
+                    const earned = MerchantHouses._fromTown(world, s, sale.earned, duty);
                     post.stock[good.id] -= sellN;
                     if (post.stock[good.id] <= 0) delete post.stock[good.id];
                     sellVolume -= sellN;
@@ -1620,7 +1687,8 @@ export const MerchantHouses = {
                     let cost = n > 0 ? Trading.buyCost(player, entry, n, s) : 0;
                     while (n > 0 && cost > spendable) cost = --n > 0 ? Trading.buyCost(player, entry, n, s) : 0;
                     if (n > 0) {
-                        purchases += MerchantHouses._debit(c, world, cost, 'purchases', `${post.name}: bought ${n} ${_label(good.id)} at ${Math.round(cost / n * 10) / 10}`);
+                        // (the town's sellers are paid into its purse)
+                        purchases += toTown(MerchantHouses._debit(c, world, cost, 'purchases', `${post.name}: bought ${n} ${_label(good.id)} at ${Math.round(cost / n * 10) / 10}`));
                         post.stock[good.id] = _num(post.stock[good.id]) + n;
                         if (!post.lots) post.lots = {};
                         TradePolicy.book(post.lots, s, good.id, n);
@@ -1636,6 +1704,8 @@ export const MerchantHouses = {
             const skim = Math.min(c.capital, Math.floor(turnover * cfg.factor.skimRate * (1 - post.factor.honesty)));
             if (skim > 0) {
                 c.capital -= skim;
+                // (he spends it where he lives)
+                toTown(skim);
                 post.skimmed += skim;
                 post.suspicion += cfg.factor.suspicionPerSkim;
             }
@@ -1850,6 +1920,11 @@ export const MerchantHouses = {
     },
 
     /** Coin a rival house pays out: into the town at `at`, else its seat's (or first post's) purse. */
+    /** The town a rival house's coin is spent in: its seat's, else its first post's. */
+    _rivalTown(world, r) {
+        return MerchantHouses._rivalTowns(world, r)[0] || null;
+    },
+
     _rivalSpend(world, r, amount, at = null) {
         if (!(amount > 0) || !world || typeof world.getTile !== 'function') return 0;
         const t = at && Number.isFinite(at.q) ? world.getTile(at.q, at.r) : null;

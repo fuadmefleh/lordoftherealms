@@ -7,6 +7,18 @@ import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Bank
 import { lede, chips, purse, sectionHead, rowList, card, kv, price, BTN_GOLD, BTN_PLAIN, BTN_DARK, BTN_OFF } from './uiKit.js';
 import { BackRooms } from '../../systems/backRooms.js';
 import { ParentsGuard } from '../parentsGuard.js';
+import { PlayerCoin } from '../../player/playerCoin.js';
+
+// The house's side of every stake: the coin staked goes into the town's purse
+// (the tavern keeper's, the dice men's), and winnings come out of it.
+function _houseTakes(game, amount) {
+    const p = game.player, w = game.world;
+    PlayerCoin.pay(w, p, amount, PlayerCoin.townHere(w, p));
+}
+function _housePays(game, amount) {
+    const p = game.player, w = game.world;
+    PlayerCoin.receive(w, p, amount, PlayerCoin.townHere(w, p), null, { full: true });
+}
 
 /** Busk an act in person on the street map; the crowd's score goes to the busking reward. */
 function _buskInPerson(game, tile, crowdMultiplier, perfId) {
@@ -273,7 +285,7 @@ Object.assign(ActionMenu, {
             playerBet = ante;
             dealerBet = ante;
             currentAnte = ante;
-            game.player.gold -= ante;
+            _houseTakes(game, ante);
             street = 'preflop';
             statusMsg = 'Pre-flop: Check, Bet more, or Fold.';
             lastAction = '';
@@ -301,7 +313,7 @@ Object.assign(ActionMenu, {
             if (playerAction === 'bet') {
                 const extra = Math.max(1, betAmount);
                 if (game.player.gold < extra) { game.ui.showNotification('Not enough gold!', '', 'error'); return; }
-                game.player.gold -= extra;
+                _houseTakes(game, extra);
                 pot += extra;
                 playerBet += extra;
                 ActionMenu._gamblingFinance(game, -extra);
@@ -332,7 +344,7 @@ Object.assign(ActionMenu, {
             const base = street.replace('_facing_bet','');
             const callAmt = currentAnte;
             if (game.player.gold < callAmt) { game.ui.showNotification('Not enough gold!', '', 'error'); return; }
-            game.player.gold -= callAmt;
+            _houseTakes(game, callAmt);
             pot += callAmt;
             playerBet += callAmt;
             ActionMenu._gamblingFinance(game, -callAmt);
@@ -372,12 +384,12 @@ Object.assign(ActionMenu, {
             const playerScore = playerHand.score + (Math.random() < luckBonus ? 30 : 0);
 
             if (playerScore > dealerHand.score) {
-                game.player.gold += pot;
+                _housePays(game, pot);
                 ActionMenu._gamblingFinance(game, pot - playerBet);
                 statusMsg = `🎉 You win! ${playerHand.name} beats ${dealerHand.name}. +${pot}g`;
             } else if (playerScore === dealerHand.score) {
                 const half = Math.floor(pot / 2);
-                game.player.gold += half; // ties go to house (floor)
+                _housePays(game, half); // ties go to house (floor)
                 ActionMenu._gamblingFinance(game, half - playerBet);
                 statusMsg = `🤝 Tie! ${playerHand.name} vs ${dealerHand.name}. +${half}g returned.`;
             } else {
@@ -680,12 +692,12 @@ Object.assign(ActionMenu, {
 
                     // Calculate & apply result
                     if (matches === 0) {
-                        game.player.gold -= bet;
+                        _houseTakes(game, bet);
                         ActionMenu._gamblingFinance(game, -bet);
                         if (resultArea) resultArea.innerHTML = `<div style="color: #e0846a; font-weight: bold; font-size: 14px;">No matches! Lost ${bet}g 💸</div>`;
                     } else {
                         const payout = Math.floor(bet * matches * (cfg.payoutPerMatch ?? 1)); // 1x per match, so 1 match = 1x, 2 = 2x, 3 = 3x
-                        game.player.gold += payout; // net gain (doesn't deduct bet, matches pay bet each)
+                        _housePays(game, payout); // net gain (doesn't deduct bet, matches pay bet each)
                         ActionMenu._gamblingFinance(game, payout);
                         const msg = matches === 3 ? '🎉 TRIPLE MATCH! Jackpot!' : matches === 2 ? '✨ Double match!' : '👍 One match!';
                         if (resultArea) resultArea.innerHTML = `<div style="color: #8fd18a; font-weight: bold; font-size: 14px;">${msg} Won ${payout}g!</div>`;
@@ -797,7 +809,7 @@ Object.assign(ActionMenu, {
                     if (won) {
                         const winAmount = Math.floor(bet * (cfg.payoutMultiplier ?? 2));
                         currentWinnings = winAmount;
-                        game.player.gold += bet; // Net +bet (double minus the bet)
+                        _housePays(game, bet); // Net +bet (double minus the bet)
                         ActionMenu._gamblingFinance(game, bet);
                         if (resultArea) resultArea.innerHTML = `<div style="color: #8fd18a; font-weight: bold; font-size: 15px;">🎉 ${resultName}! You win ${winAmount}g!</div>`;
 
@@ -807,7 +819,7 @@ Object.assign(ActionMenu, {
                             doubleArea.innerHTML = _dfDoubleBox(`🔥 Double or Nothing? (${currentWinnings}g at stake)`);
                         }
                     } else {
-                        game.player.gold -= bet;
+                        _houseTakes(game, bet);
                         ActionMenu._gamblingFinance(game, -bet);
                         currentWinnings = 0;
                         if (resultArea) resultArea.innerHTML = `<div style="color: #e0846a; font-weight: bold; font-size: 15px;">💸 ${resultName}! You lose ${bet}g.</div>`;
@@ -853,7 +865,7 @@ Object.assign(ActionMenu, {
 
                     if (won) {
                         currentWinnings *= 2;
-                        game.player.gold += currentWinnings / 2; // Double the previous winnings
+                        _housePays(game, currentWinnings / 2); // Double the previous winnings
                         ActionMenu._gamblingFinance(game, currentWinnings / 2);
                         if (resultArea) resultArea.innerHTML = `<div style="color: #8fd18a; font-weight: bold; font-size: 15px;">🔥 DOUBLED! Winnings: ${currentWinnings}g!</div>`;
                         // Update double-or-nothing display
@@ -862,7 +874,7 @@ Object.assign(ActionMenu, {
                         }
                     } else {
                         // Lose everything from double-or-nothing
-                        game.player.gold -= currentWinnings / 2;
+                        _houseTakes(game, currentWinnings / 2);
                         ActionMenu._gamblingFinance(game, -(currentWinnings / 2));
                         currentWinnings = 0;
                         if (resultArea) resultArea.innerHTML = `<div style="color: #e0846a; font-weight: bold; font-size: 15px;">💀 Bust! Lost it all on the double!</div>`;
@@ -999,7 +1011,7 @@ Object.assign(ActionMenu, {
                 game.ui.showNotification('Not Enough', "You don't have enough gold!", 'error');
                 return;
             }
-            game.player.gold -= bet;
+            _houseTakes(game, bet);
             game.ui.updateStats(game.player, game.world);
             currentCard = drawCard();
             revealedCard = null;
@@ -1060,7 +1072,7 @@ Object.assign(ActionMenu, {
             if (streak === 0) return;
             const multiplier = 1 + streak * (cfg.streakBonus ?? 0.5);
             const winnings = Math.floor(bet * multiplier);
-            game.player.gold += winnings;
+            _housePays(game, winnings);
             ActionMenu._gamblingFinance(game, winnings - bet);
             game.ui.showNotification('💰 Cashed Out!', `Streak of ${streak}! Won ${winnings}g (${multiplier.toFixed(1)}x)!`, 'success');
             inRound = false;

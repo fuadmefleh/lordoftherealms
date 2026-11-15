@@ -99,6 +99,7 @@ import { Labour } from '../systems/labour.js';
 import { MerchantPrince } from '../systems/merchantPrince.js';
 import { Guilds } from '../systems/guilds.js';
 import { EconomyChronicle } from '../systems/economyChronicle.js';
+import { Economy } from '../world/economy.js';
 import { Finance } from '../systems/finance.js';
 import { Underwriting } from '../systems/underwriting.js';
 import { Bills } from '../systems/bills.js';
@@ -952,9 +953,21 @@ export const Afterlife = {
         // The townsperson leaves their town's roster for the road
         const tile = world.getTile(cand.q, cand.r);
         const live = tile && tile.settlement;
+        // (their coin is their own purse, then what the household had put by in the town's)
+        let ownCoin = 0;
+        const wantCoin = Math.max(0, Math.round(_num(cand.gold, 100)));
         if (cand.folkId != null && live && live.folk) {
             const p = Townsfolk.get(live.folk, cand.folkId);
+            if (p && typeof p.purse === 'number' && p.purse > 0) {
+                ownCoin = Math.min(wantCoin, Math.floor(p.purse));
+                p.purse = Math.round((p.purse - ownCoin) * 100) / 100;
+            }
             if (p) Townsfolk.exile(live.folk, p, _num(world.day), 'the road');
+        }
+        if (ownCoin < wantCoin) {
+            // (Economy.drawTown: a town with no purse record yet is not counted, and pays as asked)
+            const from = live && !live.inKind ? live : Economy.nearestPurse(world, cand.q, cand.r);
+            ownCoin += from ? Economy.drawTown(from, wantCoin - ownCoin) : 0;
         }
 
         // Born at the dawn: no surname yet — DawnBirth.apply gives the clan's (and the House its name)
@@ -967,7 +980,7 @@ export const Afterlife = {
         player.discoverNearbyHolySites(world, 4);
 
         const st = C.stations[cand.station] || C.stations.villager || {};
-        player.gold = Math.max(0, Math.round(_num(cand.gold, 100)));
+        player.gold = Math.max(0, Math.round(ownCoin * 100) / 100);
         player.title = st.title || player.title;
         for (const k of STAT_KEYS) player[k] = _num(player[k], 5) + _num(st.stats && st.stats[k]);
         for (const k of SKILL_KEYS) player.skills[k] = _num(player.skills[k]) + _num(st.skills && st.skills[k]);

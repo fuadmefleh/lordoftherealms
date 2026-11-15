@@ -907,9 +907,11 @@ export const MerchantCaravans = {
             const fromPurse = Math.min(pay, Math.max(0, Math.floor(_num(u.purse))));
             u.purse = _num(u.purse) - fromPurse;
             const rest = pay - fromPurse;
-            if (rest > 0 && home && home.economy && Number.isFinite(home.economy.gold)) {
-                const got = Math.min(rest, Math.max(0, Math.floor(home.economy.gold)));
-                home.economy.gold = _round2(home.economy.gold - got);
+            if (rest > 0) {
+                // (a home town that keeps no purse: the nearest one that does pays for them)
+                const got = home && home.economy && Number.isFinite(home.economy.gold)
+                    ? Math.floor(Economy.drawTown(home, Math.min(rest, Math.max(0, Math.floor(home.economy.gold)))))
+                    : Math.floor(Economy.drawNearest(world, u.q, u.r, rest));
                 pay = fromPurse + got;
             }
             player.gold = _num(player.gold) + pay;
@@ -928,6 +930,7 @@ export const MerchantCaravans = {
         if (_num(u.purse) > 0) {
             const back = home || s;
             if (back && back.economy && Number.isFinite(back.economy.gold)) back.economy.gold = _round2(back.economy.gold + _num(u.purse));
+            else if (!Economy.payNearest(world, u.q, u.r, _num(u.purse))) MoneySupply.leak(world, -_num(u.purse), 'caravansLost');
             u.purse = 0;
         }
         u.cargo = {};
@@ -1054,7 +1057,8 @@ export const MerchantCaravans = {
             const [lo, hi] = Array.isArray(P.strength) ? P.strength : [16, 30];
             const strength = Utils.randInt(_num(lo, 16), _num(hi, lo));
             k.treasury = _num(k.treasury) - _num(P.cost, 80);
-            CrownBooks.spendAtCapital(world, k, _num(P.cost, 80)); // (the wardens' pay)
+            // (the wardens' pay, spent at the capital — else in the realm's towns)
+            if (!CrownBooks.spendAtCapital(world, k, _num(P.cost, 80)) && !Economy.payRealm(k, world, _num(P.cost, 80))) MoneySupply.leak(world, -_num(P.cost, 80), 'wardens');
             st.seq++;
             const unit = Object.assign(Object.create(WorldUnit.prototype), {
                 type: 'road_patrol', id: `wardens_${st.seq}`,

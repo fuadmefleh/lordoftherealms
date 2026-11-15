@@ -29,6 +29,8 @@ import { DataLoader } from '../core/dataLoader.js';
 import { Utils } from '../core/utils.js';
 import { Hex } from '../core/hex.js';
 import { CrownBooks } from '../world/crownBooks.js';
+import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
 import { House } from './house.js';
 import { Ledger } from './ledger.js';
 import { Fiscal } from './fiscal.js';
@@ -334,7 +336,7 @@ export const Demands = {
             if (k) {
                 k.treasury = _num(k.treasury) + amount;
                 CrownBooks.note(k, d.sub === 'loan' ? 'loans' : 'levy', amount);
-            }
+            } else Demands._spendHere(world, player, amount);
             if (d.sub === 'loan') {
                 Ledger.record(player, 'crownLoan', -amount);
                 house.crownLoans.push({ id: d.id, kingdomId: d.kingdomId, from: d.from, amount, rate: C.crown.loanRate, dueDay: day + C.crown.loanDays, defers: 0, settled: false });
@@ -348,12 +350,14 @@ export const Demands = {
         } else if (d.kind === 'guild') {
             const { s, g } = Demands._guild(world, d);
             if (g) g.treasury = _num(g.treasury) + amount;
+            else Demands._spendHere(world, player, amount);
             Demands._guildFeud(world, d, haggled ? C.guild.negotiateFeud : C.guild.payFeud);
             Ledger.record(player, 'guilds', -amount);
             text = `${amount} gold to the ${d.from}${s ? ` at ${s.name}` : ''}. The masters' grumbling quiets.`;
         } else {
             const k = world.getKingdom(d.rivalId);
             if (k) k.treasury = _num(k.treasury) + amount;
+            else Demands._spendHere(world, player, amount);
             House.accrueRivalFeud(player, world, d.rivalId, haggled ? C.rival.negotiateFeud : C.rival.payFeud);
             house.tributesPaid[d.rivalId] = _num(house.tributesPaid[d.rivalId]) + 1;
             Ledger.record(player, 'rivalTribute', -amount);
@@ -363,6 +367,11 @@ export const Demands = {
         Demands._close(d, world, haggled ? 'negotiated' : 'paid');
         House._chronicle(house, world, text, ['demand', d.kind]);
         return { success: true, paid: amount, text };
+    },
+
+    /** Coin paid to a payee that is gone (a fallen crown, a dissolved guild): spent in the nearest town, else lost (booked). */
+    _spendHere(world, player, amount) {
+        if (!Economy.payNearest(world, player.q, player.r, amount)) MoneySupply.leak(world, -amount, 'demandsLost');
     },
 
     _refuse(world, player, d, lapsed) {

@@ -64,6 +64,7 @@ import { CrownBooks } from '../world/crownBooks.js';
 import { Couriers } from './couriers.js';
 import { NpcMemory } from './npcMemory.js';
 import { Names } from '../core/names.js';
+import { MoneySupply } from '../world/moneySupply.js';
 
 const OFFICES = ['chancellor', 'marshal', 'steward', 'spymaster', 'highPriest'];
 const TAX_STEPS = ['heavy', 'standard', 'light'];
@@ -73,7 +74,26 @@ const _num = v => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
 const _day = world => (world && world.day) || 0;
 const _key = (q, r) => `${q},${r}`;
 
+
+/** Crown (or royal) coin spent at court: into the capital's purse, else the realm's towns (else lost, booked). */
+function _spendRealm(world, k, amount, why) {
+    if (!(amount > 0) || !world || !k) return;
+    if (CrownBooks.spendAtCapital(world, k, amount) || Economy.payRealm(k, world, amount)) return;
+    MoneySupply.leak(world, -amount, why);
+}
+
+/** Coin given a vassal: spent in their seat's town, else the realm's (else lost, booked). */
+function _spendAt(world, k, seat, amount, why) {
+    if (!(amount > 0) || !world) return;
+    const t = seat && typeof world.getTile === 'function' ? world.getTile(seat.q, seat.r) : null;
+    if (t && t.settlement && Economy.payTown(t.settlement, amount)) return;
+    _spendRealm(world, k, amount, why);
+}
+
 export const Kingship = {
+    /** Crown coin spent at court: the capital's purse, else the realm's towns (else lost, booked). */
+    _spendRealm: (world, k, amount, why) => _spendRealm(world, k, amount, why),
+
 
     OFFICES,
 
@@ -495,6 +515,7 @@ export const Kingship = {
             for (const x of def.excludes || []) if (court.edicts[x]) Kingship.revokeEdict(player, world, x, { quiet: true });
         } else {
             k.treasury -= Kingship._passCost(def);
+            _spendRealm(world, k, Kingship._passCost(def), 'edicts');
         }
         court.edicts[id] = { since: _day(world), ...(def.royalPost ? { courierId: opts.courierId } : {}) };
         court.stats.edictsPassed++;
@@ -556,6 +577,7 @@ export const Kingship = {
         if (t.error) return { success: false, reason: t.error };
         if (_num(t.k.treasury) < _num(G.treasury)) return { success: false, reason: `The royal treasury needs ${G.treasury}g.` };
         t.k.treasury -= _num(G.treasury);
+        _spendAt(world, t.k, t.v.seat, _num(G.treasury), 'vassalGrant');
         Kingship._granted(t.court, world, t.v, _num(G.favour), `💰 A purse of ${G.treasury}g for ${Kingship.fullName(t.v)}.`);
         return { success: true, message: `${Kingship.fullName(t.v)} accepts the crown's gold (+${G.favour} favour).` };
     },
@@ -598,6 +620,7 @@ export const Kingship = {
         if (_num(player.gold) < _num(G.gold)) return { success: false, reason: `The dowry is ${G.gold}g.` };
         if (!House.spend(player.house, _num(G.prestige), `a match with ${Kingship.fullName(t.v)}`, _day(world))) return { success: false, reason: `Need ${G.prestige} Prestige.` };
         player.gold -= _num(G.gold);
+        _spendAt(world, t.k, t.v.seat, _num(G.gold), 'vassalDowry');
         const up = Upbringing.ensure(child);
         up.spouse = { kind: 'vassal', kingdomId: t.k.id, kingdomName: t.k.name, name: `kin of ${Kingship.fullName(t.v)}`, day: _day(world) };
         t.v.kin = true;
@@ -624,6 +647,7 @@ export const Kingship = {
         const court = Kingship.court(player);
         const k = Kingship._realm(player, world);
         k.treasury -= _num(F.treasury);
+        _spendRealm(world, k, _num(F.treasury), 'courtFeast');
         court.lastFeastDay = _day(world);
         court.stats.feasts++;
         let n = 0;
@@ -646,6 +670,7 @@ export const Kingship = {
         if (_day(world) < _num(t.v.lastFavourDay) + _num(G.cooldown)) return { success: false, reason: `You favoured ${Kingship.fullName(t.v)} only lately.` };
         if (_num(player.gold) < _num(G.gold)) return { success: false, reason: `It costs ${G.gold}g of your own.` };
         player.gold -= _num(G.gold);
+        _spendAt(world, t.k, t.v.seat, _num(G.gold), 'vassalFavour');
         t.v.lastFavourDay = _day(world);
         Kingship._granted(t.court, world, t.v, _num(G.favour), `🤝 You settle a quarrel in favour of ${Kingship.fullName(t.v)}.`);
         let rival = null;
@@ -962,6 +987,7 @@ export const Kingship = {
         const cost = Kingship.parleyCost(player);
         if (_num(k.treasury) < cost) return { success: false, reason: `The rebels want ${cost}g from the royal treasury.` };
         k.treasury -= cost;
+        _spendRealm(world, k, cost, 'rebelParley');
         const text = Kingship._endRevolt(player, world, court, k, 'parley', null);
         return { success: true, failed: true, message: text };
     },
@@ -1250,6 +1276,12 @@ export const Kingship = {
                 for (const [good, m] of Object.entries(s.monopolies)) {
                     if (!m || m.holder !== 'crown') continue;
                     if (k && m.kingdomId === k.id) revenue += _num(m.revenue);
+                    else if (_num(m.revenue) > 0) {
+                        // (a lost crown's markup still owed: its own chests, if it stands, else the town's)
+                        const ok = typeof world.getKingdom === 'function' ? world.getKingdom(m.kingdomId) : null;
+                        if (ok && ok.isAlive !== false) ok.treasury = _num(ok.treasury) + _num(m.revenue);
+                        else if (!Economy.payTown(s, _num(m.revenue))) MoneySupply.leak(world, -_num(m.revenue), 'monopoly');
+                    }
                     m.revenue = 0;
                     if (!own || !goods.includes(good)) { delete s.monopolies[good]; res.cleared++; }
                 }

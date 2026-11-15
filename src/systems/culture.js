@@ -7,6 +7,7 @@ import { Technology } from './technology.js';
 import { KingdomCulture } from '../world/kingdomState.js';
 import { CrownBooks } from '../world/crownBooks.js';
 import { Construction } from './construction.js';
+import { Economy } from '../world/economy.js';
 
 
 export const Culture = {
@@ -407,6 +408,7 @@ export const Culture = {
         }
 
         player.gold -= type.cost;
+        Culture._payBuilders(world, tile, type.cost);
 
         const constructionDays = type.constructionDays || 0;
 
@@ -484,13 +486,20 @@ export const Culture = {
     },
 
     /** Pay gold to raise the player's cultural building on this tile one level. */
-    upgradeCulturalBuilding(player, tile) {
+    upgradeCulturalBuilding(player, tile, world = null) {
         const check = Culture.canUpgrade(player, tile);
         if (!check.can) return { success: false, reason: check.reason };
         const b = tile.culturalBuilding;
         player.gold -= check.cost;
+        Culture._payBuilders(world, tile, check.cost);
         b.level = Math.max(1, b.level || 1) + 1;
         return { success: true, building: b, level: b.level, cost: check.cost };
+    },
+
+    /** The masons and painters are paid in the building's town, else the nearest that keeps coin. */
+    _payBuilders(world, tile, amount) {
+        if (tile && tile.settlement) return Economy.payTown(tile.settlement, amount);
+        return world && tile ? (Economy.payNearest(world, tile.q, tile.r, amount) ? amount : 0) : 0;
     },
 
     /**
@@ -506,6 +515,7 @@ export const Culture = {
 
         let totalIncome = 0;
         let totalRenown = 0;
+        const payers = []; // (who pays: the town each building draws its visitors and patrons from)
         // Philosophy and the printing press amplify your cultural buildings
         const cultureMult = 1 + Technology.getEffectTotal(player, 'cultureBonus');
 
@@ -515,7 +525,10 @@ export const Culture = {
             if (tile.culturalBuilding.underConstruction) continue; // Still being built
 
             const b = tile.culturalBuilding;
-            totalIncome += Culture.dailyIncome(b);
+            const inc = Culture.dailyIncome(b);
+            totalIncome += inc;
+            const town = tile.settlement || Economy.nearestPurse(world, bRef.q, bRef.r);
+            if (town && inc > 0) payers.push({ settlement: town, weight: inc });
 
             if (b.renownPerDay) {
                 totalRenown += b.renownPerDay * Math.max(1, b.level || 1);
@@ -523,9 +536,11 @@ export const Culture = {
         }
 
         const owed = totalIncome * cultureMult + (player.cultureIncomeCarry || 0);
-        const income = Math.floor(owed);
-        player.cultureIncomeCarry = owed - income;
+        const due = Math.floor(owed);
+        player.cultureIncomeCarry = owed - due;
         totalRenown *= cultureMult;
+        // Real coin: the fees and patrons' gifts come out of the towns' purses, as far as they go
+        const income = due > 0 ? Economy.drawTowns(payers, due, 0.05).paid : 0;
         player.gold += income;
         player.renown += totalRenown;
 

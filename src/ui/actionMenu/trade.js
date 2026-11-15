@@ -1,5 +1,6 @@
 // ActionMenu — trade methods (split from the original monolith).
 import { ActionMenu } from './_ref.js';
+import { PlayerCoin } from '../../player/playerCoin.js';
 import { peopleLine } from './labour.js';
 import { Guilds } from '../../systems/guilds.js';
 import { Hospitality } from '../../systems/hospitality.js';
@@ -111,7 +112,8 @@ Object.assign(ActionMenu, {
         window.payForPassage = (q, r, cost, name, travelDays) => {
             if (!ActionMenu.commitPendingAP(game)) return;
             if (game.player.gold >= cost) {
-                game.player.gold -= cost;
+                // (the passage is paid to a ship's master of the port sailed from)
+                PlayerCoin.pay(game.world, game.player, cost, PlayerCoin.townHere(game.world, game.player), 'travel');
                 game.player.q = q;
                 game.player.r = r;
                 game.player.isMoving = false;
@@ -276,13 +278,13 @@ Object.assign(ActionMenu, {
                     game.ui.showNotification('Cannot Sell', 'That property is no longer yours.', 'error');
                     return;
                 }
-                const refund = Math.floor(propType.cost * 0.25);
+                // (the buyer is the town's: its purse pays, what it holds)
+                const refund = PlayerCoin.receive(game.world, player, Math.floor(propType.cost * 0.25), PlayerEconomy.propertyTown(game.world, tile, prop) || { q: tile.q, r: tile.r }, 'worksSold');
                 if (Array.isArray(tile.playerProperties)) tile.playerProperties = tile.playerProperties.filter(p => p !== prop);
                 tile.playerProperty = (tile.playerProperties && tile.playerProperties[0]) || null;
                 if (tile.playerProperties && !tile.playerProperties.length) tile.playerProperties = null;
                 const idx = (player.properties || []).findIndex(r => r.q === tile.q && r.r === tile.r && r.type === prop.type);
                 if (idx !== -1) player.properties.splice(idx, 1);
-                player.gold += refund;
                 game.ui.showNotification('Property Sold', `${prop.name} sold for ${refund} gold`, 'success');
                 game.ui.updateStats(player, game.world);
                 game.ui.hideCustomPanel();
@@ -602,7 +604,7 @@ Object.assign(ActionMenu, {
         };
 
         window.upgradePropertyAction = () => {
-            const result = PlayerEconomy.upgradeProperty(game.player, tile);
+            const result = PlayerEconomy.upgradeProperty(game.player, tile, game.world);
             if (result.success) {
                 game.ui.showNotification('Upgrade Complete!', `Property upgraded to Level ${result.level}`, 'success');
                 game.ui.updateStats(game.player, game.world);
@@ -671,7 +673,7 @@ Object.assign(ActionMenu, {
                 }
             }
 
-            const result = PlayerEconomy.setWorkshopRecipe(tile, recipeId, game.player);
+            const result = PlayerEconomy.setWorkshopRecipe(tile, recipeId, game.player, game.world);
             if (result.success) {
                 if (result.wasChange) {
                     game.ui.showNotification('Workshop Retooled', 'Retooling in progress...', 'info');
@@ -761,7 +763,7 @@ Object.assign(ActionMenu, {
                 game.ui.showNotification('Not Enough Gold', `Need ${cost} gold`, 'error');
                 return;
             }
-            game.player.gold -= cost;
+            PlayerCoin.pay(game.world, game.player, cost, PlayerEconomy.propertyTown(game.world, tile, tile.playerProperty) || { q: tile.q, r: tile.r }, 'worksBought');
             tile.playerProperty.gamblingTables = tables + 1;
             game.ui.showNotification('🎲 Table Added!', `Gambling table installed! (${tables + 1}/${maxTables}) — +15% daily income`, 'success');
             game.ui.updateStats(game.player, game.world);
@@ -1230,7 +1232,7 @@ Object.assign(ActionMenu, {
                         }
                         if (typeof Titles !== 'undefined' && game.player.currentTitle === 'trade_envoy' &&
                             tile.settlement.kingdom && tile.settlement.kingdom !== game.player.allegiance) {
-                            const tradeResult = Titles.recordTradeMission(game.player);
+                            const tradeResult = Titles.recordTradeMission(game.player, game.world);
                             if (tradeResult) {
                                 game.ui.showNotification('📦 Trade Mission!', `Envoy duty complete (+${tradeResult.gold} gold bonus). Missions: ${tradeResult.count}`, 'success');
                             }
@@ -1868,7 +1870,7 @@ Object.assign(ActionMenu, {
         };
 
         window.payMercBonus = (companyId) => {
-            const result = PlayerMilitary.payMercenaryBonus(game.player, companyId, 120);
+            const result = PlayerMilitary.payMercenaryBonus(game.player, companyId, 120, game.world);
             if (result.success) {
                 game.ui.showNotification('Bonus Paid', `+${result.loyaltyGain} loyalty to ${result.company.name}`, 'success');
                 game.ui.updateStats(game.player, game.world);

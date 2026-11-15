@@ -23,6 +23,7 @@ import { Seasons } from '../world/seasons.js';
 import { WorldEvents } from '../world/worldEvents.js';
 import { Harvests } from '../world/harvests.js';
 import { PlayerInventory } from './inventory.js';
+import { PlayerCoin } from './playerCoin.js';
 import { Ailments } from '../systems/ailments.js';
 import { WildTasks } from '../systems/wildTasks.js';
 import { FoodSkills } from '../systems/foodSkills.js';
@@ -454,11 +455,13 @@ export const SeasonalWork = {
         const cfg = SeasonalWork._contractCfg();
         const [alo, ahi] = range(cfg.advance, [8, 15]);
         const [plo, phi] = range(cfg.payout, [45, 80]);
-        const advance = Utils.randInt(alo, ahi);
+        const asked = Utils.randInt(alo, ahi);
         const size = settlement.type === 'town' ? 1.25 : 1;
         const payout = Math.round(Utils.randInt(plo, phi) * size);
         const day = Seasons.today(world);
         const at = locateSettlement(world, settlement) || {};
+        // The advance comes out of the town's purse (its farmers'): what it holds
+        const advance = PlayerCoin.receive(world, player, asked, settlement, 'jobs', { strict: true });
         const contract = {
             settlementName: settlement.name,
             q: at.q, r: at.r,
@@ -468,7 +471,6 @@ export const SeasonalWork = {
         };
         if (!player.plantingContracts) player.plantingContracts = [];
         player.plantingContracts.push(contract);
-        player.gold = (player.gold || 0) + advance;
         player.jobsCompleted = (player.jobsCompleted || 0) + 1;
         return {
             success: true, advance, contract,
@@ -496,11 +498,8 @@ export const SeasonalWork = {
             }
             // ...and the share is of the year's real harvest there (world/harvests.js)
             const factor = Utils.clamp((1 + WorldEvents.getModifier(world, 'farmProduction', tile)) * Harvests.grainFactor(tile.settlement), 0.3, 1.6);
-            const gold = Math.round(c.payout * factor);
-            player.gold = (player.gold || 0) + gold;
-            if (player.financeToday && player.financeToday.income) {
-                player.financeToday.income.jobs = (player.financeToday.income.jobs || 0) + gold;
-            }
+            // (the farmers pay the share out of the town's purse: what it holds)
+            const gold = PlayerCoin.receive(world, player, Math.round(c.payout * factor), tile.settlement, 'jobs', { strict: true });
             paid.push({ settlementName: c.settlementName, paid: gold, factor });
             return false;
         });

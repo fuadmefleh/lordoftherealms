@@ -78,6 +78,7 @@ import { Ledger } from './ledger.js';
 import { Technology } from './technology.js';
 import { Ships } from './ships.js';
 import { EconomyChronicle } from './economyChronicle.js';
+import { Economy } from '../world/economy.js';
 import { Taxation } from './marketDynamics.js';
 import { CourtLetters } from './courtLetters.js';
 import { Pressure } from './pressure.js';
@@ -886,11 +887,11 @@ export const Coalitions = {
             Ledger.record(player, 'coalitionTerms', -q.gold);
             // Paying off a league is a humiliation all the same
             if (player.house) House.spend(player.house, Math.min(_num(player.house.prestige), _num(C.concession.goldShame, 10)), `paid off ${c.name}`, day);
-            const share = Math.floor(q.gold / Math.max(1, Coalitions.members(player).length));
-            for (const m of Coalitions.members(player)) {
-                const k = world.getKingdom(m.kingdomId);
-                if (k) k.treasury = _num(k.treasury) + share;
-            }
+            // (every coin of it into the members' chests: the last takes the odd coin)
+            const takers = Coalitions.members(player).map(m => world.getKingdom(m.kingdomId)).filter(k => k && k.isAlive !== false);
+            const share = Math.floor(q.gold / Math.max(1, takers.length));
+            takers.forEach((k, i) => { k.treasury = _num(k.treasury) + (i === takers.length - 1 ? q.gold - share * (takers.length - 1) : share); });
+            if (!takers.length) Economy.payNearest(world, player.q, player.r, q.gold);
         }
         for (const m of Coalitions.members(player)) NPCLords.rememberRealm(world, m.kingdomId, 'tribute_paid', { note: c.name });
         Coalitions._end(player, world, 'appeased', 'its terms were met', null, { endWars: true, how: 'bought', keepLetter: !!opts.fromLetter });

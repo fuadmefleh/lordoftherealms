@@ -28,6 +28,7 @@ import { DataLoader } from '../core/dataLoader.js';
 import { PlayerInventory } from '../core/inventory.js';
 import { Kingdom } from './kingdom.js';
 import { Economy } from './economy.js';
+import { MoneySupply } from './moneySupply.js';
 import { SettlementMarket } from './settlementMarket.js';
 import { WorldUnit } from './units.js';
 import { Colonization } from './colonization.js';
@@ -336,7 +337,7 @@ export const VillageFounding = {
             if (id === 'grain' || id === 'food' || !(n > 0)) continue;
             SettlementMarket.add(s, id, n);
         }
-        s.economy.gold = Math.max(0, Math.round(_num(ex.coin, 0)));
+        s.economy.gold = VillageFounding._takePurse(unit);
 
         // The colony's record: the player's own, with its policy and recruitment
         const policyId = Colonization.POLICIES && Colonization.POLICIES[ex.policy] ? ex.policy : 'coexistence';
@@ -417,9 +418,12 @@ export const VillageFounding = {
             for (const [id, n] of Object.entries(ex.purseGoods)) if (n > 0) PlayerInventory.addItem(player, id, n, { force: true });
         }
         // Their purse: the player's coin goes back to the player; a town's daughters' to the town
-        const coin = Math.max(0, Math.round(_num(ex.coin, 0)));
+        const coin = VillageFounding._takePurse(unit);
         if (coin > 0) {
-            if (ex.bud && s) { Economy.initSettlement(s); s.economy.gold = _num(s.economy.gold, 0) + coin; } else if (player) player.gold = _num(player.gold, 0) + coin;
+            if (ex.bud && s) Economy.payTown(s, coin);
+            else if (player) player.gold = _num(player.gold, 0) + coin;
+            // (no one to take it back: spent where they stand, else lost — as the census counts it)
+            else if (!Economy.payNearest(world, unit.q, unit.r, coin)) MoneySupply.leak(world, -coin, 'unitsLost');
         }
         world.events.push({
             text: _fill(L.wentHome, { from: ex.sourceName || 'their town', why: why || 'the land was taken' }) || `The settlers bound out of ${ex.sourceName || 'their town'} have gone home: ${why}.`,
@@ -582,8 +586,25 @@ export const VillageFounding = {
             days: Math.max(1, Math.ceil(((route ? route.length : 2) - 1) / speed)),
             setOut: world.day || 0, daysOut: 0,
         };
+        // (their coin on the road, where the census counts it: World.settleUnitCoin pays
+        // what is left on them into the nearest town if they never arrive)
+        unit.purse = unit.expedition.coin;
+        unit.expedition.coin = 0;
         world.units.push(unit);
         return unit;
+    },
+
+    /**
+     * The settlers' purse, taken off the party (it founds a village or goes home): coin
+     * carried on the road as unit.purse, so the coin census counts it while they walk
+     * (older saves: expedition.coin). → the coin
+     */
+    _takePurse(unit) {
+        const ex = (unit && unit.expedition) || {};
+        const coin = Math.max(0, Math.round(typeof unit.purse === 'number' ? unit.purse : _num(ex.coin, 0)));
+        if (typeof unit.purse === 'number') unit.purse = 0;
+        ex.coin = 0;
+        return coin;
     },
 
     /** The founding parties of the player's on the road: [{ unit, name, from, to, days }] */

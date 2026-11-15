@@ -51,6 +51,7 @@ import { SettlementMarket } from '../world/settlementMarket.js';
 import { Ledger } from './ledger.js';
 import { Laws } from './laws.js';
 import { Gangs } from './gangs.js';
+import { MoneySupply } from '../world/moneySupply.js';
 import { Names } from '../core/names.js';
 
 const LOG_CAP = 20;
@@ -788,6 +789,7 @@ export const Underworld = {
         const cost = _num(Underworld.cfg('guild').contactCost, 30);
         if ((player.gold || 0) < cost) return { success: false, reason: `Loosening the right tongue costs ${cost}g.` };
         player.gold -= cost;
+        Underworld.payGuild(world, tile, cost); // (the barkeep's word and the contact's drink)
         st.guild.contactMet = true;
         Traits.recordDeed(player, 'cunning', 0.5);
         Underworld._log(player, world, `Met a guild contact in ${settlement.name}.`);
@@ -802,6 +804,7 @@ export const Underworld = {
         const fee = _num(Underworld.cfg('guild').joinFee, 100);
         if ((player.gold || 0) < fee) return { success: false, reason: `The initiation costs ${fee}g.` };
         player.gold -= fee;
+        Underworld.payGuild(world, tile, fee);
         st.guild.member = true;
         st.guild.joinedDay = (world && world.day) || 0;
         st.guild.rank = 0;
@@ -825,6 +828,24 @@ export const Underworld = {
             out.push({ id, ...job, odds: Underworld.jobOdds(player, world, settlement, id, 0, tile), locked });
         }
         return out;
+    },
+
+    /**
+     * Coin the player pays the underworld (a contact's price, the guild's
+     * initiation, a heist's outlays): into the purse of the strongest gang
+     * here (systems/gangs.js), else the town's, else the nearest town's;
+     * with none at all it is lost to the world, booked so. → the amount
+     */
+    payGuild(world, tile, amount) {
+        const a = Math.round(_num(amount) * 100) / 100;
+        if (!(a > 0) || !world) return 0;
+        const gang = tile ? Gangs.gangsAt(world, tile).slice().sort((x, y) => _num(y.turf) - _num(x.turf))[0] : null;
+        if (gang) { gang.purse = Math.round((_num(gang.purse) + a) * 100) / 100; return a; }
+        const s = tile && tile.settlement;
+        if (s && Economy.payTown(s, a)) return a;
+        if (tile && Economy.payNearest(world, tile.q, tile.r, a)) return a;
+        MoneySupply.leak(world, -a, 'spentAway');
+        return a;
     },
 
     _payGold(player, world, amount, kind = 'theft') {
@@ -1023,6 +1044,7 @@ export const Underworld = {
         if ((player.gold || 0) < _num(step.gold)) return { success: false, reason: `That costs ${step.gold}g.` };
         if (!Underworld._spendAP(player, _num(step.ap, 1))) return { success: false, reason: `That takes ${step.ap} action points.` };
         player.gold -= _num(step.gold);
+        Underworld.payGuild(world, tile, _num(step.gold)); // (the inside man, the tools, the palms greased in town)
         st.heist.steps.push(stepId);
         Traits.recordDeeds(player, { cunning: 0.5, ...(step.deeds || {}) });
         if (stepId === 'case' || stepId === 'inside_man') Underworld.addHeat(player, st.heist.kingdom, 1, world);
@@ -1322,7 +1344,7 @@ export const Underworld = {
                 }
                 kept.push(rk);
                 // The shopkeepers' coin: out of the town's purse (a poor town pays what it can)
-                const paid = Math.floor(rs ? Economy.drawTown(rs, rk.weekly) : rk.weekly);
+                const paid = Math.floor(rs ? Economy.drawTown(rs, rk.weekly) : Economy.drawNearest(world, rk.q, rk.r, rk.weekly));
                 Underworld._payGold(player, world, paid, 'racket');
                 out.income += paid;
                 Underworld.recordCrime(player, world, 'racket_weekly', { kingdom: rk.kingdom, q: rk.q, r: rk.r });

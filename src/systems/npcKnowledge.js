@@ -45,6 +45,8 @@ import { Townsfolk } from './townsfolk.js';
 import { SocialSkills } from './socialSkills.js';
 import { Ledger } from './ledger.js';
 import { Names } from '../core/names.js';
+import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
 import { Infrastructure } from './infrastructure.js';
 
 const DEFAULTS = {
@@ -796,16 +798,43 @@ export const NpcKnowledge = {
             const dir = NpcTasks.direction(world, q, r, site.q, site.r);
             return { kind: 'site', text: `I'll tell you a thing few know: ${site.name} lies ${NpcTasks.distanceWords(site.d)}${dir ? ` to the ${dir}` : ''}. Old, and never emptied.`, summary: `${site.name} marked on your map` };
         }
-        const gold = 10 + (_h(`${npc.uid || npc.id}|favour|${day}`) % 15);
+        // (lent out of their own purse, or their town's common purse: as much as there is)
+        const lend = NpcKnowledge._lenderPurse(world, npc, at, q, r);
+        const gold = lend ? lend.take(10 + (_h(`${npc.uid || npc.id}|favour|${day}`) % 15)) : 0;
+        if (!(gold > 0)) return { kind: 'none', text: '*turns out an empty purse* I would if I could, truly.', summary: 'They have no coin to lend' };
         player.gold = _num(player.gold) + gold;
         Ledger.record(player, 'borrowed', gold);
         // "Pay me back when you can": a small debt they remember (mem.owed)
         const prior = mem.owed && _num(mem.owed.amount) > 0 ? _num(mem.owed.amount) : 0;
-        mem.owed = { amount: prior + gold, day, due: day + _num(F.repayDays, 30), dunned: false };
+        mem.owed = { amount: prior + gold, day, due: day + _num(F.repayDays, 30), dunned: false, q, r };
         return { kind: 'gold', text: '*presses a few coins into your hand* For the road. Pay me back when you can.', summary: `+${gold} gold (you owe them ${prior + gold})`, owed: prior + gold };
     },
 
     // ──────────── WHAT THE PLAYER OWES ────────────
+
+    /**
+     * The purse a person of the town lends from and is paid back into: their own
+     * (a townsperson's, systems/townsfolk.js), else the common purse of their
+     * town (at, else the nearest to q, r that keeps one). → { take(n), give(n) } | null.
+     */
+    _lenderPurse(world, npc, at, q, r) {
+        if (!world) return null;
+        const p = npc && npc._person;
+        const folk = npc && npc._folk;
+        if (p && folk && p.died == null) {
+            return {
+                take: (n) => { const purse = Townsfolk.purse(folk, p, world); const paid = Math.min(Math.max(0, Math.floor(purse)), n); p.purse = Math.round((purse - paid) * 100) / 100; return paid; },
+                give: (n) => { p.purse = Math.round((Townsfolk.purse(folk, p, world) + n) * 100) / 100; return n; },
+            };
+        }
+        const t = at && at.economy ? null : (typeof world.getTile === 'function' && Number.isFinite(q) ? world.getTile(q, r) : null);
+        const s = (at && at.economy ? at : null) || (t && t.settlement && t.settlement.economy ? t.settlement : null) || Economy.nearestPurse(world, q, r);
+        if (!s) return null;
+        return {
+            take: (n) => Math.floor(Economy.drawTown(s, Math.min(n, Math.floor(Economy.townPurse(s) ?? n)))),
+            give: (n) => Economy.payTown(s, n),
+        };
+    },
 
     /** The coin the player owes this person ({ amount, due, overdue }) or null. */
     owedTo(mem, day) {
@@ -828,13 +857,18 @@ export const NpcKnowledge = {
     },
 
     /** Pay back what the player owes: { success, amount, warmth, text } or { success: false, reason }. */
-    repay(player, mem, day) {
+    repay(player, mem, day, world = null, npc = null) {
         const o = NpcKnowledge.owedTo(mem, day);
         if (!o) return { success: false, reason: 'You owe them nothing.' };
         if (_num(player.gold) < o.amount) return { success: false, reason: `You need ${o.amount} gold.` };
         const F = NpcKnowledge.config().favour;
         player.gold = _num(player.gold) - o.amount;
         Ledger.record(player, 'borrowed', -o.amount);
+        // (back into the lender's purse, or their town's; with no world to hand, the town where it was lent)
+        if (world) {
+            const lend = NpcKnowledge._lenderPurse(world, npc, null, Number.isFinite(mem.owed.q) ? mem.owed.q : player.q, Number.isFinite(mem.owed.r) ? mem.owed.r : player.r);
+            if (!(lend && lend.give(o.amount))) MoneySupply.leak(world, -o.amount, 'npcLoans');
+        }
         const warmth = o.overdue ? _num(F.lateWarmth, 1) : _num(F.repaidWarmth, 4);
         mem.disposition = _clamp(_num(mem.disposition, 50) + warmth, 0, 100);
         delete mem.owed;

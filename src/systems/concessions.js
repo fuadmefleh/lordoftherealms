@@ -40,6 +40,7 @@ import { Utils } from '../core/utils.js';
 import { Hex } from '../core/hex.js';
 import { Hinterland } from '../world/hinterland.js';
 import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
 import { TownLabour } from '../world/townLabour.js';
 import { PlayerEconomy } from '../player/playerEconomy.js';
@@ -236,6 +237,9 @@ export const Concessions = {
         const add = fee - _num(a.bid);
         if (add > _num(player.gold)) return { success: false, reason: `You need ${add} gold for the bond on your bid.` };
         player.gold -= add;
+        // (the bond is held by the crown's officers, out of every purse the census counts until the
+        // close: booked out here and back in when it is refunded or paid to the crown as the fee)
+        MoneySupply.leak(world, -add, 'bidBonds');
         // (the bond on a bid: the lease fee if it wins, back at the close if not — systems/ledger.js)
         Ledger.record(player, 'concessions', -add);
         a.bid = fee;
@@ -315,6 +319,7 @@ export const Concessions = {
         const refund = () => {
             if (a.bid > 0 && player) {
                 player.gold += a.bid;
+                MoneySupply.leak(world, a.bid, 'bidBonds');
                 Ledger.record(player, 'concessions', a.bid);
                 Concessions._log(world, `Your ${a.bid}g bond on the lease near ${where} comes back.`);
             }
@@ -339,6 +344,7 @@ export const Concessions = {
         }
         const playerWins = a.bid > 0 && a.bid >= a.reserve && (!best || a.bid >= best.fee);
         if (playerWins) {
+            MoneySupply.leak(world, a.bid, 'bidBonds'); // (the bond becomes the crown's fee: _grant)
             const c = Concessions._grant(world, site, realm, 'player', 'you', a.bid, a);
             Concessions._log(world, `Won the lease of the ${Hinterland.kind(site.kind).name.toLowerCase()} near ${_town(world, site.h).name} for ${a.bid}g (until day ${c.end}).`);
             out.notices.push({ icon: '⛏️', title: 'Concession Won', text: `${realm.name} grants you the ${Hinterland.kind(site.kind).name.toLowerCase()} near ${_town(world, site.h).name} for ${a.term} days: ${a.bid}g paid, ${Math.round(a.royalty * 100)}% royalty on every unit dug.`, type: 'success' });

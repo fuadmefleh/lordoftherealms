@@ -60,6 +60,37 @@ import { Ailments } from './ailments.js';
 import { Underworld } from './underworld.js';
 import { Ledger } from './ledger.js';
 import { Cartography } from './cartography.js';
+import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
+
+// -- Coin at sea (2026-11) --
+// Rovers' strongboxes and havens' hoards are coin at sea, outside every
+// realm's purses: coin that goes to the rovers leaves the world (booked
+// lost), coin won from them comes into it (booked found). A named captain's
+// takings (cap.loot) are counted coin (systems/coinCensus.js, at sea): what
+// they take from the player goes into it and what is won back comes out of
+// it, unbooked. A merchant's strongbox, a
+// broker's price and passengers' ransoms are a port's coin: drawn from the
+// nearest town's purse. Hunters' bribes go ashore with them; fines to the crown.
+const _r2 = v => Math.round(v * 100) / 100;
+/** Coin to the rovers (out of the world). */
+function _toSea(world, amount) { if (amount > 0) MoneySupply.leak(world, -_r2(amount), 'pirates'); }
+/** Coin won from the rovers (into the world). */
+function _fromSea(world, amount) { if (amount > 0) MoneySupply.leak(world, _r2(amount), 'pirates'); }
+/** Coin out of the nearest port's purse (as much as it holds): -> what was paid. */
+function _fromPort(world, player, amount) {
+    if (!(amount > 0)) return 0;
+    if (!world) return amount;
+    const s = Economy.nearestPurse(world, player.q, player.r);
+    if (!s) { MoneySupply.leak(world, _r2(amount), 'pirates'); return amount; }
+    const purse = Economy.townPurse(s);
+    return Economy.drawTown(s, purse == null ? amount : Math.min(amount, Math.floor(purse)));
+}
+/** Coin spent ashore in the nearest port. */
+function _toPort(world, player, amount) {
+    if (!(amount > 0) || !world) return;
+    if (!Economy.payNearest(world, player.q, player.r, amount)) MoneySupply.leak(world, -_r2(amount), 'pirates');
+}
 
 const DEFAULTS = {
     activeCaptains: 4, havenCount: 3, havenMinSettlementDistance: 5, havenSpacing: 12,
@@ -865,6 +896,7 @@ export const Pirates = {
                 if (choice === 'buy_haven' && cap) {
                     if (_num(player.gold) < price) return { invalid: true, notification: { title: 'Purse Too Light', body: `They want ${price} gold.`, type: 'error' } };
                     player.gold -= price;
+                    _toSea(world, price);
                     Ledger.record(player, 'seaFines', -price);
                     const h = Pirates.haven(player, cap.havenId);
                     if (h) h.known = true;
@@ -874,10 +906,12 @@ export const Pirates = {
                 if (choice === 'tribute') {
                     if (_num(player.gold) < price) return { invalid: true, notification: { title: 'Purse Too Light', body: `They want ${price} gold.`, type: 'error' } };
                     player.gold -= price;
+                    // (into the captain's takings — counted coin — else to the rovers at large)
+                    if (!cap) _toSea(world, price);
                     Ledger.record(player, 'seaFines', -price);
                     if (cap) {
                         cap.regard = Math.min(100, cap.regard + 10);
-                        cap.loot += price;
+                        cap.loot = _num(cap.loot) + price;
                         Pirates._remember(cap, world, 'took your gold to leave');
                     }
                     return end('💰 Bought Off', `${e.name} takes ${price} gold and sails for other waters.`, 'warning');
@@ -911,6 +945,7 @@ export const Pirates = {
                     const cost = Pirates.bribeCost(player, state);
                     if (_num(player.gold) < cost) return { invalid: true, notification: { title: 'Purse Too Light', body: `They want ${cost} gold.`, type: 'error' } };
                     player.gold -= cost;
+                    _toPort(world, player, cost);
                     Ledger.record(player, 'seaFines', -cost);
                     if (roll(Math.min(0.95, Pirates.parleyChance(player, world, state) + 0.15))) {
                         Pirates.state(player).lastHunterDay = _day(world) + 4;
@@ -1008,8 +1043,10 @@ export const Pirates = {
         Traits.recordDeed(player, 'seafaring', 2);
         const loot = Math.round(e.str0 * _roll(cfg.plunderPerStrength));
         const cap = e.captainId ? Pirates.captain(player, e.captainId) : null;
-        const hoard = cap ? Math.round(cap.loot) : 0;
+        const hoard = cap ? Math.max(0, _num(cap.loot)) : 0;
         player.gold = _num(player.gold) + loot + hoard;
+        // (the strongbox is coin at sea, found; the captain's takings were counted coin)
+        _fromSea(world, loot);
         Ledger.record(player, 'plunder', loot + hoard);
         player.karma = _num(player.karma) + cfg.karma.victory;
         player.renown = _num(player.renown) + cfg.renown.victory;
@@ -1040,12 +1077,13 @@ export const Pirates = {
             const taken = Math.min(_num(player.gold), Math.floor(_num(player.gold) * Utils.randFloat(0.1, 0.25)));
             if (taken > 0) {
                 player.gold -= taken;
+                if (!cap) _toSea(world, taken);
                 Ledger.record(player, 'robbery', -taken);
                 body += ` They took ${taken} gold from your cabin.`;
             }
             if (cap) {
                 cap.beatYou++;
-                cap.loot += taken;
+                cap.loot = _num(cap.loot) + taken;
                 cap.strength = Math.min(Pirates.config().maxStrength, cap.strength + 1);
                 Pirates._remember(cap, world, 'beat you and took your gold');
             }
@@ -1071,6 +1109,11 @@ export const Pirates = {
         ship.cargo = {};
         if (_num(player.gold) >= fine) {
             player.gold -= fine;
+            // (the crown's fine: into the nearest realm's chests, else spent in the port)
+            const realm = world ? Underworld._nearestKingdom(world, player.q, player.r) : null;
+            const k = realm != null && world && typeof world.getKingdom === 'function' ? world.getKingdom(realm) : null;
+            if (k && k.isAlive !== false) k.treasury = _r2(_num(k.treasury) + fine);
+            else _toPort(world, player, fine);
             Ledger.record(player, 'seaFines', -fine);
             Pirates.addInfamy(player, H.surrenderInfamy);
             Pirates.state(player).lastHunterDay = _day(world) + 6;
@@ -1124,6 +1167,7 @@ export const Pirates = {
         if (choice === 'ransom') {
             const gold = Math.round(Pirates._ransomAmount(e) * Utils.randFloat(0.8, 1.2));
             player.gold = _num(player.gold) + gold;
+            _fromSea(world, gold);
             Ledger.record(player, 'ransoms', gold);
             st.stats.ransoms++;
             Traits.recordDeed(player, 'greed', 1);
@@ -1137,13 +1181,16 @@ export const Pirates = {
             return go('aftermath_ship', `💰 ${e.name} ransomed for ${gold} gold.${where}`);
         }
         if (choice === 'hang') {
-            const bounty = Math.round(e.str0 * cfg.bountyPerStrength);
+            // (the crown that hangs them pays the bounty: its chests, then its towns; else the port)
+            const want = Math.round(e.str0 * cfg.bountyPerStrength);
+            const realm = Underworld._nearestKingdom(world, player.q, player.r);
+            const crown = realm != null && world && typeof world.getKingdom === 'function' ? world.getKingdom(realm) : null;
+            const bounty = crown && crown.isAlive !== false ? Economy.crownPays(crown, world, want, 0.5) : _fromPort(world, player, want);
             player.gold = _num(player.gold) + bounty;
             Ledger.record(player, 'pirateBounty', bounty);
             player.renown = _num(player.renown) + cfg.renown.hanged + (cap ? cfg.renown.captain - cfg.renown.hanged : 0);
             player.karma = _num(player.karma) + cfg.karma.hang;
             Traits.recordDeeds(player, { honesty: 1 });
-            const realm = Underworld._nearestKingdom(world, player.q, player.r);
             if (realm && player.reputation) player.reputation[realm] = _num(player.reputation[realm]) + 3;
             if (cap) {
                 cap.status = 'hanged';
@@ -1189,7 +1236,7 @@ export const Pirates = {
             return end('⚓ A Prize!', `${lead} The ${prize.name} is yours: a prize crew sails her to ${prize.dockedAt}.`, 'success');
         }
         if (choice === 'sell') {
-            const sale = Math.round(e.str0 * cfg.prizeSalePerStrength * 0.6);
+            const sale = _fromPort(world, player, Math.round(e.str0 * cfg.prizeSalePerStrength * 0.6));
             player.gold = _num(player.gold) + sale;
             Ledger.record(player, 'plunder', sale);
             if (cap && cap.status === 'at_large') cap.strength = Math.max(4, Math.round(cap.strength * 0.5));
@@ -1247,7 +1294,8 @@ export const Pirates = {
             if (why) return { invalid: true, notification: { title: 'No Prize', body: why, type: 'error' } };
         }
         // The strongbox and the hold
-        const gold = Math.floor(e.gold * (1 + _num(fx.captureBonus)));
+        // (her strongbox is her home port's coin: out of the nearest town's purse)
+        const gold = _fromPort(world, player, Math.floor(e.gold * (1 + _num(fx.captureBonus))));
         player.gold = _num(player.gold) + gold;
         Ledger.record(player, 'piracy', gold);
         const taken = {};
@@ -1274,7 +1322,7 @@ export const Pirates = {
         let witnesses = true;
         let extra = '';
         if (choice === 'ransom') {
-            const r = Math.round(e.gold * Utils.randFloat(0.4, 0.8));
+            const r = _fromPort(world, player, Math.round(e.gold * Utils.randFloat(0.4, 0.8)));
             player.gold += r;
             Ledger.record(player, 'ransoms', r);
             player.karma += cfg.karma.ransomPassengers;
@@ -1410,8 +1458,12 @@ export const Pirates = {
         const st = Pirates.state(player);
         const h = Pirates.haven(player, state.havenId);
         const caps = Pirates.atLarge(player).filter(c => c.havenId === state.havenId);
-        const loot = Math.round(state.enemy.str0 * _roll(cfg.haven.lootPerStrength) * (state.quiet ? 0.6 : 1));
+        const found = Math.round(state.enemy.str0 * _roll(cfg.haven.lootPerStrength) * (state.quiet ? 0.6 : 1));
+        // (the hoard holds what its captains had taken too: counted coin, it comes out of their takings)
+        const takings = caps.reduce((a, c) => a + Math.max(0, _num(c.loot)), 0);
+        const loot = _r2(found + takings);
         player.gold = _num(player.gold) + loot;
+        _fromSea(world, found);
         Ledger.record(player, 'plunder', loot);
         player.renown = _num(player.renown) + cfg.haven.renown;
         Traits.recordDeed(player, 'valor', 2);
@@ -1510,11 +1562,13 @@ export const Pirates = {
             if (g > 0) {
                 g = Math.floor(g * Ships.getExplorationMultiplier(player, ship));
                 player.gold = _num(player.gold) + g;
+                _fromSea(world, g);
                 Ledger.record(player, 'exploration', g);
                 out.push(`+${g} gold.`);
             } else if (g < 0) {
                 const lost = Math.min(_num(player.gold), -g);
                 player.gold = _num(player.gold) - lost;
+                _toSea(world, lost);
                 if (lost) { Ledger.record(player, 'robbery', -lost); out.push(`−${lost} gold.`); }
             }
         }

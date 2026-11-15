@@ -12,14 +12,17 @@
 //                     only once rolled: an unrolled purse is not coin yet;
 //                     parents' savings are these same purses)
 //     • underworld    gangs' purses, the bribed watch captain's and magistrate's
-//     • guilds        guild treasuries and their lobbying purses
+//     • guilds        guild treasuries, their lobbying purses and the escrow
+//                     held for the player's open guild contracts
 //     • inns          the innkeepers' cash (world.hospitality)
 //     • couriers      the courier companies' cash (world.post)
 //     • roads         coin carried by units on the map — merchant caravans' and
 //                     trade ships' purses, raiders', riders', armies' bags —
 //                     counted in the realm whose land they stand on (none in
 //                     the wilds or at sea); pedlars' purses (systems/townTrade.js)
-//                     in the realm of the town they are bound for or in
+//                     in the realm of the town they are bound for or in; coin
+//                     riding with the player's letters and their replies
+//                     (systems/mail.js) where written, unless a rider carries it
 //     • court         court and relationship NPCs' purses, in their realm, and
 //                     the House's children's portions (child.purse) where it stands
 //     • outlaws       outlaw lairs' hoards (none in the wilds)
@@ -35,12 +38,22 @@
 //                     towns month by month, as the crown spends its chests
 //     • banks         the banks' vaults (bank.capital of open banks), the
 //                     underwriters' capital and the rival merchant houses'
-//                     capital (trading companies working across every realm),
+//                     capital (trading companies working across every realm)
+//                     and the player's own company's, in its charter realm,
 //                     in their seat's realm
-//     • player        the player's purse, in the realm the player stands in:
+//     • player        the player's purse, in the realm the player stands in
+//                     (in the wilds or at sea: the realm of the nearest town
+//                     that keeps coin — the purse is never out of the count):
 //                     a single purse that can hold more than a town and that
 //                     travels, so it is a hoard; the coin moves prices once it
 //                     is spent into a town, a person's or a guild's purse
+//
+//   and, in the world's total (each/total) though in no realm's count:
+//     • outlaws       named pirate captains' takings (player.seaRoving: at sea)
+//     • court         an avenger's own purse (systems/nemesis.js, blood or kin)
+//     • coffers       the stranger's purse (systems/soulPact.js: what souls paid)
+//   and in the site's realm: a player's public work's budget held by its
+//   paymaster (world.transport.works[].budget, systems/publicWorks.js: coffers)
 //
 // Pure read: no randomness, no writes. world-scoped holders come from
 // `world`, player-scoped ones (rival Houses, banks, NPCs, merchant houses,
@@ -48,6 +61,7 @@
 
 import { Relationships } from './relationships.js';
 import { Barter } from '../world/barter.js';
+import { Economy } from '../world/economy.js';
 
 const _num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -108,7 +122,9 @@ export const CoinCensus = {
             if (withTowns) {
                 if (s.economy) add(kid, 'towns', s.economy.gold);
                 const folk = s.folk && Array.isArray(s.folk.people) ? s.folk.people : null;
-                if (folk) for (const p of folk) if (p && !p.died && !p.away && typeof p.purse === 'number') add(kid, 'folk', p.purse);
+                // (a dead one's purse too, until the estate is settled: their heir's or the town's coin, not lost)
+                if (folk) for (const p of folk) if (p && !p.away && typeof p.purse === 'number') add(kid, 'folk', p.purse);
+                if (s.folk && _obj(s.folk.school)) add(kid, 'towns', s.folk.school.fund);
             }
             const uw = _obj(s.underworld);
             if (uw) {
@@ -145,6 +161,10 @@ export const CoinCensus = {
             }
         }
 
+        // Public works' budgets, with their paymaster at the site (systems/publicWorks.js)
+        const tr = _obj(world.transport);
+        if (tr && Array.isArray(tr.works)) for (const w of tr.works) if (w && _pos(w.budget) > 0) add(_realmAt(world, w.tq, w.tr), 'coffers', w.budget);
+
         // Coin on the roads: where the unit stands
         for (const u of Array.isArray(world.units) ? world.units : []) {
             if (!u || u.destroyed) continue;
@@ -174,20 +194,47 @@ export const CoinCensus = {
             // Rival merchant houses' capital, at their seat (with the banks: a hoard)
             const mer = _obj(player.merchant);
             if (mer && Array.isArray(mer.rivals)) for (const r of mer.rivals) if (r && r.seat && !r.bankrupt) add(_realmAt(world, r.seat.q, r.seat.r), 'banks', r.capital);
+            // ...and the player's own company's (systems/merchantHouses.js), in its charter realm
+            if (mer && _obj(mer.company)) add(mer.company.charterKingdom, 'banks', mer.company.capital);
             // Outlaw lairs
             const ol = _obj(player.outlawLairs);
             if (ol && Array.isArray(ol.lairs)) for (const l of ol.lairs) if (l && l.hoard && !l.destroyed && !l.cleared) add(l.kingdomId, 'outlaws', l.hoard.gold);
             // Adventurer rivals
             const rv = _obj(player.rivals);
             if (rv && Array.isArray(rv.list)) for (const r of rv.list) if (r && !r.dead) add(_realmAt(world, r.q, r.r), 'rivals', r.gold);
+            // ...and a delve partner's cut not yet in their purse (systems/delves.js → rivals.js _tickPartner), where the player stands
+            if (rv && _obj(rv.partner)) add(_realmAt(world, player.q, player.r), 'rivals', rv.partner.owed);
             // Banks' vaults and the underwriters
             const fin = _obj(player.finance);
             if (fin && Array.isArray(fin.banks)) for (const b of fin.banks) if (b && b.status === 'open') add(b.kingdomId, 'banks', b.capital);
             const uw = _obj(player.underwriting);
             if (uw && Array.isArray(uw.guilds)) for (const g of uw.guilds) if (g) add(g.kingdomId, 'banks', g.capital);
+            // The guildhalls' escrow set aside for the player's open guild contracts (systems/guilds.js), in its town
+            const gc = _obj(player.guilds);
+            if (gc && Array.isArray(gc.contracts)) for (const c of gc.contracts) if (c && c.escrow > 0) add(_realmAt(world, c.q, c.r), 'guilds', c.escrow);
+            // Coin riding with letters (systems/mail.js): a letter's enclosure and a reply's purse,
+            // where they were written — unless a rider on the map carries it (counted there, with the
+            // units); the coin a reply's writer enclosed (its hooks) until it is handed over
+            const mail = _obj(player.mail);
+            if (mail) {
+                const ridden = (id) => id != null && Array.isArray(world.units) && world.units.some(u => u && u.id === id && !u.destroyed && u.inventory && _pos(u.inventory.gold) > 0);
+                const at = (p) => (p && Number.isFinite(p.q) ? _realmAt(world, p.q, p.r) : null) ?? _realmAt(world, player.q, player.r);
+                for (const L of Array.isArray(mail.outbox) ? mail.outbox : []) if (L && _pos(L.gold) > 0 && !ridden(L.rider)) add(at(L.from), 'roads', L.gold);
+                for (const R of Array.isArray(mail.replies) ? mail.replies : []) {
+                    if (!R) continue;
+                    if (_pos(R.gold) > 0 && !ridden(R.rider)) add(at(R.from), 'roads', R.gold);
+                    for (const h of Array.isArray(R.hooks) ? R.hooks : []) if (h && h.arrive && _pos(h.arrive.gold) > 0) add(at(R.from), 'roads', h.arrive.gold);
+                }
+            }
             // The player's own purse: where they stand
             // (real coin only: in a barter place `player.gold` reads the goods carried — world/barter.js)
-            add(_realmAt(world, player.q, player.r), 'player', Barter.coinOf(player));
+            // (in the wilds or at sea, with the nearest town that keeps coin: walking out of a realm loses no coin)
+            let here = _realmAt(world, player.q, player.r);
+            if (here == null || !alive.has(here)) {
+                const near = Economy.nearestPurse(world, player.q, player.r);
+                if (near && near.kingdom != null) here = near.kingdom;
+            }
+            add(here, 'player', Barter.coinOf(player));
         }
 
         for (const o of out.values()) {
@@ -218,6 +265,8 @@ export const CoinCensus = {
             if (!s) continue;
             if (s.economy) fn(s.economy, 'gold', 'towns');
             if (s.folk && Array.isArray(s.folk.people)) for (const p of s.folk.people) if (p && typeof p.purse === 'number') fn(p, 'purse', 'folk');
+            // (the town school's fund — systems/literacy.js, townSchool.js: coin the town holds for it)
+            if (s.folk && _obj(s.folk.school) && typeof s.folk.school.fund === 'number') fn(s.folk.school, 'fund', 'towns');
             const uw = _obj(s.underworld);
             if (uw) {
                 for (const g of Array.isArray(uw.gangs) ? uw.gangs : []) if (g) fn(g, 'purse', 'underworld');
@@ -233,6 +282,8 @@ export const CoinCensus = {
         if (post && Array.isArray(post.couriers)) for (const c of post.couriers) if (c) fn(c, 'cash', 'couriers');
         const est = _obj(world.estates);
         if (est && _obj(est.holders)) for (const h of Object.values(est.holders)) if (h && h.kind !== 'player') fn(h, 'purse', 'coffers');
+        const tr = _obj(world.transport);
+        if (tr && Array.isArray(tr.works)) for (const w of tr.works) if (w && typeof w.budget === 'number') fn(w, 'budget', 'coffers');
         // (a unit just destroyed still carries its coin until the day's turn takes it off the
         // map and pays it into the nearest town — World.settleUnitCoin — so it is counted)
         for (const u of Array.isArray(world.units) ? world.units : []) {
@@ -255,14 +306,36 @@ export const CoinCensus = {
         for (const c of Array.isArray(player.children) ? player.children : []) if (c && typeof c.purse === 'number') fn(c, 'purse', 'court');
         const mer = _obj(player.merchant);
         if (mer && Array.isArray(mer.rivals)) for (const r of mer.rivals) if (r) fn(r, 'capital', 'banks');
+        if (mer && _obj(mer.company)) fn(mer.company, 'capital', 'banks');
+        // Coin riding with the player's letters and their replies (systems/mail.js), unless a rider on the map carries it
+        const mail = _obj(player.mail);
+        if (mail) {
+            const ridden = (id) => id != null && Array.isArray(world.units) && world.units.some(u => u && u.id === id && !u.destroyed && u.inventory && _pos(u.inventory.gold) > 0);
+            for (const L of Array.isArray(mail.outbox) ? mail.outbox : []) if (L && typeof L.gold === 'number' && !ridden(L.rider)) fn(L, 'gold', 'roads');
+            for (const R of Array.isArray(mail.replies) ? mail.replies : []) {
+                if (!R) continue;
+                if (typeof R.gold === 'number' && !ridden(R.rider)) fn(R, 'gold', 'roads');
+                for (const h of Array.isArray(R.hooks) ? R.hooks : []) if (h && h.arrive && typeof h.arrive.gold === 'number') fn(h.arrive, 'gold', 'roads');
+            }
+        }
         const ol = _obj(player.outlawLairs);
         if (ol && Array.isArray(ol.lairs)) for (const l of ol.lairs) if (l && l.hoard) fn(l.hoard, 'gold', 'outlaws');
         const rv = _obj(player.rivals);
         if (rv && Array.isArray(rv.list)) for (const r of rv.list) if (r) fn(r, 'gold', 'rivals');
+        if (rv && _obj(rv.partner) && typeof rv.partner.owed === 'number') fn(rv.partner, 'owed', 'rivals');
         const fin = _obj(player.finance);
         if (fin && Array.isArray(fin.banks)) for (const b of fin.banks) if (b) fn(b, 'capital', 'banks');
         const uwr = _obj(player.underwriting);
         if (uwr && Array.isArray(uwr.guilds)) for (const g of uwr.guilds) if (g) fn(g, 'capital', 'banks');
+        const gc = _obj(player.guilds);
+        if (gc && Array.isArray(gc.contracts)) for (const c of gc.contracts) if (c) fn(c, 'escrow', 'guilds');
+        // Coin in no realm: pirate captains' takings at sea, an avenger's own purse, the stranger's
+        const sr = _obj(player.seaRoving);
+        if (sr && Array.isArray(sr.captains)) for (const c of sr.captains) if (c && typeof c.loot === 'number') fn(c, 'loot', 'outlaws');
+        const nem = _obj(player.nemesis);
+        if (nem && Array.isArray(nem.list)) for (const nm of nem.list) if (nm && typeof nm.purse === 'number' && nm.kind !== 'house' && nm.kind !== 'lord' && nm.kind !== 'rival') fn(nm, 'purse', 'court');
+        const sp = _obj(player.soulPact);
+        if (sp && typeof sp.purse === 'number') fn(sp, 'purse', 'coffers');
     },
 
     /** All the coin in the world, in or out of any realm (the player's real coin included) → { total, byKind } */

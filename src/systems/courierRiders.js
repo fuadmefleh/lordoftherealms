@@ -452,21 +452,24 @@ export const CourierRiders = {
     /** The rider is waylaid: the bag's coin (and a letter's enclosure) to its takers. → true when the trip ended. */
     _waylaid(world, player, st, u, L, att, out) {
         const C = this.config();
-        const gold = Math.floor(_num(u.inventory && u.inventory.gold));
+        // (every coin in the bag goes to its takers: none rounded away)
+        const gold = Math.max(0, Math.round(_num(u.inventory && u.inventory.gold) * 100) / 100);
         const item = L && L.item ? L.item : null;
         if (att.unit) {
             const inv = att.unit.inventory || (att.unit.inventory = {});
             if (gold > 0) inv.gold = _num(inv.gold) + gold;
+            if (gold > 0 && typeof att.unit.purse === 'number') att.unit.purse = _num(att.unit.purse) + gold; // (a purse the census reads)
             if (item) inv[item.id] = _num(inv[item.id]) + _num(item.qty, 1);
         } else if (att.lair) {
             const hoard = att.lair.hoard || (att.lair.hoard = { gold: 0, goods: {} });
             if (!hoard.goods) hoard.goods = {};
-            hoard.gold = Math.round(_num(hoard.gold) + gold);
+            hoard.gold = Math.round((_num(hoard.gold) + gold) * 100) / 100;
             if (item) hoard.goods[item.id] = _num(hoard.goods[item.id]) + _num(item.qty, 1);
         } else if (att.kingdomId && world.getKingdom) {
             const k = world.getKingdom(att.kingdomId);
             if (k) k.treasury = _num(k.treasury) + gold;
-        }
+            else if (gold > 0) Economy.payNearest(world, u.q, u.r, gold);
+        } else if (gold > 0) Economy.payNearest(world, u.q, u.r, gold);
         u.inventory = {};
         if (u.bag) u.bag.gold = 0;
         if (att.seized) st.stats.seized++;

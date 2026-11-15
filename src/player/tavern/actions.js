@@ -13,6 +13,7 @@ import { Fame } from '../../systems/fame.js';
 import { BackRooms } from '../../systems/backRooms.js';
 import { Utils, Hex, PlayerEconomy, MarketDynamics, Characters, Cartography, Religion, Gossip, Quests, Peoples, Sagas } from './_imports.js';
 import { Names } from '../../core/names.js';
+import { PlayerCoin } from '../playerCoin.js';
 
 Object.assign(Tavern, {
     // ── Cost & Configuration ───────────────────────────────────────────
@@ -369,7 +370,7 @@ Object.assign(Tavern, {
     _buyMeal(player, tile, world) {
         const free = Fame.innFree(player, world, tile, 'meal');
         const cost = free ? 0 : 8;
-        player.gold -= cost;
+        PlayerCoin.pay(world, player, cost, tile.settlement, 'larder');
         if (free) Fame.claimInn(player, world, tile, 'meal');
         const meal = Peoples.mealBonus(tile.settlement);
         if (player.modifyNeed) {
@@ -397,7 +398,7 @@ Object.assign(Tavern, {
      */
     _takeBath(player, tile, world) {
         const cost = 6;
-        player.gold -= cost;
+        PlayerCoin.pay(world, player, cost, tile.settlement, 'lodging');
         if (player.modifyNeed) {
             player.modifyNeed('hygiene', 40);
             player.modifyNeed('comfort', 8);
@@ -420,7 +421,7 @@ Object.assign(Tavern, {
     _restAtInn(player, tile, world) {
         const free = Fame.innFree(player, world, tile, 'room');
         const cost = free ? 0 : 15;
-        player.gold -= cost;
+        PlayerCoin.pay(world, player, cost, tile.settlement, 'lodging');
         if (free) Fame.claimInn(player, world, tile, 'room');
         if (player.modifyNeed) {
             player.modifyNeed('energy', 50);
@@ -448,7 +449,7 @@ Object.assign(Tavern, {
      * Buy a round of drinks — hear random gossip
      */
     _buyDrinks(player, tile, world) {
-        player.gold -= Tavern.DRINK_COST;
+        PlayerCoin.pay(world, player, Tavern.DRINK_COST, tile.settlement, 'informants');
         Traits.recordDeeds(player, { drinking: 1.5, generosity: 0.5 }); // a round for the house
         Bonds.onTavernRound(player, world); // friends in town drink it with you (systems/bonds.js)
         const rumors = [];
@@ -471,7 +472,7 @@ Object.assign(Tavern, {
      * Talk to traveling merchants — get price intel for nearby cities
      */
     _askMerchants(player, tile, world) {
-        player.gold -= Tavern.DRINK_COST * 2;
+        PlayerCoin.pay(world, player, Tavern.DRINK_COST * 2, tile.settlement, 'informants');
         const rumors = [];
 
         // Find nearby settlements (within 20 hex distance)
@@ -504,7 +505,7 @@ Object.assign(Tavern, {
      * Ask about notable characters — where are rulers, what are they doing
      */
     _askCharacters(player, tile, world) {
-        player.gold -= Tavern.BRIBE_COST;
+        PlayerCoin.pay(world, player, Tavern.BRIBE_COST, tile.settlement, 'informants');
         const rumors = [];
 
         // Get kingdoms sorted by proximity
@@ -537,7 +538,7 @@ Object.assign(Tavern, {
      * Ask about military movements
      */
     _askMilitary(player, tile, world) {
-        player.gold -= Tavern.BRIBE_COST;
+        PlayerCoin.pay(world, player, Tavern.BRIBE_COST, tile.settlement, 'informants');
         const rumors = [];
 
         const kingdoms = world.kingdoms.filter(k => k.isAlive);
@@ -605,7 +606,7 @@ Object.assign(Tavern, {
      * Hire an informant — places a permanent spy in this city
      */
     _hireInformant(player, tile, world) {
-        player.gold -= Tavern.HIRE_INFORMANT_COST;
+        PlayerCoin.pay(world, player, Tavern.HIRE_INFORMANT_COST, tile.settlement, 'informants');
 
         if (!player.intel) player.intel = { rumors: [], informants: [] };
         if (!player.intel.informants) player.intel.informants = [];
@@ -768,7 +769,7 @@ Object.assign(Tavern, {
      * Ask about religious lore — discover holy sites and extinct faiths
      */
     _askReligiousLore(player, tile, world) {
-        player.gold -= Tavern.BRIBE_COST;
+        PlayerCoin.pay(world, player, Tavern.BRIBE_COST, tile.settlement, 'informants');
         Traits.recordDeed(player, 'learning');
         const rumors = [];
 

@@ -62,6 +62,8 @@ import { Ledger } from './ledger.js';
 import { Laws } from './laws.js';
 import { Lots } from './lots.js';
 import { Infrastructure } from './infrastructure.js';
+import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -357,7 +359,9 @@ export const PeopleCrimes = {
             if (fine > 0) {
                 player.gold -= fine;
                 Ledger.record(player, 'fines', -fine);
+                // (into the crown's chests; a town no crown holds keeps it in its own purse)
                 if (k) k.treasury = _num(k.treasury) + fine;
+                else if (!Economy.payTown(s, fine)) MoneySupply.leak(world, -fine, 'fines');
             }
             NpcMemory.remember(world, { folk, person: p }, { kind: 'false_accused', player, kin: true });
             PeopleCrimes.expose(player, world, 'frameSeen', { kingdom: s.kingdom, scale: 0.5, aboveLaw: PeopleCrimes._aboveLaw(player, s.kingdom) });
@@ -463,7 +467,9 @@ export const PeopleCrimes = {
         const s = PeopleCrimes.settlementAt(world, o.q, o.r);
         const day = _day(world);
         const price = PeopleCrimes.bondagePrice(world, o.q, o.r, p);
-        if (s.economy && Number.isFinite(s.economy.gold)) s.economy.gold -= price;
+        // (out of the harbour town's purse; a harbour that keeps none: the galley's coin comes from over the sea)
+        const drawn = Economy.townPurse(s) != null ? Economy.drawTown(s, price) : 0;
+        if (drawn < price) MoneySupply.leak(world, Math.round((price - drawn) * 100) / 100, 'galleys');
         player.gold = _num(player.gold) + price;
         Ledger.record(player, 'theft', price);
         if (o.captiveId != null) st.captives = st.captives.filter(c => c.id !== o.captiveId);
@@ -620,7 +626,7 @@ export const PeopleCrimes = {
             if (c.fed && _num(player.gold) >= cost) {
                 player.gold -= cost;
                 Ledger.record(player, 'propertyUpkeep', -cost);
-                if (s.economy && Number.isFinite(s.economy.gold)) s.economy.gold += cost;
+                if (!Economy.payTown(s, cost)) MoneySupply.leak(world, -cost, 'feed');
                 c.hunger = Math.max(0, _num(c.hunger) - 1);
             } else {
                 c.hunger = _num(c.hunger) + 1;

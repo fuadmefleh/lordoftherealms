@@ -37,6 +37,7 @@
 import { Hex } from '../core/hex.js';
 import { Cultures } from '../world/cultures.js';
 import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
 import { Ledger } from './ledger.js';
 import { Names } from '../core/names.js';
 
@@ -51,6 +52,13 @@ function _hash(str) {
 }
 
 const NAMES = ['Alun', 'Berit', 'Casimir', 'Dara', 'Emeric', 'Fenna', 'Galen', 'Hesper', 'Iskander', 'Jorund', 'Kesia', 'Lior', 'Mirela', 'Nikos', 'Oriel', 'Petra', 'Quill', 'Rasa', 'Sefton', 'Talia'];
+
+
+/** Coin the player pays someone with no purse on the books: spent in the nearest town (else lost, booked). */
+function _spendNear(world, player, amount, why) {
+    if (!(amount > 0) || !world) return;
+    if (!Economy.payNearest(world, player.q, player.r, amount)) MoneySupply.leak(world, -amount, why);
+}
 
 export const Languages = {
     cfg() {
@@ -248,6 +256,8 @@ export const Languages = {
             if (_num(player.gold) >= wage) {
                 player.gold -= wage;
                 Ledger.record(player, 'languages', -wage);
+                // (the interpreter keeps no purse of their own here: they spend it on the road, in the nearest town)
+                _spendNear(world, player, wage, 'translator');
                 t.paid = _num(t.paid) + wage;
             } else {
                 out.notices.push({ icon: '🗣️', title: 'Your interpreter leaves', text: `${t.name} goes unpaid and leaves your service.`, type: 'warning' });
@@ -294,6 +304,7 @@ export const Languages = {
         if (_num(player.gold) < cost) return { success: false, reason: `A lesson costs ${cost} gold.` };
         player.gold -= cost;
         Ledger.record(player, 'languages', -cost);
+        if (!Economy.payTown(s, cost)) _spendNear(world, player, cost, 'tutor');
         player.langTalk.lessons = _num(player.langTalk.lessons) + 1;
         const g = Languages._gain(player, lang, _num(T.gain, 5));
         const lv = g && g.levelUp ? Languages._levelNotice(lang, g.levelUp) : null;
@@ -341,6 +352,7 @@ export const Languages = {
         if (_num(player.gold) < offer.hire) return { success: false, reason: `${offer.name} asks ${offer.hire} gold to take service.` };
         player.gold -= offer.hire;
         Ledger.record(player, 'languages', -offer.hire);
+        _spendNear(world, player, offer.hire, 'translator');
         player.translator = { ...offer, since: _day(world), paid: 0 };
         return { success: true, spent: offer.hire, text: `${offer.name} enters your service: ${offer.tongues.map(Cultures.languageName).join(', ')}, for ${offer.wage} gold a day.` };
     },

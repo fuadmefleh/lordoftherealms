@@ -15,6 +15,7 @@ import { npcVoice } from '../npcVoice.js';
 import { Causes } from '../../player/causes.js';
 import { whyIcon, opinionWhy } from '../whyPopover.js';
 import { Names } from '../../core/names.js';
+import { PlayerCoin } from '../../player/playerCoin.js';
 
 let _current = null; // the audience on stage: { unitId, used, paid, scene, total }
 
@@ -392,7 +393,8 @@ function _giftGold(game, state, { kingdom, lord }) {
     const player = game.player;
     const scene = state.scene;
     const amount = Math.min(player.gold, Math.max(50, Math.floor(player.gold * 0.1)));
-    player.gold -= amount;
+    // (into the crown's chests)
+    PlayerCoin.pay(game.world, player, amount, kingdom, 'diplomacy');
     // A skilled diplomat (Diplomacy Mastery) makes each gold buy more goodwill
     const repBoost = PlayerEffects.scaleReputationGain(player, Math.floor(amount / (10 * Technology.getAllianceCostMultiplier(player))));
     _addRep(player, kingdom.id, repBoost);
@@ -535,9 +537,8 @@ function _demandTribute(game, state, { kingdom, lord }) {
     scene.exchange('*gestures at the army behind you* Your treasury, or your lands. Choose.', () => {
         scene.seal('Threat', success ? 'Paid' : 'Refused', success);
         if (success) {
-            const gold = Utils.randInt(50, 200 + Math.floor(kingdom.treasury * 0.1));
-            player.gold += gold;
-            kingdom.treasury = Math.max(0, (kingdom.treasury || 0) - gold);
+            // (out of the crown's chests, then its towns: what it can pay)
+            const gold = PlayerCoin.receive(game.world, player, Utils.randInt(50, 200 + Math.floor(kingdom.treasury * 0.1)), kingdom, 'rivalTribute');
             _addRep(player, kingdom.id, -30);
             player.karma = (player.karma || 0) - 5;
             NPCLords.rememberDeed(game.world, lord, 'extorted', { note: `${gold} gold` });

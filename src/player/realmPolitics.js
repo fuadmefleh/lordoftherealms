@@ -22,6 +22,8 @@ import { Quests } from '../systems/quests.js';
 import { NPCLords } from '../world/npcLords.js';
 import { CrownBooks } from '../world/crownBooks.js';
 import { RealmArms } from '../world/realmArms.js';
+import { Ledger } from '../systems/ledger.js';
+import { PlayerCoin } from './playerCoin.js';
 
 export const REALM_POLITICS = {
     broker: { fee: 50, cooldownDays: 10, base: 0.2, perDiplomacy: 0.04, maxRenownBonus: 0.15, lopsidedPenalty: 0.15, renown: 8, reputation: 8 },
@@ -42,6 +44,14 @@ function _pairKey(a, b) {
 }
 
 export const RealmPolitics = {
+    /** An envoy's fee and gifts, half to each court's chests (booked 'diplomacy'). */
+    _payCourts(world, player, fee, a, b) {
+        const half = Math.floor(fee / 2);
+        PlayerCoin.pay(world, player, half, a || null, null);
+        PlayerCoin.pay(world, player, fee - half, b || null, null);
+        Ledger.record(player, 'diplomacy', -fee);
+    },
+
     _state(player) {
         if (!player.politics) player.politics = { brokerCooldown: {}, merit: {}, historySeen: 0 };
         if (!player.politics.brokerCooldown) player.politics.brokerCooldown = {};
@@ -117,7 +127,8 @@ export const RealmPolitics = {
             return { success: false, reason: `Both courts turned your envoys away recently. Try again in ${st.brokerCooldown[key] - day} days.` };
         }
         if ((player.gold || 0) < B.fee) return { success: false, reason: `Envoys and gifts cost ${B.fee} gold.` };
-        player.gold -= B.fee;
+        // (the envoys' gifts go to both courts)
+        RealmPolitics._payCourts(world, player, B.fee, war.a, war.b);
 
         const chance = RealmPolitics.brokerChance(player, war);
         if (Utils.random() < chance) {
@@ -192,7 +203,7 @@ export const RealmPolitics = {
             return { success: false, reason: `Both courts are weighing your last proposal. Try again in ${st.brokerCooldown[key] - day} days.` };
         }
         if ((player.gold || 0) < A.fee) return { success: false, reason: `Envoys and gifts cost ${A.fee} gold.` };
-        player.gold -= A.fee;
+        RealmPolitics._payCourts(world, player, A.fee, pair.a, pair.b);
 
         const { a, b } = pair;
         if (Utils.random() < RealmPolitics.allianceChance(player, a, b)) {
@@ -269,6 +280,7 @@ export const RealmPolitics = {
             opts.liege.treasury = (opts.liege.treasury || 0) - wage;
             if (wage > 0) CrownBooks.note(opts.liege, 'army', wage);
             player.gold = (player.gold || 0) + wage;
+            if (wage > 0) Ledger.record(player, 'crownWages', wage);
             if (!player.reputation) player.reputation = {};
             const gain = PlayerEffects.scaleReputationGain(player, C.reputation);
             player.reputation[opts.liege.id] = Math.min(100, (player.reputation[opts.liege.id] || 0) + gain);
@@ -363,8 +375,9 @@ export const RealmPolitics = {
             out.ended = !galleys.length ? 'Your last galley has left the fleet.' : `${liege ? liege.name : 'Your liege'} is no longer at war; your galleys come home.`;
             return out;
         }
-        out.wage = L.wagePerGalley * galleys.length;
-        player.gold = (player.gold || 0) + out.wage;
+        // The wage is the liege's coin: its chests, then its towns, what it can pay
+        out.wage = PlayerCoin.receive(world, player, L.wagePerGalley * galleys.length, liege, 'crownWages');
+        if (out.wage > 0) CrownBooks.note(liege, 'army', out.wage);
         navy.auxiliary = RealmPolitics.fleetContribution(player);
         return out;
     },
@@ -392,7 +405,8 @@ export const RealmPolitics = {
         if (!t) return { success: false, reason: 'No fallen crown has a claim here.' };
         if (player.allegiance === t.occupier.id) return { success: false, reason: `You are sworn to ${t.occupier.name} — funding rebels would be treason.` };
         if ((player.gold || 0) < t.cost) return { success: false, reason: `The rebels need ${t.cost} gold for arms and bribes.` };
-        player.gold -= t.cost;
+        // (arms and bribes bought where the rising is)
+        PlayerCoin.pay(world, player, t.cost, (tile && tile.settlement) || (tile ? { q: tile.q, r: tile.r } : null), 'diplomacy');
         if (!player.reputation) player.reputation = {};
 
         if (Utils.random() < t.chance) {
@@ -449,6 +463,7 @@ export const RealmPolitics = {
             if (victorK) victorK.treasury = (victorK.treasury || 0) - gold;
             const renown = S.renownPerMerit * merit;
             player.gold = (player.gold || 0) + gold;
+            if (gold > 0) Ledger.record(player, 'crownWages', gold);
             player.renown = (player.renown || 0) + renown;
             if (!player.reputation) player.reputation = {};
             player.reputation[h.victor] = Math.min(100, (player.reputation[h.victor] || 0) + S.reputationPerMerit * merit);

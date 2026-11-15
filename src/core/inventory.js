@@ -147,9 +147,13 @@ export const PlayerInventory = {
     /**
      * Give the player goods they're owed. What fits goes in the packs; any
      * new kind of good that doesn't fit is sold on the spot at base price.
+     * `payer` (optional): fn(gold) → the coin the buyer could pay (the nearest
+     * town's purse, capped by what it holds — callers in world/ and above pass
+     * one, as core/ cannot reach the towns); the player gets only that. Without
+     * a payer the caller settles the coin itself (quests, sagas).
      * @returns {{ added: Object, sold: Object, gold: number }}
      */
-    addOrSell(player, items) {
+    addOrSell(player, items, payer = null) {
         // In a world still bartering (world/barter.js puts `player._inKind` on) there's
         // nobody to sell to for coin: what's owed goes in the packs regardless
         if (player && player._inKind) return { added: PlayerInventory.addItems(player, items, { force: true }).added, sold: {}, gold: 0 };
@@ -158,6 +162,7 @@ export const PlayerInventory = {
         for (const [id, qty] of Object.entries(res.dropped)) {
             gold += Math.floor(PlayerInventory.goodValue(id) * qty);
         }
+        if (gold > 0 && typeof payer === 'function') gold = Math.max(0, Math.min(gold, Number(payer(gold)) || 0));
         if (gold > 0) player.gold = (player.gold || 0) + gold;
         return { added: res.added, sold: res.dropped, gold };
     },

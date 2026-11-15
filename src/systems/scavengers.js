@@ -39,6 +39,7 @@ import { GraveBook } from '../world/graveBook.js';
 import { Burials } from '../world/burials.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
 import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
 import { PlayerInventory } from '../core/inventory.js';
 import { Townsfolk } from './townsfolk.js';
 import { StreetCrime } from './streetCrime.js';
@@ -325,7 +326,8 @@ export const Scavengers = {
                 c.gold = 0;
             }
         }
-        if (!caught) Scavengers.fence(s, robber, took);
+        // (grave goods and caches were booked lost when buried: coin dug up and kept in a purse is found again)
+        if (!caught) Scavengers.fence(s, robber, took, { world, found: true });
         // Seen at it: the robber's crime, on the town's record (the witnesses remember who)
         let crime = null;
         if (seen.length || caught) {
@@ -345,7 +347,7 @@ export const Scavengers = {
     },
 
     /** The goods go where stolen goods go: fenced into the town's market; the coin into the robber's purse (robber.pid: a townsperson). */
-    fence(s, robber, took) {
+    fence(s, robber, took, opts = {}) {
         const p = robber && robber.pid != null && s.folk ? Townsfolk.get(s.folk, robber.pid) : null;
         let coin = _num(took.gold);
         for (const [id, n] of Object.entries(took.items || {})) {
@@ -359,6 +361,10 @@ export const Scavengers = {
             took.fenced = _num(took.fenced) + _num(n);
         }
         if (p && coin > 0) p.purse = _num(p.purse) + coin;
+        // Coin out of the ground (opts.found) into a townsperson's purse comes back into the books; the
+        // player's coin taken by a looter who is no townsperson is spent in the town (its purse)
+        if (p && opts.found && opts.world && _num(took.gold) > 0) MoneySupply.leak(opts.world, _num(took.gold), 'buried');
+        if (!p && took.fromPlayer && _num(took.gold) > 0) Economy.payTown(s, _num(took.gold));
         took.coin = coin;
     },
 
@@ -514,6 +520,8 @@ export const Scavengers = {
         const worn = id => { try { return Arms.isArms(id) && Arms.isEquipped(player, id) && _num(player.inventory[id]) <= 1; } catch { return false; } };
         const took = Scavengers.pickLoot(player.inventory || {}, player.gold, key, { goldShare: _num(L.playerGoldShare, 0.6), worn });
         player.gold = Math.max(0, _num(player.gold) - took.gold);
+        // (the coin is the looter's now: fence() puts it in a purse — a townsperson's, else the town's)
+        took.fromPlayer = true;
         player.lootedWhileOut = {
             by: looter ? looter.name : 'someone', byKey: looter ? StreetCrime.npcKey(looter) : null,
             gold: took.gold, items: { ...took.items }, d: _num(day), seen: Array.isArray(opts.seenBy) ? opts.seenBy.slice(0, 3) : [],

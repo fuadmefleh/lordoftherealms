@@ -42,6 +42,8 @@ import { Utils } from '../core/utils.js';
 import { Hex } from '../core/hex.js';
 import { PlayerInventory } from '../core/inventory.js';
 import { Colonization } from '../world/colonization.js';
+import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
 import { KingdomNavy } from '../world/kingdomNavy.js';
 import { KingdomAtlas } from '../world/kingdomAtlas.js';
 import { Ships } from './ships.js';
@@ -615,6 +617,7 @@ export const Discovery = {
         if (site.kind === 'reef' && site.features.ruins) {
             const gold = Utils.randInt(cfg.salvage.gold[0], cfg.salvage.gold[1]);
             player.gold = _num(player.gold) + gold;
+            MoneySupply.leak(world, gold, 'wreckSalvage'); // (coin older than the books, in no purse: found)
             if (player.financeToday) player.financeToday.income.exploration = (player.financeToday.income.exploration || 0) + gold;
             notify('⚓', 'Salvage', `Divers bring up ${gold}g from an old wreck on the reef.`, 'success');
         }
@@ -1241,6 +1244,7 @@ export const Discovery = {
         if (player.financeToday) player.financeToday.expenses.diplomacy = (player.financeToday.expenses.diplomacy || 0) + c.tribute;
         const k = world.getKingdom && world.getKingdom(c.kingdomId);
         if (k) k.treasury = _num(k.treasury) + c.tribute;
+        else if (!Economy.payNearest(world, player.q, player.r, c.tribute)) MoneySupply.leak(world, -c.tribute, 'tributeLost');
         site.knownBy = site.knownBy.filter(id => id !== c.kingdomId);
         site.contest = null;
         Discovery._log(player, world, '💰', `Paid ${c.tribute}g to ${c.kingdomName}; they renounce ${site.name}.`, site.id);

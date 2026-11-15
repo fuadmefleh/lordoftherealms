@@ -364,6 +364,21 @@ export const Finance = {
      * run sends home, a lost venture's shippers — lands in its seat town's purse
      * (or, with no purse there, its realm's chests): it never just vanishes. → paid.
      */
+    _ownPayOut(world, bank, amount) {
+        const a = _round2(Math.max(0, _num(amount)));
+        if (!(a > 0)) return 0;
+        if (!Finance._payOut(world, bank, a)) MoneySupply.leak(world, -a, 'bankPaidOut');
+        return a;
+    },
+
+    /** Coin into the player's house out of its seat town's purse: up to `amount`, at most `share` of the purse. Returns drawn. */
+    _ownDraw(world, bank, amount, share = 0.05) {
+        const town = Finance._seatOf(world, bank);
+        const have = Economy.townPurse(town);
+        if (have == null) return 0;
+        return _round2(Economy.drawTown(town, Math.min(_num(amount), Math.max(0, have) * _clamp(share, 0, 1))));
+    },
+
     _payOut(world, bank, amount) {
         const a = _round2(Math.max(0, _num(amount)));
         if (!(a > 0)) return 0;
@@ -576,6 +591,7 @@ export const Finance = {
         bank.lastRunDay = null;
         player.gold -= capital + terms.fee;
         if (k) k.treasury = _num(k.treasury) + terms.fee;
+        else Finance._spendNear(world, player, terms.fee);
         Ledger.record(player, 'bankCharter', -terms.fee);
         Ledger.record(player, 'bankCapital', -capital);
         Finance._record(st, world, { kind: 'bank_founded', bankId: bank.id, bank: bank.name, kingdomId: bank.kingdomId, place: bank.seat });
@@ -646,11 +662,20 @@ export const Finance = {
         if (!bank) return { success: false, reason: 'You own no banking house.' };
         if (!Finance._ownAtSeat(player, world, bank)) return { success: false, reason: `The house is wound up in ${bank.seat}.` };
         if (Finance.inPanic(bank, _day(world))) return { success: false, reason: 'Not during a run.' };
-        const recovered = Math.floor(_num(bank.loanBook) * _num(P.windUpRecovery, 0.85));
         const buyer = Finance.openBanks(player).find(b => b.id !== bank.id && b.owner !== 'player') || null;
-        const crown = Math.floor(Finance.crownLoansOf(world, bank.id) * (buyer ? _num(P.crownSaleShare, 0.7) : 0));
-        const net = Math.floor(_num(bank.capital) + recovered + crown - _num(bank.publicDeposits));
-        if (net < 0) return { success: false, reason: `The house cannot pay its depositors in full (${-net}g short): put more in first.` };
+        const crownAsk = Math.floor(Finance.crownLoansOf(world, bank.id) * (buyer ? _num(P.crownSaleShare, 0.7) : 0));
+        const recoverAsk = Math.floor(_num(bank.loanBook) * _num(P.windUpRecovery, 0.85));
+        const est = Math.floor(_num(bank.capital) + recoverAsk + Math.min(crownAsk, Math.max(0, _num(buyer && buyer.capital))) - _num(bank.publicDeposits));
+        if (est < 0) return { success: false, reason: `The house cannot pay its depositors in full (${-est}g short): put more in first.` };
+        // The coin, for real: the merchants repay the book out of the realm's purses (what
+        // they can), the buying house pays for the crowns' debts out of its vault, the
+        // depositors are paid into the seat town's purse; the owner takes what is left
+        const recovered = Finance._merchantInterest(world, bank, recoverAsk, _num(P.windUpTownShare, 0.5));
+        const crown = buyer ? Math.min(crownAsk, Math.floor(Math.max(0, _num(buyer.capital)))) : 0;
+        if (crown > 0) buyer.capital = _round2(_num(buyer.capital) - crown);
+        const pot = _round2(Math.max(0, _num(bank.capital)) + recovered + crown);
+        const toDepositors = Finance._ownPayOut(world, bank, Math.min(pot, _num(bank.publicDeposits)));
+        const net = _round2(pot - toDepositors);
         for (const k of world.kingdoms || []) {
             const f = k && k.finance;
             if (!f || !Array.isArray(f.debt)) continue;
@@ -713,18 +738,26 @@ export const Finance = {
                 return;
             }
             if (short > 0) {
-                const call = short / recovery;
-                rec.losses += call - short;
-                bank.loanBook -= call;
-                bank.capital = _num(bank.capital) + short;
+                // (the loans called in are repaid by the merchants, out of the realm's purses)
+                const got = Finance._merchantInterest(world, bank, short, _num(P.callTownShare, 0.25));
+                const call = got / recovery;
+                rec.losses += call - got;
+                bank.loanBook = Math.max(0, bank.loanBook - call);
+                bank.capital = _num(bank.capital) + got;
             }
-            bank.capital -= pull;
-            bank.publicDeposits -= pull;
+            // (the depositors carry their coin home: into the seat town's purse, at most what the vault holds)
+            const paid = Finance._ownPayOut(world, bank, Math.min(pull, Math.max(0, _num(bank.capital))));
+            bank.capital -= paid;
+            bank.publicDeposits -= paid;
         } else {
-            // Deposits drift toward what the town will trust the house with
+            // Deposits drift toward what the town will trust the house with: the townsfolk's
+            // savings come out of the seat town's purse (at most depositTownShare of it a day)
+            // and go back into it as they are withdrawn
             const target = _num(seat && seat.population, 4000) * _num(P.depositsPerHead, 2.5) * Finance.ownTrust(player, world, bank);
             const move = (target - bank.publicDeposits) * _num(P.depositDrift, 0.03);
-            const flow = move < 0 ? -Math.min(-move, bank.publicDeposits, Math.max(0, _num(bank.capital))) : move;
+            let flow = 0;
+            if (move < 0) flow = -Finance._ownPayOut(world, bank, Math.min(-move, bank.publicDeposits, Math.max(0, _num(bank.capital))));
+            else if (move > 0) flow = Finance._ownDraw(world, bank, move, _num(P.depositTownShare, 0.05));
             bank.publicDeposits += flow;
             bank.capital = _num(bank.capital) + flow;
         }
@@ -735,11 +768,15 @@ export const Finance = {
         const targetBook = Finance.inPanic(bank, day) ? bank.loanBook : lendable * _num(pol.lend, 0.6);
         let shift = (targetBook - bank.loanBook) * _num(P.bookDrift, 0.05);
         if (shift > 0) shift = Math.min(shift, Math.max(0, _num(bank.capital) - Finance.ownReserveNeed(bank) * _num(P.lendFloor, 0.5)));
+        // (a loan is real coin paid into the realm's towns; a shrinking book is repaid out of them)
+        if (shift > 0) shift = Finance._lendToTowns(world, bank, _round2(shift));
+        else if (shift < 0) shift = -Finance._merchantInterest(world, bank, Math.min(bank.loanBook, -shift));
         bank.loanBook += shift;
         bank.capital -= shift;
 
-        // What the merchants pay, and what they never will
-        rec.interest = bank.loanBook * _num(pol.apr, 0.18) / yd;
+        // What the merchants pay (out of the realm's purses), and what they never will
+        // (a bad debt: the coin is already in the towns)
+        rec.interest = Finance._merchantInterest(world, bank, bank.loanBook * _num(pol.apr, 0.18) / yd);
         let lossApr = _num(pol.lossApr, 0.03);
         if (k && Array.isArray(k.wars) && k.wars.length) lossApr *= _num(P.warLossMult, 2);
         let losses = bank.loanBook * lossApr / yd * (0.5 + Utils.random());
@@ -756,7 +793,11 @@ export const Finance = {
         // Interest to the depositors and the clerks' wages, from the vault
         rec.depInterest = bank.publicDeposits * Finance.depositApr(bank) / yd;
         rec.costs = _num(P.clerksPerDay, 2) + (bank.publicDeposits + bank.loanBook) / 1000 * _num(P.costPerThousand, 0.02);
-        bank.capital = _num(bank.capital) + rec.interest - rec.depInterest - rec.costs;
+        // (the depositors' interest and the clerks' wages are spent in the seat town; what the
+        // vault cannot pay is owed: the vault goes into the red, and no coin is made for it)
+        bank.capital = _num(bank.capital) + rec.interest;
+        Finance._ownPayOut(world, bank, Math.min(rec.depInterest + rec.costs, Math.max(0, bank.capital)));
+        bank.capital -= rec.depInterest + rec.costs;
         rec.profit = rec.interest - rec.depInterest - rec.losses - rec.costs;
 
         for (const key of ['interest', 'depInterest', 'losses', 'costs', 'profit']) rec[key] = _round2(rec[key]);
@@ -924,6 +965,8 @@ export const Finance = {
         const offer = Finance.loanOffers(player, world, bankId).find(o => o.id === productId);
         if (!offer) return { success: false, reason: 'No such loan.' };
         if (!offer.available) return { success: false, reason: offer.reason };
+        // (a loan is the house's own coin: it lends no more than its vault holds)
+        if (_num(bank.capital) < offer.amount) return { success: false, reason: `${bank.name} has not the coin in its vault to lend that.` };
         const loan = {
             id: `L${st.nextId++}`, bankId: bank.id, lender: bank.name, kingdomId: bank.kingdomId, product: offer.id,
             principal: offer.amount, interestRate: offer.rate, totalOwed: offer.totalOwed,
@@ -972,10 +1015,18 @@ export const Finance = {
         if (String(loan.bankId || '').startsWith(CROWN_LENDER)) {
             const k = _kingdom(world, loan.kingdomId);
             if (k) k.treasury = _num(k.treasury) + amount;
+            else Finance._spendNear(world, player, amount);
             return;
         }
         const bank = Finance.bank(player, loan.bankId);
         if (bank) bank.capital = _num(bank.capital) + amount;
+        else Finance._spendNear(world, player, amount);
+    },
+
+    /** Coin paid to a lender that is gone: its receivers spend it in the nearest town (else it is lost, booked). */
+    _spendNear(world, player, amount) {
+        if (!(amount > 0)) return;
+        if (!Economy.payNearest(world, player.q, player.r, amount)) MoneySupply.leak(world, -amount, 'lenderGone');
     },
 
     _lenderName(player, world, loan) {
@@ -1144,7 +1195,13 @@ export const Finance = {
         const b = st.bonds[i];
         const k = _kingdom(world, b.kingdomId);
         const risk = k ? Math.min(0.5, Finance.bondApr(k, _day(world)) - _num(b.apr)) : 0.5;
-        const price = Math.floor(_num(b.principal) * (1 - _num(D.sellDiscount, 0.1) - Math.max(0, risk)));
+        let price = Math.floor(_num(b.principal) * (1 - _num(D.sellDiscount, 0.1) - Math.max(0, risk)));
+        // (the brokers' house buys it with its own coin: the bond is its claim on the crown now)
+        const broker = Finance.banksAt(player, world, Finance._here(player, world)).find(x => x && x.owner !== 'player' && x.status === 'open' && _num(x.capital) > 0);
+        if (!broker) return { success: false, reason: 'No broker here has the coin to buy it.' };
+        price = Math.min(price, Math.floor(_num(broker.capital)));
+        if (price <= 0) return { success: false, reason: 'No broker here has the coin to buy it.' };
+        broker.capital = _round2(_num(broker.capital) - price);
         st.bonds.splice(i, 1);
         player.gold = _num(player.gold) + price;
         return { success: true, amount: price, text: `The brokers buy your ${b.kingdomName || 'royal'} bond for ${price}g.` };
@@ -1260,10 +1317,10 @@ export const Finance = {
      * the purses of its realm's towns by their people (at most banks.yieldTownShare of
      * each purse a day) — or its seat town's alone when the realm is gone. → the coin paid.
      */
-    _merchantInterest(world, bank, want) {
+    _merchantInterest(world, bank, want, shareOverride = null) {
         if (!(want > 0) || !world || typeof world.getTile !== 'function') return 0;
         const B = Finance.cfg('banks');
-        const share = _clamp(_num(B.yieldTownShare, 0.02), 0, 1);
+        const share = _clamp(_num(shareOverride != null ? shareOverride : B.yieldTownShare, 0.02), 0, 1);
         const k = _kingdom(world, bank.kingdomId);
         let towns = k && k.isAlive !== false ? Economy.realmTowns(k, world) : [];
         if (!towns.length) {
@@ -1398,13 +1455,25 @@ export const Finance = {
         player.reputation[kingdomId] = Math.max(-100, _num(player.reputation[kingdomId]) - amount);
     },
 
-    /** Apply proceeds of a seizure or sale to a loan; closes it if cleared. */
-    _applyProceeds(player, world, st, loan, proceeds) {
+    /**
+     * Apply proceeds of a seizure or sale to a loan; closes it if cleared.
+     * `from` is where the coin comes from: 'sale' (goods, a house, a ship sold —
+     * the buyers are the nearest town's, which pays what it can), 'setoff' (the
+     * lender's own deposits cancelled against the debt: no coin moves), 'company'
+     * (the player's company's capital, which the coin census counts: the caller
+     * takes it out, the lender is paid it).
+     */
+    _applyProceeds(player, world, st, loan, proceeds, from = 'sale') {
         proceeds = Math.max(0, Math.floor(proceeds));
         if (!proceeds) return 0;
-        const used = Math.min(proceeds, Math.ceil(_num(loan.totalOwed)));
+        let used = Math.min(proceeds, Math.ceil(_num(loan.totalOwed)));
+        if (from === 'sale' && world && typeof world.getSettlementViews === 'function') {
+            const town = Economy.nearestPurse(world, player.q, player.r);
+            if (town) used = Math.floor(Economy.drawTown(town, used));
+        }
+        if (!(used > 0)) return 0;
         loan.totalOwed = Math.max(0, _num(loan.totalOwed) - used);
-        Finance._payLender(player, world, loan, used);
+        if (from !== 'setoff') Finance._payLender(player, world, loan, used);
         st.stats.seized += used;
         if (loan.totalOwed <= 0) {
             Finance._closeLoan(st, loan);
@@ -1452,9 +1521,8 @@ export const Finance = {
             const take = Math.min(_num(acct.balance), Math.ceil(_num(loan.totalOwed)));
             acct.balance = _round2(_num(acct.balance) - take);
             if (acct.balance < 0.01) delete st.accounts[loan.bankId];
-            const bank = Finance.bank(player, loan.bankId);
-            if (bank) bank.capital -= take; // the deposit leaves the house's books as it repays the loan
-            Finance._applyProceeds(player, world, st, loan, take);
+            // (the deposit is the house's own coin owed back to you: set off against the debt, no coin moves)
+            Finance._applyProceeds(player, world, st, loan, take, 'setoff');
             Finance._note(out, '🏦', 'Deposits Seized', `${lender} took ${Math.floor(take)}g of your deposits against your debt.`, 'error');
             if (!st.loans.includes(loan)) return;
         }
@@ -1482,7 +1550,9 @@ export const Finance = {
         if (c && _num(c.capital) > 0) {
             const take = Math.min(_num(c.capital), Math.ceil(_num(loan.totalOwed)));
             c.capital -= take;
-            const used = Finance._applyProceeds(player, world, st, loan, take);
+            const used = Finance._applyProceeds(player, world, st, loan, take, 'company');
+            // (what the debt did not need stays in the coffers)
+            if (take - used > 0) c.capital = _num(c.capital) + (take - used);
             Finance._note(out, '⚖️', 'Company Funds Seized', `${lender} took ${used}g from the coffers of ${c.name}.`, 'error');
             return;
         }
@@ -1553,7 +1623,8 @@ export const Finance = {
             if (player.gossip && Array.isArray(player.gossip.bounties)) player.gossip.bounties = player.gossip.bounties.filter(b => !(b.kingdom === kid && b.description === 'debt'));
             const k = _kingdom(world, kid);
             if (k && !bank) k.treasury = _num(k.treasury) + owed; // owed to the realm's exchequer
-        }
+            else if (!bank) Finance._spendNear(world, player, owed);
+        } else if (!bank) Finance._spendNear(world, player, owed);
         st.credit.settled++;
         return { success: true, amount: owed, text: `You make good ${owed}g of old debt${bank ? ` to ${bank.name}` : ''}. Your name is cleared.` };
     },
@@ -1671,8 +1742,8 @@ export const Finance = {
                 // Days the soldiers and officials have gone unpaid
                 f.unpaid = _num(fs.arrearsDays);
             } else if (spend > 0) {
-                const paid = Math.min(Math.max(0, _num(k.treasury)), spend);
-                k.treasury = _num(k.treasury) - paid;
+                // (the war's cost is spent in the realm's towns: wages, fodder, arms)
+                const paid = Economy.crownSpend(k, world, spend);
                 f.unpaid = paid < spend ? f.unpaid + 1 : Math.max(0, f.unpaid - 1);
             } else if (f.unpaid > 0) {
                 f.unpaid--;
@@ -1683,7 +1754,7 @@ export const Finance = {
             f.debtRatio = _round2(Finance.crownDebt(k) / Finance.crownCapacity(k));
             // An extraordinary levy fills the coffers while it lasts
             // (with real books the levy is an extra tax on the towns: systems/fiscal.js)
-            if (f.levy && _num(f.levy.until) >= day) { if (!books) k.treasury = _num(k.treasury) + Math.round(f.income * _num(f.levy.share, 0.3)); }
+            if (f.levy && _num(f.levy.until) >= day) { if (!books) Economy.crownRaise(k, world, Math.round(f.income * _num(f.levy.share, 0.3)), 0.05); }
             else if (f.levy) f.levy = null;
             // Honest coin returns slowly once the crown is out of trouble
             const G = Finance.cfg('coinage');
@@ -2093,13 +2164,24 @@ export const Finance = {
         bank.panic = null;
         const acct = st.accounts[bank.id];
         let text = `${bank.name} of ${bank.seat} has failed. Its doors are shut and its receivers sell what is left.`;
+        // The receivers call in what they can of the house's loans to the merchants (out of
+        // the realm's purses: run.receiverRecovery of the book), to pay its depositors
+        if (bank.owner !== 'player' && _num(bank.merchantBook) > 0) {
+            const got = Finance._merchantInterest(world, bank, _num(bank.merchantBook) * _num(run.receiverRecovery, 0.5), _num(Finance.cfg('playerBank').callTownShare, 0.25));
+            bank.capital = _round2(Math.max(0, _num(bank.capital)) + got);
+        }
         if (acct && _num(acct.balance) > 0) {
             const share = _between(run.recovery || [0.3, 0.6], Utils.random());
-            const back = Math.floor(_num(acct.balance) * share);
+            const want = Math.floor(_num(acct.balance) * share);
+            // (paid out of what the house had left — the player's deposit was part of its capital —
+            // and, past its vault, out of its seat town's purse: the receivers sell its strongroom,
+            // plate and paper to the town's merchants, as far as their coin goes; Bills does the same)
+            const fromVault = Math.min(want, Math.floor(Math.max(0, _num(bank.capital))));
+            bank.capital = _round2(_num(bank.capital) - fromVault);
+            const seatTown = want > fromVault ? Finance._seatOf(world, bank) : null;
+            const back = _round2(fromVault + (seatTown ? Economy.drawTown(seatTown, want - fromVault) : 0));
             const lost = Math.round(_num(acct.balance) - back);
             player.gold = _num(player.gold) + back;
-            // (paid out of what the house had left: the player's deposit was part of its capital)
-            if (bank.owner !== 'player') bank.capital = _round2(Math.max(0, _num(bank.capital) - back));
             st.stats.lostInFailures += lost;
             text += ` The receivers pay you ${back}g of your ${Math.floor(acct.balance)}g on deposit.`;
         }
@@ -2110,6 +2192,8 @@ export const Finance = {
             for (const k of world.kingdoms || []) {
                 if (k && k.finance && Array.isArray(k.finance.debt)) k.finance.debt = k.finance.debt.filter(d => d.bankId !== bank.id);
             }
+            // (the receivers pay what is left in the vault to the depositors: the seat town's purse)
+            if (_num(bank.capital) > 0) Finance._ownPayOut(world, bank, bank.capital);
             bank.capital = 0;
             bank.loanBook = 0;
             bank.publicDeposits = 0;
@@ -2122,7 +2206,7 @@ export const Finance = {
         // the merchants of its seat town (the player's own share was paid above): the vault's coin
         // goes back into circulation, not into a shut strongroom the census no longer counts
         if (bank.owner !== 'player' && _num(bank.capital) > 0) {
-            Finance._payOut(world, bank, bank.capital);
+            Finance._ownPayOut(world, bank, bank.capital);
             bank.capital = 0;
         }
         // (its loans to the merchants are written off: the coin is already in their towns)

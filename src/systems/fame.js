@@ -31,6 +31,7 @@
 
 import { DataLoader } from '../core/dataLoader.js';
 import { Utils } from '../core/utils.js';
+import { Economy } from '../world/economy.js';
 import { Ledger } from './ledger.js';
 import { Quests } from './quests.js';
 import { Townsfolk } from './townsfolk.js';
@@ -265,7 +266,8 @@ export const Fame = {
             if (Array.isArray(st.gifts) && st.gifts.length >= 2 && _roll(`${key}|gift`) < 0.5) {
                 const lo = _num(st.gifts[0]);
                 const hi = Math.max(lo, _num(st.gifts[1]));
-                const gold = lo + Math.floor(_roll(`${key}|giftAmt`) * (hi - lo + 1));
+                // (a well-wisher's coin: out of the town's purse, what it can spare)
+                const gold = Economy.drawTown(s, lo + Math.floor(_roll(`${key}|giftAmt`) * (hi - lo + 1)));
                 if (gold > 0) {
                     player.gold = _num(player.gold) + gold;
                     Ledger.record(player, 'admirers', gold);

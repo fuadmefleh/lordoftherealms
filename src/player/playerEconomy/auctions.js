@@ -1,6 +1,8 @@
 // PlayerEconomy — auctions members.
 import { PlayerEconomy } from './_ref.js';
 import { Trading } from './trading.js';
+import { Ledger } from '../../systems/ledger.js';
+import { PlayerCoin } from '../playerCoin.js';
 import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, PlayerInventory } from './_imports.js';
 
 Object.assign(PlayerEconomy, {
@@ -66,7 +68,7 @@ Object.assign(PlayerEconomy, {
             // No room for a new kind of good: the auction house refunds the winning bid
             const res = PlayerInventory.addItem(player, reward.goodId, reward.amount);
             if (!res.success) {
-                player.gold = (player.gold || 0) + (lot.currentBid || 0);
+                PlayerCoin.receive(world, player, lot.currentBid || 0, PlayerEconomy._auctionHouse(world, player, lot), null, { full: true });
                 lot.refunded = true;
                 lot.refundReason = res.reason;
                 return;
@@ -81,6 +83,7 @@ Object.assign(PlayerEconomy, {
             player.landTaxBonus = (player.landTaxBonus || 0) + (reward.taxBonus || 0);
         }
 
+        if (lot.currentBid > 0) Ledger.record(player, 'auctions', -lot.currentBid);
         player.auctions.won.push({
             day: world ? world.day : null,
             title: lot.title,
@@ -88,6 +91,13 @@ Object.assign(PlayerEconomy, {
             reward: reward.label,
             price: lot.currentBid,
         });
+    },
+
+    /** The town that holds a lot's stakes (the auction house's), else the nearest to the player. */
+    _auctionHouse(world, player, lot) {
+        const h = lot && lot.house;
+        const t = h && world && typeof world.getTile === 'function' ? world.getTile(h.q, h.r) : null;
+        return (t && t.settlement) || null;
     },
 
     ensureAuctionListings(player, world) {
@@ -110,11 +120,12 @@ Object.assign(PlayerEconomy, {
         const nextBid = lot.currentBid + lot.minIncrement;
         if (player.gold < nextBid) return { success: false, reason: `Need ${nextBid} gold` };
 
-        player.gold -= nextBid;
-
+        // The stake is held by the auction house (the town it sits in) until the lot closes
         if (lot.topBidder === 'player' && lot.playerStake) {
-            player.gold += lot.playerStake;
+            PlayerCoin.receive(world, player, lot.playerStake, PlayerEconomy._auctionHouse(world, player, lot), null, { full: true });
         }
+        if (!lot.house) { const h = PlayerCoin.nearestTown(world, player); if (h) lot.house = { q: h.q, r: h.r }; }
+        PlayerCoin.pay(world, player, nextBid, PlayerEconomy._auctionHouse(world, player, lot), null);
 
         lot.playerStake = nextBid;
         lot.currentBid = nextBid;
@@ -142,7 +153,7 @@ Object.assign(PlayerEconomy, {
                     lot.currentBid += increment;
                     lot.topBidder = 'ai';
                     if (lot.playerStake) {
-                        player.gold += lot.playerStake;
+                        PlayerCoin.receive(world, player, lot.playerStake, PlayerEconomy._auctionHouse(world, player, lot), null, { full: true });
                         lot.playerStake = 0;
                     }
                 }

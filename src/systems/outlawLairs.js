@@ -571,7 +571,7 @@ export const OutlawLairs = {
             if (p.phase === 'home' && (home <= 1 || day - _num(p.sentDay) > _num(cfg.daysOut, 18) * 2)) {
                 // Home with the plunder (or melted back to it by night)
                 const inv = unit.inventory || {};
-                lair.hoard.gold = Math.round(_num(lair.hoard.gold) + _num(inv.gold));
+                lair.hoard.gold = Math.round((_num(lair.hoard.gold) + _num(inv.gold)) * 100) / 100; // (to the copper: no coin rounded away)
                 for (const [id, n] of Object.entries(inv)) {
                     if (id === 'gold' || !(n > 0)) continue;
                     lair.hoard.goods[id] = (lair.hoard.goods[id] || 0) + n;
@@ -909,8 +909,10 @@ export const OutlawLairs = {
             .sort((a, b) => _dist(world, a.q, a.r, lair.q, lair.r) - _dist(world, b.q, b.r, lair.q, lair.r))[0];
         if (!from) return;
         kingdom.military = _num(kingdom.military) - strength * menPer;
-        kingdom.treasury = _num(kingdom.treasury) - _num(E.cost, 150);
-        CrownBooks.spendAtCapital(world, kingdom, _num(E.cost, 150));
+        // (the wardens' pay and provisions are bought at the capital — else in the realm's towns)
+        const cost = _num(E.cost, 150);
+        kingdom.treasury = _num(kingdom.treasury) - cost;
+        if (!CrownBooks.spendAtCapital(world, kingdom, cost) && !Economy.payRealm(kingdom, world, cost)) MoneySupply.leak(world, -cost, 'crownLosses');
         const unit = new WorldUnit('lair_expedition', from.q, from.r);
         unit.name = `${kingdom.name}'s Wardens`;
         unit.icon = '🛡️';
@@ -1029,8 +1031,12 @@ export const OutlawLairs = {
     _reward(player, world, lair) {
         const C = OutlawLairs.config().clear || {};
         const n = _num(lair.notoriety);
-        const gold = Math.round(_num(lair.hoard.gold) * _num(C.goldShare, 1));
+        const hoard = _num(lair.hoard.gold);
+        const gold = Math.round(Math.min(hoard, hoard * _num(C.goldShare, 1)) * 100) / 100;
         player.gold = _num(player.gold) + gold;
+        // (what the player leaves is carried off by the country folk and spent in the nearest town)
+        const rest = Math.round((hoard - gold) * 100) / 100;
+        if (rest > 0 && !OutlawLairs._spend(world, lair, rest)) MoneySupply.leak(world, -rest, 'lairsForgotten');
         lair.hoard.gold = 0;
         const loot = PlayerInventory.addItems(player, lair.hoard.goods);
         lair.hoard.goods = {};

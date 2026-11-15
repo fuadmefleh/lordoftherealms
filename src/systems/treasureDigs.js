@@ -30,6 +30,8 @@ import { Quests } from './quests.js';
 import { Traits } from './traits.js';
 import { Ledger } from './ledger.js';
 import { Heirlooms } from './heirlooms.js';
+import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
 
 const DEFAULTS = {
     legacyItems: { ancient_relic: 'ancient_artifact' },
@@ -187,6 +189,8 @@ export const TreasureDigs = {
         if (gold > 0) {
             player.gold = _num(player.gold) + gold;
             Ledger.record(player, 'exploration', gold);
+            // (coin out of the ground, in no purse since it was buried: found, and booked so)
+            if (world) MoneySupply.leak(world, gold, 'treasure');
         }
         const res = PlayerInventory.addItems(player, take);
         const left = res.dropped;
@@ -405,6 +409,8 @@ export const TreasureDigs = {
                 if (_num(player.gold) < cost) return { invalid: true, notification: { title: 'Purse Too Light', body: `They want ${cost} gold.`, type: 'error' } };
                 player.gold -= cost;
                 Ledger.record(player, 'exploration', -cost);
+                // (they spend it in the nearest town; with none, it leaves the world with them)
+                if (world && !Economy.payNearest(world, tile.q, tile.r, cost)) MoneySupply.leak(world, -cost, 'spentAway');
                 if (roll('bribe')) return toDig(`You paid ${cost} gold and they looked the other way.`);
                 return TreasureDigs._fightRoll(player, world, st, `They took your ${cost} gold and drew steel anyway. `);
             }

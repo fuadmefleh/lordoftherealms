@@ -4,6 +4,8 @@
 
 import { Utils } from '../core/utils.js';
 import { Hex } from '../core/hex.js';
+import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
 import { Peoples } from './peoples.js';
 import { Traits } from './traits.js';
 import { House } from './house.js';
@@ -201,6 +203,13 @@ export const Festivals = {
         });
     },
 
+    /** Coin spent at the festival: into the host town's purse (else the nearest; else lost, booked). */
+    _spendIn(world, tile, amount) {
+        if (!(amount > 0)) return;
+        if (Economy.payTown(tile && tile.settlement, amount)) return;
+        if (!Economy.payNearest(world, tile.q, tile.r, amount)) MoneySupply.leak(world, -amount, 'festivalLost');
+    },
+
     _nearbyRivalKingdoms(player, world, tile, limit = 3) {
         const rivals = new Map();
         if (!world?.getAllSettlements) return [];
@@ -246,6 +255,8 @@ export const Festivals = {
         const contestResult = this._contestPerformance(player, contestId, options.contestScore || 0, world);
 
         player.gold -= tier.cost;
+        // (the cooks, players, stalls and hired hands are the town's: the cost is spent there)
+        Festivals._spendIn(world, tile, tier.cost);
 
         const reputations = [];
         const sabotage = [];
@@ -261,7 +272,12 @@ export const Festivals = {
                 const caught = stance === 'security' && Utils.random() < 0.55;
                 if (!caught) {
                     const loss = Utils.randInt(40, 140) + (tier.id === 'grand' ? 50 : 0);
+                    // (the rival's agents carry what they take home: into its chests)
+                    const took = Math.min(Math.max(0, player.gold || 0), loss);
                     player.gold = Math.max(0, player.gold - loss);
+                    const rk = took > 0 ? world.getKingdom(rival.id) : null;
+                    if (rk) rk.treasury = (Number(rk.treasury) || 0) + took;
+                    else if (took > 0) Festivals._spendIn(world, tile, took);
                     sabotage.push({ rival: rival.name, caught: false, goldLost: loss });
                     player.festivals.sabotageEvents += 1;
                 } else {
@@ -292,6 +308,8 @@ export const Festivals = {
         const moraleBoost = tier.morale + contestResult.moraleBonus;
 
         player.renown = (player.renown || 0) + renownGain;
+        // (the contest purse: put up by the town, what it can spare)
+        if (contestResult.gold > 0) contestResult.gold = Economy.drawTown(tile.settlement, contestResult.gold);
         player.gold += contestResult.gold;
 
         if (Utils.random() < (stance === 'diplomatic' ? 0.35 : 0.18)) {

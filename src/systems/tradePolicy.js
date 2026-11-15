@@ -1434,7 +1434,10 @@ export const TradePolicy = {
             const arrest = Underworld._maybeArrest(player, world, s, 'smuggling past the embargo', _num(P.arrest, 0.25));
             return { success: true, caught: true, fine, arrested: !!arrest, text: `The watch of ${s.name} seized ${n} ${goodId.replace(/_/g, ' ')} at the gate and fined you ${fine}g.${arrest ? ` ${arrest.text}` : ''}` };
         }
-        const earned = q.price * n;
+        // (the town's buyers pay out of its purse: a poor town pays what it holds, in whole coin)
+        const drawn = Economy.drawTown(s, Math.floor(q.price * n));
+        const earned = Math.floor(drawn);
+        if (drawn > earned) Economy.payTown(s, _r3(drawn - earned));
         player.gold = _num(player.gold) + earned;
         SettlementMarket.add(s, goodId, n);
         st.stats.smuggled += n;
@@ -1504,7 +1507,7 @@ export const TradePolicy = {
         player.gold -= q.cost;
         player.actionPoints -= _num(B.ap, 1);
         q.a.treasury = _num(q.a.treasury) + Math.floor(q.cost / 2);
-        q.b.treasury = _num(q.b.treasury) + Math.floor(q.cost / 2);
+        q.b.treasury = _num(q.b.treasury) + (q.cost - Math.floor(q.cost / 2));
         TradePolicy._sign(world, q.a, q.b);
         TradePolicy._shiftRelation(q.a, q.b, _num(B.relation));
         TradePolicy._shiftRelation(q.b, q.a, _num(B.relation));

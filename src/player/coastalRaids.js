@@ -38,6 +38,8 @@ import { Quests } from '../systems/quests.js';
 import { Pirates } from '../systems/pirates.js';
 import { Ledger } from '../systems/ledger.js';
 import { PlayerMilitary } from './playerMilitary.js';
+import { PlayerCoin } from './playerCoin.js';
+import { Economy } from '../world/economy.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _day = (world) => _num(world && world.day);
@@ -218,8 +220,9 @@ export const CoastalRaids = {
         s.lastRaidedDay = _day(world);
         const [lo, hi] = C.plunderPerHead;
         const perHead = burn ? lo * 0.5 : Utils.randFloat(lo, hi);
-        const gold = Math.floor(_num(s.population) * perHead);
-        player.gold = _num(player.gold) + gold;
+        // (out of the town's own purse: what it holds, no more)
+        if (!s.economy && _num(s.population) > 0) Economy.initSettlement(s);
+        const gold = PlayerCoin.receive(world, player, Math.floor(_num(s.population) * perHead), s, null, { strict: true });
         if (gold > 0) Ledger.record(player, 'plunder', gold);
         res.plunder = gold;
         res.goods = {};

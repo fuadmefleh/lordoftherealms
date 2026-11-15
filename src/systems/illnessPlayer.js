@@ -188,7 +188,13 @@ export const IllnessPlayer = {
         const prior = st.fund && _num(st.fund.until) >= day ? st.fund : null;
         const karma = IllnessPlayer._charityKarma(prior, day, sick.length);
         const until = day + _num(F.physicianDays, 30);
-        st.fund = { until, gold: _num(st.fund && st.fund.gold) + cost, by: 'player', d: day, karmaUntil: karma > 0 ? until : (prior ? prior.karmaUntil : null) };
+        // The coin is in the healer's hand (their purse): the fund is the tally of what is
+        // owed the town's sick out of it (systems/illness.js spends it from that purse)
+        const holder = prior && prior.holder != null && prior.holder !== doc.person.id ? Townsfolk.get(folk, prior.holder) : null;
+        let carried = 0;
+        if (holder) { carried = Math.min(_num(prior.gold), _num(holder.purse)); holder.purse = Math.round((_num(holder.purse) - carried) * 100) / 100; }
+        doc.person.purse = Math.round((Townsfolk.purse(folk, doc.person, world) + cost + carried) * 100) / 100;
+        st.fund = { until, gold: (holder ? carried : _num(st.fund && st.fund.gold)) + cost, by: 'player', holder: doc.person.id, d: day, karmaUntil: karma > 0 ? until : (prior ? prior.karmaUntil : null) };
         player.karma = _num(player.karma) + karma;
         for (const p of sick) _regard(p, 4);
         return { success: true, cost, karma, text: `You put ${cost} gold in ${doc.name}'s hand. For a month ${doc.name} will go round every sick house in ${s.name}, your coin paying the fees and the herbs.` };

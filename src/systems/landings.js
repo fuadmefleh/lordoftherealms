@@ -45,6 +45,8 @@ import { Ledger } from './ledger.js';
 import { Holdings } from './holdings.js';
 import { Pirates } from './pirates.js';
 import { Names } from '../core/names.js';
+import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -336,6 +338,7 @@ export const Landings = {
             if (fine > 0) {
                 player.gold = _num(player.gold) - fine;
                 if (kingdom) kingdom.treasury = _num(kingdom.treasury) + fine;
+                else if (!Economy.payNearest(world, player.q, player.r, fine)) MoneySupply.leak(world, -fine, 'fines');
                 Ledger.record(player, 'fines', -fine);
             }
             st.stats.caught++;

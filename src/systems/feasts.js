@@ -30,6 +30,7 @@ import { Utils } from '../core/utils.js';
 import { Hex } from '../core/hex.js';
 import { PlayerInventory } from '../core/inventory.js';
 import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
 import { NPCLords } from '../world/npcLords.js';
 import { RealmWars } from './realmWars.js';
@@ -314,6 +315,8 @@ export const Feasts = {
         for (const [id, n] of Object.entries(src.usedMkt)) if (SettlementMarket.tracks(id)) SettlementMarket.take(s, id, n);
         player.gold -= bill;
         if (bill > 0) Ledger.record(player, 'feast', -bill);
+        // (the stalls, the cooks and the players are the town's: the bill is spent there)
+        if (bill > 0 && !Economy.payTown(s, bill) && !Economy.payNearest(world, tile.q, tile.r, bill)) MoneySupply.leak(world, -bill, 'feastLost');
 
         const st = Feasts.state(player);
         const rng = Feasts._rng(world, player, 'host');

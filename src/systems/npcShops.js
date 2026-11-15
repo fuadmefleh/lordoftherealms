@@ -38,6 +38,7 @@ import { DataLoader } from '../core/dataLoader.js';
 import { Utils } from '../core/utils.js';
 import { PlayerInventory } from '../core/inventory.js';
 import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
 import { Townsfolk } from './townsfolk.js';
 import { TownTrade } from './townTrade.js';
@@ -210,7 +211,13 @@ export const NpcShops = {
         }
         if (toPerson > 0) {
             if (person) person.purse = _r2((s && s.folk ? Townsfolk.purse(s.folk, person, world) : _num(person.purse)) + toPerson);
-            else npc.purse = _r2(_num(npc.purse) + toPerson);
+            else {
+                // (a trader of the map with no roll among the town's people: the coin is the town's
+                // common purse, where the coin census counts it; npc.purse keeps the tally)
+                const town = taken.town || s;
+                if (!Economy.payTown(town, toPerson) && !(town && Number.isFinite(town.q) && Economy.payNearest(world, town.q, town.r, toPerson))) MoneySupply.leak(world, -toPerson, 'npcShops');
+                npc.purse = _r2(_num(npc.purse) + toPerson);
+            }
             placed += toPerson;
         }
         return _r2(placed);

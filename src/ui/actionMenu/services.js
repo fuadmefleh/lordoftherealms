@@ -237,9 +237,9 @@ Object.assign(ActionMenu, {
         const day = game.world ? game.world.day : 0;
         window._svc = {
             buy: () => ActionMenu._serviceResult(game, '🐴 Stable', SettlementServices.buyMount(player, settlement, day), reopen),
-            saddle: () => ActionMenu._serviceResult(game, '🐴 Stable', SettlementServices.saddleTamedHorse(player, day), reopen),
-            sellMount: () => ActionMenu._serviceResult(game, '🐴 Stable', SettlementServices.sellMount(player), reopen),
-            sellTamed: () => ActionMenu._serviceResult(game, '🐴 Stable', SettlementServices.sellTamedHorses(player), reopen),
+            saddle: () => ActionMenu._serviceResult(game, '🐴 Stable', SettlementServices.saddleTamedHorse(player, day, settlement), reopen),
+            sellMount: () => ActionMenu._serviceResult(game, '🐴 Stable', SettlementServices.sellMount(player, settlement), reopen),
+            sellTamed: () => ActionMenu._serviceResult(game, '🐴 Stable', SettlementServices.sellTamedHorses(player, settlement), reopen),
         };
     },
 

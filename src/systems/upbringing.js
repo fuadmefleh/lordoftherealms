@@ -30,6 +30,8 @@ import { Traits } from './traits.js';
 import { House } from './house.js';
 import { Companions } from './companions.js';
 import { Relationships } from './relationships.js';
+import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
 
 const STATS = ['strength', 'charisma', 'intelligence', 'faith', 'luck'];
 const SKILLS = ['commerce', 'combat', 'leadership', 'diplomacy', 'stealth', 'cartography'];
@@ -253,9 +255,25 @@ export const Upbringing = {
         const kid = (tile && tile.settlement && tile.settlement.kingdom) || (tile && tile.kingdom)
             || (player && player.allegiance) || (player && player.throne && player.throne.ruling && player.throne.ruling.kingdomId) || null;
         const k = kid ? world.getKingdom(kid) : null;
-        if (!k) return null;
+        if (!k) {
+            // (no realm to hand: the master spends it in the nearest town)
+            Upbringing._spendHere(player, world, amount);
+            return null;
+        }
         k.treasury = _num(k.treasury) + amount;
         return k;
+    },
+
+    /**
+     * Coin the House pays out on a child's account (a stranger's board, what a
+     * stranger made off with): into the nearest town's purse, where it is
+     * spent; with no town at all it is lost to the world, booked so.
+     */
+    _spendHere(player, world, amount) {
+        const a = Math.round(_num(amount) * 100) / 100;
+        if (!(a > 0) || !world || !player) return 0;
+        if (!Economy.payNearest(world, player.q, player.r, a)) MoneySupply.leak(world, -a, 'spentAway');
+        return a;
     },
 
     dismissTutor(player, childId) {
@@ -530,7 +548,16 @@ export const Upbringing = {
             child.maxHealth = Math.max(50, _num(child.maxHealth || 100) + _num(fx.maxHealth));
             child.health = Math.min(_num(child.health || child.maxHealth), child.maxHealth);
         }
-        if (fx.gold) player.gold = Math.max(0, (player.gold || 0) + _num(fx.gold));
+        if (fx.gold) {
+            const before = _num(player.gold);
+            if (_num(fx.gold) < 0) {
+                player.gold = Math.max(0, before + _num(fx.gold));
+                Upbringing._spendHere(player, world, before - player.gold);
+            } else {
+                // (coin that comes the House's way is the town's first: never from nothing)
+                player.gold = before + (world ? Economy.drawNearest(world, player.q, player.r, _num(fx.gold)) : 0);
+            }
+        }
         if (fx.renown) player.renown = Math.max(0, (player.renown || 0) + _num(fx.renown));
         if (fx.karma) player.karma = (player.karma || 0) + _num(fx.karma);
         if (fx.prestige && player.house) {
@@ -562,7 +589,11 @@ export const Upbringing = {
             if (choiceId) return { success: false, reason: `That needs ${cost} gold.` };
             choice = def.choices.find(c => !_num(c.cost)) || choice;
         }
-        if (_num(choice.cost) > 0) player.gold = Math.max(0, (player.gold || 0) - _num(choice.cost));
+        if (_num(choice.cost) > 0) {
+            const before = _num(player.gold);
+            player.gold = Math.max(0, before - _num(choice.cost));
+            Upbringing._spendHere(player, world, before - player.gold);
+        }
 
         const sibling = up.pending.siblingId ? Upbringing._child(player, up.pending.siblingId) : null;
         const fill = (t) => Upbringing._fill(t, child, sibling);

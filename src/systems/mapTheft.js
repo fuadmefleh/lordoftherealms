@@ -29,6 +29,8 @@ import { Underworld } from './underworld.js';
 import { Gossip } from './gossip.js';
 import { Ledger } from './ledger.js';
 import { Names } from '../core/names.js';
+import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
 
 const DEFAULTS = {
     targets: {
@@ -90,6 +92,14 @@ export const MapTheft = {
             _cfg = { ...DEFAULTS, ...o, accuse: { ...DEFAULTS.accuse, ...(o.accuse || {}) }, targets: o.targets && Object.keys(o.targets).length ? o.targets : DEFAULTS.targets };
         }
         return _cfg;
+    },
+
+    /** Coin paid over a grudge: into the purse of the town it happened in (else the nearest). */
+    _payTown(world, g, player, amount) {
+        const t = g && Number.isFinite(g.q) && world && typeof world.getTile === 'function' ? world.getTile(g.q, g.r) : null;
+        if (t && t.settlement && Economy.payTown(t.settlement, amount)) return;
+        const at = g && Number.isFinite(g.q) ? g : player;
+        if (!Economy.payNearest(world, at.q, at.r, amount)) MoneySupply.leak(world, -amount, 'fines');
     },
 
     /** The player's grudges (created / backfilled). */
@@ -407,6 +417,8 @@ export const MapTheft = {
                 if (_num(player.gold) < cost) return { invalid: true, notification: { title: 'Purse Too Light', body: `You need ${cost} gold.`, type: 'error' } };
                 player.gold -= cost;
                 Ledger.record(player, 'fines', -cost);
+                // (to the chart's owner, who spends it in their town)
+                MapTheft._payTown(world, g, player, cost);
                 const before = (player.maps || []).length;
                 player.maps = (player.maps || []).filter(m => !(g.mapIds || []).includes(m.id));
                 MapTheft._settle(player, g);
@@ -425,6 +437,7 @@ export const MapTheft = {
                 if (Utils.random() < MapTheft.accuseChance(player, 'bribe')) {
                     player.gold -= bribe;
                     Ledger.record(player, 'bribes', -bribe);
+                    MapTheft._payTown(world, g, player, bribe);
                     MapTheft._settle(player, g);
                     return { ok: true, notification: { title: '🤫 Silence Bought', body: `${bribe} gold changes hands; ${g.owner} remembers he must have mislaid the chart.`, type: 'warning' } };
                 }

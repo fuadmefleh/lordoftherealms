@@ -40,6 +40,8 @@ import { Religion } from './religion.js';
 import { Gossip } from './gossip.js';
 import { Quests } from './quests.js';
 import { NpcMemory } from './npcMemory.js';
+import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
 
 const DEFAULT_CONFIG = {
     firstDelay: 3,
@@ -81,12 +83,43 @@ function shiftSentiment(demo, v) {
     demo.sentiment = clamp(Math.round((demo.sentiment || 0) + v), 0, 100);
 }
 
+/**
+ * A petition's coin to (v > 0) or from (v < 0) the player, with a real
+ * counterparty: the petitioning town's purse (or its realm's, or the nearest
+ * town's). A payer that cannot pay it all pays what it has.
+ */
+function petitionGold(c, v) {
+    const player = c.player;
+    const world = c.world;
+    const have = Math.max(0, player.gold || 0);
+    const at = c.ctx && c.ctx.q != null ? c.ctx : player;
+    const town = c.settlement && c.settlement.economy && !c.settlement.inKind ? c.settlement
+        : world && Number.isFinite(at.q) ? Economy.nearestPurse(world, at.q, at.r) : null;
+    if (v < 0) {
+        const paid = Math.round(Math.min(have, -v) * 100) / 100;
+        if (!(paid > 0)) return;
+        player.gold = Math.round((have - paid) * 100) / 100;
+        if (!world) return;
+        if (town) Economy.payTown(town, paid);
+        else if (!(c.kingdom && Economy.payRealm(c.kingdom, world, paid))) MoneySupply.leak(world, -paid, 'petitions');
+    } else if (v > 0) {
+        let got = v;
+        if (world) {
+            if (town) got = Economy.drawTown(town, v);
+            else if (c.kingdom) got = Economy.crownPays(c.kingdom, world, v, 0.5);
+            else MoneySupply.leak(world, v, 'petitions');
+        }
+        player.gold = Math.round((have + got) * 100) / 100;
+    }
+}
+
 // ── Effect registry ─────────────────────────────────────────────
 // apply(c, value): c = { player, world, ctx, settlement, kingdom, day }
 // describe(value, ctx, c): short human text, or null when it would do nothing here.
 const EFFECTS = {
     gold: {
-        apply(c, v) { c.player.gold = Math.max(0, (c.player.gold || 0) + v); },
+        // (the petitioners' coin: paid out of, or into, the purse of the place that petitions)
+        apply(c, v) { petitionGold(c, v); },
         describe: (v) => `${signed(v)} gold`,
     },
     karma: {
@@ -250,7 +283,13 @@ const EFFECTS = {
     },
     // ── The crown (holding kind 'crown': royal petitions while the player rules a realm) ──
     treasury: {
-        apply(c, v) { if (c.kingdom) c.kingdom.treasury = Math.max(0, (c.kingdom.treasury || 0) + v); },
+        // (raised out of the realm's towns, or spent into them)
+        apply(c, v) {
+            if (!c.kingdom) return;
+            if (!c.world) { c.kingdom.treasury = Math.max(0, (c.kingdom.treasury || 0) + v); return; }
+            if (v > 0) Economy.crownRaise(c.kingdom, c.world, v, 0.5);
+            else if (v < 0) Economy.crownSpend(c.kingdom, c.world, -v);
+        },
         describe: (v, ctx) => ctx.kind === 'crown' ? `${signed(v)} royal treasury` : null,
     },
     military: {

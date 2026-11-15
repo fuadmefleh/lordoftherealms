@@ -14,6 +14,7 @@ import { LegendaryArtifacts } from './legendaryArtifacts.js';
 import { Infrastructure } from './infrastructure.js';
 import { KingdomNavy } from '../world/kingdomNavy.js';
 import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
 import { Seasons } from '../world/seasons.js';
 import { Climate } from '../world/climate.js';
@@ -398,6 +399,8 @@ export const Ships = {
 
         const cost = this.getHireCost(n);
         player.gold -= cost;
+        // (the sailors' signing money is spent in the port)
+        this._payPort(world, ship.q, ship.r, cost);
         const s = this._getCrewSettings();
         this._setMorale(ship, (ship.morale * ship.crew + s.startingMorale * n) / (ship.crew + n));
         ship.crew += n;
@@ -618,6 +621,8 @@ export const Ships = {
         }
 
         player.gold -= used.price;
+        // (the seller is the port: its purse)
+        this._payPort(world, q, r, used.price);
         if (!player.ships) player.ships = [];
 
         const ship = {
@@ -682,6 +687,8 @@ export const Ships = {
         }
 
         player.gold -= totalCost;
+        // (the shipwrights are paid: the town's purse)
+        this._payPort(world, q, r, totalCost);
         if (!player.ships) player.ships = [];
 
         const ship = {
@@ -713,7 +720,7 @@ export const Ships = {
 
     /* ── Selling a ship ──────────────────────────────────────── */
 
-    sellShip(player, shipId) {
+    sellShip(player, shipId, world = null) {
         const idx = (player.ships || []).findIndex(s => s.id === shipId);
         if (idx === -1) return { success: false, message: 'Ship not found.' };
 
@@ -723,7 +730,10 @@ export const Ships = {
         }
 
         const value = this.getShipValue(ship);
-        const salePrice = Math.floor(value * 0.5);
+        const asked = Math.floor(value * 0.5);
+        // (the port's buyers pay out of its purse, as far as it holds; called without the world: the old flat price, unbooked)
+        const salePrice = world ? Math.floor(this._drawPort(world, ship.q, ship.r, asked)) : asked;
+        if (world && asked > 0 && salePrice <= 0) return { success: false, message: 'The port has no coin to buy her.' };
 
         player.gold += salePrice;
         player.ships.splice(idx, 1);
@@ -800,7 +810,7 @@ export const Ships = {
         return Math.max(5, Math.floor(baseCost * costPerPercent * damage));
     },
 
-    repairShip(player, shipId) {
+    repairShip(player, shipId, world = null) {
         const ship = this.getShipById(player, shipId);
         if (!ship) return { success: false, message: 'Ship not found.' };
         if (ship.condition >= 100) return { success: false, message: 'Ship is in perfect condition.' };
@@ -810,6 +820,8 @@ export const Ships = {
         if (player.gold < cost) return { success: false, message: `Need ${cost}g for repairs.` };
 
         player.gold -= cost;
+        // (the shipwrights' fee: the port's purse)
+        if (world) this._payPort(world, ship.q, ship.r, cost);
         ship.condition = 100;
 
         if (player.financeToday) {
@@ -819,7 +831,7 @@ export const Ships = {
         return { success: true, message: `Repaired ${ship.name} for ${cost}g.` };
     },
 
-    upgradeShip(player, shipId, customizationIds) {
+    upgradeShip(player, shipId, customizationIds, world = null) {
         const ship = this.getShipById(player, shipId);
         if (!ship) return { success: false, message: 'Ship not found.' };
         if (ship.status !== 'docked') return { success: false, message: 'Ship must be docked for upgrades.' };
@@ -835,6 +847,7 @@ export const Ships = {
         }
 
         player.gold -= quote.totalCost;
+        if (world) this._payPort(world, ship.q, ship.r, quote.totalCost);
         if (!Array.isArray(ship.customizations)) ship.customizations = [];
         for (const c of quote.picked) ship.customizations.push(c.id);
         this._applyOwnerPerks(player, quote.picked.map(c => c.id), 1);
@@ -1192,7 +1205,7 @@ export const Ships = {
                         Quests.track(player, 'pirates_defeated');
                     }
                     // Give rewards
-                    if (event.reward) this._applyReward(player, event.reward, ship);
+                    if (event.reward) this._applyReward(player, event.reward, ship, world);
                 } else {
                     resultText += ' You were overwhelmed!' + crewToll.text;
                     resultType = 'error';
@@ -1216,7 +1229,7 @@ export const Ships = {
                 resultText += ` Ship took ${hullDmg}% damage.`;
             }
         } else if (event.reward) {
-            this._applyReward(player, event.reward, ship);
+            this._applyReward(player, event.reward, ship, world);
             resultType = 'success';
         }
 
@@ -1256,7 +1269,8 @@ export const Ships = {
             Quests.track(player, 'battles_won');
             Quests.track(player, 'raiders_defeated');
             Quests.track(player, 'pirates_defeated');
-            const loot = enemyStrength * (2 + Math.floor(Utils.random() * 4));
+            // (the bounty is the nearest port's, out of its purse as far as it holds)
+            const loot = Math.floor(this._drawPort(world, ship.q, ship.r, enemyStrength * (2 + Math.floor(Utils.random() * 4))));
             player.gold += loot;
             player.karma = (player.karma || 0) + 2;
             player.renown = (player.renown || 0) + 3;
@@ -1265,7 +1279,8 @@ export const Ships = {
             // Boarding planks: board the beaten pirate and sell her as a prize
             let prize = 0;
             if (fx.captureBonus > 0 && Utils.random() < fx.captureBonus) {
-                prize = enemyStrength * 15;
+                // (sold to the nearest port's buyers, out of its purse)
+                prize = Math.floor(this._drawPort(world, ship.q, ship.r, enemyStrength * 15));
                 player.gold += prize;
             }
 
@@ -1329,6 +1344,8 @@ export const Ships = {
             // Boarding planks strip the prize more thoroughly
             const loot = Math.floor((goldRange[0] + Math.floor(Utils.random() * (goldRange[1] - goldRange[0]))) * (1 + (fx.captureBonus || 0)));
             player.gold += loot;
+            // (a merchantman's strongbox at sea: coin no purse in the world counts - booked found)
+            MoneySupply.leak(world, loot, 'piracy');
             player.karma = (player.karma || 0) - karmaLoss;
             player.renown = Math.max(0, (player.renown || 0) - renownLoss);
             Quests.track(player, 'piracy_committed'); // travelling companions take note
@@ -1780,6 +1797,8 @@ export const Ships = {
             const paidUpkeep = Math.min(totalUpkeep, Math.max(0, player.gold || 0));
             upkeepShort = totalUpkeep - paidUpkeep;
             player.gold -= paidUpkeep;
+            // (the chandlers, riggers and harbour dues of the ports the fleet keeps to)
+            if (paidUpkeep > 0) this._payFleet(world, ships, paidUpkeep);
             if (player.financeToday && paidUpkeep > 0) {
                 player.financeToday.expenses.ships = (player.financeToday.expenses.ships || 0) + paidUpkeep;
             }
@@ -1797,7 +1816,7 @@ export const Ships = {
 
         // Crews away from port eat from the hold
         const provisions = this._feedCrews(player, world);
-        const crew = this._payCrews(player, ships);
+        const crew = this._payCrews(player, ships, world);
         // A day at sea aboard your own ship teaches Sailing (most of all a storm, and making port)
         const sailing = this._sailingDay(player, storms, voyage);
         if (voyage && sailing) this._voyageLog(this.getShipById(player, voyage.shipId) || {}, sailing.icon, sailing.text, world);
@@ -1907,7 +1926,7 @@ export const Ships = {
      * a share of any crew whose morale has collapsed deserts.
      * Returns { wages, paid, deserted: [{ shipId, name, count }] }.
      */
-    _payCrews(player, ships) {
+    _payCrews(player, ships, world = null) {
         const cfg = this._getCrewSettings();
         let wages = 0;
         for (const ship of ships) {
@@ -1917,6 +1936,8 @@ export const Ships = {
         const paid = wages <= 0 || (player.gold || 0) >= wages;
         if (paid && wages > 0) {
             player.gold -= wages;
+            // (the sailors spend their pay ashore)
+            this._payFleet(world, ships, wages);
             if (player.financeToday) {
                 player.financeToday.expenses.crewWages = (player.financeToday.expenses.crewWages || 0) + wages;
             }
@@ -1987,9 +2008,46 @@ export const Ships = {
         return Math.max(1, strength);
     },
 
+    /* ── Port purses ─────────────────────────────────────────── */
+
+    /** Coin the player pays a port (shipwrights, sailors, chandlers): into the town at (q, r), else the nearest keeping coin, else booked lost. */
+    _payPort(world, q, r, amount) {
+        const a = Math.round((Number(amount) || 0) * 100) / 100;
+        if (!(a > 0)) return 0;
+        const t = world && typeof world.getTile === 'function' ? world.getTile(q, r) : null;
+        if (t && t.settlement && Economy.payTown(t.settlement, a)) return a;
+        if (world && Economy.payNearest(world, q, r, a)) return a;
+        MoneySupply.leak(world, -a, 'ships');
+        return a;
+    },
+
+    /** Coin a port pays the player (a hull bought, a bounty): out of the town at (q, r), else the nearest keeping coin, as far as it holds. → paid */
+    _drawPort(world, q, r, amount) {
+        const a = Math.max(0, Number(amount) || 0);
+        if (!(a > 0)) return 0;
+        // (called without the world — old callers, bare tests: the old flat sum, unbooked)
+        if (!world) return a;
+        const t = typeof world.getTile === 'function' ? world.getTile(q, r) : null;
+        const s = t && t.settlement;
+        if (s && !s.inKind && Economy.townPurse(s) != null) return Economy.drawTown(s, a);
+        return Economy.drawNearest(world, q, r, a);
+    },
+
+    /** A fleet's outgoings, spread over the ports by its ships (each ship's share near where it lies). */
+    _payFleet(world, ships, amount) {
+        const list = (ships || []).filter(x => x && Number.isFinite(x.q) && Number.isFinite(x.r));
+        if (!list.length) { MoneySupply.leak(world, -amount, 'ships'); return; }
+        let left = Math.round(amount * 100) / 100;
+        list.forEach((ship, i) => {
+            const share = i === list.length - 1 ? left : Math.floor(amount / list.length * 100) / 100;
+            left = Math.round((left - share) * 100) / 100;
+            this._payPort(world, ship.q, ship.r, share);
+        });
+    },
+
     /* ── Reward helper ───────────────────────────────────────── */
 
-    _applyReward(player, reward, ship = null) {
+    _applyReward(player, reward, ship = null, world = null) {
         if (reward.gold) {
             const rolled = Array.isArray(reward.gold)
                 ? reward.gold[0] + Math.floor(Utils.random() * (reward.gold[1] - reward.gold[0]))
@@ -1997,6 +2055,8 @@ export const Ships = {
             // Navigation (tech) and the ship's charts and lookouts make the most of what the sea offers
             const amt = Math.floor(rolled * this.getExplorationMultiplier(player, ship));
             player.gold += amt;
+            // (the sea's finds - a wreck, a hoard ashore - are coin from no purse: booked found)
+            MoneySupply.leak(world, amt, 'seaFinds');
             if (player.financeToday) {
                 player.financeToday.income.exploration = (player.financeToday.income.exploration || 0) + amt;
             }

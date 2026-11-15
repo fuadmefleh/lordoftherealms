@@ -22,6 +22,7 @@ import { Hex } from '../core/hex.js';
 import { Difficulty } from '../core/difficulty.js';
 import { WorldUnit } from '../world/units.js';
 import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
 import { CrownBooks } from '../world/crownBooks.js';
 import { RealmArms } from '../world/realmArms.js';
 import { House } from './house.js';
@@ -172,6 +173,7 @@ export const RealmWars = {
         // (into the demanding crown's chests)
         const k = world.getKingdom ? world.getKingdom(kingdomId) : null;
         if (k) k.treasury = (k.treasury || 0) + u.tribute;
+        else MoneySupply.leak(world, -u.tribute, 'crownLosses'); // (a crown gone: the envoy keeps it, abroad)
         delete s.ultimatums[kingdomId];
         s.truces[kingdomId] = world.day + Math.round(CONFIG.truceDays / 2);
         if (player.reputation) player.reputation[kingdomId] = (player.reputation[kingdomId] || 0) + 20;
@@ -273,7 +275,10 @@ export const RealmWars = {
         let got = fromChest;
         if (got < want) {
             const towns = Economy.realmTowns(kingdom, world).map(t => ({ settlement: t.settlement, weight: Math.max(1, t.settlement.population || 0) }));
-            got += Math.floor(Economy.drawTowns(towns, want - got, 0.5).paid);
+            const paid = Economy.drawTowns(towns, want - got, 0.5).paid;
+            got += Math.floor(paid);
+            // (the odd coppers levied stay in the crown's chests)
+            if (paid - Math.floor(paid) > 0) kingdom.treasury = Math.round(((kingdom.treasury || 0) + paid - Math.floor(paid)) * 100) / 100;
         }
         return got;
     },
@@ -285,10 +290,12 @@ export const RealmWars = {
      */
     _homeChest(kingdom, unit, rec = null) {
         const inv = unit && unit.inventory;
-        const coin = inv ? Math.max(0, Math.floor(Number(inv.gold) || 0)) : 0;
-        if (inv) inv.gold = 0;
+        const coin = inv ? Math.max(0, Number(inv.gold) || 0) : 0;
         if (rec) rec.chest = 0;
-        if (kingdom && coin > 0) kingdom.treasury = (kingdom.treasury || 0) + coin;
+        // (a fallen crown's host: the bags stay on the unit, paid into the nearest town when it leaves the map)
+        if (!kingdom || kingdom.isAlive === false) return 0;
+        if (inv) inv.gold = 0;
+        if (coin > 0) kingdom.treasury = Math.round(((kingdom.treasury || 0) + coin) * 100) / 100;
         return coin;
     },
 

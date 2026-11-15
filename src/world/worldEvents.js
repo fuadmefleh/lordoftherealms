@@ -958,9 +958,16 @@ export const WorldEvents = {
             const rep = player.reputation[event.kingdom] || 0;
 
             if (rep > 50 && event.impact === 'positive') {
-                // Player benefits from allied kingdom's good fortune
-                player.gold += 50;
-                return `Your allies prosper! +50 gold`;
+                // Player benefits from allied kingdom's good fortune: a gift out of its chests
+                // (and, past them, its towns' purses) — only what it can pay
+                const ally = world && typeof world.getKingdom === 'function' ? world.getKingdom(event.kingdom) : null;
+                const gift = ally ? Economy.crownPays(ally, world, 50) : 0;
+                if (gift > 0) {
+                    player.gold += gift;
+                    return `Your allies prosper! +${Math.round(gift)} gold`;
+                }
+                player.renown += 2;
+                return `Your allies prosper! +2 renown`;
             } else if (rep < -50 && event.impact === 'negative') {
                 // Player benefits from enemy's misfortune
                 player.renown += 5;

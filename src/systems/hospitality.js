@@ -44,6 +44,7 @@ import { Fame } from './fame.js';
 import { FoodSkills } from './foodSkills.js';
 import { PracticeSkills } from './practiceSkills.js';
 import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
 import { Townsfolk } from './townsfolk.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
@@ -569,7 +570,7 @@ export const Hospitality = {
         const k = this.keeperPerson(world, h);
         const g = Math.max(0, Math.floor(_num(amount)));
         if (!k || !(g > 0)) return 0;
-        h.cash = Math.round(_num(h.cash) - g);
+        h.cash = Math.round((_num(h.cash) - g) * 100) / 100;
         Townsfolk.purse(k.folk, k.p, world);
         k.p.purse = Math.round((_num(k.p.purse) + g) * 100) / 100;
         return g;
@@ -616,7 +617,8 @@ export const Hospitality = {
         if (keeper) {
             Townsfolk.purse(keeper.folk, keeper.p, world);
             keeper.p.purse = Math.round((_num(keeper.p.purse) + price) * 100) / 100;
-        } else if (house) house.cash = Math.round(_num(house.cash) + price);
+        } else if (house) house.cash = Math.round((_num(house.cash) + price) * 100) / 100;
+        else if (!(opts.town && Economy.payTown(opts.town, price))) MoneySupply.leak(world, -price, 'tavern');
         if (house) house.walkIns = _num(house.walkIns) + 1;
         return { paid: price, price };
     },
@@ -775,6 +777,8 @@ export const Hospitality = {
             const lost = Math.min(C.theftMax, Math.max(1, Math.round(player.gold * share)));
             player.gold -= lost;
             Ledger.record(player, 'pickpocketed', -lost);
+            // (the thief spends it in the town: the inn's, else the nearest)
+            if (!Economy.payNearest(world, player.q, player.r, lost)) MoneySupply.leak(world, -lost, 'innTheft');
             notices.push({ icon: '👛', title: 'Robbed in Your Sleep', text: `Someone in the common room at ${L.name} went through your things in the night: ${lost} gold gone.`, type: 'warning' });
         }
         return notices;
@@ -808,6 +812,9 @@ export const Hospitality = {
         const supplies = Math.round(guests * _num(K.costPerGuest, 2));
         const costs = wages + supplies;
         if (town && costs > 0) Economy.payTown(town, costs);
+        else if (costs > 0) MoneySupply.leak(world, -costs, 'hospitalityCosts');
+        // (the upkeep — repairs, rates, firewood — is the town's too)
+        if (upkeep > 0 && !(town && Economy.payTown(town, upkeep))) MoneySupply.leak(world, -upkeep, 'propertyUpkeep');
         player.gold += takings - costs - upkeep;
         if (takings) Ledger.record(player, 'hospitality', takings);
         if (costs) Ledger.record(player, 'hospitalityCosts', -costs);
@@ -858,15 +865,20 @@ export const Hospitality = {
         const [id, ev] = options.find(o => (roll -= o[2]) < 0) || options[options.length - 1];
         let text = String(ev.text || '').replace('{house}', property.name);
         let type = 'info';
+        const town = tile && tile.settlement;
         if (id === 'brawl') {
             const [lo, hi] = ev.cost || [20, 60];
             const cost = Math.round(lo + (hi - lo) * rng());
             player.gold -= cost;
+            // (the glazier, the joiner and the surgeon are the town's)
+            if (!(town && Economy.payTown(town, cost))) MoneySupply.leak(world, -cost, 'hospitalityCosts');
             Ledger.record(player, 'hospitalityCosts', -cost);
             text = text.replace('{cost}', cost);
             type = 'warning';
         } else if (id === 'noble') {
-            const gold = Math.round(view.rooms * this.revenuePerGuest(property.type, view.stars, h.priceMult) * _num(ev.nights, 2));
+            // (the lord's steward pays out of the coin the retinue spends in town)
+            const bill = Math.round(view.rooms * this.revenuePerGuest(property.type, view.stars, h.priceMult) * _num(ev.nights, 2));
+            const gold = town ? Math.floor(Economy.drawTown(town, bill)) : bill;
             player.gold += gold;
             Ledger.record(player, 'hospitality', gold);
             text = text.replace('{gold}', gold);
@@ -880,7 +892,8 @@ export const Hospitality = {
             type = 'warning';
         } else if (id === 'regular') {
             // One room booked for the season, paid up front at the regular's rate
-            const gold = Math.round(this.revenuePerGuest(property.type, view.stars, h.priceMult) * _num(ev.nights, 15) * _num(ev.rate, 0.8));
+            const bill = Math.round(this.revenuePerGuest(property.type, view.stars, h.priceMult) * _num(ev.nights, 15) * _num(ev.rate, 0.8));
+            const gold = town ? Math.floor(Economy.drawTown(town, bill)) : bill;
             if (gold > 0) {
                 player.gold += gold;
                 Ledger.record(player, 'hospitality', gold);
@@ -968,16 +981,18 @@ export const Hospitality = {
                 // `cashKeep` spends `spendShare` of the rest in town each week
                 const town = this._townAt(world, h.q, h.r);
                 const bills = Math.round(C.weekDays * guests * this.revenuePerGuest(h.kind, h.stars, h.priceMult));
-                const takings = town ? Math.floor(Economy.drawTown(town, bills)) : 0;
+                // (to the copper: what the town paid is what the house holds — never rounded away or made up)
+                const takings = town ? Math.round(Economy.drawTown(town, bills) * 100) / 100 : 0;
                 const costs = Math.round(C.weekDays * guests * _num(K.costPerGuest, 2) + _num(K.weeklyCosts, 20));
                 const cash0 = Math.max(0, _num(h.cash)) + takings;
                 const paid = Math.min(costs, Math.max(0, Math.floor(cash0)));
                 if (town && paid > 0) Economy.payTown(town, paid);
+                else if (paid > 0) MoneySupply.leak(world, -paid, 'innCosts');
                 // (what the house could not pay is owed no one: the linen goes unwashed, the stars
                 // fall. Carried as negative cash it swallowed later takings — coin drawn from the
                 // town into a hole, tens of thousands a year across the inns of a long game)
                 const short = costs > paid;
-                h.cash = Math.round(cash0 - paid);
+                h.cash = Math.round((cash0 - paid) * 100) / 100;
                 // (the keeper takes their share of what the house cleared, into their own purse)
                 const cleared = takings - paid;
                 if (cleared > 0 && h.cash > 0) this._payKeeper(world, h, Math.min(h.cash, Math.floor(cleared * _num(N.keeperShare, 0.25))));

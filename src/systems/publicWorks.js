@@ -45,6 +45,25 @@ import { Seasons } from '../world/seasons.js';
 import { Ledger } from './ledger.js';
 import { CrownBooks } from '../world/crownBooks.js';
 import { Names } from '../core/names.js';
+import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
+
+// Coin (2026-11): a player's work's budget (w.budget) is held by its
+// paymaster, counted coin (systems/coinCensus.js, in the site's realm): coin
+// goes into it from the player's purse and out of it into real purses
+// (materials to the market town, wages to the site town, what is returned to
+// the player), unbooked. A work forgotten with budget still in it (its site
+// gone and nobody to return it to) books that coin lost. A crown's work pays
+// out of its chests into the same towns.
+/** Coin into `town`'s purse, else the nearest town's to (q, r), else booked lost. */
+function _payTownOr(world, town, q, r, amount) {
+    const a = _r2(_num(amount));
+    if (!(a > 0) || !world) return;
+    // (a bare record that keeps no purse is not given one: the nearest town that does)
+    if (town && Economy.townPurse(town) != null && Economy.payTown(town, a)) return;
+    if (Number.isFinite(q) && Economy.payNearest(world, q, r, a)) return;
+    MoneySupply.leak(world, -a, 'publicWorks');
+}
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -110,6 +129,8 @@ export const PublicWorks = {
         const done = st.works.filter(w => w && w.status !== 'building' && w.status !== 'stalled' && !w.toll);
         if (done.length > keep) {
             const drop = new Set(done.slice(0, done.length - keep));
+            // (a budget nobody took back goes with the paymaster: booked lost)
+            for (const w of drop) if (_num(w.budget) > 0) { MoneySupply.leak(world, -_r2(w.budget), 'worksBudget'); w.budget = 0; }
             st.works = st.works.filter(w => !drop.has(w));
         }
         return out;
@@ -294,12 +315,11 @@ export const PublicWorks = {
         const st = Transport.state(world);
         const w = st.works.find(x => x && x.id === workId);
         if (!w || w.owner !== 'player' || (w.status !== 'building' && w.status !== 'stalled')) return { success: false, message: 'No such work of yours under way.' };
-        const back = Math.floor(_num(w.budget));
-        w.budget = 0;
+        const back = PublicWorks._returnBudget(world, w);
         w.status = 'abandoned';
         w.done = _day(world);
         if (back > 0) { player.gold += back; Ledger.record(player, 'publicWorks', back); }
-        return { success: true, message: `The ${w.name} is abandoned; ${back}g of its budget returned.` };
+        return { success: true, message: `The ${w.name} is abandoned; ${Math.floor(back)}g of its budget returned.` };
     },
 
     /** Share of a work done: the lesser of its days and its materials. */
@@ -313,19 +333,28 @@ export const PublicWorks = {
 
     // ── Building ──────────────────────────────────────────
 
-    /** Spend from the work's payer; false when it can't. */
-    _pay(world, player, w, amount) {
+    /** What is left of a player's work's budget, returned to the player (to the copper); the budget emptied. → the coin. */
+    _returnBudget(world, w) {
+        const back = _r2(Math.max(0, _num(w.budget)));
+        w.budget = 0;
+        return back;
+    },
+
+    /** Spend from the work's payer into `town`'s purse (the seller, the hands); false when it can't. */
+    _pay(world, player, w, amount, town = null) {
         if (!(amount > 0)) return true;
         if (w.payer === 'player') {
             if (_num(w.budget) + 1e-9 < amount) return false;
-            w.budget = _r2(_num(w.budget) - amount);
+            const before = _num(w.budget);
+            w.budget = _r2(before - amount);
+            _payTownOr(world, town, w.tq, w.tr, before - w.budget);
         } else {
             const k = _kingdom(world, w.owner);
             if (!k || k.isAlive === false) return false;
             if (_num(k.treasury) - amount < _num(Transport.config().upkeep.floor, 400)) return false;
             k.treasury = _num(k.treasury) - amount;
             CrownBooks.note(k, 'works', amount);
-            CrownBooks.spendAtCapital(world, k, amount);
+            _payTownOr(world, town, w.tq, w.tr, amount);
         }
         w.spent = _r2(_num(w.spent) + amount);
         return true;
@@ -334,7 +363,16 @@ export const PublicWorks = {
     _progress(world, player, w, day, out) {
         const B = Transport.config().build;
         const site = _town(world, w.tq, w.tr);
-        if (!site) { w.status = 'abandoned'; w.done = day; return; }
+        if (!site) {
+            w.status = 'abandoned';
+            w.done = day;
+            // (what is left of a player's budget comes back to them)
+            if (w.payer === 'player' && player) {
+                const back = PublicWorks._returnBudget(world, w);
+                if (back > 0) { player.gold = _num(player.gold) + back; Ledger.record(player, 'publicWorks', back); }
+            }
+            return;
+        }
         const alt = w.aq != null ? _town(world, w.aq, w.ar) : null;
         const edict = PublicWorks._edict(world, w.kid);
         // Materials: bought at the going price, a share of the stock a day
@@ -350,7 +388,7 @@ export const PublicWorks = {
                 const take = Math.min(want, avail);
                 if (!(take > 0.01)) continue;
                 const price = _basePrice(g) * SettlementMarket.scarcity(town, g) * edict;
-                if (!PublicWorks._pay(world, player, w, take * price)) { w.stall = 'funds'; break; }
+                if (!PublicWorks._pay(world, player, w, take * price, town)) { w.stall = 'funds'; break; }
                 SettlementMarket.take(town, g, take);
                 w.got[g] = _r2(_num(w.got[g]) + take);
                 want -= take;
@@ -367,7 +405,7 @@ export const PublicWorks = {
         const matF = PublicWorks.progress({ ...w, days: 0 });
         const ahead = _num(w.daysDone) / Math.max(1, w.days) > matF + 0.15;
         const pay = ahead ? wage * 0.5 : wage;
-        if (!PublicWorks._pay(world, player, w, pay)) {
+        if (!PublicWorks._pay(world, player, w, pay, site)) {
             w.status = 'stalled';
             w.stall = 'funds';
             PublicWorks._stallNote(w, out, 'the hands want their wages');
@@ -416,10 +454,9 @@ export const PublicWorks = {
             Transport.record(world, { kind: 'harbour_built', place: s ? s.name : 'the port', other: '', q: w.tq, r: w.tr, day, kingdomId: w.kid, own: w.owner === 'player', work: w.id });
         }
         if (w.owner === 'player' && player) {
-            const back = Math.floor(_num(w.budget));
-            w.budget = 0;
+            const back = PublicWorks._returnBudget(world, w);
             if (back > 0) { player.gold += back; Ledger.record(player, 'publicWorks', back); }
-            out.notices.push({ icon: w.icon || '🏗️', title: 'Works Finished', text: `The ${w.name} is finished (${Math.round(w.spent)}g spent${back > 0 ? `, ${back}g returned` : ''}).${w.toll ? ' Its tolls are yours.' : ''}`, type: 'success' });
+            out.notices.push({ icon: w.icon || '🏗️', title: 'Works Finished', text: `The ${w.name} is finished (${Math.round(w.spent)}g spent${back > 0 ? `, ${Math.floor(back)}g returned` : ''}).${w.toll ? ' Its tolls are yours.' : ''}`, type: 'success' });
         }
     },
 
@@ -533,15 +570,16 @@ export const PublicWorks = {
             const foreign = k && k.id !== _ruledId(player);
             const cut = foreign ? amount * _num(Transport.config().build.crownShare, 0.25) : 0;
             if (cut > 0 && k) { k.treasury = _num(k.treasury) + cut; CrownBooks.note(k, 'customs', cut); }
+            const mine = amount - (cut > 0 && k ? cut : 0);
             if (player) {
-                const mine = amount - cut;
                 player.gold = _num(player.gold) + mine;
                 Ledger.record(player, 'roadTolls', _r2(mine));
-            }
+            } else _payTownOr(world, _town(world, w.tq, w.tr), w.tq, w.tr, mine); // (no one to take it: the toll-keeper spends it)
             return amount;
         }
         const k = _kingdom(world, w.owner);
-        if (k) { k.treasury = _num(k.treasury) + amount; CrownBooks.note(k, 'customs', amount); }
+        if (k && k.isAlive !== false) { k.treasury = _num(k.treasury) + amount; CrownBooks.note(k, 'customs', amount); }
+        else _payTownOr(world, _town(world, w.tq, w.tr), w.tq, w.tr, amount);
         return amount;
     },
 
@@ -636,6 +674,8 @@ export const PublicWorks = {
             if (fare > 0 && _num(player.gold) >= fare) {
                 player.gold -= fare;
                 Ledger.record(player, 'roadTolls', -fare);
+                // (the ferryman's fare: spent in the nearest town)
+                _payTownOr(world, null, tile.q, tile.r, fare);
                 paid += fare;
             }
         }

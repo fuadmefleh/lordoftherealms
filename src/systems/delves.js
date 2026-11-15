@@ -31,6 +31,8 @@ import { DataLoader } from '../core/dataLoader.js';
 import { Utils } from '../core/utils.js';
 import { PlayerInventory } from '../core/inventory.js';
 import { WorldUnit } from '../world/units.js';
+import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
 import { Traits } from './traits.js';
 import { Quests } from './quests.js';
 import { LegendaryArtifacts } from './legendaryArtifacts.js';
@@ -412,7 +414,12 @@ export const Delves = {
             }
         }
         if (cost.health > 0) player.health = Math.max(1, _num(player.health) - cost.health);
-        if (cost.gold > 0) player.gold = _num(player.gold) - cost.gold;
+        if (cost.gold > 0) {
+            // (an offering left with the dead: coin out of the world, booked lost)
+            const paid = Math.min(Math.max(0, _num(player.gold)), cost.gold);
+            player.gold = _num(player.gold) - cost.gold;
+            if (paid > 0) MoneySupply.leak(world, -paid, 'delveOfferings');
+        }
         for (const [item, qty] of Object.entries(cost.items || {})) {
             player.inventory[item] -= qty;
             if (player.inventory[item] <= 0) delete player.inventory[item];
@@ -485,11 +492,16 @@ export const Delves = {
         if (o.gold) {
             const g = Math.round(_roll(o.gold) * mult);
             if (g > 0) {
+                // (coin of the dead, in no purse: found, booked as rivals' delve finds are)
                 player.gold = _num(player.gold) + g;
                 haul.gold += g;
+                MoneySupply.leak(world, g, 'delveTreasure');
                 lines.push(`+${g} gold`);
             } else if (g < 0) {
+                // (the outlaws who take your purse spend it in the nearest town)
+                const lost = Math.min(Math.max(0, _num(player.gold)), -g);
                 player.gold = Math.max(0, _num(player.gold) + g);
+                if (lost > 0 && !Economy.payNearest(world, player.q, player.r, lost)) MoneySupply.leak(world, -lost, 'delveRobbed');
                 lines.push(`${g} gold`);
             }
         }
@@ -773,6 +785,8 @@ export const Delves = {
             if (cut > 0) {
                 player.gold = _num(player.gold) - cut;
                 partner.earned = _num(partner.earned) + cut;
+                // (held for them until the day's turn puts it in their purse: counted by the coin census)
+                partner.owed = _num(partner.owed) + cut;
                 summary.extra.push(`${partner.name} takes a ${Math.round(_num(partner.share) * 100)}% share: ${cut} gold`);
             }
             partner.delves = _num(partner.delves) + 1;

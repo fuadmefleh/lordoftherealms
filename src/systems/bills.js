@@ -25,6 +25,7 @@
 
 import { DataLoader } from '../core/dataLoader.js';
 import { Hex } from '../core/hex.js';
+import { Economy } from '../world/economy.js';
 import { Finance } from './finance.js';
 import { Underworld } from './underworld.js';
 import { Ledger } from './ledger.js';
@@ -260,6 +261,7 @@ export const Bills = {
         const fee = Math.ceil(amt * _num(F.fee, 0.25));
         if (_num(player.gold) < fee) return { success: false, reason: `The forger wants ${fee}g.` };
         player.gold -= fee;
+        Economy.payNearest(world, player.q, player.r, fee); // (the forger spends his fee in town)
         Ledger.record(player, 'fraud', -fee);
         st.forgeries.push(day);
         if (st.forgeries.length > 10) st.forgeries.splice(0, st.forgeries.length - 10);
@@ -292,7 +294,12 @@ export const Bills = {
         for (const b of st.list) {
             if (b.status === 'stolen' && day >= _num(b.cashDay)) {
                 const bank = Bills.payer(player, b);
-                if (bank) bank.capital = _num(bank.capital) - b.amount;
+                // (the forger takes the house's coin and spends it in its seat town)
+                if (bank) {
+                    const cashed = Math.min(b.amount, Math.max(0, _num(bank.capital)));
+                    bank.capital = _num(bank.capital) - cashed;
+                    Finance._payOut(world, bank, cashed);
+                }
                 b.status = 'lost';
                 st.stats.lost += b.amount;
                 out.notices.push({ icon: '🗝️', title: 'A Stolen Bill Cashed', text: `A forger has cashed your stolen bill of ${b.amount}g on ${b.payName}. It is gone.`, type: 'error' });
@@ -310,7 +317,15 @@ export const Bills = {
                 continue;
             }
             const [lo, hi] = C.recovery || [0.3, 0.6];
-            const back = Math.floor(b.amount * (lo + (hi - lo) * ((_hash(`${b.id}|recovery`) % 1000) / 1000)));
+            // (the receivers sold the failed house up and paid its seat town's creditors —
+            // Finance._fail: the bill's share comes out of that town's purse, as far as it goes)
+            const want = Math.floor(b.amount * (lo + (hi - lo) * ((_hash(`${b.id}|recovery`) % 1000) / 1000)));
+            const seat = pay || from;
+            const tile = seat && world && typeof world.getTile === 'function' ? world.getTile(seat.q, seat.r) : null;
+            const town = tile && tile.settlement ? tile.settlement : null;
+            const have = town ? Economy.townPurse(town) : null;
+            // (a bare town record with no purse pays in full, as Economy.drawTown does)
+            const back = town ? Economy.drawTown(town, have == null ? want : Math.min(want, Math.floor(Math.max(0, have)))) : 0;
             player.gold = _num(player.gold) + back;
             Ledger.record(player, 'bills', back);
             b.status = 'failed';

@@ -41,6 +41,7 @@ import { Hex } from '../core/hex.js';
 import { PlayerInventory } from '../core/inventory.js';
 import { Seasons } from '../world/seasons.js';
 import { Estates } from '../world/estates.js';
+import { MoneySupply } from '../world/moneySupply.js';
 import { Lots } from './lots.js';
 import { Ledger } from './ledger.js';
 
@@ -87,10 +88,17 @@ function _econ(s) {
     return s && _obj(s.economy) ? s.economy : null;
 }
 
-/** Coin into (+) or out of (−) a town's purse. */
-function _purse(s, amount) {
+/**
+ * Coin into (+) or out of (−) a town's purse. The callers keep a draw within
+ * the purse; whatever has no purse to come out of or go into (a place that
+ * keeps none, a draw past the purse) is booked as found or lost.
+ */
+function _purse(world, s, amount, why = 'livestock') {
     const e = _econ(s);
-    if (e) e.gold = _r2(Math.max(0, _num(e.gold) + amount));
+    if (!e) { MoneySupply.leak(world, -amount, why); return; }
+    const was = _num(e.gold);
+    e.gold = _r2(Math.max(0, was + amount));
+    if (was + amount < 0) MoneySupply.leak(world, -(was + amount), why);
 }
 
 /** The settlement at (q, r), else the nearest one (the market a herd there buys its fodder from). */
@@ -527,7 +535,7 @@ export const Livestock = {
         if (_num(player.gold) < cost + fee) return { success: false, reason: `${n} ${String(n === 1 ? sp.name : (sp.plural || sp.name)).toLowerCase()} cost ${cost}g${fee ? ` and ${fee}g to drive home` : ''}; you have ${Math.floor(_num(player.gold))}g.` };
         player.gold -= cost + fee;
         // the dealer's price and the drover's wage stay in the town
-        _purse(s, cost + fee);
+        _purse(world, s, cost + fee);
         Ledger.record(player, 'livestock', -cost);
         if (fee) Ledger.record(player, 'livestockFeed', -fee);
         book.stock[id] = _r2(_num(book.stock[id]) - n);
@@ -607,7 +615,7 @@ export const Livestock = {
         picks.length = 0;
         picks.push(...sold);
         earned = Math.round(earned);
-        _purse(s, -earned);
+        _purse(world, s, -earned);
         book.stock[id] = _r2(stock);
         herd.animals = herd.animals.filter(a => !picks.includes(a));
         player.gold = _num(player.gold) + earned;
@@ -853,7 +861,7 @@ export const Livestock = {
         const e = _econ(town);
         value = Math.round(e ? Math.min(value, Math.max(0, _num(e.gold))) : value);
         if (n) {
-            _purse(town, -value);
+            _purse(world, town, -value);
             player.gold = _num(player.gold) + value;
             Ledger.record(player, 'livestock', value);
             notices.push({ icon: '🐾', title: 'Beasts Sold Off', text: `With nowhere left to keep them, your ${n} beast${n === 1 ? '' : 's'} were sold off for ${value}g.`, type: 'warning' });
@@ -880,8 +888,8 @@ export const Livestock = {
             const stocked = !te || te.food == null || _num(te.food) >= food;
             if (_num(player.gold) >= whole && stocked) {
                 player.gold -= whole;
+                _purse(world, town, whole);
                 if (te) {
-                    _purse(town, whole);
                     if (te.food != null) te.food = _r2(Math.max(0, _num(te.food) - food));
                 }
                 Ledger.record(player, 'livestockFeed', -whole);

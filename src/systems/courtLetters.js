@@ -54,6 +54,7 @@ import { Relationships } from './relationships.js';
 import { Upbringing } from './upbringing.js';
 import { Duels } from './duels.js';
 import { Ledger } from './ledger.js';
+import { Economy } from '../world/economy.js';
 import { Mail } from './mail.js';
 import { Coalitions } from './coalitions.js';
 import { LlmProse } from './llmProse.js';
@@ -712,6 +713,14 @@ export const CourtLetters = {
         Ledger.record(player, cat, amount);
     },
 
+    /** Coin the player gives a court (gifts, a feast's presents, a tourney's entry, a ransom): into its chests, else the nearest town's purse. */
+    _toCourt(world, player, k, amount) {
+        const a = _num(amount);
+        if (!(a > 0)) return;
+        if (k && k.isAlive !== false) k.treasury = _num(k.treasury) + a;
+        else Economy.payNearest(world, player.q, player.r, a);
+    },
+
     _loanStatus(player, loanId, status) {
         const loan = this.state(player).loans.find(l => l.id === loanId);
         if (loan) loan.status = status;
@@ -736,9 +745,11 @@ export const CourtLetters = {
             if (k.lord.name !== loan.lordName) chance -= 0.1; // the heir pays his father's debts less gladly
             if (Utils.random() < Utils.clamp(chance, 0.05, 0.97)) {
                 loan.status = 'repaid';
-                k.treasury = Math.max(0, _num(k.treasury) - owed);
-                this._gold(player, 'lordLoans', loan.principal);
-                this._gold(player, 'lordLoanInterest', loan.interest);
+                // (out of its chests, the rest raised from its towns: never more than is there)
+                const got = Economy.crownPays(k, world, owed);
+                const principal = Math.min(loan.principal, got);
+                this._gold(player, 'lordLoans', principal);
+                if (got - principal > 0) this._gold(player, 'lordLoanInterest', got - principal);
                 st.stats.repaid++;
                 out.notices.push({ icon: '🏦', title: 'A Loan Repaid', text: `${loan.kingdomName} repays the ${loan.principal} gold you lent, with ${loan.interest} gold interest.`, type: 'success' });
             } else {
@@ -918,7 +929,7 @@ export const CourtLetters = {
             case 'marriage_proposal:accept': {
                 const r = Heirs.marryForAlliance(player, world, letter.data.childId, kid, { dowry: 0, minReputation: -100, deed: 'match_accepted' });
                 if (!r.success) return { success: false, reason: r.reason };
-                const paid = Math.min(amount, Math.max(0, _num(k && k.treasury, amount)));
+                const paid = k ? Math.min(amount, Math.max(0, Math.floor(_num(k.treasury)))) : 0;
                 if (k) k.treasury = Math.max(0, _num(k.treasury) - paid);
                 this._gold(player, 'diplomacy', paid);
                 lines.push(`💍 ${r.child.firstName} weds ${r.spouse.name} · 💰 +${paid} gold.`);
@@ -927,6 +938,7 @@ export const CourtLetters = {
             case 'marriage_proposal:refuse': remember('match_refused'); break;
             case 'feast_invite:attend': {
                 this._gold(player, 'feast', -amount);
+                this._toCourt(world, player, k, amount);
                 player.renown = _num(player.renown) + _num(K.renown, 2);
                 this._rep(player, kid, _num(K.reputation, 4));
                 remember('feast_attended');
@@ -937,6 +949,7 @@ export const CourtLetters = {
             case 'feast_invite:decline': remember('feast_declined'); break;
             case 'tournament_invite:compete': {
                 this._gold(player, 'tournament', -amount);
+                this._toCourt(world, player, k, amount); // (the entry fee: the host's purse, which funds the prize)
                 const t = this._tournament(player, world, letter);
                 remember(t.champion ? 'tourney_champion' : 'tourney_attended');
                 lines.push(t.text);
@@ -978,7 +991,7 @@ export const CourtLetters = {
                 break;
             case 'loan_request:lend': {
                 this._gold(player, 'lordLoans', -amount);
-                if (k) k.treasury = _num(k.treasury) + amount;
+                this._toCourt(world, player, k, amount);
                 const st = this.state(player);
                 st.loans.push({
                     id: `L${letter.id}`, kingdomId: kid, kingdomName: k ? k.name : '', lordName: lord ? lord.name : '',
@@ -1014,7 +1027,7 @@ export const CourtLetters = {
             case 'rival_truce:refuse': feud(_num(K.refuseFeud, 5), 'truce refused'); break;
             case 'rival_tribute:pay':
                 this._gold(player, 'diplomacy', -amount);
-                if (k) k.treasury = _num(k.treasury) + amount;
+                this._toCourt(world, player, k, amount);
                 feud(-_num(K.feudCut, 20), 'tribute paid');
                 break;
             case 'rival_tribute:refuse':
@@ -1061,6 +1074,7 @@ export const CourtLetters = {
             case 'spouse_plea:duty': this._affection(player, letter.from.npcId, _num(K.refuseAffection, -15)); break;
             case 'child_news:gift':
                 this._gold(player, 'diplomacy', -amount);
+                this._toCourt(world, player, k, amount);
                 this._rep(player, kid, _num(K.giftReputation, 3));
                 remember('gift', { weight: 3, note: `for ${letter.vars.child}'s household` });
                 break;
@@ -1071,6 +1085,7 @@ export const CourtLetters = {
             }
             case 'child_hostage:recall': {
                 this._gold(player, 'diplomacy', -amount);
+                this._toCourt(world, player, k, amount);
                 const child = (player.children || []).find(c => c && c.id === letter.data.childId);
                 if (child) {
                     const up = Upbringing.ensure(child);

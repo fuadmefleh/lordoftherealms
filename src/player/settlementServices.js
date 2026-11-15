@@ -39,12 +39,15 @@ function _spend(player, amount, category, settlement = null) {
     }
 }
 
-function _earn(player, amount, category) {
+/** The player is paid by the town (the stable buying a horse): out of its purse, what it holds. → paid */
+function _earn(player, amount, category, settlement = null) {
+    if (settlement) amount = Economy.drawTown(settlement, amount);
     player.gold += amount;
     if (player.financeToday) {
         player.financeToday.income = player.financeToday.income || {};
         player.financeToday.income[category] = (player.financeToday.income[category] || 0) + amount;
     }
+    return amount;
 }
 
 function _grantBlessing(player, key, days) {
@@ -130,14 +133,14 @@ export const SettlementServices = {
     },
 
     /** Saddle one of your tamed horses as your mount, for the cost of tack. */
-    saddleTamedHorse(player, day) {
+    saddleTamedHorse(player, day, settlement = null) {
         const cfg = SERVICE_CONFIG.mount;
         if (player.mount) return { success: false, reason: `You already ride ${player.mount.name}.` };
         if (!player.inventory || (player.inventory.horse || 0) < 1) {
             return { success: false, reason: 'You have no tamed horse to saddle.' };
         }
         if (player.gold < cfg.saddleCost) return { success: false, reason: `Saddle and tack cost ${cfg.saddleCost} gold.` };
-        _spend(player, cfg.saddleCost, 'horses');
+        _spend(player, cfg.saddleCost, 'horses', settlement);
         player.inventory.horse -= 1;
         if (player.inventory.horse <= 0) delete player.inventory.horse;
         player.mount = { name: this._horseName(), price: cfg.price, acquiredDay: day || 0 };
@@ -148,22 +151,22 @@ export const SettlementServices = {
     },
 
     /** Sell your mount back to the stable at half what it cost. */
-    sellMount(player) {
+    sellMount(player, settlement = null) {
         if (!player.mount) return { success: false, reason: 'You have no horse to sell.' };
-        const value = Math.round((player.mount.price || SERVICE_CONFIG.mount.price) * SERVICE_CONFIG.mount.resaleRate);
+        const value0 = Math.round((player.mount.price || SERVICE_CONFIG.mount.price) * SERVICE_CONFIG.mount.resaleRate);
         const name = player.mount.name;
         player.mount = null;
-        _earn(player, value, 'horses');
+        const value = _earn(player, value0, 'horses', settlement);
         return { success: true, gold: value, message: `You sell ${name} for ${value} gold.` };
     },
 
     /** Sell tamed horses from your inventory to the stable. */
-    sellTamedHorses(player) {
+    sellTamedHorses(player, settlement = null) {
         const count = (player.inventory && player.inventory.horse) || 0;
         if (count < 1) return { success: false, reason: 'You have no tamed horses to sell.' };
-        const value = count * SERVICE_CONFIG.mount.tamedHorseSale;
+        const value0 = count * SERVICE_CONFIG.mount.tamedHorseSale;
         delete player.inventory.horse;
-        _earn(player, value, 'horses');
+        const value = _earn(player, value0, 'horses', settlement);
         return { success: true, gold: value, count, message: `You sell ${count} tamed horse${count > 1 ? 's' : ''} for ${value} gold.` };
     },
 

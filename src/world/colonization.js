@@ -14,6 +14,7 @@ import { KingdomBonuses } from './kingdomState.js';
 import { Religion } from '../systems/religion.js';
 import { VillageFounding } from './villageFounding.js';
 import { Barter } from './barter.js';
+import { MoneySupply } from './moneySupply.js';
 
 export const Colonization = {
 
@@ -737,6 +738,33 @@ export const Colonization = {
     /**
      * Process daily settler arrivals for a player colony
      */
+    /**
+     * A colony's incentive spending (timber and stores for the free land and housing,
+     * the settling bonus sent home): out of its purse — what it holds — into the
+     * nearest other town that keeps coin, where it is spent. → what was paid
+     */
+    _colonySpends(world, tile, amount) {
+        const s = tile && tile.settlement;
+        if (!s || !s.economy || !(amount > 0)) return 0;
+        const paid = Math.min(Math.max(0, Number(s.economy.gold) || 0), amount);
+        if (!(paid > 0)) return 0;
+        let to = null, best = Infinity;
+        const views = world && typeof world.getSettlementViews === 'function' ? world.getSettlementViews() : [];
+        for (const v of views) {
+            if (!v || (v.q === tile.q && v.r === tile.r)) continue;
+            const t = world.getTile(v.q, v.r);
+            const o = t && t.settlement;
+            if (!o || o === s || o.inKind || !o.economy || !Number.isFinite(o.economy.gold)) continue;
+            const d = Hex.wrappingDistance(tile.q, tile.r, v.q, v.r, world.width);
+            if (d < best) { best = d; to = o; }
+        }
+        // (no other town that keeps coin: it is spent among the colony's own people)
+        if (!to) return 0;
+        s.economy.gold = Math.round((s.economy.gold - paid) * 100) / 100;
+        Economy.payTown(to, paid);
+        return paid;
+    },
+
     _processSettlerArrivals(tile, world) {
         const colony = tile.settlement.colony;
         if (!colony || !colony.recruitment) return;
@@ -752,10 +780,8 @@ export const Colonization = {
             // Per-settler cost for gold_bonus incentive
             if (rec.incentive === 'gold_bonus') {
                 const incentiveDef = Colonization.INCENTIVES.gold_bonus;
-                // Deduct from colony economy if available
-                if (tile.settlement.economy) {
-                    tile.settlement.economy.gold = Math.max(0, (tile.settlement.economy.gold || 0) - arriving * (incentiveDef.perSettlerCost || 10));
-                }
+                // Out of the colony's purse, to the newcomers — who send it home to their kin
+                Colonization._colonySpends(world, tile, arriving * (incentiveDef.perSettlerCost || 10));
             }
         }
 
@@ -781,9 +807,7 @@ export const Colonization = {
         }
 
         // Daily incentive cost (deducted from colony treasury)
-        if (incentiveDef.dailyCost > 0 && tile.settlement.economy) {
-            tile.settlement.economy.gold = Math.max(0, (tile.settlement.economy.gold || 0) - incentiveDef.dailyCost);
-        }
+        if (incentiveDef.dailyCost > 0 && tile.settlement.economy) Colonization._colonySpends(world, tile, incentiveDef.dailyCost);
 
         // Roll for passive settlers: they leave the nearest town with people
         // to spare (none near enough, none come)
@@ -872,8 +896,8 @@ export const Colonization = {
             renownChange = 3;
         }
 
-        // Deduct and apply
-        if (goldCost > 0) player.gold -= goldCost;
+        // Deduct and apply (the hired settlers carry their pay to the colony and spend it there)
+        if (goldCost > 0) { player.gold -= goldCost; Economy.payTown(targetColony.settlement, goldCost); }
         player.karma = (player.karma || 0) + karmaChange;
         player.renown = (player.renown || 0) + renownChange;
         sourceTile.settlement.population -= actual;
@@ -906,7 +930,8 @@ export const Colonization = {
             return { success: false, reason: `Need ${inc.setupCost}g to set up ${inc.name}.` };
         }
 
-        if (inc.setupCost > 0) player.gold -= inc.setupCost;
+        // (spent on the colony's hands and stores: into its purse)
+        if (inc.setupCost > 0) { player.gold -= inc.setupCost; Economy.payTown(tile.settlement, inc.setupCost); }
 
         tile.settlement.colony.recruitment.incentive = incentiveId;
         tile.settlement.colony.recruitment.incentiveCost = inc.dailyCost;
@@ -925,6 +950,7 @@ export const Colonization = {
         if (player.gold < cost) return { success: false, reason: `Need ${cost}g to post a signboard.` };
 
         player.gold -= cost;
+        Economy.payTown(tile.settlement, cost); // (the sign-painter and the timber: the colony's purse)
         tile.settlement.colony.recruitment.signboard = true;
         return { success: true };
     },
@@ -1205,16 +1231,19 @@ export const Colonization = {
      * scale with the tribe's tradeability (0-1).
      * @returns {{success, reason?, relationGain?, profit?, karma?, hostility?}}
      */
-    tradeWithTribe(player, ind) {
+    tradeWithTribe(player, ind, world = null, at = null) {
         if (!player || !ind) return { success: false, reason: 'No one to trade with.' };
         const cost = Colonization.TRIBE_TRADE_COST;
         if ((player.gold || 0) < cost) return { success: false, reason: `Need ${cost} gold to trade.` };
         const trade = typeof ind.tradeability === 'number' ? ind.tradeability : 0.5;
         player.gold -= cost;
+        Colonization._tribeSpends(world, at || player, cost);
         const relationGain = Math.round(6 + 14 * trade);       // 9 (wary traders) .. 17 (keen)
         Colonization._shiftTribeRelation(ind, relationGain);
-        // Exotic goods sell on: keen traders return more than you paid
-        const profit = Math.round(cost * (0.5 + trade) * Utils.randFloat(0.8, 1.2));
+        // Exotic goods sell on: keen traders return more than you paid — sold in the
+        // nearest town that keeps coin, which pays what its purse can
+        let profit = Math.round(cost * (0.5 + trade) * Utils.randFloat(0.8, 1.2));
+        if (world) profit = Math.floor(Economy.drawNearest(world, (at || player).q, (at || player).r, profit));
         player.gold += profit;
         const karma = Utils.randInt(1, 3);
         player.karma = (player.karma || 0) + karma;
@@ -1222,15 +1251,26 @@ export const Colonization = {
     },
 
     /** Pay tribute: a large, reliable relation gain plus renown. */
-    tributeToTribe(player, ind) {
+    tributeToTribe(player, ind, world = null, at = null) {
         if (!player || !ind) return { success: false, reason: 'No one to honour.' };
         const cost = Colonization.TRIBE_TRIBUTE_COST;
         if ((player.gold || 0) < cost) return { success: false, reason: `Need ${cost} gold for tribute.` };
         player.gold -= cost;
+        Colonization._tribeSpends(world, at || player, cost);
         const relationGain = 25;
         Colonization._shiftTribeRelation(ind, relationGain);
         player.renown = (player.renown || 0) + 5;
         return { success: true, relationGain, renown: 5, hostility: Colonization.getTribeHostility(ind) };
+    },
+
+    /**
+     * Coin a tribe is given (a trade, a tribute): a people without coin of its own trade
+     * it on at the nearest town that keeps coin, into its purse; with no such town it is
+     * lost to the world's books ('tribes').
+     */
+    _tribeSpends(world, at, amount) {
+        if (!world || !(amount > 0)) return;
+        if (!Economy.payNearest(world, at && at.q, at && at.r, amount)) MoneySupply.leak(world, -amount, 'tribes');
     },
 
     /** Can the tribe be asked to share its knowledge? */

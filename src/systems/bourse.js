@@ -460,7 +460,8 @@ export const Bourse = {
                     const outside = _num(c.float && c.float.outside);
                     if (net > 0 && outside > 0) {
                         const div = Math.min(Math.max(0, c.capital), net * _num(C.float.payout, 0.5) * outside / 100);
-                        Bourse._companyOut(c, world, div, 'Dividend to the shareholders');
+                        // (the outside shareholders live by the exchange: their dividend goes into its town's purse)
+                        Bourse._toFloor(world, player, l.kingdomId, Bourse._companyOut(c, world, div, 'Dividend to the shareholders'));
                         st.stats.outsideDividends = _r2(st.stats.outsideDividends + div);
                         l.lastDiv = _r2(net * _num(C.float.payout, 0.5) / 100);
                     } else l.lastDiv = 0;
@@ -517,7 +518,8 @@ export const Bourse = {
 
     /** Gold leaving the company for its outside shareholders (not profit or loss: a distribution). */
     _companyOut(c, world, amount, text) {
-        const amt = Math.round(_num(amount));
+        // (never more than the company holds: what leaves it is what it had)
+        const amt = Math.min(Math.round(_num(amount)), Math.max(0, Math.floor(_num(c.capital))));
         if (amt <= 0) return 0;
         c.capital = Math.max(0, c.capital - amt);
         c.flows.dividendsOut = _num(c.flows.dividendsOut) + amt;

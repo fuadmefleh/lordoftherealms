@@ -298,7 +298,7 @@ export const TownFamily = {
             // A christening at the church a few days on (_christenings; no church-service hook exists to use)
             child.christen = day + _num(C.christening.afterDays, 3);
             if (rng() < _num(B.childbedDeath, 0.02)) {
-                Townsfolk._die(folk, mother, day, (Townsfolk.config().causes.childbed || ['childbed'])[0] || 'childbed');
+                Townsfolk._die(folk, mother, day, (Townsfolk.config().causes.childbed || ['childbed'])[0] || 'childbed', world);
                 Townsfolk._annal(folk, world, day, { k: 'died', a: mother.id, x: mother.cause }, news);
             }
         }
@@ -453,6 +453,8 @@ export const TownFamily = {
         for (const dead of folk.people) {
             if (dead.died == null || dead.estate) continue;
             dead.estate = true;
+            // (coin still on the dead — a death the world wasn't at hand for: the heir's, else the town's)
+            if (!dead.away) Townsfolk.leavePurse(folk, dead, world, day);
             if (dead.hh == null || dead.away) continue;
             const grownLeft = TownFamily._members(folk, dead.hh).filter(p => Townsfolk.age(p, day) >= 16);
             const heir = TownFamily.heirOf(folk, dead, day);

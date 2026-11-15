@@ -9,6 +9,7 @@ import { Finance } from '../systems/finance.js';
 import { Bourse } from '../systems/bourse.js';
 import { Underwriting } from '../systems/underwriting.js';
 import { EconomyChronicle } from '../systems/economyChronicle.js';
+import { Economy } from '../world/economy.js';
 import { loadData, newGame, roundTrip } from './playtest/harness.js';
 
 let logSpy;
@@ -31,6 +32,12 @@ function settlements(world) {
 function inFreeCity(seed = 777) {
     const game = newGame(seed);
     game.world.day = 1;
+    // (the towns' purses, as the first day gives them: the house's deposits, loans and
+    // interest are real coin drawn from and paid into them — 2026-11)
+    for (const v of settlements(game.world)) {
+        const t = game.world.getTile(v.q, v.r);
+        if (t && t.settlement && !t.settlement.economy) Economy.initSettlement(t.settlement);
+    }
     Finance.loadState(game.player, game.world);
     const seats = new Set(Finance.openBanks(game.player).map(b => `${b.q},${b.r}`));
     const city = settlements(game.world).find(s => (s.type === 'city' || s.type === 'capital') && s.kingdom != null && !seats.has(`${s.q},${s.r}`));

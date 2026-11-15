@@ -21,7 +21,6 @@
 // Settings: data/riverDrift.json "flotsam".
 
 import { RiverDrift } from './riverDrift.js';
-import { CoinCensus } from './coinCensus.js';
 import { Hex } from '../core/hex.js';
 import { PlayerInventory } from '../core/inventory.js';
 import { MoneySupply } from '../world/moneySupply.js';
@@ -295,10 +294,10 @@ export const RiverFlotsam = {
 
     /**
      * Into the packs: a thing fished out of the water or hauled from a net.
-     * A purse's coin goes into the purse (lost coin, booked as found in the
-     * realm it turned up in); a bottle's note is read. → { ok, coins, note, full }
+     * A purse's coin goes into the purse (lost coin, booked as found:
+     * MoneySupply.leak); a bottle's note is read. → { ok, coins, note, full }
      */
-    receive(world, player, entry, where = null) {
+    receive(world, player, entry, _where = null) {
         if (!player || !entry || !entry.itemId) return { ok: false };
         const add = PlayerInventory.addItem(player, entry.itemId, entry.qty || 1);
         if (!add.success) return { ok: false, full: true };
@@ -306,8 +305,9 @@ export const RiverFlotsam = {
         if (entry.coins > 0) {
             coins = Math.floor(entry.coins);
             player.gold = (Number(player.gold) || 0) + coins;
-            const at = where || player;
-            try { MoneySupply.registerNew(world, CoinCensus.realmAt(world, at.q, at.r), coins, 'found'); } catch { /* no realm */ }
+            // (coin lost to the river long ago, from no purse in the world: booked found — a 'found' note
+            // on the realm's books is not in MoneySupply.bookedChange, and at sea there is no realm)
+            MoneySupply.leak(world, coins, 'flotsam');
         }
         return { ok: true, coins, note: this.noteText(entry.note) };
     },

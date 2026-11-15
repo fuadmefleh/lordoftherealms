@@ -311,6 +311,8 @@ describe('meeting rivals', () => {
 
     it('race: delve the site first and take the pot', () => {
         const { world, player, rival } = setup();
+        // (the rival stakes its half of the pot out of its own purse: systems/rivals.js)
+        rival.gold = 500;
         const res = Rivals.race(player, world, rival.id);
         expect(res.success).toBe(true);
         const race = res.race;

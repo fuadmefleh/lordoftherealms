@@ -1,5 +1,6 @@
 // buildingCreator — paint functions.
 import { CustomInteriors } from '../../world/customInteriors.js';
+import { PlayerCoin } from '../../player/playerCoin.js';
 import { CustomBuildings } from '../../world/customBuildings.js';
 import { InnerMap } from '../../world/innerMap.js';
 import { DataLoader } from '../../core/dataLoader.js';
@@ -221,7 +222,7 @@ export function _stampPaint(q, r) {
     const existingTile = bcState._layers[bcState._activeLayer][key];
     if (!existingTile || existingTile.sheetPath !== bcState._activeStamp.sheetPath ||
         existingTile.sx !== bcState._activeStamp.sx || existingTile.sy !== bcState._activeStamp.sy) {
-        player.gold -= stampCost.gold;
+        PlayerCoin.pay(bcState._game ? bcState._game.world : null, player, stampCost.gold, null, 'publicWorks');
     }
 
     bcState._layers[bcState._activeLayer][key] = {

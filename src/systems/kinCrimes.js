@@ -48,6 +48,7 @@ import { Utils } from '../core/utils.js';
 import { Names } from '../core/names.js';
 import { Seasons } from '../world/seasons.js';
 import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
 import { NPCLords } from '../world/npcLords.js';
 import { House } from './house.js';
 import { Traits } from './traits.js';
@@ -393,7 +394,7 @@ export const KinCrimes = {
         }
         // The portion goes with them to the abbey
         const portion = Math.max(0, _num(child.purse));
-        if (portion > 0 && town) Economy.payTown(town, portion);
+        if (portion > 0 && !(town && Economy.payTown(town, portion)) && !(world && Economy.payNearest(world, player.q, player.r, portion))) MoneySupply.leak(world, -portion, 'cloister');
         child.purse = 0;
         DynastyTree.sync(player, world, {});
         const L = player.house && player.house.lineage;

@@ -43,6 +43,7 @@
 // Content: data/ailments.json (DataLoader → Ailments.load, or read lazily).
 
 import { DataLoader } from '../core/dataLoader.js';
+import { Economy } from '../world/economy.js';
 import { Utils } from '../core/utils.js';
 import { Difficulty } from '../core/difficulty.js';
 import { WorldEvents } from '../world/worldEvents.js';
@@ -947,6 +948,9 @@ export const Ailments = {
         if (!opt || !opt.can) return { success: false, reason: (opt && opt.reason) || 'Nothing to be done here.' };
         const t = Ailments.cfg().treatment || {};
         player.gold -= opt.cost;
+        // (the physician's or the temple's fee: spent in the town)
+        if (settlement) Economy.payTown(settlement, opt.cost);
+        else Economy.payNearest(world, player.q, player.r, opt.cost);
         if (player.financeToday) {
             player.financeToday.expenses = player.financeToday.expenses || {};
             player.financeToday.expenses.medicine = (player.financeToday.expenses.medicine || 0) + opt.cost;
@@ -1002,6 +1006,7 @@ export const Ailments = {
         const cost = Ailments.companionTreatmentCost(player, settlement, npcId);
         if ((player.gold || 0) < cost) return { success: false, reason: `Costs ${cost} gold.` };
         player.gold -= cost;
+        Economy.payTown(settlement, cost); // (the physician's fee: the town's)
         if (player.financeToday) {
             player.financeToday.expenses = player.financeToday.expenses || {};
             player.financeToday.expenses.medicine = (player.financeToday.expenses.medicine || 0) + cost;

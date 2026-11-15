@@ -40,6 +40,7 @@ import { Utils } from '../core/utils.js';
 import { Underworld } from './underworld.js';
 import { Laws } from './laws.js';
 import { Ledger } from './ledger.js';
+import { Economy } from '../world/economy.js';
 import { SocialSkills } from './socialSkills.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
 import { Seasons } from '../world/seasons.js';
@@ -432,6 +433,7 @@ export const Containers = {
             const law = Laws.punishment(world, kingdom);
             const fine = Math.min(_num(player.gold), Math.max(_num(T.fineMin), Math.round(value * _num(T.fineMult) * law.fine)));
             player.gold = _num(player.gold) - fine;
+            Economy.payNearest(world, ctx.worldQ != null ? ctx.worldQ : player.q, ctx.worldR != null ? ctx.worldR : player.r, fine); // (the magistrate's: the town's)
             Ledger.record(player, 'fines', -fine);
             if (kingdom && player.reputation) player.reputation[kingdom] = _num(player.reputation[kingdom]) - _num(T.reputation);
             if (!player.criminalRecord) player.criminalRecord = { pickpocket: 0, smuggling: 0 };

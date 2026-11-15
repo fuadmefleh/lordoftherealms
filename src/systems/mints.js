@@ -399,6 +399,8 @@ export const Mints = {
         const fee = Math.max(1, Math.round(gold * rate));
         player.gold = _num(player.gold) - fee;
         Ledger.record(player, 'exchange', -fee);
+        // (the changers' fee is spent in the town where they sit, the nearest that keeps coin)
+        if (!Economy.payNearest(world, player.q, player.r, fee, { kid: here.id })) MoneySupply.leak(world, -fee, 'exchange');
         st.stats.exchangeFees += fee;
         const fk = _kingdom(world, from);
         out.notices.push({ icon: '💱', title: 'Money Changers', text: `The changers of ${here.name} assay your ${fk ? fk.name : 'foreign'} coin (${Math.round(MoneySupply.effective(world, fk) * 100)}% silver against ${Math.round(MoneySupply.effective(world, here) * 100)}%) and keep ${fee}g for the exchange.`, type: 'info' });
@@ -564,6 +566,8 @@ export const Mints = {
             const loss = Math.min(Math.floor(_num(player.gold)), q.stake + q.fine);
             player.gold -= loss;
             Ledger.record(player, 'fraud', -loss);
+            // (the fine into the town's purse; the good coin of the stake is seized with it)
+            if (!(tile.settlement && Economy.payTown(tile.settlement, loss)) && !Economy.payNearest(world, tile.q, tile.r, loss)) MoneySupply.leak(world, -loss, 'fraud');
             Underworld.addHeat(player, q.kingdom.id, _num(C.caughtHeat, 15), world);
             st.stats.caught++;
             let jail = '';

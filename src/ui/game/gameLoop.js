@@ -3,6 +3,7 @@
 // ============================================
 
 import { Camera, Renderer, Player, World, SaveLoad, Terrain, Banking, MarketDynamics, Taxation, Characters, Minimap, UI, Quests, Achievements, Technology, Relationships, Ships, Titles, Councils, InnerMap, InnerMapRenderer, InnerMapCharacters, InnerMapCombat, LightSystem, ModStore, audioManager, DataLoader, Hex, Utils, PlayerActions, PlayerEconomy, PlayerMilitary, ActionMenu, Housing, Espionage, Gossip, Tavern, Economy, TiledExport, CustomObjects, CustomBuildings, Hotbar, NpcDialog, PlayerInventory } from './_gameImports.js';
+import { PlayerCoin } from '../../player/playerCoin.js';
 import { Afterlife } from '../../player/afterlife.js';
 import { Parentage } from '../../player/parentage.js';
 import { InnerMapTasks } from '../innerMapTasks.js';
@@ -374,7 +375,8 @@ export function gameLoop(timestamp, loopId) {
                 const resAmt = got.skill ? got.amount : (interactionResult.resource.amount || 1);
                 let gathered = true;
                 if (resType === 'gold') {
-                    this.player.gold += resAmt;
+                    // (gold out of the rock was in no purse: found, on the books)
+                    PlayerCoin.found(this.world, this.player, resAmt, 'minedGold', 'exploration');
                 } else {
                     gathered = PlayerInventory.addItem(this.player, resType, resAmt).success;
                 }

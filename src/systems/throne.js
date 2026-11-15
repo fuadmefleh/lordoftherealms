@@ -43,6 +43,8 @@ import { Quests } from './quests.js';
 import { Relationships } from './relationships.js';
 import { Regency } from './regency.js';
 import { Names } from '../core/names.js';
+import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
 
 // Code defaults (data/throne.json → config overrides them key by key).
 const DEFAULT_CONFIG = {
@@ -85,7 +87,7 @@ const DEFAULT_CONFIG = {
     },
     founding: {
         minSettlements: 3, minPrestige: 50, prestigeCost: 25, minMilitary: 80, militaryPerPopulation: 0.07,
-        treasuryFloor: 800, treasuryShareOfGold: 0.2, traits: ['orderly', 'mercantile'],
+        treasuryFloor: 800, treasuryShareOfGold: 0.2, treasuryTownShare: 0.25, traits: ['orderly', 'mercantile'],
     },
 };
 
@@ -116,6 +118,20 @@ const _addRep = (player, kid, v) => {
     if (!player.reputation) player.reputation = {};
     player.reputation[kid] = Utils.clamp((player.reputation[kid] || 0) + v, -100, 100);
 };
+
+/**
+ * Coin the player spends (scribes, heralds, banners raised): into the realm
+ * `k`'s towns when given, else the town they stand nearest; with no town that
+ * keeps coin it is lost to the world, and booked so (world/moneySupply.js).
+ */
+function _spend(world, player, amount, k = null) {
+    const a = Math.round(Number(amount) * 100) / 100;
+    if (!(a > 0) || !world) return 0;
+    if (k && Economy.payRealm(k, world, a)) return a;
+    if (Economy.payNearest(world, player.q, player.r, a)) return a;
+    MoneySupply.leak(world, -a, 'spentAway');
+    return a;
+}
 
 export const Throne = {
 
@@ -290,6 +306,8 @@ export const Throne = {
             return { success: false, reason: `Need ${cfg.royalMatchPrestige} Prestige.` };
         }
         player.gold -= cfg.royalMatchGold;
+        // (the dowry goes into the royal house's chests)
+        k.treasury = (Number(k.treasury) || 0) + cfg.royalMatchGold;
 
         const npc = Relationships.generateNPC({ ...capTile.settlement, q: capTile.q, r: capTile.r }, world);
         npc.firstName = royal.firstName;
@@ -340,6 +358,7 @@ export const Throne = {
         if (c && (c.sources.forged || 0) >= cfg.forgeCap) return { success: false, reason: 'No archive would believe another forgery.' };
         if ((player.gold || 0) < cfg.forgeGold) return { success: false, reason: `The scribes and seals cost ${cfg.forgeGold} gold.` };
         player.gold -= cfg.forgeGold;
+        _spend(world, player, cfg.forgeGold); // (the scribes and seal-cutters)
         const chance = Throne.forgeChance(player);
         if (Utils.random() < chance) {
             const strength = Throne.grantClaim(player, world, kid, 'forged', cfg.forgeStrength, { mode: 'add', cap: cfg.forgeCap });
@@ -569,6 +588,8 @@ export const Throne = {
             if ((player.gold || 0) < amount) return { success: false, reason: `You don't have ${amount} gold.` };
             player.gold -= amount;
             b.gold += amount;
+            // (the claimant spends it on retainers and palms in the realm)
+            _spend(world, player, amount, Throne._kingdom(world, crisis.kingdomId));
             gain = Math.floor(amount / C.goldPerSupport);
         } else if (kind === 'prestige') {
             if (!House.spend(player.house, C.prestigeCost, `backing ${claimant.name}`, world.day)) {
@@ -624,7 +645,8 @@ export const Throne = {
             const backed = crisis.claimants.find(c => c.id === b.claimantId);
             result.backed = backed ? backed.name : null;
             if (backed === winner) {
-                const gold = Math.round(b.gold * C.rewardGoldMultiplier + C.rewardGold);
+                // (the new crown repays its backer out of its chests, the rest out of its towns)
+                const gold = Math.round(Economy.crownPays(kingdom, world, Math.round(b.gold * C.rewardGoldMultiplier + C.rewardGold)));
                 player.gold = (player.gold || 0) + gold;
                 _addRep(player, kingdom.id, C.rewardReputation);
                 House.award(player.house, C.rewardPrestige, `kingmaker in ${Names.realm(kingdom.name)}`, world.day);
@@ -695,6 +717,7 @@ export const Throne = {
         const k = Throne._kingdom(world, kid);
         const fc = Throne.forecast(player, world, kid, opts);
         player.gold -= cfg.pressGold;
+        _spend(world, player, cfg.pressGold, k); // (the banners, the musters, the heralds)
 
         // Oaths to the crown you are fighting are broken
         if (player.allegiance === kid) {
@@ -1196,6 +1219,7 @@ export const Throne = {
         if (!k || !t || !t.isAlive) return { success: false, reason: 'No such realm.' };
         if ((k.treasury || 0) < R.giftCost) return { success: false, reason: `The royal treasury needs ${R.giftCost} gold for gifts.` };
         k.treasury -= R.giftCost;
+        t.treasury = (Number(t.treasury) || 0) + R.giftCost; // (the gifts are the other court's now)
         if (!t.relations) t.relations = {};
         t.relations[k.id] = Utils.clamp((t.relations[k.id] || 0) + R.giftRelations, -100, 100);
         k.relations[t.id] = Utils.clamp((k.relations[t.id] || 0) + Math.round(R.giftRelations / 2), -100, 100);
@@ -1535,7 +1559,10 @@ export const Throne = {
         }
         k.population = population;
         k.military = Math.max(F.minMilitary, Math.floor(population * F.militaryPerPopulation));
-        k.treasury = Math.max(F.treasuryFloor, Math.floor((player.gold || 0) * F.treasuryShareOfGold));
+        // (the new crown's chests are filled by its new subjects' first taxes, out of the
+        // towns' purses — treasuryTownShare of each at most — not struck from nothing)
+        k.treasury = 0;
+        Economy.crownRaise(k, world, Math.max(F.treasuryFloor, Math.floor((player.gold || 0) * F.treasuryShareOfGold)), F.treasuryTownShare == null ? 0.25 : F.treasuryTownShare);
 
         // The realm's faith: the seat's former crown, or the old liege's
         const faithFrom = (seatOwner && seatOwner.religion) ? seatOwner : prevKingdom;

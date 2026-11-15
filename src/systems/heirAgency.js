@@ -48,6 +48,8 @@ import { Ledger } from './ledger.js';
 import { CourtLetters } from './courtLetters.js';
 import { Holdings } from './holdings.js';
 import { Names } from '../core/names.js';
+import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
 
 const DEFAULTS = {
     fosterMinAge: 7, fosterYears: [1, 2, 3], fosterMinReputation: -10, fosterQuality: 1.4,
@@ -75,6 +77,14 @@ const _day = (world) => _num(world && world.day);
 function _seed(world) {
     const p = world && world.generationParams;
     return (p && p.seed) || 0;
+}
+
+
+/** Coin the House spends with no purse in hand: into `k`'s towns, else the nearest town (else lost, booked). */
+function _spend(world, player, amount, why, k = null) {
+    if (!(amount > 0) || !world) return;
+    if (k && Economy.payRealm(k, world, amount)) return;
+    if (!Economy.payNearest(world, player.q, player.r, amount)) MoneySupply.leak(world, -amount, why);
 }
 
 export const HeirAgency = {
@@ -435,6 +445,8 @@ export const HeirAgency = {
         if (_num(player.gold) < cfg.envoyCost) return { success: false, reason: `An embassy costs ${cfg.envoyCost} gold in gifts and retinue.` };
         player.gold -= cfg.envoyCost;
         Ledger.record(player, 'family', -cfg.envoyCost);
+        // (the gifts and the retinue's keep are spent in that realm's towns)
+        _spend(world, player, cfg.envoyCost, 'envoy', k);
         const day = _day(world);
         const a = HeirAgency.ensure(child);
         a.commission = { kind: 'envoy', kingdomId: kid, kingdomName: k.name, since: day, until: day + cfg.envoyDays };
@@ -547,6 +559,8 @@ export const HeirAgency = {
         if (_num(player.gold) < cost) return { success: false, reason: `The ransom is ${cost} gold.` };
         player.gold -= cost;
         Ledger.record(player, 'family', -cost);
+        // (the captors spend the ransom in the towns near where it is handed over)
+        _spend(world, player, cost, 'ransom');
         const by = a.captive.by;
         a.captive = null;
         if (player.house) House._chronicle(player.house, world, `${child.firstName} is ransomed from ${by}.`, ['heirs']);

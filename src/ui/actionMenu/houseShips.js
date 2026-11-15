@@ -575,7 +575,7 @@ Object.assign(ActionMenu, {
         window._tile = tile;
 
         window._repairShip = (sid) => {
-            const result = Ships.repairShip(player, sid);
+            const result = Ships.repairShip(player, sid, game.world);
             if (result.success) {
                 game.ui.showNotification('🔧 Repaired!', result.message, 'success');
                 game.ui.updateStats(player, game.world);
@@ -641,7 +641,7 @@ Object.assign(ActionMenu, {
         };
 
         window._doSellShip = (sid) => {
-            const result = Ships.sellShip(player, sid);
+            const result = Ships.sellShip(player, sid, game.world);
             if (result.success) {
                 game.ui.hideCustomPanel();
                 game.ui.showNotification('🏷️ Ship Sold!', result.message, 'success');
@@ -714,7 +714,7 @@ Object.assign(ActionMenu, {
         window._confirmShipUpgrade = (sid) => {
             const selected = [];
             document.querySelectorAll('.shipUpgradeCheck:checked').forEach(cb => selected.push(cb.value));
-            const result = Ships.upgradeShip(player, sid, selected);
+            const result = Ships.upgradeShip(player, sid, selected, game.world);
             if (result.success) {
                 game.ui.showNotification('⬆️ Ship Upgraded!', result.message, 'success');
                 game.ui.updateStats(player, game.world);

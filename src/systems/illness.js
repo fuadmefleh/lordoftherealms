@@ -111,6 +111,22 @@ function _seasonOf(day) {
 }
 
 export const Illness = {
+    /**
+     * Spend `amount` of the player's physician fund: the coin is in the holder's
+     * purse (systems/illnessPlayer.js fundPhysician) and moves to `to`'s purse
+     * (a fee) or out (to=null: the caller pays it on — herbs into the town).
+     * An old fund with no holder is coin already outside every purse. → what was spent.
+     */
+    _fromFund(folk, fund, amount, to, world) {
+        fund.gold = Math.round((_num(fund.gold) - amount) * 100) / 100;
+        if (fund.holder == null) { if (to) to.purse = Townsfolk.purse(folk, to, world) + amount; return amount; }
+        const h = Townsfolk.get(folk, fund.holder);
+        const got = h ? Math.min(amount, Math.max(0, _num(h.purse))) : 0;
+        if (h) h.purse = Math.round((_num(h.purse) - got) * 100) / 100;
+        if (to) to.purse = Math.round((Townsfolk.purse(folk, to, world) + got) * 100) / 100;
+        return got;
+    },
+
     config() {
         const src = DataLoader._gamedata ? DataLoader._gamedata.illness : undefined;
         if (!_cfg || src !== _cfgSrc) {
@@ -634,7 +650,8 @@ export const Illness = {
                 const payer = Illness._payer(folk, p, hh, world, day);
                 let paid = false;
                 if (funded && funded.gold >= fee) {
-                    funded.gold -= fee;
+                    // (out of the fund the healer holds: from the holder's purse to the healer's)
+                    Illness._fromFund(folk, funded, fee, doc.person, world);
                     paid = true;
                 } else if (payer && Townsfolk.purse(folk, payer, world) >= fee) {
                     payer.purse = Townsfolk.purse(folk, payer, world) - fee;
@@ -642,7 +659,7 @@ export const Illness = {
                 }
                 if (paid || rng() < _num(CC.charityShare, 0.5)) {
                     docVisits--;
-                    if (paid && fee > 0) doc.person.purse = Townsfolk.purse(folk, doc.person, world) + fee;
+                    if (paid && fee > 0 && !funded) doc.person.purse = Townsfolk.purse(folk, doc.person, world) + fee;
                     c.hl = Math.min(_num(c.hl, 1), funded ? Math.min(docFactor, _num(C.fund.fundedCare, 0.6)) : docFactor);
                     c.vb = doc.person.id;
                     seen = true;
@@ -656,7 +673,7 @@ export const Illness = {
                         try { price *= _clamp(_num(SettlementMarket.scarcity(s, 'herbs'), 1), 0.5, 3); } catch (e) { /* the usual price */ }
                         price = Math.round(price * 100) / 100;
                         let coin = 0;
-                        if (funded && funded.gold >= price) { funded.gold -= price; coin = price; } else if (payer && _num(payer.purse) >= price) { payer.purse -= price; coin = price; }
+                        if (funded && funded.gold >= price) { coin = Illness._fromFund(folk, funded, price, null, world); } else if (payer && _num(payer.purse) >= price) { payer.purse -= price; coin = price; }
                         if (coin > 0 && s && s.economy) Economy.payTown(s, coin);
                     }
                 }
@@ -672,7 +689,8 @@ export const Illness = {
         // The physician the player paid for keeps what is left when the days run out
         if (st.fund && _num(st.fund.until) < day) {
             const left = _num(st.fund.gold);
-            if (left > 0 && doc) doc.person.purse = Townsfolk.purse(folk, doc.person, world) + left;
+            // (a fund held in a healer's hand: what is left is theirs already)
+            if (st.fund.holder != null) { /* kept */ } else if (left > 0 && doc) doc.person.purse = Townsfolk.purse(folk, doc.person, world) + left;
             else if (left > 0 && s && s.economy) Economy.payTown(s, left);
             st.fund = null;
         }
@@ -698,7 +716,7 @@ export const Illness = {
         const d = Illness.def(k) || {};
         const cause = _pick(d.cause, rng) || d.name || 'a sickness';
         delete p.ill;
-        Townsfolk._die(folk, p, day, cause);
+        Townsfolk._die(folk, p, day, cause, world);
         Townsfolk._annal(folk, world, day, { k: 'died', a: p.id, x: cause }, news);
         const st = folk.ill;
         st.deaths.push({ d: day, a: p.id, k });

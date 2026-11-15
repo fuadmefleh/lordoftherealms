@@ -5,6 +5,8 @@ import { Underworld } from '../../systems/underworld.js';
 import { LossBook } from '../../systems/lossBook.js';
 import { TradePolicy } from '../../systems/tradePolicy.js';
 import { Difficulty } from '../../core/difficulty.js';
+import { Ledger } from '../../systems/ledger.js';
+import { PlayerCoin } from '../playerCoin.js';
 import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, WorldEvents, PlayerInventory, Economy, SettlementMarket } from './_imports.js';
 
 Object.assign(PlayerEconomy, {
@@ -72,8 +74,8 @@ Object.assign(PlayerEconomy, {
         // A sale at a distance is still a sale: the difficulty's sellPrice (1 on Normal)
         expectedProfit = Math.floor(expectedProfit * Difficulty.mult(player, 'sellPrice'));
 
-        // Deduct cost and goods (their bookings by realm go with them)
-        player.gold -= cost;
+        // Deduct cost and goods (their bookings by realm go with them); the hire to the town it sets out from
+        PlayerCoin.pay(world, player, cost, (() => { const t = world && world.getTile && world.getTile(fromPos.q, fromPos.r); return (t && t.settlement) || { q: fromPos.q, r: fromPos.r }; })(), 'caravans');
         const lots = {};
         for (const [goodType, quantity] of Object.entries(goods)) {
             TradePolicy.addLots(lots, goodType, TradePolicy.takePlayerLots(player, goodType, quantity));
@@ -173,8 +175,8 @@ Object.assign(PlayerEconomy, {
             }
         }
 
-        // Deduct cost and storage (booked as goods of the realm they were made in)
-        player.gold -= cost;
+        // Deduct cost and storage (booked as goods of the realm they were made in); the hire to the property's town
+        PlayerCoin.pay(world, player, cost, PlayerEconomy.propertyTown(world, tile, property) || { q: tile.q, r: tile.r }, 'caravans');
         const lots = {};
         TradePolicy.book(lots, tile, outputGood, property.storage);
         property.storage = 0;
@@ -278,7 +280,7 @@ Object.assign(PlayerEconomy, {
     /**
      * Upgrade a property
      */
-    upgradeProperty(player, tile) {
+    upgradeProperty(player, tile, world = null) {
         if (!tile.playerProperty) return { success: false, reason: 'No property' };
 
         const property = tile.playerProperty;
@@ -288,7 +290,8 @@ Object.assign(PlayerEconomy, {
 
         if (player.gold < cost) return { success: false, reason: `Need ${cost} gold` };
 
-        player.gold -= cost;
+        // (the builders are the property's town's)
+        PlayerCoin.pay(world, player, cost, PlayerEconomy.propertyTown(world, tile, property) || { q: tile.q, r: tile.r }, 'worksBought');
         property.level++;
 
         return { success: true, level: property.level, cost };
@@ -419,7 +422,7 @@ Object.assign(PlayerEconomy, {
                         } else {
                             // Recipe changed en route — hand the goods to the player rather than
                             // lose them (sold on the spot if the packs have no room)
-                            PlayerInventory.addOrSell(player, { [goodId]: qty });
+                            PlayerInventory.addOrSell(player, { [goodId]: qty }, PlayerCoin.payerHere(world, player, caravan.toPos));
                         }
                     }
                     completed.push({ ...caravan, finalProfit: 0 });
@@ -493,7 +496,7 @@ Object.assign(PlayerEconomy, {
                             finalProfit = Math.max(0, finalProfit - confiscated);
 
                             const fine = Math.min(player.gold, Math.floor(confiscated * 0.4));
-                            player.gold -= fine;
+                            PlayerCoin.pay(world, player, fine, (targetTile && targetTile.settlement) || destTown || null, 'fines');
                             player.karma = (player.karma || 0) - 2;
                             if (!player.criminalRecord) player.criminalRecord = { pickpocket: 0, smuggling: 0 };
                             player.criminalRecord.smuggling = (player.criminalRecord.smuggling || 0) + 1;
@@ -540,6 +543,7 @@ Object.assign(PlayerEconomy, {
                         }
                     }
                     player.gold += finalProfit;
+                    if (finalProfit > 0) Ledger.record(player, 'caravans', finalProfit);
                     if (finalProfit > 0) Quests.track(player, 'trade_profit', finalProfit);
                     completed.push({
                         ...caravan,
@@ -610,7 +614,7 @@ Object.assign(PlayerEconomy, {
     /**
      * Set active recipe for a workshop
      */
-    setWorkshopRecipe(tile, recipeId, player) {
+    setWorkshopRecipe(tile, recipeId, player, world = null) {
         if (!tile.playerProperty || !PlayerEconomy.isRecipeBuilding(tile.playerProperty.type)) return { success: false, reason: 'This property does not process goods' };
 
         const prop = tile.playerProperty;
@@ -626,14 +630,14 @@ Object.assign(PlayerEconomy, {
                 return { success: false, reason: `Need ${retoolingCost} gold to retool workshop` };
             }
 
-            player.gold -= retoolingCost;
+            PlayerCoin.pay(world, player, retoolingCost, PlayerEconomy.propertyTown(world, tile, prop) || { q: tile.q, r: tile.r }, 'worksBought');
 
             // Return old input storage to player inventory
             if (prop.inputStorage > 0 && prop.activeRecipe) {
                 const oldRecipe = PlayerEconomy.RECIPES[prop.activeRecipe];
                 if (oldRecipe) {
                     // Returned to the packs, or sold off if there's no room for it
-                    PlayerInventory.addOrSell(player, { [oldRecipe.input]: prop.inputStorage });
+                    PlayerInventory.addOrSell(player, { [oldRecipe.input]: prop.inputStorage }, PlayerCoin.payerHere(world, player, tile));
                 }
                 prop.inputStorage = 0;
             }
@@ -696,7 +700,7 @@ Object.assign(PlayerEconomy, {
             return { success: false, reason: `Max boats dispatched (Upgrade for more)` };
         }
 
-        player.gold -= cost;
+        PlayerCoin.pay(world, player, cost, PlayerEconomy.propertyTown(world, tile, wharf) || { q: tile.q, r: tile.r }, 'industry');
 
         // Create Unit
         const boat = new WorldUnit('fishing_boat', tile.q, tile.r, targetQ, targetR);

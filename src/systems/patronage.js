@@ -52,6 +52,8 @@ import { Ships } from './ships.js';
 import { Fashions } from '../world/fashions.js';
 import { Ledger } from './ledger.js';
 import { Names } from '../core/names.js';
+import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
 
 const TYPE_RANK = { hamlet: 0, village: 1, town: 2, city: 3, capital: 3 };
 const FX_KEYS = ['research', 'conversion', 'education', 'vision', 'festivalRenown', 'riverCross', 'monthlyPrestige', 'care', 'woundHeal'];
@@ -236,11 +238,26 @@ export const Patronage = {
         if (player.inventory[id] <= 0) delete player.inventory[id];
     },
 
-    _spend(player, gold) {
+    /**
+     * The player's coin spent on patronage: into the purse of the town where it
+     * is spent (`at`: a settlement, or a { q, r } — the site, the court; the
+     * player's own place by default), the nearest town that keeps coin else.
+     */
+    _spend(player, gold, world = null, at = null) {
         const st = Patronage.state(player);
         player.gold = _num(player.gold) - gold;
         st.stats.goldSpent += gold;
         Ledger.record(player, 'patronage', -gold);
+        Patronage._payAt(world, at || player, gold);
+    },
+
+    /** Coin spent at `at` (a settlement or a { q, r }): its town's purse, else the nearest one's (else booked lost). */
+    _payAt(world, at, gold) {
+        const a = Math.round(_num(gold) * 100) / 100;
+        if (!world || !(a > 0)) return;
+        if (at && at.economy && Economy.payTown(at, a)) return;
+        if (at && Number.isFinite(at.q) && Economy.payNearest(world, at.q, at.r, a)) return;
+        MoneySupply.leak(world, -a, 'patronage');
     },
 
     // ──────────── FASHION ────────────
@@ -296,7 +313,7 @@ export const Patronage = {
         const q = Patronage.fashionQuote(player, world, tile, fashionId);
         if (!q.ok) return { success: false, reason: q.reason };
         if (!House.spend(player.house, q.prestige, `set the fashion: ${q.def.name}`, _day(world))) return { success: false, reason: 'Not enough Prestige.' };
-        Patronage._spend(player, q.gold);
+        Patronage._spend(player, q.gold, world, q.court.settlement);
         const f = Fashions.start(world, fashionId, { q: tile.q, r: tile.r, name: q.court.settlement.name },
             { by: 'player', kingdomId: q.court.kingdom.id, place: q.court.settlement.name });
         if (!f) return { success: false, reason: 'The court will not have it.' };
@@ -446,7 +463,7 @@ export const Patronage = {
         if (st.clients.length >= Patronage.maxClients(player)) return { success: false, reason: `You can keep at most ${Patronage.maxClients(player)} clients.` };
         const fee = Patronage.hireFee(cand);
         if (_num(player.gold) < fee) return { success: false, reason: `You need ${fee} gold to bring them into your service.` };
-        Patronage._spend(player, fee);
+        Patronage._spend(player, fee, world, tile && tile.settlement ? tile.settlement : tile);
         const day = _day(world);
         const client = {
             ...cand,
@@ -511,7 +528,7 @@ export const Patronage = {
         if (q.buyCost > 0 && opts.buyMissing === false) return { success: false, reason: 'You lack the materials.' };
         if (_num(player.gold) < q.buyCost) return { success: false, reason: `Buying the materials costs ${q.buyCost} gold.` };
         for (const l of q.lines) Patronage._take(player, l.id, l.have);
-        if (q.buyCost) Patronage._spend(player, q.buyCost);
+        if (q.buyCost) Patronage._spend(player, q.buyCost, world);
         const days = Patronage.workDays(c, workId);
         c.task = { workId, progress: 0, days, startDay: _day(world) };
         c.idleDays = 0;
@@ -657,7 +674,7 @@ export const Patronage = {
         const P = Patronage.config().poach;
         if (answer === 'match') {
             if (_num(player.gold) < offer.counter) return { success: false, reason: `Matching the offer costs ${offer.counter} gold.` };
-            Patronage._spend(player, offer.counter);
+            Patronage._spend(player, offer.counter, world);
             c.stipend = Math.ceil(c.stipend * (1 + _num(P.matchStipendRaise, 0.25)));
             c.content = _clamp(c.content + _num(P.matchContent, 15), 0, 100);
             st.offers = st.offers.filter(o => o !== offer);
@@ -703,7 +720,7 @@ export const Patronage = {
             if (day - _num(c.lastPaidDay, day) >= _num(cfg.payCadence, 7)) {
                 c.lastPaidDay = day;
                 if (_num(player.gold) >= c.stipend) {
-                    Patronage._spend(player, c.stipend);
+                    Patronage._spend(player, c.stipend, world);
                     c.unpaidWeeks = 0;
                     c.content += _num(cfg.contentPaid, 2);
                 } else {
@@ -880,7 +897,7 @@ export const Patronage = {
                 if (_num(player.gold) < cost) {
                     if (!moved) return { success: false, reason: `Buying the rest costs ${cost} gold.` };
                 } else {
-                    Patronage._spend(player, cost);
+                    Patronage._spend(player, cost, world, p);
                     p.spent += cost;
                     for (const g of rest.goods) p.delivered[g.id] = _num(p.delivered[g.id]) + g.missing;
                     parts.push(`the rest bought for ${cost}g`);
@@ -888,7 +905,7 @@ export const Patronage = {
             }
         }
         if (!p.goldPaid && _num(player.gold) >= needs.gold) {
-            Patronage._spend(player, needs.gold);
+            Patronage._spend(player, needs.gold, world, p);
             p.spent += needs.gold;
             p.goldPaid = true;
             parts.push(`${needs.gold}g for the masons`);
@@ -967,7 +984,7 @@ export const Patronage = {
                 }
                 continue;
             }
-            Patronage._spend(player, _num(stage.labour));
+            Patronage._spend(player, _num(stage.labour), world, p);
             p.spent += _num(stage.labour);
             p.progress = Math.round((p.progress + cond.speed) * 100) / 100;
             if (p.progress >= _num(stage.days)) {
@@ -1055,7 +1072,12 @@ export const Patronage = {
         const st = Patronage.state(player);
         const def = Patronage.greatWork(p.workId);
         Patronage._dropProject(player, p);
-        const refund = Math.floor(_num(p.spent) * _num(Patronage.config().refundOnForestall, 0.5));
+        // (bought by the town at the site, out of its purse: as much as it holds)
+        const want = Math.floor(_num(p.spent) * _num(Patronage.config().refundOnForestall, 0.5));
+        const site = world && typeof world.getTile === 'function' ? world.getTile(p.q, p.r) : null;
+        const buyer = (site && site.settlement) || (world ? Economy.nearestPurse(world, p.q, p.r) : null);
+        const purse = buyer ? Economy.townPurse(buyer) : 0;
+        const refund = buyer ? Economy.drawTown(buyer, purse == null ? want : Math.min(want, Math.floor(purse))) : 0;
         player.gold = _num(player.gold) + refund;
         st.stats.forestalled++;
         const by = Patronage.claimed(world, p.workId);
@@ -1081,7 +1103,12 @@ export const Patronage = {
         for (const n of ws.npc.slice()) {
             if (n.workId !== workId || n.uid === exceptUid) continue;
             const k = _kingdom(world, n.kingdomId);
-            if (k) k.treasury = _num(k.treasury) + Math.floor(_num(n.paid) * 0.5);
+            // (the half-raised works are sold to the town at the site, out of its purse)
+            if (k) {
+                const t = world && typeof world.getTile === 'function' ? world.getTile(n.q, n.r) : null;
+                const got = t && t.settlement ? Economy.drawTown(t.settlement, Math.floor(_num(n.paid) * 0.5)) : 0;
+                k.treasury = Math.round((_num(k.treasury) + got) * 100) / 100;
+            }
             ws.npc = ws.npc.filter(x => x !== n);
         }
     },
@@ -1101,7 +1128,7 @@ export const Patronage = {
             const cost = _num(def.npc && def.npc.cost) / Math.max(1, n.days);
             if (_num(k.treasury) < cost) continue;
             k.treasury = _num(k.treasury) - cost;
-            CrownBooks.spendAtCapital(world, k, cost);
+            if (!CrownBooks.spendAtCapital(world, k, cost)) Patronage._payAt(world, { q: n.q, r: n.r }, cost);
             n.paid = _num(n.paid) + cost;
             let speed = 1;
             if (Seasons.seasonOf(day) === 'Winter') speed *= _num(N.winterSpeed, 0.5);

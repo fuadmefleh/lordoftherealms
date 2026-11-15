@@ -43,6 +43,7 @@ import { KingdomBonuses, LordInfluence } from '../world/kingdomState.js';
 import { WorldEvents } from '../world/worldEvents.js';
 import { Harvests } from '../world/harvests.js';
 import { MoneySupply } from '../world/moneySupply.js';
+import { Economy } from '../world/economy.js';
 import { Finance } from './finance.js';
 import { Ledger } from './ledger.js';
 import { Names } from '../core/names.js';
@@ -368,9 +369,11 @@ export const Fiscal = {
                 continue;
             }
             const pay = Math.min(purse, due);
-            s.economy.gold = _r2(purse - pay);
-            // (what the governor keeps back goes to their own chest, not the crown's)
+            // (what the governor keeps back goes to their own chest, not the crown's — and the
+            // governor lives and spends in the town: that share never leaves its purse, and
+            // pf.pocket is the tally of it, so no coin vanishes into an uncounted chest)
             const kept = pf ? 1 - _clamp(_num(pf.skim), 0, 0.9) : 1;
+            s.economy.gold = _r2(purse - pay * kept);
             if (pf && kept < 1) pf.pocket = _r2(_num(pf.pocket) + pay * (1 - kept));
             // (the coin booked by line is exactly the coin the town paid, less the governor's keep:
             // `due` already carries eff, the governor and the town's letters, so the lines are
@@ -790,7 +793,7 @@ export const Fiscal = {
             st.lots = st.lots.filter(x => x !== lot);
             const pb = lot.player ? _num(lot.player.bid) : 0;
             if (gone) {
-                if (pb > 0 && player) Fiscal._refund(player, pb, `The auction of ${lot.town}'s taxes is called off: your ${pb}g is returned.`, out);
+                if (pb > 0 && player) Fiscal._refund(world, player, lot, k, pb, `The auction of ${lot.town}'s taxes is called off: your ${pb}g is returned.`, out);
                 continue;
             }
             const bb = lot.bank ? _num(lot.bank.bid) : 0;
@@ -806,10 +809,11 @@ export const Fiscal = {
                     bank.capital = _num(bank.capital) - bb;
                     holder = bank.id; paid = bb; holderName = bank.name;
                 }
-                if (pb > 0 && player) Fiscal._refund(player, pb, `${lot.bank.name} outbid you for the taxes of ${lot.town}: your ${pb}g is returned.`, out);
+                if (pb > 0 && player) Fiscal._refund(world, player, lot, k, pb, `${lot.bank.name} outbid you for the taxes of ${lot.town}: your ${pb}g is returned.`, out);
             }
             if (!holder) continue;
-            k.treasury = _num(k.treasury) + paid;
+            // (the player's bid is already in the crown's chests, held by its clerks since the bid)
+            if (!(holder === 'player' && _num(lot.player.held) > 0)) k.treasury = _num(k.treasury) + paid;
             CrownBooks.note(k, 'farms', paid);
             const farm = {
                 id: `F${st.nextId++}`, kid: k.id, kingdom: k.name, key: lot.key, q: lot.q, r: lot.r, town: lot.town,
@@ -826,7 +830,20 @@ export const Fiscal = {
         }
     },
 
-    _refund(player, amount, text, out) {
+    /**
+     * A bid returned. The bid's coin was held in the crown's chests (lot.player.held):
+     * it comes back out of them (then the crown's towns); a crown fallen since pays
+     * from nowhere the census still counts, so the coin is booked found. (A bid
+     * from before the clerks held coin — no `held` — is returned as it always was.)
+     */
+    _refund(world, player, lot, k, amount, text, out) {
+        const held = lot && lot.player ? _num(lot.player.held) : 0;
+        if (held > 0) {
+            if (k && k.isAlive !== false) {
+                const paid = Economy.crownPays(k, world, held, 1);
+                if (paid < held) MoneySupply.leak(world, _r2(held - paid), 'escrowReturned');
+            } else MoneySupply.leak(world, held, 'escrowReturned');
+        }
         player.gold = _num(player.gold) + amount;
         Ledger.record(player, 'taxFarmBids', amount);
         Fiscal._note(out, '📜', 'Bid Returned', text, 'info');
@@ -949,7 +966,13 @@ export const Fiscal = {
         if (_num(player.gold) < extra) return { success: false, reason: `You need ${extra}g to bid ${bid}g.` };
         player.gold = _num(player.gold) - extra;
         Ledger.record(player, 'taxFarmBids', -extra);
-        lot.player = { bid, squeeze, day: _day(world) };
+        // (the clerks hold the coin in the crown's chests until the lot closes: _refund / _lotsDay)
+        const k = _kingdom(world, lot.kid);
+        const held = lot.player ? _num(lot.player.held) : 0;
+        if (k && k.isAlive !== false && (held > 0 || !prev)) {
+            k.treasury = _num(k.treasury) + extra;
+            lot.player = { bid, squeeze, day: _day(world), held: _r2(held + extra) };
+        } else lot.player = { bid, squeeze, day: _day(world) };
         return { success: true, bid, text: `You bid ${bid}g for the taxes of ${lot.town} (reckoned at ${lot.est}g over ${_num(F.term, 120)} days). The lot closes on day ${lot.closes}.` };
     },
 

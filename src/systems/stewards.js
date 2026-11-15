@@ -58,6 +58,7 @@
 import { Utils } from '../core/utils.js';
 import { DataLoader } from '../core/dataLoader.js';
 import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
 import { CrownBooks } from '../world/crownBooks.js';
 import { Holdings } from './holdings.js';
 import { Taxation } from './marketDynamics.js';
@@ -296,6 +297,58 @@ export const Stewards = {
     },
 
     // ──────────── PEOPLE ────────────
+
+    // ──────────── THE OFFICE'S COIN ────────────
+    // An office-holder's pocket (office.st.pocket) is a tally, as the governors' is in
+    // systems/fiscal.js: the coin they keep back lives in the purse of the town they
+    // live and spend in (the seat's town, else the nearest that keeps coin). What is
+    // seized or clawed back comes out of that purse; what they take with them goes
+    // into their own purse.
+
+    /** The town an office-holder's coin lives in. */
+    _homeTown(player, world, seat) {
+        const t = seat && seat.settlement;
+        if (t && !t.inKind && t.economy && Number.isFinite(t.economy.gold)) return t;
+        const at = seat && Number.isFinite(seat.q) ? seat : player;
+        return at && Number.isFinite(at.q) ? Economy.nearestPurse(world, at.q, at.r) : null;
+    },
+
+    /** Coin into the office-holder's town (else booked lost). → amount */
+    _toTown(player, world, seat, amount) {
+        const a = _r2(_num(amount));
+        if (!(a > 0)) return 0;
+        const t = Stewards._homeTown(player, world, seat);
+        if (!(t && Economy.payTown(t, a))) MoneySupply.leak(world, -a, 'stewards');
+        return a;
+    },
+
+    /** Coin out of the pocket (out of the town it lives in), as far as that purse holds. → paid */
+    _fromPocket(player, world, seat, amount) {
+        const a = Math.max(0, _num(amount));
+        if (!(a > 0)) return 0;
+        const t = Stewards._homeTown(player, world, seat);
+        return t ? Economy.drawTown(t, a) : 0;
+    },
+
+    /** The office-holder's own counted purse: a court NPC, a child of the House — or null. */
+    _holderPurse(player, office) {
+        if (!office) return null;
+        if (office.kind === 'family') {
+            const child = ((player && player.children) || []).find(c => c && c.id === office.id);
+            if (child && child.isAlive !== false) return child;
+        }
+        const npc = Stewards._npc(player, office.id);
+        return npc && npc.isAlive !== false ? npc : null;
+    },
+
+    /** Pay the office-holder (a wage, a reward): their purse, else spent in their town. → amount */
+    _payHolder(player, world, seat, office, amount) {
+        const a = _r2(_num(amount));
+        if (!(a > 0)) return 0;
+        const holder = Stewards._holderPurse(player, office);
+        if (holder) { holder.purse = _r2(_num(holder.purse) + a); return a; }
+        return Stewards._toTown(player, world, seat, a);
+    },
 
     _npc(player, id) {
         return Relationships.getNPC(id) || ((player && player._relationshipNpcs) || []).find(n => n && n.id === id) || null;
@@ -692,8 +745,11 @@ export const Stewards = {
         const pocket = Math.floor(_num(s.pocket));
         const npc = Stewards._npc(player, office.id);
         if (pocket > 0) {
-            if (npc && npc.isAlive !== false) npc.purse = _num(npc.purse) + pocket;
-            else if (seat.settlement) Economy.payTown(seat.settlement, pocket);
+            // (the pocket's coin is in the seat town's purse, where they live: it goes with them into
+            // their own purse — one the census counts — or, with no purse to take it, stays in the town)
+            const holder = Stewards._holderPurse(player, office);
+            if (holder) holder.purse = _r2(_num(holder.purse) + Stewards._fromPocket(player, world, seat, pocket));
+            s.pocket = 0;
         }
         if (npc) {
             if (npc.stewardOf === seat.id) delete npc.stewardOf;
@@ -776,6 +832,8 @@ export const Stewards = {
         const cost = Stewards.auditCost(player, world, seat);
         if (_num(player.gold) < cost) return { success: false, reason: `The auditors want ${cost} gold.` };
         player.gold -= cost;
+        // (the auditors' fee is spent in the seat's town)
+        Stewards._toTown(player, world, seat, cost);
         Ledger.record(player, 'stewardAudits', -cost);
         s.lastAudit = day;
         const st = Stewards.state(player);
@@ -784,7 +842,8 @@ export const Stewards = {
         const stolen = Math.floor(_num(s.pocket));
         const hidden = stolen > 0 || !!s.bribe;
         if (hidden && Utils.random() < Stewards.auditChance(player, office)) {
-            const back = Math.floor(stolen * _num(A.recover, 0.7));
+            // (clawed back out of where the coin is: the seat town's purse, as far as it holds)
+            const back = Math.floor(Stewards._fromPocket(player, world, seat, Math.floor(stolen * _num(A.recover, 0.7))));
             if (back > 0) {
                 s.pocket -= back;
                 player.gold += back;
@@ -824,9 +883,8 @@ export const Stewards = {
             if (_num(player.gold) < g) return { success: false, reason: `You need ${g} gold.` };
             player.gold -= g;
             Ledger.record(player, 'stewardRewards', -g);
-            const npc = Stewards._npc(player, office.id);
-            if (npc) npc.purse = _num(npc.purse) + g;
-            else s.pocket = _num(s.pocket) + g; // (held for them)
+            // (into their own purse; with none the census counts, spent in their seat's town)
+            Stewards._payHolder(player, world, seat, office, g);
             office.loyaltyMod = _num(office.loyaltyMod) + Math.round(g * W.goldLoyalty);
         }
         // A rewarded steward steals a little less for a while
@@ -854,7 +912,7 @@ export const Stewards = {
         }
         if (kind === 'disgrace') {
             const name = office.name;
-            const seized = Math.floor(_num(s.pocket));
+            const seized = Math.floor(Stewards._fromPocket(player, world, seat, Math.floor(_num(s.pocket))));
             if (seized > 0) { player.gold += seized; Ledger.record(player, 'stewardAudits', seized); s.pocket = 0; st.stats.recovered += seized; }
             Stewards._vacate(player, world, seat, office, 'disgraced', null);
             if (guilty) player.renown = _num(player.renown) + P.disgraceRenown;
@@ -864,7 +922,7 @@ export const Stewards = {
             if (player.house) House._chronicle(player.house, world, text, ['stewards']);
             return { success: true, text };
         }
-        const seized = Math.floor(_num(s.pocket));
+        const seized = Math.floor(Stewards._fromPocket(player, world, seat, Math.floor(_num(s.pocket))));
         if (seized > 0) { player.gold += seized; Ledger.record(player, 'stewardAudits', seized); s.pocket = 0; st.stats.recovered += seized; }
         office.loyaltyMod = _num(office.loyaltyMod) + P.fineLoyalty;
         s.fear = _clamp(_num(s.fear) + _num(E.punishFear), 0, 1);
@@ -1037,14 +1095,18 @@ export const Stewards = {
                     seat.kingdom.treasury = _num(seat.kingdom.treasury) - paid;
                 } else if (seat.kind === 'company') {
                     const c = MerchantHouses.company(player);
-                    if (c) { paid = Math.min(wage, Math.max(0, _num(c.capital))); if (paid > 0) MerchantHouses._debit(c, world, paid, 'wages', `Wages of ${office.name}, chief factor`); }
+                    if (c) {
+                        paid = Math.min(wage, Math.max(0, _num(c.capital)));
+                        // (out of the company's coffers — counted coin, systems/coinCensus.js — into the holder's purse)
+                        if (paid > 0) MerchantHouses._debit(c, world, paid, 'wages', `Wages of ${office.name}, chief factor`);
+                    }
                 } else {
                     paid = Math.min(wage, Math.max(0, _num(player.gold)));
                     player.gold -= paid;
                     if (paid > 0) Ledger.record(player, 'stewardWages', -paid);
                 }
-                const npc = Stewards._npc(player, office.id);
-                if (npc && paid > 0) npc.purse = _num(npc.purse) + paid;
+                // (into their purse — a court NPC's, a child's portion — else spent in the seat's town)
+                if (paid > 0) Stewards._payHolder(player, world, seat, office, paid);
                 office.unpaid = paid < wage ? _num(office.unpaid) + 1 : 0;
             }
         }
@@ -1067,8 +1129,10 @@ export const Stewards = {
         if (s.skim > 0) {
             if (seat.kind === 'holding') {
                 // (the town kept back the skimmed share of its taxes: the steward has it of the town)
+                // (it stays in the town's purse, where they live and spend — the pocket is the tally
+                // of it, as the governors' is in systems/fiscal.js)
                 const gross = income / Math.max(0.1, 1 - _num(h.fx && h.fx.skim));
-                taken = Economy.drawTown(town, gross * s.skim);
+                taken = _r2(Math.min(gross * s.skim, Math.max(0, _num(Economy.townPurse(town), gross * s.skim))));
             } else if (seat.kind === 'province') {
                 const pf = _obj(town.provinceFx);
                 taken = pf ? _num(pf.pocket) : 0;
@@ -1082,12 +1146,16 @@ export const Stewards = {
                 if (c) {
                     taken = Math.min(Math.max(0, _num(c.capital)), Math.floor(income * s.skim));
                     c.capital -= taken;
+                    // (out of the company's coffers into the town they live in: the pocket is the tally of it)
+                    Stewards._toTown(player, world, seat, taken);
                 }
             } else if (seat.kind === 'trade') {
                 // (kept back of the lines' sales as they were made: player/tradeLines.js)
                 const ff = _obj(player.tradeLines) && _obj(player.tradeLines.factorFx);
                 taken = ff ? _num(ff.pocket) : 0;
                 if (ff) ff.pocket = 0;
+                // (kept back of sales made and spent in the town of the sale as it was skimmed —
+                // player/tradeLines.js pays it there: the pocket is only the tally, no coin moves now)
             }
         }
         if (taken > 0) {
@@ -1129,6 +1197,8 @@ export const Stewards = {
             Ledger.record(player, 'stewardWorks', -res.cost);
             if (pad > 0) {
                 player.gold -= pad;
+                // (spent in the town where they live: the pocket is the tally of it)
+                Stewards._toTown(player, world, seat, pad);
                 Ledger.record(player, 'stewardWorks', -pad);
                 s.pocket = _r2(_num(s.pocket) + pad);
                 s.embezzled = _r2(_num(s.embezzled) + pad);
@@ -1184,7 +1254,8 @@ export const Stewards = {
             if (h) h.unrest = _clamp(_num(h.unrest) + A.unrest, 0, 100);
             if (town) {
                 town.happiness = _clamp(Taxation.getHappiness(town) - A.happiness, 0, 100);
-                const got = Economy.drawTown(town, Math.max(0, _num(Economy.townPurse(town), 0)) * A.extortShare * 0.1);
+                // (squeezed out of the townsfolk, kept and spent in the same town: the pocket's tally)
+                const got = _r2(Math.max(0, _num(Economy.townPurse(town), 0)) * A.extortShare * 0.1);
                 if (got > 0) { s.pocket = _r2(_num(s.pocket) + got); s.embezzled = _r2(_num(s.embezzled) + got); }
             }
             if (seat.kind === 'estates') {
@@ -1208,7 +1279,7 @@ export const Stewards = {
             if (!r || _num(r.feud) < B.minFeud / 2) { s.bribe = null; return; }
             if ((_day(world) - _num(s.bribe.day)) % 28 < 7 && _num(r.gold) > 50) {
                 const g = Math.min(_num(r.gold) - 50, Math.round((B.gold[0] + B.gold[1]) / 4));
-                if (g > 0) { r.gold -= g; s.pocket = _r2(_num(s.pocket) + g); s.bribe.paid = _num(s.bribe.paid) + g; }
+                if (g > 0) { r.gold -= g; Stewards._toTown(player, world, seat, g); s.pocket = _r2(_num(s.pocket) + g); s.bribe.paid = _num(s.bribe.paid) + g; }
             }
             return;
         }
@@ -1221,7 +1292,7 @@ export const Stewards = {
         if (!(g > 0)) return;
         const name = r.name || 'a rival House';
         if (s.honesty < B.acceptBelow || office.loyalty < 40) {
-            if (Number.isFinite(r.gold)) r.gold -= g;
+            if (Number.isFinite(r.gold)) { r.gold -= g; Stewards._toTown(player, world, seat, g); }
             s.bribe = { rivalId: rid, rivalName: name, day: _day(world), paid: g };
             s.pocket = _r2(_num(s.pocket) + g);
             office.loyaltyMod = _num(office.loyaltyMod) + B.loyalty;
@@ -1289,7 +1360,7 @@ export const Stewards = {
         if (seat.kind === 'company') {
             const c = MerchantHouses.company(player);
             const took = c ? Math.min(Math.max(0, _num(c.capital)), Math.max(0, Math.round(_num(c.capital) * 0.15))) : 0;
-            if (took > 0) { c.capital -= took; s.pocket = _r2(_num(s.pocket) + took); }
+            if (took > 0) { c.capital -= took; Stewards._toTown(player, world, seat, took); s.pocket = _r2(_num(s.pocket) + took); }
             Stewards._vacate(player, world, seat, office, 'fled', out);
             st.stats.defections++;
             const text = `${name}, chief factor of ${seat.place}, goes over to a rival house${took ? ` with ${took} gold of the company's capital` : ''}.`;

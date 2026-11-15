@@ -7,6 +7,7 @@ import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Bank
 import { Wilds } from '../../player/wilds.js';
 import { InnerMapLots } from '../innerMapLots.js';
 import { Lots } from '../../systems/lots.js';
+import { PlayerCoin } from '../../player/playerCoin.js';
 import { LandRegions } from '../../world/landRegions.js';
 import { showWildsEncounter } from '../wildsEncounter.js';
 import { BTN_GOLD, BTN_PLAIN, BTN_OFF, lede, chips, purse, sectionHead, kv, card, actRow, rowList, price } from './uiKit.js';
@@ -283,7 +284,8 @@ Object.assign(ActionMenu, {
                 return;
             }
 
-            game.player.gold -= buildCost;
+            // (the builders and the timber merchants are the town's, or the nearest one's)
+            PlayerCoin.pay(game.world, game.player, buildCost, tile.settlement || { q: tile.q, r: tile.r }, 'propertyBought');
 
             const newProperty = {
                 type: building.id,
@@ -785,7 +787,8 @@ Object.assign(ActionMenu, {
         for (const reward of explorationResults.rewards) {
             switch (reward.type) {
                 case 'gold':
-                    player.gold += reward.amount;
+                    // (coin in no one's purse: found, on the books)
+                    PlayerCoin.found(game.world, player, reward.amount, 'treasure', 'exploration');
                     rewardLines.push(`<div style="color: #f1c40f;">💰 +${reward.amount} Gold</div>`);
                     break;
                 case 'item': {
@@ -1117,7 +1120,8 @@ Object.assign(ActionMenu, {
             }
 
             // Deduct costs
-            game.player.gold -= cost;
+            // (the quarrymen are hired from the nearest town)
+            PlayerCoin.pay(game.world, game.player, cost, { q: tile.q, r: tile.r }, 'publicWorks');
             game.player.actionPoints -= apCost;
 
             // Add stone to inventory
@@ -1222,7 +1226,7 @@ Object.assign(ActionMenu, {
 
                 // Spymaster intel gathering — foreign territory taverns count as intel
                 if (typeof Titles !== 'undefined' && game.player.currentTitle === 'spymaster' && tavernKingdomId !== game.player.allegiance) {
-                    const intelResult = Titles.recordIntelGathered(game.player);
+                    const intelResult = Titles.recordIntelGathered(game.player, game.world);
                     if (intelResult) {
                         game.ui.showNotification('🕵️ Intel Gathered', `Spymaster duty: Intelligence gathered (+${intelResult.gold} gold). Total: ${intelResult.count}`, 'success');
                     }

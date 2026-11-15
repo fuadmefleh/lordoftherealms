@@ -46,6 +46,8 @@ import { Ledger } from './ledger.js';
 import { Taxation } from './marketDynamics.js';
 import { Coalitions } from './coalitions.js';
 import { RivalHouses } from './rivalHouses.js';
+import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -416,7 +418,8 @@ export const RivalAgents = {
             const type = options[Math.floor(_roll(`ra-leak:${a.id}:${day}`) * options.length) % options.length];
             const scheme = Schemes.hatch(player, world, rival, type);
             if (scheme) {
-                if (typeof rival.gold === 'number') rival.gold -= plotCost;
+                // (the plotters' pay is spent at the House's seat)
+                if (typeof rival.gold === 'number') { rival.gold -= plotCost; RivalHouses._spendAtSeat(world, rival, plotCost); }
                 rival.lastPlotDay = day;
                 if (rival.stats) rival.stats.plotsPaid = _num(rival.stats.plotsPaid) + 1;
                 scheme.dueDay = Math.min(scheme.dueDay, day + _num(K.leadDays, 4));
@@ -520,6 +523,8 @@ export const RivalAgents = {
         if (_num(player.gold) < cost) return { success: false, reason: `Loosening tongues costs ${cost} gold.` };
         player.gold = _num(player.gold) - cost;
         Ledger.record(player, 'rivalAgents', -cost);
+        // (the ale and the loosened tongues: the town's purse)
+        if (!Economy.payTown(t.s, cost) && !Economy.payNearest(world, q, r, cost)) MoneySupply.leak(world, -cost, 'rivalAgents');
         st.lastInquiry = { day, key: `${q},${r}` };
         st.stats.inquiries++;
         const here = st.agents.filter(a => a.q === q && a.r === r && !a.known && !a.turned);
@@ -558,6 +563,8 @@ export const RivalAgents = {
         if (_num(player.gold) < cost) return { success: false, reason: `${a.name} wants ${cost} gold.` };
         player.gold = _num(player.gold) - cost;
         Ledger.record(player, 'rivalAgents', -cost);
+        // (into the turncoat's own purse)
+        f.person.purse = Math.round((Townsfolk.purse(f.folk, f.person, world) + cost) * 100) / 100;
         const day = _day(world);
         a.turned = true;
         a.turnedDay = day;

@@ -68,6 +68,7 @@ import { Scenarios } from './scenarios.js';
 import { NpcMemory } from '../systems/npcMemory.js';
 import { TownMarks } from '../world/townMarks.js';
 import { Names } from '../core/names.js';
+import { PlayerCoin } from './playerCoin.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 // A rival at court may be a lady: the texts written of 'him' read of 'her'
@@ -931,9 +932,7 @@ export const Generalship = {
         const gain = Math.min(_num(P.max, 20), Math.round(g / per * _num(P.perShare, 10)));
         const k = _kingdom(world, c.kingdomId);
         const home = _towns(world, k).sort((a, b) => _dist(world, a, player) - _dist(world, b, player))[0];
-        player.gold = _r2(_num(player.gold) - g);
-        Ledger.record(player, 'armyUpkeep', -g);
-        if (home) Economy.payTown(home.settlement, g);
+        PlayerCoin.pay(world, player, g, home ? home.settlement : null, 'armyUpkeep');
         c.morale = Utils.clamp(_num(c.morale) + gain, 0, 100);
         for (const lt of c.lieutenants) lt.loyalty = Utils.clamp(lt.loyalty + 1, 0, 100);
         return { success: true, message: `${g}g shared among the men${home ? ` (spent in ${home.settlement.name}'s taverns)` : ''}. Morale +${gain}.` };
@@ -978,9 +977,7 @@ export const Generalship = {
         if (_num(player.gold) < cost) return { success: false, reason: `Gifts to the courtiers cost ${cost}g.` };
         const k = _kingdom(world, c.kingdomId);
         const capTile = k && k.capital ? world.getTile(k.capital.q, k.capital.r) : null;
-        player.gold = _r2(_num(player.gold) - cost);
-        Ledger.record(player, 'diplomacy', -cost);
-        if (capTile && capTile.settlement) Economy.payTown(capTile.settlement, cost);
+        PlayerCoin.pay(world, player, cost, (capTile && capTile.settlement) || null, 'diplomacy');
         c.lastAnswerDay = day;
         Generalship._favour(c, _num(C.answerFavour, 6));
         c.rival.influence = Utils.clamp(c.rival.influence - 6, 0, 100);
@@ -1152,6 +1149,7 @@ export const Generalship = {
             const k = _kingdom(world, c.kingdomId);
             const cap = k && k.capital ? world.getTile(k.capital.q, k.capital.r) : null;
             if (cap && cap.settlement) Economy.payTown(cap.settlement, price);
+            else Economy.payNearest(world, player.q, player.r, price);
         }
         r.scheme = null;
         r.quietUntil = day + _num(B.quietDays, 30);

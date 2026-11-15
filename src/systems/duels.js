@@ -40,6 +40,8 @@
 
 import { DataLoader } from '../core/dataLoader.js';
 import { Utils } from '../core/utils.js';
+import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
 import { Traits } from './traits.js';
 import { Ailments } from './ailments.js';
 import { CombatSkills } from './combatSkills.js';
@@ -832,7 +834,10 @@ export const Duels = {
      * Apply a tournament's outcome to the player. bouts: [{ opponent, result }]
      * in order (the bracket stops at the first loss). Returns
      * { wins, champion, finalist, gold, renown, harm, wounds, skillUp, lines }.
-     * opts: { prizePool, armour (0..1, the player's), world, rng }.
+     * opts: { prizePool, armour (0..1, the player's), world, rng, payer }.
+     * The purse is paid by `payer` (a kingdom: its chests, then its towns; a
+     * settlement: its market purse); with none, by the town the lists stand in
+     * (the nearest that keeps coin). A payer short of coin pays what it has.
      */
     settleTournament(player, opts = {}) {
         const rng = _rngOf(opts);
@@ -857,6 +862,17 @@ export const Duels = {
                 const wound = Ailments.maybeWound(player, opts.world || null, 'duel', { chanceMult: 0.5 + r.aLost });
                 if (wound) out.wounds.push(wound);
             }
+        }
+        if (out.gold > 0 && opts.world) {
+            const w = opts.world, by = opts.payer;
+            const want = out.gold;
+            // (no purse anywhere to pay it — a bare test world, a world before coin — the purse is
+            // paid in full, booked as coin found: it came out of no counted purse)
+            const town = by ? null : Economy.nearestPurse(w, player.q, player.r);
+            out.gold = by && 'treasury' in by && !by.economy ? Economy.crownPays(by, w, want)
+                : by ? Economy.drawTown(by, want)
+                : town ? Economy.drawTown(town, want) : MoneySupply.leak(w, want, 'tournament') || want;
+            if (out.gold < want) out.purseShort = want - out.gold;
         }
         player.gold = _num(player.gold) + out.gold;
         player.renown = _num(player.renown) + out.renown;

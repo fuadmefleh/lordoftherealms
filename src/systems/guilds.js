@@ -63,6 +63,7 @@ import { Trading } from '../player/playerEconomy.js';
 import { PriceKnowledge } from './priceKnowledge.js';
 import { Ledger } from './ledger.js';
 import { CrownBooks } from '../world/crownBooks.js';
+import { MoneySupply } from '../world/moneySupply.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -109,6 +110,7 @@ const DEFAULT_CONFIG = {
     standing: { perGold: 0.02, maxPerTrade: 4, duesPaid: 1, missedDues: 5, expelAfter: 3, perWorksRun: 0.15 },
     works: { journeymanSeize: 0.5, masterSeize: 0.35, guildmasterSeize: 0.2, graceMult: 2 },
     stipend: { share: 0.1, max: 30 },
+    spending: { reserveWeeks: 6, upkeep: 0.1, relief: 0.06, reliefHard: 0.08, dividend: 0.05, dividendAbove: 1, feastEvery: 91, feastShare: 0.3, feastPerMember: 1, feastMood: 1 },
 };
 
 export const Guilds = {
@@ -894,6 +896,8 @@ export const Guilds = {
         player.gold -= amount;
         loan.owed -= amount;
         if (g) g.treasury = _num(g.treasury) + amount;
+        else if (s) Economy.payTown(s, amount); // (the hall is gone: its members' coin, in their town)
+        else MoneySupply.leak(world, -amount, 'guildLoanGone');
         st.stats.loanInterest += Math.max(0, amount - Math.max(0, loan.principal));
         loan.principal -= amount;
         if (loan.owed <= 0) {
@@ -1166,6 +1170,7 @@ export const Guilds = {
                 g.treasury = want;
                 if (had - want > 0) Economy.payTown(s, had - want);
             }
+            Guilds._spendWeek(world, s, g, day);
             Guilds._refreshToll(player, world, s, g);
             // Strikes run their course (or the strike fund runs dry)
             if (g.strike) {
@@ -1203,6 +1208,54 @@ export const Guilds = {
             Guilds._memberWeek(world, player, s, g, day, out);
             if (g.week && (g.week.toll || Object.keys(g.week.outsider || {}).length)) g.week = { outsider: {}, toll: 0 };
         }
+    },
+
+    /**
+     * What the hall spends in its town each week (2026-11: before, a hall only
+     * spent what overflowed its cap, and the guilds' chests piled up — 4k to
+     * 30k in five years on seed 303). The hall's upkeep (its fire, clerk and
+     * repairs: masons and chandlers paid), members' relief and alms (more in
+     * hard times: low prosperity), the masters' dividend in good years, and a
+     * feast on the guild's day each season (the town's mood lifts). All of it is
+     * paid into the town's purse — the members and tradesmen spend it there.
+     * Relief, dividend and feast draw only on the chest above its reserve
+     * (spending.reserveWeeks of dues: what a strike or a lobbying purse needs).
+     * → { upkeep, relief, dividend, feast } paid
+     */
+    _spendWeek(world, s, g, day) {
+        const C = Guilds.config();
+        const P = _obj(C.spending) || {};
+        const out = { upkeep: 0, relief: 0, dividend: 0, feast: 0 };
+        const members = Math.max(0, _num(g.members));
+        if (!(members > 0) || !(_num(g.treasury) > 0)) return out;
+        const pay = (kind, amount) => {
+            const a = _round2(Math.min(Math.max(0, _num(g.treasury)), Math.max(0, amount)));
+            if (!(a > 0)) return 0;
+            g.treasury = _round2(_num(g.treasury) - a);
+            // (a town that barters takes no coin: the hall's coin stays in its chest)
+            const paid = Economy.payTown(s, a);
+            if (!paid) { g.treasury = _round2(g.treasury + a); return 0; }
+            out[kind] = a;
+            if (!_obj(g.spent)) g.spent = {};
+            g.spent[kind] = _round2(_num(g.spent[kind]) + a);
+            return a;
+        };
+        pay('upkeep', members * _num(P.upkeep, 0.1));
+        const reserve = members * C.dues * _num(P.reserveWeeks, 6);
+        const above = () => Math.max(0, _num(g.treasury) - reserve);
+        // Relief: widows, the sick, members fallen on hard times (more when trade is poor)
+        const hard = Math.max(0, 1 - _num(g.prosperity, 1));
+        pay('relief', above() * (_num(P.relief, 0.06) + hard * _num(P.reliefHard, 0.08)));
+        // The masters' dividend in a good year
+        if (_num(g.prosperity, 1) >= _num(P.dividendAbove, 1)) pay('dividend', above() * _num(P.dividend, 0.05));
+        // The guild's feast, once a season (on its own day: a hash of the hall)
+        const every = Math.max(7, _num(P.feastEvery, 91));
+        const off = (Utils.hashStr(`feast:${Guilds._key(s, g.id)}`) >>> 0) % every;
+        if (!g.strike && Math.floor((day - off) / every) !== Math.floor((day - off - _num(C.tickDays, 7)) / every)) {
+            const want = Math.min(above() * _num(P.feastShare, 0.3) + members * _num(P.feastPerMember, 1), above());
+            if (pay('feast', want) > 0) s.happiness = _clamp(_num(s.happiness, 50) + _num(P.feastMood, 1), 0, 100);
+        }
+        return out;
     },
 
     /** The guild's quarrel with the player's works and company when they undercut it. */

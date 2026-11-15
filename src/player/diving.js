@@ -39,6 +39,7 @@ import { Containers } from '../systems/containers.js';
 import { Swimming } from './swimming.js';
 import { PracticeSkills } from '../systems/practiceSkills.js';
 import { Endurance } from './endurance.js';
+import { PlayerCoin } from './playerCoin.js';
 
 const DEFAULTS = {
     drainPerSecond: 1,
@@ -268,11 +269,12 @@ export const Diving = {
     },
 
     /** A find off the bottom into the packs (gold into the purse) → { ok, reason } */
-    take(player, find) {
+    take(player, find, world = null) {
         if (!player || !find) return { ok: false, reason: 'Nothing there.' };
         const d = player.dive;
         if (find.gold > 0) {
-            player.gold = _num(player.gold, 0) + find.gold;
+            // (coin off the bottom was in no purse: found, on the books)
+            PlayerCoin.found(world, player, find.gold, 'treasure', 'exploration');
             if (d) { d.gold += find.gold; if (find.rare) d.treasures++; else d.finds++; }
             return { ok: true, reason: null };
         }
@@ -301,7 +303,7 @@ export const Diving = {
      * The dive is Diving and Swimming XP; then the breath must come back.
      * → { seconds, haul, gold, lost, xp, limit, levelUps: [event], recovery: { seconds, winded } }
      */
-    surface(player, { blackout = false } = {}) {
+    surface(player, { blackout = false, world = null } = {}) {
         const d = player && player.dive;
         if (!d) return null;
         const out = { seconds: Math.round(d.under), haul: { ...d.haul }, gold: d.gold, lost: false, xp: 0, limit: false, levelUps: [], recovery: null };
@@ -326,7 +328,8 @@ export const Diving = {
                 if (left > 0) player.inventory[id] = left;
                 else if (player.inventory) delete player.inventory[id];
             }
-            player.gold = Math.max(0, _num(player.gold, 0) - d.gold);
+            // (the coin goes back to the deep: lost, on the books)
+            PlayerCoin.lost(world, player, d.gold, 'lostAtSea', 'exploration');
         }
         player.dive = null;
         return out;

@@ -38,6 +38,7 @@
 // drawn under the sprites (renderGround, from the depth-sorted pass).
 
 import { InnerMap } from '../world/innerMap.js';
+import { PlayerCoin } from '../player/playerCoin.js';
 import { DataLoader } from '../core/dataLoader.js';
 import { Utils } from '../core/utils.js';
 import { InnerMapCharacters } from './innerMapCharacters.js';
@@ -309,7 +310,7 @@ export const InnerMapDigging = {
             // Something buried here before: it comes up into the hole (world/burials.js caches)
             const cache = Burials.digUpCache(world, hex, job.q, job.r);
             if (cache && cache.cache) {
-                const { taken, left } = Burials.takeAll(cache.cache, player);
+                const { taken, left } = Burials.takeAll(cache.cache, player, world);
                 if (!left) Burials.dropCache(world, hex, job.q, job.r);
                 const got = Burials.isEmpty(taken) ? '' : ` You take ${Burials.describe(taken, _nameOf)}.`;
                 const stays = left ? ` ${_cap(Burials.describe(left, _nameOf))} still lie${Object.keys(left.items || {}).length + (left.gold ? 1 : 0) === 1 ? 's' : ''} in the hole: your packs are full.` : '';
@@ -360,7 +361,7 @@ export const InnerMapDigging = {
             const goods = Burials.openGrave(g, day, false);
             let got = '';
             if (goods) {
-                const { taken, left } = Burials.takeAll(goods, player);
+                const { taken, left } = Burials.takeAll(goods, player, world);
                 if (left) g.goods = left;
                 if (!Burials.isEmpty(taken)) got = ` You take what was buried with them: ${Burials.describe(taken, _nameOf)}.`;
                 if (left) got += ' The rest lies in the grave: your packs are full.';
@@ -510,7 +511,7 @@ export const InnerMapDigging = {
         } else {
             c = Burials.openCache(game.world, InnerMap._burialHex(), q, r, day);
         }
-        const n = Burials.putIn(c, player, itemId, qty);
+        const n = Burials.putIn(c, player, itemId, qty, game.world);
         if (n && game.ui && typeof game.ui.updateStats === 'function') game.ui.updateStats(player, game.world);
         return n;
     },
@@ -521,7 +522,7 @@ export const InnerMapDigging = {
         const c = this.contentsAt(game, q, r);
         if (!player || !c) return null;
         const t = InnerMap.getTile(q, r);
-        const { taken, left } = Burials.takeAll(c, player);
+        const { taken, left } = Burials.takeAll(c, player, game.world);
         if (!left && t._dug.kind === 'grave') delete t._dug.goods;
         if (game.ui && typeof game.ui.updateStats === 'function') game.ui.updateStats(player, game.world);
         return { taken, left };
@@ -597,7 +598,8 @@ export const InnerMapDigging = {
             let gold = 0;
             if (Array.isArray(f.gold) && game && game.player) {
                 gold = Utils.randInt(f.gold[0], f.gold[1]);
-                game.player.gold = (game.player.gold || 0) + gold;
+                // (old coin in the ground was in no purse: found, on the books)
+                PlayerCoin.found(game.world, game.player, gold, 'treasure', 'exploration');
                 if (game.ui && typeof game.ui.updateStats === 'function') game.ui.updateStats(game.player, game.world);
             }
             return _fill(f.text, { gold });

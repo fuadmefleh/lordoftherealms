@@ -38,6 +38,7 @@
 // The model's work runs off the day's tick; its effects are applied inside a
 // seeded stream (Utils.withRng). No import-time effects.
 
+import { MoneySupply } from '../world/moneySupply.js';
 import { DataLoader } from '../core/dataLoader.js';
 import { Utils } from '../core/utils.js';
 import { Names } from '../core/names.js';
@@ -476,7 +477,8 @@ Answer with ONE JSON object and nothing else:
         for (const k of Object.keys(R)) delete R[k];
         Object.assign(R, { ...keep, kind: L.kind, tone: r.tone, ...r.reply, inReplyTo: L.kind });
         R.gold = _num(keep.gold) + _num(r.reply.gold);
-        if (R.robbed) R.gold = 0;
+        // (a robbed reply: the coin drawn for it went with the robbers, off the map — booked lost, as Mail.robLetter books it)
+        if (R.robbed) { if (_num(r.reply.gold) > 0) MoneySupply.leak(world, -_num(r.reply.gold), 'mailLost'); R.gold = 0; }
         if (R.kind === 'plain' || !R.kind) R.kind = 'plain';
         Mail._write(world, player, R, { L, to, sub });
         return true;

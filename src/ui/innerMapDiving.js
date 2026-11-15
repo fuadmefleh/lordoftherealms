@@ -348,7 +348,7 @@ export const InnerMapDiving = {
         const player = game && game.player;
         this._under = null;
         InnerMap._underwater = false;
-        const res = player ? Diving.surface(player, { blackout }) : null;
+        const res = player ? Diving.surface(player, { blackout, world: game.world }) : null;
         this._syncButton(game);
         if (res) for (const up of res.levelUps || []) _note(game, `${up.icon} ${up.name} Improved`, up.text, 'success');
         if (!res || quiet) return res;
@@ -377,7 +377,7 @@ export const InnerMapDiving = {
         const f = Diving.findAt(u.bed, InnerMap.playerInnerQ, InnerMap.playerInnerR);
         if (!f) return false;
         if (f._full) return false; // (already told the packs are full; swim off and back to try again)
-        const res = Diving.take(game.player, f);
+        const res = Diving.take(game.player, f, game.world);
         if (!res.ok) {
             f._full = true;
             _note(game, '🎒 Packs Full', `${f.icon} ${f.name}: ${res.reason}`, 'warning');

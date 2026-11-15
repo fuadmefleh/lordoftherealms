@@ -30,6 +30,8 @@
 
 import { DataLoader } from '../core/dataLoader.js';
 import { Utils } from '../core/utils.js';
+import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
 import { Gossip } from './gossip.js';
 import { Underworld } from './underworld.js';
 import { NpcDisposition } from './npcDisposition.js';
@@ -851,6 +853,8 @@ export const StreetCrime = {
                 if (fine == null) return { invalid: true, outcome: 'none', notification: { title: 'No Fine', body: 'There is no paying your way out of a killing.', type: 'error' } };
                 if (_num(player.gold) < fine) return { invalid: true, outcome: 'none', notification: { title: 'Purse Too Light', body: `You need ${fine} gold.`, type: 'error' } };
                 player.gold -= fine;
+                // (the fine goes into the town's purse — the watch's town, else the nearest that keeps coin)
+                if (!(settlement && settlement.economy && Economy.payTown(settlement, fine)) && !Economy.payNearest(world, player.q, player.r, fine, { kid: inc.kingdom })) MoneySupply.leak(world, -fine, 'fines');
                 Ledger.record(player, 'fines', -fine);
                 StreetCrime._answer(player, inc);
                 return { outcome: 'fined', fine, notification: { title: '💰 Fined', body: _fill(O.fine || 'You pay {fine} gold.', { ...vars, fine }), type: 'warning' } };

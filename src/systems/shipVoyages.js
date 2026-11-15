@@ -29,6 +29,7 @@ import { DataLoader } from '../core/dataLoader.js';
 import { Hex } from '../core/hex.js';
 import { Utils } from '../core/utils.js';
 import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
 import { Quests } from './quests.js';
 import { Traits } from './traits.js';
 import { Underworld } from './underworld.js';
@@ -148,6 +149,9 @@ export const VoyageMethods = {
         }
         const cost = n * price;
         player.gold -= cost;
+        // (the chandler's price goes into the port town's purse)
+        const port = world && typeof world.getTile === 'function' ? world.getTile(player.q, player.r) : null;
+        if (!(port && port.settlement && Economy.payTown(port.settlement, cost)) && !Economy.payNearest(world, player.q, player.r, cost)) MoneySupply.leak(world, -cost, 'voyages');
         const item = this._getProvisionSettings().item;
         if (!ship.cargo) ship.cargo = {};
         ship.cargo[item] = (ship.cargo[item] || 0) + n;
@@ -724,6 +728,9 @@ export const VoyageMethods = {
         if (gold) {
             if (gold < 0) gold = -Math.min(-gold, Math.max(0, player.gold || 0));
             player.gold = (player.gold || 0) + gold;
+            // (out at sea no purse in the world pays or takes it: salvage, a find, a reward is
+            // coin found; a toll paid to sea-raiders, a bribe, coin lost overboard is gone)
+            MoneySupply.leak(world, gold, 'voyages');
             if (player.financeToday && gold > 0) player.financeToday.income.exploration = (player.financeToday.income.exploration || 0) + gold;
             if (player.financeToday && gold < 0) player.financeToday.expenses.ships = (player.financeToday.expenses.ships || 0) - gold;
             lines.push(gold > 0 ? `(+${gold}g)` : `(${gold}g)`);

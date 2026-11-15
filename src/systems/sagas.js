@@ -60,6 +60,7 @@ import { Underworld } from './underworld.js';
 import { Taxation } from './marketDynamics.js';
 import { Pressure } from './pressure.js';
 import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
 
 const DEFAULT_CONFIG = {
     firstStart: [60, 120],
@@ -193,10 +194,16 @@ const EFFECTS = {
         for (const k of Sagas._scopeKingdoms(c.world, c.saga, e.scope || 'kingdom')) {
             const t = _num(k.treasury);
             const next = Math.max(0, Math.round(t + _num(e.amount) + t * _num(e.pct)));
-            // (a gain is what the story's costs paid in — the player's purse; a loss is the
-            // crown's coin spent — a ransom, a fleet, a war chest — into its own towns)
+            // (a gain is what the story's costs paid in — the player's purse (c.paidIn), the rest
+            // raised from the realm's towns; a loss is the crown's coin spent — a ransom, a fleet,
+            // a war chest — into its own towns)
             if (next < t) Economy.crownSpend(k, c.world, t - next);
-            else k.treasury = next;
+            else if (next > t) {
+                const gain = next - t;
+                const fromPaid = Math.min(gain, Math.max(0, _num(c.paidIn)));
+                if (fromPaid > 0) { c.paidIn = _num(c.paidIn) - fromPaid; k.treasury = Math.round((t + fromPaid) * 100) / 100; }
+                if (gain > fromPaid) Economy.crownRaise(k, c.world, gain - fromPaid, 0.1);
+            }
         }
     },
 
@@ -500,7 +507,12 @@ const EFFECTS = {
         if (e.items) {
             const res = PlayerInventory.addOrSell(player, e.items);
             for (const [item, n] of Object.entries(e.items)) parts.push(`${n} ${item.replace(/_/g, ' ')}`);
-            if (res && res.gold > 0) parts.push(`(${res.gold} gold for what would not fit)`);
+            if (res && res.gold > 0) {
+                parts.push(`(${res.gold} gold for what would not fit)`);
+                // (sold on the spot to the nearest town: its purse pays, and what it cannot is booked found)
+                const paid = Economy.drawNearest(world, player.q, player.r, res.gold);
+                if (paid < res.gold) MoneySupply.leak(world, res.gold - paid, 'sagas');
+            }
         }
         if (e.deeds) Traits.recordDeeds(player, e.deeds);
         if (e.chronicle && player.house) House._chronicle(player.house, world, Sagas.fill(e.chronicle, saga), ['saga', saga.id]);
@@ -867,7 +879,12 @@ export const Sagas = {
         if (Object.keys(items).length) {
             const res = PlayerInventory.addOrSell(player, items);
             parts.push(Object.entries(items).map(([item, n]) => `${n} ${item.replace(/_/g, ' ')}`).join(', '));
-            if (res && res.gold > 0) parts.push(`(${res.gold} gold for what would not fit)`);
+            if (res && res.gold > 0) {
+                parts.push(`(${res.gold} gold for what would not fit)`);
+                // (sold on the spot to the nearest town: its purse pays, and what it cannot is booked found)
+                const paid = Economy.drawNearest(world, player.q, player.r, res.gold);
+                if (paid < res.gold) MoneySupply.leak(world, res.gold - paid, 'sagas');
+            }
         }
         Traits.recordDeeds(player, { valor: b.post ? 3 : 1 });
         st.stats.beastsSlain = _num(st.stats.beastsSlain) + 1;
@@ -1453,7 +1470,15 @@ export const Sagas = {
         const notices = [];
         const notify = (icon, title, text, type = 'info') => notices.push({ icon, title, text, type });
         const c = Sagas._ctx(player, world, saga, notify);
+        // (the action's gold is real coin: what its effects do not put in a crown's chests is
+        // spent in the story's realm — the offerings, the physicians' fees, the bribes)
+        c.paidIn = Math.max(0, _num(cost.gold));
         for (const e of action.effects || []) Sagas._apply(c, { always: true, ...e });
+        if (c.paidIn > 0) {
+            const k = Sagas._scopeKingdom(world, saga, 'kingdom');
+            if (!(k && k.isAlive !== false && Economy.payRealm(k, world, c.paidIn)) && !Economy.payNearest(world, player.q, player.r, c.paidIn)) MoneySupply.leak(world, -c.paidIn, 'sagas');
+            c.paidIn = 0;
+        }
         const text = Sagas.fill(action.text, saga);
         Sagas._addHeard(saga, world, text);
         Sagas._advance(player, world, saga, notify);

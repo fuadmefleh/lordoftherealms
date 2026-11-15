@@ -49,6 +49,7 @@ import { House } from './house.js';
 import { TownLabour } from '../world/townLabour.js';
 import { Construction } from './construction.js';
 import { NpcMemory } from './npcMemory.js';
+import { MoneySupply } from '../world/moneySupply.js';
 
 const FALLBACK_CONFIG = {
     ungovernedDistance: 6,
@@ -134,7 +135,26 @@ function _merge(base, over) {
     return out;
 }
 
+
+/** Coin the ruler pays into a holding's town (else the nearest town; else lost, booked). */
+function _payTownOr(world, settlement, amount, why) {
+    if (!(amount > 0)) return;
+    if (settlement && !settlement.inKind && Economy.payTown(settlement, amount)) return;
+    const at = settlement && Number.isFinite(settlement.q) ? settlement : null;
+    if (!(world && at && Economy.payNearest(world, at.q, at.r, amount))) MoneySupply.leak(world, -amount, why);
+}
+
+/** A governor's coin (wage, or what a turncoat takes): their own purse when they are a court NPC, else spent in the town. */
+function _payGovernor(world, settlement, g, amount) {
+    const npc = g && g.id != null ? Relationships.getNPC(g.id) : null;
+    if (npc && npc.isAlive !== false) npc.purse = Math.round((_num(npc.purse) + amount) * 100) / 100;
+    else _payTownOr(world, settlement, amount, 'governorWage');
+}
+
 export const Holdings = {
+    /** Coin the ruler pays into a holding's town (else the nearest; else lost, booked) — see _payTownOr. */
+    _payInto: (world, settlement, amount, why) => _payTownOr(world, settlement, amount, why),
+
     FX_KEYS,
     STAT_KEYS,
 
@@ -377,6 +397,8 @@ export const Holdings = {
         }
         paid += quote.buyCost;
         player.gold -= paid;
+        // (the masons' wages and the bought materials are paid into the town)
+        _payTownOr(world, ref.settlement, paid, 'holdingWorks');
         const days = Economy.scaleBuildDays(_num(def.days, 5), world, q, r);
         h.queue.push({ id: projectId, progress: 0, days, startedDay: (world && world.day) || 0, paid });
         Holdings.ensureLedger(player);
@@ -392,7 +414,8 @@ export const Holdings = {
         const entry = h.queue.find(p => p.id === projectId);
         if (!entry) return { success: false, reason: 'Nothing like that is being built.' };
         h.queue = h.queue.filter(p => p !== entry);
-        const refund = Math.floor(_num(entry.paid) * Holdings.config().cancelRefund);
+        // (what the builders hand back comes out of the town they were paid into)
+        const refund = Math.floor(Economy.drawTown(ref.settlement, Math.floor(_num(entry.paid) * Holdings.config().cancelRefund)));
         player.gold = _num(player.gold) + refund;
         const def = Holdings.project(projectId);
         return { success: true, refund, text: `Work on the ${def ? def.name : projectId} stops. ${refund}g comes back to you.` };
@@ -726,6 +749,7 @@ export const Holdings = {
         const h = Holdings.ensure(ref.settlement);
         if (h.governor) Holdings.dismissGovernor(player, world, q, r);
         player.gold = _num(player.gold) - _num(cand.fee);
+        _payTownOr(world, ref.settlement, _num(cand.fee), 'governorFee');
         // A governor stays at their post: a companion — or a spouse travelling
         // with you — leaves the party (and cannot be invited back while in office)
         const inParty = cand.kind === 'companion' || Relationships.isInTravelParty(player, cand.id);
@@ -829,6 +853,7 @@ export const Holdings = {
         if (_num(player.gold) < cost) return { success: false, reason: `The rebels want ${cost} gold.` };
         const R = Holdings.config().rebellion;
         player.gold -= cost;
+        _payTownOr(world, ref.settlement, cost, 'rebelParley');
         player.renown = Math.max(0, _num(player.renown) + R.parleyRenown);
         h.rebellion = null;
         h.unrest = R.parleyUnrest;
@@ -967,6 +992,8 @@ export const Holdings = {
             if (_num(player.gold) >= upkeep) {
                 player.gold -= upkeep;
                 out.upkeep += upkeep;
+                // (each garrison spends its pay in the town it holds)
+                for (const ref of owned) _payTownOr(world, ref.settlement, Holdings.garrisonUpkeep(ref.settlement.holding), 'garrisonPay');
             } else {
                 let deserted = 0;
                 for (const ref of owned) deserted += Holdings._garrisonLosses(ref.settlement.holding, cfg.garrison.desertShare);
@@ -979,6 +1006,7 @@ export const Holdings = {
             if (_num(player.gold) >= g.wage) {
                 player.gold -= g.wage;
                 out.upkeep += g.wage;
+                _payGovernor(world, ref.settlement, g, g.wage);
                 g.unpaid = 0;
             } else {
                 g.unpaid = _num(g.unpaid) + 1;
@@ -1014,6 +1042,7 @@ export const Holdings = {
         if (g.loyalty < G.betrayAt && Utils.random() < G.betrayChance * (1 + _num(g.intrigue) / 10)) {
             const stolen = Math.min(G.betrayStealMax, Math.floor(_num(player.gold) * G.betrayStealShare));
             player.gold = _num(player.gold) - stolen;
+            _payGovernor(world, ref.settlement, g, stolen);
             h.unrest = _clamp(h.unrest + G.betrayUnrest, 0, 100);
             h.governor = null;
             const npc = g.kind === 'companion' ? Relationships.getNPC(g.id) : null;

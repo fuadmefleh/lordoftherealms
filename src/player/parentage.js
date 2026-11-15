@@ -68,6 +68,7 @@ import { Religion } from '../systems/religion.js';
 import { Devotion } from '../systems/devotion.js';
 import { Court } from '../systems/court.js';
 import { OddJobs } from './oddJobs.js';
+import { Ledger } from '../systems/ledger.js';
 import { Names } from '../core/names.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
@@ -431,8 +432,10 @@ export const Parentage = {
         Townsfolk.purse(folk, f, world);
         f.purse = _num(f.purse) + savings;
 
-        // Station: pocket money, training, standing
-        Parentage._station(player, world, st, s.kingdom);
+        // Station: pocket money (out of the household's purse), training, standing
+        const pocket = Math.max(0, Math.min(Math.round(_num(st.purse)), Math.floor(_num(f.purse))));
+        f.purse = _num(f.purse) - pocket;
+        Parentage._station(player, world, st, s.kingdom, pocket);
         const childWord = Parentage._childWord(player);
         player.title = `${childWord[0].toUpperCase()}${childWord.slice(1)} of ${f.first} ${f.last}`;
 
@@ -1218,7 +1221,7 @@ export const Parentage = {
         pa.ended = { day: _day(world), how };
         if ((how === 'age' || how === 'blessed') && Parentage.regard(player) >= 20) {
             const gift = Parentage._takeSavings(world, pa, Parentage.savings(world, player) * _num(B.partingGift, 0.15));
-            if (gift > 0) player.gold = _num(player.gold) + gift;
+            if (gift > 0) { player.gold = _num(player.gold) + gift; Ledger.record(player, 'family', gift); }
             const text = _fill(L.comeOfAge, { age: player.age, parents: Parentage.parentsLine(player).replace(/^your/, 'Your'), gift: gift > 0 ? ` and ${gift} gold from their savings` : '' });
             Parentage._log(pa, world, text);
             if (how === 'age') out.notices.push({ icon: '🎂', title: 'Of Age', text, type: 'success' });
@@ -1318,6 +1321,7 @@ export const Parentage = {
                 const paid = Parentage._takeSavings(world, pa, _num(st.allowance));
                 if (paid > 0) {
                     player.gold = _num(player.gold) + paid;
+                    Ledger.record(player, 'family', paid);
                     out.notices.push({ icon: '💰', title: 'Allowance', text: _fill((B.lines || {}).allowance, { parents: Parentage.parentsLine(player).replace(/^your/, 'Your'), gold: paid }), type: 'info' });
                 } else if (_num(st.allowance) > 0) {
                     Parentage._log(pa, world, (B.lines || {}).allowanceShort);
@@ -1413,6 +1417,7 @@ export const Parentage = {
             const got = Parentage._takeSavings(world, pa, share);
             if (got > 0) {
                 player.gold = _num(player.gold) + got;
+                Ledger.record(player, 'inheritance', got);
                 out.notices.push({ icon: '📜', title: 'Inheritance', text: _fill(L.inherit, { what: `${got} gold, your share of their savings` }), type: 'info' });
             }
         }

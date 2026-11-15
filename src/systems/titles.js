@@ -9,6 +9,8 @@ import { BountyHunting } from './bountyHunting.js';
 import { Ledger } from './ledger.js';
 import { Traits } from './traits.js';
 import { CrownBooks } from '../world/crownBooks.js';
+import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
 
 // Tax collection as a choice and its audit; the chaplain's blessing; tuning
 // in data/titles.json → taxCollection / blessing (these are the defaults).
@@ -29,6 +31,10 @@ const BLESSING_DEFAULTS = { days: 20, happiness: 3, sicknessMult: 0.6 };
 
 function _clampN(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 function _num0(v) { return typeof v === 'number' && Number.isFinite(v) ? v : 0; }
+function _crownOf(world, kid) {
+    if (!world || kid == null) return null;
+    return (typeof world.getKingdom === 'function' && world.getKingdom(kid)) || (world.kingdoms || []).find(x => x && x.id === kid) || null;
+}
 function _strHash(str) {
     let h = 2166136261;
     const s = String(str);
@@ -474,6 +480,10 @@ export const Titles = {
         const paid = Math.min(Math.max(0, Math.floor(player.gold || 0)), owed);
         player.gold -= paid;
         Ledger.record(player, 'fines', -paid);
+        // (repaid to the crown whose books were robbed)
+        const crown = _crownOf(world, player.allegiance);
+        if (crown) crown.treasury = _num0(crown.treasury) + paid;
+        else if (paid > 0 && world && !Economy.payNearest(world, player.q, player.r, paid)) MoneySupply.leak(world, -paid, 'fines');
         if (player.reputation && player.allegiance) {
             const short = owed > 0 ? (owed - paid) / owed : 0;
             player.reputation[player.allegiance] = (player.reputation[player.allegiance] || 0) + Math.round(A.reputation * (1 + short));
@@ -587,7 +597,7 @@ export const Titles = {
     /**
      * Marshal: complete a patrol (track tiles visited this period)
      */
-    recordPatrolStep(player, q, r) {
+    recordPatrolStep(player, q, r, world = null) {
         if (player.currentTitle !== 'marshal') return;
         if (!player.titleProgress.patrolTilesVisited) {
             player.titleProgress.patrolTilesVisited = new Set();
@@ -601,8 +611,7 @@ export const Titles = {
 
             const title = Titles.getTitleDefinitions().marshal;
             if (title) {
-                const gold = Utils.randInt(title.perks.goldPerPatrol.min, title.perks.goldPerPatrol.max);
-                player.gold += gold;
+                const gold = Titles._crownWage(player, world, Utils.randInt(title.perks.goldPerPatrol.min, title.perks.goldPerPatrol.max));
                 player.renown = (player.renown || 0) + 1;
                 return { patrolCompleted: true, gold, count: player.titleProgress.patrolsCompleted };
             }
@@ -613,15 +622,14 @@ export const Titles = {
     /**
      * Spymaster: gather intel (triggered when getting tavern rumors in foreign territory)
      */
-    recordIntelGathered(player) {
+    recordIntelGathered(player, world = null) {
         if (player.currentTitle !== 'spymaster') return;
         const progress = player.titleProgress;
         progress.intelGathered = (progress.intelGathered || 0) + 1;
 
         const title = Titles.getTitleDefinitions().spymaster;
         if (title) {
-            const gold = Utils.randInt(title.perks.goldPerIntel.min, title.perks.goldPerIntel.max);
-            player.gold += gold;
+            const gold = Titles._crownWage(player, world, Utils.randInt(title.perks.goldPerIntel.min, title.perks.goldPerIntel.max));
             return { gold, count: progress.intelGathered };
         }
         return null;
@@ -685,15 +693,14 @@ export const Titles = {
     /**
      * Trade Envoy: complete a trade mission (triggered when trading at foreign settlement)
      */
-    recordTradeMission(player) {
+    recordTradeMission(player, world = null) {
         if (player.currentTitle !== 'trade_envoy') return;
         const progress = player.titleProgress;
         progress.missionsCompleted = (progress.missionsCompleted || 0) + 1;
 
         const title = Titles.getTitleDefinitions().trade_envoy;
         if (title) {
-            const gold = Utils.randInt(title.perks.goldPerDeal.min, title.perks.goldPerDeal.max);
-            player.gold += gold;
+            const gold = Titles._crownWage(player, world, Utils.randInt(title.perks.goldPerDeal.min, title.perks.goldPerDeal.max));
             player.renown = (player.renown || 0) + 1;
             return { gold, count: progress.missionsCompleted };
         }
@@ -713,13 +720,48 @@ export const Titles = {
      * Royal Cartographer: the crown pays a commission for each survey map drawn.
      * Returns the gold paid, or 0 when the player holds no such perk.
      */
-    recordSurvey(player) {
+    recordSurvey(player, world = null) {
         const title = Titles.getActiveTitle(player);
         const pay = title && title.perks && title.perks.goldPerSurvey;
         if (!pay) return 0;
-        const gold = Utils.randInt(pay.min, pay.max);
-        player.gold += gold;
-        return gold;
+        return Titles._crownWage(player, world, Utils.randInt(pay.min, pay.max));
+    },
+
+    /**
+     * The crown pays its office-holder `gold` (a salary, a commission): out of the
+     * chests of the realm they serve, the rest out of its towns' purses — never
+     * coin from nothing; a crown that can't pay pays what it can. A caller with no
+     * world to hand (the old record* hooks) credits the pay now and the crown
+     * settles it at the day's end (processDaily), the shortfall booked as found.
+     * → what was paid
+     */
+    _crownWage(player, world, gold) {
+        const g = Math.max(0, Math.round(_num0(gold)));
+        if (!(g > 0) || !player) return 0;
+        const kid = player.allegiance;
+        if (!world) {
+            if (!player.titlePayOwed || typeof player.titlePayOwed !== 'object') player.titlePayOwed = {};
+            player.titlePayOwed[kid == null ? '_' : kid] = _num0(player.titlePayOwed[kid == null ? '_' : kid]) + g;
+            player.gold = _num0(player.gold) + g;
+            return g;
+        }
+        const k = _crownOf(world, kid);
+        const paid = k ? Economy.crownPays(k, world, g) : 0;
+        player.gold = _num0(player.gold) + paid;
+        return paid;
+    },
+
+    /** Settle the pay credited by callers without the world (see _crownWage). */
+    _settleOwed(player, world) {
+        const owed = player && player.titlePayOwed;
+        if (!owed || typeof owed !== 'object' || !world) return;
+        for (const [kid, n] of Object.entries(owed)) {
+            if (!(n > 0)) continue;
+            const k = kid === '_' ? null : (_crownOf(world, kid) || _crownOf(world, Number(kid)));
+            const paid = k ? Economy.crownPays(k, world, n) : 0;
+            if (n - paid > 0) MoneySupply.leak(world, Math.round((n - paid) * 100) / 100, 'officePay');
+        }
+        delete player.titlePayOwed;
     },
 
     /**
@@ -752,6 +794,7 @@ export const Titles = {
      * Process daily title events (called from game.endDay)
      */
     processDaily(player, world) {
+        Titles._settleOwed(player, world);
         if (!player.currentTitle) return null;
 
         const titles = Titles.getTitleDefinitions();
@@ -762,8 +805,8 @@ export const Titles = {
 
         // Pay daily salary
         // The Chancellor's office raises its own pay ("allSalaryBonus")
-        results.salary = Math.round((title.salary || 0) * (1 + ((title.perks && title.perks.allSalaryBonus) || 0)));
-        player.gold += results.salary;
+        // (paid by the crown the office serves: its chests, then its towns)
+        results.salary = Titles._crownWage(player, world, Math.round((title.salary || 0) * (1 + ((title.perks && title.perks.allSalaryBonus) || 0))));
 
         // Check fugitive timer (jailer)
         if (player.currentTitle === 'jailer' && player.activeFugitive) {

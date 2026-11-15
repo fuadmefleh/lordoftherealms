@@ -44,6 +44,7 @@ import { PlayerInventory } from '../core/inventory.js';
 import { TownTrade } from './townTrade.js';
 import { NpcShops } from './npcShops.js';
 import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
 // (what the talk does beyond the one person: tales, grudges, promises, the watch, their family — systems/npcChatImpact.js)
 import { NpcChatImpact } from './npcChatImpact.js';
 import { CompanionChatMood } from './companionChatMood.js';
@@ -254,15 +255,28 @@ export const NpcChat = {
                 if (shopTaken && shopTaken.n > 0 && town) { npc._chatShopTaken = null; return NpcShops.pay(world, town, npc, shopTaken, n); }
                 const paid = why === 'sale' ? (TownTrade.consignPaid(world, mem(), n) || (town ? Economy.payTown(town, n) : 0)) : 0;
                 if (paid >= n) return paid;
-                npc.purse = Math.round(((typeof npc.purse === 'number' ? npc.purse : 0) + n - paid) * 100) / 100;
+                // (a person of the map with no roll in the town's people: their coin is the town's
+                // common purse — the coin census counts it there, npc.purse only keeps the tally)
+                const rest = Math.round((n - paid) * 100) / 100;
+                if (town) Economy.payTown(town, rest);
+                else if (!Economy.payNearest(world, player.q, player.r, rest)) MoneySupply.leak(world, -rest, 'npcChat');
+                npc.purse = Math.round(((typeof npc.purse === 'number' ? npc.purse : 0) + rest) * 100) / 100;
                 return n;
             },
             purse: () => (npc._person && typeof npc._person.purse === 'number' ? Math.max(0, npc._person.purse) : typeof npc.purse === 'number' ? Math.max(0, npc.purse) : 0),
             payOut: (world, n) => {
-                const holder = npc._person && typeof npc._person.purse === 'number' ? npc._person : typeof npc.purse === 'number' ? npc : null;
-                if (!holder) return 0;
-                const paid = Math.min(Math.max(0, holder.purse), Math.max(0, n));
-                if (paid > 0) holder.purse = Math.round((holder.purse - paid) * 100) / 100;
+                if (npc._person && typeof npc._person.purse === 'number') {
+                    const holder = npc._person;
+                    const paid = Math.min(Math.max(0, holder.purse), Math.max(0, n));
+                    if (paid > 0) holder.purse = Math.round((holder.purse - paid) * 100) / 100;
+                    return paid;
+                }
+                if (typeof npc.purse !== 'number') return 0;
+                // (their tally says what they have; the coin itself comes out of their town's purse)
+                const town = _townOfFolk(world, npc._folk) || _townNamed(world, opts.place);
+                const want = Math.min(Math.max(0, npc.purse), Math.max(0, n));
+                const paid = town ? Economy.drawTown(town, Math.min(want, Math.floor(Economy.townPurse(town) ?? want))) : 0;
+                if (paid > 0) npc.purse = Math.round((npc.purse - paid) * 100) / 100;
                 return paid;
             },
             warm: (n) => NpcDisposition.adjustDisposition(npc, n, player),

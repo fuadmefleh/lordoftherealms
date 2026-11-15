@@ -4,6 +4,7 @@ import { DevotionPanel } from './devotion.js';
 import { esc, BTN_GOLD, BTN_DARK, BTN_PLAIN, lede, chips, purse, sectionHead, kv, card, actRow, rowList, price } from './uiKit.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, Culture, KingdomAtlas } from './_imports.js';
 import { Names } from '../../core/names.js';
+import { PlayerCoin } from '../../player/playerCoin.js';
 
 Object.assign(ActionMenu, {
     // ─────────────────────────────────────────────
@@ -94,7 +95,7 @@ Object.assign(ActionMenu, {
 
         window._upgradeCultural = () => {
             if (!ActionMenu.commitPendingAP(game)) return;
-            const result = Culture.upgradeCulturalBuilding(game.player, tile);
+            const result = Culture.upgradeCulturalBuilding(game.player, tile, game.world);
             if (result.success) {
                 game.ui.showNotification('📚 Building Upgraded', `${result.building.icon} ${result.building.name} is now level ${result.level}.`, 'success');
                 game.ui.updateStats(game.player, game.world);
@@ -123,7 +124,7 @@ Object.assign(ActionMenu, {
      * Buy freedom from indentured servitude
      */
     buyFreedom(game) {
-        const result = PlayerMilitary.buyFreedom(game.player);
+        const result = PlayerMilitary.buyFreedom(game.player, game.world);
         if (result.success) {
             game.ui.showNotification('Freedom Bought!', result.message, 'success');
         } else {
@@ -445,7 +446,7 @@ Object.assign(ActionMenu, {
             return;
         }
 
-        player.gold -= 100;
+        PlayerCoin.pay(game.world, player, 100, tile.settlement, 'settlerGrants');
         tile.settlement.colony.garrisonStrength += 10;
         tile.settlement.colony.loyalty = Math.min(100, tile.settlement.colony.loyalty + 5);
         game.ui.showNotification('Garrison Reinforced', `${tile.settlement.name} garrison strengthened to ${tile.settlement.colony.garrisonStrength}.`, 'success');
@@ -466,7 +467,7 @@ Object.assign(ActionMenu, {
             return;
         }
 
-        player.gold -= 150;
+        PlayerCoin.pay(game.world, player, 150, tile.settlement, 'settlerGrants');
         tile.settlement.colony.loyalty = Math.min(100, tile.settlement.colony.loyalty + 15);
         game.ui.showNotification('Aid Sent', `${tile.settlement.name} loyalty boosted to ${tile.settlement.colony.loyalty.toFixed(1)}%.`, 'success');
         ActionMenu.showManageColonyMenu(game, tile);
@@ -552,7 +553,7 @@ Object.assign(ActionMenu, {
         if (!tile || !tile.indigenous) return;
         if (!ActionMenu.commitPendingAP(game)) return;
 
-        const res = Colonization.tradeWithTribe(player, tile.indigenous);
+        const res = Colonization.tradeWithTribe(player, tile.indigenous, game.world, tile);
         if (!res.success) {
             game.ui.showNotification('Not Enough Gold', res.reason, 'error');
             return;
@@ -573,7 +574,7 @@ Object.assign(ActionMenu, {
         if (!tile || !tile.indigenous) return;
         if (!ActionMenu.commitPendingAP(game)) return;
 
-        const res = Colonization.tributeToTribe(player, tile.indigenous);
+        const res = Colonization.tributeToTribe(player, tile.indigenous, game.world, tile);
         if (!res.success) {
             game.ui.showNotification('Not Enough Gold', res.reason, 'error');
             return;
@@ -608,7 +609,8 @@ Object.assign(ActionMenu, {
         ];
         const benefit = Utils.randPick(benefits);
         
-        if (benefit.stat === 'gold') player.gold += benefit.value;
+        // (the tribe keeps no purse the census counts: what they give is coin found)
+        if (benefit.stat === 'gold') PlayerCoin.found(game.world, player, benefit.value, 'tribeGifts', 'exploration');
         else if (benefit.stat === 'karma') player.karma = (player.karma || 0) + benefit.value;
         else if (benefit.stat === 'renown') player.renown = (player.renown || 0) + benefit.value;
 
@@ -786,10 +788,10 @@ Object.assign(ActionMenu, {
             game.ui.showNotification('Failed', res.reason, 'error');
             return;
         }
-        player.gold -= opt.cost;
+        PlayerCoin.pay(world, player, opt.cost, null, 'exploration'); // (ink and vellum from the nearest town)
         const map = res.map;
         // A Royal Cartographer is paid a commission for every survey
-        const commission = type === 'survey' ? Titles.recordSurvey(player) : 0;
+        const commission = type === 'survey' ? Titles.recordSurvey(player, world) : 0;
 
         game.ui.showNotification('Map Drawn!',
             `${map.name} (${Cartography.QUALITY[map.quality].label} quality), ${map.tiles.length} tiles charted, worth ${map.value}g.${commission ? ` The crown pays ${commission}g for the survey.` : ''}`, 'success');

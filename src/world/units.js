@@ -398,9 +398,16 @@ export class WorldUnit {
             && !(this.playerOwned && u.sparesPlayer)); // a lair paid off leaves the player's caravans be
         // Road wardens see off half the robbers on a road-linked journey (player caravans)
         if (raider && !(this.roadLinked && Utils.random() < 0.5)) {
-            // Transfer caravan's inventory to the raider
+            // Transfer caravan's inventory to the raider — its coin once: a trade caravan's
+            // inventory.gold mirrors its purse (the census counts the purse), so the purse goes
+            const coin = typeof this.purse === 'number' ? Math.max(0, this.purse) : Math.max(0, Number(this.inventory.gold) || 0);
             for (const [item, amount] of Object.entries(this.inventory)) {
+                if (item === 'gold') continue;
                 raider.inventory[item] = (raider.inventory[item] || 0) + amount;
+            }
+            if (coin > 0) {
+                if (typeof raider.purse === 'number') raider.purse += coin;
+                else raider.inventory.gold = (Number(raider.inventory.gold) || 0) + coin;
             }
             // (taken, not copied: the robbed carry nothing more)
             this.inventory = {};

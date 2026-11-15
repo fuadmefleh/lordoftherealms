@@ -1195,7 +1195,7 @@ Object.assign(ActionMenu, {
             const bounty = game.player.activeBounties[idx];
             if (!bounty || bounty.type !== 'criminal_hunt' || typeof BountyHunting === 'undefined') return;
 
-            const resolution = BountyHunting.resolveCapturedTarget(game.player, bounty, choice);
+            const resolution = BountyHunting.resolveCapturedTarget(game.player, bounty, choice, game.world);
             if (!resolution.success) {
                 game.ui.showNotification('Unable', resolution.reason || 'Could not resolve bounty.', 'error');
                 return;
@@ -1304,7 +1304,7 @@ Object.assign(ActionMenu, {
         game.ui.showCustomPanel('Captured Criminal', html);
 
         window._resolveCapturedTarget = (choice) => {
-            const resolution = BountyHunting.resolveCapturedTarget(game.player, bounty, choice);
+            const resolution = BountyHunting.resolveCapturedTarget(game.player, bounty, choice, game.world);
             if (!resolution.success) {
                 game.ui.showNotification('Unable', resolution.reason || 'Could not resolve bounty.', 'error');
                 return;

@@ -56,6 +56,7 @@ import { Utils } from '../core/utils.js';
 import { Hex } from '../core/hex.js';
 import { WorldUnit } from '../world/units.js';
 import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
 import { SettlementWealth } from '../world/settlementWealth.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
 import { WorldEvents } from '../world/worldEvents.js';
@@ -743,9 +744,43 @@ export const Migration = {
             population: n, migKind: kind, why, fromName: from.name, toName: to.name,
             start: day, next: day + Math.max(1, _num(C.daysPerHex, 2)), households: moved,
         });
+        // (the coin the households carry, on the road: the unit's purse is what the coin census reads —
+        // Migration._settleColumnCoin squares the households' purses with it when they arrive)
+        unit.purse = Migration._householdCoin(moved);
         if (!Array.isArray(world.units)) world.units = [];
         world.units.push(unit);
         return unit;
+    },
+
+    /** The coin in a column's households' purses. */
+    _householdCoin(hs) {
+        let coin = 0;
+        for (const h of Array.isArray(hs) ? hs : []) for (const c of (h && h.people) || []) coin += Math.max(0, _num(c.purse));
+        return _r2(coin);
+    },
+
+    /**
+     * The column's purse (u.purse, what the census counts on the road — worn or
+     * taken there like any carried coin) is what its households bring: their
+     * purses are scaled to it, and the unit's emptied. → the coin they bring.
+     */
+    _settleColumnCoin(u) {
+        const hs = Array.isArray(u.households) ? u.households : [];
+        const have = Migration._householdCoin(hs);
+        const carry = typeof u.purse === 'number' ? Math.max(0, u.purse) : have;
+        u.purse = 0;
+        if (have > 0 && Math.abs(have - carry) > 0.001) {
+            const f = carry / have;
+            let left = carry;
+            const all = [];
+            for (const h of hs) for (const c of (h && h.people) || []) if (_num(c.purse) > 0) all.push(c);
+            all.forEach((c, i) => {
+                const v = i === all.length - 1 ? _r2(left) : _r2(_num(c.purse) * f);
+                c.purse = Math.max(0, v);
+                left = _r2(left - c.purse);
+            });
+        }
+        return carry;
     },
 
     /** The column takes its day: a hex every daysPerHex, arriving at its new town. */
@@ -776,7 +811,13 @@ export const Migration = {
         u.destroyed = true;
         const tile = world.getTile(u.targetQ, u.targetR);
         const to = tile && tile.settlement;
-        if (!to) return;
+        const carried = Migration._settleColumnCoin(u);
+        if (!to) {
+            // (no town to settle in: they scatter, and what they carried is spent in the nearest town)
+            if (carried > 0 && !Economy.payNearest(world, u.q, u.r, carried)) MoneySupply.leak(world, -carried, 'migrants');
+            u.households = null;
+            return;
+        }
         const placed = Array.isArray(u.households) ? Migration._place(world, to, u.households, null, day, player) : 0;
         u.households = null;
         const mine = ruled.has(_key(to.q, to.r));
@@ -822,9 +863,9 @@ export const Migration = {
         }
         // The households' purses: theirs, now the player's
         const hs = Array.isArray(u.households) ? u.households : [];
-        let coin = 0;
-        for (const h of hs) for (const c of h.people || []) { coin += Math.max(0, _num(c.purse)); c.purse = 0; }
-        coin = _r2(coin);
+        // (the column's purse on the road is what the census counted: Migration._settleColumnCoin)
+        let coin = _r2(Migration._settleColumnCoin(u));
+        for (const h of hs) for (const c of h.people || []) c.purse = 0;
         if (coin > 0) {
             player.gold = _r2(_num(player.gold) + coin);
             if (loot) loot.gold = _r2(_num(loot.gold) + coin);
@@ -841,7 +882,7 @@ export const Migration = {
         for (const h of slain) {
             for (const c of h.people || []) {
                 const p = ff ? Townsfolk.get(ff, c.oid) : null;
-                if (p && p.died == null) { Townsfolk._die(ff, p, day, 'slain on the road'); named++; }
+                if (p && p.died == null) { Townsfolk._die(ff, p, day, 'slain on the road', world); named++; }
             }
         }
         if (ff && named) delete ff._index;

@@ -17,6 +17,8 @@
 
 import { FurnitureCatalogue } from '../world/furnitureCatalogue.js';
 import { Ledger } from './ledger.js';
+import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
 
 const _num = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
 
@@ -55,6 +57,8 @@ export const Furnishing = {
         if (_num(player.gold) < cost) return { success: false, text: `A ${item.name} costs ${cost}g. You have ${Math.floor(_num(player.gold))}g.` };
         player.gold = _num(player.gold) - cost;
         Ledger.record(player, 'housing', -cost);
+        // (the joiner's price: into the purse of the town the player buys in)
+        if (world && typeof world.getSettlementViews === 'function' && !Economy.payNearest(world, player.q, player.r, cost)) MoneySupply.leak(world, -cost, 'playerSpent');
         if (player.financeToday && player.financeToday.expenses) {
             player.financeToday.expenses.housing = _num(player.financeToday.expenses.housing) + cost;
         }
@@ -68,14 +72,21 @@ export const Furnishing = {
         return { success: true, text: `You buy ${many} for ${cost}g. It waits in your furniture store: set it down in a home of yours (Furnish, inside).`, piece };
     },
 
-    /** Sell a stored piece back to a furniture maker. → { success, text, gold } */
-    sell(player, uid) {
+    /**
+     * Sell a stored piece back to a furniture maker. → { success, text, gold }
+     * With `world`, the maker pays out of the town's purse (a broke town pays what it has).
+     */
+    sell(player, uid, world = null) {
         const list = Furnishing.store(player);
         const i = list.findIndex(p => p && p.uid === uid);
         if (i < 0) return { success: false, text: 'You have no such piece in store.' };
         const piece = list[i];
         if (!FurnitureCatalogue.isEmpty(piece)) return { success: false, text: 'Empty it first: there are still things inside.' };
-        const gold = FurnitureCatalogue.sellValue(piece);
+        let gold = FurnitureCatalogue.sellValue(piece);
+        if (world && typeof world.getSettlementViews === 'function') {
+            const town = Economy.nearestPurse(world, player.q, player.r);
+            if (town) gold = Economy.drawTown(town, gold);
+        }
         list.splice(i, 1);
         player.gold = _num(player.gold) + gold;
         Ledger.record(player, 'housing', gold);

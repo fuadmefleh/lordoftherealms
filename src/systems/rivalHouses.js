@@ -74,6 +74,7 @@ import { Duels } from './duels.js';
 import { Ledger } from './ledger.js';
 import { Arms } from './arms.js';
 import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
 import { PlayerInventory } from '../core/inventory.js';
 
 export const RIVAL_TYPE = 'rival_retinue';
@@ -353,8 +354,15 @@ export const RivalHouses = {
         if (fresh != null && rival.seat && typeof world.getTile === 'function') {
             const seatTown = this._settlementAt(world, rival.seat.q, rival.seat.r);
             const have = Economy.townPurse(seatTown);
-            if (have != null) rival.gold = Math.floor(Economy.drawTown(seatTown, Math.min(fresh, Math.floor(have * 0.25))));
+            if (have != null) { rival.gold = Math.floor(Economy.drawTown(seatTown, Math.min(fresh, Math.floor(have * 0.25)))); fresh = null; }
         }
+        // (no seat town keeping coin to draw it from: the rest of the world's coin pays it, else it is booked found)
+        if (fresh != null && rival.seat) {
+            const near = Economy.nearestPurse(world, rival.seat.q, rival.seat.r, { kid: rival.kingdomId });
+            const have = Economy.townPurse(near);
+            if (near && have != null) { rival.gold = Math.floor(Economy.drawTown(near, Math.min(fresh, Math.floor(have * 0.25)))); fresh = null; }
+        }
+        if (fresh != null) MoneySupply.leak(world, fresh, 'rivalHouses');
         if (!rival.stats) rival.stats = { trades: 0, tradeProfit: 0, courtVisits: 0, plotsPaid: 0, heads: 1 };
         for (const k of ['estatesBought', 'estatesSold', 'rents', 'pensions', 'ambitions']) if (!Number.isFinite(rival.stats[k])) rival.stats[k] = 0;
         if (!rival.standing) rival.standing = {};
@@ -818,7 +826,12 @@ export const RivalHouses = {
         if (!(amount > 0) || !world || typeof world.getTile !== 'function') return 0;
         const where = at && Number.isFinite(at.q) ? this._settlementAt(world, at.q, at.r) : null;
         const seat = rival && rival.seat ? this._settlementAt(world, rival.seat.q, rival.seat.r) : null;
-        return Economy.payTown(where || seat, amount);
+        if (Economy.payTown(where || seat, amount)) return amount;
+        // (no town there keeps coin — a barter place, a seat lost: the nearest that does, else the coin leaves the books)
+        const from = (at && Number.isFinite(at.q) ? at : null) || (rival && rival.seat) || null;
+        if (from && Economy.payNearest(world, from.q, from.r, amount, { kid: rival && rival.kingdomId })) return amount;
+        MoneySupply.leak(world, -amount, 'rivalHouses');
+        return amount;
     },
 
     _settlementAt(world, q, r) {
@@ -1131,7 +1144,7 @@ export const RivalHouses = {
             unit.inventory = {};
             rival.stats.trades++;
             rival.stats.tradeProfit += got - _num(plan.cost);
-            this._note(rival, world, `Sold ${plan.qty} ${_goodDef(plan.good).name.toLowerCase()} in ${plan.to.name} (${got - _num(plan.cost) >= 0 ? '+' : ''}${got - _num(plan.cost)}g).`, got >= _num(plan.cost) ? 'profit' : 'loss');
+            this._note(rival, world, `Sold ${plan.qty} ${_goodDef(plan.good).name.toLowerCase()} in ${plan.to.name} (${got - _num(plan.cost) >= 0 ? '+' : ''}${Math.round(got - _num(plan.cost))}g).`, got >= _num(plan.cost) ? 'profit' : 'loss');
             if (player && _dist(world, player, plan.to) <= C.noticeRange) {
                 out.notices.push({ icon: '📦', title: 'A Rival Sells', text: `${this.headName(rival)} unloads ${plan.qty} ${_goodDef(plan.good).name.toLowerCase()} in ${plan.to.name}: the price there falls.`, type: 'info' });
             }
@@ -1341,7 +1354,7 @@ export const RivalHouses = {
                     const spent = Math.min(Math.max(0, rival.gold), C.upkeep.weekly + Math.round(rival.gold * _num(C.upkeep.share)));
                     rival.gold -= spent;
                     if (seatTown && spent > 0) Economy.payTown(seatTown, spent);
-                    if (rival.gold < 0) rival.gold = 0;
+                    else if (spent > 0) this._spendAtSeat(world, rival, spent);
                     this._landWeek(world, rival);
                     this._courtWeek(world, rival, live);
                     this._guardWeek(world, rival, player, out);
@@ -1353,7 +1366,7 @@ export const RivalHouses = {
                 if (rival.plan && rival.plan.kind === 'waylay') this._hunt(player, world, rival, unit, out);
                 // Coin the retinue took on the road (a toll, a robbery) goes to the House's purse
                 if (unit.inventory && _num(unit.inventory.gold) > 0) {
-                    rival.gold += Math.round(unit.inventory.gold);
+                    rival.gold = Math.round((rival.gold + _num(unit.inventory.gold)) * 100) / 100;
                     unit.inventory.gold = 0;
                 }
                 if (!rival.plan) this._plan(player, world, rival, unit, out);
@@ -1409,6 +1422,8 @@ export const RivalHouses = {
         unit.hostile = true;
         unit.sparedUntilDay = null;
         if (!unit.inventory) unit.inventory = {};
+        // (whatever coin the retinue carried goes back to the House's purse)
+        if (_num(unit.inventory.gold) > 0) rival.gold = Math.round((_num(rival.gold) + _num(unit.inventory.gold)) * 100) / 100;
         unit.inventory.gold = 0;
         this._ride(world, unit, player);
         this._note(rival, world, 'Rode out to waylay you.');

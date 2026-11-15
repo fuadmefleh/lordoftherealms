@@ -148,7 +148,9 @@ function companyTarget(game) {
         const minRep = MerchantHouses.config().charter.minReputation;
         const rep = player.reputation || {};
         // (a crown whose every town the bot has failed to reach, over the sea, is no use)
-        const reachable = new Set(settlementTiles(world).filter(t => !(game.unreachableSites && game.unreachableSites.has(`${t.q},${t.r}`)))
+        // (and, on foot, only those on its own landmass: the trip there walks — see nearest())
+        const walk = typeof player._overlandReachable === 'function' ? (t) => player._overlandReachable(t.q, t.r, world) : () => true;
+        const reachable = new Set(settlementTiles(world).filter(t => !(game.unreachableSites && game.unreachableSites.has(`${t.q},${t.r}`)) && walk(t))
             .map(t => { const st = world.getTile(t.q, t.r).settlement; return st && st.kingdom; }));
         let best = null;
         for (const k of world.kingdoms || []) {
@@ -554,6 +556,13 @@ function company(game, tile, stats) {
         // starves the bot of bread money (it founds one once there's a cushion)
         // Saving for it (companyTarget): found it as soon as the purse holds the plan's sum
         const target = companyTarget(game);
+        // (at the plan's crown with the charter's price in the purse: buy it here and now —
+        // not first off to a bank in another realm, where no charter is sold to it — and
+        // save for the capital after)
+        const plan = game.companyPlan;
+        const atPlan = !!(target && plan && plan.kingdomId != null && tile.settlement && tile.settlement.kingdom === plan.kingdomId
+            && !MerchantHouses.hasCharter(player) && player.gold >= (plan.charter || 0));
+        if (atPlan && MerchantHouses.buyCharter(player, world, tile).success) count(stats, 'chartersBought');
         if (target) {
             if (savings(player) < target) return;
             // The sum is put by, much of it in the bank: draw it here, or make for a branch that holds it
@@ -1502,6 +1511,32 @@ function settlementBusiness(game, stats) {
     if (!saving) booked(game, 'bathe', () => bathe(game, stats));
     if (!saving) booked(game, 'hiredWork', () => hiredWork(game, tile, stats));
     booked(game, 'alms', () => alms(game, tile, stats));
+    booked(game, 'mendName', () => mendName(game, tile, stats));
+}
+
+/**
+ * Mending its name (systems/devotion.js donate → the poor of the town): a bot that has
+ * run with gangs and pirates can stand below every crown's charter bar (merchantHouses
+ * charter.minReputation), and then never founds its company. While no crown will charter
+ * it and it has coin to spare, once a week it gives to the poor of a town whose crown
+ * thinks ill of it: up to +5 reputation a gift (devotion.json donations.poor).
+ */
+function mendName(game, tile, stats) {
+    const { player, world } = game;
+    const s = tile && tile.settlement;
+    if (!s || !s.kingdom || world.day < 150 || player.gold < 1000 || MerchantHouses.hasCompany(player)) return;
+    if (MerchantHouses.hasCharter(player) || MerchantHouses.officeCharter(player)) return;
+    if (world.day - (game.lastMend ?? -1e9) < 7) return;
+    // (the company plan found no willing crown it can walk to: companyTarget)
+    companyTarget(game);
+    const plan = game.companyPlan;
+    if (!plan || plan.kingdomId != null) return;
+    const minRep = MerchantHouses.config().charter.minReputation;
+    if (((player.reputation || {})[s.kingdom] || 0) >= minRep) return;
+    if (Devotion.donate(player, world, tile, 'poor', 100).success) {
+        game.lastMend = world.day;
+        count(stats, 'nameMended');
+    }
 }
 
 /**

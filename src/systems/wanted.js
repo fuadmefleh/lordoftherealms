@@ -58,6 +58,7 @@ import { Hex } from '../core/hex.js';
 import { Interrupts } from '../core/interrupts.js';
 import { WorldUnit } from '../world/units.js';
 import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
 import { Underworld } from './underworld.js';
 import { Gossip } from './gossip.js';
 import { Nemesis } from './nemesis.js';
@@ -780,6 +781,7 @@ export const Wanted = {
             Ledger.record(player, 'fines', -q.cost);
             const k = _kingdom(world, kingdomId);
             if (k) k.treasury = _num(k.treasury) + q.cost;
+            else { const here = Wanted._here(player, world); if (here) Economy.payTown(here, q.cost); }
         }
         Wanted.clearRealm(player, kingdomId);
         Gossip.settleWithKingdom(player, kingdomId);
@@ -929,15 +931,18 @@ export const Wanted = {
         const got = NpcMemory.resolve(world, d.folkRef);
         player.gold -= cost;
         Ledger.record(player, 'weregild', -cost);
+        const toTown = () => {
+            const s = _views(world).find(v => v && v.name === d.town);
+            if (!(s && Economy.payTown(s, cost)) && !Economy.payNearest(world, player.q, player.r, cost)) MoneySupply.leak(world, -cost, 'weregild');
+        };
         if (got && got.p) {
-            got.p.purse = _num(got.p.purse) + cost;
+            // (to the kin's own purse while they live here; else to their town's)
+            if (got.p.died == null && !got.p.away) got.p.purse = _num(got.p.purse) + cost;
+            else toTown();
             // The blood memory sours less; the amends are remembered
             for (const e of got.p.nm || []) if (e && e.k === d.kind && e.vn === d.victim) e.w = Math.round(_num(e.w) * Wanted.config().weregild.memorySoften);
             NpcMemory.remember(world, { folk: got.folk, person: got.p }, { kind: 'amends', player });
-        } else {
-            const s = _views(world).find(v => v && v.name === d.town);
-            if (s) Economy.payTown(s, cost);
-        }
+        } else toTown();
         d.paid = true;
         d.closedDay = _day(world);
         // The realm's grave charge for the killing is eased by one share

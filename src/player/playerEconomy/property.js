@@ -4,6 +4,7 @@ import { Trading } from './trading.js';
 import { TownLabour } from '../../world/townLabour.js';
 import { Harvests } from '../../world/harvests.js';
 import { Ledger } from '../../systems/ledger.js';
+import { PlayerCoin } from '../playerCoin.js';
 import { Hospitality } from '../../systems/hospitality.js';
 import { Livestock } from '../../systems/livestock.js';
 import { BackRooms } from '../../systems/backRooms.js';
@@ -181,10 +182,8 @@ Object.assign(PlayerEconomy, {
         if (lot && lot.price > 0 && (player.gold || 0) < buildCost + lot.price) {
             return { success: false, reason: `Needs ${buildCost}g to build and ${lot.price}g for a building lot in ${tile.settlement.name || 'town'}` };
         }
-        player.gold -= buildCost;
-        Ledger.record(player, 'propertyBought', -buildCost);
         // (the builders and the timber merchants are the nearest town's: its purse is paid)
-        Economy.payTown(PlayerEconomy.propertyTown(world, tile, { hire: PlayerEconomy._nearTown(world, tile) }), buildCost);
+        PlayerCoin.pay(world, player, buildCost, PlayerEconomy.propertyTown(world, tile, { hire: PlayerEconomy._nearTown(world, tile) }) || { q: tile.q, r: tile.r }, 'propertyBought');
 
         // Determine what this property produces
         let produces = prop.produces;
@@ -370,8 +369,7 @@ Object.assign(PlayerEconomy, {
             if (property.type === 'tavern') {
                 const upkeepCost = PlayerEconomy.getPropertyUpkeep(player, property);
                 if (player.gold >= upkeepCost) {
-                    player.gold -= upkeepCost;
-                    Economy.payTown(PlayerEconomy.propertyTown(world, tile, property), upkeepCost); // (the staff's wages)
+                    PlayerCoin.pay(world, player, upkeepCost, PlayerEconomy.propertyTown(world, tile, property) || { q: tile.q, r: tile.r }); // (the staff's wages)
                     // Calculate tavern income based on settlement size
                     let baseIncome = 14;
                     if (tile.settlement) {
@@ -409,8 +407,8 @@ Object.assign(PlayerEconomy, {
                     // Prosperity miracle and a House Steward
                     baseIncome = Math.floor(baseIncome * PlayerEffects.propertyIncomeMultiplier(player));
                     // The drinkers pay out of the town's coin: a broke town drinks on tick
-                    const town = PlayerEconomy.propertyTown(world, tile, property);
-                    const can = Economy.townPurse(town);
+                    const town = PlayerEconomy.propertyTown(world, tile, property) || PlayerCoin.nearestTown(world, null, tile);
+                    const can = town ? Economy.townPurse(town) : 0;
                     if (can != null) baseIncome = Math.min(baseIncome, Math.floor(can));
                     Economy.drawTown(town, baseIncome);
                     player.gold += baseIncome;
@@ -522,9 +520,8 @@ Object.assign(PlayerEconomy, {
                 property.daysOwned++;
                 continue;
             }
-            player.gold -= upkeepCost;
             // (the hands' wages and the repairs go to the town they come from)
-            Economy.payTown(PlayerEconomy.propertyTown(world, tile, property), upkeepCost);
+            PlayerCoin.pay(world, player, upkeepCost, PlayerEconomy.propertyTown(world, tile, property) || { q: tile.q, r: tile.r });
 
             let producedAmount = amount;
             let producedGood = property.produces;
@@ -607,9 +604,9 @@ Object.assign(PlayerEconomy, {
                 if (good) {
                     // Auto-selling into the harvest glut fetches harvest prices; the
                     // goods go to the town's market and its purse pays (as far as it can)
-                    const town = PlayerEconomy.propertyTown(world, tile, property);
+                    const town = PlayerEconomy.propertyTown(world, tile, property) || PlayerCoin.nearestTown(world, null, tile);
                     const unit = good.basePrice * 0.5 * Seasons.priceMultiplier(good.id, Seasons.today(world));
-                    const can = Economy.townPurse(town);
+                    const can = town ? Economy.townPurse(town) : 0;
                     const n = can == null || !(unit > 0) ? sellAmount : Math.min(sellAmount, Math.floor(can / unit));
                     const income = Math.floor(n * unit);
                     if (n > 0) {

@@ -3,6 +3,7 @@ import { PlayerMilitary } from './_ref.js';
 import { Utils, Technology, Quests, Kingdom } from './_imports.js';
 import { MercContracts } from '../mercContracts.js';
 import { SocialSkills } from '../../systems/socialSkills.js';
+import { PlayerCoin } from '../playerCoin.js';
 
 Object.assign(PlayerMilitary, {
     /**
@@ -272,7 +273,8 @@ Object.assign(PlayerMilitary, {
             }
         }
 
-        player.gold -= offer.hireCost;
+        // (the company's captain banks the hire in the town it was hired in)
+        PlayerCoin.pay(world, player, offer.hireCost, tile && tile.settlement, 'mercenaryWages');
         player.mercenaryCompanies.push(company);
 
         const key = PlayerMilitary._getMercenaryMarketKey(tile);
@@ -283,7 +285,7 @@ Object.assign(PlayerMilitary, {
         return { success: true, company };
     },
 
-    payMercenaryBonus(player, companyId, goldAmount = 120) {
+    payMercenaryBonus(player, companyId, goldAmount = 120, world = null) {
         PlayerMilitary._ensureMercenaryState(player);
         const company = player.mercenaryCompanies.find(entry => entry.id === companyId);
         if (!company) return { success: false, reason: 'Company not found.' };
@@ -291,7 +293,8 @@ Object.assign(PlayerMilitary, {
         const bonus = Math.max(50, Math.floor(goldAmount));
         if (player.gold < bonus) return { success: false, reason: `Need ${bonus} gold.` };
 
-        player.gold -= bonus;
+        // (the men spend it in the town nearest the camp)
+        PlayerCoin.pay(world, player, bonus, null, 'mercenaryWages');
         const loyaltyGain = Math.floor(bonus / 45);
         company.loyalty = Math.min(100, company.loyalty + loyaltyGain);
         company.lastEvent = 'bonus_paid';
@@ -323,7 +326,7 @@ Object.assign(PlayerMilitary, {
 
             const paidWage = player.gold >= company.dailyWage;
             if (paidWage) {
-                player.gold -= company.dailyWage;
+                PlayerCoin.pay(world, player, company.dailyWage, null); // (spent in the town nearest the camp; booked by the day's results)
                 wagesPaid += company.dailyWage;
                 company.loyalty = Math.min(100, company.loyalty + 1);
             } else {

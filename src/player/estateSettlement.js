@@ -66,6 +66,7 @@ import { Finance } from '../systems/finance.js';
 import { Bills } from '../systems/bills.js';
 import { Bourse } from '../systems/bourse.js';
 import { MerchantHouses } from '../systems/merchantHouses.js';
+import { Economy } from '../world/economy.js';
 import { Relationships } from '../systems/relationships.js';
 import { Ledger } from '../systems/ledger.js';
 import { LlmProse } from '../systems/llmProse.js';
@@ -210,7 +211,7 @@ export const EstateSettlement = {
             const outside = Math.min(1, Math.max(0, _num(company.float && company.float.outside) / 100));
             const theirs = _r2(_num(company.capital) * outside);
             const holders = theirs > 0 ? EstateSettlement._exchangeTown(player, world, null) || town : null;
-            if (holders && theirs > 0) holders.economy.gold = _r2(holders.economy.gold + theirs);
+            if (holders && theirs > 0) Economy.payTown(holders, theirs);
             gain('company', _num(company.capital) - (holders ? theirs : 0));
             company.capital = 0;
         }

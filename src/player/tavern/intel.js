@@ -6,6 +6,7 @@ import { SettlementMarket } from '../../world/settlementMarket.js';
 import { MarketFairs } from '../../systems/marketFairs.js';
 import { PriceKnowledge } from '../../systems/priceKnowledge.js';
 import { Names } from '../../core/names.js';
+import { PlayerCoin } from '../playerCoin.js';
 
 Object.assign(Tavern, {
     // ────────────────────────────────────────────────────────────────────
@@ -445,7 +446,7 @@ Object.assign(Tavern, {
             // Pay upkeep (the first few are free for a Spymaster)
             const upkeep = i < freeInformants ? 0 : informant.upkeep;
             if (upkeep === 0 || player.gold >= upkeep) {
-                player.gold -= upkeep;
+                { const it = world.getTile(informant.q, informant.r); PlayerCoin.pay(world, player, upkeep, (it && it.settlement) || { q: informant.q, r: informant.r }); }
                 totalCost += upkeep;
             } else {
                 // Can't pay — informant leaves

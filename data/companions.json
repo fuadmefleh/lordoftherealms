@@ -1,6 +1,7 @@
 {
     "_comment": "Companions with a life of their own (src/systems/companions.js). Values decide how a travel companion's approval reacts to the player's deeds (Traits deed counters and earned traits), court rulings (petition court axes), quest-stat events (piracy, conquest, pilgrimage…), karma swings and battles. Approval tiers scale the companion's bonus; low approval brings gripes, raise demands, desertion and — rarely, after a warning — betrayal. High approval unlocks a personal quest (templates below); finishing it makes the companion devoted with a permanent perk. Personalities are generated deterministically from a hash of the companion's id.",
     "config": {
+        "spending": { "_comment": "A companion's own purse is spent, not hoarded (systems/companions.js _spend): bread and ale a day where the party stands, kit and a share sent home every so often out of what is past their reserve (twice that for the greedy)", "keepPerDay": 2, "reserve": 40, "every": 15, "kitShare": 0.15, "homeShare": 0.35, "greedReserveMult": 2 },
         "startApproval": 55,
         "valueCountWeights": [0.45, 0.55],
         "maxDailySwing": 12,

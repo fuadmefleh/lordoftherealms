@@ -1,5 +1,6 @@
 // ActionMenu — realm methods (split from the original monolith).
 import { ActionMenu } from './_ref.js';
+import { PlayerCoin } from '../../player/playerCoin.js';
 import { Duels } from '../../systems/duels.js';
 import { DuelPanel } from './duel.js';
 import { DevotionPanel } from './devotion.js';
@@ -350,7 +351,8 @@ Object.assign(ActionMenu, {
                 return;
             }
 
-            player.gold -= cost;
+            // (the lists, the heralds and the stands are the town's)
+            PlayerCoin.pay(game.world, player, cost, settlement);
             player.lastTournamentDay = day;
             if (player.financeToday) {
                 player.financeToday.expenses = player.financeToday.expenses || {};

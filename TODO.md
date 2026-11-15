@@ -50,6 +50,11 @@ Fixed this pass: town coin draining into crown chests and free villages (systems
 - [x] **The Guildmaster origin slowly loses gold:** 21–110g a month from the guild against 120g of court stipends. (Fixed 2026-11-14: the origin took the nearest of the top six guild towns, often a market town whose 28-member hall spent its dues on the master's house; it now picks among capitals and cities when the map has them, the master keeps one courtier (birth.json, was two: 60g a month), stipend share 0.1 (was 0.08). Seeds 101/202/303, 120 days, election put off: ledger net months 2–4 about −8..+31g a month (was −39..−136). Still lost off the books: NPC pickpockets take 45–60g a month from a 1000g purse in a capital (NpcTheft isn't booked to the ledger), and an idle master loses the first vote about half the time, then pays master's dues and the house.)
 - [ ] **Interior doors sit on the floor** at the room's bottom edge, with no wall around them (seen in a tavern). Check what the user meant by "door sprites are broken".
 
+## Coinage (2026-11-15)
+
+- [x] **Every coin from somewhere, to somewhere.** About 1,200 coin movements audited in src/ui, src/player, src/systems and src/world: each has a real payer and payee (`PlayerCoin.pay/receive`, `Economy.payTown/drawTown/drawNearest`, `crownPays`) or is booked found/lost (`MoneySupply.leak`). The census now counts guild escrow, school funds, company capital, mail in transit, delve partners' cuts, pirate loot, public-works budgets, avengers' purses and pending estates. Unbooked coin: about −40 over 240 days and −93 over 5 years (seeds 101, 303). Guild treasuries level off (about 4 a member); companions spend their wages. Specs: coinCensusCloses, coinPlayerActions.ui, coinSystems.*, coinLeftovers.
+- [ ] **Coin still booked as a leak rather than routed:** an avenger's birth purse and yearly income, coin found or lost at sea. Fine as found/lost coin, but could be given real sources.
+
 ## Arms & kit
 
 - [x] **Rival House retinues use the new kit slots** (legs, feet, hands). `systems/rivalHouses.js` still buys and tracks only main, off, head and body.

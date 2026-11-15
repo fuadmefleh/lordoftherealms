@@ -775,7 +775,7 @@ Object.assign(UI.prototype, {
     },
 
     upgradeTreasuryRouteProtection(routeId, isSmuggling = false) {
-        const result = PlayerEconomy.upgradeRouteProtection(this.game.player, routeId, !!isSmuggling);
+        const result = PlayerEconomy.upgradeRouteProtection(this.game.player, routeId, !!isSmuggling, this.game.world);
         if (result.success) {
             this.showNotification('Route Upgraded', `Protection increased for ${result.cost}g`, 'success');
             this.showTreasuryPanel(this.game.player, this.game.world);
@@ -786,7 +786,7 @@ Object.assign(UI.prototype, {
     },
 
     upgradeTreasuryRouteRoads(routeId, isSmuggling = false) {
-        const result = PlayerEconomy.upgradeRouteRoadQuality(this.game.player, routeId, !!isSmuggling);
+        const result = PlayerEconomy.upgradeRouteRoadQuality(this.game.player, routeId, !!isSmuggling, this.game.world);
         if (result.success) {
             this.showNotification('Route Upgraded', `Road quality improved for ${result.cost}g`, 'success');
             this.showTreasuryPanel(this.game.player, this.game.world);

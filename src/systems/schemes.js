@@ -175,6 +175,8 @@ const SCHEME_TYPES = {
         resolve(player, world, scheme) {
             const loss = Math.min(2000, Math.floor(goldOf(player) * Utils.randFloat(0.08, 0.15)));
             player.gold = goldOf(player) - loss;
+            // (the haul goes to the House that sent the thieves)
+            Schemes._toRival(player, world, scheme && scheme.rivalId, loss);
             if (scheme) scheme.loss = loss;
             Ledger.record(player, 'schemeLosses', -loss);
             return `Thieves empty part of your treasury: −${loss} gold.`;
@@ -474,7 +476,8 @@ export const Schemes = {
                 player.reputation[kingdomId] = (player.reputation[kingdomId] || 0) + CONFIG.exposeReputation;
             }
             if (!scheme && s.loss > 0) {
-                const gold = Math.floor(s.loss * CONFIG.recoverShare);
+                // (what is recovered comes back out of the thieves' master's purse — as far as it holds)
+                const gold = Math.floor(Schemes._fromRival(player, s.rivalId, Math.floor(s.loss * CONFIG.recoverShare), settlement));
                 player.gold = goldOf(player) + gold;
                 Ledger.record(player, 'schemeLosses', gold);
                 out.gold = gold;
@@ -494,6 +497,8 @@ export const Schemes = {
             const cost = Schemes.turnCost(player, s);
             if (goldOf(player) < cost) return { success: false, reason: `They want ${cost} gold.` };
             player.gold = goldOf(player) - cost;
+            // (the price of their loyalty is in their own purse now)
+            person.purse = (Number(person.purse) || 0) + cost;
             Ledger.record(player, 'informants', -cost);
             out.gold = -cost;
             if (scheme) Schemes._settle(player, world, scheme, 'foiled', `${s.name} of ${s.town}, turned by your coin, fed the plotters false word.`);
@@ -664,6 +669,9 @@ export const Schemes = {
         if (scheme.guarded) return { success: false, reason: 'Already guarded.' };
         if (goldOf(player) < def.guard.cost) return { success: false, reason: `Need ${def.guard.cost} gold.` };
         player.gold -= def.guard.cost;
+        // (the guards' hire is spent in the nearest town)
+        const at = scheme.target && Number.isFinite(scheme.target.q) ? scheme.target : player;
+        if (!Economy.payNearest(world, at.q, at.r, def.guard.cost)) MoneySupply.leak(world, -def.guard.cost, 'schemes');
         scheme.guarded = true;
         return { success: true, cost: def.guard.cost, chance: def.guard.success };
     },
@@ -701,11 +709,32 @@ export const Schemes = {
             const cost = Schemes.bribeGoldCost(player, scheme);
             if (goldOf(player) < cost) return { success: false, reason: `Need ${cost} gold.` };
             player.gold -= cost;
+            Schemes._toRival(player, world, scheme.rivalId, cost);
         }
         House.accrueRivalFeud(player, world, scheme.rivalId, CONFIG.feudOnBribe);
         Schemes._remove(player, scheme);
         House._chronicle(player.house, world, `${player.house.name} buys off ${scheme.rivalName}'s plot.`, ['rival', 'scheme']);
         return { success: true };
+    },
+
+    /** Coin into a rival House's purse (a haul, a bribe); a House without one: the nearest town to the player. */
+    _toRival(player, world, rivalId, amount) {
+        const a = Number(amount) || 0;
+        if (!(a > 0)) return 0;
+        const rival = player && player.house && rivalId != null ? House.rivalRecord(player.house, rivalId) : null;
+        if (rival && Number.isFinite(rival.gold)) { rival.gold = Math.round((rival.gold + a) * 100) / 100; return a; }
+        if (!(player && Economy.payNearest(world, player.q, player.r, a))) MoneySupply.leak(world, -a, 'schemes');
+        return a;
+    },
+
+    /** Coin out of a rival House's purse, as far as it holds (a House without one: `town`'s purse, where its haul went). → what was paid. */
+    _fromRival(player, rivalId, amount, town = null) {
+        const a = Math.max(0, Number(amount) || 0);
+        const rival = player && player.house && rivalId != null ? House.rivalRecord(player.house, rivalId) : null;
+        if (!rival || !Number.isFinite(rival.gold)) return town ? Economy.drawTown(town, a) : 0;
+        const paid = Math.min(a, Math.max(0, rival.gold));
+        rival.gold = Math.round((rival.gold - paid) * 100) / 100;
+        return paid;
     },
 
     // ── Resolution ──────────────────────────────────────────────
@@ -818,6 +847,9 @@ export const Schemes = {
         const scheme = Schemes.hatch(player, world, rival, type);
         if (scheme && purse) {
             rival.gold -= CONFIG.plotCost;
+            // (the plotters' pay is spent near the House's seat)
+            const at = rival.seat || player;
+            if (!(at && Economy.payNearest(world, at.q, at.r, CONFIG.plotCost, { kid: rival.kingdomId }))) MoneySupply.leak(world, -CONFIG.plotCost, 'schemes');
             if (rival.stats) rival.stats.plotsPaid = (rival.stats.plotsPaid || 0) + 1;
         }
         return scheme;

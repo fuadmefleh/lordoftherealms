@@ -11,6 +11,7 @@ import { Religion } from '../systems/religion.js';
 import { Traits } from '../systems/traits.js';
 import { Ailments } from '../systems/ailments.js';
 import { Ledger } from '../systems/ledger.js';
+import { PlayerCoin } from './playerCoin.js';
 import { House } from '../systems/house.js';
 import { DataLoader } from '../core/dataLoader.js';
 import { TownLabour } from '../world/townLabour.js';
@@ -319,7 +320,7 @@ export const PlayerReligion = {
             return { success: false, reason: 'Tile already has a building' };
         }
 
-        player.gold -= building.cost;
+        PlayerCoin.pay(world, player, building.cost, tile.settlement || { q: tile.q, r: tile.r }, 'faith');
 
         // Create building
         const constructionDays = building.constructionDays || 0;
@@ -1049,7 +1050,7 @@ export const PlayerReligion = {
         const due = Math.min(H.fineMax, Math.round(H.fineBase + (settlement.population || 0) * H.finePerPop));
         const fine = Math.max(0, Math.min(Math.floor(player.gold || 0), due));
         if (fine > 0) {
-            player.gold -= fine;
+            PlayerCoin.pay(null, player, fine, settlement);
             Ledger.record(player, 'fines', -fine);
         }
         if (!player.reputation) player.reputation = {};

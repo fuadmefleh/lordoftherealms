@@ -531,6 +531,26 @@ export const Economy = {
         return s;
     },
 
+    /**
+     * Give every living town on the map that keeps no purse record yet its
+     * record, so what it pays is capped by what it holds (drawTown pays a
+     * record-less town's draws in full). The purse starts at what the coin
+     * census counted for it — nothing: a record-less town held no counted
+     * coin, so none is made from nothing. A town that barters (inKind) keeps
+     * none. → how many records were made
+     */
+    ensurePurses(world) {
+        if (!world || typeof world.getSettlementViews !== 'function') return 0;
+        let n = 0;
+        for (const s of world.getSettlementViews()) {
+            if (!s || s.economy || s.inKind || !((Number(s.population) || 0) > 0)) continue;
+            Economy.initSettlement(s);
+            s.economy.gold = 0;
+            n++;
+        }
+        return n;
+    },
+
     /** Draw up to `amount` out of the nearest town's purse (coin taken or spent there). → what was paid. */
     drawNearest(world, q, r, amount, opts = {}) {
         const s = Economy.nearestPurse(world, q, r, opts);

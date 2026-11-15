@@ -44,6 +44,7 @@ import { RealmWars } from './realmWars.js';
 import { House } from './house.js';
 import { Ledger } from './ledger.js';
 import { Names } from '../core/names.js';
+import { MoneySupply } from '../world/moneySupply.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -263,10 +264,12 @@ export const LandMarket = {
                         e.earned = _num(e.earned) + take;
                         e.lastRent = take;
                     }
-                    // (the bailiff's skim, out of the tenants' coin into the bailiff's pocket)
+                    // (the bailiff's skim: the bailiff lives and spends in the town, so that share
+                    // never leaves its purse — bf.pocket is the tally of it, as the governors'
+                    // pocket is in systems/fiscal.js; drawn out into an uncounted pocket it vanished)
                     if (bf && _num(bf.skim) > 0) {
                         const pk = Math.floor(Math.min((paid + back) * _num(bf.skim), Math.max(0, _num(econ.gold))));
-                        if (pk > 0) { econ.gold = _num(econ.gold) - pk; bf.pocket = _num(bf.pocket) + pk; }
+                        if (pk > 0) bf.pocket = _num(bf.pocket) + pk;
                     }
                 }
             } else if (Estates.kindOf(e.holder) !== 'crown') {
@@ -584,8 +587,10 @@ export const LandMarket = {
         if (kind === 'crown') {
             const k = Estates.kingdom(world, String(seller).slice(6));
             if (k) k.treasury = _num(k.treasury) + price;
+            else MoneySupply.leak(world, -price, 'estateSale');
         } else if (kind === 'player') {
-            if (player) {
+            if (!player) MoneySupply.leak(world, -price, 'estateSale');
+            else {
                 player.gold = _num(player.gold) + price;
                 Ledger.record(player, 'estatesSold', price);
                 const ps = LandMarket.playerState(player);
@@ -907,10 +912,12 @@ export const LandMarket = {
         const live = Estates._liveOfKey(world, e.town);
         player.gold -= q.cost;
         Ledger.record(player, 'estateWorks', -q.cost);
+        // (the hands' wages — works.wageShare — and the rest, the marl, timber and tools,
+        // are all bought in the estate's town: the whole cost goes into its purse)
         if (live) {
             const econ = live.economy || (live.economy = { gold: 0, food: 0, goods: 0 });
-            econ.gold = _num(econ.gold) + Math.round(q.cost * _num(Estates.config().works.wageShare, 0.8));
-        }
+            econ.gold = _num(econ.gold) + q.cost;
+        } else MoneySupply.leak(world, -q.cost, 'estateWorks');
         e.works = { kind, until: _day(world) + q.days, cost: q.cost };
         e.spent = _num(e.spent) + q.cost;
         LandMarket.playerState(player).stats.works++;

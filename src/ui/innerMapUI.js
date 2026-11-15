@@ -6,6 +6,7 @@
 // ============================================
 
 import { InnerMapRenderer } from './innerMapRenderer.js';
+import { PlayerCoin } from '../player/playerCoin.js';
 import { InnerMap } from '../world/innerMap.js';
 import { Terrain } from '../world/terrain.js';
 import { Utils } from '../core/utils.js';
@@ -1233,7 +1234,8 @@ Object.assign(InnerMapRenderer, {
                     game.ui.showNotification('🛁 Bathhouse', `A bath is ${cost} gold, and you haven't got it.`, 'error');
                     break;
                 }
-                game.player.gold -= cost;
+                // (the bathhouse is the town's: the coin into its purse)
+                PlayerCoin.pay(game.world, game.player, cost, PlayerCoin.townHere(game.world, game.player), 'lodging');
                 if (game.player.modifyNeed) {
                     game.player.modifyNeed('hygiene', 60);
                     game.player.modifyNeed('comfort', 15);
@@ -1255,7 +1257,7 @@ Object.assign(InnerMapRenderer, {
                     game.ui.showNotification('🧺 Laundry', 'Your clothes are already clean.', 'info');
                     break;
                 }
-                game.player.gold -= cost;
+                PlayerCoin.pay(game.world, game.player, cost, PlayerCoin.townHere(game.world, game.player), 'lodging');
                 const cs = game.player.clothesState();
                 game.ui.showNotification('🧺 Laundry', `Your clothes come back scrubbed and dry: ${cs.label.toLowerCase()} (${cs.freshness}%) for ${cost} gold.`, 'success');
                 game.ui.updateStats(game.player, game.world);
@@ -1563,7 +1565,8 @@ Object.assign(InnerMapRenderer, {
                 if (gTile && gTile.groundItem && gTile.groundItem.gold) {
                     // A strongbox from a wreck: its gold into your purse
                     const gi = gTile.groundItem;
-                    game.player.gold = (game.player.gold || 0) + gi.gold;
+                    // (a wreck's strongbox was in no purse the books count: salvage, found)
+                    PlayerCoin.found(game.world, game.player, gi.gold, 'salvage', 'exploration');
                     game.ui.showNotification(`${gi.icon} Salvage`, `You prise the strongbox open: ${gi.gold} gold.`, 'success');
                     delete gTile.groundItem;
                     game.ui.updateStats(game.player, game.world);

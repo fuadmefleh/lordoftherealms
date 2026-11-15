@@ -4,6 +4,7 @@ import { Trading } from './trading.js';
 import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, Economy } from './_imports.js';
 import { TradePolicy } from '../../systems/tradePolicy.js';
 import { Difficulty } from '../../core/difficulty.js';
+import { PlayerCoin } from '../playerCoin.js';
 
 Object.assign(PlayerEconomy, {
     /**
@@ -112,7 +113,8 @@ Object.assign(PlayerEconomy, {
             activeCaravanId: null,
         };
 
-        player.gold -= creationCost;
+        // (the charter and the drovers' bond are paid in the town it sets out from)
+        PlayerCoin.pay(world, player, creationCost, fromTile.settlement, 'caravans');
         routePool.push(route);
 
         return { success: true, route, creationCost };
@@ -127,7 +129,7 @@ Object.assign(PlayerEconomy, {
         return { success: true, route: removed };
     },
 
-    upgradeRouteProtection(player, routeId, isSmuggling = false) {
+    upgradeRouteProtection(player, routeId, isSmuggling = false, world = null) {
         PlayerEconomy.ensureEconomyState(player);
         const routePool = isSmuggling ? player.smugglingRoutes : player.tradeRoutes;
         const route = routePool.find(r => r.id === routeId);
@@ -137,12 +139,13 @@ Object.assign(PlayerEconomy, {
         const cost = 180 + route.protection * 90;
         if (player.gold < cost) return { success: false, reason: `Need ${cost} gold` };
 
-        player.gold -= cost;
+        // (the guards are hired at the route's home town)
+        PlayerCoin.pay(world, player, cost, PlayerEconomy._routeHome(world, route), 'caravans');
         route.protection += 1;
         return { success: true, route, cost };
     },
 
-    upgradeRouteRoadQuality(player, routeId, isSmuggling = false) {
+    upgradeRouteRoadQuality(player, routeId, isSmuggling = false, world = null) {
         PlayerEconomy.ensureEconomyState(player);
         const routePool = isSmuggling ? player.smugglingRoutes : player.tradeRoutes;
         const route = routePool.find(r => r.id === routeId);
@@ -152,9 +155,18 @@ Object.assign(PlayerEconomy, {
         const cost = 200 + route.roadQuality * 100;
         if (player.gold < cost) return { success: false, reason: `Need ${cost} gold` };
 
-        player.gold -= cost;
+        // (the road gangs are the route's home town's)
+        PlayerCoin.pay(world, player, cost, PlayerEconomy._routeHome(world, route), 'publicWorks');
         route.roadQuality += 1;
         return { success: true, route, cost };
+    },
+
+    /** A route's home town (it sets out from there), or its position for the nearest. */
+    _routeHome(world, route) {
+        const p = route && route.fromPos;
+        if (!p) return null;
+        const t = world && typeof world.getTile === 'function' ? world.getTile(p.q, p.r) : null;
+        return (t && t.settlement) || { q: p.q, r: p.r };
     },
 
     _getRouteById(player, routeId, isSmuggling = false) {
@@ -211,7 +223,7 @@ Object.assign(PlayerEconomy, {
             expectedProfit = Math.floor(unitPrice * route.quantity);
         }
 
-        player.gold -= dispatchCost;
+        PlayerCoin.pay(world, player, dispatchCost, PlayerEconomy._routeHome(world, route), 'caravans');
         // The goods' bookings by realm travel with them (customs on arrival)
         const lots = {};
         TradePolicy.addLots(lots, route.goodId, TradePolicy.takePlayerLots(player, route.goodId, route.quantity));

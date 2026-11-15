@@ -66,6 +66,8 @@ import { NpcMemory } from './npcMemory.js';
 import { Interrupts } from '../core/interrupts.js';
 import { Names } from '../core/names.js';
 import { Bonds } from './bonds.js';
+import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -534,6 +536,9 @@ export const Nemesis = {
             nm.age = _num(c.age, Utils.randInt(20, 35));
             nm.gender = c.gender || (Utils.random() < 0.75 ? 'male' : 'female');
             nm.purse = _roll(c.kind === 'kin' ? C.purse.kinStart : C.purse.bloodStart, [100, 300]);
+            // (an avenger's own purse is counted coin — systems/coinCensus.js — and their means
+            // come from no purse of the world's: booked found)
+            if (world && _num(nm.purse) > 0) MoneySupply.leak(world, _num(nm.purse), 'nemesis');
         }
         nm.hatred = Math.round(Utils.clamp(nm.hatred, 0, 100));
         st.list.push(nm);
@@ -614,11 +619,14 @@ export const Nemesis = {
             const first = Utils.randPick(FIRST[gender]);
             const sur = nm.line && !/^(House|the)\b/.test(nm.line) ? nm.line : (Nemesis._surname(nm.name) || '');
             const purse = nm.kind === 'rival' ? _num((Rivals.get(player, nm.ref.rivalId) || {}).gold) : _num(nm.purse);
+            const counted = Nemesis.ownPurse(nm) ? Math.max(0, _num(nm.purse)) : 0;
             nm.kind = 'blood';
             nm.ref = {};
             nm.age = Utils.randInt(17, 28);
             nm.gender = gender;
             nm.purse = Math.max(50, Math.round(purse));
+            // (the heir's purse, counted from now: what it holds beyond what was counted before is new coin)
+            if (world && nm.purse !== counted) MoneySupply.leak(world, nm.purse - counted, 'nemesis');
             nm.dead = null;
             return Nemesis._inherit(player, world, nm, `${first} ${sur}`.trim(), b.slain, out);
         }
@@ -666,6 +674,8 @@ export const Nemesis = {
         const vars = Nemesis._vars(player, world, nm);
         const text = _fill(textTpl || Nemesis._text('ends', how, '{name}: the feud is over.'), vars);
         nm.ended = { day, how, text };
+        // (an avenger's own purse ends with the feud: it goes out of the world's counted coin)
+        if (Nemesis.ownPurse(nm) && _num(nm.purse) > 0) { MoneySupply.leak(world, -_num(nm.purse), 'nemesis'); nm.purse = 0; }
         st.list = st.list.filter(n => n !== nm);
         st.ended[nm.refKey] = day;
         const keep = { id: nm.id, kind: nm.kind, name: nm.name, line: nm.line, generation: nm.generation, origin: nm.origin, bornDay: nm.bornDay, ended: nm.ended, acts: (nm.acts || []).length, bearers: (nm.bearers || []).map(b => b.name) };
@@ -814,21 +824,50 @@ export const Nemesis = {
         return _num(nm.purse);
     },
 
-    _pay(player, world, nm, amount) {
+    /**
+     * Coin into (amount > 0) or out of (< 0) the enemy's purse. → what moved
+     * (out: never more than it held — the caller pays the payee that much).
+     * A House's gold, a crown's chests, a rival's purse and an avenger's own
+     * purse (blood, kin: Nemesis.ownPurse) are all counted coin
+     * (systems/coinCensus.js): coin moves between them and the payer/payee
+     * unbooked. `fromWorld` false: the avenger's own yearly means, from no
+     * purse of the world's (booked found). What overflows the purse's cap is
+     * booked lost.
+     */
+    /** Does the enemy keep a purse of their own (nm.purse: an avenger of blood or kin)? */
+    ownPurse(nm) {
+        return !!(nm && nm.kind !== 'house' && nm.kind !== 'lord' && nm.kind !== 'rival');
+    },
+
+    _pay(player, world, nm, amount, fromWorld = true) {
         const a = Math.round(amount);
         const r = nm.ref || {};
+        let moved = 0;
+        const shift = (holder, key) => {
+            const before = _num(holder[key]);
+            holder[key] = Math.max(0, before + a);
+            moved = holder[key] - before;
+        };
         if (nm.kind === 'house') {
             const rv = player.house && player.house.rivals && player.house.rivals[r.kingdomId];
-            if (rv && Number.isFinite(rv.gold)) rv.gold = Math.max(0, rv.gold + a);
+            if (rv && Number.isFinite(rv.gold)) shift(rv, 'gold');
         } else if (nm.kind === 'lord') {
             const k = Nemesis._kingdom(world, r.kingdomId);
-            if (k) k.treasury = Math.max(0, _num(k.treasury) + a);
+            if (k) shift(k, 'treasury');
         } else if (nm.kind === 'rival') {
             const rv = player.rivals ? Rivals.get(player, r.rivalId) : null;
-            if (rv) rv.gold = Math.max(0, _num(rv.gold) + a);
+            if (rv) shift(rv, 'gold');
         } else {
-            nm.purse = Math.min(Nemesis.config().purse.cap, Math.max(0, _num(nm.purse) + a));
+            const before = _num(nm.purse);
+            nm.purse = Math.min(Nemesis.config().purse.cap, Math.max(0, before + a));
+            moved = nm.purse - before;
+            if (!fromWorld) { if (moved > 0) MoneySupply.leak(world, moved, 'nemesis'); }
+            else if (a > 0 && moved < a) MoneySupply.leak(world, -(a - moved), 'nemesis');
+            return a > 0 ? a : moved;
         }
+        // (coin paid in to a holder that is gone has nowhere to go: lost)
+        if (a > 0 && moved < a && fromWorld) MoneySupply.leak(world, -(a - moved), 'nemesis');
+        return a > 0 ? a : moved;
     },
 
     // ── The week ────────────────────────────────────────
@@ -872,7 +911,7 @@ export const Nemesis = {
             if ((nm.kind === 'blood' || nm.kind === 'kin') && day - _num(nm.agedDay) >= C.daysPerYear) {
                 nm.agedDay = day;
                 nm.age = _num(nm.age, 30) + 1;
-                Nemesis._pay(player, world, nm, C.purse.incomePerYear);
+                Nemesis._pay(player, world, nm, C.purse.incomePerYear, false);
                 const p = nm.age < 45 ? 0.01 : Math.min(0.5, Math.pow((nm.age - 45) / 35, 2));
                 if (nm.kind === 'blood' && Utils.random() < p) { nm.dead = { day }; continue; }
             }
@@ -1067,8 +1106,9 @@ export const Nemesis = {
             const others = Object.values((player.house && player.house.rivals) || {}).filter(r => r && r.kingdomId !== nm.ref.kingdomId);
             if (others.length) {
                 const o = Utils.randPick(others);
-                Nemesis._pay(player, world, nm, -A.cost);
-                if (Number.isFinite(o.gold)) o.gold += A.cost;
+                const paid = -Nemesis._pay(player, world, nm, -A.cost);
+                if (Number.isFinite(o.gold)) o.gold += paid;
+                else if (!Economy.payNearest(world, player.q, player.r, paid)) MoneySupply.leak(world, -paid, 'nemesis');
                 House.accrueRivalFeud(player, world, o.kingdomId, A.feud, `${nm.name}'s gold`);
                 return { outcome: 'struck', text: _fill(Nemesis._text('acts', 'alliesHouse'), { name: nm.name, rival: o.name }) };
             }
@@ -1079,8 +1119,7 @@ export const Nemesis = {
             .sort((a, b) => _num(player.reputation && player.reputation[b.id]) - _num(player.reputation && player.reputation[a.id]));
         const k = ks[0];
         if (!k) return null;
-        Nemesis._pay(player, world, nm, -A.cost);
-        k.treasury = _num(k.treasury) + A.cost;
+        k.treasury = _num(k.treasury) - Nemesis._pay(player, world, nm, -A.cost);
         NPCLords.rememberDeed(world, k.lord, 'nemesis_poison', { note: nm.name, weight: A.deedWeight, day });
         return { outcome: 'struck', text: _fill(Nemesis._text('acts', 'allies'), { name: nm.name, lord: k.lord.name || 'the lord', realm: Names.realm(k.name) }) };
     },
@@ -1089,7 +1128,9 @@ export const Nemesis = {
         const A = Nemesis.config().acts.assassin;
         const day = _day(world);
         nm.lastAssassinDay = day;
-        Nemesis._pay(player, world, nm, -A.cost);
+        // (the hired blade's fee is spent where you are found)
+        const fee = -Nemesis._pay(player, world, nm, -A.cost);
+        if (fee > 0 && !Economy.payNearest(world, player.q, player.r, fee)) MoneySupply.leak(world, -fee, 'nemesis');
         const place = Nemesis.topHabit(player, 'place');
         const atHaunt = place && place.entry && place.entry.q === player.q && place.entry.r === player.r;
         const men = ((player.army) || []).reduce((s, u) => s + _num(u && (u.count != null ? u.count : u.strength), 1), 0);

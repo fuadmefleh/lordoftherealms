@@ -172,7 +172,7 @@ Object.assign(Relationships, {
             if (p.away && p.away.withPlayer === 'party' && player.name) {
                 Vanishings.onPartyLoss(world, player, npc, { how: 'unknown', cause: npc.deathCause || null, witnesses: Relationships.getTravelPartyMembers(player).filter(o => o.id !== npc.id) });
             }
-            Townsfolk._die(folk, p, Number.isFinite(npc.deathDay) ? npc.deathDay : day, npc.deathCause || (p.away && p.away.withPlayer ? 'on the road' : 'misfortune'));
+            Townsfolk._die(folk, p, Number.isFinite(npc.deathDay) ? npc.deathDay : day, npc.deathCause || (p.away && p.away.withPlayer ? 'on the road' : 'misfortune'), world);
         }
         if (!npc.isAlive) {
             if (Array.isArray(player.travelParty)) player.travelParty = player.travelParty.filter(id => id !== npc.id);

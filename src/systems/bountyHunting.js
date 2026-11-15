@@ -265,7 +265,7 @@ export const BountyHunting = {
         };
     },
 
-    resolveCapturedTarget(player, bounty, choice) {
+    resolveCapturedTarget(player, bounty, choice, world = null) {
         this.initialize(player);
         if (!bounty || bounty.type !== 'criminal_hunt') return { success: false, reason: 'Invalid bounty.' };
         if (bounty.status !== 'captured_pending_decision') return { success: false, reason: 'Target is not awaiting judgment.' };
@@ -274,8 +274,20 @@ export const BountyHunting = {
 
         if (choice === 'turn_in') {
             // Magistrates pay a renowned hunter's asking price
-            const pay = Math.round(bounty.actualPay * (1 + this.getRankInfo(player).payBonus));
-            player.gold += pay;
+            const due = Math.round(bounty.actualPay * (1 + this.getRankInfo(player).payBonus));
+            // Real coin: the realm of the town that posted the notice pays, then the town's
+            // purse; what neither has is a writ on the crown (owe), as for an outlaw chief
+            let pay = due;
+            let writ = null;
+            if (world) {
+                const tile = bounty.fromQ != null && typeof world.getTile === 'function' ? world.getTile(bounty.fromQ, bounty.fromR) : null;
+                const kid = bounty.kingdomId != null ? bounty.kingdomId : tile && tile.settlement ? tile.settlement.kingdom : null;
+                const payer = { ...bounty, kingdomId: kid != null ? kid : null };
+                pay = Math.floor(this._payLairBounty(world, payer, due));
+                if (due > pay) writ = this.owe(player, world, payer, due - pay);
+            }
+            player.gold = (player.gold || 0) + pay;
+            if (pay > 0) Ledger.record(player, 'bounties', pay);
             player.renown = (player.renown || 0) + Math.max(3, Math.floor(bounty.difficulty / 2));
             state.capturesTurnedIn += 1;
             Traits.recordDeeds(player, { mercy: 2, honesty: 1 }); // taken alive to face justice
@@ -293,7 +305,7 @@ export const BountyHunting = {
             bounty.status = 'completed';
             this._removeBounty(player, bounty.id);
             const promoted = this._recalculateRank(player);
-            return { success: true, turnedIn: true, pay, bounty, promoted };
+            return { success: true, turnedIn: true, pay, owed: writ ? writ.amount : 0, bounty, promoted };
         }
 
         if (choice === 'recruit') {
@@ -353,13 +365,15 @@ export const BountyHunting = {
         let got = 0;
         const k = bounty.kingdomId != null ? (world.kingdoms || []).find(x => x && x.id === bounty.kingdomId && x.isAlive !== false) : null;
         if (k && _num(k.treasury) > 0) {
-            const t = Math.min(_num(k.treasury), pay);
+            const t = Math.min(Math.floor(_num(k.treasury)), pay);
             k.treasury = _num(k.treasury) - t;
             got += t;
         }
         if (got < pay && bounty.fromQ != null && typeof world.getTile === 'function') {
             const tile = world.getTile(bounty.fromQ, bounty.fromR);
-            if (tile && tile.settlement) got += _num(Economy.drawTown(tile.settlement, pay - got));
+            const s = tile && tile.settlement;
+            const have = s && s.economy && Number.isFinite(s.economy.gold) ? Math.floor(Math.max(0, s.economy.gold)) : pay - got;
+            if (s) got += _num(Economy.drawTown(s, Math.min(pay - got, have)));
         }
         return got;
     },
@@ -460,8 +474,11 @@ export const BountyHunting = {
             const found = Sagas.unitRecord(player, bounty.sagaKey);
             const rec = found && found.rec;
             if (rec && rec.slain) {
-                const bonus = Math.round(_num(bounty.actualPay) * (SAGA_NOTICE_BONUS + Math.max(0, this.getRankInfo(player).payBonus)));
+                const want = Math.round(_num(bounty.actualPay) * (SAGA_NOTICE_BONUS + Math.max(0, this.getRankInfo(player).payBonus)));
+                // (the notice's bonus is the posting town's and its realm's coin, as far as they have it)
+                const bonus = Math.floor(this._payLairBounty(world, bounty, want));
                 player.gold = (player.gold || 0) + bonus;
+                if (bonus > 0) Ledger.record(player, 'bounties', bonus);
                 player.bountyHunter.beastsSlain += 1;
                 player.bountiesCompleted = (player.bountiesCompleted || 0) + 1;
                 bounty.status = 'completed';

@@ -194,6 +194,10 @@ Object.assign(World.prototype, {
         // In a world begun before coin, coin comes when barter breaks down (world/barter.js)
         Barter.processDay(this);
 
+        // Every town keeps a purse record once the coin is being counted (world/moneySupply.js):
+        // a place without one would pay out without limit (Economy.drawTown)
+        if (this.money && this.money.lastDay != null) Economy.ensurePurses(this);
+
         return {
             day: this.day,
             season: this.season,

@@ -624,7 +624,9 @@ export const MoneySupply = {
     _bookedOf(R) {
         if (!R) return 0;
         const t = R.tot || {};
-        return _num(R.mint && R.mint.struck) + _num(t.debase) + _num(t.wear) + _num(t.recoin) + _num(t.counterfeit) + _num(t.cheat);
+        // (the new coin the player was paid for bullion sold this week is struck at the week's turn —
+        // mintWeek moves it into mint.struck — but it is in their purse from the sale: on the books from then)
+        return _num(R.mint && R.mint.struck) + _num(R.mint && R.mint.pendingPaid) + _num(t.debase) + _num(t.wear) + _num(t.recoin) + _num(t.counterfeit) + _num(t.cheat);
     },
 
     /**

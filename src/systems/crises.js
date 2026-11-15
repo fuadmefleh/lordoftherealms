@@ -78,6 +78,7 @@ import { Characters } from '../world/characters.js';
 import { WorldUnit } from '../world/units.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
 import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
 import { Harvests } from '../world/harvests.js';
 import { Hinterland } from '../world/hinterland.js';
 import { Seasons } from '../world/seasons.js';
@@ -365,9 +366,25 @@ export const Crises = {
         Crises._phase(c, 'aftermath', day, day + _num((C[c.kind] || {}).aftermathDays, 120));
     },
 
+    /** Coin out of an invading host's war chest (booked back into the world: _capture). → what it held of `amount` */
+    _fromChest(world, c, amount) {
+        const a = Math.min(Math.max(0, _num(amount)), Math.max(0, _num(c && c.data && c.data.chest)));
+        if (!(a > 0)) return 0;
+        c.data.chest = Math.round((_num(c.data.chest) - a) * 100) / 100;
+        MoneySupply.leak(world, a, 'invaderChest');
+        return a;
+    },
+
     _close(world, st, c, day) {
         const C = Crises.config();
         if (!c.endDay) c.endDay = day;
+        // What is left in the host's war chest: its realm's, else spent where it landed
+        if (c.data && _num(c.data.chest) > 0) {
+            const realm = _kingdom(world, c.data.realmId);
+            const at = c.data.at || {};
+            if (_alive(realm)) realm.treasury = _num(realm.treasury) + Crises._fromChest(world, c, c.data.chest);
+            else if (Economy.nearestPurse(world, at.q, at.r)) Economy.payNearest(world, at.q, at.r, Crises._fromChest(world, c, c.data.chest));
+        }
         st.history.push(c);
         if (st.history.length > 24) st.history.splice(0, st.history.length - 24);
         st.active = null;
@@ -647,8 +664,11 @@ export const Crises = {
         const s = tile.settlement;
         // The sack: the purse to the host's chest, the stores carried off or burnt, people lost
         const purse = Economy.townPurse(s);
-        const take = purse == null ? 0 : Economy.drawTown(s, purse * I.plunderPurse);
-        c.data.chest = Math.round(_num(c.data.chest) + take);
+        const take = purse == null ? 0 : Economy.drawTown(s, Math.floor(purse * I.plunderPurse));
+        // (the host's war chest is carried in its baggage, a purse the census does not walk:
+        // booked out of the world here and back in as it is spent — Crises._fromChest)
+        c.data.chest = _num(c.data.chest) + take;
+        MoneySupply.leak(world, -take, 'invaderChest');
         SettlementMarket.loot(s, I.lootShare);
         s.population = Math.max(20, Math.floor(_num(s.population) * (1 - I.sackPopulation)));
         // ...and the town keeps the ruins for years (systems/townMemory.js: burnt districts, rubble, the folk killed and fled)
@@ -749,7 +769,12 @@ export const Crises = {
             }
             k.population = _num(tile.settlement.population);
             k.military = Math.max(_num(k.military), 20);
-            k.treasury = Math.max(_num(k.treasury), 300);
+            // (the new crown's first chests: the host's plunder, else the captured town's purse — no coin from nowhere)
+            const need = Math.max(0, 300 - _num(k.treasury));
+            if (need > 0) {
+                const got = Crises._fromChest(world, c, need);
+                k.treasury = _num(k.treasury) + got + Economy.drawTown(tile.settlement, need - got);
+            }
             if (!k.lord) {
                 try { Kingdom.initializeKingdomStats(k, world.tiles, world.width, world.height); } catch (e) { /* a sparse realm */ }
                 k.lord = NPCLords.generateLord(k);
@@ -1056,7 +1081,7 @@ export const Crises = {
                     pay += n * unit;
                 }
                 if (!units) return { success: false, text: 'Their chest cannot pay for what you carry.' };
-                c.data.chest = Math.round(_num(c.data.chest) - pay);
+                Crises._fromChest(world, c, pay);
                 player.gold = _num(player.gold) + pay;
                 Ledger.record(player, 'crisisTrade', pay);
                 host.fedUntil = day + Math.min(60, units);

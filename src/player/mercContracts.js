@@ -33,6 +33,7 @@ import { Difficulty } from '../core/difficulty.js';
 import { Ledger } from '../systems/ledger.js';
 import { Ships } from '../systems/ships.js';
 import { PlayerInventory } from './inventory.js';
+import { PlayerCoin } from './playerCoin.js';
 
 function _hash(str) {
     let h = 2166136261;
@@ -147,9 +148,10 @@ export const MercContracts = {
     },
 
     /** Put rolled loot in the packs (what doesn't fit is sold on the spot): a text fragment, or ''. */
-    _takeItems(player, c, items) {
+    _takeItems(player, c, items, world = null) {
         if (!items) return '';
-        const res = PlayerInventory.addOrSell(player, items);
+        // (what won't fit is sold to the nearest town: its purse pays, capped by what it holds)
+        const res = PlayerInventory.addOrSell(player, items, PlayerCoin.payerHere(world, player));
         if (!c.items || typeof c.items !== 'object') c.items = {};
         for (const [id, q] of Object.entries(res.added)) c.items[id] = _num(c.items[id]) + q;
         if (res.gold > 0) {
@@ -293,14 +295,13 @@ export const MercContracts = {
         }
         if (type === 'loot') {
             const L = C.loot;
-            const gold = Math.max(1, Math.round(c.payment * Utils.randFloat(L.min, L.max)));
-            player.gold = _num(player.gold) + gold;
+            // (taken off the country it is fought over: the nearest town's coin, what it holds)
+            const gold = PlayerCoin.receive(world, player, Math.max(1, Math.round(c.payment * Utils.randFloat(L.min, L.max))), null, 'contracts');
             c.loot += gold;
-            Ledger.record(player, 'contracts', gold);
             // ...and sometimes goods from the contract's loot table (own streams)
             const lucky = r.items.length > 0 && _stream(world, `${c.type}:lootItem`)() < r.itemChance;
             const items = lucky ? MercContracts._rollItems(world, c, 'loot') : null;
-            const got = items ? MercContracts._takeItems(player, c, items) : '';
+            const got = items ? MercContracts._takeItems(player, c, items, world) : '';
             return { type, text: `Your company seized a strongbox: +${gold} gold.${got ? ` Among the spoils: ${got}.` : ''}`, gold, items };
         }
         return null;
@@ -384,9 +385,8 @@ export const MercContracts = {
             if (player.skills) player.skills.combat = Math.min(10, _num(player.skills.combat, 1) + 0.15);
         }
         if (payment > 0) {
-            if (kingdom && Number.isFinite(kingdom.treasury)) kingdom.treasury = Math.max(0, kingdom.treasury - payment);
-            player.gold = _num(player.gold) + payment;
-            Ledger.record(player, 'contracts', payment);
+            // (the employer pays out of its chests, then its towns: what it can)
+            payment = PlayerCoin.receive(world, player, payment, kingdom || null, 'contracts');
         }
         const repDelta = _num(C.rep[outcome]);
         MercContracts._addRep(player, c.kingdomId, repDelta);
@@ -408,7 +408,7 @@ export const MercContracts = {
         if (outcome === 'victory' || outcome === 'pyrrhic') {
             const r = MercContracts.rules(c);
             if (r.items.length && _stream(world, `${c.type}:spoils?`)() < r.spoilsChance) {
-                spoils = MercContracts._takeItems(player, c, MercContracts._rollItems(world, c, 'spoils'));
+                spoils = MercContracts._takeItems(player, c, MercContracts._rollItems(world, c, 'spoils'), world);
             }
         }
         if (totalLost) message += ` ${totalLost} soldier${totalLost === 1 ? '' : 's'} lost.`;

@@ -63,6 +63,8 @@ import { LlmProse } from './llmProse.js';
 import { Townsfolk } from './townsfolk.js';
 import { Interrupts } from '../core/interrupts.js';
 import { Names } from '../core/names.js';
+import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
 
 const DEFAULTS = {
     enabled: true, firstDay: 90, daysPerYear: 120, baseDays: 60, minDays: 24, retryDays: 30, jitter: 0.3,
@@ -837,6 +839,7 @@ export const HouseQuests = {
         Ledger.record(player, 'oldDebts', -a);
         const who = HouseQuests._person(world, q.holder && q.holder.ref);
         if (who) who.p.purse = (typeof who.p.purse === 'number' ? who.p.purse : 0) + a;
+        else HouseQuests._payElse(world, player, q, a);
     },
 
     _payTown(world, player, q, amount) {
@@ -844,7 +847,7 @@ export const HouseQuests = {
         player.gold = _num(player.gold) - a;
         Ledger.record(player, 'oldDebts', -a);
         const { settlement } = HouseQuests._folkAt(world, q.target.q, q.target.r);
-        if (settlement && settlement.economy && Number.isFinite(settlement.economy.gold)) settlement.economy.gold += a;
+        if (!(settlement && Economy.payTown(settlement, a))) HouseQuests._payElse(world, player, q, a);
     },
 
     _payRealm(world, player, q, amount) {
@@ -853,6 +856,14 @@ export const HouseQuests = {
         Ledger.record(player, 'oldDebts', -a);
         const k = HouseQuests._kingdom(world, q.kingdomId);
         if (k) k.treasury = _num(k.treasury) + a;
+        else HouseQuests._payElse(world, player, q, a);
+    },
+
+    /** The one owed is gone: the coin is spent in the nearest town (else lost, booked). */
+    _payElse(world, player, q, a) {
+        if (!(a > 0) || !world) return;
+        const at = q && q.target && Number.isFinite(q.target.q) ? q.target : player;
+        if (!Economy.payNearest(world, at.q, at.r, a)) MoneySupply.leak(world, -a, 'oldDebts');
     },
 
     // ── Ending ───────────────────────────────────────

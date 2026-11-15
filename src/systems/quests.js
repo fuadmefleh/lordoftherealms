@@ -11,6 +11,7 @@ import { Ships } from './ships.js';
 import { KingdomNavy } from '../world/kingdomNavy.js';
 import { Economy } from '../world/economy.js';
 import { Barter } from '../world/barter.js';
+import { MoneySupply } from '../world/moneySupply.js';
 import { NpcTasks } from './npcTasks.js';
 
 
@@ -873,12 +874,26 @@ export const Quests = {
      * quest was taken in (quest.payer), as much as it holds; a quest taken in
      * the wilds (or before towns kept purses) pays in full.
      */
+    /**
+     * Goods the player could not carry were sold on the spot (PlayerInventory.addOrSell
+     * pays `gold` into the purse): the buyer is the nearest town to `at`, out of its
+     * purse; what it cannot pay is booked as found.
+     */
+    _soldHere(player, world, at, gold) {
+        if (!world || !(gold > 0)) return;
+        const town = at && Number.isFinite(at.q) ? Economy.nearestPurse(world, at.q, at.r) : null;
+        const got = town ? Economy.drawTown(town, gold) : 0;
+        if (got < gold) MoneySupply.leak(world, Math.round((gold - got) * 100) / 100, 'questRewards');
+    },
+
     grantRewards(player, quest, world = null) {
         const rewards = quest.rewards;
 
         if (rewards.gold) {
             const t = quest.payer && world && typeof world.getTile === 'function' ? world.getTile(quest.payer.q, quest.payer.r) : null;
-            const town = t && t.settlement;
+            // (a quest taken in the wilds: the nearest town that keeps coin pays it)
+            const at = quest.payer || player;
+            const town = (t && t.settlement) || (world && at ? Economy.nearestPurse(world, at.q, at.r) : null);
             if (Barter.paysInKind(player, town)) {
                 // A barter town pays in goods out of its stores (world/barter.js)
                 const pay = Math.floor(Barter.townPays(player, town, rewards.gold));
@@ -887,6 +902,7 @@ export const Quests = {
                 const purse = Economy.townPurse(town);
                 const pay = purse == null ? rewards.gold : Math.min(rewards.gold, Math.floor(purse));
                 if (purse != null) Economy.drawTown(town, pay);
+                else if (world) MoneySupply.leak(world, pay, 'questRewards'); // (no town keeps coin: found, booked)
                 if (pay < rewards.gold) quest.rewardShort = rewards.gold - pay;
                 player.gold += pay;
             }
@@ -920,7 +936,10 @@ export const Quests = {
         if (rewards.items) {
             // Goods that won't fit in full packs are sold on the spot
             const res = PlayerInventory.addOrSell(player, rewards.items);
-            if (res.gold > 0) quest.overflowSold = { items: res.sold, gold: res.gold };
+            if (res.gold > 0) {
+                quest.overflowSold = { items: res.sold, gold: res.gold };
+                Quests._soldHere(player, world, quest.payer || player, res.gold);
+            }
         }
 
         return rewards;
@@ -1100,6 +1119,8 @@ export const Quests = {
                 cost = 80;
                 if ((player.gold || 0) < cost) return { success: false, reason: `You need ${cost} gold` };
                 player.gold -= cost;
+                // (the holder spends it in the nearest town)
+                if (world && !Economy.payNearest(world, player.q, player.r, cost)) MoneySupply.leak(world, -cost, 'bribes');
             } else if (how === 'steal') {
                 if (!stole) {
                     Traits.recordDeed(player, 'greed', 0.5);
@@ -1187,8 +1208,20 @@ export const Quests = {
         if (!Quests.taskReady(quest)) return { success: false, reason: 'You have not found it yet' };
         const alt = quest.alt;
         const got = {};
-        if (alt.gold) { player.gold = (player.gold || 0) + alt.gold; got.gold = alt.gold; }
-        if (alt.items) got.items = PlayerInventory.addOrSell(player, alt.items);
+        if (alt.gold) {
+            // (the buyer of the locket, the sword: the nearest town's purse, as much as it holds)
+            const town = world ? Economy.nearestPurse(world, player.q, player.r) : null;
+            const purse = town ? Economy.townPurse(town) : null;
+            const pay = purse == null ? alt.gold : Math.min(alt.gold, Math.floor(purse));
+            if (town && purse != null) Economy.drawTown(town, pay);
+            else if (world) MoneySupply.leak(world, pay, 'questRewards');
+            player.gold = (player.gold || 0) + pay;
+            got.gold = pay;
+        }
+        if (alt.items) {
+            got.items = PlayerInventory.addOrSell(player, alt.items);
+            if (got.items && got.items.gold > 0) Quests._soldHere(player, world, player, got.items.gold);
+        }
         if (alt.karma) player.karma = (player.karma || 0) + alt.karma;
         if (alt.keepRenown && quest.rewards && quest.rewards.renown) { player.renown = (player.renown || 0) + quest.rewards.renown; got.renown = quest.rewards.renown; }
         if (alt.karma < 0) Traits.recordDeed(player, 'greed', 2);

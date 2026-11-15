@@ -52,6 +52,7 @@
 import { DataLoader } from '../core/dataLoader.js';
 import { Utils } from '../core/utils.js';
 import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
 import { LotBook } from '../world/lotBook.js';
 import { House } from './house.js';
 import { RivalHouses } from './rivalHouses.js';
@@ -124,6 +125,18 @@ const DEFAULTS = {
 
 let _cfg = null;
 let _cfgSrc;
+
+/**
+ * Coin the player pays at (q, r): into `s`'s purse, else the nearest town's
+ * that keeps coin, else booked as lost (no coin ever just vanishes).
+ */
+function _payHere(world, s, q, r, amount) {
+    const a = Math.round(_num(amount) * 100) / 100;
+    if (!(a > 0) || !world) return;
+    if (s && Economy.payTown(s, a)) return;
+    if (Number.isFinite(q) && Economy.payNearest(world, q, r, a)) return;
+    MoneySupply.leak(world, -a, 'profane');
+}
 
 export const ProfaneCrimes = {
     DEFAULTS,
@@ -349,7 +362,7 @@ export const ProfaneCrimes = {
         player.gold = _num(player.gold) - cost;
         Ledger.record(player, 'faith', -cost);
         const s = ProfaneCrimes._settlementAt(world, player.q, player.r);
-        if (s) Economy.payTown(s, cost);
+        _payHere(world, s, player.q, player.r, cost);
         const cr = ProfaneCrimes.crypt(rival);
         cr.bones += owed;
         pf.bonesReturned = _num(pf.bonesReturned) + owed;
@@ -381,7 +394,11 @@ export const ProfaneCrimes = {
                 const each = _num(C.funeralGoodGold, 30);
                 const afford = each > 0 ? Math.min(want, Math.floor(Math.max(0, _num(rival.gold)) / each)) : want;
                 cr.goods += afford;
-                rival.gold = Math.max(0, _num(rival.gold) - afford * each);
+                // (bought in the town nearest the House's seat)
+                const spent = Math.min(Math.max(0, _num(rival.gold)), afford * each);
+                rival.gold = Math.round((Math.max(0, _num(rival.gold)) - spent) * 100) / 100;
+                const seat = rival.seat || {};
+                _payHere(world, null, seat.q, seat.r, spent);
             }
             const pf = _obj(rival.profaned);
             if (!pf) continue;
@@ -511,7 +528,7 @@ export const ProfaneCrimes = {
         _take(player, 'bones', _num(F.bones));
         player.gold = _num(player.gold) - gold;
         Ledger.record(player, 'fraud', -gold);
-        if (s) Economy.payTown(s, gold);
+        _payHere(world, s, player.q, player.r, gold);
         const st = ProfaneCrimes.state(player);
         const id = `rl${++st.seq}`;
         const relic = { id, name: ProfaneCrimes._relicName(world, `fake|${id}|${_day(world)}`, true), faithId: null, fake: true, quality: ProfaneCrimes.fakeQuality(player), from: 'your own hands', day: _day(world) };
@@ -526,7 +543,10 @@ export const ProfaneCrimes = {
         let paid = 0;
         try { paid = Religion.offeringsFromRealm(t.kingdom, world, price, 'templeMaxPurseShare'); } catch (e) { paid = 0; }
         if (paid < price) paid += Economy.drawTown(s, price - paid);
-        return Math.floor(paid);
+        // (whole coins to the seller: the odd coppers go back to the town's purse)
+        const whole = Math.floor(paid);
+        if (paid - whole > 0) Economy.payTown(s, Math.round((paid - whole) * 100) / 100);
+        return whole;
     },
 
     /**
@@ -609,7 +629,7 @@ export const ProfaneCrimes = {
         if (_num(player.gold) >= fine) {
             player.gold = _num(player.gold) - fine;
             Ledger.record(player, 'fines', -fine);
-            if (s) Economy.payTown(s, fine);
+            _payHere(world, s, sale.q, sale.r, fine);
             if (!player.reputation) player.reputation = {};
             player.reputation[sale.kingdomId] = _num(player.reputation[sale.kingdomId]) + _num(E.reputation);
             key = 'fakeExposedPaid';
@@ -746,20 +766,21 @@ export const ProfaneCrimes = {
         Townsfolk.slay(folk, p, day, cause);
         Townsfolk.record(folk, world, day, { k: 'died', a: p.id, x: cause });
         NpcMemory.rememberTown(world, s, { kind: 'witch_burned', player, victim: name });
-        const coin = Math.max(0, Math.floor(_num(p.purse)));
+        const full = Math.max(0, _num(p.purse));
+        const coin = Math.floor(full);
         p.purse = 0;
         let share;
         let land = { lot: null };
         if (how === 'mob') {
             share = Math.floor(coin * _num(W.mobLootShare, 0.5));
-            Economy.payTown(s, coin - share);
+            Economy.payTown(s, Math.round((full - share) * 100) / 100);
             Gossip.accuse(player, world, 'false_witch', { q: s.q, r: s.r, victim: name, credibility: 0.7 });
             player.karma = _num(player.karma) + _num(W.karma.mob);
             player.renown = Math.max(0, _num(player.renown) + _num(W.renown.mob));
             if (s.kingdom != null) player.reputation[s.kingdom] = _num(player.reputation[s.kingdom]) + _num(W.reputation.mob);
         } else {
             share = Math.floor(coin * _num(W.accuserShare, 0.34));
-            Economy.payTown(s, coin - share);
+            Economy.payTown(s, Math.round((full - share) * 100) / 100);
             land = ProfaneCrimes._seizeLand(player, world, s, p);
             player.karma = _num(player.karma) + _num(W.karma.trial);
             // The zealous of the town's faith think the better of a witch-finder

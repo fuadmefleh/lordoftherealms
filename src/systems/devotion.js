@@ -37,6 +37,8 @@
 import { DataLoader } from '../core/dataLoader.js';
 import { Utils } from '../core/utils.js';
 import { Hex } from '../core/hex.js';
+import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
 import { Religion } from './religion.js';
 import { RealmWars } from './realmWars.js';
 import { Traits } from './traits.js';
@@ -436,6 +438,7 @@ export const Devotion = {
                 player.gold -= fine;
                 Ledger.record(player, 'fines', -fine);
                 if (risk.holder) risk.holder.treasury = _num(risk.holder.treasury) + fine;
+                else Devotion._spendNear(world, player.q, player.r, fine);
                 out.fine = fine;
             }
             if (risk.holder) {
@@ -733,6 +736,17 @@ export const Devotion = {
         const notes = [];
         player.gold -= amount;
         Ledger.record(player, 'donation', -amount);
+        // Where the coin goes: the clergy and the poor spend it in the town; a guild
+        // takes it into its chest; a townsperson into their purse (below)
+        let landed = false;
+        if (opt.kind === 'guild') {
+            const g = s.guilds && s.guilds[recipient.slice(6)];
+            if (g) { g.treasury = _r2(_num(g.treasury) + amount); landed = true; }
+        } else if (opt.kind === 'folk') {
+            const p = s.folk && Townsfolk.get(s.folk, Number(recipient.slice(5)));
+            if (p) { p.purse = _num(p.purse) + amount; landed = true; }
+        }
+        if (!landed && !Economy.payTown(s, amount)) Devotion._spendNear(world, tile.q, tile.r, amount);
 
         // Karma: a square-root curve on what counts, softened by the soul's state
         let karma = _num(R.karmaPerGold) * Math.sqrt(eff) * Math.sqrt(10) * (1 + Devotion.tenet(player, 'donationKarma'));
@@ -790,7 +804,6 @@ export const Devotion = {
             const folk = s.folk;
             const p = folk && Townsfolk.get(folk, pid);
             if (p) {
-                p.purse = _num(p.purse) + amount;
                 const npc = { type: p.role };
                 Object.defineProperty(npc, '_dialogMemory', { get: () => p.mem, set: v => { p.mem = v; }, enumerable: true });
                 const disp = NpcDisposition.adjustDisposition(npc, Math.min(_num(R.maxDisposition, 20), eff * _num(R.disposition, 0.4)), player);
@@ -814,6 +827,12 @@ export const Devotion = {
         Devotion._checkAlms(player, world, out);
         Devotion._log(st, world, `Gave ${amount} gold to ${opt.label} in ${s.name}.`);
         return { success: true, amount, karma, factor: _r2(factor), notes, vowNotices: out.notices, recipient: opt };
+    },
+
+    /** Coin given with no purse to take it: spent in the nearest town that keeps coin, else lost (booked). */
+    _spendNear(world, q, r, amount) {
+        if (!(amount > 0)) return;
+        if (!Economy.payNearest(world, q, r, amount)) MoneySupply.leak(world, -amount, 'devotionLost');
     },
 
     // ──────────── PILGRIMAGE ────────────
@@ -925,6 +944,7 @@ export const Devotion = {
             player.gold -= off.gold;
             Ledger.record(player, 'donation', -off.gold);
             if (pre.risk.holder) pre.risk.holder.treasury = _num(pre.risk.holder.treasury) + off.gold;
+            else Devotion._spendNear(world, tile.q, tile.r, off.gold); // (an unheld shrine's keepers spend it nearby)
         }
 
         // Worth: faith match, a vow kept, repeat visits, the soul's state, a soured shrine

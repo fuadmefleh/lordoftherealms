@@ -41,6 +41,7 @@ import { Illness } from './illness.js';
 import { TownTrade } from './townTrade.js';
 // (the player's leased graves ask after their kin: world/graveBook.js)
 import { GraveBook } from '../world/graveBook.js';
+import { MoneySupply } from '../world/moneySupply.js';
 
 const DEFAULTS = {
     enabled: true,
@@ -525,7 +526,7 @@ export const Townsfolk = {
                 cause = (_pick(C.causes.war, rng) || 'the war').replace('{enemy}', ctx.enemy);
             }
             if (cause) {
-                Townsfolk._die(folk, p, day, cause);
+                Townsfolk._die(folk, p, day, cause, world);
                 note('died', p.id, null, cause);
             }
         }
@@ -616,7 +617,7 @@ export const Townsfolk = {
             const child = Townsfolk._born(folk, mother, father, day, rng);
             note('born', child.id, mother.id);
             if (rng() < B.childbedDeath) {
-                Townsfolk._die(folk, mother, day, _pick(C.causes.childbed, rng) || 'childbed');
+                Townsfolk._die(folk, mother, day, _pick(C.causes.childbed, rng) || 'childbed', world);
                 note('died', mother.id, null, mother.cause);
             }
         }
@@ -629,6 +630,7 @@ export const Townsfolk = {
             if (age < D.minAge || age > D.maxAge || !single(p) || p.role === 'noble') continue;
             if (rng() >= _seasonal(crowded ? D.crowdedChance : D.chance)) continue;
             const to = _pick(ctx.towns, rng) || 'the wider world';
+            Townsfolk.leavePurse(folk, p, world, day, { toTown: true });
             p.away = { d: day, to };
             Townsfolk._log(p, day, 'left', null, to);
             // (word of it in the parents' lives: the living ones)
@@ -744,7 +746,10 @@ export const Townsfolk = {
         }
     },
 
-    _die(folk, p, day, cause) {
+    _die(folk, p, day, cause, world = null) {
+        // (the purse is left to the heir here, else the town: a dead man's coin is not lost —
+        // without the world to hand it waits for the estate, systems/townFamily.js)
+        if (world) Townsfolk.leavePurse(folk, p, world, day);
         p.died = day;
         p.cause = cause;
         Townsfolk._log(p, day, 'died', null, cause);
@@ -931,6 +936,22 @@ export const Townsfolk = {
             return named.has(p.id) || (p.mem && p.mem.timesSpoken > 0) || p.rnpc || p.wedHouse || (refs && refs.has(at + p.id));
         });
         if (keep.length !== folk.people.length) {
+            // (a purse still on someone forgotten — an estate never settled, a traveller's — is
+            // counted coin, systems/coinCensus.js: it goes to their heir or the town first)
+            if (world) {
+                const kept = new Set(keep);
+                for (const p of folk.people) {
+                    if (kept.has(p) || !(typeof p.purse === 'number' && p.purse > 0)) continue;
+                    if (!p.away) Townsfolk.leavePurse(folk, p, world, day);
+                    if (p.purse > 0) {
+                        const t = typeof world.getTile === 'function' && Number.isFinite(folk.q) ? world.getTile(folk.q, folk.r) : null;
+                        const s = t && t.settlement;
+                        if (s && !s.inKind && s.economy && Number.isFinite(s.economy.gold)) s.economy.gold = Math.round((s.economy.gold + p.purse) * 100) / 100;
+                        else MoneySupply.leak(world, -p.purse, 'townsfolk');
+                        p.purse = 0;
+                    }
+                }
+            }
             folk.people = keep;
             delete folk._index;
         }
@@ -1078,6 +1099,32 @@ export const Townsfolk = {
         return p.purse;
     },
 
+    /**
+     * A person leaving the roster (dead, or gone from town) leaves their coin
+     * behind: to their heir here (systems/townFamily.js heirOf: a spouse, a
+     * grown child, a sibling), else — or with `opts.toTown` (one who leaves for
+     * elsewhere sells up and spends it on the road out) — into the town's
+     * purse, so it stays counted (systems/coinCensus.js counts only those
+     * here). Only a rolled purse holds coin. → the coin moved
+     */
+    leavePurse(folk, p, world, day, opts = {}) {
+        if (!folk || !p || p.away || typeof p.purse !== 'number' || !(p.purse > 0)) return 0;
+        const coin = p.purse;
+        const heir = opts.toTown ? null : TownFamily.heirOf(folk, p, _num(day, 1));
+        if (heir && heir !== p && Townsfolk.isHere(heir)) {
+            Townsfolk.purse(folk, heir, world);
+            heir.purse = Math.round((heir.purse + coin) * 100) / 100;
+            p.purse = 0;
+            return coin;
+        }
+        const t = world && typeof world.getTile === 'function' && Number.isFinite(folk.q) ? world.getTile(folk.q, folk.r) : null;
+        const s = t && t.settlement;
+        if (!s || s.inKind || !s.economy || !Number.isFinite(s.economy.gold)) return 0;
+        s.economy.gold = Math.round((s.economy.gold + coin) * 100) / 100;
+        p.purse = 0;
+        return coin;
+    },
+
     /** Take the person's purse (a robbery or a beating): returns the coin. */
     takePurse(folk, p, world, range) {
         const coin = Townsfolk.purse(folk, p, world, range);
@@ -1101,10 +1148,10 @@ export const Townsfolk = {
     },
 
     /** The person was killed (by the player's hand): they die on the roster. */
-    slay(folk, p, day, cause = 'a brawl') {
+    slay(folk, p, day, cause = 'a brawl', world = null) {
         if (!folk || !p || p.died != null) return;
         delete p.hurt;
-        Townsfolk._die(folk, p, day, cause);
+        Townsfolk._die(folk, p, day, cause, world);
     },
 
     // ── What others do in town (systems/schemes.js) ─────
@@ -1123,8 +1170,9 @@ export const Townsfolk = {
     },
 
     /** Drive a person out of town (exile): they are gone from the roster's living here. */
-    exile(folk, p, day, to = 'exile') {
+    exile(folk, p, day, to = 'exile', world = null) {
         if (!folk || !p || p.died != null) return;
+        if (world) Townsfolk.leavePurse(folk, p, world, day, { toTown: true });
         p.away = { d: _num(day, 1), to };
         Townsfolk._log(p, _num(day, 1), 'exiled', null, to);
     },

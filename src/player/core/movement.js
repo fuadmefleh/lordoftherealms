@@ -565,7 +565,7 @@ export const PlayerMovementMethods = {
 
             // Title hooks: marshal patrol & cartographer exploration
             if (typeof Titles !== 'undefined') {
-                Titles.recordPatrolStep(this, this.q, this.r);
+                Titles.recordPatrolStep(this, this.q, this.r, world);
                 Titles.recordExploration(this, 1);
             }
 

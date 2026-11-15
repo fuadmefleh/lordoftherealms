@@ -21,6 +21,7 @@ import { Ledger } from './ledger.js';
 import { Court } from './court.js';
 import { ChronicleMaps } from './chronicleMaps.js';
 import { Barter } from '../world/barter.js';
+import { MoneySupply } from '../world/moneySupply.js';
 
 // The five family-role slots. Each holds a family-member id (or null).
 const ROLE_IDS = ['steward', 'marshal', 'chancellor', 'spymaster', 'heir'];
@@ -535,7 +536,16 @@ export const House = {
         const res = House._paySink(player, world, 'callInFavor', opts);
         if (!res.success || !opts.kind) return res;
         if (opts.kind === 'gold') {
-            const gold = House.FAVOR_GOLD_BASE + House.FAVOR_GOLD_PER_GENERATION * (player.house.generation || 1);
+            let gold = House.FAVOR_GOLD_BASE + House.FAVOR_GOLD_PER_GENERATION * (player.house.generation || 1);
+            // The purse is the friendliest House's (the least feud, then the richest): what it can spare
+            const friends = Object.values(player.house.rivals || {}).filter(h => h && !h.extinct)
+                .sort((a, b) => ((a.feud || 0) - (b.feud || 0)) || ((b.gold || 0) - (a.gold || 0)));
+            const ally = friends[0] || null;
+            if (ally) {
+                gold = Math.max(0, Math.floor(Math.min(gold, Number(ally.gold) || 0)));
+                ally.gold = (Number(ally.gold) || 0) - gold;
+                res.from = ally.name || null;
+            } else MoneySupply.leak(world, gold, 'houseFavor'); // (no other House in the world: legacy, booked as found)
             player.gold = (player.gold || 0) + gold;
             res.gold = gold;
         } else if (opts.kind === 'influence') {
@@ -648,6 +658,8 @@ export const House = {
         if (r.gold > 0) {
             player.gold = (player.gold || 0) + r.gold;
             Ledger.record(player, 'ambitionRewards', r.gold);
+            // (an ambition's purse is the world's gift to the House — no one's coin: booked as found)
+            MoneySupply.leak(world, r.gold, 'ambitionRewards');
             got.push(`+${r.gold} gold`);
         }
         if (r.renown > 0) { player.renown = (player.renown || 0) + r.renown; got.push(`+${r.renown} renown`); }

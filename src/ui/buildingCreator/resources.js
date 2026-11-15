@@ -1,5 +1,6 @@
 // buildingCreator — resources functions.
 import { CustomInteriors } from '../../world/customInteriors.js';
+import { PlayerCoin } from '../../player/playerCoin.js';
 import { CustomBuildings } from '../../world/customBuildings.js';
 import { InnerMap } from '../../world/innerMap.js';
 import { DataLoader } from '../../core/dataLoader.js';
@@ -90,7 +91,9 @@ export function _canAfford(player, brushId) {
 
 export function _deductCost(player, brushId) {
     const cost = getBrushCost(brushId);
-    player.gold -= cost.gold;
+    // (the masons and carpenters are the nearest town's: its purse is paid)
+    const g = bcState._game;
+    PlayerCoin.pay(g ? g.world : null, player, cost.gold, null, 'publicWorks');
     for (const [itemId, qty] of Object.entries(cost.resources)) {
         player.inventory[itemId] = (player.inventory[itemId] || 0) - qty;
         if (player.inventory[itemId] <= 0) delete player.inventory[itemId];

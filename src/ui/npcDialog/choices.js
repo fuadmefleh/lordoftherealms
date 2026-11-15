@@ -1,5 +1,6 @@
 // npcDialog — choices functions.
 import { InnerMap } from '../../world/innerMap.js';
+import { PlayerCoin } from '../../player/playerCoin.js';
 import { ActionMenu } from '../actionMenu.js';
 import { NpcFamily } from '../../systems/npcFamily.js';
 import { Quests } from '../../systems/quests.js';
@@ -356,7 +357,7 @@ export function _handleChoice(action) {
                 // Concrete outcome: coin handed over, and maybe a report to the guard
                 const game = dialogState._game;
                 const threatNpc = dialogState._npc;
-                const outcome = NpcDisposition.resolveThreat(threatNpc, game?.player, success);
+                const outcome = NpcDisposition.resolveThreat(threatNpc, game?.player, success, game?.world || null);
                 // (a threat is talked of about town, and beyond: systems/hearsay.js)
                 const twt = InnerMap.currentWorldTile || {};
                 if (game?.player && twt.q != null) Hearsay.noteThreat(game.player, game.world, threatNpc, `${twt.q},${twt.r}`);
@@ -452,7 +453,7 @@ export function _handleChoice(action) {
 
             case 'repay_favour': {
                 const game = dialogState._game;
-                const res = game?.player ? NpcKnowledge.repay(game.player, mem, (game.world && game.world.day) || 0) : { success: false, reason: 'Not now.' };
+                const res = game?.player ? NpcKnowledge.repay(game.player, mem, (game.world && game.world.day) || 0, game.world || null, dialogState._npc) : { success: false, reason: 'Not now.' };
                 responseText = res.success ? res.text : `*shakes head* ${res.reason}`;
                 if (res.success) {
                     _animateDispositionChange(res.warmth);
@@ -764,7 +765,13 @@ export function _showGiftSubmenu() {
 
 export function _giveGoldGift(amount) {
     if (!dialogState._game?.player || dialogState._game.player.gold < amount) return;
-    dialogState._game.player.gold -= amount;
+    // (into their own purse when they are one of the town's folk on its roll, else the town's)
+    {
+        const g = dialogState._game, npc = dialogState._npc;
+        const to = npc && npc._person && typeof npc._person.purse === 'number' ? { purse: npc._person, key: 'purse' }
+            : PlayerCoin.townHere(g.world, g.player);
+        PlayerCoin.pay(g.world, g.player, amount, to, 'donation');
+    }
 
     const npcType = dialogState._npc.type || 'villager';
 

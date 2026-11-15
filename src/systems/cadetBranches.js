@@ -57,6 +57,7 @@ import { Hex } from '../core/hex.js';
 import { WorldUnit } from '../world/units.js';
 import { Seasons } from '../world/seasons.js';
 import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
 import { Estates } from '../world/estates.js';
 import { LandMarket } from './landMarket.js';
 import { RivalHouses } from './rivalHouses.js';
@@ -519,7 +520,7 @@ export const CadetBranches = {
         if (day > 0 && day % 7 === 0) this._week(player, world, b, out, opts, scratch);
         unit.strength = RivalHouses.strength(b);
         if (unit.inventory && _num(unit.inventory.gold) > 0) {
-            b.gold += Math.round(unit.inventory.gold);
+            b.gold = Math.round((b.gold + unit.inventory.gold) * 100) / 100; // (every coin of it, not rounded away)
             unit.inventory.gold = 0;
         }
         // The road: errands chosen and done by the rival-House AI. A loyal branch has no
@@ -533,7 +534,7 @@ export const CadetBranches = {
             if (!foe || !hunted || hunted.destroyed) RivalHouses._endWaylay(foe, world, b, hunted || null, foe ? 'beaten' : 'gaveup', scratch);
             else RivalHouses._hunt(foe, world, b, unit, out);
             if (unit.inventory && _num(unit.inventory.gold) > 0) {
-                b.gold += Math.round(unit.inventory.gold);
+                b.gold = Math.round((b.gold + unit.inventory.gold) * 100) / 100;
                 unit.inventory.gold = 0;
             }
         }
@@ -576,7 +577,8 @@ export const CadetBranches = {
         const seatT = b.seat ? world.getTile(b.seat.q, b.seat.r) : null;
         const seatTown = seatT && seatT.settlement && seatT.settlement.economy ? seatT.settlement : null;
         const dues = _num(C.income.weekly) + _num(C.income.perStewardship) * _num(b.head.stewardship);
-        b.gold += seatTown ? Math.floor(Economy.drawTown(seatTown, dues)) : dues;
+        // (the dues are its tenants' coin: out of the seat town's purse, else the nearest that keeps one)
+        b.gold += seatTown ? Economy.drawTown(seatTown, dues) : b.seat ? Economy.drawNearest(world, b.seat.q, b.seat.r, dues) : 0;
         const spent = Math.min(Math.max(0, b.gold), _num(C.upkeep.weekly) + Math.round(b.gold * _num(C.upkeep.share)));
         b.gold -= spent;
         if (seatTown && spent > 0) Economy.payTown(seatTown, spent);
@@ -1096,7 +1098,10 @@ export const CadetBranches = {
         for (const b of list) {
             this._sweepLand(world, b);
             const t = b.seat && world && typeof world.getTile === 'function' ? world.getTile(b.seat.q, b.seat.r) : null;
-            if (t && t.settlement && b.gold > 0) Economy.payTown(t.settlement, b.gold);
+            if (b.gold > 0) {
+                if (t && t.settlement && t.settlement.economy) Economy.payTown(t.settlement, b.gold);
+                else if (!(b.seat && Economy.payNearest(world, b.seat.q, b.seat.r, b.gold))) MoneySupply.leak(world, -b.gold, 'cadetDissolved');
+            }
             b.gold = 0;
             const held = world && world.estates && Estates.enabled() ? Estates.heldBy(world, b.landKey).slice() : [];
             for (const e of held) LandMarket._setHolder(world, e, `noble:${b.kingdomId != null ? b.kingdomId : 'free'}:cadet_${b.id}`, day);

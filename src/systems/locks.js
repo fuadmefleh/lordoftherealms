@@ -28,6 +28,8 @@ import { Containers } from './containers.js';
 import { Underworld } from './underworld.js';
 import { Laws } from './laws.js';
 import { Ledger } from './ledger.js';
+import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 
@@ -186,6 +188,12 @@ export const Locks = {
         const fine = Math.min(_num(player.gold), Math.round((R.fine + lock.difficulty * R.finePerDifficulty) * _num(law && law.fine, 1)));
         player.gold = _num(player.gold) - fine;
         if (fine) Ledger.record(player, 'fines', -fine);
+        // (the fine is the crown's: its chests, else the nearest town's purse; else lost, booked)
+        if (fine > 0 && world) {
+            const k = kingdom != null && typeof world.getKingdom === 'function' ? world.getKingdom(kingdom) : null;
+            if (k && k.isAlive !== false) k.treasury = _num(k.treasury) + fine;
+            else if (!Economy.payNearest(world, player.q, player.r, fine)) MoneySupply.leak(world, -fine, 'fines');
+        }
         if (kingdom != null && player.reputation) player.reputation[kingdom] = _num(player.reputation[kingdom]) - R.reputation;
         Underworld.recordCrime(player, world, 'theft', {
             kingdom, caught: true, q: ctx.worldQ, r: ctx.worldR, scale: 0.5,

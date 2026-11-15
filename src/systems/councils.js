@@ -3,6 +3,7 @@
 // ============================================
 
 import { Utils } from '../core/utils.js';
+import { Economy } from '../world/economy.js';
 import { Taxation } from './marketDynamics.js';
 import { Titles } from './titles.js';
 import { Traits } from './traits.js';
@@ -296,6 +297,8 @@ export const Councils = {
                 return { success: false, reason: `Need ${cost} gold to negotiate with ${factionMeta.name}.` };
             }
             player.gold -= cost;
+            // (the dinners and the favours are bought in town)
+            if (world) Economy.payNearest(world, player.q, player.r, cost);
             faction.support = Math.min(100, faction.support + Utils.randInt(8, 14));
             state.approval = Math.min(100, state.approval + 2);
 

@@ -1,5 +1,6 @@
 // ObjectActions — assembled from ./objectActions/*.js
 import { InnerMap } from '../../world/innerMap.js';
+import { PlayerCoin } from '../../player/playerCoin.js';
 import { Hotbar } from '../hotbar.js';
 import { FOOD_ITEMS, HEAL_ITEMS, MODAL_STYLE, MODAL_HEADER_STYLE, MODAL_BODY_STYLE, MODAL_FOOTER_STYLE, FURNITURE_ACTIONS, BUILDING_FURNITURE_ACTIONS, PRIVATE_FURNITURE, FURNITURE_NAME_PATTERNS } from './data.js';
 import { ActionMenu } from '../actionMenu.js';
@@ -201,7 +202,8 @@ export const ObjectActions = {
 
         // Apply gold cost
         if (actionDef.cost) {
-            game.player.gold -= actionDef.cost;
+            // (whoever keeps the thing is the town's: the coin into its purse)
+            PlayerCoin.pay(game.world, game.player, actionDef.cost, PlayerCoin.townHere(game.world, game.player), 'lodging');
         }
 
         // Advance time

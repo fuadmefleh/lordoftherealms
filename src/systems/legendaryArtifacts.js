@@ -6,6 +6,7 @@ import { DataLoader } from '../core/dataLoader.js';
 import { Utils } from '../core/utils.js';
 import { Quests } from './quests.js';
 import { House } from './house.js';
+import { MoneySupply } from '../world/moneySupply.js';
 
 
 export const LegendaryArtifacts = {
@@ -186,7 +187,8 @@ export const LegendaryArtifacts = {
                 player.artifacts.forged.push(artifact.id);
 
                 const reward = artifact.reforgeRewards || {};
-                if (reward.gold) player.gold += reward.gold;
+                // (old coin found with the relic: into the world from no purse, booked as found)
+        if (reward.gold) { player.gold += reward.gold; MoneySupply.leak(world, reward.gold, 'relicHoard'); }
                 if (reward.renown) player.renown += reward.renown;
                 if (reward.combatSkill) player.skills.combat = Math.min(10, (player.skills.combat || 0) + reward.combatSkill);
                 if (reward.diplomacySkill) player.skills.diplomacy = Math.min(10, (player.skills.diplomacy || 0) + reward.diplomacySkill);
@@ -226,7 +228,8 @@ export const LegendaryArtifacts = {
         player.artifacts.forged.push(artifact.id);
 
         const reward = artifact.reforgeRewards || {};
-        if (reward.gold) player.gold += reward.gold;
+        // (old coin found with the relic: into the world from no purse, booked as found)
+        if (reward.gold) { player.gold += reward.gold; MoneySupply.leak(world, reward.gold, 'relicHoard'); }
         if (reward.renown) player.renown += reward.renown;
         if (reward.combatSkill) player.skills.combat = Math.min(10, (player.skills.combat || 0) + reward.combatSkill);
         if (reward.diplomacySkill) player.skills.diplomacy = Math.min(10, (player.skills.diplomacy || 0) + reward.diplomacySkill);

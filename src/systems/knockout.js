@@ -32,6 +32,14 @@ import { NpcDisposition } from './npcDisposition.js';
 import { Duels } from './duels.js';
 import { Ledger } from './ledger.js';
 import { Laws } from './laws.js';
+import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
+
+/** Coin taken off the player (world given): the taker spends it in the nearest town (else lost, booked). */
+function _takenNear(world, player, amount, why) {
+    if (!(amount > 0) || !world) return;
+    if (!Economy.payNearest(world, player.q, player.r, amount)) MoneySupply.leak(world, -amount, why);
+}
 
 const DEFAULTS = {
     npc: { wakeSeconds: [45, 90], wakeHpShare: 0.25 },
@@ -203,6 +211,7 @@ export const Knockout = {
         const took = Math.floor(_num(player.gold) * 0.3);
         player.gold = _num(player.gold) - took;
         if (took > 0) Ledger.record(player, 'robbery', -took);
+        _takenNear(ctx.world, player, took, 'prisonCamp');
         player.indenturedServitude = {
             captor: ctx.campName || 'a private prison camp',
             daysRemaining: days, totalDays: days, dailyWage: 0, goldConfiscated: took,
@@ -215,10 +224,11 @@ export const Knockout = {
 
     /**
      * The player comes round: hours lost, a little health back, and (robbed)
-     * part of their purse gone. Mutates the player.
+     * part of their purse gone (into the nearest town's purse, with `world`:
+     * the robber spends it there). Mutates the player.
      * @returns {{ hours:number, health:number, stolen:number }}
      */
-    playerWakes(player, verdict, rnd = Utils.random) {
+    playerWakes(player, verdict, rnd = Utils.random, world = null) {
         const P = Knockout.config().player;
         const hours = Math.max(1, Math.round(_span(P.hoursOut, rnd)));
         const max = _num(player.maxHealth, 100);
@@ -229,6 +239,7 @@ export const Knockout = {
             if (stolen > 0) {
                 player.gold = _num(player.gold) - stolen;
                 Ledger.record(player, 'robbery', -stolen);
+                _takenNear(world, player, stolen, 'robbery');
             }
         }
         return { hours, health: player.health, stolen };

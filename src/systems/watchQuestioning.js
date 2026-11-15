@@ -64,6 +64,7 @@ import { LlmClient } from './llmClient.js';
 import { NpcBrain } from './npcBrain.js';
 import { NpcChat } from './npcChat.js';
 import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -543,10 +544,25 @@ export const WatchQuestioning = {
         t.done = [...done].slice(-120);
     },
 
-    _payGuard(world, settlement, guard, n) {
+    _payGuard(world, settlement, guard, n, key = null) {
         const holder = guard && guard._person && typeof guard._person === 'object' ? guard._person : null;
-        if (holder) { holder.purse = Math.round((_num(holder.purse) + n) * 100) / 100; return; }
-        if (settlement) Economy.payTown(settlement, n);
+        if (holder && holder.died == null && !holder.away) { holder.purse = Math.round((_num(holder.purse) + n) * 100) / 100; return; }
+        WatchQuestioning._payTown(world, settlement, n, key);
+    },
+
+    /**
+     * Coin into the town's purse (a fine to its court, a bribe with no guard to
+     * pocket it): the settlement given, else the town the case was opened in
+     * (its "q,r" key); with neither, lost to the world and booked so.
+     */
+    _payTown(world, settlement, n, key = null) {
+        if (!(n > 0)) return;
+        // (a town that barters took the coin's worth in goods: world/barter.js)
+        if (settlement && (settlement.inKind || Economy.payTown(settlement, n))) return;
+        const [q, r] = String(key || '').split(',').map(Number);
+        const t = Number.isFinite(q) && Number.isFinite(r) && world && typeof world.getTile === 'function' ? world.getTile(q, r) : null;
+        if (t && t.settlement && Economy.payTown(t.settlement, n)) return;
+        if (world) MoneySupply.leak(world, -n, 'fines');
     },
 
     /**
@@ -590,7 +606,7 @@ export const WatchQuestioning = {
                 }
                 player.gold = _num(player.gold) - fine;
                 Ledger.record(player, 'fines', -fine);
-                if (opts.settlement) Economy.payTown(opts.settlement, fine);
+                WatchQuestioning._payTown(world, opts.settlement, fine, kase.key);
                 WatchQuestioning._answered(player, kase, false);
                 return { outcome, fine, text: _fill(say('fined'), { fine }), note: { text: `💰 Fined ${fine} gold; the matter is closed`, tone: 'bad' } };
             }
@@ -602,7 +618,7 @@ export const WatchQuestioning = {
                 const n = Math.round(_num(opts.gold));
                 player.gold = _num(player.gold) - n;
                 Ledger.record(player, 'bribes', -n);
-                WatchQuestioning._payGuard(world, opts.settlement, opts.guard, n);
+                WatchQuestioning._payGuard(world, opts.settlement, opts.guard, n, kase.key);
                 // (what can't be bought away: a thief caught in the act is still remembered, only eased)
                 WatchQuestioning._drop(player, kase, 2);
                 WatchQuestioning.shift(player, kase.key, day, -_num(A.clearDrop, 15));

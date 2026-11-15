@@ -134,6 +134,7 @@
       "militaryPerPopulation": 0.07,
       "treasuryFloor": 800,
       "treasuryShareOfGold": 0.2,
+      "treasuryTownShare": 0.25,
       "traits": ["orderly", "mercantile"]
     }
   },

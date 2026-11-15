@@ -35,6 +35,7 @@
 // Content: data/companions.json (read lazily through DataLoader.companions).
 
 import { Utils } from '../core/utils.js';
+import { Economy } from '../world/economy.js';
 import { DataLoader } from '../core/dataLoader.js';
 import { Relationships } from './relationships.js';
 import { Traits } from './traits.js';
@@ -555,6 +556,7 @@ export const Companions = {
         }
 
         Companions._payWages(player, members, day, out);
+        Companions._spend(player, members, world, day);
         Companions._growBonds(player, members, day);
         Companions._processQuests(player, members, world);
         Companions._consequences(player, members, world, out);
@@ -574,6 +576,7 @@ export const Companions = {
             if (due <= 0) continue;
             if ((player.gold || 0) >= due) {
                 player.gold -= due;
+                Companions._purse(npc, due); // (their wages: their own purse, spent where they go)
                 if (player.financeToday && player.financeToday.expenses) {
                     player.financeToday.expenses.companions = (player.financeToday.expenses.companions || 0) + due;
                 }
@@ -592,6 +595,41 @@ export const Companions = {
                     `${Companions._line(Companions.lines('unpaid'), `${npc.id}:${day}:unpaid`, npc)} (owed ${due}g)`, 'warning');
             }
         }
+    },
+
+    /**
+     * A companion lives on their own purse (config.spending): bread and ale each
+     * day in the town nearest the party, and every `every` days a share of what
+     * is past their reserve on kit (the town here) and sent home (their home
+     * town's purse). Coin moves purse to purse; with no town keeping coin it stays.
+     */
+    _spend(player, members, world, day) {
+        const S = Companions.config().spending || {};
+        if (!world || typeof world.getSettlementViews !== 'function') return 0;
+        const num = (v, d) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
+        const r2 = (v) => Math.round(v * 100) / 100;
+        let spent = 0;
+        for (const npc of members) {
+            if (!npc || !(num(npc.purse, 0) > 0)) continue;
+            const pay = (q, r, amount) => {
+                const a = r2(Math.min(num(npc.purse, 0), amount));
+                if (!(a > 0) || !Economy.payNearest(world, q, r, a)) return 0;
+                npc.purse = r2(npc.purse - a);
+                return a;
+            };
+            spent += pay(player.q, player.r, num(S.keepPerDay, 2));
+            const every = Math.max(1, num(S.every, 15));
+            if (day % every !== 0) continue;
+            const greedy = npc.companion && Array.isArray(npc.companion.values) && npc.companion.values.includes('greed');
+            const reserve = num(S.reserve, 40) * (greedy ? num(S.greedReserveMult, 2) : 1);
+            const excess = num(npc.purse, 0) - reserve;
+            if (!(excess > 0)) continue;
+            spent += pay(player.q, player.r, excess * num(S.kitShare, 0.15));
+            const hq = Number.isFinite(npc.settlementQ) ? npc.settlementQ : player.q;
+            const hr = Number.isFinite(npc.settlementR) ? npc.settlementR : player.r;
+            spent += pay(hq, hr, excess * num(S.homeShare, 0.35));
+        }
+        return r2(spent);
     },
 
     _bondKey(a, b) {
@@ -721,6 +759,8 @@ export const Companions = {
         const pay = Math.min(Math.max(0, Math.floor(amount)), remaining, Math.floor(player.gold || 0));
         if (pay <= 0) return { success: false, reason: remaining <= 0 ? 'Already paid in full.' : 'You have no gold to give.' };
         player.gold -= pay;
+        // (the debt or the alms go to the town's creditors and poor; with no world, through their hands)
+        if (!(world && Economy.payNearest(world, player.q, player.r, pay))) Companions._purse(npc, pay);
         Quests.track(player, stat, pay);
         if (obj.stat === 'companion_charity') Traits.recordDeed(player, 'generosity', pay / 50);
         return { success: true, paid: pay, remaining: remaining - pay };
@@ -897,6 +937,7 @@ export const Companions = {
         if (!text) {
             const stolen = Math.min(cfg.betrayStealMax, Math.floor((player.gold || 0) * cfg.betrayStealFraction));
             player.gold = (player.gold || 0) - stolen;
+            Companions._purse(npc, stolen);
             text = `${name} vanished in the night with ${stolen} gold from your purse.`;
         }
         st.stats.betrayals++;
@@ -1017,6 +1058,13 @@ export const Companions = {
         return { success: true, npc, tier, text: `${line} ${npc.firstName} cares about ${values}.${gripe}`.trim() };
     },
 
+    /** Coin into a companion's own purse (a relationship NPC's: the coin census counts it). */
+    _purse(npc, amount) {
+        const a = Number(amount);
+        if (!npc || !(a > 0)) return;
+        npc.purse = Math.round(((typeof npc.purse === 'number' && Number.isFinite(npc.purse) ? npc.purse : 0) + a) * 100) / 100;
+    },
+
     /** A gift: costs gold, raises approval (more for the greedy). */
     gift(player, npcId, world = null) {
         const npc = Relationships.getNPC(npcId);
@@ -1029,6 +1077,7 @@ export const Companions = {
         }
         if ((player.gold || 0) < cfg.giftCost) return { success: false, reason: `A worthy gift costs ${cfg.giftCost} gold.` };
         player.gold -= cfg.giftCost;
+        Companions._purse(npc, cfg.giftCost);
         c.lastGiftDay = day;
         const gain = cfg.giftApproval + (c.values.includes('greed') ? cfg.giftGreedBonus : 0);
         Companions.adjust(npc, gain, 'a gift', day);
@@ -1057,6 +1106,7 @@ export const Companions = {
         if (due <= 0) return { success: false, reason: 'Nothing is owed.' };
         if ((player.gold || 0) < due) return { success: false, reason: `You need ${due} gold.` };
         player.gold -= due;
+        Companions._purse(npc, due);
         c.wageDue = 0;
         const wasUnpaid = c.unpaid > 0;
         c.unpaid = 0;

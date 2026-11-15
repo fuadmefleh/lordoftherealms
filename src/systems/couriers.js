@@ -991,6 +991,10 @@ export const Couriers = {
         if (!q.ok) return { success: false, reason: q.why };
         const name = String(opts.name || `${player.lastName || player.name || 'Your'} Post`).slice(0, 40);
         this._gold(player, 'courierCapital', -q.cost);
+        // (the yard, the stable and the first horses are bought in the town)
+        const at = this._live(world, q.town.key);
+        if (at) Economy.payTown(at, q.cost);
+        else Economy.payNearest(world, q.town.q, q.town.r, q.cost);
         this._gold(player, 'courierCapital', -q.licence);
         const k = q.town.kingdomId && world.getKingdom ? world.getKingdom(q.town.kingdomId) : null;
         if (k) {
@@ -1028,6 +1032,7 @@ export const Couriers = {
         if (!opt) return { success: false, reason: 'Your riders cannot reach that town from your stations.' };
         if (!opt.ok) return { success: false, reason: opt.why };
         this._gold(player, 'courierCapital', -opt.cost);
+        this._payStations(world, c, opt.cost, [opt.town.key]); // (the station is fitted out in its town)
         this._addStation(c, opt.town);
         return { success: true, text: `${c.name} opens a station at ${opt.town.name}.` };
     },
@@ -1057,6 +1062,8 @@ export const Couriers = {
             const cost = price * n;
             if (_num(player.gold) < cost) return { success: false, reason: `You need ${cost} gold.` };
             this._gold(player, what === 'horses' ? 'courierCapital' : 'courierCosts', -cost);
+            // (the horses are bought, the riders and guards taken on, in the home town)
+            if (!this._payStations(world, c, cost, [c.home])) Economy.payNearest(world, player.q, player.r, cost);
             c[what] = _num(c[what]) + n;
             return { success: true, text: `+${n} ${word}${n === 1 ? '' : 's'} (${cost} gold).` };
         }
@@ -1064,8 +1071,12 @@ export const Couriers = {
         if (!m) return { success: false, reason: `You have no ${word}s to spare.` };
         c[what] -= m;
         if (what === 'horses') {
-            const back = Math.round(price * 0.5 * m);
-            this._gold(player, 'courierCapital', back);
+            // (sold in the home town: its buyers pay what their purse holds)
+            const home = this._live(world, c.home);
+            const want = Math.round(price * 0.5 * m);
+            const have = home ? Economy.townPurse(home) : null;
+            const back = home ? Economy.drawTown(home, have == null ? want : Math.min(want, Math.floor(Math.max(0, have)))) : 0;
+            if (back > 0) this._gold(player, 'courierCapital', back);
             return { success: true, text: `${m} relay horse${m === 1 ? '' : 's'} sold for ${back} gold.` };
         }
         return { success: true, text: `${m} ${word}${m === 1 ? '' : 's'} let go.` };

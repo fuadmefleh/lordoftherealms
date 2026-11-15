@@ -180,7 +180,9 @@
             "livestock": { "name": "Livestock bought & sold", "group": "capital", "kind": "cap" },
             "livestockFeed": { "name": "Fodder for your beasts", "group": "household" },
             "animals": { "name": "Dogs, cats & hawks: bought and fed", "group": "household" },
-            "settlerGrants": { "name": "Grants to settlers in your towns", "group": "state" }
+            "settlerGrants": { "name": "Grants to settlers in your towns", "group": "state" },
+            "auctions": { "name": "Auction lots won", "group": "capital", "kind": "cap" },
+            "travel": { "name": "Passage and travel", "group": "household" }
         }
     },
 

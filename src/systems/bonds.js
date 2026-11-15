@@ -765,7 +765,7 @@ export const Bonds = {
         const npc = Bonds._npc(b.npcId);
         if (!npc || npc.isAlive === false) return;
         const want = Math.round(D.base + b.strength * D.perStrength * (b.sworn ? 1.5 : 1));
-        const purse = Bonds.purseOf(npc);
+        const purse = Bonds.purseOf(npc, world);
         const amount = Math.floor(Math.min(want, purse));
         if (amount < 5) return;
         npc.purse = _r1(purse - amount);
@@ -776,10 +776,22 @@ export const Bonds = {
         out.notices.push({ icon: '🤝', title: 'A Friend in Need', text: Bonds._line('aidDebt', { name: b.name, amount }), type: 'success' });
     },
 
-    /** Their purse (relationship NPCs carry one: systems/npcChat.js); savings seeded once from who they are. */
-    purseOf(npc) {
+    /**
+     * Their purse (relationship NPCs carry one: systems/npcChat.js); savings seeded once
+     * from who they are. The savings are real coin: drawn out of their town's purse as far
+     * as it goes (with no world to draw from, a read only — the purse is not yet coin).
+     */
+    purseOf(npc, world = null) {
         if (!npc) return 0;
-        if (typeof npc.purse !== 'number') npc.purse = 20 + Math.floor(_h01(`${npc.id}|savings`) * 110);
+        if (typeof npc.purse !== 'number') {
+            const want = 20 + Math.floor(_h01(`${npc.id}|savings`) * 110);
+            if (!world) return want;
+            const t = typeof world.getTile === 'function' && Number.isFinite(npc.settlementQ) ? world.getTile(npc.settlementQ, npc.settlementR) : null;
+            const town = t && t.settlement ? t.settlement : null;
+            const have = town ? Economy.townPurse(town) : null;
+            // (a bare town record with no purse pays in full, as Economy.drawTown does)
+            npc.purse = town ? Economy.drawTown(town, have == null ? want : Math.min(want, Math.floor(Math.max(0, have)))) : 0;
+        }
         return Math.max(0, npc.purse);
     },
 
@@ -789,7 +801,8 @@ export const Bonds = {
         if (_num(player.gold) < b.owed.amount) return { success: false, reason: `You need ${b.owed.amount} gold.` };
         const npc = Bonds._npc(npcId);
         player.gold -= b.owed.amount;
-        if (npc) npc.purse = _r1(Bonds.purseOf(npc) + b.owed.amount);
+        if (npc) npc.purse = _r1(Bonds.purseOf(npc, world) + b.owed.amount);
+        else Economy.payNearest(world, player.q, player.r, b.owed.amount); // (paid to their kin in town)
         const amount = b.owed.amount;
         const late = b.owed.late;
         b.owed = null;
@@ -897,7 +910,7 @@ export const Bonds = {
             if (inParty && greedy && _num(player.gold) > 50) {
                 const amount = Math.min(B.stealMax, Math.floor(_num(player.gold) * B.stealShare));
                 player.gold -= amount;
-                npc.purse = _r1(Bonds.purseOf(npc) + amount);
+                npc.purse = _r1(Bonds.purseOf(npc, world) + amount);
                 text = Bonds._line('betrayStole', { name: b.name, amount });
             } else {
                 text = Bonds._line('betrayBribe', { name: b.name, rival: ctx.briber ? ctx.briber.name : 'an enemy' });
@@ -1069,7 +1082,7 @@ export const Bonds = {
         const npc = Bonds._npc(npcId);
         const C = Bonds.config().gift;
         player.gold -= C.cost;
-        npc.purse = _r1(Bonds.purseOf(npc) + C.cost);
+        npc.purse = _r1(Bonds.purseOf(npc, world) + C.cost);
         b.cd.gift = _day(world);
         Traits.recordDeed(player, 'generosity', 1);
         const gain = Bonds.deed(player, world, b, 'gift');

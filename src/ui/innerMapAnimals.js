@@ -29,6 +29,7 @@
 //     them slaughtered is the player's to butcher, gone from its herd.
 
 import { InnerMap } from '../world/innerMap.js';
+import { PlayerCoin } from '../player/playerCoin.js';
 import { InnerMapTasks } from './innerMapTasks.js';
 import { InnerMapCombat } from './innerMapCombat.js';
 import { InnerMapDigging } from './innerMapDigging.js';
@@ -493,9 +494,8 @@ export const InnerMapAnimals = {
         if (seen) {
             const law = Laws.punishment(world, kingdom);
             const fine = Math.min(_num(player.gold), Math.max(5, Math.round(value * _num(L.fineMult, 2) * _num(law.fine, 1))));
-            player.gold = _num(player.gold) - fine;
             // the fine makes the owners whole: it goes into the town's purse
-            if (fine && wt.settlement) Economy.payTown(wt.settlement, fine);
+            PlayerCoin.pay(world, player, fine, wt.settlement || null);
             if (fine) Ledger.record(player, 'fines', -fine);
             if (kingdom != null && player.reputation) player.reputation[kingdom] = _num(player.reputation[kingdom]) - _num(L.reputation, 3);
             Underworld.recordCrime(player, world, 'theft', {

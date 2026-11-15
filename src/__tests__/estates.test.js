@@ -312,7 +312,8 @@ describe('rents, values and the tenants', () => {
         expect(q.ok).toBe(true);
         const town0 = s.economy.gold;
         expect(LandMarket.improve(g.player, w, e.id, 'enclose').success).toBe(true);
-        expect(s.economy.gold - town0).toBe(Math.round(q.cost * Estates.config().works.wageShare));
+        // (the hands' wages and the materials both bought in the town: the whole cost into its purse, 2026-11)
+        expect(s.economy.gold - town0).toBeCloseTo(q.cost, 6);
         const pop0 = sumPop(w), here0 = s.population, hh0 = e.hh || Estates.households(w, e, s);
         w.day = e.works.until;
         LandMarket._playerDay(w, g.player, w.day, { notices: [] });

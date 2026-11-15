@@ -1,5 +1,6 @@
 // Object-action helper + modal functions (stateless; take game as a param).
 import { InnerMap } from '../../world/innerMap.js';
+import { PlayerCoin } from '../../player/playerCoin.js';
 import { Hotbar } from '../hotbar.js';
 import { PlayerInventory } from '../../player/inventory.js';
 import { FOOD_ITEMS, HEAL_ITEMS, MODAL_STYLE, MODAL_HEADER_STYLE, MODAL_BODY_STYLE, MODAL_FOOTER_STYLE } from './data.js';
@@ -170,7 +171,8 @@ export function _showSleepModal(game, objDef, cost = 0) {
                 delete window._execSleep;
                 return;
             }
-            game.player.gold -= cost;
+            // (the innkeeper is the town's: the room money into its purse)
+            PlayerCoin.pay(game.world, game.player, cost, PlayerCoin.townHere(game.world, game.player), 'lodging');
         }
         _advanceTime(hours);
         if (game.player.modifyNeed) {

@@ -1026,6 +1026,8 @@ export const TradeLines = {
         }
         const pocket = TradeLines._skim(player, earned, ctx.factor);
         player.gold = _num(player.gold) + earned - pocket;
+        // (the factor's skim is real coin: he spends it in the town he sold in — factorFx.pocket is the tally)
+        if (pocket > 0) Economy.payTown(s, pocket) || Economy.payNearest(world, s.q, s.r, pocket);
         PriceKnowledge.recordSale(player, s, g, n, earned - pocket, 'tradeLines');
         TradeLines._takeBasis(line, { [g]: n });
         const run = line.run;

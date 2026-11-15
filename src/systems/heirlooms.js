@@ -35,6 +35,8 @@ import { Grades } from '../core/grades.js';
 import { House } from './house.js';
 import { Ledger } from './ledger.js';
 import { Names } from '../core/names.js';
+import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
 
 const DEFAULTS = {
     kinds: {
@@ -112,6 +114,15 @@ function _first(name) {
 
 function _tile(world, player) {
     return world && player && typeof world.getTile === 'function' ? world.getTile(player.q, player.r) : null;
+}
+
+/** Coin the ruler pays where they stand: the town's purse (else the nearest, else lost, booked). */
+function _payHere(world, player, amount, why) {
+    if (!(amount > 0) || !world) return;
+    const t = _tile(world, player);
+    const s = t && t.settlement && !t.settlement.inKind && t.settlement.economy ? t.settlement : null;
+    if (s) Economy.payTown(s, amount);
+    else if (!Economy.payNearest(world, player.q, player.r, amount)) MoneySupply.leak(world, -amount, why);
 }
 
 function _hereName(world, player) {
@@ -398,7 +409,11 @@ export const Heirlooms = {
         const t = _tile(world, player);
         if (!t || !t.settlement) return { success: false, reason: 'There are moneylenders only in a town.' };
         const P = Heirlooms.config().pawn;
-        const gold = Heirlooms.pawnValue(h);
+        // The moneylenders lend out of the town's purse: no more than it holds
+        const purse = Economy.townPurse(t.settlement);
+        const gold = purse == null ? Heirlooms.pawnValue(h) : Math.floor(Math.min(Heirlooms.pawnValue(h), purse));
+        if (!(gold > 0)) return { success: false, reason: `The moneylenders of ${t.settlement.name} have no coin to lend.` };
+        Economy.drawTown(t.settlement, gold);
         const day = _day(world);
         player.gold = _num(player.gold) + gold;
         Ledger.record(player, 'heirlooms', gold);
@@ -424,6 +439,7 @@ export const Heirlooms = {
         if (_num(player.gold) < h.pawn.redeem) return { success: false, reason: `Redeeming it costs ${h.pawn.redeem} gold.` };
         player.gold = _num(player.gold) - h.pawn.redeem;
         Ledger.record(player, 'heirlooms', -h.pawn.redeem);
+        _payHere(world, player, h.pawn.redeem, 'pawnbroker');
         const place = h.pawn.place;
         h.status = 'held';
         h.pawn = null;
@@ -519,6 +535,7 @@ export const Heirlooms = {
             if (_num(player.gold) < o.buy) return { success: false, reason: `They ask ${o.buy} gold.` };
             player.gold = _num(player.gold) - o.buy;
             Ledger.record(player, 'heirlooms', -o.buy);
+            _payHere(world, player, o.buy, 'heirloomBuy');
             return won('recovered');
         }
         if (how === 'take') {

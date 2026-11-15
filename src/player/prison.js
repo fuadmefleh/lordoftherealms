@@ -48,6 +48,7 @@ import { Hex } from '../core/hex.js';
 import { WorldUnit } from '../world/units.js';
 import { SocialSkills } from '../systems/socialSkills.js';
 import { Economy } from '../world/economy.js';
+import { PlayerCoin } from './playerCoin.js';
 
 const DEFAULTS = {
     cellmates: { count: [2, 3], firstNames: ['Odo'], epithets: ['the Grey'] },
@@ -755,8 +756,8 @@ export const Prison = {
         const cost = Prison.servitudeBribeCost(player);
         if (_num(player.gold) < cost) return { success: false, reason: `The overseer wants ${cost} gold.` };
         s.lastEscapeDay = _day(world);
-        player.gold -= cost;
-        Ledger.record(player, 'bribes', -cost);
+        // (the overseer spends it in the town nearest the work)
+        PlayerCoin.pay(world, player, cost, null, 'bribes');
         if (Utils.random() < Prison.servitudeBribeChance(player)) {
             const captor = s.captor;
             player.indenturedServitude = null;
@@ -953,8 +954,8 @@ export const Prison = {
         if (ev.kind === 'bribe') {
             if (choice === 'pay') {
                 if (_num(player.gold) < ev.cost) return { success: false, reason: `The guard wants ${ev.cost} gold.` };
-                player.gold -= ev.cost;
-                Ledger.record(player, 'bribes', -ev.cost);
+                // (the escort's guard spends it in the next town on the road)
+                PlayerCoin.pay(world, player, ev.cost, null, 'bribes');
                 const rel = Prison._escapedCustody(player, world, tr);
                 return done(`${_fill(L.bribePaid || 'Your chains are loose by morning.', { cost: ev.cost })}${rel ? ` ${rel}` : ''}`, { escaped: true });
             }
@@ -991,7 +992,8 @@ export const Prison = {
             // Taken by the raiders: from the crown's chains into theirs (indentured servitude)
             const days = Utils.randInt(5, 12);
             const took = Math.floor(_num(player.gold) * 0.3);
-            player.gold = _num(player.gold) - took;
+            // (the raiders' takings are spent in the nearest town)
+            PlayerCoin.pay(world, player, took, null, 'robbery');
             player.jailState = null;
             player.lastJailRelease = { how: 'taken', day: _day(world), settlement: tr.to.name };
             player.indenturedServitude = {
@@ -1001,8 +1003,7 @@ export const Prison = {
             return done(_fill(L.taken || 'The escort scatters; the raiders take you for themselves: {days} days in their chains.', { days }), { captured: true });
         }
         const took = Math.floor(_num(player.gold) * 0.5);
-        player.gold = _num(player.gold) - took;
-        if (took > 0) Ledger.record(player, 'robbery', -took);
+        PlayerCoin.pay(world, player, took, null, 'robbery');
         player.jailState = null;
         player.lastJailRelease = { how: 'abandoned', day: _day(world), settlement: tr.from.name };
         return done(_fill(L.abandoned || 'The escort flees; the raiders take {took} gold and leave you chained on the road. You work the chains loose by dark — free.', { took }), { freed: true });

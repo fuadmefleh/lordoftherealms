@@ -3,7 +3,8 @@
 // world.hospitality, a roadhouse stands on the open road it serves, and the
 // player's own houses open their lodging and management.
 import { InnerMap } from './_ref.js';
-import { Hospitality, Utils } from './_imports.js';
+import { Hospitality, Utils, Economy } from './_imports.js';
+import { MoneySupply } from '../moneySupply.js';
 
 const PAY_AT = ['inn', 'tavern', 'guest_house', 'hotel', 'roadhouse'];
 
@@ -185,7 +186,19 @@ Object.assign(InnerMap, {
         // (a traveller's purse rides on the walker: npc._purse)
         const wallet = payer === npc ? { purse: npc._purse } : payer;
         const res = Hospitality.npcPays(ctx.world, { houseId: bldg.establishmentId || null, what: lodging ? 'room' : 'meal', payer: wallet, keeper });
-        if (payer === npc) npc._purse = wallet.purse;
+        if (payer === npc) {
+            npc._purse = wallet.purse;
+            // (the walker's few coin are not a purse the world keeps: what a traveller pays is
+            // coin brought into the town's trade, out of its common purse — else found coin, booked)
+            const paid = res && res.paid > 0 ? res.paid : 0;
+            if (paid > 0) {
+                const wt = this.currentWorldTile;
+                const t = wt && ctx.world.getTile ? ctx.world.getTile(wt.q, wt.r) : null;
+                const s = t && t.settlement && Economy.townPurse(t.settlement) != null ? t.settlement : null;
+                const drawn = s ? Economy.drawTown(s, paid) : 0;
+                if (paid - drawn > 0.001) MoneySupply.leak(ctx.world, paid - drawn, 'travellers');
+            }
+        }
         if (lodging) npc._paidRoom = day; else npc._paidMeal = day;
         return res;
     },

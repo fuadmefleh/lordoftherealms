@@ -27,6 +27,8 @@ import { Romance } from './romance.js';
 // (what a townsperson remembers of the player's House, years on: systems/npcMemory.js)
 import { NpcMemory } from './npcMemory.js';
 import { Names } from '../core/names.js';
+import { Economy } from '../world/economy.js';
+import { Townsfolk } from './townsfolk.js';
 
 /**
  * What a flattered NPC actually hands over — aligned index-for-index with the
@@ -305,7 +307,7 @@ export const NpcDisposition = {
      * assault through Gossip when `reported` is set.
      * @returns {{ gold:number, reported:boolean, alreadyExtorted:boolean }}
      */
-    resolveThreat(npc, player, success) {
+    resolveThreat(npc, player, success, world = null) {
         const mem = NpcDisposition.getMemory(npc);
         const type = npc.type || 'villager';
         const out = { gold: 0, reported: false, alreadyExtorted: false };
@@ -319,6 +321,8 @@ export const NpcDisposition = {
             } else {
                 const [lo, hi] = EXTORTION_GOLD[type] || EXTORTION_GOLD.villager;
                 out.gold = hi > 0 ? Utils.randInt(lo, hi) : 0;
+                // (out of their own purse, or their town's: as much as they have — NpcDisposition._npcPays)
+                if (out.gold > 0 && world) out.gold = NpcDisposition._npcPays(world, npc, player, out.gold);
                 mem.extorted = true;
                 if (player && out.gold > 0) player.gold = (player.gold || 0) + out.gold;
                 if (out.gold > 0) Traits.recordDeed(player, 'greed', 2); // extortion
@@ -417,11 +421,12 @@ export const NpcDisposition = {
                 mem.discount = spec.amount;
                 return { kind: 'discount', summary: `${Math.round(spec.amount * 100)}% off with ${npc.name || 'them'} from now on` };
             case 'item': {
-                const res = PlayerInventory.addOrSell(player, { [spec.item]: spec.qty });
+                // (packs full: sold to the nearest town, its purse pays — capped by what it holds)
+                const res = PlayerInventory.addOrSell(player, { [spec.item]: spec.qty }, world ? (g) => Economy.drawNearest(world, player.q, player.r, g) : null);
                 return { kind: 'item', summary: res.gold ? `Packs full — sold the gift for ${res.gold}g` : `+${spec.qty} ${spec.item}` };
             }
             case 'cache': {
-                const r = NpcDisposition._grantCache(npc, player, spec.lo, spec.hi, '');
+                const r = NpcDisposition._grantCache(npc, player, spec.lo, spec.hi, '', world);
                 return { kind: 'cache', summary: `+${r.gold} gold` };
             }
             case 'karma':
@@ -442,7 +447,7 @@ export const NpcDisposition = {
             case 'reveal': {
                 const n = NpcDisposition._revealNearbyRegion(player, world);
                 if (n > 0) return { kind: 'reveal', summary: `${n} map tiles revealed` };
-                const r = NpcDisposition._grantCache(npc, player, 5, 20, '');
+                const r = NpcDisposition._grantCache(npc, player, 5, 20, '', world);
                 return { kind: 'cache', summary: `You already know these lands — they tip you ${r.gold} gold instead` };
             }
             case 'intel':
@@ -456,8 +461,32 @@ export const NpcDisposition = {
         }
     },
 
-    _grantCache(npc, player, lo, hi, text) {
-        const gold = Utils.randInt(lo, hi);
+    /**
+     * Coin a person of the town hands the player: out of their own purse (a
+     * townsperson's, systems/townsfolk.js), else out of their town's common
+     * purse (the nearest that keeps one) — as much as there is. → what they paid.
+     */
+    _npcPays(world, npc, player, want) {
+        const w = Math.max(0, Math.floor(want));
+        if (!(w > 0) || !world) return 0;
+        const p = npc && npc._person;
+        const folk = npc && npc._folk;
+        if (p && folk && p.died == null) {
+            const purse = Townsfolk.purse(folk, p, world);
+            const paid = Math.min(w, Math.max(0, Math.floor(purse)));
+            p.purse = Math.round((purse - paid) * 100) / 100;
+            return paid;
+        }
+        const t = folk && Number.isFinite(folk.q) && typeof world.getTile === 'function' ? world.getTile(folk.q, folk.r) : null;
+        const s = (t && t.settlement) || (player ? Economy.nearestPurse(world, player.q, player.r) : null);
+        if (!s) return 0;
+        return Math.floor(Economy.drawTown(s, Math.min(w, Math.floor(Economy.townPurse(s) ?? w))));
+    },
+
+    _grantCache(npc, player, lo, hi, text, world = null) {
+        const want = Utils.randInt(lo, hi);
+        // (out of the giver's own purse or their town's, when the world is known)
+        const gold = world ? NpcDisposition._npcPays(world, npc, player, want) : want;
         if (player) player.gold = (player.gold || 0) + gold;
         return { kind: 'cache', gold, text };
     },

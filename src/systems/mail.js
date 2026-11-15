@@ -59,6 +59,9 @@ import { Names } from '../core/names.js';
 import { LetterChat } from './letterChat.js';
 // (who can read: a scribe for the player who can't write, a reader for a recipient who can't read — systems/literacy.js)
 import { Literacy } from './literacy.js';
+// (coin that rides with a letter comes from a real purse and goes into one: world/economy.js, world/moneySupply.js)
+import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
 
 // What a learned intel key means in a sentence ('military' → 'armies'), joined "a, b and c"
 const _INTEL_WORDS = { ruler: 'ruler', military: 'armies', diplomacy: 'alliances and quarrels', economy: 'trade and treasury' };
@@ -448,6 +451,8 @@ export const Mail = {
             if (player.inventory[item.id] <= 0) delete player.inventory[item.id];
         }
         if (courier.id !== 'own') Couriers.recordLetter(world, courier.id, courier.price);
+        // (your own rider's hire and keep is spent where you write: the town's purse, else the nearest)
+        else if (courier.price > 0 && !Economy.payNearest(world, player.q, player.r, courier.price)) MoneySupply.leak(world, -courier.price, 'mailLost');
 
         const here = Couriers.townHere(world, player);
         const letter = {
@@ -500,6 +505,77 @@ export const Mail = {
         return out;
     },
 
+    /**
+     * The coin a letter's (or reply's) rider on the map carries for it
+     * (systems/courierRiders.js mirrors it in the unit's inventory): handed
+     * over now, so the rider leaves the map empty. → the coin it carried.
+     */
+    _riderHandsOver(world, riderId) {
+        if (riderId == null || !world || !Array.isArray(world.units)) return 0;
+        const u = world.units.find(x => x && x.id === riderId && !x.destroyed);
+        if (!u) return 0;
+        const g = _num(u.inventory && u.inventory.gold);
+        if (u.inventory) delete u.inventory.gold;
+        if (u.bag) u.bag.gold = 0;
+        return g;
+    },
+
+    /**
+     * The coin enclosed in a delivered letter goes to the one it was sent to:
+     * a lord's to the crown's chests, a rival House's to its gold, a merchant
+     * house's to its capital, a townsperson's or a courtier's to their purse,
+     * anyone else's to the purse of the town they live in. → what was paid.
+     */
+    _landCoin(world, player, L, to, sub) {
+        const g = _num(L.gold);
+        this._riderHandsOver(world, L.rider);
+        L.gold = 0;
+        if (!(g > 0)) return 0;
+        const s = sub || {};
+        if (to.type === 'lord' && s.kingdom) s.kingdom.treasury = _num(s.kingdom.treasury) + g;
+        else if (to.type === 'rival' && s.rival) s.rival.gold = _num(s.rival.gold) + g;
+        else if (to.type === 'house' && s.house && !s.house.bankrupt && s.house.seat) s.house.capital = _num(s.house.capital) + g;
+        else if (to.type === 'folk' && s.person && s.folk) s.person.purse = Townsfolk.purse(s.folk, s.person, world) + g;
+        else if (s.npc && this._npcPurseCounts(player, s.npc)) s.npc.purse = _num(s.npc.purse) + g;
+        else if (s.child && typeof s.child.purse === 'number') s.child.purse += g;
+        else if (!Economy.payNearest(world, to.q, to.r, g)) MoneySupply.leak(world, -g, 'mailLost');
+        return g;
+    },
+
+    /** A courtier's purse the coin census counts (systems/coinCensus.js: Relationships' NPCs). */
+    _npcPurseCounts(player, npc) {
+        if (!npc || typeof npc.purse !== 'number') return false;
+        const list = Array.isArray(Relationships._npcs) && Relationships._npcs.length ? Relationships._npcs : (player && player._relationshipNpcs) || [];
+        return list.includes(npc);
+    },
+
+    /**
+     * Coin drawn from someone to send the player with a reply: from a courtier's
+     * own purse when the census counts it, else out of their town's purse.
+     * → what they could send.
+     */
+    _drawFrom(world, player, to, npc, want) {
+        const w = Math.max(0, Math.floor(_num(want)));
+        if (!(w > 0)) return 0;
+        if (this._npcPurseCounts(player, npc)) {
+            const paid = Math.min(w, Math.max(0, Math.floor(npc.purse)));
+            npc.purse = Math.round((npc.purse - paid) * 100) / 100;
+            return paid;
+        }
+        return Math.floor(Economy.drawNearest(world, to.q, to.r, w));
+    },
+
+    /** A letter that came back brings its coin back to the player. */
+    _returnCoin(world, player, L) {
+        const g = _num(L.gold);
+        this._riderHandsOver(world, L.rider);
+        L.gold = 0;
+        if (!(g > 0)) return;
+        player.gold = _num(player.gold) + g;
+        Ledger.record(player, 'mailReceipts', g);
+        L.returned = g;
+    },
+
     _done(player, L, status, text) {
         const st = this.state(player);
         L.status = status;
@@ -529,6 +605,10 @@ export const Mail = {
             st.stats.lost++;
             if (L.courier.id !== 'own') Couriers.recordLoss(world, L.courier.id, 1);
             const text = `Your letter to ${L.to.name} never arrived: ${L.courier.name} lost it on the road${L.gold || L.item ? ', and what it carried' : ''}.`;
+            // (the coin it carried is gone from the world: its rider, if any, leaves empty)
+            this._riderHandsOver(world, L.rider);
+            if (_num(L.gold) > 0) MoneySupply.leak(world, -_num(L.gold), 'mailLost');
+            L.gold = 0;
             this._done(player, L, 'lost', text);
             out.notices.push({ icon: '📭', title: 'A Letter Lost', text, type: 'warning' });
             return;
@@ -548,11 +628,13 @@ export const Mail = {
         const to = this.recipient(player, world, L.to.key) || L.to;
         const sub = this._subject(player, world, to);
         if ((to.type === 'npc' || to.type === 'spouse' || to.type === 'companion') && (!sub.npc || sub.npc.isAlive === false)) {
-            this._done(player, L, 'undelivered', `Your letter to ${L.to.name} came back: there was no one to give it to.`);
+            this._returnCoin(world, player, L);
+            this._done(player, L, 'undelivered', `Your letter to ${L.to.name} came back: there was no one to give it to${L.returned ? ` (the ${L.returned} gold with it)` : ''}.`);
             return;
         }
         if (to.type === 'folk' && (!sub.person || sub.person.died != null)) {
-            this._done(player, L, 'undelivered', `Your letter to ${L.to.name} came back: they are gone.`);
+            this._returnCoin(world, player, L);
+            this._done(player, L, 'undelivered', `Your letter to ${L.to.name} came back: they are gone${L.returned ? ` (the ${L.returned} gold with it)` : ''}.`);
             return;
         }
         // One who can't read waits for someone to read it to them (systems/literacy.js): days late
@@ -566,9 +648,12 @@ export const Mail = {
         // (read aloud: the reader knows it now, and may tell it)
         const aloud = Literacy.afterAloud(world, player, L, to, out);
         if (aloud) r.text = `${r.text}${aloud}`;
+        // (what it enclosed and was not already handed over is theirs now)
+        this._landCoin(world, player, L, to, sub);
         this._done(player, L, 'delivered', r.text);
         out.delivered.push(L);
-        if (r.reply && Utils.random() < (r.reply.always ? 1 : M.replyChance)) {
+        // (a reply carrying coin drawn from them always comes: the coin is on its way)
+        if (r.reply && Utils.random() < (r.reply.always || _num(r.reply.gold) > 0 ? 1 : M.replyChance)) {
             const R = { id: L.id, due: day + Math.max(1, L.days), sentDay: day, from: { ...L.to }, back: L.from ? { ...L.from } : null, kind: L.kind, tone: r.tone, ...r.reply };
             R.inReplyTo = L.kind;
             if (R.kind === 'plain' || !R.kind) R.kind = 'plain';
@@ -591,6 +676,9 @@ export const Mail = {
         if (L.courier.id !== 'own') Couriers.recordLoss(world, L.courier.id, 2);
         const had = L.gold || L.item;
         L.stolen = { gold: L.gold, item: L.item };
+        // (a rider on the map: its takers have the coin it carried — systems/courierRiders.js;
+        // robbed off the map, the coin is gone with robbers no one sees)
+        if (!Number.isFinite(ctx.q) && _num(L.gold) > 0) MoneySupply.leak(world, -_num(L.gold), 'mailLost');
         L.gold = 0;
         L.item = null;
         L.road = { ...(L.road || {}), robbed: { by: ctx.by || null, where: ctx.where || null, q: ctx.q, r: ctx.r, day: _day(world) } };
@@ -756,7 +844,7 @@ export const Mail = {
             }
             case 'gift': {
                 if (worth <= 0) { textKey = 'stolen'; tone = 'cool'; break; }
-                if (s.kingdom && to.type === 'lord') s.kingdom.treasury = _num(s.kingdom.treasury) + _num(L.gold);
+                // (the coin goes to them as the letter is delivered: Mail._landCoin)
                 if (to.type === 'lord') { remember('gift', { weight: _clamp(worth / 40, 1, 10) * f, note: `${worth} gold's worth, by letter` }); rep(Math.min(5, Math.round(worth / 100))); }
                 else if (to.type === 'rival') feud(-Math.min(15, worth / 30) * f, 'a gift');
                 else if (to.type === 'spouse') bump('affection', Math.min(10, worth / 20) * f, 0, 100);
@@ -802,9 +890,12 @@ export const Mail = {
                         // A friend who is one of a town's people pays out of their own purse
                         const want = Utils.randInt(15, 50);
                         const lp = s.npc && s.npc.folkUid ? MailVoice._personByUid(world, s.npc.folkUid) : null;
-                        const purse = lp ? Townsfolk.purse(lp.folk, lp.person, world) : want;
-                        reply.gold = Math.min(want, purse);
-                        if (lp) lp.person.purse = purse - reply.gold;
+                        // (else out of their own purse as a courtier, or their town's: Mail._drawFrom)
+                        if (lp) {
+                            const purse = Townsfolk.purse(lp.folk, lp.person, world);
+                            reply.gold = Math.min(want, purse);
+                            lp.person.purse = purse - reply.gold;
+                        } else reply.gold = this._drawFrom(world, player, to, s.npc, want);
                         bump('score', -2);
                         if (reply.gold > 0) { outcome = 'warm_gold'; lines.push(`${reply.gold} gold comes with the reply.`); } else { tone = 'cool'; reply.gold = 0; }
                     } else bump('score', -1);
@@ -906,7 +997,12 @@ export const Mail = {
                 } else if (to.type === 'npc') { bump('score', -15); bump('affection', -10, 0, 100); tone = 'hostile'; }
                 else if (to.type === 'house') {
                     rivalry(15);
-                    if (Utils.random() < 0.25) { reply.gold = Utils.randInt(50, 150); tone = 'warm'; outcome = 'paid'; lines.push(`${reply.gold} gold, to be left alone.`); } else tone = 'hostile';
+                    // (out of the house's own capital: a house with none left cannot buy you off)
+                    if (Utils.random() < 0.25) {
+                        const want = Utils.randInt(50, 150);
+                        const g = s.house ? Math.min(want, Math.max(0, Math.floor(_num(s.house.capital)))) : 0;
+                        if (g >= 10) { s.house.capital = _num(s.house.capital) - g; reply.gold = g; tone = 'warm'; outcome = 'paid'; lines.push(`${reply.gold} gold, to be left alone.`); } else tone = 'hostile';
+                    } else tone = 'hostile';
                 }
                 break;
             }
@@ -1221,7 +1317,9 @@ export const Mail = {
             const a = h.arrive;
             if (!a) continue;
             if (a.gold) {
-                if (R.robbed) { lost = true; continue; }
+                // (taken from them as it was written; its robbers on the road have it now — coin
+                // the census never saw on the rider, so it leaves the world's books here)
+                if (R.robbed) { lost = true; MoneySupply.leak(world, -_num(a.gold), 'mailLost'); continue; }
                 player.gold = _num(player.gold) + a.gold;
                 Ledger.record(player, 'mailReceipts', a.gold);
                 lines.push(`+${a.gold} gold enclosed.`);
@@ -1308,7 +1406,7 @@ export const Mail = {
             // The coin goes to them (a townsperson's purse), or to their town's market purse
             const s = this._subject(player, world, to);
             if (to.type === 'folk' && s.person) s.person.purse = _num(s.person.purse) + q.gold;
-            else if (settlement && settlement.economy && Number.isFinite(settlement.economy.gold)) settlement.economy.gold += q.gold;
+            else if (!(settlement && Economy.payTown(settlement, q.gold) > 0) && !Economy.payNearest(world, to.q, to.r, q.gold)) MoneySupply.leak(world, -q.gold, 'mailLost');
             lines.push(`💰 ${q.gold} gold rides to ${q.town || to.place}.`);
         }
         if (choiceId === 'refuse') {
@@ -1475,6 +1573,11 @@ export const Mail = {
         // A letter in its writer's own words still being written waits a day; never written, it is answered plainly (systems/letterChat.js)
         if (R.free && LetterChat.hold(world, player, R)) return;
         if (R.free && R.free.state !== 'done' && R.free.state !== 'fallback' && !LetterChat.fallbackReply(world, player, R)) {
+            // (never written: the coin they meant to send stays in their town)
+            const g = _num(R.gold);
+            this._riderHandsOver(world, R.rider);
+            if (g > 0 && !Economy.payNearest(world, R.from && R.from.q, R.from && R.from.r, g)) MoneySupply.leak(world, -g, 'mailLost');
+            R.gold = 0;
             st.replies = st.replies.filter(x => x !== R);
             return;
         }
@@ -1485,6 +1588,8 @@ export const Mail = {
         if (readTo && R.letter) R.letter.handNote = [R.letter.handNote, readTo].filter(Boolean).join(' ');
         // Its messenger was waylaid on the road (systems/courierRiders.js): the purse is gone, the letter comes on
         if (R.robbed) R.body = `${R.body || ''} (The messenger was robbed by ${R.robbed.by} near ${R.robbed.where}${R.robbed.gold ? `; the ${R.robbed.gold} gold they carried is gone` : ''}.)`.trim();
+        // (its messenger on the map hands the purse over: the rider leaves empty)
+        this._riderHandsOver(world, R.rider);
         if (R.gold > 0) {
             player.gold = _num(player.gold) + R.gold;
             Ledger.record(player, 'mailReceipts', R.gold);
@@ -1643,7 +1748,9 @@ export const Mail = {
                 const amount = _num(d.amount);
                 player.gold = _num(player.gold) - amount;
                 Ledger.record(player, 'diplomacy', -amount);
+                // (into the holding crown's chests; a fallen court's ransom is spent where the child was held)
                 if (k) k.treasury = _num(k.treasury) + amount;
+                else if (!Economy.payNearest(world, player.q, player.r, amount)) MoneySupply.leak(world, -amount, 'mailLost');
                 this.release(player, world, child, Upbringing.ensure(child).heldBy.kingdomId);
                 lines.push(`⛓️ ${child.firstName} is free and coming home.`);
                 break;
@@ -1673,6 +1780,9 @@ export const Mail = {
                 const amount = _num(d.amount);
                 player.gold = _num(player.gold) - amount;
                 Ledger.record(player, 'hushMoney', -amount);
+                // (the unsigned hand lives where your lover does: the coin is spent in that town)
+                const at = d.to && Number.isFinite(d.to.q) ? d.to : player;
+                if (amount > 0 && !Economy.payNearest(world, at.q, at.r, amount)) MoneySupply.leak(world, -amount, 'mailLost');
                 break;
             }
             case 'mail_blackmail:refuse':
@@ -1699,7 +1809,8 @@ export const Mail = {
                     if (k) lines.push(`📜 ${k.name}: army ${Math.round(_num(k.military))}, treasury about ${Math.round(_num(k.treasury) / 100) * 100} gold, ${(k.wars || []).length ? `at war with ${(k.wars || []).map(id => (world.getKingdom(id) || {}).name).filter(Boolean).join(', ')}` : 'at peace'}${learned.length ? ` · you learn of its ${_intelPhrase(learned)}` : ''}.`);
                 } else {
                     const enemy = world.getKingdom(d.enemyId);
-                    const price = _num(d.price);
+                    // (the enemy crown's agents pay out of its chests, then its towns: what it can)
+                    const price = enemy ? Math.floor(Economy.crownPays(enemy, world, _num(d.price))) : 0;
                     player.gold = _num(player.gold) + price;
                     Ledger.record(player, 'mailReceipts', price);
                     if (enemy && enemy.lord) NPCLords.rememberDeed(world, enemy.lord, 'letter_shared_enemy', { note: `${k ? k.name : 'a'} letter, sold` });

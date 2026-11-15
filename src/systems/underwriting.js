@@ -65,6 +65,7 @@ import { Technology } from './technology.js';
 import { MarketDynamics } from './marketDynamics.js';
 import { LossBook } from './lossBook.js';
 import { Ledger } from './ledger.js';
+import { MoneySupply } from '../world/moneySupply.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -247,8 +248,38 @@ export const Underwriting = {
             if (st.guilds.length >= _num(G.count, 2)) break;
             if (realms.has(s.kingdom)) continue;
             realms.add(s.kingdom);
-            Underwriting._newGuild(world, st, s);
+            const g = Underwriting._newGuild(world, st, s);
+            // (its capital is put up by the realm's merchants out of their towns' purses, as a
+            // refounded guild's is — whatever they can raise; a realm with no coin yet has
+            // none until it can: it opens a month on, through _refound)
+            const raised = Underwriting._raiseCapital(world, s, g.capital, 0);
+            if (raised == null) {
+                g.capital = 0;
+                g.status = 'failed';
+                g.failedDay = _day(world) - _num(G.refoundDays, 90) + 30;
+            } else g.capital = g.baseCapital = raised;
         }
+    },
+
+    /**
+     * A guild's capital, raised from the merchants of the seat's realm: out of
+     * its towns' purses (at most banks.refoundTownShare of each). Too little
+     * (under guild.minRaise of `want`): every town has its coin back → null.
+     * → the coin raised
+     */
+    _raiseCapital(world, s, want, minShare = null) {
+        const G = Underwriting.config().guild;
+        const k = _kingdom(world, s.kingdom);
+        let towns = k && k.isAlive !== false ? Economy.realmTowns(k, world) : [];
+        if (!towns.length) towns = [{ settlement: s }];
+        const list = towns.map(t => ({ settlement: t.settlement, weight: Math.max(1, _num(t.settlement.population)) }));
+        const res = Economy.drawTowns(list, want, _clamp(_num(Finance.cfg('banks').refoundTownShare, 0.3), 0, 1), { init: true });
+        const raised = _r2(_num(res.paid));
+        if (!(raised > 0) || raised < want * (minShare == null ? _num(G.minRaise, 0.25) : minShare)) {
+            for (const t of res.towns || []) Economy.payTown(t.settlement, _num(t.paid));
+            return null;
+        }
+        return raised;
     },
 
     _newGuild(world, st, seat) {
@@ -736,6 +767,7 @@ export const Underwriting = {
         if (_num(player.gold) < fee) return { success: false, reason: `The forger wants ${fee}g up front.` };
         player.gold -= fee;
         Ledger.record(player, 'fraud', -fee);
+        Underworld.payGuild(world, world.getTile(player.q, player.r), fee); // (the forger is the guild's)
         st.stats.frauds++;
         const roll = _frac(`${_seed(world)}|fraud|${day}|${st.nextId}`);
         const claim = Underwriting._claim(player, world, st, cover, { day, value: want / (1 - _num(C.deductible, 0.1)), cause: 'a loss (forged papers)', place: null }, null, { fraud: true, roll });
@@ -791,6 +823,7 @@ export const Underwriting = {
                 Underwriting._kindStat(st, kind, 'premium', due);
                 out.premium = _r2(out.premium + due);
                 if (uw && uw.ref) uw.ref.capital = _r2(_num(uw.ref.capital) + due);
+                else if (!Economy.payNearest(world, player.q, player.r, due)) MoneySupply.leak(world, -due, 'insurance');
             } else if (++cover.unpaid >= _num(Underwriting.config().unpaidDays, 3)) {
                 delete st.covers[kind];
                 out.notices.push({ icon: '🛡️', title: 'Cover Lapsed', text: `Your ${Underwriting.kind(kind).name.toLowerCase()} cover lapsed: the premiums went unpaid.`, type: 'warning' });
@@ -988,15 +1021,11 @@ export const Underwriting = {
             const ng = Underwriting._newGuild(world, st, { q: g.q, r: g.r, name: s.name || g.seat, kingdom: s.kingdom });
             // (its capital is put up by the realm's merchants, out of their towns' purses — not
             // struck from nothing: at most banks.refoundTownShare of each purse)
-            const k = _kingdom(world, s.kingdom);
-            let towns = k && k.isAlive !== false ? Economy.realmTowns(k, world) : [];
-            if (!towns.length) towns = [{ settlement: s }];
-            const list = towns.map(t => ({ settlement: t.settlement, weight: Math.max(1, _num(t.settlement.population)) }));
-            const res = Economy.drawTowns(list, ng.capital, _clamp(_num(Finance.cfg('banks').refoundTownShare, 0.3), 0, 1));
-            const raised = _r2(_num(res.paid));
-            if (raised < ng.capital * _num(G.minRaise, 0.25)) {
+            // (at least guild.minRaise of it — or half the capital the old guild was founded
+            // with, for a realm whose merchants never had more to put up)
+            const raised = Underwriting._raiseCapital(world, s, ng.capital, Math.min(_num(G.minRaise, 0.25), 0.5 * _num(g.baseCapital) / Math.max(1, ng.capital)));
+            if (raised == null) {
                 // (too little coin in the realm yet: every town has its coin back; try again later)
-                for (const t of res.towns || []) Economy.payTown(t.settlement, _num(t.paid));
                 st.guilds = st.guilds.filter(x => x !== ng);
                 g.refounded = false;
                 g.failedDay = day;

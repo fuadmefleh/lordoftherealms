@@ -783,8 +783,9 @@ export const Rivals = {
         const st = Rivals.state(player);
         if (st.partner && st.partner.id === rival.id) st.partner = null;
         if (st.race && st.race.rivalId === rival.id) {
-            // The race is off: your stake comes back
+            // The race is off: your stake comes back (out of the stakeholder's keeping: booked back in)
             player.gold = _num(player.gold) + _num(st.race.wager);
+            MoneySupply.leak(world, _num(st.race.wager), 'rivalsWager');
             st.race = null;
         }
         Rivals._news(player, world, rival, '⚰️', `${rival.name} ${cause}.`, q, r);
@@ -1006,13 +1007,19 @@ export const Rivals = {
         const p = st.partner;
         if (!p) return;
         const rival = Rivals.get(player, p.id);
-        const credit = _num(p.earned) - _num(p.credited);
+        // (the cut held for them — p.owed, counted by the coin census; older saves: earned − credited)
+        const credit = typeof p.owed === 'number' ? p.owed : _num(p.earned) - _num(p.credited);
+        p.owed = 0;
         if (rival && credit > 0) {
             rival.gold += credit;
             rival.renown += 2;
             rival.deeds.delves++;
             Rivals.remember(rival, world, `shared a fair cut of ${p.lastSite || 'a delve'}`, 6);
             Rivals._news(player, world, rival, '🤝', `${rival.name} delved ${p.lastSite || 'the depths'} at your side.`);
+            p.credited = _num(p.earned);
+        } else if (!rival && credit > 0) {
+            // (a partner gone from the world: their cut is spent where you stand)
+            Rivals._spendIn(world, { q: player.q, r: player.r }, credit, player.q, player.r);
             p.credited = _num(p.earned);
         }
         if (!rival || rival.dead || _day(world) >= p.until) {
@@ -1080,7 +1087,11 @@ export const Rivals = {
         const lines = Rivals.data().lines || {};
         const playerWon = !!(poi && poi.delved && poi.delved.reason !== 'rival');
         if (playerWon) {
-            const purse = race.wager * 2;
+            // (your own stake back from the stakeholder, and the rival's out of their purse — as far as it holds)
+            MoneySupply.leak(world, race.wager, 'rivalsWager');
+            const theirs = rival ? Math.max(0, Math.min(_num(rival.gold), race.wager)) : 0;
+            if (rival) rival.gold = _num(rival.gold) - theirs;
+            const purse = race.wager + theirs;
             player.gold = _num(player.gold) + purse;
             player.renown = _num(player.renown) + cfg.renown;
             st.stats.racesWon++;
@@ -1093,8 +1104,10 @@ export const Rivals = {
             notify('🏁', 'Race Won!', `You reached ${race.siteName} before ${rival ? rival.name : 'your rival'}: +${purse} gold, +${cfg.renown} renown. "${_pick(lines.raceWon) || 'Curse you.'}"`, 'success');
         } else {
             st.stats.racesLost++;
+            // (the winner keeps their own stake and takes yours from the stakeholder)
             if (rival) {
-                rival.gold += race.wager * 2;
+                rival.gold += race.wager;
+                MoneySupply.leak(world, race.wager, 'rivalsWager');
                 rival.renown += 2;
                 Rivals.remember(rival, world, `won a race to ${race.siteName}`, 3);
                 Rivals._news(player, world, rival, '🏁', `${rival.name} beat you to ${race.siteName}.`, race.q, race.r);
@@ -1375,6 +1388,8 @@ export const Rivals = {
         const tile = world.getTile(site.q, site.r);
         const siteName = (tile.improvement && tile.improvement.name) || 'the ruin';
         player.gold -= cfg.wager;
+        // (the stake is held by a stakeholder until the race is settled: out of the books until then)
+        MoneySupply.leak(world, -cfg.wager, 'rivalsWager');
         rival.task = {
             type: 'delve', q: site.q, r: site.r, name: siteName, key: _key(site.q, site.r),
             // they need a day to provision, then travel like you
@@ -1403,6 +1418,8 @@ export const Rivals = {
         const cfg = Rivals.config().sabotage;
         if (_num(player.gold) < cfg.cost) return { success: false, reason: `It costs ${cfg.cost} gold to arrange.` };
         player.gold -= cfg.cost;
+        // (the cutthroats' pay is spent in the nearest town)
+        Rivals._spendIn(world, rival, cfg.cost, player.q, player.r);
         st.stats.sabotaged++;
         const ok = Utils.random() < Rivals.sabotageChance(player);
         if (ok) {

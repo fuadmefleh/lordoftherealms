@@ -43,6 +43,7 @@ import { Utils } from '../core/utils.js';
 import { Hex } from '../core/hex.js';
 import { DataLoader } from '../core/dataLoader.js';
 import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
 import { Seasons } from '../world/seasons.js';
 import { KingdomNavy } from '../world/kingdomNavy.js';
@@ -252,7 +253,11 @@ export const Sieges = {
             if (d < bestD) { bestD = d; best = v; }
         }
         const t = best && world.getTile(best.q, best.r);
-        return t && t.settlement ? Economy.payTown(t.settlement, a) : 0;
+        if (t && t.settlement && Economy.payTown(t.settlement, a)) return a;
+        // (a barter place or a bare record: the nearest town that keeps coin, else the coin leaves the books)
+        if (Economy.payNearest(world, s.q, s.r, a)) return a;
+        MoneySupply.leak(world, -a, 'sieges');
+        return a;
     },
 
     /** Land units (galleys don't man siege lines). */
@@ -610,7 +615,10 @@ export const Sieges = {
         unit.objectiveR = marching ? s.r : null;
         unit.maxAge = 100000;
         unit.inventory = { gold: Math.round(rel.strength * 2), food: rel.strength };
+        // (the host's war chest is its realm's coin, out of the nearest town's purse: World.fundUnitCoin)
+        unit._rolledGold = unit.inventory.gold;
         world.units.push(unit);
+        if (typeof world.fundUnitCoin === 'function') world.fundUnitCoin(unit);
         return unit;
     },
 

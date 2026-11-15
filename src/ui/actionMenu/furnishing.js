@@ -67,7 +67,7 @@ Object.assign(ActionMenu, {
         const s = _settlement(game);
         let res;
         if (op === 'buy') res = Furnishing.buy(player, world, ref, (s && s.type) || 'village');
-        else if (op === 'sell') res = Furnishing.sell(player, ref);
+        else if (op === 'sell') res = Furnishing.sell(player, ref, world);
         else return;
         if (res.success && game.ui.updateStats) game.ui.updateStats(player, world);
         ActionMenu.showFurnitureShop(game, null, { ok: !!res.success, text: res.text });

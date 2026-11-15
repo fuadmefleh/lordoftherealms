@@ -171,7 +171,8 @@ describe('founding a village from a town you hold', () => {
         const n = Math.min(12, src.max);
         const res = Founding.dispatch(player, world, tile, site, n, {});
         expect(res.reason || 'ok').toBe('ok');
-        expect(res.unit.expedition.coin).toBe(n * src.purse);
+        // (carried as the party's purse on the road, where the coin census counts it)
+        expect(res.unit.purse).toBe(n * src.purse);
         walk(game, 80);
         const v = world.getTile(site.q, site.r).settlement;
         expect(v && v.playerFounded).toBe(true);

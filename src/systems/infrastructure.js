@@ -11,6 +11,7 @@ import { KingdomBonuses } from '../world/kingdomState.js';
 import { Transport } from '../world/transport.js';
 import { Construction } from './construction.js';
 import { DataLoader } from '../core/dataLoader.js';
+import { MoneySupply } from '../world/moneySupply.js';
 
 
 /** Player-built works a road search may cross (Infrastructure._roadReach). */
@@ -193,6 +194,7 @@ export const Infrastructure = {
         // The work is done by hands hired from the nearest town: the coin goes to its purse
         const town = Infrastructure._nearestTown(world, tile.q, tile.r);
         if (town) Economy.payTown(town, cost);
+        else MoneySupply.leak(world, -cost, 'infrastructure');
 
         const buildDays = check.buildDays != null ? check.buildDays : (infra.buildTime || 0);
 
@@ -330,7 +332,12 @@ export const Infrastructure = {
 
         const infra = Infrastructure.TYPES[tile.infrastructure.id.toUpperCase()] ||
             Object.values(Infrastructure.TYPES).find(t => t.id === tile.infrastructure.id);
-        const refund = infra ? Math.floor(infra.cost * 0.25) : 0;
+        let refund = infra ? Math.floor(infra.cost * 0.25) : 0;
+        // The salvage is sold in the nearest town: its buyers pay what they can
+        if (world && refund > 0) {
+            const town = Infrastructure._nearestTown(world, tile.q, tile.r);
+            refund = town ? Math.floor(Economy.drawTown(town, refund)) : 0;
+        }
 
         player.gold += refund;
         const name = tile.infrastructure.name;

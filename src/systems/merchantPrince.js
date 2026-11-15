@@ -38,6 +38,7 @@ import { Utils } from '../core/utils.js';
 import { Hex } from '../core/hex.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
 import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
 import { TownLabour } from '../world/townLabour.js';
 import { Seasons } from '../world/seasons.js';
 import { PlayerEconomy, Trading } from '../player/playerEconomy.js';
@@ -195,6 +196,20 @@ export const MerchantPrince = {
     },
 
     // ── Places ──────────────────────────────────────────────
+
+    /**
+     * Coin the player pays in a town (builders, rent, wages, a forfeit): into its
+     * purse, else the nearest that keeps one; booked lost where none does. → what was paid.
+     */
+    _spendIn(world, s, amount, near = null) {
+        const a = _num(amount);
+        if (!(a > 0)) return 0;
+        if (s && Economy.payTown(s, a)) return a;
+        const at = (s && Number.isFinite(s.q) ? s : null) || near;
+        if (at && Economy.payNearest(world, at.q, at.r, a)) return a;
+        MoneySupply.leak(world, -a, 'merchantPrince');
+        return a;
+    },
 
     _settlement(world, q, r) {
         const t = world && typeof world.getTile === 'function' ? world.getTile(q, r) : null;
@@ -356,6 +371,8 @@ export const MerchantPrince = {
         const s = tile.settlement;
         player.gold -= q.gold;
         Ledger.record(player, 'worksBought', -q.gold);
+        // (the builders and the guild's masters are paid in the town: its purse)
+        MerchantPrince._spendIn(world, s, q.gold);
         for (const [id, n] of Object.entries(q.materials)) {
             player.inventory[id] -= n;
             if (player.inventory[id] <= 0) delete player.inventory[id];
@@ -399,6 +416,7 @@ export const MerchantPrince = {
         if (_num(player.gold) < cost) return { success: false, reason: `Repairs cost ${cost} gold.` };
         player.gold -= cost;
         Ledger.record(player, 'worksBought', -cost);
+        MerchantPrince._spendIn(world, s, cost);
         w.cond = 1;
         inv.invested += cost;
         st.stats.repairs += cost;
@@ -414,7 +432,9 @@ export const MerchantPrince = {
         const I = MerchantPrince.config().industry;
         const s = MerchantPrince._settlement(world, inv.q, inv.r);
         const w = s && SettlementMarket.works(s, inv.recipe);
-        const gold = Math.floor(_num(inv.invested) * _num(I.damage.salvage, 0.4) * (w ? _clamp(_num(w.cond, 1), 0, 1) : 0));
+        const worth = Math.floor(_num(inv.invested) * _num(I.damage.salvage, 0.4) * (w ? _clamp(_num(w.cond, 1), 0, 1) : 0));
+        // (the guild pays out of the town's purse, as far as it holds)
+        const gold = s ? Math.floor(Economy.drawTown(s, worth)) : 0;
         if (w) w.owner = 'town';
         st.investments = st.investments.filter(i => i !== inv);
         player.gold += gold;
@@ -519,15 +539,20 @@ export const MerchantPrince = {
                     st.stats.tithe += Math.round(tithe);
                 }
                 if (net > 0) {
-                    player.gold += net;
-                    inv.earned += net;
-                    st.stats.earned += net;
-                    out.income += net;
+                    // (the investor's share is paid out of the town's purse, where the works' goods were sold)
+                    const paid = Math.floor(Economy.drawTown(s, net));
+                    inv.lastPay = paid;
+                    player.gold += paid;
+                    inv.earned += paid;
+                    st.stats.earned += paid;
+                    out.income += paid;
                 } else if (net < 0) {
                     // The works earned less than their wages: the hands are paid from the purse
                     const owed = Math.min(-net, Math.max(0, Math.floor(_num(player.gold))));
                     if (owed > 0) {
                         player.gold -= owed;
+                        // (the hands spend their wages in the town)
+                        MerchantPrince._spendIn(world, s, owed);
                         inv.earned -= owed;
                         st.stats.earned -= owed;
                         out.wages += owed;
@@ -583,6 +608,7 @@ export const MerchantPrince = {
         if (_num(player.gold) < fee) return { success: false, reason: `The key fee is ${fee} gold.` };
         player.gold -= fee;
         Ledger.record(player, 'warehouseRent', -fee);
+        MerchantPrince._spendIn(world, s, fee);
         st.stats.rent += fee;
         if (have) {
             have.size = sizeId;
@@ -603,6 +629,7 @@ export const MerchantPrince = {
             if (_num(player.gold) < w.arrears) return { success: false, reason: `Pay the ${w.arrears}g you owe first.` };
             player.gold -= w.arrears;
             Ledger.record(player, 'warehouseRent', -w.arrears);
+            MerchantPrince._spendIn(world, MerchantPrince._settlement(world, w.q, w.r), w.arrears, player);
             st.stats.rent += w.arrears;
         }
         st.warehouses = st.warehouses.filter(x => x !== w);
@@ -667,6 +694,8 @@ export const MerchantPrince = {
         if (!(n > 0)) return { success: false, reason: MerchantPrince.room(x.w) <= 0 ? 'The store-room is full.' : 'You cannot afford any, or none is for sale.' };
         const cost = Trading.buyCost(player, e, n, x.s);
         player.gold -= cost;
+        // (the stallholders are paid: the town's purse)
+        MerchantPrince._spendIn(world, x.s, cost);
         const mono = x.s.monopolies && x.s.monopolies[goodId];
         if (mono && mono.holder === 'crown' && mono.markup > 0) mono.revenue = _num(mono.revenue) + cost * mono.markup / (1 + mono.markup);
         SettlementMarket.take(x.s, goodId, n);
@@ -767,6 +796,7 @@ export const MerchantPrince = {
                 const rent = _num((MerchantPrince.sizes()[w.size] || {}).rent);
                 if (_num(player.gold) >= rent + _num(w.arrears)) {
                     player.gold -= rent + _num(w.arrears);
+                    MerchantPrince._spendIn(world, s, rent + _num(w.arrears));
                     st.stats.rent += rent + _num(w.arrears);
                     out.rent += rent + _num(w.arrears);
                     w.arrears = 0;
@@ -894,7 +924,8 @@ export const MerchantPrince = {
             player.inventory[f.good] -= n;
             if (player.inventory[f.good] <= 0) delete player.inventory[f.good];
         }
-        const pay = Math.floor(n * f.unitPrice);
+        // (the town's merchants pay out of its purse, as far as it holds)
+        const pay = Math.floor(Economy.drawTown(s, Math.floor(n * f.unitPrice)));
         player.gold += pay;
         f.delivered += n;
         f.paid += pay;
@@ -926,6 +957,8 @@ export const MerchantPrince = {
             st.stats.forwardsFailed++;
             st.forwards = st.forwards.filter(x => x !== f);
             const s = MerchantPrince._settlement(world, f.q, f.r);
+            // (the forfeit goes to the merchants who were let down)
+            MerchantPrince._spendIn(world, s, paid, player);
             // What the purse could not cover is paid in reputation
             const short = penalty > 0 ? (penalty - paid) / penalty : 0;
             MerchantPrince._addReputation(player, s || { kingdom: f.kingdomId }, -_num(F.reputationFailed) * (1 + short));

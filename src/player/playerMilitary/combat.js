@@ -18,6 +18,8 @@ import { RealmArms } from '../../world/realmArms.js';
 import { KingdomAI } from '../../world/kingdomAI.js';
 import { Difficulty } from '../../core/difficulty.js';
 import { DataLoader } from '../../core/dataLoader.js';
+import { Ledger } from '../../systems/ledger.js';
+import { PlayerCoin } from '../playerCoin.js';
 import { Utils, Technology, House, Quests, RealmWars, Throne, PlayerEffects, Housing, Culture, PlayerReligion, PlayerInventory, WorldEvents, WEATHER_EFFECTS, Economy, Arms } from './_imports.js';
 
 Object.assign(PlayerMilitary, {
@@ -466,14 +468,15 @@ Object.assign(PlayerMilitary, {
     /**
      * Buy freedom from indentured servitude
      */
-    buyFreedom(player) {
+    buyFreedom(player, world = null) {
         if (!player.indenturedServitude) return { success: false, reason: 'Not in servitude' };
         if (!player.indenturedServitude.canBuyFreedom) return { success: false, reason: 'Captor refuses to negotiate' };
 
         const cost = player.indenturedServitude.freedomCost;
         if (player.gold < cost) return { success: false, reason: `Need ${cost} gold (have ${Math.floor(player.gold)})` };
 
-        player.gold -= cost;
+        // (the ransom goes to the captors: the band's packs, its realm, else the town nearest)
+        PlayerCoin.pay(world, player, cost, null, 'ransoms');
         Traits.recordDeed(player, 'honesty', 1); // paid the debt rather than fled
         const captor = player.indenturedServitude.captor;
         player.indenturedServitude = null;
@@ -532,6 +535,7 @@ Object.assign(PlayerMilitary, {
             const want = Math.floor(settlement.population * Utils.randFloat(0.5, 2));
             const plunder = PlayerMilitary._spoilsSource({ lootTown: settlement }).take(want);
             player.gold += plunder;
+            if (plunder > 0) Ledger.record(player, 'plunder', plunder);
             result.plunder = plunder;
             settlement.lastRaidedDay = day;
             Quests.track(player, 'battles_won');
@@ -666,6 +670,7 @@ Object.assign(PlayerMilitary, {
             const want = Math.floor(settlement.population * Utils.randFloat(range[0], range[1]));
             const plunder = PlayerMilitary._spoilsSource({ lootTown: settlement }).take(want);
             player.gold += plunder;
+            if (plunder > 0) Ledger.record(player, 'plunder', plunder);
             result.plunder = plunder;
 
             // Population suffers from the siege
@@ -867,8 +872,11 @@ Object.assign(PlayerMilitary, {
             if (worldUnit.inventory) {
                 // Coin goes straight to the purse (it used to sit in the packs as
                 // an 'item' nothing ever spent)
-                const { gold: coin = 0, ...goods } = worldUnit.inventory;
+                const { gold: packed = 0, ...goods } = worldUnit.inventory;
+                // (a trade caravan's packed gold mirrors its purse: the purse is the coin)
+                const coin = Math.max(0, typeof worldUnit.purse === 'number' ? worldUnit.purse : 0, Number(packed) || 0);
                 if (coin > 0) player.gold = (player.gold || 0) + coin;
+                if (coin > 0) Ledger.record(player, 'plunder', coin);
                 // (taken off them: none of it is left to be found in town — World.settleUnitCoin)
                 if (coin > 0) worldUnit.inventory.gold = 0;
                 if (typeof worldUnit.purse === 'number') worldUnit.purse = 0;
@@ -939,7 +947,12 @@ Object.assign(PlayerMilitary, {
                     // A post rider (systems/courierRiders.js): the bag's coin is loot; a
                     // sealed letter to the inbox, heat and the realm's displeasure
                     const before = player.karma || 0;
-                    CourierRiders.onRobbed(player, world, worldUnit, inventoryLoot);
+                    // (the house books the bag's loss from what the rider carried: shown it as it was,
+                    // then emptied again — the coin itself moved to you once, above)
+                    const bagCoin = Number(inventoryLoot && inventoryLoot.gold) || 0;
+                    if (bagCoin > 0 && worldUnit.inventory) worldUnit.inventory.gold = bagCoin;
+                    try { CourierRiders.onRobbed(player, world, worldUnit, inventoryLoot); }
+                    finally { if (bagCoin > 0 && worldUnit.inventory) worldUnit.inventory.gold = 0; }
                     karmaChange = (player.karma || 0) - before;
                     break;
                 }

@@ -39,6 +39,7 @@
 // the town, the day and the fight (systems/brawls.js), not the shared RNG.
 
 import { InnerMap } from '../world/innerMap.js';
+import { PlayerCoin } from '../player/playerCoin.js';
 import { Brawls } from '../systems/brawls.js';
 import { StreetCrime } from '../systems/streetCrime.js';
 import { Townsfolk } from '../systems/townsfolk.js';
@@ -1282,9 +1283,12 @@ export const InnerMapBrawls = {
                 const stake = _num(item.stake, _num(Brawls.config().betting.stake, 10));
                 if (!bookie || _num(game.player.gold) < stake || !Brawls.betting(game.world, F.town).legal) { _note(game, '🎲 No bet', 'There is no one to take it, or your purse is too light.', 'info'); return true; }
                 const o = Brawls.odds(fight, side);
-                game.player.gold -= stake;
+                // (the stake into the bookie's own purse; a bookie with no roll in town banks it in the town's)
+                if (bookie._person && F.town) {
+                    game.player.gold -= stake;
+                    bookie._person.purse = Townsfolk.purse(F.town.folk, bookie._person, game.world) + stake;
+                } else PlayerCoin.pay(game.world, game.player, stake, F.town || null);
                 Ledger.record(game.player, 'gambling', -stake);
-                if (bookie._person && F.town) bookie._person.purse = Townsfolk.purse(F.town.folk, bookie._person, game.world) + stake;
                 F.bet = { side, stake, odds: o.odds, bookie };
                 this._say(bookie, this._line(Brawls.config().barks.bet, fight.key, 'bet'), 2);
                 if (game.ui && game.ui.updateStats) game.ui.updateStats(game.player, game.world);

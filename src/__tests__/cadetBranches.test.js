@@ -10,6 +10,7 @@ import { Relationships } from '../systems/relationships.js';
 import { Inheritance } from '../systems/inheritance.js';
 import { CoinCensus } from '../systems/coinCensus.js';
 import { House } from '../systems/house.js';
+import { RivalHouses } from '../systems/rivalHouses.js';
 import { DynastyTree } from '../systems/dynastyTree.js';
 import { EstateSettlement } from '../player/estateSettlement.js';
 import { Afterlife } from '../player/afterlife.js';
@@ -239,6 +240,66 @@ describe('loyalty', () => {
         branchDays(game, 1);
         expect(b.estranged).toBe(false);
         expect(b.feud).toBe(0);
+    }, 120000);
+
+    it('an estranged branch schemes as a rival House: shadows you, pays for plots under its own key, waylays you', () => {
+        const { game, younger } = setup(908);
+        const { player, world } = game;
+        const b = CadetBranches.found(player, world, younger.id, { grant: 2000 }).branch;
+        b.loyalty = 5;
+        b.gold = 3000;
+        world.day = 139;
+        branchDays(game, 1);
+        expect(b.estranged).toBe(true);
+        expect(b.feud).toBe(90);
+        // A plot it pays for in person goes by its houseKey, never its realm's rival
+        const rivalsBefore = JSON.stringify(Object.keys(player.house.rivals || {}));
+        player.house.schemes = player.house.schemes || [];
+        const scheme = RivalHouses._payPlot(player, world, b);
+        expect(scheme).toBeTruthy();
+        expect(scheme.rivalId).toBe(b.houseKey);
+        expect(scheme.realmId).toBe(b.kingdomId);
+        expect(b.stats.plotsPaid).toBe(1);
+        expect(House.rivalRecord(player.house, scheme.rivalId)).toBe(b);
+        // a wrong done to it moves its loyalty (its feud is its lost loyalty)
+        const l0 = b.loyalty;
+        House.accrueRivalFeud(player, world, b.houseKey, -20);
+        expect(b.loyalty).toBe(l0 + 10);
+        expect(JSON.stringify(Object.keys(player.house.rivals || {}))).toBe(rivalsBefore);
+        // ...and with the feud hot and the player alone on the road, it may ride out to waylay
+        b.loyalty = 5;
+        b.feud = 90;
+        b.lastWaylayDay = -1e9;
+        b.guard = 8;
+        player.army = [];
+        const unit = CadetBranches.retinueOf(world, b);
+        unit.q = player.q; unit.r = player.r;
+        expect(RivalHouses.retinueOf(world, b)).toBe(unit);
+        expect(RivalHouses.canWaylay(player, world, b)).toBe(true);
+        b.plan = null;
+        const out = { notices: [] };
+        RivalHouses._startWaylay(player, world, b, unit, out);
+        expect(unit.hostile).toBe(true);
+        expect(out.notices.some(n => /Hunts You/.test(n.title))).toBe(true);
+        // Beaten off in your own defence: spoils, no kinstrife
+        const k0 = player.karma;
+        const text = CadetBranches.onAttacked(player, world, unit, true);
+        expect(text).toMatch(/ambush/);
+        expect(player.karma).toBe(k0);
+        expect(b.plan).toBe(null);
+        expect(unit.hostile).toBe(false);
+        // Living its days, an estranged branch comes to plot on its own (the rival-House errands)
+        b.lastWaylayDay = world.day;
+        b.lastPlotDay = -1e9;
+        player.house.schemes = [];
+        let plotted = false;
+        for (let i = 0; i < 400 && !plotted; i++) {
+            b.loyalty = 5;
+            b.gold = Math.max(b.gold, 3000);
+            branchDays(game, 1);
+            plotted = player.house.schemes.some(s => s.rivalId === b.houseKey);
+        }
+        expect(plotted).toBe(true);
     }, 120000);
 
     it('sends men to a war, paid out of its own purse, and they go home when their time is up', () => {

@@ -28,6 +28,7 @@
 
 import { DataLoader } from '../core/dataLoader.js';
 import { Hex } from '../core/hex.js';
+import { LandRegions } from '../world/landRegions.js';
 import { Characters } from '../world/characters.js';
 import { Peoples } from './peoples.js';
 import { Religion } from './religion.js';
@@ -171,7 +172,8 @@ export const Library = {
         const passable = (q, r) => { const t = world.getTile(q, r); return !!(t && t.terrain && t.terrain.passable !== false); };
         const cost = (q, r) => { const t = world.getTile(q, r); return t && (t.hasRoad || t.settlement) ? 1 : 3; };
         let path = null;
-        if (Library.dist(world, a, b) <= 40) {
+        // (over the water there is no road to follow: straight to the line, without the A* searching the island)
+        if (Library.dist(world, a, b) <= 40 && LandRegions.connected(world, a, b)) {
             try { path = Hex.findPath(a.q, a.r, b.q, b.r, world.width, world.height, passable, cost); } catch (e) { path = null; }
         }
         if (Array.isArray(path) && path.length) return path.map(p => ({ q: p.q, r: p.r }));

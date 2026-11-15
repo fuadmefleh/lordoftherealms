@@ -36,7 +36,7 @@ Object.assign(ActionMenu, {
         const sworn = v.bonds.filter(x => x.b.sworn).length;
         html += chips([
             ['🤝', 'Bonds', v.bonds.length],
-            sworn ? ['🩸', 'Sworn kin', sworn, 'gold'] : null,
+            sworn ? ['🗡️', 'Sworn kin', sworn, 'gold'] : null,
             v.aid.names.length ? ['⚔️', 'Would fight beside you', esc(v.aid.names.join(', ')), 'good'] : null,
             v.proteges.filter(p => !p.pr.grown).length ? ['🌱', 'Protégés', v.proteges.filter(p => !p.pr.grown).length] : null,
         ]);
@@ -52,7 +52,7 @@ Object.assign(ActionMenu, {
             body += chips([
                 ['💞', 'Bond', Math.round(b.strength)],
                 b.grievance >= 5 ? ['😠', 'Grievance', Math.round(b.grievance), 'bad'] : null,
-                b.sworn ? ['🩸', 'Sworn', `${esc(b.sworn.place)}, day ${b.sworn.day}`, 'gold'] : null,
+                b.sworn ? ['🗡️', 'Sworn', `${esc(b.sworn.place)}, day ${b.sworn.day}`, 'gold'] : null,
                 b.swornTo ? ['🏛️', 'Sworn kin to', esc(b.swornTo)] : null,
                 b.mentor && !b.mentor.done ? ['📜', 'Teaching you', `${esc(b.mentor.name)} (to ${b.mentor.level})`, 'good'] : null,
                 b.mentor && b.mentor.done ? ['📜', 'Taught you', esc(b.mentor.name)] : null,
@@ -71,8 +71,8 @@ Object.assign(ActionMenu, {
                 : { icon: '🎁', name: 'Give a gift', off: true, why: esc(a.gift.reason) });
             if (!b.sworn) {
                 rows.push(a.oath.ok
-                    ? { icon: '🩸', name: 'Swear kinship', desc: `Before ${esc(a.oath.place)} (${Math.round(a.oath.chance * 100)}% they swear)`, side: price(a.oath.cost, gold >= a.oath.cost), act: 'bondsAct', args: ['oath', b.npcId], tone: 'gold' }
-                    : { icon: '🩸', name: 'Swear kinship', off: true, why: esc(a.oath.reason) });
+                    ? { icon: '🗡️', name: 'Swear kinship', desc: `Before ${esc(a.oath.place)} (${Math.round(a.oath.chance * 100)}% they swear)`, side: price(a.oath.cost, gold >= a.oath.cost), act: 'bondsAct', args: ['oath', b.npcId], tone: 'gold' }
+                    : { icon: '🗡️', name: 'Swear kinship', off: true, why: esc(a.oath.reason) });
             }
             if (b.kind !== 'protege') {
                 rows.push(a.mentor.ok

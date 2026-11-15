@@ -11,6 +11,7 @@ import { Terrain } from '../world/terrain.js';
 import { Utils } from '../core/utils.js';
 import { ActionMenu } from './actionMenu.js';
 import { InnerMapEscort } from './innerMapEscort.js';
+import { InnerMapPets } from './innerMapPets.js';
 import { RealmEscort } from '../player/realmEscort.js';
 import { CustomObjects } from '../world/customObjects.js';
 import { InnerMapCombat } from './innerMapCombat.js';
@@ -290,6 +291,9 @@ Object.assign(InnerMapRenderer, {
             }
             menuItems.push({ type: 'separator' });
         }
+
+        // Your animals walking with you, and a stray dog in town (ui/innerMapPets.js)
+        if (!InnerMap._insideBuilding) menuItems.push(...InnerMapPets.menuItems(game, q, r));
 
         // Inside the town's granary: the keeper sells grain wherever you are (ui/innerMapGranary.js)
         const inGranary = InnerMap._insideBuilding && InnerMap._insideBuilding.type === 'granary'
@@ -1022,6 +1026,7 @@ Object.assign(InnerMapRenderer, {
             return;
         }
         if (/^animal_/.test(item.action || '') && InnerMapAnimals.handle(game, item)) return;
+        if (/^pet_/.test(item.action || '') && InnerMapPets.handle(game, item)) return;
         const action = item.action;
         const playerQ = InnerMap.playerInnerQ;
         const playerR = InnerMap.playerInnerR;

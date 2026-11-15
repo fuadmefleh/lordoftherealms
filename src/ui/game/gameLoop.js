@@ -32,6 +32,7 @@ import { InnerMapBattle } from '../innerMapBattle.js';
 import { isInventoryKey } from '../inventoryHotkey.js';
 import { InnerMapEscort } from '../innerMapEscort.js';
 import { InnerMapCompanions } from '../innerMapCompanions.js';
+import { InnerMapPets } from '../innerMapPets.js';
 import { InnerMapBrawls } from '../innerMapBrawls.js';
 import { InnerMapCourting } from '../innerMapCourting.js';
 import { InnerMapSickness } from '../innerMapSickness.js';
@@ -483,6 +484,8 @@ export function gameLoop(timestamp, loopId) {
         // The realm's household guard walking behind you (ui/innerMapEscort.js)
         // Your travelling companions, walking with you ahead of the guard (ui/innerMapCompanions.js)
         InnerMapCompanions.update(simDelta, this);
+        // Your dog, cat, hawk and horse after them (ui/innerMapPets.js)
+        InnerMapPets.update(simDelta, this);
         InnerMapEscort.update(simDelta, this);
 
         // Update light system from time of day

@@ -68,7 +68,8 @@ Object.assign(PlayerMilitary, {
         // Fighting companions in the travel party
         playerPower *= 1 + PlayerEffects.companionBonus(player, 'power');
         // Friends near enough take up arms beside you (systems/bonds.js)
-        playerPower *= Bonds.battleAid(player, context.world).mult;
+        const bondAid = Bonds.battleAid(player, context.world);
+        playerPower *= bondAid.mult;
         // The Sword of the First King
         playerPower *= 1 + PlayerEffects.artifactBonus(player, 'battlePower');
         // An enchanted weapon from a legendary hoard
@@ -170,6 +171,8 @@ Object.assign(PlayerMilitary, {
             playerStrength,
             enemyStrength,
             commanderSlain: specials.commanderSlain,
+            // The friends who took up arms beside you (systems/bonds.js aidLine)
+            aidNames: bondAid.names,
             theatre,
             navalSupport: strengthParts.naval,
             shipSupport: strengthParts.ship,

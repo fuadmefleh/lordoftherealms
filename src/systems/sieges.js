@@ -47,6 +47,7 @@ import { SettlementMarket } from '../world/settlementMarket.js';
 import { Seasons } from '../world/seasons.js';
 import { KingdomNavy } from '../world/kingdomNavy.js';
 import { KingdomBonuses } from '../world/kingdomState.js';
+import { TownEras } from '../world/townEras.js';
 import { Technology } from './technology.js';
 import { Traits } from './traits.js';
 import { House } from './house.js';
@@ -281,7 +282,8 @@ export const Sieges = {
         const W = Sieges.config().walls;
         const k = Sieges._kingdom(world, settlement.kingdom);
         const realm = k ? Math.max(0, KingdomBonuses.get(k, 'defense')) : 0;
-        return Math.max(0, _num(W[settlement.type]) + Economy.holdingFx(settlement, 'defense') + realm);
+        // ...and the palisade or stone wall the town has raised (world/townEras.js)
+        return Math.max(0, _num(W[settlement.type]) + Economy.holdingFx(settlement, 'defense') + realm + TownEras.wallDefense(settlement));
     },
 
     /** Days of food a besieged settlement starts with (size, season, granaries). */

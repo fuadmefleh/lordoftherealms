@@ -273,7 +273,9 @@ describe('arming troops', () => {
         expect(Math.round(s.economy.gold - purse0)).toBe(Math.round(gold0 - player.gold));
         expect(Arms.unitFactor(unit)).toBeGreaterThan(0.9);
         // without arms to buy, he comes with what he owns
-        for (const g of ['weapons', 'spear', 'shield', 'gambeson', 'helmet', 'leather_armor', 'chainmail']) s.market.stock[g] = 0;
+        // (the leg harness, boots and gloves too: data/arms.json troops.market legs/feet/hands)
+        for (const g of ['weapons', 'spear', 'shield', 'gambeson', 'helmet', 'leather_armor', 'chainmail',
+            'boots', 'padded_chausses', 'leather_leggings', 'mail_chausses', 'leather_gloves']) s.market.stock[g] = 0;
         player._recruitedThisTurn = 0;
         PlayerMilitary.recruitUnit(player, 'soldier', s, { world });
         const bare = player.army[player.army.length - 1];

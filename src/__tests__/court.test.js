@@ -187,6 +187,20 @@ describe('stipends', () => {
         expect(notices.some(n => /Leaves/.test(n.title))).toBe(true);
     });
 
+    it('bread before stipends: the court is never paid from the head\'s last reserve', () => {
+        const world = makeWorld(702);
+        const p = makePlayer(world);
+        const a = known(p, world);
+        Court.join(p, world, a.id, { stipend: 5, free: true });
+        const reserve = Court.config().purseReserve;
+        expect(reserve).toBeGreaterThan(0);
+        p.gold = reserve + 12;
+        for (let i = 0; i < 5; i++) { world.day++; Court.processDay(p, world); }
+        expect(p.gold).toBe(reserve);
+        expect(a.purse).toBe(12);
+        expect(Court.entry(p, a.id).owed).toBe(13);
+    });
+
     it('a raise warms them, a cut sours them', () => {
         const world = makeWorld();
         const p = makePlayer(world);

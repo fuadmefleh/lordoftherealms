@@ -23,6 +23,7 @@ import { RiverNets } from '../../systems/riverNets.js';
 import { RiverLife } from '../../systems/riverLife.js';
 import { OceanCurrents } from '../../world/oceanCurrents.js';
 import { Crops } from '../../systems/crops.js';
+import { AnimalCompanions } from '../../systems/animalCompanions.js';
 import { Delves } from '../../systems/delves.js';
 import { Ailments } from '../../systems/ailments.js';
 import { TownProps } from '../../world/townProps.js';
@@ -751,6 +752,8 @@ export function endDay() {
             for (const n of RiverLife.processDay(this.world, this.player, this.world.day).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             // Your beasts: fodder, eggs and milk, births, sickness, wolves (systems/livestock.js)
             for (const n of Livestock.processDay(this.world, this.player).notices.slice(0, 4)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            // Your dog, cat, hawk and horse: hungry, fed, older, closer to you (systems/animalCompanions.js)
+            for (const n of AnimalCompanions.processDay(this.world, this.player, { larder: (key) => { const h = Household.home(this.player, key); return h ? h.larder : null; } }).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             // Your own fields: crops grow, thirst, ripen, freeze or rot (systems/crops.js)
             for (const n of Crops.processDay(this.world, this.player).notices.slice(0, 3)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             // Hired work finished in a town's mill, bakery, smithy… (systems/commissions.js)

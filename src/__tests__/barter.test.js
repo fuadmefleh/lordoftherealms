@@ -521,7 +521,7 @@ describe('coin comes at the same stage on a small and a large map', () => {
             expect(r.why).toBe('strain');
             expect(r.trading).toBeGreaterThanOrEqual(DataLoader._gamedata.dawn.barter.coinEmerges.tradingShare);
         }
-        expect(Math.max(small.perLand, large.perLand) / Math.min(small.perLand, large.perLand)).toBeLessThan(1.35);
+        expect(Math.max(small.perLand, large.perLand) / Math.min(small.perLand, large.perLand)).toBeLessThan(1.42); // (1.38 since natural growth was halved: world/economy.js FOOD.maxGrowth)
         // (since the slower dawn of 2026-11-12 a big map fills more slowly than a small one —
         // seed 3131/4242: years 19 and 45 at 42 and 32 souls a tile — so the stage, not the year, is what matches)
         expect(Math.abs(small.year - large.year)).toBeLessThanOrEqual(30);

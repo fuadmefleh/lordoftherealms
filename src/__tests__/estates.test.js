@@ -325,6 +325,24 @@ describe('rents, values and the tenants', () => {
 });
 
 describe('the land market', () => {
+    it('a holder with more put by than a year of rents spends it down into its seat\'s purse', () => {
+        // (2026-11 century soak: spending only the month's rents, the coffers took in more than half the world's coin)
+        const g = newGame(101);
+        play(g, 8);
+        const w = g.world;
+        const s = towns(w).find(x => x.kingdom != null && Estates.estatesOf(w, x.q, x.r).some(e => Estates.kindOf(e.holder) === 'noble'));
+        const e = Estates.estatesOf(w, s.q, s.r).find(x => Estates.kindOf(x.holder) === 'noble');
+        const h = Estates.ensureHolder(w, e.holder);
+        const seat = LandMarket._seat(w, h);
+        expect(seat).toBeTruthy();
+        h.purse = 100000; h.inc = 0; h.debt = 0;
+        const before = h.purse + seat.economy.gold;
+        LandMarket._holderMonth(w, g.player, h, w.day, { notices: [] });
+        expect(h.purse).toBeLessThan(100000);
+        // (whole coin: the purse is rounded)
+        expect(Math.abs(h.purse + seat.economy.gold - before)).toBeLessThan(1.01);
+    });
+
     it('buying pays the seller and the crown\'s duty; selling back at once loses: no money loop', () => {
         const g = newGame(101);
         play(g, 8);

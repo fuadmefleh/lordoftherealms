@@ -666,7 +666,7 @@
         "PRESERVED_FISH": { "id": "preserved_fish", "name": "Smoked Fish", "icon": "🍥", "basePrice": 20, "description": "Fish smoked or salted to keep for months: ships' stores, soldiers' rations and Lenten fare." },
         "WOOD": { "id": "wood", "name": "Wood", "icon": "🌲", "basePrice": 8, "description": "Felled timber. Burnt, sawn into planks, or worked by joiners, wheelwrights and shipwrights." },
         "STICKS": { "id": "sticks", "name": "Sticks", "icon": "🥢", "basePrice": 1, "description": "Dead sticks and broken branches, from the woods or fished out of a river. Kindling for a fire; bundled up, they burn like split firewood." },
-        "DRIFTWOOD": { "id": "driftwood", "name": "Driftwood", "icon": "🪵", "basePrice": 3, "description": "Water-worn wood from a river or the tideline, bleached and light. Burns well and costs nothing but the walk." },
+        "DRIFTWOOD": { "id": "driftwood", "name": "Driftwood", "icon": "🌲", "basePrice": 3, "description": "Water-worn wood from a river or the tideline, bleached and light. Burns well and costs nothing but the walk." },
         "REEDS": { "id": "reeds", "name": "Reeds", "icon": "🌾", "basePrice": 1, "description": "River reeds cut or torn loose by the current: thatch, mats, baskets and rushlights." },
         "FIREWOOD": { "id": "firewood", "name": "Firewood", "icon": "🔥", "basePrice": 12, "description": "Split logs for hearths and ovens. Every household burns it, most of all in winter." },
         "WOOL": { "id": "wool", "name": "Wool", "icon": "🐑", "basePrice": 10, "description": "Shorn fleece, washed and carded. Spun and woven into cloth, or felted into cloaks." },
@@ -885,7 +885,7 @@
         "PADDED_CHAUSSES": { "id": "padded_chausses", "name": "Padded Chausses", "icon": "🦵", "basePrice": 30, "description": "Quilted cloth leggings: the gambeson's match for the legs, and worn under mail." },
         "LEATHER_LEGGINGS": { "id": "leather_leggings", "name": "Leather Leggings", "icon": "🦵", "basePrice": 50, "description": "Boiled-leather thigh and shin guards laced over the hose." },
         "MAIL_CHAUSSES": { "id": "mail_chausses", "name": "Mail Chausses", "icon": "⛓️", "basePrice": 110, "description": "Riveted mail leggings tied up to the belt: they turn a cut at the knee." },
-        "PLATE_GREAVES": { "id": "plate_greaves", "name": "Steel Cuisses & Greaves", "icon": "🦿", "basePrice": 165, "description": "Fitted steel plate for the thigh, knee and shin." },
+        "PLATE_GREAVES": { "id": "plate_greaves", "name": "Steel Cuisses & Greaves", "icon": "🦵", "basePrice": 165, "description": "Fitted steel plate for the thigh, knee and shin." },
         "SABATONS": { "id": "sabatons", "name": "Steel Sabatons", "icon": "🥾", "basePrice": 140, "description": "Laminated steel shoes over a leather sole." },
         "LEATHER_GLOVES": { "id": "leather_gloves", "name": "Leather Gloves", "icon": "🧤", "basePrice": 24, "description": "Stout leather gloves: a grip that will not slip, and knuckles that keep their skin." },
         "GAUNTLETS": { "id": "gauntlets", "name": "Steel Gauntlets", "icon": "🧤", "basePrice": 145, "description": "Steel plates over the back of the hand and fingers, on a leather glove." }

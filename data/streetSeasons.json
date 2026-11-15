@@ -114,11 +114,11 @@
         "ss_play": [10, 20]
     },
     "notices": {
-        "thinIce": ["🧊 Thin Ice", "The ice groans underfoot. It's thin here."],
-        "crack": ["🧊 The Ice Gives Way", "The ice cracks and you plunge into the freezing water!"],
+        "thinIce": ["❄️ Thin Ice", "The ice groans underfoot. It's thin here."],
+        "crack": ["❄️ The Ice Gives Way", "The ice cracks and you plunge into the freezing water!"],
         "fair": ["🎪 Harvest Fair", "{town} keeps its harvest fair: stalls on the square, music and dancing."],
         "midwinter": ["🔥 Midwinter", "{town} lights its midwinter bonfire on the square tonight."],
-        "frozen": ["🧊 Frozen Over", "The water here is frozen hard enough to walk on."],
-        "mud": ["🟫 Mud", "The rain has turned the unpaved ground to mud: slow going on foot and for carts."]
+        "frozen": ["❄️ Frozen Over", "The water here is frozen hard enough to walk on."],
+        "mud": ["⬛ Mud", "The rain has turned the unpaved ground to mud: slow going on foot and for carts."]
     }
 }

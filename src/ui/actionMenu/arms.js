@@ -131,10 +131,12 @@ Object.assign(ActionMenu, {
             for (const u of kitted) (byType[u.type] = byType[u.type] || []).push(u);
             const troopRows = Object.entries(byType).map(([type, units]) => {
                 const f = units.reduce((t, u) => t + Arms.unitFactor(u), 0) / units.length;
-                const gaps = units.filter(u => u.kit && Arms.kitGaps(u).length).length;
+                // (short of arms: a weapon, shield, helm or body armour; no issued leg harness, boots or gloves is only noted)
+                const gaps = units.filter(u => u.kit && Arms.kitGaps(u, { core: true }).length).length;
+                const ownBoots = units.filter(u => u.kit && Arms.kitGaps(u).includes('feet')).length;
                 const old = units.filter(u => !u.kit).length;
                 const sample = units.find(u => u.kit) || null;
-                const notes = [sample ? esc(Arms.kitLabel(sample) || 'unarmed') : '', gaps ? `<span style="color:#e67e22">${gaps} short of arms</span>` : '', old ? `${old} armed of old` : ''].filter(Boolean);
+                const notes = [sample ? esc(Arms.kitLabel(sample) || 'unarmed') : '', gaps ? `<span style="color:#e67e22">${gaps} short of arms</span>` : '', ownBoots ? `${ownBoots} in their own shoes` : '', old ? `${old} armed of old` : ''].filter(Boolean);
                 return {
                     icon: esc(units[0].icon || '⚔️'), name: `${units.length} ${esc(units[0].name || type)}`, desc: notes.join(' · '),
                     side: `fights at ${pct(f)}`, tone: f >= 0.95 ? 'good' : 'warn',

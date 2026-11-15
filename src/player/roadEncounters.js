@@ -47,6 +47,7 @@ import { Ledger } from '../systems/ledger.js';
 import { Difficulty } from '../core/difficulty.js';
 import { WorldUnit } from '../world/units.js';
 import { Wanted } from '../systems/wanted.js';
+import { AnimalCompanions } from '../systems/animalCompanions.js';
 
 const DEFAULTS = {
     minChance: 0.05,
@@ -171,6 +172,8 @@ export const RoadEncounters = {
         const f = RoadEncounters.config().flee;
         let c = f.base + RoadEncounters._skill(player, 'stealth') * f.stealth;
         if (player.mount) c += f.mount;
+        // A dog's growl gives you a moment's warning (systems/animalCompanions.js)
+        c += AnimalCompanions.roadWarning(player, null);
         if (sit.hasArmy) c += (sit.comp.cavalry || 0) * f.cavalry - Math.min(f.unitCap, sit.units * f.perUnit);
         const ground = RoadEncounters._ground(sit.terrainId);
         if (ground === 'forest' || ground === 'marsh') c += f.cover;
@@ -558,7 +561,16 @@ export const RoadEncounters = {
         if (playerArmySize === 0 && (attacker.type === 'beast' || attacker.type === 'monster')) {
             // --- No army vs. a creature: mauled, nothing stolen ---
             // Armour and Divine Protection soften the blow
-            const healthLost = PlayerEffects.scaleDamage(player, Difficulty.foeHarm(player, attacker.type === 'monster' ? Utils.randInt(25, 45) : Utils.randInt(8, 18)));
+            let healthLost = PlayerEffects.scaleDamage(player, Difficulty.foeHarm(player, attacker.type === 'monster' ? Utils.randInt(25, 45) : Utils.randInt(8, 18)));
+            // Your dog flies at it and takes part of the mauling on itself (systems/animalCompanions.js)
+            const guard = AnimalCompanions.beastGuard(player, world);
+            let dogLine = '';
+            if (guard.animal && guard.share > 0) {
+                const taken = Math.round(healthLost * guard.share);
+                healthLost -= taken;
+                const died = AnimalCompanions.hurt(player, guard.animal.id, taken * 2, world);
+                dogLine = died ? ` ${guard.animal.name} flew at it and died for you.` : ` ${guard.animal.name} flew at it and took some of the mauling.`;
+            }
             player.health = Math.max(1, player.health - healthLost);
             // Sated, it goes its way for a day or two (not back at the throat every dawn)
             RoadEncounters._spare(attacker, world, 2);
@@ -572,7 +584,7 @@ export const RoadEncounters = {
                 wound,
                 notification: {
                     title: `${attacker.icon || '🐺'} ${attacker.name} Attack!`,
-                    body: `A ${attacker.name} fell on you! Without an army you barely escaped. You lost ${healthLost} health.${_woundText(wound)}`,
+                    body: `A ${attacker.name} fell on you! Without an army you barely escaped. You lost ${healthLost} health.${dogLine}${_woundText(wound)}`,
                     type: 'error',
                 },
             };

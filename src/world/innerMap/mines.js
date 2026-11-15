@@ -302,9 +302,9 @@ export const Mines = {
 function _sub(kind, site) {
     switch (kind) {
         case 'floor': return { id: 'cave_floor', name: site === 'cave' ? 'Cave Floor' : 'Mine Floor', icon: '🕳️', color: '#5a4632', passable: true };
-        case 'rubble': return { id: 'cave_rubble', name: 'Rubble', icon: '🪨', color: '#6b5843', passable: false };
-        case 'exit': return { id: 'door', name: site === 'shaft' ? 'Ladder Up' : site === 'cave' ? 'Cave Mouth' : 'Drift Mouth', icon: site === 'shaft' ? '🪜' : '🚪', color: '#9a8a6a', passable: true };
-        default: return { id: 'cave_rock', name: 'Rock', icon: '🪨', color: '#2b2119', passable: false };
+        case 'rubble': return { id: 'cave_rubble', name: 'Rubble', icon: '⛰️', color: '#6b5843', passable: false };
+        case 'exit': return { id: 'door', name: site === 'shaft' ? 'Ladder Up' : site === 'cave' ? 'Cave Mouth' : 'Drift Mouth', icon: site === 'shaft' ? '⬆️' : '🚪', color: '#9a8a6a', passable: true };
+        default: return { id: 'cave_rock', name: 'Rock', icon: '⛰️', color: '#2b2119', passable: false };
     }
 }
 

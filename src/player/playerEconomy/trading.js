@@ -192,9 +192,11 @@ export const Trading = {
      */
     saleUnitCap(player, goodId, settlement, world = null, tile = null, quantity = 1) {
         const at = tile || Economy.settlementTile(world, settlement);
-        if (!at) return Infinity;
         const q = Math.max(1, Math.floor(quantity));
-        const here = at.settlement || settlement;
+        const here = (at && at.settlement) || settlement;
+        // A market that keeps the good sells it back at its stock's price whether or not
+        // it's on the stalls right now (the sale itself stocks it): always under that
+        if (!at) return here && here.market && SettlementMarket.tracks(goodId) ? Trading._buyBackCap(player, goodId, here, null, world, q, Infinity) : Infinity;
         const discount = (s) => Math.max(0.5, 1 - Trading.buyDiscount(player, s)) * Difficulty.mult(player, 'buyPrice');
         // Each market's price after the player's own discount there (as buyGoods charges it)
         const discounted = (ask, s) => Math.ceil(ask * discount(s));
@@ -211,25 +213,61 @@ export const Trading = {
         } else {
             ownAsk = Economy.marketAsk(world, at, goodId);
         }
-        if (ownAsk == null) return flat === Infinity ? Infinity : Math.max(0, flat);
+        const tracked = here && here.market && SettlementMarket.tracks(goodId);
         // This market: buying the unit back costs the price at the stock the sale leaves
+        // (a kept good whether it's on the stalls or not: the sale itself puts it there)
+        if (tracked) return Trading._buyBackCap(player, goodId, here, at, world, q, flat);
+        if (ownAsk == null) return flat === Infinity ? Infinity : Math.max(0, flat);
+        return Math.max(0, Math.min(flat, discounted(ownAsk, here) - 1));
+    },
+
+    /**
+     * Average per-unit cap for selling `q` units of a good the market keeps: each
+     * unit one coin under what buying it back here would cost (Trading.buyCost on
+     * the stock the sale leaves: ask base × max(guild floor, scarcity), the
+     * player's discount, the difficulty, the member's guild rates), and under
+     * `flat` (the asks next door). Never above any buy price of the same day.
+     */
+    _buyBackCap(player, goodId, here, at, world, q, flat = Infinity) {
         const good = Economy._goods()[String(goodId).toUpperCase()];
-        const tracked = good && here && here.market && SettlementMarket.tracks(goodId);
+        if (!good || !(good.basePrice > 0)) return 0;
+        const askBase = Economy.marketAskBase(good, here, at, world);
+        const s0 = SettlementMarket.stock(here, goodId);
+        // (as buyCost charges it — a discount can't push a price under half, nor
+        // a penalty make the cap the dearer side: both sides read the same factor)
+        const d = Math.max(0.5, 1 - Trading.buyDiscount(player, here)) * Difficulty.mult(player, 'buyPrice')
+            * (1 - Guilds.inputDiscount(player, here, goodId));
+        const floor = Guilds.askFloor(here, goodId);
         let total = 0;
-        if (tracked) {
-            const askBase = Economy.marketAskBase(good, here, at, world);
-            const s0 = SettlementMarket.stock(here, goodId);
-            // (as buyCost charges it: the guild's floor, the member's guild rates)
-            const d = discount(here) * (1 - Guilds.inputDiscount(player, here, goodId));
-            const floor = Guilds.askFloor(here, goodId);
-            for (let j = 1; j <= q; j++) {
-                const own = Math.floor(askBase * Math.max(floor, SettlementMarket.scarcity(here, goodId, s0 + j)) * d) - 1;
-                total += Math.max(0, Math.min(flat, own));
-            }
-        } else {
-            total = Math.max(0, Math.min(flat, discounted(ownAsk, here) - 1)) * q;
+        for (let j = 1; j <= q; j++) {
+            // (buyCost: floor the unit's ask, then the discount, rounded up — the cap is one under)
+            const unit = Math.max(1, Math.floor(askBase * Math.max(floor, SettlementMarket.scarcity(here, goodId, s0 + j))));
+            const own = Math.floor(unit * d) - 1;
+            total += Math.max(0, Math.min(flat, own));
         }
         return total / q;
+    },
+
+    /** The parts of a same-tile sale against its buy-back (the soak's loop probe prints them). */
+    saleDiag(player, good, settlement, world, tile = null) {
+        const at = tile || Economy.settlementTile(world, settlement);
+        const parts = [];
+        const askBase = Economy.marketAskBase(good, settlement, at, world, parts);
+        const near = world && typeof world.getTile === 'function' && at ? Ships.nearbyAsks(world, at.q, at.r, good.id) : null;
+        return {
+            good: good.id, town: settlement && settlement.name, type: settlement && settlement.type,
+            atSame: !!at && at.settlement === settlement, tracked: SettlementMarket.tracks(good.id), hasMarket: !!(settlement && settlement.market),
+            stock: SettlementMarket.stock(settlement, good.id), scarcity: SettlementMarket.scarcity(settlement, good.id),
+            askBase, parts, floor: Guilds.askFloor(settlement, good.id), ask: at ? Economy.marketAsk(world, at, good.id) : null,
+            buyDiscount: Trading.buyDiscount(player, settlement), techProfit: Technology.getTradeProfitBonus(player),
+            tradeBonus: PlayerEffects.tradeBonus(player, settlement), saleBonus: Economy.saleBonus(settlement),
+            sellShare: Trading.sellShare(settlement), guildSale: Guilds.saleFactor(player, settlement, good.id),
+            value: SettlementMarket.value(world, settlement, at, good.id, good.basePrice),
+            markets: near ? near.markets.map(m => ({ ask: m.ask, name: m.settlement && m.settlement.name, same: m.settlement === settlement })) : null,
+            cap: Trading.saleUnitCap(player, good.id, settlement, world, null, 1),
+            sale: Trading.saleUnitPrice(player, good, settlement, world),
+            basePrice: good.basePrice, dataBase: (Economy._goods()[good.id.toUpperCase()] || {}).basePrice,
+        };
     },
 
     /** Share of the base price a settlement pays for goods you sell it. */

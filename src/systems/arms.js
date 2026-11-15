@@ -32,12 +32,18 @@
 // the edge back.
 //
 // Troops: a recruit is issued a kit (unit.kit = { main, off, head, body,
-// g: { slot: grade index }, cond }) for his unit type (data/arms.json troops):
-// from the player's packs first, else bought from the town's market stock at
-// its price (the coin to the town's purse), else he comes with what he owns.
-// A unit's worth in battle is scaled by unitFactor (Common iron kit = 1, a
-// bare man `bare`, Fine steel above 1). Units without a kit record (older
-// saves, mercenaries, ships, siege engines) fight as they always did (1).
+// legs, feet, hands, g: { slot: grade index }, cond }) for his unit type
+// (data/arms.json troops): from the player's packs first, else bought from
+// the town's market stock at its price (the coin to the town's purse), else
+// he comes with what he owns. A unit's worth in battle is scaled by
+// unitFactor (Common iron kit = 1, a bare man `bare`, Fine steel above 1).
+// The weights of main, off, head and body add to 1; leg harness, boots and
+// gloves (KIT_EXTRA_SLOTS) are small extras on top (a Common iron kit with
+// boots ~1.02), so a kit record from before them — no legs, feet or hands —
+// is a man in his own hose and shoes, worth exactly what he was, until they
+// are issued (kitGaps lists them; kitGaps(unit, { core: true }) leaves them
+// out). Units without a kit record (older saves, mercenaries, ships, siege
+// engines) fight as they always did (1).
 //
 // Pure domain module: player / world / settlement are parameters; the only
 // randomness (a whetstone cracking) is the seeded Utils RNG.
@@ -59,6 +65,8 @@ export const ARMS_SLOTS = ['main', 'off', 'head', 'body', 'legs', 'feet', 'hands
 /** The slots that are armour (they stop a share of each blow). */
 export const ARMOUR_SLOTS = ['head', 'body', 'legs', 'feet', 'hands'];
 /** How much of a knock each piece of armour takes, the body's being whole (road harm, a duel's blows). */
+/** The kit slots past the core four: issued where there are any, their worth on top (old kit records lack them). */
+export const KIT_EXTRA_SLOTS = ['legs', 'feet', 'hands'];
 const ARMOUR_WEAR_SHARE = { body: 1, head: 0.6, legs: 0.5, hands: 0.4, feet: 0.3 };
 const DUEL_WEAR_SHARE = { body: 1, head: 0.5, legs: 0.35, hands: 0.3, feet: 0.2 };
 
@@ -90,6 +98,7 @@ function _withArticle(name) {
 export const Arms = {
     SLOTS: ARMS_SLOTS,
     ARMOUR_SLOTS,
+    KIT_EXTRA_SLOTS,
 
     // ── The catalogue ─────────────────────────────────
 
@@ -650,12 +659,17 @@ export const Arms = {
         return _r2(_clamp(bare + (1 - bare) * sum, bare, Arms.config().maxFactor));
     },
 
-    /** Which slots of a unit's kit are empty. */
-    kitGaps(unit) {
+    /**
+     * Which slots of a unit's kit are empty. opts.core: only the weapon,
+     * shield, helm and body armour (the legs, feet and hands left out: a man
+     * without issued boots is in his own, not short of arms).
+     */
+    kitGaps(unit, opts = {}) {
         const spec = Arms.kitSpec(unit && unit.type);
         if (!spec) return [];
         const kit = _obj(unit.kit) || {};
-        return Object.keys(spec.slots || {}).filter(s => !Arms.item(kit[s]) && !(s === 'off' && Arms._twoHanded(kit.main)));
+        return Object.keys(spec.slots || {}).filter(s => !Arms.item(kit[s]) && !(s === 'off' && Arms._twoHanded(kit.main))
+            && !(opts.core && KIT_EXTRA_SLOTS.includes(s)));
     },
 
     /** "Iron Spear, Round Shield, Gambeson" for a unit's kit ('' when none). */
@@ -711,7 +725,7 @@ export const Arms = {
      * over the clothes). Leg harness (kit.legs) is drawn in place of the
      * recipe's trousers and footwear (kit.feet) in place of its shoes (after
      * the legs when it has none); a kit with nothing on the legs or feet
-     * leaves the recipe's own (the soldiers' kits never name them). Gloves
+     * leaves the recipe's own (an older kit record never names them). Gloves
      * have no sheets: not drawn. opts: build ('Feminine, Thin' for the
      * feminine body's sheets), paint (the livery colour when the recipe
      * names none). A recipe without a kit is left as it is.

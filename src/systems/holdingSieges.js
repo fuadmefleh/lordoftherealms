@@ -48,6 +48,7 @@ import { Utils } from '../core/utils.js';
 import { Hex } from '../core/hex.js';
 import { DataLoader } from '../core/dataLoader.js';
 import { Economy } from '../world/economy.js';
+import { TownEras } from '../world/townEras.js';
 import { RealmArms } from '../world/realmArms.js';
 import { KingdomNavy } from '../world/kingdomNavy.js';
 import { House } from './house.js';
@@ -192,7 +193,8 @@ export const HoldingSieges = {
 
     /** The walls and towers as a defence bonus (the holding's defence effects, governor included). */
     wallsOf(settlement) {
-        return Math.max(0, Economy.holdingFx(settlement, 'defense'));
+        // (the palisade or stone wall the town has raised: world/townEras.js)
+        return Math.max(0, Economy.holdingFx(settlement, 'defense') + TownEras.wallDefense(settlement));
     },
 
     /** The governor, or the garrison captain when the seat is empty. */

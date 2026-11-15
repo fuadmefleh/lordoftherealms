@@ -138,7 +138,7 @@ registerScene('night_market', {
             .slice(0, 8);
         for (const g of goods) {
             const price = Underworld.fencePrice(player, g.id, world, tile);
-            options.push({ id: `sell:${g.id}`, icon: g.hot ? '🔥' : '🪙', label: `Sell ${_label(g.id).toLowerCase()} to the fence`, cost: `${price}g`, hint: `You carry ${g.q}${g.hot ? `, ${g.hot} of them hot` : ''}. No questions asked.`, chance: null, odds: false });
+            options.push({ id: `sell:${g.id}`, icon: g.hot ? '🔥' : '💰', label: `Sell ${_label(g.id).toLowerCase()} to the fence`, cost: `${price}g`, hint: `You carry ${g.q}${g.hot ? `, ${g.hot} of them hot` : ''}. No questions asked.`, chance: null, odds: false });
         }
         options.push(leave);
         const buyer = Gangs.buyer(player, world, tile);

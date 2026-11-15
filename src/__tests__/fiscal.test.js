@@ -110,6 +110,24 @@ describe('the books', () => {
         expect(k.fisc.stats.expense).toBeGreaterThan(0);
     }, 120000);
 
+    it('nor do unlettered or lettered towns: the chests get what the purses paid, whatever the town\'s letters', () => {
+        // (Literacy.taxFactor scales a town's dues 0.93–1.07: booked against the dues it
+        // once credited the crown pay / taxFactor — new coin every collection in an
+        // unlettered realm, which compounded to billions over a few decades)
+        for (const rate of [0, 1]) {
+            const game = world40();
+            for (const s of game.world.getAllSettlements()) {
+                const live = game.world.getTile(s.q, s.r).settlement;
+                live.letters = { rate, d: game.world.day, known: 10, hist: [] };
+            }
+            const before = moneyTotal(game);
+            for (let i = 0; i < 10; i++) fiscalDay(game);
+            const after = moneyTotal(game);
+            const towns = game.world.getAllSettlements().length;
+            expect(Math.abs(after - before), `letters ${rate}`).toBeLessThan(towns * 10 * 0.02 + 1);
+        }
+    }, 120000);
+
     it('the towns pay: their purses fall by what the crown collects', () => {
         const game = world40();
         const k = bigRealm(game.world);
@@ -127,10 +145,15 @@ describe('the books', () => {
         const C = Fiscal.config().court;
         const keep = { ...C };
         C.base = 0; C.perTown = 0; C.perHead = 0;
+        // ...and no largesse (the crown's surplus spent back daily: Fiscal._largesse)
+        const N = Fiscal.config().npc;
+        const keepLg = N.largesseShare;
+        N.largesseShare = 0;
         try {
             fiscalDay(game);
         } finally {
             Object.assign(C, keep);
+            N.largesseShare = keepLg;
             k.military = mil;
         }
         const purse1 = towns.reduce((s, t) => s + t.economy.gold, 0);
@@ -239,6 +262,26 @@ describe('the crowns\' reviews and crises', () => {
         k.finance.missed = 5;
         const choice = Finance._crownCrisis(game.world, game.player, Finance.state(game.player), k, out);
         expect(['levy', 'debase', 'default', 'offices', 'land']).toContain(choice);
+    }, 120000);
+
+    it('offices and land are bought with the towns\' coin, and a sale does not raise the next one\'s price', () => {
+        // (2026-11 century soak: struck from nothing at 20 days of a revenue that counted the
+        // last sale, a crown in crisis doubled its chests week on week into the trillions)
+        const game = world40();
+        const k = bigRealm(game.world);
+        const f = CrownBooks.state(k);
+        const before = moneyTotal(game);
+        const pay = Finance.saleBuyers(game.world, k);
+        const got = CrownBooks.sellOffices(k, { pay }) + CrownBooks.sellLand(k, { pay });
+        expect(got).toBeGreaterThan(0);
+        expect(Math.abs(moneyTotal(game) - before)).toBeLessThan(1);
+        // A week of books with the sales on them: the smoothed revenue (the next price) holds
+        const rev0 = f.avg.rev;
+        for (let i = 0; i < 7; i++) {
+            fiscalDay(game);
+            CrownBooks.sellOffices(k, { pay });
+        }
+        expect(f.avg.rev).toBeLessThan(rev0 * 1.5 + 50);
     }, 120000);
 
     it('heavily taxed, hard-pressed towns rise in tax revolts and withhold their taxes', () => {

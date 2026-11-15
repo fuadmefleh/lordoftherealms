@@ -44,7 +44,7 @@ export const CompanionsPanel = {
                 html += `<div style="font-size: 11px; color: #bbb;">${_esc(d.tier.label)} · ${Math.round(d.effectiveness * 100)}%</div>`;
                 html += `</div>`;
                 html += _approvalBar(d.approval);
-                html += `<div style="font-size: 11px; color: #bcd;">Approval <strong>${d.approval}</strong>/100 · Friendship ${rel ? rel.score || 0 : 0} · ${d.daysTogether} day(s) together</div>`;
+                html += `<div style="font-size: 11px; color: #bcd;">Approval <strong>${d.approval}</strong>/100 · Friendship ${rel ? Math.round(rel.score || 0) : 0} · ${d.daysTogether} day(s) together</div>`;
                 html += `<div style="font-size: 11px; margin-top: 3px;">Values: ${d.values.map(v => `<span style="background: rgba(120,140,200,0.18); padding: 1px 6px; border-radius: 8px; margin-right: 3px;">${v.icon || ''} ${_esc(v.label)}</span>`).join('')}</div>`;
                 if (d.bonds.length) {
                     html += `<div style="font-size: 11px; margin-top: 3px; color: #aaa;">Bonds: ${d.bonds.map(b => `${b.kind === 'friends' ? '🤝' : '⚡'} ${_esc(b.name)}`).join(', ')}</div>`;

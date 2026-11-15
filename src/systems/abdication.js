@@ -84,6 +84,8 @@ const DEFAULTS = {
     championChance: 0.1, championRespect: 50, championAmbition: 40,
     // Scheming: the power behind the throne
     plotBelow: 30, plotAmbition: 55, plotRumourAt: 50,
+    // An elder on a country estate, far from the seals: their meddling and plotting at this share
+    estateMischief: 0.4,
     shadowDays: 90, shadowSkimShare: 0.04, shadowSkimMax: 150, shadowPrestige: 10, shadowRoleLoyalty: -2,
     exposePrestige: 4, accusePrestige: 12, exposeRecovery: 0.5,
     // Old age and the will
@@ -427,6 +429,9 @@ export const Abdication = {
     pressure(player, world) {
         const out = { score: 0, reasons: [] };
         if (!player || !player.house || player.interregnum || Regency.active(player)) return out;
+        // Only a seat has a court to grumble: a court of retainers, a title or a throne
+        const seated = _arr(player.house.court).length > 0 || !!player.currentTitle || !!(player.throne && player.throne.ruling);
+        if (!seated) return out;
         const P = Abdication.config().pressure;
         const add = (key, text, w) => {
             const v = Math.round(Math.max(0, w));
@@ -603,7 +608,7 @@ export const Abdication = {
             }
         }
         // Meddling: a soured elder speaks for the favourite at court
-        if (fav && !e.championed && e.residence !== 'monastery' && e.respect < cfg.championRespect && e.ambition >= cfg.championAmbition && Utils.random() < cfg.championChance) {
+        if (fav && !e.championed && e.residence !== 'monastery' && e.respect < cfg.championRespect && e.ambition >= cfg.championAmbition && Utils.random() < cfg.championChance * (e.residence === 'estate' ? _num(cfg.estateMischief, 1) : 1)) {
             e.championed = day;
             house._pendingClaim = true;
             House._chronicle(house, world, `${e.name} speaks for ${fav.firstName} at court, as though the seat were still theirs to give.`, ['abdication', 'heirs']);
@@ -635,7 +640,9 @@ export const Abdication = {
 
         // A disrespected, ambitious elder plots
         if (e.residence !== 'monastery' && e.respect < cfg.plotBelow && e.ambition >= cfg.plotAmbition) {
-            e.plot = Math.min(100, _num(e.plot) + Math.round(e.ambition / 10) + Utils.randInt(0, 3));
+            // (far off on an estate the plot grows slower: RESIDENCE.estate "little mischief")
+            const pace = e.residence === 'estate' ? _num(cfg.estateMischief, 1) : 1;
+            e.plot = Math.min(100, _num(e.plot) + Math.round((Math.round(e.ambition / 10) + Utils.randInt(0, 3)) * pace));
             if (!e.rumoured && e.plot >= cfg.plotRumourAt) {
                 e.rumoured = true;
                 out.notices.push({ icon: '🕵️', title: 'The Old Ruler Plots', text: `It is whispered that ${name} means to rule again from behind your seat. Win them back, or send them to a monastery while the plot can still be exposed.`, type: 'warning' });

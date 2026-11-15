@@ -10,7 +10,8 @@
 //             the foot and horse, a bow for the archers (the army's archer
 //             share, kept on the armoury by KingdomAI), a shield for the
 //             foot, a helm and a body armour for every man, a quiver per
-//             archer kit
+//             archer kit; and one of each further slot of the config (boots,
+//             feet) per man, worth its troops.kits weight on top of the rest
 //   buying    every `buyEvery` days (staggered by realm) the crown buys
 //             what it lacks out of its own towns' market stock, cheapest
 //             first, at the town's price: the treasury pays the town's purse
@@ -55,6 +56,8 @@ const DEFAULTS = {
     order: ['main', 'ranged', 'body', 'off', 'head', 'ammo'],
 };
 const ARCHER_SHARE = 0.28;
+/** The slots each kit has its own need for; any other slot in config slots (boots: feet) is one per man, its worth added on top. */
+const CORE_SLOTS = ['main', 'ranged', 'off', 'head', 'body'];
 
 let _src;
 let _cfg = null;
@@ -144,9 +147,11 @@ export const RealmArms = {
         const men = Math.max(0, _num(kingdom && kingdom.military));
         const kits = men / Math.max(1, _num(C.menPerKit, 10));
         const a = _clamp(_num(kingdom && kingdom.armoury && kingdom.armoury.archer, ARCHER_SHARE), 0, 1);
+        const slots = { main: kits * (1 - a), ranged: kits * a, off: kits * (1 - a), head: kits, body: kits };
+        for (const slot of Object.keys(C.slots)) if (!(slot in slots)) slots[slot] = kits;
         return {
             men, kits, archer: a,
-            slots: { main: kits * (1 - a), ranged: kits * a, off: kits * (1 - a), head: kits, body: kits },
+            slots,
             ammo: kits * a * _num(C.quiver, 16),
             battle: kits * a * _num(C.perBattle, 8),
         };
@@ -184,16 +189,19 @@ export const RealmArms = {
         const fill = (slot, of) => (of > 0 ? _clamp(h[slot].n / of, 0, 1) : 1);
         const part = (slot, of) => fill(slot, of) * h[slot].tier;
         const M = C.melee, R = C.ranged;
+        // (the further slots — boots — add their kit weight on top: an armoury without them is as it was)
+        const extra = (K) => Object.keys(C.slots).filter(s => !CORE_SLOTS.includes(s) && h[s])
+            .reduce((t, s) => t + _num(K.w[s]) * part(s, need.kits), 0);
         const melee = M.bare + (1 - M.bare) * (_num(M.w.main) * part('main', need.slots.main)
             + _num(M.w.off) * part('off', need.slots.off)
-            + _num(M.w.head) * part('head', need.kits) + _num(M.w.body) * part('body', need.kits));
+            + _num(M.w.head) * part('head', need.kits) + _num(M.w.body) * part('body', need.kits) + extra(M));
         // A bow without arrows for the day is a stick
         const bows = Math.min(h.ranged.n, need.slots.ranged);
         const shots = bows * _num(C.perBattle, 8);
         const dry = _clamp(_num(C.dryMult, 0.35), 0, 1);
         const ammoF = shots > 0 ? dry + (1 - dry) * _clamp(h.ammo.n / shots, 0, 1) : 1;
         const ranged = R.bare + (1 - R.bare) * (_num(R.w.main) * part('ranged', need.slots.ranged) * ammoF
-            + _num(R.w.head) * part('head', need.kits) + _num(R.w.body) * part('body', need.kits));
+            + _num(R.w.head) * part('head', need.kits) + _num(R.w.body) * part('body', need.kits) + extra(R));
         const a = need.archer;
         return _r2(_clamp((1 - a) * melee + a * ranged, _num(C.minFactor, 0.45), _num(C.maxFactor, 1.45)));
     },
@@ -292,7 +300,9 @@ export const RealmArms = {
             for (const [weapon, g] of Object.entries(C.ammo)) if (_num(st[weapon]) > 0.5 && !goods.includes(g)) goods.push(g);
             return goods.length ? goods : [C.ammo[(C.slots.ranged || [])[0]] || 'arrows'];
         };
-        for (const slot of C.order) {
+        // (a slot the order leaves out is bought last, before nothing)
+        const order = [...C.order, ...Object.keys(C.slots).filter(s => !C.order.includes(s))];
+        for (const slot of order) {
             let want = _num(def[slot]);
             const goods = slot === 'ammo' ? ammoGoods() : (C.slots[slot] || []);
             // (ammo is bought by the sheaf: a few dozen at a time)
@@ -352,7 +362,7 @@ export const RealmArms = {
         const keep = Math.max(1, _num(C.keep, 1.25));
         const over = {};
         for (const [slot, ids] of Object.entries(C.slots)) {
-            const of = slot === 'head' || slot === 'body' ? need.kits : need.slots[slot];
+            const of = slot === 'head' || slot === 'body' || !(slot in need.slots) ? need.kits : need.slots[slot];
             let extra = h[slot].n - of * keep;
             if (!(extra >= 1)) continue;
             // (the cheapest kind goes first)

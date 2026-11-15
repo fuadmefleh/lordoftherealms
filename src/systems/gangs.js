@@ -424,7 +424,13 @@ export const Gangs = {
 
     /** Contraband the town's gangs hold of a good (the black market's supply). */
     blackStock(world, tile, goodId) {
-        return Gangs.gangsAt(world, tile).reduce((a, g) => a + _num(g.stash[goodId]), 0);
+        // (a price read: the gangs as they are. A town's underworld is seeded by its week
+        // (Gangs.processDay) or a dealing with it, never by a look at the prices — seeding
+        // lifts its first stash off the town's market, and a price read that moved the
+        // market made a same-tile buy → sell loop: buy at the old ask, sell into the new)
+        const st = tile && tile.settlement && tile.settlement.underworld;
+        const gangs = st && Array.isArray(st.gangs) ? st.gangs.filter(g => g && !g.dissolved) : [];
+        return gangs.reduce((a, g) => a + _num(g.stash && g.stash[goodId]), 0);
     },
 
     /** The stock the black market here would call plenty (the town's need of it). */
@@ -1398,6 +1404,9 @@ export const Gangs = {
 
             // ── A boss's ambitions (not the player's: they give their own orders) ──
             if (!(g.boss && g.boss.player)) Gangs._npcBoss(world, tile, st, g, s);
+            // The player's own gang: the lieutenants keep the crew up out of the gang's purse
+            // (as an NPC boss would), so a boss away on other business doesn't come home to nothing
+            else Gangs._lieutenantsHire(g, s);
         }
 
         // ── Wars ──
@@ -1454,18 +1463,23 @@ export const Gangs = {
         for (const g of live()) Gangs._closeWeek(g);
     },
 
-    _npcBoss(world, tile, st, g, s) {
+    /** Up to 3 recruits a week out of the gang's purse, keeping 4 weeks' wages back → men hired. */
+    _lieutenantsHire(g, s) {
         const wages = Gangs.weeklyWages(g);
         const fee = _num(Gangs.cfg().recruitFee, 25);
-        if (g.purse > wages * 6 && g.crew < Gangs.crewCap(s)) {
-            const k = Math.min(3, Gangs.crewCap(s) - g.crew, Math.floor((g.purse - wages * 4) / fee));
-            if (k > 0) {
-                g.purse = _r2(g.purse - fee * k);
-                Gangs._book(g, 'out', 'recruits', fee * k);
-                Economy.payTown(s, fee * k);
-                g.crew += k;
-            }
-        }
+        if (!(g.purse > wages * 6 && g.crew < Gangs.crewCap(s))) return 0;
+        const k = Math.min(3, Gangs.crewCap(s) - g.crew, Math.floor((g.purse - wages * 4) / fee));
+        if (!(k > 0)) return 0;
+        g.purse = _r2(g.purse - fee * k);
+        Gangs._book(g, 'out', 'recruits', fee * k);
+        Economy.payTown(s, fee * k);
+        g.crew += k;
+        return k;
+    },
+
+    _npcBoss(world, tile, st, g, s) {
+        const wages = Gangs.weeklyWages(g);
+        Gangs._lieutenantsHire(g, s);
         const D = Gangs.c('dens', {});
         const maxDens = _num((D.maxByType || {})[s.type], 1);
         if (g.dens < maxDens && g.purse > _num(D.openCost, 220) * 2 + wages * 2 && Utils.random() < 0.15) {

@@ -19,7 +19,7 @@
         "pardon": { "buyMult": 1.25, "graveMult": 1.5, "min": 80, "grantRep": 60, "refuseRep": -50, "repGain": 5, "heatLeft": 10 },
         "penance": { "almsShare": 0.12, "almsMin": 20, "cooldownDays": 120, "lesserKeep": 0.4, "graveKeep": 0.85, "karma": 3, "heatRelief": 15 },
         "weregild": { "base": 120, "perWeight": 4, "memorySoften": 0.3 },
-        "debts": { "scanDays": 30, "comeOfAge": 16, "maxDebts": 12, "score": 75, "minWeight": -20, "maxAgeAtDeed": 15 }
+        "debts": { "scanDays": 30, "comeOfAge": 16, "maxDebts": 12, "score": 75, "minWeight": -20, "maxAgeAtDeed": 15, "heirShare": 0.6, "heirDropScore": 30 }
     },
     "labels": {
         "murder": "murder", "kidnapping": "kidnapping", "well_poisoning": "poisoning a well", "arson": "arson",
@@ -54,6 +54,7 @@
         "debtNoted": "{name}, {age}, the {rel} of {victim}, will not forget who did it.",
         "risen": "{name} is grown now. The child whose {vr} {victim} you killed has sworn to avenge them.",
         "faded": "Your old charges in {realm} have been forgotten.",
-        "succession": "The charges the crowns held against {old} died with them. The grudges did not."
+        "succession": "The charges the crowns held against {old} died with them. The grudges did not.",
+        "debtsInherited": "The blood {old} spilt is not forgotten: {n} of the families still hold it against the House, if less hotly against you."
     }
 }

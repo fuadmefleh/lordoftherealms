@@ -166,7 +166,7 @@ export const Generalship = {
         const S = Generalship.config().seek || {};
         const rep = _num(player.reputation && player.reputation[k.id]);
         if (rep < _num(S.minReputation)) return { ok: false, reason: `${k.name} does not trust you (reputation ${Math.round(rep)}; needs ${_num(S.minReputation)}).`, kingdom: k };
-        if (Generalship._martial(player) < _num(S.minMartial)) return { ok: false, reason: `You know too little of war (combat + leadership ${Generalship._martial(player)}; needs ${_num(S.minMartial)}).`, kingdom: k };
+        if (Generalship._martial(player) < _num(S.minMartial)) return { ok: false, reason: `You know too little of war (combat + leadership ${Math.round(Generalship._martial(player) * 10) / 10}; needs ${_num(S.minMartial)}).`, kingdom: k };
         if (_num(player.renown) < _num(S.minRenown)) return { ok: false, reason: `No one has heard of you (renown ${Math.round(_num(player.renown))}; needs ${_num(S.minRenown)}).`, kingdom: k };
         return { ok: true, kingdom: k };
     },

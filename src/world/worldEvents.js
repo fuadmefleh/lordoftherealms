@@ -7,6 +7,7 @@ import { Kingdom } from './kingdom.js';
 import { WEATHER_EFFECTS } from './weather.js';
 import { Seasons } from './seasons.js';
 import { Economy } from './economy.js';
+import { CrownBooks } from './crownBooks.js';
 import { Names } from '../core/names.js';
 
 export const WorldEvents = {
@@ -29,13 +30,14 @@ export const WorldEvents = {
 
     /**
      * A loss to a crown (a scandal, a famine, a crash): `share` of its chests
-     * plus `flat`, spent into its towns' purses (bribes, relief, repairs paid
+     * (reckoned at most against a few weeks' revenue: CrownBooks.lossBasis) plus `flat`, spent into its towns' purses (bribes, relief, repairs paid
      * to their people), not lost to the world. → what went out
      */
     _lose(world, kingdom, share, flat = 0) {
         if (!kingdom) return 0;
         const have = Math.max(0, kingdom.treasury || 0);
-        const out = Math.min(have, Math.floor(have * (share || 0)) + (flat || 0));
+        // (the share is of the chests, but at most of a few weeks' revenue: world/crownBooks.js lossBasis)
+        const out = Math.min(have, Math.floor(CrownBooks.lossBasis(kingdom) * (share || 0)) + (flat || 0));
         if (!(out > 0)) return 0;
         kingdom.treasury = have - out;
         const towns = [];

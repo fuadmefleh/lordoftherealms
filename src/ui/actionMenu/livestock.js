@@ -9,6 +9,7 @@
 // beasts on the inner map ('herd_panel').
 import { ActionMenu } from './_ref.js';
 import { Livestock } from '../../systems/livestock.js';
+import { AnimalsPanel } from '../animalsPanel.js';
 import { BTN_GOLD, BTN_PLAIN, BTN_OFF, BTN_RED, CARD, esc, lede, bullets, chips, purse, sectionHead } from './uiKit.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
@@ -140,7 +141,9 @@ Object.assign(ActionMenu, {
                 html += '</div>';
             }
         }
-        html += `<div style="margin-top:8px;">${act('livestockAct', '🐑 Your Herds', ['herds'])}</div>`;
+        // A kennel's pups, a kitten, a falconer's hawk (ui/animalsPanel.js, systems/animalCompanions.js)
+        html += AnimalsPanel.marketHtml(game, s);
+        html += `<div style="margin-top:8px;">${act('livestockAct', '🐑 Your Herds', ['herds'])}<button onclick="window._animalsAct('animals','','')" style="${BTN_PLAIN}">🐾 Your Animals</button></div>`;
         html += '</div>';
         game.ui.showCustomPanel(`🐄 Livestock Market — ${s.name || 'Town'}`, html);
     },

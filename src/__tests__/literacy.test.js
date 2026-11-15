@@ -275,6 +275,16 @@ describe('Literacy — the player and the heirs', () => {
         expect(Literacy.takeLesson(p, world, s).success).toBe(false); // once a day
         world.day = 2;
         expect(Literacy.takeLesson(p, world, s).success).toBe(true);
+        // lessons.perDay: two a day when the data allows it
+        const L = Literacy.config().player.lessons;
+        const was = L.perDay;
+        try {
+            L.perDay = 2;
+            expect(Literacy.takeLesson(p, world, s).success).toBe(true);
+            expect(Literacy.takeLesson(p, world, s).success).toBe(false);
+            world.day = 3;
+            expect(Literacy.takeLesson(p, world, s).success).toBe(true);
+        } finally { L.perDay = was; }
     });
 
     it('children learn faster with a tutor and a learning focus; the heir carries it into rule', () => {

@@ -129,6 +129,36 @@ function args(argv) {
     return out;
 }
 
+/** Wait for a background job to finish (or fail). */
+async function waitJob(id) {
+    if (!id) return null;
+    for (let i = 0; i < 150; i++) {
+        await new Promise(r => setTimeout(r, 4000));
+        let res;
+        try { res = await call('GET', `/background-jobs/${id}`); } catch (e) { if (/42[39]|404/.test(e.message)) continue; throw e; }
+        const st = String(res.status || '').toLowerCase();
+        if (/complete|success|done|finished/.test(st)) return res;
+        if (/fail|error|cancel/.test(st)) throw new Error(`job ${id}: ${JSON.stringify(res).slice(0, 400)}`);
+    }
+    throw new Error(`job ${id}: still running`);
+}
+
+/** A character's frames (zip of PNGs) and its details, into <dir>. */
+async function saveCharacter(id, dir) {
+    fs.mkdirSync(dir, { recursive: true });
+    const info = await call('GET', `/characters/${id}`);
+    fs.writeFileSync(path.join(dir, 'character.json'), JSON.stringify(info, null, 2));
+    for (let i = 0; i < 60; i++) {
+        const res = await fetch(`${API}/characters/${id}/zip`, { headers: { Authorization: `Bearer ${key()}` } });
+        if (res.status === 423) { await new Promise(r => setTimeout(r, 5000)); continue; }
+        if (!res.ok) throw new Error(`zip: ${res.status} ${(await res.text()).slice(0, 300)}`);
+        fs.writeFileSync(path.join(dir, 'character.zip'), Buffer.from(await res.arrayBuffer()));
+        console.log(`character ${id} -> ${dir} (character.zip, character.json)`);
+        return;
+    }
+    throw new Error('zip: still being generated');
+}
+
 async function main() {
     const a = args(process.argv.slice(2));
     const cmd = a._[0];
@@ -365,6 +395,50 @@ async function main() {
         delete meta.storage_urls;
         fs.writeFileSync(path.join(dir, 'tiles.json'), JSON.stringify(meta, null, 2));
         console.log(`tiles ${id} (${o.kind || 'tiles'}): ${Object.keys(o.storage_urls || {}).length} -> ${dir}${o.usage ? ` ${JSON.stringify(o.usage)}` : ''}`);
+        return;
+    }
+    // character: a creature drawn facing the 4 sides (south, west, east, north), waited on;
+    // --template dog|cat|horse|bear|lion for four-legged ones (the skeleton the walk rides on)
+    if (cmd === 'character') {
+        const [, dir] = a._;
+        if (!dir || !a.desc) throw new Error('character <dir> --desc "..." [--size 48] [--template dog] [--view "low top-down"] [--seed n]');
+        const size = Number(a.size) || 48;
+        const body = {
+            description: a.desc,
+            image_size: { width: size, height: size },
+            view: a.view || 'low top-down',
+            text_guidance_scale: Number(a.guidance) || 8,
+        };
+        if (a.template) body.template_id = a.template;
+        if (a.outline) body.outline = a.outline;
+        if (a.shading) body.shading = a.shading;
+        if (a.detail) body.detail = a.detail;
+        if (a.seed) body.seed = Number(a.seed);
+        // --v3: the v3 model (8 sides; --template custom for a body no skeleton fits, e.g. a bird in flight)
+        if (a.v3) { delete body.text_guidance_scale; delete body.shading; }
+        const job = await call('POST', a.v3 ? '/create-character-v3' : '/create-character-with-4-directions', body);
+        const id = job.character_id;
+        console.log(`character ${id} queued${job.usage ? ` ${JSON.stringify(job.usage)}` : ''}`);
+        await waitJob(job.background_job_id);
+        await saveCharacter(id, dir);
+        return;
+    }
+    // animate: a character's walk (or any template / described action) in the 4 directions
+    if (cmd === 'animate') {
+        const [, id, dir] = a._;
+        if (!id || !dir) throw new Error('animate <character id> <dir> [--template walking-4-frames] [--action "walking"] [--mode v3] [--frames 4]');
+        const body = { character_id: id };
+        if (a.template) body.template_animation_id = a.template;
+        if (a.action) body.action_description = a.action;
+        if (a.mode) body.mode = a.mode;
+        if (a.frames) body.frame_count = Number(a.frames);
+        if (a.name) body.animation_name = a.name;
+        body.directions = String(a.dirs || 'south,west,east,north').split(',');
+        if (a['keep-first'] === 'false') body.keep_first_frame = false;
+        const job = await call('POST', '/animate-character', body);
+        console.log(`animation ${job.animation_group_id || ''} queued: ${(job.background_job_ids || []).length} jobs`);
+        for (const j of job.background_job_ids || []) await waitJob(j);
+        await saveCharacter(id, dir);
         return;
     }
     console.log('usage: node scripts/pixellab.mjs balance | rotate <sheet.png> <out.png> [--crop x,y,w,h] [--from south] [--to north] [--view "low top-down"] [--palette]\n'

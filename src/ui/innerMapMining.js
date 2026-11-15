@@ -154,15 +154,15 @@ export const InnerMapMining = {
             return out;
         }
         if (work && work.kind === 'shaft') {
-            out.push({ type: 'header', label: work.open ? '🪜 Your Mine Shaft' : `🕳️ A Shaft Begun (${work.stage}/${C.shaft.stages})` });
-            if (work.open) out.push({ type: 'action', action: 'mine_enter', label: 'Climb Down the Shaft', icon: '🪜', desc: 'Down the ladder into your mine', mineKind: 'shaft', siteQ: q, siteR: r });
+            out.push({ type: 'header', label: work.open ? '⬆️ Your Mine Shaft' : `🕳️ A Shaft Begun (${work.stage}/${C.shaft.stages})` });
+            if (work.open) out.push({ type: 'action', action: 'mine_enter', label: 'Climb Down the Shaft', icon: '⬆️', desc: 'Down the ladder into your mine', mineKind: 'shaft', siteQ: q, siteR: r });
             else if (!pick) out.push({ type: 'disabled', label: `⛏️ Sink it deeper: ${C.text.noPick || 'you need a pick'}` });
             else {
                 const last = work.stage + 1 >= C.shaft.stages;
                 const lining = last ? _affordable(player, C.shaft.lining) : true;
                 const ladder = last ? _affordable(player, C.shaft.ladder) : true;
-                if (last && (!lining || !ladder)) out.push({ type: 'disabled', label: `🪜 Line it and hang a ladder: needs ${_costText(C.shaft.lining)}, and ${_costText(C.shaft.ladder)}` });
-                else out.push({ type: 'action', action: 'mine_shaft', label: last ? 'Line the Shaft and Hang a Ladder' : 'Sink the Shaft Deeper', icon: last ? '🪜' : '⛏️', desc: last ? `Uses ${Object.entries(lining).map(([id, n]) => `${n} ${_name(id).toLowerCase()}`).join(', ')} and ${Object.entries(ladder).map(([id, n]) => `${n} ${_name(id).toLowerCase()}`).join(', ')}` : `Stage ${work.stage + 1} of ${C.shaft.stages}: stone as you go`, siteQ: q, siteR: r });
+                if (last && (!lining || !ladder)) out.push({ type: 'disabled', label: `⬆️ Line it and hang a ladder: needs ${_costText(C.shaft.lining)}, and ${_costText(C.shaft.ladder)}` });
+                else out.push({ type: 'action', action: 'mine_shaft', label: last ? 'Line the Shaft and Hang a Ladder' : 'Sink the Shaft Deeper', icon: last ? '⬆️' : '⛏️', desc: last ? `Uses ${Object.entries(lining).map(([id, n]) => `${n} ${_name(id).toLowerCase()}`).join(', ')} and ${Object.entries(ladder).map(([id, n]) => `${n} ${_name(id).toLowerCase()}`).join(', ')}` : `Stage ${work.stage + 1} of ${C.shaft.stages}: stone as you go`, siteQ: q, siteR: r });
             }
             return out;
         }
@@ -183,7 +183,7 @@ export const InnerMapMining = {
         const pick = this.pickOf(player);
         if (tile._cave === 'rock') {
             const vein = tile._vein;
-            out.push({ type: 'header', label: vein ? `⛏️ ${_name(vein)} in the Rock` : tile._bedrock ? '🪨 Solid Rock' : '🪨 Rock' });
+            out.push({ type: 'header', label: vein ? `⛏️ ${_name(vein)} in the Rock` : tile._bedrock ? '⛰️ Solid Rock' : '⛰️ Rock' });
             if (tile._bedrock) {
                 out.push({ type: 'disabled', label: 'The bones of the hill: too hard to cut' });
             } else if (!InnerMap.mineCanCut(q, r)) {
@@ -198,22 +198,22 @@ export const InnerMapMining = {
             return out;
         }
         if (tile._cave === 'rubble') {
-            out.push({ type: 'header', label: '🪨 Rubble' });
+            out.push({ type: 'header', label: '⛰️ Rubble' });
             out.push({ type: 'action', action: 'mine_haul', label: 'Haul the Rubble Out', icon: '🧺', desc: 'Clear it: the stone into your packs and the ground open' });
             return out;
         }
         if (tile._cave !== 'floor') return out;
-        if (tile._loose === 'stone') out.push({ type: 'action', action: 'mine_loose', label: 'Pick Up the Loose Stones', icon: '🪨', desc: 'Stones fallen from the roof' });
+        if (tile._loose === 'stone') out.push({ type: 'action', action: 'mine_loose', label: 'Pick Up the Loose Stones', icon: '⛰️', desc: 'Stones fallen from the roof' });
         else if (tile._loose === 'crystal') {
             if (pick) out.push({ type: 'action', action: 'mine_loose', label: 'Break Off the Crystal', icon: '💎', desc: 'Crystal grown out of the rock: it fetches a price' });
             else out.push({ type: 'disabled', label: `💎 Break off the crystal: ${C.text.noPick || 'you need a pick'}` });
         }
         if (tile._support) {
-            out.push({ type: 'header', label: '🪵 Mine Timbers' });
+            out.push({ type: 'header', label: '🌲 Mine Timbers' });
         } else if (tile._mined) {
             const cost = _affordable(player, C.support.cost);
-            if (cost) out.push({ type: 'action', action: 'mine_prop', label: 'Shore Up with Timbers', icon: '🪵', desc: `Posts and a cap beam (${Object.entries(cost).map(([id, n]) => `${n} ${_name(id).toLowerCase()}`).join(', ')}): the roof holds for ${C.support.reach} cells round`, cost });
-            else out.push({ type: 'disabled', label: `🪵 Shore up: needs ${_costText(C.support.cost)}` });
+            if (cost) out.push({ type: 'action', action: 'mine_prop', label: 'Shore Up with Timbers', icon: '🌲', desc: `Posts and a cap beam (${Object.entries(cost).map(([id, n]) => `${n} ${_name(id).toLowerCase()}`).join(', ')}): the roof holds for ${C.support.reach} cells round`, cost });
+            else out.push({ type: 'disabled', label: `🌲 Shore up: needs ${_costText(C.support.cost)}` });
         }
         return out;
     },
@@ -300,7 +300,7 @@ export const InnerMapMining = {
             if (typeof game._updateBuildingExitButton === 'function') game._updateBuildingExitButton();
             const T = this.config().text;
             const dim = u.lightRadius <= _num(this.config().light.none, 46) ? ' You carry no light: you can barely see your hand.' : '';
-            _note(game, kind === 'cave' ? '🕳️ The Cave' : kind === 'shaft' ? '🪜 Down the Shaft' : '⛏️ The Drift', (kind === 'cave' ? T.enterCave : kind === 'shaft' ? T.enterShaft : T.enterMine) + dim, 'info');
+            _note(game, kind === 'cave' ? '🕳️ The Cave' : kind === 'shaft' ? '⬆️ Down the Shaft' : '⛏️ The Drift', (kind === 'cave' ? T.enterCave : kind === 'shaft' ? T.enterShaft : T.enterMine) + dim, 'info');
         };
         // A cave's mouth or a drift: from the foot of the face; a shaft: from beside it
         if (kind === 'shaft') {
@@ -339,7 +339,7 @@ export const InnerMapMining = {
         if (last) {
             const lining = _affordable(player, C.shaft.lining);
             const ladder = _affordable(player, C.shaft.ladder);
-            if (!lining || !ladder) { _note(game, '🪜 Not Yet', `To finish the shaft you need ${_costText(C.shaft.lining)}, and ${_costText(C.shaft.ladder)}.`, 'warning'); return; }
+            if (!lining || !ladder) { _note(game, '⬆️ Not Yet', `To finish the shaft you need ${_costText(C.shaft.lining)}, and ${_costText(C.shaft.ladder)}.`, 'warning'); return; }
             _pay(player, lining);
             _pay(player, ladder);
         }
@@ -348,7 +348,7 @@ export const InnerMapMining = {
         const got = last ? [] : this._give(game, { stone: this._stone(player, C.shaft.stone) });
         this._train(game, _num(C.xp.shaft, 5));
         _sfx('rock_break');
-        if (st.open) _note(game, '🪜 The Shaft Is Sunk', 'Timbered and laddered: a mine of your own below. Right-click it to climb down.', 'success');
+        if (st.open) _note(game, '⬆️ The Shaft Is Sunk', 'Timbered and laddered: a mine of your own below. Right-click it to climb down.', 'success');
         else _note(game, '🕳️ Deeper', `Stage ${st.stage} of ${C.shaft.stages} (${this._told(got)}).`, 'info');
         if (game.ui && typeof game.ui.updateStats === 'function') game.ui.updateStats(player, game.world);
     },
@@ -445,18 +445,18 @@ export const InnerMapMining = {
         InnerMap.mineTakeLoose(q, r);
         const got = this._give(game, items);
         if (what === 'crystal') this._train(game, _num(this.config().xp.vein, 6));
-        _note(game, what === 'crystal' ? '💎 Crystal' : '🪨 Stones', `${this._told(got)}.`, what === 'crystal' ? 'success' : 'info');
+        _note(game, what === 'crystal' ? '💎 Crystal' : '⛰️ Stones', `${this._told(got)}.`, what === 'crystal' ? 'success' : 'info');
     },
 
     _propDone(game, q, r) {
         const C = this.config();
         const player = game.player;
         const cost = _affordable(player, C.support.cost);
-        if (!cost) { _note(game, '🪵 No Timber', `You need ${_costText(C.support.cost)}.`, 'warning'); return; }
+        if (!cost) { _note(game, '🌲 No Timber', `You need ${_costText(C.support.cost)}.`, 'warning'); return; }
         if (!InnerMap.mineProp(q, r)) return;
         _pay(player, cost);
         if (game.ui && typeof game.ui.updateStats === 'function') game.ui.updateStats(player, game.world);
-        _note(game, '🪵 Timbered', `Posts and a cap beam set: the roof holds for ${C.support.reach} cells round.`, 'info');
+        _note(game, '🌲 Timbered', `Posts and a cap beam set: the roof holds for ${C.support.reach} cells round.`, 'info');
     },
 
     // ══════════════════════════════════════════════

@@ -25,7 +25,11 @@
 //                 itself. Below `loyalty.estrangedBelow` it breaks with you:
 //                 it speaks against you at court and may press a claim at
 //                 your succession (House._disputeChance / _fragmentHoldings
-//                 read estranged branches as claimants). Gifts can win it back.
+//                 read estranged branches as claimants), and the rival-House
+//                 AI runs it AGAINST you as a rival: it shadows you and pays
+//                 for plots (Schemes, keyed by its houseKey — RivalHouses.keyOf,
+//                 House.rivalRecord — never its realm's rival) and, the feud
+//                 hot, rides out to waylay you. Gifts can win it back.
 //   Asks          by letter: gold from their purse, men for a war, or a
 //                 summons — the head rides to you and stays a few days.
 //   Sub-branches  a branch head's younger grown child may found a branch of
@@ -518,18 +522,31 @@ export const CadetBranches = {
             b.gold += Math.round(unit.inventory.gold);
             unit.inventory.gold = 0;
         }
-        // The road: errands chosen and done by the rival-House AI, with no player to plot against.
+        // The road: errands chosen and done by the rival-House AI. A loyal branch has no
+        // one to plot against; an ESTRANGED one is a rival House of your own blood: it
+        // shadows you and pays for plots (Schemes, under its houseKey), and rides out to
+        // waylay you when the feud runs hot (RivalHouses.keyOf / House.rivalRecord).
         // A branch too poor to trade stays at its seat and saves its dues (court gifts would bleed it dry)
-        if (!b.plan) this._plan(world, b, unit, scratch);
+        const foe = b.estranged && !opts.interregnum ? player : null;
+        if (b.plan && b.plan.kind === 'waylay') {
+            const hunted = (world.units || []).find(u => u.id === b.plan.unitId);
+            if (!foe || !hunted || hunted.destroyed) RivalHouses._endWaylay(foe, world, b, hunted || null, foe ? 'beaten' : 'gaveup', scratch);
+            else RivalHouses._hunt(foe, world, b, unit, out);
+            if (unit.inventory && _num(unit.inventory.gold) > 0) {
+                b.gold += Math.round(unit.inventory.gold);
+                unit.inventory.gold = 0;
+            }
+        }
+        if (!b.plan) this._plan(world, b, unit, scratch, foe, out);
         if (b.plan && b.plan.kind !== 'waylay' && RivalHouses._advance(world, unit)) {
             if (b.plan.summons) this._attend(player, world, b, out, opts);
             else {
-                RivalHouses._arrive(null, world, b, unit, scratch);
+                // (its court whispers are its own, below; the shadow's plot needs the player)
+                RivalHouses._arrive(foe && b.plan.kind === 'shadow' ? foe : null, world, b, unit, scratch);
                 this._whisper(player, world, b, out, opts);
             }
         }
-        if (b.plan && b.plan.kind === 'waylay') b.plan = null;
-        if (!b.plan) this._plan(world, b, unit, scratch);
+        if (!b.plan) this._plan(world, b, unit, scratch, foe, out);
         const here = RivalHouses._settlementAt(world, unit.q, unit.r);
         if (here && here.market) {
             RivalHouses._buyArms(world, b, here);
@@ -539,14 +556,18 @@ export const CadetBranches = {
         if (day > 0 && day % Seasons.DAYS_PER_YEAR === 0) this._year(player, world, b, out, opts);
     },
 
-    /** The next errand: the rival-House AI's pick, or home while the purse is below `poorBelow`. */
-    _plan(world, b, unit, scratch) {
+    /**
+     * The next errand: the rival-House AI's pick, or home while the purse is
+     * below `poorBelow`. foe: the player, for an estranged branch (its errands
+     * may then shadow or waylay them; a hunt's warning goes to `out`).
+     */
+    _plan(world, b, unit, scratch, foe = null, out = null) {
         if (_num(b.gold) < _num(this.config().poorBelow, 400) && b.seat) {
             b.plan = { kind: 'home', to: { ...b.seat }, since: _day(world) };
             RivalHouses._ride(world, unit, b.seat);
             return b.plan;
         }
-        return RivalHouses._plan(null, world, b, unit, scratch);
+        return RivalHouses._plan(foe, world, b, unit, foe && out ? out : scratch);
     },
 
     /** The week's money, land, court, guards, ambition — then what loyalty moves it to do. */
@@ -939,6 +960,19 @@ export const CadetBranches = {
         const b = this.branchOfUnit(player, unit);
         if (!b) return null;
         const L = this.config().loyalty;
+        // An estranged branch that came to waylay you: a fight in your own defence is no kinstrife
+        if (unit.hostile && b.plan && b.plan.kind === 'waylay') {
+            if (!won) {
+                RivalHouses._endWaylay(player, world, b, unit, 'won', { notices: [] });
+                return null;
+            }
+            const spoils = Math.round(_num(b.gold) * _num(RivalHouses.config().attack.lootShare, 0.2));
+            b.gold -= spoils;
+            player.gold = _num(player.gold) + spoils;
+            RivalHouses._endWaylay(player, world, b, unit, 'beaten', { notices: [] });
+            delete b.armsDropped;
+            return `You beat off the ambush of ${this.headName(b)}, of your own estranged blood, and take ${spoils} gold from their coffers. They struck first: no honour lost.`;
+        }
         b.loyalty = _clamp(b.loyalty + _num(L.attacked, -40), 0, 100);
         b.lastAttackedDay = _day(world);
         if (won) RivalHouses._loseArms(b, 0.3);

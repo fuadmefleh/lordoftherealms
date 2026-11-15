@@ -4,6 +4,7 @@
 // coin, warn you and visit; betrayal both ways; old family friends for heirs.
 import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest';
 import { Bonds } from '../systems/bonds.js';
+import { FieldBattle } from '../player/fieldBattle.js';
 import { Relationships } from '../systems/relationships.js';
 import { Townsfolk } from '../systems/townsfolk.js';
 import { PracticeSkills } from '../systems/practiceSkills.js';
@@ -187,6 +188,15 @@ describe('friends act', () => {
         Bonds.onBattle(g.player, g.world, true, 'Bandits');
         expect(b.strength).toBeGreaterThan(s0);
         expect(b.deeds.battle).toBe(1);
+        // ...in a phased field battle too, not only the quick one (player/fieldBattle.js)
+        g.player.army = [{ id: 'u1', type: 'infantry', domain: 'land', strength: 500, level: 1 }];
+        const fb = FieldBattle.start(g.player, { strength: 400, name: 'Bandits' }, g.world, {});
+        expect(fb.aidNames).toContain(a.firstName);
+        b.strength = 0;
+        const fb0 = FieldBattle.start(g.player, { strength: 400, name: 'Bandits' }, g.world, {});
+        expect(fb0.aidNames).toEqual([]);
+        expect(fb.pMult).toBeGreaterThan(fb0.pMult);
+        expect(Bonds.aidLine([a.firstName])).toContain(a.firstName);
     }, 120000);
 
     it('a friend lends you coin from their own purse when yours is empty, and you repay it', () => {

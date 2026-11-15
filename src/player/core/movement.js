@@ -7,6 +7,7 @@
 import { Hex } from '../../core/hex.js';
 import { Dawn } from '../../world/dawn.js';
 import { OceanCurrents } from '../../world/oceanCurrents.js';
+import { LandRegions } from '../../world/landRegions.js';
 import { Endurance } from '../endurance.js';
 import { Utils } from '../../core/utils.js';
 import { Infrastructure } from '../../systems/infrastructure.js';
@@ -260,6 +261,19 @@ export const PlayerMovementMethods = {
         return this._isRoadHex(tile) ? cost : cost + this.OFF_ROAD_PATH_PENALTY;
     },
 
+    /**
+     * On foot, is (q, r) on the landmass the player stands on (world/landRegions.js)?
+     * Over the sea there is no overland way, and the A* would only search the
+     * whole island to say so. Aboard ship or river boat: no opinion (true).
+     */
+    _overlandReachable(q, r, world) {
+        if (this.boardedShip || this._onRiverBoat()) return true;
+        // (standing somewhere no one walks, a wreck's shallows: let the A* look for the way ashore)
+        const here = LandRegions.of(world, this.q, this.r);
+        if (here === null || here < 0) return true;
+        return LandRegions.of(world, q, r) === here;
+    },
+
     /** Is the player aboard their own river boat (systems/riverBoats.js)? */
     _onRiverBoat() {
         const b = this.riverBoat;
@@ -279,6 +293,7 @@ export const PlayerMovementMethods = {
         // Can't move during jail or indentured servitude
         if (this.jailState) return false;
         if (this.indenturedServitude) return false;
+        if (!this._overlandReachable(targetQ, targetR, world)) return false;
 
         const path = Hex.findPath(
             this.q, this.r,
@@ -315,6 +330,7 @@ export const PlayerMovementMethods = {
         if (!world || this.jailState || this.indenturedServitude) return null;
         if (targetQ === this.q && targetR === this.r) return null;
         if (!this._canEnterHex(targetQ, targetR, world)) return null;
+        if (!this._overlandReachable(targetQ, targetR, world)) return null;
         const path = Hex.findPath(
             this.q, this.r, targetQ, targetR, world.width, world.height,
             (q, r) => this._canEnterHex(q, r, world),

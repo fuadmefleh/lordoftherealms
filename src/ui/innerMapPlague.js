@@ -470,7 +470,7 @@ export const InnerMapPlague = {
         }
         if (building.type === 'house' && this._isSickHouse(building)) {
             out.push({ type: 'disabled', label: '✚ The sick lie within', desc: 'A cross on the door: someone in this house is laid up' });
-            out.push({ type: 'action', action: 'plague_nurse', label: 'Nurse the Sick Within', icon: '🩹', desc: 'Sit with them, water and clean linen — kindness remembered, and the closest you can come to catching it', building });
+            out.push({ type: 'action', action: 'plague_nurse', label: 'Nurse the Sick Within', icon: '💊', desc: 'Sit with them, water and clean linen — kindness remembered, and the closest you can come to catching it', building });
         }
         if (building.type === 'house' && this._isAbandoned(building)) {
             const burnt = Plague.burnt(s, key), looted = Plague.looted(s, key);
@@ -504,7 +504,7 @@ export const InnerMapPlague = {
                 const sick = (InnerMap.npcs || []).find(n => n._sick && n._home && n._home.q === b.q && n._home.r === b.r);
                 if (sick) this._bark(sick, Plague.line('nursed', `${sick.id}|${world.day}`));
             }
-            note('🩹 At the Bedside', res);
+            note('💊 At the Bedside', res);
         } else if (item.action === 'plague_burn' && b) {
             const res = Plague.burnGoods(player, world, s, _bkey(b));
             if (res.success) {
@@ -561,7 +561,7 @@ export const InnerMapPlague = {
         if (typeof game.ui.showCustomPanel === 'function') {
             const html = lede(`${line ? `<i>“${esc(line)}”</i><br>` : ''}${esc(t.why)}`)
                 + rowList([{
-                    icon: '🪙', name: 'Bribe the gate guards',
+                    icon: '💰', name: 'Bribe the gate guards',
                     desc: `They look the other way for a few days. If their sergeant sees it, it is a crime — and you go in among the sick.`,
                     side: price(t.bribe, can), off: !can, why: `Needs ${t.bribe}g.`,
                     act: 'sicknessAct', args: ['bribe', s.q, s.r],

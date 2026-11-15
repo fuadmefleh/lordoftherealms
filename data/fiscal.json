@@ -58,7 +58,11 @@
     "npc": {
         "every": 28, "reserveLow": 30, "lowDays": 10, "reserveHigh": 160, "highDays": 320,
         "bias": { "peaceful": -1, "mercantile": -1, "balanced": 0, "militaristic": 0, "aggressive": 1 },
-        "unrestAt": 35, "revoltDays": 60, "halfPayDays": 4, "ruledMaxTax": "heavy"
+        "unrestAt": 35, "revoltDays": 60, "halfPayDays": 4, "ruledMaxTax": "heavy",
+        "_largesse": "2026-11: an NPC crown spends largesseShare a week (paid daily, as the taxes come in daily) of what its chests hold past largesseAbove days of its spending (or largesseCoin of its realm's coin, below) into its towns (works: by people and where the court and garrisons lie), so a crown whose taxes outrun its upkeep does not sit on the realm's coin while its towns run dry (Fiscal._largesse).",
+        "largesseAbove": 90, "largesseShare": 0.5,
+        "_coinShares": "2026-11: the chests are also reckoned against the realm's own coin in circulation (Fiscal.reserveStand): holding coinLow of it they are never low (no tax rise for a thin reserve), past coinHigh they are high (a step down, a lavish court), past coinFlush flush; largesse begins past largesseCoin of it when that is less than largesseAbove days. A crown spends more in a year than its realm holds, so by days alone it taxed the towns dry before it felt full (the coin of a 4-realm world fell by half in 240 days).",
+        "coinLow": 0.12, "coinHigh": 0.25, "coinFlush": 0.5, "largesseCoin": 0.25
     },
 
     "_coin": "Taxes come out of the towns' purses into the crown's chests and the wages go back into them; the money supply (world/moneySupply.js) counts the purses, so this moves the realm's coin in circulation by itself (booked daily as the 'fisc' flow). No tunables left here.",
@@ -80,6 +84,9 @@
 
     "_crisis": "Ways out of a fiscal crisis besides borrowing, the levy, debasement and default (systems/finance.js chooses): selling offices raises `offices.days` of revenue (corruption + corruption.officesSale); selling crown land raises `land.days` of the yield of `land.share` of the demesne.",
     "crisis": { "offices": { "days": 20 }, "land": { "days": 120, "share": 0.3 } },
+
+    "_eventLoss": "2026-11: what a crown's misfortunes are reckoned against (CrownBooks.lossBasis): a scandal's tenth, a flood's or a religious war's share is of its chests but at most basisDays of its revenue — spent into its towns, never lost to the world. (About a world event a day strikes one realm; half cost 10–20%: at 10 days a scandal costs a crown about a day of revenue, a year of them a few per cent of it.) Taken of the whole chests, the year's events were a wealth tax of about half the treasury a year and the crowns of seed 303 bled from 305k to 37k in a century. Offices sold for less than their price (the towns' merchants pay what their purses allow: Finance.saleBuyers) bring only that share of the corruption.",
+    "eventLoss": { "basisDays": 10 },
 
     "_explain": "What the Treasury panel (src/ui/actionMenu/treasury.js, via src/ui/actionMenu/taxGuide.js) tells the player each tax, level and budget line is. {pct:path} prints a number of this file as a percent, {num:path} as it stands, {c100:path} times 100 (a sum per hundred), {x:path} as a multiplier: the prose follows the tuning. Per-level effects (revenue x, burden and stability) are computed from levels/burden/stability, not written here. Keep each line to what the code reads.",
     "explain": {

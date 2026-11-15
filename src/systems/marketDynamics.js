@@ -322,6 +322,50 @@ export const MarketDynamics = {
      * loaded game trades on the same ones; a link knows its distance, road,
      * sea leg, routes, friction and capacity.
      */
+    /**
+     * The long-haul frontier trade: two realms whose towns drew no link between
+     * them (their towns too far apart for neighbours' trade — every small map)
+     * still trade over their nearest pair of towns within trade.frontierRange
+     * hexes, on one land or port to port by sea. Without it no coin crossed a
+     * border and the realms' balance of trade (world/moneySupply.js) stood at
+     * nothing. Adds to `pairs` in place.
+     */
+    _frontierPairs(world, lives, tiles, port, pairs, pairKey, T) {
+        const range = _num(T.frontierRange);
+        if (!(range > 0)) return;
+        const realm = (s) => (s && s.kingdom != null ? String(s.kingdom) : null);
+        const linked = new Set();
+        const rkey = (x, y) => (x < y ? `${x}|${y}` : `${y}|${x}`);
+        for (const p of pairs.values()) {
+            const x = realm(lives[p.i]), y = realm(lives[p.j]);
+            if (x && y && x !== y) linked.add(rkey(x, y));
+        }
+        const best = new Map();
+        const n = lives.length;
+        for (let i = 0; i < n; i++) {
+            const x = realm(lives[i]);
+            if (!x) continue;
+            for (let j = i + 1; j < n; j++) {
+                const y = realm(lives[j]);
+                if (!y || y === x) continue;
+                const rk = rkey(x, y);
+                if (linked.has(rk)) continue;
+                const a = lives[i], b = lives[j];
+                if (Math.abs(a.r - b.r) > range) continue;
+                const d = Hex.wrappingDistance(a.q, a.r, b.q, b.r, world.width);
+                if (d > range) continue;
+                const sameLand = !!(tiles[i] && tiles[j] && tiles[i].regionId !== undefined && tiles[i].regionId === tiles[j].regionId);
+                if (!sameLand && !(port[i] && port[j])) continue;
+                const cur = best.get(rk);
+                if (!cur || d < cur.d) best.set(rk, { i, j, d, sea: !sameLand });
+            }
+        }
+        for (const p of best.values()) {
+            const k = pairKey(p.i, p.j);
+            if (!pairs.has(k)) pairs.set(k, p);
+        }
+    },
+
     _links(world, cache, lives, day) {
         const T = SettlementMarket.config().trade;
         const n = lives.length;
@@ -402,6 +446,7 @@ export const MarketDynamics = {
                 if (!pairs.has(k)) pairs.set(k, { i: Math.min(i, c.j), j: Math.max(i, c.j), d: c.d, sea: c.sea });
             }
         }
+        this._frontierPairs(world, lives, tiles, port, pairs, pairKey, T);
         // A road the whole way (towns on one network share its flood; the
         // floods are kept for a month — new roads are rare)
         const month = Math.floor(_num(day) / 30);

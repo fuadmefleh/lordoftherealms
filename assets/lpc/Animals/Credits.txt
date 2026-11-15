@@ -93,3 +93,16 @@ Generated animal sheets (subfolders: arctic_fox bear doe elephant elk fox highla
   Derived game sheets (128px cells, feet on one baseline, specks removed) made from the
   sheets above by scripts/build-animal-sheets.py. stag/doe walk sheets are made from the
   two original deer walking sheets (Pixel Deer / Retro Stag) scaled to the new series.
+
+
+Animal companions: dog, cat, hawk (dog/ cat/ hawk/)
+-------------------
+  ARTIST(S): generated with PixelLab (pixellab.ai, the user's subscription) on 2026-11-14 through
+             scripts/pixellab.mjs: a 4-direction character on PixelLab's quadruped templates (dog 40px,
+             cat 28px) with its walk-4-frames animation (and the dog's bark as its attack); the hawk a
+             v3 character (custom body) with a described wingbeat animation.
+  LICENSE: PixelLab terms (output owned by the subscriber); confirm before any public release.
+  DETAILS: sheets laid out as the other animal sheets: 4 rows (up, left, down, right) x 4 frames,
+           cells 56px (dog), 40px (cat), 68px (hawk); the dog and cat drawn 1:1 with the LPC tiles (32px), the hawk at about two-thirds.
+  FILES: dog/dog_walk_sheet.png, dog/dog_attack_sheet.png, cat/cat_walk_sheet.png, hawk/hawk_fly_sheet.png
+  USED BY: data/animalCompanions.json (ui/innerMapPets.js).

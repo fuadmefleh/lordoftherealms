@@ -8,6 +8,30 @@
         "_doc": "The book is written in the past: chronicle lines (house.history; most are written in the present, 'Bran weds Tamsin.') are put into the past tense after `rewrites`. `phrases` first ([regex, replacement], each applied everywhere), then `words` (whole lowercase words). A word that is too often a noun ('lies', 'rules', 'claims', 'returns') goes in `phrases` with its context instead. Text inside quotes is left alone.",
         "phrases": [
             [
+                "^(House [^:,]+)(?:, [^:]+)?: Slander spreads through ",
+                "Slander sown by $1 spread through "
+            ],
+            [
+                "\\s*:?\\s*[−-]\\d+ reputation( with each)?(, [−-]\\d+ renown)?(?=[.;])",
+                ""
+            ],
+            [
+                "\\bSlander spreads\\b",
+                "Slander spread"
+            ],
+            [
+                "\\bhas achieved\\b",
+                "achieved"
+            ],
+            [
+                "\\b(through|of|with|and|in|to|from|against|over|by) (Kingdom|Khanate|Theocracy|Empire|Republic|Principality|Duchy|Sultanate|Confederacy) of\\b",
+                "$1 the $2 of"
+            ],
+            [
+                "^(Kingdom|Khanate|Theocracy|Empire|Republic|Principality|Duchy|Sultanate|Confederacy) of\\b",
+                "The $1 of"
+            ],
+            [
                 "\\bdo not\\b",
                 "did not"
             ],

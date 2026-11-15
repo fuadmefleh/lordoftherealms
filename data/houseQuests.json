@@ -18,10 +18,10 @@
         "minWeight": 3,
         "folkMinAge": 16,
         "inheritedBonus": 6,
-        "lordMinWeight": 10,
-        "lordGapDays": 1200,
+        "lordMinWeight": 8,
+        "lordGapDays": 720,
         "lordSkip": ["amends_refused", "amends_made", "nemesis_poison", "letter_", "letters_", "feast_", "tourney_", "office_", "loan_", "match_refused", "child_recalled"],
-        "townMinWeight": 6
+        "townMinWeight": 5
     },
     "kinds": {
         "blood_price": {

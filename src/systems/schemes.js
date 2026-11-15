@@ -153,7 +153,8 @@ const SCHEME_TYPES = {
         // hit, a rival's yearly slander left a House at odds with every realm.)
         resolve(player, world, scheme) {
             const rep = player.reputation || (player.reputation = {});
-            const courts = slanderCourts(world, scheme && scheme.rivalId);
+            // (a cadet branch's plot goes by its houseKey: its realm is realmId)
+            const courts = slanderCourts(world, scheme && (scheme.realmId != null ? scheme.realmId : scheme.rivalId));
             for (const k of courts) rep[k.id] = (rep[k.id] || 0) - CONFIG.slanderReputation;
             const renownLoss = Math.min(player.renown || 0, 5);
             player.renown = (player.renown || 0) - renownLoss;
@@ -312,7 +313,9 @@ export const Schemes = {
         const scheme = {
             id: house._nextSchemeId++,
             type,
-            rivalId: rival.kingdomId,
+            // (an estranged cadet branch plots under its houseKey, not its realm's: House.rivalRecord)
+            rivalId: rival.cadet && rival.houseKey ? rival.houseKey : rival.kingdomId,
+            realmId: rival.kingdomId,
             rivalName: rival.name,
             target,
             startDay: day,
@@ -431,7 +434,7 @@ export const Schemes = {
 
     /** Gold to turn a suspect into the player's informant. */
     turnCost(player, suspect) {
-        const rival = player.house && player.house.rivals && player.house.rivals[suspect.rivalId];
+        const rival = House.rivalRecord(player.house, suspect.rivalId);
         return CONFIG.turnBase + CONFIG.turnPerFeud * Math.round((rival && rival.feud) || 0);
     },
 
@@ -641,12 +644,12 @@ export const Schemes = {
     },
 
     bribeGoldCost(player, scheme) {
-        const rival = player.house.rivals && player.house.rivals[scheme.rivalId];
+        const rival = House.rivalRecord(player.house, scheme.rivalId);
         return 150 + 10 * ((rival && rival.feud) || 0);
     },
 
     bribePrestigeCost(player, scheme) {
-        const rival = player.house.rivals && player.house.rivals[scheme.rivalId];
+        const rival = House.rivalRecord(player.house, scheme.rivalId);
         return 10 + Math.floor(((rival && rival.feud) || 0) / 10);
     },
 

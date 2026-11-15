@@ -31,7 +31,12 @@
             "relationStart": 40,
             "relationSeat": 25,
             "branchTypes": ["capital", "city"],
-            "refoundDays": 90
+            "refoundDays": 90,
+            "_refound": "2026-11: a failed house's seat gets a new one after refoundDays, its capital put up by the realm's merchants (at most refoundTownShare of each town's purse, by its people; the crown puts in nothing) — no longer struck from nothing, which over a century added a house's worth of new coin to the vaults at every failure. A failed house's receivers pay what it had left to its seat town; a run's withdrawals and a lost venture's coin land there too.",
+            "refoundTownShare": 0.3,
+            "_yieldFromTowns": "2026-11: an NPC house's lending yield (yield a year, while it stands below yieldUpTo x its founding capital) is the interest its merchant borrowers pay: drawn from the purses of its realm's towns by their people, at most yieldTownShare of each purse a day — no longer coin from nowhere. With the payout above (the partners spending what the house holds past payoutAbove x its founding capital in its city), a house's coin goes round: towns pay interest, the house rebuilds what it lost, its partners spend the surplus back.",
+            "yieldFromTowns": true,
+            "yieldTownShare": 0.02
         },
         "playerBank": {
             "_comment": "A banking house the player charters (Finance.foundBank). It is one more house in the banks list, so crowns borrow from it and runs, losses, seizures and failure reach it. Deposits drift toward seat population x depositsPerHead x trust; the loan book toward the policy's share of the house's coin; rates per game year.",
@@ -165,6 +170,8 @@
             "incomeSmoothing": 0.1,
             "warBurn": 1.6,
             "reserveDays": 30,
+            "_deficitCoinShare": "2026-11: a crown whose chests still hold deficitCoinShare of its realm's coin in circulation does not borrow (for a deficit, a war or a wonder): its 'deficit' is often the largesse it spends back into its towns (systems/fiscal.js), and borrowing then ran the crowns into debt and poured the banks' vaults into the towns through the largesse (a 10-realm world's coin rose half again in 240 days).",
+            "deficitCoinShare": 0.12,
             "capacityDays": 25,
             "minLoan": 2000,
             "apr": 0.12,

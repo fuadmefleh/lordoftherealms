@@ -813,6 +813,13 @@ Object.assign(ActionMenu, {
             const C = DataLoader._gamedata && DataLoader._gamedata.hospitality && DataLoader._gamedata.hospitality.clothes;
             if (C && Number.isFinite(C.washByHandAP)) return Math.max(0, C.washByHandAP);
         }
+        // Outlaw lairs' deeds: tuned in data/outlawLairs.json config.<deed>.ap
+        const lairDeed = { lair_scout: 'scout', lair_assault: 'assault', lair_strike: 'strike', lair_parley: 'tribute' }[actionType];
+        if (lairDeed) {
+            const L = DataLoader._gamedata && DataLoader._gamedata.outlawLairs && DataLoader._gamedata.outlawLairs.config;
+            const ap = L && L[lairDeed] && L[lairDeed].ap;
+            if (Number.isFinite(ap)) return Math.max(0, ap);
+        }
         const cost = ActionMenu.AP_COSTS[actionType];
         return cost != null ? cost : 2; // Default 2 AP for unknown actions
     },

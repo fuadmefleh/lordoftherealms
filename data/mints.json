@@ -34,6 +34,8 @@
     "wear": 0.002,
     "_drift": "The invisible balance: pilgrims, mercenaries' pay, smugglers and travellers carry coin from realms with much of it to realms with little, whether they trade or not. Each week a realm's coin moves by ratio ^ -drift (its coin per head against the world's): what is drawn from the rich realms' towns is paid into the poor realms' towns.",
     "drift": 0.08,
+    "_freeTowns": "2026-11: a town under no crown sells to the realms about it but pays no taxes and has no price level of its own, so coin piled up in its purse for good (seed 202: twelve free villages held 134k of the world's coin after 240 days, a village of 400 people 20k). Each week what a free town holds past `above` x the realms' coin per head (x its people) is spent, `rate` of it, into the realms' towns, the poorer realms (coin per head) taking more: booked 'drift' on them. Purse to purse, nothing made or lost.",
+    "freeTowns": { "above": 1, "rate": 0.25 },
     "_income": "The crown's tax yield follows the coin about (KingdomAI.incomeMultiplier x level ^ elasticity, clamped): a realm drained of coin collects less, one awash in it more. The crowns' daily income is otherwise a ledger of their realms' commerce; see docs/economy-balance.md for why it is only partly backed.",
     "income": {
         "elasticity": 0.3,

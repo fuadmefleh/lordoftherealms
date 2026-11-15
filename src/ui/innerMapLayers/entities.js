@@ -21,6 +21,7 @@ import { InnerMapFelling } from '../innerMapFelling.js';
 import { InnerMapBattle } from '../innerMapBattle.js';
 import { InnerMapEscort } from '../innerMapEscort.js';
 import { InnerMapCompanions } from '../innerMapCompanions.js';
+import { InnerMapPets } from '../innerMapPets.js';
 import { InnerMapSickness } from '../innerMapSickness.js';
 import { InnerMapPlague } from '../innerMapPlague.js';
 import { InnerMapRites } from '../innerMapRites.js';
@@ -1300,6 +1301,8 @@ Object.assign(InnerMapRenderer, {
         InnerMapEscort.collect(items, ctx, camera, T);
         // ── Phase 3f2: Your travelling companions beside you (ui/innerMapCompanions.js) ──
         InnerMapCompanions.collect(items, ctx, camera, T);
+        // ── Phase 3f3: Your animals with you, and a town's stray (ui/innerMapPets.js) ──
+        InnerMapPets.collect(items, ctx, camera, T);
         // ── Phase 3g: Handcarts and wagons, and whoever lies on one (ui/innerMapCarts.js) ──
         InnerMapCarts.collect(items, ctx, camera, T);
 

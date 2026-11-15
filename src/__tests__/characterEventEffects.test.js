@@ -40,11 +40,14 @@ describe('character event effects', () => {
         expect(hollow).toEqual([]);
     });
 
-    it('a trade boom fills the treasury', () => {
-        const { a, world } = makeRealm();
+    it("a trade boom fills the treasury — out of the realm's towns' purses, not from nothing", () => {
+        const { a, world, tiles } = makeRealm();
+        for (const t of Object.values(tiles)) t.settlement.economy = { gold: 1000 };
         const ev = Characters.CHARACTER_EVENTS.find(e => e.id === 'trade_boom');
         Characters.applyEventDataEffects(ev.effects, a, world);
-        expect(a.treasury).toBe(1100);
+        expect(a.treasury).toBeCloseTo(1100, 0);
+        // (every coin came from the towns)
+        expect(a.treasury + Object.values(tiles).reduce((s, t) => s + t.settlement.economy.gold, 0)).toBeCloseTo(4000, 6);
     });
 
     it('a plague thins every settlement and shakes stability', () => {

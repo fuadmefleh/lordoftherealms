@@ -63,7 +63,8 @@ export const MetaLegacyStart = {
         const items = _obj(spec.items) || {};
         for (const [id, qty] of Object.entries(items)) {
             const n = Math.max(0, Math.floor(_num(qty)));
-            if (n > 0) PlayerInventory.addItem(player, id, n, { force: true });
+            // (inventory keys are the goods' lower-case ids: 'book', never the catalogue's 'BOOK')
+            if (n > 0) PlayerInventory.addItem(player, String(id).toLowerCase(), n, { force: true });
         }
         if (Array.isArray(spec.traits) && spec.traits.length) Traits.grantTraits(player, spec.traits);
         if (_num(spec.renown)) player.renown = _num(player.renown) + _num(spec.renown);

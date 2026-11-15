@@ -26,6 +26,7 @@
 import { Utils } from '../core/utils.js';
 import { PlayerInventory } from './inventory.js';
 import { PracticeSkills } from '../systems/practiceSkills.js';
+import { AnimalCompanions } from '../systems/animalCompanions.js';
 
 /** Rare finds (chance at or below this) are the ones luck favours. */
 const RARE_CHANCE = 0.1;
@@ -327,8 +328,9 @@ export const Hunting = {
         return Math.max(0, Hunting.perk(player, 'meat') / 100 + (_num(player && player.luck, 5) - 5) * 0.04);
     },
 
+    /** A part's quantity: its range, and a chance of one more (the meat perk, luck, a dog's nose or a hawk for small game). */
     rollQty(entry, player) {
-        return _rollQty(entry, Hunting.qtyBonusChance(player));
+        return _rollQty(entry, Hunting.qtyBonusChance(player) + AnimalCompanions.huntQtyBonus(player, entry));
     },
 
     /** The quarry the hunt follows: a weighted pick (luck favours the rare beasts). */

@@ -30,6 +30,7 @@ import { RivalHouses } from '../systems/rivalHouses.js';
 import { CadetBranches } from '../systems/cadetBranches.js';
 import { botDay, personaOf } from './playtest/bot.js';
 import { Scenarios } from '../player/scenarios.js';
+import { worldMetrics, moneyBooks, stateSizes, topSizes, growthDiff } from './playtest/metrics.js';
 
 const ENV = (typeof process !== 'undefined' && process.env) || {};
 const LONG = !!ENV.SOAK;
@@ -43,18 +44,36 @@ const SAVE_EVERY = 20 * DAYS_PER_YEAR;
 // A day costs ~60-150ms late in a run (the world fills up); generous for the slow years
 const TIMEOUT = Number(ENV.SOAK_TIMEOUT) || Math.max(150000, DAYS * 400);
 const GOLD_CAP = 1e7;
+// SOAK_METRICS=1: a yearly row of the world's curves (people, size classes, purses,
+// prices, units) and, every SOAK_WALK_YEARS (20), a walk of the save's state sizes;
+// the report ends with what grew between the first and last walk (playtest/metrics.js)
+const METRICS = !!ENV.SOAK_METRICS;
+const WALK_EVERY = (Number(ENV.SOAK_WALK_YEARS) || 20) * DAYS_PER_YEAR;
 
 // The engine logs chattily (pathfinding, generation); keep the run quiet
 let logSpy;
 let warnSpy;
+let errorSpy;
+const warnings = new Map();
+function countWarning(kind, args) {
+    const key = `${kind}: ${args.map(a => (a && a.message) || String(a)).join(' ').replace(/\d+/g, '#').slice(0, 100)}`;
+    warnings.set(key, (warnings.get(key) || 0) + 1);
+}
 beforeAll(async () => {
     await loadData();
     logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-    warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    // (SOAK_METRICS counts the warnings and errors by their opening words: a warning spammed daily shows)
+    warnSpy = vi.spyOn(console, 'warn').mockImplementation((...a) => { if (METRICS) countWarning('warn', a); });
+    if (METRICS) errorSpy = vi.spyOn(console, 'error').mockImplementation((...a) => countWarning('error', a));
 });
 afterAll(() => {
     if (logSpy) logSpy.mockRestore();
     if (warnSpy) warnSpy.mockRestore();
+    if (errorSpy) errorSpy.mockRestore();
+    if (METRICS && warnings.size) {
+        const rows = [...warnings].sort((a, b) => b[1] - a[1]).slice(0, 30).map(([k, v]) => `  ${v}× ${k}`);
+        process.stdout.write(['warnings/errors (by count):', ...rows].join('\n') + '\n');
+    }
 });
 
 /** Standing with the living realms: "friendly/neutral/hostile, at war" (≥10 / −30…10 / below). */
@@ -191,6 +210,8 @@ function probeArbitrage(game) {
                 }
                 for (const o of offers) {
                     if (o.price > buy.price) {
+                        // SOAK_ARB_DUMP=1: the first loop's price parts, as it happens
+                        if (ENV.SOAK_ARB_DUMP && !probeArbitrage.dumped && good) { probeArbitrage.dumped = true; process.stdout.write(`ARB day ${world.day} ${JSON.stringify(Trading.saleDiag(p, good, at.settlement, world, tile))}\n`); }
                         found.push(`${who} ${id}: buy ${buy.price} (${buy.via}) at ${tile.settlement.name} → sell ${Math.round(o.price * 100) / 100} (${o.via}) at ${at.settlement.name}`);
                     }
                 }
@@ -270,6 +291,9 @@ function runSoak(seed) {
     let game = newGame(seed, SOAK_GEN);
     // SOAK_TIMING=1: ms spent in each step of the day (harness mark()), in the verbose report
     if (ENV.SOAK_TIMING) game.timing = {};
+    // SOAK_MONEY=1: the world's coin booked by the step that moved it (harness mark());
+    // a day the world's money jumps by a fifth prints its movers
+    if (ENV.SOAK_MONEY) { game.moneyTrace = { by: {}, day: {}, last: null, crown: {}, crownLast: null }; game.popTrace = { by: {}, last: null }; }
     if (SOAK_ORIGIN) Scenarios.apply(game.player, game.world, { origin: SOAK_ORIGIN });
     const stats = {};
     const problems = [];
@@ -281,6 +305,10 @@ function runSoak(seed) {
     const growth = [];
     let yearStart = performance.now();
     const startDay = game.world.day;
+    const metrics = [];
+    const walks = [];
+    const decadeTiming = [];
+    let lastTiming = {};
     for (let i = 0; i < DAYS; i++) {
         const day = game.world.day;
         try {
@@ -298,6 +326,15 @@ function runSoak(seed) {
             throw new Error(`seed ${seed} day ${day}: endDay threw: ${e.stack}`);
         }
         problems.push(...checkInvariants(game, 'after endDay'));
+        if (game.moneyTrace) {
+            const t = game.moneyTrace;
+            const moved = Object.values(t.day).reduce((a, b) => a + b, 0);
+            if (t.last > 1000 && Math.abs(moved) > 0.2 * (t.last - moved)) {
+                const top = Object.entries(t.day).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1])).slice(0, 6);
+                process.stdout.write(`MONEY JUMP day ${game.world.day}: ${Math.round(t.last - moved)} → ${Math.round(t.last)}: ${top.map(([k, v]) => `${k} ${Math.round(v)}`).join(', ')}\n`);
+            }
+            t.day = {};
+        }
         const pl = game.player;
         lifePeak = Math.max(lifePeak, pl.gold || 0);
         history.push([game.world.day, Math.round(pl.gold), Math.round(pl.health), pl.getFoodCount(), pl.starvationDays || 0,
@@ -322,13 +359,45 @@ function runSoak(seed) {
         }
         if ((i + 1) % DAYS_PER_YEAR === 0) {
             const now = performance.now();
-            const bytes = JSON.stringify({ world: SaveLoad.serializeWorld(game.world), player: SaveLoad.serializePlayer(game.player) }).length;
-            growth.push({ year: (i + 1) / DAYS_PER_YEAR, msPerDay: Math.round((now - yearStart) / DAYS_PER_YEAR), saveKB: Math.round(bytes / 1024), gold: Math.round(game.player.gold), age: game.player.age, life: game.player.maxLifespan, standing: standingOf(game) });
+            const save = { world: SaveLoad.serializeWorld(game.world), player: SaveLoad.serializePlayer(game.player) };
+            const bytes = JSON.stringify(save).length;
+            if (game.moneyTrace) {
+                const t = game.moneyTrace;
+                const top = Object.entries(t.by).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1])).slice(0, 8);
+                process.stdout.write(`MONEY y${(i + 1) / DAYS_PER_YEAR} ${Math.round(t.last)}: ${top.map(([k, v]) => `${k} ${Math.round(v)}`).join(', ')}\n`);
+                t.by = {};
+                // (the banks' hoard by holder and the crowns' books: playtest/metrics.js moneyBooks)
+                const mb = moneyBooks(game);
+                const treas = game.world.kingdoms.filter(k => k && k.isAlive).reduce((a, k) => a + (Number(k.treasury) || 0), 0);
+                process.stdout.write(`BOOKS y${(i + 1) / DAYS_PER_YEAR} treas ${Math.round(treas)} banks {${mb.banksBy}} fisc {${mb.fisc}}\n`);
+                const ctop = Object.entries(t.crown || {}).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1])).slice(0, 8);
+                process.stdout.write(`CROWN y${(i + 1) / DAYS_PER_YEAR}: ${ctop.map(([k, v]) => `${k} ${Math.round(v)}`).join(', ')}\n`);
+                t.crown = {};
+                process.stdout.write(`LINES y${(i + 1) / DAYS_PER_YEAR}: ${Object.entries(t.lines || {}).filter(([, v]) => Math.abs(v) >= 1).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1])).map(([k, v]) => `${k} ${Math.round(v)}`).join(', ')}\n`);
+                t.lines = {};
+                const pt = game.popTrace;
+                const ptop = Object.entries(pt.by).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1])).slice(0, 8);
+                process.stdout.write(`PEOPLE y${(i + 1) / DAYS_PER_YEAR} ${Math.round(pt.last)}: ${ptop.map(([k, v]) => `${k} ${Math.round(v)}`).join(', ')}\n`);
+                pt.by = {};
+            }
+            if (METRICS) {
+                const year = (i + 1) / DAYS_PER_YEAR;
+                metrics.push({ year, ...worldMetrics(game) });
+                if ((i + 1) % WALK_EVERY === 0) walks.push({ year, sizes: stateSizes(save, { name: 'save' }) });
+                if (game.timing && year % 10 === 0) {
+                    const delta = Object.entries(game.timing).map(([k, v]) => [k, (v - (lastTiming[k] || 0)) / (10 * DAYS_PER_YEAR)]);
+                    decadeTiming.push(`y${year}: ${delta.sort((a, b) => b[1] - a[1]).slice(0, 8).map(([k, v]) => `${k} ${v.toFixed(1)}`).join(', ')}`);
+                    lastTiming = { ...game.timing };
+                }
+            }
+            const bank = Object.values((game.player.finance && game.player.finance.accounts) || {}).reduce((a, x) => a + Math.max(0, Number(x && x.balance) || 0), 0);
+            growth.push({ bank: Math.round(bank), year: (i + 1) / DAYS_PER_YEAR, msPerDay: Math.round((now - yearStart) / DAYS_PER_YEAR), saveKB: Math.round(bytes / 1024), gold: Math.round(game.player.gold), age: game.player.age, life: game.player.maxLifespan, standing: standingOf(game) });
             yearStart = performance.now();
         }
         if (i === SAVE_AT || (i > 0 && i % SAVE_EVERY === 0)) {
             const before = snapshot(game);
             game = roundTrip(game);
+            if (game.moneyTrace) { game.moneyTrace.last = null; game.popTrace.last = null; }
             expect(snapshot(game), `seed ${seed}: save/load round trip changed state`).toEqual(before);
             problems.push(...checkInvariants(game, 'after load'));
         }
@@ -336,7 +405,7 @@ function runSoak(seed) {
             problems.push(...guardianProblems(game, i === SAVE_AT ? 'after load' : 'after reload day'));
         }
     }
-    return { game, stats, problems, arbitrage: [...arbitrage], died, history, lives, growth, days: game.world.day - startDay };
+    return { game, stats, problems, arbitrage: [...arbitrage], died, history, lives, growth, days: game.world.day - startDay, metrics, walks, decadeTiming };
 }
 
 const totals = {};
@@ -344,17 +413,26 @@ const totals = {};
 describe('headless playtest soak', () => {
     for (const seed of SEEDS) {
         it(`seed ${seed}: the bot plays ${DAYS} days (${+(DAYS / DAYS_PER_YEAR).toFixed(1)} years) without breaking an invariant`, () => {
-            const { game, stats, problems, arbitrage, died, history, lives, growth, days } = runSoak(seed);
+            const { game, stats, problems, arbitrage, died, history, lives, growth, days, metrics, walks, decadeTiming } = runSoak(seed);
+            if (METRICS) {
+                const out = [`seed ${seed} metrics:`];
+                for (const m of metrics) out.push(`  y${m.year} pop ${m.pop} (realms ${m.realmPop}, ${m.realms}) towns ${m.towns} ${JSON.stringify(m.sizes)} avg ${JSON.stringify(m.avgPop)} folk ${m.folk}/${m.folkDead}d purse med ${m.purseMedian} tot ${m.purseTotal} treas ${m.treasury} prices ${JSON.stringify(m.prices)} units ${m.units} [${m.unitTypes}] columns ${m.columns} plague ${m.plague} gates ${m.gates} gangs ${m.gangs} coin ${m.coin} [${m.coinBy}] gold ${m.gold}${ENV.SOAK_MONEY ? ` banks {${m.banksBy}} fisc {${m.fisc}}` : ''}${m.nanPurse || m.nanStock || m.negStock ? ` BAD nanPurse ${m.nanPurse} nanStock ${m.nanStock} negStock ${m.negStock}` : ''}`);
+                for (const t of decadeTiming) out.push(`  timing ${t}`);
+                for (const w of walks) out.push(`  walk y${w.year}:`, ...topSizes(w.sizes, 30).map(x => `    ${x}`));
+                if (walks.length >= 2) out.push(`  grew y${walks[0].year} → y${walks[walks.length - 1].year}:`, ...growthDiff(walks[0].sizes, walks[walks.length - 1].sizes, 40).map(x => `    ${x}`));
+                process.stdout.write(out.join('\n') + '\n');
+            }
             for (const [k, v] of Object.entries(stats)) totals[k] = (totals[k] || 0) + v;
             if (ENV.SOAK_VERBOSE) {
                 const uw = game.player.underworld;
                 const report = {
-                    days, died, gold: Math.round(game.player.gold), lives, growth: growth.map(g => `y${g.year} ${g.msPerDay}ms/day ${g.saveKB}KB ${g.gold}g age ${g.age}/${g.life} realms ${g.standing}`), stats, ledger: game.ledger,
+                    days, died, gold: Math.round(game.player.gold), lives, growth: growth.map(g => `y${g.year} ${g.msPerDay}ms/day ${g.saveKB}KB ${g.gold}g bank ${g.bank}g age ${g.age}/${g.life} realms ${g.standing}`), stats, ledger: game.ledger,
                     history: died ? history.map(h => h.join(' ')) : undefined,
                     rivalHouses: RivalHouses.rivals(game.player).filter(r => r.head).map(r => `${RivalHouses.headName(r)} ${r.head.age} (${r.name}, head #${(r.stats && r.stats.heads) || 1}): ${Math.round(r.gold)}g, feud ${Math.round(r.feud || 0)}, ${r.head.children.length} kids, trades ${r.stats.trades} (${Math.round(r.stats.tradeProfit)}g), court ${r.stats.courtVisits}, plots paid ${r.stats.plotsPaid}`),
                     cadets: CadetBranches.list(game.player).map(b => `${CadetBranches.headName(b)} ${b.head.age} (${b.name}, depth ${b.depth}, head #${(b.stats && b.stats.heads) || 1}): ${Math.round(b.gold)}g, loyalty ${Math.round(b.loyalty)}${b.estranged ? ' ESTRANGED' : ''}, trades ${b.stats.trades}, court ${b.stats.courtVisits}, tribute ${Math.round(b.stats.tribute || 0)}g, levies ${b.stats.levies || 0}`),
                     timing: game.timing && Object.entries(game.timing).sort((a, b) => b[1] - a[1]).slice(0, 12).map(([k, v]) => `${k} ${(v / Math.max(1, days)).toFixed(2)}ms/day`)
                         .concat(game.timing['CadetBranches.processDay'] != null ? [`CadetBranches.processDay ${(game.timing['CadetBranches.processDay'] / Math.max(1, days)).toFixed(2)}ms/day`] : []),
+                    hostiles: game.hostileBy,
                     uw: uw && { guild: uw.guild, rackets: uw.rackets, stats: uw.stats, gangs: uw.gangs, dirty: uw.dirty },
                     company: MerchantHouses.company(game.player) && (({ capital, reputation, posts, stats: cs, contracts, foundedDay }) => ({
                         founded: `day ${foundedDay}, year ${Math.floor((foundedDay - (game.world.day - days)) / DAYS_PER_YEAR) + 1} of the run`,

@@ -141,6 +141,9 @@ export const FieldBattle = {
         // Everything about the player's side that does not change mid-battle
         let pMult = PlayerMilitary._terrainMultiplier(terrainId, pComp) * PlayerMilitary._weatherMultiplier(weather, pComp);
         pMult *= 1 + PlayerEffects.companionBonus(player, 'power');
+        // Friends near enough take up arms beside you (systems/bonds.js; onBattle thanks them after)
+        const aid = Bonds.battleAid(player, world);
+        pMult *= aid.mult;
         pMult *= 1 + PlayerEffects.artifactBonus(player, 'battlePower');
         pMult *= 1 + PlayerEffects.treasureBonus(player, 'battlePower');
         pMult *= PlayerEffects.moodCombatMultiplier(player);
@@ -191,6 +194,8 @@ export const FieldBattle = {
             pTerrain: PlayerMilitary._terrainMultiplier(terrainId, pComp),
             eTerrain: PlayerMilitary._terrainMultiplier(terrainId, eComp),
             commanderSlain: !!specials.commanderSlain,
+            // The friends who took up arms beside you, for the field's header (systems/bonds.js)
+            aidNames: aid.names.slice(),
             // A nemesis's men who have learnt your favourite stance (systems/nemesis.js): { stance, mult, text } or null
             nemesisRead: Nemesis.battleRead(player, world, enemy),
             // The battle's luck: hidden from the odds, felt in every phase

@@ -175,13 +175,14 @@ export const RealmEscort = {
         return Math.floor((Math.max(0, _num(kingdom && kingdom.military)) + Math.max(0, already)) * _num(R.maxShare, 0.05));
     },
 
-    /** One piece of an arms good of these classes out of the armoury stock (the best tier held), or null. */
-    _takePiece(stock, classes) {
+    /** One piece of an arms good of these classes (for that slot, when named) out of the armoury stock (the best tier held), or null. */
+    _takePiece(stock, classes, slot = null) {
         let best = null;
         for (const [id, n] of Object.entries(stock || {})) {
             if (!(_num(n) >= 1)) continue;
             const def = Arms.item(id);
-            if (!def || !classes.includes(def.class)) continue;
+            // (a leather class is a jerkin for the body and boots for the feet)
+            if (!def || !classes.includes(def.class) || (slot && def.slot !== slot)) continue;
             if (!best || _num(def.tier, 1) > _num(best.def.tier, 1)) best = { id, def };
         }
         if (!best) return null;
@@ -201,7 +202,7 @@ export const RealmEscort = {
         if (spec) {
             const kit = { g: {}, cond: 100 };
             for (const [slot, s] of Object.entries(spec.slots || {})) {
-                const id = RealmEscort._takePiece(stock, Array.isArray(s.classes) ? s.classes : []);
+                const id = RealmEscort._takePiece(stock, Array.isArray(s.classes) ? s.classes : [], slot);
                 if (id) kit[slot] = id;
             }
             unit.kit = kit;
@@ -222,7 +223,7 @@ export const RealmEscort = {
         let n = 0;
         const kit = _obj(unit.kit);
         if (kit) {
-            for (const s of ['main', 'off', 'head', 'body']) {
+            for (const s of Arms.SLOTS) {
                 if (!Arms.item(kit[s])) continue;
                 stock[kit[s]] = _r2(_num(stock[kit[s]]) + 1);
                 n++;

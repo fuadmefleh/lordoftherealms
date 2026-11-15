@@ -97,7 +97,7 @@ function _seed(world) {
 const DEFAULTS = {
     formAt: 40, startStrength: 22, maxBonds: 24, maxPast: 30, historyCap: 12,
     kinds: { friend: { icon: '🤝', label: 'Friend', decay: 1 } },
-    sworn: { icon: '🩸', brother: 'Sworn Brother', sister: 'Sworn Sister', decay: 0.3 },
+    sworn: { icon: '🗡️', brother: 'Sworn Brother', sister: 'Sworn Sister', decay: 0.3 },
     deeds: {},
     neglect: { graceDays: 30, perDay: 0.2, grievanceFromDrop: 30, grievancePerDay: 0.08, grievanceFade: 0.06 },
     drink: { cost: 4, cooldownDays: 1, social: 20, fun: 10 },
@@ -138,6 +138,14 @@ export const Bonds = {
 
     _line(key, vars) {
         return _fill(Bonds.config().lines[key] || key, vars);
+    },
+
+    /** "Ada and Bran took up arms beside you." — the friends battleAid() brought (data lines.aidBattle). */
+    aidLine(names) {
+        const n = (names || []).filter(Boolean);
+        if (!n.length) return '';
+        const list = n.length === 1 ? n[0] : `${n.slice(0, -1).join(', ')} and ${n[n.length - 1]}`;
+        return Bonds._line('aidBattle', { names: list });
     },
 
     kindDef(id) {
@@ -765,7 +773,7 @@ export const Bonds = {
         b.owed = { amount, day, due: day + D.dueDays };
         st.lastDebtAid = day;
         Bonds.deed(player, world, b, 'aid', { note: `lent you ${amount} gold when you were short` });
-        out.notices.push({ icon: '🫱', title: 'A Friend in Need', text: Bonds._line('aidDebt', { name: b.name, amount }), type: 'success' });
+        out.notices.push({ icon: '🤝', title: 'A Friend in Need', text: Bonds._line('aidDebt', { name: b.name, amount }), type: 'success' });
     },
 
     /** Their purse (relationship NPCs carry one: systems/npcChat.js); savings seeded once from who they are. */
@@ -1134,7 +1142,12 @@ export const Bonds = {
     /** For the free-talk persona (systems/npcChat.js): one or two lines on the bond. */
     personaLines(player, world, who) {
         const b = Bonds.forSubject(player, who);
-        if (!b) return [];
+        if (!b) {
+            // A friend the player sold out remembers it (betray → npc.betrayedByPlayer)
+            const n = who && who.npc;
+            if (n && n.betrayedByPlayer != null) return [`${player.name || 'They'} was your friend once, and sold you to the watch for a purse of silver. You will never trust them again.`];
+            return [];
+        }
         const npc = Bonds._npc(b.npcId);
         const pName = player.name || 'they';
         const strength = Math.round(b.strength);

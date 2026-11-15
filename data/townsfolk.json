@@ -53,6 +53,11 @@
     "maxAnnals": 60,
     "maxLog": 14,
     "pruneAfterYears": 40,
+    "pruneDeadAfterYears": 5,
+    "compact": {
+        "afterYears": 1,
+        "drop": ["practiceSkills", "skillAge", "imm", "ill", "job", "brawled", "atService", "devout", "heart", "literacy", "school", "shopped", "robbedDay", "diet", "seen", "hurt", "nmSaid", "preg", "postpartum", "cbChk", "jailedUntil"]
+    },
     "names": {
         "male": ["Brom", "Dorn", "Finn", "Holt", "Jace", "Lars", "Nils", "Per", "Rolf", "Tor", "Voss", "Arne", "Bjorn", "Dag", "Frey", "Hakon", "Jarl", "Knut", "Njord", "Peder", "Sven", "Ulf", "Viggo", "Eirik", "Gunnar", "Halvard", "Ivar", "Leif", "Magnus", "Odd", "Rurik", "Stig", "Tormod", "Vidar", "Aksel", "Birger"],
         "female": ["Ada", "Clara", "Eva", "Greta", "Iris", "Kira", "Maeve", "Ora", "Quinn", "Siv", "Una", "Wren", "Xara", "Zara", "Cora", "Elsa", "Gerd", "Inga", "Lena", "Marta", "Olga", "Ragna", "Thora", "Ylva", "Astrid", "Brynja", "Dagny", "Freya", "Gudrun", "Hilde", "Ingrid", "Liv", "Sigrid", "Solveig", "Tove", "Vigdis"]

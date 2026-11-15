@@ -5,6 +5,7 @@
         "firstFormDay": 12,
         "formEvery": 14,
         "maxLairs": 6,
+        "endedKeepDays": 360,
         "maxPerKingdom": 2,
         "minTownDist": 3,
         "maxTownDist": 8,
@@ -44,7 +45,6 @@
             "partyPer": 45,
             "daysOut": 18,
             "notorietySpeedup": 0.4,
-            "caravanRadius": 6,
             "restDays": 30,
             "minGap": 5,
             "pursuitRange": 2
@@ -139,8 +139,6 @@
             "perStrength": 4,
             "perNotoriety": 2,
             "days": 60,
-            "greedy": 1.4,
-            "honourable": 0.8,
             "reputation": -2,
             "growthShare": 0.5
         },
@@ -168,10 +166,8 @@
             "base": 80,
             "perNotoriety": 6,
             "radius": 24,
-            "daysLimit": 120,
-            "bonusShare": 0.25
+            "daysLimit": 120
         },
-        "chatterRadius": 10,
         "tavernRadius": 20,
         "historyCap": 30
     },

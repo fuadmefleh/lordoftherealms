@@ -8,6 +8,7 @@ import { FieldBattle } from '../../player/fieldBattle.js';
 import { lede, chips, card, bullets, rowList, esc } from './uiKit.js';
 import { InnerMapBattle } from '../innerMapBattle.js';
 import { Arms } from '../../systems/arms.js';
+import { Bonds } from '../../systems/bonds.js';
 import { openLordAudience, lordAudienceAct } from './lordAudience.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerEffects, Treasures } from './_imports.js';
 
@@ -24,6 +25,9 @@ function battleExtrasHtml(result) {
     }
     if (result.shipSupport > 0) {
         html += `<div style="color: #7cc7e8;">🚢 Your ship joined the fight (+${result.shipSupport} strength)</div>`;
+    }
+    if (result.aidNames && result.aidNames.length) {
+        html += `<div style="color: #a5d6a7;">🤝 ${esc(Bonds.aidLine(result.aidNames))}</div>`;
     }
     if (result.commanderSlain) {
         html += `<div style="color: #ce93d8;">🗡️ Your assassins slew the enemy commander — their ranks broke!</div>`;

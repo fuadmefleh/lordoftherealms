@@ -23,7 +23,7 @@
         "borders": {
             "open": { "label": "Open gates", "hint": "Anyone may come and settle." },
             "refugees": { "label": "Refugees only", "hint": "Only those fleeing war, famine or plague are let in." },
-            "closed": { "label": "Closed borders", "hint": "No newcomers settle: refugees are turned back at the gates." }
+            "closed": { "label": "Closed borders", "hint": "No newcomers settle: refugees are turned back at the gates, and word of it costs you renown." }
         },
         "closedRefusedFame": -1
     },
@@ -102,10 +102,10 @@
         "taxes": { "icon": "💰", "push": "driven out by the taxes", "short": "taxes" },
         "crime": { "icon": "🦹", "push": "tired of the thieves", "short": "crime" },
         "laws": { "icon": "⚖️", "push": "chafing at harsh laws", "short": "harsh laws" },
-        "idle": { "icon": "🪓", "push": "out of work", "short": "no work" },
+        "idle": { "icon": "🔨", "push": "out of work", "short": "no work" },
         "crowding": { "icon": "🏚️", "push": "short of land", "short": "crowding" },
         "climate": { "icon": "❄️", "push": "driven off by the hard seasons", "short": "hard seasons" },
-        "wages": { "icon": "🪙", "pull": "for better wages", "short": "wages" },
+        "wages": { "icon": "💰", "pull": "for better wages", "short": "wages" },
         "work": { "icon": "🔨", "pull": "for work", "short": "work" },
         "prosperity": { "icon": "✨", "pull": "drawn by its prosperity", "short": "prosperity" },
         "grants": { "icon": "📜", "pull": "for the settlers' grants", "short": "grants" },

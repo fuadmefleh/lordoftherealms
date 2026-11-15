@@ -89,6 +89,7 @@ const DEFAULTS = {
             land: { label: 'Land and grants', pull: 0.08, cost: 2 },
         },
         borders: { open: { label: 'Open gates' }, refugees: { label: 'Refugees only' }, closed: { label: 'Closed borders' } },
+        closedRefusedFame: -1,
     },
     folk: { minHousehold: 1, maxHouseholdsWeek: 3, scaleMin: 0.5, scaleMax: 2.2 },
     columns: { min: 25, max: 14, minDistance: 2, daysPerHex: 2, maxDays: 80, refugeeIcon: '🧳', migrantIcon: '🎒' },
@@ -453,7 +454,10 @@ export const Migration = {
             if (!(k > 0) || day - _num(st.refused[key], -1e9) < 30) continue;
             st.refused[key] = day;
             if (player) {
-                out.notices.push({ icon: '🚧', title: 'Turned Back', text: `Newcomers seeking to settle in ${t.name} were turned back at the gates on your orders.`, type: 'info' });
+                // Word goes round of the lord who shut the gates on the desperate (policy.closedRefusedFame renown)
+                const fame = _num(Migration.config().policy.closedRefusedFame);
+                if (fame) player.renown = Math.max(0, _num(player.renown) + fame);
+                out.notices.push({ icon: '🚧', title: 'Turned Back', text: `Newcomers seeking to settle in ${t.name} were turned back at the gates on your orders.${fame < 0 ? ' Word of it does your name no good.' : ''}`, type: 'info' });
             }
         }
     },

@@ -100,9 +100,24 @@ describe('settlement food model', () => {
     };
 
     it('a village with a little market food grows, but never past its capacity', () => {
-        const v = feed({ type: 'village', population: 1000, _marketFood: 20 }, 365);
-        expect(v.population).toBeGreaterThan(1000);
-        expect(v.population).toBeLessThan(Economy.FOOD.capacity.village);
+        const v = feed({ type: 'village', population: 400, _marketFood: 20 }, 365);
+        expect(v.population).toBeGreaterThan(400);
+        expect(v.population).toBeLessThan(Economy.FOOD.villageCap);
+    });
+
+    // (2026-11 soak: at 1500 every village crossed migration's town line within decades)
+    it('a village grows on its own only up to its cap, under the town line; a dawn village rises past it', () => {
+        const plain = feed({ type: 'village', population: 590, _marketFood: 200 }, 1200);
+        expect(plain.population).toBeLessThanOrEqual(Economy.FOOD.villageCap);
+        const dawn = feed({ type: 'village', population: 590, _marketFood: 200, dawnBorn: true }, 1200);
+        expect(dawn.population).toBeGreaterThan(Economy.FOOD.villageCap);
+    });
+
+    it('growth room tapers to nothing at what a place\'s kind can feed (the realm\'s healers drift by it too)', () => {
+        expect(Economy.growthRoom({ type: 'capital', population: Economy.FOOD.capacity.capital })).toBe(0);
+        expect(Economy.growthRoom({ type: 'town', population: Economy.FOOD.capacity.town / 2 })).toBeCloseTo(0.5, 6);
+        expect(Economy.growthRoom({ type: 'village', population: Economy.FOOD.villageCap })).toBe(0);
+        expect(Economy.growthRoom({ type: 'village', population: Economy.FOOD.villageCap, dawnBorn: true })).toBeGreaterThan(0);
     });
 
     // (2026-11: a town buys the food it doesn't grow at its own market — what

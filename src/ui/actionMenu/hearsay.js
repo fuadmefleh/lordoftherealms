@@ -27,7 +27,7 @@ Object.assign(ActionMenu, {
         html += chips([
             ['👂', 'Tales here', v.here.length],
             ['🛣️', 'Told elsewhere only', v.elsewhere],
-            ['🧑‍🤝‍🧑', 'Folk who remember you', v.people.length],
+            ['👥', 'Folk who remember you', v.people.length],
         ]);
         if (!v.here.length) {
             html += lede(`Nobody in ${esc(v.town)} has much to say of you yet. What you tell people in free talk — who you are, what you've done, what you swear — is remembered, and repeated.`);

@@ -117,6 +117,19 @@ describe('the Annals read in the past tense', () => {
         expect(text).toContain('"The Ashford Book"');
     });
 
+    it('rival notices read as prose: no game numbers, the realm named with its article', () => {
+        const player = fixturePlayer();
+        player.house.history = [
+            { day: 10, generation: 1, text: 'House Varr, the crown: Slander spreads through Kingdom of Valdoria and Kingdom of Sylvaris: −8 reputation with each, −5 renown.', tags: ['feud'] },
+            { day: 20, generation: 1, text: 'Lord Ulfric Windfang has achieved an ambition: Fill the Coffers. House Windfang grows in renown.', tags: ['feud'] },
+        ];
+        const book = Annals.compose(player, { day: 200, baseYear: 1000, kingdoms: [], getKingdom: () => null });
+        const text = book.chapters.flatMap(c => c.paragraphs || []).map(p => p.text).join('\n');
+        expect(text).toContain('Slander sown by House Varr spread through the Kingdom of Valdoria and the Kingdom of Sylvaris.');
+        expect(text).toContain('Lord Ulfric Windfang achieved an ambition');
+        expect(text).not.toMatch(/reputation|−\d|, the crown/);
+    });
+
     it('plain past-tense and noun phrases are left alone', () => {
         const player = fixturePlayer();
         player.house.history = [

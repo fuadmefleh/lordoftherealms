@@ -68,6 +68,27 @@ describe('AutoUpkeep', () => {
         expect(gold - player.gold).toBeLessThanOrEqual(gold * AutoUpkeep.config().food.purseShare);
     });
 
+    it('an empty pack and a thin purse: the last coins still go on bread', () => {
+        const { world, player } = newGame(4242, { terrainGen: 3 });
+        const tile = world.getTile(player.q, player.r);
+        expect(tile && tile.settlement).toBeTruthy();
+        for (const k of Object.keys(player.inventory || {})) if ((player.constructor.FOOD_TYPES || []).includes(k)) player.inventory[k] = 0;
+        player.gold = 5000;
+        const one = AutoUpkeep._marketFood(player, world, tile, AutoUpkeep.config());
+        expect(one).toBeTruthy();
+        // A purse worth one meal and a little: more than half of it is needed
+        player.gold = 1000;
+        one();
+        const meals = player.getFoodCount();
+        expect(meals).toBeGreaterThan(0);
+        const unit = Math.ceil((1000 - player.gold) / meals);
+        for (const k of Object.keys(player.inventory || {})) if ((player.constructor.FOOD_TYPES || []).includes(k)) player.inventory[k] = 0;
+        player.gold = Math.ceil(unit * 1.3);
+        const run = AutoUpkeep._marketFood(player, world, tile, AutoUpkeep.config());
+        expect(run()).toBeTruthy();
+        expect(player.getFoodCount()).toBeGreaterThan(0);
+    });
+
     it('a pack with food in it buys nothing; the wilds have no market', () => {
         const { world, player } = newGame(4242, { terrainGen: 3 });
         player.gold = 300;

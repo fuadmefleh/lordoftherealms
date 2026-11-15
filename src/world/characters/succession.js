@@ -2,6 +2,8 @@
 import { Characters } from './_ref.js';
 import { Utils } from './_imports.js';
 import { Names } from '../../core/names.js';
+import { CrownBooks } from '../crownBooks.js';
+import { Economy } from '../economy.js';
 
 /** Dead royal children kept this many days (the court still mourns them), then dropped. */
 const FAMILY_MOURN_DAYS = 360;
@@ -178,7 +180,8 @@ Object.assign(Characters, {
             case 'civil_war':
                 // Lose territory and military
                 kingdom.military = Math.floor(kingdom.military * 0.6);
-                kingdom.treasury = Math.floor(kingdom.treasury * 0.7);
+                // (the war is paid for: a share of the chests, reckoned on a few weeks' revenue, spent in the capital)
+                CrownBooks.spendFromChests(world, kingdom, CrownBooks.lossBasis(kingdom) * 0.3);
                 // Reduce stability through advisor loyalty
                 if (kingdom.characterData.advisors) {
                     for (const advisor of Object.values(kingdom.characterData.advisors)) {
@@ -618,8 +621,17 @@ Object.assign(Characters, {
             out.stability = kingdom.stability - before;
         }
         if (fx.treasuryPct && typeof kingdom.treasury === 'number') {
-            const delta = Math.round(Math.max(0, kingdom.treasury) * fx.treasuryPct);
-            kingdom.treasury += delta;
+            // (real coin both ways, reckoned on a few weeks' revenue at most — CrownBooks.lossBasis: a loss
+            // is spent in the capital, a windfall comes out of the realm's towns' purses, 5% each at most)
+            const amount = Math.round(CrownBooks.lossBasis(kingdom) * Math.abs(fx.treasuryPct));
+            let delta = 0;
+            if (fx.treasuryPct < 0) delta = -CrownBooks.spendFromChests(world, kingdom, amount);
+            else if (amount > 0 && world && typeof world.getTile === 'function') {
+                const towns = Economy.realmTowns(kingdom, world).filter(t => Economy.townPurse(t.settlement) != null)
+                    .map(t => ({ settlement: t.settlement, weight: Math.max(1, t.settlement.population || 0) }));
+                delta = Math.floor(Economy.drawTowns(towns, amount, 0.05).paid * 100) / 100;
+                kingdom.treasury += delta;
+            }
             out.treasury = delta;
         }
         if (fx.militaryPct && typeof kingdom.military === 'number') {
@@ -715,7 +727,7 @@ Object.assign(Characters, {
                     if (roleKeys.length > 0) {
                         const role = Utils.randPick(roleKeys);
                         advisors[role].loyalty -= 20;
-                        kingdom.treasury = Math.floor(kingdom.treasury * 0.9);
+                        CrownBooks.spendFromChests(world, kingdom, CrownBooks.lossBasis(kingdom) * 0.1);
                     }
                 }
                 break;
@@ -750,12 +762,12 @@ Object.assign(Characters, {
                 for (const k of Object.keys(kingdom.relations)) {
                     kingdom.relations[k] = Math.min(100, (kingdom.relations[k] || 0) + 5);
                 }
-                kingdom.treasury -= Utils.randInt(50, 200);
+                CrownBooks.spendFromChests(world, kingdom, Utils.randInt(50, 200));
                 break;
 
             case 'tournament':
                 kingdom.military = Math.floor(kingdom.military * 1.05);
-                kingdom.treasury -= Utils.randInt(100, 300);
+                CrownBooks.spendFromChests(world, kingdom, Utils.randInt(100, 300));
                 break;
 
             case 'heir_born':

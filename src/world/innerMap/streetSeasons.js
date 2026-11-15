@@ -58,7 +58,7 @@ function _frozenSub(orig, thin) {
     const id = `frozen_${(orig && orig.id) || 'water'}${thin ? '_thin' : ''}`;
     let s = _frozen.get(id);
     if (!s) {
-        s = { id, name: thin ? 'Thin Ice' : 'Ice', icon: '🧊', color: thin ? '#a9cfe0' : '#d4e9f2', passable: true, frozen: true, thin: !!thin };
+        s = { id, name: thin ? 'Thin Ice' : 'Ice', icon: '❄️', color: thin ? '#a9cfe0' : '#d4e9f2', passable: true, frozen: true, thin: !!thin };
         _frozen.set(id, s);
     }
     return s;

@@ -64,8 +64,7 @@
         "renownTopple": -4,
         "prestigeYearly": 3,
         "pride": 3,
-        "shame": -2,
-        "inRealmNotice": true
+        "shame": -2
     },
     "name": { "at": 110, "revertYears": 6 },
     "battle": { "cairnAt": 40, "moundAt": 300, "mergeDays": 240, "nearTown": 1, "maxField": 3, "grief": -10, "griefPerHundred": -1.5, "griefMax": -18 },

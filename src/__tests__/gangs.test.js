@@ -284,6 +284,21 @@ describe('the boss\'s hand', () => {
         return { w, tile, p, g: res.gang };
     }
 
+    it('the boss away, the lieutenants keep the crew up out of the gang\'s purse; the fees go to the town', () => {
+        const { tile, g } = bossGame();
+        const s = tile.settlement;
+        g.crew = 2;
+        const before = g.purse + ((s.economy && s.economy.gold) || 0);
+        const k = Gangs._lieutenantsHire(g, s);
+        expect(k).toBeGreaterThan(0);
+        expect(k).toBeLessThanOrEqual(3);
+        expect(g.crew).toBe(2 + k);
+        expect(g.purse + s.economy.gold).toBeCloseTo(before, 6);
+        // A purse too thin for a month's wages hires no one
+        g.purse = 0;
+        expect(Gangs._lieutenantsHire(g, s)).toBe(0);
+    });
+
     it('buys the captain and the magistrate: fewer searches, cheaper bribes, a case dismissed', () => {
         const { w, tile, p, g } = bossGame();
         const search = Gangs.searchMult(p, w, tile);

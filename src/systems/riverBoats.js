@@ -21,6 +21,7 @@
 
 import { DataLoader } from '../core/dataLoader.js';
 import { Hex } from '../core/hex.js';
+import { PlayerInventory } from '../core/inventory.js';
 import { RiverDrift } from './riverDrift.js';
 import { Ledger } from './ledger.js';
 import { RiverLife } from './riverLife.js';
@@ -295,8 +296,8 @@ export const RiverBoats = {
         const n = qty === Infinity || qty == null ? have : Math.min(Math.floor(_num(qty)), have);
         if (!(n > 0)) return { ok: false, reason: 'There is none in the hold.' };
         if (canAdd && !canAdd(player, good)) return { ok: false, reason: 'Your packs are full.' };
-        if (!player.inventory) player.inventory = {};
-        player.inventory[good] = (player.inventory[good] || 0) + n;
+        const got = PlayerInventory.addItem(player, good, n);
+        if (!got.success) return { ok: false, reason: got.reason };
         b.cargo[good] = have - n;
         if (b.cargo[good] <= 0) delete b.cargo[good];
         return { ok: true, n };

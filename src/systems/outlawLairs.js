@@ -508,7 +508,20 @@ export const OutlawLairs = {
         }
         OutlawLairs._expeditions(world, player, st, units, out);
         OutlawLairs._realmEvents(world, st);
+        OutlawLairs._forgetEnded(st, day);
         return out;
+    },
+
+    /**
+     * Burned and scattered lairs are forgotten endedKeepDays after their end
+     * (the history keeps their story): a century would otherwise carry every
+     * lair that ever formed. Anything still holding a lair's id (a bounty, a
+     * task, a thief) reads a missing lair as gone (OutlawLairs.find → null).
+     */
+    _forgetEnded(st, day) {
+        const keep = _num(OutlawLairs.config().endedKeepDays, 360);
+        if (!st.lairs.some(l => l && l.status !== 'active' && day - _num(l.endedDay, day) > keep)) return;
+        st.lairs = st.lairs.filter(l => l && (l.status === 'active' || day - _num(l.endedDay, day) <= keep));
     },
 
     _syncParties(world, player, st, lair, units, out) {
@@ -1269,6 +1282,8 @@ export const OutlawLairs = {
                 targetName: lair.leader.name,
                 lairId: lair.id,
                 leaderGen: lair.leader.gen,
+                // (the realm that pays: systems/bountyHunting.js _payLairBounty)
+                kingdomId: kingdom ? kingdom.id : null,
                 notoriety: OutlawLairs.notorietyLabel(lair.notoriety).toLowerCase(),
                 difficulty: Math.min(10, Math.max(3, Math.round(_num(lair.strength) / 15))),
                 actualPay: pay,

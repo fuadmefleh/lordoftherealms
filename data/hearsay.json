@@ -24,6 +24,14 @@
         "contradictionSour": 8, "heardSour": 4
     },
 
+    "succession": {
+        "_doc": "When an heir takes the seat (Relationships.succeedAsHeir → Hearsay.onSuccession): every tale is kept of the late ruler by name ({late}), its reach in each town cut to `share` and capped there (it never grows back nor spreads to new towns), dropped where that leaves less than minReach; the heir is named as their kin ({tail}; kin words by successions back). The late ruler's claims are forgotten (they cannot catch the heir out), their promises lapse, and folk who talked with them remember knowing them. A new life as a stranger carries none of it. The heir's share of the ill will a heard tale costs is heardSour × share.",
+        "share": 0.35, "minReach": 0.04,
+        "late": "the late {of}",
+        "tail": "This one is {their} {kin}.",
+        "kin": { "1": { "m": "son", "f": "daughter" }, "2": { "m": "grandson", "f": "granddaughter" }, "more": { "m": "heir", "f": "heir" } }
+    },
+
     "kinds": {
         "claim":        { "icon": "💬", "life": 90,  "label": "A claim" },
         "boast":        { "icon": "🦚", "life": 120, "label": "A boast" },
@@ -143,6 +151,7 @@
         "promptWary": "You have heard they lie or threaten folk; you are wary of them.",
         "greetCaught": "You told me {mine}. Now I hear you told {other} {theirs}. Which is it?",
         "greetPromise": "You gave me your word: {text}. I haven't forgotten.",
+        "greetBroken": "You gave me your word: {text}. You broke it, and I haven't forgotten that either.",
         "greetBack": "Back again? Last time you told me {item}.",
         "greet": {
             "claim": "I hear you say {you}. Is that so?",
@@ -155,6 +164,12 @@
             "betrayal": "I know what you did to your friend. Don't call me friend.",
             "friend_turned": "Your old friend has a lot to say about you. None of it kind."
         },
-        "newsHeard": "Talk about town? Mostly about you. {telling}"
+        "newsHeard": "Talk about town? Mostly about you. {telling}",
+        "promptKnew": "You knew {of}, the late head of their House, and last spoke with them {ago}; this one is their {kin}.",
+        "greetKnew": "I knew {of}. You're the {kin}, then.",
+        "greetInherited": {
+            "any": "You'd be {of}'s {kin}? Folk still talk of {them}.",
+            "ill": "You're {of}'s {kin}. I remember what was said of {them} in {town}. I hope you're not cut from the same cloth."
+        }
     }
 }

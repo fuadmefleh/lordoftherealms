@@ -214,3 +214,106 @@ describe('talk travels', () => {
         expect(p.hearsay.npcs[who.key]).toBeUndefined();
     });
 });
+
+describe('a new head of the House (Hearsay.onSuccession)', () => {
+    it('the late ruler keeps their tales by name; a faded share clings to the heir, and grows no further', async () => {
+        const p = newPlayer(); const { world, rip } = world2();
+        const { who } = townNpc(p, rip, rip.folk.people[0]);
+        await talk(p, world, who, NpcChat.startSession(p, world, who), 'I am a knight. I slew the dragon of the north.');
+        Hearsay.noteThreat(p, world, townNpc(p, rip, rip.folk.people[1]).npc, '3,3');
+        const boast = p.hearsay.rumours.find(r => r.k === 'boast');
+        boast.towns['3,3'].r = 0.9;
+        boast.towns['6,3'] = { d: 20, r: 0.08, l: 1 };
+        expect(p.hearsay.claims.length).toBeGreaterThan(0);
+        // Ash Vale dies; his son Bran takes the seat (Relationships.succeedAsHeir)
+        p.name = 'Bran Vale'; p.gender = 'male';
+        const res = Hearsay.onSuccession(p, world, { oldName: 'Ash Vale', oldGender: 'male', heirGender: 'male' });
+        expect(res.carried).toBeGreaterThan(0);
+        const r = p.hearsay.rumours.find(x => x.k === 'boast');
+        expect(r.of).toBe('Ash Vale');
+        expect(r.kin).toBe('son');
+        const share = Hearsay.config().succession.share;
+        expect(r.towns['3,3'].r).toBeCloseTo(0.9 * share, 3);
+        // (where it was barely known, it is forgotten)
+        expect(r.towns['6,3']).toBeUndefined();
+        // Told of the dead by name, the heir as his son
+        const told = Hearsay.telling(r, '3,3', p.name);
+        expect(told).toMatch(/The late Ash Vale/);
+        expect(told).toMatch(/This one is his son\./);
+        expect(told).not.toMatch(/Bran/);
+        // ...and it never grows back, nor goes on to the next town
+        for (let d = 21; d < 70; d++) { world.day = d; Hearsay.processDay(world, p); }
+        const kept = p.hearsay.rumours.find(x => x.k === 'boast');
+        expect(kept.towns['3,3'].r).toBeCloseTo(0.9 * share, 3);
+        expect(Object.keys(kept.towns)).toEqual(['3,3']);
+        // The late ruler's claims cannot catch the heir out
+        expect(p.hearsay.claims).toEqual([]);
+    });
+
+    it('folk who talked with the late ruler remember knowing them, not the talks; the dead man\'s promises lapse', async () => {
+        const p = newPlayer(); const { world, rip } = world2();
+        const { npc, who } = townNpc(p, rip, rip.folk.people[0]);
+        await talk(p, world, who, NpcChat.startSession(p, world, who), 'I am a merchant. I swear I will bring you a sack of flour.');
+        expect(NpcChatImpact.promisesTo(p, who.key).length).toBe(1);
+        Hearsay.onSuccession(p, world, { oldName: 'Ash Vale', oldGender: 'male', heirGender: 'female' });
+        p.name = 'Wren Vale'; p.gender = 'female';
+        expect(NpcChatImpact.promisesTo(p, who.key).length).toBe(0);
+        expect(p.hearsay.npcs[who.key].talks).toEqual([]);
+        expect(p.hearsay.npcs[who.key].knew.n).toBe('Ash Vale');
+        world.day = 30;
+        const sheet = NpcChat.persona(p, world, who, NpcChat.startSession(p, world, who));
+        expect(sheet).toMatch(/You knew Ash Vale, the late head of their House/);
+        expect(sheet).toMatch(/daughter/);
+        expect(sheet).not.toMatch(/You spoke with them/);
+        // The broken promise is not laid at the heir's door
+        world.day = 400;
+        NpcChatImpact.processDay(world, p);
+        Hearsay.processDay(world, p);
+        expect(p.hearsay.rumours.some(r => r.k === 'broken_promise')).toBe(false);
+        expect(Hearsay.greetLine(p, world, npc, '3,3')).toBeTruthy();
+    });
+
+    it('a heard ill tale of the late ruler costs the heir only a share of the regard, and is greeted as theirs', () => {
+        const p = newPlayer(); const { world, rip } = world2();
+        const { npc: brom } = townNpc(p, rip, rip.folk.people[0]);
+        const { npc: wat } = townNpc(p, rip, rip.folk.people[1]);
+        Hearsay.noteThreat(p, world, brom, '3,3');
+        p.hearsay.rumours[0].towns['3,3'].r = 1;
+        Hearsay.onSuccession(p, world, { oldName: 'Ash Vale', oldGender: 'male', heirGender: 'male' });
+        // (the heir's share is everyone who still talks of it: reach 1 → share)
+        p.hearsay.rumours[0].towns['3,3'].r = 1;
+        const line = Hearsay.greetLine(p, world, wat, '3,3');
+        expect(line).toMatch(/Ash Vale's son/);
+        // A second succession: the grandson
+        Hearsay.onSuccession(p, world, { oldName: 'Bran Vale', oldGender: 'male', heirGender: 'male' });
+        const r = p.hearsay.rumours[0];
+        expect(r.of).toBe('Ash Vale');
+        expect(r.kin).toBe('grandson');
+    });
+
+    it('the heir taking the seat re-attributes the talk (Relationships.succeedAsHeir); a stranger\'s new life carries none', async () => {
+        const { loadData, newGame } = await import('./playtest/harness.js');
+        const { Relationships } = await import('../systems/relationships.js');
+        const { Afterlife } = await import('../player/afterlife.js');
+        await loadData();
+        const game = newGame(6262);
+        const { world, player } = game;
+        const s = world.getSettlementViews()[0];
+        Hearsay.noteThreat(player, world, { name: 'Odo Fenn', uid: `${s.q},${s.r}#77` }, `${s.q},${s.r}`, s.name);
+        const oldName = player.name;
+        const kid = Relationships.generateChild(player, { culture: 'Imperial' }, world, { quiet: true });
+        kid.age = 20;
+        const res = Relationships.succeedAsHeir(player, kid.id, world, { cause: 'a fever' });
+        expect(res.success).toBe(true);
+        const r = player.hearsay.rumours[0];
+        expect(r.of).toBe(oldName);
+        expect(Hearsay.telling(r, `${s.q},${s.r}`, player.name)).toMatch(new RegExp(`The late ${oldName}`));
+        // A new life as someone else in the world: no hearsay, no charges, no blood debts
+        Afterlife.begin(player, world, 'old age');
+        const cand = Afterlife.candidates(world)[0];
+        const life = Afterlife.becomeStranger(player, world, cand);
+        expect(life.success).toBe(true);
+        expect(life.player.hearsay == null || !(life.player.hearsay.rumours || []).length).toBe(true);
+        expect(life.player.wanted == null || !(life.player.wanted.debts || []).length).toBe(true);
+    }, 240000);
+});

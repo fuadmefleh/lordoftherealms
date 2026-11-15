@@ -13,6 +13,8 @@ import { Names } from '../../core/names.js';
 import { Inheritance } from '../inheritance.js';
 import { Vanishings } from '../vanishings.js';
 import { Literacy } from '../literacy.js';
+// (what folk said of the late ruler stays theirs: systems/hearsay.js; run time only)
+import { Hearsay } from '../hearsay.js';
 
 Object.assign(Relationships, {
     // ────────────────────────────────────────────────────────────────────
@@ -396,6 +398,9 @@ Object.assign(Relationships, {
             }
         }
 
+        // The long dead and the long unseen, with no tie to the player, let go (./npcs.js)
+        Relationships.pruneKnown(player, world);
+
         // Age children
         Relationships.ageChildren(player, world);
 
@@ -562,6 +567,7 @@ Object.assign(Relationships, {
         // Store old player info for history
         const oldName = player.name;
         const oldAge = player.age;
+        const oldGender = player.gender;
         // The family tree takes its last look at the late ruler's household (systems/dynastyTree.js)
         const npcLookup = id => Relationships.getNPC(id);
         if (player.house) DynastyTree.sync(player, world, { npc: npcLookup });
@@ -698,6 +704,8 @@ Object.assign(Relationships, {
         const heirEducation = Raising.onSuccession(player, world, child);
         // ...and what they remember of the late ruler's crimes against the blood (systems/kinCrimes.js)
         KinCrimes.onSuccession(player, world, child);
+        // ...and what folk said of the late ruler: told of them by name, a faded share of it of the heir (systems/hearsay.js)
+        Hearsay.onSuccession(player, world, { oldName, oldGender, heirGender: child.gender });
         // A child on the throne reigns under a regent (systems/regency.js)
         player.regency = null;
         const regency = minorReign ? Regency.begin(player, world, regent) : null;

@@ -10,6 +10,34 @@
 // of the harness is to exercise the same sequence the player gets.
 
 import { DawnBirth } from '../../player/dawnBirth.js';
+import { Household } from '../../player/household.js';
+import { Parentage } from '../../player/parentage.js';
+import { Graveyards } from '../../systems/graveyards.js';
+import { NpcTheft } from '../../systems/npcTheft.js';
+import { Brawls } from '../../systems/brawls.js';
+import { IllnessPlayer } from '../../systems/illnessPlayer.js';
+import { Plague } from '../../systems/plague.js';
+import { TownCrimes } from '../../systems/townCrimes.js';
+import { Literacy } from '../../systems/literacy.js';
+import { Vanishings } from '../../systems/vanishings.js';
+import { PeopleCrimes } from '../../systems/peopleCrimes.js';
+import { NightStreets } from '../../systems/nightStreets.js';
+import { Wanted } from '../../systems/wanted.js';
+import { ProfaneCrimes } from '../../systems/profaneCrimes.js';
+import { KinCrimes } from '../../systems/kinCrimes.js';
+import { NpcChatImpact } from '../../systems/npcChatImpact.js';
+import { Hearsay } from '../../systems/hearsay.js';
+import { Bonds } from '../../systems/bonds.js';
+import { CourierRiders } from '../../systems/courierRiders.js';
+import { RiverFlotsam } from '../../systems/riverFlotsam.js';
+import { RiverDrift } from '../../systems/riverDrift.js';
+import { RiverNets } from '../../systems/riverNets.js';
+import { RiverLife } from '../../systems/riverLife.js';
+import { AnimalCompanions } from '../../systems/animalCompanions.js';
+import { BackRooms } from '../../systems/backRooms.js';
+import { Atrocities } from '../../systems/atrocities.js';
+import { Annals } from '../../systems/annals.js';
+import { LawCouncil } from '../../systems/lawCouncil.js';
 import { PlayerWorks } from '../../player/playerWorks.js';
 import { TradeLines } from '../../player/tradeLines.js';
 import { Barter } from '../../world/barter.js';
@@ -183,7 +211,34 @@ function checkHostileEncounters(game) {
         Hex.wrappingDistance(u.q, u.r, player.q, player.r, world.width) <= 1);
     if (hostiles.length === 0) return null;
     const attacker = hostiles.reduce((a, b) => b.strength > a.strength ? b : a, hostiles[0]);
-    return resolveHostileEncounter(player, attacker, world);
+    const before = player.gold;
+    const res = resolveHostileEncounter(player, attacker, world);
+    // (who fell on the bot, and what it cost: the verbose soak report's `hostiles`)
+    const by = game.hostileBy || (game.hostileBy = {});
+    const row = by[attacker.type] || (by[attacker.type] = { n: 0, gold: 0 });
+    row.n++;
+    if (Number.isFinite(player.gold - before)) row.gold = Math.round(row.gold + player.gold - before);
+    return res;
+}
+
+/** Every settlement's people, summed. */
+export function worldPeople(world) {
+    let sum = 0;
+    for (const row of world.tiles) for (const t of row) if (t.settlement) sum += Number(t.settlement.population) || 0;
+    return sum;
+}
+
+/** Every town's purse and every living crown's treasury, summed. */
+export function worldMoney(world) {
+    let sum = 0;
+    for (const row of world.tiles) {
+        for (const t of row) {
+            const e = t.settlement && t.settlement.economy;
+            if (e && Number.isFinite(e.gold)) sum += e.gold;
+        }
+    }
+    for (const k of world.kingdoms || []) if (k && k.isAlive && Number.isFinite(k.treasury)) sum += k.treasury;
+    return sum;
 }
 
 /**
@@ -195,6 +250,38 @@ function mark(game, label) {
         const now = performance.now();
         game.timing[label] = (game.timing[label] || 0) + (now - (game._lastMark || now));
         game._lastMark = now;
+    }
+    // game.moneyTrace (SOAK_MONEY=1): the world's coin — town purses and crown
+    // treasuries — after each step, booked by the step that moved it
+    if (game.moneyTrace) {
+        const m = worldMoney(game.world);
+        const t = game.moneyTrace;
+        if (t.last != null && Number.isFinite(m - t.last)) {
+            t.by[label] = (t.by[label] || 0) + (m - t.last);
+            t.day[label] = (t.day[label] || 0) + (m - t.last);
+        }
+        t.last = m;
+        // ...and the crowns' chests alone (t.crown: what moved the treasuries, by step)
+        let c = 0;
+        for (const k of game.world.kingdoms || []) if (k && k.isAlive && Number.isFinite(k.treasury)) c += k.treasury;
+        if (!t.crown) t.crown = {};
+        if (t.crownLast != null) t.crown[label] = (t.crown[label] || 0) + (c - t.crownLast);
+        t.crownLast = c;
+        // (the crowns' closed day by budget line, summed: t.lines)
+        if (label === 'Fiscal.processDay') {
+            if (!t.lines) t.lines = {};
+            for (const k of game.world.kingdoms || []) {
+                const last = k && k.isAlive && k.fisc && k.fisc.last;
+                if (last) for (const l in last) if (last[l]) t.lines[l] = (t.lines[l] || 0) + last[l];
+            }
+        }
+        // ...and the world's people the same way (game.popTrace)
+        const pt = game.popTrace;
+        if (pt) {
+            const n = worldPeople(game.world);
+            if (pt.last != null) pt.by[label] = (pt.by[label] || 0) + (n - pt.last);
+            pt.last = n;
+        }
     }
     const g = game.player.gold;
     const last = game.trace.length ? game.trace[game.trace.length - 1][1] : null;
@@ -285,6 +372,8 @@ function _endDay(game) {
     mark(game, 'LegendaryArtifacts.processDaily');
     Housing.processDaily(player, world);
     mark(game, 'Housing.processDaily');
+    Household.processDay(player, world);
+    mark(game, 'Household.processDay');
     const shipDay = Ships.processDaily(player, world);
     mark(game, 'Ships.processDaily');
     game.voyageDay = (shipDay && shipDay.voyage) || null;
@@ -320,17 +409,38 @@ function _endDay(game) {
     // Building lots and houses to let; the townsfolk live a season (endDay.js order)
     game.lotsDay = Lots.processDay(world, player);
     mark(game, 'Lots.processDay');
+    Graveyards.processDay(world, player);
+    mark(game, 'Graveyards.processDay');
+    NpcTheft.processDay(world, player, { onMap: false });
+    mark(game, 'NpcTheft.processDay');
+    Brawls.processDay(world, player, { onMap: false });
+    mark(game, 'Brawls.processDay');
     Townsfolk.processDay(world, player);
     mark(game, 'Townsfolk.processDay');
-    // (endDay.js: the illness day sits between; the town's memory after it)
+    NpcMemory.processDay(world, player);
+    mark(game, 'NpcMemory.processDay');
+    // The townsfolk's sicknesses and the plague towns (systems/illnessPlayer.js, systems/plague.js)
+    game.sickDay = IllnessPlayer.processDay(world, player, { contact: null });
+    mark(game, 'IllnessPlayer.processDay');
+    Plague.processDay(world, player);
+    mark(game, 'Plague.processDay');
     TownMemory.processDay(world, player);
     mark(game, 'TownMemory.processDay');
+    TownCrimes.processDay(world, player);
+    mark(game, 'TownCrimes.processDay');
     // (endDay.js: the towns age once a year)
     game.townErasDay = TownEras.processDay(world, player);
     mark(game, 'TownEras.processDay');
-    NpcMemory.processDay(world, player);
-    mark(game, 'NpcMemory.processDay');
+    Literacy.processDay(world, player);
+    mark(game, 'Literacy.processDay');
     Relationships.syncFolk(player, world);
+    mark(game, 'Relationships.syncFolk');
+    Vanishings.processDay(world, player);
+    mark(game, 'Vanishings.processDay');
+    PeopleCrimes.processDay(world, player);
+    mark(game, 'PeopleCrimes.processDay');
+    NightStreets.processDay(player, world);
+    mark(game, 'NightStreets.processDay');
     Relationships.prepareForSave(player);
     mark(game, 'Relationships.prepareForSave');
 
@@ -352,12 +462,23 @@ function _endDay(game) {
     mark(game, 'Rivals.processDay');
     Nemesis.processDay(world, player);
     mark(game, 'Nemesis.processDay');
+    Wanted.processDay(world, player);
+    mark(game, 'Wanted.processDay');
+    ProfaneCrimes.processDay(world, player);
+    KinCrimes.processDay(world, player);
+    mark(game, 'KinCrimes.processDay');
     HouseQuests.processDay(world, player);
     mark(game, 'HouseQuests.processDay');
     Sagas.processDay(world, player);
     mark(game, 'Sagas.processDay');
     Whispers.processDay(world, player);
     mark(game, 'Whispers.processDay');
+    NpcChatImpact.processDay(world, player);
+    mark(game, 'NpcChatImpact.processDay');
+    Hearsay.processDay(world, player);
+    mark(game, 'Hearsay.processDay');
+    Bonds.processDay(world, player);
+    mark(game, 'Bonds.processDay');
     Devotion.processDay(world, player);
     SoulPact.processDay(world, player);
     mark(game, 'Devotion.processDay');
@@ -367,12 +488,28 @@ function _endDay(game) {
     mark(game, 'CourtLetters.processDay');
     Couriers.processDay(world, player);
     mark(game, 'Couriers.processDay');
+    CourierRiders.processDay(world, player);
+    mark(game, 'CourierRiders.processDay');
     Mail.processDay(world, player);
     mark(game, 'Mail.processDay');
     Hospitality.processDay(world, player);
     mark(game, 'Hospitality.processDay');
+    // A ship at sea overnight goes with the current; the rivers' day (endDay.js order)
+    if (player.boardedShip && typeof player.driftWithCurrent === 'function') player.driftWithCurrent(world);
+    RiverFlotsam.processDay(world, player, world.day);
+    RiverDrift.processDay(world, player, world.day * 24);
+    mark(game, 'RiverFlotsam+Drift.processDay');
+    RiverNets.processDay(world, player, world.day, {
+        goodOf: (id) => { const g = (PlayerEconomy.GOODS || {})[String(id).toUpperCase()]; return { name: (g && g.name) || id, icon: (g && g.icon) || '' }; },
+        rollBonus: (net) => RiverLife.netRollBonus(world, net),
+    });
+    mark(game, 'RiverNets.processDay');
+    RiverLife.processDay(world, player, world.day);
+    mark(game, 'RiverLife.processDay');
     Livestock.processDay(world, player);
     mark(game, 'Livestock.processDay');
+    AnimalCompanions.processDay(world, player, { larder: (key) => { const h = Household.home(player, key); return h ? h.larder : null; } });
+    mark(game, 'AnimalCompanions.processDay');
     Crops.processDay(world, player);
     mark(game, 'Crops.processDay');
     game.commissionsDay = Commissions.processDay(player, world);
@@ -380,8 +517,12 @@ function _endDay(game) {
     game.languagesDay = Languages.processDay(player, world);
     mark(game, 'Languages.processDay');
     game.dawnSettled = DawnBirth.sync(player, world) || null;
+    Parentage.processDay(player, world);
+    mark(game, 'Parentage.processDay');
     Gangs.processDay(world, player);
     mark(game, 'Gangs.processDay');
+    BackRooms.processDay(player, world);
+    mark(game, 'BackRooms.processDay');
     OutlawLairs.processDay(world, player);
     mark(game, 'OutlawLairs.processDay');
     game.discoveryDay = Discovery.processDay(world, player);
@@ -407,6 +548,8 @@ function _endDay(game) {
     mark(game, 'Kingship.processDay');
     Sieges.processDay(world, player);
     mark(game, 'Sieges.processDay');
+    Atrocities.processDay(world, player);
+    mark(game, 'Atrocities.processDay');
     game.holdingsDay = Holdings.processDay(player, world);
     mark(game, 'Holdings.processDay');
     game.stewardsDay = Stewards.processDay(world, player);
@@ -417,6 +560,8 @@ function _endDay(game) {
     mark(game, 'Patronage.processDay');
     Heralds.processDay(world, player);
     mark(game, 'Heralds.processDay');
+    Annals.processDay(world, player);
+    mark(game, 'Annals.processDay');
     game.caravanDay = MerchantCaravans.processDay(world, player);
     mark(game, 'MerchantCaravans.processDay');
     game.fairDay = MarketFairs.processDay(world, player);
@@ -425,6 +570,8 @@ function _endDay(game) {
     mark(game, 'Harvests.processDay');
     game.engrossDay = Engrossing.processDay(world, player);
     mark(game, 'Engrossing.processDay');
+    LawCouncil.processDay(world, player);
+    mark(game, 'LawCouncil.processDay');
     game.hinterlandDay = Concessions.processDay(world, player);
     mark(game, 'Concessions.processDay');
     game.landDay = LandMarket.processDay(world, player);
@@ -531,6 +678,22 @@ export function onArrived(game) {
     Fame.onEnterSettlement(player, world, tile);
     if (kId) player.learnAboutKingdom(kId, 'basics');
     Rivals.onPlayerArrived(player, world, tile);
+    walkIntoTown(world, tile);
+}
+
+/**
+ * Walking into a town's streets (ui/game/innerMap.js → world/innerMap/npcs.js
+ * _settleTownsfolk): the town's living roster is built on the first visit
+ * (headless: Townsfolk.seed, the roster the town's size gives, on its own hash
+ * stream) and its seasons caught up on every visit after (Townsfolk.attach).
+ * Without it no town the bot passes through has named people, so nothing they
+ * remember of the House (systems/npcMemory.js) can become a house quest.
+ */
+export function walkIntoTown(world, tile) {
+    const s = tile && tile.settlement;
+    if (!s) return null;
+    if (!s.folk) Townsfolk.seed(s, world, { q: tile.q, r: tile.r });
+    return Townsfolk.attach(s, world, null, { q: tile.q, r: tile.r });
 }
 
 /**

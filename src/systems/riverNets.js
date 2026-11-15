@@ -31,6 +31,7 @@
 import { RiverDrift } from './riverDrift.js';
 import { RiverFlotsam, flotsamHash } from './riverFlotsam.js';
 import { Hex } from '../core/hex.js';
+import { PlayerInventory } from '../core/inventory.js';
 
 const DEFAULTS = {
     enabled: true,
@@ -167,11 +168,12 @@ export const RiverNets = {
         const res = this.haul(world, player, id);
         if (!res.ok) return res;
         if (res.left) return { ...res, ok: false, reason: 'Your packs are too full to take it all.' };
+        const back = res.net.torn ? 'rope' : 'fishing_net';
+        // (the net itself must fit in the packs too, or it stays in the water)
+        if (!PlayerInventory.canAdd(player, back)) return { ...res, ok: false, reason: PlayerInventory.fullMessage(player) };
         const st = RiverDrift.state(world);
         st.nets = st.nets.filter(n => n.id !== id);
-        const back = res.net.torn ? 'rope' : 'fishing_net';
-        if (!player.inventory) player.inventory = {};
-        player.inventory[back] = (player.inventory[back] || 0) + 1;
+        PlayerInventory.addItem(player, back, 1);
         return { ...res, back };
     },
 

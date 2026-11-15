@@ -115,6 +115,8 @@ const topLevel = [
     'crops',
     'craftGrades',
     'livestock',
+    // Your own dogs, cats, hawks and the horse, walking with you (systems/animalCompanions.js)
+    'animalCompanions',
     'graves',
     'ambient',
     'autoUpkeep',

@@ -68,7 +68,7 @@ const FALLBACK = {
         minType: { palisade: 'town', stone: 'town' }, minScore: { palisade: 0.25, stone: 0.5 },
         chance: { palisade: 0.004, stone: 0.003 }, capitalBonus: 1.5, cityBonus: 0.8,
         threat: { war: 1.2, sack: 1.5, fire: 0.3, cairn: 0.6, invasion: 2, markYears: 80 }, villageThreat: 2.5,
-        margin: 2,
+        margin: 2, defense: { palisade: 0.1, stone: 0.25 },
     },
     eraNotice: {},
     art: null,
@@ -152,6 +152,20 @@ export const TownEras = {
     /** A settlement's era record, or null. */
     state(settlement) {
         return _obj(settlement && settlement.townEra);
+    },
+
+    /**
+     * What the town's walls add to its defence in a siege (walls.defense by
+     * kind: palisade, stone; 0 for an open town). Read by systems/sieges.js and
+     * systems/holdingSieges.js wallsOf.
+     */
+    wallDefense(settlement) {
+        const st = TownEras.state(settlement);
+        const kind = st && st.walls && st.walls.kind;
+        if (!kind) return 0;
+        const D = _obj(TownEras.config().walls.defense) || {};
+        const v = Number(D[kind]);
+        return Number.isFinite(v) && v > 0 ? v : 0;
     },
 
     /**

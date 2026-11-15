@@ -129,7 +129,7 @@ Object.assign(ActionMenu, {
             res = Plague.bribeGate(player, world, s);
             if (res.success && game.ui.updateStats) game.ui.updateStats(player, world);
             if (game.ui.hideCustomPanel) game.ui.hideCustomPanel();
-            game.ui.showNotification(res.success ? '🪙 Through the Gate' : '🚧 Gates Shut', res.success ? `${res.text} Travel on to enter.` : res.reason, res.success ? (res.caught ? 'warning' : 'success') : 'info');
+            game.ui.showNotification(res.success ? '💰 Through the Gate' : '🚧 Gates Shut', res.success ? `${res.text} Travel on to enter.` : res.reason, res.success ? (res.caught ? 'warning' : 'success') : 'info');
             return;
         } else return;
         if (res.success && game.ui.updateStats) game.ui.updateStats(player, world);

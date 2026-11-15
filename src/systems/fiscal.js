@@ -296,6 +296,24 @@ export const Fiscal = {
         return byK;
     },
 
+    /**
+     * The royal governor's standing order on the town's mood (provinceFx.mood a
+     * day, data/stewards.json orders.*.provinceMood): a squeeze sours it down to
+     * the band's floor, a fed or quiet town warms up to its ceiling.
+     */
+    _provinceMood(s, pf, days) {
+        const m = _num(pf.mood);
+        if (!m || !(days > 0)) return 0;
+        const band = Array.isArray(pf.band) ? pf.band : [35, 70];
+        const h = _num(s.happiness, 50);
+        const lo = _num(band[0], 35), hi = _num(band[1], 70);
+        let next = h + m * days;
+        if (m < 0) next = h <= lo ? h : Math.max(lo, next);
+        else next = h >= hi ? h : Math.min(hi, next);
+        s.happiness = _clamp(Math.round(next * 100) / 100, 0, 100);
+        return s.happiness - h;
+    },
+
     _realmDay(world, player, st, k, towns, ruledId, day, out) {
         const C = Fiscal.config();
         const f = CrownBooks.state(k);
@@ -334,6 +352,7 @@ export const Fiscal = {
             // A royal governor over a demesne town (systems/stewards.js publishes settlement.provinceFx)
             const pf = ruled ? _obj(s.provinceFx) : null;
             const gm = pf ? _clamp(_num(pf.collect, 1), 0, 2) : 1;
+            if (pf) Fiscal._provinceMood(s, pf, days);
             const due = revolt ? 0 : d.due * eff * gm * Literacy.taxFactor(world, s);
             // Recent dues a day (what a tax farmer would bid on)
             const perDay = due / days;
@@ -353,11 +372,15 @@ export const Fiscal = {
             // (what the governor keeps back goes to their own chest, not the crown's)
             const kept = pf ? 1 - _clamp(_num(pf.skim), 0, 0.9) : 1;
             if (pf && kept < 1) pf.pocket = _r2(_num(pf.pocket) + pay * (1 - kept));
-            const share = pay / due * gm * kept;
-            land += d.land * eff * share;
-            poll += d.poll * eff * share;
-            excise += d.excise * eff * share;
-            levy += d.levy * eff * share;
+            // (the coin booked by line is exactly the coin the town paid, less the governor's keep:
+            // `due` already carries eff, the governor and the town's letters, so the lines are
+            // scaled by what was paid of d.due — never pay / due × gm, which struck new coin
+            // whenever Literacy.taxFactor < 1)
+            const share = d.due > 0 ? pay / d.due * kept : 0;
+            land += d.land * share;
+            poll += d.poll * share;
+            excise += d.excise * share;
+            levy += d.levy * share;
         }
         const collected = land + poll + excise + levy + demesne;
         k.treasury = _num(k.treasury) + collected;
@@ -415,6 +438,9 @@ export const Fiscal = {
             else if (f.arrearsDays === _num(A.desert.afterDays, 7) + 1) Fiscal._note(out, '🏳️', 'Desertion', `Unpaid for a week, the soldiers of ${Names.realm(k.name)} begin to slip away.`, 'error');
         }
         if (f.arrearsDays === 21) Fiscal._record(world, st, { kind: 'mutiny', kingdomId: k.id, kingdom: k.name, amount: Math.round(f.arrears.army) });
+        // (an NPC crown's surplus goes back daily, as the collectors take it daily: spent
+        // weekly, the chests carried half a week's taxes over the line — a third of the realm's coin)
+        if (!ruled) Fiscal._largesse(world, k, f, towns.length ? towns : [], Fiscal._dailyLargesse());
         Fiscal._closeDay(k, f);
     },
 
@@ -466,7 +492,10 @@ export const Fiscal = {
         for (const l in d) { const v = d[l]; if (v) d[l] = Math.round(v * 100) / 100; }
         const av = f.avg;
         av.n = (av.n || 0) + 1;
-        av.rev = _r2(av.n === 1 ? rev : (av.rev || 0) + (rev - (av.rev || 0)) * a);
+        // (the smoothed revenue is the crown's income — Finance reads it, and offices sell at
+        // `days` of it — so a one-off sale of offices or land is not counted in it)
+        const recurring = rev - _num(d.sales);
+        av.rev = _r2(av.n === 1 ? recurring : (av.rev || 0) + (recurring - (av.rev || 0)) * a);
         av.exp = _r2(av.n === 1 ? exp : (av.exp || 0) + (exp - (av.exp || 0)) * a);
         av.demesne = _r2((av.demesne || 0) + ((d.demesne || 0) - (av.demesne || 0)) * a);
         // (the ruler's own levy, so the crown's upkeep can be read without it: CrownBooks.surplus)
@@ -510,6 +539,77 @@ export const Fiscal = {
         if (!ruled) Fiscal._offerFarm(world, player, st, k, f, towns, day, out);
     },
 
+    /**
+     * An NPC crown with more put by than it needs spends the surplus into its
+     * realm: weekly, npc.largesseShare of what its chests hold past
+     * npc.largesseAbove days of its spending (or npc.largesseCoin of the realm's coin
+     * in circulation, whichever is less) goes to its towns' masons, carters
+     * and almshouses (by people and where the court and garrisons lie, as the
+     * wages do — Fiscal._spendBack), booked on the 'works' line. Without it a
+     * crown whose taxes outran its upkeep sat on the realm's coin while its towns
+     * ran dry; with the year's misfortunes reckoned on its revenue
+     * (CrownBooks.lossBasis) nothing else brought a hoard back. → the coin spent.
+     */
+    _largesse(world, k, f, towns, shareOverride = null) {
+        const N = Fiscal.config().npc;
+        const above = _num(N.largesseAbove);
+        const share = _clamp(_num(shareOverride != null ? shareOverride : N.largesseShare), 0, 1);
+        if (!(above > 0) || !(share > 0) || !towns.length) return 0;
+        const exp = Math.max(1, _num(f.avg && f.avg.exp));
+        // (past largesseCoin of the realm's coin in circulation, whichever is less: a
+        // crown spending more in a year than its realm holds must not sit on months of it)
+        const coin = Fiscal.realmCoin(world, k);
+        const lc = _num(N.largesseCoin);
+        const line = coin > 0 && lc > 0 ? Math.min(above * exp, lc * coin) : above * exp;
+        const excess = _num(k.treasury) - line;
+        if (!(excess > 1)) return 0;
+        const amount = _r2(excess * share);
+        const cap = k.capital ? _key(k.capital.q, k.capital.r) : null;
+        const placed = Fiscal._spendBack(towns, cap, amount, 0, towns);
+        if (!(placed > 0)) return 0;
+        k.treasury = _r2(_num(k.treasury) - placed);
+        CrownBooks.note(k, 'works', placed);
+        MoneySupply.note(world, k.id, placed, 'fisc');
+        return placed;
+    },
+
+    /** largesseShare (a week's) as a day's share: 1 − (1 − weekly)^(1/7). */
+    _dailyLargesse() {
+        const w = _clamp(_num(Fiscal.config().npc.largesseShare), 0, 1);
+        return w >= 1 ? 1 : 1 - Math.pow(1 - w, 1 / 7);
+    },
+
+    /** The coin in circulation in a crown's realm (world/moneySupply.js, last counted), 0 when not counted. */
+    realmCoin(world, k) {
+        if (!k || !MoneySupply.enabled()) return 0;
+        const R = MoneySupply.realm(world, k.id);
+        return R && R.counted ? Math.max(0, _num(R.coin)) : 0;
+    },
+
+    /**
+     * How the chests stand for an NPC crown's treasurers: 'low' (raise taxes),
+     * 'high' / 'flush' (lower them), or null. Reckoned in days of spending
+     * (npc.lowDays, reserveLow, reserveHigh, highDays) and — since 2026-11 —
+     * against the realm's own coin in circulation (npc.coinLow / coinHigh /
+     * coinFlush: shares of it): a crown spending some 450g a day keeps a "month
+     * in hand" that is half its realm's coin, so by days alone it taxed the towns
+     * dry before its chests felt full. Chests holding coinLow of the realm's coin
+     * are never low; past coinHigh they are high whatever the days say.
+     */
+    reserveStand(world, k) {
+        const N = Fiscal.config().npc;
+        const days = Fiscal.reserveDays(k);
+        const coin = Fiscal.realmCoin(world, k);
+        const share = coin > 0 ? Math.max(0, _num(k && k.treasury)) / coin : null;
+        const over = (key) => share != null && _num(N[key]) > 0 && share > _num(N[key]);
+        if (days > _num(N.highDays, 320) || over('coinFlush')) return 'flush';
+        if (days > _num(N.reserveHigh, 160) || over('coinHigh')) return 'high';
+        if (over('coinLow')) return null;
+        if (days < _num(N.lowDays, 10)) return 'empty';
+        if (days < _num(N.reserveLow, 30)) return 'low';
+        return null;
+    },
+
     /** Days of spending the chests hold. */
     reserveDays(k) {
         const f = k && _obj(k.fisc);
@@ -536,11 +636,12 @@ export const Fiscal = {
         // (the old lord's temper is not the ruler's: the treasurers lean no way)
         let want = 1 + (ruled ? 0 : _num(N.bias && N.bias[pid]));
         const days = Fiscal.reserveDays(k);
+        const stand = Fiscal.reserveStand(world, k);
         if (Array.isArray(k.wars) && k.wars.length) want += 1;
-        if (days < _num(N.lowDays, 10)) want += 2;
-        else if (days < _num(N.reserveLow, 30)) want += 1;
-        else if (days > _num(N.highDays, 320)) want -= 2;
-        else if (days > _num(N.reserveHigh, 160)) want -= 1;
+        if (stand === 'empty') want += 2;
+        else if (stand === 'low') want += 1;
+        else if (stand === 'flush') want -= 2;
+        else if (stand === 'high') want -= 1;
         if (f.arrearsDays > 0) want += 1;
         if (_num(k.stability, 50) < _num(N.unrestAt, 35) && f.arrearsDays === 0) want -= 1;
         if (Fiscal.recent(world, k.id, 'tax_revolt', _num(N.revoltDays, 60)).length) want -= 1;
@@ -556,13 +657,13 @@ export const Fiscal = {
         }
         // A rich court keeps a lavish household, a poor one a frugal one
         if (!manual.court) {
-            const court = days > _num(N.reserveHigh, 160) ? 'lavish' : days < _num(N.lowDays, 10) ? 'frugal' : 'standard';
+            const court = stand === 'high' || stand === 'flush' ? 'lavish' : stand === 'empty' ? 'frugal' : 'standard';
             f.courtLevel = ruled && court === 'lavish' ? (f.courtLevel === 'lavish' ? 'lavish' : 'standard') : court;
         }
         // Broke with the soldiers unpaid: half pay; full again once the chests recover
         if (!manual.army) {
             if (f.arrearsDays > 0 && days < _num(N.halfPayDays, 4)) f.armyPay = 'half';
-            else if (f.armyPay === 'half' && f.arrearsDays === 0 && days > _num(N.reserveLow, 30)) f.armyPay = 'full';
+            else if (f.armyPay === 'half' && f.arrearsDays === 0 && (days > _num(N.reserveLow, 30) || (stand !== 'low' && stand !== 'empty'))) f.armyPay = 'full';
         }
         if (ruled && opts.out) Fiscal._reviewNotice(opts.out, k, f, before);
     },
@@ -960,8 +1061,9 @@ export const Fiscal = {
     royalSale(player, world, kind) {
         const k = Fiscal.ruledKingdom(player, world);
         if (!k) return { success: false, reason: 'You rule no realm.' };
-        const gain = kind === 'offices' ? CrownBooks.sellOffices(k) : CrownBooks.sellLand(k);
-        if (!(gain > 0)) return { success: false, reason: 'Little crown land is left to sell.' };
+        const pay = Finance.saleBuyers(world, k);
+        const gain = kind === 'offices' ? CrownBooks.sellOffices(k, { pay }) : CrownBooks.sellLand(k, { pay });
+        if (!(gain > 0)) return { success: false, reason: kind === 'offices' ? 'No one in the realm has the coin to buy an office.' : 'Little crown land is left to sell, or no one with the coin to buy it.' };
         return { success: true, gain, text: kind === 'offices' ? `Offices sold for ${gain}g. The buyers will have their money back from the people.` : `Royal manors sold for ${gain}g. The crown's rents are the less.` };
     },
 

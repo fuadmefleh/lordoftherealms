@@ -30,6 +30,8 @@ import { InnerMapCombat } from './innerMapCombat.js';
 import { InnerMapRenderer } from './innerMapRenderer.js';
 import { InnerMapCompanions } from './innerMapCompanions.js';
 import { Utils } from '../core/utils.js';
+import { StreetFollowers } from '../systems/streetFollowers.js';
+import { InnerMapPets } from './innerMapPets.js';
 
 const T_PX = 32;
 const MAX = 6;
@@ -125,8 +127,10 @@ export const InnerMapEscort = {
     update(dt, game) {
         const E = InnerMapEscort;
         E._shown = false;
-        if (E._hidden(game) || !RealmEscort.guard(game.player)) {
-            if (!InnerMap.active || (game && game.player && !RealmEscort.guard(game.player))) { E._men = []; E._trail = []; E._sig = ''; E._map = null; }
+        // (told to wait in town: systems/streetFollowers.js, Who Walks With You)
+        const waits = !!(game && game.player) && !StreetFollowers.walks(game.player, StreetFollowers.GUARD);
+        if (E._hidden(game) || !RealmEscort.guard(game.player) || waits) {
+            if (!InnerMap.active || waits || (game && game.player && !RealmEscort.guard(game.player))) { E._men = []; E._trail = []; E._sig = ''; E._map = null; }
             return;
         }
         E._shown = true;
@@ -173,7 +177,8 @@ export const InnerMapEscort = {
             } else {
                 m.swingT = null;
                 // (behind your companions, when they walk with you: ui/innerMapCompanions.js)
-                const lead = InnerMapCompanions.count() * 0.9;
+                // (and your animals: ui/innerMapPets.js)
+                const lead = InnerMapCompanions.count() * 0.9 + InnerMapPets.count() * 1.1;
                 const back = E._along(at, SPACING * T_PX * (Math.floor(i / 2) + 1 + lead));
                 // (two abreast: each of a pair a little to its side of the trail)
                 const side = (i % 2 ? 1 : -1) * T_PX * 0.32;

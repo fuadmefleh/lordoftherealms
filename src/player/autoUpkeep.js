@@ -164,7 +164,10 @@ export const AutoUpkeep = {
         if (!stalls.length) return null;
         return () => {
             const want = Math.max(1, Math.floor(_num(F.stock, 6)) - player.getFoodCount());
-            const allowance = Math.max(0, Math.floor(_num(player.gold) * _num(F.purseShare, 0.5)));
+            // An empty pack is the last call: the whole purse may go on bread (a
+            // character never starves with coin in hand); otherwise purseShare of it
+            const share = player.getFoodCount() <= 0 ? 1 : _num(F.purseShare, 0.5);
+            const allowance = Math.max(0, Math.floor(_num(player.gold) * share));
             if (allowance <= 0) return null;
             const bought = [];
             let left = want;

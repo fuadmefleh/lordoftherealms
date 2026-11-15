@@ -65,8 +65,8 @@
         "threat": { "war": 1.2, "sack": 1.5, "fire": 0.3, "cairn": 0.6, "invasion": 2.0, "markYears": 80 },
         "villageThreat": 2.5,
         "margin": 2,
-        "minReach": 1.06,
-        "bins": 72,
+        "_defense": "What the walls are worth when the town is besieged: added to its walls in a siege (systems/sieges.js wallsOf, systems/holdingSieges.js wallsOf — a stone-walled village holds like a city).",
+        "defense": { "palisade": 0.1, "stone": 0.25 },
         "notice": { "palisade": "The folk of {town} ring their town with a palisade of sharpened stakes.", "stone": "The folk of {town} raise a wall of stone about their town." }
     },
 

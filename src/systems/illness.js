@@ -350,18 +350,23 @@ export const Illness = {
     },
 
     /** How likely they are to catch it, and how hard it goes (×). */
-    risk(p, k, env, hhSize, day) {
+    risk(p, k, env, hhSize, day, memo = null) {
         const C = Illness.config();
         const R = C.risk;
         const d = Illness.def(k) || {};
-        const age = Townsfolk.age(p, day);
-        let m = _num(_obj(R.age) && R.age[Illness.band(age)], 1);
-        // The old frail (systems/townFamily.js frailty: 0 at 55, 1 at 85)
-        if (TownFamily.config().enabled) m *= 1 + TownFamily.frailty(p, day) * _num(R.frailty, 0.6);
-        m *= _num(_obj(R.station) && R.station[p.role], 1);
-        const H = _obj(R.household) || {};
-        if (hhSize > _num(H.over, 4)) m *= Math.min(_num(H.max, 1.4), 1 + (hhSize - _num(H.over, 4)) * _num(H.per, 0.08));
-        m *= env.town;
+        // (who they are and where they live, the same for every sickness: once a person a step — memo, from _step)
+        let m = memo ? memo.get(p) : undefined;
+        if (m === undefined) {
+            const age = Townsfolk.age(p, day);
+            m = _num(_obj(R.age) && R.age[Illness.band(age)], 1);
+            // The old frail (systems/townFamily.js frailty: 0 at 55, 1 at 85)
+            if (TownFamily.config().enabled) m *= 1 + TownFamily.frailty(p, day) * _num(R.frailty, 0.6);
+            m *= _num(_obj(R.station) && R.station[p.role], 1);
+            const H = _obj(R.household) || {};
+            if (hhSize > _num(H.over, 4)) m *= Math.min(_num(H.max, 1.4), 1 + (hhSize - _num(H.over, 4)) * _num(H.per, 0.08));
+            m *= env.town;
+            if (memo) memo.set(p, m);
+        }
         m *= d.water ? env.hygiene : Math.sqrt(env.hygiene);
         if (env.dearth) m *= _num(R.dearth, 1.6);
         if (env.clim && env.clim !== 1) m *= env.clim;
@@ -430,6 +435,7 @@ export const Illness = {
         const K = C.contact;
         const N = Math.max(1, alive.length);
         const fresh = [];
+        const riskMemo = new Map();
         for (const p of alive) {
             if (p.ill) continue;
             const h = hh.of.get(p.id);
@@ -442,7 +448,7 @@ export const Illness = {
                 const nt = Math.max(0, c.town - nh - nw);
                 const crowd = Math.min(1, 6 / Math.max(1, wkSize.get(w) || 1));
                 const lam = _num(d.contagion) * (_num(K.household) * nh + _num(K.work) * nw * crowd + _num(K.town) * nt * _num(K.townRef, 12) / N * _num(env.townMult, 1))
-                    * _num(_obj(d.season) && d.season[env.season], 1) * Illness.risk(p, k, env, hh.size.get(h) || 1, day) * step;
+                    * _num(_obj(d.season) && d.season[env.season], 1) * Illness.risk(p, k, env, hh.size.get(h) || 1, day, riskMemo) * step;
                 if (lam > 0 && rng() < 1 - Math.exp(-lam)) {
                     fresh.push([p, k, nh ? 'household' : nw ? 'work' : 'town']);
                     break;
@@ -459,7 +465,7 @@ export const Illness = {
             let caught = null;
             for (const [k, d] of Object.entries(C.illnesses)) {
                 if (!(_num(d.spont) > 0) || Illness._immune(p, k, day) || (d.minAge && age < d.minAge)) continue;
-                const lam = _num(d.spont) * _num(_obj(d.season) && d.season[env.season], 1) * Illness.risk(p, k, env, hs, day) * step;
+                const lam = _num(d.spont) * _num(_obj(d.season) && d.season[env.season], 1) * Illness.risk(p, k, env, hs, day, riskMemo) * step;
                 if (rng() < 1 - Math.exp(-lam)) { caught = k; break; }
             }
             // A beating not healed festers
@@ -782,6 +788,8 @@ export const Illness = {
         const sources = [];
         for (const s of towns) {
             if (_obj(s.folk) && Array.isArray(s.folk.people) && s.folk.ill) {
+                // (a town with no one sick carries nothing: no need to count its people)
+                if (!s.folk.people.some(p => p.ill)) continue;
                 const res = Townsfolk.residents(s.folk);
                 const by = {};
                 for (const p of res) if (Illness.isContagious(p, day) && !(Illness.def(p.ill.k) || {}).chronic) by[p.ill.k] = (by[p.ill.k] || 0) + 1;
@@ -792,15 +800,22 @@ export const Illness = {
                 sources.push({ s, k: s.sickness.k, share: 0.1 });
             }
         }
+        // (a town's gates shut or open for the whole of this step: asked once a town, not once a pair — systems/laws.js is dear)
+        const shut = new Map();
+        const quarantined = (s) => {
+            let v = shut.get(s);
+            if (v === undefined) { v = Illness.quarantined(world, s); shut.set(s, v); }
+            return v;
+        };
         for (const src of sources) {
             const d = Illness.def(src.k);
             if (!d || !(_num(d.contagion) > 0)) continue;
-            const qa = Illness.quarantined(world, src.s) ? _num(T.quarantine, 0.15) : 1;
+            const qa = quarantined(src.s) ? _num(T.quarantine, 0.15) : 1;
             for (const b of towns) {
                 if (b === src.s || (b.q === src.s.q && b.r === src.s.r)) continue;
                 const dist = Hex.distance(src.s.q, src.s.r, b.q, b.r);
                 if (dist > radius) continue;
-                const qb = Illness.quarantined(world, b) ? _num(T.quarantine, 0.15) : 1;
+                const qb = quarantined(b) ? _num(T.quarantine, 0.15) : 1;
                 const chance = _num(T.perStep, 0.6) * src.share * Math.min(1, _num(d.contagion) * 10) * (d.plague ? _num(T.plague, 2.5) : 1)
                     * _num(_obj(T.size) && T.size[b.type], 1) * (1 - dist / (radius + 1)) * qa * qb * Illness._route(src.s, b);
                 const rng = _rng(world, `${src.s.q},${src.s.r}>${b.q},${b.r}|${src.k}|${day}`);

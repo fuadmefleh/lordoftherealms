@@ -4,6 +4,7 @@
 
 import { Technology } from './technology.js';
 import { Hex } from '../core/hex.js';
+import { LandRegions } from '../world/landRegions.js';
 import { Quests } from './quests.js';
 import { Economy } from '../world/economy.js';
 import { KingdomBonuses } from '../world/kingdomState.js';
@@ -278,7 +279,8 @@ export const Infrastructure = {
             if (c.status === 'build') return 1 + (c.days || 0) / 40;
             return 8; // passable but this work can't go here: go round if at all possible
         };
-        const path = Hex.findPath(from.q, from.r, to.q, to.r, W, H, passable, stepCost);
+        // (water between: no overland line, and no need for the A* to search the whole landmass to say so)
+        const path = LandRegions.connected(world, from, to) ? Hex.findPath(from.q, from.r, to.q, to.r, W, H, passable, stepCost) : null;
         if (!path || path.length < 2) return { ok: false, reason: 'No way overland to there (too far, or water between)' };
         const segments = path.map(h => ({ q: h.q, r: h.r, ...check(h.q, h.r) }));
         const build = segments.filter(s => s.status === 'build');

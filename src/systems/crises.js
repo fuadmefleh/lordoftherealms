@@ -238,6 +238,30 @@ export const Crises = {
         return st ? _arr(st.history) : [];
     },
 
+    /**
+     * A schism: every realm that declares a side after the player preached
+     * thinks better (same side) or worse (the other) of the player, once
+     * (player.crises.sides[uid] → player.reputation; judged[uid] the realms told).
+     */
+    _judgeSides(world, player, c) {
+        const ps = Crises.playerState(player);
+        const side = ps.sides[c.uid];
+        if (!side || !c.data || !_obj(c.data.sides)) return 0;
+        const judged = _obj(ps.judged) || (ps.judged = {});
+        const seen = Array.isArray(judged[c.uid]) ? judged[c.uid] : (judged[c.uid] = []);
+        let n = 0;
+        for (const [kid, ks] of Object.entries(c.data.sides)) {
+            if (seen.includes(String(kid))) continue;
+            const k = _kingdom(world, kid);
+            seen.push(String(kid));
+            if (!_alive(k)) continue;
+            if (!player.reputation) player.reputation = {};
+            player.reputation[k.id] = _num(player.reputation[k.id]) + (ks === side ? 3 : -3);
+            n++;
+        }
+        return n;
+    },
+
     playerState(player) {
         if (!player) return null;
         if (!_obj(player.crises)) player.crises = { acts: [], sides: {} };
@@ -272,6 +296,8 @@ export const Crises = {
                 Crises._begin(world, st, day);
             }
         }
+        // Realms that take a side after the player preached remember which side the player spoke for
+        if (player && st.active && st.active.kind === 'schism') Crises._judgeSides(world, player, st.active);
         // The player hears the great turns of it (word of a crisis reaches everyone)
         if (player) {
             const fresh = [];
@@ -1060,11 +1086,15 @@ export const Crises = {
                 Ledger.record(player, 'crisisAid', -X.preachCost);
                 const lean = _obj(c.data.lean) || (c.data.lean = {});
                 lean[k.id] = _clamp(_num(lean[k.id]) + (side === 'reformed' ? X.preachShift : -X.preachShift), -1, 1);
-                Crises.playerState(player).sides[c.uid] = side;
+                const ps = Crises.playerState(player);
+                ps.sides[c.uid] = side;
+                const judged = _obj(ps.judged) || (ps.judged = {});
+                const seen = Array.isArray(judged[c.uid]) ? judged[c.uid] : (judged[c.uid] = []);
                 for (const o of world.kingdoms) {
                     if (!_alive(o) || !o.religion || o.religion.riteOf !== c.uid || !o.religion.rite) continue;
                     if (!player.reputation) player.reputation = {};
                     player.reputation[o.id] = _num(player.reputation[o.id]) + (o.religion.rite === side ? 3 : -3);
+                    if (!seen.includes(String(o.id))) seen.push(String(o.id));
                 }
                 Crises._record(player, world, c, 'preach', `${player.name || 'The House'} preached for ${Crises.sideName(c, side)} in ${town.name}.`);
                 return { success: true, text: `The crowds of ${town.name} hear you out. ${k.name} leans ${side === 'reformed' ? 'toward reform' : 'toward the old church'}.` };

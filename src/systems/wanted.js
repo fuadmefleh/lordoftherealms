@@ -43,7 +43,11 @@
 //                      stop at a border at war); time (lesser charges fade after
 //                      afterDays without a new crime; grave ones never do).
 //   Generations        the crowns' charges die with the one they were against;
-//                      the blood debts do not.
+//                      the blood debts do not, but cool: each generation
+//                      between the deed and the head of the House now takes
+//                      the grudge down by debts.heirShare (the avenger's
+//                      fury and the weregild alike), and one cooled below
+//                      debts.heirDropScore is let go.
 //
 // Rules: explicit params, no globals; the day's rolls run on their own seeded
 // stream (world seed + day, Utils.withRng). Tuning and text: data/wanted.json.
@@ -80,7 +84,7 @@ const DEFAULTS = {
     pardon: { buyMult: 1.25, graveMult: 1.5, min: 80, grantRep: 60, refuseRep: -50, repGain: 5, heatLeft: 10 },
     penance: { almsShare: 0.12, almsMin: 20, cooldownDays: 120, lesserKeep: 0.4, graveKeep: 0.85, karma: 3, heatRelief: 15 },
     weregild: { base: 120, perWeight: 4, memorySoften: 0.3 },
-    debts: { scanDays: 30, comeOfAge: 16, maxDebts: 12, score: 75, minWeight: -20, maxAgeAtDeed: 15 },
+    debts: { scanDays: 30, comeOfAge: 16, maxDebts: 12, score: 75, minWeight: -20, maxAgeAtDeed: 15, heirShare: 0.6, heirDropScore: 30 },
 };
 const GROUPS = ['growth', 'fade', 'watch', 'hunters', 'pardon', 'penance', 'weregild', 'debts'];
 const KIN_WORDS = ['father', 'mother', 'brother', 'sister', 'grandfather', 'grandmother', 'uncle', 'aunt'];
@@ -298,6 +302,21 @@ export const Wanted = {
                 const text = Wanted.text('succession', { old: st.lastRuler || 'your predecessor' }, 'The charges held against your predecessor died with them.');
                 Wanted._log(player, world, text);
                 out.notices.push({ icon: '📜', title: 'Old Charges Lapse', text, type: 'info' });
+            }
+            // The blood debts pass to the heir, a generation cooler (some let go)
+            const D = Wanted.config().debts;
+            let open = 0;
+            st.debts = st.debts.filter(d => {
+                if (d.paid || d.risen) return true;
+                d.gens = _num(d.gens) + (gen - st.lastGen);
+                if (Wanted.debtScore(d) < _num(D.heirDropScore, 30)) return false;
+                open++;
+                return true;
+            });
+            if (open) {
+                const text = Wanted.text('debtsInherited', { old: st.lastRuler || 'your predecessor', n: open }, `The blood ${st.lastRuler || 'your predecessor'} spilt is not forgotten: ${open} famil${open === 1 ? 'y still holds' : 'ies still hold'} it against the House, if less hotly against you.`);
+                Wanted._log(player, world, text);
+                out.notices.push({ icon: '🗡️', title: 'Old Blood, New Head', text, type: 'warning' });
             }
         }
         st.lastGen = gen;
@@ -827,9 +846,14 @@ export const Wanted = {
                 if (known.has(ref)) continue;
                 for (const e of p.nm) {
                     if (!e || !KIN_WORDS.includes(e.vr) || !(_num(e.w) <= D.minWeight)) continue;
+                    // (only a deed done while they were still a child makes a blood debt: debts.maxAgeAtDeed)
+                    if (e.d != null && (_num(e.d) - _num(p.born, day)) / Y > _num(D.maxAgeAtDeed, 15)) continue;
                     const def = NpcMemory.kind(e.k);
                     if (!def || !def.blood) continue;
-                    if (NpcMemory.actorOf(e, player).gen == null) continue;
+                    const gens = NpcMemory.actorOf(e, player).gen;
+                    if (gens == null) continue;
+                    // (a forebear's deed: the grudge against the heir is cooler — or let go)
+                    if (gens > 0 && Wanted.debtScore({ weight: Math.abs(_num(e.w)), gens }) < _num(D.heirDropScore, 30)) continue;
                     if (st.debts.length >= D.maxDebts) return;
                     const debt = {
                         id: `bd${st.nextId++}`, folkRef: ref, name: `${p.first || 'a child'}${p.last ? ` ${p.last}` : ''}`, last: p.last || null,
@@ -838,6 +862,7 @@ export const Wanted = {
                         town: s.name || null, kingdomId: s.kingdom != null ? s.kingdom : null, day, weight: Math.abs(_num(e.w)),
                         comeOfAgeDay: Math.round(_num(p.born, day) + D.comeOfAge * Y), paid: false, risen: false,
                     };
+                    if (gens > 0) debt.gens = gens;
                     st.debts.push(debt);
                     known.add(ref);
                     const text = Wanted.text('debtNoted', { name: debt.name, age: Math.floor(age), rel: debt.gender === 'female' ? 'daughter' : 'son', victim: debt.victim });
@@ -861,7 +886,7 @@ export const Wanted = {
             if (day < d.comeOfAgeDay) { keep.push(d); continue; }
             const g = Nemesis.wrong(player, world, {
                 kind: 'blood', name: d.name, line: d.last, ref: { folkRef: d.folkRef },
-                score: D.score + Math.round(d.weight / 2), age: Math.floor((day - d.born) / Wanted.config().daysPerYear), gender: d.gender,
+                score: Wanted.debtScore(d), age: Math.floor((day - d.born) / Wanted.config().daysPerYear), gender: d.gender,
                 deed: { key: d.kind || 'blood_debt', label: `the death of their ${d.vr} ${d.victim}`, note: d.town },
             });
             d.risen = true;
@@ -876,10 +901,22 @@ export const Wanted = {
         st.debts = keep;
     },
 
-    /** Weregild owed to a debt's family. */
+    /** How much of a blood debt is still held against the head of the House now: 1, less each generation since the deed. */
+    debtFactor(debt) {
+        const share = Math.max(0, Math.min(1, _num(Wanted.config().debts.heirShare, 0.6)));
+        return Math.pow(share, Math.max(0, _num(debt && debt.gens)));
+    },
+
+    /** The grudge a blood debt hands the nemesis layer when its child comes of age (cooled by generations). */
+    debtScore(debt) {
+        const D = Wanted.config().debts;
+        return Math.round((_num(D.score, 75) + _num(debt && debt.weight) / 2) * Wanted.debtFactor(debt));
+    },
+
+    /** Weregild owed to a debt's family (a forebear's debt is cheaper to settle). */
     weregildCost(debt) {
         const C = Wanted.config().weregild;
-        return Math.round(C.base + _num(debt && debt.weight) * C.perWeight);
+        return Math.round(C.base + _num(debt && debt.weight) * C.perWeight * Wanted.debtFactor(debt));
     },
 
     /** Pay the blood price to a victim's family: the debt is cancelled, the realm's grave charge eased. */

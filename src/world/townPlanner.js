@@ -759,7 +759,7 @@ export function planTown(tiles, settlement, rng, W, H, layoutIn = null, planOpts
     // ── 5½. Its walls, round all it has built, a gate on each road out (world/townWalls.js; draws no dice) ──
     tiles._townWalls = null;
     if (eraLook && eraLook.walls && eraLook.wallMaterial) {
-        TownWalls.lay(tiles, { kind: eraLook.walls, material: eraLook.wallMaterial, reach });
+        TownWalls.lay(tiles, { kind: eraLook.walls, material: eraLook.wallMaterial, reach, margin: TownEras.config().walls.margin });
     }
 
     // ── 6. Farmland round the town: farmsteads by the roads, fields and pastures ──

@@ -76,6 +76,7 @@ import { Commissions } from '../../systems/commissions.js';
 import { Stewards } from '../../systems/stewards.js';
 import { travelTo } from './harness.js';
 import { HouseQuests } from '../../systems/houseQuests.js';
+import { Devotion } from '../../systems/devotion.js';
 
 const FOOD = ['grain', 'bread'];
 // Bought only when there's no grain or bread for sale
@@ -179,6 +180,8 @@ const poorBelow = (game) => Math.max(temper(game).poorBelow, savingNow(game) ? c
  * their own thresholds, well above the plan's sum: a purse that rich founds first.)
  */
 const frugal = (game) => companyTarget(game) > 0;
+/** The plan's sum is put by (drawn, or about to be): it is for the charter and the company's capital, not land or leases. */
+const founding = (game) => { const t = companyTarget(game); return t > 0 && savings(game.player) >= t; };
 const JOB_AP = 4;
 
 function count(stats, key, n = 1) {
@@ -191,6 +194,10 @@ function booked(game, label, fn) {
     const out = fn();
     const d = game.player.gold - before;
     if (d && Number.isFinite(d)) {
+        // SOAK_METRICS: a windfall the size of a realm's treasury is worth a look
+        if (Math.abs(d) > 20000 && typeof process !== 'undefined' && process.env.SOAK_METRICS) {
+            process.stdout.write(`WINDFALL day ${game.world.day} bot:${label} ${Math.round(d)}g (gold ${Math.round(game.player.gold)})\n`);
+        }
         game.ledger = game.ledger || {};
         game.ledger[`bot:${label}`] = Math.round((game.ledger[`bot:${label}`] || 0) + d);
     }
@@ -207,10 +214,13 @@ function settlementTiles(world) {
     return list;
 }
 
+// (from the player, only places it can get to from here: on foot, those on its own landmass —
+// a town over the sea is no use to a walker, and asking for the way there only fails)
 function nearest(world, from, list, n = 6) {
+    const reach = from && typeof from._overlandReachable === 'function' ? (t) => from._overlandReachable(t.q, t.r, world) : null;
     return list
         .map(t => ({ ...t, d: Hex.wrappingDistance(from.q, from.r, t.q, t.r, world.width) }))
-        .filter(t => t.d > 0)
+        .filter(t => t.d > 0 && (!reach || reach(t)))
         .sort((a, b) => a.d - b.d)
         .slice(0, n);
 }
@@ -810,7 +820,9 @@ function heist(game, tile, stats) {
 
 function sail(game, tile, stats) {
     const { player, world } = game;
-    if (!Ships.isPortTile(world, tile.q, tile.r) || Utils.random() > 0.25) return false;
+    // (come back to the ship to sail — a town over the water wanted: chooseDestination — it sails the day it arrives)
+    const keen = !!(game.dest && game.dest.ship && game.dest.q === tile.q && game.dest.r === tile.r);
+    if (!Ships.isPortTile(world, tile.q, tile.r) || (!keen && Utils.random() > 0.25)) return false;
     const ship = (player.ships || []).find(s => s.status === 'docked' && s.q === tile.q && s.r === tile.r && !Ships.crewSailReason(s));
     if (!ship) return false;
     const ports = settlementTiles(world).filter(t => Ships.isPortTile(world, t.q, t.r));
@@ -1088,6 +1100,9 @@ function banking(game, tile, stats) {
     const SAVE_ABOVE = saving ? 300 : MerchantHouses.company(player) ? 2500 : 6000;
     if (player.gold > SAVE_ABOVE + (saving ? 100 : 400) && Finance.deposit(player, world, bank.id, Math.floor((player.gold - SAVE_ABOVE) * (saving ? 1 : 0.25))).success) count(stats, saving ? 'savedForCompany' : 'deposits');
     else if (player.gold < 300 && acct && acct.balance >= 100 && Finance.withdraw(player, world, bank.id, 500).success) count(stats, 'withdrawals');
+    // Not saving for the company: a merchant's working purse drawn back from the bank — the trade,
+    // a guild's fee, a lease, an estate or a few shares want coin in hand (it deposits only above 2,900)
+    else if (!saving && player.gold < 1500 && acct && acct.balance >= 500 && Finance.withdraw(player, world, bank.id, Math.floor(Math.min(acct.balance, 2500 - player.gold))).success) count(stats, 'workingPurseDrawn');
     // Borrow modestly, and only with money in hand to carry the payments: a
     // great loan taken by a near-broke bot drained it to nothing (seed 404)
     if (!st.loans.length && player.gold > 2000 && Utils.random() < 0.05) {
@@ -1129,20 +1144,21 @@ function bills(game, tile, stats) {
     if (to && Bills.draw(player, world, here[0].id, to.id, 3000).success) count(stats, 'billsDrawn');
 }
 
-/** The Bourse: a few shares in the best-yielding houses and banks once rich; sell when short. No dice. */
+/** The Bourse: a few shares in the best-yielding houses and banks with money to spare (chooseDestination walks to an exchange); sell when short. No dice. */
 function bourse(game, tile, stats) {
     const { player, world } = game;
     if (!Bourse.exchangeAt(player, world)) return;
     const held = Bourse.portfolio(player);
-    if (player.gold < 1500 && held.length) {
+    if (player.gold < 600 && held.length) {
         const p = held[0];
         if (Bourse.sell(player, world, p.listing.id, p.shares).success) count(stats, 'sharesSoldBourse');
         return;
     }
-    if (player.gold < 6000 || Bourse.portfolioValue(player) > 4000) return;
+    // (shares run from a few gold to a hundred: a purse of 1,500 can spare 600 for them)
+    if (player.gold < 1500 || frugal(game) || Bourse.portfolioValue(player) > 2000) return;
     const pick = Bourse.listed(player).filter(l => (l.kind === 'house' || l.kind === 'bank') && l.price > 0)
         .sort((a, b) => b.lastDiv / b.price - a.lastDiv / a.price || a.id.localeCompare(b.id))[0];
-    if (pick && Bourse.buy(player, world, pick.id, Math.max(1, Math.min(10, Math.floor(1500 / pick.price)))).success) count(stats, 'sharesBoughtBourse');
+    if (pick && Bourse.buy(player, world, pick.id, Math.max(1, Math.min(10, Math.floor(600 / pick.price)))).success) count(stats, 'sharesBoughtBourse');
 }
 
 function buyMaterials(game, tile, materials, stats) {
@@ -1162,11 +1178,12 @@ function buyMaterials(game, tile, materials, stats) {
 function merchantPrince(game, tile, stats) {
     const { player, world } = game;
     const s = tile.settlement;
-    // Works: a bakehouse or brewhouse in a town of 3,000+, while there's money to spare
-    if (player.gold > 2200 && (s.population || 0) >= 2000) {
+    // Works: a bakehouse or brewhouse in a town of 1,000+ (the quote says if it's too small), while there's money to spare
+    // (a works costs a few hundred gold and its materials: funded with 1,000 kept in hand)
+    if (player.gold > 1500 && !founding(game) && (s.population || 0) >= 1000) {
         for (const id of ['bakery', 'brewery', 'charcoal', 'mill']) {
             const q = MerchantPrince.investQuote(player, world, tile, id);
-            if (!q.lvl || q.lvl > 1 || !(q.margin && q.margin.perRun > 0) || player.gold < q.gold + 1800) continue;
+            if (!q.lvl || q.lvl > 1 || !(q.margin && q.margin.perRun > 0) || player.gold < q.gold + 1000) continue;
             if (!buyMaterials(game, tile, q.materials, stats)) continue;
             if (MerchantPrince.invest(player, world, tile, id).success) { count(stats, 'worksFunded'); break; }
         }
@@ -1224,8 +1241,9 @@ function guilds(game, tile, stats) {
         if (!m) continue;
         const q = Guilds.advanceQuote(player, world, tile, gid);
         const onlyGoods = q.needs.length && q.needs.every(n => n.met || /masterpiece/.test(n.label));
-        if (onlyGoods && player.gold > q.fee + 4000) buyMaterials(game, tile, q.goods, stats);
-        if (Guilds.advanceQuote(player, world, tile, gid).ok && player.gold > q.fee + 3000 && Guilds.advance(player, world, tile, gid).success) count(stats, 'guildRankUp');
+        // (a rank's fee is 120 for a journeyman, 400 for a master: kept a working purse above it)
+        if (onlyGoods && player.gold > q.fee + 1500) buyMaterials(game, tile, q.goods, stats);
+        if (Guilds.advanceQuote(player, world, tile, gid).ok && player.gold > q.fee + 800 && Guilds.advance(player, world, tile, gid).success) count(stats, 'guildRankUp');
         if (m.rank >= 2 && !m.candidate) Guilds.stand(player, world, s, gid, true);
         // A contract for what the bot carries
         for (const o of Guilds.contractOffers(player, world, s, gid)) {
@@ -1238,7 +1256,7 @@ function guilds(game, tile, stats) {
 }
 
 /**
- * Mining leases (systems/concessions.js): now and then, once settled and with
+ * Mining leases (systems/concessions.js): now and then from the sixth year and with
  * money to spare, bid the least bid on an open auction of a realm's deposit
  * near here when the lease looks like it repays its fee well inside the
  * term. Picks by a hash of the day and the town, not the RNG, so the rest of
@@ -1247,18 +1265,20 @@ function guilds(game, tile, stats) {
 function concessions(game, tile, stats) {
     const { player, world } = game;
     const s = tile.settlement;
-    if (world.day < 120 || player.gold < 3500 || s.kingdom == null) return;
-    if (((world.day * 7 + tile.q * 13 + tile.r * 17) % 5) !== 0) return;
+    // (a lease's fee runs a few hundred gold to about 1,500: a purse of 1,500 can bid — a mid-game
+    // investment, from the sixth year, once the company and its works have had the first years' coin)
+    if (world.day <= 600 || player.gold < 1500 || s.kingdom == null || founding(game)) return;
+    if (((world.day * 7 + tile.q * 13 + tile.r * 17) % 3) !== 0) return;
     const held = Concessions.mine(player, world).length;
     if (held >= 2) return;
-    for (const { a, site } of Concessions.auctionsNear(world, tile.q, tile.r, 8)) {
+    for (const { a, site } of Concessions.auctionsNear(world, tile.q, tile.r, 12)) {
         if (a.kingdomId !== s.kingdom) continue;
         const q = Concessions.leaseQuote(player, world, site.id);
         if (!q.ok || !q.est || !(q.est.net > 0)) continue;
         // (the houses bid up to about a fifth of the term's net at the close: match the top of that)
         const worth = q.est.net * q.est.term * q.est.cap;
         const fee = Math.max(q.minBid, Math.round(worth * 0.22));
-        if (a.bid > 0 || worth < fee * 2.5 || player.gold < fee + 3000) continue;
+        if (a.bid > 0 || worth < fee * 2.5 || player.gold < fee + 800) continue;
         if (Concessions.bid(player, world, a.id, fee).success) { count(stats, 'leaseBids'); break; }
     }
     // Leases won: count each once
@@ -1269,32 +1289,45 @@ function concessions(game, tile, stats) {
 
 /**
  * Public works (systems/publicWorks.js): once settled and with money to
- * spare, fund one work at a time near here — a toll highway on a busy road
- * whose Steward's estimate repays inside 200 days, or failing that repairs on
- * a worn road of the realm (no toll: a gift to the town) — and top up a work
- * stalled for funds. Picks by a hash of the day and the town (no RNG).
+ * spare, fund one work at a time near here (no more than one a year) — a
+ * toll highway on a busy road whose Steward's estimate repays inside 900
+ * days, or failing that repairs on a worn road of the realm, or a track made
+ * a road (no toll: a gift to the town) — and top up a work stalled for
+ * funds. Picks by a hash of the day and the town (no RNG).
  */
 function publicWorks(game, tile, stats) {
     const { player, world } = game;
-    if (world.day < 150 || player.gold < 4000) return;
+    // (a road's repairs cost tens of gold, a track made a road a few hundred: a purse of 1,500 can fund one)
+    if (world.day < 150 || player.gold < 1500 || frugal(game)) return;
     const mine = PublicWorks.playerWorks(world).filter(w => w.status === 'building' || w.status === 'stalled');
     for (const w of mine) {
-        if (w.stall === 'funds' && player.gold > 5000 && PublicWorks.fund(world, player, w.id).success) count(stats, 'publicWorksTopped');
+        if (w.stall === 'funds' && player.gold > 2000 && PublicWorks.fund(world, player, w.id).success) count(stats, 'publicWorksTopped');
     }
-    if (mine.length || ((world.day * 5 + tile.q * 3 + tile.r * 11) % 7) !== 0) return;
+    // (one at a time, and a gift to the realm's roads no more than once a year)
+    if (mine.length || world.day - (game.lastPublicWork ?? -1e9) < 120 || ((world.day * 5 + tile.q * 3 + tile.r * 11) % 7) !== 0) return;
     const near = Transport.segmentsNear(world, tile.q, tile.r, 6);
+    const spare = player.gold - 1000;
     let pick = null;
+    // A toll highway that repays inside a few years (a long game: 900 days is under eight years)
     for (const seg of near) {
         const est = PublicWorks.tollEstimate(world, player, 'upgrade_highway', seg.key);
-        if (est && est.payback && est.payback <= 200 && est.cost < player.gold - 3000 && (!pick || est.payback < pick.est.payback)) pick = { kind: 'upgrade_highway', seg, est, toll: true };
+        if (est && est.payback && est.payback <= 900 && est.cost < spare && (!pick || est.payback < pick.est.payback)) pick = { kind: 'upgrade_highway', seg, est, toll: true };
     }
-    if (!pick) {
+    // ...else repairs on a worn road, else a track near the town made a road (no toll: a gift to the town)
+    for (const kind of ['repair', 'upgrade_road']) {
+        if (pick) break;
         for (const seg of near) {
-            const q = PublicWorks.quote(world, 'repair', seg.key);
-            if (q.ok && q.cost < player.gold - 3000 && Transport.band(Transport.segState(world, seg)) !== 'good') { pick = { kind: 'repair', seg, toll: false }; break; }
+            const q = PublicWorks.quote(world, kind, seg.key);
+            if (!q.ok || !(q.cost < spare)) continue;
+            if (kind === 'repair' && Transport.band(Transport.segState(world, seg)) === 'good') continue;
+            pick = { kind, seg, toll: false };
+            break;
         }
     }
-    if (pick && PublicWorks.commission(world, player, pick.kind, pick.seg.key, { by: 'player', toll: pick.toll }).success) count(stats, 'publicWorksFunded');
+    if (pick && PublicWorks.commission(world, player, pick.kind, pick.seg.key, { by: 'player', toll: pick.toll }).success) {
+        game.lastPublicWork = world.day;
+        count(stats, 'publicWorksFunded');
+    }
 }
 
 /**
@@ -1383,8 +1416,8 @@ function harvests(game, tile, stats) {
  * Land and the cottage looms (systems/landMarket.js, systems/puttingOut.js):
  * cloth put out here is collected; in autumn and winter wool or flax (bought
  * here when it is cheap) goes out to the cottagers at the fair rate; after
- * day 150, with gold to spare, the cheapest estate here or for sale nearby is
- * bought (one; keeping 5,000g in hand for the rest of the trade), its rent taken in kind when the tenants grow sullen
+ * day 600 (mid-game), with gold to spare, the cheapest estate here or for sale nearby is
+ * bought (one, here or in a town round about; keeping 1,000g in hand for the rest of the trade), its rent taken in kind when the tenants grow sullen
  * and its fields drained when there is money for it. Picks by a hash of the
  * day and the town, not the RNG.
  */
@@ -1412,9 +1445,15 @@ function land(game, tile, stats) {
         }
     }
     const mine = LandMarket.mine(player, world);
-    if (world.day >= 150 && mine.length < 1 && ((world.day * 5 + tile.q * 3 + tile.r) % 4) === 0) {
-        const ids = [...Estates.estatesOf(world, s.q, s.r).map(e => e.id), ...LandMarket.listingsNear(world, s.q, s.r, 12).map(x => x.e.id)];
-        const quotes = ids.map(id => LandMarket.buyQuote(player, world, id)).filter(q => q.ok && q.cost <= player.gold - 5000).sort((a, b) => a.cost - b.cost);
+    // (a mid-game investment, from the sixth year: the first years' coin goes to the company, its posts
+    // and works; and not while the company's sum is put by: the charter and its capital come first)
+    if (world.day > 600 && mine.length < 1 && !founding(game) && ((world.day * 5 + tile.q * 3 + tile.r) % 4) === 0) {
+        // (the holders' asks here and in the towns round about — the cheapest estates go for a few
+        // hundred to two thousand gold, and a buyer asks around — and what is listed for sale nearby)
+        const towns = [{ q: s.q, r: s.r }, ...nearest(world, player, settlementTiles(world), 8).filter(t => t.d <= 8)];
+        const ids = [...new Set([...towns.flatMap(t => Estates.estatesOf(world, t.q, t.r).map(e => e.id)), ...LandMarket.listingsNear(world, s.q, s.r, 12).map(x => x.e.id)])];
+        // (one is bought with 1,000 kept in hand)
+        const quotes = ids.map(id => LandMarket.buyQuote(player, world, id)).filter(q => q.ok && q.cost <= player.gold - 1000).sort((a, b) => a.cost - b.cost || String(a.estate.id).localeCompare(String(b.estate.id)));
         if (quotes.length && LandMarket.buy(player, world, quotes[0].estate.id).success) count(stats, 'estatesBought');
     }
     if (world.day % 7 === 0) {
@@ -1462,6 +1501,28 @@ function settlementBusiness(game, stats) {
     if (!saving) booked(game, 'tongues', () => tongues(game, tile, stats));
     if (!saving) booked(game, 'bathe', () => bathe(game, stats));
     if (!saving) booked(game, 'hiredWork', () => hiredWork(game, tile, stats));
+    booked(game, 'alms', () => alms(game, tile, stats));
+}
+
+/**
+ * Alms (systems/devotion.js donate → a needy townsperson of the town's roster):
+ * with a little to spare, about once a month a few coins to the neediest soul here —
+ * an old woman alone, a beggar at the gate. They remember it (systems/npcMemory.js),
+ * and a remembered kindness is what a house quest of an old favour is made of.
+ * Picks by a hash of the day and the town (no RNG); at most one gift a month.
+ */
+function alms(game, tile, stats) {
+    const { player, world } = game;
+    if (world.day < 120 || player.gold < 300 || world.day - (game.lastAlms ?? -1e9) < 30) return;
+    if (((world.day * 7 + tile.q * 5 + tile.r * 3) % 4) !== 0) return;
+    const p = Devotion.needyFolk(world, tile, 1)[0];
+    if (!p) return;
+    // (a few coppers while saving for the company: it can still spare those)
+    const amount = frugal(game) ? 10 : player.gold > 3000 ? 50 : player.gold > 1500 ? 20 : 10;
+    if (Devotion.donate(player, world, tile, `folk:${p.id}`, amount).success) {
+        game.lastAlms = world.day;
+        count(stats, 'almsGiven');
+    }
 }
 
 /**
@@ -1626,17 +1687,58 @@ function delve(game, stats) {
     }
 }
 
+/**
+ * A first colony: a free site (at least MIN_SETTLEMENT_DISTANCE from every
+ * town — so never within the 3 hexes of a town the bot stands in, where it
+ * used to look and never found one) on its own landmass within a few days'
+ * walk, held to until reached, over days if need be, and founded there; then
+ * back to its ship. Returns true while on the way (the day's travel is
+ * spent) or on the day it founds.
+ */
+const COLONY_SEARCH = 9;
 function foundColony(game, stats) {
     const { player, world } = game;
-    if ((player.colonies || []).length || player.gold < Colonization.COLONY_COST + 1500) return false;
-    for (const h of Hex.hexesInRange(player.q, player.r, 3)) {
-        const q = Hex.wrapQ(h.q, world.width);
-        if (h.r < 0 || h.r >= world.height) continue;
-        const t = world.getTile(q, h.r);
-        if (!t || !Colonization.canPlayerFoundColony(player, t, world, q, h.r).can) continue;
-        if (!travelTo(game, q, h.r)) continue;
-        const res = Colonization.foundPlayerColony(player, t, world, q, h.r, null, 'coexistence');
-        if (res.success) { count(stats, 'coloniesFounded'); return true; }
+    if ((player.colonies || []).length || player.gold < Colonization.COLONY_COST + 1500) { game.colonySite = null; return false; }
+    const bad = game.unreachableSites || (game.unreachableSites = new Set());
+    const fits = (q, r) => {
+        const t = world.getTile(q, r);
+        return !!t && !bad.has(`${q},${r}`) && player._overlandReachable(q, r, world)
+            && Colonization.canPlayerFoundColony(player, t, world, q, r).can;
+    };
+    let site = game.colonySite;
+    if (site && !fits(site.q, site.r)) site = null;
+    // (a look round that found nothing is not repeated for a week)
+    if (!site && !(game.colonyLookedOn > world.day - 7)) {
+        game.colonyLookedOn = world.day;
+        // (the towns near enough to matter, once: canPlayerFoundColony walks them all for each hex)
+        const towns = settlementTiles(world).filter(t => Hex.wrappingDistance(player.q, player.r, t.q, t.r, world.width) <= COLONY_SEARCH + Colonization.MIN_SETTLEMENT_DISTANCE);
+        const clear = (q, r) => towns.every(t => Hex.wrappingDistance(q, r, t.q, t.r, world.width) >= Colonization.MIN_SETTLEMENT_DISTANCE);
+        for (const h of Hex.hexesInRange(player.q, player.r, COLONY_SEARCH)) {
+            if (h.r < 0 || h.r >= world.height) continue;
+            const q = Hex.wrapQ(h.q, world.width);
+            const t = world.getTile(q, h.r);
+            if (!t || !t.terrain.passable || !clear(q, h.r) || !fits(q, h.r)) continue;
+            const d = Hex.wrappingDistance(player.q, player.r, q, h.r, world.width);
+            if (!site || d < site.d) site = { q, r: h.r, d };
+        }
+    }
+    game.colonySite = site;
+    if (!site) return false;
+    const from = `${player.q},${player.r}`;
+    if (!travelTo(game, site.q, site.r)) {
+        // No way there after all: drop it and look again another day
+        if (`${player.q},${player.r}` === from && !player.crossing) { bad.add(`${site.q},${site.r}`); game.colonySite = null; return false; }
+        count(stats, 'travelDays');
+        return true;
+    }
+    game.colonySite = null;
+    const res = Colonization.foundPlayerColony(player, world.getTile(site.q, site.r), world, site.q, site.r, null, 'coexistence');
+    if (res.success) {
+        count(stats, 'coloniesFounded');
+        // ...and back to the ship, laid up in the port it set out from
+        const laid = (player.ships || []).find(sh => sh.status === 'docked' && player._overlandReachable(sh.q, sh.r, world));
+        if (laid) game.dest = { q: laid.q, r: laid.r, ship: true };
+        return true;
     }
     return false;
 }
@@ -1655,7 +1757,7 @@ function chooseDestination(game) {
             if (h.r < 0 || h.r >= world.height) continue;
             const q = Hex.wrapQ(h.q, world.width);
             const t = world.getTile(q, h.r);
-            if (!t || !t.terrain.passable || !Delves.isDelveSite(t) || bad.has(`${q},${h.r}`)) continue;
+            if (!t || !t.terrain.passable || !Delves.isDelveSite(t) || bad.has(`${q},${h.r}`) || !player._overlandReachable(q, h.r, world)) continue;
             const d = Hex.distance(player.q, player.r, h.q, h.r);
             if (!best || d < best.d) best = { q, r: h.r, d };
         }
@@ -1663,20 +1765,23 @@ function chooseDestination(game) {
     }
     // Carrying bullion: on to the nearest realm's capital, where its mint buys it (systems/mints.js)
     if (BULLION.some(id => (player.inventory[id] || 0) > 0)) {
-        const mint = nearest(world, player, settlementTiles(world), 60).find(t => Mints.mintAt(world, world.getTile(t.q, t.r)));
+        // (within the pathfinder's reach: Hex.findPath gives up past 50 hexes)
+        const mint = nearest(world, player, settlementTiles(world), 60).find(t => t.d <= 45 && Mints.mintAt(world, world.getTile(t.q, t.r)));
         if (mint) return { q: mint.q, r: mint.r };
     }
     // Colonies hold court; drop by now and then
-    if (roll < 0.3 && (player.colonies || []).length) return { q: player.colonies[0].q, r: player.colonies[0].r };
+    // (on foot, only places on its own landmass: Player._overlandReachable)
+    const walkTo = (t) => !!t && player._overlandReachable(t.q, t.r, world);
+    if (roll < 0.3 && walkTo((player.colonies || [])[0])) return { q: player.colonies[0].q, r: player.colonies[0].r };
     // A boss looks in on the gang now and then (systems/gangs.js)
     if (roll >= 0.5 && roll < 0.7) {
-        const home = Gangs.bossTowns(player, world).find(b => b.q !== player.q || b.r !== player.r);
+        const home = Gangs.bossTowns(player, world).find(b => (b.q !== player.q || b.r !== player.r) && walkTo(b));
         if (home) return { q: home.q, r: home.r };
     }
     // A ship laid up in another port: go back to it now and then, to sail
     if (roll >= 0.3 && roll < 0.4) {
-        const laid = (player.ships || []).find(sh => sh.status === 'docked' && (sh.q !== player.q || sh.r !== player.r));
-        if (laid) return { q: laid.q, r: laid.r };
+        const laid = (player.ships || []).find(sh => sh.status === 'docked' && (sh.q !== player.q || sh.r !== player.r) && walkTo(sh));
+        if (laid) return { q: laid.q, r: laid.r, ship: true };
     }
     // Abroad now and then, once settled in: a town of another tongue within a
     // fortnight's walk (systems/languages.js — immersion, lessons, interpreters)
@@ -1688,7 +1793,21 @@ function chooseDestination(game) {
         })());
         if (abroad.length) return Utils.randPick(abroad.slice(0, 6));
     }
+    // Money put by and no shares: to the nearest exchange it can walk to, to buy a few (systems/bourse.js)
+    if (roll >= 0.7 && roll < 0.8 && world.day > 150 && !frugal(game) && savings(player) >= 1800 && !Bourse.portfolio(player).length) {
+        const ex = ((player.bourse && player.bourse.exchanges) || [])
+            .map(e => ({ q: e.q, r: e.r, d: Hex.wrappingDistance(player.q, player.r, e.q, e.r, world.width) }))
+            .filter(e => e.d > 0 && e.d <= 45 && walkTo(e)).sort((a, b) => a.d - b.d)[0];
+        if (ex) return { q: ex.q, r: ex.r };
+    }
     const near = nearest(world, player, settlementTiles(world), 6);
+    // Among the towns nearest as the crow flies, one over the water: back to the
+    // ship (laid up on this landmass) to sail, now and then — a walker can't get there
+    if (Utils.random() < 0.5) {
+        const laid = (player.ships || []).find(sh => sh.status === 'docked' && (sh.q !== player.q || sh.r !== player.r) && walkTo(sh));
+        const overWater = laid && nearest(world, { q: player.q, r: player.r }, settlementTiles(world), 6).some(t => !walkTo(t));
+        if (overWater) return { q: laid.q, r: laid.r, ship: true };
+    }
     return near.length ? Utils.randPick(near) : null;
 }
 
@@ -1956,8 +2075,9 @@ export function rivalHouses(game, stats) {
 /** One day of the bot's play (before the harness ends the day). */
 /**
  * The House's unfinished business (systems/houseQuests.js): a matter is settled
- * on reaching its town (the kindest way the purse allows), and once a week the
- * bot rides to the nearest one within a dozen hexes when it can pay.
+ * on reaching its town (the kindest way the purse allows — or, a month on and
+ * unable to pay, declined to their face), and once a week the bot rides to the
+ * nearest one within 16 hexes when it can pay, or when it has waited two months.
  */
 function houseBusiness(game, stats) {
     const { player, world } = game;
@@ -1967,20 +2087,36 @@ function houseBusiness(game, stats) {
     for (const q of [...open]) {
         if (!HouseQuests.at(player, q)) continue;
         const opts = HouseQuests.options(world, player, q.id).filter(o => o.ok);
-        const pick = order.map(id => opts.find(o => o.id === id)).find(Boolean);
+        let pick = order.map(id => opts.find(o => o.id === id)).find(Boolean);
+        // Come all this way and unable to pay: say so, rather than leave the matter hanging until it lapses
+        if (!pick && world.day - q.day > 30) pick = ['leave', 'refuse', 'defy'].map(id => opts.find(o => o.id === id)).find(Boolean);
         if (!pick) continue;
         const r = HouseQuests.act(world, player, q.id, pick.id);
         if (r.success) count(stats, 'houseQuestsSettled');
     }
     if (world.day % 7 !== 3) return;
     const near = HouseQuests.open(player)
-        .filter(q => q.target && (q.price == null || player.gold > q.price * 2) && Hex.distance(player.q, player.r, q.target.q, q.target.r) <= 12)
+        .filter(q => q.target && (q.price == null || player.gold > q.price * 2 || world.day - q.day > 60) && Hex.distance(player.q, player.r, q.target.q, q.target.r) <= 16)
         .sort((a, b) => Hex.distance(player.q, player.r, a.target.q, a.target.r) - Hex.distance(player.q, player.r, b.target.q, b.target.r))[0];
     if (near && travelTo(game, near.target.q, near.target.r)) count(stats, 'houseQuestTrips');
 }
 
 export function botDay(game, stats) {
     const { player, world } = game;
+    // The House's unfinished business told since yesterday (systems/houseQuests.js), counted by kind
+    const hqSeen = game._hqSeen || (game._hqSeen = new Set());
+    for (const q of HouseQuests.open(player)) {
+        const key = `${player.name}:${q.id}`;
+        if (hqSeen.has(key)) continue;
+        hqSeen.add(key);
+        count(stats, 'houseQuestsOffered');
+        count(stats, `hq_${q.kind}`);
+    }
+    // (monthly: the House's book full, or nothing in the world's memory to make a quest of)
+    if (world.day % 30 === 0 && player.house) {
+        if (HouseQuests.open(player).length >= HouseQuests.config().maxOpen) count(stats, 'hqFullMonths');
+        else if (!HouseQuests.candidates(world, player).length) count(stats, 'hqBareMonths');
+    }
     // Yesterday's finds (Discovery.processDay in the harness's endDay)
     if (game.discoveryDay && game.discoveryDay.found.length) count(stats, 'discovered', game.discoveryDay.found.length);
     // ...and yesterday's road: an escort paid on arrival, or failed

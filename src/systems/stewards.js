@@ -110,14 +110,14 @@ const DEFAULTS = {
     abuse: { chance: 0.05, unrest: 6, happiness: 4, extortShare: 0.15, suspicion: 12 },
     excel: { minSkill: 6, chance: 0.06, unrest: 8, happiness: 3, buildDays: 2, renown: 1 },
     bribe: { minFeud: 35, chance: 0.03, gold: [60, 220], skim: 0.08, loyalty: -12, suspicion: 8, acceptBelow: 0.55 },
-    power: { perYear: 6, ambition: 0.6, intrigue: 0.4, mood: 0.05, kin: 10, cap: 100, recallDrop: 100, decayWhenLoyal: 0.4 },
+    power: { perYear: 6, ambition: 0.6, intrigue: 0.4, mood: 0.05, kin: 10, cap: 100, decayWhenLoyal: 0.4 },
     revolt: { power: 70, loyalty: 35, ambition: 6, chance: 0.08, rebelBonus: 0.5, defyDays: 60 },
     marriage: { ambition: 5, loyalty: 50, power: 35, chance: 0.04, minAge: 16, everyDays: 360, acceptLoyalty: 20, acceptPower: 15, acceptAmbition: -2, refuseLoyalty: -12, prestige: 2 },
     audit: { cost: 40, costPerIncome: 0.1, cooldown: 30, baseChance: 0.4, perSkill: 0.05, recover: 0.7, insult: -4, suspicionShown: 35 },
     reward: { goldLoyalty: 0.06, goldMin: 20, honourPrestige: 4, honourLoyalty: 10, honourPower: 6 },
     punish: { fineLoyalty: -25, disgraceRenown: 2, innocentLoyalty: -6, innocentRenown: -3, shamePower: 30 },
     recall: { refuseChance: 0.5, refusePower: 60, refuseLoyalty: 30 },
-    succession: { personStayLoyalty: 60, personStayHonesty: 0.75, loyaltyShift: -8, defyPower: 55 },
+    succession: { houseStay: true, personStayLoyalty: 60, personStayHonesty: 0.75, loyaltyShift: -8, defyPower: 55 },
     allowanceSteps: [0, 100, 250, 500, 1000],
     worksPad: 0.25,
 };
@@ -644,7 +644,14 @@ export const Stewards = {
         } else if (seat.kind === 'province') {
             const pf = _obj(seat.settlement.provinceFx) || {};
             const collect = s.defiant > _day(world) ? 0 : 1 + (_num(office.stewardship, 5) - 5) * 0.02 + (_num(o.collect) > 0 ? _num(o.collect) * f : _num(o.collect));
-            seat.settlement.provinceFx = { collect: _r2(_clamp(collect, 0, 1.4)), skim: _r2(_num(s.skim)), pocket: _num(pf.pocket), by: office.id };
+            // The order's mood a day on the town (a sullen squeeze, a fed and quiet town), applied by
+            // the crown's collectors as they come round, within the order's band (systems/fiscal.js)
+            const pm = _num(o.provinceMood);
+            const band = Array.isArray(o.provinceBand) ? o.provinceBand : [35, 70];
+            seat.settlement.provinceFx = {
+                collect: _r2(_clamp(collect, 0, 1.4)), skim: _r2(_num(s.skim)), pocket: _num(pf.pocket), by: office.id,
+                mood: _r2(pm > 0 ? pm * f : pm), band: [_num(band[0], 35), _num(band[1], 70)],
+            };
         } else if (seat.kind === 'trade') {
             // The Master of the Lines: their haggling and their skim, read by player/tradeLines.js
             const tl = _obj(player.tradeLines);
@@ -1350,7 +1357,8 @@ export const Stewards = {
             if (office.id === player.id) continue;
             const s = Stewards._ensureSt(office, world);
             s.servedLords = _num(s.servedLords) + 1;
-            if (s.oath === 'house' || s.kin) {
+            // (succession.houseStay false: even those sworn to the House weigh the new lord like anyone)
+            if ((s.oath === 'house' && S.houseStay !== false) || s.kin) {
                 office.loyaltyMod = _num(office.loyaltyMod) + Math.round(S.loyaltyShift / 2);
                 lines.push(`${office.name} (${seat.place}) keeps faith with the House.`);
                 st.stats.servedHeirs++;

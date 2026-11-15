@@ -307,26 +307,75 @@ export const Finance = {
             const nb = Finance._newBank(world, st, seat);
             // Founded in a running world, its capital is raised in the realm — the crown's chests and
             // the seat's merchants — not struck from nothing (the coin census counts the vaults)
-            if (opts.funded) {
-                const want = _num(nb.capital);
-                const fromCrown = Math.min(want * 0.5, Math.max(0, _num(k.treasury)) * 0.5);
-                const town = (world.getTile && world.getTile(seat.q, seat.r) || {}).settlement || seat;
-                const fromTown = Economy.drawTown(town, Math.min(want - fromCrown, Math.max(0, _num(Economy.townPurse(town))) * 0.5)) || 0;
-                const raised = Math.floor(fromCrown + fromTown);
-                if (raised < _num(B.minCrownHouse, 3000)) {
-                    // Not enough coin in the realm yet: give it back and try another week
-                    if (fromTown > 0) Economy.payTown(town, fromTown);
-                    st.banks.splice(st.banks.indexOf(nb), 1);
-                    continue;
-                }
-                k.treasury = _num(k.treasury) - fromCrown;
-                nb.capital = raised;
-                nb.baseCapital = raised;
+            if (opts.funded && !Finance._raiseCapital(world, k, seat, nb)) {
+                // Not enough coin in the realm yet: try another week
+                st.banks.splice(st.banks.indexOf(nb), 1);
+                continue;
             }
             made.push(nb);
             if (st.initialized && day > 0) Finance._record(st, world, { kind: 'bank_founded', bankId: nb.id, bank: nb.name, kingdomId: nb.kingdomId, place: nb.seat });
         }
         return made;
+    },
+
+    /**
+     * A house founded in a running world raises its capital in its realm: up to half
+     * of it from the crown's chests (at most half of what they hold), the rest from
+     * the seat town's merchants (at most half their purse). Sets the house's capital
+     * and founding capital to what was raised → true, or puts the coin back and →
+     * false when it comes to less than banks.minCrownHouse.
+     */
+    _raiseCapital(world, k, seat, nb, opts = {}) {
+        const B = Finance.cfg('banks');
+        const want = _num(nb.capital);
+        // (a refounded house: its partners are the realm's merchants — banks.refoundTownShare of
+        // each town's purse at most, by its people — and the crown puts nothing in)
+        const crownShare = opts.crown === false ? 0 : 0.5;
+        const fromCrown = k ? Math.min(want * crownShare, Math.max(0, _num(k.treasury)) * 0.5) : 0;
+        const town = (world.getTile && world.getTile(seat.q, seat.r) || {}).settlement || seat;
+        const drawn = [];
+        let fromTown = 0;
+        if (opts.realm && k) {
+            const towns = Economy.realmTowns(k, world).filter(t => Economy.townPurse(t.settlement) != null)
+                .map(t => ({ settlement: t.settlement, weight: Math.max(1, _num(t.settlement.population)) }));
+            const res = Economy.drawTowns(towns, want - fromCrown, _clamp(_num(B.refoundTownShare, 0.3), 0, 1));
+            fromTown = _num(res.paid);
+            for (const t of res.towns || []) drawn.push(t);
+        } else {
+            fromTown = Economy.drawTown(town, Math.min(want - fromCrown, Math.max(0, _num(Economy.townPurse(town))) * 0.5)) || 0;
+            if (fromTown > 0) drawn.push({ settlement: town, paid: fromTown });
+        }
+        const raised = Math.floor(fromCrown + fromTown);
+        if (raised < _num(B.minCrownHouse, 3000)) {
+            // (not enough coin in the realm yet: every town has its coin back)
+            for (const d of drawn) Economy.payTown(d.settlement, _num(d.paid));
+            return false;
+        }
+        if (k) k.treasury = _num(k.treasury) - fromCrown;
+        // (the odd fraction floored off stays with the seat town)
+        if (fromCrown + fromTown - raised > 0) Economy.payTown(town, fromCrown + fromTown - raised);
+        nb.capital = raised;
+        nb.baseCapital = raised;
+        return true;
+    },
+
+    /**
+     * Coin a banking house pays out — a failed house's receivers, the depositors a
+     * run sends home, a lost venture's shippers — lands in its seat town's purse
+     * (or, with no purse there, its realm's chests): it never just vanishes. → paid.
+     */
+    _payOut(world, bank, amount) {
+        const a = _round2(Math.max(0, _num(amount)));
+        if (!(a > 0)) return 0;
+        const t = world && typeof world.getTile === 'function' ? world.getTile(bank.q, bank.r) : null;
+        const town = t && t.settlement;
+        if (town && town.economy && Number.isFinite(town.economy.gold)) {
+            town.economy.gold = _round2(town.economy.gold + a);
+            return a;
+        }
+        const k = _kingdom(world, bank.kingdomId);
+        if (k && k.isAlive !== false) { k.treasury = _num(k.treasury) + a; return a; }
+        return 0;
     },
 
     _newBank(world, st, seat) {
@@ -1168,7 +1217,14 @@ export const Finance = {
                 // (yieldUpTo: the merchants' lending is the house's own trade, abstract — it
                 // only rebuilds a house below that multiple of its founding capital)
                 const cap = _num(bank.baseCapital, bank.capital) * Math.min(_num(B.capitalCapMult, 6), _num(B.yieldUpTo, _num(B.capitalCapMult, 6)));
-                if (bank.capital < cap) bank.capital = _round2(Math.min(cap, bank.capital * (1 + _num(B.yield, 0.07) / yd)));
+                // (the yield is real: the interest its merchant borrowers pay, out of the purses
+                // of the realm's towns — Finance._merchantInterest; with banks.yieldFromTowns
+                // false, the old abstract yield)
+                if (bank.capital < cap) {
+                    const want = Math.min(cap - bank.capital, bank.capital * _num(B.yield, 0.07) / yd);
+                    const got = B.yieldFromTowns === false ? want : Finance._merchantInterest(world, bank, want);
+                    bank.capital = _round2(bank.capital + got);
+                }
                 // The partners draw what the house holds past `payoutAbove` × its founding
                 // capital (the crown's interest, the tax farms' takings) and spend it in
                 // the bank's city: the coin goes back into circulation (2026-11)
@@ -1186,6 +1242,26 @@ export const Finance = {
             if (bank.status !== 'open') continue;
             if (bank.panic && _num(bank.panic.until) < day) Finance._endPanic(world, player, st, bank, out);
         }
+    },
+
+    /**
+     * The interest an NPC house's merchant borrowers pay it today: up to `want`, out of
+     * the purses of its realm's towns by their people (at most banks.yieldTownShare of
+     * each purse a day) — or its seat town's alone when the realm is gone. → the coin paid.
+     */
+    _merchantInterest(world, bank, want) {
+        if (!(want > 0) || !world || typeof world.getTile !== 'function') return 0;
+        const B = Finance.cfg('banks');
+        const share = _clamp(_num(B.yieldTownShare, 0.02), 0, 1);
+        const k = _kingdom(world, bank.kingdomId);
+        let towns = k && k.isAlive !== false ? Economy.realmTowns(k, world) : [];
+        if (!towns.length) {
+            const t = world.getTile(bank.q, bank.r);
+            if (t && t.settlement) towns = [{ settlement: t.settlement }];
+        }
+        const list = towns.filter(t => Economy.townPurse(t.settlement) != null)
+            .map(t => ({ settlement: t.settlement, weight: Math.max(1, _num(t.settlement.population)) }));
+        return list.length ? _num(Economy.drawTowns(list, want, share).paid) : 0;
     },
 
     _depositsDay(world, player, st, out) {
@@ -1523,7 +1599,10 @@ export const Finance = {
             // War costs more than the realm brings in
             // (with real books the war's cost is the army's field pay: systems/fiscal.js)
             const spend = need === 'war' && !books ? Math.round(f.income * _num(C.warBurn, 1.6)) : 0;
-            if (need && k.id !== ruled && _num(k.treasury) - spend < reserve) {
+            // (chests still holding deficitCoinShare of the realm's coin in circulation: no loan, at war or not)
+            const R = need && _num(C.deficitCoinShare) > 0 && MoneySupply.enabled() ? MoneySupply.realm(world, k.id) : null;
+            const flush = !!(R && R.counted && R.coin > 0 && _num(k.treasury) > _num(C.deficitCoinShare) * R.coin);
+            if (need && !flush && k.id !== ruled && _num(k.treasury) - spend < reserve) {
                 Finance._crownBorrow(world, player, st, k, reserve + spend * 7 - (_num(k.treasury) - spend), out);
             }
             if (fs) {
@@ -1670,9 +1749,27 @@ export const Finance = {
         if (Finance._touches(player, k)) Finance._note(out, '💰', 'A War Levy', `The crown of ${Names.realm(k.name)}, deep in debt, raises an extraordinary levy. The realm grumbles.`, 'warning');
     },
 
+    /**
+     * Who pays for offices and crown land: the realm's towns (their merchants and
+     * gentry buy them), each by its people, at most half its purse — real coin
+     * into the chests, never struck from nothing. (Struck from nothing, a sale
+     * priced at 20 days of a revenue that counted the last sale doubled the
+     * chests week on week: a crown in crisis made trillions in a few years.)
+     * → pay(amount) → the coin raised.
+     */
+    saleBuyers(world, k) {
+        return (amount) => {
+            // (only towns that keep a purse: one without would pay out of nothing — Economy.drawTown)
+            const towns = Economy.realmTowns(k, world).filter(t => Economy.townPurse(t.settlement) != null)
+                .map(t => ({ settlement: t.settlement, weight: Math.max(1, _num(t.settlement.population)) }));
+            return Economy.drawTowns(towns, amount, 0.5).paid;
+        };
+    },
+
     /** Sell offices or crown land (the Crown's Purse, world/crownBooks.js): gold now, corruption or lost demesne after. */
     _sale(world, player, st, k, kind, out) {
-        const gain = kind === 'offices' ? CrownBooks.sellOffices(k) : CrownBooks.sellLand(k);
+        const pay = Finance.saleBuyers(world, k);
+        const gain = kind === 'offices' ? CrownBooks.sellOffices(k, { pay }) : CrownBooks.sellLand(k, { pay });
         if (!(gain > 0)) return 0;
         Finance._record(st, world, { kind: kind === 'offices' ? 'offices_sold' : 'land_sold', kingdomId: k.id, kingdom: k.name, amount: gain });
         if (Finance._touches(player, k)) {
@@ -1845,6 +1942,7 @@ export const Finance = {
             if (venture && Utils.random() < _num(venture.chance)) {
                 const loss = Math.round(Math.max(0, _num(b.capital)) * _between(venture.loss || [0.1, 0.25], Utils.random()));
                 b.capital -= loss;
+                Finance._payOut(world, b, loss); // (the cargo was bought and the crews paid: the coin is in the seat town)
                 Finance._record(st, world, { kind: 'venture_loss', bankId: b.id, bank: b.name, amount: loss });
                 if (Finance._exposed(player, b)) Finance._note(out, venture.icon || '🌊', venture.name || 'A venture lost', Finance._fill(venture.text, { bank: b.name, place: b.seat }), 'warning');
             }
@@ -1916,7 +2014,10 @@ export const Finance = {
         if (_num(bank.capital) <= 0 || Utils.random() < fail) {
             Finance._fail(world, player, st, bank, out);
         } else {
-            bank.capital = Math.round(_num(bank.capital) * (1 - _num(run.survivorLoss, 0.1)));
+            // (what the run drew out went home with the depositors: the seat town's purse)
+            const drawn = Math.max(0, _num(bank.capital)) * _num(run.survivorLoss, 0.1);
+            bank.capital = _round2(_num(bank.capital) - drawn);
+            Finance._payOut(world, bank, drawn);
             if (Finance._exposed(player, bank)) Finance._note(out, '🏦', 'The House Stands', `${bank.name} weathered the run, poorer but open.`, 'info');
         }
     },
@@ -1934,6 +2035,8 @@ export const Finance = {
             const back = Math.floor(_num(acct.balance) * share);
             const lost = Math.round(_num(acct.balance) - back);
             player.gold = _num(player.gold) + back;
+            // (paid out of what the house had left: the player's deposit was part of its capital)
+            if (bank.owner !== 'player') bank.capital = _round2(Math.max(0, _num(bank.capital) - back));
             st.stats.lostInFailures += lost;
             text += ` The receivers pay you ${back}g of your ${Math.floor(acct.balance)}g on deposit.`;
         }
@@ -1952,6 +2055,13 @@ export const Finance = {
             if (prestige > 0 && player.house) House.spend(player.house, prestige, `the failure of ${bank.name}`, day);
             text = `Your house, ${bank.name}, has failed. The receivers take what is left for the depositors${lost ? `, and your ${lost}g stake is gone` : ''}. ${bank.seat} will not soon forget it.`;
         }
+        // An NPC house's receivers sell what is left and pay it to its creditors and depositors —
+        // the merchants of its seat town (the player's own share was paid above): the vault's coin
+        // goes back into circulation, not into a shut strongroom the census no longer counts
+        if (bank.owner !== 'player' && _num(bank.capital) > 0) {
+            Finance._payOut(world, bank, bank.capital);
+            bank.capital = 0;
+        }
         Finance._record(st, world, { kind: 'bank_failed', bankId: bank.id, bank: bank.name, kingdomId: bank.kingdomId, place: bank.seat });
         Finance._note(out, '🏚️', 'A Banking House Fails', text, acct || bank.owner === 'player' ? 'error' : 'warning');
     },
@@ -1968,6 +2078,12 @@ export const Finance = {
             const k = _kingdom(world, s.kingdom);
             if (!k || k.isAlive === false) continue;
             const nb = Finance._newBank(world, st, { q: b.q, r: b.r, name: s.name || b.seat, kingdom: s.kingdom, population: s.population });
+            // (its capital raised in the realm, as any house founded in a running world: never struck from nothing;
+            // short of the coin, the realm's own house is founded weekly once it can be — Finance._crownHouses)
+            if (!Finance._raiseCapital(world, k, { q: b.q, r: b.r, name: s.name || b.seat }, nb, { crown: false, realm: true })) {
+                st.banks.splice(st.banks.indexOf(nb), 1);
+                continue;
+            }
             Finance._record(st, world, { kind: 'bank_founded', bankId: nb.id, bank: nb.name, kingdomId: nb.kingdomId, place: nb.seat });
         }
     },

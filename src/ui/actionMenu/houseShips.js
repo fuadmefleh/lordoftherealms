@@ -181,7 +181,7 @@ Object.assign(ActionMenu, {
         game.ui.showCustomPanel(`${ht.icon} Your ${ht.name}`, html);
 
         window._installUpgrade = (upgradeId) => {
-            const result = Housing.installUpgrade(player, tile.q, tile.r, upgradeId);
+            const result = Housing.installUpgrade(player, tile.q, tile.r, upgradeId, game.world);
             if (result.success) {
                 game.ui.showNotification('🔧 Upgraded!', result.message, 'success');
                 game.ui.updateStats(player, game.world);
@@ -192,7 +192,7 @@ Object.assign(ActionMenu, {
         };
 
         window._repairHouse = () => {
-            const result = Housing.repairHouse(player, tile.q, tile.r);
+            const result = Housing.repairHouse(player, tile.q, tile.r, game.world);
             if (result.success) {
                 game.ui.showNotification('🔧 Repaired!', result.message, 'success');
                 game.ui.updateStats(player, game.world);
@@ -215,7 +215,7 @@ Object.assign(ActionMenu, {
         window._tile = tile;
 
         window._doSellHouse = () => {
-            const result = Housing.sellHouse(player, tile.q, tile.r);
+            const result = Housing.sellHouse(player, tile.q, tile.r, game.world);
             if (result.success) {
                 game.ui.hideCustomPanel();
                 game.ui.showNotification('🏷️ Sold!', result.message, 'success');

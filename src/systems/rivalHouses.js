@@ -238,12 +238,25 @@ export const RivalHouses = {
 
     retinueOf(world, rival) {
         if (!rival) return null;
+        // (an estranged cadet branch run as a rival rides under its own colours: systems/cadetBranches.js)
+        if (rival.cadet) return ((world && world.units) || []).find(u => u && u.type === 'cadet_retinue' && !u.destroyed && u.cadetId === rival.id) || null;
         return this.retinues(world).find(u => u.rivalId === rival.kingdomId && u.houseKey === rival.houseKey) || null;
+    },
+
+    /**
+     * The key a rival's plots and feud go by: the realm id for a rival House
+     * (house.rivals[k]), the branch's houseKey ('cadet:cb1') for an estranged
+     * cadet branch acting as one — so a branch seated in a rival's realm never
+     * answers for that rival (House.rivalRecord resolves either).
+     */
+    keyOf(rival) {
+        return rival && rival.cadet && rival.houseKey ? rival.houseKey : rival ? rival.kingdomId : null;
     },
 
     /** The surname of a rival House ("House Varr" → "Varr"). */
     surname(rival) {
-        const n = String((rival && rival.name) || '');
+        // (older saves named a royal rival "House Varr, the crown")
+        const n = String((rival && rival.name) || '').split(', ')[0];
         return n.startsWith('House ') ? n.slice(6) : n;
     },
 
@@ -1155,7 +1168,7 @@ export const RivalHouses = {
         const house = player.house;
         if (!house || rival.gold < C.plotCost || this.inTruce(rival, world)) return null;
         if (_day(world) - _num(rival.lastPlotDay, -1e9) < C.shadow.plotEvery) return null;
-        if ((house.schemes || []).some(s => s.rivalId === rival.kingdomId)) return null;
+        if ((house.schemes || []).some(s => s.rivalId === this.keyOf(rival))) return null;
         if ((house.schemes || []).length >= 2) return null;
         const options = Schemes.eligibleTypes(player, world, _num(rival.feud));
         if (!options.length) return null;
@@ -1392,7 +1405,7 @@ export const RivalHouses = {
         rival.plan = null;
         rival.lastWaylayDay = _day(world);
         rival.stats.waylays = _num(rival.stats.waylays) + 1;
-        const feud = (amt, why) => { if (player) House.accrueRivalFeud(player, world, rival.kingdomId, amt, why); };
+        const feud = (amt, why) => { if (player) House.accrueRivalFeud(player, world, this.keyOf(rival), amt, why); };
         let text = null;
         if (how === 'robbed' || how === 'won') {
             feud(_num(Wy.robFeud, -15));

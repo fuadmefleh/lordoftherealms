@@ -52,6 +52,7 @@ import { Devotion } from '../systems/devotion.js';
 import { Upbringing } from '../systems/upbringing.js';
 import { OddJobs } from './oddJobs.js';
 import { Trading } from './playerEconomy.js';
+import { AnimalCompanions } from '../systems/animalCompanions.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = v => (v && typeof v === 'object' && !Array.isArray(v) ? v : {});
@@ -743,7 +744,8 @@ export const Household = {
         }
 
         // Spoilage (a larder room keeps food better)
-        const spoilRate = _num(L.spoilPerDay) * (1 - _num(L.larderSpoilCut) * Household.quality(home, 'larder'));
+        // (and a cat kept here keeps the rats out of it: systems/animalCompanions.js)
+        const spoilRate = _num(L.spoilPerDay) * (1 - _num(L.larderSpoilCut) * Household.quality(home, 'larder')) * (1 - AnimalCompanions.mouserCut(player, home.key));
         for (const g of Object.keys(home.larder)) {
             if (KEEPS.has(g)) continue;
             const n = _num(home.larder[g]);

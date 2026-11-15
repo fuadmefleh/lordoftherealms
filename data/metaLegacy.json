@@ -47,7 +47,7 @@
             "icon": "💍",
             "blurb": "The family ring as an heirloom, and a piece of silver: the last of an old fortune.",
             "requires": { "totalYears": 40 },
-            "grants": { "boon": { "heirloom": { "kind": "ring", "fromLineage": true }, "items": { "SILVER_JEWELLERY": 1 }, "text": "You keep the family ring, and one piece of silver besides." } }
+            "grants": { "boon": { "heirloom": { "kind": "ring", "fromLineage": true }, "items": { "silver_jewellery": 1 }, "text": "You keep the family ring, and one piece of silver besides." } }
         },
         {
             "id": "old_book",
@@ -108,7 +108,7 @@
             "base": "wanderer",
             "gold": 150,
             "skills": { "diplomacy": 1, "commerce": 1 },
-            "items": { "BOOK": 2 },
+            "items": { "book": 2 },
             "blurb": "A wandering chronicler who knows the stories of every House. Two books in the pack, little coin.",
             "welcome": "You have read the annals of the great Houses. Now go and write your own."
         }

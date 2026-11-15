@@ -72,6 +72,7 @@ import { RivalAgents } from './rivalAgents.js';
 import { Containers } from './containers.js';
 import { SocialSkills } from './socialSkills.js';
 import { TownTrade } from './townTrade.js';
+import { AnimalCompanions } from './animalCompanions.js';
 
 const DEFAULTS = {
     enabled: true,
@@ -917,6 +918,8 @@ export const NpcTheft = {
             a += lv * _num(A.perStealthLevel, 0.04);
             const b = player && _obj(player.theftBook);
             if (b && b.waryUntil != null && _num(day) <= b.waryUntil) a += _num(A.wary, 0.2);
+            // A dog at your heel barks at a stranger's hand (systems/animalCompanions.js)
+            a += AnimalCompanions.theftWarning(player);
             return _clamp(a, 0, _num(A.max, 0.85));
         }
         const role = mark && (mark._person ? mark._person.role : (mark.role || mark.type));
@@ -1050,6 +1053,9 @@ export const NpcTheft = {
         st.heat = _num(st.heat) + _num(P.heatPerLift, 1);
         if (!res.ok) {
             out.text = res.noticed ? `You feel a hand at your purse — ${thief.name}!` : '';
+            // ...a dog at your heel gave the warning (systems/animalCompanions.js theftWarning)
+            const dog = res.noticed ? AnimalCompanions.theftWarner(player, world) : null;
+            if (dog) out.text = `${AnimalCompanions.line('warnedThief', { name: dog.name })} ${out.text}`;
             return out;
         }
         const shareC = _num(P.coinShare[0], 0.15) + _frac(`${key}|coin`) * (_num(P.coinShare[1], 0.45) - _num(P.coinShare[0], 0.15));

@@ -32,7 +32,7 @@
         "backing": { "master": 15, "guildmaster": 30, "cap": 45 },
         "standing": { "perGold": 0.02, "maxPerTrade": 4, "duesPaid": 1, "missedDues": 5, "expelAfter": 3, "perWorksRun": 0.15 },
         "works": { "journeymanSeize": 0.5, "masterSeize": 0.35, "guildmasterSeize": 0.2, "graceMult": 2 },
-        "stipend": { "share": 0.01, "max": 30 }
+        "stipend": { "share": 0.08, "max": 30 }
     },
     "_ranks": "The membership ladder. fee: gold to enter the rank (to the guildhall), scaled by the town's size (typeFee). dues: gold a week. minDays: days at the rank below; minStanding: standing in this guild; skill: player.skills.commerce needed. toll: share of the outsider toll still paid. premium/inputs/loans/votes/protect: benefits held from this rank.",
     "typeFee": { "town": 1, "city": 1.5, "capital": 2 },

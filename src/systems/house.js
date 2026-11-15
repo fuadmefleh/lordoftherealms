@@ -897,10 +897,30 @@ export const House = {
         return Object.keys(house.rivals);
     },
 
+    /**
+     * The rival a plot or a feud names: a rival House by its realm id
+     * (house.rivals), or an estranged cadet branch by its houseKey
+     * ('cadet:cb1', systems/cadetBranches.js), which schemes as one. → record or null.
+     */
+    rivalRecord(house, key) {
+        if (!house || key == null) return null;
+        if (house.rivals && house.rivals[key]) return house.rivals[key];
+        if (typeof key === 'string' && key.startsWith('cadet:')) return House._estrangedCadets(house).find(b => b.houseKey === key) || null;
+        return null;
+    },
+
     /** Increase a seeded rival's feud (0–100). No-op for non-rival kingdoms. */
     accrueRivalFeud(player, world, kingdomId, amount, reason) {
         const house = player && player.house;
-        if (!house || !house.rivals || !kingdomId) return 0;
+        if (!house || kingdomId == null || kingdomId === '') return 0;
+        // An estranged cadet branch's feud is its lost loyalty ((50 − loyalty) × 2): a wrong moves the loyalty
+        const cadet = !(house.rivals && house.rivals[kingdomId]) ? House.rivalRecord(house, kingdomId) : null;
+        if (cadet) {
+            cadet.loyalty = Utils.clamp((cadet.loyalty || 0) - amount / 2, 0, 100);
+            cadet.feud = Utils.clamp(Math.round((50 - cadet.loyalty) * 2), 0, 100);
+            return cadet.feud;
+        }
+        if (!house.rivals || !kingdomId) return 0;
         const rival = house.rivals[kingdomId];
         if (!rival) return 0;
         const before = rival.feud || 0;

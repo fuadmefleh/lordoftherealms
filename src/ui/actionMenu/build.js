@@ -7,6 +7,7 @@ import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Bank
 import { Wilds } from '../../player/wilds.js';
 import { InnerMapLots } from '../innerMapLots.js';
 import { Lots } from '../../systems/lots.js';
+import { LandRegions } from '../../world/landRegions.js';
 import { showWildsEncounter } from '../wildsEncounter.js';
 import { BTN_GOLD, BTN_PLAIN, BTN_OFF, lede, chips, purse, sectionHead, kv, card, actRow, rowList, price } from './uiKit.js';
 import { ParentsGuard } from '../parentsGuard.js';
@@ -1047,6 +1048,7 @@ Object.assign(ActionMenu, {
         // Change terrain to grassland
         tile.terrain = Terrain.TYPES.GRASSLAND;
         tile.terraformed = true; // saved (SaveLoad.serializeTiles)
+        LandRegions.invalidate(game.world); // (the walkable landmasses, world/landRegions.js)
 
         // Remove any forest-specific resource
         if (tile.resource && ['wood', 'timber'].includes(tile.resource.id)) {
@@ -1129,6 +1131,7 @@ Object.assign(ActionMenu, {
             // Change terrain to grassland
             tile.terrain = Terrain.TYPES.GRASSLAND;
             tile.terraformed = true; // saved (SaveLoad.serializeTiles)
+            LandRegions.invalidate(game.world); // (a levelled peak may open a pass, world/landRegions.js)
 
             // Update elevation to match (grassland level)
             tile.elevation = Math.min(tile.elevation, 0.50);

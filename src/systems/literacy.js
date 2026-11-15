@@ -444,7 +444,9 @@ export const Literacy = {
         if (lv == null) return { ...out, reason: 'Your letters have not been reckoned yet (a day passes first).' };
         if (lv >= _num(L.cap, 95)) return { ...out, reason: 'There is nothing more a schoolmaster can teach you.' };
         const r = Literacy.record(player);
-        if (r.lessonDay === _day(world)) return { ...out, reason: 'You have had your lesson today.' };
+        // (lessons.perDay a day: r.lessonN counts today's)
+        const per = Math.max(1, Math.floor(_num(L.perDay, 1)));
+        if (r.lessonDay === _day(world) && _num(r.lessonN, 1) >= per) return { ...out, reason: per > 1 ? `You have had your ${per} lessons today.` : 'You have had your lesson today.' };
         if (_num(player.gold) < fee) return { ...out, reason: `A lesson costs ${fee}g.` };
         return { ...out, ok: true };
     },
@@ -464,6 +466,7 @@ export const Literacy = {
         const before = r.lv;
         const wits = 0.7 + _num(player.intelligence, 5) * 0.06;
         r.lv = Math.round(Math.min(_num(C.player.lessons.cap, 95), before + _num(C.player.lessons.gain, 7) * wits * (1 - before / 120)) * 100) / 100;
+        r.lessonN = r.lessonDay === _day(world) ? _num(r.lessonN, 1) + 1 : 1;
         r.lessonDay = _day(world);
         let text = `${can.teacher} sets you letters to copy and hears you read. (Your letters ${Math.floor(before)} → ${Math.floor(r.lv)}.)`;
         if (before < C.readAt && r.lv >= C.readAt) text += ' The marks are words now: you can read.';

@@ -49,6 +49,10 @@ const DEFAULTS = {
         maxRumours: 40, maxTowns: 8, promptRumours: 2,
     },
     trust: { contradictionSour: 8, heardSour: 4 },
+    succession: {
+        share: 0.35, minReach: 0.04, late: 'the late {of}', tail: 'This one is {their} {kin}.',
+        kin: { 1: { m: 'son', f: 'daughter' }, 2: { m: 'grandson', f: 'granddaughter' }, more: { m: 'heir', f: 'heir' } },
+    },
     kinds: {},
     patterns: [],
     phrases: {},
@@ -57,6 +61,8 @@ const DEFAULTS = {
     lines: {},
 };
 
+// The tales that sour whoever hears them (greetLine's regard, the AI brain's wariness, the panel's "ill")
+const ILL_KINDS = ['threat', 'contradiction', 'broken_promise', 'betrayal', 'friend_turned'];
 const _num = (v, d = 0) => (Number.isFinite(Number(v)) && v !== null && v !== '' ? Number(v) : d);
 const _day = (world) => _num(world && world.day);
 const _clean = (s) => String(s == null ? '' : s).replace(/[<>{}[\]`"]/g, '').replace(/\s+/g, ' ').trim();
@@ -95,6 +101,7 @@ export const Hearsay = {
             claims: { ...DEFAULTS.claims, ...(d.claims || {}) },
             spread: { ...DEFAULTS.spread, ...(d.spread || {}) },
             trust: { ...DEFAULTS.trust, ...(d.trust || {}) },
+            succession: { ...DEFAULTS.succession, ...(d.succession || {}), kin: { ...DEFAULTS.succession.kin, ...((d.succession && d.succession.kin) || {}) } },
         };
     },
 
@@ -280,7 +287,10 @@ export const Hearsay = {
         const e = (r.towns && r.towns[townKey]) || { l: 0 };
         const list = (C.tellings || {})[e.x ? 'exposed' : r.k] || (C.tellings || {}).claim || ['{player}: {what}.'];
         const tpl = list[Math.min(list.length - 1, Math.max(0, _num(e.l)))];
-        const s = _fill(tpl, { player: playerName, teller: r.te || 'someone', town: r.on || 'town', what: r.w || r.v, whatBare: r.b || r.v });
+        // A tale of the late head of the House: told of them by name, and of the heir as their kin
+        const who = r.of ? _fill(Hearsay.config().succession.late || 'the late {of}', { of: r.of }) : playerName;
+        let s = _fill(tpl, { player: who, teller: r.te || 'someone', town: r.on || 'town', what: r.w || r.v, whatBare: r.b || r.v });
+        if (r.of) s = `${s} ${_fill(Hearsay.config().succession.tail || '', { of: r.of, kin: r.kin || 'heir', their: r.ofs === 'f' ? 'her' : 'his' })}`.trim();
         return s.charAt(0).toUpperCase() + s.slice(1);
     },
 
@@ -388,6 +398,66 @@ export const Hearsay = {
         return Hearsay._rumour(st, { k: 'threat', tp: 'threat', v: 'threat', d: day, o: townKey, on: name, te: npc.name || 'someone', tk: key, w: Hearsay._phrase('threat', '', npc.name || 'someone') });
     },
 
+    // ── Succession (Relationships.succeedAsHeir) ──
+
+    /** The heir's kin word to the one a tale is told of, `gens` successions back. */
+    kinWord(gender, gens = 1) {
+        const K = Hearsay.config().succession.kin || {};
+        const row = K[String(gens)] || K.more || {};
+        return (gender === 'female' ? row.f : row.m) || 'heir';
+    },
+
+    /**
+     * The heir takes the seat. What folk said of the late ruler stays theirs,
+     * by name ("the late Edric Ashford threatened…"), and only a faded share
+     * of it (succession.share of its reach, never growing back, spreading no
+     * further) still clings to the heir as their kin. The late ruler's claims
+     * cannot catch the heir out; the townsfolk who talked with them remember
+     * that they knew the heir's forebear, not the talks; promises the dead
+     * made lapse with them. A new life (Afterlife.becomeStranger) is a new
+     * player: nothing of this goes with it.
+     * opts: { oldName, oldGender, heirGender } → { carried, dropped }
+     */
+    onSuccession(player, world, opts = {}) {
+        const out = { carried: 0, dropped: 0 };
+        if (!player || !player.hearsay) return out;
+        const S = Hearsay.config().succession;
+        const st = Hearsay.state(player);
+        const oldName = opts.oldName || 'their forebear';
+        const heirGender = opts.heirGender || player.gender;
+        const share = Math.max(0, Math.min(1, _num(S.share, 0.35)));
+        const floor = _num(S.minReach, 0.04);
+        const day = _day(world);
+        const kept = [];
+        for (const r of st.rumours) {
+            if (!r.of) { r.of = oldName; r.ofs = opts.oldGender === 'female' ? 'f' : 'm'; r.og = 0; }
+            r.og = _num(r.og) + 1;
+            r.kin = Hearsay.kinWord(heirGender, r.og);
+            for (const [k, e] of Object.entries(r.towns || {})) {
+                const cap = Math.round(Math.min(_num(e.c, 1), _num(e.r)) * share * 1000) / 1000;
+                if (cap < floor) { delete r.towns[k]; continue; }
+                e.r = cap;
+                e.c = cap;
+            }
+            if (Object.keys(r.towns || {}).length) { kept.push(r); out.carried++; } else out.dropped++;
+        }
+        st.rumours = kept;
+        // The late ruler's tales about themselves were theirs to keep straight
+        st.claims = [];
+        for (const rec of Object.values(st.npcs)) {
+            if ((rec.talks && rec.talks.length) || rec.caught) rec.knew = { n: oldName, d: _num(rec.last, day), og: 1 };
+            else if (rec.knew) rec.knew.og = _num(rec.knew.og, 1) + 1;
+            rec.talks = [];
+            delete rec.caught;
+            delete rec.broken;
+        }
+        // Their sworn words die with them (systems/npcChatImpact.js)
+        for (const p of (player.npcChat && player.npcChat.promises) || []) {
+            if (p && p.state === 'open') { p.state = 'lapsed'; p.hs = 1; }
+        }
+        return out;
+    },
+
     // ── The daily tick (ui/game/endDay.js) ──
 
     processDay(world, player) {
@@ -408,9 +478,11 @@ export const Hearsay = {
                 if (age > life) continue;
                 kept.push(r);
                 const fade = Math.max(0, 1 - age / Math.max(1, life));
-                for (const e of Object.values(r.towns)) if (_num(e.d) < day) e.r = Math.min(1, _num(e.r) + S.townDaily * fade);
+                // (a tale of the late ruler, e.c: it stays at the share that clings to the heir)
+                for (const e of Object.values(r.towns)) if (_num(e.d) < day) e.r = Math.min(e.c != null ? _num(e.c) : 1, _num(e.r) + S.townDaily * fade);
                 const keys = Object.keys(r.towns);
-                if (keys.length >= S.maxTowns || !towns.length) continue;
+                // ...and is old news: it goes no further
+                if (r.of || keys.length >= S.maxTowns || !towns.length) continue;
                 const sources = keys.filter(k => _num(r.towns[k].r) >= S.neighbourAt);
                 if (!sources.length) continue;
                 const src = sources[Math.floor(_hash01(`${r.id}|src|${day}`) * sources.length)];
@@ -504,6 +576,10 @@ export const Hearsay = {
                 const felt = t.felt ? ` (you felt: ${t.felt})` : '';
                 lines.push(_fill(L.promptTalk || 'You spoke with them {ago} in {town}: {items}.', { ago: _ago(day - _num(t.d)), town: t.tn || 'town', items: items + felt }));
             }
+            // They knew the late head of this one's House (Hearsay.onSuccession)
+            if (rec.knew && L.promptKnew) {
+                lines.push(_fill(L.promptKnew, { of: rec.knew.n, ago: _ago(day - _num(rec.knew.d)), kin: Hearsay.kinWord(player.gender, _num(rec.knew.og, 1)) }));
+            }
             if (rec.caught && day - _num(rec.caught.d) <= 120) {
                 lines.push(_fill(L.promptCaught || '', {
                     mine: Hearsay._phrase(rec.caught.tp, rec.caught.mine), theirs: Hearsay._phrase(rec.caught.tp, rec.caught.theirs),
@@ -519,7 +595,7 @@ export const Hearsay = {
         if (heard.length) {
             lines.push(L.promptHeard || 'WHAT FOLK SAY OF THEM:');
             for (const r of heard) lines.push(`- ${Hearsay.telling(r, at.key, player.name || 'they')}`);
-            if (heard.some(r => r.k === 'threat' || r.k === 'contradiction' || r.k === 'broken_promise' || (r.towns[at.key] && r.towns[at.key].x))) lines.push(L.promptWary || '');
+            if (heard.some(r => ILL_KINDS.includes(r.k) || (r.towns[at.key] && r.towns[at.key].x))) lines.push(L.promptWary || '');
         }
         return lines.filter(Boolean);
     },
@@ -548,6 +624,12 @@ export const Hearsay = {
                 other: rec0.caught.other || 'me, before,',
             });
         }
+        // The one whose promise you broke says so, once, and thinks the less of you
+        if (rec0 && rec0.broken && !rec0.broken.g) {
+            rec0.broken.g = 1;
+            NpcDisposition.adjustDisposition(npc, -_num(C.trust.heardSour, 4), player);
+            return _fill(L.greetBroken || 'You gave me your word: {text}. You broke it.', { text: rec0.broken.v || 'a promise' });
+        }
         const owed = NpcChatImpact.promisesTo(player, key);
         if (owed.length) return _fill(L.greetPromise, { text: owed[0].text });
         // What they have heard (each tale once)
@@ -557,10 +639,16 @@ export const Hearsay = {
             const rec = Hearsay._record(st, key, npc.name, townKey, Hearsay._townName(world, townKey), day);
             rec.seen.push(fresh.id);
             const exposed = !!(fresh.towns[townKey] && fresh.towns[townKey].x);
-            if (exposed || ['threat', 'contradiction', 'broken_promise'].includes(fresh.k)) {
+            const ill = exposed || ILL_KINDS.includes(fresh.k);
+            // A tale of the late ruler: the heir is only their kin — a faded share of the ill will
+            if (fresh.of) {
+                if (ill) NpcDisposition.adjustDisposition(npc, -Math.max(1, Math.round(_num(C.trust.heardSour, 4) * _num(C.succession.share, 0.35))), player);
+                const tpl = (L.greetInherited || {})[ill ? 'ill' : 'any'];
+                if (tpl) return _fill(tpl, { of: fresh.of, kin: fresh.kin || 'heir', them: fresh.ofs === 'f' ? 'her' : 'him', town: fresh.on || 'town' });
+            } else if (ill) {
                 NpcDisposition.adjustDisposition(npc, -_num(C.trust.heardSour, 4), player);
             }
-            const tpl = (L.greet || {})[exposed ? 'exposed' : fresh.k];
+            const tpl = fresh.of ? null : (L.greet || {})[exposed ? 'exposed' : fresh.k];
             if (tpl) return _fill(tpl, { you: fresh.y || fresh.v, youBare: fresh.b || fresh.v, town: fresh.on || 'town' });
         }
         // The last talk
@@ -570,6 +658,7 @@ export const Hearsay = {
                 const i = t.items.find(x => x.k === 'claim' || x.k === 'boast');
                 return _fill(L.greetBack, { item: Hearsay._itemText(i, true) });
             }
+            if (rec0.knew && L.greetKnew && day - _num(rec0.knew.d) <= 1200) return _fill(L.greetKnew, { of: rec0.knew.n, kin: Hearsay.kinWord(player.gender, _num(rec0.knew.og, 1)) });
         }
         return null;
     },
@@ -606,9 +695,9 @@ export const Hearsay = {
             if (!e) { elsewhere++; continue; }
             const kd = kinds[e.x ? 'contradiction' : r.k] || {};
             here.push({
-                id: r.id, icon: e.x ? '🤥' : (kd.icon || '💬'), label: e.x ? 'Seen through' : (kd.label || r.k),
+                id: r.id, icon: e.x ? '🤥' : (kd.icon || '💬'), label: `${e.x ? 'Seen through' : (kd.label || r.k)}${r.of ? ` (of the late ${r.of})` : ''}`, of: r.of || null,
                 text: Hearsay.telling(r, townKey, player.name || 'you'), reach: _num(e.r), level: _num(e.l), exposed: !!e.x,
-                origin: r.on, teller: r.te, since: day - _num(e.d), towns: Object.keys(r.towns).length, ill: ['threat', 'contradiction', 'broken_promise', 'confession'].includes(r.k) || !!e.x,
+                origin: r.on, teller: r.te, since: day - _num(e.d), towns: Object.keys(r.towns).length, ill: ILL_KINDS.includes(r.k) || r.k === 'confession' || !!e.x,
             });
         }
         here.sort((a, b) => b.reach - a.reach);

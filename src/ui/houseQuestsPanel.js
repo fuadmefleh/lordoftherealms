@@ -3,7 +3,7 @@
 // objectives and, once the player stands at the place, the ways to settle it
 // as action-menu rows — and the matters settled as a short list.
 import { HouseQuests } from '../systems/houseQuests.js';
-import { card, rowList, sectionHead, bullets, price, esc } from './actionMenu/uiKit.js';
+import { card, rowList, sectionHead, price, esc } from './actionMenu/uiKit.js';
 
 function _uiAttrs(method, args) {
     return `data-ui-act="${method}" data-ui-args='${esc(JSON.stringify(args))}'`;
@@ -19,7 +19,9 @@ export function houseQuestsHtml(world, player) {
     for (const q of v.open) {
         let body = `<div style="font-size: 13px; line-height: 1.45;">${esc(q.hook)}</div>`;
         if (q.journal && q.journal !== q.hook) body += `<div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px; font-style: italic;">${esc(q.journal)}</div>`;
-        body += bullets(q.objectives.map(o => `${o.done ? '✓' : '○'} ${esc(o.text)}`));
+        // A checklist (its own marks; bullets() would add a dot before each)
+        body += `<div style="margin: 6px 2px 4px; font-size: 13px; line-height: 1.5;">${q.objectives.map(o =>
+            `<div style="color: ${o.done ? 'var(--text-secondary)' : 'inherit'};">${o.done ? '✓' : '○'} ${esc(o.text)}</div>`).join('')}</div>`;
         const rows = q.options.map(o => ({
             icon: o.ok ? '▸' : '·', name: esc(o.label), desc: esc(o.desc),
             side: o.cost != null ? price(o.cost, _num(player.gold) >= o.cost) : '',

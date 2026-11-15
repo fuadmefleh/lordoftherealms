@@ -210,6 +210,25 @@ describe('the elder lives on', () => {
         expect(coinTotal(p, world)).toBe(total);
     });
 
+    it('an elder far off on a country estate plots slower than one at court ("little mischief")', () => {
+        const plotAfter = (residence) => {
+            Utils.setSeed(9);
+            const world = makeWorld();
+            const p = makeRuler(world, [child({ age: 22 })]);
+            Abdication.abdicate(p, world, { residence, pension: 0 });
+            const e = Abdication.elders(p)[0];
+            e.respect = 5;
+            e.ambition = 90;
+            e.how = 'forced';
+            days(p, world, 7 * 4);
+            return e.plot;
+        };
+        const court = plotAfter('court');
+        const estate = plotAfter('estate');
+        expect(court).toBeGreaterThan(0);
+        expect(estate).toBeLessThan(court);
+    });
+
     it('counsel, honours and gifts', () => {
         const world = makeWorld();
         const p = makeRuler(world, [child({ age: 22 })]);
@@ -262,8 +281,16 @@ describe('pressure and a forced abdication', () => {
         p.age = 74;
         p.health = 30;
         p.maxHealth = 100;
+        p.currentTitle = 'count';
         return p;
     }
+
+    it('a landless head of a House has no court to press them', () => {
+        const world = makeWorld();
+        const p = beleaguered(world);
+        p.currentTitle = null;
+        expect(Abdication.pressure(p, world).score).toBe(0);
+    });
 
     it('the pressure is read without changing state, and the Counsel hears it', () => {
         const world = makeWorld();

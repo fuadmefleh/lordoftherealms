@@ -39,6 +39,8 @@ import { TownWorship } from './townWorship.js';
 import { Illness } from './illness.js';
 // (the townsfolk trading among themselves: systems/townTrade.js; called at run time only)
 import { TownTrade } from './townTrade.js';
+// (the player's leased graves ask after their kin: world/graveBook.js)
+import { GraveBook } from '../world/graveBook.js';
 
 const DEFAULTS = {
     enabled: true,
@@ -65,6 +67,13 @@ const DEFAULTS = {
     maxAnnals: 60,
     maxLog: 14,
     pruneAfterYears: 40,
+    pruneDeadAfterYears: 5,
+    // (what the long dead no longer need: their skills, health, work, schooling — data/townsfolk.json)
+    compact: {
+        afterYears: 1,
+        drop: ['practiceSkills', 'skillAge', 'imm', 'ill', 'job', 'brawled', 'atService', 'devout', 'heart', 'literacy', 'school',
+            'shopped', 'robbedDay', 'diet', 'seen', 'hurt', 'nmSaid', 'preg', 'postpartum', 'cbChk', 'jailedUntil'],
+    },
     names: {
         male: ['Brom', 'Dorn', 'Finn', 'Holt', 'Lars', 'Nils', 'Rolf', 'Tor', 'Arne', 'Dag', 'Knut', 'Sven', 'Ulf'],
         female: ['Ada', 'Clara', 'Eva', 'Greta', 'Iris', 'Maeve', 'Siv', 'Una', 'Wren', 'Elsa', 'Inga', 'Lena', 'Thora'],
@@ -93,6 +102,8 @@ const SEASONS = ['spring', 'summer', 'autumn', 'winter'];
 
 let _cfg = null;
 let _cfgSrc;
+// Townsfolk.playerRefs, once a day
+const _refs = { player: null, day: null, out: null };
 
 function _obj(v) { return v && typeof v === 'object' && !Array.isArray(v) ? v : null; }
 function _num(v, d = 0) { return typeof v === 'number' && isFinite(v) ? v : d; }
@@ -133,7 +144,7 @@ export const Townsfolk = {
         if (!_cfg || src !== _cfgSrc) {
             _cfgSrc = src;
             _cfg = { ...DEFAULTS, ...(_obj(src) || {}) };
-            for (const k of ['hardship', 'marriage', 'birth', 'departure', 'arrival', 'names', 'causes', 'roleTitles']) {
+            for (const k of ['hardship', 'marriage', 'birth', 'departure', 'arrival', 'names', 'causes', 'roleTitles', 'compact']) {
                 _cfg[k] = { ...DEFAULTS[k], ...(_obj(src && src[k]) || {}) };
             }
         }
@@ -667,7 +678,7 @@ export const Townsfolk = {
         // A season of work: apprentices, masters, the empty trades filled, wages and board (systems/townJobs.js)
         TownJobs.season(world, settlement, folk, day, news, player);
 
-        Townsfolk._prune(folk, day);
+        Townsfolk._prune(folk, day, player, world);
     },
 
     /** Who a person is, for their practised skills (systems/practiceSkills.js) */
@@ -857,26 +868,136 @@ export const Townsfolk = {
         return _weighted(C.roleWeights, rng);
     },
 
-    /** Forget the long-gone whom the player never met and no one living names. */
-    _prune(folk, day) {
+    /**
+     * Forget the long-gone whom the player never met and no one living names,
+     * and keep only a short record of the rest. The dead go after
+     * pruneDeadAfterYears (as does a moved household's forwarding record,
+     * systems/migration.js away.nid; the plain moved-away after
+     * pruneAfterYears), unless
+     * something still asks after them: a living person's spouse, parents,
+     * grandparents, children, ward, namesake or a line of their life (the
+     * family tree, "my late father"), the town's annals, a grave the player
+     * leases (systems/graveyards.js), the player (spoken with, a relationship
+     * NPC, wed into the House) or anything in the player's state that names
+     * them by "q,r#id" or {q, r, pid} — hearsay, bonds, blood debts
+     * (systems/wanted.js), grudges, quests, captives (playerRefs). Without a
+     * player to ask (the interregnum) only the old pruneAfterYears holds.
+     * A dead person (and a moved household's forwarding record,
+     * systems/migration.js away.nid) a compact.afterYears gone is compacted:
+     * their skills, health, work and the like let go (compact.drop).
+     */
+    _prune(folk, day, player = null, world = null) {
         const C = Townsfolk.config();
-        const horizon = day - C.pruneAfterYears * C.daysPerYear;
+        const Y = C.daysPerYear;
+        const horizon = day - C.pruneAfterYears * Y;
+        const deadHorizon = player ? day - _num(C.pruneDeadAfterYears, C.pruneAfterYears) * Y : horizon;
         const named = new Set();
+        const nameKin = (id) => { if (id != null) named.add(id); };
         for (const p of folk.people) {
             if (p.died != null) continue;
-            if (p.spouse != null) named.add(p.spouse);
-            for (const id of p.parents) named.add(id);
+            nameKin(p.spouse);
+            for (const id of p.parents) {
+                named.add(id);
+                // (the grandparents, for the family line: systems/townFamily.js lineage)
+                const par = Townsfolk.get(folk, id);
+                if (par && Array.isArray(par.parents)) for (const g of par.parents) named.add(g);
+            }
             for (const id of p.kids) named.add(id);
+            nameKin(p.namedFor);
+            nameKin(p.ward);
+            // (the late first spouse, the one who took them in: their life's lines name them)
+            if (Array.isArray(p.log)) for (const e of p.log) nameKin(e && e.o);
         }
+        for (const e of folk.annals || []) { nameKin(e.a); nameKin(e.b); }
+        // A grave the player leases asks after its kin when the lease runs out (systems/graveyards.js _leaseDay)
+        if (world) {
+            const tile = typeof world.getTile === 'function' ? world.getTile(folk.q, folk.r) : null;
+            const s = tile && tile.settlement;
+            if (s && s.folk === folk) {
+                for (const gr of GraveBook.grounds(s)) {
+                    if (gr.owner !== 'player' || !gr.plots || typeof gr.plots !== 'object') continue;
+                    for (const g of Object.values(gr.plots)) if (g && g.pid != null && g.lapsed == null && !g.kin) named.add(g.pid);
+                }
+            }
+        }
+        const refs = player ? Townsfolk.playerRefs(player, day).uids : null;
+        const at = `${folk.q},${folk.r}#`;
         const keep = folk.people.filter(p => {
             const gone = p.died != null ? p.died : (p.away ? p.away.d : null);
+            // (a moved household's forwarding record goes as the dead do, once nothing asks after it)
+            const forwarded = p.died == null && p.away && p.away.mig && p.away.nid != null;
+            if (gone == null || gone > (p.died != null || forwarded ? deadHorizon : horizon)) return true;
             // Those in the player's life (systems/relationships/folk.js) are never forgotten
-            return gone == null || gone > horizon || named.has(p.id) || (p.mem && p.mem.timesSpoken > 0) || p.rnpc || p.wedHouse;
+            return named.has(p.id) || (p.mem && p.mem.timesSpoken > 0) || p.rnpc || p.wedHouse || (refs && refs.has(at + p.id));
         });
         if (keep.length !== folk.people.length) {
             folk.people = keep;
             delete folk._index;
         }
+        Townsfolk._compact(folk, day);
+    },
+
+    /** Let go the heavy, living-only parts of the long dead (and of a moved household's forwarding record). */
+    _compact(folk, day) {
+        const K = Townsfolk.config().compact;
+        if (!_obj(K) || !Array.isArray(K.drop) || !K.drop.length) return;
+        const before = day - _num(K.afterYears, 1) * Townsfolk.config().daysPerYear;
+        for (const p of folk.people) {
+            if (p.cmp) continue;
+            const dead = p.died != null && p.died <= before;
+            const moved = p.died == null && p.away && p.away.mig && p.away.nid != null && _num(p.away.d, day) <= before;
+            if (!dead && !moved) continue;
+            for (const k of K.drop) if (p[k] !== undefined) delete p[k];
+            // (a life the player knew is told in their journal: systems/townsfolk.js acquaintances)
+            if (!(p.mem && p.mem.timesSpoken > 0)) p.log = [];
+            p.cmp = 1;
+        }
+    },
+
+    /**
+     * Every folk "q,r#id" and relationship NPC id ("rnpc_N") the player's state
+     * names, by value, by key or as {q, r, pid} — hearsay, bonds, blood debts,
+     * grudges, quests, captives, courts and chronicles. The relationship NPCs
+     * named only by the relationships themselves (player.relationships,
+     * player._relationshipNpcs) or by bonds long ended (bonds.past) are not
+     * counted among `rnpcs`. Worked out once a day per player.
+     * → { uids: Set, rnpcs: Set }
+     */
+    playerRefs(player, day) {
+        if (_refs.player === player && _refs.day === day && _refs.out) return _refs.out;
+        const out = { uids: new Set(), rnpcs: new Set() };
+        const UID = /^-?\d+,-?\d+#\d+$/;
+        const RN = /^rnpc_\d+$/;
+        const seen = new Set();
+        let budget = 600000;
+        const note = (v, quiet) => {
+            if (typeof v !== 'string' || v.length > 24) return;
+            if (UID.test(v)) out.uids.add(v);
+            else if (!quiet && RN.test(v)) out.rnpcs.add(v);
+        };
+        const walk = (n, quiet, depth) => {
+            if (n == null || typeof n !== 'object' || depth > 18 || budget-- <= 0 || seen.has(n)) return;
+            seen.add(n);
+            if (Array.isArray(n)) {
+                for (const c of n) { if (typeof c === 'string') note(c, quiet); else walk(c, quiet, depth + 1); }
+                return;
+            }
+            // (never into the world itself, should anything of the player's hold it)
+            if (depth > 0 && (n instanceof Map || n instanceof Set || typeof n.getTile === 'function' || (n.tiles && n.kingdoms))) return;
+            if (Number.isFinite(n.q) && Number.isFinite(n.r) && Number.isFinite(n.pid)) out.uids.add(`${n.q},${n.r}#${n.pid}`);
+            for (const k of Object.keys(n)) {
+                note(k, quiet);
+                const v = n[k];
+                const q = quiet || (depth === 0 && (k === 'relationships' || k === '_relationshipNpcs')) || k === 'past';
+                if (typeof v === 'string') note(v, q);
+                else walk(v, q, depth + 1);
+            }
+        };
+        walk(player, false, 0);
+        _refs.player = player;
+        _refs.day = day;
+        _refs.out = out;
+        return out;
     },
 
     // ── On the inner map ─────────────────────────────────

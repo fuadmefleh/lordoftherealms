@@ -1,6 +1,6 @@
 // Relationships — npcs members (split from the original monolith).
 import { Relationships } from './_ref.js';
-import { DataLoader, Utils, Characters } from './_imports.js';
+import { DataLoader, Utils, Characters, Townsfolk } from './_imports.js';
 import { Vanishings } from '../vanishings.js';
 
 Object.assign(Relationships, {
@@ -227,6 +227,9 @@ Object.assign(Relationships, {
         let npcs = Relationships._npcs.filter(n =>
             n.settlementName === settlementName && n.isAlive && !n.atCourt
         );
+        // (seen about the town today: Relationships.pruneKnown keeps the ones still about)
+        const today = world && Number.isFinite(world.day) ? world.day : null;
+        const shown = (list) => { if (today != null) for (const n of list) n.lastShown = today; return list; };
 
         // Generate new NPCs if settlement has too few
         const targetCount = tile.settlement.type === 'capital' ? 5 :
@@ -251,11 +254,70 @@ Object.assign(Relationships, {
             npcs.push(npc);
         }
 
-        return npcs;
+        return shown(npcs);
     },
 
     getNPC(npcId) {
         return Relationships._npcs.find(n => n.id === npcId) || null;
+    },
+
+    /**
+     * Yearly (processAging): let go of the relationship NPCs no longer in the
+     * player's life — the dead long gone (knownPrune.deadAfterYears) and the
+     * living not met, spoken with or seen in town for unseenAfterYears — and
+     * their relationship entries. Never one tied to the player: the spouse,
+     * the travel party, a courtship or romance, kin, court, governors,
+     * stewards, protégés, a friend or rival of |score| >= tieScore, or anyone
+     * else the player's state names (bonds, sworn kin, mentors, the nemesis,
+     * blood debts, the chronicle: Townsfolk.playerRefs). A townsperson let go
+     * is unlinked from their roster (person.rnpc), so the town may forget them
+     * in its own time. → the number let go.
+     */
+    pruneKnown(player, world) {
+        if (!player || !world || !Array.isArray(Relationships._npcs)) return 0;
+        const data = Relationships._getData();
+        const K = { deadAfterYears: 5, unseenAfterYears: 15, tieScore: 30, ...((data && data.knownPrune) || {}) };
+        const Y = Relationships._getHeirSettings().daysPerYear || 120;
+        const day = Number.isFinite(world.day) ? world.day : 0;
+        const refs = Townsfolk.playerRefs(player, day).rnpcs;
+        const rels = player.relationships || {};
+        const party = new Set(Array.isArray(player.travelParty) ? player.travelParty : []);
+        const FLAGS = ['isTravelingWithPlayer', 'atCourt', 'governing', 'stewardOf', 'protegeOf', 'kin', 'isKin', 'elder', 'courting', 'betrothed'];
+        const tied = (n) => {
+            if (n.id === player.spouse || party.has(n.id) || refs.has(n.id)) return true;
+            if (FLAGS.some(f => n[f])) return true;
+            if (n.isAlive && (n.isRomantic || (n.companion && n.companion.leftHow == null))) return true;
+            const rel = rels[n.id];
+            if (rel && (rel.romantic || Math.abs(Number(rel.score) || 0) >= K.tieScore || (Number(rel.affection) || 0) > 0 || rel.courting || rel.stage)) return true;
+            return false;
+        };
+        const lastSeen = (n) => {
+            let d = Math.max(Number(n.metDay) || 0, Number(n.lastInteraction) || 0, Number(n.lastShown) || 0, Number(n.pruneSeen) || 0);
+            const rel = rels[n.id];
+            const h = rel && Array.isArray(rel.history) && rel.history.length ? rel.history[rel.history.length - 1] : null;
+            if (h && Number.isFinite(h.day)) d = Math.max(d, h.day);
+            return d;
+        };
+        const gone = [];
+        for (const n of Relationships._npcs) {
+            if (!n || tied(n)) continue;
+            // (one known from before the town stamps who it shows: from now, for the reckoning)
+            if (!n.lastShown && !n.pruneSeen && !(Number(n.metDay) || Number(n.lastInteraction))) { n.pruneSeen = day; continue; }
+            const dead = n.isAlive === false;
+            const since = dead ? (Number.isFinite(n.deathDay) ? n.deathDay : (Number.isFinite(n.diedDay) ? n.diedDay : lastSeen(n))) : lastSeen(n);
+            if (day - since > (dead ? K.deadAfterYears : K.unseenAfterYears) * Y) gone.push(n);
+        }
+        if (!gone.length) return 0;
+        const out = new Set(gone);
+        // (in place: player._relationshipNpcs is the same list)
+        for (let i = Relationships._npcs.length - 1; i >= 0; i--) if (out.has(Relationships._npcs[i])) Relationships._npcs.splice(i, 1);
+        for (const n of gone) {
+            delete rels[n.id];
+            if (!n.folkUid) continue;
+            const found = Relationships.folkPerson(world, n.folkUid);
+            if (found && found.p.rnpc === n.id) delete found.p.rnpc;
+        }
+        return gone.length;
     },
 
     /**

@@ -62,6 +62,7 @@ const DEFAULTS = {
     demesne: { share: 0.2, min: 0.05 },
     corruption: { officesSale: 0.12 },
     crisis: { offices: { days: 20 }, land: { days: 120, share: 0.3 } },
+    eventLoss: { basisDays: 0 },
 };
 
 function _merge(base, over) {
@@ -164,6 +165,38 @@ export const CrownBooks = {
         if (!s || !s.economy || !Number.isFinite(s.economy.gold)) return 0;
         s.economy.gold = _r2(s.economy.gold + a);
         return a;
+    },
+
+    /**
+     * What a crown's misfortune (a scandal, a flood, a religious war, a civil
+     * war) is reckoned against: its chests, but at most `eventLoss.basisDays`
+     * of its revenue. A loss of "a tenth of the treasury" then costs a crown a
+     * few days' income whatever it has put by — a share of the chests taken
+     * by every event of the year was a wealth tax of half the chests a year,
+     * and the crowns of a century bled to nothing. 0 basisDays (or the books
+     * off, or no revenue on record yet): the chests themselves.
+     */
+    lossBasis(kingdom) {
+        const have = Math.max(0, _num(kingdom && kingdom.treasury));
+        const days = _num(CrownBooks.config().eventLoss && CrownBooks.config().eventLoss.basisDays);
+        if (!(days > 0) || !CrownBooks.enabled()) return have;
+        const f = kingdom && _obj(kingdom.fisc);
+        if (!f || !f.avg || !(_num(f.avg.n) > 0)) return have;
+        return Math.min(have, Math.max(0, _num(f.avg.rev)) * days);
+    },
+
+    /**
+     * A crown's misfortune paid for: up to `amount` out of its chests, spent in its
+     * capital (the bribes, the feast, the soldiers put down a rising are paid
+     * there — spendAtCapital); what cannot be placed in a purse stays in the
+     * chests. → the coin spent.
+     */
+    spendFromChests(world, kingdom, amount) {
+        const a = Math.floor(Math.min(_num(amount), Math.max(0, _num(kingdom && kingdom.treasury))));
+        if (!(a > 0)) return 0;
+        const placed = CrownBooks.spendAtCapital(world, kingdom, a);
+        kingdom.treasury = _r2(_num(kingdom.treasury) - placed);
+        return placed;
     },
 
     /** Today's books so far, or yesterday's closed ones. */
@@ -272,13 +305,20 @@ export const CrownBooks = {
         return _clamp(_num(lv.cap, 1) * (1 - late * _num(D.capPerDay, 0.012)), _num(D.capMin, 0.6), 1.2);
     },
 
-    /** Sell offices: a lump of `days` of revenue now, corruption for years. Returns the gold raised. */
-    sellOffices(kingdom) {
+    /**
+     * Sell offices: a lump of `days` of revenue now, corruption for years. Returns the gold raised.
+     * opts.pay(amount) → the coin the buyers actually paid, out of real purses (the realm's
+     * towns: Finance.saleBuyers); without it the price is struck from nothing (old callers).
+     */
+    sellOffices(kingdom, opts = {}) {
         if (!kingdom || !CrownBooks.enabled()) return 0;
         const f = CrownBooks.state(kingdom);
         const C = CrownBooks.config();
-        const gain = Math.round(Math.max(_num(f.avg.rev), 50) * _num(C.crisis.offices.days, 20));
-        f.corruption = _clamp(f.corruption + _num(C.corruption.officesSale, 0.12), 0, 1);
+        const price = Math.round(Math.max(_num(f.avg.rev), 50) * _num(C.crisis.offices.days, 20));
+        const gain = typeof opts.pay === 'function' ? Math.max(0, Math.round(_num(opts.pay(price)) * 100) / 100) : price; // (every coin paid, to the hundredth)
+        if (!(gain > 0)) return 0;
+        // (offices sold for less than their price are fewer offices: only that share of the corruption)
+        f.corruption = _clamp(f.corruption + _num(C.corruption.officesSale, 0.12) * Math.min(1, gain / Math.max(1, price)), 0, 1);
         kingdom.treasury = _num(kingdom.treasury) + gain;
         CrownBooks.note(kingdom, 'sales', gain);
         f.stats.officesSold = _num(f.stats.officesSold) + 1;
@@ -288,16 +328,19 @@ export const CrownBooks = {
     /**
      * Sell crown land: `share` of the demesne goes to the houses for `days` of
      * what it yields. Returns the gold raised (0 when little demesne is left).
+     * opts.pay as sellOffices: the great houses buying pay out of real purses.
      */
-    sellLand(kingdom) {
+    sellLand(kingdom, opts = {}) {
         if (!kingdom || !CrownBooks.enabled()) return 0;
         const f = CrownBooks.state(kingdom);
         const C = CrownBooks.config();
         if (f.demesne <= _num(C.demesne.min, 0.05) + 1e-9) return 0;
         const sold = f.demesne * _num(C.crisis.land.share, 0.3);
         const yieldDay = Math.max(_num(f.avg.demesne), 5) * (sold / Math.max(0.01, f.demesne));
-        const gain = Math.round(yieldDay * _num(C.crisis.land.days, 120));
-        f.demesne = _clamp(f.demesne - sold, 0, 1);
+        const price = Math.round(yieldDay * _num(C.crisis.land.days, 120));
+        const gain = typeof opts.pay === 'function' ? Math.max(0, Math.round(_num(opts.pay(price)) * 100) / 100) : price; // (every coin paid, to the hundredth)
+        if (!(gain > 0)) return 0;
+        f.demesne = _clamp(f.demesne - sold * Math.min(1, gain / Math.max(1, price)), 0, 1);
         kingdom.treasury = _num(kingdom.treasury) + gain;
         CrownBooks.note(kingdom, 'sales', gain);
         f.stats.landSold = _num(f.stats.landSold) + 1;

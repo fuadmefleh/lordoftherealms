@@ -7,6 +7,7 @@ import { Hex } from '../core/hex.js';
 import { Quests } from './quests.js';
 import { DataLoader } from '../core/dataLoader.js';
 import { Economy } from '../world/economy.js';
+import { CrownBooks } from '../world/crownBooks.js';
 import { Names } from '../core/names.js';
 
 
@@ -522,8 +523,9 @@ export const Religion = {
 
     triggerReligiousConflict(kingdom, heresy, world) {
         // Severe consequences: treasury loss, population loss, relation changes
-        const treasuryLoss = Math.floor(kingdom.treasury * 0.15);
-        kingdom.treasury -= treasuryLoss;
+        // (the unrest is put down with coin spent in the capital: a share of the chests, reckoned on a
+        // few weeks' revenue at most — world/crownBooks.js lossBasis)
+        const treasuryLoss = CrownBooks.spendFromChests(world, kingdom, CrownBooks.lossBasis(kingdom) * 0.15);
         kingdom.religion.piety = Math.max(0, kingdom.religion.piety - 15);
 
         world.events.push({

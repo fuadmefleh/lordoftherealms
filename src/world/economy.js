@@ -717,10 +717,34 @@ export const Economy = {
         perCapita: 0.1,                // food eaten per person per day
         selfSufficiency: { village: 1.0, town: 0.92, city: 0.82, capital: 0.75 },
         capacity: { village: 1500, town: 5000, city: 15000, capital: 30000 },
-        maxGrowth: 0.0003,             // per day, before the capacity taper
+        // A village that rises by migration's rule (systems/migration.js: a town at 650,
+        // data/migration.json size) grows on its own only to here, as a town's 5000 is its
+        // city line: natural growth tapers below the next class and newcomers carry it over.
+        // (At 1500 every such village grew into a town within a few decades.) Villages
+        // founded at the dawn or by the player keep `capacity.village`: they rise by their
+        // own rule (world/dawn.js, world/villageFounding.js).
+        villageCap: 600,
+        // per day, before the capacity taper: 1.8% a year at most (0.0003 tripled the world's
+        // people in a century of the long game, every town climbing toward its cap)
+        maxGrowth: 0.00015,
         starvation: 0.003,             // daily loss at a 100% shortfall
         stockDays: 10,                 // granary holds this many days' needs
         startDays: 6,                  // an established town's granary at the start: this many days put by
+    },
+
+    /**
+     * How much room a settlement has to grow, 0..1: 1 − its people over what
+     * its kind's land can feed (FOOD.capacity; a village under migration's rule
+     * FOOD.villageCap). Every lasting growth — the food surplus here, the
+     * realm's healers and the events' drift (world/kingdomAI.js) — tapers by it.
+     */
+    growthRoom(settlement) {
+        const F = Economy.FOOD;
+        if (!settlement) return 0;
+        const type = F.capacity[settlement.type] ? settlement.type : 'village';
+        const cap = type === 'village' && !settlement.dawnBorn && !settlement.playerFounded && F.villageCap > 0
+            ? Math.min(F.capacity.village, F.villageCap) : F.capacity[type];
+        return Math.max(0, 1 - Math.max(0, Number(settlement.population) || 0) / cap);
     },
 
     /** Feed a settlement for one day and grow or shrink its population. */
@@ -753,8 +777,7 @@ export const Economy = {
         const surplus = available - needed;
         let change = 0;
         if (surplus > 0) {
-            const cap = F.capacity[type];
-            const taper = Math.max(0, 1 - pop / cap);
+            const taper = Economy.growthRoom(settlement);
             const rate = Math.min(surplus / pop, F.maxGrowth) * taper * Math.max(0, 1 + (mods.growth || 0));
             if (rate > 0) change = pop * rate;
         } else if (surplus < 0) {

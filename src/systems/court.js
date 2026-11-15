@@ -56,6 +56,9 @@ const DEFAULTS = {
     passedOverDays: 90, passedOverLoyalty: -10,
     traitLoyalty: { loyal: 8, fickle: -6, ambitious: -4, honest: 2, greedy: -2 },
     unpaidLoyalty: 3, unpaidLeaveDays: 10,
+    // Bread before stipends: the court is never paid out of the head's last
+    // purseReserve gold (a week or so of food); they go unpaid and, in time, leave
+    purseReserve: 40,
     leaveBelow: 15, leaveChance: 0.35, offerBelow: 40, offerChance: 0.04,
     embezzleBelow: 30, embezzleRate: 0.02, embezzleMax: 60,
     raiseLoyaltyPerGold: 3, raiseLoyaltyCap: 15, cutLoyaltyPerGold: 5,
@@ -208,6 +211,8 @@ export const Court = {
         const first = npc.firstName || 'They';
         if (Court.isMember(player, npc.id)) return `${first} already serves at your court.`;
         if (player.spouse === npc.id) return `${first} is your spouse, already of your household.`;
+        // A friend you sold to the watch never serves you (systems/bonds.js betray)
+        if (npc.betrayedByPlayer != null) return `${first} has not forgotten that you sold them out. They will never serve you.`;
         if (!(player.relationships && player.relationships[npc.id])) return 'You need to meet this person first.';
         if (_num(npc.age, 18) < cfg.minAge) return `${first} is too young to serve at court.`;
         if (npc.governing) return `${first} is governing one of your holdings.`;
@@ -440,12 +445,13 @@ export const Court = {
             // The stipend: today's, and what is owed, if the purse allows
             const due = _num(e.stipend) + _num(e.owed);
             if (due <= 0) continue;
-            if (_num(player.gold) >= due) {
+            const spare = _num(player.gold) - Math.max(0, _num(cfg.purseReserve));
+            if (spare >= due) {
                 Court._pay(player, npc, due);
                 e.owed = 0;
                 e.unpaidDays = 0;
             } else {
-                const part = Math.max(0, Math.floor(_num(player.gold)));
+                const part = Math.max(0, Math.floor(spare));
                 if (part > 0) Court._pay(player, npc, part);
                 e.owed = due - part;
                 e.unpaidDays = _num(e.unpaidDays) + 1;

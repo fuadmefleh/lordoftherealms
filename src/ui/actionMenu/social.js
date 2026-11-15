@@ -2,6 +2,8 @@
 import { ActionMenu } from './_ref.js';
 import { Traits } from '../../systems/traits.js';
 import { CompanionsPanel } from '../companionsPanel.js';
+import { AnimalsPanel } from '../animalsPanel.js';
+import { AnimalCompanions } from '../../systems/animalCompanions.js';
 import { Upbringing } from '../../systems/upbringing.js';
 import { HeirAgency } from '../../systems/heirAgency.js';
 import { Demands } from '../../systems/demands.js';
@@ -121,6 +123,13 @@ Object.assign(ActionMenu, {
         html += lede('Manage companions who travel with you and invite trusted contacts.');
         html += chips([{ icon: '🧭', label: 'Active companions', value: party.length, cls: 'gold' }]);
 
+        // Your animals, and who walks the streets with you (ui/animalsPanel.js)
+        const pets = AnimalCompanions.list(player, game.world);
+        html += rowList([
+            { icon: '🐾', name: `Your Animals${pets.length ? ` (${pets.length})` : ''}`, desc: pets.length ? pets.map(a => esc(a.name)).join(', ') : 'Dogs, cats, hawks and your horse', attrs: 'onclick="window._partyAnimals()"' },
+            { icon: '🚶', name: 'Who Walks With You', desc: 'Who goes about the streets with you, and who waits at the inn', attrs: 'onclick="window._partyWhoWalks()"' },
+        ]);
+
         // Roster: approval, mood, values, gripes, quests, talk/gift/dismiss (ui/companionsPanel.js)
         html += CompanionsPanel.rosterHtml(game);
 
@@ -131,7 +140,7 @@ Object.assign(ActionMenu, {
             html += rowList(knownCandidates.slice(0, 12).map(entry => {
                 const relation = Relationships.getRelationLabel(entry.rel.score || 0);
                 return actRow({
-                    icon: relation.icon, name: entry.npc.firstName, desc: `${relation.label} · ${entry.rel.score || 0}`,
+                    icon: relation.icon, name: entry.npc.firstName, desc: `${relation.label} · ${Math.round(entry.rel.score || 0)}`,
                     side: `<button onclick="window._partyInvite('${entry.npcId}')" style="${BTN_GOLD}">Invite</button>`
                         + `<button onclick="window._partyOpenProfile('${entry.npcId}')" style="${BTN_DARK}">Profile</button>`,
                 });
@@ -146,6 +155,8 @@ Object.assign(ActionMenu, {
         window._partyOpenProfile = (npcId) => {
             ActionMenu.showCharacterDataModal(game, tile, npcId, { returnTo: 'travel_party' });
         };
+        window._partyAnimals = () => AnimalsPanel.show(game);
+        window._partyWhoWalks = () => AnimalsPanel.showWhoWalks(game);
 
         window._partyRemove = (npcId) => {
             const result = Relationships.removeFromTravelParty(player, npcId);
@@ -433,11 +444,11 @@ Object.assign(ActionMenu, {
             const spouse = Relationships.getNPC(player.spouse);
             if (spouse) {
                 const rel = Relationships.getRelationship(player, player.spouse);
-                let body = `<div style="${MUTED}">Age ${spouse.age} · ${spouse.occupation} · Affection: ${rel.affection}/100 · Relation: ${rel.score || 0}</div>`;
+                let body = `<div style="${MUTED}">Age ${spouse.age} · ${spouse.occupation} · Affection: ${Math.round(rel.affection || 0)}/100 · Relation: ${Math.round(rel.score || 0)}</div>`;
                 body += '<div style="margin-top:6px;">' + ActionMenu._renderAffectionBar(rel.affection) + '</div>';
                 body += ActionMenu._renderRelationshipXPBar(rel.score || 0, true);
                 body += `<div style="margin-top:6px;"><button onclick="window._divorceConfirm()" style="${BTN_RED}">💔 Divorce</button></div>`;
-                html += card(body, { icon: '💍', title: `<span style="color:#ff9ad5;">Spouse: ${spouse.firstName} ${spouse.dynasty}</span>`, side: `♥ ${rel.affection}` });
+                html += card(body, { icon: '💍', title: `<span style="color:#ff9ad5;">Spouse: ${spouse.firstName} ${spouse.dynasty}</span>`, side: `♥ ${Math.round(rel.affection || 0)}` });
             }
         }
 
@@ -467,7 +478,7 @@ Object.assign(ActionMenu, {
             html += rowList(travelParty.map(member => {
                 const rel = Relationships.getRelationship(player, member.id);
                 const role = PlayerEffects.companionRole(member);
-                return { ...personRow(member, rel, '🧭', `${member.occupation || 'traveller'}: ${role.text}`, `${rel.score || 0} · Profile ›`), note: '' };
+                return { ...personRow(member, rel, '🧭', `${member.occupation || 'traveller'}: ${role.text}`, `${Math.round(rel.score || 0)} · Profile ›`), note: '' };
             }), '🧭 Travel Party');
         }
 
@@ -477,7 +488,7 @@ Object.assign(ActionMenu, {
                 const npc = Relationships.getNPC(npcId);
                 if (!npc || !npc.isAlive) continue;
                 const stage = Relationships.getCourtingStage(rel.affection, false);
-                rows.push(personRow(npc, rel, stage.icon, `<span style="color:#f48fb1;">${stage.label}</span> · Affection: ${rel.affection} · Score: ${rel.score || 0}`, 'Profile ›'));
+                rows.push(personRow(npc, rel, stage.icon, `<span style="color:#f48fb1;">${stage.label}</span> · Affection: ${Math.round(rel.affection || 0)} · Score: ${Math.round(rel.score || 0)}`, 'Profile ›'));
             }
             html += rowList(rows, '💕 Romantic Interests');
         }
@@ -488,7 +499,7 @@ Object.assign(ActionMenu, {
                 const npc = Relationships.getNPC(npcId);
                 if (!npc || !npc.isAlive || npcId === player.spouse) continue;
                 const label = Relationships.getRelationLabel(rel.score);
-                rows.push(personRow(npc, rel, label.icon, label.label, `${rel.score} · Profile ›`, 'good'));
+                rows.push(personRow(npc, rel, label.icon, label.label, `${Math.round(rel.score || 0)} · Profile ›`, 'good'));
             }
             html += rowList(rows, '😊 Friends');
         }
@@ -499,7 +510,7 @@ Object.assign(ActionMenu, {
                 const npc = Relationships.getNPC(npcId);
                 if (!npc || !npc.isAlive) continue;
                 const label = Relationships.getRelationLabel(rel.score);
-                rows.push(personRow(npc, rel, label.icon, label.label, `${rel.score} · Profile ›`, 'bad'));
+                rows.push(personRow(npc, rel, label.icon, label.label, `${Math.round(rel.score || 0)} · Profile ›`, 'bad'));
             }
             html += rowList(rows, '⚡ Rivals');
         }
@@ -517,7 +528,7 @@ Object.assign(ActionMenu, {
         if (knownPeople.length > 0) {
             html += rowList(knownPeople.slice(0, 16).map(entry => {
                 const relation = Relationships.getRelationLabel(entry.rel.score || 0);
-                return { ...personRow(entry.npc, entry.rel, relation.icon, relation.label, `${entry.rel.score || 0} · Character Profile ›`), note: '' };
+                return { ...personRow(entry.npc, entry.rel, relation.icon, relation.label, `${Math.round(entry.rel.score || 0)} · Character Profile ›`), note: '' };
             }), '📇 People You Know');
         }
 
@@ -1267,7 +1278,7 @@ Object.assign(ActionMenu, {
                 const label = Relationships.getRelationLabel(rel.score || 0);
                 return {
                     icon: label.icon, name: `${esc(npc.firstName)} ${esc(npc.dynasty || '')}`,
-                    desc: `${esc(npc.occupation || 'commoner')}, age ${npc.age} · ${label.label} (${rel.score || 0}) · asks ~${odds.expected}g a day`,
+                    desc: `${esc(npc.occupation || 'commoner')}, age ${npc.age} · ${label.label} (${Math.round(rel.score || 0)}) · asks ~${odds.expected}g a day`,
                     off: !odds.ok, why: odds.reason,
                     attrs: `onclick="window._courtUI.offer('${npc.id}')"`,
                     side: odds.ok ? `${Math.round(odds.chance * 100)}% ›` : '',

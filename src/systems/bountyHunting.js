@@ -6,6 +6,8 @@ import { Utils } from '../core/utils.js';
 import { Traits } from './traits.js';
 import { Sagas } from './sagas.js';
 import { OutlawLairs } from './outlawLairs.js';
+import { Ledger } from './ledger.js';
+import { Economy } from '../world/economy.js';
 
 /** A hunter who took the notice on a saga beast earns this much over the realm's bounty. */
 const SAGA_NOTICE_BONUS = 0.25;
@@ -338,6 +340,28 @@ export const BountyHunting = {
         return state.rank > before ? this.getRankInfo(player) : null;
     },
 
+    /**
+     * The coin for an outlaw chief's head comes from the realm that posted it
+     * (its treasury), then the town whose board carried the notice — the
+     * notice says "{realm} pay". → coin drawn (any shortfall is the old
+     * flat reward, so a realm gone broke still keeps its word).
+     */
+    _payLairBounty(world, bounty, pay) {
+        if (!world || !(pay > 0)) return 0;
+        let got = 0;
+        const k = bounty.kingdomId != null ? (world.kingdoms || []).find(x => x && x.id === bounty.kingdomId && x.isAlive !== false) : null;
+        if (k && _num(k.treasury) > 0) {
+            const t = Math.min(_num(k.treasury), pay);
+            k.treasury = _num(k.treasury) - t;
+            got += t;
+        }
+        if (got < pay && bounty.fromQ != null && typeof world.getTile === 'function') {
+            const tile = world.getTile(bounty.fromQ, bounty.fromR);
+            if (tile && tile.settlement) got += _num(Economy.drawTown(tile.settlement, pay - got));
+        }
+        return got;
+    },
+
     processDaily(player, world) {
         this.initialize(player);
         const updates = { escaped: [], moved: [], escalated: [], beasts: [], chiefs: [] };
@@ -351,7 +375,9 @@ export const BountyHunting = {
             const fate = OutlawLairs.bountyStatus(player, bounty);
             if (fate === 'slain') {
                 const pay = Math.round(_num(bounty.actualPay) * (1 + Math.max(0, this.getRankInfo(player).payBonus)));
+                this._payLairBounty(world, bounty, pay);
                 player.gold = (player.gold || 0) + pay;
+                Ledger.record(player, 'bounties', pay);
                 player.renown = (player.renown || 0) + 3;
                 player.bountyHunter.outlawChiefs += 1;
                 player.bountiesCompleted = (player.bountiesCompleted || 0) + 1;

@@ -1,4 +1,10 @@
 {
+    "knownPrune": {
+        "_doc": "Relationships.pruneKnown (systems/relationships/npcs.js), yearly: the dead deadAfterYears gone and the living unseen unseenAfterYears are let go, unless tied to the player (|score| >= tieScore, romance, party, court, kin, anything in the player state naming them)",
+        "deadAfterYears": 5,
+        "unseenAfterYears": 15,
+        "tieScore": 30
+    },
     "relationshipTypes": {
         "acquaintance":  { "id": "acquaintance",  "label": "Acquaintance",  "icon": "🤝", "minScore": 10,  "maxScore": 29 },
         "friend":        { "id": "friend",        "label": "Friend",        "icon": "😊", "minScore": 30,  "maxScore": 59 },

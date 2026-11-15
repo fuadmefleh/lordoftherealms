@@ -623,7 +623,12 @@ describe('panics and failures', () => {
         expect(p.gold).toBeLessThan(gold0 + left);
         expect(p.finance.stats.lostInFailures).toBeGreaterThan(0);
         expect(p.finance.history.some(h => h.kind === 'bank_failed')).toBe(true);
-        // A new house opens at the seat in time
+        // A new house opens at the seat in time, its capital put up by the realm's merchants
+        const k = game.world.kingdoms.find(x => x.id === bank.kingdomId);
+        for (const t of Economy.realmTowns(k, game.world)) {
+            if (!t.settlement.economy) Economy.initSettlement(t.settlement);
+            t.settlement.economy.gold = Math.max(t.settlement.economy.gold, 20000);
+        }
         runDays(game, 95);
         expect(Finance.openBanks(p).some(b => b.q === bank.q && b.r === bank.r && b.id !== bank.id)).toBe(true);
     });

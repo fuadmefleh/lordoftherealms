@@ -1,6 +1,7 @@
 
 import { DataLoader } from '../core/dataLoader.js';
 import { Utils } from '../core/utils.js';
+import { Economy } from '../world/economy.js';
 
 /**
  * Housing System
@@ -114,8 +115,9 @@ export const Housing = {
             return { success: false, message: `You need at least ${houseType.requiredRenown} renown.` };
         }
 
-        // Purchase
+        // Purchase (the price goes to the town's builders and sellers: its purse)
         player.gold -= cost;
+        Economy.payTown(tile.settlement, cost);
         if (!player.houses) player.houses = [];
         const house = {
             q, r,
@@ -166,7 +168,7 @@ export const Housing = {
 
     /* ── Selling a house ─────────────────────────────────────── */
 
-    sellHouse(player, q, r) {
+    sellHouse(player, q, r, world = null) {
         const idx = (player.houses || []).findIndex(h => h.q === q && h.r === r);
         if (idx === -1) return { success: false, message: 'You do not own a house here.' };
 
@@ -178,7 +180,10 @@ export const Housing = {
             return sum + (u ? u.cost : 0);
         }, 0);
         const penalty = this._getSellPenalty();
-        const salePrice = Math.floor((baseValue + upgradeValue) * penalty * (house.condition / 100));
+        let salePrice = Math.floor((baseValue + upgradeValue) * penalty * (house.condition / 100));
+        // (with the world: the buyers pay out of the town's purse, what it holds)
+        const sTile = world && typeof world.getTile === 'function' ? world.getTile(q, r) : null;
+        if (sTile && sTile.settlement) salePrice = Math.floor(Economy.drawTown(sTile.settlement, salePrice));
 
         player.gold += salePrice;
         player.houses.splice(idx, 1);
@@ -205,7 +210,7 @@ export const Housing = {
     /**
      * Install an upgrade on the player's house at (q, r).
      */
-    installUpgrade(player, q, r, upgradeId) {
+    installUpgrade(player, q, r, upgradeId, world = null) {
         const house = this.getHouseAt(player, q, r);
         if (!house) return { success: false, message: 'You do not own a house here.' };
 
@@ -229,6 +234,9 @@ export const Housing = {
         }
 
         player.gold -= upgrade.cost;
+        // (the masons and joiners are the town's: with the world, the coin reaches its purse)
+        const uTile = world && typeof world.getTile === 'function' ? world.getTile(q, r) : null;
+        if (uTile && uTile.settlement) Economy.payTown(uTile.settlement, upgrade.cost);
         house.upgrades.push(upgradeId);
 
         if (player.financeToday) {
@@ -362,6 +370,9 @@ export const Housing = {
 
         let totalMaintenance = 0;
         const bonuses = this.getTotalBonuses(player);
+        // (each house's upkeep is paid to its town — the builders, servants and carters
+        // are its people — and only what the purse holds: a house left unpaid decays)
+        let purse = Math.max(0, Number(player.gold) || 0);
 
         for (const house of houses) {
             const ht = this.getHouseType(house.typeId);
@@ -370,12 +381,16 @@ export const Housing = {
             // Maintenance (reduced by servants' quarters)
             let maint = ht.maintenanceCost;
             if (bonuses.maintenanceReduction > 0) {
-                maint = Math.max(1, Math.floor(maint * (1 - bonuses.maintenanceReduction)));
+                maint = Math.max(0.1, Math.round(maint * (1 - bonuses.maintenanceReduction) * 100) / 100);
             }
-            totalMaintenance += maint;
+            const paid = Math.min(purse, maint);
+            purse -= paid;
+            totalMaintenance += paid;
+            const tile = world && typeof world.getTile === 'function' ? world.getTile(house.q, house.r) : null;
+            if (paid > 0 && tile && tile.settlement) Economy.payTown(tile.settlement, paid);
 
-            // Condition degrades slowly (1% every 30 days, approx)
-            if (Utils.random() < 0.033) {
+            // Condition degrades slowly (1% every 30 days, approx); faster unkept
+            if (Utils.random() < (paid < maint ? 0.2 : 0.033)) {
                 house.condition = Math.max(10, house.condition - 1);
             }
         }
@@ -454,7 +469,7 @@ export const Housing = {
      * Repair a house back to 100% condition.
      * Cost = baseCost * 0.1 * (100 - condition)/100
      */
-    repairHouse(player, q, r) {
+    repairHouse(player, q, r, world = null) {
         const house = this.getHouseAt(player, q, r);
         if (!house) return { success: false, message: 'No house to repair.' };
         if (house.condition >= 100) return { success: false, message: 'House is in perfect condition.' };
@@ -470,6 +485,9 @@ export const Housing = {
 
         player.gold -= repairCost;
         house.condition = 100;
+        // The masons' wages go into the town's purse
+        const rTile = world && typeof world.getTile === 'function' ? world.getTile(q, r) : null;
+        if (rTile && rTile.settlement) Economy.payTown(rTile.settlement, repairCost);
 
         if (player.financeToday) {
             player.financeToday.expenses.housing = (player.financeToday.expenses.housing || 0) + repairCost;

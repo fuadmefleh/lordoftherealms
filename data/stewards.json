@@ -1,5 +1,5 @@
 {
-    "_doc": "Delegation: stewards, reeves, bailiffs and governors over the player's holdings, estates, company and the realm's demesne towns (systems/stewards.js). Days are game days (120 a year). Effects of standing orders scale with the office-holder's skill (skill / 5: an average steward gives the listed numbers).",
+    "_doc": "Delegation: stewards, reeves, bailiffs and governors over the player's holdings, estates, company and the realm's demesne towns (systems/stewards.js). Days are game days (120 a year). Effects of standing orders scale with the office-holder's skill (skill / 5: an average steward gives the listed numbers). provinceMood: a royal governor's order moves the demesne town's happiness that many points a day as the crown's collectors come round (systems/fiscal.js), never below provinceBand[0] for a squeeze nor above provinceBand[1] for a kind order (default 35..70).",
     "config": {
         "weekDays": 7,
         "reportDays": 30,
@@ -16,7 +16,7 @@
         "abuse": { "chance": 0.05, "unrest": 6, "happiness": 4, "extortShare": 0.15, "suspicion": 12 },
         "excel": { "minSkill": 6, "chance": 0.06, "unrest": 8, "happiness": 3, "buildDays": 2, "renown": 1 },
         "bribe": { "minFeud": 35, "chance": 0.03, "gold": [60, 220], "skim": 0.08, "loyalty": -12, "suspicion": 8, "acceptBelow": 0.55 },
-        "power": { "perYear": 6, "ambition": 0.6, "intrigue": 0.4, "mood": 0.05, "kin": 10, "cap": 100, "recallDrop": 100, "decayWhenLoyal": 0.4 },
+        "power": { "perYear": 6, "ambition": 0.6, "intrigue": 0.4, "mood": 0.05, "kin": 10, "cap": 100, "decayWhenLoyal": 0.4 },
         "revolt": { "power": 70, "loyalty": 35, "ambition": 6, "chance": 0.08, "rebelBonus": 0.5, "defyDays": 60 },
         "marriage": { "ambition": 5, "loyalty": 50, "power": 35, "chance": 0.04, "minAge": 16, "everyDays": 360, "acceptLoyalty": 20, "acceptPower": 15, "acceptAmbition": -2, "refuseLoyalty": -12, "prestige": 2 },
         "audit": { "cost": 40, "costPerIncome": 0.1, "cooldown": 30, "baseChance": 0.4, "perSkill": 0.05, "recover": 0.7, "insult": -4, "suspicionShown": 35 },

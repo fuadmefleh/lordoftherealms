@@ -312,6 +312,16 @@ describe('blood debts and avengers', () => {
         return { s, father, son };
     }
 
+    it('a youth already past maxAgeAtDeed when their kin was killed owes no blood debt', () => {
+        const g = fresh(game());
+        const { son } = orphan(g);
+        const Y = Wanted.config().daysPerYear;
+        son.born = g.world.day - 15.5 * Y; // (still under comeOfAge, but past maxAgeAtDeed at the killing)
+        Wanted.state(g.player).lastScanDay = -1e9;
+        tick(g);
+        expect(Wanted.openDebts(g.player, g.world).length).toBe(0);
+    });
+
     it('the son of a man you killed is noted, grows up, and swears vengeance through the nemesis layer', () => {
         const g = fresh(game());
         const { son } = orphan(g);
@@ -330,6 +340,47 @@ describe('blood debts and avengers', () => {
         expect(grudge).toBeTruthy();
         expect(grudge.kind).toBe('blood');
         expect(grudge.age).toBe(16);
+        expect(Wanted.openDebts(g.player, g.world).length).toBe(0);
+    });
+
+    it('a new head on the seat: the blood debt passes to the heir a generation cooler, and is let go in time', () => {
+        const g = fresh(game());
+        const { son } = orphan(g);
+        Wanted.state(g.player).lastScanDay = -1e9;
+        tick(g);
+        const [d0] = Wanted.openDebts(g.player, g.world);
+        expect(d0).toBeTruthy();
+        const score0 = Wanted.debtScore(d0.debt);
+        const cost0 = d0.cost;
+        // The killer dies; the heir takes the seat
+        g.player.house.generation = (g.player.house.generation || 1) + 1;
+        const out = tick(g);
+        expect(out.notices.some(n => n.title === 'Old Blood, New Head')).toBe(true);
+        const [d1] = Wanted.openDebts(g.player, g.world);
+        expect(d1.debt.id).toBe(d0.debt.id);
+        expect(d1.debt.gens).toBe(1);
+        expect(Wanted.debtScore(d1.debt)).toBeLessThan(score0);
+        expect(Wanted.debtScore(d1.debt)).toBeGreaterThan(score0 * 0.4);
+        expect(d1.cost).toBeLessThan(cost0);
+        // He comes of age against the heir: a cooler grudge
+        g.world.day = d1.debt.comeOfAgeDay - 1;
+        tick(g);
+        const grudge = Nemesis.state(g.player).grudges.find(x => x.ref && x.ref.folkRef && x.ref.folkRef.endsWith(`#${son.id}`));
+        expect(grudge).toBeTruthy();
+        expect(grudge.score).toBe(Wanted.debtScore(d1.debt));
+    });
+
+    it('a blood debt three generations old is let go, and not noted again', () => {
+        const g = fresh(game());
+        orphan(g);
+        Wanted.state(g.player).lastScanDay = -1e9;
+        tick(g);
+        expect(Wanted.openDebts(g.player, g.world).length).toBe(1);
+        g.player.house.generation = (g.player.house.generation || 1) + 3;
+        tick(g);
+        expect(Wanted.openDebts(g.player, g.world).length).toBe(0);
+        Wanted.state(g.player).lastScanDay = -1e9;
+        tick(g);
         expect(Wanted.openDebts(g.player, g.world).length).toBe(0);
     });
 

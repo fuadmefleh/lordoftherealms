@@ -7,6 +7,7 @@
 import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
 import { Utils } from '../core/utils.js';
 import { Hospitality } from '../systems/hospitality.js';
+import { Economy } from '../world/economy.js';
 import { PracticeSkills } from '../systems/practiceSkills.js';
 import { SaveLoad } from '../systems/saveLoad.js';
 import { PlayerEconomy } from '../player/playerEconomy.js';
@@ -342,6 +343,26 @@ describe('the NPC houses\' week and the save', () => {
         for (let w = 0; w < 18; w++) { world.day += 7; Hospitality._npcWeek(world, player); }
         const after = Hospitality.listAt(world, player, t.q, t.r);
         expect(after.every(v => v.priceMult >= 1.8 && v.guests >= v.rooms)).toBe(false);
+    });
+    it('an empty house owes no one: its cash never goes below nothing, and the week only moves coin', () => {
+        const { world, player } = game;
+        const t = townOf('town') || townOf();
+        const s = world.getTile(t.q, t.r).settlement;
+        const houses = Hospitality.listAt(world, player, t.q, t.r);
+        const st = Hospitality.state(world).houses;
+        if (!s.economy) Economy.initSettlement(s);
+        s.economy.gold = 5000;
+        // (no guests at all: the price at the top and the cash run down)
+        for (const v of houses) { st[v.id].priceMult = 50; st[v.id].cash = 5; }
+        const coin = () => s.economy.gold + houses.reduce((a, v) => a + st[v.id].cash, 0);
+        for (let w = 0; w < 6; w++) {
+            const before = coin();
+            world.day += 7;
+            Hospitality._npcWeek(world, player);
+            for (const v of houses) expect(st[v.id].cash).toBeGreaterThanOrEqual(0);
+            // (the keepers' own purses aside: an empty house clears nothing for them)
+            expect(Math.abs(coin() - before)).toBeLessThan(houses.length + 1);
+        }
     });
 });
 

@@ -215,7 +215,7 @@ function buildConfig(src) {
             ...(d.shortage || {}),
         },
         trade: {
-            partners: 6, localRange: 7, seaRange: 14, maxRange: 16, perHex: 0.035, roadFactor: 0.6, seaFactor: 0.5,
+            partners: 6, localRange: 7, seaRange: 14, maxRange: 16, frontierRange: 30, perHex: 0.035, roadFactor: 0.6, seaFactor: 0.5,
             capacity: 60, perRoute: 25, maxRoutes: 4, share: 0.2, keepDays: 0.5, goldScale: 6,
             lairRadius: 3, lairCut: 0.6, raiderRadius: 2, raiderCut: 0.35, warCut: 1, siegeCut: 1, atWarFactor: 0.75,
             ...(d.trade || {}),

@@ -939,6 +939,25 @@ export const TradeLines = {
         ctx.notes.push(`${ctx.stop.name}: ${text}`);
     },
 
+    /**
+     * A factor's haggled unit price: `unit` × (1 + haggle) — but a haggle that
+     * wins a better price wins it under `cap` (the most the outlet pays: one
+     * under buying it back) less the same haggle. The factor buys at
+     * (1 − haggle) of the price, so it never sells dearer than it buys there.
+     */
+    _haggled(unit, cap, haggle) {
+        const h = _num(haggle);
+        const v = _num(unit) * (1 + h);
+        return h > 0 ? Math.min(v, _num(cap) * (1 - h)) : v;
+    },
+
+    /** What `n` units fetch at a town market through a factor who haggles `haggle` (Trading.saleUnitPrice, haggled). */
+    saleTotal(player, good, s, world, mult, n, haggle = 0) {
+        if (!(n > 0)) return 0;
+        const unit = Trading.saleUnitPrice(player, good, s, world, mult, n);
+        return Math.max(0, Math.floor(TradeLines._haggled(unit, Trading.saleUnitPrice(player, good, s, world, 1, n), haggle) * n));
+    },
+
     _isPort(ctx) {
         return ctx.line.kind === 'ship';
     },
@@ -966,7 +985,8 @@ export const TradeLines = {
             if (closed) { TradeLines._note(ctx, closed); return; }
             const entry = Ships.getPortMarket(world, ctx.stop.q, ctx.stop.r).find(e => e.id === g);
             if (!entry) { TradeLines._note(ctx, `nobody buys ${gname}.`); return; }
-            total = (k) => (k <= 0 ? 0 : Math.max(0, Math.floor(k * Ships.portSaleUnitPrice(player, world, ctx.stop.q, ctx.stop.r, entry, k) * policy.mult * (1 + ctx.haggle))));
+            // (a good factor haggles a better price, never past what the line pays for it here: TradeLines._haggled)
+            total = (k) => { if (k <= 0) return 0; const u = Ships.portSaleUnitPrice(player, world, ctx.stop.q, ctx.stop.r, entry, k); return Math.max(0, Math.floor(k * TradeLines._haggled(u * policy.mult, u, ctx.haggle))); };
             outlay = (k) => { const e = total(k); return e + (policy.rate > 0 ? Math.round(e * policy.rate / Math.max(0.1, 1 - policy.rate)) : 0); };
         } else {
             const good = TradeLines._good(g);
@@ -976,7 +996,7 @@ export const TradeLines = {
             if (mono) { TradeLines._note(ctx, mono); return; }
             const k = TradeLines._kingdom(world, s.kingdom);
             if (k && Underworld.contrabandStatus(k, g) === 'illegal') { TradeLines._note(ctx, `${gname} is contraband in ${Names.realm(k.name)}: kept aboard.`); return; }
-            total = (n) => (n <= 0 ? 0 : Math.floor(Trading.saleUnitPrice(player, good, s, world, policy.mult, n) * n * (1 + ctx.haggle)));
+            total = (n) => TradeLines.saleTotal(player, good, s, world, policy.mult, n, ctx.haggle);
             outlay = (n) => Trading.saleOutlay(player, s, g, total(n), policy);
         }
         const first = total(1);

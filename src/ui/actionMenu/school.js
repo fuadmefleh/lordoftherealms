@@ -30,7 +30,7 @@ function _lettersCard(v) {
     const rows = [
         { icon: '💰', name: 'Taxes', desc: 'The tax rolls are read and paid as posted', side: fx(e.tax) },
         { icon: '📜', name: 'A new law', desc: 'A posted law understood: the realm grumbles less at a change', side: fx(1 / Math.max(0.01, e.law)) },
-        { icon: '🪧', name: 'The notice board', desc: 'The watch know a wanted face from the posters', side: fx(e.notices) },
+        { icon: '📜', name: 'The notice board', desc: 'The watch know a wanted face from the posters', side: fx(e.notices) },
         { icon: '🗣️', name: 'Word of mouth', desc: 'How much a tale changes in the telling', side: fx(e.oral, false) },
         { icon: '📰', name: 'Broadsheets', desc: 'How fast a written tale goes round', side: fx(e.written) },
         { icon: '🏦', name: 'Written receipts', desc: 'Trust in a bank\'s paper and a contract', side: e.trust ? `<span style="color:${e.trust > 0 ? '#9fd89f' : '#e0a080'};">${e.trust > 0 ? '+' : ''}${Math.round(e.trust * 100)}</span>` : 'as anywhere' },
@@ -117,7 +117,7 @@ Object.assign(ActionMenu, {
         html += _lettersCard(v);
         html += _schoolsCard(v);
         if (s.folk && v.school) {
-            html += rowList([{ icon: '🪙', name: 'Give 20g to the school fund', desc: 'More children sent, the poor\'s fees paid; the teacher and the parents think the better of you', side: price(20, (player.gold || 0) >= 20), off: (player.gold || 0) < 20, why: 'You haven\'t 20g.', act: 'schoolAct', args: ['donate', 20] }]);
+            html += rowList([{ icon: '💰', name: 'Give 20g to the school fund', desc: 'More children sent, the poor\'s fees paid; the teacher and the parents think the better of you', side: price(20, (player.gold || 0) >= 20), off: (player.gold || 0) < 20, why: 'You haven\'t 20g.', act: 'schoolAct', args: ['donate', 20] }]);
             html += _endowSection(game, s);
         }
         html += _youCard(game, v, s);

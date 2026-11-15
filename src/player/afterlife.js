@@ -63,6 +63,10 @@ import { Whispers } from '../systems/whispers.js';
 import { Couriers } from '../systems/couriers.js';
 import { CourierRiders } from '../systems/courierRiders.js';
 import { Hospitality } from '../systems/hospitality.js';
+import { RiverFlotsam } from '../systems/riverFlotsam.js';
+import { RiverDrift } from '../systems/riverDrift.js';
+import { RiverNets } from '../systems/riverNets.js';
+import { RiverLife } from '../systems/riverLife.js';
 import { OutlawLairs } from '../systems/outlawLairs.js';
 import { Gangs } from '../systems/gangs.js';
 import { Lots } from '../systems/lots.js';
@@ -144,79 +148,161 @@ function _num(v, d = 0) { return typeof v === 'number' && isFinite(v) ? v : d; }
 
 /**
  * The world's day without the player: every system of ui/game/endDay.js
- * that keeps the world itself turning, in the same order, given no player.
- * (Keep in step with endDay.js. Left out: the player's own — ailments,
- * ships, housing, construction, letters, schemes, rivals, quests, spies,
- * gossip, taxes, the ledger.) The steps marked "waits" keep their state on
- * the player and return at once with none: they stay listed so the order
- * matches endDay.js, and so a world-side half added to one later runs here.
+ * that keeps the world itself turning, given no player. Each step names the
+ * system as endDay.js calls it (`sys`); every daily call in endDay.js is
+ * either a step here or in WORLD_DAY_SKIPPED with the reason it does not run
+ * in the wait — src/__tests__/afterlifeWorldDay.test.js reads endDay.js and
+ * fails on a system that is in neither, so a new daily system is classified
+ * here when it is added there. The steps marked "waits" keep their state on
+ * the player and return at once with none: they stay listed so a world-side
+ * half added to one later runs here.
  */
 const WORLD_DAY = [
-    (w) => Townsfolk.processDay(w, null),
-    (w) => NpcMemory.processDay(w, null),
-    (w) => Illness.processDay(w, null),
-    (w) => Plague.processDay(w, null),
-    (w) => Lots.processDay(w, null),
-    (w) => Graveyards.processDay(w, null),
-    (w) => NpcTheft.processDay(w, null),
-    (w) => Brawls.processDay(w, null),
-    (w) => TownMemory.processDay(w, null),
-    (w) => TownCrimes.processDay(w, null),
-    (w) => TownEras.processDay(w, null),
-    (w) => Demands.processDay(w, null), // waits (player-held)
-    (w) => Delves.processDay(w, null), // waits (player-held)
-    (w) => Sagas.processDay(w, null), // waits (player-held)
-    (w) => Whispers.processDay(w, null), // waits (player-held)
-    (w) => Couriers.processDay(w, null),
-    (w) => CourierRiders.processDay(w, null),
-    (w) => Hospitality.processDay(w, null),
-    (w) => Gangs.processDay(w, null),
-    (w) => OutlawLairs.processDay(w, null), // waits (player-held)
-    (w) => Discovery.processDay(w, null), // waits (player-held)
-    (w) => Pirates.processDay(w, null), // waits (player-held)
-    (w) => RealmWars.processDaily(null, w), // waits (player-held)
-    (w) => HoldingSieges.processDay(w, null),
-    (w) => Throne.processDaily(null, w, { armyStrength: 0 }), // waits (player-held)
-    (w) => Kingship.processDay(w, null), // waits (player-held)
-    (w) => Sieges.processDay(w, null), // waits (player-held)
-    (w) => Stewards.processDay(w, null), // waits (player-held)
-    (w) => MerchantHouses.processDay(null, w), // waits (player-held)
-    (w) => Patronage.processDay(w, null),
-    (w) => Heralds.processDay(w, null), // waits (player-held)
-    (w) => MerchantCaravans.processDay(w, null),
-    (w) => MarketFairs.processDay(w, null),
-    (w) => Harvests.processDay(w, null),
-    (w) => Engrossing.processDay(w, null),
-    (w) => LawCouncil.processDay(w, null),
-    (w) => Concessions.processDay(w, null),
-    (w) => LandMarket.processDay(w, null),
-    (w) => PuttingOut.processDay(w, null),
-    (w) => TradePolicy.processDay(w, null),
-    (w) => PublicWorks.processDay(w, null),
-    (w) => Literacy.processDay(w, null), // the towns' letters reckoned (systems/literacy.js)
-    (w) => MarketDynamics.updatePrices(w, null),
-    (w) => Labour.processDay(w, null),
-    (w) => MerchantPrince.processDay(null, w), // waits (player-held)
-    (w) => Guilds.processDay(w, null),
-    (w) => EconomyChronicle.processDay(w, null),
-    (w) => Fiscal.processDay(w, null),
-    (w) => Finance.processDay(w, null), // waits (player-held)
-    (w) => Underwriting.processDay(w, null), // waits (player-held)
-    (w) => Bills.processDay(w, null), // waits (player-held)
-    (w) => Bourse.processDay(w, null), // waits (player-held)
-    (w) => Mints.processDay(w, null),
+    { sys: 'Townsfolk', run: (w) => Townsfolk.processDay(w, null) },
+    { sys: 'NpcMemory', run: (w) => NpcMemory.processDay(w, null) },
+    // (endDay.js runs IllnessPlayer: its towns' half is Illness.processDay)
+    { sys: 'IllnessPlayer', run: (w) => Illness.processDay(w, null) },
+    { sys: 'Plague', run: (w) => Plague.processDay(w, null) },
+    { sys: 'Lots', run: (w) => Lots.processDay(w, null) },
+    { sys: 'Graveyards', run: (w) => Graveyards.processDay(w, null) },
+    { sys: 'NpcTheft', run: (w) => NpcTheft.processDay(w, null) },
+    { sys: 'Brawls', run: (w) => Brawls.processDay(w, null) },
+    { sys: 'TownMemory', run: (w) => TownMemory.processDay(w, null) },
+    { sys: 'TownCrimes', run: (w) => TownCrimes.processDay(w, null) },
+    { sys: 'TownEras', run: (w) => TownEras.processDay(w, null) },
+    { sys: 'Demands', run: (w) => Demands.processDay(w, null) }, // waits (player-held)
+    { sys: 'Delves', run: (w) => Delves.processDay(w, null) }, // waits (player-held)
+    { sys: 'Sagas', run: (w) => Sagas.processDay(w, null) }, // waits (player-held)
+    { sys: 'Whispers', run: (w) => Whispers.processDay(w, null) }, // waits (player-held)
+    { sys: 'Couriers', run: (w) => Couriers.processDay(w, null) },
+    { sys: 'CourierRiders', run: (w) => CourierRiders.processDay(w, null) },
+    { sys: 'Hospitality', run: (w) => Hospitality.processDay(w, null) },
+    // The rivers: flotsam comes down, things adrift go on, nets left set fish on (and the
+    // bailiff and the poachers find them), floods and the fish (systems/riverFlotsam.js,
+    // riverDrift.js, riverNets.js, riverLife.js — the nets lie in the world, not the packs)
+    { sys: 'RiverFlotsam', run: (w) => RiverFlotsam.processDay(w, null, _num(w.day)) },
+    { sys: 'RiverDrift', run: (w) => RiverDrift.processDay(w, null, _num(w.day) * 24) },
+    { sys: 'RiverNets', run: (w) => RiverNets.processDay(w, null, _num(w.day)) },
+    { sys: 'RiverLife', run: (w) => RiverLife.processDay(w, null, _num(w.day)) },
+    { sys: 'Gangs', run: (w) => Gangs.processDay(w, null) },
+    { sys: 'OutlawLairs', run: (w) => OutlawLairs.processDay(w, null) }, // waits (player-held)
+    { sys: 'Discovery', run: (w) => Discovery.processDay(w, null) }, // waits (player-held)
+    { sys: 'Pirates', run: (w) => Pirates.processDay(w, null) }, // waits (player-held)
+    { sys: 'RealmWars', run: (w) => RealmWars.processDaily(null, w) }, // waits (player-held)
+    { sys: 'HoldingSieges', run: (w) => HoldingSieges.processDay(w, null) },
+    { sys: 'Throne', run: (w) => Throne.processDaily(null, w, { armyStrength: 0 }) }, // waits (player-held)
+    { sys: 'Kingship', run: (w) => Kingship.processDay(w, null) }, // waits (player-held)
+    { sys: 'Sieges', run: (w) => Sieges.processDay(w, null) }, // waits (player-held)
+    { sys: 'Stewards', run: (w) => Stewards.processDay(w, null) }, // waits (player-held)
+    { sys: 'MerchantHouses', run: (w) => MerchantHouses.processDay(null, w) }, // waits (player-held)
+    { sys: 'Patronage', run: (w) => Patronage.processDay(w, null) },
+    { sys: 'Heralds', run: (w) => Heralds.processDay(w, null) }, // waits (player-held)
+    { sys: 'MerchantCaravans', run: (w) => MerchantCaravans.processDay(w, null) },
+    { sys: 'MarketFairs', run: (w) => MarketFairs.processDay(w, null) },
+    { sys: 'Harvests', run: (w) => Harvests.processDay(w, null) },
+    { sys: 'Engrossing', run: (w) => Engrossing.processDay(w, null) },
+    { sys: 'LawCouncil', run: (w) => LawCouncil.processDay(w, null) },
+    { sys: 'Concessions', run: (w) => Concessions.processDay(w, null) },
+    { sys: 'LandMarket', run: (w) => LandMarket.processDay(w, null) },
+    { sys: 'PuttingOut', run: (w) => PuttingOut.processDay(w, null) },
+    { sys: 'TradePolicy', run: (w) => TradePolicy.processDay(w, null) },
+    { sys: 'PublicWorks', run: (w) => PublicWorks.processDay(w, null) },
+    // The towns' letters reckoned (systems/literacy.js)
+    { sys: 'Literacy', run: (w) => Literacy.processDay(w, null) },
+    { sys: 'MarketDynamics', run: (w) => MarketDynamics.updatePrices(w, null) },
+    // (the columns on the roads, systems/migration.js, run inside Labour)
+    { sys: 'Labour', run: (w) => Labour.processDay(w, null) },
+    { sys: 'MerchantPrince', run: (w) => MerchantPrince.processDay(null, w) }, // waits (player-held)
+    { sys: 'Guilds', run: (w) => Guilds.processDay(w, null) },
+    { sys: 'EconomyChronicle', run: (w) => EconomyChronicle.processDay(w, null) },
+    { sys: 'Fiscal', run: (w) => Fiscal.processDay(w, null) },
+    { sys: 'Finance', run: (w) => Finance.processDay(w, null) }, // waits (player-held)
+    { sys: 'Underwriting', run: (w) => Underwriting.processDay(w, null) }, // waits (player-held)
+    { sys: 'Bills', run: (w) => Bills.processDay(w, null) }, // waits (player-held)
+    { sys: 'Bourse', run: (w) => Bourse.processDay(w, null) }, // waits (player-held)
+    { sys: 'Mints', run: (w) => Mints.processDay(w, null) },
     // The climate of centuries: its eras begin and end (world/climate.js)
-    (w) => Climate.processDay(w, null),
+    { sys: 'Climate', run: (w) => Climate.processDay(w, null) },
     // Age-defining crises: invasions, great plagues, schisms, famines, gold rushes (systems/crises.js)
-    (w) => Crises.processDay(w, null),
+    { sys: 'Crises', run: (w) => Crises.processDay(w, null) },
     // The Timeline of the Realm keeps recording while no one lives (systems/realmTimeline.js)
-    (w) => RealmTimeline.processDay(w, null),
+    { sys: 'RealmTimeline', run: (w) => RealmTimeline.processDay(w, null) },
     // The House's cadet branches live on while it is held in trust: they keep their
     // state on the estate, so passDay runs them with it (systems/cadetBranches.js)
-    (w) => CadetBranches.processDay(null, w), // waits (player-held; run on the estate in passDay)
+    { sys: 'CadetBranches', run: (w) => CadetBranches.processDay(null, w) }, // waits (player-held; run on the estate in passDay)
 ];
 
+/**
+ * The daily systems of ui/game/endDay.js that do not run in the wait, and why.
+ * "Player-held": its state lives on the player and it returns at once with no
+ * player (or would act on the dead ruler's purse, body or name); it settles —
+ * or lets go — the days it missed when the next life takes it up.
+ */
+const WORLD_DAY_SKIPPED = {
+    Councils: "the player's own council factions",
+    Ailments: "the player's wounds and sickness (the towns' sickness runs: IllnessPlayer → Illness)",
+    LegendaryArtifacts: "the player's relics",
+    Housing: "the player's houses' upkeep",
+    Household: "the player's household: wages, larder, guests",
+    Ships: "the player's ships and crews",
+    TradeLines: "the player's standing trade lines",
+    PlayerWorks: "the player's building works",
+    Relationships: "the player's marriage, courtship and own aging (the House's children age in passDay)",
+    Upbringing: 'run on the estate in passDay',
+    HeirAgency: 'run on the estate in passDay',
+    Raising: 'run on the estate in passDay',
+    Abdication: 'run on the estate in passDay (interregnum: no pensions)',
+    Regency: "a reigning child's regency: no one reigns in the wait",
+    Heirlooms: "player-held: the House's heirlooms wait with the estate",
+    Vanishings: "player-held: the player's companions who never came home",
+    PeopleCrimes: "player-held: the player's crimes against people",
+    NightStreets: "player-held: the player's night landings and grudges",
+    House: "player-held: the House's Prestige and ambitions wait in trust",
+    RivalHouses: 'player-held: the rival Houses live on the House record; their retinues wait',
+    Schemes: 'player-held: rival schemes against the player',
+    Petitions: "player-held: petitions to the player's court",
+    Rivals: "player-held: the player's rival adventurers",
+    Nemesis: "player-held: the player's nemeses (they watch the succession on return)",
+    Wanted: 'player-held: the charge sheet (it dies with the criminal on succession; blood debts cool a generation)',
+    ProfaneCrimes: "player-held: the player's profane crimes",
+    KinCrimes: "player-held: the House's crimes against the blood",
+    HouseQuests: "player-held: the House's unfinished business",
+    NpcChatImpact: "player-held: the player's promises in free talk",
+    Hearsay: 'player-held: what folk say of the player (re-attributed on succession: Hearsay.onSuccession)',
+    Bonds: "player-held: the player's friendships",
+    Devotion: "player-held: the player's vows",
+    SoulPact: "player-held: the player's soul pact",
+    MapTheft: "player-held: grudges over the player's stolen maps",
+    CourtLetters: 'player-held: letters to the player (none are written to a dead ruler)',
+    Mail: "player-held: the player's post",
+    Livestock: "player-held: the player's beasts",
+    AnimalCompanions: "player-held: the player's dog, cat, hawk and horse",
+    Crops: "player-held: the player's own fields",
+    Commissions: "player-held: the player's hired work",
+    Languages: "player-held: the player's tongues and interpreter",
+    Parentage: "player-held: a child player's parents' roof",
+    BackRooms: "player-held: the player's taverns' back rooms",
+    Landings: "player-held: reavers on the player's coastal holdings",
+    Coalitions: 'player-held: the league against the House (its ultimatum is extended by the days missed)',
+    RivalAgents: "player-held: rival Houses' agents against the House",
+    Atrocities: "player-held: the player's infamy and hostages",
+    Holdings: "player-held: the player's holdings",
+    Annals: 'player-held: the House Annals (the reign was filed in Afterlife.begin)',
+    PriceKnowledge: "player-held: the player's price book",
+    Tavern: "player-held: the player's informants",
+    Espionage: "player-held: the player's spies",
+    Gossip: 'player-held: rumours of the player',
+    Traits: "player-held: the player's traits",
+    Underworld: "player-held: the player's heat and crimes",
+    FirstSteps: "player-held: the player's opening guide",
+    Reckoning: "player-held: the player's reckoning",
+};
+
 export const Afterlife = {
+    /** The world-day steps' systems (as ui/game/endDay.js names them), and the skipped ones with their reasons (the coverage test reads both). */
+    worldDaySystems() { return WORLD_DAY.map(st => st.sys); },
+    worldDaySkipped() { return { ...WORLD_DAY_SKIPPED }; },
+
     config() {
         const src = _obj(DataLoader._gamedata && DataLoader._gamedata.afterlife) || {};
         return {
@@ -290,7 +376,7 @@ export const Afterlife = {
         try {
             const result = world.advanceDay(null, {});
             if (result && Array.isArray(result.events)) out.events.push(...result.events);
-            for (const step of WORLD_DAY) step(world);
+            for (const step of WORLD_DAY) step.run(world);
             if (estate) {
                 const Y = Relationships._getHeirSettings().daysPerYear;
                 if (Y > 0 && world.day % Y === 0) Relationships.ageChildren(estate, world);

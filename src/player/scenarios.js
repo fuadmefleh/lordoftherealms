@@ -203,10 +203,14 @@ export const Scenarios = {
         if (!house || !kingdom) return null;
         house.rivals = house.rivals || {};
         const prev = house.rivals[kingdom.id];
+        // "House Varr, the crown" → name "House Varr", role "the crown" (the name
+        // goes into sentences: "Lord Aldric Varr buys…", never "Varr, the crown buys…")
+        const m = /^(House [^,]+), (.+)$/.exec(String(name || ''));
         house.rivals[kingdom.id] = {
             ...(prev || {}),
             kingdomId: kingdom.id,
-            name: name || (prev && prev.name) || kingdom.name,
+            name: (m ? m[1] : name) || (prev && prev.name) || kingdom.name,
+            ...(m ? { role: m[2] } : {}),
             feud: Math.max(_num(prev && prev.feud), _num(feud)),
             lastActedDay: _day(world),
         };

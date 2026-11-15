@@ -531,6 +531,9 @@ export const SaveLoad = {
         'hotbar',
         // Your river boat (its hold, where it lies) and the days your raw fish were caught (systems/riverBoats.js, systems/riverLife.js)
         'riverBoat', 'fishLots',
+        // Your dogs, cats and hawks (the horse rides on player.mount), and who walks the streets with you
+        // (systems/animalCompanions.js, systems/streetFollowers.js; both backfilled when missing)
+        'animalCompanions', 'walkWith',
     ],
 
     _pickDefined(obj, keys) {

@@ -29,7 +29,10 @@
 //                (the callers move it; transfer() books it on both realms)
 //   • Gresham    debased coin drives the good coin out to sounder partners
 //   • flight     a run on a bank or a crown default sends coin abroad
-//   • drift      pilgrims and travellers carry coin from rich realms to poor
+//   • drift      pilgrims and travellers carry coin from rich realms to poor;
+//                a town under no crown with far more coin per head than the
+//                realms' (it pays no taxes and has no price level of its own)
+//                spends the excess in the realms' towns (freeTowns)
 //   • wear       a little of the towns' coin is lost every week
 //   • the mint   strikes new coin from the gold and silver ore it buys in the
 //                realm's markets (paid into the selling town's purse) and from
@@ -85,6 +88,7 @@ const DEFAULTS = {
     flight: { rate: 0.015, defaultDays: 30 },
     wear: 0.002,
     drift: 0.04,
+    freeTowns: { above: 1, rate: 0.25 },
     income: { elasticity: 0.3, min: 0.97, max: 1.03 },
     mint: {
         fine: { gold_ore: 36, silver_ore: 16, gold_bar: 140 },
@@ -107,7 +111,7 @@ const DEFAULTS = {
     trust: { moodAt: 80, mood: 1, perPurity: 150, perClip: 150 },
 };
 
-const SECTIONS = ['level', 'velocity', 'trade', 'gresham', 'flight', 'income', 'recoinage', 'exchange', 'concession', 'counterfeit', 'news', 'counsel', 'debasement', 'clip', 'trust'];
+const SECTIONS = ['level', 'velocity', 'freeTowns', 'trade', 'gresham', 'flight', 'income', 'recoinage', 'exchange', 'concession', 'counterfeit', 'news', 'counsel', 'debasement', 'clip', 'trust'];
 
 let _cfgSrc;
 let _cfg = null;
@@ -1015,6 +1019,14 @@ export const MoneySupply = {
             }
         }
 
+        // 4b. The free towns: a town under no crown sells to the realms about it but pays
+        // no taxes and has no price level to make its goods dear, so coin piled up in
+        // its purse for good (a village of 400 held 20,000g while its neighbours' coin
+        // fell by half). Past freeTowns.above × the realms' coin per head, `rate` of
+        // the excess goes weekly to the realms' towns — its people buy, hire and travel
+        // there — the poorer realms (by coin per head) taking more of it.
+        MoneySupply._freeTowns(world, st, alive, towns, norm0, ratio, C.freeTowns, ctx.coinTown);
+
         // 5. Wear, hoarding, and the price levels
         const V = C.velocity, L = C.level;
         let sumCV = 0, sumPop = 0;
@@ -1083,6 +1095,58 @@ export const MoneySupply = {
             for (const s of towns.get(k.id) || []) s.happiness = _r2(_clamp(_num(s.happiness, 50) - d, 0, 100));
         }
         return made;
+    },
+
+    /**
+     * The weekly spending of the free towns' excess coin into the realms (step
+     * 4b of processDay): coin moves purse to purse, booked 'drift' on the
+     * realms that take it. → the coin moved
+     */
+    _freeTowns(world, st, alive, towns, norm, ratio, F, coinTown = null) {
+        const above = _num(F && F.above), rate = _clamp(_num(F && F.rate), 0, 1);
+        if (!(above > 0) || !(rate > 0) || !(norm > 0) || !world || typeof world.getSettlementViews !== 'function') return 0;
+        // (the realms that can take it: weight = people / coin ratio, the poorer the more)
+        const takers = alive.filter(k => (towns.get(k.id) || []).some(s => s.economy && Number.isFinite(s.economy.gold)))
+            .map(k => [k, Math.max(1, _num(k.population)) / Math.max(0.05, ratio(k))]);
+        const W = takers.reduce((a, [, w]) => a + w, 0);
+        if (!(W > 0)) return 0;
+        let pool = 0;
+        for (const v of world.getSettlementViews()) {
+            const tile = typeof world.getTile === 'function' ? world.getTile(v.q, v.r) : null;
+            const s = (tile && tile.settlement) || null;
+            if (!s || s.kingdom != null || !s.economy || !Number.isFinite(s.economy.gold)) continue;
+            if (typeof coinTown === 'function' && !coinTown(s)) continue;
+            const pop = Math.max(1, _num(s.population));
+            const excess = s.economy.gold - above * norm * pop;
+            if (!(excess > 1)) continue;
+            const take = Math.floor(excess * rate * 100) / 100;
+            if (!(take > 0)) continue;
+            s.economy.gold = _r2(s.economy.gold - take);
+            pool = _r2(pool + take);
+        }
+        if (!(pool > 0)) return 0;
+        let left = pool;
+        takers.forEach(([k, w], i) => {
+            const part = i === takers.length - 1 ? left : Math.floor(pool * w / W * 100) / 100;
+            const paid = _payTowns(towns.get(k.id), Math.min(left, part));
+            if (!(paid > 0)) return;
+            left = _r2(left - paid);
+            const R = st.realms[k.id];
+            R.coin = _r2(R.coin + paid);
+            R.towns = _r2(R.towns + paid);
+            MoneySupply._book(R, 'drift', paid);
+        });
+        // (what no realm's town could take: back to the first realm's towns, else nowhere lost — kept in the pool's towns)
+        if (left > 0.005) {
+            const [k] = takers[0];
+            const paid = _payTowns(towns.get(k.id), left);
+            const R = st.realms[k.id];
+            R.coin = _r2(R.coin + paid);
+            R.towns = _r2(R.towns + paid);
+            MoneySupply._book(R, 'drift', paid);
+            left = _r2(left - paid);
+        }
+        return _r2(pool - left);
     },
 
     /** Put a record on the news (for the heralds and the townsfolk). */

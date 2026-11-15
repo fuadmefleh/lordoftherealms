@@ -19,6 +19,7 @@
 //   menAt(q, r)                     the companions standing on a tile
 // A talk that moved a companion's mood (systems/companionChatMood.js) shows
 // as a short bubble rising over them ('+ pleased' / '− hurt'), BUBBLE_SECS.
+// One told to wait (systems/streetFollowers.js: Who Walks With You) stays off the map.
 
 import { InnerMap } from '../world/innerMap.js';
 import { InnerMapCharacters } from './innerMapCharacters.js';
@@ -28,6 +29,7 @@ import { InnerMapEscort } from './innerMapEscort.js';
 import { PlayerEffects } from '../player/playerEffects.js';
 import { RealmEscort } from '../player/realmEscort.js';
 import { CompanionChatMood } from '../systems/companionChatMood.js';
+import { StreetFollowers } from '../systems/streetFollowers.js';
 
 const T_PX = 32;
 const MAX = 4;
@@ -82,7 +84,8 @@ export const InnerMapCompanions = {
 
     _sync(player, at) {
         let members = [];
-        try { members = Companions.members(player).filter(n => n && n.isAlive !== false).slice(0, MAX); } catch { members = []; }
+        // (not those told to wait at the inn: systems/streetFollowers.js, Who Walks With You)
+        try { members = Companions.members(player).filter(n => n && n.isAlive !== false && StreetFollowers.walks(player, StreetFollowers.npcKey(n.id))).slice(0, MAX); } catch { members = []; }
         const sig = InnerMapCharacters.eraId() + '|' + members.map(n => n.id).join('|');
         if (sig === InnerMapCompanions._sig && InnerMapCompanions._men.length === members.length) return;
         InnerMapCompanions._sig = sig;

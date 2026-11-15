@@ -190,10 +190,14 @@ export const KingdomAI = {
                 // Lasting drift of the real settlement: gold rushes and refugee
                 // waves swell it, plagues and strained granaries shrink it,
                 // healers and stewards help (0.1%/day per +1.0 of modifier)
+                // (a swelling tapers as the place nears what its land can feed, as the food's
+                // growth does — Economy.growthRoom; untapered, the healers' bonus alone grew
+                // every capital a percent a year for ever)
                 const drift = (eventGrowth - eventConsumption * 0.5 + growthBonus * 0.5) * 0.001;
                 for (let d = 0; d < n; d++) {
                     if (drift !== 0 && tile.settlement.population > 0) {
-                        tile.settlement.population = Math.max(10, Math.round(tile.settlement.population * (1 + drift)));
+                        const rate = drift > 0 ? drift * Economy.growthRoom(tile.settlement) : drift;
+                        tile.settlement.population = Math.max(10, Math.round(tile.settlement.population * (1 + rate)));
                         settlement.population = tile.settlement.population;
                     }
                     // Builders repair storm and quake damage

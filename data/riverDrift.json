@@ -84,7 +84,7 @@
                 "id": "log",
                 "item": "wood",
                 "name": "Floating Log",
-                "icon": "🪵",
+                "icon": "🌲",
                 "qty": [
                     1,
                     1
@@ -96,7 +96,7 @@
                 "id": "driftwood",
                 "item": "driftwood",
                 "name": "Driftwood",
-                "icon": "🪵",
+                "icon": "🌲",
                 "qty": [
                     1,
                     2
@@ -133,7 +133,7 @@
                 "id": "plank",
                 "item": "planks",
                 "name": "Loose Plank",
-                "icon": "🪵",
+                "icon": "🌲",
                 "qty": [
                     1,
                     1

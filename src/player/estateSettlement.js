@@ -541,6 +541,13 @@ export const EstateSettlement = {
         const names = { gold: 'Purse', portions: "Children's portions", company: 'Company coffers', deposits: 'Bank deposits', bills: 'Bills of exchange', bonds: 'Royal bonds redeemed', shares: 'Shares sold', goods: 'Goods sold' };
         for (const [k, label] of Object.entries(names)) if (_num(A[k]) >= 1) rows.push({ label, value: Math.round(A[k]), tone: '' });
         if (rec.landPaid >= 1) rows.push({ label: 'Paid by the crown for the land', value: Math.round(rec.landPaid), tone: '' });
+        // What could not be got in: a broken bank's vault, bills not met, bonds and shares nobody would take
+        const L = rec.lost || {};
+        const lostNames = { deposits: 'Lost with a broken bank', bills: 'Bills not met', bonds: 'Bonds unredeemed', shares: 'Shares unsold' };
+        for (const [k, label] of Object.entries(lostNames)) if (_num(L[k]) >= 1) rows.push({ label, value: -Math.round(L[k]), tone: 'bad' });
+        if (_num(rec.cancelledBonds) >= 1) rows.push({ label: 'Bonds on the crown, cancelled by it', value: -Math.round(rec.cancelledBonds), tone: 'bad' });
+        if (_num(rec.unsoldGoods) >= 1) rows.push({ label: `Goods no one would buy (${Math.round(rec.unsoldGoods)} lots, left to the town)`, value: 0, tone: 'bad' });
+        if (_num(rec.land) >= 1 && !(rec.landPaid >= 1)) rows.push({ label: 'Land taken by the crown with its debts (its worth)', value: Math.round(rec.land), tone: '' });
         for (const t of TIERS) {
             const cs = (rec.claims || []).filter(c => c.tier === t.id);
             if (!cs.length) continue;

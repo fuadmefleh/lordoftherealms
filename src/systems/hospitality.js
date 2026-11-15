@@ -879,6 +879,13 @@ export const Hospitality = {
         } else if (id === 'theft' || id === 'bedbugs') {
             type = 'warning';
         } else if (id === 'regular') {
+            // One room booked for the season, paid up front at the regular's rate
+            const gold = Math.round(this.revenuePerGuest(property.type, view.stars, h.priceMult) * _num(ev.nights, 15) * _num(ev.rate, 0.8));
+            if (gold > 0) {
+                player.gold += gold;
+                Ledger.record(player, 'hospitality', gold);
+            }
+            text = text.replace('{gold}', gold);
             type = 'success';
         }
         if (ev.rep) h.rep = _clamp(h.rep + ev.rep, 0, 100);
@@ -963,10 +970,14 @@ export const Hospitality = {
                 const bills = Math.round(C.weekDays * guests * this.revenuePerGuest(h.kind, h.stars, h.priceMult));
                 const takings = town ? Math.floor(Economy.drawTown(town, bills)) : 0;
                 const costs = Math.round(C.weekDays * guests * _num(K.costPerGuest, 2) + _num(K.weeklyCosts, 20));
-                const cash0 = _num(h.cash) + takings;
+                const cash0 = Math.max(0, _num(h.cash)) + takings;
                 const paid = Math.min(costs, Math.max(0, Math.floor(cash0)));
                 if (town && paid > 0) Economy.payTown(town, paid);
-                h.cash = Math.round(cash0 - costs);
+                // (what the house could not pay is owed no one: the linen goes unwashed, the stars
+                // fall. Carried as negative cash it swallowed later takings — coin drawn from the
+                // town into a hole, tens of thousands a year across the inns of a long game)
+                const short = costs > paid;
+                h.cash = Math.round(cash0 - paid);
                 // (the keeper takes their share of what the house cleared, into their own purse)
                 const cleared = takings - paid;
                 if (cleared > 0 && h.cash > 0) this._payKeeper(world, h, Math.min(h.cash, Math.floor(cleared * _num(N.keeperShare, 0.25))));
@@ -981,7 +992,7 @@ export const Hospitality = {
                 h.priceMult = Math.round(h.priceMult * 100) / 100;
                 // Money buys new linen; a poor house lets its rooms go
                 const [s0, s1] = K.stars || [1, 5];
-                const drift = (_u(`${_seed(world)}|${_day(world)}|${h.id}|drift`) - 0.5) * 2 * N.starsDrift + (h.cash > 600 ? 0.05 : h.cash < 0 ? -0.08 : 0);
+                const drift = (_u(`${_seed(world)}|${_day(world)}|${h.id}|drift`) - 0.5) * 2 * N.starsDrift + (h.cash > 600 ? 0.05 : short ? -0.08 : 0);
                 h.stars = Math.round(_clamp(h.stars + drift, Math.max(1, s0 - 0.5), Math.min(5, s1 + 0.3)) * 10) / 10;
                 h.rep = Math.round(_clamp(h.rep + (h.stars * 20 - h.rep) * N.repDrift, 0, 100));
                 h.history.push(Math.round(rate * 100));

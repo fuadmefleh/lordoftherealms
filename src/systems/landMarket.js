@@ -36,6 +36,7 @@
 import { Hex } from '../core/hex.js';
 import { Utils } from '../core/utils.js';
 import { Estates } from '../world/estates.js';
+import { Economy } from '../world/economy.js';
 import { TownLabour } from '../world/townLabour.js';
 import { Seasons } from '../world/seasons.js';
 import { Finance } from './finance.js';
@@ -367,9 +368,9 @@ export const LandMarket = {
         st.sales = st.sales.filter(x => x.id !== e.id);
     },
 
-    /** A holder's spending reaches a town's purse: its own town, else its realm's capital. → the town or null */
-    _spendAtSeat(world, h, gold) {
-        if (!(gold > 0) || !h) return null;
+    /** The town a holder lives in and spends in: its own town, else its realm's capital (live, with a purse) → or null. */
+    _seat(world, h) {
+        if (!h) return null;
         let live = null;
         if (h.kind === 'town') {
             const [, q, r] = String(h.id).split(':');
@@ -378,7 +379,14 @@ export const LandMarket = {
             const k = Estates.kingdom(world, h.kid);
             if (k && k.capital) live = Estates._live(world, k.capital.q, k.capital.r);
         }
-        if (!live || !live.economy || !Number.isFinite(live.economy.gold)) return null;
+        return live && live.economy && Number.isFinite(live.economy.gold) ? live : null;
+    },
+
+    /** A holder's spending reaches a town's purse: its own town, else its realm's capital. → the town or null */
+    _spendAtSeat(world, h, gold) {
+        if (!(gold > 0) || !h) return null;
+        const live = LandMarket._seat(world, h);
+        if (!live) return null;
         live.economy.gold = Math.round((live.economy.gold + gold) * 100) / 100;
         return live;
     },
@@ -396,7 +404,13 @@ export const LandMarket = {
         }
         const inc = _num(h.inc);
         h.inc = 0;
-        if (h.kind === 'house') h.purse += _num(N.houseIncome, 4) * 30;
+        // A house's trade: real coin, out of the purse of the town it trades in
+        // (it was struck from nothing, a few hundred gold a month for every house)
+        if (h.kind === 'house') {
+            const seat = LandMarket._seat(world, h);
+            const got = seat ? Economy.drawTown(seat, _num(N.houseIncome, 4) * 30) : 0;
+            h.purse += got;
+        }
         if (h.kind === 'town') {
             // (the town's corporation puts by from the town's own coin)
             const [, q, r] = String(h.id).split(':');
@@ -413,6 +427,12 @@ export const LandMarket = {
             const k = Estates.kingdom(world, h.kid);
             if (k && Array.isArray(k.wars) && k.wars.length) spend += inc * _num(N.warLevy, 0.15);
         }
+        // ...and what is put by past `reserveMonths` of its rents comes out again, a share a
+        // month (savingsSpend): building, dowries, the household. Spending only the month's
+        // rents, the holders' coffers took in more than half the world's coin in a century
+        const reserve = _num(N.reserveMonths, 12) * Math.max(inc, _num(N.houseIncome, 4) * 30);
+        const over = _num(h.purse) - spend - reserve;
+        if (over > 0) spend += over * _num(N.savingsSpend, 0.05);
         h.purse -= spend;
         // What the holder spends (and pays its creditors) goes to the town it lives in:
         // a noble's or the church's household in the realm's capital, a town's in itself

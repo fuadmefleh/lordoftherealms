@@ -104,9 +104,12 @@ describe('the player\'s policy', () => {
             Migration.setPolicy(world, 'borders', 'closed');
             drift(link);
             const popB = b.population;
+            player.renown = 10;
             const out = week(game, link, new Set([key(b)]), null, player);
             expect(b.population).toBe(popB);
             expect(out.notices.some(n => n.title === 'Turned Back')).toBe(true);
+            // ...and word of it costs renown (data policy.closedRefusedFame)
+            expect(player.renown).toBe(10 + Migration.config().policy.closedRefusedFame);
         } finally { restore(); }
     }, 60000);
 

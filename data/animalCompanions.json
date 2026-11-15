@@ -1,0 +1,112 @@
+{
+    "_doc": "The player's own animals that go about with them: dogs, cats, hawks — and the riding horse (player.mount, bridged in as one of them). systems/animalCompanions.js keeps them (player.animalCompanions); ui/innerMapPets.js walks them on the street map; ui/animalsPanel.js shows them, the market's kennel and the Who Walks With You panel. Days: a year is 120 days. hungerPerDay: how much of a full belly (100) a day costs. eats: what of your packs it will eat and how much each unit fills. forage: what it finds itself a day, in a town or out in the wild (a cat mouses, a hawk takes its own game, a horse grazes outside winter). board: gold a day for scraps or fodder at a town's market when you have nothing it eats (paid to the town's purse). lifeYears: [min, max] years it lives. effects: modest, scaled by the animal's fitness (bond, belly, health) and read by the game: huntQty (the hunt's chance of an extra cut: player/foraging.js), huntItems (only those quarry items), theftWarn (a cutpurse noticed: systems/npcTheft.js awareness), roadWarn (fleeing a band on the road: player/roadEncounters.js), beastGuard (the share of a beast's mauling it takes on itself when you have no army), mouser (larder spoilage cut where it is kept: player/household.js), streetFight (its bite on the street map beside you: ui/innerMapPets.js through the escort's strike). breeds: variants with their own price, look and effect multipliers. sprite: the sheets drawn on the street map (data/animals.json layout: 4 rows up/left/down/right, a frame per column); spriteFrom: borrow an animals.json species' sheets.",
+    "config": {
+        "dayYear": 120,
+        "maxAnimals": 6,
+        "feedBelow": 60,
+        "boardBelow": 30,
+        "starveBelow": 12,
+        "bondPerDayFed": 0.6,
+        "bondPerDayAway": -0.2,
+        "bondFloorAway": 20,
+        "petBond": 4,
+        "feedBond": 2,
+        "healPerDay": 3,
+        "starveHealth": 6,
+        "starveBond": 3,
+        "runOffBond": 8,
+        "strayTrust": 80,
+        "strayWindowDays": 10,
+        "strayChance": { "village": 0.45, "town": 0.6, "city": 0.7, "capital": 0.75 },
+        "goneCap": 12,
+        "noticeCap": 4
+    },
+    "species": {
+        "dog": {
+            "name": "Dog", "plural": "Dogs", "icon": "🐕", "youngName": "pup",
+            "hungerPerDay": 34, "lifeYears": [10, 14], "matureDays": 120,
+            "eats": { "game_meat": 45, "cooked_meat": 50, "fish": 35, "preserved_fish": 35, "bread": 20, "eggs": 15, "crabs": 20 },
+            "forage": { "town": 8, "wild": 10 },
+            "board": 1,
+            "hp": 30,
+            "effects": { "huntQty": 0.12, "theftWarn": 0.15, "roadWarn": 0.08, "beastGuard": 0.3, "streetFight": 7 },
+            "fights": true,
+            "breeds": {
+                "hound": { "name": "Hunting Hound", "price": 18, "desc": "A scenthound bred to the chase: a nose for game.", "mult": { "huntQty": 1.5 }, "market": { "minType": "village", "chance": { "village": 0.5, "town": 0.6, "city": 0.6, "capital": 0.7 } } },
+                "mastiff": { "name": "Mastiff", "price": 30, "desc": "A great heavy guard dog: thieves and wolves think twice.", "mult": { "theftWarn": 1.4, "beastGuard": 1.5, "streetFight": 1.6, "huntQty": 0.5 }, "hp": 45, "scale": 1.15, "market": { "minType": "town", "chance": { "town": 0.35, "city": 0.55, "capital": 0.65 } } },
+                "sheepdog": { "name": "Sheepdog", "price": 14, "desc": "A clever herding dog: quick to warn, slow to bite.", "mult": { "roadWarn": 1.5, "theftWarn": 1.2, "streetFight": 0.7 }, "market": { "minType": "village", "chance": { "village": 0.6, "town": 0.4, "city": 0.25, "capital": 0.2 } } },
+                "mutt": { "name": "Mutt", "price": 6, "desc": "A dog of no breed in particular, and every breed a little.", "mult": {}, "scale": 0.92, "market": { "minType": "village", "chance": { "village": 0.3, "town": 0.3, "city": 0.2, "capital": 0.2 } } }
+            },
+            "sprite": {
+                "sheets": { "walk": "assets/lpc/Animals/dog/dog_walk_sheet.png", "attack": "assets/lpc/Animals/dog/dog_attack_sheet.png" },
+                "frameW": 56, "frameH": 56, "cols": 4, "rows": { "up": 0, "left": 1, "down": 2, "right": 3 },
+                "anchor": [28, 43], "drawTiles": 1.75, "walkFps": 8, "attackFps": 10
+            }
+        },
+        "cat": {
+            "name": "Cat", "plural": "Cats", "icon": "🐈", "youngName": "kitten",
+            "hungerPerDay": 22, "lifeYears": [12, 17], "matureDays": 90,
+            "eats": { "fish": 40, "preserved_fish": 40, "game_meat": 40, "cooked_meat": 45, "cooked_fish": 45, "eggs": 20, "crabs": 25 },
+            "forage": { "town": 20, "wild": 12 },
+            "board": 1,
+            "hp": 12,
+            "effects": { "mouser": 0.5, "theftWarn": 0.03 },
+            "breeds": {
+                "tabby": { "name": "Tabby Cat", "price": 3, "desc": "A striped mouser from a granary's litter: rats keep clear of a larder it lives by.", "mult": {}, "market": { "minType": "village", "chance": { "village": 0.7, "town": 0.75, "city": 0.8, "capital": 0.8 } } }
+            },
+            "sprite": {
+                "sheets": { "walk": "assets/lpc/Animals/cat/cat_walk_sheet.png" },
+                "frameW": 40, "frameH": 40, "cols": 4, "rows": { "up": 0, "left": 1, "down": 2, "right": 3 },
+                "anchor": [20, 30], "drawTiles": 1.25, "walkFps": 8
+            }
+        },
+        "hawk": {
+            "name": "Hawk", "plural": "Hawks", "icon": "🦅", "youngName": "eyas",
+            "hungerPerDay": 28, "lifeYears": [12, 18], "matureDays": 60,
+            "eats": { "game_meat": 45, "cooked_meat": 40, "fish": 30, "eggs": 15 },
+            "forage": { "town": 4, "wild": 26 },
+            "board": 2,
+            "hp": 10,
+            "flies": true,
+            "effects": { "huntQty": 0.3, "huntItems": ["game_meat", "feather", "hide"] },
+            "breeds": {
+                "goshawk": { "name": "Goshawk", "price": 60, "desc": "A falconer's goshawk, manned and flown to the fist: rabbits, hares and fowl for the pot.", "mult": {}, "market": { "minType": "town", "chance": { "town": 0.2, "city": 0.4, "capital": 0.6 } } },
+                "falcon": { "name": "Peregrine Falcon", "price": 110, "desc": "A noble's falcon: the swiftest stoop in the sky, a lord's pride.", "mult": { "huntQty": 1.3 }, "market": { "minType": "city", "chance": { "city": 0.25, "capital": 0.45 } } }
+            },
+            "sprite": {
+                "sheets": { "walk": "assets/lpc/Animals/hawk/hawk_fly_sheet.png" },
+                "frameW": 68, "frameH": 68, "cols": 4, "rows": { "up": 0, "left": 1, "down": 2, "right": 3 },
+                "anchor": [34, 44], "drawTiles": 1.45, "walkFps": 9
+            }
+        },
+        "horse": {
+            "name": "Horse", "plural": "Horses", "icon": "🐎", "youngName": "foal",
+            "mount": true,
+            "hungerPerDay": 30, "lifeYears": [22, 28], "matureDays": 360,
+            "eats": { "grain": 30, "apples": 15, "carrots": 15, "turnips": 15, "vegetables": 15, "beans": 15, "cabbage": 12 },
+            "forage": { "town": 0, "wild": 34, "winterWild": 6 },
+            "board": 2,
+            "hp": 70,
+            "effects": {},
+            "breeds": { "riding": { "name": "Riding Horse", "price": 120, "desc": "Your mount: more movement each day and room in your packs.", "mult": {} } },
+            "spriteFrom": "horse",
+            "spriteScale": 0.9
+        }
+    },
+    "names": {
+        "dog": ["Rufus", "Brindle", "Gelert", "Bran", "Tray", "Ringwood", "Jupiter", "Bess", "Fly", "Moss", "Hector", "Nell", "Shep", "Rook", "Tess", "Grip", "Blaze", "Fenn", "Sorrel", "Bramble", "Talbot", "Mab", "Cuff", "Drake"],
+        "cat": ["Tib", "Gib", "Grimalkin", "Puss", "Mog", "Smut", "Ash", "Ginger", "Sootkin", "Mouser", "Pangur", "Whisk", "Tansy", "Pip", "Bel", "Cinder"],
+        "hawk": ["Swift", "Kestrel", "Sabre", "Stoop", "Gyre", "Arrow", "Talon", "Haggard", "Merle", "Wren", "Sky", "Jess", "Bell", "Vane"]
+    },
+    "lines": {
+        "starving": "{name} is starving: nothing in your packs it will eat, and no coin for scraps.",
+        "ranOff": "{name}, half-starved and long neglected, slipped away in the night and did not come back.",
+        "starved": "{name} has died of hunger.",
+        "oldAge": "{name} died in the night, old and grey, after {years} years.",
+        "boarded": "You paid {cost}g at the market to feed {names}.",
+        "strayJoins": "The stray wolfs the last of it, licks your hand — and won't leave your heel. You name it {name}.",
+        "strayWary": "The stray snatches the food and backs off, watching you. It wants more before it trusts you.",
+        "growl": "{name} growls low: {what} is stalking you.",
+        "warnedThief": "{name} barks at a hand near your purse."
+    }
+}

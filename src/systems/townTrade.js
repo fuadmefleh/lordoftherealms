@@ -85,6 +85,9 @@ const DUST = 1e-7;
 
 let _cfg = null;
 let _cfgSrc;
+// One trade step's lookups (TownTrade.step): who sells what and who produces it do not change
+// within a step, so they are worked out once a step, not once a household and good
+let _stepMemo = null;
 
 function _seed(world) {
     return (world && world.generationParams && world.generationParams.seed) || 1;
@@ -414,6 +417,16 @@ export const TownTrade = {
     step(world, s, day, player = null) {
         const folk = s && s.folk;
         if (!_obj(folk) || !TownTrade.enabled()) return null;
+        const outer = _stepMemo;
+        _stepMemo = { folk, day, sellers: new Map(), producers: new Map() };
+        try {
+            return TownTrade._step(world, s, folk, day, player);
+        } finally {
+            _stepMemo = outer;
+        }
+    },
+
+    _step(world, s, folk, day, player) {
         const C = TownTrade.config();
         const st = TownTrade.state(s, day);
         const last = st.day == null ? day - C.stepDays : st.day;
@@ -533,10 +546,18 @@ export const TownTrade = {
         const C = TownJobs.config();
         const occ = (C.goodOcc && C.goodOcc[g]) || null;
         const free = (p) => p.job && p.job.employer !== 'player' && Townsfolk.age(p, day) >= (C.adultAge || 16);
-        let list = occ ? Townsfolk.residents(folk).filter(p => free(p) && p.job.id === occ) : [];
-        if (!list.length) list = Townsfolk.residents(folk).filter(p => free(p) && (p.job.id === 'stallkeeper' || p.job.id === 'merchant'));
+        const memo = _stepMemo && _stepMemo.folk === folk && _stepMemo.day === day ? _stepMemo.sellers : null;
+        let list = memo ? memo.get(occ) : undefined;
+        if (!list) {
+            // (the grown hands free to sell, once a step: residents in roster order, as before)
+            let hands = memo ? memo.get('*free') : null;
+            if (!hands) { hands = Townsfolk.residents(folk).filter(free); if (memo) memo.set('*free', hands); }
+            list = occ ? hands.filter(p => p.job.id === occ) : [];
+            if (!list.length) list = hands.filter(p => p.job.id === 'stallkeeper' || p.job.id === 'merchant');
+            list.sort((a, b) => a.id - b.id);
+            if (memo) memo.set(occ, list);
+        }
         if (!list.length) return null;
-        list.sort((a, b) => a.id - b.id);
         return _pick(list, _frac('seller', folk.q, folk.r, g, day, salt));
     },
 
@@ -718,6 +739,17 @@ export const TownTrade = {
     },
 
     _producers(folk, day, g = null) {
+        const memo = _stepMemo && _stepMemo.folk === folk && _stepMemo.day === day ? _stepMemo.producers : null;
+        if (memo) {
+            // (every hand once a step; a good's own hands are among them, in the same order)
+            if (!memo.has(null)) memo.set(null, TownTrade._producersOf(folk, day, null));
+            if (!memo.has(g)) memo.set(g, memo.get(null).filter(p => TownTrade.producerGoods(p).includes(g)));
+            return memo.get(g).slice();
+        }
+        return TownTrade._producersOf(folk, day, g);
+    },
+
+    _producersOf(folk, day, g) {
         const adult = TownJobs.config().adultAge || 16;
         return Townsfolk.residents(folk)
             .filter(p => Townsfolk.age(p, day) >= adult && TownTrade.producerGoods(p).length && (g == null || TownTrade.producerGoods(p).includes(g)))

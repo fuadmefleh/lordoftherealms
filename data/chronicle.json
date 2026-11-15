@@ -178,6 +178,7 @@
             "townLand": { "name": "Building lots & town houses bought", "group": "capital", "kind": "cap" },
             "livestock": { "name": "Livestock bought & sold", "group": "capital", "kind": "cap" },
             "livestockFeed": { "name": "Fodder for your beasts", "group": "household" },
+            "animals": { "name": "Dogs, cats & hawks: bought and fed", "group": "household" },
             "settlerGrants": { "name": "Grants to settlers in your towns", "group": "state" }
         }
     },

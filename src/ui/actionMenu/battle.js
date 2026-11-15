@@ -16,6 +16,7 @@ import { Arms } from '../../systems/arms.js';
 import { esc, chips, purse, lede, card, actRow, rowList } from './uiKit.js';
 import { RoadEncounters } from '../../player/roadEncounters.js';
 import { FieldBattle } from '../../player/fieldBattle.js';
+import { Bonds } from '../../systems/bonds.js';
 import { Ailments } from '../../systems/ailments.js';
 import { InnerMapBattle } from '../innerMapBattle.js';
 
@@ -118,7 +119,7 @@ Object.assign(ActionMenu, {
         let html = `<div>
             <div class="pk-card" style="display:flex; gap:14px;"><div style="flex:1;">${_bar('⚔️ Your force', b.sim.pStr, b.pStr0, '#7cc7e8')}</div>
             <div style="flex:1;">${_bar(`${b.enemyIcon} ${esc(b.enemyName)}`, b.sim.eStr, b.eStr0, '#e0a060')}</div></div>
-            <div style="font-size:11px; color:#9d937c; margin:4px 0;">📐 ${esc((b.terrainId || 'mixed ground').replace(/_/g, ' '))} · ${esc(b.weather || 'clear')} <span title="How well your companies' kinds answer theirs (horse against foot, spears against horse...)">· matchup ×${b.pCounter.toFixed(2)} against their ×${b.eCounter.toFixed(2)}</span>${b.ambushed ? ' · <span style="color:#e0a060;">they caught you unready</span>' : ''}${b.commanderSlain ? ' · <span style="color:#ce93d8;">your assassins slew their commander</span>' : ''}</div>`;
+            <div style="font-size:11px; color:#9d937c; margin:4px 0;">📐 ${esc((b.terrainId || 'mixed ground').replace(/_/g, ' '))} · ${esc(b.weather || 'clear')} <span title="How well your companies' kinds answer theirs (horse against foot, spears against horse...)">· matchup ×${b.pCounter.toFixed(2)} against their ×${b.eCounter.toFixed(2)}</span>${b.ambushed ? ' · <span style="color:#e0a060;">they caught you unready</span>' : ''}${b.commanderSlain ? ' · <span style="color:#ce93d8;">your assassins slew their commander</span>' : ''}${b.aidNames && b.aidNames.length ? ` · <span style="color:#a5d6a7;">${esc(Bonds.aidLine(b.aidNames))}</span>` : ''}</div>`;
         html += _phaseLogHtml(b.log);
         if (!b.done && !b.log.length && b.theatre === 'land') {
             // Before the first blow: fight it on the ground yourself, or leave it to the captains

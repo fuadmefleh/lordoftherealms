@@ -1535,7 +1535,7 @@ Object.assign(ActionMenu, {
                 successHtml += kv('Inherited', `${inherited} of ${inh ? Math.floor(inh.before) : goldBefore} gold (${Math.round(inheritPct * 100)}%)`);
                 // Where the rest went: debts, the other children's portions, the heriot (systems/inheritance.js)
                 if (inh && inh.line) successHtml += `<div style="font-size:11px; color:#c9b27a; margin:2px 0 6px;">💰 ${inh.line}</div>`;
-                if (Math.floor(player.gold) !== inherited) successHtml += kv('Purse after the succession', `${Math.floor(player.gold)} gold`);
+                if (Math.floor(player.gold) !== inherited) successHtml += kv('Purse after the succession', `${Utils.formatGold(player.gold)} gold`);
                 if (player.house) successHtml += kv(player.house.name, `Prestige ${player.house.prestige || 0} · Generation ${hr.generation || player.house.generation || 1}`);
                 const notes = [];
                 if (result.cadet) notes.push(`<div style="color:#8fd18a;">🌿 ${esc(result.cadet.text)}</div>`);

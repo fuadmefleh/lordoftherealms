@@ -23,9 +23,11 @@ import { Economy } from '../world/economy.js';
 import { MoneySupply } from '../world/moneySupply.js';
 import { Barter } from '../world/barter.js';
 import { Ledger } from '../systems/ledger.js';
+import { Utils } from '../core/utils.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
-const _r2 = (v) => Math.round(v * 100) / 100;
+// (every amount moved is a whole number of cents: the smallest coin is 0.01g — Utils.cents)
+const _r2 = (v) => Utils.cents(v);
 const _pos = (v) => Math.max(0, _num(v));
 const _obj = (v) => (v && typeof v === 'object' ? v : null);
 
@@ -81,7 +83,8 @@ function _take(world, player, from, amount, why, strict = false) {
     if (o && o.leak) { MoneySupply.leak(world, a, o.leak); return a; }
     if (o && o.purse && typeof o.purse === 'object') {
         const k = o.key || 'gold';
-        const t = _r2(Math.min(a, _pos(o.purse[k])));
+        // (a purse short of the sum gives what it holds, down to the cent)
+        const t = Math.min(a, Utils.centsDown(_pos(o.purse[k])));
         o.purse[k] = _r2(_num(o.purse[k]) - t);
         return t;
     }
@@ -127,13 +130,14 @@ export const PlayerCoin = {
         const want = _r2(_pos(amount));
         if (!player || !(want > 0)) return 0;
         let got = _take(world, player, from, want, opts.why || category, !!opts.strict);
-        if (opts.full && got < want) got = _r2(got + _take(world, player, null, want - got));
+        got = _r2(got);
+        if (opts.full && got < want) got = _r2(got + _take(world, player, null, _r2(want - got)));
         if (!(got > 0)) return 0;
         const c0 = _pos(Barter.coinOf(player));
         player.gold = _r2(_num(player.gold) + got);
         // (in a barter place the purse took goods, not the coin: the coin goes back)
         const landed = _r2(_pos(Barter.coinOf(player)) - c0);
-        if (landed < got) _give(world, player, from, got - landed, opts.why || category);
+        if (landed < got) _give(world, player, from, _r2(got - landed), opts.why || category);
         if (category) Ledger.record(player, category, got);
         return got;
     },
@@ -145,7 +149,7 @@ export const PlayerCoin = {
 
     /** Coin the player loses out of the world (dropped in the deep, burnt): booked lost. → amount */
     lost(world, player, amount, why = 'lost', category = null) {
-        const a = Math.min(_r2(_pos(amount)), _pos(player && player.gold));
+        const a = Math.min(_r2(_pos(amount)), Utils.centsDown(_pos(player && player.gold)));
         return PlayerCoin.pay(world, player, a, { leak: why }, category);
     },
 

@@ -52,6 +52,7 @@ import { Ships } from './ships.js';
 import { Fashions } from '../world/fashions.js';
 import { Ledger } from './ledger.js';
 import { Names } from '../core/names.js';
+import { Utils } from '../core/utils.js';
 import { Economy } from '../world/economy.js';
 import { MoneySupply } from '../world/moneySupply.js';
 
@@ -253,7 +254,7 @@ export const Patronage = {
 
     /** Coin spent at `at` (a settlement or a { q, r }): its town's purse, else the nearest one's (else booked lost). */
     _payAt(world, at, gold) {
-        const a = Math.round(_num(gold) * 100) / 100;
+        const a = Utils.cents(_num(gold));
         if (!world || !(a > 0)) return;
         if (at && at.economy && Economy.payTown(at, a)) return;
         if (at && Number.isFinite(at.q) && Economy.payNearest(world, at.q, at.r, a)) return;
@@ -1125,9 +1126,10 @@ export const Patronage = {
             const def = defs[n.workId];
             if (!k || k.isAlive === false || !def) { ws.npc = ws.npc.filter(x => x !== n); continue; }
             if (def.unique && ws.claimed[n.workId]) { Patronage._abandonNpc(world, n.workId, null); continue; }
-            const cost = _num(def.npc && def.npc.cost) / Math.max(1, n.days);
+            // (a day's work paid in whole cents: the smallest coin is 0.01g)
+            const cost = Utils.cents(_num(def.npc && def.npc.cost) / Math.max(1, n.days));
             if (_num(k.treasury) < cost) continue;
-            k.treasury = _num(k.treasury) - cost;
+            k.treasury = Utils.cents(_num(k.treasury) - cost);
             if (!CrownBooks.spendAtCapital(world, k, cost)) Patronage._payAt(world, { q: n.q, r: n.r }, cost);
             n.paid = _num(n.paid) + cost;
             let speed = 1;

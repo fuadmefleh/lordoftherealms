@@ -62,6 +62,8 @@
 import { Relationships } from './relationships.js';
 import { Barter } from '../world/barter.js';
 import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
+import { Utils } from '../core/utils.js';
 
 const _num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -349,6 +351,40 @@ export const CoinCensus = {
         const own = player ? _pos(Barter.coinOf(player)) : 0;
         if (own > 0) { byKind.player = own; total += own; }
         return { total: Math.round(total * 100) / 100, byKind };
+    },
+
+    /**
+     * The smallest coin is 0.01g: every purse holds a whole number of cents.
+     * The paths coin moves by (PlayerCoin, Economy.payTown/drawTown, the crowns'
+     * books) move whole cents; this daily backstop rounds any purse a stray
+     * sum left between two cents (and the player's real coin), and books the
+     * residue with MoneySupply.leak ('cents') so the census stays closed —
+     * the sub-cent part is carried to the next day (world.money.centsCarry)
+     * until it makes a whole cent. → the residue rounded away today (+: coin added)
+     */
+    tidyCents(world, player = null) {
+        if (!world) return 0;
+        let residue = 0;
+        const tidy = (h, key) => {
+            const v = h[key];
+            if (typeof v !== 'number' || !Number.isFinite(v) || Utils.isCents(v)) return 0;
+            const c = Utils.cents(v);
+            h[key] = c;
+            return c - v;
+        };
+        CoinCensus.each(world, player, (h, key) => { residue += tidy(h, key); }, { once: true });
+        // (a trade caravan's inventory.gold mirrors its purse, counted once above)
+        for (const u of Array.isArray(world.units) ? world.units : []) {
+            if (u && typeof u.purse === 'number' && u.inventory && typeof u.inventory.gold === 'number') tidy(u.inventory, 'gold');
+        }
+        if (player && !Barter.installed(player)) residue += tidy(player, 'gold');
+        if (!residue) return 0;
+        const st = MoneySupply.state(world);
+        const carry = _num(st.centsCarry) + residue;
+        const book = Utils.cents(carry);
+        if (book) MoneySupply.leak(world, book, 'cents');
+        st.centsCarry = carry - book;
+        return residue;
     },
 
     /**

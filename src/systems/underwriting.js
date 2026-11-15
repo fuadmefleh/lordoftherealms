@@ -119,6 +119,9 @@ function _kingdom(world, id) {
     return (world.kingdoms || []).find(k => k && k.id === id) || null;
 }
 
+/** The world's first day's turn (world.day starts at 1; the first end of day runs on day 2). */
+const OPENING_DAY = 2;
+
 function _settlements(world) {
     if (!world) return [];
     if (typeof world.getSettlementViews === 'function') return world.getSettlementViews();
@@ -252,13 +255,41 @@ export const Underwriting = {
             // (its capital is put up by the realm's merchants out of their towns' purses, as a
             // refounded guild's is — whatever they can raise; a realm with no coin yet has
             // none until it can: it opens a month on, through _refound)
-            const raised = Underwriting._raiseCapital(world, s, g.capital, 0);
+            // (at the world's making a guild that was there before the game began has its capital
+            // already: it is not raised out of the purses the towns open that same morning)
+            const endowed = Underwriting._openingCapital(world, s, g.capital);
+            const raised = endowed != null ? endowed : Underwriting._raiseCapital(world, s, g.capital, 0);
             if (raised == null) {
                 g.capital = 0;
                 g.status = 'failed';
                 g.failedDay = _day(world) - _num(G.refoundDays, 90) + 30;
             } else g.capital = g.baseCapital = raised;
         }
+    },
+
+    /**
+     * The capital of a guild that was there before the game began, on the world's
+     * first day: part of the world's opening coin, as the towns' first purses are
+     * (Economy.initSettlement), not drawn out of them — raised from the realm's
+     * towns, the capital alone paid about 30% of its purse on day one, and the
+     * rival houses' capital as much again. Booked as opening coin
+     * (MoneySupply.leak 'endowment'), so the census closes from before it. Not at
+     * the opening, or in a realm that keeps no coin yet (the dawn): null.
+     */
+    _openingCapital(world, s, want) {
+        if (!(want > 0) || !(_day(world) <= OPENING_DAY)) return null;
+        const k = _kingdom(world, s.kingdom);
+        const towns = k && k.isAlive !== false ? Economy.realmTowns(k, world).map(t => t.settlement) : [];
+        if (!towns.length) towns.push(s);
+        let coin = 0;
+        for (const t of towns) {
+            if (!t.economy && !t.inKind && _num(t.population) > 0) Economy.initSettlement(t);
+            coin += _num(Economy.townPurse(t));
+        }
+        if (!(coin > 0)) return null;
+        const a = _r2(want);
+        MoneySupply.leak(world, a, 'endowment');
+        return a;
     },
 
     /**

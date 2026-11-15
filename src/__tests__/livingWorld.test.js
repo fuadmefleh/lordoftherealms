@@ -358,6 +358,7 @@ describe('tavern talk of the region', () => {
         world.day++;
         world.kingdoms[0].ruler = 'King Edric';
         Heralds.processDay(world, player);
+        world.day += 3; // (the criers walk out from the capital a few hexes a day)
         const board = Tavern._checkRumorBoard(player, world.getTile(5, 5), world);
         expect(board.some(r => r.title === 'Proclamation' && r.text.includes('King Edric'))).toBe(true);
     });

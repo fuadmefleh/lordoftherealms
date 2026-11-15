@@ -220,7 +220,16 @@ Object.assign(InnerMap, {
             tiles[r] = [];
             for (let q = 0; q < w; q++) {
                 const g = below.tiles[r][q];
-                // (the doorway below is floor up here, like the rest of its row)
+                // (the doorway below is floor up here when the rest of its row is; a door in a
+                // wall below is wall up here, like the wall beside it)
+                const doorInWall = !!(g && g._isDoor) && [-1, 1].every(d => {
+                    const n = below.tiles[r][q + d];
+                    return !!n && !_isFloorTile(n) && !n._isDoor;
+                });
+                if (doorInWall) {
+                    tiles[r][q] = copyWall(below.tiles[r][q - 1], q, r);
+                    continue;
+                }
                 if (!_isFloorTile(g) && !(g && g._isDoor)) {
                     tiles[r][q] = copyWall(g, q, r);
                     continue;

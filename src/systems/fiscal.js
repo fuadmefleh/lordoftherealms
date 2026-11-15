@@ -47,13 +47,15 @@ import { Economy } from '../world/economy.js';
 import { Finance } from './finance.js';
 import { Ledger } from './ledger.js';
 import { Names } from '../core/names.js';
+import { Utils } from '../core/utils.js';
 // (a lettered town reads the tax rolls and pays what is posted: systems/literacy.js; run time only)
 import { Literacy } from './literacy.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
 const _clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
-const _r2 = (v) => Math.round(v * 100) / 100;
+// (coin moves in whole cents: the smallest coin is 0.01g — Utils.cents)
+const _r2 = (v) => Utils.cents(v);
 const _day = (world) => (world && Number.isFinite(world.day) ? world.day : 0);
 const _key = (q, r) => `${q},${r}`;
 // (read when used: an import cycle can reach this module before crownBooks.js has run)
@@ -348,7 +350,7 @@ export const Fiscal = {
             const farm = _obj(s.taxFarm);
             let purse = Math.max(0, _num(s.economy.gold));
             // The crown's own estates yield whatever the town does
-            const dem = Math.min(purse, d.demesne * eff);
+            const dem = Utils.centsDown(Math.min(purse, d.demesne * eff));
             if (dem > 0) { s.economy.gold = _r2(purse - dem); purse -= dem; demesne += dem; }
             // A royal governor over a demesne town (systems/stewards.js publishes settlement.provinceFx)
             const pf = ruled ? _obj(s.provinceFx) : null;
@@ -368,25 +370,26 @@ export const Fiscal = {
                 s.economy.gold = _r2(purse - got);
                 continue;
             }
-            const pay = Math.min(purse, due);
+            const pay = Utils.centsDown(Math.min(purse, due));
             // (what the governor keeps back goes to their own chest, not the crown's — and the
             // governor lives and spends in the town: that share never leaves its purse, and
             // pf.pocket is the tally of it, so no coin vanishes into an uncounted chest)
             const kept = pf ? 1 - _clamp(_num(pf.skim), 0, 0.9) : 1;
-            s.economy.gold = _r2(purse - pay * kept);
-            if (pf && kept < 1) pf.pocket = _r2(_num(pf.pocket) + pay * (1 - kept));
+            const toCrown = _r2(pay * kept);
+            s.economy.gold = _r2(purse - toCrown);
+            if (pf && kept < 1) pf.pocket = _r2(_num(pf.pocket) + pay - toCrown);
             // (the coin booked by line is exactly the coin the town paid, less the governor's keep:
             // `due` already carries eff, the governor and the town's letters, so the lines are
             // scaled by what was paid of d.due — never pay / due × gm, which struck new coin
             // whenever Literacy.taxFactor < 1)
-            const share = d.due > 0 ? pay / d.due * kept : 0;
+            const share = d.due > 0 ? toCrown / d.due : 0;
             land += d.land * share;
             poll += d.poll * share;
             excise += d.excise * share;
             levy += d.levy * share;
         }
-        const collected = land + poll + excise + levy + demesne;
-        k.treasury = _num(k.treasury) + collected;
+        const collected = _r2(land + poll + excise + levy + demesne);
+        k.treasury = _r2(_num(k.treasury) + collected);
         const page = f.day;
         page.land += land; page.poll += poll; page.excise += excise; page.levy += levy; page.demesne += demesne;
 
@@ -415,19 +418,19 @@ export const Fiscal = {
         // Pay the soldiers first (and what they are owed), then the clerks
         let cash = Math.max(0, _num(k.treasury));
         const wantA = army + _num(f.arrears.army);
-        const paidA = Math.min(cash, wantA);
+        const paidA = Math.min(Utils.centsDown(cash), _r2(wantA));
         cash -= paidA;
         const wantC = court + _num(f.arrears.court);
-        const paidC = Math.min(cash, wantC);
+        const paidC = Math.min(Utils.centsDown(cash), _r2(wantC));
         f.arrears.army = _r2(Math.min(wantA - paidA, army * 60));
         f.arrears.court = _r2(Math.min(wantC - paidC, court * 60));
-        k.treasury = _num(k.treasury) - paidA - paidC;
+        k.treasury = _r2(_num(k.treasury) - paidA - paidC);
         page.army += paidA;
         page.court += paidC;
         // Wages go back into the towns' purses: soldiers and clerks spend where they live
         const placed = Fiscal._spendBack(paidTo.length ? paidTo : towns, cap, paidA, paidC, towns);
         // (no town of the realm keeps a purse to spend it in: the coin stays in the chests)
-        if (placed < paidA + paidC - 0.005) k.treasury = _num(k.treasury) + _r2(paidA + paidC - placed);
+        if (placed < paidA + paidC - 0.005) k.treasury = _r2(_num(k.treasury) + paidA + paidC - placed);
         const wasArrears = f.arrearsDays;
         if (f.arrears.army > 0.5) f.arrearsDays++;
         else f.arrearsDays = Math.max(0, f.arrearsDays - 3);
@@ -466,20 +469,22 @@ export const Fiscal = {
         if (!towns.length) return 0;
         const W = _obj(Fiscal.config().army.spendWeights) || {};
         const wt = (t) => Math.max(0, _num(t.s.population)) * _num(W[t.key === cap ? 'capital' : t.s.type], 1);
-        let capTown = null, pop = 0, unspent = 0;
+        let capTown = null, pop = 0, unspent = 0, placed = 0;
         for (const t of towns) pop += wt(t);
         for (const t of towns) {
-            const share = pop > 0 ? wt(t) / pop : 1 / towns.length;
+            // (whole cents to each town; the odd cents left over go with the court's pay)
+            const share = Utils.centsDown(army * (pop > 0 ? wt(t) / pop : 1 / towns.length));
             // (a place keeping no purse: its garrison's pay is spent in the capital below)
-            if (!t.s.economy) { unspent += army * share; continue; }
+            if (!t.s.economy) { unspent += share; continue; }
             if (t.key === cap) capTown = t;
-            t.s.economy.gold = _r2(_num(t.s.economy.gold) + army * share);
+            t.s.economy.gold = _r2(_num(t.s.economy.gold) + share);
+            placed += share;
         }
         // (the court sits in the capital whether or not the collectors called there today)
         const to = capTown || (all || []).find(t => t.key === cap && t.s.economy) || towns.find(t => t.s.economy);
-        if (!to) return army - unspent;
-        to.s.economy.gold = _r2(_num(to.s.economy.gold) + court + unspent);
-        return army + court;
+        if (!to) return _r2(placed);
+        to.s.economy.gold = _r2(_num(to.s.economy.gold) + _r2(army + court - placed));
+        return _r2(army + court);
     },
 
     /** Close the day's books: lines into `last` and the week, the rest of the change under 'other'. */

@@ -15,11 +15,13 @@
 // Tuned in data/fiscal.json; with enabled: false every reader is neutral.
 
 import { DataLoader } from '../core/dataLoader.js';
+import { Utils } from '../core/utils.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
 const _clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
-const _r2 = (v) => Math.round(v * 100) / 100;
+// (coin moves in whole cents: the smallest coin is 0.01g — Utils.cents)
+const _r2 = (v) => Utils.cents(v);
 
 /** Revenue lines, in the order the panel shows them. */
 // ('escheat': an heirless estate's remainder after its creditors, player/estateSettlement.js;
@@ -157,7 +159,7 @@ export const CrownBooks = {
      * the realm holds no capital town with a purse).
      */
     spendAtCapital(world, kingdom, amount) {
-        const a = _num(amount);
+        const a = _r2(_num(amount));
         if (!(a > 0) || !kingdom || !world || typeof world.getTile !== 'function') return 0;
         const cap = kingdom.capital;
         const t = cap ? world.getTile(cap.q, cap.r) : null;

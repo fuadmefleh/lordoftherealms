@@ -7,7 +7,7 @@ Low-level utilities shared by every other module. Has no dependencies on game sy
 | File | Description |
 |------|-------------|
 | `hex.js` | Hex grid math: coordinates, distance, neighbors, range, A* pathfinding, world-wrap. Contains a `MinHeap` for efficient pathfinding. |
-| `utils.js` | General helpers: seeded RNG (`Utils.seededRandom`; `Utils.withRng(rng, fn)` runs fn on a separate seeded stream without disturbing the main one), Perlin noise, array shuffling, number formatting. |
+| `utils.js` | General helpers: seeded RNG (`Utils.seededRandom`; `Utils.withRng(rng, fn)` runs fn on a separate seeded stream without disturbing the main one), Perlin noise, array shuffling, number formatting. Coin: the smallest coin is 0.01g — `Utils.cents(x)` (float-safe round to the cent), `centsDown(x)` (what a short payer can give), `isCents(x)`, `formatGold(x)` (shown to the cent, no trailing zeros: 12.5, 0.19, 1,210). |
 | `dataLoader.js` | Loads `data/gamedata.json` (merged game data) and optional editor-override JSON files. All systems read config from here. |
 | `dataPatch.js` | Mod patches: `createDataPatch` / `applyDataPatch` (diffs with `$delete` / `$replace`), `applySectionPatches` for the Game Data tab's per-section patches, and `mergeCustomTechs` for the Tech Tree tab. The editors carry a twin in `editor-core.js`. |
 | `nineTile.js` | 9-tile brush auto-tiling: `pickNineTileSlot`, `resolveBrushSeason`, `resolveNineTileCell` (slot + tile + why it fell back), `erodeUntileableStubs`. InnerMap stamps brushes with it. The terrain editor paints and previews with its twin in `editor-core.js`, so both draw the same. |

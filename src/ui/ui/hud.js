@@ -1162,7 +1162,7 @@ Object.assign(UI.prototype, {
         // "~120" under a pack, not coins; the panels' purse and prices say so too (uiKit)
         const inKind = Barter.inKind(player);
         setCoinless(inKind);
-        this._setHudText('tbGold', inKind ? `~${Utils.formatNumber(Math.floor(Number(player.gold) || 0))}` : Utils.formatNumber(Math.floor(Number(player.gold) || 0)));
+        this._setHudText('tbGold', inKind ? `~${Utils.formatNumber(Math.floor(Number(player.gold) || 0))}` : Utils.formatGold(player.gold));
         {
             const box = document.getElementById('tbGold');
             const res = box && typeof box.closest === 'function' ? box.closest('.tb-res-gold') : null;
@@ -1179,8 +1179,8 @@ Object.assign(UI.prototype, {
         // Per-day income from the latest finance snapshot (0 before day 1 ends).
         const hist = player.financeHistory;
         const fin = hist && hist.length ? hist[hist.length - 1] : null;
-        const net = fin ? Math.round(fin.netChange || 0) : 0;
-        const incomeStr = `${net >= 0 ? '+' : '−'}${Utils.formatNumber(Math.abs(net))}/d`;
+        const net = fin ? Utils.cents(fin.netChange || 0) : 0;
+        const incomeStr = `${net >= 0 ? '+' : '−'}${Utils.formatGold(Math.abs(net))}/d`;
         for (const id of ['tbIncome']) {
             const el = document.getElementById(id);
             if (el) {

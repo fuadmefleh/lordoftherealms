@@ -420,7 +420,7 @@ export const TradePolicy = {
         };
         const credit = (k, g) => {
             if (!k || !(g > 0)) return;
-            k.treasury = _num(k.treasury) + g;
+            k.treasury = Utils.cents(_num(k.treasury) + g);
             CrownBooks.note(k, 'customs', g);
             const p = TradePolicy.realm(k);
             p.rev.week = _r3(p.rev.week + g);
@@ -433,14 +433,15 @@ export const TradePolicy = {
             link.paidBA = 0;
             const ka = kingdomOf(link.a), kb = kingdomOf(link.b);
             if (pab > 0) {
-                const imp = pab * scale * _num(link.impAB, 1);
+                // (whole cents: the smallest coin is 0.01g)
+                const imp = Utils.cents(pab * scale * _num(link.impAB, 1));
                 credit(kb, imp);
-                credit(ka, pab * scale - imp);
+                credit(ka, Utils.cents(pab * scale - imp));
             }
             if (pba > 0) {
-                const imp = pba * scale * _num(link.impBA, 1);
+                const imp = Utils.cents(pba * scale * _num(link.impBA, 1));
                 credit(ka, imp);
-                credit(kb, pba * scale - imp);
+                credit(kb, Utils.cents(pba * scale - imp));
             }
         }
         return total;

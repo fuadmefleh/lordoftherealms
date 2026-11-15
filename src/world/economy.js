@@ -437,12 +437,13 @@ export const Economy = {
      * goods or services). → what was paid (0 without a town).
      */
     payTown(settlement, amount) {
-        const g = Number(amount);
+        // (whole cents: the smallest coin is 0.01g; the caller is told what was paid)
+        const g = Utils.cents(amount);
         if (!settlement || typeof settlement !== 'object' || !(g > 0)) return 0;
         // A town that barters (world/barter.js stamps it) takes no coin: the payer paid it in goods
         if (settlement.inKind) return 0;
         if (!settlement.economy) Economy.initSettlement(settlement);
-        settlement.economy.gold = Math.round(((Number(settlement.economy.gold) || 0) + g) * 100) / 100;
+        settlement.economy.gold = Utils.cents((Number(settlement.economy.gold) || 0) + g);
         return g;
     },
 
@@ -453,12 +454,13 @@ export const Economy = {
      * call sites and test towns keep working.
      */
     drawTown(settlement, amount) {
-        const g = Number(amount);
+        const g = Utils.cents(amount);
         if (!(g > 0)) return 0;
         const have = Economy.townPurse(settlement);
         if (have == null) return g;
-        const paid = Math.min(have, g);
-        settlement.economy.gold = Math.round((settlement.economy.gold - paid) * 100) / 100;
+        // (a purse short of the sum gives what it holds, down to the cent)
+        const paid = Math.min(Utils.centsDown(have), g);
+        settlement.economy.gold = Utils.cents(settlement.economy.gold - paid);
         return paid;
     },
 
@@ -485,7 +487,7 @@ export const Economy = {
             let due = want * e.weight / total;
             const have = Economy.townPurse(e.settlement);
             if (have != null) due = Math.min(due, have * cap);
-            due = Math.floor(due * 100) / 100;
+            due = Utils.centsDown(due);
             if (!(due > 0)) continue;
             const paid = Economy.drawTown(e.settlement, due);
             if (paid > 0) {
@@ -493,7 +495,7 @@ export const Economy = {
                 out.towns.push({ settlement: e.settlement, paid });
             }
         }
-        out.paid = Math.round(out.paid * 100) / 100;
+        out.paid = Utils.cents(out.paid);
         return out;
     },
 
@@ -523,7 +525,7 @@ export const Economy = {
      * spent or found there). → the town paid, or null (no town keeps coin).
      */
     payNearest(world, q, r, amount, opts = {}) {
-        const a = Math.round(Number(amount) * 100) / 100;
+        const a = Utils.cents(amount);
         if (!(a > 0)) return null;
         const s = Economy.nearestPurse(world, q, r, opts);
         if (!s) return null;
@@ -563,15 +565,15 @@ export const Economy = {
      * has no town that keeps coin).
      */
     payRealm(kingdom, world, amount) {
-        const a = Math.round(Number(amount) * 100) / 100;
+        const a = Utils.cents(amount);
         if (!(a > 0)) return 0;
         const towns = Economy.realmTowns(kingdom, world).map(t => t.settlement).filter(s => s && !s.inKind && s.economy && Number.isFinite(s.economy.gold));
         if (!towns.length) return 0;
         const total = towns.reduce((x, s) => x + Math.max(1, Number(s.population) || 0), 0);
         let left = a;
         towns.forEach((s, i) => {
-            const share = i === towns.length - 1 ? left : Math.floor(a * Math.max(1, Number(s.population) || 0) / total * 100) / 100;
-            left = Math.round((left - share) * 100) / 100;
+            const share = i === towns.length - 1 ? left : Utils.centsDown(a * Math.max(1, Number(s.population) || 0) / total);
+            left = Utils.cents(left - share);
             Economy.payTown(s, share);
         });
         return a;
@@ -583,12 +585,12 @@ export const Economy = {
      */
     crownSpend(kingdom, world, amount) {
         if (!kingdom) return 0;
-        const a = Math.min(Math.max(0, Number(kingdom.treasury) || 0), Math.round((Number(amount) || 0) * 100) / 100);
+        const a = Math.min(Utils.centsDown(Math.max(0, Number(kingdom.treasury) || 0)), Utils.cents(Number(amount) || 0));
         if (!(a > 0)) return 0;
         let paid = Economy.payRealm(kingdom, world, a);
         // (a realm with no town that keeps coin: the coin leaves the world, booked as lost)
         if (!paid) { paid = a; MoneySupply.leak(world, -a, 'crownLosses'); }
-        kingdom.treasury = Math.round(((Number(kingdom.treasury) || 0) - paid) * 100) / 100;
+        kingdom.treasury = Utils.cents((Number(kingdom.treasury) || 0) - paid);
         return paid;
     },
 
@@ -597,17 +599,17 @@ export const Economy = {
      * purses (at most `maxShare` of each). The caller credits the payee. → what was paid.
      */
     crownPays(kingdom, world, amount, maxShare = 0.1) {
-        let want = Math.round(Math.max(0, Number(amount) || 0) * 100) / 100;
+        let want = Utils.cents(Math.max(0, Number(amount) || 0));
         if (!kingdom || kingdom.isAlive === false || !(want > 0)) return 0;
-        const t = Math.min(want, Math.max(0, Number(kingdom.treasury) || 0));
-        kingdom.treasury = Math.round(((Number(kingdom.treasury) || 0) - t) * 100) / 100;
-        want -= t;
+        const t = Math.min(want, Utils.centsDown(Math.max(0, Number(kingdom.treasury) || 0)));
+        kingdom.treasury = Utils.cents((Number(kingdom.treasury) || 0) - t);
+        want = Utils.cents(want - t);
         let paid = t;
         if (want > 0) {
             const entries = Economy.realmTowns(kingdom, world).map(x => ({ settlement: x.settlement, weight: Math.max(1, Number(x.settlement.population) || 0) }));
             paid += Economy.drawTowns(entries, want, maxShare).paid;
         }
-        return Math.round(paid * 100) / 100;
+        return Utils.cents(paid);
     },
 
     /** Coin into a crown's chests out of its towns' purses (at most `maxShare` of each). → what was raised. */
@@ -615,7 +617,7 @@ export const Economy = {
         if (!kingdom || !(Number(amount) > 0)) return 0;
         const entries = Economy.realmTowns(kingdom, world).map(t => ({ settlement: t.settlement, weight: Math.max(1, Number(t.settlement.population) || 0) }));
         const got = Economy.drawTowns(entries, amount, maxShare).paid;
-        kingdom.treasury = Math.round(((Number(kingdom.treasury) || 0) + got) * 100) / 100;
+        kingdom.treasury = Utils.cents((Number(kingdom.treasury) || 0) + got);
         return got;
     },
 

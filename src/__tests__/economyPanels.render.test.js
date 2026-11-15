@@ -209,9 +209,10 @@ function crawl(game, label, open, budget = 60) {
         if (!p.html || p.html.replace(/<[^>]*>/g, '').trim().length === 0) problems.push(`${where}: empty panel "${p.title}"`);
         for (const l of leaksIn(visibleText(p.html) + ' ' + p.title)) problems.push(`${where}: ${l}`);
         for (const u of unbalanced(p.html)) problems.push(`${where}: unbalanced ${u}`);
-        // The purse is kept to the copper; panels show it in whole gold
+        // The purse is kept to the cent (the smallest coin is 0.01g) and shown so —
+        // a raw float tail (1095.4999999) is what may not show
         const gold = game.player.gold;
-        if (Number.isFinite(gold) && gold >= 1000 && gold !== Math.floor(gold)) {
+        if (Number.isFinite(gold) && gold >= 1000 && !Utils.isCents(gold)) {
             const vis = visibleText(p.html);
             for (const raw of [String(gold), gold.toLocaleString()]) {
                 const re = new RegExp(`(^|[^\\d.,])${raw.replace(/[.,]/g, '\\$&')}(g\\b| gold)`);

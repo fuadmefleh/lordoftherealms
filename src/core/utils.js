@@ -240,7 +240,41 @@ export const Utils = {
      * Format number with commas
      */
     formatNumber(n) {
-        return n.toLocaleString();
+        // (at most two decimals: a coin is 0.01g, and no raw float tails like 1,095.4999999)
+        return typeof n === 'number' && Number.isFinite(n) ? n.toLocaleString(undefined, { maximumFractionDigits: 2 }) : n.toLocaleString();
+    },
+
+    // ── Coin: the smallest coin a mint strikes is 0.01g ──────────────
+    // Every amount of coin that changes hands is a whole number of cents.
+    // Float-safe: 1.005 → 1.01 and 0.29 stays 0.29 (x * 100 is nudged past the
+    // binary representation error before rounding), halves round away from zero,
+    // and the result is the canonical double for n / 100 (never -0).
+
+    /** `x` to the nearest 0.01 (non-finite → 0). */
+    cents(x) {
+        const v = Number(x);
+        if (!Number.isFinite(v) || v === 0) return 0;
+        const c = Math.round(Math.abs(v) * 100 + 1e-7);
+        return c === 0 ? 0 : (v < 0 ? -c : c) / 100;
+    },
+
+    /** `x` down to a whole cent (towards zero): what a payer short of coin can give of it. */
+    centsDown(x) {
+        const v = Number(x);
+        if (!Number.isFinite(v) || v === 0) return 0;
+        const c = Math.floor(Math.abs(v) * 100 + 1e-7);
+        return c === 0 ? 0 : (v < 0 ? -c : c) / 100;
+    },
+
+    /** Is `x` a whole number of cents (within float noise)? */
+    isCents(x) {
+        const v = Number(x);
+        return Number.isFinite(v) && Math.abs(v * 100 - Math.round(v * 100)) < 1e-6;
+    },
+
+    /** Coin for the player's eyes: up to two decimals, no trailing zeros (12.5, 0.19, 1,210). */
+    formatGold(n) {
+        return Utils.cents(n).toLocaleString('en-US', { maximumFractionDigits: 2 });
     },
 
     /**

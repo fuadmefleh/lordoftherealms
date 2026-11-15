@@ -848,10 +848,11 @@ export const Scenarios = {
         const st = Guilds.state(player);
         m.rank = 3;
         m.rankSince = day;
-        m.standing = _num(o.standing, 45);
+        // (the masters who just voted you in: at least a master's standing in the hall, and some over)
+        m.standing = Math.max(_num(o.standing, 55), _num((Guilds.ranks()[2] || {}).minStanding, 50) + 5);
         st.stats.bestRank = Math.max(_num(st.stats.bestRank, -1), 3);
         const before = g.master ? g.master.name : null;
-        g.master = { name: player.name || 'you', player: true };
+        g.master = { name: player.name || 'you', player: true, chest: Math.floor(_num(g.treasury)) };
         g.nextElection = day + Math.max(7, Math.floor(_num(o.electionDays, 45)));
         Guilds._log(st, world, `Elected guildmaster of the ${g.name}${before ? `, after ${before}` : ''}.`);
         const goods = Guilds.def(gid).goods || [];

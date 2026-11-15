@@ -121,7 +121,7 @@ Object.assign(UI.prototype, {
                 </div>
                 <div style="background: rgba(255,255,255,0.04); padding: 6px 10px; border-radius: 4px; flex: 1; min-width: 80px; text-align: center;">
                     <div style="font-size: 11px; color: var(--text-secondary);">Gold</div>
-                    <div style="font-weight: bold; color: var(--gold);">${Math.floor(player.gold)}</div>
+                    <div style="font-weight: bold; color: var(--gold);">${Utils.formatGold(player.gold)}</div>
                 </div>
             </div>
         `;

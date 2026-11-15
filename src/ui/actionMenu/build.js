@@ -1094,7 +1094,7 @@ Object.assign(ActionMenu, {
             { icon: '⏳', label: 'AP cost', value: `<span style="color:${hasAP ? '#9fc4f0' : '#e0846a'};">${apCost} AP</span>` },
             ['📦', 'Stone', `~${stoneYield}`],
         ]);
-        html += kv('You have', `${Math.floor(game.player.gold)}g · ${game.player.actionPoints || 0} AP`);
+        html += kv('You have', `${Utils.formatGold(game.player.gold)}g · ${game.player.actionPoints || 0} AP`);
         html += `<div style="font-size: 12px; color: #8fd18a; margin: 6px 0;">📦 You'll recover ~${stoneYield} stone from the excavation</div>`;
         if (hasResource) html += `<div style="font-size: 12px; color: #e0846a; margin: 6px 0;">${resourceWarning}</div>`;
         html += '<div style="font-size: 11px; color: #9d937c; margin: 6px 0 10px;">Mountains and highlands cannot be terraformed.</div>';

@@ -44,7 +44,7 @@ function _buskInPerson(game, tile, crowdMultiplier, perfId) {
 function _tableTop(gold, goldId = '') {
     return `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
         <button onclick="ActionMenu.showGamblingMenu(window._gambGame, window._gambTile)" style="${BTN_DARK} margin:0;">← Back</button>
-        <span class="pk-chip gold">💰 Purse <b${goldId ? ` id="${goldId}"` : ''}>${gold}g</b></span>
+        <span class="pk-chip gold">💰 Purse <b${goldId ? ` id="${goldId}"` : ''}>${Utils.formatGold(gold)}g</b></span>
     </div>`;
 }
 
@@ -120,7 +120,7 @@ Object.assign(ActionMenu, {
                 desc: mg.description,
                 attrs: `onclick="window._openMinigame('${mg.id}')"`,
                 off: !canPlay,
-                why: `Min bet: ${mg.minBet}g — your purse holds ${gold}g`,
+                why: `Min bet: ${mg.minBet}g — your purse holds ${Utils.formatGold(gold)}g`,
                 side: `Min bet: ${mg.minBet}g`,
                 tone: canPlay ? 'gold' : '',
             };
@@ -709,7 +709,7 @@ Object.assign(ActionMenu, {
                         if (rollBtn && game.player.gold >= 5) { rollBtn.disabled = false; rollBtn.style.opacity = '1'; }
                         // Update gold display (the purse chip, _tableTop)
                         const goldSpan = document.getElementById('caPurse');
-                        if (goldSpan) goldSpan.textContent = game.player.gold + 'g';
+                        if (goldSpan) goldSpan.textContent = Utils.formatGold(game.player.gold) + 'g';
                     }, 600);
                 }
             }, 100);

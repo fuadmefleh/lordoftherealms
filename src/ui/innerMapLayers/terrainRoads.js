@@ -499,7 +499,8 @@ Object.assign(InnerMapRenderer, {
         const hash = ((tile.q * 73856093) ^ (tile.r * 19349663)) >>> 0;
         const isWall = tile.baseTerrain === 'wall';
         const at = (dq, dr) => InnerMap.getTile(tile.q + dq, tile.r + dr);
-        const walled = (o) => !o || o.baseTerrain === 'wall';
+        // (a door counts as the wall it stands in: no lit rim along its sides)
+        const walled = (o) => !o || o.baseTerrain === 'wall' || !!o._isDoor;
         // A seamless texture of whole tiles (tw × th): each tile shows its own cell of it, by
         // position, so the floor runs on unbroken. With variants (textures sharing one border),
         // each tw × th block of the room takes one by a hash of where it is, so nothing repeats.
@@ -542,6 +543,18 @@ Object.assign(InnerMapRenderer, {
         const kb = this._sheetScale(base.img);
         if (isWall) {
             this._drawWallTile(ctx, tile, mat, base.img, kb, cellOf, at, walled, dx, dy, sz);
+            return true;
+        }
+        // A door in the front wall (walls either side of it): the wall's top round it, the door in that
+        const wallSides = (o) => !!o && o.baseTerrain === 'wall';
+        if (tile._isDoor && wallSides(at(-1, 0)) && wallSides(at(1, 0))) {
+            const wm = art.walls[tile._wallMaterial] || art.walls[art.defaultWall];
+            const wb = pick(wm);
+            const door = pick(art.door);
+            if (!wb || !door) return false;
+            this._drawWallTile(ctx, tile, wm, wb.img, this._sheetScale(wb.img), cellOf, at, walled, dx, dy, sz);
+            const kd = this._sheetScale(door.img);
+            ctx.drawImage(door.img, door.c.sx * kd, door.c.sy * kd, (door.c.sw || 32) * kd, (door.c.sh || 32) * kd, dx, dy, sz, sz);
             return true;
         }
         ctx.drawImage(base.img, cell[0] * kb, cell[1] * kb, 32 * kb, 32 * kb, dx, dy, sz, sz);

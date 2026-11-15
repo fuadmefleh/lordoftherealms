@@ -55,7 +55,8 @@ const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d)
 const _clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
 const _key = (q, r) => `${q},${r}`;
-const _r2 = (v) => Math.round(v * 100) / 100;
+// (coin moves in whole cents: the smallest coin is 0.01g — Utils.cents)
+const _r2 = (v) => Utils.cents(v);
 const _day = (world) => _num(world && world.day);
 const _roll = (k) => Hinterland.roll(k);
 let _cfg = null;
@@ -733,7 +734,7 @@ export const Concessions = {
                     else Economy.payTown(home, pay);
                 }
                 c.royalties = Math.round(_num(c.royalties) + paid);
-                if (realm) realm.treasury = _num(realm.treasury) + paid;
+                if (realm) realm.treasury = _r2(_num(realm.treasury) + paid);
                 else Economy.payTown(home, paid);
                 out.royalties += paid;
                 // (net from the rounded parts, so the books always add up)
@@ -766,7 +767,8 @@ export const Concessions = {
             Economy.payTown(home, wages);
             c.royalties = Math.round(_num(c.royalties) + paidRoyalty);
             c.net = c.revenue - c.wages - c.royalties;
-            if (realm) realm.treasury = _num(realm.treasury) + paidRoyalty;
+            paidRoyalty = _r2(paidRoyalty);
+            if (realm) realm.treasury = _r2(_num(realm.treasury) + paidRoyalty);
             else Economy.payTown(home, paidRoyalty);
         }
         // Accidents in a pit worked hard; a hard pace sours the town

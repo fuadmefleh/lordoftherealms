@@ -225,6 +225,8 @@ export const Mints = {
     /** → { notices: [{ icon, title, text, type }], news } */
     processDay(world, player = null) {
         const out = { notices: [], news: null };
+        // (every purse a whole number of cents: the smallest coin is 0.01g)
+        if (world) CoinCensus.tidyCents(world, player);
         if (!world || !Mints.enabled()) return out;
         // (the census of the purses beyond the towns: only on the weekly turn)
         // Before the first coin no purse holds any (world/barter.js): what one does was made from nothing

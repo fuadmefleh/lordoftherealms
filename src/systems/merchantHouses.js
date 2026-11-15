@@ -690,7 +690,13 @@ export const MerchantHouses = {
         // world's making, give it in full)
         const st0 = seat && world && typeof world.getTile === 'function' ? world.getTile(seat.q, seat.r) : null;
         const home = st0 && st0.settlement;
-        if (home && Economy.townPurse(home) != null) {
+        // (at the world's making, its first day's turn, a house that was there before the game
+        // began has its capital already — part of the world's opening coin, as the towns' first
+        // purses are, booked so the census closes: drawn from the purses the towns opened that
+        // morning, a realm's capital paid a quarter of its coin on day one)
+        if (home && !home.inKind && _day(world) <= 2 && (Economy.initSettlement(home), Economy.townPurse(home)) > 0) {
+            MoneySupply.leak(world, rival.capital, 'endowment');
+        } else if (home && Economy.townPurse(home) != null) {
             const views = typeof world.getSettlementViews === 'function' ? world.getSettlementViews() : [];
             const list = [];
             for (const v of views) {

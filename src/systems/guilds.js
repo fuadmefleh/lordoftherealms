@@ -102,7 +102,7 @@ const DEFAULT_CONFIG = {
     },
     lobby: { every: 28, minTreasury: 350, cost: 250, chance: 0.45, perStanding: 0.004, monopolyDays: 120, charterStanding: 20, purse: 200, factionShift: 3 },
     crown: { startMax: 30, strike: -12, lobbyWin: 8, lobbyFail: -3, abolishBelow: -40, abolishChance: 0.25, charterFee: 200, abolishFaction: -8, charterFaction: 4, abolishMood: -5 },
-    election: { every: 120, playerBase: 20, perContract: 4, npcBase: 40, npcSpread: 60, backedBonus: 20 },
+    election: { every: 120, playerBase: 20, perContract: 4, npcBase: 40, npcSpread: 60, backedBonus: 20, seat: 10, firstTerm: 12, strike: 12, chestDrained: 0.5, drained: 12 },
     feud: { perWorks: 8, perOutsiderFlood: 6, companyMonopoly: 15, strikebreak: 6, sabotageAt: 50, sabotage: [0.08, 0.2], decay: 4 },
     contracts: { maxOpen: 2, days: [14, 28], needDays: 6, maxQty: 40, minQty: 6, valueShare: 0.85, standing: 10, failStanding: 15, failFeud: 10 },
     loans: { rate: 0.06, weeks: 8, maxShare: 0.5, missedStanding: 8, defaultAfter: 3 },
@@ -346,6 +346,7 @@ export const Guilds = {
         if (!s || !Number.isFinite(s.q)) return null;
         const C = Guilds.config();
         const d = day != null ? day : _day(world);
+        s.guildsWeighed = d;
         const bans = _obj(s.guildBans) || {};
         for (const def of Object.values(C.defs)) {
             const g = Guilds.guild(s, def.id);
@@ -1103,11 +1104,26 @@ export const Guilds = {
         const day = _day(world);
         const k = Math.max(1, Math.floor(_num(Guilds.config().tickDays, 7)));
         const turn = ((day % k) + k) % k;
-        for (const v of Guilds._towns(world, day)[turn] || []) {
+        const slots = Guilds._towns(world, day);
+        for (const v of slots[turn] || []) {
             const s = Guilds._settlement(world, v.q, v.r);
             if (!s) continue;
             if (!Number.isFinite(s.q)) { s.q = v.q; s.r = v.r; }
             Guilds._townWeek(world, player, s, day, out);
+        }
+        // A town never yet weighed and holding no guild (the world's first day, a save from
+        // before, a village just grown to a town) has its trades weighed now: its guilds were
+        // there before the game began. (The monthly weighing runs in every fourth week on the
+        // town's slot: the game opens on day 2, so a town on slot 0 or 1 — a capital among
+        // them — stood a month without a single guild.)
+        const minRank = SettlementMarket._rank(Guilds.config().minType);
+        for (const slot of slots) {
+            for (const v of slot) {
+                const s = Guilds._settlement(world, v.q, v.r);
+                if (!s || s.guilds || s.guildsWeighed != null || SettlementMarket._rank(s.type) < minRank) continue;
+                if (!Number.isFinite(s.q)) { s.q = v.q; s.r = v.r; }
+                Guilds.ensureTown(world, s, day, player, out);
+            }
         }
         // (a strike's idle trades restart on their own day — SettlementMarket reads market.idle's until-day;
         // the guild marks it over at its next turn) The player's contracts and credit backing:
@@ -1300,6 +1316,31 @@ export const Guilds = {
         }
     },
 
+    /**
+     * What sitting in the chair is worth to the player-master at the vote:
+     * { total, parts: [{ id, v }] } (no writes). The masters keep a master
+     * who has not failed them (`seat`), and give one they have just put in
+     * the chair a first term (`firstTerm`, until one full election span has
+     * run since taking it); a strike called under the master's hand since
+     * taking the chair, or the hall's chest run down below `chestDrained` of
+     * what it held then, counts against it. (Standing, contracts and feud
+     * are weighed in _election as for any master who stands.)
+     */
+    incumbency(s, g, m, day) {
+        const E = Guilds.config().election;
+        const parts = [];
+        if (!g || !g.master || !g.master.player || !m) return { total: 0, parts };
+        const since = _num(m.rankSince, day);
+        parts.push({ id: 'the chair', v: _num(E.seat) });
+        if (day - since <= _num(E.every, 120)) parts.push({ id: 'a first term', v: _num(E.firstTerm) });
+        if (g.strike || (Number.isFinite(g.lastStrike) && g.lastStrike >= since)) parts.push({ id: 'a strike under your hand', v: -_num(E.strike) });
+        const chest = _num(g.master.chest, -1);
+        if (chest > 0 && _num(g.treasury) < chest * _num(E.chestDrained, 0.5)) parts.push({ id: 'the hall\'s chest run down', v: -_num(E.drained) });
+        let total = 0;
+        for (const p of parts) total += p.v;
+        return { total, parts };
+    },
+
     _election(world, player, s, g, day, out) {
         const E = Guilds.config().election;
         const key = Guilds._key(s, g.id);
@@ -1314,13 +1355,14 @@ export const Guilds = {
         }
         let winner;
         const playerRuns = me && me.rank >= RANK.master && (me.candidate || (g.master && g.master.player));
-        const playerScore = playerRuns ? _num(E.playerBase) + _num(me.standing) + _num(me.contracts) * _num(E.perContract) - _num(g.feud) : -1;
+        const seat = playerRuns && g.master && g.master.player ? Guilds.incumbency(s, g, me, day).total : 0;
+        const playerScore = playerRuns ? _num(E.playerBase) + _num(me.standing) + _num(me.contracts) * _num(E.perContract) - _num(g.feud) + seat : -1;
         const best = Math.max(incumbent, challenger);
         if (playerRuns && playerScore > best) winner = 'player';
         else winner = incumbent >= challenger ? 'incumbent' : 'challenger';
         const wasPlayer = !!(g.master && g.master.player);
         if (winner === 'player') {
-            g.master = { name: player.name || 'you', player: true };
+            g.master = { name: player.name || 'you', player: true, chest: Math.floor(_num(g.treasury)) };
             if (me.rank < RANK.guildmaster) me.rank = RANK.guildmaster;
             me.rankSince = day;
             const st = Guilds.state(player);

@@ -462,7 +462,7 @@ Object.assign(ActionMenu, {
                 };
             }), 'Seasonal Contest');
 
-            html += `<div style="font-size: 12px; color: ${canAfford ? '#9d937c' : '#e0846a'}; margin: 8px 0;">Cost: ${currentTier.cost} gold · Your gold: ${Math.floor(player.gold)}</div>`;
+            html += `<div style="font-size: 12px; color: ${canAfford ? '#9d937c' : '#e0846a'}; margin: 8px 0;">Cost: ${currentTier.cost} gold · Your gold: ${Utils.formatGold(player.gold)}</div>`;
             html += rowList([{
                 icon: currentTier.icon || theme.icon, name: 'Begin Festival', desc: `${currentTier.label} · takes the day`,
                 attrs: 'onclick="window._beginFestival()"', off: !canAfford, why: `You need ${currentTier.cost} gold to host this festival.`,

@@ -32,6 +32,36 @@ const SEASON_SHEET = /assets\/lpc\/Terrain\/terrain_(spring|summer|autumn|winter
 // Leaves: autumn reds, oranges, golds and browns; a bare winter's are browner
 const LEAVES = ['#c4512b', '#db842c', '#e6b53d', '#9a3d1c', '#b8702e', '#d9a441'];
 const LEAVES_OLD = ['#7a5232', '#8c6a3f', '#6b4a2c', '#9a7a4a'];
+// What a building cell IS, by its sheet (the kit files cells by drawing order, not by what
+// they are: a design's roof sits in its "floor" layer with the wall faces, its door in the
+// "roof" layer). A roof is a kit roof sheet (assets/buildingKit/modern/roofs_*.png: thatch,
+// shingle, slate, clay, turf, adobe, flat) or a sheet of the LPC Roofing set (its roofs,
+// trim and chimneys); doors, windows and wall faces never are, whatever their sheet's name.
+const ROOF_SHEET = /\/roofs_[^/]*$|\/Roofing\//i;
+const NOT_ROOF = /\/Doors\/|\/Windows\/|walls_|\/Walls?\//i;
+const LAYERS = ['floor', 'walls', 'roof', 'overlay'];
+/** Is this building cell roofing (snow lies on it)? */
+export function isRoofCell(cell) {
+    const p = (cell && cell.sheetPath) || '';
+    return ROOF_SHEET.test(p) && !NOT_ROOF.test(p);
+}
+// A design's roofing cells, each left in its own layer so they draw in the order they were
+// drawn (a chimney over its roof): { floor, walls, roof, overlay } or null; made once a design
+const _roofOf = new WeakMap();
+export function roofLayers(def) {
+    if (!def || !def.layers) return null;
+    if (_roofOf.has(def)) return _roofOf.get(def);
+    const out = {};
+    let n = 0;
+    for (const lyr of LAYERS) {
+        const cells = (def.layers[lyr] || []).filter(isRoofCell);
+        out[lyr] = cells;
+        n += cells.length;
+    }
+    const res = n ? out : null;
+    _roofOf.set(def, res);
+    return res;
+}
 const SNOW = '#eef3f8', SNOW_SHADE = '#c3d1df', SNOW_OLD = '#dfe5ea';
 const MUD = 'rgba(72, 50, 30, ', MUD_DARK = '#4d4438';
 
@@ -504,8 +534,11 @@ Object.assign(InnerMapRenderer, {
      * the snow thickest along the top of each cell (the ridges and the courses).
      */
     _seasonRoofSnow(g, c, cam, def, anchorQ, anchorR, ds, level) {
-        const roof = def && def.layers && def.layers.roof;
-        if (!level || !roof || !roof.length || !c) return;
+        // (by what each cell is, not the layer it is filed in: most roofs are in the "floor"
+        // layer, the door in "roof" — snow lies on the roof, not down the front door)
+        if (!level || !c) return;
+        const roof = roofLayers(def);
+        if (!roof) return;
         let tmp = this._ssRoofTmp;
         if (!tmp) tmp = this._ssRoofTmp = _canvas(c.width, c.height);
         if (!tmp) return;
@@ -517,16 +550,40 @@ Object.assign(InnerMapRenderer, {
         tg.clearRect(0, 0, tmp.width, tmp.height);
         tg.setTransform(g.getTransform());
         tg.imageSmoothingEnabled = false;
-        this._drawCustomBuildingDirect(tg, cam, { ...def, layers: { roof } }, anchorQ, anchorR, ds, null, null, 0, null);
+        this._drawCustomBuildingDirect(tg, cam, { ...def, layers: roof }, anchorQ, anchorR, ds, null, null, 0, null);
         tg.setTransform(1, 0, 0, 1, 0, 0);
+        const L = Math.max(1, Math.min(3, level | 0));
+        // (the roof's own shape kept under the snow: its colour drained and its pixels lifted
+        // toward white — a screen, so the courses and the ridge still read — then cut back to
+        // the roof's own pixels, the blends having painted the empty canvas round it)
+        let mask = this._ssRoofMask;
+        if (!mask) mask = this._ssRoofMask = _canvas(tmp.width, tmp.height);
+        if (mask) {
+            if (mask.width !== tmp.width || mask.height !== tmp.height) { mask.width = tmp.width; mask.height = tmp.height; }
+            const mg = mask.getContext('2d');
+            mg.setTransform(1, 0, 0, 1, 0, 0);
+            mg.globalCompositeOperation = 'copy';
+            mg.drawImage(tmp, 0, 0);
+            mg.globalCompositeOperation = 'source-over';
+            tg.globalCompositeOperation = 'saturation';
+            tg.fillStyle = `rgba(128, 128, 128, ${[0.45, 0.65, 0.8][L - 1]})`;
+            tg.fillRect(0, 0, tmp.width, tmp.height);
+            tg.globalCompositeOperation = 'screen';
+            tg.fillStyle = ['rgb(110, 118, 130)', 'rgb(150, 160, 176)', 'rgb(182, 193, 210)'][L - 1];
+            tg.fillRect(0, 0, tmp.width, tmp.height);
+            tg.globalCompositeOperation = 'destination-in';
+            tg.drawImage(mask, 0, 0);
+        } else {
+            tg.globalCompositeOperation = 'source-atop';
+            tg.fillStyle = `rgba(238, 244, 250, ${(0.3 + L * 0.15).toFixed(3)})`;
+            tg.fillRect(0, 0, tmp.width, tmp.height);
+        }
+        // drifts lying along the courses: a fine brighter line down the roof every few sheet pixels
         tg.globalCompositeOperation = 'source-atop';
-        tg.fillStyle = `rgba(238, 244, 250, ${(0.35 + level * 0.17).toFixed(3)})`;
-        tg.fillRect(0, 0, tmp.width, tmp.height);
-        // drifts lying along the courses: brighter bands down the roof, a sheet pixel or two deep
         const k = (g.getTransform().a) || 1;
-        const band = Math.max(1, Math.round(ds / 32 * k * (1 + level)));
-        const step = Math.max(band * 2, Math.round(ds / 4 * k));
-        tg.fillStyle = `rgba(250, 252, 255, ${(0.25 + level * 0.15).toFixed(3)})`;
+        const band = Math.max(1, Math.round(ds / 32 * k));
+        const step = Math.max(band * 3, Math.round(ds / 4 * k));
+        tg.fillStyle = `rgba(250, 252, 255, ${(0.12 + L * 0.08).toFixed(3)})`;
         for (let y = 0; y < tmp.height; y += step) tg.fillRect(0, y, tmp.width, band);
         tg.globalCompositeOperation = 'source-over';
         g.save();

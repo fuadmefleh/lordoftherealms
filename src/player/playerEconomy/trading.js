@@ -390,7 +390,7 @@ export const Trading = {
         const mono = settlement && settlement.monopolies && settlement.monopolies[good.id];
         let crownCut = 0;
         if (mono && mono.holder === 'crown' && mono.markup > 0) {
-            crownCut = totalCost * mono.markup / (1 + mono.markup);
+            crownCut = Utils.cents(totalCost * mono.markup / (1 + mono.markup));
             mono.revenue = (mono.revenue || 0) + crownCut;
         }
         // The rest is the town's: its stallholders' takings go into its purse

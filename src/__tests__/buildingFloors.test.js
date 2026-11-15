@@ -105,6 +105,24 @@ describe('the stairs', () => {
         expect(InnerMap._floor).toBe(0);
     });
 
+    it('the front door stands in the front wall; up a floor, that wall runs on unbroken', () => {
+        street('city');
+        const g = game();
+        expect(InnerMap.enterBuilding({ type: 'inn', name: 'The Door', q: 4, r: 4 }, g)).toBe(true);
+        const w = InnerMap.width, h = InnerMap.height;
+        const door = find(t => t._isDoor);
+        expect(door).toEqual({ q: Math.floor(w / 2), r: h - 1 });
+        // the rest of the bottom row is wall, the room above it floor, and the door walkable from inside
+        for (let q = 0; q < w; q++) if (q !== door.q) expect(InnerMap.tiles[h - 1][q].baseTerrain).toBe('wall');
+        expect(InnerMap.tiles[h - 1][door.q].subTerrain.passable).toBe(true);
+        expect(InnerMap.tiles[h - 2][door.q].subTerrain.passable).toBe(true);
+        expect(allReached(door.q, door.r)).toBe(true);
+        expect(InnerMap.goToFloor(1, g).ok).toBe(true);
+        for (let q = 0; q < w; q++) expect(InnerMap.tiles[h - 1][q].baseTerrain).toBe('wall');
+        InnerMap.goToFloor(0, g);
+        InnerMap.exitBuilding(g);
+    });
+
     it('a one-floor building has no stairs going nowhere', () => {
         street('village');
         const g = game();

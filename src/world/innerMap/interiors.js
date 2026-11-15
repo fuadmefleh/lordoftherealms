@@ -1215,8 +1215,9 @@ Object.assign(InnerMap, {
         for (let r = 0; r < h; r++) {
             tiles[r] = [];
             for (let q = 0; q < w; q++) {
-                const isWall = (r === 0 || q === 0 || q === w - 1);
                 const isDoor = (r === h - 1 && q === Math.floor(w / 2));
+                // (the front wall too: the door stands in it, not loose on the floor)
+                const isWall = !isDoor && (r === 0 || q === 0 || q === w - 1 || r === h - 1);
 
                 // Checkerboard floor pattern
                 const isAlt = (q + r) % 2 === 0;
@@ -1254,6 +1255,8 @@ Object.assign(InnerMap, {
                         color: '#6a4a2a', passable: true
                     };
                     tiles[r][q]._isDoor = true;
+                    // (drawn in the wall it stands in, in that wall's colour)
+                    if (look.tint) tiles[r][q]._wallTint = look.tint;
                 }
             }
         }

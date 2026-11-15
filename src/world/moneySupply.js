@@ -62,11 +62,13 @@
 import { DataLoader } from '../core/dataLoader.js';
 import { SettlementMarket } from './settlementMarket.js';
 import { CrownBooks } from './crownBooks.js';
+import { Utils } from '../core/utils.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
 const _clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
-const _r2 = (v) => Math.round(v * 100) / 100;
+// (coin moves in whole cents: the smallest coin is 0.01g — Utils.cents)
+const _r2 = (v) => Utils.cents(v);
 const _r4 = (v) => Math.round(v * 10000) / 10000;
 
 /** Flow kinds kept per realm per week (and in total). */
@@ -167,7 +169,7 @@ function _drawTowns(towns, amount) {
     for (const s of towns) {
         const have = _purse(s);
         if (!(have > 0)) continue;
-        const take = Math.min(have, Math.floor(want * have / total * 100) / 100);
+        const take = Math.min(have, Utils.centsDown(want * have / total));
         if (!(take > 0)) continue;
         s.economy.gold = _r2(have - take);
         drawn += take;
@@ -186,7 +188,7 @@ function _payTowns(towns, amount) {
     const pop = list.reduce((t, s) => t + Math.max(0, _num(s.population)), 0);
     let paid = 0;
     list.forEach((s, i) => {
-        const part = i === list.length - 1 ? _r2(a - paid) : pop > 0 ? Math.floor(a * Math.max(0, _num(s.population)) / pop * 100) / 100 : 0;
+        const part = i === list.length - 1 ? _r2(a - paid) : pop > 0 ? Utils.centsDown(a * Math.max(0, _num(s.population)) / pop) : 0;
         if (!(part > 0)) return;
         s.economy.gold = _r2(s.economy.gold + part);
         paid = _r2(paid + part);

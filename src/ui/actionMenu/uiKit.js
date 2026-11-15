@@ -12,6 +12,7 @@
 // Pure string builders, no state; tab labels lead with the realm's glyphs (ui/icons.js).
 
 import { glyphLabel } from '../icons.js';
+import { Utils } from '../../core/utils.js';
 
 /**
  * Base button: inline style strings, so panels can keep `style="${BTN_GOLD}"`.
@@ -56,11 +57,10 @@ export function chips(items) {
     return parts.length ? `<div class="pk-chips">${parts.join('')}</div>` : '';
 }
 
-/** The player's purse as a chip: "💰 Purse 1,250g". */
+/** The player's purse as a chip: "💰 Purse 1,250g" (to the cent: "12.5g", "0.19g"). */
 export function purse(gold) {
-    const n = Math.floor(Number(gold) || 0);
-    if (_coinless) return { icon: '🎒', label: 'Goods', value: `~${n.toLocaleString('en-US')}`, cls: 'gold' };
-    return { icon: '💰', label: 'Purse', value: `${n.toLocaleString('en-US')}g`, cls: 'gold' };
+    if (_coinless) return { icon: '🎒', label: 'Goods', value: `~${Math.floor(Number(gold) || 0).toLocaleString('en-US')}`, cls: 'gold' };
+    return { icon: '💰', label: 'Purse', value: `${Utils.formatGold(gold)}g`, cls: 'gold' };
 }
 
 // Before coin (world/barter.js; the HUD sets it from where the player stands):
@@ -141,7 +141,8 @@ export function card(bodyHtml, o = {}) {
 
 /** A price for a row's side column: "41g", red when the purse can't meet it. */
 export function price(n, canPay = true) {
-    const v = Math.round(Number(n) || 0).toLocaleString('en-US');
+    // (to the cent, no trailing zeros: the smallest coin is 0.01g; goods' worth to the whole)
+    const v = _coinless ? Math.round(Number(n) || 0).toLocaleString('en-US') : Utils.formatGold(n);
     return `<span class="pk-price${canPay ? '' : ' pk-price--short'}">${_coinless ? '~' : ''}${v}<small>${_coinless ? ' ⚖' : 'g'}</small></span>`;
 }
 

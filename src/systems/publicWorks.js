@@ -45,6 +45,7 @@ import { Seasons } from '../world/seasons.js';
 import { Ledger } from './ledger.js';
 import { CrownBooks } from '../world/crownBooks.js';
 import { Names } from '../core/names.js';
+import { Utils } from '../core/utils.js';
 import { Economy } from '../world/economy.js';
 import { MoneySupply } from '../world/moneySupply.js';
 
@@ -68,7 +69,8 @@ function _payTownOr(world, town, q, r, amount) {
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
 const _key = (q, r) => `${q},${r}`;
-const _r2 = (v) => Math.round(v * 100) / 100;
+// (coin moves in whole cents: the smallest coin is 0.01g — Utils.cents)
+const _r2 = (v) => Utils.cents(v);
 const _day = (world) => (world && Number.isFinite(world.day) ? world.day : 0);
 const ROAD_WORKS = ['repair', 'upgrade_road', 'upgrade_highway', 'bridge'];
 const TRAFFIC_DAYS = 28;
@@ -352,7 +354,8 @@ export const PublicWorks = {
             const k = _kingdom(world, w.owner);
             if (!k || k.isAlive === false) return false;
             if (_num(k.treasury) - amount < _num(Transport.config().upkeep.floor, 400)) return false;
-            k.treasury = _num(k.treasury) - amount;
+            amount = _r2(amount);
+            k.treasury = _r2(_num(k.treasury) - amount);
             CrownBooks.note(k, 'works', amount);
             _payTownOr(world, town, w.tq, w.tr, amount);
         }
@@ -561,6 +564,8 @@ export const PublicWorks = {
 
     /** Pay a toll to a work's owner (the player's share booked in the Ledger; the crown's cut abroad). */
     _payToll(world, player, w, amount) {
+        // (whole cents: the smallest coin is 0.01g)
+        amount = _r2(_num(amount));
         if (!(amount > 0)) return 0;
         w.tollIncome = _r2(_num(w.tollIncome) + amount);
         const st = Transport.state(world);
@@ -568,17 +573,17 @@ export const PublicWorks = {
         if (w.owner === 'player') {
             const k = _kingdom(world, w.kid);
             const foreign = k && k.id !== _ruledId(player);
-            const cut = foreign ? amount * _num(Transport.config().build.crownShare, 0.25) : 0;
-            if (cut > 0 && k) { k.treasury = _num(k.treasury) + cut; CrownBooks.note(k, 'customs', cut); }
-            const mine = amount - (cut > 0 && k ? cut : 0);
+            const cut = foreign ? _r2(amount * _num(Transport.config().build.crownShare, 0.25)) : 0;
+            if (cut > 0 && k) { k.treasury = _r2(_num(k.treasury) + cut); CrownBooks.note(k, 'customs', cut); }
+            const mine = _r2(amount - (cut > 0 && k ? cut : 0));
             if (player) {
-                player.gold = _num(player.gold) + mine;
+                player.gold = _r2(_num(player.gold) + mine);
                 Ledger.record(player, 'roadTolls', _r2(mine));
             } else _payTownOr(world, _town(world, w.tq, w.tr), w.tq, w.tr, mine); // (no one to take it: the toll-keeper spends it)
             return amount;
         }
         const k = _kingdom(world, w.owner);
-        if (k && k.isAlive !== false) { k.treasury = _num(k.treasury) + amount; CrownBooks.note(k, 'customs', amount); }
+        if (k && k.isAlive !== false) { k.treasury = _r2(_num(k.treasury) + amount); CrownBooks.note(k, 'customs', amount); }
         else _payTownOr(world, _town(world, w.tq, w.tr), w.tq, w.tr, amount);
         return amount;
     },
@@ -621,14 +626,20 @@ export const PublicWorks = {
             if (!(due > 0.01)) continue;
             const ia = _num(l.a.economy && l.a.economy.tradeIncome), ib = _num(l.b.economy && l.b.economy.tradeIncome);
             const fa = ga + gb > 0 ? ga / (ga + gb) : 0.5;
-            if (l.a.economy) { l.a.economy.gold = _r2(ga - due * fa); l.a.economy.tradeIncome = _r2(Math.max(0, ia - due * fa)); }
-            if (l.b.economy) { l.b.economy.gold = _r2(gb - due * (1 - fa)); l.b.economy.tradeIncome = _r2(Math.max(0, ib - due * (1 - fa))); }
-            for (const id of l.tolls) {
-                const w = st.works.find(x => x && x.id === id);
-                if (!w) continue;
-                const rate = _num(w.tollRate);
-                paid += PublicWorks._payToll(world, player, w, due * (l.toll > 0 ? rate / l.toll : 0));
-            }
+            // (whole cents each side, and the tolls share out exactly what the towns paid)
+            const tw = l.tolls.map(id => st.works.find(x => x && x.id === id)).filter(Boolean);
+            if (!tw.length) continue;
+            const da = Math.min(Utils.centsDown(ga), Utils.cents(Utils.centsDown(due) * fa));
+            const db = Math.min(Utils.centsDown(gb), _r2(Utils.centsDown(due) - da));
+            due = _r2(da + db);
+            if (l.a.economy) { l.a.economy.gold = _r2(ga - da); l.a.economy.tradeIncome = _r2(Math.max(0, ia - da)); }
+            if (l.b.economy) { l.b.economy.gold = _r2(gb - db); l.b.economy.tradeIncome = _r2(Math.max(0, ib - db)); }
+            let left = due;
+            tw.forEach((w, i) => {
+                const part = i === tw.length - 1 ? left : Math.min(left, Utils.centsDown(due * (l.toll > 0 ? _num(w.tollRate) / l.toll : 0)));
+                left = _r2(left - part);
+                paid += PublicWorks._payToll(world, player, w, part);
+            });
         }
         return paid;
     },

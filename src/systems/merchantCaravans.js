@@ -54,6 +54,8 @@ import { PlayerInventory } from '../core/inventory.js';
 import { WorldUnit } from '../world/units.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
 import { CrownBooks } from '../world/crownBooks.js';
+import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
 import { PlayerMilitary } from '../player/playerMilitary.js';
 import { OutlawLairs } from './outlawLairs.js';
 import { Underworld } from './underworld.js';
@@ -793,7 +795,7 @@ export const MerchantCaravans = {
                 const n = Math.floor(_num(q));
                 if (n > 0) inv[id] = _num(inv[id]) + n;
             }
-            if (_num(u.purse) > 0) inv.gold = _num(inv.gold) + Math.floor(u.purse);
+            if (_num(u.purse) > 0) { inv.gold = _round2(_num(inv.gold) + _num(u.purse)); u.purse = 0; }
         } else if (how.lair) {
             const hoard = how.lair.hoard || (how.lair.hoard = { gold: 0, goods: {} });
             if (!hoard.goods) hoard.goods = {};
@@ -801,10 +803,11 @@ export const MerchantCaravans = {
                 const n = Math.floor(_num(q));
                 if (n > 0) hoard.goods[id] = _num(hoard.goods[id]) + n;
             }
-            hoard.gold = Math.round(_num(hoard.gold) + _num(u.purse));
+            hoard.gold = _round2(_num(hoard.gold) + _num(u.purse));
+            u.purse = 0;
         } else if (how.kind === 'seized') {
             const k = _kingdom(world, how.kingdomId);
-            if (k) k.treasury = _num(k.treasury) + Math.floor(_num(u.purse));
+            if (k && _num(u.purse) > 0) { k.treasury = _round2(_num(k.treasury) + _num(u.purse)); u.purse = 0; }
             // The goods are sold off in the realm's nearest market
             let best = null, bd = Infinity;
             for (const s of _settlements(world)) {
@@ -824,6 +827,8 @@ export const MerchantCaravans = {
         if (_num(u.margin) > 0) st.stats.marginLost = _round2(_num(st.stats.marginLost) + _num(u.margin));
         u.margin = 0;
         u.cargo = {};
+        // (road money no taker carried off is found where the trader fell, and spent in the nearest town)
+        if (_num(u.purse) > 0 && !Economy.payNearest(world, u.q, u.r, _num(u.purse))) MoneySupply.leak(world, -_num(u.purse), 'caravansLost');
         u.purse = 0;
         u.inventory = {};
         u.destroyed = true;

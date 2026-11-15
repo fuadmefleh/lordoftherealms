@@ -353,7 +353,9 @@ Object.assign(InnerMap, {
         for (let r = 0; r < this.height; r++) {
             for (let q = 0; q < this.width; q++) {
                 const f = this.tiles[r] && this.tiles[r][q] && this.tiles[r][q]._furniture;
-                if (!f || f._part) continue;
+                // (a piece counts once: a laid piece's other tiles are _part, a joined
+                // layout piece's (interiors.js _joinPieces) are off its head tile)
+                if (!f || f._part || (f.piece && (f.piece.i || f.piece.j))) continue;
                 sum += Number.isFinite(f.comfort) ? f.comfort : FurnitureCatalogue.typeComfort(f.type);
             }
         }

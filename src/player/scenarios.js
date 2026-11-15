@@ -89,6 +89,7 @@ import { Gangs } from '../systems/gangs.js';
 import { StartKnowledge } from './startKnowledge.js';
 import { Parentage } from './parentage.js';
 import { Names } from '../core/names.js';
+import { Housing } from '../systems/housing.js';
 
 const FALLBACK = {
     wanderer: {
@@ -195,6 +196,75 @@ export const Scenarios = {
             }
         }
         return men;
+    },
+
+    /**
+     * The home a landed origin keeps at its seat (data/scenarios.json
+     * origins.<id>.home: { type, name, keptBy: 'crown' | 'guild' }): a house of
+     * player.houses (systems/housing.js), so the nights there are under the
+     * player's own roof, not an inn's; its upkeep goes to the town as any
+     * house's (a royal residence's out of the treasury while the player rules,
+     * a guildmaster's out of the hall's purse while they are master).
+     * → the house, or null.
+     */
+    _home(player, world, o, q, r, keeper = {}) {
+        const h = _obj(o && o.home);
+        if (!h || !h.type) return null;
+        const keptBy = h.keptBy === 'crown' && keeper.kingdom ? keeper.kingdom.id
+            : h.keptBy === 'guild' && keeper.guild ? { guild: keeper.guild } : null;
+        return Housing.grantHouse(player, world, q, r, h.type, { name: h.name || null, keptBy });
+    },
+
+    /** ' You sleep under your own roof: the royal apartments in Ardwick.' for the welcome ('' when none). */
+    _homeLine(house, fallback = '') {
+        if (!house) return fallback;
+        const t = Housing.getHouseType(house.typeId);
+        const what = house.name || (t ? `your ${t.name.toLowerCase()}` : 'your house');
+        return ` You sleep under your own roof: ${what} in ${house.settlementName}.`;
+    },
+
+    /**
+     * A great House's lands on a small map: the realm's greatest noble house
+     * may hold an estate or two (or none). Its land is made up to the
+     * origin's expected rent (estates.rentTarget a month: the estate's share
+     * of its town's people x perHead) with the realm's other noble estates
+     * (the lesser houses under its banner), then the crown's (granted in
+     * fief), nearest the seat first, at most `max` estates in all. Nothing
+     * minted: estates change holder. → { added, fiefs }.
+     */
+    _makeUpLands(player, world, k, seat, o, day) {
+        const E = _obj(o.estates) || {};
+        const target = _num(E.rentTarget, 0);
+        const out = { added: 0, fiefs: 0 };
+        if (!(target > 0)) return out;
+        const st = Estates.state(world);
+        const est = e => {
+            const t = Estates._liveOfKey(world, e.town);
+            return _num(t && t.population) * _num(e.share) * _num(E.perHead, 0.3);
+        };
+        const all = Object.values(st.estates).filter(Boolean);
+        const have = all.filter(e => e.holder === 'player');
+        let expect = have.reduce((sum, e) => sum + est(e), 0);
+        const max = Math.max(have.length, Math.floor(_num(E.max, 6)));
+        if (expect >= target) return out;
+        const inRealm = e => { const rec = st.towns[e.town]; return !!rec && String(rec.kid) === String(k.id); };
+        const rank = e => {
+            const kind = Estates.kindOf(e.holder);
+            if (kind === 'noble') return String(Estates.ensureHolder(world, e.holder).kid) === String(k.id) ? 0 : -1;
+            if (kind === 'crown') return e.holder === `crown:${k.id}` ? 1 : -1;
+            return -1;
+        };
+        const at = e => { const rec = st.towns[e.town]; return rec ? _dist(world, rec, seat) : Infinity; };
+        const pool = all.filter(e => e.holder !== 'player' && inRealm(e) && rank(e) >= 0)
+            .sort((a, b) => rank(a) - rank(b) || at(a) - at(b) || est(b) - est(a) || String(a.id).localeCompare(String(b.id)));
+        for (const e of pool) {
+            if (expect >= target || have.length + out.added >= max) break;
+            if (rank(e) === 1) out.fiefs++;
+            LandMarket._setHolder(world, e, 'player', day);
+            expect += est(e);
+            out.added++;
+        }
+        return out;
     },
 
     /** A rival of the House tied to a realm (house.rivals — RealmWars hostility reads its feud). */
@@ -531,6 +601,8 @@ export const Scenarios = {
         Scenarios._moveTo(player, world, k.capital.q, k.capital.r);
         Throne._takeThrone(player, world, k);
         Throne.state(player).ruling.inherited = true;
+        // The palace: the royal apartments, kept by the treasury while you reign
+        const home = Scenarios._home(player, world, o, k.capital.q, k.capital.r, { kingdom: k });
         Scenarios._stewardLord(player, k);
         Scenarios._standing(player, world, o, `crowned in ${Names.realm(k.name)}`);
         Throne._log(player, world, `👑 ${oldRuler} is dead. ${k.ruler} is crowned in ${Names.realm(k.name)}.`);
@@ -559,6 +631,7 @@ export const Scenarios = {
             army: Math.floor(_num(k.military)).toLocaleString('en-US'), lords: court.vassals.length,
             pretender: pretender || 'a cousin of the old line', neighbour: nb ? nb.name : 'no foreign power',
             town: cap && cap.settlement ? cap.settlement.name : k.name,
+            homeLine: Scenarios._homeLine(home),
         });
     },
 
@@ -611,6 +684,8 @@ export const Scenarios = {
             underConstruction: false, constructionDaysLeft: 0, constructionDaysTotal: 0, see: true,
         };
         rel.buildings.push({ q, r, type: def.id, see: true });
+        // The see's residence beside the temple (systems/housing.js)
+        const home = Scenarios._home(player, world, o, q, r);
         // The flock: the holy city devoted, the realm's other towns a share by its piety
         const piety = Utils.clamp(_num(k.religion.piety, 50) / 100, 0, 1);
         let followers = 0;
@@ -674,6 +749,7 @@ export const Scenarios = {
         Object.assign(vars, {
             title, faith: faith.name, temple: cap.religiousBuilding.name,
             town: s.name, kingdom: k.name, heresy: heresy ? heresy.name : 'heresy', rival: rival || 'the unbelievers', estates,
+            homeLine: Scenarios._homeLine(home),
             estatesLine: estates > 0 ? `, and ${estates === 1 ? 'a church estate pays its rents' : `${estates} church estates pay their rents`} into its coffers` : '',
         });
     },
@@ -694,6 +770,7 @@ export const Scenarios = {
         player.reputation[k.id] = _num(player.reputation[k.id]) + _num(o.reputation);
         // The realm's greatest noble house's estates are the player's
         let estates = 0;
+        let fiefs = 0;
         let houseName = null;
         if (Estates.enabled()) {
             Estates.derive(world, day);
@@ -716,7 +793,13 @@ export const Scenarios = {
                     estates++;
                 }
             }
+            // (a small map's greatest house is a small one: its lands made up to a great lord's)
+            const more = Scenarios._makeUpLands(player, world, k, seat, o, day);
+            estates += more.added;
+            fiefs = more.fiefs;
         }
+        // The family seat: a manor in the town (systems/housing.js), not an inn's bed
+        const home = Scenarios._home(player, world, o, seat.q, seat.r);
         // Household knights who rode in the realm's host: the great lord's household guard,
         // paid and armed by the realm (player/realmEscort.js)
         const men = RealmEscort.raise(player, world, k, 'great', o.retinue, { cap: false }).units;
@@ -726,8 +809,12 @@ export const Scenarios = {
         const dyn = k.characterData && k.characterData.dynasty;
         Scenarios._rival(player, world, k, dyn && dyn.name ? `House ${dyn.name}, the crown` : `the crown of ${Names.realm(k.name)}`, Math.round(_num(o.crownFeud, 30) * Scenarios._bite(player)));
         player.scenario.realm = k.id;
-        player.scenario.start = { kind: 'great_lord', kingdomId: k.id, seat: { q: seat.q, r: seat.r, town: seat.s.name }, estates, retinue: men, house: houseName };
-        Object.assign(vars, { title, town: seat.s.name, kingdom: k.name, estates, claim, ruler: k.ruler || 'The crown' });
+        player.scenario.start = { kind: 'great_lord', kingdomId: k.id, seat: { q: seat.q, r: seat.r, town: seat.s.name }, estates, fiefs, retinue: men, house: houseName, home: home ? home.typeId : null };
+        Object.assign(vars, {
+            title, town: seat.s.name, kingdom: k.name, estates, claim, ruler: k.ruler || 'The crown',
+            fiefLine: fiefs > 0 ? ` (${fiefs === 1 ? 'one of them' : `${fiefs} of them`} held of the crown in fief)` : '',
+            homeLine: Scenarios._homeLine(home),
+        });
     },
 
     _guildmaster(player, world, o, vars) {
@@ -740,8 +827,13 @@ export const Scenarios = {
         }
         if (!cands.length) return;
         // The greatest guild towns, then the nearest of them to where the road began
+        // (a capital's or a city's hall where the map has one: a market town's guild of a
+        // score of masters takes in about what the master's house costs it, with nothing
+        // over for the master's stipend)
         const rank = { capital: 0, city: 1, town: 2 };
-        const home = cands.slice().sort((a, b) => (rank[a.s.type] - rank[b.s.type]) || (_dist(world, a, player) - _dist(world, b, player)))
+        const top = Math.min(...cands.map(t => rank[t.s.type]));
+        const great = cands.filter(t => rank[t.s.type] === top || (top < rank.town && rank[t.s.type] < rank.town));
+        const home = great.slice().sort((a, b) => (rank[a.s.type] - rank[b.s.type]) || (_dist(world, a, player) - _dist(world, b, player)))
             .slice(0, 6).sort((a, b) => _dist(world, a, player) - _dist(world, b, player))[0];
         Scenarios._moveTo(player, world, home.q, home.r);
         const gids = Object.keys(home.s.guilds || {}).filter(gid => Guilds.def(gid));
@@ -766,9 +858,11 @@ export const Scenarios = {
         if (goods[0] && _num(o.stock) > 0) player.inventory[goods[0]] = _num(player.inventory[goods[0]]) + Math.floor(_num(o.stock));
         Scenarios._standing(player, world, o, `elected master of the ${g.name}`);
         player.title = `${o.title || 'Guildmaster'} of the ${g.name}`;
+        // The master's house in the guild's town (systems/housing.js)
+        const house = Scenarios._home(player, world, o, home.q, home.r, { guild: gid });
         const cand = Guilds.candidates(home.s, g);
         player.scenario.start = { kind: 'guildmaster', town: home.s.name, q: home.q, r: home.r, guild: gid };
-        Object.assign(vars, { guild: g.name, town: home.s.name, treasury: Math.floor(_num(g.treasury)).toLocaleString('en-US'), election: g.nextElection, challenger: cand.challenger });
+        Object.assign(vars, { guild: g.name, town: home.s.name, treasury: Math.floor(_num(g.treasury)).toLocaleString('en-US'), election: g.nextElection, challenger: cand.challenger, homeLine: Scenarios._homeLine(house) });
     },
 
     _crimeLord(player, world, o, vars) {
@@ -906,6 +1000,9 @@ export const Scenarios = {
         // The difficulty's purse (Normal: untouched)
         const gm = Difficulty.mult(player, 'startGold');
         if (gm !== 1) player.gold = Math.max(0, Math.round(_num(player.gold) * gm));
+        // ("the throne of the Kingdom of Valdoria": a realm named "X of Y" takes its article
+        // in the welcomes, where it always follows a preposition)
+        if (typeof vars.kingdom === 'string' && /^[A-Z][\w-]* of /.test(vars.kingdom)) vars.kingdom = `the ${vars.kingdom}`;
         const welcome = String(origin.welcome || FALLBACK.wanderer.welcome)
             .replace(/\{(\w+)\}/g, (m, key) => (vars[key] != null ? String(vars[key]) : m)) + StartKnowledge.note(knows);
         return { origin: origin.id, name: origin.name, icon: origin.icon, welcome, knowledge: knows ? player.scenario.knowledge : null };

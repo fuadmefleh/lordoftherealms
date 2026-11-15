@@ -18,7 +18,7 @@
 //     (game._scene), a field battle, a panel or menu that opened by itself;
 //   - death, or the day failing to end;
 //   - a hostile band newly within APPROACH hexes, a new illness or wound,
-//     a letter arriving, a death in the House, hunger / tiredness / health
+//     a pressing letter arriving (CourtLetters.pressing: the rest keep), a death in the House, hunger / tiredness / health
 //     falling past a threshold, starvation setting in;
 //   - no bed for the night where the player had taken one.
 //
@@ -205,7 +205,16 @@ export const TimeSkip = {
             }
         } catch (e) { /* a world without units */ }
         let letters = 0;
-        try { letters = _num(CourtLetters.state(p).stats.received); } catch (e) { letters = 0; }
+        const letterIds = new Set();
+        const lettersDue = new Set();
+        try {
+            letters = _num(CourtLetters.state(p).stats.received);
+            const warn = CourtLetters.dueWarnDays();
+            for (const l of CourtLetters.open(p)) {
+                letterIds.add(l.id);
+                if (CourtLetters.pressing(l) && _num(l.expires) - _num(world.day) <= warn) lettersDue.add(l.id);
+            }
+        } catch (e) { letters = 0; }
         let ailments = [];
         try { ailments = Ailments.list(p).map(a => a.id); } catch (e) { ailments = []; }
         return {
@@ -213,6 +222,8 @@ export const TimeSkip = {
             crossing: !!_crossing(p, world),
             near,
             letters,
+            letterIds,
+            lettersDue,
             ailments,
             kin: (p.children || []).filter(c => c && c.deathDay == null).length,
             spouse: p.spouse || null,
@@ -262,9 +273,19 @@ export const TimeSkip = {
             const fresh = Ailments.list(p).find(a => !before.ailments.includes(a.id));
             if (fresh) return { icon: '🤒', reason: `You have taken ${Ailments.displayName ? Ailments.displayName(fresh) : 'ill'}.` };
         } catch (e) { /* no ailments */ }
-        // A letter to answer
+        // A letter that will not wait (a war, a hostage, an ultimatum…: CourtLetters.pressing),
+        // come in or near its deadline; invitations, offers and news keep in the inbox
         try {
-            if (_num(CourtLetters.state(p).stats.received) > before.letters) return { icon: '✉️', reason: 'A letter has come that wants an answer.' };
+            const seen = before.letterIds || new Set();
+            const due = before.lettersDue || new Set();
+            const warn = CourtLetters.dueWarnDays();
+            for (const l of CourtLetters.open(p)) {
+                if (!CourtLetters.pressing(l)) continue;
+                const subj = l.subject ? `: ${l.subject}` : '';
+                if (!seen.has(l.id)) return { icon: '✉️', reason: `A letter has come that wants an answer${subj}.` };
+                const left = _num(l.expires) - _num(world.day);
+                if (left <= warn && !due.has(l.id)) return { icon: '✉️', reason: `A letter's answer is due ${left <= 0 ? 'today' : `in ${left} day${left === 1 ? '' : 's'}`}${subj}.` };
+            }
         } catch (e) { /* no letters */ }
         // A death in the House
         const kin = (p.children || []).filter(c => c && c.deathDay == null).length;

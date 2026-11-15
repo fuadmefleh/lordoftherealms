@@ -2,6 +2,8 @@
 import { World } from './core.js';
 import { Terrain, Kingdom, WeatherSystem, NPCLords, Hex, Utils, WorldEvents, WorldUnit, Characters, Religion, Culture, Peoples, Colonization, Cartography, KingdomAI, Dawn, Barter, Shipcraft, Castles } from './_imports.js';
 import { Names } from '../../core/names.js';
+import { Economy } from '../economy.js';
+import { MoneySupply } from '../moneySupply.js';
 
 Object.assign(World.prototype, {
     /**
@@ -340,14 +342,63 @@ Object.assign(World.prototype, {
         // Move units
         for (let i = this.units.length - 1; i >= 0; i--) {
             const unit = this.units[i];
+            if (unit._rolledGold != null) this.fundUnitCoin(unit);
             unit.update(this, player);
             if (unit.destroyed) {
+                this.settleUnitCoin(unit);
                 this.units.splice(i, 1);
             }
         }
 
         // Spawn new units if needed
         this.spawnUnits();
+        for (const u of this.units) if (u && u._rolledGold != null) this.fundUnitCoin(u);
+    },
+
+    /**
+     * A new unit's coin (its theme's roll, WorldUnit._rolledGold) comes out of the
+     * purse of the town it sets out from, else the nearest town's (a band's takings,
+     * a monster's carried-off hoard): what that purse can pay, never coin from nothing.
+     */
+    fundUnitCoin(unit) {
+        const rolled = Math.max(0, Number(unit._rolledGold) || 0);
+        delete unit._rolledGold;
+        const inv = unit.inventory;
+        if (!inv || !(rolled > 0)) return 0;
+        const owed = Math.min(rolled, Math.max(0, Number(inv.gold) || 0));
+        if (!(owed > 0)) return 0;
+        const here = this.getTile(unit.q, unit.r);
+        const from = here && here.settlement && here.settlement.economy && !here.settlement.inKind ? here.settlement : null;
+        const paid = from ? Economy.drawTown(from, owed) : Economy.drawNearest(this, unit.q, unit.r, owed);
+        inv.gold = Math.round((inv.gold - owed + paid) * 100) / 100;
+        if (typeof unit.purse === 'number') unit.purse = inv.gold;
+        return paid;
+    },
+
+    /**
+     * The coin a unit leaving the map still carries (its purse, else its bag's gold)
+     * is paid into the nearest town: a caravan's takings at its journey's end, the
+     * purses of a band ridden down, found on them and spent there. With no town that
+     * keeps coin anywhere it is lost, and booked as lost (MoneySupply.leak).
+     */
+    settleUnitCoin(unit) {
+        const inv = unit && unit.inventory;
+        // (a rider with the player's letter or a reply carries coin the mail keeps its own
+        // book of — systems/mail.js pays it on delivery: nothing more is left to find)
+        if (unit && unit.bag && unit.bag.player) {
+            if (inv && inv.gold) inv.gold = 0;
+            return 0;
+        }
+        const purse = typeof unit.purse === 'number' ? Math.max(0, unit.purse) : 0;
+        const bag = inv && Number.isFinite(inv.gold) ? Math.max(0, inv.gold) : 0;
+        // (a trade caravan's inventory.gold mirrors its purse: counted once, as the census does)
+        const coin = typeof unit.purse === 'number' ? purse : bag;
+        if (typeof unit.purse === 'number') unit.purse = 0;
+        if (inv && inv.gold) inv.gold = 0;
+        if (!(coin > 0)) return 0;
+        const kid = unit.kingdomId != null ? unit.kingdomId : unit.kingdom != null ? unit.kingdom : null;
+        if (!Economy.payNearest(this, unit.q, unit.r, coin, { kid })) MoneySupply.leak(this, -coin, 'unitsLost');
+        return coin;
     },
 
     /**

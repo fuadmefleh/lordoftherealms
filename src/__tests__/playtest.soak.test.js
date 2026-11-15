@@ -56,7 +56,14 @@ let warnSpy;
 let errorSpy;
 const warnings = new Map();
 function countWarning(kind, args) {
-    const key = `${kind}: ${args.map(a => (a && a.message) || String(a)).join(' ').replace(/\d+/g, '#').slice(0, 100)}`;
+    let key = `${kind}: ${args.map(a => (a && a.message) || String(a)).join(' ').replace(/\d+/g, '#').slice(0, 100)}`;
+    // SOAK_WARN_CALLERS=1: tag each warning with the first two callers outside core/ (who asked for it)
+    if (ENV.SOAK_WARN_CALLERS) {
+        const frames = (new Error().stack || '').split('\n').slice(3)
+            .map(l => (l.match(/src[\\/](.+?):(\d+):\d+\)?$/) || [])[1])
+            .filter(f => f && !/__tests__[\\/]playtest\.soak|node_modules|^core[\\/]/.test(f));
+        key += `  ← ${frames.slice(0, 2).join(' ← ')}`;
+    }
     warnings.set(key, (warnings.get(key) || 0) + 1);
 }
 beforeAll(async () => {
@@ -73,6 +80,12 @@ afterAll(() => {
     if (METRICS && warnings.size) {
         const rows = [...warnings].sort((a, b) => b[1] - a[1]).slice(0, 30).map(([k, v]) => `  ${v}× ${k}`);
         process.stdout.write(['warnings/errors (by count):', ...rows].join('\n') + '\n');
+    }
+    // (the A*'s failures are counted, not logged: core/hex.js Hex.pathStats)
+    if (METRICS) {
+        const { verbose, ...ps } = Hex.pathStats;
+        void verbose;
+        process.stdout.write(`pathfinding failures: ${JSON.stringify(ps)}\n`);
     }
 });
 

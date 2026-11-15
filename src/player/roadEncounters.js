@@ -25,10 +25,15 @@
 // that let you go leaves you alone for a few days (unit.sparedUntilDay).
 //
 // ambush() is the old automatic resolution (robbed / mauled / one-shot
-// battle), unchanged: the headless paths (the playtest harness, a closed
-// dialog, a second encounter while one is pending) resolve with it, so the
-// soak's dice are exactly what they were. resolve(..., 'fight', { auto:true })
-// fights the field battle through with the default stances.
+// battle): the headless paths (the playtest harness, a closed dialog, a
+// second encounter while one is pending) resolve with it. resolve(...,
+// 'fight', { auto:true }) fights the field battle through with the default
+// stances. What a band takes is proportionate (encounters.rob): a share of
+// the purse, but no more than such a band can carry off (robCap, by its
+// strength), and the toll is less than that (tollOfCap of it) — paying is
+// the cheaper way past. Bounty hunters want you, not your purse: run down
+// with no army to stand between, you are dragged to the cells
+// (Wanted.taken), robbed of nothing.
 //
 // Pure domain logic: explicit params, all randomness through Utils, no DOM.
 // Tuning: data/military.json → encounters.
@@ -55,7 +60,8 @@ const DEFAULTS = {
     graceDays: 2,
     pursuit: { alone: 0.45, outmatched: 0.4, evenly: 0.12, otherwise: 0.3, poorGold: 40, poorGoods: 6, poorMult: 0.5 },
     flee: { base: 0.4, stealth: 0.03, mount: 0.2, cavalry: 0.1, perUnit: 0.02, unitCap: 0.25, cover: 0.05, openGround: -0.05, woundMovement: 0.08, woundBattle: 0.3, speed: 0.03, craven: 0.05, respiteDays: 3 },
-    toll: { share: 0.25, armyShare: 0.08, armyRatioShare: 0.12, diplomacy: 0.01, min: 5, respiteDays: 7 },
+    toll: { share: 0.25, armyShare: 0.08, armyRatioShare: 0.12, diplomacy: 0.01, min: 5, respiteDays: 7, tollOfCap: 0.6 },
+    rob: { shareMin: 0.15, shareMax: 0.4, capBase: 80, capPerStrength: 12, capMax: 500 },
     parley: { base: 0.12, diplomacy: 0.035, charisma: 0.01, renownPer: 400, renownCap: 0.15, dread: 0.15, brave: 0.05, champion: 0.08, craven: -0.1, armyRatio: 0.3, armyMin: -0.15, armyMax: 0.35, warHost: -0.15, crownLivery: 0.1, respiteDays: 7 },
     hide: { base: 0.15, stealth: 0.05, forest: 0.25, hills: 0.15, marsh: 0.1, open: -0.1, perUnit: 0.04, unitCap: 0.4, mount: -0.03, scent: -0.1, respiteDays: 3 },
     bait: { chance: 0.75, monsterChance: 0.35, stealth: 0.01, food: 3, monsterFood: 8, respiteDays: 5 },
@@ -192,7 +198,24 @@ export const RoadEncounters = {
             : t.share;
         share = Math.max(0.03, share - RoadEncounters._skill(player, 'diplomacy') * t.diplomacy);
         share *= Difficulty.mult(player, 'enemyStrength'); // a stronger band asks more (1 on Normal)
-        return Math.max(t.min, Math.round(_num(player.gold) * share));
+        // (never more than robbing you would bring them: tollOfCap of what such a band carries off)
+        const cap = RoadEncounters.robCap(player, _num(sit.enemyStrength)) * _num(t.tollOfCap, 0.6);
+        return Math.max(t.min, Math.round(Math.min(_num(player.gold) * share, cap)));
+    },
+
+    /** The most a band of `strength` carries off a robbed traveller (encounters.rob; the difficulty scales it). */
+    robCap(player, strength) {
+        const R = RoadEncounters.config().rob;
+        const cap = Math.min(_num(R.capMax, 500), _num(R.capBase, 80) + _num(R.capPerStrength, 12) * Math.max(0, _num(strength)));
+        return Math.max(1, Math.round(cap * Difficulty.mult(player, 'enemyStrength')));
+    },
+
+    /** What a band takes off a robbed traveller: a share of the purse, at most robCap. */
+    robAmount(player, attacker) {
+        const R = RoadEncounters.config().rob;
+        const gold = Math.max(0, _num(player.gold));
+        const share = Utils.randFloat(_num(R.shareMin, 0.15), _num(R.shareMax, 0.4)) * Difficulty.mult(player, 'enemyStrength');
+        return Math.max(0, Math.min(gold, Math.floor(gold * share), RoadEncounters.robCap(player, attacker && attacker.strength)));
     },
 
     parleyChance(player, attacker, sit) {
@@ -568,7 +591,8 @@ export const RoadEncounters = {
             if (guard.animal && guard.share > 0) {
                 const taken = Math.round(healthLost * guard.share);
                 healthLost -= taken;
-                const died = AnimalCompanions.hurt(player, guard.animal.id, taken * 2, world);
+                // (the hits come off its own hp: a mastiff takes a wolf's mauling better than a mutt)
+                const died = AnimalCompanions.wound(player, guard.animal.id, taken, world);
                 dogLine = died ? ` ${guard.animal.name} flew at it and died for you.` : ` ${guard.animal.name} flew at it and took some of the mauling.`;
             }
             player.health = Math.max(1, player.health - healthLost);
@@ -590,9 +614,14 @@ export const RoadEncounters = {
             };
         }
 
+        if (playerArmySize === 0 && attacker && attacker.bountyHunt) {
+            // --- Bounty hunters want you, not your purse: to the cells (systems/wanted.js) ---
+            return { ...Wanted.taken(player, attacker, world), goldStolen: 0, healthLost: 0, stolenItems: {} };
+        }
+
         if (playerArmySize === 0) {
-            // --- No army: player is robbed / roughed up ---
-            const goldStolen = Math.min(player.gold, Math.floor(player.gold * Utils.randFloat(0.15, 0.4) * Difficulty.mult(player, 'enemyStrength')));
+            // --- No army: player is robbed / roughed up (as much as the band carries off: robAmount) ---
+            const goldStolen = RoadEncounters.robAmount(player, attacker);
             const healthLost = PlayerEffects.scaleDamage(player, Difficulty.foeHarm(player, Utils.randInt(5, 15)));
 
             player.gold -= goldStolen;

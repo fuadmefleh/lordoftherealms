@@ -61,6 +61,8 @@ export const BountyHunting = {
         if (typeof state.boardRefreshDay !== 'number') state.boardRefreshDay = 0;
         if (typeof state.boardSettlementKey !== 'string') state.boardSettlementKey = '';
         if (!Array.isArray(state.boardOffers)) state.boardOffers = [];
+        // Writs for bounties a broke crown and town could not pay in full (_payLairBounty)
+        if (!Array.isArray(state.owed)) state.owed = [];
     },
 
     /** Hunter ranks: each adds capture skill and a cut of extra pay. */
@@ -343,8 +345,8 @@ export const BountyHunting = {
     /**
      * The coin for an outlaw chief's head comes from the realm that posted it
      * (its treasury), then the town whose board carried the notice — the
-     * notice says "{realm} pay". → coin drawn (any shortfall is the old
-     * flat reward, so a realm gone broke still keeps its word).
+     * notice says "{realm} pay". → coin drawn; what neither has is not made
+     * from nothing: the caller writes the rest as a writ on the crown (owe()).
      */
     _payLairBounty(world, bounty, pay) {
         if (!world || !(pay > 0)) return 0;
@@ -362,6 +364,58 @@ export const BountyHunting = {
         return got;
     },
 
+    /** Days a writ for an unpaid bounty stands before the crown forgets it. */
+    WRIT_DAYS: 360,
+
+    /** The crown's writ for the part of a bounty it could not pay: collected as its chests fill. */
+    owe(player, world, bounty, amount) {
+        const n = Math.round(_num(amount));
+        if (!player || !(n > 0)) return null;
+        this.initialize(player);
+        const day = _num(world && world.day);
+        const k = bounty.kingdomId != null && world ? (world.kingdoms || []).find(x => x && x.id === bounty.kingdomId) : null;
+        const writ = {
+            id: `writ_${bounty.id || day}_${player.bountyHunter.owed.length}`, kingdomId: bounty.kingdomId != null ? bounty.kingdomId : null,
+            realm: k ? k.name : null, fromQ: bounty.fromQ != null ? bounty.fromQ : null, fromR: bounty.fromR != null ? bounty.fromR : null,
+            target: bounty.targetName || 'an outlaw chief', amount: n, paid: 0, day, until: day + this.WRIT_DAYS,
+        };
+        player.bountyHunter.owed.push(writ);
+        return writ;
+    },
+
+    /** What the crowns still owe you on bounty writs (for the board). */
+    owedTotal(player) {
+        const st = player && player.bountyHunter;
+        return st && Array.isArray(st.owed) ? st.owed.reduce((t, w) => t + Math.max(0, _num(w.amount) - _num(w.paid)), 0) : 0;
+    },
+
+    /** Daily: each writ draws what it can from its crown and town; paid off, or lapsed with its realm or its year. */
+    _settleWrits(player, world, updates) {
+        const st = player.bountyHunter;
+        if (!st || !Array.isArray(st.owed) || !st.owed.length || !world) return;
+        const day = _num(world.day);
+        for (const w of st.owed.slice()) {
+            const due = Math.max(0, _num(w.amount) - _num(w.paid));
+            const k = w.kingdomId != null ? (world.kingdoms || []).find(x => x && x.id === w.kingdomId) : null;
+            const got = due > 0 ? Math.floor(this._payLairBounty(world, w, due)) : 0;
+            if (got > 0) {
+                w.paid = _num(w.paid) + got;
+                player.gold = (player.gold || 0) + got;
+                Ledger.record(player, 'bounties', got);
+            }
+            const left = Math.max(0, _num(w.amount) - _num(w.paid));
+            if (left <= 0) {
+                st.owed = st.owed.filter(x => x !== w);
+                updates.chiefs.push({ outcome: 'writPaid', targetName: w.target, pay: got, realm: w.realm });
+            } else if (day > _num(w.until) || (w.kingdomId != null && (!k || k.isAlive === false))) {
+                st.owed = st.owed.filter(x => x !== w);
+                updates.chiefs.push({ outcome: 'writLapsed', targetName: w.target, pay: got, left, realm: w.realm });
+            } else if (got > 0) {
+                updates.chiefs.push({ outcome: 'writPart', targetName: w.target, pay: got, left, realm: w.realm });
+            }
+        }
+    },
+
     processDaily(player, world) {
         this.initialize(player);
         const updates = { escaped: [], moved: [], escalated: [], beasts: [], chiefs: [] };
@@ -374,23 +428,29 @@ export const BountyHunting = {
             OutlawLairs.reveal(player, bounty.lairId);
             const fate = OutlawLairs.bountyStatus(player, bounty);
             if (fate === 'slain') {
-                const pay = Math.round(_num(bounty.actualPay) * (1 + Math.max(0, this.getRankInfo(player).payBonus)));
-                this._payLairBounty(world, bounty, pay);
-                player.gold = (player.gold || 0) + pay;
-                Ledger.record(player, 'bounties', pay);
+                const due = Math.round(_num(bounty.actualPay) * (1 + Math.max(0, this.getRankInfo(player).payBonus)));
+                // Paid from the crown's chests and the town's purse; what they lack, a writ on the crown
+                const pay = Math.floor(this._payLairBounty(world, bounty, due));
+                if (pay > 0) {
+                    player.gold = (player.gold || 0) + pay;
+                    Ledger.record(player, 'bounties', pay);
+                }
+                const writ = due > pay ? this.owe(player, world, bounty, due - pay) : null;
                 player.renown = (player.renown || 0) + 3;
                 player.bountyHunter.outlawChiefs += 1;
                 player.bountiesCompleted = (player.bountiesCompleted || 0) + 1;
                 bounty.status = 'completed';
                 this._removeBounty(player, bounty.id);
                 const promoted = this._recalculateRank(player);
-                updates.chiefs.push({ bountyId: bounty.id, targetName: bounty.targetName, outcome: 'slain', pay, promoted });
+                updates.chiefs.push({ bountyId: bounty.id, targetName: bounty.targetName, outcome: 'slain', pay, owed: writ ? writ.amount : 0, realm: writ ? writ.realm : null, promoted });
             } else if (fate === 'gone') {
                 bounty.status = 'lapsed';
                 this._removeBounty(player, bounty.id);
                 updates.chiefs.push({ bountyId: bounty.id, targetName: bounty.targetName, outcome: 'gone' });
             }
         }
+
+        this._settleWrits(player, world, updates);
 
         // Saga beasts on the hunter's list: follow the beast's trail; when it
         // falls to the player, the notice pays its bonus (the realm's own

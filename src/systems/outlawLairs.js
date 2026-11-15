@@ -57,6 +57,8 @@ import { House } from './house.js';
 import { Traits } from './traits.js';
 import { Underworld } from './underworld.js';
 import { Names } from '../core/names.js';
+import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
 
 const WATER = new Set(['ocean', 'deep_ocean', 'coast', 'lake', 'sea']);
 const TYPE_WEIGHT = { village: 3, hamlet: 3, town: 2, city: 1, capital: 0.4 };
@@ -433,6 +435,8 @@ export const OutlawLairs = {
             raids: 0,
             log: [],
         };
+        // (the band's first takings come out of the nearest town's purse: no coin from nothing)
+        lair.hoard.gold = Math.round(Economy.drawNearest(world, lair.q, lair.r, lair.hoard.gold, { kid: lair.kingdomId }) * 100) / 100;
         st.lairs.push(lair);
         st.stats.formed++;
         return lair;
@@ -508,7 +512,7 @@ export const OutlawLairs = {
         }
         OutlawLairs._expeditions(world, player, st, units, out);
         OutlawLairs._realmEvents(world, st);
-        OutlawLairs._forgetEnded(st, day);
+        OutlawLairs._forgetEnded(st, day, world);
         return out;
     },
 
@@ -518,9 +522,15 @@ export const OutlawLairs = {
      * lair that ever formed. Anything still holding a lair's id (a bounty, a
      * task, a thief) reads a missing lair as gone (OutlawLairs.find → null).
      */
-    _forgetEnded(st, day) {
+    _forgetEnded(st, day, world = null) {
         const keep = _num(OutlawLairs.config().endedKeepDays, 360);
         if (!st.lairs.some(l => l && l.status !== 'active' && day - _num(l.endedDay, day) > keep)) return;
+        // (coin still hidden at a forgotten lair is dug up by the country folk and spent in the nearest town)
+        for (const l of st.lairs) {
+            if (!l || l.status === 'active' || day - _num(l.endedDay, day) <= keep || !l.hoard || !(_num(l.hoard.gold) > 0)) continue;
+            if (!OutlawLairs._spend(world, l, _num(l.hoard.gold))) MoneySupply.leak(world, -_num(l.hoard.gold), 'lairsForgotten');
+            l.hoard.gold = 0;
+        }
         st.lairs = st.lairs.filter(l => l && (l.status === 'active' || day - _num(l.endedDay, day) <= keep));
     },
 
@@ -613,8 +623,10 @@ export const OutlawLairs = {
         // A hoard past what the chief can hide is spent on more blades
         const cap = _num(G.hoardCap, 2000);
         if (_num(lair.hoard.gold) > cap) {
-            rate += (_num(lair.hoard.gold) - cap) / Math.max(1, _num(G.goldPerMan, 100));
-            lair.hoard.gold = cap;
+            const over = _num(lair.hoard.gold) - cap;
+            rate += over / Math.max(1, _num(G.goldPerMan, 100));
+            // (the blades, the men's hire and their drink are bought in the nearest town)
+            if (OutlawLairs._spend(world, lair, over)) lair.hoard.gold = cap;
         }
         lair.strength = Utils.clamp(_num(lair.strength) + rate, 0, _num(k.maxStrength, 160));
         lair.strength = Math.round(lair.strength * 100) / 100;
@@ -1000,10 +1012,17 @@ export const OutlawLairs = {
                 out.notices.push({ icon: '🛡️', title: 'Lair Destroyed', text: `${lair.endedByName || 'The wardens'} have burned ${lair.name}. ${lair.leader.name} is no more.`, type: 'info' });
             }
         } else if (how === 'dispersed') {
+            // (each man takes his share of the hoard and drinks it in the nearest town)
+            if (lair.hoard && _num(lair.hoard.gold) > 0 && OutlawLairs._spend(world, lair, _num(lair.hoard.gold))) lair.hoard.gold = 0;
             OutlawLairs._log(lair, world, 'The band scattered to the winds.');
             if (lair.known) out.notices.push({ icon: '🍂', title: 'Outlaws Scatter', text: `What was left of ${lair.name} has scattered.`, type: 'info' });
         }
         if (Array.isArray(world.activeEvents)) world.activeEvents = world.activeEvents.filter(e => !(e && e.lairId === lair.id));
+    },
+
+    /** Coin out of a lair's hoard spent in the nearest town (its realm's first). → the town, or null (none keeps coin). */
+    _spend(world, lair, gold) {
+        return world ? Economy.payNearest(world, lair.q, lair.r, gold, { kid: lair.kingdomId }) : null;
     },
 
     /** Pay the player for taking a lair: hoard, renown, Prestige, the realm's thanks. */

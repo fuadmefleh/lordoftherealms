@@ -165,6 +165,7 @@
             "hospitalityCosts": { "name": "Innkeeping: staff & supplies", "group": "enterprise" },
             "lodging": { "name": "Lodging & services", "group": "household" },
             "pickpocketed": { "name": "Robbed in a common room", "group": "other" },
+            "pursesCut": { "name": "Pockets picked in the street (and coin got back)", "group": "other" },
             "hiredWork": { "name": "Tradesmen hired to work your goods", "group": "household" },
             "languages": { "name": "Lessons & interpreters", "group": "household" },
             "townRent": { "name": "Rent on houses in town", "group": "household" },

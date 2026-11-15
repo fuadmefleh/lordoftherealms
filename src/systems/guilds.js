@@ -108,7 +108,7 @@ const DEFAULT_CONFIG = {
     backing: { master: 15, guildmaster: 30, cap: 45 },
     standing: { perGold: 0.02, maxPerTrade: 4, duesPaid: 1, missedDues: 5, expelAfter: 3, perWorksRun: 0.15 },
     works: { journeymanSeize: 0.5, masterSeize: 0.35, guildmasterSeize: 0.2, graceMult: 2 },
-    stipend: { share: 0.08, max: 30 },
+    stipend: { share: 0.1, max: 30 },
 };
 
 export const Guilds = {

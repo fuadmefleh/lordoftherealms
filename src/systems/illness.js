@@ -421,7 +421,9 @@ export const Illness = {
         // Who passes what to whom
         const counts = new Map();   // k → { town, hh: Map, wk: Map, wkSize: Map }
         const wkSize = new Map();
-        for (const p of alive) { const w = Illness._workKey(p, day); wkSize.set(w, (wkSize.get(w) || 0) + 1); }
+        // (where each one works, once a step: asked again for the sick and the well)
+        const wkOf = new Map();
+        for (const p of alive) { const w = Illness._workKey(p, day); wkOf.set(p, w); wkSize.set(w, (wkSize.get(w) || 0) + 1); }
         for (const p of alive) {
             if (!Illness.isContagious(p, day)) continue;
             let c = counts.get(p.ill.k);
@@ -429,7 +431,7 @@ export const Illness = {
             c.town++;
             const h = hh.of.get(p.id);
             c.hh.set(h, (c.hh.get(h) || 0) + 1);
-            const w = Illness._workKey(p, day);
+            const w = wkOf.get(p);
             c.wk.set(w, (c.wk.get(w) || 0) + 1);
         }
         const K = C.contact;
@@ -439,7 +441,7 @@ export const Illness = {
         for (const p of alive) {
             if (p.ill) continue;
             const h = hh.of.get(p.id);
-            const w = Illness._workKey(p, day);
+            const w = wkOf.get(p);
             for (const [k, c] of counts) {
                 const d = Illness.def(k);
                 if (Illness._immune(p, k, day) || (d.minAge && Townsfolk.age(p, day) < d.minAge)) continue;
@@ -458,24 +460,25 @@ export const Illness = {
         for (const [p, k, by] of fresh) Illness._caught(world, folk, p, k, day, rng, news, by);
 
         // Their own: the season's colds and fevers, bad water, a wound gone bad, childbed
+        const spont = Object.entries(C.illnesses).filter(([, d]) => _num(d.spont) > 0);
+        const wf = Illness.def('wound_fever');
+        const cb = Illness.def('childbed');
         for (const p of alive) {
             if (p.ill) continue;
             const age = Townsfolk.age(p, day);
             const hs = hh.size.get(hh.of.get(p.id)) || 1;
             let caught = null;
-            for (const [k, d] of Object.entries(C.illnesses)) {
-                if (!(_num(d.spont) > 0) || Illness._immune(p, k, day) || (d.minAge && age < d.minAge)) continue;
+            for (const [k, d] of spont) {
+                if (Illness._immune(p, k, day) || (d.minAge && age < d.minAge)) continue;
                 const lam = _num(d.spont) * _num(_obj(d.season) && d.season[env.season], 1) * Illness.risk(p, k, env, hs, day, riskMemo) * step;
                 if (rng() < 1 - Math.exp(-lam)) { caught = k; break; }
             }
             // A beating not healed festers
-            const wf = Illness.def('wound_fever');
             if (!caught && wf && p.hurt && day - _num(p.hurt.d) <= _num(wf.hurtDays, 10)) {
                 const inj = Townsfolk.injury(p, day);
                 if (inj && rng() < _num(wf.fromHurt) * step * (1 - inj.hp / Math.max(1, inj.max)) * 2 * (p.hurt.tended ? 0.3 : 1) * Math.sqrt(env.hygiene)) caught = 'wound_fever';
             }
             // After a birth
-            const cb = Illness.def('childbed');
             if (!caught && cb && p.gender === 'female') {
                 // (the lying-in after a birth: systems/townFamily.js isPostpartum / p.postpartum; with
                 // family life off, the birth in their life)

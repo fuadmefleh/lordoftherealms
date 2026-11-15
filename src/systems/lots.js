@@ -28,6 +28,7 @@
 // Data: data/lots.json.
 
 import { LotBook } from '../world/lotBook.js';
+import { Economy } from '../world/economy.js';
 import { Laws } from './laws.js';
 import { Ledger } from './ledger.js';
 
@@ -109,6 +110,8 @@ export const Lots = {
         if (_num(player.gold) < price) return { success: false, reason: `The lot costs ${price}g; you have ${Math.floor(_num(player.gold))}g.` };
         player.gold -= price;
         Ledger.record(player, 'townLand', -price);
+        // (the town sells its ground: the price goes into its purse)
+        Economy.payTown(settlement, price);
         book.lots[lot.id] = { holder: 'player', holderName: player.name || 'You', price, day: _day(world), built: null };
         _holdings(player).push({ kind: 'lot', q: settlement.q, r: settlement.r, id: lot.id, town: settlement.name, price });
         return { success: true, price, text: `You buy the lot (${lot.w}×${lot.h}) in ${settlement.name} for ${price}g. Build on it when you will.` };
@@ -157,6 +160,7 @@ export const Lots = {
             if (_num(player && player.gold) < at.price) return { success: false, reason: `A building lot in ${settlement.name} costs ${at.price}g.` };
             player.gold = _num(player.gold) - at.price;
             Ledger.record(player, 'townLand', -at.price);
+            Economy.payTown(settlement, at.price);
             book.lots[at.lotId] = { holder: 'player', holderName: player.name || 'You', price: at.price, day: _day(world), built: null };
             _holdings(player).push({ kind: 'lot', q: settlement.q, r: settlement.r, id: at.lotId, town: settlement.name, price: at.price });
         }
@@ -182,6 +186,8 @@ export const Lots = {
         if (_num(player.gold) < cost) return { success: false, reason: `Masons and timber for a house come to ${cost}g; you have ${Math.floor(_num(player.gold))}g.` };
         player.gold -= cost;
         Ledger.record(player, 'townLand', -cost);
+        // (the masons and the timber merchants are the town's)
+        Economy.payTown(settlement, cost);
         const days = LotBook.houseDays(settlement.type);
         const rec = LotBook.lot(settlement, lotId);
         rec.built = { type: 'house', kind: 'house', name: 'House', by: 'player', readyDay: _day(world) + days, cost, let: true, tenant: null };
@@ -200,6 +206,7 @@ export const Lots = {
         if (_num(player.gold) < rent) return { success: false, reason: `The first day's rent is ${rent}g.` };
         player.gold -= rent;
         Ledger.record(player, 'townRent', -rent);
+        Economy.payTown(settlement, rent);
         book.vacancies[key] = { status: 'rented', holder: 'player', holderName: player.name || 'You', rent, day: _day(world) };
         _holdings(player).push({ kind: 'rent', q: settlement.q, r: settlement.r, key, town: settlement.name, rent, name });
         return { success: true, text: `You take ${name} in ${settlement.name} at ${rent}g a day, paid at each day's end.` };
@@ -217,6 +224,7 @@ export const Lots = {
         if (_num(player.gold) < price) return { success: false, reason: `The house costs ${price}g.` };
         player.gold -= price;
         Ledger.record(player, 'townLand', -price);
+        Economy.payTown(settlement, price);
         book.vacancies[key] = { status: 'owned', holder: 'player', holderName: player.name || 'You', price, day: _day(world) };
         const hs = _holdings(player).filter(h => !(h.kind === 'rent' && h.key === key && h.q === settlement.q && h.r === settlement.r));
         hs.push({ kind: 'house', q: settlement.q, r: settlement.r, key, town: settlement.name, price, name });
@@ -320,7 +328,8 @@ export const Lots = {
         const rec = s && LotBook.lot(s, lotId);
         if (!h || h.kind !== 'lot' || !LotBook.isPlayer(rec)) return { success: false, reason: 'That lot is not yours.' };
         if (rec.built && rec.built.kind !== 'house') return { success: false, reason: `Your ${rec.built.name || 'building'} stands on it: it goes with the property.` };
-        const value = this.saleValue(world, h);
+        // (the buyer is a townsperson: the price comes out of the town's purse, as far as it goes)
+        const value = Math.floor(Economy.drawTown(s, this.saleValue(world, h)));
         const day = _day(world);
         if (rec.built) {
             const who = _tenantName(null, _rng(`${day}|sell|${s.name}|${lotId}`), this.config().ai || {});
@@ -340,7 +349,8 @@ export const Lots = {
         const s = h && _settlementAt(world, q, r);
         const v = s && LotBook.vacancy(s, key);
         if (!h || h.kind !== 'house' || !v || v.holder !== 'player' || v.status !== 'owned') return { success: false, reason: 'That house is not yours.' };
-        const value = this.saleValue(world, h);
+        // (the buyer is a townsperson: the price comes out of the town's purse, as far as it goes)
+        const value = Math.floor(Economy.drawTown(s, this.saleValue(world, h)));
         const day = _day(world);
         const who = _tenantName(null, _rng(`${day}|sellh|${s.name}|${key}`), this.config().ai || {});
         s.lotBook.vacancies[key] = { status: 'owned', holder: `npc:${who}`, holderName: who, price: value, day };
@@ -465,6 +475,7 @@ export const Lots = {
             if (_num(player.gold) >= rent) {
                 player.gold -= rent;
                 Ledger.record(player, 'townRent', -rent);
+                Economy.payTown(s, rent);
                 v.paidDay = day;
                 book.paid += rent;
                 const k = `${h.q},${h.r}|${h.key}`;
@@ -513,7 +524,8 @@ export const Lots = {
             return;
         }
         const back = Math.min(_num(t.owed), rent);
-        const amount = rent + back;
+        // (the tenant's rent is the town's coin: out of its purse)
+        const amount = Math.round(Economy.drawTown(s, rent + back) * 100) / 100;
         t.owed = _num(t.owed) - back;
         t.missed = 0;
         t.paidDay = day;
@@ -562,6 +574,7 @@ export const Lots = {
                     let holder, holderName;
                     if (rival) {
                         rival.gold -= price;
+                        Economy.payTown(s, price);
                         holder = `rival:${rival.kingdomId}`;
                         holderName = rival.name;
                         notices.push({ icon: '🏗️', title: 'A Rival Builds', text: `${rival.name} buys a building lot in ${s.name} and sets masons to work on a ${type}.`, type: 'info' });

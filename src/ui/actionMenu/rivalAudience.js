@@ -106,7 +106,7 @@ export function openRivalAudience(game, unitId) {
     state.scene = ConversationScene.open({
         variant: 'royal',
         name: RivalHouses.headName(rival),
-        subtitle: `Head of ${esc(rival.name)} · age ${rival.head.age}${rival.seat ? ` · seat at ${esc(rival.seat.name)}` : ''}`,
+        subtitle: `Head of ${esc(rival.name)}${rival.role ? `, ${esc(rival.role)}` : ''} · age ${rival.head.age}${rival.seat ? ` · seat at ${esc(rival.seat.name)}` : ''}`,
         where: `${place} · Day ${world.day || 1}`,
         icon: '🏰', badge: '🏰',
         sprite: { type: 'noble', id: ConversationScene.seedOf(`${rival.houseKey}:${rival.head.firstName}`) },

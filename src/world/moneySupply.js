@@ -587,6 +587,47 @@ export const MoneySupply = {
     },
 
     /**
+     * Coin that truly leaves the world (sunk with a ship, buried and never found,
+     * melted down) or comes into it from no purse (a buried hoard dug up, salvage
+     * of a wreck older than the books): `amount` > 0 found, < 0 lost, under `why`.
+     * Booked world-wide (world.money.leaks), so the coin census closes: every
+     * change in CoinCensus.total is the mints' strikes, debasement, wear,
+     * recoinage, forgery, the cheat panel or one of these. Callers move the coin
+     * themselves. @returns the amount booked
+     */
+    leak(world, amount, why = 'other') {
+        if (!world) return 0;
+        const a = _r2(_num(amount));
+        if (!a) return 0;
+        const st = MoneySupply.state(world);
+        if (!_obj(st.leaks)) st.leaks = {};
+        st.leaks[why] = _r2(_num(st.leaks[why]) + a);
+        return a;
+    },
+
+    /**
+     * The coin the books say was made or unmade in the world, all told: every
+     * realm's strikes, debasement gains, wear, recoinage, forgery and cheats, and
+     * the world's leaks (found and lost). A closed census: CoinCensus.total moves
+     * by exactly this (to the rounding of the purses).
+     */
+    bookedChange(world) {
+        const st = world && _obj(world.money);
+        if (!st) return 0;
+        let b = _num(st.pastBooked);
+        for (const R of Object.values(st.realms || {})) b += MoneySupply._bookedOf(R);
+        for (const v of Object.values(_obj(st.leaks) || {})) b += _num(v);
+        return _r2(b);
+    },
+
+    /** One realm's booked making and unmaking of coin (bookedChange). */
+    _bookedOf(R) {
+        if (!R) return 0;
+        const t = R.tot || {};
+        return _num(R.mint && R.mint.struck) + _num(t.debase) + _num(t.wear) + _num(t.recoin) + _num(t.counterfeit) + _num(t.cheat);
+    },
+
+    /**
      * Book a payment between two crowns (tribute, an indemnity, a crown loan
      * and its repayment, the crown's share of plunder): the callers move the
      * treasury coin; it is booked out of one realm and into the other. The
@@ -846,7 +887,13 @@ export const MoneySupply = {
         const towns = _townsByRealm(world, byId);
         for (const k of alive) MoneySupply.ensureRealm(world, k);
         // Fallen realms: their towns (and the coin in them) now count for their new masters
-        for (const kid of Object.keys(st.realms)) if (!byId.has(kid)) delete st.realms[kid];
+        // (what a fallen realm's books say was made or unmade stays on the world's books: bookedChange)
+        for (const kid of Object.keys(st.realms)) {
+            if (byId.has(kid)) continue;
+            const b = MoneySupply._bookedOf(st.realms[kid]);
+            if (b) st.pastBooked = _r2(_num(st.pastBooked) + b);
+            delete st.realms[kid];
+        }
         if (!alive.length) { st.trade = {}; return []; }
 
         // 0. The census: the coin is what the purses hold

@@ -115,3 +115,28 @@ describe('walking to another island', () => {
         }
     }, 120000);
 });
+
+describe('Hex.findPath fails quietly', () => {
+    it('counts a way that cannot be had (off the map, blocked, too far, searched out) instead of logging it', () => {
+        const w = islands();
+        const pass = (q, r) => { const t = w.getTile(q, r); return !!(t && t.terrain.passable); };
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const before = { ...Hex.pathStats };
+        try {
+            expect(Hex.findPath(1, 4, 1, -2, w.width, w.height, pass)).toBe(null);       // off the top
+            expect(Hex.findPath(1, 4, 1, 10, w.width, w.height, pass)).toBe(null);       // off the bottom
+            expect(Hex.findPath(1, 4, 5, 4, w.width, w.height, pass)).toBe(null);        // the sea
+            expect(Hex.findPath(1, 4, 9, 4, w.width, w.height, pass)).toBe(null);        // another island: searched out
+            expect(Hex.findPath(1, 4, 1, 80, w.width, 200, () => true)).toBe(null);      // past 50 hexes
+            expect(Hex.pathStats.offMap - before.offMap).toBe(2);
+            expect(Hex.pathStats.blocked - before.blocked).toBe(1);
+            expect(Hex.pathStats.exhausted - before.exhausted).toBe(1);
+            expect(Hex.pathStats.tooFar - before.tooFar).toBe(1);
+            expect(warn).not.toHaveBeenCalled();
+            // (and the way that is there is still found)
+            expect(Hex.findPath(1, 4, 18, 4, w.width, w.height, pass).pop()).toEqual({ q: 18, r: 4 });
+        } finally {
+            warn.mockRestore();
+        }
+    });
+});

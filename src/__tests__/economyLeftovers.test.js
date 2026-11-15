@@ -177,7 +177,17 @@ describe('leather', () => {
         };
         const rich = run(3), bare = run(0);
         expect(rich.hideUsed).toBeGreaterThan(0);
-        expect(rich.s.market.stock.leather).toBeGreaterThan(bare.s.market.stock.leather);
+        // The leather made, on the stall or already worked by the leather trades
+        // (cobbler, legharness maker, glover draw it straight into their goods)
+        const leatherIn = (s) => {
+            let n = s.market.stock.leather;
+            for (const id of ['cobbler', 'legharness_maker', 'glover']) {
+                const per = SettlementMarket.recipeGoods(id, 'in').leather;
+                for (const [g, out] of Object.entries(SettlementMarket.recipeGoods(id, 'out'))) n += (s.market.stock[g] || 0) / out * per;
+            }
+            return n;
+        };
+        expect(leatherIn(rich.s)).toBeGreaterThan(leatherIn(bare.s));
     });
 
     it('the player\'s tannery can tan leather, and the ids line up', () => {

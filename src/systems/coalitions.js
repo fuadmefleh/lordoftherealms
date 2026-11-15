@@ -1047,7 +1047,7 @@ export const Coalitions = {
         return {
             power, realms, active: st.active, history: st.history, pressure: st.pressure,
             cooldownUntil: st.cooldownUntil, stats: st.stats,
-            clock: Pressure.progress(st, 'coalition', _seed(world)), primed: st.primed || null,
+            clock: Pressure.progress(st, 'coalition', _seed(world)), clockInfo: Pressure.describe(st, 'coalition', _seed(world)), primed: st.primed || null,
             concern: Coalitions.concernThreshold(player), form: Coalitions.formThreshold(player),
             joinAt: Coalitions.config().joinAt, quote: st.active ? Coalitions.concessionQuote(player, world) : null,
         };

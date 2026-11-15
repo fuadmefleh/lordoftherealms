@@ -272,7 +272,8 @@ describe('saga beasts carry bounties', () => {
         const kingdom = w.getKingdom(saga.anchor.kingdomId);
         kingdom.treasury = 0;
         const res = Sagas._payBounty(p, w, saga, rec);
-        expect(res.gold).toBe(Math.floor(res.posted / 2));
+        // (real coin out of the realm's towns since 2026-11: to the copper of what they could spare)
+        expect(res.gold).toBeCloseTo(Math.floor(res.posted / 2), 1);
 
         // A second saga's beast that wanders off
         const p2 = makeSagaPlayer(w);

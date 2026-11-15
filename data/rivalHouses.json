@@ -6,7 +6,7 @@
     "startGold": [800, 3000],
     "startAge": [26, 50],
     "estate": { "weekly": 30, "perStewardship": 8 },
-    "upkeep": { "weekly": 25, "share": 0.01 },
+    "upkeep": { "weekly": 25, "share": 0.025 },
     "plotCost": 150,
     "weights": { "trade": 3, "court": 2, "shadow": 2, "home": 1, "invest": 2, "waylay": 2 },
     "think": { "tradeNorm": 100, "tradeCap": 2.5, "investCap": 3, "courtCap": 3, "ambition": 1.6 },

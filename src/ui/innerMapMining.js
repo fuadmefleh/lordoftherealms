@@ -20,7 +20,9 @@
 // `anywhere`: walking off stops it), costs energy (Endurance), trains Mining
 // (systems/practiceSkills.js), and wants a pick (tools in the packs; a better
 // one and the skill's blows perk cut faster). Goods come out of the hex's own
-// rock (the geology of its terrain and resource): nothing from nowhere.
+// rock (the geology of its terrain and resource): nothing from nowhere. Ore
+// of the hex's own deposit (world/hinterland.js) draws that deposit down
+// (InnerMap.mineCredit): a worked-out deposit's veins are barren.
 // Randomness: Utils (seedable).
 
 import { InnerMap } from '../world/innerMap.js';
@@ -370,7 +372,16 @@ export const InnerMapMining = {
                 if (found === 'stone') found = null;
             }
         }
-        if (found) items[found] = _roll(C.cell.veinQty, 1);
+        // Ore of the hex's own deposit comes out of it (world/hinterland.js): a worked-out
+        // deposit leaves only barren rock, a nearly worked-out one only its last ore
+        let barren = false;
+        if (found) {
+            const dep = InnerMap.mineDeposit(found);
+            const qty = _roll(C.cell.veinQty, 1);
+            const n = dep ? Math.min(qty, Math.floor(dep.left)) : qty;
+            if (n > 0) items[found] = n;
+            else { barren = true; found = null; }
+        }
         const got = Object.keys(items).length ? this._give(game, items) : [];
         this._train(game, _num(C.xp.cut, 4) + (found ? _num(C.xp.vein, 6) : 0));
         _sfx('rock_break');
@@ -380,7 +391,7 @@ export const InnerMapMining = {
             this._caveIn(game, q, r);
             return;
         }
-        const told = got.length ? ` ${this._told(got)}.` : '';
+        const told = got.length ? ` ${this._told(got)}.` : barren ? ` ${C.text.workedOut || 'The vein is worked out: the mine of this hex has had all its ore.'}` : '';
         const creak = risk.open > _num(C.support.free, 4) ? ` ${C.text.unsupported || ''}` : '';
         _note(game, found ? `⛏️ ${_name(found)}` : '⛏️ Rock Cut', `The rock breaks away: rubble to haul out.${told}${creak}`, found ? 'success' : (creak ? 'warning' : 'info'));
     },

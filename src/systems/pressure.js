@@ -182,6 +182,20 @@ export const Pressure = {
         c.lastFired = day;
     },
 
+    /**
+     * The clock for a panel: { progress (0–1 to the next firing), heat (0..max:
+     * how the past firings shorten it), fired (times it has fired), lastFired,
+     * might (at its last winding) } or null when it has never wound.
+     */
+    describe(holder, id, seed = 0) {
+        const c = _obj(holder) && _obj(holder.clock);
+        if (!c) return null;
+        return {
+            progress: Pressure.progress(holder, id, seed), heat: _num(c.heat), heatMax: _num((Pressure.config().heat || {}).max, 3),
+            fired: _num(c.fired), lastFired: c.lastFired != null ? c.lastFired : null, might: _num(c.might),
+        };
+    },
+
     /** 0–1 share of the way to the next firing (for panels). */
     progress(holder, id, seed = 0) {
         const c = _obj(holder) && _obj(holder.clock);

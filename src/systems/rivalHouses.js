@@ -341,11 +341,20 @@ export const RivalHouses = {
         const C = this.config();
         if (!rival.houseKey) rival.houseKey = `${rival.kingdomId}:${_day(world)}`;
         if (!rival.head) rival.head = this._makeHead(world, rival);
+        let fresh = null;
         if (!Number.isFinite(rival.gold)) {
             const [g0, g1] = _range(C.startGold, [800, 3000]);
-            rival.gold = Utils.randInt(g0, g1);
+            fresh = Utils.randInt(g0, g1);
+            rival.gold = fresh;
         }
         if (!rival.seat) rival.seat = this._pickSeat(world, rival);
+        // (a House's first purse is its seat town's coin — the rents and dues it was owed —
+        // at most a quarter of that town's purse: never struck from nothing)
+        if (fresh != null && rival.seat && typeof world.getTile === 'function') {
+            const seatTown = this._settlementAt(world, rival.seat.q, rival.seat.r);
+            const have = Economy.townPurse(seatTown);
+            if (have != null) rival.gold = Math.floor(Economy.drawTown(seatTown, Math.min(fresh, Math.floor(have * 0.25))));
+        }
         if (!rival.stats) rival.stats = { trades: 0, tradeProfit: 0, courtVisits: 0, plotsPaid: 0, heads: 1 };
         for (const k of ['estatesBought', 'estatesSold', 'rents', 'pensions', 'ambitions']) if (!Number.isFinite(rival.stats[k])) rival.stats[k] = 0;
         if (!rival.standing) rival.standing = {};
@@ -382,7 +391,10 @@ export const RivalHouses = {
         const d = (gd && gd.arms && gd.arms.rivals) || {};
         return {
             baseMen: 4, spendShare: 0.3, wear: 0.01, lostShare: 0.3,
-            slots: { main: ['weapons', 'spear'], off: ['shield'], head: ['helmet'], body: ['gambeson', 'leather_armor', 'chainmail'] },
+            slots: {
+                main: ['weapons', 'spear'], off: ['shield'], head: ['helmet'], body: ['gambeson', 'leather_armor', 'chainmail'],
+                legs: ['padded_chausses', 'leather_leggings', 'mail_chausses'], feet: ['boots'], hands: ['leather_gloves'],
+            },
             ...d,
         };
     },
@@ -399,7 +411,10 @@ export const RivalHouses = {
         const A = this.armsConfig();
         const stock = {};
         const n = Math.max(0, Math.round(_num(A.baseMen, 4)));
-        for (const ids of Object.values(A.slots || {})) if (ids && ids[0] && n > 0) stock[ids[0]] = n;
+        // (the core four of old; boots, leg harness and gloves the House buys in town, as the player issues them)
+        for (const [slot, ids] of Object.entries(A.slots || {})) {
+            if (!Arms.KIT_EXTRA_SLOTS.includes(slot) && ids && ids[0] && n > 0) stock[ids[0]] = n;
+        }
         rival.arms = { stock, spent: 0 };
         return rival.arms;
     },
@@ -434,7 +449,7 @@ export const RivalHouses = {
         return _round2(Math.max(bare, Math.min(_num(Arms.config().maxFactor, 1.45), bare + (1 - bare) * sum)));
     },
 
-    /** The finest piece of each slot (for the renderers: Arms.lookLayers takes it) — { main, off, head, body }. */
+    /** The finest piece of each slot (for the renderers: Arms.lookLayers takes it) — { main, off, head, body, legs, feet, hands }. */
     kitView(rival) {
         const out = {};
         for (const slot of Arms.SLOTS) out[slot] = this._armsSlot(rival, slot).best;
@@ -463,7 +478,8 @@ export const RivalHouses = {
         if (!(budget >= 1)) return 0;
         const tile = world && typeof world.getTile === 'function' ? world.getTile(settlement.q, settlement.r) : null;
         let spent = 0;
-        for (const slot of ['main', 'body', 'off', 'head']) {
+        // (the core four first, then boots, leg harness and gloves: small extras on top, as on the player's troops)
+        for (const slot of ['main', 'body', 'off', 'head', 'feet', 'legs', 'hands']) {
             const want = men - this._armsSlot(rival, slot).n;
             if (!(want > 0)) continue;
             let best = null;
@@ -613,8 +629,8 @@ export const RivalHouses = {
         const id = this.holderId(rival);
         const h = Estates.holder(world, id);
         if (h && _num(h.purse) > 0) {
-            const got = Math.round(h.purse);
-            rival.gold += got;
+            const got = Math.round(h.purse * 100) / 100;
+            rival.gold = Math.round((rival.gold + got) * 100) / 100;
             rival.stats.rents += got;
             h.purse = 0;
         }
@@ -736,6 +752,7 @@ export const RivalHouses = {
         if (can <= 0) return 0;
         rival.guard = _num(rival.guard) + can;
         rival.gold -= can * _num(G.cost, 60);
+        this._spendAtSeat(world, rival, can * _num(G.cost, 60));
         return can;
     },
 
@@ -745,7 +762,9 @@ export const RivalHouses = {
         const day = _day(world);
         this._armWeek(world, rival, player, out);
         if (!(rival.guard > 0)) return;
-        rival.gold = Math.max(0, rival.gold - rival.guard * _num(G.wage, 6));
+        const wages = Math.min(Math.max(0, _num(rival.gold)), rival.guard * _num(G.wage, 6));
+        rival.gold -= wages;
+        this._spendAtSeat(world, rival, wages);
         const since = Math.max(_num(rival.lastAttackedDay, -1e9), _num(rival.armedDay, -1e9));
         if (day - since > _num(G.forgetDays, 240) || rival.gold <= 0) rival.guard--;
     },
@@ -766,6 +785,7 @@ export const RivalHouses = {
         if (_num(rival.gold) < _num(C.invest.reserve, 400) + _num(G.cost, 60) * 3) return 0;
         rival.guard = _num(rival.guard) + 1;
         rival.gold -= _num(G.cost, 60);
+        this._spendAtSeat(world, rival, _num(G.cost, 60));
         rival.armedDay = _day(world);
         if (rival.guard === 1 || rival.guard % 3 === 0) {
             this._note(rival, world, `Hires swords: ${rival.guard} guards now ride with the retinue.`);
@@ -791,6 +811,14 @@ export const RivalHouses = {
         if (typeof world.getSettlementViews === 'function') return world.getSettlementViews();
         if (typeof world.getAllSettlements === 'function') return world.getAllSettlements();
         return [];
+    },
+
+    /** Coin a House spends: into the town at `at` ({q, r}), else its seat town's purse. → paid */
+    _spendAtSeat(world, rival, amount, at = null) {
+        if (!(amount > 0) || !world || typeof world.getTile !== 'function') return 0;
+        const where = at && Number.isFinite(at.q) ? this._settlementAt(world, at.q, at.r) : null;
+        const seat = rival && rival.seat ? this._settlementAt(world, rival.seat.q, rival.seat.r) : null;
+        return Economy.payTown(where || seat, amount);
     },
 
     _settlementAt(world, q, r) {
@@ -1077,8 +1105,10 @@ export const RivalHouses = {
             SettlementMarket.take(s, plan.good, qty);
             // A town of another tongue: an interpreter's fee, or a worse deal (systems/languages.js)
             const tongue = Languages.rivalVisit(world, rival, s, this._culture(world, rival));
-            const cost = Math.round(price * qty / Math.max(0.5, tongue.dealFactor));
+            const cost = Math.min(Math.max(0, Math.floor(_num(rival.gold))), Math.round(price * qty / Math.max(0.5, tongue.dealFactor)));
             rival.gold -= cost;
+            // (paid to the town that sold the goods)
+            Economy.payTown(s, cost);
             plan.qty = qty;
             plan.cost = cost;
             plan.stage = 'selling';
@@ -1094,7 +1124,8 @@ export const RivalHouses = {
             const base = _goodDef(plan.good).basePrice;
             const price = s ? SettlementMarket.value(world, s, world.getTile(s.q, s.r), plan.good, base, SettlementMarket.stock(s, plan.good) + plan.qty / 2) : 0;
             const tongue = s ? Languages.rivalVisit(world, rival, s, this._culture(world, rival)) : { dealFactor: 1 };
-            const got = Math.round(price * plan.qty * tongue.dealFactor);
+            // (the buying town pays out of its purse, as far as it can)
+            const got = s ? Math.round(Economy.drawTown(s, Math.round(price * plan.qty * tongue.dealFactor)) * 100) / 100 : 0;
             if (s) SettlementMarket.add(s, plan.good, plan.qty);
             rival.gold += got;
             unit.inventory = {};
@@ -1111,7 +1142,12 @@ export const RivalHouses = {
             if (plan.until == null) {
                 const [a, b] = _range(C.court.stay, [4, 9]);
                 plan.until = day + Utils.randInt(a, b);
-                rival.gold -= Math.min(rival.gold, C.court.gift);
+                const gift = Math.max(0, Math.min(_num(rival.gold), C.court.gift));
+                rival.gold -= gift;
+                // (the gift goes into the crown's chests)
+                const giftTo = gift > 0 && typeof world.getKingdom === 'function' ? world.getKingdom(plan.kingdomId) : null;
+                if (giftTo && giftTo.isAlive !== false) giftTo.treasury = _num(giftTo.treasury) + gift;
+                else this._spendAtSeat(world, rival, gift, plan.to);
                 const S = C.standing;
                 // A court of another tongue hears them less well without an interpreter (systems/languages.js)
                 const courtTown = this._settlementAt(world, plan.to.q, plan.to.r);
@@ -1180,6 +1216,9 @@ export const RivalHouses = {
         if (scheme) {
             rival.lastPlotDay = _day(world);
             rival.gold -= C.plotCost;
+            // (the plotters' pay is spent in the town where it is hatched)
+            Economy.payTown(rival.plan && rival.plan.to ? this._settlementAt(world, rival.plan.to.q, rival.plan.to.r) : null, C.plotCost)
+                || this._spendAtSeat(world, rival, C.plotCost);
             rival.stats.plotsPaid++;
         }
         return scheme;
@@ -1297,7 +1336,7 @@ export const RivalHouses = {
                     const seatT = rival.seat && typeof world.getTile === 'function' ? world.getTile(rival.seat.q, rival.seat.r) : null;
                     const seatTown = seatT && seatT.settlement && seatT.settlement.economy ? seatT.settlement : null;
                     const dues = C.estate.weekly + C.estate.perStewardship * _num(rival.head.stewardship);
-                    rival.gold += seatTown ? Math.floor(Economy.drawTown(seatTown, dues)) : dues;
+                    rival.gold += seatTown ? Math.floor(Economy.drawTown(seatTown, dues)) : 0;
                     // ...and a great House lives grandly: the household spends a share of the purse
                     const spent = Math.min(Math.max(0, rival.gold), C.upkeep.weekly + Math.round(rival.gold * _num(C.upkeep.share)));
                     rival.gold -= spent;
@@ -1754,7 +1793,7 @@ export const RivalHouses = {
         const kit = this.kitView(rival);
         const w = kit.main ? Arms.stats(kit.main) : null;
         const prot = (id) => { const s = id ? Arms.stats(id) : null; return s ? s.prot : 0; };
-        const worn = 1 - (1 - prot(kit.body)) * (1 - prot(kit.head));
+        const worn = 1 - Arms.ARMOUR_SLOTS.reduce((t, s) => t * (1 - prot(kit[s])), 1);
         const sh = kit.off ? Arms.stats(kit.off) : null;
         return Duels.fromProfile({
             id: `rivalHead:${rival.kingdomId}`, kind: 'rival', name: this.headName(rival), icon: '🏰',
@@ -2031,7 +2070,7 @@ export const RivalHouses = {
             allies: ties.filter(t => t.tie >= _num(C.ties.allyAt, 50)).map(t => t.name), enemies: ties.filter(t => t.tie <= _num(C.ties.enemyAt, -50)).map(t => t.name), guards: _num(rival.guard), strength: this.strength(rival),
             arms: this.armsLabel(rival), armed: this.armsFactor(rival), kit: this.kitView(rival),
             estates: lands.map(e => e.name), landValue: Math.round(this.landValue(world, rival)),
-            kingdomId: rival.kingdomId, house: rival.name, name: this.headName(rival), age: h.age, gender: h.gender,
+            kingdomId: rival.kingdomId, house: rival.name, role: rival.role || null, name: this.headName(rival), age: h.age, gender: h.gender,
             traits: (h.traits || []).map(t => C.traits[t]).filter(Boolean),
             skills: { diplomacy: h.diplomacy, stewardship: h.stewardship, intrigue: h.intrigue, martial: _num(h.martial, 5) },
             spouse: h.spouse ? h.spouse.firstName : null,

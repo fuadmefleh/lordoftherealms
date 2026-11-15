@@ -233,8 +233,10 @@ export const CoinCensus = {
         if (post && Array.isArray(post.couriers)) for (const c of post.couriers) if (c) fn(c, 'cash', 'couriers');
         const est = _obj(world.estates);
         if (est && _obj(est.holders)) for (const h of Object.values(est.holders)) if (h && h.kind !== 'player') fn(h, 'purse', 'coffers');
+        // (a unit just destroyed still carries its coin until the day's turn takes it off the
+        // map and pays it into the nearest town — World.settleUnitCoin — so it is counted)
         for (const u of Array.isArray(world.units) ? world.units : []) {
-            if (!u || u.destroyed) continue;
+            if (!u) continue;
             if (typeof u.purse === 'number') fn(u, 'purse', 'roads');
             if (u.inventory && typeof u.inventory.gold === 'number' && !(opts.once && typeof u.purse === 'number')) fn(u.inventory, 'gold', 'roads');
         }

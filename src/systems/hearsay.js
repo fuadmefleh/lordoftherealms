@@ -681,7 +681,7 @@ export const Hearsay = {
 
     // ── The "What people say of you" panel (ui/actionMenu/hearsay.js) ──
 
-    /** → { town, here:[…], elsewhere, people:[…], claims:[…] } */
+    /** → { town, here:[…], elsewhere, people:[…], claims:[…], stats: { claims, caught } } */
     view(player, world, townKey) {
         const C = Hearsay.config();
         const st = Hearsay.state(player);
@@ -697,7 +697,7 @@ export const Hearsay = {
             here.push({
                 id: r.id, icon: e.x ? '🤥' : (kd.icon || '💬'), label: `${e.x ? 'Seen through' : (kd.label || r.k)}${r.of ? ` (of the late ${r.of})` : ''}`, of: r.of || null,
                 text: Hearsay.telling(r, townKey, player.name || 'you'), reach: _num(e.r), level: _num(e.l), exposed: !!e.x,
-                origin: r.on, teller: r.te, since: day - _num(e.d), towns: Object.keys(r.towns).length, ill: ILL_KINDS.includes(r.k) || r.k === 'confession' || !!e.x,
+                origin: r.on, teller: r.te, since: day - _num(e.d), sinceText: _ago(day - _num(e.d)), towns: Object.keys(r.towns).length, ill: ILL_KINDS.includes(r.k) || r.k === 'confession' || !!e.x,
             });
         }
         here.sort((a, b) => b.reach - a.reach);
@@ -713,6 +713,6 @@ export const Hearsay = {
             for (const c of list) if (!vals.some(v => Hearsay._sameValue(tp, v.v, c.v))) vals.push(c);
             return { topic: tp, values: vals.map(c => ({ v: c.v, to: c.n, town: c.tn, lie: !!c.lie })), mixed: vals.length > 1 };
         });
-        return { town, here, elsewhere, people, claims: told };
+        return { town, here, elsewhere, people, claims: told, stats: { claims: _num(st.stats.claims), caught: _num(st.stats.caught) } };
     },
 };

@@ -24,7 +24,7 @@ function headCard(v) {
     const where = !v.where ? ' · nowhere to be found'
         : v.where.atTown ? (v.doing.includes(v.where.near) ? '' : ` · in ${esc(v.where.near)}`)
             : v.where.near ? ` · on the road near ${esc(v.where.near)}` : ` · at (${v.where.q}, ${v.where.r})`;
-    let body = `<div style="${NOTE}">Head of ${esc(v.house)}${v.heads > 1 ? ` (the ${ordinal(v.heads)} in your time)` : ''}${v.seat ? ` · seat at ${esc(v.seat)}` : ''}${v.traits.length ? ` · ${v.traits.map(t => `${t.icon} ${esc(t.name)}`).join(', ')}` : ''}</div>`;
+    let body = `<div style="${NOTE}">Head of ${esc(v.house)}${v.role ? `, <i>${esc(v.role)}</i>` : ''}${v.heads > 1 ? ` (the ${ordinal(v.heads)} in your time)` : ''}${v.seat ? ` · seat at ${esc(v.seat)}` : ''}${v.traits.length ? ` · ${v.traits.map(t => `${t.icon} ${esc(t.name)}`).join(', ')}` : ''}</div>`;
     body += `<div style="margin:4px 0; color:${v.hunting ? '#ff8080' : '#ddd'};">${v.hunting ? '⚔️' : '🧭'} ${esc(v.doing)}${where}</div>`;
     const armed = v.armed != null && v.armed < 0.95 ? ', ill-armed' : v.armed > 1.02 ? ', well armed' : '';
     body += chips([

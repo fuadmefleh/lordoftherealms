@@ -155,6 +155,23 @@ export const CourtLetters = {
         return this.state(player).inbox;
     },
 
+    /**
+     * A letter that will not wait (ui/timeSkip.js stops a long wait for it):
+     * its kind is marked urgent in data/courtLetters.json (a call to arms, a
+     * plea in a war, a child held hostage, a league's ultimatum, a rival's
+     * demand, a ransom, a threat). Invitations, offers, news and replies keep
+     * in the inbox until the wait is over.
+     */
+    pressing(letter) {
+        const K = letter ? this.kind(letter.kind) : null;
+        return !!(K && K.urgent);
+    },
+
+    /** Days before a pressing letter's deadline that a wait stops for it (config.lapse.warnDays). */
+    dueWarnDays() {
+        return _num(this.lapseConfig().warnDays, 2);
+    },
+
     // ──────────── WHO IS WHO ────────────
 
     _kingdoms(world) {

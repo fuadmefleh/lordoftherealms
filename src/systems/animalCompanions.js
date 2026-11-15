@@ -419,6 +419,34 @@ export const AnimalCompanions = {
         return false;
     },
 
+    /** How much it can take: its breed's hp, else its kind's (data: species.hp / breeds.hp). */
+    maxHp(a) {
+        const sp = AnimalCompanions.species(a && a.species) || {};
+        const br = AnimalCompanions.breed(a && a.species, a && a.breed) || {};
+        return Math.max(1, _num(br.hp, _num(sp.hp, 30)));
+    },
+
+    /** Its hit points now: health (0..100) of its hp. */
+    hpOf(a) {
+        return Math.round(AnimalCompanions.maxHp(a) * _clamp(_num(a && a.health, 100), 0, 100) / 100);
+    },
+
+    /**
+     * Struck for `hits` hit points (a beast's bite on the street map): a big
+     * mastiff shrugs off what kills a cat. → true when it died
+     */
+    wound(player, id, hits, world = null, notices = null) {
+        const a = AnimalCompanions.get(player, id);
+        if (!a || !(hits > 0)) return false;
+        return AnimalCompanions.hurt(player, id, hits * 100 / AnimalCompanions.maxHp(a), world, notices);
+    },
+
+    /** The foe's bite back at it on the street map: { chance, npc: [min, max] } (config.streetHurt). */
+    streetHurt() {
+        const H = _obj(AnimalCompanions.config().streetHurt) || {};
+        return { chance: _clamp(_num(H.chance, 0.3), 0, 1), npc: Array.isArray(H.npc) ? H.npc : [2, 6], beast: Array.isArray(H.beast) ? H.beast : [3, 8] };
+    },
+
     _remember(player, a, how, world) {
         const st = AnimalCompanions.state(player);
         st.gone.push({ name: a.name, species: a.species, breed: a.breed, how, day: _day(world) });

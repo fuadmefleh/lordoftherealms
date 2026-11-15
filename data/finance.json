@@ -36,7 +36,13 @@
             "refoundTownShare": 0.3,
             "_yieldFromTowns": "2026-11: an NPC house's lending yield (yield a year, while it stands below yieldUpTo x its founding capital) is the interest its merchant borrowers pay: drawn from the purses of its realm's towns by their people, at most yieldTownShare of each purse a day — no longer coin from nowhere. With the payout above (the partners spending what the house holds past payoutAbove x its founding capital in its city), a house's coin goes round: towns pay interest, the house rebuilds what it lost, its partners spend the surplus back.",
             "yieldFromTowns": true,
-            "yieldTownShare": 0.02
+            "yieldTownShare": 0.02,
+            "_merchantLoans": "2026-11: an NPC house lends merchantLend of what it holds (vault + loans) past merchantKeep x its founding capital to its realm's merchants: the coin is paid into the realm's towns by their people (Finance._merchantBookDay), the book moving merchantDrift a day toward that target; a shrinking book (after a crown loan or a loss) is repaid out of the towns' purses. The merchants pay merchantApr a year on it out of their towns' purses, merchantLossApr of it goes bad a year (the coin stays in the towns), and the partners' payout counts the loans with the vault, so a house no longer sits on a vault larger than all its realm's towns hold.",
+            "merchantLend": 0.5,
+            "merchantKeep": 0.6,
+            "merchantDrift": 0.02,
+            "merchantApr": 0.07,
+            "merchantLossApr": 0.02
         },
         "playerBank": {
             "_comment": "A banking house the player charters (Finance.foundBank). It is one more house in the banks list, so crowns borrow from it and runs, losses, seizures and failure reach it. Deposits drift toward seat population x depositsPerHead x trust; the loan book toward the policy's share of the house's coin; rates per game year.",

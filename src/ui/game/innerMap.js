@@ -11,6 +11,7 @@ import { InnerMapDeck } from '../innerMapDeck.js';
 import { Cartography } from '../../systems/cartography.js';
 import { InnerMapAnimals } from '../innerMapAnimals.js';
 import { InnerMapBattle } from '../innerMapBattle.js';
+import { InnerMapMining } from '../innerMapMining.js';
 
 export async function enterInnerMap(worldQ, worldR) {
     if (!this.world || !this.player) return;
@@ -564,7 +565,7 @@ export function _leaveBuilding() {
     if (!InnerMap.exitBuilding(this)) return false;
     this._configureInnerMapCamera('outer');
     this._updateBuildingExitButton();
-    if (wasUnder) this.ui.showNotification('☀️ Out', 'Back out into the open air.', 'info');
+    if (wasUnder) this.ui.showNotification('☀️ Out', (InnerMapMining.config().text || {}).leave || 'Back out into the open air.', 'info');
     else this.ui.showNotification(wasJail ? '🚪 Free' : '🚪 Exited Building', wasJail ? 'You step out of the jail into the street, blinking at the light.' : 'You step back outside.', 'info');
     return true;
 }

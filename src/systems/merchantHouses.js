@@ -72,7 +72,7 @@ const DEFAULT_CONFIG = {
     convoy: { hexesPerDay: 2, shipHexesPerDay: 9, feePerUnitPerDay: 0.08, minFee: 5, riskPerDay: 0.012, shipRiskPerDay: 0.006, lossShare: [0.4, 1] },
     rivals: {
         count: [3, 5], minActive: 3, weeklyReturn: [-0.035, 0.05], contestedDrag: 0.006,
-        dividendShare: 0.5, capitalCap: 60000, sharePremium: 1.15, sellDiscount: 0.85, ruinCapital: 400,
+        dividendShare: 0.5, capitalCap: 60000, workingPerPost: 4000, overheadShare: 0.0015, sharePremium: 1.15, sellDiscount: 0.85, ruinCapital: 400,
         expandChance: 0.2, maxPosts: 6, lobbyChance: 0.07, slanderChance: 0.12, slanderRivalry: 50,
         undercutVolume: 0.75, newcomerChance: 0.25,
         priceWar: { minSpend: 200, damage: [0.9, 1.5], reputationCost: 3, rivalry: 25 },
@@ -646,6 +646,21 @@ export const MerchantHouses = {
             posts, status: 'active', rivalry: 0, shares: { player: 0 }, foundedDay: day, lastProfit: 0,
         };
         MerchantHouses._backfillRival(rival);
+        // (its partners put up its capital out of the purses of its seat's realm's towns, at
+        // most a tenth of each, by their people — towns not yet keeping a purse, at the
+        // world's making, give it in full)
+        const st0 = seat && world && typeof world.getTile === 'function' ? world.getTile(seat.q, seat.r) : null;
+        const home = st0 && st0.settlement;
+        if (home && Economy.townPurse(home) != null) {
+            const views = typeof world.getSettlementViews === 'function' ? world.getSettlementViews() : [];
+            const list = [];
+            for (const v of views) {
+                const t = world.getTile(v.q, v.r);
+                const s2 = t && t.settlement;
+                if (s2 && (s2 === home || (home.kingdom != null && s2.kingdom === home.kingdom)) && Economy.townPurse(s2) != null) list.push({ settlement: s2, weight: Math.max(1, _num(s2.population)) });
+            }
+            rival.capital = Math.floor(_num(Economy.drawTowns(list, rival.capital, 0.1).paid));
+        }
         return rival;
     },
 
@@ -1060,6 +1075,8 @@ export const MerchantHouses = {
 
     _ruin(player, world, r, out) {
         r.status = 'ruined';
+        // (what is left goes to its creditors, in its seat)
+        if (_num(r.capital) > 0) { MerchantHouses._rivalSpend(world, r, r.capital); r.capital = 0; }
         r.endedDay = _day(world);
         const lost = r.shares.player;
         r.shares.player = 0;
@@ -1701,7 +1718,7 @@ export const MerchantHouses = {
                 return a + KingdomBonuses.crownEffect(k, 'rivalPostReturn');
             }, 0);
             const rate = Utils.randFloat(cfg.weeklyReturn[0], cfg.weeklyReturn[1]) + t.returnBias - contested * cfg.contestedDrag + monopolies * 0.002 + crownDrag;
-            const delta = r.capital * rate;
+            const delta = MerchantHouses._rivalTrade(world, r, r.capital * rate);
             r.capital = Math.max(0, r.capital + delta);
             r.lastProfit = Math.round(delta);
             r.lastWeek = day;
@@ -1712,7 +1729,10 @@ export const MerchantHouses = {
                 r.capital -= div;
                 const mine = Math.floor(div * r.shares.player / 100);
                 if (mine > 0) MerchantHouses._credit(c, world, mine, 'dividends', `Dividend from ${r.name}`);
+                // (the other shareholders spend theirs in the house's seat)
+                MerchantHouses._rivalSpend(world, r, div - Math.max(0, mine));
             }
+            MerchantHouses._rivalOverheads(world, r, cfg);
             r.rivalry = _clamp(r.rivalry - 1, 0, 100);
             // Expand into a nearby town
             if (r.posts.length < cfg.maxPosts && r.capital > 2000 && Utils.random() < cfg.expandChance * t.expand) {
@@ -1727,6 +1747,7 @@ export const MerchantHouses = {
                         const tw = Utils.randPick(towns);
                         r.posts.push({ q: tw.q, r: tw.r, name: tw.name });
                         r.capital -= 300;
+                        MerchantHouses._rivalSpend(world, r, 300, tw);
                         if (MerchantHouses.postAt(player, tw.q, tw.r)) {
                             r.rivalry = _clamp(r.rivalry + 10, 0, 100);
                             out.notices.push({ icon: r.icon, title: 'A Rival Moves In', text: `${r.name} opens a post in ${tw.name}, beside yours — your factor will feel it.`, type: 'warning' });
@@ -1773,12 +1794,16 @@ export const MerchantHouses = {
         for (const r of m.rivals) {
             if (r.status !== 'active') continue;
             const t = MerchantHouses.temperament(r);
-            const delta = r.capital * (Utils.randFloat(cfg.weeklyReturn[0], cfg.weeklyReturn[1]) + t.returnBias);
+            const delta = MerchantHouses._rivalTrade(world, r, r.capital * (Utils.randFloat(cfg.weeklyReturn[0], cfg.weeklyReturn[1]) + t.returnBias));
             r.capital = Math.max(0, r.capital + delta);
             r.lastProfit = Math.round(delta);
             r.lastWeek = day;
             r.lastDividend = delta > 0 ? Math.round(MerchantHouses._rivalPayout(r, delta, cfg) * 100) / 100 : 0;
             r.capital -= r.lastDividend;
+            // (the dividend goes to its shareholders, in the house's seat; the player's
+            // Bourse shares are paid back out of that purse: systems/bourse.js)
+            MerchantHouses._rivalSpend(world, r, r.lastDividend);
+            MerchantHouses._rivalOverheads(world, r, cfg);
             if (r.capital < cfg.ruinCapital) MerchantHouses._ruin(player, world, r, null);
         }
     },
@@ -1790,10 +1815,81 @@ export const MerchantHouses = {
      * always ploughed half back compounded without end: over centuries its
      * capital, and the dividends on its shares, ran to millions.
      */
+    /**
+     * A rival house's week of trade in real coin (2026-11): a gain is drawn out of the
+     * purses of the towns it keeps posts in (at most 2% of each), a loss — goods sold
+     * under cost, wages, a bad venture — paid into them (never more than it holds).
+     * Returns the change in its capital.
+     */
+    _rivalTrade(world, r, delta) {
+        if (!Number.isFinite(delta) || !delta || !world) return 0;
+        const towns = MerchantHouses._rivalTowns(world, r);
+        if (!towns.length) return 0;
+        if (delta > 0) {
+            const res = Economy.drawTowns(towns.map(s => ({ settlement: s, weight: Math.max(1, _num(s.population)) })), delta, 0.02);
+            return Math.round(_num(res.paid) * 100) / 100;
+        }
+        const loss = Math.round(Math.min(-delta, Math.max(0, _num(r.capital))) * 100) / 100;
+        if (!(loss > 0)) return 0;
+        const each = Math.floor(loss / towns.length * 100) / 100;
+        towns.forEach((s, i) => Economy.payTown(s, i === towns.length - 1 ? Math.round((loss - each * (towns.length - 1)) * 100) / 100 : each));
+        return -loss;
+    },
+
+    /** The live towns of a rival house's posts (its seat first). */
+    _rivalTowns(world, r) {
+        if (!world || typeof world.getTile !== 'function' || !r) return [];
+        const out = [];
+        for (const p of [r.seat, ...(r.posts || [])]) {
+            if (!p || !Number.isFinite(p.q)) continue;
+            const t = world.getTile(p.q, p.r);
+            const s = t && t.settlement;
+            if (s && !out.includes(s)) out.push(s);
+        }
+        return out;
+    },
+
+    /** Coin a rival house pays out: into the town at `at`, else its seat's (or first post's) purse. */
+    _rivalSpend(world, r, amount, at = null) {
+        if (!(amount > 0) || !world || typeof world.getTile !== 'function') return 0;
+        const t = at && Number.isFinite(at.q) ? world.getTile(at.q, at.r) : null;
+        const s = (t && t.settlement) || MerchantHouses._rivalTowns(world, r)[0] || null;
+        return s ? Economy.payTown(s, Math.round(amount * 100) / 100) : 0;
+    },
+
+    /**
+     * A rival house's week of running costs, paid into the towns of its posts: its
+     * factors' and clerks' wages, the carters and boatmen, warehouse rents: a share
+     * of the capital it keeps working (overheadShare), split among its towns. → what it paid.
+     */
+    _rivalOverheads(world, r, cfg) {
+        const towns = MerchantHouses._rivalTowns(world, r);
+        if (!towns.length) return 0;
+        const want = Math.max(0, _num(r.capital)) * _num(cfg.overheadShare, 0);
+        const cost = Math.round(Math.min(Math.max(0, _num(r.capital)), want) * 100) / 100;
+        if (!(cost > 0)) return 0;
+        const each = Math.floor(cost / towns.length * 100) / 100;
+        towns.forEach((s, i) => Economy.payTown(s, i === towns.length - 1 ? Math.round((cost - each * (towns.length - 1)) * 100) / 100 : each));
+        r.capital = Math.round((_num(r.capital) - cost) * 100) / 100;
+        r.lastCosts = cost;
+        return cost;
+    },
+
+    /**
+     * The capital a rival house keeps working: workingPerPost for each post (its seat
+     * counting as one), never past capitalCap. Profit past it is all paid out.
+     */
+    _rivalCap(r, cfg) {
+        const cap = _num(cfg.capitalCap, 60000);
+        const per = _num(cfg.workingPerPost, 0);
+        if (!(per > 0)) return cap;
+        return Math.min(cap, per * (1 + (r && Array.isArray(r.posts) ? r.posts.length : 0)));
+    },
+
     _rivalPayout(r, delta, cfg) {
         if (!(delta > 0)) return 0;
         const div = delta * _num(cfg.dividendShare, 0.5);
-        const cap = _num(cfg.capitalCap, 60000);
+        const cap = MerchantHouses._rivalCap(r, cfg);
         // Above the cap nothing is ploughed back (but never more than the week's profit)
         return Math.min(delta, Math.max(div, _num(r.capital) - cap));
     },
@@ -1829,6 +1925,7 @@ export const MerchantHouses = {
         if (Utils.random() >= 0.5) return;
         MerchantHouses._setMonopoly(s, goodId, r.id, r.name, _day(world), cfg.days);
         r.capital -= 200;
+        MerchantHouses._rivalSpend(world, r, 200, p);
         MerchantHouses._news(player, world, `${r.name} buys the ${_label(goodId)} monopoly at ${p.name}.`, '👑');
         const post = MerchantHouses.postAt(player, p.q, p.r);
         if (post && post.orders.some(o => o.good === goodId)) {
@@ -1847,7 +1944,8 @@ export const MerchantHouses = {
             const bidder = active.slice().sort((a, b) => (b.reputation + b.capital / 200) - (a.reputation + a.capital / 200))[0];
             if (Utils.random() < 0.5 * MerchantHouses.temperament(bidder).bid) {
                 m.board = m.board.filter(x => x !== contract);
-                bidder.capital += Math.round(contract.qty * contract.pay * 0.15);
+                // (its margin on the contract: paid by the towns it delivers to)
+                bidder.capital += Math.max(0, MerchantHouses._rivalTrade(world, bidder, Math.round(contract.qty * contract.pay * 0.15)));
                 bidder.reputation = _clamp(bidder.reputation + 2, 0, 100);
                 MerchantHouses._news(player, world, `${bidder.name} takes the contract "${contract.title}".`, bidder.icon);
             }

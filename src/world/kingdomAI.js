@@ -503,8 +503,14 @@ export const KingdomAI = {
                 founded: world.year,
             };
             if (typeof world.invalidateSettlements === 'function') world.invalidateSettlements();
-            // (in a world begun before coin a new village has no coin it wasn't given: world/barter.js)
-            Economy.initSettlement(target.tile.settlement, { fresh: !!world.barter });
+            // (a new village has no coin it wasn't given: the settlers bring their share of
+            // the mother town's purse, by heads — never a starting purse from nothing)
+            Economy.initSettlement(target.tile.settlement, { fresh: true });
+            const have = Economy.townPurse(donor);
+            if (have > 0 && settlers > 0) {
+                const take = Math.floor(have * settlers / Math.max(1, donor.population + settlers) * 100) / 100;
+                Economy.payTown(target.tile.settlement, Economy.drawTown(donor, take));
+            }
         }
     },
 

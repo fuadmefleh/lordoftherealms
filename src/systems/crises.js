@@ -178,6 +178,15 @@ const KIND_INFO = {
     rush: { icon: '💰', label: 'Gold Rush' },
 };
 
+// The player's acts in a crisis in words (player.crises.acts ids → the Age panel's "Your part")
+const ACT_LABELS = {
+    rally: { icon: '⚔️', label: 'rode against the vanguard' }, fund: { icon: '🛡️', label: 'paid toward the levies' },
+    victual: { icon: '🍖', label: 'sold victuals to the invaders' }, flee: { icon: '🏃', label: 'fled to safety' },
+    physicians: { icon: '⚕️', label: 'paid physicians' }, quarantine: { icon: '🚧', label: 'proclaimed or lifted a quarantine' },
+    preach: { icon: '📣', label: 'preached for a side' }, indulgences: { icon: '📜', label: 'sold indulgences' },
+    relief: { icon: '🍞', label: 'gave food to the hungry' }, stake: { icon: '⛏️', label: 'staked a claim at the diggings' },
+};
+
 export const Crises = {
     KINDS: Object.keys(KIND_INFO),
     KIND_INFO,
@@ -828,7 +837,12 @@ export const Crises = {
     /** The crisis the player can act in today, with the choices open to them. */
     view(player, world) {
         const c = Crises.active(world);
-        const out = { active: c, history: Crises.history(world).slice().reverse(), choices: [], here: null, nextDay: (Crises.state(world) || {}).nextDay };
+        const out = { active: c, history: Crises.history(world).slice().reverse(), choices: [], here: null, nextDay: (Crises.state(world) || {}).nextDay, myActs: [], actsIn: {} };
+        // What the player has done in the crises (player.crises.acts): this one's, and a count for each on record
+        if (player) {
+            for (const a of Crises.playerState(player).acts) out.actsIn[a.uid] = (out.actsIn[a.uid] || 0) + 1;
+            if (c) out.myActs = Crises.actsOf(player, c.uid);
+        }
         if (!c || !player) return out;
         out.choices = Crises.choices(player, world);
         out.here = Crises.near(player, world);
@@ -963,6 +977,13 @@ export const Crises = {
             if (d < bd) { bd = d; best = s; }
         }
         return best ? { q: best.q, r: best.r, name: best.name } : null;
+    },
+
+    /** The player's acts in a crisis, newest first: [{ id, day, icon, label }]. */
+    actsOf(player, uid) {
+        if (!player) return [];
+        return Crises.playerState(player).acts.filter(a => a && a.uid === uid).slice().reverse()
+            .map(a => ({ id: a.id, day: a.day, ...(ACT_LABELS[a.id] || { icon: '•', label: a.id }) }));
     },
 
     _record(player, world, c, id, text) {

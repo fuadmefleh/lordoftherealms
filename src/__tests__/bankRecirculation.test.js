@@ -146,4 +146,33 @@ describe("a banking house's coin always lands somewhere", () => {
         expect(bank.capital).toBeLessThan(bank.baseCapital * 1.05);
         expect(coin(game)).toBeCloseTo(before, 1);
     });
+
+    it("a house lends what it holds past its keep into its realm's towns, and is repaid as its vault falls", () => {
+        // (2026-11: the vaults held more than all the towns together, idle — Finance._merchantBookDay)
+        const game = fresh();
+        const { world, player } = game;
+        const st = Finance.state(player);
+        const B = Finance.cfg('banks');
+        expect(B.merchantLend).toBeGreaterThan(0);
+        const bank = Finance.openBanks(player)[0];
+        bank.capital = bank.baseCapital;
+        bank.merchantBook = 0;
+        const towns0 = Economy.realmTowns(world.getKingdom(bank.kingdomId), world).reduce((a, t) => a + (t.settlement.economy ? t.settlement.economy.gold : 0), 0);
+        const before = coin(game);
+        for (let d = 0; d < 120; d++) { world.day++; Finance._banksDay(world, player, st, { notices: [] }); }
+        const target = B.merchantLend * bank.baseCapital * (1 - B.merchantKeep);
+        expect(bank.merchantBook).toBeGreaterThan(target * 0.6);
+        expect(bank.capital).toBeGreaterThanOrEqual(bank.baseCapital * B.merchantKeep);
+        // (the loans are coin in the towns' purses: none made, none lost)
+        const towns1 = Economy.realmTowns(world.getKingdom(bank.kingdomId), world).reduce((a, t) => a + (t.settlement.economy ? t.settlement.economy.gold : 0), 0);
+        expect(towns1).toBeGreaterThan(towns0 + target * 0.4);
+        expect(coin(game)).toBeCloseTo(before, 1);
+        // A crown borrows most of the vault: the merchants repay, out of their towns' purses
+        bank.capital = Math.round(bank.baseCapital * B.merchantKeep * 0.9);
+        const book0 = bank.merchantBook;
+        const before2 = coin(game);
+        for (let d = 0; d < 60; d++) { world.day++; Finance._banksDay(world, player, st, { notices: [] }); }
+        expect(bank.merchantBook).toBeLessThan(book0 * 0.8);
+        expect(coin(game)).toBeCloseTo(before2, 1);
+    });
 });

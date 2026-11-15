@@ -1217,23 +1217,34 @@ export const Finance = {
                 // (yieldUpTo: the merchants' lending is the house's own trade, abstract — it
                 // only rebuilds a house below that multiple of its founding capital)
                 const cap = _num(bank.baseCapital, bank.capital) * Math.min(_num(B.capitalCapMult, 6), _num(B.yieldUpTo, _num(B.capitalCapMult, 6)));
+                // The merchants' loans (2026-11): the house lends merchantLend of what it holds
+                // past merchantKeep x its founding capital into its realm's towns (the coin
+                // circulates there instead of sleeping in the vault), and is repaid as the
+                // book shrinks back (a crown's loan, a loss, a smaller house)
+                Finance._merchantBookDay(world, bank, B, yd);
+                const book = _num(bank.merchantBook);
                 // (the yield is real: the interest its merchant borrowers pay, out of the purses
-                // of the realm's towns — Finance._merchantInterest; with banks.yieldFromTowns
-                // false, the old abstract yield)
-                if (bank.capital < cap) {
-                    const want = Math.min(cap - bank.capital, bank.capital * _num(B.yield, 0.07) / yd);
+                // of the realm's towns: Finance._merchantInterest; with banks.yieldFromTowns
+                // false, the old abstract yield). On the loans always; on its own coin only
+                // while the house is below its founding capital (rebuilding)
+                if (book > 0) {
+                    const got = Finance._merchantInterest(world, bank, book * _num(B.merchantApr, _num(B.yield, 0.07)) / yd);
+                    bank.capital = _round2(bank.capital + got);
+                }
+                if (bank.capital + book < cap) {
+                    const want = Math.min(cap - bank.capital - book, bank.capital * _num(B.yield, 0.07) / yd);
                     const got = B.yieldFromTowns === false ? want : Finance._merchantInterest(world, bank, want);
                     bank.capital = _round2(bank.capital + got);
                 }
-                // The partners draw what the house holds past `payoutAbove` × its founding
-                // capital (the crown's interest, the tax farms' takings) and spend it in
-                // the bank's city: the coin goes back into circulation (2026-11)
-                const above = _num(B.payoutAbove, 0) > 0 ? bank.capital - _num(bank.baseCapital, bank.capital) * _num(B.payoutAbove) : 0;
+                // The partners draw what the house holds (its vault and its loans) past
+                // `payoutAbove` x its founding capital (the crown's interest, the tax farms'
+                // takings) and spend it in the bank's city: the coin goes back into circulation
+                const above = _num(B.payoutAbove, 0) > 0 ? bank.capital + book - _num(bank.baseCapital, bank.capital) * _num(B.payoutAbove) : 0;
                 if (above > 1 && _num(B.payoutRate) > 0 && world && typeof world.getTile === 'function') {
                     const t = world.getTile(bank.q, bank.r);
                     const town = t && t.settlement;
                     if (town && town.economy && Number.isFinite(town.economy.gold)) {
-                        const out = _round2(above * _num(B.payoutRate));
+                        const out = _round2(Math.min(Math.max(0, bank.capital), above * _num(B.payoutRate)));
                         bank.capital = _round2(bank.capital - out);
                         town.economy.gold = _round2(town.economy.gold + out);
                     }
@@ -1262,6 +1273,57 @@ export const Finance = {
         const list = towns.filter(t => Economy.townPurse(t.settlement) != null)
             .map(t => ({ settlement: t.settlement, weight: Math.max(1, _num(t.settlement.population)) }));
         return list.length ? _num(Economy.drawTowns(list, want, share).paid) : 0;
+    },
+
+    /**
+     * An NPC house's book of loans to its realm's merchants (bank.merchantBook: a claim,
+     * not coin). It moves merchantDrift a day toward merchantLend x what the house
+     * holds past merchantKeep x its founding capital: a loan pays real coin into the
+     * realm's towns by their people; a shrinking book is repaid out of their purses (at
+     * most yieldTownShare of each a day). merchantLossApr of it goes bad a year (the
+     * towns keep that coin). Never in a run. Returns the coin lent (negative: repaid).
+     */
+    _merchantBookDay(world, bank, B, yd) {
+        const lend = _clamp(_num(B.merchantLend), 0, 0.9);
+        let book = Math.max(0, _num(bank.merchantBook));
+        if (!(lend > 0) && !(book > 0)) return 0;
+        if (Finance.inPanic(bank, _day(world))) return 0;
+        // Bad debts: the book shrinks, the coin is already in the towns
+        if (book > 0) book = Math.max(0, book * (1 - _num(B.merchantLossApr, 0.02) / yd));
+        const keep = _num(bank.baseCapital, bank.capital) * _num(B.merchantKeep, 0.6);
+        const target = lend * Math.max(0, _num(bank.capital) + book - keep);
+        let moved = 0;
+        const shift = (target - book) * _clamp(_num(B.merchantDrift, 0.02), 0, 1);
+        if (shift > 1) {
+            const amount = _round2(Math.min(shift, Math.max(0, _num(bank.capital) - keep)));
+            const paid = amount > 0 ? Finance._lendToTowns(world, bank, amount) : 0;
+            if (paid > 0) { bank.capital = _round2(bank.capital - paid); book += paid; moved = paid; }
+        } else if (shift < -1 && book > 0) {
+            const got = Finance._merchantInterest(world, bank, Math.min(book, -shift));
+            if (got > 0) { bank.capital = _round2(bank.capital + got); book -= got; moved = -got; }
+        }
+        bank.merchantBook = _round2(Math.max(0, book));
+        return moved;
+    },
+
+    /** Lend `amount` into the purses of a house's realm's towns, by their people (its seat's alone with no realm). Returns paid. */
+    _lendToTowns(world, bank, amount) {
+        if (!(amount > 0) || !world || typeof world.getTile !== 'function') return 0;
+        const k = _kingdom(world, bank.kingdomId);
+        let towns = k && k.isAlive !== false ? Economy.realmTowns(k, world) : [];
+        if (!towns.length) {
+            const t = world.getTile(bank.q, bank.r);
+            if (t && t.settlement) towns = [{ settlement: t.settlement }];
+        }
+        const list = towns.filter(t => Economy.townPurse(t.settlement) != null && !t.settlement.inKind);
+        const pop = list.reduce((a, t) => a + Math.max(1, _num(t.settlement.population)), 0);
+        if (!(pop > 0)) return 0;
+        let paid = 0;
+        list.forEach((t, i) => {
+            const part = i === list.length - 1 ? _round2(amount - paid) : Math.floor(amount * Math.max(1, _num(t.settlement.population)) / pop * 100) / 100;
+            if (part > 0) paid = _round2(paid + Economy.payTown(t.settlement, part));
+        });
+        return paid;
     },
 
     _depositsDay(world, player, st, out) {
@@ -1862,8 +1924,9 @@ export const Finance = {
         for (const [bankId, loss] of hit) {
             const b = Finance.bank(player, bankId);
             if (!b) continue;
+            // (the loss is the claim written off — d.owed above; the coin left the vault
+            // when it was lent, so the vault itself loses nothing more)
             const before = Math.max(1, _num(b.capital));
-            b.capital -= loss;
             b.relations[k.id] = Math.max(-100, _num(b.relations[k.id]) - _num(C.defaultRelation, 60));
             if (b.status === 'open' && (b.capital <= 0 || loss / before >= _num(C.runIfLossShare, 0.25)) && run) Finance._startRun(world, player, st, b, out, `the default of ${Names.realm(k.name)}`);
         }
@@ -2062,6 +2125,8 @@ export const Finance = {
             Finance._payOut(world, bank, bank.capital);
             bank.capital = 0;
         }
+        // (its loans to the merchants are written off: the coin is already in their towns)
+        bank.merchantBook = 0;
         Finance._record(st, world, { kind: 'bank_failed', bankId: bank.id, bank: bank.name, kingdomId: bank.kingdomId, place: bank.seat });
         Finance._note(out, '🏚️', 'A Banking House Fails', text, acct || bank.owner === 'player' ? 'error' : 'warning');
     },

@@ -53,6 +53,7 @@ import { Seasons } from '../world/seasons.js';
 import { WorldEvents } from '../world/worldEvents.js';
 import { WEATHER_EFFECTS } from '../world/weather.js';
 import { Harvests } from '../world/harvests.js';
+import { Economy } from '../world/economy.js';
 import { KingdomNavy } from '../world/kingdomNavy.js';
 import { Finance } from './finance.js';
 import { Ships } from './ships.js';
@@ -874,7 +875,16 @@ export const Underwriting = {
             if (uw && uw.status === 'open') continue;
             cl.status = 'recovered';
             if (cl.fraud) continue;
-            const back = Math.floor(cl.amount * _between(G.recovery || [0.3, 0.6], Utils.random()));
+            let back = Math.floor(cl.amount * _between(G.recovery || [0.3, 0.6], Utils.random()));
+            // (paid out of what the receivers found: a guild's last capital, else the failed
+            // house's seat town, where its receivers paid what it had left)
+            if (uw && uw.type === 'guild') {
+                back = Math.min(back, Math.max(0, Math.floor(_num(uw.ref.capital))));
+                uw.ref.capital = _r2(_num(uw.ref.capital) - back);
+            } else if (uw && world && typeof world.getTile === 'function') {
+                const t = world.getTile(uw.q, uw.r);
+                back = t && t.settlement ? Math.floor(Economy.drawTown(t.settlement, back)) : 0;
+            } else back = 0;
             player.gold = _num(player.gold) + back;
             Ledger.record(player, 'insuranceClaims', back);
             cl.paid = back;
@@ -910,16 +920,20 @@ export const Underwriting = {
                 Underwriting._insolvent(world, player, st, uw, out);
                 continue;
             }
-            const premium = cap * _num(B.bookShare, 0.12) * _num(B.premium, 0.022);
+            const premium0 = cap * _num(B.bookShare, 0.12) * _num(B.premium, 0.022);
             const noise = Math.exp((Utils.random() * 2 - 1) * _num(B.noise, 0.45));
             const ratio = Math.min(_num(B.maxRatio, 6), _num(B.lossRatio, 0.6) * Underwriting._bookRisk(world, uw) * noise);
-            let delta = premium * (1 - ratio);
             let catastrophe = 0;
             if (Utils.random() < _num(cat.chance, 0.002) * (winter ? _num(cat.winterMult, 2) : 1)) {
                 catastrophe = Math.round(cap * _between(cat.loss || [0.1, 0.25], Utils.random()));
-                delta -= catastrophe;
             }
-            uw.ref.capital = _r2(_num(uw.ref.capital) + delta);
+            // Real coin both ways (2026-11): the merchants it covers pay the premiums out of
+            // the purses of its realm's towns, and the claims it pays them go back into its
+            // seat town — an office's book no longer makes or loses coin from nothing
+            const premium = _r2(_num(Finance._merchantInterest(world, uw.ref, premium0)));
+            const claims = _r2(Math.min(premium * ratio + catastrophe, Math.max(0, _num(uw.ref.capital)) + premium));
+            const paidOut = _r2(Finance._payOut(world, uw.ref, claims));
+            uw.ref.capital = _r2(_num(uw.ref.capital) + premium - paidOut);
             const book = st.books[uw.id] = _obj(st.books[uw.id]) || { premium: 0, losses: 0, weeks: 0 };
             book.premium = Math.round(_num(book.premium) + premium);
             book.losses = Math.round(_num(book.losses) + premium * ratio + catastrophe);
@@ -930,6 +944,13 @@ export const Underwriting = {
                 if (Object.values(st.covers).some(c => c.uwId === uw.id)) {
                     out.notices.push({ icon: '🌊', title: 'Underwriters Hit', text: `A great storm sank a fleet ${uw.name} insured: it pays out ${catastrophe}g.`, type: 'warning' });
                 }
+            }
+            // A guild's partners draw what it holds past its founding capital and spend it in
+            // its port (a bank's desk is the bank's: Finance._banksDay pays its partners)
+            if (uw.type === 'guild' && uw.ref.status === 'open') {
+                const FB = Finance.cfg('banks');
+                const above = _num(uw.ref.capital) - _num(uw.ref.baseCapital, _num(uw.ref.capital)) * Math.max(1, _num(FB.payoutAbove, 1));
+                if (above > 1) uw.ref.capital = _r2(_num(uw.ref.capital) - Finance._payOut(world, uw.ref, _r2(above * Math.min(1, 7 * _num(FB.payoutRate, 0.02)))));
             }
             Underwriting._insolvent(world, player, st, uw, out);
         }
@@ -957,12 +978,32 @@ export const Underwriting = {
     _refound(world, st, day) {
         const G = Underwriting.config().guild;
         for (const g of st.guilds.slice()) {
+            // (a failed guild's receivers pay what it had left, after its claims, into its port)
+            if (g.status === 'failed' && _num(g.capital) > 0 && day > _num(g.failedDay)) g.capital = _r2(_num(g.capital) - Finance._payOut(world, g, g.capital));
             if (g.status !== 'failed' || g.refounded || day - _num(g.failedDay) < _num(G.refoundDays, 90)) continue;
             g.refounded = true;
             const tile = world.getTile ? world.getTile(g.q, g.r) : null;
             const s = tile && tile.settlement;
             if (!s || s.kingdom == null) continue;
             const ng = Underwriting._newGuild(world, st, { q: g.q, r: g.r, name: s.name || g.seat, kingdom: s.kingdom });
+            // (its capital is put up by the realm's merchants, out of their towns' purses — not
+            // struck from nothing: at most banks.refoundTownShare of each purse)
+            const k = _kingdom(world, s.kingdom);
+            let towns = k && k.isAlive !== false ? Economy.realmTowns(k, world) : [];
+            if (!towns.length) towns = [{ settlement: s }];
+            const list = towns.map(t => ({ settlement: t.settlement, weight: Math.max(1, _num(t.settlement.population)) }));
+            const res = Economy.drawTowns(list, ng.capital, _clamp(_num(Finance.cfg('banks').refoundTownShare, 0.3), 0, 1));
+            const raised = _r2(_num(res.paid));
+            if (raised < ng.capital * _num(G.minRaise, 0.25)) {
+                // (too little coin in the realm yet: every town has its coin back; try again later)
+                for (const t of res.towns || []) Economy.payTown(t.settlement, _num(t.paid));
+                st.guilds = st.guilds.filter(x => x !== ng);
+                g.refounded = false;
+                g.failedDay = day;
+                continue;
+            }
+            ng.capital = raised;
+            ng.baseCapital = raised;
             Underwriting._record(st, world, { kind: 'underwriter_founded', uwId: ng.id, uw: ng.name, place: ng.seat, kingdomId: ng.kingdomId });
         }
     },

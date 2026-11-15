@@ -95,6 +95,12 @@ Object.assign(ActionMenu, {
                 act: 'crisisAct', args: [ch.id, ...(ch.args || [])],
             }));
             html += rowList(rows, 'What you can do');
+            // What you have done in it so far (player.crises.acts)
+            if (v.myActs.length) {
+                html += `<div style="font-size:11px; color:var(--text-secondary); margin:2px 2px 8px;"><b style="color:#d8c27a;">Your part:</b> `
+                    + v.myActs.slice(0, 8).map(a => `${a.icon} year ${_yr(a.day)}, ${esc(a.label)}`).join(' · ')
+                    + `${v.myActs.length > 8 ? ` · and ${v.myActs.length - 8} more` : ''}</div>`;
+            }
             // Where it began, on the Timeline of the Realm (ui/actionMenu/timeline.js)
             if (_onTimeline(world)) html += rowList([{ icon: '🗺️', name: 'See it on the timeline', desc: `The realm as it stood when ${esc(c.name)} began, and where`, act: 'showTimeline', args: [_jump(c)], side: '›' }]);
         }
@@ -102,7 +108,7 @@ Object.assign(ActionMenu, {
         if (past.length) {
             const rows = past.slice(0, 12).map(h => ({
                 icon: (Crises.KIND_INFO[h.kind] || {}).icon, name: esc(_cap(h.name)),
-                desc: `Years ${_yr(h.startDay)}–${_yr(h.endDay)}: ${esc(_outcome(h.outcome))}`,
+                desc: `Years ${_yr(h.startDay)}–${_yr(h.endDay)}: ${esc(_outcome(h.outcome))}${v.actsIn[h.uid] ? ` · you acted in it ${v.actsIn[h.uid] === 1 ? 'once' : `${v.actsIn[h.uid]} times`}` : ''}`,
                 // (each opens the Timeline of the Realm at its start, while the record reaches back that far)
                 ...(_onTimeline(world, h.startDay) ? { act: 'showTimeline', args: [_jump(h)], side: '🗺️', title: 'See it on the timeline' } : {}),
             }));

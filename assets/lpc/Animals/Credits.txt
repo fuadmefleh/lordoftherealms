@@ -97,12 +97,17 @@ Generated animal sheets (subfolders: arctic_fox bear doe elephant elk fox highla
 
 Animal companions: dog, cat, hawk (dog/ cat/ hawk/)
 -------------------
-  ARTIST(S): generated with PixelLab (pixellab.ai, the user's subscription) on 2026-11-14 through
-             scripts/pixellab.mjs: a 4-direction character on PixelLab's quadruped templates (dog 40px,
-             cat 28px) with its walk-4-frames animation (and the dog's bark as its attack); the hawk a
-             v3 character (custom body) with a described wingbeat animation.
+  ARTIST(S): generated with PixelLab (pixellab.ai, the user's subscription), 2026-11-14 (second pass,
+             redrawn to match the painted series above; the first pass's chunky outlined sheets replaced):
+             a still per animal from generate-with-style-v2 with crops of the series (wolf, fox, goat,
+             duck) as the style references; turned to every side with generate-8-rotations-v3; animated
+             per side on a 128px canvas with animate-with-text-v3 (walk 8 frames, idle 4, the dog's bite 4,
+             the hawk's wing beat), each loop closed on its first frame. About 85 generations.
   LICENSE: PixelLab terms (output owned by the subscriber); confirm before any public release.
-  DETAILS: sheets laid out as the other animal sheets: 4 rows (up, left, down, right) x 4 frames,
-           cells 56px (dog), 40px (cat), 68px (hawk); the dog and cat drawn 1:1 with the LPC tiles (32px), the hawk at about two-thirds.
-  FILES: dog/dog_walk_sheet.png, dog/dog_attack_sheet.png, cat/cat_walk_sheet.png, hawk/hawk_fly_sheet.png
-  USED BY: data/animalCompanions.json (ui/innerMapPets.js).
+  DETAILS: game sheets 512x512, 4 rows (up, left, down, right; left = right mirrored) x 4 frames of 128px,
+           feet on y 124 as the series, built by scripts/build-companion-sheets.py from the raw frames in
+           _pixellab_frames/ (<animal>_<action>_<side>_<i>.png, <animal>128_<side>.png the stills, and the
+           256px stills <animal>_still256_rot<n>.png).
+  FILES: dog/dog_walk_sheet.png, dog/dog_idle_sheet.png, dog/dog_attack_sheet.png,
+         cat/cat_walk_sheet.png, cat/cat_idle_sheet.png, hawk/hawk_fly_sheet.png
+  USED BY: data/animalCompanions.json (ui/innerMapPets.js through ui/innerMapAnimals.js drawAt).

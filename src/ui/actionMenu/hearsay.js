@@ -28,13 +28,16 @@ Object.assign(ActionMenu, {
             ['👂', 'Tales here', v.here.length],
             ['🛣️', 'Told elsewhere only', v.elsewhere],
             ['👥', 'Folk who remember you', v.people.length],
-        ]);
+            // (what you have said of yourself everywhere, and the times you were caught in two tales)
+            v.stats && v.stats.claims ? ['📜', 'Tales of yourself told', v.stats.claims] : null,
+            v.stats && v.stats.caught ? ['🤥', 'Caught out', v.stats.caught] : null,
+        ].filter(Boolean));
         if (!v.here.length) {
             html += lede(`Nobody in ${esc(v.town)} has much to say of you yet. What you tell people in free talk — who you are, what you've done, what you swear — is remembered, and repeated.`);
         }
         html += rowList(v.here.map(r => ({
             icon: r.icon, name: esc(r.label), desc: `“${esc(r.text)}”`,
-            note: `First told by ${esc(r.teller || 'someone')} in ${esc(r.origin || 'town')} · ${LEVEL[Math.min(3, r.level)]}${r.towns > 1 ? ` · heard in ${r.towns} towns` : ''}`,
+            note: `First told by ${esc(r.teller || 'someone')} in ${esc(r.origin || 'town')} · reached here ${esc(r.sinceText || '')} · ${LEVEL[Math.min(3, r.level)]}${r.towns > 1 ? ` · heard in ${r.towns} towns` : ''}`,
             side: _reach(r.reach), tone: r.ill ? 'bad' : r.exposed ? 'warn' : 'gold',
             title: `${Math.round(r.reach * 100)}% of ${v.town} has heard it`,
         })), `What ${esc(v.town)} says of you`);

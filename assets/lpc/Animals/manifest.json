@@ -2035,5 +2035,39 @@
         "notes": ""
       }
     }
+  },
+  "companions": {
+    "_doc": "The player's dog, cat and hawk (data/animalCompanions.json), drawn with PixelLab 2026-11-14 to match this series; see Credits.txt. Raw frames in _pixellab_frames/, game sheets by scripts/build-companion-sheets.py.",
+    "dog": {
+      "walk": "dog/dog_walk_sheet.png",
+      "idle": "dog/dog_idle_sheet.png",
+      "attack": "dog/dog_attack_sheet.png"
+    },
+    "cat": {
+      "walk": "cat/cat_walk_sheet.png",
+      "idle": "cat/cat_idle_sheet.png"
+    },
+    "hawk": {
+      "fly": "hawk/hawk_fly_sheet.png"
+    },
+    "grid": {
+      "size": [
+        512,
+        512
+      ],
+      "rows": 4,
+      "cols": 4,
+      "cell": 128,
+      "directions": [
+        "up",
+        "left",
+        "down",
+        "right"
+      ],
+      "anchor": [
+        64,
+        124
+      ]
+    }
   }
 }

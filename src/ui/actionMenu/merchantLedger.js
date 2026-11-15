@@ -14,6 +14,7 @@
 import { ActionMenu } from './_ref.js';
 import { PriceKnowledge } from '../../systems/priceKnowledge.js';
 import { SettlementMarket } from '../../world/settlementMarket.js';
+import { PriceAnchors } from '../../world/priceAnchors.js';
 import { DataLoader } from '../../core/dataLoader.js';
 import { Hex } from '../../core/hex.js';
 import { Ledger } from '../../systems/ledger.js';
@@ -80,7 +81,8 @@ function bookTab(game) {
     html += rowList([{ icon: '🗺️', name: 'Show on the trade map', desc: `Every known price of ${esc(goodDef(view.good).name.toLowerCase())}, coloured on the map`, act: 'merchantLedgerAct', args: ['map', view.good], side: '›', tone: 'gold' }]);
     html += `<table style="width:100%; border-collapse:collapse; font-size:12px; margin-top:6px;"><tr><th style="${TH}">Town</th><th style="${TH}">Asks</th><th style="${TH}">Pays</th><th style="${TH}">Stock</th><th style="${TH}">Hexes</th><th style="${TH}">News</th></tr>`;
     for (const k of list) {
-        const l = SettlementMarket.label(k.scarcity);
+        // (labelled against the good's anchor, as SettlementMarket.info: a good dear everywhere for years is its normal)
+        const l = PriceAnchors.label(world, view.good, k.scarcity);
         const d = Hex.wrappingDistance(player.q, player.r, k.q, k.r, world.width);
         html += `<tr><td style="${TD}">${esc(k.name)}</td><td style="${TD}">${k.ask}g</td><td style="${TD}">${k.bid}g</td><td style="${TD} color:${l.color};">${l.label}</td><td style="${TD}">${d}</td><td style="${TD}">${ageCell(k)}</td></tr>`;
     }

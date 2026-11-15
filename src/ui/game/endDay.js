@@ -1332,7 +1332,15 @@ export function endDay() {
             // Outlaw chiefs on the hunter's list (systems/outlawLairs.js)
             for (const b of (playerResults.bountyTracking && playerResults.bountyTracking.chiefs) || []) {
                 if (b.outcome === 'slain') {
-                    this.ui.showNotification('🎯 Bounty Paid', `The price on ${b.targetName}'s head is yours: +${b.pay} gold.${b.promoted ? ` Promoted to ${b.promoted.title}!` : ''}`, 'success');
+                    // (a broke crown pays what it has and writes the rest as a writ: BountyHunting.owe)
+                    const writ = b.owed > 0 ? ` ${b.realm || 'The crown'} could not pay it all: it gives you a writ for the other ${b.owed} gold, paid as its chests fill.` : '';
+                    this.ui.showNotification('🎯 Bounty Paid', `The price on ${b.targetName}'s head is yours: +${b.pay} gold.${writ}${b.promoted ? ` Promoted to ${b.promoted.title}!` : ''}`, b.owed > 0 ? 'warning' : 'success');
+                } else if (b.outcome === 'writPaid') {
+                    this.ui.showNotification('📜 Writ Honoured', `${b.realm || 'The crown'} pays the last of what it owed you for ${b.targetName}: +${b.pay} gold.`, 'success');
+                } else if (b.outcome === 'writPart') {
+                    this.ui.showNotification('📜 On Account', `${b.realm || 'The crown'} pays ${b.pay} gold on its writ for ${b.targetName} (${b.left} still owed).`, 'info');
+                } else if (b.outcome === 'writLapsed') {
+                    this.ui.showNotification('📜 Writ Worthless', `The writ for ${b.targetName} is worth nothing now: ${b.left} gold you will never see.`, 'warning');
                 } else {
                     this.ui.showNotification('🎯 Notice Lapsed', `${b.targetName} is beyond your reach now; the notice is taken down.`, 'info');
                 }

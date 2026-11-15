@@ -483,7 +483,7 @@ describe('crowns', () => {
         expect(k.fisc.last.levy).toBeCloseTo((k.fisc.last.land + k.fisc.last.poll + k.fisc.last.excise) * 0.3, 0);
     });
 
-    it('a default costs the lenders capital, the realm stability, and bondholders a haircut', () => {
+    it("a default writes off the lenders' claims, costs the realm stability, and bondholders a haircut", () => {
         const game = fresh();
         const bank = firstBank(game);
         const k = game.world.kingdoms.find(x => x.isAlive !== false && x.id !== bank.kingdomId);
@@ -494,7 +494,10 @@ describe('crowns', () => {
         const stab0 = k.stability = 60;
         const res = Finance.crownDefault(game.world, game.player, k, { notices: [], paid: 0, defaulted: [] }, 0.5);
         expect(res.amount).toBe(5000);
-        expect(bank.capital).toBe(capital0 - 5000);
+        // (the claim is written off; the coin left the vault when it was lent — 2026-11 the
+        // vault lost it a second time, coin out of the world)
+        expect(f.debt[0].owed).toBe(5000);
+        expect(bank.capital).toBe(capital0);
         expect(k.stability).toBeLessThan(stab0);
         expect(bank.relations[k.id]).toBeLessThan(0);
         expect(game.player.finance.bonds[0].principal).toBe(1000);

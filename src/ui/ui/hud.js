@@ -1081,8 +1081,13 @@ Clothes: ${cs.icon} ${cs.label} (${cs.freshness}%)`;
 
 /** Alignment label: "Unaligned" when the player owes no allegiance. */
 function hudAlignment(player) {
-    return player.allegiance == null ? 'Unaligned'
-        : (player.kingdomTitle === 'king' && player.rulerTitle) || player.kingdomTitle || 'Citizen';
+    if (player.allegiance == null) return 'Unaligned';
+    if (player.kingdomTitle === 'king' && player.rulerTitle) return player.rulerTitle;
+    // A titled subject (a great lord's "Duke of Crownhaven") is named by the title, not "Citizen"
+    const t = typeof player.title === 'string' ? player.title.trim() : '';
+    if (t && !/^(nobody|citizen|deposed)$/i.test(t)) return t;
+    const k = player.kingdomTitle;
+    return k ? String(k).charAt(0).toUpperCase() + String(k).slice(1) : 'Citizen';
 }
 
 /** Moral stance derived from karma. */

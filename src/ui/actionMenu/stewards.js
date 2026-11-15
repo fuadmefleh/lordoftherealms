@@ -14,6 +14,15 @@ const KIND_ICON = { holding: '🏰', province: '👑', estates: '🌾', company:
 const WHO_ICON = { family: '🧑', courtier: '👥', companion: '🗡️', townsfolk: '🏘️', steward: '📜' };
 const tone = (v) => (v < 30 ? 'bad' : v < 50 ? 'warn' : 'good');
 const skills = (o) => `stew ${o.stewardship} · mart ${o.martial} · intr ${o.intrigue}`;
+// The House's record with its stewards (Stewards.state.stats), shown in the dispatches view
+const RECORD = [
+    ['appointed', '✍️', 'Appointed'], ['recalled', '🚪', 'Recalled'], ['resigned', '📜', 'Resigned'], ['died', '🕯️', 'Died in office'],
+    ['rewarded', '🎖️', 'Rewarded'], ['punished', '⚖️', 'Punished'], ['audits', '🔎', 'Audits'], ['caught', '🫳', 'Caught'],
+    ['recovered', '💰', 'Recovered', 'g'], ['excelled', '🌟', 'Good deeds'], ['abuses', '😠', 'Complaints'], ['worksStarted', '🏗️', 'Works begun'],
+    ['bribed', '🪙', "Took a rival's bribe"], ['refusedBribes', '🛡️', 'Refused bribes'], ['risings', '🔥', 'Risings'], ['defections', '🏳️', 'Defections'],
+    ['marriages', '💍', 'Married into the House'], ['servedHeirs', '👑', 'Served on under an heir'],
+];
+const recordChips = (stats) => RECORD.filter(([k]) => (stats[k] || 0) > 0).map(([k, icon, label, unit]) => [icon, label, `${Math.round(stats[k])}${unit || ''}`]);
 
 Object.assign(ActionMenu, {
     showStewards(game, view = null, seatId = null) {
@@ -74,6 +83,8 @@ Object.assign(ActionMenu, {
             html += lede('The seasons\' dispatches from your stewards. A crooked one\'s account is rosier than the truth.');
             for (const r of v.reports) html += card(r.lines.map(l => `<div style="margin:3px 0;">${esc(l)}</div>`).join(''), { icon: '📜', title: `Day ${r.day}` });
             if (!v.reports.length) html += lede('No dispatches yet: they come once a season.');
+            const rec = recordChips(v.stats || {});
+            if (rec.length) html += sectionHead("The House's record with its stewards") + chips(rec);
             if (v.log.length) html += sectionHead('Of late') + v.log.map(l => `<div style="font-size:11px; color:#bbb; padding:2px 0;">Day ${l.day}: ${esc(l.text)}</div>`).join('');
             html += rowList([back]);
         } else {

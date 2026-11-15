@@ -325,7 +325,7 @@ describe('rents, values and the tenants', () => {
 });
 
 describe('the land market', () => {
-    it('a holder with more put by than a year of rents spends it down into its seat\'s purse', () => {
+    it('a holder with more put by than a year of rents spends it down into its seat\'s and its estates\' purses', () => {
         // (2026-11 century soak: spending only the month's rents, the coffers took in more than half the world's coin)
         const g = newGame(101);
         play(g, 8);
@@ -336,11 +336,15 @@ describe('the land market', () => {
         const seat = LandMarket._seat(w, h);
         expect(seat).toBeTruthy();
         h.purse = 100000; h.inc = 0; h.debt = 0;
-        const before = h.purse + seat.economy.gold;
+        // (estateWages of it goes into the towns its estates lie in: 2026-11)
+        const places = new Set([seat, ...Estates.heldBy(w, h.id).map(x => Estates._liveOfKey(w, x.town)).filter(t => t && t.economy)]);
+        const purses = () => [...places].reduce((a, t) => a + t.economy.gold, 0);
+        const before = h.purse + purses();
+        const seat0 = seat.economy.gold;
         LandMarket._holderMonth(w, g.player, h, w.day, { notices: [] });
         expect(h.purse).toBeLessThan(100000);
-        // (whole coin: the purse is rounded)
-        expect(Math.abs(h.purse + seat.economy.gold - before)).toBeLessThan(1.01);
+        expect(seat.economy.gold).toBeGreaterThan(seat0);
+        expect(Math.abs(h.purse + purses() - before)).toBeLessThan(0.05);
     });
 
     it('buying pays the seller and the crown\'s duty; selling back at once loses: no money loop', () => {

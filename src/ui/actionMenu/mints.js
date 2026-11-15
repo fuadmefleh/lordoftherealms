@@ -58,7 +58,7 @@ function coinTab(game) {
         'Coin flows with the balance of trade, tribute and crown loans; war and panics hoard it; debased coin drives the good abroad.',
         `Rates are the silver in each coin against ${here ? `the coin of <b>${esc(here.name)}</b>, where you stand` : 'its neighbour'}; money changers charge for the purity gap when you cross a border with gold.`,
     ]);
-    html += `<table style="width:100%; border-collapse:collapse; font-size:12px; margin-top:6px;"><tr><th style="${TH}">Realm</th><th style="${TH}">Silver</th><th style="${TH}">Price level</th><th style="${TH}">All prices</th><th style="${TH}">Coin about</th><th style="${TH}">4 weeks</th><th style="${TH}">Hoarded</th>${here ? `<th style="${TH}">Rate · changers</th>` : ''}<th style="${TH}">Mint last week</th></tr>`;
+    html += `<table style="width:100%; border-collapse:collapse; font-size:12px; margin-top:6px;"><tr><th style="${TH}">Realm</th><th style="${TH}">Silver</th><th style="${TH}">Price level</th><th style="${TH}">All prices</th><th style="${TH}">Coin about</th><th style="${TH}">4 weeks</th><th style="${TH}">Hoarded</th><th style="${TH}">Trust</th>${here ? `<th style="${TH}">Rate · changers</th>` : ''}<th style="${TH}">Mint last week</th></tr>`;
     for (const r of rows) {
         const me = here && r.id === here.id;
         // What the mint struck and the crown took is in the mint's books (systems/realmIntel.js)
@@ -70,6 +70,8 @@ function coinTab(game) {
             + `<td style="${TD}">${r.coin == null ? '—' : `${r.coin.toLocaleString()}g ${sparkline(r.hist)}`}</td>`
             + `<td style="${TD} color:${updown(r.trend)};">${r.trend == null ? '—' : pct(r.trend)}</td>`
             + `<td style="${TD}">${r.vel < 0.995 ? `${Math.round((1 - r.vel) * 100)}%` : '—'}</td>`
+            // (the people's trust in the coin, and what of the old coin is still in hand and clipped)
+            + `<td style="${TD} color:${r.trust < 60 ? '#e0846a' : r.trust < 85 ? '#f0b35a' : 'inherit'};" title="${esc(`${Math.round(r.inHand * 100)}% silver in the pieces in hand${r.clip > 0.005 ? `, ${Math.round(r.clip * 100)}% clipped away` : ''}: each worth ${Math.round(r.effective * 100)}% of a full piece`)}">${r.trust}</td>`
             + (here ? `<td style="${TD}">${me ? '—' : `${r.rate.toFixed(2)}${r.fee > 0 ? ` · <span style="color:#f0b35a;">${(r.fee * 100).toFixed(1)}%</span>` : ''}`}</td>` : '')
             + (why ? `<td style="${TD}">${Math.round(r.struck)}g struck · ${Math.round(r.seign)}g to the crown</td></tr>` : `<td style="${TD} ${NOTE}">🔒</td></tr>`);
     }
@@ -85,7 +87,8 @@ function coinTab(game) {
             ['', 'Coin about', `${Math.round(broad.coin).toLocaleString()}g`],
             ['', 'In the crown\'s chests', `${Math.round(broad.treasury).toLocaleString()}g`],
             ['', 'In the banks\' vaults', `${Math.round(broad.banks).toLocaleString()}g`],
-        ]);
+            mine.perHead != null ? ['', 'Coin a head', `${mine.perHead}g`] : null,
+        ].filter(Boolean));
         if (broad.coffers > 0) body += chips([['', "In the great houses' coffers", `${Math.round(broad.coffers).toLocaleString()}g`]]);
         if (broad.player > 0) body += chips([['', 'In your purse', `${Math.round(broad.player).toLocaleString()}g`]]);
         body += `<div style="${NOTE}">The coin about is every purse in the realm: its towns, its people, guilds, gangs, inns, merchants, caravans. The crown's chests, the great houses' coffers, the vaults and your own purse move no prices until they are spent.</div>`;
@@ -93,9 +96,25 @@ function coinTab(game) {
     }
     const st = player.mints;
     if (st && st.stats && st.stats.exchangeFees > 0) html += `<div style="${NOTE}">The money changers have had ${Math.round(st.stats.exchangeFees)}g of you.</div>`;
+    html += _dealings(st);
     const ruled = Finance.ruledKingdom(player, world);
     if (ruled) html += rowList([{ icon: '👑', name: `Run the coin of ${esc(Names.realm(ruled.name))}`, desc: 'Seigniorage, recoinage and debasement: the Crown\'s Treasury', act: 'mintAct', args: ['crown'], side: '›', tone: 'gold' }]);
     return html;
+}
+
+/** Your dealings with the mints (Mints.state stats and log): what you sold, leased, passed. */
+function _dealings(st) {
+    if (!st || !st.stats) return '';
+    const S = st.stats;
+    const c = [];
+    if (S.sold > 0) c.push(['🥇', 'Bullion sold', `${Math.round(S.sold)} for ${Math.round(S.soldGold)}g`]);
+    if (S.leaseFees > 0) c.push(['🏛️', 'Leases', `${Math.round(S.leaseFees)}g paid · ${Math.round(S.leaseEarned)}g earned`]);
+    if (S.passed > 0 || S.caught > 0) c.push(['🕯️', 'False coin', `${S.passed} passed · ${S.caught} caught · +${Math.round(S.counterfeitGain)}g`]);
+    const log = Array.isArray(st.log) ? st.log.slice(-5).reverse() : [];
+    if (!c.length && !log.length) return '';
+    let body = c.length ? chips(c) : '';
+    body += log.map(l => `<div style="${NOTE} padding:1px 0;">Day ${l.day}: ${esc(l.text)}</div>`).join('');
+    return card(body, { icon: '📒', title: 'Your dealings with the mints' });
 }
 
 function mintTab(game, tile) {
@@ -176,6 +195,8 @@ function coinersTab(game, tile) {
     }
     html += rowList(rows, 'False coin');
     html += stop;
+    const S = player.mints && player.mints.stats;
+    if (S && (S.passed > 0 || S.caught > 0)) html += chips([['🕯️', 'Batches passed', S.passed], ['⛓️', 'Caught', S.caught], ['💰', 'Cleared', `${Math.round(S.counterfeitGain)}g`]]);
     return html;
 }
 

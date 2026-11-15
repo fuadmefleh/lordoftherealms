@@ -68,6 +68,13 @@ function _kingdom(world, id) {
 }
 
 export const RealmEscort = {
+    /** The guard's realm as prose: "the Kingdom of Valdoria" (a name "X of Y" takes its article; `cap` at a sentence's start). */
+    realmName(g, cap = false) {
+        const n = String((g && g.kingdomName) || 'the realm');
+        const out = /^[A-Z][\w-]* of /.test(n) ? `the ${n}` : n;
+        return cap ? out.charAt(0).toUpperCase() + out.slice(1) : out;
+    },
+
     RANKS,
 
     // ── Data ────────────────────────────────────────
@@ -399,16 +406,16 @@ export const RealmEscort = {
         else if (why === 'deserted') st.home[g.kingdomId] = _day(world) + _num((RealmEscort.config().deserted || {}).days, 45);
         const R = RealmEscort.rankDef(g.rank) || {};
         const text = {
-            title: `You hold no rank in ${g.kingdomName} now: its ${R.label || 'guard'} rides home to the realm's army.`,
-            exile: `Exiled from ${g.kingdomName}, you lose its ${R.label || 'guard'}: the men ride home.`,
-            turned: `You have turned against ${g.kingdomName}: its ${R.label || 'guard'} will not ride with you, and goes home.`,
-            fallen: `${g.kingdomName} is no more: its ${R.label || 'guard'} scatters.`,
-            home: `You send the ${R.label || 'guard'} of ${g.kingdomName} home: ${home} men ride back to the realm's army.`,
-            deserted: `The last of the ${R.label || 'guard'} of ${g.kingdomName} has slipped away, unpaid.`,
-            another: `The ${R.label || 'guard'} of ${g.kingdomName} rides home: another realm's men ride with you now.`,
-            loyal: `The ${R.label || 'guard'} of ${g.kingdomName} stood with the old crown and is gone.`,
-            treason: `The ${R.label || 'guard'} of ${g.kingdomName} is broken with your coup${lost ? `: ${lost} of them cut down` : ''}.`,
-        }[why] || `The ${R.label || 'guard'} of ${g.kingdomName} rides home.`;
+            title: `You hold no rank in ${RealmEscort.realmName(g)} now: its ${R.label || 'guard'} rides home to the realm's army.`,
+            exile: `Exiled from ${RealmEscort.realmName(g)}, you lose its ${R.label || 'guard'}: the men ride home.`,
+            turned: `You have turned against ${RealmEscort.realmName(g)}: its ${R.label || 'guard'} will not ride with you, and goes home.`,
+            fallen: `${RealmEscort.realmName(g, true)} is no more: its ${R.label || 'guard'} scatters.`,
+            home: `You send the ${R.label || 'guard'} of ${RealmEscort.realmName(g)} home: ${home} men ride back to the realm's army.`,
+            deserted: `The last of the ${R.label || 'guard'} of ${RealmEscort.realmName(g)} has slipped away, unpaid.`,
+            another: `The ${R.label || 'guard'} of ${RealmEscort.realmName(g)} rides home: another realm's men ride with you now.`,
+            loyal: `The ${R.label || 'guard'} of ${RealmEscort.realmName(g)} stood with the old crown and is gone.`,
+            treason: `The ${R.label || 'guard'} of ${RealmEscort.realmName(g)} is broken with your coup${lost ? `: ${lost} of them cut down` : ''}.`,
+        }[why] || `The ${R.label || 'guard'} of ${RealmEscort.realmName(g)} rides home.`;
         if (out && out.notices) out.notices.push({ icon: '🛡️', title: 'Household Guard', text, type: why === 'home' ? 'info' : 'warning' });
         return { why, home, lost, text };
     },
@@ -744,6 +751,6 @@ export const RealmEscort = {
         const g = RealmEscort.guard(player);
         if (!g) return '';
         const R = RealmEscort.rankDef(g.rank) || {};
-        return `${R.label || 'Household guard'} of ${g.kingdomName}: ${RealmEscort.men(player, g.kingdomId)} men, paid by the crown${g.arrearsDays > 0 ? ` (unpaid ${g.arrearsDays} days)` : ''}`;
+        return `${R.label || 'Household guard'} of ${RealmEscort.realmName(g)}: ${RealmEscort.men(player, g.kingdomId)} men, paid by the crown${g.arrearsDays > 0 ? ` (unpaid ${g.arrearsDays} days)` : ''}`;
     },
 };

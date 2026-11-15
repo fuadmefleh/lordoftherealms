@@ -275,7 +275,7 @@ Object.assign(InnerMapRenderer, {
         if (guardMen.length) {
             const g = RealmEscort.guard(game.player);
             const crown = !!(g && g.rank === 'crown');
-            menuItems.push({ type: 'header', label: `🛡️ ${g && g.kingdomName ? `The household guard of ${g.kingdomName}` : 'Your household guard'}` });
+            menuItems.push({ type: 'header', label: `🛡️ ${g && g.kingdomName ? `The household guard of ${RealmEscort.realmName(g)}` : 'Your household guard'}` });
             for (const m of guardMen) {
                 const u = m.unit || {};
                 const what = String(u.name || u.type || 'company').replace(/_/g, ' ');

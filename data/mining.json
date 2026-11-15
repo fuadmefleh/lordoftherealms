@@ -99,6 +99,7 @@
         "enterCave": "You duck under the rock into the cave. Only the light you carry shows the way.",
         "enterMine": "Into the mine. The dark closes in behind the light you carry.",
         "enterShaft": "You climb down the ladder into the dark.",
-        "leave": "Back out into the open air."
+        "leave": "Back out into the open air.",
+        "workedOut": "The vein runs to nothing: the mine of this hex has had all its ore."
     }
 }

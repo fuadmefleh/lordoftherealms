@@ -286,15 +286,31 @@ export const Hex = {
     },
 
     /**
+     * How the A* has failed (findPath): a path asked for that could not be had
+     * is an answer, not an error, so it is counted here rather than logged —
+     * offMap / blocked (the end off the map or not enterable: no search),
+     * tooFar (over 50 hexes: no search), exhausted (searched and found none,
+     * or gave up at the iteration cap). verbose: true logs each failed search.
+     */
+    pathStats: { offMap: 0, blocked: 0, tooFar: 0, exhausted: 0, verbose: false },
+
+    /**
      * A* pathfinding on hex grid with wrapping (heavily optimized)
      */
     findPath(startQ, startR, endQ, endR, mapWidth, mapHeight, isPassable, getCost) {
-        const startTime = performance.now();
+        const stats = Hex.pathStats;
+        // (off the map's top or bottom, or not a place at all: nowhere to search for)
+        if (!Number.isFinite(startQ) || !Number.isFinite(startR) || !Number.isFinite(endQ) || !Number.isFinite(endR) || endR < 0 || endR >= mapHeight) {
+            stats.offMap++;
+            return null;
+        }
+        const startTime = stats.verbose ? performance.now() : 0;
 
         // Wrap the end coordinate
         const wrappedEnd = { q: Hex.wrapQ(endQ, mapWidth), r: endR };
 
         if (!isPassable(wrappedEnd.q, wrappedEnd.r)) {
+            stats.blocked++;
             return null;
         }
 
@@ -302,7 +318,7 @@ export const Hex = {
         const estimatedDistance = Hex.wrappingDistance(startQ, startR, wrappedEnd.q, wrappedEnd.r, mapWidth);
 
         if (estimatedDistance > 50) {
-            console.warn('Path too far, distance:', estimatedDistance);
+            stats.tooFar++;
             return null; // Too far, don't even try
         }
 
@@ -375,8 +391,8 @@ export const Hex = {
             }
         }
 
-        const elapsed = performance.now() - startTime;
-        console.warn(`[PATHFIND] FAILED after ${iterations} iterations, ${elapsed.toFixed(2)}ms`);
+        stats.exhausted++;
+        if (stats.verbose) console.warn(`[PATHFIND] FAILED after ${iterations} iterations, ${(performance.now() - startTime).toFixed(2)}ms`);
         return null; // No path found
     }
 };

@@ -399,6 +399,7 @@
             "stall_woodmonger_2x1": { "sheet": "assets/buildingKit/stalls_trade.png", "sx": 288, "sy": 276, "sw": 96, "sh": 92 },
             "stall_bare_2x1": { "sheet": "assets/buildingKit/stalls_trade.png", "sx": 384, "sy": 276, "sw": 96, "sh": 92 },
             "altar_2x1": { "sheet": "assets/buildingKit/furniture_big.png", "sx": 336, "sy": 0, "sw": 96, "sh": 47 },
+            "fireplace_2x1": {"sheet":"assets/buildingKit/hearth_big.png","sx":0,"sy":0,"sw":96,"sh":70},
             "forge_2x1": { "sheet": "assets/buildingKit/furniture_big.png", "sx": 432, "sy": 0, "sw": 96, "sh": 74 },
             "desk_2x1": { "sheet": "assets/buildingKit/furniture_big.png", "sx": 624, "sy": 0, "sw": 96, "sh": 50 }
         }

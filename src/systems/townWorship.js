@@ -250,12 +250,14 @@ export const TownWorship = {
         // systems/townsfolk.js _days walks every town from its roster's own first day, so a late
         // catch-up and day-by-day both first ask here for the same day)
         if (!Number.isFinite(last)) last = upTo - 1;
+        // (the dead not yet buried, once a call — not every person every day caught up; no one dies in the loop)
+        const unburied = last + 1 <= upTo ? folk.people.filter(p => p.died != null && !p.buried) : [];
         for (let d = last + 1, guard = 0; d <= upTo && guard < 20000; d++, guard++) {
             let at = world;
             if (world && _num(world.day) !== d) { at = Object.create(world); at.day = d; }
             if (TownWorship.isHolyDay(d)) TownWorship.holyDay(at, s, d, player);
             // Burials: each death since the town was last seen to is buried, with its mourners
-            for (const p of folk.people) {
+            for (const p of unburied) {
                 if (p.died == null || p.buried || d - p.died > 3 || p.died > d) continue;
                 p.buried = d;
                 const n = TownWorship.mourners(folk, p, d);

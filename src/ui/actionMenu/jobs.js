@@ -1026,6 +1026,12 @@ Object.assign(ActionMenu, {
                 (payPct !== 0 ? ` · ${payPct > 0 ? '+' : ''}${payPct}% pay` : '') +
                 (rank.botchPenalty > 0 ? ` <span style="color:#f0b35a;">(botched arrests: −${Math.round(rank.botchPenalty * 100)}%)</span>` : '');
             html += lede(`${rank.icon} <b style="color:#ece2c8;">${rank.title}</b> (rank ${rank.rank})${perks}`);
+            // Bounties a broke crown still owes you (BountyHunting.owe: writs paid as its chests fill)
+            const owed = BountyHunting.owedTotal(game.player);
+            if (owed > 0) {
+                const writs = game.player.bountyHunter.owed.map(w => `${w.realm || 'a crown'} ${Math.max(0, w.amount - (w.paid || 0))}g for ${w.target} (until day ${w.until})`).join('; ');
+                html += lede(`📜 Writs owed you: <b style="color:#ffe08a;">${owed} gold</b> — ${writs}.`);
+            }
         }
 
         // Active bounties: a listing row each, its controls at the right

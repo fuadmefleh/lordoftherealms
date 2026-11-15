@@ -10,6 +10,8 @@ import { TradeRoutes, Economy } from './economy.js';
 import { Characters } from './characters.js';
 import { Colonization } from './colonization.js';
 import { Names } from '../core/names.js';
+import { CrownBooks } from './crownBooks.js';
+import { MoneySupply } from './moneySupply.js';
 
 export const NPCLords = {
     /** Opinion bonus a lord holds for the player married into their realm. */
@@ -357,7 +359,8 @@ export const NPCLords = {
     _fromTowns(towns, amount) {
         if (!(amount > 0) || !towns.length) return 0;
         const res = Economy.drawTowns(towns.map(s => ({ settlement: s, weight: Math.max(1, s.population || 0) })), amount, 0.05);
-        return Math.floor(res.paid);
+        // (to the hundredth: flooring it lost the odd coppers drawn from the towns)
+        return Math.round(res.paid * 100) / 100;
     },
 
     /** Stewardship multiplier on gold a lord's own schemes bring in (0.75-1.25). */
@@ -399,6 +402,8 @@ export const NPCLords = {
         // (real coin: the factors' dues come out of the realm's towns' purses, by their people)
         const gold = NPCLords._fromTowns(towns, due);
         kingdom.treasury = (kingdom.treasury || 0) + gold;
+        // (booked: the crown's budget sees it as customs, out of the realm's own towns)
+        if (gold > 0) CrownBooks.note(kingdom, 'customs', gold);
 
         const friends = [...partners].map(id => world.getKingdom(id))
             .filter(k => k && k.isAlive && !(kingdom.wars || []).includes(k.id));
@@ -461,6 +466,8 @@ export const NPCLords = {
             if (tribute > 0) {
                 target.treasury -= tribute;
                 kingdom.treasury = (kingdom.treasury || 0) + tribute;
+                // (booked out of one realm and into the other: world/moneySupply.js)
+                MoneySupply.transfer(world, target.id, kingdom.id, tribute, 'tribute');
                 if (Array.isArray(world.events)) {
                     world.events.push({
                         text: `👑 ${kingdom.name} cows ${target.name} into paying ${tribute} gold in tribute.`,
@@ -519,6 +526,8 @@ export const NPCLords = {
         const list = NPCLords._towns(kingdom, world);
         const saved = NPCLords._fromTowns(list, Math.round(list.length * T.savingsPerTown * NPCLords._stewardMult(kingdom)));
         kingdom.treasury = (kingdom.treasury || 0) + saved;
+        // (booked: a levy on the realm's own towns)
+        if (saved > 0) CrownBooks.note(kingdom, 'levy', saved);
         return saved;
     },
 

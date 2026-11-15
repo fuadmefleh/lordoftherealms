@@ -59,6 +59,7 @@ import { Ailments } from './ailments.js';
 import { Underworld } from './underworld.js';
 import { Taxation } from './marketDynamics.js';
 import { Pressure } from './pressure.js';
+import { Economy } from '../world/economy.js';
 
 const DEFAULT_CONFIG = {
     firstStart: [60, 120],
@@ -191,7 +192,11 @@ const EFFECTS = {
     treasury(c, e) {
         for (const k of Sagas._scopeKingdoms(c.world, c.saga, e.scope || 'kingdom')) {
             const t = _num(k.treasury);
-            k.treasury = Math.max(0, Math.round(t + _num(e.amount) + t * _num(e.pct)));
+            const next = Math.max(0, Math.round(t + _num(e.amount) + t * _num(e.pct)));
+            // (a gain is what the story's costs paid in — the player's purse; a loss is the
+            // crown's coin spent — a ransom, a fleet, a war chest — into its own towns)
+            if (next < t) Economy.crownSpend(k, c.world, t - next);
+            else k.treasury = next;
         }
     },
 
@@ -457,8 +462,18 @@ const EFFECTS = {
         const day = _day(world);
         const parts = [];
         if (e.gold) {
-            player.gold = Math.max(0, _num(player.gold) + _num(e.gold));
-            parts.push(`${e.gold > 0 ? '+' : ''}${e.gold} gold`);
+            // (the story's purse is real coin: the realm's thanks out of its chests, else its
+            // towns'; a loss of gold is spent in the realm's towns)
+            const k = Sagas._scopeKingdom(world, saga, 'kingdom');
+            let g = _num(e.gold);
+            if (g > 0) g = Sagas._rewardCoin(world, k, player, g);
+            else {
+                const lost = Math.min(Math.max(0, _num(player.gold)), -g);
+                if (lost > 0 && !(k && Economy.payRealm(k, world, lost)) && !Economy.payNearest(world, player.q, player.r, lost)) g = 0;
+                else g = -lost;
+            }
+            player.gold = Math.max(0, _num(player.gold) + g);
+            parts.push(`${g > 0 ? '+' : ''}${Math.round(g)} gold`);
         }
         if (e.renown) {
             player.renown = Math.max(0, _num(player.renown) + _num(e.renown));
@@ -657,6 +672,29 @@ export const Sagas = {
         return spots.length ? Utils.randPick(spots) : null;
     },
 
+    /**
+     * A story's purse for the player: out of the realm's chests, the rest out of its
+     * towns' purses (at most a tenth of each), else the nearest town's. → what was paid.
+     */
+    _rewardCoin(world, k, player, gold) {
+        let want = Math.max(0, _num(gold));
+        let paid = 0;
+        if (k && k.isAlive !== false && want > 0) {
+            const t = Math.min(want, Math.max(0, _num(k.treasury)));
+            k.treasury = _num(k.treasury) - t;
+            paid += t;
+            want -= t;
+            if (want > 0) {
+                const entries = Economy.realmTowns(k, world).map(x => ({ settlement: x.settlement, weight: Math.max(1, _num(x.settlement.population)) }));
+                const got = _num(Economy.drawTowns(entries, want, 0.1).paid);
+                paid += got;
+                want -= got;
+            }
+        }
+        if (want > 0 && player) paid += Economy.drawNearest(world, player.q, player.r, want);
+        return Math.round(paid * 100) / 100;
+    },
+
     _scopeKingdom(world, saga, scope) {
         if (scope === 'world') return null;
         const id = scope === 'kingdom2' ? saga.anchor.kingdom2Id : saga.anchor.kingdomId;
@@ -794,19 +832,15 @@ export const Sagas = {
         const kingdom = _kingdom(world, saga.anchor.kingdomId);
         const realm = (kingdom && kingdom.name) || saga.anchor.kingdomName || 'the countryside';
         const posted = Sagas.bountyPrice(saga, rec);
+        // (the chests pay what they hold; a realm that is broke or gone leaves half, passed
+        // round its towns or the nearest one: real coin, never from nothing)
         let gold = posted;
-        if (kingdom) {
-            const treasury = _num(kingdom.treasury);
-            const paid = Math.min(gold, Math.max(Math.floor(gold / 2), treasury));
-            kingdom.treasury = Math.max(0, treasury - paid);
-            gold = paid;
-        } else {
-            gold = Math.floor(gold / 2);
-        }
+        const short = Math.max(0, Math.floor(gold / 2) - Math.max(0, _num(kingdom && kingdom.treasury)));
+        gold = Sagas._rewardCoin(world, kingdom, player, Math.min(gold, Math.max(0, _num(kingdom && kingdom.treasury))) + short);
         const parts = [];
         if (gold > 0) {
             player.gold = _num(player.gold) + gold;
-            parts.push(`${gold} gold from ${realm}`);
+            parts.push(`${Math.round(gold)} gold from ${realm}`);
         }
         if (b.renown) {
             player.renown = Math.max(0, _num(player.renown) + _num(b.renown));

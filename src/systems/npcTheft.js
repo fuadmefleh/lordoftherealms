@@ -73,6 +73,7 @@ import { Containers } from './containers.js';
 import { SocialSkills } from './socialSkills.js';
 import { TownTrade } from './townTrade.js';
 import { AnimalCompanions } from './animalCompanions.js';
+import { Ledger } from './ledger.js';
 
 const DEFAULTS = {
     enabled: true,
@@ -665,8 +666,9 @@ export const NpcTheft = {
             if (lair) { if (!_obj(lair.hoard)) lair.hoard = { gold: 0, goods: {} }; lair.hoard.gold = _num(lair.hoard.gold) + n; return n; }
         }
         if (thief.kind === 'agent' && player && player.house && player.house.rivals) {
+            // (a rival House keeps its coin in `gold`, the purse the census counts: `purse` was a dead field)
             const h = player.house.rivals[thief.rivalId];
-            if (h) { h.purse = _num(h.purse) + n; return n; }
+            if (h) { h.gold = _num(h.gold) + n; return n; }
         }
         // (no one to hold it: it stays with the town — its purse)
         if (s.economy && Number.isFinite(s.economy.gold)) s.economy.gold += n;
@@ -687,7 +689,7 @@ export const NpcTheft = {
         }
         if (thief.kind === 'agent' && player && player.house && player.house.rivals) {
             const h = player.house.rivals[thief.rivalId];
-            if (h) { const got = Math.min(n, Math.max(0, _num(h.purse))); h.purse -= got; return got; }
+            if (h) { const got = Math.min(n, Math.max(0, _num(h.gold))); h.gold -= got; return got; }
         }
         if (s.economy && Number.isFinite(s.economy.gold)) { const got = Math.min(n, Math.max(0, s.economy.gold)); s.economy.gold -= got; return got; }
         return 0;
@@ -1061,6 +1063,8 @@ export const NpcTheft = {
         const shareC = _num(P.coinShare[0], 0.15) + _frac(`${key}|coin`) * (_num(P.coinShare[1], 0.45) - _num(P.coinShare[0], 0.15));
         const coin = Math.min(_num(player.gold), Math.max(1, Math.min(_num(P.playerCoinMax, 60), Math.floor(_num(player.gold) * shareC))));
         player.gold = _num(player.gold) - coin;
+        // (on the player's books: the coin went to the thief's purse — NpcTheft._pay)
+        if (coin > 0) Ledger.record(player, 'pursesCut', -coin);
         out.coin = coin;
         // Now and then a small thing from the pack too: the most precious small thing
         const goods = {};
@@ -1297,7 +1301,10 @@ export const NpcTheft = {
     /** The goods of a case back into the player's hands. → the text */
     _giveBack(player, e, lead) {
         const what = NpcTheft.describe(e);
-        if (_num(e.coin) > 0) player.gold = _num(player.gold) + e.coin;
+        if (_num(e.coin) > 0) {
+            player.gold = _num(player.gold) + e.coin;
+            if (e.k === 'pickpocket') Ledger.record(player, 'pursesCut', e.coin);
+        }
         if (!_obj(player.inventory)) player.inventory = {};
         for (const [id, n] of Object.entries(e.goods || {})) player.inventory[id] = _num(player.inventory[id]) + n;
         e.status = 'returned';

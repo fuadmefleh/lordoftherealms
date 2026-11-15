@@ -56,6 +56,18 @@ const _notify = (game, title, body, kind = 'info') => {
     if (game && game.ui && typeof game.ui.showNotification === 'function') game.ui.showNotification(title, body, kind);
 };
 const HOSTILE = new Set(['stalk', 'charge', 'attack']);
+/** The render clock in seconds (drawing only: a standing beast's breath and idle frames). */
+const _now = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now()) / 1000;
+/** A beast's own offset into a loop, so a herd doesn't breathe in step. */
+const _phase = (a) => {
+    const id = String((a && a.id) || '');
+    let h = 0;
+    for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) % 997;
+    return h * 0.37;
+};
+/** How far a standing beast's body swells with a breath (share of its height) and how long a breath takes, s. */
+const BREATH = 0.022;
+const BREATH_S = 2.6;
 
 export const InnerMapAnimals = {
     _imgs: new Map(),
@@ -96,7 +108,15 @@ export const InnerMapAnimals = {
         }
         const sheet = sheets.walk || sp.sheet;
         const moving = !!(a.next || a.moving);
-        if (!moving) return { sheet, row, col: 0 };
+        if (!moving) {
+            // Standing: its idle sheet if it has one (a wag, a breath, a tail flick: the
+            // player's own dog and cat), on the clock so it plays while it stands still
+            if (sheets.idle) {
+                const t = a.idleT != null ? _num(a.idleT) : _now();
+                return { sheet: sheets.idle, row, col: Math.floor(t * _num(sp.idleFps, 4) + _phase(a)) % cols, idle: true };
+            }
+            return { sheet, row, col: 0 };
+        }
         const fast = a.state === 'flee' || a.state === 'charge';
         const fps = fast ? _num(sp.fleeFps, 12) : _num(sp.walkFps, 6);
         const phase = (a.id ? a.id.length * 0.37 : 0);
@@ -162,7 +182,12 @@ export const InnerMapAnimals = {
         const smooth = ctx.imageSmoothingEnabled;
         ctx.imageSmoothingEnabled = k < 1; // a sheet scaled down is smoothed; scaled up it stays crisp
         if (fade < 1) { ctx.save(); ctx.globalAlpha = fade; }
-        ctx.drawImage(img, f.col * fw, f.row * fh, fw, fh, Math.round(fx - ax * k), Math.round(fy - ay * k), Math.round(fw * k), Math.round(fh * k));
+        // Standing with no idle frames of its own (the wild and farm beasts): it breathes,
+        // the body swelling a little from the feet up, so it never stands frozen on a walk frame
+        const sheets = sp.sheets || {};
+        const standing = a.state !== 'dead' && !(a.next || a.moving) && !f.idle && !(sheets.attack && f.sheet === sheets.attack);
+        const ky = standing ? k * (1 + BREATH * (0.5 + 0.5 * Math.sin((_now() / BREATH_S) * Math.PI * 2 + _phase(a)))) : k;
+        ctx.drawImage(img, f.col * fw, f.row * fh, fw, fh, Math.round(fx - ax * k), Math.round(fy - ay * ky), Math.round(fw * k), Math.round(fh * ky));
         if (fade < 1) ctx.restore();
         ctx.imageSmoothingEnabled = smooth;
         // Hurt: its blood on a bar over it

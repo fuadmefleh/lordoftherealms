@@ -12,6 +12,7 @@ import { Renderer } from './core.js';
 import { PriceKnowledge } from '../../systems/priceKnowledge.js';
 import { MerchantCaravans } from '../../systems/merchantCaravans.js';
 import { SettlementMarket } from '../../world/settlementMarket.js';
+import { PriceAnchors } from '../../world/priceAnchors.js';
 import { DataLoader } from '../../core/dataLoader.js';
 import { Transport } from '../../world/transport.js';
 
@@ -114,7 +115,8 @@ Object.assign(Renderer.prototype, {
         for (const k of PriceKnowledge.known(player, world, goodId)) {
             const s = this._screenOf(k.q, k.r);
             if (off(s)) continue;
-            const label = SettlementMarket.label(k.scarcity);
+            // (the stock reading against the good's anchor, as SettlementMarket.info)
+            const label = PriceAnchors.label(world, goodId, k.scarcity);
             const fade = k.age <= C.freshDays ? 1 : Math.max(0.4, 1 - (k.age - C.freshDays) / Math.max(1, C.staleDays * 2));
             ctx.globalAlpha = fade;
             ctx.fillStyle = 'rgba(10, 12, 20, 0.85)';

@@ -31,6 +31,7 @@
 import { DataLoader } from '../core/dataLoader.js';
 import { Ledger } from './ledger.js';
 import { House } from './house.js';
+import { Economy } from '../world/economy.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -225,11 +226,15 @@ export const FirstSteps = {
     _pay(player, world, reward, reason) {
         const r = _obj(reward) || {};
         const parts = [];
-        const gold = Math.round(_num(r.gold));
+        // (the town's folk pay it — the work found, the purse pressed on a newcomer — out of
+        // the purse of the town nearest: real coin, so a broke town pays less)
+        const want = Math.round(_num(r.gold));
+        const town = want > 0 ? Economy.nearestPurse(world, player.q, player.r) : null;
+        const gold = town ? Economy.drawTown(town, want) : want;
         if (gold > 0) {
             player.gold = _num(player.gold) + gold;
             Ledger.record(player, FirstSteps.config().ledgerCategory || 'firstSteps', gold);
-            parts.push(`+${gold} gold`);
+            parts.push(`+${Math.round(gold)} gold`);
         }
         const renown = Math.round(_num(r.renown));
         if (renown > 0) {

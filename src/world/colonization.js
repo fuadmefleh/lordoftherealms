@@ -549,7 +549,10 @@ export const Colonization = {
         world.units.push(settler);
 
         kingdom.colonization.pioneersActive++;
-        kingdom.treasury -= 200;
+        // (the crown's 200g goes with the pioneers, and is spent where they settle)
+        const outfit = Math.min(200, Math.max(0, Number(kingdom.treasury) || 0));
+        kingdom.treasury -= outfit;
+        settler.inventory.gold = (Number(settler.inventory.gold) || 0) + outfit;
 
         world.events.push({
             text: `🚩 ${kingdom.name} has sent pioneers to colonize distant lands!`,

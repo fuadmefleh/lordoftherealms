@@ -177,7 +177,7 @@
         "order": ["main", "ranged", "body", "off", "head", "feet", "ammo"]
     },
     "rivals": {
-        "_doc": "The rival Houses' retinues in harness (systems/rivalHouses.js, rival.arms). A retinue is baseMen of the House's household men plus its hired guards; each needs the soldier's kit (troops.kits.soldier). When the retinue stands in a town (a trading stop, a court, home) the House buys what it lacks out of the town's market stock (the cheapest good of each slot), paying the town's price from the purse into the town's, never below invest.reserve gold and at most spendShare of the purse at once. The retinue's strength (its fights on the road, a waylaying, your attack) x its kit factor (as a soldier's: bare to troops.maxFactor). The pieces wear out (wear a week, share of them); a beaten retinue loses the arms of its fallen (the guards lost, and lostShare of the rest); a retinue scattered by you leaves lostShare of its arms on the road. The head fights a duel in the House's best blade and harness.",
+        "_doc": "The rival Houses' retinues in harness (systems/rivalHouses.js, rival.arms). A retinue is baseMen of the House's household men plus its hired guards; each needs the soldier's kit (troops.kits.soldier): the core four (main, off, head, body) and the small extras on top, boots (feet), leg harness (legs) and gloves (hands) — a household of old holds the core four, and a record without the extras fights exactly as it did. When the retinue stands in a town (a trading stop, a court, home) the House buys what it lacks out of the town's market stock (the cheapest good of each slot, the core four first, then boots, leg harness and gloves), paying the town's price from the purse into the town's, never below invest.reserve gold and at most spendShare of the purse at once. The retinue's strength (its fights on the road, a waylaying, your attack) x its kit factor (as a soldier's: bare to troops.maxFactor). The pieces wear out (wear a week, share of them); a beaten retinue loses the arms of its fallen (the guards lost, and lostShare of the rest); a retinue scattered by you leaves lostShare of its arms on the road. The head fights a duel in the House's best blade and harness (every armour slot's prot).",
         "baseMen": 4,
         "spendShare": 0.3,
         "wear": 0.01,
@@ -186,7 +186,10 @@
             "main": ["weapons", "spear", "iron_sword", "steel_sword"],
             "off": ["shield", "heater_shield"],
             "head": ["helmet", "steel_helm"],
-            "body": ["gambeson", "leather_armor", "chainmail"]
+            "body": ["gambeson", "leather_armor", "chainmail"],
+            "legs": ["padded_chausses", "leather_leggings", "mail_chausses"],
+            "feet": ["boots"],
+            "hands": ["leather_gloves"]
         }
     }
 }

@@ -88,6 +88,13 @@ let _cfgSrc;
 // One trade step's lookups (TownTrade.step): who sells what and who produces it do not change
 // within a step, so they are worked out once a step, not once a household and good
 let _stepMemo = null;
+// (a step's rates by good, once per rates list: _surplus asks it for every household)
+const _ratesByMemo = new WeakMap();
+function _ratesBy(rates) {
+    let m = _ratesByMemo.get(rates);
+    if (!m) { m = Object.fromEntries(rates.map(r => [r.g, r])); _ratesByMemo.set(rates, m); }
+    return m;
+}
 
 function _seed(world) {
     return (world && world.generationParams && world.generationParams.seed) || 1;
@@ -841,7 +848,7 @@ export const TownTrade = {
         const H = st.hh[hh.key];
         const L = (H && H.l) || {};
         const out = {};
-        const rOf = Object.fromEntries(rates.map(r => [r.g, r]));
+        const rOf = _ratesBy(rates);
         for (const [g, n] of Object.entries(L)) {
             const r = rOf[g];
             const over = r ? n - TownTrade.target(hh, r) : n;
@@ -851,6 +858,22 @@ export const TownTrade = {
             for (const [g, n] of Object.entries(st.wares[p.id] || {})) if (n > 0) out[g] = _num(out[g]) + n;
         }
         return out;
+    },
+
+    /** Has the household anything to spare (_surplus not empty), without building the list? */
+    _hasSurplus(st, hh, rates) {
+        const H = st.hh[hh.key];
+        const L = (H && H.l) || {};
+        const rOf = _ratesBy(rates);
+        for (const g in L) {
+            const r = rOf[g];
+            if ((r ? L[g] - TownTrade.target(hh, r) : L[g]) > 0) return true;
+        }
+        for (const p of hh.adults) {
+            const w = st.wares[p.id];
+            if (w) for (const g in w) if (w[g] > 0) return true;
+        }
+        return false;
     },
 
     _deficit(st, hh, rates) {
@@ -941,7 +964,7 @@ export const TownTrade = {
         const kind = TownTrade.inKind(s);
         let n = 0;
         // (one with something to spare goes to a neighbour)
-        const spare = hhs.filter(h => h.adults.length && Object.keys(TownTrade._surplus(st, h, rates)).length);
+        const spare = hhs.filter(h => h.adults.length && TownTrade._hasSurplus(st, h, rates));
         for (let i = 0; i < Math.max(0, _num(B.pairs, 3)); i++) {
             const a = _pick(spare, _frac(_seed(world), 'bxa', s.q, s.r, day, i));
             const b = _pick(hhs.filter(h => h !== a), _frac(_seed(world), 'bxb', s.q, s.r, day, i));

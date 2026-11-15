@@ -36,6 +36,7 @@
 
 import { Hex } from '../core/hex.js';
 import { Cultures } from '../world/cultures.js';
+import { Economy } from '../world/economy.js';
 import { Ledger } from './ledger.js';
 import { Names } from '../core/names.js';
 
@@ -374,7 +375,9 @@ export const Languages = {
             const fee = _num(R.fee, 12);
             if (_num(rival.gold) >= fee * 4) {
                 rival.gold -= fee;
-                out.paid = fee;
+                // (the interpreter is one of the town's own: the fee stays in its purse)
+                if (!Economy.payTown(settlement, fee)) rival.gold += fee;
+                else out.paid = fee;
                 out.understood = true;
             } else {
                 out.dealFactor = 1 - _num(R.badDeal, 0.12);

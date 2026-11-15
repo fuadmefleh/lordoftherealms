@@ -613,6 +613,22 @@ export const HoldingSieges = {
         return rec;
     },
 
+    /**
+     * The siege clock for the Threats panel: { progress, heat, heatMax, fired,
+     * pending, cooldownUntil, log } or null while it has never wound. Creates nothing.
+     */
+    clockView(player, world) {
+        const holder = player && player.realmWars && player.realmWars.siegeClock;
+        if (!holder) return null;
+        const seed = _num(world && world.generationParams && world.generationParams.seed, 1);
+        const c = Pressure.describe(holder, 'siege', seed);
+        return {
+            ...(c || { progress: 0, heat: 0, heatMax: 3, fired: 0, lastFired: null, might: 0 }),
+            pending: holder.pending || null, cooldownUntil: _num(holder.cooldownUntil),
+            log: Array.isArray(holder.log) ? holder.log.slice(0, 5) : [],
+        };
+    },
+
     _clockLog(holder, day, text) {
         holder.log.unshift({ day, text });
         if (holder.log.length > 8) holder.log.length = 8;

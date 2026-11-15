@@ -40,6 +40,7 @@ import { Utils } from '../core/utils.js';
 import { EconomyIndex } from '../world/economyIndex.js';
 import { Fashions } from '../world/fashions.js';
 import { Finance } from './finance.js';
+import { Economy } from '../world/economy.js';
 import { MerchantHouses } from './merchantHouses.js';
 import { Ledger } from './ledger.js';
 import { seededStream } from './underwriting.js';
@@ -285,7 +286,8 @@ export const Bourse = {
         l.endedWhy = why;
         const h = st.holdings[l.id];
         if (why === 'bought' && h && h.shares > 0) {
-            const pay = Math.floor(h.shares * _num(l.book) * 1.15);
+            // (the buyer's coin, in the exchange town)
+            const pay = Bourse._fromFloor(world, player, l.kingdomId, Math.floor(h.shares * _num(l.book) * 1.15));
             player.gold = _num(player.gold) + pay;
             Ledger.record(player, 'shares', pay);
             st.stats.payouts += pay;
@@ -417,7 +419,12 @@ export const Bourse = {
                     l.lastWeek = r.lastWeek;
                     div = _num(r.lastDividend);
                     l.lastDiv = _r2(div / l.shares);
-                    if (held > 0 && div > 0) Bourse._payDividend(player, st, l, held * l.lastDiv);
+                    // (the house paid its dividend out into its seat town: the player's share
+                    // of it comes back out of that purse — MerchantHouses._rivalSpend)
+                    if (held > 0 && div > 0) {
+                        const seat = MerchantHouses._rivalTowns(world, r)[0] || null;
+                        Bourse._payDividend(player, st, l, seat ? Economy.drawTown(seat, held * l.lastDiv) : 0);
+                    }
                 }
                 const prior = _num(l.lastCap, _num(r.capital));
                 if (prior > 0) Bourse._roeStep(l, (_num(r.capital) + div - prior) / prior);
@@ -461,7 +468,8 @@ export const Bourse = {
                 l.book = MerchantHouses.companyValue(player) / l.shares;
             } else {
                 Bourse._ventureWeek(world, player, st, l, out);
-                if (held > 0 && l.lastDiv > 0) Bourse._payDividend(player, st, l, held * l.lastDiv);
+                // (a chartered company's dividend is its trade's takings: out of its exchange town's purse)
+                if (held > 0 && l.lastDiv > 0) Bourse._payDividend(player, st, l, Bourse._fromFloor(world, player, l.kingdomId, held * l.lastDiv));
             }
             l.fair = _r2(Bourse.fairValue(world, player, l));
             l.history.push(_r2(l.price));
@@ -473,13 +481,38 @@ export const Bourse = {
     },
 
     _payDividend(player, st, l, amount) {
-        const a = Math.floor(_num(amount) * 100) / 100;
+        const a = _r2(_num(amount));
         if (!(a > 0)) return;
         player.gold = _num(player.gold) + a;
         Ledger.record(player, 'shareDividends', a);
         st.stats.dividends = _r2(st.stats.dividends + a);
         const h = st.holdings[l.id];
         if (h) h.dividends = _r2(_num(h.dividends) + a);
+    },
+
+    /**
+     * The town of an exchange (by its realm, else the first): the outside shareholders,
+     * brokers and speculators whose coin the floor trades in live there.
+     */
+    _floorTown(world, player, kid = null) {
+        const st = player && player.bourse;
+        const list = st && Array.isArray(st.exchanges) ? st.exchanges : [];
+        const ex = (kid != null && list.find(e => String(e.kingdomId) === String(kid))) || (player && list.find(e => e.q === player.q && e.r === player.r)) || list[0];
+        const t = ex && world && typeof world.getTile === 'function' ? world.getTile(ex.q, ex.r) : null;
+        return (t && t.settlement) || null;
+    },
+
+    /** Coin the floor pays out (to the player, into a company): out of the exchange town's purse. → paid */
+    _fromFloor(world, player, kid, amount) {
+        // (a bare record with no exchange town on the map, as in the specs: paid in full)
+        const s = Bourse._floorTown(world, player, kid);
+        return s ? _r2(Economy.drawTown(s, _r2(_num(amount)))) : _r2(_num(amount));
+    },
+
+    /** Coin paid onto the floor (shares bought, a bank's loss on lent shares): into the exchange town's purse. */
+    _toFloor(world, player, kid, amount) {
+        const s = Bourse._floorTown(world, player, kid);
+        return s ? Economy.payTown(s, _r2(_num(amount))) : _r2(_num(amount));
     },
 
     /** Gold leaving the company for its outside shareholders (not profit or loss: a distribution). */
@@ -611,6 +644,8 @@ export const Bourse = {
             let hit = 0;
             if (bank) {
                 hit = Math.round(Math.max(0, _num(bank.capital)) * _between(def.bankHit || [0.02, 0.05], Utils.random()));
+                // (the coin it lent on the shares was spent on the floor and is not coming back)
+                hit = Bourse._toFloor(world, player, ex.kingdomId, hit);
                 bank.capital -= hit;
             }
             Bourse._news(st, world, { kind: 'crash', mania: m.id, listing: l.name, kingdomId: l.kingdomId, place: ex.name, bank: bank ? bank.name : null, amount: hit, own: !!st.holdings[l.id] });
@@ -770,6 +805,8 @@ export const Bourse = {
         const q = Bourse.quoteTrade(l, k, 'buy');
         if (_num(player.gold) < q.total) return { success: false, reason: `${k} shares cost ${Math.ceil(q.total)}g.` };
         player.gold -= q.total;
+        // (the price goes to the sellers and the brokers, in the exchange town)
+        Bourse._toFloor(world, player, null, q.total);
         Ledger.record(player, 'shares', -q.gross);
         Ledger.record(player, 'brokerage', -q.fee);
         const h = st.holdings[l.id] = st.holdings[l.id] || { shares: 0, cost: 0, dividends: 0 };
@@ -797,6 +834,9 @@ export const Bourse = {
         if (!h || k <= 0 || k > h.shares) return { success: false, reason: 'You hold fewer shares than that.' };
         const q = Bourse.quoteTrade(l, k, 'sell');
         const costShare = h.shares > 0 ? _num(h.cost) * k / h.shares : 0;
+        // (the buyers pay out of the exchange town's purse: a thin market takes fewer shares)
+        if (Bourse._floorTown(world, player) && _num(Economy.townPurse(Bourse._floorTown(world, player))) < q.total) return { success: false, reason: 'There are not buyers enough on the floor for that many shares today.' };
+        Bourse._fromFloor(world, player, null, q.total);
         player.gold = _num(player.gold) + q.total;
         Ledger.record(player, 'shares', q.gross);
         Ledger.record(player, 'brokerage', -q.fee);
@@ -860,7 +900,9 @@ export const Bourse = {
         c.float.outside += k;
         c.float.floatedDay = c.float.floatedDay == null ? _day(world) : c.float.floatedDay;
         c.float.raised = _num(c.float.raised) + q.cash;
-        c.capital += q.cash;
+        // (the outsiders' coin, out of the exchange town's purse)
+        const cash = Bourse._fromFloor(world, player, null, q.cash);
+        c.capital += cash;
         c.flows.floated = _num(c.flows.floated) + q.cash;
         c.ledger.unshift({ day: _day(world), kind: 'income', cat: 'floated', amount: q.cash, text: `${k} shares floated at ${q.price.toFixed(1)}g` });
         if (c.ledger.length > 80) c.ledger.length = 80;
@@ -884,6 +926,7 @@ export const Bourse = {
         const q = Bourse.quoteTrade(l, k, 'buy');
         if (_num(player.gold) < q.total) return { success: false, reason: `${k} shares cost ${Math.ceil(q.total)}g.` };
         player.gold -= q.total;
+        Bourse._toFloor(world, player, null, q.total);
         Ledger.record(player, 'shares', -q.gross);
         Ledger.record(player, 'brokerage', -q.fee);
         c.float.outside -= k;
@@ -903,6 +946,8 @@ export const Bourse = {
         if (!c || !l || !c.float) return { success: false, reason: 'Float the company first.' };
         if (k <= 0 || _num(c.float.outside) + k > _num(C.float.maxOutside, 49)) return { success: false, reason: 'You would lose control of the company.' };
         const q = Bourse.quoteTrade(l, k, 'sell');
+        if (Bourse._floorTown(world, player) && _num(Economy.townPurse(Bourse._floorTown(world, player))) < q.total) return { success: false, reason: 'There are not buyers enough on the floor for that many shares today.' };
+        Bourse._fromFloor(world, player, null, q.total);
         player.gold = _num(player.gold) + q.total;
         Ledger.record(player, 'shares', q.gross);
         Ledger.record(player, 'brokerage', -q.fee);

@@ -88,7 +88,7 @@ export const AnimalsPanel = {
             const walks = StreetFollowers.walks(player, StreetFollowers.animalKey(a.id));
             let body = `<div style="${NOTE}">${esc(kind)} · ${a.sex === 'f' ? 'female' : 'male'} · ${esc(AnimalCompanions.ageText(a, world))}`
                 + `${a.from === 'stray' ? ' · a stray you won over' : ''}${a.keptAt ? ` · kept at ${esc(kept ? `${kept.name}${kept.town ? `, ${kept.town}` : ''}` : 'a house of yours')}` : walks ? ' · walks with you' : ' · waits at your lodging'}</div>`;
-            body += `<div style="margin-top:4px; font-size:11px;">💛 Bond${_bar(a.bond, '#e5b83a')}${_pct(a.bond)} &nbsp; 🍖 Belly${_bar(a.hunger, '#6fcf4f')}${_pct(a.hunger)} &nbsp; ❤️ Health${_bar(a.health, '#e0473a')}${_pct(a.health)}</div>`;
+            body += `<div style="margin-top:4px; font-size:11px;">💛 Bond${_bar(a.bond, '#e5b83a')}${_pct(a.bond)} &nbsp; 🍖 Belly${_bar(a.hunger, '#6fcf4f')}${_pct(a.hunger)} &nbsp; ❤️ Health${_bar(a.health, '#e0473a')}${_pct(a.health)} <span style="color:#9d937c;">(${AnimalCompanions.hpOf(a)}/${AnimalCompanions.maxHp(a)} HP)</span></div>`;
             const fx = _effectsText(a, world);
             if (fx.length) body += `<div style="margin-top:4px; font-size:11px; color:#cdb;">${fx.map(t => `• ${esc(t)}`).join('<br>')}</div>`;
             const foods = AnimalCompanions.foodsFor(player, a);
@@ -131,7 +131,7 @@ export const AnimalsPanel = {
         try { members = Companions.members(player, world).filter(n => n && n.isAlive !== false); } catch { members = []; }
         const people = members.map(n => row('🧭', esc(n.firstName || n.name || 'Companion'), esc(n.occupation || 'companion'), StreetFollowers.npcKey(n.id)));
         const g = RealmEscort.guard(player);
-        if (g && RealmEscort.units(player).length) people.push(row('🛡️', esc(g.kingdomName ? `The guard of ${g.kingdomName}` : 'Your household guard'), `${RealmEscort.units(player).length} compan${RealmEscort.units(player).length === 1 ? 'y' : 'ies'}`, StreetFollowers.GUARD));
+        if (g && RealmEscort.units(player).length) people.push(row('🛡️', esc(g.kingdomName ? `The guard of ${RealmEscort.realmName(g)}` : 'Your household guard'), `${RealmEscort.units(player).length} compan${RealmEscort.units(player).length === 1 ? 'y' : 'ies'}`, StreetFollowers.GUARD));
         html += rowList(people, 'People') || `<div style="${NOTE}">No companions or guard travel with you.</div>`;
         const beasts = AnimalCompanions.travelling(player, world).map(a => row(AnimalCompanions.icon(a), esc(a.name), esc(AnimalCompanions.kindName(a)), StreetFollowers.animalKey(a.id)));
         html += rowList(beasts, 'Animals') || `<div style="${NOTE} margin-top:6px;">No animals travel with you.</div>`;

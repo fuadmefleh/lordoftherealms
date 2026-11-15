@@ -46,6 +46,7 @@ import { Hex } from '../core/hex.js';
 import { Gossip } from './gossip.js';
 import { Rivals } from './rivals.js';
 import { NPCLords } from '../world/npcLords.js';
+import { Economy } from '../world/economy.js';
 import { Names } from '../core/names.js';
 // (a tale on broadsheets goes where people read: systems/literacy.js; run time only)
 import { Literacy } from './literacy.js';
@@ -533,8 +534,10 @@ export const Whispers = {
             add('piety', f.piety);
         }
         if (_num(f.treasuryPct) && _num(k.treasury) > 0) {
-            const delta = Math.round(_num(k.treasury) * _num(f.treasuryPct));
-            k.treasury = Math.max(0, _num(k.treasury) + delta);
+            // (real coin: lost coin is paid out into the realm's towns — the lenders, the
+            // merchants — and a gain comes out of them)
+            let delta = Math.round(_num(k.treasury) * _num(f.treasuryPct));
+            delta = delta < 0 ? -Economy.crownSpend(k, world, -delta) : Economy.crownRaise(k, world, delta);
             add('treasury', delta);
         }
         if (_num(f.enemyRelations)) {
@@ -673,6 +676,7 @@ export const Whispers = {
         if (!sc.spreadTo.includes(_key(q, r))) return { ok: false, reason: 'Nobody here is telling that tale.' };
         if (_num(player.gold) < cfg.fan.cost) return { ok: false, reason: `You need ${cfg.fan.cost} gold for the rounds.` };
         player.gold -= cfg.fan.cost;
+        Economy.payNearest(world, player.q, player.r, cfg.fan.cost); // (the rounds, palms and fees are spent in town)
         sc.extra = _num(sc.extra) + cfg.fan.heat;
         sc.fannedByPlayer = true;
         for (let i = 0; i < cfg.fan.spreads; i++) this._spread(sc, world);
@@ -701,6 +705,7 @@ export const Whispers = {
         if (!here || here.kingdom !== sc.kingdomId) return { ok: false, reason: `Only in ${sc.kingdomName} can you buy that silence.` };
         if (_num(player.gold) < cfg.quash.cost) return { ok: false, reason: `You need ${cfg.quash.cost} gold for the right palms.` };
         player.gold -= cfg.quash.cost;
+        Economy.payNearest(world, player.q, player.r, cfg.quash.cost); // (the rounds, palms and fees are spent in town)
         sc.extra = _num(sc.extra) - cfg.quash.heat;
         sc.quashed = true;
         sc.heat = this._heat(sc, world);
@@ -724,6 +729,7 @@ export const Whispers = {
         if (sc.dugDay === _day(world)) return { ok: false, reason: 'You have asked all the questions you can today.' };
         if (_num(player.gold) < cfg.dig.cost) return { ok: false, reason: `You need ${cfg.dig.cost} gold to loosen tongues.` };
         player.gold -= cfg.dig.cost;
+        Economy.payNearest(world, player.q, player.r, cfg.dig.cost); // (the rounds, palms and fees are spent in town)
         sc.dugDay = _day(world);
         const stat = Math.max(_num(player.intelligence) || 5, _num(player.charisma) || 5);
         const chance = Utils.clamp(cfg.dig.base + stat * cfg.dig.perStat, 0.05, 0.95);
@@ -763,7 +769,8 @@ export const Whispers = {
             sc.heat = this._heat(sc, world);
             return { ok: true, refused: true, text: `${sc.subject.name} reads your letter, laughs, and hands it to the captain of the guard. Now you are the scandal.` };
         }
-        const gold = cfg.blackmail.base + cfg.blackmail.perHeat * sc.heat;
+        // (the ruler's silence is bought out of the crown's chests, else its towns')
+        const gold = Economy.crownPays(k, world, cfg.blackmail.base + cfg.blackmail.perHeat * sc.heat);
         player.gold = _num(player.gold) + gold;
         player.reputation[sc.kingdomId] = _num(player.reputation[sc.kingdomId]) + cfg.blackmail.rep;
         this.state(player).stats.blackmailed++;
@@ -782,7 +789,7 @@ export const Whispers = {
         const k = this._kingdom(world, sc.kingdomId);
         const buyer = this._enemies(world, k).find(e => e.id === buyerId);
         if (!buyer) return { ok: false, reason: `${(this._kingdom(world, buyerId) || {}).name || 'That crown'} has no quarrel worth paying for.` };
-        const gold = cfg.sell.base + cfg.sell.perHeat * sc.heat;
+        const gold = Economy.crownPays(buyer, world, cfg.sell.base + cfg.sell.perHeat * sc.heat);
         player.gold = _num(player.gold) + gold;
         if (!player.reputation) player.reputation = {};
         player.reputation[buyer.id] = _num(player.reputation[buyer.id]) + cfg.sell.rep;
@@ -836,6 +843,7 @@ export const Whispers = {
             return { ok: false, reason: `There is already a tale about ${subject.name} going round. Work that one.` };
         }
         player.gold -= cfg.plant.cost;
+        Economy.payNearest(world, player.q, player.r, cfg.plant.cost); // (the rounds, palms and fees are spent in town)
         const sc = this._create(player, world, subject, target.kind, here, { planted: true, known: true, extra: cfg.plant.heat });
         this.state(player).stats.planted++;
         return { ok: true, scandal: sc, text: `You buy a round, lower your voice, and tell them: "${this.text(sc)}" By morning it's all over ${here.name}.` };
@@ -847,6 +855,7 @@ export const Whispers = {
         if (_num(player.gold) < cfg.bard.cost) return { ok: false, reason: `The bard wants ${cfg.bard.cost} gold.` };
         if (!Gossip.refute(player, rumorId, _key(q, r))) return { ok: false, reason: 'There is no such talk here to sing down.' };
         player.gold -= cfg.bard.cost;
+        Economy.payNearest(world, player.q, player.r, cfg.bard.cost); // (the rounds, palms and fees are spent in town)
         return { ok: true, text: 'The bard takes your coin and a fresh cup, and by the third verse the whole room agrees you were wronged. The song will travel.' };
     },
 };

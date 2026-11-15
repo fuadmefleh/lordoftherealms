@@ -705,7 +705,7 @@ Object.assign(InnerMap, {
      * _joinPieces makes them so where the room allows (two side by side become one; a lone
      * one claims the free tile beside it), else they stay a tile's piece.
      */
-    PIECE_SPANS: { bed: [1, 2], table: [2, 1], desk: [2, 1], tub: [2, 1], stall: [2, 1], altar: [2, 1], forge: [2, 1] },
+    PIECE_SPANS: { bed: [1, 2], table: [2, 1], desk: [2, 1], tub: [2, 1], stall: [2, 1], altar: [2, 1], forge: [2, 1], fireplace: [2, 1] },
 
     /** The wealth rules (data/architecture.json `wealth`) */
     _wealthRules() {

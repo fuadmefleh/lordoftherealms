@@ -11,6 +11,7 @@
 import { ActionMenu } from './_ref.js';
 import { Coalitions } from '../../systems/coalitions.js';
 import { RivalAgents } from '../../systems/rivalAgents.js';
+import { HoldingSieges } from '../../systems/holdingSieges.js';
 import { esc, bullets, lede, chips, card, rowList, sectionHead, more, price, purse } from './uiKit.js';
 import { RealmIntel } from '../../systems/realmIntel.js';
 
@@ -49,7 +50,25 @@ function _powerCard(world, v) {
     if (!v.active && v.pressure > 0) pw += `<div style="color:#f5c542;">🕊️ Envoys ride between the courts: ${v.pressure} week${v.pressure > 1 ? 's' : ''} of talk of a league${v.primed && p.score < v.form ? ' (the courts have tired of your rise: lesser grudges will serve)' : ''}.</div>`;
     else if (!v.active && v.clock > 0.05) pw += `<div style="${MUTED}">⏳ The courts' patience with your rise: ${Math.round((1 - v.clock) * 100)}% left. The mightier you grow, the faster it wears.</div>`;
     if (!v.active && v.cooldownUntil > (world.day || 0)) pw += `<div style="${MUTED}">The last league's memory is fresh: none will be sworn before day ${v.cooldownUntil}.</div>`;
+    // The clock's memory of leagues past (systems/pressure.js heat): each one sworn shortens the next wait
+    const ci = v.clockInfo;
+    if (ci && (ci.fired > 0 || ci.heat > 0.05)) pw += `<div style="${MUTED}">⚜️ Leagues sworn against your House: ${ci.fired}${ci.heat > 0.05 ? ` · the courts remember (${Math.round(ci.heat / Math.max(1, ci.heatMax) * 100)}% quicker to anger, cooling with the years)` : ''}.</div>`;
     return card(pw, { icon: '⚖️', title: 'Your power in the courts\' eyes', side: `<b style="color:${color};">${Math.round(p.score)}</b> / ${v.form}` });
+}
+
+/** The realms' patience with your holdings (HoldingSieges.clockView): who covets what, and when they move. */
+function _siegeClockHtml(player, world) {
+    const c = HoldingSieges.clockView(player, world);
+    if (!c) return '';
+    const day = world.day || 0;
+    let body = '';
+    if (c.pending) body += `<div style="color:#f0b35a;">⚔️ ${esc(c.pending.name)} covets ${esc(c.pending.target)}: it demanded tribute on day ${c.pending.day} (Realm Wars).</div>`;
+    else if (c.cooldownUntil > day) body += `<div style="${MUTED}">The realms will not move on your holdings again before day ${c.cooldownUntil}.</div>`;
+    else body += _bar(c.progress, 1, c.progress > 0.75 ? '#e06060' : c.progress > 0.4 ? '#f5c542' : '#7fd07f')
+        + `<div style="${MUTED}">⏳ The realms' patience with your colonies: ${Math.round((1 - c.progress) * 100)}% left. The mightier you grow, the faster it wears.</div>`;
+    if (c.fired > 0) body += `<div style="${MUTED}">Moved on your holdings ${c.fired} time${c.fired === 1 ? '' : 's'}${c.heat > 0.05 ? ` · ${Math.round(c.heat / Math.max(1, c.heatMax) * 100)}% quicker for it` : ''}.</div>`;
+    body += c.log.map(l => `<div style="${MUTED}">Day ${l.day}: ${esc(l.text)}.</div>`).join('');
+    return card(body, { icon: '🏰', title: 'Covetous realms', side: c.pending ? 'tribute demanded' : '' });
 }
 
 function _leagueHtml(player, world, v, gold) {
@@ -193,6 +212,7 @@ Object.assign(ActionMenu, {
             }), `The realms' regard · a league draws on realms past ${v.joinAt}`);
         }
 
+        html += _siegeClockHtml(player, world);
         html += _agentsHtml(player, world, gold);
         html += _pastHtml(v);
         html += '</div>';

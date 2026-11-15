@@ -57,6 +57,7 @@ import { MerchantCaravans } from './merchantCaravans.js';
 import { CourtLetters } from './courtLetters.js';
 import { Underworld } from './underworld.js';
 import { Names } from '../core/names.js';
+import { Economy } from '../world/economy.js';
 
 export const RIDER_TYPE = 'courier_rider';
 
@@ -285,6 +286,9 @@ export const CourierRiders = {
         const [ll, lh] = C.bagLetters;
         const [gl, gh] = C.bagGold;
         const bag = { letters: Utils.randInt(ll, lh), gold: Utils.randInt(gl, gh), sealed: null };
+        // (the coin in the bag is the senders', out of the station town's purse: it is paid
+        // into the town at the road's end when the rider gets in — World.settleUnitCoin)
+        bag.gold = Math.round(Economy.drawNearest(world, a.q, a.r, bag.gold) * 100) / 100;
         // Now and then a lord's sealed letter rides in the bag
         const k = a.kingdomId && world.getKingdom ? world.getKingdom(a.kingdomId) : null;
         if (k && k.lord && k.isAlive !== false && Utils.random() < C.sealedChance) {

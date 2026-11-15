@@ -79,7 +79,11 @@ Object.assign(ActionMenu, {
         } else if (v.pressure.score > 0) {
             html += sectionHead(`💺 The court’s mood — pressure ${v.pressure.score}`);
             html += bullets(v.pressure.reasons.map(r => `${esc(r.text)} <span style="color:#9d937c;">(+${r.weight})</span>`));
-            if (v.pressure.score >= v.counselAt) html += `<div style="color:#f0b35a; margin:2px 2px 8px;">At ${v.demandAt} for some weeks, the lords will demand that you step down.</div>`;
+            if (v.pressure.score >= v.counselAt) {
+                const clock = v.pressureWeeks > 0 ? ` They have sat at it ${v.pressureWeeks} of ${v.weeksToDemand} weeks.` : '';
+                html += `<div style="color:#f0b35a; margin:2px 2px 8px;">At ${v.demandAt} for ${v.weeksToDemand} weeks, the lords will demand that you step down.${clock}</div>`;
+            }
+            if (v.quietUntil) html += `<div style="color:#9d937c; margin:2px 2px 8px;">Their last demand lapsed: they will not press again before day ${v.quietUntil}.</div>`;
         }
 
         // The rulers who stepped down

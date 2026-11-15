@@ -17,6 +17,7 @@ import { NPCLords } from '../../world/npcLords.js';
 import { RealmArms } from '../../world/realmArms.js';
 import { KingdomAI } from '../../world/kingdomAI.js';
 import { Difficulty } from '../../core/difficulty.js';
+import { DataLoader } from '../../core/dataLoader.js';
 import { Utils, Technology, House, Quests, RealmWars, Throne, PlayerEffects, Housing, Culture, PlayerReligion, PlayerInventory, WorldEvents, WEATHER_EFFECTS, Economy, Arms } from './_imports.js';
 
 Object.assign(PlayerMilitary, {
@@ -307,6 +308,25 @@ Object.assign(PlayerMilitary, {
         return null;
     },
 
+    /** The most captors take off a beaten, captured player (data/military.json encounters.rob, by the band's strength). */
+    _confiscateCap(player, enemyStrength) {
+        const R = (DataLoader.military && DataLoader.military.encounters && DataLoader.military.encounters.rob) || {};
+        const n = (v, d) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
+        return Math.round(Math.min(n(R.capMax, 500), n(R.capBase, 80) + n(R.capPerStrength, 12) * Math.max(0, n(enemyStrength, 0))) * 2);
+    },
+
+    /** The coin taken off a captured player goes to the captors: the band's packs, else its realm's treasury, else the town's purse. */
+    _toCaptors(context = {}, gold) {
+        if (!(gold > 0)) return;
+        if (context.lootPurse && typeof context.lootPurse === 'object') {
+            context.lootPurse.gold = (Number(context.lootPurse.gold) || 0) + gold;
+        } else if (context.lootKingdom && typeof context.lootKingdom === 'object') {
+            context.lootKingdom.treasury = (Number(context.lootKingdom.treasury) || 0) + gold;
+        } else if (context.lootTown && typeof context.lootTown === 'object') {
+            Economy.payTown(context.lootTown, gold);
+        }
+    },
+
     /**
      * After the fighting: a victory's loot, the survivors' experience, the
      * commander's combat skill and renown; a defeat with no army left may end
@@ -349,12 +369,14 @@ Object.assign(PlayerMilitary, {
                 daysRemaining: servitudeDays,
                 totalDays: servitudeDays,
                 dailyWage: 0, // Captors take your labor
-                goldConfiscated: Math.min(player.gold, Math.floor(player.gold * 0.3)),
+                // (what the captors carry off: a share of the purse, no more than such a band can: RoadEncounters' robCap)
+                goldConfiscated: Math.max(0, Math.min(Math.floor(Math.max(0, player.gold) * 0.3), PlayerMilitary._confiscateCap(player, enemyStrength))),
                 canBuyFreedom: true,
                 freedomCost: 200 + Math.floor(enemyStrength * 2),
                 escapeChance: 0.1 + (player.skills.stealth || 0) * 0.03,
             };
             player.gold -= player.indenturedServitude.goldConfiscated;
+            PlayerMilitary._toCaptors(context, player.indenturedServitude.goldConfiscated);
             return { loot: 0, captured: true, servitudeDays, goldConfiscated: player.indenturedServitude.goldConfiscated };
         }
         return { loot };
@@ -847,6 +869,9 @@ Object.assign(PlayerMilitary, {
                 // an 'item' nothing ever spent)
                 const { gold: coin = 0, ...goods } = worldUnit.inventory;
                 if (coin > 0) player.gold = (player.gold || 0) + coin;
+                // (taken off them: none of it is left to be found in town — World.settleUnitCoin)
+                if (coin > 0) worldUnit.inventory.gold = 0;
+                if (typeof worldUnit.purse === 'number') worldUnit.purse = 0;
                 // Loot that doesn't fit in the player's packs is left behind
                 const loot = PlayerInventory.addItems(player, goods);
                 inventoryLoot = coin > 0 ? { gold: coin, ...loot.added } : loot.added;

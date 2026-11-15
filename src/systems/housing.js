@@ -144,6 +144,57 @@ export const Housing = {
         return { success: true, message: `Purchased a ${houseType.name} in ${tile.settlement.name} for ${cost}g!`, cost };
     },
 
+    /**
+     * A home that comes with a position (an origin's seat: player/scenarios.js):
+     * no price, no purchase renown (the standing is the origin's own). The
+     * finest type the town allows, from `typeId` down. opts: { name (what it
+     * is called: 'the royal apartments'), keptBy (a kingdom id: its upkeep is
+     * paid from that crown's treasury while the player rules it; { guild: id }:
+     * from the town's guild hall while the player is its master) }. Already
+     * owning property there: that house. → the house, or null.
+     */
+    grantHouse(player, world, q, r, typeId, opts = {}) {
+        if (!player || !world || typeof world.getTile !== 'function') return null;
+        const had = this.getHouseAt(player, q, r);
+        if (had) return had;
+        const tile = world.getTile(q, r);
+        if (!tile || !tile.settlement) return null;
+        const want = this.getHouseType(typeId);
+        if (!want) return null;
+        const fits = this._getHouseTypes().filter(h => h.availableIn.includes(tile.settlement.type) && h.baseCost <= want.baseCost)
+            .sort((a, b) => b.baseCost - a.baseCost);
+        const type = fits[0];
+        if (!type) return null;
+        if (!player.houses) player.houses = [];
+        const house = {
+            q, r, typeId: type.id, upgrades: [], purchaseDay: world.day || 0, condition: 100,
+            settlementName: tile.settlement.name, kingdomId: tile.kingdom || null, granted: true,
+            ...(opts.name ? { name: String(opts.name) } : {}),
+            ...(opts.keptBy != null ? { keptBy: opts.keptBy } : {}),
+        };
+        player.houses.push(house);
+        return house;
+    },
+
+    /**
+     * Who keeps a house (house.keptBy), paying its upkeep from their treasury:
+     * the crown the player rules, or the town's guild the player is master of;
+     * else null (the player pays, as for any house).
+     */
+    _keeper(player, world, house) {
+        if (!house || house.keptBy == null || !world) return null;
+        if (typeof house.keptBy === 'object') {
+            const tile = typeof world.getTile === 'function' ? world.getTile(house.q, house.r) : null;
+            const gs = tile && tile.settlement && tile.settlement.guilds;
+            const g = gs && house.keptBy.guild ? gs[house.keptBy.guild] : null;
+            return g && g.master && g.master.player ? g : null;
+        }
+        const ruling = player && player.throne && player.throne.ruling;
+        if (!ruling || String(ruling.kingdomId) !== String(house.keptBy)) return null;
+        const k = typeof world.getKingdom === 'function' ? world.getKingdom(house.keptBy) : (world.kingdoms || []).find(x => x && x.id === house.keptBy);
+        return k && k.isAlive !== false ? k : null;
+    },
+
     /** Upgrade effect keys that raise a player attribute or skill directly. */
     UPGRADE_STAT_EFFECTS: {
         strengthBonus: ['attr', 'strength'], charismaBonus: ['attr', 'charisma'],
@@ -173,6 +224,10 @@ export const Housing = {
         if (idx === -1) return { success: false, message: 'You do not own a house here.' };
 
         const house = player.houses[idx];
+        if (house.keptBy != null) {
+            const what = house.name ? house.name.charAt(0).toUpperCase() + house.name.slice(1) : 'This house';
+            return { success: false, message: `${what} go${house.name && /s$/.test(house.name) ? '' : 'es'} with your office, kept by the ${typeof house.keptBy === 'object' ? 'guild' : 'crown'}: not yours to sell.` };
+        }
         const houseType = this.getHouseType(house.typeId);
         const baseValue = houseType ? houseType.baseCost : 100;
         const upgradeValue = house.upgrades.reduce((sum, uid) => {
@@ -383,9 +438,17 @@ export const Housing = {
             if (bonuses.maintenanceReduction > 0) {
                 maint = Math.max(0.1, Math.round(maint * (1 - bonuses.maintenanceReduction) * 100) / 100);
             }
-            const paid = Math.min(purse, maint);
-            purse -= paid;
-            totalMaintenance += paid;
+            // (a seat kept by the crown the player rules: paid from its treasury, as far as it holds)
+            const keeper = this._keeper(player, world, house);
+            let paid;
+            if (keeper) {
+                paid = Math.min(Math.max(0, Number(keeper.treasury) || 0), maint);
+                keeper.treasury = (Number(keeper.treasury) || 0) - paid;
+            } else {
+                paid = Math.min(purse, maint);
+                purse -= paid;
+                totalMaintenance += paid;
+            }
             const tile = world && typeof world.getTile === 'function' ? world.getTile(house.q, house.r) : null;
             if (paid > 0 && tile && tile.settlement) Economy.payTown(tile.settlement, paid);
 

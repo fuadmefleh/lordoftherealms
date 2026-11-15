@@ -67,6 +67,11 @@ const PLENTY_GROUPS = ['drink', 'luxury'];
 let _cfgSrc;
 let _cfg = null;
 const _shapes = new WeakMap();
+// The world's sense of price each market is bound to (world/priceAnchors.js
+// bindAnchors): market -> { f: Float64Array (each good's anchor, config order),
+// floor: the craftsmen's floor on }. A market never bound (generation, bare
+// fixtures) prices on its stock alone, as before.
+const _bound = new WeakMap();
 const _goodTables = new WeakMap();
 
 /** The built config: data/markets.json merged over empty defaults. */
@@ -226,6 +231,10 @@ function buildConfig(src) {
         craftRc,
         craftOut,
         craftInputs: { share: 0, ...(d.craftInputs || {}) },
+        // Each good's anchor learns what it trades for across the world (world/priceAnchors.js)
+        anchors: { enabled: true, sampleDays: 30, smooth: 0.1, rate: 0.3, maxStep: 0.03, min: 0.5, max: 2.5, ...(d.anchors || {}) },
+        // A made good's price never falls below its inputs at that market plus the work
+        craftFloor: { enabled: true, work: 0.1, max: 3, depth: 3, craftRecipes: true, ...(d.craftFloor || {}) },
         wealth: { ref: 2, elasticity: 0, min: 1, max: 1, step: 0.05, ...(d.wealth || {}) },
         labels: Array.isArray(d.labels) && d.labels.length ? d.labels : [{ max: 99, label: 'Steady', color: '#aaa' }],
         tickDays: Number.isInteger(d.tickDays) && d.tickDays >= 1 ? d.tickDays : 1,
@@ -748,17 +757,111 @@ export const SettlementMarket = {
 
     /**
      * How dear a good is here against its base: (stock / target) ^ -e,
-     * clamped. 1 for a settlement without a market or a good it doesn't
-     * trade (pure price fixtures and old code paths stay on the base
-     * formula). `level` prices a hypothetical stock (a purchase path).
+     * clamped, and never below what its makers' inputs cost here plus their
+     * work (the craftsmen's floor) - the floor only once the market is
+     * bound to its world's anchors (bindAnchors). The anchors themselves
+     * don't move the price: the people's need doesn't answer to it, so an
+     * anchor that did would feed on itself (world/priceAnchors.js). 1 for
+     * a settlement without a market or a good it doesn't trade (pure price
+     * fixtures and old code paths stay on the base formula). `level` prices
+     * a hypothetical stock (a purchase path).
      */
     scarcity(settlement, goodId, level = null) {
         const m = settlement && settlement.market;
         if (!m || !m.stock || !SettlementMarket.tracks(goodId)) return 1;
-        const stock = level == null ? Math.max(0, _num(m.stock[goodId])) : Math.max(0, level);
+        return SettlementMarket._scarcityAt(settlement, m, SettlementMarket.config().idx[goodId], level, 0);
+    },
+
+    /** scarcity() by config index; `depth` counts the craftsmen's floor's steps down its inputs. */
+    _scarcityAt(settlement, m, i, level, depth) {
+        const C = SettlementMarket.config();
+        const stock = level == null ? Math.max(0, _num(m.stock[C.goodIds[i]])) : Math.max(0, level);
         const sh = SettlementMarket._shape(settlement);
+        const b = _bound.get(m);
+        const s = SettlementMarket.curve(stock / sh.targetA[i], sh.usedA[i] === 1);
+        return b && b.floor ? Math.max(s, SettlementMarket._craftFloor(settlement, m, i, depth)) : s;
+    },
+
+    // -- The world's sense of price (world/priceAnchors.js) --
+
+    /**
+     * Binds a settlement's market to its world's anchors: `binding` =
+     * { f: Float64Array (each good's anchor, config order), floor: bool }.
+     * One binding is shared by every market of a world and updated in place.
+     */
+    bindAnchors(settlement, binding) {
+        const m = settlement && settlement.market;
+        if (m && binding && binding.f && binding.f.length === SettlementMarket.config().goodIds.length) _bound.set(m, binding);
+    },
+
+    /** The good's anchor this market is bound to (1 for an unbound market or an untracked good). */
+    anchorOf(settlement, goodId) {
+        const m = settlement && settlement.market;
+        const b = m ? _bound.get(m) : null;
         const i = SettlementMarket.config().idx[goodId];
-        return SettlementMarket.curve(stock / sh.targetA[i], sh.usedA[i] === 1);
+        return b && i !== undefined && b.f[i] > 0 ? b.f[i] : 1;
+    },
+
+    /**
+     * The ways each good is made, for the craftsmen's floor: per good (config
+     * order) a list of { inIdx, inPer, out } - the town trades
+     * (data/markets.json recipes) and, with craftFloor.craftRecipes, the
+     * craft recipes (data/crafting.json) whose goods all trade. Memoised.
+     */
+    _floorRoutes() {
+        const C = SettlementMarket.config();
+        const CR = DataLoader._gamedata && DataLoader._gamedata.crafting ? DataLoader._gamedata.crafting.recipes : null;
+        if (C._routes && C._routesSrc === CR) return C._routes;
+        const routes = C.goodIds.map(() => []);
+        for (const rc of C.recipesI) {
+            for (let j = 0; j < rc.outIdx.length; j++) {
+                routes[rc.outIdx[j]].push({ inIdx: rc.inIdx, inPer: rc.inPer, out: rc.outPer[j] });
+            }
+        }
+        if (C.craftFloor.craftRecipes && Array.isArray(CR)) {
+            for (const r of CR) {
+                if (!r || !r.ingredients || !r.result) continue;
+                const ins = Object.entries(r.ingredients);
+                if (!ins.length || !ins.every(([id, n]) => C.idx[id] !== undefined && n > 0)) continue;
+                for (const [id, n] of Object.entries(r.result)) {
+                    const i = C.idx[id];
+                    if (i === undefined || !(n > 0) || r.ingredients[id]) continue;
+                    routes[i].push({ inIdx: Int32Array.from(ins.map(x => C.idx[x[0]])), inPer: Float64Array.from(ins.map(x => x[1])), out: n });
+                }
+            }
+        }
+        C._routes = routes;
+        C._routesSrc = CR;
+        return routes;
+    },
+
+    /**
+     * The craftsmen's floor on good i here, as a scarcity: what the cheapest
+     * way of making a unit costs in inputs at this market's prices (each at
+     * its own scarcity, its own floor included a few steps down), plus
+     * craftFloor.work for the work, against the good's base. 0 for a good
+     * nothing makes, or when the floor is off.
+     */
+    _craftFloor(settlement, m, i, depth) {
+        const C = SettlementMarket.config();
+        const F = C.craftFloor;
+        if (!F.enabled || depth >= Math.max(1, _num(F.depth, 3))) return 0;
+        const routes = SettlementMarket._floorRoutes()[i];
+        if (!routes || !routes.length) return 0;
+        const bases = SettlementMarket._bases();
+        if (!(bases[i] > 0)) return 0;
+        let best = Infinity;
+        for (const r of routes) {
+            let cost = 0;
+            for (let j = 0; j < r.inIdx.length && cost < best * r.out * bases[i]; j++) {
+                const x = r.inIdx[j];
+                cost += r.inPer[j] * bases[x] * SettlementMarket._scarcityAt(settlement, m, x, null, depth + 1);
+            }
+            const f = cost / (r.out * bases[i]);
+            if (f < best) best = f;
+        }
+        if (!Number.isFinite(best)) return 0;
+        return Math.min(Math.max(0, _num(F.max, 3)), best * (1 + Math.max(0, _num(F.work, 0.1))));
     },
 
     /**
@@ -857,7 +960,10 @@ export const SettlementMarket = {
         if (!m || !m.trend || !(goodId in m.trend)) return 'stable';
         const now = SettlementMarket.scarcity(settlement, goodId);
         const used = SettlementMarket.uses(settlement, goodId);
-        const avg = SettlementMarket.curve(_num(m.trend[goodId]), used);
+        // (above the craftsmen's floor, as today's is)
+        let avg = SettlementMarket.curve(_num(m.trend[goodId]), used);
+        const b = _bound.get(m);
+        if (b && b.floor) avg = Math.max(avg, SettlementMarket._craftFloor(settlement, m, SettlementMarket.config().idx[goodId], 0));
         const band = SettlementMarket.config().price.trendBand;
         if (now > avg * (1 + band)) return 'rising';
         if (now < avg * (1 - band)) return 'falling';
@@ -869,9 +975,11 @@ export const SettlementMarket = {
         const stock = SettlementMarket.stock(settlement, goodId);
         const need = SettlementMarket.need(settlement, goodId);
         const scarcity = SettlementMarket.scarcity(settlement, goodId);
-        const l = SettlementMarket.label(scarcity);
+        // (labelled against the good's anchor: a good dear everywhere for years is its normal)
+        const anchor = SettlementMarket.anchorOf(settlement, goodId);
+        const l = SettlementMarket.label(scarcity / anchor);
         return {
-            stock, need, scarcity,
+            stock, need, scarcity, anchor,
             days: need > 0 ? stock / need : null,
             label: l.label, color: l.color,
             trend: SettlementMarket.trend(settlement, goodId),

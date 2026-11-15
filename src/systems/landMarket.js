@@ -379,7 +379,29 @@ export const LandMarket = {
             const k = Estates.kingdom(world, h.kid);
             if (k && k.capital) live = Estates._live(world, k.capital.q, k.capital.r);
         }
-        return live && live.economy && Number.isFinite(live.economy.gold) ? live : null;
+        if (live && live.economy && Number.isFinite(live.economy.gold)) return live;
+        // (a holder with no realm — a merchant house — or a realm with no capital purse:
+        // the town of its first estate, where its stewards keep house)
+        for (const e of Estates.heldBy(world, h.id)) {
+            const t = Estates._liveOfKey(world, e.town);
+            if (t && t.economy && Number.isFinite(t.economy.gold)) return t;
+        }
+        return null;
+    },
+
+    /**
+     * A holder's first purse (2026-11): the coin its stewards had gathered — out of
+     * the purses of its realm's towns (at most `share` of each, by their people), or
+     * its seat's — never struck from nothing. → the coin raised.
+     */
+    _firstPurse(world, h, want, share = 0.1) {
+        const a = Math.max(0, Math.round(_num(want)));
+        if (!(a > 0)) return 0;
+        const k = h.kind === 'town' ? null : Estates.kingdom(world, h.kid);
+        let list = k && k.isAlive !== false ? Economy.realmTowns(k, world).map(t => t.settlement) : [];
+        if (!list.length) { const seat = LandMarket._seat(world, h); if (seat) list = [seat]; }
+        const entries = list.filter(t => Economy.townPurse(t) != null).map(t => ({ settlement: t, weight: Math.max(1, _num(t.population)) }));
+        return entries.length ? Math.round(_num(Economy.drawTowns(entries, a, share).paid) * 100) / 100 : 0;
     },
 
     /** A holder's spending reaches a town's purse: its own town, else its realm's capital. → the town or null */
@@ -391,6 +413,28 @@ export const LandMarket = {
         return live;
     },
 
+    /** Coin a holder spends on its estates, paid into their towns by the estates' worth. → what was paid. */
+    _spendOnEstates(world, held, gold) {
+        const g = Math.round(_num(gold) * 100) / 100;
+        if (!(g > 0)) return 0;
+        const towns = new Map();
+        for (const e of held) {
+            const live = Estates._liveOfKey(world, e.town);
+            if (!live || live.inKind || !live.economy || !Number.isFinite(live.economy.gold)) continue;
+            towns.set(live, _num(towns.get(live)) + Math.max(1, _num(e.value)));
+        }
+        if (!towns.size) return 0;
+        const total = [...towns.values()].reduce((a, b) => a + b, 0);
+        let left = g;
+        let i = 0;
+        for (const [live, w] of towns) {
+            const share = ++i === towns.size ? left : Math.floor(g * w / total * 100) / 100;
+            left = Math.round((left - share) * 100) / 100;
+            live.economy.gold = Math.round((live.economy.gold + share) * 100) / 100;
+        }
+        return g;
+    },
+
     /** A holder's month: its rents spent (nobles by their extravagance and the war levies), debts, distress sales. */
     _holderMonth(world, player, h, day, out) {
         const N = Estates.config().npc;
@@ -400,7 +444,7 @@ export const LandMarket = {
         if (h.purse == null) {
             const r = _roll(world, 'purse', h.id, 0);
             const span = Array.isArray(P[h.kind]) ? P[h.kind] : [0.1, 0.3];
-            h.purse = Math.round(h.kind === 'house' || h.kind === 'town' ? span[0] + r * (span[1] - span[0]) : land * (span[0] + r * (span[1] - span[0])));
+            h.purse = LandMarket._firstPurse(world, h, h.kind === 'house' || h.kind === 'town' ? span[0] + r * (span[1] - span[0]) : land * (span[0] + r * (span[1] - span[0])));
         }
         const inc = _num(h.inc);
         h.inc = 0;
@@ -445,9 +489,14 @@ export const LandMarket = {
             paidOut += pay;
         }
         if (h.purse < 0) { h.debt = _num(h.debt) - h.purse; h.purse = 0; }
-        LandMarket._spendAtSeat(world, h, paidOut);
-        h.purse = Math.round(h.purse);
-        h.debt = Math.round(h.debt);
+        // ...a share of it (estateWages) where its land lies: the reeves', shepherds' and
+        // reapers' wages, the barns and fences built, bought in the estates' own towns
+        if (paidOut > 0 && held.length) paidOut -= LandMarket._spendOnEstates(world, held, paidOut * _clamp(_num(N.estateWages, 0), 0, 1));
+        // (no town to take it: the holder keeps it)
+        if (paidOut > 0 && !LandMarket._spendAtSeat(world, h, paidOut)) h.purse += paidOut;
+        // (to the hundredth: rounding to whole coin made and lost coin every month)
+        h.purse = Math.round(h.purse * 100) / 100;
+        h.debt = Math.round(h.debt * 100) / 100;
         // Deep in debt: the cheapest estate goes on the market
         const st = world.estates;
         if (held.length && h.debt > _num(N.distressAt, 0.25) * land && !st.sales.some(x => x.seller === h.id)) {
@@ -492,7 +541,7 @@ export const LandMarket = {
             if (day - x.day < _num(N.wait, 7) || (day - x.day) % 3 !== 0) continue;
             const buyer = LandMarket._buyer(world, e, x.price, x.seller, day);
             if (buyer) {
-                buyer.purse = Math.round(_num(buyer.purse) - x.price);
+                buyer.purse = Math.round((_num(buyer.purse) - x.price) * 100) / 100;
                 LandMarket._paySeller(world, player, x.seller, x.price, e, out);
                 const live = Estates._liveOfKey(world, e.town);
                 const from = Estates.holderName(world, x.seller);
@@ -547,7 +596,7 @@ export const LandMarket = {
             }
         } else {
             const h = Estates.ensureHolder(world, seller);
-            h.purse = Math.round(_num(h.purse) + price);
+            h.purse = Math.round((_num(h.purse) + price) * 100) / 100;
         }
     },
 
@@ -805,7 +854,7 @@ export const LandMarket = {
         }
         const buyer = LandMarket._buyer(world, e, q.quick, 'player', day);
         if (!buyer) return { success: false, reason: 'No buyer about has the purse for it: put it on the market instead.' };
-        buyer.purse = Math.round(_num(buyer.purse) - q.quick);
+        buyer.purse = Math.round((_num(buyer.purse) - q.quick) * 100) / 100;
         const out = { notices: [] };
         LandMarket._paySeller(world, player, 'player', q.quick, e, out);
         LandMarket._setHolder(world, e, buyer.id, day);

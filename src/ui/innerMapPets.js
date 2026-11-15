@@ -196,6 +196,7 @@ export const InnerMapPets = {
                         m.swingT = 0;
                         m.atkT = 0;
                         InnerMapEscort._strike(game, m, foe, dmg);
+                        P._bitten(game, m, foe);
                     }
                 }
             } else if (m.stay) {
@@ -229,6 +230,33 @@ export const InnerMapPets = {
             } else m.walkHold = Math.max(0, (m.walkHold || 0) - dt);
             m.moving = m.walkHold > 0 && !m.fighting;
             if (!m.moving && !m.fighting && !m.stay && P._trail.length > 1) m.facing = _facing(P._heading.x, P._heading.y, m.facing);
+        }
+    },
+
+    /**
+     * The foe gives as good as it gets now and then: a beast's bite, a man's
+     * blow, off the animal's own hp (AnimalCompanions.wound). Dead, it is
+     * mourned (the systems record it) and drops out of the file.
+     */
+    _bitten(game, m, foe) {
+        const H = AnimalCompanions.streetHurt();
+        if (!(H.chance > 0) || _rand() >= H.chance) return;
+        let range = H.npc;
+        if (foe.kind === 'beast') {
+            const sp = InnerMap.animalSpecies ? InnerMap.animalSpecies(foe.a.species, InnerMap.animalConfig()) : null;
+            if (foe.a.state === 'dead') return;
+            range = sp && Array.isArray(sp.bite) ? sp.bite : H.beast;
+        }
+        const lo = Math.max(0, _num(range[0], 2)), hi = Math.max(lo, _num(range[1], lo));
+        const hits = lo + Math.floor(_rand() * (hi - lo + 1));
+        if (!(hits > 0)) return;
+        const died = AnimalCompanions.wound(game.player, m.a.id, hits, game.world);
+        if (died) {
+            _notify(game, `🕯️ ${m.a.name} Is Dead`, `${m.a.name} goes down fighting at your side, and does not get up.`, 'error');
+            InnerMapPets._sig = '';
+        } else if (_num(m.a.health, 100) <= 30 && !(InnerMapPets._told && InnerMapPets._told.has(`hurt:${m.a.id}`))) {
+            if (InnerMapPets._told) InnerMapPets._told.add(`hurt:${m.a.id}`);
+            _notify(game, `${AnimalCompanions.icon(m.a)} ${m.a.name} Is Hurt`, `${m.a.name} is badly bitten (${AnimalCompanions.hpOf(m.a)}/${AnimalCompanions.maxHp(m.a)} HP). Call it off, or it may not last the fight.`, 'warning');
         }
     },
 
@@ -349,7 +377,7 @@ export const InnerMapPets = {
         for (const m of InnerMapPets.petsAt(q, r)) {
             const a = m.a;
             out.push({ type: 'header', label: `${AnimalCompanions.icon(a)} ${a.name} — ${AnimalCompanions.kindName(a)}, ${AnimalCompanions.ageText(a, game.world)}` });
-            out.push({ type: 'disabled', label: `💛 Bond ${Math.round(_num(a.bond))} · 🍖 Belly ${Math.round(_num(a.hunger))} · ❤️ Health ${Math.round(_num(a.health))}` });
+            out.push({ type: 'disabled', label: `💛 Bond ${Math.round(_num(a.bond))} · 🍖 Belly ${Math.round(_num(a.hunger))} · ❤️ ${AnimalCompanions.hpOf(a)}/${AnimalCompanions.maxHp(a)} HP` });
             out.push({ type: 'action', action: 'pet_pet', petId: a.id, label: a.species === 'hawk' ? 'Call to the Fist' : 'Pet', icon: '🤚', desc: 'A moment\'s fuss: it trusts you more (once a day counts)' });
             const foods = AnimalCompanions.foodsFor(player, a);
             if (foods.length) out.push({ type: 'action', action: 'pet_feed', petId: a.id, label: `Feed (${foods[0].id.replace(/_/g, ' ')})`, icon: '🍖', desc: `From your packs: ${foods.map(f => `${f.id.replace(/_/g, ' ')} ×${f.have}`).join(', ')}` });
@@ -420,8 +448,12 @@ export const InnerMapPets = {
 
     _drawOne(ctx, m, sp, fx, fy, ds, o = {}) {
         const pseudo = {
-            id: m.a.id, facing: m.facing, state: m.fighting && m.atkT < 0.5 && sp.sheets && sp.sheets.attack ? 'attack' : 'walk',
-            moving: !!m.moving || !!o.flying, animT: m.t, atkT: m.atkT, hp: 1, maxHp: 1,
+            // (walking while it moves; standing, its idle — a wag, a breath, a tail flick;
+            // at a foe, the bite and then poised between bites)
+            id: m.a.id, facing: m.facing, state: m.fighting && sp.sheets && sp.sheets.attack ? 'attack' : 'walk',
+            moving: !!m.moving || !!o.flying, animT: m.t, idleT: m.t, atkT: m.atkT,
+            // (its health on a bar over it once it is hurt: hit points of its own hp)
+            hp: AnimalCompanions.hpOf(m.a), maxHp: AnimalCompanions.maxHp(m.a),
         };
         if (!InnerMapAnimals.drawAt(ctx, pseudo, sp, fx, fy, ds, { noShadow: !!o.noShadow })) {
             ctx.save();

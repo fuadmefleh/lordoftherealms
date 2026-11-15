@@ -24,7 +24,7 @@
         { "id": "writing_desk", "name": "Writing Desk", "type": "desk", "icon": "✒️", "price": 55, "footprint": [1, 1], "minSettlement": "town", "comfort": 0.1, "desc": "Sit and read; its drawers hold things." },
         { "id": "high_seat", "name": "High Seat", "type": "throne", "icon": "👑", "price": 300, "footprint": [1, 1], "minSettlement": "city", "comfort": 0.25, "desc": "A carved chair of state for the head of the house." },
 
-        { "id": "hearth", "name": "Hearth", "type": "fireplace", "icon": "🔥", "price": 35, "footprint": [1, 1], "minSettlement": "village", "comfort": 0.3, "desc": "Warm yourself, cook a meal. A house is a home with a fire in it." },
+        { "id": "hearth", "name": "Hearth", "type": "fireplace", "icon": "🔥", "price": 35, "footprint": [2, 1], "minSettlement": "village", "comfort": 0.3, "desc": "Warm yourself, cook a meal. A house is a home with a fire in it." },
         { "id": "cookstove", "name": "Cookstove", "type": "oven", "icon": "🍞", "price": 70, "footprint": [1, 1], "minSettlement": "town", "comfort": 0.1, "desc": "A brick oven to bake and cook in." },
         { "id": "cauldron", "name": "Cauldron", "type": "cauldron", "icon": "⚗️", "price": 25, "footprint": [1, 1], "minSettlement": "village", "comfort": 0, "desc": "An iron pot for stews and brews." },
         { "id": "wash_tub", "name": "Wash Tub", "type": "tub", "icon": "🛁", "price": 30, "footprint": [1, 1], "minSettlement": "village", "comfort": 0.1, "desc": "Wash at home." },

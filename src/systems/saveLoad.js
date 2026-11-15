@@ -52,6 +52,7 @@ import { RiverLife } from './riverLife.js';
 import { LlmProse } from './llmProse.js';
 import { Crises } from './crises.js';
 import { Climate } from '../world/climate.js';
+import { PriceAnchors } from '../world/priceAnchors.js';
 import { RealmTimeline } from './realmTimeline.js';
 import { Sagas } from './sagas.js';
 import { Sieges } from './sieges.js';
@@ -298,6 +299,8 @@ export const SaveLoad = {
             crises: Crises.serialize(world),
             // The climate's eras begun and their chronicle (world/climate.js)
             climate: Climate.serialize(world),
+            // Each good's price anchor, learnt from the markets (world/priceAnchors.js)
+            priceAnchors: PriceAnchors.serialize(world),
             // The Timeline of the Realm: borders by season as deltas, wars, crises, reigns, deeds with places (systems/realmTimeline.js)
             timeline: RealmTimeline.serialize(world),
             // Ids for characters, maps, spies, ... keep counting from here
@@ -972,6 +975,8 @@ export const SaveLoad = {
         Crises.restore(saveData.crises, world);
         // The climate's eras (older saves: none recorded — the curve is the seed's, so it runs on the same)
         Climate.restore(saveData.climate, world);
+        // The price anchors (older saves: none - they start again from the data prices), the markets bound to them
+        PriceAnchors.restore(saveData.priceAnchors, world);
         // The timeline (older saves: none — recording begins on the next day)
         RealmTimeline.restore(saveData.timeline, world);
         // Never hand out an id the save already used

@@ -51,6 +51,8 @@ import { TownMemory } from '../../systems/townMemory.js';
 import { TownEras } from '../../world/townEras.js';
 import { NpcMemory } from '../../systems/npcMemory.js';
 import { DataLoader } from '../../core/dataLoader.js';
+import { CoinCensus } from '../../systems/coinCensus.js';
+import { MoneySupply } from '../../world/moneySupply.js';
 import { Utils } from '../../core/utils.js';
 import { Hex } from '../../core/hex.js';
 import { World } from '../../world/world.js';
@@ -254,13 +256,25 @@ function mark(game, label) {
     // game.moneyTrace (SOAK_MONEY=1): the world's coin — town purses and crown
     // treasuries — after each step, booked by the step that moved it
     if (game.moneyTrace) {
-        const m = worldMoney(game.world);
         const t = game.moneyTrace;
+        // (t.full: every purse in the world — CoinCensus.total — not just towns and crowns)
+        const m = t.full ? CoinCensus.total(game.world, game.player).total : worldMoney(game.world);
         if (t.last != null && Number.isFinite(m - t.last)) {
             t.by[label] = (t.by[label] || 0) + (m - t.last);
             t.day[label] = (t.day[label] || 0) + (m - t.last);
         }
         t.last = m;
+        // (t.full: ...and the part of it no book explains — MoneySupply.bookedChange — by step: t.unbooked)
+        if (t.full) {
+            const b = MoneySupply.bookedChange(game.world);
+            if (!t.unbooked) t.unbooked = {};
+            if (t.lastBooked != null && t.lastM != null) {
+                const u = (m - t.lastM) - (b - t.lastBooked);
+                if (Math.abs(u) > 1e-6) t.unbooked[label] = (t.unbooked[label] || 0) + u;
+            }
+            t.lastBooked = b;
+            t.lastM = m;
+        }
         // ...and the crowns' chests alone (t.crown: what moved the treasuries, by step)
         let c = 0;
         for (const k of game.world.kingdoms || []) if (k && k.isAlive && Number.isFinite(k.treasury)) c += k.treasury;

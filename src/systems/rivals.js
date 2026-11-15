@@ -40,6 +40,8 @@ import { Ailments } from './ailments.js';
 import { Traits } from './traits.js';
 import { Duels } from './duels.js';
 import { Names } from '../core/names.js';
+import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
 
 const DEFAULT_CONFIG = {
     minRivals: 6,
@@ -358,6 +360,8 @@ export const Rivals = {
             joinedDay: day,
             restUntil: day + Utils.randInt(0, 3),
         });
+        // (an adventurer's savings are their home town's coin, not struck from nothing)
+        r.gold = home ? Economy.drawNearest(world, r.q, r.r, r.gold) : 0;
         st.list.push(r);
         return r;
     },
@@ -529,6 +533,7 @@ export const Rivals = {
         const gearCost = cfg.gearBase + rival.stats.prowess * cfg.gearPerProwess;
         if (rival.stats.prowess < cfg.maxProwess && purse >= gearCost) {
             rival.gold -= gearCost;
+            Rivals._spendIn(world, rival, gearCost);
             rival.stats.prowess += 1;
             rival.gear = _num(rival.gear) + 1;
             rival.level = Math.max(1, Math.round((rival.stats.prowess + rival.stats.cunning) / 4));
@@ -537,6 +542,7 @@ export const Rivals = {
         }
         if (rival.retainers < cfg.maxRetainers && purse >= cfg.retainerCost) {
             rival.gold -= cfg.retainerCost;
+            Rivals._spendIn(world, rival, cfg.retainerCost);
             rival.retainers += 1;
             rival.retainersUntil = day + cfg.retainerDays;
             Rivals._news(player, world, rival, '⚔️', `${rival.name} hired ${rival.retainers === 1 ? 'a sword' : 'more swords'} in ${Rivals._whereName(world, rival)}.`, rival.q, rival.r);
@@ -751,8 +757,27 @@ export const Rivals = {
         }
     },
 
+    /** Coin a rival spends (arms, hired swords) or leaves behind: into the nearest town's purse. */
+    _spendIn(world, rival, gold, q = null, r = null) {
+        const a = _num(gold);
+        if (!(a > 0)) return 0;
+        const at = Number.isFinite(q) ? { q, r } : rival;
+        if (!Economy.payNearest(world, at.q, at.r, a)) MoneySupply.leak(world, -a, 'rivalsLost');
+        return a;
+    },
+
+    /** Coin a rival earns from a town (a bounty, a commission, a prize): out of the nearest town's purse. → paid */
+    _earnFrom(world, rival, gold, q = null, r = null) {
+        const at = Number.isFinite(q) ? { q, r } : rival;
+        const paid = Economy.drawNearest(world, at.q, at.r, _num(gold));
+        rival.gold = _num(rival.gold) + paid;
+        return paid;
+    },
+
     _kill(player, world, rival, cause, notify, q = null, r = null) {
         rival.dead = { day: _day(world), cause };
+        // (what they carried is found on them, or by their heirs, and spent in the nearest town)
+        if (_num(rival.gold) > 0) { Rivals._spendIn(world, rival, rival.gold, q, r); rival.gold = 0; }
         rival.task = null;
         rival.with = null;
         const st = Rivals.state(player);
@@ -793,7 +818,10 @@ export const Rivals = {
             || (poi.rivalLooted && _num(poi.rivalLooted.share) >= 0.5);
         const gain = _roll(cfg.renown) + (full ? 3 : 0);
         rival.renown += gain;
-        rival.gold += Utils.randInt(30, 120);
+        // (old coin out of a ruin or a tomb: found, not made — booked as treasure found)
+        const loot = Utils.randInt(30, 120);
+        rival.gold += loot;
+        MoneySupply.leak(world, loot, 'delveTreasure');
         rival.deeds.delves++;
         if (full) {
             poi.explored = true;
@@ -825,7 +853,7 @@ export const Rivals = {
             // An outlaw of their own
             if (Utils.random() < 0.6) {
                 rival.renown += _roll(cfg.renown);
-                rival.gold += Utils.randInt(60, 180);
+                Rivals._earnFrom(world, rival, Utils.randInt(60, 180), task.q, task.r);
                 rival.deeds.bounties++;
                 Rivals._news(player, world, rival, '🎯', `${rival.name} brought in an outlaw at ${task.name}.`, task.q, task.r);
             }
@@ -842,7 +870,7 @@ export const Rivals = {
             if (hit.accepted) player.activeBounties = player.activeBounties.filter(x => x !== b);
             else player.bountyHunter.boardOffers = player.bountyHunter.boardOffers.filter(x => x !== b);
             rival.renown += _roll(cfg.renown) + Math.floor(_num(b.difficulty) / 3);
-            rival.gold += _num(b.actualPay);
+            Rivals._earnFrom(world, rival, _num(b.actualPay), task.q, task.r);
             rival.deeds.bounties++;
             Rivals._news(player, world, rival, '🎯', `${rival.name} brought in ${b.targetName}${b.fromSettlement ? ` for the magistrate of ${b.fromSettlement}` : ''}.`, task.q, task.r);
             if (hit.accepted) {
@@ -861,7 +889,7 @@ export const Rivals = {
     _doQuest(player, world, rival, task) {
         const cfg = Rivals.config().quest;
         rival.renown += _roll(cfg.renown);
-        rival.gold += Utils.randInt(40, 140);
+        Rivals._earnFrom(world, rival, Utils.randInt(40, 140), task.q, task.r);
         rival.deeds.quests++;
         const what = task.questTitle ? `'${task.questTitle}'` : 'a commission';
         Rivals._news(player, world, rival, '📜', `${rival.name} completed ${what} at ${task.name}.`, task.q, task.r);
@@ -874,7 +902,7 @@ export const Rivals = {
         if (Utils.random() < cfg.winBase + rival.stats.prowess * cfg.perProwess) {
             const gain = _roll(cfg.renown);
             rival.renown += gain;
-            rival.gold += Utils.randInt(50, 150);
+            Rivals._earnFrom(world, rival, Utils.randInt(50, 150), task.q, task.r);
             Rivals._news(player, world, rival, '🏆', `${rival.name} won the ${contest} at ${task.name}.`, task.q, task.r);
             if (Rivals._nearPlayer(player, world, task.q, task.r)) notify('🏆', 'Champion Crowned', `${rival.name} won the ${contest} at ${task.name}.`, 'info');
         } else {

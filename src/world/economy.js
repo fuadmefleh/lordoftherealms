@@ -11,6 +11,7 @@ import { SettlementMarket } from './settlementMarket.js';
 import { Coinage } from './coinage.js';
 import { Harvests } from './harvests.js';
 import { CrownBooks } from './crownBooks.js';
+import { MoneySupply } from './moneySupply.js';
 
 /** The distant years' production profiles (calculateProduction): economy → { world, day, type, prod, rb }. */
 const _distantProd = new WeakMap();
@@ -494,6 +495,108 @@ export const Economy = {
         }
         out.paid = Math.round(out.paid * 100) / 100;
         return out;
+    },
+
+    /**
+     * The nearest town to (q, r) that keeps a coin purse (an economy record, not
+     * bartering), preferring `opts.kid`'s towns when it has any. → settlement or null.
+     */
+    nearestPurse(world, q, r, opts = {}) {
+        if (!world || typeof world.getSettlementViews !== 'function' || !Number.isFinite(q) || !Number.isFinite(r)) return null;
+        const w = world.width || 0;
+        let best = null, bestD = Infinity, own = null, ownD = Infinity;
+        for (const v of world.getSettlementViews()) {
+            if (!v || !Number.isFinite(v.q)) continue;
+            const tile = typeof world.getTile === 'function' ? world.getTile(v.q, v.r) : null;
+            const s = (tile && tile.settlement) || null;
+            if (!s || s.inKind || !s.economy || !Number.isFinite(s.economy.gold)) continue;
+            const d = Hex.wrappingDistance(q, r, v.q, v.r, w);
+            if (d < bestD) { bestD = d; best = s; }
+            if (opts.kid != null && String(s.kingdom) === String(opts.kid) && d < ownD) { ownD = d; own = s; }
+        }
+        return own || best;
+    },
+
+    /**
+     * Coin that has nowhere else to go — a dead band's purse, a hoard scattered, the
+     * excess a chief spends on blades — paid into the nearest town's purse (it is
+     * spent or found there). → the town paid, or null (no town keeps coin).
+     */
+    payNearest(world, q, r, amount, opts = {}) {
+        const a = Math.round(Number(amount) * 100) / 100;
+        if (!(a > 0)) return null;
+        const s = Economy.nearestPurse(world, q, r, opts);
+        if (!s) return null;
+        Economy.payTown(s, a);
+        return s;
+    },
+
+    /** Draw up to `amount` out of the nearest town's purse (coin taken or spent there). → what was paid. */
+    drawNearest(world, q, r, amount, opts = {}) {
+        const s = Economy.nearestPurse(world, q, r, opts);
+        return s ? Economy.drawTown(s, amount) : 0;
+    },
+
+    /**
+     * Pay `amount` into a realm's towns, each its share by its people (a crown's
+     * spending, a purse scattered over the country). → what was paid (0: the realm
+     * has no town that keeps coin).
+     */
+    payRealm(kingdom, world, amount) {
+        const a = Math.round(Number(amount) * 100) / 100;
+        if (!(a > 0)) return 0;
+        const towns = Economy.realmTowns(kingdom, world).map(t => t.settlement).filter(s => s && !s.inKind && s.economy && Number.isFinite(s.economy.gold));
+        if (!towns.length) return 0;
+        const total = towns.reduce((x, s) => x + Math.max(1, Number(s.population) || 0), 0);
+        let left = a;
+        towns.forEach((s, i) => {
+            const share = i === towns.length - 1 ? left : Math.floor(a * Math.max(1, Number(s.population) || 0) / total * 100) / 100;
+            left = Math.round((left - share) * 100) / 100;
+            Economy.payTown(s, share);
+        });
+        return a;
+    },
+
+    /**
+     * A crown's coin spent or lost (a ransom, loans called in, a war chest) into its
+     * own towns: at most what its chests hold. → what left the chests (0 without towns).
+     */
+    crownSpend(kingdom, world, amount) {
+        if (!kingdom) return 0;
+        const a = Math.min(Math.max(0, Number(kingdom.treasury) || 0), Math.round((Number(amount) || 0) * 100) / 100);
+        if (!(a > 0)) return 0;
+        let paid = Economy.payRealm(kingdom, world, a);
+        // (a realm with no town that keeps coin: the coin leaves the world, booked as lost)
+        if (!paid) { paid = a; MoneySupply.leak(world, -a, 'crownLosses'); }
+        kingdom.treasury = Math.round(((Number(kingdom.treasury) || 0) - paid) * 100) / 100;
+        return paid;
+    },
+
+    /**
+     * A crown paying someone (`amount`): out of its chests, the rest out of its towns'
+     * purses (at most `maxShare` of each). The caller credits the payee. → what was paid.
+     */
+    crownPays(kingdom, world, amount, maxShare = 0.1) {
+        let want = Math.round(Math.max(0, Number(amount) || 0) * 100) / 100;
+        if (!kingdom || kingdom.isAlive === false || !(want > 0)) return 0;
+        const t = Math.min(want, Math.max(0, Number(kingdom.treasury) || 0));
+        kingdom.treasury = Math.round(((Number(kingdom.treasury) || 0) - t) * 100) / 100;
+        want -= t;
+        let paid = t;
+        if (want > 0) {
+            const entries = Economy.realmTowns(kingdom, world).map(x => ({ settlement: x.settlement, weight: Math.max(1, Number(x.settlement.population) || 0) }));
+            paid += Economy.drawTowns(entries, want, maxShare).paid;
+        }
+        return Math.round(paid * 100) / 100;
+    },
+
+    /** Coin into a crown's chests out of its towns' purses (at most `maxShare` of each). → what was raised. */
+    crownRaise(kingdom, world, amount, maxShare = 0.1) {
+        if (!kingdom || !(Number(amount) > 0)) return 0;
+        const entries = Economy.realmTowns(kingdom, world).map(t => ({ settlement: t.settlement, weight: Math.max(1, Number(t.settlement.population) || 0) }));
+        const got = Economy.drawTowns(entries, amount, maxShare).paid;
+        kingdom.treasury = Math.round(((Number(kingdom.treasury) || 0) + got) * 100) / 100;
+        return got;
     },
 
     /** A realm's own towns, with their tiles: [{ q, r, settlement }]. */

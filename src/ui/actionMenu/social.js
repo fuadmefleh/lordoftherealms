@@ -963,7 +963,7 @@ Object.assign(ActionMenu, {
                 const feud = r.feud || 0;
                 const label = feud >= 60 ? 'Hostile' : feud >= 30 ? 'Wary' : 'Cool';
                 return {
-                    icon: '⚔️', name: r.name,
+                    icon: '⚔️', name: r.role ? `${r.name}, <i>${r.role}</i>` : r.name,
                     desc: r.head ? `${RivalHouses.headName(r)}, ${r.head.age} · ${RivalHouses.doing(game.world, r)}` : '',
                     side: `${label} (${feud})`, tone: feud >= 60 ? 'bad' : feud >= 30 ? 'warn' : '',
                 };

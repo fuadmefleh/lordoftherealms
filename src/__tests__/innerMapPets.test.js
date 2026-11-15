@@ -111,6 +111,35 @@ describe('animals on the street map', () => {
         expect(foe.a).toBe(wolf);
         expect(dmg).toBeGreaterThan(5);
     });
+
+    it('the dog, cat and hawk are drawn from the painted series\' 128px sheets; standing, the dog and cat play their idle', async () => {
+        const fs = await import('fs');
+        for (const sp of ['dog', 'cat', 'hawk']) {
+            const s = InnerMapPets.sprite({ species: sp, breed: Object.keys(AnimalCompanions.species(sp).breeds)[0] });
+            expect(s.frameW).toBe(128);
+            expect(s.anchor).toEqual([64, sp === 'hawk' ? 84 : 124]);
+            for (const path of Object.values(s.sheets)) {
+                const buf = fs.readFileSync(path);
+                expect(buf.readUInt32BE(16)).toBe(512);
+                expect(buf.readUInt32BE(20)).toBe(512);
+            }
+        }
+        const dog = InnerMapPets.sprite({ species: 'dog', breed: 'hound' });
+        const cat = InnerMapPets.sprite({ species: 'cat', breed: 'tabby' });
+        expect(dog.sheets.idle && dog.sheets.attack && cat.sheets.idle).toBeTruthy();
+        // still: the idle sheet, its frames turning over with the clock; walking: the walk; biting: the attack
+        const still = { id: 'a1', facing: 'left', state: 'walk', moving: false, idleT: 0 };
+        const cols = new Set();
+        for (let t = 0; t < 1; t += 0.1) cols.add(InnerMapAnimals.frame({ ...still, idleT: t }, dog).col);
+        expect(InnerMapAnimals.frame(still, dog).sheet).toBe(dog.sheets.idle);
+        expect(InnerMapAnimals.frame(still, dog).row).toBe(1);
+        expect(cols.size).toBeGreaterThan(1);
+        expect(InnerMapAnimals.frame({ ...still, moving: true, animT: 0.3 }, dog).sheet).toBe(dog.sheets.walk);
+        expect(InnerMapAnimals.frame({ ...still, state: 'attack', atkT: 0.1 }, dog).sheet).toBe(dog.sheets.attack);
+        // a wild beast with no idle sheet stands on its walk sheet (and breathes as it is drawn)
+        const wolf = InnerMap.animalSpecies('wolf', InnerMap.animalConfig());
+        expect(InnerMapAnimals.frame({ id: 'w', facing: 'down', state: 'graze', animT: 0 }, wolf)).toMatchObject({ sheet: wolf.sheets.walk, col: 0 });
+    });
 });
 
 describe('who walks with you', () => {

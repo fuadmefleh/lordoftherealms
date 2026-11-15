@@ -45,6 +45,9 @@ export class WorldUnit {
             }
         }
         if (def && def.extraFields) Object.assign(this, JSON.parse(JSON.stringify(def.extraFields)));
+        // (the theme's coin is not coin yet: the world draws it out of the nearest town's
+        // purse when the unit takes the road — World.fundUnitCoin — never from nothing)
+        if (this.inventory.gold > 0) this._rolledGold = this.inventory.gold;
     }
 
     /** Unit types from data/units.json, installed by DataLoader. */
@@ -399,6 +402,9 @@ export class WorldUnit {
             for (const [item, amount] of Object.entries(this.inventory)) {
                 raider.inventory[item] = (raider.inventory[item] || 0) + amount;
             }
+            // (taken, not copied: the robbed carry nothing more)
+            this.inventory = {};
+            if (typeof this.purse === 'number') this.purse = 0;
             world.events.push({ text: `${this.name} was robbed by ${raider.name}!`, type: 'economic' });
             this.destroyed = true;
         }
@@ -635,8 +641,9 @@ export class WorldUnit {
                     level: 0,
                     kingdom: null,
                 };
-                // (in a world begun before coin a new village has no coin it wasn't given: world/barter.js)
-                if (world.barter) tile.settlement.freshPurse = true;
+                // (a new village has no coin it wasn't given — world/barter.js, Economy.townPurse —
+                // in any world: its starting purse would be coin from nothing)
+                tile.settlement.freshPurse = true;
                 if (typeof world.invalidateSettlements === 'function') world.invalidateSettlements();
                 world.events.push({ text: `A new settlement, ${name}, has been established!`, type: 'growth' });
             }

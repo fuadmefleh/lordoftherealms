@@ -1065,6 +1065,15 @@ export const Townsfolk = {
             const lo = _num(range[0]);
             const hi = Math.max(lo, _num(range[1], lo));
             p.purse = lo + Math.floor(rng() * (hi - lo + 1));
+            // (the coin in it is the town's: rolling a purse moves it out of the town's common
+            // purse, so a purse first looked at — a theft, a beating — is not coin from nothing)
+            const t = world && typeof world.getTile === 'function' && Number.isFinite(folk.q) ? world.getTile(folk.q, folk.r) : null;
+            const s = t && t.settlement;
+            if (s && s.economy && Number.isFinite(s.economy.gold)) {
+                const got = Math.min(p.purse, Math.max(0, s.economy.gold));
+                s.economy.gold = Math.round((s.economy.gold - got) * 100) / 100;
+                p.purse = got;
+            }
         }
         return p.purse;
     },

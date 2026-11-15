@@ -917,6 +917,8 @@ export const Abdication = {
             blocked: Abdication.blocked(player), successors: Abdication.successors(player),
             pressure, counselAt: P.counselAt, demandAt: P.demandAt, demand: st.demand,
             demandDays: st.demand ? Math.max(0, _num(st.demand.due) - day) : 0,
+            // The weeks the court has sat at the demand mark (the clock to a demand) and its quiet after one lapses
+            pressureWeeks: _num(st.pressureWeeks), weeksToDemand: _num(P.weeksToDemand), quietUntil: _num(st.cooldownUntil) > day ? _num(st.cooldownUntil) : null,
             elders, record: st.record.slice(-6).reverse(), cfg,
             regentOptions: Abdication.regentOptions(player, world),
         };

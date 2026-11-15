@@ -18,7 +18,8 @@
 // every visit and after a save:
 //
 //   world.mines[hexKey] = { sites: { 'cave:q,r' | 'adit:q,r' | 'shaft:q,r': {
-//       kind, q, r, day, stage, open, cells: { 'q,r': 'f' | 'r' | 's' }, dug, got: { item: n } } } }
+//       kind, q, r, day, stage, open, cells: { 'q,r': 'f' | 'r' | 's' }, dug, got: { item: n },
+//       drawn (units of the hex's hinterland deposit dug out by hand: Hinterland.deplete) } } }
 //   cells: 'f' open floor (cut and hauled, or a cave floor picked clean),
 //          'r' rubble (cut, or come down in a cave-in), 's' floor under timbers.
 //
@@ -38,6 +39,10 @@
 
 import { InnerMap } from './_ref.js';
 import { DataLoader } from './_imports.js';
+import { Hinterland } from '../hinterland.js';
+
+// What a hex's deposit keeps back from hand digging: its market turn draws the last and closes it
+const DEPOSIT_FLOOR = 0.02;
 
 const DEFAULTS = {
     map: { width: 40, height: 40, caveOpen: 0.2, veins: 1.6, veinRadius: [1, 2], loose: 0.05, crystal: 0.012, bats: 0.5 },
@@ -554,13 +559,46 @@ Object.assign(InnerMap, {
         return down;
     },
 
-    /** Count what a site has given (for the record and the ledger of the hex's deposit). */
+    /**
+     * The hex's own deposit behind an item dug underground (world/hinterland.js:
+     * the iron mine, the coal pit, the quarry the hex's towns work), or null
+     * when the item is no deposit's good there. → { site, left, item }
+     */
+    mineDeposit(item, world = null, hexKey = null) {
+        const m = world && hexKey ? null : this.mineHere();
+        const w = world || (m && m.world);
+        const key = hexKey || (m && m.hexKey);
+        if (!w || !key || !item || !w.hinterland) return null;
+        const [q, r] = String(key).split(',').map(Number);
+        const site = Hinterland.siteAt(w, q, r);
+        const kd = site ? Hinterland.kind(site.kind) : null;
+        if (!kd || !kd.deposit || !kd.first || !(site.res0 > 0)) return null;
+        const map = (_cfg().geology && _cfg().geology.resourceItem) || {};
+        if (item !== kd.first && item !== (map[kd.first] || kd.first)) return null;
+        // (worked out once only the last scrapings are left)
+        const left = site.st === 'exhausted' ? 0 : Math.max(0, Number(site.res) - DEPOSIT_FLOOR);
+        return { site, left, item };
+    },
+
+    /**
+     * Count what a site has given (for the record), and draw what came out of
+     * the hex's deposit down with it: ore cut by hand is ore the hex's mine no
+     * longer holds. The last scrapings are left for the mine's own market turn
+     * (systems/concessions.js), which closes it and tells the towns.
+     * → { drawn, left } when a deposit was drawn on, else null
+     */
     mineCredit(item, qty) {
         const m = this.mineHere();
         const s = m && m.site;
-        if (!s || !item || !(qty > 0)) return;
+        if (!s || !item || !(qty > 0)) return null;
         if (!s.got) s.got = {};
         s.got[item] = (s.got[item] || 0) + qty;
+        const dep = this.mineDeposit(item, m.world, m.hexKey);
+        if (!dep) return null;
+        const drawn = Math.min(qty, dep.left);
+        if (drawn > 0) Hinterland.deplete(dep.site, drawn);
+        s.drawn = Math.round(((s.drawn || 0) + drawn) * 100) / 100;
+        return { drawn, left: Math.max(0, Number(dep.site.res) - DEPOSIT_FLOOR) };
     },
 
     // ── On the street map: the drifts and shafts begun, the cave mouths ──

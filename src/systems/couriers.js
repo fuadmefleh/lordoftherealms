@@ -48,12 +48,14 @@ import { OutlawLairs } from './outlawLairs.js';
 import { Ledger } from './ledger.js';
 import { CourtLetters } from './courtLetters.js';
 import { CrownBooks } from '../world/crownBooks.js';
+import { Economy } from '../world/economy.js';
 import { Names } from '../core/names.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _day = world => (world && Number.isFinite(world.day) ? world.day : 0);
 const _key = (q, r) => `${q},${r}`;
 const _clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+const _r2 = (v) => Math.round(v * 100) / 100;
 
 function _hash(str) {
     let h = 2166136261;
@@ -470,6 +472,8 @@ export const Couriers = {
             for (const x of near) this._addStation(c, x.t);
             c.riders = c.stations.length * N.ridersPerStation;
             c.horses = c.stations.length;
+            // (its founders put up its cash out of the seat town's purse — at most a fifth of it)
+            c.cash = this._raise(world, seat.key, c.cash);
         }
     },
 
@@ -534,9 +538,12 @@ export const Couriers = {
             // Dear postage means fewer letters written at all
             const avg = servers.reduce((s, c, i) => s + this.letterPrice(c) * score[i], 0) / total;
             d *= Math.pow(C.price.base / Math.max(0.5, avg), _num(C.demand.priceElasticity, 0.8));
+            // (the postage is paid out of the town's purse: no coin from nowhere)
+            const live = this._live(world, t.key);
             servers.forEach((c, i) => {
                 const letters = d * score[i] / total;
-                const rev = letters * this.letterPrice(c) * C.demand.revenuePerLetter;
+                const due = letters * this.letterPrice(c) * C.demand.revenuePerLetter;
+                const rev = live ? Economy.drawTown(live, due) : due;
                 c.week.letters += letters;
                 c.week.revenue += rev;
                 c.week.towns[t.key] = Math.round(_num(c.week.towns[t.key]) + rev);
@@ -558,10 +565,14 @@ export const Couriers = {
                     ch.fee = fee;
                     ch.paid = _num(ch.paid) + fee;
                     c.week.fee += fee;
-                    if (k) {
-                        k.treasury = _num(k.treasury) + fee;
-                        CrownBooks.note(k, 'demesne', fee); // a crown monopoly's due
+                    // (an NPC house pays it out of what it holds; the player's house in _settlePlayer)
+                    const paid = c.owner === 'player' ? 0 : Math.min(fee, Math.max(0, Math.floor(_num(c.cash) + _num(c.week.revenue) - _num(c.week.feePaid))));
+                    if (k && paid > 0) {
+                        k.treasury = _num(k.treasury) + paid;
+                        CrownBooks.note(k, 'demesne', paid); // a crown monopoly's due
                     }
+                    c.week.feePaid = _num(c.week.feePaid) + paid;
+                    if (c.owner === 'player') c.week.feeTo = { ...(c.week.feeTo || {}), [kid]: _num((c.week.feeTo || {})[kid]) + fee };
                 }
             }
             this._robberies(world, player, c, threats, out);
@@ -570,15 +581,22 @@ export const Couriers = {
             if (lost && typeof lost === 'object') {
                 c.week.robbed += _num(lost.robbed);
                 if (c.owner === 'player') c.week.costs += _num(lost.gold);
-                else c.cash = _num(c.cash) - _num(lost.gold);
+                // (made good to the senders: spent into the house's home town)
+                else this._spend(world, c, _num(lost.gold), [c.home]);
                 c.horses = Math.max(0, _num(c.horses) - _num(lost.horses));
                 c.pendingLoss = null;
             }
-            c.week.revenue = Math.round(c.week.revenue);
+            c.week.revenue = _r2(c.week.revenue); // (to the hundredth: the coin drawn from the towns)
             c.week.costs = Math.round(c.week.costs);
             c.week.profit = c.week.revenue - c.week.costs - c.week.fee;
             if (c.owner === 'player') this._settlePlayer(world, player, c, out);
-            else c.cash = Math.round(_num(c.cash) + c.week.profit);
+            else {
+                // Real coin (2026-11): the takings in, the wages and upkeep spent in the
+                // stations' towns, the crown's fee (paid above) out of the chest
+                this._earn(world, c, c.week.revenue);
+                c.cash = _r2(_num(c.cash) - _num(c.week.feePaid));
+                this._spend(world, c, c.week.costs);
+            }
             // Reputation drifts toward the house's real reliability
             const target = this.reliability(c) * 100;
             c.reputation = Math.round(_clamp(_num(c.reputation, 50) + (target - _num(c.reputation, 50)) * 0.12, 0, 100) * 10) / 10;
@@ -587,7 +605,7 @@ export const Couriers = {
         }
 
         // 3. The NPC houses decide; new ones are founded where towns go unserved
-        for (const c of houses) if (c.owner !== 'player' && c.alive !== false) { this._npcTurn(world, c, towns, out, player); this._draw(c); }
+        for (const c of houses) if (c.owner !== 'player' && c.alive !== false) { this._npcTurn(world, c, towns, out, player); this._draw(c, world); }
         this._foundings(world, towns, out, player);
         if (player) this._playerEvents(world, player, out);
         for (const c of houses) c.week.letters = 0;
@@ -604,7 +622,8 @@ export const Couriers = {
             c.reputation = _clamp(_num(c.reputation, 50) - D.robRep, 0, 100);
             if (_num(c.horses) > 0 && Utils.random() < 0.5) c.horses--;
             const loss = Utils.randInt(D.robCash[0], D.robCash[1]);
-            if (c.owner !== 'player') c.cash = _num(c.cash) - loss;
+            // (the robbers spend it in the town nearby)
+            if (c.owner !== 'player') this._spend(world, c, loss, [s.key]);
             else c.week.costs += loss;
             if (c.owner === 'player') out.notices.push({ icon: '🗡️', title: 'A Rider Robbed', text: `A rider of ${c.name} was robbed on the road near ${s.name}. The mail bag is gone (${loss} gold of postage and goods to make good); the house's name suffers.`, type: 'warning' });
         }
@@ -625,6 +644,15 @@ export const Couriers = {
             const feePaid = Math.min(w.fee, paid);
             if (paid - feePaid > 0) Ledger.record(player, 'courierCosts', -(paid - feePaid));
             if (feePaid > 0) Ledger.record(player, 'royalPost', -feePaid);
+            // Where it goes: the fee to the crowns that chartered the house, the wages to the stations' towns
+            let feeLeft = feePaid;
+            for (const [kid, f] of Object.entries(w.feeTo || {})) {
+                const part = Math.min(feeLeft, _num(f));
+                if (!(part > 0)) continue;
+                const k = world && world.getKingdom ? world.getKingdom(kid) : null;
+                if (k) { k.treasury = _num(k.treasury) + part; CrownBooks.note(k, 'demesne', part); feeLeft -= part; }
+            }
+            this._payStations(world, c, paid - feePaid + feeLeft);
         }
         if (paid < owed) {
             c.unpaidWeeks = _num(c.unpaidWeeks) + 1;
@@ -694,15 +722,15 @@ export const Couriers = {
         if (c.price < floor) c.price = floor;
         // Riders and horses for the network, when the cash allows
         const want = c.stations.length * N.ridersPerStation;
-        if (c.riders < want && c.cash > C.costs.riderHire * 3) { c.riders++; c.cash -= C.costs.riderHire; }
-        if (c.horses < c.stations.length && c.cash > C.costs.horsePrice * 4) { c.horses++; c.cash -= C.costs.horsePrice; }
-        if (c.week.robbed && c.guards < c.riders / 2 && c.cash > C.costs.guardHire * 4) { c.guards++; c.cash -= C.costs.guardHire; }
+        if (c.riders < want && c.cash > C.costs.riderHire * 3) { c.riders++; this._spend(world, c, C.costs.riderHire); }
+        if (c.horses < c.stations.length && c.cash > C.costs.horsePrice * 4) { c.horses++; this._spend(world, c, C.costs.horsePrice); }
+        if (c.week.robbed && c.guards < c.riders / 2 && c.cash > C.costs.guardHire * 4) { c.guards++; this._spend(world, c, C.costs.guardHire); }
         // A new station: the best town near the network it does not serve yet
         if (c.cash > N.expandAt && c.week.profit > 0 && c.stations.length < N.maxStations) {
             const t = this._bestNewTown(world, c, towns);
             if (t) {
                 this._addStation(c, t);
-                c.cash -= C.costs.stationPrice;
+                this._spend(world, c, C.costs.stationPrice, [t.key]);
                 this._news(world, `${c.name} opens a station at ${t.name}.`, '📮');
                 const ph = this.playerHouse(world);
                 if (ph && this.hasStation(ph, t.key)) out.notices.push({ icon: '📮', title: 'A Rival Post Arrives', text: `${c.name} opens a station at ${t.name}, where your house carries the mail. Watch your prices.`, type: 'warning' });
@@ -711,9 +739,64 @@ export const Couriers = {
     },
 
     /** The owner draws what the house does not need (NPC houses keep at most a war chest). */
-    _draw(c) {
+    _draw(c, world = null) {
         const keep = _num(this.config().npc.keepCash, 2500);
-        if (c.owner !== 'player' && _num(c.cash) > keep) c.cash = Math.round(keep + (c.cash - keep) * 0.5);
+        if (c.owner !== 'player' && _num(c.cash) > keep) {
+            // (the owner spends what he draws in the house's home town)
+            const take = _r2((c.cash - keep) * 0.5);
+            if (world) this._spend(world, c, take, [c.home]);
+            else c.cash = _r2(c.cash - take);
+        }
+    },
+
+    /** A new house's cash, put up out of the purse of the town at `key` (at most a fifth of it). → raised */
+    _raise(world, key, want) {
+        const s = this._live(world, key);
+        if (!s) return _num(want);
+        const have = Economy.townPurse(s);
+        return have == null ? _num(want) : Math.floor(Economy.drawTown(s, Math.min(_num(want), Math.floor(have * 0.2))));
+    },
+
+    /** The live settlement at a 'q,r' key (null without one). */
+    _live(world, key) {
+        if (!world || typeof world.getTile !== 'function' || typeof key !== 'string') return null;
+        const [q, r] = key.split(',').map(Number);
+        const t = world.getTile(q, r);
+        return (t && t.settlement) || null;
+    },
+
+    /** Pay `amount` into the towns at `keys` (default: the house's stations), evenly. → paid */
+    _payStations(world, c, amount, keys = null) {
+        const a = _r2(Math.max(0, _num(amount)));
+        if (!(a > 0)) return 0;
+        const list = (keys || (c.stations || []).map(s => s.key)).map(k => this._live(world, k)).filter(Boolean);
+        if (!list.length) { const h = this._live(world, c.home); if (h) list.push(h); }
+        if (!list.length) return 0;
+        const each = Math.floor(a / list.length * 100) / 100;
+        let paid = 0;
+        list.forEach((s, i) => { paid = _r2(paid + Economy.payTown(s, i === list.length - 1 ? _r2(a - each * (list.length - 1)) : each)); });
+        return paid;
+    },
+
+    /**
+     * An NPC house spends `amount`: what it holds is paid into the towns at `keys`
+     * (its stations'); past that it runs into debt (cash below 0), coin no one is paid yet.
+     */
+    _spend(world, c, amount, keys = null) {
+        const a = _r2(Math.max(0, _num(amount)));
+        if (!(a > 0)) return 0;
+        const pay = Math.min(a, Math.max(0, _num(c.cash)));
+        c.cash = _r2(_num(c.cash) - a);
+        return pay > 0 ? this._payStations(world, c, pay, keys) : 0;
+    },
+
+    /** An NPC house takes in `amount`: a debt is settled first, paid to its home town. */
+    _earn(world, c, amount) {
+        const a = _r2(Math.max(0, _num(amount)));
+        if (!(a > 0)) return;
+        const debt = Math.max(0, -_num(c.cash));
+        if (debt > 0) this._payStations(world, c, Math.min(debt, a), [c.home]);
+        c.cash = _r2(_num(c.cash) + a);
     },
 
     _bestNewTown(world, c, towns) {
@@ -748,6 +831,7 @@ export const Couriers = {
                 .sort((a, b) => _dist(world, t, a) - _dist(world, t, b) || a.key.localeCompare(b.key)).slice(0, 1);
             for (const o of near) this._addStation(c, o);
             c.riders = c.stations.length * C.npc.ridersPerStation;
+            c.cash = this._raise(world, t.key, c.cash);
             this._news(world, `${c.ownerName} founds ${c.name} at ${t.name}: the town had no post.`, '📮');
             const ph = player ? this.playerHouse(world) : null;
             if (ph && c.stations.some(s => this.hasStation(ph, s.key))) out.notices.push({ icon: '📮', title: 'A New Post House', text: `${c.name} is founded at ${t.name}, on your house's roads.`, type: 'info' });

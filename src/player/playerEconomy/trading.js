@@ -190,14 +190,16 @@ export const Trading = {
      * port's) — or Infinity when nobody there sells it. Keeps sell bonuses
      * from turning a market into a buy-and-sell-back money loop.
      */
-    saleUnitCap(player, goodId, settlement, world = null, tile = null, quantity = 1) {
+    saleUnitCap(player, goodId, settlement, world = null, tile = null, quantity = 1, buyMult = null) {
+        // (`buyMult` stands in for the difficulty's buy-price factor: 1 prices the cap as on Normal)
+        const bm = buyMult == null ? Difficulty.mult(player, 'buyPrice') : buyMult;
         const at = tile || Economy.settlementTile(world, settlement);
         const q = Math.max(1, Math.floor(quantity));
         const here = (at && at.settlement) || settlement;
         // A market that keeps the good sells it back at its stock's price whether or not
         // it's on the stalls right now (the sale itself stocks it): always under that
-        if (!at) return here && here.market && SettlementMarket.tracks(goodId) ? Trading._buyBackCap(player, goodId, here, null, world, q, Infinity) : Infinity;
-        const discount = (s) => Math.max(0.5, 1 - Trading.buyDiscount(player, s)) * Difficulty.mult(player, 'buyPrice');
+        if (!at) return here && here.market && SettlementMarket.tracks(goodId) ? Trading._buyBackCap(player, goodId, here, null, world, q, Infinity, bm) : Infinity;
+        const discount = (s) => Math.max(0.5, 1 - Trading.buyDiscount(player, s)) * bm;
         // Each market's price after the player's own discount there (as buyGoods charges it)
         const discounted = (ask, s) => Math.ceil(ask * discount(s));
         let flat = Infinity;
@@ -216,7 +218,7 @@ export const Trading = {
         const tracked = here && here.market && SettlementMarket.tracks(goodId);
         // This market: buying the unit back costs the price at the stock the sale leaves
         // (a kept good whether it's on the stalls or not: the sale itself puts it there)
-        if (tracked) return Trading._buyBackCap(player, goodId, here, at, world, q, flat);
+        if (tracked) return Trading._buyBackCap(player, goodId, here, at, world, q, flat, bm);
         if (ownAsk == null) return flat === Infinity ? Infinity : Math.max(0, flat);
         return Math.max(0, Math.min(flat, discounted(ownAsk, here) - 1));
     },
@@ -228,14 +230,14 @@ export const Trading = {
      * player's discount, the difficulty, the member's guild rates), and under
      * `flat` (the asks next door). Never above any buy price of the same day.
      */
-    _buyBackCap(player, goodId, here, at, world, q, flat = Infinity) {
+    _buyBackCap(player, goodId, here, at, world, q, flat = Infinity, buyMult = null) {
         const good = Economy._goods()[String(goodId).toUpperCase()];
         if (!good || !(good.basePrice > 0)) return 0;
         const askBase = Economy.marketAskBase(good, here, at, world);
         const s0 = SettlementMarket.stock(here, goodId);
         // (as buyCost charges it — a discount can't push a price under half, nor
         // a penalty make the cap the dearer side: both sides read the same factor)
-        const d = Math.max(0.5, 1 - Trading.buyDiscount(player, here)) * Difficulty.mult(player, 'buyPrice')
+        const d = Math.max(0.5, 1 - Trading.buyDiscount(player, here)) * (buyMult == null ? Difficulty.mult(player, 'buyPrice') : buyMult)
             * (1 - Guilds.inputDiscount(player, here, goodId));
         const floor = Guilds.askFloor(here, goodId);
         let total = 0;
@@ -329,8 +331,13 @@ export const Trading = {
             // (a fashion at court lifts what goods no market keeps fetch: exotics — world/fashions.js)
             value = Trading.getSellPrice(good, world) * q * (1 + tradeBonus) * priceMult * SettlementMarket.fashionFactor(settlement, good.id);
         }
-        value *= Difficulty.mult(player, 'sellPrice'); // the difficulty (1 on Normal)
-        return Math.min(value, Trading.saleUnitCap(player, good.id, settlement, world, null, q) * q) / q;
+        // The difficulty (1 on Normal) scales what the sale would fetch on Normal (under
+        // Normal's buy-back cap), then the game's own cap holds: a harder game's dearer
+        // asks must not lift what a capped good sells for, an easier one's open no loop
+        const sm = Difficulty.mult(player, 'sellPrice');
+        const cap = Trading.saleUnitCap(player, good.id, settlement, world, null, q) * q;
+        const capN = Difficulty.mult(player, 'buyPrice') === 1 ? cap : Trading.saleUnitCap(player, good.id, settlement, world, null, q, 1) * q;
+        return Math.min(Math.min(value, capN) * sm, cap) / q;
     },
 
 

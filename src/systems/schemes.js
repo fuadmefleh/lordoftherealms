@@ -25,6 +25,8 @@ import { Hex } from '../core/hex.js';
 import { Townsfolk } from './townsfolk.js';
 import { Ledger } from './ledger.js';
 import { Traits } from './traits.js';
+import { Economy } from '../world/economy.js';
+import { MoneySupply } from '../world/moneySupply.js';
 
 const CONFIG = {
     plotCadence: 20,          // days between rival plotting rolls
@@ -750,7 +752,18 @@ export const Schemes = {
         const replaced = [];
         for (const key of Object.keys(house.rivals)) {
             const k = world.kingdoms.find(x => x.id === house.rivals[key].kingdomId);
-            if (!k || !k.isAlive) { replaced.push(house.rivals[key].name); delete house.rivals[key]; }
+            if (!k || !k.isAlive) {
+                const gone = house.rivals[key];
+                // (a fallen House's coin is spent or scattered in the town of its seat)
+                const gold = Math.max(0, Number(gone.gold) || 0);
+                if (gold > 0) {
+                    const at = gone.seat || (k && k.capital) || null;
+                    if (!(at && Economy.payNearest(world, at.q, at.r, gold))) MoneySupply.leak(world, -gold, 'housesFallen');
+                    gone.gold = 0;
+                }
+                replaced.push(gone.name);
+                delete house.rivals[key];
+            }
         }
         if (replaced.length) {
             const want = Object.keys(house.rivals).length + replaced.length;

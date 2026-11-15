@@ -166,7 +166,7 @@
             "monarch": { "parents": 0, "siblings": [1, 2], "family": "home", "friends": 1, "acquaintances": 1, "rival": 1, "court": 4, "stipend": 8, "loyalty": 65 },
             "high_priest": { "parents": 0, "siblings": [0, 2], "family": "away", "friends": 1, "acquaintances": 2, "rival": 1, "court": 3, "stipend": 3 },
             "great_lord": { "parents": 1, "siblings": [1, 2], "family": "home", "friends": 1, "acquaintances": 2, "rival": 1, "court": 4, "stipend": 3, "loyalty": 62 },
-            "guildmaster": { "parents": 1, "siblings": [0, 2], "family": "home", "friends": 2, "acquaintances": 2, "rival": 1, "court": 2, "stipend": 2 },
+            "guildmaster": { "parents": 1, "siblings": [0, 2], "family": "home", "friends": 2, "acquaintances": 2, "rival": 1, "court": 1, "stipend": 2 },
             "general": { "parents": 1, "siblings": [0, 2], "family": "away", "friends": 1, "acquaintances": 1, "rival": 1, "court": 2, "stipend": 3 },
             "crime_lord": { "parents": 0, "siblings": [0, 2], "family": "home", "friends": 1, "acquaintances": 2, "rival": 1, "court": 2, "stipend": 2 },
             "born": { "parents": 0, "siblings": [0, 0], "friends": 2, "acquaintances": 1, "rival": 1, "court": 0, "youth": true }

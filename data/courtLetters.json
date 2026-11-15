@@ -7,7 +7,7 @@
         "maxArchive": 30,
         "sameSenderDays": 20,
         "lapse": {
-            "_doc": "What silence costs (systems/courtLetters.js lapseCosts). Each kind's own 'lapse' block names its base cost: deed (data/lordMemory.json, remembered by the sender's lord; deedShare scales the deed's weight), reputation (in the sender's realm), renown, feud (with a rival House), affection (your spouse's), withdraw (days that sender sends no letter of that kind again: the lost offer, named by 'lost'). Every cost is scaled by who wrote: sender (by type; 'liege' is the lord you are sworn to), realm (a stronger crown's slight weighs more: its military over the world mean, square-rooted, clamped to min..max), and repeat (each letter of theirs left unanswered in the last grievanceWindow days adds repeatStep, up to repeatMax). Every grievanceAt snubs within the window the lord takes a grievance (grievanceDeed). warnDays: the inbox marks a letter urgent this close to its deadline.",
+            "_doc": "What silence costs (systems/courtLetters.js lapseCosts). Each kind's own 'lapse' block names its base cost: deed (data/lordMemory.json, remembered by the sender's lord; deedShare scales the deed's weight), reputation (in the sender's realm), renown, feud (with a rival House), affection (your spouse's), withdraw (days that sender sends no letter of that kind again: the lost offer, named by 'lost'). Every cost is scaled by who wrote: sender (by type; 'liege' is the lord you are sworn to), realm (a stronger crown's slight weighs more: its military over the world mean, square-rooted, clamped to min..max), and repeat (each letter of theirs left unanswered in the last grievanceWindow days adds repeatStep, up to repeatMax). Every grievanceAt snubs within the window the lord takes a grievance (grievanceDeed). warnDays: the inbox marks a letter urgent this close to its deadline (and a long wait stops this close to the deadline of a pressing letter). A kind with urgent: true is pressing — a war, a hostage, an ultimatum, a demand, a ransom, a threat: its arrival stops a long wait (ui/timeSkip.js); every other letter keeps in the inbox while you wait.",
             "sender": { "liege": 1.6, "lord": 1.0, "rival": 1.0, "spouse": 1.0, "child": 0.8, "mail": 0.5, "commoner": 0.3 },
             "realm": { "min": 0.75, "max": 1.4 },
             "repeatStep": 0.25, "repeatMax": 1.0,
@@ -63,7 +63,7 @@
             "ignored": "The tournament came and went."
         },
         "call_to_arms": {
-            "icon": "⚔️", "weight": 6, "expiry": 7, "promiseDays": 30, "gold": [100, 1500], "goldShare": 0.1, "refuseReputation": -10,
+            "icon": "⚔️", "urgent": true, "weight": 6, "expiry": 7, "promiseDays": 30, "gold": [100, 1500], "goldShare": 0.1, "refuseReputation": -10,
             "lapse": { "deed": "call_ignored", "reputation": -15 },
             "subject": "A call to arms",
             "body": "{from} summons the sworn swords of {realm}: we are at war with {enemy}. Ride to the host, or send what you can.",
@@ -107,7 +107,7 @@
             "ignored": "{from}'s offer of truce went unanswered, and the feud festers."
         },
         "rival_tribute": {
-            "icon": "💀", "weight": 3, "expiry": 10, "minFeud": 50, "share": 0.05, "min": 100, "max": 1000, "feudCut": 20, "refuseFeud": 10, "insultFeud": 20, "insultRenown": 3,
+            "icon": "💀", "urgent": true, "weight": 3, "expiry": 10, "minFeud": 50, "share": 0.05, "min": 100, "max": 1000, "feudCut": 20, "refuseFeud": 10, "insultFeud": 20, "insultRenown": 3,
             "lapse": { "feud": 12, "deed": "rival_defied" },
             "subject": "{from} demands tribute",
             "body": "{from} demands {amount} gold as the price of leaving your House in peace.",
@@ -130,7 +130,7 @@
             "ignored": "{from}'s offer of a match went unanswered."
         },
         "spouse_plea": {
-            "icon": "💌", "weight": 6, "expiry": 10, "affection": 12, "refuseAffection": -15, "relations": 8, "liegeReputation": -5,
+            "icon": "💌", "urgent": true, "weight": 6, "expiry": 10, "affection": 12, "refuseAffection": -15, "relations": 8, "liegeReputation": -5,
             "lapse": { "affection": -20 },
             "subject": "{from} pleads for {realm}",
             "body": "{from} cannot sleep. Your realm is at war with {realm}, where {from} was born. \"Speak for peace, I beg you. Those are my people.\"",
@@ -163,7 +163,7 @@
             "ignored": "You never wrote back to {from}."
         },
         "child_hostage": {
-            "icon": "⛓️", "weight": 8, "expiry": 10, "ransom": [100, 600], "ransomShare": 0.05, "heldPrestige": 8, "heldReputation": -10, "riskDays": 20,
+            "icon": "⛓️", "urgent": true, "weight": 8, "expiry": 10, "ransom": [100, 600], "ransomShare": 0.05, "heldPrestige": 8, "heldReputation": -10, "riskDays": 20,
             "subject": "{child} is afraid",
             "body": "{child} writes from {realm}: now that our realms are at war, the court looks at me as a hostage. Bring me home, or trust my spouse's kin to keep me safe.",
             "choices": {
@@ -174,7 +174,7 @@
         },
         "coalition_ultimatum": {
             "_doc": "Sent by systems/coalitions.js when a league is sworn against the player (weight 0: never drawn by the daily tick). Its answers call Coalitions.concede / Coalitions.defy; left unanswered, the league marches on its own deadline.",
-            "icon": "⚜️", "weight": 0, "expiry": 14,
+            "icon": "⚜️", "urgent": true, "weight": 0, "expiry": 14,
             "subject": "The terms of {league}",
             "body": "{from} writes in the name of {league} — {members}. {cause} Pay {amount} gold to the league's war chest, or bow before its courts ({prestige} Prestige), within {days} days. Otherwise every crown of the league will march.",
             "choices": {
@@ -205,7 +205,7 @@
             "ignored": "{from}'s answer to your proposal went unanswered, and the moment passed."
         },
         "mail_ransom": {
-            "icon": "⛓️", "weight": 0, "mail": true, "expiry": 14,
+            "icon": "⛓️", "urgent": true, "weight": 0, "mail": true, "expiry": 14,
             "subject": "The price of {child}",
             "body": "{body}",
             "choices": {
@@ -238,7 +238,7 @@
             "ignored": "You never answered {from}'s invitation."
         },
         "mail_blackmail": {
-            "icon": "🐍", "weight": 0, "mail": true, "lapseEffect": true, "expiry": 8,
+            "icon": "🐍", "urgent": true, "weight": 0, "mail": true, "lapseEffect": true, "expiry": 8,
             "subject": "Your letter to {lover}",
             "body": "An unsigned hand writes: your letter to {lover} passed through my hands before it reached them. {amount} gold left at the post house buys my silence. Otherwise, your spouse and the whole town will read it.",
             "choices": {

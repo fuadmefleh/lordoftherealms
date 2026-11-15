@@ -1,7 +1,8 @@
 {
-    "_doc": "The player's own animals that go about with them: dogs, cats, hawks — and the riding horse (player.mount, bridged in as one of them). systems/animalCompanions.js keeps them (player.animalCompanions); ui/innerMapPets.js walks them on the street map; ui/animalsPanel.js shows them, the market's kennel and the Who Walks With You panel. Days: a year is 120 days. hungerPerDay: how much of a full belly (100) a day costs. eats: what of your packs it will eat and how much each unit fills. forage: what it finds itself a day, in a town or out in the wild (a cat mouses, a hawk takes its own game, a horse grazes outside winter). board: gold a day for scraps or fodder at a town's market when you have nothing it eats (paid to the town's purse). lifeYears: [min, max] years it lives. effects: modest, scaled by the animal's fitness (bond, belly, health) and read by the game: huntQty (the hunt's chance of an extra cut: player/foraging.js), huntItems (only those quarry items), theftWarn (a cutpurse noticed: systems/npcTheft.js awareness), roadWarn (fleeing a band on the road: player/roadEncounters.js), beastGuard (the share of a beast's mauling it takes on itself when you have no army), mouser (larder spoilage cut where it is kept: player/household.js), streetFight (its bite on the street map beside you: ui/innerMapPets.js through the escort's strike). breeds: variants with their own price, look and effect multipliers. sprite: the sheets drawn on the street map (data/animals.json layout: 4 rows up/left/down/right, a frame per column); spriteFrom: borrow an animals.json species' sheets.",
+    "_doc": "The player's own animals that go about with them: dogs, cats, hawks — and the riding horse (player.mount, bridged in as one of them). systems/animalCompanions.js keeps them (player.animalCompanions); ui/innerMapPets.js walks them on the street map; ui/animalsPanel.js shows them, the market's kennel and the Who Walks With You panel. Days: a year is 120 days. hungerPerDay: how much of a full belly (100) a day costs. eats: what of your packs it will eat and how much each unit fills. forage: what it finds itself a day, in a town or out in the wild (a cat mouses, a hawk takes its own game, a horse grazes outside winter). board: gold a day for scraps or fodder at a town's market when you have nothing it eats (paid to the town's purse). lifeYears: [min, max] years it lives. effects: modest, scaled by the animal's fitness (bond, belly, health) and read by the game: huntQty (the hunt's chance of an extra cut: player/foraging.js), huntItems (only those quarry items), theftWarn (a cutpurse noticed: systems/npcTheft.js awareness), roadWarn (fleeing a band on the road: player/roadEncounters.js), beastGuard (the share of a beast's mauling it takes on itself when you have no army), mouser (larder spoilage cut where it is kept: player/household.js), streetFight (its bite on the street map beside you: ui/innerMapPets.js through the escort's strike). hp: what it can take (a breed's hp over its kind's): a foe's bite back on the street map (config.streetHurt) and a road beast's mauling come off its health as hits / hp. breeds: variants with their own price, look and effect multipliers. sprite: the sheets drawn on the street map (data/animals.json layout: 4 rows up/left/down/right, a frame per column; walk while it moves, idle — breathing, a wag, a tail flick — while it stands, attack while it bites; made by scripts/build-companion-sheets.py); spriteFrom: borrow an animals.json species' sheets.",
     "config": {
         "dayYear": 120,
+        "streetHurt": { "_note": "A dog fighting beside you on the street map is bitten back now and then (chance per bite it gives): a beast by its own bite, a man by npc [min, max] hit points; the hits come off its hp (species/breed hp), so a mastiff takes more than a mutt.", "chance": 0.3, "npc": [2, 6], "beast": [3, 8] },
         "maxAnimals": 6,
         "feedBelow": 60,
         "boardBelow": 30,
@@ -38,9 +39,9 @@
                 "mutt": { "name": "Mutt", "price": 6, "desc": "A dog of no breed in particular, and every breed a little.", "mult": {}, "scale": 0.92, "market": { "minType": "village", "chance": { "village": 0.3, "town": 0.3, "city": 0.2, "capital": 0.2 } } }
             },
             "sprite": {
-                "sheets": { "walk": "assets/lpc/Animals/dog/dog_walk_sheet.png", "attack": "assets/lpc/Animals/dog/dog_attack_sheet.png" },
-                "frameW": 56, "frameH": 56, "cols": 4, "rows": { "up": 0, "left": 1, "down": 2, "right": 3 },
-                "anchor": [28, 43], "drawTiles": 1.75, "walkFps": 8, "attackFps": 10
+                "sheets": { "walk": "assets/lpc/Animals/dog/dog_walk_sheet.png", "idle": "assets/lpc/Animals/dog/dog_idle_sheet.png", "attack": "assets/lpc/Animals/dog/dog_attack_sheet.png" },
+                "frameW": 128, "frameH": 128, "cols": 4, "rows": { "up": 0, "left": 1, "down": 2, "right": 3 },
+                "anchor": [64, 124], "drawTiles": 1.45, "walkFps": 8, "idleFps": 5, "attackFps": 10
             }
         },
         "cat": {
@@ -55,9 +56,9 @@
                 "tabby": { "name": "Tabby Cat", "price": 3, "desc": "A striped mouser from a granary's litter: rats keep clear of a larder it lives by.", "mult": {}, "market": { "minType": "village", "chance": { "village": 0.7, "town": 0.75, "city": 0.8, "capital": 0.8 } } }
             },
             "sprite": {
-                "sheets": { "walk": "assets/lpc/Animals/cat/cat_walk_sheet.png" },
-                "frameW": 40, "frameH": 40, "cols": 4, "rows": { "up": 0, "left": 1, "down": 2, "right": 3 },
-                "anchor": [20, 30], "drawTiles": 1.25, "walkFps": 8
+                "sheets": { "walk": "assets/lpc/Animals/cat/cat_walk_sheet.png", "idle": "assets/lpc/Animals/cat/cat_idle_sheet.png" },
+                "frameW": 128, "frameH": 128, "cols": 4, "rows": { "up": 0, "left": 1, "down": 2, "right": 3 },
+                "anchor": [64, 124], "drawTiles": 0.85, "walkFps": 8, "idleFps": 3
             }
         },
         "hawk": {
@@ -75,8 +76,8 @@
             },
             "sprite": {
                 "sheets": { "walk": "assets/lpc/Animals/hawk/hawk_fly_sheet.png" },
-                "frameW": 68, "frameH": 68, "cols": 4, "rows": { "up": 0, "left": 1, "down": 2, "right": 3 },
-                "anchor": [34, 44], "drawTiles": 1.45, "walkFps": 9
+                "frameW": 128, "frameH": 128, "cols": 4, "rows": { "up": 0, "left": 1, "down": 2, "right": 3 },
+                "anchor": [64, 84], "drawTiles": 1.3, "walkFps": 9
             }
         },
         "horse": {

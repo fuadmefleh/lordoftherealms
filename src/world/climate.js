@@ -488,7 +488,7 @@ export const Climate = {
 
     /**
      * A line for the date's card and the counsel: what the era does where you
-     * stand. → { icon, name, era, text, yield, ice, disease, hardship } or null.
+     * stand. → { icon, name, label (the kind: "Little Ice Age"), era, text, yield, ice, disease, hardship } or null.
      */
     describe(world, q, r, day = null) {
         const d = day == null ? _num(world && world.day, 1) : day;
@@ -512,8 +512,12 @@ export const Climate = {
         if (ice) parts.push('harbours freeze in winter');
         const since = Climate.calendarYear(world, a.era.from);
         const name = a.era.name.charAt(0).toUpperCase() + a.era.name.slice(1);
-        const text = parts.length ? `${K.icon || '🌦️'} ${name} (since ${since}): ${parts.join(', ')} here.` : `${K.icon || '🌦️'} ${name} (since ${since}): it is little felt here.`;
-        return { icon: K.icon || '🌦️', name, era: a.era, text, yield: f, ice, disease: dm, hardship: Climate.hardship(world, q, r, d) };
+        // (the kind of age in words — "a Little Ice Age" — beside the era's own name, unless it says the same)
+        const label = K.label || null;
+        const kindOf = label && !name.toLowerCase().includes(label.toLowerCase()) ? `${/^[aeiou]/i.test(label) ? 'an' : 'a'} ${label}, ` : '';
+        const head = `${K.icon || '🌦️'} ${name} (${kindOf}since ${since})`;
+        const text = parts.length ? `${head}: ${parts.join(', ')} here.` : `${head}: it is little felt here.`;
+        return { icon: K.icon || '🌦️', name, label, era: a.era, text, yield: f, ice, disease: dm, hardship: Climate.hardship(world, q, r, d) };
     },
 
     /** The era's colour on the map (ui/renderer/atmosphere.js): { soft:[r,g,b,a], desat, frost } or null. */

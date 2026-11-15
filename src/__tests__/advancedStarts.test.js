@@ -15,6 +15,7 @@ import { Victory } from '../systems/victory.js';
 import { Religion } from '../systems/religion.js';
 import { Devotion } from '../systems/devotion.js';
 import { Guilds } from '../systems/guilds.js';
+import { Ledger } from '../systems/ledger.js';
 import { Relationships } from '../systems/relationships.js';
 import { Laws } from '../systems/laws.js';
 import { Estates } from '../world/estates.js';
@@ -327,4 +328,29 @@ describe('the Guildmaster', () => {
         expect(Guilds.rankOf(back.player, s2, st.guild)).toBe(3);
         expect(Guilds.guild(s2, st.guild).master.player).toBe(true);
     }, 120000);
+
+    it('masters a great town\'s hall, and an idle guildmaster about breaks even while the seat holds', () => {
+        // (seed 101, four realms: the nearest great guild towns were four capitals and two market
+        // towns, and the nearest a market town of 28 millers whose dues barely kept the master's
+        // house; the stipend ran 12-26 gold a month against 120 of court)
+        const g = newGame(101, { kingdomCount: 4 });
+        g.autoUpkeep = 'full';
+        Scenarios.apply(g.player, g.world, { origin: 'guildmaster' });
+        const p = g.player;
+        const st = p.scenario.start;
+        const s = g.world.getTile(st.q, st.r).settlement;
+        expect(['capital', 'city']).toContain(s.type);
+        // (a guildmaster keeps a clerk, not a lord's household)
+        expect((p.house.court || []).length).toBe(1);
+        // The masters' vote put off: what the office pays against what it costs
+        Guilds.guild(s, st.guild).nextElection = 1e9;
+        for (let d = 0; d < 90; d++) { p.health = 100; p.starvationDays = 0; endDay(g); }
+        expect(Guilds.guild(s, st.guild).master.player).toBe(true);
+        // (the last two months: past the entry fee and the first steps' purse)
+        const stm = Ledger.statement(p, g.world, 60);
+        const guild = stm.op.income.find(l => l.id === 'guilds');
+        const court = stm.op.expenses.find(l => l.id === 'courtStipends');
+        expect(guild.amount).toBeGreaterThan(-court.amount);
+        expect(stm.op.net).toBeGreaterThan(-40);
+    }, 300000);
 });

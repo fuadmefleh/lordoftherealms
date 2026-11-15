@@ -41,6 +41,7 @@ import { Estates } from '../world/estates.js';
 import { TownJobs } from './townJobs.js';
 import { Illness } from './illness.js';
 import { Climate } from '../world/climate.js';
+import { PriceAnchors } from '../world/priceAnchors.js';
 // (the townsfolk's own trading: producers keep back their wares at the market turn)
 import { TownTrade } from './townTrade.js';
 
@@ -154,6 +155,9 @@ export const MarketDynamics = {
                 withhold: TownTrade.withhold(live, world, day, span || (Number.isFinite(day) ? k : 1)),
             });
         }
+        // Each good's anchor learns, month by month, what it trades for across the world, and
+        // every market is bound to the anchors and the craftsmen's floor (world/priceAnchors.js)
+        PriceAnchors.update(world, lives, day);
         const links = this._links(world, cache, lives, day);
         for (const live of lives) if (live.market && live.market.trade) live.market.trade.cut = 0;
         const turnArg = !span && k > 1 && Number.isFinite(day) ? turn : null;
@@ -643,19 +647,22 @@ export const MarketDynamics = {
             const info = SettlementMarket.info(at.settlement, id);
             if (!(info.stock > 0) && !(info.need > 0)) continue;
             const price = this.getPrice(id, at.tile.q, at.tile.r, world);
+            // (the change is against the good's normal price, learnt from the markets: world/priceAnchors.js)
+            const normal = Math.max(0.01, PriceAnchors.base(world, id, good.basePrice));
             summary.push({
                 id: good.id,
                 name: good.name,
                 icon: good.icon,
                 price,
                 basePrice: good.basePrice,
+                normalPrice: Math.round(normal * 100) / 100,
                 trend: info.trend,
                 supply: Math.floor(info.stock),
                 demand: Math.round(info.need * 10) / 10,
                 days: info.days,
                 label: info.label,
                 color: info.color,
-                priceChange: Math.round(((price - good.basePrice) / good.basePrice) * 100),
+                priceChange: Math.round(((price - normal) / normal) * 100),
                 location: at.settlement.name,
             });
         }

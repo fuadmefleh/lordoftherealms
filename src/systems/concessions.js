@@ -39,6 +39,7 @@
 import { Utils } from '../core/utils.js';
 import { Hex } from '../core/hex.js';
 import { Hinterland } from '../world/hinterland.js';
+import { Economy } from '../world/economy.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
 import { TownLabour } from '../world/townLabour.js';
 import { PlayerEconomy } from '../player/playerEconomy.js';
@@ -330,6 +331,9 @@ export const Concessions = {
                 const share = lo + _roll(`hl:bid:${Hinterland.seed(world)}:${a.id}:${h.id}`) * Math.max(0, hi - lo);
                 const fee = Math.round(Math.max(0, est.net) * est.term * est.cap * share * h.bid);
                 if (fee < a.reserve) continue;
+                // (a house bids only what it can pay: its capital, or — a house with no
+                // purse of its own, the realm's merchants of the home town — that town's purse)
+                if (Concessions._houseCash(h, homeT) < fee) continue;
                 if (!best || fee > best.fee) best = { h, fee };
             }
         }
@@ -347,12 +351,26 @@ export const Concessions = {
             if (best) out.notices.push({ icon: best.h.icon, title: 'Outbid', text: `${best.h.name} outbids you (${best.fee}g) for the lease near ${_town(world, site.h).name}. Your bond comes back.`, type: 'warning' });
         }
         if (best) {
-            Concessions._grant(world, site, realm, best.h.id, best.h.name, best.fee, a);
-            // The winning house pays its bid out of its capital (the fee goes to the crown in _grant)
-            if (best.h.rival) best.h.rival.capital = Math.max(0, _num(best.h.rival.capital) - best.fee);
+            // The winning house pays its bid out of its capital (or the home town's merchants out
+            // of its purse); the fee goes to the crown in _grant
+            let paid = best.fee;
+            if (best.h.rival) {
+                paid = Math.min(best.fee, Math.max(0, Math.floor(_num(best.h.rival.capital))));
+                best.h.rival.capital = _r2(_num(best.h.rival.capital) - paid);
+            } else paid = Math.floor(Economy.drawTown(homeT, best.fee));
+            Concessions._grant(world, site, realm, best.h.id, best.h.name, paid, a);
             a.winner = best.h.id;
             a.price = best.fee;
         } else a.winner = null;
+    },
+
+    /** What a bidding house can pay: an active rival's capital, else the home town's purse. */
+    _houseCash(h, homeT) {
+        if (h && h.rival) return Math.max(0, _num(h.rival.capital));
+        if (!homeT) return 0;
+        const p = Economy.townPurse(homeT);
+        // (the town's merchants stake at most half its purse)
+        return p == null ? Infinity : p * 0.5;
     },
 
     _grant(world, site, realm, holder, holderName, fee, a) {
@@ -484,6 +502,8 @@ export const Concessions = {
         const st = Hinterland.state(world);
         player.gold -= q.cost;
         Ledger.record(player, 'concessions', -q.cost);
+        // (the prospectors are hired in the town: their pay is spent there)
+        Economy.payTown(tile.settlement, q.cost);
         const p = { id: `P${st.seq++}`, q: tile.q, r: tile.r, town: tile.settlement.name, start: _day(world), due: _day(world) + q.days, cost: q.cost, status: 'digging' };
         st.prospects.push(p);
         const L = Concessions._ledger(world);
@@ -646,18 +666,21 @@ export const Concessions = {
                     fed = fed || {};
                     fed[g] = _num(fed[g]) + took;
                     // (what the store can't take is sold into that town's market)
-                    if (units - took > 0) revenue += (units - took) * SettlementMarket.value(world, outlet.settlement, outlet, g, base, SettlementMarket.stock(outlet.settlement, g)) * _num(C.sellShare, 0.85);
+                    // (the town pays for it out of its purse: no coin from nowhere)
+                    if (units - took > 0) revenue += Economy.drawTown(outlet.settlement, (units - took) * SettlementMarket.value(world, outlet.settlement, outlet, g, base, SettlementMarket.stock(outlet.settlement, g)) * _num(C.sellShare, 0.85));
                     continue;
                 }
             }
             // Sold into the market town at what the lot is worth there (its scarcity curve)
             const s0 = SettlementMarket.stock(market, g);
-            revenue += units * SettlementMarket.value(world, market, mt, g, base, s0 + units / 2) * _num(C.sellShare, 0.85);
+            // (the market town pays for the lot out of its purse, as far as it can)
+            revenue += Economy.drawTown(market, units * SettlementMarket.value(world, market, mt, g, base, s0 + units / 2) * _num(C.sellShare, 0.85));
             SettlementMarket.add(market, g, units);
         }
+        revenue = _r2(revenue);
         const wage = home.labour && home.labour.wage ? _num(home.labour.wage.land, TownLabour.baseWage(home.type, 'land')) : TownLabour.baseWage(home.type, 'land');
         const hands = _num(site.hire);
-        const wages = hands * wage * Math.max(1, k);
+        let wages = _r2(hands * wage * Math.max(1, k));
         const net = revenue - wages - royalty;
         c.dug = _r2(_num(c.dug) + _num(site.dug));
         c.revenue = Math.round(_num(c.revenue) + revenue);
@@ -685,18 +708,27 @@ export const Concessions = {
                         c.owed = _num(c.owed) + (owe - can);
                         if (c.owedSince == null) c.owedSince = day;
                         paid = Math.max(0, royalty - (owe - can));
+                        // (what even the royalty can't cover is the hands' pay, owed them)
+                        wages = _r2(Math.max(0, wages - Math.max(0, owe - can - royalty)));
                     }
                 }
-                // Arrears are settled first from a good turn
+                // (the hands' wages are spent in their home town)
+                Economy.payTown(home, wages);
+                // (the lot's odd coppers the purse never sees go back to the market town)
+                if (net >= 0) Economy.payTown(market, _r2(net - Math.floor(net)));
+                // Arrears are settled first from a good turn (to the crown, which carried them)
                 if (c.owed > 0 && net > 0 && player.gold > 0) {
                     const pay = Math.min(c.owed, Math.floor(player.gold));
                     player.gold -= pay;
                     Ledger.record(player, 'concessions', -pay);
                     c.owed -= pay;
                     if (c.owed <= 0) { c.owed = 0; c.owedSince = null; }
+                    if (realm) realm.treasury = _num(realm.treasury) + pay;
+                    else Economy.payTown(home, pay);
                 }
                 c.royalties = Math.round(_num(c.royalties) + paid);
                 if (realm) realm.treasury = _num(realm.treasury) + paid;
+                else Economy.payTown(home, paid);
                 out.royalties += paid;
                 // (net from the rounded parts, so the books always add up)
                 c.net = c.revenue - c.wages - c.royalties;
@@ -706,12 +738,30 @@ export const Concessions = {
                 L.net = L.revenue - L.wages - L.royalties;
             }
         } else {
-            c.royalties = Math.round(_num(c.royalties) + royalty);
-            c.net = c.revenue - c.wages - c.royalties;
-            if (realm) realm.treasury = _num(realm.treasury) + royalty;
-            // A rival house's profit is its capital (systems/merchantHouses.js)
+            // A rival house's profit is its capital (systems/merchantHouses.js); a house with
+            // no purse of its own is the home town's merchants: their profit (or loss) is the town's
             const rival = player ? MerchantHouses.getRival(player, c.holder) : null;
-            if (rival && rival.status === 'active') rival.capital = Math.max(0, _num(rival.capital) + net);
+            const own = rival && rival.status === 'active' ? rival : null;
+            let paidRoyalty = royalty;
+            if (net >= 0) {
+                if (own) own.capital = _r2(_num(own.capital) + net);
+                else Economy.payTown(home, net);
+            } else {
+                // The loss is met from the house's purse; what it can't meet goes unpaid —
+                // the crown's royalty first, then the hands' wages
+                const cover = own ? Math.min(-net, Math.max(0, _num(own.capital))) : Economy.drawTown(home, -net);
+                if (own) own.capital = _r2(_num(own.capital) - cover);
+                const short = _r2(-net - cover);
+                if (short > 0) {
+                    paidRoyalty = Math.max(0, royalty - short);
+                    wages = _r2(Math.max(0, wages - Math.max(0, short - royalty)));
+                }
+            }
+            Economy.payTown(home, wages);
+            c.royalties = Math.round(_num(c.royalties) + paidRoyalty);
+            c.net = c.revenue - c.wages - c.royalties;
+            if (realm) realm.treasury = _num(realm.treasury) + paidRoyalty;
+            else Economy.payTown(home, paidRoyalty);
         }
         // Accidents in a pit worked hard; a hard pace sours the town
         if (_num(rt.accident) > 0 && _roll(`hl:acc:${Hinterland.seed(world)}:${c.id}:${day}`) < _num(rt.accident)) {

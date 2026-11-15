@@ -20,6 +20,11 @@ import { MoneySupply } from '../world/moneySupply.js';
 import { CrownBooks } from '../world/crownBooks.js';
 import { Economy } from '../world/economy.js';
 import { CoinCensus } from '../systems/coinCensus.js';
+import { Couriers } from '../systems/couriers.js';
+import { Underwriting } from '../systems/underwriting.js';
+import { MerchantHouses } from '../systems/merchantHouses.js';
+import { LandMarket } from '../systems/landMarket.js';
+import { Estates } from '../world/estates.js';
 import { loadData, newGame, endDay } from './playtest/harness.js';
 
 let logSpy;
@@ -112,9 +117,16 @@ describe("a small world's coin in circulation over 240 days (idle player)", () =
             return c;
         };
         const keepAlive = () => { game.player.health = 100; game.player.starvationDays = 0; };
+        // Every coin in the world (CoinCensus.total: in or out of any realm, hoards too),
+        // and the coin the realms' books say was made or lost (the mints' strikes, the
+        // crowns' debasement gains, wear, recoinage, forgers, the cheat panel)
+        const world = () => CoinCensus.total(game.world, game.player).total;
+        // (and, since 2026-11, coin truly lost or found: MoneySupply.leak — all of it MoneySupply.bookedChange)
+        const booked = () => MoneySupply.bookedChange(game.world);
         for (let i = 0; i < 8; i++) { keepAlive(); endDay(game); }
         const start = circ();
         expect(start).toBeGreaterThan(50000);
+        const w0 = world(), b0 = booked();
         let lo = start, hi = start;
         for (let i = 8; i < 240; i++) {
             keepAlive();
@@ -122,6 +134,13 @@ describe("a small world's coin in circulation over 240 days (idle player)", () =
             if (i % 30 === 0) { const c = circ(); lo = Math.min(lo, c); hi = Math.max(hi, c); }
         }
         const end = circ();
+        // No coin from nothing: the world's coin grew by no more than the books say was
+        // struck (2026-11: holders' first purses, rival Houses, mining leases, the
+        // underwriters' books, the post houses and the merchant houses all made coin —
+        // 5–10k a season on this world; now each draws from a town, a crown or a purse)
+        const unbooked = (world() - w0) - (booked() - b0);
+        console.info(`world coin ${Math.round(w0)} -> ${Math.round(world())}, booked ${Math.round(booked() - b0)}, unbooked ${Math.round(unbooked)}`);
+        expect(unbooked).toBeLessThan(w0 * 0.01);
         // (before 2026-11: 127k → 54k by day 240, the crowns holding more than the towns)
         expect(end / start).toBeGreaterThan(0.8);
         expect(end / start).toBeLessThan(1.25);
@@ -130,4 +149,31 @@ describe("a small world's coin in circulation over 240 days (idle player)", () =
         const treas = game.world.kingdoms.filter(k => k.isAlive).reduce((a, k) => a + Math.max(0, k.treasury || 0), 0);
         expect(treas / end).toBeLessThan(0.5);
     }, 300000);
+});
+
+describe('the old sources of coin from nothing move it purse to purse (2026-11)', () => {
+    it("the post houses' week, the underwriters' book, the merchant houses' trade and a holder's first purse", () => {
+        const game = newGame(202, { kingdomCount: 4 });
+        const { world, player } = game;
+        for (let i = 0; i < 40; i++) { player.health = 100; player.starvationDays = 0; endDay(game); }
+        const total = () => CoinCensus.total(world, player).total;
+        let t = total();
+        Couriers._week(world, player, { notices: [] });
+        expect(total()).toBeCloseTo(t, 0);
+        t = total();
+        Underwriting._bookWeek(world, player, Underwriting.state(player), { notices: [] });
+        expect(total()).toBeCloseTo(t, 0);
+        t = total();
+        MerchantHouses.state(player);
+        MerchantHouses.quietWeek(player, world);
+        expect(total()).toBeCloseTo(t, 0);
+        // A landholder seen for the first time: its purse is its realm's towns' coin
+        const k = world.kingdoms.find(x => x.isAlive);
+        const h = Estates.ensureHolder(world, `noble:${k.id}:probe`);
+        h.purse = null;
+        t = total();
+        LandMarket._holderMonth(world, player, h, world.day, { notices: [] });
+        expect(h.purse).not.toBeNull();
+        expect(total()).toBeCloseTo(t, 0);
+    }, 120000);
 });

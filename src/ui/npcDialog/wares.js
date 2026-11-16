@@ -8,6 +8,7 @@ import { InnerMap } from '../../world/innerMap.js';
 import { dialogState } from './shared.js';
 import { _render } from './render.js';
 import { _animateDispositionChange } from './choices.js';
+import { Utils } from '../../core/utils.js';
 
 function _ctx() {
     const game = dialogState._game;
@@ -52,7 +53,7 @@ export function _waresChoices() {
         const name = TownTrade.goodName(g);
         const ask = String(L.ask || 'Will you sell me some of your {good}?').replace('{good}', name);
         out.push({
-            icon: ped ? '🎒' : '🧺', label: `${ask} (${e.price} gold)`, group: 'deal',
+            icon: ped ? '🎒' : '🧺', label: `${ask} (${Utils.formatGold(e.price)} gold)`, group: 'deal',
             tooltip: `${e.qty} to spare. Bought from ${ped ? 'the pack' : 'their own stock'}: the coin goes into their purse.`,
             onPick: () => _say(action, ask, (k) => {
                 const r = ped ? TownTrade.sellFromPedlar(k.player, k.world, k.settlement, ped, g, 1)

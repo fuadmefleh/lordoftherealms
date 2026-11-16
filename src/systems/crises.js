@@ -925,19 +925,19 @@ export const Crises = {
                 close && army > 0, !host ? 'No host is near.' : !close ? `The nearest host is ${near.dist} hexes off: come within ${X.rallyRadius}.` : 'You have no army.'));
             const member = Crises._defender(world, c, player);
             for (const amt of X.fundCost) {
-                out.push(Object.assign(Crises._choice(`fund`, '🛡️', member ? `Pay ${amt}g toward ${member.name}'s levies` : 'Fund the defence',
+                out.push(Object.assign(Crises._choice(`fund`, '🛡️', member ? `Pay ${Utils.formatGold(amt)}g toward ${member.name}'s levies` : 'Fund the defence',
                     member ? `About ${Math.floor(amt / X.goldPerSoldier)} more men under arms in its army. Its lord will remember it.` : 'No crown of the alliance is near.',
                     member && gold >= amt, !member ? 'No crown of the alliance is near.' : 'Not enough gold.', amt), { args: [amt] }));
             }
             out.push(Crises._choice('victual', '🍖', 'Sell victuals to the invaders',
-                `Their quartermasters pay ${X.victualPremium}× for bread and grain out of their plunder (${Math.round(_num(c.data.chest))}g in the chest). The realms will hear of it.`,
+                `Their quartermasters pay ${X.victualPremium}× for bread and grain out of their plunder (${Utils.formatGold(_num(c.data.chest))}g in the chest). The realms will hear of it.`,
                 host && near.dist <= X.rallyRadius + 2 && food > 0 && _num(c.data.chest) > 0, !host || near.dist > X.rallyRadius + 2 ? 'Their camp is far off.' : food <= 0 ? 'You carry no grain or bread.' : 'Their chest is empty.'));
-            out.push(Crises._choice('flee', '🏃', 'Flee to safety', `Take the road with the refugees to a town at least ${X.refugeDistance} hexes from any host (a carter's fare of ${X.fare}g).`,
+            out.push(Crises._choice('flee', '🏃', 'Flee to safety', `Take the road with the refugees to a town at least ${X.refugeDistance} hexes from any host (a carter's fare of ${Utils.formatGold(X.fare)}g).`,
                 host && near.dist <= 10 && gold >= X.fare, !host || near.dist > 10 ? 'No host threatens you here.' : 'Not enough gold.', X.fare));
         } else if (c.kind === 'plague') {
             const struck = town && (c.data.towns || {})[_key(town.q, town.r)];
             out.push(Crises._choice('physicians', '⚕️', town ? `Pay physicians for ${town.name}` : 'Pay physicians',
-                `${X.physicianCost}g into the town's purse for physicians and herbs: fewer of its people die of ${c.name} for ${X.careDays} days.`,
+                `${Utils.formatGold(X.physicianCost)}g into the town's purse for physicians and herbs: fewer of its people die of ${c.name} for ${X.careDays} days.`,
                 !!town && gold >= X.physicianCost && !(town.crisisCare && town.crisisCare.until > _day(world)), !town ? 'You must be in a town.' : gold < X.physicianCost ? 'Not enough gold.' : 'Physicians are already paid here.', X.physicianCost));
             const ruled = Laws.ruled ? Laws.ruled(player, world) : null;
             if (ruled) {
@@ -945,19 +945,19 @@ export const Crises = {
                 out.push(Crises._choice('quarantine', '🚧', shut ? `Open the gates of ${ruled.name}` : `Proclaim quarantine in ${ruled.name}`,
                     shut ? 'Trade flows again, and the sickness with it.' : 'Sick towns shut their gates: the plague crosses a fraction as often, and trade dries up.', true));
             }
-            out.push(Crises._choice('flee', '🏃', 'Flee the pestilence', `Ride out to a town at least ${X.refugeDistance} hexes from any stricken town (a ${X.fare}g fare).`,
+            out.push(Crises._choice('flee', '🏃', 'Flee the pestilence', `Ride out to a town at least ${X.refugeDistance} hexes from any stricken town (a ${Utils.formatGold(X.fare)}g fare).`,
                 struck && gold >= X.fare, !struck ? 'The plague is not in this town.' : 'Not enough gold.', X.fare));
         } else if (c.kind === 'schism' && (c.phase === 'split' || c.phase === 'strife' || c.phase === 'dispute')) {
             const k = town ? _kingdom(world, town.kingdom) : null;
             const ofFaith = !!(k && k.religion && k.capital && (c.data.sides[k.id] || k.id === c.data.originId || _dist(world, k.capital, c.place) <= _num(c.data.reach, 30)));
             for (const side of ['orthodox', 'reformed']) {
                 out.push(Object.assign(Crises._choice('preach', '📣', `Preach for ${Crises.sideName(c, side)}${k ? ` in ${Names.realm(k.name)}` : ''}`,
-                    `${X.preachCost}g in alms and pamphlets to the clergy of ${town ? town.name : 'the town'}: the realm leans your way${k && k.religion && k.religion.rite ? ` (it holds to ${Crises.sideName(c, k.religion.rite)})` : ''}. Realms of that side think better of you; the other worse.`,
+                    `${Utils.formatGold(X.preachCost)}g in alms and pamphlets to the clergy of ${town ? town.name : 'the town'}: the realm leans your way${k && k.religion && k.religion.rite ? ` (it holds to ${Crises.sideName(c, k.religion.rite)})` : ''}. Realms of that side think better of you; the other worse.`,
                     ofFaith && gold >= X.preachCost, !ofFaith ? 'Not in a realm the new church has reached.' : 'Not enough gold.', X.preachCost), { args: [side] }));
             }
             const purse = town ? _num(Economy.townPurse(town)) : 0;
             const take = Math.min(X.indulgenceMax, Math.floor(purse * X.indulgence));
-            out.push(Crises._choice('indulgences', '📜', 'Sell indulgences', `The frightened faithful of ${town ? town.name : 'the town'} pay about ${take}g for pardons. The church's name suffers, and the reformers' case grows.`,
+            out.push(Crises._choice('indulgences', '📜', 'Sell indulgences', `The frightened faithful of ${town ? town.name : 'the town'} pay about ${Utils.formatGold(take)}g for pardons. The church's name suffers, and the reformers' case grows.`,
                 ofFaith && take > 0, !ofFaith ? 'Not in a realm the new church has reached.' : 'The town has no coin to spare.'));
         } else if (c.kind === 'famine') {
             const hungry = town && near.region;
@@ -1064,7 +1064,7 @@ export const Crises = {
                 if (!player.reputation) player.reputation = {};
                 player.reputation[k.id] = _num(player.reputation[k.id]) + Math.round(amt / 50);
                 Crises._record(player, world, c, 'fund', `${player.name || 'The House'} paid ${amt} gold toward the levies of ${Names.realm(k.name)} against the invaders.`);
-                return { success: true, text: `${amt}g to ${Names.realm(k.name)}: ${Math.floor(amt / X.goldPerSoldier)} more men under arms.` };
+                return { success: true, text: `${Utils.formatGold(amt)}g to ${Names.realm(k.name)}: ${Math.floor(amt / X.goldPerSoldier)} more men under arms.` };
             }
             case 'victual': {
                 const host = near.host;
@@ -1091,7 +1091,7 @@ export const Crises = {
                     player.reputation[kid] = _num(player.reputation[kid]) - 5;
                 }
                 Crises._record(player, world, c, 'victual', `${player.name || 'The House'} sold bread to the invaders' camp.`);
-                return { success: true, text: `${units} measures of food sold for ${pay}g out of their plunder. The host is fed for ${Math.min(60, units)} days.` };
+                return { success: true, text: `${units} measures of food sold for ${Utils.formatGold(pay)}g out of their plunder. The host is fed for ${Math.min(60, units)} days.` };
             }
             case 'flee': {
                 const to = Crises.refuge(player, world);
@@ -1155,7 +1155,7 @@ export const Crises = {
                 const lean = _obj(c.data.lean) || (c.data.lean = {});
                 if (k) lean[k.id] = _clamp(_num(lean[k.id]) + X.preachShift / 2, -1, 1);
                 Crises._record(player, world, c, 'indulgences', null);
-                return { success: true, text: `${take}g in pardons sold in ${town.name}. The reformers point at you from the pulpit.` };
+                return { success: true, text: `${Utils.formatGold(take)}g in pardons sold in ${town.name}. The reformers point at you from the pulpit.` };
             }
             case 'relief': {
                 let n = 0;

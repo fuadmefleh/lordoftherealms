@@ -26,6 +26,7 @@ import { InnerMapSickness } from '../innerMapSickness.js';
 import { InnerMapPlague } from '../innerMapPlague.js';
 import { InnerMapRites } from '../innerMapRites.js';
 import { glyphFor } from '../icons.js';
+import { SpriteSnow } from '../spriteSnow.js';
 import { drawItemSprite, drawItemAfloat } from '../itemSprites.js';
 import { drawMapText, drawMapMarker, labelZoom, textPx, BODY_FONT } from '../mapInk.js';
 import { layoutLabels, labelPriority } from '../labelLayout.js';
@@ -689,6 +690,8 @@ Object.assign(InnerMapRenderer, {
         const { qMin, qMax, rMin, rMax } = this._frameRange;
         const canvasW = ctx.canvas.width;
         const canvasH = ctx.canvas.height;
+        // Winter: snow on the tents', stalls' and well's roofs (ui/spriteSnow.js; the roofs' level)
+        const objSnow = this._ssRoofLevel ? this._ssRoofLevel() : 0;
 
         // Pre-compute origin screen position for incremental tile positioning
         const origin = camera.worldToScreenFast(qMin * T, rMin * T);
@@ -835,7 +838,9 @@ Object.assign(InnerMapRenderer, {
                                 // (a cell drawn smaller, stood on the bottom middle of its place: a stall's wares, data/townProps.json stallArt)
                                 const tsz = td.scale > 0 && td.scale !== 1 ? Math.round(cs * td.scale) : cs;
                                 const tox = tsz === cs ? 0 : Math.floor((cs - tsz) / 2), toy = cs - tsz;
+                                const snowed = objSnow && !veiled && !anim ? SpriteSnow.cell(def, td, img, k, objSnow) : null;
                                 if (veiled) ctx.drawImage(veiled, tdx + tox, tdy + toy, tsz, tsz);
+                                else if (snowed) ctx.drawImage(snowed, tdx + tox, tdy + toy, tsz, tsz);
                                 else ctx.drawImage(img, (td.sx + fdx) * k, (td.sy + fdy) * k, td.sw * k, td.sh * k, tdx + tox, tdy + toy, tsz, tsz);
                             }
                             if (tilt && activeTiles && activeTiles.length) ctx.restore();

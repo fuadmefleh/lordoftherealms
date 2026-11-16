@@ -72,6 +72,7 @@ import { Ledger } from './ledger.js';
 import { Crises } from './crises.js';
 import { Abdication } from './abdication.js';
 import { Climate } from '../world/climate.js';
+import { Utils } from '../core/utils.js';
 
 export const GROUPS = ['threat', 'opportunity', 'goal'];
 export const SEVERITIES = { critical: 3, warning: 2, notice: 1, info: 0 };
@@ -1073,7 +1074,7 @@ R.estateSale = (ctx) => {
 R.estateUnrest = (ctx) => {
     return LandMarket.restless(ctx.player, ctx.world).slice(0, 2).map(({ e, live }) => ({
         key: `tenants:${e.id}`, q: live.q, r: live.r, estate: e.name, place: live.name,
-        what: e.arrears > 0 ? `owe ${e.arrears}g in arrears: lower the rent, take it in kind, or press them for it (at a cost in loyalty)` : `are sullen (loyalty ${e.loyalty}): high rents breed flight and riot`,
+        what: e.arrears > 0 ? `owe ${Utils.formatGold(e.arrears)}g in arrears: lower the rent, take it in kind, or press them for it (at a cost in loyalty)` : `are sullen (loyalty ${e.loyalty}): high rents breed flight and riot`,
     }));
 };
 
@@ -1096,7 +1097,7 @@ R.ruledCoin = (ctx) => {
     const w = Mints.ruledCoinWarning(ctx.player, ctx.world);
     if (!w) return [];
     const what = w.kind === 'debased'
-        ? `strikes clipped coin (${Math.round(w.purity * 100)}% silver)${w.recoin && w.recoin.ok ? `: a recoinage would cost the treasury ${w.recoin.cost}g and bring prices down` : ''}`
+        ? `strikes clipped coin (${Math.round(w.purity * 100)}% silver)${w.recoin && w.recoin.ok ? `: a recoinage would cost the treasury ${Utils.formatGold(w.recoin.cost)}g and bring prices down` : ''}`
         : w.kind === 'short'
             ? `is short of coin (prices ${Math.round((1 - w.level) * 100)}% under the world's, the tax yield with them): a low seigniorage draws bullion to the mint`
             : `is awash with coin (prices ${Math.round((w.level - 1) * 100)}% over the world's)`;
@@ -1108,8 +1109,8 @@ R.ruledBudget = (ctx) => {
     const w = Fiscal.ruledWarning(ctx.player, ctx.world);
     if (!w) return [];
     const what = w.kind === 'arrears'
-        ? `owes its soldiers and clerks ${w.owed}g (${w.days} days unpaid): unpaid men desert, unpaid clerks steal. Raise taxes, borrow, or sell offices`
-        : `spends ${w.gap}g a week more than it raises, with ${w.days} days of spending in the chests`;
+        ? `owes its soldiers and clerks ${Utils.formatGold(w.owed)}g (${w.days} days unpaid): unpaid men desert, unpaid clerks steal. Raise taxes, borrow, or sell offices`
+        : `spends ${Utils.formatGold(w.gap)}g a week more than it raises, with ${w.days} days of spending in the chests`;
     return [{ key: `budget:${w.kind}`, realm: w.kingdom, what, severity: w.kind === 'arrears' ? 'warning' : 'notice' }];
 };
 
@@ -1327,7 +1328,7 @@ R.veinRunningOut = (ctx, p) => {
         const k = Hinterland.kind(site.kind);
         const name = k ? k.name.toLowerCase() : 'mine';
         if (_num(c.owed) > 0) {
-            out.push({ key: `owed:${c.id}`, q: site.q, r: site.r, site: name, why: `owes ${Math.ceil(_num(c.owed))}g in wages and royalties: pay it or ${c.realm || 'the crown'} forfeits the lease`, severity: 'warning', boost: 3 });
+            out.push({ key: `owed:${c.id}`, q: site.q, r: site.r, site: name, why: `owes ${Utils.formatGold(_num(c.owed))}g in wages and royalties: pay it or ${c.realm || 'the crown'} forfeits the lease`, severity: 'warning', boost: 3 });
             continue;
         }
         const res = Hinterland.reserveFrac(site), y = Hinterland.yieldOf(site);
@@ -1444,7 +1445,7 @@ R.concessionAuctions = (ctx, p) => {
         const k = Hinterland.kind(site.kind);
         out.push({
             key: `auc:${a.id}`, q: site.q, r: site.r, site: k ? k.name.toLowerCase() : 'mine', realm: a.realm || 'the crown', reserve: _num(a.reserve), closes: _num(a.closes), dist,
-            how: a.finder === 'player' ? 'is yours to lease first (your strike)' : a.bid > 0 ? `is up for auction: your bid stands at ${a.bid}g` : 'is up for auction',
+            how: a.finder === 'player' ? 'is yours to lease first (your strike)' : a.bid > 0 ? `is up for auction: your bid stands at ${Utils.formatGold(a.bid)}g` : 'is up for auction',
             severity: a.finder === 'player' ? 'notice' : 'info', boost: (a.finder === 'player' ? 3 : 0) - dist / 10,
         });
     }

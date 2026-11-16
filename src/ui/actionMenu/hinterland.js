@@ -9,6 +9,7 @@ import { Hinterland } from '../../world/hinterland.js';
 import { Concessions } from '../../systems/concessions.js';
 import { Throne } from '../../systems/throne.js';
 import { BTN_GOLD, BTN_PLAIN, BTN_DIM, BTN_RED, CARD, lede, bullets, chips, purse, sectionHead } from './uiKit.js';
+import { Utils } from '../../core/utils.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 
@@ -53,17 +54,17 @@ function siteCard(game, site, here) {
     if (d.leasable && site.st === 'open' && !Concessions.onSite(world, site)) {
         const q = Concessions.leaseQuote(player, world, site.id);
         const est = q.est;
-        if (est) html += `<div style="${NOTE}">A lease: about ${est.perDay.toFixed(2)} ${gname(est.kind.first)} a day for ${est.term} days · ${Math.round(est.gross)}g gross, ${Math.round(est.wages)}g wages (${est.hands} hands), ${Math.round(est.royalty)}g royalty → about <b>${Math.round(est.net)}g net a day</b> at today's yield · reserve ${est.reserve}g</div>`;
+        if (est) html += `<div style="${NOTE}">A lease: about ${est.perDay.toFixed(2)} ${gname(est.kind.first)} a day for ${est.term} days · ${Utils.formatGold(est.gross)}g gross, ${Utils.formatGold(est.wages)}g wages (${est.hands} hands), ${Utils.formatGold(est.royalty)}g royalty → about <b>${Utils.formatGold(est.net)}g net a day</b> at today's yield · reserve ${Utils.formatGold(est.reserve)}g</div>`;
         if (q.auction) {
             const a = q.auction;
-            html += `<div style="margin-top:4px;">🔨 On auction until day ${a.closes}${a.finder === 'player' ? ' — <b style="color:var(--gold);">your finder\'s right</b>: the houses may not bid' : ''} · reserve ${a.reserve}g${a.bid > 0 ? ` · your bid <b>${a.bid}g</b>` : ''}</div>`;
+            html += `<div style="margin-top:4px;">🔨 On auction until day ${a.closes}${a.finder === 'player' ? ' — <b style="color:var(--gold);">your finder\'s right</b>: the houses may not bid' : ''} · reserve ${Utils.formatGold(a.reserve)}g${a.bid > 0 ? ` · your bid <b>${Utils.formatGold(a.bid)}g</b>` : ''}</div>`;
             // (a refused bidder still sees what a bid would take: the reserve, or the standing bid)
             const minBid = q.minBid != null ? q.minBid : Math.max(a.reserve || 0, a.bid || 0);
-            html += act(`Bid ${minBid}g`, ['bid', a.id, minBid], BTN_GOLD, q.ok, q.reason);
-            if (q.ok) html += act(`Bid ${Math.round(q.minBid * 1.25)}g`, ['bid', a.id, Math.round(q.minBid * 1.25)], BTN_PLAIN);
+            html += act(`Bid ${Utils.formatGold(minBid)}g`, ['bid', a.id, minBid], BTN_GOLD, q.ok, q.reason);
+            if (q.ok) html += act(`Bid ${Utils.formatGold(Math.round(q.minBid * 1.25))}g`, ['bid', a.id, Math.round(q.minBid * 1.25)], BTN_PLAIN);
         } else if (here) {
-            html += act(`Petition for the lease (${q.minBid || (est ? est.reserve : 0)}g)`, ['petition', site.id, q.minBid || 0], BTN_GOLD, q.ok, q.reason);
-            if (q.ok) html += act(`Bid ${Math.round(q.minBid * 1.3)}g`, ['petition', site.id, Math.round(q.minBid * 1.3)], BTN_PLAIN);
+            html += act(`Petition for the lease (${Utils.formatGold(q.minBid || (est ? est.reserve : 0))}g)`, ['petition', site.id, q.minBid || 0], BTN_GOLD, q.ok, q.reason);
+            if (q.ok) html += act(`Bid ${Utils.formatGold(Math.round(q.minBid * 1.3))}g`, ['petition', site.id, Math.round(q.minBid * 1.3)], BTN_PLAIN);
         } else if (!q.ok) html += `<div style="${NOTE}">${esc(q.reason)}</div>`;
     }
     return html + '</div>';
@@ -77,7 +78,7 @@ function leaseCard(game, row) {
     const C = Concessions.config();
     let html = `<div style="${CARD} border-color: rgba(245,197,66,0.4);"><div><b>${esc(d.icon)} ${esc(d.name)}</b> near ${esc(home ? home.name : '?')} · ${esc(c.realm)} · until day ${c.end}</div>`;
     html += `<div style="${NOTE}">Reserve ${reserveBar(row.reserve)} ${pct(row.reserve)} · yield ${pct(row.yield)}${Number.isFinite(row.daysLeft) ? ` · about ${row.daysLeft} days of digging left at this pace` : ''} · ${site.hire} hands · royalty ${pct(c.royalty)}</div>`;
-    html += `<div style="${NOTE}">Dug ${Math.round(c.dug)} · sold for ${c.revenue}g · wages ${c.wages}g · royalties ${c.royalties}g · paid ${c.fee}g for the lease · last market day <b style="color:${c.lastNet >= 0 ? '#9fd59f' : '#e74c3c'};">${c.lastNet >= 0 ? '+' : ''}${c.lastNet}g</b>${c.accidents ? ` · ${c.accidents} accident${c.accidents === 1 ? '' : 's'}` : ''}${c.owed > 0 ? ` · <span style="color:#e74c3c;">owing ${Math.ceil(c.owed)}g since day ${c.owedSince}: pay within ${C.graceDays} days or forfeit</span>` : ''}</div>`;
+    html += `<div style="${NOTE}">Dug ${Math.round(c.dug)} · sold for ${Utils.formatGold(c.revenue)}g · wages ${Utils.formatGold(c.wages)}g · royalties ${Utils.formatGold(c.royalties)}g · paid ${Utils.formatGold(c.fee)}g for the lease · last market day <b style="color:${c.lastNet >= 0 ? '#9fd59f' : '#e74c3c'};">${c.lastNet >= 0 ? '+' : ''}${Utils.formatGold(c.lastNet)}g</b>${c.accidents ? ` · ${c.accidents} accident${c.accidents === 1 ? '' : 's'}` : ''}${c.owed > 0 ? ` · <span style="color:#e74c3c;">owing ${Utils.formatGold(c.owed)}g since day ${c.owedSince}: pay within ${C.graceDays} days or forfeit</span>` : ''}</div>`;
     html += '<div style="margin-top:4px;">Pace: ';
     for (const [id, r] of Object.entries(C.rates)) html += act(r.label || id, ['rate', c.id, id], c.rate === id ? BTN_GOLD : BTN_PLAIN, true, `${Math.round(r.out * C.boost * 100)}% of the crown's rate, wears the vein ×${r.wear}${r.accident ? `, accidents ${Math.round(r.accident * 100)}% a market day` : ''}`);
     html += '</div><div style="margin-top:2px;">Output: ';
@@ -123,8 +124,8 @@ export function hinterlandHtml(game, tile) {
             }
         }
         const pq = Concessions.prospectQuote(player, world, tile);
-        html += `<div style="${CARD}"><b>⛏️ Prospecting</b><div style="${NOTE}">Send prospectors into the hills around ${esc(s.name)}: ${pq.cost}g, ${pq.days} days, about a ${pct(pq.chance)} chance of a strike. A strike is yours to lease at the reserve price before the merchant houses may bid.</div>`;
-        html += act(`Fund a search (${pq.cost}g)`, ['prospect'], BTN_GOLD, pq.ok, pq.reason);
+        html += `<div style="${CARD}"><b>⛏️ Prospecting</b><div style="${NOTE}">Send prospectors into the hills around ${esc(s.name)}: ${Utils.formatGold(pq.cost)}g, ${pq.days} days, about a ${pct(pq.chance)} chance of a strike. A strike is yours to lease at the reserve price before the merchant houses may bid.</div>`;
+        html += act(`Fund a search (${Utils.formatGold(pq.cost)}g)`, ['prospect'], BTN_GOLD, pq.ok, pq.reason);
         html += '</div>';
     } else html += lede('Stand in a town to see its hinterland, bid for its leases and send prospectors out.');
 
@@ -192,7 +193,7 @@ Object.assign(ActionMenu, {
             default: return;
         }
         if (res) {
-            const text = res.success ? (res.spent != null ? `Done: −${res.spent} gold.` : 'Done.') : (res.reason || 'Not possible.');
+            const text = res.success ? (res.spent != null ? `Done: −${Utils.formatGold(res.spent)} gold.` : 'Done.') : (res.reason || 'Not possible.');
             game.ui.showNotification('⛏️ Hinterland', text, res.success ? 'success' : 'error');
             game.ui.updateStats(player, world);
         }

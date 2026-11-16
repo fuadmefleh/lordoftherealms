@@ -804,7 +804,7 @@ export const Whispers = {
         this._resolve(player, world, sc, 'proven', null);
         this._prune(this.state(player));
         this._applyStability(player, world);
-        return { ok: true, gold, text: `${buyer.name}'s heralds cry your proof in every square. ${this.text(sc, 'proven')} (+${gold} gold)` };
+        return { ok: true, gold, text: `${buyer.name}'s heralds cry your proof in every square. ${this.text(sc, 'proven')} (+${Utils.formatGold(gold)} gold)` };
     },
 
     /** Who the player can start a tale about: every living ruler, and the rival adventurers they have met. */
@@ -858,7 +858,7 @@ export const Whispers = {
     /** Pay a bard to sing down a crime rumour about the player in this town. */
     singDown(player, world, rumorId, q, r) {
         const cfg = this.config();
-        if (_num(player.gold) < cfg.bard.cost) return { ok: false, reason: `The bard wants ${cfg.bard.cost} gold.` };
+        if (_num(player.gold) < cfg.bard.cost) return { ok: false, reason: `The bard wants ${Utils.formatGold(cfg.bard.cost)} gold.` };
         if (!Gossip.refute(player, rumorId, _key(q, r))) return { ok: false, reason: 'There is no such talk here to sing down.' };
         player.gold -= cfg.bard.cost;
         _spend(world, player, cfg.bard.cost); // (the rounds, palms and fees are spent in town)

@@ -512,7 +512,7 @@ export const RivalHouses = {
         }
         if (spent > 0) {
             a.spent = _num(a.spent) + spent;
-            this._note(rival, world, `Bought arms in ${settlement.name} for ${spent} gold.`);
+            this._note(rival, world, `Bought arms in ${settlement.name} for ${Utils.formatGold(spent)} gold.`);
         }
         return spent;
     },
@@ -624,9 +624,9 @@ export const RivalHouses = {
             kingdomId: live.kingdom != null ? live.kingdom : null, estate: e.name, holder: from, buyer: rival.name, price: x.price, own: seller === 'player',
         });
         rival.stats.estatesBought++;
-        this._note(rival, world, `Bought ${e.name} near ${live.name} for ${x.price}g.`, 'land');
+        this._note(rival, world, `Bought ${e.name} near ${live.name} for ${Utils.formatGold(x.price)}g.`, 'land');
         if (player && (seller === 'player' || _dist(world, player, live) <= this.config().noticeRange)) {
-            out.notices.push({ icon: '🌾', title: 'A Rival Buys Land', text: `${this.headName(rival)} buys ${e.name} near ${live.name} for ${x.price}g${seller === 'player' ? '' : ` from ${from}`}.`, type: 'info' });
+            out.notices.push({ icon: '🌾', title: 'A Rival Buys Land', text: `${this.headName(rival)} buys ${e.name} near ${live.name} for ${Utils.formatGold(x.price)}g${seller === 'player' ? '' : ` from ${from}`}.`, type: 'info' });
         }
         return true;
     },
@@ -649,7 +649,7 @@ export const RivalHouses = {
         const price = Math.round((_num(e.value) || LandMarket.value(world, e)) * _num(I.sellAt, 0.95));
         if (LandMarket._list(world, e, price, id, 'debts', _day(world))) {
             rival.stats.estatesSold++;
-            this._note(rival, world, `Put ${e.name} up for sale (${price}g) to pay the household.`, 'poor');
+            this._note(rival, world, `Put ${e.name} up for sale (${Utils.formatGold(price)}g) to pay the household.`, 'poor');
         }
     },
 
@@ -966,7 +966,7 @@ export const RivalHouses = {
     /** One line on what an errand would mean today, for a model choosing among them. */
     _errandAbout(kind, got, rival) {
         if (kind === 'trade' && got.trade) return `buy ${this.goodName(got.trade.good)} in ${got.trade.from.name} and sell it in ${got.trade.to.name}, about ${Math.round(got.trade.gain)} gold to be made`;
-        if (kind === 'invest' && got.estate) return `buy the estate of ${got.estate.name} for ${Math.round(got.estate.price)} gold`;
+        if (kind === 'invest' && got.estate) return `buy the estate of ${got.estate.name} for ${Utils.formatGold(got.estate.price)} gold`;
         if (kind === 'court') return 'ride to a royal court to win favour (and speak against your rival there)';
         if (kind === 'shadow') return `ride near your rival and pay ${this.config().plotCost} gold for a plot against them`;
         if (kind === 'waylay') return 'hunt your rival\'s party on the road and fall on it';
@@ -1144,7 +1144,7 @@ export const RivalHouses = {
             unit.inventory = {};
             rival.stats.trades++;
             rival.stats.tradeProfit += got - _num(plan.cost);
-            this._note(rival, world, `Sold ${plan.qty} ${_goodDef(plan.good).name.toLowerCase()} in ${plan.to.name} (${got - _num(plan.cost) >= 0 ? '+' : ''}${Math.round(got - _num(plan.cost))}g).`, got >= _num(plan.cost) ? 'profit' : 'loss');
+            this._note(rival, world, `Sold ${plan.qty} ${_goodDef(plan.good).name.toLowerCase()} in ${plan.to.name} (${got - _num(plan.cost) >= 0 ? '+' : ''}${Utils.formatGold(got - _num(plan.cost))}g).`, got >= _num(plan.cost) ? 'profit' : 'loss');
             if (player && _dist(world, player, plan.to) <= C.noticeRange) {
                 out.notices.push({ icon: '📦', title: 'A Rival Sells', text: `${this.headName(rival)} unloads ${plan.qty} ${_goodDef(plan.good).name.toLowerCase()} in ${plan.to.name}: the price there falls.`, type: 'info' });
             }
@@ -1774,17 +1774,17 @@ export const RivalHouses = {
                 Ledger.record(player, 'rivalDeals', loan.owed);
                 loan.repaid = day;
                 rival.keptWord = _num(rival.keptWord) + 1;
-                this._note(rival, world, `Repaid your loan: ${loan.owed}g.`);
-                out.notices.push({ icon: '💰', title: 'A Debt Repaid', text: `${this.headName(rival)} repays the ${loan.amount} gold you lent, with interest: +${loan.owed} gold. ${rival.name} keeps its word.`, type: 'success' });
+                this._note(rival, world, `Repaid your loan: ${Utils.formatGold(loan.owed)}g.`);
+                out.notices.push({ icon: '💰', title: 'A Debt Repaid', text: `${this.headName(rival)} repays the ${loan.amount} gold you lent, with interest: +${Utils.formatGold(loan.owed)} gold. ${rival.name} keeps its word.`, type: 'success' });
             } else if (willing && !loan.extended) {
                 loan.extended = true;
                 loan.due = day + _num(D.graceDays, 30);
                 this._note(rival, world, 'Asked for more time to repay your loan.');
-                out.notices.push({ icon: '⏳', title: 'More Time', text: `${this.headName(rival)} cannot yet repay your ${loan.owed} gold, and asks for ${_num(D.graceDays, 30)} days more.`, type: 'info' });
+                out.notices.push({ icon: '⏳', title: 'More Time', text: `${this.headName(rival)} cannot yet repay your ${Utils.formatGold(loan.owed)} gold, and asks for ${_num(D.graceDays, 30)} days more.`, type: 'info' });
             } else {
                 loan.defaulted = day;
                 rival.brokeWord = _num(rival.brokeWord) + 1;
-                this._note(rival, world, `Refused to repay your loan of ${loan.amount}g.`, 'gloat');
+                this._note(rival, world, `Refused to repay your loan of ${Utils.formatGold(loan.amount)}g.`, 'gloat');
                 out.notices.push({ icon: '🧾', title: 'A Debt Refused', text: `${this.headName(rival)} will not repay the ${loan.owed} gold they owe you. Press them for it when you meet.`, type: 'warning' });
             }
         }
@@ -1944,7 +1944,7 @@ export const RivalHouses = {
         if (got.error) return { success: false, reason: got.error };
         const { rival } = got;
         const cost = this.giftCost(rival);
-        if (_num(player.gold) < cost) return { success: false, reason: `A fitting gift costs ${cost} gold.` };
+        if (_num(player.gold) < cost) return { success: false, reason: `A fitting gift costs ${Utils.formatGold(cost)} gold.` };
         player.gold -= cost;
         rival.gold += cost;
         const G = this.config().meet.gift;
@@ -1953,8 +1953,8 @@ export const RivalHouses = {
         const cool = again ? Math.round(G.feud / 2) : G.feud;
         House.accrueRivalFeud(player, world, kingdomId, cool);
         this._note(rival, world, `Took a gift of ${cost} gold from you.`);
-        this.remember(rival, world, 'gift', `${cost}g`);
-        return { success: true, cost, again, feud: rival.feud, cooled: cool, text: `${this.headName(rival)} accepts ${cost} gold${again ? ', warily' : ' with a stiff bow'}: feud ${cool}.` };
+        this.remember(rival, world, 'gift', `${Utils.formatGold(cost)}g`);
+        return { success: true, cost, again, feud: rival.feud, cooled: cool, text: `${this.headName(rival)} accepts ${Utils.formatGold(cost)} gold${again ? ', warily' : ' with a stiff bow'}: feud ${cool}.` };
     },
 
     /** An insult to the lord's face: renown with the crowd, and a hotter feud. */

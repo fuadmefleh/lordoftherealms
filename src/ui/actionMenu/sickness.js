@@ -11,6 +11,7 @@ import { IllnessPlayer } from '../../systems/illnessPlayer.js';
 import { Townsfolk } from '../../systems/townsfolk.js';
 import { Plague } from '../../systems/plague.js';
 import { esc, lede, chips, card, rowList, more, price, purse } from './uiKit.js';
+import { Utils } from '../../core/utils.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 
@@ -39,7 +40,7 @@ function pestilenceHtml(game, s) {
         const rem = p.remedies;
         rows.push({
             icon: '🧪', name: 'Sell remedies to the frightened',
-            desc: rem.length ? `${rem.map(r => `${r.qty} ${esc(r.id.replace(/_/g, ' '))} at ${r.price}g`).join(', ')}. Their coin, your profit — past twice the fair price it is profiteering.` : 'You carry no herbs, salves or potions to sell.',
+            desc: rem.length ? `${rem.map(r => `${r.qty} ${esc(r.id.replace(/_/g, ' '))} at ${Utils.formatGold(r.price)}g`).join(', ')}. Their coin, your profit — past twice the fair price it is profiteering.` : 'You carry no herbs, salves or potions to sell.',
             off: !rem.length, why: 'Nothing to sell.', act: 'sicknessAct', args: ['remedies', s.q, s.r],
         });
     }
@@ -67,7 +68,7 @@ Object.assign(ActionMenu, {
         html += chips([
             purse(player.gold),
             ['⚕️', 'Healer', v.healer ? `${esc(v.healer.name)} (${esc(v.healer.levelName)})` : 'none on their feet'],
-            v.fund ? ['💰', 'Physic paid', `${Math.round(v.fund.gold)}g left, ${v.fund.until - day} days`] : null,
+            v.fund ? ['💰', 'Physic paid', `${Utils.formatGold(v.fund.gold)}g left, ${v.fund.until - day} days`] : null,
             v.alms ? ['🍞', 'Alms', `${v.alms.until - day} days`] : null,
             s.sickness && s.sickness.closed ? ['🚧', 'Gates', 'quarantined'] : null,
         ]);
@@ -92,13 +93,13 @@ Object.assign(ActionMenu, {
                 icon: '⚕️', name: v.healer ? `Pay ${esc(v.healer.name)} to go round the sick` : 'Pay a healer to go round the sick',
                 desc: `For ${c.days} days every sick house is visited, fees and herbs from your coin; what is left the healer keeps.`,
                 side: price(c.physician, can(c.physician)),
-                off: !v.healer || !can(c.physician), why: !v.healer ? 'The town has no healer on their feet to pay.' : `Needs ${c.physician}g.`,
+                off: !v.healer || !can(c.physician), why: !v.healer ? 'The town has no healer on their feet to pay.' : `Needs ${Utils.formatGold(c.physician)}g.`,
                 act: 'sicknessAct', args: ['physician', s.q, s.r],
             },
             {
                 icon: '🍞', name: 'Give alms to the poor',
                 desc: `Into the poorest households' purses: they eat better and fall sick the less, for ${c.almsDays} days.`,
-                side: price(c.alms, can(c.alms)), off: !can(c.alms), why: `Needs ${c.alms}g.`,
+                side: price(c.alms, can(c.alms)), off: !can(c.alms), why: `Needs ${Utils.formatGold(c.alms)}g.`,
                 act: 'sicknessAct', args: ['alms', s.q, s.r],
             },
         ], '⚕️ Physic and alms');

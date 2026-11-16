@@ -16,6 +16,7 @@ import { Companions } from '../../systems/companions.js';
 import { Traits } from '../../systems/traits.js';
 import { Throne } from '../../systems/throne.js';
 import { BTN_DARK, BTN_RED, sectionHead, lede, chips, card, actRow, rowList, price } from './uiKit.js';
+import { Utils } from '../../core/utils.js';
 
 const MUTED = 'color:#9d937c; font-size:11px;';
 const SEL = 'width:100%; padding:5px 6px; background:rgba(0,0,0,0.35); color:#ece2c8; border:1px solid rgba(245,197,66,0.18); border-radius:6px; font-family:var(--font-body); font-size:12px;';
@@ -132,7 +133,7 @@ Object.assign(ActionMenu, {
                 const t = p.tutor;
                 html += rowList([{
                     icon: t.icon, name: _esc(t.name),
-                    desc: `${t.focus ? `Teaches ${_esc((Upbringing.focus(t.focus) || {}).name || t.focus)}` : 'Teaches a little of everything'} · learning ×${t.multiplier.toFixed(2)}${t.wage ? ` · ${t.wage}g a month` : ''}${t.kind === 'companion' ? ' (while they travel with you)' : ''}${t.kind === 'person' && t.traits && t.traits.length ? ` · ${t.traits.map(_esc).join(', ')}` : ''}`,
+                    desc: `${t.focus ? `Teaches ${_esc((Upbringing.focus(t.focus) || {}).name || t.focus)}` : 'Teaches a little of everything'} · learning ×${t.multiplier.toFixed(2)}${t.wage ? ` · ${Utils.formatGold(t.wage)}g a month` : ''}${t.kind === 'companion' ? ' (while they travel with you)' : ''}${t.kind === 'person' && t.traits && t.traits.length ? ` · ${t.traits.map(_esc).join(', ')}` : ''}`,
                     side: 'teaching', tone: 'gold',
                 }, {
                     icon: '🚪', name: 'Dismiss the tutor', desc: 'To hire another in their place', tone: 'bad',
@@ -153,8 +154,8 @@ Object.assign(ActionMenu, {
                 const subj = t.focus ? (Upbringing.focus(t.focus) || {}).name || t.focus : 'All subjects';
                 tutorRows.push({
                     icon: t.icon, name: `Hire the ${_esc(t.name)}`,
-                    desc: `${_esc(subj)} · ×${t.quality} · ${t.wage}g/month`,
-                    off: !ok, why: `Not enough gold · ${_esc(subj)} · ×${t.quality} · ${t.wage}g/month`,
+                    desc: `${_esc(subj)} · ×${t.quality} · ${Utils.formatGold(t.wage)}g/month`,
+                    off: !ok, why: `Not enough gold · ${_esc(subj)} · ×${t.quality} · ${Utils.formatGold(t.wage)}g/month`,
                     attrs: `onclick="window._heirsUI.hire('${child.id}','${t.id}')"`,
                     side: price(t.hireCost, ok),
                 });
@@ -262,7 +263,7 @@ Object.assign(ActionMenu, {
             hire: (id, tutorId) => {
                 const res = Upbringing.hireCourtTutor(player, world, id, tutorId);
                 if (!res.success) return fail(res.reason);
-                refresh({ html: `${res.tutor.icon} The ${_esc(res.tutor.name)} takes up ${_esc(child.firstName)}'s education (−${res.cost}g).` });
+                refresh({ html: `${res.tutor.icon} The ${_esc(res.tutor.name)} takes up ${_esc(child.firstName)}'s education (−${Utils.formatGold(res.cost)}g).` });
             },
             companion: (id, npcId) => {
                 const npc = Companions.members(player, world).find(n => n.id === npcId);
@@ -394,7 +395,7 @@ Object.assign(ActionMenu, {
                 ['🧬', `${e.generations} generation${e.generations === 1 ? '' : 's'}`, ''],
                 ['⏳', `${e.years} years`, ''],
                 { icon: '⭐', label: 'Prestige', value: e.prestige, cls: 'gold' },
-                e.crowns ? ['👑', `${e.crowns} crown${e.crowns === 1 ? '' : 's'}`, ''] : null,
+                e.crowns ? ['👑', `${Utils.formatGold(e.crowns)} crown${e.crowns === 1 ? '' : 's'}`, ''] : null,
             ]));
             html += '<div style="text-align:center; margin:0 0 10px;">';
             html += `<div style="font-size:22px;">${e.rank.icon}</div><div style="font-family:var(--font-display); color:#ffe9a8; font-size:15px; font-weight:600;">${_esc(e.rank.label)}</div>`;

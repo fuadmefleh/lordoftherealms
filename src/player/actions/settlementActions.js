@@ -45,6 +45,7 @@ import { PuttingOut } from '../../systems/puttingOut.js';
 import { BackRooms } from '../../systems/backRooms.js';
 import { DataLoader } from '../../core/dataLoader.js';
 import { Names } from '../../core/names.js';
+import { Utils } from '../../core/utils.js';
 
 export function addSettlementActions(actions, player, tile, world, ctx) {
     const { isCity, isVillage, isPlayerSettlement, playerSettlementCount, playerKingdom, hasPlayerFoundedKingdom } = ctx;
@@ -205,8 +206,8 @@ export function addSettlementActions(actions, player, tile, world, ctx) {
                 type: 'town_lots',
                 label: 'Your Lots & Town Houses',
                 icon: '🏘️',
-                description: `${held.length} held${here ? `, ${here} here` : ''}${tenants ? `, ${tenants} let` : ''}${owed ? `, ${owed}g in arrears` : ''}${cellars ? `, ${cellars} in your cellars` : ''}: build, let, put out, sell`,
-                notice: owed ? `${owed}g of rent in arrears` : null,
+                description: `${held.length} held${here ? `, ${here} here` : ''}${tenants ? `, ${tenants} let` : ''}${owed ? `, ${Utils.formatGold(owed)}g in arrears` : ''}${cellars ? `, ${cellars} in your cellars` : ''}: build, let, put out, sell`,
+                notice: owed ? `${Utils.formatGold(owed)}g of rent in arrears` : null,
             });
         }
     }
@@ -558,7 +559,7 @@ export function addSettlementActions(actions, player, tile, world, ctx) {
             label: company ? 'Trading Company' : 'Found a Trading Company',
             icon: '⚖️',
             description: company
-                ? `${company.name}: ${company.posts.length} post(s), ${Math.round(company.capital)}g capital${post ? ' — your factor here' : ''}. Orders, ledger, contracts, rivals, investments`
+                ? `${company.name}: ${company.posts.length} post(s), ${Utils.formatGold(company.capital)}g capital${post ? ' — your factor here' : ''}. Orders, ledger, contracts, rivals, investments`
                 : 'Charter a merchant house: factors in towns, supply contracts, rival houses and royal ventures',
         });
     }

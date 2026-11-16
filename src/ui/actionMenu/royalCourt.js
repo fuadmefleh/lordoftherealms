@@ -8,6 +8,7 @@ import { Throne, House } from './_imports.js';
 import { panelTabs, lede, chips, sectionHead, kv, card, more, actRow, rowList, price, BTN_GOLD, BTN_RED, BTN_OFF } from './uiKit.js';
 import { Names } from '../../core/names.js';
 import { crownRuleHtml, bindCrownRule } from './throne.js';
+import { Utils } from '../../core/utils.js';
 
 const MUTED = 'color: #9d937c; font-size: 11px;';
 const TABS = [['council', '🏛️ Council'], ['edicts', '📜 Edicts'], ['vassals', '🛡️ Vassals'], ['realm', '👑 Realm']];
@@ -74,7 +75,7 @@ function _councilTab(player, world) {
 function _edictFacts(def) {
     const facts = [];
     if (def.mods) facts.push(_modsText(def.mods));
-    if (def.upkeep) facts.push(`upkeep ${def.upkeep}g/day`);
+    if (def.upkeep) facts.push(`upkeep ${Utils.formatGold(def.upkeep)}g/day`);
     if (def.factions) facts.push(Object.entries(def.factions).map(([f, v]) => `${f} ${_sign(v)}`).join(', '));
     if (def.likes && def.likes.length) facts.push(`lords who seek ${def.likes.join('/')} approve`);
     if (def.hates && def.hates.length) facts.push(`lords who seek ${def.hates.join('/')} object`);
@@ -87,8 +88,8 @@ function _edictsTab(player, world) {
     let html = lede('Edicts are realm-wide decrees. Proclaiming one costs the royal treasury; most cost upkeep every day until revoked (they lapse if the treasury cannot pay).');
     html += chips([
         { icon: '📜', label: 'In force', value: `${stats.edicts}/${stats.edictSlots}`, cls: stats.edicts < stats.edictSlots ? 'gold' : 'dim' },
-        ['⏳', 'Upkeep', `${stats.upkeep}g/day`],
-        { icon: '🏦', label: 'Treasury', value: `${stats.treasury}g`, cls: 'gold' },
+        ['⏳', 'Upkeep', `${Utils.formatGold(stats.upkeep)}g/day`],
+        { icon: '🏦', label: 'Treasury', value: `${Utils.formatGold(stats.treasury)}g`, cls: 'gold' },
     ]);
     const rows = [];
     for (const [id, def] of Object.entries(Kingship.edicts())) {
@@ -101,13 +102,13 @@ function _edictsTab(player, world) {
             const holder = cands.find(c => c.holder);
             let body = `<div style="${MUTED}">${_esc(def.blurb || '')}</div>`;
             if (facts) body += `<div style="${MUTED}">${facts}</div>`;
-            if (holder) body += `<div style="margin-top:4px;">Held by <b>${_esc(holder.name)}</b> · ${holder.stations} station${holder.stations === 1 ? '' : 's'} in the realm · ${holder.fee}g a week to the treasury</div>`;
+            if (holder) body += `<div style="margin-top:4px;">Held by <b>${_esc(holder.name)}</b> · ${holder.stations} station${holder.stations === 1 ? '' : 's'} in the realm · ${Utils.formatGold(holder.fee)}g a week to the treasury</div>`;
             if (!cands.length) body += `<div style="${MUTED}">No courier house keeps a station in the realm.</div>`;
             body += rowList(cands.filter(x => !x.holder).slice(0, 5).map(c => {
                 const chk = active ? { ok: true } : Kingship.canPass(player, world, id, { courierId: c.id });
                 return {
                     icon: c.icon, name: `${_esc(c.name)}${c.own ? ' (yours)' : ''}`,
-                    desc: `${c.stations} station${c.stations === 1 ? '' : 's'} · rep ${c.reputation} · fee ${c.fee}g/wk`,
+                    desc: `${c.stations} station${c.stations === 1 ? '' : 's'} · rep ${c.reputation} · fee ${Utils.formatGold(c.fee)}g/wk`,
                     off: !chk.ok, why: _esc(chk.reason || ''),
                     attrs: `onclick="window._court.royalPost('${_esc(c.id)}')"`,
                     side: active ? 'Transfer' : `Proclaim for them ${price(passCost, true)}`, tone: 'gold',
@@ -159,7 +160,7 @@ function _vassalsTab(player, world) {
         body += `<div style="${MUTED}">Break their war hosts in the field (+${R.hostDefeated}), or besiege a rebel seat with your army (+${R.seatTaken}, +${R.leaderSeatTaken} for the leader's).</div>`;
         const cost = Kingship.parleyCost(player);
         body += rowList([{
-            icon: '🕊️', name: `Parley: grant ${_esc(d.label)} and pay ${cost}g`, desc: 'End the revolt on their terms',
+            icon: '🕊️', name: `Parley: grant ${_esc(d.label)} and pay ${Utils.formatGold(cost)}g`, desc: 'End the revolt on their terms',
             attrs: 'onclick="window._court.parley()"', side: price(cost, true), tone: 'bad',
         }]);
         html += card(body, { icon: '🔥', title: `The revolt of ${_esc(rv.leaderName)}`, side: `day ${world.day - rv.startDay}/${R.maxDays}`, tone: 'bad' });
@@ -241,14 +242,14 @@ function _realmTab(game) {
     const k = s.kingdom;
     let html = lede(`👑 <b>${_esc(k.ruler)}</b> — ${_esc(k.name)}${s.wars.length ? ` · at war with ${s.wars.map(_esc).join(', ')}` : ''}${s.allies.length ? ` · allied with ${s.allies.map(_esc).join(', ')}` : ''}`);
     html += chips([
-        { icon: '🏦', label: 'Treasury', value: `${s.treasury}g`, cls: 'gold' },
+        { icon: '🏦', label: 'Treasury', value: `${Utils.formatGold(s.treasury)}g`, cls: 'gold' },
         ['⚔️', 'Army', s.military],
         ['⚖️', 'Stability', s.stability],
         ['🏘️', 'Towns', s.towns],
         ['👥', 'People', s.population],
         ['⭐', 'Prestige', House.getPrestige(player)],
         ['🛡️', 'Vassals', `${s.vassals} (${s.disloyal} discontented)`],
-        ['📜', 'Edicts', `${s.edicts}/${s.edictSlots} · ${s.upkeep}g/day`],
+        ['📜', 'Edicts', `${s.edicts}/${s.edictSlots} · ${Utils.formatGold(s.upkeep)}g/day`],
         ['🙏', 'Faith', `piety ${s.piety == null ? '—' : s.piety}, unity ${s.unity == null ? '—' : s.unity}`],
     ]);
     // The levy, the crown's policies, diplomacy and abdication (ui/actionMenu/throne.js)

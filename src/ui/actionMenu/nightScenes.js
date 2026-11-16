@@ -15,6 +15,7 @@ import { NightStreets } from '../../systems/nightStreets.js';
 import { Underworld } from '../../systems/underworld.js';
 import { Gangs } from '../../systems/gangs.js';
 import { InnerMapNight } from '../innerMapNight.js';
+import { Utils } from '../../core/utils.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _label = id => {
@@ -126,9 +127,9 @@ registerScene('night_market', {
         for (const w of NightStreets.marketWares(player, world, tile)) {
             options.push({
                 id: `buy:${w.good}:${w.hot ? 1 : 0}`, icon: w.hot ? '🔥' : '📦',
-                label: `Buy ${_label(w.good).toLowerCase()}${w.hot ? ' (stolen)' : ''}`, cost: `${w.price}g`,
+                label: `Buy ${_label(w.good).toLowerCase()}${w.hot ? ' (stolen)' : ''}`, cost: `${Utils.formatGold(w.price)}g`,
                 hint: `${w.qty} to be had${w.hot ? ': still hot, only a fence will take it back for a while' : ''}.`,
-                chance: null, odds: false, can: _num(player.gold) >= w.price, reason: `You need ${w.price} gold`,
+                chance: null, odds: false, can: _num(player.gold) >= w.price, reason: `You need ${Utils.formatGold(w.price)} gold`,
             });
         }
         const day = _num(world.day);
@@ -138,14 +139,14 @@ registerScene('night_market', {
             .slice(0, 8);
         for (const g of goods) {
             const price = Underworld.fencePrice(player, g.id, world, tile);
-            options.push({ id: `sell:${g.id}`, icon: g.hot ? '🔥' : '💰', label: `Sell ${_label(g.id).toLowerCase()} to the fence`, cost: `${price}g`, hint: `You carry ${g.q}${g.hot ? `, ${g.hot} of them hot` : ''}. No questions asked.`, chance: null, odds: false });
+            options.push({ id: `sell:${g.id}`, icon: g.hot ? '🔥' : '💰', label: `Sell ${_label(g.id).toLowerCase()} to the fence`, cost: `${Utils.formatGold(price)}g`, hint: `You carry ${g.q}${g.hot ? `, ${g.hot} of them hot` : ''}. No questions asked.`, chance: null, odds: false });
         }
         options.push(leave);
         const buyer = Gangs.buyer(player, world, tile);
         return {
             icon: '🏮', title,
             text: NightStreets.text('market_text', { where: st.where || 'a warehouse', fence: st.fence || NightStreets.fenceName(world, tile) }),
-            stats: [`Your purse: ${Math.floor(_num(player.gold))}g`, buyer ? `The fence's purse: ${Math.floor(_num(buyer.purse))}g` : null].filter(Boolean),
+            stats: [`Your purse: ${Utils.formatGold(_num(player.gold))}g`, buyer ? `The fence's purse: ${Utils.formatGold(_num(buyer.purse))}g` : null].filter(Boolean),
             options,
         };
     },

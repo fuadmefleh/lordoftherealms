@@ -196,7 +196,7 @@ export const Demands = {
             kind: 'crown', sub: loan ? 'loan' : 'benevolence', kingdomId: k.id, from: k.name, amount, icon: '👑',
             title: loan ? 'A Forced Loan' : 'A Benevolence',
             text: loan
-                ? `${ruler} of ${Names.realm(k.name)}, the royal chests near empty, "invites" ${house.name} to lend the crown ${amount} gold, to be repaid in ${C.loanDays} days with interest.`
+                ? `${ruler} of ${Names.realm(k.name)}, the royal chests near empty, "invites" ${house.name} to lend the crown ${Utils.formatGold(amount)} gold, to be repaid in ${C.loanDays} days with interest.`
                 : `${ruler} of ${Names.realm(k.name)} asks of ${house.name} a benevolence — a free gift of ${amount} gold to the crown in its need.`,
         });
     },
@@ -288,7 +288,7 @@ export const Demands = {
                 return Demands._pay(world, player, d, amount, true);
             }
             const text = Demands._sour(world, player, d);
-            return { success: true, negotiated: false, text: `${d.from} will not be haggled with. ${text} The demand stands at ${d.amount} gold.` };
+            return { success: true, negotiated: false, text: `${d.from} will not be haggled with. ${text} The demand stands at ${Utils.formatGold(d.amount)} gold.` };
         }
         return { success: false, reason: 'Unknown answer.' };
     },
@@ -325,7 +325,7 @@ export const Demands = {
     },
 
     _pay(world, player, d, amount, haggled = false) {
-        if (_num(player.gold) < amount) return { success: false, reason: `You need ${amount} gold.` };
+        if (_num(player.gold) < amount) return { success: false, reason: `You need ${Utils.formatGold(amount)} gold.` };
         const C = Demands.config();
         const house = Demands._state(player);
         const day = _num(world.day);
@@ -341,11 +341,11 @@ export const Demands = {
                 Ledger.record(player, 'crownLoan', -amount);
                 house.crownLoans.push({ id: d.id, kingdomId: d.kingdomId, from: d.from, amount, rate: C.crown.loanRate, dueDay: day + C.crown.loanDays, defers: 0, settled: false });
                 Demands._rep(player, d.kingdomId, haggled ? C.crown.negotiateRep : C.crown.loanRep);
-                text = `${house.name} lends ${d.from} ${amount} gold, due back in ${C.crown.loanDays} days with ${Math.round(C.crown.loanRate * 100)}% interest.`;
+                text = `${house.name} lends ${d.from} ${Utils.formatGold(amount)} gold, due back in ${C.crown.loanDays} days with ${Math.round(C.crown.loanRate * 100)}% interest.`;
             } else {
                 Ledger.record(player, 'benevolence', -amount);
                 Demands._rep(player, d.kingdomId, haggled ? C.crown.negotiateRep : C.crown.payRep);
-                text = `${house.name} gives ${d.from} a benevolence of ${amount} gold. The crown is pleased.`;
+                text = `${house.name} gives ${d.from} a benevolence of ${Utils.formatGold(amount)} gold. The crown is pleased.`;
             }
         } else if (d.kind === 'guild') {
             const { s, g } = Demands._guild(world, d);
@@ -361,9 +361,9 @@ export const Demands = {
             House.accrueRivalFeud(player, world, d.rivalId, haggled ? C.rival.negotiateFeud : C.rival.payFeud);
             house.tributesPaid[d.rivalId] = _num(house.tributesPaid[d.rivalId]) + 1;
             Ledger.record(player, 'rivalTribute', -amount);
-            text = `${house.name} pays ${d.from} ${amount} gold. The feud cools — and they will remember that you pay.`;
+            text = `${house.name} pays ${d.from} ${Utils.formatGold(amount)} gold. The feud cools — and they will remember that you pay.`;
         }
-        if (haggled) text = `You talk them down to ${amount} gold. ${text}`;
+        if (haggled) text = `You talk them down to ${Utils.formatGold(amount)} gold. ${text}`;
         Demands._close(d, world, haggled ? 'negotiated' : 'paid');
         House._chronicle(house, world, text, ['demand', d.kind]);
         return { success: true, paid: amount, text };
@@ -418,7 +418,7 @@ export const Demands = {
                 Ledger.record(player, 'crownLoan', l.amount);
                 Ledger.record(player, 'loanInterest', owed - l.amount);
                 l.settled = 'repaid';
-                out.notices.push({ icon: '👑', title: 'Loan Repaid', text: `${l.from} repays ${house.name}'s loan: ${owed} gold.`, type: 'success' });
+                out.notices.push({ icon: '👑', title: 'Loan Repaid', text: `${l.from} repays ${house.name}'s loan: ${Utils.formatGold(owed)} gold.`, type: 'success' });
             } else if (k && k.isAlive !== false && l.defers < _num(C.loanMaxDefers, 3)) {
                 l.defers++;
                 l.dueDay = day + _num(C.loanDeferDays, 30);
@@ -426,8 +426,8 @@ export const Demands = {
             } else {
                 l.settled = 'defaulted';
                 Demands._rep(player, l.kingdomId, 3); // a crown that defaults owes you a little grace
-                out.notices.push({ icon: '👑', title: 'Crown Defaults', text: `${l.from} will never repay your ${l.amount} gold.`, type: 'error' });
-                House._chronicle(house, world, `${l.from} defaults on ${house.name}'s loan of ${l.amount} gold.`, ['demand', 'crown']);
+                out.notices.push({ icon: '👑', title: 'Crown Defaults', text: `${l.from} will never repay your ${Utils.formatGold(l.amount)} gold.`, type: 'error' });
+                House._chronicle(house, world, `${l.from} defaults on ${house.name}'s loan of ${Utils.formatGold(l.amount)} gold.`, ['demand', 'crown']);
             }
         }
         if (house.crownLoans.length > 10) house.crownLoans = house.crownLoans.filter(l => !l.settled).concat(house.crownLoans.filter(l => l.settled).slice(-4));

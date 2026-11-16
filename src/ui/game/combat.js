@@ -124,7 +124,7 @@ export function _showFoodPurchaseModal(pathLen, foodCount, tile, targetHex) {
         for (const p of purchasePlan) {
             breakdownHtml += `<div style="display:flex; justify-content:space-between; font-size:12px; padding:2px 0;">
                 <span>${p.good.icon || '🍽️'} ${p.good.name} ×${p.qty}</span>
-                <span style="color:var(--gold);">${p.cost} gold</span>
+                <span style="color:var(--gold);">${Utils.formatGold(p.cost)} gold</span>
             </div>`;
         }
     }
@@ -144,12 +144,12 @@ export function _showFoodPurchaseModal(pathLen, foodCount, tile, targetHex) {
                 ${breakdownHtml}
                 <div style="border-top:1px solid rgba(255,255,255,0.08); margin-top:6px; padding-top:6px; display:flex; justify-content:space-between; font-weight:bold;">
                     <span style="color:#aaa;">Total: ${totalFood} food</span>
-                    <span style="color:var(--gold);">${totalCost} gold</span>
+                    <span style="color:var(--gold);">${Utils.formatGold(totalCost)} gold</span>
                 </div>
                 ${!canFullyProvision ? `<div style="color:#ff9800; font-size:11px; margin-top:4px;">⚠️ Can only buy ${totalFood} of ${deficit} needed (${remaining > 0 ? (this.player.gold < totalCost + remaining ? 'not enough gold' : 'not enough in stock') : ''})</div>` : ''}
             </div>
             <div style="color:#666; font-size:11px; margin-bottom:12px;">
-                💰 Your gold: <span style="color:var(--gold);">${this.player.gold}</span>
+                💰 Your gold: <span style="color:var(--gold);">${Utils.formatGold(this.player.gold)}</span>
                 → After purchase: <span style="color:${this.player.gold - totalCost < 50 ? '#ff9800' : 'var(--gold)'};">${this.player.gold - totalCost}</span>
             </div>
         ` : `
@@ -176,7 +176,7 @@ export function _showFoodPurchaseModal(pathLen, foodCount, tile, targetHex) {
                 background: rgba(76,175,80,0.15); border: 1px solid rgba(76,175,80,0.4);
                 color: #4caf50; font-family: var(--font-body); font-size: 13px;
                 font-weight: 600; transition: all 0.2s;
-            ">Buy & Go (${totalCost}g)</button>` : ''}
+            ">Buy & Go (${Utils.formatGold(totalCost)}g)</button>` : ''}
         </div>
     `;
 
@@ -213,7 +213,7 @@ export function _showFoodPurchaseModal(pathLen, foodCount, tile, targetHex) {
             this.ui.showNotification('🍞 Some Food Not Bought', failReason, 'warning');
         } else {
             this.ui.showNotification('🍞 Food Purchased',
-                `Bought ${totalFood} food for ${totalCost} gold. Safe travels!`, 'success');
+                `Bought ${totalFood} food for ${Utils.formatGold(totalCost)} gold. Safe travels!`, 'success');
         }
         this.ui.updateStats(this.player, this.world);
         // Resume movement

@@ -292,7 +292,7 @@ export const TreasureDigs = {
             } else {
                 const cost = TreasureDigs.bribeCost(tile);
                 const can = _num(player.gold) >= cost;
-                view.options.push(opt('bribe', '💰', 'Buy them off', 'A share of the cache, paid up front from your purse.', TreasureDigs.chance(player, 'bribe', st), { cost: `${cost} gold`, can, reason: can ? '' : `They want ${cost} gold` }));
+                view.options.push(opt('bribe', '💰', 'Buy them off', 'A share of the cache, paid up front from your purse.', TreasureDigs.chance(player, 'bribe', st), { cost: `${Utils.formatGold(cost)} gold`, can, reason: can ? '' : `They want ${Utils.formatGold(cost)} gold` }));
             }
             view.options.push(opt('leave', '🚶', 'Back away', 'Live to dig another day. The cache stays where it is.', null, { odds: false }));
         } else if (st.encounter === 'rivals') {
@@ -355,7 +355,7 @@ export const TreasureDigs = {
             }
             const got = PlayerInventory.describe(res.added);
             const left = PlayerInventory.describe(res.left);
-            let body = `You dug up ${res.gold} gold${got ? ` and ${got}` : ''}.`;
+            let body = `You dug up ${Utils.formatGold(res.gold)} gold${got ? ` and ${got}` : ''}.`;
             if (res.heirloom) body += ` Among it lay ${res.heirloom.name}: it is the House's now.`;
             if (left) body += ` Your packs are full: ${left} stay${Object.keys(res.left).length === 1 ? 's' : ''} buried here for another day.`;
             return { endDay: true, gold: res.gold, added: res.added, left: res.left, notification: { title: `${o.icon} Treasure Found!`, body, type: left ? 'warning' : 'success' } };
@@ -406,7 +406,7 @@ export const TreasureDigs = {
             case 'bribe': {
                 if (st.origin === 'ancient_tomb') return { invalid: true };
                 const cost = TreasureDigs.bribeCost(tile);
-                if (_num(player.gold) < cost) return { invalid: true, notification: { title: 'Purse Too Light', body: `They want ${cost} gold.`, type: 'error' } };
+                if (_num(player.gold) < cost) return { invalid: true, notification: { title: 'Purse Too Light', body: `They want ${Utils.formatGold(cost)} gold.`, type: 'error' } };
                 player.gold -= cost;
                 Ledger.record(player, 'exploration', -cost);
                 // (they spend it in the nearest town; with none, it leaves the world with them)

@@ -418,8 +418,10 @@ export const TradePolicy = {
             if (k === undefined) { k = TradePolicy._kingdom(world, s.kingdom); seen.set(s.kingdom, k); }
             return k;
         };
-        const credit = (k, g) => {
-            if (!k || !(g > 0)) return;
+        const credit = (k, g, town) => {
+            if (!(g > 0)) return;
+            // (a crown gone since the lot moved: the duty stays in the town that paid it)
+            if (!k) { if (!Economy.payTown(town, g)) MoneySupply.leak(world, -g, 'customs'); return; }
             k.treasury = Utils.cents(_num(k.treasury) + g);
             CrownBooks.note(k, 'customs', g);
             const p = TradePolicy.realm(k);
@@ -432,16 +434,20 @@ export const TradePolicy = {
             link.paidAB = 0;
             link.paidBA = 0;
             const ka = kingdomOf(link.a), kb = kingdomOf(link.b);
+            // (a revenue scale other than 1 makes or unmakes coin: booked)
+            if (scale !== 1) MoneySupply.leak(world, Utils.cents(_num(pab) * scale - _num(pab)) + Utils.cents(_num(pba) * scale - _num(pba)), 'customsScale');
             if (pab > 0) {
                 // (whole cents: the smallest coin is 0.01g)
-                const imp = Utils.cents(pab * scale * _num(link.impAB, 1));
-                credit(kb, imp);
-                credit(ka, Utils.cents(pab * scale - imp));
+                const all = Utils.cents(pab * scale);
+                const imp = Utils.cents(all * _num(link.impAB, 1));
+                credit(kb, imp, link.b);
+                credit(ka, Utils.cents(all - imp), link.b);
             }
             if (pba > 0) {
-                const imp = Utils.cents(pba * scale * _num(link.impBA, 1));
-                credit(ka, imp);
-                credit(kb, Utils.cents(pba * scale - imp));
+                const all = Utils.cents(pba * scale);
+                const imp = Utils.cents(all * _num(link.impBA, 1));
+                credit(ka, imp, link.a);
+                credit(kb, Utils.cents(all - imp), link.a);
             }
         }
         return total;
@@ -1433,7 +1439,7 @@ export const TradePolicy = {
             Ledger.record(player, 'fines', -fine);
             Underworld.recordCrime(player, world, 'smuggling', { kingdom: S.id, caught: true, q: tile.q, r: tile.r });
             const arrest = Underworld._maybeArrest(player, world, s, 'smuggling past the embargo', _num(P.arrest, 0.25));
-            return { success: true, caught: true, fine, arrested: !!arrest, text: `The watch of ${s.name} seized ${n} ${goodId.replace(/_/g, ' ')} at the gate and fined you ${fine}g.${arrest ? ` ${arrest.text}` : ''}` };
+            return { success: true, caught: true, fine, arrested: !!arrest, text: `The watch of ${s.name} seized ${n} ${goodId.replace(/_/g, ' ')} at the gate and fined you ${Utils.formatGold(fine)}g.${arrest ? ` ${arrest.text}` : ''}` };
         }
         // (the town's buyers pay out of its purse: a poor town pays what it holds, in whole coin)
         const drawn = Economy.drawTown(s, Math.floor(q.price * n));
@@ -1444,7 +1450,7 @@ export const TradePolicy = {
         st.stats.smuggled += n;
         Ledger.record(player, 'smuggling', earned);
         Underworld.recordCrime(player, world, 'smuggling', { kingdom: S.id, q: tile.q, r: tile.r });
-        return { success: true, caught: false, earned, text: `${n} ${goodId.replace(/_/g, ' ')} slipped past the embargo for ${earned}g.` };
+        return { success: true, caught: false, earned, text: `${n} ${goodId.replace(/_/g, ' ')} slipped past the embargo for ${Utils.formatGold(earned)}g.` };
     },
 
     /** A crown's trading licence: { ok, reason?, cost, days }. */
@@ -1468,7 +1474,7 @@ export const TradePolicy = {
     petitionLicence(player, world, kid) {
         const q = TradePolicy.licenceQuote(player, world, kid);
         if (!q.ok) return { success: false, reason: q.reason };
-        if (_num(player.gold) < q.cost) return { success: false, reason: `The licence costs ${q.cost}g.` };
+        if (_num(player.gold) < q.cost) return { success: false, reason: `The licence costs ${Utils.formatGold(q.cost)}g.` };
         const st = TradePolicy.playerState(player);
         player.gold -= q.cost;
         Ledger.record(player, 'tariffs', -q.cost);
@@ -1503,7 +1509,7 @@ export const TradePolicy = {
         const q = TradePolicy.brokerQuote(player, world, kidA, kidB);
         if (!q.ok) return { success: false, reason: q.reason };
         const B = TradePolicy.config().player.broker;
-        if (_num(player.gold) < q.cost) return { success: false, reason: `The gifts and feasts cost ${q.cost}g.` };
+        if (_num(player.gold) < q.cost) return { success: false, reason: `The gifts and feasts cost ${Utils.formatGold(q.cost)}g.` };
         if ((player.actionPoints || 0) < _num(B.ap, 1)) return { success: false, reason: `It takes ${_num(B.ap, 1)} action point.` };
         player.gold -= q.cost;
         player.actionPoints -= _num(B.ap, 1);

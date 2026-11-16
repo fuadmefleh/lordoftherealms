@@ -42,6 +42,7 @@ import { RealmWars } from './realmWars.js';
 import { Underworld } from './underworld.js';
 import { Ledger } from './ledger.js';
 import { Names } from '../core/names.js';
+import { Utils } from '../core/utils.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -306,7 +307,7 @@ export const Mints = {
     recoin(world, k, opts = {}) {
         const q = Mints.recoinQuote(world, k);
         if (!q.ok) return { success: false, reason: q.reason };
-        if (_num(k.treasury) < q.cost) return { success: false, reason: `The treasury needs ${q.cost}g to make up the silver.` };
+        if (_num(k.treasury) < q.cost) return { success: false, reason: `The treasury needs ${Utils.formatGold(q.cost)}g to make up the silver.` };
         const R = Mints.config().recoinage;
         const rec = MoneySupply.realm(world, k.id);
         // The crown's coin pays for it: `labour` of the cost is the mint's wages (paid into the
@@ -340,7 +341,7 @@ export const Mints = {
         rec.mint.lastRecoin = _day(world);
         k.stability = _clamp(_num(k.stability, 50) + _num(R.stability, 2), 0, 100);
         MoneySupply.record(world, { kind: 'recoinage', kingdomId: k.id, kingdom: k.name, purity: Math.round(q.purity * 100), cost: q.cost, own: !!opts.own });
-        return { success: true, cost: q.cost, melted, labour, cut, text: `${k.name} calls in its debased and clipped coin (${Math.round(q.purity * 100)}% silver) and strikes it anew at full weight. The crown pays ${q.cost}g to make up the silver; there is less coin about, and prices ease.` };
+        return { success: true, cost: q.cost, melted, labour, cut, text: `${k.name} calls in its debased and clipped coin (${Math.round(q.purity * 100)}% silver) and strikes it anew at full weight. The crown pays ${Utils.formatGold(q.cost)}g to make up the silver; there is less coin about, and prices ease.` };
     },
 
     /** The player's mint lease: paid its share each week, ended by its term, by war or by conquest. */
@@ -376,7 +377,7 @@ export const Mints = {
         if (day >= _num(L.until)) {
             st.lease = null;
             rec.mint.lease = null;
-            out.notices.push({ icon: '💰', title: 'Mint Lease Ended', text: `Your lease of the mint of ${Names.realm(k.name)} has run its term: it paid you ${Math.round(_num(L.earned))}g for ${Math.round(_num(L.fee))}g.`, type: 'info' });
+            out.notices.push({ icon: '💰', title: 'Mint Lease Ended', text: `Your lease of the mint of ${Names.realm(k.name)} has run its term: it paid you ${Utils.formatGold(_num(L.earned))}g for ${Utils.formatGold(_num(L.fee))}g.`, type: 'info' });
         }
     },
 
@@ -405,7 +406,7 @@ export const Mints = {
         if (!Economy.payNearest(world, player.q, player.r, fee, { kid: here.id })) MoneySupply.leak(world, -fee, 'exchange');
         st.stats.exchangeFees += fee;
         const fk = _kingdom(world, from);
-        out.notices.push({ icon: '💱', title: 'Money Changers', text: `The changers of ${here.name} assay your ${fk ? fk.name : 'foreign'} coin (${Math.round(MoneySupply.effective(world, fk) * 100)}% silver against ${Math.round(MoneySupply.effective(world, here) * 100)}%) and keep ${fee}g for the exchange.`, type: 'info' });
+        out.notices.push({ icon: '💱', title: 'Money Changers', text: `The changers of ${here.name} assay your ${fk ? fk.name : 'foreign'} coin (${Math.round(MoneySupply.effective(world, fk) * 100)}% silver against ${Math.round(MoneySupply.effective(world, here) * 100)}%) and keep ${Utils.formatGold(fee)}g for the exchange.`, type: 'info' });
     },
 
     // ── The mint: selling bullion ─────────────────────────
@@ -456,8 +457,8 @@ export const Mints = {
         st.stats.sold += n;
         st.stats.soldGold += gold;
         const name = PlayerInventory.describe ? PlayerInventory.describe({ [good]: n }) : `${n} ${good}`;
-        Mints._log(player, world, `Sold ${name} to the mint of ${Names.realm(q.kingdom.name)} for ${gold}g.`);
-        return { success: true, gold, qty: n, text: `The mint of ${Names.realm(q.kingdom.name)} weighs your ${name} and pays ${gold}g in new coin.` };
+        Mints._log(player, world, `Sold ${name} to the mint of ${Names.realm(q.kingdom.name)} for ${Utils.formatGold(gold)}g.`);
+        return { success: true, gold, qty: n, text: `The mint of ${Names.realm(q.kingdom.name)} weighs your ${name} and pays ${Utils.formatGold(gold)}g in new coin.` };
     },
 
     // ── Leasing a mint ────────────────────────────────────
@@ -483,7 +484,7 @@ export const Mints = {
     leaseMint(player, world, tile) {
         const q = Mints.leaseQuote(player, world, tile);
         if (!q.ok) return { success: false, reason: q.reason };
-        if (_num(player.gold) < q.fee) return { success: false, reason: `The lease costs ${q.fee}g.` };
+        if (_num(player.gold) < q.fee) return { success: false, reason: `The lease costs ${Utils.formatGold(q.fee)}g.` };
         const day = _day(world);
         player.gold -= q.fee;
         q.kingdom.treasury = _num(q.kingdom.treasury) + q.fee;
@@ -492,7 +493,7 @@ export const Mints = {
         st.lease = { kingdomId: q.kingdom.id, realm: q.kingdom.name, day, until: day + q.days, share: q.share, fee: q.fee, earned: 0 };
         st.stats.leaseFees += q.fee;
         MoneySupply.realm(world, q.kingdom.id).mint.lease = 'player';
-        Mints._log(player, world, `Leased the mint of ${Names.realm(q.kingdom.name)} for ${q.fee}g.`);
+        Mints._log(player, world, `Leased the mint of ${Names.realm(q.kingdom.name)} for ${Utils.formatGold(q.fee)}g.`);
         return { success: true, fee: q.fee, text: `You lease the mint of ${Names.realm(q.kingdom.name)} for ${q.days} days: ${Math.round(q.share * 100)}% of its seigniorage is yours each week (lately about ${Math.round(q.avg)}g a week in all).` };
     },
 
@@ -557,7 +558,7 @@ export const Mints = {
     counterfeit(player, world, tile, stake = null) {
         const q = Mints.counterfeitQuote(player, world, tile, stake);
         if (!q.ok) return { success: false, reason: q.reason };
-        if (_num(player.gold) < q.stake) return { success: false, reason: `The coiners want ${q.stake}g of good coin to silver their copper.` };
+        if (_num(player.gold) < q.stake) return { success: false, reason: `The coiners want ${Utils.formatGold(q.stake)}g of good coin to silver their copper.` };
         const C = Mints.config().counterfeit;
         const st = Mints.state(player);
         const day = _day(world);
@@ -577,8 +578,8 @@ export const Mints = {
                 const res = Underworld._arrest(player, world, tile.settlement, 'coining');
                 if (res) jail = ` ${res.text}`;
             }
-            Mints._log(player, world, `Caught passing false coin in ${Names.realm(q.kingdom.name)}: lost ${loss}g.`);
-            return { success: true, caught: true, loss, text: `A money changer bites a piece and spits. The watch takes your false coin and fines you: ${loss}g lost, and ${q.kingdom.name} will know your face.${jail}` };
+            Mints._log(player, world, `Caught passing false coin in ${Names.realm(q.kingdom.name)}: lost ${Utils.formatGold(loss)}g.`);
+            return { success: true, caught: true, loss, text: `A money changer bites a piece and spits. The watch takes your false coin and fines you: ${Utils.formatGold(loss)}g lost, and ${q.kingdom.name} will know your face.${jail}` };
         }
         const gain = q.gain;
         player.gold = _num(player.gold) + gain;
@@ -590,8 +591,8 @@ export const Mints = {
         MoneySupply.note(world, q.kingdom.id, gain, 'counterfeit');
         st.stats.passed++;
         st.stats.counterfeitGain += gain;
-        Mints._log(player, world, `Passed false coin in ${Names.realm(q.kingdom.name)}: ${gain}g gained.`);
-        return { success: true, caught: false, gain, text: `The silvered pieces pass from hand to hand in the markets of ${Names.realm(q.kingdom.name)}. You clear ${gain}g, and the realm has a little more coin than it knows.` };
+        Mints._log(player, world, `Passed false coin in ${Names.realm(q.kingdom.name)}: ${Utils.formatGold(gain)}g gained.`);
+        return { success: true, caught: false, gain, text: `The silvered pieces pass from hand to hand in the markets of ${Names.realm(q.kingdom.name)}. You clear ${Utils.formatGold(gain)}g, and the realm has a little more coin than it knows.` };
     },
 
     // ── Counsel ───────────────────────────────────────────

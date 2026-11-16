@@ -311,6 +311,9 @@ export const NpcTasks = {
         unit.pursuitRange = 3;
         unit.inventory = { gold: 10 + (h % 30) };
         world.units.push(unit);
+        // (what the band carries is coin taken from the nearest town: World.fundUnitCoin, now rather than at the units' turn)
+        unit._rolledGold = unit.inventory.gold;
+        if (typeof world.fundUnitCoin === 'function') world.fundUnitCoin(unit, { now: true });
         NpcTasks._live.set(key, unit);
         return unit;
     },

@@ -37,6 +37,7 @@ import { House } from './house.js';
 import { Holdings } from './holdings.js';
 import { Coalitions } from './coalitions.js';
 import { Annals } from './annals.js';
+import { Utils } from '../core/utils.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -370,7 +371,7 @@ export const Reckoning = {
     /** One line: "Spring, year 2: +340g, Prestige +12, Valoria's lord +9, 2 towns' stalls moved." */
     headline(r) {
         const bits = [];
-        bits.push(`${r.money.change >= 0 ? '+' : '−'}${Math.abs(r.money.change)}g`);
+        bits.push(`${r.money.change >= 0 ? '+' : '−'}${Utils.formatGold(Math.abs(r.money.change))}g`);
         if (r.prestige.delta) bits.push(`Prestige ${r.prestige.delta > 0 ? '+' : '−'}${Math.abs(r.prestige.delta)}`);
         const l = r.lords[0];
         if (l && l.delta) bits.push(`${l.realm}'s lord ${l.delta > 0 ? '+' : '−'}${Math.abs(l.delta)}`);

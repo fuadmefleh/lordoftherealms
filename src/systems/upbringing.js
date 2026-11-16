@@ -586,7 +586,7 @@ export const Upbringing = {
         if (!choice) return { success: false, reason: 'No such choice.' };
         const cost = _num(choice.cost);
         if (cost > (player.gold || 0)) {
-            if (choiceId) return { success: false, reason: `That needs ${cost} gold.` };
+            if (choiceId) return { success: false, reason: `That needs ${Utils.formatGold(cost)} gold.` };
             choice = def.choices.find(c => !_num(c.cost)) || choice;
         }
         if (_num(choice.cost) > 0) {

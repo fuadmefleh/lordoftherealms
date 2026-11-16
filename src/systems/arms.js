@@ -562,7 +562,7 @@ export const Arms = {
         Economy.payTown(s, fee);
         Ledger.record(player, 'armsKit', -fee);
         e.edge = 100;
-        return { success: true, text: `The smith puts your ${Arms.nameOf(p.id).toLowerCase()} to the grindstone (${fee} gold).`, fee, hours: 0.25 };
+        return { success: true, text: `The smith puts your ${Arms.nameOf(p.id).toLowerCase()} to the grindstone (${Utils.formatGold(fee)} gold).`, fee, hours: 0.25 };
     },
 
     /** The unit worth of a good at a town (its market value, else the base price). */
@@ -621,14 +621,14 @@ export const Arms = {
         const s = opts.settlement;
         if (!q.smith) return { success: false, reason: 'There is no smith here.' };
         if (q.smith.short.length) return { success: false, reason: `The smith has no ${q.smith.short.join(', ').replace(/_/g, ' ')} to mend it with.` };
-        if (_num(player.gold) < q.smith.total) return { success: false, reason: `The smith wants ${q.smith.total} gold.` };
+        if (_num(player.gold) < q.smith.total) return { success: false, reason: `The smith wants ${Utils.formatGold(q.smith.total)} gold.` };
         for (const [g, n] of Object.entries(q.goods)) if (SettlementMarket.tracks(g) && Arms._mkt(s)) SettlementMarket.take(s, g, n);
         player.gold -= q.smith.total;
         Economy.payTown(s, q.smith.total);
         Ledger.record(player, 'armsKit', -q.smith.total);
         e.cond = 100;
         if (e.edge != null) e.edge = 100;
-        return { success: true, text: `The smith mends your ${Arms.nameOf(q.id).toLowerCase()} (${q.smith.total} gold).`, cost: q.smith.total };
+        return { success: true, text: `The smith mends your ${Arms.nameOf(q.id).toLowerCase()} (${Utils.formatGold(q.smith.total)} gold).`, cost: q.smith.total };
     },
 
     // ── Troops ────────────────────────────────────────
@@ -1024,13 +1024,13 @@ export const Arms = {
         if (q.iron > 0 && Arms._mkt(settlement) && SettlementMarket.available(settlement, 'iron') < q.iron) {
             return { success: false, reason: `The smiths of ${settlement.name} have no iron to spare (${q.iron} wanted).` };
         }
-        if (_num(player.gold) < q.total) return { success: false, reason: `The smiths want ${q.total} gold.` };
+        if (_num(player.gold) < q.total) return { success: false, reason: `The smiths want ${Utils.formatGold(q.total)} gold.` };
         if (q.iron > 0 && Arms._mkt(settlement)) SettlementMarket.take(settlement, 'iron', q.iron);
         player.gold -= q.total;
         Economy.payTown(settlement, q.total);
         Ledger.record(player, 'armsKit', -q.total);
         for (const unit of player.army || []) if (_obj(unit.kit)) unit.kit.cond = 100;
-        return { success: true, cost: q.total, text: `The smiths of ${settlement.name} mend ${q.units} soldiers' arms (${q.total} gold).` };
+        return { success: true, cost: q.total, text: `The smiths of ${settlement.name} mend ${q.units} soldiers' arms (${Utils.formatGold(q.total)} gold).` };
     },
 
     /** A dismissed soldier hands his kit back (into the packs, as far as they hold it). */

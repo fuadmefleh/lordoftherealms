@@ -74,8 +74,8 @@ Object.assign(UI.prototype, {
                         <div style="font-size: 12px;">
                             Influence +${b.influencePerDay * (b.level || 1)} | Scholar +${b.scholarshipBonus}
                             ${b.researchBonus ? ` | Research +${Math.round(b.researchBonus * Culture.levelMultiplier(b) * 100)}%` : ''}
-                            ${b.incomeBonus ? ` | +${Math.round(Culture.dailyIncome(b) * 10) / 10} gold/day` : ''}
-                            ${Culture.getUpgradeCost(b) !== null ? ` | Upgrade: ${Culture.getUpgradeCost(b)}g (visit it)` : ''}
+                            ${b.incomeBonus ? ` | +${Utils.formatGold(Math.round(Culture.dailyIncome(b) * 10) / 10)} gold/day` : ''}
+                            ${Culture.getUpgradeCost(b) !== null ? ` | Upgrade: ${Utils.formatGold(Culture.getUpgradeCost(b))}g (visit it)` : ''}
                         </div>
                     </div>
                 `;
@@ -388,7 +388,7 @@ Object.assign(UI.prototype, {
                     <div class="info-section-title">Economy</div>
                     <div class="info-row">
                         <span class="info-label">💰 Gold Production</span>
-                        <span class="info-value" style="color: #f1c40f;">+${econ.production.gold}/day</span>
+                        <span class="info-value" style="color: #f1c40f;">+${Utils.formatGold(econ.production.gold)}/day</span>
                     </div>
                     <div class="info-row">
                         <span class="info-label">🌾 Food Production</span>

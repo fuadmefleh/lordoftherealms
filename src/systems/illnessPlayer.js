@@ -178,7 +178,7 @@ export const IllnessPlayer = {
         const doc = Illness.healer(s, world, day);
         if (!doc) return { success: false, reason: 'The town has no healer on their feet to send round.' };
         const cost = IllnessPlayer.costs(s).physician;
-        if (_num(player.gold) < cost) return { success: false, reason: `You need ${cost} gold.` };
+        if (_num(player.gold) < cost) return { success: false, reason: `You need ${Utils.formatGold(cost)} gold.` };
         const st = Illness.state(world, s, folk, day);
         player.gold -= cost;
         const F = Illness.config().fund;
@@ -206,7 +206,7 @@ export const IllnessPlayer = {
         if (!player || !folk || !Illness.on()) return { success: false, reason: 'There is no one here to give to.' };
         const day = _num(world && world.day, 1);
         const cost = IllnessPlayer.costs(s).alms;
-        if (_num(player.gold) < cost) return { success: false, reason: `You need ${cost} gold.` };
+        if (_num(player.gold) < cost) return { success: false, reason: `You need ${Utils.formatGold(cost)} gold.` };
         const st = Illness.state(world, s, folk, day);
         player.gold -= cost;
         const poor = Townsfolk.residents(folk).filter(p => ['beggar', 'villager', 'farmer'].includes(p.role) && Townsfolk.age(p, day) >= 16)

@@ -9,6 +9,7 @@ import { TradeSkills } from '../../systems/tradeSkills.js';
 import { Wanted } from '../../systems/wanted.js';
 import { lede, chips, purse, sectionHead, card, actRow, rowList, price } from './uiKit.js';
 import { Names } from '../../core/names.js';
+import { Utils } from '../../core/utils.js';
 
 // In the action menu's voice (ui/actionMenu/uiKit.js): a lede, then one row a
 // service, its price at the right, greyed with its reason when out of reach
@@ -98,7 +99,7 @@ Object.assign(ActionMenu, {
         const rows = [_row({
             icon: '✨', name: 'Blessing for the Road',
             desc: `+${cfg.movementBonus} movement and +${cfg.healthRegen} healing each day for ${cfg.days} days, and +1 karma. Make an offering.`,
-            why: `Make an offering of ${cost}g — your purse is short.`,
+            why: `Make an offering of ${Utils.formatGold(cost)}g — your purse is short.`,
             note: active > 0 ? `You are blessed — ${active} day${active > 1 ? 's' : ''} left.` : '',
             side: price(cost, player.gold >= cost),
         }, 'bless', player.gold >= cost)];
@@ -217,17 +218,17 @@ Object.assign(ActionMenu, {
         if (player.mount) {
             const resale = Math.round((player.mount.price || cfg.price) * cfg.resaleRate);
             rows.push(actRow({ icon: '🐴', name: `Your mount: ${player.mount.name}`, desc: `<span style="color: #8fd18a;">+${cfg.movementBonus} movement each day.</span>` }));
-            rows.push(_row({ icon: '💰', name: `Sell ${player.mount.name}`, side: `+${resale}g`, tone: 'good' }, 'sellMount'));
+            rows.push(_row({ icon: '💰', name: `Sell ${player.mount.name}`, side: `+${Utils.formatGold(resale)}g`, tone: 'good' }, 'sellMount'));
         } else {
             const desc = `A mount carries you +${cfg.movementBonus} hexes further every day. You can ride one horse at a time.`;
             rows.push(_row({ icon: '🐎', name: 'Buy a riding horse', desc, why: `${desc} Your purse is short.`, side: price(cost, player.gold >= cost) }, 'buy', player.gold >= cost));
-            if (tamed > 0) rows.push(_row({ icon: '🏇', name: 'Saddle a tamed horse', desc: `${cfg.saddleCost}g tack`, why: `${cfg.saddleCost}g tack — your purse is short`, side: price(cfg.saddleCost, player.gold >= cfg.saddleCost) }, 'saddle', player.gold >= cfg.saddleCost));
+            if (tamed > 0) rows.push(_row({ icon: '🏇', name: 'Saddle a tamed horse', desc: `${Utils.formatGold(cfg.saddleCost)}g tack`, why: `${Utils.formatGold(cfg.saddleCost)}g tack — your purse is short`, side: price(cfg.saddleCost, player.gold >= cfg.saddleCost) }, 'saddle', player.gold >= cfg.saddleCost));
         }
         if (tamed > 0) {
             rows.push(_row({
                 icon: '🐎', name: `Sell ${tamed} tamed horse${tamed > 1 ? 's' : ''}`,
-                desc: `The stable master will buy tamed horses for ${cfg.tamedHorseSale}g each.`,
-                side: `+${tamed * cfg.tamedHorseSale}g`, tone: 'good',
+                desc: `The stable master will buy tamed horses for ${Utils.formatGold(cfg.tamedHorseSale)}g each.`,
+                side: `+${Utils.formatGold(tamed * cfg.tamedHorseSale)}g`, tone: 'good',
             }, 'sellTamed'));
         }
         html += rowList(rows, player.mount ? 'Your mount' : 'Riding Horse');
@@ -260,13 +261,13 @@ Object.assign(ActionMenu, {
             const rec = player.criminalRecord || {};
             const lines = Object.entries(rec).filter(([, n]) => n > 0)
                 .map(([crime, n]) => `${crime.replace(/([A-Z])/g, ' $1').replace(/^./, c => c.toUpperCase())} ×${n}`);
-            if (bounty) lines.push(`Bounty on your head: ${bounty}g`);
-            if (warrant) lines.push(`Royal warrant for your arrest (+${SERVICE_CONFIG.fines.warrantFee}g)`);
+            if (bounty) lines.push(`Bounty on your head: ${Utils.formatGold(bounty)}g`);
+            if (warrant) lines.push(`Royal warrant for your arrest (+${Utils.formatGold(SERVICE_CONFIG.fines.warrantFee)}g)`);
             // A killing on the crown's long sheet is not fined away (systems/wanted.js)
             const graveGold = Wanted.bounty(player, settlement && settlement.kingdom) - Wanted.lesserBounty(player, settlement && settlement.kingdom);
-            if (graveGold > 0) lines.push(`Grave charges (${graveGold}g) no fine settles: a pardon, weregild or the cells (Family → Crimes & Enemies)`);
+            if (graveGold > 0) lines.push(`Grave charges (${Utils.formatGold(graveGold)}g) no fine settles: a pardon, weregild or the cells (Family → Crimes & Enemies)`);
             html += lede(`The captain taps the ledger. "${warrant ? "There's a warrant out for you. Pay up, or hang." : "You've a record, friend."}"`);
-            html += chips([purse(player.gold), { icon: '⚖️', label: 'Owed', value: `<span style="color: #e0846a;">${fine}g</span>` }]);
+            html += chips([purse(player.gold), { icon: '⚖️', label: 'Owed', value: `<span style="color: #e0846a;">${Utils.formatGold(fine)}g</span>` }]);
             html += card(`<div style="font-size: 12px; color: #e0846a;">${lines.join(', ')}</div>`, { icon: '🗂️', title: 'Your record', tone: 'bad' });
             const desc = 'Settling wipes your record, pays off this crown\'s bounties and lifts its warrant, so merchants will deal with you again and the guards stand down.';
             html += rowList([_row({ icon: '⚖️', name: 'Settle everything', desc, why: `${desc} Your purse is short.`, side: price(fine, player.gold >= fine) }, 'pay', player.gold >= fine)]);
@@ -298,7 +299,7 @@ Object.assign(ActionMenu, {
             html += rowList(tiers.map((amount, i) => {
                 const gain = Math.floor(amount / SERVICE_CONFIG.tribute.goldPerReputation);
                 return _row({
-                    icon: '💰', name: `Pay ${amount}g tribute`, desc: `+${gain} reputation`,
+                    icon: '💰', name: `Pay ${Utils.formatGold(amount)}g tribute`, desc: `+${gain} reputation`,
                     why: `+${gain} reputation — your purse is short`, side: price(amount, player.gold >= amount),
                 }, `t${i}`, player.gold >= amount);
             }), 'Tribute');

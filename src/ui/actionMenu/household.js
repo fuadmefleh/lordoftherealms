@@ -15,6 +15,7 @@ import { ActionMenu } from './_ref.js';
 import { InnerMap } from '../../world/innerMap.js';
 import { Household } from '../../player/household.js';
 import { esc, lede, chips, purse, card, rowList, sectionHead, price, panelTabs, kv } from './uiKit.js';
+import { Utils } from '../../core/utils.js';
 
 const TITLE = '🏡 Your Household';
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
@@ -107,7 +108,7 @@ Object.assign(ActionMenu, {
         if (st.msg) { html += card(esc(st.msg.text), { tone: st.msg.ok ? 'good' : 'bad' }); st.msg = null; }
         html += chips([
             purse(player.gold),
-            ['🧹', 'Servants', `${home.servants.length} · ${v.wages}g/day`],
+            ['🧹', 'Servants', `${home.servants.length} · ${Utils.formatGold(v.wages)}g/day`],
             ['🧺', 'Larder', `${v.rations} days' food`, v.rations < v.mouths ? 'bad' : ''],
             ['✨', 'Clean', `${Math.round(_num(home.clean, 80))}%`],
             ['👥', 'Guests', home.guests.length],
@@ -148,7 +149,7 @@ Object.assign(ActionMenu, {
             const needs = room.quality <= 0 ? ` Needs ${(def.needs || []).map(t => `a ${t}`).join(' or ')}.` : '';
             return {
                 icon: def.icon, name: `${esc(def.name || room.kind)} · ${_floorName(room.floor)}`,
-                desc: `${esc(_roomTypes(room))}${room.value ? ` · worth ${room.value}g` : ''}${needs}`,
+                desc: `${esc(_roomTypes(room))}${room.value ? ` · worth ${Utils.formatGold(room.value)}g` : ''}${needs}`,
                 note: esc(ActionMenu._hhRoomEffect(game, home, room)),
                 side: pct(room.quality), tone: room.quality >= 0.6 ? 'good' : room.quality > 0 ? 'gold' : 'bad',
                 act: 'householdAct', args: ['unmark', room.id], title: 'Unmark this room',
@@ -204,7 +205,7 @@ Object.assign(ActionMenu, {
         html += rows.length ? rowList(rows, '🧹 In your service') : sectionHead('🧹 In your service') + `<div style="${NOTE}">No one yet.</div>`;
         html += rowList(Household.ROLES.map(role => {
             const def = Household.roleDef(role) || {};
-            return { icon: def.icon, name: `Hire a ${esc((def.name || role).toLowerCase())}`, desc: esc(def.desc || ''), side: `~${def.wage}g/day`, act: 'householdAct', args: ['hireRole', role] };
+            return { icon: def.icon, name: `Hire a ${esc((def.name || role).toLowerCase())}`, desc: esc(def.desc || ''), side: `~${Utils.formatGold(def.wage)}g/day`, act: 'householdAct', args: ['hireRole', role] };
         }), '➕ Take someone on');
         return html;
     },
@@ -240,7 +241,7 @@ Object.assign(ActionMenu, {
         html += sectionHead('🗝️ The steward\'s allowance');
         html += `<div style="${NOTE}">${steward ? `${esc(steward.name)} buys at the market whenever the larder falls below ${L.stewardTarget} days' food, up to the allowance a day.` : 'With a house steward, the larder is restocked from the market for you.'}</div>`;
         html += rowList([0, 20, 40, 80].map(g => ({
-            icon: _num(home.allowance) === g ? '●' : '○', name: g ? `${g}g a day` : 'Nothing: I stock it myself', side: '',
+            icon: _num(home.allowance) === g ? '●' : '○', name: g ? `${Utils.formatGold(g)}g a day` : 'Nothing: I stock it myself', side: '',
             act: 'householdAct', args: ['allowance', g],
         })));
         return html;

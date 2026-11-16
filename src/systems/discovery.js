@@ -617,9 +617,9 @@ export const Discovery = {
         if (site.kind === 'reef' && site.features.ruins) {
             const gold = Utils.randInt(cfg.salvage.gold[0], cfg.salvage.gold[1]);
             player.gold = _num(player.gold) + gold;
-            MoneySupply.leak(world, gold, 'wreckSalvage'); // (coin older than the books, in no purse: found)
+            MoneySupply.seaFound(world, gold, 'wreckSalvage'); // (coin lost at sea, else older than the books: found)
             if (player.financeToday) player.financeToday.income.exploration = (player.financeToday.income.exploration || 0) + gold;
-            notify('⚓', 'Salvage', `Divers bring up ${gold}g from an old wreck on the reef.`, 'success');
+            notify('⚓', 'Salvage', `Divers bring up ${Utils.formatGold(gold)}g from an old wreck on the reef.`, 'success');
         }
         const how2 = { sighting: 'Land ho! The lookout sights', exploration: 'Your exploration turns up', sea: 'You sail upon', land: 'You come upon' }[how] || 'You find';
         const text = `${how2} ${def.label.toLowerCase()} on no map: ${Discovery.describeFeatures(site).join(', ') || 'untouched'}. Name it in Journal → Discoveries (or it will be called ${site.name}).`;
@@ -1112,8 +1112,8 @@ export const Discovery = {
         site.knownBy.push(k.id);
         const st = Discovery.state(player);
         st.stats.sold++;
-        Discovery._log(player, world, '📜', `Sold the chart of ${site.name} to the archive of ${Names.realm(k.name)} for ${price}g.`, site.id);
-        return { success: true, price, kingdom: k, message: `The royal archive of ${Names.realm(k.name)} pays ${price}g for your chart of ${site.name}. It is no longer your secret.` };
+        Discovery._log(player, world, '📜', `Sold the chart of ${site.name} to the archive of ${Names.realm(k.name)} for ${Utils.formatGold(price)}g.`, site.id);
+        return { success: true, price, kingdom: k, message: `The royal archive of ${Names.realm(k.name)} pays ${Utils.formatGold(price)}g for your chart of ${site.name}. It is no longer your secret.` };
     },
 
     // ──────────── SETTLING & CLAIMS ────────────
@@ -1230,7 +1230,7 @@ export const Discovery = {
                 tribute: _rollHash(cfg.tribute, 'tribute', site.id, day), fleet: Discovery._contestFleet(k),
             };
             Discovery._log(player, world, '⚔️', `${k.name} contests your claim to ${site.name}.`, site.id);
-            notify('⚔️', 'Claim Contested', `${k.name} disputes your claim to ${site.name} and readies ships. Pay ${site.contest.tribute}g in Journal → Discoveries, or meet their fleet (about ${site.contest.fleet} strength) in ${cfg.days} days.`, 'warning');
+            notify('⚔️', 'Claim Contested', `${k.name} disputes your claim to ${site.name} and readies ships. Pay ${Utils.formatGold(site.contest.tribute)}g in Journal → Discoveries, or meet their fleet (about ${site.contest.fleet} strength) in ${cfg.days} days.`, 'warning');
         }
     },
 
@@ -1239,7 +1239,7 @@ export const Discovery = {
         const site = Discovery.get(player, siteId);
         if (!site || !site.contest) return { success: false, message: 'No one contests that claim.' };
         const c = site.contest;
-        if (_num(player.gold) < c.tribute) return { success: false, message: `You need ${c.tribute}g.` };
+        if (_num(player.gold) < c.tribute) return { success: false, message: `You need ${Utils.formatGold(c.tribute)}g.` };
         player.gold -= c.tribute;
         if (player.financeToday) player.financeToday.expenses.diplomacy = (player.financeToday.expenses.diplomacy || 0) + c.tribute;
         const k = world.getKingdom && world.getKingdom(c.kingdomId);
@@ -1247,8 +1247,8 @@ export const Discovery = {
         else if (!Economy.payNearest(world, player.q, player.r, c.tribute)) MoneySupply.leak(world, -c.tribute, 'tributeLost');
         site.knownBy = site.knownBy.filter(id => id !== c.kingdomId);
         site.contest = null;
-        Discovery._log(player, world, '💰', `Paid ${c.tribute}g to ${c.kingdomName}; they renounce ${site.name}.`, site.id);
-        return { success: true, message: `${c.kingdomName} takes your ${c.tribute}g and renounces its claim to ${site.name}.` };
+        Discovery._log(player, world, '💰', `Paid ${Utils.formatGold(c.tribute)}g to ${c.kingdomName}; they renounce ${site.name}.`, site.id);
+        return { success: true, message: `${c.kingdomName} takes your ${Utils.formatGold(c.tribute)}g and renounces its claim to ${site.name}.` };
     },
 
     _resolveContest(player, world, site, notify) {

@@ -11,6 +11,7 @@ import { Heirs } from '../../systems/heirs.js';
 import { Inheritance } from '../../systems/inheritance.js';
 import { Names } from '../../core/names.js';
 import { lede, chips, card, rowList, price, esc } from './uiKit.js';
+import { Utils } from '../../core/utils.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 const KIND = { murder: '🗡️ Murder', attempt: '🗡️ An attempt', unfit: '💊 Declared unfit', cloister: '⛪ The cloister' };
@@ -72,7 +73,7 @@ Object.assign(ActionMenu, {
             { icon: '❤️', label: 'Bond', value: `${bond}${v.grievance ? ` (at most ${100 - v.grievance})` : ''}` },
             v.grievance ? { icon: '💢', label: 'Grievance', value: v.grievance, cls: 'bad' } : null,
             stainChip(player),
-            { icon: '💰', label: 'Their portion', value: `${Math.round(child.purse || 0)}g` },
+            { icon: '💰', label: 'Their portion', value: `${Utils.formatGold(child.purse || 0)}g` },
         ]);
         const why = (act, arg) => KinCrimes.whyNot(player, world, child.id, act, arg);
         const M = KinCrimes.config().murder.methods;
@@ -99,7 +100,7 @@ Object.assign(ActionMenu, {
             const dis = why('disinherit');
             html += rowList([
                 { icon: '🚪', name: 'Disinherit and cast out', desc: 'They found a cadet branch with their portion — estranged, and holding a grudge for generations', act: 'kinCrimeAct', args: [child.id, 'disinherit', false], tone: 'warn', off: !!dis, why: dis || '' },
-                { icon: '💰', name: 'Cast out with nothing', desc: `Seize their portion (${Math.round(child.purse || 0)}g) first: a deeper grudge`, act: 'kinCrimeAct', args: [child.id, 'disinherit', true], tone: 'bad', off: !!dis, why: dis || '' },
+                { icon: '💰', name: 'Cast out with nothing', desc: `Seize their portion (${Utils.formatGold(child.purse || 0)}g) first: a deeper grudge`, act: 'kinCrimeAct', args: [child.id, 'disinherit', true], tone: 'bad', off: !!dis, why: dis || '' },
             ], '🚪 Cast Out');
             const fm = why('forced');
             html += rowList([{ icon: '💍', name: 'Wed them against their will', desc: 'For a bride-price, or an alliance. They never forgive it; if they inherit, it shapes their rule.', act: 'showKinMatch', args: [child.id], side: '›', off: !!fm, why: fm || '' }], '💍 A Match Forced');
@@ -161,8 +162,8 @@ Object.assign(ActionMenu, {
         }
         let text = res.text;
         if (res.witnesses && res.witnesses.length) text += ` ${res.witnesses.join(' and ')} ${res.witnesses.length === 1 ? 'looks' : 'look'} at you strangely since.`;
-        if (res.portion) text += ` Their portion of ${res.portion}g comes to you.`;
-        if (res.price) text += ` ${res.price}g is paid into your purse.`;
+        if (res.portion) text += ` Their portion of ${Utils.formatGold(res.portion)}g comes to you.`;
+        if (res.price) text += ` ${Utils.formatGold(res.price)}g is paid into your purse.`;
         const type = verb === 'murder' ? (res.died ? 'warning' : 'error') : 'info';
         game.ui.showNotification(verb === 'murder' ? (res.died ? '🕯️ A Death in the Family' : `🗡️ ${name} Survives`) : '🌑 Dark Counsel', text, type);
         if (game.updateUI) game.updateUI();

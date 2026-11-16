@@ -454,10 +454,15 @@ Object.assign(InnerMapRenderer, {
             worldToScreenFast(x, y) { pt.x = (x - ax) * zoom + ox + fx; pt.y = (y - ay) * zoom + oy + fy; return pt; },
             worldToScreen(x, y) { return { x: (x - ax) * zoom + ox + fx, y: (y - ay) * zoom + oy + fy }; },
         };
-        this._drawCustomBuildingDirect(g, cam, def, anchorQ, anchorR, ds, ruin, null, wear, spire);
-        // Snow lying on the roof (innerMapLayers/streetSeasons.js)
+        // Snow lying on the roof (innerMapLayers/streetSeasons.js); a belltower then stands
+        // over the snowed ridge, snow on its own cap (ui/spriteSnow.js)
         const snow = !ruin && this._ssRoofLevel ? this._ssRoofLevel() : 0;
+        this._drawCustomBuildingDirect(g, cam, def, anchorQ, anchorR, ds, ruin, null, wear, snow ? null : spire);
         if (snow) this._seasonRoofSnow(g, c, cam, def, anchorQ, anchorR, ds, snow);
+        if (snow && spire) {
+            const a = cam.worldToScreenFast(anchorQ * T, anchorR * T);
+            BuildingWear.spireOn(g, def, a.x, a.y, ds, spire, snow);
+        }
         return { canvas: c, ox, oy, used: 0 };
     },
 

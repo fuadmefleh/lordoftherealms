@@ -7,6 +7,7 @@ import { TILE, CANVAS_ZOOM, PAL_ZOOM, bcState, _brushCosts, _imgCache, BUILDING_
 import { _prettyResourceId, _getTerrainResourceDefs, _getResourceDefs, _getResourceDef, _loadImg, setBrushCost, getBrushCost, _getAllBrushes, _canAfford, _deductCost, _formatCost } from './resources.js';
 import { _recomputeNineTile, _brushPaint, _brushErase, _metaToggle, _stampPaint, _renderCanvas } from './paint.js';
 import { _finishExteriorPhase, _prePlaceOuterWalls, _finishBuilding, _placeOnInnerMap, open, close, isOpen } from './build.js';
+import { Utils } from '../../core/utils.js';
 
 export function _showToast(msg, type) {
     const toast = bcState._overlay && bcState._overlay.querySelector('#bc-toast');
@@ -23,7 +24,7 @@ export function _updateResourceDisplay() {
     if (!el || !bcState._game || !bcState._game.player) return;
     const p = bcState._game.player;
     const items = [];
-    items.push(`💰 ${p.gold}g`);
+    items.push(`💰 ${Utils.formatGold(p.gold)}g`);
     const invEntries = Object.entries(p.inventory || {}).filter(([, qty]) => qty > 0);
     for (const [itemId, qty] of invEntries.slice(0, 5)) {
         const def = _getResourceDef(itemId);
@@ -659,7 +660,7 @@ export function _updateTotalCost() {
     }
 
     const parts = [`<b>${tileCount}</b> tiles placed`];
-    if (totalGold > 0) parts.push(`💰 <b>${totalGold}</b> gold`);
+    if (totalGold > 0) parts.push(`💰 <b>${Utils.formatGold(totalGold)}</b> gold`);
     for (const [itemId, qty] of Object.entries(totalRes)) {
         const def = _getResourceDef(itemId);
         parts.push(`${qty} ${def.icon} ${def.name}`);

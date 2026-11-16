@@ -108,7 +108,7 @@ export const Housing = {
 
         // Cost
         const cost = this._getSettlementPrice(houseType.baseCost, tile.settlement);
-        if (player.gold < cost) return { success: false, message: `Not enough gold. Need ${cost}g.` };
+        if (player.gold < cost) return { success: false, message: `Not enough gold. Need ${Utils.formatGold(cost)}g.` };
 
         // Renown requirement
         if ((player.renown || 0) < houseType.requiredRenown) {
@@ -141,7 +141,7 @@ export const Housing = {
             player.reputation[house.kingdomId] = (player.reputation[house.kingdomId] || 0) + houseType.reputationBonus;
         }
 
-        return { success: true, message: `Purchased a ${houseType.name} in ${tile.settlement.name} for ${cost}g!`, cost };
+        return { success: true, message: `Purchased a ${houseType.name} in ${tile.settlement.name} for ${Utils.formatGold(cost)}g!`, cost };
     },
 
     /**
@@ -257,7 +257,7 @@ export const Housing = {
             player.financeToday.income.houseSale = (player.financeToday.income.houseSale || 0) + salePrice;
         }
 
-        return { success: true, message: `Sold your ${houseType ? houseType.name : 'house'} for ${salePrice}g.`, salePrice };
+        return { success: true, message: `Sold your ${houseType ? houseType.name : 'house'} for ${Utils.formatGold(salePrice)}g.`, salePrice };
     },
 
     /* ── Upgrading a house ───────────────────────────────────── */
@@ -285,7 +285,7 @@ export const Housing = {
             return { success: false, message: `No upgrade slots remaining (${houseType.maxUpgradeSlots} max).` };
         }
         if (player.gold < upgrade.cost) {
-            return { success: false, message: `Not enough gold. Need ${upgrade.cost}g.` };
+            return { success: false, message: `Not enough gold. Need ${Utils.formatGold(upgrade.cost)}g.` };
         }
 
         player.gold -= upgrade.cost;
@@ -543,7 +543,7 @@ export const Housing = {
         const repairCost = Math.max(5, Math.floor(baseCost * 0.1 * damagePercent));
 
         if (player.gold < repairCost) {
-            return { success: false, message: `Not enough gold. Repairs cost ${repairCost}g.` };
+            return { success: false, message: `Not enough gold. Repairs cost ${Utils.formatGold(repairCost)}g.` };
         }
 
         player.gold -= repairCost;
@@ -556,7 +556,7 @@ export const Housing = {
             player.financeToday.expenses.housing = (player.financeToday.expenses.housing || 0) + repairCost;
         }
 
-        return { success: true, message: `Repaired your ${ht ? ht.name : 'house'} for ${repairCost}g.`, repairCost };
+        return { success: true, message: `Repaired your ${ht ? ht.name : 'house'} for ${Utils.formatGold(repairCost)}g.`, repairCost };
     },
 
     /* ── Price helpers ───────────────────────────────────────── */

@@ -12,6 +12,7 @@
 import { PlayerEconomy } from '../player/playerEconomy.js';
 import { DataLoader } from '../core/dataLoader.js';
 import { whyIcon } from './whyPopover.js';
+import { Utils } from '../core/utils.js';
 
 const _goods = () => PlayerEconomy.GOODS || {};
 
@@ -54,7 +55,7 @@ export function goodUses(id) {
 export function goodInfo(id, extra = {}) {
     const g = goodDef(id);
     const rows = [];
-    if (g.basePrice != null) rows.push(['Worth about', `${g.basePrice}g each`, '']);
+    if (g.basePrice != null) rows.push(['Worth about', `${Utils.formatGold(g.basePrice)}g each`, '']);
     if (extra.rows) rows.push(...extra.rows);
     const { from, into } = goodUses(g.id);
     const notes = [];

@@ -17,6 +17,7 @@ import { registerScene } from './choiceScenes.js';
 import { Prison } from '../../player/prison.js';
 import { PlayerMilitary } from '../../player/playerMilitary.js';
 import { Gangs } from '../../systems/gangs.js';
+import { Utils } from '../../core/utils.js';
 
 const _day = (game) => (game.world && game.world.day) || 0;
 const _back = { id: 'back', icon: '↩️', label: 'Back', chance: null, odds: false };
@@ -44,7 +45,7 @@ function _cellView(game, st) {
             options.push({ id: `food:${m.id}`, icon: '🍞', label: `Share food with ${m.name}`, hint: 'A sure way to a prisoner\'s heart.', chance: null, can: !why && !!food, reason: why || 'No food in your packs' });
             if (m.archetype === 'smuggler' && m.friend) {
                 const cost = Prison.archetype('smuggler').toolsCost || 20;
-                options.push({ id: `tools:${m.id}`, icon: '🔧', label: `Ask ${m.name} for tools`, hint: 'Brought in tomorrow, baked into the bread.', chance: null, cost: `${cost} gold`, can: pr.toolsDueDay == null && (player.gold || 0) >= cost, reason: pr.toolsDueDay != null ? 'Already on the way' : `Needs ${cost} gold` });
+                options.push({ id: `tools:${m.id}`, icon: '🔧', label: `Ask ${m.name} for tools`, hint: 'Brought in tomorrow, baked into the bread.', chance: null, cost: `${Utils.formatGold(cost)} gold`, can: pr.toolsDueDay == null && (player.gold || 0) >= cost, reason: pr.toolsDueDay != null ? 'Already on the way' : `Needs ${Utils.formatGold(cost)} gold` });
             }
         }
         options.push(_back);
@@ -54,7 +55,7 @@ function _cellView(game, st) {
         const chance = Prison.bribeChance(player, world);
         const opt = (id, icon, label, hint) => {
             const cost = Prison.bribeCost(player, world, id);
-            return { id: `bribe:${id}`, icon, label, hint, chance, cost: `${cost} gold`, can: (player.gold || 0) >= cost, reason: `The guard wants ${cost} gold` };
+            return { id: `bribe:${id}`, icon, label, hint, chance, cost: `${Utils.formatGold(cost)} gold`, can: (player.gold || 0) >= cost, reason: `The guard wants ${Utils.formatGold(cost)} gold` };
         };
         const o = [
             opt('lookaway', '🙈', 'Look the other way tonight', 'A much better chance to slip out tonight.'),
@@ -71,7 +72,7 @@ function _cellView(game, st) {
             id: `crew:${o.id}`, icon: o.icon, label: o.label, hint: o.hint, chance: o.chance, cost: `${o.cost} gold of the gang's`, can: o.can, reason: o.reason,
         }));
         const who = c.boss ? `You are ${c.gang.name}'s boss: your word is an order.` : `You run with ${c.gang.name} as a ${Gangs.rankDef(c.m.rank).name.toLowerCase()}; ${c.gang.boss.name} decides, and you will owe the gang for it.`;
-        return { ...base, text: `A message out through a cellmate's visitor. ${who} The gang's purse holds ${Math.floor(c.gang.purse)}g.`, footer: 'Once a day. It is the gang\'s coin, not yours.', options: [...options, _back] };
+        return { ...base, text: `A message out through a cellmate's visitor. ${who} The gang's purse holds ${Utils.formatGold(c.gang.purse)}g.`, footer: 'Once a day. It is the gang\'s coin, not yours.', options: [...options, _back] };
     }
     if (st.phase === 'break') {
         const why = triedTonight ? 'The guards are wary after tonight\'s attempt' : '';
@@ -93,7 +94,7 @@ function _cellView(game, st) {
     ];
     const crew = Prison.crew(player, world);
     if (crew) options.push({ id: 'crew', icon: '📨', label: 'Send word to your crew', hint: `${crew.gang.name} could spring you, on the gang's coin.`, chance: null, odds: false });
-    if (jail.bailCost) options.push({ id: 'bail', icon: '💰', label: 'Post bail', chance: null, cost: `${jail.bailCost} gold`, can: (player.gold || 0) >= jail.bailCost, reason: `You need ${jail.bailCost} gold` });
+    if (jail.bailCost) options.push({ id: 'bail', icon: '💰', label: 'Post bail', chance: null, cost: `${Utils.formatGold(jail.bailCost)} gold`, can: (player.gold || 0) >= jail.bailCost, reason: `You need ${Utils.formatGold(jail.bailCost)} gold` });
     options.push({ id: 'wait', icon: '🔒', label: 'Serve the day', hint: 'Sit it out.', chance: null });
     return { ...base, text: `Offence: ${jail.offense || 'unknown'} (#${jail.offenseNumber || 1}). The straw is damp, the bread is stale.`, options };
 }
@@ -180,7 +181,7 @@ registerScene('prison_transport', {
             }
             const can = (player.gold || 0) >= ev.cost;
             return { ...base, text: intro, options: [
-                { id: 'pay', icon: '💰', label: 'Pay him', cost: `${ev.cost} gold`, hint: 'Loosed in the night — an escape in the crown\'s eyes.', chance: null, odds: false, can, reason: `He wants ${ev.cost} gold` },
+                { id: 'pay', icon: '💰', label: 'Pay him', cost: `${Utils.formatGold(ev.cost)} gold`, hint: 'Loosed in the night — an escape in the crown\'s eyes.', chance: null, odds: false, can, reason: `He wants ${Utils.formatGold(ev.cost)} gold` },
                 { id: 'refuse', icon: '✋', label: 'Keep your coin', chance: null, odds: false },
             ] };
         }
@@ -217,10 +218,10 @@ registerScene('servitude', {
         const cost = Prison.servitudeBribeCost(player);
         const options = [
             { id: 'slip', icon: '🌑', label: 'Slip away at night', hint: 'Caught, they beat you and add days.', chance: s.escapeChance, can: !why, reason: why },
-            { id: 'bribe', icon: '💰', label: 'Bribe an overseer', hint: 'He reports you "dead of fever". Or takes the coin and tells your master.', chance: Prison.servitudeBribeChance(player), cost: `${cost} gold`, can: !why && (player.gold || 0) >= cost, reason: why || `He wants ${cost} gold` },
+            { id: 'bribe', icon: '💰', label: 'Bribe an overseer', hint: 'He reports you "dead of fever". Or takes the coin and tells your master.', chance: Prison.servitudeBribeChance(player), cost: `${Utils.formatGold(cost)} gold`, can: !why && (player.gold || 0) >= cost, reason: why || `He wants ${Utils.formatGold(cost)} gold` },
             { id: 'work', icon: '🧱', label: 'Work for an earlier release', hint: 'Takes the day; it counts double against your bond.', chance: null },
         ];
-        if (s.canBuyFreedom) options.push({ id: 'buy', icon: '💰', label: 'Buy your freedom', chance: null, cost: `${s.freedomCost} gold`, can: (player.gold || 0) >= s.freedomCost, reason: `You need ${s.freedomCost} gold` });
+        if (s.canBuyFreedom) options.push({ id: 'buy', icon: '💰', label: 'Buy your freedom', chance: null, cost: `${Utils.formatGold(s.freedomCost)} gold`, can: (player.gold || 0) >= s.freedomCost, reason: `You need ${Utils.formatGold(s.freedomCost)} gold` });
         return {
             icon: '⛓️', title: `Bound to ${s.captor}`, panelTitle: '⛓️ Indentured Servitude',
             stats: [`${s.daysRemaining} day(s) left`, `💰 ${Math.floor(player.gold || 0)}`, `❤️ ${Math.round(player.health || 0)}`],

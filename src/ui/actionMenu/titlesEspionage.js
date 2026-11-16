@@ -68,7 +68,7 @@ Object.assign(ActionMenu, {
                         ? `<span style="color:#8fd18a;">✓ Qualified · Accept Appointment</span> <span style="color:#9d937c;">· 📋 ${t.duties.type.replace(/_/g, ' ')}</span>`
                         : `<span style="color:#c98a6a;">✗ ${t.reason}</span><br><span style="color:#9d937c;">📋 ${t.duties.type.replace(/_/g, ' ')} · Requires: ${reqList.join(' · ')}</span>`,
                     act: ok ? '_appointTitle' : '', args: ok ? [t.id] : null, off: !ok,
-                    side: `💰 ${t.salary} gold/day`, tone: 'gold',
+                    side: `💰 ${Utils.formatGold(t.salary)} gold/day`, tone: 'gold',
                 };
             }), 'Offices');
         }
@@ -102,7 +102,7 @@ Object.assign(ActionMenu, {
         let html = sectionHead('Title Bestowed!');
         html += lede(`You have been appointed <b style="color:#ffcf6a;">${title.name}</b> of <b>${kingdom?.name || 'the realm'}</b>.`);
         html += card(
-            kv('💰 Daily salary', `<span style="color:#8fd18a;">${title.salary} gold</span>`)
+            kv('💰 Daily salary', `<span style="color:#8fd18a;">${Utils.formatGold(title.salary)} gold</span>`)
             + kv('📋 Duty', title.duties.type.replace(/_/g, ' '))
             + `<div style="${MUTED} margin-top:6px;">Complete your duties within ${title.duties.deadlineDays} days or face penalties!</div>`,
             { icon: title.icon || '🏅', title: title.name, tone: 'gold' });
@@ -129,7 +129,7 @@ Object.assign(ActionMenu, {
         let html = lede(`${title.icon || '🏅'} <b style="color:#ffcf6a;">${title.name}</b> of ${kingdom?.name || 'the realm'}`);
         html += chips([
             { icon: '⏰', label: 'Days Left', value: `<span style="color:${progress.daysLeft <= 5 ? '#e0846a' : 'inherit'};">${progress.daysLeft}</span>` },
-            { icon: '💰', label: 'Daily Salary', value: `${title.salary} gold`, cls: 'gold' },
+            { icon: '💰', label: 'Daily Salary', value: `${Utils.formatGold(title.salary)} gold`, cls: 'gold' },
             ['📅', 'Appointed', `Day ${player.titleAppointedDay || '?'}`],
         ]);
 
@@ -499,7 +499,7 @@ Object.assign(ActionMenu, {
         html += chips([
             { icon: '🕵️', label: '', value: `${summary.totalSpies}/${config.maxSpies} Spies`, cls: 'gold' },
             ['📋', '', `${summary.activeMissions}/${config.maxActiveMissions} Missions`],
-            ['💰', '', `${summary.dailyUpkeep}g/day`],
+            ['💰', '', `${Utils.formatGold(summary.dailyUpkeep)}g/day`],
             ['✅', '', `${summary.completedMissions} Done`],
         ]);
 
@@ -557,9 +557,9 @@ Object.assign(ActionMenu, {
             return {
                 icon: levelTitle.icon,
                 name: `${spy.name} <span style="font-size:11px; font-weight:400; color:#b48ad8;">${levelTitle.title}</span>`,
-                desc: `Traits: ${traitLabels || 'None'} · 🔄 Upkeep: ${spy.upkeep}g/day · ❤️ Loyalty: ${Math.floor(spy.loyalty)}%`,
+                desc: `Traits: ${traitLabels || 'None'} · 🔄 Upkeep: ${Utils.formatGold(spy.upkeep)}g/day · ❤️ Loyalty: ${Math.floor(spy.loyalty)}%`,
                 note: _skillChips(spy.skills, spySkills, true),
-                off: !canPay, why: `❌ Not Enough Gold · Traits: ${traitLabels || 'None'} · 🔄 Upkeep: ${spy.upkeep}g/day · ❤️ Loyalty: ${Math.floor(spy.loyalty)}%`,
+                off: !canPay, why: `❌ Not Enough Gold · Traits: ${traitLabels || 'None'} · 🔄 Upkeep: ${Utils.formatGold(spy.upkeep)}g/day · ❤️ Loyalty: ${Math.floor(spy.loyalty)}%`,
                 attrs: `onclick="window._recruitSpy(${spy.id})"`,
                 side: price(spy.recruitCost, canPay),
                 title: canPay ? '🎯 Recruit' : '',
@@ -577,7 +577,7 @@ Object.assign(ActionMenu, {
             if (!spy) return;
             const result = Espionage.recruitSpy(game.player, spy, game.world);
             if (result.success) {
-                game.ui.showNotification('🕵️ Spy Recruited!', `${spy.name} has joined your network. (-${result.cost}g)`, 'success');
+                game.ui.showNotification('🕵️ Spy Recruited!', `${spy.name} has joined your network. (-${Utils.formatGold(result.cost)}g)`, 'success');
                 game.ui.updateStats(game.player, game.world);
                 ActionMenu.showEspionageMenu(game, tile);
             } else {
@@ -637,7 +637,7 @@ Object.assign(ActionMenu, {
                 <div style="${MUTED}">Traits: ${traitLabels || 'None'}</div>
                 <div style="${MUTED} margin-top:2px;">
                     ❤️ Loyalty: <span style="color:${spy.loyalty > 50 ? '#8fd18a' : spy.loyalty > 25 ? '#f0b35a' : '#e0846a'};">${Math.floor(spy.loyalty)}%</span>
-                    &nbsp; 💰 ${spy.upkeep}g/day &nbsp; ⭐ ${spy.missionsCompleted} missions
+                    &nbsp; 💰 ${Utils.formatGold(spy.upkeep)}g/day &nbsp; ⭐ ${spy.missionsCompleted} missions
                 </div>
                 <div style="margin-top:4px; font-size:10px; color:#9d937c;">XP: ${spy.experience}/${xpNeeded}${_bar(xpPct, '#b48ad8')}</div>
                 ${missionInfo}
@@ -806,7 +806,7 @@ Object.assign(ActionMenu, {
             if (result.success) {
                 const targetK = game.world.getKingdom(targetId);
                 game.ui.showNotification('📋 Mission Assigned',
-                    `${result.spy.name} has been sent to ${targetK ? targetK.name : 'the target'}. (-${result.cost}g, ${result.mission.duration}d)`, 'success');
+                    `${result.spy.name} has been sent to ${targetK ? targetK.name : 'the target'}. (-${Utils.formatGold(result.cost)}g, ${result.mission.duration}d)`, 'success');
                 game.ui.updateStats(game.player, game.world);
                 ActionMenu.showEspionageMenu(game, tile);
             } else {

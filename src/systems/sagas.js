@@ -193,7 +193,8 @@ const EFFECTS = {
     treasury(c, e) {
         for (const k of Sagas._scopeKingdoms(c.world, c.saga, e.scope || 'kingdom')) {
             const t = _num(k.treasury);
-            const next = Math.max(0, Math.round(t + _num(e.amount) + t * _num(e.pct)));
+            // (in whole cents: a chest holding cents keeps them, and a gain of the sum paid in is that sum)
+            const next = Math.max(0, Utils.cents(t + _num(e.amount) + t * _num(e.pct)));
             // (a gain is what the story's costs paid in — the player's purse (c.paidIn), the rest
             // raised from the realm's towns; a loss is the crown's coin spent — a ransom, a fleet,
             // a war chest — into its own towns)
@@ -480,7 +481,7 @@ const EFFECTS = {
                 else g = -lost;
             }
             player.gold = Math.max(0, _num(player.gold) + g);
-            parts.push(`${g > 0 ? '+' : ''}${Math.round(g)} gold`);
+            parts.push(`${g > 0 ? '+' : ''}${Utils.formatGold(g)} gold`);
         }
         if (e.renown) {
             player.renown = Math.max(0, _num(player.renown) + _num(e.renown));
@@ -764,6 +765,8 @@ export const Sagas = {
         unit.maxAge = 1e9;
         unit.sagaKey = rec.key;
         world.units.push(unit);
+        // (what it carries comes out of the nearest town's purse at once: World.fundUnitCoin)
+        if (unit._rolledGold != null && typeof world.fundUnitCoin === 'function') world.fundUnitCoin(unit);
         _liveMap(world).set(rec.key, unit);
         return unit;
     },
@@ -948,7 +951,7 @@ export const Sagas = {
                     status: 'active',
                     canRecruit: false,
                     targetBackstory: `Part of the saga "${saga.name}". Strength about ${rec.strength}: bring an army.`,
-                    description: `${realm} pays ${pay}g for ${rec.name}, last seen near (${rec.q}, ${rec.r}). Defeat it in battle; a hunter who takes the notice earns a quarter more.`,
+                    description: `${realm} pays ${Utils.formatGold(pay)}g for ${rec.name}, last seen near (${rec.q}, ${rec.r}). Defeat it in battle; a hunter who takes the notice earns a quarter more.`,
                 });
             }
         }
@@ -1431,7 +1434,7 @@ export const Sagas = {
         if (req.prestige && _num(player.house && player.house.prestige) < req.prestige) return { ok: false, reason: `Needs ${req.prestige} Prestige.` };
         if (req.holdings && !Petitions.hasHoldings(player, world)) return { ok: false, reason: 'Needs holdings of your own.' };
         const cost = action.cost || {};
-        if (cost.gold && _num(player.gold) < cost.gold) return { ok: false, reason: `Needs ${cost.gold} gold.` };
+        if (cost.gold && _num(player.gold) < cost.gold) return { ok: false, reason: `Needs ${Utils.formatGold(cost.gold)} gold.` };
         if (cost.prestige && _num(player.house && player.house.prestige) < cost.prestige) return { ok: false, reason: `Needs ${cost.prestige} Prestige.` };
         for (const [item, n] of Object.entries(cost.items || {})) {
             if (_num(player.inventory && player.inventory[item]) < n) return { ok: false, reason: `Needs ${n} ${item.replace(/_/g, ' ')}.` };

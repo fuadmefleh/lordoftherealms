@@ -8,6 +8,7 @@
 import { ActionMenu } from './_ref.js';
 import { Nemesis } from '../../systems/nemesis.js';
 import { lede, chips, sectionHead, rowList, card, price, bullets, more, esc } from './uiKit.js';
+import { Utils } from '../../core/utils.js';
 
 const OUTCOME = { struck: ['❌', 'bad'], foiled: ['🛡️', 'good'], hidden: ['🌑', ''], yours: ['⚖️', 'gold'], fizzled: ['·', ''] };
 
@@ -46,7 +47,7 @@ Object.assign(ActionMenu, {
             body += chips([
                 [a.stage.icon, a.stage.label, Math.round(nm.hatred)],
                 ['🧬', 'Generation', nm.generation],
-                ['💰', 'Purse', `${Math.round(a.purse).toLocaleString('en-US')}g`],
+                ['💰', 'Purse', `${Utils.formatGold(a.purse)}g`],
                 nm.evidence > 0 ? ['📜', 'Proof held', nm.evidence, 'gold'] : null,
             ]);
             body += _bar(nm.hatred);

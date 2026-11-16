@@ -69,7 +69,7 @@ Object.assign(PlayerEconomy, {
         // Check gold
         const cost = PlayerEconomy.getBuildCost(player, prop, tile, world);
         if (player.gold < cost) {
-            return { canBuild: false, reason: `Need ${cost} gold (have ${Math.floor(player.gold)})` };
+            return { canBuild: false, reason: `Need ${Utils.formatGold(cost)} gold (have ${Math.floor(player.gold)})` };
         }
 
         // Check if already has THIS TYPE of property here (allow multiple different types)
@@ -180,7 +180,7 @@ Object.assign(PlayerEconomy, {
         const lot = tile && tile.settlement ? Lots.lotForProperty(player, tile.settlement, { lotId: opts.lotId }) : null;
         if (lot && !lot.ok) return { success: false, reason: lot.reason };
         if (lot && lot.price > 0 && (player.gold || 0) < buildCost + lot.price) {
-            return { success: false, reason: `Needs ${buildCost}g to build and ${lot.price}g for a building lot in ${tile.settlement.name || 'town'}` };
+            return { success: false, reason: `Needs ${Utils.formatGold(buildCost)}g to build and ${Utils.formatGold(lot.price)}g for a building lot in ${tile.settlement.name || 'town'}` };
         }
         // (the builders and the timber merchants are the nearest town's: its purse is paid)
         PlayerCoin.pay(world, player, buildCost, PlayerEconomy.propertyTown(world, tile, { hire: PlayerEconomy._nearTown(world, tile) }) || { q: tile.q, r: tile.r }, 'propertyBought');

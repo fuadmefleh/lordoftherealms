@@ -1,7 +1,17 @@
 // Espionage — missions members (split from the original monolith).
 import { Espionage } from './_ref.js';
 import { Traits } from '../traits.js';
-import { DataLoader, Utils, Technology, Hex, Tavern, Characters, House, Schemes, RealmWars, NPCLords } from './_imports.js';
+import { DataLoader, Utils, Technology, Hex, Tavern, Characters, House, Schemes, RealmWars, NPCLords, Economy, MoneySupply } from './_imports.js';
+
+// A realm's chests lose `amount` to a spy's work (unrest put down, stores wrecked, a
+// succession fought over): the coin is spent into its own towns (Economy.crownSpend),
+// never simply gone. → what left the chests
+function _crownLoss(kingdom, world, amount) {
+    const a = Utils.centsDown(Math.max(0, Number(amount) || 0));
+    if (!kingdom || !(a > 0)) return 0;
+    if (!world) { kingdom.treasury = Math.max(0, (kingdom.treasury || 0) - a); return a; }
+    return Economy.crownSpend(kingdom, world, a);
+}
 
 Object.assign(Espionage, {
     // ═══════════════════════════════════════
@@ -27,6 +37,9 @@ Object.assign(Espionage, {
             if (player.gold >= spy.upkeep) {
                 player.gold -= spy.upkeep;
                 results.upkeepPaid += spy.upkeep;
+                // (the spy lives on it where posted: spent in the nearest town)
+                const at = spy.location || player;
+                if (!Economy.payNearest(world, at.q, at.r, spy.upkeep)) MoneySupply.leak(world, -spy.upkeep, 'spyUpkeep');
             } else {
                 // Can't pay — spy loyalty drops sharply
                 spy.loyalty = Math.max(0, spy.loyalty - 5);
@@ -416,10 +429,12 @@ Object.assign(Espionage, {
             }
 
             // Fallback if no stealable tech found
-            const goldStolen = Utils.randInt(100, 300);
+            // (out of the realm's chests: no more than it holds)
+            const want = Utils.randInt(100, 300);
+            const goldStolen = kingdom && world ? Economy.crownPays(kingdom, world, want) : 0;
             player.gold += goldStolen;
             result.rewards.gold = goldStolen;
-            return `${spy.name} couldn't find new technology but stole ${goldStolen}g worth of research documents from ${kingdomName}.`;
+            return `${spy.name} couldn't find new technology but stole ${Utils.formatGold(goldStolen)}g worth of research documents from ${kingdomName}.`;
         }
 
         if (isPartial) {
@@ -452,9 +467,8 @@ Object.assign(Espionage, {
 
             if (kingdom) {
                 // Apply immediate effects
-                const treasuryLoss = Math.floor((kingdom.treasury || 0) * rebellionDef.treasuryLoss);
+                const treasuryLoss = _crownLoss(kingdom, world, Math.floor((kingdom.treasury || 0) * rebellionDef.treasuryLoss));
                 const militaryLoss = Math.floor((kingdom.military || 0) * rebellionDef.militaryLoss);
-                kingdom.treasury = Math.max(0, (kingdom.treasury || 0) - treasuryLoss);
                 kingdom.military = Math.max(0, (kingdom.military || 0) - militaryLoss);
 
                 // Territory loss — remove random border tiles
@@ -493,7 +507,7 @@ Object.assign(Espionage, {
                 });
 
                 result.rewards.rebellion = { severity, treasuryLoss, militaryLoss };
-                return `${spy.name} successfully incited a ${rebellionDef.label} in ${kingdomName}! Treasury: -${treasuryLoss}g, Military: -${militaryLoss}. ${rebellionDef.description}`;
+                return `${spy.name} successfully incited a ${rebellionDef.label} in ${kingdomName}! Treasury: -${Utils.formatGold(treasuryLoss)}g, Military: -${militaryLoss}. ${rebellionDef.description}`;
             }
 
             return `${spy.name} stirred unrest in ${kingdomName}.`;
@@ -504,8 +518,7 @@ Object.assign(Espionage, {
             if (kingdom) {
                 const effects = this._getRebellionEffects();
                 const small = effects.small || { treasuryLoss: 0.05, militaryLoss: 0.03, duration: 5, label: 'Minor Unrest' };
-                const treasuryLoss = Math.floor((kingdom.treasury || 0) * small.treasuryLoss);
-                kingdom.treasury = Math.max(0, (kingdom.treasury || 0) - treasuryLoss);
+                const treasuryLoss = _crownLoss(kingdom, world, Math.floor((kingdom.treasury || 0) * small.treasuryLoss));
 
                 player.espionage.rebellions.push({
                     kingdomId: kingdom.id,
@@ -515,7 +528,7 @@ Object.assign(Espionage, {
                     daysRemaining: small.duration,
                 });
 
-                return `${spy.name} managed to cause minor unrest in ${kingdomName}. Treasury: -${treasuryLoss}g. The disturbance was small.`;
+                return `${spy.name} managed to cause minor unrest in ${kingdomName}. Treasury: -${Utils.formatGold(treasuryLoss)}g. The disturbance was small.`;
             }
         }
 
@@ -584,8 +597,7 @@ Object.assign(Espionage, {
         if (isSuccess) {
             if (kingdom) {
                 const missionDef = this._getMissions().sabotage;
-                const treasuryDrain = Math.floor((kingdom.treasury || 0) * (missionDef.effects?.treasuryDrain || 0.10));
-                kingdom.treasury = Math.max(0, (kingdom.treasury || 0) - treasuryDrain);
+                const treasuryDrain = _crownLoss(kingdom, world, Math.floor((kingdom.treasury || 0) * (missionDef.effects?.treasuryDrain || 0.10)));
 
                 result.rewards.treasuryDrained = treasuryDrain;
                 // Wrecked workshops and granaries: the kingdom's settlements produce less for a while
@@ -601,16 +613,15 @@ Object.assign(Espionage, {
                     }
                     result.rewards.productionPenalty = penalty;
                 }
-                return `${spy.name} successfully sabotaged ${kingdomName}! Treasury: -${treasuryDrain}g. Its settlements produce ${Math.round(penalty * 100)}% less gold and goods for ${days} days.`;
+                return `${spy.name} successfully sabotaged ${kingdomName}! Treasury: -${Utils.formatGold(treasuryDrain)}g. Its settlements produce ${Math.round(penalty * 100)}% less gold and goods for ${days} days.`;
             }
             return `${spy.name} completed sabotage operations against ${kingdomName}.`;
         }
 
         if (isPartial) {
             if (kingdom) {
-                const minorDrain = Math.floor((kingdom.treasury || 0) * 0.03);
-                kingdom.treasury = Math.max(0, (kingdom.treasury || 0) - minorDrain);
-                return `${spy.name} caused minor damage to ${kingdomName}'s supplies. Treasury: -${minorDrain}g.`;
+                const minorDrain = _crownLoss(kingdom, world, Math.floor((kingdom.treasury || 0) * 0.03));
+                return `${spy.name} caused minor damage to ${kingdomName}'s supplies. Treasury: -${Utils.formatGold(minorDrain)}g.`;
             }
         }
 
@@ -662,7 +673,7 @@ Object.assign(Espionage, {
 
                     // Succession crisis penalties
                     kingdom.military = Math.max(0, Math.floor((kingdom.military || 0) * 0.7));
-                    kingdom.treasury = Math.max(0, Math.floor((kingdom.treasury || 0) * 0.8));
+                    _crownLoss(kingdom, world, Math.floor((kingdom.treasury || 0) * 0.2));
 
                     result.rewards.assassination = true;
                     return `${spy.name} successfully assassinated ${oldRulerName} of ${kingdomName}! The kingdom is plunged into a succession crisis. Military: -30%, Treasury: -20%.`;
@@ -726,7 +737,15 @@ Object.assign(Espionage, {
             const eco = settlement.economy;
             const prod = eco && eco.production;
             if (!prod) continue;
-            eco.gold = Math.max(0, (eco.gold || 0) - Math.floor((prod.gold || 0) * sabotage.penalty));
+            // (the coin the wrecked workshops would have earned was never paid them: it stays
+            // with the realm's crown, which pays to put them right — not gone from the world)
+            const lost = Math.min(Math.max(0, eco.gold || 0), Math.floor((prod.gold || 0) * sabotage.penalty));
+            if (lost > 0) {
+                eco.gold = Utils.cents(eco.gold - lost);
+                const k = typeof world.getKingdom === 'function' ? world.getKingdom(sabotage.kingdomId) : null;
+                if (k && k.isAlive !== false) k.treasury = Utils.cents((k.treasury || 0) + lost);
+                else MoneySupply.leak(world, -lost, 'sabotage');
+            }
             eco.goods = Math.max(0, (eco.goods || 0) - Math.floor((prod.goods || 0) * sabotage.penalty));
         }
     },
@@ -737,8 +756,7 @@ Object.assign(Espionage, {
         if (!kingdom || !kingdom.isAlive) return;
 
         // Small daily treasury drain during rebellion
-        const dailyDrain = Math.floor((kingdom.treasury || 0) * 0.005);
-        kingdom.treasury = Math.max(0, (kingdom.treasury || 0) - dailyDrain);
+        _crownLoss(kingdom, world, Math.floor((kingdom.treasury || 0) * 0.005));
         // The unrest keeps the realm unsettled while it lasts
         if (typeof kingdom.stability === 'number') {
             kingdom.stability = Math.max(0, kingdom.stability - (rebellion.unrestPerDay || 0));

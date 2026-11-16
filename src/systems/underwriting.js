@@ -667,7 +667,7 @@ export const Underwriting = {
         const attachDay = day + Math.max(0, Math.round(_num(K.attachDays, 1)));
         st.covers[kind] = { id: `pol${st.nextId++}`, kind, uwId, uwName: uw.name, opened: day, attachDay, paid: 0, claimsPaid: 0, unpaid: 0, lastBilled: null, status: 'open' };
         const q = Underwriting.quote(player, world, kind);
-        return { success: true, cover: st.covers[kind], text: `${uw.name} writes your ${K.name.toLowerCase()} cover from day ${attachDay}. Today it would cost ${q.premium.toFixed(1)}g a day.` };
+        return { success: true, cover: st.covers[kind], text: `${uw.name} writes your ${K.name.toLowerCase()} cover from day ${attachDay}. Today it would cost ${Utils.formatGold(q.premium)}g a day.` };
     },
 
     cancelCover(player, world, kind) {
@@ -701,7 +701,7 @@ export const Underwriting = {
         if (st.claims.length > 60) st.claims.splice(0, st.claims.length - 60);
         st.stats.claims++;
         if (claim.dueDay <= day) Underwriting._settle(player, world, st, claim, out);
-        else if (out && !opts.fraud) out.notices.push({ icon: '🔎', title: 'Claim Under Review', text: `${uw.name} looks into your claim of ${Math.round(amount)}g (${claim.cause}); the assessors report by day ${claim.dueDay}.`, type: 'info' });
+        else if (out && !opts.fraud) out.notices.push({ icon: '🔎', title: 'Claim Under Review', text: `${uw.name} looks into your claim of ${Utils.formatGold(amount)}g (${claim.cause}); the assessors report by day ${claim.dueDay}.`, type: 'info' });
         return claim;
     },
 
@@ -743,7 +743,7 @@ export const Underwriting = {
         const cover = st.covers[claim.kind];
         if (cover && cover.uwId === uw.id) cover.claimsPaid = _r2(_num(cover.claimsPaid) + paid);
         if (!claim.fraud) Underwriting._kindStat(st, claim.kind, 'claims', paid);
-        if (out) out.notices.push({ icon: '🛡️', title: 'Claim Paid', text: `${uw.name} pays your claim: ${Math.round(paid)}g for ${claim.cause}${claim.place ? ` (${claim.place})` : ''}.`, type: 'success' });
+        if (out) out.notices.push({ icon: '🛡️', title: 'Claim Paid', text: `${uw.name} pays your claim: ${Utils.formatGold(paid)}g for ${claim.cause}${claim.place ? ` (${claim.place})` : ''}.`, type: 'success' });
         if (paid >= 1500) Underwriting._record(st, world, { kind: 'great_claim', uwId: uw.id, uw: uw.name, place: uw.seat, kingdomId: uw.kingdomId, amount: Math.round(paid), cause: claim.cause });
     },
 
@@ -766,7 +766,7 @@ export const Underwriting = {
         st.bans[uw.id] = day + _num(F.banDays, 240);
         const cover = st.covers[claim.kind];
         if (cover && cover.uwId === uw.id) delete st.covers[claim.kind];
-        if (out) out.notices.push({ icon: '⚖️', title: 'False Claim Exposed', text: `${uw.name}'s assessors have found your papers forged. No pay, a fine of ${fine}g${short > 0 ? ` (${take}g taken, the rest on your head)` : ''}, your cover cancelled and the office's doors shut to you.`, type: 'error' });
+        if (out) out.notices.push({ icon: '⚖️', title: 'False Claim Exposed', text: `${uw.name}'s assessors have found your papers forged. No pay, a fine of ${Utils.formatGold(fine)}g${short > 0 ? ` (${Utils.formatGold(take)}g taken, the rest on your head)` : ''}, your cover cancelled and the office's doors shut to you.`, type: 'error' });
     },
 
     /**
@@ -793,9 +793,9 @@ export const Underwriting = {
         const cap = Math.floor(Math.min(_num(F.maxAmount, 3000), exposure * _num(F.maxShare, 0.5)));
         const want = Math.floor(_num(amount));
         if (cap < 50) return { success: false, reason: 'You have nothing covered that could plausibly be lost.' };
-        if (want < 50 || want > cap) return { success: false, reason: `The forger will draw papers for 50–${cap}g of loss.` };
+        if (want < 50 || want > cap) return { success: false, reason: `The forger will draw papers for 50–${Utils.formatGold(cap)}g of loss.` };
         const fee = Math.ceil(want * _num(F.forgerFee, 0.2));
-        if (_num(player.gold) < fee) return { success: false, reason: `The forger wants ${fee}g up front.` };
+        if (_num(player.gold) < fee) return { success: false, reason: `The forger wants ${Utils.formatGold(fee)}g up front.` };
         player.gold -= fee;
         Ledger.record(player, 'fraud', -fee);
         Underworld.payGuild(world, world.getTile(player.q, player.r), fee); // (the forger is the guild's)
@@ -803,7 +803,7 @@ export const Underwriting = {
         const roll = _frac(`${_seed(world)}|fraud|${day}|${st.nextId}`);
         const claim = Underwriting._claim(player, world, st, cover, { day, value: want / (1 - _num(C.deductible, 0.1)), cause: 'a loss (forged papers)', place: null }, null, { fraud: true, roll });
         if (claim) claim.cap = cap;
-        return { success: true, fee, claim, text: `The forger takes ${fee}g. Your papers are with ${uw.name}'s assessors until day ${claim ? claim.dueDay : day}.` };
+        return { success: true, fee, claim, text: `The forger takes ${Utils.formatGold(fee)}g. Your papers are with ${uw.name}'s assessors until day ${claim ? claim.dueDay : day}.` };
     },
 
     // ──────────── THE DAILY TICK ────────────
@@ -953,7 +953,7 @@ export const Underwriting = {
             Ledger.record(player, 'insuranceClaims', back);
             cl.paid = back;
             st.stats.recovered = _r2(st.stats.recovered + back);
-            out.notices.push({ icon: '🏚️', title: 'Receivers Pay', text: `The receivers of ${cl.uwName} pay ${back}g of your ${Math.round(cl.amount)}g claim.`, type: 'warning' });
+            out.notices.push({ icon: '🏚️', title: 'Receivers Pay', text: `The receivers of ${cl.uwName} pay ${Utils.formatGold(back)}g of your ${Utils.formatGold(cl.amount)}g claim.`, type: 'warning' });
         }
     },
 
@@ -1006,7 +1006,7 @@ export const Underwriting = {
             if (catastrophe > 0) {
                 Underwriting._record(st, world, { kind: 'catastrophe', uwId: uw.id, uw: uw.name, place: uw.seat, kingdomId: uw.kingdomId, amount: catastrophe });
                 if (Object.values(st.covers).some(c => c.uwId === uw.id)) {
-                    out.notices.push({ icon: '🌊', title: 'Underwriters Hit', text: `A great storm sank a fleet ${uw.name} insured: it pays out ${catastrophe}g.`, type: 'warning' });
+                    out.notices.push({ icon: '🌊', title: 'Underwriters Hit', text: `A great storm sank a fleet ${uw.name} insured: it pays out ${Utils.formatGold(catastrophe)}g.`, type: 'warning' });
                 }
             }
             // A guild's partners draw what it holds past its founding capital and spend it in
@@ -1036,7 +1036,7 @@ export const Underwriting = {
         g.failedDay = _day(world);
         Underwriting._record(st, world, { kind: 'underwriter_failed', uwId: g.id, uw: g.name, place: g.seat, kingdomId: g.kingdomId });
         const mine = Object.values(st.covers).some(c => c.uwId === g.id) || st.claims.some(c => c.uwId === g.id && c.status === 'pending');
-        if (out) out.notices.push({ icon: '🏚️', title: 'Underwriters Fail', text: `${g.name} cannot meet its claims and has shut its doors.${owed > 0 ? ` ${Math.round(owed)}g of claims go unpaid.` : ''}`, type: mine ? 'error' : 'warning' });
+        if (out) out.notices.push({ icon: '🏚️', title: 'Underwriters Fail', text: `${g.name} cannot meet its claims and has shut its doors.${owed > 0 ? ` ${Utils.formatGold(owed)}g of claims go unpaid.` : ''}`, type: mine ? 'error' : 'warning' });
     },
 
     _refound(world, st, day) {

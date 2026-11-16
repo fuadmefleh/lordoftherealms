@@ -12,13 +12,14 @@ import { TradeLines } from '../../player/tradeLines.js';
 import { Ships } from '../../systems/ships.js';
 import { Stewards } from '../../systems/stewards.js';
 import { esc, lede, chips, purse, sectionHead, card, rowList, price, BTN_GOLD } from './uiKit.js';
+import { Utils } from '../../core/utils.js';
 
 const INPUT = 'background:rgba(0,0,0,0.3); color:#ece2c8; border:1px solid rgba(245,197,66,0.2); border-radius:5px; padding:3px 5px; font-size:11px;';
 const MUTED = '#9d937c';
 const OP_ICON = { buy: '🛒', sell: '💰', supply: '📦', load: '⬆️' };
 const STATUS = { running: ['▶', 'good'], paused: ['⏸', 'warn'], lost: ['✖', 'bad'] };
 
-const _g = (n) => `${Math.round(n || 0).toLocaleString('en-US')}g`;
+const _g = (n) => `${Utils.formatGold(n || 0)}g`;
 const _signed = (n) => `${n >= 0 ? '+' : '−'}${_g(Math.abs(n))}`;
 const _val = (id) => {
     const el = typeof document !== 'undefined' ? document.getElementById(id) : null;
@@ -112,7 +113,7 @@ Object.assign(ActionMenu, {
             html += lede(`What the line does at <strong>${esc(stop.name)}</strong>. It sells and delivers first, then loads and buys. Prices move as it trades: each sack bought costs a little more, each sold fetches a little less.`);
             html += rowList(stop.rules.map((r, i) => {
                 const q = TradeLines.quote(player, world, line, stop, r.good);
-                const now = r.op === 'buy' ? (q.buy != null ? `asks ${q.buy}g now` : 'not sold here now') : r.op === 'sell' ? (q.sell != null ? `pays ${q.sell}g now` : 'nobody buys it here') : '';
+                const now = r.op === 'buy' ? (q.buy != null ? `asks ${Utils.formatGold(q.buy)}g now` : 'not sold here now') : r.op === 'sell' ? (q.sell != null ? `pays ${Utils.formatGold(q.sell)}g now` : 'nobody buys it here') : '';
                 return { icon: OP_ICON[r.op], name: esc(TradeLines.describeRule(r)), desc: now, act: 'tradeLinesAct', args: ['dropRule', line.id, stop.id, i], side: 'Strike', tone: 'bad' };
             }), 'Orders here');
             if (!stop.rules.length) html += lede('No orders yet.');

@@ -10,6 +10,7 @@
 import { Companions } from '../systems/companions.js';
 import { Relationships } from '../systems/relationships.js';
 import { PlayerEffects } from '../player/playerEffects.js';
+import { Utils } from '../core/utils.js';
 
 function _esc(s) {
     return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -49,7 +50,7 @@ export const CompanionsPanel = {
                 if (d.bonds.length) {
                     html += `<div style="font-size: 11px; margin-top: 3px; color: #aaa;">Bonds: ${d.bonds.map(b => `${b.kind === 'friends' ? '🤝' : '⚡'} ${_esc(b.name)}`).join(', ')}</div>`;
                 }
-                html += `<div style="font-size: 11px; margin-top: 3px; color: #aaa;">Wage ${d.wage}g/day${d.wageDue ? ` · owed ${d.wageDue}g (paid every ${cfg.payInterval} days)` : ''}</div>`;
+                html += `<div style="font-size: 11px; margin-top: 3px; color: #aaa;">Wage ${Utils.formatGold(d.wage)}g/day${d.wageDue ? ` · owed ${Utils.formatGold(d.wageDue)}g (paid every ${cfg.payInterval} days)` : ''}</div>`;
                 if (d.perk) {
                     html += `<div style="font-size: 11px; margin-top: 3px; color: #fd6;">${d.perk.icon || '💛'} ${_esc(d.perk.name)} — ${_esc(d.perk.text)}</div>`;
                 }
@@ -69,9 +70,9 @@ export const CompanionsPanel = {
                 }
                 html += `<div style="display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px;">`;
                 html += `<button onclick="window._companionAct('talk','${npc.id}')" style="${BTN} background: #355; color: #cde;">💬 Talk</button>`;
-                html += `<button onclick="window._companionAct('gift','${npc.id}')" style="${BTN} background: #553; color: #eed;">🎁 Gift (${cfg.giftCost}g)</button>`;
-                if (d.wageDue > 0) html += `<button onclick="window._companionAct('pay','${npc.id}')" style="${BTN} background: #353; color: #cec;">💰 Pay ${d.wageDue}g</button>`;
-                if (d.gripe && d.gripe.kind === 'raise') html += `<button onclick="window._companionAct('raise','${npc.id}')" style="${BTN} background: #563; color: #efc;">📈 Grant raise (${d.gripe.demand}g/day)</button>`;
+                html += `<button onclick="window._companionAct('gift','${npc.id}')" style="${BTN} background: #553; color: #eed;">🎁 Gift (${Utils.formatGold(cfg.giftCost)}g)</button>`;
+                if (d.wageDue > 0) html += `<button onclick="window._companionAct('pay','${npc.id}')" style="${BTN} background: #353; color: #cec;">💰 Pay ${Utils.formatGold(d.wageDue)}g</button>`;
+                if (d.gripe && d.gripe.kind === 'raise') html += `<button onclick="window._companionAct('raise','${npc.id}')" style="${BTN} background: #563; color: #efc;">📈 Grant raise (${Utils.formatGold(d.gripe.demand)}g/day)</button>`;
                 if (d.quest && d.quest.status === 'offered') html += `<button onclick="window._companionAct('quest','${npc.id}')" style="${BTN} background: #654; color: #fec;">📜 Hear them out</button>`;
                 if (d.quest && d.quest.status === 'active' && d.quest.payable) html += `<button onclick="window._companionAct('contribute','${npc.id}')" style="${BTN} background: #654; color: #fec;">💰 Give 50g to their cause</button>`;
                 html += `<button onclick="window._partyOpenProfile('${npc.id}')" style="${BTN} background: #444; color: #ddd;">Profile</button>`;
@@ -107,7 +108,7 @@ export const CompanionsPanel = {
                     break;
                 case 'pay':
                     r = Companions.payWages(player, npcId, world);
-                    if (r.success) notify('💰 Wages Paid', `${r.npc.firstName} is paid ${r.paid} gold.`, 'success');
+                    if (r.success) notify('💰 Wages Paid', `${r.npc.firstName} is paid ${Utils.formatGold(r.paid)} gold.`, 'success');
                     break;
                 case 'raise':
                     r = Companions.grantRaise(player, npcId, world);
@@ -119,7 +120,7 @@ export const CompanionsPanel = {
                     break;
                 case 'contribute':
                     r = Companions.contribute(player, npcId, 50, world);
-                    if (r.success) notify('💰 Contribution', `You give ${r.paid} gold. ${r.remaining > 0 ? `${r.remaining} to go.` : 'That settles it.'}`, 'success');
+                    if (r.success) notify('💰 Contribution', `You give ${Utils.formatGold(r.paid)} gold. ${r.remaining > 0 ? `${r.remaining} to go.` : 'That settles it.'}`, 'success');
                     break;
                 case 'dismiss':
                     r = Companions.dismiss(player, npcId, world);

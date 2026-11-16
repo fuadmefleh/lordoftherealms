@@ -52,6 +52,7 @@ import { InnerMapReactions } from './innerMapReactions.js';
 import { InnerMapCarry } from './innerMapCarry.js';
 import { InnerMapCharacters } from './innerMapCharacters.js';
 import { InnerMapRenderer } from './innerMapRenderer.js';
+import { Utils } from '../core/utils.js';
 
 const DIRS4 = [[0, 1], [1, 0], [-1, 0], [0, -1]];
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
@@ -1125,7 +1126,7 @@ export const InnerMapBrawls = {
         this._settleBet(F, game);
         this._coolUntil = this._clock + _span(C.onMap.cooldown, this._roll(game, fight.key, 'cool'));
         if (F.seen && res && how !== 'backDown') {
-            const extra = [res.arrested ? `The watch takes ${inst.name}${res.fine ? ` (fined ${res.fine} gold)` : ''}.` : '', res.barred ? `${inst.name} is barred from the tavern.` : ''].filter(Boolean).join(' ');
+            const extra = [res.arrested ? `The watch takes ${inst.name}${res.fine ? ` (fined ${Utils.formatGold(res.fine)} gold)` : ''}.` : '', res.barred ? `${inst.name} is barred from the tavern.` : ''].filter(Boolean).join(' ');
             _note(game, '💢 A Brawl', `${res.line}${extra ? ` ${extra}` : ''}`, 'info');
         }
     },
@@ -1245,7 +1246,7 @@ export const InnerMapBrawls = {
                 const o = Brawls.odds(fight, side);
                 const label = `Bet ${stake} gold on ${names[side]} (${o.odds}×)`;
                 if (!law.legal) out.push({ type: 'disabled', label: `🎲 ${label}`, desc: `${String(law.why || 'Gaming is forbidden here.').replace(/\.*$/, '.')} ${bookie.name} won't take it in the open.` });
-                else if (short) out.push({ type: 'disabled', label: `🎲 ${label}`, desc: `Your purse is too light (${stake} gold)` });
+                else if (short) out.push({ type: 'disabled', label: `🎲 ${label}`, desc: `Your purse is too light (${Utils.formatGold(stake)} gold)` });
                 else out.push({ type: 'action', action: 'brawl_bet', label, icon: '🎲', desc: `${bookie.name} takes the bet`, npc: side ? B : A, side, stake });
             }
         }
@@ -1346,13 +1347,13 @@ export const InnerMapBrawls = {
             if (bookie && bookie._person) bookie._person.purse = purse - back;
             game.player.gold += back;
             Ledger.record(game.player, 'gambling', back);
-            _note(game, '🎲 No winner', `No one won it; ${bookie ? bookie.name : 'the bookie'} hands back ${back} gold.`, 'info');
+            _note(game, '🎲 No winner', `No one won it; ${bookie ? bookie.name : 'the bookie'} hands back ${Utils.formatGold(back)} gold.`, 'info');
         } else if (r.won) {
             const paid = Math.min(r.payout, purse);
             if (bookie && bookie._person) bookie._person.purse = purse - paid;
             game.player.gold += paid;
             Ledger.record(game.player, 'gambling', paid);
-            _note(game, '🎲 You win the bet', paid < r.payout ? `${bookie.name} can only pay ${paid} of the ${r.payout} gold owed.` : `${bookie ? bookie.name : 'The bookie'} pays out ${paid} gold.`, 'success');
+            _note(game, '🎲 You win the bet', paid < r.payout ? `${bookie.name} can only pay ${paid} of the ${r.payout} gold owed.` : `${bookie ? bookie.name : 'The bookie'} pays out ${Utils.formatGold(paid)} gold.`, 'success');
             if (paid < r.payout && bookie) NpcDisposition.adjustDisposition(bookie, -5, game.player);
         } else {
             _note(game, '🎲 You lose the bet', `Your ${bet.stake} gold stays with ${bookie ? bookie.name : 'the bookie'}.`, 'warning');

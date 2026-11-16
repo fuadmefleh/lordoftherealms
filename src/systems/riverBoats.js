@@ -25,6 +25,7 @@ import { PlayerInventory } from '../core/inventory.js';
 import { RiverDrift } from './riverDrift.js';
 import { Ledger } from './ledger.js';
 import { RiverLife } from './riverLife.js';
+import { Utils } from '../core/utils.js';
 
 const DEFAULTS = {
     enabled: true,
@@ -183,7 +184,7 @@ export const RiverBoats = {
         return this.kinds().map(k => {
             let reason = null;
             if (k.minTown && rank < this._rank(k.minTown)) reason = `Only a ${k.minTown} or larger builds a ${k.name.toLowerCase()}.`;
-            else if (_num(player && player.gold) < k.price) reason = `You need ${k.price}g.`;
+            else if (_num(player && player.gold) < k.price) reason = `You need ${Utils.formatGold(k.price)}g.`;
             return { ...k, ok: !reason, reason };
         });
     },
@@ -208,7 +209,7 @@ export const RiverBoats = {
         // (the old boat is taken in part-payment, at what the boatwright would pay for it)
         const credit = old ? Math.min(this.saleValue(world, player, q, r), offer.price) : 0;
         const net = offer.price - credit;
-        if (_num(player.gold) < net) return { ok: false, reason: `You need ${net}g${credit ? ` with your old boat traded in` : ''}.` };
+        if (_num(player.gold) < net) return { ok: false, reason: `You need ${Utils.formatGold(net)}g${credit ? ` with your old boat traded in` : ''}.` };
         const t = this._tile(world, q, r);
         const purse = this._purse(t.settlement);
         if (credit > 0) purse.gold -= credit;

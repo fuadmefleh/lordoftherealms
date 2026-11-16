@@ -7,6 +7,7 @@ import { PracticeSkills } from '../../systems/practiceSkills.js';
 import { Grades } from '../../core/grades.js';
 import { MarketGrades } from '../../world/marketGrades.js';
 import { BTN_GOLD, BTN_PLAIN, BTN_DIM, lede, chips, purse, actRow, rowList, price } from './uiKit.js';
+import { Utils } from '../../core/utils.js';
 
 const NOTE = 'font-size: 11px; color: #9d937c;';
 // Small buttons for a row's side column (the row itself is then not a button)
@@ -104,7 +105,7 @@ Object.assign(ActionMenu, {
                         icon: `×${n}`, name: `${n} run${n > 1 ? 's' : ''} → you get ${goods(qf.give)}`,
                         desc: `${n === 1 ? `each: ${goods(o.in)} → ${goods(o.out)} · ` : ''}${qf.days > 0 ? `${qf.days + 1} days` : 'today'}${n === 1 ? master : ''}${gradeNote(qf.grades)}`,
                         note: `their cut instead: you get ${goods(qc.give) || 'nothing'}`,
-                        side: act(`💰 ${qf.fee}g`, ['hire', o.id, n, 'fee'], BTN_GOLD, (player.gold || 0) >= qf.fee, `Not enough gold (${qf.fee}g).`)
+                        side: act(`💰 ${Utils.formatGold(qf.fee)}g`, ['hire', o.id, n, 'fee'], BTN_GOLD, (player.gold || 0) >= qf.fee, `Not enough gold (${Utils.formatGold(qf.fee)}g).`)
                             + act('✂️ Their cut', ['hire', o.id, n, 'cut'], BTN_PLAIN, cutOk, 'Too little: bring more.'),
                     }));
                 }

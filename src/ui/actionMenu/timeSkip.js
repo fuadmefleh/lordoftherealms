@@ -14,6 +14,7 @@ import { Seasons } from '../../world/seasons.js';
 import { StandingOrders } from '../../player/standingOrders.js';
 import { showMorningBrief } from './counsel.js';
 import { esc, lede, chips, rowList, card, price, sectionHead, more, BTN_GOLD, BTN_PLAIN } from './uiKit.js';
+import { Utils } from '../../core/utils.js';
 
 const BAR_ID = 'timeSkipBar';
 
@@ -88,7 +89,7 @@ function _ordersDigest(skip) {
     const o = skip && skip.orders;
     if (!o || !(o.ran + o.rested)) return '';
     const gold = Math.round(o.gold || 0);
-    const head = `${_plural(o.ran, 'day')} carried out${o.rested ? `, ${_plural(o.rested, 'day')} rested` : ''}${gold ? ` · ${gold > 0 ? '+' : ''}${gold}g` : ''}`;
+    const head = `${_plural(o.ran, 'day')} carried out${o.rested ? `, ${_plural(o.rested, 'day')} rested` : ''}${gold ? ` · ${gold > 0 ? '+' : ''}${Utils.formatGold(gold)}g` : ''}`;
     const rows = o.lines.slice(0, 12).map(l => ({
         icon: esc(l.icon || ''), name: esc(l.text) + (l.count > 1 ? ` <span style="color:var(--text-secondary);">×${l.count}</span>` : ''),
         tone: l.ran ? '' : 'warn',
@@ -260,9 +261,9 @@ Object.assign(ActionMenu, {
         html += lede(`${_plural(skip.done, 'day')} went by — ${_dateOf(game.world, skip.startDay)} to ${_dateOf(game.world, skip.endDay)}.`);
         html += chips([
             ['📅', 'Days', `${skip.done} / ${skip.total}`],
-            ['💰', 'Purse', `${gold >= 0 ? '+' : ''}${gold.toLocaleString('en-US')}g`, gold < 0 ? 'bad' : 'good'],
+            ['💰', 'Purse', `${gold >= 0 ? '+' : ''}${Utils.formatGold(gold)}g`, gold < 0 ? 'bad' : 'good'],
             ['❤️', 'Health', `${hp >= 0 ? '+' : ''}${hp}`, hp < 0 ? 'bad' : ''],
-            ...(skip.nights ? [['🛏️', 'Beds', `${skip.nights} nights · ${skip.lodgingPaid}g`]] : []),
+            ...(skip.nights ? [['🛏️', 'Beds', `${skip.nights} nights · ${Utils.formatGold(skip.lodgingPaid)}g`]] : []),
         ]);
         if (d.stoppedBy) {
             html += card(`<div>${esc(d.stoppedBy.reason)}</div>`, { title: 'The wait was cut short', icon: esc(d.stoppedBy.icon || '⚠️'), tone: 'warn' });

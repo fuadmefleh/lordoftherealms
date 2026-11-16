@@ -622,7 +622,7 @@ export const TownJobs = {
         if (!T) return { ok: false, text: 'There is no such work to offer.' };
         if (T.refuse) return { ok: false, text: T.refuse };
         const day = _num(world.day, 1);
-        if (_num(player.gold) < T.wage) return { ok: false, text: `You can't pay the first week's ${T.wage} gold.` };
+        if (_num(player.gold) < T.wage) return { ok: false, text: `You can't pay the first week's ${Utils.formatGold(T.wage)} gold.` };
         const u = _roll(_seedOf(world), folk.q, folk.r, p.id, day, kind, 'offer');
         if (u >= T.chance) {
             p.job.asked = day;
@@ -729,7 +729,7 @@ export const TownJobs = {
         const boss = j.master != null ? Townsfolk.get(folk, j.master) : null;
         const vars = { place: ctx.place || 'tavern', town: ctx.town || 'this town', years, master: boss ? Townsfolk.name(boss) : 'my master', since: Townsfolk.when(_num(j.since, day), world).replace(/^in /, ''), trade: o.name };
         const parts = [];
-        if (j.employer === 'player') parts.push(_fill(L.playerServant, { wage: `${_num(j.wage)} gold` }));
+        if (j.employer === 'player') parts.push(_fill(L.playerServant, { wage: `${Utils.formatGold(_num(j.wage))} gold` }));
         else if (j.rank === 'apprentice') parts.push(_fill(L.apprentice, { ...vars, left: _pick(_arr(L.apprenticeLeft), u) || '' }));
         else {
             let line = _fill(_pick(_arr(o.say), u) || `I'm ${_article(o.name)}.`, { ...vars, years: '' }).trim();

@@ -12,6 +12,7 @@ import { MarketFairs } from '../../systems/marketFairs.js';
 import { SettlementMarket } from '../../world/settlementMarket.js';
 import { TownLabour } from '../../world/townLabour.js';
 import { BTN_GOLD, BTN_PLAIN, BTN_DIM, BTN_RED, panelTabs, lede, chips, purse, more, actRow, rowList, price } from './uiKit.js';
+import { Utils } from '../../core/utils.js';
 
 const NOTE = 'font-size: 11px; color: #9d937c;';
 const GOOD = '#8fd18a';
@@ -26,7 +27,7 @@ function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 const pct = (v) => `${Math.round(v * 100)}%`;
-const g = (n) => `${Math.round(n).toLocaleString()}g`;
+const g = (n) => `${Utils.formatGold(n)}g`;
 const gname = (id) => esc(MerchantPrince.goodName(id));
 
 /** A button routed to ActionMenu.merchantPrinceAct(game, ...args). */
@@ -65,14 +66,14 @@ function investTab(game, tile) {
         const m = MerchantPrince.runMargin(s, id);
         const owner = w && w.owner !== 'player' ? ` (${w.owner === 'crown' ? 'the crown\'s' : 'the town\'s'})` : '';
         const level = w ? ` <span style="font-weight:400; color:#9d937c;">· level ${w.lvl}${owner} · repair ${pct(w.cond)}</span>` : '';
-        const margin = `${goodsList(m.ins)} → ${goodsList(m.outs)} · a run adds <b style="color:${m.perRun > 0 ? GOOD : BAD};">${m.perRun.toFixed(1)}g</b> today`;
+        const margin = `${goodsList(m.ins)} → ${goodsList(m.outs)} · a run adds <b style="color:${m.perRun > 0 ? GOOD : BAD};">${Utils.formatGold(m.perRun)}g</b> today`;
         const notes = [`${Object.keys(m.ins).map(x => stockLine(s, x)).join(' · ')} → ${Object.keys(m.outs).map(x => stockLine(s, x)).join(' · ')}`];
-        if (w && w.owner === 'player') notes.push(`Last market day: ${w.runs} runs${w.took > 0 ? ` (${w.took} of the town's trade)` : ''}, ${Math.round(w.va)}g added`);
+        if (w && w.owner === 'player') notes.push(`Last market day: ${w.runs} runs${w.took > 0 ? ` (${w.took} of the town's trade)` : ''}, ${Utils.formatGold(w.va)}g added`);
         if (q.lvl) {
             const hands = TownLabour.worksHands(id, 1);
             const lab = s.labour;
             const wage = lab && lab.wage ? lab.wage.craft : TownLabour.baseWage(s.type, 'craft');
-            notes.push(`+${q.runs} runs a day · your share ${pct(q.share)}${q.tithe > 0 ? ` (the crown takes ${pct(q.tithe)} of it)` : ''}${hands > 0 ? ` · hires ${hands} hands at ${wage.toFixed(2)}g a day${lab && lab.fill && lab.fill.craft < 0.95 ? ` (artisans scarce: ${pct(lab.fill.craft)} of places filled)` : ''}` : ''}`);
+            notes.push(`+${q.runs} runs a day · your share ${pct(q.share)}${q.tithe > 0 ? ` (the crown takes ${pct(q.tithe)} of it)` : ''}${hands > 0 ? ` · hires ${hands} hands at ${Utils.formatGold(wage)}g a day${lab && lab.fill && lab.fill.craft < 0.95 ? ` (artisans scarce: ${pct(lab.fill.craft)} of places filled)` : ''}` : ''}`);
             const mats = Object.keys(q.materials).length ? ` + ${goodsList(q.materials)}` : '';
             rows.push({
                 icon: def.icon || '🏭', name: `${w ? `Extend the ${esc(def.name.toLowerCase())} to level ${q.lvl}` : `Build a ${esc(def.name.toLowerCase())}`}${level}`,
@@ -98,8 +99,8 @@ function warehouseTab(game, tile) {
     const sizes = MerchantPrince.sizes();
     if (!w) {
         html += rowList(Object.entries(sizes).map(([id, sz]) => ({
-            icon: '📦', name: `Rent a ${esc(sz.name.toLowerCase())}`, desc: `${sz.units} units · ${sz.rent}g a week`,
-            act: 'merchantPrinceAct', args: ['rent', id], off: player.gold < sz.keyFee, why: `${sz.units} units · ${sz.rent}g a week · the key costs ${sz.keyFee}g`,
+            icon: '📦', name: `Rent a ${esc(sz.name.toLowerCase())}`, desc: `${sz.units} units · ${Utils.formatGold(sz.rent)}g a week`,
+            act: 'merchantPrinceAct', args: ['rent', id], off: player.gold < sz.keyFee, why: `${sz.units} units · ${Utils.formatGold(sz.rent)}g a week · the key costs ${Utils.formatGold(sz.keyFee)}g`,
             side: price(sz.keyFee, player.gold >= sz.keyFee), tone: 'gold',
         })), `Store-rooms in ${esc(s.name)}`);
     } else {
@@ -107,8 +108,8 @@ function warehouseTab(game, tile) {
         const theft = MerchantPrince.theftChance(player, world, w);
         html += chips([
             ['📦', esc(sz.name || 'Store-room'), `${Math.floor(MerchantPrince.used(w))}/${MerchantPrince.capacity(w)} units`],
-            ['🗝️', 'Rent', `${sz.rent}g, due day ${w.nextRent}`],
-            w.arrears > 0 ? { icon: '⚠️', label: 'Owed', value: `<span style="color:${BAD};">${w.arrears}g</span>` } : null,
+            ['🗝️', 'Rent', `${Utils.formatGold(sz.rent)}g, due day ${w.nextRent}`],
+            w.arrears > 0 ? { icon: '⚠️', label: 'Owed', value: `<span style="color:${BAD};">${Utils.formatGold(w.arrears)}g</span>` } : null,
             ['🦹', 'Theft risk', `${pct(theft)} a week`],
         ]);
         const stored = Object.entries(w.goods).map(([id, qty]) => {
@@ -117,7 +118,7 @@ function warehouseTab(game, tile) {
             const rate = MerchantPrince.spoilRate(id);
             return actRow({
                 icon: '📦', name: `${gname(id)} × ${n}`,
-                desc: `sells here at ${unit}g${rate > 0 ? ` · spoils ${(rate * 700).toFixed(1)}% a week` : ''}`,
+                desc: `sells here at ${Utils.formatGold(unit)}g${rate > 0 ? ` · spoils ${(rate * 700).toFixed(1)}% a week` : ''}`,
                 side: sideBtn('Sell 10', ['sell', w.id, id, 10], n >= 1) + sideBtn('Sell all', ['sell', w.id, id, n], n >= 1) + sideBtn('To packs', ['withdraw', w.id, id, n], n >= 1),
             });
         });
@@ -137,7 +138,7 @@ function warehouseTab(game, tile) {
             why: room ? 'Your purse is short' : 'The store-room is full', side: price(e.price, player.gold >= e.price),
         })), 'Buy from the stalls into store');
         const lease = Object.entries(sizes).filter(([id]) => id !== w.size).map(([id, sz2]) => ({
-            icon: '↔️', name: `Move to a ${esc(sz2.name.toLowerCase())}`, desc: `${sz2.units} units · ${sz2.rent}g a week`, act: 'merchantPrinceAct', args: ['rent', id], side: '›',
+            icon: '↔️', name: `Move to a ${esc(sz2.name.toLowerCase())}`, desc: `${sz2.units} units · ${Utils.formatGold(sz2.rent)}g a week`, act: 'merchantPrinceAct', args: ['rent', id], side: '›',
         }));
         lease.push({ icon: '🚪', name: 'Give up the lease', desc: 'Hand back the key', act: 'merchantPrinceAct', args: ['close', w.id], off: MerchantPrince.used(w) >= 1, why: 'Empty the store-room first', tone: 'bad', side: '›' });
         html += rowList(lease, 'The lease');
@@ -169,7 +170,7 @@ function contractsTab(game, tile) {
         const can = MerchantPrince.deliverable(player, world, f);
         const due = f.dueDay - (world.day || 0);
         return actRow({
-            icon: '📜', name: `${f.qty} ${gname(f.good)} to ${esc(f.town)} at ${f.unitPrice}g`,
+            icon: '📜', name: `${f.qty} ${gname(f.good)} to ${esc(f.town)} at ${Utils.formatGold(f.unitPrice)}g`,
             desc: `delivered ${f.delivered} · <span style="color:${due <= 3 ? BAD : 'inherit'};">due day ${f.dueDay} (${due} days)</span>`,
             side: sideBtn(`From packs (${Math.min(left, can.inventory)})`, ['deliver', f.id, left, 'inventory'], can.inventory > 0, '', BTN_GOLD)
                 + sideBtn(`From store (${Math.min(left, can.warehouse)})`, ['deliver', f.id, left, 'warehouse'], can.warehouse > 0, '', BTN_GOLD),
@@ -188,7 +189,7 @@ function contractsTab(game, tile) {
     }
     offers.sort((a, b) => b.scarcity - a.scarcity);
     html += rowList(offers.slice(0, 10).map(({ id, q }) => actRow({
-        icon: '🤝', name: `${q.qty} ${gname(id)} at <b>${q.unitPrice}g</b> <span style="font-weight:400; color:#9d937c;">(now ${q.spot}g)</span>`,
+        icon: '🤝', name: `${q.qty} ${gname(id)} at <b>${Utils.formatGold(q.unitPrice)}g</b> <span style="font-weight:400; color:#9d937c;">(now ${Utils.formatGold(q.spot)}g)</span>`,
         desc: stockLine(s, id),
         side: [20, 30, 45].map(d => sideBtn(`${d} days`, ['sign', id, q.qty, d], open, open ? '' : `You hold ${F.maxOpen} contracts already`)).join(''),
     })), `What ${esc(s.name)} will contract for`);
@@ -213,7 +214,7 @@ function holdingsTab(game) {
         return actRow({
             icon: (x.def && x.def.icon) || '🏭', name: `${esc((x.def && x.def.name) || x.inv.recipe)} in ${esc(x.inv.town)}`,
             desc: `level ${w.lvl || 0} · repair ${pct(w.cond == null ? 1 : w.cond)} · put in ${g(x.inv.invested)}, earned ${g(x.inv.earned)} (last ${g(x.inv.lastPay || 0)}${x.inv.lastWages ? ` after ${g(x.inv.lastWages)} wages` : ''})`,
-            side: sideBtn(`Repair ${x.repairCost}g`, ['repair', x.inv.id], x.repairCost > 0 && player.gold >= x.repairCost) + sideBtn('Sell stake', ['sellStake', x.inv.id], true, '', BTN_RED),
+            side: sideBtn(`Repair ${Utils.formatGold(x.repairCost)}g`, ['repair', x.inv.id], x.repairCost > 0 && player.gold >= x.repairCost) + sideBtn('Sell stake', ['sellStake', x.inv.id], true, '', BTN_RED),
         });
     }), 'Your works');
     if (!invs.length) html += `<div style="${NOTE}">None yet. Fund a mill, bakehouse or brewhouse from a town's 🏭 Invest tab.</div>`;
@@ -275,7 +276,7 @@ Object.assign(ActionMenu, {
         }
         if (res) {
             const text = res.success
-                ? (res.earned != null ? `Done: +${res.earned} gold.` : res.spent != null ? `Done: −${res.spent} gold.` : res.gold != null ? `Done: +${res.gold} gold.` : 'Done.')
+                ? (res.earned != null ? `Done: +${Utils.formatGold(res.earned)} gold.` : res.spent != null ? `Done: −${Utils.formatGold(res.spent)} gold.` : res.gold != null ? `Done: +${Utils.formatGold(res.gold)} gold.` : 'Done.')
                 : (res.reason || 'Not possible.');
             game.ui.showNotification('🏭 Merchant Prince', text, res.success ? 'success' : 'error');
             game.ui.updateStats(player, world);

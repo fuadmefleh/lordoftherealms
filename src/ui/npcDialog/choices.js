@@ -22,6 +22,7 @@ import { SocialSkills } from '../../systems/socialSkills.js';
 import { IllnessPlayer } from '../../systems/illnessPlayer.js';
 import { NpcMemory } from '../../systems/npcMemory.js';
 import { Hearsay } from '../../systems/hearsay.js';
+import { Utils } from '../../core/utils.js';
 
 /** The questions a disliked player can be refused, by rebuff topic. */
 const ASK_TOPICS = {
@@ -361,11 +362,11 @@ export function _handleChoice(action) {
                 // (a threat is talked of about town, and beyond: systems/hearsay.js)
                 const twt = InnerMap.currentWorldTile || {};
                 if (game?.player && twt.q != null) Hearsay.noteThreat(game.player, game.world, threatNpc, `${twt.q},${twt.r}`);
-                if (outcome.gold > 0) responseText += ` *hands over ${outcome.gold} gold*`;
+                if (outcome.gold > 0) responseText += ` *hands over ${Utils.formatGold(outcome.gold)} gold*`;
                 if (game?.ui?.showNotification) {
                     setTimeout(() => {
                         if (outcome.gold > 0) {
-                            game.ui.showNotification('💪 Intimidation', `${threatNpc.name} hands over ${outcome.gold} gold. They'll fear you — and charge you more.`, 'success');
+                            game.ui.showNotification('💪 Intimidation', `${threatNpc.name} hands over ${Utils.formatGold(outcome.gold)} gold. They'll fear you — and charge you more.`, 'success');
                             if (game.ui.updateStats) game.ui.updateStats(game.player, game.world);
                         } else if (success) {
                             game.ui.showNotification('💪 Intimidation', `${threatNpc.name} cowers${outcome.alreadyExtorted ? ', but has nothing left to give' : ''}.`, 'info');
@@ -401,7 +402,7 @@ export function _handleChoice(action) {
                         player: game?.player, world: game?.world, kingdom: _getKingdom(),
                     });
                     responseText = `*leans close and whispers* ${secret.text}`;
-                    const rewardText = secret.kind === 'cache' ? `+${secret.gold} gold`
+                    const rewardText = secret.kind === 'cache' ? `+${Utils.formatGold(secret.gold)} gold`
                         : secret.kind === 'map' ? `${secret.tilesRevealed} map tiles revealed`
                         : secret.kind === 'treasure' ? 'Treasure map added to your collection'
                         : secret.kind === 'discount' ? `${Math.round(secret.discount * 100)}% off with ${dialogState._npc.name} from now on`
@@ -732,9 +733,9 @@ export function _showGiftSubmenu() {
     for (const amount of [5, 25, 100]) {
         if (playerGold < amount) continue;
         choices.push({
-            icon: '💰', label: `${amount} gold`, group: 'gift', cls: 'npc-dialog-gift',
+            icon: '💰', label: `${Utils.formatGold(amount)} gold`, group: 'gift', cls: 'npc-dialog-gift',
             extra: `<span class="npc-dialog-coin-stack" style="--n:${amount >= 100 ? 3 : amount >= 25 ? 2 : 1}"></span>`,
-            tooltip: `Warms them ${warmth[amount]}${npcType === 'beggar' ? ' — and twice as much for one so poor' : ''}. You have ${playerGold} gold.`,
+            tooltip: `Warms them ${warmth[amount]}${npcType === 'beggar' ? ' — and twice as much for one so poor' : ''}. You have ${Utils.formatGold(playerGold)} gold.`,
             onPick: () => _giveGoldGift(amount),
         });
     }
@@ -808,7 +809,7 @@ export function _giveGoldGift(amount) {
     let responseText = responses[npcType] || 'Thank you for your generosity!';
     if (giftResult.forgiven) responseText += ' ...Very well. I suppose I can put your threats behind us.';
 
-    dialogState._lines.push({ speaker: 'You', text: `*gives ${amount} gold*`, isNpc: false, _action: 'give_gift' });
+    dialogState._lines.push({ speaker: 'You', text: `*gives ${Utils.formatGold(amount)} gold*`, isNpc: false, _action: 'give_gift' });
     dialogState._lines.push({ speaker: dialogState._npc.name, icon: dialogState._npc.icon, text: responseText, isNpc: true, _action: 'give_gift' });
     dialogState._lineIndex = dialogState._lines.length - 1;
 

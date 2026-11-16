@@ -277,7 +277,7 @@ Object.assign(UI.prototype, {
                 <div class="info-section-title">Economy</div>
                 <div class="info-row economic-row" data-ui-act="showEconomicBreakdown" data-ui-args='["${q},${r}"]' style="cursor:pointer; transition: background 0.2s; border-radius: 4px; padding: 4px;" title="Click for economic breakdown">
                     <span class="info-label">💰 Gold Production</span>
-                    <span class="info-value">+${econ.production.gold}/day <i style="font-size:10px; opacity:0.6;">(details)</i></span>
+                    <span class="info-value">+${Utils.formatGold(econ.production.gold)}/day <i style="font-size:10px; opacity:0.6;">(details)</i></span>
                 </div>
                 <div class="info-row economic-row" data-ui-act="showEconomicBreakdown" data-ui-args='["${q},${r}"]' style="cursor:pointer; transition: background 0.2s; border-radius: 4px; padding: 4px;" title="Click for economic breakdown">
                     <span class="info-label">🌾 Food Production</span>
@@ -335,7 +335,7 @@ Object.assign(UI.prototype, {
             const building = PlayerReligion.ensureBuildingStats(tile.religiousBuilding);
             const extraYields = [
                 building.karmaBonus ? `+${building.karmaBonus} karma/day` : '',
-                building.incomeBonus ? `+${Math.floor(building.incomeBonus * 0.1 * (building.level || 1) * (1 + Math.min(2, (building.followers || 0) / 500)))} gold/day` : '',
+                building.incomeBonus ? `+${Utils.formatGold(building.incomeBonus * 0.1 * (building.level || 1) * (1 + Math.min(2, (building.followers || 0) / 500)))} gold/day` : '',
                 building.renownPerDay ? `+${building.renownPerDay * (building.level || 1)} renown/day` : '',
                 building.scholarshipBonus ? `+${building.scholarshipBonus * 2 * (building.level || 1)}% research` : '',
             ].filter(Boolean).join(', ');
@@ -404,8 +404,8 @@ Object.assign(UI.prototype, {
                     <span class="info-value">+${building.scholarshipBonus}</span>
                 </div>
                 ${building.researchBonus ? `<div class="info-row"><span class="info-label">Research Bonus</span><span class="info-value">+${Math.round(building.researchBonus * Culture.levelMultiplier(building) * 100)}%</span></div>` : ''}
-                ${building.incomeBonus ? `<div class="info-row"><span class="info-label">Income</span><span class="info-value">+${Math.round(Culture.dailyIncome(building) * 10) / 10} gold/day</span></div>` : ''}
-                ${building.owner === 'player' && Culture.getUpgradeCost(building) !== null ? `<div class="info-row"><span class="info-label">Upgrade</span><span class="info-value">${Culture.getUpgradeCost(building)} gold (stand here → Upgrade)</span></div>` : ''}
+                ${building.incomeBonus ? `<div class="info-row"><span class="info-label">Income</span><span class="info-value">+${Utils.formatGold(Math.round(Culture.dailyIncome(building) * 10) / 10)} gold/day</span></div>` : ''}
+                ${building.owner === 'player' && Culture.getUpgradeCost(building) !== null ? `<div class="info-row"><span class="info-label">Upgrade</span><span class="info-value">${Utils.formatGold(Culture.getUpgradeCost(building))} gold (stand here → Upgrade)</span></div>` : ''}
             `;
         }
 
@@ -531,7 +531,7 @@ Object.assign(UI.prototype, {
                         ${invStr}
                         ${originStr}
                         ${destStr}
-                        ${unit.tradeCaravan ? `<div style="font-size:11px; color:#e8c070; margin-left:22px;">${(unit.house && unit.house.icon) || '⚖️'} ${(unit.house && unit.house.name) || 'Free traders'} · cargo worth ~${unit.value || 0}g${unit.tollsPaid ? ` · ${unit.tollsPaid}g in tolls` : ''}${unit.escort && unit.escort.by === 'player' ? ' · 🛡️ under your guard' : ''}</div>` : ''}
+                        ${unit.tradeCaravan ? `<div style="font-size:11px; color:#e8c070; margin-left:22px;">${(unit.house && unit.house.icon) || '⚖️'} ${(unit.house && unit.house.name) || 'Free traders'} · cargo worth ~${Utils.formatGold(unit.value || 0)}g${unit.tollsPaid ? ` · ${Utils.formatGold(unit.tollsPaid)}g in tolls` : ''}${unit.escort && unit.escort.by === 'player' ? ' · 🛡️ under your guard' : ''}</div>` : ''}
                         ${unit.type === 'road_patrol' ? `<div style="font-size:11px; color:#66ccff; margin-left:22px;">💂 Riding the road until day ${unit.untilDay}</div>` : ''}
                     </div>
                 `;
@@ -835,7 +835,7 @@ Object.assign(UI.prototype, {
             <div class="info-section-title">Common Output</div>
             <div class="info-row" style="padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
                 <span class="info-label">💰 Base Gold</span>
-                <span class="info-value" style="color:#f1c40f; font-weight:600;">+${breakdown.gold}/day</span>
+                <span class="info-value" style="color:#f1c40f; font-weight:600;">+${Utils.formatGold(breakdown.gold)}/day</span>
             </div>
             <div class="info-row" style="padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
                 <span class="info-label">🌾 Total Food</span>

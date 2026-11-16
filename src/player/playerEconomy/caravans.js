@@ -135,7 +135,7 @@ Object.assign(PlayerEconomy, {
         // Use regular caravan logic but don't deduct from inventory, deduct from storage
         const cost = 200;
         if (player.gold < cost) {
-            return { success: false, reason: `Need ${cost} gold` };
+            return { success: false, reason: `Need ${Utils.formatGold(cost)} gold` };
         }
 
         const dist = Hex.wrappingDistance(
@@ -288,7 +288,7 @@ Object.assign(PlayerEconomy, {
 
         const cost = Math.floor(PlayerEconomy.PROPERTY_TYPES[property.type.toUpperCase()].cost * 0.5 * (property.level + 1));
 
-        if (player.gold < cost) return { success: false, reason: `Need ${cost} gold` };
+        if (player.gold < cost) return { success: false, reason: `Need ${Utils.formatGold(cost)} gold` };
 
         // (the builders are the property's town's)
         PlayerCoin.pay(world, player, cost, PlayerEconomy.propertyTown(world, tile, property) || { q: tile.q, r: tile.r }, 'worksBought');
@@ -686,7 +686,7 @@ Object.assign(PlayerEconomy, {
         if (!wharf) return { success: false, reason: 'Not a fishing wharf' };
 
         const cost = 50;
-        if (player.gold < cost) return { success: false, reason: `Need ${cost} gold` };
+        if (player.gold < cost) return { success: false, reason: `Need ${Utils.formatGold(cost)} gold` };
 
         // Limit boats per wharf
         const activeBoats = world.units.filter(u =>

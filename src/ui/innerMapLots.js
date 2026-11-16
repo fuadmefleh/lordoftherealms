@@ -13,6 +13,7 @@ import { InnerMap } from '../world/innerMap.js';
 import { LotBook } from '../world/lotBook.js';
 import { Lots } from '../systems/lots.js';
 import { ActionMenu } from './actionMenu.js';
+import { Utils } from '../core/utils.js';
 
 function _settlement(game) {
     const wt = game && game.world && game.player ? game.world.getTile(game.player.q, game.player.r) : null;
@@ -37,7 +38,7 @@ export const InnerMapLots = {
         const { lot, rec, price, mine } = at;
         if (!rec) {
             items.push({ type: 'header', label: `📜 Building Lot — ${lot.w}×${lot.h}` });
-            items.push({ type: 'action', action: 'lot_buy', label: `Buy this Lot (${price}g)`, icon: '💰', desc: 'Yours to build on, within its stakes', lot });
+            items.push({ type: 'action', action: 'lot_buy', label: `Buy this Lot (${Utils.formatGold(price)}g)`, icon: '💰', desc: 'Yours to build on, within its stakes', lot });
             return items;
         }
         if (mine) {
@@ -51,7 +52,7 @@ export const InnerMapLots = {
                 items.push({ type: 'disabled', label: `🏠 ${b.kind === 'house' ? 'Your house to let' : (b.name || 'Your building')} ${going ? 'is going up' : 'stands here'}${tenant}` });
             } else {
                 items.push({ type: 'action', action: 'lot_build', label: 'Build on this Lot', icon: '🏗️', desc: 'A farm, workshop, shop, tavern... within the lot', lot });
-                items.push({ type: 'action', action: 'lot_house', label: `Build a House to Let (${LotBook.houseCost(s.type)}g)`, icon: '🏠', desc: `Stands in ${LotBook.houseDays(s.type)} days; a tenant pays you rent each day`, lot });
+                items.push({ type: 'action', action: 'lot_house', label: `Build a House to Let (${Utils.formatGold(LotBook.houseCost(s.type))}g)`, icon: '🏠', desc: `Stands in ${LotBook.houseDays(s.type)} days; a tenant pays you rent each day`, lot });
             }
             items.push(PANEL_ITEM);
             return items;
@@ -71,15 +72,15 @@ export const InnerMapLots = {
         const items = [];
         if (!v) {
             items.push({ type: 'disabled', label: '🔑 Standing empty — to let or for sale' });
-            items.push({ type: 'action', action: 'vacancy_rent', label: `Rent it (${LotBook.rentPerDay(s.type)}g a day)`, icon: '🔑', desc: 'Paid at each day\'s end. Miss it and you\'re out.', building });
-            items.push({ type: 'action', action: 'vacancy_buy', label: `Buy it (${LotBook.salePrice(s.type)}g)`, icon: '💰', desc: 'Yours outright', building });
+            items.push({ type: 'action', action: 'vacancy_rent', label: `Rent it (${Utils.formatGold(LotBook.rentPerDay(s.type))}g a day)`, icon: '🔑', desc: 'Paid at each day\'s end. Miss it and you\'re out.', building });
+            items.push({ type: 'action', action: 'vacancy_buy', label: `Buy it (${Utils.formatGold(LotBook.salePrice(s.type))}g)`, icon: '💰', desc: 'Yours outright', building });
         } else if (v.holder === 'player' && v.status === 'rented') {
-            items.push({ type: 'disabled', label: `🔑 You rent it at ${v.rent}g a day` });
-            items.push({ type: 'action', action: 'vacancy_buy', label: `Buy it outright (${LotBook.salePrice(s.type)}g)`, icon: '💰', desc: 'No more rent', building });
+            items.push({ type: 'disabled', label: `🔑 You rent it at ${Utils.formatGold(v.rent)}g a day` });
+            items.push({ type: 'action', action: 'vacancy_buy', label: `Buy it outright (${Utils.formatGold(LotBook.salePrice(s.type))}g)`, icon: '💰', desc: 'No more rent', building });
             items.push({ type: 'action', action: 'vacancy_leave', label: 'Give up the House', icon: '🚪', desc: 'Hand back the key', building });
             items.push(PANEL_ITEM);
         } else if (v.holder === 'player') {
-            items.push({ type: 'disabled', label: v.tenant ? `🔑 Let to ${v.tenant.name} at ${v.tenant.rent}g a day` : v.let ? '🔑 Yours — to let, no tenant yet' : '🏠 Yours outright' });
+            items.push({ type: 'disabled', label: v.tenant ? `🔑 Let to ${v.tenant.name} at ${Utils.formatGold(v.tenant.rent)}g a day` : v.let ? '🔑 Yours — to let, no tenant yet' : '🏠 Yours outright' });
             items.push(PANEL_ITEM);
         }
         return items;

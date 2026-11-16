@@ -1006,7 +1006,7 @@ Clothes: ${cs.icon} ${cs.label} (${cs.freshness}%)`;
             const name = (item && item.name) ? item.name : fallbackName;
             const fx = Treasures.describe(itemId);
             const qTag = Crafting.qualityTag(player, itemId);
-            const tip = `${name} ×${quantity}${qTag ? ` [${qTag}]` : ''}${item && item.basePrice ? ` (~${item.basePrice}g each)` : ''}${fx.length ? ' — ' + fx.join('; ') : ''}`.replace(/"/g, '&quot;');
+            const tip = `${name} ×${quantity}${qTag ? ` [${qTag}]` : ''}${item && item.basePrice ? ` (~${Utils.formatGold(item.basePrice)}g each)` : ''}${fx.length ? ' — ' + fx.join('; ') : ''}`.replace(/"/g, '&quot;');
             html += `<div class="sinv-tile" title="${tip}">`;
             html += `<span class="sinv-tile-icon">${icon}</span>`;
             if (quantity > 1) html += `<span class="sinv-tile-qty">${quantity}</span>`;
@@ -1170,7 +1170,7 @@ Object.assign(UI.prototype, {
             if (res) {
                 const coin = Barter.coinOf(player);
                 const tip = inKind
-                    ? `Goods worth ~${Math.floor(Number(player.gold) || 0)} — there is no coin here: you pay and are paid in goods${coin > 0 ? ` (your ${Math.floor(coin)} coin waits for a town that uses coin)` : ''}`
+                    ? `Goods worth ~${Math.floor(Number(player.gold) || 0)} — there is no coin here: you pay and are paid in goods${coin > 0 ? ` (your ${Utils.formatGold(coin)} coin waits for a town that uses coin)` : ''}`
                     : 'Gold: click for your income and spending';
                 if (res.title !== tip) res.title = tip;
             }

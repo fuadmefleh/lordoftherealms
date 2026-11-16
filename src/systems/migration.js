@@ -446,7 +446,7 @@ export const Migration = {
                 for (const [t, g] of grantTo) Economy.payTown(t, g);
             } else {
                 st.policy.settlers = 'none';
-                out.notices.push({ icon: '📜', title: 'Grants Lapse', text: `Your purse could not meet the settlers' grants (${Math.round(grantDue)}g this week). The offer lapses; settlers come as they please.`, type: 'warning' });
+                out.notices.push({ icon: '📜', title: 'Grants Lapse', text: `Your purse could not meet the settlers' grants (${Utils.formatGold(grantDue)}g this week). The offer lapses; settlers come as they please.`, type: 'warning' });
             }
         }
         // Refugees turned back at closed gates (a notice at most once a month)
@@ -669,7 +669,13 @@ export const Migration = {
     /** Write moved households into the new town's roster (new ids; kin kept within the household). */
     _place(world, to, moved, from, day, player = null) {
         const tf = _obj(to.folk) && Array.isArray(to.folk.people) ? to.folk : null;
-        if (!tf) return 0;
+        if (!tf) {
+            // (a town with no roster of named people: what the households carried is spent there)
+            const coin = _r2(Migration._householdCoin(moved || []));
+            for (const h of moved || []) for (const c of (h && h.people) || []) if (c) c.purse = 0;
+            if (coin > 0 && !Economy.payTown(to, coin) && !Economy.payNearest(world, to.q, to.r, coin)) MoneySupply.leak(world, -coin, 'migrants');
+            return 0;
+        }
         let placed = 0;
         for (const h of moved) {
             if (!h || !Array.isArray(h.people)) continue;

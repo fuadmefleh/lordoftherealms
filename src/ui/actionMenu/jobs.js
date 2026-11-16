@@ -80,7 +80,7 @@ Object.assign(ActionMenu, {
                 title: `🔨 ${job.name}`,
                 icon: job.icon,
                 description: job.description,
-                baseRewardText: `~${job.pay.min}g (mediocre performance)`,
+                baseRewardText: `~${Utils.formatGold(job.pay.min)}g (mediocre performance)`,
                 onSkip: () => {
                     // Feed 40% score = mediocre base performance
                     ActionMenu._laborReward(game, tile, job, 40);
@@ -146,7 +146,7 @@ Object.assign(ActionMenu, {
         html += `<div class="pk-head" style="text-align:center; margin-top:0;">${job.name}</div>`;
         html += `<div style="margin-bottom: 10px; font-size: 20px; letter-spacing: 4px;">${starsHtml}</div>`;
         html += `<div style="display:flex; justify-content:center;">${chips([
-            { icon: '💰', label: 'Earned', value: `+${actualPay} gold`, cls: 'gold' },
+            { icon: '💰', label: 'Earned', value: `+${Utils.formatGold(actualPay)} gold`, cls: 'gold' },
             scorePercent >= 40 ? { icon: '⭐', label: '', value: '<span style="color:#ce93d8;">+1 Renown</span>' } : null,
         ])}</div>`;
         const f = res.factors;
@@ -1017,7 +1017,7 @@ Object.assign(ActionMenu, {
         if (poster) {
             html += `<div class="pk-card pk-tone-bad" style="text-align:center;"><div style="font-family:var(--font-display); font-size:15px; letter-spacing:2px; color:#e0846a;">WANTED</div>`
                 + `<div style="font-size:12px; color:#ece2c8; margin:3px 0;">by the crown of ${poster.realm}, for ${poster.charges}</div>`
-                + `<div style="font-size:11px; color:#cbbf9f;">The likeness is not kind, but it is yours. Reward: <b style="color:#ffe08a;">${poster.bounty} gold</b>${poster.grave ? ', dead or alive' : ''}.</div></div>`;
+                + `<div style="font-size:11px; color:#cbbf9f;">The likeness is not kind, but it is yours. Reward: <b style="color:#ffe08a;">${Utils.formatGold(poster.bounty)} gold</b>${poster.grave ? ', dead or alive' : ''}.</div></div>`;
         }
         if (typeof BountyHunting !== 'undefined') {
             const rank = BountyHunting.getRankInfo(game.player);
@@ -1029,8 +1029,8 @@ Object.assign(ActionMenu, {
             // Bounties a broke crown still owes you (BountyHunting.owe: writs paid as its chests fill)
             const owed = BountyHunting.owedTotal(game.player);
             if (owed > 0) {
-                const writs = game.player.bountyHunter.owed.map(w => `${w.realm || 'a crown'} ${Math.max(0, w.amount - (w.paid || 0))}g for ${w.target} (until day ${w.until})`).join('; ');
-                html += lede(`📜 Writs owed you: <b style="color:#ffe08a;">${owed} gold</b> — ${writs}.`);
+                const writs = game.player.bountyHunter.owed.map(w => `${w.realm || 'a crown'} ${Utils.formatGold(Math.max(0, w.amount - (w.paid || 0)))}g for ${w.target} (until day ${w.until})`).join('; ');
+                html += lede(`📜 Writs owed you: <b style="color:#ffe08a;">${Utils.formatGold(owed)} gold</b> — ${writs}.`);
             }
         }
 
@@ -1146,7 +1146,7 @@ Object.assign(ActionMenu, {
             if (bounty.type === 'instant') {
                 const res = OddJobs.resolveInstantBounty(game.player, bounty, tile.settlement);
                 if (res.success) {
-                    game.ui.showNotification('Bounty Complete!', `${bounty.name} — earned ${res.pay} gold!`, 'success');
+                    game.ui.showNotification('Bounty Complete!', `${bounty.name} — earned ${Utils.formatGold(res.pay)} gold!`, 'success');
                 } else {
                     game.ui.showNotification('Failed!', `${bounty.name} — you struggled and lost ${res.damage} health.`, 'error');
                 }
@@ -1205,7 +1205,7 @@ Object.assign(ActionMenu, {
                 if (game.player.financeToday) {
                     game.player.financeToday.income.bounties = (game.player.financeToday.income.bounties || 0) + (resolution.pay || 0);
                 }
-                game.ui.showNotification('Bounty Turned In', `${bounty.targetName} delivered to authorities for ${resolution.pay}g.`, 'success');
+                game.ui.showNotification('Bounty Turned In', `${bounty.targetName} delivered to authorities for ${Utils.formatGold(resolution.pay)}g.`, 'success');
             } else if (resolution.recruited) {
                 game.ui.showNotification('Target Recruited', `${bounty.targetName} has joined your ranks.`, 'success');
             }
@@ -1235,7 +1235,7 @@ Object.assign(ActionMenu, {
             }
 
             game.player.activeBounties.splice(idx, 1);
-            game.ui.showNotification('Bounty Complete!', `${bounty.name} — earned ${paid} gold${paid < owed ? ` (the town's coffers held no more of the ${owed} posted)` : ''}!`, 'success');
+            game.ui.showNotification('Bounty Complete!', `${bounty.name} — earned ${Utils.formatGold(paid)} gold${paid < owed ? ` (the town's coffers held no more of the ${owed} posted)` : ''}!`, 'success');
             game.ui.updateStats(game.player, game.world);
             game.ui.hideCustomPanel();
         };
@@ -1286,7 +1286,7 @@ Object.assign(ActionMenu, {
             {
                 icon: '⚖️',
                 name: 'Turn In',
-                desc: `Receive ${bounty.actualPay}g and renown for delivering the criminal.`,
+                desc: `Receive ${Utils.formatGold(bounty.actualPay)}g and renown for delivering the criminal.`,
                 attrs: `onclick="window._resolveCapturedTarget('turn_in')"`,
                 side: price(bounty.actualPay),
                 tone: 'gold',
@@ -1314,7 +1314,7 @@ Object.assign(ActionMenu, {
                 if (game.player.financeToday) {
                     game.player.financeToday.income.bounties = (game.player.financeToday.income.bounties || 0) + (resolution.pay || 0);
                 }
-                game.ui.showNotification('Bounty Turned In', `${bounty.targetName} delivered for ${resolution.pay} gold.`, 'success');
+                game.ui.showNotification('Bounty Turned In', `${bounty.targetName} delivered for ${Utils.formatGold(resolution.pay)} gold.`, 'success');
             } else if (resolution.recruited) {
                 game.ui.showNotification('Recruit Joined', `${bounty.targetName} joins your army as a hardened outlaw.`, 'success');
             }
@@ -1366,7 +1366,7 @@ function _forageResult(game, found, trip) {
         html += rowList(consolidate(trip.kept).map(item => ({
             icon: item.icon,
             name: `${item.name} x${item.foundQty}`,
-            side: `~${item.foundQty * (item.sellPrice || 0)}g`,
+            side: `~${Utils.formatGold(item.foundQty * (item.sellPrice || 0))}g`,
         })), c.resultTitle || 'Foraging Haul');
         if (trip.lost.length) {
             html += `<div style="font-size: 11px; color: #f0b35a; margin-top: 4px;">Left behind (packs full): ${consolidate(trip.lost).map(i => `${i.icon} ${i.name} x${i.foundQty}`).join(', ')}</div>`;
@@ -1524,7 +1524,7 @@ function _huntOutcome(game, player, lootTable, out, p) {
         html += rowList(totalLoot.map(item => ({
             icon: item.icon,
             name: `${item.name} x${item.foundQty}`,
-            side: `~${item.foundQty * (item.sellPrice || 0)}g`,
+            side: `~${Utils.formatGold(item.foundQty * (item.sellPrice || 0))}g`,
         })), '<span style="color:#8fd18a;">Successful Hunt!</span>');
         if (!totalLoot.length) html += sectionHead('<span style="color:#8fd18a;">Successful Hunt!</span>');
         html += chips([{ icon: '🎒', label: 'Into your packs — worth', value: `~${totalValue} gold at market`, cls: 'gold' }]);

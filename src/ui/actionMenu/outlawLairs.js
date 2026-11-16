@@ -6,6 +6,7 @@
 import { ActionMenu } from './_ref.js';
 import { OutlawLairs } from './_imports.js';
 import { esc, lede, card, rowList, sectionHead, more } from './uiKit.js';
+import { Utils } from '../../core/utils.js';
 
 // In the action menu's voice (ui/actionMenu/uiKit.js): each lair a card; at a
 // lair, one row a deed with its odds and AP at the right, greyed with its
@@ -44,10 +45,10 @@ function _lairCard(game, lair) {
     }
     if (lair.scouted) html += `<div style="${NOTE} color:#c8b070;">💰 Hoard: some ${Math.round(lair.hoard.gold || 0)} gold and ${Object.values(lair.hoard.goods || {}).reduce((a, b) => a + b, 0)} goods (scouted day ${lair.scouted.day})</div>`;
     if (lair.allied) html += `<div style="${NOTE} color:#e0c060;">🗝️ Your partners since day ${lair.allied.since}: a weekly cut, and heat with the realm.</div>`;
-    else if (lair.tribute && lair.tribute.until >= day) html += `<div style="${NOTE} color:#e0c060;">💰 Tribute paid (${lair.tribute.paid}g): they spare you and yours until day ${lair.tribute.until}.</div>`;
+    else if (lair.tribute && lair.tribute.until >= day) html += `<div style="${NOTE} color:#e0c060;">💰 Tribute paid (${Utils.formatGold(lair.tribute.paid)}g): they spare you and yours until day ${lair.tribute.until}.</div>`;
     if (lair.alertUntil != null && day <= lair.alertUntil) html += `<div style="${NOTE} color:#e08080;">⚠️ The camp is on its guard (until day ${lair.alertUntil}).</div>`;
     const bounty = (player.activeBounties || []).find(b => b && b.type === 'lair_leader' && b.lairId === lair.id);
-    if (bounty) html += `<div style="${NOTE} color:#7fd07f;">🎯 You hold the notice on ${_esc(bounty.targetName)}: ${bounty.actualPay}g.</div>`;
+    if (bounty) html += `<div style="${NOTE} color:#7fd07f;">🎯 You hold the notice on ${_esc(bounty.targetName)}: ${Utils.formatGold(bounty.actualPay)}g.</div>`;
     if (lair.log.length) {
         html += more('Lately', lair.log.slice(-4).reverse().map(e => `<div style="${NOTE}"><span style="color:#777;">day ${e.day}</span> ${_esc(e.text)}</div>`).join(''));
     }
@@ -83,7 +84,7 @@ function _deedsHtml(game, lair) {
         const price = OutlawLairs.tributePrice(player, lair);
         rows.push(_deed(lair, 'tribute', {
             icon: '💰', name: 'Pay tribute', desc: 'They spare you and yours for a while', tone: 'gold',
-            why: (player.gold || 0) < price ? `You need ${price} gold` : `Needs ${costs.parley} AP`, side: `${price}g`,
+            why: (player.gold || 0) < price ? `You need ${Utils.formatGold(price)} gold` : `Needs ${costs.parley} AP`, side: `${Utils.formatGold(price)}g`,
         }, ap >= costs.parley && (player.gold || 0) >= price));
     }
     if (kind.ally) {
@@ -101,12 +102,12 @@ function _resultHtml(res) {
     let html = '';
     if (res.stages) {
         for (const s of res.stages) {
-            html += `<div style="font-size:12px; color:${s.victory ? '#7fd07f' : '#e08080'};">${s.victory ? '✔' : '✘'} ${_esc(s.name)} (strength ${s.enemy}) — ${s.victory ? 'taken' : 'thrown back'}${s.casualties ? `, ${s.casualties} of yours fell` : ''}${s.loot ? `, ${s.loot}g looted` : ''}</div>`;
+            html += `<div style="font-size:12px; color:${s.victory ? '#7fd07f' : '#e08080'};">${s.victory ? '✔' : '✘'} ${_esc(s.name)} (strength ${s.enemy}) — ${s.victory ? 'taken' : 'thrown back'}${s.casualties ? `, ${s.casualties} of yours fell` : ''}${s.loot ? `, ${Utils.formatGold(s.loot)}g looted` : ''}</div>`;
         }
         if (res.cleared && res.rewards) {
             const r = res.rewards;
             const goods = Object.entries(r.goods || {}).map(([id, n]) => `${n} ${id.replace(/_/g, ' ')}`).join(', ');
-            html += `<div style="font-size:12px; color:var(--gold); margin-top:4px;">🏆 The lair is yours to burn. Hoard: ${r.gold} gold${goods ? `, ${_esc(goods)}` : ''}. +${r.renown} renown${r.prestige ? `, +${r.prestige} Prestige` : ''}${r.reputation ? `, +${r.reputation} standing with the realm` : ''}.</div>`;
+            html += `<div style="font-size:12px; color:var(--gold); margin-top:4px;">🏆 The lair is yours to burn. Hoard: ${Utils.formatGold(r.gold)} gold${goods ? `, ${_esc(goods)}` : ''}. +${r.renown} renown${r.prestige ? `, +${r.prestige} Prestige` : ''}${r.reputation ? `, +${r.reputation} standing with the realm` : ''}.</div>`;
             const left = Object.keys(r.left || {});
             if (left.length) html += `<div style="font-size:11px; color:#e0a070;">Your packs are full: ${_esc(left.join(', '))} left behind.</div>`;
         } else if (!res.cleared) {

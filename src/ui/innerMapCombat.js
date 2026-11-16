@@ -572,7 +572,7 @@ export const InnerMapCombat = {
         npc._koSearched = true;
         const { gold, items } = this._takeSpoils(npc, game);
         const parts = [];
-        if (gold > 0) parts.push(`${gold} gold`);
+        if (gold > 0) parts.push(`${Utils.formatGold(gold)} gold`);
         for (const it of items) parts.push(`${it.qty} ${String(it.id).replace(/_/g, ' ')}`);
         // They'll know who did it when they come round
         NpcDisposition.adjustDisposition(npc, -15, game && game.player);
@@ -837,7 +837,7 @@ export const InnerMapCombat = {
         const npc = body._npc;
         const { gold, items } = npc ? this._takeSpoils(npc, game) : { gold: 0, items: [] };
         const parts = [];
-        if (gold > 0) parts.push(`${gold} gold`);
+        if (gold > 0) parts.push(`${Utils.formatGold(gold)} gold`);
         for (const it of items) parts.push(`${it.qty} ${String(it.id).replace(/_/g, ' ')}`);
         if (game && game.ui) {
             if (typeof game.ui.updateStats === 'function' && game.player) game.ui.updateStats(game.player, game.world);

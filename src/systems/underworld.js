@@ -678,7 +678,7 @@ export const Underworld = {
             const fine = Underworld._fine(player, world, settlement, price * qty * 0.5);
             Underworld.recordCrime(player, world, 'black_market', { kingdom: settlement.kingdom, caught: true, scale, q: tile.q, r: tile.r });
             const arrest = Underworld._maybeArrest(player, world, settlement, 'black-market dealing', 0.35);
-            const text = `The watch raided the deal. ${qty} ${_label(goodId)} confiscated, fined ${fine}g.${arrest ? ` ${arrest.text}` : ''}`;
+            const text = `The watch raided the deal. ${qty} ${_label(goodId)} confiscated, fined ${Utils.formatGold(fine)}g.${arrest ? ` ${arrest.text}` : ''}`;
             Underworld._log(player, world, text);
             return { success: true, caught: true, fine, arrested: !!arrest, text };
         }
@@ -694,7 +694,7 @@ export const Underworld = {
         Underworld._payGold(player, world, earned, 'smuggling');
         Underworld.recordCrime(player, world, 'black_market', { kingdom: settlement.kingdom, scale });
         if (blockade) Quests.track(player, 'blockade_runs');
-        const text = `Sold ${qty} ${_label(goodId)} on the black market for ${earned}g${blockade ? ' — the blockade has the whole town paying double' : ''}.`;
+        const text = `Sold ${qty} ${_label(goodId)} on the black market for ${Utils.formatGold(earned)}g${blockade ? ' — the blockade has the whole town paying double' : ''}.`;
         return { success: true, caught: false, earned, text };
     },
 
@@ -736,7 +736,7 @@ export const Underworld = {
         Underworld._payGold(player, world, earned, 'theft');
         Underworld.recordCrime(player, world, 'fence', { kingdom: settlement.kingdom, scale: hot > 0 ? 1 : 0.5 });
         if (hot > 0) Underworld._gainStanding(player, world, 1);
-        return { success: true, earned, text: `The fence took ${qty} ${_label(goodId)} for ${earned}g, no questions asked.` };
+        return { success: true, earned, text: `The fence took ${qty} ${_label(goodId)} for ${Utils.formatGold(earned)}g, no questions asked.` };
     },
 
     // ──────────── THE GUILD ────────────
@@ -787,13 +787,13 @@ export const Underworld = {
         const st = Underworld.ensure(player);
         if (st.guild.contactMet || st.guild.member) return { success: true, already: true, text: 'Your contact nods from the corner booth.' };
         const cost = _num(Underworld.cfg('guild').contactCost, 30);
-        if ((player.gold || 0) < cost) return { success: false, reason: `Loosening the right tongue costs ${cost}g.` };
+        if ((player.gold || 0) < cost) return { success: false, reason: `Loosening the right tongue costs ${Utils.formatGold(cost)}g.` };
         player.gold -= cost;
         Underworld.payGuild(world, tile, cost); // (the barkeep's word and the contact's drink)
         st.guild.contactMet = true;
         Traits.recordDeed(player, 'cunning', 0.5);
         Underworld._log(player, world, `Met a guild contact in ${settlement.name}.`);
-        return { success: true, text: `For ${cost}g the barkeep points you to a hooded figure in the back: a contact of ${Underworld.cfg('guild').name}. A fence and the black market are open to you now.` };
+        return { success: true, text: `For ${Utils.formatGold(cost)}g the barkeep points you to a hooded figure in the back: a contact of ${Underworld.cfg('guild').name}. A fence and the black market are open to you now.` };
     },
 
     joinGuild(player, world, tile) {
@@ -802,7 +802,7 @@ export const Underworld = {
         if (!st.guild.contactMet) return { success: false, reason: 'You need a contact to vouch for you first.' };
         if (tile && !Underworld.hasGuildPresence(tile.settlement)) return { success: false, reason: 'The guild meets in towns and cities.' };
         const fee = _num(Underworld.cfg('guild').joinFee, 100);
-        if ((player.gold || 0) < fee) return { success: false, reason: `The initiation costs ${fee}g.` };
+        if ((player.gold || 0) < fee) return { success: false, reason: `The initiation costs ${Utils.formatGold(fee)}g.` };
         player.gold -= fee;
         Underworld.payGuild(world, tile, fee);
         st.guild.member = true;
@@ -919,7 +919,7 @@ export const Underworld = {
         player.movementRemaining = 0;
         if (town) { player.jailState.q = town.q; player.jailState.r = town.r; }
         if (Underworld.ensure(player).heist) Underworld.ensure(player).heist = null;
-        const extra = `${seized > 0 ? ` The watch took ${seized}g of dirty coin off you.` : ''}${bought.magistrate ? ' Your magistrate will see the case dismissed by morning.' : ''}`;
+        const extra = `${seized > 0 ? ` The watch took ${Utils.formatGold(seized)}g of dirty coin off you.` : ''}${bought.magistrate ? ' Your magistrate will see the case dismissed by morning.' : ''}`;
         return { days, seized, text: `Arrested and jailed for ${days} day(s).${extra}` };
     },
 
@@ -973,8 +973,8 @@ export const Underworld = {
             const lootText = Object.keys(loot.added).length ? ` and ${PlayerInventory.describe(loot.added)} (hot)` : '';
             const dropText = Object.keys(loot.dropped).length ? ` Your packs were too full for ${PlayerInventory.describe(loot.dropped)}.` : '';
             const text = jobId === 'racket'
-                ? `The shopkeepers of ${settlement.name} will pay you ${st.rackets[st.rackets.length - 1].weekly}g a week to stay safe.`
-                : `${job.name}: you got away with ${gold}g${lootText}.${dropText}`;
+                ? `The shopkeepers of ${settlement.name} will pay you ${Utils.formatGold(st.rackets[st.rackets.length - 1].weekly)}g a week to stay safe.`
+                : `${job.name}: you got away with ${Utils.formatGold(gold)}g${lootText}.${dropText}`;
             return { success: true, outcome: 'success', gold, loot: loot.added, promoted, text: promoted ? `${text} You rise to ${promoted.name}!` : text };
         }
 
@@ -987,7 +987,7 @@ export const Underworld = {
         Underworld.recordCrime(player, world, jobId, { ...where, caught: true });
         const fine = Underworld._fine(player, world, settlement, 20 * guard);
         const arrest = Underworld._maybeArrest(player, world, settlement, _label(jobId));
-        const text = `${job.name}: caught in the act! Fined ${fine}g.${arrest ? ` ${arrest.text}` : ' You talked your way out of a cell.'}`;
+        const text = `${job.name}: caught in the act! Fined ${Utils.formatGold(fine)}g.${arrest ? ` ${arrest.text}` : ' You talked your way out of a cell.'}`;
         Underworld._log(player, world, text);
         return { success: true, outcome: 'caught', fine, arrested: !!arrest, text };
     },
@@ -1041,7 +1041,7 @@ export const Underworld = {
         const step = (Underworld.data().heistSteps || {})[stepId];
         if (!step) return { success: false, reason: 'Unknown step.' };
         if (st.heist.steps.includes(stepId)) return { success: false, reason: 'Already done.' };
-        if ((player.gold || 0) < _num(step.gold)) return { success: false, reason: `That costs ${step.gold}g.` };
+        if ((player.gold || 0) < _num(step.gold)) return { success: false, reason: `That costs ${Utils.formatGold(step.gold)}g.` };
         if (!Underworld._spendAP(player, _num(step.ap, 1))) return { success: false, reason: `That takes ${step.ap} action points.` };
         player.gold -= _num(step.gold);
         Underworld.payGuild(world, tile, _num(step.gold)); // (the inside man, the tools, the palms greased in town)
@@ -1090,7 +1090,7 @@ export const Underworld = {
             if (target.deeds) Traits.recordDeeds(player, target.deeds);
             const promoted = Underworld._gainStanding(player, world, _num(job.standing, 20));
             const lootText = Object.keys(loot.added).length ? ` and ${PlayerInventory.describe(loot.added)} (hot)` : '';
-            const text = `The job on ${plan.name} goes like clockwork: ${gold}g${lootText}!${promoted ? ` You rise to ${promoted.name}!` : ''}`;
+            const text = `The job on ${plan.name} goes like clockwork: ${Utils.formatGold(gold)}g${lootText}!${promoted ? ` You rise to ${promoted.name}!` : ''}`;
             Underworld._log(player, world, text);
             return { success: true, outcome: 'success', gold, loot: loot.added, promoted, text };
         }
@@ -1157,7 +1157,7 @@ export const Underworld = {
     bribeGuards(player, world, tile) {
         const quote = Underworld.bribeCost(player, world, tile);
         if (!quote) return { success: false, reason: 'The watch has nothing against you here.' };
-        if ((player.gold || 0) < quote.gold) return { success: false, reason: `The sergeant wants ${quote.gold}g.` };
+        if ((player.gold || 0) < quote.gold) return { success: false, reason: `The sergeant wants ${Utils.formatGold(quote.gold)}g.` };
         if (!Underworld._spendAP(player, 1)) return { success: false, reason: 'A bribe takes 1 action point.' };
         const kingdomId = tile.settlement.kingdom;
         player.gold -= quote.gold;
@@ -1169,10 +1169,10 @@ export const Underworld = {
         SocialSkills.trainBy(player, 'persuasion', 'bribe');
         if (Utils.random() < quote.fail) {
             Underworld.addHeat(player, kingdomId, Underworld.cfg('bribe').failHeat, world);
-            return { success: true, accepted: false, text: `The sergeant pockets your ${quote.gold}g — and reports the attempt. (+heat)` };
+            return { success: true, accepted: false, text: `The sergeant pockets your ${Utils.formatGold(quote.gold)}g — and reports the attempt. (+heat)` };
         }
         Underworld.addHeat(player, kingdomId, -quote.relief, world);
-        return { success: true, accepted: true, text: `${quote.gold}g changes hands. Certain reports go missing. (-${Math.round(quote.relief)} heat)` };
+        return { success: true, accepted: true, text: `${Utils.formatGold(quote.gold)}g changes hands. Certain reports go missing. (-${Math.round(quote.relief)} heat)` };
     },
 
     /** Lie low in this realm: no jobs here for a few days, heat cools fast. */
@@ -1239,8 +1239,8 @@ export const Underworld = {
         else Underworld.addHeat(player, settlement.kingdom, 5, world);
         const parts = [`The guards at ${settlement.name} search you.`];
         parts.push(found ? `They seize ${PlayerInventory.describe(seized)}.` : 'They find nothing.');
-        if (fine > 0) parts.push(`Fined ${fine}g.`);
-        if (dirtyTaken > 0) parts.push(`They take ${dirtyTaken}g of coin you can't account for.`);
+        if (fine > 0) parts.push(`Fined ${Utils.formatGold(fine)}g.`);
+        if (dirtyTaken > 0) parts.push(`They take ${Utils.formatGold(dirtyTaken)}g of coin you can't account for.`);
         if (arrest) parts.push(arrest.text);
         const text = parts.join(' ');
         Underworld._log(player, world, text);
@@ -1358,7 +1358,7 @@ export const Underworld = {
                 const cut = world ? Gangs.tithe(world, want) : 0;
                 Underworld._payGold(player, world, cut, 'guild');
                 out.income += cut;
-                if (cut > 0) out.notices.push(`The guild pays its Guildmaster's cut: ${cut}g.`);
+                if (cut > 0) out.notices.push(`The guild pays its Guildmaster's cut: ${Utils.formatGold(cut)}g.`);
             }
             if (out.income > 0 && st.rackets.length) out.notices.push(`Protection money from ${st.rackets.length} racket(s) comes in.`);
         }

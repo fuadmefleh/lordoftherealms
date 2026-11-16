@@ -8,6 +8,7 @@ import { ActionMenu } from './_ref.js';
 import { Abdication } from '../../systems/abdication.js';
 import { Counsel } from '../../systems/counsel.js';
 import { lede, chips, sectionHead, rowList, card, price, bullets, kv, esc, BTN_GOLD } from './uiKit.js';
+import { Utils } from '../../core/utils.js';
 
 const _num0 = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 const _tone = (v) => (v >= 60 ? 'good' : v >= 35 ? 'warn' : 'bad');
@@ -19,17 +20,17 @@ function _elderCard(v, player, cfg) {
         ['🎂', 'Age', v.age],
         { icon: '🤝', label: 'Respect', value: e.respect, cls: e.respect < 35 ? 'bad' : '' },
         ['🔥', 'Ambition', e.ambition],
-        ['💰', 'Purse', `${v.purse}g`],
+        ['💰', 'Purse', `${Utils.formatGold(v.purse)}g`],
         v.favourite ? ['💛', 'Favourite', esc(v.favourite)] : null,
     ].filter(Boolean));
     const lines = [];
     const yrs = Math.round(Number(e.reignYears) || 0);
     lines.push(`Stepped down after ${yrs < 1 ? 'less than a year' : `${yrs} year${yrs === 1 ? '' : 's'}`}${e.how === 'forced' ? ', made to by the court' : e.how === 'counselled' ? ', at the court’s urging' : ''}${e.passedOver ? ', passing over the rightful heir' : ''}.`);
-    lines.push(`Pension ${e.pension}g a day${e.owed ? ` — <span style="color:#e0846a;">${Math.round(e.owed)}g owed</span>` : ''}; paid ${Math.round(e.paid)}g in all.`);
+    lines.push(`Pension ${Utils.formatGold(e.pension)}g a day${e.owed ? ` — <span style="color:#e0846a;">${Utils.formatGold(e.owed)}g owed</span>` : ''}; paid ${Utils.formatGold(e.paid)}g in all.`);
     if (v.regent) lines.push('Rules as regent in your name.');
     if (e.shadow) lines.push('<span style="color:#e0846a;">Their people hold the seals and skim the treasury.</span>');
     else if (e.rumoured) lines.push('<span style="color:#f0b35a;">It is whispered that they mean to rule again from behind your seat.</span>');
-    if (e.skimmed > 0) lines.push(`They have taken ${Math.round(e.skimmed)}g from the treasury.`);
+    if (e.skimmed > 0) lines.push(`They have taken ${Utils.formatGold(e.skimmed)}g from the treasury.`);
     body += bullets(lines);
     const id = e.npcId;
     const rows = [
@@ -39,7 +40,7 @@ function _elderCard(v, player, cfg) {
     ];
     const choices = Array.isArray(cfg.pensionChoices) ? cfg.pensionChoices : [0, 2, 4, 8, 15];
     const pension = choices.filter(g => g !== e.pension).map(g => ({
-        icon: g > e.pension ? '⬆️' : '⬇️', name: `Pension of ${g}g a day`, desc: g < e.pension ? 'They will not forget it' : 'They will remember it kindly',
+        icon: g > e.pension ? '⬆️' : '⬇️', name: `Pension of ${Utils.formatGold(g)}g a day`, desc: g < e.pension ? 'They will not forget it' : 'They will remember it kindly',
         act: 'abdicationAct', args: ['pension', id, g], tone: g < e.pension ? 'bad' : 'good',
     }));
     const moves = Object.entries(Abdication.RESIDENCE).filter(([k]) => k !== e.residence).map(([k, r]) => ({
@@ -118,7 +119,7 @@ Object.assign(ActionMenu, {
                 html += rowList([{ icon: '↩', name: 'Choose another child', act: 'abdicationAct', args: ['back'] }]);
             } else {
                 const endow = Math.min(cfg.endowmentMax, Math.floor((player.gold || 0) * cfg.endowmentShare));
-                html += `<div style="color:#cbbf9f; margin:0 2px 6px;">You will go on as <strong>${esc(s.name)}</strong>${step.regent ? ', under a regent' : ''}. You take ${endow}g into retirement and a pension of ${cfg.pension}g a day. Where will you live?</div>`;
+                html += `<div style="color:#cbbf9f; margin:0 2px 6px;">You will go on as <strong>${esc(s.name)}</strong>${step.regent ? ', under a regent' : ''}. You take ${Utils.formatGold(endow)}g into retirement and a pension of ${Utils.formatGold(cfg.pension)}g a day. Where will you live?</div>`;
                 html += rowList(Object.entries(Abdication.RESIDENCE).map(([k, r]) => ({
                     icon: r.icon, name: `Step down — ${r.label.toLowerCase()}`, desc: r.blurb, act: 'abdicationAct', args: ['do', s.id, step.regent || null, k], tone: 'gold',
                 })));

@@ -116,7 +116,7 @@ Object.assign(Tavern, {
                         category: Tavern.CATEGORIES.TRADE_OPPORTUNITIES,
                         icon: '💡',
                         title: `Dearth: ${g ? g.name : pick.goodId}`,
-                        text: `A carter says ${pick.name} has run short of ${g ? `${g.icon} ${g.name}` : pick.goodId} — it fetches around ${reportedPrice}g there${accurate ? '' : ', or so he claims'}. Whoever brings some in will do well.`,
+                        text: `A carter says ${pick.name} has run short of ${g ? `${g.icon} ${g.name}` : pick.goodId} — it fetches around ${Utils.formatGold(reportedPrice)}g there${accurate ? '' : ', or so he claims'}. Whoever brings some in will do well.`,
                         reliability, accurate,
                         day: world.day,
                         source: tile.settlement.name,
@@ -142,7 +142,7 @@ Object.assign(Tavern, {
                     category: Tavern.CATEGORIES.TRADE_OPPORTUNITIES,
                     icon: '💡',
                     title: `Trade Tip: ${good.name}`,
-                    text: `A merchant mentions that ${good.icon} ${good.name} ${isProfitable ? 'sells well' : 'is cheap'} in ${dest.name} — around ${reportedPrice}g each.`,
+                    text: `A merchant mentions that ${good.icon} ${good.name} ${isProfitable ? 'sells well' : 'is cheap'} in ${dest.name} — around ${Utils.formatGold(reportedPrice)}g each.`,
                     reliability, accurate,
                     day: world.day,
                     source: tile.settlement.name,
@@ -257,7 +257,7 @@ Object.assign(Tavern, {
             const trend = MarketDynamics.getPriceTrend(good.id, dest.q, dest.r, world);
             const trendIcon = trend === 'rising' ? '📈' : trend === 'falling' ? '📉' : '➡️';
 
-            priceLines.push(`${good.icon} ${good.name}: ~${reported}g ${trendIcon}`);
+            priceLines.push(`${good.icon} ${good.name}: ~${Utils.formatGold(reported)}g ${trendIcon}`);
             quotes.push({ q: dest.q, r: dest.r, name: dest.name, type: dest.type || null, good: good.id, price: reported });
         }
 
@@ -297,7 +297,7 @@ Object.assign(Tavern, {
             category: Tavern.CATEGORIES.MARKET_PRICES,
             icon: '💰',
             title: `Price Info: ${good.name}`,
-            text: `Someone mentions ${good.icon} ${good.name} is ${comparison} in ${dest.name} — about ${reported}g.`,
+            text: `Someone mentions ${good.icon} ${good.name} is ${comparison} in ${dest.name} — about ${Utils.formatGold(reported)}g.`,
             reliability, accurate,
             day: world.day,
             source: tile.settlement.name,
@@ -340,7 +340,7 @@ Object.assign(Tavern, {
             category: Tavern.CATEGORIES.TRADE_OPPORTUNITIES,
             icon: '📊',
             title: 'Trade Opportunity',
-            text: `Buy ${bestTip.good.icon} ${bestTip.good.name} here for ~${bestTip.buyPrice}g and sell in ${bestTip.dest.name} for ~${bestTip.sellPrice}g. Potential profit: ${bestTip.profit}g per unit!`,
+            text: `Buy ${bestTip.good.icon} ${bestTip.good.name} here for ~${Utils.formatGold(bestTip.buyPrice)}g and sell in ${bestTip.dest.name} for ~${Utils.formatGold(bestTip.sellPrice)}g. Potential profit: ${Utils.formatGold(bestTip.profit)}g per unit!`,
             reliability: Tavern.RELIABILITY.MERCHANT_INFO,
             accurate: true,
             day: world.day,

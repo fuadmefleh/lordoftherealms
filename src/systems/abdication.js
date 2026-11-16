@@ -485,7 +485,7 @@ export const Abdication = {
             if (!player.house || !House.spend(player.house, P.holdPrestige, 'held the seat against the court', day)) return { success: false, reason: `Holding the seat costs ${P.holdPrestige} Prestige.` };
         } else if (how === 'gold') {
             // Bought loyalty: into the courtiers' and officers' purses — the court's own (real coin)
-            if (Inheritance.coin(player) < P.holdGold) return { success: false, reason: `Buying the court's loyalty costs ${P.holdGold} gold.` };
+            if (Inheritance.coin(player) < P.holdGold) return { success: false, reason: `Buying the court's loyalty costs ${Utils.formatGold(P.holdGold)} gold.` };
             const takers = Court.members(player).filter(n => n && n.isAlive !== false);
             if (!takers.length) return { success: false, reason: 'There is no court to buy.' };
             Inheritance.setCoin(player, Inheritance.coin(player) - P.holdGold);
@@ -757,9 +757,9 @@ export const Abdication = {
         if (reign) reign.elderDeath = { day, age, cause: e.died.cause };
         if (house) {
             House._chronicle(house, world, `${e.name}, who set down the seat in the year of ${e.heirName}'s accession, dies of ${e.died.cause} aged ${age}.`
-                + `${toHouse > 0 ? ` ${Math.round(toHouse)} gold comes back to the House${toFav > 0 ? `, ${toFav} to ${favName}` : ''}.` : ''}`, ['abdication', 'death']);
+                + `${toHouse > 0 ? ` ${Utils.formatGold(toHouse)} gold comes back to the House${toFav > 0 ? `, ${toFav} to ${favName}` : ''}.` : ''}`, ['abdication', 'death']);
         }
-        out.notices.push({ icon: '🕯️', title: 'The Old Ruler Dies', text: `${e.name}, who held the seat before ${e.heirName}, has died of ${e.died.cause}, aged ${age}.${toHouse > 0 ? ` Their purse comes to the House (${Math.round(toHouse)} gold${toFav > 0 ? `; ${toFav} to ${favName}` : ''}).` : ''}`, type: 'warning' });
+        out.notices.push({ icon: '🕯️', title: 'The Old Ruler Dies', text: `${e.name}, who held the seat before ${e.heirName}, has died of ${e.died.cause}, aged ${age}.${toHouse > 0 ? ` Their purse comes to the House (${Utils.formatGold(toHouse)} gold${toFav > 0 ? `; ${toFav} to ${favName}` : ''}).` : ''}`, type: 'warning' });
     },
 
     // ──────────── DEALINGS WITH THE ELDER ────────────
@@ -822,12 +822,12 @@ export const Abdication = {
         const e = Abdication._live(player, npcId);
         const npc = e ? Abdication.npcOf(e) : null;
         if (!e || !npc) return { success: false, reason: 'There is no one to give to.' };
-        if (Inheritance.coin(player) < cfg.giftGold) return { success: false, reason: `A fitting gift is ${cfg.giftGold} gold.` };
+        if (Inheritance.coin(player) < cfg.giftGold) return { success: false, reason: `A fitting gift is ${Utils.formatGold(cfg.giftGold)} gold.` };
         Inheritance.setCoin(player, Inheritance.coin(player) - cfg.giftGold);
         npc.purse = _num(npc.purse) + cfg.giftGold;
         Ledger.record(player, 'elder', -cfg.giftGold);
         e.favour = Math.min(30, _num(e.favour) + cfg.giftFavour);
-        return { success: true, text: `${e.firstName} accepts ${cfg.giftGold} gold.` };
+        return { success: true, text: `${e.firstName} accepts ${Utils.formatGold(cfg.giftGold)} gold.` };
     },
 
     /** Set the daily pension. */

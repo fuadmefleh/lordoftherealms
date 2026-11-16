@@ -152,7 +152,7 @@ Object.assign(Relationships, {
                 player.gold = _num(player.gold) + back;
                 Relationships._bump(rel, 'score', 5);
                 delete rel.debt;
-                events.push({ type: 'matter', icon: '💰', title: 'A Debt Repaid', text: `${npc.firstName} repaid your loan: ${back} gold, with thanks and something on top.`, npc: npc.firstName, npcId: npc.id });
+                events.push({ type: 'matter', icon: '💰', title: 'A Debt Repaid', text: `${npc.firstName} repaid your loan: ${Utils.formatGold(back)} gold, with thanks and something on top.`, npc: npc.firstName, npcId: npc.id });
             } else {
                 events.push(Relationships._startMatter(player, npc, rel, 'debt', { amount: rel.debt.amount }, world));
             }
@@ -412,7 +412,7 @@ Object.assign(Relationships, {
         switch (m.kind) {
             case 'loan':
                 options = [
-                    opt('lend', '💰', `Here: ${m.amount} gold. Pay me back when you can.`, { cost: m.amount, disabled: gold < m.amount, reason: `You have ${gold} gold.` }),
+                    opt('lend', '💰', `Here: ${Utils.formatGold(m.amount)} gold. Pay me back when you can.`, { cost: m.amount, disabled: gold < m.amount, reason: `You have ${Utils.formatGold(gold)} gold.` }),
                     opt('refuse', '✋', "I can't spare it. I'm sorry."),
                 ];
                 break;
@@ -430,13 +430,13 @@ Object.assign(Relationships, {
                 break;
             case 'plea':
                 options = [
-                    opt('pay', '💰', `Take ${m.amount} gold. Go, quickly.`, { cost: m.amount, disabled: gold < m.amount, reason: `You have ${gold} gold.` }),
+                    opt('pay', '💰', `Take ${Utils.formatGold(m.amount)} gold. Go, quickly.`, { cost: m.amount, disabled: gold < m.amount, reason: `You have ${Utils.formatGold(gold)} gold.` }),
                     opt('refuse', '✋', "I can't help you. I'm sorry."),
                 ];
                 break;
             case 'rival_suitor':
                 options = [
-                    opt('gift', '💐', 'Let me show you who cares more.', { cost: GIFT_COST, disabled: gold < GIFT_COST, reason: `You need ${GIFT_COST} gold.` }),
+                    opt('gift', '💐', 'Let me show you who cares more.', { cost: GIFT_COST, disabled: gold < GIFT_COST, reason: `You need ${Utils.formatGold(GIFT_COST)} gold.` }),
                     opt('duel', '⚔️', `I'll have a word with ${m.suitor}. Outside.`, { chance: pct(Relationships._suitorOdds(player, m, opts)) }),
                     opt('yield', '🚶', 'If they make you happy, go to them.'),
                 ];
@@ -461,7 +461,7 @@ Object.assign(Relationships, {
                 break;
             case 'grudge':
                 options = [
-                    opt('peace', '🕊️', "Let's end this. Here, for your trouble.", { cost: PEACE_COST, disabled: gold < PEACE_COST, reason: `You need ${PEACE_COST} gold.` }),
+                    opt('peace', '🕊️', "Let's end this. Here, for your trouble.", { cost: PEACE_COST, disabled: gold < PEACE_COST, reason: `You need ${Utils.formatGold(PEACE_COST)} gold.` }),
                     opt('threaten', '👊', 'Say one more word about me. Go on.', { chance: pct(0.3 + might * 0.05) }),
                 ];
                 break;
@@ -516,7 +516,7 @@ Object.assign(Relationships, {
                 player.gold -= m.amount;
                 const cfg = Relationships._mattersCfg();
                 rel.debt = { amount: m.amount, due: day + Utils.randInt(cfg.loanDays[0], cfg.loanDays[1]), lent: day };
-                return done('*takes your hands* You don\'t know what this means. I won\'t forget it.', `💰 −${m.amount} gold · 🤝 Relationship ${score(8)} · they'll repay in a month or so`, 'good');
+                return done('*takes your hands* You don\'t know what this means. I won\'t forget it.', `💰 −${Utils.formatGold(m.amount)} gold · 🤝 Relationship ${score(8)} · they'll repay in a month or so`, 'good');
             }
             case 'loan:refuse':
                 return done('*nods, not quite hiding it* I understand. I shouldn\'t have asked.', `🤝 Relationship ${score(-4)}`, 'bad');
@@ -529,7 +529,7 @@ Object.assign(Relationships, {
                     const half = Math.ceil(m.amount / 2);
                     player.gold = _num(player.gold) + half;
                     delete rel.debt;
-                    return done('*counts it out, coin by coin, without a word*', `💰 +${half} gold (half of it) · 🤝 Relationship ${score(-10)}`, 'bad');
+                    return done('*counts it out, coin by coin, without a word*', `💰 +${Utils.formatGold(half)} gold (half of it) · 🤝 Relationship ${score(-10)}`, 'bad');
                 }
                 return done('*flares up* I told you I haven\'t got it! What do you want, my shirt?', `😬 Nothing gained · 🤝 Relationship ${score(-20)}`, 'bad');
             case 'debt:wait':
@@ -550,12 +550,12 @@ Object.assign(Relationships, {
                 player.gold -= m.amount;
                 npc.loyalty = Utils.clamp(_loyalty(npc) + 10, 0, 100);
                 player.karma = Math.min(100, _num(player.karma) + 3);
-                return done('*already running for the door* Bless you. Bless you!', `💰 −${m.amount} gold · 🤝 Relationship ${score(12)} · Karma +3`, 'good');
+                return done('*already running for the door* Bless you. Bless you!', `💰 −${Utils.formatGold(m.amount)} gold · 🤝 Relationship ${score(12)} · Karma +3`, 'good');
             case 'plea:refuse':
                 return done('*goes white* Then I\'ll find another way. Or I won\'t.', `🤝 Relationship ${score(-6)}`, 'bad');
             case 'rival_suitor:gift':
                 player.gold -= GIFT_COST;
-                return done('*laughs, delighted* Oh, put it away. All right. You win. They can keep their flowers.', `💐 −${GIFT_COST} gold · 💗 Affection ${love(10)}`, 'good');
+                return done('*laughs, delighted* Oh, put it away. All right. You win. They can keep their flowers.', `💐 −${Utils.formatGold(GIFT_COST)} gold · 💗 Affection ${love(10)}`, 'good');
             case 'rival_suitor:duel': {
                 // Fought out on the duel engine (systems/duels.js): your arms and
                 // skill against the suitor's (a guard captain is no poet)
@@ -628,7 +628,7 @@ Object.assign(Relationships, {
                 return Relationships._jealousBlowup(player, rel, npc, world, done, love(-20), '*very quiet* I see. Then I know where I stand.');
             case 'grudge:peace':
                 player.gold -= PEACE_COST;
-                return done('*pockets it, eyes narrow, then relax* ...Fine. Water under the bridge.', `🕊️ −${PEACE_COST} gold · 🤝 Relationship ${score(30)}`, 'good');
+                return done('*pockets it, eyes narrow, then relax* ...Fine. Water under the bridge.', `🕊️ −${Utils.formatGold(PEACE_COST)} gold · 🤝 Relationship ${score(30)}`, 'good');
             case 'grudge:threaten':
                 if (roll(0.3 + might * 0.05)) {
                     const rumor = m.rumorId != null && player.gossip ? player.gossip.rumors.find(r => r.id === m.rumorId) : null;

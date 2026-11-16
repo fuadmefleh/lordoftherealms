@@ -8,6 +8,7 @@
 import { ActionMenu } from './_ref.js';
 import { TownCrimes } from '../../systems/townCrimes.js';
 import { esc, lede, chips, card, rowList, sectionHead, purse, price } from './uiKit.js';
+import { Utils } from '../../core/utils.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 const ACT_NAME = { well: 'poisoned the well', granary: 'burnt the granary', scare: 'cried a false plague' };
@@ -39,7 +40,7 @@ Object.assign(ActionMenu, {
         html += chips([
             purse(player.gold),
             ['🌾', 'Granary', v.reserveDays == null ? 'none' : `${v.reserveDays} days`, v.reserveDays != null && v.reserveDays < 4 ? 'warn' : ''],
-            ['🛒', 'Grain', `${v.grainStock} at ${v.grainPrice}g`],
+            ['🛒', 'Grain', `${v.grainStock} at ${Utils.formatGold(v.grainPrice)}g`],
             v.hungry ? { icon: '🥀', label: 'Hungry', value: esc(v.hungry), cls: 'warn' } : null,
             v.lean ? ['❄️', 'Lean weeks', ''] : null,
         ]);
@@ -70,7 +71,7 @@ Object.assign(ActionMenu, {
         const H = TownCrimes.config().hoard;
         for (const n of [20, 60]) {
             grain.push(row({
-                icon: '🌾', name: `Buy ${n} measures of grain to hoard`, desc: `Off the market, into a rented loft (${H.loftFee}g a week). Legal — unless the crown forbids engrossing.`,
+                icon: '🌾', name: `Buy ${n} measures of grain to hoard`, desc: `Off the market, into a rented loft (${Utils.formatGold(H.loftFee)}g a week). Legal — unless the crown forbids engrossing.`,
                 off: !v.hoard.ok, why: esc(v.hoard.why || ''), side: price(v.grainPrice * n, player.gold >= v.grainPrice * n),
             }, ['hoard', n]));
         }
@@ -78,7 +79,7 @@ Object.assign(ActionMenu, {
             const avg = v.loft.grain > 0 ? v.loft.paid / v.loft.grain : 0;
             const dear = v.hungry && avg > 0 && v.grainPrice >= avg * H.grudgeRatio;
             grain.push(row({
-                icon: '💰', name: `Sell your ${Math.floor(v.loft.grain)} measures back to the market`, desc: `At ${v.grainPrice}g a measure now (they cost you about ${Math.round(avg)}g); the price falls as it fills.`,
+                icon: '💰', name: `Sell your ${Math.floor(v.loft.grain)} measures back to the market`, desc: `At ${Utils.formatGold(v.grainPrice)}g a measure now (they cost you about ${Math.round(avg)}g); the price falls as it fills.`,
                 side: price(v.grainPrice * Math.floor(v.loft.grain)), tone: dear ? 'warn' : 'gold',
                 note: dear ? 'A famine price: the town will remember whose loft it came from.' : null,
             }, ['sell', Math.floor(v.loft.grain)]));
@@ -100,7 +101,7 @@ Object.assign(ActionMenu, {
         }
         if (v.lofts.length) {
             html += sectionHead('🏚️ Your grain lofts');
-            html += rowList(v.lofts.map(l => ({ icon: '🌾', name: esc(l.town), desc: `${Math.floor(l.grain)} measures, paid ${l.paid}g`, side: '' })));
+            html += rowList(v.lofts.map(l => ({ icon: '🌾', name: esc(l.town), desc: `${Math.floor(l.grain)} measures, paid ${Utils.formatGold(l.paid)}g`, side: '' })));
         }
         if (v.deeds.length) {
             html += sectionHead('🗒️ What you have done');

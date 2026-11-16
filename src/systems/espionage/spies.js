@@ -252,7 +252,7 @@ Object.assign(Espionage, {
         }
 
         if (player.gold < spy.recruitCost) {
-            return { success: false, reason: `Not enough gold (need ${spy.recruitCost}g)` };
+            return { success: false, reason: `Not enough gold (need ${Utils.formatGold(spy.recruitCost)}g)` };
         }
 
         player.gold -= spy.recruitCost;
@@ -359,7 +359,7 @@ Object.assign(Espionage, {
         }
 
         if (player.gold < (mission.goldCost || 0)) {
-            return { success: false, reason: `Not enough gold (need ${mission.goldCost}g)` };
+            return { success: false, reason: `Not enough gold (need ${Utils.formatGold(mission.goldCost)}g)` };
         }
 
         // Deduct mission cost

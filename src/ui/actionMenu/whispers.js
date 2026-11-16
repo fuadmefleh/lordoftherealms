@@ -11,6 +11,7 @@ import { Whispers } from '../../systems/whispers.js';
 // (broadsheets: a tale printed and posted, spreading by the towns' letters — systems/literacy.js)
 import { Literacy } from '../../systems/literacy.js';
 import { BTN_GOLD, BTN_OFF, lede, chips, card, rowList, sectionHead, more, price, purse, esc } from './uiKit.js';
+import { Utils } from '../../core/utils.js';
 
 const OUTCOME = { proven: ['🔥', 'bad', 'Proven'], debunked: ['🕊️', 'good', 'Debunked'], faded: ['🌫️', '', 'Forgotten'], buried: ['🤐', 'warn', 'Bought silent'] };
 const MUTED = 'font-size:11px; color:#a99a78;';
@@ -36,12 +37,12 @@ function _taleCard(v, gold) {
     const rows = [
         _move(v.can.fan, '🔥', 'Fan it', 'Tell it louder here', `window._whispers.act('fan', ${v.id})`, v.costs.fan, gold, 'Not told here, or not enough gold'),
         v.pamphlet ? _move(v.pamphlet.ok, '📰', 'Print broadsheets', 'Post it written: it spreads fast where people read, and is told as written', `window._whispers.act('pamphlet', ${v.id})`, v.pamphlet.cost, gold, esc(v.pamphlet.reason || '')) : null,
-        _move(v.can.quash, '🤫', 'Quash it', `Pay to hush it (only in ${esc(v.kingdomName)})`, `window._whispers.act('quash', ${v.id})`, v.costs.quash, gold, `Only in ${esc(v.kingdomName)}, and it costs ${v.costs.quash}g`),
+        _move(v.can.quash, '🤫', 'Quash it', `Pay to hush it (only in ${esc(v.kingdomName)})`, `window._whispers.act('quash', ${v.id})`, v.costs.quash, gold, `Only in ${esc(v.kingdomName)}, and it costs ${Utils.formatGold(v.costs.quash)}g`),
     ];
     if (!v.truthKnown) rows.push(_move(v.can.dig, '🔍', 'Dig for the truth', 'Ask the right people', `window._whispers.act('dig', ${v.id})`, v.costs.dig, gold, 'Asked already today, or not enough gold'));
     if (v.subjectType === 'ruler' && v.truthKnown && v.truth) {
-        rows.push(_move(v.can.blackmail, '✉️', 'Blackmail', `Gold to keep quiet (about ${v.blackmailGold}g)`, `window._whispers.act('blackmail', ${v.id})`, null, gold, `You must be in ${esc(v.kingdomName)}`, 'bad'));
-        for (const b of v.buyers) rows.push(_move(v.can.sell, '📜', `Sell the proof to ${esc(b.name)}`, `About ${v.sellGold}g`, `window._whispers.sell(${v.id}, '${esc(b.id)}')`, null, gold, 'Not possible here', 'bad'));
+        rows.push(_move(v.can.blackmail, '✉️', 'Blackmail', `Gold to keep quiet (about ${Utils.formatGold(v.blackmailGold)}g)`, `window._whispers.act('blackmail', ${v.id})`, null, gold, `You must be in ${esc(v.kingdomName)}`, 'bad'));
+        for (const b of v.buyers) rows.push(_move(v.can.sell, '📜', `Sell the proof to ${esc(b.name)}`, `About ${Utils.formatGold(v.sellGold)}g`, `window._whispers.sell(${v.id}, '${esc(b.id)}')`, null, gold, 'Not possible here', 'bad'));
     }
     body += rowList(rows);
     return card(body, { icon: v.icon, title: `${esc(v.label)}: ${esc(v.subject)}`, side: v.subjectType === 'ruler' ? esc(v.kingdomName) : 'adventurer' });
@@ -71,10 +72,10 @@ Object.assign(ActionMenu, {
         if (!talk.length) html += sectionHead('Talk of you') + lede('Nobody here is talking about you. Yet.');
         else {
             html += rowList(talk.map(t => {
-                const meta = [esc(t.freshness), t.telling ? `told here as: <span style="color:#e0b040;">${esc(t.telling.label)}</span>` : '', t.hasBounty ? `<span style="color:#e08080;">bounty ${t.bountyGold}g</span>` : ''].filter(Boolean).join(' · ');
+                const meta = [esc(t.freshness), t.telling ? `told here as: <span style="color:#e0b040;">${esc(t.telling.label)}</span>` : '', t.hasBounty ? `<span style="color:#e08080;">bounty ${Utils.formatGold(t.bountyGold)}g</span>` : ''].filter(Boolean).join(' · ');
                 if (!t.refutable) return { icon: t.icon || '🗣️', name: `“${esc(t.text)}”`, desc: meta };
                 const ok = gold >= bard;
-                return { icon: t.icon || '🗣️', name: `“${esc(t.text)}”`, desc: meta, note: '🎻 Pay a bard to sing it down', side: price(bard, ok), off: !ok, why: `${meta} · the bard wants ${bard}g`, attrs: ok ? `onclick="window._whispers.sing(${t.id})"` : '' };
+                return { icon: t.icon || '🗣️', name: `“${esc(t.text)}”`, desc: meta, note: '🎻 Pay a bard to sing it down', side: price(bard, ok), off: !ok, why: `${meta} · the bard wants ${Utils.formatGold(bard)}g`, attrs: ok ? `onclick="window._whispers.sing(${t.id})"` : '' };
             }), 'Talk of you');
         }
 
@@ -91,8 +92,8 @@ Object.assign(ActionMenu, {
             targets.forEach((t, i) => { start += `<option value="${i}">${esc(t.name)}${t.realm ? ` (${esc(t.realm)})` : ' (adventurer)'}</option>`; });
             start += `</select><select id="whispers-kind" style="${SELECT}" aria-label="What tale"></select><br>`;
             start += gold >= cost
-                ? `<button onclick="window._whispers.plant()" style="${BTN_GOLD}">🕯️ Start the tale (${cost}g)</button>`
-                : `<button disabled title="It costs ${cost}g to set tongues wagging" style="${BTN_OFF}">🕯️ Start the tale (${cost}g)</button>`;
+                ? `<button onclick="window._whispers.plant()" style="${BTN_GOLD}">🕯️ Start the tale (${Utils.formatGold(cost)}g)</button>`
+                : `<button disabled title="It costs ${Utils.formatGold(cost)}g to set tongues wagging" style="${BTN_OFF}">🕯️ Start the tale (${Utils.formatGold(cost)}g)</button>`;
         }
         html += card(start);
 

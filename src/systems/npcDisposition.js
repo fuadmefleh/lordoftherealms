@@ -387,7 +387,7 @@ export const NpcDisposition = {
                 const treasury = kingdom.treasury || 0;
                 const atWar = Array.isArray(kingdom.wars) && kingdom.wars.length > 0;
                 const enemy = atWar && world && world.kingdoms ? world.kingdoms.find(k => k.id === kingdom.wars[0]) : null;
-                let text = `${kingdom.name} fields about ${Utils.formatNumber(soldiers)} soldiers, and the treasury holds near ${Math.round(treasury / 100) * 100} gold.`;
+                let text = `${kingdom.name} fields about ${Utils.formatNumber(soldiers)} soldiers, and the treasury holds near ${Utils.formatGold(Math.round(treasury / 100) * 100)} gold.`;
                 text += enemy ? ` They're at war with ${enemy.name} — the garrisons are thinner than they look.` : ' Not a war in sight, so the lords are getting restless.';
                 return { kind, text };
             }
@@ -423,11 +423,11 @@ export const NpcDisposition = {
             case 'item': {
                 // (packs full: sold to the nearest town, its purse pays — capped by what it holds)
                 const res = PlayerInventory.addOrSell(player, { [spec.item]: spec.qty }, world ? (g) => Economy.drawNearest(world, player.q, player.r, g) : null);
-                return { kind: 'item', summary: res.gold ? `Packs full — sold the gift for ${res.gold}g` : `+${spec.qty} ${spec.item}` };
+                return { kind: 'item', summary: res.gold ? `Packs full — sold the gift for ${Utils.formatGold(res.gold)}g` : `+${spec.qty} ${spec.item}` };
             }
             case 'cache': {
                 const r = NpcDisposition._grantCache(npc, player, spec.lo, spec.hi, '', world);
-                return { kind: 'cache', summary: `+${r.gold} gold` };
+                return { kind: 'cache', summary: `+${Utils.formatGold(r.gold)} gold` };
             }
             case 'karma':
                 player.karma = (player.karma || 0) + spec.amount;

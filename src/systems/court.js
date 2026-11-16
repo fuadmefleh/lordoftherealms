@@ -457,10 +457,10 @@ export const Court = {
                 e.unpaidDays = _num(e.unpaidDays) + 1;
                 e.loyalty = Utils.clamp(e.loyalty - cfg.unpaidLoyalty, 0, 100);
                 if (e.unpaidDays === 1) {
-                    out.notices.push({ icon: '💸', title: 'A Stipend Unpaid', text: `${npc.firstName} goes unpaid at your court (owed ${Math.round(e.owed)} gold).`, type: 'warning' });
+                    out.notices.push({ icon: '💸', title: 'A Stipend Unpaid', text: `${npc.firstName} goes unpaid at your court (owed ${Utils.formatGold(e.owed)} gold).`, type: 'warning' });
                 }
                 if (e.unpaidDays >= cfg.unpaidLeaveDays && !Court._isRegent(player, npc.id)) {
-                    Court._leave(player, world, npc, e, `${npc.firstName} will not serve for nothing, and leaves your court owed ${Math.round(e.owed)} gold.`, out);
+                    Court._leave(player, world, npc, e, `${npc.firstName} will not serve for nothing, and leaves your court owed ${Utils.formatGold(e.owed)} gold.`, out);
                 }
             }
         }

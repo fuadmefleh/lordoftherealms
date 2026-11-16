@@ -8,6 +8,7 @@ import { ActionMenu } from './_ref.js';
 import { RivalHouses } from '../../systems/rivalHouses.js';
 import { openRivalAudience } from './rivalAudience.js';
 import { esc, lede, bullets, chips, card, more } from './uiKit.js';
+import { Utils } from '../../core/utils.js';
 
 const NOTE = 'font-size: 11px; color: #9d937c;';
 
@@ -31,13 +32,13 @@ function headCard(v) {
         ['💰', 'Purse', esc(v.wealth)],
         ['⚔️', 'Retinue', `${v.strength}${armed}`],
         v.guards ? ['🛡️', 'Guards', v.guards] : null,
-        v.estates.length ? ['🌾', 'Estates', `${v.estates.length} (~${v.landValue.toLocaleString()}g)`] : null,
+        v.estates.length ? ['🌾', 'Estates', `${v.estates.length} (~${Utils.formatGold(v.landValue)}g)`] : null,
         v.renown ? ['⭐', 'Renown', v.renown] : null,
     ]);
     const facts = [];
     if (v.ambition) {
         const am = v.ambition;
-        const prog = am.id === 'wealth' ? `${am.have.toLocaleString()} / ${am.target.toLocaleString()}g` : `${am.have} / ${am.target}`;
+        const prog = am.id === 'wealth' ? `${am.have.toLocaleString()} / ${Utils.formatGold(am.target)}g` : `${am.have} / ${am.target}`;
         facts.push(`${am.icon} Ambition: <b>${esc(am.name)}</b> (${prog})`);
     }
     const kids = v.children.map(c => `${esc(c.name)} (${c.age}${c.wed ? `, wed${c.wed !== 'another House' ? ` to your ${esc(c.wed)}` : ''}` : ''})`);

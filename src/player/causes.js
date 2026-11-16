@@ -486,7 +486,7 @@ export const Causes = {
             happiness: Math.round(happiness), moodTarget: Math.round(target), moodTargetExact: target, moodParts, marketMood: market,
             unrest: settlement.holding ? _num(settlement.holding.unrest) : null,
         };
-        out.summary = `${out.town}: ~${amount}g a week (${taxBase}g base × ${Math.round(policy.rate * 100)}%)${factors.length ? `, ${factors.slice().sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)).slice(0, 3).map(f => `${f.label.toLowerCase()} ${_signed(f.pct)}%`).join(', ')}` : ''}`;
+        out.summary = `${out.town}: ~${Utils.formatGold(amount)}g a week (${Utils.formatGold(taxBase)}g base × ${Math.round(policy.rate * 100)}%)${factors.length ? `, ${factors.slice().sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)).slice(0, 3).map(f => `${f.label.toLowerCase()} ${_signed(f.pct)}%`).join(', ')}` : ''}`;
         return out;
     },
 

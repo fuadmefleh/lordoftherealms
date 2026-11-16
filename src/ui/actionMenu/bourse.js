@@ -6,6 +6,7 @@ import { ActionMenu } from './_ref.js';
 import { Bourse } from '../../systems/bourse.js';
 import { MerchantHouses } from '../../systems/merchantHouses.js';
 import { BTN_GOLD, BTN_PLAIN, BTN_DIM, panelTabs, lede, chips, purse, actRow, rowList, price } from './uiKit.js';
+import { Utils } from '../../core/utils.js';
 
 const TABS = [['board', '📈 The Board'], ['portfolio', '💼 Portfolio'], ['company', '⚖️ Your Company'], ['news', '📰 News']];
 const KIND_LABEL = { house: 'Merchant house', bank: 'Banking house', company: 'Your company', venture: 'Chartered venture', monopoly: 'Royal monopoly' };
@@ -58,14 +59,14 @@ function boardTab(player, world, atFloor) {
         let side = '';
         for (const n of [1, 5, 25]) {
             const q = Bourse.quoteTrade(l, n, 'buy');
-            side += act(`Buy ${n} · ${Math.ceil(q.total)}g`, ['buy', l.id, n], BTN_GOLD, atFloor && player.gold >= q.total);
+            side += act(`Buy ${n} · ${Utils.formatGold(q.total)}g`, ['buy', l.id, n], BTN_GOLD, atFloor && player.gold >= q.total);
         }
         if (held) for (const n of [...new Set([Math.min(5, held), held])]) side += act(`Sell ${n}`, ['sell', l.id, n], BTN_PLAIN, atFloor);
         rows.push(actRow({
             icon: esc(l.icon),
-            name: `${esc(l.name)} <span class="pk-price">${l.price.toFixed(2)}<small>g</small></span> ${change(l)}${mania}`,
-            desc: `${KIND_LABEL[l.kind] || esc(l.kind)} · dividend ${l.lastDiv.toFixed(2)}g · book ${l.book.toFixed(2)}g${held ? ` · <b>you hold ${held}</b>` : ''}`,
-            note: `${sparkline([...(l.history || []), l.price])}${insight ? ` <span style="color:#9fc7ff;" title="Your informants' reckoning">worth ≈${l.fair.toFixed(2)}g · return ${Math.round(l.roe * 100)}% a year</span>` : ''}`,
+            name: `${esc(l.name)} <span class="pk-price">${Utils.formatGold(l.price)}<small>g</small></span> ${change(l)}${mania}`,
+            desc: `${KIND_LABEL[l.kind] || esc(l.kind)} · dividend ${Utils.formatGold(l.lastDiv)}g · book ${Utils.formatGold(l.book)}g${held ? ` · <b>you hold ${held}</b>` : ''}`,
+            note: `${sparkline([...(l.history || []), l.price])}${insight ? ` <span style="color:#9fc7ff;" title="Your informants' reckoning">worth ≈${Utils.formatGold(l.fair)}g · return ${Math.round(l.roe * 100)}% a year</span>` : ''}`,
             side,
         }));
     }
@@ -79,20 +80,20 @@ function portfolioTab(player) {
     let cost = 0;
     for (const p of rows) { value += p.value; cost += p.cost; }
     let html = chips([
-        { icon: '💼', label: 'Worth', value: `${Math.round(value)}g`, cls: 'gold' },
-        ['🧾', 'Paid', `${Math.round(cost)}g`],
-        ['💰', 'Dividends', `${Math.round(st.stats.dividends)}g`],
-        ['🤝', 'Brokers', `${Math.round(st.stats.fees)}g`],
-        st.stats.payouts ? ['🏁', 'Buy-outs paid you', `${Math.round(st.stats.payouts)}g`] : null,
-        st.stats.buyBacks ? ['↩️', 'Bought back', `${Math.round(st.stats.buyBacks)}g`] : null,
+        { icon: '💼', label: 'Worth', value: `${Utils.formatGold(value)}g`, cls: 'gold' },
+        ['🧾', 'Paid', `${Utils.formatGold(cost)}g`],
+        ['💰', 'Dividends', `${Utils.formatGold(st.stats.dividends)}g`],
+        ['🤝', 'Brokers', `${Utils.formatGold(st.stats.fees)}g`],
+        st.stats.payouts ? ['🏁', 'Buy-outs paid you', `${Utils.formatGold(st.stats.payouts)}g`] : null,
+        st.stats.buyBacks ? ['↩️', 'Bought back', `${Utils.formatGold(st.stats.buyBacks)}g`] : null,
     ]);
     if (!rows.length) return html + lede('You hold no shares. Buy them on 📈 The Board, on the floor of an exchange.');
     html += rowList(rows.map(p => {
         const gain = p.value - p.cost;
         return {
             icon: esc(p.listing.icon), name: `${esc(p.listing.name)} <span style="font-weight:400; color:#9d937c;">× ${p.shares}</span>`,
-            desc: `paid ${Math.round(p.cost)}g · dividends ${Math.round(p.dividends)}g · <span style="color:${gain >= 0 ? '#8fd18a' : '#e0846a'};">${gain >= 0 ? '+' : ''}${Math.round(gain)}g</span>`,
-            side: `${Math.round(p.value)}g`, tone: 'gold',
+            desc: `paid ${Utils.formatGold(p.cost)}g · dividends ${Utils.formatGold(p.dividends)}g · <span style="color:${gain >= 0 ? '#8fd18a' : '#e0846a'};">${gain >= 0 ? '+' : ''}${Utils.formatGold(gain)}g</span>`,
+            side: `${Utils.formatGold(p.value)}g`, tone: 'gold',
         };
     }), 'Your shares');
     return html;
@@ -107,17 +108,17 @@ function companyTab(player, world, atFloor) {
     let html = lede(`Float shares of ${esc(c.name)} to raise capital. The brokers buy at ${Math.round(C.discount * 100)}% under its worth and keep ${Math.round(C.fee * 100)}%; outsiders then take ${Math.round(C.payout * 100)}% of each week's profit by their shares, and their part of anything you draw out. You keep control up to ${C.maxOutside} shares in 100.`);
     const l = Bourse.listed(player).find(x => x.kind === 'company');
     html += chips([
-        { icon: '⚖️', label: 'Worth', value: `${Math.round(value)}g`, cls: 'gold' },
+        { icon: '⚖️', label: 'Worth', value: `${Utils.formatGold(value)}g`, cls: 'gold' },
         ['👥', 'Outsiders hold', `${outside} of 100`],
-        c.float && c.float.raised ? ['💰', 'Raised', `${Math.round(c.float.raised)}g`] : null,
-        l ? ['📈', 'Price', `${l.price.toFixed(2)}g · ${Math.round(l.roe * 100)}% a year`] : null,
+        c.float && c.float.raised ? ['💰', 'Raised', `${Utils.formatGold(c.float.raised)}g`] : null,
+        l ? ['📈', 'Price', `${Utils.formatGold(l.price)}g · ${Math.round(l.roe * 100)}% a year`] : null,
     ]);
     const rows = [];
     for (const n of [5, 10, 20]) {
         const q = Bourse.floatQuote(player, world, n);
         const ok = atFloor && outside + n <= C.maxOutside && value >= C.minValue;
-        const why = !atFloor ? 'Only on the floor of an exchange' : outside + n > C.maxOutside ? `You would lose control (more than ${C.maxOutside} outside)` : `The company must be worth ${C.minValue}g`;
-        rows.push({ icon: '⚖️', name: `Float ${n} shares`, desc: `${q.cash}g to the company`, act: 'bourseAct', args: ['float', n], off: !ok, why, side: `+${q.cash}g`, tone: 'gold' });
+        const why = !atFloor ? 'Only on the floor of an exchange' : outside + n > C.maxOutside ? `You would lose control (more than ${C.maxOutside} outside)` : `The company must be worth ${Utils.formatGold(C.minValue)}g`;
+        rows.push({ icon: '⚖️', name: `Float ${n} shares`, desc: `${Utils.formatGold(q.cash)}g to the company`, act: 'bourseAct', args: ['float', n], off: !ok, why, side: `+${Utils.formatGold(q.cash)}g`, tone: 'gold' });
     }
     if (l && outside > 0) {
         for (const n of [...new Set([Math.min(5, outside), outside])]) {
@@ -134,7 +135,7 @@ function newsTab(player, world) {
     if (!rows.length) return lede('A quiet season on the floor.');
     const T = {
         mania: h => `🎈 A mania for ${esc(h.listing)} at ${esc(h.place || 'the Bourse')}.`,
-        crash: h => `📉 ${esc(h.listing)} crashes${h.bank ? `; ${esc(h.bank)} loses ${h.amount}g it lent on the shares` : ''}.`,
+        crash: h => `📉 ${esc(h.listing)} crashes${h.bank ? `; ${esc(h.bank)} loses ${Utils.formatGold(h.amount)}g it lent on the shares` : ''}.`,
         panic: h => `😱 Panic on the floor: ${h.why === 'bank_failed' ? `${esc(h.bank || 'a house')} has failed` : `${esc(h.kingdom || 'a crown')} defaults`}.`,
         fleet_lost: h => `🌊 ${esc(h.listing)} has lost a fleet: ${h.pct}% of its capital.`,
         revoked: h => `👑 The crown revokes the charter of ${esc(h.listing)}: ${h.pct}% of its capital gone.`,
@@ -153,7 +154,7 @@ Object.assign(ActionMenu, {
         const st = Bourse.state(player);
         const ex = Bourse.exchangeAt(player, world);
         let html = '<div style="font-size:12px;">';
-        html += chips([purse(player.gold), ['💼', 'Shares', `${Math.round(Bourse.portfolioValue(player))}g`], ex ? { icon: '🏛️', label: 'On the floor at', value: esc(ex.name), cls: 'gold' } : null]);
+        html += chips([purse(player.gold), ['💼', 'Shares', `${Utils.formatGold(Bourse.portfolioValue(player))}g`], ex ? { icon: '🏛️', label: 'On the floor at', value: esc(ex.name), cls: 'gold' } : null]);
         if (!ex) html += `<div class="pk-row-why" style="font-size:11px; margin-bottom:6px;">Read-only here: shares change hands on the floor at ${st.exchanges.map(e => esc(e.name)).join(' and ') || 'the great capitals'}.</div>`;
         html += panelTabs(game, {
             id: 'bourse', title: '📈 The Bourse', tabs: TABS, active: _tab,

@@ -45,6 +45,7 @@ import { Townsfolk } from './townsfolk.js';
 import { StreetCrime } from './streetCrime.js';
 import { OutlawLairs } from './outlawLairs.js';
 import { Arms } from './arms.js';
+import { Utils } from '../core/utils.js';
 
 const DEFAULTS = {
     graveRobbers: {
@@ -536,7 +537,7 @@ export const Scavengers = {
         if (!w) return '';
         delete player.lootedWhileOut;
         const parts = [];
-        if (_num(w.gold) > 0) parts.push(`your purse (${w.gold} gold)`);
+        if (_num(w.gold) > 0) parts.push(`your purse (${Utils.formatGold(w.gold)} gold)`);
         for (const [id, n] of Object.entries(w.items || {})) parts.push(`${n} ${id.replace(/_/g, ' ')}`);
         if (w.caught) return `${w.by} went through your things while you lay there — but the watch caught them at it, and you have it all back.`;
         if (w.kin) return '';

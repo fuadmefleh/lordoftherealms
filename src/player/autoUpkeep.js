@@ -27,6 +27,7 @@ import { Hospitality } from '../systems/hospitality.js';
 import { Gossip } from '../systems/gossip.js';
 import { Trading } from './playerEconomy.js';
 import { Companions } from '../systems/companions.js';
+import { Utils } from '../core/utils.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = v => (v && typeof v === 'object' && !Array.isArray(v) ? v : {});
@@ -391,7 +392,7 @@ export const AutoUpkeep = {
 
     /** "With the day's last hours you washed your clothes at the river and took a private room at the Gilded Goose (11g)." */
     describe(steps) {
-        const bits = steps.map(s => s.text + (s.cost > 0 ? ` (${s.cost}g)` : ''));
+        const bits = steps.map(s => s.text + (s.cost > 0 ? ` (${Utils.formatGold(s.cost)}g)` : ''));
         const list = bits.length > 1 ? `${bits.slice(0, -1).join(', ')} and ${bits[bits.length - 1]}` : bits[0];
         return `With the day's last hours you ${list}.`;
     },

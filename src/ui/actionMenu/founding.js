@@ -15,6 +15,7 @@ import { ActionMenu } from './_ref.js';
 import { Founding } from '../../systems/founding.js';
 import { VillageFounding } from '../../world/villageFounding.js';
 import { BTN_GOLD, BTN_DARK, BTN_PLAIN, lede, chips, purse, sectionHead, kv, card, rowList, price, esc } from './uiKit.js';
+import { Utils } from '../../core/utils.js';
 
 const PICK_BAR_ID = 'foundVillagePickBar';
 const PART_LABELS = [['food', '🌾', 'Food'], ['water', '💧', 'Water'], ['timber', '🌲', 'Timber'], ['stone', '⛰️', 'Stone'], ['trade', '⚖️', 'Trade']];
@@ -160,8 +161,8 @@ Object.assign(ActionMenu, {
             for (const x of plan.supplies) {
                 const parts = [];
                 if (x.packs) parts.push(`${x.packs} from your packs`);
-                if (x.market) parts.push(`${x.market} bought here at ${x.unit}g`);
-                if (x.granary) parts.push(`${x.granary} out of the town granary at ${x.unit}g`);
+                if (x.market) parts.push(`${x.market} bought here at ${Utils.formatGold(x.unit)}g`);
+                if (x.granary) parts.push(`${x.granary} out of the town granary at ${Utils.formatGold(x.unit)}g`);
                 if (x.short) parts.push(`<span style="color:#e0846a;">${x.short} short</span>`);
                 bill += kv(`${GOOD_ICON[x.id] || ''} ${esc(x.id)} (${x.need})`, `${parts.join(' · ') || '—'}${x.cost ? ` · ${price(x.cost)}` : ''}`);
             }
@@ -257,7 +258,7 @@ Object.assign(ActionMenu, {
         }
         _clearPreview(game);
         game.ui.showNotification('⛺ Settlers Set Out',
-            `${res.plan.people} settlers leave ${esc(res.plan.source.name)} with ${Object.entries(res.unit.inventory).map(([k, v]) => `${v} ${k}`).join(', ')}. About ${res.plan.days} day(s) on the road; ${res.paid}g spent.`, 'success');
+            `${res.plan.people} settlers leave ${esc(res.plan.source.name)} with ${Object.entries(res.unit.inventory).map(([k, v]) => `${v} ${k}`).join(', ')}. About ${res.plan.days} day(s) on the road; ${Utils.formatGold(res.paid)}g spent.`, 'success');
         _draft.site = null;
         _draft.name = '';
         game.ui.hideCustomPanel();

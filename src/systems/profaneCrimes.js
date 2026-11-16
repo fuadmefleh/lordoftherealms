@@ -357,7 +357,7 @@ export const ProfaneCrimes = {
         const have = Math.floor(_num(player.inventory && player.inventory.bones));
         if (have < owed) return { success: false, reason: `You took ${owed} sets of their bones; you carry ${have}.` };
         const cost = _num(R.cost);
-        if (_num(player.gold) < cost) return { success: false, reason: `The requiem costs ${cost}g.` };
+        if (_num(player.gold) < cost) return { success: false, reason: `The requiem costs ${Utils.formatGold(cost)}g.` };
         _take(player, 'bones', owed);
         player.gold = _num(player.gold) - cost;
         Ledger.record(player, 'faith', -cost);
@@ -498,7 +498,7 @@ export const ProfaneCrimes = {
             if (!player.reputation) player.reputation = {};
             player.reputation[t.kingdom.id] = _num(player.reputation[t.kingdom.id]) + _num(S.reputation);
             Devotion._addStanding(player, t.faithId, _num(S.standing));
-            return { success: false, caught: true, reason: ProfaneCrimes.line('relicCaught', { fine: paid, town: s.name }, `You are caught and fined ${paid}g.`) };
+            return { success: false, caught: true, reason: ProfaneCrimes.line('relicCaught', { fine: paid, town: s.name }, `You are caught and fined ${Utils.formatGold(paid)}g.`) };
         }
         R.stock -= 1;
         R.taken += 1;
@@ -524,7 +524,7 @@ export const ProfaneCrimes = {
         const bones = Math.floor(_num(player.inventory && player.inventory.bones));
         if (bones < _num(F.bones)) return { success: false, reason: `A fake wants ${F.bones} sets of bones (the charnel sells them); you carry ${bones}.` };
         const gold = _num(F.gold);
-        if (_num(player.gold) < gold) return { success: false, reason: `The gilt box costs ${gold}g.` };
+        if (_num(player.gold) < gold) return { success: false, reason: `The gilt box costs ${Utils.formatGold(gold)}g.` };
         _take(player, 'bones', _num(F.bones));
         player.gold = _num(player.gold) - gold;
         Ledger.record(player, 'fraud', -gold);
@@ -573,7 +573,7 @@ export const ProfaneCrimes = {
             player.gold = _num(player.gold) + paid;
             Ledger.record(player, 'faith', paid);
             Devotion._addStanding(player, t.faithId, _num(C.sell.foundStanding));
-            return { success: true, gold: paid, text: `The priests of ${t.faith} take ${relic.name} home with thanks, and ${paid}g for the finder.` };
+            return { success: true, gold: paid, text: `The priests of ${t.faith} take ${relic.name} home with thanks, and ${Utils.formatGold(paid)}g for the finder.` };
         }
         const price = ProfaneCrimes.relicPrice(world, s, relic);
         const paid = ProfaneCrimes._templePays(world, s, t, price);
@@ -583,7 +583,7 @@ export const ProfaneCrimes = {
         Ledger.record(player, 'fraud', paid);
         st.stats.relicsSold++;
         t.kingdom.religion.piety = _clamp(_num(t.kingdom.religion.piety, 50) + _num(C.sell.buyerPiety), 0, 100);
-        let text = ProfaneCrimes.line('relicSold', { faith: t.faith, town: s.name, gold: paid, relic: relic.name }, `Sold for ${paid}g.`);
+        let text = ProfaneCrimes.line('relicSold', { faith: t.faith, town: s.name, gold: paid, relic: relic.name }, `Sold for ${Utils.formatGold(paid)}g.`);
         if (relic.fake) {
             st.sold.push({ id: relic.id, name: relic.name, quality: _num(relic.quality, 0.4), price: paid, kingdomId: t.kingdom.id, faithId: t.faithId, q: s.q, r: s.r, town: s.name, day: _day(world), until: _day(world) + _num(C.expose.windowDays, 720) });
             return { success: true, gold: paid, text };
@@ -738,7 +738,7 @@ export const ProfaneCrimes = {
         st.stats.witches++;
         if (how === 'trial' && opts.bribe) {
             const b = _num(W.trial.bribeGold);
-            if (_num(player.gold) < b) return { success: false, reason: `The priest wants ${b}g.` };
+            if (_num(player.gold) < b) return { success: false, reason: `The priest wants ${Utils.formatGold(b)}g.` };
             player.gold = _num(player.gold) - b;
             Ledger.record(player, 'bribes', -b);
             Economy.payTown(s, b);

@@ -16,6 +16,7 @@ import { Hex } from '../../core/hex.js';
 import { WorldUnit } from '../../world/units.js';
 import { Colonization } from '../../world/colonization.js';
 import { PlayerActions } from '../../player/playerActions.js';
+import { PlayerCoin } from '../../player/playerCoin.js';
 import { PlayerEconomy, Trading } from '../../player/playerEconomy.js';
 import { PlayerMilitary } from '../../player/playerMilitary.js';
 import { Treasures } from '../../player/treasures.js';
@@ -564,7 +565,21 @@ function company(game, tile, stats) {
             && !MerchantHouses.hasCharter(player) && player.gold >= (plan.charter || 0));
         if (atPlan && MerchantHouses.buyCharter(player, world, tile).success) count(stats, 'chartersBought');
         if (target) {
-            if (savings(player) < target) return;
+            if (savings(player) < target) {
+                // (the charter's price and a bread purse in hand: off to the plan's crown to buy
+                // the charter now, and save the capital after — a purse that never holds charter
+                // and capital at once still gets there)
+                const kid = plan && plan.kingdomId;
+                if (kid != null && !atPlan && !MerchantHouses.hasCharter(player) && !MerchantHouses.officeCharter(player)
+                    && player.gold >= (plan.charter || 0) + 250 && !(game.dest && game.dest.company)) {
+                    const town = nearest(world, player, settlementTiles(world), 400).find(t => {
+                        const st = world.getTile(t.q, t.r).settlement;
+                        return st && st.kingdom === kid && !(game.unreachableSites && game.unreachableSites.has(`${t.q},${t.r}`));
+                    });
+                    if (town) game.dest = { q: town.q, r: town.r, company: true };
+                }
+                return;
+            }
             // The sum is put by, much of it in the bank: draw it here, or make for a branch that holds it
             if (player.gold < target) {
                 const st = Finance.state(player);
@@ -2045,7 +2060,8 @@ function courtship(game, stats) {
     const rel = Relationships.getRelationship(player, suitor.id);
     rel.affection = Math.min(100, (rel.affection || 0) + 4);
     if (rel.affection < 70) return;
-    player.gold -= 100;
+    // (the ring is bought in town: the coin goes into its purse)
+    PlayerCoin.pay(world, player, 100, tile.settlement);
     if (Relationships.marry(player, suitor.id, world).success) {
         count(stats, 'married');
         SUITORS.delete(player);
@@ -2245,7 +2261,7 @@ export function botDay(game, stats) {
         }
         // ...and sell a ship whose upkeep and wages the purse can't carry
         const docked = (player.ships || []).find(s => s.status === 'docked');
-        if (docked && Ships.sellShip(player, docked.id).success) count(stats, 'shipsSold');
+        if (docked && Ships.sellShip(player, docked.id, world).success) count(stats, 'shipsSold');
     }
     // Running out of food with money in the purse: make for the nearest town and buy some
     // (one that had food the last time it was tried: a dawn village picked bare is no use)
@@ -2399,6 +2415,22 @@ export function botDay(game, stats) {
     if (plan && savings(player) >= plan) {
         const here = world.getTile(player.q, player.r);
         if (here && here.settlement) booked(game, 'company', () => company(game, here, stats));
+    }
+    // Saving for the company with the charter's price in hand: on the road to the plan's
+    // crown to buy it (company() set the way), then back to saving the capital
+    const cp = game.companyPlan;
+    if (plan && savings(player) < plan && game.dest && game.dest.company && cp && !MerchantHouses.hasCharter(player)
+        && !MerchantHouses.officeCharter(player) && player.gold >= (cp.charter || 0) + 250 && !player.boardedShip) {
+        const from = `${player.q},${player.r}`;
+        travelTo(game, game.dest.q, game.dest.r);
+        if (`${player.q},${player.r}` === from && !player.crossing) {
+            (game.unreachableSites || (game.unreachableSites = new Set())).add(`${game.dest.q},${game.dest.r}`);
+            game.dest = null;
+        } else {
+            count(stats, 'travelDays');
+            settlementBusiness(game, stats);
+            return;
+        }
     }
     // Poor: earn a living before anything grand — a day's labour and the
     // market in town, as a player starting with a light purse would

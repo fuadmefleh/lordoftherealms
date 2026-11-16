@@ -141,7 +141,7 @@ export const BackRooms = {
         if (!s || !game) return { success: false, reason: 'There is no such game here.' };
         if (BackRooms.admitted(player, world, tile)) return { success: true, game, text: 'You are already at the tables.' };
         const door = BackRooms.entry(player, world, tile, game);
-        if (!door.free && _num(player.gold) < door.fee) return { success: false, reason: `The doorman wants ${door.fee}g to let you in.` };
+        if (!door.free && _num(player.gold) < door.fee) return { success: false, reason: `The doorman wants ${Utils.formatGold(door.fee)}g to let you in.` };
         if (!door.free && door.fee > 0) {
             player.gold -= door.fee;
             if (game.gang) game.gang.purse = _num(game.gang.purse) + door.fee;
@@ -167,7 +167,7 @@ export const BackRooms = {
         Economy.payTown(s, lost + fine);
         if (s.kingdom != null) Underworld.addHeat(player, s.kingdom, _num(C.heat, 2), world);
         if (player._backRoom) player._backRoom.raided = true;
-        return { lost, fine, text: `The watch comes down the stair behind ${game.front}. The coin on the table is gone (${lost}g), and the magistrate fines you ${fine}g.` };
+        return { lost, fine, text: `The watch comes down the stair behind ${game.front}. The coin on the table is gone (${Utils.formatGold(lost)}g), and the magistrate fines you ${Utils.formatGold(fine)}g.` };
     },
 
     // ──────────── YOUR OWN TAVERN ────────────
@@ -189,7 +189,7 @@ export const BackRooms = {
         if (tav.backRoom) return { success: false, reason: 'The tavern already has its back room.' };
         if (BackRooms.status(world, tile.settlement).legal) return { success: false, reason: 'Gaming is lawful here: the tables may stand in the taproom.' };
         const cost = _num(C.fitCost, 250);
-        if (_num(player.gold) < cost) return { success: false, reason: `Fitting out a back room costs ${cost}g.` };
+        if (_num(player.gold) < cost) return { success: false, reason: `Fitting out a back room costs ${Utils.formatGold(cost)}g.` };
         player.gold -= cost;
         Economy.payTown(tile.settlement, cost); // the joiners and masons are paid in town
         tav.backRoom = true;
@@ -220,7 +220,7 @@ export const BackRooms = {
             const seized = Math.ceil(_num(tav.gamblingTables) * _num(C.seizeShare, 1));
             tav.gamblingTables = Math.max(0, _num(tav.gamblingTables) - seized);
             if (s.kingdom != null) Underworld.addHeat(player, s.kingdom, _num(C.tavernHeat, 3), world);
-            out.notices.push({ icon: '🚨', title: 'The Back Room Raided', text: `The watch found the stair behind your tavern in ${s.name}: ${seized} table${seized === 1 ? '' : 's'} seized, and a ${fine}g fine.`, type: 'error' });
+            out.notices.push({ icon: '🚨', title: 'The Back Room Raided', text: `The watch found the stair behind your tavern in ${s.name}: ${seized} table${seized === 1 ? '' : 's'} seized, and a ${Utils.formatGold(fine)}g fine.`, type: 'error' });
         }
         return out;
     },

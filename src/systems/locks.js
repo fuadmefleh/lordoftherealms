@@ -200,6 +200,6 @@ export const Locks = {
             victim: { name: ctx.ownerName || (ctx.building && ctx.building.name) || 'the townsfolk', type: 'merchant', icon: '🧑' },
         });
         const rep = kingdom != null ? `, −${R.reputation} standing in the realm` : '';
-        return { caught: true, fine, text: `Caught ${where}! The scrape of your picks was heard. Fined ${fine}g${rep}.` };
+        return { caught: true, fine, text: `Caught ${where}! The scrape of your picks was heard. Fined ${Utils.formatGold(fine)}g${rep}.` };
     },
 };

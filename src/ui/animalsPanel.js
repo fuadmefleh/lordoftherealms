@@ -25,6 +25,7 @@ import { RealmEscort } from '../player/realmEscort.js';
 import { Household } from '../player/household.js';
 import { ActionMenu } from './actionMenu/_ref.js';
 import { BTN_GOLD, BTN_PLAIN, BTN_DARK, BTN_OFF, BTN_RED, lede, sectionHead, card, actRow, rowList, esc } from './actionMenu/uiKit.js';
+import { Utils } from '../core/utils.js';
 
 const NOTE = 'font-size:11px; color:#9d937c;';
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
@@ -153,8 +154,8 @@ export const AnimalsPanel = {
         html += rowList(offers.map(o => actRow({
             icon: o.icon, name: `${esc(o.name)}${o.young ? ` <span style="${NOTE}">(young)</span>` : ''}`,
             desc: `${esc(o.desc)} · ${o.stock} here`,
-            side: full ? `<button style="${BTN_OFF}" title="You have as many animals as you can look after">${o.price}g</button>`
-                : _btn(`Buy (${o.price}g)`, 'buy', o.key, '', _num(player.gold) >= o.price ? BTN_GOLD : BTN_PLAIN),
+            side: full ? `<button style="${BTN_OFF}" title="You have as many animals as you can look after">${Utils.formatGold(o.price)}g</button>`
+                : _btn(`Buy (${Utils.formatGold(o.price)}g)`, 'buy', o.key, '', _num(player.gold) >= o.price ? BTN_GOLD : BTN_PLAIN),
         })));
         return html;
     },

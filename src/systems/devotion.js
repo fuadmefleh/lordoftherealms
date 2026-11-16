@@ -722,7 +722,7 @@ export const Devotion = {
         const s = tile && tile.settlement;
         amount = Math.floor(_num(amount));
         if (!s) return { success: false, reason: 'There is no one here to give to.' };
-        if (amount < _num(D.minGold, 5)) return { success: false, reason: `Give at least ${_num(D.minGold, 5)} gold.` };
+        if (amount < _num(D.minGold, 5)) return { success: false, reason: `Give at least ${Utils.formatGold(_num(D.minGold, 5))} gold.` };
         if (amount > _num(player.gold)) return { success: false, reason: 'You cannot give what you do not have.' };
         const opt = Devotion.donationOptions(player, world, tile).find(o => o.id === recipient);
         if (!opt) return { success: false, reason: 'No such recipient here.' };
@@ -935,7 +935,7 @@ export const Devotion = {
         const rec = st.pilgrimages[key];
         if (rec && rec.day === _day(world)) return { success: false, reason: 'You have already made your devotions here today.' };
         const off = (P.offerings || []).find(o => o.id === offeringId) || (P.offerings || [])[0] || { id: 'token', gold: 0, mult: 1 };
-        if (_num(player.gold) < off.gold) return { success: false, reason: `The offering is ${off.gold} gold.` };
+        if (_num(player.gold) < off.gold) return { success: false, reason: `The offering is ${Utils.formatGold(off.gold)} gold.` };
         const rng = Devotion._rng(world, player, 'pilgrim');
         const out = { success: true, siteName: site.name, offering: off.gold, karma: 0, faith: 0, renown: 0, blessing: null, notes: [], vowKept: null, redeemed: false, omen: null, harm: 0, fine: 0 };
 

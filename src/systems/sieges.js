@@ -462,7 +462,7 @@ export const Sieges = {
             let reason = built ? 'Built' : '';
             if (can && def.tech && !Technology.hasResearched(player, def.tech)) { can = false; reason = `Needs ${def.tech.replace(/_/g, ' ')}`; }
             if (can && !building && s && s.building) { can = false; reason = 'Another engine is being built'; }
-            if (can && !building && _num(player.gold) < def.cost) { can = false; reason = `Needs ${def.cost} gold`; }
+            if (can && !building && _num(player.gold) < def.cost) { can = false; reason = `Needs ${Utils.formatGold(def.cost)} gold`; }
             return { id, ...def, built, building, progress: building ? s.building.progress : 0, can, reason };
         });
     },
@@ -618,7 +618,7 @@ export const Sieges = {
         // (the host's war chest is its realm's coin, out of the nearest town's purse: World.fundUnitCoin)
         unit._rolledGold = unit.inventory.gold;
         world.units.push(unit);
-        if (typeof world.fundUnitCoin === 'function') world.fundUnitCoin(unit);
+        if (typeof world.fundUnitCoin === 'function') world.fundUnitCoin(unit, { now: true });
         return unit;
     },
 
@@ -740,7 +740,7 @@ export const Sieges = {
                 player.gold -= opt.cost;
                 Sieges._spendNear(world, s, opt.cost);
                 s.building = { id, progress: 0 };
-                Sieges._log(s, world, `Carpenters start on a ${opt.name.toLowerCase()} (${opt.cost} gold).`);
+                Sieges._log(s, world, `Carpenters start on a ${opt.name.toLowerCase()} (${Utils.formatGold(opt.cost)} gold).`);
             }
         }
         s.stance = stance;
@@ -1126,7 +1126,7 @@ export const Sieges = {
             player.gold = _num(player.gold) + paid;
             t.weeksLeft--;
             t.nextDay = day + 7;
-            out.notices.push({ title: '💰 Siege Tribute', text: `${t.name} pays its tribute: ${paid} gold${t.weeksLeft ? ` (${t.weeksLeft} week(s) to go)` : ' — the last of it'}.`, type: 'success' });
+            out.notices.push({ title: '💰 Siege Tribute', text: `${t.name} pays its tribute: ${Utils.formatGold(paid)} gold${t.weeksLeft ? ` (${t.weeksLeft} week(s) to go)` : ' — the last of it'}.`, type: 'success' });
         }
         st.tributes = st.tributes.filter(t => t.weeksLeft > 0);
     },

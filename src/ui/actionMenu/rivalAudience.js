@@ -14,6 +14,7 @@ import { Duels } from '../../systems/duels.js';
 import { npcVoice } from '../npcVoice.js';
 import { DuelPanel } from './duel.js';
 import { esc } from './uiKit.js';
+import { Utils } from '../../core/utils.js';
 
 let _current = null; // { unitId, kingdomId, paid, scene, regard, asked }
 
@@ -36,7 +37,7 @@ function _factsHtml(game, rival) {
     if (f.truce) badges.push(`<div class="npc-dialog-rel-badge" style="color:#9fd89f">🕊️ Truce: ${f.truce} days left</div>`);
     if (f.hunting) badges.push('<div class="npc-dialog-rel-badge" style="color:#f44336">🗡️ Hunting you</div>');
     if (f.ask) badges.push(`<div class="npc-dialog-rel-badge" style="color:#e0b040">🗡️ Asked you to act against ${esc(f.ask.target || 'a House')} (${f.ask.days} days)</div>`);
-    if (f.owed) badges.push(`<div class="npc-dialog-rel-badge" style="color:#e08080">🧾 Owes you ${f.owed} gold</div>`);
+    if (f.owed) badges.push(`<div class="npc-dialog-rel-badge" style="color:#e08080">🧾 Owes you ${Utils.formatGold(f.owed)} gold</div>`);
     const mem = f.memories.map(m => `<div style="color:${m.good ? '#9fd89f' : '#e89090'}; font-size:11px;" title="${_sign(m.weight)} regard, fading with time">${m.good ? '🙂' : '😠'} Remembers ${esc(m.text)}.</div>`).join('');
     return `${badges.join('')}
         <div style="font-size:11px; color:var(--text-secondary); font-style:italic; margin:2px 0;">${esc(f.look[0].toUpperCase() + f.look.slice(1))}; ${esc(f.honour)}.</div>
@@ -176,10 +177,10 @@ function _choices(game, state) {
         });
         list.push({
             icon: '🎁', label: 'Accept this token of good will.', group: 'mend',
-            extra: `<span class="npc-dialog-price">${v.giftCost}g</span>`,
+            extra: `<span class="npc-dialog-price">${Utils.formatGold(v.giftCost)}g</span>`,
             tooltip: RivalHouses.recalls(rival, world, 'gift', 30) ? 'A second gift within the month buys only half as much.' : 'A gift to their purse cools the feud (−15).',
-            disabled: (player.gold || 0) < v.giftCost, disabledReason: `you need ${v.giftCost} gold`,
-            onPick: () => _act(game, state, `*offers a purse of ${v.giftCost} gold*`, (r) => _play(game, state, RivalAudience.act(player, world, r, 'gift'))),
+            disabled: (player.gold || 0) < v.giftCost, disabledReason: `you need ${Utils.formatGold(v.giftCost)} gold`,
+            onPick: () => _act(game, state, `*offers a purse of ${Utils.formatGold(v.giftCost)} gold*`, (r) => _play(game, state, RivalAudience.act(player, world, r, 'gift'))),
         });
     }
     if (!RivalAudience.used(rival, world, 'flatter')) {
@@ -218,9 +219,9 @@ function _choices(game, state) {
             for (const t of theirs.filter(x => x.gender !== ch.gender)) {
                 list.push({
                     icon: '💍', label: `Would ${t.firstName} wed my ${ch.firstName}?`, group: 'match',
-                    extra: `<span class="npc-dialog-price">${M.dowry}g</span>`,
+                    extra: `<span class="npc-dialog-price">${Utils.formatGold(M.dowry)}g</span>`,
                     tooltip: `A ${M.dowry} gold dowry: feud ${M.feud}, +${M.prestige} Prestige, and the two Houses are bound by blood.`,
-                    disabled: (player.gold || 0) < M.dowry, disabledReason: `the dowry is ${M.dowry} gold`,
+                    disabled: (player.gold || 0) < M.dowry, disabledReason: `the dowry is ${Utils.formatGold(M.dowry)} gold`,
                     onPick: () => _act(game, state, `Would ${t.firstName} wed my ${ch.firstName}?`, (r) => {
                         const res = RivalHouses.proposeMatch(player, world, r.kingdomId, ch.id, t.idx);
                         if (!res.success) { scene.note(res.reason, 'bad'); return; }
@@ -236,9 +237,9 @@ function _choices(game, state) {
     const owed = RivalAudience.owed(rival);
     if (owed && !RivalAudience.used(rival, world, 'demand')) {
         list.push({
-            icon: '🧾', label: `You owe me ${owed} gold. Pay it.`, group: 'hard',
+            icon: '🧾', label: `You owe me ${Utils.formatGold(owed)} gold. Pay it.`, group: 'hard',
             tooltip: 'They pay if your strength cows them or their honour shames them; else the feud flares (+5).',
-            onPick: () => _act(game, state, `You owe me ${owed} gold. Pay it.`, (r) => {
+            onPick: () => _act(game, state, `You owe me ${Utils.formatGold(owed)} gold. Pay it.`, (r) => {
                 const res = RivalAudience.demandRepayment(player, world, r);
                 scene.npc(res.line);
                 scene.note(res.text, res.ok ? 'good' : 'bad');
@@ -294,8 +295,8 @@ function _choices(game, state) {
 
 function _offerLabel(o) {
     switch (o.kind) {
-        case 'bloodPrice': return `Hear their terms: a blood price of ${o.gold} gold.`;
-        case 'loan': return `They ask to borrow ${o.gold} gold.`;
+        case 'bloodPrice': return `Hear their terms: a blood price of ${Utils.formatGold(o.gold)} gold.`;
+        case 'loan': return `They ask to borrow ${Utils.formatGold(o.gold)} gold.`;
         case 'speak': return `They ask you to speak for them at ${o.realm}'s court.`;
         case 'buyEstate': return `They offer ${o.gold} gold for ${o.estate}.`;
         case 'match': return `They propose ${o.theirChild} for your ${o.yourChild}.`;

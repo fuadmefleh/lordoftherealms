@@ -440,7 +440,7 @@ export const Fiscal = {
         // The coin: taxes out of the towns' purses into the chests, wages back (booked as they move)
         MoneySupply.note(world, k.id, -(collected - paidA - paidC), 'fisc');
         if (ruled && player) {
-            if (wasArrears === 0 && f.arrearsDays === 1) Fiscal._note(out, '⚔️', 'The Soldiers Go Unpaid', `The treasury of ${Names.realm(k.name)} cannot meet the army's pay (${Math.round(f.arrears.army)}g owed). Unpaid men desert after a week.`, 'warning');
+            if (wasArrears === 0 && f.arrearsDays === 1) Fiscal._note(out, '⚔️', 'The Soldiers Go Unpaid', `The treasury of ${Names.realm(k.name)} cannot meet the army's pay (${Utils.formatGold(f.arrears.army)}g owed). Unpaid men desert after a week.`, 'warning');
             else if (f.arrearsDays === _num(A.desert.afterDays, 7) + 1) Fiscal._note(out, '🏳️', 'Desertion', `Unpaid for a week, the soldiers of ${Names.realm(k.name)} begin to slip away.`, 'error');
         }
         if (f.arrearsDays === 21) Fiscal._record(world, st, { kind: 'mutiny', kingdomId: k.id, kingdom: k.name, amount: Math.round(f.arrears.army) });
@@ -782,7 +782,7 @@ export const Fiscal = {
         const lot = Fiscal._openLot(world, player, st, k, f, pick, day);
         if (lot) f.lastLot = day;
         if (lot && player && player.allegiance === k.id) {
-            Fiscal._note(out, '📜', 'Taxes for Sale', `The crown of ${Names.realm(k.name)} auctions the taxes of ${lot.town} for ${_num(F.term, 120)} days (reckoned at ${lot.est}g). Bids close on day ${lot.closes}.`, 'info');
+            Fiscal._note(out, '📜', 'Taxes for Sale', `The crown of ${Names.realm(k.name)} auctions the taxes of ${lot.town} for ${_num(F.term, 120)} days (reckoned at ${Utils.formatGold(lot.est)}g). Bids close on day ${lot.closes}.`, 'info');
         }
     },
 
@@ -798,7 +798,7 @@ export const Fiscal = {
             st.lots = st.lots.filter(x => x !== lot);
             const pb = lot.player ? _num(lot.player.bid) : 0;
             if (gone) {
-                if (pb > 0 && player) Fiscal._refund(world, player, lot, k, pb, `The auction of ${lot.town}'s taxes is called off: your ${pb}g is returned.`, out);
+                if (pb > 0 && player) Fiscal._refund(world, player, lot, k, pb, `The auction of ${lot.town}'s taxes is called off: your ${Utils.formatGold(pb)}g is returned.`, out);
                 continue;
             }
             const bb = lot.bank ? _num(lot.bank.bid) : 0;
@@ -814,7 +814,7 @@ export const Fiscal = {
                     bank.capital = _num(bank.capital) - bb;
                     holder = bank.id; paid = bb; holderName = bank.name;
                 }
-                if (pb > 0 && player) Fiscal._refund(world, player, lot, k, pb, `${lot.bank.name} outbid you for the taxes of ${lot.town}: your ${pb}g is returned.`, out);
+                if (pb > 0 && player) Fiscal._refund(world, player, lot, k, pb, `${lot.bank.name} outbid you for the taxes of ${lot.town}: your ${Utils.formatGold(pb)}g is returned.`, out);
             }
             if (!holder) continue;
             // (the player's bid is already in the crown's chests, held by its clerks since the bid)
@@ -831,7 +831,7 @@ export const Fiscal = {
             CrownBooks.state(k).stats.farmsSold = _num(CrownBooks.state(k).stats.farmsSold) + 1;
             if (holder === 'player') st.stats.playerFarms++;
             Fiscal._record(world, st, { kind: 'tax_farm', kingdomId: k.id, kingdom: k.name, town: lot.town, q: lot.q, r: lot.r, holder: holderName, amount: paid, own: holder === 'player' });
-            if (holder === 'player') Fiscal._note(out, '📜', 'Your Tax Farm', `You farm the taxes of ${lot.town} for ${_num(F.term, 120)} days (${paid}g paid to the crown of ${Names.realm(k.name)}). Your collectors go out tomorrow.`, 'success');
+            if (holder === 'player') Fiscal._note(out, '📜', 'Your Tax Farm', `You farm the taxes of ${lot.town} for ${_num(F.term, 120)} days (${Utils.formatGold(paid)}g paid to the crown of ${Names.realm(k.name)}). Your collectors go out tomorrow.`, 'success');
         }
     },
 
@@ -904,8 +904,8 @@ export const Fiscal = {
             st.farms = st.farms.filter(x => x !== farm);
             if (s && _obj(s.taxFarm) && s.taxFarm.id === farm.id) delete s.taxFarm;
             if (farm.holder === 'player') {
-                const text = lost ? `${farm.town} is lost to ${k ? k.name : 'its crown'}: the new masters do not honour your tax farm (${Math.round(farm.collected)}g collected against ${farm.paid}g paid).`
-                    : `Your farm of ${farm.town}'s taxes ends: ${Math.round(farm.collected)}g collected against ${farm.paid}g paid.`;
+                const text = lost ? `${farm.town} is lost to ${k ? k.name : 'its crown'}: the new masters do not honour your tax farm (${Utils.formatGold(farm.collected)}g collected against ${Utils.formatGold(farm.paid)}g paid).`
+                    : `Your farm of ${farm.town}'s taxes ends: ${Utils.formatGold(farm.collected)}g collected against ${Utils.formatGold(farm.paid)}g paid.`;
                 Fiscal._note(out, '📜', 'Tax Farm Ends', text, lost ? 'warning' : 'info');
             }
         }
@@ -965,10 +965,10 @@ export const Fiscal = {
         const bid = Math.max(min, Math.floor(_num(amount, min)));
         if (prev >= Math.max(_num(lot.bank && lot.bank.bid), lot.reserve) && amount == null) {
             lot.player.squeeze = squeeze;
-            return { success: true, bid: prev, text: `Your bid of ${prev}g stands (collectors: ${squeeze}).` };
+            return { success: true, bid: prev, text: `Your bid of ${Utils.formatGold(prev)}g stands (collectors: ${squeeze}).` };
         }
         const extra = bid - prev;
-        if (_num(player.gold) < extra) return { success: false, reason: `You need ${extra}g to bid ${bid}g.` };
+        if (_num(player.gold) < extra) return { success: false, reason: `You need ${Utils.formatGold(extra)}g to bid ${Utils.formatGold(bid)}g.` };
         player.gold = _num(player.gold) - extra;
         Ledger.record(player, 'taxFarmBids', -extra);
         // (the clerks hold the coin in the crown's chests until the lot closes: _refund / _lotsDay)
@@ -978,7 +978,7 @@ export const Fiscal = {
             k.treasury = _num(k.treasury) + extra;
             lot.player = { bid, squeeze, day: _day(world), held: _r2(held + extra) };
         } else lot.player = { bid, squeeze, day: _day(world) };
-        return { success: true, bid, text: `You bid ${bid}g for the taxes of ${lot.town} (reckoned at ${lot.est}g over ${_num(F.term, 120)} days). The lot closes on day ${lot.closes}.` };
+        return { success: true, bid, text: `You bid ${Utils.formatGold(bid)}g for the taxes of ${lot.town} (reckoned at ${Utils.formatGold(lot.est)}g over ${_num(F.term, 120)} days). The lot closes on day ${lot.closes}.` };
     },
 
     /** Change how hard your collectors press in a farm. */
@@ -1082,7 +1082,7 @@ export const Fiscal = {
         if (_obj(s.taxFarm)) return { success: false, reason: 'Its taxes are farmed already.' };
         const lot = Fiscal._openLot(world, player, st, k, CrownBooks.state(k), { key: _key(q, r), q, r, s }, _day(world));
         if (!lot) return { success: false, reason: 'Its taxes are too small to farm.' };
-        return { success: true, text: `The taxes of ${s.name} go to auction (reckoned at ${lot.est}g)${lot.bank ? `: ${lot.bank.name} bids ${lot.bank.bid}g` : ''}. The lot closes on day ${lot.closes}.` };
+        return { success: true, text: `The taxes of ${s.name} go to auction (reckoned at ${Utils.formatGold(lot.est)}g)${lot.bank ? `: ${lot.bank.name} bids ${Utils.formatGold(lot.bank.bid)}g` : ''}. The lot closes on day ${lot.closes}.` };
     },
 
     /** A ruler sells offices or crown land outright. */
@@ -1092,7 +1092,7 @@ export const Fiscal = {
         const pay = Finance.saleBuyers(world, k);
         const gain = kind === 'offices' ? CrownBooks.sellOffices(k, { pay }) : CrownBooks.sellLand(k, { pay });
         if (!(gain > 0)) return { success: false, reason: kind === 'offices' ? 'No one in the realm has the coin to buy an office.' : 'Little crown land is left to sell, or no one with the coin to buy it.' };
-        return { success: true, gain, text: kind === 'offices' ? `Offices sold for ${gain}g. The buyers will have their money back from the people.` : `Royal manors sold for ${gain}g. The crown's rents are the less.` };
+        return { success: true, gain, text: kind === 'offices' ? `Offices sold for ${Utils.formatGold(gain)}g. The buyers will have their money back from the people.` : `Royal manors sold for ${Utils.formatGold(gain)}g. The crown's rents are the less.` };
     },
 
     // ── Read-outs ─────────────────────────────────────────

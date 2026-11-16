@@ -43,6 +43,7 @@ import { Economy } from '../world/economy.js';
 import { Seasons } from '../world/seasons.js';
 import { Ledger } from './ledger.js';
 import { StreetFollowers } from './streetFollowers.js';
+import { Utils } from '../core/utils.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -612,7 +613,7 @@ export const AnimalCompanions = {
         if (!offer) return { success: false, reason: 'None of those for sale here this month.' };
         const cfg = AnimalCompanions.config();
         if (AnimalCompanions.state(player).list.length >= cfg.maxAnimals) return { success: false, reason: `You can't look after more than ${cfg.maxAnimals} animals.` };
-        if (_num(player.gold) < offer.price) return { success: false, reason: `${offer.name} costs ${offer.price}g; you have ${Math.floor(_num(player.gold))}g.` };
+        if (_num(player.gold) < offer.price) return { success: false, reason: `${offer.name} costs ${Utils.formatGold(offer.price)}g; you have ${Utils.formatGold(_num(player.gold))}g.` };
         player.gold = _num(player.gold) - offer.price;
         Economy.payTown(s, offer.price);
         Ledger.record(player, 'animals', -offer.price);
@@ -622,7 +623,7 @@ export const AnimalCompanions = {
         const mature = _num(sp.matureDays, 90);
         const ageDays = offer.young ? Math.round(mature * (0.35 + 0.3 * _frac('age', _seed(world), _day(world), key))) : Math.round(mature + 120 + 120 * _frac('age', _seed(world), _day(world), key));
         const a = AnimalCompanions.acquire(world, player, offer.species, { breed: offer.breed, ageDays, bond: offer.young ? 45 : 30, from: 'bought' });
-        return { success: true, animal: a, cost: offer.price, text: `You buy ${a.name}, ${offer.young ? `a ${(sp.youngName || 'young one')}` : `a ${offer.name.toLowerCase()}`}, for ${offer.price}g.` };
+        return { success: true, animal: a, cost: offer.price, text: `You buy ${a.name}, ${offer.young ? `a ${(sp.youngName || 'young one')}` : `a ${offer.name.toLowerCase()}`}, for ${Utils.formatGold(offer.price)}g.` };
     },
 
     // ──────────── STRAYS ────────────

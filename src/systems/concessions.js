@@ -265,7 +265,7 @@ export const Concessions = {
             st.auctions = st.auctions.filter(x => x !== a);
             return res;
         }
-        Concessions._log(world, `Petitioned ${q.realm.name} for the lease of the ${q.kind.name.toLowerCase()} near ${_town(world, q.site.h).name}: bid ${bid}g.`);
+        Concessions._log(world, `Petitioned ${q.realm.name} for the lease of the ${q.kind.name.toLowerCase()} near ${_town(world, q.site.h).name}: bid ${Utils.formatGold(bid)}g.`);
         return res;
     },
 
@@ -278,9 +278,9 @@ export const Concessions = {
         const t = world.getTile(player.q, player.r);
         if (!t || !t.settlement || t.settlement.kingdom !== a.kingdomId) return { success: false, reason: 'Bid at the crown\'s offices in one of its towns.' };
         const want = Math.round(_num(fee, q.minBid));
-        if (want < q.minBid) return { success: false, reason: `The least bid is ${q.minBid} gold.` };
+        if (want < q.minBid) return { success: false, reason: `The least bid is ${Utils.formatGold(q.minBid)} gold.` };
         const res = Concessions._escrow(player, world, a, want, { auction: a });
-        if (res.success) Concessions._log(world, `Bid ${want}g for the ${q.kind.name.toLowerCase()} lease near ${_town(world, q.site.h).name}.`);
+        if (res.success) Concessions._log(world, `Bid ${Utils.formatGold(want)}g for the ${q.kind.name.toLowerCase()} lease near ${_town(world, q.site.h).name}.`);
         return res;
     },
 
@@ -322,7 +322,7 @@ export const Concessions = {
                 player.gold += a.bid;
                 MoneySupply.leak(world, a.bid, 'bidBonds');
                 Ledger.record(player, 'concessions', a.bid);
-                Concessions._log(world, `Your ${a.bid}g bond on the lease near ${where} comes back.`);
+                Concessions._log(world, `Your ${Utils.formatGold(a.bid)}g bond on the lease near ${where} comes back.`);
             }
         };
         if (!site || site.st !== 'open' || !realm || realm.isAlive === false || Concessions.onSite(world, site)) { refund(); a.winner = null; return; }
@@ -347,15 +347,15 @@ export const Concessions = {
         if (playerWins) {
             MoneySupply.leak(world, a.bid, 'bidBonds'); // (the bond becomes the crown's fee: _grant)
             const c = Concessions._grant(world, site, realm, 'player', 'you', a.bid, a);
-            Concessions._log(world, `Won the lease of the ${Hinterland.kind(site.kind).name.toLowerCase()} near ${_town(world, site.h).name} for ${a.bid}g (until day ${c.end}).`);
-            out.notices.push({ icon: '⛏️', title: 'Concession Won', text: `${realm.name} grants you the ${Hinterland.kind(site.kind).name.toLowerCase()} near ${_town(world, site.h).name} for ${a.term} days: ${a.bid}g paid, ${Math.round(a.royalty * 100)}% royalty on every unit dug.`, type: 'success' });
+            Concessions._log(world, `Won the lease of the ${Hinterland.kind(site.kind).name.toLowerCase()} near ${_town(world, site.h).name} for ${Utils.formatGold(a.bid)}g (until day ${c.end}).`);
+            out.notices.push({ icon: '⛏️', title: 'Concession Won', text: `${realm.name} grants you the ${Hinterland.kind(site.kind).name.toLowerCase()} near ${_town(world, site.h).name} for ${a.term} days: ${Utils.formatGold(a.bid)}g paid, ${Math.round(a.royalty * 100)}% royalty on every unit dug.`, type: 'success' });
             a.winner = 'player';
             a.price = a.bid;
             return;
         }
         if (a.bid > 0) {
             refund();
-            if (best) out.notices.push({ icon: best.h.icon, title: 'Outbid', text: `${best.h.name} outbids you (${best.fee}g) for the lease near ${_town(world, site.h).name}. Your bond comes back.`, type: 'warning' });
+            if (best) out.notices.push({ icon: best.h.icon, title: 'Outbid', text: `${best.h.name} outbids you (${Utils.formatGold(best.fee)}g) for the lease near ${_town(world, site.h).name}. Your bond comes back.`, type: 'warning' });
         }
         if (best) {
             // The winning house pays its bid out of its capital (or the home town's merchants out
@@ -499,7 +499,7 @@ export const Concessions = {
         const st = Hinterland.state(world);
         if (st.prospects.some(p => p.q === tile.q && p.r === tile.r && p.status === 'digging')) return { ...out, reason: 'Your prospectors are already out here.' };
         if (!Hinterland.prospectHexes(world, s).length) return { ...out, reason: `There are no hills or mountains near ${s.name} left to search.` };
-        if (_num(player.gold) < out.cost) return { ...out, reason: `You need ${out.cost} gold.` };
+        if (_num(player.gold) < out.cost) return { ...out, reason: `You need ${Utils.formatGold(out.cost)} gold.` };
         return { ...out, ok: true };
     },
 
@@ -515,7 +515,7 @@ export const Concessions = {
         st.prospects.push(p);
         const L = Concessions._ledger(world);
         L.prospecting = _num(L.prospecting) + q.cost;
-        Concessions._log(world, `Sent prospectors into the hills around ${p.town} (${q.cost}g, ${q.days} days).`);
+        Concessions._log(world, `Sent prospectors into the hills around ${p.town} (${Utils.formatGold(q.cost)}g, ${q.days} days).`);
         return { success: true, spent: q.cost, prospect: p };
     },
 
@@ -539,7 +539,7 @@ export const Concessions = {
             const realm = Concessions.realmOf(world, hit.site);
             if (realm && k.leasable) {
                 const a = Concessions._openAuction(world, hit.site, realm, 'player');
-                out.notices.push({ icon: k.icon, title: 'A Strike!', text: `Your prospectors strike a ${k.name.toLowerCase()} near ${p.town}. As its finder you may lease it from ${realm.name} at the reserve price (${a.reserve}g) until day ${a.closes}, before the merchant houses may bid.`, type: 'success' });
+                out.notices.push({ icon: k.icon, title: 'A Strike!', text: `Your prospectors strike a ${k.name.toLowerCase()} near ${p.town}. As its finder you may lease it from ${realm.name} at the reserve price (${Utils.formatGold(a.reserve)}g) until day ${a.closes}, before the merchant houses may bid.`, type: 'success' });
             } else {
                 out.notices.push({ icon: k.icon, title: 'A Strike!', text: `Your prospectors strike a ${k.name.toLowerCase()} near ${p.town}. The townsfolk will work it.`, type: 'success' });
             }
@@ -897,7 +897,7 @@ export const Concessions = {
                 // (a forfeited lease is a missed payment on the player's credit, systems/finance.js)
                 const f = player && _obj(player.finance);
                 if (f && _obj(f.credit)) f.credit.missed = _num(f.credit.missed) + 1;
-                say('Lease Forfeit', `You owe ${Math.ceil(c.owed)}g in wages and royalties at the ${Hinterland.kind(site.kind).name.toLowerCase()} near ${home.name}: ${c.realm} forfeits the lease.`);
+                say('Lease Forfeit', `You owe ${Utils.formatGold(c.owed)}g in wages and royalties at the ${Hinterland.kind(site.kind).name.toLowerCase()} near ${home.name}: ${c.realm} forfeits the lease.`);
                 continue;
             }
             if (weekly && !MerchantPrince.inOwnRealm(player, world, home) && MerchantPrince.crownInCrisis(world, home)

@@ -19,6 +19,7 @@ import { InnerMap } from '../world/innerMap.js';
 import { Prison } from '../player/prison.js';
 import { ActionMenu } from './actionMenu.js';
 import { InnerMapReactions } from './innerMapReactions.js';
+import { Utils } from '../core/utils.js';
 
 const _day = (game) => (game && game.world && game.world.day) || 0;
 
@@ -92,7 +93,7 @@ export const InnerMapJail = {
                 : { type: 'action', action: 'jailmap_break', label: 'Plan the Break-Out', icon: '🏃', desc: 'Rush the guard or slip out at the change of the watch' });
             const crew = Prison.crew(player, game.world);
             if (crew) items.push({ type: 'action', action: 'jailmap_crew', label: 'Send Word to Your Crew', icon: '📨', desc: `${crew.gang.name} could spring you, on the gang's coin` });
-            if (jail.bailCost) items.push({ type: 'action', action: 'jailmap_bail', label: `Post Bail (${jail.bailCost} gold)`, icon: '💰', desc: (player.gold || 0) >= jail.bailCost ? 'Walk out today' : 'You haven\'t the coin' });
+            if (jail.bailCost) items.push({ type: 'action', action: 'jailmap_bail', label: `Post Bail (${Utils.formatGold(jail.bailCost)} gold)`, icon: '💰', desc: (player.gold || 0) >= jail.bailCost ? 'Walk out today' : 'You haven\'t the coin' });
             items.push({ type: 'action', action: 'jailmap_panel', label: 'Think It All Over', icon: '📜', desc: 'Everything at once: the prison panel' });
         }
         for (const npc of npcsHere || []) {

@@ -168,7 +168,7 @@ export const RealmWars = {
         const s = RealmWars._state(player);
         const u = s.ultimatums[kingdomId];
         if (!u) return { success: false, reason: 'No such ultimatum.' };
-        if ((player.gold || 0) < u.tribute) return { success: false, reason: `Need ${u.tribute} gold.` };
+        if ((player.gold || 0) < u.tribute) return { success: false, reason: `Need ${Utils.formatGold(u.tribute)} gold.` };
         player.gold -= u.tribute;
         // (into the demanding crown's chests)
         const k = world.getKingdom ? world.getKingdom(kingdomId) : null;
@@ -177,7 +177,7 @@ export const RealmWars = {
         delete s.ultimatums[kingdomId];
         s.truces[kingdomId] = world.day + Math.round(CONFIG.truceDays / 2);
         if (player.reputation) player.reputation[kingdomId] = (player.reputation[kingdomId] || 0) + 20;
-        NPCLords.rememberRealm(world, kingdomId, 'tribute_paid', { note: `${u.tribute} gold` });
+        NPCLords.rememberRealm(world, kingdomId, 'tribute_paid', { note: `${Utils.formatGold(u.tribute)} gold` });
         House.accrueRivalFeud(player, world, kingdomId, -10);
         return { success: true, cost: u.tribute };
     },
@@ -235,7 +235,7 @@ export const RealmWars = {
         if (!war || !kingdom) return { success: false, reason: 'No such war.' };
         if (war.civilWar) return { success: false, reason: RealmWars.CIVIL_WAR_REASON };
         const cost = RealmWars.peacePrice(player, kingdom);
-        if ((player.gold || 0) < cost) return { success: false, reason: `Need ${cost} gold.` };
+        if ((player.gold || 0) < cost) return { success: false, reason: `Need ${Utils.formatGold(cost)} gold.` };
         player.gold -= cost;
         kingdom.treasury = (kingdom.treasury || 0) + cost; // (the price of peace, into its chests)
         RealmWars.endWar(player, world, kingdomId, 'bought');

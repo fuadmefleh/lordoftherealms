@@ -721,7 +721,7 @@ Object.assign(ActionMenu, {
                 const wr = Object.values((player.wanted && player.wanted.realms) || {});
                 const head = Math.round(wr.reduce((s, r) => s + (r.lesser || 0) + (r.grave || 0), 0));
                 const hunted = !!(player.wanted && player.wanted.hunt);
-                against.push({ icon: '📜', name: 'Crimes & Enemies', desc: wr.length ? `Wanted in ${wr.length} realm${wr.length === 1 ? '' : 's'}${hunted ? ' · hunters on your trail' : ''}` : 'Bounties, hunters, blood debts', act: 'showWantedPanel', side: head ? `${head}g` : '', tone: head || hunted ? 'bad' : '' });
+                against.push({ icon: '📜', name: 'Crimes & Enemies', desc: wr.length ? `Wanted in ${wr.length} realm${wr.length === 1 ? '' : 's'}${hunted ? ' · hunters on your trail' : ''}` : 'Bounties, hunters, blood debts', act: 'showWantedPanel', side: head ? `${Utils.formatGold(head)}g` : '', tone: head || hunted ? 'bad' : '' });
             }
             // The age's crisis: an invasion, a great plague, a schism, a famine, a gold rush (systems/crises.js)
             const crisis = game.world && game.world.crises && game.world.crises.active;
@@ -860,14 +860,14 @@ Object.assign(ActionMenu, {
             const dBtn = (label, handler, enabled, style = BTN_DARK) => `<button ${enabled ? `onclick="${handler}"` : 'disabled'} style="${enabled ? style : BTN_OFF}">${label}</button>`;
             for (const d of demands) {
                 let body = `<div style="color:#cbbf9f; margin:0 0 6px;">${d.text}</div><div>`;
-                body += dBtn(`💰 Pay (${d.amount}g)`, `window._demandAct('pay', ${d.id})`, player.gold >= d.amount, BTN_GOLD);
+                body += dBtn(`💰 Pay (${Utils.formatGold(d.amount)}g)`, `window._demandAct('pay', ${d.id})`, player.gold >= d.amount, BTN_GOLD);
                 body += dBtn(d.negotiated ? 'Haggled' : `🗣️ Negotiate (${Math.round(Demands.negotiateChance(player) * 100)}%)`, `window._demandAct('negotiate', ${d.id})`, !d.negotiated);
                 body += dBtn('✋ Refuse', `window._demandAct('refuse', ${d.id})`, true, BTN_RED);
                 body += '</div>';
                 html += card(body, { icon: d.icon, title: d.title, side: `${Math.max(0, d.dueDay - game.world.day)} day(s)`, tone: 'warn' });
             }
             html += rowList(crownLoans.map(l => ({
-                icon: '👑', name: `Lent ${l.amount}g to ${l.from}`,
+                icon: '👑', name: `Lent ${Utils.formatGold(l.amount)}g to ${l.from}`,
                 desc: `due day ${l.dueDay}${l.defers ? ` (deferred ${l.defers}×)` : ''}`,
                 side: price(l.amount),
             })));
@@ -896,7 +896,7 @@ Object.assign(ActionMenu, {
                 desc: courtView.length
                     ? courtView.slice(0, 4).map(c => esc(c.npc.firstName)).join(', ') + (courtView.length > 4 ? ` and ${courtView.length - 4} more` : '')
                     : 'No one lives at your court yet. Invite people you know.',
-                note: `<span style="color:#9d937c;">${courtView.length} of ${Court.capacity(player)} seats · ${Court.dailyCost(player)}g a day in stipends${house.regentDesignate ? ' · a regent named' : ''}</span>`,
+                note: `<span style="color:#9d937c;">${courtView.length} of ${Court.capacity(player)} seats · ${Utils.formatGold(Court.dailyCost(player))}g a day in stipends${house.regentDesignate ? ' · a regent named' : ''}</span>`,
                 act: 'showHouseCourt', side: 'Open ›', tone: 'gold',
             },
         ], '👥 The Court');
@@ -979,8 +979,8 @@ Object.assign(ActionMenu, {
             html += sectionHead('⚔️ Wars &amp; Ultimatums');
             const warBtn = (label, handler, enabled, style = BTN_RED) => `<button ${enabled ? `onclick="${handler}"` : 'disabled'} style="${enabled ? style : BTN_OFF}">${label}</button>`;
             for (const u of ultimatums) {
-                const body = `<div style="color:#cbbf9f; margin:0 0 6px;">Demands ${u.tribute} gold, or it declares war.</div>`
-                    + `<div>${warBtn(`💰 Pay tribute (${u.tribute}g)`, `window._warAct('tribute', '${u.kingdomId}')`, player.gold >= u.tribute, BTN_GOLD)}</div>`;
+                const body = `<div style="color:#cbbf9f; margin:0 0 6px;">Demands ${Utils.formatGold(u.tribute)} gold, or it declares war.</div>`
+                    + `<div>${warBtn(`💰 Pay tribute (${Utils.formatGold(u.tribute)}g)`, `window._warAct('tribute', '${u.kingdomId}')`, player.gold >= u.tribute, BTN_GOLD)}</div>`;
                 html += card(body, { icon: '📜', title: u.name, side: `${Math.max(0, u.dueDay - game.world.day)} day(s)`, tone: 'warn' });
             }
             for (const w of wars) {
@@ -994,8 +994,8 @@ Object.assign(ActionMenu, {
                     body += `<div style="color:#e0846a; font-size:11px;">🚩 ${h.name} (str ${h.strength}) at (${h.q}, ${h.r}) → ${t.kind === 'colony' ? t.name : t.type} (${t.q}, ${t.r})</div>`;
                 }
                 body += '<div style="margin-top:6px;">';
-                body += warBtn(`🕊️ Buy peace (${peace}g)`, `window._warAct('peace', '${w.kingdomId}')`, player.gold >= peace, BTN_DARK);
-                body += warBtn(`👑 Demand peace (+${RealmWars.reparations(k)}g)`, `window._warAct('demand', '${w.kingdomId}')`, canDemand, BTN_GOLD);
+                body += warBtn(`🕊️ Buy peace (${Utils.formatGold(peace)}g)`, `window._warAct('peace', '${w.kingdomId}')`, player.gold >= peace, BTN_DARK);
+                body += warBtn(`👑 Demand peace (+${Utils.formatGold(RealmWars.reparations(k))}g)`, `window._warAct('demand', '${w.kingdomId}')`, canDemand, BTN_GOLD);
                 body += '</div>';
                 html += card(body, { icon: '⚔️', title: `War with ${w.name}`, side: `Score ${w.score}`, tone: w.score >= 0 ? 'good' : 'bad' });
             }
@@ -1016,11 +1016,11 @@ Object.assign(ActionMenu, {
             const presCost = Schemes.bribePrestigeCost(player, s);
             let body = `<div style="color:#cbbf9f; margin:0 0 6px;">${Schemes.describe(s)}.${s.guarded ? ' <span style="color:#8fd18a;">Guarded.</span>' : ''}</div><div>`;
             if (def && def.guard) {
-                body += plotBtn(s.guarded ? 'Guarded' : `${def.guard.label} (${def.guard.cost}g, ${Math.round(def.guard.success * 100)}%)`,
+                body += plotBtn(s.guarded ? 'Guarded' : `${def.guard.label} (${Utils.formatGold(def.guard.cost)}g, ${Math.round(def.guard.success * 100)}%)`,
                     `window._schemeAct('guard', ${s.id})`, !s.guarded && player.gold >= def.guard.cost);
             }
             body += plotBtn(s.spyTried ? 'Spy failed' : `🕵️ Send spy${idleSpies ? '' : ' (none idle)'}`, `window._schemeAct('spy', ${s.id})`, !s.spyTried && idleSpies > 0);
-            body += plotBtn(`💰 Buy off (${goldCost}g)`, `window._schemeAct('gold', ${s.id})`, player.gold >= goldCost);
+            body += plotBtn(`💰 Buy off (${Utils.formatGold(goldCost)}g)`, `window._schemeAct('gold', ${s.id})`, player.gold >= goldCost);
             body += plotBtn(`⭐ Buy off (${presCost})`, `window._schemeAct('prestige', ${s.id})`, house.prestige >= presCost);
             body += '</div>';
             html += card(body, { icon: def ? def.icon : '🗡️', title: def ? def.name : s.type, side: `${days} day(s)`, tone: 'bad' });
@@ -1053,7 +1053,7 @@ Object.assign(ActionMenu, {
                 'A noble of this settlement, already fond of you, joins those you can court. Marrying a noble brings renown, standing with their kingdom and Prestige.',
                 'window._houseNobleMatch()',
                 player.spouse ? 'You are already married.' : (!(here && here.settlement) ? 'Visit a settlement to arrange a match.' : null)),
-            sinkRow('🤝', `Call in a Favor: 💰 Gold (${favorGold}g)`, sinks.callInFavor,
+            sinkRow('🤝', `Call in a Favor: 💰 Gold (${Utils.formatGold(favorGold)}g)`, sinks.callInFavor,
                 'An allied House repays old debts.', "window._houseFavor('gold')", null),
             swayKingdom ? sinkRow('🤝', `Call in a Favor: 👑 +${House.FAVOR_REPUTATION} rep · ${swayKingdom.name}`, sinks.callInFavor,
                 'An allied House repays old debts.', "window._houseFavor('influence')", null) : null,
@@ -1086,9 +1086,9 @@ Object.assign(ActionMenu, {
             else if (kind === 'peace') res = RealmWars.sueForPeace(player, game.world, kingdomId);
             else res = RealmWars.demandPeace(player, game.world, kingdomId);
             if (!res.success) game.ui.showNotification('⚔️ War', res.reason || 'Not possible.', 'error');
-            else if (kind === 'tribute') game.ui.showNotification('📜 Tribute Paid', `War is averted, for now. −${res.cost} gold.`, 'success');
-            else if (kind === 'peace') game.ui.showNotification('🕊️ Peace Bought', `The war is over. −${res.cost} gold.`, 'success');
-            else game.ui.showNotification('👑 Victory', `The enemy sues for peace and pays ${res.gold} gold.`, 'success');
+            else if (kind === 'tribute') game.ui.showNotification('📜 Tribute Paid', `War is averted, for now. −${Utils.formatGold(res.cost)} gold.`, 'success');
+            else if (kind === 'peace') game.ui.showNotification('🕊️ Peace Bought', `The war is over. −${Utils.formatGold(res.cost)} gold.`, 'success');
+            else game.ui.showNotification('👑 Victory', `The enemy sues for peace and pays ${Utils.formatGold(res.gold)} gold.`, 'success');
             game.ui.updateStats(player, game.world);
             ActionMenu.showHousePanel(game, tile);
         };
@@ -1123,7 +1123,7 @@ Object.assign(ActionMenu, {
         window._houseFavor = (kind) => {
             const res = House.callInFavor(player, game.world, { kind, kingdomId: swayKingdomId,
                 chronicle: `${house.name} calls in a favor from an allied House.`, tags: ['favor'] });
-            const text = res.gold ? `An allied House sends ${res.gold} gold.` : res.reputation ? `Your standing with ${swayKingdom ? swayKingdom.name : 'the kingdom'} rises by ${res.reputation}.` : '';
+            const text = res.gold ? `An allied House sends ${Utils.formatGold(res.gold)} gold.` : res.reputation ? `Your standing with ${swayKingdom ? swayKingdom.name : 'the kingdom'} rises by ${res.reputation}.` : '';
             afterSink('🤝 Favor Called In', res, text);
         };
         window._houseRename = () => {
@@ -1150,7 +1150,7 @@ Object.assign(ActionMenu, {
             if (!open.length) h += lede('Your House has fulfilled every ambition open to it. Its name is written in the histories.');
             h += rowList(open.map(a => {
                 const rw = a.reward || {};
-                const rwText = [rw.prestige ? `${rw.prestige} Prestige` : '', rw.gold ? `${rw.gold} gold` : '', rw.renown ? `${rw.renown} renown` : '', rw.honour ? `honour: ${rw.honour.name}` : ''].filter(Boolean).join(' · ');
+                const rwText = [rw.prestige ? `${rw.prestige} Prestige` : '', rw.gold ? `${Utils.formatGold(rw.gold)} gold` : '', rw.renown ? `${rw.renown} renown` : '', rw.honour ? `honour: ${rw.honour.name}` : ''].filter(Boolean).join(' · ');
                 return {
                     icon: '🏛️', name: a.name, desc: a.blurb,
                     note: rwText ? `<span style="color:#c9b77a;">Reward: ${rwText}</span>` : '',
@@ -1237,20 +1237,20 @@ Object.assign(ActionMenu, {
             const office = c.office ? roleDefs[c.office].label : null;
             let body = `<div style="color:#cbbf9f;">${esc(c.occupation)}, age ${c.age}${c.npc.settlementName ? ` · of ${esc(c.npc.settlementName)}` : ''} · at court since day ${c.since}</div>`;
             body += `<div style="margin-top:6px; color:#ece2c8;">${skillLine(c.skills)}</div>`;
-            body += `<div style="margin-top:6px;">Loyalty <b>${c.loyalty}</b>${c.owed ? ` · <span style="color:#e0846a;">owed ${c.owed}g</span>` : ''} · their purse ${c.purse}g</div>`;
+            body += `<div style="margin-top:6px;">Loyalty <b>${c.loyalty}</b>${c.owed ? ` · <span style="color:#e0846a;">owed ${Utils.formatGold(c.owed)}g</span>` : ''} · their purse ${Utils.formatGold(c.purse)}g</div>`;
             html += card(body, { icon: '👥', title: esc(c.name), side: office ? `🏰 ${office}` : (c.regentDesignate ? '👑 Regent-designate' : ''), tone: loyaltyTone(c.loyalty) });
             const pay = c.stipend;
             const canRaise = (player.gold || 0) >= pay + 1;
             const designate = Regency.designateOptions(player, world).some(o => o.id === c.id);
             html += rowList([
-                { icon: '💰', name: 'Raise their stipend', desc: `${pay}g → ${pay + 1}g a day (they think ${c.expected}g fair)`, attrs: `onclick="window._courtUI.stipend('${c.id}', 1)"`, side: price(pay + 1, canRaise), tone: 'gold' },
-                pay > 0 ? { icon: '✂️', name: 'Cut their stipend', desc: `${pay}g → ${pay - 1}g a day. They will not thank you.`, attrs: `onclick="window._courtUI.stipend('${c.id}', -1)"`, side: price(pay - 1), tone: 'warn' } : null,
+                { icon: '💰', name: 'Raise their stipend', desc: `${Utils.formatGold(pay)}g → ${Utils.formatGold(pay + 1)}g a day (they think ${Utils.formatGold(c.expected)}g fair)`, attrs: `onclick="window._courtUI.stipend('${c.id}', 1)"`, side: price(pay + 1, canRaise), tone: 'gold' },
+                pay > 0 ? { icon: '✂️', name: 'Cut their stipend', desc: `${Utils.formatGold(pay)}g → ${Utils.formatGold(pay - 1)}g a day. They will not thank you.`, attrs: `onclick="window._courtUI.stipend('${c.id}', -1)"`, side: price(pay - 1), tone: 'warn' } : null,
                 { icon: '🏰', name: office ? `Office: ${office}` : 'Appoint to an office', desc: 'Steward, Marshal, Chancellor or Spymaster. The heir must be of the blood.', act: 'showHouseCourt', args: ['office', c.id], side: '›' },
                 c.regentDesignate
                     ? { icon: '👑', name: 'Regent-designate', desc: 'Should you die leaving a child heir, they rule in the child\'s name. Click to unname them.', attrs: 'onclick="window._courtUI.designate(null)"', side: '✓', tone: 'gold' }
                     : { icon: '👑', name: 'Name as regent-designate', desc: 'To rule for a child heir should you die', off: !designate, why: 'They cannot be named regent now', attrs: `onclick="window._courtUI.designate('${c.id}')"`, side: '›' },
                 { icon: '💬', name: 'Speak with them', attrs: `onclick="window._courtUI.talk('${c.id}')"`, side: '›' },
-                { icon: '🚪', name: 'Dismiss from court', desc: c.owed ? `Pays the ${c.owed}g owed, if you can` : 'They go home, a little hurt', attrs: `onclick="window._courtUI.dismiss('${c.id}')"`, side: '›', tone: 'bad' },
+                { icon: '🚪', name: 'Dismiss from court', desc: c.owed ? `Pays the ${Utils.formatGold(c.owed)}g owed, if you can` : 'They go home, a little hurt', attrs: `onclick="window._courtUI.dismiss('${c.id}')"`, side: '›', tone: 'bad' },
                 back,
             ]);
         } else if (view === 'office') {
@@ -1278,7 +1278,7 @@ Object.assign(ActionMenu, {
                 const label = Relationships.getRelationLabel(rel.score || 0);
                 return {
                     icon: label.icon, name: `${esc(npc.firstName)} ${esc(npc.dynasty || '')}`,
-                    desc: `${esc(npc.occupation || 'commoner')}, age ${npc.age} · ${label.label} (${Math.round(rel.score || 0)}) · asks ~${odds.expected}g a day`,
+                    desc: `${esc(npc.occupation || 'commoner')}, age ${npc.age} · ${label.label} (${Math.round(rel.score || 0)}) · asks ~${Utils.formatGold(odds.expected)}g a day`,
                     off: !odds.ok, why: odds.reason,
                     attrs: `onclick="window._courtUI.offer('${npc.id}')"`,
                     side: odds.ok ? `${Math.round(odds.chance * 100)}% ›` : '',
@@ -1294,14 +1294,14 @@ Object.assign(ActionMenu, {
                 { icon: '💰', name: 'A fair stipend', pay: exp },
                 { icon: '💎', name: 'A generous stipend', pay: Math.ceil(exp * 1.5) },
             ];
-            html += lede(`What will you offer <strong>${esc(npc.firstName)}</strong> to live at your court? They think ${exp}g a day fair. A welcome purse of ${Court.config().joinDays} days' stipend is paid when they accept.`);
+            html += lede(`What will you offer <strong>${esc(npc.firstName)}</strong> to live at your court? They think ${Utils.formatGold(exp)}g a day fair. A welcome purse of ${Court.config().joinDays} days' stipend is paid when they accept.`);
             html += rowList(tiers.map(t => {
                 const o = Court.inviteOdds(player, world, npc.id, t.pay);
                 const afford = (player.gold || 0) >= o.joinCost;
                 return {
-                    icon: t.icon, name: `${t.name}: ${t.pay}g a day`,
-                    desc: o.ok ? `${Math.round(o.chance * 100)}% they accept · welcome purse ${o.joinCost}g` : '',
-                    off: !o.ok || !afford, why: !o.ok ? o.reason : `The welcome purse is ${o.joinCost}g`,
+                    icon: t.icon, name: `${t.name}: ${Utils.formatGold(t.pay)}g a day`,
+                    desc: o.ok ? `${Math.round(o.chance * 100)}% they accept · welcome purse ${Utils.formatGold(o.joinCost)}g` : '',
+                    off: !o.ok || !afford, why: !o.ok ? o.reason : `The welcome purse is ${Utils.formatGold(o.joinCost)}g`,
                     attrs: `onclick="window._courtUI.invite('${npc.id}', ${t.pay})"`,
                     side: price(o.joinCost, afford), tone: 'gold',
                 };
@@ -1323,7 +1323,7 @@ Object.assign(ActionMenu, {
             html += lede(`Those not of the blood who live at the court of <strong>${esc(house.name)}</strong>: retainers to hold its offices, counsel it, and rule for a child heir. Each is paid a stipend from your purse every day.`);
             html += chips([
                 { icon: '👑', label: 'Seats', value: `${rows.length} / ${cap}`, cls: 'gold' },
-                ['💰', 'Stipends', `${Court.dailyCost(player)}g/day`],
+                ['💰', 'Stipends', `${Utils.formatGold(Court.dailyCost(player))}g/day`],
                 ['⭐', 'Prestige', house.prestige || 0],
             ]);
             if (!rows.length) html += lede('No one lives at your court yet.');
@@ -1331,9 +1331,9 @@ Object.assign(ActionMenu, {
                 icon: c.office ? '🏰' : c.regentDesignate ? '👑' : '👥',
                 name: `${esc(c.name)}${c.office ? ` <span style="color:#d8c27a; font-size:11px;">${roleDefs[c.office].label}</span>` : ''}`,
                 desc: `${esc(c.occupation)}, age ${c.age} · ${skillLine(c.skills)}`,
-                note: `<span style="color:${c.loyalty < 30 ? '#e0846a' : c.loyalty < 50 ? '#f0b35a' : '#8fd18a'};">Loyalty ${c.loyalty}</span>${c.owed ? ` <span style="color:#e0846a;">· owed ${c.owed}g</span>` : ''}${c.regentDesignate ? ' <span style="color:#d8c27a;">· regent-designate</span>' : ''}`,
+                note: `<span style="color:${c.loyalty < 30 ? '#e0846a' : c.loyalty < 50 ? '#f0b35a' : '#8fd18a'};">Loyalty ${c.loyalty}</span>${c.owed ? ` <span style="color:#e0846a;">· owed ${Utils.formatGold(c.owed)}g</span>` : ''}${c.regentDesignate ? ' <span style="color:#d8c27a;">· regent-designate</span>' : ''}`,
                 act: 'showHouseCourt', args: ['member', c.id],
-                side: `${c.stipend}g/day ›`, tone: loyaltyTone(c.loyalty),
+                side: `${Utils.formatGold(c.stipend)}g/day ›`, tone: loyaltyTone(c.loyalty),
             })), 'Members');
             const des = house.regentDesignate ? Regency.designateOptions(player, world).find(o => o.id === house.regentDesignate) : null;
             html += rowList([
@@ -1532,7 +1532,7 @@ Object.assign(ActionMenu, {
                 const inh = result.inheritance || null;
                 const inherited = inh ? Math.floor(inh.kept) : Math.floor(goldBefore * inheritPct);
                 successHtml += kv('Age', result.heir.age);
-                successHtml += kv('Inherited', `${inherited} of ${inh ? Math.floor(inh.before) : goldBefore} gold (${Math.round(inheritPct * 100)}%)`);
+                successHtml += kv('Inherited', `${inherited} of ${Utils.formatGold(inh ? Math.floor(inh.before) : goldBefore)} gold (${Math.round(inheritPct * 100)}%)`);
                 // Where the rest went: debts, the other children's portions, the heriot (systems/inheritance.js)
                 if (inh && inh.line) successHtml += `<div style="font-size:11px; color:#c9b27a; margin:2px 0 6px;">💰 ${inh.line}</div>`;
                 if (Math.floor(player.gold) !== inherited) successHtml += kv('Purse after the succession', `${Utils.formatGold(player.gold)} gold`);

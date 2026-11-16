@@ -403,7 +403,7 @@ export const Regency = {
         if (player.house) {
             const amt = Math.min(cfg.coupPrestige, Math.max(0, _num(player.house.prestige)));
             if (amt > 0) House.spend(player.house, amt, `${r.name}'s coup`, day);
-            House._chronicle(player.house, world, `${r.name} seizes power in the young ruler's name, carrying off ${gold} gold${lost.some(l => l.type === 'title') ? ' and the House\'s office' : ''}.`, ['regency', 'betrayal']);
+            House._chronicle(player.house, world, `${r.name} seizes power in the young ruler's name, carrying off ${Utils.formatGold(gold)} gold${lost.some(l => l.type === 'title') ? ' and the House\'s office' : ''}.`, ['regency', 'betrayal']);
         }
         st.coups++;
         st.plot = 0;
@@ -422,7 +422,7 @@ export const Regency = {
         const r = st.regent;
         const day = _day(world);
         if (how === 'gift') {
-            if (Inheritance.coin(player) < cfg.giftGold) return { success: false, reason: `A fitting gift is ${cfg.giftGold} gold.` };
+            if (Inheritance.coin(player) < cfg.giftGold) return { success: false, reason: `A fitting gift is ${Utils.formatGold(cfg.giftGold)} gold.` };
             // (into the regent's own purse: systems/inheritance.js keeps the coin real)
             if (Regency._toRegent(player, world, r, cfg.giftGold) <= 0) return { success: false, reason: `There is no one to take the gift.` };
             r.loyalty = Utils.clamp(r.loyalty + cfg.giftLoyalty, 0, 100);
@@ -526,7 +526,7 @@ export const Regency = {
         return [
             { id: 'keep', label: 'Keep the regent\'s men', blurb: loyal ? `Steady hands: +${cfg.keepDiplomacy} diplomacy, +${cfg.keepRenown} renown.` : 'They stay — and their hands stay in the coffers a while longer.' },
             { id: 'purge', label: 'Purge them', blurb: `Recover ${Math.floor(st.embezzled * cfg.purgeRecovery)} of ${st.embezzled} gold skimmed; ${plotted ? `+${cfg.purgePlotterPrestige}` : cfg.purgePrestige} Prestige${r.kind === 'sibling' ? '; a sibling purged nurses a claim' : ''}.` },
-            { id: 'reward', label: 'Reward their service', blurb: `${cfg.rewardGold} gold: +${cfg.rewardPrestige} Prestige, and the House's officers' loyalty +${cfg.rewardRoleLoyalty}.`, gold: cfg.rewardGold },
+            { id: 'reward', label: 'Reward their service', blurb: `${Utils.formatGold(cfg.rewardGold)} gold: +${cfg.rewardPrestige} Prestige, and the House's officers' loyalty +${cfg.rewardRoleLoyalty}.`, gold: cfg.rewardGold },
         ];
     },
 
@@ -558,9 +558,9 @@ export const Regency = {
                 else if (pr < 0) House.spend(house, Math.min(-pr, Math.max(0, _num(house.prestige))), `${r.name}'s men purged`, day);
                 if (r.kind === 'sibling') house._pendingClaim = true;
             }
-            text = `You purge ${r.name}'s men from your household${back ? `, recovering ${back} gold` : ''}. ${plotted ? 'The court approves: they had it coming.' : 'The court whispers that you are ungrateful.'}`;
+            text = `You purge ${r.name}'s men from your household${back ? `, recovering ${Utils.formatGold(back)} gold` : ''}. ${plotted ? 'The court approves: they had it coming.' : 'The court whispers that you are ungrateful.'}`;
         } else if (choice === 'reward') {
-            if (Inheritance.coin(player) < cfg.rewardGold) return { success: false, reason: `A fitting reward is ${cfg.rewardGold} gold.` };
+            if (Inheritance.coin(player) < cfg.rewardGold) return { success: false, reason: `A fitting reward is ${Utils.formatGold(cfg.rewardGold)} gold.` };
             if (Regency._toRegent(player, world, r, cfg.rewardGold) <= 0) return { success: false, reason: 'There is no one to take the reward.' };
             if (house) {
                 House.award(house, cfg.rewardPrestige, `${r.name} rewarded`, day);

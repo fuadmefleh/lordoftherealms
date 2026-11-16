@@ -907,7 +907,7 @@ export const Annals = {
                 lastRuler: ended.lastRuler || null, cause: ended.cause || null,
                 endedInYear: ended.day != null ? Annals.year(world, _num(ended.day)) : null,
             };
-            const fallback = `Here ends the line of ${epitaph.houseName}: ${gens} generation${_s(gens)} over ${years} year${_s(years)}${crowns ? `, and ${crowns} crown${_s(crowns)} won` : ''}.${epitaph.line ? ` ${epitaph.line}` : ''}`;
+            const fallback = `Here ends the line of ${epitaph.houseName}: ${gens} generation${_s(gens)} over ${years} year${_s(years)}${crowns ? `, and ${Utils.formatGold(crowns)} crown${_s(crowns)} won` : ''}.${epitaph.line ? ` ${epitaph.line}` : ''}`;
             return LlmProse.write(world, { kind: 'epitaph', key: Annals.epitaphKey(player), facts, fallback });
         } catch (e) {
             return '';

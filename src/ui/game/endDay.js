@@ -455,7 +455,7 @@ export function endDay() {
                 const crewDay = shipDay && shipDay.crew;
                 if (crewDay && !crewDay.paid) {
                     this.ui.showNotification('👥 Wages Unpaid',
-                        `You couldn't pay your sailors ${crewDay.wages}g today. Their morale is falling — unpaid crews desert.`, 'warning');
+                        `You couldn't pay your sailors ${Utils.formatGold(crewDay.wages)}g today. Their morale is falling — unpaid crews desert.`, 'warning');
                 }
                 // Royal fleets stop ships near hostile ports
                 for (const ic of (shipDay && shipDay.interceptions) || []) {
@@ -828,7 +828,7 @@ export function endDay() {
                 this.ui.showNotification(`👑 ${c.causeLabel}`, `${c.text} Back a claimant from Dynasty → Claims & Crowns within ${c.endDay - this.world.day} days.`, 'warning');
             }
             for (const r of throne.crisesResolved) {
-                const tail = r.rewards && r.rewards.gold ? ` Your reward: ${r.rewards.gold}g and the new ruler's favour.` : (r.backed ? ' The claimant you backed has lost.' : '');
+                const tail = r.rewards && r.rewards.gold ? ` Your reward: ${Utils.formatGold(r.rewards.gold)}g and the new ruler's favour.` : (r.backed ? ' The claimant you backed has lost.' : '');
                 this.ui.showNotification('👑 Crisis Ends', `${r.winner} holds the throne of ${r.kingdomName}.${tail}`, r.rewards && r.rewards.gold ? 'success' : 'info');
             }
             for (const b of throne.battles) {
@@ -975,7 +975,7 @@ export function endDay() {
                 Tavern.expireOldIntel(this.player, this.world.day);
                 intelResult = Tavern.processInformants(this.player, this.world);
                 if (intelResult.cost > 0) {
-                    this.ui.showNotification('Informants', `-${intelResult.cost}g upkeep`, 'default');
+                    this.ui.showNotification('Informants', `-${Utils.formatGold(intelResult.cost)}g upkeep`, 'default');
                 }
                 if (intelResult.lostInformants > 0) {
                     this.ui.showNotification('Informant Lost', `${intelResult.lostInformants} informant(s) left — couldn't pay`, 'error');
@@ -989,7 +989,7 @@ export function endDay() {
             if (typeof Espionage !== 'undefined') {
                 const espResult = Espionage.processDaily(this.player, this.world);
                 if (espResult.upkeepPaid > 0) {
-                    this.ui.showNotification('🕵️ Spy Network', `-${espResult.upkeepPaid}g upkeep`, 'default');
+                    this.ui.showNotification('🕵️ Spy Network', `-${Utils.formatGold(espResult.upkeepPaid)}g upkeep`, 'default');
                 }
                 if (espResult.lostSpies > 0) {
                     this.ui.showNotification('🕵️ Spy Deserted!', `${espResult.lostSpies} spy(s) left due to low loyalty or unpaid wages.`, 'error');
@@ -1006,7 +1006,7 @@ export function endDay() {
                     );
                     if (mission.ultimatum) {
                         const u = mission.ultimatum;
-                        this.ui.showNotification('📜 Ultimatum!', `${u.name} knows of your spies. Pay ${u.tribute}g in tribute by day ${u.dueDay}, or face war.`, 'error');
+                        this.ui.showNotification('📜 Ultimatum!', `${u.name} knows of your spies. Pay ${Utils.formatGold(u.tribute)}g in tribute by day ${u.dueDay}, or face war.`, 'error');
                     }
                     if (mission.levelUp) {
                         this.ui.showNotification('⬆️ Spy Level Up!', `${mission.spyName} reached level ${mission.newLevel}!`, 'success');
@@ -1045,7 +1045,7 @@ export function endDay() {
             // (systems/finance.js; runs the loans the old Banking.processLoans did)
             const financeDay = Finance.processDay(this.world, this.player);
             if (financeDay.paid > 0) {
-                this.ui.showNotification('Loan Payment', `-${financeDay.paid} gold`, 'default');
+                this.ui.showNotification('Loan Payment', `-${Utils.formatGold(financeDay.paid)} gold`, 'default');
             }
             for (const n of financeDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             // Underwriters (premiums, claims on the day's losses, their books), bills of
@@ -1135,11 +1135,11 @@ export function endDay() {
             PlayerEconomy.spawnTravelingMerchant(this.player, this.world);
 
             if (playerResults.upkeepCost > 0) {
-                this.ui.showNotification('Army Upkeep', `-${playerResults.upkeepCost} gold`, 'default');
+                this.ui.showNotification('Army Upkeep', `-${Utils.formatGold(playerResults.upkeepCost)} gold`, 'default');
             }
 
             if (playerResults.mercenaryWages > 0) {
-                this.ui.showNotification('Mercenary Wages', `-${playerResults.mercenaryWages} gold`, 'default');
+                this.ui.showNotification('Mercenary Wages', `-${Utils.formatGold(playerResults.mercenaryWages)} gold`, 'default');
             }
 
             if (playerResults.unitsLost > 0) {
@@ -1170,7 +1170,7 @@ export function endDay() {
                 } else if (caravan.status === 'smuggling_caught') {
                     this.ui.showNotification('Smuggling Intercepted', `${caravan.from} → ${caravan.to}: +${caravan.finalProfit} gold after confiscation`, 'default');
                 } else {
-                    this.ui.showNotification('Caravan Arrived!', `${caravan.from} → ${caravan.to}: +${caravan.finalProfit} gold`, 'success');
+                    this.ui.showNotification('Caravan Arrived!', `${caravan.from} → ${caravan.to}: +${Utils.formatGold(caravan.finalProfit)} gold`, 'success');
                 }
             }
 
@@ -1183,7 +1183,7 @@ export function endDay() {
                 }
                 const kind = c.success === false ? 'error' : (c.casualties > 0 ? 'default' : 'success');
                 const title = c.outcome === 'defeat' ? 'Contract Failed' : c.outcome === 'abandoned' ? 'Contract Abandoned' : 'Contract Complete';
-                this.ui.showNotification(`${c.contract.icon || '⚔️'} ${title}`, c.message || `${c.contract.name} finished. +${c.payment} gold`, kind);
+                this.ui.showNotification(`${c.contract.icon || '⚔️'} ${title}`, c.message || `${c.contract.name} finished. +${Utils.formatGold(c.payment)} gold`, kind);
             } else if (playerResults.contractUpdate && playerResults.contractUpdate.event) {
                 const ev = playerResults.contractUpdate.event;
                 this.ui.showNotification(ev.type === 'loot' ? '💰 Plunder' : ev.type === 'ambush' ? '⚔️ Ambush!' : '🏃 Desertion', ev.text, ev.type === 'loot' ? 'success' : 'warning');
@@ -1198,7 +1198,7 @@ export function endDay() {
             const ry = playerResults.religiousYields;
             if (ry && (ry.gold || ry.renown || ry.researchDays)) {
                 const parts = [];
-                if (ry.gold) parts.push(`+${Math.floor(ry.gold)} pilgrim gold`);
+                if (ry.gold) parts.push(`+${Utils.formatGold(ry.gold)} pilgrim gold`);
                 if (ry.renown) parts.push(`+${ry.renown} renown`);
                 if (ry.researchDays) parts.push(`oracles advance research by ${ry.researchDays} day${ry.researchDays > 1 ? 's' : ''}`);
                 this.ui.showNotification('Sacred Buildings', parts.join(', '), 'info');
@@ -1333,10 +1333,10 @@ export function endDay() {
             for (const b of (playerResults.bountyTracking && playerResults.bountyTracking.chiefs) || []) {
                 if (b.outcome === 'slain') {
                     // (a broke crown pays what it has and writes the rest as a writ: BountyHunting.owe)
-                    const writ = b.owed > 0 ? ` ${b.realm || 'The crown'} could not pay it all: it gives you a writ for the other ${b.owed} gold, paid as its chests fill.` : '';
-                    this.ui.showNotification('🎯 Bounty Paid', `The price on ${b.targetName}'s head is yours: +${b.pay} gold.${writ}${b.promoted ? ` Promoted to ${b.promoted.title}!` : ''}`, b.owed > 0 ? 'warning' : 'success');
+                    const writ = b.owed > 0 ? ` ${b.realm || 'The crown'} could not pay it all: it gives you a writ for the other ${Utils.formatGold(b.owed)} gold, paid as its chests fill.` : '';
+                    this.ui.showNotification('🎯 Bounty Paid', `The price on ${b.targetName}'s head is yours: +${Utils.formatGold(b.pay)} gold.${writ}${b.promoted ? ` Promoted to ${b.promoted.title}!` : ''}`, b.owed > 0 ? 'warning' : 'success');
                 } else if (b.outcome === 'writPaid') {
-                    this.ui.showNotification('📜 Writ Honoured', `${b.realm || 'The crown'} pays the last of what it owed you for ${b.targetName}: +${b.pay} gold.`, 'success');
+                    this.ui.showNotification('📜 Writ Honoured', `${b.realm || 'The crown'} pays the last of what it owed you for ${b.targetName}: +${Utils.formatGold(b.pay)} gold.`, 'success');
                 } else if (b.outcome === 'writPart') {
                     this.ui.showNotification('📜 On Account', `${b.realm || 'The crown'} pays ${b.pay} gold on its writ for ${b.targetName} (${b.left} still owed).`, 'info');
                 } else if (b.outcome === 'writLapsed') {
@@ -1365,7 +1365,7 @@ export function endDay() {
             // Check for completed quests
             const completedQuests = Quests.updateProgress(this.player, this.world);
             for (const quest of completedQuests) {
-                const sold = quest.overflowSold ? ` (no room in your packs — sold for ${quest.overflowSold.gold}g)` : '';
+                const sold = quest.overflowSold ? ` (no room in your packs — sold for ${Utils.formatGold(quest.overflowSold.gold)}g)` : '';
                 this.ui.showNotification('Quest Complete!', `${quest.title} — Rewards: ${Quests.describeRewards(quest.rewards)}${sold}`, 'success');
                 // House Prestige for finishing a quest.
                 if (typeof House !== 'undefined') {

@@ -79,7 +79,7 @@ Object.assign(Tavern, {
             label: 'Talk to traveling merchants',
             icon: '🧳',
             cost: Tavern.DRINK_COST * 2,
-            description: `Learn about prices in nearby settlements (${Tavern.DRINK_COST * 2}g)`,
+            description: `Learn about prices in nearby settlements (${Utils.formatGold(Tavern.DRINK_COST * 2)}g)`,
             available: player.gold >= Tavern.DRINK_COST * 2,
         });
 
@@ -89,7 +89,7 @@ Object.assign(Tavern, {
             label: 'Ask about notable figures',
             icon: '👑',
             cost: Tavern.BRIBE_COST,
-            description: `Bribe someone for info about rulers and advisors (${Tavern.BRIBE_COST}g)`,
+            description: `Bribe someone for info about rulers and advisors (${Utils.formatGold(Tavern.BRIBE_COST)}g)`,
             available: player.gold >= Tavern.BRIBE_COST,
         });
 
@@ -100,7 +100,7 @@ Object.assign(Tavern, {
                 label: 'Ask about troop movements',
                 icon: '⚔️',
                 cost: Tavern.BRIBE_COST,
-                description: `Learn about wars and military strength (${Tavern.BRIBE_COST}g)`,
+                description: `Learn about wars and military strength (${Utils.formatGold(Tavern.BRIBE_COST)}g)`,
                 available: player.gold >= Tavern.BRIBE_COST,
             });
         }
@@ -115,7 +115,7 @@ Object.assign(Tavern, {
                     label: 'Hire a local informant',
                     icon: '🕵️',
                     cost: Tavern.HIRE_INFORMANT_COST,
-                    description: `Place a permanent informant here. Costs ${Tavern.HIRE_INFORMANT_COST}g + 10g/day upkeep.`,
+                    description: `Place a permanent informant here. Costs ${Utils.formatGold(Tavern.HIRE_INFORMANT_COST)}g + 10g/day upkeep.`,
                     available: player.gold >= Tavern.HIRE_INFORMANT_COST,
                 });
             }
@@ -134,8 +134,8 @@ Object.assign(Tavern, {
             icon: '🍖',
             cost: mealCost,
             description: freeMeal ? 'The innkeeper will not hear of payment from one so celebrated. Satisfies hunger and comfort.' : localMeal.comfort > 0
-                ? `The house serves the local ${localMeal.dish || localMeal.hybridDish} (${mealCost}g). Satisfies hunger; +${localMeal.comfort} extra comfort.`
-                : `A hearty stew and fresh bread (${mealCost}g). Satisfies hunger and comfort.`,
+                ? `The house serves the local ${localMeal.dish || localMeal.hybridDish} (${Utils.formatGold(mealCost)}g). Satisfies hunger; +${localMeal.comfort} extra comfort.`
+                : `A hearty stew and fresh bread (${Utils.formatGold(mealCost)}g). Satisfies hunger and comfort.`,
             available: player.gold >= mealCost,
         });
 
@@ -146,7 +146,7 @@ Object.assign(Tavern, {
             label: 'Wash up at the basin',
             icon: '🧼',
             cost: bathCost,
-            description: `Use the tavern's wash basin (${bathCost}g). Restores hygiene.`,
+            description: `Use the tavern's wash basin (${Utils.formatGold(bathCost)}g). Restores hygiene.`,
             available: player.gold >= bathCost,
         });
 
@@ -158,7 +158,7 @@ Object.assign(Tavern, {
             label: freeRoom ? 'Take the best room, on the house' : 'Rent a room to rest',
             icon: '🛏️',
             cost: innCost,
-            description: freeRoom ? 'The innkeeper insists: the best room, free, for a guest of your fame. Restores energy and comfort.' : `Rest in a private room (${innCost}g). Restores energy and comfort.`,
+            description: freeRoom ? 'The innkeeper insists: the best room, free, for a guest of your fame. Restores energy and comfort.' : `Rest in a private room (${Utils.formatGold(innCost)}g). Restores energy and comfort.`,
             available: player.gold >= innCost,
         });
 
@@ -239,7 +239,7 @@ Object.assign(Tavern, {
                 label: 'Ask about sacred places',
                 icon: '⛲',
                 cost: Tavern.BRIBE_COST,
-                description: `Seek knowledge of holy sites and ancient faiths (${Tavern.BRIBE_COST}g)`,
+                description: `Seek knowledge of holy sites and ancient faiths (${Utils.formatGold(Tavern.BRIBE_COST)}g)`,
                 available: player.gold >= Tavern.BRIBE_COST,
             });
         }
@@ -284,7 +284,7 @@ Object.assign(Tavern, {
                 cost,
                 description: known
                     ? 'Your guild contact waits: jobs, the fence and the black market'
-                    : `Find a contact of the thieves' guild (${cost}g)`,
+                    : `Find a contact of the thieves' guild (${Utils.formatGold(cost)}g)`,
                 available: known || (player.gold || 0) >= cost,
             });
         }
@@ -876,7 +876,7 @@ Object.assign(Tavern, {
             for (const item of gossipItems) {
                 let text = `"${item.text}"`;
                 if (item.hasBounty) {
-                    text += ` (Bounty: ${item.bountyGold}g)`;
+                    text += ` (Bounty: ${Utils.formatGold(item.bountyGold)}g)`;
                 }
                 if (item.telling) text += ` (as it's told here: ${item.telling.label.toLowerCase()})`;
                 rumors.push({
@@ -896,7 +896,7 @@ Object.assign(Tavern, {
                     category: Tavern.CATEGORIES.RUMORS_GOSSIP,
                     icon: '💰',
                     title: `Your Notoriety: ${notoriety.notoriety}`,
-                    text: `Total bounty on your head: ${notoriety.totalBounty}g across ${notoriety.activeBounties} jurisdiction${notoriety.activeBounties !== 1 ? 's' : ''}.`,
+                    text: `Total bounty on your head: ${Utils.formatGold(notoriety.totalBounty)}g across ${notoriety.activeBounties} jurisdiction${notoriety.activeBounties !== 1 ? 's' : ''}.`,
                     reliability: 1.0,
                     day: world.day,
                 });
@@ -918,7 +918,7 @@ Object.assign(Tavern, {
             category: Tavern.CATEGORIES.RUMORS_GOSSIP,
             icon: '🔥',
             title: r.success ? 'Soul Sold' : 'The Stranger',
-            text: r.success ? `${r.text} +${r.gold} gold.` : r.reason,
+            text: r.success ? `${r.text} +${Utils.formatGold(r.gold)} gold.` : r.reason,
             reliability: Tavern.RELIABILITY.INFORMANT,
             accurate: true,
             day: world.day,

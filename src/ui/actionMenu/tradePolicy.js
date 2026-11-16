@@ -12,6 +12,7 @@ import { Throne } from '../../systems/throne.js';
 import { BTN_GOLD, BTN_DIM, BTN_PLAIN, BTN_RED, CARD, panelTabs, intelBadge, lede, bullets, chips } from './uiKit.js';
 import { RealmIntel } from '../../systems/realmIntel.js';
 import { Names } from '../../core/names.js';
+import { Utils } from '../../core/utils.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 const TABS = [['here', '📍 This realm'], ['realms', '🗺️ All realms'], ['crown', '👑 Your crown']];
@@ -80,7 +81,7 @@ function hereTab(game) {
         const bits = [];
         if (n.embargoed) {
             const sq = TradePolicy.smuggleQuote(player, world, tile, id);
-            bits.push(`<span style="color:#e74c3c;">${n.embargoed} under embargo here</span>${sq.ok ? ` · ${sq.price}g each, ~${pct(sq.chance)} risk ${act('🕶️ Smuggle', ['smuggle', id], BTN_RED, (player.actionPoints || 0) >= 1, 'Run them past the watch (1 AP): a premium if it works; caught, the goods are taken, a fine, heat and maybe the cells')}` : ''}`);
+            bits.push(`<span style="color:#e74c3c;">${n.embargoed} under embargo here</span>${sq.ok ? ` · ${Utils.formatGold(sq.price)}g each, ~${pct(sq.chance)} risk ${act('🕶️ Smuggle', ['smuggle', id], BTN_RED, (player.actionPoints || 0) >= 1, 'Run them past the watch (1 AP): a premium if it works; caught, the goods are taken, a fine, heat and maybe the cells')}` : ''}`);
         }
         if (n.foreign - n.embargoed > 0) bits.push(`${n.foreign - n.embargoed} bought abroad pay ${pct(n.dutyRate)} duty here`);
         if (n.banned) bits.push(`<span style="color:#e67e22;">${esc(k.name)} bans its export</span>`);
@@ -91,7 +92,7 @@ function hereTab(game) {
     const lq = TradePolicy.licenceQuote(player, world, k.id);
     const until = TradePolicy.hasLicence(player, world, k.id) ? TradePolicy.playerState(player).licences[k.id] : null;
     html += `<div style="${CARD}"><b>📜 A licence from the crown</b><div style="${NOTE}">A licensed merchant pays none of ${esc(Names.realm(k.name))}'s duties and may carry its goods out despite its export bans.${until ? ` <b style="color:#2ecc71;">Yours runs to day ${until}.</b>` : ''}</div>`;
-    html += lq.ok ? act(`${until ? 'Extend' : 'Petition'} (${lq.cost}g, ${lq.days} days)`, ['licence', k.id], BTN_GOLD, (player.gold || 0) >= lq.cost) : `<div style="${NOTE}">${esc(lq.reason)}</div>`;
+    html += lq.ok ? act(`${until ? 'Extend' : 'Petition'} (${Utils.formatGold(lq.cost)}g, ${lq.days} days)`, ['licence', k.id], BTN_GOLD, (player.gold || 0) >= lq.cost) : `<div style="${NOTE}">${esc(lq.reason)}</div>`;
     html += '</div>';
     return html;
 }
@@ -106,10 +107,10 @@ function realmsTab(game, pick = null) {
         const why = RealmIntel.whyLabel(player, world, k, 'books');
         const rev = why && s.revenue ? Math.round(s.revenue.last) : 0;
         const grain = why && s.granary && s.granary.grain >= 1 ? ` · granary ${Math.round(s.granary.grain)} grain` : '';
-        html += `<div style="${CARD}"><b>${esc(k.name)}</b> ${intelBadge(why)} <small style="color:#999;">${rev ? `customs ${rev}g last week` : ''}${grain}</small><div style="${NOTE}">${policyLine(world, k, { books: !!why })}</div>`;
+        html += `<div style="${CARD}"><b>${esc(k.name)}</b> ${intelBadge(why)} <small style="color:#999;">${rev ? `customs ${Utils.formatGold(rev)}g last week` : ''}${grain}</small><div style="${NOTE}">${policyLine(world, k, { books: !!why })}</div>`;
         if (pick && pick !== k.id) {
             const q = TradePolicy.brokerQuote(player, world, pick, k.id);
-            html += q.ok ? act(`🤝 Broker a treaty with ${esc((world.getKingdom(pick) || {}).name)} (${q.cost}g)`, ['broker', pick, k.id]) : `<div style="${NOTE}">${esc(q.reason)}</div>`;
+            html += q.ok ? act(`🤝 Broker a treaty with ${esc((world.getKingdom(pick) || {}).name)} (${Utils.formatGold(q.cost)}g)`, ['broker', pick, k.id]) : `<div style="${NOTE}">${esc(q.reason)}</div>`;
         } else if (!pick) {
             html += act('🤝 Broker a treaty…', ['pick', k.id], BTN_PLAIN, true, 'Bring this realm and another to sign a trade treaty: gifts to both courts, prestige for your House');
         }
@@ -130,7 +131,7 @@ function crownTab(game) {
     const s = TradePolicy.summary(world, k);
     const levels = TradePolicy.config().ruler.levels;
     let html = `<div style="${CARD}"><b>👑 The trade of ${esc(Names.realm(k.name))}</b><div style="${NOTE}">${policyLine(world, k, { books: true })}</div>`;
-    html += `<div style="margin-top:6px;">${chips([['🛃', 'Customs last week', `${Math.round(s.revenue ? s.revenue.last : 0)}g`, 'gold'], ['', 'In all', `${Math.round(s.revenue ? s.revenue.total : 0)}g`]])}</div>`;
+    html += `<div style="margin-top:6px;">${chips([['🛃', 'Customs last week', `${Utils.formatGold(s.revenue ? s.revenue.last : 0)}g`, 'gold'], ['', 'In all', `${Utils.formatGold(s.revenue ? s.revenue.total : 0)}g`]])}</div>`;
     html += bullets([
         'Cut duties and the Guild Coalition cheers.',
         'Raise them on goods your guilds make (⚒️) and they cheer louder — but your neighbours answer duty with duty.',
@@ -165,7 +166,7 @@ function crownTab(game) {
     // ── The granary ──
     const g = s.granary || {};
     html += `<div style="${CARD}"><b>🌾 The royal granaries</b><div style="${NOTE} margin:2px 0 6px;">The granaries buy grain where it is cheap and feed the towns that go hungry.</div>`;
-    html += chips([['🌾', 'In store', Math.round(g.grain || 0)], ['', 'Bought', `${Math.round(g.bought || 0)} for ${Math.round(g.spent || 0)}g`], ['', 'Released to hungry towns', Math.round(g.released || 0)]]);
+    html += chips([['🌾', 'In store', Math.round(g.grain || 0)], ['', 'Bought', `${Math.round(g.bought || 0)} for ${Utils.formatGold(g.spent || 0)}g`], ['', 'Released to hungry towns', Math.round(g.released || 0)]]);
     html += act(g.on ? 'Stop buying' : 'Fill the granaries', ['granary', !g.on], g.on ? BTN_PLAIN : BTN_GOLD);
     html += '</div>';
     return html;

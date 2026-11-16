@@ -7,6 +7,7 @@
 // treasury out of the town's purse (Titles._payCrown).
 import { registerScene } from './choiceScenes.js';
 import { Titles } from '../../systems/titles.js';
+import { Utils } from '../../core/utils.js';
 
 const MODE_TEXT = {
     fair: { icon: '⚖️', label: 'Collect fairly', hint: 'The levy as the rolls have it. The crown is content; the town grumbles as it always does.' },
@@ -23,7 +24,7 @@ function _collect(game, st, mode) {
     const tile = _tile(game, st);
     const res = Titles.collectTaxAtSettlement(game.player, tile, game.world, mode, st.assessment);
     if (!res.success) return { notification: { title: '❌ Cannot Collect', body: res.reason, type: 'error' } };
-    const parts = [`You collected ${res.levy} gold for the crown from ${res.settlement} and kept your fee of ${res.fee} gold.`];
+    const parts = [`You collected ${res.levy} gold for the crown from ${res.settlement} and kept your fee of ${Utils.formatGold(res.fee)} gold.`];
     if (res.crown < res.levy) parts.push(res.crown > 0 ? `Only ${res.crown} gold reached the royal treasury.` : 'Not a coin of it reached the royal treasury.');
     if (res.skim) parts.push(`A further ${res.skim} gold went into your own purse.`);
     if (res.riot) parts.push(`The town had had enough: a crowd drove your bailiffs off and you took a beating (−${res.riot.healthLost} health). Only half the fee was saved.`);
@@ -42,9 +43,9 @@ registerScene('tax_round', {
         const a = st.assessment;
         const options = Titles.taxOptions(game.player, a).map(o => {
             const t = MODE_TEXT[o.id] || { icon: '•', label: o.id, hint: '' };
-            const gold = o.skim ? `${o.fee}g fee + ${o.skim}g skimmed` : `${o.fee}g fee`;
+            const gold = o.skim ? `${Utils.formatGold(o.fee)}g fee + ${Utils.formatGold(o.skim)}g skimmed` : `${Utils.formatGold(o.fee)}g fee`;
             return {
-                id: o.id, icon: t.icon, label: t.label, hint: `${t.hint} Crown's levy ${o.levy}g.${o.happiness ? ` Mood ${o.happiness > 0 ? '+' : ''}${o.happiness}.` : ''}`,
+                id: o.id, icon: t.icon, label: t.label, hint: `${t.hint} Crown's levy ${Utils.formatGold(o.levy)}g.${o.happiness ? ` Mood ${o.happiness > 0 ? '+' : ''}${o.happiness}.` : ''}`,
                 cost: gold, chance: o.riotChance > 0 ? 1 - o.riotChance : null, isDefault: o.id === 'fair',
             };
         });
@@ -53,7 +54,7 @@ registerScene('tax_round', {
         if (a.mult < 0.95) lines.push('A sullen town pays less than its rolls say.');
         return {
             icon: '📜', title: `Tax Day in ${a.settlement}`, panelTitle: '📜 Tax Collection',
-            stats: [`Mood ${a.happiness}`, `Grudge ${a.resentment}`, `💰 ${Math.floor(game.player.gold || 0)} gold`],
+            stats: [`Mood ${a.happiness}`, `Grudge ${a.resentment}`, `💰 ${Utils.formatGold(game.player.gold || 0)} gold`],
             text: 'The rolls are open and the townsfolk line up at the tax-house. How will you collect?',
             lines, options,
             footer: 'Walk away and your clerks collect fairly in your name.',

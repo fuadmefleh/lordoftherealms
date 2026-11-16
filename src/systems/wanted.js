@@ -682,7 +682,7 @@ export const Wanted = {
         const realm = _realmName(world, unit.kingdomId);
         opts.splice(1, 0, {
             id: 'payoff', icon: '💰', label: 'Buy them off', hint: `They report you lost. The price on your head in ${realm} stands.`,
-            chance: null, odds: 'certain', can, reason: can ? '' : `They want ${cost} gold`, cost: `${cost} gold`, amount: cost,
+            chance: null, odds: 'certain', can, reason: can ? '' : `They want ${Utils.formatGold(cost)} gold`, cost: `${Utils.formatGold(cost)} gold`, amount: cost,
         });
         const days = Wanted.jailDays(player, world, unit.kingdomId);
         opts.push({
@@ -698,7 +698,7 @@ export const Wanted = {
         const vars = { captain: unit.captain || 'The hunters', realm };
         if (choice === 'payoff') {
             const cost = Wanted.payoffCost(player, unit);
-            if (_num(player.gold) < cost) return { kind: 'invalid', choice, success: false, notification: { title: 'Purse Too Light', body: `They want ${cost} gold.`, type: 'error' } };
+            if (_num(player.gold) < cost) return { kind: 'invalid', choice, success: false, notification: { title: 'Purse Too Light', body: `They want ${Utils.formatGold(cost)} gold.`, type: 'error' } };
             player.gold -= cost;
             Ledger.record(player, 'bribes', -cost);
             if (!unit.inventory) unit.inventory = {};
@@ -767,7 +767,7 @@ export const Wanted = {
         const here = Wanted._here(player, world);
         const cost = Math.max(C.min, Math.round(rec.lesser * C.buyMult + rec.grave * C.graveMult));
         if (!here || String(here.kingdom) !== String(kingdomId)) return { ok: false, kind: 'buy', cost, reason: `Petition the chancery in a town of ${_realmName(world, kingdomId)}.` };
-        if (_num(player.gold) < cost) return { ok: false, kind: 'buy', cost, reason: `The chancery wants ${cost} gold.` };
+        if (_num(player.gold) < cost) return { ok: false, kind: 'buy', cost, reason: `The chancery wants ${Utils.formatGold(cost)} gold.` };
         return { ok: true, kind: 'buy', cost, reason: '' };
     },
 
@@ -804,7 +804,7 @@ export const Wanted = {
         const wait = C.cooldownDays - (_day(world) - _num(st.lastPenanceDay, -1e9));
         if (wait > 0) return { ok: false, reason: `The priest will hear you again in ${wait} days.` };
         const cost = Math.max(C.almsMin, Math.round((rec.lesser + rec.grave) * C.almsShare));
-        if (_num(player.gold) < cost) return { ok: false, cost, reason: `The alms come to ${cost} gold.` };
+        if (_num(player.gold) < cost) return { ok: false, cost, reason: `The alms come to ${Utils.formatGold(cost)} gold.` };
         return { ok: true, cost, town: here, kingdomId: here.kingdom };
     },
 
@@ -927,7 +927,7 @@ export const Wanted = {
         const d = st.debts.find(x => x.id === debtId);
         if (!d || d.paid || d.risen) return { success: false, reason: 'There is no such debt to pay.' };
         const cost = Wanted.weregildCost(d);
-        if (_num(player.gold) < cost) return { success: false, reason: `The weregild is ${cost} gold.` };
+        if (_num(player.gold) < cost) return { success: false, reason: `The weregild is ${Utils.formatGold(cost)} gold.` };
         const got = NpcMemory.resolve(world, d.folkRef);
         player.gold -= cost;
         Ledger.record(player, 'weregild', -cost);

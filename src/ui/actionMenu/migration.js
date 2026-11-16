@@ -10,6 +10,7 @@ import { ActionMenu } from './_ref.js';
 import { Migration } from '../../systems/migration.js';
 import { Taxation } from '../../systems/marketDynamics.js';
 import { CARD, rowList, sectionHead, lede, chips, esc } from './uiKit.js';
+import { Utils } from '../../core/utils.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 
@@ -97,7 +98,7 @@ Object.assign(ActionMenu, {
             html += rowList(Object.entries(P.settlers).map(([id, d]) => ({
                 icon: id === pol.settlers ? '●' : '○', name: esc(d.label), desc: esc(d.hint || ''),
                 act: id === pol.settlers ? null : 'migrationAct', args: ['settlers', id],
-                side: id === pol.settlers ? 'in force' : (d.cost ? `${d.cost}g a head` : '›'), tone: id === pol.settlers ? 'gold' : null,
+                side: id === pol.settlers ? 'in force' : (d.cost ? `${Utils.formatGold(d.cost)}g a head` : '›'), tone: id === pol.settlers ? 'gold' : null,
             })), 'Settlers');
             html += rowList(Object.entries(P.borders).map(([id, d]) => ({
                 icon: id === pol.borders ? '●' : '○', name: esc(d.label), desc: esc(d.hint || ''),

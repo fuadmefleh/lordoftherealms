@@ -10,6 +10,7 @@ import { Estates } from '../../world/estates.js';
 import { LandMarket } from '../../systems/landMarket.js';
 import { BTN_GOLD, BTN_PLAIN, BTN_DIM, BTN_RED, CARD, panelTabs, lede, bullets, chips, purse, kv } from './uiKit.js';
 import { Names } from '../../core/names.js';
+import { Utils } from '../../core/utils.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 const TH = 'text-align:left; padding:3px 6px; font-size:11px; color:var(--text-secondary); border-bottom:1px solid rgba(255,255,255,0.1);';
@@ -33,7 +34,7 @@ const loyColor = (v) => (v < 25 ? '#e74c3c' : v < 45 ? '#e67e22' : v > 70 ? '#8f
 function cropsLine(world, e, live) {
     const o = Estates.output(world, e, live);
     const parts = Object.entries(o.goods).filter(([, n]) => n >= 0.05).map(([g, n]) => `${n.toFixed(1)} ${g}`);
-    return parts.length ? `${parts.join(' · ')} a day (${Math.round(o.gross)}g)` : 'nothing yet recorded';
+    return parts.length ? `${parts.join(' · ')} a day (${Utils.formatGold(o.gross)}g)` : 'nothing yet recorded';
 }
 
 function estateCard(game, e, live) {
@@ -46,24 +47,24 @@ function estateCard(game, e, live) {
     const x = LandMarket.listing(world, e.id);
     const L = C.rent.levels[e.rent] || C.rent.levels.customary;
     let html = `<div style="${CARD}${mine ? ' border-color: rgba(245,197,66,0.4);' : ''}"><b>${esc(e.name)}</b> <span style="${NOTE}">${HOLDER_ICON[kind] || '🌾'} ${esc(Estates.holderName(world, e.holder))}</span>`;
-    if (x) html += ` <span style="color:#f5c542; font-size:11px;">· for sale ${x.price}g</span>`;
+    if (x) html += ` <span style="color:#f5c542; font-size:11px;">· for sale ${Utils.formatGold(x.price)}g</span>`;
     html += `<div style="${NOTE}">${Math.round(e.share * C.derive.estateShare * 100)}% of ${esc(live.name)}'s farmland · ${e.hh} tenant households · soil ${Math.round((e.soil || 1) * 100)}%${e.drained ? ' (drained)' : ''}${e.marl > 0 ? ' (marled)' : ''}${e.enclosed > 0 ? ' · <b>enclosed: sheep</b>' : ''}</div>`;
     html += kv('Crops', cropsLine(world, e, live));
-    const dueLine = e.lastDue != null ? `due ${Math.round(e.lastDue)}g / paid ${Math.round(e.lastPaid != null ? e.lastPaid : e.lastRent || 0)}g${e.lastBack > 0 ? ` (${e.lastBack}g of it arrears)` : ''} · ${Math.round(e.lastRent || 0)}g to the holder` : `${Math.round(e.lastRent || 0)}g`;
-    html += kv('Rent', `${esc(L.label)} ${e.mode === 'kind' ? 'share of the crop' : 'in coin'} · last month ${dueLine}${e.arrears > 0 ? ` <span style="color:#e67e22;">(${e.arrears}g in arrears)</span>` : ''}`);
+    const dueLine = e.lastDue != null ? `due ${Utils.formatGold(e.lastDue)}g / paid ${Utils.formatGold(e.lastPaid != null ? e.lastPaid : e.lastRent || 0)}g${e.lastBack > 0 ? ` (${Utils.formatGold(e.lastBack)}g of it arrears)` : ''} · ${Utils.formatGold(e.lastRent || 0)}g to the holder` : `${Utils.formatGold(e.lastRent || 0)}g`;
+    html += kv('Rent', `${esc(L.label)} ${e.mode === 'kind' ? 'share of the crop' : 'in coin'} · last month ${dueLine}${e.arrears > 0 ? ` <span style="color:#e67e22;">(${Utils.formatGold(e.arrears)}g in arrears)</span>` : ''}`);
     html += kv('Tenants\' loyalty', `<span style="color:${loyColor(e.loyalty)};">${e.loyalty}</span>`);
-    html += kv('Worth', `<b>${value.toLocaleString()}g</b> <span style="${NOTE}">(${rent}g net rent a year at ${(LandMarket.landRate(world, live.kingdom != null ? live.kingdom : null) * 100).toFixed(1)}%)</span>`);
+    html += kv('Worth', `<b>${Utils.formatGold(value)}g</b> <span style="${NOTE}">(${Utils.formatGold(rent)}g net rent a year at ${(LandMarket.landRate(world, live.kingdom != null ? live.kingdom : null) * 100).toFixed(1)}%)</span>`);
     if (e.works) html += `<div style="color:#7cc4e0;">${esc((C.works[e.works.kind] || {}).label || 'Works')} under way until day ${e.works.until}.</div>`;
     if (!mine) {
         const q = LandMarket.buyQuote(player, world, e.id);
         html += '<div style="margin-top:4px;"></div>';
-        if (q.ok) html += act(`${q.listed ? 'Buy' : 'Offer'} ${q.cost.toLocaleString()}g${q.duty ? ` (incl. ${q.duty}g duty)` : ''}`, ['buy', e.id], BTN_GOLD, player.gold >= q.cost, player.gold >= q.cost ? '' : 'You cannot afford it.');
+        if (q.ok) html += act(`${q.listed ? 'Buy' : 'Offer'} ${Utils.formatGold(q.cost)}g${q.duty ? ` (incl. ${Utils.formatGold(q.duty)}g duty)` : ''}`, ['buy', e.id], BTN_GOLD, player.gold >= q.cost, player.gold >= q.cost ? '' : 'You cannot afford it.');
         else html += `<span style="${NOTE}">${esc(q.reason)}</span>`;
     } else {
         const paid = e.paid || 0;
         html += chips([
-            ['', 'Paid', `${paid.toLocaleString()}g${paid ? ` · ${(rent / paid * 100).toFixed(1)}% a year on it` : ''}`],
-            ['', 'Rents banked', `${Math.round(e.earned || 0)}g`, 'gold'],
+            ['', 'Paid', `${Utils.formatGold(paid)}g${paid ? ` · ${(rent / paid * 100).toFixed(1)}% a year on it` : ''}`],
+            ['', 'Rents banked', `${Utils.formatGold(e.earned || 0)}g`, 'gold'],
             e.fled ? ['', 'Households fled', e.fled] : null,
         ]);
         for (const [id, lv] of Object.entries(C.rent.levels)) html += act(esc(lv.label), ['rent', e.id, id], e.rent === id ? BTN_GOLD : BTN_PLAIN);
@@ -71,20 +72,20 @@ function estateCard(game, e, live) {
         html += act('Share of the crop', ['mode', e.id, 'kind'], e.mode === 'kind' ? BTN_GOLD : BTN_PLAIN, true, 'Rent follows the harvest and its price; the tenants like it better');
         if (e.arrears > 0) {
             const pq = LandMarket.pressQuote(player, world, e.id);
-            html += act(pq.ok ? `Press for arrears (${pq.amount}g)` : 'Press for arrears', ['press', e.id], BTN_RED, pq.ok,
+            html += act(pq.ok ? `Press for arrears (${Utils.formatGold(pq.amount)}g)` : 'Press for arrears', ['press', e.id], BTN_RED, pq.ok,
                 pq.ok ? `Send the bailiff: loyalty -${pq.loyalty}${pq.risk > 0 ? `, ${Math.round(pq.risk * 100)}% chance of a rent riot (nothing collected)` : ''}` : pq.reason);
         }
         html += '<br>';
         for (const k of ['drain', 'marl', 'enclose', 'relet']) {
             const q = LandMarket.worksQuote(player, world, e.id, k);
             if (!q.ok && (k === 'relet' ? !(e.enclosed > 0) : e.enclosed > 0)) continue;
-            html += act(`${esc((C.works[k] || {}).label || k)}${q.ok ? ` (${q.cost}g, ${q.days}d)` : ''}`, ['works', e.id, k], k === 'enclose' ? BTN_RED : BTN_PLAIN, q.ok && player.gold >= q.cost, q.ok ? '' : q.reason);
+            html += act(`${esc((C.works[k] || {}).label || k)}${q.ok ? ` (${Utils.formatGold(q.cost)}g, ${q.days}d)` : ''}`, ['works', e.id, k], k === 'enclose' ? BTN_RED : BTN_PLAIN, q.ok && player.gold >= q.cost, q.ok ? '' : q.reason);
         }
         const sq = LandMarket.sellQuote(player, world, e.id);
         html += '<br>';
         if (sq.ok) {
-            html += act(`Sell now ${sq.quick.toLocaleString()}g`, ['sell', e.id, 'quick'], BTN_PLAIN, !!sq.buyer, sq.buyer ? `${sq.buyer} will buy` : 'No buyer about has the purse');
-            html += sq.listed ? act('Take off the market', ['sell', e.id, 'withdraw'], BTN_PLAIN) : act(`List at ${sq.list.toLocaleString()}g`, ['sell', e.id, 'list'], BTN_PLAIN);
+            html += act(`Sell now ${Utils.formatGold(sq.quick)}g`, ['sell', e.id, 'quick'], BTN_PLAIN, !!sq.buyer, sq.buyer ? `${sq.buyer} will buy` : 'No buyer about has the purse');
+            html += sq.listed ? act('Take off the market', ['sell', e.id, 'withdraw'], BTN_PLAIN) : act(`List at ${Utils.formatGold(sq.list)}g`, ['sell', e.id, 'list'], BTN_PLAIN);
         }
         const realms = [live.kingdom, player.allegiance].filter((k, i, a) => k != null && a.indexOf(k) === i).map(k => Estates.kingdom(world, k)).filter(k => k && k.isAlive !== false);
         for (const k of realms) html += act(`Settle as a dowry in ${esc(Names.realm(k.name))}`, ['dowry', e.id, k.id], BTN_PLAIN, true, 'Give the estate to a noble house of the realm: reputation there and Prestige');
@@ -123,9 +124,9 @@ function mineTab(game) {
     const s = LandMarket.summary(player, world);
     let html = chips([
         ['🌾', 'Estates', s.n],
-        ['', 'Worth', `${s.value.toLocaleString()}g`],
-        ['', 'Net rent a year expected', `${s.rent.toLocaleString()}g${s.yield != null ? ` (${(s.yield * 100).toFixed(1)}% on the ${s.paid.toLocaleString()}g paid)` : ''}`],
-        ['', 'Banked', `${s.earned.toLocaleString()}g`, 'gold'],
+        ['', 'Worth', `${Utils.formatGold(s.value)}g`],
+        ['', 'Net rent a year expected', `${Utils.formatGold(s.rent)}g${s.yield != null ? ` (${(s.yield * 100).toFixed(1)}% on the ${Utils.formatGold(s.paid)}g paid)` : ''}`],
+        ['', 'Banked', `${Utils.formatGold(s.earned)}g`, 'gold'],
     ]);
     for (const e of mine) {
         const live = Estates._liveOfKey(world, e.town);
@@ -150,7 +151,7 @@ function marketTab(game) {
     for (const { x, e, live, dist } of list) {
         const value = LandMarket.value(world, e, live);
         html += `<tr><td style="${TD}">${esc(e.name)}</td><td style="${TD}">${esc(live.name)}</td><td style="${TD}">${esc(Estates.holderName(world, x.seller))}${WHY[x.reason] ? ` <span style="${NOTE}">(${WHY[x.reason]})</span>` : ''}</td>`
-            + `<td style="${TD}">${x.price.toLocaleString()}g</td><td style="${TD}">${value.toLocaleString()}g</td><td style="${TD}">${dist}</td>`
+            + `<td style="${TD}">${Utils.formatGold(x.price)}g</td><td style="${TD}">${Utils.formatGold(value)}g</td><td style="${TD}">${dist}</td>`
             + `<td style="${TD}">${x.seller === 'player' ? '' : act('See', ['see', live.q, live.r], BTN_PLAIN)}</td></tr>`;
     }
     return html + '</table>';

@@ -7,6 +7,7 @@ import { BTN_GOLD, BTN_DARK, BTN_RED, panelTabs, lede, chips, sectionHead, kv, c
 import { RealmIntel } from '../../systems/realmIntel.js';
 import { companyDiagnosisHtml } from './merchantLedger.js';
 import { Names } from '../../core/names.js';
+import { Utils } from '../../core/utils.js';
 
 // The action menu's voice (uiKit): section heads, rows, soft cards; inputs dark with a hairline gold edge
 const INPUT = 'width: 56px; background:rgba(0,0,0,0.3); color:#ece2c8; border:1px solid rgba(245,197,66,0.2); border-radius:5px; padding:3px 5px; font-size:11px;';
@@ -21,7 +22,7 @@ const TABS = [
 function _esc(s) {
     return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
-const _g = (n) => `${Math.round(n).toLocaleString()}g`;
+const _g = (n) => `${Utils.formatGold(n)}g`;
 const _val = (id) => {
     const el = typeof document !== 'undefined' ? document.getElementById(id) : null;
     return el ? el.value : null;
@@ -75,7 +76,7 @@ Object.assign(ActionMenu, {
 
         window._company = {
             tab: (t) => refresh(null, t),
-            buyCharter: () => run(MerchantHouses.buyCharter(player, world, tile), r => `${r.kingdom} seals your charter for ${r.cost} gold.`),
+            buyCharter: () => run(MerchantHouses.buyCharter(player, world, tile), r => `${r.kingdom} seals your charter for ${Utils.formatGold(r.cost)} gold.`),
             found: () => {
                 const res = MerchantHouses.found(player, world, { name: _val('mhName'), capital: Number(_val('mhCapital')) || null });
                 if (!res.success) return fail(res.reason);
@@ -102,7 +103,7 @@ Object.assign(ActionMenu, {
                 const [kind, id] = target.split(':');
                 const res = MerchantHouses.dispatchConvoy(player, world, postId, kind === 'contract' ? { contractId: id } : { postId: id },
                     _val(`mh_cvGood_${postId}`), Number(_val(`mh_cvQty_${postId}`)) || 0);
-                run(res, r => `A ${r.convoy.mode} leaves with ${r.convoy.qty} ${_label(r.convoy.good)} for ${r.convoy.to}, due day ${r.convoy.arriveDay} (fee ${r.plan.fee}g, ${Math.round(r.plan.risk * 100)}% risk).`);
+                run(res, r => `A ${r.convoy.mode} leaves with ${r.convoy.qty} ${_label(r.convoy.good)} for ${r.convoy.to}, due day ${r.convoy.arriveDay} (fee ${Utils.formatGold(r.plan.fee)}g, ${Math.round(r.plan.risk * 100)}% risk).`);
             },
             accept: (id) => run(MerchantHouses.acceptContract(player, world, id), r => `Contract taken: ${r.contract.title}.`),
             deliver: (id, from, shipId) => run(MerchantHouses.deliverContract(player, world, id, from, { shipId: shipId || undefined }),
@@ -210,7 +211,7 @@ function _companyPostsHtml(player, world, tile) {
                 return {
                     icon: '👤',
                     name: _esc(f.name),
-                    desc: `skill ${f.skill}, <span style="color:${ref.color};">${ref.label}</span>, ${f.wage}g/week`,
+                    desc: `skill ${f.skill}, <span style="color:${ref.color};">${ref.label}</span>, ${Utils.formatGold(f.wage)}g/week`,
                     attrs: `onclick="window._company.openPost(${i})"`,
                     side: 'Hire &amp; open ›',
                     tone: 'gold',
@@ -227,7 +228,7 @@ function _companyPostsHtml(player, world, tile) {
         let body = '';
         if (post.factor) {
             const ref = MerchantHouses.reference(post.factor);
-            body += `<div>👤 ${_esc(post.factor.name)} — skill ${post.factor.skill} (${MerchantHouses.factorVolume(post.factor)} units/week), <span style="color:${ref.color};">${ref.label}</span>, ${MerchantHouses.factorWage(post.factor)}g/week + ${Math.round((cfg.factor.commission || 0) * 100)}% of sales${post.factor.unpaid ? ` <span style="color:${BAD};">(unpaid ${post.factor.unpaid} wk)</span>` : ''}</div>`;
+            body += `<div>👤 ${_esc(post.factor.name)} — skill ${post.factor.skill} (${MerchantHouses.factorVolume(post.factor)} units/week), <span style="color:${ref.color};">${ref.label}</span>, ${Utils.formatGold(MerchantHouses.factorWage(post.factor))}g/week + ${Math.round((cfg.factor.commission || 0) * 100)}% of sales${post.factor.unpaid ? ` <span style="color:${BAD};">(unpaid ${post.factor.unpaid} wk)</span>` : ''}</div>`;
         } else {
             body += `<div style="color:${BAD};">No factor — the post is idle.</div>`;
         }
@@ -280,7 +281,7 @@ function _companyPostsHtml(player, world, tile) {
                 body += `<button onclick="window._company.replaceFactor('${post.id}', ${i})" style="${BTN_DARK}" title="skill ${f.skill}, ${MerchantHouses.reference(f).label}">👤 Hire ${_esc(f.name)} (skill ${f.skill})</button>`;
             });
         }
-        body += `<button onclick="window._company.audit('${post.id}')" style="${BTN_DARK}">🧾 Audit (${cfg.factor.auditCost}g)</button>`;
+        body += `<button onclick="window._company.audit('${post.id}')" style="${BTN_DARK}">🧾 Audit (${Utils.formatGold(cfg.factor.auditCost)}g)</button>`;
         body += `<button onclick="window._company.closePost('${post.id}')" style="${BTN_RED}">Close post</button></div>`;
         html += card(body, { icon: '🏪', title: _esc(post.name), side: `stock ${MerchantHouses.stockTotal(post)}/${cfg.post.capacity}` });
     }
@@ -302,7 +303,7 @@ function _companyContractsHtml(player, world) {
     for (const ct of c.contracts) {
         const left = ct.deadline - world.day;
         let body = `<div style="${MUTED} font-size:11px;">for ${_esc(ct.issuer)}</div>`;
-        body += `<div>${ct.delivered}/${ct.qty} ${_esc(_label(ct.good))} to <b>${_esc(ct.town)}</b> (${ct.q}, ${ct.r}) · ${MerchantHouses.contractUnitPay(world, ct)}g each</div>`;
+        body += `<div>${ct.delivered}/${ct.qty} ${_esc(_label(ct.good))} to <b>${_esc(ct.town)}</b> (${ct.q}, ${ct.r}) · ${Utils.formatGold(MerchantHouses.contractUnitPay(world, ct))}g each</div>`;
         const opts = MerchantHouses.deliveryOptions(player, world, ct.id);
         if (opts.length) {
             body += '<div style="margin-top:4px;">';
@@ -323,7 +324,7 @@ function _companyContractsHtml(player, world) {
             name: _esc(ct.title),
             desc: _esc(ct.text),
             why: _esc(can.reason),
-            note: `<span style="color:#b9ae94;">${ct.qty} ${_esc(_label(ct.good))} to ${_esc(ct.town)} by day ${ct.deadline} · ${ct.pay}g each (${_g(ct.pay * ct.qty)}) · +${ct.reputation} rep</span>`,
+            note: `<span style="color:#b9ae94;">${ct.qty} ${_esc(_label(ct.good))} to ${_esc(ct.town)} by day ${ct.deadline} · ${Utils.formatGold(ct.pay)}g each (${_g(ct.pay * ct.qty)}) · +${ct.reputation} rep</span>`,
             off: !can.ok,
             attrs: `onclick="window._company.accept('${ct.id}')" title="Take the contract"`,
             side: _g(ct.pay * ct.qty),
@@ -346,7 +347,7 @@ function _companyRivalsHtml(player, world) {
             continue;
         }
         let body = `<div style="font-size:11px; color:#b9ae94;">Trades ${_esc(r.specialty.join(', '))} · posts: ${_esc(r.posts.map(p => p.name).join(', '))}${holder ? ` · last week ${r.lastProfit >= 0 ? '+' : ''}${_g(r.lastProfit)}` : ''}</div>`;
-        body += `<div style="font-size:11px;">Rivalry <span style="color:${r.rivalry >= 50 ? BAD : '#cbbf9f'};">${Math.round(r.rivalry)}</span> · share ${Math.round(MerchantHouses.sharePrice(r))}g · you hold <b>${r.shares.player}</b>/100</div>`;
+        body += `<div style="font-size:11px;">Rivalry <span style="color:${r.rivalry >= 50 ? BAD : '#cbbf9f'};">${Math.round(r.rivalry)}</span> · share ${Utils.formatGold(MerchantHouses.sharePrice(r))}g · you hold <b>${r.shares.player}</b>/100</div>`;
         body += '<div style="margin-top:4px;">';
         body += `<button onclick="window._company.buyShares('${r.id}', 5)" style="${BTN_DARK}">Buy 5 shares</button>`;
         body += `<button onclick="window._company.buyShares('${r.id}', 20)" style="${BTN_DARK}">Buy 20</button>`;

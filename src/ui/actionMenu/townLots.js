@@ -16,6 +16,7 @@ import { esc, lede, chips, card, rowList, price } from './uiKit.js';
 // (a hard landlord: the stocks, winter evictions, your cellars — ui/actionMenu/peopleCrimes.js)
 import { landlordRows, evictNote, captivesHtml } from './peopleCrimes.js';
 import { PeopleCrimes } from '../../systems/peopleCrimes.js';
+import { Utils } from '../../core/utils.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 const STATE = {
@@ -41,15 +42,15 @@ function row(game, v) {
     const facts = [];
     if (v.what) facts.push(`On it: ${esc(v.what)}`);
     if (v.state === 'rented') {
-        facts.push(`Rent ${v.rent}g a day, paid by you`);
+        facts.push(`Rent ${Utils.formatGold(v.rent)}g a day, paid by you`);
         facts.push(`Last paid ${daysAgo(world, v.paidDay)}`);
     } else if (v.tenant) {
         facts.push(`Tenant: <b>${esc(v.tenant)}</b>`);
-        facts.push(`Rent ${v.rent}g a day`);
+        facts.push(`Rent ${Utils.formatGold(v.rent)}g a day`);
         facts.push(`Last paid ${daysAgo(world, v.paidDay)}`);
-        if (v.owed > 0) facts.push(`<span style="color:#e08080;">Owes ${v.owed}g (${v.missed} day${v.missed === 1 ? '' : 's'} behind)</span>`);
+        if (v.owed > 0) facts.push(`<span style="color:#e08080;">Owes ${Utils.formatGold(v.owed)}g (${v.missed} day${v.missed === 1 ? '' : 's'} behind)</span>`);
     } else if (v.rent != null) {
-        facts.push(v.letting ? (v.ready ? `To let at ${v.rent}g a day — no tenant yet` : `To let at ${v.rent}g a day once it stands`) : `Not let (${v.rent}g a day if it were)`);
+        facts.push(v.letting ? (v.ready ? `To let at ${Utils.formatGold(v.rent)}g a day — no tenant yet` : `To let at ${Utils.formatGold(v.rent)}g a day once it stands`) : `Not let (${Utils.formatGold(v.rent)}g a day if it were)`);
     }
     const gold = player.gold || 0;
     const rows = [];
@@ -60,7 +61,7 @@ function row(game, v) {
     }
     if (v.canLet) rows.push({ icon: '🔑', name: 'Let it', desc: 'Offer it to the townsfolk: a tenant pays you rent each day', ...act('let') });
     if (v.canStopLetting) rows.push({ icon: '🔒', name: 'Stop letting', desc: 'Take it off the letting', ...act('unlet') });
-    if (v.canEvict) rows.push({ icon: '🚪', name: 'Put the Tenant Out', desc: (v.owed > 0 ? `Their ${v.owed}g of arrears is lost` : 'The house goes back to let') + evictNote(game), tone: 'bad', ...act('evict') });
+    if (v.canEvict) rows.push({ icon: '🚪', name: 'Put the Tenant Out', desc: (v.owed > 0 ? `Their ${Utils.formatGold(v.owed)}g of arrears is lost` : 'The house goes back to let') + evictNote(game), tone: 'bad', ...act('evict') });
     for (const r of landlordRows(game, v)) rows.push(r);
     if (v.canLeave) rows.push({ icon: '🚪', name: 'Give up the House', desc: 'Hand back the key: no more rent', tone: 'bad', ...act('leave') });
     if (v.canSell) rows.push({ icon: '💰', name: 'Sell', desc: 'A townsperson buys it', side: price(v.value), tone: 'good', ...act('sell') });
@@ -91,10 +92,10 @@ Object.assign(ActionMenu, {
             const b = player.lotRentBook;
             html += chips([
                 ['🏘️', 'Holdings', list.length],
-                income ? ['🔑', 'Rents in', `+${income}g/day`, 'gold'] : null,
-                outgo ? ['🏠', 'Rent you pay', `−${outgo}g/day`] : null,
-                owed ? ['⚠️', 'Arrears', `${owed}g`] : null,
-                b && (b.collected || b.paid) ? ['📅', 'This month', `${Math.round(b.collected || 0)}g in, ${Math.round(b.paid || 0)}g out`] : null,
+                income ? ['🔑', 'Rents in', `+${Utils.formatGold(income)}g/day`, 'gold'] : null,
+                outgo ? ['🏠', 'Rent you pay', `−${Utils.formatGold(outgo)}g/day`] : null,
+                owed ? ['⚠️', 'Arrears', `${Utils.formatGold(owed)}g`] : null,
+                b && (b.collected || b.paid) ? ['📅', 'This month', `${Utils.formatGold(b.collected || 0)}g in, ${Utils.formatGold(b.paid || 0)}g out`] : null,
             ]);
             const here = list.filter(v => v.q === player.q && v.r === player.r);
             const away = list.filter(v => !(v.q === player.q && v.r === player.r));

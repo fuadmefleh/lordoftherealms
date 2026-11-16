@@ -976,7 +976,7 @@ export const Couriers = {
         const ch = this.charter(world, town.kingdomId);
         if (ch) return { ...res, ok: false, why: `${this.get(world, ch.courierId).name} holds the Royal Post here: no other house may carry ${this._realmName(world, town.kingdomId)}'s mail.` };
         if (town.type === 'village') return { ...res, ok: false, why: 'A village writes too few letters to keep a post house.' };
-        if (_num(player.gold) < res.cost + res.licence) return { ...res, ok: false, why: `You need ${res.cost + res.licence} gold.` };
+        if (_num(player.gold) < res.cost + res.licence) return { ...res, ok: false, why: `You need ${Utils.formatGold(res.cost + res.licence)} gold.` };
         return res;
     },
 
@@ -1019,7 +1019,7 @@ export const Couriers = {
             let ok = true;
             let why = '';
             if (this.barred(world, c, t.kingdomId)) { ok = false; why = `${this.get(world, this.charter(world, t.kingdomId).courierId).name} holds the Royal Post in ${this._realmName(world, t.kingdomId)}.`; }
-            else if (_num(player.gold) < C.costs.stationPrice) { ok = false; why = `You need ${C.costs.stationPrice} gold.`; }
+            else if (_num(player.gold) < C.costs.stationPrice) { ok = false; why = `You need ${Utils.formatGold(C.costs.stationPrice)} gold.`; }
             out.push({ town: t, dist, cost: C.costs.stationPrice, ok, why, servers: this.alive(world).filter(o => this.hasStation(o, t.key)).map(o => o.name), demand: this.demand(t) });
         }
         return out.sort((a, b) => a.dist - b.dist || a.town.name.localeCompare(b.town.name)).slice(0, 12);
@@ -1060,12 +1060,12 @@ export const Couriers = {
         if (n > 0) {
             if (_num(c[what]) + n > max) return { success: false, reason: `At most ${max}.` };
             const cost = price * n;
-            if (_num(player.gold) < cost) return { success: false, reason: `You need ${cost} gold.` };
+            if (_num(player.gold) < cost) return { success: false, reason: `You need ${Utils.formatGold(cost)} gold.` };
             this._gold(player, what === 'horses' ? 'courierCapital' : 'courierCosts', -cost);
             // (the horses are bought, the riders and guards taken on, in the home town)
             if (!this._payStations(world, c, cost, [c.home])) Economy.payNearest(world, player.q, player.r, cost);
             c[what] = _num(c[what]) + n;
-            return { success: true, text: `+${n} ${word}${n === 1 ? '' : 's'} (${cost} gold).` };
+            return { success: true, text: `+${n} ${word}${n === 1 ? '' : 's'} (${Utils.formatGold(cost)} gold).` };
         }
         const m = Math.min(-n, _num(c[what]));
         if (!m) return { success: false, reason: `You have no ${word}s to spare.` };
@@ -1077,7 +1077,7 @@ export const Couriers = {
             const have = home ? Economy.townPurse(home) : null;
             const back = home ? Economy.drawTown(home, have == null ? want : Math.min(want, Math.floor(Math.max(0, have)))) : 0;
             if (back > 0) this._gold(player, 'courierCapital', back);
-            return { success: true, text: `${m} relay horse${m === 1 ? '' : 's'} sold for ${back} gold.` };
+            return { success: true, text: `${m} relay horse${m === 1 ? '' : 's'} sold for ${Utils.formatGold(back)} gold.` };
         }
         return { success: true, text: `${m} ${word}${m === 1 ? '' : 's'} let go.` };
     },

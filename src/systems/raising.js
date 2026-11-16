@@ -451,7 +451,7 @@ export const Raising = {
         const barred = Raising._tutorBarred(player, npc);
         if (barred) return { success: false, reason: barred };
         const c = Raising._candidate(player, world, npc, Court.isMember(player, npc.id) ? 'courtier' : 'known');
-        if (_num(player.gold) < c.wage) return { success: false, reason: `${npc.firstName} wants the first month's wage, ${c.wage} gold, up front.` };
+        if (_num(player.gold) < c.wage) return { success: false, reason: `${npc.firstName} wants the first month's wage, ${Utils.formatGold(c.wage)} gold, up front.` };
         Raising._pay(player, npc, c.wage);
         up.tutor = {
             kind: 'person', npcId: npc.id, name: c.name, icon: c.kind === 'courtier' ? '🎓' : '👨‍🏫',

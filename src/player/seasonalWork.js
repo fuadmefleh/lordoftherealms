@@ -474,7 +474,7 @@ export const SeasonalWork = {
         player.jobsCompleted = (player.jobsCompleted || 0) + 1;
         return {
             success: true, advance, contract,
-            message: `You sow ${settlement.name}'s fields for ${advance} gold now and a share of the harvest (about ${payout} gold) on day ${Seasons.dayInSeason(contract.dueDay)} of autumn.`,
+            message: `You sow ${settlement.name}'s fields for ${advance} gold now and a share of the harvest (about ${Utils.formatGold(payout)} gold) on day ${Seasons.dayInSeason(contract.dueDay)} of autumn.`,
         };
     },
 

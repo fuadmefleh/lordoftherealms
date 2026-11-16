@@ -93,7 +93,7 @@ export const InnerMapGraves = {
         if (info.mine && info.expired && !g.kin) {
             items.push({ type: 'action', action: 'grave_dig', label: 'Dig Up the Lapsed Grave', icon: '⛏️', desc: 'The lease has run out: the bones (and any grave goods) are yours, the plot free', ...ref });
             const fee = Math.round(Number(GraveBook.byType(GraveBook.config().sextonFee, at.s.type)) || 4);
-            items.push({ type: 'action', action: 'grave_sexton', label: `Have the Sexton Clear It (${fee}g)`, icon: '👷', desc: 'He digs; the bones come to you', ...ref });
+            items.push({ type: 'action', action: 'grave_sexton', label: `Have the Sexton Clear It (${Utils.formatGold(fee)}g)`, icon: '👷', desc: 'He digs; the bones come to you', ...ref });
         } else if (!g.kin) {
             items.push({ type: 'action', action: 'grave_rob', label: 'Rob the Grave', icon: '🌒', desc: 'Dig down to what was buried with them. A theft — and worse, if you are seen', ...ref });
         }

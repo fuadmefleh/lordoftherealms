@@ -13,6 +13,7 @@
 // (ui/uiScale.js toUiPx), and its max sizes are written as vw/vh ÷ zoom.
 
 import { toUiPx } from './uiScale.js';
+import { Utils } from '../core/utils.js';
 
 const POP_ID = 'whyPopover';
 let _installed = false;
@@ -45,15 +46,15 @@ export function whyIcon(payload, title = 'Why?', opts = {}) {
 /** The market's asking price (Causes.price) — and what you pay. Dearer is bad for a buyer. */
 export function priceWhy(e) {
     if (!e) return null;
-    const rows = [['Base price', `${e.base}g`, '']];
+    const rows = [['Base price', `${Utils.formatGold(e.base)}g`, '']];
     for (const f of e.factors.slice().sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))) {
         rows.push([`${esc(f.label)}${f.detail ? ` <i>(${esc(f.detail)})</i>` : ''}`, `${pctOf(f.pct)} · ${gold(f.delta)}`, tone(f.delta, -1)]);
     }
     if (Math.abs(e.rest + e.rounding) >= 0.5) rows.push(['Rounding', gold(e.rest + e.rounding), '']);
-    rows.push(['<b>Market price</b>', `<b>${e.price}g</b>`, '', true]);
+    rows.push(['<b>Market price</b>', `<b>${Utils.formatGold(e.price)}g</b>`, '', true]);
     if (e.you) {
         for (const f of e.you.buyFactors) rows.push([`${esc(f.label)}${f.detail ? ` <i>(${esc(f.detail)})</i>` : ''}`, pctOf(f.pct), tone(f.pct, -1)]);
-        rows.push(['<b>You pay for one</b>', `<b>${e.you.buy}g</b>`, '', true]);
+        rows.push(['<b>You pay for one</b>', `<b>${Utils.formatGold(e.you.buy)}g</b>`, '', true]);
     }
     return {
         title: `${e.goodName} in ${e.settlement || 'this market'}`,
@@ -67,9 +68,9 @@ export function priceWhy(e) {
 /** What the stalls pay you for one (Causes.price → you.sell). Dearer is good for a seller. */
 export function sellWhy(e) {
     if (!e || !e.you || e.you.sell == null) return null;
-    const rows = [[`What it is worth here (the market asks ${e.price}g)`, '', '']];
+    const rows = [[`What it is worth here (the market asks ${Utils.formatGold(e.price)}g)`, '', '']];
     for (const f of e.you.sellFactors) rows.push([esc(f.label), pctOf(f.pct), tone(f.pct, 1)]);
-    rows.push(['<b>They pay you for one</b>', `<b>${e.you.sell}g</b>`, '', true]);
+    rows.push(['<b>They pay you for one</b>', `<b>${Utils.formatGold(e.you.sell)}g</b>`, '', true]);
     return {
         title: `Selling ${e.goodName} in ${e.settlement || 'this market'}`,
         value: e.summary,
@@ -110,9 +111,9 @@ export function stabilityWhy(e) {
 /** A town's weekly tax and its mood (Causes.tax). */
 export function taxWhy(e) {
     if (!e) return null;
-    const rows = [[`${e.base}g base (a quarter-gold a head) × ${Math.round(e.rate * 100)}% (${esc(e.policy)})`, `${Math.round(e.rated * 10) / 10}g`, '']];
+    const rows = [[`${Utils.formatGold(e.base)}g base (a quarter-gold a head) × ${Math.round(e.rate * 100)}% (${esc(e.policy)})`, `${Utils.formatGold(Math.round(e.rated * 10) / 10)}g`, '']];
     for (const f of e.factors.slice().sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))) rows.push([esc(f.label), `${pctOf(f.pct)} · ${gold(f.delta)}`, tone(f.delta)]);
-    rows.push(['<b>A week\'s tax</b>', `<b>${e.amount}g</b>`, '', true]);
+    rows.push(['<b>A week\'s tax</b>', `<b>${Utils.formatGold(e.amount)}g</b>`, '', true]);
     rows.push([`<b>Mood ${e.happiness}/100, heading toward ${e.moodTarget}</b>`, '', '', true]);
     for (const p of e.moodParts) rows.push([esc(p.label), signed(Math.round(p.delta * 10) / 10), p.label === 'Content by nature' ? '' : tone(p.delta)]);
     const notes = [];

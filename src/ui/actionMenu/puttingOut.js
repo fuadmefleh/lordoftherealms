@@ -9,6 +9,7 @@ import { PuttingOut } from '../../systems/puttingOut.js';
 import { Estates } from '../../world/estates.js';
 import { Seasons } from '../../world/seasons.js';
 import { BTN_GOLD, BTN_DIM, lede, chips, purse, actRow, rowList } from './uiKit.js';
+import { Utils } from '../../core/utils.js';
 
 const NOTE = 'font-size: 11px; color: #9d937c;';
 // Small buttons for a listing row's side column (the row itself is then not a button)
@@ -52,7 +53,7 @@ Object.assign(ActionMenu, {
                 stance.kind === 'chartered' ? `⚠️ The ${esc(stance.guild.name)} holds a royal charter: ${Math.round(C.chartered.chance * 100)}% chance its officers seize ${Math.round(C.chartered.seize * 100)}% of the cloth and fine you${stance.exempt ? ' — but you are of the guild, and let be' : ''}.`
                     : stance.kind === 'open' ? `The ${esc(stance.guild.name)} frowns on it: ${Math.round(C.open.chance * 100)}% chance of a fine${stance.exempt ? ' (you are of the guild: let be)' : ''}.` : 'No weavers\' guild here: the cottagers work unmolested.',
                 rec && rec.npcWeek ? `The merchant houses put out ${Math.round(rec.npcWeek)} units of fibre here last week.` : '',
-                rec && rec.wages ? `Your piece wages paid here: ${rec.wages}g.` : '',
+                rec && rec.wages ? `Your piece wages paid here: ${Utils.formatGold(rec.wages)}g.` : '',
                 rec && rec.draw > 0 ? `The cottage work keeps ${Math.round(rec.draw * 100)}% of the field work undone this season.` : '',
             ].filter(Boolean);
             html += `<div style="${NOTE} margin-bottom:6px;">${notes.join(' ')}</div>`;
@@ -72,11 +73,11 @@ Object.assign(ActionMenu, {
                 const q = PuttingOut.quote(player, world, t, input, have, _rate);
                 const side = [...new Set([10, 25, have].filter(x => x >= C.minBatch && x <= have))].map(n => {
                     const qn = PuttingOut.quote(player, world, t, input, n, _rate);
-                    return act(`${n === have ? 'All' : n} · ${qn.wage}g`, ['put', input, n], BTN_GOLD, qn.ok, qn.reason || '');
+                    return act(`${n === have ? 'All' : n} · ${Utils.formatGold(qn.wage)}g`, ['put', input, n], BTN_GOLD, qn.ok, qn.reason || '');
                 }).join('');
                 put.push(actRow({
                     icon: '🧺', name: `${esc(input)} → ${esc(G.out)} <span style="font-weight:400; color:#9d937c;">· you carry ${have}</span>`,
-                    desc: `all of it: about ${q.expect} ${esc(G.out)} in ${Number.isFinite(q.days) ? q.days : '—'} days for ${q.wage}g (a guild workshop: about ${q.guildCost}g)`,
+                    desc: `all of it: about ${q.expect} ${esc(G.out)} in ${Number.isFinite(q.days) ? q.days : '—'} days for ${Utils.formatGold(q.wage)}g (a guild workshop: about ${Utils.formatGold(q.guildCost)}g)`,
                     side,
                 }));
             }

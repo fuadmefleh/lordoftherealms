@@ -51,6 +51,7 @@ import { StreetCrime } from './streetCrime.js';
 import { Scavengers } from './scavengers.js';
 import { NpcMemory } from './npcMemory.js';
 import { Burials } from '../world/burials.js';
+import { Utils } from '../core/utils.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -319,7 +320,7 @@ export const Graveyards = {
             const b = _book(player);
             b.book.leases = _num(b.book.leases) + choice.price;
             const t = GraveBook.term(choice.term);
-            notices.push({ icon: '⚰️', title: `A Burial in ${s.name}`, type: 'success', text: `${grave.name} is laid to rest in your ground — a lease of ${t ? t.name : choice.term}, ${choice.price}g from the family.` });
+            notices.push({ icon: '⚰️', title: `A Burial in ${s.name}`, type: 'success', text: `${grave.name} is laid to rest in your ground — a lease of ${t ? t.name : choice.term}, ${Utils.formatGold(choice.price)}g from the family.` });
         }
         return grave;
     },
@@ -483,7 +484,7 @@ export const Graveyards = {
                     gr.paid = _num(gr.paid) + price;
                     renewed = true;
                     const who = kin[0] ? Townsfolk.name(kin[0]) : 'the family';
-                    notices.push({ icon: '⚰️', title: 'A Lease Renewed', type: 'success', text: `${who} renews the lease on ${gr.name}'s grave in ${s.name}: ${price}g.` });
+                    notices.push({ icon: '⚰️', title: 'A Lease Renewed', type: 'success', text: `${who} renews the lease on ${gr.name}'s grave in ${s.name}: ${Utils.formatGold(price)}g.` });
                     break;
                 }
             }
@@ -524,7 +525,7 @@ export const Graveyards = {
         const standing = s.kingdom != null && player.reputation ? _num(player.reputation[s.kingdom]) : 0;
         if (standing < _num(C.minStanding, -20)) return { success: false, reason: `The priest of ${s.name} will not bless ground for one so ill thought of in the realm.` };
         const fee = Graveyards.consecrateFee(s);
-        if (_num(player.gold) < fee) return { success: false, reason: `The temple asks ${fee}g for the blessing; you have ${Math.floor(_num(player.gold))}g.` };
+        if (_num(player.gold) < fee) return { success: false, reason: `The temple asks ${Utils.formatGold(fee)}g for the blessing; you have ${Utils.formatGold(_num(player.gold))}g.` };
         const plots = GraveBook.plotCount(L.w, L.h);
         if (plots < 2) return { success: false, reason: 'The lot is too small to lay out graves in.' };
         player.gold -= fee;
@@ -538,7 +539,7 @@ export const Graveyards = {
         const b = _book(player);
         b.book.fees = _num(b.book.fees) + fee;
         if (!_site(player, s, L.id)) b.sites.push({ kind: 'ground', q: s.q, r: s.r, lot: L.id, town: s.name });
-        return { success: true, fee, plots, text: `The priest of ${s.name} blesses your lot as a burial ground (${fee}g to the temple): ${plots} plots, open to the town's families from tomorrow.` };
+        return { success: true, fee, plots, text: `The priest of ${s.name} blesses your lot as a burial ground (${Utils.formatGold(fee)}g to the temple): ${plots} plots, open to the town's families from tomorrow.` };
     },
 
     /** Your price: cheap, fair or dear against the going rate. */
@@ -576,7 +577,7 @@ export const Graveyards = {
         if (!GraveBook.isExpired(gr, day)) return { success: false, reason: `${gr.name}'s lease runs ${Math.max(1, GraveBook.yearsBetween(day, gr.until))} more year(s).` };
         if (gr.lapsed == null) gr.lapsed = day;
         const fee = how === 'sexton' ? Math.round(_num(GraveBook.byType(GraveBook.config().sextonFee, s.type), 4)) : 0;
-        if (fee && _num(player.gold) < fee) return { success: false, reason: `The sexton asks ${fee}g.` };
+        if (fee && _num(player.gold) < fee) return { success: false, reason: `The sexton asks ${Utils.formatGold(fee)}g.` };
         if (!PlayerInventory.canAdd(player, 'bones')) return { success: false, reason: PlayerInventory.fullMessage ? PlayerInventory.fullMessage(player) : 'Your packs are full.' };
         if (fee) {
             player.gold -= fee;
@@ -590,7 +591,7 @@ export const Graveyards = {
         const goods = _num(gr.goods) > 0 ? _invGive(player, 'grave_goods', _num(gr.goods)) : 0;
         _book(player).book.bones = _num(_book(player).book.bones) + 1;
         const what = goods ? `the bones and ${goods} grave good${goods === 1 ? '' : 's'}` : 'the bones';
-        return { success: true, fee, goods, text: `${how === 'sexton' ? `The sexton (${fee}g) digs` : 'You dig'} up ${gr.name}'s grave: ${what} are yours, the plot free.` };
+        return { success: true, fee, goods, text: `${how === 'sexton' ? `The sexton (${Utils.formatGold(fee)}g) digs` : 'You dig'} up ${gr.name}'s grave: ${what} are yours, the plot free.` };
     },
 
     // ──────────── BONES ────────────
@@ -643,7 +644,7 @@ export const Graveyards = {
         _book(player).book.bones = _num(_book(player).book.bones);
         // He grinds them for the town's farmers
         Graveyards._spreadMeal(world, s, sold * _num(GraveBook.config().mill.mealPerBone, 2));
-        return { success: true, sold, total, text: `The bone-grinder of ${s.name} takes ${sold} set${sold === 1 ? '' : 's'} of bones for ${total}g.` };
+        return { success: true, sold, total, text: `The bone-grinder of ${s.name} takes ${sold} set${sold === 1 ? '' : 's'} of bones for ${Utils.formatGold(total)}g.` };
     },
 
     /** Give bones to the charnel house: no coin, a little standing for the pious act. */
@@ -669,14 +670,14 @@ export const Graveyards = {
         n = Math.min(Math.floor(_num(g.charnel)), Math.max(1, Math.floor(n)));
         if (n <= 0) return { success: false, reason: `${s.name}'s charnel house is empty.` };
         const cost = price * n;
-        if (_num(player.gold) < cost) return { success: false, reason: `${n} sets cost ${cost}g.` };
+        if (_num(player.gold) < cost) return { success: false, reason: `${n} sets cost ${Utils.formatGold(cost)}g.` };
         if (!PlayerInventory.canAdd(player, 'bones')) return { success: false, reason: 'Your packs are full.' };
         player.gold -= cost;
         _toPurse(s, cost);
         Ledger.record(player, 'boneTrade', -cost);
         g.charnel = _num(g.charnel) - n;
         _invGive(player, 'bones', n);
-        return { success: true, text: `The sexton sells you ${n} set${n === 1 ? '' : 's'} of bones from the charnel house for ${cost}g.` };
+        return { success: true, text: `The sexton sells you ${n} set${n === 1 ? '' : 's'} of bones from the charnel house for ${Utils.formatGold(cost)}g.` };
     },
 
     // ──────────── THE BONE MILL & BONE MEAL ────────────
@@ -689,7 +690,7 @@ export const Graveyards = {
         const q = _quoteGoods(s, C.inputs);
         if (!q.ok) return { success: false, reason: `${s.name}'s market hasn't the ${q.short} to build with.` };
         const total = gold + q.cost;
-        if (_num(player.gold) < total) return { success: false, reason: `It costs ${gold}g in wages and ${q.cost}g in ${Object.keys(C.inputs || {}).join(' and ')}: ${total}g; you have ${Math.floor(_num(player.gold))}g.` };
+        if (_num(player.gold) < total) return { success: false, reason: `It costs ${Utils.formatGold(gold)}g in wages and ${Utils.formatGold(q.cost)}g in ${Object.keys(C.inputs || {}).join(' and ')}: ${Utils.formatGold(total)}g; you have ${Utils.formatGold(_num(player.gold))}g.` };
         if (extra.bones && _invHas(player, 'bones') < extra.bones) return { success: false, reason: `Founding it takes ${extra.bones} sets of bones; you have ${_invHas(player, 'bones')}.` };
         _buyGoods(s, C.inputs);
         player.gold -= total;
@@ -701,7 +702,7 @@ export const Graveyards = {
         const name = kind === 'mill' ? 'Bone Mill' : 'Ossuary Shrine';
         L.rec.built = { kind: kind === 'mill' ? 'bone_mill' : 'ossuary', type: kind === 'mill' ? 'bone_mill' : 'ossuary', name, by: 'player', readyDay, cost: total };
         _book(player).sites.push({ kind, q: s.q, r: s.r, lot: L.id, town: s.name, readyDay, ...(kind === 'mill' ? { hopper: 0, meal: 0 } : { bones: _num(extra.bones), visitors: 0 }) });
-        return { success: true, total, text: `Your ${name.toLowerCase()} goes up on your lot in ${s.name}: ${total}g (${gold}g wages, ${q.cost}g of the town's ${Object.keys(C.inputs || {}).join(' and ')}). It stands in ${_num(C.days, 6)} days.` };
+        return { success: true, total, text: `Your ${name.toLowerCase()} goes up on your lot in ${s.name}: ${Utils.formatGold(total)}g (${Utils.formatGold(gold)}g wages, ${Utils.formatGold(q.cost)}g of the town's ${Object.keys(C.inputs || {}).join(' and ')}). It stands in ${_num(C.days, 6)} days.` };
     },
 
     buildMill(player, world, s, lot) {
@@ -762,7 +763,7 @@ export const Graveyards = {
         player.gold = _num(player.gold) + total;
         Ledger.record(player, 'boneTrade', total);
         const soil = Graveyards._spreadMeal(world, s, sold);
-        return { success: true, sold, total, soil, text: `The farmers of ${s.name} buy ${sold} bone meal for ${total}g and spread it on their fields (soil ${soil.toFixed(2)}).` };
+        return { success: true, sold, total, soil, text: `The farmers of ${s.name} buy ${sold} bone meal for ${Utils.formatGold(total)}g and spread it on their fields (soil ${soil.toFixed(2)}).` };
     },
 
     /** Bone meal on a town's fields: its soil (world/harvests.js) rises toward the harvest's max. */
@@ -817,13 +818,13 @@ export const Graveyards = {
         const q = _quoteGoods(s, d.inputs || {});
         if (!q.ok) return { success: false, reason: `${s.name}'s market hasn't the ${q.short} for it.` };
         const total = q.cost + Math.round(_num(d.mason, 200));
-        if (_num(player.gold) < total) return { success: false, reason: `The mason asks ${total}g with the stone; you have ${Math.floor(_num(player.gold))}g.` };
+        if (_num(player.gold) < total) return { success: false, reason: `The mason asks ${Utils.formatGold(total)}g with the stone; you have ${Utils.formatGold(_num(player.gold))}g.` };
         _buyGoods(s, d.inputs || {});
         player.gold -= total;
         _toPurse(s, total - q.cost);
         Ledger.record(player, 'graveWorks', -total);
         ground.crypt = { graves: [], plots: held, built: _day(world), holds: _num(d.holds, 8) };
-        return { success: true, text: `A family crypt of stone rises at the head of your ground in ${s.name} (${total}g): room for ${ground.crypt.holds} of your blood.` };
+        return { success: true, text: `A family crypt of stone rises at the head of your ground in ${s.name} (${Utils.formatGold(total)}g): room for ${ground.crypt.holds} of your blood.` };
     },
 
     // ──────────── YOUR OWN DEAD ────────────
@@ -883,7 +884,7 @@ export const Graveyards = {
         if (!k) return { success: false, reason: 'No one of yours awaits burial.' };
         const q = Graveyards.kinQuote(player, world, s, groundId, markerId);
         if (!q.ok) return { success: false, reason: q.reason };
-        if (_num(player.gold) < q.total) return { success: false, reason: `It comes to ${q.total}g; you have ${Math.floor(_num(player.gold))}g.` };
+        if (_num(player.gold) < q.total) return { success: false, reason: `It comes to ${Utils.formatGold(q.total)}g; you have ${Utils.formatGold(_num(player.gold))}g.` };
         Graveyards.ensure(world, s);
         _buyGoods(s, q.goods);
         player.gold -= q.total;
@@ -904,7 +905,7 @@ export const Graveyards = {
         }
         b.kin = b.kin.filter(x => x.key !== key);
         const where = q.ground.owner === 'town' ? `the churchyard of ${s.name}` : markerId === 'crypt' ? `your family crypt in ${s.name}` : `your ground in ${s.name}`;
-        return { success: true, text: `${k.name} is laid to rest in ${where} (${q.total}g: the coffin and ${markerId === 'crypt' ? 'the crypt\'s rites' : (GraveBook.markerDef(markerId) || {}).name || 'marker'}${q.fee ? `, ${q.fee}g to the parish` : ''}).` };
+        return { success: true, text: `${k.name} is laid to rest in ${where} (${Utils.formatGold(q.total)}g: the coffin and ${markerId === 'crypt' ? 'the crypt\'s rites' : (GraveBook.markerDef(markerId) || {}).name || 'marker'}${q.fee ? `, ${Utils.formatGold(q.fee)}g to the parish` : ''}).` };
     },
 
     /** Let one of your dead go unburied by you (the parish sees to them). */
@@ -945,7 +946,7 @@ export const Graveyards = {
         b.book.dug = _num(b.book.dug) + dug;
         player.jobsCompleted = _num(player.jobsCompleted) + 1;
         if (typeof player.modifyNeed === 'function') player.modifyNeed('energy', _num(G.energy, -14));
-        return { success: true, dug, pay, text: `A day with the spade for the sexton of ${s.name}: ${dug} grave${dug === 1 ? '' : 's'} dug, ${pay}g.` };
+        return { success: true, dug, pay, text: `A day with the spade for the sexton of ${s.name}: ${dug} grave${dug === 1 ? '' : 's'} dug, ${Utils.formatGold(pay)}g.` };
     },
 
     // ──────────── GRAVE ROBBING ────────────

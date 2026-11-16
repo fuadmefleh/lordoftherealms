@@ -8,6 +8,7 @@ import { Feasts } from '../../systems/feasts.js';
 import { DuelPanel } from './duel.js';
 import { PlayerEffects } from './_imports.js';
 import { esc, lede, chips, purse, card, rowList, sectionHead, price } from './uiKit.js';
+import { Utils } from '../../core/utils.js';
 
 // In the action menu's voice (ui/actionMenu/uiKit.js): guests as checkboxes,
 // menu and entertainment as rows (the chosen one lit gold), the bill as the
@@ -38,7 +39,7 @@ export const FeastPanel = {
 
         let h = '<div>';
         h += lede(`A feast in the hall at <strong>${esc(plan.settlement.name)}</strong>. Who sits at your table matters as much as what is on it.`);
-        h += chips([{ icon: '🧾', label: 'The bill', value: `${bill}g`, cls: (player.gold || 0) >= bill ? 'gold' : 'dim' }, purse(player.gold)]);
+        h += chips([{ icon: '🧾', label: 'The bill', value: `${Utils.formatGold(bill)}g`, cls: (player.gold || 0) >= bill ? 'gold' : 'dim' }, purse(player.gold)]);
         if (plan.cooldownLeft > 0) h += `<div style="${NOTE} color: #e07070;">Your stewards need ${plan.cooldownLeft} more day${plan.cooldownLeft === 1 ? '' : 's'} before another feast.</div>`;
         if (plan.townMult < 1) h += `<div style="${NOTE} color: #e0a040;">${esc(plan.settlement.name)} feasted with you lately; it will make less of this one.</div>`;
 

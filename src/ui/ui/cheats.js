@@ -10,6 +10,7 @@ import { MoneySupply } from '../../world/moneySupply.js';
 import { CoinCensus } from '../../systems/coinCensus.js';
 import { Barter } from '../../world/barter.js';
 import { MetaLegacy } from '../../systems/metaLegacy.js';
+import { Utils } from '../../core/utils.js';
 
 // Movement granted by "infinite movement" — enough to cross a region in a day
 // without letting getReachableHexes flood the whole map
@@ -245,7 +246,7 @@ Object.assign(UI.prototype, {
         // (world/moneySupply.js). The player's purse is a hoard: it moves that
         // realm's prices once it is spent into circulation
         if (world) MoneySupply.registerNew(world, CoinCensus.realmAt(world, player.q, player.r), amount, 'cheat');
-        this._cheatDone('Gold', `+${amount.toLocaleString()} gold`);
+        this._cheatDone('Gold', `+${Utils.formatGold(amount)} gold`);
     },
 
     cheatFood(amount) {

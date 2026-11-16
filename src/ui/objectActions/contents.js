@@ -14,6 +14,7 @@ import { goodInfoIcon } from '../goodInfo.js';
 import { ParentsGuard } from '../parentsGuard.js';
 import { PeopleCrimes } from '../../systems/peopleCrimes.js';
 import { NightSight } from '../../systems/nightSight.js';
+import { Utils } from '../../core/utils.js';
 
 const MODAL_ID = 'objActionModal';
 
@@ -159,7 +160,7 @@ export function showContentsModal(game, objDef, anchorQ, anchorR) {
             }
             return `
                 <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 8px;background:rgba(255,255,255,0.03);border-radius:4px;font-size:12px">
-                    <span>${g.icon} ${g.name}${goodInfoIcon(id)} ×${n} <span style="color:#888">· ${g.basePrice}g each</span></span>
+                    <span>${g.icon} ${g.name}${goodInfoIcon(id)} ×${n} <span style="color:#888">· ${Utils.formatGold(g.basePrice)}g each</span></span>
                     <span style="display:flex;gap:4px;flex-shrink:0">${buttons}</span>
                 </div>`;
         }).join('');
@@ -272,7 +273,7 @@ function _plantHtml(game, ctx, scene) {
         const n = PeopleCrimes.plantQty(g);
         const c = Containers.stealOdds(game.player, ctx, g.id, n, scene).chance;
         return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 8px;background:rgba(255,255,255,0.03);border-radius:4px;font-size:12px">
-            <span>${esc(g.id.replace(/_/g, ' '))} ×${n} <span style="color:#888">· ${g.value * n}g${g.hot ? ' · stolen, and reported' : ''}</span></span>
+            <span>${esc(g.id.replace(/_/g, ' '))} ×${n} <span style="color:#888">· ${Utils.formatGold(g.value * n)}g${g.hot ? ' · stolen, and reported' : ''}</span></span>
             <button onclick="window._containerPlant('${g.id}',${n})" style="background:rgba(224,106,90,0.18);color:#e8a090;border:none;border-radius:3px;padding:3px 8px;cursor:pointer;font-size:11px">Hide it <span style="color:${_riskColour(c)}">(${Math.round(c * 100)}% seen)</span></button>
         </div>`;
     }).join('');

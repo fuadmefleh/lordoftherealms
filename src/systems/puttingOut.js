@@ -36,6 +36,7 @@ import { Guilds } from './guilds.js';
 import { PriceKnowledge } from './priceKnowledge.js';
 import { LandMarket } from './landMarket.js';
 import { Ledger } from './ledger.js';
+import { Utils } from '../core/utils.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -134,7 +135,7 @@ export const PuttingOut = {
         if (n > have) return { ok: false, reason: `You carry ${have} ${input}.`, ...base };
         if (st.batches.filter(b => !b.done).length >= _num(C.maxBatches, 6)) return { ok: false, reason: 'You have as much work out as your agents can watch.', ...base };
         if (!(cap > 0)) return { ok: false, reason: 'No cottagers here have time for it.', ...base };
-        if (_num(player.gold) < wage) return { ok: false, reason: `The piece wages come to ${wage}g, paid up front.`, ...base };
+        if (_num(player.gold) < wage) return { ok: false, reason: `The piece wages come to ${Utils.formatGold(wage)}g, paid up front.`, ...base };
         return { ok: true, ...base };
     },
 
@@ -177,7 +178,7 @@ export const PuttingOut = {
         st.batches.push(b);
         st.stats.putOut += n;
         st.stats.wages += q.wage;
-        return { success: true, batch: b, text: `${q.households} cottage households about ${live.name} take ${n} ${input} to spin and weave for ${q.wage}g: about ${q.expect} ${q.out} in ${q.days} days.` };
+        return { success: true, batch: b, text: `${q.households} cottage households about ${live.name} take ${n} ${input} to spin and weave for ${Utils.formatGold(q.wage)}g: about ${q.expect} ${q.out} in ${q.days} days.` };
     },
 
     /** The player's batches: all, or those at a town. */
@@ -220,7 +221,7 @@ export const PuttingOut = {
                     }
                     if (seized > 0) { SettlementMarket.add(live, b.output, seized); st.stats.seized += seized; }
                     stance.guild.feud = Math.min(100, _num(stance.guild.feud) + _num(G.feud));
-                    lines.push(`The officers of the ${stance.guild.name} ${seized ? `seized ${seized} ${b.output} as unlawful work and ` : ''}fined you ${fine}g${stance.kind === 'chartered' ? ' under their royal charter' : ''}.`);
+                    lines.push(`The officers of the ${stance.guild.name} ${seized ? `seized ${seized} ${b.output} as unlawful work and ` : ''}fined you ${Utils.formatGold(fine)}g${stance.kind === 'chartered' ? ' under their royal charter' : ''}.`);
                 }
             }
             if (units > 0) {

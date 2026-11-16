@@ -30,6 +30,7 @@
 // passed in by the caller).
 
 import { DataLoader } from '../core/dataLoader.js';
+import { Utils } from '../core/utils.js';
 import { Barter } from '../world/barter.js';
 import { CrownBooks } from '../world/crownBooks.js';
 import { Finance } from './finance.js';
@@ -238,7 +239,7 @@ export const Inheritance = {
     /** "Of 1,000 crowns, the heir keeps 750; 100 settled debts, 60 went to the younger children and 90 to the crown of X as heriot." */
     line(rec) {
         if (!rec || !(rec.dues > 0)) return '';
-        const n = (v) => Math.round(v).toLocaleString('en-US');
+        const n = (v) => Utils.formatGold(v);
         const parts = [];
         if (rec.debtsPaid >= 0.5) parts.push(`${n(rec.debtsPaid)} paid the late ruler's debts`);
         if (rec.portionsPaid >= 0.5) parts.push(`${n(rec.portionsPaid)} went to ${rec.portions.length === 1 ? rec.portions[0].name : 'the other children'} as ${rec.portions.length === 1 ? 'a portion' : 'portions'}`);

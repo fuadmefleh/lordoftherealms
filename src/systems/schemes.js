@@ -179,7 +179,7 @@ const SCHEME_TYPES = {
             Schemes._toRival(player, world, scheme && scheme.rivalId, loss);
             if (scheme) scheme.loss = loss;
             Ledger.record(player, 'schemeLosses', -loss);
-            return `Thieves empty part of your treasury: −${loss} gold.`;
+            return `Thieves empty part of your treasury: −${Utils.formatGold(loss)} gold.`;
         },
     },
     sabotage: {
@@ -495,7 +495,7 @@ export const Schemes = {
             out.text = `You name ${s.name} a traitor before all ${s.town}, and they are driven out of town.${scheme ? ' The plot is broken.' : ''}${out.gold ? ` ${out.gold} gold of what was stolen is recovered.` : ''} ${s.rivalName} is shamed — and angrier.`;
         } else if (choice === 'turn') {
             const cost = Schemes.turnCost(player, s);
-            if (goldOf(player) < cost) return { success: false, reason: `They want ${cost} gold.` };
+            if (goldOf(player) < cost) return { success: false, reason: `They want ${Utils.formatGold(cost)} gold.` };
             player.gold = goldOf(player) - cost;
             // (the price of their loyalty is in their own purse now)
             person.purse = (Number(person.purse) || 0) + cost;
@@ -667,7 +667,7 @@ export const Schemes = {
         const def = SCHEME_TYPES[scheme.type];
         if (!def.guard) return { success: false, reason: 'Guards cannot stop this plot.' };
         if (scheme.guarded) return { success: false, reason: 'Already guarded.' };
-        if (goldOf(player) < def.guard.cost) return { success: false, reason: `Need ${def.guard.cost} gold.` };
+        if (goldOf(player) < def.guard.cost) return { success: false, reason: `Need ${Utils.formatGold(def.guard.cost)} gold.` };
         player.gold -= def.guard.cost;
         // (the guards' hire is spent in the nearest town)
         const at = scheme.target && Number.isFinite(scheme.target.q) ? scheme.target : player;
@@ -707,7 +707,7 @@ export const Schemes = {
             }
         } else {
             const cost = Schemes.bribeGoldCost(player, scheme);
-            if (goldOf(player) < cost) return { success: false, reason: `Need ${cost} gold.` };
+            if (goldOf(player) < cost) return { success: false, reason: `Need ${Utils.formatGold(cost)} gold.` };
             player.gold -= cost;
             Schemes._toRival(player, world, scheme.rivalId, cost);
         }

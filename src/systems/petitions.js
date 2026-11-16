@@ -120,7 +120,7 @@ const EFFECTS = {
     gold: {
         // (the petitioners' coin: paid out of, or into, the purse of the place that petitions)
         apply(c, v) { petitionGold(c, v); },
-        describe: (v) => `${signed(v)} gold`,
+        describe: (v) => `${v > 0 ? '+' : ''}${Utils.formatGold(v)} gold`,
     },
     karma: {
         apply(c, v) { c.player.karma = (c.player.karma || 0) + v; },
@@ -290,7 +290,7 @@ const EFFECTS = {
             if (v > 0) Economy.crownRaise(c.kingdom, c.world, v, 0.5);
             else if (v < 0) Economy.crownSpend(c.kingdom, c.world, -v);
         },
-        describe: (v, ctx) => ctx.kind === 'crown' ? `${signed(v)} royal treasury` : null,
+        describe: (v, ctx) => ctx.kind === 'crown' ? `${v > 0 ? '+' : ''}${Utils.formatGold(v)} royal treasury` : null,
     },
     military: {
         apply(c, v) { if (c.kingdom) c.kingdom.military = Math.max(0, (c.kingdom.military || 0) + v); },
@@ -750,7 +750,7 @@ export const Petitions = {
         if (!choice) return { ok: false, reason: 'No such choice.' };
         const req = choice.requires || {};
         const gold = Petitions._goldNeeded(choice);
-        if (gold > 0 && (player.gold || 0) < gold) return { ok: false, reason: `Needs ${gold} gold.` };
+        if (gold > 0 && (player.gold || 0) < gold) return { ok: false, reason: `Needs ${Utils.formatGold(gold)} gold.` };
         if (req.prestige && ((player.house && player.house.prestige) || 0) < req.prestige) {
             return { ok: false, reason: `Needs ${req.prestige} Prestige.` };
         }

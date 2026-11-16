@@ -272,7 +272,7 @@ export const PublicWorks = {
             const k = _kingdom(world, q.kid);
             if (k && Array.isArray(k.wars) && player.kingdomId != null && k.wars.includes(player.kingdomId)) return { success: false, message: `${k.name} is at war with your realm.` };
             budget = Math.ceil(q.cost * (1 + _num(B.budgetPad, 0.15)));
-            if (_num(player.gold) < budget) return { success: false, message: `You need ${budget}g (the estimate and a reserve; what is left is returned).` };
+            if (_num(player.gold) < budget) return { success: false, message: `You need ${Utils.formatGold(budget)}g (the estimate and a reserve; what is left is returned).` };
             player.gold -= budget;
             Ledger.record(player, 'publicWorks', -budget);
             owner = 'player'; payer = 'player';
@@ -281,7 +281,7 @@ export const PublicWorks = {
             const k = _kingdom(world, kid);
             if (!k || k.isAlive === false) return { success: false, message: 'No crown to pay for it.' };
             if (opts.asRuler && q.kid !== kid) return { success: false, message: 'That lies outside your realm.' };
-            if (_num(k.treasury) < q.cost * 0.5) return { success: false, message: `The treasury of ${Names.realm(k.name)} cannot bear it (${q.cost}g).` };
+            if (_num(k.treasury) < q.cost * 0.5) return { success: false, message: `The treasury of ${Names.realm(k.name)} cannot bear it (${Utils.formatGold(q.cost)}g).` };
             owner = kid; payer = 'crown';
         }
         const id = `pw${st.seq++}`;
@@ -304,12 +304,12 @@ export const PublicWorks = {
         const w = st.works.find(x => x && x.id === workId);
         if (!w || w.owner !== 'player' || (w.status !== 'building' && w.status !== 'stalled')) return { success: false, message: 'No such work of yours under way.' };
         const left = Math.max(20, Math.ceil(w.est * Math.max(0.1, 1 - PublicWorks.progress(w)) * 0.6));
-        if (_num(player.gold) < left) return { success: false, message: `You need ${left}g.` };
+        if (_num(player.gold) < left) return { success: false, message: `You need ${Utils.formatGold(left)}g.` };
         player.gold -= left;
         w.budget = _num(w.budget) + left;
         Ledger.record(player, 'publicWorks', -left);
         if (w.stall === 'funds') { w.stall = null; w.status = 'building'; }
-        return { success: true, message: `${left}g more for the ${w.name}.` };
+        return { success: true, message: `${Utils.formatGold(left)}g more for the ${w.name}.` };
     },
 
     /** Abandon a work of the player's: what is left of the budget comes back, what was built is lost. */
@@ -321,7 +321,7 @@ export const PublicWorks = {
         w.status = 'abandoned';
         w.done = _day(world);
         if (back > 0) { player.gold += back; Ledger.record(player, 'publicWorks', back); }
-        return { success: true, message: `The ${w.name} is abandoned; ${Math.floor(back)}g of its budget returned.` };
+        return { success: true, message: `The ${w.name} is abandoned; ${Utils.formatGold(back)}g of its budget returned.` };
     },
 
     /** Share of a work done: the lesser of its days and its materials. */
@@ -459,7 +459,7 @@ export const PublicWorks = {
         if (w.owner === 'player' && player) {
             const back = PublicWorks._returnBudget(world, w);
             if (back > 0) { player.gold += back; Ledger.record(player, 'publicWorks', back); }
-            out.notices.push({ icon: w.icon || '🏗️', title: 'Works Finished', text: `The ${w.name} is finished (${Math.round(w.spent)}g spent${back > 0 ? `, ${Math.floor(back)}g returned` : ''}).${w.toll ? ' Its tolls are yours.' : ''}`, type: 'success' });
+            out.notices.push({ icon: w.icon || '🏗️', title: 'Works Finished', text: `The ${w.name} is finished (${Utils.formatGold(w.spent)}g spent${back > 0 ? `, ${Utils.formatGold(back)}g returned` : ''}).${w.toll ? ' Its tolls are yours.' : ''}`, type: 'success' });
         }
     },
 

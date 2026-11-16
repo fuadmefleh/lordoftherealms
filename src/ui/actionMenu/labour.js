@@ -10,6 +10,7 @@ import { CARD } from './uiKit.js';
 import { tradesHtml } from './trades.js';
 // (the town's comings and goings and why: systems/migration.js)
 import { migrationHtml } from './migration.js';
+import { Utils } from '../../core/utils.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 const SECTOR = { land: '🌾 Land, mines & hauling', craft: '🔨 Trades & works', trade: '⚖️ Trade' };
@@ -32,7 +33,7 @@ export function peopleLine(settlement, day = null) {
     const craft = sum.sectors.find(x => x.id === 'craft');
     const parts = [`<span style="color:${wl.color};">${wl.label}</span>`];
     parts.push(`${pct(sum.idle)} idle`);
-    if (craft) parts.push(`artisans ${craft.wage.toFixed(2)}g/day`);
+    if (craft) parts.push(`artisans ${Utils.formatGold(craft.wage)}g/day`);
     if (sum.refugees >= 20) parts.push(`<span style="color:#e8a040;">${sum.refugees} refugees</span>`);
     if (sum.strike) parts.push('<span style="color:#e74c3c;">on strike</span>');
     return parts.join(' · ');
@@ -64,7 +65,7 @@ export function peopleHtml(game, settlement, q, r) {
         const short = sec.fill < 0.97;
         const color = short ? '#e8a040' : sec.idle > 0.08 ? '#e67e22' : '#9fd59f';
         const wageRel = sec.base > 0 ? sec.wage / sec.base : 1;
-        html += `<div style="margin-top:4px;">${SECTOR[sec.id]}: <b>${sec.hands.toLocaleString()}</b> hands for ${sec.jobs.toLocaleString()} places · <span style="color:${color};">${short ? `short of hands (${pct(sec.fill)} filled)` : `${pct(sec.idle)} idle`}</span> · wage <b>${sec.wage.toFixed(2)}g</b> a day <small style="color:#999;">(${wageRel >= 1 ? '+' : ''}${Math.round((wageRel - 1) * 100)}% on the usual)</small></div>`;
+        html += `<div style="margin-top:4px;">${SECTOR[sec.id]}: <b>${sec.hands.toLocaleString()}</b> hands for ${sec.jobs.toLocaleString()} places · <span style="color:${color};">${short ? `short of hands (${pct(sec.fill)} filled)` : `${pct(sec.idle)} idle`}</span> · wage <b>${Utils.formatGold(sec.wage)}g</b> a day <small style="color:#999;">(${wageRel >= 1 ? '+' : ''}${Math.round((wageRel - 1) * 100)}% on the usual)</small></div>`;
     }
     const crimeColor = sum.crime > 0.3 ? '#e74c3c' : sum.crime > 0.1 ? '#e8a040' : '#9fd59f';
     html += `<div style="margin-top:6px;">Crime <b style="color:${crimeColor};">${Math.round(sum.crime * 100)}</b> · danger ${Math.round(sum.danger * 100)}${sum.refugees ? ` · ${sum.refugees} refugees` : ''} · last week ${sum.moved.in || 0} came, ${sum.moved.out || 0} left</div>`;
@@ -88,7 +89,7 @@ export function peopleHtml(game, settlement, q, r) {
         const prop = t && Array.isArray(t.playerProperties) ? t.playerProperties.find(x => x && x.type === ref.type) : null;
         const hire = prop && prop.hire;
         if (!hire || hire.q !== q || hire.r !== r) continue;
-        mine.push(`${esc(prop.name || ref.type)}: ${hire.hands} ${hire.sector === 'craft' ? 'artisans' : 'labourers'} at ${Number(hire.wage || 0).toFixed(2)}g (${pct(hire.fill)} staffed)`);
+        mine.push(`${esc(prop.name || ref.type)}: ${hire.hands} ${hire.sector === 'craft' ? 'artisans' : 'labourers'} at ${Utils.formatGold(hire.wage || 0)}g (${pct(hire.fill)} staffed)`);
     }
     if (mine.length) html += `<div style="${CARD}"><b>Your hands here</b><div style="${NOTE}">${mine.join('<br>')}</div></div>`;
 

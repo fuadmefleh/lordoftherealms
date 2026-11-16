@@ -160,7 +160,7 @@ export const MercContracts = {
         }
         const parts = [];
         if (Object.keys(res.added).length) parts.push(PlayerInventory.describe(res.added));
-        if (res.gold > 0) parts.push(`${PlayerInventory.describe(res.sold)} sold on the spot for ${res.gold} gold (no room in the packs)`);
+        if (res.gold > 0) parts.push(`${PlayerInventory.describe(res.sold)} sold on the spot for ${Utils.formatGold(res.gold)} gold (no room in the packs)`);
         return parts.join('; ');
     },
 
@@ -302,7 +302,7 @@ export const MercContracts = {
             const lucky = r.items.length > 0 && _stream(world, `${c.type}:lootItem`)() < r.itemChance;
             const items = lucky ? MercContracts._rollItems(world, c, 'loot') : null;
             const got = items ? MercContracts._takeItems(player, c, items, world) : '';
-            return { type, text: `Your company seized a strongbox: +${gold} gold.${got ? ` Among the spoils: ${got}.` : ''}`, gold, items };
+            return { type, text: `Your company seized a strongbox: +${Utils.formatGold(gold)} gold.${got ? ` Among the spoils: ${got}.` : ''}`, gold, items };
         }
         return null;
     },
@@ -412,7 +412,7 @@ export const MercContracts = {
             }
         }
         if (totalLost) message += ` ${totalLost} soldier${totalLost === 1 ? '' : 's'} lost.`;
-        if (payment) message += ` +${payment} gold${reneged ? ' (the crown paid only half, pleading empty coffers)' : outcome === 'defeat' ? ' retainer' : ''}.`;
+        if (payment) message += ` +${Utils.formatGold(payment)} gold${reneged ? ' (the crown paid only half, pleading empty coffers)' : outcome === 'defeat' ? ' retainer' : ''}.`;
         if (c.loot) message += ` (${c.loot} gold in plunder along the way.)`;
         if (spoils) message += ` Spoils taken: ${spoils}.`;
         // What happened on the march (the contract's log)

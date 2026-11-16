@@ -830,7 +830,7 @@ export const Stewards = {
         const day = _day(world);
         if (day - _num(s.lastAudit, -999) < A.cooldown) return { success: false, reason: `The books were gone over ${day - s.lastAudit} days ago.` };
         const cost = Stewards.auditCost(player, world, seat);
-        if (_num(player.gold) < cost) return { success: false, reason: `The auditors want ${cost} gold.` };
+        if (_num(player.gold) < cost) return { success: false, reason: `The auditors want ${Utils.formatGold(cost)} gold.` };
         player.gold -= cost;
         // (the auditors' fee is spent in the seat's town)
         Stewards._toTown(player, world, seat, cost);
@@ -880,7 +880,7 @@ export const Stewards = {
             s.power = _clamp(_num(s.power) + W.honourPower, 0, 100);
         } else {
             const g = Math.max(_num(W.goldMin), Math.round(_num(amount, Math.max(W.goldMin, _num(office.wage) * 10))));
-            if (_num(player.gold) < g) return { success: false, reason: `You need ${g} gold.` };
+            if (_num(player.gold) < g) return { success: false, reason: `You need ${Utils.formatGold(g)} gold.` };
             player.gold -= g;
             Ledger.record(player, 'stewardRewards', -g);
             // (into their own purse; with none the census counts, spent in their seat's town)
@@ -930,7 +930,7 @@ export const Stewards = {
         s.caught = false;
         if (s.bribe) s.bribe = null;
         Stewards._refreshFx(player, world, seat, office);
-        return { success: true, text: `${office.name} is fined${seized ? ` ${seized} gold` : ''} and kept on, sullen and afraid.` };
+        return { success: true, text: `${office.name} is fined${seized ? ` ${Utils.formatGold(seized)} gold` : ''} and kept on, sullen and afraid.` };
     },
 
     /** Answer a proposal from a steward (a marriage into the House). */
@@ -1205,9 +1205,9 @@ export const Stewards = {
                 s.season.skimmed += pad;
             }
             s.spent = _num(s.spent) + res.cost + pad;
-            s.season.notes.push(`began the ${res.project.name} (${res.cost + pad}g)`);
+            s.season.notes.push(`began the ${res.project.name} (${Utils.formatGold(res.cost + pad)}g)`);
             Stewards.state(player).stats.worksStarted++;
-            Stewards._note(out, '🏗️', 'Works Begun', `${office.name} begins a ${res.project.name} in ${seat.place} (${res.cost + pad}g from your purse).`, 'info');
+            Stewards._note(out, '🏗️', 'Works Begun', `${office.name} begins a ${res.project.name} in ${seat.place} (${Utils.formatGold(res.cost + pad)}g from your purse).`, 'info');
             return;
         }
     },
@@ -1411,7 +1411,7 @@ export const Stewards = {
             if (Utils.random() > 0.3 + _num(office.stewardship) * 0.06) continue;
             const res = MerchantHouses.audit(player, world, post.id);
             if (res && res.success && res.found) {
-                s.season.notes.push(`caught the factor at ${post.name} skimming (${res.recovered}g back)`);
+                s.season.notes.push(`caught the factor at ${post.name} skimming (${Utils.formatGold(res.recovered)}g back)`);
                 MerchantHouses.replaceFactor(player, world, post.id, 0);
             }
         }
@@ -1476,11 +1476,11 @@ export const Stewards = {
         else if (hap < 40 || unrest >= 55) mood = 'bad';
         const quote = s.honesty < 0.5 && mood !== 'good' ? pick(L.rosy) : pick(L[mood]);
         const bits = [];
-        if (seat.kind === 'holding') bits.push(`taxes ${claimed}g this season, unrest ${Math.round(unrest)}`);
-        else if (seat.kind === 'province') bits.push(`the crown's dues ${claimed}g this season`);
-        else if (seat.kind === 'estates') bits.push(`rents ${claimed}g this season`);
-        else if (seat.kind === 'trade') bits.push(`the lines' sales ${claimed}g this season`);
-        else bits.push(`the company's trade ${claimed}g this season`);
+        if (seat.kind === 'holding') bits.push(`taxes ${Utils.formatGold(claimed)}g this season, unrest ${Math.round(unrest)}`);
+        else if (seat.kind === 'province') bits.push(`the crown's dues ${Utils.formatGold(claimed)}g this season`);
+        else if (seat.kind === 'estates') bits.push(`rents ${Utils.formatGold(claimed)}g this season`);
+        else if (seat.kind === 'trade') bits.push(`the lines' sales ${Utils.formatGold(claimed)}g this season`);
+        else bits.push(`the company's trade ${Utils.formatGold(claimed)}g this season`);
         for (const n of (season.notes || []).slice(-2)) bits.push(n);
         let text = `${seat.title} ${office.name} of ${seat.place}: ${bits.join('; ')}. "${quote}"`;
         if (s.suspicion >= A.suspicionShown) text += ' (In town they say the steward lives well beyond the wage.)';

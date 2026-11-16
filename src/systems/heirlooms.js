@@ -436,7 +436,7 @@ export const Heirlooms = {
         const h = Heirlooms.get(player, id);
         if (!h || h.status !== 'pawned' || !h.pawn) return { success: false, reason: 'It is not in pawn.' };
         if (!Heirlooms.isHere(player, world, h)) return { success: false, reason: `The moneylenders of ${h.pawn.place} hold it: redeem it there.` };
-        if (_num(player.gold) < h.pawn.redeem) return { success: false, reason: `Redeeming it costs ${h.pawn.redeem} gold.` };
+        if (_num(player.gold) < h.pawn.redeem) return { success: false, reason: `Redeeming it costs ${Utils.formatGold(h.pawn.redeem)} gold.` };
         player.gold = _num(player.gold) - h.pawn.redeem;
         Ledger.record(player, 'heirlooms', -h.pawn.redeem);
         _payHere(world, player, h.pawn.redeem, 'pawnbroker');
@@ -532,7 +532,7 @@ export const Heirlooms = {
         };
         if (how === 'buy') {
             if (o.buy == null) return { success: false, reason: 'No one here will sell it.' };
-            if (_num(player.gold) < o.buy) return { success: false, reason: `They ask ${o.buy} gold.` };
+            if (_num(player.gold) < o.buy) return { success: false, reason: `They ask ${Utils.formatGold(o.buy)} gold.` };
             player.gold = _num(player.gold) - o.buy;
             Ledger.record(player, 'heirlooms', -o.buy);
             _payHere(world, player, o.buy, 'heirloomBuy');

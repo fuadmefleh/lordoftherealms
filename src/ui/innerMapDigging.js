@@ -541,13 +541,13 @@ export const InnerMapDigging = {
             const btn = (n, label) => `<button type="button" style="${BTN_PLAIN} margin-left:4px;" onclick="event.stopPropagation(); window.__holeStash && window.__holeStash('${id}', ${n})">${label}</button>`;
             return {
                 icon: g.icon, name: esc(g.name), desc: `You carry ${g.qty}${g.itemId === 'gold' ? 'g' : ''}`,
-                side: (g.qty > some ? btn(some, g.itemId === 'gold' ? `${some}g` : '1') : '') + btn(g.qty, g.qty > some ? 'All' : (g.itemId === 'gold' ? `${g.qty}g` : 'Put in')),
+                side: (g.qty > some ? btn(some, g.itemId === 'gold' ? `${Utils.formatGold(some)}g` : '1') : '') + btn(g.qty, g.qty > some ? 'All' : (g.itemId === 'gold' ? `${g.qty}g` : 'Put in')),
             };
         });
         window.__holeStash = (itemId, n) => {
             const put = this.stash(game, q, r, itemId, n);
             const name = _goodOf(itemId).name;
-            this.showStashPicker(game, q, r, put ? `In it goes: ${itemId === 'gold' ? `${put} gold` : `${put} ${name}`}.` : 'You need to stand beside it.');
+            this.showStashPicker(game, q, r, put ? `In it goes: ${itemId === 'gold' ? `${Utils.formatGold(put)} gold` : `${put} ${name}`}.` : 'You need to stand beside it.');
         };
         const now = inHole && !Burials.isEmpty(inHole) ? `<div style="font-size:11px; color:var(--text-secondary); margin:4px 0;">In ${where} now: ${esc(Burials.describe(inHole, _nameOf))}.</div>` : '';
         const note = msg ? `<div style="font-size:11px; color:#9fd89f; margin:4px 0;">${esc(msg)}</div>` : '';

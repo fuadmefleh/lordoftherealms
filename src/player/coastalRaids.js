@@ -209,7 +209,7 @@ export const CoastalRaids = {
             if (burn) st.stats.burned++;
         }
         Landings._log(player, world, result.victory
-            ? `Your boats landed on ${s.name}${burn ? ' and put its stores to the torch' : ` and carried off ${result.plunder}g`}.`
+            ? `Your boats landed on ${s.name}${burn ? ' and put its stores to the torch' : ` and carried off ${Utils.formatGold(result.plunder)}g`}.`
             : `Your landing on ${s.name} was thrown back into the sea.`);
         return result;
     },

@@ -8,6 +8,7 @@
 import { ActionMenu } from './_ref.js';
 import { lede, chips, purse, sectionHead, rowList, card, esc } from './uiKit.js';
 import { Parentage } from '../../player/parentage.js';
+import { Utils } from '../../core/utils.js';
 
 const TITLE = 'Your Parents';
 
@@ -43,11 +44,11 @@ Object.assign(ActionMenu, {
             html += chips([
                 { icon: '🤝', label: 'Trust', value: Math.round(pa.trust), cls: pa.trust >= 60 ? 'gold' : '' },
                 { icon: '❤️', label: 'Regard', value: regard },
-                { icon: '💰', label: 'Allowance', value: pa.cut ? 'stopped' : `${st.allowance || 0}g/wk`, cls: pa.cut ? 'dim' : '' },
+                { icon: '💰', label: 'Allowance', value: pa.cut ? 'stopped' : `${Utils.formatGold(st.allowance || 0)}g/wk`, cls: pa.cut ? 'dim' : '' },
                 { icon: '🧭', label: 'Leash', value: `${Parentage.roamRadius(player, world)} lg` },
                 grounded ? { icon: '🔒', label: 'Grounded', value: `${pa.grounded.until - day + 1}d`, cls: 'dim' } : null,
                 leave ? { icon: '🎒', label: 'On leave', value: `${pa.leave.until - day + 1}d`, cls: 'gold' } : null,
-                { icon: '🏦', label: 'Household', value: `${Parentage.savings(world, player).toLocaleString('en-US')}g` },
+                { icon: '🏦', label: 'Household', value: `${Utils.formatGold(Parentage.savings(world, player))}g` },
                 purse(player.gold),
             ]);
 
@@ -115,7 +116,7 @@ Object.assign(ActionMenu, {
                 desc: `${esc(c.father.first)} ${esc(c.father.last || '')} (${c.father.age}, ${esc(c.father.title)}) and ${esc(c.mother.first)} ${esc(c.mother.last || '')} (${c.mother.age}, ${esc(c.mother.title)})${kids}${extra}`,
                 note: esc(c.means),
                 act: 'parentsAct', args: ['pick', c.key, reroll],
-                side: `${c.purse}g`,
+                side: `${Utils.formatGold(c.purse)}g`,
             };
         });
         html += rowList(rows, 'Families');

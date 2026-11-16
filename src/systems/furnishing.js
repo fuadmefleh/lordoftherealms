@@ -19,6 +19,7 @@ import { FurnitureCatalogue } from '../world/furnitureCatalogue.js';
 import { Ledger } from './ledger.js';
 import { Economy } from '../world/economy.js';
 import { MoneySupply } from '../world/moneySupply.js';
+import { Utils } from '../core/utils.js';
 
 const _num = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
 
@@ -54,7 +55,7 @@ export const Furnishing = {
         }
         const n = Math.max(1, Math.floor(_num(qty, 1)));
         const cost = _num(item.price) * n;
-        if (_num(player.gold) < cost) return { success: false, text: `A ${item.name} costs ${cost}g. You have ${Math.floor(_num(player.gold))}g.` };
+        if (_num(player.gold) < cost) return { success: false, text: `A ${item.name} costs ${Utils.formatGold(cost)}g. You have ${Utils.formatGold(_num(player.gold))}g.` };
         player.gold = _num(player.gold) - cost;
         Ledger.record(player, 'housing', -cost);
         // (the joiner's price: into the purse of the town the player buys in)
@@ -69,7 +70,7 @@ export const Furnishing = {
             Furnishing.store(player).push(piece);
         }
         const many = n > 1 ? `${n} × ${item.name}` : `a ${item.name}`;
-        return { success: true, text: `You buy ${many} for ${cost}g. It waits in your furniture store: set it down in a home of yours (Furnish, inside).`, piece };
+        return { success: true, text: `You buy ${many} for ${Utils.formatGold(cost)}g. It waits in your furniture store: set it down in a home of yours (Furnish, inside).`, piece };
     },
 
     /**
@@ -91,7 +92,7 @@ export const Furnishing = {
         player.gold = _num(player.gold) + gold;
         Ledger.record(player, 'housing', gold);
         const v = FurnitureCatalogue.view(piece);
-        return { success: true, gold, text: `You sell the ${v.name} for ${gold}g.` };
+        return { success: true, gold, text: `You sell the ${v.name} for ${Utils.formatGold(gold)}g.` };
     },
 
     /** Put a piece taken up off a floor into the store. Refused while it still holds goods. */

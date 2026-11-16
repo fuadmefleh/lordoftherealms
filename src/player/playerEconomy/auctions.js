@@ -118,7 +118,7 @@ Object.assign(PlayerEconomy, {
         if (!lot) return { success: false, reason: 'Auction lot not found' };
 
         const nextBid = lot.currentBid + lot.minIncrement;
-        if (player.gold < nextBid) return { success: false, reason: `Need ${nextBid} gold` };
+        if (player.gold < nextBid) return { success: false, reason: `Need ${Utils.formatGold(nextBid)} gold` };
 
         // The stake is held by the auction house (the town it sits in) until the lot closes
         if (lot.topBidder === 'player' && lot.playerStake) {
@@ -171,12 +171,12 @@ Object.assign(PlayerEconomy, {
                 events.push(lot.refunded ? {
                     eventType: 'auction',
                     title: 'Auction Refunded',
-                    message: `You won ${lot.title}, but had no room to carry it — your ${lot.currentBid}g was refunded. ${lot.refundReason}`,
+                    message: `You won ${lot.title}, but had no room to carry it — your ${Utils.formatGold(lot.currentBid)}g was refunded. ${lot.refundReason}`,
                     severity: 'warning',
                 } : {
                     eventType: 'auction',
                     title: 'Auction Won!',
-                    message: `${lot.title} secured for ${lot.currentBid}g. Reward: ${lot.reward.label}`,
+                    message: `${lot.title} secured for ${Utils.formatGold(lot.currentBid)}g. Reward: ${lot.reward.label}`,
                     severity: 'success',
                 });
             } else {

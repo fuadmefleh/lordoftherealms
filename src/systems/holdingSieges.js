@@ -705,7 +705,7 @@ export const HoldingSieges = {
         const keep = [];
         for (const c of s.convoys) {
             if (day < c.arriveDay) { keep.push(c); continue; }
-            const what = [c.food ? `${c.food} food` : '', c.gold ? `${c.gold} gold` : ''].filter(Boolean).join(' and ');
+            const what = [c.food ? `${c.food} food` : '', c.gold ? `${Utils.formatGold(c.gold)} gold` : ''].filter(Boolean).join(' and ');
             if (Utils.random() < c.catch) {
                 s.besiegerStores += c.food / HoldingSieges.foodPerDay(s);
                 // (the gold into the besiegers' chest: their host's bags, else their crown's)
@@ -942,13 +942,13 @@ export const HoldingSieges = {
         const gold = Math.max(0, Math.min(C.maxGold, Math.floor(_num(opts.gold))));
         let food = Math.max(0, Math.min(C.maxFood, Math.floor(_num(opts.food))));
         if (!gold && !food) return { success: false, reason: 'Send gold or food.' };
-        if (gold > _num(player.gold)) return { success: false, reason: `You have only ${Math.floor(_num(player.gold))} gold.` };
+        if (gold > _num(player.gold)) return { success: false, reason: `You have only ${Utils.formatGold(_num(player.gold))} gold.` };
         if (food > Sieges._foodInPacks(player)) return { success: false, reason: `You carry only ${Sieges._foodInPacks(player)} food.` };
         player.gold = _num(player.gold) - gold;
         if (food) food = Sieges._eatFromPacks(player, food);
         const convoy = { via, gold, food, arriveDay: _day(world) + route.days, catch: route.catch };
         s.convoys.push(convoy);
-        HoldingSieges._log(s, world, `A ${via === 'ship' ? 'ship' : 'caravan'} sets out with ${[food ? `${food} food` : '', gold ? `${gold} gold` : ''].filter(Boolean).join(' and ')}.`);
+        HoldingSieges._log(s, world, `A ${via === 'ship' ? 'ship' : 'caravan'} sets out with ${[food ? `${food} food` : '', gold ? `${Utils.formatGold(gold)} gold` : ''].filter(Boolean).join(' and ')}.`);
         return { success: true, convoy, days: route.days, catch: route.catch };
     },
 
@@ -995,7 +995,7 @@ export const HoldingSieges = {
         const day = _day(world);
         if (day < s.nextParleyDay) return { success: false, reason: `The besiegers won't parley again for ${s.nextParleyDay - day} day(s).` };
         const price = HoldingSieges.termsPrice(s);
-        if (_num(player.gold) < price) return { success: false, reason: `The terms would cost ${price} gold.` };
+        if (_num(player.gold) < price) return { success: false, reason: `The terms would cost ${Utils.formatGold(price)} gold.` };
         const settlement = HoldingSieges._settlement(world, s);
         const chance = HoldingSieges.termsChance(s, settlement);
         const c = HoldingSieges.commander(settlement);
@@ -1011,7 +1011,7 @@ export const HoldingSieges = {
         if (kingdom) kingdom.treasury = _num(kingdom.treasury) + price; // (the price, into the besiegers' crown's chests)
         const war = HoldingSieges._war(player, s);
         if (kingdom && war) HoldingSieges._sendHome(world, kingdom, war, s);
-        const text = `${c.name} buys off the besiegers of ${s.name} for ${price} gold; ${s.hostName} marches away.`;
+        const text = `${c.name} buys off the besiegers of ${s.name} for ${Utils.formatGold(price)} gold; ${s.hostName} marches away.`;
         const end = HoldingSieges._end(player, world, s, 'terms', text, null);
         return { success: true, accepted: true, chance, cost: price, text, end };
     },
@@ -1021,7 +1021,7 @@ export const HoldingSieges = {
         const s = HoldingSieges._get(player, key);
         if (!s) return { success: false, reason: 'That holding is not under siege.' };
         const price = HoldingSieges.buyOffPrice(player, world, s);
-        if (_num(player.gold) < price) return { success: false, reason: `Need ${price} gold.` };
+        if (_num(player.gold) < price) return { success: false, reason: `Need ${Utils.formatGold(price)} gold.` };
         player.gold -= price;
         const kingdom = world.getKingdom(s.kingdomId);
         const war = HoldingSieges._war(player, s);

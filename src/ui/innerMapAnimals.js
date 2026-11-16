@@ -502,7 +502,7 @@ export const InnerMapAnimals = {
                 kingdom, caught: true, q: wt.q, r: wt.r,
                 victim: { name: `a shepherd of ${town}`, type: 'farmer', icon: '👨‍🌾' },
             });
-            _notify(game, '⚖️ Seen', `You were seen killing ${town}'s ${name}. It's theft: fined ${fine} gold${kingdom != null ? ', and your name is mud hereabouts' : ''}.`, 'error');
+            _notify(game, '⚖️ Seen', `You were seen killing ${town}'s ${name}. It's theft: fined ${Utils.formatGold(fine)} gold${kingdom != null ? ', and your name is mud hereabouts' : ''}.`, 'error');
             if (game.ui && typeof game.ui.updateStats === 'function') game.ui.updateStats(player, world);
             return { seen: true, fine };
         }

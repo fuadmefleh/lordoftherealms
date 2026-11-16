@@ -23,8 +23,9 @@ export const WorldEvents = {
             const tile = world && typeof world.getTile === 'function' ? world.getTile(t.q, t.r) : null;
             if (tile && tile.settlement && tile.settlement.kingdom === kingdom.id) towns.push({ settlement: tile.settlement, weight: Math.max(1, tile.settlement.population || 0) });
         }
-        const got = towns.length ? Math.floor(Economy.drawTowns(towns, amount, 0.05).paid) : 0;
-        kingdom.treasury = (kingdom.treasury || 0) + got;
+        // (every cent the towns gave reaches the chests: no fraction dropped on the way)
+        const got = towns.length ? Economy.drawTowns(towns, amount, 0.05).paid : 0;
+        kingdom.treasury = Utils.cents((kingdom.treasury || 0) + got);
         return got;
     },
 
@@ -39,19 +40,21 @@ export const WorldEvents = {
         // (the share is of the chests, but at most of a few weeks' revenue: world/crownBooks.js lossBasis)
         const out = Math.min(have, Math.floor(CrownBooks.lossBasis(kingdom) * (share || 0)) + (flat || 0));
         if (!(out > 0)) return 0;
-        kingdom.treasury = have - out;
         const towns = [];
         for (const t of kingdom.territory || []) {
             const tile = world && typeof world.getTile === 'function' ? world.getTile(t.q, t.r) : null;
-            if (tile && tile.settlement && tile.settlement.kingdom === kingdom.id && tile.settlement.economy) towns.push(tile.settlement);
+            if (tile && tile.settlement && tile.settlement.kingdom === kingdom.id && tile.settlement.economy && !tile.settlement.inKind) towns.push(tile.settlement);
         }
+        // (no town of its own that keeps coin to spend it in: the chests keep it — coin is not simply gone)
+        if (!towns.length) return 0;
         const pop = towns.reduce((a, s) => a + Math.max(1, s.population || 0), 0);
         let paid = 0;
         towns.forEach((s, i) => {
             const part = i === towns.length - 1 ? out - paid : Math.floor(out * Math.max(1, s.population || 0) / pop);
-            if (part > 0) { Economy.payTown(s, part); paid += part; }
+            if (part > 0) paid += Economy.payTown(s, part);
         });
-        return out;
+        kingdom.treasury = have - paid;
+        return paid;
     },
 
     /**

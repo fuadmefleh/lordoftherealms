@@ -278,12 +278,12 @@ export const Prison = {
         if (!m || m.archetype !== 'smuggler' || !m.friend) return { success: false, reason: 'Only a friend with the right connections can arrange that.' };
         if (pr.toolsDueDay != null) return { success: false, reason: 'Tools are already on their way.' };
         const cost = _num(Prison.archetype('smuggler').toolsCost, 20);
-        if (_num(player.gold) < cost) return { success: false, reason: `It will cost ${cost} gold.` };
+        if (_num(player.gold) < cost) return { success: false, reason: `It will cost ${Utils.formatGold(cost)} gold.` };
         player.gold -= cost;
         Ledger.record(player, 'bribes', -cost);
         Prison._payJail(player, world, cost);
         pr.toolsDueDay = _day(world) + 1;
-        const text = `${m.name} takes your ${cost} gold: "Tomorrow, in the bread."`;
+        const text = `${m.name} takes your ${Utils.formatGold(cost)} gold: "Tomorrow, in the bread."`;
         Prison._log(pr, text);
         return { success: true, text, cost };
     },
@@ -314,7 +314,7 @@ export const Prison = {
         if (!jail) return { success: false, reason: 'You are not in jail.' };
         const pr = Prison.state(player, world);
         const cost = Prison.bribeCost(player, world, kind);
-        if (_num(player.gold) < cost) return { success: false, reason: `The guard wants ${cost} gold.` };
+        if (_num(player.gold) < cost) return { success: false, reason: `The guard wants ${Utils.formatGold(cost)} gold.` };
         const day = _day(world);
         if (kind === 'lookaway' && pr.lookAwayDay === day) return { success: false, reason: 'A guard already owes you tonight.' };
         player.gold -= cost;
@@ -333,18 +333,18 @@ export const Prison = {
         }
         Traits.recordDeed(player, 'deceit', 0.5);
         if (kind === 'release') {
-            const text = `For ${cost} gold, your papers were "lost". The door is opened for you before dawn.`;
+            const text = `For ${Utils.formatGold(cost)} gold, your papers were "lost". The door is opened for you before dawn.`;
             const rel = Prison.release(player, world, 'bribed');
             return { success: true, ok: true, cost, released: true, text: `${text}${rel.text ? ` ${rel.text}` : ''}` };
         }
         if (kind === 'tools') {
             pr.tools += 1;
-            const text = `${cost} gold, and a chisel and a spoon-handle come in under the guard's cloak.`;
+            const text = `${Utils.formatGold(cost)} gold, and a chisel and a spoon-handle come in under the guard's cloak.`;
             Prison._log(pr, text);
             return { success: true, ok: true, cost, text };
         }
         pr.lookAwayDay = day;
-        const text = `${cost} gold: tonight the guard on your corridor will be looking the other way.`;
+        const text = `${Utils.formatGold(cost)} gold: tonight the guard on your corridor will be looking the other way.`;
         Prison._log(pr, text);
         return { success: true, ok: true, cost, text };
     },
@@ -511,26 +511,26 @@ export const Prison = {
         const lock = (id, cost) => {
             if (today) return 'Your crew already had word from you today';
             if (!c.boss && c.m.rank < _num(C.minRank[id], 1)) return `${c.gang.boss.name} won't stick his neck out for a ${Gangs.rankDef(c.m.rank).name.toLowerCase()}`;
-            if (cost > c.gang.purse) return `${c.gang.name}'s purse holds ${Math.floor(c.gang.purse)}g; this takes ${cost}g`;
-            if (!c.boss && cost > budget) return `${c.gang.boss.name} won't spend ${cost}g on you`;
+            if (cost > c.gang.purse) return `${c.gang.name}'s purse holds ${Utils.formatGold(c.gang.purse)}g; this takes ${Utils.formatGold(cost)}g`;
+            if (!c.boss && cost > budget) return `${c.gang.boss.name} won't spend ${Utils.formatGold(cost)}g on you`;
             return null;
         };
         const out = [];
         // The gaoler, bribed from the purse
         const bribeCost = Math.max(5, Math.round(Prison.bribeCost(player, world, 'release') * _num(C.bribe.mult, 1)));
         const bribeOdds = _clamp(Prison.bribeChance(player, world) + _num(C.bribe.oddsBonus, 0.15) + (c.watch.captain.bribedBy === c.gang.id ? _num(C.bribe.boughtCaptain, 0.1) : 0));
-        out.push({ id: 'bribe', icon: '💰', label: 'Have them pay off the gaoler', hint: `${c.gang.name}'s go-between lays ${bribeCost}g of the gang's coin on the gaoler to lose your papers. He may pocket it and report you.`, cost: bribeCost, chance: bribeOdds, reason: lock('bribe', bribeCost) });
+        out.push({ id: 'bribe', icon: '💰', label: 'Have them pay off the gaoler', hint: `${c.gang.name}'s go-between lays ${Utils.formatGold(bribeCost)}g of the gang's coin on the gaoler to lose your papers. He may pocket it and report you.`, cost: bribeCost, chance: bribeOdds, reason: lock('bribe', bribeCost) });
         // The crew over the wall
         const B = C.breakout;
         const men = Math.max(0, Math.min(c.gang.crew - 1, _num(B.men && B.men[1], 6)));
         const breakCost = men * _num(B.payPerMan, 12);
         let breakWhy = lock('breakout', breakCost);
         if (!breakWhy && c.gang.crew < _num(B.minCrew, 4)) breakWhy = `${c.gang.name} has too few men to storm a jail`;
-        out.push({ id: 'breakout', icon: '🧗', label: 'Have them break you out', hint: `${men} of the crew come over the wall at night, ${_num(B.payPerMan, 12)}g a man from the purse. Some may not come back, and the town's crackdown will rise.`, cost: breakCost, chance: Prison._crewBreakOdds(player, world, c), reason: breakWhy });
+        out.push({ id: 'breakout', icon: '🧗', label: 'Have them break you out', hint: `${men} of the crew come over the wall at night, ${Utils.formatGold(_num(B.payPerMan, 12))}g a man from the purse. Some may not come back, and the town's crackdown will rise.`, cost: breakCost, chance: Prison._crewBreakOdds(player, world, c), reason: breakWhy });
         // The magistrate the gang keeps
         const ours = c.watch.magistrate.bribedBy === c.gang.id;
         const fee = Gangs.retainer(world, c.tile, 'magistrate') * Math.max(1, _num(C.magistrate.feeWeeks, 1));
-        out.push({ id: 'magistrate', icon: '⚖️', label: `Have ${c.watch.magistrate.name} dismiss the case`, hint: ours ? `The magistrate on ${c.gang.name}'s payroll finds the case wanting, for a week's retainer (${fee}g) more.` : `${c.watch.magistrate.name} isn't on ${c.gang.name}'s payroll.`, cost: fee, chance: 1, reason: ours ? lock('magistrate', fee) : `${c.watch.magistrate.name} answers to nobody in ${c.gang.name}` });
+        out.push({ id: 'magistrate', icon: '⚖️', label: `Have ${c.watch.magistrate.name} dismiss the case`, hint: ours ? `The magistrate on ${c.gang.name}'s payroll finds the case wanting, for a week's retainer (${Utils.formatGold(fee)}g) more.` : `${c.watch.magistrate.name} isn't on ${c.gang.name}'s payroll.`, cost: fee, chance: 1, reason: ours ? lock('magistrate', fee) : `${c.watch.magistrate.name} answers to nobody in ${c.gang.name}` });
         for (const o of out) o.can = !o.reason;
         return out;
     },
@@ -556,7 +556,7 @@ export const Prison = {
             Gangs._book(g, 'out', 'springing', opt.cost);
             c.watch.magistrate.purse = Math.round((_num(c.watch.magistrate.purse) + opt.cost) * 100) / 100;
             const rel = Prison.release(player, world, 'dismissed');
-            const text = `${c.watch.magistrate.name} reads the charge, frowns, and finds it wanting. You walk out a free man; it cost ${g.name} ${opt.cost}g.${owe}${rel.text ? ` ${rel.text}` : ''}`;
+            const text = `${c.watch.magistrate.name} reads the charge, frowns, and finds it wanting. You walk out a free man; it cost ${g.name} ${Utils.formatGold(opt.cost)}g.${owe}${rel.text ? ` ${rel.text}` : ''}`;
             return { success: true, ok: true, released: true, text };
         }
         if (kind === 'bribe') {
@@ -566,13 +566,13 @@ export const Prison = {
             if (Utils.random() < opt.chance) {
                 Traits.recordDeed(player, 'deceit', 0.5);
                 const rel = Prison.release(player, world, 'bribed');
-                return { success: true, ok: true, released: true, text: `${g.name}'s man has a word and a purse for the gaoler: ${opt.cost}g, and your papers are "lost" by dawn.${owe}${rel.text ? ` ${rel.text}` : ''}` };
+                return { success: true, ok: true, released: true, text: `${g.name}'s man has a word and a purse for the gaoler: ${Utils.formatGold(opt.cost)}g, and your papers are "lost" by dawn.${owe}${rel.text ? ` ${rel.text}` : ''}` };
             }
             const [lo, hi] = Prison.config().bribe.reportDays;
             const added = Utils.randInt(lo, hi);
             jail.daysRemaining += added;
             jail.totalDays += added;
-            const text = `The gaoler took ${g.name}'s ${opt.cost}g and reported it anyway: +${added} day${added === 1 ? '' : 's'}.${owe}`;
+            const text = `The gaoler took ${g.name}'s ${Utils.formatGold(opt.cost)}g and reported it anyway: +${added} day${added === 1 ? '' : 's'}.${owe}`;
             Prison._log(pr, text);
             return { success: true, ok: false, added, text };
         }
@@ -645,7 +645,7 @@ export const Prison = {
         if (!jail) return { success: false, reason: 'You are not in jail.' };
         const bail = _num(jail.bailCost);
         if (!bail) return { success: false, reason: 'No bail has been set.' };
-        if (_num(player.gold) < bail) return { success: false, reason: `You need ${bail} gold (have ${Math.floor(_num(player.gold))}).` };
+        if (_num(player.gold) < bail) return { success: false, reason: `You need ${Utils.formatGold(bail)} gold (have ${Math.floor(_num(player.gold))}).` };
         player.gold -= bail;
         Ledger.record(player, 'bail', -bail);
         Prison._payJail(player, world, bail);
@@ -754,7 +754,7 @@ export const Prison = {
         if (!s) return { success: false, reason: 'You are not bound.' };
         if (!Prison.canTryServitudeEscape(player, world)) return { success: false, reason: 'You have already tried your luck today.' };
         const cost = Prison.servitudeBribeCost(player);
-        if (_num(player.gold) < cost) return { success: false, reason: `The overseer wants ${cost} gold.` };
+        if (_num(player.gold) < cost) return { success: false, reason: `The overseer wants ${Utils.formatGold(cost)} gold.` };
         s.lastEscapeDay = _day(world);
         // (the overseer spends it in the town nearest the work)
         PlayerCoin.pay(world, player, cost, null, 'bribes');
@@ -765,7 +765,7 @@ export const Prison = {
             // A day's walk, scaled as each morning's (data/travel.json dayScale)
             if (typeof player.restoreDayMovement === 'function') player.restoreDayMovement(); else player.movementRemaining = player.maxStamina;
             Traits.recordDeed(player, 'deceit', 1);
-            return { success: true, freed: true, cost, text: `${cost} gold, and the overseer of ${captor} found you "dead of fever". You walk free.` };
+            return { success: true, freed: true, cost, text: `${Utils.formatGold(cost)} gold, and the overseer of ${captor} found you "dead of fever". You walk free.` };
         }
         const [lo, hi] = Prison.config().servitude.failDays;
         const added = Utils.randInt(lo, hi);
@@ -953,7 +953,7 @@ export const Prison = {
         };
         if (ev.kind === 'bribe') {
             if (choice === 'pay') {
-                if (_num(player.gold) < ev.cost) return { success: false, reason: `The guard wants ${ev.cost} gold.` };
+                if (_num(player.gold) < ev.cost) return { success: false, reason: `The guard wants ${Utils.formatGold(ev.cost)} gold.` };
                 // (the escort's guard spends it in the next town on the road)
                 PlayerCoin.pay(world, player, ev.cost, null, 'bribes');
                 const rel = Prison._escapedCustody(player, world, tr);

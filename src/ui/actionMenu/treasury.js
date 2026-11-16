@@ -20,6 +20,7 @@ import { Causes } from '../../player/causes.js';
 import { whyIcon, stabilityWhy } from '../whyPopover.js';
 import { LINE_LABEL, lineTip, crownTaxGuide, taxControlNote, taxTip, levelEffectText, armyLevelText, courtLevelText } from './taxGuide.js';
 import { Names } from '../../core/names.js';
+import { Utils } from '../../core/utils.js';
 
 // The action menu's voice (uiKit): muted notes, quiet tables — a head in the
 // section-head style and hairline gold row rules
@@ -56,7 +57,7 @@ function sparkline(hist, col = 1, w = 120, h = 24) {
     return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="vertical-align:middle;"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.5"/></svg>`;
 }
 
-const g0 = (v) => Math.round(v || 0).toLocaleString();
+const g0 = (v) => Utils.formatGold(v || 0);
 const lvl = (id) => { const L = Fiscal.config().levels[id] || {}; return `${L.icon || ''} ${L.label || id}`; };
 
 function realmFor(game) {

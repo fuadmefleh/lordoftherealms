@@ -301,7 +301,7 @@ export const Throne = {
         if (!royal) return { success: false, reason: `${k.name} has no unwed prince or princess of age.` };
         const capTile = k.capital ? world.getTile(k.capital.q, k.capital.r) : null;
         if (!capTile || !capTile.settlement) return { success: false, reason: `${k.name} has no court to hold the betrothal.` };
-        if ((player.gold || 0) < cfg.royalMatchGold) return { success: false, reason: `The dowry is ${cfg.royalMatchGold} gold.` };
+        if ((player.gold || 0) < cfg.royalMatchGold) return { success: false, reason: `The dowry is ${Utils.formatGold(cfg.royalMatchGold)} gold.` };
         if (!House.spend(player.house, cfg.royalMatchPrestige, `royal match in ${Names.realm(k.name)}`, world.day)) {
             return { success: false, reason: `Need ${cfg.royalMatchPrestige} Prestige.` };
         }
@@ -356,7 +356,7 @@ export const Throne = {
         if (!spy) return { success: false, reason: 'You need an idle spy to forge the documents.' };
         const c = Throne.state(player).claims[kid];
         if (c && (c.sources.forged || 0) >= cfg.forgeCap) return { success: false, reason: 'No archive would believe another forgery.' };
-        if ((player.gold || 0) < cfg.forgeGold) return { success: false, reason: `The scribes and seals cost ${cfg.forgeGold} gold.` };
+        if ((player.gold || 0) < cfg.forgeGold) return { success: false, reason: `The scribes and seals cost ${Utils.formatGold(cfg.forgeGold)} gold.` };
         player.gold -= cfg.forgeGold;
         _spend(world, player, cfg.forgeGold); // (the scribes and seal-cutters)
         const chance = Throne.forgeChance(player);
@@ -584,8 +584,8 @@ export const Throne = {
         let gain = 0;
         if (kind === 'gold') {
             const amount = Math.floor(opts.amount || 0);
-            if (amount < C.minGold) return { success: false, reason: `Backing a claimant takes at least ${C.minGold} gold.` };
-            if ((player.gold || 0) < amount) return { success: false, reason: `You don't have ${amount} gold.` };
+            if (amount < C.minGold) return { success: false, reason: `Backing a claimant takes at least ${Utils.formatGold(C.minGold)} gold.` };
+            if ((player.gold || 0) < amount) return { success: false, reason: `You don't have ${Utils.formatGold(amount)} gold.` };
             player.gold -= amount;
             b.gold += amount;
             // (the claimant spends it on retainers and palms in the realm)
@@ -652,7 +652,7 @@ export const Throne = {
                 House.award(player.house, C.rewardPrestige, `kingmaker in ${Names.realm(kingdom.name)}`, world.day);
                 Quests.track(player, 'kingmaker');
                 result.rewards = { gold, reputation: C.rewardReputation, prestige: C.rewardPrestige };
-                Throne._log(player, world, `👑 ${winner.name} wins the throne of ${Names.realm(kingdom.name)} with your backing: +${gold}g, +${C.rewardReputation} reputation, +${C.rewardPrestige} Prestige.`);
+                Throne._log(player, world, `👑 ${winner.name} wins the throne of ${Names.realm(kingdom.name)} with your backing: +${Utils.formatGold(gold)}g, +${C.rewardReputation} reputation, +${C.rewardPrestige} Prestige.`);
             } else {
                 _addRep(player, kingdom.id, C.loserReputation);
                 result.rewards = { reputation: C.loserReputation };
@@ -694,7 +694,7 @@ export const Throne = {
         const strength = Throne.claimStrength(player, kid);
         if (strength < cfg.pressMinStrength) return { ok: false, reason: `Your claim is too weak (${strength}; need ${cfg.pressMinStrength}).` };
         if ((opts.armyStrength || 0) < cfg.pressMinArmy) return { ok: false, reason: `You need an army of at least ${cfg.pressMinArmy} strength to raise your banners.` };
-        if ((player.gold || 0) < cfg.pressGold) return { ok: false, reason: `Raising the banners costs ${cfg.pressGold} gold.` };
+        if ((player.gold || 0) < cfg.pressGold) return { ok: false, reason: `Raising the banners costs ${Utils.formatGold(cfg.pressGold)} gold.` };
         // Nobody rises for a pretender the realm does not want: its people and
         // lords must lean your way (Throne.appeal: claim, standing, Prestige,
         // the court's opinion, a weak or troubled crown, your army)

@@ -89,7 +89,7 @@ Object.assign(ActionMenu, {
             name: t.name,
             desc: t.awareness < 0.3 ? 'Dozy — rarely looks round' : t.awareness < 0.5 ? 'Glances about now and then' : t.awareness < 0.7 ? 'Watchful' : 'Sharp-eyed and quick to turn',
             attrs: `onclick="window._ppSelectTarget(${i})"`,
-            side: `<div style="color: ${t.diffColor}; font-weight: 700;">${t.diff}</div><div style="font-size: 10px; color: #9d937c;">~${t.goldAmount}g</div>`,
+            side: `<div style="color: ${t.diffColor}; font-weight: 700;">${t.diff}</div><div style="font-size: 10px; color: #9d937c;">~${Utils.formatGold(t.goldAmount)}g</div>`,
         })), 'Choose your mark from the crowd');
         html += `<button data-am-act="closePanel" style="${BTN_PLAIN}">Nevermind</button>`;
         html += '</div>';
@@ -102,7 +102,7 @@ Object.assign(ActionMenu, {
                 const successChance = Math.max(0.1, 0.5 + liftEdge - target.awareness * 0.3);
                 if (Math.random() < successChance) {
                     const res = _ppLift(game, player, settlement, target);
-                    game.ui.showNotification('👛 Pickpocket', `Swiped ${res.gold}g from the ${target.name}. -1 karma.`, 'success');
+                    game.ui.showNotification('👛 Pickpocket', `Swiped ${Utils.formatGold(res.gold)}g from the ${target.name}. -1 karma.`, 'success');
                 } else {
                     ActionMenu._ppDoCaught(game, tile, player, settlement, target);
                 }
@@ -115,7 +115,7 @@ Object.assign(ActionMenu, {
                 title: '👛 Pickpocket ' + target.name,
                 icon: target.icon,
                 description: `Attempt to steal from the ${target.name}. ${target.diff} difficulty.`,
-                baseText: `Simple roll (~${Math.floor(Math.max(0.1, 0.5 + liftEdge - target.awareness * 0.3) * 100)}% success, ~${target.goldAmount}g)`,
+                baseText: `Simple roll (~${Math.floor(Math.max(0.1, 0.5 + liftEdge - target.awareness * 0.3) * 100)}% success, ~${Utils.formatGold(target.goldAmount)}g)`,
                 onQuick: quick,
                 onGo: () => _ppInPerson(game, tile, player, settlement, target, quick),
             });
@@ -159,7 +159,7 @@ Object.assign(ActionMenu, {
         player.movementRemaining = 0;
 
         game.ui.showNotification('🚔 Arrested!',
-            `Caught pickpocketing the ${target.name}! Fined ${actualFine}g, sentenced to ${jailDays} days in jail (offense #${offenses}). -3 karma, -5 reputation.`, 'error');
+            `Caught pickpocketing the ${target.name}! Fined ${Utils.formatGold(actualFine)}g, sentenced to ${jailDays} days in jail (offense #${offenses}). -3 karma, -5 reputation.`, 'error');
         game.ui.updateStats(player, game.world);
     },
 
@@ -207,7 +207,7 @@ Object.assign(ActionMenu, {
                 name: `${g.item} (x${g.qty})`,
                 desc: 'Smuggle 1',
                 attrs: `onclick="window._startSmuggleRun('${g.item}', ${smugglePrice})"`,
-                side: `<span class="pk-price">${smugglePrice}<small>g</small></span> <span style="font-size: 10px; color: #9d937c;">each</span>`,
+                side: `<span class="pk-price">${Utils.formatGold(smugglePrice)}<small>g</small></span> <span style="font-size: 10px; color: #9d937c;">each</span>`,
             });
         }
         html += rowList(goodsRows);
@@ -243,7 +243,7 @@ Object.assign(ActionMenu, {
             WildTaskRunner.choose(game, {
                 title: '🏴‍☠️ Smuggle ' + itemName,
                 icon: '🏴‍☠️',
-                description: `Carry the ${itemName} past the watch to the fence, for ${price}g.`,
+                description: `Carry the ${itemName} past the watch to the fence, for ${Utils.formatGold(price)}g.`,
                 baseText: `~${Math.min(90, Math.floor(50 + stealthSkill * 6))}% success chance (simple roll)`,
                 onQuick: quick,
                 onGo: () => { ActionMenu._doSmuggleMinigame(game, tile, player, settlement, itemName, price, stealthSkill, quick); }
@@ -263,7 +263,7 @@ Object.assign(ActionMenu, {
             let h = '<div style="max-width: 440px;">';
             if (ok) {
                 h += _resultHead('🏴‍☠️', '#8fd18a', 'Deal Complete!');
-                h += `<div style="display: flex; justify-content: center;">${chips([{ icon: '💰', label: '', value: `+${price}g`, cls: 'gold' }, `for ${itemName}`])}</div>`;
+                h += `<div style="display: flex; justify-content: center;">${chips([{ icon: '💰', label: '', value: `+${Utils.formatGold(price)}g`, cls: 'gold' }, `for ${itemName}`])}</div>`;
                 h += lede('The fence counts out the coin. Nobody saw a thing.');
             } else {
                 h += _resultHead('🚔', '#e0846a', 'Caught!');
@@ -299,14 +299,14 @@ Object.assign(ActionMenu, {
         const paid = StandingOrders.payTrainer(player, settlement);
         const cost = paid.fee;
         if (!paid.ok) {
-            game.ui.showNotification('Not Enough Gold', `Training costs ${cost} gold.`, 'error');
+            game.ui.showNotification('Not Enough Gold', `Training costs ${Utils.formatGold(cost)} gold.`, 'error');
             return;
         }
 
         ActionMenu._showMinigamePrompt(game, {
             title: '⚔️ Combat Training',
             icon: '⚔️',
-            description: `Spar with a trainer in ${settlement.name}. (Paid ${cost}g)`,
+            description: `Spar with a trainer in ${settlement.name}. (Paid ${Utils.formatGold(cost)}g)`,
             baseRewardText: '15% chance combat skill +1',
             onSkip: () => {
                 // Base reward: small chance of stat growth
@@ -340,7 +340,7 @@ Object.assign(ActionMenu, {
             b: trainer,
             mode: 'spar',
             title: '⚔️ Combat Training',
-            intro: `${settlement.name} — sparring with ${trainer.icon} ${trainer.name} (paid ${cost}g). Blunted steel: five exchanges, the one with more left standing wins.`,
+            intro: `${settlement.name} — sparring with ${trainer.icon} ${trainer.name} (paid ${Utils.formatGold(cost)}g). Blunted steel: five exchanges, the one with more left standing wins.`,
             continueLabel: 'See what you learned',
             onFinish: (r) => {
                 const won = r.playerWon;
@@ -502,7 +502,7 @@ Object.assign(ActionMenu, {
                     }
                 }
                 if (items.length > 0) {
-                    msg += `caught ${items.join(', ')} (~${totalVal}g).`;
+                    msg += `caught ${items.join(', ')} (~${Utils.formatGold(totalVal)}g).`;
                 } else {
                     msg += 'nothing biting today.';
                 }
@@ -568,12 +568,12 @@ Object.assign(ActionMenu, {
                 rows.push({
                     icon: item.icon,
                     name: `${fancy ? `<span style="color: ${item.color};">${item.label}${rarityLabel}</span>` : item.label} <span style="color: #9d937c; font-weight: 400;">×${item.qty}</span>`,
-                    side: item.value > 0 ? `<span class="pk-price">${item.value * item.qty}<small>g</small></span>` : '—',
+                    side: item.value > 0 ? `<span class="pk-price">${Utils.formatGold(item.value * item.qty)}<small>g</small></span>` : '—',
                 });
             }
             html += rowList(rows);
 
-            html += chips([{ icon: '💰', label: 'Total value:', value: `${totalValue} gold`, cls: 'gold' }]);
+            html += chips([{ icon: '💰', label: 'Total value:', value: `${Utils.formatGold(totalValue)} gold`, cls: 'gold' }]);
         }
 
         // Luck chance
@@ -627,7 +627,7 @@ Object.assign(ActionMenu, {
                 const hpCost = 2;
                 player.health = Math.max(1, player.health - hpCost);
                 if (Math.random() < 0.12) { player.strength = (player.strength || 5) + 1; }
-                game.ui.showNotification('⛏️ Prospecting', `Quick dig — found ${icon} ${label} (~${value}g). -${hpCost} HP.`, 'success');
+                game.ui.showNotification('⛏️ Prospecting', `Quick dig — found ${icon} ${label} (~${Utils.formatGold(value)}g). -${hpCost} HP.`, 'success');
                 game.ui.updateStats(player, game.world);
                 game.endDay();
             },
@@ -700,7 +700,7 @@ Object.assign(ActionMenu, {
                 </div>`;
 
                 html += `<div style="display: flex; justify-content: center;">${chips([
-                    { icon: '💰', label: 'Found:', value: `${totalValue}g`, cls: 'gold' },
+                    { icon: '💰', label: 'Found:', value: `${Utils.formatGold(totalValue)}g`, cls: 'gold' },
                     ['🔍', 'Scans:', scansLeft],
                 ])}</div>`;
 
@@ -803,10 +803,10 @@ Object.assign(ActionMenu, {
                             rows.push({ icon: '🎒', name: `<span style="color: #f0b35a;">Packs full — left behind ${item.icon} ${item.label} x${item.qty}</span>` });
                             continue;
                         }
-                        rows.push({ icon: item.icon, name: `${item.label} x${item.qty}`, side: `<span class="pk-price">${item.value * item.qty}<small>g</small></span>` });
+                        rows.push({ icon: item.icon, name: `${item.label} x${item.qty}`, side: `<span class="pk-price">${Utils.formatGold(item.value * item.qty)}<small>g</small></span>` });
                     }
                     html += '<div style="text-align: left;">' + rowList(rows) + '</div>';
-                    html += `<div style="display: flex; justify-content: center;">${chips([{ icon: '💰', label: 'Total Value:', value: `~${totalValue} gold`, cls: 'gold' }])}</div>`;
+                    html += `<div style="display: flex; justify-content: center;">${chips([{ icon: '💰', label: 'Total Value:', value: `~${Utils.formatGold(totalValue)} gold`, cls: 'gold' }])}</div>`;
                 } else {
                     html += _resultHead('⛏️', '#f0b35a', 'Slim Pickings');
                     html += `<div style="color: #cbbf9f;">Nothing valuable found.</div>`;
@@ -1242,7 +1242,7 @@ function _ppInPerson(game, tile, player, settlement, target, quick) {
             const got = _ppLift(game, player, settlement, target);
             html += _resultHead('💰', '#8fd18a', 'Success!');
             html += `<div style="font-size: 13px; color: #cbbf9f; margin-bottom: 4px;">Deftly lifted the purse from the ${target.name} and melted into the crowd. -1 karma.${got.skillUp ? ' Your stealth skill improved!' : ''}</div>`;
-            html += `<div style="display: flex; justify-content: center;">${chips([{ icon: '💰', label: '', value: `+${got.gold} gold`, cls: 'gold' }])}</div>`;
+            html += `<div style="display: flex; justify-content: center;">${chips([{ icon: '💰', label: '', value: `+${Utils.formatGold(got.gold)} gold`, cls: 'gold' }])}</div>`;
         } else {
             ActionMenu._ppDoCaught(game, tile, player, settlement, target);
             html += _resultHead('🚔', '#e0846a', 'CAUGHT!');
@@ -1266,7 +1266,7 @@ function _smuggleSettle(game, tile, player, settlement, itemName, price, success
     if (success) {
         // The buyer is one of the town's gangs: its purse pays, its stash takes the goods (systems/gangs.js)
         const deal = Gangs.buyFromPlayer(player, game.world, tile, itemName, 1, price);
-        if (!(deal.qty > 0)) return { text: `Nobody on the black market here can pay ${price}g for ${itemName} this week. You keep it.` };
+        if (!(deal.qty > 0)) return { text: `Nobody on the black market here can pay ${Utils.formatGold(price)}g for ${itemName} this week. You keep it.` };
         player.inventory[itemName]--;
         if (player.inventory[itemName] <= 0) delete player.inventory[itemName];
         player.gold += price;
@@ -1278,7 +1278,7 @@ function _smuggleSettle(game, tile, player, settlement, itemName, price, success
         else if (Math.random() < 0.15 && player.skills) {
             player.skills.stealth = Math.min((player.skills.stealth || 1) + 1, 10);
         }
-        return { text: `Sold ${itemName} for ${price}g on the black market.` };
+        return { text: `Sold ${itemName} for ${Utils.formatGold(price)}g on the black market.` };
     }
     // Caught: the goods are seized (burned as contraband) and the fine goes to the town's court
     player.inventory[itemName]--;
@@ -1306,5 +1306,5 @@ function _smuggleSettle(game, tile, player, settlement, itemName, price, success
     };
     player.stamina = 0;
     player.movementRemaining = 0;
-    return { text: `Caught smuggling ${itemName}! Fined ${actualFine}g, sentenced to ${jailDays} days in jail (offense #${offenses}). -3 karma, -8 rep.` };
+    return { text: `Caught smuggling ${itemName}! Fined ${Utils.formatGold(actualFine)}g, sentenced to ${jailDays} days in jail (offense #${offenses}). -3 karma, -8 rep.` };
 }

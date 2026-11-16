@@ -234,7 +234,7 @@ export const NpcKnowledge = {
             band: treasBand, bands: B.treasury,
             say: (b) => `${fisc && fisc.level ? `Taxes are ${String(fisc.level).replace(/_/g, ' ')}, ` : ''}the royal coffers ${B.treasury[b]}.`
                 + (fin && _num(fin.purity, 1) < 0.97 ? ' And the coin\'s been clipped — there\'s less silver in it than there was.' : ''),
-            secret: debt > 500 ? `The crown owes the bankers some ${Math.round(debt / 100) * 100} gold.` : null,
+            secret: debt > 500 ? `The crown owes the bankers some ${Utils.formatGold(Math.round(debt / 100) * 100)} gold.` : null,
         };
 
         // The faith
@@ -807,7 +807,7 @@ export const NpcKnowledge = {
         // "Pay me back when you can": a small debt they remember (mem.owed)
         const prior = mem.owed && _num(mem.owed.amount) > 0 ? _num(mem.owed.amount) : 0;
         mem.owed = { amount: prior + gold, day, due: day + _num(F.repayDays, 30), dunned: false, q, r };
-        return { kind: 'gold', text: '*presses a few coins into your hand* For the road. Pay me back when you can.', summary: `+${gold} gold (you owe them ${prior + gold})`, owed: prior + gold };
+        return { kind: 'gold', text: '*presses a few coins into your hand* For the road. Pay me back when you can.', summary: `+${Utils.formatGold(gold)} gold (you owe them ${prior + gold})`, owed: prior + gold };
     },
 
     // ──────────── WHAT THE PLAYER OWES ────────────
@@ -853,14 +853,14 @@ export const NpcKnowledge = {
         if (!o || !o.overdue || mem.owed.dunned) return null;
         mem.owed.dunned = true;
         mem.disposition = _clamp(_num(mem.disposition, 50) + _num(NpcKnowledge.config().favour.overdueCold, -6), 0, 100);
-        return `*pointedly* Those ${o.amount} coins I lent you — I'd have them back now, if it's all the same to you.`;
+        return `*pointedly* Those ${Utils.formatGold(o.amount)} coins I lent you — I'd have them back now, if it's all the same to you.`;
     },
 
     /** Pay back what the player owes: { success, amount, warmth, text } or { success: false, reason }. */
     repay(player, mem, day, world = null, npc = null) {
         const o = NpcKnowledge.owedTo(mem, day);
         if (!o) return { success: false, reason: 'You owe them nothing.' };
-        if (_num(player.gold) < o.amount) return { success: false, reason: `You need ${o.amount} gold.` };
+        if (_num(player.gold) < o.amount) return { success: false, reason: `You need ${Utils.formatGold(o.amount)} gold.` };
         const F = NpcKnowledge.config().favour;
         player.gold = _num(player.gold) - o.amount;
         Ledger.record(player, 'borrowed', -o.amount);

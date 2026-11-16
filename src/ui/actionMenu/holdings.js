@@ -9,6 +9,7 @@ import { Holdings, PlayerMilitary } from './_imports.js';
 import { HoldingSieges } from '../../systems/holdingSieges.js';
 import { Construction } from '../../systems/construction.js';
 import { BTN_PLAIN, BTN_DIM, lede, chips, purse, sectionHead, kv, card, actRow, rowList, price } from './uiKit.js';
+import { Utils } from '../../core/utils.js';
 
 const SMALL = 'padding:2px 8px; margin:0 0 0 4px; font-size:11px;';
 
@@ -50,7 +51,7 @@ Object.assign(ActionMenu, {
         html += lede(`<b>${esc(s.name)}</b> · ${esc(s.tier.name)} · ${s.population} people · development slots <b>${s.used}/${s.slots}</b>`);
         const unrestColor = s.unrest >= 75 ? '#e0846a' : s.unrest >= 50 ? '#f0b35a' : '#8fd18a';
         html += chips([
-            { icon: '💰', label: 'Tax', value: `${s.weeklyTax}g/wk`, cls: 'gold' },
+            { icon: '💰', label: 'Tax', value: `${Utils.formatGold(s.weeklyTax)}g/wk`, cls: 'gold' },
             ['🔥', 'Unrest', `<span style="color:${unrestColor};">${s.unrest}</span>`],
             ['🛡️', 'Garrison', s.garrison],
             purse(player.gold),
@@ -93,12 +94,12 @@ Object.assign(ActionMenu, {
         // ── Stats summary ──
         html += sectionHead('The town');
         html += '<div style="display:grid; grid-template-columns:1fr 1fr; column-gap:18px; margin-bottom:8px;">';
-        html += stat('Weekly tax', `${s.weeklyTax}g`, s.skim ? `(${s.skim}% skimmed)` : '');
+        html += stat('Weekly tax', `${Utils.formatGold(s.weeklyTax)}g`, s.skim ? `(${s.skim}% skimmed)` : '');
         html += stat('Happiness', s.happiness, `→ ${s.happinessTarget}`);
         html += stat('Loyalty', s.loyalty == null ? '—' : `${s.loyalty}%`);
         html += kv('Unrest', `<span style="color:${unrestColor};">${s.unrest}</span>${bar(s.unrest, 100, unrestColor, '48px')}`);
         html += stat('Defence', s.defense, `rebels ${s.rebels}`);
-        html += stat('Garrison', s.garrison, `${s.garrisonUnits} units · ${s.upkeep}g/day`);
+        html += stat('Garrison', s.garrison, `${s.garrisonUnits} units · ${Utils.formatGold(s.upkeep)}g/day`);
         html += stat('Food in store', s.reserveDays == null ? '—' : `${s.reserveDays} days`);
         html += stat('Growth', `${s.growth > 0 ? '+' : ''}${s.growth}%`, 'a year');
         html += stat('Governor', s.governor ? esc(s.governor.name.split(' (')[0]) : '<span style="color:#f0b35a;">none</span>');
@@ -140,13 +141,13 @@ Object.assign(ActionMenu, {
             if (!can.ok && /first\.|Already improved/.test(can.reason || '')) continue;
             const quote = Holdings.quote(player, id);
             const fx = Holdings.projectEffect(player, world, q, r, id);
-            const mats = quote.materials.map(m => `${m.need} ${m.id}${m.missing ? ` <span style="color:#f0b35a;">(${m.missing} bought at ${m.price}g)</span>` : ''}`).join(', ');
+            const mats = quote.materials.map(m => `${m.need} ${m.id}${m.missing ? ` <span style="color:#f0b35a;">(${m.missing} bought at ${Utils.formatGold(m.price)}g)</span>` : ''}`).join(', ');
             const extra = [];
-            if (fx.taxDelta) extra.push(`≈ ${fx.taxDelta > 0 ? '+' : ''}${fx.taxDelta}g tax a week`);
+            if (fx.taxDelta) extra.push(`≈ ${fx.taxDelta > 0 ? '+' : ''}${Utils.formatGold(fx.taxDelta)}g tax a week`);
             if (fx.defenseAfter !== fx.defenseBefore) extra.push(`defence ${fx.defenseBefore} → ${fx.defenseAfter}`);
             if (fx.replaces) extra.push(`replaces the ${fx.replaces}`);
             const effect = `${fx.lines.join(', ')}${extra.length ? ` · <span style="color:#e0d090;">${extra.join(' · ')}</span>` : ''}`;
-            const cost = `<span style="color:#9d937c;">${quote.gold}g${mats ? ` + ${mats}` : ''}</span>`;
+            const cost = `<span style="color:#9d937c;">${Utils.formatGold(quote.gold)}g${mats ? ` + ${mats}` : ''}</span>`;
             projectRows.push({
                 icon: def.icon, name: esc(def.name),
                 desc: esc(def.description || ''),
@@ -169,7 +170,7 @@ Object.assign(ActionMenu, {
             if (g.unpaid) warns.push('<span style="color:#e0846a;">Unpaid: loyalty is falling.</span>');
             html += rowList([actRow({
                 icon: '👤', name: `${esc(g.name)} <small style="color:#9d937c; font-weight:400;">(${g.kind})</small>`,
-                desc: `Stewardship ${g.stewardship} · Martial ${g.martial} · Intrigue ${g.intrigue} · Loyalty <b style="color:${loyColor};">${Math.round(g.loyalty)}</b>${g.wage ? ` · ${g.wage}g/day` : ''}`,
+                desc: `Stewardship ${g.stewardship} · Martial ${g.martial} · Intrigue ${g.intrigue} · Loyalty <b style="color:${loyColor};">${Math.round(g.loyalty)}</b>${g.wage ? ` · ${Utils.formatGold(g.wage)}g/day` : ''}`,
                 note: warns.join(' '),
                 side: smallBtn(true, 'window._holding.dismiss()', 'Relieve of office'),
             })]);
@@ -181,7 +182,7 @@ Object.assign(ActionMenu, {
             const rows = cands.map(c => {
                 const preview = Holdings.computeFx(tile.settlement, { governor: c });
                 const affordable = (c.fee || 0) <= player.gold;
-                const line = `S ${c.stewardship} · M ${c.martial} · I ${c.intrigue} · loyalty ~${Math.round(c.loyalty)}${c.wage ? ` · ${c.wage}g/day` : ''}${c.fee ? ` · ${c.fee}g to hire` : ''}`;
+                const line = `S ${c.stewardship} · M ${c.martial} · I ${c.intrigue} · loyalty ~${Math.round(c.loyalty)}${c.wage ? ` · ${Utils.formatGold(c.wage)}g/day` : ''}${c.fee ? ` · ${Utils.formatGold(c.fee)}g to hire` : ''}`;
                 return {
                     icon: '👤', name: `${esc(c.name)} <small style="color:#9d937c; font-weight:400;">${c.kind}</small>`,
                     desc: line,

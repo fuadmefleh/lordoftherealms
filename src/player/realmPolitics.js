@@ -126,7 +126,7 @@ export const RealmPolitics = {
         if ((st.brokerCooldown[key] || 0) > day) {
             return { success: false, reason: `Both courts turned your envoys away recently. Try again in ${st.brokerCooldown[key] - day} days.` };
         }
-        if ((player.gold || 0) < B.fee) return { success: false, reason: `Envoys and gifts cost ${B.fee} gold.` };
+        if ((player.gold || 0) < B.fee) return { success: false, reason: `Envoys and gifts cost ${Utils.formatGold(B.fee)} gold.` };
         // (the envoys' gifts go to both courts)
         RealmPolitics._payCourts(world, player, B.fee, war.a, war.b);
 
@@ -202,7 +202,7 @@ export const RealmPolitics = {
         if ((st.brokerCooldown[key] || 0) > day) {
             return { success: false, reason: `Both courts are weighing your last proposal. Try again in ${st.brokerCooldown[key] - day} days.` };
         }
-        if ((player.gold || 0) < A.fee) return { success: false, reason: `Envoys and gifts cost ${A.fee} gold.` };
+        if ((player.gold || 0) < A.fee) return { success: false, reason: `Envoys and gifts cost ${Utils.formatGold(A.fee)} gold.` };
         RealmPolitics._payCourts(world, player, A.fee, pair.a, pair.b);
 
         const { a, b } = pair;
@@ -288,7 +288,7 @@ export const RealmPolitics = {
             NPCLords.rememberDeed(world, enemy.lord, 'war_on_us', { weight: -4, note: `for ${opts.liege.name}` });
             return {
                 success: true, battle,
-                message: `You rout a ${enemy.name} vanguard for ${opts.liege.name}. +${wage}g wages, +${gain} reputation; the war turns in your liege's favour.`,
+                message: `You rout a ${enemy.name} vanguard for ${opts.liege.name}. +${Utils.formatGold(wage)}g wages, +${gain} reputation; the war turns in your liege's favour.`,
             };
         }
         return { success: true, battle, failed: true, message: `The ${enemy.name} vanguard throws you back.` };

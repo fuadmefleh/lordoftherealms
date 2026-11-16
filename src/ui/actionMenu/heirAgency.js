@@ -16,6 +16,7 @@ import { Heirs } from '../../systems/heirs.js';
 import { Upbringing } from '../../systems/upbringing.js';
 import { BTN_GOLD, esc, sectionHead, lede, card, actRow, rowList, price } from './uiKit.js';
 import { Names } from '../../core/names.js';
+import { Utils } from '../../core/utils.js';
 
 const SEL = 'width:100%; padding:5px 6px; background:rgba(0,0,0,0.35); color:#ece2c8; border:1px solid rgba(245,197,66,0.18); border-radius:6px; margin-top:6px; font-family:var(--font-body); font-size:12px;';
 const MUTED = 'color:#9d937c; font-size:11px;';
@@ -82,7 +83,7 @@ Object.assign(ActionMenu, {
                 forms += _formCard('💍', 'Betrothal',
                     `Promise ${esc(child.firstName)} to a realm's nobility: the match is made at coming of age. A realm bound by betrothal is slower to join a league against you.`,
                     `<select id="familyBetrothKingdom" style="${SEL}">${opts}</select>`,
-                    `<button onclick="window._familyUI.betroth('${child.id}')" style="${BTN_GOLD}">💍 Betroth (${gift}g, +${cfg.betrothalReputation} rep)</button>`);
+                    `<button onclick="window._familyUI.betroth('${child.id}')" style="${BTN_GOLD}">💍 Betroth (${Utils.formatGold(gift)}g, +${cfg.betrothalReputation} rep)</button>`);
             }
             if (a.betrothal) {
                 rows.push({
@@ -114,7 +115,7 @@ Object.assign(ActionMenu, {
                 forms += _formCard('📜', 'Send as envoy',
                     `${cfg.envoyDays} days at court: standing, the lord's memory, a bond. A realm that turns to war keeps them.`,
                     `<select id="familyEnvoyKingdom" style="${SEL}">${opts}</select>`,
-                    `<button onclick="window._familyUI.envoy('${child.id}')" title="${cfg.envoyDays} days at court: standing, the lord's memory, a bond. A realm that turns to war keeps them." style="${BTN_GOLD}">📜 Send as envoy (${cfg.envoyCost}g, ${cfg.envoyDays} days)</button>`);
+                    `<button onclick="window._familyUI.envoy('${child.id}')" title="${cfg.envoyDays} days at court: standing, the lord's memory, a bond. A realm that turns to war keeps them." style="${BTN_GOLD}">📜 Send as envoy (${Utils.formatGold(cfg.envoyCost)}g, ${cfg.envoyDays} days)</button>`);
             }
             forms += `<div style="${MUTED} margin:4px 2px 8px;">🏛️ To have ${esc(child.firstName)} steward a holding, appoint them governor from that holding's panel — days in office teach commerce and count toward their record.</div>`;
         } else if (a.commission && a.commission.kind === 'envoy') {
@@ -163,7 +164,7 @@ Object.assign(ActionMenu, {
             betroth: (id) => {
                 const res = HeirAgency.betroth(player, world, id, sel('familyBetrothKingdom'));
                 if (!res.success) return fail(res.reason);
-                refresh(`💍 ${esc(child.firstName)} is promised to ${esc(res.betrothal.name)} (−${res.cost}g).`);
+                refresh(`💍 ${esc(child.firstName)} is promised to ${esc(res.betrothal.name)} (−${Utils.formatGold(res.cost)}g).`);
             },
             unbetroth: (id) => {
                 const res = HeirAgency.breakBetrothal(player, world, id);
@@ -191,7 +192,7 @@ Object.assign(ActionMenu, {
             ransom: (id) => {
                 const res = HeirAgency.ransom(player, world, id);
                 if (!res.success) return fail(res.reason);
-                refresh(`🕊️ ${esc(child.firstName)} is ransomed (−${res.cost}g) and comes home.`);
+                refresh(`🕊️ ${esc(child.firstName)} is ransomed (−${Utils.formatGold(res.cost)}g) and comes home.`);
             },
         };
         return html;

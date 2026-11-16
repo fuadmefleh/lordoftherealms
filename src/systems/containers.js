@@ -332,7 +332,7 @@ export const Containers = {
             if (stealth) { c += stealth * T.perStealth; parts.push({ label: `Stealth ${Math.round(stealth * 10) / 10}`, delta: stealth * T.perStealth }); }
         }
         const value = _num(Containers.good(goodId).basePrice) * Math.max(1, qty);
-        if (value) { c += value * T.perValue; parts.push({ label: `Worth ${value}g`, delta: value * T.perValue }); }
+        if (value) { c += value * T.perValue; parts.push({ label: `Worth ${Utils.formatGold(value)}g`, delta: value * T.perValue }); }
         return { chance: Math.min(T.max, Math.max(T.min, c)), parts };
     },
 
@@ -463,7 +463,7 @@ export const Containers = {
             }
             const rep = kingdom ? `, −${T.reputation} standing in the realm` : '';
             const jail = jailDays ? ` Theft number ${offences}: the watch hauls you off for ${jailDays} days.` : '';
-            return { ok: false, caught: true, fine, jailDays, text: `Caught with your hand in it! The ${g.name} goes back. Fined ${fine}g${rep}.${jail}` };
+            return { ok: false, caught: true, fine, jailDays, text: `Caught with your hand in it! The ${g.name} goes back. Fined ${Utils.formatGold(fine)}g${rep}.${jail}` };
         }
     },
 };

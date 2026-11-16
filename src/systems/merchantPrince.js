@@ -357,7 +357,7 @@ export const MerchantPrince = {
             runs: _num(def.runsPerLevel), townRuns: SettlementMarket.tradeCapacity(s, recipeId),
             margin: MerchantPrince.runMargin(s, recipeId),
         };
-        if (_num(player.gold) < cost.gold) return { ...res, reason: `You need ${cost.gold} gold.` };
+        if (_num(player.gold) < cost.gold) return { ...res, reason: `You need ${Utils.formatGold(cost.gold)} gold.` };
         if (missing.length) return { ...res, reason: `You need ${missing.map(([id, n]) => `${n} ${MerchantPrince.goodName(id)}`).join(', ')} in your packs.` };
         return { ...res, ok: true };
     },
@@ -388,7 +388,7 @@ export const MerchantPrince = {
         }
         inv.invested += q.gold;
         st.stats.invested += q.gold;
-        MerchantPrince._log(st, world, `Funded the ${q.def.name.toLowerCase()} of ${s.name} (level ${q.lvl}) for ${q.gold}g.`);
+        MerchantPrince._log(st, world, `Funded the ${q.def.name.toLowerCase()} of ${s.name} (level ${q.lvl}) for ${Utils.formatGold(q.gold)}g.`);
         return { success: true, spent: q.gold, lvl: q.lvl, investment: inv };
     },
 
@@ -413,14 +413,14 @@ export const MerchantPrince = {
         if (!w) return { success: false, reason: 'The works are gone.' };
         const cost = MerchantPrince.repairCost(player, world, inv);
         if (!(cost > 0)) return { success: false, reason: 'The works are in good repair.' };
-        if (_num(player.gold) < cost) return { success: false, reason: `Repairs cost ${cost} gold.` };
+        if (_num(player.gold) < cost) return { success: false, reason: `Repairs cost ${Utils.formatGold(cost)} gold.` };
         player.gold -= cost;
         Ledger.record(player, 'worksBought', -cost);
         MerchantPrince._spendIn(world, s, cost);
         w.cond = 1;
         inv.invested += cost;
         st.stats.repairs += cost;
-        MerchantPrince._log(st, world, `Repaired the works at ${inv.town} for ${cost}g.`);
+        MerchantPrince._log(st, world, `Repaired the works at ${inv.town} for ${Utils.formatGold(cost)}g.`);
         return { success: true, spent: cost };
     },
 
@@ -440,7 +440,7 @@ export const MerchantPrince = {
         player.gold += gold;
         Ledger.record(player, 'worksSold', gold);
         st.stats.salvage += gold;
-        MerchantPrince._log(st, world, `Sold your stake in the works at ${inv.town} to the guild for ${gold}g.`);
+        MerchantPrince._log(st, world, `Sold your stake in the works at ${inv.town} to the guild for ${Utils.formatGold(gold)}g.`);
         return { success: true, gold };
     },
 
@@ -605,7 +605,7 @@ export const MerchantPrince = {
         if (have && MerchantPrince.used(have) > _num(sz.units)) return { success: false, reason: 'Your goods would not fit.' };
         if (!have && st.warehouses.length >= _num(W.maxLeases, 5)) return { success: false, reason: `You can keep at most ${W.maxLeases} store-rooms.` };
         const fee = _num(sz.keyFee);
-        if (_num(player.gold) < fee) return { success: false, reason: `The key fee is ${fee} gold.` };
+        if (_num(player.gold) < fee) return { success: false, reason: `The key fee is ${Utils.formatGold(fee)} gold.` };
         player.gold -= fee;
         Ledger.record(player, 'warehouseRent', -fee);
         MerchantPrince._spendIn(world, s, fee);
@@ -615,7 +615,7 @@ export const MerchantPrince = {
         } else {
             st.warehouses.push({ id: st.nextId++, q: tile.q, r: tile.r, town: s.name, size: sizeId, goods: {}, since: _day(world), nextRent: _day(world) + 7, unpaid: 0, arrears: 0 });
         }
-        MerchantPrince._log(st, world, `Took a ${sz.name.toLowerCase()} in ${s.name} (${fee}g key fee, ${sz.rent}g a week).`);
+        MerchantPrince._log(st, world, `Took a ${sz.name.toLowerCase()} in ${s.name} (${Utils.formatGold(fee)}g key fee, ${Utils.formatGold(sz.rent)}g a week).`);
         return { success: true, spent: fee };
     },
 
@@ -626,7 +626,7 @@ export const MerchantPrince = {
         if (!w) return { success: false, reason: 'No such store-room.' };
         if (MerchantPrince.used(w) >= 1) return { success: false, reason: 'Empty it first.' };
         if (_num(w.arrears) > 0) {
-            if (_num(player.gold) < w.arrears) return { success: false, reason: `Pay the ${w.arrears}g you owe first.` };
+            if (_num(player.gold) < w.arrears) return { success: false, reason: `Pay the ${Utils.formatGold(w.arrears)}g you owe first.` };
             player.gold -= w.arrears;
             Ledger.record(player, 'warehouseRent', -w.arrears);
             MerchantPrince._spendIn(world, MerchantPrince._settlement(world, w.q, w.r), w.arrears, player);
@@ -817,7 +817,7 @@ export const MerchantPrince = {
                         out.notices.push({ icon: '📦', title: 'Lease Forfeit', text, type: 'error' });
                         continue;
                     }
-                    out.notices.push({ icon: '📦', title: 'Rent Unpaid', text: `You owe ${w.arrears}g rent for the store-room in ${w.town}.`, type: 'warning' });
+                    out.notices.push({ icon: '📦', title: 'Rent Unpaid', text: `You owe ${Utils.formatGold(w.arrears)}g rent for the store-room in ${w.town}.`, type: 'warning' });
                 }
             }
             // Thieves, weekly (on the lease's own day)
@@ -893,7 +893,7 @@ export const MerchantPrince = {
             unitPrice: q.unitPrice, signed: _day(world), dueDay: q.dueDay, delivered: 0, paid: 0,
         };
         st.forwards.push(f);
-        MerchantPrince._log(st, world, `Promised ${s.name} ${q.qty} ${MerchantPrince.goodName(goodId)} by day ${q.dueDay} at ${q.unitPrice}g each.`);
+        MerchantPrince._log(st, world, `Promised ${s.name} ${q.qty} ${MerchantPrince.goodName(goodId)} by day ${q.dueDay} at ${Utils.formatGold(q.unitPrice)}g each.`);
         return { success: true, contract: f };
     },
 
@@ -962,7 +962,7 @@ export const MerchantPrince = {
             // What the purse could not cover is paid in reputation
             const short = penalty > 0 ? (penalty - paid) / penalty : 0;
             MerchantPrince._addReputation(player, s || { kingdom: f.kingdomId }, -_num(F.reputationFailed) * (1 + short));
-            const text = `You failed to deliver ${left} ${MerchantPrince.goodName(f.good)} to ${f.town} by day ${f.dueDay}: ${paid}g forfeit${paid < penalty ? ', and your name suffers for the rest' : ''}.`;
+            const text = `You failed to deliver ${left} ${MerchantPrince.goodName(f.good)} to ${f.town} by day ${f.dueDay}: ${Utils.formatGold(paid)}g forfeit${paid < penalty ? ', and your name suffers for the rest' : ''}.`;
             MerchantPrince._log(st, world, text);
             out.notices.push({ icon: '📜', title: 'Contract Broken', text, type: 'error' });
         }

@@ -6,6 +6,7 @@ import { TownJobs } from '../../systems/townJobs.js';
 import { dialogState } from './shared.js';
 import { _render } from './render.js';
 import { _animateDispositionChange } from './choices.js';
+import { Utils } from '../../core/utils.js';
 
 function _ctx() {
     const game = dialogState._game;
@@ -53,7 +54,7 @@ export function _schoolChoices() {
                 parts.push(n ? `We have ${n} at their letters: ${Object.entries(v.pupils).map(([k, m]) => `${m} at ${TownSchool.config().kinds[k].label}`).join(', ')}.` : 'Few children come to learn their letters. Their families need their hands.');
                 if (v.master) parts.push(`${v.master} keeps the town school.`);
                 if (v.literacy.known) parts.push(`Of the grown folk I taught or saw taught, ${Math.round(v.literacy.share * 100)} in a hundred can write.`);
-                parts.push(v.fund > 0 ? `The school's fund holds ${Math.round(v.fund)} gold, and it keeps the poor ones at their slates.` : 'There is no fund: the poor pay what they can, the parish the rest.');
+                parts.push(v.fund > 0 ? `The school's fund holds ${Utils.formatGold(v.fund)} gold, and it keeps the poor ones at their slates.` : 'There is no fund: the poor pay what they can, the parish the rest.');
                 _say('school_ask', 'How fares the school?', parts.join(' '), 1);
             },
         });
@@ -81,7 +82,7 @@ export function _schoolChoices() {
         if (_asked(`school_sponsor_${k.id}`)) continue;
         const who = k === c.p ? 'your' : `${k.first}'s`;
         out.push({
-            icon: '🎓', label: `I'll pay for ${who} schooling (${cost} gold).`, group: 'deal',
+            icon: '🎓', label: `I'll pay for ${who} schooling (${Utils.formatGold(cost)} gold).`, group: 'deal',
             cls: (player.gold || 0) >= cost ? '' : 'npc-dialog-choice-muted',
             tooltip: `${k.first} goes to school instead of to work, and grows up able to read and write — and grateful to you.`,
             onPick: () => {
@@ -102,7 +103,7 @@ export function _schoolChoices() {
             const T = TownJobs.offerTerms(player, c.world, c.folk, c.p, kind);
             if (!T || T.refuse) continue;
             out.push({
-                icon: kind === 'clerk' ? '📜' : kind === 'guard' ? '🛡️' : '🏠', label: `You'd serve me? Then be my ${kind}, ${c.p.first} (${T.wage}g a week).`, group: 'deal',
+                icon: kind === 'clerk' ? '📜' : kind === 'guard' ? '🛡️' : '🏠', label: `You'd serve me? Then be my ${kind}, ${c.p.first} (${Utils.formatGold(T.wage)}g a week).`, group: 'deal',
                 tooltip: `${c.p.first} owes you their schooling and offers to serve you. The first week's wage is paid in hand.`,
                 onPick: () => {
                     const res = TownJobs.offerWork(player, c.world, c.settlement, c.p, kind);

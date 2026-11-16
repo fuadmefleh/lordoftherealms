@@ -506,7 +506,7 @@ Object.assign(PlayerMilitary, {
 
         // Check gold
         if (player.gold < cost) {
-            return { success: false, reason: `Need ${cost} gold (have ${Math.floor(player.gold)})` };
+            return { success: false, reason: `Need ${Utils.formatGold(cost)} gold (have ${Math.floor(player.gold)})` };
         }
 
         // Check settlement requirements (context.isPort for warships)

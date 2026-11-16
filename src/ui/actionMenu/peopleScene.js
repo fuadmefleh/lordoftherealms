@@ -9,6 +9,7 @@ import { PlayerEffects } from '../../player/playerEffects.js';
 import { npcVoice } from '../npcVoice.js';
 import { NpcChat } from '../../systems/npcChat.js';
 import { Court } from '../../systems/court.js';
+import { Utils } from '../../core/utils.js';
 
 const GROUPS = { matter: 'On their mind', talk: 'Friendship', romance: 'Romance', party: 'The road', court: 'Your court', hostile: 'Hostility' };
 
@@ -79,7 +80,7 @@ function _facts(game, npc, rel) {
     if (Court.isMember(player, npc.id)) tags.push('<div class="npc-dialog-rel-badge" style="color:#ffd27a">🏰 Serves at your court</div>');
     const matter = Relationships.matterView(player, npc.id);
     if (matter) tags.push(`<div class="npc-dialog-rel-badge" style="color:#ffcc80">${matter.icon} ${matter.title}</div>`);
-    if (rel.debt) tags.push(`<div class="npc-dialog-rel-badge" style="color:#c5b358">💰 Owes you ${rel.debt.amount}g</div>`);
+    if (rel.debt) tags.push(`<div class="npc-dialog-rel-badge" style="color:#c5b358">💰 Owes you ${Utils.formatGold(rel.debt.amount)}g</div>`);
     const affection = rel.affection || 0;
     return `${tags.join('')}
         <div class="npc-dialog-visits">${level.icon} ${level.label}</div>
@@ -117,7 +118,7 @@ function _chance(player, action, court) {
 function _actionChoice(game, npc, action, court) {
     const chance = _chance(game.player, action, court);
     const pills = [];
-    if (action.cost) pills.push(`${action.cost}g`);
+    if (action.cost) pills.push(`${Utils.formatGold(action.cost)}g`);
     if (action.apCost != null) pills.push(`${action.apCost} AP`);
     const hostile = HOSTILE_ACTS.has(action.id);
     return {
@@ -170,7 +171,7 @@ function _choices(game) {
         list.unshift(...matter.options.map(o => ({
             icon: o.icon, label: o.label, group: 'matter',
             cls: o.lie ? 'npc-dialog-choice-dark' : '',
-            extra: o.cost ? `<span class="npc-dialog-price">${o.cost}g</span>` : '',
+            extra: o.cost ? `<span class="npc-dialog-price">${Utils.formatGold(o.cost)}g</span>` : '',
             chance: o.chance != null ? o.chance : null,
             skillTag: o.chance == null ? 'guaranteed' : o.chance >= 60 ? 'likely' : 'risky',
             tooltip: o.lie ? 'A lie. If they see through it, it will cost you.' : o.label,
@@ -184,12 +185,12 @@ function _choices(game) {
         const odds = Court.inviteOdds(player, game.world, npc.id);
         const afford = (player.gold || 0) >= odds.joinCost;
         list.push({
-            icon: '🏰', label: `Join my court (${odds.stipend}g a day).`, group: 'court',
-            extra: odds.ok ? `<span class="npc-dialog-price">${odds.joinCost}g</span>` : '',
+            icon: '🏰', label: `Join my court (${Utils.formatGold(odds.stipend)}g a day).`, group: 'court',
+            extra: odds.ok ? `<span class="npc-dialog-price">${Utils.formatGold(odds.joinCost)}g</span>` : '',
             chance: odds.ok ? Math.round(odds.chance * 100) : null,
             skillTag: odds.chance >= 0.6 ? 'likely' : 'risky',
-            tooltip: `Offer ${npc.firstName} a place at your court for ${odds.stipend} gold a day, with a welcome purse of ${odds.joinCost} gold. Other stipends: House → The Court → Invite.`,
-            disabled: !odds.ok || !afford, disabledReason: !odds.ok ? odds.reason : `the welcome purse is ${odds.joinCost}g`,
+            tooltip: `Offer ${npc.firstName} a place at your court for ${odds.stipend} gold a day, with a welcome purse of ${Utils.formatGold(odds.joinCost)} gold. Other stipends: House → The Court → Invite.`,
+            disabled: !odds.ok || !afford, disabledReason: !odds.ok ? odds.reason : `the welcome purse is ${Utils.formatGold(odds.joinCost)}g`,
             onPick: () => _court(game, npc.id, odds.stipend),
         });
     }

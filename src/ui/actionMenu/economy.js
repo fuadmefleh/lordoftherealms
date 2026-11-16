@@ -12,6 +12,7 @@ import { PriceKnowledge } from '../../systems/priceKnowledge.js';
 import { EconomyIndex } from '../../world/economyIndex.js';
 import { BTN_GOLD, BTN_PLAIN, panelTabs, closedBooks, lede, bullets, more, sectionHead, chips, kv, card, rowList } from './uiKit.js';
 import { RealmIntel } from '../../systems/realmIntel.js';
+import { Utils } from '../../core/utils.js';
 
 /** The crown's own figures (treasury, debt) are for those whose books are open (systems/realmIntel.js). */
 const BOOKS_SERIES = new Set(['treasury', 'debt']);
@@ -62,8 +63,8 @@ function sparkline(points, { w = 260, h = 54, color = '#ffcf6a', fmt = (v) => St
 
 const SERIES_FMT = {
     food: (v) => `${Math.round(v * 100)}`, goods: (v) => `${Math.round(v * 100)}`, idle: (v) => `${Math.round(v * 100)}%`,
-    welfare: (v) => `${Math.round(v * 100)}`, debt: (v) => `${Math.round(v * 100)}%`, treasury: (v) => `${Math.round(v).toLocaleString()}g`,
-    level: (v) => `${Math.round(v * 100)}`, coin: (v) => `${Math.round(v).toLocaleString()}g`,
+    welfare: (v) => `${Math.round(v * 100)}`, debt: (v) => `${Math.round(v * 100)}%`, treasury: (v) => `${Utils.formatGold(v)}g`,
+    level: (v) => `${Math.round(v * 100)}`, coin: (v) => `${Utils.formatGold(v)}g`,
 };
 
 // ── Realms ──────────────────────────────────────────────
@@ -87,7 +88,7 @@ function realmsTab(game) {
         // A gazette prints prices and trade; a crown's chests and debts are its own business
         const open = kid != null && RealmIntel.can(player, world, kid, 'books');
         const knows = kid != null && (typeof player.knowsAbout !== 'function' || player.knowsAbout(kid, 'economy'));
-        const treasury = n.treasury == null ? '—' : open ? `${Math.round(n.treasury).toLocaleString()}g` : knows ? `<span style="${NOTE}">${esc(RealmIntel.band('treasury', n.treasury))}</span>` : '🔒';
+        const treasury = n.treasury == null ? '—' : open ? `${Utils.formatGold(n.treasury)}g` : knows ? `<span style="${NOTE}">${esc(RealmIntel.band('treasury', n.treasury))}</span>` : '🔒';
         const debt = n.debt == null || !open ? '—' : `${Math.round(n.debt * 100)}%`;
         const ch = t && t.goods > 0 ? n.goods / t.goods - 1 : null;
         const fch = t && t.food > 0 ? n.food / t.food - 1 : null;
@@ -144,7 +145,7 @@ function marketsTab(game) {
         t += `<table style="width:100%; border-collapse:collapse; font-size:12px;"><tr><th style="${TH}">Good</th><th style="${TH}">Town</th><th style="${TH}">Stock</th><th style="${TH}">Asks</th><th style="${TH}">Pays</th><th style="${TH}">News</th></tr>`;
         for (const x of list) {
             const src = PriceKnowledge.sourceInfo(x.src);
-            t += `<tr><td style="${TD}">${x.icon} ${esc(x.name)}</td><td style="${TD}">${esc(x.town)}</td><td style="${TD} color:${color};">${Math.round(x.scarcity * 100)}%</td><td style="${TD}">${x.ask}g</td><td style="${TD}">${x.bid}g</td><td style="${TD}"><span title="${esc(src.name)}">${src.icon}</span> ${PriceKnowledge.ageText(x.age)}</td></tr>`;
+            t += `<tr><td style="${TD}">${x.icon} ${esc(x.name)}</td><td style="${TD}">${esc(x.town)}</td><td style="${TD} color:${color};">${Math.round(x.scarcity * 100)}%</td><td style="${TD}">${Utils.formatGold(x.ask)}g</td><td style="${TD}">${Utils.formatGold(x.bid)}g</td><td style="${TD}"><span title="${esc(src.name)}">${src.icon}</span> ${PriceKnowledge.ageText(x.age)}</td></tr>`;
         }
         return t + '</table>';
     };
@@ -181,8 +182,8 @@ function worthTab(game) {
     const { player, world } = game;
     const nw = EconomyChronicle.netWorth(player, world);
     const A = nw.assets, D = nw.debts;
-    const line = (label, v, neg = false) => (v ? kv(label, `<span style="color:${neg ? BAD : '#ece2c8'};">${neg ? '−' : ''}${Math.round(v).toLocaleString()}g</span>`) : '');
-    let html = chips([{ icon: '💰', label: 'Net worth', value: `<span style="color:${nw.total >= 0 ? GOOD : BAD};">${Math.round(nw.total).toLocaleString()}g</span>` }]);
+    const line = (label, v, neg = false) => (v ? kv(label, `<span style="color:${neg ? BAD : '#ece2c8'};">${neg ? '−' : ''}${Utils.formatGold(v)}g</span>`) : '');
+    let html = chips([{ icon: '💰', label: 'Net worth', value: `<span style="color:${nw.total >= 0 ? GOOD : BAD};">${Utils.formatGold(nw.total)}g</span>` }]);
     html += sectionHead('What you own, and owe');
     html += line('💰 Gold in hand', A.gold) + line('🏦 Bank deposits', A.deposits) + line('📜 Royal bonds', A.bonds)
         + line('📦 Goods (at the best price you know the stalls pay)', A.goods) + line('🏠 Properties (book value)', A.properties)

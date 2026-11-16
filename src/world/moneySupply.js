@@ -608,6 +608,37 @@ export const MoneySupply = {
     },
 
     /**
+     * Coin lost at sea (overboard, a sea-raider's toll, a wreck's strongbox) is not
+     * gone from the world: it lies in the sea's keeping (world.money.sea, counted
+     * by systems/coinCensus.js), and what the sea gives up later — salvage, a
+     * wreck's hoard, a purse in a net, river flotsam — comes out of it first.
+     * → the coin put in
+     */
+    seaLost(world, amount) {
+        const a = _r2(Math.max(0, _num(amount)));
+        if (!world || !(a > 0)) return 0;
+        const st = MoneySupply.state(world);
+        st.sea = _r2(_num(st.sea) + a);
+        return a;
+    },
+
+    /**
+     * Coin the sea (or a river) gives up: out of what it was lost to it
+     * (seaLost); past that it is coin older than the books, in no purse of the
+     * world's, booked found as `why` (MoneySupply.leak). → amount
+     */
+    seaFound(world, amount, why = 'seaFinds') {
+        const a = _r2(Math.max(0, _num(amount)));
+        if (!world || !(a > 0)) return 0;
+        const st = MoneySupply.state(world);
+        const pool = Math.max(0, _num(st.sea));
+        const take = Math.min(pool, a);
+        if (take > 0) st.sea = _r2(pool - take);
+        if (a > take) MoneySupply.leak(world, _r2(a - take), why);
+        return a;
+    },
+
+    /**
      * The coin the books say was made or unmade in the world, all told: every
      * realm's strikes, debasement gains, wear, recoinage, forgery and cheats, and
      * the world's leaks (found and lost). A closed census: CoinCensus.total moves
@@ -615,11 +646,28 @@ export const MoneySupply = {
      */
     bookedChange(world) {
         const st = world && _obj(world.money);
-        if (!st) return 0;
+        if (!st) return _r2(MoneySupply.pendingUnitCoin(world));
         let b = _num(st.pastBooked);
         for (const R of Object.values(st.realms || {})) b += MoneySupply._bookedOf(R);
         for (const v of Object.values(_obj(st.leaks) || {})) b += _num(v);
-        return _r2(b);
+        return _r2(b + MoneySupply.pendingUnitCoin(world));
+    },
+
+    /**
+     * Coin a unit on the map was rolled with and has not yet drawn from a town's
+     * purse (WorldUnit._rolledGold, until World.fundUnitCoin runs at the units'
+     * turn): the census already counts it in the unit's pack, so the books carry
+     * it as pending. Funded, it leaves the books as the town pays it; spent or
+     * lost before that, the census shows it made from nothing.
+     */
+    pendingUnitCoin(world) {
+        let n = 0;
+        for (const u of world && Array.isArray(world.units) ? world.units : []) {
+            if (!u || u._rolledGold == null || !u.inventory || (u._rolledInv && u._rolledInv !== u.inventory)) continue;
+            const r = Math.min(Math.max(0, _num(u._rolledGold)), Math.max(0, _num(u.inventory.gold)));
+            if (r > 0) n += r;
+        }
+        return n;
     },
 
     /** One realm's booked making and unmaking of coin (bookedChange). */

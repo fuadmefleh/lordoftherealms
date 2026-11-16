@@ -24,6 +24,7 @@ import { CrownBooks } from '../world/crownBooks.js';
 import { Names } from '../core/names.js';
 // (a law posted in a lettered realm is read and understood: systems/literacy.js; run time only)
 import { Literacy } from './literacy.js';
+import { Utils } from '../core/utils.js';
 
 const DEFAULTS = {
     changeCost: { treasury: 150, stability: 2 },
@@ -194,7 +195,7 @@ export const Laws = {
         const readyDay = last != null ? _num(last) + _num(C.cooldownDays, 30) : 0;
         const day = _num(world && world.day);
         if (day < readyDay) return { ok: false, reason: `The law was changed lately; the realm won't stand another change until day ${readyDay}.`, cost, stability, readyDay };
-        if (_num(k.treasury) < cost) return { ok: false, reason: `Proclaiming a new law costs the crown ${cost}g; the treasury holds ${Math.floor(_num(k.treasury))}g.`, cost, stability, readyDay };
+        if (_num(k.treasury) < cost) return { ok: false, reason: `Proclaiming a new law costs the crown ${Utils.formatGold(cost)}g; the treasury holds ${Utils.formatGold(_num(k.treasury))}g.`, cost, stability, readyDay };
         return { ok: true, cost, stability, readyDay };
     },
 
@@ -217,7 +218,7 @@ export const Laws = {
         if (!Array.isArray(k.laws.history)) k.laws.history = [];
         k.laws.history.push({ day, law: lawId, from: was ? was.id : null, to: optionId });
         if (k.laws.history.length > 30) k.laws.history.splice(0, k.laws.history.length - 30);
-        return { success: true, text: `By your proclamation, ${L.name.toLowerCase()} in ${Names.realm(k.name)}: ${o.label.toLowerCase()}${was ? ` (was ${was.label.toLowerCase()})` : ''}. ${can.cost}g from the treasury; stability −${can.stability}.` };
+        return { success: true, text: `By your proclamation, ${L.name.toLowerCase()} in ${Names.realm(k.name)}: ${o.label.toLowerCase()}${was ? ` (was ${was.label.toLowerCase()})` : ''}. ${Utils.formatGold(can.cost)}g from the treasury; stability −${can.stability}.` };
     },
 
     // ──────────── THE AI RULERS' HAND ────────────

@@ -235,7 +235,7 @@ export const NpcShops = {
         const n = Math.min(Math.max(1, Math.floor(_num(qty, 1))), e ? Math.floor(_num(e.qty)) : 0);
         if (!(n > 0)) return { ok: false, reason: 'They have none of that left.' };
         const each = Math.max(0, _num(unit));
-        if (_num(player.gold) < each * n) return { ok: false, reason: `You need ${each * n} gold.` };
+        if (_num(player.gold) < each * n) return { ok: false, reason: `You need ${Utils.formatGold(each * n)} gold.` };
         if (!PlayerInventory.canAdd(player, id)) return { ok: false, reason: PlayerInventory.fullMessage(player) };
         const taken = NpcShops.take(world, s, npc, id, n);
         if (!(taken.n > 0)) return { ok: false, reason: 'They have none of that left.' };

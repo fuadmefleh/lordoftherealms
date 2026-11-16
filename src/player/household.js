@@ -373,7 +373,7 @@ export const Household = {
         if (!Household.isHome(player, home)) return { success: false, text: `You hire servants in ${home.town || 'the town'} itself.` };
         const c = Household.candidates(player, world, key, role).find(x => x.id === candidateId);
         if (!c) return { success: false, text: 'They have found other work.' };
-        if (_num(player.gold) < c.wage) return { success: false, text: `You can't pay even a day's wage (${c.wage}g).` };
+        if (_num(player.gold) < c.wage) return { success: false, text: `You can't pay even a day's wage (${Utils.formatGold(c.wage)}g).` };
         const s = {
             id: `s${++home.seq}`, role, name: c.name, gender: c.gender, folkId: c.folkId || null,
             skill: c.skill, wage: c.wage, mood: Household.config().mood.start, hired: _day(world),
@@ -382,7 +382,7 @@ export const Household = {
         home.servants.push(s);
         Household._note(home, world, `${s.name} entered service as ${def.name.toLowerCase()}.`);
         const need = def.needs && !Household.room(home, def.needs) ? ` (Mark a ${Household.roomDef(def.needs).name.toLowerCase()} for them to work in.)` : '';
-        return { success: true, servant: s, text: `${s.name} enters your service as ${def.name.toLowerCase()} at ${s.wage}g a day.${need}` };
+        return { success: true, servant: s, text: `${s.name} enters your service as ${def.name.toLowerCase()} at ${Utils.formatGold(s.wage)}g a day.${need}` };
     },
 
     _servant(home, id) { return home ? home.servants.find(s => s.id === id) || null : null; },
@@ -418,7 +418,7 @@ export const Household = {
         s.wage = _r2(Math.max(s.wage + 0.5, s.wage * 1.2));
         s.mood = _clamp(_num(s.mood) + C.raise, 0, C.max);
         s.lowDays = 0;
-        return { success: true, text: `${s.name} will have ${s.wage}g a day now, and thanks you for it.` };
+        return { success: true, text: `${s.name} will have ${Utils.formatGold(s.wage)}g a day now, and thanks you for it.` };
     },
 
     /** What a leaving servant had saved goes into the home town's market. */
@@ -529,14 +529,14 @@ export const Household = {
         SettlementMarket.take(s, goodId, n);
         Ledger.record(player, 'larder', -cost);
         home.larder[goodId] = _num(home.larder[goodId]) + n;
-        return { success: true, n, spent: cost, text: `${n} ${g.name.toLowerCase()} bought for the larder (${Math.round(cost)}g).` };
+        return { success: true, n, spent: cost, text: `${n} ${g.name.toLowerCase()} bought for the larder (${Utils.formatGold(cost)}g).` };
     },
 
     setAllowance(player, key, gold) {
         const home = Household.home(player, key);
         if (!home) return { success: false, text: 'No such home.' };
         home.allowance = Math.max(0, Math.round(_num(gold)));
-        return { success: true, text: `The steward may spend ${home.allowance}g a day on the larder.` };
+        return { success: true, text: `The steward may spend ${Utils.formatGold(home.allowance)}g a day on the larder.` };
     },
 
     /** Eat `hunger` points from the larder (the poorest food first). → hunger points eaten */

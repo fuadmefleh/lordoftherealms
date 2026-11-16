@@ -40,6 +40,7 @@ import { Economy } from '../world/economy.js';
 import { MoneySupply } from '../world/moneySupply.js';
 import { Ledger } from './ledger.js';
 import { Names } from '../core/names.js';
+import { Utils } from '../core/utils.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -301,7 +302,7 @@ export const Languages = {
         if (!_obj(player.langTalk) || player.langTalk.day !== day) player.langTalk = { day, n: 0 };
         if (_num(player.langTalk.lessons) >= _num(T.perDay, 1)) return { success: false, reason: 'You have had your lesson for today.' };
         if (Languages.fluency(player, lang) >= 100) return { success: false, reason: `You already speak ${Cultures.languageName(lang)} like a native.` };
-        if (_num(player.gold) < cost) return { success: false, reason: `A lesson costs ${cost} gold.` };
+        if (_num(player.gold) < cost) return { success: false, reason: `A lesson costs ${Utils.formatGold(cost)} gold.` };
         player.gold -= cost;
         Ledger.record(player, 'languages', -cost);
         if (!Economy.payTown(s, cost)) _spendNear(world, player, cost, 'tutor');

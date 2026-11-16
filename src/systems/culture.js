@@ -388,7 +388,7 @@ export const Culture = {
         if (!type) return { success: false, reason: 'Unknown building type' };
 
         if (player.gold < type.cost) {
-            return { success: false, reason: `Need ${type.cost} gold (have ${Math.floor(player.gold)})` };
+            return { success: false, reason: `Need ${Utils.formatGold(type.cost)} gold (have ${Math.floor(player.gold)})` };
         }
 
         if (!tile.terrain.passable) {
@@ -481,7 +481,7 @@ export const Culture = {
         if (b.underConstruction) return { can: false, reason: 'Still under construction' };
         const cost = Culture.getUpgradeCost(b);
         if (cost === null) return { can: false, reason: 'Already at the highest level' };
-        if ((player.gold || 0) < cost) return { can: false, cost, reason: `Need ${cost} gold (have ${Math.floor(player.gold || 0)})` };
+        if ((player.gold || 0) < cost) return { can: false, cost, reason: `Need ${Utils.formatGold(cost)} gold (have ${Math.floor(player.gold || 0)})` };
         return { can: true, cost };
     },
 

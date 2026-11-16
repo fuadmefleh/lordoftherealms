@@ -35,6 +35,8 @@ import { DataLoader } from '../core/dataLoader.js';
 import { Utils } from '../core/utils.js';
 import { Difficulty } from '../core/difficulty.js';
 import { Townsfolk } from '../systems/townsfolk.js';
+import { CoinCensus } from '../systems/coinCensus.js';
+import { MoneySupply } from '../world/moneySupply.js';
 import { Plague } from '../systems/plague.js';
 import { TownMemory } from '../systems/townMemory.js';
 import { TownCrimes } from '../systems/townCrimes.js';
@@ -1044,6 +1046,32 @@ export const Afterlife = {
         Titles.initialize(player);
         Councils.initializePlayer(player);
         player.updateVisibility(world, 4);
+        if (old) Afterlife._releaseHolders(old, player, world);
         return { success: true, player, epitaph, escheat, estate, kin: birth ? DawnBirth.kinLine(player) : null };
+    },
+
+    /**
+     * The purses the late House kept track of that the new life does not — its
+     * rival Houses, cadet branches, the rival merchant houses and underwriters it
+     * traded against, outlaw lairs' hoards, adventurer rivals, an avenger's purse,
+     * coin riding with its letters (systems/coinCensus.js reads them off the
+     * player) — would drop out of the world with it. Their coin is spent or left
+     * in the town nearest where each one stood (else the late ruler's last place),
+     * so it stays in the world. → the coin released
+     */
+    _releaseHolders(old, player, world) {
+        const keep = new Set();
+        CoinCensus.each(world, player, (h) => keep.add(h));
+        let released = 0;
+        CoinCensus.each(world, old, (h, key) => {
+            if (keep.has(h)) return;
+            const v = Utils.cents(Math.max(0, _num(h[key])));
+            h[key] = 0;
+            if (!(v > 0)) return;
+            const at = h.seat && Number.isFinite(h.seat.q) ? h.seat : Number.isFinite(h.q) ? h : old;
+            if (!Economy.payNearest(world, at.q, at.r, v)) MoneySupply.leak(world, -v, 'houseEnded');
+            released = Utils.cents(released + v);
+        });
+        return released;
     },
 };

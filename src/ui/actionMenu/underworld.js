@@ -17,6 +17,7 @@ import { Gangs } from '../../systems/gangs.js';
 import { NightStreets } from '../../systems/nightStreets.js';
 import { BTN_GOLD, BTN_DIM, BTN_DARK, BTN_RED, panelTabs, esc, lede, chips, sectionHead, kv, card, actRow, rowList } from './uiKit.js';
 import { ParentsGuard } from '../parentsGuard.js';
+import { Utils } from '../../core/utils.js';
 
 const LEVEL_COLOR = { clear: '#8fd18a', watched: '#f0b35a', poster: '#e0a060', warrant: '#e0846a' };
 const LEVEL_LABEL = { clear: 'Clear', watched: 'Watched', poster: 'Wanted posters', warrant: 'Warrant' };
@@ -55,7 +56,7 @@ function row(on, call, o) {
 
 // ── 🔪 Streets ──────────────────────────────────────────
 
-const g0 = v => `${Math.floor(v || 0)}g`;
+const g0 = v => `${Utils.formatGold(v || 0)}g`;
 
 /** A gang's books (Gangs.bookView): last week and all time, taken and paid, by kind. */
 function booksHtml(b) {
@@ -135,9 +136,9 @@ function streetsTab(game, tile) {
         const can = (player.gold || 0) >= fee;
         html += rowList([row(can, 'window._uw.gang(\'found\')', {
             icon: '👥', name: 'Found a crew here',
-            desc: `A crew of your own. Prowler or above in the guild: ${fee}g buys a purse and ${F.crew || 4} men. The biggest crew in town won't like it.`,
-            why: `A crew of your own costs ${fee}g: a purse and ${F.crew || 4} men. Prowler or above in the guild.`,
-            side: `${fee}g`, tone: can ? 'gold' : 'bad',
+            desc: `A crew of your own. Prowler or above in the guild: ${Utils.formatGold(fee)}g buys a purse and ${F.crew || 4} men. The biggest crew in town won't like it.`,
+            why: `A crew of your own costs ${Utils.formatGold(fee)}g: a purse and ${F.crew || 4} men. Prowler or above in the guild.`,
+            side: `${Utils.formatGold(fee)}g`, tone: can ? 'gold' : 'bad',
         })], '👥 A crew of your own');
     }
 
@@ -147,7 +148,7 @@ function streetsTab(game, tile) {
         html += sectionHead(`${v.rank.icon} You: ${v.rank.name} of ${esc(g.name)}`);
         if (!v.boss) {
             const nx = v.next ? `${v.membership.standing}/${v.next.standing} standing to ${v.next.icon} ${v.next.name}` : 'as high as a man gets under the boss';
-            html += lede(`${nx}. Pay: ${Gangs.rankDef(v.membership.rank).weeklyPay}g a week from the purse (dirty coin).`);
+            html += lede(`${nx}. Pay: ${Utils.formatGold(Gangs.rankDef(v.membership.rank).weeklyPay)}g a week from the purse (dirty coin).`);
         }
         // Errands
         const errands = [];
@@ -194,16 +195,16 @@ function bossSection(game, tile, v) {
     let html = sectionHead('👑 The boss\'s hand');
     let purseBody = '';
     if (wk.protection != null) {
-        const parts = [`protection ${Math.floor(wk.protection)}g`, `dens ${Math.floor(wk.dens || 0)}g`, `black market ${Math.floor(wk.sales || 0)}g`, `resale ${Math.floor(wk.resale || 0)}g`, `wages −${Math.floor(wk.wages || 0)}g`];
-        if (wk.bossCut != null) parts.push(`your cut ${wk.bossCut}g`);
+        const parts = [`protection ${Utils.formatGold(wk.protection)}g`, `dens ${Utils.formatGold(wk.dens || 0)}g`, `black market ${Utils.formatGold(wk.sales || 0)}g`, `resale ${Utils.formatGold(wk.resale || 0)}g`, `wages −${Utils.formatGold(wk.wages || 0)}g`];
+        if (wk.bossCut != null) parts.push(`your cut ${Utils.formatGold(wk.bossCut)}g`);
         if (wk.smuggled) parts.push(`ran ${wk.smuggled.units} ${label(wk.smuggled.good)} in from ${esc(wk.smuggled.from)}`);
-        if (wk.raided) parts.push(`<span style="color:#e0846a;">raided: −${wk.raided}g</span>`);
+        if (wk.raided) parts.push(`<span style="color:#e0846a;">raided: −${Utils.formatGold(wk.raided)}g</span>`);
         purseBody += `<div style="${NOTE}">Last week: ${parts.join(' · ')}.</div>`;
     }
-    purseBody += `<div style="${NOTE}">Wages ${v.wages}g a week (${g.crew} crew and ${g.lieutenants.length} lieutenants). Unpaid men walk, and lieutenants sour.</div>`;
+    purseBody += `<div style="${NOTE}">Wages ${Utils.formatGold(v.wages)}g a week (${g.crew} crew and ${g.lieutenants.length} lieutenants). Unpaid men walk, and lieutenants sour.</div>`;
     purseBody += `<div style="margin-top:4px;">${btn(g.purse >= 1, 'window._uw.gang(\'withdraw\',100)', 'Take 100g')}${btn(g.purse >= 1, `window._uw.gang('withdraw',${Math.floor(g.purse)})`, 'Take it all')}`;
     purseBody += `${btn((game.player.gold || 0) >= 100, 'window._uw.gang(\'deposit\',100)', 'Put in 100g', BTN_DARK)}</div>`;
-    html += card(purseBody, { icon: '💰', title: 'The purse', side: `${Math.floor(g.purse)}g`, tone: 'gold' });
+    html += card(purseBody, { icon: '💰', title: 'The purse', side: `${Utils.formatGold(g.purse)}g`, tone: 'gold' });
 
     // The cut
     const cuts = Gangs.c('cuts', [0.1, 0.25, 0.4]);
@@ -222,16 +223,16 @@ function bossSection(game, tile, v) {
         return actRow({
             icon: '🎖️', name: esc(lt.name),
             desc: `${esc(lt.role)}, skill ${lt.skill}${lt.ambition > 0.6 ? ', ambitious' : ''} · <span style="color:${col};">loyalty ${Math.round(lt.loyalty)}</span>`,
-            side: btn(g.purse >= (L.bonusCost || 50), `window._uw.gang('bonus','${lt.id}')`, `Bonus ${L.bonusCost || 50}g`, BTN_GOLD + SMALL)
+            side: btn(g.purse >= (L.bonusCost || 50), `window._uw.gang('bonus','${lt.id}')`, `Bonus ${Utils.formatGold(L.bonusCost || 50)}g`, BTN_GOLD + SMALL)
                 + btn(true, `window._uw.gang('purge','${lt.id}')`, 'Purge', BTN_RED + SMALL),
         });
     });
     const canHire = g.purse >= fee * 2 && g.crew < v.crewCap;
     html += rowList([
         row(canHire, 'window._uw.gang(\'hire\',2)', {
-            icon: '👥', name: `Crew ${g.crew}/${v.crewCap}`, desc: `Sign 2 men (${fee * 2}g)`,
-            why: g.crew >= v.crewCap ? `Sign 2 men (${fee * 2}g) — the crew is full` : `Sign 2 men (${fee * 2}g) — the purse is short`,
-            side: `${fee * 2}g`, tone: 'gold',
+            icon: '👥', name: `Crew ${g.crew}/${v.crewCap}`, desc: `Sign 2 men (${Utils.formatGold(fee * 2)}g)`,
+            why: g.crew >= v.crewCap ? `Sign 2 men (${Utils.formatGold(fee * 2)}g) — the crew is full` : `Sign 2 men (${Utils.formatGold(fee * 2)}g) — the purse is short`,
+            side: `${Utils.formatGold(fee * 2)}g`, tone: 'gold',
         }),
         ...lts,
     ], '👥 Crew & lieutenants');
@@ -242,10 +243,10 @@ function bossSection(game, tile, v) {
         const ours = w[who].bribedBy === g.id;
         const fee2 = v.retainer[who];
         const what = who === 'captain' ? 'fewer searches, no raids on you, cheaper bribes, better odds on jobs' : 'an arrest in this town is dismissed after a night';
-        const desc = `${fee2}g/week: ${what}`;
+        const desc = `${Utils.formatGold(fee2)}g/week: ${what}`;
         if (ours) return row(true, `window._uw.gang('${who}')`, { icon: '🛡️', name: esc(w[who].name), desc, side: 'Stop paying', tone: 'good' });
         const cost = w[who].bribedBy ? fee2 * 4 : fee2 * 2;
-        const verb = w[who].bribedBy ? `Turn him (${cost}g)` : `Buy him (${cost}g)`;
+        const verb = w[who].bribedBy ? `Turn him (${Utils.formatGold(cost)}g)` : `Buy him (${Utils.formatGold(cost)}g)`;
         return row(g.purse >= fee2 * 2, `window._uw.gang('${who}')`, { icon: who === 'captain' ? '🛡️' : '⚖️', name: esc(w[who].name), desc, why: `${desc} — the purse is short`, side: verb, tone: 'gold' });
     });
     html += rowList(watchRows, '🛡️ Buy the watch');
@@ -255,7 +256,7 @@ function bossSection(game, tile, v) {
     html += sectionHead('🎲 Rackets');
     html += `<div style="${NOTE}">Protection on ${pct(g.turf)} of the streets. ${g.dens} den${g.dens === 1 ? '' : 's'}; the realm's law on vice decides what dens take and draw.</div>`;
     html += rowList([
-        row(g.purse >= (D.openCost || 220), 'window._uw.gang(\'den\')', { icon: '🎲', name: 'Open a dice den', why: 'The purse is short', side: `${D.openCost || 220}g`, tone: 'gold' }),
+        row(g.purse >= (D.openCost || 220), 'window._uw.gang(\'den\')', { icon: '🎲', name: 'Open a dice den', why: 'The purse is short', side: `${Utils.formatGold(D.openCost || 220)}g`, tone: 'gold' }),
         row(true, 'window._uw.gang(\'smuggle\')', { icon: '📦', name: g.smuggling ? 'Stop the border runs' : 'Run contraband over the border weekly', side: g.smuggling ? 'running' : '', tone: 'good' }),
     ]);
     const stash = Object.entries(g.stash || {}).filter(([, n]) => n >= 1);
@@ -285,7 +286,7 @@ function guildTab(game, tile) {
         const fee = Underworld.cfg('guild').joinFee;
         html += lede(`You have a contact in ${sum.guildName}, but you are not one of them.`);
         html += guildHere
-            ? rowList([actRow({ icon: '🗝️', name: 'Swear the oath', desc: `Join ${sum.guildName}`, side: `${fee}g`, tone: (player.gold || 0) >= fee ? 'gold' : 'bad', attrs: 'onclick="window._uw.join()"' })])
+            ? rowList([actRow({ icon: '🗝️', name: 'Swear the oath', desc: `Join ${sum.guildName}`, side: `${Utils.formatGold(fee)}g`, tone: (player.gold || 0) >= fee ? 'gold' : 'bad', attrs: 'onclick="window._uw.join()"' })])
             : `<div style="${NOTE}">The guild meets in towns and cities.</div>`;
     } else {
         html += lede(`You have no friends in ${sum.guildName}. Ask a barkeep in a town or city tavern about "special work".`);
@@ -300,7 +301,7 @@ function guildTab(game, tile) {
     if (quote) {
         heatRows.push(actRow({
             icon: '💰', name: 'Bribe the watch', desc: `-${Math.round(quote.relief)} heat, ${pct(quote.fail)} it backfires`,
-            side: `${quote.gold}g`, tone: (player.gold || 0) >= quote.gold ? 'gold' : 'bad', attrs: 'onclick="window._uw.bribe()"',
+            side: `${Utils.formatGold(quote.gold)}g`, tone: (player.gold || 0) >= quote.gold ? 'gold' : 'bad', attrs: 'onclick="window._uw.bribe()"',
         }));
     }
     if (localHeat > 0) {
@@ -346,7 +347,7 @@ function guildTab(game, tile) {
                         steps.push(row(ok, `window._uw.step('${s.id}')`, {
                             icon: s.icon, name: s.name, desc: s.description, title: s.description,
                             why: `${s.description} — ${(player.gold || 0) >= (s.gold || 0) ? 'Not enough action points' : 'Not enough gold'}`,
-                            side: `${s.gold ? `${s.gold}g, ` : ''}${s.ap} AP, +${pct(s.bonus)}`, tone: 'gold',
+                            side: `${s.gold ? `${Utils.formatGold(s.gold)}g, ` : ''}${s.ap} AP, +${pct(s.bonus)}`, tone: 'gold',
                         }));
                     }
                     const odds = Underworld.heistOdds(player, world, tile);
@@ -367,7 +368,7 @@ function guildTab(game, tile) {
 
     if (sum.rackets.length) {
         html += sectionHead('🗡️ Your own rackets');
-        html += `<div style="font-size:11px;">${sum.rackets.map(rk => kv(rk.name, `up to ${rk.weekly}g / week`)).join('')}</div>`;
+        html += `<div style="font-size:11px;">${sum.rackets.map(rk => kv(rk.name, `up to ${Utils.formatGold(rk.weekly)}g / week`)).join('')}</div>`;
         html += `<div style="${NOTE}">(from the shopkeepers' purse) A town's gangs run a freelancer off their streets unless you run with one of them.</div>`;
     }
 
@@ -390,7 +391,7 @@ function marketTab(game, tile) {
     let html = '';
     if (!fenceHere) html += lede('You know no fence here. A guild contact opens the fence and the black market to you.');
     const buyer = fenceHere ? Gangs.buyer(player, world, tile) : null;
-    if (buyer) html += lede(`The buyer here is ${esc(buyer.name)}: they pay from a purse of ${Math.floor(buyer.purse)}g.`);
+    if (buyer) html += lede(`The buyer here is ${esc(buyer.name)}: they pay from a purse of ${Utils.formatGold(buyer.purse)}g.`);
     // The night market in a back alley after dark (systems/nightStreets.js; walk to it on the street map)
     const nightHint = NightStreets.marketHint(player, world, tile);
     if (nightHint) html += `<div style="${NOTE}">🏮 ${esc(nightHint)}</div>`;
@@ -408,7 +409,7 @@ function marketTab(game, tile) {
             return actRow({
                 icon: hot ? '🔥' : '📦', name: `${label(id)} ×${qty}`,
                 desc: hot ? `<span style="color:#e0a060;">hot ${hot.qty} (${hot.daysLeft}d)</span>` : '',
-                side: `<span class="pk-price">${price}<small>g</small></span> <button onclick="window._uw.fence('${id}', 1)" style="${BTN_GOLD}${SMALL}">1</button>`
+                side: `<span class="pk-price">${Utils.formatGold(price)}<small>g</small></span> <button onclick="window._uw.fence('${id}', 1)" style="${BTN_GOLD}${SMALL}">1</button>`
                     + (qty > 1 ? `<button onclick="window._uw.fence('${id}', ${qty})" style="${BTN_GOLD}${SMALL}">All</button>` : ''),
             });
         }));
@@ -426,7 +427,7 @@ function marketTab(game, tile) {
             desc: `<span style="color:${STATUS_COLOR[o.status]};">${o.status}</span> · ${pct(o.risk)} risk`,
             // One choice: the row itself sells one
             note: 'Sell one', tone: 'bad', attrs: `onclick="window._uw.bm('${o.item}', 1)"`,
-            side: `<span class="pk-price">${o.price}<small>g</small></span>`,
+            side: `<span class="pk-price">${Utils.formatGold(o.price)}<small>g</small></span>`,
         })));
     }
 
@@ -449,22 +450,22 @@ function coinTab(game, tile) {
     const dirty = Gangs.dirty(player);
     const cap = Gangs.launderCapacity(player, world, tile);
     const D = Gangs.c('dirty', {});
-    let html = lede(`Every coin from crime is dirty until it's washed. A guard search takes ${pct(D.seizeOnSearch || 0.5)} of it and an arrest ${pct(D.seizeOnArrest || 0.7)}; from ${D.unexplainedFrom || 1500}g the talk about your money brings heat every week. Spending spends the dirty coin first.`);
+    let html = lede(`Every coin from crime is dirty until it's washed. A guard search takes ${pct(D.seizeOnSearch || 0.5)} of it and an arrest ${pct(D.seizeOnArrest || 0.7)}; from ${Utils.formatGold(D.unexplainedFrom || 1500)}g the talk about your money brings heat every week. Spending spends the dirty coin first.`);
     html += chips([
-        { icon: '🧼', label: 'Dirty coin', value: `${Math.floor(dirty)}g of ${Math.floor(player.gold || 0)}g`, cls: dirty > 0 ? 'gold' : '' },
+        { icon: '🧼', label: 'Dirty coin', value: `${Utils.formatGold(dirty)}g of ${Utils.formatGold(player.gold || 0)}g`, cls: dirty > 0 ? 'gold' : '' },
         cap.fronts.length ? ['🏠', 'Fronts', cap.fronts.length] : null,
-        cap.fronts.length ? ['⚖️', 'Room this week', `${cap.left}g`] : null,
+        cap.fronts.length ? ['⚖️', 'Room this week', `${Utils.formatGold(cap.left)}g`] : null,
     ]);
     if (!cap.fronts.length) {
         html += sectionHead('🏠 Fronts here');
         html += `<div style="${NOTE}">You own no front in this town. A tavern, inn, guest house, trading post, brewery or any shop you own washes coin through its books; so do your gang's dice dens if you're the boss.</div>`;
     } else {
-        html += rowList(cap.fronts.map(f => actRow({ icon: '🏠', name: esc(f.name), side: `${f.cap}g a week` })), '🏠 Fronts here');
-        html += `<div style="${NOTE}">${cap.left}g more can go through this week. The fee, ${pct(cap.fee)}, goes out to the town as the books' false trade.</div>`;
+        html += rowList(cap.fronts.map(f => actRow({ icon: '🏠', name: esc(f.name), side: `${Utils.formatGold(f.cap)}g a week` })), '🏠 Fronts here');
+        html += `<div style="${NOTE}">${Utils.formatGold(cap.left)}g more can go through this week. The fee, ${pct(cap.fee)}, goes out to the town as the books' false trade.</div>`;
         const amt = Math.min(Math.floor(dirty), cap.left);
         html += rowList([row(amt > 0, `window._uw.launder(${amt})`, {
-            icon: '🧼', name: `Launder ${amt}g`, desc: `fee ${Math.ceil(amt * cap.fee)}g`, why: `fee ${Math.ceil(amt * cap.fee)}g — nothing to wash`,
-            side: `${amt}g`, tone: 'gold',
+            icon: '🧼', name: `Launder ${Utils.formatGold(amt)}g`, desc: `fee ${Utils.formatGold(Math.ceil(amt * cap.fee))}g`, why: `fee ${Utils.formatGold(Math.ceil(amt * cap.fee))}g — nothing to wash`,
+            side: `${Utils.formatGold(amt)}g`, tone: 'gold',
         })]);
     }
     return html;

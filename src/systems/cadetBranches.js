@@ -349,7 +349,7 @@ export const CadetBranches = {
         if (house.regentDesignate && house.regentDesignate.id === childId) house.regentDesignate = null;
         this._treePerson(player, world, branch, null);
         if (!own) House.award(house, _num(F.prestige, 3), 'a cadet branch planted', day);
-        const purse = branch.gold > 0 ? ` with ${Math.round(branch.gold)} gold` : ' with little but the name';
+        const purse = branch.gold > 0 ? ` with ${Utils.formatGold(branch.gold)} gold` : ' with little but the name';
         const text = own
             ? `${child.firstName} takes their portion and leaves the household to found ${branch.name} at ${seat.name}${purse}.`
             : `${child.firstName} is sent out to found ${branch.name} at ${seat.name}${purse}${estate ? ` and the estate of ${estate.name}` : ''}.`;
@@ -870,7 +870,7 @@ export const CadetBranches = {
         const n = Math.floor(_num(amount));
         if (!b) return { success: false, reason: 'No such branch.' };
         if (!(n > 0)) return { success: false, reason: 'A gift of nothing.' };
-        if (Inheritance.coin(player) < n) return { success: false, reason: `You do not have ${n} gold.` };
+        if (Inheritance.coin(player) < n) return { success: false, reason: `You do not have ${Utils.formatGold(n)} gold.` };
         const day = _day(world);
         Inheritance.setCoin(player, Inheritance.coin(player) - n);
         Ledger.record(player, 'family', -n);
@@ -907,7 +907,7 @@ export const CadetBranches = {
         b.loyalty = _clamp(b.loyalty - _num(A.loyaltyCost, 8), 0, 100);
         b.stats.asked = _num(b.stats.asked) + amount;
         RivalHouses._note(b, world, `Sent ${amount} gold at the main line's asking.`);
-        return { success: true, amount, text: `${this.headName(b)} sends ${amount} gold (loyalty now ${b.loyalty}).` };
+        return { success: true, amount, text: `${this.headName(b)} sends ${Utils.formatGold(amount)} gold (loyalty now ${b.loyalty}).` };
     },
 
     /** Ask the branch for men for a war. */

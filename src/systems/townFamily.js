@@ -477,8 +477,8 @@ export const TownFamily = {
                 for (const p of Townsfolk.residents(folk)) if (p.hh === old && old != null) p.hh = dead.hh;
                 heir.hh = dead.hh;
             }
-            Townsfolk._log(heir, day, 'inherited', dead.id, coin > 0 ? `the house and ${coin} coin` : 'the house');
-            Townsfolk._annal(folk, world, day, { k: 'inherited', a: heir.id, b: dead.id, x: coin > 0 ? `the house and ${coin} coin` : 'the house' }, news);
+            Townsfolk._log(heir, day, 'inherited', dead.id, coin > 0 ? `the house and ${Utils.formatGold(coin)} coin` : 'the house');
+            Townsfolk._annal(folk, world, day, { k: 'inherited', a: heir.id, b: dead.id, x: coin > 0 ? `the house and ${Utils.formatGold(coin)} coin` : 'the house' }, news);
         }
     },
 

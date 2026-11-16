@@ -47,6 +47,7 @@ import { RiverDrift } from './riverDrift.js';
 import { RiverFlotsam, flotsamHash } from './riverFlotsam.js';
 import { RiverNets } from './riverNets.js';
 import { Ledger } from './ledger.js';
+import { Utils } from '../core/utils.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const SEA_IDS = new Set(['ocean', 'deep_ocean', 'coast', 'sea']);
@@ -187,7 +188,7 @@ export const RiverLife = {
         const h = this.holderOf(world, q, r);
         if (!h) return { ok: false, reason: 'This is free water: nobody holds it, and you may fish it as you please.' };
         const fee = this.leaseFee(world, q, r);
-        if (_num(player && player.gold) < fee) return { ok: false, reason: `The lease is ${fee}g.` };
+        if (_num(player && player.gold) < fee) return { ok: false, reason: `The lease is ${Utils.formatGold(fee)}g.` };
         player.gold -= fee;
         if (h.kind === 'town') {
             const s = h.settlement;
@@ -249,7 +250,7 @@ export const RiverLife = {
                         player.gold -= fine;
                         if (town) { const s = h.settlement; if (!s.economy) s.economy = {}; s.economy.gold = _num(s.economy.gold) + fine; } else if (h.kingdom) h.kingdom.treasury = _num(h.kingdom.treasury) + fine;
                         Ledger.record(player, 'fines', -fine);
-                        notices.push({ icon: '⚖️', title: 'The Water Bailiff', text: `The bailiff of ${h.name} found your net ${net.place || 'by the water'} on water you hold no rights to: fined ${fine}g. Lease the fishing rights and he will leave it be.`, type: 'warning' });
+                        notices.push({ icon: '⚖️', title: 'The Water Bailiff', text: `The bailiff of ${h.name} found your net ${net.place || 'by the water'} on water you hold no rights to: fined ${Utils.formatGold(fine)}g. Lease the fishing rights and he will leave it be.`, type: 'warning' });
                     } else {
                         gone.add(net.id);
                         notices.push({ icon: '⚖️', title: 'Net Seized', text: `The bailiff of ${h.name} took up your net ${net.place || 'by the water'}: no lease, and no coin for the fine.`, type: 'warning' });

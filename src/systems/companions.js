@@ -592,7 +592,7 @@ export const Companions = {
                 c.lastGrievance = { day, reason: 'wages unpaid', value: null };
                 out.unpaid++;
                 Companions._notice(player, `💸 ${npc.firstName} goes unpaid`,
-                    `${Companions._line(Companions.lines('unpaid'), `${npc.id}:${day}:unpaid`, npc)} (owed ${due}g)`, 'warning');
+                    `${Companions._line(Companions.lines('unpaid'), `${npc.id}:${day}:unpaid`, npc)} (owed ${Utils.formatGold(due)}g)`, 'warning');
             }
         }
     },
@@ -1075,7 +1075,7 @@ export const Companions = {
         if (c.lastGiftDay != null && day - c.lastGiftDay < cfg.giftCooldown) {
             return { success: false, reason: `You gave ${npc.firstName} a gift only recently.` };
         }
-        if ((player.gold || 0) < cfg.giftCost) return { success: false, reason: `A worthy gift costs ${cfg.giftCost} gold.` };
+        if ((player.gold || 0) < cfg.giftCost) return { success: false, reason: `A worthy gift costs ${Utils.formatGold(cfg.giftCost)} gold.` };
         player.gold -= cfg.giftCost;
         Companions._purse(npc, cfg.giftCost);
         c.lastGiftDay = day;
@@ -1104,7 +1104,7 @@ export const Companions = {
         const c = Companions.ensure(npc, world);
         const due = Math.round(c.wageDue);
         if (due <= 0) return { success: false, reason: 'Nothing is owed.' };
-        if ((player.gold || 0) < due) return { success: false, reason: `You need ${due} gold.` };
+        if ((player.gold || 0) < due) return { success: false, reason: `You need ${Utils.formatGold(due)} gold.` };
         player.gold -= due;
         Companions._purse(npc, due);
         c.wageDue = 0;

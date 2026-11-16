@@ -292,7 +292,7 @@ export const RoadEncounters = {
             const toll = RoadEncounters.tollAmount(player, sit);
             const can = !sit.warHost && _num(player.gold) >= toll;
             out.push(opt('toll', '💰', 'Pay the toll', sit.hasArmy ? 'Buy your way past rather than bleed for it. Costs face.' : 'Hand over part of your purse; they let you by unhurt.', null,
-                { can, cost: `${toll} gold`, amount: toll, reason: sit.warHost ? 'A realm\'s army takes no tolls' : (can ? '' : `They want ${toll} gold`) }));
+                { can, cost: `${Utils.formatGold(toll)} gold`, amount: toll, reason: sit.warHost ? 'A realm\'s army takes no tolls' : (can ? '' : `They want ${Utils.formatGold(toll)} gold`) }));
             const dread = Traits.has(player, 'dread_lord') || (sit.hasArmy && sit.armyStrength >= sit.enemyStrength * 1.5);
             out.push(opt('parley', dread ? '😠' : '🗣️', dread ? 'Intimidate' : 'Parley', dread ? 'Your name and your soldiers do the talking.' : 'Diplomacy, charisma and renown. Fail and they take offence.',
                 RoadEncounters.parleyChance(player, attacker, sit)));
@@ -379,7 +379,7 @@ export const RoadEncounters = {
             if (result.casualties > 0) msg += ` Lost ${result.casualties} soldiers.`;
             if (result.wounded > 0) msg += ` ${result.wounded} wounded saved by surgeons.`;
             if (result.commanderSlain) msg += ' Your assassins slew their commander!';
-            if (result.loot > 0) msg += ` Gained ${result.loot} gold.`;
+            if (result.loot > 0) msg += ` Gained ${Utils.formatGold(result.loot)} gold.`;
             const items = Object.entries(result.inventoryLoot || {}).map(([k, v]) => `${v} ${k}`).join(', ');
             if (items) msg += ` Seized: ${items}.`;
             if (result.renownChange > 0) msg += ` +${result.renownChange} renown!`;
@@ -429,7 +429,7 @@ export const RoadEncounters = {
             case 'toll': {
                 if (sit.kind !== 'men' || sit.warHost) return done('invalid', false, 'No Toll', 'They are not here for coin.', 'error');
                 const toll = RoadEncounters.tollAmount(player, sit);
-                if (_num(player.gold) < toll) return done('invalid', false, 'Purse Too Light', `They want ${toll} gold.`, 'error');
+                if (_num(player.gold) < toll) return done('invalid', false, 'Purse Too Light', `They want ${Utils.formatGold(toll)} gold.`, 'error');
                 player.gold -= toll;
                 if (!attacker.inventory) attacker.inventory = {};
                 attacker.inventory.gold = _num(attacker.inventory.gold) + toll;
@@ -439,7 +439,7 @@ export const RoadEncounters = {
                 if (sit.hasArmy) player.renown = Math.max(0, _num(player.renown) - (sit.armyStrength > sit.enemyStrength ? 2 : 1));
                 RoadEncounters._spare(attacker, world, c.toll.respiteDays);
                 if (world && world.events) world.events.push({ text: `${player.name || 'A traveller'} paid a ${name} ${toll} gold to pass.`, type: 'military' });
-                return done('paid', true, `${icon} Toll Paid`, `You paid the ${name} ${toll} gold. They let you pass${sit.hasArmy ? ', smirking' : ''}.`, 'warning', { goldPaid: toll });
+                return done('paid', true, `${icon} Toll Paid`, `You paid the ${name} ${Utils.formatGold(toll)} gold. They let you pass${sit.hasArmy ? ', smirking' : ''}.`, 'warning', { goldPaid: toll });
             }
             case 'parley': {
                 if (sit.kind !== 'men') return done('invalid', false, 'No Parley', 'Beasts do not bargain.', 'error');
@@ -663,12 +663,12 @@ export const RoadEncounters = {
 
             // Build notification message
             let msg = `A ${attacker.name} ambushed you! Without an army you were defenseless.`;
-            if (goldStolen > 0) msg += ` They stole ${goldStolen} gold.`;
+            if (goldStolen > 0) msg += ` They stole ${Utils.formatGold(goldStolen)} gold.`;
             const stolenList = Object.entries(stolenItems)
                 .map(([k, v]) => `${v} ${k}`)
                 .join(', ');
             if (stolenList) msg += ` They also took: ${stolenList}.`;
-            if (billsTaken.length) msg += ` They took ${billsTaken.length === 1 ? 'a bill of exchange' : `${billsTaken.length} bills of exchange`} (${billsTaken.reduce((a, b) => a + b.amount, 0)}g): stop ${billsTaken.length === 1 ? 'it' : 'them'} at the paying house before a forger cashes ${billsTaken.length === 1 ? 'it' : 'them'}.`;
+            if (billsTaken.length) msg += ` They took ${billsTaken.length === 1 ? 'a bill of exchange' : `${billsTaken.length} bills of exchange`} (${Utils.formatGold(billsTaken.reduce((a, b) => a + b.amount, 0))}g): stop ${billsTaken.length === 1 ? 'it' : 'them'} at the paying house before a forger cashes ${billsTaken.length === 1 ? 'it' : 'them'}.`;
             msg += ` You lost ${healthLost} health.`;
             const wound = healthLost > 0 ? Ailments.maybeWound(player, world, 'ambush') : null;
             msg += _woundText(wound);
@@ -702,7 +702,7 @@ export const RoadEncounters = {
             if (result.casualties > 0) lootMsg += ` Lost ${result.casualties} soldiers.`;
             if (result.wounded > 0) lootMsg += ` ${result.wounded} wounded saved by surgeons.`;
             if (result.commanderSlain) lootMsg += ` Your assassins slew their commander!`;
-            if (result.loot > 0) lootMsg += ` Gained ${result.loot} gold.`;
+            if (result.loot > 0) lootMsg += ` Gained ${Utils.formatGold(result.loot)} gold.`;
             const itemLoot = Object.entries(result.inventoryLoot || {})
                 .map(([k, v]) => `${v} ${k}`)
                 .join(', ');

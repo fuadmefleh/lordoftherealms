@@ -279,8 +279,8 @@ function _choices(game, state) {
         const amount = Math.min(player.gold, Math.max(50, Math.floor(player.gold * 0.1)));
         list.push({
             icon: '💰', label: 'Accept a gift of gold.', group: 'gift',
-            extra: `<span class="npc-dialog-price">${amount}g</span>`,
-            tooltip: `Give ${amount} gold (a tenth of your purse, at least 50) for reputation in ${Names.realm(kingdom.name)}.`,
+            extra: `<span class="npc-dialog-price">${Utils.formatGold(amount)}g</span>`,
+            tooltip: `Give ${Utils.formatGold(amount)} gold (a tenth of your purse, at least 50) for reputation in ${Names.realm(kingdom.name)}.`,
             disabled: player.gold < 50, disabledReason: 'you need at least 50 gold',
             onPick: act('gold', _giftGold),
         });
@@ -399,13 +399,13 @@ function _giftGold(game, state, { kingdom, lord }) {
     const repBoost = PlayerEffects.scaleReputationGain(player, Math.floor(amount / (10 * Technology.getAllianceCostMultiplier(player))));
     _addRep(player, kingdom.id, repBoost);
     const giftDef = NPCLords.deedDef('gift');
-    NPCLords.rememberDeed(game.world, lord, 'gift', { weight: giftDef ? Math.round(giftDef.weight * Utils.clamp(amount / 100, 0.5, 3) * 10) / 10 : undefined, note: `${amount} gold` });
-    scene.exchange(`*offers a purse of ${amount} gold* A token of my esteem.`, () => {
+    NPCLords.rememberDeed(game.world, lord, 'gift', { weight: giftDef ? Math.round(giftDef.weight * Utils.clamp(amount / 100, 0.5, 3) * 10) / 10 : undefined, note: `${Utils.formatGold(amount)} gold` });
+    scene.exchange(`*offers a purse of ${Utils.formatGold(amount)} gold* A token of my esteem.`, () => {
         scene.npc(_has(lord, 'greedy') ? '*weighs the purse* Most generous… I shall remember this kindness.'
             : _has(lord, 'honorable') ? 'I accept your gift in the spirit of friendship.'
                 : _has(lord, 'cruel') ? 'A wise tribute. See that it continues.'
                     : 'Thank you. You are welcome in our lands.');
-        scene.note(`💰 −${amount} gold · 📈 Reputation ${_sign(repBoost)}`, 'good');
+        scene.note(`💰 −${Utils.formatGold(amount)} gold · 📈 Reputation ${_sign(repBoost)}`, 'good');
         _after(game, state);
     });
 }
@@ -541,10 +541,10 @@ function _demandTribute(game, state, { kingdom, lord }) {
             const gold = PlayerCoin.receive(game.world, player, Utils.randInt(50, 200 + Math.floor(kingdom.treasury * 0.1)), kingdom, 'rivalTribute');
             _addRep(player, kingdom.id, -30);
             player.karma = (player.karma || 0) - 5;
-            NPCLords.rememberDeed(game.world, lord, 'extorted', { note: `${gold} gold` });
+            NPCLords.rememberDeed(game.world, lord, 'extorted', { note: `${Utils.formatGold(gold)} gold` });
             scene.npc(_has(lord, 'cruel') ? '*throws down a chest* You will pay for this humiliation… in time.'
                 : '*throws down a chest* Take it and be gone, brigand.');
-            scene.note(`💰 +${gold} gold · 📉 Reputation −30 with ${Names.realm(kingdom.name)} · Karma −5`, 'gold');
+            scene.note(`💰 +${Utils.formatGold(gold)} gold · 📉 Reputation −30 with ${Names.realm(kingdom.name)} · Karma −5`, 'gold');
         } else {
             _addRep(player, kingdom.id, -15);
             player.karma = (player.karma || 0) - 3;
@@ -583,7 +583,7 @@ function _officeMenu(game, state) {
             };
             const list = qualifying.map(t => ({
                 icon: t.icon || '🏅', label: t.name, group: 'office',
-                extra: `<span class="npc-dialog-price is-good">${t.salary}g/day</span>`,
+                extra: `<span class="npc-dialog-price is-good">${Utils.formatGold(t.salary)}g/day</span>`,
                 tooltip: t.description,
                 onPick: () => _do(game, state, 'office', (g, s) => _appoint(g, s, t)),
             }));

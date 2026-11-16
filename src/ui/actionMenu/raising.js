@@ -11,6 +11,7 @@ import { ActionMenu } from './_ref.js';
 import { Raising } from '../../systems/raising.js';
 import { Upbringing } from '../../systems/upbringing.js';
 import { esc, sectionHead, lede, card, rowList, price, chips } from './uiKit.js';
+import { Utils } from '../../core/utils.js';
 
 const MUTED = 'color:#9d937c; font-size:11px;';
 const GAIN_ICONS = {
@@ -102,7 +103,7 @@ Object.assign(ActionMenu, {
                 const res = Raising.hireTutor(player, world, id, npcId ? { npcId } : { folkUid });
                 if (!res.success) return game.ui.showNotification('👨‍🏫 Tutor', res.reason, 'error');
                 game.ui.updateStats(player, world);
-                ActionMenu.showChildPanel(game, id, { html: `${res.tutor.icon} ${esc(res.tutor.name)} takes up ${esc(res.child.firstName)}'s lessons for ${res.tutor.wage}g a month (paid into their own purse).` });
+                ActionMenu.showChildPanel(game, id, { html: `${res.tutor.icon} ${esc(res.tutor.name)} takes up ${esc(res.child.firstName)}'s lessons for ${Utils.formatGold(res.tutor.wage)}g a month (paid into their own purse).` });
             },
         });
         return list.map(c => {
@@ -135,8 +136,8 @@ Object.assign(ActionMenu, {
         const seats = Raising.wardSeats(player);
         let html = '<div style="font-size: 12px;">';
         if (message) html += `<div class="pk-card" style="border-color:${message.color || 'rgba(245,197,66,0.4)'}; color:#ece2c8;">${message.html}</div>`;
-        html += chips([['🎓', 'Wards', `${wards.length}/${seats}`], ['💰', 'Fee', `${W.fee}g/mo`], ['⏳', 'Stay', `${W.years} yrs`]]);
-        html += lede(`A realm that trusts your House may send a child of its court to be raised at yours. Its treasury pays ${W.fee}g a month for their keep, your standing there grows, and your own children raised beside them make a friend of that court. At war, the ward is a hostage in your keeping.`);
+        html += chips([['🎓', 'Wards', `${wards.length}/${seats}`], ['💰', 'Fee', `${Utils.formatGold(W.fee)}g/mo`], ['⏳', 'Stay', `${W.years} yrs`]]);
+        html += lede(`A realm that trusts your House may send a child of its court to be raised at yours. Its treasury pays ${Utils.formatGold(W.fee)}g a month for their keep, your standing there grows, and your own children raised beside them make a friend of that court. At war, the ward is a hostage in your keeping.`);
 
         html += sectionHead('At Your Court');
         if (!wards.length) {
@@ -145,7 +146,7 @@ Object.assign(ActionMenu, {
             html += rowList(wards.map(w => ({
                 icon: w.held ? '⛓️' : (w.gender === 'female' ? '👧' : '👦'),
                 name: `${esc(w.firstName)}${w.dynasty ? ' ' + esc(w.dynasty) : ''} of ${esc(w.kingdomName)}`,
-                desc: `Age ${Raising.wardAge(world, w)}${w.royalId ? ' · of the royal blood' : ''} · ${w.held ? 'held as a hostage in the war' : `goes home on day ${w.until}`} · ${w.feesPaid || 0}g paid for their keep`,
+                desc: `Age ${Raising.wardAge(world, w)}${w.royalId ? ' · of the royal blood' : ''} · ${w.held ? 'held as a hostage in the war' : `goes home on day ${w.until}`} · ${Utils.formatGold(w.feesPaid || 0)}g paid for their keep`,
                 attrs: `onclick="window._raisingUI.sendHome('${esc(w.id)}')"`,
                 side: w.held ? `Free (+${W.warReturnReputation} rep)` : `Send home (${W.sendHomeReputation} rep)`, tone: w.held ? 'good' : 'warn',
             })));
@@ -156,7 +157,7 @@ Object.assign(ActionMenu, {
             icon: '🏰', name: esc(o.kingdom.name), desc: `standing ${o.rep}`,
             off: !o.ok, why: esc(o.reason || ''),
             attrs: `onclick="window._raisingUI.takeWard('${esc(o.kingdom.id)}')"`,
-            side: `+${o.fee}g/mo`,
+            side: `+${Utils.formatGold(o.fee)}g/mo`,
         })));
 
         const hist = (player.house.wardHistory || []).slice().reverse();

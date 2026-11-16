@@ -9,6 +9,7 @@ import { ActionMenu } from './_ref.js';
 import { Patronage } from '../../systems/patronage.js';
 import { Fashions } from '../../world/fashions.js';
 import { BTN_GOLD, BTN_PLAIN, BTN_OFF, BTN_RED, panelTabs, chips, purse, sectionHead, card, actRow, rowList, price } from './uiKit.js';
+import { Utils } from '../../core/utils.js';
 
 const TABS = [['clients', '🎨 Clients'], ['works', '🏗️ Great Works'], ['gallery', '🖼️ Gallery'], ['world', '🌍 Wonders'], ['fashion', '👗 Fashion at Court']];
 const MUTED = 'font-size:11px; color:#9d937c;';
@@ -55,7 +56,7 @@ function clientCard(player, world, c, offers) {
     const offer = offers.find(o => o.clientId === c.id);
     if (offer) {
         html += `<div style="color:#f0b35a; font-size:11px; margin-top:4px;">🎭 ${esc(offer.rivalName)} courts ${esc(c.name)}: ${Math.max(0, offer.dueDay - world.day)} day(s) to answer.</div>`;
-        html += act(`Match it (${offer.counter}g)`, ['offer', c.id, 'match'], BTN_GOLD, player.gold >= offer.counter);
+        html += act(`Match it (${Utils.formatGold(offer.counter)}g)`, ['offer', c.id, 'match'], BTN_GOLD, player.gold >= offer.counter);
         html += act('Let them go', ['offer', c.id, 'release'], BTN_RED);
     }
     if (c.task) {
@@ -91,7 +92,7 @@ function clientCard(player, world, c, offers) {
     html += `<div>${act('Raise stipend (+20%)', ['raise', c.id], BTN_PLAIN)}${act('Dismiss', ['dismiss', c.id], BTN_RED)}</div>`;
     return card(html, {
         title: esc(c.name),
-        side: `${profName(c.profession)} · skill ${Math.floor(c.skill)} · ${c.stipend}g/week · ${c.worksDone || 0} work(s)`,
+        side: `${profName(c.profession)} · skill ${Math.floor(c.skill)} · ${Utils.formatGold(c.stipend)}g/week · ${c.worksDone || 0} work(s)`,
     });
 }
 
@@ -116,7 +117,7 @@ function clientsTab(player, world, tile) {
             rows.push(row({
                 icon: (Patronage.professions()[cand.profession] || {}).icon || '🎨',
                 name: `${esc(cand.name)} <span style="font-size:11px; font-weight:400; color:#9d937c;">· Take into service</span>`,
-                desc: `${profName(cand.profession)} · skill ${cand.skill} · ${esc(tmp.name || '')} · wants ${esc((amb.name || '').toLowerCase())} · ${cand.stipend}g/week`,
+                desc: `${profName(cand.profession)} · skill ${cand.skill} · ${esc(tmp.name || '')} · wants ${esc((amb.name || '').toLowerCase())} · ${Utils.formatGold(cand.stipend)}g/week`,
                 why: full ? 'You keep as many clients as you can.' : 'Not enough gold',
                 note: esc((Patronage.professions()[cand.profession] || {}).blurb || ''),
                 side: price(fee, player.gold >= fee),
@@ -131,7 +132,7 @@ function clientsTab(player, world, tile) {
 /** Set the court's fashion (systems/patronage.js setFashion → world/fashions.js). */
 function fashionTab(player, world, tile) {
     const P = Fashions.config().playerSet;
-    let html = `<p class="pk-lede">A patron with standing at a royal court can set its fashion for a season: feasts, gifts and commissions that make the nobles and merchants want silks, spiced wine or jewels. It spreads from the capital to the towns around, and whoever has the goods sells them dear. It costs ${P.prestige} House Prestige and ${P.gold} gold (half with an artist or architect in your pay), needs standing ${P.minReputation} at that court (or its crown), and the court tolerates one of yours every ${P.cooldown} days.</p>`;
+    let html = `<p class="pk-lede">A patron with standing at a royal court can set its fashion for a season: feasts, gifts and commissions that make the nobles and merchants want silks, spiced wine or jewels. It spreads from the capital to the towns around, and whoever has the goods sells them dear. It costs ${P.prestige} House Prestige and ${Utils.formatGold(P.gold)} gold (half with an artist or architect in your pay), needs standing ${P.minReputation} at that court (or its crown), and the court tolerates one of yours every ${P.cooldown} days.</p>`;
     const running = Fashions.active(world);
     if (running.length) {
         html += rowList(running.map(f => {
@@ -151,7 +152,7 @@ function fashionTab(player, world, tile) {
             icon: def.icon || '👗', name: esc(def.name),
             desc: esc(def.text || ''),
             note: esc(goods), why: esc(q.reason || ''),
-            side: `${q.prestige || P.prestige} Prestige · ${q.gold || P.gold}g`, tone: 'gold',
+            side: `${q.prestige || P.prestige} Prestige · ${Utils.formatGold(q.gold || P.gold)}g`, tone: 'gold',
             title: q.ok ? '' : q.reason,
         }, ['fashion', def.id], q.ok));
     }
@@ -168,14 +169,14 @@ function projectCard(player, world, p) {
         const needs = Patronage.stageNeeds(player, p, present);
         const lines = needs.goods.map(g => `${g.delivered}/${g.need} ${g.id}${g.missing ? (g.have ? ` <span style="color:#8fd18a;">(${g.have} in your packs)</span>` : '') : ' ✓'}`).join(' · ');
         const buyCost = needs.goods.reduce((s, g) => s + Math.max(0, g.missing - g.have) * g.price, 0);
-        html += `<div style="font-size:11px;">Wants: ${lines || 'no goods'} · ${needs.goldPaid ? 'gold paid ✓' : `${needs.gold}g for the masons`}</div>`;
-        html += `<div style="${MUTED}">Then ${needs.days} days of labour at ${needs.labour}g a day.${present ? '' : ' Goods in your packs can only be delivered on site; anything else is bought for you at a markup.'}</div>`;
+        html += `<div style="font-size:11px;">Wants: ${lines || 'no goods'} · ${needs.goldPaid ? 'gold paid ✓' : `${Utils.formatGold(needs.gold)}g for the masons`}</div>`;
+        html += `<div style="${MUTED}">Then ${needs.days} days of labour at ${Utils.formatGold(needs.labour)}g a day.${present ? '' : ' Goods in your packs can only be delivered on site; anything else is bought for you at a markup.'}</div>`;
         const hasGoods = needs.goods.some(g => g.have > 0);
         html += act('Deliver from your packs', ['deliver', p.id, false], BTN_PLAIN, hasGoods || (!needs.goldPaid && player.gold >= needs.gold));
-        html += act(`Buy the rest and deliver (${buyCost}g${needs.goldPaid ? '' : ` + ${needs.gold}g`})`, ['deliver', p.id, true], BTN_GOLD, player.gold >= buyCost + (needs.goldPaid ? 0 : needs.gold));
+        html += act(`Buy the rest and deliver (${Utils.formatGold(buyCost)}g${needs.goldPaid ? '' : ` + ${Utils.formatGold(needs.gold)}g`})`, ['deliver', p.id, true], BTN_GOLD, player.gold >= buyCost + (needs.goldPaid ? 0 : needs.gold));
     } else {
         const cond = Patronage.conditions(player, world, p);
-        html += `<div style="font-size:11px;">${Math.floor(p.progress)}/${stage.days} days of labour · ${stage.labour}g a day${bar(p.progress, stage.days, '#ffcf6a')}</div>`;
+        html += `<div style="font-size:11px;">${Math.floor(p.progress)}/${stage.days} days of labour · ${Utils.formatGold(stage.labour)}g a day${bar(p.progress, stage.days, '#ffcf6a')}</div>`;
         if (cond.stall) html += `<div style="color:#f0b35a; font-size:11px;">⏸️ Work stands still: ${esc(Patronage.STALL_TEXT[cond.stall])}.</div>`;
         else html += `<div style="color:#8fd18a; font-size:11px;">Pace ×${cond.speed.toFixed(2)}${cond.notes.length ? ` (${esc(cond.notes.join(', '))})` : ''}</div>`;
     }
@@ -224,7 +225,7 @@ function worksTab(player, world, tile) {
             desc: esc(def.blurb || ''),
             note: `${esc(Patronage.effectText(def.effects))} · +${def.prestige} Prestige${def.unique ? ' · unique: first to finish claims it' : ''}`,
             why: esc(can.reason || ''),
-            side: `<span style="display:block;">${def.stages.length} stages · ~${days} days</span><span style="display:block; font-size:11px; color:#9d937c;">${gold}g + goods + wages</span>`,
+            side: `<span style="display:block;">${def.stages.length} stages · ~${days} days</span><span style="display:block; font-size:11px; color:#9d937c;">${Utils.formatGold(gold)}g + goods + wages</span>`,
             tone: 'gold',
         }, ['found', id], can.ok));
     }
@@ -298,10 +299,10 @@ Object.assign(ActionMenu, {
         let html = '<div style="font-size:12px;">';
         html += chips([
             { icon: '🎨', label: 'Clients', value: `${s.clients}/${s.max}`, cls: s.clients < s.max ? 'gold' : '' },
-            ['📜', 'Stipends', `${s.weekly}g a week`],
+            ['📜', 'Stipends', `${Utils.formatGold(s.weekly)}g a week`],
             ['🏗️', 'Great Works rising', s.projects],
             ['🏛️', 'Raised', s.built],
-            ['💸', 'Spent on patronage', `${s.spent}g`],
+            ['💸', 'Spent on patronage', `${Utils.formatGold(s.spent)}g`],
             purse(player.gold),
         ]);
         html += panelTabs(game, {

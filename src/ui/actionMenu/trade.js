@@ -264,7 +264,7 @@ Object.assign(ActionMenu, {
                 icon: '💰',
                 name: 'Sell Property',
                 desc: 'Give up the works and take back a quarter of the cost',
-                side: `Refund: ${Math.floor(propType.cost * 0.25)}g`,
+                side: `Refund: ${Utils.formatGold(Math.floor(propType.cost * 0.25))}g`,
                 tone: 'bad',
                 attrs: 'onclick="window.sellPropertyAction()"',
             }]);
@@ -285,7 +285,7 @@ Object.assign(ActionMenu, {
                 if (tile.playerProperties && !tile.playerProperties.length) tile.playerProperties = null;
                 const idx = (player.properties || []).findIndex(r => r.q === tile.q && r.r === tile.r && r.type === prop.type);
                 if (idx !== -1) player.properties.splice(idx, 1);
-                game.ui.showNotification('Property Sold', `${prop.name} sold for ${refund} gold`, 'success');
+                game.ui.showNotification('Property Sold', `${prop.name} sold for ${Utils.formatGold(refund)} gold`, 'success');
                 game.ui.updateStats(player, game.world);
                 game.ui.hideCustomPanel();
             };
@@ -309,10 +309,10 @@ Object.assign(ActionMenu, {
         const adminMult = PlayerEconomy.getAdministrationMultiplier(game.player);
         const opRows = [
             { icon: '⚙️', name: 'Production', desc: productionText, side: `Rate: ${prodRateText}/day`, tone: 'good' },
-            { icon: '💰', name: 'Upkeep', desc: adminMult > 1 ? `incl. +${Math.round((adminMult - 1) * 100)}% admin overhead (${(game.player.properties || []).length} properties)` : 'Paid daily from your purse', side: `-${upkeep}g/day`, tone: 'bad' },
+            { icon: '💰', name: 'Upkeep', desc: adminMult > 1 ? `incl. +${Math.round((adminMult - 1) * 100)}% admin overhead (${(game.player.properties || []).length} properties)` : 'Paid daily from your purse', side: `-${Utils.formatGold(upkeep)}g/day`, tone: 'bad' },
         ];
         if (prop.type === 'tavern') {
-            opRows.push({ icon: '💰', name: 'Total Earnings', side: `${prop.storage || 0}g`, tone: 'gold' });
+            opRows.push({ icon: '💰', name: 'Total Earnings', side: `${Utils.formatGold(prop.storage || 0)}g`, tone: 'gold' });
         } else {
             const stored = `${prop.storage} / ${PlayerEconomy.getStorageCapacity(game.player, prop)}`;
             const wasted = prop.wastedToday > 0 ? `<span style="color:#e0846a;">Full — ${prop.wastedToday} lost today</span> · ` : '';
@@ -358,7 +358,7 @@ Object.assign(ActionMenu, {
                 <div style="margin-bottom:10px;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
                         <div style="font-size:11px; color:#9d937c; text-transform:uppercase; letter-spacing:1px;">Active Recipe</div>
-                        ${prop.activeRecipe ? `<div style="font-size:11px; color:#9d937c;">Change cost: <span style="color:#ffcf6a; font-weight:600;">${retoolingCost}g</span></div>` : ''}
+                        ${prop.activeRecipe ? `<div style="font-size:11px; color:#9d937c;">Change cost: <span style="color:#ffcf6a; font-weight:600;">${Utils.formatGold(retoolingCost)}g</span></div>` : ''}
                     </div>
                     <select id="workshopRecipeSelector" onchange="window.selectRecipe(this.value)" ${isRetooling ? 'disabled' : ''} style="width:100%; padding:8px 32px 8px 10px; background:rgba(0,0,0,0.3); border:1px solid rgba(245,197,66,0.25); color:var(--gold); border-radius:var(--radius-sm); font-family:var(--font-body); font-size:13px; font-weight:600; outline:none; cursor:pointer; -webkit-appearance:none; -moz-appearance:none; appearance:none; background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23f5c542' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E\"); background-repeat:no-repeat; background-position:right 8px center; background-size:12px; transition:all var(--transition-fast);">
                         <option value="" style="background:#0c1220; color:var(--text-primary);">-- Select Recipe --</option>
@@ -420,7 +420,7 @@ Object.assign(ActionMenu, {
             };
             html += sectionHead('🍻 Tavern Operations');
             html += chips([
-                { icon: '💰', label: "Today's Income", value: `<span style="color:#8fd18a;">${todayIncome}g</span>` },
+                { icon: '💰', label: "Today's Income", value: `<span style="color:#8fd18a;">${Utils.formatGold(todayIncome)}g</span>` },
                 { icon: '🎲', label: 'Gambling Tables', value: `${tables} / ${maxTables}`, cls: 'gold' },
             ]);
             html += lede('Stock your tavern with beer and liquor to boost daily income. Each table adds +15% income.');
@@ -447,7 +447,7 @@ Object.assign(ActionMenu, {
                     desc: 'A false wall and a stair to the cellar: the tavern stays the honest front, the tables run below',
                     note: `<span style="color:#f0b35a;">${tablesLaw.why}</span>`,
                     off: game.player.gold < backRoomCost,
-                    why: `Fitting it out costs ${backRoomCost}g`,
+                    why: `Fitting it out costs ${Utils.formatGold(backRoomCost)}g`,
                     attrs: 'onclick="window.fitBackRoom()"',
                     side: price(backRoomCost, game.player.gold >= backRoomCost),
                 } : {
@@ -553,7 +553,7 @@ Object.assign(ActionMenu, {
                     const partsRecipe = Technology.PARTS_CRAFTING[partsType];
                     const partsInInv = (game.player.inventory && game.player.inventory[partsType]) || 0;
 
-                    const craftCost = `Cost: ${partsRecipe ? partsRecipe.gold + 'g + ' + Technology.formatMaterials(partsRecipe.materials) : '?'} → ${partsRecipe ? partsRecipe.quantity : '?'} parts (${partsRecipe ? partsRecipe.days : '?'} days)`;
+                    const craftCost = `Cost: ${partsRecipe ? Utils.formatGold(partsRecipe.gold) + 'g + ' + Technology.formatMaterials(partsRecipe.materials) : '?'} → ${partsRecipe ? partsRecipe.quantity : '?'} parts (${partsRecipe ? partsRecipe.days : '?'} days)`;
                     html += rowList([{
                         icon: partsRecipe ? partsRecipe.icon : '🔧',
                         name: `Craft Parts <span style="font-weight:400; color:#9d937c;">· ${partsRecipe ? partsRecipe.name : 'Parts'} in inventory: <b style="color:#ece2c8;">${partsInInv}</b></span>`,
@@ -571,8 +571,8 @@ Object.assign(ActionMenu, {
                     html += lede(labConfig.description);
                     html += kv('Lab', labConfig.labName);
                     html += kv('Enables research in', labConfig.categories.map(c => { const cat = Object.values(Technology.CATEGORIES).find(cc => cc.id === c); return cat ? cat.name : c; }).join(', '));
-                    html += kv('Cost', `<span style="color:#ffcf6a;">${labConfig.labCost}g</span> + ${Technology.formatMaterials(labConfig.labMaterials)}`);
-                    html += kv('Upkeep', `Adds ${labConfig.labUpkeep}g/day upkeep`);
+                    html += kv('Cost', `<span style="color:#ffcf6a;">${Utils.formatGold(labConfig.labCost)}g</span> + ${Technology.formatMaterials(labConfig.labMaterials)}`);
+                    html += kv('Upkeep', `Adds ${Utils.formatGold(labConfig.labUpkeep)}g/day upkeep`);
                     html += rowList([{
                         icon: '🔬',
                         name: 'Build Lab',
@@ -664,7 +664,7 @@ Object.assign(ActionMenu, {
                 const inputReturn = (prop.inputStorage > 0 && oldRecipe)
                     ? `\n• ${prop.inputStorage} ${oldRecipe.input} returned to inventory`
                     : '';
-                const msg = `Retool workshop to produce ${newRecipe ? newRecipe.name : recipeId}?\n\n• Cost: ${retoolingCost} gold\n• Downtime: ${retoolingDays} days (no production)${inputReturn}`;
+                const msg = `Retool workshop to produce ${newRecipe ? newRecipe.name : recipeId}?\n\n• Cost: ${Utils.formatGold(retoolingCost)} gold\n• Downtime: ${retoolingDays} days (no production)${inputReturn}`;
                 if (!confirm(msg)) {
                     // Reset dropdown to current value
                     const sel = document.getElementById('workshopRecipeSelector');
@@ -760,7 +760,7 @@ Object.assign(ActionMenu, {
             }
             const cost = 150 + tables * 100;
             if (game.player.gold < cost) {
-                game.ui.showNotification('Not Enough Gold', `Need ${cost} gold`, 'error');
+                game.ui.showNotification('Not Enough Gold', `Need ${Utils.formatGold(cost)} gold`, 'error');
                 return;
             }
             PlayerCoin.pay(game.world, game.player, cost, PlayerEconomy.propertyTown(game.world, tile, tile.playerProperty) || { q: tile.q, r: tile.r }, 'worksBought');
@@ -830,9 +830,9 @@ Object.assign(ActionMenu, {
                 html += actRow({
                     icon: '🐫',
                     name: `${s.name} <span style="font-size:10px; color:#9d937c; font-weight:normal;">(${s.type})</span>`,
-                    desc: `📏 ${dist} hexes · <span style="color:${trendColor};" title="Market Trend">${trendIcon} ${basePrice}g/unit</span>`,
+                    desc: `📏 ${dist} hexes · <span style="color:${trendColor};" title="Market Trend">${trendIcon} ${Utils.formatGold(basePrice)}g/unit</span>`,
                     attrs: `onclick="window.sendStorageCaravan(${s.q}, ${s.r})"`,
-                    side: `<span style="color:#8fd18a;">💰 ~${estValue}g</span> <span style="color:#9d937c; font-size:11px;">Send ›</span>`,
+                    side: `<span style="color:#8fd18a;">💰 ~${Utils.formatGold(estValue)}g</span> <span style="color:#9d937c; font-size:11px;">Send ›</span>`,
                 });
                 count++;
             }
@@ -1103,7 +1103,7 @@ Object.assign(ActionMenu, {
 
         <div class="trade-header">
             <span class="trade-settlement-badge" style="text-transform:capitalize;">${ST ? `${ST.icon || '🏪'} ${ST.name} · ${settlementType} market` : `${settlementType} market`}${craftBadge}</span>
-            <span class="trade-purse">💰 ${Math.floor(playerGold).toLocaleString()} gold</span>
+            <span class="trade-purse">💰 ${Utils.formatGold(playerGold)} gold</span>
         </div>
         ${outlookHtml}
 
@@ -1226,7 +1226,7 @@ Object.assign(ActionMenu, {
                     if (!ActionMenu.commitPendingAP(game)) return;
                     const result = Trading.buyGoods(game.player, good, qty, tile.settlement, grade);
                     if (result.success) {
-                        game.ui.showNotification('Purchase Complete', `Bought ${qty}x ${gName}${good.name} for ${result.spent} gold`, 'success');
+                        game.ui.showNotification('Purchase Complete', `Bought ${qty}x ${gName}${good.name} for ${Utils.formatGold(result.spent)} gold`, 'success');
                         if (tile.settlement.kingdom) {
                             game.player.learnAboutKingdom(tile.settlement.kingdom, 'economy');
                         }
@@ -1254,7 +1254,7 @@ Object.assign(ActionMenu, {
                     : Trading.sellGoods(game.player, goodId, qty, tile.settlement, game.world, grade);
                 if (result.success) {
                     const good = PlayerEconomy.GOODS[goodId.toUpperCase()];
-                    game.ui.showNotification('Sale Complete', `Sold ${qty}x ${gName}${good.name} for ${result.earned} gold`, 'success');
+                    game.ui.showNotification('Sale Complete', `Sold ${qty}x ${gName}${good.name} for ${Utils.formatGold(result.earned)} gold`, 'success');
                     if (tile.settlement.kingdom) {
                         game.player.learnAboutKingdom(tile.settlement.kingdom, 'economy');
                     }
@@ -1462,7 +1462,7 @@ Object.assign(ActionMenu, {
             ActionMenu.showQuantityInput(`Buy ${displayName}`, maxQty, (qty) => {
                 const totalCost = price * qty;
                 if (game.player.gold < totalCost) {
-                    game.ui.showNotification('Not Enough Gold', `You need ${totalCost} gold but only have ${Math.floor(game.player.gold)}.`, 'error');
+                    game.ui.showNotification('Not Enough Gold', `You need ${Utils.formatGold(totalCost)} gold but only have ${Utils.formatGold(game.player.gold)}.`, 'error');
                     return;
                 }
                 if (!PlayerInventory.canAdd(game.player, itemId)) {
@@ -1476,7 +1476,7 @@ Object.assign(ActionMenu, {
                     ActionMenu.showNpcTradeMenu(game, npc);
                     return;
                 }
-                game.ui.showNotification('Purchase Complete', `Bought ${res.qty}x ${displayName} for ${res.cost} gold`, 'success');
+                game.ui.showNotification('Purchase Complete', `Bought ${res.qty}x ${displayName} for ${Utils.formatGold(res.cost)} gold`, 'success');
                 game.ui.updateStats(game.player, game.world);
                 ActionMenu.showNpcTradeMenu(game, npc);
             });
@@ -1502,7 +1502,7 @@ Object.assign(ActionMenu, {
                     game.ui.showNotification('No Sale', res.reason || 'They will not buy that.', 'error');
                     return;
                 }
-                game.ui.showNotification('Sale Complete', `Sold ${res.qty}x ${displayName} for ${res.paid} gold${res.qty < qty ? ' (all they could pay for)' : ''}`, 'success');
+                game.ui.showNotification('Sale Complete', `Sold ${res.qty}x ${displayName} for ${Utils.formatGold(res.paid)} gold${res.qty < qty ? ' (all they could pay for)' : ''}`, 'success');
                 game.ui.updateStats(game.player, game.world);
                 ActionMenu.showNpcTradeMenu(game, npc);
             });
@@ -1628,7 +1628,7 @@ Object.assign(ActionMenu, {
             return actRow({
                 icon: unit.icon,
                 name: `${unit.name}${tech ? ' <span style="font-size:9.5px; letter-spacing:1px; color:#ce93d8;">TECH</span>' : ''}${ok ? '' : ' 🔒'}`,
-                desc: `${unit.description} · Strength ${unit.strength} · Upkeep ${unit.upkeep}g/day`,
+                desc: `${unit.description} · Strength ${unit.strength} · Upkeep ${Utils.formatGold(unit.upkeep)}g/day`,
                 note: [traits ? `<span style="color:#ce93d8;">✨ ${traits}</span>` : '', ok ? ActionMenu.recruitArmsNote(game, unit.id, tile.settlement) : ''].filter(Boolean).join(' '),
                 off: !live,
                 why: ok ? (remaining > 0 ? '' : 'No more recruits here today') : why,
@@ -1695,7 +1695,7 @@ Object.assign(ActionMenu, {
 
             const techCost = PlayerMilitary.getRecruitCost(game.player, unit, tile.settlement, game.world);
             if (game.player.gold < techCost) {
-                game.ui.showNotification('Cannot Recruit', `Need ${techCost} gold`, 'error');
+                game.ui.showNotification('Cannot Recruit', `Need ${Utils.formatGold(techCost)} gold`, 'error');
                 return;
             }
 
@@ -1802,7 +1802,7 @@ Object.assign(ActionMenu, {
                     name: offer.name,
                     desc: offer.reputation,
                     why: `${offer.reputation} · not enough gold to hire`,
-                    note: `<span style="color:#b9ae94;">Roster: ${totalUnits} units (${rosterText}) · Loyalty: ${Math.floor(offer.loyalty)} | Daily Wage: ${offer.dailyWage}g | Contract: ${offer.duration} days</span>`,
+                    note: `<span style="color:#b9ae94;">Roster: ${totalUnits} units (${rosterText}) · Loyalty: ${Math.floor(offer.loyalty)} | Daily Wage: ${Utils.formatGold(offer.dailyWage)}g | Contract: ${offer.duration} days</span>`,
                     off: !canHire,
                     attrs: `onclick="window.hireMercCompany('${offer.offerId}')"`,
                     side: `<span style="font-size:11px; color:#9d937c;">Hire</span> ${price(offer.hireCost, canHire)}`,
@@ -1821,7 +1821,7 @@ Object.assign(ActionMenu, {
                     icon: company.icon || '⚔️',
                     name: company.name,
                     desc: company.reputation || 'Professional mercenary company',
-                    note: `<span style="color:${loyaltyColor};">Loyalty: ${loyalty} | Wage: ${company.dailyWage}g/day | Days Left: ${company.daysRemaining}</span>`,
+                    note: `<span style="color:${loyaltyColor};">Loyalty: ${loyalty} | Wage: ${Utils.formatGold(company.dailyWage)}g/day | Days Left: ${company.daysRemaining}</span>`,
                     side: `<button onclick="window.payMercBonus('${company.id}')" style="${BTN_GOLD}">+ Loyalty (120g)</button><button onclick="window.dismissMercCompany('${company.id}')" style="${BTN_RED}">Dismiss</button>`,
                 };
             }));
@@ -1848,7 +1848,7 @@ Object.assign(ActionMenu, {
                 note: `<span style="color:#b9ae94;">Duration: ${contract.duration} days | Min Strength: ${contract.minStrength} | Foe ≈${quote.opposition} | Odds ≈${winPct}%</span>`,
                 off: !canAccept,
                 attrs: `onclick="window.acceptContract('${key}')"`,
-                side: `${quote.payment} gold`,
+                side: `${Utils.formatGold(quote.payment)} gold`,
                 tone: 'good',
             });
         }

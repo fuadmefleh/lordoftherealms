@@ -47,7 +47,13 @@ export class WorldUnit {
         if (def && def.extraFields) Object.assign(this, JSON.parse(JSON.stringify(def.extraFields)));
         // (the theme's coin is not coin yet: the world draws it out of the nearest town's
         // purse when the unit takes the road — World.fundUnitCoin — never from nothing)
-        if (this.inventory.gold > 0) this._rolledGold = this.inventory.gold;
+        if (this.inventory.gold > 0) {
+            this._rolledGold = this.inventory.gold;
+            // (the pack the roll was put in: a spawner that gives the unit a pack of its own —
+            // a lair's band setting out empty, a crown's war chest — leaves no roll to fund.
+            // Not saved: a loaded unit's roll is funded as before)
+            Object.defineProperty(this, '_rolledInv', { value: this.inventory, enumerable: false, writable: true, configurable: true });
+        }
     }
 
     /** Unit types from data/units.json, installed by DataLoader. */

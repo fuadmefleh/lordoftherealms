@@ -31,6 +31,7 @@ import { Swimming } from '../player/swimming.js';
 import { Hotbar } from './hotbar.js';
 import { InnerMapSpearFishing } from './innerMapSpearFishing.js';
 import { SpearFishing } from '../player/spearFishing.js';
+import { Utils } from '../core/utils.js';
 
 const BTN_ID = 'innerMapSurfaceBtn';
 
@@ -385,7 +386,7 @@ export const InnerMapDiving = {
         }
         Diving.removeFind(u.bed, f);
         if (f.rare) {
-            _note(game, '✨ Treasure!', `${f.text || 'Something precious in the silt'}: ${f.icon} ${f.name}${f.gold ? ` (${f.gold} gold)` : f.qty > 1 ? ` ×${f.qty}` : ''}.`, 'success');
+            _note(game, '✨ Treasure!', `${f.text || 'Something precious in the silt'}: ${f.icon} ${f.name}${f.gold ? ` (${Utils.formatGold(f.gold)} gold)` : f.qty > 1 ? ` ×${f.qty}` : ''}.`, 'success');
         } else {
             _note(game, '🐚 Found', `${f.icon} ${f.name}${f.qty > 1 ? ` ×${f.qty}` : ''}${f.text ? `: ${f.text}` : ''}.`, 'success');
         }

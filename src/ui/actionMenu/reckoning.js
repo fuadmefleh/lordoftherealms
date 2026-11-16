@@ -11,6 +11,7 @@ import { ActionMenu } from './_ref.js';
 import { Reckoning } from '../../systems/reckoning.js';
 import { panelTabs, esc, lede, bullets, chips, card, more } from './uiKit.js';
 import { Names } from '../../core/names.js';
+import { Utils } from '../../core/utils.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 const UP = '#7bd88f', DOWN = '#e57373';
@@ -19,6 +20,9 @@ const TABS = [['last', '⏳ Last season'], ['now', '📅 This season so far'], [
 const sgn = (n) => `${n > 0 ? '+' : n < 0 ? '−' : '±'}${Math.abs(n)}`;
 const col = (n) => (n > 0 ? UP : n < 0 ? DOWN : 'var(--text-secondary)');
 const num = (n) => `<span style="color:${col(n)}; font-weight:bold;">${sgn(n)}</span>`;
+// (coin: up to two decimals, Utils.formatGold)
+const sgnG = (n) => `${n > 0 ? '+' : n < 0 ? '−' : '±'}${Utils.formatGold(Math.abs(n))}`;
+const numG = (n) => `<span style="color:${col(n)}; font-weight:bold;">${sgnG(n)}</span>`;
 const _cap = (s) => (s ? String(s).charAt(0).toUpperCase() + String(s).slice(1) : '');
 
 /** A section of the report as a card: '💰 Money by source' → icon + title; nothing when empty. */
@@ -30,10 +34,10 @@ function _card(title, body) {
 
 function _money(m) {
     let html = chips([
-        ['💰', 'Purse', `${m.goldFrom.toLocaleString()}g → ${m.goldTo.toLocaleString()}g (${num(m.change)}g)`],
-        ['', 'Earned less spent', `${num(m.net)}g`],
+        ['💰', 'Purse', `${Utils.formatGold(m.goldFrom)}g → ${Utils.formatGold(m.goldTo)}g (${numG(m.change)}g)`],
+        ['', 'Earned less spent', `${numG(m.net)}g`],
     ]);
-    const line = (l) => `<div style="display:flex; justify-content:space-between; font-size:12px;"><span>${esc(l.name)}</span><span style="color:${col(l.amount)};">${sgn(l.amount)}g</span></div>`;
+    const line = (l) => `<div style="display:flex; justify-content:space-between; font-size:12px;"><span>${esc(l.name)}</span><span style="color:${col(l.amount)};">${sgnG(l.amount)}g</span></div>`;
     if (m.income.length) html += `<div style="${NOTE} margin-top:4px;">Came in from</div>${m.income.map(line).join('')}`;
     if (m.expenses.length) html += `<div style="${NOTE} margin-top:4px;">Went out on</div>${m.expenses.map(line).join('')}`;
     if (!m.income.length && !m.expenses.length) html += `<div style="${NOTE}">No money moved through your books this season.</div>`;

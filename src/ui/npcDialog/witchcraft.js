@@ -4,6 +4,7 @@ import { ProfaneCrimes } from '../../systems/profaneCrimes.js';
 import { InnerMap } from '../../world/innerMap.js';
 import { dialogState } from './shared.js';
 import { _render, _syncTranscript, _renderChoices, _renderChoiceList } from './render.js';
+import { Utils } from '../../core/utils.js';
 
 function _ctx() {
     const game = dialogState._game;
@@ -46,7 +47,7 @@ function _open(c) {
         { icon: '⚖️', label: 'Before the priest, I name you a witch.', group: 'deal', cls: 'npc-dialog-choice-dark',
             tooltip: `A trial: ${Math.round(fair * 100)}% the town finds against her. Condemned, she burns; you take a share of her purse and her land. Acquitted, you are the false accuser.`,
             onPick: () => _resolve(c, 'trial', false) },
-        { icon: '💰', label: `Before the priest — and a word in his ear (${W.trial.bribeGold} gold).`, group: 'deal',
+        { icon: '💰', label: `Before the priest — and a word in his ear (${Utils.formatGold(W.trial.bribeGold)} gold).`, group: 'deal',
             cls: rich ? 'npc-dialog-choice-dark' : 'npc-dialog-choice-muted',
             tooltip: `The priest is paid: ${Math.round(bought * 100)}% the town finds against her.`,
             onPick: () => (rich ? _resolve(c, 'trial', true) : null) },

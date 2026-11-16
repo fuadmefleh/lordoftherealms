@@ -10,6 +10,7 @@ import { ActionMenu } from './_ref.js';
 import { Literacy } from '../../systems/literacy.js';
 import { TownSchool } from '../../systems/townSchool.js';
 import { lede, chips, rowList, card, price, purse, more, esc } from './uiKit.js';
+import { Utils } from '../../core/utils.js';
 
 const pct = r => (r == null ? '—' : `${Math.round(r * 100)}`);
 const fx = (f, good = true) => {
@@ -45,9 +46,9 @@ function _schoolsCard(v) {
     if (s) {
         const pupils = Object.entries(s.pupils || {}).map(([k, n]) => `${n} ${k === 'parish' ? 'at the parish school' : k === 'grammar' ? 'at the town school' : k === 'tutor' ? 'with tutors' : 'in the church\'s learning'}`).join(', ');
         rows.push({ icon: '⛪', name: 'The parish school', desc: s.priest ? `${esc(s.priest)} teaches letters and scripture` : 'No priest here: no parish school', side: s.priest ? 'open' : '—', tone: s.priest ? 'good' : '' });
-        if (v.founded || v.endowed) rows.push({ icon: '🏫', name: 'The town school', desc: `${s.master ? `${esc(s.master)} is its master` : 'No master'}${v.endowed ? ' · endowed by you' : v.founded ? ` · founded by ${esc(v.founded.by)}` : ''}`, side: `fund ${v.fund}g`, tone: 'good' });
-        if (v.church) rows.push({ icon: '✝️', name: 'The church\'s school', desc: `The church tithes for its pupils${v.church.given ? ` (${v.church.given}g so far)` : ''}`, side: 'yearly' });
-        if (v.guild) rows.push({ icon: '⚒️', name: `${esc(v.guild.name)}'s money`, desc: `Keeps its apprentices at their letters${v.guild.given ? ` (${v.guild.given}g so far)` : ''}`, side: 'yearly' });
+        if (v.founded || v.endowed) rows.push({ icon: '🏫', name: 'The town school', desc: `${s.master ? `${esc(s.master)} is its master` : 'No master'}${v.endowed ? ' · endowed by you' : v.founded ? ` · founded by ${esc(v.founded.by)}` : ''}`, side: `fund ${Utils.formatGold(v.fund)}g`, tone: 'good' });
+        if (v.church) rows.push({ icon: '✝️', name: 'The church\'s school', desc: `The church tithes for its pupils${v.church.given ? ` (${Utils.formatGold(v.church.given)}g so far)` : ''}`, side: 'yearly' });
+        if (v.guild) rows.push({ icon: '⚒️', name: `${esc(v.guild.name)}'s money`, desc: `Keeps its apprentices at their letters${v.guild.given ? ` (${Utils.formatGold(v.guild.given)}g so far)` : ''}`, side: 'yearly' });
         if (pupils) rows.push({ icon: '🎒', name: 'Pupils this year', desc: pupils, side: '' });
     }
     return rowList(rows, '🏫 Schools');
@@ -74,7 +75,7 @@ function _endowSection(game, s) {
     if (v && v.endowed && !v.endowed.closed) {
         const en = v.endowed;
         return rowList([
-            { icon: '🏫', name: 'Your school', desc: `${en.wage}g wage and ${en.fund}g to the fund each month${en.missed ? ` · ${en.missed} month${en.missed === 1 ? '' : 's'} unpaid` : ''}${en.spent ? ` · ${en.spent}g so far` : ''}`, side: 'endowed', tone: en.missed ? 'warn' : 'good' },
+            { icon: '🏫', name: 'Your school', desc: `${Utils.formatGold(en.wage)}g wage and ${Utils.formatGold(en.fund)}g to the fund each month${en.missed ? ` · ${en.missed} month${en.missed === 1 ? '' : 's'} unpaid` : ''}${en.spent ? ` · ${Utils.formatGold(en.spent)}g so far` : ''}`, side: 'endowed', tone: en.missed ? 'warn' : 'good' },
             { icon: '🚪', name: 'Stop paying for it', desc: 'The school closes; its children go back to work', act: 'schoolAct', args: ['close'], tone: 'bad', side: '' },
         ], '🏛️ Your endowment');
     }
@@ -89,7 +90,7 @@ function _endowSection(game, s) {
         for (const c of cands) {
             rows.push({
                 icon: '🏫', name: `Endow a school with ${esc(c.name)} as master`,
-                desc: `${esc(c.role)}, ${c.age}, letters ${c.lit} · ${mats || 'its planks and stone'} · then ${t.wage}g + ${t.fund}g a month`,
+                desc: `${esc(c.role)}, ${c.age}, letters ${c.lit} · ${mats || 'its planks and stone'} · then ${Utils.formatGold(t.wage)}g + ${Utils.formatGold(t.fund)}g a month`,
                 title: 'More of the town sends its children to learn their letters, and more each year it stands.',
                 side: price(t.total, t.ok), off: !t.ok, why: esc(t.reason || ''), act: 'schoolAct', args: ['endow', c.id],
             });
@@ -113,7 +114,7 @@ Object.assign(ActionMenu, {
         }
         const v = Literacy.view(player, world, s);
         html += lede(`Who can read in ${esc(s.name)}, who teaches them, and what it changes. Children taught at school grow into lettered folk; the rate moves with the decades.`);
-        html += chips([purse(player.gold), ['📖', 'Letters', `${pct(v.rate)}/100`], ['🏫', 'Fund', `${v.fund}g`]]);
+        html += chips([purse(player.gold), ['📖', 'Letters', `${pct(v.rate)}/100`], ['🏫', 'Fund', `${Utils.formatGold(v.fund)}g`]]);
         html += _lettersCard(v);
         html += _schoolsCard(v);
         if (s.folk && v.school) {
@@ -135,7 +136,7 @@ Object.assign(ActionMenu, {
         else if (s && op === 'close') res = Literacy.closeEndowment(player, world, s);
         else if (s && op === 'donate') {
             const r = TownSchool.donate(player, world, s, Number(a) || 0);
-            res = r.success ? { success: true, text: `You give ${a}g to the school of ${s.name}. ${r.touched ? `${r.touched} of the town think the better of you.` : ''}` } : r;
+            res = r.success ? { success: true, text: `You give ${Utils.formatGold(a)}g to the school of ${s.name}. ${r.touched ? `${r.touched} of the town think the better of you.` : ''}` } : r;
         }
         if (res.success) game.ui.updateStats(player, world);
         ActionMenu.showSchool(game, { ok: !!res.success, text: res.success ? res.text : res.reason });

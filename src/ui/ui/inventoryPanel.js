@@ -34,6 +34,7 @@ import { Hotbar, DND_ITEM, DND_SLOT, dndCarries, dndPayload } from '../hotbar.js
 import { catalogOf, buildEntries, filterSort, categoryCounts, defaultDir } from '../inventoryView.js';
 import { rowList, sectionHead, card, price, esc } from '../actionMenu/uiKit.js';
 import { PlayerInventory, PlayerEconomy, Treasures, InnerMap } from './_imports.js';
+import { Utils } from '../../core/utils.js';
 
 export const INVENTORY_TITLE = 'Inventory';
 
@@ -161,7 +162,7 @@ export function inventoryGridHtml(game, list, st = {}, total = list.length) {
         const worn = Arms.isArms(e.id) && Arms.isEquipped(player, e.id);
         const tier = Crafting.qualityTag(player, e.id) ? Crafting.bestTier(player, e.id) : null;
         const cls = `inv-tile${st.selected === e.id ? ' selected' : ''}${worn ? ' worn' : ''}`;
-        const tip = `${e.name} ×${e.qty}${e.unitValue ? ` · ~${e.unitValue}g each` : ''}${worn ? ' · worn' : ''}${slot >= 0 ? ` · hotbar ${slot + 1}` : ''} — drag onto the hotbar`;
+        const tip = `${e.name} ×${e.qty}${e.unitValue ? ` · ~${Utils.formatGold(e.unitValue)}g each` : ''}${worn ? ' · worn' : ''}${slot >= 0 ? ` · hotbar ${slot + 1}` : ''} — drag onto the hotbar`;
         return `<button type="button" class="${cls}" draggable="true" data-inv-item="${esc(e.id)}" data-ui-act="invSelect" data-ui-args="${_args([e.id])}" title="${esc(tip)}">`
             + `<span class="inv-tile-ico">${itemIcon(e.id, e.icon, 30)}</span>`
             + `<span class="inv-tile-qty">${e.qty > 1 ? `×${e.qty}` : ''}</span>`

@@ -599,8 +599,8 @@ export const LandMarket = {
                 const ps = LandMarket.playerState(player);
                 ps.stats.sold++;
                 ps.stats.received += price;
-                LandMarket._log(player, world, `Sold ${e.name} for ${price}g.`);
-                out.notices.push({ icon: '🌾', title: 'Estate Sold', text: `${e.name} has found a buyer: ${price}g.`, type: 'success' });
+                LandMarket._log(player, world, `Sold ${e.name} for ${Utils.formatGold(price)}g.`);
+                out.notices.push({ icon: '🌾', title: 'Estate Sold', text: `${e.name} has found a buyer: ${Utils.formatGold(price)}g.`, type: 'success' });
             }
         } else {
             const h = Estates.ensureHolder(world, seller);
@@ -808,7 +808,7 @@ export const LandMarket = {
     buy(player, world, id) {
         const q = LandMarket.buyQuote(player, world, id);
         if (!q.ok) return { success: false, reason: q.reason };
-        if (_num(player.gold) < q.cost) return { success: false, reason: `It costs ${q.cost}g with the crown's duty; you have ${Math.floor(_num(player.gold))}g.` };
+        if (_num(player.gold) < q.cost) return { success: false, reason: `It costs ${Utils.formatGold(q.cost)}g with the crown's duty; you have ${Utils.formatGold(_num(player.gold))}g.` };
         const e = q.estate;
         const seller = e.holder;
         const day = _day(world);
@@ -827,9 +827,9 @@ export const LandMarket = {
         const ps = LandMarket.playerState(player);
         ps.stats.bought++;
         ps.stats.spent += q.cost;
-        LandMarket._log(player, world, `Bought ${e.name} near ${q.town.name} from ${from} for ${q.price}g (+${q.duty}g duty).`);
+        LandMarket._log(player, world, `Bought ${e.name} near ${q.town.name} from ${from} for ${Utils.formatGold(q.price)}g (+${Utils.formatGold(q.duty)}g duty).`);
         Estates.record(world, { key: `es:sold:${e.id}:${day}`, kind: 'sold', why: 'player', day, place: q.town.name, q: q.town.q, r: q.town.r, kingdomId: q.town.kingdom != null ? q.town.kingdom : null, estate: e.name, holder: from, buyer: player.name || 'a newcomer', price: q.price, own: true });
-        return { success: true, text: `${e.name} is yours: ${e.hh} tenant households, ${Math.round(LandMarket.annualRent(world, e, q.town))}g a year in rents expected.`, cost: q.cost };
+        return { success: true, text: `${e.name} is yours: ${e.hh} tenant households, ${Utils.formatGold(LandMarket.annualRent(world, e, q.town))}g a year in rents expected.`, cost: q.cost };
     },
 
     /** What a quick sale would fetch now (the richest buyer who can pay), and the listing price otherwise. */
@@ -858,7 +858,7 @@ export const LandMarket = {
         if (how === 'list') {
             if (q.listed) return { success: false, reason: 'It is on the market already.' };
             LandMarket._list(world, e, q.list, 'player', 'player', day);
-            return { success: true, text: `${e.name} is on the market at ${q.list}g.` };
+            return { success: true, text: `${e.name} is on the market at ${Utils.formatGold(q.list)}g.` };
         }
         const buyer = LandMarket._buyer(world, e, q.quick, 'player', day);
         if (!buyer) return { success: false, reason: 'No buyer about has the purse for it: put it on the market instead.' };
@@ -868,7 +868,7 @@ export const LandMarket = {
         LandMarket._setHolder(world, e, buyer.id, day);
         const live = Estates._liveOfKey(world, e.town);
         Estates.record(world, { key: `es:sold:${e.id}:${day}`, kind: 'sold', why: 'player', day, place: live ? live.name : e.town, q: live ? live.q : null, r: live ? live.r : null, kingdomId: live && live.kingdom != null ? live.kingdom : null, estate: e.name, holder: player.name || 'you', buyer: buyer.name, price: q.quick, own: true });
-        return { success: true, text: `${buyer.name} bought ${e.name} for ${q.quick}g.`, gold: q.quick };
+        return { success: true, text: `${buyer.name} bought ${e.name} for ${Utils.formatGold(q.quick)}g.`, gold: q.quick };
     },
 
     /** Set an estate's rent: level ('low' | 'customary' | 'high') and/or mode ('coin' | 'kind'). */
@@ -910,7 +910,7 @@ export const LandMarket = {
     improve(player, world, id, kind) {
         const q = LandMarket.worksQuote(player, world, id, kind);
         if (!q.ok) return { success: false, reason: q.reason };
-        if (_num(player.gold) < q.cost) return { success: false, reason: `${q.label} costs ${q.cost}g.` };
+        if (_num(player.gold) < q.cost) return { success: false, reason: `${q.label} costs ${Utils.formatGold(q.cost)}g.` };
         const e = Estates.estate(world, id);
         const live = Estates._liveOfKey(world, e.town);
         player.gold -= q.cost;
@@ -924,7 +924,7 @@ export const LandMarket = {
         e.works = { kind, until: _day(world) + q.days, cost: q.cost };
         e.spent = _num(e.spent) + q.cost;
         LandMarket.playerState(player).stats.works++;
-        return { success: true, text: `${q.label} at ${e.name}: ${q.cost}g, done by day ${e.works.until}.` };
+        return { success: true, text: `${q.label} at ${e.name}: ${Utils.formatGold(q.cost)}g, done by day ${e.works.until}.` };
     },
 
     /** Settle an estate on a realm's nobility as a dowry: standing there and Prestige for the House. */
@@ -975,8 +975,8 @@ export const LandMarket = {
         e.arrears = Math.max(0, Math.round(_num(e.arrears) - q.amount));
         e.earned = _num(e.earned) + q.amount;
         ps.stats.arrears += q.amount;
-        LandMarket._log(player, world, `Pressed the tenants of ${e.name} for ${q.amount}g of their arrears.`);
-        return { success: true, riot: false, amount: q.amount, text: `Your bailiff collects ${q.amount}g of the arrears from the tenants of ${e.name} (${e.arrears}g still owed). They will not soon forget it (loyalty -${q.loyalty}).` };
+        LandMarket._log(player, world, `Pressed the tenants of ${e.name} for ${Utils.formatGold(q.amount)}g of their arrears.`);
+        return { success: true, riot: false, amount: q.amount, text: `Your bailiff collects ${Utils.formatGold(q.amount)}g of the arrears from the tenants of ${e.name} (${Utils.formatGold(e.arrears)}g still owed). They will not soon forget it (loyalty -${q.loyalty}).` };
     },
 
     dowry(player, world, id, kid) {

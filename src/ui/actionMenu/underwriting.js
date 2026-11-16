@@ -7,6 +7,7 @@ import { ActionMenu } from './_ref.js';
 import { Underwriting, KINDS } from '../../systems/underwriting.js';
 import { Underworld } from '../../systems/underworld.js';
 import { BTN_GOLD, BTN_PLAIN, BTN_DIM, BTN_RED, panelTabs, lede, chips, purse, actRow, rowList } from './uiKit.js';
+import { Utils } from '../../core/utils.js';
 
 const TABS = [['covers', '🛡️ Cover'], ['claims', '📜 Claims'], ['offices', '🏛️ Offices']];
 
@@ -24,7 +25,7 @@ function act(label, args, style = BTN_GOLD, enabled = true, title = '') {
 }
 
 function g1(v) {
-    return (Math.round(v * 10) / 10).toFixed(1);
+    return Utils.cents(v);
 }
 
 function coversTab(player, world, here) {
@@ -35,8 +36,8 @@ function coversTab(player, world, here) {
         const K = Underwriting.kind(kind);
         const q = Underwriting.quote(player, world, kind);
         const cover = Underwriting.cover(player, kind);
-        const items = q.items.slice(0, 4).map(it => `${esc(it.label)} ${it.value}g (risk ${g1(it.loss)}g a day)`).join(' · ');
-        const today = `${q.items.length} item(s) worth ${q.value}g · expected loss ${g1(q.expected)}g a day${q.surcharge > 1 ? ` · ×${q.surcharge.toFixed(2)} for your recent claims` : ''}`;
+        const items = q.items.slice(0, 4).map(it => `${esc(it.label)} ${Utils.formatGold(it.value)}g (risk ${Utils.formatGold(g1(it.loss))}g a day)`).join(' · ');
+        const today = `${q.items.length} item(s) worth ${Utils.formatGold(q.value)}g · expected loss ${Utils.formatGold(g1(q.expected))}g a day${q.surcharge > 1 ? ` · ×${q.surcharge.toFixed(2)} for your recent claims` : ''}`;
         let side = '';
         let state = '';
         if (cover) {
@@ -48,7 +49,7 @@ function coversTab(player, world, here) {
                 const cap = Math.floor(Math.min(C.fraud.maxAmount, q.value * C.fraud.maxShare));
                 for (const share of [0.25, 0.5, 1]) {
                     const amt = Math.floor(cap * share);
-                    if (amt >= 50) side += act(`🗝️ Forge ${amt}g`, ['fraud', kind, amt], BTN_RED, true, `A forged claim: the forger takes ${Math.round(C.fraud.forgerFee * 100)}% now; the assessors may see through it`);
+                    if (amt >= 50) side += act(`🗝️ Forge ${Utils.formatGold(amt)}g`, ['fraud', kind, amt], BTN_RED, true, `A forged claim: the forger takes ${Math.round(C.fraud.forgerFee * 100)}% now; the assessors may see through it`);
                 }
             }
         } else {
@@ -56,9 +57,9 @@ function coversTab(player, world, here) {
             if (!here.length) side = '';
         }
         rows.push(actRow({
-            icon: K.icon, name: `${esc(K.name)} <span class="pk-price">${g1(q.premium)}<small>g a day</small></span>${state}`,
+            icon: K.icon, name: `${esc(K.name)} <span class="pk-price">${Utils.formatGold(q.premium)}<small>g a day</small></span>${state}`,
             desc: today,
-            note: [items, cover ? `paid ${Math.round(cover.paid)}g so far · claims ${Math.round(cover.claimsPaid)}g` : ''].filter(Boolean).join('<br>'),
+            note: [items, cover ? `paid ${Utils.formatGold(cover.paid)}g so far · claims ${Utils.formatGold(cover.claimsPaid)}g` : ''].filter(Boolean).join('<br>'),
             side,
         }));
     }
@@ -68,8 +69,8 @@ function coversTab(player, world, here) {
 function claimsTab(player, world) {
     const st = Underwriting.state(player);
     let html = chips([
-        ['🧾', 'Premiums paid', `${Math.round(st.stats.premiums)}g`],
-        { icon: '💰', label: 'Claims paid you', value: `${Math.round(st.stats.claimsPaid)}g`, cls: 'gold' },
+        ['🧾', 'Premiums paid', `${Utils.formatGold(st.stats.premiums)}g`],
+        { icon: '💰', label: 'Claims paid you', value: `${Utils.formatGold(st.stats.claimsPaid)}g`, cls: 'gold' },
         ['📜', 'Claims', st.stats.claims],
         st.stats.fraudsCaught ? ['🗝️', 'Forgeries found out', st.stats.fraudsCaught, 'bad'] : null,
     ]);
@@ -77,12 +78,12 @@ function claimsTab(player, world) {
     if (!rows.length) return html + lede('No claims yet.');
     html += rowList(rows.map(c => {
         const status = c.status === 'pending' ? `<span style="color:#f0b35a;">assessed by day ${c.dueDay}</span>`
-            : c.status === 'paid' ? `<span style="color:#8fd18a;">paid ${Math.round(c.paid)}g</span>`
+            : c.status === 'paid' ? `<span style="color:#8fd18a;">paid ${Utils.formatGold(c.paid)}g</span>`
                 : c.status === 'denied' ? '<span style="color:#e0846a;">denied</span>' : esc(c.status);
         return {
             icon: esc((Underwriting.kind(c.kind) || {}).icon || '📜'),
             name: `${esc(c.cause)}${c.place ? ` <span style="font-weight:400; color:#9d937c;">(${esc(c.place)})</span>` : ''}`,
-            desc: `day ${c.day} · loss ${Math.round(c.value)}g → claim ${Math.round(c.amount)}g · ${esc(c.uwName)}`,
+            desc: `day ${c.day} · loss ${Utils.formatGold(c.value)}g → claim ${Utils.formatGold(c.amount)}g · ${esc(c.uwName)}`,
             side: status,
         };
     }), 'Your claims');
@@ -115,7 +116,7 @@ Object.assign(ActionMenu, {
         const here = Underwriting.underwritersAt(player, world, t);
         const s = Underwriting.summary(player, world);
         let html = '<div style="font-size:12px;">';
-        html += chips([purse(player.gold), ['🛡️', 'Covers', s.covers], ['📅', 'Premiums today', `${g1(s.premiumToday)}g`], s.pending ? ['⏳', 'Claims pending', s.pending] : null]);
+        html += chips([purse(player.gold), ['🛡️', 'Covers', s.covers], ['📅', 'Premiums today', `${Utils.formatGold(g1(s.premiumToday))}g`], s.pending ? ['⏳', 'Claims pending', s.pending] : null]);
         if (!here.length) html += '<div class="pk-row-why" style="font-size:11px; margin-bottom:6px;">No underwriter writes cover here: visit a banking house or its branches, or an underwriters\' guild at a great port.</div>';
         html += panelTabs(game, {
             id: 'underwriter', title: '🛡️ The Underwriters', tabs: TABS, active: _tab,

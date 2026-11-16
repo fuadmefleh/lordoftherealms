@@ -138,10 +138,10 @@ export async function enterInnerMap(worldQ, worldR) {
             const hostility = Gossip.checkGuardHostility(this.player, worldQ, worldR, this.world);
             if (hostility.warrant || hostility.banned) {
                 this.ui.showNotification(hostility.warrant ? '⚖️ Wanted!' : '🚫 Unwelcome',
-                    `${hostility.warrant ? 'The crown has a warrant out for you.' : 'Word of your crimes has reached this place.'} Merchants and officials will turn you away until you settle with the guard tower${hostility.bountyTotal ? ` (bounty ${hostility.bountyTotal}g)` : ''}.`, 'error');
+                    `${hostility.warrant ? 'The crown has a warrant out for you.' : 'Word of your crimes has reached this place.'} Merchants and officials will turn you away until you settle with the guard tower${hostility.bountyTotal ? ` (bounty ${Utils.formatGold(hostility.bountyTotal)}g)` : ''}.`, 'error');
             } else if (hostility.hostile) {
                 this.ui.showNotification('⚠️ Hostile Guards!',
-                    `The guards here know about your crimes! Bounty: ${hostility.bountyTotal}g. Settle it at the guard tower.`, 'error');
+                    `The guards here know about your crimes! Bounty: ${Utils.formatGold(hostility.bountyTotal)}g. Settle it at the guard tower.`, 'error');
             }
         } else {
             this.ui.showNotification('🗺️ Entering Inner Map',
@@ -373,7 +373,7 @@ export function _showInnerMapEndDayModal() {
                 <span>📜 Year</span><span style="color:#f5c542;">${year}</span>
             </div>
             <div style="display:flex; justify-content:space-between; margin-bottom: 4px;">
-                ${inKind(this) ? `<span>🎒 Goods</span><span style="color:#f5c542;">${money(this, this.player.gold)}</span>` : `<span>💰 Gold</span><span style="color:#f5c542;">${this.player.gold}</span>`}
+                ${inKind(this) ? `<span>🎒 Goods</span><span style="color:#f5c542;">${money(this, this.player.gold)}</span>` : `<span>💰 Gold</span><span style="color:#f5c542;">${Utils.formatGold(this.player.gold)}</span>`}
             </div>
             <div style="display:flex; justify-content:space-between; margin-bottom: 4px;">
                 <span>❤️ Health</span><span style="color:#f5c542;">${this.player.health}/${this.player.maxHealth}</span>

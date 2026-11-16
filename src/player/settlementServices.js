@@ -83,7 +83,7 @@ export const SettlementServices = {
             return { success: false, reason: 'You have no soldiers whose arms need tending.' };
         }
         const cost = this.honeArmsCost(player, settlement);
-        if (player.gold < cost) return { success: false, reason: `The smith wants ${cost} gold.` };
+        if (player.gold < cost) return { success: false, reason: `The smith wants ${Utils.formatGold(cost)} gold.` };
         _spend(player, cost, 'smithing', settlement);
         const { days, smith } = this.honeArmsDays(settlement, world);
         _grantBlessing(player, cfg.key, days);
@@ -103,7 +103,7 @@ export const SettlementServices = {
     seekBlessing(player, settlement) {
         const cfg = SERVICE_CONFIG.blessing;
         const cost = this.blessingCost(settlement);
-        if (player.gold < cost) return { success: false, reason: `The customary offering is ${cost} gold.` };
+        if (player.gold < cost) return { success: false, reason: `The customary offering is ${Utils.formatGold(cost)} gold.` };
         _spend(player, cost, 'offerings', settlement);
         _grantBlessing(player, cfg.key, cfg.days);
         player.karma = (player.karma || 0) + 1;
@@ -123,7 +123,7 @@ export const SettlementServices = {
     buyMount(player, settlement, day) {
         if (player.mount) return { success: false, reason: `You already ride ${player.mount.name}.` };
         const price = this.mountPrice(settlement);
-        if (player.gold < price) return { success: false, reason: `A riding horse costs ${price} gold.` };
+        if (player.gold < price) return { success: false, reason: `A riding horse costs ${Utils.formatGold(price)} gold.` };
         _spend(player, price, 'horses', settlement);
         player.mount = { name: this._horseName(), price, acquiredDay: day || 0 };
         return {
@@ -139,7 +139,7 @@ export const SettlementServices = {
         if (!player.inventory || (player.inventory.horse || 0) < 1) {
             return { success: false, reason: 'You have no tamed horse to saddle.' };
         }
-        if (player.gold < cfg.saddleCost) return { success: false, reason: `Saddle and tack cost ${cfg.saddleCost} gold.` };
+        if (player.gold < cfg.saddleCost) return { success: false, reason: `Saddle and tack cost ${Utils.formatGold(cfg.saddleCost)} gold.` };
         _spend(player, cfg.saddleCost, 'horses', settlement);
         player.inventory.horse -= 1;
         if (player.inventory.horse <= 0) delete player.inventory.horse;
@@ -157,7 +157,7 @@ export const SettlementServices = {
         const name = player.mount.name;
         player.mount = null;
         const value = _earn(player, value0, 'horses', settlement);
-        return { success: true, gold: value, message: `You sell ${name} for ${value} gold.` };
+        return { success: true, gold: value, message: `You sell ${name} for ${Utils.formatGold(value)} gold.` };
     },
 
     /** Sell tamed horses from your inventory to the stable. */
@@ -167,7 +167,7 @@ export const SettlementServices = {
         const value0 = count * SERVICE_CONFIG.mount.tamedHorseSale;
         delete player.inventory.horse;
         const value = _earn(player, value0, 'horses', settlement);
-        return { success: true, gold: value, count, message: `You sell ${count} tamed horse${count > 1 ? 's' : ''} for ${value} gold.` };
+        return { success: true, gold: value, count, message: `You sell ${count} tamed horse${count > 1 ? 's' : ''} for ${Utils.formatGold(value)} gold.` };
     },
 
     _horseName() {
@@ -211,7 +211,7 @@ export const SettlementServices = {
             return { success: false, reason: 'Your record is clean. The guards have nothing against you.' };
         }
         const fine = this.fineAmount(player, settlement) + bounty + (warrant ? SERVICE_CONFIG.fines.warrantFee : 0);
-        if (player.gold < fine) return { success: false, reason: `Your fines and bounties come to ${fine} gold.` };
+        if (player.gold < fine) return { success: false, reason: `Your fines and bounties come to ${Utils.formatGold(fine)} gold.` };
         _spend(player, fine, 'fines', settlement);
         player.criminalRecord = {};
         const kingdomId = settlement && settlement.kingdom;
@@ -238,7 +238,7 @@ export const SettlementServices = {
         const kingdomId = settlement && settlement.kingdom;
         if (!kingdomId) return { success: false, reason: 'No crown rules here to receive tribute.' };
         if (!(amount > 0)) return { success: false, reason: 'Choose an amount.' };
-        if (player.gold < amount) return { success: false, reason: `You don't have ${amount} gold.` };
+        if (player.gold < amount) return { success: false, reason: `You don't have ${Utils.formatGold(amount)} gold.` };
         player.reputation = player.reputation || {};
         const before = player.reputation[kingdomId] || 0;
         if (before >= cfg.maxReputation) return { success: false, reason: 'The crown already holds you in the highest regard.' };

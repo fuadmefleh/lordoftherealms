@@ -427,7 +427,7 @@ export const Mail = {
         if (K.enclose && !gold && !item) return { success: false, reason: 'Enclose gold or one of your goods.' };
         // (a player who can't write pays a scribe to write it for them)
         const scribe = Literacy.scribeFee(player);
-        if (_num(player.gold) < courier.price + gold + scribe) return { success: false, reason: `You need ${courier.price + gold + scribe} gold${scribe ? ` (${scribe}g of it for the scribe who writes it for you)` : ''}.` };
+        if (_num(player.gold) < courier.price + gold + scribe) return { success: false, reason: `You need ${Utils.formatGold(courier.price + gold + scribe)} gold${scribe ? ` (${Utils.formatGold(scribe)}g of it for the scribe who writes it for you)` : ''}.` };
         let childId = null;
         if (opts.kind === 'ransom') {
             const held = (to.held || []).find(h => opts.childId == null || h.childId === opts.childId);
@@ -470,7 +470,7 @@ export const Mail = {
         if (opts.kind === 'favour') st.favours[to.key] = day;
         st.today = st.today.day === day ? { day, n: st.today.n + 1 } : { day, n: 1 };
         st.stats.sent++;
-        return { success: true, letter, text: `${K.icon || '✉️'} ${scribe ? `A scribe writes it out for you (${scribe}g). ` : ''}Your letter to ${to.name} rides with ${courier.name}: due at ${to.place} in about ${courier.days} day${courier.days === 1 ? '' : 's'}.` };
+        return { success: true, letter, text: `${K.icon || '✉️'} ${scribe ? `A scribe writes it out for you (${Utils.formatGold(scribe)}g). ` : ''}Your letter to ${to.name} rides with ${courier.name}: due at ${to.place} in about ${courier.days} day${courier.days === 1 ? '' : 's'}.` };
     },
 
     // ──────────── THE DAY ────────────
@@ -845,7 +845,7 @@ export const Mail = {
             case 'gift': {
                 if (worth <= 0) { textKey = 'stolen'; tone = 'cool'; break; }
                 // (the coin goes to them as the letter is delivered: Mail._landCoin)
-                if (to.type === 'lord') { remember('gift', { weight: _clamp(worth / 40, 1, 10) * f, note: `${worth} gold's worth, by letter` }); rep(Math.min(5, Math.round(worth / 100))); }
+                if (to.type === 'lord') { remember('gift', { weight: _clamp(worth / 40, 1, 10) * f, note: `${Utils.formatGold(worth)} gold's worth, by letter` }); rep(Math.min(5, Math.round(worth / 100))); }
                 else if (to.type === 'rival') feud(-Math.min(15, worth / 30) * f, 'a gift');
                 else if (to.type === 'spouse') bump('affection', Math.min(10, worth / 20) * f, 0, 100);
                 else if (to.type === 'child') rep(2);
@@ -856,7 +856,7 @@ export const Mail = {
                 } else if (to.type === 'house') rivalry(-Math.min(15, worth / 40) * f);
                 else if (to.type === 'companion') { approve(Math.min(10, worth / 15) * f * (greedy ? 1.5 : 1), 'a gift by letter'); bump('score', Math.min(5, worth / 40) * f); }
                 tone = regard <= -40 ? 'hostile' : regard >= 0 || worth >= 100 ? 'warm' : 'cool';
-                lines.push(`They received ${L.gold ? `${L.gold} gold` : ''}${L.gold && L.item ? ' and ' : ''}${L.item ? `your ${String(L.item.id).replace(/_/g, ' ')}` : ''}.`);
+                lines.push(`They received ${L.gold ? `${Utils.formatGold(L.gold)} gold` : ''}${L.gold && L.item ? ' and ' : ''}${L.item ? `your ${String(L.item.id).replace(/_/g, ' ')}` : ''}.`);
                 break;
             }
             case 'favour': {
@@ -910,7 +910,7 @@ export const Mail = {
                         s.person.purse = purse - spare;
                         this._adjustFolk(player, s.person, -3);
                         outcome = 'warm_gold';
-                        lines.push(`${reply.gold} gold, all they could spare, comes with the reply.`);
+                        lines.push(`${Utils.formatGold(reply.gold)} gold, all they could spare, comes with the reply.`);
                     } else {
                         if (tone === 'warm') tone = 'cool';
                         this._adjustFolk(player, s.person, -1);
@@ -923,7 +923,7 @@ export const Mail = {
                     const learned = typeof player.learnAboutKingdom === 'function' ? player.learnAboutKingdom(kid, ['ruler', 'military', 'diplomacy', 'economy']) : [];
                     if (s.kingdom) {
                         const foes = (s.kingdom.wars || []).map(id => (world.getKingdom(id) || {}).name).filter(Boolean);
-                        av.intel = `the court keeps an army of about ${Math.round(_num(s.kingdom.military))}, the treasury holds some ${Math.round(_num(s.kingdom.treasury) / 100) * 100} gold, and the realm is ${foes.length ? `at war with ${foes.join(' and ')}` : 'at peace'}.`;
+                        av.intel = `the court keeps an army of about ${Math.round(_num(s.kingdom.military))}, the treasury holds some ${Utils.formatGold(Math.round(_num(s.kingdom.treasury) / 100) * 100)} gold, and the realm is ${foes.length ? `at war with ${foes.join(' and ')}` : 'at peace'}.`;
                         outcome = 'warm_intel';
                         lines.push(`${s.kingdom.name}: army ${Math.round(_num(s.kingdom.military))}, treasury about ${Math.round(_num(s.kingdom.treasury) / 100) * 100} gold${learned.length ? ` · you learn of its ${_intelPhrase(learned)}` : ''}.`);
                     }
@@ -1001,7 +1001,7 @@ export const Mail = {
                     if (Utils.random() < 0.25) {
                         const want = Utils.randInt(50, 150);
                         const g = s.house ? Math.min(want, Math.max(0, Math.floor(_num(s.house.capital)))) : 0;
-                        if (g >= 10) { s.house.capital = _num(s.house.capital) - g; reply.gold = g; tone = 'warm'; outcome = 'paid'; lines.push(`${reply.gold} gold, to be left alone.`); } else tone = 'hostile';
+                        if (g >= 10) { s.house.capital = _num(s.house.capital) - g; reply.gold = g; tone = 'warm'; outcome = 'paid'; lines.push(`${Utils.formatGold(reply.gold)} gold, to be left alone.`); } else tone = 'hostile';
                     } else tone = 'hostile';
                 }
                 break;
@@ -1108,7 +1108,7 @@ export const Mail = {
     /** "the 100 gold", "the bolt of silk", "the 100 gold and the wine". */
     _giftPhrase(L) {
         const bits = [];
-        if (L && L.gold) bits.push(`the ${L.gold} gold`);
+        if (L && L.gold) bits.push(`the ${Utils.formatGold(L.gold)} gold`);
         if (L && L.item) bits.push(`the ${this._goodName(L.item.id)}`);
         return bits.join(' and ');
     },
@@ -1246,7 +1246,7 @@ export const Mail = {
                 const coin = Math.min(6, Math.floor(purse / 3));
                 if (coin >= 2) {
                     lp.person.purse = purse - coin;
-                    out.push({ k: 'enclose_coin', vars: { coin: `${coin} gold` }, arrive: { gold: coin }, enclosed: `${coin} gold` });
+                    out.push({ k: 'enclose_coin', vars: { coin: `${Utils.formatGold(coin)} gold` }, arrive: { gold: coin }, enclosed: `${Utils.formatGold(coin)} gold` });
                 }
             } else if ((to.type === 'folk' || (to.type === 'npc' && lp)) && lp && settlement && r() < V.goodsChance) {
                 // Something cheap from their own market, paid for out of their purse into the town's
@@ -1400,7 +1400,7 @@ export const Mail = {
             if (settlement) SettlementMarket.add(settlement, q.good, q.qty);
             lines.push(`📦 ${q.qty} ${q.goodName || q.good} ride to ${q.town || to.place}.`);
         } else if (choiceId === 'coin') {
-            if (_num(player.gold) < q.gold) return { success: false, reason: `You need ${q.gold} gold.` };
+            if (_num(player.gold) < q.gold) return { success: false, reason: `You need ${Utils.formatGold(q.gold)} gold.` };
             player.gold = _num(player.gold) - q.gold;
             Ledger.record(player, 'mailGifts', -q.gold);
             // The coin goes to them (a townsperson's purse), or to their town's market purse
@@ -1610,7 +1610,7 @@ export const Mail = {
             if (R.letter) MailVoice.voice(R.letter, this._sketch(R));
             out.replies.push(R);
             const gist = R.unprompted ? `${R.from.name} writes from ${R.from.place || 'afar'}. Read it in Journal → Letters → Answered.` : `${R.summary || R.body} (Journal → Letters → Answered)`;
-            out.notices.push({ icon: '📨', title: R.unprompted ? `A Letter from ${R.from.name}` : `A Reply from ${R.from.name}`, text: gist + (R.gold ? ` (+${R.gold} gold)` : '') + (got.lines.length ? ` ${got.lines.join(' ')}` : ''), type: R.tone === 'warm' ? 'success' : R.tone === 'hostile' ? 'warning' : 'info' });
+            out.notices.push({ icon: '📨', title: R.unprompted ? `A Letter from ${R.from.name}` : `A Reply from ${R.from.name}`, text: gist + (R.gold ? ` (+${Utils.formatGold(R.gold)} gold)` : '') + (got.lines.length ? ` ${got.lines.join(' ')}` : ''), type: R.tone === 'warm' ? 'success' : R.tone === 'hostile' ? 'warning' : 'info' });
             return;
         }
         const CK = CourtLetters.kind(R.kind) || {};
@@ -1643,7 +1643,7 @@ export const Mail = {
         switch (`${letter.kind}:${choiceId}`) {
             case 'mail_ransom:pay':
             case 'mail_blackmail:pay':
-                if (_num(player.gold) < amount) return { ok: false, why: `You need ${amount} gold.` };
+                if (_num(player.gold) < amount) return { ok: false, why: `You need ${Utils.formatGold(amount)} gold.` };
                 break;
             case 'mail_ransom:refuse':
                 break;
@@ -1676,7 +1676,7 @@ export const Mail = {
             case 'mail_request:coin': {
                 const q = letter.data && letter.data.request;
                 if (!q) return { ok: false, why: '', hide: true };
-                if (_num(player.gold) < q.gold) return { ok: false, why: `You need ${q.gold} gold.` };
+                if (_num(player.gold) < q.gold) return { ok: false, why: `You need ${Utils.formatGold(q.gold)} gold.` };
                 break;
             }
         }

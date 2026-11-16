@@ -1418,7 +1418,7 @@ export const Parentage = {
             if (got > 0) {
                 player.gold = _num(player.gold) + got;
                 Ledger.record(player, 'inheritance', got);
-                out.notices.push({ icon: '📜', title: 'Inheritance', text: _fill(L.inherit, { what: `${got} gold, your share of their savings` }), type: 'info' });
+                out.notices.push({ icon: '📜', title: 'Inheritance', text: _fill(L.inherit, { what: `${Utils.formatGold(got)} gold, your share of their savings` }), type: 'info' });
             }
         }
         const eldest = !kids.some(x => x.age > _num(player.age));

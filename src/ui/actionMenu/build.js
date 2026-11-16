@@ -31,7 +31,7 @@ Object.assign(ActionMenu, {
         if (result.success) {
             const tired = result.saturation >= 0.3 ? ' The crowd has heard you before and thins.' : '';
             const weak = result.weakBonus >= 0.15 ? ' Faith runs thin here: they listen hungrily.' : '';
-            game.ui.showNotification('Preaching Success!', `+${result.followersGained} followers, +${result.karmaGained} karma${result.alms ? `, +${result.alms}g alms` : ''}.${weak}${tired}`, 'success');
+            game.ui.showNotification('Preaching Success!', `+${result.followersGained} followers, +${result.karmaGained} karma${result.alms ? `, +${Utils.formatGold(result.alms)}g alms` : ''}.${weak}${tired}`, 'success');
             if (result.clergy) game.ui.showNotification(result.clergy.bannedUntil ? '⛔ Preaching Banned' : '⛪ The Clergy Object', result.clergy.message, 'error');
             game.ui.updateStats(game.player, game.world);
         } else {
@@ -87,7 +87,7 @@ Object.assign(ActionMenu, {
         const size = SettlementSize.meets(prop, tile.settlement);
         if (!size.ok) return { canBuild: false, reason: size.reason };
         const cost = PlayerEconomy.getBuildCost(game.player, prop, tile, game.world);
-        if (game.player.gold < cost) return { canBuild: false, reason: `Need ${cost} gold (have ${Math.floor(game.player.gold)})` };
+        if (game.player.gold < cost) return { canBuild: false, reason: `Need ${Utils.formatGold(cost)} gold (have ${Math.floor(game.player.gold)})` };
         return { canBuild: true };
     },
 
@@ -197,7 +197,7 @@ Object.assign(ActionMenu, {
                 off: !check.canBuild, why: esc(check.reason || ''),
                 attrs: `onclick="${action}"`,
                 title: prop.description || '',
-                side: `${price(cost, player.gold >= cost)}<br><small style="color:#9d937c;">🏗️ ${buildDays}d · 🔧 ${prop.upkeep || 0}g/d</small>`,
+                side: `${price(cost, player.gold >= cost)}<br><small style="color:#9d937c;">🏗️ ${buildDays}d · 🔧 ${Utils.formatGold(prop.upkeep || 0)}g/d</small>`,
             }).replace('class="pk-row', `data-cat="${r.category}" data-ok="${check.canBuild ? 1 : 0}" data-text="${esc(haystack)}" class="bp-row pk-row`);
         }
         html += '<div id="bpEmpty" style="display: none; padding: 16px; text-align: center; font-size: 12px; color: #9d937c;"></div>';
@@ -249,7 +249,7 @@ Object.assign(ActionMenu, {
             if (result.success) {
                 // In town it stands on its lot, a building of its kind (ui/innerMapLots.js, world/innerMap/lots.js)
                 if (result.lotId) InnerMapLots.afterBuild(game, tile, result.property);
-                const lotNote = result.lotId && result.lotPrice > 0 ? ` A building lot was bought for it (${result.lotPrice}g).` : '';
+                const lotNote = result.lotId && result.lotPrice > 0 ? ` A building lot was bought for it (${Utils.formatGold(result.lotPrice)}g).` : '';
                 if (result.underConstruction) {
                     game.ui.showNotification('🏗️ Construction Started!', `${result.property.name} is under construction — ${result.constructionDays} days to completion.${lotNote}`, 'info');
                 } else {
@@ -280,7 +280,7 @@ Object.assign(ActionMenu, {
             InnerMap._pendingLot = null;
             if (lot && !lot.ok) { game.ui.showNotification('Cannot Build', lot.reason, 'error'); return; }
             if (lot && (game.player.gold || 0) < buildCost + (lot.price || 0)) {
-                game.ui.showNotification('Cannot Build', `Needs ${buildCost}g to build and ${lot.price}g for a building lot`, 'error');
+                game.ui.showNotification('Cannot Build', `Needs ${Utils.formatGold(buildCost)}g to build and ${Utils.formatGold(lot.price)}g for a building lot`, 'error');
                 return;
             }
 
@@ -381,7 +381,7 @@ Object.assign(ActionMenu, {
         for (const [key, infra] of Object.entries(Infrastructure.TYPES)) {
             if (available.find(a => a.id === infra.id)) continue;
             const check = Infrastructure.canBuild(game.player, key, tile, game.world);
-            if (!check.can) locked.push({ icon: infra.icon, name: `${infra.name} 🔒`, off: true, why: check.reason, side: `${infra.cost} gold` });
+            if (!check.can) locked.push({ icon: infra.icon, name: `${infra.name} 🔒`, off: true, why: check.reason, side: `${Utils.formatGold(infra.cost)} gold` });
         }
         html += rowList(locked, 'Not here');
 
@@ -396,9 +396,9 @@ Object.assign(ActionMenu, {
                     // Track for construction tick
                     if (!game.player.infrastructureUnderConstruction) game.player.infrastructureUnderConstruction = [];
                     game.player.infrastructureUnderConstruction.push({ q: tile.q, r: tile.r });
-                    game.ui.showNotification('🏗️ Construction Started!', `${result.infrastructure.name} will be ready in ${result.buildDays} day${result.buildDays > 1 ? 's' : ''}. Cost: ${result.cost} gold`, 'info');
+                    game.ui.showNotification('🏗️ Construction Started!', `${result.infrastructure.name} will be ready in ${result.buildDays} day${result.buildDays > 1 ? 's' : ''}. Cost: ${Utils.formatGold(result.cost)} gold`, 'info');
                 } else {
-                    game.ui.showNotification('Infrastructure Built!', `${result.infrastructure.name} constructed for ${result.cost} gold`, 'success');
+                    game.ui.showNotification('Infrastructure Built!', `${result.infrastructure.name} constructed for ${Utils.formatGold(result.cost)} gold`, 'success');
                 }
                 game.ui.updateStats(game.player, game.world);
                 game.ui.hideCustomPanel();
@@ -418,7 +418,7 @@ Object.assign(ActionMenu, {
 
         const result = Infrastructure.demolish(game.player, tile, game.world);
         if (result.success) {
-            game.ui.showNotification('Demolished', `${result.name} removed. Refund: ${result.refund} gold`, 'default');
+            game.ui.showNotification('Demolished', `${result.name} removed. Refund: ${Utils.formatGold(result.refund)} gold`, 'default');
             game.ui.updateStats(game.player, game.world);
             game.renderer.reachableHexes = game.player.getReachableHexes(game.world);
         } else {
@@ -1090,7 +1090,7 @@ Object.assign(ActionMenu, {
         let html = '<div style="max-width: 420px;">';
         html += lede(`⛰️ → 🌿 Flatten <strong>${terrainName}</strong> into <strong style="color: #8fd18a;">Grassland</strong>. Your workers will level the terrain, removing rocky outcrops and evening the land for farming or building.`);
         html += chips([
-            { icon: '💰', label: 'Cost', value: `<span style="color:${canAfford ? '#ffcf6a' : '#e0846a'};">${cost}g</span>` },
+            { icon: '💰', label: 'Cost', value: `<span style="color:${canAfford ? '#ffcf6a' : '#e0846a'};">${Utils.formatGold(cost)}g</span>` },
             { icon: '⏳', label: 'AP cost', value: `<span style="color:${hasAP ? '#9fc4f0' : '#e0846a'};">${apCost} AP</span>` },
             ['📦', 'Stone', `~${stoneYield}`],
         ]);
@@ -1099,7 +1099,7 @@ Object.assign(ActionMenu, {
         if (hasResource) html += `<div style="font-size: 12px; color: #e0846a; margin: 6px 0;">${resourceWarning}</div>`;
         html += '<div style="font-size: 11px; color: #9d937c; margin: 6px 0 10px;">Mountains and highlands cannot be terraformed.</div>';
         html += rowList([{
-            icon: '⛏️', name: 'Terraform — Flatten Hills', desc: `${cost}g and ${apCost} AP · ends the day`,
+            icon: '⛏️', name: 'Terraform — Flatten Hills', desc: `${Utils.formatGold(cost)}g and ${apCost} AP · ends the day`,
             attrs: `id="terraformBtn" onclick="window.doTerraform(${stoneYield})"`,
             off: !canTerraform, why: !canAfford ? 'Not Enough Gold' : 'Not Enough AP',
             side: price(cost, canAfford), tone: 'gold',
@@ -1111,7 +1111,7 @@ Object.assign(ActionMenu, {
             // Terraform manages its own AP internally — just clear the deferred pending
             ActionMenu._pendingAP = null;
             if (game.player.gold < cost) {
-                game.ui.showNotification('Cannot Terraform', `Need ${cost} gold`, 'error');
+                game.ui.showNotification('Cannot Terraform', `Need ${Utils.formatGold(cost)} gold`, 'error');
                 return;
             }
             if ((game.player.actionPoints || 0) < apCost) {
@@ -1228,7 +1228,7 @@ Object.assign(ActionMenu, {
                 if (typeof Titles !== 'undefined' && game.player.currentTitle === 'spymaster' && tavernKingdomId !== game.player.allegiance) {
                     const intelResult = Titles.recordIntelGathered(game.player, game.world);
                     if (intelResult) {
-                        game.ui.showNotification('🕵️ Intel Gathered', `Spymaster duty: Intelligence gathered (+${intelResult.gold} gold). Total: ${intelResult.count}`, 'success');
+                        game.ui.showNotification('🕵️ Intel Gathered', `Spymaster duty: Intelligence gathered (+${Utils.formatGold(intelResult.gold)} gold). Total: ${intelResult.count}`, 'success');
                     }
                 }
             }
@@ -1389,7 +1389,7 @@ Object.assign(ActionMenu, {
             for (const inf of informants) {
                 const days = currentDay - inf.hiredDay;
                 html += `<div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 2px;">
-                    • ${inf.settlementName} — ${days} days active, ${inf.upkeep}g/day upkeep</div>`;
+                    • ${inf.settlementName} — ${days} days active, ${Utils.formatGold(inf.upkeep)}g/day upkeep</div>`;
             }
             html += `</div>`;
         }

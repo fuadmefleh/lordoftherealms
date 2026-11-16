@@ -532,7 +532,7 @@ export const Livestock = {
         if (hexes > _num(M.droveMax, 12)) return { success: false, reason: `${pl.name} is too far for a drover (${hexes} hexes).` };
         const cost = Livestock.buyCost(world, s, id, n, o.tile);
         const fee = Livestock.droveFee(id, n, hexes);
-        if (_num(player.gold) < cost + fee) return { success: false, reason: `${n} ${String(n === 1 ? sp.name : (sp.plural || sp.name)).toLowerCase()} cost ${cost}g${fee ? ` and ${fee}g to drive home` : ''}; you have ${Math.floor(_num(player.gold))}g.` };
+        if (_num(player.gold) < cost + fee) return { success: false, reason: `${n} ${String(n === 1 ? sp.name : (sp.plural || sp.name)).toLowerCase()} cost ${Utils.formatGold(cost)}g${fee ? ` and ${Utils.formatGold(fee)}g to drive home` : ''}; you have ${Utils.formatGold(_num(player.gold))}g.` };
         player.gold -= cost + fee;
         // the dealer's price and the drover's wage stay in the town
         _purse(world, s, cost + fee);
@@ -545,7 +545,7 @@ export const Livestock = {
             const names = ((Livestock.config().names || {}).horse) || ['Bramble'];
             const sex = o.sex === 'f' ? 'f' : 'm';
             player.mount = { name: names[Math.floor(rng() * names.length)], price: cost, acquiredDay: _day(world), fromHerd: true, sex, age: age() };
-            return { success: true, cost, fee: 0, text: `You buy ${player.mount.name}, a ${sex === 'f' ? 'mare' : 'gelding'}, for ${cost}g, and ride away.` };
+            return { success: true, cost, fee: 0, text: `You buy ${player.mount.name}, a ${sex === 'f' ? 'mare' : 'gelding'}, for ${Utils.formatGold(cost)}g, and ride away.` };
         }
         const herd = Livestock.herd(player, pl.key, pl.place);
         herd.place = { ...pl.place };
@@ -558,7 +558,7 @@ export const Livestock = {
         const what = n === 1 ? `a ${o.sex === 'm' ? sp.maleName || sp.name : o.sex === 'f' ? sp.femaleName || sp.name : sp.name}`.toLowerCase() : `${n} ${String(sp.plural || sp.name).toLowerCase()}`;
         return {
             success: true, cost, fee, herdKey: pl.key,
-            text: `You buy ${what} for ${cost}g${fee ? `, and pay a drover ${fee}g to bring them to ${pl.name}` : ` — kept at ${pl.name}`}.`,
+            text: `You buy ${what} for ${Utils.formatGold(cost)}g${fee ? `, and pay a drover ${Utils.formatGold(fee)}g to bring them to ${pl.name}` : ` — kept at ${pl.name}`}.`,
         };
     },
 
@@ -621,7 +621,7 @@ export const Livestock = {
         player.gold = _num(player.gold) + earned;
         Ledger.record(player, 'livestock', earned);
         const k = picks.length;
-        return { success: true, earned, sold: k, text: `You sell ${k === 1 ? `a ${Livestock.headName(picks[0], sp)}` : `${k} ${String(sp.plural || sp.name).toLowerCase()}`} for ${earned}g.` };
+        return { success: true, earned, sold: k, text: `You sell ${k === 1 ? `a ${Livestock.headName(picks[0], sp)}` : `${k} ${String(sp.plural || sp.name).toLowerCase()}`} for ${Utils.formatGold(earned)}g.` };
     },
 
     // ── At the yard ───────────────────────────────────────
@@ -864,7 +864,7 @@ export const Livestock = {
             _purse(world, town, -value);
             player.gold = _num(player.gold) + value;
             Ledger.record(player, 'livestock', value);
-            notices.push({ icon: '🐾', title: 'Beasts Sold Off', text: `With nowhere left to keep them, your ${n} beast${n === 1 ? '' : 's'} were sold off for ${value}g.`, type: 'warning' });
+            notices.push({ icon: '🐾', title: 'Beasts Sold Off', text: `With nowhere left to keep them, your ${n} beast${n === 1 ? '' : 's'} were sold off for ${Utils.formatGold(value)}g.`, type: 'warning' });
         }
         Livestock.state(player).herds = Livestock.state(player).herds.filter(h => h !== herd);
     },
@@ -896,7 +896,7 @@ export const Livestock = {
                 herd.hungry = 0;
             } else {
                 herd.hungry = _num(herd.hungry) + 1;
-                const why = stocked ? `You cannot pay for fodder at ${name} (${whole}g a day)` : `${town.name || 'The town'} has no fodder to spare for ${name}`;
+                const why = stocked ? `You cannot pay for fodder at ${name} (${Utils.formatGold(whole)}g a day)` : `${town.name || 'The town'} has no fodder to spare for ${name}`;
                 if (herd.hungry === 1 || herd.hungry % 5 === 0) notices.push({ icon: '🌾', title: 'Hungry Beasts', text: `${why}: your beasts go hungry and give nothing.`, type: 'error' });
             }
         } else herd.hungry = 0;

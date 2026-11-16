@@ -59,6 +59,7 @@ import { PublicWorks } from '../systems/publicWorks.js';
 import { PlayerInventory } from './inventory.js';
 import { PlayerEconomy, Trading } from './playerEconomy.js';
 import { Names } from '../core/names.js';
+import { Utils } from '../core/utils.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -387,7 +388,7 @@ export const TradeLines = {
         const line = TradeLines._find(player, lineId);
         if (!line) return { success: false, reason: 'No such line.' };
         line.reserve = _int(gold, 0);
-        return { success: true, text: `${line.name} will leave at least ${line.reserve}g in your purse.` };
+        return { success: true, text: `${line.name} will leave at least ${Utils.formatGold(line.reserve)}g in your purse.` };
     },
 
     addStop(player, world, lineId, q, r, at = null) {
@@ -449,8 +450,8 @@ export const TradeLines = {
 
     describeRule(r) {
         const g = TradeLines.goodName(r.good).toLowerCase();
-        if (r.op === 'buy') return `buy ${g} up to ${r.qty} aboard at ${r.price}g or less`;
-        if (r.op === 'sell') return `sell ${g} at ${r.price}g or more${r.keep ? `, keeping ${r.keep}` : ''}`;
+        if (r.op === 'buy') return `buy ${g} up to ${r.qty} aboard at ${Utils.formatGold(r.price)}g or less`;
+        if (r.op === 'sell') return `sell ${g} at ${Utils.formatGold(r.price)}g or more${r.keep ? `, keeping ${r.keep}` : ''}`;
         if (r.op === 'supply') return `supply ${r.qty ? r.qty : 'all the'} ${g} to your property here`;
         return `load ${r.qty ? `up to ${r.qty} ` : ''}${g} from your property here`;
     },
@@ -697,7 +698,7 @@ export const TradeLines = {
             if (!line.wagon) {
                 const hire = _num(cfg.hire, 120);
                 if (_num(player.gold) < hire) {
-                    const why = `No coin to hire wagons (${hire}g) at ${here.name}.`;
+                    const why = `No coin to hire wagons (${Utils.formatGold(hire)}g) at ${here.name}.`;
                     if (line.stallReason !== why) TradeLines._notice(out, '🐫', 'A Line Waits', `${line.name}: ${why}`, 'warning');
                     line.phase = 'hold';
                     line.stallReason = why;
@@ -1000,7 +1001,7 @@ export const TradeLines = {
             outlay = (n) => Trading.saleOutlay(player, s, g, total(n), policy);
         }
         const first = total(1);
-        if (first < rule.price) { TradeLines._note(ctx, `kept ${avail} ${gname}: it fetched ${first}g, the line sells at ${rule.price}g or more.`); return; }
+        if (first < rule.price) { TradeLines._note(ctx, `kept ${avail} ${gname}: it fetched ${Utils.formatGold(first)}g, the line sells at ${Utils.formatGold(rule.price)}g or more.`); return; }
         let n = _maxTrue(avail, (k) => total(k) - total(k - 1) >= rule.price);
         const short = n;
         if (purse != null) n = Math.min(n, _maxTrue(n, (k) => outlay(k) <= purse));
@@ -1036,7 +1037,7 @@ export const TradeLines = {
         run.sold[g] = _num(run.sold[g]) + n;
         const tl = TradeLines.state(player);
         tl.week.revenue = _num(tl.week.revenue) + earned;
-        if (n < avail) TradeLines._note(ctx, `sold ${n} ${gname} for ${earned}g; kept ${avail - n} (${n < short ? 'the merchants ran out of coin' : `the price fell under ${rule.price}g`}).`);
+        if (n < avail) TradeLines._note(ctx, `sold ${n} ${gname} for ${Utils.formatGold(earned)}g; kept ${avail - n} (${n < short ? 'the merchants ran out of coin' : `the price fell under ${Utils.formatGold(rule.price)}g`}).`);
     },
 
     _buy(ctx, rule) {
@@ -1068,7 +1069,7 @@ export const TradeLines = {
                 n++;
             }
             if (n <= 0) {
-                TradeLines._note(ctx, unit(0) > rule.price ? `bought no ${gname}: it costs ${unit(0)}g, the line pays ${rule.price}g at most.` : `no coin in your purse for ${gname}.`);
+                TradeLines._note(ctx, unit(0) > rule.price ? `bought no ${gname}: it costs ${Utils.formatGold(unit(0))}g, the line pays ${Utils.formatGold(rule.price)}g at most.` : `no coin in your purse for ${gname}.`);
                 return;
             }
             player.gold -= cost;
@@ -1087,7 +1088,7 @@ export const TradeLines = {
         want = Math.min(want, Math.floor(entry.quantity));
         const cost = (k) => (k <= 0 ? 0 : Math.ceil(Trading.buyCost(player, entry, k, s) * (1 - ctx.haggle)));
         const firstCost = cost(1);
-        if (firstCost > rule.price) { TradeLines._note(ctx, `bought no ${gname}: it costs ${firstCost}g, the line pays ${rule.price}g at most.`); return; }
+        if (firstCost > rule.price) { TradeLines._note(ctx, `bought no ${gname}: it costs ${Utils.formatGold(firstCost)}g, the line pays ${Utils.formatGold(rule.price)}g at most.`); return; }
         let n = _maxTrue(want, (k) => cost(k) - cost(k - 1) <= rule.price);
         n = Math.min(n, _maxTrue(n, (k) => cost(k) <= budget));
         if (n <= 0) { TradeLines._note(ctx, `no coin in your purse for ${gname}.`); return; }
@@ -1115,7 +1116,7 @@ export const TradeLines = {
         run.spent += cost;
         run.bought[g] = _num(run.bought[g]) + n;
         TradeLines._addBasis(ctx.line, g, n, cost);
-        if (n < want) TradeLines._note(ctx, `bought ${n} of ${want} ${TradeLines.goodName(g).toLowerCase()} for ${cost}g (the price rose past the line's limit, or the purse ran short).`);
+        if (n < want) TradeLines._note(ctx, `bought ${n} of ${want} ${TradeLines.goodName(g).toLowerCase()} for ${Utils.formatGold(cost)}g (the price rose past the line's limit, or the purse ran short).`);
     },
 
     /** Deliver to your property here (a workshop's inputs) or your holding's stores. */
@@ -1212,14 +1213,14 @@ export const TradeLines = {
             tl.stats.revenue = Math.round(tl.stats.revenue + r.revenue);
             if (out && !why) {
                 const days = Math.max(1, day - _num(r.startDay, day));
-                const bits = [`sold ${r.revenue}g`, `bought ${r.spent}g`];
-                if (r.wages) bits.push(`wages ${r.wages}g`);
-                if (r.crew) bits.push(`crew ${r.crew}g`);
-                if (r.tolls) bits.push(`tolls ${r.tolls}g`);
-                if (r.hire) bits.push(`wagons ${r.hire}g`);
-                if (r.lost) bits.push(`lost ${r.lost}g`);
-                if (r.supplied) bits.push(`${r.supplied}g of goods delivered to your own`);
-                TradeLines._notice(out, r.net >= 0 ? '📒' : '📉', 'A Trade Line Comes Home', `${line.name}, round ${r.n} in ${days} days: ${r.net >= 0 ? '+' : ''}${r.net}g (${bits.join(', ')}).`, r.net >= 0 ? 'success' : 'warning');
+                const bits = [`sold ${Utils.formatGold(r.revenue)}g`, `bought ${Utils.formatGold(r.spent)}g`];
+                if (r.wages) bits.push(`wages ${Utils.formatGold(r.wages)}g`);
+                if (r.crew) bits.push(`crew ${Utils.formatGold(r.crew)}g`);
+                if (r.tolls) bits.push(`tolls ${Utils.formatGold(r.tolls)}g`);
+                if (r.hire) bits.push(`wagons ${Utils.formatGold(r.hire)}g`);
+                if (r.lost) bits.push(`lost ${Utils.formatGold(r.lost)}g`);
+                if (r.supplied) bits.push(`${Utils.formatGold(r.supplied)}g of goods delivered to your own`);
+                TradeLines._notice(out, r.net >= 0 ? '📒' : '📉', 'A Trade Line Comes Home', `${line.name}, round ${r.n} in ${days} days: ${r.net >= 0 ? '+' : ''}${Utils.formatGold(r.net)}g (${bits.join(', ')}).`, r.net >= 0 ? 'success' : 'warning');
             }
         }
         line.run = TradeLines._newRun(touched ? r.n + 1 : r.n, day);
@@ -1251,7 +1252,7 @@ export const TradeLines = {
                 const before = line.run.revenue;
                 for (const g of Object.keys({ ...line.cargo })) TradeLines._sell(ctx, { op: 'sell', good: g, price: 0, keep: 0 });
                 const got = Math.round(line.run.revenue - before);
-                if (got > 0) text += ` The goods aboard sold for ${got}g.`;
+                if (got > 0) text += ` The goods aboard sold for ${Utils.formatGold(got)}g.`;
                 const left = Object.entries(line.cargo);
                 if (left.length) {
                     for (const [g, n] of left) SettlementMarket.add(s, g, n);

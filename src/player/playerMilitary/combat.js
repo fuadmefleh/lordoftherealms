@@ -473,7 +473,7 @@ Object.assign(PlayerMilitary, {
         if (!player.indenturedServitude.canBuyFreedom) return { success: false, reason: 'Captor refuses to negotiate' };
 
         const cost = player.indenturedServitude.freedomCost;
-        if (player.gold < cost) return { success: false, reason: `Need ${cost} gold (have ${Math.floor(player.gold)})` };
+        if (player.gold < cost) return { success: false, reason: `Need ${Utils.formatGold(cost)} gold (have ${Math.floor(player.gold)})` };
 
         // (the ransom goes to the captors: the band's packs, its realm, else the town nearest)
         PlayerCoin.pay(world, player, cost, null, 'ransoms');

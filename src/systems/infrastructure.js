@@ -12,6 +12,7 @@ import { Transport } from '../world/transport.js';
 import { Construction } from './construction.js';
 import { DataLoader } from '../core/dataLoader.js';
 import { MoneySupply } from '../world/moneySupply.js';
+import { Utils } from '../core/utils.js';
 
 
 /** Player-built works a road search may cross (Infrastructure._roadReach). */
@@ -120,7 +121,7 @@ export const Infrastructure = {
         const rawDays = Construction.infraDays(infra, tile, world);
         const buildDays = upgrading && rawDays > 0 ? Math.max(1, Math.round(rawDays * 0.75)) : rawDays;
         if (player.gold < cost) {
-            return { can: false, reason: `Need ${cost} gold (have ${Math.floor(player.gold)})` };
+            return { can: false, reason: `Need ${Utils.formatGold(cost)} gold (have ${Math.floor(player.gold)})` };
         }
 
         // Check terrain passability
@@ -311,7 +312,7 @@ export const Infrastructure = {
             if (c && c.can) { total += c.cost; sites.push(tile); }
         }
         if (!sites.length) return { success: false, reason: 'Nothing left to build along that way' };
-        if ((player.gold || 0) < total) return { success: false, reason: `The whole line costs ${total} gold (you have ${Math.floor(player.gold || 0)})` };
+        if ((player.gold || 0) < total) return { success: false, reason: `The whole line costs ${Utils.formatGold(total)} gold (you have ${Math.floor(player.gold || 0)})` };
         const built = [];
         let paid = 0;
         for (const tile of sites) {

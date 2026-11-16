@@ -73,10 +73,10 @@ import { MoneySupply } from '../world/moneySupply.js';
 // broker's price and passengers' ransoms are a port's coin: drawn from the
 // nearest town's purse. Hunters' bribes go ashore with them; fines to the crown.
 const _r2 = v => Math.round(v * 100) / 100;
-/** Coin to the rovers (out of the world). */
-function _toSea(world, amount) { if (amount > 0) MoneySupply.leak(world, -_r2(amount), 'pirates'); }
-/** Coin won from the rovers (into the world). */
-function _fromSea(world, amount) { if (amount > 0) MoneySupply.leak(world, _r2(amount), 'pirates'); }
+/** Coin to the nameless rovers: into the sea's keeping (MoneySupply.seaLost, counted coin). */
+function _toSea(world, amount) { if (amount > 0) MoneySupply.seaLost(world, _r2(amount)); }
+/** Coin won from the rovers: out of the sea's keeping, past that booked found (MoneySupply.seaFound). */
+function _fromSea(world, amount) { if (amount > 0) MoneySupply.seaFound(world, _r2(amount), 'pirates'); }
 /** Coin out of the nearest port's purse (as much as it holds): -> what was paid. */
 function _fromPort(world, player, amount) {
     if (!(amount > 0)) return 0;
@@ -721,8 +721,8 @@ export const Pirates = {
                 const haven = cap ? Pirates.haven(player, cap.havenId) : null;
                 const price = Math.round(e.strength * 6);
                 out.options.push(opt('demand', '🏳️', 'Demand their surrender', ratio >= 1.3 ? 'You have the guns; they may see sense.' : 'You are not strong enough to make them.', Pirates._surrenderChance(player, state)));
-                if (haven && !haven.known) out.options.push(opt('buy_haven', '🗺️', 'Buy word of their haven', 'Gold for the bearing of their cove.', null, { cost: `${price} gold`, can: _num(player.gold) >= price, reason: `They want ${price} gold` }));
-                out.options.push(opt('tribute', '💰', 'Pay them to leave these waters', 'They spare you, and the coast, for a while.', null, { cost: `${price} gold`, can: _num(player.gold) >= price, reason: `They want ${price} gold` }));
+                if (haven && !haven.known) out.options.push(opt('buy_haven', '🗺️', 'Buy word of their haven', 'Gold for the bearing of their cove.', null, { cost: `${Utils.formatGold(price)} gold`, can: _num(player.gold) >= price, reason: `They want ${Utils.formatGold(price)} gold` }));
+                out.options.push(opt('tribute', '💰', 'Pay them to leave these waters', 'They spare you, and the coast, for a while.', null, { cost: `${Utils.formatGold(price)} gold`, can: _num(player.gold) >= price, reason: `They want ${Utils.formatGold(price)} gold` }));
                 out.options.push(opt('part', '🤝', 'Part ways', 'Each to their own course.', null, { odds: false }));
                 break;
             }
@@ -740,7 +740,7 @@ export const Pirates = {
                 out.options.push(opt('fight', '⚔️', 'Fight', 'Beat them, and your name grows darker still.', Pirates.boardChance(player, world, state)));
                 {
                     const bribe = Pirates.bribeCost(player, state);
-                    out.options.push(opt('bribe', '💰', 'Bribe their captain', 'Gold for a blind eye. Refused, they keep the purse and come on.', Pirates.parleyChance(player, world, state) + 0.15, { cost: `${bribe} gold`, can: _num(player.gold) >= bribe, reason: `Needs ${bribe} gold` }));
+                    out.options.push(opt('bribe', '💰', 'Bribe their captain', 'Gold for a blind eye. Refused, they keep the purse and come on.', Pirates.parleyChance(player, world, state) + 0.15, { cost: `${Utils.formatGold(bribe)} gold`, can: _num(player.gold) >= bribe, reason: `Needs ${Utils.formatGold(bribe)} gold` }));
                     const fine = Pirates.fineAmount(player);
                     out.options.push(opt('surrender', '🏳️', 'Strike your colours', `Pay a ${fine} gold fine and lose your cargo — or go to the cells if you cannot.`, null));
                 }
@@ -758,8 +758,8 @@ export const Pirates = {
                 out.text = `${e.name}'s crew have thrown down their arms. ${e.captainId ? `${e.name} stands before you in chains.` : ''}`;
                 const ransom = Pirates._ransomAmount(e);
                 const bounty = Math.round(e.str0 * Pirates.config().bountyPerStrength);
-                out.options.push(opt('ransom', '💰', 'Hold the captain for ransom', 'Their haven pays — and so you learn where it lies. They go free, and remember.', null, { cost: `~${ransom} gold`, odds: false }));
-                out.options.push(opt('hang', '⚖️', 'Hand them to the crown', `The bounty (~${bounty} gold) and renown; the gallows for them.`, null, { odds: false }));
+                out.options.push(opt('ransom', '💰', 'Hold the captain for ransom', 'Their haven pays — and so you learn where it lies. They go free, and remember.', null, { cost: `~${Utils.formatGold(ransom)} gold`, odds: false }));
+                out.options.push(opt('hang', '⚖️', 'Hand them to the crown', `The bounty (~${Utils.formatGold(bounty)} gold) and renown; the gallows for them.`, null, { odds: false }));
                 out.options.push(opt('press', '⛓️', 'Press the crew into yours', 'Sailors for your ship; their captain set adrift, humiliated.', null, { odds: false }));
                 out.options.push(opt('spare', '🕊️', 'Let them go with their lives', 'Mercy is remembered at sea.', null, { odds: false }));
                 break;
@@ -769,7 +769,7 @@ export const Pirates = {
                 const why = Pirates._prizeReason(player, ship);
                 const sale = Math.round(e.str0 * Pirates.config().prizeSalePerStrength * 0.6);
                 out.options.push(opt('prize', '⚓', 'Seize her as a prize', 'She joins your fleet: a prize crew sails her to the nearest port.', null, { can: !why, reason: why || '', odds: false }));
-                out.options.push(opt('sell', '💰', 'Sell her to a prize broker', 'Gold now, at a broker\'s price.', null, { cost: `+${sale} gold`, odds: false }));
+                out.options.push(opt('sell', '💰', 'Sell her to a prize broker', 'Gold now, at a broker\'s price.', null, { cost: `+${Utils.formatGold(sale)} gold`, odds: false }));
                 out.options.push(opt('scuttle', '🔥', 'Scuttle her', 'One fewer pirate hull on the sea.', null, { odds: false }));
                 if (state.spared) out.options.push(opt('leave', '🕊️', 'Let them keep her', 'They sail away in her, owing you everything.', null, { odds: false }));
                 break;
@@ -777,7 +777,7 @@ export const Pirates = {
             case 'merchant_aftermath': {
                 out.text = `${e.name} has struck. Her master waits on deck, hat in hand.`;
                 const cargoText = Object.entries(e.cargo || {}).map(([id, n]) => `${n} ${id}`).join(', ') || 'little';
-                out.lines.push(`Her strongbox: ~${e.gold} gold. Her hold: ${cargoText}.`);
+                out.lines.push(`Her strongbox: ~${Utils.formatGold(e.gold)} gold. Her hold: ${cargoText}.`);
                 const why = Pirates._prizeReason(player, ship);
                 out.options.push(opt('plunder', '📦', 'Plunder her and let her go', 'Gold and cargo; her crew will talk in port.', null, { odds: false }));
                 out.options.push(opt('ransom', '💰', 'Ransom the passengers too', 'More gold, more talk, more infamy.', null, { odds: false }));
@@ -894,17 +894,17 @@ export const Pirates = {
                     return go('battle', `${e.name} laughed and ran out the guns.`);
                 }
                 if (choice === 'buy_haven' && cap) {
-                    if (_num(player.gold) < price) return { invalid: true, notification: { title: 'Purse Too Light', body: `They want ${price} gold.`, type: 'error' } };
+                    if (_num(player.gold) < price) return { invalid: true, notification: { title: 'Purse Too Light', body: `They want ${Utils.formatGold(price)} gold.`, type: 'error' } };
                     player.gold -= price;
                     _toSea(world, price);
                     Ledger.record(player, 'seaFines', -price);
                     const h = Pirates.haven(player, cap.havenId);
                     if (h) h.known = true;
                     Pirates._log(Pirates.state(player), world, `Bought the bearing of ${h ? h.name : 'a haven'} from ${cap.name}.`);
-                    return end('🗺️ A Haven Revealed', `For ${price} gold, ${e.name} marks ${h ? `${h.name} at (${h.q}, ${h.r})` : 'their cove'} on your chart. Sail there to raid it.`, 'success');
+                    return end('🗺️ A Haven Revealed', `For ${Utils.formatGold(price)} gold, ${e.name} marks ${h ? `${h.name} at (${h.q}, ${h.r})` : 'their cove'} on your chart. Sail there to raid it.`, 'success');
                 }
                 if (choice === 'tribute') {
-                    if (_num(player.gold) < price) return { invalid: true, notification: { title: 'Purse Too Light', body: `They want ${price} gold.`, type: 'error' } };
+                    if (_num(player.gold) < price) return { invalid: true, notification: { title: 'Purse Too Light', body: `They want ${Utils.formatGold(price)} gold.`, type: 'error' } };
                     player.gold -= price;
                     // (into the captain's takings — counted coin — else to the rovers at large)
                     if (!cap) _toSea(world, price);
@@ -943,7 +943,7 @@ export const Pirates = {
                 if (choice === 'fight') return go('battle', 'You cleared for action against the hunters.');
                 if (choice === 'bribe') {
                     const cost = Pirates.bribeCost(player, state);
-                    if (_num(player.gold) < cost) return { invalid: true, notification: { title: 'Purse Too Light', body: `They want ${cost} gold.`, type: 'error' } };
+                    if (_num(player.gold) < cost) return { invalid: true, notification: { title: 'Purse Too Light', body: `They want ${Utils.formatGold(cost)} gold.`, type: 'error' } };
                     player.gold -= cost;
                     _toPort(world, player, cost);
                     Ledger.record(player, 'seaFines', -cost);
@@ -951,7 +951,7 @@ export const Pirates = {
                         Pirates.state(player).lastHunterDay = _day(world) + 4;
                         return end('💰 A Blind Eye', `${e.name} pockets ${cost} gold and finds pressing business elsewhere.`, 'warning');
                     }
-                    return go('battle', `They took your ${cost} gold — and then the guns ran out.`);
+                    return go('battle', `They took your ${Utils.formatGold(cost)} gold — and then the guns ran out.`);
                 }
                 if (choice === 'surrender') return Pirates._surrender(player, world, state, ship);
                 return { invalid: true };
@@ -1178,7 +1178,7 @@ export const Pirates = {
                 const h = Pirates.haven(player, cap.havenId);
                 if (h) { h.known = true; where = ` The money came out of ${h.name} (${h.q}, ${h.r}) — now on your chart.`; }
             }
-            return go('aftermath_ship', `💰 ${e.name} ransomed for ${gold} gold.${where}`);
+            return go('aftermath_ship', `💰 ${e.name} ransomed for ${Utils.formatGold(gold)} gold.${where}`);
         }
         if (choice === 'hang') {
             // (the crown that hangs them pays the bounty: its chests, then its towns; else the port)
@@ -1240,7 +1240,7 @@ export const Pirates = {
             player.gold = _num(player.gold) + sale;
             Ledger.record(player, 'plunder', sale);
             if (cap && cap.status === 'at_large') cap.strength = Math.max(4, Math.round(cap.strength * 0.5));
-            return end('💰 Prize Sold', `${lead} A broker's agent takes the ${e.shipName || 'ship'} off your hands for ${sale} gold.`, 'success');
+            return end('💰 Prize Sold', `${lead} A broker's agent takes the ${e.shipName || 'ship'} off your hands for ${Utils.formatGold(sale)} gold.`, 'success');
         }
         if (choice === 'scuttle') {
             player.renown = _num(player.renown) + cfg.renown.scuttle;
@@ -1475,7 +1475,7 @@ export const Pirates = {
             c.regard = Math.max(-100, c.regard - 30);
             Pirates._remember(c, world, `lost their hoard at ${h ? h.name : 'their haven'} to you`);
         }
-        Pirates._log(st, world, `You raided ${h ? h.name : 'a pirate haven'} for ${loot} gold.`);
+        Pirates._log(st, world, `You raided ${h ? h.name : 'a pirate haven'} for ${Utils.formatGold(loot)} gold.`);
         const body = `${state.quiet ? 'In and out before dawn' : 'The haven is yours'}: ${loot} gold from the rovers' hoard. +${cfg.haven.renown} renown.${caps.length ? ` ${caps.map(c => c.name).join(' and ')} will not forgive it.` : ''}`;
         return { done: true, log: state.log, notification: { title: '🏝️ Haven Raided', body, type: 'success' } };
     },
@@ -1564,12 +1564,12 @@ export const Pirates = {
                 player.gold = _num(player.gold) + g;
                 _fromSea(world, g);
                 Ledger.record(player, 'exploration', g);
-                out.push(`+${g} gold.`);
+                out.push(`+${Utils.formatGold(g)} gold.`);
             } else if (g < 0) {
                 const lost = Math.min(_num(player.gold), -g);
                 player.gold = _num(player.gold) - lost;
                 _toSea(world, lost);
-                if (lost) { Ledger.record(player, 'robbery', -lost); out.push(`−${lost} gold.`); }
+                if (lost) { Ledger.record(player, 'robbery', -lost); out.push(`−${Utils.formatGold(lost)} gold.`); }
             }
         }
         if (o.cargo && ship) {

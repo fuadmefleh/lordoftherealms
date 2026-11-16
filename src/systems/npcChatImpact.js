@@ -51,6 +51,7 @@ import { NpcDisposition } from './npcDisposition.js';
 import { Relationships } from './relationships.js';
 import { Vanishings } from './vanishings.js';
 import { Overheard } from './overheard.js';
+import { Utils } from '../core/utils.js';
 
 const DEFAULTS = {
     kinShare: 0.25, kinPerDay: 4, kinTold: 3, wordPerDay: 1, whisperHeat: 6,
@@ -561,7 +562,7 @@ export const NpcChatImpact = {
             lines.push('YOUR PROMISES FROM THEM (hold them to these; call keep_promise with the number only when they have truly done it):');
             for (const p of proms) {
                 const left = _num(p.due) - day;
-                lines.push(`- #${p.id}: ${p.text}${p.gold > 0 ? ` (${p.gold} gold, ${_num(p.paid)} paid so far)` : ''} — ${left <= 0 ? 'due today' : `due in ${left} day${left === 1 ? '' : 's'}`}.`);
+                lines.push(`- #${p.id}: ${p.text}${p.gold > 0 ? ` (${Utils.formatGold(p.gold)} gold, ${_num(p.paid)} paid so far)` : ''} — ${left <= 0 ? 'due today' : `due in ${left} day${left === 1 ? '' : 's'}`}.`);
             }
         }
         const store = who.store();

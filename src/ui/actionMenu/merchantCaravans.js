@@ -6,6 +6,7 @@ import { ActionMenu } from './_ref.js';
 import { MerchantCaravans, PlayerMilitary } from './_imports.js';
 import { PriceKnowledge } from '../../systems/priceKnowledge.js';
 import { ConversationScene } from '../conversationScene.js';
+import { Utils } from '../../core/utils.js';
 
 
 function _esc(s) {
@@ -131,7 +132,7 @@ function _mainChoices(game, u) {
         const can = MerchantCaravans.canEscort(player, world, u);
         list.push({
             icon: '🛡️', label: 'I will ride as your escort.', group: 'escort',
-            extra: `<span class="npc-dialog-price is-good">${u.escortPay}g</span>`,
+            extra: `<span class="npc-dialog-price is-good">${Utils.formatGold(u.escortPay)}g</span>`,
             tooltip: `Guard them to ${u.toName}; ${u.escortPay} gold on arrival. Stay within ${MerchantCaravans.config().escort.range} hexes to fight off ambushes.`,
             disabled: !can.ok, disabledReason: can.reason || 'not now',
             onPick: () => { scene.player(`I will ride as your escort to ${u.toName}.`); ActionMenu.traderEscort(game, u.id); },
@@ -177,8 +178,8 @@ function _waresChoices(game, u, view) {
             list.push({
                 icon: o.icon, label: `${_esc(o.name)} <span class="npc-dialog-bond">×${o.qty}${held ? ` · you have ${held}` : ''}</span>`,
                 group: 'wares',
-                extra: `<span class="npc-dialog-price">${o.buy}g</span>`,
-                tooltip: `Buy one for ${o.buy} gold — Shift for five (${o.buy * 5}g).`,
+                extra: `<span class="npc-dialog-price">${Utils.formatGold(o.buy)}g</span>`,
+                tooltip: `Buy one for ${Utils.formatGold(o.buy)} gold — Shift for five (${Utils.formatGold(o.buy * 5)}g).`,
                 disabled: !ok, disabledReason: o.qty < 1 ? 'sold out' : 'not enough gold',
                 onPick: (meta) => ActionMenu.traderBuy(game, u.id, o.id,
                     meta.shift && o.qty >= 5 && (player.gold || 0) >= o.buy * 5 ? 5 : 1),
@@ -187,8 +188,8 @@ function _waresChoices(game, u, view) {
             list.push({
                 icon: o.icon, label: `${_esc(o.name)} <span class="npc-dialog-bond">you have ${held}</span>`,
                 group: 'sell',
-                extra: `<span class="npc-dialog-price is-good">${o.sell}g</span>`,
-                tooltip: `Sell one for ${o.sell} gold — Shift for five.`,
+                extra: `<span class="npc-dialog-price is-good">${Utils.formatGold(o.sell)}g</span>`,
+                tooltip: `Sell one for ${Utils.formatGold(o.sell)} gold — Shift for five.`,
                 disabled: (u.purse || 0) < o.sell, disabledReason: 'the merchant cannot pay',
                 onPick: (meta) => ActionMenu.traderSell(game, u.id, o.id, meta.shift && held >= 5 ? 5 : 1),
             });
@@ -255,19 +256,19 @@ Object.assign(ActionMenu, {
     traderBuy(game, unitId, goodId, qty) {
         const r = MerchantCaravans.buy(game.player, game.world, unitId, goodId, qty);
         game.ui.updateStats(game.player, game.world);
-        ActionMenu.showTrader(game, unitId, r.success ? { ok: true, text: `Bought ${r.qty} for ${r.cost} gold.` } : { ok: false, text: r.reason });
+        ActionMenu.showTrader(game, unitId, r.success ? { ok: true, text: `Bought ${r.qty} for ${Utils.formatGold(r.cost)} gold.` } : { ok: false, text: r.reason });
     },
 
     traderSell(game, unitId, goodId, qty) {
         const r = MerchantCaravans.sell(game.player, game.world, unitId, goodId, qty);
         game.ui.updateStats(game.player, game.world);
-        ActionMenu.showTrader(game, unitId, r.success ? { ok: true, text: `Sold ${r.qty} for ${r.pay} gold.` } : { ok: false, text: r.reason });
+        ActionMenu.showTrader(game, unitId, r.success ? { ok: true, text: `Sold ${r.qty} for ${Utils.formatGold(r.pay)} gold.` } : { ok: false, text: r.reason });
     },
 
     traderEscort(game, unitId) {
         const r = MerchantCaravans.hireEscort(game.player, game.world, unitId);
         ActionMenu.showTrader(game, unitId, r.success
-            ? { ok: true, text: `Hired. Bring them safe to ${r.to} and you are paid ${r.pay} gold.` }
+            ? { ok: true, text: `Hired. Bring them safe to ${r.to} and you are paid ${Utils.formatGold(r.pay)} gold.` }
             : { ok: false, text: r.reason });
     },
 

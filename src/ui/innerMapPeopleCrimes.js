@@ -17,6 +17,7 @@ import { InnerMap } from '../world/innerMap.js';
 import { PeopleCrimes } from '../systems/peopleCrimes.js';
 import { StreetCrime } from '../systems/streetCrime.js';
 import { InnerMapCarry } from './innerMapCarry.js';
+import { Utils } from '../core/utils.js';
 
 function _note(game, title, body, kind = 'info') {
     if (game && game.ui && typeof game.ui.showNotification === 'function') game.ui.showNotification(title, body, kind);
@@ -72,7 +73,7 @@ export const InnerMapPeopleCrimes = {
         else out.push({ type: 'disabled', label: 'Lock Them in Your Cellar: you keep no house or property in this town' });
         if (world && PeopleCrimes.isHarbour(world, q, r)) {
             const price = PeopleCrimes.bondagePrice(world, q, r, npc._person);
-            out.push({ type: 'action', action: 'downed_galleys', label: `Sell Them to the Galleys (${price}g)`, icon: '⚓', desc: 'The galley master pays and takes them aboard. Sold people sometimes come home.', npc });
+            out.push({ type: 'action', action: 'downed_galleys', label: `Sell Them to the Galleys (${Utils.formatGold(price)}g)`, icon: '⚓', desc: 'The galley master pays and takes them aboard. Sold people sometimes come home.', npc });
         } else out.push({ type: 'disabled', label: 'Sell Them to the Galleys: no galley master puts in here' });
         return out;
     },

@@ -7,6 +7,7 @@ import { Sieges } from '../../systems/sieges.js';
 import { Throne, PlayerMilitary, House } from './_imports.js';
 import { chips, purse, sectionHead, card, actRow, rowList, price, BTN_GOLD, BTN_DARK, BTN_RED, BTN_OFF } from './uiKit.js';
 import { Names } from '../../core/names.js';
+import { Utils } from '../../core/utils.js';
 
 const MUTED = 'color: #9d937c; font-size: 11px;';
 const AP = { battle: 2 };
@@ -64,11 +65,11 @@ export function crownRuleHtml(game) {
     const LIMIT = {
         rate: 'the tax policy',
         stability: `the realm's unrest (only ${Math.round(lq.stabilityMult * 100)}% of the dues reach you)`,
-        surplus: lq.surplus > 0 ? `the crown's upkeep (only ${Math.floor(lq.surplus)}g a day is left over the army, court and works)` : `the crown's deficit (its upkeep ${Math.floor(lq.upkeep)}g a day outruns its ${Math.floor(lq.revenue)}g of revenue)`,
-        reserve: `the treasury's reserve (it keeps ${lq.reserve}g, ${cfg.ruling.levyReserveDays || 0} days of upkeep)`,
-        cap: `the customary cap of ${lq.cap}g a day`,
+        surplus: lq.surplus > 0 ? `the crown's upkeep (only ${Utils.formatGold(lq.surplus)}g a day is left over the army, court and works)` : `the crown's deficit (its upkeep ${Utils.formatGold(lq.upkeep)}g a day outruns its ${Utils.formatGold(lq.revenue)}g of revenue)`,
+        reserve: `the treasury's reserve (it keeps ${Utils.formatGold(lq.reserve)}g, ${cfg.ruling.levyReserveDays || 0} days of upkeep)`,
+        cap: `the customary cap of ${Utils.formatGold(lq.cap)}g a day`,
     };
-    let html = `<div style="${MUTED} margin:4px 0;">Ruling since day ${r.since}${r.founded ? ', the realm founded by your hand' : ''}. Today's levy to your purse: <b style="color:#ffcf6a;">${lq.levy}g</b> (${Math.round(lq.rate * 100)}% of ${Math.floor(lq.revenue)}g in daily dues), held down by ${LIMIT[lq.limit] || lq.limit}. ${r.levyTotal || 0}g levied so far.</div>`;
+    let html = `<div style="${MUTED} margin:4px 0;">Ruling since day ${r.since}${r.founded ? ', the realm founded by your hand' : ''}. Today's levy to your purse: <b style="color:#ffcf6a;">${Utils.formatGold(lq.levy)}g</b> (${Math.round(lq.rate * 100)}% of ${Utils.formatGold(lq.revenue)}g in daily dues), held down by ${LIMIT[lq.limit] || lq.limit}. ${Utils.formatGold(r.levyTotal || 0)}g levied so far.</div>`;
 
     // The crown's policies: the one in force marked, the others a click away
     for (const axis of Throne.POLICY_AXES) {
@@ -116,7 +117,7 @@ export function bindCrownRule(game, reopen) {
             const rows = d.atWar
                 ? [{ icon: '🕊️', name: 'Propose peace', desc: `~${Math.round(Throne.peaceChance(player, world, d.kingdom.id) * 100)}% they accept`, attrs: `onclick="window._throne.peace('${id}')"` }]
                 : [
-                    { icon: '🎁', name: 'Send royal gifts', desc: 'Warm their court toward yours', side: price(cfg.ruling.giftCost, (ruled.treasury || 0) >= cfg.ruling.giftCost), off: (ruled.treasury || 0) < cfg.ruling.giftCost, why: `The treasury lacks ${cfg.ruling.giftCost}g`, attrs: `onclick="window._throne.gift('${id}')"` },
+                    { icon: '🎁', name: 'Send royal gifts', desc: 'Warm their court toward yours', side: price(cfg.ruling.giftCost, (ruled.treasury || 0) >= cfg.ruling.giftCost), off: (ruled.treasury || 0) < cfg.ruling.giftCost, why: `The treasury lacks ${Utils.formatGold(cfg.ruling.giftCost)}g`, attrs: `onclick="window._throne.gift('${id}')"` },
                     { icon: '🤝', name: 'Propose an alliance', desc: `Needs relations of ${cfg.ruling.allianceMinRelations}+`, off: d.allied || d.relations < cfg.ruling.allianceMinRelations, why: d.allied ? 'Already allied' : `Relations ${d.relations}; they need ${cfg.ruling.allianceMinRelations}+`, attrs: `onclick="window._throne.ally('${id}')"` },
                     { icon: '⚔️', name: 'Declare war', desc: 'Their towns become your war goal', tone: 'bad', off: d.allied || !!d.truce, why: d.allied ? 'You are allied' : 'A truce holds', attrs: `onclick="window._throne.war('${id}')"` },
                 ];
@@ -188,8 +189,8 @@ Object.assign(ActionMenu, {
                 body += _bar(cl.support, 0, total, cl.isIncumbent ? '#9bc' : '#f0b35a');
                 if (canBack) {
                     body += '<div>';
-                    body += _btn(`💰 ${cfg.crisis.minGold}g`, `window._throne.back('${c.id}','${cl.id}','gold',${cfg.crisis.minGold})`, (player.gold || 0) >= cfg.crisis.minGold);
-                    body += _btn(`💰 ${cfg.crisis.minGold * 3}g`, `window._throne.back('${c.id}','${cl.id}','gold',${cfg.crisis.minGold * 3})`, (player.gold || 0) >= cfg.crisis.minGold * 3);
+                    body += _btn(`💰 ${Utils.formatGold(cfg.crisis.minGold)}g`, `window._throne.back('${c.id}','${cl.id}','gold',${cfg.crisis.minGold})`, (player.gold || 0) >= cfg.crisis.minGold);
+                    body += _btn(`💰 ${Utils.formatGold(cfg.crisis.minGold * 3)}g`, `window._throne.back('${c.id}','${cl.id}','gold',${cfg.crisis.minGold * 3})`, (player.gold || 0) >= cfg.crisis.minGold * 3);
                     body += _btn(`⭐ ${cfg.crisis.prestigeCost} Prestige`, `window._throne.back('${c.id}','${cl.id}','prestige')`, prestige >= cfg.crisis.prestigeCost);
                     body += _btn(`⚔️ Fight for them (${AP.battle} AP)`, `window._throne.backBattle('${c.id}','${cl.id}')`, army > 0);
                     body += '</div>';
@@ -234,7 +235,7 @@ Object.assign(ActionMenu, {
         {
             const spyChance = Math.round(Throne.forgeChance(player) * 100);
             html += sectionHead('🔎 Seek a claim');
-            html += `<div style="${MUTED} margin-bottom:4px;">💍 Royal match: ${cfg.royalMatchPrestige} Prestige + ${cfg.royalMatchGold}g dowry, ${cfg.royalMatchMinReputation}+ reputation; wed them for a claim of ${cfg.marriageBase} (+${cfg.marriagePerChild} per child). 📜 Forgery: ${cfg.forgeGold}g and an idle spy (${spyChance ? `~${spyChance}%` : 'no idle spy'}), +${cfg.forgeStrength}. 🛡️ Heralds: ${cfg.purchasePrestige} Prestige, +${cfg.purchaseStrength}. 🏛️ Office: hold a royal office long enough.</div>`;
+            html += `<div style="${MUTED} margin-bottom:4px;">💍 Royal match: ${cfg.royalMatchPrestige} Prestige + ${Utils.formatGold(cfg.royalMatchGold)}g dowry, ${cfg.royalMatchMinReputation}+ reputation; wed them for a claim of ${cfg.marriageBase} (+${cfg.marriagePerChild} per child). 📜 Forgery: ${Utils.formatGold(cfg.forgeGold)}g and an idle spy (${spyChance ? `~${spyChance}%` : 'no idle spy'}), +${cfg.forgeStrength}. 🛡️ Heralds: ${cfg.purchasePrestige} Prestige, +${cfg.purchaseStrength}. 🏛️ Office: hold a royal office long enough.</div>`;
             const seek = [];
             for (const k of Throne.claimableKingdoms(player, world)) {
                 const exiled = Throne.isExiledFrom(player, world, k.id);

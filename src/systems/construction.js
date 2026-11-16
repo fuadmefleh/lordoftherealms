@@ -25,6 +25,7 @@ import { Hex } from '../core/hex.js';
 import { Seasons } from '../world/seasons.js';
 import { Economy } from '../world/economy.js';
 import { TownLabour } from '../world/townLabour.js';
+import { Utils } from '../core/utils.js';
 
 const DEFAULTS = {
     season: { Spring: 1, Summer: 1.1, Autumn: 0.9, Winter: 0.5 },
@@ -204,7 +205,7 @@ export const Construction = {
         const crews = Math.max(0, Math.floor(_num(rec.crews, 0)));
         if (crews >= _num(C.crews.max, 3)) return { success: false, reason: `At most ${_num(C.crews.max, 3)} crews can work one site.` };
         const wage = Construction.crewWage(world, q, r);
-        if (_num(player && player.gold) < wage) return { success: false, reason: `A crew wants ${wage}g a day.` };
+        if (_num(player && player.gold) < wage) return { success: false, reason: `A crew wants ${Utils.formatGold(wage)}g a day.` };
         rec.crews = crews + 1;
         return { success: true, crews: rec.crews, wage };
     },

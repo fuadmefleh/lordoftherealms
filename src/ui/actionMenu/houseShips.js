@@ -64,13 +64,13 @@ Object.assign(ActionMenu, {
             if (ht.staminaBonus) facts.push(`⚡ +${ht.staminaBonus} stamina`);
             facts.push(`❤️ +${ht.healthRegenBonus} health/day`, `🔧 ${ht.maxUpgradeSlots} upgrade slots`);
             if (ht.requiredRenown > 0) facts.push(`📜 Requires ${ht.requiredRenown} renown`);
-            facts.push(`💰 ${ht.maintenanceCost}g/day upkeep`);
-            const why = !meetsRenown ? `Need ${ht.requiredRenown} renown (you have ${player.renown || 0})` : `Not enough gold (need ${cost}g)`;
+            facts.push(`💰 ${Utils.formatGold(ht.maintenanceCost)}g/day upkeep`);
+            const why = !meetsRenown ? `Need ${ht.requiredRenown} renown (you have ${player.renown || 0})` : `Not enough gold (need ${Utils.formatGold(cost)}g)`;
             return {
                 icon: ht.icon, name: ht.name, desc: ht.description,
                 note: `<span style="color:#9d937c;">${facts.join(' · ')}</span>${canBuy ? '' : `<br><span style="color:#c98a6a;">${why}</span>`}`,
                 off: !canBuy, attrs: `onclick="window._buyHouse('${ht.id}', ${cost})"`,
-                side: price(cost, canAfford), title: canBuy ? `Buy for ${cost}g` : '',
+                side: price(cost, canAfford), title: canBuy ? `Buy for ${Utils.formatGold(cost)}g` : '',
             };
         }), '🏠 Buy a House');
         game.ui.showCustomPanel('Real Estate', html);
@@ -119,8 +119,8 @@ Object.assign(ActionMenu, {
         // Status chips
         html += chips([
             { icon: '🔧', label: 'Condition:', value: `${house.condition}%`, cls: house.condition < 50 ? '' : 'gold' },
-            ['💰', 'Value:', `~${value}g`],
-            ['💰', 'Upkeep:', `${ht.maintenanceCost}g/day`],
+            ['💰', 'Value:', `~${Utils.formatGold(value)}g`],
+            ['💰', 'Upkeep:', `${Utils.formatGold(ht.maintenanceCost)}g/day`],
             `<span title="Better prices here (+${(Housing.getLocalTradeBonus(player, { q: tile.q, r: tile.r, name: house.settlementName }) * 100).toFixed(1)}%) and +${(Housing.getNegotiationBonus(player) * 100).toFixed(0)}% when negotiating with lords">👑 Influence: <b>${influence}</b></span>`,
             ['📦', 'Upgrades:', `${house.upgrades.length}/${ht.maxUpgradeSlots}`],
         ]);
@@ -160,9 +160,9 @@ Object.assign(ActionMenu, {
                 if (effects.maintenanceReduction) effectParts.push(`-${Math.round(effects.maintenanceReduction * 100)}% upkeep`);
                 return {
                     icon: u.icon, name: u.name, desc: u.description,
-                    note: [effectParts.join(' · '), canAfford ? '' : `<span style="color:#c98a6a;">Need ${u.cost}g</span>`].filter(Boolean).join('<br>'),
+                    note: [effectParts.join(' · '), canAfford ? '' : `<span style="color:#c98a6a;">Need ${Utils.formatGold(u.cost)}g</span>`].filter(Boolean).join('<br>'),
                     off: !canAfford, attrs: `onclick="window._installUpgrade('${u.id}')"`,
-                    side: price(u.cost, canAfford), title: canAfford ? `Install — ${u.cost}g` : '',
+                    side: price(u.cost, canAfford), title: canAfford ? `Install — ${Utils.formatGold(u.cost)}g` : '',
                 };
             }), 'Available Upgrades');
         }
@@ -175,7 +175,7 @@ Object.assign(ActionMenu, {
             const repairCost = Math.max(5, Math.floor((ht2 ? ht2.baseCost : 200) * 0.1 * damagePercent));
             acts.push({ icon: '🔧', name: 'Repair', desc: `Mend the house to full condition (${house.condition}% now)`, attrs: 'onclick="window._repairHouse()"', side: price(repairCost, player.gold >= repairCost) });
         }
-        acts.push({ icon: '🏷️', name: 'Sell', desc: `Put the ${ht.name} up for sale`, attrs: 'onclick="window._sellHouseConfirm()"', side: `~${salePrice}g`, tone: 'bad' });
+        acts.push({ icon: '🏷️', name: 'Sell', desc: `Put the ${ht.name} up for sale`, attrs: 'onclick="window._sellHouseConfirm()"', side: `~${Utils.formatGold(salePrice)}g`, tone: 'bad' });
         html += rowList(acts, 'The house');
 
         game.ui.showCustomPanel(`${ht.icon} Your ${ht.name}`, html);
@@ -204,7 +204,7 @@ Object.assign(ActionMenu, {
 
         window._sellHouseConfirm = () => {
             let confirmHtml = lede(`Are you sure you want to sell your ${ht.name} in ${house.settlementName}?`);
-            confirmHtml += `<div style="font-size:12px; color:#cbbf9f;">You'll receive approximately <strong style="color:#ffcf6a;">${salePrice}g</strong> (${Math.round(Housing._getSellPenalty() * 100)}% of value).</div>`;
+            confirmHtml += `<div style="font-size:12px; color:#cbbf9f;">You'll receive approximately <strong style="color:#ffcf6a;">${Utils.formatGold(salePrice)}g</strong> (${Math.round(Housing._getSellPenalty() * 100)}% of value).</div>`;
             confirmHtml += '<div style="display:flex;gap:6px;margin-top:10px;">';
             confirmHtml += `<button onclick="window._doSellHouse()" style="${BTN_RED} flex:1; margin:0;">Confirm Sale</button>`;
             confirmHtml += `<button onclick="ActionMenu.showManageHouseMenu(window._game, window._tile)" style="${BTN_PLAIN} flex:1; margin:0;">Cancel</button>`;
@@ -291,12 +291,12 @@ Object.assign(ActionMenu, {
             const craft = Ships.canBuild(player, game.world, settlement, st);
             const canAfford = player.gold >= buildCost && craft.ok;
             const p = [['⚓', st.speed], ['📦', st.cargoCapacity], ['⚔️', st.combatStrength],
-                ['👥', `${st.crewRequired} crew (${st.crewRequired * Ships._getCrewSettings().wagePerSailorPerDay}g/day wages)`],
-                ['💰/day', `${st.dailyUpkeep}g`], ['🏗️ Days', st.buildDays]];
+                ['👥', `${st.crewRequired} crew (${Utils.formatGold(st.crewRequired * Ships._getCrewSettings().wagePerSailorPerDay)}g/day wages)`],
+                ['💰/day', `${Utils.formatGold(st.dailyUpkeep)}g`], ['🏗️ Days', st.buildDays]];
             if (st.customizations && st.customizations.length > 0) p.push(['🔧 Mods', st.customizations.length]);
             const why = !craft.ok
                 ? `🔒 The shipwrights here don't know how: needs ${craft.names}. Research it yourself (Technology), or find a realm whose shipwrights do.`
-                : `Need ${buildCost}g`;
+                : `Need ${Utils.formatGold(buildCost)}g`;
             buildRows.push({
                 icon: st.icon, name: st.name, desc: st.description,
                 note: pills(p) + (canAfford ? '' : `<span style="color:#c98a6a;">${why}</span>`),
@@ -405,9 +405,9 @@ Object.assign(ActionMenu, {
         let html = lede(`🔨 Commission ${st.icon} <b>${st.name}</b>. Configure the vessel before starting construction.`);
         html += chips([
             purse(player.gold),
-            ['', 'Base', `${baseCost}g`],
+            ['', 'Base', `${Utils.formatGold(baseCost)}g`],
             ['', 'Build', `${st.buildDays}d`],
-            ['', 'Upkeep', `${st.dailyUpkeep}g/day`],
+            ['', 'Upkeep', `${Utils.formatGold(st.dailyUpkeep)}g/day`],
             ['⚓', '', st.speed],
             ['📦', '', st.cargoCapacity],
         ]);
@@ -437,14 +437,14 @@ Object.assign(ActionMenu, {
                 html += `<label class="pk-row pk-row--act" style="cursor:pointer;">`
                     + `<span class="pk-row-ico"><input type="checkbox" class="shipCustomCheck" value="${c.id}" data-cost="${c.cost}" /></span>`
                     + `<span class="pk-row-txt"><span class="pk-row-name">${c.icon} ${c.name}</span><span class="pk-row-desc">${c.description}</span>${efParts.length ? `<span class="pk-row-note">${efParts.join(' · ')}</span>` : ''}</span>`
-                    + `<span class="pk-row-side"><span class="pk-price">+${c.cost}<small>g</small></span></span>`
+                    + `<span class="pk-row-side"><span class="pk-price">+${Utils.formatGold(c.cost)}<small>g</small></span></span>`
                     + '</label>';
             }
             html += '</div>';
         }
 
-        html += bullets([`👥 New ships come without a crew: hire ${st.crewRequired} sailors at a port (${Ships._getCrewSettings().hireCostPerSailor}g each to sign on, ${Ships._getCrewSettings().wagePerSailorPerDay}g a day in wages).`]);
-        html += `<div id="buildTotalCost" class="pk-card" style="font-size:13px; font-weight:600; color:#ffcf6a;">Total: ${baseCost}g</div>`;
+        html += bullets([`👥 New ships come without a crew: hire ${st.crewRequired} sailors at a port (${Utils.formatGold(Ships._getCrewSettings().hireCostPerSailor)}g each to sign on, ${Utils.formatGold(Ships._getCrewSettings().wagePerSailorPerDay)}g a day in wages).`]);
+        html += `<div id="buildTotalCost" class="pk-card" style="font-size:13px; font-weight:600; color:#ffcf6a;">Total: ${Utils.formatGold(baseCost)}g</div>`;
         html += `<button onclick="window._commissionShip('${typeId}', ${baseCost})" style="${BTN_GOLD}${WIDE}">🔨 Commission Ship</button>`;
         html += `<button onclick="ActionMenu.showShipyardMenu(window._game, window._tile)" style="${BTN_PLAIN}${WIDE}">← Back to Shipyard</button>`;
         game.ui.showCustomPanel('Commission Ship', html);
@@ -459,7 +459,7 @@ Object.assign(ActionMenu, {
                     document.querySelectorAll('.shipCustomCheck:checked').forEach(checked => {
                         total += parseInt(checked.dataset.cost) || 0;
                     });
-                    document.getElementById('buildTotalCost').textContent = `Total: ${total}g`;
+                    document.getElementById('buildTotalCost').textContent = `Total: ${Utils.formatGold(total)}g`;
                 });
             });
         }, 50);
@@ -502,13 +502,13 @@ Object.assign(ActionMenu, {
         const morale = Ships.getMorale(ship);
         const foodDays = Ships.getProvisionDays(ship);
         html += chips([
-            { icon: '', label: '≈', value: `${salePrice}g sale`, cls: 'gold' },
+            { icon: '', label: '≈', value: `${Utils.formatGold(salePrice)}g sale`, cls: 'gold' },
             ['⚓', 'Speed', eff.speed],
             ['📦', 'Cargo', eff.cargoCapacity],
             ['⚔️', 'Str', eff.combatStrength],
             ['👥', 'Crew', `<span style="color:${crewColor}">${crew}/${eff.crewRequired}</span>`],
             ['🙂', 'Morale', morale],
-            ['💰/day', '', `${st.dailyUpkeep}g + ${Ships.getDailyWages(ship)}g wages`],
+            ['💰/day', '', `${Utils.formatGold(st.dailyUpkeep)}g + ${Utils.formatGold(Ships.getDailyWages(ship))}g wages`],
             ['🍞', 'Provisions', foodDays === Infinity ? '—' : `${foodDays} days`],
             ship.status === 'building' ? ['🏗️', '', `${ship.buildDaysLeft}d left`] : null,
             ship.status === 'moving' ? ['🧭', '', ship.destinationName || 'en route'] : null,
@@ -538,7 +538,7 @@ Object.assign(ActionMenu, {
         if (crewOpen > 0) {
             crewBody += `<div>Short-handed: ${Math.round(Ships.getCrewSpeedFactor(ship) * 100)}% speed, ${Math.round(Ships.getCrewCombatFactor(ship) * 100)}% fighting strength, fewer fish in the nets.</div>`;
         }
-        crewBody += `<div>Wages ${Ships._getCrewSettings().wagePerSailorPerDay}g per sailor a day. Storms, defeats and missed wages sap morale; below ${Ships._getCrewSettings().desertionMorale} sailors desert.</div>`;
+        crewBody += `<div>Wages ${Utils.formatGold(Ships._getCrewSettings().wagePerSailorPerDay)}g per sailor a day. Storms, defeats and missed wages sap morale; below ${Ships._getCrewSettings().desertionMorale} sailors desert.</div>`;
         crewBody += `<div>Away from port the crew eats from the hold: ${Math.round(Ships.getDailyRations(ship) * 10) / 10} provisions a day. A hungry crew loses heart, then scurvy comes aboard.</div>`;
         html += card(`<div style="font-size:11px; color:#cbbf9f;">${crewBody}</div>`, { icon: '👥', title: 'Crew', side: `<span style="color:${crewColor}">${crew}/${eff.crewRequired}</span>` });
 
@@ -554,7 +554,7 @@ Object.assign(ActionMenu, {
         const victual = ship.status === 'docked' && Ships.isPortTile(game.world, ship.q, ship.r) ? Ships.provisionsNeeded(ship, 10, { player }) : 0;
         if (victual > 0) {
             const unit = Ships.provisionPrice(game.world, ship.q, ship.r);
-            acts.push({ icon: '🍞', name: 'Provision for 10 days', desc: `${victual} × ${unit}g`, attrs: `onclick="window._provisionShip('${ship.id}', ${victual})"`, side: price(victual * unit, player.gold >= victual * unit) });
+            acts.push({ icon: '🍞', name: 'Provision for 10 days', desc: `${victual} × ${Utils.formatGold(unit)}g`, attrs: `onclick="window._provisionShip('${ship.id}', ${victual})"`, side: price(victual * unit, player.gold >= victual * unit) });
         }
         if (ship.condition < 100 && ship.status === 'docked') {
             const repCost = Ships.getRepairCost(ship);
@@ -565,7 +565,7 @@ Object.assign(ActionMenu, {
                 acts.push({ icon: '⬆️', name: 'Upgrade', desc: 'Install additional upgrades while docked', attrs: `onclick="window._upgradeShipMenu('${ship.id}')"`, side: `${availableUpgrades.length}`, tone: 'gold' });
             }
             acts.push({ icon: '✏️', name: 'Rename', desc: 'Give her a new name', attrs: `onclick="window._renameShip('${ship.id}')"` });
-            acts.push({ icon: '🏷️', name: 'Sell', desc: 'Sell her at the yard', attrs: `onclick="window._sellShipConfirm('${ship.id}', ${salePrice})"`, side: `~${salePrice}g`, tone: 'bad' });
+            acts.push({ icon: '🏷️', name: 'Sell', desc: 'Sell her at the yard', attrs: `onclick="window._sellShipConfirm('${ship.id}', ${salePrice})"`, side: `~${Utils.formatGold(salePrice)}g`, tone: 'bad' });
         }
         html += rowList(acts, 'Orders');
         html += `<button onclick="ActionMenu.showShipyardMenu(window._game, window._tile)" style="${BTN_PLAIN}${WIDE}">← Back to Shipyard</button>`;
@@ -632,7 +632,7 @@ Object.assign(ActionMenu, {
 
         window._sellShipConfirm = (sid, price) => {
             let cHtml = sectionHead('🏷️ Sell Ship');
-            cHtml += lede(`Sell <b>${ship.name}</b> for approximately <b>${price}g</b>?`);
+            cHtml += lede(`Sell <b>${ship.name}</b> for approximately <b>${Utils.formatGold(price)}g</b>?`);
             cHtml += '<div style="display:flex;gap:6px;margin-top:10px;">';
             cHtml += `<button onclick="window._doSellShip('${sid}')" style="${BTN_RED} flex:1; margin:0;">Confirm</button>`;
             cHtml += `<button onclick="ActionMenu._showShipManagePanel(window._game, window._tile, '${sid}')" style="${BTN_PLAIN} flex:1; margin:0;">Cancel</button>`;
@@ -684,7 +684,7 @@ Object.assign(ActionMenu, {
                 html += `<label class="pk-row pk-row--act" style="cursor:pointer;">`
                     + `<span class="pk-row-ico"><input type="checkbox" class="shipUpgradeCheck" value="${c.id}" data-cost="${c.cost}" /></span>`
                     + `<span class="pk-row-txt"><span class="pk-row-name">${c.icon} ${c.name}</span><span class="pk-row-desc">${c.description}</span>${efParts.length ? `<span class="pk-row-note">${efParts.join(' · ')}</span>` : ''}</span>`
-                    + `<span class="pk-row-side"><span class="pk-price">+${c.cost}<small>g</small></span></span>`
+                    + `<span class="pk-row-side"><span class="pk-price">+${Utils.formatGold(c.cost)}<small>g</small></span></span>`
                     + '</label>';
             }
             html += '</div>';
@@ -706,7 +706,7 @@ Object.assign(ActionMenu, {
                         total += parseInt(checked.dataset.cost, 10) || 0;
                     });
                     const totalEl = document.getElementById('shipUpgradeTotal');
-                    if (totalEl) totalEl.textContent = `Total: ${total}g`;
+                    if (totalEl) totalEl.textContent = `Total: ${Utils.formatGold(total)}g`;
                 });
             });
         }, 50);
@@ -785,9 +785,9 @@ Object.assign(ActionMenu, {
         const crewCfg = Ships._getCrewSettings();
         const rows = Ships.shortHandedAt(player, game.world, tile.q, tile.r);
 
-        let html = chips([purse(player.gold), ['', 'To sign on', `${crewCfg.hireCostPerSailor}g each`], ['', 'Wages', `${crewCfg.wagePerSailorPerDay}g a day`]]);
+        let html = chips([purse(player.gold), ['', 'To sign on', `${Utils.formatGold(crewCfg.hireCostPerSailor)}g each`], ['', 'Wages', `${Utils.formatGold(crewCfg.wagePerSailorPerDay)}g a day`]]);
         html += bullets([
-            `Sailors sign on for ${crewCfg.hireCostPerSailor}g each and draw ${crewCfg.wagePerSailorPerDay}g a day in wages.`,
+            `Sailors sign on for ${Utils.formatGold(crewCfg.hireCostPerSailor)}g each and draw ${Utils.formatGold(crewCfg.wagePerSailorPerDay)}g a day in wages.`,
             'A ship needs at least part of its crew to leave port; short-handed she sails slower and fights weaker.',
         ]);
         if (!rows.length) {
@@ -804,9 +804,9 @@ Object.assign(ActionMenu, {
             const n = Math.min(open, affordable);
             shipRows.push(actRow({
                 icon: st.icon || '⛵', name: n > 0 ? `Hire ${n}${n < open ? ` of ${open}` : ''} sailors for the ${esc(ship.name)}` : esc(ship.name),
-                desc: `${crew}/${need} crew. ${canSail ? 'She can sail, short-handed.' : `She needs ${Ships.getMinCrew(ship)} to leave port.`} Wages afterwards ${need * crewCfg.wagePerSailorPerDay}g/day.`,
+                desc: `${crew}/${need} crew. ${canSail ? 'She can sail, short-handed.' : `She needs ${Ships.getMinCrew(ship)} to leave port.`} Wages afterwards ${Utils.formatGold(need * crewCfg.wagePerSailorPerDay)}g/day.`,
                 note: n > 0 && n < open ? 'All your purse allows' : '',
-                off: n <= 0, why: `${crew}/${need} crew. Not enough gold: ${crewCfg.hireCostPerSailor}g per sailor.`,
+                off: n <= 0, why: `${crew}/${need} crew. Not enough gold: ${Utils.formatGold(crewCfg.hireCostPerSailor)}g per sailor.`,
                 side: n > 0 ? price(Ships.getHireCost(n), true) : '', tone: 'gold',
                 attrs: n > 0 ? `onclick="window._hireSailors('${ship.id}')"` : '',
             }));
@@ -973,7 +973,7 @@ Object.assign(ActionMenu, {
             if (held > 0) buttons += `<button onclick="window._portSell('${esc(e.id)}', ${held})" style="${BTN_GOLD}">Sell all</button>`;
             return actRow({
                 icon: e.icon, name: `${e.name} <span style="font-size:10px;font-weight:400;">${roleTag[e.role]}</span>`,
-                desc: `${e.buy !== null ? `Buy ${e.buy}g · ` : ''}Sell ${e.sell}g · In hold: ${held}`,
+                desc: `${e.buy !== null ? `Buy ${Utils.formatGold(e.buy)}g · ` : ''}Sell ${Utils.formatGold(e.sell)}g · In hold: ${held}`,
                 side: buttons,
             });
         }), 'Goods');
@@ -1162,7 +1162,7 @@ Object.assign(ActionMenu, {
         const st = Ships.getShipType(ship.typeId);
         const costPerDay = (st ? st.dailyUpkeep : 5) + Ships.getDailyWages(ship);
 
-        let html = lede(`🧭 Voyage in <b>${ship.name}</b>. Each day at sea is a day: ${costPerDay}g upkeep and wages, ${Math.round(perDay * 10) / 10} provisions eaten, and whatever the sea sends.`);
+        let html = lede(`🧭 Voyage in <b>${ship.name}</b>. Each day at sea is a day: ${Utils.formatGold(costPerDay)}g upkeep and wages, ${Math.round(perDay * 10) / 10} provisions eaten, and whatever the sea sends.`);
         html += chips([['⚓', '', `${speed}/day`], ['🍞', '', food === Infinity ? '—' : `${food}d`]]);
 
         if (routes.length === 0) {
@@ -1180,7 +1180,7 @@ Object.assign(ActionMenu, {
                     icon: '🗺️', name: `Toward ${ex.name}`,
                     desc: `${ex.leagues} leagues · ~${days} day${days === 1 ? '' : 's'} out, as many back`,
                     attrs: `onclick="window._doExpedition('${ship.id}', '${ex.id}', ${need > 0 ? days * 2 + spare : 0})"`,
-                    side: need > 0 ? `🍞 Victual & Sail (${need * price}g)` : 'Sail', tone: 'gold',
+                    side: need > 0 ? `🍞 Victual & Sail (${Utils.formatGold(need * price)}g)` : 'Sail', tone: 'gold',
                 };
             }), '🗺️ Expeditions — end at sea, you at the helm');
         }
@@ -1193,13 +1193,13 @@ Object.assign(ActionMenu, {
             const safeName = dest.name.replace(/'/g, "\\'");
             const o = {
                 icon: '⚓', name: `${dest.name} <span style="font-weight:400;color:#9d937c;">(${dest.type})</span>`,
-                desc: `${dest.distance} leagues by sea · ~${days} day${days === 1 ? '' : 's'} · ~${days * costPerDay}g on the way`,
+                desc: `${dest.distance} leagues by sea · ~${days} day${days === 1 ? '' : 's'} · ~${Utils.formatGold(days * costPerDay)}g on the way`,
                 note: short ? `<span style="color:#c98a6a;">Provisions for ${food} day${food === 1 ? '' : 's'} — victual first or the crew goes hungry.</span>` : '',
             };
             const sail = `window._doSailTo('${ship.id}', ${dest.q}, ${dest.r}, '${safeName}', 0)`;
             if (short && need > 0) {
                 // Two ways to go: buttons at the right, the row itself not clickable
-                o.side = `<button onclick="window._doSailTo('${ship.id}', ${dest.q}, ${dest.r}, '${safeName}', ${days + 2})" style="${BTN_GOLD}" title="${need} provisions at ${price}g">🍞 Victual & Sail (${need * price}g)</button>`
+                o.side = `<button onclick="window._doSailTo('${ship.id}', ${dest.q}, ${dest.r}, '${safeName}', ${days + 2})" style="${BTN_GOLD}" title="${need} provisions at ${Utils.formatGold(price)}g">🍞 Victual & Sail (${Utils.formatGold(need * price)}g)</button>`
                     + `<button onclick="${sail}" style="${BTN_PLAIN}">Sail</button>`;
             } else {
                 o.attrs = `onclick="${sail}"`;

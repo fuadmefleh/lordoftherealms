@@ -31,7 +31,7 @@ Object.assign(ActionMenu, {
                 building.researchBonus ? `Research: +${Math.round(building.researchBonus * 100)}%` : '',
                 building.moraleBonus ? `Morale: +${building.moraleBonus}` : '',
                 building.renownPerDay ? `Renown: +${building.renownPerDay}/day` : '',
-                building.incomeBonus ? `Income: +${Math.round(Culture.dailyIncome(building) * 10) / 10} gold/day` : '',
+                building.incomeBonus ? `Income: +${Utils.formatGold(Math.round(Culture.dailyIncome(building) * 10) / 10)} gold/day` : '',
             ].filter(Boolean).join(' · ');
             rows.push({
                 icon: building.icon, name: building.name, desc: building.description,
@@ -79,7 +79,7 @@ Object.assign(ActionMenu, {
         html += lede(`${b.icon} <b>${b.name}</b> — Level ${level}/${Culture.LEVELS.max}`);
         if (level < Culture.LEVELS.max) {
             html += sectionHead(`At level ${level + 1}`);
-            if (b.incomeBonus) html += row('Income', `${Math.round(Culture.dailyIncome(b) * 10) / 10} gold/day`, `${Math.round(Culture.dailyIncome(next) * 10) / 10} gold/day`);
+            if (b.incomeBonus) html += row('Income', `${Utils.formatGold(Math.round(Culture.dailyIncome(b) * 10) / 10)} gold/day`, `${Utils.formatGold(Math.round(Culture.dailyIncome(next) * 10) / 10)} gold/day`);
             html += row('Influence', `+${b.influencePerDay * level}/day`, `+${b.influencePerDay * (level + 1)}/day`);
             if (b.researchBonus) html += row('Research', `+${Math.round(b.researchBonus * Culture.levelMultiplier(b) * 100)}%`, `+${Math.round(b.researchBonus * Culture.levelMultiplier(next) * 100)}%`);
             if (b.moraleBonus) html += row('Army morale', `+${Math.round(b.moraleBonus / 5 * Culture.levelMultiplier(b))}%`, `+${Math.round(b.moraleBonus / 5 * Culture.levelMultiplier(next))}%`);
@@ -183,7 +183,7 @@ Object.assign(ActionMenu, {
         // Recruitment methods
         const methods = [
             { id: 'persuade', name: 'Spread the Word', icon: '🗣️', desc: 'Persuade people with tales of opportunity. Free but limited by charisma.', costLabel: 'Free', tone: 'good' },
-            { id: 'hire', name: 'Hire Settlers', icon: '💰', desc: `Pay workers to relocate. ${maxRecruit * 15}g for ${maxRecruit} settlers.`, costLabel: price(maxRecruit * 15, player.gold >= maxRecruit * 15), tone: '' },
+            { id: 'hire', name: 'Hire Settlers', icon: '💰', desc: `Pay workers to relocate. ${Utils.formatGold(maxRecruit * 15)}g for ${maxRecruit} settlers.`, costLabel: price(maxRecruit * 15, player.gold >= maxRecruit * 15), tone: '' },
             { id: 'promise', name: 'Promise Prosperity', icon: '✨', desc: 'Make grand promises of wealth and land. Effective but slightly dubious.', costLabel: 'Free (−1 karma)', tone: 'warn' },
         ];
         html += rowList(methods.map(m => {
@@ -215,7 +215,7 @@ Object.assign(ActionMenu, {
             const result = Colonization.recruitSettlers(player, tile, target.tile, world, maxRecruit, method);
             if (result.success) {
                 game.ui.showNotification('📢 Settlers Recruited!',
-                    `${result.recruited} people will head to ${result.colonyName}! (${result.enRoute} en route, ${result.goldSpent}g spent)`, 'success');
+                    `${result.recruited} people will head to ${result.colonyName}! (${result.enRoute} en route, ${Utils.formatGold(result.goldSpent)}g spent)`, 'success');
                 game.ui.updateStats(game.player, game.world);
                 // Refresh
                 game.ui.hideCustomPanel();
@@ -274,8 +274,8 @@ Object.assign(ActionMenu, {
         }));
 
         let html = '<div style="max-height:450px; overflow-y:auto;">';
-        html += lede(`Establish a frontier colony here for <b>${Colonization.COLONY_COST} gold</b>.`);
-        html += chips([{ icon: '💰', label: 'Your gold', value: player.gold.toFixed(0), cls: 'gold' }]);
+        html += lede(`Establish a frontier colony here for <b>${Utils.formatGold(Colonization.COLONY_COST)} gold</b>.`);
+        html += chips([{ icon: '💰', label: 'Your gold', value: Utils.formatGold(player.gold), cls: 'gold' }]);
         html += distInfo;
         html += indigenousWarning;
         html += sectionHead('Colony Name:');
@@ -370,7 +370,7 @@ Object.assign(ActionMenu, {
                 ? { icon: '📋', name: 'Signboard', desc: 'Advertising the colony to passing travellers', side: '✓ Posted', tone: 'good' }
                 : { icon: '📋', name: 'Signboard', desc: 'Post one to advertise the colony to passing travellers', act: 'postSignboardAndManageColony', args: [tile.q, tile.r], side: 'Post (20g)', tone: 'gold' });
             body += rowList(rows);
-            body += `<div style="font-size:12px; margin:2px 0 4px;">Current Incentive: <b>${currentIncentive.icon} ${currentIncentive.name}</b>${currentIncentive.dailyCost > 0 ? ` <small style="color:#f0b35a;">(${currentIncentive.dailyCost}g/day)</small>` : ''}</div>`;
+            body += `<div style="font-size:12px; margin:2px 0 4px;">Current Incentive: <b>${currentIncentive.icon} ${currentIncentive.name}</b>${currentIncentive.dailyCost > 0 ? ` <small style="color:#f0b35a;">(${Utils.formatGold(currentIncentive.dailyCost)}g/day)</small>` : ''}</div>`;
             const incRows = [];
             for (const [id, inc] of Object.entries(Colonization.INCENTIVES)) {
                 if (id === 'none') continue;
@@ -379,9 +379,9 @@ Object.assign(ActionMenu, {
                 const dailyCost = Number(inc.dailyCost || 0);
                 const attractionBonusPct = Number((inc.attractionBonus || 0) * 100).toFixed(0);
                 incRows.push({
-                    icon: inc.icon, name: inc.name, desc: `${inc.desc || ''} (Setup: ${setupCost}g, Daily: ${dailyCost}g, +${attractionBonusPct}% attraction)`,
+                    icon: inc.icon, name: inc.name, desc: `${inc.desc || ''} (Setup: ${Utils.formatGold(setupCost)}g, Daily: ${Utils.formatGold(dailyCost)}g, +${attractionBonusPct}% attraction)`,
                     act: '_setIncentiveFromManage', args: [tile.q, tile.r, id],
-                    side: active ? '✓ current' : `${setupCost}g + ${dailyCost}g/day`, tone: active ? 'gold' : '',
+                    side: active ? '✓ current' : `${Utils.formatGold(setupCost)}g + ${Utils.formatGold(dailyCost)}g/day`, tone: active ? 'gold' : '',
                 });
             }
             const none = rec.incentive === 'none' || !rec.incentive;
@@ -560,7 +560,7 @@ Object.assign(ActionMenu, {
         }
 
         game.ui.showNotification('Trade Successful',
-            `Traded with the ${tile.indigenous.name}: their goods resold for ${res.profit} gold. Relations +${res.relationGain} (hostility now ${res.hostility}). +${res.karma} karma from cultural exchange.`, 'success');
+            `Traded with the ${tile.indigenous.name}: their goods resold for ${Utils.formatGold(res.profit)} gold. Relations +${res.relationGain} (hostility now ${res.hostility}). +${res.karma} karma from cultural exchange.`, 'success');
         ActionMenu.showNegotiateIndigenousMenu(game, tile);
         game.ui.updateStats(game.player, game.world);
     },
@@ -669,7 +669,7 @@ Object.assign(ActionMenu, {
         const rows = [];
         for (const o of Cartography.drawOptions(player, world)) {
             const can = o.ready && player.gold >= o.cost;
-            const why = !o.ready ? o.reason : player.gold < o.cost ? `Ink and vellum cost ${o.cost}g.` : `Ink and vellum: ${o.cost}g`;
+            const why = !o.ready ? o.reason : player.gold < o.cost ? `Ink and vellum cost ${Utils.formatGold(o.cost)}g.` : `Ink and vellum: ${Utils.formatGold(o.cost)}g`;
             const progress = `${Math.min(o.have, o.need)} / ${o.need} tiles charted${o.type === 'survey' ? ', resources marked' : ''}`;
             rows.push({
                 icon: o.icon, name: `Draw ${esc(o.name)}`, desc: progress, note: can ? esc(why) : '',
@@ -743,7 +743,7 @@ Object.assign(ActionMenu, {
         const bits = [];
         if (res.clothes > 0) bits.push('scrub your clothes');
         const cold = res.kind === 'wild' && res.cold < 0 ? (res.cold <= -10 ? ' The water is bitterly cold.' : ' The water is cold.') : '';
-        const paid = res.cost > 0 ? ` (${res.cost} gold)` : '';
+        const paid = res.cost > 0 ? ` (${Utils.formatGold(res.cost)} gold)` : '';
         const title = res.kind === 'bathhouse' ? '🛁 A Hot Bath' : '🧼 Washed';
         game.ui.showNotification(title, `You ${bits.length ? bits.join(', ') + ' and ' : ''}wash at ${res.where}${paid}: hygiene +${res.gained}.${cold}`, 'success');
         game.ui.updateStats(player, world);
@@ -794,7 +794,7 @@ Object.assign(ActionMenu, {
         const commission = type === 'survey' ? Titles.recordSurvey(player, world) : 0;
 
         game.ui.showNotification('Map Drawn!',
-            `${map.name} (${Cartography.QUALITY[map.quality].label} quality), ${map.tiles.length} tiles charted, worth ${map.value}g.${commission ? ` The crown pays ${commission}g for the survey.` : ''}`, 'success');
+            `${map.name} (${Cartography.QUALITY[map.quality].label} quality), ${map.tiles.length} tiles charted, worth ${Utils.formatGold(map.value)}g.${commission ? ` The crown pays ${Utils.formatGold(commission)}g for the survey.` : ''}`, 'success');
         game.ui.updateStats(player, world);
         ActionMenu.showCartographyMenu(game, world.getTile(player.q, player.r));
     },
@@ -828,10 +828,10 @@ Object.assign(ActionMenu, {
 
             rows.push(actRow({
                 icon: map.icon || '📜', name: `${map.name}${tags}`,
-                desc: `${qualityData.label} | Accuracy: ${(map.accuracy * 100).toFixed(0)}% | By: ${map.createdBy} | ${ageText} · worth <span style="color:#ffcf6a;">${map.value}g</span>`,
+                desc: `${qualityData.label} | Accuracy: ${(map.accuracy * 100).toFixed(0)}% | By: ${map.createdBy} | ${ageText} · worth <span style="color:#ffcf6a;">${Utils.formatGold(map.value)}g</span>`,
                 note: map.notes ? `<i style="color:#9d937c;">${map.notes}</i>` : '',
                 side: `<button data-am-act="readMap" data-am-args='[${i}]' style="${BTN_PLAIN} ${SMALL}">📖 Read</button>`
-                    + `<button data-am-act="sellPlayerMap" data-am-args='[${i}]' style="${BTN_GOLD} ${SMALL}">💰 Sell (${Math.floor(map.value * 0.7)}g)</button>`,
+                    + `<button data-am-act="sellPlayerMap" data-am-args='[${i}]' style="${BTN_GOLD} ${SMALL}">💰 Sell (${Utils.formatGold(Math.floor(map.value * 0.7))}g)</button>`,
             }));
         }
         html += rowList(rows, 'Your Maps');
@@ -883,7 +883,7 @@ Object.assign(ActionMenu, {
     sellPlayerMap(game, mapIndex) {
         const result = Cartography.sellMap(game.player, mapIndex);
         if (result.success) {
-            game.ui.showNotification('Map Sold', `Sold ${result.mapName} for ${result.gold} gold.`, 'success');
+            game.ui.showNotification('Map Sold', `Sold ${result.mapName} for ${Utils.formatGold(result.gold)} gold.`, 'success');
             game.ui.updateStats(game.player, game.world);
             if ((game.player.maps || []).length > 0) {
                 ActionMenu.showMapCollection(game);
@@ -958,7 +958,7 @@ Object.assign(ActionMenu, {
         const availableMaps = Cartography.getAvailableMapsForSale(tileWithCoords, world);
 
         let html = '<div style="max-height:500px; overflow-y:auto;">';
-        html += chips([{ icon: '💰', label: 'Your gold', value: player.gold.toFixed(0), cls: 'gold' }]);
+        html += chips([{ icon: '💰', label: 'Your gold', value: Utils.formatGold(player.gold), cls: 'gold' }]);
 
         // Buy section
         html += sectionHead('📥 Maps for Sale');
@@ -986,7 +986,7 @@ Object.assign(ActionMenu, {
                     icon: map.icon || '📜', name: `${map.name}${tags}`, desc,
                     note: map.notes ? `<i style="color:#9d937c;">${map.notes}</i>` : '',
                     act: 'buyMapFromTrade', args: [i, tileQ, tileR], off: !canAfford, why: `${desc} · not enough gold`,
-                    title: `Buy (${cost}g)`, side: price(cost, canAfford),
+                    title: `Buy (${Utils.formatGold(cost)}g)`, side: price(cost, canAfford),
                 });
             }
             html += rowList(rows);
@@ -997,7 +997,7 @@ Object.assign(ActionMenu, {
         if (playerMaps.length > 0) {
             html += rowList(playerMaps.map((map, i) => ({
                 icon: map.icon || '📜', name: map.name, desc: 'Sell to the map trader',
-                act: 'sellMapFromTrade', args: [i, tileQ, tileR], side: `Sell (${Math.floor(map.value * 0.7)}g)`, tone: 'good',
+                act: 'sellMapFromTrade', args: [i, tileQ, tileR], side: `Sell (${Utils.formatGold(Math.floor(map.value * 0.7))}g)`, tone: 'good',
             })), '📤 Sell Your Maps');
         }
 
@@ -1021,7 +1021,7 @@ Object.assign(ActionMenu, {
                 const note = offer.improves ? 'better than their chart' : 'they have a better chart';
                 rows.push({
                     icon: map.icon || '📜', name: map.name, desc: `(${note})`,
-                    act: 'sellMapToArchive', args: [i, tileQ, tileR], side: `Offer (${offer.price}g)`, tone: offer.improves ? 'good' : '',
+                    act: 'sellMapToArchive', args: [i, tileQ, tileR], side: `Offer (${Utils.formatGold(offer.price)}g)`, tone: offer.improves ? 'good' : '',
                 });
             }
             if (rows.length) html += `<div style="margin-top:6px;">${rowList(rows)}</div>`;
@@ -1064,7 +1064,7 @@ Object.assign(ActionMenu, {
         if (!ActionMenu.commitPendingAP(game)) return;
         const result = Cartography.sellMap(game.player, mapIndex);
         if (result.success) {
-            game.ui.showNotification('Map Sold', `Sold ${result.mapName} for ${result.gold} gold.`, 'success');
+            game.ui.showNotification('Map Sold', `Sold ${result.mapName} for ${Utils.formatGold(result.gold)} gold.`, 'success');
             game.ui.updateStats(game.player, game.world);
             const tile = game.world.getTile(tileQ, tileR);
             if (tile) ActionMenu.showMapTradeMenu(game, tile);
@@ -1084,7 +1084,7 @@ Object.assign(ActionMenu, {
         const result = Cartography.sellMapToArchive(game.player, mapIndex, realm, game.world);
         if (result.success) {
             const extra = result.planted > 0 ? ` Its ${result.planted} alteration(s) now sit in ${Names.realm(realm.name)}'s war maps.` : '';
-            game.ui.showNotification('Map Sold', `${realm.name}'s archive bought ${result.mapName} for ${result.gold} gold.${extra}`, 'success');
+            game.ui.showNotification('Map Sold', `${realm.name}'s archive bought ${result.mapName} for ${Utils.formatGold(result.gold)} gold.${extra}`, 'success');
         } else {
             game.ui.showNotification(result.caught ? 'Forgery Spotted!' : 'Not Interested', result.reason, 'error');
         }

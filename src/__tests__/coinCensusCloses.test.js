@@ -142,8 +142,9 @@ describe('the coin census closes over a run', () => {
         it(`seed ${seed}, 240 days: every change in the world's coin is booked`, () => {
             const { w0, w1, unbooked } = closure(seed, 240);
             console.info(`seed ${seed} 240d: world coin ${Math.round(w0)} -> ${Math.round(w1)}, unbooked ${unbooked.toFixed(1)}`);
-            // (rounding only: −13k to −17k before, on these worlds)
-            expect(Math.abs(unbooked)).toBeLessThan(w0 * 0.0005);
+            // (rounding only: −13k to −17k before, on these worlds; −37 on seed 101 until
+            // 2026-11-15 — a stale roll funded twice, World.fundUnitCoin)
+            expect(Math.abs(unbooked)).toBeLessThan(5);
         }, 300000);
     }
 
@@ -165,7 +166,9 @@ describe('the coin census closes over a run', () => {
             }
         });
         console.info(`seed 303 5y: unbooked ${unbooked.toFixed(1)}, coffers/towns max ${maxRatio.toFixed(2)}, end ${Math.round(coffers(g))} / ${Math.round(towns(g))}`);
-        expect(Math.abs(unbooked)).toBeLessThan(w0 * 0.0005);
+        // (−91 until 2026-11-15: lairs' bands and war hosts funded a roll their spawner had replaced)
+        expect(Math.abs(unbooked)).toBeLessThan(25);
+        void w0;
         // (before: 16k → 67k in the coffers against 81k → 64k in the towns — past 1.0)
         expect(maxRatio).toBeLessThan(0.65);
         expect(capOk).toBe(true);

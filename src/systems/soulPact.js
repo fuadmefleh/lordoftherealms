@@ -163,7 +163,7 @@ export const SoulPact = {
         // The old character-panel counters
         player.soulSoldCount = (player.soulSoldCount || 0) + 1;
         player.lastSoulSoldDay = _day(world);
-        SoulPact._note(st, world, `Sold your soul to ${o.name} for ${o.price} gold.`);
+        SoulPact._note(st, world, `Sold your soul to ${o.name} for ${Utils.formatGold(o.price)} gold.`);
         return { success: true, gold: o.price, buyer: o.name, text: `${o.name} counts out ${o.price} gold and takes your hand. It is very cold. "We'll speak again. Not soon. But we will."` };
     },
 
@@ -251,7 +251,7 @@ export const SoulPact = {
         const out = { notices: [] };
         if (choice === 'pay') {
             const gold = SoulPact.payCost(player);
-            if (_num(player.gold) < gold) return { success: false, reason: `${st.buyer} wants ${gold} gold.` };
+            if (_num(player.gold) < gold) return { success: false, reason: `${st.buyer} wants ${Utils.formatGold(gold)} gold.` };
             player.gold -= gold;
             // (into the stranger's purse: counted coin, it is paid out again to the next soul sold)
             st.purse = Math.round((_num(st.purse) + gold) * 100) / 100;

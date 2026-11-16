@@ -1089,7 +1089,7 @@ export const OutlawLairs = {
             lair.scouted = { day: _day(world), garrison: OutlawLairs.garrison(lair), hoard: _num(lair.hoard.gold) };
             st.stats.scouted++;
             Traits.recordDeed(player, 'cunning');
-            return { success: true, scouted: true, text: `You count ${OutlawLairs.garrison(lair)} fighting men at home, ${lair.parties.length} band(s) out riding, and a hoard worth some ${Math.round(_num(lair.hoard.gold))} gold. ${lair.leader.name} is ${OutlawLairs.leaderTrait(lair).label || 'unknown'} — ${OutlawLairs.leaderTrait(lair).desc || ''}.` };
+            return { success: true, scouted: true, text: `You count ${OutlawLairs.garrison(lair)} fighting men at home, ${lair.parties.length} band(s) out riding, and a hoard worth some ${Utils.formatGold(_num(lair.hoard.gold))} gold. ${lair.leader.name} is ${OutlawLairs.leaderTrait(lair).label || 'unknown'} — ${OutlawLairs.leaderTrait(lair).desc || ''}.` };
         }
         const hurt = _roll(S.caughtHealth || [4, 10]);
         player.health = Math.max(1, _num(player.health) - hurt);
@@ -1213,7 +1213,7 @@ export const OutlawLairs = {
         if (lair.leader.slain) return { success: false, reason: 'There is no one to bargain with.' };
         const T = OutlawLairs.config().tribute || {};
         const price = OutlawLairs.tributePrice(player, lair);
-        if (_num(player.gold) < price) return { success: false, reason: `${lair.leader.name} wants ${price} gold.` };
+        if (_num(player.gold) < price) return { success: false, reason: `${lair.leader.name} wants ${Utils.formatGold(price)} gold.` };
         const st = OutlawLairs.state(player);
         const day = _day(world);
         player.gold -= price;
@@ -1231,7 +1231,7 @@ export const OutlawLairs = {
             const u = (world.units || []).find(x => x && x.id === p.unitId);
             if (u) u.sparesPlayer = true;
         }
-        return { success: true, price, until: lair.tribute.until, text: `${lair.leader.name} takes ${price} gold. Until day ${lair.tribute.until}, the riders of ${lair.name} will leave you and yours be.` };
+        return { success: true, price, until: lair.tribute.until, text: `${lair.leader.name} takes ${Utils.formatGold(price)} gold. Until day ${lair.tribute.until}, the riders of ${lair.name} will leave you and yours be.` };
     },
 
     /** Can the player make the lair a partner? Rogues and guild men only. */
@@ -1321,7 +1321,7 @@ export const OutlawLairs = {
                 status: 'active',
                 canRecruit: false,
                 targetBackstory: `Chief of ${lair.name}, ${OutlawLairs.strengthLabel(_num(lair.strength))}. Storm the lair or strike at the leader alone.`,
-                description: `${kingdom ? kingdom.name : 'The villages'} pay ${pay}g for the head of ${lair.leader.name} of ${lair.name} (${lair.q}, ${lair.r}).`,
+                description: `${kingdom ? kingdom.name : 'The villages'} pay ${Utils.formatGold(pay)}g for the head of ${lair.leader.name} of ${lair.name} (${lair.q}, ${lair.r}).`,
             });
         }
         return out;

@@ -803,7 +803,7 @@ export const StreetCrime = {
         const gold = _num(player.gold);
         const options = [{ id: 'submit', icon: '⛓️', label: 'Give yourself up', hint: 'A night or more in the cells; the matter is closed with the watch here.', chance: null, odds: false, isDefault: true }];
         if (fine != null) {
-            options.push({ id: 'fine', icon: '💰', label: 'Pay the fine', cost: `${fine} gold`, hint: inc.k === 'vandalism' ? 'You pay for the damage, and the watch lets it go.' : 'The watch lets a beating go for coin.', chance: null, odds: false, can: gold >= fine, reason: `You need ${fine} gold.` });
+            options.push({ id: 'fine', icon: '💰', label: 'Pay the fine', cost: `${Utils.formatGold(fine)} gold`, hint: inc.k === 'vandalism' ? 'You pay for the damage, and the watch lets it go.' : 'The watch lets a beating go for coin.', chance: null, odds: false, can: gold >= fine, reason: `You need ${Utils.formatGold(fine)} gold.` });
         }
         // Talk your way out (Persuasion against the guard's own — systems/socialSkills.js); not a killing
         if (inc.k !== 'murder' && SocialSkills.has('persuasion')) {
@@ -851,7 +851,7 @@ export const StreetCrime = {
             case 'fine': {
                 const fine = StreetCrime.fineFor(player, world, inc);
                 if (fine == null) return { invalid: true, outcome: 'none', notification: { title: 'No Fine', body: 'There is no paying your way out of a killing.', type: 'error' } };
-                if (_num(player.gold) < fine) return { invalid: true, outcome: 'none', notification: { title: 'Purse Too Light', body: `You need ${fine} gold.`, type: 'error' } };
+                if (_num(player.gold) < fine) return { invalid: true, outcome: 'none', notification: { title: 'Purse Too Light', body: `You need ${Utils.formatGold(fine)} gold.`, type: 'error' } };
                 player.gold -= fine;
                 // (the fine goes into the town's purse — the watch's town, else the nearest that keeps coin)
                 if (!(settlement && settlement.economy && Economy.payTown(settlement, fine)) && !Economy.payNearest(world, player.q, player.r, fine, { kid: inc.kingdom })) MoneySupply.leak(world, -fine, 'fines');

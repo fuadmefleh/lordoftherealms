@@ -19,6 +19,7 @@ import { DataLoader } from '../core/dataLoader.js';
 import { Containers } from '../systems/containers.js';
 import { Ledger } from '../systems/ledger.js';
 import { Hotbar } from './hotbar.js';
+import { Utils } from '../core/utils.js';
 
 const _cfg = () => {
     const d = (DataLoader.get && DataLoader.get('townProps')) || (DataLoader._gamedata && DataLoader._gamedata.townProps) || {};
@@ -80,7 +81,7 @@ export const InnerMapGranary = {
         return lots.map(k => ({
             type: 'action', action: 'granary_sell', qty: k, building,
             label: k === most && k > 1 ? `Sell ${k} ${g.name} (${why})` : `Sell ${k} ${g.name}`,
-            icon: '💰', desc: `${k * pay} gold, into the town's store`,
+            icon: '💰', desc: `${Utils.formatGold(k * pay)} gold, into the town's store`,
         }));
     },
 
@@ -94,11 +95,11 @@ export const InnerMapGranary = {
         const sell = InnerMapGranary._sellItems(game, at, building);
         if (spare <= 0) return [{ type: 'disabled', label: `${g.icon} No grain to spare: the town keeps what it has` }, ...sell];
         const price = InnerMapGranary.price(game, at.settlement, at.tile);
-        const items = [{ type: 'disabled', label: `${g.icon} ${spare} ${g.name} to spare, ${price}g each` }];
+        const items = [{ type: 'disabled', label: `${g.icon} ${spare} ${g.name} to spare, ${Utils.formatGold(price)}g each` }];
         for (const k of _cfg().lots.filter(n => n <= spare)) {
             items.push({
                 type: 'action', action: 'granary_buy', qty: k, building,
-                label: `Buy ${k} ${g.name}`, icon: g.icon, desc: `${k * price} gold, from the town's store`,
+                label: `Buy ${k} ${g.name}`, icon: g.icon, desc: `${Utils.formatGold(k * price)} gold, from the town's store`,
             });
         }
         return items.concat(sell);
@@ -120,7 +121,7 @@ export const InnerMapGranary = {
         const price = InnerMapGranary.price(game, at.settlement, at.tile);
         const cost = n * price;
         if ((Number(player.gold) || 0) < cost) {
-            game.ui.showNotification('🌾 Not Enough Gold', `${n} ${g.name} comes to ${cost} gold.`, 'warning');
+            game.ui.showNotification('🌾 Not Enough Gold', `${n} ${g.name} comes to ${Utils.formatGold(cost)} gold.`, 'warning');
             return true;
         }
         player.gold -= cost;
@@ -130,7 +131,7 @@ export const InnerMapGranary = {
         econ.gold = (Number(econ.gold) || 0) + cost;
         if (!player.inventory) player.inventory = {};
         player.inventory.grain = (Number(player.inventory.grain) || 0) + n;
-        game.ui.showNotification('🌾 Grain Bought', `The keeper measures out ${n} ${g.name} from the town's store for ${cost} gold.`, 'success');
+        game.ui.showNotification('🌾 Grain Bought', `The keeper measures out ${n} ${g.name} from the town's store for ${Utils.formatGold(cost)} gold.`, 'success');
         game.ui.updateStats(player, game.world);
         Hotbar.refresh();
         return true;
@@ -160,7 +161,7 @@ export const InnerMapGranary = {
         const econ = at.settlement.economy;
         econ.food = (Number(econ.food) || 0) + n;
         econ.gold = (Number(econ.gold) || 0) - pay;
-        game.ui.showNotification('🌾 Grain Sold', `The keeper weighs your ${n} ${g.name} into the town's store and pays you ${pay} gold.`, 'success');
+        game.ui.showNotification('🌾 Grain Sold', `The keeper weighs your ${n} ${g.name} into the town's store and pays you ${Utils.formatGold(pay)} gold.`, 'success');
         game.ui.updateStats(player, game.world);
         Hotbar.refresh();
         return true;

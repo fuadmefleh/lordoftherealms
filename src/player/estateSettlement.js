@@ -72,6 +72,7 @@ import { Ledger } from '../systems/ledger.js';
 import { LlmProse } from '../systems/llmProse.js';
 import { CadetBranches } from '../systems/cadetBranches.js';
 import { TradeLines } from './tradeLines.js';
+import { Utils } from '../core/utils.js';
 
 // The prose writer (systems/llmProse.js) retells the chronicle line when the
 // model is on; the template line stands otherwise (and if it ever goes away).
@@ -476,7 +477,7 @@ export const EstateSettlement = {
         Finance._record(fin, world, { kind: 'estate_loss', bankId: bank.id, bank: bank.name, kingdomId: bank.kingdomId, place: bank.seat, amount: Math.round(unpaid), lender: rec.house });
         const day = _day(world);
         if (bank.status === 'open' && bank.owner !== 'player' && !Finance.inPanic(bank, day) && unpaid >= C.stressShare * Math.max(1, _num(bank.capital))) {
-            Finance._startRun(world, player, fin, bank, null, `the estate of ${rec.name} left ${Math.round(unpaid)} crowns unpaid`);
+            Finance._startRun(world, player, fin, bank, null, `the estate of ${rec.name} left ${Utils.formatGold(Math.round(unpaid))} crowns unpaid`);
             rec.runs = (rec.runs || []).concat(bank.name);
         }
     },
@@ -514,7 +515,7 @@ export const EstateSettlement = {
 
     /** "His creditors took 3,200 crowns; the remaining 1,100 passed to the crown of X." */
     templateLine(rec) {
-        const n = (v) => Math.round(v).toLocaleString('en-US');
+        const n = (v) => Utils.formatGold(v);
         const heir = rec.crown ? `the crown of ${_realm(rec.crown.name)}` : rec.town ? `the town of ${rec.town.name}` : 'no one';
         const rest = rec.toCrown + rec.toTown;
         const who = rec.name;

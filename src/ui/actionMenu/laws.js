@@ -8,6 +8,7 @@ import { ActionMenu } from './_ref.js';
 import { Laws } from '../../systems/laws.js';
 import { TownSchool } from '../../systems/townSchool.js';
 import { panelTabs, lede, chips, rowList, card, price, more } from './uiKit.js';
+import { Utils } from '../../core/utils.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 const TABS = [['here', '📍 This realm'], ['realms', '🗺️ All realms'], ['crown', '👑 Your crown']];
@@ -96,7 +97,7 @@ function crownTab(game) {
     const C = Laws.config();
     let html = lede(`Proclaim the laws of <b>${esc(k.name)}</b>. Each change costs the treasury and some stability (more for a hard law); a law can't be changed again for ${C.cooldownDays} days.`);
     html += chips([
-        ['💰', 'Treasury', `${Math.floor(k.treasury || 0)}g`, 'gold'],
+        ['💰', 'Treasury', `${Utils.formatGold(k.treasury || 0)}g`, 'gold'],
         ['⚖️', 'Stability', Math.round(k.stability || 0)],
     ]);
     for (const { law, option } of Laws.of(world, k.id)) {

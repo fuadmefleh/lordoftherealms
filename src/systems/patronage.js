@@ -305,7 +305,7 @@ export const Patronage = {
         if (last != null && _day(world) - last < _num(P.cooldown, 60)) return { ...out, reason: `The court tires of novelty: try again in ${_num(P.cooldown, 60) - (_day(world) - last)} days.` };
         if (Fashions.active(world).some(f => f.id === fashionId)) return { ...out, reason: `${def.name} is already the fashion somewhere.` };
         if (!player.house || _num(player.house.prestige) < out.prestige) return { ...out, reason: `It takes ${out.prestige} House Prestige to set the court's taste.` };
-        if (_num(player.gold) < out.gold) return { ...out, reason: `The feasts and gifts cost ${out.gold} gold.` };
+        if (_num(player.gold) < out.gold) return { ...out, reason: `The feasts and gifts cost ${Utils.formatGold(out.gold)} gold.` };
         return { ...out, ok: true };
     },
 
@@ -475,7 +475,7 @@ export const Patronage = {
         st.clients.push(client);
         st.stats.hired++;
         Patronage._log(player, world, `${client.name}, ${Patronage.professions()[client.profession].name.toLowerCase()}, enters your service.`);
-        return { success: true, client, text: `${client.name} enters your service for ${client.stipend}g a week.` };
+        return { success: true, client, text: `${client.name} enters your service for ${Utils.formatGold(client.stipend)}g a week.` };
     },
 
     /** Let a client go (they take nothing with them; work in hand is lost). */
@@ -503,7 +503,7 @@ export const Patronage = {
         if (!c) return { success: false, reason: 'No such client.' };
         c.stipend = Math.ceil(c.stipend * 1.2);
         c.content = _clamp(c.content + (c.ambition === 'wealth' ? 25 : 12), 0, 100);
-        return { success: true, text: `${c.name} now draws ${c.stipend}g a week.` };
+        return { success: true, text: `${c.name} now draws ${Utils.formatGold(c.stipend)}g a week.` };
     },
 
     /** Days a commission takes this client. */
@@ -527,7 +527,7 @@ export const Patronage = {
         const present = opts.present !== undefined ? !!opts.present : true;
         const q = Patronage.quote(player, w.materials, present);
         if (q.buyCost > 0 && opts.buyMissing === false) return { success: false, reason: 'You lack the materials.' };
-        if (_num(player.gold) < q.buyCost) return { success: false, reason: `Buying the materials costs ${q.buyCost} gold.` };
+        if (_num(player.gold) < q.buyCost) return { success: false, reason: `Buying the materials costs ${Utils.formatGold(q.buyCost)} gold.` };
         for (const l of q.lines) Patronage._take(player, l.id, l.have);
         if (q.buyCost) Patronage._spend(player, q.buyCost, world);
         const days = Patronage.workDays(c, workId);
@@ -674,13 +674,13 @@ export const Patronage = {
         if (!offer || !c) return { success: false, reason: 'There is no offer to answer.' };
         const P = Patronage.config().poach;
         if (answer === 'match') {
-            if (_num(player.gold) < offer.counter) return { success: false, reason: `Matching the offer costs ${offer.counter} gold.` };
+            if (_num(player.gold) < offer.counter) return { success: false, reason: `Matching the offer costs ${Utils.formatGold(offer.counter)} gold.` };
             Patronage._spend(player, offer.counter, world);
             c.stipend = Math.ceil(c.stipend * (1 + _num(P.matchStipendRaise, 0.25)));
             c.content = _clamp(c.content + _num(P.matchContent, 15), 0, 100);
             st.offers = st.offers.filter(o => o !== offer);
             st.stats.matched++;
-            return { success: true, text: `${c.name} stays, for ${c.stipend}g a week.` };
+            return { success: true, text: `${c.name} stays, for ${Utils.formatGold(c.stipend)}g a week.` };
         }
         Patronage._poached(player, world, c, offer);
         return { success: true, text: `${c.name} leaves for ${offer.rivalName}.` };
@@ -727,7 +727,7 @@ export const Patronage = {
                 } else {
                     c.unpaidWeeks = _num(c.unpaidWeeks) + 1;
                     c.content += _num(cfg.contentUnpaid, -18);
-                    out.notices.push({ icon: '💸', title: 'Stipend Unpaid', text: `You could not pay ${c.name} this week (${c.stipend}g).`, type: 'warning' });
+                    out.notices.push({ icon: '💸', title: 'Stipend Unpaid', text: `You could not pay ${c.name} this week (${Utils.formatGold(c.stipend)}g).`, type: 'warning' });
                 }
             }
             // Ambitions, monthly
@@ -766,7 +766,7 @@ export const Patronage = {
                             counter: Math.round(c.stipend * _num(P.counterWeeks, 10)),
                         };
                         st.offers.push(offer);
-                        out.notices.push({ icon: '🎭', title: 'A Rival Offer', text: `${offer.rivalName} courts ${c.name} with a richer stipend. Match it (${offer.counter}g) or let them go: ${_num(P.answerDays, 6)} days to answer (Patronage).`, type: 'warning' });
+                        out.notices.push({ icon: '🎭', title: 'A Rival Offer', text: `${offer.rivalName} courts ${c.name} with a richer stipend. Match it (${Utils.formatGold(offer.counter)}g) or let them go: ${_num(P.answerDays, 6)} days to answer (Patronage).`, type: 'warning' });
                     }
                 }
             }
@@ -896,12 +896,12 @@ export const Patronage = {
             const cost = rest.goods.reduce((s, g) => s + g.missing * g.price, 0);
             if (cost > 0) {
                 if (_num(player.gold) < cost) {
-                    if (!moved) return { success: false, reason: `Buying the rest costs ${cost} gold.` };
+                    if (!moved) return { success: false, reason: `Buying the rest costs ${Utils.formatGold(cost)} gold.` };
                 } else {
                     Patronage._spend(player, cost, world, p);
                     p.spent += cost;
                     for (const g of rest.goods) p.delivered[g.id] = _num(p.delivered[g.id]) + g.missing;
-                    parts.push(`the rest bought for ${cost}g`);
+                    parts.push(`the rest bought for ${Utils.formatGold(cost)}g`);
                 }
             }
         }
@@ -909,7 +909,7 @@ export const Patronage = {
             Patronage._spend(player, needs.gold, world, p);
             p.spent += needs.gold;
             p.goldPaid = true;
-            parts.push(`${needs.gold}g for the masons`);
+            parts.push(`${Utils.formatGold(needs.gold)}g for the masons`);
         }
         const after = Patronage.stageNeeds(player, p);
         const supplied = after.goldPaid && after.goods.every(g => g.missing === 0);
@@ -1084,7 +1084,7 @@ export const Patronage = {
         const by = Patronage.claimed(world, p.workId);
         const k = by && by.kingdomId != null ? _kingdom(world, by.kingdomId) : null;
         Patronage._log(player, world, `${k ? k.name : 'Another'} finished the ${def.name} first; your works at ${p.name} are sold off.`);
-        out.notices.push({ icon: '🥈', title: 'Beaten to It', text: `${k ? k.name : 'A rival realm'} has finished the ${def.name} first. Your half-built works at ${p.name} are sold off for ${refund} gold.`, type: 'error' });
+        out.notices.push({ icon: '🥈', title: 'Beaten to It', text: `${k ? k.name : 'A rival realm'} has finished the ${def.name} first. Your half-built works at ${p.name} are sold off for ${Utils.formatGold(refund)} gold.`, type: 'error' });
     },
 
     // ──────────── KINGDOMS' WONDERS ────────────

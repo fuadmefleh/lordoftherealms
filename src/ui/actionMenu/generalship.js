@@ -11,6 +11,7 @@ import { esc, bullets, lede, chips, sectionHead, card, actRow, rowList, kv, more
 import { InnerMapBattle } from '../innerMapBattle.js';
 import { ParentsGuard } from '../parentsGuard.js';
 import { Names } from '../../core/names.js';
+import { Utils } from '../../core/utils.js';
 
 // In the action menu's voice (ui/actionMenu/uiKit.js): cards for the commission's
 // state, one row an order to give, greyed with its reason when it can't be given
@@ -85,7 +86,7 @@ Object.assign(ActionMenu, {
         com += _bar(c.merit, v.next ? v.next.merit : c.merit, '#c9a54a');
         com += `<div style="font-size:11px; color:#cbbf9f;">The crown's favour <span style="color:${fc};font-weight:bold;">${Math.round(c.favour)}</span> · its fear of you <span style="color:${v.fear >= 70 ? '#e0846a' : '#cbbf9f'};">${v.fear}</span></div>`;
         com += _bar(c.favour, 100, fc);
-        com += `<div style="${NOTE}">Wage ${rd.wage}g a day from ${esc(c.kingdomName)}'s treasury (${Math.round(k && k.treasury || 0)}g)${c.owed > 0 ? ` · owed ${Math.round(c.owed)}g` : ''} · paid weekly</div>`;
+        com += `<div style="${NOTE}">Wage ${Utils.formatGold(rd.wage)}g a day from ${esc(c.kingdomName)}'s treasury (${Utils.formatGold(k && k.treasury || 0)}g)${c.owed > 0 ? ` · owed ${Utils.formatGold(c.owed)}g` : ''} · paid weekly</div>`;
         html += card(com, { icon: rd.icon || '🎖️', title: `${esc(rd.name)} of ${esc(c.kingdomName)}`, side: `since day ${c.since}` });
 
         // ── The host ──
@@ -102,9 +103,9 @@ Object.assign(ActionMenu, {
         const hostRows = [_row({ icon: '📣', name: 'Address the men', side: `${AP.address} AP` }, 'address')];
         for (const amt of [50, 200]) {
             hostRows.push(_row({
-                icon: '💰', name: `Share ${amt}g`, desc: 'Coin from your purse to the men: they spend it in the realm\'s towns.',
+                icon: '💰', name: `Share ${Utils.formatGold(amt)}g`, desc: 'Coin from your purse to the men: they spend it in the realm\'s towns.',
                 title: 'Coin from your purse to the men: they spend it in the realm\'s towns.',
-                why: 'Coin from your purse to the men — your purse is short', side: `${amt}g`, tone: gold >= amt ? 'gold' : 'bad',
+                why: 'Coin from your purse to the men — your purse is short', side: `${Utils.formatGold(amt)}g`, tone: gold >= amt ? 'gold' : 'bad',
             }, 'spoils', [amt], gold >= amt));
         }
         if (v.supplyTown) {
@@ -202,7 +203,7 @@ Object.assign(ActionMenu, {
                 side: `your rival at court, influence ${Math.round(rv.influence)}`, tone: sc ? 'warn' : null,
             });
             const cost = (Generalship.config().court || {}).answerGold || 80;
-            courtRows.push(_row({ icon: '🎁', name: 'Answer at court', desc: `${cost}g to the courtiers`, why: `${cost}g to the courtiers — your purse is short`, side: `${cost}g`, tone: gold >= cost ? 'gold' : 'bad' }, 'answer', [], gold >= cost));
+            courtRows.push(_row({ icon: '🎁', name: 'Answer at court', desc: `${Utils.formatGold(cost)}g to the courtiers`, why: `${Utils.formatGold(cost)}g to the courtiers — your purse is short`, side: `${Utils.formatGold(cost)}g`, tone: gold >= cost ? 'gold' : 'bad' }, 'answer', [], gold >= cost));
             if (sc) {
                 const t = 'Lay it bare before the crown: foiled and shamed if you can prove it; you look petty if you cannot.';
                 courtRows.push(_row({ icon: '🔎', name: of('Expose his scheme'), desc: t, title: t, side: `${Math.round(Generalship.exposeOdds(player, c) * 100)}% · ${AP.expose} AP`, tone: 'gold' }, 'expose'));
@@ -210,7 +211,7 @@ Object.assign(ActionMenu, {
             const price = Generalship.buyOffPrice(c);
             if (price != null) {
                 const t = of('He drops his scheme and keeps quiet for a month.');
-                courtRows.push(_row({ icon: '💰', name: of('Buy his silence'), desc: `${price}g to his House. ${t}`, why: `${price}g to his House — your purse is short`, title: t, side: `${price}g`, tone: gold >= price ? 'gold' : 'bad' }, 'buyOff', [], gold >= price));
+                courtRows.push(_row({ icon: '💰', name: of('Buy his silence'), desc: `${Utils.formatGold(price)}g to his House. ${t}`, why: `${Utils.formatGold(price)}g to his House — your purse is short`, title: t, side: `${Utils.formatGold(price)}g`, tone: gold >= price ? 'gold' : 'bad' }, 'buyOff', [], gold >= price));
             } else {
                 courtRows.push(actRow({ icon: '💰', name: of('Buy his silence'), off: true, why: of(rv.persona && rv.persona.manner === 'proud' ? 'He is too proud to be bought.' : 'He is too honourable to be bought.') }));
             }
@@ -236,7 +237,7 @@ Object.assign(ActionMenu, {
             kv('Towns taken · raids', `${r.townsTaken} · ${r.raids}`),
             kv('Orders', `${r.ordersDone} done, ${r.ordersFailed} failed`),
             kv('The realm\'s battles with you at the front', `${r.realmWon} won, ${r.realmLost} lost`),
-            kv('Wages · plunder', `${Math.round(r.wages)}g · ${Math.round(r.plunder)}g`),
+            kv('Wages · plunder', `${Utils.formatGold(r.wages)}g · ${Utils.formatGold(r.plunder)}g`),
         ].join('')}</div>`;
         if (c.log && c.log.length) html += `<div style="font-size:11px;color:#9d937c;margin-top:6px;">${c.log.slice(0, 6).map(e => `Day ${e.day}: ${esc(e.text)}`).join('<br>')}</div>`;
         html += _pastHtml(v.past);

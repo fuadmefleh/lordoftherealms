@@ -305,7 +305,7 @@ export const Feasts = {
         const src = Feasts.source(player, world, tile, opts.menu);
         if (src.short > 0) return { success: false, reason: `The town's market cannot supply the ${menu.label.toLowerCase()} (${src.short} portions short).` };
         const bill = src.cost + _num(ent.cost);
-        if (_num(player.gold) < bill) return { success: false, reason: `The feast would cost ${bill} gold.` };
+        if (_num(player.gold) < bill) return { success: false, reason: `The feast would cost ${Utils.formatGold(bill)} gold.` };
 
         // Lay the table: your stores first, then the stalls
         for (const [id, n] of Object.entries(src.usedInv)) {

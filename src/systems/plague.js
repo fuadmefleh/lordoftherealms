@@ -251,7 +251,7 @@ export const Plague = {
         if (!Plague.isQuarantined(world, s)) return { success: false, reason: 'The gates are open.' };
         const G = Plague.config().gates;
         const cost = Plague.bribeCost(s);
-        if (_num(player.gold) < cost) return { success: false, reason: `The guards want ${cost} gold.` };
+        if (_num(player.gold) < cost) return { success: false, reason: `The guards want ${Utils.formatGold(cost)} gold.` };
         const day = _num(world && world.day, 1);
         player.gold -= cost;
         // The coin goes to the watch — into the town's purse, near enough
@@ -504,7 +504,7 @@ export const Plague = {
         }
         return {
             success: true, gold, n, greedy,
-            text: `You sell ${n} remed${n === 1 ? 'y' : 'ies'} to the frightened of ${s.name} for ${gold} gold${greedy ? ' — a plague price, and they know it' : ''}.`,
+            text: `You sell ${n} remed${n === 1 ? 'y' : 'ies'} to the frightened of ${s.name} for ${Utils.formatGold(gold)} gold${greedy ? ' — a plague price, and they know it' : ''}.`,
         };
     },
 

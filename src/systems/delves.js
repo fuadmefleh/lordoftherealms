@@ -338,7 +338,7 @@ export const Delves = {
     /** Can the player pay this choice's cost? { ok, reason } (stamina/health never block). */
     canChoose(player, choice) {
         const cost = (choice && choice.cost) || {};
-        if (cost.gold > 0 && (player.gold || 0) < cost.gold) return { ok: false, reason: `Needs ${cost.gold} gold` };
+        if (cost.gold > 0 && (player.gold || 0) < cost.gold) return { ok: false, reason: `Needs ${Utils.formatGold(cost.gold)} gold` };
         for (const [item, qty] of Object.entries(cost.items || {})) {
             if (!((player.inventory && player.inventory[item]) >= qty)) return { ok: false, reason: `Needs ${qty} ${item.replace(/_/g, ' ')}` };
         }
@@ -360,7 +360,7 @@ export const Delves = {
             const parts = [];
             if (cost.stamina) parts.push(`${cost.stamina} stamina`);
             if (cost.health) parts.push(`${cost.health} health`);
-            if (cost.gold) parts.push(`${cost.gold} gold`);
+            if (cost.gold) parts.push(`${Utils.formatGold(cost.gold)} gold`);
             for (const [item, qty] of Object.entries(cost.items || {})) parts.push(`${qty} ${item.replace(/_/g, ' ')}`);
             return {
                 id: c.id, label: c.label, hint: c.hint || '',
@@ -496,13 +496,13 @@ export const Delves = {
                 player.gold = _num(player.gold) + g;
                 haul.gold += g;
                 MoneySupply.leak(world, g, 'delveTreasure');
-                lines.push(`+${g} gold`);
+                lines.push(`+${Utils.formatGold(g)} gold`);
             } else if (g < 0) {
                 // (the outlaws who take your purse spend it in the nearest town)
                 const lost = Math.min(Math.max(0, _num(player.gold)), -g);
                 player.gold = Math.max(0, _num(player.gold) + g);
                 if (lost > 0 && !Economy.payNearest(world, player.q, player.r, lost)) MoneySupply.leak(world, -lost, 'delveRobbed');
-                lines.push(`${g} gold`);
+                lines.push(`${Utils.formatGold(g)} gold`);
             }
         }
         for (const [item, range] of Object.entries(o.items || {})) {
@@ -787,7 +787,7 @@ export const Delves = {
                 partner.earned = _num(partner.earned) + cut;
                 // (held for them until the day's turn puts it in their purse: counted by the coin census)
                 partner.owed = _num(partner.owed) + cut;
-                summary.extra.push(`${partner.name} takes a ${Math.round(_num(partner.share) * 100)}% share: ${cut} gold`);
+                summary.extra.push(`${partner.name} takes a ${Math.round(_num(partner.share) * 100)}% share: ${Utils.formatGold(cut)} gold`);
             }
             partner.delves = _num(partner.delves) + 1;
             partner.lastSite = a.name;

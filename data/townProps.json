@@ -249,6 +249,17 @@
         { "id": "tp_bush_7",        "name": "Flower Bush",      "sheet": "flowers",  "rect": [7, 3, 1, 1], "solid": 1, "tags": ["garden"] },
         { "id": "tp_bush_8",        "name": "Flower Bush",      "sheet": "flowers",  "rect": [8, 3, 1, 1], "solid": 1, "tags": ["garden"] }
     ],
+    "_snowRoofsDoc": "Winter on the street map (ui/spriteSnow.js): an object sprite with a roof of its own is snowed on over its roof alone, a band [top, bottom] of its height (fractions from its top, 0..1) — the canopy, the tent's top, the well's little roof — never the flags and poles above it nor the goods, counter and walls below. The snow's level (the roofs': world/streetSeasons.js) takes it from a dusting over the band's upper part to full cover down to its foot.",
+    "snowRoofs": {
+        "tp_stall": [0.53, 0.74],
+        "tp_well": [0.14, 0.48],
+        "tp_tent_hide": [0.08, 0.66], "tp_tent_patch": [0.1, 0.66], "tp_tent_fell": [0.1, 0.66], "tp_tent_bough": [0.1, 0.62],
+        "tp_tent_canvas": [0.06, 0.74], "tp_tent_canvas_open": [0.06, 0.74],
+        "tp_yurt_orange": [0.13, 0.42], "tp_yurt_red": [0.13, 0.42], "tp_yurt_blue": [0.13, 0.42], "tp_yurt_plain": [0.13, 0.42],
+        "tp_tent_market": [0.1, 0.46], "tp_tent_market_crates": [0.1, 0.46], "tp_tent_market_bunting": [0.12, 0.5],
+        "tp_pavilion_bell": [0.18, 0.54], "tp_pavilion_banners": [0.2, 0.52], "tp_pavilion_gilt": [0.22, 0.54],
+        "tp_pavilion_great": [0.24, 0.6]
+    },
     "_stallArtDoc": "A market stall's look by its trade (world/marketStalls.js, data/marketStalls.json): over = goods on the counter, [sheet, col, row, atCol, atRow] — a 32px cell of a sheet drawn at a place of the stall (atCol 0..2 across, atRow up from its bottom row, fractions allowed), with an optional sixth, scale: the cell drawn that much smaller, stood on the bottom middle of its place, so a big sprite keeps to the counter; the stall carries them as a colour variant of tp_stall (customObject.colorVariantIdx). side = the props to stand beside it, one taking the place of the planner's side prop where it has the same footprint. A trade may wear other looks by what it has in stock (data/marketStalls.json artVariants): greengrocer_orchard after the fruit harvest, greengrocer_roots through the winter; new looks go at the end, since a stall's look is its place in this list.",
     "stallArt": {
         "greengrocer": {"over": [["veg", 7, 10, 0.5, -0.45, 0.72], ["veg", 7, 0, 1.0, -0.45, 0.72], ["fruit", 3, 2, 1.5, -0.45, 0.72]], "side": ["tp_produce_1", "tp_produce_2", "tp_produce_3", "tp_produce_4", "tp_produce_5", "tp_produce_6", "tp_ware_greens", "tp_ware_corn", "tp_ware_fennel", "tp_ware_roots", "tp_basket"]},

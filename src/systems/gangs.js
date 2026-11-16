@@ -599,7 +599,7 @@ export const Gangs = {
         const seed = _num(F.seed, 200);
         const fee = _num(Gangs.cfg().recruitFee, 25);
         const crew = _num(F.crew, 4);
-        if (_num(player.gold) < seed + fee * crew) return { success: false, reason: `You need ${seed + fee * crew}g: ${seed}g for the purse and ${fee}g a head to sign ${crew} men.` };
+        if (_num(player.gold) < seed + fee * crew) return { success: false, reason: `You need ${Utils.formatGold(seed + fee * crew)}g: ${Utils.formatGold(seed)}g for the purse and ${Utils.formatGold(fee)}g a head to sign ${crew} men.` };
         player.gold -= seed + fee * crew;
         Ledger.record(player, 'gang', -(seed + fee * crew));
         Gangs._dirtyFollowsGold(player);
@@ -618,7 +618,7 @@ export const Gangs = {
         if (big) big.feud = _num(big.feud) + 20;
         Traits.recordDeeds(player, { cunning: 1, dread: 0.5 });
         Gangs._log(st, world, `${player.name || 'A newcomer'} founded ${g.name}.`);
-        return { success: true, gang: g, text: `${g.name} is yours: ${crew} men, a lieutenant and ${seed}g in the purse. ${big ? `${big.name} won't like it.` : ''}`.trim() };
+        return { success: true, gang: g, text: `${g.name} is yours: ${crew} men, a lieutenant and ${Utils.formatGold(seed)}g in the purse. ${big ? `${big.name} won't like it.` : ''}`.trim() };
     },
 
     // ──────────── ERRANDS ────────────
@@ -717,7 +717,7 @@ export const Gangs = {
             if (id === 'run_cargo') {
                 // The gang's coin is spent and the load is lost at the border
                 const run = Gangs._smuggleRun(world, tile, g, { dryRun: false, lose: true });
-                return { success: true, outcome: caught ? 'caught' : 'empty', text: `The cargo was taken at the border${run ? ` (${run.units} ${_label(run.good)}, ${run.cost}g of the gang's coin)` : ''}.${caught ? ` ${Gangs._caught(player, world, tile, offer.name)}` : ''}` };
+                return { success: true, outcome: caught ? 'caught' : 'empty', text: `The cargo was taken at the border${run ? ` (${run.units} ${_label(run.good)}, ${Utils.formatGold(run.cost)}g of the gang's coin)` : ''}.${caught ? ` ${Gangs._caught(player, world, tile, offer.name)}` : ''}` };
             }
             if (id === 'hit') player.health = Math.max(1, _num(player.health, 100) - 15);
             return { success: true, outcome: caught ? 'caught' : 'empty', text: caught ? `${offer.name}: it went wrong. ${Gangs._caught(player, world, tile, offer.name)}` : `${offer.name}: it went sour; you got away with nothing.` };
@@ -732,7 +732,7 @@ export const Gangs = {
             Gangs._book(g, 'in', 'collections', took);
             Gangs._book(g, 'out', 'toYou', mine);
             Gangs._payPlayer(player, mine);
-            text = `You walk the rounds: ${Math.floor(took)}g from the shops of ${s.name}. ${mine}g is yours.`;
+            text = `You walk the rounds: ${Utils.formatGold(took)}g from the shops of ${s.name}. ${Utils.formatGold(mine)}g is yours.`;
         } else if (id === 'holdout') {
             g.turf = _r2(Math.min(1, g.turf + _num(offer.turf, 0.05)));
             Gangs._normaliseTurf(st);
@@ -754,7 +754,7 @@ export const Gangs = {
                 g.purse = _r2(g.purse - mine);
                 Gangs._book(g, 'out', 'toYou', mine);
                 Gangs._payPlayer(player, mine);
-                text = `You bring ${run.units} ${_label(run.good)} in from ${run.from}, bought for ${run.cost}g of the gang's coin. Your cut: ${mine}g.`;
+                text = `You bring ${run.units} ${_label(run.good)} in from ${run.from}, bought for ${Utils.formatGold(run.cost)}g of the gang's coin. Your cut: ${Utils.formatGold(mine)}g.`;
             } else {
                 text = 'The run comes to nothing: no seller over the border, or no coin in the purse.';
             }
@@ -777,7 +777,7 @@ export const Gangs = {
             Gangs._book(g, 'in', 'ransoms', ransom);
             Gangs._book(g, 'out', 'toYou', mine);
             Gangs._payPlayer(player, mine);
-            text = `The family pays ${Math.floor(ransom)}g and gets their child back. ${mine}g is yours; the rest is the gang's.`;
+            text = `The family pays ${Utils.formatGold(ransom)}g and gets their child back. ${Utils.formatGold(mine)}g is yours; the rest is the gang's.`;
         }
         const promoted = Gangs._gainStanding(player, world, tile, m, _num(offer.standing, 2));
         if (Utils.random() < 0.08 && player.skills) player.skills.stealth = Math.min(10, _num(player.skills.stealth, 1) + 1);
@@ -797,7 +797,7 @@ export const Gangs = {
             Gangs._dirtyFollowsGold(player);
         }
         const arrest = Underworld._maybeArrest(player, world, s, _label(what));
-        return `Fined ${fine}g.${arrest ? ` ${arrest.text}` : ' You slipped the cells.'}`;
+        return `Fined ${Utils.formatGold(fine)}g.${arrest ? ` ${arrest.text}` : ' You slipped the cells.'}`;
     },
 
     /** Move against the boss (a lieutenant): win, and the gang is yours. */
@@ -885,18 +885,18 @@ export const Gangs = {
                 const room = Gangs.crewCap(s) - g.crew;
                 if (room <= 0) return { success: false, reason: `${s.name} has no more hard men to sign (${Gangs.crewCap(s)} at most).` };
                 const k = Math.min(n, room);
-                if (g.purse < fee * k) return { success: false, reason: `Signing ${k} costs ${fee * k}g; the purse holds ${Math.floor(g.purse)}g.` };
+                if (g.purse < fee * k) return { success: false, reason: `Signing ${k} costs ${Utils.formatGold(fee * k)}g; the purse holds ${Utils.formatGold(g.purse)}g.` };
                 g.purse = _r2(g.purse - fee * k);
                 Gangs._book(g, 'out', 'recruits', fee * k);
                 Economy.payTown(s, fee * k);
                 g.crew += k;
-                return { success: true, text: `${k} new ${k === 1 ? 'face' : 'faces'} sign on for ${fee}g a head. Crew: ${g.crew}.` };
+                return { success: true, text: `${k} new ${k === 1 ? 'face' : 'faces'} sign on for ${Utils.formatGold(fee)}g a head. Crew: ${g.crew}.` };
             }
             case 'bonus': {
                 const lt = g.lieutenants.find(l => l.id === arg);
                 const cost = _num(L.bonusCost, 50);
                 if (!lt) return { success: false, reason: 'No such lieutenant.' };
-                if (g.purse < cost) return { success: false, reason: `A bonus is ${cost}g; the purse is short.` };
+                if (g.purse < cost) return { success: false, reason: `A bonus is ${Utils.formatGold(cost)}g; the purse is short.` };
                 g.purse = _r2(g.purse - cost);
                 Gangs._book(g, 'out', 'bonuses', cost);
                 Economy.payTown(s, cost);
@@ -924,11 +924,11 @@ export const Gangs = {
                     return { success: true, text: `You stop paying ${w.name}.` };
                 }
                 const fee = Gangs.retainer(world, tile, op);
-                if (g.purse < fee * 2) return { success: false, reason: `${w.name} wants ${fee}g a week, and two weeks up front.` };
+                if (g.purse < fee * 2) return { success: false, reason: `${w.name} wants ${Utils.formatGold(fee)}g a week, and two weeks up front.` };
                 if (w.bribedBy && Gangs.gang(world, tile, w.bribedBy)) {
                     // Outbid a rival: it costs double, and they will know
                     const rival = Gangs.gang(world, tile, w.bribedBy);
-                    if (g.purse < fee * 4) return { success: false, reason: `${w.name} is on ${rival.name}'s payroll. To turn him costs ${fee * 4}g.` };
+                    if (g.purse < fee * 4) return { success: false, reason: `${w.name} is on ${rival.name}'s payroll. To turn him costs ${Utils.formatGold(fee * 4)}g.` };
                     g.purse = _r2(g.purse - fee * 2);
                     Gangs._book(g, 'out', 'bribes', fee * 2);
                     w.purse = _r2(_num(w.purse) + fee * 2);
@@ -940,8 +940,8 @@ export const Gangs = {
                 w.bribedBy = g.id;
                 Traits.recordDeed(player, 'deceit', 1);
                 return { success: true, text: op === 'captain'
-                    ? `${w.name} is yours at ${fee}g a week: fewer searches at the gate, no raids on ${g.name}, and the watch slower on your heels.`
-                    : `${w.name} is yours at ${fee}g a week: if you're taken in ${s.name}, the case falls apart.` };
+                    ? `${w.name} is yours at ${Utils.formatGold(fee)}g a week: fewer searches at the gate, no raids on ${g.name}, and the watch slower on your heels.`
+                    : `${w.name} is yours at ${Utils.formatGold(fee)}g a week: if you're taken in ${s.name}, the case falls apart.` };
             }
             case 'den': {
                 const D = Gangs.c('dens', {});
@@ -949,7 +949,7 @@ export const Gangs = {
                 const total = Gangs.gangsAt(world, tile).reduce((a, x) => a + x.dens, 0);
                 if (total >= max + 1 || g.dens >= max) return { success: false, reason: `${s.name} can't keep another den.` };
                 const cost = _num(D.openCost, 220);
-                if (g.purse < cost) return { success: false, reason: `Fitting out a den costs ${cost}g of the gang's coin.` };
+                if (g.purse < cost) return { success: false, reason: `Fitting out a den costs ${Utils.formatGold(cost)}g of the gang's coin.` };
                 g.purse = _r2(g.purse - cost);
                 Gangs._book(g, 'out', 'denOpen', cost);
                 Economy.payTown(s, cost);
@@ -980,7 +980,7 @@ export const Gangs = {
                 Gangs._book(g, 'out', 'tribute', tribute);
                 Gangs._book(foe, 'in', 'tribute', tribute);
                 Gangs._peace(world, g, foe);
-                return { success: true, text: `${foe.boss.name} takes ${tribute}g and the truce holds until day ${g.truces[foe.id]}.` };
+                return { success: true, text: `${foe.boss.name} takes ${Utils.formatGold(tribute)}g and the truce holds until day ${g.truces[foe.id]}.` };
             }
             case 'withdraw': {
                 const want = Math.min(Math.floor(g.purse), Math.max(1, Math.floor(_num(Number(arg), 100))));
@@ -990,7 +990,7 @@ export const Gangs = {
                 Gangs._payPlayer(player, want);
                 // The men notice when the boss empties the purse
                 if (want > Gangs.weeklyWages(g) * 2) for (const l of g.lieutenants) l.loyalty = _clamp(l.loyalty - 3, 0, 100);
-                return { success: true, text: `You take ${want}g from ${g.name}'s purse. It's dirty money.` };
+                return { success: true, text: `You take ${Utils.formatGold(want)}g from ${g.name}'s purse. It's dirty money.` };
             }
             case 'deposit': {
                 const want = Math.min(Math.floor(_num(player.gold)), Math.max(1, Math.floor(_num(Number(arg), 100))));
@@ -1000,7 +1000,7 @@ export const Gangs = {
                 Gangs._dirtyFollowsGold(player);
                 g.purse = _r2(g.purse + want);
                 Gangs._book(g, 'in', 'deposits', want);
-                return { success: true, text: `You put ${want}g into ${g.name}'s purse.` };
+                return { success: true, text: `You put ${Utils.formatGold(want)}g into ${g.name}'s purse.` };
             }
             default:
                 return { success: false, reason: 'Unknown order.' };
@@ -1180,7 +1180,7 @@ export const Gangs = {
         const k = _key(tile.q, tile.r);
         const rec = uw.laundered[k];
         uw.laundered[k] = { week, amount: (rec && rec.week === week ? _num(rec.amount) : 0) + want };
-        return { success: true, text: `${want}g goes through the books of ${cap.fronts.map(f => f.name).join(' and ')} as honest takings. The fee: ${fee}g.` };
+        return { success: true, text: `${Utils.formatGold(want)}g goes through the books of ${cap.fronts.map(f => f.name).join(' and ')} as honest takings. The fee: ${Utils.formatGold(fee)}g.` };
     },
 
     // ──────────── THE GUILD'S TITHE ────────────
@@ -1243,7 +1243,7 @@ export const Gangs = {
             const kid = here && (here.kingdom || (here.settlement && here.settlement.kingdom));
             if (kid && d >= _num(D.unexplainedFrom, 1500)) {
                 Underworld.addHeat(player, kid, _num(D.unexplainedHeat, 3) * Math.min(3, d / _num(D.unexplainedFrom, 1500)), world);
-                Gangs._note(out, `Tongues wag about where your ${Math.floor(d)}g of dirty coin came from. Launder it through a front.`, 'warning');
+                Gangs._note(out, `Tongues wag about where your ${Utils.formatGold(d)}g of dirty coin came from. Launder it through a front.`, 'warning');
             }
         }
     },
@@ -1433,10 +1433,10 @@ export const Gangs = {
             g.stats.raids = _num(g.stats.raids) + 1;
             g.week.raided = seized;
             watch.crackdown = _clamp(watch.crackdown - 10, 0, 100);
-            Gangs._log(st, world, `The watch raided ${g.name}: ${seized}g and ${taken} men taken.`);
+            Gangs._log(st, world, `The watch raided ${g.name}: ${Utils.formatGold(seized)}g and ${taken} men taken.`);
             if (m && m.gangId === g.id && player) {
                 Underworld.addHeat(player, s.kingdom, g.boss.player ? 8 : 4, world);
-                Gangs._note(out, `The watch raided ${g.name} in ${s.name}: ${seized}g of the purse and ${taken} of the crew taken, the stash half burned.`, 'warning');
+                Gangs._note(out, `The watch raided ${g.name} in ${s.name}: ${Utils.formatGold(seized)}g of the purse and ${taken} of the crew taken, the stash half burned.`, 'warning');
             }
         }
         for (const who of ['captain', 'magistrate']) {
@@ -1568,8 +1568,8 @@ export const Gangs = {
                     Gangs._book(lose, 'out', 'tribute', tribute);
                     Gangs._book(win, 'in', 'tribute', tribute);
                     Gangs._peace(world, win, lose);
-                    Gangs._log(st, world, `${lose.name} paid ${win.name} ${tribute}g for a truce.`);
-                    if (mine) Gangs._note(out, `${lose.name} paid ${win.name} ${tribute}g for a truce in ${tile.settlement.name}.`, 'info');
+                    Gangs._log(st, world, `${lose.name} paid ${win.name} ${Utils.formatGold(tribute)}g for a truce.`);
+                    if (mine) Gangs._note(out, `${lose.name} paid ${win.name} ${Utils.formatGold(tribute)}g for a truce in ${tile.settlement.name}.`, 'info');
                 }
             }
         }
@@ -1633,7 +1633,7 @@ export const Gangs = {
                 st.gangs.push(split);
                 Gangs._declare(world, g, split);
                 Gangs._log(st, world, `${lt.name} split from ${g.name} with ${crew} men: ${split.name}.`);
-                if (mine) Gangs._note(out, `${lt.name} walked out of ${g.name} with ${crew} men and ${coin}g, and calls them ${split.name}. It's war.`, 'warning', 'A split');
+                if (mine) Gangs._note(out, `${lt.name} walked out of ${g.name} with ${crew} men and ${Utils.formatGold(coin)}g, and calls them ${split.name}. It's war.`, 'warning', 'A split');
             }
         }
         // A gang short of lieutenants raises one from the crew

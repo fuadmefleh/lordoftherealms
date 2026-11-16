@@ -26,6 +26,7 @@ import { Holdings } from './holdings.js';
 import { MarketDynamics } from './marketDynamics.js';
 import { Ledger } from './ledger.js';
 import { Barter } from '../world/barter.js';
+import { Utils } from '../core/utils.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const SUPPLY_ORDER = ['grain', 'tools', 'wood'];
@@ -78,7 +79,7 @@ export const Founding = {
         out.ok = true;
         out.terms = held
             ? `Your own people: up to ${out.max} may go.`
-            : `They will go for a purse of ${out.purse}g a head, which they take with them to the new village. Up to ${out.max}.`;
+            : `They will go for a purse of ${Utils.formatGold(out.purse)}g a head, which they take with them to the new village. Up to ${out.max}.`;
         return out;
     },
 
@@ -164,7 +165,7 @@ export const Founding = {
         const canPay = means >= total;
         if (!canPay) reasons.push(inKind
             ? `It costs goods worth ${total}; what you carry beyond the supplies is worth ${Math.max(0, Math.floor(means))}.`
-            : `It costs ${total}g; you have ${Math.floor(_num(player.gold))}g.`);
+            : `It costs ${Utils.formatGold(total)}g; you have ${Utils.formatGold(_num(player.gold))}g.`);
         return { ok: reasons.length === 0, reasons, warnings, survey, route, days, people, supplies, goodsCost: Math.round(goodsCost), fee, purses, total, canPay, inKind, source };
     },
 

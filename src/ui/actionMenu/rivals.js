@@ -5,6 +5,7 @@ import { ActionMenu } from './_ref.js';
 import { Rivals } from './_imports.js';
 import { lede, chips, rowList, card, price, sectionHead } from './uiKit.js';
 import { DuelPanel } from './duel.js';
+import { Utils } from '../../core/utils.js';
 
 
 function _esc(s) {
@@ -114,14 +115,14 @@ Object.assign(ActionMenu, {
                 if (!ap('rival_hire')) return;
                 const res = Rivals.hire(player, world, id);
                 if (!res.success) return fail(res.reason);
-                refresh({ html: `💰 "${_esc(res.text)}" (-${res.cost}g; they join your army for ${Rivals.config().hire.days} days)` });
+                refresh({ html: `💰 "${_esc(res.text)}" (-${Utils.formatGold(res.cost)}g; they join your army for ${Rivals.config().hire.days} days)` });
             },
             race: (id) => {
                 if (!ap('rival_race')) return;
                 const res = Rivals.race(player, world, id);
                 if (!res.success) return fail(res.reason);
                 const days = res.race.deadline - world.day;
-                refresh({ html: `🏁 "${_esc(res.text)}" — the race is on to <b>${_esc(res.race.siteName)}</b> at (${res.race.q}, ${res.race.r}). They will be there in about ${days} days. Delve it first to take the ${res.race.wager * 2}g pot.` });
+                refresh({ html: `🏁 "${_esc(res.text)}" — the race is on to <b>${_esc(res.race.siteName)}</b> at (${res.race.q}, ${res.race.r}). They will be there in about ${days} days. Delve it first to take the ${Utils.formatGold(res.race.wager * 2)}g pot.` });
             },
             sabotage: (id) => {
                 if (!ap('rival_sabotage')) return;
@@ -151,7 +152,7 @@ Object.assign(ActionMenu, {
         const p = st.partner;
         const race = st.race;
         html += rowList([
-            p ? { icon: '🤝', name: `Delving with ${_esc(p.name)}`, desc: `Until day ${p.until}${p.earned ? ` · ${p.earned}g taken so far` : ''}`, tone: 'good' } : null,
+            p ? { icon: '🤝', name: `Delving with ${_esc(p.name)}`, desc: `Until day ${p.until}${p.earned ? ` · ${Utils.formatGold(p.earned)}g taken so far` : ''}`, tone: 'good' } : null,
             race ? { icon: '🏁', name: `Racing ${_esc((Rivals.get(player, race.rivalId) || {}).name || 'a rival')} to ${_esc(race.siteName)}`, desc: `At (${race.q}, ${race.r}); they arrive about day ${race.deadline}`, tone: 'warn' } : null,
         ], 'Under way');
         html += rowList(rows.map(row => ({

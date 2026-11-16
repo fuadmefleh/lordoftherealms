@@ -9,6 +9,7 @@
 import { ActionMenu } from './_ref.js';
 import { Bonds } from '../../systems/bonds.js';
 import { lede, chips, rowList, card, price, bullets, more, esc } from './uiKit.js';
+import { Utils } from '../../core/utils.js';
 
 function _bar(value, grievance = 0) {
     const pct = Math.max(0, Math.min(100, Math.round(value)));
@@ -57,7 +58,7 @@ Object.assign(ActionMenu, {
                 b.mentor && !b.mentor.done ? ['📜', 'Teaching you', `${esc(b.mentor.name)} (to ${b.mentor.level})`, 'good'] : null,
                 b.mentor && b.mentor.done ? ['📜', 'Taught you', esc(b.mentor.name)] : null,
                 b.protegeSkill ? ['🌱', 'Your protégé', esc(b.protegeSkill)] : null,
-                b.owed ? ['💸', 'You owe', `${b.owed.amount}g${b.owed.late ? ' (late)' : ` by day ${b.owed.due}`}`, b.owed.late ? 'bad' : 'warn'] : null,
+                b.owed ? ['💸', 'You owe', `${Utils.formatGold(b.owed.amount)}g${b.owed.late ? ' (late)' : ` by day ${b.owed.due}`}`, b.owed.late ? 'bad' : 'warn'] : null,
             ]);
             const hist = (b.history || []).slice(0, 8).map(h => `${esc(h.t)}${h.n > 1 ? ` ×${h.n}` : ''} <span style="color:#8f8a7e;">(day ${h.d})</span>`);
             if (hist.length) body += more(`Shared history (${hist.length})`, bullets(hist));
@@ -90,7 +91,7 @@ Object.assign(ActionMenu, {
             rows.push(a.service.ok
                 ? { icon: a.service.court ? '🏰' : '🧭', name: a.service.court ? 'Offer a place at your court' : 'Ask them to take the road with you', desc: 'Into your service, out of friendship', act: 'bondsAct', args: ['service', b.npcId] }
                 : { icon: '🏰', name: 'Take into your service', off: true, why: esc(a.service.reason) });
-            rows.push({ icon: '🗡️', name: 'Betray them', desc: 'Sell their confidences for an informer\'s fee', side: `${a.betray.fee}g`, act: 'bondsAct', args: ['betrayAsk', b.npcId], tone: 'bad' });
+            rows.push({ icon: '🗡️', name: 'Betray them', desc: 'Sell their confidences for an informer\'s fee', side: `${Utils.formatGold(a.betray.fee)}g`, act: 'bondsAct', args: ['betrayAsk', b.npcId], tone: 'bad' });
             body += rowList(rows);
             html += card(body, { icon: x.icon, title: esc(b.name), side: esc(x.label), tone: b.sworn ? 'gold' : b.grievance >= 40 ? 'bad' : b.strength >= 55 ? 'good' : '' });
         }
@@ -133,7 +134,7 @@ Object.assign(ActionMenu, {
             const fee = Bonds._acts(player, world, b).betray.fee;
             let html = lede(`<span style="color:#e0846a;">🗡️ Betray ${esc(b.name)}?</span> Their confidences are worth about ${fee} gold to the right ears. They will know who told, and so will their family and their town. ${b.sworn ? 'You swore an oath of kinship; breaking it is remembered for generations.' : ''}`);
             html += rowList([
-                { icon: '🗡️', name: 'Sell them out', desc: 'A grudge, a rumour, a friend lost', side: `+${fee}g`, act: 'bondsAct', args: ['betray', id], tone: 'bad' },
+                { icon: '🗡️', name: 'Sell them out', desc: 'A grudge, a rumour, a friend lost', side: `+${Utils.formatGold(fee)}g`, act: 'bondsAct', args: ['betray', id], tone: 'bad' },
                 { icon: '←', name: 'No — keep faith', act: 'showBondsPanel' },
             ]);
             game.ui.showCustomPanel('🤝 Friends & Bonds', html);

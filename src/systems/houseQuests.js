@@ -519,7 +519,7 @@ export const HouseQuests = {
         for (const k of ['deed', 'years', 'need', 'threat', 'lord', 'realm', 'seat', 'heirloom', 'keeper', 'how']) if (v[k] != null && v[k] !== '') f[k] = v[k];
         if (q.actor) f.doneBy = q.actor.word.replace(/^your /, "the ruler's ").replace(/^you$/, 'the ruler');
         if (v.line) f.theyRemember = String(v.line).replace(/^"|"$/g, '');
-        if (q.price != null) f.price = `${q.price} gold`;
+        if (q.price != null) f.price = `${Utils.formatGold(q.price)} gold`;
         if (q.goods) f.goods = `${q.goods.qty} ${_goodName(q.goods.item)}`;
         if (q.stay) f.standDays = q.stay;
         if (q.outcome) { f.outcome = q.outcome; f.ending = q.tell && q.tell.epilogue; }
@@ -675,7 +675,7 @@ export const HouseQuests = {
             const o = Heirlooms.recoverOptions(player, world, q.heirloomId);
             if (!o) return [];
             const rows = [];
-            if (o.buy != null) rows.push({ id: 'buy', label: 'Buy it back', desc: `${o.holder || 'They'} ask ${o.buy} gold.`, cost: o.buy, ok: here && _num(player.gold) >= o.buy, why: away || (_num(player.gold) < o.buy ? `You need ${o.buy} gold.` : null) });
+            if (o.buy != null) rows.push({ id: 'buy', label: 'Buy it back', desc: `${o.holder || 'They'} ask ${Utils.formatGold(o.buy)} gold.`, cost: o.buy, ok: here && _num(player.gold) >= o.buy, why: away || (_num(player.gold) < o.buy ? `You need ${Utils.formatGold(o.buy)} gold.` : null) });
             if (o.take != null) rows.push({ id: 'take', label: 'Take it', desc: `About ${Math.round(o.take * 100)}% to get away with it.`, ok: here, why: away });
             if (o.ask) rows.push({ id: 'ask', label: 'Ask for it', desc: `Your standing there: ${o.ask.rep} (need ${o.ask.need}).`, ok: here && o.ask.ok, why: away || (o.ask.ok ? null : `Your standing is ${o.ask.rep}; you need ${o.ask.need}.`) });
             if (o.search != null) rows.push({ id: 'search', label: 'Search for it', desc: 'Once a day, until you find it.', ok: here, why: away });
@@ -687,7 +687,7 @@ export const HouseQuests = {
             const r = { id: oid, label: od.label || oid, desc: _fill(od.desc || '', v), ok: here, why: away };
             if (oid === 'pay' || oid === 'coin') {
                 r.cost = q.price;
-                if (here && _num(player.gold) < _num(q.price)) { r.ok = false; r.why = `You need ${q.price} gold.`; }
+                if (here && _num(player.gold) < _num(q.price)) { r.ok = false; r.why = `You need ${Utils.formatGold(q.price)} gold.`; }
             }
             if (oid === 'deliver' && q.goods) {
                 const have = _num(player.inventory && player.inventory[q.goods.item]);

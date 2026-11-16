@@ -4,6 +4,7 @@
 // (systems/construction.js).
 import { Construction } from '../../systems/construction.js';
 import { BTN_GOLD, BTN_PLAIN, BTN_OFF, card } from './uiKit.js';
+import { Utils } from '../../core/utils.js';
 
 const _bar = (pct, fill, h = 8) => `<div style="background:rgba(0,0,0,0.35); border-radius:4px; height:${h}px; overflow:hidden; margin:6px 0 3px;"><div style="width:${pct}%; height:100%; background:${fill}; transition:width 0.3s;"></div></div>`;
 
@@ -26,17 +27,17 @@ export function worksCard(game, rec, q, r, reopen, opts = {}) {
     const paceTxt = `today's pace ×${p.pace.toFixed(2)}${p.notes.length ? ` (${p.notes.join(', ')})` : ''}`;
     const canHire = crews < max && (game.player.gold || 0) >= wage;
     const btns = [
-        `<button style="${canHire ? BTN_GOLD : BTN_OFF}" ${canHire ? 'onclick="window._worksHire()"' : 'disabled'} title="${C.crews.hands} more labourers from the nearest town, paid daily: +${Math.round(C.crews.speedPerCrew * 100)}% pace">Hire a crew (${wage}g/day)</button>`,
+        `<button style="${canHire ? BTN_GOLD : BTN_OFF}" ${canHire ? 'onclick="window._worksHire()"' : 'disabled'} title="${C.crews.hands} more labourers from the nearest town, paid daily: +${Math.round(C.crews.speedPerCrew * 100)}% pace">Hire a crew (${Utils.formatGold(wage)}g/day)</button>`,
         crews > 0 ? `<button style="${BTN_PLAIN}" onclick="window._worksDismiss()">Let a crew go</button>` : '',
     ].join('');
     const body = _bar(pct, color)
         + `<div style="font-size:11px; color:#9d937c;">${pct}% done · ${left} work-day${left !== 1 ? 's' : ''} left · ${paceTxt}</div>`
-        + `<div style="font-size:11px; color:#9d937c; margin-top:2px;">Crews hired: ${crews}/${max}${crews ? ` · ${Math.round(crews * wage * 10) / 10}g a day` : ''}${opts.note ? ` · ${opts.note}` : ''}</div>`
+        + `<div style="font-size:11px; color:#9d937c; margin-top:2px;">Crews hired: ${crews}/${max}${crews ? ` · ${Utils.formatGold(Math.round(crews * wage * 10) / 10)}g a day` : ''}${opts.note ? ` · ${opts.note}` : ''}</div>`
         + `<div style="margin-top:4px;">${btns}</div>`;
     window._worksHire = () => {
         const res = Construction.hireCrew(game.player, rec, world, q, r);
         if (!res.success) game.ui.showNotification('Cannot Hire', res.reason, 'error');
-        else game.ui.showNotification('🏗️ Crew Hired', `${res.crews} crew${res.crews > 1 ? 's' : ''} now at work (${res.wage}g a day each).`, 'info');
+        else game.ui.showNotification('🏗️ Crew Hired', `${res.crews} crew${res.crews > 1 ? 's' : ''} now at work (${Utils.formatGold(res.wage)}g a day each).`, 'info');
         game.ui.updateStats(game.player, world);
         if (typeof reopen === 'function') reopen();
     };

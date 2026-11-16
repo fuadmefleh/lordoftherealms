@@ -13,6 +13,7 @@ import { PlayerEffects } from '../../player/playerEffects.js';
 import { PlayerMilitary } from '../../player/playerMilitary.js';
 import { PracticeSkills } from '../../systems/practiceSkills.js';
 import { esc, lede, chips, purse, rowList, sectionHead } from './uiKit.js';
+import { Utils } from '../../core/utils.js';
 
 // In the action menu's voice (ui/actionMenu/uiKit.js): a section a slot — what
 // is worn as a listing row, then one row a thing to do with it (greyed with its
@@ -90,7 +91,7 @@ Object.assign(ActionMenu, {
                     rows.push(opRow({
                         icon: '⬛', name: hasStone ? 'Hone it on your whetstone' : 'Have it ground at the smithy',
                         desc: 'Restores the edge', why: 'You need a whetstone, or a town smith.',
-                        side: hasStone ? '' : `${Arms.config().wear.grindFee}g`,
+                        side: hasStone ? '' : `${Utils.formatGold(Arms.config().wear.grindFee)}g`,
                     }, ['sharpen'], hasStone || Arms.hasSmith(s)));
                 }
                 if (p.cond < 99.5) {
@@ -102,7 +103,7 @@ Object.assign(ActionMenu, {
                         rows.push(opRow({
                             icon: '⚒️', name: 'The smith mends it', desc: 'Good as new',
                             why: short ? `The smith has no ${esc(q.smith.short.join(', '))}.` : 'Your purse is short.',
-                            side: `${q.smith.total}g`, tone: 'gold',
+                            side: `${Utils.formatGold(q.smith.total)}g`, tone: 'gold',
                         }, ['mendSmith', slot], !short && gold >= q.smith.total));
                     }
                 }
@@ -150,7 +151,7 @@ Object.assign(ActionMenu, {
                 const mq = Arms.kitMendQuote(player, s, world);
                 troopRows.push(opRow({
                     icon: '🔨', name: 'Mend their arms', desc: mq.iron ? `Takes ${mq.iron} iron` : 'At the town smithy',
-                    why: mq.units ? 'Your purse is short.' : 'Their arms need no mending.', side: mq.units ? `${mq.total}g` : '',
+                    why: mq.units ? 'Your purse is short.' : 'Their arms need no mending.', side: mq.units ? `${Utils.formatGold(mq.total)}g` : '',
                 }, ['mendKits'], mq.units > 0 && gold >= mq.total));
             }
             html += rowList(troopRows, '⚔️ Your soldiers\' arms');
@@ -180,7 +181,7 @@ Object.assign(ActionMenu, {
                     const stock = Object.values(qq).reduce((t, o) => t + Math.min(o.want, o.stock || 0), 0);
                     qRows.push(opRow({
                         icon: '💰', name: `Buy for the quivers in ${esc(s.name)}`, desc: stock ? `${stock} to be had` : '',
-                        why: want > 0 ? 'The town has none to sell.' : 'Every quiver is full.', side: stock ? `${cost}g` : '', tone: 'gold',
+                        why: want > 0 ? 'The town has none to sell.' : 'Every quiver is full.', side: stock ? `${Utils.formatGold(cost)}g` : '', tone: 'gold',
                     }, ['quiversBuy'], stock > 0 && gold >= 1));
                 }
                 html += rowList(qRows, '🏹 Arrows and bolts');
@@ -210,7 +211,7 @@ Object.assign(ActionMenu, {
             const got = { ...r.fromPack };
             for (const [k, n] of Object.entries(r.bought)) got[k] = (got[k] || 0) + n;
             res = r.units
-                ? { success: true, text: `${r.units} soldiers armed: ${PlayerInventory.describe(got)}${r.cost ? ` (${r.cost} gold)` : ''}.` }
+                ? { success: true, text: `${r.units} soldiers armed: ${PlayerInventory.describe(got)}${r.cost ? ` (${Utils.formatGold(r.cost)} gold)` : ''}.` }
                 : { success: false, reason: op === 'armBuy' ? 'The town has nothing fit for them, or you lack the gold.' : 'You carry nothing fit for them.' };
         } else if (op === 'mendKits') res = Arms.mendKits(player, s, world);
         else if (op === 'quiversPack' || op === 'quiversBuy') {
@@ -218,7 +219,7 @@ Object.assign(ActionMenu, {
             const got = { ...r.fromPack };
             for (const [k, n] of Object.entries(r.bought)) got[k] = (got[k] || 0) + n;
             res = Object.keys(got).length
-                ? { success: true, text: `The quivers take ${PlayerInventory.describe(got)}${r.cost ? ` (${r.cost} gold)` : ''}.${r.short ? ` ${r.short} still wanted.` : ''}` }
+                ? { success: true, text: `The quivers take ${PlayerInventory.describe(got)}${r.cost ? ` (${Utils.formatGold(r.cost)} gold)` : ''}.${r.short ? ` ${r.short} still wanted.` : ''}` }
                 : { success: false, reason: op === 'quiversBuy' ? 'The town has none to sell, or you lack the gold.' : 'You carry none for them.' };
         }
         if (res) {
@@ -232,9 +233,9 @@ Object.assign(ActionMenu, {
     recruitArmsNote(game, unitType, settlement) {
         const q = PlayerMilitary.recruitKitQuote(game.player, unitType, settlement, game.world);
         if (!q) return '';
-        let from = Object.entries(q.slots).filter(([, x]) => !x.twoHands).map(([slot, x]) => (x.id ? `${Arms.nameOf(x.id)}${x.from === 'pack' ? ' (yours)' : ` (${x.price}g)`}` : `no ${(Arms.config().slots[slot] || {}).label || slot}`.toLowerCase())).join(', ');
+        let from = Object.entries(q.slots).filter(([, x]) => !x.twoHands).map(([slot, x]) => (x.id ? `${Arms.nameOf(x.id)}${x.from === 'pack' ? ' (yours)' : ` (${Utils.formatGold(x.price)}g)`}` : `no ${(Arms.config().slots[slot] || {}).label || slot}`.toLowerCase())).join(', ');
         // A bowman's quiver
-        if (q.ammo) from += `, ${q.ammo.pack + q.ammo.buy}/${q.ammo.want} ${Arms.nameOf(q.ammo.good).toLowerCase()}${q.ammo.buy ? ` (${q.ammo.buy} at ${q.ammo.price}g)` : q.ammo.pack ? ' (yours)' : ''}`;
-        return `<div style="font-size: 11px; color: ${q.factor >= 0.95 ? '#81c784' : '#e6b35a'};" title="A recruit is issued arms from your stores first, then the town's armourers' stock at its price">⚔️ Arms: ${esc(from)}${q.cost ? ` · +${q.cost} gold` : ''} · fights at ${pct(q.factor)}</div>`;
+        if (q.ammo) from += `, ${q.ammo.pack + q.ammo.buy}/${q.ammo.want} ${Arms.nameOf(q.ammo.good).toLowerCase()}${q.ammo.buy ? ` (${q.ammo.buy} at ${Utils.formatGold(q.ammo.price)}g)` : q.ammo.pack ? ' (yours)' : ''}`;
+        return `<div style="font-size: 11px; color: ${q.factor >= 0.95 ? '#81c784' : '#e6b35a'};" title="A recruit is issued arms from your stores first, then the town's armourers' stock at its price">⚔️ Arms: ${esc(from)}${q.cost ? ` · +${Utils.formatGold(q.cost)} gold` : ''} · fights at ${pct(q.factor)}</div>`;
     },
 });

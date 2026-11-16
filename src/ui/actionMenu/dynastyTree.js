@@ -24,6 +24,7 @@ import { NpcPortrait } from '../npcPortrait.js';
 import { InnerMapCharacters } from '../innerMapCharacters.js';
 import { appearancePresetId, registerAppearance, gearKit } from '../playerAppearance.js';
 import { lede, chips, sectionHead, card, actRow, rowList, price, esc, BTN_PLAIN } from './uiKit.js';
+import { Utils } from '../../core/utils.js';
 
 /** Card size and spacing on the tree, in canvas pixels at zoom 1. */
 export const TREE_GEOM = { colW: 176, rowH: 132, cardW: 158, cardH: 78, pad: 30, portrait: 44 };
@@ -565,7 +566,7 @@ Object.assign(ActionMenu, {
         const h = Heirlooms.get(p, id);
         const name = h ? h.name : 'The heirloom';
         const done = {
-            give: `${name} is given.`, takeBack: `${name} is back in your hand.`, pawn: `${name} is pledged for ${r.gold} gold.`,
+            give: `${name} is given.`, takeBack: `${name} is back in your hand.`, pawn: `${name} is pledged for ${Utils.formatGold(r.gold)} gold.`,
             redeem: `${name} is redeemed.`, dowry: `${name} goes with the bride or groom into ${r.realm}.`,
             buy: `${name} is the House's again.`, take: `${name} is the House's again.`, ask: `${name} is given back.`, search: `You find ${name}!`,
         }[verb];

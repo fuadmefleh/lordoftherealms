@@ -487,7 +487,7 @@ export const Kingship = {
         if (blocking.length) return { ok: false, reason: `Repeal ${blocking.map(x => (Kingship.edicts()[x] || {}).label || x).join(', ')} first.` };
         if (Object.keys(court.edicts).length >= Kingship.edictSlots(player, world)) return { ok: false, reason: `The court can enforce only ${Kingship.edictSlots(player, world)} edicts at once.` };
         const cost = Kingship._passCost(def);
-        if (_num(k.treasury) < cost) return { ok: false, reason: `Proclaiming it costs ${cost}g from the royal treasury.` };
+        if (_num(k.treasury) < cost) return { ok: false, reason: `Proclaiming it costs ${Utils.formatGold(cost)}g from the royal treasury.` };
         return { ok: true };
     },
 
@@ -575,10 +575,10 @@ export const Kingship = {
         const G = (Kingship.config().grants || {}).gold || {};
         const t = Kingship._target(player, world, vassalId);
         if (t.error) return { success: false, reason: t.error };
-        if (_num(t.k.treasury) < _num(G.treasury)) return { success: false, reason: `The royal treasury needs ${G.treasury}g.` };
+        if (_num(t.k.treasury) < _num(G.treasury)) return { success: false, reason: `The royal treasury needs ${Utils.formatGold(G.treasury)}g.` };
         t.k.treasury -= _num(G.treasury);
         _spendAt(world, t.k, t.v.seat, _num(G.treasury), 'vassalGrant');
-        Kingship._granted(t.court, world, t.v, _num(G.favour), `💰 A purse of ${G.treasury}g for ${Kingship.fullName(t.v)}.`);
+        Kingship._granted(t.court, world, t.v, _num(G.favour), `💰 A purse of ${Utils.formatGold(G.treasury)}g for ${Kingship.fullName(t.v)}.`);
         return { success: true, message: `${Kingship.fullName(t.v)} accepts the crown's gold (+${G.favour} favour).` };
     },
 
@@ -617,7 +617,7 @@ export const Kingship = {
         const pool = Kingship.marriageableChildren(player);
         const child = childId ? pool.find(c => c.id === childId) : pool[0];
         if (!child) return { success: false, reason: 'You have no grown, unwed child (other than your heir) to offer.' };
-        if (_num(player.gold) < _num(G.gold)) return { success: false, reason: `The dowry is ${G.gold}g.` };
+        if (_num(player.gold) < _num(G.gold)) return { success: false, reason: `The dowry is ${Utils.formatGold(G.gold)}g.` };
         if (!House.spend(player.house, _num(G.prestige), `a match with ${Kingship.fullName(t.v)}`, _day(world))) return { success: false, reason: `Need ${G.prestige} Prestige.` };
         player.gold -= _num(G.gold);
         _spendAt(world, t.k, t.v.seat, _num(G.gold), 'vassalDowry');
@@ -636,7 +636,7 @@ export const Kingship = {
         if (!court || !k) return { ok: false, reason: 'You rule no realm.' };
         const next = court.lastFeastDay + _num(F.cooldown);
         if (_day(world) < next) return { ok: false, reason: `The court is still recovering from the last feast (day ${next}).` };
-        if (_num(k.treasury) < _num(F.treasury)) return { ok: false, reason: `A royal feast costs ${F.treasury}g from the treasury.` };
+        if (_num(k.treasury) < _num(F.treasury)) return { ok: false, reason: `A royal feast costs ${Utils.formatGold(F.treasury)}g from the treasury.` };
         return { ok: true };
     },
 
@@ -668,7 +668,7 @@ export const Kingship = {
         const t = Kingship._target(player, world, vassalId);
         if (t.error) return { success: false, reason: t.error };
         if (_day(world) < _num(t.v.lastFavourDay) + _num(G.cooldown)) return { success: false, reason: `You favoured ${Kingship.fullName(t.v)} only lately.` };
-        if (_num(player.gold) < _num(G.gold)) return { success: false, reason: `It costs ${G.gold}g of your own.` };
+        if (_num(player.gold) < _num(G.gold)) return { success: false, reason: `It costs ${Utils.formatGold(G.gold)}g of your own.` };
         player.gold -= _num(G.gold);
         _spendAt(world, t.k, t.v.seat, _num(G.gold), 'vassalFavour');
         t.v.lastFavourDay = _day(world);
@@ -985,7 +985,7 @@ export const Kingship = {
         const k = Kingship._realm(player, world);
         if (!court || !court.revolt || !k) return { success: false, reason: 'There is no revolt to end.' };
         const cost = Kingship.parleyCost(player);
-        if (_num(k.treasury) < cost) return { success: false, reason: `The rebels want ${cost}g from the royal treasury.` };
+        if (_num(k.treasury) < cost) return { success: false, reason: `The rebels want ${Utils.formatGold(cost)}g from the royal treasury.` };
         k.treasury -= cost;
         _spendRealm(world, k, cost, 'rebelParley');
         const text = Kingship._endRevolt(player, world, court, k, 'parley', null);
@@ -1417,7 +1417,7 @@ export const Kingship = {
         if (holder) {
             const def = Kingship.edicts().royal_post || {};
             const how = court ? 'by your edict' : ch.by === 'petition' ? 'by petition to the crown' : 'by the crown\'s grant';
-            out.push({ id: 'royal_post', icon: def.icon || '📮', label: def.label || 'The Royal Post', text: `${holder.name}, ${how} since day ${ch.day} · ${_num(ch.fee)}g a week to the crown` });
+            out.push({ id: 'royal_post', icon: def.icon || '📮', label: def.label || 'The Royal Post', text: `${holder.name}, ${how} since day ${ch.day} · ${Utils.formatGold(_num(ch.fee))}g a week to the crown` });
         }
         return out;
     },

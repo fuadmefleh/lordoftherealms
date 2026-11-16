@@ -137,7 +137,7 @@ Object.assign(PlayerEconomy, {
         if (route.protection >= 5) return { success: false, reason: 'Protection already maxed' };
 
         const cost = 180 + route.protection * 90;
-        if (player.gold < cost) return { success: false, reason: `Need ${cost} gold` };
+        if (player.gold < cost) return { success: false, reason: `Need ${Utils.formatGold(cost)} gold` };
 
         // (the guards are hired at the route's home town)
         PlayerCoin.pay(world, player, cost, PlayerEconomy._routeHome(world, route), 'caravans');
@@ -153,7 +153,7 @@ Object.assign(PlayerEconomy, {
         if (route.roadQuality >= 5) return { success: false, reason: 'Road quality already maxed' };
 
         const cost = 200 + route.roadQuality * 100;
-        if (player.gold < cost) return { success: false, reason: `Need ${cost} gold` };
+        if (player.gold < cost) return { success: false, reason: `Need ${Utils.formatGold(cost)} gold` };
 
         // (the road gangs are the route's home town's)
         PlayerCoin.pay(world, player, cost, PlayerEconomy._routeHome(world, route), 'publicWorks');

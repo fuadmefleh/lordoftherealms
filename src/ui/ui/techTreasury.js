@@ -245,7 +245,7 @@ Object.assign(UI.prototype, {
 
                     // Cost info
                     const materialsStr = Technology.formatMaterials(info.materials);
-                    const costHtml = `<div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">Research: ${info.gold}g${materialsStr ? ' + ' + materialsStr : ''} · ${info.days} days · ${info.partsToImplement} part${info.partsToImplement > 1 ? 's' : ''} to implement</div>`;
+                    const costHtml = `<div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">Research: ${Utils.formatGold(info.gold)}g${materialsStr ? ' + ' + materialsStr : ''} · ${info.days} days · ${info.partsToImplement} part${info.partsToImplement > 1 ? 's' : ''} to implement</div>`;
 
                     // Action button
                     let actionHtml = '';
@@ -309,7 +309,7 @@ Object.assign(UI.prototype, {
         window.cancelResearch = () => {
             const result = Technology.cancelResearch(player);
             if (result.success) {
-                this.showNotification('Research Cancelled', `${result.tech.name} cancelled. Refund: ${result.refund} gold (materials lost)`, 'default');
+                this.showNotification('Research Cancelled', `${result.tech.name} cancelled. Refund: ${Utils.formatGold(result.refund)} gold (materials lost)`, 'default');
                 this.showTechnologyPanel(player, world);
                 this.updateStats(player, world);
             }
@@ -318,7 +318,7 @@ Object.assign(UI.prototype, {
         window.cancelCrafting = () => {
             const result = Technology.cancelCrafting(player);
             if (result.success) {
-                this.showNotification('Crafting Cancelled', `Refund: ${result.refund} gold (materials lost)`, 'default');
+                this.showNotification('Crafting Cancelled', `Refund: ${Utils.formatGold(result.refund)} gold (materials lost)`, 'default');
                 this.showTechnologyPanel(player, world);
                 this.updateStats(player, world);
             }
@@ -385,7 +385,7 @@ Object.assign(UI.prototype, {
                         <span style="color:var(--text-primary);">${item.name || item.id || 'Unknown Item'}</span>
                         ${item.label ? `<span style="margin-left:6px; font-size:10px; color:${item.color};">${item.label}</span>` : ''}
                     </div>
-                    <div style="text-align:right; font-weight:bold; color:${priceColor};">${item.price}g</div>
+                    <div style="text-align:right; font-weight:bold; color:${priceColor};">${Utils.formatGold(item.price)}g</div>
                     <div style="text-align:center; color:${trendColor};">${trendIcon}</div>
                     <div style="text-align:right; color:var(--text-secondary);">${item.supply}</div>
                     <div style="text-align:right; color:var(--text-secondary);">${item.demand}</div>
@@ -403,7 +403,7 @@ Object.assign(UI.prototype, {
             <div id="tabBank" class="tab-content" style="display:none;">
                 <div style="background:rgba(0,0,0,0.2); padding:15px; border-radius:4px; margin-bottom:15px;">
                     <h3 style="margin-top:0; color:var(--gold);">Banks, Credit &amp; Coin</h3>
-                    <div style="font-size:12px; color:var(--text-secondary); margin-bottom:10px;">Credit <b>${finSum.score}</b> (${finSum.label}) · deposits ${finSum.deposits}g · bonds ${finSum.bonds}g · owed ${finSum.debt}g (${finSum.dailyDue}g a day)</div>
+                    <div style="font-size:12px; color:var(--text-secondary); margin-bottom:10px;">Credit <b>${finSum.score}</b> (${finSum.label}) · deposits ${Utils.formatGold(finSum.deposits)}g · bonds ${Utils.formatGold(finSum.bonds)}g · owed ${Utils.formatGold(finSum.debt)}g (${Utils.formatGold(finSum.dailyDue)}g a day)</div>
         `;
         if (fin.loans.length > 0) {
             bankHtml += `<div class="info-section-title">Active Loans (${fin.loans.length})</div>`;
@@ -412,12 +412,12 @@ Object.assign(UI.prototype, {
                 bankHtml += `
                     <div style="background:rgba(231, 76, 60, 0.1); border:1px solid rgba(231, 76, 60, 0.3); padding:10px; border-radius:4px; margin-bottom:10px;">
                         <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-                            <span style="font-weight:bold; color:#e74c3c;">${owed}g Owed</span>
+                            <span style="font-weight:bold; color:#e74c3c;">${Utils.formatGold(owed)}g Owed</span>
                             <span style="color:var(--text-secondary);">${loan.remainingDays} days left${loan.overdue ? ` · ${loan.overdue} overdue` : ''}</span>
                         </div>
                         <div style="font-size:11px; color:var(--text-secondary); margin-bottom:3px;">From: ${loan.lender || 'your creditors'}</div>
-                        <div style="font-size:12px; color:var(--text-secondary);">Daily Payment: ${loan.dailyPayment}g</div>
-                        <button data-ui-act="repayLoan" data-ui-args='["${loan.id}"]' style="margin-top:8px; width:100%; padding:6px; background:#e74c3c; color:white; border:none; border-radius:3px; cursor:pointer;">Repay Full Amount (${owed}g)</button>
+                        <div style="font-size:12px; color:var(--text-secondary);">Daily Payment: ${Utils.formatGold(loan.dailyPayment)}g</div>
+                        <button data-ui-act="repayLoan" data-ui-args='["${loan.id}"]' style="margin-top:8px; width:100%; padding:6px; background:#e74c3c; color:white; border:none; border-radius:3px; cursor:pointer;">Repay Full Amount (${Utils.formatGold(owed)}g)</button>
                     </div>
                 `;
             }
@@ -432,7 +432,7 @@ Object.assign(UI.prototype, {
             const insider = !!acct || (own && own.id === bank.id);
             const state = bank.status !== 'open' ? 'failed' : Finance.inPanic(bank, world.day || 0) ? 'a run on the house' : insider ? `reserves ${Math.round(Finance.reserveRatio(bank) * 100)}%` : 'open for business';
             bankHtml += `<div style="background:rgba(255,255,255,0.03); padding:8px 12px; border-radius:4px; margin-bottom:6px; font-size:12px;">
-                <b style="color:${k ? k.color : 'inherit'};">${bank.name}</b> · ${bank.seat}${k ? `, ${k.name}` : ''} · ${state}${acct ? ` · your deposit ${Math.floor(acct.balance)}g` : ''}
+                <b style="color:${k ? k.color : 'inherit'};">${bank.name}</b> · ${bank.seat}${k ? `, ${k.name}` : ''} · ${state}${acct ? ` · your deposit ${Utils.formatGold(acct.balance)}g` : ''}
             </div>`;
         }
         bankHtml += `<div style="font-size:11px; color:var(--text-secondary); margin-top:8px;">Deposits, loans and royal bonds are arranged at a house's seat or its branches in its realm's cities.</div>`;
@@ -453,9 +453,9 @@ Object.assign(UI.prototype, {
             const h = st.happiness;
             const face = h >= 70 ? '😊' : h >= 40 ? '😐' : '😠';
             const g = st.growthRate || 0;
-            const growth = `<div style="font-size:10px; color:${g > 0 ? '#81c784' : g < 0 ? '#e57373' : 'var(--text-muted)'}; text-align:right;" title="Yearly growth from the tax policy; projection is 30 days out">📈 ${g > 0 ? '+' : ''}${Math.round(g * 100)}%/yr · pop ${st.population} → ~${st.projectedPopulation} next month · ~${st.projectedCollected}g/wk then</div>`;
+            const growth = `<div style="font-size:10px; color:${g > 0 ? '#81c784' : g < 0 ? '#e57373' : 'var(--text-muted)'}; text-align:right;" title="Yearly growth from the tax policy; projection is 30 days out">📈 ${g > 0 ? '+' : ''}${Math.round(g * 100)}%/yr · pop ${st.population} → ~${st.projectedPopulation} next month · ~${Utils.formatGold(st.projectedCollected)}g/wk then</div>`;
             return `<div style="padding:3px 0;"><div style="display:flex; justify-content:space-between; font-size:12px;">
-                <span>${st.name}${st.peoplesMood ? ` <span style="font-size:10px; color:${st.peoplesMood > 0 ? '#81c784' : '#e57373'};" title="Mood target shift from the peoples living there (their values, traits and harmony)">🏘️ ${st.peoplesMood > 0 ? '+' : ''}${st.peoplesMood}</span>` : ''}</span><span>${face} ${h}/100 · ~${st.collected}g/wk${taxWhyIcon(st)}</span></div>${growth}</div>`;
+                <span>${st.name}${st.peoplesMood ? ` <span style="font-size:10px; color:${st.peoplesMood > 0 ? '#81c784' : '#e57373'};" title="Mood target shift from the peoples living there (their values, traits and harmony)">🏘️ ${st.peoplesMood > 0 ? '+' : ''}${st.peoplesMood}</span>` : ''}</span><span>${face} ${h}/100 · ~${Utils.formatGold(st.collected)}g/wk${taxWhyIcon(st)}</span></div>${growth}</div>`;
         }).join('');
         const canSet = Taxation.canSetTaxes(player);
 
@@ -469,7 +469,7 @@ Object.assign(UI.prototype, {
                         </div>
                         <div style="text-align:right;">
                             <div style="color:var(--text-secondary); font-size:12px;">Est. Weekly Revenue</div>
-                            <div style="font-size:18px; font-weight:bold; color:#2ecc71;">~${estimatedTax}g</div>
+                            <div style="font-size:18px; font-weight:bold; color:#2ecc71;">~${Utils.formatGold(estimatedTax)}g</div>
                         </div>
                     </div>
                     
@@ -628,11 +628,11 @@ Object.assign(UI.prototype, {
                         <div style="font-size:12px; color:var(--text-secondary); margin-bottom:6px;">${lot.description}</div>
                         <div style="font-size:12px; margin-bottom:6px;">Reward: <span style="color:var(--gold);">${lot.reward.label}</span></div>
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; font-size:12px;">
-                            <span>Current Bid: <strong style="color:var(--gold);">${lot.currentBid}g</strong></span>
+                            <span>Current Bid: <strong style="color:var(--gold);">${Utils.formatGold(lot.currentBid)}g</strong></span>
                             <span style="color:var(--text-secondary);">Ends day ${lot.endsOnDay} ${youLead ? '• You lead' : ''}</span>
                         </div>
                         <button data-ui-act="placeTreasuryAuctionBid" data-ui-args='["${lot.id}"]' style="width:100%; padding:8px; background:${youLead ? 'rgba(255,255,255,0.1)' : 'var(--gold)'}; color:${youLead ? 'var(--text-primary)' : '#111'}; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">
-                            ${youLead ? `Raise Bid (${nextBid}g)` : `Bid ${nextBid}g`}
+                            ${youLead ? `Raise Bid (${Utils.formatGold(nextBid)}g)` : `Bid ${Utils.formatGold(nextBid)}g`}
                         </button>
                     </div>
                 `;
@@ -644,7 +644,7 @@ Object.assign(UI.prototype, {
         auctionHtml += `<div class="info-section-title" style="margin-top:12px;">Recent Wins</div>`;
         if (wonLots.length > 0) {
             for (const won of wonLots) {
-                auctionHtml += `<div style="padding:8px; border-radius:4px; background:rgba(46,204,113,0.08); margin-bottom:6px; font-size:12px;">${won.title} — ${won.reward} (${won.price}g)</div>`;
+                auctionHtml += `<div style="padding:8px; border-radius:4px; background:rgba(46,204,113,0.08); margin-bottom:6px; font-size:12px;">${won.title} — ${won.reward} (${Utils.formatGold(won.price)}g)</div>`;
             }
         } else {
             auctionHtml += `<div style="padding:8px; color:var(--text-secondary);">No auction wins yet.</div>`;
@@ -764,7 +764,7 @@ Object.assign(UI.prototype, {
         if (result.success) {
             this.showNotification(
                 isSmuggling ? 'Smuggling Route Established' : 'Trade Route Established',
-                `${result.route.fromName} → ${result.route.toName} (${result.creationCost}g chartered)`,
+                `${result.route.fromName} → ${result.route.toName} (${Utils.formatGold(result.creationCost)}g chartered)`,
                 'success'
             );
             this.showTreasuryPanel(player, world);
@@ -777,7 +777,7 @@ Object.assign(UI.prototype, {
     upgradeTreasuryRouteProtection(routeId, isSmuggling = false) {
         const result = PlayerEconomy.upgradeRouteProtection(this.game.player, routeId, !!isSmuggling, this.game.world);
         if (result.success) {
-            this.showNotification('Route Upgraded', `Protection increased for ${result.cost}g`, 'success');
+            this.showNotification('Route Upgraded', `Protection increased for ${Utils.formatGold(result.cost)}g`, 'success');
             this.showTreasuryPanel(this.game.player, this.game.world);
             this.updateStats(this.game.player, this.game.world);
         } else {
@@ -788,7 +788,7 @@ Object.assign(UI.prototype, {
     upgradeTreasuryRouteRoads(routeId, isSmuggling = false) {
         const result = PlayerEconomy.upgradeRouteRoadQuality(this.game.player, routeId, !!isSmuggling, this.game.world);
         if (result.success) {
-            this.showNotification('Route Upgraded', `Road quality improved for ${result.cost}g`, 'success');
+            this.showNotification('Route Upgraded', `Road quality improved for ${Utils.formatGold(result.cost)}g`, 'success');
             this.showTreasuryPanel(this.game.player, this.game.world);
             this.updateStats(this.game.player, this.game.world);
         } else {
@@ -809,7 +809,7 @@ Object.assign(UI.prototype, {
     placeTreasuryAuctionBid(auctionId) {
         const result = PlayerEconomy.placeAuctionBid(this.game.player, auctionId, this.game.world);
         if (result.success) {
-            this.showNotification('Bid Placed', `${result.bid}g bid on ${result.lot.title}`, 'success');
+            this.showNotification('Bid Placed', `${Utils.formatGold(result.bid)}g bid on ${result.lot.title}`, 'success');
             this.showTreasuryPanel(this.game.player, this.game.world);
             this.updateStats(this.game.player, this.game.world);
         } else {

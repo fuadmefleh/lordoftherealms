@@ -46,6 +46,7 @@ import { PracticeSkills } from './practiceSkills.js';
 import { Economy } from '../world/economy.js';
 import { MoneySupply } from '../world/moneySupply.js';
 import { Townsfolk } from './townsfolk.js';
+import { Utils } from '../core/utils.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _day = world => (world && Number.isFinite(world.day) ? world.day : 0);
@@ -251,6 +252,22 @@ export const Hospitality = {
         };
     },
 
+    /**
+     * A new house's opening cash is its keeper's savings, out of the town's purse
+     * (a roadhouse's out of the nearest town's): what that purse can spare, never
+     * coin from nothing. A town that barters has no coin to give. → cash
+     */
+    _fundHouse(world, house, town) {
+        const want = Math.max(0, _num(house.cash));
+        let got = 0;
+        if (want > 0) {
+            if (town && !town.inKind && Economy.townPurse(town) != null) got = Economy.drawTown(town, want);
+            else if (!town) got = Economy.drawNearest(world, house.q, house.r, want);
+        }
+        house.cash = got;
+        return got;
+    },
+
     /** The NPC houses of the town at (q, r), founded on first asking. */
     townHouses(world, q, r) {
         if (!world || !this.enabled() || typeof world.getTile !== 'function') return [];
@@ -269,6 +286,7 @@ export const Hospitality = {
             const id = `h:${key}:${i}`;
             if (!st.houses[id]) {
                 st.houses[id] = this._newHouse(world, kind, q, r, i, tile.settlement.name);
+                this._fundHouse(world, st.houses[id], tile.settlement);
                 ids.push(id);
             } else {
                 this._mendKeeperName(world, st.houses[id]);
@@ -313,6 +331,7 @@ export const Hospitality = {
         if (st.houses[id]) return st.houses[id];
         if (!this._waysideSites(world).some(s => s.q === q && s.r === r)) return null;
         st.houses[id] = this._newHouse(world, 'roadhouse', q, r, 0, null, true);
+        this._fundHouse(world, st.houses[id], null);
         return st.houses[id];
     },
 
@@ -653,7 +672,7 @@ export const Hospitality = {
             if (v.underConstruction) reason = 'Still being built';
             else if (booked) reason = 'You already have a bed for tonight';
             else if (full && t !== best) reason = 'No vacancy tonight';
-            else if (gold < price) reason = `Need ${price} gold`;
+            else if (gold < price) reason = `Need ${Utils.formatGold(price)} gold`;
             return { id: t, name: T.name || t, short: T.short || t, icon: T.icon || '🛏️', price, free: freeRoom || price === 0, ok: !reason, reason };
         });
         const services = v.services.map(sid => {
@@ -665,7 +684,7 @@ export const Hospitality = {
             else if (S.morning && !bookedHere) reason = 'For guests staying the night';
             else if (S.needsMount && !(player && player.mount)) reason = 'You have no horse';
             else if (S.morning && player.lodging && (player.lodging.services || []).includes(sid)) reason = 'Already arranged';
-            else if (gold < price) reason = `Need ${price} gold`;
+            else if (gold < price) reason = `Need ${Utils.formatGold(price)} gold`;
             return { id: sid, name: S.name || sid, icon: S.icon || '🛎️', price, free: price === 0, ok: !reason, reason, morning: !!S.morning };
         });
         return { house: v, tiers, services, freeRoom, full, booked, bookedHere };
@@ -695,7 +714,7 @@ export const Hospitality = {
         const T = this.tier(tierId) || {};
         const text = q.freeRoom ? `${v.keeper} will hear nothing of payment: ${T.name ? T.name.toLowerCase() : 'a room'} at ${v.name}, on the house.`
             : v.owner === 'player' ? `You take ${T.name ? T.name.toLowerCase() : 'a room'} in your own ${this.kind(v.kind).noun}.`
-                : `You take ${T.name ? T.name.toLowerCase() : 'a room'} at ${v.name} for ${t.price} gold.`;
+                : `You take ${T.name ? T.name.toLowerCase() : 'a room'} at ${v.name} for ${Utils.formatGold(t.price)} gold.`;
         return { ok: true, text, cost: t.price };
     },
 
@@ -736,7 +755,7 @@ export const Hospitality = {
         // processDay takes it away the next morning)
         if (S.charisma) player.valet = { day: _day(world), charisma: _num(S.charisma) };
         const cookNote = cook && cook.level >= 4 ? ` ${v.keeper || 'The keeper'} cooks like ${/^[aeiou]/i.test(cook.levelName) ? 'an' : 'a'} ${cook.levelName.toLowerCase()} (🍳 ${cook.level}): it fills you ${Math.round((cook.mult - 1) * 100)}% more.` : '';
-        return { ok: true, text: `${S.icon} ${S.name} at ${v.name}${s.price > 0 ? ` (${s.price} gold)` : ''}.${cookNote}`, cost: s.price, item: S.item ? { id: S.item, qty: _num(S.qty, 1) } : null };
+        return { ok: true, text: `${S.icon} ${S.name} at ${v.name}${s.price > 0 ? ` (${Utils.formatGold(s.price)} gold)` : ''}.${cookNote}`, cost: s.price, item: S.item ? { id: S.item, qty: _num(S.qty, 1) } : null };
     },
 
     /** The morning after a night in a house: comfort by tier and stars, breakfast, the horse, a light-fingered bunkmate. */

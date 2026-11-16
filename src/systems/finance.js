@@ -559,7 +559,7 @@ export const Finance = {
         if (Object.keys(st.blacklist).length) { res.reason = 'No crown charters a known defaulter: make good your old debts first.'; return res; }
         const rep = _num(player.reputation && player.reputation[s.kingdom]);
         if (rep < _num(P.minReputation, 10)) { res.reason = `${k.name} charters only those it trusts (reputation ${_num(P.minReputation, 10)}+, yours ${Math.round(rep)}).`; return res; }
-        if (_num(player.gold) < res.fee + res.minCapital) { res.reason = `A charter costs ${res.fee}g and the house needs at least ${res.minCapital}g paid in.`; return res; }
+        if (_num(player.gold) < res.fee + res.minCapital) { res.reason = `A charter costs ${Utils.formatGold(res.fee)}g and the house needs at least ${Utils.formatGold(res.minCapital)}g paid in.`; return res; }
         res.ok = true;
         return res;
     },
@@ -569,8 +569,8 @@ export const Finance = {
         const terms = Finance.charterTerms(player, world);
         if (!terms.ok) return { success: false, reason: terms.reason };
         capital = Math.floor(_num(capital));
-        if (capital < terms.minCapital) return { success: false, reason: `Pay in at least ${terms.minCapital}g.` };
-        if (_num(player.gold) < capital + terms.fee) return { success: false, reason: `You need ${capital + terms.fee}g (charter ${terms.fee}g + capital ${capital}g).` };
+        if (capital < terms.minCapital) return { success: false, reason: `Pay in at least ${Utils.formatGold(terms.minCapital)}g.` };
+        if (_num(player.gold) < capital + terms.fee) return { success: false, reason: `You need ${Utils.formatGold(capital + terms.fee)}g (charter ${Utils.formatGold(terms.fee)}g + capital ${Utils.formatGold(capital)}g).` };
         const st = Finance.state(player);
         if (!st.initialized) Finance._initBanks(world, st);
         const tile = Finance._here(player, world);
@@ -595,7 +595,7 @@ export const Finance = {
         Ledger.record(player, 'bankCharter', -terms.fee);
         Ledger.record(player, 'bankCapital', -capital);
         Finance._record(st, world, { kind: 'bank_founded', bankId: bank.id, bank: bank.name, kingdomId: bank.kingdomId, place: bank.seat });
-        return { success: true, bank, text: `${terms.kingdom} grants the charter. ${bank.name} opens its counters in ${s.name} with ${capital}g in the vault.` };
+        return { success: true, bank, text: `${terms.kingdom} grants the charter. ${bank.name} opens its counters in ${s.name} with ${Utils.formatGold(capital)}g in the vault.` };
     },
 
     _ownAtSeat(player, world, bank) {
@@ -614,7 +614,7 @@ export const Finance = {
         bank.capital = _num(bank.capital) + amount;
         bank.paidIn = _num(bank.paidIn) + amount;
         Ledger.record(player, 'bankCapital', -amount);
-        return { success: true, text: `${amount}g into the vault of ${bank.name}.` };
+        return { success: true, text: `${Utils.formatGold(amount)}g into the vault of ${bank.name}.` };
     },
 
     /** The most the owner can take out and still keep the reserve the depositors need. */
@@ -638,7 +638,7 @@ export const Finance = {
         bank.book.drawn = _num(bank.book.drawn) + want;
         player.gold = _num(player.gold) + want;
         Ledger.record(player, 'bankCapital', want);
-        return { success: true, amount: want, text: `You draw ${want}g from ${bank.name}.` };
+        return { success: true, amount: want, text: `You draw ${Utils.formatGold(want)}g from ${bank.name}.` };
     },
 
     /** Lending policy: cautious, steady or bold. */
@@ -666,7 +666,7 @@ export const Finance = {
         const crownAsk = Math.floor(Finance.crownLoansOf(world, bank.id) * (buyer ? _num(P.crownSaleShare, 0.7) : 0));
         const recoverAsk = Math.floor(_num(bank.loanBook) * _num(P.windUpRecovery, 0.85));
         const est = Math.floor(_num(bank.capital) + recoverAsk + Math.min(crownAsk, Math.max(0, _num(buyer && buyer.capital))) - _num(bank.publicDeposits));
-        if (est < 0) return { success: false, reason: `The house cannot pay its depositors in full (${-est}g short): put more in first.` };
+        if (est < 0) return { success: false, reason: `The house cannot pay its depositors in full (${Utils.formatGold(-est)}g short): put more in first.` };
         // The coin, for real: the merchants repay the book out of the realm's purses (what
         // they can), the buying house pays for the crowns' debts out of its vault, the
         // depositors are paid into the seat town's purse; the owner takes what is left
@@ -690,7 +690,7 @@ export const Finance = {
         player.gold = _num(player.gold) + net;
         Ledger.record(player, 'bankCapital', net);
         Finance._record(Finance.state(player), world, { kind: 'bank_closed', bankId: bank.id, bank: bank.name, kingdomId: bank.kingdomId, place: bank.seat });
-        return { success: true, amount: net, text: `${bank.name} pays its depositors and shuts its doors. ${net}g comes to you.` };
+        return { success: true, amount: net, text: `${bank.name} pays its depositors and shuts its doors. ${Utils.formatGold(net)}g comes to you.` };
     },
 
     /** The owner's view of the books (null when the player owns no house). */
@@ -784,7 +784,7 @@ export const Finance = {
         if (bank.loanBook > 0 && Utils.random() < _num(bad.chance, 0.003) * _num(pol.riskMult, 1)) {
             const hit = bank.loanBook * _between(bad.share || [0.04, 0.1], Utils.random());
             losses += hit;
-            Finance._note(out, '📉', `A bad debt at ${bank.name}`, `A merchant who borrowed from your house has gone under, owing ${Math.round(hit)}g.`, 'warning');
+            Finance._note(out, '📉', `A bad debt at ${bank.name}`, `A merchant who borrowed from your house has gone under, owing ${Utils.formatGold(hit)}g.`, 'warning');
         }
         losses = Math.min(losses, bank.loanBook);
         bank.loanBook -= losses;
@@ -946,7 +946,7 @@ export const Finance = {
             else if (Finance.inPanic(bank, day)) reason = 'A run on the house: no new loans until it passes.';
             else if (mine >= _num(B.maxLoansPerBank, 3)) reason = `At most ${_num(B.maxLoansPerBank, 3)} loans from one house.`;
             else if (report.score < _num(p.minCredit)) reason = `Needs a credit score of ${p.minCredit} (yours: ${report.score}).`;
-            else if (_num(p.amount) > report.available) reason = `Beyond your credit (${report.available}g available).`;
+            else if (_num(p.amount) > report.available) reason = `Beyond your credit (${Utils.formatGold(report.available)}g available).`;
             else if (_num(p.amount) > _num(bank.capital) * _num(B.maxLoanShare, 0.25)) reason = 'The house cannot spare so much coin.';
             return {
                 id: p.id, name: p.name, amount: _num(p.amount), duration: _num(p.duration), rate, totalOwed,
@@ -978,7 +978,7 @@ export const Finance = {
         player.gold = _num(player.gold) + offer.amount;
         Ledger.record(player, 'borrowed', offer.amount);
         st.stats.borrowed += offer.amount;
-        return { success: true, loan, text: `${bank.name} lends you ${offer.amount}g: ${loan.totalOwed}g to repay over ${offer.duration} days (${loan.dailyPayment}g a day).` };
+        return { success: true, loan, text: `${bank.name} lends you ${Utils.formatGold(offer.amount)}g: ${Utils.formatGold(loan.totalOwed)}g to repay over ${offer.duration} days (${Utils.formatGold(loan.dailyPayment)}g a day).` };
     },
 
     /** Pay off a loan in full (anywhere: the house sends a clerk). */
@@ -988,14 +988,14 @@ export const Finance = {
         if (i < 0) return { success: false, reason: 'Loan not found.' };
         const loan = st.loans[i];
         const owed = Math.ceil(_num(loan.totalOwed));
-        if (_num(player.gold) < owed) return { success: false, reason: `Need ${owed} gold.` };
+        if (_num(player.gold) < owed) return { success: false, reason: `Need ${Utils.formatGold(owed)} gold.` };
         player.gold -= owed;
         Finance._bookPayment(player, loan, owed);
         Finance._payLender(player, world, loan, owed);
         st.loans.splice(i, 1);
         st.credit.repaid++;
         st.stats.interestPaid += Math.max(0, _num(loan.totalPaid) + owed - _num(loan.principal));
-        return { success: true, amount: owed, text: `Paid ${owed}g: your debt to ${loan.lender} is cleared.` };
+        return { success: true, amount: owed, text: `Paid ${Utils.formatGold(owed)}g: your debt to ${loan.lender} is cleared.` };
     },
 
     /**
@@ -1086,14 +1086,14 @@ export const Finance = {
         if (bank.owner === 'player') return { success: false, reason: 'Your own house takes your coin as capital, at the owner’s desk.' };
         if (!Finance._serves(player, world, bank)) return { success: false, reason: `Visit ${bank.name} in ${bank.seat} or one of its branches.` };
         if (Finance.inPanic(bank, _day(world))) return { success: false, reason: 'Nobody sane deposits during a run on the house.' };
-        if (amount < _num(D.minDeposit, 50)) return { success: false, reason: `The smallest deposit is ${_num(D.minDeposit, 50)}g.` };
+        if (amount < _num(D.minDeposit, 50)) return { success: false, reason: `The smallest deposit is ${Utils.formatGold(_num(D.minDeposit, 50))}g.` };
         if (_num(player.gold) < amount) return { success: false, reason: 'Not enough gold.' };
         const acct = Finance.account(player, bankId);
         if (acct.opened == null) acct.opened = _day(world);
         player.gold -= amount;
         acct.balance = _round2(_num(acct.balance) + amount);
         bank.capital = _num(bank.capital) + amount;
-        return { success: true, text: `Deposited ${amount}g with ${bank.name} at ${(Finance.depositApr(bank) * 100).toFixed(1)}% a year.` };
+        return { success: true, text: `Deposited ${Utils.formatGold(amount)}g with ${bank.name} at ${(Finance.depositApr(bank) * 100).toFixed(1)}% a year.` };
     },
 
     /** Withdraw (all of it with amount null). During a run the house pays out only so much a day. */
@@ -1122,7 +1122,7 @@ export const Finance = {
         if (acct.balance < 0.01 || (amount == null && acct.balance < 1)) delete Finance.state(player).accounts[bankId];
         bank.capital -= want;
         player.gold = _num(player.gold) + want;
-        return { success: true, amount: want, text: `Withdrew ${want}g from ${bank.name}.` };
+        return { success: true, amount: want, text: `Withdrew ${Utils.formatGold(want)}g from ${bank.name}.` };
     },
 
     // ──────────── ROYAL BONDS ────────────
@@ -1164,10 +1164,10 @@ export const Finance = {
         if (!k || k.isAlive === false) return { success: false, reason: 'No such crown.' };
         if (!Finance.banksAt(player, world, Finance._here(player, world)).length) return { success: false, reason: 'Royal bonds are sold through a banking house.' };
         if (k.id === Finance._ruledId(player)) return { success: false, reason: 'You cannot lend to your own crown.' };
-        if (amount < _num(D.min, 500)) return { success: false, reason: `The smallest bond is ${_num(D.min, 500)}g.` };
+        if (amount < _num(D.min, 500)) return { success: false, reason: `The smallest bond is ${Utils.formatGold(_num(D.min, 500))}g.` };
         if (_num(player.gold) < amount) return { success: false, reason: 'Not enough gold.' };
         const offer = Finance.bondOffers(player, world).find(o => o.kingdomId === kingdomId);
-        if (!offer || amount > offer.room) return { success: false, reason: `The crown takes at most ${offer ? offer.room : 0}g more from you.` };
+        if (!offer || amount > offer.room) return { success: false, reason: `The crown takes at most ${Utils.formatGold(offer ? offer.room : 0)}g more from you.` };
         const terms = D.terms || [120, 240];
         const days = terms.includes(term) ? term : terms[0];
         const day = _day(world);
@@ -1182,7 +1182,7 @@ export const Finance = {
         if (player.reputation && rep > 0) player.reputation[k.id] = Math.min(100, _num(player.reputation[k.id]) + rep);
         const prestige = Math.min(_num(D.prestigeCap, 25), Math.floor(amount / Math.max(1, _num(D.prestigePer, 400))));
         if (prestige > 0 && player.house) House.award(player.house, prestige, `royal bond to ${Names.realm(k.name)}`, day);
-        return { success: true, bond, text: `You lend ${amount}g to the crown of ${Names.realm(k.name)} at ${(offer.apr * 100).toFixed(1)}% a year for ${days} days.${rep ? ` Reputation +${rep}.` : ''}${prestige ? ` Prestige +${prestige}.` : ''}` };
+        return { success: true, bond, text: `You lend ${Utils.formatGold(amount)}g to the crown of ${Names.realm(k.name)} at ${(offer.apr * 100).toFixed(1)}% a year for ${days} days.${rep ? ` Reputation +${rep}.` : ''}${prestige ? ` Prestige +${prestige}.` : ''}` };
     },
 
     /** Sell a bond back through the brokers at a discount. */
@@ -1204,7 +1204,7 @@ export const Finance = {
         broker.capital = _round2(_num(broker.capital) - price);
         st.bonds.splice(i, 1);
         player.gold = _num(player.gold) + price;
-        return { success: true, amount: price, text: `The brokers buy your ${b.kingdomName || 'royal'} bond for ${price}g.` };
+        return { success: true, amount: price, text: `The brokers buy your ${b.kingdomName || 'royal'} bond for ${Utils.formatGold(price)}g.` };
     },
 
     // ──────────── THE DAILY TICK ────────────
@@ -1506,7 +1506,7 @@ export const Finance = {
         const lender = Finance._lenderName(player, world, loan);
         const used = Finance._applyProceeds(player, world, st, loan, raised);
         Finance._note(out, '🧾', 'Bailiffs!', taken.length
-            ? `The bailiffs of ${lender} took ${taken.join(', ')} from your packs (${used}g against the debt).`
+            ? `The bailiffs of ${lender} took ${taken.join(', ')} from your packs (${Utils.formatGold(used)}g against the debt).`
             : `The bailiffs of ${lender} came for your goods and found nothing worth taking. Your collateral is next.`, 'error');
     },
 
@@ -1523,7 +1523,7 @@ export const Finance = {
             if (acct.balance < 0.01) delete st.accounts[loan.bankId];
             // (the deposit is the house's own coin owed back to you: set off against the debt, no coin moves)
             Finance._applyProceeds(player, world, st, loan, take, 'setoff');
-            Finance._note(out, '🏦', 'Deposits Seized', `${lender} took ${Math.floor(take)}g of your deposits against your debt.`, 'error');
+            Finance._note(out, '🏦', 'Deposits Seized', `${lender} took ${Utils.formatGold(take)}g of your deposits against your debt.`, 'error');
             if (!st.loans.includes(loan)) return;
         }
         // A property (the most valuable)
@@ -1532,7 +1532,7 @@ export const Finance = {
             const prop = props[0];
             Finance._removeProperty(player, world, prop);
             const used = Finance._applyProceeds(player, world, st, loan, Finance._propertyValue(prop) * share);
-            Finance._note(out, '🏚️', 'Property Seized', `${lender} seized your ${prop.name || prop.type} at (${prop.q}, ${prop.r}) and sold it for ${used}g against the debt.`, 'error');
+            Finance._note(out, '🏚️', 'Property Seized', `${lender} seized your ${prop.name || prop.type} at (${prop.q}, ${prop.r}) and sold it for ${Utils.formatGold(used)}g against the debt.`, 'error');
             return;
         }
         // A ship lying in port (never the one you stand on)
@@ -1542,7 +1542,7 @@ export const Finance = {
             const ship = ships[0];
             player.ships = player.ships.filter(s => s !== ship);
             const used = Finance._applyProceeds(player, world, st, loan, _num(Ships.getShipValue(ship)) * share);
-            Finance._note(out, '⚓', 'Ship Seized', `${lender} seized the ${ship.name || 'ship'} in port and sold her for ${used}g against the debt.`, 'error');
+            Finance._note(out, '⚓', 'Ship Seized', `${lender} seized the ${ship.name || 'ship'} in port and sold her for ${Utils.formatGold(used)}g against the debt.`, 'error');
             return;
         }
         // The company's capital
@@ -1553,7 +1553,7 @@ export const Finance = {
             const used = Finance._applyProceeds(player, world, st, loan, take, 'company');
             // (what the debt did not need stays in the coffers)
             if (take - used > 0) c.capital = _num(c.capital) + (take - used);
-            Finance._note(out, '⚖️', 'Company Funds Seized', `${lender} took ${used}g from the coffers of ${c.name}.`, 'error');
+            Finance._note(out, '⚖️', 'Company Funds Seized', `${lender} took ${Utils.formatGold(used)}g from the coffers of ${c.name}.`, 'error');
             return;
         }
         Finance._note(out, '⚠️', 'Nothing Left to Seize', `${lender} found nothing more to take. Pay, or be declared a defaulter at ${_num(D.declareAt, 30)} days overdue.`, 'error');
@@ -1604,7 +1604,7 @@ export const Finance = {
         }
         out.defaulted.push({ ...loan, declared: true, remaining });
         Finance._record(st, world, { kind: 'player_default', bankId: loan.bankId, kingdomId: loan.kingdomId, lender, amount: remaining });
-        Finance._note(out, '💀', 'Declared a Defaulter', `${lender} writes off ${remaining}g and names you a defaulter. Reputation in ${realm} -${_num(D.declareRep, 15)}${prestige ? `, Prestige -${prestige}` : ''}.${extra}`, 'error');
+        Finance._note(out, '💀', 'Declared a Defaulter', `${lender} writes off ${Utils.formatGold(remaining)}g and names you a defaulter. Reputation in ${realm} -${_num(D.declareRep, 15)}${prestige ? `, Prestige -${prestige}` : ''}.${extra}`, 'error');
     },
 
     /** Make good a written-off debt: the house lends again and the warrant lapses. */
@@ -1612,7 +1612,7 @@ export const Finance = {
         const st = Finance.state(player);
         const owed = Math.ceil(_num(st.blacklist[bankId]));
         if (!owed) return { success: false, reason: 'You owe that house nothing.' };
-        if (_num(player.gold) < owed) return { success: false, reason: `Need ${owed} gold.` };
+        if (_num(player.gold) < owed) return { success: false, reason: `Need ${Utils.formatGold(owed)} gold.` };
         player.gold -= owed;
         delete st.blacklist[bankId];
         const bank = Finance.bank(player, bankId);
@@ -1626,7 +1626,7 @@ export const Finance = {
             else if (!bank) Finance._spendNear(world, player, owed);
         } else if (!bank) Finance._spendNear(world, player, owed);
         st.credit.settled++;
-        return { success: true, amount: owed, text: `You make good ${owed}g of old debt${bank ? ` to ${bank.name}` : ''}. Your name is cleared.` };
+        return { success: true, amount: owed, text: `You make good ${Utils.formatGold(owed)}g of old debt${bank ? ` to ${bank.name}` : ''}. Your name is cleared.` };
     },
 
     _bondsDay(world, player, st, out) {
@@ -1639,7 +1639,7 @@ export const Finance = {
             if (!k || k.isAlive === false) {
                 st.bonds = st.bonds.filter(x => x !== b);
                 st.stats.lostInFailures += _num(b.principal);
-                Finance._note(out, '🏴', 'Bond Lost', `The crown of ${b.kingdomName || 'a fallen realm'} is no more, and your ${Math.round(b.principal)}g bond with it.`, 'error');
+                Finance._note(out, '🏴', 'Bond Lost', `The crown of ${b.kingdomName || 'a fallen realm'} is no more, and your ${Utils.formatGold(b.principal)}g bond with it.`, 'error');
                 continue;
             }
             if ((day - _num(b.start)) > 0 && (day - _num(b.start)) % every === 0) {
@@ -1661,7 +1661,7 @@ export const Finance = {
                     k.treasury -= due;
                     player.gold = _num(player.gold) + due;
                     st.bonds = st.bonds.filter(x => x !== b);
-                    Finance._note(out, '📜', 'Bond Redeemed', `The crown of ${Names.realm(k.name)} repays your ${due}g bond (${Math.round(b.coupons)}g interest earned).`, 'success');
+                    Finance._note(out, '📜', 'Bond Redeemed', `The crown of ${Names.realm(k.name)} repays your ${Utils.formatGold(due)}g bond (${Utils.formatGold(b.coupons)}g interest earned).`, 'success');
                 } else {
                     b.maturity = day + _num(D.extendDays, 30);
                     b.missed = _num(b.missed) + 1;
@@ -1907,8 +1907,8 @@ export const Finance = {
         Finance._record(st, world, { kind: kind === 'offices' ? 'offices_sold' : 'land_sold', kingdomId: k.id, kingdom: k.name, amount: gain });
         if (Finance._touches(player, k)) {
             Finance._note(out, kind === 'offices' ? '📜' : '🌾', kind === 'offices' ? 'Offices for Sale' : 'Crown Land Sold',
-                kind === 'offices' ? `The crown of ${Names.realm(k.name)} sells judgeships and collectorships for ${gain}g. Their buyers mean to have it back.`
-                    : `The crown of ${Names.realm(k.name)} sells royal manors to the great houses for ${gain}g. Its own rents will be the less.`, 'warning');
+                kind === 'offices' ? `The crown of ${Names.realm(k.name)} sells judgeships and collectorships for ${Utils.formatGold(gain)}g. Their buyers mean to have it back.`
+                    : `The crown of ${Names.realm(k.name)} sells royal manors to the great houses for ${Utils.formatGold(gain)}g. Its own rents will be the less.`, 'warning');
         }
         return gain;
     },
@@ -1948,7 +1948,7 @@ export const Finance = {
         for (const b of st.banks) if (b.relations && b.relations[k.id] != null) b.relations[k.id] = Math.max(-100, b.relations[k.id] - _num(C.debaseRelation, 10));
         Finance._record(st, world, { kind: 'debased', kingdomId: k.id, kingdom: k.name, purity: f.purity });
         const full = Math.round((Coinage.purityFactor(k) - 1) * 100);
-        const text = `The mint of ${Names.realm(k.name)} strikes its coin at ${Math.round(f.purity * 100)}% silver: ${gain}g for the crown now, and more as the old coin comes in to be restruck. Prices in its markets will rise by about ${full}% as the new coin spreads.`;
+        const text = `The mint of ${Names.realm(k.name)} strikes its coin at ${Math.round(f.purity * 100)}% silver: ${Utils.formatGold(gain)}g for the crown now, and more as the old coin comes in to be restruck. Prices in its markets will rise by about ${full}% as the new coin spreads.`;
         if (out && Finance._touches(player, k)) Finance._note(out, '💱', 'Coin Debased', text, 'warning');
         return { success: true, gain, purity: f.purity, text };
     },
@@ -1964,7 +1964,7 @@ export const Finance = {
         if (f.purity - _num(G.debaseStep, 0.1) < _num(G.floor, 0.5) - 1e-9) return null;
         const res = Finance.debase(world, player, k, null);
         if (res && res.success) {
-            Finance._note(out, '📒', 'The Treasurers Clip the Coin', `The chests of ${Names.realm(k.name)} are empty and its debts unpaid: as you allowed, your treasurers have the mint strike baser coin (${Math.round(f.purity * 100)}% silver), ${res.gain}g for the crown now. Forbid it in the Treasury.`, 'warning');
+            Finance._note(out, '📒', 'The Treasurers Clip the Coin', `The chests of ${Names.realm(k.name)} are empty and its debts unpaid: as you allowed, your treasurers have the mint strike baser coin (${Math.round(f.purity * 100)}% silver), ${Utils.formatGold(res.gain)}g for the crown now. Forbid it in the Treasury.`, 'warning');
             f.missed = 0;
             f.unpaid = 0;
         }
@@ -2013,7 +2013,7 @@ export const Finance = {
         st.bonds = st.bonds.filter(b => _num(b.principal) >= 1);
         st.stats.lostInFailures += bondLoss;
         Finance._record(st, world, { kind: 'crown_default', kingdomId: k.id, kingdom: k.name, amount: total });
-        const text = `The crown of ${Names.realm(k.name)} repudiates ${Math.round(cut * 100)}% of its debts (${total}g).${bondLoss ? ` Your bonds lose ${bondLoss}g.` : ''}`;
+        const text = `The crown of ${Names.realm(k.name)} repudiates ${Math.round(cut * 100)}% of its debts (${Utils.formatGold(total)}g).${bondLoss ? ` Your bonds lose ${Utils.formatGold(bondLoss)}g.` : ''}`;
         if (out && (bondLoss || Finance._touches(player, k))) Finance._note(out, '📛', 'A Crown Defaults', text, bondLoss ? 'error' : 'warning');
         return { success: true, amount: total, bondLoss, text };
     },
@@ -2041,7 +2041,7 @@ export const Finance = {
         if (!k) return { success: false, reason: 'You rule no realm.' };
         const res = Finance._crownBorrow(world, player, Finance.state(player), k, Math.floor(_num(amount)), null, { force: false });
         if (!res) return { success: false, reason: 'No house will lend the crown so much now.' };
-        return { success: true, ...res, text: `${res.bank.name} lends the crown ${res.amount}g at ${(res.apr * 100).toFixed(1)}% a year.` };
+        return { success: true, ...res, text: `${res.bank.name} lends the crown ${Utils.formatGold(res.amount)}g at ${(res.apr * 100).toFixed(1)}% a year.` };
     },
 
     royalDebase(player, world) {
@@ -2183,7 +2183,7 @@ export const Finance = {
             const lost = Math.round(_num(acct.balance) - back);
             player.gold = _num(player.gold) + back;
             st.stats.lostInFailures += lost;
-            text += ` The receivers pay you ${back}g of your ${Math.floor(acct.balance)}g on deposit.`;
+            text += ` The receivers pay you ${Utils.formatGold(back)}g of your ${Utils.formatGold(acct.balance)}g on deposit.`;
         }
         delete st.accounts[bank.id];
         if (bank.owner === 'player') {
@@ -2200,7 +2200,7 @@ export const Finance = {
             Finance._repHit(player, bank.kingdomId, _num(P.failRep, 20));
             const prestige = Math.min(House.getPrestige(player), _num(P.failPrestige, 25));
             if (prestige > 0 && player.house) House.spend(player.house, prestige, `the failure of ${bank.name}`, day);
-            text = `Your house, ${bank.name}, has failed. The receivers take what is left for the depositors${lost ? `, and your ${lost}g stake is gone` : ''}. ${bank.seat} will not soon forget it.`;
+            text = `Your house, ${bank.name}, has failed. The receivers take what is left for the depositors${lost ? `, and your ${Utils.formatGold(lost)}g stake is gone` : ''}. ${bank.seat} will not soon forget it.`;
         }
         // An NPC house's receivers sell what is left and pay it to its creditors and depositors —
         // the merchants of its seat town (the player's own share was paid above): the vault's coin

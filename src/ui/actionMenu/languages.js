@@ -5,6 +5,7 @@ import { ActionMenu } from './_ref.js';
 import { Languages } from '../../systems/languages.js';
 import { Cultures } from '../../world/cultures.js';
 import { lede, chips, bullets, sectionHead, rowList, card, price, purse, esc } from './uiKit.js';
+import { Utils } from '../../core/utils.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 
@@ -60,7 +61,7 @@ Object.assign(ActionMenu, {
                 const f = Math.round(Languages.fluency(player, l));
                 return {
                     icon: '📖', name: `${esc(Cultures.languageName(l))} lesson`, desc: `You: ${f}/100 · one lesson a day`,
-                    side: price(cost, can), off: f >= 100 || !can, why: f >= 100 ? 'You speak it like a native.' : `Needs ${cost}g.`,
+                    side: price(cost, can), off: f >= 100 || !can, why: f >= 100 ? 'You speak it like a native.' : `Needs ${Utils.formatGold(cost)}g.`,
                     act: 'languagesAct', args: ['lesson', l],
                 };
             }), `Tutors in ${esc(s.name)}`);
@@ -71,15 +72,15 @@ Object.assign(ActionMenu, {
         if (t) {
             html += rowList([{
                 icon: '🤝', name: `Dismiss ${esc(t.name)}`, desc: `In your service since day ${t.since}: ${t.tongues.map(x => esc(Cultures.languageName(x))).join(', ')}`,
-                side: `${t.wage}g/day`, act: 'languagesAct', args: ['dismiss'],
+                side: `${Utils.formatGold(t.wage)}g/day`, act: 'languagesAct', args: ['dismiss'],
             }], 'Interpreter');
         } else if (s) {
             const offer = Languages.translatorOffer(player, world);
             if (offer) {
                 const ok = (player.gold || 0) >= offer.hire;
                 html += rowList([{
-                    icon: '🤝', name: `Hire ${esc(offer.name)}`, desc: `Speaks ${offer.tongues.map(x => esc(Cultures.languageName(x))).join(', ')}; then ${offer.wage}g a day`,
-                    side: price(offer.hire, ok), off: !ok, why: `Needs ${offer.hire}g.`, act: 'languagesAct', args: ['hire'],
+                    icon: '🤝', name: `Hire ${esc(offer.name)}`, desc: `Speaks ${offer.tongues.map(x => esc(Cultures.languageName(x))).join(', ')}; then ${Utils.formatGold(offer.wage)}g a day`,
+                    side: price(offer.hire, ok), off: !ok, why: `Needs ${Utils.formatGold(offer.hire)}g.`, act: 'languagesAct', args: ['hire'],
                 }], 'Interpreter');
             }
         } else {

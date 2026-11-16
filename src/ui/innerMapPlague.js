@@ -43,6 +43,7 @@ import { InnerMapCharacters } from './innerMapCharacters.js';
 import { PlagueArt } from './plagueArt.js';
 import { audioManager } from '../systems/audio/index.js';
 import { esc, lede, rowList, price } from './actionMenu/uiKit.js';
+import { Utils } from '../core/utils.js';
 
 const DOCTOR = 'plague_doctor';
 const FIRE = 'tp_campfire';
@@ -482,7 +483,7 @@ export const InnerMapPlague = {
         }
         if (building.type === 'marketplace' || building.type === 'apothecary' || building.type === 'church' || building.type === 'temple') {
             const rem = Plague.remedies(game.player, game.world, s);
-            if (rem.length) out.push({ type: 'action', action: 'plague_remedies', label: 'Sell Remedies to the Frightened', icon: '🧪', desc: `${rem.map(r => `${r.id.replace(/_/g, ' ')} ${r.price}g`).join(', ')} — a plague price`, building });
+            if (rem.length) out.push({ type: 'action', action: 'plague_remedies', label: 'Sell Remedies to the Frightened', icon: '🧪', desc: `${rem.map(r => `${r.id.replace(/_/g, ' ')} ${Utils.formatGold(r.price)}g`).join(', ')} — a plague price`, building });
         }
         return out;
     },
@@ -563,7 +564,7 @@ export const InnerMapPlague = {
                 + rowList([{
                     icon: '💰', name: 'Bribe the gate guards',
                     desc: `They look the other way for a few days. If their sergeant sees it, it is a crime — and you go in among the sick.`,
-                    side: price(t.bribe, can), off: !can, why: `Needs ${t.bribe}g.`,
+                    side: price(t.bribe, can), off: !can, why: `Needs ${Utils.formatGold(t.bribe)}g.`,
                     act: 'sicknessAct', args: ['bribe', s.q, s.r],
                 }], '🚧 The shut gate');
             game.ui.showCustomPanel(`🚧 ${s.name} — Gates Shut`, html);

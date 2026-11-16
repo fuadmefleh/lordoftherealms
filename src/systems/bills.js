@@ -29,6 +29,7 @@ import { Economy } from '../world/economy.js';
 import { Finance } from './finance.js';
 import { Underworld } from './underworld.js';
 import { Ledger } from './ledger.js';
+import { Utils } from '../core/utils.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -147,10 +148,10 @@ export const Bills = {
         if (!pay || pay.status !== 'open' || pay.id === from.id) return { success: false, reason: 'Draw the bill on another open house.' };
         if (!Finance._serves(player, world, from)) return { success: false, reason: `Visit ${from.name} in ${from.seat} or one of its branches.` };
         if (Finance.inPanic(from, day) || Finance.inPanic(pay, day)) return { success: false, reason: 'No clerk draws bills on a house with a crowd at its doors.' };
-        if (amt < _num(C.minAmount, 200)) return { success: false, reason: `The smallest bill is ${_num(C.minAmount, 200)}g.` };
+        if (amt < _num(C.minAmount, 200)) return { success: false, reason: `The smallest bill is ${Utils.formatGold(_num(C.minAmount, 200))}g.` };
         if (Bills.held(player).length >= _num(C.maxHeld, 8)) return { success: false, reason: 'You carry as many bills as any sane merchant would.' };
         const t = Bills.terms(player, world, from.id, pay.id, amt);
-        if (_num(player.gold) < amt + t.fee) return { success: false, reason: `You need ${amt + t.fee}g (the bill and a fee of ${t.fee}g).` };
+        if (_num(player.gold) < amt + t.fee) return { success: false, reason: `You need ${Utils.formatGold(amt + t.fee)}g (the bill and a fee of ${Utils.formatGold(t.fee)}g).` };
         player.gold -= amt + t.fee;
         Ledger.record(player, 'billFees', -t.fee);
         Ledger.record(player, 'bills', -amt);
@@ -164,7 +165,7 @@ export const Bills = {
         st.list.push(bill);
         st.stats.drawn += amt;
         st.stats.fees += t.fee;
-        return { success: true, bill, text: `${from.name} draws a bill of ${amt}g on ${pay.name}, payable at ${pay.seat} or its branches from day ${bill.payableFrom}. Fee ${t.fee}g.` };
+        return { success: true, bill, text: `${from.name} draws a bill of ${Utils.formatGold(amt)}g on ${pay.name}, payable at ${pay.seat} or its branches from day ${bill.payableFrom}. Fee ${Utils.formatGold(t.fee)}g.` };
     },
 
     /** The house that pays this bill now (the drawer if the payee failed), or null. */
@@ -198,7 +199,7 @@ export const Bills = {
         bill.paidDay = day;
         st.stats.paidOut += pay;
         Bills._prune(st);
-        return { success: true, amount: pay, text: `${bank.name} pays your bill: ${pay}g${protest ? ` (less ${protest}g for presenting it late)` : ''}.` };
+        return { success: true, amount: pay, text: `${bank.name} pays your bill: ${Utils.formatGold(pay)}g${protest ? ` (less ${Utils.formatGold(protest)}g for presenting it late)` : ''}.` };
     },
 
     /** Robbed on the road: the thieves may take bills along with the gold. Returns the bills taken. */
@@ -232,7 +233,7 @@ export const Bills = {
         if (!bank) return { success: false, reason: 'Both houses on this bill have failed.' };
         if (!Finance._serves(player, world, bank)) return { success: false, reason: `Only ${bank.name} can stop it, at ${bank.seat} or a branch.` };
         const fee = Math.max(5, Math.ceil(bill.amount * _num(C.stopFee, 0.02)));
-        if (_num(player.gold) < fee) return { success: false, reason: `Stopping it costs ${fee}g.` };
+        if (_num(player.gold) < fee) return { success: false, reason: `Stopping it costs ${Utils.formatGold(fee)}g.` };
         player.gold -= fee;
         Ledger.record(player, 'billFees', -fee);
         bank.capital = _num(bank.capital) + fee;
@@ -240,7 +241,7 @@ export const Bills = {
         bill.stopped = (bill.stopped || 0) + 1;
         delete bill.cashDay;
         st.stats.stopped++;
-        return { success: true, fee, text: `${bank.name} stops the stolen bill (${fee}g) and will pay it to you alone.` };
+        return { success: true, fee, text: `${bank.name} stops the stolen bill (${Utils.formatGold(fee)}g) and will pay it to you alone.` };
     },
 
     /** Forge a bill on a house through the Thieves' Guild and present it here. */
@@ -257,9 +258,9 @@ export const Bills = {
         if (Finance.inPanic(bank, day)) return { success: false, reason: 'The counters are shut while the run lasts.' };
         const recent = st.forgeries.filter(d => day - d <= 120);
         if (recent.length && day - recent[recent.length - 1] < _num(F.cooldown, 30)) return { success: false, reason: 'The forger lies low a while after the last one.' };
-        if (amt < 100 || amt > _num(F.max, 2500)) return { success: false, reason: `The forger draws bills of 100–${_num(F.max, 2500)}g.` };
+        if (amt < 100 || amt > _num(F.max, 2500)) return { success: false, reason: `The forger draws bills of 100–${Utils.formatGold(_num(F.max, 2500))}g.` };
         const fee = Math.ceil(amt * _num(F.fee, 0.25));
-        if (_num(player.gold) < fee) return { success: false, reason: `The forger wants ${fee}g.` };
+        if (_num(player.gold) < fee) return { success: false, reason: `The forger wants ${Utils.formatGold(fee)}g.` };
         player.gold -= fee;
         Economy.payNearest(world, player.q, player.r, fee); // (the forger spends his fee in town)
         Ledger.record(player, 'fraud', -fee);
@@ -274,14 +275,14 @@ export const Bills = {
             bank.capital = _num(bank.capital) + take;
             Underworld.addHeat(player, bank.kingdomId, _num(F.heat, 30) + Math.round((fine - take) / 100), world);
             st.stats.forgeriesCaught++;
-            return { success: false, caught: true, reason: `The clerk of ${bank.name} holds the bill to the light and calls the watch. A fine of ${fine}g${fine > take ? ' (more than you have)' : ''}, and the watch knows your face.` };
+            return { success: false, caught: true, reason: `The clerk of ${bank.name} holds the bill to the light and calls the watch. A fine of ${Utils.formatGold(fine)}g${fine > take ? ' (more than you have)' : ''}, and the watch knows your face.` };
         }
         const pay = Math.min(amt, Math.floor(Math.max(0, _num(bank.capital))));
         bank.capital = _num(bank.capital) - pay;
         player.gold += pay;
         Ledger.record(player, 'fraud', pay);
         st.stats.forged += pay;
-        return { success: true, amount: pay, text: `${bank.name} pays the forged bill: ${pay}g.` };
+        return { success: true, amount: pay, text: `${bank.name} pays the forged bill: ${Utils.formatGold(pay)}g.` };
     },
 
     /** The day: stolen bills a forger cashes; bills on failed houses. Draws no RNG. */
@@ -302,7 +303,7 @@ export const Bills = {
                 }
                 b.status = 'lost';
                 st.stats.lost += b.amount;
-                out.notices.push({ icon: '🗝️', title: 'A Stolen Bill Cashed', text: `A forger has cashed your stolen bill of ${b.amount}g on ${b.payName}. It is gone.`, type: 'error' });
+                out.notices.push({ icon: '🗝️', title: 'A Stolen Bill Cashed', text: `A forger has cashed your stolen bill of ${Utils.formatGold(b.amount)}g on ${b.payName}. It is gone.`, type: 'error' });
                 continue;
             }
             if (b.status !== 'held') continue;
@@ -312,7 +313,7 @@ export const Bills = {
             if (from && from.status === 'open') {
                 if (!b.protested) {
                     b.protested = true;
-                    out.notices.push({ icon: '📜', title: 'Bill Protested', text: `${b.payName} has failed. Your bill of ${b.amount}g falls on ${from.name}, which drew it: present it there.`, type: 'warning' });
+                    out.notices.push({ icon: '📜', title: 'Bill Protested', text: `${b.payName} has failed. Your bill of ${Utils.formatGold(b.amount)}g falls on ${from.name}, which drew it: present it there.`, type: 'warning' });
                 }
                 continue;
             }
@@ -330,7 +331,7 @@ export const Bills = {
             Ledger.record(player, 'bills', back);
             b.status = 'failed';
             st.stats.lost += b.amount - back;
-            out.notices.push({ icon: '🏚️', title: 'Bill Dishonoured', text: `Both houses on your bill of ${b.amount}g have failed. The receivers pay ${back}g.`, type: 'error' });
+            out.notices.push({ icon: '🏚️', title: 'Bill Dishonoured', text: `Both houses on your bill of ${Utils.formatGold(b.amount)}g have failed. The receivers pay ${Utils.formatGold(back)}g.`, type: 'error' });
         }
         Bills._prune(st);
         return out;

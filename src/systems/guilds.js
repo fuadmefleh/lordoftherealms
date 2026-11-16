@@ -643,7 +643,7 @@ export const Guilds = {
         if (Guilds._reputation(player, s) < -10) return { success: false, reason: `The ${g.name} will not have you (reputation too low).` };
         if (_num(g.feud) >= Guilds.config().feud.sabotageAt) return { success: false, reason: `The ${g.name} is feuding with you: no guild man will vouch for you.` };
         const fee = Guilds._fee(s, 0);
-        if (_num(player.gold) < fee) return { success: false, reason: `The entry fee is ${fee} gold.` };
+        if (_num(player.gold) < fee) return { success: false, reason: `The entry fee is ${Utils.formatGold(fee)} gold.` };
         const st = Guilds.state(player);
         player.gold -= fee;
         Ledger.record(player, 'guildDues', -fee);
@@ -655,7 +655,7 @@ export const Guilds = {
         st.stats.joined++;
         st.stats.fees += fee;
         st.stats.bestRank = Math.max(_num(st.stats.bestRank, -1), 0);
-        Guilds._log(st, world, `Joined the ${g.name} as an apprentice (${fee}g).`);
+        Guilds._log(st, world, `Joined the ${g.name} as an apprentice (${Utils.formatGold(fee)}g).`);
         return { success: true, spent: fee };
     },
 
@@ -696,7 +696,7 @@ export const Guilds = {
             { label: `${_num(rd.minDays)} days as ${Guilds.rankName(m.rank).toLowerCase()} (${day - _num(m.rankSince)})`, met: day - _num(m.rankSince) >= _num(rd.minDays) },
             { label: `standing ${_num(rd.minStanding)} (${Math.floor(m.standing)})`, met: m.standing >= _num(rd.minStanding) },
             { label: `commerce ${_num(rd.skill)} (${Math.floor(_num(player.skills && player.skills.commerce))})`, met: _num(player.skills && player.skills.commerce) >= _num(rd.skill) },
-            { label: `${fee} gold`, met: _num(player.gold) >= fee },
+            { label: `${Utils.formatGold(fee)} gold`, met: _num(player.gold) >= fee },
         ];
         for (const [id, n] of Object.entries(goods)) {
             needs.push({ label: `masterpiece: ${n} ${Guilds.goodName(id).toLowerCase()} (${Math.floor(_num(player.inventory && player.inventory[id]))})`, met: _num(player.inventory && player.inventory[id]) >= n });
@@ -727,7 +727,7 @@ export const Guilds = {
         st.stats.fees += q.fee;
         if (Object.keys(q.goods).length) st.stats.masterpieces++;
         st.stats.bestRank = Math.max(_num(st.stats.bestRank, -1), m.rank);
-        Guilds._log(st, world, `Made ${Guilds.rankName(m.rank).toLowerCase()} of the ${g.name}${Object.keys(q.goods).length ? ' on your masterpiece' : ''} (${q.fee}g).`);
+        Guilds._log(st, world, `Made ${Guilds.rankName(m.rank).toLowerCase()} of the ${g.name}${Object.keys(q.goods).length ? ' on your masterpiece' : ''} (${Utils.formatGold(q.fee)}g).`);
         return { success: true, spent: q.fee, rank: m.rank };
     },
 
@@ -806,7 +806,7 @@ export const Guilds = {
         g.treasury -= offer.total;
         const c = { id: st.nextId++, key: m.key, q: s.q, r: s.r, town: s.name, guild: gid, good: goodId, qty: offer.qty, delivered: 0, unit: offer.unit, escrow: offer.total, due: _day(world) + offer.days };
         st.contracts.push(c);
-        Guilds._log(st, world, `Took the ${g.name}'s contract: ${c.qty} ${Guilds.goodName(goodId).toLowerCase()} by day ${c.due} at ${c.unit}g.`);
+        Guilds._log(st, world, `Took the ${g.name}'s contract: ${c.qty} ${Guilds.goodName(goodId).toLowerCase()} by day ${c.due} at ${Utils.formatGold(c.unit)}g.`);
         return { success: true, contract: c };
     },
 
@@ -878,7 +878,7 @@ export const Guilds = {
         g.treasury -= a;
         player.gold += a;
         st.stats.loans += a;
-        Guilds._log(st, world, `Borrowed ${a}g from the ${g.name}: ${owed}g back over ${q.weeks} weeks.`);
+        Guilds._log(st, world, `Borrowed ${Utils.formatGold(a)}g from the ${g.name}: ${Utils.formatGold(owed)}g back over ${q.weeks} weeks.`);
         return { success: true, gold: a, loan };
     },
 
@@ -886,7 +886,7 @@ export const Guilds = {
         const st = Guilds.state(player);
         const loan = st.loans.find(l => l.id === loanId);
         if (!loan) return { success: false, reason: 'No such loan.' };
-        if (_num(player.gold) < loan.owed) return { success: false, reason: `You owe ${loan.owed} gold.` };
+        if (_num(player.gold) < loan.owed) return { success: false, reason: `You owe ${Utils.formatGold(loan.owed)} gold.` };
         Guilds._payLoan(player, world, st, loan, loan.owed);
         return { success: true, spent: loan.owed };
     },
@@ -953,7 +953,7 @@ export const Guilds = {
         Guilds._refreshToll(player, world, s, g);
         Guilds._faction(player, _num(C.crown.charterFaction));
         Guilds.record(player, world, { key: `chartered:${Guilds._key(s, gid)}:${_day(world)}`, kind: 'guild_chartered', place: s.name, q: s.q, r: s.r, kingdomId: s.kingdom || null, guild: g.name, master: g.master.name, own: true });
-        Guilds._log(Guilds.state(player), world, `Chartered the ${g.name} (${fee}g charter fee).`);
+        Guilds._log(Guilds.state(player), world, `Chartered the ${g.name} (${Utils.formatGold(fee)}g charter fee).`);
         return { success: true, gold: fee };
     },
 

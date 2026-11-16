@@ -402,12 +402,12 @@ export const WatchQuestioning = {
         return [
             {
                 id: 'plain', icon: '🗣️', label: admit ? 'Own up to it' : 'Answer plainly',
-                hint: admit ? (kase.grave ? `They have you. Admitting it goes easier: ${WatchQuestioning.daysFor(kase, true)}+ days in the cells.` : `They have you. Admitting it costs a fine of about ${fine} gold.`)
+                hint: admit ? (kase.grave ? `They have you. Admitting it goes easier: ${WatchQuestioning.daysFor(kase, true)}+ days in the cells.` : `They have you. Admitting it costs a fine of about ${Utils.formatGold(fine)} gold.`)
                     : 'Tell it as it was. With nothing but talk against you, a straight answer may clear you.',
                 chance: admit ? null : WatchQuestioning.plainChance(player, kase),
             },
             { id: 'deny', icon: '🙅', label: 'Deny everything', hint: kase.proof >= 3 ? 'Caught in the act: no one will believe a denial.' : 'Caught in a lie, it goes worse for you.', chance: WatchQuestioning.denyChance(player, kase) },
-            { id: 'bribe', icon: '💰', label: 'Slip them some coin', cost, hint: `${cost} gold. A guard who won't take it will report you.`, chance: WatchQuestioning.bribeChance(player, kase, guard), can: gold >= cost, reason: `You need ${cost} gold` },
+            { id: 'bribe', icon: '💰', label: 'Slip them some coin', cost, hint: `${Utils.formatGold(cost)} gold. A guard who won't take it will report you.`, chance: WatchQuestioning.bribeChance(player, kase, guard), can: gold >= cost, reason: `You need ${Utils.formatGold(cost)} gold` },
             { id: 'run', icon: '🏃', label: 'Run for it', hint: 'Away, and there is a price on you. Caught, and it is the cells.', chance: StreetCrime.escapeChance(player) },
             { id: 'silent', icon: '🤐', label: 'Say nothing', hint: 'Refusing to answer only deepens their suspicion.', chance: null },
         ];
@@ -443,7 +443,7 @@ export const WatchQuestioning = {
             }
             case 'bribe': {
                 const cost = WatchQuestioning.bribeCost(player, world, kase);
-                if (_num(player.gold) < cost) return { invalid: true, outcome: 'none', text: `You need ${cost} gold.` };
+                if (_num(player.gold) < cost) return { invalid: true, outcome: 'none', text: `You need ${Utils.formatGold(cost)} gold.` };
                 return WatchQuestioning.tryBribe(player, world, kase, cost, opts);
             }
             case 'run': {
@@ -608,7 +608,7 @@ export const WatchQuestioning = {
                 Ledger.record(player, 'fines', -fine);
                 WatchQuestioning._payTown(world, opts.settlement, fine, kase.key);
                 WatchQuestioning._answered(player, kase, false);
-                return { outcome, fine, text: _fill(say('fined'), { fine }), note: { text: `💰 Fined ${fine} gold; the matter is closed`, tone: 'bad' } };
+                return { outcome, fine, text: _fill(say('fined'), { fine }), note: { text: `💰 Fined ${Utils.formatGold(fine)} gold; the matter is closed`, tone: 'bad' } };
             }
             case 'arrest': {
                 const days = jail(opts.admitted, opts.extraDays);

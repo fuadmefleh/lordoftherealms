@@ -10,6 +10,7 @@ import { ActionMenu } from './_ref.js';
 import { InnerMap, PlayerInventory } from './_imports.js';
 import { Hospitality } from '../../systems/hospitality.js';
 import { BTN_GOLD, BTN_PLAIN, BTN_OFF, BTN_RED, CARD, esc, panelTabs } from './uiKit.js';
+import { Utils } from '../../core/utils.js';
 
 let _tab = 'stay';
 
@@ -108,7 +109,7 @@ Object.assign(ActionMenu, {
         for (const t of q.tiers) {
             const T = Hospitality.tier(t.id) || {};
             const fx = [T.comfort ? `comfort ${T.comfort > 0 ? '+' : ''}${T.comfort}` : '', T.hygiene ? `hygiene ${T.hygiene > 0 ? '+' : ''}${T.hygiene}` : '', T.health ? `health +${T.health}` : '', T.theft >= 0.05 && v.owner !== 'player' ? 'keep a hand on your purse' : ''].filter(Boolean).join(' · ');
-            html += `<div style="${CARD} display:flex; justify-content:space-between; align-items:center; gap:8px;"><div><b>${t.icon} ${esc(t.short)}</b> — ${t.free ? '<span style="color:#9fd89f;">free</span>' : `${t.price} gold`}`;
+            html += `<div style="${CARD} display:flex; justify-content:space-between; align-items:center; gap:8px;"><div><b>${t.icon} ${esc(t.short)}</b> — ${t.free ? '<span style="color:#9fd89f;">free</span>' : `${Utils.formatGold(t.price)} gold`}`;
             html += `<div style="font-size:10px; color:#999;">An inn's night's rest${v.breakfastIncluded ? ', breakfast included' : ''}${fx ? ` · ${esc(fx)}` : ''}</div></div><div style="flex-shrink:0;">`;
             html += t.ok ? act('Book', ['book', v.id, t.id]) + act('💤 Book & sleep', ['sleep', v.id, t.id], BTN_GOLD) : off('Book', t.reason);
             html += '</div></div>';
@@ -116,7 +117,7 @@ Object.assign(ActionMenu, {
         if (q.services.length) {
             html += '<div style="font-weight:bold; margin-top:10px;">Services</div>';
             for (const s of q.services) {
-                html += `<div style="display:flex; justify-content:space-between; align-items:center; padding:3px 0; border-bottom:1px solid rgba(255,255,255,0.05);"><span>${s.icon} ${esc(s.name)} — ${s.free ? '<span style="color:#9fd89f;">free</span>' : `${s.price}g`}${s.morning ? ' <span style="font-size:10px; color:#999;">(in the morning)</span>' : ''}</span>`;
+                html += `<div style="display:flex; justify-content:space-between; align-items:center; padding:3px 0; border-bottom:1px solid rgba(255,255,255,0.05);"><span>${s.icon} ${esc(s.name)} — ${s.free ? '<span style="color:#9fd89f;">free</span>' : `${Utils.formatGold(s.price)}g`}${s.morning ? ' <span style="font-size:10px; color:#999;">(in the morning)</span>' : ''}</span>`;
                 html += s.ok ? act('Order', ['service', v.id, s.id]) : off('Order', s.reason);
                 html += '</div>';
             }
@@ -132,8 +133,8 @@ Object.assign(ActionMenu, {
         const C = Hospitality.config().player;
         let html = `<div style="${CARD}">`;
         html += `<div>🛏️ Tonight: <b>${rep.forecast}</b> of ${v.rooms} rooms taken (the ${v.kind === 'roadhouse' ? 'road' : 'town'} sends about ${rep.demand} travellers a night)</div>`;
-        html += `<div>📒 Yesterday: ${rep.today.guests || 0} guests · takings ${rep.today.takings || 0}g · staff & supplies ${rep.today.costs || 0}g</div>`;
-        if (rep.lastWeek) html += `<div>📅 Last week: ${rep.lastWeek.guests} guest-nights · takings ${rep.lastWeek.takings}g · costs ${rep.lastWeek.costs}g · <b>${rep.lastWeek.takings - rep.lastWeek.costs >= 0 ? '+' : ''}${rep.lastWeek.takings - rep.lastWeek.costs}g</b></div>`;
+        html += `<div>📒 Yesterday: ${rep.today.guests || 0} guests · takings ${Utils.formatGold(rep.today.takings || 0)}g · staff & supplies ${Utils.formatGold(rep.today.costs || 0)}g</div>`;
+        if (rep.lastWeek) html += `<div>📅 Last week: ${rep.lastWeek.guests} guest-nights · takings ${Utils.formatGold(rep.lastWeek.takings)}g · costs ${Utils.formatGold(rep.lastWeek.costs)}g · <b>${rep.lastWeek.takings - rep.lastWeek.costs >= 0 ? '+' : ''}${Utils.formatGold(rep.lastWeek.takings - rep.lastWeek.costs)}g</b></div>`;
         if (v.history.length) html += `<div style="font-size:11px; color:#aaa;">Weekly occupancy: ${v.history.map(h => `${h}%`).join(' · ')}</div>`;
         html += `<div>🧽 Cleanliness ${rep.clean}% ${rep.clean < 50 ? '<span style="color:#e08080;">(guests notice — hire a chambermaid)</span>' : ''} · ⭐ reputation ${v.rep}</div>`;
         html += `<div style="margin-top:4px;">${act('🧽 Scrub it yourself', ['scrub', v.id])}</div></div>`;
@@ -149,7 +150,7 @@ Object.assign(ActionMenu, {
         for (const [role, def] of Object.entries(C.staff || {})) {
             const n = rep.staff[role] || 0;
             const what = [def.stars ? `+${def.stars}★ each` : '', def.clean ? `+${def.clean}% clean a day` : '', def.spend ? `guests spend +${Math.round(def.spend * 100)}%` : '', def.theftCut ? 'fewer thefts' : ''].filter(Boolean).join(', ');
-            html += `<div style="display:flex; justify-content:space-between; align-items:center; padding:3px 0; border-bottom:1px solid rgba(255,255,255,0.05);"><span>${def.icon} ${esc(def.name)} × <b>${n}</b> <span style="font-size:10px; color:#999;">(${def.wage}g/day; ${esc(what)})</span></span><span>`;
+            html += `<div style="display:flex; justify-content:space-between; align-items:center; padding:3px 0; border-bottom:1px solid rgba(255,255,255,0.05);"><span>${def.icon} ${esc(def.name)} × <b>${n}</b> <span style="font-size:10px; color:#999;">(${Utils.formatGold(def.wage)}g/day; ${esc(what)})</span></span><span>`;
             html += n < (def.max || 9) ? act('Hire', ['staff', v.id, role, 1]) : off('Hire', 'No work for more');
             html += n > 0 ? act('Let go', ['staff', v.id, role, -1], BTN_RED) : off('Let go', 'None to let go');
             html += '</span></div>';

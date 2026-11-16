@@ -12,6 +12,7 @@ import { LlmProse } from '../../systems/llmProse.js';
 import { HallChronicles } from '../hallChronicles.js';
 import { ChronicleBookExport } from '../chronicleBook.js';
 import { BTN_GOLD, BTN_PLAIN, sectionHead, lede, chips, card, actRow, rowList } from './uiKit.js';
+import { Utils } from '../../core/utils.js';
 
 const BAR_ID = 'interregnumBar';
 // The bars float over the map, outside the custom panel: the kit's buttons, inline
@@ -42,7 +43,7 @@ function _candidateCard(c, i) {
         note,
         attrs: `onclick="window._afterlifeBecome(${i})"`,
         title: `Become ${c.first}`,
-        side: `<span class="pk-price">${c.gold}<small>g</small></span><br><span style="font-size:10.5px; color:#9d937c;">Become ${_esc(c.first)} ›</span>`,
+        side: `<span class="pk-price">${Utils.formatGold(c.gold)}<small>g</small></span><br><span style="font-size:10.5px; color:#9d937c;">Become ${_esc(c.first)} ›</span>`,
     });
 }
 
@@ -284,7 +285,7 @@ Object.assign(ActionMenu, {
             body += '<table style="width:100%; border-collapse:collapse; font-size:11.5px; margin-top:6px;">';
             for (const r of rows) {
                 const c = r.tone === 'bad' ? '#e0846a' : r.tone === 'gold' ? '#ffcf6a' : '#cbbf9f';
-                body += `<tr><td style="padding:2px 0; color:#9d937c;">${_esc(r.label)}</td><td style="padding:2px 0; text-align:right; color:${c};">${r.value < 0 ? '−' : ''}${Math.abs(r.value).toLocaleString('en-US')}g</td></tr>`;
+                body += `<tr><td style="padding:2px 0; color:#9d937c;">${_esc(r.label)}</td><td style="padding:2px 0; text-align:right; color:${c};">${r.value < 0 ? '−' : ''}${Utils.formatGold(Math.abs(r.value))}g</td></tr>`;
             }
             body += '</table>';
         }
@@ -559,7 +560,7 @@ Object.assign(ActionMenu, {
         if (cadets.length) {
             html += sectionHead('The Cadet Line');
             cadets.forEach((b, i) => {
-                let body = `<div style="color:#9d937c;">${_esc(b.name)} · seat at ${_esc(b.seat ? b.seat.name : '—')} · ${Math.round(b.gold)} gold · loyalty ${Math.round(b.loyalty)}${b.estranged ? ' (estranged)' : ''}</div>`;
+                let body = `<div style="color:#9d937c;">${_esc(b.name)} · seat at ${_esc(b.seat ? b.seat.name : '—')} · ${Utils.formatGold(b.gold)} gold · loyalty ${Math.round(b.loyalty)}${b.estranged ? ' (estranged)' : ''}</div>`;
                 body += rowList([{ icon: '🌿', name: `Play as ${_esc(b.head.firstName)}`, desc: 'The branch comes home to the main line', side: '›', tone: i === 0 ? 'gold' : '', attrs: `onclick="window._afterlifeCadet('${b.id}')"` }]);
                 html += card(body, { icon: '🌿', title: `${_esc(b.head.firstName)} of ${_esc(b.name)}`, side: `Age ${b.head.age}${i === 0 ? ' · nearest' : ''}`, tone: i === 0 ? 'gold' : '' });
             });
@@ -590,7 +591,7 @@ Object.assign(ActionMenu, {
             let out = '<div style="font-size:12px;">';
             out += `<div style="${TITLE}">👑 A New Chapter</div>`;
             out += lede(`You are now <strong>${_esc(res.newName)}</strong>, heir of ${_esc(oldName)}, ${years ? `${_plural(years, 'year')} after` : 'soon after'} their death.`);
-            out += chips([['🎂', 'Age', res.heir.age], { icon: '💰', label: 'Inherited', value: `${Math.floor(estate.gold)} gold`, cls: 'gold' }, estate.house ? ['🛡️', `${_esc(estate.house.name)}, generation`, estate.house.generation || 1] : null]);
+            out += chips([['🎂', 'Age', res.heir.age], { icon: '💰', label: 'Inherited', value: `${Utils.formatGold(estate.gold)} gold`, cls: 'gold' }, estate.house ? ['🛡️', `${_esc(estate.house.name)}, generation`, estate.house.generation || 1] : null]);
             // Where the rest of the purse went: debts, the other children's portions, the heriot (systems/inheritance.js)
             if (res.inheritance && res.inheritance.line) out += `<div style="font-size:11px;color:#c9b27a;margin:4px 0 8px;">💰 ${_esc(res.inheritance.line)}</div>`;
             if (res.cadet) out += `<div style="font-size:11px;color:#8fd18a;margin:4px 0 8px;">🌿 ${_esc(res.cadet.text)}</div>`;

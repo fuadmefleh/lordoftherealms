@@ -374,7 +374,7 @@ export const Holdings = {
             return { ok: false, reason: `Missing ${missing.map(m => `${m.missing} ${m.id}`).join(', ')}.`, quote };
         }
         const need = quote.gold + (buyMissing ? quote.buyCost : 0);
-        if (_num(player.gold) < need) return { ok: false, reason: `Needs ${need} gold.`, quote };
+        if (_num(player.gold) < need) return { ok: false, reason: `Needs ${Utils.formatGold(need)} gold.`, quote };
         return { ok: true, quote };
     },
 
@@ -403,7 +403,7 @@ export const Holdings = {
         h.queue.push({ id: projectId, progress: 0, days, startedDay: (world && world.day) || 0, paid });
         Holdings.ensureLedger(player);
         Holdings._log(player, world, `Work begins on a ${def.name} in ${ref.settlement.name}.`);
-        return { success: true, project: def, days, cost: paid, text: `Work begins on the ${def.name} in ${ref.settlement.name} (${days} days, ${paid}g).` };
+        return { success: true, project: def, days, cost: paid, text: `Work begins on the ${def.name} in ${ref.settlement.name} (${days} days, ${Utils.formatGold(paid)}g).` };
     },
 
     /** Abandon a project under construction for part of its gold back. */
@@ -418,7 +418,7 @@ export const Holdings = {
         const refund = Math.floor(Economy.drawTown(ref.settlement, Math.floor(_num(entry.paid) * Holdings.config().cancelRefund)));
         player.gold = _num(player.gold) + refund;
         const def = Holdings.project(projectId);
-        return { success: true, refund, text: `Work on the ${def ? def.name : projectId} stops. ${refund}g comes back to you.` };
+        return { success: true, refund, text: `Work on the ${def ? def.name : projectId} stops. ${Utils.formatGold(refund)}g comes back to you.` };
     },
 
     // ──────────── EFFECTS ────────────
@@ -745,7 +745,7 @@ export const Holdings = {
         if (!ref) return { success: false, reason: 'You do not rule this settlement.' };
         const cand = (opts && opts.candidate) || Holdings.governorCandidates(player, world, q, r).find(c => c.id === candidateId);
         if (!cand) return { success: false, reason: 'That candidate is not available.' };
-        if (_num(cand.fee) > _num(player.gold)) return { success: false, reason: `Hiring costs ${cand.fee} gold.` };
+        if (_num(cand.fee) > _num(player.gold)) return { success: false, reason: `Hiring costs ${Utils.formatGold(cand.fee)} gold.` };
         const h = Holdings.ensure(ref.settlement);
         if (h.governor) Holdings.dismissGovernor(player, world, q, r);
         player.gold = _num(player.gold) - _num(cand.fee);
@@ -850,7 +850,7 @@ export const Holdings = {
         const h = Holdings.ensure(ref.settlement);
         if (!h.rebellion) return { success: false, reason: 'There is no rebellion here.' };
         const cost = Holdings.parleyCost(ref.settlement);
-        if (_num(player.gold) < cost) return { success: false, reason: `The rebels want ${cost} gold.` };
+        if (_num(player.gold) < cost) return { success: false, reason: `The rebels want ${Utils.formatGold(cost)} gold.` };
         const R = Holdings.config().rebellion;
         player.gold -= cost;
         _payTownOr(world, ref.settlement, cost, 'rebelParley');
@@ -859,7 +859,7 @@ export const Holdings = {
         h.unrest = R.parleyUnrest;
         ref.settlement.happiness = _clamp(Taxation.getHappiness(ref.settlement) + R.parleyHappiness, 0, 100);
         Holdings.refresh(ref.settlement);
-        const text = `You buy peace in ${ref.settlement.name} for ${cost}g.`;
+        const text = `You buy peace in ${ref.settlement.name} for ${Utils.formatGold(cost)}g.`;
         Holdings._log(player, world, text);
         return { success: true, cost, text };
     },

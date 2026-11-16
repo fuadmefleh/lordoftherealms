@@ -15,6 +15,7 @@ import { OddJobs } from '../../player/oddJobs.js';
 import { InnerMap } from '../../world/innerMap.js';
 import { Burials } from '../../world/burials.js';
 import { esc, lede, bullets, card, chips, rowList, sectionHead, more } from './uiKit.js';
+import { Utils } from '../../core/utils.js';
 
 // In the action menu's voice (ui/actionMenu/uiKit.js): a card a place, one row
 // a thing to do with its price at the right; the trade's fine print in titles.
@@ -56,7 +57,7 @@ function townCard(game, s) {
     const facts = [
         `${v.freeInTown} free in town in all`,
         `${v.deathsPerYear} deaths a year`,
-        `a 25-year plot ${v.parish}g at the parish (${v.scarcity >= 1.2 ? 'dear' : v.scarcity <= 0.8 ? 'cheap' : 'the usual'}, ×${v.scarcity})`,
+        `a 25-year plot ${Utils.formatGold(v.parish)}g at the parish (${v.scarcity >= 1.2 ? 'dear' : v.scarcity <= 0.8 ? 'cheap' : 'the usual'}, ×${v.scarcity})`,
     ];
     if (v.expired) facts.push(`${v.expired} lease${v.expired === 1 ? '' : 's'} run out`);
     if (v.pit) facts.push(`<span style="color:#e08080;">${v.pit} in the common pit</span>`);
@@ -64,21 +65,21 @@ function townCard(game, s) {
     let html = card(`<div style="${NOTE}">${facts.join(' · ')}</div>`, {
         icon: '⛪', title: `The churchyard of ${esc(s.name)}`, side: `${v.used}/${v.cap} plots${v.full ? ', full' : ''}`, tone: v.full ? 'warn' : null,
     });
-    html += chips([['🦴', 'Charnel', `${v.charnel} sets`], ['💰', 'Town purse', `${v.purse}g`], { icon: '🌾', label: 'Soil', value: v.soil.toFixed(2), cls: '' }]);
+    html += chips([['🦴', 'Charnel', `${v.charnel} sets`], ['💰', 'Town purse', `${Utils.formatGold(v.purse)}g`], { icon: '🌾', label: 'Soil', value: v.soil.toFixed(2), cls: '' }]);
     const rows = [];
     const pay = Math.round(Number(GraveBook.byType(C.gravedigger.payPerGrave, s.type)) || 4);
     rows.push(opRow({
         icon: '⛏️', name: 'Dig graves for the sexton', desc: `Up to ${C.gravedigger.maxPerDay} a day, paid from the town's purse. Hard work.`,
-        off: !(v.digWork > 0), why: 'No graves want digging today.', side: v.digWork > 0 ? `${pay}g each · ${v.digWork} waiting` : '',
+        off: !(v.digWork > 0), why: 'No graves want digging today.', side: v.digWork > 0 ? `${Utils.formatGold(pay)}g each · ${v.digWork} waiting` : '',
     }, ['dig', s.q, s.r]));
     const bones = Math.floor(Number(player.inventory && player.inventory.bones) || 0);
     const meal = Math.floor(Number(player.inventory && player.inventory.bone_meal) || 0);
-    if (v.charnel > 0) rows.push(opRow({ icon: '🦴', name: 'Buy five sets of bones from the charnel', desc: 'Into the town\'s purse', side: `${C.bones.charnelPrice}g a set` }, ['buyBones', s.q, s.r, 5]));
+    if (v.charnel > 0) rows.push(opRow({ icon: '🦴', name: 'Buy five sets of bones from the charnel', desc: 'Into the town\'s purse', side: `${Utils.formatGold(C.bones.charnelPrice)}g a set` }, ['buyBones', s.q, s.r, 5]));
     if (bones) {
         rows.push(opRow({ icon: '🕯️', name: `Give your ${bones} bones to the charnel`, desc: 'No coin: the town thinks the better of you' }, ['giveBones', s.q, s.r, bones]));
-        if (v.bonePrice != null) rows.push(opRow({ icon: '💰', name: `Sell your ${bones} bones to the bone-grinder`, desc: 'Paid from the town\'s purse; the more you sell, the less each fetches', side: `${v.bonePrice}g a set`, tone: 'gold' }, ['sellBones', s.q, s.r, bones]));
+        if (v.bonePrice != null) rows.push(opRow({ icon: '💰', name: `Sell your ${bones} bones to the bone-grinder`, desc: 'Paid from the town\'s purse; the more you sell, the less each fetches', side: `${Utils.formatGold(v.bonePrice)}g a set`, tone: 'gold' }, ['sellBones', s.q, s.r, bones]));
     }
-    if (meal) rows.push(opRow({ icon: '🌾', name: `Sell ${meal} bone meal to the farmers`, desc: 'Their fields the richer at the next harvest', side: `~${v.mealPrice}g each`, tone: 'gold' }, ['sellMeal', s.q, s.r, meal]));
+    if (meal) rows.push(opRow({ icon: '🌾', name: `Sell ${meal} bone meal to the farmers`, desc: 'Their fields the richer at the next harvest', side: `~${Utils.formatGold(v.mealPrice)}g each`, tone: 'gold' }, ['sellMeal', s.q, s.r, meal]));
     html += rowList(rows);
     // Lots of yours here to put to the trade
     const lots = freeLotsHere(game, s);
@@ -89,9 +90,9 @@ function townCard(game, s) {
         for (const l of lots) {
             const plots = l.w ? GraveBook.plotCount(l.w, l.h) : '?';
             html += rowList([
-                opRow({ icon: '⛪', name: 'Consecrate it as a burial ground', desc: `The priest's blessing: ${plots} plots to lease to the town's families`, side: `${fee}g`, tone: 'gold' }, ['consecrate', s.q, s.r, l.id]),
-                opRow({ icon: '🦴', name: 'Build a bone mill', desc: 'Grinds bones into meal for the farms', side: `${mc}g + wood, stone` }, ['buildMill', s.q, s.r, l.id]),
-                opRow({ icon: '⚱️', name: 'Build an ossuary shrine', desc: 'The town\'s people pay to pray for their dead', side: `${oc}g + stone, ${C.ossuary.foundBones} bones` }, ['buildOssuary', s.q, s.r, l.id]),
+                opRow({ icon: '⛪', name: 'Consecrate it as a burial ground', desc: `The priest's blessing: ${plots} plots to lease to the town's families`, side: `${Utils.formatGold(fee)}g`, tone: 'gold' }, ['consecrate', s.q, s.r, l.id]),
+                opRow({ icon: '🦴', name: 'Build a bone mill', desc: 'Grinds bones into meal for the farms', side: `${Utils.formatGold(mc)}g + wood, stone` }, ['buildMill', s.q, s.r, l.id]),
+                opRow({ icon: '⚱️', name: 'Build an ossuary shrine', desc: 'The town\'s people pay to pray for their dead', side: `${Utils.formatGold(oc)}g + stone, ${C.ossuary.foundBones} bones` }, ['buildOssuary', s.q, s.r, l.id]),
             ], `📜 Your empty lot ${esc(String(l.id).replace(/^lot/, '#'))}${l.w ? ` (${l.w}×${l.h})` : ''}`);
         }
     }
@@ -107,8 +108,8 @@ function siteCard(game, v) {
     const bones = Math.floor(Number(player.inventory && player.inventory.bones) || 0);
     if (v.kind === 'ground') {
         const g = v.ground;
-        let body = `<div style="${NOTE}">${g.free} free · the parish asks ${v.parish}g for 25 years${g.crypt ? ` · family crypt ${g.crypt.used}/${g.crypt.holds}` : ''}</div>`;
-        body += `<div style="${NOTE}">A family pays: ${v.prices.map(p => `${termName(p.term)} ${p.price}g`).join(', ')}</div>`;
+        let body = `<div style="${NOTE}">${g.free} free · the parish asks ${Utils.formatGold(v.parish)}g for 25 years${g.crypt ? ` · family crypt ${g.crypt.used}/${g.crypt.holds}` : ''}</div>`;
+        body += `<div style="${NOTE}">A family pays: ${v.prices.map(p => `${termName(p.term)} ${Utils.formatGold(p.price)}g`).join(', ')}</div>`;
         let html = card(body, { icon: '⛪', title: `Your burial ground · ${where}`, side: `${g.used}/${g.cap} plots${g.open ? '' : ' · being blessed'}` });
         const POLICY = { cheap: 'Undercut the parish: more burials, less each', fair: 'The going rate', dear: 'Fewer burials, more each; when the churchyard is full they come anyway' };
         const rows = ['cheap', 'fair', 'dear'].map(p => (p === g.policy
@@ -158,8 +159,8 @@ function kinCard(game, s, k) {
                 any = true;
                 const name = m === 'crypt' ? 'In the crypt' : esc((GraveBook.markerDef(m) || {}).name || m);
                 rows.push(opRow({
-                    icon: '⚰️', name: `Bury them — ${name}`, desc: `In ${where}: coffin and marker ${q.goodsCost}g of the town's planks${q.mason ? `, the mason ${q.mason}g` : ''}${q.fee ? `, the parish ${q.fee}g` : ''}`,
-                    side: `${q.total}g`, tone: 'gold',
+                    icon: '⚰️', name: `Bury them — ${name}`, desc: `In ${where}: coffin and marker ${Utils.formatGold(q.goodsCost)}g of the town's planks${q.mason ? `, the mason ${Utils.formatGold(q.mason)}g` : ''}${q.fee ? `, the parish ${Utils.formatGold(q.fee)}g` : ''}`,
+                    side: `${Utils.formatGold(q.total)}g`, tone: 'gold',
                 }, ['buryKin', s.q, s.r, k.key, g.id, m]));
             }
             if (!any) rows.push({ icon: '⚰️', name: `Bury them in ${where}`, off: true, why: 'No room, or not the stores for it' });
@@ -218,7 +219,7 @@ Object.assign(ActionMenu, {
             ]);
         } else {
             const b = player.graves && player.graves.book;
-            if (b) html += `<div style="${NOTE}">All told: ${Math.round(b.leases || 0)}g in leases, ${Math.round(b.visits || 0)}g from visitors, ${b.bones || 0} graves cleared, ${b.meal || 0} meal ground, ${b.dug || 0} graves dug for the sexton.</div>`;
+            if (b) html += `<div style="${NOTE}">All told: ${Utils.formatGold(b.leases || 0)}g in leases, ${Utils.formatGold(b.visits || 0)}g from visitors, ${b.bones || 0} graves cleared, ${b.meal || 0} meal ground, ${b.dug || 0} graves dug for the sexton.</div>`;
             const here = sites.filter(v => v.q === player.q && v.r === player.r);
             const away = sites.filter(v => !(v.q === player.q && v.r === player.r));
             for (const v of here.concat(away)) html += siteCard(game, v);

@@ -274,7 +274,9 @@ export const Utils = {
 
     /** Coin for the player's eyes: up to two decimals, no trailing zeros (12.5, 0.19, 1,210). */
     formatGold(n) {
-        return Utils.cents(n).toLocaleString('en-US', { maximumFractionDigits: 2 });
+        // (text that isn't a number — "?", "free", "—" — is shown as it is, never as 0)
+        if (typeof n === 'string' && n.trim() !== '' && !Number.isFinite(Number(n.replace(/,/g, '')))) return n;
+        return Utils.cents(typeof n === 'string' ? n.replace(/,/g, '') : n).toLocaleString('en-US', { maximumFractionDigits: 2 });
     },
 
     /**

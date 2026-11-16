@@ -10,6 +10,7 @@ import { InnerMap } from '../../world/innerMap.js';
 import { dialogState } from './shared.js';
 import { _render } from './render.js';
 import { _animateDispositionChange } from './choices.js';
+import { Utils } from '../../core/utils.js';
 
 function _ctx() {
     const game = dialogState._game;
@@ -89,8 +90,8 @@ export function _workChoices() {
             for (const g of (P.donate || [5, 25]).slice(0, 3)) {
                 if ((c.player.gold || 0) < g) continue;
                 out.push({
-                    icon: '🙏', label: `For the church: ${g} gold.`, group: 'deal', tooltip: 'Into the priest\'s hands, for the poor and the roof.',
-                    onPick: () => _say('church_give', `Take this for the church — ${g} gold.`, (k) => {
+                    icon: '🙏', label: `For the church: ${Utils.formatGold(g)} gold.`, group: 'deal', tooltip: 'Into the priest\'s hands, for the poor and the roof.',
+                    onPick: () => _say('church_give', `Take this for the church — ${Utils.formatGold(g)} gold.`, (k) => {
                         const r = TownWorship.donate(k.player, k.world, k.settlement, g);
                         return { text: r.text, change: r.ok ? r.regard : 0 };
                     }),

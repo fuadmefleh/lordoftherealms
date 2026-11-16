@@ -590,7 +590,7 @@ export const Coalitions = {
         for (const { k } of pool) if (player.house && player.house.rivals && player.house.rivals[k.id]) House.accrueRivalFeud(player, world, k.id, 10, `sworn into ${name}`);
         Coalitions._sendTerms(player, world, c, leader.k);
         out.formed = c;
-        out.notices.push({ icon: '⚜️', title: `${name} Is Sworn`, text: `${pool.map(x => x.k.name).join(', ')} have sworn a league against you, led by ${Names.realm(leader.k.name)}. ${casusBelli} Their terms: ${c.terms.gold} gold (or ${c.terms.prestige} Prestige) within ${_num(C.ultimatumDays, 14)} days — or war. Answer in Letters, or see Dynasty → Threats.`, type: 'error' });
+        out.notices.push({ icon: '⚜️', title: `${name} Is Sworn`, text: `${pool.map(x => x.k.name).join(', ')} have sworn a league against you, led by ${Names.realm(leader.k.name)}. ${casusBelli} Their terms: ${Utils.formatGold(c.terms.gold)} gold (or ${c.terms.prestige} Prestige) within ${_num(C.ultimatumDays, 14)} days — or war. Answer in Letters, or see Dynasty → Threats.`, type: 'error' });
         return c;
     },
 
@@ -882,7 +882,7 @@ export const Coalitions = {
         if (currency === 'prestige') {
             if (!player.house || !House.spend(player.house, q.prestige, `bowed to ${c.name}`, day)) return { success: false, reason: `You need ${q.prestige} Prestige.` };
         } else {
-            if (_num(player.gold) < q.gold) return { success: false, reason: `You need ${q.gold} gold.` };
+            if (_num(player.gold) < q.gold) return { success: false, reason: `You need ${Utils.formatGold(q.gold)} gold.` };
             player.gold = _num(player.gold) - q.gold;
             Ledger.record(player, 'coalitionTerms', -q.gold);
             // Paying off a league is a humiliation all the same
@@ -897,7 +897,7 @@ export const Coalitions = {
         Coalitions._end(player, world, 'appeased', 'its terms were met', null, { endWars: true, how: 'bought', keepLetter: !!opts.fromLetter });
         return { success: true, text: currency === 'prestige'
             ? `You bow before ${c.name} (−${q.prestige} Prestige). Its members stand down.`
-            : `You pay ${c.name} ${q.gold} gold. Its members stand down, and the courts talk of how you bent.` };
+            : `You pay ${c.name} ${Utils.formatGold(q.gold)} gold. Its members stand down, and the courts talk of how you bent.` };
     },
 
     /** Throw the terms back: the league marches at once. */
@@ -948,7 +948,7 @@ export const Coalitions = {
         let text;
         if (how === 'gold') {
             const cost = Coalitions.buyOffPrice(player, world, kingdomId);
-            if (_num(player.gold) < cost) return { success: false, reason: `${k.name} wants ${cost} gold.` };
+            if (_num(player.gold) < cost) return { success: false, reason: `${k.name} wants ${Utils.formatGold(cost)} gold.` };
             player.gold = _num(player.gold) - cost;
             Ledger.record(player, 'coalitionTerms', -cost);
             k.treasury = _num(k.treasury) + cost;

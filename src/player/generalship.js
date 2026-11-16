@@ -445,7 +445,7 @@ export const Generalship = {
         if (!t) return { success: false, reason: `No town of ${c.kingdomName} is within reach of your wagons.` };
         const got = Generalship._supplyFrom(player, world, c, t.settlement, { ownPurse: !!opts.ownPurse });
         if (!(got.food > 0)) return { success: false, reason: opts.ownPurse ? `${t.settlement.name} has no grain to spare, or you cannot pay for it.` : `${t.settlement.name} has no grain to spare, or the crown cannot pay for it. You may pay yourself.` };
-        return { success: true, message: `${Math.round(got.food)} measures of grain from ${t.settlement.name}'s granary (${Math.round(got.paid)}g paid by ${got.by === 'you' ? 'you' : 'the crown'}). The host has ${Math.round(Generalship.supplyDays(c))} days of food.` };
+        return { success: true, message: `${Math.round(got.food)} measures of grain from ${t.settlement.name}'s granary (${Utils.formatGold(got.paid)}g paid by ${got.by === 'you' ? 'you' : 'the crown'}). The host has ${Math.round(Generalship.supplyDays(c))} days of food.` };
     },
 
     // ── Battles (the hook) ───────────────────────────
@@ -825,8 +825,8 @@ export const Generalship = {
         if (_num(P.karma)) player.karma = _num(player.karma) + _num(P.karma);
         c.morale = Utils.clamp(_num(c.morale) + _num(P.morale), 0, 100);
         const text = harsh
-            ? `The town is sacked: ${Math.round(taken)}g out of its purse (${Math.round(crown)}g to the crown, ${Math.round(men)}g to the men, ${Math.round(mine)}g yours)${food ? ` and ${food} measures of grain` : ''}.`
-            : `The town is spared; its burghers pay ${Math.round(taken)}g for it (${Math.round(crown)}g to the crown, ${Math.round(mine)}g yours).`;
+            ? `The town is sacked: ${Utils.formatGold(taken)}g out of its purse (${Utils.formatGold(crown)}g to the crown, ${Utils.formatGold(men)}g to the men, ${Utils.formatGold(mine)}g yours)${food ? ` and ${food} measures of grain` : ''}.`
+            : `The town is spared; its burghers pay ${Utils.formatGold(taken)}g for it (${Utils.formatGold(crown)}g to the crown, ${Utils.formatGold(mine)}g yours).`;
         return { taken, crown, men, mine, food, text };
     },
 
@@ -935,7 +935,7 @@ export const Generalship = {
         PlayerCoin.pay(world, player, g, home ? home.settlement : null, 'armyUpkeep');
         c.morale = Utils.clamp(_num(c.morale) + gain, 0, 100);
         for (const lt of c.lieutenants) lt.loyalty = Utils.clamp(lt.loyalty + 1, 0, 100);
-        return { success: true, message: `${g}g shared among the men${home ? ` (spent in ${home.settlement.name}'s taverns)` : ''}. Morale +${gain}.` };
+        return { success: true, message: `${Utils.formatGold(g)}g shared among the men${home ? ` (spent in ${home.settlement.name}'s taverns)` : ''}. Morale +${gain}.` };
     },
 
     appointLieutenant(player, world) {
@@ -974,7 +974,7 @@ export const Generalship = {
         const day = _day(world);
         if (day - _num(c.lastAnswerDay, -99) < _num(C.answerCooldown, 10)) return { success: false, reason: 'Your friends at court spoke for you lately.' };
         const cost = _num(C.answerGold, 80);
-        if (_num(player.gold) < cost) return { success: false, reason: `Gifts to the courtiers cost ${cost}g.` };
+        if (_num(player.gold) < cost) return { success: false, reason: `Gifts to the courtiers cost ${Utils.formatGold(cost)}g.` };
         const k = _kingdom(world, c.kingdomId);
         const capTile = k && k.capital ? world.getTile(k.capital.q, k.capital.r) : null;
         PlayerCoin.pay(world, player, cost, (capTile && capTile.settlement) || null, 'diplomacy');
@@ -1137,7 +1137,7 @@ export const Generalship = {
         if (!r) return { success: false, reason: 'No one at court speaks against you.' };
         const price = Generalship.buyOffPrice(c);
         if (price == null) return { success: false, reason: `${r.name} is too ${r.persona && r.persona.manner === 'proud' ? 'proud' : 'honourable'} to be bought.` };
-        if (_num(player.gold) < price) return { success: false, reason: `${r.name}'s silence costs ${price}g.` };
+        if (_num(player.gold) < price) return { success: false, reason: `${r.name}'s silence costs ${Utils.formatGold(price)}g.` };
         const B = ((Generalship.config().court || {}).buyOff) || {};
         const day = _day(world);
         player.gold = _r2(_num(player.gold) - price);
@@ -1155,7 +1155,7 @@ export const Generalship = {
         r.quietUntil = day + _num(B.quietDays, 30);
         r.influence = Utils.clamp(r.influence - _num(B.influence, 5), 0, 100);
         NPCLords.rememberDeed(world, r, 'gift', { note: 'bought his silence' });
-        const text = _gx(r, `${price}g finds its way to ${r.house || r.name}. ${r.name} drops his scheme and holds his tongue, for a month at least.`);
+        const text = _gx(r, `${Utils.formatGold(price)}g finds its way to ${r.house || r.name}. ${r.name} drops his scheme and holds his tongue, for a month at least.`);
         Generalship._log(c, world, text);
         return { success: true, message: text };
     },
@@ -1473,7 +1473,7 @@ export const Generalship = {
                 player.gold = _r2(_num(player.gold) + bonus);
                 Ledger.record(player, 'crownWages', bonus);
             }
-            const text = `Orders carried out: ${o.text}${bonus ? ` The crown sends ${bonus}g.` : (want ? ' The crown is too poor to reward you.' : '')}`;
+            const text = `Orders carried out: ${o.text}${bonus ? ` The crown sends ${Utils.formatGold(bonus)}g.` : (want ? ' The crown is too poor to reward you.' : '')}`;
             Generalship._log(c, world, text);
             out.notices.push({ icon: '📜', title: 'Orders Carried Out', text, type: 'success' });
         } else if (failed || day > o.due) {
@@ -1536,7 +1536,7 @@ export const Generalship = {
             if (c.owed > _num(rd.wage) * _num(W.cadence, 7)) {
                 c.morale = Utils.clamp(c.morale + _num(W.arrearsMorale, -2), 0, 100);
                 for (const lt of c.lieutenants) lt.loyalty = Utils.clamp(lt.loyalty + _num(LT.arrearsLoyalty, -1), 0, 100);
-                out.notices.push({ icon: '💰', title: 'Wages in Arrears', text: `The treasury of ${Names.realm(k.name)} owes you ${Math.round(c.owed)}g. The officers grumble.`, type: 'warning' });
+                out.notices.push({ icon: '💰', title: 'Wages in Arrears', text: `The treasury of ${Names.realm(k.name)} owes you ${Utils.formatGold(c.owed)}g. The officers grumble.`, type: 'warning' });
             }
         }
 

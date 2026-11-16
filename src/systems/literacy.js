@@ -421,7 +421,7 @@ export const Literacy = {
             Ledger.record(player, 'schools', -fee);
             Townsfolk.purse(s.folk, reader, world);
             reader.purse = _num(reader.purse) + fee;
-            return `(You cannot read it: ${Townsfolk.name(reader)} read it out to you for ${fee}g.)`;
+            return `(You cannot read it: ${Townsfolk.name(reader)} read it out to you for ${Utils.formatGold(fee)}g.)`;
         }
         return '(You cannot read it: someone you trust read it out to you, and knows what it says.)';
     },
@@ -447,7 +447,7 @@ export const Literacy = {
         // (lessons.perDay a day: r.lessonN counts today's)
         const per = Math.max(1, Math.floor(_num(L.perDay, 1)));
         if (r.lessonDay === _day(world) && _num(r.lessonN, 1) >= per) return { ...out, reason: per > 1 ? `You have had your ${per} lessons today.` : 'You have had your lesson today.' };
-        if (_num(player.gold) < fee) return { ...out, reason: `A lesson costs ${fee}g.` };
+        if (_num(player.gold) < fee) return { ...out, reason: `A lesson costs ${Utils.formatGold(fee)}g.` };
         return { ...out, ok: true };
     },
 
@@ -622,7 +622,7 @@ export const Literacy = {
         const res = { ...out, candidates, materials: mats, goodsCost: mats.cost, total: cost + mats.cost };
         if (!candidates.length) return { ...res, reason: 'No one in the town is lettered enough to keep a school.' };
         if (mats.short) return { ...res, reason: `Neither your packs nor ${settlement.name || 'the town'}'s market have the ${mats.short} to build it.` };
-        if (_num(player.gold) < res.total) return { ...res, reason: `Endowing a school costs ${res.total}g with its materials.` };
+        if (_num(player.gold) < res.total) return { ...res, reason: `Endowing a school costs ${Utils.formatGold(res.total)}g with its materials.` };
         return { ...res, ok: true };
     },
 
@@ -670,7 +670,7 @@ export const Literacy = {
         Townsfolk._annal(folk, world, day, { k: 'schoolFounded', a: m.id, b: null, x: by }, []);
         House.recordPlayerDeed(player, world, 'schoolFunded', { reason: `endowed the school of ${settlement.name || 'a town'}`, scale: _num(E.prestigeScale, 2) });
         const goods = Object.entries(_obj(E.materials) || {}).map(([id, n]) => `${n} ${id}`).join(' and ');
-        return { success: true, text: `You endow a school in ${settlement.name || 'the town'}, with ${Townsfolk.name(m)} as its master. ${can.total}g (${goods}${can.goodsCost ? `, ${can.goodsCost}g of it bought here` : ''}), ${endow}g of it to the school's fund. From your purse each month: ${sc.endowed.wage}g wage and ${sc.endowed.fund}g to the fund.` };
+        return { success: true, text: `You endow a school in ${settlement.name || 'the town'}, with ${Townsfolk.name(m)} as its master. ${Utils.formatGold(can.total)}g (${goods}${can.goodsCost ? `, ${Utils.formatGold(can.goodsCost)}g of it bought here` : ''}), ${Utils.formatGold(endow)}g of it to the school's fund. From your purse each month: ${Utils.formatGold(sc.endowed.wage)}g wage and ${Utils.formatGold(sc.endowed.fund)}g to the fund.` };
     },
 
     /** Stop paying for a school you endowed: it closes (its building stays the town's). */
@@ -704,7 +704,7 @@ export const Literacy = {
                     const r = Literacy.closeEndowment(player, world, s, `Unpaid ${en.missed} months`);
                     out.notices.push({ icon: '🏫', title: 'A School Closes', text: r.text, type: 'warning' });
                 } else {
-                    out.notices.push({ icon: '🏫', title: 'The Schoolmaster Unpaid', text: `You could not pay ${due}g for the school of ${s.name || 'the town'} this month (${en.missed} of ${_num(E.graceMonths, 2)} before it closes).`, type: 'warning' });
+                    out.notices.push({ icon: '🏫', title: 'The Schoolmaster Unpaid', text: `You could not pay ${Utils.formatGold(due)}g for the school of ${s.name || 'the town'} this month (${en.missed} of ${_num(E.graceMonths, 2)} before it closes).`, type: 'warning' });
                 }
                 continue;
             }
@@ -728,7 +728,7 @@ export const Literacy = {
         if (!sc) return { ok: false, cost, reason: 'That talk has run its course.' };
         if (!sc.spreadTo.includes(_key(q, r))) return { ok: false, cost, reason: 'Nobody here is telling that tale.' };
         if (sc.written && _day(world) - _num(sc.written.d) < _num(P.days, 40)) return { ok: false, cost, reason: 'Broadsheets of it are posted already.' };
-        if (_num(player.gold) < cost) return { ok: false, cost, reason: `The printer wants ${cost}g.` };
+        if (_num(player.gold) < cost) return { ok: false, cost, reason: `The printer wants ${Utils.formatGold(cost)}g.` };
         return { ok: true, cost };
     },
 

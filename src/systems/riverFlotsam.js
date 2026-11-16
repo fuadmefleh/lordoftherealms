@@ -305,9 +305,9 @@ export const RiverFlotsam = {
         if (entry.coins > 0) {
             coins = Math.floor(entry.coins);
             player.gold = (Number(player.gold) || 0) + coins;
-            // (coin lost to the river long ago, from no purse in the world: booked found — a 'found' note
-            // on the realm's books is not in MoneySupply.bookedChange, and at sea there is no realm)
-            MoneySupply.leak(world, coins, 'flotsam');
+            // (coin lost to the waters: out of the sea's keeping, past that from no purse in the
+            // world — booked found: MoneySupply.seaFound)
+            MoneySupply.seaFound(world, coins, 'flotsam');
         }
         return { ok: true, coins, note: this.noteText(entry.note) };
     },

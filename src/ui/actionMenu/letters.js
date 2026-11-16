@@ -19,6 +19,7 @@ import { CourierRiders } from '../../systems/courierRiders.js';
 import { Kingship } from '../../systems/kingship.js';
 import { BTN_GOLD, BTN_PLAIN, BTN_OFF, BTN_RED, esc, panelTabs, sectionHead, lede, chips, card, actRow, rowList, price } from './uiKit.js';
 import { Names } from '../../core/names.js';
+import { Utils } from '../../core/utils.js';
 
 // A recipient's note, skipped when the name already says it ("King X of Valdoria" · "Valdoria")
 const _subOf = (r) => (r.sub && !String(r.name || '').includes(r.sub) ? r.sub : '');
@@ -148,7 +149,7 @@ function accountsTab(v, game) {
     html += sectionHead('Gold lent to crowns');
     if (!v.loans.length) html += none('You hold no crown\'s debt.');
     html += rowList(v.loans.map(l => ({
-        icon: '🏦', name: `<b>${esc(l.kingdomName)}</b> owes ${l.principal + l.interest} gold`,
+        icon: '🏦', name: `<b>${esc(l.kingdomName)}</b> owes ${Utils.formatGold(l.principal + l.interest)} gold`,
         desc: `${l.principal} lent + ${l.interest} interest, due on day ${l.due}`,
         side: price(l.principal + l.interest), tone: 'gold',
     })));
@@ -261,16 +262,16 @@ function writeTab(game) {
         html += `<textarea id="freeLetterText" maxlength="${max}" rows="7" spellcheck="true" placeholder="Write to ${esc(to.name)} as you would…" onkeydown="event.stopPropagation()" onkeyup="event.stopPropagation()" style="display:block; width:100%; box-sizing:border-box; padding:8px 10px; margin:0 0 6px; background:linear-gradient(175deg,#efe1bd 0%,#e6d3a6 100%); color:#3a2a17; border:1px solid rgba(120,84,30,0.5); border-radius:4px; font-family:Georgia,serif; font-size:13px; line-height:1.45; resize:vertical;">${esc(_draft.text || '')}</textarea>`;
         html += `<div style="${MUTED} margin:0 0 6px;">Up to ${max} letters. Insults and threats are taken as such, whatever you meant. Enclose coin if you like:</div>`;
         html += '<div style="margin:0 0 8px;">';
-        for (const g of Mail.config().giftPresets || []) html += act(`💰 ${g}g`, ['gold', _draft.gold === g ? 0 : g], _draft.gold === g ? BTN_GOLD : BTN_PLAIN, (player.gold || 0) >= g);
+        for (const g of Mail.config().giftPresets || []) html += act(`💰 ${Utils.formatGold(g)}g`, ['gold', _draft.gold === g ? 0 : g], _draft.gold === g ? BTN_GOLD : BTN_PLAIN, (player.gold || 0) >= g);
         html += '</div>';
     }
     if (K && K.enclose) {
         html += sectionHead('Enclose');
         html += '<div style="margin:0 0 8px;">';
-        for (const g of Mail.config().giftPresets || []) html += act(`💰 ${g}g`, ['gold', _draft.gold === g ? 0 : g], _draft.gold === g ? BTN_GOLD : BTN_PLAIN, (player.gold || 0) >= g);
+        for (const g of Mail.config().giftPresets || []) html += act(`💰 ${Utils.formatGold(g)}g`, ['gold', _draft.gold === g ? 0 : g], _draft.gold === g ? BTN_GOLD : BTN_PLAIN, (player.gold || 0) >= g);
         for (const it of Mail.itemOptions(player)) {
             const on = _draft.item === it.id;
-            html += act(`📦 ${esc(String(it.id).replace(/_/g, ' '))} (~${it.value}g)`, ['item', on ? null : it.id], on ? BTN_GOLD : BTN_PLAIN);
+            html += act(`📦 ${esc(String(it.id).replace(/_/g, ' '))} (~${Utils.formatGold(it.value)}g)`, ['item', on ? null : it.id], on ? BTN_GOLD : BTN_PLAIN);
         }
         html += '</div>';
     }
@@ -293,7 +294,7 @@ function writeTab(game) {
         const chosen = opts.find(c => String(c.id) === String(_draft.courier));
         const cost = (chosen ? chosen.price : 0) + (K.enclose || K.free ? (_draft.gold || 0) : 0);
         const ready = !!chosen && (!K.enclose || _draft.gold > 0 || _draft.item);
-        html += `<div style="margin-top:6px;">${act(`✉️ Send${cost ? ` (${cost}g)` : ''}`, ['send'], BTN_GOLD, ready, ready ? '' : (chosen ? 'Enclose something first.' : 'Choose a courier.'))}</div>`;
+        html += `<div style="margin-top:6px;">${act(`✉️ Send${cost ? ` (${Utils.formatGold(cost)}g)` : ''}`, ['send'], BTN_GOLD, ready, ready ? '' : (chosen ? 'Enclose something first.' : 'Choose a courier.'))}</div>`;
     }
     return html;
 }
@@ -309,7 +310,7 @@ function transitTab(game) {
         const where = rider ? `🏇 on the map, ${Math.round(CourierRiders.progress(rider) * 100)}% of the way (${rider.q}, ${rider.r})` : '';
         return {
             icon: t.icon, name: `${esc(t.name)} to ${esc(t.to)}`,
-            desc: `at ${esc(t.place || '?')} — with ${esc(t.courier)}${t.delayed ? ' <span style="color:#d8c89f;">(held up on the road)</span>' : ''}${t.gold ? ` · 💰 ${t.gold}g enclosed` : ''}${t.item ? ` · 📦 ${esc(String(t.item.id).replace(/_/g, ' '))}` : ''}`,
+            desc: `at ${esc(t.place || '?')} — with ${esc(t.courier)}${t.delayed ? ' <span style="color:#d8c89f;">(held up on the road)</span>' : ''}${t.gold ? ` · 💰 ${Utils.formatGold(t.gold)}g enclosed` : ''}${t.item ? ` · 📦 ${esc(String(t.item.id).replace(/_/g, ' '))}` : ''}`,
             note: where ? `<span style="color:#9d937c;">${where}</span>` : '',
             side: t.daysLeft ? `due in ${t.daysLeft} day${t.daysLeft === 1 ? '' : 's'}` : 'due today',
         };
@@ -374,14 +375,14 @@ function myHouse(game, v) {
     const last = m.last;
     html += rowList([houseRow(m)]);
     let body = '';
-    body += staffLine('🏇', 'Riders', m.riders, act('+1', ['staff', 'riders', 1], BTN_PLAIN, true, `${C.costs.riderHire}g to hire, ${C.costs.riderWage}g a week`), act('−1', ['staff', 'riders', -1], BTN_PLAIN, m.riders > 0));
-    body += staffLine('🐎', 'Relay horses', m.horses, act('+1', ['staff', 'horses', 1], BTN_PLAIN, true, `${C.costs.horsePrice}g, ${C.costs.horseUpkeep}g a week`), act('−1', ['staff', 'horses', -1], BTN_PLAIN, m.horses > 0, 'Sold at half price'));
-    body += staffLine('🛡️', 'Guards', m.guards, act('+1', ['staff', 'guards', 1], BTN_PLAIN, true, `${C.costs.guardHire}g to hire, ${C.costs.guardWage}g a week — fewer riders robbed`), act('−1', ['staff', 'guards', -1], BTN_PLAIN, m.guards > 0));
-    body += staffLine('✉️', 'Postage', `${m.price}g a letter`, act('−0.5', ['price', Math.max(C.price.min, m.price - 0.5)], BTN_PLAIN, m.price > C.price.min), act('+0.5', ['price', Math.min(C.price.max, m.price + 0.5)], BTN_PLAIN, m.price < C.price.max));
+    body += staffLine('🏇', 'Riders', m.riders, act('+1', ['staff', 'riders', 1], BTN_PLAIN, true, `${Utils.formatGold(C.costs.riderHire)}g to hire, ${Utils.formatGold(C.costs.riderWage)}g a week`), act('−1', ['staff', 'riders', -1], BTN_PLAIN, m.riders > 0));
+    body += staffLine('🐎', 'Relay horses', m.horses, act('+1', ['staff', 'horses', 1], BTN_PLAIN, true, `${Utils.formatGold(C.costs.horsePrice)}g, ${Utils.formatGold(C.costs.horseUpkeep)}g a week`), act('−1', ['staff', 'horses', -1], BTN_PLAIN, m.horses > 0, 'Sold at half price'));
+    body += staffLine('🛡️', 'Guards', m.guards, act('+1', ['staff', 'guards', 1], BTN_PLAIN, true, `${Utils.formatGold(C.costs.guardHire)}g to hire, ${Utils.formatGold(C.costs.guardWage)}g a week — fewer riders robbed`), act('−1', ['staff', 'guards', -1], BTN_PLAIN, m.guards > 0));
+    body += staffLine('✉️', 'Postage', `${Utils.formatGold(m.price)}g a letter`, act('−0.5', ['price', Math.max(C.price.min, m.price - 0.5)], BTN_PLAIN, m.price > C.price.min), act('+0.5', ['price', Math.min(C.price.max, m.price + 0.5)], BTN_PLAIN, m.price < C.price.max));
     body += '<div style="margin-top:6px;"><span style="color:#9d937c;">Pace:</span> ';
     for (const [id, S] of Object.entries(C.speeds)) body += act(`${S.icon} ${esc(S.name)}`, ['speed', id], m.speed === id ? BTN_GOLD : BTN_PLAIN, true, `${S.hexesPerDay} hexes a day · price ×${S.price} · wages ×${S.wage}${S.horsesPerStation ? ` · needs ${S.horsesPerStation} relay horses a station` : ''}`);
     body += '</div>';
-    body += `<div style="${MUTED} margin-top:6px;">Reputation ${m.reputation} · reliability ${pct(m.reliability)}${last ? ` · last week: ${Math.round(last.letters)} letters, takings ${last.revenue}g, costs ${last.costs}g, <b style="color:${last.profit >= 0 ? '#8fd18a' : '#e0846a'};">${last.profit >= 0 ? '+' : ''}${last.profit}g</b>${last.robbed ? `, ${last.robbed} robbed` : ''}` : ' · the first week is not yet reckoned'}</div>`;
+    body += `<div style="${MUTED} margin-top:6px;">Reputation ${m.reputation} · reliability ${pct(m.reliability)}${last ? ` · last week: ${Math.round(last.letters)} letters, takings ${Utils.formatGold(last.revenue)}g, costs ${Utils.formatGold(last.costs)}g, <b style="color:${last.profit >= 0 ? '#8fd18a' : '#e0846a'};">${last.profit >= 0 ? '+' : ''}${Utils.formatGold(last.profit)}g</b>${last.robbed ? `, ${last.robbed} robbed` : ''}` : ' · the first week is not yet reckoned'}</div>`;
     if (m.history.length > 1) {
         body += `<div style="${MUTED} margin-top:4px;">Weeks: ` + m.history.map(h => `<span style="color:${h.profit >= 0 ? '#8fd18a' : '#e0846a'};">${h.profit >= 0 ? '+' : ''}${h.profit}</span>`).join(' · ') + '</div>';
     }
@@ -395,7 +396,7 @@ function myHouse(game, v) {
         const rivals = Couriers.alive(world).filter(o => o.owner !== 'player' && Couriers.hasStation(o, s.key));
         return {
             icon: '📮', name: esc(s.name),
-            desc: rivals.length ? `vs ${esc(rivals.map(o => `${o.name} (${o.price}g)`).join(', '))}` : '<span style="color:#8fd18a;">the only post</span>',
+            desc: rivals.length ? `vs ${esc(rivals.map(o => `${o.name} (${Utils.formatGold(o.price)}g)`).join(', '))}` : '<span style="color:#8fd18a;">the only post</span>',
             side: s.key === houseRec.home ? `<span style="${MUTED}">(home)</span>` : act('Close', ['closeStation', s.key], BTN_RED),
         };
     }), 'Stations');
@@ -447,11 +448,11 @@ function postTab(game) {
         const def = Kingship.edicts().royal_post || {};
         const cost = def.passCost != null ? def.passCost : 150;
         html += sectionHead('Your realm\'s Royal Post');
-        html += lede(v.ruled.holder ? `Held by <b>${esc(v.ruled.holder)}</b> by your edict. ${act('Revoke the edict', ['revoke'], BTN_RED)}` : `No house holds it. Proclaim the Royal Post edict (${cost}g from the royal treasury, an edict slot) for a house with a station in your realm: its weekly fee comes to the crown's books.`);
+        html += lede(v.ruled.holder ? `Held by <b>${esc(v.ruled.holder)}</b> by your edict. ${act('Revoke the edict', ['revoke'], BTN_RED)}` : `No house holds it. Proclaim the Royal Post edict (${Utils.formatGold(cost)}g from the royal treasury, an edict slot) for a house with a station in your realm: its weekly fee comes to the crown's books.`);
         html += rowList(Kingship.royalPostCandidates(player, world).filter(x => !x.holder).map(c => row({
             icon: '📜', name: `${v.ruled.holder ? 'Transfer' : 'Grant'} to ${esc(c.name)}`,
             desc: `${c.stations} station${c.stations === 1 ? '' : 's'} in your realm`,
-            side: `${c.fee}g/wk`,
+            side: `${Utils.formatGold(c.fee)}g/wk`,
         }, ['grant', c.id])));
     }
     html += sectionHead('Every courier house');

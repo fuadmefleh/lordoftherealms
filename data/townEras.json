@@ -81,6 +81,7 @@
             "_doc": "A Guild Age town's church, temple, guildhall or town hall raises a belltower over its roof (era `spires`): 2 cells wide and 5 tall, composed by scripts/make_town_walls.py into this sheet from the kit's walls, roof tiles and bell emblem, in this order; drawn by ui/buildingWear.js over the middle of the building's ridge.",
             "sheet": "assets/buildingKit/town_spires.png",
             "styles": ["slate_spire", "dark_spire", "beige_spire", "clay_campanile", "white_campanile", "timber_spire"],
+            "snowCaps": { "_doc": "Winter (ui/spriteSnow.js): the band [top, bottom] of a style's height (fractions from its top) that is its cap and takes snow, not its finial or its walls.", "slate_spire": [0.03, 0.6], "dark_spire": [0.03, 0.6], "beige_spire": [0.03, 0.6], "clay_campanile": [0.46, 0.57], "white_campanile": [0.47, 0.57], "timber_spire": [0.03, 0.6] },
             "byCulture": { "Imperial": "clay_campanile", "Religious": "beige_spire", "Arcane": "dark_spire", "Woodland": "timber_spire", "Swamp": "timber_spire", "Nordic": "slate_spire", "Mountain": "slate_spire", "Nomadic": "white_campanile", "Desert": "white_campanile", "Maritime": "slate_spire", "default": "slate_spire" }
         },
         "sheet": "assets/buildingKit/town_walls.png",

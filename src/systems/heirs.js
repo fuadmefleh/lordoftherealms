@@ -26,6 +26,7 @@ import { Traits } from './traits.js';
 import { Townsfolk } from './townsfolk.js';
 import { NPCLords } from '../world/npcLords.js';
 import { Names } from '../core/names.js';
+import { Utils } from '../core/utils.js';
 
 const DEFAULTS = {
     allianceDowry: 200, allianceReputation: 15, allianceMinReputation: 0, alliancePrestige: 4,
@@ -135,7 +136,7 @@ export const Heirs = {
         const minRep = Number.isFinite(opts.minReputation) ? opts.minReputation : cfg.allianceMinReputation;
         const dowry = Number.isFinite(opts.dowry) ? opts.dowry : cfg.allianceDowry;
         if (rep < minRep) return { success: false, reason: `${k.name}'s nobles will not wed a House they distrust (need ${minRep} reputation).` };
-        if ((player.gold || 0) < dowry) return { success: false, reason: `The dowry is ${dowry} gold.` };
+        if ((player.gold || 0) < dowry) return { success: false, reason: `The dowry is ${Utils.formatGold(dowry)} gold.` };
         player.gold -= dowry;
         // The dowry goes into the realm's treasury (real coin)
         if (dowry > 0) k.treasury = _num(k.treasury) + dowry;
@@ -174,7 +175,7 @@ export const Heirs = {
         if (rep < tcfg.royalMatchMinReputation) return { success: false, reason: `${k.name} will not wed its blood to a stranger (need ${tcfg.royalMatchMinReputation} reputation).` };
         const royal = Heirs.royalCandidates(world, kid)[0];
         if (!royal) return { success: false, reason: `${k.name} has no unwed prince or princess of age.` };
-        if ((player.gold || 0) < tcfg.royalMatchGold) return { success: false, reason: `The dowry is ${tcfg.royalMatchGold} gold.` };
+        if ((player.gold || 0) < tcfg.royalMatchGold) return { success: false, reason: `The dowry is ${Utils.formatGold(tcfg.royalMatchGold)} gold.` };
         if (!player.house || !House.spend(player.house, tcfg.royalMatchPrestige, `royal match for ${child.firstName}`, world.day)) {
             return { success: false, reason: `Need ${tcfg.royalMatchPrestige} Prestige.` };
         }

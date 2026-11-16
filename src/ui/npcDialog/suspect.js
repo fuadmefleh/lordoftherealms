@@ -3,6 +3,7 @@ import { Schemes } from '../../systems/schemes.js';
 import { dialogState } from './shared.js';
 import { _render, _syncTranscript, _renderChoices, _renderChoiceList } from './render.js';
 import { _animateDispositionChange } from './choices.js';
+import { Utils } from '../../core/utils.js';
 
 /** The open suspect record for the NPC in the dialog, or null. */
 export function _currentSuspect() {
@@ -45,7 +46,7 @@ function _openConfrontation(s) {
         { icon: '⚖️', label: 'Before all the town, I name you a traitor.', group: 'deal', cls: 'npc-dialog-choice-dark',
             tooltip: `They are driven out of town${s.status === 'plotting' ? ' and the plot is broken' : ''}. +reputation here; ${s.rivalName}'s feud grows; their kin turn on you.`,
             onPick: () => _resolve(s, 'accuse') },
-        { icon: '💰', label: `Work for me now, and I'll pay you (${cost} gold).`, group: 'deal',
+        { icon: '💰', label: `Work for me now, and I'll pay you (${Utils.formatGold(cost)} gold).`, group: 'deal',
             tooltip: `${s.status === 'plotting' ? 'They feed the plotters false word: the plot fails. ' : ''}For months they warn you of ${s.rivalName}'s plots.`,
             cls: player.gold >= cost ? '' : 'npc-dialog-choice-muted',
             onPick: () => (player.gold >= cost ? _resolve(s, 'turn') : null) },

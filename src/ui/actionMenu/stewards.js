@@ -9,6 +9,7 @@
 import { ActionMenu } from './_ref.js';
 import { Stewards } from '../../systems/stewards.js';
 import { esc, lede, chips, purse, sectionHead, card, rowList, price } from './uiKit.js';
+import { Utils } from '../../core/utils.js';
 
 const KIND_ICON = { holding: '🏰', province: '👑', estates: '🌾', company: '⚖️' };
 const WHO_ICON = { family: '🧑', courtier: '👥', companion: '🗡️', townsfolk: '🏘️', steward: '📜' };
@@ -38,20 +39,20 @@ Object.assign(ActionMenu, {
             const order = Stewards.order(o.orders);
             let body = `<div style="color:#cbbf9f;">${esc(o.kind)} · in office since day ${o.since}${o.servedLords ? ` · has served ${o.servedLords + 1} heads of the House` : ''}${o.kin ? ' · kin by marriage' : ''}</div>`;
             body += `<div style="margin-top:6px; color:#ece2c8;">${skills(o)} · ${esc(o.ambition)} · ${o.oath === 'house' ? 'sworn to the House' : 'loyal to you, not the House'}</div>`;
-            body += `<div style="margin-top:6px;">Loyalty <b>${o.loyalty}</b> · power in ${esc(seat.place)} <b>${o.power}</b> · ${o.caught ? '<span style="color:#e0846a;">caught with a hand in the chest</span>' : `reputation: ${esc(o.reference.label)}`}${o.wage ? ` · ${o.wage}g a day` : ''}</div>`;
+            body += `<div style="margin-top:6px;">Loyalty <b>${o.loyalty}</b> · power in ${esc(seat.place)} <b>${o.power}</b> · ${o.caught ? '<span style="color:#e0846a;">caught with a hand in the chest</span>' : `reputation: ${esc(o.reference.label)}`}${o.wage ? ` · ${Utils.formatGold(o.wage)}g a day` : ''}</div>`;
             if (o.suspicion) body += '<div style="margin-top:4px; color:#f0b35a;">In town they say the steward lives well beyond the wage.</div>';
             if (o.bribe) body += `<div style="margin-top:4px; color:#e0846a;">In the pay of ${esc(o.bribe)}.</div>`;
             if (o.defiant) body += '<div style="margin-top:4px; color:#e0846a;">Defies you: the dues are withheld.</div>';
-            body += `<div style="margin-top:4px; color:#9d937c;">Good deeds ${o.excels} · complaints ${o.abuses} · income about ${seat.income}g a week</div>`;
+            body += `<div style="margin-top:4px; color:#9d937c;">Good deeds ${o.excels} · complaints ${o.abuses} · income about ${Utils.formatGold(seat.income)}g a week</div>`;
             html += card(body, { icon: WHO_ICON[o.kind] || '👤', title: `${esc(seat.title)} ${esc(o.name)}`, side: esc(seat.place), tone: tone(o.loyalty) });
             const rows = [
                 { icon: order.icon || '⚖️', name: `Standing order: ${esc(order.name)}`, desc: 'Change what they put first', act: 'showStewards', args: ['orders', seat.id], side: '›', tone: 'gold' },
             ];
             if (seat.kind === 'holding') {
-                rows.push({ icon: '🏗️', name: `Works allowance: ${o.allowance}g a season`, desc: o.allowance ? `${o.spent}g spent this season on the order's works (from your purse)` : 'They may start no works without your gold', act: 'stewardsAct', args: ['allowance', seat.id], side: 'Change ›' });
+                rows.push({ icon: '🏗️', name: `Works allowance: ${Utils.formatGold(o.allowance)}g a season`, desc: o.allowance ? `${Utils.formatGold(o.spent)}g spent this season on the order's works (from your purse)` : 'They may start no works without your gold', act: 'stewardsAct', args: ['allowance', seat.id], side: 'Change ›' });
             }
             rows.push(
-                { icon: '🔎', name: 'Audit the books', desc: o.auditReady ? `${Math.round(o.auditChance * 100)}% to find a hand in the chest, if there is one. The honest resent it.` : 'Audited too recently', off: !o.auditReady || (player.gold || 0) < o.auditCost, why: !o.auditReady ? 'Audited too recently' : `The auditors want ${o.auditCost}g`, act: 'stewardsAct', args: ['audit', seat.id], side: price(o.auditCost, (player.gold || 0) >= o.auditCost) },
+                { icon: '🔎', name: 'Audit the books', desc: o.auditReady ? `${Math.round(o.auditChance * 100)}% to find a hand in the chest, if there is one. The honest resent it.` : 'Audited too recently', off: !o.auditReady || (player.gold || 0) < o.auditCost, why: !o.auditReady ? 'Audited too recently' : `The auditors want ${Utils.formatGold(o.auditCost)}g`, act: 'stewardsAct', args: ['audit', seat.id], side: price(o.auditCost, (player.gold || 0) >= o.auditCost) },
                 { icon: '💰', name: 'Send a purse', desc: 'Gold from your purse into theirs: loyalty, and a little less temptation', act: 'stewardsAct', args: ['reward', seat.id, 'gold'], side: price(Math.max(20, (o.wage || 2) * 10), (player.gold || 0) >= Math.max(20, (o.wage || 2) * 10)) },
                 { icon: '🎖️', name: 'Honour them before the court', desc: 'Costs House Prestige; loyalty, and standing in their seat', act: 'stewardsAct', args: ['reward', seat.id, 'honour'], side: '4 ⭐' },
                 { icon: '⚖️', name: 'Fine them', desc: o.caught ? 'Take back everything they took. Kept on, sullen and afraid.' : 'Nothing is proven: your other stewards will call it tyranny', act: 'stewardsAct', args: ['punish', seat.id, 'fine'], side: '›', tone: o.caught ? 'warn' : 'bad' },
@@ -75,7 +76,7 @@ Object.assign(ActionMenu, {
             html += rowList(list.map(c => ({
                 icon: WHO_ICON[c.kind] || '👤', name: esc(c.name),
                 desc: `${esc(c.blurb || c.kind)} · ${skills(c)}`,
-                note: `<span style="color:${c.reference.tone === 'good' ? '#8fd18a' : c.reference.tone === 'warn' ? '#f0b35a' : '#e0846a'};">${esc(c.reference.label)}</span> <span style="color:#9d937c;">· ${Stewards.ambitionLabel(c.ambition)} · loyalty ~${c.loyalty}${c.wage ? ` · ${c.wage}g a day` : ''}</span>`,
+                note: `<span style="color:${c.reference.tone === 'good' ? '#8fd18a' : c.reference.tone === 'warn' ? '#f0b35a' : '#e0846a'};">${esc(c.reference.label)}</span> <span style="color:#9d937c;">· ${Stewards.ambitionLabel(c.ambition)} · loyalty ~${c.loyalty}${c.wage ? ` · ${Utils.formatGold(c.wage)}g a day` : ''}</span>`,
                 act: 'stewardsAct', args: ['appoint', seat.id, c.key], side: 'Appoint ›', tone: 'gold',
             })), 'Candidates');
             html += rowList([back]);
@@ -90,7 +91,7 @@ Object.assign(ActionMenu, {
         } else {
             const vacant = v.seats.filter(s => !s.office);
             html += lede('Your holdings, your estates, the company and the realm\'s demesne towns, each run by someone you name, by the standing order you set. They may serve you well, or they may not.');
-            html += chips([purse(player.gold), ['🏛️', 'Offices', `${v.filled} / ${v.seats.length}`], ['🔎', 'Caught', v.stats.caught], ['💰', 'Recovered', `${v.stats.recovered}g`]]);
+            html += chips([purse(player.gold), ['🏛️', 'Offices', `${v.filled} / ${v.seats.length}`], ['🔎', 'Caught', v.stats.caught], ['💰', 'Recovered', `${Utils.formatGold(v.stats.recovered)}g`]]);
             for (const p of v.pending) {
                 html += card(`<div>${esc(p.officeName)} of ${esc(p.place)} asks for the hand of <b>${esc(p.childName)}</b>. Bound to the House by marriage they would serve it better, and stand higher. (${p.daysLeft} days to answer)</div>`
                     + rowList([
@@ -108,7 +109,7 @@ Object.assign(ActionMenu, {
                 if (s.rebellion) state.push('<span style="color:#e0846a;">in revolt</span>');
                 return o ? {
                     icon: KIND_ICON[s.kind], name: `${esc(s.place)} <span style="color:#d8c27a; font-size:11px;">${esc(s.title)} ${esc(o.name)}</span>`,
-                    desc: `${order.icon || ''} ${esc(order.name)} · ~${s.income}g a week${state.length ? ` · ${state.join(' · ')}` : ''}`,
+                    desc: `${order.icon || ''} ${esc(order.name)} · ~${Utils.formatGold(s.income)}g a week${state.length ? ` · ${state.join(' · ')}` : ''}`,
                     note: `<span style="color:${o.loyalty < 30 ? '#e0846a' : o.loyalty < 50 ? '#f0b35a' : '#8fd18a'};">Loyalty ${o.loyalty}</span>${o.caught ? ' <span style="color:#e0846a;">· caught</span>' : ''}${o.suspicion ? ' <span style="color:#f0b35a;">· talk in town</span>' : ''}${o.power >= 50 ? ` <span style="color:#f0b35a;">· power ${o.power}</span>` : ''}${o.defiant ? ' <span style="color:#e0846a;">· defiant</span>' : ''}`,
                     act: 'showStewards', args: ['seat', s.id], side: '›', tone: tone(o.loyalty),
                 } : {

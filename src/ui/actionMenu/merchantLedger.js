@@ -21,6 +21,7 @@ import { Ledger } from '../../systems/ledger.js';
 import { EconomyChronicle } from '../../systems/economyChronicle.js';
 import { MerchantHouses } from '../../systems/merchantHouses.js';
 import { BTN_GOLD, BTN_PLAIN, panelTabs, lede, bullets, chips, purse, sectionHead, kv, rowList } from './uiKit.js';
+import { Utils } from '../../core/utils.js';
 
 // The action menu's voice (uiKit): muted notes, quiet tables — a head in the
 // section-head style and hairline gold row rules
@@ -84,7 +85,7 @@ function bookTab(game) {
         // (labelled against the good's anchor, as SettlementMarket.info: a good dear everywhere for years is its normal)
         const l = PriceAnchors.label(world, view.good, k.scarcity);
         const d = Hex.wrappingDistance(player.q, player.r, k.q, k.r, world.width);
-        html += `<tr><td style="${TD}">${esc(k.name)}</td><td style="${TD}">${k.ask}g</td><td style="${TD}">${k.bid}g</td><td style="${TD} color:${l.color};">${l.label}</td><td style="${TD}">${d}</td><td style="${TD}">${ageCell(k)}</td></tr>`;
+        html += `<tr><td style="${TD}">${esc(k.name)}</td><td style="${TD}">${Utils.formatGold(k.ask)}g</td><td style="${TD}">${Utils.formatGold(k.bid)}g</td><td style="${TD} color:${l.color};">${l.label}</td><td style="${TD}">${d}</td><td style="${TD}">${ageCell(k)}</td></tr>`;
     }
     return html + '</table>';
 }
@@ -101,9 +102,9 @@ function spreadsTab(game) {
     html += `<table style="width:100%; border-collapse:collapse; font-size:12px;"><tr><th style="${TH}">Good</th><th style="${TH}">Buy at</th><th style="${TH}">Sell at</th><th style="${TH}">Margin</th><th style="${TH}">Oldest news</th></tr>`;
     for (const x of list) {
         html += `<tr><td style="${TD}">${gname(x.good)}</td>`;
-        html += `<td style="${TD}">${esc(x.buy.name)} ${x.buy.ask}g<br><span style="${NOTE}">${ageCell(x.buy)}</span></td>`;
-        html += `<td style="${TD}">${esc(x.sell.name)} ${x.sell.bid}g<br><span style="${NOTE}">${ageCell(x.sell)}</span></td>`;
-        html += `<td style="${TD} color:${GOOD};">+${x.margin}g (${Math.round(x.pct * 100)}%)<br><span style="${NOTE}">${x.dist} hexes apart</span></td>`;
+        html += `<td style="${TD}">${esc(x.buy.name)} ${Utils.formatGold(x.buy.ask)}g<br><span style="${NOTE}">${ageCell(x.buy)}</span></td>`;
+        html += `<td style="${TD}">${esc(x.sell.name)} ${Utils.formatGold(x.sell.bid)}g<br><span style="${NOTE}">${ageCell(x.sell)}</span></td>`;
+        html += `<td style="${TD} color:${GOOD};">+${Utils.formatGold(x.margin)}g (${Math.round(x.pct * 100)}%)<br><span style="${NOTE}">${x.dist} hexes apart</span></td>`;
         html += `<td style="${TD}">${PriceKnowledge.ageText(x.age)} ${act('🗺️', ['map', x.good])}</td></tr>`;
     }
     return html + '</table>';
@@ -112,7 +113,7 @@ function spreadsTab(game) {
 // ── History ─────────────────────────────────────────────
 
 function sparkline(points, w = 220, h = 46) {
-    if (points.length < 2) return `<span style="${NOTE}">${points.length ? `${points[0].price}g on day ${points[0].day}` : 'no samples'}</span>`;
+    if (points.length < 2) return `<span style="${NOTE}">${points.length ? `${Utils.formatGold(points[0].price)}g on day ${points[0].day}` : 'no samples'}</span>`;
     const xs = points.map(p => p.day), ys = points.map(p => p.price);
     const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
     const sx = (x) => 4 + (x1 > x0 ? (x - x0) / (x1 - x0) : 0.5) * (w - 8);
@@ -122,9 +123,9 @@ function sparkline(points, w = 220, h = 46) {
     return `<svg width="${w}" height="${h}" style="vertical-align:middle; background:rgba(0,0,0,0.25); border:1px solid rgba(245,197,66,0.1); border-radius:6px;">`
         + `<polyline points="${path}" fill="none" stroke="#ffcf6a" stroke-width="2"/>`
         + `<circle cx="${sx(last.day).toFixed(1)}" cy="${sy(last.price).toFixed(1)}" r="3" fill="#ffcf6a"/>`
-        + `<text x="4" y="10" font-size="9" fill="#9d937c">${y1}g</text><text x="4" y="${h - 1}" font-size="9" fill="#9d937c">${y0}g</text>`
+        + `<text x="4" y="10" font-size="9" fill="#9d937c">${Utils.formatGold(y1)}g</text><text x="4" y="${h - 1}" font-size="9" fill="#9d937c">${Utils.formatGold(y0)}g</text>`
         + '</svg>'
-        + ` <span style="${NOTE}">days ${x0}–${x1}, last ${last.price}g</span>`;
+        + ` <span style="${NOTE}">days ${x0}–${x1}, last ${Utils.formatGold(last.price)}g</span>`;
 }
 
 function historyTab(game) {
@@ -144,7 +145,7 @@ function historyTab(game) {
 
 // ── Profit and loss ─────────────────────────────────────
 
-const col = (n) => `<span style="color:${n >= 0 ? GOOD : BAD};">${n >= 0 ? '+' : ''}${Math.round(n).toLocaleString()}g</span>`;
+const col = (n) => `<span style="color:${n >= 0 ? GOOD : BAD};">${n >= 0 ? '+' : ''}${Utils.formatGold(n)}g</span>`;
 
 /** The income statement over the chosen period, by group and category, and the net worth (one line). */
 function statementHtml(game) {
@@ -161,7 +162,7 @@ function statementHtml(game) {
     html += `<table style="width:100%; border-collapse:collapse; font-size:12px;"><tr><th style="${TH}">Income</th><th style="${TH} text-align:right;"></th></tr>${lines(st.op.income)}`;
     html += `<tr><th style="${TH}">Expenses</th><th style="${TH}"></th></tr>${lines(st.op.expenses)}</table>`;
     if (st.cap.length) html += `${sectionHead('📦 Capital and stock (not profit or loss)')}<table style="width:100%; border-collapse:collapse; font-size:12px;">${lines(st.cap)}</table>`;
-    if (st.memo.length) html += `<div style="${NOTE} margin-top:4px;">Of which inside your prices: ${st.memo.map(l => `${esc(l.name)} ${Math.abs(l.amount).toLocaleString()}g`).join(' · ')}</div>`;
+    if (st.memo.length) html += `<div style="${NOTE} margin-top:4px;">Of which inside your prices: ${st.memo.map(l => `${esc(l.name)} ${Utils.formatGold(Math.abs(l.amount))}g`).join(' · ')}</div>`;
     // Net worth in one line: the breakdown and its history are the Chronicle's 💰 Your Worth tab
     const nw = EconomyChronicle.netWorth(player, world);
     html += rowList([{ icon: '💰', name: 'Net worth', desc: 'What you own less what you owe, week by week', act: 'merchantLedgerAct', args: ['economy', 'worth'], side: col(nw.total), tone: 'gold' }]);
@@ -177,7 +178,7 @@ function statementHtml(game) {
 export function companyDiagnosisHtml(player, world) {
     const d = MerchantHouses.diagnosis(player, world);
     if (!d) return '';
-    const g = (n) => `${Math.round(n).toLocaleString()}g`;
+    const g = (n) => `${Utils.formatGold(n)}g`;
     let html = sectionHead('🔎 Why the company makes or loses money');
     html += kv('Sold (stalls and contracts)', g(d.trading.sales + d.trading.contracts));
     html += kv('Bought', g(d.trading.purchases));
@@ -211,7 +212,7 @@ function pnlTab(game) {
     if (!p.goods.length) return html + `<div style="${NOTE}">No trades yet.</div>`;
     html += `<table style="width:100%; border-collapse:collapse; font-size:12px;"><tr><th style="${TH}">Good</th><th style="${TH}">Bought</th><th style="${TH}">Sold</th><th style="${TH}">Profit</th></tr>`;
     for (const g of p.goods) {
-        html += `<tr><td style="${TD}">${gname(g.id)}</td><td style="${TD}">${g.bought} for ${g.spent.toLocaleString()}g</td><td style="${TD}">${g.sold} for ${g.earned.toLocaleString()}g</td><td style="${TD}">${col(g.profit)}</td></tr>`;
+        html += `<tr><td style="${TD}">${gname(g.id)}</td><td style="${TD}">${g.bought} for ${Utils.formatGold(g.spent)}g</td><td style="${TD}">${g.sold} for ${Utils.formatGold(g.earned)}g</td><td style="${TD}">${col(g.profit)}</td></tr>`;
     }
     html += '</table>';
     if (p.routes.length) {

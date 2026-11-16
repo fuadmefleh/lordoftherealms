@@ -924,7 +924,7 @@ export const MerchantCaravans = {
             }
             st.stats.escorts++;
             st.stats.escortPay += pay;
-            out.notices.push({ icon: '💰', title: 'Escort Paid', text: `The ${u.name} reached ${u.toName} safe. ${(u.house && u.house.name) || 'The merchants'} paid you ${pay} gold.`, type: 'success' });
+            out.notices.push({ icon: '💰', title: 'Escort Paid', text: `The ${u.name} reached ${u.toName} safe. ${(u.house && u.house.name) || 'The merchants'} paid you ${Utils.formatGold(pay)} gold.`, type: 'success' });
         }
         // The merchants' road money that is left goes home with them
         if (_num(u.purse) > 0) {
@@ -1129,7 +1129,7 @@ export const MerchantCaravans = {
         const offer = MerchantCaravans.offers(u).find(o => o.id === goodId);
         if (!offer || !(n > 0) || offer.qty < n) return { success: false, reason: 'They do not carry that many.' };
         const cost = offer.buy * n;
-        if (_num(player.gold) < cost) return { success: false, reason: `You need ${cost} gold.` };
+        if (_num(player.gold) < cost) return { success: false, reason: `You need ${Utils.formatGold(cost)} gold.` };
         const add = PlayerInventory.addItem(player, goodId, n);
         if (!add || !add.success) return { success: false, reason: PlayerInventory.fullMessage(player) };
         player.gold = _num(player.gold) - cost;

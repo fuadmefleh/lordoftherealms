@@ -10,6 +10,7 @@ import { RealmWars } from '../../systems/realmWars.js';
 import { Sieges } from '../../systems/sieges.js';
 import { lede, card, rowList, price, more } from './uiKit.js';
 import { InnerMapBattle } from '../innerMapBattle.js';
+import { Utils } from '../../core/utils.js';
 
 const MUTED = 'color:var(--text-secondary);font-size:11px;';
 
@@ -53,7 +54,7 @@ function siegeCardHtml(player, d) {
 
     if (s.convoys.length) {
         for (const c of s.convoys) {
-            html += `<div style="${MUTED}">📦 ${c.via === 'ship' ? 'Ship' : 'Caravan'} with ${[c.food ? `${c.food} food` : '', c.gold ? `${c.gold} gold` : ''].filter(Boolean).join(' and ')} — arrives day ${c.arriveDay} (${Math.round(c.catch * 100)}% risk of capture)</div>`;
+            html += `<div style="${MUTED}">📦 ${c.via === 'ship' ? 'Ship' : 'Caravan'} with ${[c.food ? `${c.food} food` : '', c.gold ? `${Utils.formatGold(c.gold)} gold` : ''].filter(Boolean).join(' and ')} — arrives day ${c.arriveDay} (${Math.round(c.catch * 100)}% risk of capture)</div>`;
         }
     }
 
@@ -76,11 +77,11 @@ function siegeCardHtml(player, d) {
         { icon: '🗡️', name: 'Order a sally', desc: `${_esc(d.commander.name)} leads part of the garrison against the lines`,
             off: !d.canSally, why: `Not again until day ${s.nextSallyDay}`, ...go('sally') },
         { icon: '🤝', name: 'Governor\'s terms', desc: `${Math.round(d.termsChance * 100)}% they take your gold and march away; a refusal disheartens the town`, side: price(d.termsPrice, gold >= d.termsPrice),
-            off: !(d.canParley && gold >= d.termsPrice), why: d.canParley ? `Needs ${d.termsPrice}g` : `They won't parley again until day ${s.nextParleyDay}`, ...go('terms') },
+            off: !(d.canParley && gold >= d.termsPrice), why: d.canParley ? `Needs ${Utils.formatGold(d.termsPrice)}g` : `They won't parley again until day ${s.nextParleyDay}`, ...go('terms') },
         { icon: '💰', name: `Pay ${_esc(s.kingdomName)} to lift it`, desc: 'The host marches home; the war goes on', side: price(d.buyOffPrice, gold >= d.buyOffPrice),
-            off: gold < d.buyOffPrice, why: `Needs ${d.buyOffPrice}g`, ...go('buyoff') },
+            off: gold < d.buyOffPrice, why: `Needs ${Utils.formatGold(d.buyOffPrice)}g`, ...go('buyoff') },
         d.peacePrice != null ? { icon: '🕊️', name: 'Buy peace', desc: 'End the whole war; every siege it brought is lifted', side: price(d.peacePrice, gold >= d.peacePrice),
-            off: gold < d.peacePrice, why: `Needs ${d.peacePrice}g`, ...go('peace') } : null,
+            off: gold < d.peacePrice, why: `Needs ${Utils.formatGold(d.peacePrice)}g`, ...go('peace') } : null,
         { icon: '🏳️', name: 'Let it fall', desc: 'Order the gates opened. The town goes to the enemy', tone: 'bad', ...go('yield') },
     ];
     html += rowList(rows, 'What you can do');
@@ -165,7 +166,7 @@ Object.assign(ActionMenu, {
             if (res.success) game.ui.showNotification('💰 Siege Bought Off', res.text, 'success');
         } else if (act === 'peace') {
             res = RealmWars.sueForPeace(player, world, siege.kingdomId);
-            if (res.success) game.ui.showNotification('🕊️ Peace Bought', `The war with ${siege.kingdomName} is over. −${res.cost} gold.`, 'success');
+            if (res.success) game.ui.showNotification('🕊️ Peace Bought', `The war with ${siege.kingdomName} is over. −${Utils.formatGold(res.cost)} gold.`, 'success');
         } else if (act === 'yield') {
             res = HoldingSieges.yieldHolding(player, world, key);
             if (res.success) game.ui.showNotification('🏴 Holding Yielded', res.text || `${siege.name} is lost.`, 'error');

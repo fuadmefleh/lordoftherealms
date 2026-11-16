@@ -9,6 +9,7 @@ import { Devotion } from '../../systems/devotion.js';
 import { SoulPact } from '../../systems/soulPact.js';
 import { PerformTasks } from '../mapTasks/performTasks.js';
 import { BTN_GOLD, esc, chips, lede, sectionHead, card, actRow, rowList, price, purse } from './uiKit.js';
+import { Utils } from '../../core/utils.js';
 
 // In the action menu's voice (ui/actionMenu/uiKit.js): cards for what happened,
 // one row a thing to do, greyed with its reason when it can't be done
@@ -55,7 +56,7 @@ export const DevotionPanel = {
         if (res.faith) lines.push(`<div style="color: #ffcf6a;">🙏 Your faith deepened (+${res.faith}).</div>`);
         if (res.intelligence) lines.push(`<div style="color: #ffcf6a;">🧠 Your mind feels sharper (+${res.intelligence}).</div>`);
         if (res.standing) lines.push(`<div style="${NOTE}">The clergy's regard for you grows (+${res.standing}).</div>`);
-        if (res.fine) lines.push(`<div style="color: #e0846a;">💰 Fined ${res.fine} gold.</div>`);
+        if (res.fine) lines.push(`<div style="color: #e0846a;">💰 Fined ${Utils.formatGold(res.fine)} gold.</div>`);
         if (res.harm) lines.push(`<div style="color: #e0846a;">🔴 −${res.harm} health.</div>`);
         for (const n of res.notes || []) lines.push(`<div style="${NOTE}">${esc(n)}</div>`);
         if (lines.length) h += `<div style="font-size: 12px; margin: 4px 0 8px;">${lines.join('')}</div>`;
@@ -163,7 +164,7 @@ export const DevotionPanel = {
         h += rowList(vows.map(v => actRow({
             icon: v.icon, name: esc(v.name), desc: esc(v.text),
             side: `${v.daysLeft} day${v.daysLeft === 1 ? '' : 's'} left`, tone: v.daysLeft <= 3 ? 'warn' : null,
-            note: v.id === 'alms' ? `given ${v.progress}/${v.gold} gold` : '',
+            note: v.id === 'alms' ? `given ${v.progress}/${Utils.formatGold(v.gold)} gold` : '',
         })));
         const offers = Devotion.offeredVows(player, world);
         if (offers.length) h += DevotionPanel._vowOfferHtml(offers);
@@ -211,7 +212,7 @@ export const DevotionPanel = {
         }
         const rec = (icon, label, n) => [icon, label, n, n ? '' : 'dim'];
         h += sectionHead('Record') + chips([
-            rec('🙏', 'Prayers', st.stats.prayers), rec('🕯️', 'Meditations', st.stats.meditations), ['💰', 'Alms', `${st.stats.almsGiven}g`, st.stats.almsGiven ? '' : 'dim'],
+            rec('🙏', 'Prayers', st.stats.prayers), rec('🕯️', 'Meditations', st.stats.meditations), ['💰', 'Alms', `${Utils.formatGold(st.stats.almsGiven)}g`, st.stats.almsGiven ? '' : 'dim'],
             rec('📜', 'Vows kept', st.stats.vowsKept), rec('💔', 'Broken', st.stats.vowsBroken), rec('⛪', 'Pilgrimages', st.stats.pilgrimages),
         ]);
         h += '</div>';
@@ -301,7 +302,7 @@ export const DevotionPanel = {
         if (pre.risk.desecrated) h += `<div style="${NOTE}">The shrine is held by another faith and has soured.</div>`;
         if (pre.soul === 'sold' || pre.soul === 'due' || pre.soul === 'cursed') h += `<div style="${NOTE} color: #e0846a;">Your soul is not your own. ${pre.vowed && pre.match === 'same' ? 'Keeping your vow at a shrine of your faith may win it back.' : 'Only a vowed pilgrimage to a shrine of your own faith could win it back.'}</div>`;
         h += rowList(pre.offerings.map(o => _row(o.can, `window._devo.kneel('${o.id}')`, {
-            icon: '🕯️', name: esc(o.label), why: `Costs ${o.gold} gold`,
+            icon: '🕯️', name: esc(o.label), why: `Costs ${Utils.formatGold(o.gold)} gold`,
             side: price(o.gold, (player.gold || 0) >= o.gold),
         })), 'Kneel and make an offering');
         h += rowList([
@@ -399,12 +400,12 @@ export const DevotionPanel = {
         let h = '<div>';
         if (st.state === 'none' || st.state === 'redeemed') {
             h += lede(`<i>In the corner sits ${esc(o.look)}. This is ${esc(o.name)}, and ${esc(o.name)} is very interested in you.</i>`);
-            h += card(`<div style="font-size: 12px; font-style: italic; color: #cbbf9f;">"Your soul, friend. Not all at once — I'll come for the rest in time. <strong style="color: #ffcf6a;">${o.price} gold</strong>, here, tonight."</div>`
+            h += card(`<div style="font-size: 12px; font-style: italic; color: #cbbf9f;">"Your soul, friend. Not all at once — I'll come for the rest in time. <strong style="color: #ffcf6a;">${Utils.formatGold(o.price)} gold</strong>, here, tonight."</div>`
                 + `<div style="${NOTE}">Karma and renown fall at once. In a few weeks the debt comes due, and ${esc(o.name)} will want something. Refuse, and you will be cursed.</div>`,
             { icon: '🔥', title: esc(o.name) });
             if (st.state === 'redeemed') h += `<div style="${NOTE}">You bought your soul back once. ${esc(o.name)} doesn't seem to mind.</div>`;
             h += rowList([
-                { icon: '🔥', name: 'Shake the cold hand', desc: 'Sell your soul', side: `${o.price}g`, tone: 'bad', attrs: 'onclick="window._pact.sell()"' },
+                { icon: '🔥', name: 'Shake the cold hand', desc: 'Sell your soul', side: `${Utils.formatGold(o.price)}g`, tone: 'bad', attrs: 'onclick="window._pact.sell()"' },
                 { icon: '🚶', name: 'Walk away', act: 'closePanel' },
             ]);
         } else if (st.state === 'sold') {
@@ -417,7 +418,7 @@ export const DevotionPanel = {
             { icon: d.icon, title: `${esc(st.buyer)} wants payment: ${esc(d.label)}`, side: `${d.daysLeft}d`, tone: d.daysLeft <= 2 ? 'bad' : 'warn' });
             const gold = Math.round(SoulPact.payCost(player));
             h += rowList([
-                _row((player.gold || 0) >= gold, "window._pact.answer('pay')", { icon: '💰', name: `Pay ${gold} gold`, why: `You need ${gold} gold`, side: price(gold, (player.gold || 0) >= gold) }),
+                _row((player.gold || 0) >= gold, "window._pact.answer('pay')", { icon: '💰', name: `Pay ${Utils.formatGold(gold)} gold`, why: `You need ${Utils.formatGold(gold)} gold`, side: price(gold, (player.gold || 0) >= gold) }),
                 { icon: '✋', name: 'Refuse', desc: 'And be cursed', side: 'refuse', tone: 'bad', attrs: 'onclick="window._pact.answer(\'refuse\')"' },
             ]);
             if (d.deed) h += `<div style="${NOTE}">Or do what is asked before the days run out.</div>`;

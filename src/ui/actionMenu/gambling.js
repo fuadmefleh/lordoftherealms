@@ -120,8 +120,8 @@ Object.assign(ActionMenu, {
                 desc: mg.description,
                 attrs: `onclick="window._openMinigame('${mg.id}')"`,
                 off: !canPlay,
-                why: `Min bet: ${mg.minBet}g — your purse holds ${Utils.formatGold(gold)}g`,
-                side: `Min bet: ${mg.minBet}g`,
+                why: `Min bet: ${Utils.formatGold(mg.minBet)}g — your purse holds ${Utils.formatGold(gold)}g`,
+                side: `Min bet: ${Utils.formatGold(mg.minBet)}g`,
                 tone: canPlay ? 'gold' : '',
             };
         }), '🎲 Games of Chance');
@@ -158,7 +158,7 @@ Object.assign(ActionMenu, {
                     desc: `Behind ${g.front} · ${door.why}`,
                     note: `<span style="color:#f0b35a;">Raid risk tonight ~${risk}%: the stakes on the table and a fine</span>`,
                     act: 'backRoomEnter', args: [tile.q, tile.r, g.id],
-                    off: short, why: `The doorman wants ${door.fee}g`,
+                    off: short, why: `The doorman wants ${Utils.formatGold(door.fee)}g`,
                     side: door.free ? 'Walk in' : price(door.fee, !short),
                     tone: 'gold',
                 };
@@ -178,7 +178,7 @@ Object.assign(ActionMenu, {
         game.ui.updateStats(game.player, game.world);
         if (res.raided) {
             let html = lede(res.text);
-            html += chips([['🎲', 'Stakes lost', `${res.lost}g`], ['⚖️', 'Fine', `${res.fine}g`], purse(game.player.gold)]);
+            html += chips([['🎲', 'Stakes lost', `${Utils.formatGold(res.lost)}g`], ['⚖️', 'Fine', `${Utils.formatGold(res.fine)}g`], purse(game.player.gold)]);
             html += card('<div style="font-size:12px; color:#cbbf9f;">The watch has your name now: there is heat on you in this realm. The back room is shut for the night.</div>', { icon: '🚨', title: 'Raided', tone: 'bad' });
             game.ui.showCustomPanel('🚨 The Watch!', html);
             return;
@@ -317,18 +317,18 @@ Object.assign(ActionMenu, {
                 pot += extra;
                 playerBet += extra;
                 ActionMenu._gamblingFinance(game, -extra);
-                if (dealerAction === 'bet') { pot += extra; dealerBet += extra; lastAction = `You bet ${extra}g. Dealer calls.`; }
-                else { lastAction = `You bet ${extra}g. Dealer checks.`; }
+                if (dealerAction === 'bet') { pot += extra; dealerBet += extra; lastAction = `You bet ${Utils.formatGold(extra)}g. Dealer calls.`; }
+                else { lastAction = `You bet ${Utils.formatGold(extra)}g. Dealer checks.`; }
             } else {
                 // check
                 if (dealerAction === 'bet') {
                     const dExtra = currentAnte;
                     pot += dExtra;
                     dealerBet += dExtra;
-                    lastAction = `Dealer bets ${dExtra}g!`;
+                    lastAction = `Dealer bets ${Utils.formatGold(dExtra)}g!`;
                     // Player must call or fold
                     street = street + '_facing_bet';
-                    statusMsg = `Dealer bet ${dExtra}g — Call (${dExtra}g) or Fold?`;
+                    statusMsg = `Dealer bet ${Utils.formatGold(dExtra)}g — Call (${Utils.formatGold(dExtra)}g) or Fold?`;
                     render();
                     return;
                 } else {
@@ -348,7 +348,7 @@ Object.assign(ActionMenu, {
             pot += callAmt;
             playerBet += callAmt;
             ActionMenu._gamblingFinance(game, -callAmt);
-            lastAction = `You call ${callAmt}g.`;
+            lastAction = `You call ${Utils.formatGold(callAmt)}g.`;
             street = base;
             advanceStreet();
         };
@@ -386,12 +386,12 @@ Object.assign(ActionMenu, {
             if (playerScore > dealerHand.score) {
                 _housePays(game, pot);
                 ActionMenu._gamblingFinance(game, pot - playerBet);
-                statusMsg = `🎉 You win! ${playerHand.name} beats ${dealerHand.name}. +${pot}g`;
+                statusMsg = `🎉 You win! ${playerHand.name} beats ${dealerHand.name}. +${Utils.formatGold(pot)}g`;
             } else if (playerScore === dealerHand.score) {
                 const half = Math.floor(pot / 2);
                 _housePays(game, half); // ties go to house (floor)
                 ActionMenu._gamblingFinance(game, half - playerBet);
-                statusMsg = `🤝 Tie! ${playerHand.name} vs ${dealerHand.name}. +${half}g returned.`;
+                statusMsg = `🤝 Tie! ${playerHand.name} vs ${dealerHand.name}. +${Utils.formatGold(half)}g returned.`;
             } else {
                 ActionMenu._gamblingFinance(game, -playerBet);
                 statusMsg = `😞 Dealer wins. ${dealerHand.name} beats ${playerHand.name}.`;
@@ -411,7 +411,7 @@ Object.assign(ActionMenu, {
             // Header
             html += _tableTop(gold);
             html += sectionHead("🂡 Texas Hold'em");
-            if (pot > 0) html += chips([{ icon: '💰', label: 'Pot', value: `${pot}g`, cls: 'gold' }]);
+            if (pot > 0) html += chips([{ icon: '💰', label: 'Pot', value: `${Utils.formatGold(pot)}g`, cls: 'gold' }]);
 
             if (street === 'ante') {
                 // Ante selection screen
@@ -499,7 +499,7 @@ Object.assign(ActionMenu, {
         // Expose methods referenced in HTML onclick
         window._pokerDeal = (ante) => {
             if (!ActionMenu._gamblingCheckAP(game, tile)) return;
-            if (game.player.gold < ante * 1) { game.ui.showNotification('Not Enough Gold', `Need at least ${ante}g to ante.`, 'error'); return; }
+            if (game.player.gold < ante * 1) { game.ui.showNotification('Not Enough Gold', `Need at least ${Utils.formatGold(ante)}g to ante.`, 'error'); return; }
             startHand(ante);
         };
         window._pokerAction = (action) => nextStreet(action);
@@ -694,13 +694,13 @@ Object.assign(ActionMenu, {
                     if (matches === 0) {
                         _houseTakes(game, bet);
                         ActionMenu._gamblingFinance(game, -bet);
-                        if (resultArea) resultArea.innerHTML = `<div style="color: #e0846a; font-weight: bold; font-size: 14px;">No matches! Lost ${bet}g 💸</div>`;
+                        if (resultArea) resultArea.innerHTML = `<div style="color: #e0846a; font-weight: bold; font-size: 14px;">No matches! Lost ${Utils.formatGold(bet)}g 💸</div>`;
                     } else {
                         const payout = Math.floor(bet * matches * (cfg.payoutPerMatch ?? 1)); // 1x per match, so 1 match = 1x, 2 = 2x, 3 = 3x
                         _housePays(game, payout); // net gain (doesn't deduct bet, matches pay bet each)
                         ActionMenu._gamblingFinance(game, payout);
                         const msg = matches === 3 ? '🎉 TRIPLE MATCH! Jackpot!' : matches === 2 ? '✨ Double match!' : '👍 One match!';
-                        if (resultArea) resultArea.innerHTML = `<div style="color: #8fd18a; font-weight: bold; font-size: 14px;">${msg} Won ${payout}g!</div>`;
+                        if (resultArea) resultArea.innerHTML = `<div style="color: #8fd18a; font-weight: bold; font-size: 14px;">${msg} Won ${Utils.formatGold(payout)}g!</div>`;
                     }
                     game.ui.updateStats(game.player, game.world);
 
@@ -811,18 +811,18 @@ Object.assign(ActionMenu, {
                         currentWinnings = winAmount;
                         _housePays(game, bet); // Net +bet (double minus the bet)
                         ActionMenu._gamblingFinance(game, bet);
-                        if (resultArea) resultArea.innerHTML = `<div style="color: #8fd18a; font-weight: bold; font-size: 15px;">🎉 ${resultName}! You win ${winAmount}g!</div>`;
+                        if (resultArea) resultArea.innerHTML = `<div style="color: #8fd18a; font-weight: bold; font-size: 15px;">🎉 ${resultName}! You win ${Utils.formatGold(winAmount)}g!</div>`;
 
                         // Show double-or-nothing option
                         if (doubleArea) {
                             doubleArea.style.display = 'block';
-                            doubleArea.innerHTML = _dfDoubleBox(`🔥 Double or Nothing? (${currentWinnings}g at stake)`);
+                            doubleArea.innerHTML = _dfDoubleBox(`🔥 Double or Nothing? (${Utils.formatGold(currentWinnings)}g at stake)`);
                         }
                     } else {
                         _houseTakes(game, bet);
                         ActionMenu._gamblingFinance(game, -bet);
                         currentWinnings = 0;
-                        if (resultArea) resultArea.innerHTML = `<div style="color: #e0846a; font-weight: bold; font-size: 15px;">💸 ${resultName}! You lose ${bet}g.</div>`;
+                        if (resultArea) resultArea.innerHTML = `<div style="color: #e0846a; font-weight: bold; font-size: 15px;">💸 ${resultName}! You lose ${Utils.formatGold(bet)}g.</div>`;
                         if (doubleArea) doubleArea.style.display = 'none';
 
                         // Re-enable buttons
@@ -867,10 +867,10 @@ Object.assign(ActionMenu, {
                         currentWinnings *= 2;
                         _housePays(game, currentWinnings / 2); // Double the previous winnings
                         ActionMenu._gamblingFinance(game, currentWinnings / 2);
-                        if (resultArea) resultArea.innerHTML = `<div style="color: #8fd18a; font-weight: bold; font-size: 15px;">🔥 DOUBLED! Winnings: ${currentWinnings}g!</div>`;
+                        if (resultArea) resultArea.innerHTML = `<div style="color: #8fd18a; font-weight: bold; font-size: 15px;">🔥 DOUBLED! Winnings: ${Utils.formatGold(currentWinnings)}g!</div>`;
                         // Update double-or-nothing display
                         if (doubleArea) {
-                            doubleArea.innerHTML = _dfDoubleBox(`🔥🔥 Double again? (${currentWinnings}g at stake!)`);
+                            doubleArea.innerHTML = _dfDoubleBox(`🔥🔥 Double again? (${Utils.formatGold(currentWinnings)}g at stake!)`);
                         }
                     } else {
                         // Lose everything from double-or-nothing
@@ -895,7 +895,7 @@ Object.assign(ActionMenu, {
         };
 
         window._dfCashOut = () => {
-            game.ui.showNotification('💰 Cashed Out!', `You walk away with ${currentWinnings}g in your pocket.`, 'success');
+            game.ui.showNotification('💰 Cashed Out!', `You walk away with ${Utils.formatGold(currentWinnings)}g in your pocket.`, 'success');
             currentWinnings = 0;
             const doubleArea = document.getElementById('dfDoubleArea');
             if (doubleArea) doubleArea.style.display = 'none';
@@ -971,7 +971,7 @@ Object.assign(ActionMenu, {
                 html += `<div style="display:flex; justify-content:center;">${chips([
                     { icon: '🔥', label: 'Streak', value: `<span style="color:${streak > 0 ? '#8fd18a' : '#9d937c'};">${streak}</span>` },
                     { icon: '✖', label: 'Multiplier', value: `${multiplier.toFixed(1)}x`, cls: 'gold' },
-                    { icon: '💰', label: 'Pot', value: `<span style="color:#8fd18a;">${potentialWin}g</span>` },
+                    { icon: '💰', label: 'Pot', value: `<span style="color:#8fd18a;">${Utils.formatGold(potentialWin)}g</span>` },
                 ])}</div>`;
 
                 html += `<div style="display: flex; justify-content: center; gap: 16px; margin: 20px 0;">
@@ -987,7 +987,7 @@ Object.assign(ActionMenu, {
                             <button onclick="window._hlCashOut()"
                                 style="${streak === 0 ? BTN_OFF + ' pointer-events:none;' : BTN_GOLD} ${G}"
                                 ${streak === 0 ? 'disabled' : ''}>
-                                💰 Cash Out (${potentialWin}g)
+                                💰 Cash Out (${Utils.formatGold(potentialWin)}g)
                             </button>
                             <button onclick="window._hlGuess('lower')" style="${BTN_PLAIN} ${G}">
                                 ⬇️ Lower
@@ -1060,7 +1060,7 @@ Object.assign(ActionMenu, {
                 game.ui.showCustomPanel('🃏 High-Low', renderHL());
                 setTimeout(() => {
                     const res = document.getElementById('hlResult');
-                    if (res) res.innerHTML = `<div style="color: #e0846a; font-size: 14px; font-weight: bold;">❌ Wrong! It was ${nextCard.value}${nextCard.suit}. Lost ${bet}g! 💸</div>`;
+                    if (res) res.innerHTML = `<div style="color: #e0846a; font-size: 14px; font-weight: bold;">❌ Wrong! It was ${nextCard.value}${nextCard.suit}. Lost ${Utils.formatGold(bet)}g! 💸</div>`;
                 }, 50);
                 // After showing the result, reset for next round
                 setTimeout(() => { revealedCard = null; currentCard = drawCard(); game.ui.showCustomPanel('🃏 High-Low', renderHL()); }, 2000);
@@ -1074,7 +1074,7 @@ Object.assign(ActionMenu, {
             const winnings = Math.floor(bet * multiplier);
             _housePays(game, winnings);
             ActionMenu._gamblingFinance(game, winnings - bet);
-            game.ui.showNotification('💰 Cashed Out!', `Streak of ${streak}! Won ${winnings}g (${multiplier.toFixed(1)}x)!`, 'success');
+            game.ui.showNotification('💰 Cashed Out!', `Streak of ${streak}! Won ${Utils.formatGold(winnings)}g (${multiplier.toFixed(1)}x)!`, 'success');
             inRound = false;
             streak = 0;
             revealedCard = null;
@@ -1181,7 +1181,7 @@ Object.assign(ActionMenu, {
         html += `<div class="pk-head" style="text-align:center; margin-top:0;">${perf.name}</div>`;
         html += `<div style="margin-bottom: 10px; font-size: 20px; letter-spacing: 4px;">${starsHtml}</div>`;
         html += `<div style="display:flex; justify-content:center;">${chips([
-            { icon: '💰', label: 'Earned', value: `+${actualPay} gold`, cls: 'gold' },
+            { icon: '💰', label: 'Earned', value: `+${Utils.formatGold(actualPay)} gold`, cls: 'gold' },
             scorePercent >= 40 ? { icon: '⭐', label: '', value: '<span style="color:#ce93d8;">+1 Renown</span>' } : null,
             perf.bonusKarma && scorePercent >= 25 ? { icon: '🕊️', label: '', value: '<span style="color:#8fd18a;">+1 Karma</span>' } : null,
         ])}</div>`;

@@ -14,6 +14,7 @@ import { RivalAgents } from '../../systems/rivalAgents.js';
 import { HoldingSieges } from '../../systems/holdingSieges.js';
 import { esc, bullets, lede, chips, card, rowList, sectionHead, more, price, purse } from './uiKit.js';
 import { RealmIntel } from '../../systems/realmIntel.js';
+import { Utils } from '../../core/utils.js';
 
 const PART_LABELS = {
     towns: '🏰 Towns held', properties: '🏭 Properties', crown: '👑 Crown', title: '🏅 Office', army: '⚔️ Army',
@@ -90,7 +91,7 @@ function _leagueHtml(player, world, v, gold) {
     const q = v.quote;
     const prestige = (player.house && player.house.prestige) || 0;
     lg += rowList([
-        _row('💰', 'Pay the league', 'Every member stands down; the courts see you bend.', 'concede', ['gold'], gold >= q.gold, `Needs ${q.gold}g.`, price(q.gold, gold >= q.gold)),
+        _row('💰', 'Pay the league', 'Every member stands down; the courts see you bend.', 'concede', ['gold'], gold >= q.gold, `Needs ${Utils.formatGold(q.gold)}g.`, price(q.gold, gold >= q.gold)),
         _row('🙇', 'Bow', 'Every member stands down; your House pays in Prestige.', 'concede', ['prestige'], prestige >= q.prestige, `Needs ⭐${q.prestige} Prestige.`, `⭐ ${q.prestige}`),
         c.stage === 'forming' ? _row('⚔️', 'Throw their terms back', 'War from every member at once.', 'defy', [], true, '', '', 'bad') : null,
     ], 'Answer the whole league');
@@ -115,7 +116,7 @@ function _leagueHtml(player, world, v, gold) {
             army = seen.exact ? seen.text : esc(seen.text);
         }
         const rows = [
-            _row('💰', 'Buy out', 'They leave the league and make peace with you.', 'split', [m.kingdomId, 'gold', ''], gold >= cost, `Needs ${cost}g.`, price(cost, gold >= cost)),
+            _row('💰', 'Buy out', 'They leave the league and make peace with you.', 'split', [m.kingdomId, 'gold', ''], gold >= cost, `Needs ${Utils.formatGold(cost)}g.`, price(cost, gold >= cost)),
             ...kids.slice(0, 2).map(child => _row('💍', `Wed ${esc(child.firstName)} into ${esc(m.name)}`, 'A match seals their leaving.', 'split', [m.kingdomId, 'marriage', child.id])),
             ...cedable.slice(0, 2).map(h => _row('🏰', `Cede ${esc(h.name)}`, 'A town of yours to them; they leave the league and remember the gift.', 'split', [m.kingdomId, 'cede', `${h.q},${h.r}`], true, '', '', 'bad')),
         ];
@@ -138,7 +139,7 @@ function _agentsHtml(player, world, gold) {
         }];
         if (!a.turned) {
             const cost = RivalAgents.turnCost(player, a);
-            rows.push(_row('💰', 'Turn them', 'They feed their master false word and tell you of its plots.', 'turn', [a.id], gold >= cost, `Needs ${cost}g.`, price(cost, gold >= cost)));
+            rows.push(_row('💰', 'Turn them', 'They feed their master false word and tell you of its plots.', 'turn', [a.id], gold >= cost, `Needs ${Utils.formatGold(cost)}g.`, price(cost, gold >= cost)));
             rows.push(_row('📢', 'Expose them', 'Named a traitor and driven out; the rival is shamed — and angrier.', 'expose', [a.id], true, '', '', 'bad'));
         }
         html += rowList(rows);
@@ -146,7 +147,7 @@ function _agentsHtml(player, world, gold) {
     const tile = world.getTile ? world.getTile(player.q, player.r) : null;
     if (tile && tile.settlement) {
         const inq = RivalAgents.config().inquiry;
-        html += rowList([_row('🍺', `Ask around ${esc(tile.settlement.name)}`, 'Loosen tongues: anyone here in a rival\'s pay is likelier to be found out.', 'inquire', [player.q, player.r], gold >= inq.gold, `Needs ${inq.gold}g.`, price(inq.gold, gold >= inq.gold))]);
+        html += rowList([_row('🍺', `Ask around ${esc(tile.settlement.name)}`, 'Loosen tongues: anyone here in a rival\'s pay is likelier to be found out.', 'inquire', [player.q, player.r], gold >= inq.gold, `Needs ${Utils.formatGold(inq.gold)}g.`, price(inq.gold, gold >= inq.gold))]);
     }
     const s = st.stats;
     // The rival Houses' work against you so far (RivalAgents.tally: bought, leaks, sabotage, exposed, turned, inquiries)

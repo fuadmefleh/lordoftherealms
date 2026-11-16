@@ -52,6 +52,7 @@ import { CompanionChatMood } from './companionChatMood.js';
 import { Hearsay } from './hearsay.js';
 // (the friendship between you, if any: systems/bonds.js)
 import { Bonds } from './bonds.js';
+import { Utils } from '../core/utils.js';
 
 const DEFAULTS = {
     apCost: 1,
@@ -354,7 +355,7 @@ export const NpcChat = {
         const have = stock ? Object.entries(stock).filter(([, e]) => e && e.qty > 0)
             .map(([id, e]) => `${id} x${e.qty} (${e.price || (_good(id) || {}).basePrice || 1} gold each)`) : [];
         const coin = who.purse ? Math.floor(who.purse(world)) : _num(NpcChat.config().limits.purse, 25);
-        lines.push('', `WHAT YOU HAVE WITH YOU (item ids): ${have.length ? have.join(', ') : 'nothing to spare'}. Coin in your purse: about ${coin} gold.`);
+        lines.push('', `WHAT YOU HAVE WITH YOU (item ids): ${have.length ? have.join(', ') : 'nothing to spare'}. Coin in your purse: about ${Utils.formatGold(coin)} gold.`);
         if (player.gold != null) lines.push(`(The player looks to have about ${Math.round(_num(player.gold))} gold on them.)`);
 
         // The world around you (systems/chatter.js: the same facts the town talks of)
@@ -750,7 +751,7 @@ Answer with ONE JSON object and nothing else:
                         // (the goods out of their real stock, the coin into their purse or their town's)
                         if (who.take) who.take(world, id, qty);
                         if (who.receive) who.receive(world, price, 'sale');
-                        notes.push({ text: `🛒 You buy ${qty} ${label} for ${price} gold`, tone: 'info' });
+                        notes.push({ text: `🛒 You buy ${qty} ${label} for ${Utils.formatGold(price)} gold`, tone: 'info' });
                     }
                     break;
                 }
@@ -759,7 +760,7 @@ Answer with ONE JSON object and nothing else:
                     if (!(n > 0)) break;
                     player.gold -= n;
                     if (who.receive) who.receive(world, n, 'gift');
-                    notes.push({ text: `💰 You give ${who.firstName} ${n} gold`, tone: 'info' });
+                    notes.push({ text: `💰 You give ${who.firstName} ${Utils.formatGold(n)} gold`, tone: 'info' });
                     // (coin promised them counts)
                     NpcChatImpact.onPaid(player, world, who, n, notes);
                     break;
@@ -772,7 +773,7 @@ Answer with ONE JSON object and nothing else:
                     if (!(n > 0)) { if (a.amount > 0) notes.push({ text: `💰 ${who.firstName} has no coin to spare`, tone: 'info' }); break; }
                     player.gold = _num(player.gold) + n;
                     t.coin = _num(t.coin) + n;
-                    notes.push({ text: `💰 ${who.firstName} gives you ${n} gold`, tone: 'good' });
+                    notes.push({ text: `💰 ${who.firstName} gives you ${Utils.formatGold(n)} gold`, tone: 'good' });
                     break;
                 }
                 case 'end_conversation': {

@@ -9,6 +9,7 @@ import { _recomputeNineTile, _brushPaint, _brushErase, _metaToggle, _stampPaint,
 import { _showToast, _updateResourceDisplay, _buildUI, _handleCanvasClick, _buildToolButtons, _setTool, _buildLayerButtons, _buildBrushList, _selectBrush, _updateCostEditor, _updateStampPreview, _buildPaletteCats, _showPaletteCategory, _updateTotalCost } from './ui.js';
 import { _finishExteriorPhase, _prePlaceOuterWalls, _finishBuilding, _placeOnInnerMap, open, close, isOpen } from './build.js';
 import { CustomSheets } from '../../core/customSheets.js';
+import { Utils } from '../../core/utils.js';
 
 export function _prettyResourceId(itemId) {
     return String(itemId || '').trim().replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) || 'Unknown Resource';
@@ -102,7 +103,7 @@ export function _deductCost(player, brushId) {
 
 export function _formatCost(cost) {
     const parts = [];
-    if (cost.gold > 0) parts.push(`${cost.gold}g`);
+    if (cost.gold > 0) parts.push(`${Utils.formatGold(cost.gold)}g`);
     for (const [itemId, qty] of Object.entries(cost.resources || {})) {
         const def = _getResourceDef(itemId);
         parts.push(`${qty} ${def.icon} ${def.name}`);

@@ -846,7 +846,7 @@ export const CourtLetters = {
                 ok = chk.ok;
                 why = chk.why || '';
             }
-            const needGold = (n) => { if (gold < n) { ok = false; why = `You need ${n} gold.`; } };
+            const needGold = (n) => { if (gold < n) { ok = false; why = `You need ${Utils.formatGold(n)} gold.`; } };
             switch (`${letter.kind}:${id}`) {
                 case 'marriage_proposal:accept':
                 case 'rival_marriage:accept': {
@@ -932,7 +932,7 @@ export const CourtLetters = {
                 const paid = k ? Math.min(amount, Math.max(0, Math.floor(_num(k.treasury)))) : 0;
                 if (k) k.treasury = Math.max(0, _num(k.treasury) - paid);
                 this._gold(player, 'diplomacy', paid);
-                lines.push(`💍 ${r.child.firstName} weds ${r.spouse.name} · 💰 +${paid} gold.`);
+                lines.push(`💍 ${r.child.firstName} weds ${r.spouse.name} · 💰 +${Utils.formatGold(paid)} gold.`);
                 break;
             }
             case 'marriage_proposal:refuse': remember('match_refused'); break;
@@ -981,7 +981,7 @@ export const CourtLetters = {
                     k.military = _num(k.military) + Math.floor(amount / 20);
                     if ((k.wars || []).includes(letter.data.enemyId) && amount >= 300) KingdomAI._warState(k, letter.data.enemyId, world).gains += 1;
                 }
-                remember('call_gold', { note: `${amount} gold` });
+                remember('call_gold', { note: `${Utils.formatGold(amount)} gold` });
                 lines.push(`💰 −${amount} gold to ${k ? k.name : 'the'} war chest.`);
                 break;
             }
@@ -998,13 +998,13 @@ export const CourtLetters = {
                     principal: amount, interest: Math.round(amount * _num(letter.data.rate, 0.1)), day, due: day + _num(letter.data.days, 90), status: 'open',
                 });
                 st.stats.lent++;
-                remember('loan_granted', { note: `${amount} gold` });
+                remember('loan_granted', { note: `${Utils.formatGold(amount)} gold` });
                 break;
             }
             case 'loan_request:refuse': remember('loan_refused'); break;
             case 'loan_default:forgive':
                 this._loanStatus(player, letter.data.loanId, 'forgiven');
-                remember('loan_forgiven', { note: `${amount} gold` });
+                remember('loan_forgiven', { note: `${Utils.formatGold(amount)} gold` });
                 break;
             case 'loan_default:demand': {
                 const K2 = this.kind('loan_default') || {};
@@ -1068,7 +1068,7 @@ export const CourtLetters = {
                 if (!r.success) return { success: false, reason: r.reason };
                 Ledger.record(player, 'diplomacy', -r.cost);
                 this._affection(player, letter.from.npcId, _num(K.affection, 12) * 2);
-                lines.push(`🕊️ Peace with ${k ? k.name : 'the realm'} for ${r.cost} gold.`);
+                lines.push(`🕊️ Peace with ${k ? k.name : 'the realm'} for ${Utils.formatGold(r.cost)} gold.`);
                 break;
             }
             case 'spouse_plea:duty': this._affection(player, letter.from.npcId, _num(K.refuseAffection, -15)); break;
@@ -1136,8 +1136,8 @@ export const CourtLetters = {
             me = Duels.fromPlayer(player);
         }
         const out = Duels.settleTournament(player, { prizePool: _num(letter.data.prize), bouts, armour, world });
-        const text = out.champion ? `🏆 Champion of ${letter.vars.realm}'s lists! +${out.gold} gold, +${out.renown} renown.`
-            : out.finalist ? `🥈 Runner-up: +${out.gold} gold, +${out.renown} renown.`
+        const text = out.champion ? `🏆 Champion of ${letter.vars.realm}'s lists! +${Utils.formatGold(out.gold)} gold, +${out.renown} renown.`
+            : out.finalist ? `🥈 Runner-up: +${Utils.formatGold(out.gold)} gold, +${out.renown} renown.`
                 : `Unhorsed after ${out.wins} win${out.wins === 1 ? '' : 's'}. +${out.renown} renown.`;
         return { champion: out.champion, text: out.harm > 0 ? `${text} −${out.harm} HP.` : text };
     },

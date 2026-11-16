@@ -7,6 +7,7 @@ import { ActionMenu } from './_ref.js';
 import { CadetBranches } from '../../systems/cadetBranches.js';
 import { Inheritance } from '../../systems/inheritance.js';
 import { lede, bullets, card, rowList, chips, price, esc } from './uiKit.js';
+import { Utils } from '../../core/utils.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 
@@ -21,8 +22,8 @@ function branchCard(v) {
     body += `<div style="font-size:12px; margin-top:3px;">${v.spouse ? `Married to ${esc(v.spouse)}` : 'Unmarried'}${kids.length ? ` · children: ${kids.join(', ')}` : ' · no children'}</div>`;
     const extras = [`🧭 ${esc(v.doing)}${v.where ? ` (near ${esc(v.where)})` : ''}`];
     if (v.estates.length) extras.push(`🌾 ${v.estates.map(esc).join(', ')}`);
-    if (v.tribute) extras.push(`💰 ${v.tribute}g sent to you`);
-    if (v.gifts) extras.push(`🎁 ${v.gifts}g given them`);
+    if (v.tribute) extras.push(`💰 ${Utils.formatGold(v.tribute)}g sent to you`);
+    if (v.gifts) extras.push(`🎁 ${Utils.formatGold(v.gifts)}g given them`);
     if (v.levy) extras.push('🛡️ their men serve with you');
     body += `<div style="${NOTE} margin-top:3px;">${extras.join(' · ')}</div>`;
     if (v.log.length) body += `<div style="${NOTE} margin-top:4px;">${v.log.map(e => `Day ${e.day}: ${esc(e.text)}`).join('<br>')}</div>`;
@@ -36,7 +37,7 @@ function actsFor(game, v) {
     const gold = Inheritance.coin(game.player);
     const G = CadetBranches.config().gift;
     const rows = (G.amounts || [100, 300, 1000]).map(n => ({
-        icon: '🎁', name: `Send ${n} gold`, desc: 'A gift by courier: loyalty rises (less for a second gift soon after)',
+        icon: '🎁', name: `Send ${Utils.formatGold(n)} gold`, desc: 'A gift by courier: loyalty rises (less for a second gift soon after)',
         act: 'cadetAct', args: [v.id, 'gift', n], side: price(n, gold >= n), off: gold < n, why: 'You do not have the gold.',
     }));
     const wait = (k) => (v.waits[k] ? `asked lately: again in ${v.waits[k]} days` : '');
@@ -78,7 +79,7 @@ Object.assign(ActionMenu, {
         if (kids.length) {
             html += rowList(kids.map(c => ({
                 icon: c.gender === 'female' ? '♀️' : '♂️', name: `${esc(c.firstName)}, ${c.age}`,
-                desc: `Send them out to found a branch${c.purse > 0 ? ` (their portion: ${Math.round(c.purse)}g)` : ''}`,
+                desc: `Send them out to found a branch${c.purse > 0 ? ` (their portion: ${Utils.formatGold(c.purse)}g)` : ''}`,
                 act: 'showCadetFound', args: [c.id], side: '›',
             })), '🌱 Found a Branch');
         }
@@ -98,10 +99,10 @@ Object.assign(ActionMenu, {
         const gold = Inheritance.coin(player);
         let html = '<div style="font-size:12px; min-width:400px;">';
         html += lede(`${esc(child.firstName)} would leave the household for good — no longer your heir's rival for the seat, but the head of a House of your blood, with a seat of their own.`);
-        html += chips([['💰', 'Their portion', `${Math.round(child.purse || 0)}g`], ['👛', 'Your purse', `${Math.floor(gold)}g`]]);
+        html += chips([['💰', 'Their portion', `${Utils.formatGold(child.purse || 0)}g`], ['👛', 'Your purse', `${Utils.formatGold(gold)}g`]]);
         const grants = [0, 250, 500, 1000, 2500].filter(n => n === 0 || n <= gold);
         html += rowList(grants.map(n => ({
-            icon: n ? '💰' : '🌱', name: n ? `With a grant of ${n} gold` : 'With their portion only',
+            icon: n ? '💰' : '🌱', name: n ? `With a grant of ${Utils.formatGold(n)} gold` : 'With their portion only',
             desc: n ? 'A larger start, and a warmer heart toward the main line' : 'They make their own way',
             act: 'cadetFound', args: [childId, n, null], side: n ? price(n, true) : '',
         })), 'Send them out');

@@ -246,7 +246,7 @@ export const KinCrimes = {
             if (up.spouse) return `${child.firstName} is wed.`;
             if (!KinCrimes._home(child)) return `${child.firstName} is away from home.`;
             const cost = _num(C.cloister.endowment);
-            if (Inheritance.coin(player) < cost) return `The abbey asks an endowment of ${cost} gold.`;
+            if (Inheritance.coin(player) < cost) return `The abbey asks an endowment of ${Utils.formatGold(cost)} gold.`;
             return null;
         }
         if (act === 'unfit') {

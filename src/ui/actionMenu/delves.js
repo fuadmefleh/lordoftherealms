@@ -3,6 +3,7 @@
 import { ActionMenu } from './_ref.js';
 import { Delves, PlayerInventory } from './_imports.js';
 import { esc, lede, chips, card, rowList, more } from './uiKit.js';
+import { Utils } from '../../core/utils.js';
 
 // In the action menu's voice (ui/actionMenu/uiKit.js): the chamber as a card,
 // one row a choice with its odds at the right (greyed with its reason), the
@@ -19,7 +20,7 @@ function _row(o, call) {
 function _haulHtml(haul) {
     if (!haul) return '';
     const parts = [];
-    if (haul.gold) parts.push(`💰 ${haul.gold} gold`);
+    if (haul.gold) parts.push(`💰 ${Utils.formatGold(haul.gold)} gold`);
     for (const [id, n] of Object.entries(haul.items || {})) parts.push(`${n} ${id.replace(/_/g, ' ')}`);
     if (haul.renown) parts.push(`⭐ ${haul.renown} renown`);
     if (haul.karma) parts.push(`🙏 ${haul.karma > 0 ? '+' : ''}${haul.karma} karma`);

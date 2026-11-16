@@ -6,6 +6,7 @@
 import { ActionMenu } from './_ref.js';
 import { Sagas } from './_imports.js';
 import { lede, card, rowList, sectionHead, more, esc } from './uiKit.js';
+import { Utils } from '../../core/utils.js';
 
 const OUTCOME = { triumph: ['🏆', 'good'], mixed: ['⚖️', 'warn'], tragedy: ['🕯️', 'bad'] };
 const MUTED = 'font-size:11px; color:#a99a78;';
@@ -13,7 +14,7 @@ const MUTED = 'font-size:11px; color:#a99a78;';
 function _costText(cost) {
     if (!cost) return '';
     const parts = [];
-    if (cost.gold) parts.push(`${cost.gold}g`);
+    if (cost.gold) parts.push(`${Utils.formatGold(cost.gold)}g`);
     if (cost.prestige) parts.push(`⭐${cost.prestige}`);
     for (const [item, n] of Object.entries(cost.items || {})) parts.push(`${n} ${item.replace(/_/g, ' ')}`);
     return parts.join(' · ');

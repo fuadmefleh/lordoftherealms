@@ -1231,7 +1231,7 @@ Object.assign(InnerMapRenderer, {
                 // The bathhouse: a few coppers for a hot bath (hygiene, comfort, an hour)
                 const cost = 2;
                 if ((game.player.gold || 0) < cost) {
-                    game.ui.showNotification('🛁 Bathhouse', `A bath is ${cost} gold, and you haven't got it.`, 'error');
+                    game.ui.showNotification('🛁 Bathhouse', `A bath is ${Utils.formatGold(cost)} gold, and you haven't got it.`, 'error');
                     break;
                 }
                 // (the bathhouse is the town's: the coin into its purse)
@@ -1241,7 +1241,7 @@ Object.assign(InnerMapRenderer, {
                     game.player.modifyNeed('comfort', 15);
                 }
                 InnerMap._timeAccumulator = InnerMap.TIME_SCALE;
-                game.ui.showNotification('🛁 Bathhouse', `You soak in a hot bath for an hour (${cost} gold). Mind your clothes are clean, or the smell comes back.`, 'success');
+                game.ui.showNotification('🛁 Bathhouse', `You soak in a hot bath for an hour (${Utils.formatGold(cost)} gold). Mind your clothes are clean, or the smell comes back.`, 'success');
                 game.ui.updateStats(game.player, game.world);
                 break;
             }
@@ -1259,7 +1259,7 @@ Object.assign(InnerMapRenderer, {
                 }
                 PlayerCoin.pay(game.world, game.player, cost, PlayerCoin.townHere(game.world, game.player), 'lodging');
                 const cs = game.player.clothesState();
-                game.ui.showNotification('🧺 Laundry', `Your clothes come back scrubbed and dry: ${cs.label.toLowerCase()} (${cs.freshness}%) for ${cost} gold.`, 'success');
+                game.ui.showNotification('🧺 Laundry', `Your clothes come back scrubbed and dry: ${cs.label.toLowerCase()} (${cs.freshness}%) for ${Utils.formatGold(cost)} gold.`, 'success');
                 game.ui.updateStats(game.player, game.world);
                 break;
             }
@@ -1567,7 +1567,7 @@ Object.assign(InnerMapRenderer, {
                     const gi = gTile.groundItem;
                     // (a wreck's strongbox was in no purse the books count: salvage, found)
                     PlayerCoin.found(game.world, game.player, gi.gold, 'salvage', 'exploration');
-                    game.ui.showNotification(`${gi.icon} Salvage`, `You prise the strongbox open: ${gi.gold} gold.`, 'success');
+                    game.ui.showNotification(`${gi.icon} Salvage`, `You prise the strongbox open: ${Utils.formatGold(gi.gold)} gold.`, 'success');
                     delete gTile.groundItem;
                     game.ui.updateStats(game.player, game.world);
                 } else if (gTile && gTile.groundItem) {

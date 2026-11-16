@@ -49,6 +49,7 @@
 //                     is spent into a town, a person's or a guild's purse
 //
 //   and, in the world's total (each/total) though in no realm's count:
+//     • sea           coin lost at sea, until the sea gives it up (world.money.sea)
 //     • outlaws       named pirate captains' takings (player.seaRoving: at sea)
 //     • court         an avenger's own purse (systems/nemesis.js, blood or kin)
 //     • coffers       the stranger's purse (systems/soulPact.js: what souls paid)
@@ -277,6 +278,9 @@ export const CoinCensus = {
             }
             const gs = _obj(s.guilds);
             if (gs) for (const g of Object.values(gs)) if (g) { fn(g, 'treasury', 'guilds'); if (g.lobbying) fn(g.lobbying, 'purse', 'guilds'); }
+            // (pedlars on the road to this town or in it — systems/townTrade.js — as count() has them)
+            const tt = _obj(s.townTrade);
+            if (tt && Array.isArray(tt.pedlars)) for (const ped of tt.pedlars) if (ped && typeof ped.purse === 'number') fn(ped, 'purse', 'roads');
         }
         const hosp = _obj(world.hospitality);
         if (hosp && _obj(hosp.houses)) for (const h of Object.values(hosp.houses)) if (h) fn(h, 'cash', 'inns');
@@ -298,6 +302,9 @@ export const CoinCensus = {
             fn(k, 'treasury', 'treasury');
             if (k.royalBank) fn(k.royalBank, 'treasury', 'banks');
         }
+        // (coin lost at sea, in the sea's keeping until it is found: MoneySupply.seaLost / seaFound)
+        const ms = _obj(world.money);
+        if (ms && typeof ms.sea === 'number') fn(ms, 'sea', 'sea');
         if (!player) return;
         const rivals = player.house && _obj(player.house.rivals);
         if (rivals) for (const h of Object.values(rivals)) if (h && !h.extinct) fn(h, 'gold', 'coffers');

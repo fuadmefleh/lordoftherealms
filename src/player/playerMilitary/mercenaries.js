@@ -291,7 +291,7 @@ Object.assign(PlayerMilitary, {
         if (!company) return { success: false, reason: 'Company not found.' };
 
         const bonus = Math.max(50, Math.floor(goldAmount));
-        if (player.gold < bonus) return { success: false, reason: `Need ${bonus} gold.` };
+        if (player.gold < bonus) return { success: false, reason: `Need ${Utils.formatGold(bonus)} gold.` };
 
         // (the men spend it in the town nearest the camp)
         PlayerCoin.pay(world, player, bonus, null, 'mercenaryWages');

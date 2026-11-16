@@ -9,6 +9,7 @@ import { ActionMenu } from './_ref.js';
 import { PeopleCrimes } from '../../systems/peopleCrimes.js';
 import { Townsfolk } from '../../systems/townsfolk.js';
 import { esc, card, rowList, price } from './uiKit.js';
+import { Utils } from '../../core/utils.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 
@@ -23,7 +24,7 @@ export function landlordRows(game, v) {
     else if (v.owed > 0) {
         rows.push({
             icon: '🔒', name: 'Put Them in the Stocks', tone: 'bad', act: 'peopleCrimeAct', args: ['stocks', v.q, v.r, v.ref],
-            desc: `For the ${v.owed}g they owe: their kin pay what they can. The town will remember a hard landlord${winter ? '; in this cold, the stocks can kill' : ''}.`,
+            desc: `For the ${Utils.formatGold(v.owed)}g they owe: their kin pay what they can. The town will remember a hard landlord${winter ? '; in this cold, the stocks can kill' : ''}.`,
         });
     } else rows.push({ icon: '🔒', name: 'Put Them in the Stocks', off: true, why: 'They owe you nothing: there is no debt to put them in the stocks for' });
     return rows;

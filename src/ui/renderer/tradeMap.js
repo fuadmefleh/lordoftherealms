@@ -15,6 +15,7 @@ import { SettlementMarket } from '../../world/settlementMarket.js';
 import { PriceAnchors } from '../../world/priceAnchors.js';
 import { DataLoader } from '../../core/dataLoader.js';
 import { Transport } from '../../world/transport.js';
+import { Utils } from '../../core/utils.js';
 
 function goodDef(id) {
     const gd = DataLoader._gamedata;
@@ -126,7 +127,7 @@ Object.assign(Renderer.prototype, {
             ctx.strokeStyle = label.color;
             ctx.lineWidth = Math.max(2, 3 * z);
             ctx.stroke();
-            this.drawMapText(ctx, `${k.ask}g`, s.x, s.y - size * 0.55, { size: 12 * z, weight: 700, family: 'body', color: '#fff' });
+            this.drawMapText(ctx, `${Utils.formatGold(k.ask)}g`, s.x, s.y - size * 0.55, { size: 12 * z, weight: 700, family: 'body', color: '#fff' });
             this.drawMapText(ctx, PriceKnowledge.ageText(k.age),
                 s.x, s.y - size * 0.55 + Math.max(16, size * 0.62), {
                     size: 10 * z, weight: 500, family: 'body',

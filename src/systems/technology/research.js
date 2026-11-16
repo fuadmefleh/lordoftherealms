@@ -3,6 +3,7 @@ import { Technology } from './_ref.js';
 import { PlayerEconomy, PlayerMilitary } from './_imports.js';
 import { PlayerInventory } from '../../core/inventory.js';
 import { Traits } from '../traits.js';
+import { Utils } from '../../core/utils.js';
 
 Object.assign(Technology, {
     // ═══════════════════════════════════════
@@ -32,7 +33,7 @@ Object.assign(Technology, {
         const config = Technology.getLabConfig(property.type);
         if (!config) return { can: false, reason: 'This property type cannot have a lab' };
         if (property.hasLab) return { can: false, reason: 'Already has a lab' };
-        if (player.gold < config.labCost) return { can: false, reason: `Need ${config.labCost} gold (have ${Math.floor(player.gold)})` };
+        if (player.gold < config.labCost) return { can: false, reason: `Need ${Utils.formatGold(config.labCost)} gold (have ${Math.floor(player.gold)})` };
 
         // Check materials
         if (!player.inventory) player.inventory = {};
@@ -195,7 +196,7 @@ Object.assign(Technology, {
 
         // Check gold
         if (player.gold < info.gold) {
-            return { can: false, reason: `Need ${info.gold} gold (have ${Math.floor(player.gold)})` };
+            return { can: false, reason: `Need ${Utils.formatGold(info.gold)} gold (have ${Math.floor(player.gold)})` };
         }
 
         // Check materials
@@ -324,7 +325,7 @@ Object.assign(Technology, {
 
         // Check gold
         if (player.gold < recipe.gold) {
-            return { can: false, reason: `Need ${recipe.gold} gold (have ${Math.floor(player.gold)})` };
+            return { can: false, reason: `Need ${Utils.formatGold(recipe.gold)} gold (have ${Math.floor(player.gold)})` };
         }
 
         // Check materials

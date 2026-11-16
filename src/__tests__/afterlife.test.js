@@ -132,7 +132,10 @@ describe('a new life', () => {
             const me = res.player;
             expect(me.name).toBe(`${cand.first} ${cand.last}`);
             expect([me.q, me.r]).toEqual([cand.q, cand.r]);
-            expect(me.gold).toBe(cand.gold);
+            // (their coin is their own purse, then what the town can give of it: a town short of
+            // coin gives less — 2026-11-15 its inns' cash came out of its purse, not from nothing)
+            expect(me.gold).toBeGreaterThan(0);
+            expect(me.gold).toBeLessThanOrEqual(cand.gold);
             expect(me.house).toBeTruthy();
             expect(me.house.name).not.toBe(old.house.name);
             expect(me.interregnum).toBeUndefined();

@@ -875,7 +875,7 @@ export const Rivals = {
             rival.deeds.bounties++;
             Rivals._news(player, world, rival, '🎯', `${rival.name} brought in ${b.targetName}${b.fromSettlement ? ` for the magistrate of ${b.fromSettlement}` : ''}.`, task.q, task.r);
             if (hit.accepted) {
-                notify('🎯', 'Bounty Claimed', `${rival.name} brought in ${b.targetName} before you — the ${_num(b.actualPay)}g bounty is theirs.`, 'warning');
+                notify('🎯', 'Bounty Claimed', `${rival.name} brought in ${b.targetName} before you — the ${Utils.formatGold(_num(b.actualPay))}g bounty is theirs.`, 'warning');
             } else if (Rivals._nearPlayer(player, world, task.q, task.r)) {
                 notify('🎯', 'Bounty Taken', `${rival.name} has claimed the bounty on ${b.targetName}.`, 'info');
             }
@@ -921,7 +921,7 @@ export const Rivals = {
             const fled = !res.rivalDied;
             notify('🗡️', 'Ambushed!', `${rival.name} sprang on you — "${line}" — but you beat them off${fled ? '; they fled wounded' : ' and they fell'}. (-${res.harm} health, +${res.renown} renown)`, 'warning');
         } else {
-            notify('🗡️', 'Ambushed!', `${rival.name} sprang on you — "${line}" You were beaten and robbed: -${res.harm} health, -${res.goldLost} gold.${res.wound ? ` ${res.wound.icon || '🔴'} ${res.wound.name}.` : ''}`, 'error');
+            notify('🗡️', 'Ambushed!', `${rival.name} sprang on you — "${line}" You were beaten and robbed: -${res.harm} health, -${Utils.formatGold(res.goldLost)} gold.${res.wound ? ` ${res.wound.icon || '🔴'} ${res.wound.name}.` : ''}`, 'error');
         }
     },
 
@@ -1029,7 +1029,7 @@ export const Rivals = {
                 rival.q = player.q != null ? player.q : rival.q;
                 rival.r = player.r != null ? player.r : rival.r;
                 Rivals._rest(rival, world);
-                notify(rival.icon, 'Partnership Ends', `${rival.name} parts ways with you${_num(p.earned) ? ` (${_num(p.earned)}g richer)` : ''}.`, 'info');
+                notify(rival.icon, 'Partnership Ends', `${rival.name} parts ways with you${_num(p.earned) ? ` (${Utils.formatGold(_num(p.earned))}g richer)` : ''}.`, 'info');
             }
         }
     },
@@ -1101,7 +1101,7 @@ export const Rivals = {
                 if (rival.task && rival.task.key === race.key) rival.task = null;
                 Rivals._news(player, world, rival, '🏁', `You beat ${rival.name} to ${race.siteName}.`, race.q, race.r);
             }
-            notify('🏁', 'Race Won!', `You reached ${race.siteName} before ${rival ? rival.name : 'your rival'}: +${purse} gold, +${cfg.renown} renown. "${_pick(lines.raceWon) || 'Curse you.'}"`, 'success');
+            notify('🏁', 'Race Won!', `You reached ${race.siteName} before ${rival ? rival.name : 'your rival'}: +${Utils.formatGold(purse)} gold, +${cfg.renown} renown. "${_pick(lines.raceWon) || 'Curse you.'}"`, 'success');
         } else {
             st.stats.racesLost++;
             // (the winner keeps their own stake and takes yours from the stakeholder)
@@ -1112,7 +1112,7 @@ export const Rivals = {
                 Rivals.remember(rival, world, `won a race to ${race.siteName}`, 3);
                 Rivals._news(player, world, rival, '🏁', `${rival.name} beat you to ${race.siteName}.`, race.q, race.r);
             }
-            notify('🏁', 'Race Lost', `${rival ? rival.name : 'Your rival'} got to ${race.siteName} first; your ${race.wager}g wager is gone. "${_pick(lines.raceLost) || 'Too slow!'}"`, 'warning');
+            notify('🏁', 'Race Lost', `${rival ? rival.name : 'Your rival'} got to ${race.siteName} first; your ${Utils.formatGold(race.wager)}g wager is gone. "${_pick(lines.raceLost) || 'Too slow!'}"`, 'warning');
         }
         return { playerWon };
     },
@@ -1340,7 +1340,7 @@ export const Rivals = {
         const arch = Rivals.archetype(rival.archetype);
         if (!arch.hireable || rival.attitude <= Rivals.config().attitude.rival) return { ok: false, reason: `${rival.name}: "${Rivals.line(rival, 'hireNo')}"` };
         const cost = Rivals.hireCost(rival);
-        if (_num(player.gold) < cost) return { ok: false, reason: `${rival.name} wants ${cost} gold.` };
+        if (_num(player.gold) < cost) return { ok: false, reason: `${rival.name} wants ${Utils.formatGold(cost)} gold.` };
         return { ok: true, cost };
     },
 
@@ -1382,7 +1382,7 @@ export const Rivals = {
         if (!rival || rival.dead || rival.with) return { success: false, reason: 'They are not free.' };
         if (st.race) return { success: false, reason: 'You are already racing someone.' };
         const cfg = Rivals.config().race;
-        if (_num(player.gold) < cfg.wager) return { success: false, reason: `The wager is ${cfg.wager} gold.` };
+        if (_num(player.gold) < cfg.wager) return { success: false, reason: `The wager is ${Utils.formatGold(cfg.wager)} gold.` };
         const site = Rivals._findDelveSite(player, world, rival);
         if (!site) return { success: false, reason: 'There is no unexplored ruin or cave near enough to race for.' };
         const tile = world.getTile(site.q, site.r);

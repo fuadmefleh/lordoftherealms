@@ -14,6 +14,7 @@ import { OBJECT_ACTIONS } from './actions.js';
 import { goodInfoIcon } from '../goodInfo.js';
 import { FoodSkills } from '../../systems/foodSkills.js';
 import { Household } from '../../player/household.js';
+import { Utils } from '../../core/utils.js';
 
 export function _getPlayerFoods(game) {
     const inv = game.player.inventory || {};
@@ -125,7 +126,7 @@ export function _showSleepModal(game, objDef, cost = 0) {
             <span style="font-size:28px">🛏️</span>
             <div>
                 <div style="font-family:var(--font-display,'Cinzel',serif);font-size:16px;color:var(--gold,#f5c542)">Sleep</div>
-                <div style="font-size:11px;color:#999">${cost > 0 ? `A night's lodging costs ${cost} gold` : bed > 1 ? `A good bed: sleep restores ${Math.round((bed - 1) * 100)}% more` : 'Rest to recover energy and health'}</div>
+                <div style="font-size:11px;color:#999">${cost > 0 ? `A night's lodging costs ${Utils.formatGold(cost)} gold` : bed > 1 ? `A good bed: sleep restores ${Math.round((bed - 1) * 100)}% more` : 'Rest to recover energy and health'}</div>
             </div>
         </div>
         <div style="${MODAL_BODY_STYLE}">
@@ -146,7 +147,7 @@ export function _showSleepModal(game, objDef, cost = 0) {
         </div>
         <div style="${MODAL_FOOTER_STYLE}">
             ${_btn('Cancel', false, `document.getElementById('${id}').remove()`)}
-            ${_btn(cost > 0 ? `💤 Sleep (${cost}g)` : '💤 Sleep', true, `window._execSleep()`)}
+            ${_btn(cost > 0 ? `💤 Sleep (${Utils.formatGold(cost)}g)` : '💤 Sleep', true, `window._execSleep()`)}
         </div>
     `;
     document.body.appendChild(modal);
@@ -167,7 +168,7 @@ export function _showSleepModal(game, objDef, cost = 0) {
         _removeModal(id);
         if (cost > 0) {
             if ((game.player.gold || 0) < cost) {
-                game.ui.showNotification('🛏️ Lodging', `You can't afford a room (${cost} gold).`, 'error');
+                game.ui.showNotification('🛏️ Lodging', `You can't afford a room (${Utils.formatGold(cost)} gold).`, 'error');
                 delete window._execSleep;
                 return;
             }

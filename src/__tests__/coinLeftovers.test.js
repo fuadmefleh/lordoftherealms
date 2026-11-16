@@ -245,20 +245,23 @@ describe('the sweep\'s leftovers close', () => {
         expect(back.booked).toBe(0);
     });
 
-    it("an avenger's purse is counted: born booked found, spending moves it, the feud's end books what is left lost", () => {
+    it("an avenger's purse is counted: drawn from their home town at birth, spending moves it, the feud's end leaves it in the town", () => {
         const t = towns[0];
         standIn(g.player, t);
         const st = Nemesis.state(g.player);
         const born = measure(g.world, g.player, () => Nemesis._birth(g.player, g.world, { kind: 'blood', name: 'Edric Vane', ref: { folkRef: 'x#1' }, score: 50, deed: { key: 'wrong', label: 'a wrong' } }, { notices: [] }));
         const nm = st.list.find(n => n.name === 'Edric Vane');
         expect(nm).toBeTruthy();
-        expect(born.booked).toBeCloseTo(nm.purse, 6);
+        // (2026-11-15: their savings come out of the town's purse, not from nothing)
+        expect(nm.purse).toBeGreaterThan(0);
+        expect(born.booked).toBe(0);
         expect(Math.abs(born.unbooked)).toBeLessThan(TOL);
         const k = kingdomOf(t);
         const spend = measure(g.world, g.player, () => { const paid = -Nemesis._pay(g.player, g.world, nm, -40); k.treasury += paid; });
         expect(spend.booked).toBe(0);
         expect(Math.abs(spend.unbooked)).toBeLessThan(TOL);
         const ended = measure(g.world, g.player, () => Nemesis._end(g.player, g.world, nm, 'reconciled', null));
+        expect(ended.booked).toBe(0);
         expect(Math.abs(ended.unbooked)).toBeLessThan(TOL);
     });
 

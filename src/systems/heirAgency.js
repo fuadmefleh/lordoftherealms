@@ -219,7 +219,7 @@ export const HeirAgency = {
             const k = HeirAgency._kingdom(world, up.heldBy.kingdomId);
             return `⛓️ Held hostage at ${k ? k.name : 'a foreign court'}`;
         }
-        if (a.captive) return `⛓️ Captive of ${a.captive.by} (ransom ${a.captive.ransom}g)`;
+        if (a.captive) return `⛓️ Captive of ${a.captive.by} (ransom ${Utils.formatGold(a.captive.ransom)}g)`;
         if (Upbringing.isAway(child)) return `🏰 Fostering at the court of ${up.placement.lordName} until day ${up.placement.until}`;
         if (a.commission && a.commission.kind === 'envoy') return `📜 Envoy to ${a.commission.kingdomName} until day ${a.commission.until}`;
         if (a.commission && a.commission.kind === 'command') return `⚔️ Commands the House's company${a.wounded ? ' (wounded)' : ''}`;
@@ -314,7 +314,7 @@ export const HeirAgency = {
         const rep = _num(player.reputation && player.reputation[kid]);
         if (rep < _num(hc.allianceMinReputation)) return { success: false, reason: `${k.name}'s nobles will not promise a child to a House they distrust.` };
         const dowry = Math.round(_num(hc.allianceDowry) * cfg.betrothalDowryShare);
-        if (_num(player.gold) < dowry) return { success: false, reason: `The betrothal gift is ${dowry} gold.` };
+        if (_num(player.gold) < dowry) return { success: false, reason: `The betrothal gift is ${Utils.formatGold(dowry)} gold.` };
         player.gold -= dowry;
         Ledger.record(player, 'family', -dowry);
         // The betrothal gift goes into their treasury; the rest is due at the wedding
@@ -536,7 +536,7 @@ export const HeirAgency = {
             rec.captured++;
             a.commission = null;
             a.captive = { by: enemyName, day, until: day + F.captiveDays, ransom: F.ransom };
-            text = `${child.firstName} was taken captive by ${enemyName}. They ask ${F.ransom} gold.`;
+            text = `${child.firstName} was taken captive by ${enemyName}. They ask ${Utils.formatGold(F.ransom)} gold.`;
             if (player.house) House._chronicle(player.house, world, `${child.firstName} is taken captive by ${enemyName}.`, ['heirs', 'war']);
             HeirAgency.letter(player, world, child, `${child.firstName} is a captive`, `${enemyName} hold me. They ask ${F.ransom} gold for my freedom — pay it from my page in the Dynasty panel, or they will let me go in their own time, and the realm will say our House would not pay for its own.`);
             HeirAgency._news(player, { icon: '⛓️', title: `${child.firstName} Captured`, text, type: 'error' });
@@ -556,7 +556,7 @@ export const HeirAgency = {
         const a = child && HeirAgency.ensure(child);
         if (!a || !a.captive) return { success: false, reason: 'They are not held for ransom.' };
         const cost = _num(a.captive.ransom);
-        if (_num(player.gold) < cost) return { success: false, reason: `The ransom is ${cost} gold.` };
+        if (_num(player.gold) < cost) return { success: false, reason: `The ransom is ${Utils.formatGold(cost)} gold.` };
         player.gold -= cost;
         Ledger.record(player, 'family', -cost);
         // (the captors spend the ransom in the towns near where it is handed over)

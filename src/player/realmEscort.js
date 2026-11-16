@@ -51,6 +51,7 @@ import { RealmWars } from '../systems/realmWars.js';
 import { Arms } from '../systems/arms.js';
 import { PlayerMilitary } from './playerMilitary.js';
 import { Names } from '../core/names.js';
+import { Utils } from '../core/utils.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = v => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -465,7 +466,7 @@ export const RealmEscort = {
         if (men > room) return { ok: false, reason: `${k.name}'s army (${Math.floor(_num(k.military))} men) cannot spare ${men} more for your guard.` };
         const totalWage = RealmEscort.wage(player, k.id) + wage;
         const reserve = _num(A.reserveBase, 300) + _num(A.reserveDays, 30) * totalWage;
-        if (_num(k.treasury) < reserve) return { ok: false, reason: `The treasury of ${Names.realm(k.name)} is too poor to keep more men (${Math.floor(_num(k.treasury))}g; it would want ${Math.round(reserve)}g in hand).` };
+        if (_num(k.treasury) < reserve) return { ok: false, reason: `The treasury of ${Names.realm(k.name)} is too poor to keep more men (${Utils.formatGold(_num(k.treasury))}g; it would want ${Utils.formatGold(reserve)}g in hand).` };
         const cost = sub ? _num(A.reputation, 8) : 0;
         const rep = _num(player.reputation && player.reputation[k.id]);
         if (sub && rep - cost < _num(A.minReputation, 10)) return { ok: false, reason: `Your standing with ${Names.realm(k.name)} (${Math.round(rep)}) is too low to ask the crown for more.` };
@@ -683,7 +684,7 @@ export const RealmEscort = {
         if (g.owed > wage + 0.01) {
             g.arrearsDays = _num(g.arrearsDays) + 1;
             g.morale = _clamp(_num(g.morale) + _num(M.arrearsMorale, -3), 0, 100);
-            if (g.arrearsDays === 1) out.notices.push({ icon: '💰', title: 'The Guard Goes Unpaid', text: `The treasury of ${Names.realm(k.name)} cannot pay your guard (${Math.round(g.owed)}g owed). Unpaid for a week, they will slip away.`, type: 'warning' });
+            if (g.arrearsDays === 1) out.notices.push({ icon: '💰', title: 'The Guard Goes Unpaid', text: `The treasury of ${Names.realm(k.name)} cannot pay your guard (${Utils.formatGold(g.owed)}g owed). Unpaid for a week, they will slip away.`, type: 'warning' });
         } else g.arrearsDays = 0;
 
         // The men spend their pay where they lodge

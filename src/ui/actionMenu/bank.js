@@ -10,6 +10,7 @@ import { Bills } from '../../systems/bills.js';
 import { Underworld } from '../../systems/underworld.js';
 import { BTN_GOLD, BTN_PLAIN, BTN_DIM, BTN_RED, panelTabs, lede, bullets, chips, purse, sectionHead, kv, card, more, rowList, price } from './uiKit.js';
 import { Mints } from '../../systems/mints.js';
+import { Utils } from '../../core/utils.js';
 
 // (Credit sits on the Loans tab, beside what it buys; the realms' coin is the
 // Mint's panel; a ruler's crown borrowing gets a tab of its own)
@@ -81,11 +82,11 @@ function accountsTab(player, world, here) {
         }
         const acct = st.accounts[b.id];
         const bal = Math.floor(acct ? acct.balance : 0);
-        let body = `<div style="margin-top:4px;">Your deposit: <b style="color:#ffcf6a;">${bal}g</b>${acct ? ` · interest earned ${Math.floor(acct.interest)}g` : ''} · pays <b>${pct(Finance.depositApr(b))}</b> a year</div>`;
+        let body = `<div style="margin-top:4px;">Your deposit: <b style="color:#ffcf6a;">${Utils.formatGold(bal)}g</b>${acct ? ` · interest earned ${Utils.formatGold(acct.interest)}g` : ''} · pays <b>${pct(Finance.depositApr(b))}</b> a year</div>`;
         let dep = '';
-        for (const amt of [100, 500, 1000, 5000]) dep += act(`Deposit ${amt}g`, ['deposit', b.id, amt], BTN_GOLD, player.gold >= amt);
+        for (const amt of [100, 500, 1000, 5000]) dep += act(`Deposit ${Utils.formatGold(amt)}g`, ['deposit', b.id, amt], BTN_GOLD, player.gold >= amt);
         let wd = '';
-        for (const amt of [100, 500, 1000]) wd += act(`Withdraw ${amt}g`, ['withdraw', b.id, amt], BTN_PLAIN, bal >= amt);
+        for (const amt of [100, 500, 1000]) wd += act(`Withdraw ${Utils.formatGold(amt)}g`, ['withdraw', b.id, amt], BTN_PLAIN, bal >= amt);
         wd += act('Withdraw all', ['withdraw', b.id, null], BTN_PLAIN, bal > 0);
         body += btnRow(dep) + `<div>${wd}</div>`;
         html += bankCard(world, b, day, player, body);
@@ -95,7 +96,7 @@ function accountsTab(player, world, here) {
         const rows = [];
         for (const [id, a] of elsewhere) {
             const b = Finance.bank(player, id);
-            if (b) rows.push({ icon: '🏦', name: esc(b.name), desc: `${esc(b.seat)}, ${esc(kname(world, b.kingdomId))} · ${bankStatus(b, day, player)}`, side: `${Math.floor(a.balance)}g`, tone: 'gold' });
+            if (b) rows.push({ icon: '🏦', name: esc(b.name), desc: `${esc(b.seat)}, ${esc(kname(world, b.kingdomId))} · ${bankStatus(b, day, player)}`, side: `${Utils.formatGold(a.balance)}g`, tone: 'gold' });
         }
         html += rowList(rows, 'Deposits elsewhere');
     }
@@ -109,16 +110,16 @@ function loansTab(player, world, here) {
         html += rowList(st.loans.map(l => {
             const owed = Math.ceil(l.totalOwed);
             const over = l.overdue > 0 ? ` · <span style="color:${BAD};">${l.overdue} days overdue</span>` : '';
-            const desc = `to ${esc(l.lender || 'your creditors')} · ${l.dailyPayment}g a day · ${l.remainingDays} days left${over}`;
+            const desc = `to ${esc(l.lender || 'your creditors')} · ${Utils.formatGold(l.dailyPayment)}g a day · ${l.remainingDays} days left${over}`;
             return {
                 icon: '📜',
-                name: `${owed}g owed`,
+                name: `${Utils.formatGold(owed)}g owed`,
                 desc,
                 off: player.gold < owed,
                 why: `${desc} · not enough gold to repay in full`,
                 act: 'bankAct',
                 args: ['repay', l.id],
-                side: `Repay in full (${owed}g)`,
+                side: `Repay in full (${Utils.formatGold(owed)}g)`,
                 tone: 'bad',
             };
         }), 'Your loans');
@@ -130,13 +131,13 @@ function loansTab(player, world, here) {
         const b = Finance.bank(player, id);
         bad.push({
             icon: '💀',
-            name: `Written off as a defaulter: ${Math.ceil(owed)}g`,
+            name: `Written off as a defaulter: ${Utils.formatGold(owed)}g`,
             desc: `to ${esc(b ? b.name : 'the exchequer')}`,
             off: player.gold < owed,
             why: `to ${esc(b ? b.name : 'the exchequer')} · not enough gold to make it good`,
             act: 'bankAct',
             args: ['settle', id],
-            side: `Make good (${Math.ceil(owed)}g)`,
+            side: `Make good (${Utils.formatGold(owed)}g)`,
             tone: 'bad',
         });
     }
@@ -147,7 +148,7 @@ function loansTab(player, world, here) {
         html += sectionHead(`Borrow from ${esc(b.name)}`);
         html += `<div style="${NOTE}">${bankLine(world, b, world.day || 0, player)}</div>`;
         html += rowList(Finance.loanOffers(player, world, b.id).map(o => {
-            const desc = `${o.amount}g for ${o.duration} days at ${pct(o.rate)} → ${o.totalOwed}g (${o.dailyPayment}g a day)`;
+            const desc = `${Utils.formatGold(o.amount)}g for ${o.duration} days at ${pct(o.rate)} → ${Utils.formatGold(o.totalOwed)}g (${Utils.formatGold(o.dailyPayment)}g a day)`;
             return {
                 icon: '💰',
                 name: esc(o.name),
@@ -157,7 +158,7 @@ function loansTab(player, world, here) {
                 act: 'bankAct',
                 args: ['borrow', b.id, o.id],
                 title: o.reason || '',
-                side: `Borrow ${o.amount}g`,
+                side: `Borrow ${Utils.formatGold(o.amount)}g`,
                 tone: 'gold',
             };
         }));
@@ -183,7 +184,7 @@ function billsTab(player, world, here) {
             const stolen = b.status === 'stolen';
             return {
                 icon: '✉️',
-                name: `${b.amount}g on ${esc(b.payName)} <span style="font-weight:400; color:#9d937c;">(${esc(b.payAt)})</span>`,
+                name: `${Utils.formatGold(b.amount)}g on ${esc(b.payName)} <span style="font-weight:400; color:#9d937c;">(${esc(b.payAt)})</span>`,
                 desc: `${when}${b.protested ? ` · falls on ${esc(b.fromName)}` : ''}`,
                 note: stolen ? `<span style="color:${BAD};">STOLEN: a forger cashes it about day ${b.cashDay}</span>` : '',
                 side: stolen ? act('Stop it', ['stopBill', b.id], BTN_RED, canHere) : act('Present', ['presentBill', b.id], BTN_GOLD, canHere && day >= b.payableFrom),
@@ -197,12 +198,12 @@ function billsTab(player, world, here) {
             let side = '';
             for (const amt of [500, 2000, 5000]) {
                 const tt = Bills.terms(player, world, from.id, to.id, amt);
-                side += act(`${amt}g (+${tt.fee}g)`, ['drawBill', from.id, to.id, amt], BTN_GOLD, player.gold >= amt + tt.fee);
+                side += act(`${Utils.formatGold(amt)}g (+${Utils.formatGold(tt.fee)}g)`, ['drawBill', from.id, to.id, amt], BTN_GOLD, player.gold >= amt + tt.fee);
             }
             return {
                 icon: '🏦',
                 name: `On ${esc(to.name)} <span style="font-weight:400; color:#9d937c;">(${esc(to.seat)})</span>`,
-                desc: `fee ${(t.rate * 100).toFixed(1)}% (min ${C.minFee}g), payable after ${t.usance} day(s)`,
+                desc: `fee ${(t.rate * 100).toFixed(1)}% (min ${Utils.formatGold(C.minFee)}g), payable after ${t.usance} day(s)`,
                 side,
             };
         }));
@@ -210,7 +211,7 @@ function billsTab(player, world, here) {
     const g = Underworld.ensure(player).guild;
     if (g && g.member && g.rank >= C.forgery.minRank && here.length) {
         let btns = '';
-        for (const amt of [500, 1500]) btns += act(`Forge ${amt}g on ${esc(here[0].name)}`, ['forgeBill', here[0].id, amt], BTN_RED);
+        for (const amt of [500, 1500]) btns += act(`Forge ${Utils.formatGold(amt)}g on ${esc(here[0].name)}`, ['forgeBill', here[0].id, amt], BTN_RED);
         html += card(`<div style="${NOTE}">The guild's forger can draw a bill on a house here (${Math.round(C.forgery.fee * 100)}% up front). Clerks hold bills to the light.</div>${btnRow(btns)}`, { icon: '🗝️', title: 'The guild\'s forger', tone: 'bad' });
     }
     return html;
@@ -223,8 +224,8 @@ function bondsTab(player, world) {
     if (st.bonds.length) {
         html += rowList(st.bonds.map(b => ({
             icon: '👑',
-            name: `${esc(b.kingdomName || kname(world, b.kingdomId))}: ${Math.floor(b.principal)}g`,
-            desc: `at ${pct(b.apr)} · matures day ${b.maturity} · ${Math.floor(b.coupons)}g paid${b.missed ? ` · <span style="color:${WARN};">${b.missed} missed</span>` : ''}`,
+            name: `${esc(b.kingdomName || kname(world, b.kingdomId))}: ${Utils.formatGold(b.principal)}g`,
+            desc: `at ${pct(b.apr)} · matures day ${b.maturity} · ${Utils.formatGold(b.coupons)}g paid${b.missed ? ` · <span style="color:${WARN};">${b.missed} missed</span>` : ''}`,
             act: 'bankAct',
             args: ['sellBond', b.id],
             side: 'Sell ›',
@@ -236,9 +237,9 @@ function bondsTab(player, world) {
         const r = Finance.realmReport(world, o.kingdom);
         let btns = '';
         for (const amt of [500, 1000, 5000]) {
-            for (const t of terms) btns += act(`${amt}g / ${t}d`, ['bond', o.kingdomId, amt, t], BTN_GOLD, player.gold >= amt && amt <= o.room);
+            for (const t of terms) btns += act(`${Utils.formatGold(amt)}g / ${t}d`, ['bond', o.kingdomId, amt, t], BTN_GOLD, player.gold >= amt && amt <= o.room);
         }
-        const body = `<div style="${NOTE}">debt ${Math.round(r.ratio * 100)}% of capacity · coin ${Math.round(r.purity * 100)}%${r.defaults ? ` · ${r.defaults} default(s)` : ''}${o.held ? ` · you hold ${o.held}g` : ''}</div>${btnRow(btns)}`;
+        const body = `<div style="${NOTE}">debt ${Math.round(r.ratio * 100)}% of capacity · coin ${Math.round(r.purity * 100)}%${r.defaults ? ` · ${r.defaults} default(s)` : ''}${o.held ? ` · you hold ${Utils.formatGold(o.held)}g` : ''}</div>${btnRow(btns)}`;
         html += card(body, { icon: '👑', title: `<span style="color:${o.kingdom.color || 'inherit'};">${esc(o.kingdom.name)}</span>`, side: `${pct(o.apr)} a year`, tone: 'gold' });
     }
     return html;
@@ -250,12 +251,12 @@ function creditHtml(player, world) {
     const col = rep.collateral;
     const st = Finance.state(player);
     let body = `<div style="display:flex; align-items:baseline; gap:8px;"><span style="font-size:18px; font-weight:700; color:#ece2c8;">${rep.score}</span><span style="color:#9d937c;">${esc(rep.label)}</span></div>${bar(rep.score - 300, 550, rep.score >= 670 ? GOOD : rep.score >= 580 ? WARN : BAD)}`;
-    body += `<div>Borrowing limit <b>${rep.limit}g</b> · owed ${rep.debt}g · available <b style="color:#ffcf6a;">${rep.available}g</b></div>`;
+    body += `<div>Borrowing limit <b>${Utils.formatGold(rep.limit)}g</b> · owed ${Utils.formatGold(rep.debt)}g · available <b style="color:#ffcf6a;">${Utils.formatGold(rep.available)}g</b></div>`;
     let detail = sectionHead('What the houses see');
     for (const p of rep.parts) detail += kv(esc(p.label), `<span style="color:${p.value >= 0 ? GOOD : BAD};">${p.value >= 0 ? '+' : ''}${p.value}</span>`);
     detail += sectionHead('Collateral');
-    detail += kv('Properties', `${Math.round(col.properties)}g`) + kv('Ships', `${Math.round(col.ships)}g`) + kv('Company', `${Math.round(col.company)}g`)
-        + kv('Holdings', `${Math.round(col.holdings)}g`) + kv('Deposits', `${col.deposits}g`) + kv('<b>Total</b>', `<b style="color:#ffcf6a;">${col.total}g</b>`);
+    detail += kv('Properties', `${Utils.formatGold(col.properties)}g`) + kv('Ships', `${Utils.formatGold(col.ships)}g`) + kv('Company', `${Utils.formatGold(col.company)}g`)
+        + kv('Holdings', `${Utils.formatGold(col.holdings)}g`) + kv('Deposits', `${Utils.formatGold(col.deposits)}g`) + kv('<b>Total</b>', `<b style="color:#ffcf6a;">${Utils.formatGold(col.total)}g</b>`);
     detail += `<div style="${NOTE} margin-top:6px;">Loans repaid ${st.credit.repaid} · payments missed ${st.credit.missed} · defaults ${st.credit.defaults}${st.credit.settled ? ` · debts made good ${st.credit.settled}` : ''}</div>`;
     body += more('Why this score: the reckoning and your collateral', detail);
     return card(body, { icon: '📊', title: 'Your credit' });
@@ -268,11 +269,11 @@ function crownTab(player, world) {
     const r = Finance.realmReport(world, ruled);
     let html = lede(`The crown of ${esc(ruled.name)} borrows from the banking houses at the crown's rate. Its taxes and coin are run from the Crown's Treasury.`);
     html += chips([
-        { icon: '💰', label: 'Treasury', value: `${Math.floor(ruled.treasury || 0)}g`, cls: 'gold' },
-        ['📈', 'Income', `≈${r.income}g a day`],
-        ['📜', 'Debt', `${r.debt}g (${Math.round(r.ratio * 100)}% of capacity)`],
+        { icon: '💰', label: 'Treasury', value: `${Utils.formatGold(ruled.treasury || 0)}g`, cls: 'gold' },
+        ['📈', 'Income', `≈${Utils.formatGold(r.income)}g a day`],
+        ['📜', 'Debt', `${Utils.formatGold(r.debt)}g (${Math.round(r.ratio * 100)}% of capacity)`],
     ]);
-    const rows = [5000, 20000].map(amt => ({ icon: '🏦', name: `Borrow ${amt}g for the crown`, desc: 'From the banking houses, at the crown\'s rate', act: 'bankAct', args: ['royalBorrow', amt], side: `+${amt}g`, tone: 'gold' }));
+    const rows = [5000, 20000].map(amt => ({ icon: '🏦', name: `Borrow ${Utils.formatGold(amt)}g for the crown`, desc: 'From the banking houses, at the crown\'s rate', act: 'bankAct', args: ['royalBorrow', amt], side: `+${Utils.formatGold(amt)}g`, tone: 'gold' }));
     // (debasement lives with the coin on the Treasury; here only while the mints are off)
     if (!Mints.enabled()) rows.push({ icon: '⚖️', name: 'Debase the coin', desc: 'Gold for the mint now; prices rise and stability falls', off: !(r.purity > 0.55), why: 'The coin is already too base to clip further', act: 'bankAct', args: ['royalDebase'], tone: 'bad', side: '›' });
     rows.push({ icon: '⚠️', name: 'Repudiate the debts', desc: 'The lenders lose; your realm loses stability and credit', off: !(r.debt > 0), why: 'The crown owes nothing', act: 'bankAct', args: ['royalDefault'], tone: 'bad', side: '›' });
@@ -281,12 +282,12 @@ function crownTab(player, world) {
 }
 
 function money(v) {
-    return `${Math.round(v).toLocaleString()}g`;
+    return `${Utils.formatGold(v)}g`;
 }
 
 function signed(v) {
     const r = Math.round(v);
-    return `<span style="color:${r >= 0 ? GOOD : BAD};">${r >= 0 ? '+' : '−'}${Math.abs(r).toLocaleString()}g</span>`;
+    return `<span style="color:${r >= 0 ? GOOD : BAD};">${r >= 0 ? '+' : '−'}${Utils.formatGold(Math.abs(r))}g</span>`;
 }
 
 function charterHtml(player, world) {
@@ -401,9 +402,9 @@ Object.assign(ActionMenu, {
         html += chips([
             purse(player.gold),
             ['📈', 'Credit', `${s.score} <span style="font-weight:400; color:#9d937c;">(${esc(s.label)})</span>`],
-            ['🏦', 'Deposits', `${s.deposits}g`],
-            ['📜', 'Owed', s.debt ? `${s.debt}g · ${s.dailyDue}g/day` : '0g'],
-            ['👑', 'Bonds', `${s.bonds}g`],
+            ['🏦', 'Deposits', `${Utils.formatGold(s.deposits)}g`],
+            ['📜', 'Owed', s.debt ? `${Utils.formatGold(s.debt)}g · ${Utils.formatGold(s.dailyDue)}g/day` : '0g'],
+            ['👑', 'Bonds', `${Utils.formatGold(s.bonds)}g`],
         ]);
         if (!here.length && _tab !== 'house') {
             const open = Finance.openBanks(player);

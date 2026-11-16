@@ -305,7 +305,7 @@ export const PeopleCrimes = {
         const parts = [{ label: 'The goods in their house', delta: _num(F.base, 0.45) }];
         if (f.hot) parts.push({ label: 'Truly stolen, and reported', delta: _num(F.hot) });
         const v = Math.min(_num(F.valueCap, 0.2), _num(f.value) * _num(F.perValue));
-        if (v) parts.push({ label: `Worth ${f.value}g`, delta: v });
+        if (v) parts.push({ label: `Worth ${Utils.formatGold(f.value)}g`, delta: v });
         if (p && p.pcMark === 'branded') parts.push({ label: 'A thief\'s brand on their face', delta: _num(F.branded) });
         const status = p ? _num((F.status || {})[p.role]) : 0;
         if (status) parts.push({ label: `A ${p.role}'s word against yours`, delta: -status });
@@ -393,7 +393,7 @@ export const PeopleCrimes = {
         if (kin) PeopleCrimes._nemesis(player, world, folk, kin, Math.round(_num(hang ? N.hanged : N.exiled, 40) * 0.6), { key: 'framed', label: `the theft you swore against ${f.name}`, note: town });
         PeopleCrimes._count(st, hang ? 'hanged' : 'exiled');
         if (player.house) House._chronicle(player.house, world, `On ${player.name || 'your'} word, ${f.name} of ${town} was ${hang ? 'hanged' : 'flogged and exiled'} for a theft they did not do.`, ['scheme']);
-        out.notices.push({ icon: hang ? '💀' : '⚖️', title: hang ? 'Hanged' : 'Flogged and Exiled', text: PeopleCrimes.line(hang ? 'hanged' : 'exiled', vars) + (reward ? ` The crown pays you ${reward}g for the information.` : ''), type: 'warning' });
+        out.notices.push({ icon: hang ? '💀' : '⚖️', title: hang ? 'Hanged' : 'Flogged and Exiled', text: PeopleCrimes.line(hang ? 'hanged' : 'exiled', vars) + (reward ? ` The crown pays you ${Utils.formatGold(reward)}g for the information.` : ''), type: 'warning' });
     },
 
     /** The truth comes out (a yearly roll, from the verdict on). */
@@ -490,7 +490,7 @@ export const PeopleCrimes = {
         if (seen) PeopleCrimes._exposeBondage(player, world, rec, { notices: [] }, false);
         st.sold.push(rec);
         PeopleCrimes._count(st, 'sold');
-        if (player.house) House._chronicle(player.house, world, `${name} of ${town} was sold to the galley masters at ${rec.harbour || 'the harbour'} for ${price}g.`, ['scheme']);
+        if (player.house) House._chronicle(player.house, world, `${name} of ${town} was sold to the galley masters at ${rec.harbour || 'the harbour'} for ${Utils.formatGold(price)}g.`, ['scheme']);
         return { ok: true, seen, price, text: PeopleCrimes.line('sold', { name, price }) + (seen ? ` ${PeopleCrimes.line('soldSeen', { name, town })}` : '') };
     },
 

@@ -12,6 +12,7 @@ import { Transport } from '../../world/transport.js';
 import { PublicWorks } from '../../systems/publicWorks.js';
 import { Hex } from '../../core/hex.js';
 import { BTN_GOLD, BTN_DIM, CARD, lede, chips } from './uiKit.js';
+import { Utils } from '../../core/utils.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 const BAND = { good: ['Good repair', '#5fbf6a'], worn: ['Rutted', '#d08a3a'], ruined: ['Ruined', '#e74c3c'], closed: ['Closed', '#8fb4d8'] };
@@ -37,13 +38,13 @@ function workButtons(game, kind, target, ruled) {
     if (!q.ok) return '';
     const budget = Math.ceil(q.cost * (1 + (Transport.config().build.budgetPad || 0.15)));
     const can = (player.gold || 0) >= budget;
-    const tip = `${q.workName}: ${goodsLine(q.goods)} (~${q.goodsCost}g) and ${q.hands} hands × ${q.days} days (~${q.wages}g)`;
-    let html = `<div style="${NOTE}">${q.icon} <b>${esc(q.workName)}</b> · ~${q.cost}g · ${q.days} days · ${goodsLine(q.goods)}</div><div>`;
-    html += act(`Fund (${budget}g)`, ['commission', kind, target, false], can, can ? tip : `You need ${budget}g`);
+    const tip = `${q.workName}: ${goodsLine(q.goods)} (~${Utils.formatGold(q.goodsCost)}g) and ${q.hands} hands × ${q.days} days (~${Utils.formatGold(q.wages)}g)`;
+    let html = `<div style="${NOTE}">${q.icon} <b>${esc(q.workName)}</b> · ~${Utils.formatGold(q.cost)}g · ${q.days} days · ${goodsLine(q.goods)}</div><div>`;
+    html += act(`Fund (${Utils.formatGold(budget)}g)`, ['commission', kind, target, false], can, can ? tip : `You need ${Utils.formatGold(budget)}g`);
     if (q.tollable) {
         const est = kind !== 'canal' ? PublicWorks.tollEstimate(world, player, kind, target) : null;
-        const t = est && est.payback ? ` — tolls ~${est.perDay}g/day, repaid in ~${est.payback} days` : '';
-        html += act(`Fund as a toll ${kind === 'bridge' ? 'bridge' : kind === 'canal' ? 'canal' : 'road'} (${Math.round(q.tollRate * 100)}%)`, ['commission', kind, target, true], can, (can ? tip : `You need ${budget}g`) + t);
+        const t = est && est.payback ? ` — tolls ~${Utils.formatGold(est.perDay)}g/day, repaid in ~${est.payback} days` : '';
+        html += act(`Fund as a toll ${kind === 'bridge' ? 'bridge' : kind === 'canal' ? 'canal' : 'road'} (${Math.round(q.tollRate * 100)}%)`, ['commission', kind, target, true], can, (can ? tip : `You need ${Utils.formatGold(budget)}g`) + t);
     }
     if (ruled != null && q.kid === ruled) html += act('Order it from the treasury', ['crown', kind, target, false], true, tip);
     return html + '</div>';
@@ -65,7 +66,7 @@ function roadsHtml(game, town) {
         if (d.pass) bits.push('a mountain pass (closes in winter snow)');
         if (d.toll) bits.push('💰 tolled');
         bits.push(d.kingdom ? `kept by ${esc(d.kingdom)}` : 'kept by its towns');
-        if (traffic) bits.push(`~${traffic}g of goods a day`);
+        if (traffic) bits.push(`~${Utils.formatGold(traffic)}g of goods a day`);
         html += `<div style="${NOTE}">${bits.join(' · ')}</div>`;
         const s = Transport.segState(world, seg);
         if (s.c < 90) html += workButtons(game, 'repair', seg.key, ruled);
@@ -113,7 +114,7 @@ function myWorksHtml(game) {
         const live = w.status === 'building' || w.status === 'stalled';
         const why = w.stall === 'funds' ? '<span style="color:#e74c3c;">stalled: funds</span>' : w.stall === 'materials' ? '<span style="color:#d08a3a;">waiting for materials</span>' : w.stall === 'slow' ? 'materials short' : '';
         html += `<div style="${CARD}"><div>${w.icon || '🏗️'} <b>${esc(w.name)}</b> · ${live ? `${pct}%` : w.status === 'done' ? `finished day ${w.done}` : w.status}${why ? ` · ${why}` : ''}</div>`;
-        html += `<div style="${NOTE}">Spent ${Math.round(w.spent)}g${live ? ` · budget left ${Math.round(w.budget)}g` : ''}${w.toll ? ` · tolls earned ${Math.round(w.tollIncome)}g` : ''}</div>`;
+        html += `<div style="${NOTE}">Spent ${Utils.formatGold(w.spent)}g${live ? ` · budget left ${Utils.formatGold(w.budget)}g` : ''}${w.toll ? ` · tolls earned ${Utils.formatGold(w.tollIncome)}g` : ''}</div>`;
         if (live) html += `<div>${act('Add funds', ['fund', w.id])}${act('Abandon', ['abandon', w.id])}</div>`;
         html += '</div>';
     }

@@ -660,7 +660,7 @@ export const House = {
             Ledger.record(player, 'ambitionRewards', r.gold);
             // (an ambition's purse is the world's gift to the House — no one's coin: booked as found)
             MoneySupply.leak(world, r.gold, 'ambitionRewards');
-            got.push(`+${r.gold} gold`);
+            got.push(`+${Utils.formatGold(r.gold)} gold`);
         }
         if (r.renown > 0) { player.renown = (player.renown || 0) + r.renown; got.push(`+${r.renown} renown`); }
         if (r.reputation) {

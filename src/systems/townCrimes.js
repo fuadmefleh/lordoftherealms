@@ -475,7 +475,7 @@ export const TownCrimes = {
         if (_num(s.population) < _num(S.minPop, 150)) return { ok: false, why: 'Too few folk here for a panic to take.' };
         const ap = TownCrimes._ap(player, 'scare');
         if (ap) return { ok: false, why: ap };
-        if (_num(player && player.gold) < _num(S.cost, 40)) return { ok: false, why: `The criers and beggars want ${S.cost}g.` };
+        if (_num(player && player.gold) < _num(S.cost, 40)) return { ok: false, why: `The criers and beggars want ${Utils.formatGold(S.cost)}g.` };
         return { ok: true };
     },
 
@@ -654,7 +654,7 @@ export const TownCrimes = {
         const h = st.hoards[k] || (st.hoards[k] = { q: s.q, r: s.r, town: s.name, grain: 0, paid: 0, d: _day(world) });
         h.grain = _r1(h.grain + n);
         h.paid = Math.round(h.paid + spent);
-        return { success: true, bought: n, spent, text: `You buy ${n} measures of grain off ${s.name}'s market for ${spent}g and lock them in a rented loft. The price at the market cross climbs behind you.` };
+        return { success: true, bought: n, spent, text: `You buy ${n} measures of grain off ${s.name}'s market for ${Utils.formatGold(spent)}g and lock them in a rented loft. The price at the market cross climbs behind you.` };
     },
 
     /** Sell up to `qty` of the loft back into the market (its purse pays; the price falls as it fills). */
@@ -686,7 +686,7 @@ export const TownCrimes = {
         h.paid = Math.max(0, Math.round(h.paid - avg * n));
         const st = TownCrimes.state(player);
         if (!(h.grain >= 0.5)) delete st.hoards[_key(s.q, s.r)];
-        let text = `You sell ${n} measures of grain into ${s.name}'s market for ${got}g${avg > 0 ? ` (they cost you ${Math.round(avg * n)}g)` : ''}.`;
+        let text = `You sell ${n} measures of grain into ${s.name}'s market for ${Utils.formatGold(got)}g${avg > 0 ? ` (they cost you ${Utils.formatGold(avg * n)}g)` : ''}.`;
         let grudge = false;
         if (hungry && avg > 0 && best >= avg * _num(H.grudgeRatio, 1.5)) {
             grudge = TownCrimes._grudge(player, world, s, _day(world));
@@ -742,7 +742,7 @@ export const TownCrimes = {
         player.gold = _num(player.gold) + pay;
         SettlementMarket.add(s, 'grain', n);
         try { if (k.lord) NPCLords.rememberDeed(world, k.lord, 'gift', { day: _day(world), note: `grain for ${s.name}`, weight: Math.min(6, 1 + n / 50) }); } catch (e) { /* none */ }
-        return { success: true, sold: n, earned: pay, text: `The crown's factor takes ${n} measures of grain for ${s.name} at ${unit}g each — ${pay}g from the treasury of ${k.name}. The bread goes to the market cross.` };
+        return { success: true, sold: n, earned: pay, text: `The crown's factor takes ${n} measures of grain for ${s.name} at ${Utils.formatGold(unit)}g each — ${Utils.formatGold(pay)}g from the treasury of ${k.name}. The bread goes to the market cross.` };
     },
 
     // ── The days ──────────────────────────────────────

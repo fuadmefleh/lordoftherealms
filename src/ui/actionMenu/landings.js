@@ -9,6 +9,7 @@ import { Landings } from '../../systems/landings.js';
 import { CoastalRaids } from '../../player/coastalRaids.js';
 import { esc, rowList, sectionHead, more, chips } from './uiKit.js';
 import { Names } from '../../core/names.js';
+import { Utils } from '../../core/utils.js';
 
 // In the action menu's voice (ui/actionMenu/uiKit.js): a section a kind of
 // landing, one row a thing to do (greyed with its reason), its cost at the
@@ -87,7 +88,7 @@ function _landfallSection(game) {
     return rowList([_row({
         icon: '🏕️', name: 'Found a landfall colony here',
         desc: `${L.supplies} founding stores off the hold and ${L.settlers} settlers from the ship. No quay: until a jetty is built, supplies come ashore a boat-load a day.`,
-        why: q.ok ? `Needs ${L.ap} AP` : esc(q.reason || ''), side: `${q.cost}g · ${L.ap} AP`, tone: 'gold',
+        why: q.ok ? `Needs ${L.ap} AP` : esc(q.reason || ''), side: `${Utils.formatGold(q.cost)}g · ${L.ap} AP`, tone: 'gold',
     }, 'landfall()', ok)], '🏕️ Found a colony');
 }
 
@@ -142,7 +143,7 @@ Object.assign(ActionMenu, {
                 if (!res.success) return after(res, '⚔️ Raid');
                 const goods = CoastalRaids.describeGoods(res.goods);
                 const text = res.victory
-                    ? `Your boats fell on the town${res.burned ? ' and put its stores to the torch' : ''}. ${res.plunder || 0}g taken${goods ? `, and ${goods} to the hold` : ''}. Soldiers lost: ${res.casualties || 0}.`
+                    ? `Your boats fell on the town${res.burned ? ' and put its stores to the torch' : ''}. ${Utils.formatGold(res.plunder || 0)}g taken${goods ? `, and ${goods} to the hold` : ''}. Soldiers lost: ${res.casualties || 0}.`
                     : `The garrison threw your landing back into the sea. Soldiers lost: ${res.casualties || 0}.`;
                 game.ui.showNotification(res.victory ? '🔥 Raid from the Sea' : '⚔️ Landing Repelled', text, res.victory ? 'success' : 'error');
                 game.ui.updateStats(player, world);

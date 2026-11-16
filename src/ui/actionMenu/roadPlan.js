@@ -11,6 +11,7 @@
 import { ActionMenu } from './_ref.js';
 import { Infrastructure, Technology, Hex } from './_imports.js';
 import { BTN_PLAIN, lede, chips, purse, rowList, card, kv, price } from './uiKit.js';
+import { Utils } from '../../core/utils.js';
 
 const PICK_BAR_ID = 'routePickBar';
 const LINE_TYPES = ['DIRT_ROAD', 'STONE_ROAD', 'IRRIGATION_CHANNEL'];
@@ -151,7 +152,7 @@ Object.assign(ActionMenu, {
         if (plan.build.length) {
             rows.push(canPay
                 ? { icon: '🏗️', name: `Commission all ${plan.build.length} hexes`, desc: `Hands hired from the nearest towns; each hex goes up as its own site.`, side: price(plan.cost, true), act: 'commissionRoute', args: [key, q, r, tq, tr], tone: 'gold' }
-                : { icon: '🏗️', name: `Commission all ${plan.build.length} hexes`, off: true, why: `Need ${plan.cost} gold`, side: price(plan.cost, false) });
+                : { icon: '🏗️', name: `Commission all ${plan.build.length} hexes`, off: true, why: `Need ${Utils.formatGold(plan.cost)} gold`, side: price(plan.cost, false) });
         } else {
             rows.push({ icon: '✓', name: 'Nothing to build along that way', off: true, why: 'It is all done already, or no hex will take this work.' });
         }
@@ -173,7 +174,7 @@ Object.assign(ActionMenu, {
             return;
         }
         const when = res.days > 0 ? ` The work begins tomorrow; about ${res.days} work-days for the slowest hex.` : '';
-        game.ui.showNotification('🏗️ Works Commissioned', `${res.built.length} hexes of ${esc(infra.name.toLowerCase())} paid for: ${res.cost} gold.${when}`, 'success');
+        game.ui.showNotification('🏗️ Works Commissioned', `${res.built.length} hexes of ${esc(infra.name.toLowerCase())} paid for: ${Utils.formatGold(res.cost)} gold.${when}`, 'success');
         game.ui.updateStats(player, world);
         game.ui.hideCustomPanel();
         if (game.renderer && typeof player.getReachableHexes === 'function') game.renderer.reachableHexes = player.getReachableHexes(world);

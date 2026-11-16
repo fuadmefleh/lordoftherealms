@@ -282,9 +282,9 @@ export const NightStreets = {
         const gold = Math.floor(_num(player && player.gold));
         return [
             { id: 'talk', icon: '🗣️', label: 'Talk your way home', hint: 'An errand, a sick friend, lost your way: if they believe you, you go on with a warning.', chance: NightStreets.talkChance(player, world, settlement, ctx) },
-            { id: 'bribe', icon: '💰', label: 'Slip them a coin', cost: `${bribe}g`, hint: 'A guard who won\'t take it fines you all the same.', chance: NightStreets.bribeChance(player, world, settlement), can: gold >= bribe, reason: `You need ${bribe} gold` },
+            { id: 'bribe', icon: '💰', label: 'Slip them a coin', cost: `${Utils.formatGold(bribe)}g`, hint: 'A guard who won\'t take it fines you all the same.', chance: NightStreets.bribeChance(player, world, settlement), can: gold >= bribe, reason: `You need ${Utils.formatGold(bribe)} gold` },
             { id: 'flee', icon: '🏃', label: 'Run for it', hint: 'Lose them in the dark (a light carried gives you away). Caught, it is the cells.', chance: NightStreets.fleeChance(player, ctx) },
-            { id: 'submit', icon: '⚖️', label: `Pay the fine (${fine}g)`, hint: gold >= fine ? 'Into the town\'s purse; the realm\'s punishment law sets it.' : 'You cannot pay it: a night in the cells.', chance: null },
+            { id: 'submit', icon: '⚖️', label: `Pay the fine (${Utils.formatGold(fine)}g)`, hint: gold >= fine ? 'Into the town\'s purse; the realm\'s punishment law sets it.' : 'You cannot pay it: a night in the cells.', chance: null },
         ];
     },
 
@@ -317,8 +317,8 @@ export const NightStreets = {
             const fine = Underworld._fine(player, world, settlement, want);
             st.stats.fines += fine;
             Underworld.recordCrime(player, world, 'curfew', { kingdom, caught: false, scale: _num(C.heat && C.heat.fined, 1), ...qr });
-            NightStreets._log(player, world, `Fined ${fine}g for breaking the curfew in ${settlement.name || 'town'}.`);
-            return { outcome: 'fined', fine, text: NightStreets.text(textId, { ...vars, fine }) || `Fined ${fine}g.` };
+            NightStreets._log(player, world, `Fined ${Utils.formatGold(fine)}g for breaking the curfew in ${settlement.name || 'town'}.`);
+            return { outcome: 'fined', fine, text: NightStreets.text(textId, { ...vars, fine }) || `Fined ${Utils.formatGold(fine)}g.` };
         };
         if (choice === 'talk') {
             if (Utils.random() < NightStreets.talkChance(player, world, settlement, ctx)) return { outcome: 'let_go', text: NightStreets.text('talk_ok', vars) || 'They let you go.' };
@@ -326,7 +326,7 @@ export const NightStreets = {
         }
         if (choice === 'bribe') {
             const cost = NightStreets.bribeCost(player, world, settlement);
-            if (Math.floor(_num(player.gold)) < cost) return { outcome: 'invalid', invalid: true, text: `You need ${cost} gold.` };
+            if (Math.floor(_num(player.gold)) < cost) return { outcome: 'invalid', invalid: true, text: `You need ${Utils.formatGold(cost)} gold.` };
             if (Utils.random() < NightStreets.bribeChance(player, world, settlement)) {
                 player.gold -= cost;
                 Ledger.record(player, 'bribes', -cost);
@@ -526,7 +526,7 @@ export const NightStreets = {
         if (g && m && m.gangId === g.id) Gangs.leave(player, world, tile);
         player.karma = Math.min(100, _num(player.karma) + 1);
         st.stats.informed++;
-        NightStreets._log(player, world, `Informed on ${plan.gangName}'s landing in ${s.name}: ${reward}g.`);
+        NightStreets._log(player, world, `Informed on ${plan.gangName}'s landing in ${s.name}: ${Utils.formatGold(reward)}g.`);
         return { success: true, reward, text: NightStreets.text('inform_ok', { ...vars, reward }) };
     },
 
@@ -638,7 +638,7 @@ export const NightStreets = {
         if (!g) return { success: false, reason: 'Nobody has that tonight.' };
         const n = Math.min(Math.floor(_num(qty, 1)), ware.qty);
         const cost = n * ware.price;
-        if (_num(player.gold) < cost) return { success: false, reason: `That's ${cost}g; you have ${Math.floor(_num(player.gold))}g.` };
+        if (_num(player.gold) < cost) return { success: false, reason: `That's ${Utils.formatGold(cost)}g; you have ${Utils.formatGold(_num(player.gold))}g.` };
         const add = PlayerInventory.addItem(player, good, n);
         if (!add || !add.success) return { success: false, reason: PlayerInventory.fullMessage ? PlayerInventory.fullMessage(player) : 'Your pack is full.' };
         player.gold -= cost;
@@ -661,7 +661,7 @@ export const NightStreets = {
         }
         NightStreets.ensure(player).stats.bought += n;
         Underworld.recordCrime(player, world, 'black_market', { kingdom: tile.settlement.kingdom, scale: hot ? 0.5 : 0.25 });
-        return { success: true, cost, text: `${n} ${_label(good)} for ${cost}g${hot ? ' (stolen: hot for a while)' : ''}. No questions asked.` };
+        return { success: true, cost, text: `${n} ${_label(good)} for ${Utils.formatGold(cost)}g${hot ? ' (stolen: hot for a while)' : ''}. No questions asked.` };
     },
 
     /** Sell to the night market's fence (the gangs' fence: Underworld.sellToFence). */

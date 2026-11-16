@@ -930,7 +930,7 @@ export const Ailments = {
             let reason = null;
             if (temple && rec.kind !== 'disease') reason = 'The priests tend the sick, not the wounded.';
             else if (rec.treated >= quality - 1e-9 && !rec.infected && rec.kind === 'wound') reason = 'Already treated as well as can be here.';
-            else if ((player.gold || 0) < cost) reason = `Costs ${cost} gold.`;
+            else if ((player.gold || 0) < cost) reason = `Costs ${Utils.formatGold(cost)} gold.`;
             return { key: rec.key, name: Ailments.displayName(rec), icon: Ailments.displayIcon(rec), kind: rec.kind, cost, quality, can: !reason, reason, charity: pauper };
         });
     },
@@ -982,7 +982,7 @@ export const Ailments = {
         }
         if (opt.charity) rec.charity = true;
         const who = temple ? 'The priests' : (settlement && settlement.type === 'village' ? 'The village herbalist' : 'The physician');
-        const paid = opt.charity ? 'for charity, as well as can be done for nothing' : `${opt.cost}g`;
+        const paid = opt.charity ? 'for charity, as well as can be done for nothing' : `${Utils.formatGold(opt.cost)}g`;
         // You watch how it is done (Medicine)
         const levelUp = temple ? null : Ailments.learnMedicine(player, 'treated');
         return { success: true, cost: opt.cost, quality: opt.quality, charity: !!opt.charity, levelUp, message: `${who} sees to your ${name.toLowerCase()}: ${lines.join(', ')}. (${paid})` };
@@ -1004,7 +1004,7 @@ export const Ailments = {
         const sick = st.party[npcId];
         if (!sick) return { success: false, reason: 'They are well.' };
         const cost = Ailments.companionTreatmentCost(player, settlement, npcId);
-        if ((player.gold || 0) < cost) return { success: false, reason: `Costs ${cost} gold.` };
+        if ((player.gold || 0) < cost) return { success: false, reason: `Costs ${Utils.formatGold(cost)} gold.` };
         player.gold -= cost;
         Economy.payTown(settlement, cost); // (the physician's fee: the town's)
         if (player.financeToday) {
@@ -1016,7 +1016,7 @@ export const Ailments = {
         st.stats.treatments++;
         let name = 'your companion';
         try { const npc = Relationships.getNPC(npcId); if (npc) name = npc.firstName; } catch (e) { /* unknown NPC */ }
-        return { success: true, cost, message: `The physician nurses ${name} through the ${def ? def.name.toLowerCase() : 'sickness'}. (${cost}g)` };
+        return { success: true, cost, message: `The physician nurses ${name} through the ${def ? def.name.toLowerCase() : 'sickness'}. (${Utils.formatGold(cost)}g)` };
     },
 
     /** Remedies the player carries that would help: [{ item, name, qty, def }]. */

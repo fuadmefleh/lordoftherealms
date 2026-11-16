@@ -10,6 +10,7 @@ import { Guilds } from '../../systems/guilds.js';
 import { Underworld } from '../../systems/underworld.js';
 import { SettlementMarket } from '../../world/settlementMarket.js';
 import { BTN_GOLD, BTN_PLAIN, BTN_DIM, BTN_RED, CARD, lede, bullets, chips, purse, sectionHead } from './uiKit.js';
+import { Utils } from '../../core/utils.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 
@@ -17,7 +18,7 @@ function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 const pct = (v) => `${Math.round(v * 100)}%`;
-const g = (n) => `${Math.round(n).toLocaleString()}g`;
+const g = (n) => `${Utils.formatGold(n)}g`;
 const gname = (id) => esc(Guilds.goodName(id));
 
 /** A button routed to ActionMenu.guildAct(game, ...args). */
@@ -81,7 +82,7 @@ function guildCard(game, tile, gd) {
         if (gd.strike && rank >= 3) html += act('Call off the strike', ['endStrike', gd.id], BTN_RED);
         // Contracts
         const offers = Guilds.contractOffers(player, world, s, gd.id);
-        for (const o of offers) html += `<div style="font-size:11px;">📜 ${o.qty} ${gname(o.good)} within ${o.days} days at ${o.unit}g (${g(o.total)}) ${act('Take', ['contract', gd.id, o.good], BTN_PLAIN)}</div>`;
+        for (const o of offers) html += `<div style="font-size:11px;">📜 ${o.qty} ${gname(o.good)} within ${o.days} days at ${Utils.formatGold(o.unit)}g (${g(o.total)}) ${act('Take', ['contract', gd.id, o.good], BTN_PLAIN)}</div>`;
         // Loans
         const lq = Guilds.loanQuote(player, world, s, gd.id);
         if (lq.ok) html += `<div style="font-size:11px;">💰 The hall lends up to ${g(lq.max)} at ${pct(lq.rate)} over ${lq.weeks} weeks ${act(`Borrow ${g(lq.max)}`, ['borrow', gd.id, lq.max], BTN_PLAIN)}</div>`;
@@ -106,7 +107,7 @@ function myGuilds(game) {
         for (const x of list) html += `<div style="font-size:12px;">${esc((x.def && x.def.icon) || '')} ${esc(Guilds.rankName(x.m.rank))} of the ${esc(x.guild ? x.guild.name : x.m.guild)} (${esc(x.m.town)}) · standing ${Math.floor(x.m.standing)}</div>`;
     }
     for (const c of st.contracts) {
-        html += `<div style="font-size:12px;">📜 ${c.qty - c.delivered} ${gname(c.good)} to ${esc(c.town)} by day ${c.due} at ${c.unit}g ${act('Deliver', ['deliver', c.id], BTN_PLAIN, player.q === c.q && player.r === c.r)}</div>`;
+        html += `<div style="font-size:12px;">📜 ${c.qty - c.delivered} ${gname(c.good)} to ${esc(c.town)} by day ${c.due} at ${Utils.formatGold(c.unit)}g ${act('Deliver', ['deliver', c.id], BTN_PLAIN, player.q === c.q && player.r === c.r)}</div>`;
     }
     for (const l of st.loans) html += `<div style="font-size:12px;">💰 Owe the guild at ${esc(l.town)} ${g(l.owed)} (${g(l.weekly)} a week) ${act('Repay', ['repay', l.id], BTN_PLAIN, player.gold >= l.owed)}</div>`;
     const s = st.stats;
@@ -167,7 +168,7 @@ Object.assign(ActionMenu, {
         }
         if (res) {
             const text = res.success
-                ? (res.earned != null ? `Done: +${res.earned} gold.` : res.spent != null ? `Done: −${res.spent} gold.` : res.gold != null ? `Done: +${res.gold} gold.` : 'Done.')
+                ? (res.earned != null ? `Done: +${Utils.formatGold(res.earned)} gold.` : res.spent != null ? `Done: −${Utils.formatGold(res.spent)} gold.` : res.gold != null ? `Done: +${Utils.formatGold(res.gold)} gold.` : 'Done.')
                 : (res.reason || 'Not possible.');
             game.ui.showNotification('⚒️ Guildhall', text, res.success ? 'success' : 'error');
             game.ui.updateStats(player, world);

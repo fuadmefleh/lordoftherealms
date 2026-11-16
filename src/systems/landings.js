@@ -351,7 +351,7 @@ export const Landings = {
                     if (a) arrestText = ` ${a.text}`;
                 }
             }
-            const text = `The coast watch${kingdom ? ` of ${Names.realm(kingdom.name)}` : ''} was waiting on the beach: ${n} ${_label(goodId)} seized${fine > 0 ? `, and a fine of ${fine}g` : ''}.${arrestText}`;
+            const text = `The coast watch${kingdom ? ` of ${Names.realm(kingdom.name)}` : ''} was waiting on the beach: ${n} ${_label(goodId)} seized${fine > 0 ? `, and a fine of ${Utils.formatGold(fine)}g` : ''}.${arrestText}`;
             Landings._log(player, world, text);
             return { success: true, caught: true, fine, seized: n, arrested: !!arrestText, text };
         }
@@ -418,7 +418,7 @@ export const Landings = {
         if (!ships.length) return { ok: false, reason: 'Your ship must lie at anchor beside you.', cost };
         const check = Colonization.canPlayerFoundColony({ gold: Number.MAX_SAFE_INTEGER }, tile, world, player.q, player.r);
         if (!check.can) return { ok: false, reason: check.reason, cost };
-        if (_num(player.gold) < cost) return { ok: false, reason: `Needs ${cost} gold.`, cost };
+        if (_num(player.gold) < cost) return { ok: false, reason: `Needs ${Utils.formatGold(cost)} gold.`, cost };
         const ship = ships.map(s => ({ s, n: Landings._foundingStores(s).reduce((a, e) => a + e.qty, 0) }))
             .sort((a, b) => b.n - a.n)[0];
         const allowance = Ships.getFerryAllowance(ship.s, world, player.q, player.r);
@@ -579,7 +579,9 @@ export const Landings = {
         if (typeof s.happiness === 'number') s.happiness = _clamp(s.happiness - R.happiness, 0, 100);
         const h = Holdings.ensure(s);
         h.unrest = _clamp(_num(h.unrest) + R.unrest, 0, 100);
-        cap.loot = _num(cap.loot) + Math.round(_num(s.population) * 0.2);
+        // (the coin carried off to the ships is the town's: out of its purse, what it holds)
+        const took = Economy.townPurse(s) != null ? Economy.drawTown(s, Math.round(_num(s.population) * 0.2)) : 0;
+        cap.loot = Math.round((_num(cap.loot) + took) * 100) / 100;
         const text = `${who}'s reavers landed at ${s.name}: stores burned, people carried off to the ships. Walls, a watchtower and a garrison keep them out.`;
         Landings._log(player, world, text);
         out.raids.push({ q: ref.q, r: ref.r, repelled: false, text });

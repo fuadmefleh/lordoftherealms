@@ -17,6 +17,7 @@
 
 import { DataLoader } from '../core/dataLoader.js';
 import { sheetScale } from './sheetScale.js';
+import { SpriteSnow } from './spriteSnow.js';
 
 const TURF = 'assets/buildingKit/modern/roofs_turf.png';
 const _sheets = new Map();
@@ -207,9 +208,10 @@ export const BuildingWear = {
     /**
      * A landmark's belltower (data/townEras.json art.spires: a style's 2 x 5 cells of the
      * spire sheet), standing over the middle of the building's ridge, its foot on the
-     * roof's top row. Returns whether it drew.
+     * roof's top row. In winter (`snow` 1-3, the roofs' level) its cap is snowed on
+     * (ui/spriteSnow.js; art.spires.snowCaps). Returns whether it drew.
      */
-    spireOn(ctx, def, ax, ay, ds, style) {
+    spireOn(ctx, def, ax, ay, ds, style, snow = 0) {
         const S = DataLoader._gamedata && DataLoader._gamedata.townEras && DataLoader._gamedata.townEras.art && DataLoader._gamedata.townEras.art.spires;
         const i = S && Array.isArray(S.styles) ? S.styles.indexOf(style) : -1;
         if (i < 0) return false;
@@ -226,7 +228,9 @@ export const BuildingWear = {
         const y = ay + (rTop + 1.1) * ds - h;
         const smooth = ctx.imageSmoothingEnabled;
         ctx.imageSmoothingEnabled = true;
-        ctx.drawImage(img, i * 64 * k, 0, 64 * k, 160 * k, Math.floor(x), Math.floor(y), Math.round(w), Math.round(h));
+        const snowed = snow ? SpriteSnow.spire(S, img, style, i, k, snow) : null;
+        if (snowed) ctx.drawImage(snowed, 0, 0, snowed.width, snowed.height, Math.floor(x), Math.floor(y), Math.round(w), Math.round(h));
+        else ctx.drawImage(img, i * 64 * k, 0, 64 * k, 160 * k, Math.floor(x), Math.floor(y), Math.round(w), Math.round(h));
         ctx.imageSmoothingEnabled = smooth;
         return true;
     },

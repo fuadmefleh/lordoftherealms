@@ -5,6 +5,7 @@
 import { ActionMenu } from './_ref.js';
 import { RealmEscort } from '../../player/realmEscort.js';
 import { esc, lede, chips, card, sectionHead, actRow, rowList, more } from './uiKit.js';
+import { Utils } from '../../core/utils.js';
 
 // In the action menu's voice (ui/actionMenu/uiKit.js): a card for the guard,
 // chips for its state, a row a company, a row an order (greyed with its reason)
@@ -39,27 +40,27 @@ Object.assign(ActionMenu, {
             html += rowList(rows);
         } else {
             const k = v.kingdom;
-            let body = `<div style="${NOTE}">${v.men} men of ${esc(g.kingdomName)}'s army${v.standing ? `, kept for you as ${esc(v.standing.why)}` : ''}. The crown pays ${v.wage}g a day from its treasury (${Math.floor((k && k.treasury) || 0)}g) and buys their bread.</div>`;
-            if (g.owed > 0.5) body += `<div style="font-size:11px;color:#e8a0a0;">The crown owes them ${Math.round(g.owed)}g${g.arrearsDays ? `, unpaid ${g.arrearsDays} days` : ''}. Unpaid past a week, they slip away.</div>`;
+            let body = `<div style="${NOTE}">${v.men} men of ${esc(g.kingdomName)}'s army${v.standing ? `, kept for you as ${esc(v.standing.why)}` : ''}. The crown pays ${Utils.formatGold(v.wage)}g a day from its treasury (${Utils.formatGold((k && k.treasury) || 0)}g) and buys their bread.</div>`;
+            if (g.owed > 0.5) body += `<div style="font-size:11px;color:#e8a0a0;">The crown owes them ${Utils.formatGold(g.owed)}g${g.arrearsDays ? `, unpaid ${g.arrearsDays} days` : ''}. Unpaid past a week, they slip away.</div>`;
             html += card(body, { icon: '🛡️', title: `${esc(R.label || 'Household guard')} of ${esc(g.kingdomName)}`, side: `since day ${g.since}`, tone: g.owed > 0.5 ? 'warn' : null });
             html += chips([
                 { icon: '🔥', label: 'Morale', value: Math.round(g.morale), cls: g.morale < 30 ? 'dim' : '' },
                 { icon: '🤝', label: 'Loyalty', value: Math.round(g.loyalty) },
                 ['🌾', 'Bread', `${v.supplyDays} days`],
-                ['💰', 'In their pockets', `${Math.round(g.pockets)}g`],
+                ['💰', 'In their pockets', `${Utils.formatGold(g.pockets)}g`],
             ]);
             html += rowList(v.units.map(u => actRow({
                 icon: esc(u.icon || '⚔️'), name: esc(u.name),
                 desc: `${u.kit ? esc(u.kit) : 'unarmed: the armoury was bare'}${u.ammo != null && /bow/i.test(u.kit || '') ? ` · ${Math.floor(u.ammo)} arrows` : ''}`,
-                side: `${u.strength} men · ${u.wage}g/day`,
+                side: `${u.strength} men · ${Utils.formatGold(u.wage)}g/day`,
             })), 'The companies');
             const r = g.record || {};
-            html += `<div style="${NOTE}">${r.battles || 0} battles (${r.won || 0} won) · ${r.fallen || 0} fallen · ${r.deserted || 0} deserted · ${Math.round(r.paid || 0)}g paid, ${Math.round(r.fed || 0)}g of bread</div>`;
+            html += `<div style="${NOTE}">${r.battles || 0} battles (${r.won || 0} won) · ${r.fallen || 0} fallen · ${r.deserted || 0} deserted · ${Utils.formatGold(r.paid || 0)}g paid, ${Utils.formatGold(r.fed || 0)}g of bread</div>`;
 
             html += rowList([
                 {
                     icon: '➕', name: 'Ask for more men',
-                    desc: v.ask.ok ? `+${v.ask.wage}g a day to the crown${v.ask.cost ? `, −${v.ask.cost} standing` : ''}` : '',
+                    desc: v.ask.ok ? `+${Utils.formatGold(v.ask.wage)}g a day to the crown${v.ask.cost ? `, −${v.ask.cost} standing` : ''}` : '',
                     why: esc(v.ask.reason || ''), side: v.ask.ok ? `${v.ask.men} men` : '', tone: 'gold',
                     act: 'guardAct', args: ['ask'], off: !v.ask.ok,
                 },

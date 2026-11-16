@@ -243,7 +243,7 @@ export const StandingOrders = {
                 const res = OddJobs.complete(player, world, t.town, job, _num(W.score, 40));
                 const town = t.town.name || 'town';
                 const learnt = res.gains.filter(g => g.kind !== 'practice' || g.event).map(g => g.kind === 'practice' ? g.event.text : `${g.id} +${g.by}`);
-                let text = `worked as ${/^[aeiou]/i.test(job.name) ? 'an' : 'a'} ${job.name.toLowerCase()} in ${town} for ${res.pay} gold`;
+                let text = `worked as ${/^[aeiou]/i.test(job.name) ? 'an' : 'a'} ${job.name.toLowerCase()} in ${town} for ${Utils.formatGold(res.pay)} gold`;
                 if (res.factors && res.factors.short) text += ` (the town could not pay the rest)`;
                 if (res.contribution) text += `; the work brought ${res.contribution.qty} ${_goodName(res.contribution.good)} to its market`;
                 if (learnt.length) text += ` (${learnt.join(', ')})`;
@@ -472,15 +472,15 @@ export const StandingOrders = {
         const p = StandingOrders._parents(player, world, 'train_combat');
         if (p) return { why: p };
         const fee = StandingOrders.trainFee(t.town, cfg);
-        if (_num(player.gold) - fee < _num(T.keepGold, 20)) return { why: `The trainer wants ${fee} gold, and your purse can't spare it.` };
+        if (_num(player.gold) - fee < _num(T.keepGold, 20)) return { why: `The trainer wants ${Utils.formatGold(fee)} gold, and your purse can't spare it.` };
         return {
-            ap: _num(T.ap, 4), label: `⚔️ Spar (${fee}g)`,
+            ap: _num(T.ap, 4), label: `⚔️ Spar (${Utils.formatGold(fee)}g)`,
             run: () => {
                 // (the fee to the town's trainer: into its purse)
                 StandingOrders.payTrainer(player, t.town, cfg);
                 _labour(player, _num(T.energy, 15));
                 _needs(player, T.needs);
-                let text = `sparred with the trainer in ${t.town.name || 'town'} (${fee}g)`;
+                let text = `sparred with the trainer in ${t.town.name || 'town'} (${Utils.formatGold(fee)}g)`;
                 if (Utils.random() < _num(T.skillChance, 0.15)) {
                     player.skills = player.skills || {};
                     player.skills.combat = Math.min(10, _num(player.skills.combat, 1) + 1);

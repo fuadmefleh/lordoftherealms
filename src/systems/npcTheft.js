@@ -74,6 +74,7 @@ import { SocialSkills } from './socialSkills.js';
 import { TownTrade } from './townTrade.js';
 import { AnimalCompanions } from './animalCompanions.js';
 import { Ledger } from './ledger.js';
+import { Utils } from '../core/utils.js';
 
 const DEFAULTS = {
     enabled: true,
@@ -706,7 +707,7 @@ export const NpcTheft = {
     describe(c) {
         if (!c) return '';
         const parts = [];
-        if (_num(c.coin) > 0) parts.push(`${c.coin} gold`);
+        if (_num(c.coin) > 0) parts.push(`${Utils.formatGold(c.coin)} gold`);
         // (a pantry's lots are a share of what a household keeps: "some bread")
         for (const [id, n] of Object.entries(c.goods || {})) if (n > 0) parts.push(n >= 1 ? `${Math.round(n)} ${_goodName(id)}` : `some ${_goodName(id)}`);
         if (!parts.length) return '';

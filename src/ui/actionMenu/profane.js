@@ -9,6 +9,7 @@ import { ProfaneCrimes } from '../../systems/profaneCrimes.js';
 import { DevotionPanel } from './devotion.js';
 import { InnerMap } from '../../world/innerMap.js';
 import { esc, card, rowList, sectionHead } from './uiKit.js';
+import { Utils } from '../../core/utils.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 const pct = (p) => `${Math.round(p * 100)}%`;
@@ -45,7 +46,7 @@ Object.assign(ActionMenu, {
             if (v.rebury) {
                 rows.push(row({
                     icon: '🙏', name: 'Bring their bones back and pay a requiem', desc: `${v.rebury.owed} sets of bones and the priest's fee: the grudge's floor halves`,
-                    off: !v.rebury.ok, why: `You need ${v.rebury.owed} sets of bones (you carry ${v.rebury.have}) and ${v.rebury.cost}g.`, side: `${v.rebury.cost}g`, tone: 'gold',
+                    off: !v.rebury.ok, why: `You need ${v.rebury.owed} sets of bones (you carry ${v.rebury.have}) and ${Utils.formatGold(v.rebury.cost)}g.`, side: `${Utils.formatGold(v.rebury.cost)}g`, tone: 'gold',
                 }, ['rebury', v.kingdomId]));
             }
             html += rowList(rows);
@@ -74,7 +75,7 @@ Object.assign(ActionMenu, {
             const ok = bones >= F.bones && (player.gold || 0) >= F.gold;
             rows.push(row({
                 icon: '📦', name: 'Forge a relic', desc: `${F.bones} sets of charnel bones in a gilt box. Your hand makes it ${pct(ProfaneCrimes.fakeQuality(player))} convincing.`,
-                off: !ok, why: `You need ${F.bones} sets of bones (you carry ${bones}) and ${F.gold}g for the box.`, side: `${F.gold}g`,
+                off: !ok, why: `You need ${F.bones} sets of bones (you carry ${bones}) and ${Utils.formatGold(F.gold)}g for the box.`, side: `${Utils.formatGold(F.gold)}g`,
             }, ['forge']));
         }
         for (const r of carried) {
@@ -90,7 +91,7 @@ Object.assign(ActionMenu, {
             for (const h of house) {
                 rows.push(row({
                     icon: h.icon || '📿', name: `Sell ${esc(h.name)}, the House's relic`, desc: 'An heirloom of your House, gone to a temple: it could be bought back, dearly.',
-                    side: `~${ProfaneCrimes.relicPrice(world, s, { faithId: null })}g`, tone: 'bad',
+                    side: `~${Utils.formatGold(ProfaneCrimes.relicPrice(world, s, { faithId: null }))}g`, tone: 'bad',
                 }, ['sell', h.id]));
             }
         }

@@ -11,6 +11,7 @@ import { ActionMenu } from './_ref.js';
 import { Livestock } from '../../systems/livestock.js';
 import { AnimalsPanel } from '../animalsPanel.js';
 import { BTN_GOLD, BTN_PLAIN, BTN_OFF, BTN_RED, CARD, esc, lede, bullets, chips, purse, sectionHead } from './uiKit.js';
+import { Utils } from '../../core/utils.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 
@@ -99,7 +100,7 @@ Object.assign(ActionMenu, {
             const sp = Livestock.species(m.id) || {};
             html += `<div style="${CARD}">`;
             html += `<div style="display:flex; justify-content:space-between; gap:8px; align-items:baseline;"><div style="font-weight:bold; color:var(--gold);">${m.icon} ${esc(m.name)}</div>`
-                + `<div style="${NOTE}">${m.stock} in the pens · <b style="color:var(--text-primary);">${m.price}g</b> a head · they buy at ~${m.sellPrice}g</div></div>`;
+                + `<div style="${NOTE}">${m.stock} in the pens · <b style="color:var(--text-primary);">${Utils.formatGold(m.price)}g</b> a head · they buy at ~${Utils.formatGold(m.sellPrice)}g</div></div>`;
             html += `<div style="${NOTE} margin-top:2px;">${esc(describe(m.id))}</div>`;
             const btns = [];
             const buy = (n, sex, label) => {
@@ -108,8 +109,8 @@ Object.assign(ActionMenu, {
                 if (!chk.ok) return off(label, chk.reason);
                 const cost = Livestock.buyCost(world, s, m.id, n, tile);
                 const fee = Livestock.droveFee(m.id, n, Livestock._hexes(s, dest));
-                const tip = `${cost}g${fee ? ` + ${fee}g to a drover` : ''}, kept at ${dest.name}`;
-                return act('livestockAct', `${label} (${cost + fee}g)`, ['buy', m.id, n, sex], player.gold >= cost + fee ? BTN_GOLD : BTN_PLAIN, tip);
+                const tip = `${Utils.formatGold(cost)}g${fee ? ` + ${Utils.formatGold(fee)}g to a drover` : ''}, kept at ${dest.name}`;
+                return act('livestockAct', `${label} (${Utils.formatGold(cost + fee)}g)`, ['buy', m.id, n, sex], player.gold >= cost + fee ? BTN_GOLD : BTN_PLAIN, tip);
             };
             btns.push(buy(1, 'f', `Buy a ${lower(sp.femaleName || sp.name)}`));
             btns.push(buy(1, 'm', `Buy a ${lower(sp.maleName || sp.name)}`));
@@ -118,7 +119,7 @@ Object.assign(ActionMenu, {
             if (m.id === 'horse') {
                 const price = Livestock.buyCost(world, s, 'horse', 1, tile);
                 btns.push(player.mount ? off('Buy one to ride', `You already ride ${player.mount.name}`) : m.stock < 1 ? off('Buy one to ride', 'The pens are empty')
-                    : act('livestockAct', `🏇 Buy one to ride (${price}g)`, ['ride'], BTN_GOLD, 'Your mount: more movement each day and room in your packs'));
+                    : act('livestockAct', `🏇 Buy one to ride (${Utils.formatGold(price)}g)`, ['ride'], BTN_GOLD, 'Your mount: more movement each day and room in your packs'));
             }
             html += `<div style="margin-top:4px;">${btns.join('')}</div></div>`;
         }
@@ -181,7 +182,7 @@ Object.assign(ActionMenu, {
         } else {
             const heads = view.reduce((n, v) => n + v.herd.animals.length, 0);
             const feed = view.reduce((n, v) => n + v.feed, 0);
-            html += chips([purse(player.gold), { icon: '🐾', label: 'Head', value: heads }, { icon: '🌾', label: 'Fodder', value: `${Math.round(feed * 10) / 10}g a day` },
+            html += chips([purse(player.gold), { icon: '🐾', label: 'Head', value: heads }, { icon: '🌾', label: 'Fodder', value: `${Utils.formatGold(Math.round(feed * 10) / 10)}g a day` },
                 player.mount ? { icon: '🐴', label: 'Riding', value: esc(player.mount.name) } : null]);
             const mine = view.filter(v => v.q === player.q && v.r === player.r);
             const away = view.filter(v => !(v.q === player.q && v.r === player.r));
@@ -231,7 +232,7 @@ function describe(id) {
     if (id === 'horse') bits.push('rides');
     if (meat.length) bits.push(`slaughtered: ${[...new Set(meat)].join(', ')}`);
     bits.push(`room ${Livestock.space(id)}`);
-    bits.push(`fodder ${sp.feed}g a day when it can’t graze`);
+    bits.push(`fodder ${Utils.formatGold(sp.feed)}g a day when it can’t graze`);
     return bits.join(' · ');
 }
 
@@ -239,7 +240,7 @@ function herdCard(game, v, isHere) {
     const { player } = game;
     let html = `<div style="${CARD}">`;
     html += `<div style="display:flex; justify-content:space-between; gap:8px; align-items:baseline;"><div style="font-weight:bold; color:var(--gold);">${esc(v.name)}${isHere ? ' <span style="font-weight:normal; color:#aaa;">(here)</span>' : ''}</div>`
-        + `<div style="${NOTE}">room ${v.used}/${v.capacity} · fodder ${v.feed}g a day</div></div>`;
+        + `<div style="${NOTE}">room ${v.used}/${v.capacity} · fodder ${Utils.formatGold(v.feed)}g a day</div></div>`;
     if (v.hungry) html += `<div style="color:#e08080; font-size:11px;">⚠️ Hungry ${v.hungry} day${v.hungry === 1 ? '' : 's'}: no fodder paid — they give nothing and weaken.</div>`;
     if (v.works) {
         const pct = Math.round(v.works.factor * 100);

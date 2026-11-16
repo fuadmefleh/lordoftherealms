@@ -651,7 +651,7 @@ export const Bourse = {
                 bank.capital -= hit;
             }
             Bourse._news(st, world, { kind: 'crash', mania: m.id, listing: l.name, kingdomId: l.kingdomId, place: ex.name, bank: bank ? bank.name : null, amount: hit, own: !!st.holdings[l.id] });
-            out.notices.push({ icon: '📉', title: 'The Bubble Bursts', text: Bourse._fill(def.burst, { name: Bourse._fill(def.name, { good: l.good || 'the' }), place: ex.name || 'the Bourse', listing: l.name }) + (bank && hit ? ` ${bank.name} loses ${hit}g it lent on the shares.` : ''), type: st.holdings[l.id] ? 'error' : 'warning' });
+            out.notices.push({ icon: '📉', title: 'The Bubble Bursts', text: Bourse._fill(def.burst, { name: Bourse._fill(def.name, { good: l.good || 'the' }), place: ex.name || 'the Bourse', listing: l.name }) + (bank && hit ? ` ${bank.name} loses ${Utils.formatGold(hit)}g it lent on the shares.` : ''), type: st.holdings[l.id] ? 'error' : 'warning' });
         }
         if (day >= m.endDay) l.mania = null;
     },
@@ -805,7 +805,7 @@ export const Bourse = {
         const held = _num((st.holdings[l.id] || {}).shares);
         if (held + k > l.shares * 0.25) return { success: false, reason: 'The brokers will not sell any one buyer more than a quarter of the stock.' };
         const q = Bourse.quoteTrade(l, k, 'buy');
-        if (_num(player.gold) < q.total) return { success: false, reason: `${k} shares cost ${Math.ceil(q.total)}g.` };
+        if (_num(player.gold) < q.total) return { success: false, reason: `${k} shares cost ${Utils.formatGold(q.total)}g.` };
         player.gold -= q.total;
         // (the price goes to the sellers and the brokers, in the exchange town)
         Bourse._toFloor(world, player, null, q.total);
@@ -821,7 +821,7 @@ export const Bourse = {
         l.impact = _r4(l.impact + _num(C.impact, 0.5) * k / Math.max(1, l.shares));
         st.stats.bought = _r2(st.stats.bought + q.total);
         st.stats.fees = _r2(st.stats.fees + q.fee);
-        return { success: true, cost: q.total, text: `Bought ${k} shares of ${l.name} for ${Math.ceil(q.total)}g.` };
+        return { success: true, cost: q.total, text: `Bought ${k} shares of ${l.name} for ${Utils.formatGold(q.total)}g.` };
     },
 
     sell(player, world, listingId, n) {
@@ -852,7 +852,7 @@ export const Bourse = {
         l.impact = _r4(l.impact - _num(C.impact, 0.5) * k / Math.max(1, l.shares));
         st.stats.sold = _r2(st.stats.sold + q.total);
         st.stats.fees = _r2(st.stats.fees + q.fee);
-        return { success: true, earned: q.total, text: `Sold ${k} shares of ${l.name} for ${Math.floor(q.total)}g.` };
+        return { success: true, earned: q.total, text: `Sold ${k} shares of ${l.name} for ${Utils.formatGold(q.total)}g.` };
     },
 
     // ──────────── THE PLAYER'S COMPANY ────────────
@@ -887,7 +887,7 @@ export const Bourse = {
         const k = Math.floor(_num(n));
         if (!Bourse.exchangeAt(player, world)) return { success: false, reason: 'A float is made on the floor of a Bourse.' };
         if (!c) return { success: false, reason: 'You have no company to float.' };
-        if (MerchantHouses.companyValue(player) < _num(C.float.minValue, 1500)) return { success: false, reason: `The brokers will not float a company worth under ${_num(C.float.minValue, 1500)}g.` };
+        if (MerchantHouses.companyValue(player) < _num(C.float.minValue, 1500)) return { success: false, reason: `The brokers will not float a company worth under ${Utils.formatGold(_num(C.float.minValue, 1500))}g.` };
         if (!c.float) c.float = { outside: 0, floatedDay: null, raised: 0 };
         if (k <= 0 || _num(c.float.outside) + k > _num(C.float.maxOutside, 49)) return { success: false, reason: `You may sell at most ${_num(C.float.maxOutside, 49) - _num(c.float.outside)} more shares and keep control.` };
         const q = Bourse.floatQuote(player, world, k);
@@ -906,14 +906,14 @@ export const Bourse = {
         const cash = Bourse._fromFloor(world, player, null, q.cash);
         c.capital += cash;
         c.flows.floated = _num(c.flows.floated) + q.cash;
-        c.ledger.unshift({ day: _day(world), kind: 'income', cat: 'floated', amount: q.cash, text: `${k} shares floated at ${q.price.toFixed(1)}g` });
+        c.ledger.unshift({ day: _day(world), kind: 'income', cat: 'floated', amount: q.cash, text: `${k} shares floated at ${Utils.formatGold(q.price)}g` });
         if (c.ledger.length > 80) c.ledger.length = 80;
         l.book = MerchantHouses.companyValue(player) / 100;
         l.fair = Bourse.fairValue(world, player, l);
         l.price = _r2(q.price);
         st.stats.floated = _r2(st.stats.floated + q.cash);
         Bourse._news(st, world, { kind: 'float', listing: c.name, kingdomId: l.kingdomId, own: true, pct: k });
-        return { success: true, cash: q.cash, text: `${k} shares of ${c.name} floated at ${q.price.toFixed(1)}g: ${q.cash}g into the company. Outsiders now own ${c.float.outside}%.` };
+        return { success: true, cash: q.cash, text: `${k} shares of ${c.name} floated at ${Utils.formatGold(q.price)}g: ${Utils.formatGold(q.cash)}g into the company. Outsiders now own ${c.float.outside}%.` };
     },
 
     /** Buy back shares of the company from outsiders, from the purse. */
@@ -926,7 +926,7 @@ export const Bourse = {
         if (!c || !l || !c.float) return { success: false, reason: 'Your company is not on the Bourse.' };
         if (k <= 0 || k > _num(c.float.outside)) return { success: false, reason: `Outsiders hold ${_num(c.float.outside)} shares.` };
         const q = Bourse.quoteTrade(l, k, 'buy');
-        if (_num(player.gold) < q.total) return { success: false, reason: `${k} shares cost ${Math.ceil(q.total)}g.` };
+        if (_num(player.gold) < q.total) return { success: false, reason: `${k} shares cost ${Utils.formatGold(q.total)}g.` };
         player.gold -= q.total;
         Bourse._toFloor(world, player, null, q.total);
         Ledger.record(player, 'shares', -q.gross);
@@ -935,7 +935,7 @@ export const Bourse = {
         l.impact = _r4(l.impact + _num(C.impact, 0.5) * k / 100);
         st.stats.buyBacks = _r2(st.stats.buyBacks + q.total);
         if (c.float.outside <= 0) l.status = 'delisted';
-        return { success: true, cost: q.total, text: `Bought back ${k} shares of ${c.name} for ${Math.ceil(q.total)}g. Outsiders own ${c.float.outside}%.` };
+        return { success: true, cost: q.total, text: `Bought back ${k} shares of ${c.name} for ${Utils.formatGold(q.total)}g. Outsiders own ${c.float.outside}%.` };
     },
 
     /** Sell some of your own stake in the company to outsiders (the gold is yours, not the company's). */
@@ -956,7 +956,7 @@ export const Bourse = {
         c.float.outside += k;
         l.impact = _r4(l.impact - _num(C.impact, 0.5) * k / 100);
         st.stats.sold = _r2(st.stats.sold + q.total);
-        return { success: true, earned: q.total, text: `Sold ${k} of your shares in ${c.name} for ${Math.floor(q.total)}g. Outsiders own ${c.float.outside}%.` };
+        return { success: true, earned: q.total, text: `Sold ${k} of your shares in ${c.name} for ${Utils.formatGold(q.total)}g. Outsiders own ${c.float.outside}%.` };
     },
 
     // ──────────── READERS ────────────

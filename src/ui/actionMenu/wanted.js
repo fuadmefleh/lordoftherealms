@@ -6,6 +6,7 @@
 import { ActionMenu } from './_ref.js';
 import { Wanted } from '../../systems/wanted.js';
 import { lede, chips, rowList, card, price, purse, bullets, more, esc } from './uiKit.js';
+import { Utils } from '../../core/utils.js';
 
 Object.assign(ActionMenu, {
     /** The dossier of your crimes and those who would answer them. message: { html, tone }. */
@@ -21,7 +22,7 @@ Object.assign(ActionMenu, {
             : 'No crown wants you and no orphan swears your name. Deeds done where the watch can see, or that the talk carries to a court, will change that.');
         html += chips([
             purse(player.gold),
-            total ? { icon: '📜', label: 'On your head', value: `${total.toLocaleString('en-US')}g`, cls: 'bad' } : null,
+            total ? { icon: '📜', label: 'On your head', value: `${Utils.formatGold(total)}g`, cls: 'bad' } : null,
             v.hunt ? { icon: '🎯', label: 'Hunted', value: esc(v.hunt.captain), cls: 'bad' } : null,
             v.debts.length ? ['🧒', 'Blood debts', v.debts.length] : null,
         ]);
@@ -30,9 +31,9 @@ Object.assign(ActionMenu, {
         for (const r of v.realms) {
             let body = `<div style="color:#e0846a; margin-bottom:4px;">${esc(r.charges)}</div>`;
             body += chips([
-                ['💰', 'Price', `${r.bounty}g`, r.posted ? 'bad' : ''],
-                r.grave ? ['☠️', 'Grave', `${r.grave}g`, 'bad'] : null,
-                r.lesser ? ['⚖️', 'Lesser', `${r.lesser}g`] : null,
+                ['💰', 'Price', `${Utils.formatGold(r.bounty)}g`, r.posted ? 'bad' : ''],
+                r.grave ? ['☠️', 'Grave', `${Utils.formatGold(r.grave)}g`, 'bad'] : null,
+                r.lesser ? ['⚖️', 'Lesser', `${Utils.formatGold(r.lesser)}g`] : null,
                 r.huntersBeaten ? ['🎯', 'Hunters beaten', r.huntersBeaten] : null,
             ]);
             const notes = [];
@@ -78,7 +79,7 @@ Object.assign(ActionMenu, {
                 desc: esc(`${d.debt.vr === 'father' || d.debt.vr === 'mother' ? 'Child' : 'Kin'} of ${d.debt.victim} (${d.debt.town || 'a town'}) · ${d.years ? `of age in ${d.years} year${d.years === 1 ? '' : 's'}` : 'coming of age'}`),
                 side: price(d.cost, (player.gold || 0) >= d.cost),
                 act: 'wantedAct', args: ['weregild', d.debt.id],
-                off: (player.gold || 0) < d.cost, why: `The weregild is ${d.cost} gold.`,
+                off: (player.gold || 0) < d.cost, why: `The weregild is ${Utils.formatGold(d.cost)} gold.`,
             })), 'Blood debts: pay the weregild, or wait for them to grow');
         }
 

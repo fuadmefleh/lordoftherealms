@@ -520,7 +520,7 @@ export const RivalAgents = {
         const st = RivalAgents.state(player);
         if (st.lastInquiry && st.lastInquiry.day === day && st.lastInquiry.key === `${q},${r}`) return { success: false, reason: 'You have already asked around here today.' };
         const cost = _num(C.inquiry.gold, 25);
-        if (_num(player.gold) < cost) return { success: false, reason: `Loosening tongues costs ${cost} gold.` };
+        if (_num(player.gold) < cost) return { success: false, reason: `Loosening tongues costs ${Utils.formatGold(cost)} gold.` };
         player.gold = _num(player.gold) - cost;
         Ledger.record(player, 'rivalAgents', -cost);
         // (the ale and the loosened tongues: the town's purse)
@@ -560,7 +560,7 @@ export const RivalAgents = {
         const f = RivalAgents._person(world, a);
         if (!f || !Townsfolk.isHere(f.person)) return { success: false, reason: `${a.name} is gone from ${a.town}.` };
         const cost = RivalAgents.turnCost(player, a);
-        if (_num(player.gold) < cost) return { success: false, reason: `${a.name} wants ${cost} gold.` };
+        if (_num(player.gold) < cost) return { success: false, reason: `${a.name} wants ${Utils.formatGold(cost)} gold.` };
         player.gold = _num(player.gold) - cost;
         Ledger.record(player, 'rivalAgents', -cost);
         // (into the turncoat's own purse)
@@ -578,7 +578,7 @@ export const RivalAgents = {
         st.stats.turned++;
         RivalAgents._log(st, day, `${a.name} of ${a.town} turned against ${a.rivalName}.`);
         House._chronicle(player.house, world, `${a.name} of ${a.town} turns against ${a.rivalName} for ${player.house.name}'s coin.`, ['rival', 'agent']);
-        return { success: true, cost, text: `${cost} gold, and ${a.name} is yours. ${a.kind === 'official' ? 'The skimming stops and the permits move again. ' : ''}They will feed ${a.rivalName} false word and tell you of its plots.` };
+        return { success: true, cost, text: `${Utils.formatGold(cost)} gold, and ${a.name} is yours. ${a.kind === 'official' ? 'The skimming stops and the permits move again. ' : ''}They will feed ${a.rivalName} false word and tell you of its plots.` };
     },
 
     /** Name a known agent before the town: driven out, the rival shamed. */

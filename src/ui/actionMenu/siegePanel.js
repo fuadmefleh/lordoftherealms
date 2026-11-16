@@ -2,6 +2,7 @@
 // ActionMenu.showSiegePanel / siegeAct in ./combat.js; buttons route through
 // data-am-act="siegeAct" with data-am-args='["act", "arg"]'.
 import { Sieges } from '../../systems/sieges.js';
+import { Utils } from '../../core/utils.js';
 
 const CARD = 'background:rgba(0,0,0,0.3);padding:10px;border-radius:8px;margin-bottom:10px;';
 const MUTED = 'color:var(--text-secondary);font-size:11px;';
@@ -70,7 +71,7 @@ export function siegePanelHtml(player, info) {
     html += _btn(`⛏️ Sap the walls (${Math.round(s.mine)}/${C.sap.days})`, 'stance', 'sap', s.walls > 0, sel(s.stance === 'sap'), `A finished mine brings down ${C.sap.breach}% of the wall. Countermines may cost a crew.`);
     html += '<div style="margin-top:6px;">';
     for (const w of info.works) {
-        const label = w.built ? `${w.icon} ${_esc(w.name)} ✔` : w.building ? `${w.icon} ${_esc(w.name)} (${Math.round(w.progress)}/${w.days})` : `${w.icon} ${_esc(w.name)} — ${w.cost}g, ${w.days}d`;
+        const label = w.built ? `${w.icon} ${_esc(w.name)} ✔` : w.building ? `${w.icon} ${_esc(w.name)} (${Math.round(w.progress)}/${w.days})` : `${w.icon} ${_esc(w.name)} — ${Utils.formatGold(w.cost)}g, ${w.days}d`;
         html += _btn(label, 'stance', `works:${w.id}`, !w.built && (w.can || w.building), sel(w.building && s.stance === 'works'), `${w.effect}${w.reason && !w.built ? ` (${w.reason})` : ''}`);
     }
     html += '</div></div>';
@@ -87,8 +88,8 @@ export function siegePanelHtml(player, info) {
     const t = info.terms;
     const termLabel = {
         surrender: `🏳️ Demand surrender, safe passage (${pct(info.chances.surrender)})`,
-        ransom: `💰 Ransom ${t.ransom}g (${pct(info.chances.ransom)})`,
-        tribute: `📜 Tribute ${t.tributeUpfront}g + ${t.tributeWeekly}g/week × ${t.tributeWeeks} (${pct(info.chances.tribute)})`,
+        ransom: `💰 Ransom ${Utils.formatGold(t.ransom)}g (${pct(info.chances.ransom)})`,
+        tribute: `📜 Tribute ${Utils.formatGold(t.tributeUpfront)}g + ${Utils.formatGold(t.tributeWeekly)}g/week × ${t.tributeWeeks} (${pct(info.chances.tribute)})`,
     };
     for (const term of Sieges.TERMS) {
         html += _btn(termLabel[term], 'terms', term, info.canParley && ap >= C.terms.apCost, '', `${C.terms.apCost} AP. Their morale, hunger, your strength, diplomacy, traits and court reputation weigh in.`);
@@ -117,7 +118,7 @@ export function siegeResultHtml(result, extrasHtml, ongoing) {
     if (result.message) html += `<div>${_esc(result.message)}</div>`;
     if (result.outcome && result.outcome.text) html += `<div style="color:var(--gold);">${_esc(result.outcome.text)}</div>`;
     if (result.plunder) html += `<div>💰 Plunder: <strong style="color:#ffd700;">${result.plunder}</strong></div>`;
-    if (result.gold) html += `<div>💰 Gold received: <strong style="color:#ffd700;">${result.gold}</strong></div>`;
+    if (result.gold) html += `<div>💰 Gold received: <strong style="color:#ffd700;">${Utils.formatGold(result.gold)}</strong></div>`;
     if (result.renownChange) html += `<div>⭐ Renown +${result.renownChange}</div>`;
     if (result.karmaChange) html += `<div style="color:#ff6666;">😈 Karma ${result.karmaChange}</div>`;
     if (result.casualties > 0) html += `<div style="color:#ff9800;">⚠️ Soldiers lost: ${result.casualties}</div>`;

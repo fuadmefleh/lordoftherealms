@@ -102,7 +102,7 @@ Object.assign(UI.prototype, {
                     html += `<div class="info-row"><span class="info-label">📋 Duties</span><span class="info-value">${dutyInfo.progress}</span></div>`;
                     html += `<div class="info-row"><span class="info-label">⏰ Deadline</span><span class="info-value" style="color:${dutyInfo.daysLeft <= 5 ? '#f44336' : '#aaa'};">${dutyInfo.daysLeft} days</span></div>`;
                 }
-                html += `<div class="info-row"><span class="info-label">💰 Salary</span><span class="info-value">${titleDef.salary} gold/day</span></div>`;
+                html += `<div class="info-row"><span class="info-label">💰 Salary</span><span class="info-value">${Utils.formatGold(titleDef.salary)} gold/day</span></div>`;
             }
         }
 
@@ -813,7 +813,7 @@ Object.assign(UI.prototype, {
                 <div style="font-size: 12px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px;">Current Balance</div>
                 <div style="font-size: 32px; font-weight: bold; color: var(--gold); font-family: var(--font-display);">💰 ${Utils.formatNumber(player.gold)}</div>
                 <div style="font-size: 13px; color: ${avgDaily >= 0 ? '#27ae60' : '#e74c3c'}; margin-top: 4px;">
-                    ${avgDaily >= 0 ? '▲' : '▼'} ${avgDaily >= 0 ? '+' : ''}${avgDaily} gold/day avg (last ${recent.length} days)
+                    ${avgDaily >= 0 ? '▲' : '▼'} ${avgDaily >= 0 ? '+' : ''}${Utils.formatGold(avgDaily)} gold/day avg (last ${recent.length} days)
                 </div>
             </div>
         `;
@@ -1014,8 +1014,8 @@ Object.assign(UI.prototype, {
             const got = result.got || {};
             const items = got.items || {};
             const kept = items.added && Object.keys(items.added).length ? PlayerInventory.describe(items.added) : '';
-            const sold = items.sold && Object.keys(items.sold).length ? `${PlayerInventory.describe(items.sold)} sold for ${items.gold} gold (no room)` : '';
-            const bits = [got.gold ? `+${got.gold} gold` : '', kept ? `+${kept}` : '', sold, got.renown ? `+${got.renown} renown` : '',
+            const sold = items.sold && Object.keys(items.sold).length ? `${PlayerInventory.describe(items.sold)} sold for ${Utils.formatGold(items.gold)} gold (no room)` : '';
+            const bits = [got.gold ? `+${Utils.formatGold(got.gold)} gold` : '', kept ? `+${kept}` : '', sold, got.renown ? `+${got.renown} renown` : '',
                 got.karma ? `karma ${got.karma > 0 ? '+' : ''}${got.karma}` : '', got.holder ? `${got.holder} is in your debt${got.reputation ? ` (+${got.reputation} reputation)` : ''}` : ''].filter(Boolean).join(', ');
             this.showNotification('📜 Your Choice', `${result.text}${bits ? ` (${bits})` : ''} Word will get back to ${result.quest.giver ? result.quest.giver.name : 'them'}.`, 'warning');
             this.updateStats(this.game.player, this.game.world);
@@ -1075,7 +1075,7 @@ Object.assign(UI.prototype, {
                 icon: '⚔️',
                 name: c.name,
                 // ...and what has happened on the march so far (the contract's log)
-                detail: `Payment: ${c.payment}g${Number.isFinite(c.opposition) ? ` · foe ≈${c.opposition}` : ''}${c.losses ? ` · ${c.losses} lost` : ''}${c.loot ? ` · ${c.loot}g plunder` : ''}${c.items && Object.keys(c.items).length ? ` · spoils: ${PlayerInventory.describe(c.items)}` : ''}`
+                detail: `Payment: ${Utils.formatGold(c.payment)}g${Number.isFinite(c.opposition) ? ` · foe ≈${c.opposition}` : ''}${c.losses ? ` · ${c.losses} lost` : ''}${c.loot ? ` · ${Utils.formatGold(c.loot)}g plunder` : ''}${c.items && Object.keys(c.items).length ? ` · spoils: ${PlayerInventory.describe(c.items)}` : ''}`
                     + ((c.log || []).length ? `<div style="margin-top: 4px; font-size: 11px; color: #aab;">${c.log.slice(-4).map(e => `· ${e.day != null ? `Day ${e.day}: ` : ''}${String(e.text || '').replace(/</g, '&lt;')}`).join('<br>')}</div>` : ''),
                 status: `${c.daysRemaining} day(s) remaining`,
                 statusColor: '#3498db',
@@ -1089,8 +1089,8 @@ Object.assign(UI.prototype, {
                 const daysLeft = b.daysLimit - (b.daysElapsed || 0);
                 const isCriminal = b.type === 'criminal_hunt';
                 const detail = isCriminal
-                    ? `Reward: ${b.actualPay}g — ${b.targetName}, wanted for ${b.crime}.`
-                    : `Reward: ${b.actualPay}g — ${b.description || ''}`;
+                    ? `Reward: ${Utils.formatGold(b.actualPay)}g — ${b.targetName}, wanted for ${b.crime}.`
+                    : `Reward: ${Utils.formatGold(b.actualPay)}g — ${b.description || ''}`;
                 const status = isCriminal
                     ? (b.status === 'captured_pending_decision'
                         ? 'Captured — awaiting judgment'
@@ -1130,7 +1130,7 @@ Object.assign(UI.prototype, {
                 jobs.push({
                     icon: '🐫',
                     name: `Caravan to ${c.to || c.destination || 'unknown'}`,
-                    detail: `Carrying ${cargo || 'goods'} — Expected profit: ${c.expectedProfit != null ? Math.round(c.expectedProfit) : '?'}g`,
+                    detail: `Carrying ${cargo || 'goods'} — Expected profit: ${c.expectedProfit != null ? Utils.formatGold(c.expectedProfit) : '?'}g`,
                     status: `${daysLeft} day(s) in transit`,
                     statusColor: '#f39c12',
                     location: null,

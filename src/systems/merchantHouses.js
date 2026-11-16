@@ -394,7 +394,7 @@ export const MerchantHouses = {
             };
         });
         const advice = [];
-        const g = (n) => `${Math.round(n)}g`;
+        const g = (n) => `${Utils.formatGold(n)}g`;
         const sold = trading.sales + trading.contracts;
         if (sold + trading.purchases > 0 && trading.margin < 0) {
             advice.push({ icon: '⚖️', tone: 'bad', text: `The factors have bought ${g(trading.purchases)} of goods and sold ${g(sold)} (${g(stock + inTransit)} still held): they buy dearer than they sell. A factor sells at what you would, about ${Math.round(Trading.SELL_SHARE * 100)}% of the ask, so buying and selling in one market loses. Carry goods to a post or a contract that pays more.` });
@@ -416,7 +416,7 @@ export const MerchantHouses = {
             advice.push({ icon: '⛵', tone: 'warn', text: `Ventures and shares have taken ${g(investments.out)} and returned ${g(investments.back)} so far.` });
         }
         const idea = posts.length >= 2 ? MerchantHouses.routeIdeas(player, world, { limit: 1 })[0] : null;
-        if (idea) advice.push({ icon: '🧭', tone: 'good', text: `A route that pays today: buy ${MerchantHouses.goodName(idea.good)} at ${idea.from} (${idea.unit}g), sell it at ${idea.to} (${idea.sale}g), about ${idea.margin}g a unit after the carriage.` });
+        if (idea) advice.push({ icon: '🧭', tone: 'good', text: `A route that pays today: buy ${MerchantHouses.goodName(idea.good)} at ${idea.from} (${Utils.formatGold(idea.unit)}g), sell it at ${idea.to} (${Utils.formatGold(idea.sale)}g), about ${Utils.formatGold(idea.margin)}g a unit after the carriage.` });
         else if (c.posts.length < 2) advice.push({ icon: '🧭', tone: 'warn', text: 'With one post the factor can only buy and sell in one market. Open a second post where prices differ and carry goods between them.' });
         if (!advice.some(a => a.tone !== 'good') && sold > 0) advice.unshift({ icon: '✅', tone: 'good', text: `The trade pays: a margin of ${g(trading.margin)} over ${g(overhead.total)} of running costs.` });
         return { trading, overhead, losses, investments, posts, advice };
@@ -539,7 +539,7 @@ export const MerchantHouses = {
         const cfg = MerchantHouses.config().charter;
         if (rep < cfg.minReputation) return { ok: false, reason: `${k.name} won't charter a merchant of your reputation (${rep}).` };
         const cost = MerchantHouses.charterCost(world, k);
-        if (_num(player.gold) < cost) return { ok: false, reason: `A charter from ${Names.realm(k.name)} costs ${cost} gold.`, cost, kingdom: k };
+        if (_num(player.gold) < cost) return { ok: false, reason: `A charter from ${Names.realm(k.name)} costs ${Utils.formatGold(cost)} gold.`, cost, kingdom: k };
         return { ok: true, cost, kingdom: k };
     },
 
@@ -619,7 +619,7 @@ export const MerchantHouses = {
         // A floated company (systems/bourse.js): the outside shareholders take their part of anything drawn
         const outside = _clamp(_num(c.float && c.float.outside), 0, 99) / 100;
         const theirs = outside > 0 ? Math.ceil(amt * outside / (1 - outside)) : 0;
-        if (amt <= 0 || amt + theirs > c.capital) return { success: false, reason: theirs ? `Drawing ${amt}g pays the shareholders ${theirs}g too: the company has not that much.` : 'The company has not that much.' };
+        if (amt <= 0 || amt + theirs > c.capital) return { success: false, reason: theirs ? `Drawing ${Utils.formatGold(amt)}g pays the shareholders ${Utils.formatGold(theirs)}g too: the company has not that much.` : 'The company has not that much.' };
         c.capital -= amt + theirs;
         player.gold = _num(player.gold) + amt;
         // (the outside shareholders spend their part where the company trades)
@@ -919,7 +919,7 @@ export const MerchantHouses = {
         const post = MerchantHouses.getPost(player, postId);
         if (!c || !post) return { success: false, reason: 'No such post.' };
         const f = MerchantHouses.config().factor;
-        if (c.capital < f.auditCost) return { success: false, reason: `An audit costs ${f.auditCost} gold.` };
+        if (c.capital < f.auditCost) return { success: false, reason: `An audit costs ${Utils.formatGold(f.auditCost)} gold.` };
         const auditTile = world.getTile(post.q, post.r);
         const auditTown = auditTile && auditTile.settlement;
         // (the clerks who go over the books are paid in the post's town)
@@ -931,7 +931,7 @@ export const MerchantHouses = {
             post.skimmed = 0;
             post.suspicion = 0;
             if (post.factor) post.factor.caught = true;
-            return { success: true, found, recovered, text: `The books don't balance: ${post.factor ? post.factor.name : 'the factor'} has skimmed ${found} gold. ${recovered} is clawed back.` };
+            return { success: true, found, recovered, text: `The books don't balance: ${post.factor ? post.factor.name : 'the factor'} has skimmed ${Utils.formatGold(found)} gold. ${recovered} is clawed back.` };
         }
         post.suspicion = 0;
         return { success: true, found: 0, recovered: 0, text: 'The books are in order — as far as the auditors can tell.' };
@@ -1025,7 +1025,7 @@ export const MerchantHouses = {
             }
         }
         const cost = MerchantHouses.monopolyLobbyCost(player, world, post);
-        if (c.capital < cost) return { ok: false, reason: `Lobbying costs ${cost} gold.`, cost };
+        if (c.capital < cost) return { ok: false, reason: `Lobbying costs ${Utils.formatGold(cost)} gold.`, cost };
         const chance = own ? 1 : _clamp(cfg.chance + (c.reputation - 50) * cfg.perReputation, 0.1, 0.9);
         return { ok: true, cost, chance, own };
     },
@@ -1059,7 +1059,7 @@ export const MerchantHouses = {
         if (!c || !r || r.status !== 'active') return { success: false, reason: 'No such house.' };
         if (k <= 0 || r.shares.player + _num(r.shares.purse) + k > 100) return { success: false, reason: 'Not that many shares for sale.' };
         const cost = Math.ceil(k * MerchantHouses.sharePrice(r) * MerchantHouses.config().rivals.sharePremium);
-        if (c.capital < cost) return { success: false, reason: `${k} shares cost ${cost} gold.` };
+        if (c.capital < cost) return { success: false, reason: `${k} shares cost ${Utils.formatGold(cost)} gold.` };
         // (bought from the house's partners: its capital is unchanged; they spend the price in its towns)
         MerchantHouses._toTown(world, MerchantHouses._rivalTown(world, r), MerchantHouses._debit(c, world, cost, 'shares', `${k} shares in ${r.name}`), player);
         r.shares.player += k;
@@ -1096,7 +1096,7 @@ export const MerchantHouses = {
         if (!c || !r || r.status !== 'active') return { success: false, reason: 'No such house.' };
         if (r.shares.player < 51) return { success: false, reason: `You need a majority of ${r.name}'s shares first.` };
         const cost = MerchantHouses.buyOutCost(player, r);
-        if (c.capital < cost) return { success: false, reason: `Buying the rest of ${r.name} costs ${cost} gold.` };
+        if (c.capital < cost) return { success: false, reason: `Buying the rest of ${r.name} costs ${Utils.formatGold(cost)} gold.` };
         // (the other shareholders are paid, and spend it in the house's towns)
         MerchantHouses._toTown(world, MerchantHouses._rivalTown(world, r), MerchantHouses._debit(c, world, cost, 'buyouts', `The rest of ${r.name}`), player);
         const assets = Math.floor(r.capital);
@@ -1124,7 +1124,7 @@ export const MerchantHouses = {
         const cfg = MerchantHouses.config().rivals.priceWar;
         const amt = Math.floor(_num(spend));
         if (!c || !r || r.status !== 'active') return { success: false, reason: 'No such house.' };
-        if (amt < cfg.minSpend) return { success: false, reason: `A price war needs at least ${cfg.minSpend} gold.` };
+        if (amt < cfg.minSpend) return { success: false, reason: `A price war needs at least ${Utils.formatGold(cfg.minSpend)} gold.` };
         if (c.capital < amt) return { success: false, reason: 'The company has not that much.' };
         // (the war is fought in cheap goods: the coin both houses lose is the buyers' gain, in the rival's towns)
         const spent = MerchantHouses._debit(c, world, amt, 'priceWar', `Price war on ${r.name}`);
@@ -1474,7 +1474,7 @@ export const MerchantHouses = {
             if (!check.ok) return { success: false, reason: check.reason };
         }
         const plan = MerchantHouses.convoyPlan(player, world, post, dest.q, dest.r, n);
-        if (c.capital < plan.fee) return { success: false, reason: `The ${plan.mode} costs ${plan.fee} gold.` };
+        if (c.capital < plan.fee) return { success: false, reason: `The ${plan.mode} costs ${Utils.formatGold(plan.fee)} gold.` };
         // (the carters or the shipmaster are hired in the post's town)
         MerchantHouses._toTown(world, fromTile && fromTile.settlement, MerchantHouses._debit(c, world, plan.fee, 'convoys', `${plan.mode === 'ship' ? 'Ship' : 'Caravan'}: ${n} ${_label(goodId)} ${post.name} → ${dest.name}`));
         // The goods' bookings by realm travel with them
@@ -1568,7 +1568,7 @@ export const MerchantHouses = {
         const amt = Math.floor(_num(amount));
         if (!c || !v) return { success: false, reason: 'No such venture.' };
         const held = c.investments.ventures.filter(x => x.ventureId === v.id).reduce((a, x) => a + x.stake, 0);
-        if (amt < cfg.minStake) return { success: false, reason: `The least stake is ${cfg.minStake} gold.` };
+        if (amt < cfg.minStake) return { success: false, reason: `The least stake is ${Utils.formatGold(cfg.minStake)} gold.` };
         if (held + amt > v.maxStake) return { success: false, reason: `The crown sells at most ${v.maxStake} gold of shares in this.` };
         if (c.capital < amt) return { success: false, reason: 'The company has not that much.' };
         const staked = MerchantHouses._debit(c, world, amt, 'ventures', `Stake in ${v.name}`);
@@ -1591,7 +1591,7 @@ export const MerchantHouses = {
         const back = want > 0 && vk && vk.isAlive !== false ? Math.floor(Economy.crownPays(vk, world, want)) : 0;
         if (back > 0) MerchantHouses._credit(c, world, back, 'ventures', `${stake.name} ${won ? 'comes home' : 'salvage'}`);
         const text = won ? `${stake.icon} ${stake.name} comes home laden: your ${stake.stake} gold returns ${back}.`
-            : `${stake.icon} ${stake.name} is lost${back ? `; ${back} of your ${stake.stake} gold is salvaged` : ` with your ${stake.stake} gold`}.`;
+            : `${stake.icon} ${stake.name} is lost${back ? `; ${back} of your ${stake.stake} gold is salvaged` : ` with your ${Utils.formatGold(stake.stake)} gold`}.`;
         MerchantHouses._news(player, world, text, stake.icon);
         out.notices.push({ icon: stake.icon, title: won ? 'Venture Returns' : 'Venture Lost', text, type: won ? 'success' : 'warning' });
     },
@@ -2035,7 +2035,7 @@ export const MerchantHouses = {
             const n = Utils.randInt(cfg.spawnPerWeek[0], cfg.spawnPerWeek[1]);
             for (let i = 0; i < n && m.board.length < cfg.maxBoard; i++) {
                 const ct = MerchantHouses._spawnContract(player, world);
-                if (ct) out.notices.push({ icon: ct.icon, title: 'Contract Posted', text: `${ct.issuer}: ${ct.qty} ${_label(ct.good)} to ${ct.town} by day ${ct.deadline}, ${ct.pay}g each (Trading Company).`, type: 'info' });
+                if (ct) out.notices.push({ icon: ct.icon, title: 'Contract Posted', text: `${ct.issuer}: ${ct.qty} ${_label(ct.good)} to ${ct.town} by day ${ct.deadline}, ${Utils.formatGold(ct.pay)}g each (Trading Company).`, type: 'info' });
             }
         }
     },

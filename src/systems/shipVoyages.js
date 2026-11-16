@@ -145,7 +145,7 @@ export const VoyageMethods = {
         const price = this.provisionPrice(world, player.q, player.r);
         const n = Math.min(Math.floor(units), this.getCargoFree(ship), Math.floor((player.gold || 0) / price));
         if (!(n > 0)) {
-            return { success: false, message: this.getCargoFree(ship) <= 0 ? 'The hold is full.' : `You cannot afford provisions (${price}g a unit).` };
+            return { success: false, message: this.getCargoFree(ship) <= 0 ? 'The hold is full.' : `You cannot afford provisions (${Utils.formatGold(price)}g a unit).` };
         }
         const cost = n * price;
         player.gold -= cost;
@@ -160,7 +160,7 @@ export const VoyageMethods = {
         }
         return {
             success: true, ship, bought: n, cost, price,
-            message: `Stowed ${n} provisions aboard ${ship.name} for ${cost}g — enough for ${this.getProvisionDays(ship)} days.`,
+            message: `Stowed ${n} provisions aboard ${ship.name} for ${Utils.formatGold(cost)}g — enough for ${this.getProvisionDays(ship)} days.`,
         };
     },
 
@@ -555,7 +555,7 @@ export const VoyageMethods = {
         const crew = day.crew || {};
         if (crew.paid === false) {
             notable = true;
-            this._voyageLog(ship, '👥', `No wages today (${crew.wages}g owed). The crew sours.`, world);
+            this._voyageLog(ship, '👥', `No wages today (${Utils.formatGold(crew.wages)}g owed). The crew sours.`, world);
         }
         for (const d of crew.deserted || []) {
             if (d.shipId !== id) continue;
@@ -585,8 +585,8 @@ export const VoyageMethods = {
         if (req.crew && crew < req.crew) return `Needs ${req.crew} hands`;
         if (req.minCrew && crew < req.minCrew) return `Needs ${req.minCrew} hands`;
         if (Number.isFinite(req.maxMorale) && this.getMorale(ship) > req.maxMorale) return 'The crew is content';
-        if (req.gold && (player.gold || 0) < req.gold) return `Needs ${req.gold}g`;
-        if (req.goldPerCrew && (player.gold || 0) < req.goldPerCrew * crew) return `Needs ${req.goldPerCrew * crew}g`;
+        if (req.gold && (player.gold || 0) < req.gold) return `Needs ${Utils.formatGold(req.gold)}g`;
+        if (req.goldPerCrew && (player.gold || 0) < req.goldPerCrew * crew) return `Needs ${Utils.formatGold(req.goldPerCrew * crew)}g`;
         if (req.provisions && this.getProvisions(ship) < req.provisions) return `Needs ${req.provisions} provisions`;
         if (req.cargo && this.getCargoUsed(ship) <= 0) return 'Needs cargo aboard';
         return null;
@@ -728,12 +728,14 @@ export const VoyageMethods = {
         if (gold) {
             if (gold < 0) gold = -Math.min(-gold, Math.max(0, player.gold || 0));
             player.gold = (player.gold || 0) + gold;
-            // (out at sea no purse in the world pays or takes it: salvage, a find, a reward is
-            // coin found; a toll paid to sea-raiders, a bribe, coin lost overboard is gone)
-            MoneySupply.leak(world, gold, 'voyages');
+            // (out at sea no town pays or takes it: a toll paid to sea-raiders, a bribe, coin
+            // lost overboard goes into the sea's keeping; salvage, a find, a reward comes out
+            // of it, past that booked found — MoneySupply.seaLost / seaFound)
+            if (gold > 0) MoneySupply.seaFound(world, gold, 'voyages');
+            else MoneySupply.seaLost(world, -gold);
             if (player.financeToday && gold > 0) player.financeToday.income.exploration = (player.financeToday.income.exploration || 0) + gold;
             if (player.financeToday && gold < 0) player.financeToday.expenses.ships = (player.financeToday.expenses.ships || 0) - gold;
-            lines.push(gold > 0 ? `(+${gold}g)` : `(${gold}g)`);
+            lines.push(gold > 0 ? `(+${Utils.formatGold(gold)}g)` : `(${Utils.formatGold(gold)}g)`);
         }
         if (fx.renown) player.renown = Math.max(0, (player.renown || 0) + fx.renown);
         if (fx.karma) player.karma = (player.karma || 0) + fx.karma;

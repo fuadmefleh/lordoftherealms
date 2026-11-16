@@ -308,7 +308,7 @@ export const PlayerReligion = {
 
         // Check gold
         if (player.gold < building.cost) {
-            return { success: false, reason: `Need ${building.cost} gold (have ${Math.floor(player.gold)})` };
+            return { success: false, reason: `Need ${Utils.formatGold(building.cost)} gold (have ${Math.floor(player.gold)})` };
         }
 
         // Check if tile is suitable
@@ -1067,8 +1067,8 @@ export const PlayerReligion = {
         return {
             kingdomId: kid, fine, reputationLoss: H.reputationLoss, strikes, bannedUntil,
             message: bannedUntil
-                ? `The priests of the ${faithName} have you banned from preaching in ${realm} until day ${bannedUntil}${fine ? `, and fined ${fine} gold` : ''}.`
-                : `The priests of the ${faithName} denounce you from the pulpit${fine ? ` and the magistrate fines you ${fine} gold` : ''}. (${realm} −${H.reputationLoss} reputation)`,
+                ? `The priests of the ${faithName} have you banned from preaching in ${realm} until day ${bannedUntil}${fine ? `, and fined ${Utils.formatGold(fine)} gold` : ''}.`
+                : `The priests of the ${faithName} denounce you from the pulpit${fine ? ` and the magistrate fines you ${Utils.formatGold(fine)} gold` : ''}. (${realm} −${H.reputationLoss} reputation)`,
         };
     },
 

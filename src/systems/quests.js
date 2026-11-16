@@ -383,7 +383,7 @@ export const Quests = {
     describeRewards(rewards) {
         if (!rewards) return '';
         const parts = [];
-        if (rewards.gold) parts.push(`${rewards.gold} gold`);
+        if (rewards.gold) parts.push(`${Utils.formatGold(rewards.gold)} gold`);
         if (rewards.renown) parts.push(`${rewards.renown} renown`);
         if (rewards.karma) parts.push(`${rewards.karma} karma`);
         if (rewards.reputation && rewards.reputation.amount) parts.push(`${rewards.reputation.amount} reputation`);
@@ -1117,7 +1117,7 @@ export const Quests = {
         if (o.mode === 'fetch' && o.guarded) {
             if (how === 'bribe') {
                 cost = 80;
-                if ((player.gold || 0) < cost) return { success: false, reason: `You need ${cost} gold` };
+                if ((player.gold || 0) < cost) return { success: false, reason: `You need ${Utils.formatGold(cost)} gold` };
                 player.gold -= cost;
                 // (the holder spends it in the nearest town)
                 if (world && !Economy.payNearest(world, player.q, player.r, cost)) MoneySupply.leak(world, -cost, 'bribes');

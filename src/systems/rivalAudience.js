@@ -374,7 +374,7 @@ export const RivalAudience = {
             player.gold = _num(player.gold) + owed;
             Ledger.record(player, 'rivalDeals', owed);
             for (const l of rival.loans) if (l.defaulted && !l.repaid) l.repaid = _day(world);
-            return { success: true, ok: true, line: '*colours, then counts out the coin* There. Now we are quits.', text: `They pay what they owe: +${owed} gold.` };
+            return { success: true, ok: true, line: '*colours, then counts out the coin* There. Now we are quits.', text: `They pay what they owe: +${Utils.formatGold(owed)} gold.` };
         }
         House.accrueRivalFeud(player, world, rival.kingdomId, 5, 'a debt pressed');
         return { success: true, ok: false, line: '*laughs* Take it up with the crown, if you like.', text: 'They will not pay. Feud +5.' };
@@ -430,7 +430,7 @@ export const RivalAudience = {
         // A blood price for a truce
         if (feud >= 45 && !RivalHouses.inTruce(rival, world)) {
             const gold = this.bloodPrice(rival);
-            push('bloodPrice', { gold, days: _num(D.truceDays, 120) }, `Pay ${gold} gold: feud −30, and no waylaying or plots from them for ${_num(D.truceDays, 120)} days, if they keep their word.`);
+            push('bloodPrice', { gold, days: _num(D.truceDays, 120) }, `Pay ${Utils.formatGold(gold)} gold: feud −30, and no waylaying or plots from them for ${_num(D.truceDays, 120)} days, if they keep their word.`);
         }
         // Speak for them at court
         if (rival.ambition && rival.ambition.id === 'favour' && feud < 70) {
@@ -447,7 +447,7 @@ export const RivalAudience = {
             if (e) {
                 const price = Math.round((_num(e.value) || LandMarket.value(world, e)) * 1.15);
                 const live = Estates._liveOfKey(world, e.town);
-                if (price > 0 && rival.gold >= price + _num(C.invest.reserve, 400)) push('buyEstate', { estate: e.name, estateId: e.id, gold: price, place: live ? live.name : 'town' }, `Sell ${e.name} for ${price} gold (about 15% over its value).`);
+                if (price > 0 && rival.gold >= price + _num(C.invest.reserve, 400)) push('buyEstate', { estate: e.name, estateId: e.id, gold: price, place: live ? live.name : 'town' }, `Sell ${e.name} for ${Utils.formatGold(price)} gold (about 15% over its value).`);
             }
         }
         // A loan
@@ -455,7 +455,7 @@ export const RivalAudience = {
         if (feud < 60 && !open && (rival.gold < 800 || (rival.ambition && rival.ambition.id === 'wealth' && rival.gold < 3000))) {
             const amount = Math.round((300 + _num(h.stewardship, 5) * 40) / 10) * 10;
             const owed = Math.round(amount * (1 + _num(D.loanRate, 0.2)));
-            push('loan', { gold: amount, owed, days: _num(D.loanDays, 60) }, `Lend ${amount} gold; they owe ${owed} in ${_num(D.loanDays, 60)} days. ${RivalHouses.honourWord(rival)}.`);
+            push('loan', { gold: amount, owed, days: _num(D.loanDays, 60) }, `Lend ${Utils.formatGold(amount)} gold; they owe ${owed} in ${_num(D.loanDays, 60)} days. ${RivalHouses.honourWord(rival)}.`);
         }
         return out.sort((a, b) => OFFER_ORDER.indexOf(a.kind) - OFFER_ORDER.indexOf(b.kind));
     },
@@ -498,16 +498,16 @@ export const RivalAudience = {
         const done = (text, extra = {}) => { rival.lastOffer = `${offer.kind}:${day}:taken`; return { success: true, line: said(offer.kind), text, ...extra }; };
         switch (offer.kind) {
             case 'bloodPrice': {
-                if (_num(player.gold) < offer.gold) return { success: false, reason: `The blood price is ${offer.gold} gold.` };
+                if (_num(player.gold) < offer.gold) return { success: false, reason: `The blood price is ${Utils.formatGold(offer.gold)} gold.` };
                 player.gold -= offer.gold;
                 rival.gold += offer.gold;
                 Ledger.record(player, 'rivalDeals', -offer.gold);
                 House.accrueRivalFeud(player, world, rival.kingdomId, -30);
                 rival.truceUntil = day + _num(D.truceDays, 120);
                 if (rival.plan && rival.plan.kind === 'waylay') RivalHouses._endWaylay(player, world, rival, RivalHouses.retinueOf(world, rival), 'spared', { notices: [] });
-                RivalHouses.remember(rival, world, 'bloodPrice', `${offer.gold}g`);
-                RivalHouses._note(rival, world, `Took a blood price of ${offer.gold}g from you, and swore a truce.`);
-                return done(`−${offer.gold} gold. Feud −30; a truce for ${_num(D.truceDays, 120)} days.`);
+                RivalHouses.remember(rival, world, 'bloodPrice', `${Utils.formatGold(offer.gold)}g`);
+                RivalHouses._note(rival, world, `Took a blood price of ${Utils.formatGold(offer.gold)}g from you, and swore a truce.`);
+                return done(`−${Utils.formatGold(offer.gold)} gold. Feud −30; a truce for ${_num(D.truceDays, 120)} days.`);
             }
             case 'loan': {
                 if (_num(player.gold) < offer.gold) return { success: false, reason: `You do not have ${offer.gold} gold to lend.` };
@@ -516,9 +516,9 @@ export const RivalAudience = {
                 Ledger.record(player, 'rivalDeals', -offer.gold);
                 rival.loans = (rival.loans || []).concat([{ amount: offer.gold, owed: offer.owed, due: day + _num(D.loanDays, 60), lent: day }]);
                 House.accrueRivalFeud(player, world, rival.kingdomId, -10);
-                RivalHouses.remember(rival, world, 'loanGiven', `${offer.gold}g`);
-                RivalHouses._note(rival, world, `Borrowed ${offer.gold}g from you.`);
-                return done(`−${offer.gold} gold; they owe ${offer.owed} by day ${day + _num(D.loanDays, 60)}. Feud −10.`);
+                RivalHouses.remember(rival, world, 'loanGiven', `${Utils.formatGold(offer.gold)}g`);
+                RivalHouses._note(rival, world, `Borrowed ${Utils.formatGold(offer.gold)}g from you.`);
+                return done(`−${Utils.formatGold(offer.gold)} gold; they owe ${offer.owed} by day ${day + _num(D.loanDays, 60)}. Feud −10.`);
             }
             case 'speak': {
                 const kid = offer.realmId;
@@ -542,9 +542,9 @@ export const RivalAudience = {
                 RivalHouses._holder(world, rival);
                 LandMarket._setHolder(world, e, RivalHouses.holderId(rival), day);
                 RivalHouses.remember(rival, world, 'estateSold', e.name);
-                RivalHouses._note(rival, world, `Bought ${e.name} from you for ${offer.gold}g.`, 'land');
+                RivalHouses._note(rival, world, `Bought ${e.name} from you for ${Utils.formatGold(offer.gold)}g.`, 'land');
                 House.accrueRivalFeud(player, world, rival.kingdomId, -10);
-                return done(`+${offer.gold} gold; ${e.name} is theirs. Feud −10.`);
+                return done(`+${Utils.formatGold(offer.gold)} gold; ${e.name} is theirs. Feud −10.`);
             }
             case 'match': {
                 const res = RivalHouses.proposeMatch(player, world, rival.kingdomId, offer.childId, offer.idx, { dowry: _num(D.matchDowry, 0) });

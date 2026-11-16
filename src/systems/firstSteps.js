@@ -32,6 +32,7 @@ import { DataLoader } from '../core/dataLoader.js';
 import { Ledger } from './ledger.js';
 import { House } from './house.js';
 import { Economy } from '../world/economy.js';
+import { Utils } from '../core/utils.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -234,7 +235,7 @@ export const FirstSteps = {
         if (gold > 0) {
             player.gold = _num(player.gold) + gold;
             Ledger.record(player, FirstSteps.config().ledgerCategory || 'firstSteps', gold);
-            parts.push(`+${Math.round(gold)} gold`);
+            parts.push(`+${Utils.formatGold(gold)} gold`);
         }
         const renown = Math.round(_num(r.renown));
         if (renown > 0) {

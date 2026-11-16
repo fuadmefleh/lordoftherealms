@@ -395,7 +395,7 @@ export const Ships = {
         let n = Math.min(open, Math.max(0, Math.floor(count)));
         const each = this._getCrewSettings().hireCostPerSailor;
         n = Math.min(n, Math.floor((player.gold || 0) / each));
-        if (n <= 0) return { success: false, message: `Not enough gold. Each sailor costs ${each}g to sign on.` };
+        if (n <= 0) return { success: false, message: `Not enough gold. Each sailor costs ${Utils.formatGold(each)}g to sign on.` };
 
         const cost = this.getHireCost(n);
         player.gold -= cost;
@@ -407,7 +407,7 @@ export const Ships = {
         if (player.financeToday) {
             player.financeToday.expenses.crewWages = (player.financeToday.expenses.crewWages || 0) + cost;
         }
-        return { success: true, hired: n, cost, message: `Signed on ${n} sailor${n === 1 ? '' : 's'} for ${ship.name} (${cost}g).` };
+        return { success: true, hired: n, cost, message: `Signed on ${n} sailor${n === 1 ? '' : 's'} for ${ship.name} (${Utils.formatGold(cost)}g).` };
     },
 
     /**
@@ -617,7 +617,7 @@ export const Ships = {
         const fleetFull = this.fleetLimitReason(player);
         if (fleetFull) return { success: false, message: fleetFull };
         if (player.gold < used.price) {
-            return { success: false, message: `Not enough gold. Need ${used.price}g.` };
+            return { success: false, message: `Not enough gold. Need ${Utils.formatGold(used.price)}g.` };
         }
 
         player.gold -= used.price;
@@ -651,7 +651,7 @@ export const Ships = {
         return {
             success: true,
             shipId: ship.id,
-            message: `Purchased ${used.name} (${st ? st.name : 'ship'}) for ${used.price}g! She has no crew — hire sailors here before you sail.`,
+            message: `Purchased ${used.name} (${st ? st.name : 'ship'}) for ${Utils.formatGold(used.price)}g! She has no crew — hire sailors here before you sail.`,
         };
     },
 
@@ -683,7 +683,7 @@ export const Ships = {
         }
 
         if (player.gold < totalCost) {
-            return { success: false, message: `Not enough gold. Need ${totalCost}g.` };
+            return { success: false, message: `Not enough gold. Need ${Utils.formatGold(totalCost)}g.` };
         }
 
         player.gold -= totalCost;
@@ -714,7 +714,7 @@ export const Ships = {
 
         return {
             success: true,
-            message: `Commissioned ${st.icon} ${ship.name} for ${totalCost}g. Ready in ${st.buildDays} days — hire ${this.getShipEffectiveStats(ship).crewRequired} sailors at a port to crew her.`
+            message: `Commissioned ${st.icon} ${ship.name} for ${Utils.formatGold(totalCost)}g. Ready in ${st.buildDays} days — hire ${this.getShipEffectiveStats(ship).crewRequired} sailors at a port to crew her.`
         };
     },
 
@@ -744,7 +744,7 @@ export const Ships = {
             player.financeToday.income.shipSale = (player.financeToday.income.shipSale || 0) + salePrice;
         }
 
-        return { success: true, message: `Sold ${ship.name} for ${salePrice}g.`, salePrice };
+        return { success: true, message: `Sold ${ship.name} for ${Utils.formatGold(salePrice)}g.`, salePrice };
     },
 
     /**
@@ -817,7 +817,7 @@ export const Ships = {
         if (ship.status !== 'docked') return { success: false, message: 'Ship must be docked.' };
 
         const cost = this.getRepairCost(ship);
-        if (player.gold < cost) return { success: false, message: `Need ${cost}g for repairs.` };
+        if (player.gold < cost) return { success: false, message: `Need ${Utils.formatGold(cost)}g for repairs.` };
 
         player.gold -= cost;
         // (the shipwrights' fee: the port's purse)
@@ -828,7 +828,7 @@ export const Ships = {
             player.financeToday.expenses.ships = (player.financeToday.expenses.ships || 0) + cost;
         }
 
-        return { success: true, message: `Repaired ${ship.name} for ${cost}g.` };
+        return { success: true, message: `Repaired ${ship.name} for ${Utils.formatGold(cost)}g.` };
     },
 
     upgradeShip(player, shipId, customizationIds, world = null) {
@@ -843,7 +843,7 @@ export const Ships = {
         if (!quote.picked.length) return { success: false, message: 'No valid upgrades available.' };
 
         if (player.gold < quote.totalCost) {
-            return { success: false, message: `Not enough gold. Need ${quote.totalCost}g.` };
+            return { success: false, message: `Not enough gold. Need ${Utils.formatGold(quote.totalCost)}g.` };
         }
 
         player.gold -= quote.totalCost;
@@ -859,7 +859,7 @@ export const Ships = {
         const names = quote.picked.map(c => c.name).join(', ');
         return {
             success: true,
-            message: `Upgraded ${ship.name} with ${names} for ${quote.totalCost}g.`,
+            message: `Upgraded ${ship.name} with ${names} for ${Utils.formatGold(quote.totalCost)}g.`,
             totalCost: quote.totalCost,
             upgrades: quote.picked,
         };
@@ -1291,8 +1291,8 @@ export const Ships = {
             return {
                 success: true,
                 icon: '⚔️',
-                title: `Victory! Defeated pirates (str ${enemyStrength}) and claimed ${loot}g bounty! +3 renown, +2 karma.` +
-                    (prize ? ` Your boarders seized their ship — sold as a prize for ${prize}g!` : '') + crewToll.text,
+                title: `Victory! Defeated pirates (str ${enemyStrength}) and claimed ${Utils.formatGold(loot)}g bounty! +3 renown, +2 karma.` +
+                    (prize ? ` Your boarders seized their ship — sold as a prize for ${Utils.formatGold(prize)}g!` : '') + crewToll.text,
                 type: 'success',
                 prize,
             };
@@ -1344,8 +1344,10 @@ export const Ships = {
             // Boarding planks strip the prize more thoroughly
             const loot = Math.floor((goldRange[0] + Math.floor(Utils.random() * (goldRange[1] - goldRange[0]))) * (1 + (fx.captureBonus || 0)));
             player.gold += loot;
-            // (a merchantman's strongbox at sea: coin no purse in the world counts - booked found)
-            MoneySupply.leak(world, loot, 'piracy');
+            // (a merchantman's strongbox is its home port's coin: out of the nearest town's purse,
+            // what it can't cover out of the sea's keeping, else booked found)
+            const fromPort = world ? Economy.drawNearest(world, player.q, player.r, loot) : 0;
+            if (loot > fromPort) MoneySupply.seaFound(world, loot - fromPort, 'piracy');
             player.karma = (player.karma || 0) - karmaLoss;
             player.renown = Math.max(0, (player.renown || 0) - renownLoss);
             Quests.track(player, 'piracy_committed'); // travelling companions take note
@@ -1367,7 +1369,7 @@ export const Ships = {
             return {
                 success: true,
                 icon: '🏴‍☠️',
-                title: `Plundered a merchant vessel for ${loot}g! -${karmaLoss} karma, -${renownLoss} renown. Your reputation suffers.${crewToll.text}`,
+                title: `Plundered a merchant vessel for ${Utils.formatGold(loot)}g! -${karmaLoss} karma, -${renownLoss} renown. Your reputation suffers.${crewToll.text}`,
                 type: 'warning'
             };
         } else {
@@ -2055,8 +2057,9 @@ export const Ships = {
             // Navigation (tech) and the ship's charts and lookouts make the most of what the sea offers
             const amt = Math.floor(rolled * this.getExplorationMultiplier(player, ship));
             player.gold += amt;
-            // (the sea's finds - a wreck, a hoard ashore - are coin from no purse: booked found)
-            MoneySupply.leak(world, amt, 'seaFinds');
+            // (the sea's finds - a wreck, a hoard ashore - come out of the coin lost at sea,
+            // past that coin from no purse: booked found - MoneySupply.seaFound)
+            MoneySupply.seaFound(world, amt, 'seaFinds');
             if (player.financeToday) {
                 player.financeToday.income.exploration = (player.financeToday.income.exploration || 0) + amt;
             }

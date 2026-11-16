@@ -28,6 +28,7 @@ import { DawnBirth } from '../dawnBirth.js';
 import { Names } from '../../core/names.js';
 import { RiverBoats } from '../../systems/riverBoats.js';
 import { RiverLife } from '../../systems/riverLife.js';
+import { Utils } from '../../core/utils.js';
 
 export function addWildernessActions(actions, player, tile, world) {
     // The tongues you speak and the one spoken here; lessons and interpreters in town (systems/languages.js)
@@ -385,7 +386,7 @@ export function addWildernessActions(actions, player, tile, world) {
             type: 'upgrade_cultural',
             label: `Upgrade ${cb.name} (Lv ${cb.level || 1} → ${(cb.level || 1) + 1})`,
             icon: '📚',
-            description: `${Culture.getUpgradeCost(cb)} gold — more income, influence and research`
+            description: `${Utils.formatGold(Culture.getUpgradeCost(cb))} gold — more income, influence and research`
         });
     }
 
@@ -409,7 +410,7 @@ export function addWildernessActions(actions, player, tile, world) {
                 type: 'found_colony',
                 label: 'Found Colony',
                 icon: '🏴',
-                description: `Establish a frontier colony here (${Colonization.COLONY_COST} gold)`,
+                description: `Establish a frontier colony here (${Utils.formatGold(Colonization.COLONY_COST)} gold)`,
                 disabled: !can.can,
                 reason: can.can ? null : `${can.reason}${/Too close/.test(can.reason || '') ? ` (at least ${Colonization.MIN_SETTLEMENT_DISTANCE} hexes from any town)` : ''}`,
             });
@@ -427,7 +428,7 @@ export function addWildernessActions(actions, player, tile, world) {
                     icon: '⛺',
                     description: src.held
                         ? `Send settlers out of ${tile.settlement.name} to found a village of yours at a site you pick`
-                        : `Ask ${tile.settlement.name}'s people to go with you and found a village of yours (${src.purse}g a head)`,
+                        : `Ask ${tile.settlement.name}'s people to go with you and found a village of yours (${Utils.formatGold(src.purse)}g a head)`,
                     disabled: !src.ok,
                     reason: src.ok ? null : src.reason,
                 });

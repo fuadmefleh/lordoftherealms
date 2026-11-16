@@ -13,6 +13,7 @@ import { PlayerEconomy } from '../../player/playerEconomy.js';
 import { PlayerInventory } from '../../core/inventory.js';
 import { Hex } from '../../core/hex.js';
 import { esc, lede, chips, purse, rowList, price, card } from './uiKit.js';
+import { Utils } from '../../core/utils.js';
 
 const _good = (id) => {
     const g = (PlayerEconomy.GOODS || {})[String(id).toUpperCase()];
@@ -42,7 +43,7 @@ Object.assign(ActionMenu, {
         if (boat) {
             const rows = [];
             const where = boat.aboard ? 'aboard' : (boat.q === q && boat.r === r ? 'moored here' : `moored ${esc(RiverLife._placeName(world, boat.q, boat.r))}`);
-            rows.push({ icon: boat.aboard ? '🛶' : '⚓', name: esc(boat.name), desc: `${where} · hold ${RiverBoats.cargoCount(boat)} of ${RiverBoats.holdOf(boat)}${boat.tolls ? ` · ${boat.tolls}g in tolls paid` : ''}`, side: '' });
+            rows.push({ icon: boat.aboard ? '🛶' : '⚓', name: esc(boat.name), desc: `${where} · hold ${RiverBoats.cargoCount(boat)} of ${RiverBoats.holdOf(boat)}${boat.tolls ? ` · ${Utils.formatGold(boat.tolls)}g in tolls paid` : ''}`, side: '' });
             if (boat.lastToll) {
                 const t = boat.lastToll;
                 rows.push({ icon: '🚧', name: `Last toll: ${esc(t.town)}`, desc: t.paid ? `${t.paid}g at the weir and bridge` : t.inKind ? `paid in kind: one ${esc(_good(t.inKind).name.toLowerCase())}` : 'waved through: you had nothing to pay with', side: '' });
@@ -88,7 +89,7 @@ Object.assign(ActionMenu, {
                     name: lease ? `You hold the fishing of ${WATER[water]}` : `The fishing of ${WATER[water]}: ${esc(holder.name)}'s`,
                     desc: lease ? `${lease.until - day + 1} days left. Your nets take more here, and the bailiff keeps poachers off.` : 'Lease it and your nets take more, the bailiff leaves them be, and fewer poachers come.',
                     act: player.gold >= fee ? 'riverLifeAct' : null, args: ['lease'], side: `${lease ? 'Extend' : 'Lease'} ${price(fee, player.gold >= fee)}`,
-                    off: player.gold < fee, why: `The lease is ${fee}g for ${RiverLife.config().leaseDays} days.`,
+                    off: player.gold < fee, why: `The lease is ${Utils.formatGold(fee)}g for ${RiverLife.config().leaseDays} days.`,
                 });
             }
             html += rowList(rows, 'Fishing rights');
@@ -136,12 +137,12 @@ Object.assign(ActionMenu, {
         switch (op) {
             case 'buy': {
                 const res = RiverBoats.buy(world, player, player.q, player.r, a);
-                say(res, '🛶 A Boat', 'success', res.ok ? `The boatwright hands you the pole: your ${res.boat.name.toLowerCase()} is moored at the quay${res.traded ? ` (your old boat went for ${res.traded}g toward it)` : ''}.` : null);
+                say(res, '🛶 A Boat', 'success', res.ok ? `The boatwright hands you the pole: your ${res.boat.name.toLowerCase()} is moored at the quay${res.traded ? ` (your old boat went for ${Utils.formatGold(res.traded)}g toward it)` : ''}.` : null);
                 break;
             }
             case 'sell': {
                 const res = RiverBoats.sell(world, player, player.q, player.r);
-                say(res, '💰 Boat Sold', 'success', res.ok ? `The boatwright counts out ${res.gold}g.` : null);
+                say(res, '💰 Boat Sold', 'success', res.ok ? `The boatwright counts out ${Utils.formatGold(res.gold)}g.` : null);
                 break;
             }
             case 'board': say(RiverBoats.board(world, player), '🛶 Aboard', 'success', 'You step aboard and push off from the bank. Pick a river hex on the map to go.'); break;
@@ -158,7 +159,7 @@ Object.assign(ActionMenu, {
             }
             case 'lease': {
                 const res = RiverLife.lease(world, player, player.q, player.r);
-                say(res, '📜 Fishing Rights', 'success', res.ok ? `You pay ${res.fee}g to ${res.lease.holder.name}: the fishing here is yours till day ${res.lease.until}.` : null);
+                say(res, '📜 Fishing Rights', 'success', res.ok ? `You pay ${Utils.formatGold(res.fee)}g to ${res.lease.holder.name}: the fishing here is yours till day ${res.lease.until}.` : null);
                 break;
             }
             case 'salt': {

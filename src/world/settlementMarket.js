@@ -1737,7 +1737,12 @@ export const SettlementMarket = {
                 // (an embodied lot is paid for when its caravan arrives: link.payAB / payBA)
                 if (!emb) pay(imp, exp, coinPay);
                 else if (aExports) payAB += coinPay; else payBA += coinPay;
-                if (unitDuty > 0 && imp.economy && Number.isFinite(imp.economy.gold)) imp.economy.gold = _round2(imp.economy.gold - qty * unitDuty);
+                // (the duty in whole cents, the same sum off the importer's purse as is left for the crowns)
+                let dutyPaid = 0;
+                if (unitDuty > 0 && imp.economy && Number.isFinite(imp.economy.gold)) {
+                    dutyPaid = Math.max(0, Math.min(_round2(qty * unitDuty), Math.floor(Math.max(0, imp.economy.gold) * 100) / 100));
+                    imp.economy.gold = _round2(imp.economy.gold - dutyPaid);
+                } else if (unitDuty > 0 && !imp.economy) dutyPaid = _round2(qty * unitDuty); // (a town with no purse record pays as Economy.drawTown has it)
                 xe[i] -= qty;
                 if (!emb) xi[i] += pm !== null && pm[i] === 1 ? Math.round(qty * (1 - lossP) * 100) / 100 : qty;
                 else if (aExports) (cAB || (cAB = new Float64Array(n)))[i] += qty;
@@ -1749,7 +1754,7 @@ export const SettlementMarket = {
                 const coinPaid = emb ? 0 : coinPay;
                 if (aExports) { movedA += qty; gAB += g; valAB += coinPaid; } else { movedB += qty; gBA += g; valBA += coinPaid; }
                 // (an embodied lot pays its duty as the caravan's border toll instead)
-                if (duty > 0 && !emb) { if (aExports) paidAB += qty * base * se * duty; else paidBA += qty * base * se * duty; }
+                if (dutyPaid > 0) { if (aExports) paidAB += dutyPaid; else paidBA += dutyPaid; }
                 valLink += qty * base * se;
                 out.moved += qty;
                 out.value += qty * base * se;
@@ -1790,7 +1795,7 @@ export const SettlementMarket = {
             // What moved, for the tolls and the roads' traffic (systems/publicWorks.js)
             link.val = valLink;
             if (emb) { link.cargoAB = cAB; link.cargoBA = cBA; link.goldAB = gAB; link.goldBA = gBA; link.payAB = _round2(payAB); link.payBA = _round2(payBA); }
-            if (paidAB > 0 || paidBA > 0) { link.paidAB = _num(link.paidAB) + paidAB; link.paidBA = _num(link.paidBA) + paidBA; }
+            if (paidAB > 0 || paidBA > 0) { link.paidAB = _round2(_num(link.paidAB) + paidAB); link.paidBA = _round2(_num(link.paidBA) + paidBA); }
             // The coin paid each way, for the money supply's books (world/moneySupply.js collectTrade)
             if (valAB > 0 || valBA > 0) { link.valAB = _num(link.valAB) + valAB; link.valBA = _num(link.valBA) + valBA; }
             if (movedA > 0 || movedB > 0) {

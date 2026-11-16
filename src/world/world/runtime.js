@@ -364,10 +364,15 @@ Object.assign(World.prototype, {
      * purse of the town it sets out from, else the nearest town's (a band's takings,
      * a monster's carried-off hoard): what that purse can pay, never coin from nothing.
      */
-    fundUnitCoin(unit) {
+    fundUnitCoin(unit, opts = {}) {
         const rolled = Math.max(0, Number(unit._rolledGold) || 0);
         delete unit._rolledGold;
         const inv = unit.inventory;
+        // (the roll's own pack replaced since — the spawner gave it coin of its own, or none —
+        // there is no roll left to fund: opts.now, a spawner funding the coin it just set)
+        const stale = !opts.now && unit._rolledInv && unit._rolledInv !== inv;
+        if (unit._rolledInv) unit._rolledInv = null;
+        if (stale) return 0;
         if (!inv || !(rolled > 0)) return 0;
         const owed = Math.min(rolled, Math.max(0, Number(inv.gold) || 0));
         if (!(owed > 0)) return 0;

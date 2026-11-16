@@ -259,7 +259,7 @@ export const Wilds = {
     canChoose(player, choice) {
         const cost = (choice && choice.cost) || {};
         const req = (choice && choice.requires) || {};
-        if (cost.gold > 0 && _num(player.gold) < cost.gold) return { ok: false, reason: `Needs ${cost.gold} gold` };
+        if (cost.gold > 0 && _num(player.gold) < cost.gold) return { ok: false, reason: `Needs ${Utils.formatGold(cost.gold)} gold` };
         for (const [item, qty] of Object.entries(cost.items || {})) {
             if (!Wilds._carries(player, item, qty)) return { ok: false, reason: `Needs ${qty} ${_name(item)}` };
         }
@@ -320,7 +320,7 @@ export const Wilds = {
             const parts = [];
             if (cost.stamina) parts.push(ctx && ctx.inPerson ? `${cost.stamina} hour${cost.stamina === 1 ? '' : 's'}` : `${cost.stamina} stamina`);
             if (cost.health) parts.push(`${cost.health} health`);
-            if (cost.gold) parts.push(`${cost.gold} gold`);
+            if (cost.gold) parts.push(`${Utils.formatGold(cost.gold)} gold`);
             for (const [item, qty] of Object.entries(cost.items || {})) parts.push(`${qty} ${_name(item)}`);
             const left = c.repeatable > 1 ? Math.max(0, c.repeatable - _num(used[c.id])) : null;
             return {
@@ -376,7 +376,7 @@ export const Wilds = {
         if (cost.gold > 0) {
             // (the herbalist, the prospector, the nomads: folk who spend it in the nearest town)
             PlayerCoin.pay(world, player, cost.gold, null, 'exploration');
-            lines.push(`-${cost.gold} gold`);
+            lines.push(`-${Utils.formatGold(cost.gold)} gold`);
         }
         for (const [item, qty] of Object.entries(cost.items || {})) {
             player.inventory[item] -= qty;
@@ -430,14 +430,14 @@ export const Wilds = {
             if (g > 0) {
                 // (a cache, a dead man's purse, old offerings: coin in no one's purse, found)
                 PlayerCoin.found(world, player, g, 'wildFinds', 'exploration');
-                lines.push(`+${g} gold`);
+                lines.push(`+${Utils.formatGold(g)} gold`);
             } else if (g < 0) {
                 const lost = Math.min(_num(player.gold), -g);
                 // (the bandits and pirates who take it spend it in the nearest town)
                 PlayerCoin.pay(world, player, lost, null, null);
                 if (lost) {
                     Ledger.record(player, 'exploration', -lost);
-                    lines.push(`-${lost} gold`);
+                    lines.push(`-${Utils.formatGold(lost)} gold`);
                 }
             }
         }

@@ -5,6 +5,7 @@ import { ActionMenu } from './_ref.js';
 import { RealmPolitics, REALM_POLITICS, KingdomNavy } from './_imports.js';
 import { lede, chips, rowList, card, price, purse, esc } from './uiKit.js';
 import { RealmIntel } from '../../systems/realmIntel.js';
+import { Utils } from '../../core/utils.js';
 
 /** A realm's army or fleet as the player may know it (systems/realmIntel.js). */
 function _force(player, world, k, band, value) {
@@ -61,7 +62,7 @@ Object.assign(ActionMenu, {
                 .reduce((sum, [, v]) => sum + v, 0);
             const rows = campaign.enemies.map(enemy => ({
                 icon: '⚔️', name: `Ride against ${esc(enemy.name)}`,
-                desc: `Their strength ≈${RealmPolitics.campaignStrength(enemy)} · up to ${REALM_POLITICS.campaign.wage}g a victory`,
+                desc: `Their strength ≈${RealmPolitics.campaignStrength(enemy)} · up to ${Utils.formatGold(REALM_POLITICS.campaign.wage)}g a victory`,
                 side: `${AP.campaign} AP`, off: !hasArmy, why: 'You have no army to ride with',
                 attrs: `onclick="window._realm.campaign('${enemy.id}')"`,
             }));
@@ -69,7 +70,7 @@ Object.assign(ActionMenu, {
             const fleet = RealmPolitics.fleetServiceOptions(player, world);
             const liegeNavy = campaign.liege.navy;
             if (serving) {
-                rows.push({ icon: '⛵', name: 'Recall your galleys', desc: `They sail with the fleet (+${RealmPolitics.fleetContribution(player)} strength, ${KingdomNavy.CONFIG.liegeService.wagePerGalley}g a day each) and escort none of your ships meanwhile`, attrs: 'onclick="window._realm.recallFleet()"' });
+                rows.push({ icon: '⛵', name: 'Recall your galleys', desc: `They sail with the fleet (+${RealmPolitics.fleetContribution(player)} strength, ${Utils.formatGold(KingdomNavy.CONFIG.liegeService.wagePerGalley)}g a day each) and escort none of your ships meanwhile`, attrs: 'onclick="window._realm.recallFleet()"' });
             } else if (fleet && liegeNavy && liegeNavy.ports) {
                 rows.push({ icon: '⚓', name: 'Send your galleys to the fleet', desc: `Your ${fleet.galleys} galley${fleet.galleys === 1 ? '' : 's'} add ${fleet.contribution} to a fleet of ${liegeNavy.strength}; sea victories count as merit`, attrs: 'onclick="window._realm.lendFleet()"' });
             }
@@ -106,7 +107,7 @@ Object.assign(ActionMenu, {
             html += rowList(alliances.map(pr => ({
                 icon: '🤝', name: `${esc(pr.a.name)} & ${esc(pr.b.name)}`,
                 desc: `Relations ${Math.round(pr.relations)} · ~${Math.round(RealmPolitics.allianceChance(player, pr.a, pr.b) * 100)}% an envoy binds them · ${AP.alliance} AP`,
-                side: price(A.fee, gold >= A.fee), off: gold < A.fee, why: `Needs ${A.fee}g for the envoys`,
+                side: price(A.fee, gold >= A.fee), off: gold < A.fee, why: `Needs ${Utils.formatGold(A.fee)}g for the envoys`,
                 attrs: `onclick="window._realm.ally('${pr.a.id}','${pr.b.id}')"`,
             })), `Forge an alliance (crowns on warm terms, ${A.minRelations}+)`);
         }
@@ -173,7 +174,7 @@ Object.assign(ActionMenu, {
             desc: `Success restores ${esc(t.fallen.name)} here, at war with ${esc(t.occupier.name)}: +${R.renown} renown, +${R.reputationRestored} with the restored crown, ${R.reputationOccupier} with the occupier. Failure loses the gold, and the occupier may learn who paid.`,
             side: price(t.cost, gold >= t.cost),
             off: sworn || gold < t.cost,
-            why: sworn ? `You are sworn to ${esc(t.occupier.name)}: funding rebels would be treason` : `Needs ${t.cost}g`,
+            why: sworn ? `You are sworn to ${esc(t.occupier.name)}: funding rebels would be treason` : `Needs ${Utils.formatGold(t.cost)}g`,
             attrs: 'onclick="window._realm.fund()"',
         }]);
         html += '</div>';

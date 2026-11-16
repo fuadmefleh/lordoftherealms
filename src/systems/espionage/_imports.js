@@ -9,3 +9,5 @@ export { House } from '../house.js';
 export { Schemes } from '../schemes.js';
 export { RealmWars } from '../realmWars.js';
 export { NPCLords } from '../../world/npcLords.js';
+export { Economy } from '../../world/economy.js';
+export { MoneySupply } from '../../world/moneySupply.js';

@@ -324,11 +324,11 @@ export const TownSchool = {
         if (settlement.folk.school && settlement.folk.school.founded) return { ok: false, reason: `${settlement.name || 'The town'} already has its school.`, cost };
         const k = Laws.ruled(player, world);
         if (k && settlement.kingdom != null && k.id === settlement.kingdom) {
-            if (_num(k.treasury) < cost) return { ok: false, reason: `Founding a school costs the crown ${cost}g; the treasury holds ${Math.floor(_num(k.treasury))}g.`, cost, payer: 'crown' };
+            if (_num(k.treasury) < cost) return { ok: false, reason: `Founding a school costs the crown ${Utils.formatGold(cost)}g; the treasury holds ${Utils.formatGold(_num(k.treasury))}g.`, cost, payer: 'crown' };
             return { ok: true, cost, payer: 'crown' };
         }
         if (Holdings.isHolding(player, world, settlement.q, settlement.r)) {
-            if (_num(player.gold) < cost) return { ok: false, reason: `Founding a school costs ${cost}g.`, cost, payer: 'purse' };
+            if (_num(player.gold) < cost) return { ok: false, reason: `Founding a school costs ${Utils.formatGold(cost)}g.`, cost, payer: 'purse' };
             return { ok: true, cost, payer: 'purse' };
         }
         return { ok: false, reason: 'Only the ruler of the realm or the lord of the town may found its school.', cost };
@@ -361,7 +361,7 @@ export const TownSchool = {
         const m = TownSchool.master(world, folk, day);
         Townsfolk._annal(folk, world, day, { k: 'schoolFounded', a: m ? m.id : null, b: null, x: st.founded.by }, []);
         House.recordPlayerDeed(player, world, 'schoolFunded', { reason: `founded the school of ${settlement.name || 'a town'}`, scale: 2 });
-        return { success: true, text: `By your decree ${settlement.name || 'the town'} has its school${m ? `, with ${Townsfolk.name(m)} as schoolmaster` : ''}. ${can.cost}g ${can.payer === 'crown' ? 'from the treasury' : 'from your purse'}: half to the building, ${endow}g to its fund.` };
+        return { success: true, text: `By your decree ${settlement.name || 'the town'} has its school${m ? `, with ${Townsfolk.name(m)} as schoolmaster` : ''}. ${Utils.formatGold(can.cost)}g ${can.payer === 'crown' ? 'from the treasury' : 'from your purse'}: half to the building, ${Utils.formatGold(endow)}g to its fund.` };
     },
 
     /** The town's annal of its school's founding. */
@@ -441,7 +441,7 @@ export const TownSchool = {
         if (p.sponsored) return { success: false, reason: `${p.first}'s schooling is already paid for.` };
         const age = Townsfolk.age(p, day);
         if (age < C.ages[0] || age > C.ages[1]) return { success: false, reason: `${p.first} is not of an age for school.` };
-        if (_num(player.gold) < cost) return { success: false, reason: `It takes ${cost} gold.` };
+        if (_num(player.gold) < cost) return { success: false, reason: `It takes ${Utils.formatGold(cost)} gold.` };
         player.gold -= cost;
         TownSchool.state(folk).fund = _num(TownSchool.state(folk).fund) + cost;
         p.sponsored = { by: 'player', d: day };

@@ -380,9 +380,9 @@ export const MapTheft = {
             text: `${g.owner} blocks your way in ${g.settlement}, a guard at his shoulder: "That is the thief who took my ${t.map === 'kingdom' ? 'rolls' : 'chart'}!"`,
             stats: [`💰 ${Math.floor(_num(player.gold))}`, g.status === 'bounty' ? 'a bounty is out on you' : 'no bounty yet'],
             options: [
-                { id: 'pay', icon: '💰', label: 'Pay restitution', hint: `${held ? 'Hand the chart back and pay' : 'Pay'} for the wrong. It ends here, bounty and all.`, chance: null, cost: `${cost} gold`, can: _num(player.gold) >= cost, reason: `You need ${cost} gold` },
+                { id: 'pay', icon: '💰', label: 'Pay restitution', hint: `${held ? 'Hand the chart back and pay' : 'Pay'} for the wrong. It ends here, bounty and all.`, chance: null, cost: `${Utils.formatGold(cost)} gold`, can: _num(player.gold) >= cost, reason: `You need ${Utils.formatGold(cost)} gold` },
                 { id: 'deny', icon: '🗣️', label: 'Deny everything', hint: 'Diplomacy and charisma. Fail and the guard takes you in.', chance: MapTheft.accuseChance(player, 'deny') },
-                { id: 'bribe', icon: '🤫', label: 'Buy his silence', hint: 'More than restitution, but no one need know. Refused, the guard sees the purse.', chance: MapTheft.accuseChance(player, 'bribe'), cost: `${bribe} gold`, can: _num(player.gold) >= bribe, reason: `You need ${bribe} gold` },
+                { id: 'bribe', icon: '🤫', label: 'Buy his silence', hint: 'More than restitution, but no one need know. Refused, the guard sees the purse.', chance: MapTheft.accuseChance(player, 'bribe'), cost: `${Utils.formatGold(bribe)} gold`, can: _num(player.gold) >= bribe, reason: `You need ${Utils.formatGold(bribe)} gold` },
                 { id: 'flee', icon: '🏃', label: 'Run for it', hint: 'Stealth. Away, and the realm hunts you; caught, it\'s jail.', chance: MapTheft.accuseChance(player, 'flee') },
             ],
             footer: 'Walk away from this and he goes straight to the watch.',
@@ -414,7 +414,7 @@ export const MapTheft = {
         };
         switch (choice) {
             case 'pay': {
-                if (_num(player.gold) < cost) return { invalid: true, notification: { title: 'Purse Too Light', body: `You need ${cost} gold.`, type: 'error' } };
+                if (_num(player.gold) < cost) return { invalid: true, notification: { title: 'Purse Too Light', body: `You need ${Utils.formatGold(cost)} gold.`, type: 'error' } };
                 player.gold -= cost;
                 Ledger.record(player, 'fines', -cost);
                 // (to the chart's owner, who spends it in their town)
@@ -422,7 +422,7 @@ export const MapTheft = {
                 const before = (player.maps || []).length;
                 player.maps = (player.maps || []).filter(m => !(g.mapIds || []).includes(m.id));
                 MapTheft._settle(player, g);
-                return { ok: true, notification: { title: '💰 Restitution', body: `You paid ${g.owner} ${cost} gold${player.maps.length < before ? ' and handed the chart back' : ''}. The matter is closed.`, type: 'warning' } };
+                return { ok: true, notification: { title: '💰 Restitution', body: `You paid ${g.owner} ${Utils.formatGold(cost)} gold${player.maps.length < before ? ' and handed the chart back' : ''}. The matter is closed.`, type: 'warning' } };
             }
             case 'deny': {
                 if (Utils.random() < MapTheft.accuseChance(player, 'deny')) {
@@ -433,7 +433,7 @@ export const MapTheft = {
             }
             case 'bribe': {
                 const bribe = Math.round(cost * _num(MapTheft.config().accuse.bribe.costMult, 1.5));
-                if (_num(player.gold) < bribe) return { invalid: true, notification: { title: 'Purse Too Light', body: `You need ${bribe} gold.`, type: 'error' } };
+                if (_num(player.gold) < bribe) return { invalid: true, notification: { title: 'Purse Too Light', body: `You need ${Utils.formatGold(bribe)} gold.`, type: 'error' } };
                 if (Utils.random() < MapTheft.accuseChance(player, 'bribe')) {
                     player.gold -= bribe;
                     Ledger.record(player, 'bribes', -bribe);

@@ -42,6 +42,7 @@ import { Ledger } from './ledger.js';
 import { TradeSkills } from './tradeSkills.js';
 // (the real worker who takes the job, away from the town's own work till it's done)
 import { TownJobs } from './townJobs.js';
+import { Utils } from '../core/utils.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -275,7 +276,7 @@ export const Commissions = {
         for (const [g, n] of Object.entries(q.inputs)) {
             if (_num(inv[g]) < n) return { success: false, reason: `You need ${n} ${Commissions._goodName(g).toLowerCase()}.` };
         }
-        if (pay !== 'cut' && _num(player.gold) < q.fee) return { success: false, reason: `${offer.who[0].toUpperCase() + offer.who.slice(1)} ask${offer.who.endsWith('s') ? '' : 's'} ${q.fee} gold.` };
+        if (pay !== 'cut' && _num(player.gold) < q.fee) return { success: false, reason: `${offer.who[0].toUpperCase() + offer.who.slice(1)} ask${offer.who.endsWith('s') ? '' : 's'} ${Utils.formatGold(q.fee)} gold.` };
         if (Object.values(q.give).every(v => v <= 0)) return { success: false, reason: 'That is too little to be worth their while: bring more.' };
         // (the best of what you carry goes to the work — core/grades.js)
         for (const [g, n] of Object.entries(q.inputs)) Grades.remove(player, g, n, { order: 'best' });
@@ -298,7 +299,7 @@ export const Commissions = {
         if (hand) job.worker = `${hand.first} ${hand.last}`;
         const outText = Object.entries(q.give).filter(([, n]) => n > 0).map(([g, n]) => `${n} ${Commissions._goodName(g).toLowerCase()}`).join(', ');
         const when = q.days <= 0 ? 'by the end of the day' : `in ${q.days + 1} days`;
-        return { success: true, job, text: `${offer.who[0].toUpperCase() + offer.who.slice(1)} will have ${outText} for you ${when}${pay === 'cut' ? ' (keeping their cut)' : ` (${q.fee} gold)`}.` };
+        return { success: true, job, text: `${offer.who[0].toUpperCase() + offer.who.slice(1)} will have ${outText} for you ${when}${pay === 'cut' ? ' (keeping their cut)' : ` (${Utils.formatGold(q.fee)} gold)`}.` };
     },
 
     /**
@@ -309,7 +310,7 @@ export const Commissions = {
         const q = Commissions.quote(player, world, s, offer, runs, 'fee', { supply: true });
         const name = (g) => Commissions._goodName(g).toLowerCase();
         if (q.short.length) return { success: false, reason: `${s.name} has no ${q.short.map(name).join(' or ')} to spare for it.` };
-        if (_num(player.gold) < q.total) return { success: false, reason: `${offer.who[0].toUpperCase() + offer.who.slice(1)} ask${offer.who.endsWith('s') ? '' : 's'} ${q.total} gold, the stuff and the work.` };
+        if (_num(player.gold) < q.total) return { success: false, reason: `${offer.who[0].toUpperCase() + offer.who.slice(1)} ask${offer.who.endsWith('s') ? '' : 's'} ${Utils.formatGold(q.total)} gold, the stuff and the work.` };
         for (const [g, n] of Object.entries(q.materials)) SettlementMarket.take(s, g, n);
         player.gold -= q.total;
         Ledger.record(player, 'hiredWork', -q.total);
@@ -326,7 +327,7 @@ export const Commissions = {
         if (hand) job.worker = `${hand.first} ${hand.last}`;
         const outText = Object.entries(q.give).filter(([, n]) => n > 0).map(([g, n]) => `${n} ${name(g)}`).join(', ');
         const when = q.days <= 0 ? 'by the end of the day' : `in ${q.days + 1} days`;
-        return { success: true, job, text: `${offer.who[0].toUpperCase() + offer.who.slice(1)} will have ${outText} for you ${when} (${q.total} gold, the stuff bought in ${s.name}).` };
+        return { success: true, job, text: `${offer.who[0].toUpperCase() + offer.who.slice(1)} will have ${outText} for you ${when} (${Utils.formatGold(q.total)} gold, the stuff bought in ${s.name}).` };
     },
 
     /** `n` units of `g` just handed over from a job: its graded units go first, best first. */

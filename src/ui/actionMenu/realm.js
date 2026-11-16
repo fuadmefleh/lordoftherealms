@@ -48,14 +48,14 @@ function _runTournament(game, tile, settlement, prizePool, baseRenown) {
         let h = '<div>';
         const renown = baseRenown + out.renown;
         if (out.champion) {
-            h += lede(`<b style="color:#ffcf6a;">🏆 GRAND CHAMPION! Won ${out.gold} gold! +${renown} total renown!</b>`);
+            h += lede(`<b style="color:#ffcf6a;">🏆 GRAND CHAMPION! Won ${Utils.formatGold(out.gold)} gold! +${renown} total renown!</b>`);
         } else if (out.finalist) {
-            h += lede(`🥈 <b>Runner-up!</b> Won ${out.gold} gold. +${renown} renown.`);
+            h += lede(`🥈 <b>Runner-up!</b> Won ${Utils.formatGold(out.gold)} gold. +${renown} renown.`);
         } else {
             h += lede(`Eliminated${out.wins ? ' in the semi-final' : ' in the opening bout'}. +${renown} renown for competing.`);
         }
         h += chips([
-            { icon: '💰', label: 'Prize', value: `${out.gold}g`, cls: 'gold' },
+            { icon: '💰', label: 'Prize', value: `${Utils.formatGold(out.gold)}g`, cls: 'gold' },
             ['⭐', 'Renown', `+${renown}`],
             out.harm > 0 ? ['🤕', 'Hurt', `<span style="color:#e0846a;">-${out.harm} HP</span>`] : null,
         ]);
@@ -110,8 +110,8 @@ function _runTournament(game, tile, settlement, prizePool, baseRenown) {
         let h = '<div>';
         h += lede(`🏟️ <b>The Lists at ${esc(settlement.name)}</b>${i > 0 ? ` · <span style="color:#8fd18a;">✓ You beat ${esc(bouts[i - 1].opponent.name)}.</span>` : ''}`);
         h += chips([
-            { icon: '🏆', label: 'Champion takes', value: `${prizePool}g`, cls: 'gold' },
-            ['🥈', 'Runner-up', `${Math.floor(prizePool * (T.runnerUpShare || 0.4))}g`],
+            { icon: '🏆', label: 'Champion takes', value: `${Utils.formatGold(prizePool)}g`, cls: 'gold' },
+            ['🥈', 'Runner-up', `${Utils.formatGold(Math.floor(prizePool * (T.runnerUpShare || 0.4)))}g`],
         ]);
         h += rowList(field.map((o, k) => {
             const T2 = Duels.temperament(o.temperament);
@@ -122,7 +122,7 @@ function _runTournament(game, tile, settlement, prizePool, baseRenown) {
                 side: k < i ? 'won' : k === i ? 'next' : '', tone: k < i ? 'good' : k === i ? 'gold' : '',
             };
         }), 'The bracket:');
-        h += `<div style="font-size: 11px; color: #9d937c; margin: -4px 0 6px;">🏆 Champion takes ${prizePool} gold; the runner-up ${Math.floor(prizePool * (T.runnerUpShare || 0.4))}.</div>`;
+        h += `<div style="font-size: 11px; color: #9d937c; margin: -4px 0 6px;">🏆 Champion takes ${Utils.formatGold(prizePool)} gold; the runner-up ${Math.floor(prizePool * (T.runnerUpShare || 0.4))}.</div>`;
         h += rowList([
             { icon: '⚔️', name: `Fight the ${BOUT_NAMES[i].toLowerCase()}`, desc: 'Blunted steel, in the duel panel', attrs: 'onclick="window._tourney.fight()"', tone: 'gold', side: '›' },
             { icon: '⚡', name: 'Fight the rest on instinct', desc: 'Settled at once', attrs: 'onclick="window._tourney.auto()"', side: '›' },
@@ -321,12 +321,12 @@ Object.assign(ActionMenu, {
         let html = '<div>';
         html += lede(`⚔️ <b>Hold a Tournament.</b> Organize a fighting tournament in ${settlement.name}! Champions from across the land will compete.`);
         html += chips([
-            { icon: '🏆', label: 'Prize pool', value: `${prizePool}g`, cls: 'gold' },
+            { icon: '🏆', label: 'Prize pool', value: `${Utils.formatGold(prizePool)}g`, cls: 'gold' },
             ['⚔️', 'Combat', Math.round((player.skills?.combat || 1) * 10) / 10],
             ['💪', 'Strength', Math.round((player.strength || 5) * 10) / 10],
             purse(player.gold),
         ]);
-        html += kv('💰 Entry/Organization cost', `<span style="color:#ffcf6a;">${entryFee} gold</span>`);
+        html += kv('💰 Entry/Organization cost', `<span style="color:#ffcf6a;">${Utils.formatGold(entryFee)} gold</span>`);
         html += kv('⏰ Time', 'Takes the rest of the day');
         html += sectionHead('You may compete yourself, or simply host and watch');
         const hostFee = Math.floor(entryFee * 0.6);
@@ -462,7 +462,7 @@ Object.assign(ActionMenu, {
                 };
             }), 'Seasonal Contest');
 
-            html += `<div style="font-size: 12px; color: ${canAfford ? '#9d937c' : '#e0846a'}; margin: 8px 0;">Cost: ${currentTier.cost} gold · Your gold: ${Utils.formatGold(player.gold)}</div>`;
+            html += `<div style="font-size: 12px; color: ${canAfford ? '#9d937c' : '#e0846a'}; margin: 8px 0;">Cost: ${Utils.formatGold(currentTier.cost)} gold · Your gold: ${Utils.formatGold(player.gold)}</div>`;
             html += rowList([{
                 icon: currentTier.icon || theme.icon, name: 'Begin Festival', desc: `${currentTier.label} · takes the day`,
                 attrs: 'onclick="window._beginFestival()"', off: !canAfford, why: `You need ${currentTier.cost} gold to host this festival.`,
@@ -505,7 +505,7 @@ Object.assign(ActionMenu, {
             summary += chips([
                 { icon: '⭐', label: 'Renown', value: `+${result.renownGain}`, cls: 'gold' },
                 ['🎉', 'Morale boost', `${Math.round(result.moraleBoost * 100)}% for ${result.moraleDays} days`],
-                ['🏅', 'Contest prize', `${result.contestPrize}g`],
+                ['🏅', 'Contest prize', `${Utils.formatGold(result.contestPrize)}g`],
             ]);
             const lc = result.localCustoms;
             if (lc && (lc.custom || lc.sentimentGain)) {
@@ -531,7 +531,7 @@ Object.assign(ActionMenu, {
             if (result.sabotage.length > 0) {
                 summary += rowList(result.sabotage.map(row => (row.caught
                     ? { icon: '🛡️', name: row.rival, desc: `Agents from ${row.rival} were caught before causing damage.`, side: 'caught', tone: 'good' }
-                    : { icon: '⚠️', name: row.rival, desc: `Operatives from ${row.rival} caused losses: -${row.goldLost}g.`, side: `-${row.goldLost}g`, tone: 'bad' })), 'Sabotage Attempts');
+                    : { icon: '⚠️', name: row.rival, desc: `Operatives from ${row.rival} caused losses: -${Utils.formatGold(row.goldLost)}g.`, side: `-${Utils.formatGold(row.goldLost)}g`, tone: 'bad' })), 'Sabotage Attempts');
             }
 
             summary += `<div style="margin-top: 10px;">${actRow({ icon: '➡️', name: 'Continue', desc: 'The revels end', act: 'closePanelAndEndDay', tone: 'gold' })}</div>`;

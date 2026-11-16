@@ -798,7 +798,7 @@ export const Bonds = {
     repay(player, world, npcId) {
         const b = Bonds.get(player, npcId);
         if (!b || !b.owed) return { success: false, reason: 'You owe them nothing.' };
-        if (_num(player.gold) < b.owed.amount) return { success: false, reason: `You need ${b.owed.amount} gold.` };
+        if (_num(player.gold) < b.owed.amount) return { success: false, reason: `You need ${Utils.formatGold(b.owed.amount)} gold.` };
         const npc = Bonds._npc(npcId);
         player.gold -= b.owed.amount;
         if (npc) npc.purse = _r1(Bonds.purseOf(npc, world) + b.owed.amount);
@@ -969,7 +969,7 @@ export const Bonds = {
         Traits.recordDeed(player, 'deceit', b.sworn ? 4 : 2);
         Nemesis.wrong(player, world, {
             kind: 'blood', name: b.name, ref: b.folkUid ? { folkRef: b.folkUid } : {}, line: npc.dynasty || null,
-            deed: { key: 'betrayal', label: b.sworn ? 'the oath of kinship you broke' : 'the friendship you sold', note: `${fee} gold` },
+            deed: { key: 'betrayal', label: b.sworn ? 'the oath of kinship you broke' : 'the friendship you sold', note: `${Utils.formatGold(fee)} gold` },
             score: B.nemesisBase + b.strength / 2 + (b.sworn ? 20 : 0), age: npc.age, gender: npc.gender,
         });
         Bonds._rumour(player, world, npc, 'betrayal', `sold out ${b.name}, who called them friend`);
@@ -1010,10 +1010,10 @@ export const Bonds = {
         const out = {};
         out.drink = !where ? no(away)
             : b.cd.drink != null && day - b.cd.drink < C.drink.cooldownDays ? no('You drank together today already.')
-                : gold < C.drink.cost ? no(`You need ${C.drink.cost} gold.`) : { ok: true, cost: C.drink.cost };
+                : gold < C.drink.cost ? no(`You need ${Utils.formatGold(C.drink.cost)} gold.`) : { ok: true, cost: C.drink.cost };
         out.gift = !where ? no(away)
             : b.cd.gift != null && day - b.cd.gift < C.gift.cooldownDays ? no(`You gave them something lately (again in ${C.gift.cooldownDays - (day - b.cd.gift)} days).`)
-                : gold < C.gift.cost ? no(`You need ${C.gift.cost} gold.`) : { ok: true, cost: C.gift.cost };
+                : gold < C.gift.cost ? no(`You need ${Utils.formatGold(C.gift.cost)} gold.`) : { ok: true, cost: C.gift.cost };
         const place = Bonds._oathPlace(player, world);
         out.oath = b.sworn ? no('You are already sworn kin.')
             : b.kind === 'protege' && !b.protegeSkill ? no('They are too young.')
@@ -1035,7 +1035,7 @@ export const Bonds = {
             : kid == null ? no('They have no standing in any realm.')
                 : b.cd.vouch != null && day - b.cd.vouch < C.vouch.cooldownDays ? no(`They spoke for you lately (again in ${C.vouch.cooldownDays - (day - b.cd.vouch)} days).`)
                     : !where ? no(away) : { ok: true, gain: Bonds._vouchGain(b), kingdomId: kid };
-        out.repay = !b.owed ? no('You owe them nothing.') : gold < b.owed.amount ? no(`You need ${b.owed.amount} gold.`) : { ok: true, cost: b.owed.amount };
+        out.repay = !b.owed ? no('You owe them nothing.') : gold < b.owed.amount ? no(`You need ${Utils.formatGold(b.owed.amount)} gold.`) : { ok: true, cost: b.owed.amount };
         out.service = Court.isMember(player, b.npcId) || Relationships.isInTravelParty(player, b.npcId) ? no('They already serve with you.')
             : b.strength < 60 ? no(`The bond must be stronger (${Math.round(b.strength)}/60).`)
                 : npc && npc.governing ? no('They govern one of your holdings.')
@@ -1182,7 +1182,7 @@ export const Bonds = {
         if (b.kind === 'protege') line += ' They took you under their wing when you were young; you owe them much.';
         const lines = [line];
         if (_num(b.grievance) >= 25) lines.push('Lately you feel taken for granted by them, and it rankles.');
-        if (b.owed) lines.push(`You lent them ${b.owed.amount} gold${b.owed.late ? ', and they are late repaying it' : ''}.`);
+        if (b.owed) lines.push(`You lent them ${Utils.formatGold(b.owed.amount)} gold${b.owed.late ? ', and they are late repaying it' : ''}.`);
         return lines;
     },
 };

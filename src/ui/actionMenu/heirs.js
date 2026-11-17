@@ -395,7 +395,7 @@ Object.assign(ActionMenu, {
                 ['🧬', `${e.generations} generation${e.generations === 1 ? '' : 's'}`, ''],
                 ['⏳', `${e.years} years`, ''],
                 { icon: '⭐', label: 'Prestige', value: e.prestige, cls: 'gold' },
-                e.crowns ? ['👑', `${Utils.formatGold(e.crowns)} crown${e.crowns === 1 ? '' : 's'}`, ''] : null,
+                e.crowns ? ['👑', `${e.crowns} crown${e.crowns === 1 ? '' : 's'}`, ''] : null,
             ]));
             html += '<div style="text-align:center; margin:0 0 10px;">';
             html += `<div style="font-size:22px;">${e.rank.icon}</div><div style="font-family:var(--font-display); color:#ffe9a8; font-size:15px; font-weight:600;">${_esc(e.rank.label)}</div>`;

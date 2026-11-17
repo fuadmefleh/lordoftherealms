@@ -33,6 +33,7 @@
 
 import { DataLoader } from '../core/dataLoader.js';
 import { Utils } from '../core/utils.js';
+import { Hex } from '../core/hex.js';
 import { Difficulty } from '../core/difficulty.js';
 import { Townsfolk } from '../systems/townsfolk.js';
 import { CoinCensus } from '../systems/coinCensus.js';
@@ -970,6 +971,19 @@ export const Afterlife = {
             // (Economy.drawTown: a town with no purse record yet is not counted, and pays as asked)
             const from = live && !live.inKind ? live : Economy.nearestPurse(world, cand.q, cand.r);
             ownCoin += from ? Economy.drawTown(from, wantCoin - ownCoin) : 0;
+        }
+        if (ownCoin < wantCoin && typeof world.getSettlementViews === 'function') {
+            // (a town short of coin: the household's kin in the next towns make up the rest,
+            // nearest first, so the purse promised on the choice is the purse they set out with)
+            const w = world.width || 0;
+            const near = world.getSettlementViews()
+                .map(v => { const t = world.getTile(v.q, v.r); return { s: t && t.settlement, d: Hex.wrappingDistance(cand.q, cand.r, v.q, v.r, w) }; })
+                .filter(e => e.s && e.s !== live && !e.s.inKind && e.s.economy && e.s.economy.gold > 0)
+                .sort((a, b) => a.d - b.d);
+            for (const e of near) {
+                if (ownCoin >= wantCoin) break;
+                ownCoin += Economy.drawTown(e.s, wantCoin - ownCoin);
+            }
         }
 
         // Born at the dawn: no surname yet — DawnBirth.apply gives the clan's (and the House its name)

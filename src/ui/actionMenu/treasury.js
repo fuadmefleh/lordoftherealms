@@ -67,6 +67,9 @@ function realmFor(game) {
     return { ruled, here, k: here || ruled };
 }
 
+// (a line's sign, but none on a figure that shows as 0: no "−0g")
+const sgn = (sign, v) => (Math.abs(v) < 0.005 ? '' : sign > 0 ? '+' : '−');
+
 function linesTable(b) {
     let html = `<table style="width:100%; border-collapse:collapse; font-size:12px; margin-top:6px;"><tr><th style="${TH}">Line</th><th style="${TH}">Yesterday</th><th style="${TH}">Last week</th></tr>`;
     const row = (l, sign) => {
@@ -74,7 +77,7 @@ function linesTable(b) {
         if (Math.abs(d) < 0.5 && Math.abs(w) < 0.5) return '';
         const c = sign > 0 ? GOOD : BAD;
         const tip = lineTip(l);
-        return `<tr${tip ? ` title="${esc(tip)}"` : ''}><td style="${TD}">${esc(LABEL[l] || l)}</td><td style="${TD} color:${c};">${sign > 0 ? '+' : '−'}${g0(Math.abs(d))}g</td><td style="${TD} color:${c};">${sign > 0 ? '+' : '−'}${g0(Math.abs(w))}g</td></tr>`;
+        return `<tr${tip ? ` title="${esc(tip)}"` : ''}><td style="${TD}">${esc(LABEL[l] || l)}</td><td style="${TD} color:${c};">${sgn(sign, d)}${g0(Math.abs(d))}g</td><td style="${TD} color:${c};">${sgn(sign, w)}${g0(Math.abs(w))}g</td></tr>`;
     };
     html += `<tr><td colspan="3" style="${TD} padding-top:8px; font-size:10.5px; font-weight:600; letter-spacing:1px; text-transform:uppercase; color:#ffcf6a;">Revenue</td></tr>`;
     for (const l of CrownBooks.REVENUE_LINES) html += row(l, 1);
@@ -86,7 +89,7 @@ function linesTable(b) {
         const d = b.last[l] || 0, w = b.week[l] || 0;
         if (Math.abs(d) < 0.5 && Math.abs(w) < 0.5) continue;
         const tip = lineTip(l);
-        html += `<tr${tip ? ` title="${esc(tip)}"` : ''}><td style="${TD} ${NOTE}">${esc(LABEL[l])}</td><td style="${TD} ${NOTE}">${d >= 0 ? '+' : '−'}${g0(Math.abs(d))}g</td><td style="${TD} ${NOTE}">${w >= 0 ? '+' : '−'}${g0(Math.abs(w))}g</td></tr>`;
+        html += `<tr${tip ? ` title="${esc(tip)}"` : ''}><td style="${TD} ${NOTE}">${esc(LABEL[l])}</td><td style="${TD} ${NOTE}">${sgn(d >= 0 ? 1 : -1, d)}${g0(Math.abs(d))}g</td><td style="${TD} ${NOTE}">${sgn(w >= 0 ? 1 : -1, w)}${g0(Math.abs(w))}g</td></tr>`;
     }
     return html + '</table>';
 }

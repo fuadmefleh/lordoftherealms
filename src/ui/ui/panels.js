@@ -823,15 +823,15 @@ Object.assign(UI.prototype, {
             <div style="display: flex; gap: 8px; margin-bottom: 16px;">
                 <div style="flex: 1; padding: 12px; background: rgba(39,174,96,0.1); border: 1px solid rgba(39,174,96,0.3); border-radius: 6px; text-align: center;">
                     <div style="font-size: 11px; color: #27ae60; text-transform: uppercase;">Income (${recent.length}d)</div>
-                    <div style="font-size: 20px; font-weight: bold; color: #27ae60;">+${Utils.formatNumber(totalIncome)}</div>
+                    <div style="font-size: 20px; font-weight: bold; color: #27ae60;">${totalIncome > 0 ? '+' : ''}${Utils.formatGold(totalIncome)}</div>
                 </div>
                 <div style="flex: 1; padding: 12px; background: rgba(231,76,60,0.1); border: 1px solid rgba(231,76,60,0.3); border-radius: 6px; text-align: center;">
                     <div style="font-size: 11px; color: #e74c3c; text-transform: uppercase;">Expenses (${recent.length}d)</div>
-                    <div style="font-size: 20px; font-weight: bold; color: #e74c3c;">-${Utils.formatNumber(totalExpenses)}</div>
+                    <div style="font-size: 20px; font-weight: bold; color: #e74c3c;">${totalExpenses > 0 ? '-' : ''}${Utils.formatGold(totalExpenses)}</div>
                 </div>
                 <div style="flex: 1; padding: 12px; background: rgba(${netChange >= 0 ? '39,174,96' : '231,76,60'},0.1); border: 1px solid rgba(${netChange >= 0 ? '39,174,96' : '231,76,60'},0.3); border-radius: 6px; text-align: center;">
                     <div style="font-size: 11px; color: ${netChange >= 0 ? '#27ae60' : '#e74c3c'}; text-transform: uppercase;">Net (${recent.length}d)</div>
-                    <div style="font-size: 20px; font-weight: bold; color: ${netChange >= 0 ? '#27ae60' : '#e74c3c'};">${netChange >= 0 ? '+' : ''}${Utils.formatNumber(netChange)}</div>
+                    <div style="font-size: 20px; font-weight: bold; color: ${netChange >= 0 ? '#27ae60' : '#e74c3c'};">${netChange > 0 ? '+' : ''}${Utils.formatGold(netChange)}</div>
                 </div>
             </div>
         `;

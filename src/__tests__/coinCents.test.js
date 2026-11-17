@@ -83,6 +83,19 @@ describe('coin shown to the player: to the cent, no trailing zeros', () => {
         expect(Utils.formatGold(undefined)).toBe('0');
     });
 
+    it('Utils.formatGold keeps the sign and passes text through (browser-checked 2026-11-16)', () => {
+        // A loss keeps its minus; the panels that print their own sign pass Math.abs
+        expect(Utils.formatGold(-12.5)).toBe('-12.5');
+        const loss = -3.456;
+        expect(`${loss >= 0 ? '+' : '−'}${Utils.formatGold(Math.abs(loss))}g`).toBe('−3.46g');
+        // Text that isn't a number is shown as it is, never as 0
+        expect(Utils.formatGold('free')).toBe('free');
+        expect(Utils.formatGold('—')).toBe('—');
+        // A number already grouped as text reads back the same
+        expect(Utils.formatGold('1,210')).toBe('1,210');
+        expect(Utils.formatGold('0.19')).toBe('0.19');
+    });
+
     it('formatNumber keeps at most two decimals', () => {
         expect(Utils.formatNumber(1095.4999999)).toBe((1095.5).toLocaleString());
         expect(Utils.formatNumber(1000)).toBe((1000).toLocaleString());

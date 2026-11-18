@@ -1110,6 +1110,28 @@ export const Parentage = {
         return { payee, other: payee === f ? m : f, town: s, folk };
     },
 
+    /**
+     * Supper at the family table (player/core/lifecycle.js endDay): a child under its
+     * parents' rule who ends the day at home is fed by the household, not from its
+     * own pack. The household buys the meal from its town (birth.json familyMealCost,
+     * default 1: the coin goes to the town's market, as its other spending does); a
+     * royal child eats from the palace kitchens. A household with nothing left feeds
+     * no one. → { text } or null.
+     */
+    familyMeal(player, world) {
+        const pa = Parentage.state(player);
+        if (!pa || !pa.active || pa.pending || !world || !Parentage._atHome(player, world)) return null;
+        // (a royal child eats from the palace kitchens: the crown's table is not reckoned meal by meal)
+        const cost = pa.royal ? 0 : Math.max(0, _num(Parentage.data().familyMealCost, 1));
+        if (cost > 0) {
+            const hh = Parentage._household(world, pa);
+            if (!hh || Parentage.savings(world, player) < cost) return null;
+            const paid = Parentage._takeSavings(world, pa, cost);
+            if (hh.town) Economy.payTown(hh.town, paid);
+        }
+        return { text: 'Supper at your family’s table.' };
+    },
+
     /** The household's savings now (gold). */
     savings(world, player) {
         const pa = Parentage.state(player);

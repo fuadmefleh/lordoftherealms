@@ -977,7 +977,17 @@ export const KingdomAI = {
         const R = KingdomAI.RESTORATION;
         const day = KingdomAI._day(world);
         for (const fallen of world.kingdoms) {
-            if (fallen.isAlive || fallen.conqueredDay == null) continue;
+            if (fallen.isAlive) continue;
+            // (coin that still finds its way into a fallen crown's chests — a due owed it, a
+            // fine — is in no counted purse there: it goes on to its conqueror, else is spent
+            // in the town nearest its old seat)
+            if (_fy(Number(fallen.treasury)) > 0 || (fallen.royalBank && _fy(Number(fallen.royalBank.treasury)) > 0)) {
+                const heir = fallen.conqueredBy != null && world.getKingdom ? world.getKingdom(fallen.conqueredBy) : null;
+                const live = heir && heir.isAlive ? heir : null;
+                const town = !live && fallen.capital ? Economy.nearestPurse(world, fallen.capital.q, fallen.capital.r) : null;
+                if (live || town) KingdomAI.seizeChests(fallen, live, world, town);
+            }
+            if (fallen.conqueredDay == null) continue;
             if (day - fallen.conqueredDay < R.minDays) continue;
             for (const s of (world.getSettlementViews ? world.getSettlementViews() : world.getAllSettlements())) {
                 const tile = world.getTile(s.q, s.r);

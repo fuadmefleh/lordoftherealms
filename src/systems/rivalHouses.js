@@ -636,6 +636,8 @@ export const RivalHouses = {
         if (!this._landOn(world)) return;
         const id = this.holderId(rival);
         const h = Estates.holder(world, id);
+        // (a living House looks in on its land every week: LandMarket._orphanMonth reads it)
+        if (h) h.swept = _day(world);
         if (h && _num(h.purse) > 0) {
             const got = Math.round(h.purse * 100) / 100;
             rival.gold = Math.round((rival.gold + got) * 100) / 100;

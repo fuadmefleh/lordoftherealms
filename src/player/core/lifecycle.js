@@ -13,6 +13,7 @@ import { DAILY_RATION_HUNGER, MEAL_HUNGER } from './needs.js';
 import { PlayerMilitary } from '../playerMilitary.js';
 import { Ships } from '../../systems/ships.js';
 import { DawnBirth } from '../dawnBirth.js';
+import { Parentage } from '../parentage.js';
 import { Endurance } from '../endurance.js';
 import { DataLoader } from '../../core/dataLoader.js';
 import { Names } from '../../core/names.js';
@@ -56,9 +57,16 @@ export const PlayerLifecycleMethods = {
         // (at the dawn, the kin's pot: fed by your family at their fire, and
         // repaid when you come home with food to spare — player/dawnBirth.js)
         this._kinMeal = null;
+        this._familyMeal = null;
         const kinMeal = world && !this.jailState && !this.indenturedServitude && !(this.getFoodCount && this.getFoodCount() > 0)
             ? DawnBirth.kinMeal(this, world) : null;
-        if (kinMeal && !kinMeal.refused) {
+        // (born to a family: a child at home eats at the family table — player/parentage.js)
+        const familyMeal = world && !kinMeal && !this.jailState && !this.indenturedServitude ? Parentage.familyMeal(this, world) : null;
+        if (familyMeal) {
+            this._familyMeal = familyMeal;
+            this.starvationDays = 0;
+            this.modifyNeed('hunger', DAILY_RATION_HUNGER);
+        } else if (kinMeal && !kinMeal.refused) {
             this._kinMeal = kinMeal;
             this.starvationDays = 0;
             this.modifyNeed('hunger', DAILY_RATION_HUNGER);

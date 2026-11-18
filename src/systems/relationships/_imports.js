@@ -2,6 +2,8 @@
 export { DataLoader } from '../../core/dataLoader.js';
 export { Utils } from '../../core/utils.js';
 export { Characters } from '../../world/characters.js';
+export { Economy } from '../../world/economy.js';
+export { MoneySupply } from '../../world/moneySupply.js';
 export { House } from '../house.js';
 export { Traits } from '../traits.js';
 export { Upbringing } from '../upbringing.js';

@@ -132,7 +132,7 @@ export default function GameView() {
               <div className="hud-obj-compass"><Icon name="compass" /></div>
             </div>
             <div className="hud-obj-progress-row">
-              <span className="hud-obj-prog-label">◆ Explore hexes</span>
+              <span className="hud-obj-prog-label" id="objectiveProgLabel">◆ Explore hexes</span>
               <span className="hud-obj-prog-count" id="objectiveProgress">0 / 2</span>
             </div>
           </div>

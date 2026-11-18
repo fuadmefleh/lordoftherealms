@@ -777,11 +777,13 @@ export const InnerMapTasks = {
                 // The plate, with the painted item on it (the glyph when it has no art)
                 if (!it.item || !this._drawPlated(ctx2d, it.item, gx, gy, 12 * big)) drawMapMarker(ctx2d, it.glyph, gx, gy, 10 * big);
                 ctx2d.restore();
-                if (it.guide) {
-                    // "Fold · 37" under the marker: where, and how far
+                {
+                    // "Fold · 37" under the marker: where, and how far (every arrow says
+                    // how far: without it an arrow at the safe-area edge passed for a spot on the ground)
                     const far = Math.round(_dist({ q: it.q, r: it.r }, me));
-                    const text = `${it.name || 'Here'} · ${far}`;
+                    const text = it.guide ? `${it.name || 'Here'} · ${far}` : `${far} away`;
                     ctx2d.save();
+                    ctx2d.globalAlpha = guiding && !it.guide ? 0.4 : 1;
                     ctx2d.font = `bold ${Math.round(12 * safe.zoom)}px Inter, sans-serif`;
                     ctx2d.textAlign = 'center'; ctx2d.textBaseline = 'top';
                     const tw = ctx2d.measureText(text).width + 10;
@@ -789,7 +791,7 @@ export const InnerMapTasks = {
                     const tx = Math.max(tw / 2 + 4, Math.min(W - tw / 2 - 4, gx));
                     ctx2d.fillStyle = 'rgba(13,17,23,0.85)';
                     ctx2d.fillRect(tx - tw / 2, ty - 2 * safe.zoom, tw, 17 * safe.zoom);
-                    ctx2d.fillStyle = '#9fe0a6';
+                    ctx2d.fillStyle = it.guide ? '#9fe0a6' : '#f5d77a';
                     ctx2d.fillText(text, tx, ty);
                     ctx2d.restore();
                 }

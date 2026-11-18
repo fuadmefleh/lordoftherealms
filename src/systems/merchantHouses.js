@@ -75,7 +75,7 @@ const DEFAULT_CONFIG = {
         count: [3, 5], minActive: 3, weeklyReturn: [-0.035, 0.05], contestedDrag: 0.006,
         dividendShare: 0.5, capitalCap: 60000, workingPerPost: 4000, overheadShare: 0.0015, sharePremium: 1.15, sellDiscount: 0.85, ruinCapital: 400,
         expandChance: 0.2, maxPosts: 6, lobbyChance: 0.07, slanderChance: 0.12, slanderRivalry: 50,
-        undercutVolume: 0.75, newcomerChance: 0.25,
+        undercutVolume: 0.75, newcomerChance: 0.25, newcomerYears: 3,
         priceWar: { minSpend: 200, damage: [0.9, 1.5], reputationCost: 3, rivalry: 25 },
         openRivalry: 10, contractRivalry: 5,
     },
@@ -1841,18 +1841,32 @@ export const MerchantHouses = {
             }
             if (r.capital < cfg.ruinCapital) MerchantHouses._ruin(player, world, r, out);
         }
-        // A newcomer takes a fallen house's place
+        MerchantHouses._newcomer(player, world, m, cfg, day);
+    },
+
+    /**
+     * A newcomer takes a fallen house's place (with or without the player's
+     * company: quietWeek runs it too — before, a world whose player kept no
+     * company lost its houses one by one and never saw another). A house name
+     * whose last bearer fell (ruined or bought out) `newcomerYears` ago may
+     * open its books again, under a new id. Its capital is raised from its
+     * seat realm's towns (_makeRival). → the newcomer or null
+     */
+    _newcomer(player, world, m, cfg, day) {
         const active = m.rivals.filter(r => r.status === 'active').length;
-        if (active < cfg.minActive && Utils.random() < cfg.newcomerChance) {
-            const used = new Set(m.rivals.map(r => r.id));
-            const free = (MerchantHouses.data().rivalHouses || []).filter(d => !used.has(d.id));
-            if (free.length) {
-                const def = Utils.randPick(free);
-                const rival = MerchantHouses._makeRival(def, world, MerchantHouses._towns(world), `${day}:${Utils.randInt(1, 1e6)}`, day);
-                m.rivals.push(rival);
-                MerchantHouses._news(player, world, `${rival.name} opens its books in ${rival.seat ? rival.seat.name : 'the realm'}.`, rival.icon);
-            }
-        }
+        if (active >= cfg.minActive || Utils.random() >= cfg.newcomerChance) return null;
+        const wait = _num(cfg.newcomerYears, 3) * 120;
+        const defOf = (r) => r.defId || r.id;
+        const busy = new Set(m.rivals.filter(r => r.status === 'active' || (r.endedDay != null && day - _num(r.endedDay) < wait)).map(defOf));
+        const free = (MerchantHouses.data().rivalHouses || []).filter(d => !busy.has(d.id));
+        if (!free.length) return null;
+        const def = Utils.randPick(free);
+        const rival = MerchantHouses._makeRival(def, world, MerchantHouses._towns(world), `${day}:${Utils.randInt(1, 1e6)}`, day);
+        // (a name borne before: a new house under it, its own id — the old one's shares and listing stay its own)
+        if (m.rivals.some(r => r.id === rival.id)) { rival.defId = def.id; rival.id = `${def.id}-${day}`; }
+        m.rivals.push(rival);
+        MerchantHouses._news(player, world, `${rival.name} opens its books in ${rival.seat ? rival.seat.name : 'the realm'}.`, rival.icon);
+        return rival;
     },
 
     /**
@@ -1882,6 +1896,7 @@ export const MerchantHouses = {
             MerchantHouses._rivalOverheads(world, r, cfg);
             if (r.capital < cfg.ruinCapital) MerchantHouses._ruin(player, world, r, null);
         }
+        MerchantHouses._newcomer(player, world, m, cfg, day);
     },
 
     /**

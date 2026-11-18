@@ -560,13 +560,15 @@ export const Couriers = {
             // The Royal Post's fee to the crown
             for (const [kid, ch] of Object.entries(st.charters)) {
                 if (ch && ch.courierId === c.id) {
-                    const k = world.getKingdom ? world.getKingdom(kid) : null;
+                    // (a fallen crown takes no fee: paid into its empty chests, the coin left the census)
+                    const k0 = world.getKingdom ? world.getKingdom(kid) : null;
+                    const k = k0 && k0.isAlive !== false ? k0 : null;
                     const fee = Math.round(C.charter.feePerTown * Math.max(1, this.stationsIn(c, kid)));
                     ch.fee = fee;
                     ch.paid = _num(ch.paid) + fee;
                     c.week.fee += fee;
                     // (an NPC house pays it out of what it holds; the player's house in _settlePlayer)
-                    const paid = c.owner === 'player' ? 0 : Math.min(fee, Math.max(0, Math.floor(_num(c.cash) + _num(c.week.revenue) - _num(c.week.feePaid))));
+                    const paid = c.owner === 'player' || !k ? 0 : Math.min(fee, Math.max(0, Math.floor(_num(c.cash) + _num(c.week.revenue) - _num(c.week.feePaid))));
                     if (k && paid > 0) {
                         k.treasury = _num(k.treasury) + paid;
                         CrownBooks.note(k, 'demesne', paid); // a crown monopoly's due

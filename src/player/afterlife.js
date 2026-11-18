@@ -1022,6 +1022,29 @@ export const Afterlife = {
                 nf.nextBankId = of.nextBankId || of.banks.length + 1;
                 nf.initialized = true;
             }
+            // ...and so are the rival merchant houses and the underwriters' guilds: they
+            // trade on, capital and all (released, their coin went to the towns and a new
+            // set was raised from them again — and with no company of the new life's own,
+            // the houses were never seeded again: decades with no merchant houses)
+            const om = old.merchant;
+            if (om && Array.isArray(om.rivals) && om.rivals.length) {
+                const nm = MerchantHouses.state(player);
+                nm.rivals = om.rivals;
+                nm.rivalsSeeded = true;
+                for (const r of nm.rivals) {
+                    if (!r) continue;
+                    // (the late ruler's shares and quarrels end with the estate)
+                    if (r.shares) r.shares.player = 0;
+                    r.rivalry = 0;
+                }
+            }
+            const ou = old.underwriting;
+            if (ou && Array.isArray(ou.guilds) && ou.guilds.length) {
+                const nu = Underwriting.state(player);
+                nu.guilds = ou.guilds;
+                nu.nextGuildId = ou.nextGuildId || ou.guilds.length + 1;
+                nu.initialized = true;
+            }
         }
         if (estate) player.origin.estate = { from: estate.name, paid: Math.round(estate.paid), unpaid: Math.round(estate.unpaid), toCrown: Math.round(estate.toCrown), toTown: Math.round(estate.toTown), line: estate.line };
 

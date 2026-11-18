@@ -37,15 +37,33 @@ Object.assign(ActionMenu, {
         // (harvest hands in autumn, sowing in spring — data/earlyJobs.json)
         const oddJobs = (DataLoader && DataLoader.earlyJobs && DataLoader.earlyJobs.oddJobs) || null;
         const seasonalJobs = SeasonalWork.jobsFor(tier, game.world.day, oddJobs);
-        const shuffled = [...allJobs].sort(() => Math.random() - 0.5);
-        const todayJobs = [...seasonalJobs, ...shuffled.slice(0, 3)];
+        // (the same offer while the panel is redrawn the same day: the mode toggle below redraws it)
+        const offerKey = `${tile.q},${tile.r}:${game.world.day}`;
+        let todayJobs;
+        if (ActionMenu._laborOffer && ActionMenu._laborOffer.key === offerKey) {
+            todayJobs = ActionMenu._laborOffer.jobs;
+        } else {
+            const shuffled = [...allJobs].sort(() => Math.random() - 0.5);
+            todayJobs = [...seasonalJobs, ...shuffled.slice(0, 3)];
+            ActionMenu._laborOffer = { key: offerKey, jobs: todayJobs };
+        }
 
         const diffColors = { 2: '#8fd18a', 3: '#8fd18a', 4: '#f0b35a', 5: '#f0b35a', 6: '#e0846a', 7: '#e0846a' };
 
         // The action menu's voice (ui/actionMenu/uiKit.js): one row a job, the
         // pay and difficulty at the right
         let html = sectionHead('🔨 Available Work');
-        html += lede(`Day labor available in ${settlement.name}. Complete the work task to earn your pay.`);
+        // How the work is done: in person on the street map (walk to each spot; pay by how well)
+        // or a quick shift (no walking: the day's plain wage). The first job of a new game sent a
+        // player round the whole town for minutes; the quick shift is the old minigame's skip.
+        const quick = ActionMenu._laborQuick === true;
+        html += lede(quick
+            ? `Day labor available in ${settlement.name}. <b>Quick shift</b>: the work is done at once, for a plain wage.`
+            : `Day labor available in ${settlement.name}. <b>In person</b>: you do the work on the streets (markers show where); good work pays best.`);
+        html += `<div style="display:flex; gap:6px; margin:2px 0 8px;">`
+            + `<button onclick="window._laborMode(false)" style="${quick ? BTN_PLAIN : BTN_GOLD} flex:1; padding:6px 8px; font-size:12px;" title="Walk to each spot on the street map; pay by how well and how fast">🚶 In person · best pay</button>`
+            + `<button onclick="window._laborMode(true)" style="${quick ? BTN_GOLD : BTN_PLAIN} flex:1; padding:6px 8px; font-size:12px;" title="No walking: the job is done at once, for a plain wage">⏩ Quick shift · plain pay</button>`
+            + `</div>`;
 
         const jobRows = todayJobs.map((job, i) => {
             const statVal = ActionMenu._getPlayerStat(game.player, job.stat);
@@ -68,9 +86,19 @@ Object.assign(ActionMenu, {
 
         window._oddJobsCancel = () => game.ui.hideCustomPanel();
 
+        window._laborMode = (q) => {
+            ActionMenu._laborQuick = !!q;
+            ActionMenu.showOddJobsMenu(game, tile);
+        };
+
         window._startLabor = (idx) => {
             if (!ActionMenu.commitPendingAP(game)) return;
             const job = todayJobs[idx];
+            // A quick shift: the plain wage at once ("decent work": good work in person pays more)
+            if (ActionMenu._laborQuick === true) {
+                ActionMenu._laborReward(game, tile, job, 50);
+                return;
+            }
             // The work is done in person on the street map (ui/innerMapTasks.js)
             ActionMenu._startLaborTask(game, tile, job);
         };

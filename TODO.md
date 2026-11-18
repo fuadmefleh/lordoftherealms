@@ -64,6 +64,24 @@ Fixed this pass: town coin draining into crown chests and free villages (systems
 - [x] **Coin still booked as a leak rather than routed:** an avenger's birth purse and yearly income, coin found or lost at sea. *(2026-11-15: an avenger of blood or kin keeps a home (the townsperson's town, else where the House stood); their start purse, an heir's top-up to 50 and the yearly means are drawn out of that town's purse (`Nemesis._earn`, capped by the purse cap), a dead rival's gold moves to the heir instead of being copied, and the purse goes back to the town when the feud ends. Coin lost at sea (a voyage's tolls and losses, coin paid to nameless sea-rovers) goes into the sea's keeping, `world.money.sea` (counted by the census); what the sea gives up — voyage finds, sea finds, reef salvage, river flotsam, coin won back from the rovers — comes out of it first and only the rest is booked found (`MoneySupply.seaLost / seaFound`). A merchantman's strongbox taken at sea comes out of the nearest port's purse first.)*
 - [x] **The census drifted 1–2k a run under the bot (2026-11-15).** Measured per step over 600 bot days (seeds 101/202/303): +9.0k/−0.3k/−0.2k unbooked before (and −45.5k on 202 once the bot died heirless), now +5.2/+3.1/−3.8. Causes: spies' daily upkeep paid to no one (−23 a day; now spent in the town nearest the spy's post) and a spy's work against a crown (unrest, sabotage, a succession, stolen documents) taking coin out of the chests into nothing (now spent into its towns, or taken from them); new inns and roadhouses opened with cash from nothing (+6k in 100 days on seed 101; now the keeper's savings out of the town's purse); a pedlar's purse counted by realm but not in the world's total (`CoinCensus.each`); a migrating household's purses lost when the new town kept no roster; a crown's loss in a world event with no coin-keeping town of its own (and a barter town paid nothing yet the chest was emptied) and a windfall's cents floored away; reavers' plunder from nothing (now out of the town's purse); a stale roll funded twice — a lair's band, a war host, any unit whose spawner replaced the rolled pack still drew its roll from the nearest town (`World.fundUnitCoin` now skips a replaced pack; `MoneySupply.bookedChange` carries a rolled-but-unfunded unit's coin as pending, so spawning is not counted before funding); a House ending heirless dropped every purse kept on the player — rival Houses, merchant rivals, underwriters, lairs, rivals, avengers (`Afterlife._releaseHolders`: paid into the nearest town); import duty in whole cents and only what the importer paid (`settlementMarket.js`; a crown gone since leaves it in the town); saga chests kept to the cent; the bot's ring bought from nothing and a ship sold without the world. Without the bot (coinCensusCloses) seed 101 −37 → 0.0 over 240 days, seed 303 −91 → −4.7 over five years. Spec: coinDrift (+ tighter bounds in coinCensusCloses).
 
+## From the 85-year soak (2026-11-17)
+
+`src/__tests__/longRun.soak.test.js` (skipped unless `LONGRUN=1`; `LONGRUN_YEARS` 85, `LONGRUN_SEEDS` 101,202, `LONGRUN_OUT` rows as JSON lines, `LONGRUN_JUMPS=1` a census a day naming the days the unbooked coin jumps) plays 85 years and takes a row every 5: coin and unbooked drift, coin by holder, guilds, towns and people, realms and wars, staple prices against their anchors, the dynasty, ms/day and save size, and asserts the bands below. Regression specs: `longRunFixes.test.js`.
+
+- [x] **Rival Houses' land with no House hoarded a third of the world's coin.** A rival House's (or cadet branch's) estates kept taking rents into its holder purse after the House died out or was let go with a new life; holders of kind `rival` were skipped by the land market's monthly turn, so no one spent it. Seed 202: landholders' coffers 46k → 450k by year 85 (33% of all coin) while the towns fell 236k → 146k. Now `LandMarket._orphanMonth`: a House sweeps its land weekly (`h.swept`); unswept for `orphanDays` (60) the purse is spent out like any holder's, and after `orphanSellDays` (720) the estates go on the market one at a time (data/estates.json). Seed 202 coffers now 40–70k all century.
+- [x] **Landless holders' debts compounded for ever** (1% a month; seed 202's landless nobles owed 41k at year 5, 232k at year 35). Written off when the holder has no land and an empty purse.
+- [x] **Merchant houses died out.** With no company of the player's, `quietWeek` ruined houses but only the company's week brought newcomers, and a house name was never borne twice (7 in the data). Seed 202 had none from year 10 to 85. Now `MerchantHouses._newcomer` runs in both, and a name whose last house fell `newcomerYears` (3) ago comes back under a new id.
+- [x] **A new life let the world's merchant houses and underwriters go** (their coin to the towns, then raised again from them). `Afterlife.becomeStranger` now carries them over like the banks, the late ruler's shares ended.
+- [x] **A reload refilled fallen realms' royal banks.** `kingdom.royalBank` wasn't saved, so every save/load gave each realm its generated vault back; a fallen realm's (emptied at its fall, uncounted while dead) came back counted when it rose: +6.5k to +16.9k unbooked at every restoration after a reload (seed 202 +86k by year 85, seed 101 swings of ±10–40k). Now saved (`systems/saveLoad.js`).
+- [x] **Pruned NPCs took their purses with them.** `Relationships.pruneKnown` (yearly) dropped long-dead/unseen NPCs and their purses left the census (−3.3k in one year on seed 101; the slow −1k per 5 years). The purse now goes to the townsperson, else the nearest town.
+- [x] **Coin paid into a fallen crown's chests** (a courier charter's fee, a broken guild's chest: ~300g per 500 days on seed 202) sat uncounted until the realm rose. Couriers and guilds no longer pay a fallen crown; anything that still lands there goes to its conqueror (else the nearest town) at the daily restoration check.
+- [ ] **The royal banks are inert.** `kingdom.royalBank.treasury` (5–15k a realm, ~107k ≈ 10% of the world's coin) is never drawn or paid — only counted, and seized at a conquest. Either give it a job (crown loans, the crown's reserve) or fold it into the opening coin elsewhere.
+- [ ] **The soak bot starves as heirs and strangers.** Before the fixes seed 101 had 21 deaths in 85 years, after them 19 (seed 202: 26), most of them starvation at 17–47, several 6 days after a succession (an heir or cadet taking over a broke House: starvation kills in about 6 days from full health). Check whether a broke heir has any way to eat in the first week (the House's larder, kin, charity), or teach the bot to beg/forage sooner.
+- [ ] **Townsfolk cost grows with the towns rostered.** ms/day ~80–95 at year 5 → ~210 at year 85 on both seeds, Townsfolk.processDay 6–9 → ~75 ms and IllnessPlayer ~24 ms: the rosters fill as more towns are visited (seed 101: 18 towns/694 people at year 5 → 74/8.2k at 85, ~9 µs a person a day). Flat once every visited town has a roster; save 3.5 → ~17 MB.
+- [x] **After the fixes (85 years, seeds 101 / 202):** unbooked drift −4.4k / −1.9k (0.29% / 0.16% of the coin; before +41k / +86k), landholders' coffers 71k / 66k (before 97k / 450k), merchant houses alive every year, guilds 183–248 with medians 36–57g, no town emptied, 5–10 realms alive, both pass the long-run bands. Table: the soak80.md report from this pass.
+- [ ] **Residual drift** of about −25 to −50 a year, in days of a few hundred (a rebellion or drought day, −380 to −420); not traced.
+- [ ] **Staple prices sit above their anchors.** Median bread runs 22–43g against an anchor of 17–24g (base 15) all century on both seeds, iron 13–21g against 22–30g; the anchors learn from scarcity, so the two disagree by design, but the market summary reads bread as dear for decades.
+
 ## Arms & kit
 
 - [x] **Rival House retinues use the new kit slots** (legs, feet, hands). `systems/rivalHouses.js` still buys and tracks only main, off, head and body.
@@ -74,3 +92,55 @@ Fixed this pass: town coin draining into crown chests and free villages (systems
 - [x] The hearsay panel's "(of the late X)" label and the inherited greetings after a succession. (Checked 2026-11-14: "A threat (of the late Wanderer)", told as "…This one is his son.")
 - [x] The arms panel's "N in their own shoes" note, and soldiers drawn in boots and leg harness. (Checked 2026-11-14: note shows when a soldier lacks issued boots; troops follow on the street map in kit.)
 - [x] Animal companions: a dog fighting a beast (covered by hollowSweep.leftovers.test.js). *(Checked 2026-11-16 in the browser: a mastiff (45 HP, 11-point bite) on a forest street map joined a fight with a wolf and then a bear beside the household guard: its bites took the wolf 23→11 and the bear 110→98 and 51→41, a bear bite took it 45→34 HP, the Animals panel showed "76 (34/45 HP)"; no console errors.)* The household guard set to Wait checked 2026-11-14: no soldiers follow on the street. (Checked 2026-11-14: a cat kept at the manor and 20 days ended with a dog in the party, no errors; the panel shows HP.)
+
+## First-hour playthrough (2026-11-17)
+
+Five origins played from New Game for their first days: Wanderer, Born to a Family (merchant and farmer families), Guildmaster, Great Lord and the Dawn of Man. The full friction log is in that session's playthrough notes.
+
+Fixed:
+
+- [x] **First Steps sent a new Wanderer to end day 1 on the open road, and they were robbed of 29% of the purse.** The steps now lead to a town first ("Show the nearest town", or which way the nearest lies). Seeing a day through comes after a room is booked.
+- [x] **The First Steps button failed at the Dawn of Man camp** ("You need to be in a town"). It now runs wherever the action is offered, and off the road it shows the way to the nearest town.
+- [x] **Origins without First Steps started on a two-line toast.**
+  - A "Your Start" panel now shows the full welcome and the origin's first moves (data/scenarios.json `firstMoves`).
+  - A Born start with a preset family opens Your Parents.
+- [x] **Counsel was silent about what an origin is for.**
+  - A guildmaster now hears of the guild election (`guild_election`).
+  - A child at home sees its parents' next duty.
+  - A child at home no longer gets the food alarms.
+- [x] **A child at home starved on its own bread** (25 g, 6 g a week of allowance). The family table (`Parentage.familyMeal`) now feeds a child at home, for 1 g from the household to its town.
+- [x] **The day-fade veil could stick black** after a street-map job ended the day. Fixed with a fade sequence token.
+- [x] **The purse chip showed yesterday's net as "/d"** ("−58/d" after a robbery). It now shows the 7-day average, with yesterday in the tooltip.
+- [x] **Current Objective said "No Active Objective" with "Explore hexes" under it** while a bounty was active. It now follows the bounty and says where to hand it in. A delivery's arrival now tells you to hand it over at the Notice Board.
+- [x] **Distant World Events buried the player's own notices.** Only events that touch you or name your realm or town still pop up; the rest go to the log.
+- [x] **The first in-person job took minutes of walking.** Day Labor now offers a Quick shift at plain pay, and edge arrows say how far each spot is.
+- [x] **The Guildhall didn't say how the chair is kept** (standing and contracts). It does now.
+- [x] **Lodgings read as full** ("8 rooms · 8 guests"). A full house now says its best room is still let.
+
+Open:
+
+- [ ] **First Steps for the other origins.**
+  - Counsel's "First Steps — Show the opening guidance again" offers a duke or guildmaster the Wanderer's steps ("Earn an honest coin").
+  - Either hide the resume row for origins with `guidedStart:false`, or give each origin group its own steps (firstSteps.json `steps` per origin, like `dawnSteps`).
+- [ ] **"Your Parents" is filed under Tavern & Temple**, the one place a child is forbidden. Move it to Hearth, or pin it to At Hand for a child. More generally, At Hand is empty on day 1 for every origin: pre-pin the origin's `firstMoves` action types.
+- [ ] **The in-person job layout.**
+  - Sowing Hand's 6 spots spread over the whole town map (about 150 tiles of walking for 12–24 g).
+  - Gather spots are said to be "along the plowed fields" but are placed anywhere on the map's edge.
+  - Keep `pickNear` spots near each other, or near the fields.
+  - The street view can't be zoomed out with the wheel; the −/+ buttons zoom only the minimap.
+- [ ] **Edge arrows sit at the top of the "safe area"**, just under the task tracker, so they float mid-screen. Pin them to the true screen edge, minus the HUD.
+- [ ] **Clicking a task item puts you beside the spot.** The floating item (a seed bag) is drawn a tile above its ring, so clicking it walks you next to the spot, not onto it. Make the item click-through to its ring.
+- [ ] **A day's job is the whole day.** Look for Work moves the clock about 6 hours before the task starts, and finishing the task (or giving up) ends the day. Say so on the Day Labor panel, or let the day go on.
+- [ ] **Panels that cost AP and hours.** Opening Estates & Land costs 2 AP and 3 hours, and Meet People costs time per chat. The cost isn't shown before opening.
+- [ ] **The player's name label covers the town's name** on the world map. You can't tell which town you're in.
+- [ ] **Notice-board bounties beyond a new character** (Lv 3 and Lv 5 manhunts) are offered to a level-1 Wanderer with no warning.
+- [ ] **The First Steps card ticks late.** It updates only on `updateStats`, so accepting a bounty doesn't tick it until the next HUD refresh. Call `updateStats` after accepting.
+- [ ] **"A New Friend" notices on day 1** for your own parents, clan kin, and strangers you never met.
+- [ ] **Other day-1 oddities for Born:**
+  - "A Plea: <your father> is desperate and asking for you".
+  - The starter quest and the Explorer achievement completing with no step taken.
+- [ ] **Great Lord's own manor** showed 0 tenant households, 0 g rent and 0 g worth on day 1. This is simulation work for the other agent.
+- [ ] **The Guildhall and Estates panels are still in the old grey-card and button style.** Move them to the uiKit actRow and card style.
+- [ ] **Merchant Dynasty's first milestone is out of reach.** "Own 5 properties" is far off for a 500 g Wanderer, and nothing says what a property costs or where to buy one.
+- [ ] **The Dawn of Man is hard to find.** It sits at the bottom of the advanced world settings ("Start Year" below 200). Offer it as a start choice next to Origin.
+- [ ] **The House is named after the placeholder first name** ("House Wanderer") when the first name is left as the placeholder.

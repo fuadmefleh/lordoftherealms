@@ -1209,7 +1209,8 @@ export const Guilds = {
             if (g.strike && _num(g.crown) <= _num(C.crown.abolishBelow, -40) && !Guilds.canRule(player, world, s)
                 && _roll(`abolish:${Guilds._key(s, gid)}:${day}`) < _num(C.crown.abolishChance, 0.25)) {
                 const k = s.kingdom && world.getKingdom ? world.getKingdom(s.kingdom) : null;
-                if (k) {
+                // (a fallen crown's chests are not counted coin: the whole chest goes back to the members)
+                if (k && k.isAlive !== false) {
                     // (half the chest to the crown; the rest back to the members: releaseHall)
                     const take = Math.floor(Math.max(0, _num(g.treasury)) * 0.5);
                     g.treasury -= take;

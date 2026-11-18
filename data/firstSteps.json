@@ -3,23 +3,13 @@
     "ledgerCategory": "firstSteps",
     "steps": [
         {
-            "id": "first_day",
-            "check": "dayPassed",
-            "icon": "🌅",
-            "title": "See a day through",
-            "why": "Everything in the realms moves by the day: wages are paid, food is eaten, wounds heal and news travels when the day ends.",
-            "how": "Press ⌛ End Turn at the bottom right of the screen.",
-            "go": { "panel": "endDay", "label": "End the day" },
-            "reward": { "gold": 10 }
-        },
-        {
             "id": "scout",
             "check": "starterQuest",
             "icon": "🧭",
             "title": "Scout the land",
-            "why": "The map is dark until you walk it. Every hex you uncover shows roads, towns, resources and danger.",
-            "how": "Click a hex next to you on the map to walk there. Uncover two new hexes to finish ‘A New Beginning’ (Quests tab).",
-            "go": { "panel": "quests", "label": "Open Quests" },
+            "why": "The map is dark until you walk it. Every hex you uncover shows roads, towns, resources and danger. The open road is where bands rob travellers: make for a town first.",
+            "how": "Click a town near you on the map to walk there: the hexes you cross are uncovered, and inside a town no raider band can fall on you. Uncover two new hexes to finish ‘A New Beginning’ (Quests tab).",
+            "go": { "panel": "map", "label": "Show the nearest town" },
             "reward": { "gold": 15 }
         },
         {
@@ -71,6 +61,16 @@
             "how": "In a town: Open Actions → 🛏️ Find Lodgings (or Lodge at …), book a room, then end the day.",
             "go": { "action": "lodging", "label": "Find Lodgings" },
             "reward": { "gold": 20 }
+        },
+        {
+            "id": "first_day",
+            "check": "dayPassed",
+            "icon": "🌅",
+            "title": "See a day through",
+            "why": "Everything in the realms moves by the day: wages are paid, food is eaten, wounds heal and news travels when the day ends. A night in a town is safe; a night on the open road is not.",
+            "how": "With your room booked, press ⌛ End Turn at the bottom right of the screen.",
+            "go": { "panel": "endDay", "label": "End the day" },
+            "reward": { "gold": 10 }
         },
         {
             "id": "ambition",

@@ -76,6 +76,10 @@ function guildCard(game, tile, gd) {
         if (rd.votes) {
             const c = Guilds.candidates(s, gd);
             html += `<div style="${NOTE}">Election on day ${gd.nextElection}: ${esc(c.incumbent)} against ${esc(c.challenger)}${m.vote ? ` — you back the ${m.vote}` : ''}.</div>`;
+            // How a seat is won or kept (systems/guilds.js _election): standing and contracts filled
+            if (gd.master.player || m.candidate) {
+                html += `<div style="${NOTE} color:#e8d9a8;">🗳️ The masters weigh your standing (${Math.round(m.standing || 0)}) and the guild contracts you have filled (${m.contracts || 0}). Sell the guild's goods here and fill its contracts before day ${gd.nextElection} to ${gd.master.player ? 'keep the chair' : 'win it'}.</div>`;
+            }
             if (!gd.master.player) html += act('Back the master', ['vote', gd.id, 'incumbent'], BTN_PLAIN) + act('Back the challenger', ['vote', gd.id, 'challenger'], BTN_PLAIN);
             html += act(m.candidate || gd.master.player ? 'Withdraw your name' : 'Stand for guildmaster', ['stand', gd.id, !(m.candidate || gd.master.player)], BTN_PLAIN);
         }

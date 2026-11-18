@@ -193,7 +193,9 @@ export const LandMarket = {
             (tb.towns[rec.slot] || (tb.towns[rec.slot] = [])).push(rec);
         }
         for (const h of Object.values(st.holders)) {
-            if (h.kind === 'player' || h.kind === 'crown' || h.kind === 'rival') continue;
+            // (a rival House's land is run by the House: systems/rivalHouses.js _landWeek; its
+            // holder takes a month here only to see whether the House is still there — _orphanMonth)
+            if (h.kind === 'player' || h.kind === 'crown') continue;
             if (!Number.isFinite(h.slot)) h.slot = _slot(`holder:${h.id}`, nT);
             (tb.holders[h.slot] || (tb.holders[h.slot] = [])).push(h);
         }
@@ -443,6 +445,7 @@ export const LandMarket = {
     _holderMonth(world, player, h, day, out) {
         const N = Estates.config().npc;
         const held = Estates.heldBy(world, h.id);
+        if (h.kind === 'rival') { LandMarket._orphanMonth(world, h, held, day); return; }
         const land = held.reduce((s, e) => s + (_num(e.value) || LandMarket.value(world, e)), 0);
         const P = N.purse || {};
         if (h.purse == null) {
@@ -495,6 +498,10 @@ export const LandMarket = {
             paidOut += pay;
         }
         if (h.purse < 0) { h.debt = _num(h.debt) - h.purse; h.purse = 0; }
+        // (a holder with no land left and nothing to pay with: its creditors write the debt off —
+        // there is nothing to seize. Kept, it compounded at debtRate a month for good: seed
+        // 202's landless nobles owed 41k at year 5 and 232k at year 35, and still climbing)
+        if (!held.length && h.debt > 0 && !(h.purse > 0)) h.debt = 0;
         // ...a share of it (estateWages) where its land lies: the reeves', shepherds' and
         // reapers' wages, the barns and fences built, bought in the estates' own towns
         if (paidOut > 0 && held.length) paidOut -= LandMarket._spendOnEstates(world, held, paidOut * _clamp(_num(N.estateWages, 0), 0, 1));
@@ -509,6 +516,40 @@ export const LandMarket = {
             const e = held.slice().sort((a, b) => _num(a.value) - _num(b.value))[0];
             LandMarket._list(world, e, Math.round(_num(e.value) * _num(N.distressPrice, 0.92)), h.id, 'debts', day);
         }
+    },
+
+    /**
+     * A rival House's (or cadet branch's) land with no House to look in on it — the
+     * House died out, or the late ruler's rivals were let go with a new life
+     * (player/afterlife.js) — kept taking its tenants' rents into a purse no one
+     * swept: seed 202's orphaned holders held a third of the world's coin by year
+     * 85 (46k → 450k), the towns drained. Past `orphanDays` unswept, its stewards
+     * spend the purse out (estateWages of it on its estates, the rest at its seat,
+     * as any holder spends); past `orphanSellDays` its estates go on the market one
+     * at a time, so the land passes to living holders. A House that comes back
+     * (a long interregnum) sweeps what is left. → the coin spent
+     */
+    _orphanMonth(world, h, held, day) {
+        const N = Estates.config().npc;
+        if (h.swept == null) { h.swept = day; return 0; }
+        const idle = day - _num(h.swept);
+        if (idle < _num(N.orphanDays, 60)) return 0;
+        let spent = 0;
+        const gold = Utils.centsDown(Math.max(0, _num(h.purse)));
+        if (gold > 0) {
+            h.purse = _r2(_num(h.purse) - gold);
+            let left = gold;
+            if (held.length) left = _r2(left - LandMarket._spendOnEstates(world, held, gold * _clamp(_num(N.estateWages, 0), 0, 1)));
+            if (left > 0 && !LandMarket._spendAtSeat(world, h, left)) h.purse = _r2(h.purse + left);
+            else left = 0;
+            spent = _r2(gold - left);
+        }
+        const st = world.estates;
+        if (held.length && idle >= _num(N.orphanSellDays, 720) && !st.sales.some(x => x.seller === h.id)) {
+            const e = held.slice().sort((a, b) => _num(a.value) - _num(b.value))[0];
+            LandMarket._list(world, e, Math.round((_num(e.value) || LandMarket.value(world, e)) * _num(N.distressPrice, 0.92)), h.id, 'heirless', day);
+        }
+        return spent;
     },
 
     /** A crown deep in debt, or with an empty treasury at war, sells a crown estate now and then. */

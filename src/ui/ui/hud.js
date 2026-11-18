@@ -1176,16 +1176,24 @@ Object.assign(UI.prototype, {
             }
         }
 
-        // Per-day income from the latest finance snapshot (0 before day 1 ends).
-        const hist = player.financeHistory;
-        const fin = hist && hist.length ? hist[hist.length - 1] : null;
-        const net = fin ? Utils.cents(fin.netChange || 0) : 0;
-        const incomeStr = `${net >= 0 ? '+' : '−'}${Utils.formatGold(Math.abs(net))}/d`;
+        // Per-day income: the average of the last week's finance snapshots (0 before
+        // day 1 ends). One day's robbery or windfall no longer reads as a daily rate;
+        // the tooltip tells yesterday apart from the week.
+        const hist = Array.isArray(player.financeHistory) ? player.financeHistory : [];
+        const week = hist.slice(-7);
+        const net = week.length ? Utils.cents(week.reduce((s, f) => s + (Number(f && f.netChange) || 0), 0) / week.length) : 0;
+        const last = hist.length ? Utils.cents(Number(hist[hist.length - 1].netChange) || 0) : 0;
+        const signed = (v) => `${v >= 0 ? '+' : '−'}${Utils.formatGold(Math.abs(v))}`;
+        const incomeStr = `${signed(net)}/d`;
         for (const id of ['tbIncome']) {
             const el = document.getElementById(id);
             if (el) {
                 if (el.textContent !== incomeStr) el.textContent = incomeStr;
                 el.classList.toggle('negative', net < 0);
+                const tip = week.length
+                    ? `Average over the last ${week.length} day${week.length === 1 ? '' : 's'}: ${signed(net)} gold a day · yesterday ${signed(last)}. Click the purse for the ledger.`
+                    : 'Your gold a day, once a day has ended. Click the purse for the ledger.';
+                if (el.title !== tip) el.title = tip;
             }
         }
 
@@ -1260,11 +1268,31 @@ Object.assign(UI.prototype, {
         const descEl = document.getElementById('objectiveDesc');
         const progEl = document.getElementById('objectiveProgress');
         if (!titleEl && !descEl && !progEl) return;
+        // The label beside the counter says what is counted (it once always read "Explore hexes")
+        const labelEl = document.getElementById('objectiveProgLabel');
+        const setLabel = (t) => { if (labelEl && labelEl.textContent !== t) labelEl.textContent = t; };
 
         const q = player.quests && player.quests.active && player.quests.active[0];
+        // No quest: a bounty taken from a notice board is the next thing to do
+        const b = !q && Array.isArray(player.activeBounties) ? player.activeBounties[0] : null;
+        if (b) {
+            const here = b.type === 'delivery' && player.q === b.destQ && player.r === b.destR;
+            const left = Number.isFinite(b.daysLimit) ? b.daysLimit - (b.daysElapsed || 0) : null;
+            const text = here
+                ? `You are in ${b.destName || 'the place'}: hand it over at the 📋 Notice Board (Open Actions).`
+                : b.destName ? `Take it to ${b.destName}, then hand it over at its 📋 Notice Board.`
+                    : (b.targetQ != null ? `Last seen near (${b.targetQ}, ${b.targetR}).` : (b.description || ''));
+            if (titleEl && titleEl.textContent !== b.name) titleEl.textContent = b.name || 'Bounty';
+            if (descEl && descEl.textContent !== text) descEl.textContent = text;
+            const s = left != null ? `${Math.max(0, left)}d left` : '';
+            if (progEl && progEl.textContent !== s) progEl.textContent = s;
+            setLabel(s ? '◆ Bounty' : '');
+            return;
+        }
         if (!q) {
+            setLabel('');
             if (titleEl) titleEl.textContent = 'No Active Objective';
-            if (descEl) descEl.textContent = 'Seek quests from the folk you meet along the road.';
+            if (descEl) descEl.textContent = 'Take work from a town’s 📋 Notice Board, or ask the 🗝️ Counsel (top bar) what needs you.';
             if (progEl) progEl.textContent = '';
             return;
         }
@@ -1280,6 +1308,7 @@ Object.assign(UI.prototype, {
             // Objectives without a numeric target (visit/talk) show no counter
             const s = obj && obj.target != null ? `${obj.current || 0} / ${obj.target}` : '';
             if (progEl.textContent !== s) progEl.textContent = s;
+            setLabel(s ? `◆ ${(obj && obj.label) || (obj && /^(explore|tiles_explored)/.test(String(obj.type)) ? 'Explore hexes' : 'Progress')}` : '');
         }
     },
 

@@ -364,3 +364,32 @@ describe('Never done: the Steward nudges toward the untried (rule never_done)', 
         expect(nudgeItems(p, fakeWorld({ day: 5 }))).toHaveLength(0);
     });
 });
+
+describe('Counsel — what an origin start needs said (first-hour playthrough 2026-11-17)', () => {
+    it('guild_election: a guildmaster hears of the coming vote, a warning in its last days', () => {
+        const p = freshPlayer();
+        const s = { name: 'Tidewatch', guilds: { millers: { id: 'millers', name: 'Millers\' Guild of Tidewatch', master: { name: 'Test', player: true }, nextElection: 70 } } };
+        const tile = { q: 10, r: 10, settlement: s };
+        const world = fakeWorld({ getTile: (q, r) => (q === 10 && r === 10 ? tile : null) });
+        p.guilds = { memberships: { m1: { key: 'm1', q: 10, r: 10, guild: 'millers', town: 'Tidewatch', standing: 55, contracts: 0, rank: 4 } } };
+        const item = Counsel.scan(p, world, { fresh: true }).threats.find(i => i.rule === 'guild_election');
+        expect(item).toBeTruthy();
+        expect(item.text).toMatch(/votes on day 70 \(in 30 days\)/);
+        expect(item.severity).toBe('notice');
+        world.day = 65;
+        expect(Counsel.scan(p, world, { fresh: true }).threats.find(i => i.rule === 'guild_election').severity).toBe('warning');
+        // someone else's chair: no word
+        s.guilds.millers.master = { name: 'Osric Reeve', player: false };
+        expect(ids(Counsel.scan(p, world, { fresh: true }).threats)).not.toContain('guild_election');
+    });
+
+    it('a child at home under its parents\' rule is fed at their table: no food alarms', () => {
+        const p = freshPlayer();
+        p.inventory = { bread: 1 };
+        p.parentage = { active: true, pending: false, home: { q: 10, r: 10, name: 'Deepwater' } };
+        const w = fakeWorld();
+        expect(ids(Counsel.scan(p, w, { fresh: true }).threats)).not.toContain('starvation');
+        p.q = 12; // out on the road the pack is all there is
+        expect(ids(Counsel.scan(p, w, { fresh: true }).threats)).toContain('starvation');
+    });
+});

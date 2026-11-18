@@ -127,6 +127,8 @@
     },
     "caught": { "home": 1, "near": 0.6, "far": 0.3 },
     "allowanceEvery": 7,
+    "_familyMealCost": "Gold the household pays its town for a child's supper at home (player/parentage.js familyMeal); a royal child eats from the palace kitchens.",
+    "familyMealCost": 1,
     "household": { "upkeepShare": 0.95 },
     "partingGift": 0.15,
     "permissions": {

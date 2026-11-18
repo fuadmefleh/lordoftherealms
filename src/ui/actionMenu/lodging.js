@@ -41,7 +41,7 @@ function _insideId() {
 function houseCard(v, occ) {
     let html = `<div style="${CARD}"><div style="display:flex; justify-content:space-between; gap:8px;">`;
     html += `<div><div style="font-weight:bold; color:var(--gold);">${v.icon} ${esc(v.name)}${v.owner === 'player' ? ' <span style="font-size:10px; color:#9fd89f;">YOURS</span>' : ''}</div>`;
-    html += `<div style="font-size:11px; color:#aaa;">${esc(v.kindName)} · ${stars(v.stars)} · ${esc(v.keeperTitle)}: ${esc(v.keeper)} · ${v.rooms} rooms${occ != null ? ` · ${occ} guests tonight` : ''}</div></div>`;
+    html += `<div style="font-size:11px; color:#aaa;">${esc(v.kindName)} · ${stars(v.stars)} · ${esc(v.keeperTitle)}: ${esc(v.keeper)} · ${v.rooms} rooms${occ == null ? '' : occ >= v.rooms ? ' · <span style="color:#e0b060;">busy tonight: its best room is still let</span>' : ` · ${occ} guests tonight`}</div></div>`;
     html += `<div style="flex-shrink:0;">${act(v.owner === 'player' ? 'Go in' : 'Look in', ['open', v.id], BTN_GOLD)}</div></div></div>`;
     return html;
 }

@@ -88,6 +88,8 @@
           "text": "{fashion} ({stage}, from {place}): {goods} fetch more where it holds", "max": 2 },
         { "id": "guild_contract_due", "group": "threat", "reader": "guildContractDue", "priority": 66, "severity": "notice", "icon": "📜", "panel": "guilds",
           "text": "The guild wants {qty} {good} at {town} by day {due}, or your standing suffers", "params": { "days": 5 } },
+        { "id": "guild_election", "group": "threat", "reader": "guildElection", "priority": 64, "severity": "notice", "icon": "🗳️", "panel": "guilds",
+          "text": "The {guild} votes on day {day} (in {days}): {challenger} wants your chair. Keep it with standing ({standing}) and contracts filled ({contracts})", "params": { "days": 60, "warnDays": 10 } },
         { "id": "guild_dues", "group": "threat", "reader": "guildDues", "priority": 60, "severity": "notice", "icon": "📛", "panel": "guilds",
           "text": "{weeks} week(s) of dues unpaid to the {guild} at {town}: three and they strike you from the rolls" },
         { "id": "trade_embargoed", "group": "threat", "reader": "tradeEmbargoed", "priority": 58, "severity": "notice", "icon": "⛔", "panel": "tradePolicy",

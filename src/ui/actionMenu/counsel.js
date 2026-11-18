@@ -9,7 +9,9 @@
 import { ActionMenu } from './_ref.js';
 import { Counsel } from '../../systems/counsel.js';
 import { firstStepsResumeHtml } from '../firstStepsCard.js';
-import { lede, chips, rowList, actRow, sectionHead } from './uiKit.js';
+import { lede, chips, rowList, actRow, sectionHead, card } from './uiKit.js';
+import { Scenarios } from '../../player/scenarios.js';
+import { Parentage } from '../../player/parentage.js';
 
 const SEV_TONE = { critical: 'bad', warning: 'warn', notice: null, info: null };
 const GROUPS = [
@@ -80,7 +82,36 @@ export const COUNSEL_PANELS = {
     character: { label: 'Character', open: (g) => g.ui.showCharacterPanel() },
     inventory: { label: 'Inventory', open: (g) => g.ui.showInventoryPanel() },
     treasury: { label: 'Treasury', open: (g) => g.ui.showTreasuryPanel(g.player, g.world) },
+    parents: { label: 'Parents', open: (g) => ActionMenu.showParents(g) },
+    counsel: { label: 'Counsel', open: (g) => ActionMenu.showCounsel(g) },
 };
+
+/**
+ * A child under its parents' roof (player/parentage.js): their duties are the
+ * day's real agenda, so the Counsel names the next one (UI-side: systems may
+ * not read the player layer). Returns an actRow or null.
+ */
+function _parentsRow(game) {
+    const pa = game.player && game.player.parentage;
+    if (!pa || !pa.active || pa.pending) return null;
+    let due = [];
+    try {
+        due = Parentage.dutiesDue(game.player, game.world).filter(d => d.active).sort((a, b) => a.dueIn - b.dueIn);
+    } catch (e) {
+        due = [];
+    }
+    const d = due[0];
+    const when = !d ? '' : d.overdue ? 'overdue: they will notice tonight' : d.dueIn <= 0 ? 'due today' : `due in ${d.dueIn} day${d.dueIn === 1 ? '' : 's'}`;
+    return actRow({
+        icon: '🏡',
+        name: d ? _esc(`Your parents expect: ${d.label} (${when})`) : 'Your parents: their rules and your duties',
+        desc: _esc(`Trust ${Math.round(pa.trust || 0)}: earn it and they loosen their rules · done at home`),
+        side: 'Parents ›',
+        tone: d && (d.overdue || d.dueIn <= 0) ? 'warn' : null,
+        act: 'counselOpen',
+        args: ['parents'],
+    });
+}
 
 function _focus(game, q, r) {
     if (!game.renderer || !game.camera || typeof game.renderer.getHexPixelPos !== 'function') return;
@@ -159,6 +190,9 @@ Object.assign(ActionMenu, {
         const s = Counsel.scan(game.player, game.world, { fresh: true });
         let html = lede('Your steward weighs every matter of the realm and household, and sets the most pressing before you. Click a matter to deal with it.');
         html += chips(GROUPS.map(g => { const n = (s[g.key] || []).length; return [g.icon, g.title, n, !n ? 'dim' : g.key === 'threats' ? 'gold' : '']; }));
+        // Born to a Family: what the parents expect comes first
+        const kid = _parentsRow(game);
+        if (kid) html += rowList([kid], '🏡 At Home');
         for (const g of GROUPS) {
             const list = s[g.key] || [];
             if (!list.length) {
@@ -172,6 +206,45 @@ Object.assign(ActionMenu, {
         // A skipped (or switched-off) First Steps guidance is taken up again here (ui/firstStepsCard.js)
         html += firstStepsResumeHtml(game.player);
         game.ui.showCustomPanel('🗝️ The Steward\'s Counsel', html);
+    },
+
+    /** Open one of COUNSEL_PANELS by its key (the origin's first moves, the parents' row). */
+    counselOpen(game, key) {
+        const panel = COUNSEL_PANELS[key];
+        if (!panel) return;
+        const here = _here(game);
+        if (panel.settlement && !(here && here.settlement)) {
+            game.ui.showNotification('🗝️ Counsel', 'That is done in a town: walk into one first.', 'info');
+            return;
+        }
+        try {
+            panel.open(game, null);
+        } catch (e) {
+            console.warn('[Counsel] panel failed', key, e);
+        }
+    },
+
+    /**
+     * The origin's start (player/scenarios.js): its welcome in full, kept on screen
+     * (a toast showed two lines and went), and its first moves as rows that open the
+     * panel each names (data/scenarios.json origins[id].firstMoves → COUNSEL_PANELS).
+     */
+    showOriginStart(game, welcome = null) {
+        const sc = game.player && game.player.scenario;
+        const o = sc ? Scenarios.origin(sc.id) : null;
+        if (!o) return false;
+        const text = welcome || o.welcome || '';
+        let html = text ? card(`<div style="font-size:12.5px; line-height:1.5;">${text}</div>`, { icon: o.icon || '📜', title: _esc(o.name || 'Your start') }) : '';
+        const moves = (Array.isArray(o.firstMoves) ? o.firstMoves : []).filter(m => m && COUNSEL_PANELS[m.open]);
+        const rows = moves.map(m => actRow({
+            icon: _esc(m.icon || '➡️'), name: _esc(m.name), desc: _esc(m.desc || ''),
+            side: `${_esc(COUNSEL_PANELS[m.open].label)} ›`, act: 'counselOpen', args: [m.open],
+        }));
+        rows.push(actRow({ icon: '🗝️', name: 'Ask the Steward', desc: 'The Counsel tab on the top bar names what needs you each day', side: 'Counsel ›', act: 'counselOpen', args: ['counsel'] }));
+        rows.push(actRow({ icon: '🧭', name: 'Look around first', desc: 'Close this; click your own hex for everything you can do here', side: '', act: 'closePanelAndRefresh' }));
+        html += rowList(rows, 'Where to begin');
+        game.ui.showCustomPanel(`${o.icon || ''} Your Start`.trim(), html);
+        return true;
     },
 
     /** A Counsel row: open the item's panel, or focus its hex on the map. */

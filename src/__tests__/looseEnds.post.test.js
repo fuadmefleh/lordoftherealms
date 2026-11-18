@@ -217,7 +217,7 @@ describe('A house\'s rider waylaid on the map costs the house', () => {
         expect(c.pendingLoss).toBeNull();
         expect(c.week.robbed).toBe(1);
         expect(c.history[0].robbed).toBe(1);
-        expect(c.cash).toBe(cash0 + c.week.profit - 25);
+        expect(c.cash).toBeCloseTo(cash0 + c.week.profit - 25, 2); // (whole cents: the house's cash is kept to the cent)
     });
 
     it('soldiers who seize a rider take its horse too; the player robbing one costs the house the bag', () => {

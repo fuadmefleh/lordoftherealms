@@ -360,3 +360,37 @@ describe('save and load', () => {
         expect(Parentage.regard(back)).toBe(Parentage.regard(p));
     }, 120000);
 });
+
+describe('the family table (first-hour playthrough 2026-11-17)', () => {
+    it('a child at home eats at the family table, paid from the household to its town, not from the pack', () => {
+        const g = born(77, 'labourer');
+        const p = g.player;
+        const pa = p.parentage;
+        expect(p.q).toBe(pa.home.q);
+        p.inventory = { bread: 2 };
+        p.starvationDays = 0;
+        const savings = Parentage.savings(g.world, p);
+        const town = g.world.getTile(pa.folk.q, pa.folk.r).settlement;
+        const townGold = Number(town.treasury || 0) + Number((town.market && town.market.gold) || 0);
+        const meal = Parentage.familyMeal(p, g.world);
+        expect(meal && meal.text).toBeTruthy();
+        expect(Parentage.savings(g.world, p)).toBe(savings - 1);
+        const townAfter = Number(town.treasury || 0) + Number((town.market && town.market.gold) || 0);
+        expect(townAfter).toBeGreaterThanOrEqual(townGold);
+        // the day's end: fed at home, the pack untouched
+        p.endDay(g.world);
+        expect(p.inventory.bread).toBe(2);
+        expect(p.starvationDays).toBe(0);
+    }, 120000);
+
+    it('away from home, or once of age, the child eats from its own pack', () => {
+        const g = born(78, 'farmer');
+        const p = g.player;
+        const away = nextDoor(g);
+        p.q = away.q; p.r = away.r;
+        expect(Parentage.familyMeal(p, g.world)).toBe(null);
+        p.inventory = { bread: 2 };
+        p.endDay(g.world);
+        expect(p.inventory.bread).toBe(1);
+    }, 120000);
+});

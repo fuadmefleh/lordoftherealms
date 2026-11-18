@@ -65,6 +65,44 @@ function _nearestNewTown(game) {
     return best ? { s: best, d: bestD } : null;
 }
 
+/** The nearest settlement on the explored map (entered before or not), or null. */
+function _nearestTown(game) {
+    const { world, player } = game;
+    if (!world || typeof world.getSettlementViews !== 'function') return null;
+    let best = null;
+    let bestD = Infinity;
+    for (const s of world.getSettlementViews()) {
+        const t = world.getTile(s.q, s.r);
+        if (!t || !t.explored) continue;
+        const d = Hex.wrappingDistance(player.q, player.r, s.q, s.r, world.width);
+        if (d > 0 && d < bestD) { bestD = d; best = s; }
+    }
+    return best ? { s: best, d: bestD } : null;
+}
+
+/** The nearest settlement anywhere (seen or not) and its compass direction: { d, dir } or null. */
+function _wayToNearest(game) {
+    const { world, player } = game;
+    if (!world || typeof world.getSettlementViews !== 'function') return null;
+    let best = null;
+    let bestD = Infinity;
+    for (const s of world.getSettlementViews()) {
+        const d = Hex.wrappingDistance(player.q, player.r, s.q, s.r, world.width);
+        if (d > 0 && d < bestD) { bestD = d; best = s; }
+    }
+    if (!best || !game.renderer || typeof game.renderer.getHexPixelPos !== 'function') return null;
+    const a = game.renderer.getHexPixelPos(player.q, player.r);
+    // (the short way round a wrapping map)
+    let dq = best.q - player.q;
+    if (world.width && Math.abs(dq) > world.width / 2) dq -= Math.sign(dq) * world.width;
+    const b = game.renderer.getHexPixelPos(player.q + dq, best.r);
+    if (!a || !b) return null;
+    const ang = Math.atan2(b.y - a.y, b.x - a.x); // screen: y grows southward
+    const WINDS = ['east', 'south-east', 'south', 'south-west', 'west', 'north-west', 'north', 'north-east'];
+    const dir = WINDS[((Math.round(ang / (Math.PI / 4)) % 8) + 8) % 8];
+    return { d: bestD, dir };
+}
+
 /** The step's button: run its action where the player stands, or open its panel. */
 function _go(game) {
     const step = FirstSteps.current(game.player);
@@ -72,15 +110,26 @@ function _go(game) {
     if (!go) return;
     const tile = _here(game);
     if (go.action) {
-        const avail = tile && tile.settlement
-            ? PlayerActions.getAvailableActions(game.player, tile, game.world).some(a => a.type === go.action)
-            : false;
+        // Wherever the action is on offer (a clan's camp at the dawn is no settlement)
+        let avail = false;
+        try {
+            avail = !!tile && PlayerActions.getAvailableActions(game.player, tile, game.world).some(a => a.type === go.action);
+        } catch (e) {
+            avail = false;
+        }
         if (avail) {
             ActionMenu.handleAction(game, tile, go.action);
+        } else if (tile && tile.settlement) {
+            game.ui.showNotification(`${step.icon || '📜'} First Steps`, _esc(`${tile.settlement.name} offers no "${go.label || step.title}". Try another town.`), 'info');
         } else {
-            game.ui.showNotification(`${step.icon || '📜'} First Steps`, tile && tile.settlement
-                ? _esc(`${tile.settlement.name} offers no "${go.label || step.title}". Try another town.`)
-                : 'You need to be in a town or village for this. Walk into one, then press the button again.', 'info');
+            // Out on the road: show the way to the nearest town
+            const n = _nearestTown(game);
+            if (n) {
+                _focus(game, n.s.q, n.s.r);
+                game.ui.showNotification(`${step.icon || '📜'} First Steps`, _esc(`This is done in a town. ${n.s.name} lies ${n.d} hex${n.d === 1 ? '' : 'es'} away: click it on the map to walk there, then press the button again.`), 'info');
+            } else {
+                game.ui.showNotification(`${step.icon || '📜'} First Steps`, 'This is done in a town or village. Explore until you find one, walk into it, then press the button again.', 'info');
+            }
         }
         return;
     }
@@ -103,7 +152,11 @@ function _go(game) {
                 _focus(game, n.s.q, n.s.r);
                 game.ui.showNotification('🗺️ First Steps', _esc(`${n.s.name} lies ${n.d} hexes away. Click it on the map to travel there.`), 'info');
             } else {
-                game.ui.showNotification('🗺️ First Steps', 'No other town is in sight yet. Explore further, then click one on the map.', 'info');
+                // None in sight: the way the nearest lies, as a traveller would tell it
+                const w = _wayToNearest(game);
+                game.ui.showNotification('🗺️ First Steps', w
+                    ? _esc(`No town is in sight yet. Travellers say the nearest lies about ${w.d} hexes to the ${w.dir}: walk that way (a road, if you find one, leads to towns), then click it on the map.`)
+                    : 'No other town is in sight yet. Explore further, then click one on the map.', 'info');
             }
             break;
         }

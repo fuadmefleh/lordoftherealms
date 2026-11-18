@@ -600,6 +600,15 @@ export async function _doStartNewGame(settingsOverride) {
         if (this.world.run && this.world.run.ironman) this.ui.showNotification('⚒️ Ironman', "One save, kept at each day's end and when you leave. No loading back: what happens, happened.", 'warning');
         // Born to a Family, parents to be chosen: the picker (ui/actionMenu/parents.js)
         if (this.player.parentage && this.player.parentage.pending && typeof ActionMenu.showParentPicker === 'function') ActionMenu.showParentPicker(this);
+        // Born to a family chosen on the New Game screen: open on the parents' rules and duties
+        // (the picker path shows them once a family is picked; this one showed only a toast)
+        else if (this.player.parentage && this.player.parentage.active && typeof ActionMenu.showParents === 'function') ActionMenu.showParents(this);
+        // An origin with no First Steps (a guildmaster, a duke, a monarch…): its welcome
+        // and first moves stay on screen as a panel, not a two-line toast (ui/actionMenu/counsel.js)
+        else if (!dawnStart && scenarioStart.welcome && this.player.scenario && this.player.scenario.id !== 'born'
+            && !FirstSteps.isActive(this.player) && typeof ActionMenu.showOriginStart === 'function') {
+            ActionMenu.showOriginStart(this, scenarioStart.welcome);
+        }
     }, 1200);
 
     // Start game loop

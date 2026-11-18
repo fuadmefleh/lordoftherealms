@@ -211,3 +211,29 @@ describe('HUD redesign — backing data', () => {
         expect(player.quests.active.filter((x) => x.id === 'a_new_beginning')).toHaveLength(1);
     });
 });
+
+describe('HUD — first-hour playthrough fixes (2026-11-17)', () => {
+    it('the purse\'s per-day figure is the week\'s average, with yesterday in the tooltip', () => {
+        const ui = stubUI();
+        const player = basePlayer();
+        // a robbery yesterday no longer reads as a daily loss
+        player.financeHistory = [{ netChange: 40 }, { netChange: 40 }, { netChange: -58 }, { netChange: 38 }];
+        ui.updateTopBarResources(player, buildWorld());
+        expect(reg.tbIncome.textContent).toBe(`+${Utils.formatGold(15)}/d`);
+        expect(reg.tbIncome.title).toMatch(/yesterday \+38/);
+    });
+
+    it('with no quest, the objective card follows an active bounty and says where to hand it in', () => {
+        const ui = stubUI();
+        const player = basePlayer();
+        player.quests = { active: [], completed: [] };
+        player.activeBounties = [{ name: 'Deliver a Package', type: 'delivery', destName: 'Crownhaven', destQ: 3, destR: 4, daysLimit: 12, daysElapsed: 2 }];
+        ui.updateObjectivePanel(player);
+        expect(reg.objectiveTitle.textContent).toBe('Deliver a Package');
+        expect(reg.objectiveDesc.textContent).toMatch(/Take it to Crownhaven/);
+        expect(reg.objectiveProgress.textContent).toBe('10d left');
+        player.q = 3; player.r = 4;
+        ui.updateObjectivePanel(player);
+        expect(reg.objectiveDesc.textContent).toMatch(/Notice Board/);
+    });
+});

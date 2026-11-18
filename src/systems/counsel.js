@@ -421,6 +421,7 @@ R.hunger = (ctx, p) => {
     const starving = _num(player.starvationDays);
     if (starving > 0) return [{ days: starving, text: 'You are starving ({days} days without food): eat or buy food now', severity: 'critical' }];
     if (player.boardedShip) return []; // at sea the captain eats from the ship's hold
+    if (_fedAtHome(player)) return []; // a child under its parents' roof eats at their table
     const food = _food(player);
     if (food > _num(p.lowDays, 3)) return [];
     return [{ food, severity: food <= 1 ? 'critical' : 'warning' }];
@@ -537,6 +538,12 @@ R.sagas = (ctx, p) => {
     return out;
 };
 
+/** A child at home under its parents' rule (player/parentage.js familyMeal): fed at the family table. Raw state only. */
+function _fedAtHome(player) {
+    const pa = player && _obj(player.parentage);
+    return !!(pa && pa.active && !pa.pending && pa.home && player.q === pa.home.q && player.r === pa.home.r);
+}
+
 R.leanSeason = (ctx, p) => {
     if (!Number.isFinite(ctx.world && ctx.world.day)) return [];
     let until = null;
@@ -544,6 +551,7 @@ R.leanSeason = (ctx, p) => {
         if (Seasons.isLean(ctx.day + ahead)) { until = ahead; break; }
     }
     if (until === null) return [];
+    if (_fedAtHome(ctx.player)) return [];
     const food = _food(ctx.player);
     if (food >= _num(p.minFood, 10)) return [];
     return [{ food, when: until === 0 ? 'are upon you' : `begin in ${_days(until)}`, severity: until === 0 ? 'warning' : 'notice' }];
@@ -1211,6 +1219,30 @@ R.guildDues = (ctx) => {
     const st = _obj(ctx.player.guilds);
     return Object.values(_obj(st && st.memberships) || {}).filter(m => _num(m.unpaid) > 0)
         .map(m => ({ key: `gd:${m.key}`, q: m.q, r: m.r, town: m.town, guild: (Guilds.def(m.guild) || {}).name || 'guild', weeks: _num(m.unpaid), severity: _num(m.unpaid) >= 2 ? 'warning' : 'notice' }));
+};
+
+/**
+ * The player holds a guild's chair and the masters vote soon: the seat is kept on
+ * standing and contracts filled (systems/guilds.js _election). A guildmaster start
+ * learned of its election only from a toast.
+ */
+R.guildElection = (ctx, p) => {
+    const out = [];
+    const st = _obj(ctx.player.guilds);
+    for (const m of Object.values(_obj(st && st.memberships) || {})) {
+        const t = ctx.tile(m.q, m.r);
+        const g = t && t.settlement ? Guilds.guild(t.settlement, m.guild) : null;
+        if (!g || !g.master || !g.master.player) continue;
+        const days = _num(g.nextElection) - ctx.day;
+        if (!(days >= 0) || days > _num(p.days, 60)) continue;
+        const cand = Guilds.candidates(t.settlement, g);
+        out.push({
+            key: `ge:${m.key || `${m.q},${m.r},${m.guild}`}`, q: m.q, r: m.r, town: t.settlement.name, guild: g.name || (Guilds.def(m.guild) || {}).name || 'guild',
+            day: g.nextElection, days: _days(days), challenger: cand.challenger, standing: Math.round(_num(m.standing)), contracts: _num(m.contracts),
+            severity: days <= _num(p.warnDays, 10) ? 'warning' : 'notice', boost: Math.max(0, 10 - Math.floor(days / 6)),
+        });
+    }
+    return out;
 };
 
 /** A rank within reach in one of the player's guilds (everything but the fee and the masterpiece goods in hand). */

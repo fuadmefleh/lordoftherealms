@@ -295,3 +295,17 @@ describe('Ledger category', () => {
         expect(DataLoader._gamedata.chronicle.ledger.categories.firstSteps).toBeTruthy();
     });
 });
+
+describe('First Steps — the order a new Wanderer is led (first-hour playthrough 2026-11-17)', () => {
+    it('first makes for a town, and ends the day only once a room is booked', () => {
+        const ids = FirstSteps.steps().map(s => s.id);
+        // Ending day 1 on the open road got a new player robbed: walk to a town first
+        expect(ids[0]).toBe('scout');
+        expect(FirstSteps.steps()[0].go.panel).toBe('map');
+        expect(ids.indexOf('first_day')).toBeGreaterThan(ids.indexOf('inn'));
+        // and the day can still be credited out of order
+        const { world, player } = setup();
+        world.day = 2;
+        expect(FirstSteps.check(player, world).map(n => n.step)).toEqual(['first_day']);
+    });
+});

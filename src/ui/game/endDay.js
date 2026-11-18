@@ -179,6 +179,13 @@ export function onPlayerArrived() {
             `You have arrived at this ${sType}. Population: ${Utils.formatNumber(tile.settlement.population)}.`,
             'success'
         );
+        // A delivery taken from a notice board ends here: say where it is handed over
+        for (const b of this.player.activeBounties || []) {
+            if (b && b.type === 'delivery' && b.destQ === this.player.q && b.destR === this.player.r) {
+                this.ui.showNotification(`${b.icon || '📦'} ${b.name || 'Delivery'}`,
+                    `You have reached ${tile.settlement.name}. Hand it over at the 📋 Notice Board (Open Actions → Notice Board → ✓ Complete) to be paid ${Utils.formatGold(b.actualPay || 0)} gold.`, 'success');
+            }
+        }
         // Underworld heat: a warning at the gate, and perhaps a guard search
         const gate = Underworld.onEnterSettlement(this.player, this.world, tile);
         // The posters: the watch may know your face, and take you (systems/wanted.js)
@@ -1355,10 +1362,27 @@ export function endDay() {
 
             // Show day events
             if (result.events.length > 0) {
+                // Only news that touches the player pops up (an effect on them, their realm,
+                // the place they stand); the rest of the world's day goes to the log, so a busy
+                // day of far-off patrols and festivals does not bury the player's own notices
+                const here = this.world.getTile(this.player.q, this.player.r);
+                const near = [];
+                if (here && here.kingdom != null && typeof this.world.getKingdom === 'function') {
+                    const k = this.world.getKingdom(here.kingdom);
+                    if (k && k.name) near.push(k.name);
+                }
+                if (here && here.settlement && here.settlement.name) near.push(here.settlement.name);
+                if (this.player.allegiance != null && typeof this.world.getKingdom === 'function') {
+                    const k = this.world.getKingdom(this.player.allegiance);
+                    if (k && k.name) near.push(k.name);
+                }
                 for (const event of result.events) {
                     // Allies' fortune and enemies' misfortune can reach the player
                     const effect = WorldEvents.applyPlayerEffects(event, this.player, this.world);
-                    this.ui.showNotification('World Event', effect ? `${event.text} ${effect}` : event.text, effect ? 'success' : 'info');
+                    const text = effect ? `${event.text} ${effect}` : event.text;
+                    const touches = !!effect || near.some(n => String(event.text || '').includes(n));
+                    if (touches || typeof this.ui._logNotification !== 'function') this.ui.showNotification('World Event', text, effect ? 'success' : 'info');
+                    else this.ui._logNotification('World Event', text, 'info');
                 }
             }
 

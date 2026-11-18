@@ -1,6 +1,6 @@
 // Relationships — npcs members (split from the original monolith).
 import { Relationships } from './_ref.js';
-import { DataLoader, Utils, Characters, Townsfolk } from './_imports.js';
+import { DataLoader, Utils, Characters, Townsfolk, Economy, MoneySupply } from './_imports.js';
 import { Vanishings } from '../vanishings.js';
 
 Object.assign(Relationships, {
@@ -313,8 +313,21 @@ Object.assign(Relationships, {
         for (let i = Relationships._npcs.length - 1; i >= 0; i--) if (out.has(Relationships._npcs[i])) Relationships._npcs.splice(i, 1);
         for (const n of gone) {
             delete rels[n.id];
-            if (!n.folkUid) continue;
-            const found = Relationships.folkPerson(world, n.folkUid);
+            const found = n.folkUid ? Relationships.folkPerson(world, n.folkUid) : null;
+            // (their purse goes with them, not out of the world: the coin census counts the
+            // known NPCs' purses — let go with it, seed 101 lost 3.3k in one year's pruning.
+            // A townsperson keeps it in their own purse; anyone else's — a dead one's estate,
+            // one gone out of the player's life — is spent in the town nearest where they lived)
+            const v = Utils.cents(Math.max(0, Number(n.purse) || 0));
+            if (v > 0) {
+                n.purse = 0;
+                if (found && found.p && found.p.died == null && typeof found.p.purse === 'number') found.p.purse = Utils.cents(found.p.purse + v);
+                else {
+                    const q = Number.isFinite(n.settlementQ) ? n.settlementQ : player.q;
+                    const r = Number.isFinite(n.settlementR) ? n.settlementR : player.r;
+                    if (!Economy.payNearest(world, q, r, v)) MoneySupply.leak(world, -v, 'npcGone');
+                }
+            }
             if (found && found.p.rnpc === n.id) delete found.p.rnpc;
         }
         return gone.length;

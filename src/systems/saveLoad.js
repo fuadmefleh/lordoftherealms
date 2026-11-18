@@ -379,6 +379,10 @@ export const SaveLoad = {
             population: k.population,
             military: k.military,
             treasury: k.treasury,
+            // (the royal bank's vault is counted coin: not saved, a reload gave every realm the
+            // vault it was generated with — a fallen realm's, emptied at its fall, came back
+            // full and rose with it, 6.5–10k from nothing each time on seed 202)
+            ...(k.royalBank ? { royalBank: JSON.parse(JSON.stringify(k.royalBank)) } : {}),
             treasuryIncomeBase: k.treasuryIncomeBase,
             stability: k.stability,
             relations: k.relations,

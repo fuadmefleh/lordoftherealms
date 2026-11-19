@@ -1,8 +1,9 @@
 // Renderer — the trade map ('prices' map mode): what the player knows of one
 // good's prices across the map. Each town in the player's price book
 // (systems/priceKnowledge.js) gets a marker coloured by the good's stock
-// reading there (glut blue … dearth red), its last-known asking price and the
-// age of that news; stale news fades. Lines join known towns along the
+// reading there (glut blue … dearth red), its last-known asking price, the
+// source (its icon), age and trust of that news; stale news fades, and a
+// doubtful quote's ring is dashed, idle talk's dotted and faint. Lines join known towns along the
 // markets' trade links (gold by land, blue by sea, thicker with caravan
 // traffic; red and dashed where merchants shun a road after a loss), and the
 // merchant caravans and trading ships in sight show the road ahead of them
@@ -16,6 +17,14 @@ import { PriceAnchors } from '../../world/priceAnchors.js';
 import { DataLoader } from '../../core/dataLoader.js';
 import { Transport } from '../../world/transport.js';
 import { Utils } from '../../core/utils.js';
+
+/** How a quote's trust shows on the map (the bands of PriceNews.trustWord: sure, likely, doubtful, idle talk). */
+function trustBand(t) {
+    if (t >= 85) return { word: 'sure', alpha: 1, width: 3, dash: [], mark: '', text: '#fff' };
+    if (t >= 65) return { word: 'likely', alpha: 0.9, width: 2, dash: [], mark: '', text: 'rgba(240, 240, 240, 1)' };
+    if (t >= 45) return { word: 'doubtful', alpha: 0.75, width: 2, dash: [5, 3], mark: '~', text: 'rgba(225, 220, 200, 1)' };
+    return { word: 'idle talk', alpha: 0.55, width: 1.5, dash: [2, 3], mark: '?', text: 'rgba(210, 200, 180, 1)' };
+}
 
 function goodDef(id) {
     const gd = DataLoader._gamedata;
@@ -110,7 +119,9 @@ Object.assign(Renderer.prototype, {
         }
         ctx.setLineDash([]);
 
-        // The markers: price, stock reading and the age of the news
+        // The markers: price, stock reading, the source and age of the news, and how far
+        // it is trusted (systems/priceKnowledge.js trust): sure a solid ring, likely a
+        // lighter one, doubtful dashed, idle talk dotted and faint
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         for (const k of PriceKnowledge.known(player, world, goodId)) {
@@ -118,20 +129,27 @@ Object.assign(Renderer.prototype, {
             if (off(s)) continue;
             // (the stock reading against the good's anchor, as SettlementMarket.info)
             const label = PriceAnchors.label(world, goodId, k.scarcity);
-            const fade = k.age <= C.freshDays ? 1 : Math.max(0.4, 1 - (k.age - C.freshDays) / Math.max(1, C.staleDays * 2));
-            ctx.globalAlpha = fade;
+            const band = trustBand(k.trust);
+            const ageFade = k.age <= C.freshDays ? 1 : Math.max(0.4, 1 - (k.age - C.freshDays) / Math.max(1, C.staleDays * 2));
+            const cy = s.y - size * 0.55;
+            const rad = Math.max(9, size * 0.42);
+            ctx.globalAlpha = Math.min(ageFade, band.alpha);
             ctx.fillStyle = 'rgba(10, 12, 20, 0.85)';
             ctx.beginPath();
-            ctx.arc(s.x, s.y - size * 0.55, Math.max(9, size * 0.42), 0, Math.PI * 2);
+            ctx.arc(s.x, cy, rad, 0, Math.PI * 2);
             ctx.fill();
             ctx.strokeStyle = label.color;
-            ctx.lineWidth = Math.max(2, 3 * z);
+            ctx.lineWidth = Math.max(band.width, band.width * 1.5 * z);
+            ctx.setLineDash(band.dash.map(d => d * Math.max(1, z)));
             ctx.stroke();
-            this.drawMapText(ctx, `${Utils.formatGold(k.ask)}g`, s.x, s.y - size * 0.55, { size: 12 * z, weight: 700, family: 'body', color: '#fff' });
-            this.drawMapText(ctx, PriceKnowledge.ageText(k.age),
-                s.x, s.y - size * 0.55 + Math.max(16, size * 0.62), {
+            ctx.setLineDash([]);
+            this.drawMapText(ctx, `${band.mark}${Utils.formatGold(k.ask)}g`, s.x, cy, { size: 12 * z, weight: 700, family: 'body', color: band.text });
+            // Where the news came from (its icon), how old, and the trust in it
+            const info = PriceKnowledge.sourceInfo(k.src);
+            this.drawMapText(ctx, `${info.icon} ${PriceKnowledge.ageText(k.age)} · ${k.trust}%`,
+                s.x, cy + Math.max(16, size * 0.62), {
                     size: 10 * z, weight: 500, family: 'body',
-                    color: k.age > C.staleDays ? 'rgba(255, 170, 150, 1)' : 'rgba(235, 235, 235, 1)',
+                    color: k.age > C.staleDays ? 'rgba(255, 170, 150, 1)' : band.text,
                 });
         }
         ctx.globalAlpha = 1;
@@ -140,22 +158,25 @@ Object.assign(Renderer.prototype, {
         const lines = [
             `${good.name} — what you know (${towns.length} towns)`,
             'G: next good · Shift+G: previous · M: map modes',
+            'Ring: solid sure/likely · dashed ~doubtful · dotted ?idle talk',
         ];
         ctx.font = "500 13px 'Inter', sans-serif";
         const w = Math.max(...lines.map(l => ctx.measureText(l).width)) + 20;
         ctx.fillStyle = 'rgba(12, 18, 32, 0.88)';
         ctx.fillRect(10, 60, w, 22 + lines.length * 16 + 16);
+        const legendY = 60 + 14 + lines.length * 16;
         ctx.textAlign = 'left';
         ctx.fillStyle = '#f5c542';
         ctx.fillText(lines[0], 20, 74);
         ctx.fillStyle = 'rgba(220, 220, 220, 0.9)';
         ctx.fillText(lines[1], 20, 90);
+        ctx.fillText(lines[2], 20, 106);
         let x = 20;
         for (const l of SettlementMarket.config().labels) {
             ctx.fillStyle = l.color;
-            ctx.fillRect(x, 102, 10, 10);
+            ctx.fillRect(x, legendY, 10, 10);
             ctx.fillStyle = 'rgba(220, 220, 220, 0.9)';
-            ctx.fillText(l.label, x + 13, 107);
+            ctx.fillText(l.label, x + 13, legendY + 5);
             x += ctx.measureText(l.label).width + 24;
         }
         ctx.restore();

@@ -13,6 +13,7 @@
 // through data-am-act → ActionMenu.merchantLedgerAct.
 import { ActionMenu } from './_ref.js';
 import { PriceKnowledge } from '../../systems/priceKnowledge.js';
+import { PriceNews } from '../../systems/priceNews.js';
 import { SettlementMarket } from '../../world/settlementMarket.js';
 import { PriceAnchors } from '../../world/priceAnchors.js';
 import { DataLoader } from '../../core/dataLoader.js';
@@ -20,7 +21,7 @@ import { Hex } from '../../core/hex.js';
 import { Ledger } from '../../systems/ledger.js';
 import { EconomyChronicle } from '../../systems/economyChronicle.js';
 import { MerchantHouses } from '../../systems/merchantHouses.js';
-import { BTN_GOLD, BTN_PLAIN, panelTabs, lede, bullets, chips, purse, sectionHead, kv, rowList } from './uiKit.js';
+import { BTN_GOLD, BTN_PLAIN, panelTabs, lede, bullets, chips, purse, sectionHead, kv, rowList, card, price } from './uiKit.js';
 import { Utils } from '../../core/utils.js';
 
 // The action menu's voice (uiKit): muted notes, quiet tables — a head in the
@@ -31,10 +32,10 @@ const TD = 'padding:3px 6px; border-bottom:1px solid rgba(245,197,66,0.07);';
 const GOOD = '#8fd18a';
 const BAD = '#e0846a';
 const WARN = '#f0b35a';
-const TABS = [['book', '📖 Price Book'], ['spreads', '⚖️ Best Spreads'], ['history', '📈 Price History'], ['pnl', '💹 Profit & Loss']];
+const TABS = [['book', '📖 Price Book'], ['spreads', '⚖️ Best Spreads'], ['history', '📈 Price History'], ['post', '📮 News & Post'], ['pnl', '💹 Profit & Loss']];
 const RANGES = [3, 5, 8, 12];
 
-const view = { tab: 'book', good: null, days: 8, town: null, period: 30 };
+const view = { tab: 'book', good: null, days: 8, town: null, period: 30, postTown: null, plantGood: null };
 
 function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -56,7 +57,14 @@ function ageCell(k) {
     const src = PriceKnowledge.sourceInfo(k.src);
     const C = PriceKnowledge.config();
     const color = k.age <= C.freshDays ? GOOD : k.age > C.staleDays ? WARN : '#9d937c';
-    return `<span title="${esc(src.name)}">${src.icon}</span> <span style="color:${color};">${PriceKnowledge.ageText(k.age)}</span>`;
+    return `<span title="${esc(src.name)}${k.via ? ` (${esc(k.via)})` : ''}">${src.icon}</span> <span style="color:${color};">${PriceKnowledge.ageText(k.age)}</span>`;
+}
+
+/** Trust in a quote: a word and a share, coloured (sure / likely / doubtful / idle talk). */
+function trustCell(k) {
+    const t = Number.isFinite(k.trust) ? k.trust : PriceKnowledge.trust(k.src, k.age);
+    const color = t >= 85 ? GOOD : t >= 65 ? '#d8cfb6' : t >= 45 ? WARN : BAD;
+    return `<span style="color:${color};" title="How far to trust it: its source and its age">${PriceNews.trustWord(t)} ${t}%</span>`;
 }
 
 function goodPicker(goods) {
@@ -80,12 +88,12 @@ function bookTab(game) {
     const list = PriceKnowledge.known(player, world, view.good);
     html += lede(`What ${esc(goodDef(view.good).name.toLowerCase())} cost and fetched when you last had news of each town. Asking prices from hearsay are estimated from what the good was said to be worth.`);
     html += rowList([{ icon: '🗺️', name: 'Show on the trade map', desc: `Every known price of ${esc(goodDef(view.good).name.toLowerCase())}, coloured on the map`, act: 'merchantLedgerAct', args: ['map', view.good], side: '›', tone: 'gold' }]);
-    html += `<table style="width:100%; border-collapse:collapse; font-size:12px; margin-top:6px;"><tr><th style="${TH}">Town</th><th style="${TH}">Asks</th><th style="${TH}">Pays</th><th style="${TH}">Stock</th><th style="${TH}">Hexes</th><th style="${TH}">News</th></tr>`;
+    html += `<table style="width:100%; border-collapse:collapse; font-size:12px; margin-top:6px;"><tr><th style="${TH}">Town</th><th style="${TH}">Asks</th><th style="${TH}">Pays</th><th style="${TH}">Stock</th><th style="${TH}">Hexes</th><th style="${TH}">News</th><th style="${TH}">Trust</th></tr>`;
     for (const k of list) {
         // (labelled against the good's anchor, as SettlementMarket.info: a good dear everywhere for years is its normal)
         const l = PriceAnchors.label(world, view.good, k.scarcity);
         const d = Hex.wrappingDistance(player.q, player.r, k.q, k.r, world.width);
-        html += `<tr><td style="${TD}">${esc(k.name)}</td><td style="${TD}">${Utils.formatGold(k.ask)}g</td><td style="${TD}">${Utils.formatGold(k.bid)}g</td><td style="${TD} color:${l.color};">${l.label}</td><td style="${TD}">${d}</td><td style="${TD}">${ageCell(k)}</td></tr>`;
+        html += `<tr><td style="${TD}">${esc(k.name)}</td><td style="${TD}">${Utils.formatGold(k.ask)}g</td><td style="${TD}">${Utils.formatGold(k.bid)}g</td><td style="${TD} color:${l.color};">${l.label}</td><td style="${TD}">${d}</td><td style="${TD}">${ageCell(k)}${k.via ? `<br><span style="${NOTE}">${esc(k.via)}</span>` : ''}</td><td style="${TD}">${trustCell(k)}</td></tr>`;
     }
     return html + '</table>';
 }
@@ -139,6 +147,103 @@ function historyTab(game) {
     html += sectionHead(`${gname(view.good)} by market`);
     for (const t of towns) {
         html += `<div style="padding:6px 2px; border-bottom:1px solid rgba(245,197,66,0.07);"><div style="font-weight:600; color:#ece2c8; margin-bottom:3px;">${esc(t.name)}</div>${sparkline(PriceKnowledge.history(player, t.q, t.r, view.good))}</div>`;
+    }
+    return html;
+}
+
+// ── News and post ───────────────────────────────────────
+
+/** Towns to send for: the nearest markets (known or not), nearest first. */
+function postTowns(world, player) {
+    const views = typeof world.getSettlementViews === 'function' ? world.getSettlementViews() || [] : [];
+    return views.filter(v => v && Number.isFinite(v.q) && !(v.q === player.q && v.r === player.r))
+        .map(v => ({ q: v.q, r: v.r, name: v.name || 'a town', d: Hex.wrappingDistance(player.q, player.r, v.q, v.r, world.width) }))
+        .sort((a, b) => a.d - b.d || (a.name < b.name ? -1 : 1))
+        .slice(0, 14);
+}
+
+/** The letters on the road, correspondents, how to send for prices, the talk heard and false talk to plant. */
+function postTab(game) {
+    const { player, world } = game;
+    const V = PriceNews.view(player, world);
+    const day = world.day || 0;
+    let html = lede('News of prices travels as fast as the people who carry it. Send for a town’s prices, keep correspondents, and weigh the talk you hear: some of it is planted to mislead.');
+    // Letters on the road
+    html += rowList(V.letters.map(L => ({
+        icon: L.kind === 'corr' ? '🖋️' : L.kind === 'merchant' ? '📜' : '✉️',
+        name: `Prices from ${esc(L.n)}`,
+        desc: `${esc(L.via)} · ${L.snap ? `written day ${L.writeDay}` : `to be written about day ${L.writeDay}`}`,
+        side: L.due ? `${L.due} d` : 'today',
+    })), '✉️ Letters on the road');
+    // Correspondents
+    const corr = V.corr.map(c => ({
+        icon: '🖋️', name: esc(c.n), desc: `Writes every ${c.every} days · ${Utils.formatGold(c.wage)}g a letter · next in ${c.due} d${c.unpaid ? ' · unpaid!' : ''}`,
+        act: 'merchantLedgerAct', args: ['dismiss', c.id], side: 'dismiss', tone: c.unpaid ? 'bad' : null,
+    }));
+    const here = V.here;
+    if (here && here.s.market) {
+        const mine = V.corr.find(c => c.q === here.q && c.r === here.r);
+        for (const ev of PriceNews.config().correspondents.every || [7, 14, 30]) {
+            if (mine && mine.every === ev) continue;
+            corr.push({
+                icon: '➕', name: mine ? `${esc(here.name)}: write every ${ev} days` : `Take on a correspondent in ${esc(here.name)}, every ${ev} days`,
+                desc: `${Utils.formatGold(PriceNews.wage(here.type))}g a letter, paid when they write`, act: 'merchantLedgerAct', args: ['corr', ev], side: '›', tone: 'gold',
+            });
+        }
+    }
+    html += rowList(corr, '🖋️ Correspondents');
+    if (!here) html += `<div style="${NOTE}">Stand in a town to send for prices, take on a correspondent or put talk about.</div>`;
+    // Send for a town's prices (the town picked is also the one false talk is about)
+    const towns = here ? postTowns(world, player) : [];
+    const picked = view.postTown ? towns.find(t => t.q === view.postTown.q && t.r === view.postTown.r) : null;
+    if (!picked) view.postTown = null;
+    if (here) {
+        html += sectionHead('📮 Send for a town’s prices');
+        html += `<div style="margin:6px 0;">${towns.map(t => act(`${esc(t.name)} <span style="${NOTE}">${t.d}</span>`, ['postTown', [t.q, t.r]], picked === t ? BTN_GOLD : BTN_PLAIN)).join('')}</div>`;
+        if (picked) {
+            html += rowList(PriceNews.letterOptions(player, world, picked.q, picked.r).map(o => ({
+                icon: o.icon, name: esc(o.name),
+                desc: o.kind === 'merchant'
+                    ? `Written there today, here in about ${o.days} d · ${Math.round(o.reliability * 100)}% arrive`
+                    : `There and back in about ${o.days} d · the prices of day ${day + o.out} · ${Math.round(o.reliability * 100)}% arrive`,
+                act: o.ok ? 'merchantLedgerAct' : null, args: ['letter', [picked.q, picked.r, o.id]],
+                off: !o.ok, why: o.why ? esc(o.why) : '', side: price(o.price, (player.gold || 0) >= o.price),
+            })));
+        }
+    }
+    // Talk heard
+    const heard = V.heard.map(h => {
+        const qt = PriceKnowledge.quote(player, world, h.q, h.r, h.g);
+        const state = h.checked
+            ? (h.f ? `<span style="color:${BAD};">proved false</span>` : `<span style="color:${GOOD};">confirmed</span>`)
+            : (qt && qt.news === h.id ? trustCell(qt) : `<span style="${NOTE}">superseded</span>`);
+        return {
+            icon: '🗣️', name: `${gname(h.g)} ${h.k === 'dear' ? 'dear' : 'cheap'} in ${esc(h.n)}`,
+            desc: `Heard ${PriceNews.agoText(day - h.hd)}, as of ${PriceNews.agoText(h.age)} · ${h.on === h.n ? `talk out of ${esc(h.n)}` : `talk heard in ${esc(h.on)}`}`,
+            side: state,
+        };
+    });
+    html += rowList(heard, '🗣️ Word on the road');
+    if (!heard.length) html += `<div style="${NOTE}">You have heard no talk of prices yet. News of dearths and gluts spreads town to town.</div>`;
+    // Plant false talk
+    if (here) {
+        const goods = PriceNews._goods();
+        if (!goods.includes(view.plantGood)) view.plantGood = goods.includes('grain') ? 'grain' : goods[0];
+        let body = `<div style="${NOTE}">Pay the talkers of ${esc(here.name)} to spread a lie about the town picked above. Rival houses and caravans that hear it waste a trip. You may be caught: heat with the underworld, a whisperer’s name, the rival houses’ anger.</div>`;
+        body += `<div style="margin:6px 0;">${goods.map(id => act(gname(id), ['plantGood', id], id === view.plantGood ? BTN_GOLD : BTN_PLAIN)).join('')}</div>`;
+        if (picked) {
+            body += rowList(['dear', 'glut'].map(kind => {
+                const c = PriceNews.canPlant(player, world, picked.q, picked.r, view.plantGood, kind);
+                return {
+                    icon: kind === 'dear' ? '📈' : '📉',
+                    name: `“${esc(goodDef(view.plantGood).name)} is ${kind === 'dear' ? 'dear' : 'going cheap'} in ${esc(picked.name)}”`,
+                    desc: kind === 'dear' ? 'Lures merchants to haul it there for nothing' : 'Keeps merchants away from that market',
+                    act: c.ok ? 'merchantLedgerAct' : null, args: ['plant', kind], off: !c.ok, why: c.why ? esc(c.why) : '',
+                    side: c.fee != null ? price(c.fee, c.ok) : '',
+                };
+            }));
+        } else body += `<div style="${NOTE}">Pick a town above first.</div>`;
+        html += card(body, { title: 'Put false price talk about', icon: '🐍', tone: 'bad' });
     }
     return html;
 }
@@ -242,6 +347,7 @@ Object.assign(ActionMenu, {
         if (view.tab === 'spreads') html += spreadsTab(game);
         else if (view.tab === 'history') html += historyTab(game);
         else if (view.tab === 'pnl') html += pnlTab(game);
+        else if (view.tab === 'post') html += postTab(game);
         else html += bookTab(game);
         html += '</div>';
         game.ui.showCustomPanel("📒 Merchant's Ledger", html);
@@ -254,6 +360,23 @@ Object.assign(ActionMenu, {
             case 'good': view.good = a; break;
             case 'days': view.days = Number(a) || 8; break;
             case 'period': view.period = Number(a) || 30; break;
+            case 'postTown': view.postTown = Array.isArray(a) ? { q: Number(a[0]), r: Number(a[1]) } : null; break;
+            case 'plantGood': view.plantGood = a; break;
+            case 'letter':
+            case 'corr':
+            case 'dismiss':
+            case 'plant': {
+                const { player, world } = game;
+                const res = op === 'letter' ? PriceNews.orderLetter(player, world, Number(a[0]), Number(a[1]), a[2])
+                    : op === 'corr' ? PriceNews.hireCorrespondent(player, world, Number(a))
+                        : op === 'dismiss' ? PriceNews.dismissCorrespondent(player, a)
+                            : (view.postTown ? PriceNews.plant(player, world, view.postTown.q, view.postTown.r, view.plantGood, a) : { success: false, reason: 'Pick a town first.' });
+                if (game.ui && typeof game.ui.showNotification === 'function') {
+                    game.ui.showNotification(res.success ? '📮 News & Post' : 'Not possible', res.success ? res.text : res.reason, res.success ? (res.caught ? 'warning' : 'success') : 'warning');
+                }
+                if (res.success && typeof game.updateUI === 'function') game.updateUI();
+                break;
+            }
             case 'economy': ActionMenu.showEconomy(game, a || null); return;
             case 'company': ActionMenu.showTradingCompany(game, game.world.getTile(game.player.q, game.player.r), 'overview'); return;
             case 'map':

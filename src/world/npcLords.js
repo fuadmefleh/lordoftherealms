@@ -12,6 +12,7 @@ import { Colonization } from './colonization.js';
 import { Names } from '../core/names.js';
 import { CrownBooks } from './crownBooks.js';
 import { MoneySupply } from './moneySupply.js';
+import { Brands } from './brands.js';
 
 export const NPCLords = {
     /** Opinion bonus a lord holds for the player married into their realm. */
@@ -657,6 +658,9 @@ export const NPCLords = {
 
         // A lord sworn into a league against the player keeps them at arm's length
         opinion -= NPCLords.coalitionChill(lord, player);
+
+        // A court's brand on the player's hand (world/brands.js): worst in the realm that burned it
+        opinion += Brands.lordOpinion(player, lord.kingdomId, world);
 
         return Utils.clamp(opinion, -100, 100);
     },

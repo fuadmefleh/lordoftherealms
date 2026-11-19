@@ -234,3 +234,27 @@ describe('a broke heir has a way to eat', () => {
         expect(Household.mouths(g.player, home)).toBe(Household.servants(home).length + home.guests.length);
     }, 120000);
 });
+
+describe('a warning before the hunger comes', () => {
+    it('names the cheapest meal when the packs are low and the purse cannot buy it, then waits a few days', () => {
+        const g = coinGame(101, 2);
+        const s = pauper(g);
+        g.player.gold = 0.05;
+        const w = Begging.hungerWarning(g.player, g.world);
+        expect(w).toBeTruthy();
+        expect(w.text).toMatch(/Beg for alms|no food on its stalls/);
+        if (w.cheapest) expect(w.cheapest.price).toBeGreaterThan(0.05);
+        // (once every hunger.everyDays)
+        expect(Begging.hungerWarning(g.player, g.world)).toBe(null);
+        g.world.day += Begging.config().hunger.everyDays;
+        expect(Begging.hungerWarning(g.player, g.world)).toBeTruthy();
+        // A purse that can buy a meal, or packs with food, hears nothing
+        g.world.day += Begging.config().hunger.everyDays;
+        g.player.gold = 5000;
+        expect(Begging.hungerWarning(g.player, g.world)).toBe(null);
+        g.player.gold = 0;
+        g.player.inventory = { bread: 10 };
+        expect(Begging.hungerWarning(g.player, g.world)).toBe(null);
+        expect(s).toBeTruthy();
+    });
+});

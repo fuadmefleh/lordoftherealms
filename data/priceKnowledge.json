@@ -18,6 +18,32 @@
         "f": { "name": "your factor", "icon": "🏪" },
         "h": { "name": "your steward", "icon": "🏰" },
         "c": { "name": "a passing merchant", "icon": "🐫" },
-        "t": { "name": "tavern talk", "icon": "🍺" }
+        "t": { "name": "tavern talk", "icon": "🍺" },
+        "l": { "name": "a price letter", "icon": "✉️" },
+        "k": { "name": "your correspondent", "icon": "🖋️" },
+        "r": { "name": "word on the road", "icon": "🗣️" }
+    },
+    "news": {
+        "_doc": "Price news (systems/priceNews.js): word of the markets travels at the pace of travellers. Every scanEvery days each town's market is looked over for the staple goods (goods): scarcity at or over dearAt is a dearth, at or under glutAt a glut; the perScan most newsworthy (far from normal, sudden against the stock's moving average, a great town) become news that starts in that town and spreads hexesPerDay hexes a day, as far as reach hexes, forgotten after maxAgeDays (at most maxNews abroad). It goes out of date when the dearth eases under dearEnds (the glut over glutEnds). NPC caravans act only on news heard in their own town and no older than actDays: dear news of a road's far end makes a caravan likelier (caravans.dearBoost) and it carries extraShare of the origin's stock of that good (at most extraMax, only where the origin's scarcity is under spareBelow), paid for on arrival; glut news thins a road (glutDamp). News runs: every runEvery days (at most runsPerDay, up to runOverCap traders past the caravan cap) the freshest dear news (true or planted, run at most runsPerNews times, runGap days apart) sends a caravan from the town within runRange (at least runMinDist) of it that has heard it and has the good most to spare (scarcity under spareBelow, at least runMinStock in stock, the price the news names at least runSpread times its own): runShare of its stock, at most runMax, paid for by the destination on arrival at its own price. letters: a price letter by courier (postage there and back + clerkFee to a clerk in the far town), by your own rider (riderFee + riderPerHex a hex, riderHexes a day), or a merchant's letter (merchantFee + merchantPerHex, written today in a town within merchantRange, travelling merchantHexesPerDay). correspondents: up to max, paid wage (by town size) a letter, writing every 7, 14 or 30 days; quitUnpaid unpaid letters and they stop. trust: how far each source is trusted (v visit, f factor, h steward, l letter, k correspondent, c merchant met, t tavern talk, r word on the road ± rumourJitter, +corroborate when it agrees with what you knew), fading fadePerDay a day past freshDays, never under min. plant: the player's false talk: fee by town size paid to the talkers, the claim dearMult (glutMult) times the real worth, spreading plantReach hexes; caughtChance at once, after lureDays the rival houses who heard it lose rivalLoss of capital (at most rivalLossMax) and it is traced with tracedChance + tracedPerLured per house or caravan lured: heat, a 'whisperer' rumour, the company's reputation, the rival houses' rivalry. rivalPlants: every everyDays a rival merchant house (rivalry at least minRivalry) or rival House (feud at least minFeud) may (chance) pay fee to plant a false dear claim (dearMult range) about a town minDist..maxDist hexes away, in the town nearest the player (within nearTown).",
+        "scanEvery": 7,
+        "dearAt": 1.7,
+        "glutAt": 0.65,
+        "dearEnds": 1.4,
+        "glutEnds": 0.8,
+        "perScan": 3,
+        "maxNews": 24,
+        "maxAgeDays": 45,
+        "actDays": 21,
+        "hexesPerDay": 2.5,
+        "reach": 18,
+        "plantReach": 12,
+        "goods": ["grain", "flour", "bread", "fish", "meat", "beer", "wine", "salt", "wood", "iron", "tools", "wool", "textiles", "leather", "horses"],
+        "caravans": { "dearBoost": 0.8, "glutDamp": 0.5, "extraShare": 0.12, "extraMax": 40, "spareBelow": 1.35, "runEvery": 2, "runsPerDay": 1, "runOverCap": 3, "runsPerNews": 2, "runGap": 6, "runRange": 14, "runMinDist": 3, "runMinStock": 10, "runShare": 0.25, "runMax": 60, "runSpread": 1.3 },
+        "letters": { "maxInTransit": 4, "clerkFee": 1.5, "riderFee": 6, "riderPerHex": 0.4, "riderHexes": 4, "riderReliability": 0.85, "merchantFee": 3, "merchantPerHex": 0.15, "merchantHexesPerDay": 2, "merchantRange": 16, "merchantReliability": 0.92 },
+        "correspondents": { "max": 4, "wage": { "village": 2, "town": 3, "city": 4, "capital": 5 }, "every": [7, 14, 30], "quitUnpaid": 2, "hexesPerDay": 3 },
+        "trust": { "v": 100, "f": 95, "h": 95, "l": 90, "k": 90, "c": 70, "t": 40, "r": 55, "rumourJitter": 10, "corroborate": 15, "fadePerDay": 0.5, "min": 5 },
+        "plant": { "fee": { "village": 8, "town": 15, "city": 25, "capital": 40 }, "dearMult": 1.8, "glutMult": 0.55, "caughtChance": 0.08, "tracedChance": 0.25, "tracedPerLured": 0.05, "heat": 12, "lureDays": 14, "rivalLoss": 0.03, "rivalLossMax": 600, "rivalryOnTrace": 15, "reputationOnTrace": 5, "cooldownDays": 14, "minDist": 3, "maxDist": 20 },
+        "rivalPlants": { "everyDays": 14, "chance": 0.35, "minRivalry": 30, "minFeud": 30, "fee": 20, "dearMult": [1.6, 2.1], "minDist": 4, "maxDist": 14, "maxActive": 1, "nearTown": 6 },
+        "maxHeard": 40
     }
 }

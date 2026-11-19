@@ -12,6 +12,7 @@ import { Raising } from '../../systems/raising.js';
 import { Upbringing } from '../../systems/upbringing.js';
 import { esc, sectionHead, lede, card, rowList, price, chips } from './uiKit.js';
 import { Utils } from '../../core/utils.js';
+import { wardLeverageHtml } from './heirPaths.js';
 
 const MUTED = 'color:#9d937c; font-size:11px;';
 const GAIN_ICONS = {
@@ -143,14 +144,18 @@ Object.assign(ActionMenu, {
         if (!wards.length) {
             html += `<div style="${MUTED} margin:0 2px 6px;">No wards live at your court.</div>`;
         } else {
+            const RW = Raising._rivalWardCfg();
             html += rowList(wards.map(w => ({
                 icon: w.held ? '⛓️' : (w.gender === 'female' ? '👧' : '👦'),
                 name: `${esc(w.firstName)}${w.dynasty ? ' ' + esc(w.dynasty) : ''} of ${esc(w.kingdomName)}`,
-                desc: `Age ${Raising.wardAge(world, w)}${w.royalId ? ' · of the royal blood' : ''} · ${w.held ? 'held as a hostage in the war' : `goes home on day ${w.until}`} · ${Utils.formatGold(w.feesPaid || 0)}g paid for their keep`,
+                desc: `Age ${Raising.wardAge(world, w)}${w.royalId ? ' · of the royal blood' : ''}${w.rivalId != null ? ' · a rival House’s child: they will not plot against you while you keep them' : ''} · ${w.held ? (w.rivalId != null ? 'a hostage while the feud runs hot' : 'held as a hostage in the war') : w.kept ? 'kept as a hostage' : `goes home on day ${w.until}`} · ${Utils.formatGold(w.feesPaid || 0)}g paid for their keep`,
                 attrs: `onclick="window._raisingUI.sendHome('${esc(w.id)}')"`,
-                side: w.held ? `Free (+${W.warReturnReputation} rep)` : `Send home (${W.sendHomeReputation} rep)`, tone: w.held ? 'good' : 'warn',
+                side: w.rivalId != null ? (w.held ? `Free (feud ${RW.freedFeud == null ? -10 : RW.freedFeud})` : `Send home (feud +${RW.sentHomeFeud == null ? 4 : RW.sentHomeFeud})`) : w.held ? `Free (+${W.warReturnReputation} rep)` : `Send home (${W.sendHomeReputation} rep)`, tone: w.held ? 'good' : 'warn',
             })));
         }
+
+        // Keep a ward as a hostage, ransom one home (ui/actionMenu/heirPaths.js)
+        html += wardLeverageHtml(game);
 
         html += sectionHead('Realms That Might Send a Ward');
         html += rowList(Raising.wardOffers(player, world).map(o => ({

@@ -48,6 +48,7 @@ import { Relationships } from '../systems/relationships.js';
 import { Upbringing } from '../systems/upbringing.js';
 import { HeirAgency } from '../systems/heirAgency.js';
 import { Raising } from '../systems/raising.js';
+import { HeirPaths } from '../systems/heirPaths.js';
 import { Legacy } from '../systems/legacy.js';
 import { Annals } from '../systems/annals.js';
 import { House } from '../systems/house.js';
@@ -96,12 +97,14 @@ import { LandMarket } from '../systems/landMarket.js';
 import { PuttingOut } from '../systems/puttingOut.js';
 import { TradePolicy } from '../systems/tradePolicy.js';
 import { PublicWorks } from '../systems/publicWorks.js';
+import { GreatWorks } from '../systems/greatWorks.js';
 import { Literacy } from '../systems/literacy.js';
 import { MarketDynamics } from '../systems/marketDynamics.js';
 import { Labour } from '../systems/labour.js';
 import { MerchantPrince } from '../systems/merchantPrince.js';
 import { Guilds } from '../systems/guilds.js';
 import { EconomyChronicle } from '../systems/economyChronicle.js';
+import { PriceNews } from '../systems/priceNews.js';
 import { Economy } from '../world/economy.js';
 import { Finance } from '../systems/finance.js';
 import { Underwriting } from '../systems/underwriting.js';
@@ -211,6 +214,8 @@ const WORLD_DAY = [
     { sys: 'PuttingOut', run: (w) => PuttingOut.processDay(w, null) },
     { sys: 'TradePolicy', run: (w) => TradePolicy.processDay(w, null) },
     { sys: 'PublicWorks', run: (w) => PublicWorks.processDay(w, null) },
+    // Works of the Ages rise (or fall to ruin) with no one living: the House's pledges wait (systems/greatWorks.js)
+    { sys: 'GreatWorks', run: (w) => GreatWorks.processDay(w, null) },
     // The towns' letters reckoned (systems/literacy.js)
     { sys: 'Literacy', run: (w) => Literacy.processDay(w, null) },
     { sys: 'MarketDynamics', run: (w) => MarketDynamics.updatePrices(w, null) },
@@ -218,6 +223,8 @@ const WORLD_DAY = [
     { sys: 'Labour', run: (w) => Labour.processDay(w, null) },
     { sys: 'MerchantPrince', run: (w) => MerchantPrince.processDay(null, w) }, // waits (player-held)
     { sys: 'Guilds', run: (w) => Guilds.processDay(w, null) },
+    // The markets' news keeps travelling town to town, and the caravans act on it (systems/priceNews.js)
+    { sys: 'PriceNews', run: (w) => PriceNews.processDay(w, null) },
     { sys: 'EconomyChronicle', run: (w) => EconomyChronicle.processDay(w, null) },
     { sys: 'Fiscal', run: (w) => Fiscal.processDay(w, null) },
     { sys: 'Finance', run: (w) => Finance.processDay(w, null) }, // waits (player-held)
@@ -255,6 +262,7 @@ const WORLD_DAY_SKIPPED = {
     Upbringing: 'run on the estate in passDay',
     HeirAgency: 'run on the estate in passDay',
     Raising: 'run on the estate in passDay',
+    HeirPaths: 'run on the estate in passDay',
     Abdication: 'run on the estate in passDay (interregnum: no pensions)',
     Regency: "a reigning child's regency: no one reigns in the wait",
     Heirlooms: "player-held: the House's heirlooms wait with the estate",
@@ -268,6 +276,7 @@ const WORLD_DAY_SKIPPED = {
     Rivals: "player-held: the player's rival adventurers",
     Nemesis: "player-held: the player's nemeses (they watch the succession on return)",
     Wanted: 'player-held: the charge sheet (it dies with the criminal on succession; blood debts cool a generation)',
+    Trials: 'player-held: the trial awaited, the cases before your court and the lawsuits all wait with the player (a dead defendant is tried by no one)',
     ProfaneCrimes: "player-held: the player's profane crimes",
     KinCrimes: "player-held: the House's crimes against the blood",
     HouseQuests: "player-held: the House's unfinished business",
@@ -389,6 +398,8 @@ export const Afterlife = {
                 HeirAgency.processDay(estate, world);
                 // Tutors paid from the estate, wards at court, coming-of-age summaries (systems/raising.js)
                 Raising.processDay(estate, world);
+                // Children away on their paths, hostages' terms, wards kept (systems/heirPaths.js)
+                HeirPaths.processDay(estate, world);
                 // The House's retired rulers grow old in the wait (no pensions run: systems/abdication.js)
                 Abdication.processDay(estate, world, { interregnum: true });
                 // The cadet branches go on with their lives (nobody to ask or answer them)

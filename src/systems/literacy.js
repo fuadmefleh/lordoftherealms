@@ -190,6 +190,8 @@ export const Literacy = {
         if (sc && (sc.founded || sc.endowed)) t += _num(E.school, 0.1);
         if ((sc && sc.church) || (C.church.types || []).includes(type)) t += _num(E.church, 0.04);
         if ((sc && sc.guild) || Guilds.townGuilds(settlement)) t += _num(E.guild, 0.05);
+        // A university here or in the realm (systems/greatWorks.js → settlement.ageWorksFx)
+        t += _num(settlement.ageWorksFx && settlement.ageWorksFx.letters);
         return _clamp(t, 0, 0.95);
     },
 

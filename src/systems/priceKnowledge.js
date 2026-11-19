@@ -9,7 +9,9 @@
 //     market of each post or holding, a report every reportEvery days),
 //   - merchant caravans and trading ships met on the road (the goods they
 //     carry, as priced at their origin and destination when they set out),
-//   - tavern talk, bought or heard (a few goods, as reported — maybe wrong).
+//   - tavern talk, bought or heard (a few goods, as reported — maybe wrong),
+//   - word on the road, price letters and correspondents (systems/priceNews.js:
+//     news travels at the pace of travellers, and some of it is planted lies).
 // Each quote keeps the day it was true and its source, so the trade map
 // (ui/renderer/overlays.js 'prices' mode) and the Merchant's Ledger
 // (ui/actionMenu/merchantLedger.js) can stamp it with its age. The ledger's
@@ -43,11 +45,14 @@ const DEFAULTS = {
     sources: {
         v: { name: 'your visit', icon: '👁️' }, f: { name: 'your factor', icon: '🏪' }, h: { name: 'your steward', icon: '🏰' },
         c: { name: 'a passing merchant', icon: '🐫' }, t: { name: 'tavern talk', icon: '🍺' },
+        l: { name: 'a price letter', icon: '✉️' }, k: { name: 'your correspondent', icon: '🖋️' }, r: { name: 'word on the road', icon: '🗣️' },
     },
+    // How far each source is trusted (0..100), fading with age past freshDays (systems/priceNews.js)
+    trust: { v: 100, f: 95, h: 95, l: 90, k: 90, c: 70, t: 40, r: 55, fadePerDay: 0.5, min: 5 },
 };
 
 // Sources ranked by trust: a fresher quote always wins, a same-day one only from an equal or better source
-const RANK = { v: 5, f: 4, h: 4, c: 2, t: 1 };
+const RANK = { v: 5, f: 4, h: 4, l: 4, k: 4, c: 2, t: 1, r: 1 };
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _key = (q, r) => `${q},${r}`;
@@ -70,6 +75,7 @@ export const PriceKnowledge = {
             ...DEFAULTS, ...d,
             askBySize: { ...DEFAULTS.askBySize, ...(d.askBySize || {}) },
             sources: { ...DEFAULTS.sources, ...(d.sources || {}) },
+            trust: { ...DEFAULTS.trust, ...((d.news && d.news.trust) || {}) },
         };
     },
 
@@ -167,9 +173,11 @@ export const PriceKnowledge = {
      * Hearsay about one good in one town: `worth` is what it is worth there
      * (before the stalls' size markup), as reported on `day`. The asking
      * price is estimated from the town's size, the stalls' pay from sellShare.
-     * src: 'c' (a merchant met on the road), 't' (tavern talk).
+     * src: 'c' (a merchant met on the road), 't' (tavern talk), 'r' (word
+     * on the road, systems/priceNews.js). `meta` { trust, via, news }: a
+     * rumour's own trust, where it was heard, the news it came from.
      */
-    learn(player, world, town, goodId, worth, day = null, src = 't', scarcity = null) {
+    learn(player, world, town, goodId, worth, day = null, src = 't', scarcity = null, meta = null) {
         if (!player || !town || !Number.isFinite(town.q) || !_good(goodId) || !(worth > 0)) return false;
         const C = PriceKnowledge.config();
         const st = PriceKnowledge.state(player);
@@ -184,9 +192,32 @@ export const PriceKnowledge = {
         const bid = Math.max(0, Math.floor(worth * C.sellShare));
         const base = _good(goodId).basePrice || 1;
         const sc = Math.round((Number.isFinite(scarcity) ? scarcity : worth / base) * 100);
-        const ok = PriceKnowledge._put(t, goodId, [ask, bid, sc, d, src]);
+        const entry = [ask, bid, sc, d, src];
+        if (meta) entry.push(Number.isFinite(meta.trust) ? Math.round(meta.trust) : null, meta.via || null, meta.news != null ? meta.news : null);
+        const ok = PriceKnowledge._put(t, goodId, entry);
         PriceKnowledge._prune(player);
         return ok;
+    },
+
+    /**
+     * A whole market's quotes as someone else saw them (a price letter, a
+     * correspondent: systems/priceNews.js): `goods` { goodId: [ask, bid, sc, day, src] },
+     * each kept unless the book holds a fresher one. → quotes kept
+     */
+    putQuotes(player, world, town, goods) {
+        if (!player || !town || !Number.isFinite(town.q) || !goods) return 0;
+        const st = PriceKnowledge.state(player);
+        let n = 0;
+        let latest = -Infinity;
+        for (const e of Object.values(goods)) if (Array.isArray(e)) latest = Math.max(latest, _num(e[3]));
+        if (!Number.isFinite(latest)) return 0;
+        const t = PriceKnowledge._town(st, town, latest);
+        for (const [id, e] of Object.entries(goods)) {
+            if (!Array.isArray(e) || !_good(id)) continue;
+            if (PriceKnowledge._put(t, id, e.slice(0, 5))) n++;
+        }
+        PriceKnowledge._prune(player);
+        return n;
     },
 
     /** A merchant met on the road tells what its goods were worth at both ends when it set out. */
@@ -336,6 +367,15 @@ export const PriceKnowledge = {
         return PriceKnowledge.config().sources[src] || { name: 'hearsay', icon: '❔' };
     },
 
+    /** 0..100: how far to trust a quote, by its source and age (a rumour carries its own). */
+    trust(src, age, stored = null) {
+        const C = PriceKnowledge.config();
+        const T = C.trust;
+        const base = Number.isFinite(stored) ? stored : _num(T[src], 30);
+        const fade = Math.max(0, _num(age) - C.freshDays) * _num(T.fadePerDay);
+        return Math.round(Math.max(_num(T.min, 5), Math.min(100, base - fade)));
+    },
+
     /** Every known town: [{ key, q, r, name, type, day, goods }]. */
     towns(player) {
         const st = PriceKnowledge.state(player);
@@ -351,7 +391,8 @@ export const PriceKnowledge = {
         const t = st.towns[_key(q, r)];
         const e = t && t.g[goodId];
         if (!e) return null;
-        return { ask: e[0], bid: e[1], scarcity: e[2] / 100, day: e[3], age: PriceKnowledge.age(e[3], _day(world)), src: e[4] };
+        const age = PriceKnowledge.age(e[3], _day(world));
+        return { ask: e[0], bid: e[1], scarcity: e[2] / 100, day: e[3], age, src: e[4], trust: PriceKnowledge.trust(e[4], age, e[5]), via: e[6] || null, news: e[7] != null ? e[7] : null };
     },
 
     /** Every known quote for a good: [{ key, q, r, name, type, ask, bid, scarcity, day, age, src }]. */
@@ -363,7 +404,8 @@ export const PriceKnowledge = {
             const e = t.g[goodId];
             if (!e) continue;
             const [q, r] = key.split(',').map(Number);
-            out.push({ key, q, r, name: t.n, type: t.t, ask: e[0], bid: e[1], scarcity: e[2] / 100, day: e[3], age: PriceKnowledge.age(e[3], today), src: e[4] });
+            const age = PriceKnowledge.age(e[3], today);
+            out.push({ key, q, r, name: t.n, type: t.t, ask: e[0], bid: e[1], scarcity: e[2] / 100, day: e[3], age, src: e[4], trust: PriceKnowledge.trust(e[4], age, e[5]), via: e[6] || null, news: e[7] != null ? e[7] : null });
         }
         return out.sort((a, b) => a.ask - b.ask || (a.key < b.key ? -1 : 1));
     },

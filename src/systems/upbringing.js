@@ -32,6 +32,7 @@ import { Companions } from './companions.js';
 import { Relationships } from './relationships.js';
 import { Economy } from '../world/economy.js';
 import { MoneySupply } from '../world/moneySupply.js';
+import { GreatWorks } from './greatWorks.js';
 
 const STATS = ['strength', 'charisma', 'intelligence', 'faith', 'luck'];
 const SKILLS = ['commerce', 'combat', 'leadership', 'diplomacy', 'stealth', 'cartography'];
@@ -147,8 +148,10 @@ export const Upbringing = {
     },
 
     isAway(child) {
-        const p = child && child.upbringing && child.upbringing.placement;
-        return !!(p && p.kind === 'ward' && !p.returned);
+        const up = child && child.upbringing;
+        const p = up && up.placement;
+        // (a ward abroad, or away on a formative path: systems/heirPaths.js)
+        return !!(p && p.kind === 'ward' && !p.returned) || !!(up && up.path && up.path.active);
     },
 
     // ──────────── CHOICES ────────────
@@ -171,6 +174,8 @@ export const Upbringing = {
         if (!child || child.isAlive === false) return { success: false, reason: 'No such child.' };
         const up = Upbringing.ensure(child);
         if (up.comeOfAge) return { success: false, reason: `${child.firstName} is grown; tutors are for children.` };
+        // (away, the host court or the path's master teaches them: systems/heirAgency.js, heirPaths.js)
+        if (Upbringing.isAway(child)) return { success: false, reason: `${child.firstName} is not at home; they are taught where they are.` };
         const def = Upbringing.tutors().find(t => t.id === tutorId);
         if (!def) return { success: false, reason: 'No such tutor.' };
         const cost = _num(def.hireCost);
@@ -369,7 +374,8 @@ export const Upbringing = {
 
         // A University of the House's (systems/patronage.js) teaches faster
         const fx = player.patronage && player.patronage.fx;
-        const university = fx && Number.isFinite(fx.education) ? Math.max(0, fx.education) : 0;
+        // ...or a Work of the Ages the House carved its name on, or one in its realm (systems/greatWorks.js)
+        const university = Math.max(fx && Number.isFinite(fx.education) ? Math.max(0, fx.education) : 0, GreatWorks.educationFor(player, world));
         Upbringing._growPure(child, years * (1 + university), true);
 
         // The parent's example: each of the ruler's earned traits may rub off —
@@ -657,7 +663,8 @@ export const Upbringing = {
                 if (res) out.comeOfAge.push(res);
             }
             // A ward held as a hostage (up.heldBy) does not come home on the day
-            if (Upbringing.isAway(child) && !up.heldBy && day >= _num(up.placement.until)) {
+            const pl = up.placement;
+            if (pl && pl.kind === 'ward' && !pl.returned && !up.heldBy && day >= _num(pl.until)) {
                 out.wardsReturned.push(Upbringing._returnWard(player, world, child));
             }
             if (!Upbringing.inChildhood(child)) continue;

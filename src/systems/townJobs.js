@@ -70,6 +70,8 @@ let _cfg = null;
 let _cfgSrc;
 // Caches that must not travel with the save
 const _crewCache = new WeakMap();
+// (worlds where a scan found no one at all in the player's service: offerWork is the only way in, and clears it)
+const _noStaff = new WeakMap();
 const _landCache = new WeakMap();
 
 function _seedOf(world) {
@@ -679,6 +681,7 @@ export const TownJobs = {
         Townsfolk.purse(folk, p, world);
         p.purse = _r2(_num(p.purse) + T.wage);
         p.job = { id: (K.job && TownJobs.occ(K.job) ? K.job : null) || (kind === 'guard' ? 'guard' : kind === 'servant' ? 'servant' : 'labourer'), rank: 'master', since: day, employer: 'player', pk: kind, wage: T.wage, paid: day, prev };
+        _noStaff.delete(world);
         Townsfolk._log(p, day, 'job', null, `hiredPlayer|${K.name}`);
         Townsfolk._annal(folk, world, day, { k: 'job', a: p.id, b: null, x: `hiredPlayer|${player.name || 'a stranger'}` }, []);
         NpcMemory.remember(world, { folk, person: p }, { kind: 'hired', player });
@@ -704,12 +707,19 @@ export const TownJobs = {
     /** The player's people in every town: [{ person, folk, town }]. */
     playerStaff(world) {
         const out = [];
+        if (world && _noStaff.get(world)) return out;
         const views = world && typeof world.getSettlementViews === 'function' ? world.getSettlementViews() : [];
+        let any = false;
         for (const s of views) {
             const folk = s && s.folk;
             if (!folk || !Array.isArray(folk.people)) continue;
-            for (const p of folk.people) if (p.job && p.job.employer === 'player' && Townsfolk.isHere(p)) out.push({ person: p, folk, town: s.name, settlement: s });
+            for (const p of folk.people) {
+                if (!p.job || p.job.employer !== 'player') continue;
+                any = true;
+                if (Townsfolk.isHere(p)) out.push({ person: p, folk, town: s.name, settlement: s });
+            }
         }
+        if (!any && world && typeof world === 'object') _noStaff.set(world, true);
         return out;
     },
 

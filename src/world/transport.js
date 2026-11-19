@@ -628,8 +628,9 @@ export const Transport = {
             if (canal.toll) { toll += _num(cw.toll, 0.04); tolls = [canal.id]; }
         } else if (link.sea) {
             const hw = Transport.work('harbour') || {};
-            if (st.harbours[link._ak]) mult *= _num(hw.friction, 0.8);
-            if (st.harbours[link._bk]) mult *= _num(hw.friction, 0.8);
+            // (a great harbour cuts it further: systems/greatWorks.js sets its mult)
+            if (st.harbours[link._ak]) mult *= _num(hw.friction, 0.8) * _num(st.harbours[link._ak].mult, 1);
+            if (st.harbours[link._bk]) mult *= _num(hw.friction, 0.8) * _num(st.harbours[link._bk].mult, 1);
             hexPerDay = _num(P.seaSpeed, 6);
         } else if (link.road) {
             if (link._rt !== rt) { link._rt = rt; link._ids = Transport.pathSegs(world, a, b); }

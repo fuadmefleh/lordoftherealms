@@ -37,8 +37,13 @@ describe('Townsfolk.distantEvery', () => {
         const s = townAt(10, 10);
         expect(Townsfolk.distantEvery({}, s, null, 'trade')).toBe(1);
         expect(Townsfolk.distantEvery({}, s, { q: 12, r: 11 }, 'trade')).toBe(1);
-        expect(Townsfolk.distantEvery({}, s, { q: 40, r: 10 }, 'trade')).toBe(D.tradeEvery);
-        expect(Townsfolk.distantEvery({}, s, { q: 40, r: 10 }, 'illness')).toBe(D.illnessEvery);
+        // (a couple of days off: the distant steps; beyond farHexes the far ones)
+        expect(Townsfolk.distantEvery({}, s, { q: 20, r: 10 }, 'trade')).toBe(D.tradeEvery);
+        expect(Townsfolk.distantEvery({}, s, { q: 20, r: 10 }, 'illness')).toBe(D.illnessEvery);
+        expect(Townsfolk.distantEvery({}, s, { q: 40, r: 10 }, 'trade')).toBe(D.farTradeEvery);
+        expect(Townsfolk.distantEvery({}, s, { q: 40, r: 10 }, 'illness')).toBe(D.farIllnessEvery);
+        expect(D.farTradeEvery).toBeGreaterThanOrEqual(D.tradeEvery);
+        expect(D.farIllnessEvery).toBeGreaterThanOrEqual(D.illnessEvery);
         const was = D.enabled;
         D.enabled = false;
         try { expect(Townsfolk.distantEvery({}, s, { q: 40, r: 10 }, 'trade')).toBe(1); } finally { D.enabled = was; }
@@ -48,7 +53,7 @@ describe('Townsfolk.distantEvery', () => {
 describe('Illness.catchUp far from the player', () => {
     it('lives the sick in steps of illnessEvery × stepDays, the steps\' length passed on', () => {
         const step = Illness.config().stepDays;
-        const every = Townsfolk.config().distant.illnessEvery;
+        const every = Townsfolk.config().distant.farIllnessEvery;
         const world = { day: 1000, generationParams: { seed: 3 }, activeEvents: [] };
         const near = townAt(10, 10), far = townAt(10, 10);
         const spy = vi.spyOn(Illness, '_step');
@@ -88,8 +93,8 @@ describe('TownTrade far from the player', () => {
         expect(TownTrade.target(hh, r)).toBeCloseTo(plain, 6);
     });
 
-    it('a far town\'s catch-up steps every tradeEvery × stepDays', () => {
-        const every = Townsfolk.config().distant.tradeEvery;
+    it('a far town\'s catch-up steps every farTradeEvery × stepDays', () => {
+        const every = Townsfolk.config().distant.farTradeEvery;
         const step = TownTrade.config().stepDays;
         const s = townAt(10, 10);
         const calls = [];

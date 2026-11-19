@@ -925,9 +925,11 @@ export const Brawls = {
     },
 
     /** Rival Houses' retinues in the same town (systems/rivalHouses.js): their men come to blows. → result or null */
-    resolveRetainers(world, s, day) {
+    resolveRetainers(world, s, day, byHex = null) {
         const C = Brawls.config();
-        const units = Array.isArray(world && world.units) ? world.units.filter(u => u && u.type === RIVAL_TYPE && !u.destroyed && u.q === s.q && u.r === s.r) : [];
+        // (byHex: processDay's one pass over the units, 'q,r' → the retinues there, in the units' order)
+        const units = byHex ? (byHex.get(`${s.q},${s.r}`) || [])
+            : Array.isArray(world && world.units) ? world.units.filter(u => u && u.type === RIVAL_TYPE && !u.destroyed && u.q === s.q && u.r === s.r) : [];
         if (!units.length) return null;
         const key = `${_seed(world)}|retain|${s.q},${s.r}|${day}`;
         if (_frac(key) >= _num(C.causes.retainers.perDay, 0.18)) return null;
@@ -964,6 +966,13 @@ export const Brawls = {
         const views = typeof world.getSettlementViews === 'function' ? world.getSettlementViews() : [];
         const here = player && player.q != null ? `${player.q},${player.r}` : null;
         const G = C.grudges;
+        // (the rival Houses' retinues by hex, once for the day: not every town filtering every unit)
+        const retinues = new Map();
+        for (const u of Array.isArray(world.units) ? world.units : []) {
+            if (!u || u.type !== RIVAL_TYPE || u.destroyed) continue;
+            const k = `${u.q},${u.r}`;
+            (retinues.get(k) || retinues.set(k, []).get(k)).push(u);
+        }
         for (const s of views) {
             if (!s || s.q == null || !s.folk) continue;
             const st = Brawls.state(s);
@@ -980,7 +989,7 @@ export const Brawls = {
             if (born) events.push({ kind: 'grudge', hex: `${s.q},${s.r}`, town: s.name, feud: born });
             const hex = `${s.q},${s.r}`;
             if (opts.onMap && hex === here) continue;
-            const r = Brawls.resolveOffscreen(world, s, day) || Brawls.resolveRetainers(world, s, day);
+            const r = Brawls.resolveOffscreen(world, s, day) || Brawls.resolveRetainers(world, s, day, retinues);
             if (!r) continue;
             events.push({ kind: 'brawl', hex, town: s.name, how: r.how, line: r.line, arrested: r.arrested });
             // Word to the player of people they know

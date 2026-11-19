@@ -6,6 +6,7 @@ The world model: terrain generation, kingdoms, settlements, economy, NPCs, and e
 
 | File | Lines | Description |
 |------|-------|-------------|
+| `brands.js` | ~130 | `Brands`: a court's brand on the player (player/trials.js `player.trials.brands`), read where it is seen: first impressions (systems/fame.js), a lord's opinion (`npcLords.getLordOpinion`), a rival head's parley, the watch's suspicion in the branding realm, respectable trades' prices and refusals, fine houses, a realm's wards. Full weight in the branding realm, `foreignShare` elsewhere, faded after `fadeAfterDays`; an earlier head's brand died with them, a pardoned one is a scar. Pure reads; `data/trials.json` → `brands` |
 | `characters.js` | ~400 | NPC generation, name tables, procedural traits |
 | `colonization.js` | ~550 | Settlement founding, colonization mechanics |
 | `villageFounding.js` | ~500 | `VillageFounding`: the world side of the player founding a village with real settlers — `survey` (open land, spacing, same shore, not another realm's heartland; food/water/timber/stone/trade 0-5), `bestSites`, the party's walk along its route (`travel`, a `settler` WorldUnit with `unit.expedition`), `arrive`/`found` (the village holds only the people, grain, tools, timber and coin they carried; the player's holding, in their realm if they rule one), and its years (`processDay` from Colonization.processTurn: a holding outside any realm is fed by the food model, frontier growth, town by the dawn's rule, daughter parties). `data/colonization.json` `founding`; `player.founding` (saved) |

@@ -35,6 +35,7 @@ import { Gossip } from '../systems/gossip.js';
 import { Arms } from '../systems/arms.js';
 import { House } from '../systems/house.js';
 import { TownWorship } from '../systems/townWorship.js';
+import { Trading } from './playerEconomy.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -58,6 +59,7 @@ const DEFAULTS = {
     scandal: { reputationMult: 6, prestige: 6, rumour: 'begging_noble' },
     vagrancy: { harsh: 0.35, standard: 0.1, lenient: 0, fine: 1.5 },
     npc: { brokeBelow: 3, starveBelow: 1, recoverAbove: 10, findWork: 0.3, townPurseAbove: 200 },
+    hunger: { foodDays: 2, everyDays: 3 },
 };
 
 let _src;
@@ -188,6 +190,43 @@ export const Begging = {
         let mult = 1;
         for (const v of Object.values(parts)) mult *= v;
         return { spot, passers, chance: _clamp(_num(C.give, 0.14) * mult, 0, 0.95), mult, parts, noble };
+    },
+
+    /**
+     * Before the hunger comes: in a town, with foodDays or fewer meals in the
+     * packs and no meal on the stalls this purse can buy (config hunger), at
+     * most every everyDays (player.begging.hungerWarned). No RNG.
+     * → { title, text, cheapest: { id, name, price } | null } | null
+     */
+    hungerWarning(player, world) {
+        const H = Begging.config().hunger || {};
+        if (!player || !world || typeof world.getTile !== 'function' || typeof player.getFoodCount !== 'function') return null;
+        if (player.jailState || player.indenturedServitude || player.boardedShip) return null;
+        const food = player.getFoodCount();
+        if (food > _num(H.foodDays, 2)) return null;
+        const tile = world.getTile(player.q, player.r);
+        const s = tile && tile.settlement;
+        if (!s) return null;
+        const day = _day(world);
+        const was = _obj(player.begging) ? player.begging.hungerWarned : null;
+        if (was != null && day - was < Math.max(1, _num(H.everyDays, 3))) return null;
+        const edible = (player.constructor && player.constructor.FOOD_TYPES) || [];
+        let goods = [];
+        try { goods = Trading.getAvailableGoods(s, tile, world) || []; } catch (e) { goods = []; }
+        const stalls = goods.filter(g => g && edible.includes(g.id) && g.quantity > 0 && Number.isFinite(g.price)).sort((a, b) => a.price - b.price);
+        const cheapest = stalls[0] || null;
+        const gold = _num(player.gold);
+        if (cheapest && gold >= cheapest.price) return null;
+        Begging.state(player).hungerWarned = day;
+        const name = cheapest ? String(cheapest.name || cheapest.id).toLowerCase().replace(/_/g, ' ') : null;
+        const left = food <= 0 ? 'Your packs are empty' : `Your packs hold ${food} meal${food === 1 ? '' : 's'}`;
+        const why = cheapest
+            ? `and the cheapest ${name} in ${s.name || 'this town'} costs ${Utils.formatGold(cheapest.price)}g; you have ${Utils.formatGold(gold)}g.`
+            : `and ${s.name || 'this town'} has no food on its stalls.`;
+        const ways = cheapest
+            ? "Beg for alms, take a day's work, sell something, or set out for a cheaper town before the hunger comes."
+            : 'Find another town while you can still walk, or forage and hunt in the wild.';
+        return { title: '🍞 Bread Out of Reach', text: `${left}, ${why} ${ways}`, cheapest: cheapest ? { id: cheapest.id, name, price: cheapest.price } : null };
     },
 
     /** Can the player beg here? → { ok, reason } */

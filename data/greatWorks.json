@@ -1,0 +1,163 @@
+{
+    "_doc": "Works of the Ages (systems/greatWorks.js, ui/actionMenu/greatWorks.js): civic great works that take 20-60 years and many funders - cathedrals, great bridges, universities, royal canals, city walls, castle keeps, great harbours. Distinct from Patronage's Great Works (one House's private wonder, a few years). Processed every `tickDays` days (a week); at most `maxLive` works live in the world (one per `townsPerWork` towns) and `perRealm` in a realm; a crown at war pays its pledges only from what it holds over `npc.crownFloor` + `npc.crownWarChest`; an NPC founds a work only where its pledge and what the town's other backers would offer reach `pledge.foundFunding` of full pace (the founder pledges `pledge.founderYears`). The full-pace weekly cost is reckoned at the site's going price (between base and `estimateCap` times base). A good the near towns cannot supply is carted from the `supplyFarTowns` next towns within `supplyFarRange` hexes at its price plus `haulPerHex` a hex (paid to the selling town); still short, `substitutes` stand in ({ good: { substitute: units of it per unit } }), bought at their own price; NPC actors (crowns, the church, noble Houses, burghers, guilds, rival Houses) found and pledge on the month (`monthTicks` weekly turns). A type's `years` is its length at full funding; funding sets the pace (up to `maxPace` times full speed; a winter week of an outdoor stage goes at `winterPace`). Materials are bought from the site's market and `supplyTowns` nearest towns within `supplyRange` hexes, at most `drawShare` of a stock a week, at the going price; `hands` townsfolk are hired at the site's land wage (systems/labour.js counts them). Every coin comes out of a funder's real purse into the site town's (its sellers and hands) and from there to the other towns that sold stone. `pledge`: a funder pays its weekly pledge for its term; `missedLimit` short weeks in a row break it (shame: `honour.brokenShame` Prestige, and the town remembers). `stall`: a work no one pays for stands still; after `decayAfterYears` it loses `decayPerYear` of what was built a year, after `ruinAfterYears` it is a ruin (the town's grudge against those who broke their pledges) that anyone may resume. Effects on completion (per type `effects`): `piety` a week to the realm's piety up to `pietyCap`; `pilgrims` gold a week drawn from the realm's towns into the site; `pull` migration draw (systems/migration.js); `letters` / `realmLetters` literacy target (systems/literacy.js); `education` heirs' learning (systems/upbringing.js) for a House that carved its name or lives in the realm; `defense` siege defence (world/townEras.js wallDefense); `walls` the town's walls become stone; `bridge` the road out of town over a river bridged and made at least a road; `canal` a canal to the paired town (world/transport.js); `seaHaul` a harbour's sea friction multiplier.",
+    "enabled": true,
+    "tickDays": 7,
+    "monthTicks": 4,
+    "maxLive": 18,
+    "townsPerWork": 6,
+    "perRealm": 2,
+    "maxPace": 1.6,
+    "winterPace": 0.5,
+    "minWeekShare": 0.05,
+    "drawShare": 0.25,
+    "supplyTowns": 4,
+    "supplyRange": 12,
+    "supplyFarTowns": 6,
+    "supplyFarRange": 24,
+    "haulPerHex": 0.02,
+    "substitutes": { "iron": { "tools": 1 }, "planks": { "wood": 1.5 }, "book": { "parchment": 3 }, "glassware": { "wood": 2 } },
+    "estimateCap": 1.4,
+    "nearRange": 14,
+    "pledge": {
+        "missedLimit": 6,
+        "npcTermYears": [6, 18],
+        "playerWeekly": [2, 5, 10, 25, 50, 100],
+        "playerYears": [5, 10, 20, 0],
+        "founderMinShare": 0.1,
+        "foundFunding": 0.6,
+        "founderYears": 20,
+        "maxPlayer": 4
+    },
+    "stall": { "decayAfterYears": 2, "decayPerYear": 0.04, "ruinAfterYears": 8, "minProgress": 0.02 },
+    "honour": {
+        "carveMinShare": 0.03,
+        "prestigeBase": 60,
+        "stagePrestige": 4,
+        "brokenShame": 25,
+        "abandonShame": 35,
+        "grudgeYears": 60,
+        "grudgeMood": -3,
+        "pride": 3,
+        "renownPerPrestige": 0.2
+    },
+    "npc": {
+        "foundChance": 0.04,
+        "resumeChance": 0.08,
+        "crownMinTreasury": 6000,
+        "crownFloor": 1500,
+        "crownWarChest": 6000,
+        "crownShare": 0.008,
+        "holderMinPurse": 600,
+        "holderShare": 0.006,
+        "guildMinTreasury": 250,
+        "guildShare": 0.008,
+        "rivalMinGold": 400,
+        "rivalShare": 0.006,
+        "maxFunders": 9,
+        "raiseAt": 1.3
+    },
+    "types": {
+        "cathedral": {
+            "name": "Cathedral", "icon": "⛪", "title": "The Cathedral of {town}",
+            "blurb": "A spire the whole country sees: the realm grows more pious, pilgrims come and spend, and folk move to the town.",
+            "years": 42, "minType": "town", "hands": 10,
+            "funders": { "church": 3, "crown": 1.2, "noble": 1, "burghers": 1, "guild": 0.5, "rival": 0.8 },
+            "founders": ["church", "crown"],
+            "stages": [
+                { "name": "Foundations and crypt", "share": 0.15, "outdoor": true, "goods": { "stone": 420, "wood": 60 } },
+                { "name": "The nave", "share": 0.25, "outdoor": true, "goods": { "stone": 700, "wood": 180, "iron": 20 } },
+                { "name": "Walls and vaults", "share": 0.25, "outdoor": true, "goods": { "stone": 640, "wood": 160, "iron": 25 } },
+                { "name": "The towers", "share": 0.2, "outdoor": true, "goods": { "stone": 420, "wood": 100, "iron": 20 } },
+                { "name": "Spire and glass", "share": 0.15, "outdoor": false, "goods": { "stone": 160, "wood": 60, "iron": 15, "glassware": 50 } }
+            ],
+            "effects": { "piety": 0.05, "pietyCap": 85, "pilgrims": 6, "pull": 0.03 },
+            "prestige": 120
+        },
+        "university": {
+            "name": "University", "icon": "🎓", "title": "The University of {town}",
+            "blurb": "Colleges and masters: the town and its realm learn their letters, scholars gather, and the heirs of a House that built it are better taught.",
+            "years": 30, "minType": "city", "hands": 8,
+            "funders": { "crown": 1.5, "church": 1.5, "guild": 1.2, "burghers": 1.2, "noble": 0.8, "rival": 0.8 },
+            "founders": ["crown", "church", "burghers"],
+            "stages": [
+                { "name": "The great hall", "share": 0.3, "outdoor": true, "goods": { "stone": 300, "wood": 120 } },
+                { "name": "The colleges", "share": 0.35, "outdoor": true, "goods": { "stone": 340, "wood": 160, "iron": 15 } },
+                { "name": "The library", "share": 0.2, "outdoor": false, "goods": { "stone": 100, "planks": 80, "parchment": 60, "book": 20 } },
+                { "name": "Masters' chairs", "share": 0.15, "outdoor": false, "goods": { "planks": 60, "book": 15 } }
+            ],
+            "effects": { "letters": 0.12, "realmLetters": 0.04, "education": 0.25, "pull": 0.02 },
+            "prestige": 100
+        },
+        "great_bridge": {
+            "name": "Great Bridge", "icon": "🌉", "title": "The Great Bridge of {town}",
+            "blurb": "Stone piers over the river: the road out of town crosses dry-shod in every flood and is made a proper road; trade runs over it.",
+            "years": 18, "minType": "village", "hands": 10, "requires": "river",
+            "funders": { "crown": 1.5, "burghers": 1.4, "guild": 1, "noble": 1, "church": 0.4, "rival": 0.8 },
+            "founders": ["crown", "burghers", "noble"],
+            "stages": [
+                { "name": "Cofferdams and piers", "share": 0.4, "outdoor": true, "goods": { "stone": 380, "wood": 160, "iron": 20 } },
+                { "name": "The arches", "share": 0.4, "outdoor": true, "goods": { "stone": 420, "wood": 120, "iron": 20 } },
+                { "name": "Roadway and parapets", "share": 0.2, "outdoor": true, "goods": { "stone": 160, "iron": 10 } }
+            ],
+            "effects": { "bridge": true, "pull": 0.01 },
+            "prestige": 70
+        },
+        "royal_canal": {
+            "name": "Royal Canal", "icon": "🚣", "title": "The Royal Canal of {town} and {other}",
+            "blurb": "A cut between two towns: barges carry goods between them cheaper and faster than any road.",
+            "years": 32, "minType": "town", "hands": 16, "requires": "canal",
+            "funders": { "crown": 2, "burghers": 1.2, "guild": 1, "noble": 0.8, "rival": 0.8 },
+            "founders": ["crown"],
+            "stages": [
+                { "name": "Surveys and the first cut", "share": 0.2, "outdoor": true, "goods": { "wood": 120, "tools": 20 } },
+                { "name": "Digging the channel", "share": 0.45, "outdoor": true, "goods": { "stone": 300, "wood": 160, "tools": 40 } },
+                { "name": "Locks and basins", "share": 0.25, "outdoor": true, "goods": { "stone": 340, "wood": 140, "iron": 30 } },
+                { "name": "Towpaths and wharves", "share": 0.1, "outdoor": true, "goods": { "stone": 80, "planks": 60 } }
+            ],
+            "effects": { "canal": true },
+            "prestige": 90
+        },
+        "city_walls": {
+            "name": "City Walls", "icon": "🧱", "title": "The Walls of {town}",
+            "blurb": "A ring of stone with towers and gatehouses: the town stands a siege far longer.",
+            "years": 20, "minType": "town", "hands": 12,
+            "funders": { "crown": 1.5, "burghers": 1.6, "noble": 1, "guild": 0.8, "church": 0.3, "rival": 0.6 },
+            "founders": ["crown", "burghers"],
+            "stages": [
+                { "name": "Ditch and footings", "share": 0.25, "outdoor": true, "goods": { "stone": 260, "tools": 15 } },
+                { "name": "The curtain wall", "share": 0.45, "outdoor": true, "goods": { "stone": 620, "wood": 60, "iron": 10 } },
+                { "name": "Towers and gatehouses", "share": 0.3, "outdoor": true, "goods": { "stone": 360, "wood": 80, "iron": 25 } }
+            ],
+            "effects": { "walls": "stone", "defense": 0.15 },
+            "prestige": 70
+        },
+        "castle_keep": {
+            "name": "Castle Keep", "icon": "🏰", "title": "The Keep of {town}",
+            "blurb": "A great tower over the town: the last stand of its defenders, and the crown's seat in the land.",
+            "years": 16, "minType": "town", "hands": 10,
+            "funders": { "crown": 2, "noble": 1.4, "burghers": 0.6, "rival": 1 },
+            "founders": ["crown", "noble"],
+            "stages": [
+                { "name": "Motte and footings", "share": 0.3, "outdoor": true, "goods": { "stone": 240, "wood": 80 } },
+                { "name": "The tower", "share": 0.5, "outdoor": true, "goods": { "stone": 480, "wood": 120, "iron": 20 } },
+                { "name": "Halls and battlements", "share": 0.2, "outdoor": false, "goods": { "stone": 120, "planks": 60, "iron": 15 } }
+            ],
+            "effects": { "defense": 0.2 },
+            "prestige": 60
+        },
+        "great_harbour": {
+            "name": "Great Harbour", "icon": "⚓", "title": "The Great Harbour of {town}",
+            "blurb": "Moles, quays and a lighthouse: ships load faster and safer, and every sea haul from the port costs less.",
+            "years": 26, "minType": "town", "hands": 12, "requires": "port",
+            "funders": { "crown": 1.4, "burghers": 1.4, "guild": 1.3, "noble": 0.6, "rival": 0.8 },
+            "founders": ["crown", "burghers"],
+            "stages": [
+                { "name": "The breakwater", "share": 0.35, "outdoor": true, "goods": { "stone": 520, "wood": 80 } },
+                { "name": "Quays and moles", "share": 0.4, "outdoor": true, "goods": { "stone": 420, "wood": 160, "iron": 20 } },
+                { "name": "The lighthouse", "share": 0.25, "outdoor": true, "goods": { "stone": 200, "iron": 15, "glassware": 20 } }
+            ],
+            "effects": { "seaHaul": 0.75, "pull": 0.01 },
+            "prestige": 80
+        }
+    }
+}

@@ -251,7 +251,7 @@ export const TownWorship = {
         // catch-up and day-by-day both first ask here for the same day)
         if (!Number.isFinite(last)) last = upTo - 1;
         // (the dead not yet buried, once a call — not every person every day caught up; no one dies in the loop)
-        const unburied = last + 1 <= upTo ? folk.people.filter(p => p.died != null && !p.buried) : [];
+        const unburied = last + 1 <= upTo ? TownWorship._unburied(folk, last + 1) : [];
         for (let d = last + 1, guard = 0; d <= upTo && guard < 20000; d++, guard++) {
             let at = world;
             if (world && _num(world.day) !== d) { at = Object.create(world); at.day = d; }
@@ -265,6 +265,27 @@ export const TownWorship = {
             }
             folk.worshipDay = d;
         }
+    },
+
+    /**
+     * The dead of the town not yet buried who still can be (died no more than
+     * 3 days before `from`), in roster order. Kept on folk._deadQ (not saved):
+     * one scan of the roster on first sight, then the deaths Townsfolk._die
+     * adds — not every person of every town every day.
+     */
+    _unburied(folk, from) {
+        let q = folk._deadQ;
+        if (!Array.isArray(q)) {
+            q = folk.people.filter(p => p.died != null && !p.buried);
+            Object.defineProperty(folk, '_deadQ', { value: q, writable: true, configurable: true, enumerable: false });
+        }
+        // (the buried, and those dead too long to be buried now, go: d - died > 3 for every d from on)
+        const keep = q.filter(p => p && p.died != null && !p.buried && from - p.died <= 3);
+        if (keep.length !== q.length) folk._deadQ = keep;
+        if (!keep.length) return [];
+        const at = new Map();
+        for (const p of keep) at.set(p, folk.people.indexOf(p));
+        return keep.filter(p => at.get(p) >= 0).sort((a, b) => at.get(a) - at.get(b));
     },
 
     /** The realm the player rules (player.throne.ruling: systems/throne.js), or null. */

@@ -1,0 +1,149 @@
+{
+    "_doc": "Law courts and trials (player/trials.js; the Courts & Lawsuits panel ui/actionMenu/trials.js). Three courts: (1) THE PLAYER TRIED: an arrest (Underworld._arrest, by any road) holds the player on remand for remandDays; the case is the town's (systems/watchQuestioning.js charges, their proof and witnesses), heard by the local judge (the realm's lord in his capital, a magistrate elsewhere) under the realm's punishment law (systems/laws.js) and its old court custom (customs: a hash of the realm). Advocates, bribes, witnesses swayed or threatened, a plea, the player's reputation and House prestige move the verdict: acquittal, a fine (to the crown or the town's court, a real payee), the cells (prison.js jailState), branding or exile. (2) THE PLAYER AS JUDGE: townsfolk crimes (settlement.npcCrimes, or a dispute brought by the folk) come before a ruler's court; mercy and harshness move happiness, loyalty, prestige and the court's character; the kin remember (systems/npcMemory.js); a wrongful verdict may surface later. (3) LAWSUITS between Houses: debt, land, a broken betrothal, slander; heard after hearingDays; damages paid purse to purse. All coin in whole cents.",
+    "enabled": true,
+    "proofWeight": { "0": 0.15, "1": 0.6, "2": 1.4, "3": 2.4 },
+    "remandDays": { "village": 2, "town": 3, "city": 3, "capital": 4, "default": 3 },
+    "historyCap": 30,
+    "verdict": {
+        "_doc": "Conviction: z = base + evidence (sum of the charges' proofWeight × the share of their witnesses still standing, × custom.evidence × judge.evidence) × evidenceMult + judge.severity + law[punishment] − defence; P(convict) = 1/(1+e^−z) + noise. Defence: advocate skill × advocatePer × custom.advocate × judge.advocate; reputation in the realm (÷100, capped ±1) × reputationMult × custom.reputation; House prestige ÷ prestigeDiv (capped) × judge.rank; bribe ÷ bribeScale × judge.venality × custom.bribe; surrendered; karma ÷ karmaDiv × judge.mercy.",
+        "base": -1.1, "evidenceMult": 0.85, "advocatePer": 0.16, "reputationMult": 0.9, "prestigeDiv": 300, "prestigeCap": 0.8,
+        "bribeScale": 100, "bribeCap": 2.2, "surrendered": 0.45, "karmaDiv": 100, "absent": 0.6, "pleaGuilty": 3,
+        "law": { "lenient": -0.35, "standard": 0, "harsh": 0.4 },
+        "witnessFloor": { "3": 0.45, "2": 0.15, "1": 0.1, "0": 0 },
+        "noise": 0.08
+    },
+    "sentence": {
+        "_doc": "On conviction: grave charges (watchQuestioning grave groups) go to the cells (days from watchQuestioning days × graveDays × the law's jail × (1 + judge.severity)), or a brand (brandChance + judge severity), or exile (a repeat offender: offenseNumber ≥ exileOffenses, or a stranger to the realm on a grave charge: exileStranger). Lesser charges: a fine (watchQuestioning fines × the law's fine × fineMult), the cells for a repeat offender (repeatCells) or one who cannot pay. A guilty plea takes pleaMult off. Days already held count against the cells.",
+        "graveDays": 2.5, "minDays": 3, "maxDays": 90, "lesserDays": 2, "fineMult": 1.2, "minFine": 10,
+        "brandChance": 0.15, "brandSeverity": 0.5, "exileOffenses": 3, "exileStranger": 0.35, "exileDays": 480, "exileGraceDays": 4,
+        "repeatCells": 3, "pleaMult": 0.7, "absentGoldPerDay": 6,
+        "brand": { "reputation": -15, "renown": -5, "prestige": 10, "suspicion": 20, "days": 1 },
+        "exileArrest": 0.25,
+        "acquitReputation": 4, "convictReputation": -4
+    },
+    "brands": {
+        "_doc": "THE BRAND THAT STAYS (read by world/brands.js; pardons in player/trials.js). A brand is the branded person's (player.trials.brands, with the House generation: an heir is not branded). Seen in the realm that burned it at full weight (×1), elsewhere at foreignShare; after fadeAfterDays it is an old scar (× fadedWeight). It costs: a townsperson's first impression (disposition), a realm lord's opinion (lordOpinion), a rival head's parley chance (rivalParley), the watch's suspicion in any town of the branding realm (suspicion, × weight), dearer prices from respectable folk (priceShift on respectable trades) and, in the branding realm, refusal by refuseRoles and by fine houses (innRefuseStars stars or more; other houses innPriceShift dearer) while the weight is at least refuseAt; and that realm will not send a ward to the House. PARDONS (one at a time per brand): royal (coin into the branding crown's chests: cost + perOffense × the brands you bear, standing at least minReputation, not at war), prestige (House Prestige spent, standing at least minReputation), petition (the folk of a town of that realm sign for you: a fee to the town's purse, standing at least minReputation; after days the crown answers with chance base + standing × perRep + karma × perKarma, at most max; refused, ask again after retryDays) or penance (alms into the purse of the town you stand in, a town of that realm with karma at least minKarma; after days with no new conviction, the brand is forgiven).",
+        "fadeAfterDays": 1200, "fadedWeight": 0.6, "foreignShare": 0.5,
+        "disposition": -15, "lordOpinion": -20, "rivalParley": -0.1, "suspicion": 15,
+        "priceShift": 0.12, "respectable": ["merchant", "noble", "priest", "blacksmith_npc", "healer"],
+        "refuseRoles": ["noble", "priest"], "refuseAt": 0.9, "innRefuseStars": 4, "innPriceShift": 0.25,
+        "pardon": {
+            "royal": { "name": "A Royal Pardon", "icon": "👑", "cost": 300, "perOffense": 100, "minReputation": -20, "desc": "Buy the crown's pardon: coin into its chests." },
+            "prestige": { "name": "Pardon for the House's Name", "icon": "⭐", "cost": 40, "minReputation": 10, "desc": "The crown pardons a House of standing: Prestige spent." },
+            "petition": { "name": "A Petition of the Folk", "icon": "📜", "fee": 10, "minReputation": 20, "days": 30, "base": 0.3, "perRep": 0.01, "perKarma": 0.005, "max": 0.85, "retryDays": 120, "desc": "The folk of a town sign for you. The crown answers in a month." },
+            "penance": { "name": "Public Penance", "icon": "🕯️", "alms": 60, "days": 90, "minKarma": -20, "desc": "Alms to the town and three months of a clean life before its church." }
+        }
+    },
+    "advocates": {
+        "_doc": "Advocates for hire in the trial town: grown townsfolk of the lettered trades (roles), their skill 2–8 by a hash (+nobleBonus for a noble); fee = baseFee[town type] × (0.5 + skill / 6); the fee goes into the advocate's own purse. A town with no roster has its court pleader (skill pleaderSkill), paid into the town's purse.",
+        "roles": ["noble", "priest", "merchant"], "max": 3, "minAge": 24, "nobleBonus": 1, "pleaderSkill": 3,
+        "baseFee": { "village": 20, "town": 40, "city": 70, "capital": 110, "default": 40 },
+        "titles": ["advocate", "pleader", "man of law", "clerk of the court"]
+    },
+    "bribe": {
+        "_doc": "A bribe to the judge: steps of the town's baseFee × steps; the judge takes it with chance venality + diplomacy × diplomacyPer (a just judge seldom), else refuses: a new charge of bribing the court (proof 3) and heat. A lord's bribe goes to his crown's chests, a magistrate's to his own purse.",
+        "steps": [1, 2.5, 5], "diplomacyPer": 0.03, "refusedHeat": 6
+    },
+    "witnesses": {
+        "_doc": "Each witness once: persuade (charisma, diplomacy; an honest witness resists), pay (coin to the witness's purse; refused and reported: a charge of suborning a witness), threaten (strength, combat: always a crime — the witness remembers it, heat, and may report it: a charge of threatening a witness). A witness swayed or cowed no longer stands against the charge.",
+        "persuade": { "base": 0.25, "charisma": 0.03, "diplomacy": 0.04, "honest": -0.15 },
+        "pay": { "base": 0.55, "honest": -0.3, "poor": 0.15, "cost": { "village": 10, "town": 20, "city": 35, "capital": 50, "default": 20 }, "reported": 0.5 },
+        "threaten": { "base": 0.45, "strength": 0.03, "combat": 0.03, "reported": 0.35, "heat": 4 },
+        "honestTraits": ["kind", "devout", "honest", "generous"], "poorRoles": ["beggar", "villager", "farmer"]
+    },
+    "customs": {
+        "_doc": "A realm's old court custom (a hash of the realm by share): how a court weighs evidence, advocates, reputation and coin, and how much is left to chance.",
+        "magistrate": { "name": "The Magistrate's Bench", "icon": "🧑‍⚖️", "share": 0.45, "evidence": 1, "advocate": 1, "reputation": 1, "bribe": 1, "noise": 0.06, "desc": "The judge hears the case alone and decides it. Evidence and a good advocate weigh most." },
+        "peers": { "name": "A Jury of Peers", "icon": "👥", "share": 0.25, "evidence": 1.1, "advocate": 0.9, "reputation": 1.6, "bribe": 0.5, "noise": 0.1, "desc": "Twelve townsmen decide: your name in the realm counts for much, and a judge's purse for less." },
+        "compurgation": { "name": "Oath-Helpers", "icon": "🤝", "share": 0.18, "evidence": 0.8, "advocate": 0.6, "reputation": 1.4, "bribe": 0.8, "noise": 0.12, "desc": "The accused swears innocence, and men of standing swear with them. Standing matters more than witnesses." },
+        "ordeal": { "name": "Trial by Ordeal", "icon": "🔥", "share": 0.12, "evidence": 0.6, "advocate": 0.4, "reputation": 0.8, "bribe": 1.2, "noise": 0.35, "desc": "Hot iron or cold water: God decides, they say. Much is left to chance, and the priest can be paid." }
+    },
+    "judges": {
+        "_doc": "Judge personas. severity leans to conviction, venality to taking a bribe, mercy to weighing karma and a plea, rank to weighing House prestige, evidence and advocate scale how much those count. A lord judges in his capital (persona from his traits: traitPersona), a magistrate elsewhere (a townsperson of standing, persona by a hash leaning to the lord's).",
+        "personas": {
+            "just": { "name": "Just", "icon": "⚖️", "severity": 0, "venality": 0.08, "mercy": 0.1, "rank": 0.2, "evidence": 1.25, "advocate": 1.1, "line": "The evidence will decide this, and nothing else." },
+            "hanging": { "name": "Hanging Judge", "icon": "🪢", "severity": 0.6, "venality": 0.15, "mercy": -0.3, "rank": 0.3, "evidence": 0.9, "advocate": 0.8, "line": "I have never yet sent a guilty man home." },
+            "venal": { "name": "Venal", "icon": "💰", "severity": 0.15, "venality": 0.85, "mercy": 0, "rank": 0.5, "evidence": 0.85, "advocate": 1, "line": "Justice is costly. The court must be paid for." },
+            "merciful": { "name": "Merciful", "icon": "🕊️", "severity": -0.35, "venality": 0.1, "mercy": 0.5, "rank": 0.2, "evidence": 1, "advocate": 1, "line": "Every soul can mend. Let us see whether yours will." },
+            "proud": { "name": "Proud", "icon": "🦚", "severity": 0.2, "venality": 0.3, "mercy": 0, "rank": 1, "evidence": 0.9, "advocate": 0.9, "line": "Who are your people? A name tells me much." },
+            "shrewd": { "name": "Shrewd", "icon": "🦉", "severity": 0.05, "venality": 0.35, "mercy": 0, "rank": 0.3, "evidence": 1.1, "advocate": 1.4, "line": "Argue it well, and I will listen." }
+        },
+        "traitPersona": { "honorable": "just", "brave": "just", "cruel": "hanging", "greedy": "venal", "pious": "merciful", "cautious": "merciful", "ambitious": "proud", "cunning": "shrewd" },
+        "lordWeight": 3,
+        "magistrateRoles": ["noble", "priest", "merchant"],
+        "magistrateTitle": "magistrate"
+    },
+    "lines": {
+        "opened": ["You are held for trial in {town}. {judge} will hear your case in {days} days.", "The cell door shuts: your case comes before {judge} of {town} in {days} days."],
+        "acquitted": ["{judge} finds the case not proven. You walk out of {town} a free {man}.", "Not guilty. The crowd mutters; the clerk strikes your name from the roll."],
+        "fined": ["Guilty. {judge} fines you {fine} gold, to be paid to {payee} before you leave the court.", "The court finds against you: a fine of {fine} gold, paid to {payee}."],
+        "jailed": ["Guilty. {judge} sentences you to {days} days in the cells of {town}.", "The verdict is guilty: {days} days in {town}'s cells."],
+        "branded": ["Guilty. The iron is heated: you are branded before the court of {town}, and turned out.", "Guilty: the brand of {realm} is burned into your hand, and you are let go."],
+        "exiled": ["Guilty. {judge} banishes you from {realm} for {years} years. Be gone across the border within {grace} days.", "You are cast out of {realm}: return within {years} years and the cells will have you."]
+    },
+    "judge": {
+        "_doc": "THE PLAYER AS JUDGE. Each day, each seat the player rules (Petitions.holdingContexts with a town) may bring a case (perDay by town type; at most maxPending open): a crime on the town's record (settlement.npcCrimes, recordDays old at most, the doer alive in town), else (generatedShare) a complaint the folk bring. A case's hidden truth: guilty with the chance its evidence gives (guilt by proof). Unanswered after expireDays the case lapses (lapse effects). A verdict's harshness against the crime's severity moves the town (proportionate, harsh or lenient effects — Petitions effects: happiness, loyalty, prestige, court); the accused and their kin remember it (npcMemory kinds condemned / spared_court; a hanging: hanged, the blood the avengers count); the victim remembers justice done or denied. Convicting the innocent (or freeing the guilty) may surface later (surfaceChance, surfaceDays): wrongful effects; amends cost amendsCost to the wronged house.",
+        "perDay": { "village": 0.02, "town": 0.04, "city": 0.06, "capital": 0.08, "default": 0.04 },
+        "maxPending": 3, "expireDays": 12, "recordDays": 40, "generatedShare": 0.6, "minAge": 16,
+        "guilt": { "caught": 0.92, "seen2": 0.8, "seen1": 0.68, "unseen": 0.5 },
+        "guiltByProof": { "1": 0.5, "2": 0.72, "3": 0.9 },
+        "surfaceChance": 0.55, "freedGuiltySurface": 0.3, "surfaceDays": [30, 300],
+        "amendsCost": 60,
+        "crimes": {
+            "burglary": { "label": "housebreaking", "severity": 2, "fine": 25, "weight": 0 },
+            "pickpocket": { "label": "cutting purses", "severity": 1, "fine": 12, "weight": 0 },
+            "brawl": { "label": "brawling", "severity": 1, "fine": 8, "weight": 3 },
+            "loot": { "label": "robbing the fallen", "severity": 2, "fine": 20, "weight": 0 },
+            "graveRobbing": { "label": "robbing a grave", "severity": 3, "fine": 30, "weight": 0 },
+            "theft": { "label": "theft", "severity": 2, "fine": 15, "weight": 4 },
+            "poaching": { "label": "poaching in the lord's woods", "severity": 1, "fine": 10, "weight": 2 },
+            "debt": { "label": "an unpaid debt", "severity": 1, "fine": 10, "weight": 2 },
+            "cheating": { "label": "short weights at market", "severity": 1, "fine": 14, "weight": 2 },
+            "slander": { "label": "slander", "severity": 1, "fine": 6, "weight": 1 },
+            "assault": { "label": "a beating", "severity": 2, "fine": 18, "weight": 2 },
+            "arson": { "label": "setting a fire", "severity": 3, "fine": 40, "weight": 1 },
+            "murder": { "label": "murder", "severity": 4, "fine": 60, "weight": 0.4 }
+        },
+        "proofText": { "1": "the complainant's word alone", "2": "witnesses who will swear to it", "3": "caught in the act by the watch" },
+        "verdicts": {
+            "acquit": { "label": "Acquit", "icon": "🕊️", "harsh": 0, "desc": "Let them go: the case is not proven." },
+            "fine": { "label": "Fine", "icon": "💰", "harsh": 1, "desc": "A fine out of their purse, into yours." },
+            "stocks": { "label": "The stocks", "icon": "🪵", "harsh": 2, "desc": "A day in the stocks, for the town to see." },
+            "jail": { "label": "The cells", "icon": "⛓️", "harsh": 2, "days": 20, "desc": "Some weeks in the cells." },
+            "exile": { "label": "Banish", "icon": "🚪", "harsh": 3, "desc": "Out of the town, and not to come back." },
+            "hang": { "label": "Hang", "icon": "🪢", "harsh": 4, "desc": "The gallows. The square will remember." }
+        },
+        "effects": {
+            "proportionate": { "happiness": 2, "prestige": 2, "court": { "justice": 1 } },
+            "harshPer": { "happiness": -2, "loyalty": 1, "prestige": 1, "court": { "severity": 1 } },
+            "lenientPer": { "happiness": 1, "loyalty": -1, "prestige": -1, "court": { "mercy": 1 } },
+            "acquitShown": { "happiness": -2, "court": { "mercy": 1 } },
+            "acquitDoubt": { "happiness": 1, "court": { "mercy": 1, "justice": 1 } },
+            "lapse": { "happiness": -1 },
+            "wrongful": { "happiness": -6, "prestige": -8, "court": { "justice": -2 } },
+            "wrongfulHanged": { "happiness": -10, "prestige": -15, "court": { "justice": -3 } },
+            "freedGuilty": { "happiness": -2, "court": { "justice": -1 } },
+            "amends": { "happiness": 3, "prestige": 2, "court": { "justice": 1, "generosity": 1 } }
+        }
+    },
+    "suits": {
+        "_doc": "LAWSUITS between the player's House and a rival House (systems/rivalHouses.js; the grounds in RivalHouses.lawGrounds). Grounds: debt (a refused loan the rival owes), land (both Houses hold estates in one town: world/estates.js), betrothal (the player's House broke a betrothal into the rival's realm: the realm lord's memory betrothal_broken; or the rival House broke one with the player's family: rival.brokeBetrothal, systems/heirAgency.js, within betrothalDays and not yet sued over), slander (a rival's slander plot against you, revealed or struck; or your insult to their head). Filing pays fee to the court's town; the hearing comes after hearingDays. merit is the plaintiff's case before the judge (the realm's lord); advocates, bribes and standing at that court move it. Damages purse to purse; winner prestige +prestige (a rival's renown +prestige/2), loser loses it; feud moves. A rival head goes to law as one of its ERRANDS ('law', scored beside trade, court, plots and the rest in RivalHouses._scores): worth rival.weight × (1 + (honour − 5) × honourMult + feud × feudMult) × the best ground's merit / meritNorm (× schemingMult for a scheming head), only with grounds, honour of minHonour or more, no suit of theirs open, cooldownDays since their last, and the fee in the purse. It rides to the court (the player's liege's capital, else its own), pays the fee into that town's purse and files (rival.suing, taken up by the courts' day): the honest Houses go to law rather than to blades.",
+        "fee": 25, "hearingDays": [6, 12], "settleShare": 0.5, "maxOpen": 3,
+        "kinds": {
+            "debt": { "name": "An Unpaid Debt", "icon": "🧾", "merit": 0.8, "prestige": 6, "feud": 6, "desc": "They borrowed and will not repay." },
+            "land": { "name": "A Land Dispute", "icon": "🌾", "merit": 0.5, "prestige": 8, "feud": 8, "costs": 40, "desc": "A claim to an estate both Houses say is theirs." },
+            "betrothal": { "name": "A Broken Betrothal", "icon": "💔", "merit": 0.7, "prestige": 10, "feud": 6, "damages": 250, "desc": "A match promised and then broken." },
+            "slander": { "name": "Slander", "icon": "🗣️", "merit": 0.55, "prestige": 6, "feud": 5, "damages": 120, "desc": "Lies spread to blacken a name." }
+        },
+        "verdict": { "meritMult": 4, "advocatePer": 0.15, "standingDiv": 40, "bribeScale": 150, "bribeCap": 1.5, "noise": 0.1 },
+        "rival": { "weight": 2, "honourMult": 0.2, "feudMult": 0.01, "meritNorm": 0.6, "schemingMult": 0.5, "minHonour": 3, "cooldownDays": 120, "betrothalDays": 360, "advocateShare": 0.05, "advocateMax": 120, "bribeMaxHonour": 3, "bribeShare": 0.04 },
+        "lines": {
+            "filedAgainst": ["{house} sues you for {kind} before the court of {court}. The hearing is in {days} days."],
+            "pardoned": ["The crown of {realm} pardons you: the brand is a scar now, and nothing more.", "A clerk of {realm} reads the pardon aloud. Your brand no longer marks a criminal."],
+            "petitionRefused": ["The crown of {realm} will not hear the petition. The brand stays."],
+            "penanceBroken": ["A new conviction undoes your penance in {realm}."],
+            "won": ["The court of {court} finds for you against {house}."],
+            "lost": ["The court of {court} finds for {house}."]
+        }
+    }
+}

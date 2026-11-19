@@ -61,6 +61,8 @@ import './nemesis.js';
 import './bonds.js';
 // Your Crimes & Enemies: charge sheets, bounty hunters, blood debts (systems/wanted.js)
 import './wanted.js';
+// Courts & Lawsuits: your trial, your own court, lawsuits between Houses (player/trials.js)
+import './trials.js';
 import './lodging.js';
 import './townLots.js';
 import './peopleCrimes.js';
@@ -108,6 +110,8 @@ import './estates.js';
 import './puttingOut.js';
 import './economy.js';
 import './publicWorks.js';
+// Works of the Ages: cathedrals, universities, bridges, canals, walls over generations (systems/greatWorks.js)
+import './greatWorks.js';
 import './treasury.js';
 import './annals.js';
 import './timeline.js';

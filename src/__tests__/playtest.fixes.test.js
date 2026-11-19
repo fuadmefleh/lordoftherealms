@@ -46,14 +46,15 @@ function makeWorld(land = {}, { day = 1, size = 12 } = {}) {
 }
 
 describe('ship upkeep', () => {
-    it('never takes the purse below zero; unpaid upkeep wears the hull', () => {
+    it('never takes the purse below the bread money kept back; unpaid upkeep wears the hull', () => {
         const world = makeWorld({ '5,5': { terrain: GRASS, settlement: { name: 'Saltmere', type: 'town' } } });
         const player = {
             q: 5, r: 5, gold: 2, inventory: {},
             ships: [{ id: 's1', name: 'Gull', typeId: 'galleon', status: 'docked', q: 5, r: 5, cargo: {}, crew: 0, condition: 80 }],
         };
         const res = Ships.processDaily(player, world);
-        expect(player.gold).toBe(0);
+        // (the last settings.layUp.keepBack gold stay the owner's, for bread)
+        expect(player.gold).toBe(2);
         expect(res.upkeepShort).toBeGreaterThan(0);
         expect(player.ships[0].condition).toBeLessThan(80);
     });

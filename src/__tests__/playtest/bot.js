@@ -311,7 +311,12 @@ function sellGoods(game, tile, stats) {
             const f = Underworld.sellToFence(player, world, tile, id, qty);
             if (f.success) { count(stats, 'fenced'); continue; }
         }
-        const bm = Underworld.sellBlackMarket(player, world, tile, id, qty);
+        // (a raid fines half the deal's worth: never stake more than a quarter of the purse on one —
+        // a seed-202 life lost 866g of 870 to one raid, then starved broke)
+        const bmPrice = Underworld.blackMarketPrice(world, tile, id) || 0;
+        const bmQty = bmPrice > 0 ? Math.min(qty, Math.floor((player.gold * 0.25) / (bmPrice * 0.5))) : 0;
+        if (bmQty < 1) continue;
+        const bm = Underworld.sellBlackMarket(player, world, tile, id, bmQty);
         if (bm.success) count(stats, 'blackMarket');
     }
 }
@@ -2212,13 +2217,24 @@ function delveTrek(game, stats) {
     let trek = game.trek && world.day - game.trek.day <= 60 && Delves.isDelveSite(world.getTile(game.trek.q, game.trek.r))
         && !bad.has(`${game.trek.q},${game.trek.r}`) ? game.trek : null;
     if (!trek) game.trek = null;
+    // (held in the cells — on remand for trial, or serving it — is not being stuck on the road:
+    // the trek waits, its clock and its stuck-counts untouched)
+    if (trek && player.jailState) { trek.day += 1; trek.lastFrom = null; return; }
     // (beaten back on the road there three times — a lair across the way: another site next month)
     if (trek && player.health < 50 && !trek.hurtDay) { trek.hurtDay = world.day; trek.fails = (trek.fails || 0) + 1; }
     if (trek && player.health >= 50) trek.hurtDay = null;
     if (trek && trek.fails >= 3) { (game.trekBeaten || (game.trekBeaten = {}))[`${trek.q},${trek.r}`] = world.day; game.trek = trek = null; game.lastTrek = -1e9; count(stats, 'delveTrekBeaten'); }
+    // (broke with the packs running low: bread first — the trek is dropped for a town and work)
+    if (trek && player.gold < 30 && player.getFoodCount() <= 10) { game.trek = trek = null; count(stats, 'delveTrekBroke'); }
     if (trek && player.health >= 50 && player.getFoodCount() >= 3 && !player.boardedShip && !Delves.active(player)) {
         const from = `${player.q},${player.r}`;
+        // (the day's other errands walked it back to where it began yesterday three days running:
+        // a seed-202 life went back and forth between a trek and a town for 17 days and starved)
+        trek.still = trek.lastFrom === from ? (trek.still || 0) + 1 : 0;
+        trek.lastFrom = from;
+        if (trek.still >= 3) { bad.add(`${trek.q},${trek.r}`); game.trek = null; count(stats, 'delveTrekNoWay'); return; }
         travelTo(game, trek.q, trek.r);
+        game.trekStepDay = world.day;
         // (no step taken toward it three days running: no way there from here)
         if (`${player.q},${player.r}` === from && !player.crossing && (player.q !== trek.q || player.r !== trek.r)) {
             trek.stuck = (trek.stuck || 0) + 1;
@@ -2357,6 +2373,8 @@ export function botDay(game, stats) {
     else if (player.gold < 400 && !MerchantHouses.company(player) && !player.boardedShip) {
         const docked = (player.ships || []).find(s => s.status === 'docked');
         if (docked && Ships.sellShip(player, docked.id, world).success) count(stats, 'shipsSold');
+        // (no buyer at her port: pay the crew off and lay her up — a quarter of her upkeep)
+        else if (docked && (docked.crew || 0) > 0 && Ships.dismissCrew(player, docked.id, docked.crew).success) count(stats, 'laidUp');
     }
     // Running out of food with money in the purse: make for the nearest town and buy some
     // (one that had food the last time it was tried: a dawn village picked bare is no use)
@@ -2411,6 +2429,25 @@ export function botDay(game, stats) {
                 } else {
                     return;
                 }
+            }
+        }
+    }
+    // Broke out in the country with the packs running low: make for the nearest town while
+    // there is food for the road — a day's work or alms there buys bread; the wild may not
+    const atNow = world.getTile(player.q, player.r);
+    if (!cantBuy && player.gold < 30 && player.getFoodCount() >= 1 && player.getFoodCount() <= 6 && !player.boardedShip
+        && !(atNow && atNow.settlement) && !Delves.active(player)) {
+        const town = nearest(world, player, settlementTiles(world).filter(stocked), 1)[0];
+        if (town && town.d <= Math.max(2, player.getFoodCount() * 2)) {
+            const from = `${player.q},${player.r}`;
+            game.dest = { q: town.q, r: town.r };
+            travelTo(game, town.q, town.r);
+            if (from !== `${player.q},${player.r}`) {
+                count(stats, 'brokeToTown');
+                const now = world.getTile(player.q, player.r);
+                if (now && now.settlement && (player.actionPoints || 0) >= JOB_AP) booked(game, 'labour', () => dayLabour(game, now, stats));
+                if (now && now.settlement) booked(game, 'buyFood', () => buyFood(game, now, stats));
+                return;
             }
         }
     }
@@ -2627,7 +2664,8 @@ export function botDay(game, stats) {
         travelTo(game, game.dest.q, game.dest.r);
         // No way there (another island, or beyond the pathfinder's reach): pick again
         // (a day spent part-way across a hex of days is progress: travel by days per hex, data/travel.json)
-        if (`${player.q},${player.r}` === from && !player.crossing) {
+        // (the trek already took today's steps toward a delve site: standing still now is the day spent, not no way there)
+        if (`${player.q},${player.r}` === from && !player.crossing && !(game.dest.delve && game.trekStepDay === world.day)) {
             if (game.dest.delve || game.dest.company) (game.unreachableSites || (game.unreachableSites = new Set())).add(`${game.dest.q},${game.dest.r}`);
             game.dest = null;
             count(stats, 'unreachable');

@@ -70,7 +70,7 @@ export function _buildConversation(npc) {
     dialogState._freeTalk = null; // (a new conversation starts with the choices)
     // First impressions: the player's name here, and a rival House's feud (systems/fame.js)
     const g0 = dialogState._game;
-    if (g0 && g0.player) NpcDisposition.seedFromStanding(npc, g0.player, Fame._kingdomAt(g0.world, g0.player.q, g0.player.r));
+    if (g0 && g0.player) NpcDisposition.seedFromStanding(npc, g0.player, Fame._kingdomAt(g0.world, g0.player.q, g0.player.r), g0.world);
     const mem = _mem(npc);
     // A newly titled player is congratulated (and liked a little more)
     const titleNews = NpcDisposition.notePlayerTitle(npc, _getPlayerTitle());

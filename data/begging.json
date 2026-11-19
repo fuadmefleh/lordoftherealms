@@ -24,6 +24,8 @@
     "reputation": 0.5,
     "scandal": { "reputationMult": 6, "prestige": 6, "rumour": "begging_noble" },
     "vagrancy": { "harsh": 0.35, "standard": 0.1, "lenient": 0, "fine": 1.5 },
+    "_hunger": "A warning before the hunger comes (Begging.hungerWarning, shown at the day's end): the packs hold foodDays or fewer meals and the purse can't buy the cheapest meal on this town's stalls (or there is none to buy), at most every everyDays. It names the cheapest meal and the ways out: alms, a day's work, something to sell, the road to another town.",
+    "hunger": { "foodDays": 2, "everyDays": 3 },
     "npc": {
         "_doc": "Townsfolk who fall on hard times (systems/townJobs.js season): a jobless hand or day labourer, grown and not in the player's service, with less than brokeBelow in the purse who went hungry this season (or is under starveBelow) takes to begging (job beggar, fallen: the beggar's spot in town life, keeping their home); on a later season one back over recoverAbove, or who finds work (findWork chance a season while the town's purse is above townPurseAbove), leaves it. Their alms come with every beggar's (data/townJobs.json living.alms: out of the town's purse).",
         "brokeBelow": 3, "starveBelow": 1, "recoverAbove": 10, "findWork": 0.3, "townPurseAbove": 200

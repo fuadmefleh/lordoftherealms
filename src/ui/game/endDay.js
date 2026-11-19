@@ -35,12 +35,15 @@ import { Rivals } from '../../systems/rivals.js';
 import { Nemesis } from '../../systems/nemesis.js';
 import { Bonds } from '../../systems/bonds.js';
 import { Wanted } from '../../systems/wanted.js';
+import { Trials } from '../../player/trials.js';
+import { Begging } from '../../player/begging.js';
 import { ProfaneCrimes } from '../../systems/profaneCrimes.js';
 import { KinCrimes } from '../../systems/kinCrimes.js';
 import { HouseQuests } from '../../systems/houseQuests.js';
 import { Upbringing } from '../../systems/upbringing.js';
 import { HeirAgency } from '../../systems/heirAgency.js';
 import { Raising } from '../../systems/raising.js';
+import { HeirPaths } from '../../systems/heirPaths.js';
 import { Regency } from '../../systems/regency.js';
 import { Abdication } from '../../systems/abdication.js';
 import { Townsfolk } from '../../systems/townsfolk.js';
@@ -96,6 +99,7 @@ import { MerchantPrince } from '../../systems/merchantPrince.js';
 import { Labour } from '../../systems/labour.js';
 import { Guilds } from '../../systems/guilds.js';
 import { PriceKnowledge } from '../../systems/priceKnowledge.js';
+import { PriceNews } from '../../systems/priceNews.js';
 import { Concessions } from '../../systems/concessions.js';
 import { LandMarket } from '../../systems/landMarket.js';
 import { PuttingOut } from '../../systems/puttingOut.js';
@@ -110,6 +114,7 @@ import { Underwriting } from '../../systems/underwriting.js';
 import { Bills } from '../../systems/bills.js';
 import { Bourse } from '../../systems/bourse.js';
 import { PublicWorks } from '../../systems/publicWorks.js';
+import { GreatWorks } from '../../systems/greatWorks.js';
 import { Mints } from '../../systems/mints.js';
 import { Engrossing } from '../../systems/engrossing.js';
 import { LawCouncil } from '../../systems/lawCouncil.js';
@@ -293,6 +298,9 @@ export function endDay() {
             const upkeep = lastHours.upkeep;
             if (upkeep) this.ui.showNotification('🌙 The Day\'s Last Hours', upkeep.text, 'info');
             if (lastHours.order) this.ui.showNotification(lastHours.order.title, lastHours.order.text, lastHours.order.ran ? 'info' : 'warning');
+            // The courts (player/trials.js): an arrest held for trial before the jail's night,
+            // the trial due, cases before your own court, the Houses' lawsuits
+            for (const n of Trials.processDay(this.world, this.player).notices.slice(0, 4)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             // Process player's daily activities
             const playerResults = PlayerActions.endDay(this.player, this.world);
             // A night between: whatever a deep dive took, the breath is back (player/diving.js)
@@ -413,6 +421,12 @@ export function endDay() {
                     kinMeal.text, kinMeal.refused ? 'warning' : 'info');
             }
 
+            // Before the hunger comes: no meal on these stalls this purse can buy (player/begging.js)
+            {
+                const hw = this.player.starvationDays > 0 ? null : Begging.hungerWarning(this.player, this.world);
+                if (hw) this.ui.showNotification(hw.title, hw.text, 'warning');
+            }
+
             // Show starvation warnings
             if (this.player.starvationDays > 0) {
                 const days = this.player.starvationDays;
@@ -464,6 +478,8 @@ export function endDay() {
                     this.ui.showNotification('👥 Wages Unpaid',
                         `You couldn't pay your sailors ${Utils.formatGold(crewDay.wages)}g today. Their morale is falling — unpaid crews desert.`, 'warning');
                 }
+                // The fleet's day will soon run the purse dry (Ships._leanPurse: lay a ship up, or sell her)
+                if (shipDay && shipDay.leanPurse) this.ui.showNotification('⚓ The Fleet Eats Your Purse', shipDay.leanPurse.text, 'warning');
                 // Royal fleets stop ships near hostile ports
                 for (const ic of (shipDay && shipDay.interceptions) || []) {
                     this.ui.showNotification(ic.won ? '⚓ Squadron Beaten Off' : '⚓ Ship Intercepted', ic.text, ic.won ? 'success' : 'error');
@@ -548,6 +564,8 @@ export function endDay() {
                 for (const n of HeirAgency.processDay(this.player, this.world).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
                 // Time together, tutors' wages, wards at court, the coming-of-age summary (systems/raising.js)
                 for (const n of Raising.processDay(this.player, this.world).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+                // Formative paths, hostages and their terms, wards kept as leverage (systems/heirPaths.js)
+                for (const n of HeirPaths.processDay(this.player, this.world).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
                 for (const n of Regency.processDay(this.player, this.world).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
                 // The rulers who stepped down: pensions, counsel, plots; the court's pressure to step down (systems/abdication.js)
                 const abd = Abdication.processDay(this.player, this.world);
@@ -938,6 +956,9 @@ export function endDay() {
             // (roads, bridges, canals, harbours) buying their stone and hiring hands (systems/publicWorks.js)
             const worksDay = PublicWorks.processDay(this.world, this.player);
             for (const n of worksDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            // Works of the Ages: cathedrals, universities, bridges, canals, walls rising over decades,
+            // their funders paying in turn, ruins and grudges (systems/greatWorks.js; weekly)
+            for (const n of GreatWorks.processDay(this.world, this.player).notices.slice(0, 3)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
             // The settlement markets' day: production, consumption, NPC trade
             // (world/settlementMarket.js; lairs and sieges disrupt the roads)
@@ -964,6 +985,9 @@ export function endDay() {
                 holdings: Holdings.list(this.player, this.world),
                 traders: MerchantCaravans.traders(this.world),
             });
+            // Price news: the markets' news travelling town to town, rival lies, the
+            // player's price letters and correspondents (systems/priceNews.js)
+            for (const n of PriceNews.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             // The Economic Chronicle: the realms' weekly indices, the fashions at court,
             // the gazette where the player stands, their net worth (systems/economyChronicle.js)
             EconomyChronicle.processDay(this.world, this.player);

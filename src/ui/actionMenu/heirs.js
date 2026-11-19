@@ -15,6 +15,7 @@ import { HallChronicles } from '../hallChronicles.js';
 import { Companions } from '../../systems/companions.js';
 import { Traits } from '../../systems/traits.js';
 import { Throne } from '../../systems/throne.js';
+import { heirPathsHtml } from './heirPaths.js';
 import { BTN_DARK, BTN_RED, sectionHead, lede, chips, card, actRow, rowList, price } from './uiKit.js';
 import { Utils } from '../../core/utils.js';
 
@@ -237,6 +238,8 @@ Object.assign(ActionMenu, {
 
         // Fostering, betrothal, commissions, the record and its payoff (ui/actionMenu/heirAgency.js)
         if (p.alive) html += ActionMenu._familyAgencyHtml(game, child);
+        // The years away: formative paths, a hostage's terms, the friends made (ui/actionMenu/heirPaths.js)
+        if (p.alive) html += heirPathsHtml(game, child);
 
         if (p.events.length) {
             html += rowList(p.events.map(e => ({

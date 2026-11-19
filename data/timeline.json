@@ -11,10 +11,10 @@
     "minBattleDead": 60,
     "battleMergeDays": 120,
     "battleMergeRange": 3,
-    "priority": { "crisis": 9, "rise": 8, "fall": 8, "crown": 8, "siege": 6, "taken": 5, "battle": 3, "succession": 2 },
+    "priority": { "crisis": 9, "rise": 8, "fall": 8, "crown": 8, "siege": 6, "taken": 5, "battle": 3, "succession": 2, "work": 6 },
     "icons": {
         "battle": "⚔️", "siege": "🏰", "taken": "🚩", "crisis": "🌋", "rise": "🌅", "fall": "💀", "crown": "👑", "succession": "🕯️",
-        "founded": "🏘️", "ruined": "🏚️", "war": "🔥", "peace": "🕊️"
+        "founded": "🏘️", "ruined": "🏚️", "war": "🔥", "peace": "🕊️", "work": "🏛️"
     },
     "text": {
         "battle": "{victor} defeated {loser} {at}.",

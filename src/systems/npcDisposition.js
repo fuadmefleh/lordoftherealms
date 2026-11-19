@@ -28,6 +28,7 @@ import { Romance } from './romance.js';
 import { NpcMemory } from './npcMemory.js';
 import { Names } from '../core/names.js';
 import { Economy } from '../world/economy.js';
+import { Brands } from '../world/brands.js';
 import { Townsfolk } from './townsfolk.js';
 
 /**
@@ -168,6 +169,11 @@ export const NpcDisposition = {
         const memPlayer = ctx && ctx.player;
         const remembered = memPlayer && npc._person ? NpcMemory.priceShift((ctx && ctx.world) || null, npc, memPlayer) : null;
         if (remembered && remembered.refuses) return { buy: 1, sell: 1, pct: 0, reasons, refuses: true, refuseReason: remembered.reason };
+        // A court's brand (world/brands.js): respectable folk of the realm that burned it will not deal
+        const branded = memPlayer && ctx.kingdomId != null ? memPlayer : null;
+        if (branded && Brands.refuses(branded, ctx.kingdomId, npc.type, (ctx && ctx.world) || null)) {
+            return { buy: 1, sell: 1, pct: 0, reasons, refuses: true, refuseReason: `${npc.name || 'They'} will not deal with a branded criminal.` };
+        }
 
         let shift = 0;
         if (remembered && remembered.shift) {
@@ -221,6 +227,13 @@ export const NpcDisposition = {
             }
         }
 
+        // ...and elsewhere, the respectable charge the branded more
+        const brandShift = memPlayer ? Brands.priceShift(memPlayer, ctx.kingdomId != null ? ctx.kingdomId : null, npc.type, (ctx && ctx.world) || null) : 0;
+        if (brandShift) {
+            shift += brandShift;
+            reasons.push({ label: 'Your brand', pct: Math.round(brandShift * 100) });
+        }
+
         const buy = clamp(1 + shift, 0.6, 1.5);
         const sell = clamp(1 - shift * 0.75, 0.6, 1.3);
         return { buy, sell, pct: Math.round((buy - 1) * 100), reasons, refuses: false };
@@ -242,12 +255,12 @@ export const NpcDisposition = {
      * rival House's feud in this realm (systems/fame.js). Applied once.
      * @returns {{ delta:number, reasons:Array }|null}
      */
-    seedFromStanding(npc, player, kingdomId = null) {
+    seedFromStanding(npc, player, kingdomId = null, world = null) {
         if (!npc || !player) return null;
         const mem = NpcDisposition.getMemory(npc);
         if (mem.seeded || mem.timesSpoken > 0) return null;
         mem.seeded = true;
-        const seed = Fame.dispositionSeed(player, kingdomId);
+        const seed = Fame.dispositionSeed(player, kingdomId, world);
         if (seed.delta) mem.disposition = clamp(mem.disposition + seed.delta, 0, 100);
         return seed;
     },

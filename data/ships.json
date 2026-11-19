@@ -579,6 +579,13 @@
         "conditionDecayChance": 0.04,
         "shipMovementPerDay": 3,
         "npcShipBuyChance": 0.02,
+        "layUp": {
+            "_doc": "A ship docked with no crew aboard is laid up: she pays upkeepShare of her daily upkeep (a watchman and harbour dues, not a working ship's chandlers). The fleet's upkeep and the crews' wages never take the purse below keepBack gold — what can't be paid goes undone (the hulls wear, the crews' morale falls) and the owner keeps bread money. With the fleet's costs a day running the purse dry within warnDays, the owner is warned (every warnEvery days).",
+            "upkeepShare": 0.25,
+            "keepBack": 25,
+            "warnDays": 5,
+            "warnEvery": 5
+        },
         "crew": {
             "_doc": "Sailors are hired at ports and paid daily. A ship below its crewRequired sails slower, fights worse and nets fewer fish; below minCrewShare it cannot leave port. Morale rests at restingMorale; storms, defeats and missed wages lower it, victories raise it, and sailors desert when it falls below desertionMorale.",
             "hireCostPerSailor": 12,

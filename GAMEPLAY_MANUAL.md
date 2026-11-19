@@ -1250,16 +1250,45 @@ You do not see every market's prices from afar. You know a town's prices only fr
 | 🏰 Your steward | The whole market of each of your holdings | A report every 3 days |
 | 🐫 A merchant met on the road | What its goods were worth at its origin and destination | As of the day it set out |
 | 🍺 Tavern talk (bought, heard or from informants) | A few goods, as reported | As of the telling, and it may be wrong |
+| 🗣️ Word on the road | News of a dearth or a glut in a town, heard where you stand | As of the day it began, reaching you at the pace of travellers. It may be a planted lie |
+| ✉️ A price letter | A whole market, written by a clerk there | As of the day it was written |
+| 🖋️ Your correspondent | A whole market, every 7, 14 or 30 days | As of the day it was written |
 
 Every price you know keeps its age ("12 days old"). Talk only says what a good is worth, so the asking price is estimated from the town's size and the stalls' pay is 70% of it. Your book keeps up to 30 towns (the stalest are forgotten first). Tuned in `data/priceKnowledge.json`.
 
-**The trade map.** Choose **📈 Trade Map** from the map modes (or press **M** until it comes up), then **G** to step through the goods (**Shift+G** back). Each town you know shows a marker with the good's last-known asking price, coloured by its stock (Glut blue to Dearth red), and the source and age of the news. Old news fades. Lines join the towns you know along the merchants' trade links: gold by land, blue by sea, thicker where caravans run often, and red and dashed where merchants shun a road after a loss. Caravans and trading ships in sight show the road ahead of them, bright if they carry the good.
+Every price also has a **trust**: sure (85%+), likely, doubtful or idle talk (under 45%). A visit starts at 100%, a factor's or steward's report at 95%, a letter or correspondent at 90%, a merchant met on the road at 70%, word on the road at about 55% (more when it agrees with what you knew) and tavern talk at 40%. Trust fades by half a point a day once the news is more than a week old.
 
-**The Merchant's Ledger** (**📒 Ledger** in a town's trade window, or from the map-mode menu) has four pages:
+#### Price News: News Travels at the Pace of Travellers
+
+(`systems/priceNews.js`, tuned in `data/priceKnowledge.json` → `news`)
+
+**News of the markets.** Once a week every market is looked over for notable moves in the staple goods (grain, flour, bread, fish, meat, beer, wine, salt, wood, iron, tools, wool, textiles, leather, horses). A **dearth** (a famine, a road shut by war, a lost caravan) or a **glut** becomes news, the most newsworthy first: those furthest from normal, the most sudden, and those in the greatest towns. The news starts in its town and spreads 2½ hexes a day, up to 18 hexes away, and is forgotten after 45 days. It keeps travelling after the dearth has eased, so old news can mislead.
+
+**Who knows.** You hear a piece of news when you stand in a town it has reached. It goes into your price book as 🗣️ word on the road, dated to the day the dearth began, and marked with where it was heard. NPC merchants know only what has reached their own town. A caravan leaving a town that has heard of a dearth down the road is likelier to set out on that road, and carries extra of the scarce good if its own town has some to spare. The destination pays for it on arrival. News of a glut turns caravans away from a road. **Merchants act on news beyond their usual roads.** Every other day the freshest news of a dearth (true or planted) sends a caravan from the town within 14 hexes that has heard it and has the good most to spare (its stalls not short, at least 10 in stock, and the price the news names at least 1.3 times its own): a quarter of its stock, at most 60. Each piece of news sends at most three such caravans, six days apart, and they may run up to three past the usual number of caravans on the roads. The destination pays for the lot on arrival, at its own price when the caravan set out. A caravan sent on news says so when you look at it ("heard grain is dear there"), and if you stand in the town it leaves you are told who loads it and why. **Whoever hears first gets there first**, and a letter or correspondent can tell you before the caravans hear.
+
+**Price news by post** (the **📮 News & Post** page of the Merchant's Ledger, in a town):
+
+- **A price letter by courier.** Your request rides out with a courier house that serves the town you are in, or with your own rider (6g plus 0.4g a hex). A clerk in the far town writes down the whole market on the day the request arrives, for 1.5g, paid in his town, and the letter rides back. You pay the postage both ways. The letter arrives after the real travel time there and back, priced as of the day it was written. Some letters are lost on the road, depending on the courier's reliability.
+- **A merchant's letter.** The merchants of your town copy you their next letter from a trading partner up to 16 hexes away: 3g plus 0.15g a hex, paid to your town. It is written there today and travels at a merchant's pace (2 hexes a day, one way).
+- **Correspondents.** Take on a correspondent in the town you stand in. Up to 4 of them write you the whole market every 7, 14 or 30 days, wherever you are, for 2–5g a letter by town size, paid into their town. If you cannot pay two letters running, they stop writing. At most 4 price letters can be on the road at once.
+
+**False news.** A rival merchant house with a grudge (rivalry 30+), or a rival House in a feud (30+), may pay talkers in the town nearest you to put about a lie: "grain is dear in X", a town 4–14 hexes away. The lie spreads like any news, and you hear it as word on the road, marked with the town where it was heard. Haul grain to X on the strength of it and you will find the price ordinary. Any claim is put to the test by a visit, a factor's or steward's report, a letter or a correspondent. When a lie is found out you are told where it was put about and, by all signs, who paid for it. The 🗣️ Word on the road list on the News & Post page shows each claim you heard, how far you trust it, and whether it was confirmed, proved false or superseded.
+
+**Planting your own.** In a town, on the News & Post page, pick a town 3–20 hexes away and a good, then pay the talkers (8g a village, 15g a town, 25g a city, 40g a capital, paid into the town) to say it is **dear** there (to lure merchants into hauling it there for nothing) or **going cheap** (to keep them away). Rival merchant houses with a seat or post the lie reaches lose up to 3% of their capital (at most 600g) on the wasted trip, after 14 days. The coin is spent in their towns. Caravans that hear it carry the good where it is not wanted, which gluts that market. Lies have a price:
+
+- 8% of the time you are seen paying.
+- After 14 days the lie is traced to you 25% of the time, plus 5% for each rival house or caravan it lured.
+- Once traced: heat with the realm's underworld, a "whisperer" rumour (reputation, renown, karma), −5 reputation for your trading company, and +15 rivalry with every rival house.
+- You cannot plant again for 14 days.
+
+**The trade map.** Choose **📈 Trade Map** from the map modes (or press **M** until it comes up), then **G** to step through the goods (**Shift+G** back). Each town you know shows a marker with the good's last-known asking price, coloured by its stock (Glut blue to Dearth red), and under it the source's icon (👁️ 🏪 🏰 🐫 🍺 🗣️ ✉️ 🖋️), the age of the news and its trust. The ring shows the trust: solid for sure or likely news, **dashed** (and the price marked ~) for doubtful, **dotted and faint** (marked ?) for idle talk. Old news fades. Lines join the towns you know along the merchants' trade links: gold by land, blue by sea, thicker where caravans run often, and red and dashed where merchants shun a road after a loss. Caravans and trading ships in sight show the road ahead of them, bright if they carry the good.
+
+**The Merchant's Ledger** (**📒 Ledger** in a town's trade window, or from the map-mode menu) has five pages:
 
 - **📖 Price Book.** For each good, every known town's asking price, what its stalls pay, its stock, distance and the age and source of the news. **🗺️ Show on the trade map** opens the map on that good.
 - **⚖️ Best Spreads.** The best known buy-here, sell-there margin for each good between two towns within 3, 5, 8 or 12 days' travel on foot from where you stand, the quickest way (roads, forests and mountains counted; a town across the water by the crow at open land's ¾ day a hex). It uses only what you know, so stale news can mislead, and a big lot moves the price against you.
 - **📈 Price History.** The asking prices you saw in the 10 markets you visited last, a sample every 3 days.
+- **📮 News & Post.** Your price letters on the road, your correspondents (take one on or dismiss one), sending for a town's prices (courier, your own rider or a merchant's letter, with the price, days and odds of arrival), the talk you have heard (its trust, and whether it was confirmed or proved false), and planting false price talk.
 - **💹 Profit & Loss.** Your books. First the **income statement** for the last 30 days (a season) or 120 days (a year): every gold flow you had, by source and grouped (trading margins; works, properties and company; interest and loans; dues, tolls and tariffs; taxes, office and faith; work and adventure; soldiers and ships; household). Below it the **capital and stock** you moved (goods bought and sold, works funded, properties built, money borrowed and principal repaid — not profit or loss), the guild tolls hidden inside your sale prices, and your **net worth**. Then your trading margins: each sale against the average cost of what you bought of that good (goods found, looted or made count as free), by good and by route (where you bought it → where you sold it). Every trading channel counts: the stalls, the ports, your store-rooms, forward contracts, guild contracts and the traders you hail on the road.
 
 ### The Economic Chronicle: the Gazette, Your Books and Fashions
@@ -2880,6 +2909,7 @@ Anyone in a town can **Beg for Alms** (Work & Wages, 3 AP: half a day with a bow
 - **The cost.** A little standing with the realm each time. A **noble** seen begging (a ruler, a titled officer, a landholder, or the head of a House of 150+ Prestige) is a scandal: six times the reputation loss, 6 Prestige, and the talk of it spreads from town to town. Where the realm's punishment law is harsh (35%) or standard (10%), the watch may move you on before the bowl fills, and fine you if they have seen you begging there before.
 - **Townsfolk beg too.** A grown hand out of work or labouring by the day, with almost nothing in the purse, who went hungry this season takes to begging rather than starve (`systems/townJobs.js`). They take the beggar's place in town life but keep their home. Their alms come out of the town's purse with every beggar's. Once they have 10 g put by, or find work while the town can pay, they leave it.
 - **An empty larder at home.** With nothing in your packs, you sup from the larder of a home of yours you are in, so an heir who comes home to a stocked house does not starve.
+- **A warning before the hunger.** In a town with 2 meals or fewer in your packs and no meal on its stalls your purse can buy, the day ends with **Bread Out of Reach**: the cheapest meal there and its price (or that the stalls are bare), and the ways out (alms, a day's work, something to sell, a cheaper town). At most every 3 days (`data/begging.json` `hunger`).
 
 ### Going to Church
 
@@ -3531,6 +3561,68 @@ Heat cools in weeks; a crown's memory does not. Every realm keeps a **charge she
   - **Flight and time.** The charges are per realm, so you are unknown elsewhere. After two years without a new crime the lesser charges begin to fade, twice as fast while you stay out of that realm. Grave charges never fade.
   - **Death.** The crowns' charges die with the one they were against. Blood debts do not.
 
+## Law Courts & Trials
+
+Nobody used to be tried: an arrest was a sentence. Now a court stands between the two (Family → Against you → ⚖️ **Courts & Lawsuits**; in the cells, **Your Trial**).
+
+- **Held for trial.** However you are arrested (the watch, a gate search, a bounty hunter's delivery, the curfew) you are held on **remand** for two to four days in the jail town. The cell, its cellmates, bribes and tunnel are all still there, and bail still lets you out.
+- **The case.** The charges are the town's own: what the watch's questioning holds against you, with its proof (hearsay, testimony, caught in the act) and the **witnesses** who saw it, plus the crown's warrants in that realm. With nothing on record, the arresting watchman's word is the charge.
+- **The judge.** In a realm's capital its **lord** judges, and his traits make his manner (a cruel lord is a hanging judge, a greedy one venal, a pious one merciful). Elsewhere a **magistrate** sits: a townsperson of standing. Judges are Just, Hanging, Venal, Merciful, Proud (who weighs your House's prestige) or Shrewd (who listens to a good advocate).
+- **Law and custom.** The realm's punishment law (lenient, customary, harsh) leans the court. So does its old **court custom**: a Magistrate's Bench (evidence and advocates count most), a Jury of Peers (your name in the realm counts most, bribes least), Oath-Helpers (standing over witnesses), or Trial by Ordeal (much left to chance, and the priest can be paid).
+- **Before the day.**
+  - **An advocate.** Hire one of the town's lettered folk (a noble, priest or merchant), skill 2 to 9. The fee goes into their own purse.
+  - **A bribe.** Slip the judge coin, once a day. A venal judge usually takes it, a just one seldom. Taken, it goes to the magistrate's purse or the lord's chests. Refused, it becomes a new charge (bribing the court) and draws heat.
+  - **The witnesses.** Talk each one round, pay them to forget, or threaten them, once each. A witness swayed or cowed no longer stands against the charge. Paying a witness who reports it is a new charge (suborning a witness). A threat is always a crime: the witness remembers it, it draws heat, and it may become a charge of its own.
+  - **A plea.** Plead guilty for a lighter sentence and a sure conviction.
+  - **Stand trial now** to be heard at once, rather than on the day.
+- **The verdict.** The evidence still standing is weighed against your advocate, your reputation in the realm, your House's prestige, any bribe taken and your karma (to a merciful judge). Giving yourself up counts in your favour. Outcomes:
+  - **Acquittal:** free, the charges answered, a little more regard in the realm.
+  - **A fine** on lesser charges: paid to the crown's chests if the lord judged, or to the town's court purse otherwise. What you cannot pay you serve in the cells.
+  - **The cells:** on grave charges, or for a third offence. The days on remand count toward it, and there is no bail after sentence.
+  - **The brand:** a grave charge before a harsh judge. You lose reputation, renown and prestige, and that town's watch keeps a closer eye on you. The brand stays for years (see *The Brand That Stays* below).
+  - **Exile** from the realm: for a repeat offender, or sometimes a stranger on a grave charge. Come back within four years and the watch of any of its towns may take you, and a court tries you for breaking exile.
+  - **Tried in absence.** Out on bail or escaped when the day comes, you are tried anyway, and more harshly. The sentence goes on the crown's charge sheet.
+- **Giving yourself up.** In a town that holds a case against you, you can surrender to the court. You are arrested, but the court notes that you came of your own will.
+
+### The Brand That Stays
+
+A brand is burned into you, not your House: an heir does not bear it. It is read wherever people meet you (`world/brands.js`, tuned in `data/trials.json` → `brands`). It weighs fully in the realm that burned it and half as much elsewhere. After ten years (1,200 days) it is an old scar and weighs 60% as much.
+
+- **First impressions.** A townsperson who has never spoken with you starts 15 points colder (about 7 abroad).
+- **Lords.** A realm's lord thinks 20 worse of you. This counts wherever his opinion does: his court's regard, letters, a fostered child's safety. A rival head is 10% harder to parley with or flatter, and says what he sees.
+- **The watch.** In every town of the branding realm the watch's suspicion of you is 15 higher, so they stop you sooner and judge you harder.
+- **Respectable folk.** Merchants, nobles, priests, smiths and healers charge you 12% more (6% abroad). In the branding realm nobles and priests will not deal with you at all, and its inns of 4 stars or more turn you away. Lesser houses charge a quarter more. That realm will not send a ward to your court.
+
+**A pardon.** In the **Courts & Lawsuits** panel (⚖️ Your Case → Marked), each brand lists the ways to a pardon. A pardoned brand is a scar and nothing more. Only one way can be under way at a time.
+
+| Way | What it takes |
+|---|---|
+| 👑 A Royal Pardon | 300 gold (+100 for each other brand you bear) into the branding crown's chests. Your standing there must be −20 or better, and you must not be at war with it. |
+| ⭐ For the House's Name | 40 Prestige, with standing 10 or better. |
+| 📜 A Petition of the Folk | Stand in a town of that realm, with standing 20 or better, and pay a 10 gold clerk's fee into its purse. After 30 days the crown answers: yes with a chance of 30%, +1% per point of standing, +0.5% per point of karma, at most 85%. If it refuses, you can ask again after 120 days. |
+| 🕯️ Public Penance | Stand in a town of that realm with karma −20 or better and give 60 gold in alms to its purse. Stay clear of the courts for 90 days and the brand is forgiven. A conviction in that time undoes the penance. |
+
+### Your Own Court
+
+When you rule a town, hold an office at a capital or rule a realm, the folk's crimes come before you: a crime on the town's record (a burglar named, a looter caught, a brawl) or a complaint the townsfolk bring. You see the accused, the charge, the victim and the evidence (the complainant's word, witnesses, or caught in the act). You never see the truth.
+
+- **Verdicts:** acquit, fine (out of the accused's purse into yours), a day in the stocks, the cells, banish from the town, or hang.
+- **Proportion.** A sentence that fits the crime earns happiness, prestige and a name for justice. A harsher one costs happiness but buys fear: loyalty and prestige, and a name for severity. A softer one wins a little happiness and costs loyalty. Acquitting someone caught in the act angers the town.
+- **Memory.** The condemned and their family remember the sentence. A hanging is blood: the dead one's children may grow up to avenge it. Those you spare remember the mercy, and victims remember justice done or denied. A harsh judgement or a hanging is remembered by the town itself.
+- **Wrong verdicts surface.** Condemn an innocent and the truth may come out months later. You lose happiness and prestige (far more for a hanging), the family hold it as a blood wrong, and the town remembers an unjust ruling. You can then **make amends** with coin to the family. Free the guilty and that can come out too.
+- An unheard case lapses after about twelve days, and the town grumbles.
+
+### Lawsuits Between Houses
+
+Your House and a rival House can take each other to law before a realm's lord (in the defendant's realm when you sue, in yours when they do). The grounds are:
+
+- **An unpaid debt:** a loan they refused to repay.
+- **A land dispute:** both Houses hold estates in the same town. The winner takes the disputed estate.
+- **A broken betrothal:** your House broke a match into their realm, and they sue for damages. Or *they* broke one with your family: a rival House whose feud with you reaches 60 may break a child's betrothal into its realm itself (a 20% chance each month). You may then sue them for 250 gold in damages, once, within a year.
+- **Slander:** their slander plot against you, or your insult to their head's face.
+
+Filing costs a court fee. The hearing comes six to twelve days later. Your advocate against theirs, your standing at that court against theirs, and bribes move the court. Damages pass purse to purse. The winner gains prestige and the loser loses it. A House that loses grows more bitter, and one that wins is a little appeased. Damages you cannot pay go on the crown's sheet as contempt of court. You may withdraw your own suit, or settle one against you for half the claim. Rival heads with some honour go to law when they have grounds, rather than to blades. **Going to law is one of their errands** (see *Rival Houses and Their Schemes*), weighed against trade, court and plots: the head rides to the court (your liege's capital, else his own), pays the 25 gold fee into that town's purse, and the summons reaches you the next day. A scheming House sues less often and may grease the judge.
+
 ## 15. Ships & Naval
 
 **Currents on the map.** Every sea hex has its current. On the world map faint pale streaks drift the way it runs over charted sea, more and brighter where it runs strong. On the trade map they show bolder, with arrowheads. A sea hex's info panel names it, for example *Current: the westerly drift, running east, strong*. The look can be changed in `data/currents.json` `display`.
@@ -3559,10 +3651,12 @@ Every ship needs sailors (its **crew** stat). New and used ships come **without 
 - Below a **skeleton crew** (a quarter of the crew stat) a ship cannot leave port.
 - **Morale** rests at 70 and scales combat strength (+15% at 100, −35% at 0). Storms at sea shake it and can wash a sailor overboard; a sea fight won lifts it (and may cost a sailor), a defeat costs 10–25% of the crew and a big morale hit. Paid crews recover toward 70, faster in harbour.
 - **Missed wages** (not enough gold) cost 15 morale a day; below 25 morale, 10% of the crew deserts each day.
+- **Laid up.** A ship docked with no crew aboard is laid up: she costs only **a quarter of her upkeep** (a watchman and harbour dues). Paying off the last hand lays her up; hire a crew again to sail.
+- **Bread money first.** The fleet's upkeep and the crews' wages never take your purse below **25g**. What can't be paid goes undone: the hulls wear and the crews go unpaid (and lose heart) instead of you going hungry. When the fleet's costs will empty your purse within 5 days, a warning (**The Fleet Eats Your Purse**, at most every 5 days) says how many days are left and to lay a ship up or sell her.
 - **Sickness aboard.** If you sail with a contagious disease, it can spread to your crew. Weeks at sea without fruit or berries (in your packs or the hold) can also bring scurvy to them. A sick crew loses 2 morale a day and now and then a sailor, until the outbreak passes. It passes twice as fast in port.
 - Ships from older saves keep a full crew at morale 70.
 
-Tunables live in `data/ships.json` → `settings.crew`.
+Tunables live in `data/ships.json` → `settings.crew` and `settings.layUp`.
 
 ### Provisions
 
@@ -4360,6 +4454,7 @@ Each rival House has a **head**: a lord or lady of that dynasty, with an age, tw
 | Court | 2 × (1 + their best standing at any court ÷ 25, at most 3×), +1 if the feud is 40+ and some realm likes you |
 | Shadow | 2 × (1 + (feud − 60) ÷ 20), only at feud 60+ with 150 gold and no plot of theirs in 90 days |
 | Waylay | 2 × (1 + (feud − 80) ÷ 10), only when they can waylay you (see **Waylaid** below) |
+| Law | 2 × (1 + (honour − 5) × 0.2 + feud × 0.01) × the best ground's merit ÷ 0.6, halved for a scheming head. Only with grounds to sue you, honour 3+, the 25 gold fee, no suit of theirs open and none in 120 days |
 | Home | 1, +20 when the purse is under 200 or after 150 days on the road |
 
 Each trait adds to an errand that is possible, and the errand the head's **ambition** needs counts 1.6×:
@@ -4376,7 +4471,10 @@ Each trait adds to an errand that is possible, and the errand the head's **ambit
 - **Invest**: the head buys an estate from the **land market**, the same listings you buy from (see [Land, Estates & the Putting-Out System](#land-estates--the-putting-out-system)). It looks within 24 hexes for an estate yielding at least 3% a year that it can pay for, with the crown's duty, while keeping 400 gold and spending at most 70% of its purse. It holds at most 6. It rides there and buys if the estate is still for sale, so **a rival can buy an estate out from under you**. Its rents reach its purse each week. A House whose purse falls below 150 lists its cheapest estate at 95% of its value.
 - **Court**: the head rides to a capital and stays 4–9 days, gaining 3 favour there, plus 1 per 20 renown, up to 60. It goes to its own realm's capital, or to the court where it stands best if it wants a crown's favour, or, if the feud is 40 or more, half the time to the capital of the realm that likes you best. Favour fades by 1 a month. **At 25 favour, the rival standing best at a court is that crown's favourite** (one to a court; see *The Houses Among Themselves*): the crown pays them 0.6 gold per point of favour each week from its treasury. With a feud of 40 or more the head **speaks against you** on each visit: −2 reputation with that realm, −1 more per 10 favour they hold there. Whispers can cool a realm's good opinion of you, but never push it below 0.
 - **Shadow** (feud 60+): the head rides to the town nearest you and stays 3–6 days. On arrival it pays for a plot against you, if it can. A head plots in person at most once every 90 days.
+- **Law**: the head rides to the court and sues you (see [Lawsuits Between Houses](#lawsuits-between-houses)). It stays 2–4 days.
 - **Home**: the head rests at its seat for 6–14 days.
+
+**A child of theirs at your court.** While you raise a rival House's child as a ward (below, *Their children sent away*), that House will not shadow or waylay you, whatever its feud.
 
 **Their ambitions.** Every head pursues one ambition, shown with its progress on the Rival Houses list:
 
@@ -5282,6 +5380,58 @@ The child's outcomes come home as letters (✒️ in **Letters**). Writing back 
 
 The new reign's chapter of the **Annals** opens with this life (*"Corin came to the seat with a life already lived: raised at the court of Maud of Arvenland; commanded the House's company in 3 battles…"*).
 
+#### The Years Away
+
+A child aged **10–14** can be sent away for years to be made (`systems/heirPaths.js`, tuned in `data/upbringing.json` → `paths`). Open the child's page (**Dynasty → 📖**), choose a path under **The Years Away**, then where to send them. Each child takes one path. The path ends before they come of age.
+
+| Path | Where | Years | Fee + board a year (paid to) | Teaches per year | Breeds | Also |
+|---|---|---|---|---|---|---|
+| 🛡️ Page and Squire | a ruler's court, or a rival House's hall | 4 | 120 + 40g (the crown's chests / the rival's purse) | +0.35 strength, +0.6 combat, +0.35 leadership, +0.1 diplomacy | Brave, Honest | counts as a fostering at succession; a rival House's feud cools by 10 now and 10 more when they finish |
+| ⚒️ Guild Apprentice | a guild master in a town with a guild | 4 | 80 + 20g (the guild's hall chest) | +0.25 intelligence, +0.1 luck, +0.65 commerce | Honest, Greedy | +10 letters |
+| 🙏 Novice of the Church | an abbey, a cathedral chapter, or the priory at a realm's seat | 3 | 100 + 10g (that town's purse) | +0.6 faith, +0.25 intelligence, +0.2 diplomacy | Pious, Merciful | +30 letters; the church holds no hostages |
+| 📜 Scholar | a cathedral school, or the university of a capital of 2,500+ people | 3 | 150 + 50g (that town's purse) | +0.6 intelligence, +0.35 cartography, +0.2 diplomacy, +0.1 commerce | Scholar | +40 letters; a fellow student comes from another realm |
+| 🌍 Fostered Abroad | a noble household of a realm that speaks another tongue | 3 | 100 + 30g (the crown's chests) | +0.3 charisma, +0.1 luck, +0.45 diplomacy, +0.2 cartography | Wanderer, Generous | +30 fluency a year in that realm's tongue; counts as a fostering |
+
+- The place's **master becomes the child's tutor** (×1.2, scaled by the place: a university ×1.25, a priory ×0.85). They teach the path's focus. Any tutor at home is let go.
+- Finishing the path leaves a mark: the path's trait grows stronger, and +1 in its main skill.
+- **Board** is paid every year. If you cannot pay it, the child is sent home early. You can also **call them home** yourself. Either way the path counts for half.
+- **Contacts.** Each path gives the child two named people who remember them: the knight who trained them and a fellow squire (a real child of the host House when one is within 3 years of your child's age: the rival head's son or daughter, or a royal child), the guild master and a fellow apprentice, the abbot and a fellow novice, their master and a student from abroad, or their foster sibling and the household that raised them. Their **regard** (40–70, more for a charming child) builds over the years. When the child comes home, the House knows them, at 40% of that regard, so they show up among the people you can invite to court. A grown, unwed child can **wed** a friend of their youth of the other sex, if that friend is 16 or older, unwed, and thinks well of them (regard 30+). That gives +4 standing with the friend's realm. A noble match brings +2 Prestige; anyone else costs 1. If that child inherits, the friend becomes the ruler's spouse.
+
+**Held as a hostage.** A squire's or fosterling's host can keep the child:
+- a court whose regard for your House falls to −30;
+- a rival House whose feud reaches 70;
+- any host when your realms go to war (a scholar's school too).
+
+The church and the guilds never hold hostages. Being held costs 5 Prestige. A few days later the holder **sets its terms**: 120 gold plus 5% of your purse (half again for your heir), up to 900. You have 30 days to answer:
+- **Pay** into their chests or purse. The child comes home, with +4 standing.
+- **Refuse**, or let the terms lapse. You lose 5 standing, the child hears that the House would not pay, and the next terms, 60 days later, cost a quarter more.
+- **Hire blades** (80 gold, paid in the town nearest you). The chance is 30% plus 4% per point of your stealth, plus your spymaster's help, between 10% and 80%. Success brings the child home, but costs 10 standing (a rival's feud grows by 10). Failure costs 15 standing, and the child is wounded (−10 max health) or, one time in ten, killed.
+- A ransom can still be sent **by letter** (Letters → Post).
+
+These terms apply to any held child, including one held while fostered or on an embassy.
+
+**While the House waits.** If you die and let time pass, a held child's clocks stand still while the House waits in trust. No terms fall due, no refusal is counted, and the child does not turn. Everything runs on from where it stopped when an heir returns.
+
+**Turning.** A held child **turns** a little every month: 6 points, half as fast if they are close to you (bond 70+), half again as fast if estranged. Each refusal adds 20 and a failed rescue 15. At 100 the child **has turned**. They grow deceitful and cunning and take on their captor's ways, and their bond with you falls by 20. A turned child in a House office loses 3 loyalty more at each drift. If a turned child inherits, it costs 6 Prestige, but their captors' realm gains +10 standing toward the new ruler.
+
+**Their children sent away.** Rival Houses send their own children away too. Each month a House has a 4% chance to send its youngest child aged 7–13, unwed and never sent before, away for 3 years:
+- **to your court as a ward**, if you have a ward seat free, their feud with you is 40 or less, and no child of theirs is with you already. They pay 8 gold a month from their purse into yours, and the feud cools by 1 a month (10 in all). While the child is with you, the House **will not plot against you or waylay you**. If the feud reaches 70, the child is a hostage in your keeping. Raised and sent home at the term, the feud cools 8 more and you gain 3 Prestige. Sent home early, the feud grows 4 (freed while a hostage, it cools 10). If the child dies at your court, the feud grows 30.
+- **or to another rival House** it is on good terms with (tie 10+). The two Houses grow closer: +10 now and +5 when the child comes home.
+
+**Wards as leverage.** A ward you keep (**Dynasty → 🎓 Wards at Court → Wards as Leverage**) can be:
+- **kept as a hostage**. Their realm pays no fee, you lose 8 standing at once and 2 a month, and each month there is an 8% chance its men spirit the child away (−5 standing; a ward held in a war can be spirited away the same way). Kept wards do not go home at their term;
+- **ransomed** home, once kept or held in a war. Their crown pays from its chests into your purse: 120 gold, or 180 for a royal child, or what it last offered. It costs 15 standing in peace (3 at war), and their lord remembers it as extortion.
+
+A rival House's child works the same way, but the feud keeps the score instead of standing: kept, the feud grows 10 at once and 2 a month (spirited away: 5 more); ransomed, the House pays 150 gold (or what it last offered, up to half its purse) from its purse into yours, and the feud grows 15.
+
+A realm whose ward you hold or keep **offers a ransom** of its own every 60 days or so (up to half its treasury). The offer stands for 30 days.
+
+**When the years away pay off.**
+- At coming of age, the summary tells what shaped the child: the path and where, the friends made, the last dilemmas they faced, and whether they turned. The summary goes into the House chronicle, and so into the Annals.
+- At succession, the friends become the new ruler's friends, at their full regard. Each friend's realm gives +2 standing, up to +8 in all, and a friend from a rival House cools its feud by 5. The tongues learned abroad come to the throne, and a completed path that was not a fostering gives +1 Prestige. These lines join the *life already lived* in the new reign's Annals chapter. The child's page previews them under *The years away, should they inherit*.
+
+**Upbringing shapes a grown child in office too.** A grown child's **adult traits** count toward their loyalty drift in a House office: Honest +1, Deceitful or Greedy −1, besides Ambitious and Loyal. So does the **bond**: close +1, estranged −2. A child holding the office their education focus trained them for (Martial → Marshal, and so on) serves at 125% of their skill. The ruler's own coming-of-age record shows on the Dynasty card.
+
 #### A Regency
 
 When the heir is under 16, you may install a regency (`systems/regency.js`, tuned in `data/upbringing.json` → `regency`). The child keeps their real age, and you play the child's court until they come of age. The House pays the old price too: a regency sheds holdings (the title and a tenth of the gold).
@@ -5894,6 +6044,35 @@ Kingdoms build too. From about day 90 a realm with a full treasury may start a w
 **The Counsel** warns of rival offers, stalled works and races you might lose, and reminds you of idle clients and stages waiting for supplies. **Achievements:** Patron of the Arts, A Masterpiece, Great Builder, Wonder of the World, A Golden Age. **Deeds & Records** has a Patronage section.
 
 ---
+
+## Works of the Ages: Great Works That Span Generations
+
+Patronage's Great Works are your own wonders, finished in a few years. **Works of the Ages** are bigger: a cathedral, a university, a great bridge, a royal canal, city walls, a castle keep or a great harbour. Each takes **15 to 60 years**, and many purses pay for it. A work you pledge to in your first decade may be finished by your grandson. Open **🏛️ Works of the Ages** from any town's action menu (*Feasts & Works of Fame*).
+
+| Work | Needs | At full pace | When finished |
+|------|-------|--------------|---------------|
+| ⛪ Cathedral | town | 42 years | The realm grows more pious (its piety rises each week, up to 85). Pilgrims bring coin from the realm's other towns into its purse. Folk move to the town. |
+| 🎓 University | city | 30 years | The town's letters rise by 12 points and every town of the realm's by 4. Scholars draw folk to it. Heirs of a House carved on it, or living in its realm, learn 25% faster. |
+| 🌉 Great Bridge | a road out of town over an unbridged river | 18 years | The road is bridged and made at least a road, so trade over it runs cheaper. |
+| 🚣 Royal Canal | town, with a realm town 3–10 hexes off that a canal can reach | 32 years | A canal joins the two towns, and their trade goes by barge. |
+| 🧱 City Walls | town | 20 years | The town's walls become stone (you can see them on its street map). It stands a siege far longer. |
+| 🏰 Castle Keep | town | 16 years | Siege defence on top of any walls. |
+| ⚓ Great Harbour | port | 26 years | Sea hauls from the port cost a quarter less, on top of any harbour works. |
+
+**Founding.** The player's House, a rival House, a noble House, the church, the burghers, a guild or the crown can found a work, one at a time per town. The founder must pledge at least a tenth of the full-pace weekly cost. A town will not let a House found a work there if that House left an earlier work to fall to ruin.
+
+**Building.** Each work goes up in **stages** (foundations, nave, vaults, towers, spire…), week by week. Its stone, timber, iron, glass, parchment and books are **bought from the site's market** and the four nearest towns, at the going price. A work takes at most a quarter of a stock each week, so a thin market slows it and its prices climb. A good the near towns cannot supply is **carted from farther off**: the next six towns within 24 hexes, at their price plus 2% a hex for the carters (paid to the selling town). If it still cannot be had, a **substitute** stands in, bought at its own price: tools for iron cramps, timber for sawn planks (1½ for 1), parchment for books (the copyists' work, 3 for 1), timber shutters for glass (2 for 1). The panel's full-pace cost is reckoned at the site's going price (never under the base price, never over 1.4 times it). The listed years assume full funding; winter and dear markets make it a few years longer. The masons are **townsfolk hired at the town's land wage**, and they count in the town's labour. Winter halves an outdoor stage.
+
+**Pledges and the pace.** Every funder pledges **so much a week**, for a term of years or until the work is finished. The pledges are paid **in turn**, each funder covering its share of the week's bill. The pace follows the money. At full funding a work takes its listed years, and it can go up to 1.6× faster. At half funding it takes twice as long. NPC funders join a work that is short of money, and a funder that grows richer pledges more. The panel shows each work's stage, how much is built, the pledges against the full-pace cost, the years still to go and every funder's share.
+
+**Your name over the door.** When a work is finished, every funder who paid at least 3% of its cost, and its founder, is **carved over the door**, largest share first. Your House gains Prestige by its share, plus renown, a line in the chronicle, the Annals and the Chronicle book, and a mark in the town's history (the town is proud of it, and it counts as the House's tie to the town for statues). You also gain Prestige each time a stage you are paying for is finished.
+
+**Pledges bind the House.** A pledge is the House's, not yours, so your heir inherits it. While the House is held in trust between lives, its pledges wait and do not count as missed. If you start a new life in another House, the old line's pledges lapse without shame. A pledge can be **raised, never cut**. It is **broken** if your purse misses six weeks running, or if you withdraw before its term is out. A broken pledge costs **25 Prestige**, goes into the chronicle, and is recorded against your House in that work's book.
+
+**Stalled and ruined.** A week with too little pledged and the work stalls. After two years stalled it starts to **decay**: weather and thieves take about 4% of what was built each year, and the stone in its yard goes. After eight years it is a **ruin**. The town **remembers who abandoned it**: those who broke their pledges in its last years, or its founder if no one did. That memory is a grudge mark in the town's history. It sours the town's mood for decades and cancels the House's standing there. If the ruin was your House's doing, you also lose **35 Prestige**. **Anyone may take up a ruin** (the panel offers it), and it keeps whatever still stands.
+
+**The world builds without you.** Crowns, the church, noble Houses, the burghers, guilds and rival Houses found works and pledge to them on their own. Each realm has a small chance each month. No one founds a work that the town's backers together could not keep going: the founder's pledge and what the others would offer must come to at least 60% of the full-pace cost, and an NPC founder pledges for 20 years. A realm has at most two works rising at once, the world one for every six towns (at most 18). A backer's pledges across all its works stay within what it can spare. A crown at war keeps a war chest of 6,000g (over its 1,500g floor) before it pays its works, so a long war can stall them, and a work no one takes up again falls to ruin. **Every coin is real.** It comes out of a funder's purse (your purse, a rival House's gold, a landholder's coffers, a guild's treasury, or the crown's chests, booked in the Treasury as works). It goes into the site town's purse for its stone and wages, and from there to the towns that sold the stone. Nothing is struck and nothing is held aside, so the coin census closes. Works are checked once a week. The Timeline of the Realm marks works founded, finished and ruined.
+
 
 ## 21. Tavern & Intelligence
 

@@ -189,7 +189,11 @@ const topLevel = [
     // The night-time underworld on the street map: curfews, smugglers' landings, the thieves' market (systems/nightStreets.js)
     'nightStreets',
     // Begging: alms from the passers-by, the cost to a noble name, the townsfolk who fall to it (systems/begging.js)
-    'begging'
+    'begging',
+    // Works of the Ages: cathedrals, universities, great bridges, canals, walls, keeps, harbours over decades (systems/greatWorks.js)
+    'greatWorks',
+    // Law courts: the player tried, the player as judge, lawsuits between Houses (player/trials.js)
+    'trials'
 ];
 
 const merged = {};

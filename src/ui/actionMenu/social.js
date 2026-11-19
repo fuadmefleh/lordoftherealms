@@ -14,6 +14,7 @@ import { Regency } from '../../systems/regency.js';
 import { ConversationScene } from '../conversationScene.js';
 import { NpcPortrait } from '../npcPortrait.js';
 import { openPersonScene, personSprite } from './peopleScene.js';
+import { rulerEducationHtml } from './heirPaths.js';
 import { BTN_GOLD, BTN_PLAIN, BTN_DARK, BTN_OFF, BTN_RED, sectionHead, lede, chips, kv, card, actRow, rowList, price, esc } from './uiKit.js';
 import { PlayerActions, PlayerEconomy, PlayerEffects, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, House, Schemes, RealmWars, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, InnerMapRenderer } from './_imports.js';
 
@@ -656,6 +657,8 @@ Object.assign(ActionMenu, {
             ? `Founded day ${house.foundedDay} · ⭐ Prestige: ${house.prestige || 0} · Generation ${house.generation || 1}`
             : `Founded day ${player.dynasty?.founded || 1} · Prestige: ${House.getPrestige(player)}`}</div>`;
         who += `<div style="${MUTED}">You: ${player.name}, age ${player.age} (max ~${player.maxLifespan})</div>`;
+        // How the House raised you, if it did (systems/raising.js → player.upbringingRecord)
+        who += rulerEducationHtml(player);
         if (player.spouse) {
             const spouse = Relationships.getNPC(player.spouse);
             if (spouse) who += `<div style="font-size:11px; color:#ff9ad5;">Spouse: ${spouse.firstName} ${spouse.dynasty}, age ${spouse.age}</div>`;
@@ -722,6 +725,12 @@ Object.assign(ActionMenu, {
                 const head = Math.round(wr.reduce((s, r) => s + (r.lesser || 0) + (r.grave || 0), 0));
                 const hunted = !!(player.wanted && player.wanted.hunt);
                 against.push({ icon: '📜', name: 'Crimes & Enemies', desc: wr.length ? `Wanted in ${wr.length} realm${wr.length === 1 ? '' : 's'}${hunted ? ' · hunters on your trail' : ''}` : 'Bounties, hunters, blood debts', act: 'showWantedPanel', side: head ? `${Utils.formatGold(head)}g` : '', tone: head || hunted ? 'bad' : '' });
+            }
+            // The courts: a trial awaited, cases before your court, lawsuits between Houses (ui/actionMenu/trials.js)
+            {
+                const tr = player.trials || {};
+                const open = (tr.cases || []).length + (tr.suits || []).filter(s => s.status === 'open').length + (tr.trial ? 1 : 0);
+                against.push({ icon: '⚖️', name: 'Courts & Lawsuits', desc: tr.trial ? `On trial at ${tr.trial.town}` : open ? `${open} matter${open === 1 ? '' : 's'} before the courts` : 'Trials, your own court, suits between Houses', act: 'showTrialsPanel', side: open ? String(open) : '', tone: tr.trial ? 'bad' : open ? 'warn' : '' });
             }
             // The age's crisis: an invasion, a great plague, a schism, a famine, a gold rush (systems/crises.js)
             const crisis = game.world && game.world.crises && game.world.crises.active;

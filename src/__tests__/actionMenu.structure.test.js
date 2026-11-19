@@ -52,6 +52,8 @@ const EXPECTED_KEYS = [
     'showSchool', 'schoolAct',
     // Your Crimes & Enemies: charge sheets, bounty hunters, blood debts (ui/actionMenu/wanted.js, 2026-11-13): +2
     'showWantedPanel', 'wantedAct',
+    // Courts & Lawsuits: your trial, your own court, lawsuits between Houses (ui/actionMenu/trials.js): +2
+    'showTrialsPanel', 'trialsAct',
     // The Timeline of the Realm (ui/actionMenu/timeline.js) and the Annals' jump to it: +2
     'showTimeline', 'annalsTimelineDay',
     // Found a Village with real settlers (ui/actionMenu/founding.js, 2026-11-12): +8
@@ -78,6 +80,8 @@ const EXPECTED_KEYS = [
     'showEncounter', 'encounterAct', 'showFieldBattle', 'battleAct', '_settleFieldBattle',
     'showScene', 'sceneAct',
     'showLetters', 'lettersAct', 'updateLettersBadge',
+    // Works of the Ages: great works over generations (ui/actionMenu/greatWorks.js): +2
+    'showGreatWorks', 'greatWorksAct',
     // Directed opposition (ui/actionMenu/threats.js): +2
     'showThreatsPanel', 'threatsAct',
     'showRider', 'riderAct', 'showRivalHead', 'showRivalHouses', 'rivalHouseAct',
@@ -218,7 +222,7 @@ describe('ActionMenu split — structural equivalence', () => {
     });
 
     it('has 461 members', () => {
-        expect(Object.keys(ActionMenu)).toHaveLength(482);
+        expect(Object.keys(ActionMenu)).toHaveLength(486);
     });
 
     it('every member except the known data props is a function', () => {

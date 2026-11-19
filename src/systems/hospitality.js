@@ -45,6 +45,7 @@ import { FoodSkills } from './foodSkills.js';
 import { PracticeSkills } from './practiceSkills.js';
 import { Economy } from '../world/economy.js';
 import { MoneySupply } from '../world/moneySupply.js';
+import { Brands } from '../world/brands.js';
 import { Townsfolk } from './townsfolk.js';
 import { Utils } from '../core/utils.js';
 
@@ -661,15 +662,18 @@ export const Hospitality = {
         const freeRoom = v.owner === 'npc' && Fame.innFree(player, world, tile, 'room');
         const freeMeal = v.owner === 'npc' && Fame.innFree(player, world, tile, 'meal');
         const full = this.noVacancy(world, v);
+        // A court's brand (world/brands.js): fine houses of the realm that burned it turn the branded away, others charge more
+        const brand = v.owner === 'npc' && player ? Brands.innTerms(player, tile && tile.settlement ? tile.settlement.kingdom : null, v.stars, world) : { refuses: false, mult: 1 };
         const booked = !!(player && player.lodging && player.lodging.night === _day(world));
         const bookedHere = booked && player.lodging.id === v.id;
         // A full house still lets its best room — the suite at a hotel, the private room at an inn
         const best = v.tiers[v.tiers.length - 1];
         const tiers = v.tiers.map(t => {
             const T = this.tier(t) || {};
-            const price = freeRoom ? 0 : this.roomPrice(world, player, v, t);
+            const price = freeRoom ? 0 : Math.round(this.roomPrice(world, player, v, t) * brand.mult);
             let reason = null;
             if (v.underConstruction) reason = 'Still being built';
+            else if (brand.refuses) reason = 'They take no branded guests';
             else if (booked) reason = 'You already have a bed for tonight';
             else if (full && t !== best) reason = 'No vacancy tonight';
             else if (gold < price) reason = `Need ${Utils.formatGold(price)} gold`;
@@ -678,9 +682,10 @@ export const Hospitality = {
         const services = v.services.map(sid => {
             const S = this.service(sid) || {};
             const meal = !!(S.needs && S.needs.hunger) && !S.morning;
-            const price = meal && freeMeal ? 0 : this.servicePrice(v, sid);
+            const price = meal && freeMeal ? 0 : Math.round(this.servicePrice(v, sid) * brand.mult);
             let reason = null;
             if (v.underConstruction) reason = 'Still being built';
+            else if (brand.refuses) reason = 'They serve no branded guests';
             else if (S.morning && !bookedHere) reason = 'For guests staying the night';
             else if (S.needsMount && !(player && player.mount)) reason = 'You have no horse';
             else if (S.morning && player.lodging && (player.lodging.services || []).includes(sid)) reason = 'Already arranged';

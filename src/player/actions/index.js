@@ -75,6 +75,16 @@ export const PlayerActions = {
                 icon: '🧱',
                 description: 'Cellmates, a guard who might take coin, a loose stone, labour in the yard.'
             });
+            // Held for trial: the case, the judge, an advocate, a plea (player/trials.js)
+            const trial = player.trials && player.trials.trial;
+            if (trial && jail.trialId === trial.id) {
+                actions.push({
+                    type: 'jail_trial',
+                    label: 'Your Trial',
+                    icon: '⚖️',
+                    description: `${trial.judge && trial.judge.name ? trial.judge.name : 'The judge'} hears your case on day ${trial.day}. Hire an advocate, work on the witnesses, plead.`
+                });
+            }
             const tried = jail.prison && jail.prison.lastBreakDay === (world && world.day);
             actions.push({
                 type: 'jail_escape',

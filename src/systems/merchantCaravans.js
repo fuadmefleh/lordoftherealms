@@ -61,6 +61,7 @@ import { OutlawLairs } from './outlawLairs.js';
 import { Underworld } from './underworld.js';
 import { TradePolicy } from './tradePolicy.js';
 import { PriceKnowledge } from './priceKnowledge.js';
+import { PriceNews } from './priceNews.js';
 import { Ledger } from './ledger.js';
 import { PublicWorks } from './publicWorks.js';
 // (a caravan from a town with a roster is one of its merchants' ventures: systems/townTrade.js)
@@ -198,7 +199,7 @@ export const MerchantCaravans = {
     _blank() {
         return {
             seq: 0, lastDay: null, fear: {}, traffic: {}, history: [],
-            stats: { spawned: 0, delivered: 0, landedAtOnce: 0, taken: 0, seized: 0, robbed: 0, tolls: 0, patrols: 0, raidersBroken: 0, escorts: 0, escortPay: 0, marginPaid: 0, marginLost: 0, marginSeized: 0 },
+            stats: { spawned: 0, newsRuns: 0, delivered: 0, landedAtOnce: 0, taken: 0, seized: 0, robbed: 0, tolls: 0, patrols: 0, raidersBroken: 0, escorts: 0, escortPay: 0, marginPaid: 0, marginLost: 0, marginSeized: 0 },
         };
     },
 
@@ -388,7 +389,8 @@ export const MerchantCaravans = {
             const until = st.fear[key];
             if (Number.isFinite(until) && day < until) continue;
             const jitter = 0.5 + (_hash(`${seed}:trade:${day}:${key}`) % 1000) / 1000;
-            cands.push({ l, key, score: _num(l.base, 60) * (1 + 0.25 * _num(l.routes)) * jitter });
+            // (merchants go where they have heard prices are dear, not where they are: systems/priceNews.js)
+            cands.push({ l, key, score: _num(l.base, 60) * (1 + 0.25 * _num(l.routes)) * jitter * PriceNews.linkFactor(world, l.a, l.b, day) });
         }
         cands.sort((x, y) => (y.score - x.score) || (x.key < y.key ? -1 : x.key > y.key ? 1 : 0));
         let picked = 0;
@@ -439,8 +441,16 @@ export const MerchantCaravans = {
                     MerchantCaravans._credit(to, margin / 2);
                     continue;
                 }
+                // Its merchants heard the destination is dear in a good: a little more of it
+                // rides along, paid for on arrival like the rest (systems/priceNews.js)
+                let due = Math.max(0, _num(owed));
+                for (const x of PriceNews.extraCargo(world, from, to, day)) {
+                    cargo[x.good] = _round2(_num(cargo[x.good]) + x.qty);
+                    value += x.qty * _num(bases && bases[x.good], 0);
+                    due += x.cost;
+                }
                 const unit = MerchantCaravans._spawn(world, l, from, to, cargo, value, route, bases, day, player);
-                if (unit) { unit.margin = _round2(margin); unit.due = _round2(Math.max(0, _num(owed))); }
+                if (unit) { unit.margin = _round2(margin); unit.due = _round2(due); }
                 active++;
                 spawned++;
             }
@@ -453,6 +463,50 @@ export const MerchantCaravans = {
             l.payBA = 0;
         }
         return spawned;
+    },
+
+    /**
+     * News runs (systems/priceNews.js runCandidates): merchants in a town that
+     * has heard a market within caravans.runRange is dear in a good, and have
+     * it to spare, load a lot of it and set out — not only along their usual
+     * trade links. Every caravans.runEvery days, at most runsPerDay, up to
+     * runOverCap traders past the usual cap. The lot is taken from the
+     * origin's stalls; the destination pays for it on arrival (its own price
+     * when the caravan set out, as any cargo: _settle, from its purse). Draws
+     * no RNG. → caravans sent
+     */
+    _newsRuns(world, player, st, day, out = null) {
+        const K = PriceNews.config().caravans;
+        const every = Math.max(1, Math.floor(_num(K.runEvery, 2)));
+        if (day % every !== 0 || !(_num(K.runsPerDay, 1) > 0)) return 0;
+        let room = MerchantCaravans.cap(world) + Math.floor(_num(K.runOverCap, 3)) - MerchantCaravans.traders(world).length;
+        if (room <= 0) return 0;
+        let sent = 0;
+        for (const c of PriceNews.runCandidates(world, day, Math.min(room, Math.floor(_num(K.runsPerDay, 1))))) {
+            const from = c.from, to = c.to;
+            let sea = false;
+            let route = MerchantCaravans.route(world, from, to, false);
+            if (!route || route.length < 4) { route = MerchantCaravans.route(world, from, to, true); sea = true; }
+            if (!route || route.length < 4) { c.n.lastRun = day; continue; }
+            const got = SettlementMarket.take(from, c.good, c.qty);
+            if (!(got > 0)) continue;
+            const base = _num(_goodDef(c.good).basePrice, 10);
+            const cargo = { [c.good]: _round2(got) };
+            const unit = MerchantCaravans._spawn(world, { a: from, b: to, sea, road: false }, from, to, cargo, got * base, route, { [c.good]: base }, day, player);
+            if (!unit) { SettlementMarket.add(from, c.good, got); continue; }
+            unit.margin = 0;
+            unit.due = Utils.cents(got * c.unitTo);
+            unit.onNews = { id: c.n.id, good: c.good, town: to.name || 'a town' };
+            PriceNews.noteRun(world, c.n, day);
+            st.stats.newsRuns = _num(st.stats.newsRuns) + 1;
+            sent++;
+            if (--room <= 0) break;
+            if (out && player && player.q === from.q && player.r === from.r && !player.boardedShip) {
+                const g = _goodDef(c.good).name.toLowerCase();
+                out.notices.push({ icon: unit.icon, title: 'Merchants Act on News', text: `${(unit.house && unit.house.name) || 'The merchants'} of ${from.name || 'this town'} load ${Math.floor(got)} ${g} for ${unit.toName}: they hear ${g} is dear there.`, type: 'info' });
+            }
+        }
+        return sent;
     },
 
     /**
@@ -607,6 +661,8 @@ export const MerchantCaravans = {
         st.lastDay = day;
         const main = Utils.getRng();
         Utils.withRng(MerchantCaravans._dayRng(world), () => MerchantCaravans._tick(world, player, st, out, main));
+        // Merchants who heard a town is dear send it a caravan from where the good is to spare
+        MerchantCaravans._newsRuns(world, player, st, day, out);
         // Old fears and old news are forgotten
         for (const [k, until] of Object.entries(st.fear)) if (!(until > day)) delete st.fear[k];
         return out;
@@ -1269,6 +1325,7 @@ export const MerchantCaravans = {
     describe(u) {
         if (!u) return '';
         const goods = Object.entries(u.cargo || {}).map(([id, q]) => `${Math.floor(q)} ${_goodDef(id).name.toLowerCase()}`).join(', ');
-        return `${(u.house && u.house.name) || 'Free traders'} · ${u.fromName} → ${u.toName} · ${goods || 'empty'}`;
+        const why = u.onNews ? ` · heard ${_goodDef(u.onNews.good).name.toLowerCase()} is dear there` : '';
+        return `${(u.house && u.house.name) || 'Free traders'} · ${u.fromName} → ${u.toName} · ${goods || 'empty'}${why}`;
     },
 };

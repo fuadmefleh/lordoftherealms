@@ -324,6 +324,9 @@ export const TownMemory = {
             else if (m.k === 'crime') mood += (m.crime === 'well' ? -6 : m.crime === 'granary' ? -4 : -1.5) * fade;
             // An atrocity (systems/atrocities.js): salt, hanged hostages, plague dead, a massacre — grief that lasts `long` times as long
             else if (m.k === 'atrocity') mood += _num(m.grief, -8) * Math.max(0, 1 - age / (span * Math.max(1, _num(m.long, 3))));
+            // A work of the ages finished here: the town's pride; one left to ruin: its bitterness while the grudge lasts (systems/greatWorks.js)
+            else if (m.k === 'greatwork') mood += _num(m.pride, 3);
+            else if (m.k === 'grudge') mood += _num(m.mood, -3) * Math.max(0, 1 - age / (Y * Math.max(1, _num(m.years, 60))));
         }
         mem.mood = Math.round(_clamp(mood, C.moodMin, C.moodMax) * 10) / 10;
         return mem.mood;
@@ -343,10 +346,14 @@ export const TownMemory = {
         if (!player || !player.house) return { score: 0, net: 0, tie: 0 };
         let work = false;
         try { work = Patronage.builtAt(world, s.q, s.r).some(b => b.owner === 'player'); } catch (e) { work = false; }
+        // (or a work of the ages here with the House's name carved over its door: systems/greatWorks.js)
+        if (!work) work = TownMarks.marks(s, 'greatwork').some(m => Array.isArray(m.houses) && m.houses.includes(player.house.id));
         const rules = !!(held && held.has(`${s.q},${s.r}`));
         const f = Fame.scores(player, s.kingdom);
         const net = _num(f.good) - _num(f.ill);
-        const tie = (work ? _num(C.greatWork, 50) : 0) + (rules ? _num(C.rules, 35) : 0);
+        // (a work of the ages the House abandoned to ruin here: the town's grudge — systems/greatWorks.js)
+        const grudge = TownMarks.marks(s, 'grudge').some(m => m.byPlayer && Array.isArray(m.houses) && m.houses.includes(player.house.id));
+        const tie = (work ? _num(C.greatWork, 50) : 0) + (rules ? _num(C.rules, 35) : 0) - (grudge ? _num(C.greatWork, 50) : 0);
         const score = tie > 0 ? tie + Math.max(0, net) * _num(C.fameWeight, 0.5)
             : (s.type === 'capital' && net >= _num(C.capitalFame, 140) ? net * _num(C.fameWeight, 0.5) : 0);
         return { score, net, tie, rules, work };
@@ -499,6 +506,8 @@ export const TownMemory = {
         case 'crime': return m.crime === 'well' ? `The well of ${s.name} was poisoned ${w}${m.by ? ` by ${m.by}` : ''}${m.struck ? `; ${m.struck} fell sick${m.dead ? ` and ${m.dead} died` : ''}` : ''}.`
             : m.crime === 'granary' ? `The granary of ${s.name} was burnt ${w}${m.by ? ` by ${m.by}` : ''}${m.lean ? ', in the lean weeks' : ''}.`
             : `A false plague was cried on ${s.name} ${w}${m.by ? `, a lie of ${m.by}'s` : ''}; the traders stayed away.`;
+        case 'greatwork': return `${m.work || 'A great work'} was finished ${w}${m.carved ? `; carved over its door: ${m.carved}` : ''}.`;
+        case 'grudge': return `${m.work || 'A great work'} was left a ruin ${w}${m.by ? `; ${s.name} has not forgiven ${m.by}` : ''}.`;
         default: return `${s.name} remembers something ${w}.`;
         }
     },

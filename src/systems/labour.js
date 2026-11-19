@@ -292,6 +292,8 @@ export const Labour = {
             hands.land += Hinterland.handsAt(world, v.q, v.r);
             // ...and the road gangs and masons of the public works (systems/publicWorks.js)
             hands.land += Transport.handsAt(world, v.q, v.r);
+            // ...and the masons and labourers of a work of the ages (systems/greatWorks.js)
+            hands.land += Math.max(0, Number(s.ageWorkHands) || 0);
             const land = MarketDynamics._land(world, cache, tile, day);
             TownLabour.update(s, {
                 day, k, fertility: land ? land.fertility : 1,

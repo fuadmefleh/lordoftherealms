@@ -394,8 +394,12 @@ describe('save and load', () => {
     });
 
     it('the saveLoad tile serialiser keeps the settlement whole (townEra rides along)', async () => {
+        // (the tile's settlement is saved through core/saveCodec.js: packed, then unpacked whole)
         const src = fs.readFileSync('src/systems/saveLoad.js', 'utf8');
-        expect(src).toMatch(/settlement: tile\.settlement/);
+        expect(src).toMatch(/settlement: SaveCodec\.pack\(tile\.settlement\)/);
+        const { SaveCodec } = await import('../core/saveCodec.js');
+        const s = { name: 'Ashford', townEra: { era: 'stone', since: 120, wear: 0.2 }, folk: [{ id: 1, name: 'A' }, { id: 2, name: 'B' }] };
+        expect(SaveCodec.unpack(JSON.parse(JSON.stringify(SaveCodec.pack(s))))).toEqual(s);
     });
 });
 

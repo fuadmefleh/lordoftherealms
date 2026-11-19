@@ -220,6 +220,8 @@ export const HeirAgency = {
             return `⛓️ Held hostage at ${k ? k.name : 'a foreign court'}`;
         }
         if (a.captive) return `⛓️ Captive of ${a.captive.by} (ransom ${Utils.formatGold(a.captive.ransom)}g)`;
+        // Away on a formative path (systems/heirPaths.js)
+        if (up.path && up.path.active) return `🎓 Away at ${up.path.name} until day ${up.path.until}`;
         if (Upbringing.isAway(child)) return `🏰 Fostering at the court of ${up.placement.lordName} until day ${up.placement.until}`;
         if (a.commission && a.commission.kind === 'envoy') return `📜 Envoy to ${a.commission.kingdomName} until day ${a.commission.until}`;
         if (a.commission && a.commission.kind === 'command') return `⚔️ Commands the House's company${a.wounded ? ' (wounded)' : ''}`;
@@ -333,6 +335,9 @@ export const HeirAgency = {
      * and keeps the betrothal gift, and the House loses Prestige for a word
      * not kept. opts.byThem: the other side broke it (a war that would not
      * end) - they send back what was paid, as far as their treasury allows.
+     * opts.rival: the rival House of that realm broke it (a feud run hot):
+     * recorded on the rival (rival.brokeBetrothal), grounds for a lawsuit
+     * (player/trials.js).
      */
     breakBetrothal(player, world, childId, why = null, opts = {}) {
         const cfg = HeirAgency.config();
@@ -345,6 +350,9 @@ export const HeirAgency = {
         const k = HeirAgency._kingdom(world, b.kingdomId);
         let refund = 0;
         let prestige = 0;
+        if (opts.byThem && opts.rival) {
+            opts.rival.brokeBetrothal = { day: _day(world), child: child.firstName, childId: child.id, name: b.name, why: why || null };
+        }
         if (opts.byThem) {
             refund = Math.min(_num(b.dowry), Math.max(0, Math.floor(_num(k && k.treasury))));
             if (refund > 0) {
@@ -625,6 +633,15 @@ export const HeirAgency = {
                     }
                 } else if (b.warSince != null) {
                     b.warSince = null;
+                }
+                // The rival House of that realm, its feud running hot, breaks the match itself (grounds for a suit)
+                const BR = HeirAgency._raisingCfg().betrothal || {};
+                const rv = a.betrothal && player.house && player.house.rivals ? player.house.rivals[b.kingdomId] : null;
+                const every = _num(BR.rivalCheckDays, 30);
+                if (rv && rv.head && !player.interregnum && every > 0 && day % every === 0 && _num(rv.feud) >= _num(BR.rivalBreakFeud, 60)
+                    && HeirAgency._roll(world, `${child.id}:rivalBreak:${day}`) < _num(BR.rivalBreakChance, 0.2)) {
+                    const res = HeirAgency.breakBetrothal(player, world, child.id, `the feud with ${rv.name}`, { byThem: true, rival: rv });
+                    out.notices.push({ icon: '💔', title: 'A Betrothal Broken', text: `${rv.name}, its feud with your House running hot, breaks ${child.firstName}'s betrothal to ${b.name}${res.refund ? `; ${b.kingdomName} sends back ${res.refund} gold of the gift` : ''}. You may take them to law for it (Courts & Lawsuits).`, type: 'warning' });
                 }
             }
             // The betrothed come of age (or are married elsewhere)

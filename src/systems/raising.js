@@ -36,6 +36,10 @@
 //     player.upbringingRecord when they inherit).
 //
 // State: child.upbringing.raising (saved with player.children);
+// A RIVAL HOUSE may send a child of its own (systems/heirPaths.js decides;
+// ward.rivalId): its fee comes out of the rival's purse, its months cool the
+// feud, and a hot feud makes the child a hostage in your keeping.
+//
 // player.house.wards / wardHistory / wardLast (saved with the House); a
 // tutor's wages on their NPC (npc.purse, saved with the relationship NPCs).
 // Randomness: the activity's risk and the parent's example draw from Utils
@@ -56,6 +60,7 @@ import { Townsfolk } from './townsfolk.js';
 import { CourtLetters } from './courtLetters.js';
 import { Throne } from './throne.js';
 import { Names } from '../core/names.js';
+import { Brands } from '../world/brands.js';
 
 const STATS = ['strength', 'charisma', 'intelligence', 'faith', 'luck'];
 const SKILLS = ['commerce', 'combat', 'leadership', 'diplomacy', 'stealth', 'cartography'];
@@ -502,7 +507,10 @@ export const Raising = {
         if (ruled && ruled.id === k.id) return 'That is your own realm.';
         if (CourtLetters.atWar(player, world, k.id)) return `You are at war with ${Names.realm(k.name)}.`;
         if (_num(player.reputation && player.reputation[k.id]) < W.minReputation) return `${k.name} does not trust your House enough (need ${W.minReputation} standing).`;
-        if (Raising.wards(player).some(w => w.kingdomId === k.id)) return `A ward of ${Names.realm(k.name)} already lives at your court.`;
+        // A court's brand on the head of the House (world/brands.js): that realm entrusts no child to a branded criminal
+        const brand = Brands.seen(player, k.id, world);
+        if (brand.home && brand.f >= _num(Brands.config().refuseAt, 0.9)) return `${k.name} will not send a child to be raised by one its court has branded.`;
+        if (Raising.wards(player).some(w => w.kingdomId === k.id && w.rivalId == null)) return `A ward of ${Names.realm(k.name)} already lives at your court.`;
         if (Raising.wards(player).length >= Raising.wardSeats(player)) return `Your household has room for ${Raising.wardSeats(player)} ward${Raising.wardSeats(player) === 1 ? '' : 's'}. More Prestige makes room.`;
         const last = player.house.wardLast && player.house.wardLast[k.id];
         if (last != null && _day(world) - last < W.cooldownDays) return `${k.name} sent you a ward lately; ask again from day ${last + W.cooldownDays}.`;
@@ -577,7 +585,12 @@ export const Raising = {
             rep = W.sendHomeReputation;
             text = `${ward.firstName} is sent home to ${ward.kingdomName} before their time.`;
         }
-        Raising._rep(player, ward.kingdomId, rep);
+        if (ward.rivalId != null) {
+            // A rival's child: the feud, not a realm's standing, remembers it
+            const R = Raising._rivalWardCfg();
+            House.accrueRivalFeud(player, world, ward.rivalId, ward.held ? _num(R.freedFeud, -10) : _num(R.sentHomeFeud, 4), ward.held ? null : `${ward.firstName} sent home early`);
+            rep = 0;
+        } else Raising._rep(player, ward.kingdomId, rep);
         Raising._wardGone(player, world, ward, ward.held ? 'freed' : 'sent home', text);
         return { success: true, ward, reputation: rep, text };
     },
@@ -589,6 +602,8 @@ export const Raising = {
         const k = Raising._kingdom(world, ward.kingdomId);
         const royal = ward.royalId && k && k.characterData && (k.characterData.children || []).find(c => c && c.id === ward.royalId);
         if (royal) delete royal.wardAt;
+        const rc = Raising._rivalChild(player, ward);
+        if (rc) { delete rc.wardAt; delete rc.wardOf; }
         if (!Array.isArray(h.wardHistory)) h.wardHistory = [];
         h.wardHistory.push({ name: `${ward.firstName}${ward.dynasty ? ' ' + ward.dynasty : ''}`, kingdomId: ward.kingdomId, kingdomName: ward.kingdomName, from: ward.since, to: _day(world), how });
         if (h.wardHistory.length > W.historyCap) h.wardHistory = h.wardHistory.slice(-W.historyCap);
@@ -606,6 +621,10 @@ export const Raising = {
             out.notices.push({ icon: '🏚️', title: 'A Ward Without a Realm', text, type: 'info' });
             return;
         }
+        if (ward.rivalId != null) {
+            if (Raising._rivalWardMonth(player, world, ward, out)) Raising._wardmates(player, world, ward, k.id);
+            return;
+        }
         const war = CourtLetters.atWar(player, world, k.id);
         if (war && !ward.held) {
             ward.held = true;
@@ -613,7 +632,8 @@ export const Raising = {
         } else if (!war && ward.held) {
             ward.held = false;
         }
-        if (!ward.held) {
+        // (a ward kept past their term as leverage pays no fee: systems/heirPaths.js)
+        if (!ward.held && !ward.kept) {
             // The fosterage fee, from their treasury into your purse
             const fee = Math.min(W.fee, Math.max(0, Math.floor(_num(k.treasury))));
             if (fee > 0) {
@@ -628,15 +648,80 @@ export const Raising = {
                 ward.repGiven = _num(ward.repGiven) + n;
             }
         }
-        // The House's children raised beside the ward
+        Raising._wardmates(player, world, ward, k.id);
+    },
+
+    /** The House's children raised beside the ward. */
+    _wardmates(player, world, ward, kid) {
+        const W = Raising.config().wards;
         const wAge = Raising.wardAge(world, ward);
         for (const c of player.children || []) {
             if (!c || c.isAlive === false || HeirAgency.isAway(c)) continue;
             if (Math.abs(_num(c.age) - wAge) > W.wardmateAgeGap) continue;
             const rec = HeirAgency.ensure(c).record;
             if (!_obj(rec.wardmates)) rec.wardmates = {};
-            rec.wardmates[k.id] = Math.min(W.wardmateCap, _num(rec.wardmates[k.id]) + 1);
+            rec.wardmates[kid] = Math.min(W.wardmateCap, _num(rec.wardmates[kid]) + 1);
         }
+    },
+
+    // ──────────── A RIVAL HOUSE'S CHILD AT YOUR COURT ────────────
+
+    /** data/upbringing.json → raising.wards.rival */
+    _rivalWardCfg() {
+        return _obj(Raising.config().wards.rival) || {};
+    },
+
+    _rivalOf(player, ward) {
+        const rivals = player && player.house && player.house.rivals;
+        return ward && ward.rivalId != null && rivals ? rivals[ward.rivalId] || null : null;
+    },
+
+    /** The rival head's own child record behind a ward, or null. */
+    _rivalChild(player, ward) {
+        const rv = Raising._rivalOf(player, ward);
+        const kids = (rv && rv.head && rv.head.children) || [];
+        return kids.find(c => c && c.firstName === ward.rivalChild && c.wardOf === 'player') || null;
+    },
+
+    /**
+     * A rival House's child, one month at your court: their House pays the
+     * fee from its purse into yours and the feud cools; a feud run hot makes
+     * the child a hostage in your keeping. → false when the ward is gone.
+     */
+    _rivalWardMonth(player, world, ward, out) {
+        const R = Raising._rivalWardCfg();
+        const H = (DataLoader.upbringing && DataLoader.upbringing.paths && DataLoader.upbringing.paths.hostage) || {};
+        const rv = Raising._rivalOf(player, ward);
+        if (!rv || !rv.head || !Raising._rivalChild(player, ward)) {
+            const text = `${ward.kingdomName} is no more as it was; ${ward.firstName} leaves your household to make their own way.`;
+            Raising._wardGone(player, world, ward, 'House fell', text);
+            out.notices.push({ icon: '🏚️', title: 'A Ward Without a House', text, type: 'info' });
+            return false;
+        }
+        const hot = _num(rv.feud) >= _num(H.rivalFeud, 70);
+        if (hot && !ward.held) {
+            ward.held = true;
+            out.notices.push({ icon: '⛓️', title: `${ward.firstName} Is a Hostage`, text: `With the feud this hot, ${rv.name}'s child ${ward.firstName} is a hostage in your keeping. They will not dare much against you while you hold them.`, type: 'warning' });
+        } else if (!hot && ward.held) {
+            ward.held = false;
+        }
+        if (!ward.held && !ward.kept) {
+            // The fosterage fee, from their purse into yours
+            const fee = Utils.cents(Math.min(_num(R.fee, 8), Math.max(0, Math.floor(_num(rv.gold)))));
+            if (fee > 0) {
+                rv.gold = Utils.cents(_num(rv.gold) - fee);
+                player.gold = Utils.cents(_num(player.gold) + fee);
+                Ledger.record(player, 'family', fee);
+                ward.feesPaid = Utils.cents(_num(ward.feesPaid) + fee);
+            }
+            const cap = _num(R.feudCap, 10);
+            if (_num(ward.feudGiven) < cap) {
+                const n = Math.min(Math.abs(_num(R.feudPerMonth, -1)), cap - _num(ward.feudGiven));
+                House.accrueRivalFeud(player, world, ward.rivalId, -n);
+                ward.feudGiven = _num(ward.feudGiven) + n;
+            }
+        }
+        return true;
     },
 
     _wardYear(player, world, ward, out) {
@@ -644,6 +729,17 @@ export const Raising = {
         ward.fateRolls = _num(ward.fateRolls) + 1;
         if (_roll(world, `${ward.id}:fate:${ward.fateRolls}`) >= W.deathChancePerYear) return;
         const k = Raising._kingdom(world, ward.kingdomId);
+        if (ward.rivalId != null) {
+            const rc = Raising._rivalChild(player, ward);
+            if (rc) rc.isAlive = false;
+            const rv = Raising._rivalOf(player, ward);
+            if (rv && rv.head) rv.head.children = rv.head.children.filter(c => c !== rc);
+            House.accrueRivalFeud(player, world, ward.rivalId, _num(Raising._rivalWardCfg().diedFeud, 30), `${ward.firstName} died in your keeping`);
+            const text = `${ward.firstName}, the child of ${ward.kingdomName}, sickens and dies at your court. ${ward.kingdomName} will not believe it was fever.`;
+            Raising._wardGone(player, world, ward, 'died', text);
+            out.notices.push({ icon: '🕯️', title: 'A Ward Dies', text, type: 'error' });
+            return;
+        }
         Raising._rep(player, ward.kingdomId, W.deathReputation);
         if (k && k.lord) NPCLords.rememberDeed(world, k.lord, 'ward_died', { note: ward.firstName });
         const royal = ward.royalId && k && k.characterData && (k.characterData.children || []).find(c => c && c.id === ward.royalId);
@@ -656,6 +752,15 @@ export const Raising = {
     _wardHome(player, world, ward, out) {
         const W = Raising.config().wards;
         const k = Raising._kingdom(world, ward.kingdomId);
+        if (ward.rivalId != null) {
+            const R = Raising._rivalWardCfg();
+            House.accrueRivalFeud(player, world, ward.rivalId, _num(R.homeFeud, -8));
+            if (player.house) House.award(player.house, W.returnPrestige, `${ward.firstName} raised at court`, _day(world));
+            const text = `${ward.firstName} goes home to ${ward.kingdomName}, raised at the court of ${player.house.name}.`;
+            Raising._wardGone(player, world, ward, 'raised', text);
+            out.notices.push({ icon: '🎓', title: 'A Ward Goes Home', text: `${text} (feud ${_num(R.homeFeud, -8)}, ⭐+${W.returnPrestige})`, type: 'success' });
+            return;
+        }
         Raising._rep(player, ward.kingdomId, W.returnReputation);
         if (player.house) House.award(player.house, W.returnPrestige, `${ward.firstName} raised at court`, _day(world));
         if (k && k.lord) NPCLords.rememberDeed(world, k.lord, 'ward_raised', { note: ward.firstName });
@@ -692,6 +797,10 @@ export const Raising = {
         });
         const fostered = (a.record.fostered || []).map(f => f.lordName);
         const betrothed = a.betrothal ? a.betrothal.name : (up.spouse && up.spouse.betrothed ? up.spouse.name : null);
+        // The years away (systems/heirPaths.js), the friends made there, a hostage's turning, the dilemmas that marked them
+        const paths = (Array.isArray(up.pathRecord) ? up.pathRecord : []).map(p => ({ kind: p.kind, name: p.name, icon: p.icon, venue: p.venue, how: p.how }));
+        const contacts = (Array.isArray(up.contacts) ? up.contacts : []).slice(0, 4).map(c => ({ name: c.name, label: c.label }));
+        const events = (Array.isArray(up.events) ? up.events : []).slice(-3).map(e => ({ title: e.title, choice: e.choice, age: e.age, icon: e.icon }));
         const bond = Math.round(r.bond);
         const parts = [];
         parts.push(`${child.firstName} comes of age ${grade.label.toLowerCase()}${focus ? `, raised in ${focus.name.toLowerCase()} arts` : ''}.`);
@@ -701,10 +810,17 @@ export const Raising = {
         if (fostered.length) parts.push(`Fostered at the court of ${fostered.join(', ')}.`);
         if (wardmates.length) parts.push(`Grew up beside the ward${wardmates.length === 1 ? '' : 's'} of ${wardmates.map(w => w.kingdomName).join(', ')}.`);
         if (betrothed) parts.push(`Promised to ${betrothed}.`);
+        const shaped = [];
+        for (const p of paths) shaped.push(`${p.how === 'completed' ? 'served' : 'went'} as ${/^[aeiou]/i.test(p.name) ? 'an' : 'a'} ${String(p.name).toLowerCase()} at ${p.venue}${p.how === 'completed' ? '' : ' (cut short)'}`);
+        if (contacts.length) shaped.push(`made friends of ${contacts.map(c => c.name).join(', ')}`);
+        if (events.length) shaped.push(`remembered for ${events.map(e => `${String(e.title).toLowerCase()}${e.choice ? ` (${String(e.choice).toLowerCase()})` : ''}`).join('; ')}`);
+        if (up.turned) shaped.push(`turned against the House while a hostage at ${up.turned.kingdomName || 'a foreign court'}`);
+        if (shaped.length) parts.push(`${child.firstName} ${shaped.join('; ')}.`);
         r.summary = {
             day: _day(world), age: _num(child.age), fromAge: _num(start.age), focus: focus ? focus.name : null,
             grade: grade.label, gradeIcon: grade.icon || '🎓', total, gains, tutors, timeCount: r.timeCount, bond,
-            bondLabel: Raising.bondLabel(bond), traits, fostered, wardmates, betrothed, text: parts.join(' '),
+            bondLabel: Raising.bondLabel(bond), traits, fostered, wardmates, betrothed, paths, contacts, events, turned: !!up.turned,
+            shaped: shaped.length ? `${child.firstName} ${shaped.join('; ')}.` : null, text: parts.join(' '),
         };
         return r.summary;
     },
@@ -736,6 +852,11 @@ export const Raising = {
                 if (!r.summary && up.comeOfAgeDay != null) {
                     const s = Raising.comingOfAgeSummary(player, world, child);
                     if (s) out.notices.push({ icon: s.gradeIcon, title: `${child.firstName} Comes of Age`, text: s.text, type: 'success', childId: child.id });
+                    // What shaped them goes into the chronicle (and so the Annals): tutors, bond, the years away, the dilemmas
+                    if (s && player.house) {
+                        const who = s.tutors.length ? ` Taught by ${s.tutors.map(t => t.name).join(', ')};` : '';
+                        House._chronicle(player.house, world, `${child.firstName}'s childhood:${who} ${s.bondLabel.toLowerCase()} with ${player.firstName || 'the ruler'}.${s.shaped ? ` ${s.shaped}` : ''}`, ['upbringing', 'comingOfAge']);
+                    }
                 }
                 continue;
             }
@@ -768,7 +889,7 @@ export const Raising = {
             if (!Raising.wards(player).includes(ward)) continue;
             if (since % Y === 0) Raising._wardYear(player, world, ward, out);
             if (!Raising.wards(player).includes(ward)) continue;
-            if (day >= _num(ward.until) && !ward.held) Raising._wardHome(player, world, ward, out);
+            if (day >= _num(ward.until) && !ward.held && !ward.kept) Raising._wardHome(player, world, ward, out);
         }
         return out;
     },

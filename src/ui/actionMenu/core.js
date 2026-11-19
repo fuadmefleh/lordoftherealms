@@ -107,7 +107,7 @@ const AMX_GROUPS = {
         { id: 'realm', icon: '👑', label: 'Crown & Realm', types: ['pledge_allegiance', 'renounce_allegiance', 'realm_wars', 'form_kingdom', 'claims_crowns', 'royal_court', 'treasury', 'collect_tax', 'hold_council', 'hold_court'] },
         { id: 'titles', icon: '📜', label: 'Titles', types: ['seek_title', 'view_title_status', 'resign_title'] },
         { id: 'house', icon: '🏰', label: 'House & Rivals', types: ['manage_dynasty', 'rivals_here', 'meet_rival_house', 'request_meeting', 'hall_of_heroes', 'patronage', 'meet_courier'] },
-        { id: 'feasts', icon: '🎉', label: 'Feasts & Works of Fame', types: ['host_feast', 'hold_tournament', 'host_festival', 'fund_restoration'] },
+        { id: 'feasts', icon: '🎉', label: 'Feasts & Works of Fame', types: ['host_feast', 'hold_tournament', 'host_festival', 'fund_restoration', 'great_works'] },
         { id: 'intrigue', icon: '🗝️', label: 'Intrigue & the Law', types: ['espionage_menu', 'manage_spies', 'request_bounty', 'capture_fugitive'] },
     ],
     arms: [
@@ -301,7 +301,7 @@ Object.assign(ActionMenu, {
             recruit_settlers: 'frontier', post_signboard: 'frontier', wait_here: 'frontier',
             cartography: 'cartography', map_trade: 'cartography',
             steal_map: 'cartography',
-            jail_wait: 'jail', jail_bail: 'jail', jail_escape: 'jail', jail_cell: 'jail',
+            jail_wait: 'jail', jail_bail: 'jail', jail_escape: 'jail', jail_cell: 'jail', jail_trial: 'jail',
             servitude_wait: 'servitude', servitude_escape: 'servitude',
             servitude_buy_freedom: 'servitude',
             seek_title: 'social', view_title_status: 'social', resign_title: 'social',
@@ -319,7 +319,7 @@ Object.assign(ActionMenu, {
             hire_sailors: 'commerce', trading_company: 'commerce', underwriter: 'commerce', bourse: 'commerce',
             mint: 'commerce', estates: 'commerce', putting_out: 'commerce', meet_trader: 'commerce',
             treasury: 'social', meet_courier: 'social',
-            public_works: 'building', terraform: 'building',
+            public_works: 'building', terraform: 'building', great_works: 'building',
             chart_tile: 'cartography',
         };
 
@@ -776,7 +776,7 @@ Object.assign(ActionMenu, {
         dawn_instep: 0,
         disembark: 0,
         explore_inner_map: 0,
-        jail_wait: 0, jail_bail: 0, jail_escape: 0, jail_cell: 0,
+        jail_wait: 0, jail_bail: 0, jail_escape: 0, jail_cell: 0, jail_trial: 0,
         servitude_wait: 0, servitude_escape: 0, servitude_buy_freedom: 0,
         view_relationships: 0, manage_dynasty: 0,
         manage_fleet: 0, trade_lines: 0, river_life: 0, manage_house: 0, manage_property: 0, manage_colony: 0,
@@ -839,7 +839,7 @@ Object.assign(ActionMenu, {
         // Outlaw lairs (the panel is free; each deed inside pays its own AP)
         meet_trader: 0, meet_courier: 0,
         // Lodgings (rooms and services are paid in gold, not time)
-        lodging: 0, manage_lodging: 0, town_lots: 0, graveyards: 0, town_crimes: 0, town_sickness: 0, town_school: 0, livestock_market: 0, my_herds: 0, furniture_maker: 0, my_household: 0,
+        lodging: 0, manage_lodging: 0, town_lots: 0, graveyards: 0, town_crimes: 0, town_sickness: 0, town_school: 0, great_works: 0, livestock_market: 0, my_herds: 0, furniture_maker: 0, my_household: 0,
         outlaw_lair: 0, lair_scout: 3, lair_assault: 8, lair_strike: 4, lair_parley: 1,
         rival_duel: 4, rival_race: 1, rival_sabotage: 2, rival_hire: 1, rival_team_up: 1,
     },
@@ -1219,6 +1219,9 @@ Object.assign(ActionMenu, {
             case 'jail_cell':
                 ActionMenu.attemptJailbreak(game, 'cell');
                 break;
+            case 'jail_trial':
+                ActionMenu.showTrialsPanel(game, null, 'trial');
+                break;
             case 'servitude_wait':
                 game.endDay();
                 break;
@@ -1362,6 +1365,9 @@ Object.assign(ActionMenu, {
                 break;
             case 'public_works':
                 ActionMenu.showPublicWorks(game, tile);
+                break;
+            case 'great_works':
+                ActionMenu.showGreatWorks(game);
                 break;
             case 'mint':
                 ActionMenu.showMint(game, tile);

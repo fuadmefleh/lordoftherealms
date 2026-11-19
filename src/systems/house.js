@@ -859,7 +859,11 @@ export const House = {
             const raw = (m.skills && m.skills[skill]) || 0;
             const loyalty = House.officerLoyalty(player, memberId);
             const factor = loyalty == null ? 1 : Utils.clamp(loyalty / 100, 0, 1);
-            return raw * factor;
+            // A child raised for this office (their education focus's role, data/upbringing.json) serves it better
+            const up = m.upbringing;
+            const focus = up && up.focus && DataLoader.upbringing && DataLoader.upbringing.focuses ? DataLoader.upbringing.focuses[up.focus] : null;
+            const trained = focus && focus.role && house.roles[focus.role] === memberId ? 1.25 : 1;
+            return raw * factor * trained;
         };
 
         if (house.roles.steward) {
@@ -896,10 +900,20 @@ export const House = {
             if (!m || m.isAlive === false || !stillAssigned) continue;
 
             let drift = Utils.randInt(-4, 5);
-            const traits = m.traits || [];
+            // Born traits, and the character their upbringing gave them (systems/upbringing.js)
+            const up = m.upbringing || null;
+            const traits = [...(m.traits || []), ...((up && up.adultTraits) || [])];
             const hasTrait = id => traits.some(t => (t.id || t) === id);
             if (hasTrait('ambitious')) drift -= 3;
             if (hasTrait('loyal') || hasTrait('content')) drift += 3;
+            if (hasTrait('honest')) drift += 1;
+            if (hasTrait('deceitful') || hasTrait('greedy')) drift -= 1;
+            // The bond with the parent who raised them (systems/raising.js), and a child turned
+            // against the House while a hostage (systems/heirPaths.js)
+            const bond = up && up.raising && Number.isFinite(up.raising.bond) ? up.raising.bond : null;
+            if (bond != null && bond >= 70) drift += 1;
+            else if (bond != null && bond <= 25) drift -= 2;
+            if (up && up.turned) drift -= 3;
             // Serving in a non-heir office while another is the heir breeds resentment.
             const inNonHeirOffice = ROLE_IDS.some(rid => rid !== 'heir' && house.roles[rid] === memberId);
             if (house.roles.heir && house.roles.heir !== memberId && inNonHeirOffice) drift -= 1;

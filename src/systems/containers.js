@@ -80,11 +80,16 @@ const DEFAULTS = {
     },
 };
 
+// (the goods by id, built once for each GOODS table the data hands back: a burglary asks per item)
+let _goodsSrc = null;
+let _goodsById = null;
 function _goods() {
     const pe = DataLoader.get && DataLoader.get('playerEconomy');
-    const G = (pe && pe.GOODS) || {};
+    const G = (pe && pe.GOODS) || null;
+    if (G && G === _goodsSrc && _goodsById) return _goodsById;
     const byId = {};
-    for (const g of Object.values(G)) if (g && g.id) byId[g.id] = g;
+    for (const g of Object.values(G || {})) if (g && g.id) byId[g.id] = g;
+    if (G) { _goodsSrc = G; _goodsById = byId; }
     return byId;
 }
 

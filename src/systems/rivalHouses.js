@@ -26,6 +26,11 @@
 //             estate up for sale.
 //   Home      rests at its seat when the purse runs thin or the road has
 //             been long.
+//   Law       rides to a court and sues the player where it has grounds
+//             (lawGrounds: a refused debt, a disputed estate, a betrothal
+//             the player's House broke, an insult); pays the filing fee into
+//             that town's purse and leaves rival.suing for the courts
+//             (player/trials.js) to take up. Tuned in data/trials.json suits.
 //
 // The head weighs each errand by what it is worth to them now (`_scores`):
 // the best bargain in reach, the best estate's yield, the court where they
@@ -76,9 +81,10 @@ import { Arms } from './arms.js';
 import { Economy } from '../world/economy.js';
 import { MoneySupply } from '../world/moneySupply.js';
 import { PlayerInventory } from '../core/inventory.js';
+import { Brands } from '../world/brands.js';
 
 export const RIVAL_TYPE = 'rival_retinue';
-const ERRANDS = ['trade', 'court', 'shadow', 'invest', 'waylay', 'home'];
+const ERRANDS = ['trade', 'court', 'shadow', 'invest', 'waylay', 'law', 'home'];
 const AMBITIONS = ['wealth', 'land', 'favour', 'revenge'];
 
 /** The head's mood today, from what has just happened to them (newest first wins by rank). parley: added to the parley chance. */
@@ -901,6 +907,131 @@ export const RivalHouses = {
         return unit.step >= last;
     },
 
+    // ──────────── AT LAW (the suits are heard by player/trials.js) ────────────
+
+    _suitsCfg() {
+        const g = DataLoader._gamedata;
+        return (g && g.trials && g.trials.suits) || {};
+    },
+
+    _suitKind(kind) {
+        return { name: kind, merit: 0.5, ...((this._suitsCfg().kinds || {})[kind] || {}) };
+    },
+
+    /** Does the player's court host a child of this House (a ward, systems/raising.js)? */
+    hostsChild(player, rival) {
+        const wards = player && player.house && Array.isArray(player.house.wards) ? player.house.wards : [];
+        return !!rival && wards.some(w => w && w.rivalId != null && String(w.rivalId) === String(rival.kingdomId));
+    },
+
+    /**
+     * The grounds each side holds for a lawsuit (data/trials.json suits):
+     * { player: [{ kind, merit, amount?, estateId?, note }], rival: [...] }.
+     */
+    lawGrounds(player, world, rival) {
+        const out = { player: [], rival: [] };
+        if (!player || !rival) return out;
+        const day = _day(world);
+        const R = this._suitsCfg().rival || {};
+        const K = k => this._suitKind(k);
+        // An unpaid debt: a loan the rival refused to repay
+        const owed = (rival.loans || []).filter(l => l && l.defaulted && !l.repaid).reduce((n, l) => n + _num(l.owed), 0);
+        if (owed > 0) out.player.push({ kind: 'debt', merit: K('debt').merit, amount: Utils.cents(owed), note: `${Utils.formatGold(owed)} gold they will not repay` });
+        // Land: both Houses hold estates in one town
+        if (world && world.estates && Estates.enabled()) {
+            const mine = Estates.heldBy(world, 'player');
+            const theirs = this.estates(world, rival);
+            for (const t of theirs) {
+                const m = mine.find(e => e.town === t.town);
+                if (!m) continue;
+                out.player.push({ kind: 'land', merit: K('land').merit, estateId: t.id, note: `${t.name || 'their estate'}, beside yours` });
+                out.rival.push({ kind: 'land', merit: K('land').merit, estateId: m.id, note: `${m.name || 'your estate'}, beside theirs` });
+                break;
+            }
+        }
+        const damages = Utils.cents(_num(K('betrothal').damages, 250));
+        // A broken betrothal into their realm (the realm's lord remembers it)
+        const k = world && typeof world.getKingdom === 'function' ? world.getKingdom(rival.kingdomId) : null;
+        const broke = k && k.lord && Array.isArray(k.lord.memory) && k.lord.memory.some(e => e && e.k === 'betrothal_broken' && day - _num(e.d) <= _num(R.betrothalDays, 360));
+        if (broke) out.rival.push({ kind: 'betrothal', merit: K('betrothal').merit, amount: damages, note: 'the betrothal your House broke' });
+        // ...or one they broke with your family (systems/heirAgency.js), not yet sued over
+        const bb = rival.brokeBetrothal;
+        if (bb && !bb.sued && day - _num(bb.day) <= _num(R.betrothalDays, 360)) {
+            out.player.push({ kind: 'betrothal', merit: K('betrothal').merit, amount: damages, note: `${bb.child ? `${bb.child}'s` : 'the'} betrothal they broke` });
+        }
+        // Slander: their plot against you, or your insult to their head
+        const house = player.house;
+        const name = rival.name || '';
+        const theirSlander = (house && Array.isArray(house.schemes) && house.schemes.some(sc => sc && sc.type === 'slander' && sc.revealed && String(sc.rivalId) === String(rival.kingdomId)))
+            || (house && Array.isArray(house.history) && house.history.some(h => h && day - _num(h.day) <= 180 && (h.tags || []).includes('struck') && String(h.text || '').startsWith(`${name}:`) && /slander/i.test(h.text)));
+        if (theirSlander) out.player.push({ kind: 'slander', merit: K('slander').merit, amount: Utils.cents(_num(K('slander').damages, 120)), note: 'the lies they put about' });
+        if (this.recalls(rival, world, 'insult', 120)) out.rival.push({ kind: 'slander', merit: K('slander').merit, amount: Utils.cents(_num(K('slander').damages, 120)), note: 'your insult to their head' });
+        return out;
+    },
+
+    /** Where a rival goes to law against the player: the player's liege's capital, else its own. → { id, name, realm, capital } */
+    _lawVenue(player, world, rival) {
+        for (const id of [player && player.allegiance, rival.kingdomId]) {
+            if (id == null || !world || typeof world.getKingdom !== 'function') continue;
+            const k = world.getKingdom(id);
+            if (!k || k.isAlive === false || !k.capital) continue;
+            const s = this._settlementAt(world, k.capital.q, k.capital.r);
+            if (!s) continue;
+            return { id: k.id, name: s.name || k.name, realm: k.name, capital: k.capital };
+        }
+        return null;
+    },
+
+    /**
+     * What going to law against the player is worth to the head today, as an
+     * errand: the best ground's merit, their honour and the feud. null when
+     * there is no case or not now (no grounds, too little honour, a suit of
+     * theirs still open or lately decided, the fee not in the purse, the
+     * courts' clerks full). → { worth, ground, venue }
+     */
+    _lawScore(player, world, rival) {
+        if (!player || player.interregnum || !rival || !rival.head || rival.suing) return null;
+        // (only a rival House on the House's record goes to law: not a cadet branch of your own blood)
+        if (!player.house || !player.house.rivals || player.house.rivals[rival.kingdomId] !== rival) return null;
+        const S = this._suitsCfg();
+        const R = S.rival || {};
+        const honour = _num(rival.head.persona && rival.head.persona.honour, 5);
+        if (honour < _num(R.minHonour, 3)) return null;
+        if (_num(rival.gold) < _num(S.fee, 25)) return null;
+        const st = player.trials || {};
+        const open = (Array.isArray(st.suits) ? st.suits : []).filter(x => x && x.status === 'open');
+        if (open.length >= _num(S.maxOpen, 3) || open.some(x => String(x.rivalId) === String(rival.kingdomId))) return null;
+        const last = st.suitDay ? st.suitDay[String(rival.kingdomId)] : null;
+        if (last != null && _day(world) - last < _num(R.cooldownDays, 120)) return null;
+        const grounds = this.lawGrounds(player, world, rival).rival;
+        if (!grounds.length) return null;
+        const ground = grounds.slice().sort((a, b) => _num(b.merit) - _num(a.merit))[0];
+        const venue = this._lawVenue(player, world, rival);
+        if (!venue) return null;
+        let worth = _num(R.weight, 2) * Math.max(0, 1 + (honour - 5) * _num(R.honourMult, 0.2) + _num(rival.feud) * _num(R.feudMult, 0.01))
+            * _num(ground.merit, 0.5) / Math.max(0.05, _num(R.meritNorm, 0.6));
+        if (this.has(rival.head, 'scheming')) worth *= _num(R.schemingMult, 0.5);
+        return worth > 0 ? { worth, ground, venue } : null;
+    },
+
+    /** At the court: pay the filing fee into the court town's purse and leave the suit for the courts. */
+    _fileSuit(player, world, rival, plan) {
+        const law = this._lawScore(player, world, rival);
+        const town = this._settlementAt(world, plan.to.q, plan.to.r);
+        const fee = Utils.cents(_num(this._suitsCfg().fee, 25));
+        if (!law || !town || _num(rival.gold) < fee) {
+            this._note(rival, world, `Rode to court at ${plan.to.name} to go to law, and thought better of it.`);
+            return false;
+        }
+        const ground = this.lawGrounds(player, world, rival).rival.find(g => g.kind === plan.ground) || law.ground;
+        rival.gold = Utils.cents(_num(rival.gold) - fee);
+        // (the court's fee goes into the town's purse)
+        if (!Economy.payTown(town, fee)) MoneySupply.leak(world, -fee, 'lawsuits');
+        rival.suing = { kind: ground.kind, day: _day(world), kingdomId: plan.kingdomId, town: plan.to.name, fee };
+        this._note(rival, world, `At the court of ${plan.to.name}, suing you for ${String(this._suitKind(ground.kind).name || ground.kind).toLowerCase()}.`);
+        return true;
+    },
+
     // ──────────── AGENDA ────────────
 
     /**
@@ -914,7 +1045,7 @@ export const RivalHouses = {
         const T = C.think;
         const W = C.weights;
         const day = _day(world);
-        const s = { trade: 0, court: 0, shadow: 0, invest: 0, waylay: 0, home: _num(W.home, 1) };
+        const s = { trade: 0, court: 0, shadow: 0, invest: 0, waylay: 0, law: 0, home: _num(W.home, 1) };
         const trade = rival.gold >= C.trade.minGold ? this._findTrade(world, unit, rival) : null;
         if (trade) s.trade = _num(W.trade) * Math.min(_num(T.tradeCap, 2.5), trade.gain / Math.max(1, _num(T.tradeNorm, 100)));
         const estate = this._findEstate(world, unit, rival);
@@ -931,6 +1062,11 @@ export const RivalHouses = {
             s.shadow = _num(W.shadow) * (1 + (_num(rival.feud) - C.shadow.feud) / 20);
         }
         if (this.canWaylay(player, world, rival)) s.waylay = _num(W.waylay, 2) * (1 + (_num(rival.feud) - _num(C.waylay.feud, 80)) / 10);
+        // Going to law where they have grounds: the honest Houses weigh it against blades and plots
+        const law = this._lawScore(player, world, rival);
+        if (law) s.law = law.worth;
+        // A child of theirs at your court (systems/raising.js wards): they dare not plot or ride against you
+        if (this.hostsChild(player, rival)) { s.shadow = 0; s.waylay = 0; }
         for (const t of rival.head.traits || []) {
             for (const [k, v] of Object.entries((C.traits[t] && C.traits[t].weights) || {})) if (s[k] > 0) s[k] += v;
         }
@@ -938,7 +1074,7 @@ export const RivalHouses = {
         if (amb && s[amb.errand] > 0) s[amb.errand] *= _num(T.ambition, 1.6);
         const away = day - _num(rival.homeDay, day);
         if (rival.gold < C.home.poorBelow || away >= C.home.restAfter) s.home += 20;
-        return { scores: s, trade, estate };
+        return { scores: s, trade, estate, law };
     },
 
     /**
@@ -962,7 +1098,7 @@ export const RivalHouses = {
             memories: () => self.memoryOf(rival, world).slice(0, 5).map(m => self.memoryLabel(m)),
         });
         const kind = options.some(o => o.id === choice) ? choice : 'home';
-        return { kind, trade: got.trade, estate: got.estate };
+        return { kind, trade: got.trade, estate: got.estate, law: got.law || null };
     },
 
     /** One line on what an errand would mean today, for a model choosing among them. */
@@ -972,6 +1108,7 @@ export const RivalHouses = {
         if (kind === 'court') return 'ride to a royal court to win favour (and speak against your rival there)';
         if (kind === 'shadow') return `ride near your rival and pay ${this.config().plotCost} gold for a plot against them`;
         if (kind === 'waylay') return 'hunt your rival\'s party on the road and fall on it';
+        if (kind === 'law' && got.law) return `ride to the court at ${got.law.venue.name} and sue your rival for ${String(this._suitKind(got.law.ground.kind).name || got.law.ground.kind).toLowerCase()}`;
         if (kind === 'home') return `rest at your seat${rival.seat && rival.seat.name ? ` in ${rival.seat.name}` : ''}`;
         return '';
     },
@@ -1081,6 +1218,12 @@ export const RivalHouses = {
                 this._ride(world, unit, k.capital);
                 return rival.plan;
             }
+        }
+        if (kind === 'law' && pick.law) {
+            const k = pick.law.venue;
+            rival.plan = { kind: 'law', ground: pick.law.ground.kind, kingdomId: k.id, to: { q: k.capital.q, r: k.capital.r, name: k.name }, realm: k.realm, since: day };
+            this._ride(world, unit, k.capital);
+            return rival.plan;
         }
         if (kind === 'shadow' && player) {
             const town = this._nearestTown(world, player);
@@ -1199,6 +1342,14 @@ export const RivalHouses = {
                 plan.until = day + Utils.randInt(a, b);
                 const hatched = player ? this._payPlot(player, world, rival) : null;
                 this._note(rival, world, hatched ? `In ${plan.to.name}, paying for a plot against you.` : `In ${plan.to.name}, watching you.`);
+            }
+            if (day >= plan.until) rival.plan = null;
+            return;
+        }
+        if (plan.kind === 'law') {
+            if (plan.until == null) {
+                plan.until = day + Utils.randInt(2, 4);
+                this._fileSuit(player, world, rival, plan);
             }
             if (day >= plan.until) rival.plan = null;
             return;
@@ -1877,6 +2028,7 @@ export const RivalHouses = {
         if (p.kind === 'home') return p.until != null ? `at home in ${p.to.name}` : `riding home to ${p.to.name}`;
         if (p.kind === 'invest') return `riding to ${p.to.name} to buy land`;
         if (p.kind === 'waylay') return 'hunting you on the roads';
+        if (p.kind === 'law') return p.until != null ? `at law in ${p.to.name}` : `riding to the court at ${p.to.name}, to go to law`;
         return 'on the road';
     },
 
@@ -1916,6 +2068,8 @@ export const RivalHouses = {
         // What they remember of you, the head's own good sense, and the day they are having
         c += this.memoryScore(rival, world) / 250 + (_num(rival.head && rival.head.diplomacy, 5) - 5) * 0.01;
         c += _num((MOODS[this.mood(rival, world).id] || {}).parley);
+        // A court's brand on your hand: no lord parleys gladly with a branded criminal (world/brands.js)
+        c += Brands.parley(player, rival.kingdomId, world);
         return Math.max(0.05, Math.min(0.9, c));
     },
 

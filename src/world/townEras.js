@@ -162,10 +162,13 @@ export const TownEras = {
     wallDefense(settlement) {
         const st = TownEras.state(settlement);
         const kind = st && st.walls && st.walls.kind;
-        if (!kind) return 0;
+        // (a finished great work's walls or keep: systems/greatWorks.js → settlement.ageWorksFx)
+        const fx = _obj(settlement && settlement.ageWorksFx);
+        const extra = fx && Number.isFinite(fx.defense) && fx.defense > 0 ? fx.defense : 0;
+        if (!kind) return extra;
         const D = _obj(TownEras.config().walls.defense) || {};
         const v = Number(D[kind]);
-        return Number.isFinite(v) && v > 0 ? v : 0;
+        return (Number.isFinite(v) && v > 0 ? v : 0) + extra;
     },
 
     /**

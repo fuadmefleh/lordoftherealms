@@ -433,7 +433,9 @@ export const Ships = {
         const n = Math.min(ship.crew, Math.max(0, Math.floor(count)));
         if (n <= 0) return { success: false, message: 'No crew to dismiss.' };
         ship.crew -= n;
-        return { success: true, dismissed: n, message: `Paid off ${n} sailor${n === 1 ? '' : 's'} from ${ship.name}.` };
+        // (the last hand gone, she is laid up: a share of her upkeep — settings.layUp)
+        const laid = ship.crew <= 0 ? ` She is laid up: ${Math.round(this.layUpSettings().upkeepShare * 100)}% of her upkeep until you crew her again.` : '';
+        return { success: true, dismissed: n, laidUp: ship.crew <= 0, message: `Paid off ${n} sailor${n === 1 ? '' : 's'} from ${ship.name}.${laid}` };
     },
 
     /**
@@ -1694,6 +1696,7 @@ export const Ships = {
         if (ships.length === 0) return;
 
         const settings = this._getSettings();
+        const layUp = this.layUpSettings();
         let totalUpkeep = 0;
         const stormReports = [];
         const storms = {};
@@ -1784,7 +1787,9 @@ export const Ships = {
             // Daily upkeep (pirate surges raise crew pay and escort costs)
             const shipTile = world && world.getTile && typeof ship.q === 'number' ? world.getTile(ship.q, ship.r) : null;
             const navalCost = world ? WorldEvents.getModifier(world, 'navalCost', shipTile) : 0;
-            totalUpkeep += navalCost ? Math.round(st.dailyUpkeep * Math.max(0, 1 + navalCost)) : st.dailyUpkeep;
+            const upkeep = navalCost ? Math.round(st.dailyUpkeep * Math.max(0, 1 + navalCost)) : st.dailyUpkeep;
+            // (laid up — docked with no crew aboard — she pays a share of it: settings.layUp)
+            totalUpkeep += this.isLaidUp(ship) ? Utils.cents(upkeep * layUp.upkeepShare) : upkeep;
 
             // Condition decay
             if (Utils.random() < (settings.conditionDecayChance || 0.04)) {
@@ -1794,9 +1799,11 @@ export const Ships = {
 
         // Deduct total upkeep — never past an empty purse: what can't be
         // paid goes undone, and neglected hulls wear
+        // (...and never past the bread money the owner keeps back: settings.layUp.keepBack)
         let upkeepShort = 0;
+        totalUpkeep = Utils.cents(totalUpkeep);
         if (totalUpkeep > 0) {
-            const paidUpkeep = Math.min(totalUpkeep, Math.max(0, player.gold || 0));
+            const paidUpkeep = Utils.cents(Math.min(totalUpkeep, Math.max(0, (player.gold || 0) - layUp.keepBack)));
             upkeepShort = totalUpkeep - paidUpkeep;
             player.gold -= paidUpkeep;
             // (the chandlers, riggers and harbour dues of the ports the fleet keeps to)
@@ -1823,7 +1830,41 @@ export const Ships = {
         const sailing = this._sailingDay(player, storms, voyage);
         if (voyage && sailing) this._voyageLog(this.getShipById(player, voyage.shipId) || {}, sailing.icon, sailing.text, world);
         if (voyage) this._logVoyageDay(player, world, voyage, { stormReports, interceptions, provisions, crew });
-        return { stormReports, iceReports, crew, interceptions, upkeepShort, provisions, voyage, sailing };
+        const leanPurse = this._leanPurse(player, world, totalUpkeep + crew.wages, layUp);
+        return { stormReports, iceReports, crew, interceptions, upkeepShort, provisions, voyage, sailing, leanPurse };
+    },
+
+    /** settings.layUp with its defaults: { upkeepShare, keepBack, warnDays, warnEvery }. */
+    layUpSettings() {
+        const L = this._getSettings().layUp || {};
+        const n = (v, d) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
+        return { upkeepShare: Math.max(0, n(L.upkeepShare, 0.25)), keepBack: Math.max(0, n(L.keepBack, 25)), warnDays: n(L.warnDays, 5), warnEvery: Math.max(1, n(L.warnEvery, 5)) };
+    },
+
+    /** Laid up: docked with no crew aboard (she costs settings.layUp.upkeepShare of her upkeep). */
+    isLaidUp(ship) {
+        return !!ship && ship.status === 'docked' && this.getCrew(ship) <= 0;
+    },
+
+    /**
+     * The fleet's day (upkeep and wages, perDay) will run the purse dry within
+     * layUp.warnDays: a warning, at most every warnEvery days (player.fleetWarnDay).
+     * → { perDay, days, crewed, text } | null
+     */
+    _leanPurse(player, world, perDay, layUp) {
+        if (!(perDay > 0) || !(layUp.warnDays > 0)) return null;
+        const gold = Math.max(0, (player.gold || 0) - layUp.keepBack);
+        const days = Math.floor(gold / perDay);
+        if (days >= layUp.warnDays) return null;
+        const day = world && Number.isFinite(world.day) ? world.day : null;
+        if (day != null && player.fleetWarnDay != null && day - player.fleetWarnDay < layUp.warnEvery) return null;
+        if (day != null) player.fleetWarnDay = day;
+        const crewed = (player.ships || []).filter(s => s && s.status === 'docked' && this.getCrew(s) > 0).length;
+        const share = Math.round(layUp.upkeepShare * 100);
+        const text = `Your ships cost ${Utils.formatGold(perDay)}g a day in upkeep and wages; your purse covers ${days} more day${days === 1 ? '' : 's'} of it. `
+            + (crewed ? `Pay off a docked ship's crew to lay her up (${share}% of her upkeep), or sell her. ` : 'Sell a ship you cannot keep. ')
+            + `The harbour waits for its dues before you go hungry: the last ${Utils.formatGold(layUp.keepBack)}g stay yours for bread, and the hulls wear meanwhile.`;
+        return { perDay: Utils.cents(perDay), days, crewed, text };
     },
 
     /**
@@ -1935,7 +1976,8 @@ export const Ships = {
             this._ensureCrew(ship);
             wages += this.getDailyWages(ship);
         }
-        const paid = wages <= 0 || (player.gold || 0) >= wages;
+        // (never past the bread money the owner keeps back: settings.layUp.keepBack)
+        const paid = wages <= 0 || (player.gold || 0) - this.layUpSettings().keepBack >= wages;
         if (paid && wages > 0) {
             player.gold -= wages;
             // (the sailors spend their pay ashore)

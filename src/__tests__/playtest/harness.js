@@ -114,6 +114,8 @@ import { Stewards } from '../../systems/stewards.js';
 import { Upbringing } from '../../systems/upbringing.js';
 import { HeirAgency } from '../../systems/heirAgency.js';
 import { Raising } from '../../systems/raising.js';
+import { HeirPaths } from '../../systems/heirPaths.js';
+import { Trials } from '../../player/trials.js';
 import { DynastyTree } from '../../systems/dynastyTree.js';
 import { Heirlooms } from '../../systems/heirlooms.js';
 import { Regency } from '../../systems/regency.js';
@@ -130,6 +132,7 @@ import { MerchantPrince } from '../../systems/merchantPrince.js';
 import { Labour } from '../../systems/labour.js';
 import { Guilds } from '../../systems/guilds.js';
 import { PriceKnowledge } from '../../systems/priceKnowledge.js';
+import { PriceNews } from '../../systems/priceNews.js';
 import { Concessions } from '../../systems/concessions.js';
 import { LandMarket } from '../../systems/landMarket.js';
 import { PuttingOut } from '../../systems/puttingOut.js';
@@ -141,6 +144,7 @@ import { Underwriting } from '../../systems/underwriting.js';
 import { Bills } from '../../systems/bills.js';
 import { Bourse } from '../../systems/bourse.js';
 import { PublicWorks } from '../../systems/publicWorks.js';
+import { GreatWorks } from '../../systems/greatWorks.js';
 import { Mints } from '../../systems/mints.js';
 import { Fiscal } from '../../systems/fiscal.js';
 import { Engrossing } from '../../systems/engrossing.js';
@@ -340,6 +344,8 @@ function _endDay(game) {
         game.upkeep = game.autoUpkeep ? AutoUpkeep.run(player, world, { mode: game.autoUpkeep }) : null;
     }
     mark(game, 'AutoUpkeep.run');
+    game.trialsDay = Trials.processDay(world, player);
+    mark(game, 'Trials.processDay');
     PlayerActions.endDay(player, world);
     mark(game, 'PlayerActions.endDay');
     Councils.processDaily(player, world);
@@ -413,6 +419,8 @@ function _endDay(game) {
     mark(game, 'HeirAgency.processDay');
     Raising.processDay(player, world);
     mark(game, 'Raising.processDay');
+    HeirPaths.processDay(player, world);
+    mark(game, 'HeirPaths.processDay');
     Regency.processDay(player, world);
     mark(game, 'Regency.processDay');
     Abdication.processDay(player, world);
@@ -596,6 +604,8 @@ function _endDay(game) {
     mark(game, 'TradePolicy.processDay');
     game.worksDay = PublicWorks.processDay(world, player);
     mark(game, 'PublicWorks.processDay');
+    game.ageWorksDay = GreatWorks.processDay(world, player);
+    mark(game, 'GreatWorks.processDay');
     MarketDynamics.updatePrices(world, player);
     mark(game, 'MarketDynamics.updatePrices');
     game.labourDay = Labour.processDay(world, player);
@@ -610,6 +620,8 @@ function _endDay(game) {
         traders: MerchantCaravans.traders(world),
     });
     mark(game, 'PriceKnowledge.processDay');
+    game.priceNewsDay = PriceNews.processDay(world, player);
+    mark(game, 'PriceNews.processDay');
     game.chronicleDay = EconomyChronicle.processDay(world, player);
     mark(game, 'EconomyChronicle.processDay');
     game.victoryDay = Victory.check(player, world) || null;

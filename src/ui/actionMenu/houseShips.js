@@ -508,7 +508,9 @@ Object.assign(ActionMenu, {
             ['⚔️', 'Str', eff.combatStrength],
             ['👥', 'Crew', `<span style="color:${crewColor}">${crew}/${eff.crewRequired}</span>`],
             ['🙂', 'Morale', morale],
-            ['💰/day', '', `${Utils.formatGold(st.dailyUpkeep)}g + ${Utils.formatGold(Ships.getDailyWages(ship))}g wages`],
+            ['💰/day', '', Ships.isLaidUp(ship)
+                ? `${Utils.formatGold(Utils.cents(st.dailyUpkeep * Ships.layUpSettings().upkeepShare))}g laid up (no crew)`
+                : `${Utils.formatGold(st.dailyUpkeep)}g + ${Utils.formatGold(Ships.getDailyWages(ship))}g wages`],
             ['🍞', 'Provisions', foodDays === Infinity ? '—' : `${foodDays} days`],
             ship.status === 'building' ? ['🏗️', '', `${ship.buildDaysLeft}d left`] : null,
             ship.status === 'moving' ? ['🧭', '', ship.destinationName || 'en route'] : null,

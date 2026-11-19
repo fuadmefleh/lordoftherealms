@@ -336,6 +336,8 @@ export const Migration = {
                 const f = F(s);
                 let v = -f.plague * _num(P.plague) - f.crime * _num(P.crime) - f.laws * _num(P.laws)
                     + (f.wealth - 0.5) * 2 * _num(P.prosperity) + f.content * _num(P.reputation);
+                // A cathedral's pilgrims, a university's scholars (systems/greatWorks.js → settlement.ageWorksFx)
+                v += _num(s.ageWorksFx && s.ageWorksFx.pull);
                 if (isRuled(s)) v += _num(settlers.pull);
                 pulls.set(s, v);
                 return v;

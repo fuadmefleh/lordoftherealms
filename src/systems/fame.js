@@ -32,6 +32,7 @@
 import { DataLoader } from '../core/dataLoader.js';
 import { Utils } from '../core/utils.js';
 import { Economy } from '../world/economy.js';
+import { Brands } from '../world/brands.js';
 import { Ledger } from './ledger.js';
 import { Quests } from './quests.js';
 import { Townsfolk } from './townsfolk.js';
@@ -171,7 +172,7 @@ export const Fame = {
      * How a townsperson of this realm first sees the player:
      * { delta, reasons:[{label, delta}] } — the fame stage, and a rival House's feud.
      */
-    dispositionSeed(player, kingdomId) {
+    dispositionSeed(player, kingdomId, world = null) {
         const reasons = [];
         const st = Fame.stageIn(player, kingdomId);
         let delta = _num(st.disposition);
@@ -182,6 +183,9 @@ export const Fame = {
             const d = -Math.min(_num(R.max, 20), Math.round(rival.feud * _num(R.perFeud, 0.25)));
             if (d) { delta += d; reasons.push({ label: `${rival.name}'s feud`, delta: d }); }
         }
+        // A court's brand on the hand (world/brands.js): they see it before they hear your name
+        const brand = Brands.dispositionDelta(player, kingdomId, world);
+        if (brand) { delta += brand; reasons.push({ label: 'The brand on your hand', delta: brand }); }
         return { delta, reasons, stage: st.id };
     },
 

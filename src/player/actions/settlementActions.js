@@ -30,6 +30,7 @@ import { Finance } from '../../systems/finance.js';
 import { Underwriting } from '../../systems/underwriting.js';
 import { Bourse } from '../../systems/bourse.js';
 import { Transport } from '../../world/transport.js';
+import { GreatWorks } from '../../systems/greatWorks.js';
 import { Mints } from '../../systems/mints.js';
 import { Fiscal } from '../../systems/fiscal.js';
 import { Estates } from '../../world/estates.js';
@@ -650,6 +651,21 @@ export function addSettlementActions(actions, player, tile, world, ctx) {
             description: roads.length
                 ? `${roads.length} road(s) out of town${bad ? `, ${bad} in poor repair or closed` : ''}: fund repairs, highways, bridges, canals; collect tolls`
                 : 'No made road here: fund a canal or harbour works, see the roads of the realm',
+        });
+    }
+    // Works of the Ages: great works rising over generations near here, your House's pledges (systems/greatWorks.js)
+    if (world && tile.settlement && GreatWorks.enabled()) {
+        const near = GreatWorks.nearby(world, player);
+        const rising = near.filter(d => d.status === 'building' || d.status === 'stalled');
+        const mine = near.filter(d => d.mine);
+        actions.push({
+            type: 'great_works',
+            label: 'Works of the Ages',
+            icon: '🏛️',
+            description: rising.length
+                ? `${rising.length} great work(s) rising near here${mine.length ? `, ${mine.length} with your House's pledge` : ''}: pledge, see the funders, found one`
+                : 'Found a cathedral, university, bridge, canal, walls or harbour that will take a generation',
+            notice: mine.some(d => d.mine.missed) ? 'A pledge of your House is falling short' : null,
         });
     }
     const exchange = Bourse.exchangeAt(player, world);

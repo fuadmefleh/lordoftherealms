@@ -408,10 +408,16 @@
             "maxBase": 1, "prestigePerSeat": 120, "maxCap": 3, "minReputation": 10, "years": 2, "minAge": 6, "maxAge": 13,
             "fee": 10, "repPerMonth": 1, "repCap": 12, "returnReputation": 8, "returnPrestige": 3,
             "deathChancePerYear": 0.01, "deathReputation": -25, "sendHomeReputation": -4, "warReturnReputation": 10,
-            "wardmateAgeGap": 4, "wardmateCap": 24, "cooldownDays": 240, "historyCap": 12
+            "wardmateAgeGap": 4, "wardmateCap": 24, "cooldownDays": 240, "historyCap": 12,
+            "rival": {
+                "_doc": "Rival Houses' own children (systems/heirPaths.js sends them, systems/raising.js keeps them). Every checkDays each rival House rolls chance (a hash): its youngest child aged minAge-maxAge, unwed and at home, goes as a ward to the player's court for years (a ward seat free, feud at most maxFeud, no child of theirs there already) or else to the rival House it is friendliest with (tie at least minTie: bond +tieBond, +homeBond when they come home). At your court: fee a month from the rival's purse into yours, the feud cools feudPerMonth a month (feudCap in all); while you host their child they will not plot or waylay you; a feud of the hostage rivalFeud (paths.hostage) or more makes the child a hostage in your keeping. Keep them: feud +keepFeud, +keepMonthlyFeud a month, and they may spirit the child away (feud +rescuedFeud) or offer up to ransom gold; ransom them: the rival pays into your purse, feud +ransomFeud. Home at their term: feud homeFeud; sent home early: sentHomeFeud (freedFeud if held); dies in your keeping: diedFeud. A squire's fellow squire is a real child of the host House within hostChildGap years of the child's age.",
+                "checkDays": 30, "chance": 0.04, "minAge": 7, "maxAge": 13, "years": 3, "maxFeud": 40, "minTie": 10, "tieBond": 10, "homeBond": 5,
+                "fee": 8, "feudPerMonth": -1, "feudCap": 10, "keepFeud": 10, "keepMonthlyFeud": 2, "rescuedFeud": 5, "ransom": 150, "ransomFeud": 15,
+                "homeFeud": -8, "sentHomeFeud": 4, "freedFeud": -10, "diedFeud": 30, "hostChildGap": 3
+            }
         },
         "payoff": { "closePrestige": 3, "distantPrestige": -3, "wardmateMonths": 6, "wardmateMonthsPerRep": 3, "wardmateRepCap": 8 },
-        "betrothal": { "breakPrestige": 5, "warBreakDays": 60, "shortfallReputation": -6 }
+        "betrothal": { "breakPrestige": 5, "warBreakDays": 60, "shortfallReputation": -6, "_rival": "A rival House of the betrothed's realm whose feud with the player reaches rivalBreakFeud may break the match itself: checked every rivalCheckDays, with chance rivalBreakChance (a hash roll). Recorded on the rival (rival.brokeBetrothal): grounds for the player to sue (player/trials.js).", "rivalBreakFeud": 60, "rivalBreakChance": 0.2, "rivalCheckDays": 30 }
     },
     "agency": {
         "_comment": "systems/heirAgency.js — directed family actions (fostering a minor, betrothal, commissions) and the heir's record paid off at succession.",
@@ -482,6 +488,86 @@
             "debtBase": 6, "debtMax": 20, "courtBelow": 40, "courtMax": 20,
             "stabilityBelow": 35, "stabilityMax": 25, "infamyBelow": -40, "infamyMax": 20,
             "frailAge": 60, "frailHealth": 0.5, "frail": 15, "oldAge": 70, "old": 10
+        }
+    },
+    "paths": {
+        "_comment": "systems/heirPaths.js — formative paths (ages 10–14): a child sent away for years as page and squire at another House's court, apprentice to a guild master, novice at a church house, scholar at a cathedral school or university, or fostered abroad. Fees are real coin (gold, whole cents) paid to a real payee: a crown's chests, a rival House's purse, a guild's hall chest, a town's purse. Results: skills, stats and seeds each year, a finishing mark, letters, a tongue, and CONTACTS — named people who remember the child. A child held at a court that sours is a hostage (demands, ransom, rescue, turning). Wards the House keeps are leverage too.",
+        "minAge": 10, "maxAge": 14, "minYears": 2,
+        "contactRegard": [40, 70], "contactKnownShare": 0.4, "contactSuccessionRep": 2, "contactRepCap": 8, "contactRivalFeud": 5,
+        "pathTutorQuality": 1.2,
+        "universityMinPop": 2500, "venueCap": 8,
+        "hostage": {
+            "regard": -30, "rivalFeud": 70, "checkDays": 15,
+            "demandEvery": 60, "demandDays": 30, "demandBase": 120, "demandRoyalOrHeir": 1.5, "demandGoldShare": 0.05, "demandMax": 900, "demandGrowth": 1.25,
+            "paidReputation": 4, "refusedReputation": -5, "refusedTurn": 20,
+            "turnPerMonth": 6, "turnCloseFactor": 0.5, "turnDistantFactor": 1.5, "turnAt": 100,
+            "turnedSeeds": { "deceitful": 2, "cunning": 1 }, "turnedBond": -20,
+            "turnedPrestige": -6, "turnedHostReputation": 10, "turnedOfficeDrift": -3,
+            "heldPrestige": -5,
+            "rescueCost": 80, "rescueBase": 0.3, "rescueStealth": 0.04, "rescueSpymaster": 0.01, "rescueMin": 0.1, "rescueMax": 0.8,
+            "rescueSuccessRep": -10, "rescueFailRep": -15, "rescueFailTurn": 15, "rescueDeathChance": 0.1, "rescueWoundHealth": 10
+        },
+        "wardLeverage": {
+            "keepReputation": -8, "keepMonthlyReputation": -2, "rescueChancePerMonth": 0.08, "rescuedReputation": -5,
+            "ransomBase": 120, "ransomRoyal": 180, "ransomPeaceReputation": -15, "ransomWarReputation": -3,
+            "offerEvery": 60, "offerDays": 30
+        },
+        "kinds": {
+            "squire": {
+                "name": "Page and Squire", "icon": "🛡️", "venue": "court", "years": 4, "fee": 120, "yearly": 40,
+                "blurb": "Serve at another House's court: the pages' table, then a knight's horse and arms. Strength, combat and leadership; brave and true. The host's court becomes a second home, and a hostage-taker if it sours.",
+                "focus": "martial", "stats": { "strength": 0.35 }, "skills": { "combat": 0.6, "leadership": 0.35, "diplomacy": 0.1 },
+                "seeds": { "brave": 0.5, "honest": 0.2 }, "finish": { "seeds": { "brave": 1.5 }, "skills": { "combat": 1 } },
+                "fostered": true, "rivalFeudCut": 10, "hostage": "regard",
+                "contacts": [
+                    { "role": "knight", "label": "the knight who trained them", "occupation": "knight", "age": [28, 50], "noble": true },
+                    { "role": "squire", "label": "a fellow squire", "occupation": "noble", "age": "near", "noble": true, "hostChild": true }
+                ]
+            },
+            "apprentice": {
+                "name": "Guild Apprentice", "icon": "⚒️", "venue": "guild", "years": 4, "fee": 80, "yearly": 20,
+                "blurb": "Bound to a guild master in a trading town. Commerce and wits; honest dealing, or a taste for coin. Paid into the guild's own hall chest.",
+                "focus": "stewardship", "stats": { "intelligence": 0.25, "luck": 0.1 }, "skills": { "commerce": 0.65, "leadership": 0.05, "cartography": 0.05 },
+                "seeds": { "honest": 0.3, "greedy": 0.25 }, "finish": { "skills": { "commerce": 1 } }, "literacy": 10,
+                "hostage": "never",
+                "contacts": [
+                    { "role": "master", "label": "their guild master", "occupation": "merchant", "age": [35, 60], "master": true },
+                    { "role": "apprentice", "label": "a fellow apprentice", "occupation": "craftsman", "age": "near" }
+                ]
+            },
+            "novice": {
+                "name": "Novice of the Church", "icon": "🙏", "venue": "church", "years": 3, "fee": 100, "yearly": 10,
+                "blurb": "Given to a monastery or cathedral chapter: psalter, scriptorium and silence. Faith, letters and gentleness. The church gives sanctuary: it holds no hostages.",
+                "focus": "piety", "stats": { "faith": 0.6, "intelligence": 0.25 }, "skills": { "diplomacy": 0.2, "cartography": 0.05 },
+                "seeds": { "pious": 0.6, "merciful": 0.3 }, "finish": { "seeds": { "pious": 1 } }, "literacy": 30,
+                "hostage": "never",
+                "contacts": [
+                    { "role": "abbot", "label": "the abbot who taught them", "occupation": "priest", "age": [40, 65] },
+                    { "role": "novice", "label": "a fellow novice", "occupation": "priest", "age": "near" }
+                ]
+            },
+            "scholar": {
+                "name": "Scholar", "icon": "📜", "venue": "school", "years": 3, "fee": 150, "yearly": 50,
+                "blurb": "Sent to a cathedral school or a city's university: grammar, rhetoric, the stars and the maps. Intelligence, cartography and diplomacy; a scholar's mind. Students come from many realms.",
+                "focus": "learning", "stats": { "intelligence": 0.6 }, "skills": { "cartography": 0.35, "diplomacy": 0.2, "commerce": 0.1 },
+                "seeds": { "scholar": 0.7, "cunning": 0.1 }, "finish": { "seeds": { "scholar": 1.5 } }, "literacy": 40,
+                "hostage": "war",
+                "contacts": [
+                    { "role": "master", "label": "their master at the schools", "occupation": "scholar", "age": [35, 65] },
+                    { "role": "student", "label": "a fellow student from abroad", "occupation": "noble", "age": "near", "noble": true, "foreign": true }
+                ]
+            },
+            "abroad": {
+                "name": "Fostered Abroad", "icon": "🌍", "venue": "abroad", "years": 3, "fee": 100, "yearly": 30,
+                "blurb": "Raised in a household of a realm of another tongue. Charisma, diplomacy and that realm's language; a wanderer's ease. The household's own child grows up beside them.",
+                "focus": "diplomacy", "stats": { "charisma": 0.3, "luck": 0.1 }, "skills": { "diplomacy": 0.45, "cartography": 0.2 },
+                "seeds": { "wanderer": 0.4, "generous": 0.2 }, "finish": { "skills": { "diplomacy": 1 } },
+                "languagePerYear": 30, "fostered": true, "hostage": "regard",
+                "contacts": [
+                    { "role": "fosterSibling", "label": "their foster sibling", "occupation": "noble", "age": "near", "noble": true, "opposite": true },
+                    { "role": "host", "label": "the household that raised them", "occupation": "noble", "age": [30, 55], "noble": true }
+                ]
+            }
         }
     }
 }

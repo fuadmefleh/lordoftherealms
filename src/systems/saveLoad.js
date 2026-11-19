@@ -53,6 +53,7 @@ import { RiverDrift } from './riverDrift.js';
 import { RiverLife } from './riverLife.js';
 import { LlmProse } from './llmProse.js';
 import { Crises } from './crises.js';
+import { GreatWorks } from './greatWorks.js';
 import { Climate } from '../world/climate.js';
 import { PriceAnchors } from '../world/priceAnchors.js';
 import { RealmTimeline } from './realmTimeline.js';
@@ -69,6 +70,7 @@ import { MerchantHouses } from './merchantHouses.js';
 import { MerchantPrince } from './merchantPrince.js';
 import { Guilds } from './guilds.js';
 import { PriceKnowledge } from './priceKnowledge.js';
+import { PriceNews } from './priceNews.js';
 import { EconomyChronicle } from './economyChronicle.js';
 import { EconomyIndex } from '../world/economyIndex.js';
 import { Fashions } from '../world/fashions.js';
@@ -334,6 +336,8 @@ export const SaveLoad = {
             // heralds (systems/merchantCaravans.js; the traders and road
             // wardens themselves are world units above)
             merchantTrade: MerchantCaravans.serialize(world),
+            // The markets' news abroad, true and planted (systems/priceNews.js)
+            priceNews: PriceNews.serialize(world),
             // The courier houses (the player's among them), their stations, riders,
             // takings, the Royal Post charters and the post's news (systems/couriers.js)
             post: Couriers.serialize(world),
@@ -372,6 +376,8 @@ export const SaveLoad = {
             transport: Transport.serialize(world),
             // Great Works raised and rising, the wonders claimed (systems/patronage.js)
             greatWorks: Patronage.serializeWorld(world),
+            // Works of the Ages: cathedrals, universities, bridges, canals, walls over decades, their funders (systems/greatWorks.js)
+            ageWorks: GreatWorks.serialize(world),
             // The realms' weekly economic indices and the heralds' price news; the
             // fashions at court (world/economyIndex.js, world/fashions.js — each town's
             // fashion factors travel with its labour record)
@@ -590,6 +596,8 @@ export const SaveLoad = {
         'mapGrudges',
         // What each town's watch has made of the player's answers (systems/watchQuestioning.js)
         'watchQuestioning',
+        // Law courts: the trial awaited, cases before your court, verdicts that may surface, lawsuits between Houses (player/trials.js)
+        'trials',
         // The night's business: the lantern shuttered, curfew stops, landings, the gangs' grudges (systems/nightStreets.js)
         'nightStreets',
         // Dead and waiting out the years; or a new life begun in the world (player/afterlife.js)
@@ -919,6 +927,8 @@ export const SaveLoad = {
             guilds: Guilds.serialize(player),
             // The price book: known prices by town and their age, price history, trading P&L (systems/priceKnowledge.js)
             priceBook: PriceKnowledge.serialize(player),
+            // Price letters on the road, correspondents, talk heard and planted (systems/priceNews.js)
+            priceLetters: PriceNews.serializePlayer(player),
             // Trade policy as a merchant: goods booked by the realm they were bought in, crown licences (systems/tradePolicy.js)
             tradePolicy: TradePolicy.serializePlayer(player),
             // The gazettes read, the fashions heard of, net worth week by week (systems/economyChronicle.js)
@@ -1033,11 +1043,15 @@ export const SaveLoad = {
 
         // Great Works (older saves: none raised, none rising)
         Patronage.restoreWorld(saveData.greatWorks, world);
+        // Works of the Ages (older saves: none yet)
+        GreatWorks.restore(saveData.ageWorks, world);
 
         // World units (older saves keep the ones the regenerated world spawned)
         if (Array.isArray(saveData.units)) world.units = SaveLoad.restoreUnits(saveData.units);
         // The roads' trade record (older saves: a blank one; no traders on the road yet)
         MerchantCaravans.restore(saveData.merchantTrade, world);
+        // The markets' news abroad (older saves: none — the first is found on the next weekly look)
+        PriceNews.restore(saveData.priceNews, world);
         // The courier houses (older saves: none — the first are founded on the next days)
         Couriers.restore(saveData.post, world);
         Hospitality.restore(saveData.hospitality, world);
@@ -1304,6 +1318,8 @@ export const SaveLoad = {
         Guilds.loadState(player);
         // The price book — older saves start a blank one (filled on the next visit)
         PriceKnowledge.loadState(player);
+        // Price letters and correspondents — older saves have none
+        PriceNews.loadPlayer(player);
         // Trade policy — older saves have no ledger (goods already carried count as home-bought)
         TradePolicy.loadPlayer(player);
         // The Economic Chronicle — older saves start a blank record (the gazette is read on the next market visit)

@@ -74,6 +74,8 @@
         "hunting": ["*the retinue rides armed, and close* You are a hard {you} to find."]
     },
 
+    "branded": ["*eyes the brand on your hand* So {realm} burned you. I had heard, but I wanted to see it.", "*glances at your hand, and does not offer theirs* The brand of {realm}. A House should keep its criminals at home.", "That mark on your hand: {realm}'s iron, is it not? Men will talk of it longer than of anything else you do."],
+
     "recall": {
         "gift": "Your gold reached my coffers. I have not decided what it bought you.",
         "parleyOk": "Last time we spoke, you were almost reasonable.",

@@ -4,6 +4,7 @@ import { DataLoader, Utils, Characters, House, Traits, Upbringing, Legacy, Towns
 import { NPCLords } from '../../world/npcLords.js';
 import { HeirAgency } from '../heirAgency.js';
 import { Raising } from '../raising.js';
+import { HeirPaths } from '../heirPaths.js';
 import { KinCrimes } from '../kinCrimes.js';
 import { Regency } from '../regency.js';
 import { PracticeSkills } from '../practiceSkills.js';
@@ -482,6 +483,21 @@ Object.assign(Relationships, {
             rel.romantic = true;
             return npc;
         }
+        // A friend of the heir's youth (systems/heirPaths.js wedContact): the very person
+        if (sp.kind === 'contact' && sp.npcId) {
+            const npc = Relationships.getNPC(sp.npcId);
+            if (!npc || npc.isAlive === false) return null;
+            npc.isMarried = true;
+            npc.marriedTo = null;
+            player.spouse = npc.id;
+            player.marriageDay = sp.day != null ? sp.day : ((world && world.day) || 0);
+            player.marriageAllianceKingdom = null;
+            const rel = Relationships.getRelationship(player, npc.id);
+            rel.affection = Math.max(rel.affection || 0, 70);
+            rel.score = Math.max(rel.score || 0, 45);
+            rel.romantic = true;
+            return npc;
+        }
         const k = sp.kingdomId && typeof world.getKingdom === 'function' ? world.getKingdom(sp.kingdomId) : null;
         const home = k && k.capital ? world.getTile(k.capital.q, k.capital.r) : null;
         const settlement = (home && home.settlement) || { name: sp.kingdomName || 'abroad', kingdom: sp.kingdomId || null };
@@ -702,6 +718,8 @@ Object.assign(Relationships, {
         const heirRecord = HeirAgency.onSuccession(player, world, child);
         // ...and the account of their childhood: the ruler's education (systems/raising.js)
         const heirEducation = Raising.onSuccession(player, world, child);
+        // ...and the friends and tongues of their years away (systems/heirPaths.js)
+        HeirPaths.onSuccession(player, world, child);
         // ...and what they remember of the late ruler's crimes against the blood (systems/kinCrimes.js)
         KinCrimes.onSuccession(player, world, child);
         // ...and what folk said of the late ruler: told of them by name, a faded share of it of the heir (systems/hearsay.js)

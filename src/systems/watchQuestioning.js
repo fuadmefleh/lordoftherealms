@@ -22,7 +22,8 @@
 //
 //   SUSPICION = the charges' weight + the town's adjustment (earlier answers,
 //   lies caught, bribes refused, flight), 0..100. The adjustment fades toward
-//   nothing by the day.
+//   nothing by the day. A court's brand adds to it in every town of the
+//   realm that burned it (world/brands.js).
 //
 // The STOP (shouldStop): enough suspicion, a watch to do it (no Dawn of Man,
 // no hamlets: hasWatch), not with an open street incident (the watch
@@ -65,6 +66,7 @@ import { NpcBrain } from './npcBrain.js';
 import { NpcChat } from './npcChat.js';
 import { Economy } from '../world/economy.js';
 import { MoneySupply } from '../world/moneySupply.js';
+import { Brands } from '../world/brands.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -267,18 +269,20 @@ export const WatchQuestioning = {
         const charges = WatchQuestioning.charges(player, world, s, k);
         const base = charges.reduce((n, c) => n + c.weight, 0);
         const adj = WatchQuestioning.adjust(player, k, _day(world));
+        // A court's brand: the watch of the realm that burned it looks twice at the branded (world/brands.js)
+        const brand = s ? Brands.suspicion(player, s.kingdom, world) : 0;
         return {
             key: k, town: (s && s.name) || 'the town', kingdom: s ? s.kingdom : null, type: (s && s.type) || 'town',
             charges, proof: charges.reduce((m, c) => Math.max(m, c.proof), 0),
             grave: charges.some(c => c.proof >= 1 && WatchQuestioning.isGrave(c.group)),
-            base: Math.round(base), adj, suspicion: Math.round(_clamp(base + adj, 0, 100)),
+            base: Math.round(base), adj, brand, suspicion: Math.round(_clamp(base + adj + brand, 0, 100)),
         };
     },
 
     /** Recompute a case's suspicion (after the adjustment moved). */
     refresh(player, world, kase) {
         kase.adj = WatchQuestioning.adjust(player, kase.key, _day(world));
-        kase.suspicion = Math.round(_clamp(kase.base + kase.adj, 0, 100));
+        kase.suspicion = Math.round(_clamp(kase.base + kase.adj + _num(kase.brand), 0, 100));
         return kase;
     },
 
@@ -602,7 +606,7 @@ export const WatchQuestioning = {
                 if (fine == null) return WatchQuestioning.resolve(player, world, kase, kase.grave ? 'arrest' : 'suspicious', opts);
                 if (_num(player.gold) < fine) {
                     const days = jail(opts.admitted, 0);
-                    return { outcome: 'arrest', jailed: days, text: say('arrest'), note: { text: `⛓️ You can't pay the ${fine} gold fine: ${days} days in the cells`, tone: 'bad' } };
+                    return { outcome: 'arrest', jailed: days, text: say('arrest'), note: { text: `⛓️ You can't pay the ${fine} gold fine: held for trial`, tone: 'bad' } };
                 }
                 player.gold = _num(player.gold) - fine;
                 Ledger.record(player, 'fines', -fine);
@@ -612,7 +616,7 @@ export const WatchQuestioning = {
             }
             case 'arrest': {
                 const days = jail(opts.admitted, opts.extraDays);
-                return { outcome, jailed: days, text: say(opts.how === 'caught' ? 'caught' : 'arrest'), note: { text: `⛓️ Arrested: ${days} days in the cells`, tone: 'bad' } };
+                return { outcome, jailed: days, text: say(opts.how === 'caught' ? 'caught' : 'arrest'), note: { text: `⛓️ Arrested and held for trial`, tone: 'bad' } };
             }
             case 'bribed': {
                 const n = Math.round(_num(opts.gold));
@@ -632,7 +636,7 @@ export const WatchQuestioning = {
                 const text = say('bribeRefused');
                 if (kase.suspicion >= _num(S.arrestAt, 70) && kase.proof >= 1) {
                     const days = jail(false, 1);
-                    return { outcome: 'arrest', jailed: days, text, note: { text: `⛓️ The bribe is reported: ${days} days in the cells`, tone: 'bad' } };
+                    return { outcome: 'arrest', jailed: days, text, note: { text: `⛓️ The bribe is reported: held for trial`, tone: 'bad' } };
                 }
                 return { outcome, text, note: { text: '🚨 The guard won\'t be bought, and says so loudly', tone: 'bad' } };
             }

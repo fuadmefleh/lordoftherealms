@@ -26,6 +26,7 @@
 import { DataLoader } from '../core/dataLoader.js';
 import { Utils } from '../core/utils.js';
 import { Estates } from '../world/estates.js';
+import { Brands } from '../world/brands.js';
 import { RivalHouses } from './rivalHouses.js';
 import { House } from './house.js';
 import { Ledger } from './ledger.js';
@@ -134,6 +135,9 @@ export const RivalAudience = {
         }
         const g = ((V.greeting || {})[manner] || {})[this.stance(regard)];
         parts.push(this.fill(this.pick(g, rival, world, 'greet'), v));
+        // A court's brand on your hand: they see it, and say so (world/brands.js)
+        const brand = Brands.seen(player, rival.kingdomId, world);
+        if (brand.f > 0) parts.push(this.fill(this.pick(V.branded || ['*eyes the brand on your hand* So {realm} burned you.'], rival, world, 'brand'), { ...v, realm: brand.brand.realm || 'a realm' }));
         return parts.filter(Boolean).join(' ');
     },
 
@@ -314,6 +318,7 @@ export const RivalAudience = {
         let c = 0.3 + 0.03 * _num(player.charisma, 5) + 0.02 * _num(player.skills && player.skills.diplomacy) + RivalHouses.regard(rival, world) / 300;
         if (RivalHouses.has(rival.head, 'proud')) c += 0.1;
         if (RivalHouses.has(rival.head, 'courtly') || RivalHouses.has(rival.head, 'scheming')) c -= 0.1;
+        c += Brands.parley(player, rival.kingdomId, world);
         return Math.max(0.05, Math.min(0.85, c));
     },
 

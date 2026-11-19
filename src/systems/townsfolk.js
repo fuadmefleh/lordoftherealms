@@ -75,7 +75,8 @@ const DEFAULTS = {
     // illnessEvery × theirs (systems/illness.js) — the same rates over the longer step, so the
     // century's rosters cost about the same as the first year's. The player near, or no player
     // (the interregnum), every step is lived.
-    distant: { enabled: true, nearHexes: 6, tradeEvery: 3, illnessEvery: 2 },
+    // ...and towns beyond farHexes (most of a century's rosters: days of riding off) longer still: far + kind + 'Every'.
+    distant: { enabled: true, nearHexes: 6, tradeEvery: 3, illnessEvery: 2, farHexes: 12, farTradeEvery: 6, farIllnessEvery: 4 },
     // (what the long dead no longer need: their skills, health, work, schooling — data/townsfolk.json)
     compact: {
         afterYears: 1,
@@ -146,6 +147,8 @@ function _seasonal(rate) {
 function _article(word) { return /^[aeiou]/i.test(word) ? `an ${word}` : `a ${word}`; }
 function _cap2(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
 
+const _distCache = new WeakMap();
+
 export const Townsfolk = {
     config() {
         const src = DataLoader._gamedata ? DataLoader._gamedata.townsfolk : undefined;
@@ -162,14 +165,30 @@ export const Townsfolk = {
     /**
      * How many of its own steps a town far from the player lives at once
      * (distant): 1 near the player (within nearHexes), with no player, or
-     * off; else distant[kind + 'Every']. kind: 'trade' | 'illness'.
+     * off; else distant[kind + 'Every'], and beyond farHexes
+     * distant['far' + Kind + 'Every'] (never less). kind: 'trade' | 'illness'.
      */
     distantEvery(world, s, player, kind) {
         const D = Townsfolk.config().distant;
         if (!player || !s || !_obj(D) || !D.enabled || !Number.isFinite(player.q) || !Number.isFinite(s.q)) return 1;
+        // (asked for every town every day and more: kept per town while the player and the config stand)
+        let c = _distCache.get(s);
+        if (!c || c.pq !== player.q || c.pr !== player.r || c.sq !== s.q || c.sr !== s.r || c.D !== D || c.en !== D.enabled) {
+            c = { pq: player.q, pr: player.r, sq: s.q, sr: s.r, D, en: D.enabled };
+            _distCache.set(s, c);
+        }
+        if (c[kind] === undefined) c[kind] = Townsfolk._distantEvery(s, player, kind, D);
+        return c[kind];
+    },
+
+    _distantEvery(s, player, kind, D) {
         const every = Math.max(1, Math.round(_num(D[`${kind}Every`], 1)));
-        if (every === 1) return 1;
-        return Hex.offsetDistance(player.q, player.r, s.q, s.r) <= _num(D.nearHexes, 6) ? 1 : every;
+        const K = `far${kind.charAt(0).toUpperCase()}${kind.slice(1)}Every`;
+        const far = Math.max(every, Math.round(_num(D[K], every)));
+        if (far === 1) return 1;
+        const d = Hex.offsetDistance(player.q, player.r, s.q, s.r);
+        if (d <= _num(D.nearHexes, 6)) return 1;
+        return D.farHexes != null && d > _num(D.farHexes) ? far : every;
     },
 
     // ── Lookups ──────────────────────────────────────────
@@ -772,6 +791,8 @@ export const Townsfolk = {
         if (world) Townsfolk.leavePurse(folk, p, world, day);
         p.died = day;
         p.cause = cause;
+        // (to be buried: systems/townWorship.js keeps the town's unburied dead)
+        if (Array.isArray(folk._deadQ)) folk._deadQ.push(p);
         Townsfolk._log(p, day, 'died', null, cause);
         const sp = Townsfolk.get(folk, p.spouse);
         if (sp && sp.died == null && sp.spouse === p.id) Townsfolk._log(sp, day, 'widowed', p.id, cause);

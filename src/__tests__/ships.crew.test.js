@@ -195,3 +195,52 @@ describe('save / load', () => {
         expect(back.ships[0].morale).toBe(70);
     });
 });
+
+describe('a ship laid up, and the bread money kept back', () => {
+    it('a docked ship with no crew pays a share of her upkeep', () => {
+        const up = Ships.getShipType('war_galley').dailyUpkeep;
+        const share = Ships.layUpSettings().upkeepShare;
+        const s = ship('war_galley', { crew: 0, morale: 70 });
+        const p = player({ ships: [s], gold: 1000 });
+        expect(Ships.isLaidUp(s)).toBe(true);
+        Ships.processDaily(p, null);
+        expect(p.gold).toBeCloseTo(1000 - Utils.cents(up * share), 2);
+        // (crewed again, she pays it all, and the wages)
+        const c = ship('war_galley', { crew: 20, morale: 70 });
+        const q = player({ ships: [c], gold: 1000 });
+        expect(Ships.isLaidUp(c)).toBe(false);
+        Ships.processDaily(q, null);
+        expect(q.gold).toBe(1000 - up - Ships.getDailyWages(c));
+    });
+
+    it('paying off the last hand lays her up', () => {
+        const s = ship('sloop', { crew: 3, morale: 70 });
+        const p = player({ ships: [s] });
+        const res = Ships.dismissCrew(p, s.id, 3);
+        expect(res.laidUp).toBe(true);
+        expect(res.message).toMatch(/laid up/);
+    });
+
+    it('upkeep and wages leave the owner keepBack gold for bread; the crew goes unpaid instead', () => {
+        const keep = Ships.layUpSettings().keepBack;
+        const s = ship('war_galley', { crew: 20, morale: 70 });
+        const p = player({ ships: [s], gold: keep + 3 });
+        const out = Ships.processDaily(p, null);
+        expect(p.gold).toBe(keep);
+        expect(out.upkeepShort).toBeGreaterThan(0);
+        expect(out.crew.paid).toBe(false);
+    });
+
+    it('warns when the fleet will run the purse dry within days, not every day', () => {
+        const s = ship('war_galley', { crew: 20, morale: 70 });
+        const p = player({ ships: [s], gold: 120 });
+        const w = world();
+        const first = Ships.processDaily(p, w);
+        expect(first.leanPurse).toBeTruthy();
+        expect(first.leanPurse.crewed).toBe(1);
+        expect(first.leanPurse.text).toMatch(/lay her up/);
+        expect(Ships.processDaily(p, w).leanPurse).toBe(null);
+        const rich = player({ ships: [ship('sloop', { crew: 4, morale: 70 })], gold: 10000 });
+        expect(Ships.processDaily(rich, w).leanPurse).toBe(null);
+    });
+});

@@ -264,11 +264,12 @@ export const Illness = {
     catchUp(world, settlement, folk, upTo, news = [], player = null) {
         if (!Illness.on() || !_obj(folk) || !Array.isArray(folk.people)) return news;
         const st = Illness.state(world, settlement, folk, upTo);
-        const step = Illness.config().stepDays;
+        // (a town far from the player lives its sickness in longer steps: Townsfolk.distantEvery)
+        const step = Illness.config().stepDays * Townsfolk.distantEvery(world, settlement, player, 'illness');
         let guard = 0;
         while (st.tick + step <= upTo && guard++ < 4000) {
             st.tick += step;
-            Illness._step(world, settlement, folk, st.tick, news, player);
+            Illness._step(world, settlement, folk, st.tick, news, player, step);
         }
         return news;
     },
@@ -410,14 +411,14 @@ export const Illness = {
         return c;
     },
 
-    _step(world, s, folk, day, news, player) {
+    _step(world, s, folk, day, news, player, stepLen = null) {
         const C = Illness.config();
         const st = folk.ill;
         const res = Townsfolk.residents(folk);
         if (!res.length) return;
         const rng = _rng(world, `${folk.q},${folk.r}|${day}`);
         const env = Illness._env(world, s, folk, day);
-        const step = C.stepDays;
+        const step = stepLen || C.stepDays;
         for (const p of res) if (!_obj(p.imm)) Illness._initImm(p, day, rng);
         // (a case carried off with someone who left town, or a stale one, is forgotten)
         for (const p of folk.people) if (p.ill && (p.died != null || p.away)) delete p.ill;
@@ -432,7 +433,7 @@ export const Illness = {
 
         const alive = Townsfolk.residents(folk);
         // Nursing and doctoring the sick
-        Illness._care(world, s, folk, alive, day, env, hh, rng);
+        Illness._care(world, s, folk, alive, day, env, hh, rng, step);
 
         // Who passes what to whom
         const counts = new Map();   // k → { town, hh: Map, wk: Map, wkSize: Map }
@@ -520,7 +521,9 @@ export const Illness = {
         // The plague, where the plague event rages
         if (env.plague && Illness.def('plague')) {
             const P = C.plagueEvent;
-            const chance = env.plagueHere ? _num(P.eventTown, 0.35) : _num(P.realm, 0.025);
+            let chance = env.plagueHere ? _num(P.eventTown, 0.35) : _num(P.realm, 0.025);
+            // (a chance a step: over a longer step, the steps' chances together)
+            if (step !== C.stepDays) chance = 1 - Math.pow(1 - Math.min(1, chance), step / C.stepDays);
             if (rng() < chance * (env.quarantine && !env.plagueHere ? _num(C.travel.quarantine, 0.15) : 1)) {
                 const open = alive.filter(p => !p.ill && !Illness._immune(p, 'plague', day));
                 const n = Math.min(open.length, env.plagueHere ? _range(P.seedCases || [1, 3], rng) : 1);
@@ -613,7 +616,7 @@ export const Illness = {
         return out;
     },
 
-    _care(world, s, folk, alive, day, env, hh, rng) {
+    _care(world, s, folk, alive, day, env, hh, rng, stepLen = null) {
         const C = Illness.config();
         const CC = C.care;
         const st = folk.ill;
@@ -636,7 +639,7 @@ export const Illness = {
         const doc = docs[0] || null;
         const priests = alive.filter(p => p.role === 'priest' && !Illness.isAbed(p, day));
         const funded = st.fund && _num(st.fund.until) >= day && _num(st.fund.gold) > 0 ? st.fund : null;
-        const step = C.stepDays;
+        const step = stepLen || C.stepDays;
         let docVisits = Math.round(docs.length * _num(CC.visitsPerHealer, 4) * step / 2 * (funded ? 2 : 1));
         let priestVisits = Math.round(priests.length * _num(CC.visitsPerPriest, 2) * step / 2);
         const fee = Math.max(0, Math.round(_num(_obj(CC.fee) && CC.fee[env.type], 2)));

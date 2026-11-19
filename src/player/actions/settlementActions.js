@@ -38,6 +38,7 @@ import { Literacy } from '../../systems/literacy.js';
 import { Graveyards } from '../../systems/graveyards.js';
 import { TownCrimes } from '../../systems/townCrimes.js';
 import { Illness } from '../../systems/illness.js';
+import { Begging } from '../begging.js';
 import { Livestock } from '../../systems/livestock.js';
 import { Couriers } from '../../systems/couriers.js';
 import { LandMarket } from '../../systems/landMarket.js';
@@ -415,6 +416,17 @@ export function addSettlementActions(actions, player, tile, world, ctx) {
         icon: '📋',
         description: 'Check the notice board for paid tasks and bounties'
     });
+
+    // Begging for alms (player/begging.js): coppers and bread from the passers-by, at a cost to the name
+    if (Begging.canBeg(player, world, tile.settlement).ok) {
+        const spot = Begging.bestSpot(tile.settlement);
+        actions.push({
+            type: 'beg',
+            label: 'Beg for Alms',
+            icon: '🥣',
+            description: `Half a day with a bowl at ${spot.label}: a few coppers or a loaf from the passers-by${Begging.isNoble(player, world) ? ' — and a scandal for one of your blood' : ', at a little cost to your name'}`
+        });
+    }
 
     // Busking / Street Performance
     actions.push({
@@ -976,7 +988,8 @@ export function addSettlementActions(actions, player, tile, world, ctx) {
         type: 'meet_people',
         label: 'Meet People',
         icon: '👥',
-        description: 'Get to know the locals — make friends, rivals, or romantic interests'
+        // (free to look about; each talk or deed with someone costs its own AP, and the hours with it)
+        description: 'Get to know the locals — make friends, rivals, or romantic interests. Free to look; each talk costs AP and time'
     });
 
     // View Relationships (if player knows anyone)

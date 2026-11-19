@@ -6,11 +6,15 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { Utils } from '../core/utils.js';
+import { SaveStore } from '../core/saveStore.js';
 
 // Reset the injectable RNG before every test so a seed set in one case never
 // leaks into the next. Tests that need determinism call Utils.setSeed(n).
 beforeEach(() => {
     Utils.resetRng();
+    // Saves go to a fresh in-memory store per test (the stubbed indexedDB below
+    // never completes a transaction): core/saveStore.js
+    SaveStore.useBackend(SaveStore.memoryBackend());
 });
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));

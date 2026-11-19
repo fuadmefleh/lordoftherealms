@@ -434,7 +434,7 @@ export const MerchantPrince = {
         const w = s && SettlementMarket.works(s, inv.recipe);
         const worth = Math.floor(_num(inv.invested) * _num(I.damage.salvage, 0.4) * (w ? _clamp(_num(w.cond, 1), 0, 1) : 0));
         // (the guild pays out of the town's purse, as far as it holds)
-        const gold = s ? Math.floor(Economy.drawTown(s, worth)) : 0;
+        const gold = s ? Utils.cents(Economy.drawTown(s, worth)) : 0;
         if (w) w.owner = 'town';
         st.investments = st.investments.filter(i => i !== inv);
         player.gold += gold;
@@ -540,7 +540,7 @@ export const MerchantPrince = {
                 }
                 if (net > 0) {
                     // (the investor's share is paid out of the town's purse, where the works' goods were sold)
-                    const paid = Math.floor(Economy.drawTown(s, net));
+                    const paid = Utils.cents(Economy.drawTown(s, net));
                     inv.lastPay = paid;
                     player.gold += paid;
                     inv.earned += paid;
@@ -925,7 +925,7 @@ export const MerchantPrince = {
             if (player.inventory[f.good] <= 0) delete player.inventory[f.good];
         }
         // (the town's merchants pay out of its purse, as far as it holds)
-        const pay = Math.floor(Economy.drawTown(s, Math.floor(n * f.unitPrice)));
+        const pay = Utils.cents(Economy.drawTown(s, Math.floor(n * f.unitPrice)));
         player.gold += pay;
         f.delivered += n;
         f.paid += pay;

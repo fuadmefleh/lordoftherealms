@@ -109,7 +109,9 @@ export const Achievements = {
                         if (world.tiles[r][q].explored) count++;
                     }
                 }
-                return count >= 100;
+                // (the land a start already knows — a family's town, a lord's realm — is not explored by you)
+                const known = Number(player.achievements && player.achievements.exploredAtStart) || 0;
+                return count - known >= 100;
             },
             tier: 'bronze',
         },

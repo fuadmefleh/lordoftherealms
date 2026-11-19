@@ -238,7 +238,7 @@ export const Housing = {
         let salePrice = Math.floor((baseValue + upgradeValue) * penalty * (house.condition / 100));
         // (with the world: the buyers pay out of the town's purse, what it holds)
         const sTile = world && typeof world.getTile === 'function' ? world.getTile(q, r) : null;
-        if (sTile && sTile.settlement) salePrice = Math.floor(Economy.drawTown(sTile.settlement, salePrice));
+        if (sTile && sTile.settlement) salePrice = Utils.cents(Economy.drawTown(sTile.settlement, salePrice));
 
         player.gold += salePrice;
         player.houses.splice(idx, 1);

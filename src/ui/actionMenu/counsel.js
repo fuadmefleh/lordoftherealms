@@ -12,6 +12,7 @@ import { firstStepsResumeHtml } from '../firstStepsCard.js';
 import { lede, chips, rowList, actRow, sectionHead, card } from './uiKit.js';
 import { Scenarios } from '../../player/scenarios.js';
 import { Parentage } from '../../player/parentage.js';
+import { FirstSteps } from '../../systems/firstSteps.js';
 
 const SEV_TONE = { critical: 'bad', warning: 'warn', notice: null, info: null };
 const GROUPS = [
@@ -85,6 +86,48 @@ export const COUNSEL_PANELS = {
     parents: { label: 'Parents', open: (g) => ActionMenu.showParents(g) },
     counsel: { label: 'Counsel', open: (g) => ActionMenu.showCounsel(g) },
 };
+
+/**
+ * The panels an origin's First Steps ask to see (systems/firstSteps.js `seen`):
+ * the ActionMenu method that draws each → its COUNSEL_PANELS key. Wrapped once
+ * (ui/actionMenu/index.js, after every module has added its methods), so the
+ * step ticks by whichever door the player opens it.
+ */
+const SEEN_BY_METHOD = {
+    showGuildhall: 'guilds', showEstates: 'estates', showClaimsPanel: 'claims', showRoyalCourt: 'royalCourt',
+    showTreasury: 'crownTreasury', showFleetMenu: 'fleet', showUnderworldPanel: 'underworld',
+    showRealmWarsMenu: 'realmWars', showPatronage: 'patronage', showContractMenu: 'mercenaries',
+    showTravelPartyMenu: 'travelParty', showParents: 'parents', showHousePanel: 'house',
+};
+
+/** The action types that open those panels (the origin's first moves, pre-pinned to At Hand). */
+export const ACTION_OF_PANEL = {
+    guilds: 'guildhall', estates: 'estates', claims: 'claims_crowns', royalCourt: 'royal_court',
+    crownTreasury: 'treasury', fleet: 'manage_fleet', underworld: 'underworld', realmWars: 'realm_wars',
+    patronage: 'patronage', mercenaries: 'contract', parents: 'your_parents', house: 'manage_dynasty',
+    royalEdicts: 'royal_court',
+};
+
+export function trackFirstStepsPanels(target) {
+    if (!target || target.__fsSeenTracked) return target;
+    for (const [name, key] of Object.entries(SEEN_BY_METHOD)) {
+        const fn = target[name];
+        if (typeof fn !== 'function') continue;
+        const wrapped = function (game, ...rest) {
+            try {
+                if (game && game.player) FirstSteps.markSeen(game.player, key, game.world);
+            } catch (e) {
+                /* the guide never stops a panel opening */
+            }
+            return fn.call(this, game, ...rest);
+        };
+        // (keep what panelRefresh's wrapper marked)
+        if (fn.__tracked) wrapped.__tracked = fn.__tracked;
+        target[name] = wrapped;
+    }
+    Object.defineProperty(target, '__fsSeenTracked', { value: true });
+    return target;
+}
 
 /**
  * A child under its parents' roof (player/parentage.js): their duties are the
@@ -217,6 +260,7 @@ Object.assign(ActionMenu, {
             game.ui.showNotification('🗝️ Counsel', 'That is done in a town: walk into one first.', 'info');
             return;
         }
+        FirstSteps.markSeen(game.player, key, game.world);
         try {
             panel.open(game, null);
         } catch (e) {
@@ -240,6 +284,11 @@ Object.assign(ActionMenu, {
             icon: _esc(m.icon || '➡️'), name: _esc(m.name), desc: _esc(m.desc || ''),
             side: `${_esc(COUNSEL_PANELS[m.open].label)} ›`, act: 'counselOpen', args: [m.open],
         }));
+        // The origin's own short guide (systems/firstSteps.js originSteps), when it is not on yet
+        if (FirstSteps.canResume(game.player) && FirstSteps.originSteps(sc.id).length) {
+            const n = FirstSteps.originSteps(sc.id).length;
+            rows.push(actRow({ icon: '📜', name: 'Guide me: First Steps', desc: `${n} short steps for your start, on the right of the screen`, side: 'Guide ›', attrs: 'data-fs-act="resume"' }));
+        }
         rows.push(actRow({ icon: '🗝️', name: 'Ask the Steward', desc: 'The Counsel tab on the top bar names what needs you each day', side: 'Counsel ›', act: 'counselOpen', args: ['counsel'] }));
         rows.push(actRow({ icon: '🧭', name: 'Look around first', desc: 'Close this; click your own hex for everything you can do here', side: '', act: 'closePanelAndRefresh' }));
         html += rowList(rows, 'Where to begin');

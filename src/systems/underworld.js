@@ -952,7 +952,7 @@ export const Underworld = {
             if (jobId === 'pickpocket' || jobId === 'burglary') {
                 const [lo, hi] = job.gold || [5, 20];
                 // The townsfolk's coin: out of the town's purse
-                gold = Math.floor(Economy.drawTown(settlement, Utils.randInt(lo, hi) + Math.round(guard * _num(job.goldPerGuard))));
+                gold = Utils.cents(Economy.drawTown(settlement, Utils.randInt(lo, hi) + Math.round(guard * _num(job.goldPerGuard))));   // (to the cent: a floor after the draw lost the odd coppers)
                 if (jobId === 'burglary' && Array.isArray(job.loot) && job.loot.length) {
                     const [ql, qh] = job.lootQty || [1, 2];
                     // A merchant's goods: what the town's market holds
@@ -1111,14 +1111,14 @@ export const Underworld = {
         const share = _num(target.purseShare, 0.15);
         if (target.source === 'crown') {
             const k = Underworld._settlementKingdom(world, settlement);
-            if (!k) return Math.floor(Economy.drawTown(settlement, want));
+            if (!k) return Utils.cents(Economy.drawTown(settlement, Math.floor(want)));
             const take = Math.floor(Math.max(0, Math.min(want, _num(k.treasury) * share)));
             k.treasury = _num(k.treasury) - take;
             return take;
         }
         const purse = Economy.townPurse(settlement);
         const cap = purse == null ? want : Math.min(want, purse * share);
-        return Math.floor(Economy.drawTown(settlement, cap));
+        return Utils.cents(Economy.drawTown(settlement, Math.floor(cap)));
     },
 
     abandonHeist(player) {
@@ -1344,7 +1344,8 @@ export const Underworld = {
                 }
                 kept.push(rk);
                 // The shopkeepers' coin: out of the town's purse (a poor town pays what it can)
-                const paid = Math.floor(rs ? Economy.drawTown(rs, rk.weekly) : Economy.drawNearest(world, rk.q, rk.r, rk.weekly));
+                // (to the cent: a floor after the draw threw a poor town's odd coppers away)
+                const paid = Utils.cents(rs ? Economy.drawTown(rs, rk.weekly) : Economy.drawNearest(world, rk.q, rk.r, rk.weekly));
                 Underworld._payGold(player, world, paid, 'racket');
                 out.income += paid;
                 Underworld.recordCrime(player, world, 'racket_weekly', { kingdom: rk.kingdom, q: rk.q, r: rk.r });

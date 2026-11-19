@@ -239,7 +239,9 @@ export const StartKnowledge = {
         const library = Library.found(player, world, {
             kind: 'lordly', q: seat.q, r: seat.r, town: seat.s.name, holdsSeat: true,
             books: [
-                Library.estateRoll(world, k, held, start.house || null),
+                // (the rolls are the player's own House's now: the start makes them head of it; the house
+                // whose lands they were is named on the first page — player/scenarios.js _greatLord)
+                Library.estateRoll(world, k, held, (player.house && player.house.name) || start.house || null, start.house || null),
                 Library.realmChronicle(world, k),
                 Library.royalRoll(world, k, {}),
                 Library.realmMap(world, k, 0),

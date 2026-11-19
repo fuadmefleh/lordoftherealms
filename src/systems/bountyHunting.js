@@ -126,11 +126,15 @@ export const BountyHunting = {
         return Utils.randInt(min, max);
     },
 
-    _generateCriminalTarget(player, world, settlementTile) {
+    _generateCriminalTarget(player, world, settlementTile, taken = null) {
         this.initialize(player);
         const state = player.bountyHunter;
 
-        const profile = Utils.randPick(this.TARGET_POOL);
+        // (one outlaw, one notice: never a name already on the board or already hunted)
+        const busy = new Set(taken || []);
+        for (const b of player.activeBounties || []) if (b && b.targetName) busy.add(b.targetName);
+        const free = this.TARGET_POOL.filter(p => !busy.has(p.baseName));
+        const profile = Utils.randPick(free.length ? free : this.TARGET_POOL);
         const difficulty = this._difficultyForPlayer(player) + Utils.randInt(0, 2);
         const location = this._pickPassableTile(world, settlementTile.q, settlementTile.r, 12 + difficulty);
         const pay = this._payForDifficulty(difficulty);
@@ -190,7 +194,7 @@ export const BountyHunting = {
         const targetCount = 1 + (Utils.random() < 0.4 ? 1 : 0);
         const generated = [];
         for (let i = 0; i < targetCount; i++) {
-            generated.push(this._generateCriminalTarget(player, world, tile));
+            generated.push(this._generateCriminalTarget(player, world, tile, generated.map(b => b.targetName)));
         }
 
         state.boardSettlementKey = settlementKey;
@@ -220,6 +224,30 @@ export const BountyHunting = {
             b.targetQ === player.q &&
             b.targetR === player.r
         ) || null;
+    },
+
+    /**
+     * The honest odds (0–1) of taking a quarry at the first attempt, as
+     * attemptCapture rolls it (your d6 against its 2–8), before any escape.
+     * Draws no RNG. Read by the Notice Board to warn of a quarry beyond you.
+     */
+    captureOdds(player, bounty) {
+        if (!player || !bounty) return 0;
+        const combat = player.skills?.combat || 1;
+        const stealth = player.skills?.stealth || 1;
+        const leadership = player.skills?.leadership || 1;
+        const armyPower = Math.min(4, Math.floor(((player.army || []).length || 0) / 4));
+        let rankBonus = 0;
+        try {
+            rankBonus = player.bountyHunter ? this.getRankInfo(player).captureBonus || 0 : 0;
+        } catch (e) {
+            rankBonus = 0;
+        }
+        const base = combat + Math.floor(stealth * 0.6) + Math.floor(leadership * 0.4) + armyPower + rankBonus;
+        const target = (Number(bounty.difficulty) || 0) + Math.min(3, bounty.escapes || 0);
+        let wins = 0;
+        for (let a = 1; a <= 6; a++) for (let b = 2; b <= 8; b++) if (base + a >= target + b) wins++;
+        return wins / 42;
     },
 
     attemptCapture(player, bounty, world = null) {

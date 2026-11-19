@@ -480,7 +480,7 @@ export const NpcDisposition = {
         const t = folk && Number.isFinite(folk.q) && typeof world.getTile === 'function' ? world.getTile(folk.q, folk.r) : null;
         const s = (t && t.settlement) || (player ? Economy.nearestPurse(world, player.q, player.r) : null);
         if (!s) return 0;
-        return Math.floor(Economy.drawTown(s, Math.min(w, Math.floor(Economy.townPurse(s) ?? w))));
+        return Utils.cents(Economy.drawTown(s, Math.min(w, Math.floor(Economy.townPurse(s) ?? w))));
     },
 
     _grantCache(npc, player, lo, hi, text, world = null) {

@@ -400,8 +400,6 @@ describe('soldiers look the part', () => {
         const base = path.join(__dirname, '..', '..', 'assets', 'lpc', 'Characters');
         for (const id of Object.keys(Arms.items())) {
             const sp = Arms.spriteOf(id);
-            // (gloves have no LPC sheets: they are not drawn)
-            if (sp.slot === 'hands') continue;
             expect(sp.layer, id).toBeTruthy();
             const sheet = sp.slot === 'main' || sp.slot === 'off' ? 'Combat 1h - Idle.png' : 'Walk.png';
             expect(fs.existsSync(path.join(base, sp.layer, sheet)), `${id}: ${sp.layer}/${sheet}`).toBe(true);

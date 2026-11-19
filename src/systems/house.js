@@ -22,6 +22,7 @@ import { Court } from './court.js';
 import { ChronicleMaps } from './chronicleMaps.js';
 import { Barter } from '../world/barter.js';
 import { MoneySupply } from '../world/moneySupply.js';
+import { Cultures } from '../world/cultures.js';
 
 // The five family-role slots. Each holds a family-member id (or null).
 const ROLE_IDS = ['steward', 'marshal', 'chancellor', 'spymaster', 'heir'];
@@ -130,6 +131,8 @@ const AMBITIONS = [
         name: 'Merchant Dynasty',
         blurb: 'Dominate the flow of coin.',
         milestones: [
+            // (a first step in reach of a new character's purse, and where to take it)
+            { id: 'first_property', label: 'Own a property', hint: 'A workshop, mill, farm or trading post costs about 350–1,000 g to build. In a town: your hex → ⚔ Open Actions → 🏗️ Works → Build Property.', req: { properties: 1 } },
             { id: 'estates', label: 'Own 5 properties', req: { properties: 5 } },
             { id: 'routes', label: 'Run 3 trade routes', req: { tradeRoutes: 3 } },
             { id: 'coffers', label: 'Amass 25,000 gold', req: { gold: 25000 } },
@@ -155,7 +158,7 @@ const AMBITIONS = [
         blurb: 'Build a name that endures the ages.',
         milestones: [
             { id: 'prestige50', label: 'Reach 50 Prestige', req: { prestige: 50 } },
-            { id: 'holdings8', label: 'Own 8 properties', req: { properties: 8 } },
+            { id: 'holdings8', label: 'Own 8 properties', hint: 'Build them in towns: ⚔ Open Actions → 🏗️ Works → Build Property (about 350–1,000 g each).', req: { properties: 8 } },
             { id: 'gen2', label: 'Survive into a 2nd generation', req: { generation: 2 } },
         ],
         capstone: { id: 'great', label: '150 Prestige across 3 generations', req: { prestige: 150, generation: 3 } },
@@ -287,6 +290,31 @@ export const House = {
     },
 
     // ── Construction ────────────────────────────────────────────
+
+    /**
+     * A family name for a new character who gave none (the House would else be
+     * named after a first name, "House Wanderer"): one of the common surnames of
+     * the culture of the nearest town (its house names for a high-born start), picked by a hash of the place and the
+     * world's seed (no RNG drawn). Returns '' when there is no name to be had.
+     */
+    familyNameFor(player, world, { noble = false } = {}) {
+        if (!player || !world) return '';
+        let culture = null;
+        let best = Infinity;
+        const views = typeof world.getSettlementViews === 'function' ? world.getSettlementViews() : [];
+        for (const s of views) {
+            if (!s || !s.culture) continue;
+            const d = Math.abs(s.q - player.q) + Math.abs(s.r - player.r);
+            if (d < best) { best = d; culture = s.culture; }
+        }
+        // (a lord's or a monarch's start takes one of the culture's house names)
+        const pool = (noble && Cultures.dynastyNames(culture)) || Cultures.surnames(culture) || Cultures.surnames('Imperial') || [];
+        if (!pool.length) return '';
+        const seed = String((world.generationParams && world.generationParams.seed) || '');
+        let h = 2166136261;
+        for (const ch of `${seed}|${player.q},${player.r}|${player.firstName || ''}`) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0;
+        return String(pool[h % pool.length] || '');
+    },
 
     /**
      * Build a blank House. Deterministic — derives its id from stable player
@@ -573,7 +601,11 @@ export const House = {
     ambitions(house = null) {
         return _ambitionCatalog()
             .filter(a => (house ? House.canPursue(house, a.id) : (a.tier || 1) === 1))
-            .map(a => ({ id: a.id, name: a.name, blurb: a.blurb, tier: a.tier || 1, reward: a.reward || null, requires: a.requires || null }));
+            .map(a => ({
+                id: a.id, name: a.name, blurb: a.blurb, tier: a.tier || 1, reward: a.reward || null, requires: a.requires || null,
+                // (what the House would set out to do: the chooser lists them)
+                milestones: (a.milestones || []).map(m => ({ id: m.id, label: m.label, hint: m.hint || '' })),
+            }));
     },
 
     _getAmbitionDef(id) {

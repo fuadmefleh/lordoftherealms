@@ -14,6 +14,7 @@ import { PlayerMilitary } from '../playerMilitary.js';
 import { Ships } from '../../systems/ships.js';
 import { DawnBirth } from '../dawnBirth.js';
 import { Parentage } from '../parentage.js';
+import { Household } from '../household.js';
 import { Endurance } from '../endurance.js';
 import { DataLoader } from '../../core/dataLoader.js';
 import { Names } from '../../core/names.js';
@@ -68,6 +69,10 @@ export const PlayerLifecycleMethods = {
             this.modifyNeed('hunger', DAILY_RATION_HUNGER);
         } else if (kinMeal && !kinMeal.refused) {
             this._kinMeal = kinMeal;
+            this.starvationDays = 0;
+            this.modifyNeed('hunger', DAILY_RATION_HUNGER);
+        } else if (!(this.getFoodCount && this.getFoodCount() > 0) && world && !this.jailState && !this.indenturedServitude && Household.tableMeal(this, world)) {
+            // (the packs empty, supper from the larder at home — player/household.js)
             this.starvationDays = 0;
             this.modifyNeed('hunger', DAILY_RATION_HUNGER);
         } else if (this.consumeFood()) {

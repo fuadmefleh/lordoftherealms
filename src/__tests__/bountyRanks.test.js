@@ -48,3 +48,18 @@ describe('Bounty hunter ranks', () => {
         expect(Achievements.ACHIEVEMENTS.LEGENDARY_HUNTER.check({ bountyHunter: { rank: 2 } })).toBe(false);
     });
 });
+
+describe('one outlaw, one notice', () => {
+    it('never offers a name already on the board or already being hunted', async () => {
+        const { BountyHunting } = await import('../systems/bountyHunting.js');
+        const player = { activeBounties: [{ type: 'criminal_hunt', targetName: BountyHunting.TARGET_POOL[0].baseName }] };
+        const world = { width: 40, height: 40, getTile: () => ({ terrain: { passable: true } }) };
+        const tile = { q: 10, r: 10, settlement: { name: 'Testford' } };
+        for (let i = 0; i < 40; i++) {
+            const a = BountyHunting._generateCriminalTarget(player, world, tile);
+            const b = BountyHunting._generateCriminalTarget(player, world, tile, [a.targetName]);
+            expect(a.targetName).not.toBe(BountyHunting.TARGET_POOL[0].baseName);
+            expect(b.targetName).not.toBe(a.targetName);
+        }
+    });
+});

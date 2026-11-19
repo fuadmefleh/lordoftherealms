@@ -838,6 +838,8 @@ Object.assign(ActionMenu, {
             for (const ms of house.ambition.milestones) {
                 const md = def.milestones.find(x => x.id === ms.id);
                 body += `<div style="color:${ms.done ? '#8fd18a' : '#9d937c'};">${ms.done ? '✓' : '○'} ${md ? md.label : ms.id}</div>`;
+                // (how to get there, for a milestone not yet met: data in systems/house.js AMBITIONS)
+                if (!ms.done && md && md.hint) body += `<div style="color:#cbbf9f; font-size:11px; margin:0 0 3px 14px;">${md.hint}</div>`;
             }
             body += `<div style="color:${house.ambition.capstoneDone ? '#8fd18a' : '#f0b35a'}; margin-top:2px;">${house.ambition.capstoneDone ? '★' : '☆'} ${def.capstone.label}</div>`;
             html += card(body, { icon: '🏛️', title: def.name, side: house.ambition.capstoneDone ? 'fulfilled' : '', tone: 'good' });
@@ -1153,7 +1155,12 @@ Object.assign(ActionMenu, {
                 const rwText = [rw.prestige ? `${rw.prestige} Prestige` : '', rw.gold ? `${Utils.formatGold(rw.gold)} gold` : '', rw.renown ? `${rw.renown} renown` : '', rw.honour ? `honour: ${rw.honour.name}` : ''].filter(Boolean).join(' · ');
                 return {
                     icon: '🏛️', name: a.name, desc: a.blurb,
-                    note: rwText ? `<span style="color:#c9b77a;">Reward: ${rwText}</span>` : '',
+                    // (its milestones, the first in full: what the House would set out to do)
+                    note: [
+                        Array.isArray(a.milestones) && a.milestones.length ? `<span style="color:#9d937c;">Milestones: ${a.milestones.map(m => m.label).join(' → ')}</span>` : '',
+                        Array.isArray(a.milestones) && a.milestones[0] && a.milestones[0].hint ? `<span style="color:#cbbf9f;">First: ${a.milestones[0].hint}</span>` : '',
+                        rwText ? `<span style="color:#c9b77a;">Reward: ${rwText}</span>` : '',
+                    ].filter(Boolean).join('<br>'),
                     attrs: `onclick="window._houseSetAmbition('${a.id}')"`,
                     side: `${a.tier > 1 ? `<span style="font-size:10px; color:#d8c27a;">Tier ${a.tier}</span><br>` : ''}Pursue ›`, tone: 'gold',
                 };

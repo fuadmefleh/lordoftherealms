@@ -726,7 +726,9 @@ export const Arms = {
      * recipe's trousers and footwear (kit.feet) in place of its shoes (after
      * the legs when it has none); a kit with nothing on the legs or feet
      * leaves the recipe's own (an older kit record never names them). Gloves
-     * have no sheets: not drawn. opts: build ('Feminine, Thin' for the
+     * and gauntlets (kit.hands, painted over the body's own hands by
+     * scripts/build-glove-sheets.py) go over everything worn and under the
+     * weapons and shield in front, so the fist is gloved round the hilt. opts: build ('Feminine, Thin' for the
      * feminine body's sheets), paint (the livery colour when the recipe
      * names none). A recipe without a kit is left as it is.
      */
@@ -759,6 +761,8 @@ export const Arms = {
         const armour = body ? build(body.layer) : null;
         const legsP = sp('legs');
         const feetP = sp('feet');
+        const handsP = sp('hands');
+        const hands = handsP ? build(handsP.layer) : null;
         const legs = legsP ? build(legsP.layer) : null;
         const feet = feetP ? build(feetP.layer) : null;
         const out = [];
@@ -803,6 +807,11 @@ export const Arms = {
         if (feet && !done.feet) out.splice(after(/^(Body|Head)\/|^Clothing\/[^/]+\/Legs\//), 0, feet);
         if (armour && !done.armour) out.splice(after(/^(Clothing|Body|Head)\//), 0, armour);
         if (helm && !done.helm) out.splice(after(/^(Hair|Clothing|Body|Head)\//), 0, helm.layer);
+        // (a recipe's own glove line, if one ever names it, makes way for the kit's)
+        if (hands) {
+            for (let i = out.length - 1; i >= 0; i--) if (/^Clothing\/[^/]+\/Hands\//.test(out[i])) out.splice(i, 1);
+            out.splice(after(/^(Hair|Clothing|Body|Head)\/|^Head Accessories\//), 0, hands);
+        }
         if (shield && !done.sback) out.unshift(...shieldBack);
         if (main && !done.back && main.behind) out.unshift(main.behind);
         if (shield && !done.sfront) out.push(...shieldFront);

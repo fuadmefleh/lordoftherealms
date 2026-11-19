@@ -138,6 +138,70 @@
             "reward": { "gold": 30, "renown": 2 }
         }
     ],
+    "_originSteps": "An origin other than the Wanderer (player.scenario.id) gets a short guide of its own (systems/firstSteps.js originSteps): originSteps[id] when written out here, else one step per first move of the origin (data/scenarios.json origins[id].firstMoves; done when that panel has been opened: the `seen` reader, go.counsel opens it) followed by the steps originTemplate.then names. The origins start with the guide off (guidedStart:false): the Your Start panel and the Counsel offer it.",
+    "originTemplate": {
+        "how": "Press the button below. Later you find it in 🗝️ Counsel, or on your hex: ⚔ Open Actions.",
+        "label": "Show me",
+        "reward": { "renown": 1 },
+        "then": ["first_day", "ambition"],
+        "_steps": "Steps the tail names, in an origin's own words (before the Wanderer's steps of the same id).",
+        "steps": [
+            {
+                "id": "first_day", "check": "dayPassed", "icon": "🌅", "title": "See a day through",
+                "why": "Everything in the realms moves by the day: rents and wages are paid, your people eat, news travels and rivals move when the day ends.",
+                "how": "Press ⌛ End Turn at the bottom right of the screen.",
+                "go": { "panel": "endDay", "label": "End the day" },
+                "reward": { "renown": 1 }
+            },
+            {
+                "id": "ambition", "check": "ambition", "icon": "🏛️", "title": "Give your House an Ambition",
+                "why": "Your House outlives you. An Ambition is its long goal: its milestones earn Prestige, which your heirs inherit.",
+                "how": "Top bar → 🗝️ Counsel → beside ‘Your House has no Ambition’ press House, then choose one.",
+                "go": { "panel": "house", "label": "Open your House" },
+                "reward": { "renown": 2 }
+            }
+        ]
+    },
+    "originSteps": {
+        "born": [
+            {
+                "id": "see_parents", "check": "seen", "arg": "parents", "icon": "🏡", "title": "Hear the rules of the house",
+                "why": "Until you come of age you live under your parents' roof: they set the rules, the duties and how far you may roam. Trust earned loosens them.",
+                "how": "Press the button below. Later: your own hex → ⚔ Open Actions → 🏕️ Hearth → 🏡 Your Parents.",
+                "go": { "counsel": "parents", "label": "Your Parents" },
+                "reward": { "renown": 1 }
+            },
+            {
+                "id": "first_duty", "check": "dutyDone", "icon": "🧹", "title": "Do a duty at home",
+                "why": "A duty done earns their trust and trains a skill; a duty skipped costs trust, and they notice by nightfall.",
+                "how": "At home, open Your Parents and press a duty (a chore, lessons or church).",
+                "go": { "counsel": "parents", "label": "Your Parents" },
+                "reward": { "renown": 1 }
+            },
+            {
+                "id": "first_day", "check": "dayPassed", "icon": "🌅", "title": "See a day through",
+                "why": "Everything moves by the day: duties fall due, the family eats at its table, and your allowance is paid each week.",
+                "how": "Press ⌛ End Turn at the bottom right of the screen.",
+                "go": { "panel": "endDay", "label": "End the day" },
+                "reward": { "gold": 2 }
+            },
+            {
+                "id": "ambition", "check": "ambition", "icon": "🏛️", "title": "Give your House an Ambition",
+                "why": "Your House outlives you. An Ambition is its long goal: its milestones earn Prestige, which your heirs inherit.",
+                "how": "Top bar → 🗝️ Counsel → beside ‘Your House has no Ambition’ press House, then choose one.",
+                "go": { "panel": "house", "label": "Open your House" },
+                "reward": { "renown": 2 }
+            }
+        ]
+    },
+    "_originFinal": "The end of an origin's own guide: no purse (a duke needs none, and a child's coin is its parents' business).",
+    "originFinal": {
+        "title": "First Steps taken",
+        "text": "You know where your start leads. From here, the Steward's 🗝️ Counsel tab names what matters most each day.",
+        "gold": 0,
+        "renown": 5,
+        "prestige": 10
+    },
     "final": {
         "title": "First Steps taken",
         "text": "You have found your feet. From here, the Steward's 🗝️ Counsel tab names what matters most each day.",

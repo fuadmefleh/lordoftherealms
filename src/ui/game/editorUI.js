@@ -13,9 +13,10 @@ import { InnerMapDowned } from '../innerMapDowned.js';
 import { MetaLegacy } from '../../systems/metaLegacy.js';
 import { bindIronmanQuit, pendingIronmanDeath } from './ironman.js';
 
-export function resumeGame(key = null) {
-    // (the save list's slot: the ordinary one or the Ironman run's, systems/saveLoad.js)
-    const result = SaveLoad.loadGame(key || SaveLoad.SAVE_KEY);
+export async function resumeGame(key = null) {
+    // (the save list's slot: the ordinary one or the Ironman run's, systems/saveLoad.js;
+    // read from the save store, core/saveStore.js, so the load is awaited)
+    const result = await SaveLoad.loadGame(key || SaveLoad.SAVE_KEY);
     if (!result.success) return;
     // (the street maps aren't saved: whoever was over your shoulder is let go, nothing left dangling)
     InnerMapCarry.reset();
@@ -436,7 +437,7 @@ export function startCustomWorld(editorWorldData) {
             // A hand-made map starts as the Wanderer on Normal, no goal (player/scenarios.js)
             Scenarios.apply(this.player, this.world, {});
             // The guided first month, as on a generated world (unless the scenario turns it off)
-            FirstSteps.initialize(this.player, this.world, { enabled: this.player.scenario?.guidedStart !== false });
+            FirstSteps.initialize(this.player, this.world, { enabled: this.player.scenario?.guidedStart !== false, origin: this.player.scenario?.id || null });
             this.ui.updateStats(this.player, this.world);
 
             // Hide title screen, show game

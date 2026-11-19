@@ -831,7 +831,7 @@ export const NpcKnowledge = {
         const s = (at && at.economy ? at : null) || (t && t.settlement && t.settlement.economy ? t.settlement : null) || Economy.nearestPurse(world, q, r);
         if (!s) return null;
         return {
-            take: (n) => Math.floor(Economy.drawTown(s, Math.min(n, Math.floor(Economy.townPurse(s) ?? n)))),
+            take: (n) => Utils.cents(Economy.drawTown(s, Math.min(n, Math.floor(Economy.townPurse(s) ?? n)))),
             give: (n) => Economy.payTown(s, n),
         };
     },

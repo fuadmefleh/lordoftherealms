@@ -1,5 +1,5 @@
 {
-    "_note": "Jobs done in person on the street map (systems/mapTasks.js, ui/innerMapTasks.js). Each job is one of the templates; 'jobs' sets a job's own spots and wording, 'byStat' covers jobs not listed. Spots: 'doors' are building types ('*' any, 'house'), 'props' are town-prop id prefixes. parHours is how long a good worker takes, in game hours (one real minute is an hour). Glyphs are ui/icons.js names.",
+    "_note": "Jobs done in person on the street map (systems/mapTasks.js, ui/innerMapTasks.js). A gather job's spots lie together: by the town's fields when it says \"near\": \"fields\" (and the map has any), else on the edge of town nearest you. Each job is one of the templates; 'jobs' sets a job's own spots and wording, 'byStat' covers jobs not listed. Spots: 'doors' are building types ('*' any, 'house'), 'props' are town-prop id prefixes. parHours is how long a good worker takes, in game hours (one real minute is an hour). Glyphs are ui/icons.js names.",
     "templates": {
         "haul":    { "trips": [3, 5], "parHours": 2.5, "workSeconds": 1.2, "noun": "load", "glyph": "crate", "dropGlyph": "satchel" },
         "work":    { "count": [3, 5], "parHours": 2.5, "workSeconds": 3, "verb": "Work", "glyph": "hammer" },
@@ -47,12 +47,12 @@
         "tutor":            { "template": "tally", "at": { "props": ["tp_crate", "tp_stall", "tp_sacks"] }, "report": { "doors": ["manor", "house"] }, "say": "Take the children round the market counting, then hear them recite." },
         "pit_fighter":      { "template": "bout", "foe": "bruiser", "say": "Bare knuckles behind the tavern. Win, or at least stand." },
         "spy_errand":       { "template": "deliver", "item": "letter", "count": [1, 1], "sneak": true, "to": { "doors": ["house", "manor", "guildhall"] }, "say": "Deliver the sealed letter. Don't let the watch see you." },
-        "sowing_hand":      { "template": "gather", "item": "grain_sack", "glyph": "wheat", "verb": "Sow", "say": "Broadcast seed along the plowed fields." },
+        "sowing_hand":      { "template": "gather", "item": "grain_sack", "glyph": "wheat", "verb": "Sow", "near": "fields", "say": "Broadcast seed along the plowed fields." },
         "flood_bank":       { "template": "haul", "item": "sack", "from": { "props": ["tp_sacks", "tp_sack"] }, "to": { "ground": "edge" }, "noun": "sandbag", "glyph": "sack", "say": "Carry sandbags out to the banks." },
         "camp_sutler":      { "template": "deliver", "item": "sack", "from": { "doors": ["warehouse", "granary", "marketplace"] }, "to": { "doors": ["barracks", "guard_tower", "house"] }, "say": "Run provisions out to the soldiers' billets." },
         "haymaker":         { "template": "work", "item": "scythe", "at": { "props": ["tp_field", "tp_hay", "tp_haystack"], "ground": "edge" }, "verb": "Scythe", "glyph": "wheat", "say": "Scythe the hay and stack it." },
         "harvest_reaper":   { "template": "work", "item": "scythe", "at": { "props": ["tp_field"], "ground": "edge" }, "verb": "Reap", "glyph": "wheat", "count": [4, 5], "say": "Bring in the grain with the reaping gang." },
-        "grape_picker":     { "template": "gather", "glyph": "bread", "verb": "Pick", "say": "Strip the orchards before the frost." },
+        "grape_picker":     { "template": "gather", "glyph": "bread", "verb": "Pick", "near": "fields", "say": "Strip the orchards before the frost." },
         "granary_loader":   { "template": "haul", "item": "sack", "from": { "props": ["tp_sacks", "tp_sack", "tp_field"] }, "to": { "doors": ["granary", "mill", "warehouse"] }, "noun": "sack", "glyph": "sack", "say": "Haul the new harvest up into the granary." },
         "snow_clearer":     { "template": "work", "at": { "roads": true }, "verb": "Shovel", "glyph": "snowflake", "say": "Dig the streets and square out of the drifts." },
         "woodcutter_winter": { "template": "haul", "from": { "trees": true, "props": ["tp_logs", "tp_firewood"] }, "to": { "doors": ["house", "tavern", "inn"] }, "noun": "armful of firewood", "glyph": "fire", "say": "Cut and carry firewood to the hearths." }

@@ -756,7 +756,7 @@ export const Couriers = {
         const s = this._live(world, key);
         if (!s) return _num(want);
         const have = Economy.townPurse(s);
-        return have == null ? _num(want) : Math.floor(Economy.drawTown(s, Math.min(_num(want), Math.floor(have * 0.2))));
+        return have == null ? _num(want) : Utils.cents(Economy.drawTown(s, Math.min(_num(want), Math.floor(have * 0.2))));
     },
 
     /** The live settlement at a 'q,r' key (null without one). */

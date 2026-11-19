@@ -1243,7 +1243,7 @@ export const Colonization = {
         // Exotic goods sell on: keen traders return more than you paid — sold in the
         // nearest town that keeps coin, which pays what its purse can
         let profit = Math.round(cost * (0.5 + trade) * Utils.randFloat(0.8, 1.2));
-        if (world) profit = Math.floor(Economy.drawNearest(world, (at || player).q, (at || player).r, profit));
+        if (world) profit = Utils.cents(Economy.drawNearest(world, (at || player).q, (at || player).r, profit));
         player.gold += profit;
         const karma = Utils.randInt(1, 3);
         player.karma = (player.karma || 0) + karma;

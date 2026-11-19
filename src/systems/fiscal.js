@@ -495,7 +495,7 @@ export const Fiscal = {
         let rev = 0, exp = 0;
         for (let i = 0; i < REVENUE_LINES.length; i++) { const v = d[REVENUE_LINES[i]]; if (v) rev += v; }
         for (let i = 0; i < EXPENSE_LINES.length; i++) { const v = d[EXPENSE_LINES[i]]; if (v) exp += v; }
-        d.other = _r2(treasury - f.openTreasury - (rev - exp + (d.loans || 0) + (d.debase || 0)));
+        d.other = _r2(treasury - f.openTreasury - (rev - exp + (d.loans || 0) + (d.debase || 0) + (d.reserve || 0)));
         // (the lines are kept to the hundredth on the closed page)
         for (const l in d) { const v = d[l]; if (v) d[l] = Math.round(v * 100) / 100; }
         const av = f.avg;
@@ -544,7 +544,62 @@ export const Fiscal = {
             Fiscal._review(world, st, k, f, day, ruled ? { ruled: true, out } : null);
         }
         Fiscal._revolts(world, player, st, k, f, towns, ruledId, day, out);
+        Fiscal._reserve(world, k, f);
         if (!ruled) Fiscal._offerFarm(world, player, st, k, f, towns, day, out);
+    },
+
+    /**
+     * The royal bank as the crown's reserve (data/fiscal.json `reserve`), weekly:
+     * a crown whose chests hold under `drawBelow` days of its spending (under
+     * `warDrawBelow` at war), or whose soldiers or clerks go unpaid, draws on its
+     * bank — what it is short of `drawTo` days and its arrears, at most `drawShare`
+     * of the vault a week, never below `keep` of the vault's mark; a crown past
+     * `layBy` days lays `layByShare` a week of the surplus by, until the vault
+     * reaches its mark (`markDays` of spending, at most `markCoin` of the realm's
+     * coin in circulation); a vault past `releaseAt` × its mark lets `releaseShare`
+     * a week of the excess back into the chests (where the largesse spends it
+     * into the towns). Both chests are the crown's own and both are counted
+     * (CoinCensus: 'treasury' and 'banks'), so no coin is made or lost; the move
+     * is booked on the books' 'reserve' line (+ drawn, − laid by). Before
+     * 2026-11-17 the vault (~10% of the world's coin) was never touched.
+     * → the coin moved into the chests (negative: laid by).
+     */
+    _reserve(world, k, f) {
+        const R = _obj(Fiscal.config().reserve);
+        const bank = k && _obj(k.royalBank);
+        if (!R || R.enabled === false || !bank || !f) return 0;
+        const vault = Math.max(0, _num(bank.treasury));
+        const exp = Math.max(1, _num(f.avg && f.avg.exp));
+        if (!(_num(f.avg && f.avg.n) >= 7)) return 0;
+        const coin = Fiscal.realmCoin(world, k);
+        const byDays = exp * _num(R.markDays, 120);
+        const mark = Math.max(0, coin > 0 && _num(R.markCoin) > 0 ? Math.min(byDays, coin * _num(R.markCoin)) : byDays);
+        const treasury = Math.max(0, _num(k.treasury));
+        const days = treasury / exp;
+        const war = Array.isArray(k.wars) && k.wars.length > 0;
+        // (laid by past layBy days of spending, or layByCoin of the realm's coin when that is
+        // less: the largesse spends the chests down past the like line — Fiscal._largesse)
+        const layLine = coin > 0 && _num(R.layByCoin) > 0 ? Math.min(exp * _num(R.layBy, 60), coin * _num(R.layByCoin)) : exp * _num(R.layBy, 60);
+        const owed = _num(f.arrears && f.arrears.army) + _num(f.arrears && f.arrears.court);
+        let move = 0;
+        if (owed > 0.5 || days < _num(war ? R.warDrawBelow : R.drawBelow, 20)) {
+            const want = Math.max(0, exp * _num(R.drawTo, 40) - treasury) + owed;
+            const free = Math.max(0, vault - mark * _num(R.keep, 0.25));
+            move = Utils.centsDown(Math.min(want, free, vault * _num(R.drawShare, 0.08)));
+        } else if (treasury > layLine && vault < mark) {
+            const surplus = treasury - layLine;
+            move = -Utils.centsDown(Math.min(surplus * _num(R.layByShare, 0.2), mark - vault));
+        } else if (vault > mark * _num(R.releaseAt, 1.5)) {
+            move = Utils.centsDown((vault - mark * _num(R.releaseAt, 1.5)) * _num(R.releaseShare, 0.1));
+        }
+        if (!move) return 0;
+        bank.treasury = _r2(vault - move);
+        k.treasury = _r2(_num(k.treasury) + move);
+        CrownBooks.note(k, 'reserve', move);
+        const s = f.stats;
+        if (move > 0) s.reserveDrawn = _r2(_num(s.reserveDrawn) + move);
+        else s.reserveLaid = _r2(_num(s.reserveLaid) - move);
+        return move;
     },
 
     /**
@@ -1105,7 +1160,7 @@ export const Fiscal = {
             kingdom: k, treasury: Math.round(_num(k.treasury)), level: f.level, rates: { ...f.rates }, armyPay: f.armyPay, courtLevel: f.courtLevel,
             last: { ...f.last }, week: { ...f.lastWeek }, avg: { ...f.avg }, hist: f.hist.slice(),
             arrears: { ...f.arrears }, arrearsDays: f.arrearsDays, corruption: f.corruption, demesne: f.demesne,
-            reserveDays: Math.round(Fiscal.reserveDays(k)), burden: CrownBooks.burden(k), stability: CrownBooks.stabilityMod(k),
+            reserveDays: Math.round(Fiscal.reserveDays(k)), bank: Math.round(_num(k.royalBank && k.royalBank.treasury)), burden: CrownBooks.burden(k), stability: CrownBooks.stabilityMod(k),
             armyFactor: CrownBooks.armyFactor(k), deficitWeeks: f.deficitWeeks, stats: { ...f.stats },
             farms: Fiscal.farmsIn(world, k.id), lots: Fiscal.lots(world, k.id),
         };

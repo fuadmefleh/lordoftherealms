@@ -60,6 +60,12 @@ Object.assign(ActionMenu, {
         html += lede(quick
             ? `Day labor available in ${settlement.name}. <b>Quick shift</b>: the work is done at once, for a plain wage.`
             : `Day labor available in ${settlement.name}. <b>In person</b>: you do the work on the streets (markers show where); good work pays best.`);
+        // A day's work is the day: say so before the job is taken (the AP go on the clock, and
+        // when the work is done, or given up, the day ends: ActionMenu._laborReward → endDay)
+        {
+            const ap = ActionMenu.getAPCost('odd_jobs');
+            html += `<div class="pk-row-desc" style="margin:0 2px 6px; color:#f0b35a;">⏳ A day's work takes the day: ${ap} AP (${ActionMenu.apHours(ap)}) to take it on, and when it is done, or given up, the day ends. Book your bed first.</div>`;
+        }
         html += `<div style="display:flex; gap:6px; margin:2px 0 8px;">`
             + `<button onclick="window._laborMode(false)" style="${quick ? BTN_PLAIN : BTN_GOLD} flex:1; padding:6px 8px; font-size:12px;" title="Walk to each spot on the street map; pay by how well and how fast">🚶 In person · best pay</button>`
             + `<button onclick="window._laborMode(true)" style="${quick ? BTN_GOLD : BTN_PLAIN} flex:1; padding:6px 8px; font-size:12px;" title="No walking: the job is done at once, for a plain wage">⏩ Quick shift · plain pay</button>`
@@ -1107,11 +1113,18 @@ Object.assign(ActionMenu, {
             const difficultyLabel = typeof b.difficulty === 'number' ? `Lv ${b.difficulty}` : b.difficulty;
             const isHighDanger = (typeof b.difficulty === 'number' ? b.difficulty >= 7 : b.difficulty === 'medium');
             const dCol = isHighDanger ? '#f0b35a' : '#7db4ff';
+            // A quarry beyond you: the honest odds of taking them (systems/bountyHunting.js captureOdds)
+            const odds = b.type === 'criminal_hunt' && typeof BountyHunting !== 'undefined' && BountyHunting.captureOdds
+                ? BountyHunting.captureOdds(game.player, b) : null;
+            const danger = odds != null && odds < 0.4
+                ? `<span style="color:#e0846a; font-weight:600;">⚠️ Beyond you yet: about ${Math.round(odds * 100)}% to take ${b.targetName || 'them'} at the first try (your combat, stealth and men against theirs); a failed arrest lets them run and costs you standing</span>`
+                : '';
             return {
                 icon: b.icon,
                 name: `${b.name} <span style="font-size:9.5px; letter-spacing:0.5px; padding:1px 6px; border-radius:3px; border:1px solid ${dCol}55; color:${dCol}; font-weight:600;">${difficultyLabel}</span>`,
                 desc: b.description,
                 note: [
+                    danger,
                     b.targetBackstory ? `<span style="color:#b9b9d6;">📖 ${b.targetBackstory}</span>` : '',
                     // (an instant job, done on the spot, has no limit to show)
                     Number.isFinite(b.daysLimit) ? `<span style="color:#9d937c;">⏳ ${b.daysLimit} day limit</span>` : '',
@@ -1188,6 +1201,8 @@ Object.assign(ActionMenu, {
             if (tile && tile.settlement) { bounty.townQ = tile.q; bounty.townR = tile.r; }
             game.player.activeBounties.push(bounty);
             game.ui.showNotification('Bounty Accepted!', Number.isFinite(bounty.daysLimit) ? `${bounty.name} — ${bounty.daysLimit} days to complete.` : `${bounty.name} — see it done here.`, 'success');
+            // (the First Steps card and the objective follow at once, not at the next HUD refresh)
+            game.ui.updateStats(game.player, game.world);
             game.ui.hideCustomPanel();
             ActionMenu.showBountyBoardMenu(game, tile); // Refresh
         };

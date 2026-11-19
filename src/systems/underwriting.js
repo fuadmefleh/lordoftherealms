@@ -947,7 +947,7 @@ export const Underwriting = {
                 uw.ref.capital = _r2(_num(uw.ref.capital) - back);
             } else if (uw && world && typeof world.getTile === 'function') {
                 const t = world.getTile(uw.q, uw.r);
-                back = t && t.settlement ? Math.floor(Economy.drawTown(t.settlement, back)) : 0;
+                back = t && t.settlement ? Utils.cents(Economy.drawTown(t.settlement, back)) : 0;
             } else back = 0;
             player.gold = _num(player.gold) + back;
             Ledger.record(player, 'insuranceClaims', back);

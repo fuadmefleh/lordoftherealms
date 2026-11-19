@@ -421,7 +421,12 @@ export const Bonds = {
             const b = Bonds.form(player, world, npcId, { kind: rival ? 'rival_friend' : 'friend', strength: C.startStrength + (score - C.formAt) / 2 });
             if (!b) continue;
             if (rival) delete st.rivalMarks[npcId];
-            if (out.notices.length < 2) {
+            // No "new friend" for your own kin, nor for a tie you began the game with and
+            // have not dealt with since (a start's seeded friends: player/parentage.js seedTies)
+            const startDay = _num(player.scenario && player.scenario.startDay);
+            const seeded = rel.tie != null && (rel.history || []).every(h => !h || _num(h.day) <= startDay);
+            const quiet = !!(rel.family || npc.kin) || seeded;
+            if (!quiet && out.notices.length < 2) {
                 out.notices.push({ icon: rival ? '⚔️' : '🤝', title: rival ? 'Old Rivals, New Friends' : 'A New Friend', text: Bonds._line(rival ? 'rivalFriend' : 'formed', { name: b.name }), type: 'success' });
             }
         }
@@ -956,7 +961,7 @@ export const Bonds = {
         else {
             const found = npc.folkUid ? Relationships.folkPerson(world, npc.folkUid) : null;
             const town = found ? found.settlement : null;
-            paid = town ? Math.floor(Economy.drawTown(town, fee)) : 0;
+            paid = town ? Utils.cents(Economy.drawTown(town, fee)) : 0;
         }
         player.gold = _num(player.gold) + paid;
         const rel = Relationships.getRelationship(player, npcId);

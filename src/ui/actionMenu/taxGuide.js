@@ -181,7 +181,7 @@ export const LINE_LABEL = {
     land: 'Land tax', poll: 'Hearth tax', excise: 'Excise', customs: 'Customs & tolls', demesne: 'Demesne & monopolies',
     seigniorage: 'Seigniorage', farms: 'Tax farms sold', levy: 'Extraordinary levy', sales: 'Offices & land sold', escheat: 'Escheats (heirless estates)', heriot: 'Heriots (death duties)',
     army: 'Army wages', arms: 'Arms & armour', court: 'Court & administration', works: 'Roads & works', debt: 'Debt service', dole: 'Dole & granaries',
-    purse: 'The ruler\'s purse', loans: 'Borrowed', debase: 'Debasement', other: 'Other (events, tribute, temples)',
+    purse: 'The ruler\'s purse', loans: 'Borrowed', debase: 'Debasement', reserve: 'Royal bank (drawn + / laid by −)', other: 'Other (events, tribute, temples)',
 };
 export function lineLabel(l) {
     return LINE_LABEL[l] || l;

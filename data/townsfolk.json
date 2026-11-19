@@ -54,6 +54,8 @@
     "maxLog": 14,
     "pruneAfterYears": 40,
     "pruneDeadAfterYears": 5,
+    "_distant": "towns more than nearHexes from the player live their trade (systems/townTrade.js) every tradeEvery of its steps at once, and their sick (systems/illness.js) every illnessEvery: the same rates over the longer step, the larders stocked to last it. Near the player, or with none (the interregnum), every step is lived. Keeps a century of rosters about as dear as the first year's.",
+    "distant": { "enabled": true, "nearHexes": 6, "tradeEvery": 3, "illnessEvery": 2 },
     "compact": {
         "afterYears": 1,
         "drop": ["practiceSkills", "skillAge", "imm", "ill", "job", "brawled", "atService", "devout", "heart", "literacy", "school", "shopped", "robbedDay", "diet", "seen", "hurt", "nmSaid", "preg", "postpartum", "cbChk", "jailedUntil"]

@@ -1,13 +1,16 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useGame } from '../context/GameContext';
 import { ModStore } from '../systems/modStore';
 import Icon from './Icon';
 import AiSettingsDialog from './AiSettingsDialog';
 import { SaveLoad } from '../systems/saveLoad.js';
 
-// The saves on this machine: the ordinary slot and an Ironman run's (systems/saveLoad.js)
-const _listSaves = () => {
-  try { return SaveLoad.listSaves(); } catch (err) { return []; }
+// The saves on this machine: the ordinary slot and an Ironman run's (systems/saveLoad.js;
+// kept in IndexedDB, core/saveStore.js, so the list arrives asynchronously)
+const _listSaves = () => SaveLoad.listSaves().catch(() => []);
+const _saveSize = (b) => {
+  if (!b) return '';
+  return b >= 1024 * 1024 ? `${(b / (1024 * 1024)).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`;
 };
 const _saveWhen = (t) => {
   try { return t ? new Date(t).toLocaleString() : ''; } catch (err) { return ''; }
@@ -19,8 +22,22 @@ export default function TitleScreen() {
   const [worlds, setWorlds] = useState([]);
   const [loadingWorlds, setLoadingWorlds] = useState(false);
   const [showAiSettings, setShowAiSettings] = useState(false);
-  const [saves] = useState(_listSaves);
+  const [saves, setSaves] = useState([]);
   const [showSaves, setShowSaves] = useState(false);
+  useEffect(() => {
+    let live = true;
+    _listSaves().then((list) => { if (live) setSaves(list || []); });
+    return () => { live = false; };
+  }, []);
+
+  const handleDeleteSave = useCallback(async (key, e) => {
+    e.stopPropagation();
+    if (!confirm('Delete this saved game? It cannot be undone.')) return;
+    await SaveLoad.deleteSave(key);
+    const list = await _listSaves();
+    setSaves(list || []);
+    if (!list || !list.length) setShowSaves(false);
+  }, []);
 
   const handleResume = useCallback((key) => {
     setShowSaves(false);
@@ -152,8 +169,11 @@ export default function TitleScreen() {
                       {sv.ironman && <span style={{ marginLeft: 8, fontSize: '11px', color: '#e0846a', border: '1px solid #e0846a', borderRadius: 4, padding: '0 5px' }}>⚒️ IRONMAN</span>}
                       {sv.tainted && <span style={{ marginLeft: 6, fontSize: '11px', color: '#b8a0d8', border: '1px solid #b8a0d8', borderRadius: 4, padding: '0 5px' }}>🧪 TAINTED</span>}
                     </div>
-                    <div className="cw-world-meta">{`Year ${sv.year ?? '?'}, day ${sv.day ?? '?'} · saved ${_saveWhen(sv.timestamp)}`}</div>
+                    <div className="cw-world-meta">{`Year ${sv.year ?? '?'}, day ${sv.day ?? '?'} · saved ${_saveWhen(sv.timestamp)}${sv.bytes ? ` · ${_saveSize(sv.bytes)}` : ''}`}</div>
                   </div>
+                  {!sv.ironman && (
+                    <button className="cw-world-delete" title="Delete this save" onClick={(e) => handleDeleteSave(sv.key, e)}>🗑</button>
+                  )}
                   <span className="cw-world-play">PLAY ▶</span>
                 </div>
               ))}

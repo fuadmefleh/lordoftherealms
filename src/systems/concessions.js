@@ -364,7 +364,7 @@ export const Concessions = {
             if (best.h.rival) {
                 paid = Math.min(best.fee, Math.max(0, Math.floor(_num(best.h.rival.capital))));
                 best.h.rival.capital = _r2(_num(best.h.rival.capital) - paid);
-            } else paid = Math.floor(Economy.drawTown(homeT, best.fee));
+            } else paid = Utils.cents(Economy.drawTown(homeT, best.fee));
             Concessions._grant(world, site, realm, best.h.id, best.h.name, paid, a);
             a.winner = best.h.id;
             a.price = best.fee;
@@ -706,9 +706,10 @@ export const Concessions = {
                     out.income += g;
                 } else {
                     // The hands and the crown are paid from the purse; what it can't cover is owed
-                    const owe = Math.ceil(-net);
-                    const can = Math.min(owe, Math.max(0, Math.floor(_num(player.gold))));
-                    player.gold -= can;
+                    // (to the cent: a whole-coin ceiling took up to 0.99g a day from the purse into no one's)
+                    const owe = _r2(-net);
+                    const can = Math.min(owe, Utils.centsDown(Math.max(0, _num(player.gold))));
+                    player.gold = _r2(_num(player.gold) - can);
                     Ledger.record(player, 'concessions', -can);
                     out.wages += can;
                     if (owe > can) {

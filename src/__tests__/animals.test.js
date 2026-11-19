@@ -9,7 +9,7 @@ import { DataLoader } from '../core/dataLoader.js';
 import { WildTasks } from '../systems/wildTasks.js';
 import { Utils } from '../core/utils.js';
 
-let InnerMap, InnerMapTasks, WildTaskRunner, SaveLoad, InnerMapAnimals, InnerMapCombat;
+let InnerMap, InnerMapTasks, WildTaskRunner, SaveLoad, InnerMapAnimals, InnerMapCombat, InnerMapCharacters;
 
 beforeAll(async () => {
     if (!DataLoader._gamedata) await DataLoader.initializeAll();
@@ -19,6 +19,7 @@ beforeAll(async () => {
     ({ SaveLoad } = await import('../systems/saveLoad.js'));
     ({ InnerMapAnimals } = await import('../ui/innerMapAnimals.js'));
     ({ InnerMapCombat } = await import('../ui/innerMapCombat.js'));
+    ({ InnerMapCharacters } = await import('../ui/innerMapCharacters.js'));
     for (const k of ['_mountHud', '_unmountHud', '_renderHud']) vi.spyOn(InnerMapTasks, k).mockImplementation(() => {});
 });
 
@@ -707,6 +708,34 @@ describe('the bestiary', () => {
         expect(fox.state).toBe('dead');
         expect(InnerMapAnimals._fight).toBe(null);
         expect(g.notes.some(n => /Killed/.test(n.t))).toBe(true);
+    });
+
+    it('at a beast the player swings: the slash, facing it, the blade down on each blow', () => {
+        const g = stubGame();
+        const [bear] = beastsAt([{ species: 'bear', q: 63, r: 64 }]);
+        bear.hp = 9999;
+        bear.maxHp = 9999;
+        expect(InnerMapAnimals.playerSwing()).toBe(null);
+        InnerMapAnimals.startFight(g, bear);
+        const sw = InnerMapAnimals.playerSwing();
+        expect(sw).toBeTruthy();
+        expect(sw.dir).toBe(InnerMapCharacters.DIR_LEFT);
+        const cycle = InnerMapCharacters.SLASH_FRAMES / InnerMapCharacters.SLASH_FPS;
+        // each blow lands on the strike frame (3 of 6), and the swing never runs past its last frame
+        const every = (cfg().fight || {}).swingEvery || 0.55;
+        InnerMapAnimals._fight.swingT = 0;
+        expect(Math.floor(InnerMapAnimals.playerSwing().time * InnerMapCharacters.SLASH_FPS)).toBe(3);
+        for (let t = 0; t < every; t += 0.02) {
+            InnerMapAnimals._fight.swingT = t;
+            const s = InnerMapAnimals.playerSwing();
+            expect(s.time).toBeGreaterThanOrEqual(0);
+            expect(s.time).toBeLessThan(cycle);
+        }
+        // closing on it from afar is no swing
+        InnerMapAnimals._fight.engaged = false;
+        expect(InnerMapAnimals.playerSwing()).toBe(null);
+        InnerMapAnimals.stopFight();
+        expect(InnerMapAnimals.playerSwing()).toBe(null);
     });
 
     it('hunting maps onto the species, and a missed bear turns on the hunter', () => {

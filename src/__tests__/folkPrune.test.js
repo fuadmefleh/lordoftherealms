@@ -38,15 +38,53 @@ describe('Townsfolk._prune — the dead let go sooner, a short record kept where
         expect(ids(folk)).toEqual([2, 3]);
     });
 
-    it('a moved household\'s forwarding record goes as the dead do, unless something names its uid; the plain departed keep forty years', () => {
+    it('a moved household\'s forwarding record and the plain departed go as the dead do, unless something names their uid', () => {
         const mig = (d) => ({ d, to: 'Greymoor', mig: 1, q: 20, r: 3, nid: 9 });
         const folk = folkOf([
             person(1, { away: mig(DAY - 8 * Y) }),
             person(2, { away: mig(DAY - 8 * Y) }),
             person(3, { away: { d: DAY - 8 * Y, to: 'the wider world' } }),
+            person(4, { away: { d: DAY - 8 * Y, to: 'the wider world' } }),
+            // (away with the player, or missing: not gone for good)
+            person(5, { away: { d: DAY - 8 * Y, to: 'the road', withPlayer: 'party' } }),
+            person(6, { away: { d: DAY - 8 * Y, to: 'the wilds', missing: true } }),
         ]);
-        Townsfolk._prune(folk, DAY + 4, { name: 'Player', bonds: { list: [{ folkUid: '5,7#2' }] } }, worldWith(folk));
-        expect(ids(folk)).toEqual([2, 3]);
+        Townsfolk._prune(folk, DAY + 4, { name: 'Player', bonds: { list: [{ folkUid: '5,7#2' }, { folkUid: '5,7#4' }] } }, worldWith(folk));
+        expect(ids(folk)).toEqual([2, 4, 5, 6]);
+    });
+
+    it('those gone for good name no one: an emigrant family lets each other go; a resident\'s departed child is kept', () => {
+        const mig = { d: DAY - 8 * Y, to: 'Greymoor', mig: 1, q: 20, r: 3 };
+        const folk = folkOf([
+            person(1, { away: { ...mig }, spouse: 2, kids: [3] }),
+            person(2, { away: { ...mig }, spouse: 1, kids: [3] }),
+            person(3, { away: { ...mig }, parents: [1, 2] }),
+            person(4, { died: DAY - 9 * Y, kids: [3] }),                   // named only by the emigrants
+            person(5, { kids: [6] }),                                       // here
+            person(6, { away: { d: DAY - 8 * Y, to: 'the wider world' }, parents: [5] }),
+        ]);
+        Townsfolk._prune(folk, DAY + 5, { name: 'Player' }, worldWith(folk));
+        expect(ids(folk)).toEqual([5, 6]);
+    });
+
+    it('compacts the departed a year gone, but not a captive the player holds, nor one away with the player', () => {
+        const folk = folkOf([
+            person(1, { away: { d: DAY - 2 * Y, to: 'the wider world' } }),
+            person(2, { away: { d: DAY - 2 * Y, to: 'no one knows where' } }),
+            person(3, { away: { d: DAY - 2 * Y, to: 'the road', withPlayer: 'party' } }),
+            person(4, { away: { d: DAY - 10, to: 'the wider world' } }),
+        ]);
+        Townsfolk._prune(folk, DAY + 6, { name: 'Player', peopleCrimes: { captives: [{ q: 5, r: 7, pid: 2 }] } }, worldWith(folk));
+        const [a, b, c, d] = [1, 2, 3, 4].map(id => Townsfolk.get(folk, id));
+        expect(a.cmp).toBe(1);
+        expect(a.practiceSkills).toBeUndefined();
+        expect(a.log).toEqual([]);
+        expect(a.away.to).toBe('the wider world');
+        for (const p of [b, c, d]) { expect(p.cmp).toBeUndefined(); expect(p.practiceSkills).toBeDefined(); }
+        // (in an interregnum the plain departed wait: no player state to ask)
+        const f2 = folkOf([person(1, { away: { d: DAY - 2 * Y, to: 'no one knows where' } })]);
+        Townsfolk._prune(f2, DAY + 6, null, worldWith(f2));
+        expect(f2.people[0].cmp).toBeUndefined();
     });
 
     it('without a player to ask (the interregnum) only the old forty-year horizon holds', () => {

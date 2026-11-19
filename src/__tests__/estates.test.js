@@ -475,7 +475,7 @@ describe('the putting-out system', () => {
         const r = PuttingOut.putOut(g.player, w, tile, 'wool', 20, 'fair');
         expect(r.success).toBe(true);
         expect(g.player.inventory.wool).toBe(40);
-        expect(s.economy.gold - town0).toBe(r.batch.wage);
+        expect(s.economy.gold - town0).toBeCloseTo(r.batch.wage, 2);
         expect(Ledger.today(g.player).expenses.puttingOut).toBe(r.batch.wage);
         let d = 0;
         while (!r.batch.done && d < 200) { w.day = winter + d; PuttingOut.processDay(w, g.player); d++; }

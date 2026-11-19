@@ -3,6 +3,7 @@
 // ============================================
 import { ActionMenu } from './_ref.js';
 import { trackShows } from '../panelRefresh.js';
+import { trackFirstStepsPanels } from './counsel.js';
 import './core.js';
 import './trade.js';
 import './barterTable.js';
@@ -120,6 +121,8 @@ import './atrocities.js';
 
 // Every panel's show* method is remembered, so the open panel redraws after the day (ui/panelRefresh.js)
 trackShows(ActionMenu);
+// The panels an origin's First Steps ask to see tick the step however they are opened (ui/actionMenu/counsel.js)
+trackFirstStepsPanels(ActionMenu);
 
 // Expose ActionMenu globally so inline onclick handlers in dynamic HTML can access it
 window.ActionMenu = ActionMenu;

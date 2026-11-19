@@ -71,8 +71,13 @@ export class Camera {
         // Mouse wheel zoom
         canvas.addEventListener('wheel', (e) => {
             e.preventDefault();
-            const zoomDelta = e.deltaY > 0 ? -(this.zoomStep || 0.1) : (this.zoomStep || 0.1);
-            this.targetZoom = Utils.clamp(this.targetZoom + zoomDelta, this.minZoom, this.maxZoom);
+            const step = this.zoomStep || 0.1;
+            // A camera at a high zoom (the street map's, about 4) steps by a share of it:
+            // a flat 0.1 was a 2% change a notch there, and the wheel seemed dead
+            const next = this.zoomRelative
+                ? (e.deltaY > 0 ? this.targetZoom / (1 + step) : this.targetZoom * (1 + step))
+                : this.targetZoom + (e.deltaY > 0 ? -step : step);
+            this.targetZoom = Utils.clamp(next, this.minZoom, this.maxZoom);
         }, { passive: false });
 
         // Mouse drag for panning (disabled when camera is locked)

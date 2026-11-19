@@ -103,8 +103,10 @@ export const InnerMapAnimals = {
             return { sheet: sheets.death || sp.sheet, row, col };
         }
         if (a.state === 'attack') {
-            const swing = cols / Math.max(1, _num(sp.attackFps, 8));
-            if (_num(a.atkT) < swing && sheets.attack) return { sheet: sheets.attack, row, col: Math.min(cols - 1, Math.floor(_num(a.atkT) * _num(sp.attackFps, 8))) };
+            // (an attack sheet may hold more frames than the walk: the dog's lunge and bite has seven)
+            const acols = Math.max(1, _num(sp.attackCols, cols));
+            const swing = acols / Math.max(1, _num(sp.attackFps, 8));
+            if (_num(a.atkT) < swing && sheets.attack) return { sheet: sheets.attack, row, col: Math.min(acols - 1, Math.floor(_num(a.atkT) * _num(sp.attackFps, 8))), attack: true };
             return { sheet: sheets.walk || sp.sheet, row, col: 0 };
         }
         const sheet = sheets.walk || sp.sheet;
@@ -122,6 +124,19 @@ export const InnerMapAnimals = {
         const fps = fast ? _num(sp.fleeFps, 12) : _num(sp.walkFps, 6);
         const phase = (a.id ? a.id.length * 0.37 : 0);
         return { sheet, row, col: Math.floor(a.animT * fps + phase) % cols };
+    },
+
+    /**
+     * The lunge of a bite: how far (sheet px, along its facing) the body is
+     * carried forward on this attack frame (sp.attackLunge, one per frame).
+     */
+    lungeOffset(a, sp, f) {
+        const L = sp && sp.attackLunge;
+        if (!f || !f.attack || !Array.isArray(L) || !L.length) return { dx: 0, dy: 0 };
+        const d = _num(L[Math.min(L.length - 1, f.col)], 0);
+        const dir = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] }[a.facing] || [0, 0];
+        // (up and down the screen a step reads longer than across it: carry it a little less)
+        return { dx: dir[0] * d, dy: dir[1] * d * 0.6 };
     },
 
     /**
@@ -188,7 +203,8 @@ export const InnerMapAnimals = {
         const sheets = sp.sheets || {};
         const standing = a.state !== 'dead' && !(a.next || a.moving) && !f.idle && !(sheets.attack && f.sheet === sheets.attack);
         const ky = standing ? k * (1 + BREATH * (0.5 + 0.5 * Math.sin((_now() / BREATH_S) * Math.PI * 2 + _phase(a)))) : k;
-        ctx.drawImage(img, f.col * fw, f.row * fh, fw, fh, Math.round(fx - ax * k), Math.round(fy - ay * ky), Math.round(fw * k), Math.round(fh * ky));
+        const lunge = this.lungeOffset(a, sp, f);
+        ctx.drawImage(img, f.col * fw, f.row * fh, fw, fh, Math.round(fx - ax * k + lunge.dx * k), Math.round(fy - ay * ky + lunge.dy * k), Math.round(fw * k), Math.round(fh * ky));
         if (fade < 1) ctx.restore();
         ctx.imageSmoothingEnabled = smooth;
         // Hurt: its blood on a bar over it
@@ -383,6 +399,22 @@ export const InnerMapAnimals = {
         return true;
     },
 
+    /**
+     * The player's swing at the beast they fight, for the draw (ui/innerMapLayers/entities.js):
+     * { dir, time } when at it (beside it, not closing), else null. `time` is the moment in the
+     * slash cycle (SLASH_FPS): timed so the blade comes down (frame 3 of 6) on each blow
+     * (_tickFight), a short hold on the follow-through when blows come slower than a cycle.
+     */
+    playerSwing() {
+        const f = this._fight;
+        if (!f || !f.engaged || f.dir == null) return null;
+        const every = _num((InnerMap.animalConfig().fight || {}).swingEvery, 0.55);
+        const cycle = InnerMapCharacters.SLASH_FRAMES / InnerMapCharacters.SLASH_FPS;
+        const strike = 3 / InnerMapCharacters.SLASH_FPS;
+        const t = (Math.max(0, _num(f.swingT, 0)) + strike) % Math.max(every, 0.05);
+        return { dir: f.dir, time: Math.min(cycle - 0.001, t) };
+    },
+
     stopFight() {
         const f = this._fight;
         if (f && f.path && InnerMap._playerPath === f.path && InnerMap.cancelPlayerWalk) InnerMap.cancelPlayerWalk();
@@ -406,6 +438,7 @@ export const InnerMapAnimals = {
             return;
         }
         if (d > 1) {
+            f.engaged = false;
             f.chaseT -= dt;
             if (f.chaseT <= 0) {
                 f.chaseT = 0.35;
@@ -418,7 +451,9 @@ export const InnerMapAnimals = {
             if (InnerMap._playerPath === f.path && InnerMap.cancelPlayerWalk) InnerMap.cancelPlayerWalk();
             f.path = null;
         }
-        InnerMapRenderer._playerFacing = InnerMapCharacters.getDirection(at.q - me.q, at.r - me.r);
+        f.dir = InnerMapCharacters.getDirection(at.q - me.q, at.r - me.r);
+        f.engaged = true;
+        InnerMapRenderer._playerFacing = f.dir;
         const cfg = InnerMap.animalConfig();
         f.swingT += dt;
         const every = _num((cfg.fight || {}).swingEvery, 0.55);

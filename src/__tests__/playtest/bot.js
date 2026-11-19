@@ -24,6 +24,9 @@ import { SeasonalWork } from '../../player/seasonalWork.js';
 import { Foraging, Hunting } from '../../player/foraging.js';
 import { DataLoader } from '../../core/dataLoader.js';
 import { OddJobs } from '../../player/oddJobs.js';
+import { Begging } from '../../player/begging.js';
+import { CoinCensus } from '../../systems/coinCensus.js';
+import { MoneySupply } from '../../world/moneySupply.js';
 import { Relationships } from '../../systems/relationships.js';
 import { Ships } from '../../systems/ships.js';
 import { RealmWars } from '../../systems/realmWars.js';
@@ -194,7 +197,14 @@ function count(stats, key, n = 1) {
 /** Run a bot step and book its gold change to the game ledger under `label`. */
 function booked(game, label, fn) {
     const before = game.player.gold;
+    // BOT_COIN=1: the census around each of the bot's actions, and any that moved coin unbooked
+    const audit = typeof process !== 'undefined' && process.env.BOT_COIN;
+    const c0 = audit ? CoinCensus.total(game.world, game.player).total - MoneySupply.bookedChange(game.world) : 0;
     const out = fn();
+    if (audit) {
+        const u = CoinCensus.total(game.world, game.player).total - MoneySupply.bookedChange(game.world) - c0;
+        if (Math.abs(u) > 1) process.stdout.write(`BOTCOIN day ${game.world.day} bot:${label} ${u.toFixed(2)}\n`);
+    }
     const d = game.player.gold - before;
     if (d && Number.isFinite(d)) {
         // SOAK_METRICS: a windfall the size of a realm's treasury is worth a look
@@ -1715,10 +1725,13 @@ function delve(game, stats) {
     const { player, world } = game;
     const tile = world.getTile(player.q, player.r);
     if (!Delves.active(player)) {
-        if (!Delves.isDelveSite(tile) || player.health < 50) return;
-        if (!Delves.start(player, world, tile).success) return;
+        if (!Delves.isDelveSite(tile)) return;
+        if (player.health < 50) { count(stats, 'delveTooHurt'); return; }
+        const st = Delves.start(player, world, tile);
+        if (!st.success) { count(stats, 'delveRefused'); (game.unreachableSites || (game.unreachableSites = new Set())).add(`${tile.q},${tile.r}`); return; }
         count(stats, 'delvesStarted');
         game.delved = true;
+        game.trek = null;
     }
     let guard = 0;
     while (Delves.active(player) && guard++ < 12) {
@@ -1793,25 +1806,38 @@ function foundColony(game, stats) {
     return false;
 }
 
+/** The nearest delve site the bot hasn't failed to reach → { q, r, delve: true } or null. */
+function delveSite(game) {
+    const { player, world } = game;
+    const bad = game.unreachableSites || (game.unreachableSites = new Set());
+    let best = null;
+    // (wider until the first delve: the sites near home may all be explored by others)
+    for (const h of Hex.hexesInRange(player.q, player.r, game.delved ? 24 : 40)) {
+        if (h.r < 0 || h.r >= world.height) continue;
+        const q = Hex.wrapQ(h.q, world.width);
+        const t = world.getTile(q, h.r);
+        if (!t || !t.terrain.passable || !Delves.isDelveSite(t) || bad.has(`${q},${h.r}`) || !player._overlandReachable(q, h.r, world)) continue;
+        // (a site whose road the bot was beaten back on is tried again after 30 days)
+        if (game.trekBeaten && world.day - (game.trekBeaten[`${q},${h.r}`] ?? -1e9) < 30) continue;
+        const d = Hex.distance(player.q, player.r, h.q, h.r);
+        if (!best || d < best.d) best = { q, r: h.r, d };
+    }
+    return best ? { q: best.q, r: best.r, delve: true } : null;
+}
+
 function chooseDestination(game) {
     const { player, world } = game;
     const roll = Utils.random();
-    if (roll < 0.2 || (!game.delved && (MerchantHouses.company(player) || world.day >= 45))) {
+    // (only when fit for it: hale, fed for the road and not broke — a delve trek on an empty
+    // larder killed lives; after day 45 it looks every time until it has delved once)
+    const fit = player.health >= 60 && player.getFoodCount() >= 5 && player.gold >= 50;
+    if (fit && (roll < 0.2 || (!game.delved && (MerchantHouses.company(player) || world.day >= 45)))) {
         // The nearest delve site the bot hasn't failed to reach. Until it has
         // delved once it looks every time (after its company is founded, or
         // day 45): sites are few, a handful a map, and others explore them,
         // so a chance look can miss them all game
-        const bad = game.unreachableSites || (game.unreachableSites = new Set());
-        let best = null;
-        for (const h of Hex.hexesInRange(player.q, player.r, 24)) {
-            if (h.r < 0 || h.r >= world.height) continue;
-            const q = Hex.wrapQ(h.q, world.width);
-            const t = world.getTile(q, h.r);
-            if (!t || !t.terrain.passable || !Delves.isDelveSite(t) || bad.has(`${q},${h.r}`) || !player._overlandReachable(q, h.r, world)) continue;
-            const d = Hex.distance(player.q, player.r, h.q, h.r);
-            if (!best || d < best.d) best = { q, r: h.r, d };
-        }
-        if (best) return { q: best.q, r: best.r, delve: true };
+        const site = delveSite(game);
+        if (site) return site;
     }
     // Carrying bullion: on to the nearest realm's capital, where its mint buys it (systems/mints.js)
     if (BULLION.some(id => (player.inventory[id] || 0) > 0)) {
@@ -2152,6 +2178,65 @@ function houseBusiness(game, stats) {
     if (near && travelTo(game, near.target.q, near.target.r)) count(stats, 'houseQuestTrips');
 }
 
+/**
+ * Broke and hungry in a town (a fresh heir of an empty House, a new life with
+ * nothing): beg for alms — coppers and a loaf from the passers-by — then buy
+ * bread. First thing in the day, before the House's business spends the AP.
+ */
+function begIfBroke(game, stats) {
+    const { player, world } = game;
+    const here = world.getTile(player.q, player.r);
+    if (!here || !here.settlement || player.boardedShip || player.getFoodCount() > 2 || player.gold >= 50) return;
+    booked(game, 'beg', () => {
+        if ((player.actionPoints || 0) < Begging.config().ap) { count(stats, 'begNoAP'); return; }
+        if (!Begging.canBeg(player, world, here.settlement).ok) return;
+        player.actionPoints -= Begging.config().ap;
+        const r = Begging.beg(player, world, here.settlement);
+        count(stats, 'begged');
+        if (r.gold > 0) count(stats, 'begGold', r.gold);
+        if (r.bread > 0) count(stats, 'begBread', r.bread);
+        if (player.gold >= 1) buyFood(game, here, stats);
+    });
+}
+
+/**
+ * Now and then (monthly, and every month until the first), set out for a delve on
+ * purpose when fit for it — hale, fed for the road, not broke — so the depths don't
+ * wait on the bot happening to stand on a site.
+ */
+function delveTrek(game, stats) {
+    const { player, world } = game;
+    const bad = game.unreachableSites || (game.unreachableSites = new Set());
+    // A trek under way outlasts the errands that cut across it (a food run, a town's business)
+    // for 60 days: the day's first steps go toward the site, and it is delved on arrival
+    let trek = game.trek && world.day - game.trek.day <= 60 && Delves.isDelveSite(world.getTile(game.trek.q, game.trek.r))
+        && !bad.has(`${game.trek.q},${game.trek.r}`) ? game.trek : null;
+    if (!trek) game.trek = null;
+    // (beaten back on the road there three times — a lair across the way: another site next month)
+    if (trek && player.health < 50 && !trek.hurtDay) { trek.hurtDay = world.day; trek.fails = (trek.fails || 0) + 1; }
+    if (trek && player.health >= 50) trek.hurtDay = null;
+    if (trek && trek.fails >= 3) { (game.trekBeaten || (game.trekBeaten = {}))[`${trek.q},${trek.r}`] = world.day; game.trek = trek = null; game.lastTrek = -1e9; count(stats, 'delveTrekBeaten'); }
+    if (trek && player.health >= 50 && player.getFoodCount() >= 3 && !player.boardedShip && !Delves.active(player)) {
+        const from = `${player.q},${player.r}`;
+        travelTo(game, trek.q, trek.r);
+        // (no step taken toward it three days running: no way there from here)
+        if (`${player.q},${player.r}` === from && !player.crossing && (player.q !== trek.q || player.r !== trek.r)) {
+            trek.stuck = (trek.stuck || 0) + 1;
+            if (trek.stuck >= 3) { bad.add(`${trek.q},${trek.r}`); game.trek = null; count(stats, 'delveTrekNoWay'); }
+            return;
+        }
+        if (player.q === trek.q && player.r === trek.r) booked(game, 'delve', () => delve(game, stats));
+        return;
+    }
+    if (world.day - (game.lastTrek ?? -1e9) < 30 || world.day < 45) return;
+    if (player.health < 60 || player.getFoodCount() < 5 || player.gold < 50 || player.boardedShip || Delves.active(player)) return;
+    if (game.dest && (game.dest.delve || game.dest.company)) return;
+    game.lastTrek = world.day;
+    if (game.delved && Utils.random() >= 0.3) return;
+    const site = delveSite(game);
+    if (site) { game.dest = site; game.trek = { ...site, day: world.day }; count(stats, 'delveTreks'); }
+}
+
 export function botDay(game, stats) {
     const { player, world } = game;
     // The House's unfinished business told since yesterday (systems/houseQuests.js), counted by kind
@@ -2202,6 +2287,8 @@ export function botDay(game, stats) {
     if (world.day > 150 && world.day % 7 === 0 && player.quests && player.quests.active.length < 3 && (player.quests.available || []).length) {
         if (Quests.acceptQuest(player, player.quests.available[0].id, world).success) count(stats, 'questsAccepted');
     }
+    begIfBroke(game, stats);
+    delveTrek(game, stats);
     if (world.day > 150 && !player.boardedShip && !Ships.getVoyage(player)) houseBusiness(game, stats);
     if (Ships.getVoyage(player)) {
         voyageDay(game, stats);
@@ -2262,17 +2349,47 @@ export function botDay(game, stats) {
         // ...and sell a ship whose upkeep and wages the purse can't carry
         const docked = (player.ships || []).find(s => s.status === 'docked');
         if (docked && Ships.sellShip(player, docked.id, world).success) count(stats, 'shipsSold');
+        // (no buyer at her port: pay the crew off, whose wages bleed a thin purse dry)
+        else if (docked && (docked.crew || 0) > 0 && Ships.dismissCrew(player, docked.id, docked.crew).success) count(stats, 'crewPaidOff');
+    }
+    // A thinning purse (under 400, no company to feed): a laid-up ship's upkeep and wages
+    // bled a seed-202 life to starvation in a dear-bread town — sell her before it comes to that
+    else if (player.gold < 400 && !MerchantHouses.company(player) && !player.boardedShip) {
+        const docked = (player.ships || []).find(s => s.status === 'docked');
+        if (docked && Ships.sellShip(player, docked.id, world).success) count(stats, 'shipsSold');
     }
     // Running out of food with money in the purse: make for the nearest town and buy some
     // (one that had food the last time it was tried: a dawn village picked bare is no use)
     const foodless = game.foodlessAt || (game.foodlessAt = {});
     const stocked = (t) => !(world.day - (foodless[`${t.q},${t.r}`] ?? -1e9) < 20);
     let cantBuy = false;
-    if (player.getFoodCount() <= 2 && player.gold >= 50 && !player.boardedShip) {
+    if (player.getFoodCount() <= 4 && player.gold >= 30 && !player.boardedShip) {
         const at = world.getTile(player.q, player.r);
         if (at && at.settlement) {
             booked(game, 'buyFood', () => buyFood(game, at, stats));
-            if (player.getFoodCount() <= 2) { foodless[`${player.q},${player.r}`] = world.day; cantBuy = true; }
+            const before = player.getFoodCount();
+            // (bare: no bread or grain on its stalls at all — a town the bot merely can't
+            // afford more of is not bare, and walking off from it on a thin purse kills)
+            const bare = ![...FOOD, ...FOOD_FALLBACK].some(id => SettlementMarket.available(at.settlement, id) >= 1);
+            if (before <= 4 && bare) {
+                // (nothing on the stalls here: with a few days' food left, walk on to the
+                // next town that had some, rather than sit in a bare town until it is gone)
+                foodless[`${player.q},${player.r}`] = world.day;
+                const next = before >= 1 ? nearest(world, player, settlementTiles(world).filter(stocked), 1)[0] : null;
+                if (next && next.d <= Math.max(2, before * 2)) {
+                    game.dest = { q: next.q, r: next.r };
+                    travelTo(game, next.q, next.r);
+                    const now = world.getTile(player.q, player.r);
+                    if (now && now.settlement) booked(game, 'buyFood', () => buyFood(game, now, stats));
+                    count(stats, 'foodRuns');
+                    return;
+                }
+                if (before <= 2) cantBuy = true;
+            } else if (before <= 2) {
+                // (food here but not for this purse: as before, live off the land a day)
+                foodless[`${player.q},${player.r}`] = world.day;
+                cantBuy = true;
+            }
         } else {
             const town = nearest(world, player, settlementTiles(world).filter(stocked), 1)[0];
             if (!town) cantBuy = true;
@@ -2301,7 +2418,15 @@ export function botDay(game, stats) {
     // — a dawn village sells little): live off the land like anyone would —
     // step out of town onto forageable ground and forage or hunt the day there
     const forage = DataLoader.earlyJobs && DataLoader.earlyJobs.foraging;
-    const lowFood = player.gold < 20 ? player.getFoodCount() === 0 : player.getFoodCount() <= 2 && cantBuy;
+    let lowFood = player.gold < 20 ? player.getFoodCount() === 0 : player.getFoodCount() <= 2 && cantBuy;
+    // In a town with bread on its stalls but none for this purse: a day's wage buys it.
+    // Walking out to forage crosses a hex of days on an empty belly (lives starved so).
+    const inTown = world.getTile(player.q, player.r);
+    if (lowFood && inTown && inTown.settlement && [...FOOD, ...FOOD_FALLBACK].some(id => SettlementMarket.available(inTown.settlement, id) >= 1)) {
+        if ((player.actionPoints || 0) >= JOB_AP) booked(game, 'labour', () => dayLabour(game, inTown, stats));
+        booked(game, 'buyFood', () => buyFood(game, inTown, stats));
+        if (player.getFoodCount() > 0) { count(stats, 'workedForBread'); lowFood = false; }
+    }
     if (lowFood && forage && !player.boardedShip) {
         // Ground where something edible grows (bare hills give only stone)
         const edible = (t) => {
@@ -2488,6 +2613,12 @@ export function botDay(game, stats) {
     if (venturing && booked(game, 'caravans', () => caravans(game, stats))) return;
 
     // A delve site is held to until reached; other destinations drift
+    // (at a delve site too hurt to go in: rest by it a day or two while fed, rather than leave it)
+    const atSite = game.dest && game.dest.delve && game.dest.q === player.q && game.dest.r === player.r;
+    if (atSite && player.health < 50 && player.getFoodCount() >= 2 && Delves.isDelveSite(world.getTile(player.q, player.r))) {
+        count(stats, 'delveRested');
+        return;
+    }
     if (!game.dest || (game.dest.q === player.q && game.dest.r === player.r) || (Utils.random() < 0.05 && !game.dest.delve && !game.dest.company)) {
         game.dest = chooseDestination(game);
     }

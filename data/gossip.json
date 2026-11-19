@@ -217,6 +217,17 @@
             "spreadChance": 0.5,
             "description": "there was a brawl at {perpetrator}'s table in {location}, and the host was in the thick of it"
         },
+        "begging_noble": {
+            "label": "A Lord Begging",
+            "icon": "🥣",
+            "talk": true,
+            "baseSeverity": 30,
+            "credibility": 0.8,
+            "decayDays": 60,
+            "spreadChance": 0.7,
+            "_note": "A noble, a landholder or the head of a great House seen begging alms (systems/begging.js): talk, the shame of it; the reputation and Prestige are taken by the begging itself.",
+            "description": "{perpetrator}, of a great House, was seen begging coppers in the street at {location}"
+        },
         "pardon": {
             "label": "Pardon",
             "icon": "🕊️",

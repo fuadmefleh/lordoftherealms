@@ -330,7 +330,7 @@ export const Lots = {
         if (!h || h.kind !== 'lot' || !LotBook.isPlayer(rec)) return { success: false, reason: 'That lot is not yours.' };
         if (rec.built && rec.built.kind !== 'house') return { success: false, reason: `Your ${rec.built.name || 'building'} stands on it: it goes with the property.` };
         // (the buyer is a townsperson: the price comes out of the town's purse, as far as it goes)
-        const value = Math.floor(Economy.drawTown(s, this.saleValue(world, h)));
+        const value = Utils.cents(Economy.drawTown(s, this.saleValue(world, h)));
         const day = _day(world);
         if (rec.built) {
             const who = _tenantName(null, _rng(`${day}|sell|${s.name}|${lotId}`), this.config().ai || {});
@@ -351,7 +351,7 @@ export const Lots = {
         const v = s && LotBook.vacancy(s, key);
         if (!h || h.kind !== 'house' || !v || v.holder !== 'player' || v.status !== 'owned') return { success: false, reason: 'That house is not yours.' };
         // (the buyer is a townsperson: the price comes out of the town's purse, as far as it goes)
-        const value = Math.floor(Economy.drawTown(s, this.saleValue(world, h)));
+        const value = Utils.cents(Economy.drawTown(s, this.saleValue(world, h)));
         const day = _day(world);
         const who = _tenantName(null, _rng(`${day}|sellh|${s.name}|${key}`), this.config().ai || {});
         s.lotBook.vacancies[key] = { status: 'owned', holder: `npc:${who}`, holderName: who, price: value, day };

@@ -480,8 +480,10 @@ Object.assign(ActionMenu, {
             // (an Ironman run saves after every wait: ui/game/ironman.js)
             if (SaveLoad.isIronman(game) || (every > 0 && Math.floor(game.world.day / every) > Math.floor(fromDay / every))) {
                 try {
-                    const res = SaveLoad.saveGame(game);
-                    if (res && res.success && !SaveLoad.isIronman(game)) game.ui.showNotification('Auto-Saved', 'Game progress saved', 'default');
+                    SaveLoad.saveGame(game).then((res) => {
+                        if (res && res.success && !SaveLoad.isIronman(game)) game.ui.showNotification('Auto-Saved', 'Game progress saved', 'default');
+                        else if (res && !res.success && !res.superseded) game.ui.showNotification('⚠️ Not saved', res.error, 'error');
+                    });
                 } catch (err) {
                     console.error('[Afterlife] autosave failed', err);
                 }

@@ -1,5 +1,5 @@
 {
-    "_doc": "The House: its tuning, family offices, Prestige sources and sinks, ambitions, and the demands made on a rich House (systems/house.js, systems/demands.js). systems/house.js keeps identical defaults for every table, used only when this data is not loaded; each table here is laid over them key by key. `config` is the Prestige/rival/role tuning; `roles` the five family offices (the member skill each scales off); `sources` the Prestige a notable deed earns (House.recordDeed) and `sourceScales` its multiplier by kind (a miracle, a festival's budget tier, an achievement's tier; 0 awards nothing); `sinks` the Prestige price of what gold cannot buy. An ambition's `requires` names the ambition that must be fulfilled first (its predecessor tier); `req` is a map of House._metrics keys to the minimum value (true for a flag). `reward` is paid when the capstone is reached: prestige, gold, renown, reputation (with every living realm), and an `honour` the House keeps forever — each honour's `fame` adds to the House's good fame in every realm (systems/fame.js).",
+    "_doc": "The House: its tuning, family offices, Prestige sources and sinks, ambitions, and the demands made on a rich House (systems/house.js, systems/demands.js). systems/house.js keeps identical defaults for every table, used only when this data is not loaded; each table here is laid over them key by key. `config` is the Prestige/rival/role tuning; `roles` the five family offices (the member skill each scales off); `sources` the Prestige a notable deed earns (House.recordDeed) and `sourceScales` its multiplier by kind (a miracle, a festival's budget tier, an achievement's tier; 0 awards nothing); `sinks` the Prestige price of what gold cannot buy. An ambition's `requires` names the ambition that must be fulfilled first (its predecessor tier); `req` is a map of House._metrics keys to the minimum value (true for a flag); a milestone's `hint` tells the player how to get there (the House panel and the chooser show it). `reward` is paid when the capstone is reached: prestige, gold, renown, reputation (with every living realm), and an `honour` the House keeps forever — each honour's `fame` adds to the House's good fame in every realm (systems/fame.js).",
     "config": {
         "idleWindow": 90, "decayPerDay": 1, "logCap": 30, "historyCap": 600,
         "wealthMarkDays": 30, "wealthMarkCap": 240,
@@ -51,6 +51,7 @@
             "id": "merchant_dynasty", "tier": 1, "next": ["bankers_to_kings"],
             "name": "Merchant Dynasty", "blurb": "Dominate the flow of coin.",
             "milestones": [
+                { "id": "first_property", "label": "Own a property", "hint": "A workshop, mill, farm or trading post costs about 350–1,000 g to build. In a town: your hex → ⚔ Open Actions → 🏗️ Works → Build Property.", "req": { "properties": 1 } },
                 { "id": "estates", "label": "Own 5 properties", "req": { "properties": 5 } },
                 { "id": "routes", "label": "Run 3 trade routes", "req": { "tradeRoutes": 3 } },
                 { "id": "coffers", "label": "Amass 25,000 gold", "req": { "gold": 25000 } }
@@ -74,7 +75,7 @@
             "name": "The Great House", "blurb": "Build a name that endures the ages.",
             "milestones": [
                 { "id": "prestige50", "label": "Reach 50 Prestige", "req": { "prestige": 50 } },
-                { "id": "holdings8", "label": "Own 8 properties", "req": { "properties": 8 } },
+                { "id": "holdings8", "label": "Own 8 properties", "hint": "Build them in towns: ⚔ Open Actions → 🏗️ Works → Build Property (about 350–1,000 g each).", "req": { "properties": 8 } },
                 { "id": "gen2", "label": "Survive into a 2nd generation", "req": { "generation": 2 } }
             ],
             "capstone": { "id": "great", "label": "150 Prestige across 3 generations", "req": { "prestige": 150, "generation": 3 } },

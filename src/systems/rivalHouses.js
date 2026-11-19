@@ -354,13 +354,13 @@ export const RivalHouses = {
         if (fresh != null && rival.seat && typeof world.getTile === 'function') {
             const seatTown = this._settlementAt(world, rival.seat.q, rival.seat.r);
             const have = Economy.townPurse(seatTown);
-            if (have != null) { rival.gold = Math.floor(Economy.drawTown(seatTown, Math.min(fresh, Math.floor(have * 0.25)))); fresh = null; }
+            if (have != null) { rival.gold = Utils.cents(Economy.drawTown(seatTown, Math.min(fresh, Math.floor(have * 0.25)))); fresh = null; }
         }
         // (no seat town keeping coin to draw it from: the rest of the world's coin pays it, else it is booked found)
         if (fresh != null && rival.seat) {
             const near = Economy.nearestPurse(world, rival.seat.q, rival.seat.r, { kid: rival.kingdomId });
             const have = Economy.townPurse(near);
-            if (near && have != null) { rival.gold = Math.floor(Economy.drawTown(near, Math.min(fresh, Math.floor(have * 0.25)))); fresh = null; }
+            if (near && have != null) { rival.gold = Utils.cents(Economy.drawTown(near, Math.min(fresh, Math.floor(have * 0.25)))); fresh = null; }
         }
         if (fresh != null) MoneySupply.leak(world, fresh, 'rivalHouses');
         if (!rival.stats) rival.stats = { trades: 0, tradeProfit: 0, courtVisits: 0, plotsPaid: 0, heads: 1 };
@@ -1351,7 +1351,7 @@ export const RivalHouses = {
                     const seatT = rival.seat && typeof world.getTile === 'function' ? world.getTile(rival.seat.q, rival.seat.r) : null;
                     const seatTown = seatT && seatT.settlement && seatT.settlement.economy ? seatT.settlement : null;
                     const dues = C.estate.weekly + C.estate.perStewardship * _num(rival.head.stewardship);
-                    rival.gold += seatTown ? Math.floor(Economy.drawTown(seatTown, dues)) : 0;
+                    rival.gold += seatTown ? Utils.cents(Economy.drawTown(seatTown, dues)) : 0;
                     // ...and a great House lives grandly: the household spends a share of the purse
                     const spent = Math.min(Math.max(0, rival.gold), C.upkeep.weekly + Math.round(rival.gold * _num(C.upkeep.share)));
                     rival.gold -= spent;

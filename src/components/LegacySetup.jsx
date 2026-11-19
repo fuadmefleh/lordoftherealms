@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { DataLoader } from '../core/dataLoader';
 import { MetaLegacy } from '../systems/metaLegacy.js';
 import { SaveLoad } from '../systems/saveLoad.js';
@@ -38,8 +38,14 @@ export default function LegacySetup({ values, onChange }) {
       .catch(() => { /* the defaults stand */ });
     return () => { live = false; };
   }, []);
-  const ironSave = useMemo(() => {
-    try { return SaveLoad.getSaveInfo(SaveLoad.IRONMAN_KEY); } catch (err) { return null; }
+  // (the save store is asynchronous: core/saveStore.js)
+  const [ironSave, setIronSave] = useState(null);
+  useEffect(() => {
+    let live = true;
+    SaveLoad.getSaveInfo(SaveLoad.IRONMAN_KEY)
+      .then((info) => { if (live) setIronSave(info); })
+      .catch(() => { /* none */ });
+    return () => { live = false; };
   }, []);
 
   const legacyOrigin = values.legacyOrigin || '';

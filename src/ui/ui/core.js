@@ -2,6 +2,7 @@
 // are Object.assign'd onto UI / UI.prototype by the sibling modules.
 import { Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing } from './_imports.js';
 import { Counsel } from '../../systems/counsel.js';
+import { updateFirstStepsCard } from '../firstStepsCard.js';
 
 // DISABLED: Inner map feature disabled
 // import { InnerMapCharacters } from './innerMapCharacters.js';
@@ -57,7 +58,11 @@ export function routeDelegatedClick(ui, targetEl) {
 
 function _handleDelegatedClick(e) {
     // Whatever a panel button did, the Steward reads afresh (systems/counsel.js memoises per day)
-    if (routeDelegatedClick(_activeUI, e.target) && _activeUI && _activeUI.game) Counsel.invalidate(_activeUI.game.player);
+    if (routeDelegatedClick(_activeUI, e.target) && _activeUI && _activeUI.game) {
+        Counsel.invalidate(_activeUI.game.player);
+        // (a step done by a panel button ticks at once, not at the next HUD refresh)
+        try { updateFirstStepsCard(_activeUI.game); } catch (err) { /* the card never blocks a click */ }
+    }
 }
 
 /**

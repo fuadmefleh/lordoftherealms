@@ -490,7 +490,50 @@ export const TownJobs = {
             // (the player's commission done: back at their own work)
             if (p.job.hired && _num(p.job.hired.until) <= day) delete p.job.hired;
         }
+        TownJobs._hardTimes(world, settlement, folk, day, note);
         TownJobs.payday(world, settlement, folk, day, Townsfolk.config().tickDays);
+    },
+
+    /**
+     * Hard times (data/begging.json npc): a jobless hand or day labourer with
+     * next to nothing in the purse who went hungry this season (or is down to
+     * starveBelow) takes to begging rather than starve — the beggar's job and
+     * its place in town life (job.fallen: they keep their home); the alms come
+     * with every beggar's at payday (living.alms, out of the town's purse). One
+     * back over recoverAbove, or who finds work (findWork a season while the
+     * town's purse is over townPurseAbove), leaves it. Hash rolls only, so the
+     * season's own dice are untouched. → people who took to it.
+     */
+    _hardTimes(world, settlement, folk, day, note = null) {
+        const N = _obj(DataLoader._gamedata && DataLoader._gamedata.begging && DataLoader._gamedata.begging.npc);
+        if (!N || !folk || (DataLoader._gamedata.begging.enabled === false)) return 0;
+        const purse = Economy.townPurse(settlement);
+        if (purse == null || settlement.inKind) return 0;
+        const seed = _seedOf(world);
+        let fell = 0;
+        for (const p of Townsfolk.residents(folk)) {
+            const j = p.job;
+            if (!j || j.employer === 'player' || !TownJobs._adult(p, day)) continue;
+            const have = typeof p.purse === 'number' ? p.purse : null;
+            if (have == null) continue;
+            if (j.id === 'beggar' && j.fallen) {
+                const work = purse > _num(N.townPurseAbove, 200) && _roll(seed, folk.q, folk.r, p.id, day, 'work') < _num(N.findWork, 0.3);
+                if (have >= _num(N.recoverAbove, 10) || work) {
+                    p.job = { id: j.prev && j.prev !== 'beggar' ? j.prev : 'labourer', rank: 'master', since: day };
+                    Townsfolk._log(p, day, 'job', null, 'backOnFeet|beggar');
+                    if (note) note('backOnFeet', p, null, 'beggar');
+                }
+                continue;
+            }
+            if (!['unemployed', 'labourer'].includes(j.id)) continue;
+            const hungry = p.hungry != null && day - p.hungry <= Townsfolk.config().tickDays;
+            if (!(have < _num(N.starveBelow, 1) || (hungry && have < _num(N.brokeBelow, 3)))) continue;
+            p.job = { id: 'beggar', rank: 'master', since: day, fallen: true, prev: j.id };
+            Townsfolk._log(p, day, 'job', null, 'tookToBegging|' + j.id);
+            if (note) note('tookToBegging', p, null, j.id);
+            fell++;
+        }
+        return fell;
     },
 
     /**

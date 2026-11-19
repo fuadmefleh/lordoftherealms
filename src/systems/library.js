@@ -513,8 +513,12 @@ export const Library = {
         });
     },
 
-    /** The roll of a great house's lands (the estates the player holds). */
-    estateRoll(world, k, estates, houseName = null) {
+    /**
+     * The roll of a great house's lands (the estates the player holds), named for
+     * the House that holds them now; `from`: the house they came from, if another
+     * (a great lord's start takes over the realm's greatest noble house's lands).
+     */
+    estateRoll(world, k, estates, houseName = null, from = null) {
         if (!estates.length) return null;
         const byTown = new Map();
         for (const e of estates) {
@@ -522,7 +526,8 @@ export const Library = {
             if (!byTown.has(at)) byTown.set(at, []);
             byTown.get(at).push(e);
         }
-        const pages = [`The rolls of ${houseName || 'the House'}: ${estates.length} ${estates.length === 1 ? 'estate' : 'estates'} in ${k ? k.name : 'the realm'}.`];
+        const was = from && from !== houseName ? ` (the lands of ${from}, whose rolls these were before they came to ${houseName || 'the House'})` : '';
+        const pages = [`The rolls of ${houseName || 'the House'}: ${estates.length} ${estates.length === 1 ? 'estate' : 'estates'} in ${k ? k.name : 'the realm'}${was}.`];
         for (const [at, list] of byTown) {
             const [q, r] = at.split(',').map(Number);
             const tile = Number.isFinite(q) && Number.isFinite(r) ? world.getTile(q, r) : null;

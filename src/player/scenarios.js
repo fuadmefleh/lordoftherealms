@@ -987,6 +987,8 @@ export const Scenarios = {
         if (shape && world) {
             shape(player, world, origin, vars);
             if (origin.group === 'advanced') knows = StartKnowledge.grant(player, world, origin.id);
+            // (land handed over on the opening day reads its tenants, crop and worth at once)
+            LandMarket.surveyHeld(world, 'player');
             if (typeof player.updateVisibility === 'function') player.updateVisibility(world, 4);
         }
         // Born to a Family (player/parentage.js): the child of a real couple, or the

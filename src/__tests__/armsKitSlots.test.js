@@ -2,10 +2,11 @@
 // and gloves are armour like the helm and the body armour — taken up and put
 // away, counted in what the harness stops and weighs, worn by harm on the road
 // and by a duel's blows, mended like the rest, drawn on the player's figure
-// (legs and feet; gloves have no sheets), saved with the equipment (an older
+// (legs, feet and hands: scripts/build-glove-sheets.py), saved with the equipment (an older
 // save without the slots still loads) — and every piece comes from somewhere:
 // a recipe at the arms bench, the common ones made by the town's craftsmen.
 // The Inventory window's Kit lists and changes them. Seeded.
+import fs from 'fs';
 import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest';
 import { loadData } from './playtest/harness.js';
 import { Utils } from '../core/utils.js';
@@ -187,13 +188,14 @@ describe('the figure', () => {
         'Hair/Short 01 - Buzzcut/Brown',
     ];
 
-    it('leg harness takes the trousers\' place, boots go on after the legs, gloves are not drawn', () => {
+    it('leg harness takes the trousers\' place, boots go on after the legs', () => {
         const look = Arms.lookLayers(recipe, { main: null, off: null, head: null, body: null, legs: 'mail_chausses', feet: 'sabatons', hands: 'gauntlets' });
         expect(look).not.toContain('Clothing/Masculine, Thin/Legs/Pants 03 - Pants/Brown');
         const legs = look.indexOf('Clothing/Masculine, Thin/Legs/Pants 02 - Leggings/Gray');
         expect(legs).toBeGreaterThan(-1);
         expect(look[legs + 1]).toBe('Clothing/Masculine, Thin/Feet/Shoes 02 - Boots/Silver');
-        expect(look.length).toBe(recipe.length + 1);
+        // (and the gauntlets: one line more)
+        expect(look.length).toBe(recipe.length + 2);
         // the feminine build wears her own sheets
         const fem = Arms.lookLayers(recipe, { legs: 'leather_leggings', feet: 'boots' }, { build: 'Feminine, Thin' });
         expect(fem).toContain('Clothing/Feminine, Thin/Legs/Pants 02 - Leggings/Leather');
@@ -209,6 +211,35 @@ describe('the figure', () => {
         const booted = Arms.lookLayers(withShoes, { feet: 'boots' });
         expect(booted).toContain('Clothing/Masculine, Thin/Feet/Shoes 02 - Boots/Brown');
         expect(booted).not.toContain('Clothing/Masculine, Thin/Feet/Shoes 01 - Shoes/Black');
+    });
+
+    it('gloves and gauntlets are drawn over the hands: over all that is worn, under the weapon in front', () => {
+        // each hands item names its sheets, and every animation the figure plays has them (both builds)
+        expect(Arms.spriteOf('leather_gloves').layer).toBe('Clothing/Masculine, Thin/Hands/Gloves/Leather');
+        expect(Arms.spriteOf('gauntlets').layer).toBe('Clothing/Masculine, Thin/Hands/Gauntlets/Steel');
+        for (const id of ['leather_gloves', 'gauntlets']) {
+            for (const build of ['Masculine, Thin', 'Feminine, Thin']) {
+                const dir = `assets/lpc/Characters/${Arms.spriteOf(id).layer.replace('Masculine, Thin', build)}`;
+                for (const anim of ['Walk', 'Idle', 'Combat 1h - Slash', 'Combat 1h - Halfslash', 'Legacy - Swing', 'Combat 1h - Idle', 'Sitting']) {
+                    expect(fs.existsSync(`${dir}/${anim}.png`), `${dir}/${anim}`).toBe(true);
+                }
+            }
+        }
+        const kit = { main: 'steel_arming_sword', off: null, head: 'leather_cap', body: 'chainmail', legs: null, feet: null, hands: 'gauntlets' };
+        const look = Arms.lookLayers(recipe, kit);
+        const g = look.indexOf('Clothing/Masculine, Thin/Hands/Gauntlets/Steel');
+        expect(g).toBeGreaterThan(-1);
+        const sword = Arms.spriteOf('steel_arming_sword');
+        expect(g).toBeLessThan(look.indexOf(sword.layer));
+        for (let i = 0; i < g; i++) expect(look[i].startsWith('Props/') && !/_Behind/.test(look[i])).toBe(false);
+        for (let i = g + 1; i < look.length; i++) expect(look[i]).toMatch(/^Props\//);
+        // the feminine build's own gloves; none without the slot filled
+        expect(Arms.lookLayers(recipe, { hands: 'leather_gloves' }, { build: 'Feminine, Thin' })).toContain('Clothing/Feminine, Thin/Hands/Gloves/Leather');
+        expect(Arms.lookLayers(recipe, { hands: null }).some(l => /\/Hands\//.test(l))).toBe(false);
+        // the livery's tabard over mail stays under the gloves
+        const livery = Arms.liveryLayers(look, (Arms.config().looks.liveryColours || [])[0]);
+        const tab = livery.findIndex(l => /Tabard/.test(l));
+        if (tab >= 0) expect(tab).toBeLessThan(livery.indexOf('Clothing/Masculine, Thin/Hands/Gauntlets/Steel'));
     });
 });
 

@@ -122,17 +122,7 @@ export const MarketDynamics = {
             const esVer = Estates.townVersion(world, s.q, s.r);
             if (!Array.isArray(m.prod) || m.prodAt !== bucket || _num(m.prodHv) !== harvestVer || _num(m.prodEs) !== esVer || m.prod.length !== SettlementMarket.config().goodIds.length) {
                 if (!spill) spill = this._propertySpill(world, views);
-                const land = this._land(world, cache, tile, day);
-                // The breakdown produceDaily stored today (kingdom towns), else worked out fresh
-                const stored = live.kingdom && live.economy.production && live.economy.production.breakdown;
-                const bd = stored || Economy.calculateDetailedProduction(live, tile, world);
-                const rates = Economy.PRODUCTION_RATES[live.type] || Economy.PRODUCTION_RATES.village;
-                const foodBase = rates.baseFood * (1 + (_num(live.population) / 10000) * 0.5);
-                const prod = SettlementMarket.production(live, land, bd, foodBase, spill.get(_key(s.q, s.r)) || null);
-                // The harvest in force and the town's crop mix: grain, wine, linen, the herds
-                Harvests.applyToProduction(world, live, prod);
-                // ...and what its estates' holders changed: drained or enclosed land, the cottagers' draw
-                Estates.applyToProduction(world, live, prod, spill.get(_key(s.q, s.r)) || null);
+                const prod = this._profile(world, cache, live, tile, day, spill.get(_key(s.q, s.r)) || null);
                 m.prod = SettlementMarket.productionList(prod);
                 m.prodAt = bucket;
                 if (harvestVer) m.prodHv = harvestVer;
@@ -248,6 +238,50 @@ export const MarketDynamics = {
     },
 
     /** Land profile of a settlement's hex, recomputed each 30-day stretch (terraforming is rare). */
+    /**
+     * What a town brings to market a day ({ goodId: units }): its land, its
+     * trades, the harvest in force and the crop mix, and what its estates'
+     * holders have changed (Estates.applyToProduction records the farm crops
+     * as the estates' base). No RNG.
+     */
+    _profile(world, cache, live, tile, day, spill = null) {
+        const land = this._land(world, cache, tile, day);
+        // The breakdown produceDaily stored today (kingdom towns), else worked out fresh
+        const stored = live.kingdom && live.economy.production && live.economy.production.breakdown;
+        const bd = stored || Economy.calculateDetailedProduction(live, tile, world);
+        const rates = Economy.PRODUCTION_RATES[live.type] || Economy.PRODUCTION_RATES.village;
+        const foodBase = rates.baseFood * (1 + (_num(live.population) / 10000) * 0.5);
+        const prod = SettlementMarket.production(live, land, bd, foodBase, spill);
+        // The harvest in force and the town's crop mix: grain, wine, linen, the herds
+        Harvests.applyToProduction(world, live, prod);
+        // ...and what its estates' holders changed: drained or enclosed land, the cottagers' draw
+        Estates.applyToProduction(world, live, prod, spill);
+        return prod;
+    },
+
+    /**
+     * Survey a town's farmland before its market's first turn (a start that
+     * hands the player land on the opening day — player/scenarios.js): the
+     * estates' base crops are worked out from what the town would bring to
+     * market, so their rent and worth read true at once. The market's own
+     * profile is left alone (its turn works it out as ever). → true when the
+     * town's estates have a base.
+     */
+    surveyTown(world, q, r, day = null) {
+        if (!world || typeof world.getTile !== 'function') return false;
+        const tile = world.getTile(q, r);
+        const live = tile && tile.settlement;
+        const rec = live ? Estates.town(world, q, r) : null;
+        if (!rec) return false;
+        if (rec.base) return true;
+        Economy.initSettlement(live);
+        SettlementMarket.ensure(live);
+        const views = typeof world.getSettlementViews === 'function' ? world.getSettlementViews() : world.getAllSettlements();
+        const spill = this._propertySpill(world, views).get(_key(q, r)) || null;
+        this._profile(world, this._cache(world), live, tile, day != null ? day : Seasons.today(world), spill);
+        return !!rec.base;
+    },
+
     _land(world, cache, tile, day) {
         const k = _key(tile.q, tile.r);
         const bucket = Math.floor(_num(day) / 30);
@@ -774,7 +808,7 @@ export const Taxation = {
             const live = (tile && tile.settlement) || settlement;
             // (whole coin drawn: no fraction of a piece taken from the purse and dropped)
             const canPay = Math.min(taxDue, Math.floor(Economy.townPurse(live) ?? taxDue));
-            const taxCollected = dryRun ? canPay : Math.floor(Economy.drawTown(live, canPay));
+            const taxCollected = dryRun ? canPay : Utils.cents(Economy.drawTown(live, canPay));
 
             totalCollected += taxCollected;
             const growthRate = Taxation.getGrowthRate(settlement, taxPolicy);

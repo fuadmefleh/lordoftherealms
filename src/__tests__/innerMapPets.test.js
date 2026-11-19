@@ -118,9 +118,10 @@ describe('animals on the street map', () => {
             const s = InnerMapPets.sprite({ species: sp, breed: Object.keys(AnimalCompanions.species(sp).breeds)[0] });
             expect(s.frameW).toBe(128);
             expect(s.anchor).toEqual([64, sp === 'hawk' ? 84 : 124]);
-            for (const path of Object.values(s.sheets)) {
+            for (const [k, path] of Object.entries(s.sheets)) {
                 const buf = fs.readFileSync(path);
-                expect(buf.readUInt32BE(16)).toBe(512);
+                // (the attack sheet is as many cells wide as it has frames: the dog's bite six)
+                expect(buf.readUInt32BE(16)).toBe(128 * (k === 'attack' ? (s.attackCols || 4) : 4));
                 expect(buf.readUInt32BE(20)).toBe(512);
             }
         }
@@ -136,6 +137,21 @@ describe('animals on the street map', () => {
         expect(cols.size).toBeGreaterThan(1);
         expect(InnerMapAnimals.frame({ ...still, moving: true, animT: 0.3 }, dog).sheet).toBe(dog.sheets.walk);
         expect(InnerMapAnimals.frame({ ...still, state: 'attack', atkT: 0.1 }, dog).sheet).toBe(dog.sheets.attack);
+        // the bite plays all seven frames (crouch, lunge, jaws agape, the snap, back in its stance), carried forward
+        // along its facing at the height of the lunge, and then it stands poised on the walk
+        expect(dog.attackCols).toBe(7);
+        const bite = [];
+        for (let t = 0; t < 7 / 12; t += 1 / 24) bite.push(InnerMapAnimals.frame({ ...still, state: 'attack', atkT: t }, dog));
+        expect(new Set(bite.map(f => f.col)).size).toBe(7);
+        // (it ends where it started: the last frame carries it no further than the first)
+        expect(Math.abs(InnerMapAnimals.lungeOffset(still, dog, bite[bite.length - 1]).dx)).toBe(0);
+        expect(bite.every(f => f.sheet === dog.sheets.attack && f.attack)).toBe(true);
+        const mid = InnerMapAnimals.frame({ ...still, state: 'attack', atkT: 3.2 / dog.attackFps }, dog);
+        expect(InnerMapAnimals.lungeOffset(still, dog, mid).dx).toBeLessThan(-10);
+        expect(InnerMapAnimals.lungeOffset({ ...still, facing: 'down' }, dog, mid).dy).toBeGreaterThan(5);
+        const after = InnerMapAnimals.frame({ ...still, state: 'attack', atkT: 0.7 }, dog);
+        expect(after.sheet).toBe(dog.sheets.walk);
+        expect(InnerMapAnimals.lungeOffset(still, dog, after)).toEqual({ dx: 0, dy: 0 });
         // a wild beast with no idle sheet stands on its walk sheet (and breathes as it is drawn)
         const wolf = InnerMap.animalSpecies('wolf', InnerMap.animalConfig());
         expect(InnerMapAnimals.frame({ id: 'w', facing: 'down', state: 'graze', animT: 0 }, wolf)).toMatchObject({ sheet: wolf.sheets.walk, col: 0 });

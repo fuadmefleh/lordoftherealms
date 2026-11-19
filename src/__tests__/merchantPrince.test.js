@@ -59,6 +59,27 @@ function fixture(opts = {}) {
     return { world, player, capital, town, tiles, kingdoms };
 }
 
+/**
+ * The town's own mill and bakery at a given size (runs per 1000 a day), for the works
+ * specs that need the trade to leave flour in store: data/markets.json raised them to
+ * 8 and 7 (2026-11-17), and a trade that big grinds and bakes the store dry, so the
+ * works' margin on what is left fails. Put back after each spec.
+ */
+let _tradeWas = null;
+function tradeSize(mill, bakery) {
+    const R = SettlementMarket.config().recipeById;
+    if (!_tradeWas) _tradeWas = { mill: R.mill.cap, bakery: R.bakery.cap };
+    R.mill.cap = mill;
+    R.bakery.cap = bakery;
+}
+afterEach(() => {
+    if (!_tradeWas) return;
+    const R = SettlementMarket.config().recipeById;
+    R.mill.cap = _tradeWas.mill;
+    R.bakery.cap = _tradeWas.bakery;
+    _tradeWas = null;
+});
+
 /** Run the capital's market day (k days at once) the way MarketDynamics does. */
 function marketDay(world, s, days = 4, extra = {}) {
     SettlementMarket.processSettlement(s, {}, { day: world.day, days, ...extra });
@@ -103,6 +124,7 @@ describe('industry: works in a town market', () => {
     });
 
     it('idles when the input runs short or the output gluts, and stops short of the town\'s own needs', () => {
+        tradeSize(5.5, 4.5);
         const { world, player, capital } = fixture();
         MerchantPrince.invest(player, world, world.getTile(5, 5), 'bakery');
         const m = capital.market;
@@ -129,6 +151,7 @@ describe('industry: works in a town market', () => {
     });
 
     it('takes a share of the town\'s own trade, by the works\' size against the trade\'s', () => {
+        tradeSize(5.5, 4.5);
         const { world, player, capital, town } = fixture();
         const W = SettlementMarket.config().works;
         // Flour and grain at the works' keep (no room to bake on top), bread short: only the trade bakes

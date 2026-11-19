@@ -85,7 +85,7 @@ function linesTable(b) {
     html += `<tr><td colspan="3" style="${TD} padding-top:8px; font-size:10.5px; font-weight:600; letter-spacing:1px; text-transform:uppercase; color:${BAD};">Spending</td></tr>`;
     for (const l of CrownBooks.EXPENSE_LINES) html += row(l, -1);
     html += `<tr><td style="${TD} font-weight:600; color:#ece2c8;">Total spending</td><td style="${TD} font-weight:600; color:#ece2c8;">${g0(CrownBooks.expense(b.last))}g</td><td style="${TD} font-weight:600; color:#ece2c8;">${g0(CrownBooks.expense(b.week))}g</td></tr>`;
-    for (const l of ['loans', 'debase', 'other']) {
+    for (const l of [...CrownBooks.FINANCE_LINES, 'other']) {
         const d = b.last[l] || 0, w = b.week[l] || 0;
         if (Math.abs(d) < 0.5 && Math.abs(w) < 0.5) continue;
         const tip = lineTip(l);

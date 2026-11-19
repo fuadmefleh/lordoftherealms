@@ -368,8 +368,11 @@ export const TownTrade = {
     /** What the household wants to hold of each good: coverDays of its people's use (cover[group]: longer for what lasts — a month's candles, a season's clothes). */
     target(hh, r) {
         const H = TownTrade.config().household;
-        const days = _obj(H.cover) && H.cover[r.group] != null ? H.cover[r.group] : H.coverDays;
-        return r.rate * hh.weight * _num(days, 10);
+        let days = _num(_obj(H.cover) && H.cover[r.group] != null ? H.cover[r.group] : H.coverDays, 10);
+        // (a far town's longer step, Townsfolk.distantEvery: the larder is stocked to last the step)
+        const span = _stepMemo && _stepMemo.span;
+        if (span > days) days = span;
+        return r.rate * hh.weight * days;
     },
 
     // ──────────── THE OFF-MAP STEP ────────────
@@ -398,7 +401,8 @@ export const TownTrade = {
     catchUp(world, s, upTo, player = null) {
         if (!TownTrade.enabled() || !s || !_obj(s.folk) || !Array.isArray(s.folk.people)) return;
         const C = TownTrade.config();
-        const step = C.stepDays;
+        // (a town far from the player trades in longer steps: Townsfolk.distantEvery)
+        const step = C.stepDays * Townsfolk.distantEvery(world, s, player, 'trade');
         const fresh = !_obj(s.townTrade);
         const anchor = Math.min(_num(upTo, 1), _num(s.folk.tick, _num(upTo, 1)));
         const st = TownTrade.state(s, anchor);
@@ -412,7 +416,7 @@ export const TownTrade = {
         for (let guard = 0; d <= upTo && guard < 5000; d += step, guard++) {
             let at = world;
             if (world && _num(world.day) !== d) { at = Object.create(world); at.day = d; }
-            TownTrade.step(at, s, d, player);
+            TownTrade.step(at, s, d, player, step > C.stepDays ? step : null);
         }
     },
 
@@ -421,11 +425,12 @@ export const TownTrade = {
      * wares handed out and taken to market, the households eat, a pedlar
      * at the door sells, neighbours barter, the households shop for the rest. → { bought, eaten, bartered }.
      */
-    step(world, s, day, player = null) {
+    step(world, s, day, player = null, span = null) {
         const folk = s && s.folk;
         if (!_obj(folk) || !TownTrade.enabled()) return null;
         const outer = _stepMemo;
-        _stepMemo = { folk, day, sellers: new Map(), producers: new Map() };
+        // (span: a far town's longer step, its larders stocked to last it — target)
+        _stepMemo = { folk, day, sellers: new Map(), producers: new Map(), span };
         try {
             return TownTrade._step(world, s, folk, day, player);
         } finally {

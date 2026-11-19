@@ -1426,10 +1426,11 @@ export function endDay() {
             if (skipping && SaveLoad.shouldAutoSave(this)) {
                 this._timeSkip.saveDue = true;
             } else if (SaveLoad.shouldAutoSave(this)) {
-                const result = SaveLoad.saveGame(this);
-                if (result.success && !SaveLoad.isIronman(this)) {
-                    this.ui.showNotification('Auto-Saved', 'Game progress saved', 'default');
-                }
+                // (written in the background: core/saveStore.js; a full store is said aloud)
+                SaveLoad.saveGame(this).then((result) => {
+                    if (result.success && !SaveLoad.isIronman(this)) this.ui.showNotification('Auto-Saved', 'Game progress saved', 'default');
+                    else if (!result.success && !result.superseded) this.ui.showNotification('⚠️ Not saved', result.error, 'error');
+                });
             }
 
             // ── Record daily finances ──────────────────────────────

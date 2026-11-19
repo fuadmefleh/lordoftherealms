@@ -300,7 +300,7 @@ Object.assign(PlayerMilitary, {
         if (s && typeof s === 'object') {
             if (!s.economy && (Number(s.population) || 0) > 0) Economy.initSettlement(s);
             const have = Math.floor(Economy.townPurse(s) || 0);
-            return { have, take: (n) => Math.floor(Economy.drawTown(s, Math.max(0, Math.min(have, Math.floor(n))))) };
+            return { have, take: (n) => Utils.cents(Economy.drawTown(s, Math.max(0, Math.min(have, Math.floor(n))))) };
         }
         const k = context.lootKingdom;
         if (k && typeof k === 'object') {

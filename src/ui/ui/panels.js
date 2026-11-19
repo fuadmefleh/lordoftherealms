@@ -741,6 +741,13 @@ Object.assign(UI.prototype, {
 
         document.getElementById('mainMenuConfirmOk').addEventListener('click', () => {
             close();
+            // An Ironman run saves on the way out: wait for the write (core/saveStore.js is
+            // asynchronous) rather than lean on 'beforeunload' (ui/game/ironman.js)
+            if (this.game && SaveLoad.isIronman(this.game)) {
+                const game = this.game;
+                SaveLoad.saveGame(game).finally(() => { game._ironmanSavedForExit = true; location.reload(); });
+                return;
+            }
             location.reload();
         });
 

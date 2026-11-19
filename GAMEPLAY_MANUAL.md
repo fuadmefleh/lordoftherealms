@@ -1496,6 +1496,12 @@ Every crown keeps real books. Its gold is not conjured from its towns' prosperit
   - They tax less when rich, when the realm is restless, or after a tax revolt.
   - A rich court turns lavish, a broke one frugal and on half pay.
 
+**The royal bank: the crown's reserve.** Every realm keeps a royal bank beside its treasury (`Fiscal._reserve`, `data/fiscal.json` reserve), weighed weekly:
+- When the chests hold under 7 days of spending (20 at war), or the soldiers or clerks go unpaid, the crown draws on it: enough for 25 days and the arrears, at most a tenth of the vault a week, and never below a fifth of the vault's mark.
+- The mark is 60 days of spending, or 15% of the realm's coin in circulation if that is less. A crown with more than 30 days of spending in hand (or 20% of the realm's coin) lays a fifth of the surplus a week by, up to the mark.
+- A vault far past its mark lets the excess back into the chests a little at a time, where the crown spends it into its towns.
+- Both chests are the crown's own coin. Each move shows on the Treasury's **Royal bank** line (drawn +, laid by −).
+
 **Tax revolts.** Each week, a heavily taxed town whose peasants are hard-pressed may drive out the collectors. Its taxes are withheld for 30 days, it loses happiness, and the realm loses stability. A tax farmer's squeeze makes revolts likelier.
 
 **Tax farming.** A crown short of money (low chests, weeks in deficit, at war, or its soldiers unpaid) may auction the taxes of one of its towns (never the capital) for 120 days.
@@ -2863,6 +2869,17 @@ Prayer and meditation (the world-map **Meditate** action, a temple's **🕯️ D
 | 🧑 Someone in need | A named townsperson from the living roster (a beggar, the hurt, the old, the penniless): their purse and their regard for you |
 
 Karma follows a square-root curve on the gift. Each town tires of the same giver: recent gifts there (decaying 4% a day) make the next count for less.
+
+### Begging
+
+Anyone in a town can **Beg for Alms** (Work & Wages, 3 AP: half a day with a bowl). You sit where the passers-by give most: the temple steps in a city or a town with a temple, else the market, else a street corner (`player/begging.js`, `data/begging.json`).
+
+- **Who gives.** So many people pass (about 2 in 100 of the town, 6 to 60), and each may spare a few coppers (0.10–1.50 g) or now and then a loaf. The coin comes out of a townsperson's own purse where the town keeps a roll of its people, else out of the town's purse. A loaf is bought for you at the market by the giver, out of the market's store. Nothing is made from nothing.
+- **What helps.** The temple steps (×1.55) and the market (×1.3); a fair in town (×1.6); a feast of the year (×1.5) or the week's holy day (×1.25, more at the temple); a town whose purse is full for its size.
+- **What hurts.** A poor town; a realm that dislikes you; fine clothes or harness (the well-dressed get about half); a face everyone knows (high renown); and begging the same town day after day (each day you beg there counts against the next, fading by half every 3 days).
+- **The cost.** A little standing with the realm each time. A **noble** seen begging (a ruler, a titled officer, a landholder, or the head of a House of 150+ Prestige) is a scandal: six times the reputation loss, 6 Prestige, and the talk of it spreads from town to town. Where the realm's punishment law is harsh (35%) or standard (10%), the watch may move you on before the bowl fills, and fine you if they have seen you begging there before.
+- **Townsfolk beg too.** A grown hand out of work or labouring by the day, with almost nothing in the purse, who went hungry this season takes to begging rather than starve (`systems/townJobs.js`). They take the beggar's place in town life but keep their home. Their alms come out of the town's purse with every beggar's. Once they have 10 g put by, or find work while the town can pay, they leave it.
+- **An empty larder at home.** With nothing in your packs, you sup from the larder of a home of yours you are in, so an heir who comes home to a stocked house does not starve.
 
 ### Going to Church
 

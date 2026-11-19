@@ -110,4 +110,8 @@ Animal companions: dog, cat, hawk (dog/ cat/ hawk/)
            256px stills <animal>_still256_rot<n>.png).
   FILES: dog/dog_walk_sheet.png, dog/dog_idle_sheet.png, dog/dog_attack_sheet.png,
          cat/cat_walk_sheet.png, cat/cat_idle_sheet.png, hawk/hawk_fly_sheet.png
+  BITE (2026-11-17): dog/dog_attack_sheet.png redrawn as a lunge and bite, six frames a row (768x512):
+           animate-with-text-v3 from the still moved back on its canvas to leave room ahead (8 frames per
+           side, frames 2-7 used; raw frames _pixellab_frames/dog_bite_<side>_<i>.png; about 6 generations).
+           The game carries the body forward along its facing per frame (sprite.attackLunge).
   USED BY: data/animalCompanions.json (ui/innerMapPets.js through ui/innerMapAnimals.js drawAt).

@@ -86,6 +86,7 @@
             "informants": { "name": "Informants", "group": "state" },
             "jobs": { "name": "Jobs", "group": "labour" },
             "busking": { "name": "Busking", "group": "labour" },
+            "alms": { "name": "Alms begged", "group": "labour", "desc": "Coppers the passers-by spared you when you begged (player/begging.js)." },
             "crisisAid": { "name": "The age's crises: aid and fares", "group": "household", "desc": "Gold for a crown's levies against invaders, physicians in a plague town, preaching in a schism, a fare to flee (systems/crises.js)." },
             "crisisTrade": { "name": "The age's crises: dealings", "group": "trade", "desc": "Bread sold to an invading host out of its plunder, indulgences sold in a schism (systems/crises.js)." },
             "bounties": { "name": "Bounties", "group": "labour" },

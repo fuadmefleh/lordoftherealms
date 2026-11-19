@@ -8,6 +8,7 @@ import { Wilds } from '../../player/wilds.js';
 import { Prison } from '../../player/prison.js';
 import { showWildsEncounter } from '../wildsEncounter.js';
 import { InnerMapDeck } from '../innerMapDeck.js';
+import { InnerMapTasks } from '../innerMapTasks.js';
 import { Cartography } from '../../systems/cartography.js';
 import { InnerMapAnimals } from '../innerMapAnimals.js';
 import { InnerMapBattle } from '../innerMapBattle.js';
@@ -211,6 +212,11 @@ export function exitInnerMap(opts = {}) {
     // Restore normal turn display
     this.ui.updateStats(this.player, this.world);
     // (No "returned to the world map" toast: the map coming back says so.)
+
+    // Left the street map mid-job: you walked off it (paid for what was done, as Give up).
+    // Its tracker stayed up over the world map before, and the job never ended.
+    // (after the exit is done: walking off may end the day, which must not run mid-exit)
+    if (InnerMapTasks.isActive()) setTimeout(() => { if (!InnerMap.active && InnerMapTasks.isActive()) InnerMapTasks.abandon(); }, 0);
 }
 
 /** Forget the inner map's hover, selected tile and selected object. */

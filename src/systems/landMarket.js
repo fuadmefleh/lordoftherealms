@@ -45,6 +45,7 @@ import { House } from './house.js';
 import { Ledger } from './ledger.js';
 import { Names } from '../core/names.js';
 import { MoneySupply } from '../world/moneySupply.js';
+import { MarketDynamics } from './marketDynamics.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -138,6 +139,44 @@ export const LandMarket = {
         if (!t) return 0;
         if (rate == null) rate = LandMarket.landRate(world, t.kingdom != null ? t.kingdom : null);
         return Math.max(0, Math.round(LandMarket.annualRent(world, est, t) / rate));
+    },
+
+    /** Expected net rent a month (gold): annualRent over the year's four months. */
+    monthlyRent(world, est, live = null) {
+        return LandMarket.annualRent(world, est, live) * 30 / YEAR;
+    },
+
+    /**
+     * Survey the land a holder is handed on the opening day (player/scenarios.js:
+     * a great lord's, a high priest's, a monarch's estates): before the towns'
+     * markets and months have turned, the estates stand at 0 tenant households,
+     * no crop on record and 0g worth. Each town the holder has land about is
+     * surveyed (MarketDynamics.surveyTown: its estates' base crops) and every
+     * estate of it gets its tenants, its usual crop (avg) and its worth, as the
+     * town's month would set them. No coin moves. → estates surveyed.
+     */
+    surveyHeld(world, holderId = 'player') {
+        if (!world || !Estates.enabled()) return 0;
+        const st = Estates.state(world);
+        const towns = new Set(Estates.heldBy(world, holderId).map(e => e.town));
+        let n = 0;
+        for (const key of towns) {
+            const rec = st.towns[key];
+            if (!rec) continue;
+            MarketDynamics.surveyTown(world, rec.q, rec.r, _day(world));
+            const live = Estates._live(world, rec.q, rec.r);
+            if (!live) continue;
+            const rate = LandMarket.landRate(world, live.kingdom != null ? live.kingdom : null);
+            for (const id of rec.ests) {
+                const e = st.estates[id];
+                if (!e) continue;
+                e.hh = Estates.households(world, e, live);
+                if (e.avg == null && rec.base) e.avg = _r2(Estates.output(world, e, live).gross);
+                e.value = LandMarket.value(world, e, live, rate);
+                n++;
+            }
+        }
+        return n;
     },
 
     // ── The day ───────────────────────────────────────────

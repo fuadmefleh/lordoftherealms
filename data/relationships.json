@@ -298,7 +298,7 @@
     ],
 
     "matters": {
-        "_comment": "Matters of the heart and of friendship (systems/relationships/matters.js): the people the player knows bring them things — a loan, a confidence, a plea, a rival suitor, a question about a rumour, a jealous spouse, a grudge. One open matter per person, settled face to face (Meet People / the person's scene) before it expires. Tokens: {npc} {amount} {due} {reason} {suitor} {kin} {rumor} {subject} {other} {place}.",
+        "_comment": "Matters of the heart and of friendship (systems/relationships/matters.js): the people the player knows bring them things — a loan, a confidence, a plea, a rival suitor, a question about a rumour, a jealous spouse, a grudge. One open matter per person, settled face to face (Meet People / the person's scene) before it expires. notForKin: never from the player's own family; notForChild: never while the player is a child under its parents' rule. Tokens: {npc} {amount} {due} {reason} {suitor} {kin} {rumor} {subject} {other} {place}.",
         "config": {
             "_loyalty": "loyaltyHonesty: a debtor's chance to repay rises by (loyalty - 50) x this. trustBonus: once you admit a crime to someone ('heard_crime: admit'), your later deny / lie rolls with them gain this (lost if they catch you lying). coldDays: an ignored grudge closes the door to courting for this long; an ignored rival suitor marries the one you courted. slanderDiscredit: share of a slander's credibility lost when a friend believes your denial.",
             "loyaltyHonesty": 0.005,
@@ -321,7 +321,7 @@
         },
         "kinds": {
             "loan": {
-                "icon": "💰", "title": "A Loan", "minScore": 30, "weight": 3, "amount": [25, 120],
+                "icon": "💰", "title": "A Loan", "minScore": 30, "weight": 3, "notForKin": true, "notForChild": true, "amount": [25, 120],
                 "reasons": ["The roof came in over the winter", "My brother's debts came to my door", "The guild fine was more than I had", "A sick cow, then a dead one"],
                 "ask": ["*twists their hands* I hate to ask. I need {amount} gold. {reason}. I'll pay you back, I swear it.", "Can I ask you something, as a friend? {amount} gold. {reason}. You'd have it back with something on top."],
                 "notice": "{npc} has something to ask you, quietly. Find them in {place}.",
@@ -341,7 +341,7 @@
                 "expire": "Whatever {npc} meant to tell you, they've kept it to themselves."
             },
             "plea": {
-                "icon": "🙏", "title": "A Plea", "minScore": 30, "weight": 2, "amount": [30, 90],
+                "icon": "🙏", "title": "A Plea", "minScore": 30, "weight": 2, "notForKin": true, "notForChild": true, "amount": [30, 90],
                 "kin": ["My sister", "My son", "My old mother", "My husband", "My wife", "My apprentice"],
                 "trouble": ["is in the reeve's gaol for a debt", "has the fever and the physician wants paying first", "was taken up by the press gang", "owes the moneylender, and he's sent his men"],
                 "ask": ["*eyes red* {kin} {reason}. {amount} gold would save them. I've nowhere else to turn."],

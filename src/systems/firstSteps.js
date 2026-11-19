@@ -94,6 +94,8 @@ function _baseline(player) {
         bounties: _bounties(player),
         quests: _quests(player),
         visits: _visits(player),
+        // Born to a Family (player/parentage.js): duties done at home
+        duties: _num(player && player.parentage && player.parentage.obeyed),
     };
 }
 
@@ -125,7 +127,45 @@ const READERS = {
     madeCamp: (p) => !!_obj(p.dawnHome),
     // Been into a village (your own counts) and one more besides
     secondVillage: (p, w, fs) => _visits(p) >= Math.max(2, fs.base.visits + 2),
+    // An origin's own steps: its first panel opened (markSeen, called by the UI that opens it)
+    seen: (p, w, fs, s) => !!(_obj(fs.seen) && s && s.arg && fs.seen[s.arg] != null),
+    // A child at home: a duty done for its parents
+    dutyDone: (p, w, fs) => _num(p.parentage && p.parentage.obeyed) > _num(fs.base.duties),
 };
+
+/**
+ * An origin's own short guide (player.scenario.id other than the Wanderer):
+ * data/firstSteps.json originSteps[id] if written out, else one step per
+ * first move the origin names (data/scenarios.json origins[id].firstMoves:
+ * open that panel), then the steps originTemplate.then names (see a day
+ * through, give the House an Ambition).
+ */
+function _originSteps(C, id) {
+    if (!id) return [];
+    if (C._origin[id]) return C._origin[id];
+    const given = _obj(C.originSteps) && _arr(C.originSteps[id]);
+    let steps = given && given.length ? given : null;
+    if (!steps) {
+        const gd = DataLoader._gamedata;
+        const o = gd && _obj(gd.scenarios) && _obj(gd.scenarios.origins) && _obj(gd.scenarios.origins[id]);
+        const T = _obj(C.originTemplate) || {};
+        const moves = _arr(o && o.firstMoves).filter(m => _obj(m) && m.open && m.open !== 'house');
+        steps = moves.map(m => ({
+            id: `see_${m.open}`, check: 'seen', arg: m.open, icon: m.icon || '➡️', title: m.name,
+            why: m.desc || '', how: T.how || 'Press the button below.',
+            go: { counsel: m.open, label: T.label || 'Show me' }, reward: T.reward || {},
+        }));
+        if (steps.length) {
+            const tail = _arr(T.then).length ? T.then : ['first_day', 'ambition'];
+            for (const sid of tail) {
+                const s = _arr(T.steps).find(x => _obj(x) && x.id === sid) || C.steps.find(x => x.id === sid);
+                if (s) steps.push(s);
+            }
+        }
+    }
+    C._origin[id] = steps.filter(s => _obj(s) && s.id && READERS[s.check]);
+    return C._origin[id];
+}
 
 export const FirstSteps = {
     READERS,
@@ -142,6 +182,7 @@ export const FirstSteps = {
                 // A world begun at the Dawn of Man has no towns, inns or markets yet
                 dawnSteps: _arr(o.dawnSteps).filter(s => _obj(s) && s.id && READERS[s.check]),
                 final: { ...DEFAULTS.final, ...(_obj(o.final) || {}) },
+                _origin: {},
             };
         }
         return _cfg;
@@ -151,12 +192,35 @@ export const FirstSteps = {
     steps(player = null) {
         const C = FirstSteps.config();
         const fs = FirstSteps.state(player);
-        return fs && fs.set === 'dawn' && C.dawnSteps.length ? C.dawnSteps : C.steps;
+        if (fs && fs.set === 'dawn' && C.dawnSteps.length) return C.dawnSteps;
+        // (a guildmaster or a duke is not told to earn an honest coin)
+        if (fs && fs.set === 'origin') {
+            const own = _originSteps(C, fs.origin);
+            if (own.length) return own;
+        }
+        return C.steps;
+    },
+
+    /** The origin's own steps (or [] when it has none: the Wanderer's are used). */
+    originSteps(id) {
+        return _originSteps(FirstSteps.config(), id);
+    },
+
+    /** A panel the player has opened (an origin step's `seen` reader): the UI calls this. */
+    markSeen(player, key, world = null) {
+        const fs = FirstSteps.state(player);
+        if (!fs || !key) return false;
+        if (!_obj(fs.seen)) fs.seen = {};
+        if (fs.seen[key] == null) fs.seen[key] = _day(world);
+        return true;
     },
 
     /** Begin the guided month for a new character (enabled: false keeps the record but guides nothing). */
-    initialize(player, world, { enabled = true } = {}) {
+    initialize(player, world, { enabled = true, origin = null } = {}) {
         if (!player) return null;
+        const dawn = !!(world && world.dawn && !world.dawn.over);
+        // (an origin other than the Wanderer's has its own short steps, when it names any)
+        const own = !dawn && !!origin && origin !== 'wanderer' && _originSteps(FirstSteps.config(), origin).length > 0;
         player.firstSteps = {
             enabled: !!enabled,
             skipped: false,
@@ -165,7 +229,9 @@ export const FirstSteps = {
             retired: false,
             startDay: _day(world),
             // (a start at the Dawn of Man gets the dawn's steps: no town to work in yet)
-            set: world && world.dawn && !world.dawn.over ? 'dawn' : 'realms',
+            set: dawn ? 'dawn' : own ? 'origin' : 'realms',
+            origin: own ? origin : null,
+            seen: {},
             generation: _num(player.house && player.house.generation, 1),
             base: _baseline(player),
             done: {},
@@ -270,7 +336,7 @@ export const FirstSteps = {
             if (fs.done[s.id] != null) continue;
             let ok = false;
             try {
-                ok = !!READERS[s.check](player, world, fs);
+                ok = !!READERS[s.check](player, world, fs, s);
             } catch (e) {
                 ok = false;
             }
@@ -287,7 +353,8 @@ export const FirstSteps = {
             });
         }
         if (steps.length && steps.every(s => fs.done[s.id] != null)) {
-            const fin = FirstSteps.config().final;
+            const C = FirstSteps.config();
+            const fin = fs.set === 'origin' && _obj(C.originFinal) ? { ...C.final, ...C.originFinal } : C.final;
             fs.finishedDay = _day(world);
             const paid = FirstSteps._pay(player, world, fin, 'First Steps taken');
             notices.push({
@@ -352,7 +419,8 @@ export const FirstSteps = {
         }
         if (!_obj(fs.done)) fs.done = {};
         if (!_obj(fs.base)) fs.base = _baseline(player);
-        for (const k of ['jobs', 'trades', 'people', 'bounties', 'quests', 'visits']) fs.base[k] = _num(fs.base[k]);
+        for (const k of ['jobs', 'trades', 'people', 'bounties', 'quests', 'visits', 'duties']) fs.base[k] = _num(fs.base[k]);
+        if (!_obj(fs.seen)) fs.seen = {};
         fs.enabled = !!fs.enabled;
         fs.skipped = !!fs.skipped;
         fs.collapsed = !!fs.collapsed;

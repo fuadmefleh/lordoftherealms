@@ -7,6 +7,11 @@ import { Parentage } from '../../player/parentage.js';
 import { ParentsGuard } from '../parentsGuard.js';
 import { Dawn } from '../../world/dawn.js';
 import { Endurance } from '../../player/endurance.js';
+import { Scenarios } from '../../player/scenarios.js';
+import { FirstSteps } from '../../systems/firstSteps.js';
+import { ACTION_OF_PANEL } from './counsel.js';
+import { DayClock } from '../game/dayClock.js';
+import { Begging } from '../../player/begging.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerReligion, Gossip, OutlawLairs } from './_imports.js';
 
 const _escHtml = (v) => String(v == null ? '' : v)
@@ -84,17 +89,18 @@ const AMX_GROUPS = {
         { id: 'explore', icon: '🔭', label: 'Explore', types: ['explore_poi', 'delve', 'delve_resume', 'explore_inner_map', 'explore_ocean'] },
         { id: 'sea', icon: '⛵', label: 'Ship & Shore', types: ['disembark', 'row_ashore', 'row_to_ship', 'make_for_port', 'river_life'] },
         { id: 'clan', icon: '🔥', label: 'The Clan', types: ['dawn_settle', 'dawn_instep'] },
+        { id: 'family', icon: '🏡', label: 'Family', types: ['your_parents'] },
     ],
     market: [
         { id: 'trade', icon: '⚖️', label: 'Buy & Sell', types: ['trade', 'port_market', 'livestock_market', 'meet_trader', 'furniture_maker', 'ship_hold'] },
-        { id: 'work', icon: '🔨', label: 'Work & Wages', types: ['odd_jobs', 'busking', 'bounty_board', 'commissions', 'planting_contract', 'putting_out', 'contract'] },
+        { id: 'work', icon: '🔨', label: 'Work & Wages', types: ['odd_jobs', 'busking', 'beg', 'bounty_board', 'commissions', 'planting_contract', 'putting_out', 'contract'] },
         { id: 'money', icon: '🏦', label: 'Money & Banking', types: ['bank', 'found_bank', 'underwriter', 'bourse', 'mint', 'trading_company', 'guildhall', 'post_house'] },
         { id: 'property', icon: '🏠', label: 'Property & Estates', types: ['collect_goods', 'manage_property', 'my_household', 'town_lots', 'estates', 'manage_lodging', 'graveyards', 'my_herds'] },
         { id: 'transport', icon: '🐫', label: 'Caravans & Ships', types: ['start_caravan', 'trade_lines', 'ship_passage', 'visit_shipyard', 'board_ship', 'manage_fleet', 'hire_sailors'] },
         { id: 'shady', icon: '🎲', label: 'Back Rooms', types: ['smuggle', 'pickpocket', 'stolen_goods', 'gambling', 'underworld', 'town_crimes'] },
     ],
     folk: [
-        { id: 'talk', icon: '🍺', label: 'Tavern & Talk', types: ['tavern', 'talk_locals', 'meet_people', 'view_relationships', 'languages', 'town_school', 'hearsay', 'your_parents', 'lodging'] },
+        { id: 'talk', icon: '🍺', label: 'Tavern & Talk', types: ['tavern', 'talk_locals', 'meet_people', 'view_relationships', 'languages', 'town_school', 'hearsay', 'lodging'] },
         { id: 'faith', icon: '⛪', label: 'Faith & Healing', types: ['preach', 'denounce_heresy', 'pilgrimage', 'miracle', 'donate', 'bless_settlement', 'town_sickness'] },
     ],
     court: [
@@ -128,6 +134,36 @@ function _amxGroupsOf(d) {
     if (other.actions.length) out.push(other);
     const full = out.filter(g => g.actions.length);
     return full.length >= 2 ? full : null;
+}
+
+// How long a new start's first moves wait in At Hand (days from the start)
+const AMX_START_DAYS = 30;
+
+/**
+ * The start's own first moves, as action types (pre-pinned to At Hand for the
+ * first weeks): the origin's firstMoves (data/scenarios.json → the panel's
+ * action), the current First Steps step's, and a child's parents.
+ */
+function _amxStartKeys(game) {
+    const p = game && game.player;
+    const sc = p && p.scenario;
+    if (!p || !game.world) return [];
+    const since = (game.world.day || 0) - ((sc && sc.startDay) || 0);
+    const out = [];
+    const step = FirstSteps.isActive(p) ? FirstSteps.current(p) : null;
+    if (step && step.go) {
+        if (step.go.action) out.push(step.go.action);
+        if (step.go.counsel && ACTION_OF_PANEL[step.go.counsel]) out.push(ACTION_OF_PANEL[step.go.counsel]);
+    }
+    if (p.parentage && p.parentage.active) out.push('your_parents');
+    if (since <= AMX_START_DAYS && sc) {
+        const o = Scenarios.origin(sc.id);
+        for (const m of (o && Array.isArray(o.firstMoves) ? o.firstMoves : [])) {
+            const t = m && ACTION_OF_PANEL[m.open];
+            if (t) out.push(t);
+        }
+    }
+    return [...new Set(out)];
 }
 
 // Actions that charge their AP per use inside their own menus
@@ -239,11 +275,11 @@ Object.assign(ActionMenu, {
             rest: 'general', pass_time: 'general', eat_meal: 'general', seek_physician: 'general', explore_poi: 'general', delve: 'general', delve_resume: 'general', clear_trees: 'general', dig_treasure: 'general',
             forage: 'general', hunt: 'general', meditate: 'general', fish: 'general', bathe: 'general', wash_clothes: 'general',
             trap_furs: 'general', ice_fish: 'general', planting_contract: 'commerce',
-            prospect: 'general', tame_horse: 'general', craft_campfire: 'general', languages: 'social', town_school: 'social', hearsay: 'social', dawn_settle: 'general', dawn_instep: 'general', your_parents: 'social', commissions: 'commerce',
+            prospect: 'general', tame_horse: 'general', craft_campfire: 'general', languages: 'social', town_school: 'social', hearsay: 'social', dawn_settle: 'general', dawn_instep: 'general', your_parents: 'general', commissions: 'commerce',
             disembark: 'general', river_life: 'general', row_ashore: 'general', row_to_ship: 'general', ship_hold: 'commerce', port_market: 'commerce', explore_ocean: 'general', make_for_port: 'general', hunt_pirates: 'military', commit_piracy: 'military', raid_haven: 'military', landing_party: 'military', explore_inner_map: 'general',
             trade: 'commerce', contract: 'commerce', ship_passage: 'commerce',
             collect_goods: 'commerce', manage_property: 'commerce', start_caravan: 'commerce',
-            odd_jobs: 'commerce', bounty_board: 'commerce', busking: 'commerce', gambling: 'commerce',
+            odd_jobs: 'commerce', bounty_board: 'commerce', busking: 'commerce', beg: 'social', gambling: 'commerce',
             smuggle: 'commerce', pickpocket: 'commerce', stolen_goods: 'commerce', town_crimes: 'commerce',
             tavern: 'social', talk_locals: 'social', lodging: 'social', manage_lodging: 'commerce', town_lots: 'commerce', graveyards: 'commerce', town_sickness: 'social', livestock_market: 'commerce', my_herds: 'commerce', furniture_maker: 'commerce', my_household: 'commerce', preach: 'social', denounce_heresy: 'social',
             pilgrimage: 'social', miracle: 'social', donate: 'social',
@@ -450,7 +486,7 @@ Object.assign(ActionMenu, {
             };
             const needs = [...byKey.values()].filter(v => v.action.notice && !v.action.disabled).map(v => _amxKey(v.action));
             if (ap <= 0 && byKey.has('rest')) needs.push('rest');
-            const n = take('Needs you', needs) + take('Pinned', state.pins) + take('Recent', state.recent.slice(0, 5));
+            const n = take('Needs you', needs) + take('Your start', _amxStartKeys(game)) + take('Pinned', state.pins) + take('Recent', state.recent.slice(0, 5));
             const sec = list.querySelector('[data-sec="athand"]');
             // Under them, the place at a glance: each district and the first of what it holds
             let dir = `<div class="amx-sec-head amx-sub">${n ? 'Elsewhere here' : 'Here'}</div>`;
@@ -694,7 +730,7 @@ Object.assign(ActionMenu, {
         if (cost === 0) costHtml = '<span class="amx-free">free</span>';
         else {
             const pips = cost <= 4 ? '◆'.repeat(cost) : `◆<b>${cost}</b>`;
-            costHtml = `<span class="amx-pips${short ? ' amx-short' : ''}" title="${cost} action point${cost === 1 ? '' : 's'}${perUse ? ' each time' : ''}">${pips}${perUse ? '<small>/use</small>' : ''}</span>`;
+            costHtml = `<span class="amx-pips${short ? ' amx-short' : ''}" title="${cost} action point${cost === 1 ? '' : 's'} (${ActionMenu.apHours(cost)} on the clock)${perUse ? ' each time' : ''}">${pips}${perUse ? '<small>/use</small>' : ''}<small class="amx-hours">${ActionMenu.apHours(cost)}</small></span>`;
         }
         const desc = action.description || '';
         const why = action.disabled ? (action.reason || desc) : '';
@@ -703,7 +739,8 @@ Object.assign(ActionMenu, {
         else if (action.notice) line = `<span class="amx-desc amx-notice">● ${_escHtml(action.notice)}</span>`;
         else line = `<span class="amx-desc">${_escHtml(desc)}</span>`;
         const where = opts.showDistrict && opts.dist ? `<span class="amx-where">${_escHtml(opts.dist.label)}</span>` : '';
-        const costText = cost === 0 ? 'Free' : `${cost} AP${perUse ? ' each time' : ''}`;
+        // (each point is time on the clock too: ui/game/dayClock.js)
+        const costText = cost === 0 ? 'Free' : `${cost} AP · ${ActionMenu.apHours(cost)}${perUse ? ' each time' : ''}`;
         const noteText = `<b>${_escHtml(action.label)}</b> <span class="amx-note-cost">${costText}${short ? ` · you have ${ap} left today` : ''}</span> — ${_escHtml(action.disabled ? why : [action.notice, desc].filter(Boolean).join('. '))}`;
         const pinned = (opts.pins || []).includes(key);
         const hay = `${action.label} ${desc} ${action.notice || ''} ${opts.dist ? opts.dist.label : ''} ${action.type.replace(/_/g, ' ')}`.toLowerCase();
@@ -748,6 +785,9 @@ Object.assign(ActionMenu, {
         underworld: 0, // jobs inside the panel cost their own AP
         guildhall: 0,
         post_house: 0, // the Post House panel; letters cost postage, not time
+        // (looking over the land and the cottagers' work is free: buying, improving and
+        // putting out cost gold. They fell to the 2 AP default, 3 hours to open a panel)
+        estates: 0, putting_out: 0,
 
         // Light actions (1 AP)
         trade: 1, collect_goods: 1, donate: 1,
@@ -763,7 +803,7 @@ Object.assign(ActionMenu, {
         craft_campfire: 2, negotiate_indigenous: 2, preach: 2, denounce_heresy: 2,
 
         // Half-day work (3 AP)
-        forage: 3, busking: 3, meditate: 3,
+        forage: 3, busking: 3, beg: 3, meditate: 3,
         prospect: 3, tame_horse: 3, fish: 3, reforge_artifact: 3,
 
         // Full-day work (4 AP)
@@ -802,6 +842,14 @@ Object.assign(ActionMenu, {
         lodging: 0, manage_lodging: 0, town_lots: 0, graveyards: 0, town_crimes: 0, town_sickness: 0, town_school: 0, livestock_market: 0, my_herds: 0, furniture_maker: 0, my_household: 0,
         outlaw_lair: 0, lair_scout: 3, lair_assault: 8, lair_strike: 4, lair_parley: 1,
         rival_duel: 4, rival_race: 1, rival_sabotage: 2, rival_hire: 1, rival_team_up: 1,
+    },
+
+    /** How long `ap` action points take on the clock: "3 h", "1½ h", "45 m". */
+    apHours(ap) {
+        const h = Math.max(0, Number(ap) || 0) * DayClock.config().hoursPerAP;
+        if (h < 1) return `${Math.round(h * 60)} m`;
+        const whole = Math.floor(h), half = Math.abs(h - whole - 0.5) < 0.01;
+        return half ? `${whole}½ h` : `${Math.round(h * 10) / 10} h`;
     },
 
     /**
@@ -953,6 +1001,7 @@ Object.assign(ActionMenu, {
                 case 'talk_locals': p.modifyNeed('social', 10); p.modifyNeed('fun', 3); break;
                 case 'gambling':    p.modifyNeed('fun', 15); p.modifyNeed('social', 10); break;
                 case 'busking':     p.modifyNeed('fun', 12); p.modifyNeed('social', 8); Endurance.labour(p, 5); break;
+                case 'beg':         p.modifyNeed('comfort', -6); p.modifyNeed('social', 4); break;
                 case 'host_feast':  p.modifyNeed('social', 20); p.modifyNeed('fun', 15); p.modifyNeed('hunger', 25); break;
                 case 'hold_tournament': p.modifyNeed('fun', 20); p.modifyNeed('social', 15); break;
                 case 'host_festival':   p.modifyNeed('fun', 25); p.modifyNeed('social', 20); break;
@@ -1232,6 +1281,13 @@ Object.assign(ActionMenu, {
             case 'busking':
                 ActionMenu.showBuskingMenu(game, tile);
                 break;
+            case 'beg': {
+                // Half a day with a bowl (player/begging.js): coin and bread from real purses and stores
+                const r = Begging.beg(game.player, game.world, tile.settlement);
+                game.ui.showNotification(r.scandal ? '🥣 Seen Begging' : '🥣 Alms', r.text, r.scandal ? 'warning' : r.gold > 0 || r.bread > 0 ? 'success' : 'info');
+                game.ui.updateStats(game.player, game.world);
+                break;
+            }
             case 'gambling':
                 ActionMenu.showGamblingMenu(game, tile);
                 break;

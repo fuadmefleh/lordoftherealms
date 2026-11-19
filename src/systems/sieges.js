@@ -231,7 +231,7 @@ export const Sieges = {
         let got = 0;
         if (settlement) {
             if (!settlement.economy && _num(settlement.population) > 0) Economy.initSettlement(settlement);
-            got = Math.floor(Economy.drawTown(settlement, want));
+            got = Utils.cents(Economy.drawTown(settlement, want));
         }
         const k = got < want ? Sieges._kingdom(world, kingdomId) : null;
         if (k) {
@@ -1223,7 +1223,7 @@ export const Sieges = {
         // (out of the town's purse, as much as is in it: no coin from nowhere)
         const want = Math.floor(_num(settlement.population) * Utils.randFloat(K.plunder[0], K.plunder[1]));
         if (!settlement.economy && _num(settlement.population) > 0) Economy.initSettlement(settlement);
-        const plunder = Math.floor(Economy.drawTown(settlement, want));
+        const plunder = Utils.cents(Economy.drawTown(settlement, want));
         player.gold = _num(player.gold) + plunder;
         result.plunder = plunder;
         settlement.population = Math.max(1, Math.floor(_num(settlement.population) * K.popKeep));

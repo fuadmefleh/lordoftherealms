@@ -5734,6 +5734,8 @@ body #customPanel:has(.tech-tab-content) { height: var(--panel-max-h); }
 .amx-pips b { font-size: 11px; letter-spacing: 0; margin-left: 2px; }
 .amx-pips small { font-size: 9px; letter-spacing: 0; opacity: 0.75; margin-left: 1px; }
 .amx-pips.amx-short { color: #c0533a; }
+/* The hours the points take, under the pips (ActionMenu.apHours) */
+.amx-pips small.amx-hours { display: block; color: var(--text-secondary, #9d937c); font-size: 9px; margin: 1px 0 0; text-align: right; }
 .amx-free {
     font-size: 9.5px;
     letter-spacing: 1px;

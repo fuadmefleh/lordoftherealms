@@ -119,7 +119,8 @@ function _actionChoice(game, npc, action, court) {
     const chance = _chance(game.player, action, court);
     const pills = [];
     if (action.cost) pills.push(`${Utils.formatGold(action.cost)}g`);
-    if (action.apCost != null) pills.push(`${action.apCost} AP`);
+    // (the points are hours on the clock too: say how long)
+    if (action.apCost != null) pills.push(action.apCost > 0 && ActionMenu.apHours ? `${action.apCost} AP · ${ActionMenu.apHours(action.apCost)}` : `${action.apCost} AP`);
     const hostile = HOSTILE_ACTS.has(action.id);
     return {
         icon: action.icon, label: action.label,
@@ -153,7 +154,7 @@ function _choices(game) {
         const ap = NpcChat.config().apCost;
         list.push({
             icon: '💬', label: 'Talk freely…', group: 'talk',
-            extra: ap ? `<span class="npc-dialog-price">${ap} AP</span>` : '',
+            extra: ap ? `<span class="npc-dialog-price">${ap} AP${ActionMenu.apHours ? ` · ${ActionMenu.apHours(ap)}` : ''}</span>` : '',
             tooltip: `Say whatever you like to ${npc.firstName}, in your own words. How it goes is up to them.`,
             disabled: !can.ok, disabledReason: can.reason,
             onPick: () => _freeTalk(game, npc.id),

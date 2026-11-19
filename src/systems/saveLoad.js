@@ -2,6 +2,8 @@
 // SAVE/LOAD — Game state persistence
 // ============================================
 
+import { SaveCodec } from '../core/saveCodec.js';
+import { SaveStore } from '../core/saveStore.js';
 import { Characters } from '../world/characters.js';
 import { Dawn } from '../world/dawn.js';
 import { Barter } from '../world/barter.js';
@@ -123,13 +125,18 @@ export const SaveLoad = {
     },
 
     /**
-     * Save game state to localStorage (the game's slot: SaveLoad.slotKey)
+     * Save the game to its slot (SaveLoad.slotKey) in the save store (core/saveStore.js:
+     * IndexedDB, gzipped). The state is read and serialized at once; the write itself
+     * is asynchronous. Resolves { success, timestamp, bytes, rawBytes } or
+     * { success: false, error, quota } — it never rejects. opts.now: start the write
+     * before returning, uncompressed (leaving the page: ui/game/ironman.js).
      */
-    saveGame(game) {
+    saveGame(game, opts = {}) {
+        let key, json, info, timestamp;
         try {
             const run = game.world && game.world.run;
             // An Ironman run that is over saves no more (its slot is gone)
-            if (run && run.ironman && run.final) return { success: false, error: 'This Ironman run is over' };
+            if (run && run.ironman && run.final) return Promise.resolve({ success: false, error: 'This Ironman run is over' });
             const house = game.player && game.player.house;
             const saveData = {
                 version: '1.0',
@@ -146,23 +153,38 @@ export const SaveLoad = {
                 player: SaveLoad.serializePlayer(game.player),
                 notificationLog: game.ui ? game.ui.notificationLog.slice(-200) : [],
             };
-
-            const json = JSON.stringify(saveData);
-            localStorage.setItem(SaveLoad.slotKey(game), json);
-
-            return { success: true, timestamp: saveData.timestamp };
+            json = JSON.stringify(saveData);
+            key = SaveLoad.slotKey(game);
+            info = SaveLoad._infoOf(saveData, key);
+            timestamp = saveData.timestamp;
         } catch (error) {
             console.error('Failed to save game:', error);
-            return { success: false, error: error.message };
+            return Promise.resolve({ success: false, error: error.message });
         }
+        const write = opts.now
+            ? SaveStore.writeNow(key, json, info)
+            : SaveStore.write(key, json, info, SaveLoad._ready());
+        return write.then(
+            (r) => (r && r.success
+                ? { success: true, timestamp, bytes: r.bytes, rawBytes: r.rawBytes, encoding: r.encoding }
+                : { success: false, error: 'A newer save took its place', superseded: true }),
+            (error) => {
+                console.error('Failed to save game:', error);
+                const quota = SaveStore.isQuotaError(error);
+                return { success: false, quota, error: quota ? SaveStore.QUOTA_MESSAGE : (error && error.message) || String(error) };
+            },
+        );
     },
 
     /**
-     * Load game state from localStorage
+     * Load a save (resolves { success, data, timestamp } or { success: false, error }).
      */
-    loadGame(key = SaveLoad.SAVE_KEY) {
+    async loadGame(key = SaveLoad.SAVE_KEY) {
         try {
-            const json = localStorage.getItem(key);
+            await SaveLoad._ready();
+            let json = await SaveStore.read(key);
+            // (an old localStorage save that could not be moved yet)
+            if (!json) json = SaveLoad._legacyJson(key);
             if (!json) {
                 return { success: false, error: 'No save data found' };
             }
@@ -181,22 +203,107 @@ export const SaveLoad = {
     },
 
     /**
-     * Check if save exists
+     * Is there a save (in slot `key`, or in either slot)?
      */
-    hasSave(key = null) {
+    async hasSave(key = null) {
         try {
-            if (key) return localStorage.getItem(key) !== null;
-            return localStorage.getItem(SaveLoad.SAVE_KEY) !== null || localStorage.getItem(SaveLoad.IRONMAN_KEY) !== null;
+            const list = await SaveLoad.listSaves();
+            if (key) return list.some(s => s.key === key);
+            return list.length > 0;
         } catch (err) {
             return false;
         }
     },
 
     /**
-     * Delete save
+     * Delete a save (resolves once it is gone; a write under way lands first, then goes).
      */
-    deleteSave(key = SaveLoad.SAVE_KEY) {
-        try { localStorage.removeItem(key); } catch (err) { /* nothing to remove */ }
+    async deleteSave(key = SaveLoad.SAVE_KEY) {
+        try { localStorage.removeItem(key); } catch (err) { /* no old copy */ }
+        try { await SaveStore.remove(key); } catch (err) { console.error('Failed to delete save:', err); }
+    },
+
+    // ── The save store (core/saveStore.js) and the old localStorage saves ──
+
+    /** The slots saves were kept in under localStorage, before the save store. */
+    _legacyKeys() {
+        return [SaveLoad.SAVE_KEY, SaveLoad.IRONMAN_KEY];
+    },
+
+    _legacyJson(key) {
+        try { return (typeof localStorage !== 'undefined' && localStorage) ? localStorage.getItem(key) : null; } catch (err) { return null; }
+    },
+
+    /** The save list's entry for a save (parsed save data). */
+    _infoOf(saveData, key) {
+        const meta = saveData.meta || {};
+        const world = saveData.world || {};
+        const run = world.run || {};
+        const player = saveData.player || {};
+        return {
+            key,
+            ironman: !!(meta.ironman || run.ironman),
+            tainted: !!(meta.tainted || run.tainted),
+            playerName: meta.playerName || player.name || '',
+            houseName: meta.houseName || '',
+            timestamp: saveData.timestamp,
+            day: world.day,
+            season: world.season,
+            year: world.year,
+            playerGold: player.gold,
+            playerRenown: player.renown,
+        };
+    },
+
+    /** The save store, with any old localStorage saves moved into it first (once per store). */
+    _ready() {
+        const b = SaveStore.backend();
+        if (SaveLoad._readyFor !== b) {
+            SaveLoad._readyFor = b;
+            SaveLoad._readyPromise = SaveLoad.migrateLegacySaves().catch((err) => {
+                console.error('[SaveLoad] moving old saves failed', err);
+                return [];
+            });
+        }
+        return SaveLoad._readyPromise;
+    },
+
+    /**
+     * Move the localStorage saves into the save store: each is written, read back and
+     * compared, and only then removed from localStorage. A slot the store already holds
+     * a newer save in just drops the old copy. One that cannot be moved (no room, bad
+     * JSON) stays where it is and still loads (loadGame, listSaves). Resolves the keys moved.
+     */
+    async migrateLegacySaves() {
+        if (SaveStore.backend().name === 'localStorage') return [];
+        let ls = null;
+        try { ls = (typeof localStorage !== 'undefined' && localStorage) ? localStorage : null; } catch (err) { ls = null; }
+        if (!ls) return [];
+        const moved = [];
+        for (const key of SaveLoad._legacyKeys()) {
+            let json = null;
+            try { json = ls.getItem(key); } catch (err) { json = null; }
+            if (!json) continue;
+            let info;
+            try { info = SaveLoad._infoOf(JSON.parse(json), key); } catch (err) { continue; }
+            try {
+                const kept = (await SaveStore.list()).find(m => m.key === key);
+                if (kept && (kept.timestamp || 0) >= (info.timestamp || 0)) {
+                    ls.removeItem(key);
+                    continue;
+                }
+                // (straight to the store: queued saves wait for this move, SaveStore.write's gate)
+                await SaveStore.putDirect(key, json, info);
+                const back = await SaveStore.peek(key);
+                if (back === json) {
+                    ls.removeItem(key);
+                    moved.push(key);
+                }
+            } catch (err) {
+                console.error(`[SaveLoad] could not move the old save '${key}' out of localStorage`, err);
+            }
+        }
+        return moved;
     },
 
     /**
@@ -334,15 +441,19 @@ export const SaveLoad = {
             const row = [];
             for (let q = 0; q < tiles[r].length; q++) {
                 const tile = tiles[r][q];
+                // (a key left out is null — or unexplored — on restoreWorld: most of the map is empty
+                // wild; the shared first property is re-linked, not written twice; the settlement's
+                // arrays of like records are written as tables, core/saveCodec.js)
+                const props = tile.playerProperties || null;
                 row.push({
-                    explored: tile.explored,
-                    kingdom: tile.kingdom,
-                    settlement: tile.settlement,
-                    improvement: tile.improvement,
-                    infrastructure: tile.infrastructure || null,
-                    playerProperties: tile.playerProperties || null,
-                    playerProperty: tile.playerProperty || null,
-                    indigenous: tile.indigenous || null,
+                    ...(tile.explored ? { explored: tile.explored } : {}),
+                    ...(tile.kingdom != null ? { kingdom: tile.kingdom } : {}),
+                    ...(tile.settlement != null ? { settlement: SaveCodec.pack(tile.settlement) } : {}),
+                    ...(tile.improvement != null ? { improvement: tile.improvement } : {}),
+                    ...(tile.infrastructure ? { infrastructure: tile.infrastructure } : {}),
+                    ...(props ? { playerProperties: props } : {}),
+                    ...(tile.playerProperty && tile.playerProperty !== (props && props[0]) ? { playerProperty: tile.playerProperty } : {}),
+                    ...(tile.indigenous ? { indigenous: tile.indigenous } : {}),
                     // Who holds a holy site, its pilgrims and level change in play
                     ...(tile.holySite ? { holySite: tile.holySite } : {}),
                     // The player's temples, shrines and cultural buildings
@@ -448,6 +559,8 @@ export const SaveLoad = {
         'charisma', 'intelligence', 'faith', 'maxInventory',
         // What the player did in the age's crises (systems/crises.js)
         'crises',
+        // Where the player has begged lately, and what it brought (player/begging.js)
+        'begging',
         // The household guard's standing order: defend against anyone, the watch too (ui/innerMapEscort.js)
         'escortStance',
         'loans', 'taxRate', 'activeContract',
@@ -870,10 +983,11 @@ export const SaveLoad = {
                 const savedTile = saveData.tiles[r][q];
                 const tile = world.tiles[r][q];
 
-                tile.explored = savedTile.explored;
-                tile.kingdom = savedTile.kingdom;
-                tile.settlement = savedTile.settlement;
-                tile.improvement = savedTile.improvement;
+                // (left out of the save: null, unexplored — serializeTiles)
+                tile.explored = savedTile.explored !== undefined ? savedTile.explored : false;
+                tile.kingdom = savedTile.kingdom !== undefined ? savedTile.kingdom : null;
+                tile.settlement = savedTile.settlement != null ? SaveCodec.unpack(savedTile.settlement) : null;
+                tile.improvement = savedTile.improvement !== undefined ? savedTile.improvement : null;
                 tile.infrastructure = savedTile.infrastructure || null;
                 tile.playerProperties = savedTile.playerProperties || null;
                 // JSON turns the shared reference into a separate copy — re-link it
@@ -1295,11 +1409,12 @@ export const SaveLoad = {
     },
 
     /**
-     * Export save to file
+     * Export the ordinary save to a file (plain JSON, as before). Resolves true when one was written.
      */
-    exportSave() {
-        const json = localStorage.getItem(SaveLoad.SAVE_KEY);
-        if (!json) return null;
+    async exportSave() {
+        const res = await SaveLoad.loadGame(SaveLoad.SAVE_KEY);
+        if (!res.success) return false;
+        const json = JSON.stringify(res.data);
 
         const blob = new Blob([json], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
@@ -1309,79 +1424,77 @@ export const SaveLoad = {
         a.download = `lord_of_realms_save_${Date.now()}.json`;
         a.click();
 
-        URL.revokeObjectURL(url);
+        setTimeout(() => URL.revokeObjectURL(url), 0);
 
         return true;
     },
 
     /**
-     * Import save from file
+     * Import a save file (plain JSON, or gzipped) into the ordinary slot.
+     * Resolves (and calls back with) { success, data } or { success: false, error, quota }.
      */
-    importSave(file, callback) {
-        const reader = new FileReader();
-
-        reader.onload = (e) => {
-            try {
-                const json = e.target.result;
-                const saveData = JSON.parse(json);
-
-                // Validate save data
-                if (!saveData.version || !saveData.world || !saveData.player) {
-                    callback({ success: false, error: 'Invalid save file' });
-                    return;
-                }
-
-                // Store in localStorage
-                localStorage.setItem(SaveLoad.SAVE_KEY, json);
-
-                callback({ success: true, data: saveData });
-            } catch (error) {
-                callback({ success: false, error: error.message });
-            }
-        };
-
-        reader.onerror = () => {
-            callback({ success: false, error: 'Failed to read file' });
-        };
-
-        reader.readAsText(file);
-    },
-
-    /**
-     * Get save info without loading
-     */
-    getSaveInfo(key = SaveLoad.SAVE_KEY) {
-        let json = null;
-        try { json = localStorage.getItem(key); } catch (err) { return null; }
-        if (!json) return null;
-
+    async importSave(file, callback = null) {
+        const done = (r) => { if (typeof callback === 'function') callback(r); return r; };
         try {
+            if (!file) return done({ success: false, error: 'No file chosen' });
+            const buf = typeof file.arrayBuffer === 'function'
+                ? await file.arrayBuffer()
+                : await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target.result);
+                    reader.onerror = () => reject(new Error('Failed to read file'));
+                    reader.readAsArrayBuffer(file);
+                });
+            const json = SaveStore.isGzip(buf) ? await SaveStore.gunzip(buf) : new TextDecoder().decode(buf);
             const saveData = JSON.parse(json);
-            const meta = saveData.meta || {};
-            const run = (saveData.world && saveData.world.run) || {};
-            return {
-                key,
-                ironman: !!(meta.ironman || run.ironman),
-                tainted: !!(meta.tainted || run.tainted),
-                playerName: meta.playerName || (saveData.player && saveData.player.name) || '',
-                houseName: meta.houseName || '',
-                timestamp: saveData.timestamp,
-                day: saveData.world.day,
-                season: saveData.world.season,
-                year: saveData.world.year,
-                playerGold: saveData.player.gold,
-                playerRenown: saveData.player.renown,
-            };
+
+            // Validate save data
+            if (!saveData.version || !saveData.world || !saveData.player) {
+                return done({ success: false, error: 'Invalid save file' });
+            }
+            // (an Ironman run's save is never loaded by hand)
+            if ((saveData.meta && saveData.meta.ironman) || (saveData.world.run && saveData.world.run.ironman)) {
+                return done({ success: false, error: 'An Ironman run cannot be imported' });
+            }
+
+            await SaveLoad._ready();
+            await SaveStore.write(SaveLoad.SAVE_KEY, json, SaveLoad._infoOf(saveData, SaveLoad.SAVE_KEY));
+
+            return done({ success: true, data: saveData });
         } catch (error) {
-            return null;
+            const quota = SaveStore.isQuotaError(error);
+            return done({ success: false, quota, error: quota ? SaveStore.QUOTA_MESSAGE : error.message });
         }
     },
 
+    /**
+     * Get save info without loading (from the save store's index). Resolves the entry or null.
+     */
+    async getSaveInfo(key = SaveLoad.SAVE_KEY) {
+        const list = await SaveLoad.listSaves();
+        return list.find(s => s.key === key) || null;
+    },
+
     /** Every save on this machine for the save list: the ordinary slot and the Ironman one. */
-    listSaves() {
-        return [SaveLoad.SAVE_KEY, SaveLoad.IRONMAN_KEY]
-            .map(k => SaveLoad.getSaveInfo(k))
-            .filter(Boolean)
+    async listSaves() {
+        let kept = [];
+        try {
+            await SaveLoad._ready();
+            kept = await SaveStore.list();
+        } catch (err) {
+            console.error('[SaveLoad] could not list the saves', err);
+        }
+        const byKey = new Map();
+        for (const m of kept) if (m && m.key) byKey.set(m.key, m);
+        // (old localStorage saves not moved yet)
+        for (const key of SaveLoad._legacyKeys()) {
+            if (byKey.has(key)) continue;
+            const json = SaveLoad._legacyJson(key);
+            if (!json) continue;
+            try { byKey.set(key, { ...SaveLoad._infoOf(JSON.parse(json), key), bytes: json.length, rawBytes: json.length, encoding: 'json', legacy: true }); } catch (err) { /* unreadable */ }
+        }
+        return [...byKey.values()]
+            .filter(s => s.key === SaveLoad.SAVE_KEY || s.key === SaveLoad.IRONMAN_KEY)
             .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
     },
 };

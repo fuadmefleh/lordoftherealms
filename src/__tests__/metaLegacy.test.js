@@ -195,7 +195,7 @@ describe('the run record and Ironman saves', () => {
         expect(MetaLegacy.ensureRun(old.world).ironman).toBe(false);
     });
 
-    it('an Ironman game saves to its own slot every day, and not once the run is over', () => {
+    it('an Ironman game saves to its own slot every day, and not once the run is over', async () => {
         const world = { day: 3, run: MetaLegacy.newRun({ ironman: true }) };
         const game = { world, player: null };
         expect(SaveLoad.slotKey(game)).toBe(SaveLoad.IRONMAN_KEY);
@@ -205,20 +205,20 @@ describe('the run record and Ironman saves', () => {
         expect(SaveLoad.shouldAutoSave(plain)).toBe(SaveLoad.AUTO_SAVE_INTERVAL > 0 && 3 % SaveLoad.AUTO_SAVE_INTERVAL === 0);
         MetaLegacy.finalize(world);
         expect(SaveLoad.shouldAutoSave(game)).toBe(false);
-        expect(SaveLoad.saveGame(game).success).toBe(false);
+        expect((await SaveLoad.saveGame(game)).success).toBe(false);
     });
 
-    it('the save list marks the Ironman save', () => {
+    it('the save list marks the Ironman save', async () => {
         const save = (ironman, t) => JSON.stringify({ version: '1.0', timestamp: t, meta: { ironman, tainted: false, playerName: 'Ada', houseName: 'House Ada' }, world: { day: 5, year: 900 }, player: { gold: 1 } });
         localStorage.setItem(SaveLoad.SAVE_KEY, save(false, 1));
         localStorage.setItem(SaveLoad.IRONMAN_KEY, save(true, 2));
-        const list = SaveLoad.listSaves();
+        const list = await SaveLoad.listSaves();
         expect(list.map(s => s.key)).toEqual([SaveLoad.IRONMAN_KEY, SaveLoad.SAVE_KEY]);
         expect(list[0].ironman).toBe(true);
         expect(list[1].ironman).toBe(false);
-        expect(SaveLoad.hasSave()).toBe(true);
-        SaveLoad.deleteSave(SaveLoad.IRONMAN_KEY);
-        expect(SaveLoad.listSaves()).toHaveLength(1);
+        expect(await SaveLoad.hasSave()).toBe(true);
+        await SaveLoad.deleteSave(SaveLoad.IRONMAN_KEY);
+        expect(await SaveLoad.listSaves()).toHaveLength(1);
     });
 
     it('a cheat taints the run once', () => {

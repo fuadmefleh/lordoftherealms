@@ -1319,6 +1319,7 @@ Object.assign(InnerMapRenderer, {
             let anim = 'idle';
             let direction = this._playerFacing != null ? this._playerFacing : InnerMapCharacters.DIR_DOWN;
             const digging = InnerMapDigging.playerAnim();
+            let beastSwing = null;
             if (!deathState) {
                 if (pos.climbing) {
                     // On the rock, facing it (ui/innerMapClimbing.js)
@@ -1343,6 +1344,12 @@ Object.assign(InnerMapRenderer, {
                     } else if (ia.targetType === 'object') {
                         direction = InnerMap.getDirectionTowardObject(ia.targetQ, ia.targetR, CustomObjects.getDef(ia.defId));
                     }
+                    this._playerFacing = direction;
+                } else if ((beastSwing = InnerMapAnimals.playerSwing())) {
+                    // At a beast (ui/innerMapAnimals.js _tickFight): the same slash as at a man, facing it,
+                    // the blade coming down on each blow
+                    anim = 'slash';
+                    direction = beastSwing.dir;
                     this._playerFacing = direction;
                 } else if (InnerMap._activeInteraction && !InnerMap._activeInteraction.done) {
                     anim = InnerMap._activeInteraction.animKey || 'slash';
@@ -1399,7 +1406,8 @@ Object.assign(InnerMapRenderer, {
                 if (poseDef) pSeatTime = (pSeat.pose + 0.5) / poseDef.fps;
             }
             const pAnim = anim, pDir = direction;
-            const pTime = chopP != null ? InnerMapFelling.swingTime(chopP, InnerMapCharacters.SLASH_FPS) : null;
+            const pTime = chopP != null ? InnerMapFelling.swingTime(chopP, InnerMapCharacters.SLASH_FPS)
+                : beastSwing && anim === 'slash' ? beastSwing.time : null;
             const playerPreset = this._playerPreset || InnerMapCharacters.playerPreset || 'male_noble';
             const pDeathState = deathState; // capture for closure
             const pSwimming = !deathState && typeof InnerMap.isPlayerSwimming === 'function' && InnerMap.isPlayerSwimming();

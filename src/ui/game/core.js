@@ -84,6 +84,9 @@ export class Game {
         // Inner map state
         this.innerMapCamera = new Camera(this.canvas);
         this.innerMapCamera.locked = true;  // Camera always follows player
+        // (the wheel zooms the street map by a share of its zoom: ui/camera.js)
+        this.innerMapCamera.zoomRelative = true;
+        this.innerMapCamera.zoomStep = 0.12;
         this.innerMapMode = false;
         this._enteringInnerMap = false;
 
@@ -104,9 +107,12 @@ export class Game {
 
             // Continue button logic
             const btnContinue = document.getElementById('btnContinue');
-            if (btnContinue && SaveLoad.hasSave()) {
-                btnContinue.disabled = false;
-                btnContinue.addEventListener('click', () => this.resumeGame());
+            if (btnContinue) {
+                SaveLoad.hasSave().then((has) => {
+                    if (!has) return;
+                    btnContinue.disabled = false;
+                    btnContinue.addEventListener('click', () => this.resumeGame());
+                });
             }
 
             // ── Editor / World Editor overlays ──

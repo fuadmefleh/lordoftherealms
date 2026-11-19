@@ -1469,7 +1469,7 @@ export const Finance = {
         let used = Math.min(proceeds, Math.ceil(_num(loan.totalOwed)));
         if (from === 'sale' && world && typeof world.getSettlementViews === 'function') {
             const town = Economy.nearestPurse(world, player.q, player.r);
-            if (town) used = Math.floor(Economy.drawTown(town, used));
+            if (town) used = Utils.cents(Economy.drawTown(town, used));
         }
         if (!(used > 0)) return 0;
         loan.totalOwed = Math.max(0, _num(loan.totalOwed) - used);

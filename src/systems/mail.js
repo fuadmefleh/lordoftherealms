@@ -562,7 +562,7 @@ export const Mail = {
             npc.purse = Math.round((npc.purse - paid) * 100) / 100;
             return paid;
         }
-        return Math.floor(Economy.drawNearest(world, to.q, to.r, w));
+        return Utils.cents(Economy.drawNearest(world, to.q, to.r, w));
     },
 
     /** A letter that came back brings its coin back to the player. */

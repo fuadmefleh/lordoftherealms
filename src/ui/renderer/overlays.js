@@ -3,7 +3,7 @@ import { Renderer, HEX_FACE_DY } from './core.js';
 import { Hex, Religion, Economy, Infrastructure, WorldUnit, Hinterland } from './_imports.js';
 import { drawGlyph, drawIcon } from '../icons.js';
 import { NpcPortrait } from '../npcPortrait.js';
-import { drawMapMarker, drawMarkerPlate } from '../mapInk.js';
+import { drawMapMarker, drawMarkerPlate, fontPx, readableFont } from '../mapInk.js';
 import { Quests } from '../../systems/quests.js';
 import { Pirates } from '../../systems/pirates.js';
 import { Hospitality } from '../../systems/hospitality.js';
@@ -160,12 +160,21 @@ Object.assign(Renderer.prototype, {
         if (this.camera.zoom > 0.7) {
             const fsize = Math.max(9, 11 * this.camera.zoom);
             const font = `700 ${fsize}px 'Inter', sans-serif`;
-            
+            // Standing in a town: its name plaque sits under the hex (renderer/features.js),
+            // so your name goes below it rather than over it (you could not tell where you were)
+            const here = this.world && typeof this.world.getTile === 'function' ? this.world.getTile(this.player.q, this.player.r) : null;
+            // (the plaque's height as renderer/features.js draws it: its font, grown for reading)
+            const tl = here && here.settlement ? ({ capital: 13, town: 11, village: 10 }[here.settlement.type] || 9) : 0;
+            const townPx = tl ? fontPx(readableFont(`700 ${Math.max(tl, tl * 1.2 * this.camera.zoom)}px 'Cinzel', serif`)) : 0;
+            const nameY = tl && this.camera.zoom > 0.4
+                ? screen.y + renderSize * 0.45 + townPx * 1.3 + (this.labelPadding || 5) * 2 + 2
+                : screen.y + renderSize * 0.55;
+
             // Add to label queue with highest priority
             this.addLabel(
                 isDead ? 'Dead' : this.player.name,
                 screen.x,
-                screen.y + renderSize * 0.55,
+                nameY,
                 10,
                 {
                     font: font,

@@ -347,6 +347,24 @@ export default function SettingsScreen() {
           {/* Origin & Challenge: who you start as, how hard, and what for */}
           <div className="settings-group">
             <h3>Origin & Challenge</h3>
+            {/* The age you begin in: the realms, or the Dawn of Man (a Start Year before the dawn year: world/dawn.js) */}
+            {!custom && (
+              <div className="input-row">
+                <label htmlFor="startEra">Begin in:</label>
+                <select id="startEra" value={settings.startYear < DAWN_YEAR ? 'dawn' : 'realms'}
+                  onChange={e => handleChange('startYear', e.target.value === 'dawn' ? Math.max(1, Math.min(100, DAWN_YEAR - 1)) : 853)}>
+                  <option value="realms">👑 The age of realms</option>
+                  <option value="dawn">🔥 The Dawn of Man</option>
+                </select>
+              </div>
+            )}
+            {!custom && (
+              <div className="settings-hint" style={{ fontSize: '11px', opacity: 0.8, margin: '2px 0 8px' }}>
+                {settings.startYear < DAWN_YEAR
+                  ? `No towns, roads or crowns yet: you are born into one of the wandering clans, with your family about you, and the origin below does not apply. (Start Year ${settings.startYear}, under Kingdoms & World.)`
+                  : 'Towns, crowns and trade, in the year set under Kingdoms & World. Or begin at the Dawn of Man, among the first wandering clans.'}
+              </div>
+            )}
             <div className="input-row">
               <label htmlFor="origin">Origin:</label>
               <select id="origin" value={settings.origin} onChange={e => handleOrigin(e.target.value)}>

@@ -415,7 +415,7 @@ export const Holdings = {
         if (!entry) return { success: false, reason: 'Nothing like that is being built.' };
         h.queue = h.queue.filter(p => p !== entry);
         // (what the builders hand back comes out of the town they were paid into)
-        const refund = Math.floor(Economy.drawTown(ref.settlement, Math.floor(_num(entry.paid) * Holdings.config().cancelRefund)));
+        const refund = Utils.cents(Economy.drawTown(ref.settlement, Math.floor(_num(entry.paid) * Holdings.config().cancelRefund)));
         player.gold = _num(player.gold) + refund;
         const def = Holdings.project(projectId);
         return { success: true, refund, text: `Work on the ${def ? def.name : projectId} stops. ${Utils.formatGold(refund)}g comes back to you.` };

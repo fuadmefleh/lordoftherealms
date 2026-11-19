@@ -187,7 +187,9 @@ const topLevel = [
     // Consequences that follow you: charge sheets, posters, bounty hunters, blood debts (systems/wanted.js)
     'wanted',
     // The night-time underworld on the street map: curfews, smugglers' landings, the thieves' market (systems/nightStreets.js)
-    'nightStreets'
+    'nightStreets',
+    // Begging: alms from the passers-by, the cost to a noble name, the townsfolk who fall to it (systems/begging.js)
+    'begging'
 ];
 
 const merged = {};

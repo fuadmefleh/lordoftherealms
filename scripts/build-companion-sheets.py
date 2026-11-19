@@ -40,7 +40,11 @@ PICKS = {
     'dog': {
         'walk': ('walk', {'e': [2, 4, 6, 8], 'n': [1, 3, 5, 7], 's': [1, 3, 5, 7]}),
         'idle': ('idle', {'e': [0, 1, 2, 3], 'n': [0, 1, 2, 3], 's': [0, 1, 2, 3]}),
-        'attack': ('atk', {'e': [1, 2, 3, 4], 'n': [1, 2, 3, 4], 's': [1, 2, 3, 4]}),
+        # the lunge and bite (2026-11-17): crouch, spring, jaws agape, the snap, back,
+        # and back in its stance (8: without it the bite ended with the head still
+        # thrust out and snapped back to the walk); seven frames a row, so the
+        # attack sheet is seven cells wide (sprite.attackCols)
+        'attack': ('bite', {'e': [2, 3, 4, 5, 6, 7, 8], 'n': [2, 3, 4, 5, 6, 7, 8], 's': [2, 3, 4, 5, 6, 7, 8]}),
     },
     'cat': {
         'walk': ('walk', {'e': [1, 3, 5, 7], 'n': [1, 3, 5, 7], 's': [1, 3, 5, 7]}),
@@ -50,6 +54,16 @@ PICKS = {
         'fly': ('fly', {'e': [0, 2, 4, 6], 'n': [0, 1, 2, 3], 's': [0, 1, 2, 3]}),
     },
 }
+# frames drawn on a canvas whose still was moved off the still's own place (room
+# ahead to lunge into): animal_action: { side: (dx, dy) the still was moved by }
+CANVAS_SHIFT = {
+    'dog_bite': {'e': (-15, 0), 'n': (0, 6), 's': (0, -6)},
+}
+# actions whose every frame stands its own feet on FOOT_Y: the bite's frames walk
+# their feet about the canvas (the dog coming at you, the 's' side, sank 12px over
+# the bite and its crouch hovered 8px over the walk's ground, a pop at each end);
+# the game's own lunge (sprite.attackLunge) carries the body forward instead
+FEET_EACH = {'dog_bite'}
 # the game sheet's rows: (row, side, mirrored)
 ROWS = [(0, 'n', False), (1, 'e', True), (2, 's', False), (3, 'e', False)]
 
@@ -67,19 +81,34 @@ def build(src, animal):
         shift[s] = (round(CELL / 2 - (x0 + x1) / 2), FOOT_Y - y1)
     out = {}
     for action, (name, sides) in PICKS[animal].items():
-        sheet = Image.new('RGBA', (CELL * 4, CELL * 4), (0, 0, 0, 0))
+        ncols = max(len(v) for v in sides.values())
+        sheet = Image.new('RGBA', (CELL * ncols, CELL * 4), (0, 0, 0, 0))
         for row, side, mirror in ROWS:
-            dx, dy = shift[side]
-            if mirror:
-                dx = -dx
-            for col, i in enumerate(sides[side]):
+            frames = []
+            for i in sides[side]:
                 fr = clean(Image.open(os.path.join(src, f'{animal}_{name}_{side}_{i}.png')))
                 if fr.size != (CELL, CELL):
                     fr = fr.resize((CELL, CELL), Image.BOX)
+                frames.append(fr)
+            cx, cy = CANVAS_SHIFT.get(f'{animal}_{name}', {}).get(side, (0, 0))
+            dx, dy = shift[side][0] - cx, shift[side][1] - cy
+            # a lunge reaching past the cell is pulled back into it (the game's own
+            # lunge offset carries the body forward on screen)
+            boxes = [f.getbbox() for f in frames if f.getbbox()]
+            if boxes:
+                dx = max(min(dx, CELL - 1 - max(b[2] for b in boxes)), -min(b[0] for b in boxes))
+                dy = max(min(dy, CELL - max(b[3] for b in boxes)), -min(b[1] for b in boxes))
+            if mirror:
+                dx = -dx
+            for col, fr in enumerate(frames):
+                fdy = dy
+                if f'{animal}_{name}' in FEET_EACH and fr.getbbox():
+                    _, top, _, bottom = fr.getbbox()
+                    fdy = max(FOOT_Y - bottom, -top)
                 if mirror:
                     fr = fr.transpose(Image.FLIP_LEFT_RIGHT)
                 cell = Image.new('RGBA', (CELL, CELL), (0, 0, 0, 0))
-                cell.alpha_composite(fr, (max(0, dx), max(0, dy)), (max(0, -dx), max(0, -dy)))
+                cell.alpha_composite(fr, (max(0, dx), max(0, fdy)), (max(0, -dx), max(0, -fdy)))
                 sheet.alpha_composite(cell, (col * CELL, row * CELL))
         dest = os.path.join(ANIMALS, animal, f'{animal}_{action}_sheet.png')
         sheet.save(dest, optimize=True)

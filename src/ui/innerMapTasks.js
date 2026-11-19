@@ -274,8 +274,21 @@ const TEMPLATES = {
         setup(ctx) {
             const p = ctx.plan;
             ctx.total = _ri(ctx.rng, p.count || [4, 6]);
-            const edge = ctx.spots.ground.filter(g => g.edge);
-            const picks = ctx.pickNear(edge.length ? edge : ctx.spots.ground, ctx.total, 5);
+            // The spots lie together, a short walk apart: about the nearest of the town's
+            // fields (sowing, picking), else on the stretch of the town's edge nearest you
+            const me = _playerPos();
+            const fields = p.near === 'fields' ? MapTasks.propsOf(ctx.spots, ['tp_field_']) : [];
+            let picks = null;
+            if (fields.length) {
+                const f = MapTasks.nearest(fields, me.q, me.r);
+                ctx.site = f;
+                const around = ctx.spots.ground.concat(ctx.spots.roads, fields);
+                picks = ctx.pickCluster(around, ctx.total, 3, 7, f);
+            }
+            if (!picks || picks.length < Math.min(ctx.total, 3)) {
+                const edge = ctx.spots.ground.filter(g => g.edge);
+                picks = ctx.pickCluster(edge.length ? edge : ctx.spots.ground, ctx.total, 4, 9);
+            }
             ctx.total = picks.length;
             for (const at of picks) {
                 ctx.mark(at, { glyph: p.glyph || 'wheat', label: `${p.verb || 'Pick'} here`, work: p.workSeconds || 2, onDone: () => {
@@ -422,6 +435,8 @@ export const InnerMapTasks = {
     start(game, spec) {
         if (this.active) this.abandon(true);
         if (!InnerMap.active) return false;
+        // (a click on a mark's floating item picks the mark: pickMark)
+        InnerMapRenderer.taskPick = (x, y, cam) => this.pickMark(x, y, cam);
         const tpl = spec.custom || TEMPLATES[(spec.plan && spec.plan.template) || 'haul'];
         if (!tpl) return false;
         const seed = (_num(game.world && game.world.day) * 7919 + (++_seq) * 104729 + InnerMap.playerInnerQ * 31 + InnerMap.playerInnerR) >>> 0;
@@ -473,11 +488,27 @@ export const InnerMapTasks = {
             },
             clear() { ctx.marks = []; },
             /** n spread-out picks, from the places within reach of where the job began. */
-            pickNear(list, n, gap = 5, range = 28) {
+            pickNear(list, n, gap = 5, range = 20) {
                 const start = ctx.startPos;
                 const near = list.filter(p => _dist(p, start) <= range);
                 const pool = near.length >= n * 2 ? near
                     : list.slice().sort((a, b) => _dist(a, start) - _dist(b, start)).slice(0, Math.max(n * 3, 12));
+                return MapTasks.pickSpread(pool, n, ctx.rng, gap);
+            },
+            /**
+             * n picks spread a little (`gap`) within `radius` of `center` (default: the
+             * place of the list nearest where the job began), the circle widened until
+             * there are enough: one patch of work, not spots all over the map.
+             */
+            pickCluster(list, n, gap = 3, radius = 8, center = null) {
+                if (!list.length) return [];
+                const c = center || MapTasks.nearest(list, ctx.startPos.q, ctx.startPos.r) || ctx.startPos;
+                let pool = [];
+                for (let rad = radius; rad <= radius * 3; rad += Math.max(2, Math.round(radius / 2))) {
+                    pool = list.filter(p => _dist(p, c) <= rad);
+                    if (pool.length >= n * 2) break;
+                }
+                if (pool.length < n) pool = list.slice().sort((a, b) => _dist(a, c) - _dist(b, c)).slice(0, Math.max(n * 2, 8));
                 return MapTasks.pickSpread(pool, n, ctx.rng, gap);
             },
             track(mover, label) { mover.tracked = label; },
@@ -684,6 +715,31 @@ export const InnerMapTasks = {
         if (ctx.spec.onComplete) ctx.spec.onComplete(score, info);
     },
 
+    /**
+     * A click on a mark's floating item (drawn a tile above its ring) means the
+     * mark: → its { q, r }, or null. InnerMapRenderer.getInnerHexAtScreen asks
+     * this first, so clicking the seed bag walks you onto the spot, not beside it.
+     */
+    pickMark(screenX, screenY, camera) {
+        const ctx = this.active;
+        if (!ctx || !InnerMap.active || InnerMap._insideBuilding || !camera) return null;
+        const T = InnerMapRenderer.TILE_SIZE || 32;
+        const ds = T * camera.zoom;
+        let best = null;
+        let bestD = Infinity;
+        for (const m of ctx.marks) {
+            if (m.passive && !m.guide) continue;
+            const q = m.follow ? m.follow.q : m.q, r = m.follow ? m.follow.r : m.r;
+            const s = camera.worldToScreen(q * T + T / 2, r * T + T / 2);
+            const dx = screenX - s.x, dy = screenY - s.y;
+            const lift = m.follow ? 1.0 : 0.5;
+            if (Math.abs(dx) > ds * 0.45 || dy < -ds * (lift + 0.8) || dy > -ds * 0.3) continue;
+            const d = Math.abs(dx) + Math.abs(dy + ds * (lift + 0.3));
+            if (d < bestD) { bestD = d; best = { q, r }; }
+        }
+        return best;
+    },
+
     // ── Drawing the marks ──
 
     render(ctx2d, camera, canvas) {
@@ -761,8 +817,13 @@ export const InnerMapTasks = {
                 const p = pad * big;
                 const hw = Math.max(10, (safe.right - safe.left) / 2 - p), hh = Math.max(10, (safe.bottom - safe.top) / 2 - p);
                 const k = Math.min(hw / Math.max(1e-6, Math.abs(Math.cos(ang))), hh / Math.max(1e-6, Math.abs(Math.sin(ang))));
-                const ex = cx + Math.cos(ang) * k;
+                let ex = cx + Math.cos(ang) * k;
                 const ey = cy + Math.sin(ang) * k;
+                // Under the task tracker: slide along the edge to the side of it
+                const av = safe.avoid;
+                if (av && ey > av.top - p && ey < av.bottom + p && ex > av.left - p && ex < av.right + p) {
+                    ex = ex < (av.left + av.right) / 2 ? av.left - p : av.right + p;
+                }
                 ctx2d.save();
                 ctx2d.globalAlpha = guiding && !it.guide ? 0.4 : 1;
                 ctx2d.translate(ex, ey); ctx2d.rotate(ang); ctx2d.scale(big, big);
@@ -983,7 +1044,15 @@ export const InnerMapTasks = {
             if (top) area.top = Math.max(area.top, (top.bottom - cr.top) * sy);
             if (bottom) area.bottom = Math.min(area.bottom, (bottom.top - cr.top) * sy);
             if (rail) area.right = Math.min(area.right, (rail.left - cr.left) * sx);
-            if (task && task.height) area.top = Math.max(area.top, Math.min((task.bottom - cr.top) * sy, H * 0.3));
+            // The tracker is a card at the top centre: arrows keep clear of it (render), but
+            // the edge stays the screen's own (pushing the whole top edge under the card
+            // floated every arrow mid-screen, where it read as a thing on the ground)
+            if (task && task.height) {
+                area.avoid = {
+                    left: (task.left - cr.left) * sx, right: (task.right - cr.left) * sx,
+                    top: (task.top - cr.top) * sy, bottom: (task.bottom - cr.top) * sy,
+                };
+            }
         } catch (e) { /* no layout (tests): the whole canvas */ }
         return area;
     },

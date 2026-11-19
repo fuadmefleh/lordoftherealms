@@ -48,6 +48,8 @@ function moneyTotal(game) {
         t += (live.economy && live.economy.gold) || 0;
     }
     for (const k of world.kingdoms) t += k.treasury || 0;
+    // (the crowns' royal banks: their reserve, drawn and refilled weekly — Fiscal._reserve)
+    for (const k of world.kingdoms) t += (k.royalBank && k.royalBank.treasury) || 0;
     for (const b of Finance.state(player).banks) t += b.capital || 0;
     t += player.gold || 0;
     for (const lot of Fiscal.state(world).lots) t += lot.player ? lot.player.bid : 0;
@@ -87,10 +89,11 @@ describe('the books', () => {
         const t0 = k.fisc.openTreasury;
         fiscalDay(game);
         const L = k.fisc.last;
-        let net = L.other + L.loans + L.debase;
+        let net = L.other + L.loans + L.debase + (L.reserve || 0);
         for (const l of CrownBooks.REVENUE_LINES) net += L[l];
         for (const l of CrownBooks.EXPENSE_LINES) net -= L[l];
-        expect(k.treasury - t0).toBeCloseTo(net, 1);
+        // (a weekly draw on or laying-by in the royal bank after the close is on tomorrow's page)
+        expect(k.treasury - (k.fisc.day.reserve || 0) - t0).toBeCloseTo(net, 1);
     }, 120000);
 
     it('taxes do not mint gold: the fiscal day only moves it between purses, chests, banks and farmers', () => {
@@ -161,7 +164,8 @@ describe('the books', () => {
         const taxed = L.land + L.poll + L.excise + L.levy + L.demesne;
         expect(taxed).toBeGreaterThan(0);
         expect(purse0 - purse1).toBeCloseTo(taxed, 0);
-        expect(k.treasury - t0).toBeCloseTo(taxed, 0);
+        // (less what the crown drew from or laid by in its royal bank today: Fiscal._reserve)
+        expect(k.treasury - t0 - (k.fisc.day.reserve || 0)).toBeCloseTo(taxed, 0);
     }, 120000);
 
     it('heavier taxes yield more and weigh on the people and the realm', () => {

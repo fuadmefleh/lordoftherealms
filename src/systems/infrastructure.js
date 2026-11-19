@@ -337,7 +337,7 @@ export const Infrastructure = {
         // The salvage is sold in the nearest town: its buyers pay what they can
         if (world && refund > 0) {
             const town = Infrastructure._nearestTown(world, tile.q, tile.r);
-            refund = town ? Math.floor(Economy.drawTown(town, refund)) : 0;
+            refund = town ? Utils.cents(Economy.drawTown(town, refund)) : 0;
         }
 
         player.gold += refund;

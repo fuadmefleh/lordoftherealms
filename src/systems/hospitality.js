@@ -825,7 +825,7 @@ export const Hospitality = {
         // supplies are paid back into it (a town with no purse record pays in full)
         const town = tile && tile.settlement;
         const bills = Math.round(guests * perGuest * spendMult * incomeMult);
-        const takings = town ? Math.floor(Economy.drawTown(town, bills)) : bills;
+        const takings = town ? Utils.cents(Economy.drawTown(town, bills)) : bills;
         let wages = 0;
         for (const [k, def] of Object.entries(P.staff || {})) wages += _num(def.wage) * _num(h.staff[k]);
         const supplies = Math.round(guests * _num(K.costPerGuest, 2));
@@ -897,7 +897,7 @@ export const Hospitality = {
         } else if (id === 'noble') {
             // (the lord's steward pays out of the coin the retinue spends in town)
             const bill = Math.round(view.rooms * this.revenuePerGuest(property.type, view.stars, h.priceMult) * _num(ev.nights, 2));
-            const gold = town ? Math.floor(Economy.drawTown(town, bill)) : bill;
+            const gold = town ? Utils.cents(Economy.drawTown(town, bill)) : bill;
             player.gold += gold;
             Ledger.record(player, 'hospitality', gold);
             text = text.replace('{gold}', gold);
@@ -912,7 +912,7 @@ export const Hospitality = {
         } else if (id === 'regular') {
             // One room booked for the season, paid up front at the regular's rate
             const bill = Math.round(this.revenuePerGuest(property.type, view.stars, h.priceMult) * _num(ev.nights, 15) * _num(ev.rate, 0.8));
-            const gold = town ? Math.floor(Economy.drawTown(town, bill)) : bill;
+            const gold = town ? Utils.cents(Economy.drawTown(town, bill)) : bill;
             if (gold > 0) {
                 player.gold += gold;
                 Ledger.record(player, 'hospitality', gold);

@@ -810,6 +810,11 @@ export const InnerMapRenderer = {
     },
 
     getInnerHexAtScreen(screenX, screenY, camera) {
+        // A street-map task's floating item stands for the spot under it (ui/innerMapTasks.js pickMark)
+        if (typeof this.taskPick === 'function') {
+            const hit = this.taskPick(screenX, screenY, camera);
+            if (hit) return hit;
+        }
         const worldPos = camera.screenToWorld(screenX, screenY);
         const T = this.TILE_SIZE;
         const q = Math.floor(worldPos.x / T);

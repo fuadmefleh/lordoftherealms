@@ -498,7 +498,7 @@ export async function _doStartNewGame(settingsOverride) {
 
     // Initialize quests and achievements
     Quests.initialize(this.player);
-    Quests.grantStarterQuest(this.player, this.world);
+    // (the starter quest is granted once the origin has placed the player: below)
     Achievements.initialize(this.player);
 
     // Initialize market dynamics
@@ -524,6 +524,18 @@ export async function _doStartNewGame(settingsOverride) {
 
     // The mother tongue: the clan's at the dawn, else the one spoken where you begin (systems/languages.js)
     Languages.initialize(this.player, this.world);
+
+    // No family name given and the first name left as the placeholder: a surname of the
+    // land you start in, so the House is not "House Wanderer" (systems/house.js familyNameFor;
+    // a Born child takes its family's name, a clan at the dawn its clan's)
+    if (typeof House !== 'undefined' && !dawnStart && !this.player.lastName && (!s.charFirstName || s.charFirstName === 'Wanderer')) {
+        const o = Scenarios.origin(s.origin);
+        const fam = House.familyNameFor(this.player, this.world, { noble: !!(o && o.group === 'advanced') });
+        if (fam) {
+            this.player.lastName = fam;
+            this.player.name = `${this.player.firstName} ${fam}`.trim();
+        }
+    }
 
     // Initialize the House (dynasty spine) — after relationships so family exists
     if (typeof House !== 'undefined') {
@@ -573,10 +585,21 @@ export async function _doStartNewGame(settingsOverride) {
         this.camera.centerOn(pos.x, pos.y);
     }
 
+    // The starter quest and the Explorer count start from what the origin already
+    // shows you (a Born child's town, a lord's realm): neither is done by being placed
+    Quests.grantStarterQuest(this.player, this.world);
+    if (this.player.achievements) {
+        let known = 0;
+        for (const row of this.world.tiles) for (const t of row) if (t && t.explored) known++;
+        this.player.achievements.exploredAtStart = known;
+    }
+
     // The guided first month (systems/firstSteps.js): on unless the "Guided start"
     // setting or the chosen scenario (player.scenario.guidedStart) turns it off
     FirstSteps.initialize(this.player, this.world, {
         enabled: s.guidedStart !== false && this.player.scenario?.guidedStart !== false,
+        // (an origin's own short steps: a duke is not told to earn an honest coin)
+        origin: this.player.scenario ? this.player.scenario.id : null,
     });
     this.ui.updateStats(this.player, this.world); // draws the First Steps card
 
@@ -602,7 +625,10 @@ export async function _doStartNewGame(settingsOverride) {
         if (this.player.parentage && this.player.parentage.pending && typeof ActionMenu.showParentPicker === 'function') ActionMenu.showParentPicker(this);
         // Born to a family chosen on the New Game screen: open on the parents' rules and duties
         // (the picker path shows them once a family is picked; this one showed only a toast)
-        else if (this.player.parentage && this.player.parentage.active && typeof ActionMenu.showParents === 'function') ActionMenu.showParents(this);
+        else if (this.player.parentage && this.player.parentage.active && typeof ActionMenu.showParents === 'function') {
+            ActionMenu.showParents(this);
+            this.ui.updateStats(this.player, this.world); // (the First Steps card: their rules now heard)
+        }
         // An origin with no First Steps (a guildmaster, a duke, a monarch…): its welcome
         // and first moves stay on screen as a panel, not a two-line toast (ui/actionMenu/counsel.js)
         else if (!dawnStart && scenarioStart.welcome && this.player.scenario && this.player.scenario.id !== 'born'

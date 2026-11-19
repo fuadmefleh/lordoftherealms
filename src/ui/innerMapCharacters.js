@@ -224,21 +224,30 @@ export const InnerMapCharacters = {
             this.WALK_FRAMES * cell, this.DIR_ROWS * cell, cell);
         const idleCanvas = this._compositeAnimation(preset.layers, 'Idle',
             this.IDLE_FRAMES * cell, this.DIR_ROWS * cell, cell);
+        // A hand weapon (sword, mace, axe, dagger) reaches past the 64px frame at the far end of
+        // a blow — the mace's head out at arm's length in the swing's side-on frames, the blade
+        // in the slash's wind-up: those blows keep a wider cell round the figure (WIDE_CELL), so
+        // the weapon is not cut off at the frame and left a headless stick in the hand
+        const wide = cell === this.FRAME_W && preset.layers.some(l => this.HAND_PROPS.test(l)) ? this.WIDE_CELL : cell;
+        const cellOf = (anim) => (this.WIDE_ANIMS.has(anim) ? wide : cell);
         const slashCanvas = this._compositeAnimation(preset.layers, 'Combat 1h - Slash',
-            this.SLASH_FRAMES * cell, this.DIR_ROWS * cell, cell);
+            this.SLASH_FRAMES * cellOf('slash'), this.DIR_ROWS * cellOf('slash'), cellOf('slash'));
 
         if (walkCanvas || idleCanvas) {
             const entry = {
                 cell,
+                // per animation, where it differs from `cell` (drawCharacter)
+                cells: wide !== cell ? Object.fromEntries([...this.WIDE_ANIMS].map(a => [a, wide])) : null,
                 walk: walkCanvas,
                 idle: idleCanvas || walkCanvas,
                 slash: slashCanvas || null,
             };
             // Composite extra animation types (sitting, emotes, halfslash, swing)
             for (const ea of this._EXTRA_ANIMS) {
+                const c = cellOf(ea.key);
                 const canvas = ea.pick
-                    ? this._compositePicked(preset.layers, ea.file, this.SHOOT_PICK, ea.frames, cell)
-                    : this._compositeAnimation(preset.layers, ea.file, ea.frames * cell, this.DIR_ROWS * cell, cell);
+                    ? this._compositePicked(preset.layers, ea.file, this.SHOOT_PICK, ea.frames, c)
+                    : this._compositeAnimation(preset.layers, ea.file, ea.frames * c, this.DIR_ROWS * c, c);
                 entry[ea.key] = canvas || null;
             }
             this._composited.set(presetId, entry);
@@ -247,6 +256,11 @@ export const InnerMapCharacters = {
 
     // Prop layers whose weapon reaches out of the 64px frame (scripts/make_arms_layers.py)
     LONG_PROPS: /^Props\/(Spear|Pike|Bill|Halberd|Dane Axe)\//,
+    // One-handed weapons, whose blows reach a little past the 64px frame (their sheets are 128px
+    // cells round the figure): the blows (WIDE_ANIMS) of a look carrying one keep a 96px cell
+    HAND_PROPS: /^Props\/(Sword|Mace|Axe|Dagger)[ /]/,
+    WIDE_CELL: 96,
+    WIDE_ANIMS: new Set(['slash', 'halfslash', 'swing']),
 
     /**
      * Composite multiple layer images into a single offscreen canvas.
@@ -700,7 +714,7 @@ export const InnerMapCharacters = {
 
         // Source rectangle from the composited sheet (a long weapon's look has 128px
         // cells round the figure: drawn twice the size, about the same middle)
-        const cell = comp.cell || this.FRAME_W;
+        const cell = (comp.cells && comp[anim] === sheet && comp.cells[anim]) || comp.cell || this.FRAME_W;
         const sx = frameIndex * cell;
         const sy = (extraDef && extraDef.rows === 1 && comp[anim] ? 0 : direction) * cell;
         if (cell !== this.FRAME_W) {

@@ -65,6 +65,9 @@
         "coinLow": 0.12, "coinHigh": 0.25, "coinFlush": 0.5, "largesseCoin": 0.25
     },
 
+    "_reserve": "2026-11-17: the royal bank is the crown's reserve (Fiscal._reserve, weekly). Drawn when the chests hold under drawBelow days of spending (warDrawBelow at war) or the soldiers or clerks go unpaid: what is short of drawTo days plus the arrears, at most drawShare of the vault a week, never below keep x the vault's mark. The mark: markDays of spending, at most markCoin of the realm's coin in circulation. Surplus laid by past layBy days of spending (or layByCoin of the realm's coin, whichever is less) at layByShare a week of it, up to the mark; a vault past releaseAt x its mark lets releaseShare a week of the excess back into the chests (where the largesse spends it into the towns). Both chests are counted by the census; each move is booked on the books' reserve line.",
+    "reserve": { "enabled": true, "drawBelow": 7, "warDrawBelow": 20, "drawTo": 25, "drawShare": 0.1, "keep": 0.2, "markDays": 60, "markCoin": 0.15, "layBy": 30, "layByCoin": 0.2, "layByShare": 0.2, "releaseAt": 1.5, "releaseShare": 0.05 },
+
     "_coin": "Taxes come out of the towns' purses into the crown's chests and the wages go back into them; the money supply (world/moneySupply.js) counts the purses, so this moves the realm's coin in circulation by itself (booked daily as the 'fisc' flow). No tunables left here.",
 
     "_farms": "Tax farming. A crown short of money (below needDays of spending, deficitWeeks weeks in deficit, at war below warDays, or with its soldiers unpaid) auctions, at most once every `cooldown` days, the taxes of one town (not its capital; at most maxShare of its towns) for term days: the lot's estimate is the town's recent crown taxes x term; a banking house bids discount (a hash in the range) of it, the player may outbid by `outbid`; the lot closes after `close` days. The farmer collects the town's taxes x squeeze (less collectCost) in place of the crown. Player squeeze levels: mult, reputation lost in the realm a day, the town's happiness a day. A house squeezes `bankSqueeze`.",
@@ -155,6 +158,7 @@
             "purse": "The ruler's own cut of the crown's revenue (the royal levy: your gold, if you rule).",
             "loans": "Gold borrowed from the banking houses (not income: it must be paid back).",
             "debase": "Gold made by debasing the coin (prices rise after).",
+            "reserve": "The royal bank, the crown's reserve: coin drawn from it when the chests run low, the soldiers go unpaid or the realm is at war (+), and surplus laid by in it in good years (−). Not income: it is the crown's own coin.",
             "other": "Everything else that moved the treasury (events, tribute, temples, licences): the books always balance."
         }
     },

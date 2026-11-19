@@ -82,7 +82,8 @@ export default function GameView() {
         } else if (settings._resumeKey) {
           // Continue a saved game from the title's save list (the ordinary slot or the
           // Ironman run's: systems/saveLoad.js, ui/game/editorUI.js resumeGame)
-          game.resumeGame(settings._resumeKey);
+          await game.resumeGame(settings._resumeKey);
+          if (cancelled) return;
           if (!game.world || !game.player) throw new Error('The save could not be loaded');
         } else {
           // Start the game with settings

@@ -70,3 +70,9 @@ Props/Shield 02-05; Head Accessories/Cap 01 - Leather; Clothing/*/Armour/*)
              make_arms_shields.py and make_arms_wear.py (the frame geometry and the shirts' shading are
              derived from those OGA-BY 3.0 layers).
   LICENSE: OpenAI terms assign the drawings to the user; the derived frames follow OGA-BY 3.0.
+Gloves and gauntlets (Clothing/*/Hands/Gloves/{Leather,Black,Tan}, Clothing/*/Hands/Gauntlets/{Steel,Iron,Bronze})
+-------------------
+  ARTIST(S): derived procedurally, 2026-11-17, by scripts/build-glove-sheets.py from the hands of the LPC
+             bodies here (the body pixels a longsleeve shirt, pants, boots and the head leave bare, recoloured
+             onto material ramps with the body's own shading; gauntlets one pixel fuller at the cuff).
+  LICENSE: derived from the OGA-BY 3.0 body layers above; follows OGA-BY 3.0.

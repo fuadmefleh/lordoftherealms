@@ -910,8 +910,8 @@ export const MerchantCaravans = {
             if (rest > 0) {
                 // (a home town that keeps no purse: the nearest one that does pays for them)
                 const got = home && home.economy && Number.isFinite(home.economy.gold)
-                    ? Math.floor(Economy.drawTown(home, Math.min(rest, Math.max(0, Math.floor(home.economy.gold)))))
-                    : Math.floor(Economy.drawNearest(world, u.q, u.r, rest));
+                    ? Utils.cents(Economy.drawTown(home, Math.min(rest, Math.max(0, Math.floor(home.economy.gold)))))
+                    : Utils.cents(Economy.drawNearest(world, u.q, u.r, rest));
                 pay = fromPurse + got;
             }
             player.gold = _num(player.gold) + pay;

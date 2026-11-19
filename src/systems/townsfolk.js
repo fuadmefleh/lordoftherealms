@@ -22,6 +22,7 @@
 
 import { DataLoader } from '../core/dataLoader.js';
 import { Utils } from '../core/utils.js';
+import { Hex } from '../core/hex.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
 import { WorldEvents } from '../world/worldEvents.js';
 import { Cultures } from '../world/cultures.js';
@@ -69,6 +70,12 @@ const DEFAULTS = {
     maxLog: 14,
     pruneAfterYears: 40,
     pruneDeadAfterYears: 5,
+    // Towns far from the player (more than nearHexes off: a couple of days' ride) live their day-to-day lives in longer
+    // steps: their trade every tradeEvery × its stepDays (systems/townTrade.js), their sick every
+    // illnessEvery × theirs (systems/illness.js) — the same rates over the longer step, so the
+    // century's rosters cost about the same as the first year's. The player near, or no player
+    // (the interregnum), every step is lived.
+    distant: { enabled: true, nearHexes: 6, tradeEvery: 3, illnessEvery: 2 },
     // (what the long dead no longer need: their skills, health, work, schooling — data/townsfolk.json)
     compact: {
         afterYears: 1,
@@ -145,11 +152,24 @@ export const Townsfolk = {
         if (!_cfg || src !== _cfgSrc) {
             _cfgSrc = src;
             _cfg = { ...DEFAULTS, ...(_obj(src) || {}) };
-            for (const k of ['hardship', 'marriage', 'birth', 'departure', 'arrival', 'names', 'causes', 'roleTitles', 'compact']) {
+            for (const k of ['hardship', 'marriage', 'birth', 'departure', 'arrival', 'names', 'causes', 'roleTitles', 'compact', 'distant']) {
                 _cfg[k] = { ...DEFAULTS[k], ...(_obj(src && src[k]) || {}) };
             }
         }
         return _cfg;
+    },
+
+    /**
+     * How many of its own steps a town far from the player lives at once
+     * (distant): 1 near the player (within nearHexes), with no player, or
+     * off; else distant[kind + 'Every']. kind: 'trade' | 'illness'.
+     */
+    distantEvery(world, s, player, kind) {
+        const D = Townsfolk.config().distant;
+        if (!player || !s || !_obj(D) || !D.enabled || !Number.isFinite(player.q) || !Number.isFinite(s.q)) return 1;
+        const every = Math.max(1, Math.round(_num(D[`${kind}Every`], 1)));
+        if (every === 1) return 1;
+        return Hex.offsetDistance(player.q, player.r, s.q, s.r) <= _num(D.nearHexes, 6) ? 1 : every;
     },
 
     // ── Lookups ──────────────────────────────────────────
@@ -876,10 +896,10 @@ export const Townsfolk = {
     /**
      * Forget the long-gone whom the player never met and no one living names,
      * and keep only a short record of the rest. The dead go after
-     * pruneDeadAfterYears (as does a moved household's forwarding record,
-     * systems/migration.js away.nid; the plain moved-away after
-     * pruneAfterYears), unless
-     * something still asks after them: a living person's spouse, parents,
+     * pruneDeadAfterYears, as does anyone gone for good (goneForGood: moved
+     * away, left for the wider world, eloped — not those away with the player
+     * or missing), unless
+     * something still asks after them: a living resident's spouse, parents,
      * grandparents, children, ward, namesake or a line of their life (the
      * family tree, "my late father"), the town's annals, a grave the player
      * leases (systems/graveyards.js), the player (spoken with, a relationship
@@ -887,9 +907,11 @@ export const Townsfolk = {
      * them by "q,r#id" or {q, r, pid} — hearsay, bonds, blood debts
      * (systems/wanted.js), grudges, quests, captives (playerRefs). Without a
      * player to ask (the interregnum) only the old pruneAfterYears holds.
-     * A dead person (and a moved household's forwarding record,
-     * systems/migration.js away.nid) a compact.afterYears gone is compacted:
-     * their skills, health, work and the like let go (compact.drop).
+     * A dead person (and one gone for good the player's state doesn't name)
+     * a compact.afterYears gone is compacted: their skills, health, work and
+     * the like let go (compact.drop).
+     * (Only those still here, or away with the player, name their kin: the
+     * gone-for-good naming each other kept whole emigrant families for ever.)
      */
     _prune(folk, day, player = null, world = null) {
         const C = Townsfolk.config();
@@ -899,7 +921,7 @@ export const Townsfolk = {
         const named = new Set();
         const nameKin = (id) => { if (id != null) named.add(id); };
         for (const p of folk.people) {
-            if (p.died != null) continue;
+            if (p.died != null || Townsfolk.goneForGood(p)) continue;
             nameKin(p.spouse);
             for (const id of p.parents) {
                 named.add(id);
@@ -929,9 +951,8 @@ export const Townsfolk = {
         const at = `${folk.q},${folk.r}#`;
         const keep = folk.people.filter(p => {
             const gone = p.died != null ? p.died : (p.away ? p.away.d : null);
-            // (a moved household's forwarding record goes as the dead do, once nothing asks after it)
-            const forwarded = p.died == null && p.away && p.away.mig && p.away.nid != null;
-            if (gone == null || gone > (p.died != null || forwarded ? deadHorizon : horizon)) return true;
+            // (one gone for good — a moved household's forwarding record, the departed — goes as the dead do, once nothing asks after them)
+            if (gone == null || gone > (p.died != null || Townsfolk.goneForGood(p) ? deadHorizon : horizon)) return true;
             // Those in the player's life (systems/relationships/folk.js) are never forgotten
             return named.has(p.id) || (p.mem && p.mem.timesSpoken > 0) || p.rnpc || p.wedHouse || (refs && refs.has(at + p.id));
         });
@@ -955,18 +976,32 @@ export const Townsfolk = {
             folk.people = keep;
             delete folk._index;
         }
-        Townsfolk._compact(folk, day);
+        Townsfolk._compact(folk, day, refs);
     },
 
-    /** Let go the heavy, living-only parts of the long dead (and of a moved household's forwarding record). */
-    _compact(folk, day) {
+    /**
+     * Gone from the town for good: moved away (systems/migration.js), left for
+     * the wider world, eloped, exiled — not away with the player (party, wed
+     * into the House, at court) nor missing (a task may yet find them). A
+     * captive or one sold off is in the player's state (playerRefs) and kept whole.
+     */
+    goneForGood(p) {
+        return !!p && p.died == null && !!p.away && !p.away.withPlayer && !p.away.missing;
+    },
+
+    /** Let go the heavy, living-only parts of the long dead (and of those gone for good the player's state doesn't name). */
+    _compact(folk, day, refs = null) {
         const K = Townsfolk.config().compact;
         if (!_obj(K) || !Array.isArray(K.drop) || !K.drop.length) return;
         const before = day - _num(K.afterYears, 1) * Townsfolk.config().daysPerYear;
+        const at = `${folk.q},${folk.r}#`;
         for (const p of folk.people) {
             if (p.cmp) continue;
             const dead = p.died != null && p.died <= before;
-            const moved = p.died == null && p.away && p.away.mig && p.away.nid != null && _num(p.away.d, day) <= before;
+            // (a moved household's forwarding record always; another gone for good once the player's state is
+            // there to ask — not in an interregnum — and doesn't name them: a captive, one sold to the galleys)
+            const moved = !dead && Townsfolk.goneForGood(p) && _num(p.away.d, day) <= before
+                && ((p.away.mig && p.away.nid != null) || (refs != null && !refs.has(at + p.id)));
             if (!dead && !moved) continue;
             for (const k of K.drop) if (p[k] !== undefined) delete p[k];
             // (a life the player knew is told in their journal: systems/townsfolk.js acquaintances)

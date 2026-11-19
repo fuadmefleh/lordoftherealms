@@ -1085,7 +1085,7 @@ export const Parentage = {
         if (duty === 'chore' && _num(def.pay) > 0) {
             const hh = Parentage._household(world, pa);
             if (hh && hh.town) {
-                paid = Math.floor(Economy.drawTown(hh.town, _num(def.pay)));
+                paid = Utils.cents(Economy.drawTown(hh.town, _num(def.pay)));
                 hh.payee.purse = _num(hh.payee.purse) + paid;
             }
         }
@@ -1328,7 +1328,7 @@ export const Parentage = {
             const hh = Parentage._household(world, pa);
             const st = Parentage.station(pa.station) || {};
             if (hh && hh.town && _num(st.wage) > 0) {
-                const earned = Math.floor(Economy.drawTown(hh.town, _num(st.wage) * 7));
+                const earned = Utils.cents(Economy.drawTown(hh.town, _num(st.wage) * 7));
                 hh.payee.purse = _num(hh.payee.purse) + earned;
                 const spend = Math.min(Math.floor(_num(hh.payee.purse)), Math.floor(earned * _num((B.household || {}).upkeepShare, 0.95)));
                 hh.payee.purse -= spend;

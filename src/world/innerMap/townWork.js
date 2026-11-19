@@ -117,7 +117,7 @@ Object.assign(InnerMap, {
                 continue;
             }
             // The homeless sleep rough (a beggar's home was only lent them)
-            if (job.j.id === 'beggar') npc._home = null;
+            if (job.j.id === 'beggar' && !job.j.fallen) npc._home = null;   // (one fallen on hard times keeps their roof: player/begging.js, systems/townJobs.js _hardTimes)
             const owned = blds.find(b => b.ownerId === npc.id && job.o.workplaces && job.o.workplaces.includes(b.type));
             if (owned) { npc._work = owned; continue; }
             // A servant to their household; the potboy to the innkeeper's house

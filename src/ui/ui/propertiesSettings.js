@@ -1424,10 +1424,15 @@ Object.assign(UI.prototype, {
                     this.showNotification('⚒️ Ironman', "The run saves itself at each day's end and when you leave.", 'info');
                     return;
                 }
-                const result = SaveLoad.saveGame(this.game);
-                this.showNotification(result.success ? 'Saved' : 'Error',
-                    result.success ? 'Game saved successfully' : 'Failed to save: ' + result.error,
-                    result.success ? 'success' : 'error');
+                // (written to the save store in the background: core/saveStore.js)
+                saveBtn.disabled = true;
+                SaveLoad.saveGame(this.game).then((result) => {
+                    saveBtn.disabled = false;
+                    if (result.superseded) return;
+                    this.showNotification(result.success ? 'Saved' : (result.quota ? '⚠️ Not saved' : 'Error'),
+                        result.success ? 'Game saved successfully' : (result.quota ? result.error : 'Failed to save: ' + result.error),
+                        result.success ? 'success' : 'error');
+                });
             });
         }
 
@@ -1440,10 +1445,10 @@ Object.assign(UI.prototype, {
                     this.showNotification('⚒️ Ironman', 'An Ironman run keeps one save and no copies.', 'info');
                     return;
                 }
-                if (typeof SaveLoad.exportSave === 'function') {
-                    SaveLoad.exportSave();
-                    this.showNotification('Export', 'Save file downloaded', 'success');
-                }
+                SaveLoad.exportSave().then((ok) => {
+                    this.showNotification('Export', ok ? 'Save file downloaded' : 'No saved game to export yet: save first',
+                        ok ? 'success' : 'info');
+                });
             });
         }
 
@@ -1455,9 +1460,21 @@ Object.assign(UI.prototype, {
                     this.showNotification('⚒️ Ironman', 'No loading in an Ironman run.', 'info');
                     return;
                 }
-                if (typeof SaveLoad.importSave === 'function') {
-                    SaveLoad.importSave(this.game);
-                }
+                // A save file (as exported, or gzipped) into the ordinary slot; load it from
+                // the title screen's Continue list
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.json,.gz,application/json,application/gzip';
+                input.addEventListener('change', () => {
+                    const file = input.files && input.files[0];
+                    if (!file) return;
+                    SaveLoad.importSave(file).then((res) => {
+                        this.showNotification(res.success ? 'Imported' : (res.quota ? '⚠️ Not saved' : 'Import failed'),
+                            res.success ? 'Save imported into the save slot. Load it from the Main Menu (Continue).' : res.error,
+                            res.success ? 'success' : 'error');
+                    });
+                });
+                input.click();
             });
         }
 

@@ -517,7 +517,7 @@ export const NightStreets = {
         SettlementMarket.add(s, plan.good, got);
         const want = Math.round(got * _num(plan.ask, 10) * _num(L.informReward, 0.35));
         // (whole coin drawn: a short purse pays what it holds, and no fraction is dropped)
-        const reward = Math.floor(Economy.drawTown(s, Math.min(want, Math.floor(Economy.townPurse(s) ?? want))));
+        const reward = Utils.cents(Economy.drawTown(s, Math.min(want, Math.floor(Economy.townPurse(s) ?? want))));
         if (reward > 0) { player.gold = _num(player.gold) + reward; Ledger.record(player, 'bounties', reward); }
         Gangs.addCrackdown(world, tile.q, tile.r, _num(L.informCrackdown, 8));
         NightStreets._setGrudge(player, world, tile, 'informed');

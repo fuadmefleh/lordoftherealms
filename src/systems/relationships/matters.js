@@ -283,6 +283,10 @@ Object.assign(Relationships, {
         for (const [id, def] of Object.entries(kinds)) {
             if (def.auto) continue;
             if (def.minScore != null && score < def.minScore) continue;
+            // (your own father does not beg you for a stranger's debt: data/relationships.json notForKin)
+            if (def.notForKin && (rel.family || npc.kin)) continue;
+            // (nor does anyone ask a child living under its parents' roof for money: notForChild)
+            if (def.notForChild && player.parentage && player.parentage.active) continue;
             if (id === 'loan' && (isSpouse || rel.debt)) continue;
             if (id === 'rival_suitor') {
                 if (!rel.romantic || isSpouse || npc.isMarried) continue;

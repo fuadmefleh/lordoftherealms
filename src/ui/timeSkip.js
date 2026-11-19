@@ -442,8 +442,11 @@ export const TimeSkip = {
         }
         if (skip.saveDue && p && !p._isDead && !Afterlife.active(p)) {
             try {
-                const res = SaveLoad.saveGame(game);
-                if (res && res.success && !SaveLoad.isIronman(game) && game.ui) game.ui.showNotification('Auto-Saved', 'Game progress saved', 'default');
+                SaveLoad.saveGame(game).then((res) => {
+                    if (!game.ui || !res) return;
+                    if (res.success && !SaveLoad.isIronman(game)) game.ui.showNotification('Auto-Saved', 'Game progress saved', 'default');
+                    else if (!res.success && !res.superseded) game.ui.showNotification('⚠️ Not saved', res.error, 'error');
+                });
             } catch (e) {
                 console.error('[TimeSkip] autosave failed', e);
             }

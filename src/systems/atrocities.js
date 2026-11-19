@@ -504,7 +504,7 @@ export const Atrocities = {
         // Out of the town's purse, as much as is in it: no coin from nowhere
         if (!settlement.economy && pop0 > 0) Economy.initSettlement(settlement);
         const want = Math.floor(pop0 * Utils.randFloat(M.plunder[0], M.plunder[1]));
-        const plunder = Math.floor(Economy.drawTown(settlement, want));
+        const plunder = Utils.cents(Economy.drawTown(settlement, want));
         player.gold = _num(player.gold) + plunder;
         SettlementMarket.loot(settlement, _num(M.lootShare, 0.85));
         settlement.population = keep;

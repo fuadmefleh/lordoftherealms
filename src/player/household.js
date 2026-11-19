@@ -459,7 +459,31 @@ export const Household = {
 
     /** Mouths at table today: servants, guests, and the player when home. */
     mouths(player, home) {
-        return Household.servants(home).length + home.guests.length + (Household.isHome(player, home) ? 1 : 0);
+        // (the master who already ate from this larder tonight — Household.tableMeal — is not fed twice)
+        const master = Household.isHome(player, home) && !(home.fedDay != null && player && player._tableMealDay === home.fedDay) ? 1 : 0;
+        return Household.servants(home).length + home.guests.length + master;
+    },
+
+    /**
+     * The master's supper at their own table when the packs are empty
+     * (player/core/lifecycle.js endDay): at a home of theirs with a ration in
+     * the larder, one ration is eaten from it — the House's food passes with
+     * the House, so an heir come home to a stocked larder does not starve.
+     * → the home's key, or null.
+     */
+    tableMeal(player, world) {
+        if (!player || !player.household) return null;
+        const L = Household.config().larder;
+        const day = world && Number.isFinite(world.day) ? world.day : 0;
+        for (const { key } of Household.homes(player)) {
+            const home = Household.home(player, key);
+            if (!home || !Household.isHome(player, home) || Household.rations(home) < 1) continue;
+            if (Household._eat(home, _num(L.ration, 35)) <= 0) continue;
+            home.fedDay = day;
+            player._tableMealDay = day;
+            return key;
+        }
+        return null;
     },
 
     isFood(id) { return Object.prototype.hasOwnProperty.call(MEAL_HUNGER, id); },

@@ -309,3 +309,74 @@ describe('First Steps — the order a new Wanderer is led (first-hour playthroug
         expect(FirstSteps.check(player, world).map(n => n.step)).toEqual(['first_day']);
     });
 });
+
+describe('First Steps — an origin\'s own steps (first-hour playthrough 2026-11-17)', () => {
+    /** A player of an origin, its guide on. */
+    function originSetup(origin, extra = {}) {
+        const world = { day: 1, width: 10, height: 10, getTile: () => null };
+        const player = new Player({ firstName: 'Ada', lastName: 'Test', gender: 'female', age: 20 });
+        Object.assign(player, extra);
+        Quests.initialize(player);
+        House.initialize(player, world);
+        FirstSteps.initialize(player, world, { enabled: true, origin });
+        return { world, player };
+    }
+
+    it('a guildmaster is not told to earn an honest coin: its first moves, then a day and an Ambition', () => {
+        const { player } = originSetup('guildmaster');
+        expect(player.firstSteps.set).toBe('origin');
+        const ids = FirstSteps.steps(player).map(s => s.id);
+        expect(ids).toEqual(['see_guilds', 'first_day', 'ambition']);
+        expect(ids).not.toContain('odd_job');
+        // (the day step in an origin's own words: no room to book for a master in his own house)
+        expect(FirstSteps.steps(player)[1].how).not.toMatch(/room/i);
+        expect(FirstSteps.steps(player)[0].go.counsel).toBe('guilds');
+    });
+
+    it('a panel step ticks when the panel is opened (markSeen), and only then', () => {
+        const { world, player } = originSetup('great_lord');
+        expect(FirstSteps.steps(player).map(s => s.id)).toEqual(['see_estates', 'see_claims', 'first_day', 'ambition']);
+        expect(ids(FirstSteps.check(player, world))).toEqual([]);
+        FirstSteps.markSeen(player, 'claims', world);
+        expect(ids(FirstSteps.check(player, world))).toEqual(['see_claims']);
+        FirstSteps.markSeen(player, 'estates', world);
+        expect(ids(FirstSteps.check(player, world))).toEqual(['see_estates']);
+    });
+
+    it('its end pays renown and Prestige, no purse', () => {
+        const { world, player } = originSetup('guildmaster');
+        player.house.ambition = { id: 'merchant_dynasty', milestones: [] };
+        FirstSteps.markSeen(player, 'guilds', world);
+        world.day = 2;
+        const gold = player.gold;
+        const notes = FirstSteps.check(player, world);
+        expect(notes.some(n => n.step === null)).toBe(true);
+        expect(player.firstSteps.finishedDay).toBe(2);
+        expect(player.gold).toBe(gold);
+    });
+
+    it('a child at home has its own: the house rules, a duty done, a day, an Ambition', () => {
+        const { world, player } = originSetup('born', { parentage: { active: true, obeyed: 0 } });
+        expect(FirstSteps.steps(player).map(s => s.id)).toEqual(['see_parents', 'first_duty', 'first_day', 'ambition']);
+        player.parentage.obeyed = 1;
+        expect(ids(FirstSteps.check(player, world))).toEqual(['first_duty']);
+    });
+
+    it('the Wanderer, and a start at the dawn, keep their steps', () => {
+        expect(originSetup('wanderer').player.firstSteps.set).toBe('realms');
+        const world = { day: 1, dawn: { over: false }, width: 10, height: 10, getTile: () => null };
+        const player = new Player({ firstName: 'Ada', gender: 'female', age: 20 });
+        FirstSteps.initialize(player, world, { origin: 'guildmaster' });
+        expect(player.firstSteps.set).toBe('dawn');
+    });
+
+    it('an origin switched off can be taken up again with its own steps', () => {
+        const world = { day: 1, width: 10, height: 10, getTile: () => null };
+        const player = new Player({ firstName: 'Ada', gender: 'female', age: 20 });
+        House.initialize(player, world);
+        FirstSteps.initialize(player, world, { enabled: false, origin: 'crime_lord' });
+        expect(FirstSteps.canResume(player)).toBe(true);
+        expect(FirstSteps.resume(player)).toBe(true);
+        expect(FirstSteps.current(player).id).toBe('see_underworld');
+    });
+});

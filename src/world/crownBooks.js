@@ -29,8 +29,8 @@ const _r2 = (v) => Utils.cents(v);
 export const REVENUE_LINES = ['land', 'poll', 'excise', 'customs', 'demesne', 'seigniorage', 'farms', 'levy', 'sales', 'escheat', 'heriot'];
 /** Expense lines ('guard': the household guards the crown keeps for its lords and itself, player/realmEscort.js). */
 export const EXPENSE_LINES = ['army', 'arms', 'guard', 'court', 'works', 'debt', 'dole', 'purse'];
-/** Financing (not income): borrowing and the mint's debasement profit. */
-export const FINANCE_LINES = ['loans', 'debase'];
+/** Financing (not income): borrowing, the mint's debasement profit, and coin drawn from (+) or laid by in (−) the royal bank, the crown's reserve (systems/fiscal.js Fiscal._reserve). */
+export const FINANCE_LINES = ['loans', 'debase', 'reserve'];
 
 const LEVELS = ['light', 'standard', 'heavy', 'crushing'];
 /** Version of the books' shape (a record at this version needs no backfill). */

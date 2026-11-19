@@ -109,6 +109,12 @@ function _go(game) {
     const go = step && step.go;
     if (!go) return;
     const tile = _here(game);
+    // An origin's own step: open the panel it names (ui/actionMenu/counsel.js COUNSEL_PANELS)
+    if (go.counsel) {
+        if (typeof ActionMenu.counselOpen === 'function') ActionMenu.counselOpen(game, go.counsel);
+        updateFirstStepsCard(game);
+        return;
+    }
     if (go.action) {
         // Wherever the action is on offer (a clan's camp at the dawn is no settlement)
         let avail = false;

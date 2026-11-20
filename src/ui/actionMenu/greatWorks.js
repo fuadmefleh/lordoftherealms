@@ -48,7 +48,7 @@ function _funderRows(d, day) {
 function _workCard(game, d) {
     const { player } = game;
     const [sIco, sTxt, tone] = STATUS[d.status] || ['•', d.status, ''];
-    let body = `<div style="font-size:12px;">${esc(d.town)}${d.dist != null ? ` · ${d.dist} hexes away` : ''} · founded by ${esc(d.founder ? d.founder.name : 'unknown')}, ${d.years} year${d.years === 1 ? '' : 's'} ago</div>`;
+    let body = `<div style="font-size:12px;">${esc(d.town)}${d.dist != null ? (d.dist > 0 ? ` · ${d.dist} hex${d.dist === 1 ? '' : 'es'} away` : ' · here') : ''} · founded by ${esc(d.founder ? d.founder.name : 'unknown')}, ${d.years > 0 ? `${d.years} year${d.years === 1 ? '' : 's'} ago` : 'this year'}</div>`;
     if (d.status === 'done') {
         body += `<div style="font-size:12px; margin-top:4px;">Carved over its door: <b>${esc((d.carved || []).map(c => `${c.name} (${Math.round(c.share * 100)}%)`).join(', ') || 'no names')}</b></div>`;
     } else {
@@ -56,7 +56,7 @@ function _workCard(game, d) {
         body += `<div style="font-size:11px; color:var(--text-secondary);">${Math.round(d.prog * 100)}% built · stage ${d.stageNo}/${d.stages}: ${esc(d.stage)} · pledged ${Utils.formatGold(d.pledged)}g of ${Utils.formatGold(d.full)}g a week at full pace${d.yearsLeft != null ? ` · about ${d.yearsLeft} more years at this pace` : ''} · ${Utils.formatGold(d.spent)}g spent of about ${Utils.formatGold(d.est)}g${d.short && d.status === 'building' ? ` · waiting on ${esc(d.short)}` : ''}</div>`;
     }
     if (d.abandonedBy.length) body += `<div style="font-size:11px; color:#e0a080;">${esc(d.town)} blames ${esc(d.abandonedBy.map(b => b.name).join(', '))} for its ruin.</div>`;
-    body += more(`Funders (${d.funders.length}) ▸`, rowList(_funderRows(d, game.world.day)));
+    body += more(`Funders (${d.funders.length})`, rowList(_funderRows(d, game.world.day)));
     const rows = [];
     const gold = player.gold || 0;
     if (d.status === 'building' || d.status === 'stalled') {
@@ -85,7 +85,7 @@ function _foundSection(game, s) {
         const min = Math.ceil(o.est.weekly * (P.founderMinShare || 0.1));
         const amt = _amounts(o.est.weekly).find(a => a >= min) || min;
         return {
-            icon: o.icon, name: `Found a ${esc(o.name)} in ${esc(s.name)}`,
+            icon: o.icon, name: `Found ${esc(GreatWorks.withArticle(o.name))} in ${esc(s.name)}`,
             desc: `${esc(o.blurb)} About ${o.years} years at full pace (${Utils.formatGold(o.est.weekly)}g a week; ~${Utils.formatGold(o.est.total)}g in all, stone and wages). You pledge ${Utils.formatGold(amt)}g a week ${_termText(_term)}; others will join.`,
             side: price(amt, (player.gold || 0) >= amt), off: !o.ok || (player.gold || 0) < amt, why: esc(o.ok ? `You haven't ${Utils.formatGold(amt)}g.` : o.reason),
             act: 'greatWorksAct', args: ['found', o.id, amt],
@@ -109,10 +109,10 @@ Object.assign(ActionMenu, {
         if (!list.length) html += card('No great work is rising within reach, and your House is pledged to none.', { icon: '🏛️', title: 'Nothing near' });
         for (const d of list.filter(x => x.status !== 'done').slice(0, 8)) html += _workCard(game, d);
         const done = list.filter(x => x.status === 'done');
-        if (done.length) html += more(`Finished works near you (${done.length}) ▸`, done.slice(0, 8).map(d => _workCard(game, d)).join(''));
+        if (done.length) html += more(`Finished works near you (${done.length})`, done.slice(0, 8).map(d => _workCard(game, d)).join(''));
         if (s) html += _foundSection(game, s);
         const log = (GreatWorks.state(world).log || []).slice(-10).reverse();
-        if (log.length) html += more('The builders\' chronicle ▸', rowList(log.map(e => ({ icon: '📜', name: esc(e.text), desc: `day ${e.day}`, side: '' }))));
+        if (log.length) html += more('The builders\' chronicle', rowList(log.map(e => ({ icon: '📜', name: esc(e.text), desc: `day ${e.day}`, side: '' }))));
         html += '</div>';
         game.ui.showCustomPanel('🏛️ Works of the Ages', html);
     },

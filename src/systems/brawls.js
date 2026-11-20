@@ -48,6 +48,10 @@ import { StreetCrime } from './streetCrime.js';
 import { Laws } from './laws.js';
 import { TownJobs } from './townJobs.js';
 import { Romance } from './romance.js';
+import { PracticeSkills } from './practiceSkills.js';
+
+// (Brawls.fighter: the seeded skill holders of roster people's shims, by skill set, id and kind)
+const _shimSkills = new Map();
 
 const DEFAULTS = {
     enabled: true,
@@ -225,8 +229,17 @@ export const Brawls = {
     fighter(who, opts = {}) {
         const E = Brawls.config().escalation;
         const shim = Brawls._shim(opts.type ? { ...(who || {}), type: opts.type, role: opts.type } : who);
+        // (a roster person's shim is seeded its skills from its id and kind alone — Townsfolk.npcSkills,
+        // CombatSkills.npcHolder — the same holder every fight: seeded once, kept while the skill set stands)
+        const own = !!who && !who.personalityTraits && !opts.type && shim !== who;
+        const sk = own ? `${PracticeSkills._seedSig()}|${shim.id}|${shim.type}` : null;
+        if (sk && _shimSkills.has(sk)) Object.defineProperty(shim, '_skills', { value: _shimSkills.get(sk), configurable: true, enumerable: false, writable: true });
         let c;
         try { c = Duels.fromNpc(shim); } catch (e) { c = { attack: 1, defense: 1.5, power: 5, weaponDmg: 0, maxHp: 22, temperament: 'balanced' }; }
+        if (sk && shim._skills && !_shimSkills.has(sk)) {
+            if (_shimSkills.size > 20000) _shimSkills.clear();
+            _shimSkills.set(sk, shim._skills);
+        }
         const max = Math.max(10, Math.round(_num(c.maxHp, 22) * 3.5));
         const person = who && who.personalityTraits ? who._person || null : who;
         const pid = person && person.id != null && !who.personalityTraits ? person.id : (who && who._person ? who._person.id : null);

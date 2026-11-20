@@ -537,11 +537,13 @@ Object.assign(ActionMenu, {
         if (crew < Ships.getMinCrew(ship)) {
             crewBody += `<div style="color:#e0846a;">Needs at least ${Ships.getMinCrew(ship)} sailors to leave port.</div>`;
         }
-        if (crewOpen > 0) {
+        if (Ships.isLaidUp(ship)) {
+            crewBody += `<div style="color:#f0b35a;">Laid up at the quay: no crew, no wages, and ${Math.round(Ships.layUpSettings().upkeepShare * 100)}% of her upkeep until you crew her again.</div>`;
+        } else if (crewOpen > 0) {
             crewBody += `<div>Short-handed: ${Math.round(Ships.getCrewSpeedFactor(ship) * 100)}% speed, ${Math.round(Ships.getCrewCombatFactor(ship) * 100)}% fighting strength, fewer fish in the nets.</div>`;
         }
-        crewBody += `<div>Wages ${Utils.formatGold(Ships._getCrewSettings().wagePerSailorPerDay)}g per sailor a day. Storms, defeats and missed wages sap morale; below ${Ships._getCrewSettings().desertionMorale} sailors desert.</div>`;
-        crewBody += `<div>Away from port the crew eats from the hold: ${Math.round(Ships.getDailyRations(ship) * 10) / 10} provisions a day. A hungry crew loses heart, then scurvy comes aboard.</div>`;
+        crewBody += `<div>Wages ${Utils.formatGold(Ships._getCrewSettings().wagePerSailorPerDay)}g per sailor a day. Storms, defeats and missed wages sap morale; below ${Ships._getCrewSettings().desertionMorale} morale, sailors desert.</div>`;
+        if (!Ships.isLaidUp(ship)) crewBody += `<div>Away from port the crew eats from the hold: ${Math.round(Ships.getDailyRations(ship) * 10) / 10} provisions a day. A hungry crew loses heart, then scurvy comes aboard.</div>`;
         html += card(`<div style="font-size:11px; color:#cbbf9f;">${crewBody}</div>`, { icon: '👥', title: 'Crew', side: `<span style="color:${crewColor}">${crew}/${eff.crewRequired}</span>` });
 
         // What can be done with her: one row an action
@@ -552,6 +554,10 @@ Object.assign(ActionMenu, {
         }
         if (ship.status === 'docked' && crew > 0) {
             acts.push({ icon: '👋', name: 'Pay off 1 sailor', desc: 'One fewer mouth and wage', attrs: `onclick="window._dismissCrew('${ship.id}')"` });
+            if (crew > 1) {
+                const laidUp = Utils.cents(st.dailyUpkeep * Ships.layUpSettings().upkeepShare);
+                acts.push({ icon: '⚓', name: 'Pay off the whole crew and lay her up', desc: `No wages, and ${Utils.formatGold(laidUp)}g a day in upkeep instead of ${Utils.formatGold(st.dailyUpkeep)}g, until you crew her again`, attrs: `onclick="window._dismissCrew('${ship.id}', ${crew})"`, tone: 'warn' });
+            }
         }
         const victual = ship.status === 'docked' && Ships.isPortTile(game.world, ship.q, ship.r) ? Ships.provisionsNeeded(ship, 10, { player }) : 0;
         if (victual > 0) {
@@ -605,8 +611,8 @@ Object.assign(ActionMenu, {
             }
         };
 
-        window._dismissCrew = (sid) => {
-            const result = Ships.dismissCrew(player, sid, 1);
+        window._dismissCrew = (sid, count = 1) => {
+            const result = Ships.dismissCrew(player, sid, Number(count) || 1);
             game.ui.showNotification(result.success ? '👋 Crew Paid Off' : 'Error', result.message, result.success ? 'info' : 'error');
             if (result.success) ActionMenu._showShipManagePanel(game, tile, sid);
         };
@@ -1256,6 +1262,8 @@ Object.assign(ActionMenu, {
             if (ship.voyage) facts.push(`🧭 → ${ship.voyage.destName}`);
             if (ship.status === 'building') facts.push(`🏗️ ${ship.buildDaysLeft} days left`);
             if (ship.status === 'moving') facts.push(`🧭 ${ship.travelDaysLeft || '?'} days ETA`);
+            // (a docked ship with no crew is laid up: a share of her upkeep, no wages)
+            if (Ships.isLaidUp(ship)) return { icon: st.icon, name: ship.name, desc: facts.join(' · '), side: '⚓ laid up', tone: 'warn' };
             return { icon: st.icon, name: ship.name, desc: facts.join(' · '), side: `${statusIcon} ${ship.status}` };
         }), '⚓ Your Fleet');
         // Standing routes for a ship (player/tradeLines.js)

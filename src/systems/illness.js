@@ -814,10 +814,15 @@ export const Illness = {
             if (_obj(s.folk) && Array.isArray(s.folk.people) && s.folk.ill) {
                 // (a town with no one sick carries nothing: no need to count its people)
                 if (!s.folk.people.some(p => p.ill)) continue;
-                const res = Townsfolk.residents(s.folk);
+                // (the residents counted in one pass, not a list of them made)
                 const by = {};
-                for (const p of res) if (Illness.isContagious(p, day) && !(Illness.def(p.ill.k) || {}).chronic) by[p.ill.k] = (by[p.ill.k] || 0) + 1;
-                const N = Math.max(1, res.length);
+                let nRes = 0;
+                for (const p of s.folk.people) {
+                    if (!Townsfolk.isHere(p)) continue;
+                    nRes++;
+                    if (Illness.isContagious(p, day) && !(Illness.def(p.ill.k) || {}).chronic) by[p.ill.k] = (by[p.ill.k] || 0) + 1;
+                }
+                const N = Math.max(1, nRes);
                 for (const [k, n] of Object.entries(by)) sources.push({ s, k, share: n / N });
             } else if (s.sickness && s.sickness.abs) {
                 if (_num(s.sickness.until) < day) { delete s.sickness; continue; }

@@ -157,6 +157,26 @@ export const Romance = {
         return mine.find(c => !c.affair) || (opts.anyKind ? mine[0] : null);
     },
 
+    /**
+     * courtOf(folk, pid) for everyone at once — pid → their first courtship
+     * that is no affair, in the list's order — for a caller asking it of a
+     * whole roster in a row (TownJobs.crew, the season's work) while no
+     * courtship changes. → Map (null where the list holds a broken entry)
+     */
+    courtIndex(folk) {
+        const idx = new Map();
+        const rm = folk && folk.romance;
+        if (!rm || !Array.isArray(rm.list)) return idx;
+        for (const c of rm.list) {
+            // (a broken entry: courtOf would throw on it — callers fall back to asking it)
+            if (!c) return null;
+            if (c.affair) continue;
+            if (c.a != null && !idx.has(c.a)) idx.set(c.a, c);
+            if (c.b != null && !idx.has(c.b)) idx.set(c.b, c);
+        }
+        return idx;
+    },
+
     /** The other one in a courtship. */
     partnerId(c, pid) { return c ? (c.a === pid ? c.b : c.a) : null; },
 
@@ -735,11 +755,12 @@ export const Romance = {
     // ──────────── HOW THEY FEEL ────────────
 
     /** { k: 'love'|'smitten'|'broken', o } or null — read by work and prices. */
-    mood(folk, p, day = null) {
+    mood(folk, p, day = null, courts = null) {
         if (!folk || !p) return null;
         const ref = day != null ? day : _num(folk.romance && folk.romance.tick, _num(folk.tick));
         if (Romance.broken(folk, p, ref)) return { k: 'broken', o: p.heart.o };
-        const c = Romance.courtOf(folk, p.id);
+        // (courts: Romance.courtIndex, for a roster asked in a row)
+        const c = courts ? (p.id != null ? courts.get(p.id) || null : null) : Romance.courtOf(folk, p.id);
         if (!c) return null;
         const idx = Romance.stageIndex(c.st);
         if (idx >= 2) return { k: 'love', o: Romance.partnerId(c, p.id) };
@@ -748,9 +769,9 @@ export const Romance = {
     },
 
     /** How much of a season's work they put in (×). */
-    workFactor(folk, p, day = null) {
+    workFactor(folk, p, day = null, courts = null) {
         const M = Romance.config().mood;
-        const m = Romance.mood(folk, p, day);
+        const m = Romance.mood(folk, p, day, courts);
         if (!m) return 1;
         if (m.k === 'broken') return _num(M.brokenWork, 0.75);
         if (m.k === 'love') return _num(M.loveWork, 1.1);

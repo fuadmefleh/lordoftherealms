@@ -191,8 +191,11 @@ export const TownJobs = {
         const order = _arr(C.plan[type]);
         const land = TownJobs.land(folk, settlement, world);
         const pool = {};
+        const adultAge = C.adultAge;
         for (const p of folk.people) {
-            if (!TownJobs._adult(p, day) || p.retired || FIXED_ROLES.has(p.role)) continue;
+            // (TownJobs._adult, inline: every roster every market turn)
+            if (!p || p.died != null || p.away || p.role === 'child' || !(Townsfolk.age(p, day) >= adultAge)) continue;
+            if (p.retired || FIXED_ROLES.has(p.role)) continue;
             if (p.job && p.job.employer === 'player') continue;
             pool[p.role] = (pool[p.role] || 0) + 1;
         }
@@ -248,7 +251,13 @@ export const TownJobs = {
         const C = TownJobs.config();
         const d = day != null ? day : _num(world && world.day, 1);
         const Y = Townsfolk.config().daysPerYear;
-        const todo = folk.people.filter(p => TownJobs._adult(p, d) && !p.retired && !(p.job && C.occupations[p.job.id]));
+        // (asked every market turn and trade step: the common case, no one without a trade, in one plain pass)
+        const todo = [];
+        const adultAge = C.adultAge;
+        for (const p of folk.people) {
+            if (!p || p.died != null || p.away || p.role === 'child' || p.retired || (p.job && C.occupations[p.job.id])) continue;
+            if (Townsfolk.age(p, d) >= adultAge) todo.push(p);
+        }
         if (!todo.length) return folk;
         const plan = TownJobs.plan(folk, settlement, world, d);
         const held = TownJobs.holders(folk, d);
@@ -302,7 +311,7 @@ export const TownJobs = {
     // ── The work as output ────────────────────────────────
 
     /** How much work a person puts in today, 0..~1.2. */
-    weight(folk, p, day) {
+    weight(folk, p, day, courts = null) {
         const C = TownJobs.config();
         const j = p && p.job;
         if (!j || !Townsfolk.isHere(p) || j.employer === 'player') return 0;
@@ -314,7 +323,7 @@ export const TownJobs = {
         let w = _num(R.weight, 1) * (0.9 + 0.2 * Math.min(1, years / Math.max(1, _num(C.skillYears, 12))));
         const hurt = Townsfolk.injury(p, day);
         if (hurt) w *= Math.max(0.2, hurt.hp / hurt.max);
-        try { w *= Romance.workFactor(folk, p, day); } catch (e) { /* no courtships */ }
+        try { w *= Romance.workFactor(folk, p, day, courts); } catch (e) { /* no courtships */ }
         if (p.hungry != null && day - p.hungry < Townsfolk.config().tickDays) w *= _num(C.living.hungryWork, 0.8);
         // (a babe in the house keeps them up at night)
         const T = C.tired;
@@ -356,9 +365,12 @@ export const TownJobs = {
         const C = TownJobs.config();
         const plan = TownJobs.plan(folk, settlement, world, d);
         const staff = {};
+        // (who courts whom, once for the roster: Romance.courtIndex)
+        let courts = null;
+        try { courts = Romance.courtIndex(folk); } catch (e) { courts = null; }
         for (const p of folk.people) {
             if (!p.job) continue;
-            const w = TownJobs.weight(folk, p, d);
+            const w = TownJobs.weight(folk, p, d, courts);
             if (!(w > 0)) continue;
             staff[p.job.id] = (staff[p.job.id] || 0) + w;
             const o = C.occupations[p.job.id];

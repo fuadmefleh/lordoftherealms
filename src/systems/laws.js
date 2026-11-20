@@ -40,6 +40,9 @@ const DEFAULTS = {
 const _num = (v, d = 0) => (v != null && v !== '' && typeof v !== 'boolean' && Number.isFinite(Number(v)) ? Number(v) : d);
 const _obj = v => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
 
+// (the config and the laws' list, kept while the data stands: Laws.config)
+const _memo = { src: undefined, cfg: null, list: null, byId: null };
+
 function _hash01(s) {
     let h = 2166136261;
     for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
@@ -54,19 +57,34 @@ function _kingdom(world, id) {
 
 export const Laws = {
     config() {
-        const d = _obj(DataLoader._gamedata && DataLoader._gamedata.laws) || {};
-        return { ...DEFAULTS, ...d, changeCost: { ...DEFAULTS.changeCost, ...(_obj(d.changeCost) || {}) }, laws: _obj(d.laws) || DEFAULTS.laws };
+        // (asked many times a day — every town's quarantine, every law read: built once per data)
+        const raw = DataLoader._gamedata && DataLoader._gamedata.laws;
+        if (_memo.cfg && _memo.src === raw) return _memo.cfg;
+        const d = _obj(raw) || {};
+        _memo.src = raw;
+        _memo.list = null;
+        _memo.byId = null;
+        _memo.cfg = { ...DEFAULTS, ...d, changeCost: { ...DEFAULTS.changeCost, ...(_obj(d.changeCost) || {}) }, laws: _obj(d.laws) || DEFAULTS.laws };
+        return _memo.cfg;
     },
 
     /** The laws, in order: [{ id, name, icon, desc, options: [{ id, label, desc, ... }] }]. */
     list() {
-        return Object.entries(Laws.config().laws).map(([id, L]) => ({
-            id, name: L.name || id, icon: L.icon || '📜', desc: L.desc || '',
-            options: Object.entries(L.options || {}).map(([oid, o]) => ({ id: oid, ...o })),
-        }));
+        const C = Laws.config();
+        if (!_memo.list) {
+            _memo.list = Object.entries(C.laws).map(([id, L]) => ({
+                id, name: L.name || id, icon: L.icon || '📜', desc: L.desc || '',
+                options: Object.entries(L.options || {}).map(([oid, o]) => ({ id: oid, ...o })),
+            }));
+            _memo.byId = new Map(_memo.list.map(l => [l.id, l]));
+        }
+        return _memo.list.slice();
     },
 
-    law(id) { return Laws.list().find(l => l.id === id) || null; },
+    law(id) {
+        Laws.list();
+        return _memo.byId.get(id) || null;
+    },
 
     /** A realm's old custom on a law (before any ruler set it): a hash of the realm. */
     custom(kingdom, lawId) {

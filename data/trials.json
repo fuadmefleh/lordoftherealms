@@ -53,7 +53,7 @@
     },
     "customs": {
         "_doc": "A realm's old court custom (a hash of the realm by share): how a court weighs evidence, advocates, reputation and coin, and how much is left to chance.",
-        "magistrate": { "name": "The Magistrate's Bench", "icon": "🧑‍⚖️", "share": 0.45, "evidence": 1, "advocate": 1, "reputation": 1, "bribe": 1, "noise": 0.06, "desc": "The judge hears the case alone and decides it. Evidence and a good advocate weigh most." },
+        "magistrate": { "name": "The Magistrate's Bench", "icon": "⚖️", "share": 0.45, "evidence": 1, "advocate": 1, "reputation": 1, "bribe": 1, "noise": 0.06, "desc": "The judge hears the case alone and decides it. Evidence and a good advocate weigh most." },
         "peers": { "name": "A Jury of Peers", "icon": "👥", "share": 0.25, "evidence": 1.1, "advocate": 0.9, "reputation": 1.6, "bribe": 0.5, "noise": 0.1, "desc": "Twelve townsmen decide: your name in the realm counts for much, and a judge's purse for less." },
         "compurgation": { "name": "Oath-Helpers", "icon": "🤝", "share": 0.18, "evidence": 0.8, "advocate": 0.6, "reputation": 1.4, "bribe": 0.8, "noise": 0.12, "desc": "The accused swears innocence, and men of standing swear with them. Standing matters more than witnesses." },
         "ordeal": { "name": "Trial by Ordeal", "icon": "🔥", "share": 0.12, "evidence": 0.6, "advocate": 0.4, "reputation": 0.8, "bribe": 1.2, "noise": 0.35, "desc": "Hot iron or cold water: God decides, they say. Much is left to chance, and the priest can be paid." }
@@ -62,7 +62,7 @@
         "_doc": "Judge personas. severity leans to conviction, venality to taking a bribe, mercy to weighing karma and a plea, rank to weighing House prestige, evidence and advocate scale how much those count. A lord judges in his capital (persona from his traits: traitPersona), a magistrate elsewhere (a townsperson of standing, persona by a hash leaning to the lord's).",
         "personas": {
             "just": { "name": "Just", "icon": "⚖️", "severity": 0, "venality": 0.08, "mercy": 0.1, "rank": 0.2, "evidence": 1.25, "advocate": 1.1, "line": "The evidence will decide this, and nothing else." },
-            "hanging": { "name": "Hanging Judge", "icon": "🪢", "severity": 0.6, "venality": 0.15, "mercy": -0.3, "rank": 0.3, "evidence": 0.9, "advocate": 0.8, "line": "I have never yet sent a guilty man home." },
+            "hanging": { "name": "Hanging Judge", "icon": "💀", "severity": 0.6, "venality": 0.15, "mercy": -0.3, "rank": 0.3, "evidence": 0.9, "advocate": 0.8, "line": "I have never yet sent a guilty man home." },
             "venal": { "name": "Venal", "icon": "💰", "severity": 0.15, "venality": 0.85, "mercy": 0, "rank": 0.5, "evidence": 0.85, "advocate": 1, "line": "Justice is costly. The court must be paid for." },
             "merciful": { "name": "Merciful", "icon": "🕊️", "severity": -0.35, "venality": 0.1, "mercy": 0.5, "rank": 0.2, "evidence": 1, "advocate": 1, "line": "Every soul can mend. Let us see whether yours will." },
             "proud": { "name": "Proud", "icon": "🦚", "severity": 0.2, "venality": 0.3, "mercy": 0, "rank": 1, "evidence": 0.9, "advocate": 0.9, "line": "Who are your people? A name tells me much." },
@@ -108,10 +108,10 @@
         "verdicts": {
             "acquit": { "label": "Acquit", "icon": "🕊️", "harsh": 0, "desc": "Let them go: the case is not proven." },
             "fine": { "label": "Fine", "icon": "💰", "harsh": 1, "desc": "A fine out of their purse, into yours." },
-            "stocks": { "label": "The stocks", "icon": "🪵", "harsh": 2, "desc": "A day in the stocks, for the town to see." },
+            "stocks": { "label": "The stocks", "icon": "📢", "harsh": 2, "desc": "A day in the stocks, for the town to see." },
             "jail": { "label": "The cells", "icon": "⛓️", "harsh": 2, "days": 20, "desc": "Some weeks in the cells." },
             "exile": { "label": "Banish", "icon": "🚪", "harsh": 3, "desc": "Out of the town, and not to come back." },
-            "hang": { "label": "Hang", "icon": "🪢", "harsh": 4, "desc": "The gallows. The square will remember." }
+            "hang": { "label": "Hang", "icon": "💀", "harsh": 4, "desc": "The gallows. The square will remember." }
         },
         "effects": {
             "proportionate": { "happiness": 2, "prestige": 2, "court": { "justice": 1 } },

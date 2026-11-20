@@ -23,6 +23,12 @@ const MUTED = 'color:#9d937c; font-size:11px;';
 // (the path being chosen on each child's page: kind id by child id; panel state only)
 const _picked = {};
 
+/** "the court of X" → "The court of X", where a name opens a row. */
+function _cap(s) {
+    const t = String(s || '');
+    return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
 function _bar(v, color) {
     const pct = Math.max(0, Math.min(100, Math.round(v || 0)));
     return `<div style="background:rgba(0,0,0,0.35); border-radius:3px; height:5px; margin:3px 0 6px;"><div style="width:${pct}%; height:5px; border-radius:3px; background:${color};"></div></div>`;
@@ -132,7 +138,7 @@ export function heirPathsHtml(game, child) {
         const okR = gold >= odds.cost;
         rows.push({ icon: '🗡️', name: 'Hire blades to bring them home', desc: `${Math.round(odds.chance * 100)}% (your stealth and spymaster) · failure: ${H.rescueFailRep} standing, a wound, or worse`, off: !okR, why: 'Not enough gold', attrs: `onclick="window._heirPathsUI.rescue('${id}')"`, side: price(odds.cost, okR), tone: 'bad' });
         html += rowList(rows);
-        html += lede('A ransom can also be sent by letter (Letters → Post, to that court).');
+        html += lede(`A ransom can also be sent by letter (Letters → Post, to ${held.rival ? 'the head of that House' : 'that court'}).`);
     }
 
     // Under way
@@ -160,7 +166,7 @@ export function heirPathsHtml(game, child) {
             return {
                 icon: def.icon, name: `${esc(def.name)}${pick === kid ? ' ▾' : ''}`, desc: esc(def.blurb || ''),
                 attrs: `onclick="window._heirPathsUI.pick('${id}','${esc(kid)}')"`,
-                side: `${price(c.fee, gold >= c.fee)}<small> +${Utils.formatGold(c.yearly)}/yr · ${c.years} yr</small>`, tone: pick === kid ? 'gold' : '',
+                side: `${price(c.fee, gold >= c.fee)}<small> +${Utils.formatGold(c.yearly)}g/yr · ${c.years} yr</small>`, tone: pick === kid ? 'gold' : '',
             };
         }));
         if (pick && kinds[pick]) {
@@ -172,7 +178,7 @@ export function heirPathsHtml(game, child) {
                 html += rowList(venues.map(v => {
                     const why = HeirPaths._venueBarred(player, world, v);
                     return {
-                        icon: kinds[pick].icon, name: esc(v.name), desc: `${esc(v.where || '')} · ${esc(v.note || '')}${v.quality !== 1 ? ` · ×${v.quality.toFixed(2)}` : ''}`,
+                        icon: kinds[pick].icon, name: esc(_cap(v.name)), desc: `${esc(v.where || '')} · ${esc(v.note || '')}${v.quality !== 1 ? ` · ×${v.quality.toFixed(2)}` : ''}`,
                         off: !!why || gold < c.fee, why: esc(why || 'Not enough gold'),
                         attrs: `onclick="window._heirPathsUI.begin('${id}','${esc(pick)}','${esc(v.key)}')"`,
                         side: price(c.fee, gold >= c.fee),
@@ -201,7 +207,7 @@ export function heirPathsHtml(game, child) {
             const atCourt = Court.isMember(player, c.npcId);
             const row = {
                 icon: c.rival ? '⚔️' : (npc.gender === 'female' ? '👩' : '👨'), name: esc(c.name),
-                desc: `${esc(c.label)} · ${esc(npc.occupation || '')}${c.kingdomName ? ` of ${esc(c.kingdomName)}` : ''} · age ${npc.age || '?'} · regard ${regard}${atCourt ? ' · at your court' : ''}`,
+                desc: `${esc(c.label)} · ${esc(npc.occupation || '')}${c.kingdomName ? ` of ${esc(c.kingdomName)}` : ''} · age ${npc.age || '?'}${atCourt ? ' · at your court' : ''}`,
                 side: `❤️ ${regard}`,
             };
             if (canWed) Object.assign(row, { attrs: `onclick="window._heirPathsUI.wed('${id}','${esc(c.npcId)}')"`, side: '💍 Wed', tone: 'gold' });
@@ -261,5 +267,11 @@ export function wardLeverageHtml(game) {
 export function rulerEducationHtml(player) {
     const r = player && player.upbringingRecord;
     if (!r || !r.text) return '';
-    return `<div style="${MUTED} margin-top:4px;" title="${esc(r.text)}">${esc(r.gradeIcon || '🎓')} Your own upbringing: ${esc(r.text)}</div>`;
+    // (r.text is the coming-of-age summary told to the old head, "You spent no days together":
+    // the ruler's own line keeps to the grade, the training and the years away; the whole in the tooltip)
+    const head = `${r.grade ? _cap(r.grade) : ''}${r.focus ? ` (${r.focus})` : ''}`.trim();
+    // ("Adelaide went as a page..." → "You went as a page...": the record is the ruler's own)
+    const shaped = r.shaped && r.name && String(r.shaped).startsWith(`${r.name} `) ? `You${String(r.shaped).slice(String(r.name).length)}` : (r.shaped || '');
+    const line = [head ? `${head}.` : '', shaped].filter(Boolean).join(' ');
+    return `<div style="${MUTED} margin-top:4px;" title="${esc(r.text)}">${esc(r.gradeIcon || '🎓')} Your own upbringing: ${esc(line || r.text)}</div>`;
 }

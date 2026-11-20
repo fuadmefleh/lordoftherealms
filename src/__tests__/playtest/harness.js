@@ -203,22 +203,48 @@ export function newGame(seed, gen = {}) {
     return { seed, world, player, log: [] };
 }
 
-/** ui/game/combat.js _checkHostileEncounters, minus audio/notifications. */
+/**
+ * The encounter dialog's choice, as a player reads the odds it shows
+ * (RoadEncounters.options): the toll when the purse can spare it (a sure way
+ * past), else whatever is likeliest to come off. → a choice id
+ */
+export function encounterChoice(player, attacker, world) {
+    let best = null;
+    for (const o of RoadEncounters.options(player, attacker, world)) {
+        if (!o.can) continue;
+        let p = o.chance == null ? 1 : o.chance;
+        // (a toll that would leave the purse too thin for bread is no way past)
+        if (o.id === 'toll' && !((o.amount || 0) <= (player.gold || 0) * 0.5)) continue;
+        if (o.id === 'payoff' || o.id === 'surrender') continue;
+        if (!best || p > best.p) best = { id: o.id, p };
+    }
+    return best ? best.id : RoadEncounters.autoChoice();
+}
+
+/**
+ * ui/game/combat.js _checkHostileEncounters, minus audio/notifications: the
+ * grace after an encounter and the newcomer's calm as it has them, and the
+ * player's choice made as encounterChoice reads the odds (the old automatic
+ * resolution only with game.legacyEncounters).
+ */
 function checkHostileEncounters(game) {
     const { world, player } = game;
     if (player.indenturedServitude) return null;
     if (PlayerReligion.isInSanctuary(player, player.q, player.r, world.width)) return null;
     if (WorldUnit.isSafeHaven(world, player.q, player.r)) return null;
+    if (!game.legacyEncounters && RoadEncounters.inGrace(player, world.day)) return null;
     const hostiles = world.units.filter(u =>
         !u.destroyed &&
         !u.sparesPlayer &&
         !RoadEncounters.isSparing(u, world.day) && // paid off, talked down, driven off (as combat.js)
+        (game.legacyEncounters || !WorldUnit.passesNewcomer(player, u, world.day)) && // a new life's first weeks are calmer
         WorldUnit.isHostile(u) &&
         Hex.wrappingDistance(u.q, u.r, player.q, player.r, world.width) <= 1);
     if (hostiles.length === 0) return null;
     const attacker = hostiles.reduce((a, b) => b.strength > a.strength ? b : a, hostiles[0]);
     const before = player.gold;
-    const res = resolveHostileEncounter(player, attacker, world);
+    const res = game.legacyEncounters ? resolveHostileEncounter(player, attacker, world)
+        : RoadEncounters.resolve(player, attacker, world, encounterChoice(player, attacker, world), { auto: true });
     // (who fell on the bot, and what it cost: the verbose soak report's `hostiles`)
     const by = game.hostileBy || (game.hostileBy = {});
     const row = by[attacker.type] || (by[attacker.type] = { n: 0, gold: 0 });

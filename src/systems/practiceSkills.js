@@ -54,6 +54,9 @@ function _fmt(tpl, vals) {
     return String(tpl || '').replace(/\{(\w)\}/g, (m, k) => (vals[k] != null ? show(vals[k]) : m));
 }
 
+// (growNpc's rates per holder, while who they are stands)
+const _growMemo = new WeakMap();
+
 export const PracticeSkills = {
     config() {
         const g = DataLoader._gamedata;
@@ -95,21 +98,36 @@ export const PracticeSkills = {
     /** Total XP at which `level` is reached (level 1 at 0) */
     xpForLevel(level) {
         const L = Math.max(1, Math.min(PracticeSkills.maxLevel(), Math.floor(level)));
-        let t = 0;
-        for (let i = 1; i < L; i++) t += PracticeSkills.stepXp(i);
-        return t;
+        if (!(L >= 1)) return 0;
+        return PracticeSkills._xpTable()[L];
     },
 
     /** The level `xp` total XP makes */
     levelForXp(xp) {
         const max = PracticeSkills.maxLevel();
-        let L = 1, t = 0;
-        while (L < max) {
-            t += PracticeSkills.stepXp(L);
-            if (_num(xp) < t) break;
-            L++;
-        }
+        const T = PracticeSkills._xpTable();
+        const x = _num(xp);
+        let L = 1;
+        while (L < max && !(x < T[L + 1])) L++;
         return L;
+    },
+
+    /**
+     * Total XP at each level, [_, 0, step(1), step(1)+step(2), …] up to maxLevel — the
+     * sums xpForLevel and levelForXp used to add up on every call (read for every
+     * townsperson's skills each season and in every fight), kept with the config.
+     */
+    _xpTable() {
+        const C = PracticeSkills.config();
+        const max = PracticeSkills.maxLevel();
+        if (C._xpT && C._xpT.length === max + 1 && C._xpTBase === C.xp.base && C._xpTGrowth === C.xp.growth) return C._xpT;
+        const T = [0, 0];
+        let t = 0;
+        for (let i = 1; i < max; i++) { t += PracticeSkills.stepXp(i); T.push(t); }
+        C._xpT = T;
+        C._xpTBase = C.xp.base;
+        C._xpTGrowth = C.xp.growth;
+        return T;
     },
 
     levelName(level) {
@@ -551,6 +569,21 @@ export const PracticeSkills = {
         if (typeof who.age === 'number') holder.skillAge = who.age;
         const N = PracticeSkills.config().npc;
         if (_num(who.age, 30) < _num(N.adultAge, 14)) return;
+        // (what their work teaches is who they are — trade, craft, body work by the hash of
+        // their key — the same season after season: worked out once while that stands)
+        const role = who.role, coastal = !!who.coastal, mountain = !!who.mountain, key = who.key;
+        const hit = _growMemo.get(holder);
+        if (hit && hit.N === N && hit.role === role && hit.coastal === coastal && hit.mountain === mountain && hit.key === key) {
+            for (const [id, rate] of hit.list) PracticeSkills.gain(holder, id, rate * days);
+            return;
+        }
+        const list = PracticeSkills._growRates(who, N).filter(([, rate]) => rate > 0);
+        _growMemo.set(holder, { N, role, coastal, mountain, key, list });
+        for (const [id, rate] of list) PracticeSkills.gain(holder, id, rate * days);
+    },
+
+    /** growNpc's daily XP for who they are → [[skillId, rate]] in its order */
+    _growRates(who, N) {
         const trade = PracticeSkills.tradeOf(who);
         const rates = { ...((N.dailyXp || {})[trade] || {}) };
         if (who.coastal && trade === who.role) {
@@ -561,7 +594,7 @@ export const PracticeSkills = {
         for (const t of [...PracticeSkills.bodyTradesOf(who), ...(who.mountain ? ['mountain'] : [])]) {
             for (const [id, v] of Object.entries((N.dailyXp || {})[t] || {})) rates[id] = Math.max(_num(rates[id]), _num(v));
         }
-        for (const [id, rate] of Object.entries(rates)) if (rate > 0) PracticeSkills.gain(holder, id, rate * days);
+        return Object.entries(rates);
     },
 
     /** An NPC's skills worth a mention: [{ id, name, icon, level, levelName }] best first */

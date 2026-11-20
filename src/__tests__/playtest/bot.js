@@ -78,9 +78,10 @@ import { RivalAgents } from '../../systems/rivalAgents.js';
 import { Languages } from '../../systems/languages.js';
 import { Commissions } from '../../systems/commissions.js';
 import { Stewards } from '../../systems/stewards.js';
-import { travelTo } from './harness.js';
+import { travelTo as harnessTravelTo } from './harness.js';
 import { HouseQuests } from '../../systems/houseQuests.js';
 import { Devotion } from '../../systems/devotion.js';
+import { Plague } from '../../systems/plague.js';
 
 const FOOD = ['grain', 'bread'];
 // Bought only when there's no grain or bread for sale
@@ -190,6 +191,103 @@ const frugal = (game) => companyTarget(game) > 0;
 const founding = (game) => { const t = companyTarget(game); return t > 0 && savings(game.player) >= t; };
 const JOB_AP = 4;
 
+/**
+ * Travel as the harness does, but a hex being crossed over days is crossed
+ * first when it is on the way (nearer the goal than where the bot stands):
+ * setting out from mid-hex by another road throws the way made into it away
+ * (Player.moveTo), and a life that changed its mind each morning sat on one
+ * highland hex for a week and starved with 1,500 gold in its purse.
+ */
+function travelTo(game, q, r) {
+    const { player, world } = game;
+    const c = !player.boardedShip && typeof player.crossingStatus === 'function' ? player.crossingStatus(world) : null;
+    const w = world.width;
+    // Out of a town that sells bread, not on fewer meals than the road may take
+    // (two days a hex at the worst, hills and highlands) — whichever errand sets out
+    const here = !player.boardedShip && player.gold >= 30 ? world.getTile(player.q, player.r) : null;
+    if (here && here.settlement && (q !== player.q || r !== player.r)) {
+        const need = Math.min(25, 2 * Hex.wrappingDistance(player.q, player.r, q, r, w) + ROAD_SPARE);
+        for (let i = 0; i < 3 && player.getFoodCount() < need; i++) {
+            const before = player.getFoodCount();
+            booked(game, 'buyFood', () => buyFood(game, here, game._roadStats || (game._roadStats = {}), { larder: need - 1 }));
+            if (player.getFoodCount() <= before) break;
+        }
+    }
+    if (c && (c.q !== q || c.r !== r) && Hex.wrappingDistance(c.q, c.r, q, r, w) < Hex.wrappingDistance(player.q, player.r, q, r, w)) {
+        harnessTravelTo(game, c.q, c.r);
+        if (player.q !== c.q || player.r !== c.r) return false;
+    }
+    // (the gate guards' word, as the game loop tells and clears it: ui/innerMapPlague.js turnedAway)
+    player.turnedAway = null;
+    const arrived = harnessTravelTo(game, q, r);
+    const tw = player.turnedAway;
+    if (tw) {
+        player.turnedAway = null;
+        const s = world.getTile(tw.q, tw.r) && world.getTile(tw.q, tw.r).settlement;
+        if (s) {
+            // Turned back at a plague town's shut gates: starving, slip the guards their price
+            // (systems/plague.js bribeGate — a crime) rather than die at the walls; else that
+            // town is no use for a while (nearest() passes it over). Lives starved a hex from
+            // a shut gate, trying it each morning.
+            const stats = game._roadStats || (game._roadStats = {});
+            if (player.getFoodCount() <= 3 && player.gold >= Plague.bribeCost(s) + 30 && Plague.bribeGate(player, world, s).success) {
+                count(stats, 'gateBribed');
+                return harnessTravelTo(game, q, r);
+            }
+            shutSeen(player)[`${tw.q},${tw.r}`] = world.day;
+            count(stats, 'gateShut');
+        }
+    }
+    return arrived;
+}
+
+// Towns whose gates the bot was turned back from, by player: { 'q,r': day }
+const _shut = new WeakMap();
+function shutSeen(player) {
+    let m = _shut.get(player);
+    if (!m) _shut.set(player, (m = {}));
+    return m;
+}
+
+// The days of food the packs are kept at in a town that sells it, and the
+// spare days a journey is set out on beyond its own length
+const LARDER = 12;
+const ROAD_SPARE = 2;
+/** Days on the road to (q, r) as the player would walk it now (Player.travelEstimate), or null with no way. */
+function tripDays(game, q, r) {
+    const { player, world } = game;
+    if (player.q === q && player.r === r) return 0;
+    const est = typeof player.travelEstimate === 'function' ? player.travelEstimate(world, q, r) : null;
+    return est ? Math.ceil(est.travelDays || est.days || 0) : null;
+}
+/** Enough in the packs for the road to (q, r) and a little over (`legs` 2: there and back)? */
+function fedFor(game, q, r, legs = 1) {
+    const d = tripDays(game, q, r);
+    return d == null || game.player.getFoodCount() >= d * legs + ROAD_SPARE;
+}
+/**
+ * Hold to the town last set out for while it is still among `list` (the day's
+ * candidates) and not yet reached, else take `pick` (default the first) and
+ * remember it. Choosing the nearest afresh each morning from a new hex between
+ * two towns walked lives back and forth across one hex until they starved.
+ */
+function stick(game, list, pick = list[0]) {
+    const { player, world } = game;
+    const h = game.headingTo;
+    const keep = h && world.day - h.day <= 20 && (player.q !== h.q || player.r !== h.r) ? list.find(t => t.q === h.q && t.r === h.r) : null;
+    if (keep) return keep;
+    if (pick) game.headingTo = { q: pick.q, r: pick.r, day: world.day };
+    return pick || null;
+}
+/** In a town with food on its stalls: top the packs up to LARDER before the road. */
+function stockUp(game, stats) {
+    const { player, world } = game;
+    if (player.boardedShip || player.getFoodCount() >= LARDER || player.gold < 30) return;
+    const here = world.getTile(player.q, player.r);
+    if (!here || !here.settlement) return;
+    booked(game, 'buyFood', () => buyFood(game, here, stats, { larder: LARDER - 1 }));
+}
+
 function count(stats, key, n = 1) {
     stats[key] = (stats[key] || 0) + n;
 }
@@ -229,18 +327,21 @@ function settlementTiles(world) {
 
 // (from the player, only places it can get to from here: on foot, those on its own landmass —
 // a town over the sea is no use to a walker, and asking for the way there only fails)
+// (and not one whose plague-shut gates turned it back these ten days, while there are others)
 function nearest(world, from, list, n = 6) {
     const reach = from && typeof from._overlandReachable === 'function' ? (t) => from._overlandReachable(t.q, t.r, world) : null;
-    return list
+    const shut = from && _shut.get(from);
+    const out = list
         .map(t => ({ ...t, d: Hex.wrappingDistance(from.q, from.r, t.q, t.r, world.width) }))
         .filter(t => t.d > 0 && (!reach || reach(t)))
-        .sort((a, b) => a.d - b.d)
-        .slice(0, n);
+        .sort((a, b) => a.d - b.d);
+    const open = shut ? out.filter(t => !(world.day - (shut[`${t.q},${t.r}`] ?? -1e9) < 10)) : out;
+    return (open.length ? open : out).slice(0, n);
 }
 
 // ── Settlement business ─────────────────────────────────────
 
-function buyFood(game, tile, stats) {
+function buyFood(game, tile, stats, opts = {}) {
     const { player, world } = game;
     if (player.getFoodCount() >= 25) return;
     const goods = Trading.getAvailableGoods(tile.settlement, tile, world);
@@ -255,8 +356,9 @@ function buyFood(game, tile, stats) {
     }
     // No grain or bread to be had (a dearth, a guild's bread monopoly): anything
     // edible, fish first, then the cheapest of what the stalls have (a new life
-    // once starved in a town of cheese and meat with gold in the purse)
-    if (player.getFoodCount() > 2) return;
+    // once starved in a town of cheese and meat with gold in the purse; topping the packs
+    // up for the road, opts.larder, the same: beans and onions over setting out on two days' bread)
+    if (player.getFoodCount() > (opts.larder || 2)) return;
     const edible = player.constructor.FOOD_TYPES || [];
     const others = goods.filter(g => edible.includes(g.id) && !FOOD.includes(g.id) && !FOOD_FALLBACK.includes(g.id))
         .sort((a, b) => (a.price || 0) - (b.price || 0)).map(g => g.id);
@@ -1842,7 +1944,7 @@ function chooseDestination(game) {
         // day 45): sites are few, a handful a map, and others explore them,
         // so a chance look can miss them all game
         const site = delveSite(game);
-        if (site) return site;
+        if (site && fedFor(game, site.q, site.r, 2)) return site;
     }
     // Carrying bullion: on to the nearest realm's capital, where its mint buys it (systems/mints.js)
     if (BULLION.some(id => (player.inventory[id] || 0) > 0)) {
@@ -2226,6 +2328,13 @@ function delveTrek(game, stats) {
     if (trek && trek.fails >= 3) { (game.trekBeaten || (game.trekBeaten = {}))[`${trek.q},${trek.r}`] = world.day; game.trek = trek = null; game.lastTrek = -1e9; count(stats, 'delveTrekBeaten'); }
     // (broke with the packs running low: bread first — the trek is dropped for a town and work)
     if (trek && player.gold < 30 && player.getFoodCount() <= 10) { game.trek = trek = null; count(stats, 'delveTrekBroke'); }
+    // (short of food for the way there and back: dropped for a town while the packs still carry it
+    // there — seed-505 lives starved in the hills on a trek begun with five days' bread)
+    if (trek && !player.boardedShip && !Delves.active(player) && (player.q !== trek.q || player.r !== trek.r) && !fedFor(game, trek.q, trek.r, 2)) {
+        game.trek = trek = null;
+        if (game.dest && game.dest.delve) game.dest = null;
+        count(stats, 'delveTrekShort');
+    }
     if (trek && player.health >= 50 && player.getFoodCount() >= 3 && !player.boardedShip && !Delves.active(player)) {
         const from = `${player.q},${player.r}`;
         // (the day's other errands walked it back to where it began yesterday three days running:
@@ -2250,6 +2359,8 @@ function delveTrek(game, stats) {
     game.lastTrek = world.day;
     if (game.delved && Utils.random() >= 0.3) return;
     const site = delveSite(game);
+    // (not on a trek the packs can't carry there and back)
+    if (site && !fedFor(game, site.q, site.r, 2)) { count(stats, 'delveTrekUnfed'); return; }
     if (site) { game.dest = site; game.trek = { ...site, day: world.day }; count(stats, 'delveTreks'); }
 }
 
@@ -2304,6 +2415,8 @@ export function botDay(game, stats) {
         if (Quests.acceptQuest(player, player.quests.available[0].id, world).success) count(stats, 'questsAccepted');
     }
     begIfBroke(game, stats);
+    // (a town that sells bread: the packs topped up before any road)
+    stockUp(game, stats);
     delveTrek(game, stats);
     if (world.day > 150 && !player.boardedShip && !Ships.getVoyage(player)) houseBusiness(game, stats);
     if (Ships.getVoyage(player)) {
@@ -2394,8 +2507,12 @@ export function botDay(game, stats) {
                 // next town that had some, rather than sit in a bare town until it is gone)
                 foodless[`${player.q},${player.r}`] = world.day;
                 const next = before >= 1 ? nearest(world, player, settlementTiles(world).filter(stocked), 1)[0] : null;
-                if (next && next.d <= Math.max(2, before * 2)) {
+                // (in days on the road, not hexes: a hill hex is a day and a half, a highland two)
+                const days = next ? tripDays(game, next.q, next.r) : null;
+                if (next && days != null && days <= before + 2) {
                     game.dest = { q: next.q, r: next.r };
+                    // (held to on the road: the morning's food run goes on there — stick)
+                    game.headingTo = { q: next.q, r: next.r, day: world.day };
                     travelTo(game, next.q, next.r);
                     const now = world.getTile(player.q, player.r);
                     if (now && now.settlement) booked(game, 'buyFood', () => buyFood(game, now, stats));
@@ -2409,7 +2526,18 @@ export function botDay(game, stats) {
                 cantBuy = true;
             }
         } else {
-            const town = nearest(world, player, settlementTiles(world).filter(stocked), 1)[0];
+            let town = stick(game, nearest(world, player, settlementTiles(world).filter(stocked), 6));
+            // (the packs at their last meals and the town days further off than they and a few
+            // hungry days last: forage or hunt the day here instead — a starving walker's day
+            // shrinks to a fraction of a hex, and lives died on the way, a little nearer each day)
+            const left = player.getFoodCount();
+            if (town && left <= 2 && !Delves.active(player) && (tripDays(game, town.q, town.r) ?? 99) > left + 3) {
+                // (a nearer town found bare a while ago may have bread again, and has alms and work)
+                // (not one found bare these last days: back to an empty market starved lives)
+                const any = nearest(world, player, settlementTiles(world).filter(t => !(world.day - (foodless[`${t.q},${t.r}`] ?? -1e9) < 5)), 1)[0];
+                town = any && (tripDays(game, any.q, any.r) ?? 99) <= left + 3 ? any : null;
+                if (!town) count(stats, 'foragedShort');
+            }
             if (!town) cantBuy = true;
             if (town) {
                 game.dest = { q: town.q, r: town.r };
@@ -2437,7 +2565,7 @@ export function botDay(game, stats) {
     const atNow = world.getTile(player.q, player.r);
     if (!cantBuy && player.gold < 30 && player.getFoodCount() >= 1 && player.getFoodCount() <= 6 && !player.boardedShip
         && !(atNow && atNow.settlement) && !Delves.active(player)) {
-        const town = nearest(world, player, settlementTiles(world).filter(stocked), 1)[0];
+        const town = stick(game, nearest(world, player, settlementTiles(world).filter(stocked), 6));
         if (town && town.d <= Math.max(2, player.getFoodCount() * 2)) {
             const from = `${player.q},${player.r}`;
             game.dest = { q: town.q, r: town.r };
@@ -2498,6 +2626,9 @@ export function botDay(game, stats) {
             }
             return;
         }
+        // (still on the way out of town to the foraging ground: the day is the walk there —
+        // an errand after it set out elsewhere, gave up the crossing, and the life starved in town)
+        if (player.crossing) { count(stats, 'toForage'); return; }
     }
     if (player.needs && player.needs.hunger < 60 && player.getFoodCount() > 0) player.eatMeal();
     booked(game, 'courtship', () => courtship(game, stats));
@@ -2538,7 +2669,7 @@ export function botDay(game, stats) {
             count(stats, 'convalescing');
             return;
         }
-        const town = nearest(world, player, settlementTiles(world), 3)[0];
+        const town = stick(game, nearest(world, player, settlementTiles(world), 3));
         if (town) {
             game.dest = { q: town.q, r: town.r };
             travelTo(game, town.q, town.r);
@@ -2563,7 +2694,7 @@ export function botDay(game, stats) {
         }
     } else if (Ailments.list(player).some(dangerous)) {
         // Out on the road with a festering wound or a dangerous fever: make for a physician
-        const town = nearest(world, player, settlementTiles(world), 3)[0];
+        const town = stick(game, nearest(world, player, settlementTiles(world), 3));
         if (town) {
             game.dest = { q: town.q, r: town.r };
             travelTo(game, town.q, town.r);
@@ -2603,7 +2734,7 @@ export function botDay(game, stats) {
         const broke = (t) => world.day - ((game.brokeTowns || {})[`${t.q},${t.r}`] ?? -1e9) < 30;
         if (here && here.settlement && broke(here)) {
             const next = nearest(world, player, settlementTiles(world), 6).find(t => !broke(t));
-            if (next) {
+            if (next && fedFor(game, next.q, next.r)) {
                 const from = `${player.q},${player.r}`;
                 game.dest = { q: next.q, r: next.r };
                 travelTo(game, next.q, next.r);
@@ -2616,10 +2747,24 @@ export function botDay(game, stats) {
             settlementBusiness(game, stats);
             return;
         }
-        const town = nearest(world, player, settlementTiles(world), 6).find(t => !broke(t)) || nearest(world, player, settlementTiles(world), 1)[0];
+        // (a town it found no way into lately is passed over: a life sat a hex from one
+        // for ten days, mauled by the beasts there, trying the same way each morning)
+        const noWay = (t) => world.day - ((game.noWayTo || {})[`${t.q},${t.r}`] ?? -1e9) < 30;
+        const near = nearest(world, player, settlementTiles(world), 6).filter(t => !noWay(t));
+        let town = near.find(t => !broke(t)) || near[0];
+        // (the packs too light for the road to it: the nearest town, broke or not, bread first)
+        if (town && near[0] && town !== near[0] && !fedFor(game, town.q, town.r)) town = near[0];
+        town = stick(game, near, town);
         if (town) {
+            const from = `${player.q},${player.r}`;
+            const fresh = (player.movementRemaining || 0) > 0;
             game.dest = { q: town.q, r: town.r };
             travelTo(game, town.q, town.r);
+            if (fresh && `${player.q},${player.r}` === from && !player.crossing) {
+                (game.noWayTo || (game.noWayTo = {}))[`${town.q},${town.r}`] = world.day;
+                game.dest = null;
+                count(stats, 'poorNoWay');
+            }
             return;
         }
     }
@@ -2658,6 +2803,19 @@ export function botDay(game, stats) {
     }
     if (!game.dest || (game.dest.q === player.q && game.dest.r === player.r) || (Utils.random() < 0.05 && !game.dest.delve && !game.dest.company)) {
         game.dest = chooseDestination(game);
+    }
+    // Not out of a town on a road longer than the packs: a day's work here instead, and
+    // the bread it buys (lives left towns with two days' bread for a hex of three and starved)
+    const leaving = game.dest && tile && tile.settlement && !player.boardedShip && (game.dest.q !== player.q || game.dest.r !== player.r);
+    if (leaving && !fedFor(game, game.dest.q, game.dest.r)) {
+        if ((player.actionPoints || 0) >= JOB_AP) booked(game, 'labour', () => dayLabour(game, tile, stats));
+        booked(game, 'buyFood', () => buyFood(game, tile, stats));
+        if (!fedFor(game, game.dest.q, game.dest.r)) {
+            game.dest = null;
+            count(stats, 'stayedUnfed');
+            settlementBusiness(game, stats);
+            return;
+        }
     }
     if (game.dest) {
         const from = `${player.q},${player.r}`;

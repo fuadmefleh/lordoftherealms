@@ -221,7 +221,7 @@ export const Begging = {
         const name = cheapest ? String(cheapest.name || cheapest.id).toLowerCase().replace(/_/g, ' ') : null;
         const left = food <= 0 ? 'Your packs are empty' : `Your packs hold ${food} meal${food === 1 ? '' : 's'}`;
         const why = cheapest
-            ? `and the cheapest ${name} in ${s.name || 'this town'} costs ${Utils.formatGold(cheapest.price)}g; you have ${Utils.formatGold(gold)}g.`
+            ? `and the cheapest food on the stalls of ${s.name || 'this town'} (${name}) costs ${Utils.formatGold(cheapest.price)}g; you have ${Utils.formatGold(gold)}g.`
             : `and ${s.name || 'this town'} has no food on its stalls.`;
         const ways = cheapest
             ? "Beg for alms, take a day's work, sell something, or set out for a cheaper town before the hunger comes."

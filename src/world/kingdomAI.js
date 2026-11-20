@@ -410,7 +410,9 @@ export const KingdomAI = {
         const minPop = Number.isFinite(G.donorMinPop) ? G.donorMinPop : 300;
         const W = world.width || 0;
         const dist = (a, b) => (W && typeof Hex.wrappingDistance === 'function' ? Hex.wrappingDistance(a.q, a.r, b.q, b.r, W) : Hex.distance(a.q, a.r, b.q, b.r));
-        const all = typeof world.getAllSettlements === 'function' ? world.getAllSettlements() : [];
+        // (read only: the live towns, not a copy of every one — World.getSettlementViews)
+        const all = typeof world.getSettlementViews === 'function' ? world.getSettlementViews()
+            : typeof world.getAllSettlements === 'function' ? world.getAllSettlements() : [];
         if (all.length) {
             if (all.some(s => s && Number.isFinite(s.q) && dist(s, target) <= spacing)) return null;
             const own = all.filter(s => s && s.kingdom === kingdom.id);

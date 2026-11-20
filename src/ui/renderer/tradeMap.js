@@ -47,6 +47,23 @@ Object.assign(Renderer.prototype, {
         return this.tradeMapGood;
     },
 
+    /** Where the legend may start: below the top bar (CSS-zoomed, so read from the DOM, once a second). */
+    _tradeLegendTop() {
+        const now = Date.now();
+        if (this._tlTop != null && now - (this._tlAt || 0) < 1000) return this._tlTop;
+        let top = 60;
+        const bar = typeof document !== 'undefined' ? document.getElementById('topBar') : null;
+        if (bar && this.canvas && this.canvas.getBoundingClientRect) {
+            const r = bar.getBoundingClientRect();
+            const c = this.canvas.getBoundingClientRect();
+            const scale = c.height > 0 ? this.canvas.height / c.height : 1;
+            if (r.height > 0) top = Math.max(top, Math.ceil((r.bottom - c.top) * scale) + 8);
+        }
+        this._tlTop = top;
+        this._tlAt = now;
+        return top;
+    },
+
     _screenOf(q, r) {
         const pos = this.getHexPixelPos(q, r);
         return this.camera.worldToScreen(pos.x, pos.y);
@@ -146,8 +163,11 @@ Object.assign(Renderer.prototype, {
             this.drawMapText(ctx, `${band.mark}${Utils.formatGold(k.ask)}g`, s.x, cy, { size: 12 * z, weight: 700, family: 'body', color: band.text });
             // Where the news came from (its icon), how old, and the trust in it
             const info = PriceKnowledge.sourceInfo(k.src);
+            // (where the player stands the line goes above the ring, clear of their token)
+            const here = player && k.q === player.q && k.r === player.r;
+            const infoY = here ? cy - Math.max(16, size * 0.62) : cy + Math.max(16, size * 0.62);
             this.drawMapText(ctx, `${info.icon} ${PriceKnowledge.ageText(k.age)} · ${k.trust}%`,
-                s.x, cy + Math.max(16, size * 0.62), {
+                s.x, infoY, {
                     size: 10 * z, weight: 500, family: 'body',
                     color: k.age > C.staleDays ? 'rgba(255, 170, 150, 1)' : band.text,
                 });
@@ -163,14 +183,15 @@ Object.assign(Renderer.prototype, {
         ctx.font = "500 13px 'Inter', sans-serif";
         const w = Math.max(...lines.map(l => ctx.measureText(l).width)) + 20;
         ctx.fillStyle = 'rgba(12, 18, 32, 0.88)';
-        ctx.fillRect(10, 60, w, 22 + lines.length * 16 + 16);
-        const legendY = 60 + 14 + lines.length * 16;
+        const top = this._tradeLegendTop();
+        ctx.fillRect(10, top, w, 22 + lines.length * 16 + 16);
+        const legendY = top + 14 + lines.length * 16;
         ctx.textAlign = 'left';
         ctx.fillStyle = '#f5c542';
-        ctx.fillText(lines[0], 20, 74);
+        ctx.fillText(lines[0], 20, top + 14);
         ctx.fillStyle = 'rgba(220, 220, 220, 0.9)';
-        ctx.fillText(lines[1], 20, 90);
-        ctx.fillText(lines[2], 20, 106);
+        ctx.fillText(lines[1], 20, top + 30);
+        ctx.fillText(lines[2], 20, top + 46);
         let x = 20;
         for (const l of SettlementMarket.config().labels) {
             ctx.fillStyle = l.color;

@@ -210,7 +210,17 @@ export const Townsfolk = {
 
     isHere(p) { return !!p && p.died == null && !p.away; },
 
-    residents(folk) { return folk ? folk.people.filter(Townsfolk.isHere) : []; },
+    residents(folk) {
+        if (!folk) return [];
+        // (asked of every roster many times a day: a plain loop, not filter's callback)
+        const ppl = folk.people;
+        const out = [];
+        for (let i = 0; i < ppl.length; i++) {
+            const p = ppl[i];
+            if (p && p.died == null && !p.away) out.push(p);
+        }
+        return out;
+    },
 
     name(p) { return p ? `${p.first} ${p.last}` : 'someone'; },
 
@@ -709,11 +719,13 @@ export const Townsfolk = {
         // A season of work: each grown resident's practised skills (diving, swimming, …) grow by their trade
         const coastal = PracticeSkills.coastalAt(world, folk.q, folk.r);
         const mountain = PracticeSkills.mountainAt(world, folk.q, folk.r);
+        // (who courts whom, once for the roster: Romance.courtIndex)
+        const courts = Romance.courtIndex(folk);
         for (const p of Townsfolk.residents(folk)) {
             const who = Townsfolk.skillWho(folk, p, day, coastal, mountain);
             PracticeSkills.seedNpc(p, who);
             // (the lovestruck work a little harder, the heartbroken less: systems/romance.js)
-            PracticeSkills.growNpc(p, who, Math.round(C.tickDays * Romance.workFactor(folk, p, day)));
+            PracticeSkills.growNpc(p, who, Math.round(C.tickDays * Romance.workFactor(folk, p, day, courts)));
         }
 
         // A season of work: apprentices, masters, the empty trades filled, wages and board (systems/townJobs.js)

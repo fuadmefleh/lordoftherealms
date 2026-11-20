@@ -589,7 +589,7 @@ The numbers are in `data/travel.json`.
 
 Click any visible hex to set a destination. The game uses A* pathfinding to calculate the optimal route.
 
-**Planning a trip.** Hover over an explored hex and the label by the cursor says how far it is and when you would arrive: "1 hex, today", "3 hexes, arrive tomorrow", "6 hexes, 5 days", with the long crossings on the way ("· mountains 3d"). A faint dotted line shows the route, with a crescent moon wherever you would camp for the night — part-way into a hex that takes days (two moons on a mountain's slopes). The estimate uses what you have left today and a full day's strength and 10 AP each morning after.
+**Planning a trip.** Hover over an explored hex and the label by the cursor says how far it is and when you would arrive: "1 hex, today", "3 hexes, arrive tomorrow", "6 hexes, 5 days", with the long crossings on the way ("· mountains 3d"), and a warning when your packs would run out first ("· ⚠ food for 2d": fewer meals than nights on the road). A faint dotted line shows the route, with a crescent moon wherever you would camp for the night — part-way into a hex that takes days (two moons on a mountain's slopes). The estimate uses what you have left today and a full day's strength and 10 AP each morning after.
 
 **Where you can get to.** The hexes you can reach today glow gold. Those you would reach in the next two days are washed more faintly and numbered with the day you would arrive (2 = tomorrow, 3 = the day after): an adjacent mountain reads 3.
 

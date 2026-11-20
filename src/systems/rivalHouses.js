@@ -199,6 +199,10 @@ const DEFAULTS = {
     wealth: [[20000, 'very rich'], [6000, 'rich'], [2000, 'comfortable'], [500, 'getting by'], [0, 'strained']],
 };
 
+// (RivalHouses.config / armsConfig, kept while the data stands)
+const _cfgMemo = { src: undefined, out: null };
+const _armsMemo = { src: undefined, out: null };
+
 export const RivalHouses = {
     RIVAL_TYPE,
 
@@ -206,7 +210,10 @@ export const RivalHouses = {
 
     config() {
         const g = DataLoader._gamedata;
-        const d = (g && g.rivalHouses) || {};
+        const raw = g && g.rivalHouses;
+        // (asked many times a turn for every House and cadet branch: merged once per data)
+        if (_cfgMemo.out && _cfgMemo.src === raw) return _cfgMemo.out;
+        const d = raw || {};
         const out = { ...DEFAULTS, ...d };
         for (const k of ['estate', 'upkeep', 'weights', 'think', 'trade', 'court', 'home', 'shadow', 'invest', 'standing', 'guard', 'waylay', 'ties', 'deals', 'life', 'traits', 'attack']) {
             out[k] = { ...DEFAULTS[k], ...(d[k] || {}) };
@@ -219,6 +226,8 @@ export const RivalHouses = {
         const m = d.meet || {};
         out.meet = { ...DEFAULTS.meet, ...m };
         for (const k of ['parley', 'gift', 'insult', 'match']) out.meet[k] = { ...DEFAULTS.meet[k], ...(m[k] || {}) };
+        _cfgMemo.src = raw;
+        _cfgMemo.out = out;
         return out;
     },
 
@@ -402,8 +411,11 @@ export const RivalHouses = {
 
     armsConfig() {
         const gd = DataLoader._gamedata;
-        const d = (gd && gd.arms && gd.arms.rivals) || {};
-        return {
+        const raw = gd && gd.arms && gd.arms.rivals;
+        if (_armsMemo.out && _armsMemo.src === raw) return _armsMemo.out;
+        const d = raw || {};
+        _armsMemo.src = raw;
+        return _armsMemo.out = {
             baseMen: 4, spendShare: 0.3, wear: 0.01, lostShare: 0.3,
             slots: {
                 main: ['weapons', 'spear'], off: ['shield'], head: ['helmet'], body: ['gambeson', 'leather_armor', 'chainmail'],
@@ -1115,6 +1127,11 @@ export const RivalHouses = {
 
     /** The best bargain near the retinue: { from, to, good, qty, buy, sell } or null. */
     _findTrade(world, unit, rival) {
+        // (it only reads the markets: their craftsmen's floors asked once a town, SettlementMarket.readOnly)
+        return SettlementMarket.readOnly(() => this._findTradeIn(world, unit, rival));
+    },
+
+    _findTradeIn(world, unit, rival) {
         const C = this.config().trade;
         const towns = this._towns(world).filter(s => s.market && s.market.stock);
         if (towns.length < 2) return null;
@@ -1126,19 +1143,26 @@ export const RivalHouses = {
         let best = null;
         // (a town's price for a lot of a good is the same whichever source it came from: asked once)
         const sales = new Map();
+        // (and a town's season, weather, coin and fashion on a good the same for every lot: SettlementMarket.valueFactors)
+        const facs = new Map();
+        const fac = (s, t, gi, id) => {
+            let row = facs.get(s);
+            if (!row) facs.set(s, row = []);
+            return row[gi] || (row[gi] = SettlementMarket.valueFactors(world, s, t, id));
+        };
         for (const from of sources) {
             const tf = world.getTile(from.q, from.r);
             // What each good costs here doesn't depend on where it goes: priced once a source
             // (null where it can't be had), the destinations below only price the sale
-            const offers = goods.map(id => {
+            const offers = goods.map((id, gi) => {
                 const have = SettlementMarket.available(from, id);
                 if (have < C.minQty) return null;
                 const base = _goodDef(id).basePrice;
-                const buy = SettlementMarket.value(world, from, tf, id, base);
+                const buy = SettlementMarket.value(world, from, tf, id, base, null, fac(from, tf, gi, id));
                 if (!(buy > 0)) return null;
                 const qty = Math.min(C.maxQty, Math.floor(have / 2), Math.floor(budget / buy));
                 if (qty < C.minQty) return null;
-                return { base, qty, buyAt: SettlementMarket.value(world, from, tf, id, base, have - qty / 2) };
+                return { base, qty, buyAt: SettlementMarket.value(world, from, tf, id, base, have - qty / 2, fac(from, tf, gi, id)) };
             });
             for (const to of near(from, C.destinations)) {
                 if (to === from) continue;
@@ -1152,7 +1176,7 @@ export const RivalHouses = {
                     if (!byTo) sales.set(to, byTo = new Map());
                     const sk = gi * 100000 + qty;
                     let sellAt = byTo.get(sk);
-                    if (sellAt === undefined) byTo.set(sk, sellAt = SettlementMarket.value(world, to, tt, id, base, SettlementMarket.stock(to, id) + qty / 2));
+                    if (sellAt === undefined) byTo.set(sk, sellAt = SettlementMarket.value(world, to, tt, id, base, SettlementMarket.stock(to, id) + qty / 2, fac(to, tt, gi, id)));
                     if (!(buyAt > 0) || sellAt / buyAt - 1 < C.minMargin) continue;
                     const gain = (sellAt - buyAt) * qty / (1 + _dist(world, from, to) / 10);
                     if (!best || gain > best.gain) best = { from, to, good: id, qty, buy: buyAt, sell: sellAt, gain };

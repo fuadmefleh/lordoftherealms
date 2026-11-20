@@ -1023,14 +1023,19 @@ export const Trials = {
             Trials._log(player, world, `You withdrew your suit against ${suit.rivalName}.`, 'suit');
             return { success: true, text: `You withdraw your suit against ${suit.rivalName}. The fee is not returned.` };
         }
-        const D = Trials.suitDef(suit.kind);
-        const claim = suit.amount || _num(D.damages) || _num(D.costs, 40) * 3;
-        const cost = Utils.cents(claim * _num(Trials._c('suits').settleShare, 0.5));
+        const cost = Trials.settleCost(suit);
         if (_num(player.gold) < cost) return { success: false, reason: `Settling takes ${Utils.formatGold(cost)} gold.` };
         PlayerCoin.pay(world, player, cost, rival ? { purse: rival, key: 'gold' } : (Trials._court(world, suit) || null), 'lawsuits');
         suit.status = 'settled';
         Trials._log(player, world, `You settled ${suit.rivalName}'s suit for ${Utils.formatGold(cost)} gold.`, 'suit');
         return { success: true, text: `You settle out of court: ${Utils.formatGold(cost)} gold to ${suit.rivalName}, and the suit is dropped.` };
+    },
+
+    /** What settling a suit brought against you costs: part of the claim. */
+    settleCost(suit) {
+        const D = Trials.suitDef(suit.kind);
+        const claim = suit.amount || _num(D.damages) || _num(D.costs, 40) * 3;
+        return Utils.cents(claim * _num(Trials._c('suits').settleShare, 0.5));
     },
 
     /** The court's lean toward the plaintiff (before the noise). */

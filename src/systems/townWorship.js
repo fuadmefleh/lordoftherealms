@@ -167,10 +167,21 @@ export const TownWorship = {
         const priest = people.find(p => p.job && p.job.id === 'priest');
         let went = 0, offered = 0, theirs = 0, ofTheirs = 0;
         const coin = !settlement.inKind && Economy.townPurse(settlement) != null;
+        // (attends(…, true, 2, opts) and the player's faithful's own prayers, with the
+        // person's faith and devotion worked out once: the same rolls, the same outcome)
+        const feast = TownWorship.feast(day, opts.faithId);
+        const holyShare = _num(C.holyShare) * (feast ? _num(feast.share, 1) : 1);
         for (const p of people) {
             const f = TownWorship.faithOf(folk, p, player);
             if (f === 'player') ofTheirs++;
-            const go = TownWorship.attends(folk, p, day, true, 2, opts) || (f === 'player' && _roll(folk.q, folk.r, p.id, day, 'own') < TownWorship.devotion(folk, p, day, piety) * 0.8);
+            let go = false;
+            if (f === 'town') {
+                if (Townsfolk.isHere(p) && !(p.jailedUntil != null && day < p.jailedUntil)) {
+                    go = _roll(folk.q, folk.r, p.id, day, 2, 'svc') < TownWorship.devotion(folk, p, day, piety) * holyShare;
+                }
+            } else if (f === 'player') {
+                go = _roll(folk.q, folk.r, p.id, day, 'own') < TownWorship.devotion(folk, p, day, piety) * 0.8;
+            }
             if (!go) {
                 p.devout = _r2(Math.max(0, _num(p.devout) - _num(C.devotion.decay) / 4));
                 continue;

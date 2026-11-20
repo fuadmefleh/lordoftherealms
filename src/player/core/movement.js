@@ -323,8 +323,9 @@ export const PlayerMovementMethods = {
      * How a trip to (q, r) would go, as stepAlongPath would walk it: the route,
      * its steps, and the days it takes — today's strength and action points
      * first, then a full day's each morning (camping where the day runs out).
-     * → { path, steps, days, stops: [{q, r}] } (days 0 = arrive today), or
-     * null when there is no way there (or the player can't travel).
+     * → { path, steps, days, stops: [{q, r}], food, foodShort } (days 0 = arrive
+     * today; food: the meals in the packs, foodShort: fewer than the nights on
+     * the road), or null when there is no way there (or the player can't travel).
      */
     travelEstimate(world, targetQ, targetR) {
         if (!world || this.jailState || this.indenturedServitude) return null;
@@ -378,7 +379,11 @@ export const PlayerMovementMethods = {
                 crossings.push({ q: path[i].q, r: path[i].r, days: Math.round(hexDays * 100) / 100, name: Infrastructure.crossingName(tile.terrain) });
             }
         }
-        return { path, steps: path.length - 1, days, stops, crossings, travelDays };
+        // What the packs hold against the nights on the road: a meal a night (the hover route
+        // warns when they run out first — lives set out from a town on two days' bread for a
+        // hill road of four and starved on it). Aboard ship the hold feeds the voyage.
+        const food = !this.boardedShip && typeof this.getFoodCount === 'function' ? this.getFoodCount() : null;
+        return { path, steps: path.length - 1, days, stops, crossings, travelDays, food, foodShort: food != null && food < days };
     },
 
     /**

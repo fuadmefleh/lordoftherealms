@@ -267,7 +267,11 @@ export const CoinCensus = {
             const s = (tile && tile.settlement) || v;
             if (!s) continue;
             if (s.economy) fn(s.economy, 'gold', 'towns');
-            if (s.folk && Array.isArray(s.folk.people)) for (const p of s.folk.people) if (p && typeof p.purse === 'number') fn(p, 'purse', 'folk');
+            // (opts.people: the caller walks a roster's purses itself, in the same order — tidyCents, daily)
+            if (s.folk && Array.isArray(s.folk.people)) {
+                if (opts.people) opts.people(s.folk.people);
+                else for (const p of s.folk.people) if (p && typeof p.purse === 'number') fn(p, 'purse', 'folk');
+            }
             // (the town school's fund — systems/literacy.js, townSchool.js: coin the town holds for it)
             if (s.folk && _obj(s.folk.school) && typeof s.folk.school.fund === 'number') fn(s.folk.school, 'fund', 'towns');
             const uw = _obj(s.underworld);
@@ -379,7 +383,19 @@ export const CoinCensus = {
             h[key] = c;
             return c - v;
         };
-        CoinCensus.each(world, player, (h, key) => { residue += tidy(h, key); }, { once: true });
+        // (a roster's purses walked here, not through fn: thousands a day, most already whole cents)
+        const people = (ppl) => {
+            for (let i = 0; i < ppl.length; i++) {
+                const p = ppl[i];
+                if (!p) continue;
+                const v = p.purse;
+                if (typeof v !== 'number') continue;
+                const x = v * 100;
+                if (x === Math.round(x)) continue;
+                residue += tidy(p, 'purse');
+            }
+        };
+        CoinCensus.each(world, player, (h, key) => { residue += tidy(h, key); }, { once: true, people });
         // (a trade caravan's inventory.gold mirrors its purse, counted once above)
         for (const u of Array.isArray(world.units) ? world.units : []) {
             if (u && typeof u.purse === 'number' && u.inventory && typeof u.inventory.gold === 'number') tidy(u.inventory, 'gold');

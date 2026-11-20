@@ -142,11 +142,28 @@ function _year(world) {
     return Math.floor(_num(world && world.year, _num(world && world.baseYear, 853)));
 }
 
+/** "a cathedral", "an abbey", "city walls" (a plural name takes no article). */
+function _a(name) {
+    const n = String(name || '');
+    if (/[^s]s$/i.test(n)) return n;
+    // ("a university", "a eulogy": a vowel that sounds as "you" takes "a")
+    return `${/^[aeiou]/i.test(n) && !/^(uni|use|usu|eu|one)/i.test(n) ? 'an' : 'a'} ${n}`;
+}
+
+/** A work's title mid-sentence: "The Cathedral of X" → "the Cathedral of X"; a bare name gains "the". */
+function _the(name) {
+    const n = String(name || '');
+    return /^the\s/i.test(n) ? `the ${n.slice(4)}` : `the ${n}`;
+}
+
 function _fill(t, o) {
     return String(t || '').replace(/\{(\w+)\}/g, (m, k) => (o[k] != null ? o[k] : m));
 }
 
 export const GreatWorks = {
+    /** A work's name with its article, for a line: "a cathedral", "city walls". */
+    withArticle(name) { return _a(name); },
+
 
     // ── Data ──────────────────────────────────────────────
 
@@ -319,7 +336,7 @@ export const GreatWorks = {
         if (!T) return { ok: false, reason: 'Unknown work.' };
         if (!s) return { ok: false, reason: 'There is no town here.' };
         const rank = TYPE_RANK[s.type] != null ? TYPE_RANK[s.type] : 1;
-        if (rank < _num(TYPE_RANK[T.minType], 1)) return { ok: false, reason: `Only a ${T.minType} or greater can raise a ${T.name.toLowerCase()}.` };
+        if (rank < _num(TYPE_RANK[T.minType], 1)) return { ok: false, reason: `Only a ${T.minType} or greater can raise ${_a(T.name.toLowerCase())}.` };
         const here = GreatWorks.works(world, w => w.q === s.q && w.r === s.r);
         if (here.some(w => LIVE.has(w.status))) return { ok: false, reason: 'A great work is already rising here.' };
         if (here.some(w => w.type === typeId && w.status === 'done')) return { ok: false, reason: `${s.name} has its ${T.name.toLowerCase()}.` };
@@ -472,7 +489,7 @@ export const GreatWorks = {
             if (f.until != null && day >= f.until) {
                 f.status = 'done';
                 f.ended = day;
-                if (f.kind === 'player' && player) out.notices.push({ icon: '🤝', title: 'Pledge Fulfilled', text: `Your House's pledge to the ${w.name} is paid in full. Its name will stand among the builders.`, type: 'success' });
+                if (f.kind === 'player' && player) out.notices.push({ icon: '🤝', title: 'Pledge Fulfilled', text: `Your House's pledge to ${_the(w.name)} is paid in full. Its name will stand among the builders.`, type: 'success' });
             } else if (f.kind === 'player' && player && player.house && player.house.id !== f.house) {
                 // (a new life of another House: the old line's pledge lapses — not this House's shame)
                 f.status = 'lapsed';
@@ -693,7 +710,7 @@ export const GreatWorks = {
         if (w.status !== 'stalled') {
             w.status = 'stalled';
             w.stallFrom = day;
-            if (GreatWorks._playerFunds(w, player) || GreatWorks._near(world, player, w)) out.notices.push({ icon: '🚧', title: 'Great Work Stalled', text: `Work on the ${w.name} has stopped: no one is paying for it. Pledge to it from Works of the Ages.`, type: 'warning' });
+            if (GreatWorks._playerFunds(w, player) || GreatWorks._near(world, player, w)) out.notices.push({ icon: '🚧', title: 'Great Work Stalled', text: `Work on ${_the(w.name)} has stopped: no one is paying for it. Pledge to it from Works of the Ages.`, type: 'warning' });
         }
         if (w.stallFrom == null) w.stallFrom = day;
         const years = (day - w.stallFrom) / Y;
@@ -727,13 +744,13 @@ export const GreatWorks = {
         f.why = why;
         if (!Array.isArray(w.broken)) w.broken = [];
         w.broken.push({ key: f.key, name: f.name, kind: f.kind, house: f.house || null, day });
-        GreatWorks._log(world, day, `${f.name} broke its pledge to the ${w.name}.`);
+        GreatWorks._log(world, day, `${f.name} broke its pledge to ${_the(w.name)}.`);
         if (f.kind === 'player' && player && player.house) {
             const lost = GreatWorks._shame(player, _num(H.brokenShame, 25), `broke a pledge: ${w.name}`, day);
-            House._chronicle(player.house, world, `${player.house.name} broke its pledge to the ${w.name} at ${w.town}.`, ['greatWork', 'betrayal']);
+            House._chronicle(player.house, world, `${player.house.name} broke its pledge to ${_the(w.name)} at ${w.town}.`, ['greatWork', 'betrayal']);
             player.house.stats = player.house.stats || {};
             player.house.stats.pledgesBroken = _num(player.house.stats.pledgesBroken) + 1;
-            out.notices.push({ icon: '💔', title: 'A Pledge Broken', text: `${why === 'withdrew' ? 'You withdraw' : 'Your House could not pay'} its pledge to the ${w.name}. ${w.town} will remember it${lost > 0 ? ` (−${Math.round(lost)} Prestige)` : ''}.`, type: 'error' });
+            out.notices.push({ icon: '💔', title: 'A Pledge Broken', text: `${why === 'withdrew' ? 'You withdraw' : 'Your House could not pay'} its pledge to ${_the(w.name)}. ${w.town} will remember it${lost > 0 ? ` (−${Math.round(lost)} Prestige)` : ''}.`, type: 'error' });
         }
     },
 
@@ -773,10 +790,10 @@ export const GreatWorks = {
     _stageDone(world, player, w, T, i, day, out) {
         const H = GreatWorks.config().honour || {};
         const stage = T.stages[i];
-        GreatWorks._log(world, day, `${stage.name}: done at the ${w.name}.`);
+        GreatWorks._log(world, day, `${stage.name}: done at ${_the(w.name)}.`);
         if (GreatWorks._playerFunds(w, player)) {
             House.award(player.house, _num(H.stagePrestige, 4), `${w.name}: ${stage.name}`, day);
-            House._chronicle(player.house, world, `At ${w.town}, the ${stage.name.toLowerCase()} of the ${w.name} were finished, paid for in part by ${player.house.name}.`, ['greatWork', 'patronage']);
+            House._chronicle(player.house, world, `At ${w.town}, the ${stage.name.toLowerCase()} of ${_the(w.name)} were finished, paid for in part by ${player.house.name}.`, ['greatWork', 'patronage']);
             out.notices.push({ icon: T.icon || '🏗️', title: `${w.name}`, text: `${stage.name}: finished. ${T.stages[i + 1] ? `Now: ${T.stages[i + 1].name.toLowerCase()}.` : ''}`, type: 'success' });
         }
     },
@@ -815,7 +832,7 @@ export const GreatWorks = {
             House._chronicle(player.house, world, `The ${w.name} at ${w.town} was completed after ${Math.round((day - w.founded) / _DPY())} years; the name of ${player.house.name} is carved over its door among its builders (${Math.round(mine.share * 100)}% of the cost).`, ['greatWork', 'patronage']);
             out.notices.push({ icon: (T && T.icon) || '🏛️', title: 'A Work of the Ages Completed!', text: `The ${w.name} stands finished. ${player.house.name}'s name is carved over its door (${Math.round(mine.share * 100)}% of its cost; +${pr} Prestige).`, type: 'success' });
         } else if (GreatWorks._near(world, player, w)) {
-            out.notices.push({ icon: (T && T.icon) || '🏛️', title: 'A Work of the Ages Completed', text: `After ${Math.round((day - w.founded) / _DPY())} years the ${w.name} stands finished${names.length ? `, raised by ${names.join(', ')}` : ''}.`, type: 'info' });
+            out.notices.push({ icon: (T && T.icon) || '🏛️', title: 'A Work of the Ages Completed', text: `After ${Math.round((day - w.founded) / _DPY())} years ${_the(w.name)} stands finished${names.length ? `, raised by ${names.join(', ')}` : ''}.`, type: 'info' });
         }
     },
 
@@ -1053,7 +1070,7 @@ export const GreatWorks = {
         const years = Math.round(lo + (hi - lo) * _roll(world, 'term', w.id, pick.a.key, day));
         GreatWorks._addFunder(world, w, pick.a, pick.offer, years, day);
         ctx.committed && ctx.committed.set(pick.a.key, _num(ctx.committed.get(pick.a.key)) + pick.offer);
-        GreatWorks._log(world, day, `${pick.a.name} pledged ${Utils.formatGold(pick.offer)}g a week to the ${w.name} for ${years} years.`);
+        GreatWorks._log(world, day, `${pick.a.name} pledged ${Utils.formatGold(pick.offer)}g a week to ${_the(w.name)} for ${years} years.`);
         if (w.status === 'stalled' && GreatWorks._near(world, player, w)) out.notices.push({ icon: '🤝', title: 'A Work Taken Up', text: `${pick.a.name} pledges to the stalled ${w.name}: work may begin again.`, type: 'info' });
     },
 
@@ -1110,7 +1127,7 @@ export const GreatWorks = {
                     const res = GreatWorks.found(world, null, v.s, id, { actor: a, weekly: offer, years: _num(P.founderYears, 0) });
                     if (res.success) {
                         ctx.committed && ctx.committed.set(a.key, _num(ctx.committed.get(a.key)) + offer);
-                        if (GreatWorks._near(world, player, res.work)) out.notices.push({ icon: T.icon || '🏗️', title: 'A Great Work Begun', text: `${a.name} lays the first stone of the ${res.work.name}. It will take a generation or more.`, type: 'info' });
+                        if (GreatWorks._near(world, player, res.work)) out.notices.push({ icon: T.icon || '🏗️', title: 'A Great Work Begun', text: `${a.name} lays the first stone of ${_the(res.work.name)}. It will take a generation or more.`, type: 'info' });
                         return true;
                     }
                 }
@@ -1171,10 +1188,10 @@ export const GreatWorks = {
         };
         GreatWorks._addFunder(world, w, a, weekly, _num(opts.years), day, a.house || null);
         st.works.push(w);
-        GreatWorks._log(world, day, `${a.name} founded the ${w.name}.`);
-        GreatWorks._timeline(world, day, w, `${a.name} founded the ${w.name}.`, 4);
-        if (a.kind === 'player') House._chronicle(player.house, world, `${player.house.name} laid the first stone of the ${w.name} at ${s.name}, a work for generations.`, ['greatWork', 'patronage']);
-        return { success: true, message: `The first stone of the ${w.name} is laid. At full funding it will take ${T.years} years.`, work: w };
+        GreatWorks._log(world, day, `${a.name} founded ${_the(w.name)}.`);
+        GreatWorks._timeline(world, day, w, `${a.name} founded ${_the(w.name)}.`, 4);
+        if (a.kind === 'player') House._chronicle(player.house, world, `${player.house.name} laid the first stone of ${_the(w.name)} at ${s.name}, a work for generations.`, ['greatWork', 'patronage']);
+        return { success: true, message: `The first stone of ${_the(w.name)} is laid. At full funding it will take ${T.years} years.`, work: w };
     },
 
     /** The player's House pledges (or raises its pledge) to a work. → { success, message } */
@@ -1193,9 +1210,9 @@ export const GreatWorks = {
         if (!old && mine >= _num(P.maxPlayer, 4)) return { success: false, message: `Your House is pledged to ${mine} works already.` };
         if (a.have < amt) return { success: false, message: `You cannot meet even the first week's ${Utils.formatGold(amt)}g.` };
         GreatWorks._addFunder(world, w, a, amt, _num(years), _day(world), player.house.id);
-        GreatWorks._log(world, _day(world), `${a.name} pledged ${Utils.formatGold(amt)}g a week to the ${w.name}.`);
-        if (!old) House._chronicle(player.house, world, `${player.house.name} pledged to the building of the ${w.name} at ${w.town}.`, ['greatWork', 'patronage']);
-        return { success: true, message: `${player.house.name} pledges ${Utils.formatGold(amt)}g a week to the ${w.name}${years > 0 ? ` for ${years} years` : ' until it is finished'}.` };
+        GreatWorks._log(world, _day(world), `${a.name} pledged ${Utils.formatGold(amt)}g a week to ${_the(w.name)}.`);
+        if (!old) House._chronicle(player.house, world, `${player.house.name} pledged to the building of ${_the(w.name)} at ${w.town}.`, ['greatWork', 'patronage']);
+        return { success: true, message: `${player.house.name} pledges ${Utils.formatGold(amt)}g a week to ${_the(w.name)}${years > 0 ? ` for ${years} years` : ' until it is finished'}.` };
     },
 
     /** Withdraw the player's pledge: honourable once its term is out, a broken pledge before. */
@@ -1206,7 +1223,7 @@ export const GreatWorks = {
         if (!f) return { success: false, message: 'Your House has no pledge standing there.' };
         const out = { notices: [] };
         GreatWorks._break(world, player, w, f, _day(world), out, 'withdrew');
-        return { success: true, message: out.notices.length ? out.notices[0].text : `You withdraw from the ${w.name}.` };
+        return { success: true, message: out.notices.length ? out.notices[0].text : `You withdraw from ${_the(w.name)}.` };
     },
 
     /** Take up a stalled work or a ruin. opts: { actor } for an NPC, else the player's House; weekly, years. */
@@ -1234,7 +1251,7 @@ export const GreatWorks = {
         GreatWorks._log(world, day, `${a.name} took up the ${wasRuin ? 'ruined ' : ''}${w.name}.`);
         if (wasRuin) GreatWorks._timeline(world, day, w, `${a.name} took up the ruined ${w.name}.`, 3);
         if (a.kind === 'player') House._chronicle(player.house, world, `${player.house.name} took up the ${wasRuin ? 'ruined ' : 'stalled '}${w.name} at ${w.town}.`, ['greatWork', 'patronage']);
-        return { success: true, message: `${a.name} takes up the ${w.name}, ${Math.round(w.prog * 100)}% built.` };
+        return { success: true, message: `${a.name} takes up ${_the(w.name)}, ${Math.round(w.prog * 100)}% built.` };
     },
 
     // ── Reading ───────────────────────────────────────────

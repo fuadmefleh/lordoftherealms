@@ -877,7 +877,9 @@ export function _updateHoverRoute() {
         : (est.days === 0 ? `${est.steps} hex${est.steps === 1 ? '' : 'es'}, today`
             : `${est.steps} hex${est.steps === 1 ? '' : 'es'}, ${est.days === 1 ? 'arrive tomorrow' : `${est.days + 1} days`}`)
             // The long crossings on the way (a mountain: 3 days)
-            + ((est.crossings || []).length ? ` · ${est.crossings.slice(0, 2).map(c => `${c.name.replace(/^the /, '')} ${Math.ceil(c.days - 1e-6)}d`).join(', ')}${est.crossings.length > 2 ? '…' : ''}` : '');
+            + ((est.crossings || []).length ? ` · ${est.crossings.slice(0, 2).map(c => `${c.name.replace(/^the /, '')} ${Math.ceil(c.days - 1e-6)}d`).join(', ')}${est.crossings.length > 2 ? '…' : ''}` : '')
+            // The packs run out on the way (Player.travelEstimate foodShort)
+            + (est.foodShort ? ` · ⚠ food for ${est.food}d` : '');
 }
 
 /**

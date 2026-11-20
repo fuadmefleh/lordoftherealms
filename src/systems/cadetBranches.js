@@ -122,6 +122,9 @@ const DEFAULTS = {
     marriage: { rivalChance: 0.35, feud: -5 },
 };
 
+// (CadetBranches.config, kept while the data stands)
+const _cfgMemo = { src: undefined, out: null };
+
 export const CadetBranches = {
     CADET_TYPE,
     LEVY_TYPE,
@@ -129,7 +132,10 @@ export const CadetBranches = {
     // ──────────── DATA ────────────
 
     config() {
-        const d = _obj(DataLoader._gamedata && DataLoader._gamedata.cadetBranches) || {};
+        const raw = DataLoader._gamedata && DataLoader._gamedata.cadetBranches;
+        // (asked for every branch every day: merged once per data)
+        if (_cfgMemo.out && _cfgMemo.src === raw) return _cfgMemo.out;
+        const d = _obj(raw) || {};
         const out = { ...DEFAULTS, ...d };
         for (const k of ['found', 'leave', 'sub', 'income', 'upkeep', 'loyalty', 'gift', 'tribute', 'aid', 'estranged', 'marriage']) {
             out[k] = { ...DEFAULTS[k], ...(_obj(d[k]) || {}) };
@@ -137,6 +143,8 @@ export const CadetBranches = {
         const a = _obj(d.ask) || {};
         out.ask = {};
         for (const k of Object.keys(DEFAULTS.ask)) out.ask[k] = { ...DEFAULTS.ask[k], ...(_obj(a[k]) || {}) };
+        _cfgMemo.src = raw;
+        _cfgMemo.out = out;
         return out;
     },
 

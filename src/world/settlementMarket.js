@@ -73,6 +73,9 @@ const _shapes = new WeakMap();
 // fixtures) prices on its stock alone, as before.
 const _bound = new WeakMap();
 const _goodTables = new WeakMap();
+// (SettlementMarket.readOnly: the craftsmen's floors asked while no stock moves, per market)
+let _readOnly = null;
+const _readOnlyShapes = new WeakMap();
 
 /** The built config: data/markets.json merged over empty defaults. */
 function buildConfig(src) {
@@ -282,20 +285,28 @@ export const SettlementMarket = {
         const type = settlement.type;
         // ...and the coin in its purse: a town with money to spend buys more, a
         // broke one does without (data/markets.json wealth; in steps, so the table holds)
-        const wm = SettlementMarket.wealthMult(settlement);
+        // (the same purse and people as the table last asked give the same multiplier: not worked out again)
+        let sh = _shapes.get(settlement);
+        const eco = settlement.economy;
+        const wg = eco ? eco.gold : undefined;
+        const wp = settlement.population;
+        const wm = sh && sh.cfg === C && sh.wg === wg && sh.wp === wp && sh.weco === eco ? sh.wm : SettlementMarket.wealthMult(settlement);
         // ...and the water by it: a river, lake or sea town eats more fish (settlement.waterside, systems/riverLife.js)
         const ws = settlement.waterside ? 1 : 0;
-        let sh = _shapes.get(settlement);
         // (the same labour record at the same mix key gives the same class demand:
         // skip asking for it — this is read hundreds of times a day)
         const lab = settlement.labour;
         const lcfg = TownLabour.config();
         if (sh && sh.pop === pop && sh.type === type && sh.cfg === C && sh.lab === lab && sh.lcfg === lcfg && sh.wm === wm && sh.ws === ws
-            && (!lab || (sh.mk === lab.mk && sh.lsh === lab.sh && sh.fk === lab.fk))) return sh;
+            && (!lab || (sh.mk === lab.mk && sh.lsh === lab.sh && sh.fk === lab.fk))) {
+            sh.wg = wg; sh.wp = wp; sh.weco = eco;
+            return sh;
+        }
         // ...and the class mix: nobles buy wine, peasants grain (world/townLabour.js)
         const dm = TownLabour.demandMults(settlement, C);
         if (sh && sh.pop === pop && sh.type === type && sh.cfg === C && sh.dm === dm && sh.wm === wm && sh.ws === ws) {
             sh.lab = lab; sh.lcfg = lcfg; sh.mk = lab ? lab.mk : undefined; sh.lsh = lab ? lab.sh : undefined; sh.fk = lab ? lab.fk : undefined;
+            sh.wg = wg; sh.wp = wp; sh.weco = eco;
             return sh;
         }
         const n = C.goodIds.length;
@@ -304,6 +315,7 @@ export const SettlementMarket = {
             pop, type, cfg: C, dm, wm, ws,
             usedA: new Uint8Array(n), needA: new Float64Array(n), targetA: new Float64Array(n),
             lab, lcfg, mk: lab ? lab.mk : undefined, lsh: lab ? lab.sh : undefined, fk: lab ? lab.fk : undefined,
+            wg, wp, weco: eco,
         };
         const rank = Number.isFinite(C.typeRank[type]) ? C.typeRank[type] : 0;
         const td = _num(C.typeDemand[type], 1) || 1;
@@ -773,13 +785,20 @@ export const SettlementMarket = {
     },
 
     /** scarcity() by config index; `depth` counts the craftsmen's floor's steps down its inputs. */
-    _scarcityAt(settlement, m, i, level, depth) {
+    _scarcityAt(settlement, m, i, level, depth, sh = null) {
         const C = SettlementMarket.config();
         const stock = level == null ? Math.max(0, _num(m.stock[C.goodIds[i]])) : Math.max(0, level);
-        const sh = SettlementMarket._shape(settlement);
+        // (one shape for the whole walk down the craftsmen's floor: nothing changes mid-walk —
+        // nor inside SettlementMarket.readOnly, where a town's shape is asked once)
+        if (!sh && _readOnly) {
+            const key = _readOnlyShapes.get(settlement);
+            sh = key && key.win === _readOnly ? key.sh : null;
+            if (!sh) _readOnlyShapes.set(settlement, { win: _readOnly, sh: sh = SettlementMarket._shape(settlement) });
+        }
+        if (!sh) sh = SettlementMarket._shape(settlement);
         const b = _bound.get(m);
         const s = SettlementMarket.curve(stock / sh.targetA[i], sh.usedA[i] === 1);
-        return b && b.floor ? Math.max(s, SettlementMarket._craftFloor(settlement, m, i, depth)) : s;
+        return b && b.floor ? Math.max(s, SettlementMarket._craftFloor(settlement, m, i, depth, sh)) : s;
     },
 
     // -- The world's sense of price (world/priceAnchors.js) --
@@ -842,20 +861,67 @@ export const SettlementMarket = {
      * craftFloor.work for the work, against the good's base. 0 for a good
      * nothing makes, or when the floor is off.
      */
-    _craftFloor(settlement, m, i, depth) {
+    _craftFloor(settlement, m, i, depth, sh = null, memo = null) {
         const C = SettlementMarket.config();
         const F = C.craftFloor;
-        if (!F.enabled || depth >= Math.max(1, _num(F.depth, 3))) return 0;
+        const maxDepth = Math.max(1, _num(F.depth, 3));
+        if (!F.enabled || depth >= maxDepth) return 0;
         const routes = SettlementMarket._floorRoutes()[i];
         if (!routes || !routes.length) return 0;
         const bases = SettlementMarket._bases();
         if (!(bases[i] > 0)) return 0;
+        if (!sh) sh = SettlementMarket._shape(settlement);
+        // (inside SettlementMarket.readOnly: no stock moves, so a market's floor on a good is asked once)
+        const win = depth === 0 && !memo ? _readOnly : null;
+        let row = null;
+        if (win) {
+            row = win.get(m);
+            if (!row || row.sh !== sh) win.set(m, row = { sh, v: new Float64Array(C.goodIds.length).fill(-1) });
+            if (row.v[i] >= 0) return row.v[i];
+        }
+        const v = SettlementMarket._craftFloorWalk(settlement, m, i, depth, sh, memo, C, routes, bases, maxDepth);
+        if (row) row.v[i] = v;
+        return v;
+    },
+
+    /**
+     * Run fn while nothing changes any market's stock (a House weighing its
+     * bargains, systems/rivalHouses.js _findTrade): the craftsmen's floors
+     * it asks of a town are worked out once, not once a lot. → fn's result
+     */
+    readOnly(fn) {
+        const outer = _readOnly;
+        if (!outer) _readOnly = new Map();
+        try {
+            return fn();
+        } finally {
+            if (!outer) _readOnly = null;
+        }
+    },
+
+    _craftFloorWalk(settlement, m, i, depth, sh, memo, C, routes, bases, maxDepth) {
+        const F = C.craftFloor;
+        const b = _bound.get(m);
+        const floorOn = !!(b && b.floor);
+        // (an input's scarcity at a depth is the same wherever it is asked in this walk: asked once)
+        const n = C.goodIds.length;
+        if (!memo) memo = new Float64Array(n * (maxDepth + 1)).fill(-1);
+        const sc = (x, d) => {
+            const key = d * n + x;
+            let v = memo[key];
+            if (v >= 0) return v;
+            const stock = Math.max(0, _num(m.stock[C.goodIds[x]]));
+            v = SettlementMarket.curve(stock / sh.targetA[x], sh.usedA[x] === 1);
+            if (floorOn) v = Math.max(v, SettlementMarket._craftFloor(settlement, m, x, d, sh, memo));
+            memo[key] = v;
+            return v;
+        };
         let best = Infinity;
         for (const r of routes) {
             let cost = 0;
             for (let j = 0; j < r.inIdx.length && cost < best * r.out * bases[i]; j++) {
                 const x = r.inIdx[j];
-                cost += r.inPer[j] * bases[x] * SettlementMarket._scarcityAt(settlement, m, x, null, depth + 1);
+                cost += r.inPer[j] * bases[x] * sc(x, depth + 1);
             }
             const f = cost / (r.out * bases[i]);
             if (f < best) best = f;
@@ -906,15 +972,27 @@ export const SettlementMarket = {
      * market's own markup: base × scarcity × season × cold × events. Sales,
      * caravans, ports and tavern talk read this.
      */
-    value(world, settlement, tile, goodId, basePrice, level = null) {
+    value(world, settlement, tile, goodId, basePrice, level = null, factors = null) {
         const base = _num(basePrice);
         if (!(base > 0)) return 0;
-        return base * SettlementMarket.scarcity(settlement, goodId, level)
-            * Seasons.priceMultiplier(goodId, Seasons.today(world))
-            * SettlementMarket.coldFactor(world, tile, goodId)
-            * SettlementMarket.eventFactor(world, tile, goodId)
-            * Coinage.priceMultiplier(world, settlement) // a debased coin buys less (world/coinage.js)
-            * SettlementMarket.fashionFactor(settlement, goodId); // the fashion at court, on goods no market keeps
+        const f = factors || SettlementMarket.valueFactors(world, settlement, tile, goodId);
+        // (multiplied in this order, factor by factor: the same sum whether the factors were kept or not)
+        return base * SettlementMarket.scarcity(settlement, goodId, level) * f[0] * f[1] * f[2] * f[3] * f[4];
+    },
+
+    /**
+     * value()'s factors past the scarcity, which hold for a town and a good
+     * through a day's reckoning (a caller pricing many lots there can keep
+     * them): [season, cold, events, coinage, fashion].
+     */
+    valueFactors(world, settlement, tile, goodId) {
+        return [
+            Seasons.priceMultiplier(goodId, Seasons.today(world)),
+            SettlementMarket.coldFactor(world, tile, goodId),
+            SettlementMarket.eventFactor(world, tile, goodId),
+            Coinage.priceMultiplier(world, settlement), // a debased coin buys less (world/coinage.js)
+            SettlementMarket.fashionFactor(settlement, goodId), // the fashion at court, on goods no market keeps
+        ];
     },
 
     /**

@@ -104,7 +104,22 @@ Object.assign(InnerMap, {
         if (!sq && !sr) return null;
         const q0 = this.playerInnerQ, r0 = this.playerInnerR;
         const tries = [[sq, sr], [sq, 0], [0, sr]].filter(([a, b]) => a || b);
-        const step = tries.find(([a, b]) => this._driftMayEnter(q0, r0, q0 + a, r0 + b));
+        const may = ([a, b]) => this._driftMayEnter(q0, r0, q0 + a, r0 + b);
+        let step = null;
+        // Floating down a river: the stream keeps you in its channel — round a bend it takes
+        // you on along the deep water rather than setting you down in the bank's shallows
+        if (cur.kind === 'river' && !this._playerWalking) {
+            const deep = ([a, b]) => may([a, b]) && this.isSwimmable(q0 + a, r0 + b);
+            step = tries.find(deep) || null;
+            if (!step) {
+                let best = 0.3;
+                for (const [a, b] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+                    const dot = (a * cur.x + b * cur.y) / Math.hypot(a, b);
+                    if (dot > best && deep([a, b])) { best = dot; step = [a, b]; }
+                }
+            }
+        }
+        if (!step) step = tries.find(may);
         if (!step) {
             // Against the bank (or the edge): held there
             const hold = T * 0.45;

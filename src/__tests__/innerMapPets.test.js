@@ -36,7 +36,8 @@ afterEach(() => {
     vi.restoreAllMocks();
     InnerMapAnimals._fight = null;
     if (saved.tiles !== undefined) Object.assign(InnerMap, saved);
-    Object.assign(InnerMapPets, { _pets: [], _trail: [], _sig: '', _map: null, _shown: false, _stray: null });
+    Object.assign(InnerMapPets, { _pets: [], _trail: [], _sig: '', _map: null, _shown: false, _stray: null, riding: null });
+    InnerMap._rideSpeed = 0;
     Object.assign(InnerMapCompanions, { _men: [], _trail: [], _sig: '', _map: null, _shown: false });
     Object.assign(InnerMapEscort, { _men: [], _trail: [], _sig: '', _map: null, _shown: false });
 });
@@ -83,6 +84,54 @@ describe('animals on the street map', () => {
         expect(Math.hypot(hawk.x - pos.x, hawk.y - pos.y)).toBeLessThan(32 * 3);
         // walking, they walk (a walk frame)
         expect(['up', 'down', 'left', 'right']).toContain(dog.facing);
+    });
+
+    it('the horse can be ridden: under you, out of the file, quicker; down of yourself at a door', () => {
+        openMap();
+        const g = game();
+        g.player.mount = { name: 'Bramble', price: 120, acquiredDay: 1 };
+        step(g, 4);
+        const horse = InnerMapPets._pets.find(p => p.a.id === 'mount');
+        // (beside you: up at once)
+        horse.x = pos.x; horse.y = pos.y + 32;
+        const tileOf = (m) => [Math.floor(m.x / 32), Math.floor(m.y / 32)];
+        const items = InnerMapPets.menuItems(g, ...tileOf(horse)).map(i => i.action);
+        expect(items).toContain('pet_ride');
+        expect(InnerMapPets.handle(g, { action: 'pet_ride', petId: 'mount' })).toBe(true);
+        expect(InnerMapPets.riding).toBe('mount');
+        expect(InnerMap._rideSpeed).toBeGreaterThan(1);
+        expect(InnerMapPets.count()).toBe(0);   // (not led in the file: under you)
+        step(g, 3);
+        expect(Math.hypot(horse.x - pos.x, horse.y - pos.y)).toBeLessThan(1);
+        // on your own tile: Dismount, not Stay Here
+        const mine = InnerMapPets.menuItems(g, ...tileOf({ x: pos.x, y: pos.y })).map(i => i.action);
+        expect(mine).toContain('pet_dismount');
+        expect(mine).not.toContain('pet_stay');
+        // through a door: down you get, the horse left outside
+        InnerMap._insideBuilding = { id: 'house' };
+        InnerMapPets.update(1 / 30, g);
+        expect(InnerMapPets.riding).toBe(null);
+        expect(InnerMap._rideSpeed).toBe(0);
+        InnerMap._insideBuilding = null;
+        // and up again, then down by the menu
+        InnerMapPets.update(1 / 30, g);
+        InnerMapPets.handle(g, { action: 'pet_ride', petId: 'mount' });
+        expect(InnerMapPets.riding).toBe('mount');
+        InnerMapPets.handle(g, { action: 'pet_dismount', petId: 'mount' });
+        expect(InnerMapPets.riding).toBe(null);
+        expect(InnerMap._rideSpeed).toBe(0);
+    });
+
+    it('a foal is too young to ride', () => {
+        openMap();
+        const g = game();
+        g.player.mount = { name: 'Pip', price: 120, acquiredDay: 400, age: 0, bornDay: 399 };
+        step(g, 2);
+        const horse = InnerMapPets._pets.find(p => p.a.id === 'mount');
+        horse.x = pos.x; horse.y = pos.y + 32;
+        expect(InnerMapPets.menuItems(g, Math.floor(horse.x / 32), Math.floor(horse.y / 32)).map(i => i.action)).not.toContain('pet_ride');
+        InnerMapPets.handle(g, { action: 'pet_ride', petId: 'mount' });
+        expect(InnerMapPets.riding).toBe(null);
     });
 
     it('none indoors, none with nobody', () => {

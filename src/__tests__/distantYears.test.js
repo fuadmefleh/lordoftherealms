@@ -128,8 +128,9 @@ describe('the distant years (a long interregnum wait)', () => {
 });
 
 describe('a time skip settles the view once, at its end (ui/timeSkip.js)', () => {
-    it('reachable hexes, stats, minimap; the autosave a day of it was due', () => {
-        const save = vi.spyOn(SaveLoad, 'saveGame').mockReturnValue({ success: true });
+    it('reachable hexes, stats, minimap; the autosave a day of it was due', async () => {
+        // (saving is async since the IndexedDB store: core/saveStore.js)
+        const save = vi.spyOn(SaveLoad, 'saveGame').mockResolvedValue({ success: true });
         try {
             const calls = [];
             const game = {
@@ -145,6 +146,7 @@ describe('a time skip settles the view once, at its end (ui/timeSkip.js)', () =>
             expect(save).not.toHaveBeenCalled();
             TimeSkip._settleUi(game, { done: 3, saveDue: true });
             expect(save).toHaveBeenCalledTimes(1);
+            await Promise.resolve();
             expect(calls).toContain('Auto-Saved');
             // (nobody to save for: dead)
             game.player._isDead = true;

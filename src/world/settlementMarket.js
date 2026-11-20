@@ -1564,7 +1564,10 @@ export const SettlementMarket = {
             if (left > 0 && (grp === 'food' || grp === 'fuel')) {
                 for (let j = 0; j < gi.length && left > 0; j++) {
                     const i = gi[j];
-                    const spare = st[i] - needs[i];
+                    // (making do with another staple strips its stall no barer than eating
+                    // short of it does: it takes at most eatShare of what is left — the
+                    // rest stays on sale, dear, rather than a village's grain eaten to crumbs)
+                    const spare = Math.min(st[i] - needs[i], st[i] * S.eatShare);
                     if (spare <= 0) continue;
                     const use = Math.min(spare, left);
                     st[i] -= use;
@@ -1700,6 +1703,13 @@ export const SettlementMarket = {
         const kd = T.keepDays;
         const ids = C.goodIds;
         const n = ids.length;
+        // Food follows a dearth's price: a town short of bread pays dear, and its
+        // neighbours' merchants sell it their stores below the usual reserve —
+        // down to where the two prices meet across the haul, never below foodKeep
+        // of the exporter's own target (data/markets.json trade.foodKeep; 0 = off)
+        const foodKeep = _clamp(_num(T.foodKeep), 0, 1);
+        const isFoodA = C.A.food;
+        const invE = 1 / Math.max(0.05, P.elasticity);
         const bases = new Float64Array(n);
         for (let i = 0; i < n; i++) bases[i] = basePrices[ids[i]] > 0 ? basePrices[ids[i]] : 0;
         // Each town's stock as a typed array for the day's trading, written back after
@@ -1777,9 +1787,11 @@ export const SettlementMarket = {
                 const stA = xa[i], stB = xb[i];
                 if (stA <= 0 && stB <= 0) continue;
                 const ta = sha.targetA[i], tb = shb.targetA[i];
+                // (food into a dearth: the reserve can fall to foodKeep — checked against the prices below)
+                const kdI = foodKeep > 0 && foodKeep < kdL && isFoodA[i] === 1 ? foodKeep : kdL;
                 // Neither way can trade (no surplus over keepDays on one side with room under
                 // target on the other): skip before pricing — the checks below would anyway
-                if (!((stA - ta * kdL > 0 && tb - stB > 0) || (stB - tb * kdL > 0 && ta - stA > 0))) continue;
+                if (!((stA - ta * kdI > 0 && tb - stB > 0) || (stB - tb * kdI > 0 && ta - stA > 0))) continue;
                 if (stA > 0 && stB > 0) {
                     const q = (stA / ta) / (stB / tb);
                     if (q < frR && q > 1 / frR) continue;
@@ -1791,7 +1803,11 @@ export const SettlementMarket = {
                 if (sb > sa * (fr + uAB)) { xe = xa; xi = xb; se = sa; si = sb; tE = ta; tI = tb; aExports = true; dut = uAB; }
                 else if (sa > sb * (fr + uBA)) { xe = xb; xi = xa; se = sb; si = sa; tE = tb; tI = ta; aExports = false; dut = uBA; }
                 else continue;
-                const surplus = xe[i] - tE * kdL;
+                // The exporter's reserve: keepDays of its target — for food, as low as the stock
+                // at which its price would meet the importer's across the haul (not under foodKeep)
+                let keep = kdL;
+                if (kdI < kdL) keep = Math.max(kdI, Math.min(kdL, Math.pow(si / (fr + dut), -invE)));
+                const surplus = xe[i] - tE * keep;
                 if (!(surplus > 0)) continue;
                 const room = tI - xi[i];
                 if (!(room > 0)) continue;

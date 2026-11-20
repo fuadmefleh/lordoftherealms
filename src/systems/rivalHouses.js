@@ -151,7 +151,7 @@ const DEFAULTS = {
     plotCost: 150,
     weights: { trade: 3, court: 2, shadow: 2, home: 1, invest: 2, waylay: 2 },
     think: { tradeNorm: 100, tradeCap: 2.5, investCap: 3, courtCap: 3, ambition: 1.6 },
-    trade: { sources: 6, destinations: 10, range: 18, minMargin: 0.25, maxQty: 60, minQty: 8, spend: 0.5, minGold: 300 },
+    trade: { sources: 6, destinations: 10, range: 18, minMargin: 0.25, maxQty: 60, minQty: 8, spend: 0.5, minGold: 300, shortlist: 16, lookDays: 15 },
     court: { stay: [4, 9], favour: 3, whisper: 2, whisperFeud: 40, gift: 60 },
     home: { stay: [6, 14], restAfter: 150, poorBelow: 200 },
     shadow: { feud: 60, stay: [3, 6], plotEvery: 90 },
@@ -202,6 +202,8 @@ const DEFAULTS = {
 // (RivalHouses.config / armsConfig, kept while the data stands)
 const _cfgMemo = { src: undefined, out: null };
 const _armsMemo = { src: undefined, out: null };
+// What a House last heard of each market, for its first rough look at a bargain (_findTradeIn): by market
+const _tradeLooks = new WeakMap();
 
 export const RivalHouses = {
     RIVAL_TYPE,
@@ -1133,55 +1135,119 @@ export const RivalHouses = {
 
     _findTradeIn(world, unit, rival) {
         const C = this.config().trade;
-        const towns = this._towns(world).filter(s => s.market && s.market.stock);
+        // (a House trades for coin: not in a town that barters, which takes none and pays none, world/barter.js)
+        const towns = this._towns(world).filter(s => s.market && s.market.stock && !s.inKind);
         if (towns.length < 2) return null;
         const near = (p, n) => towns.map(s => ({ s, d: _dist(world, p, s) }))
             .filter(x => x.d <= C.range).sort((a, b) => a.d - b.d).slice(0, n).map(x => x.s);
-        const sources = near(unit, C.sources);
-        const goods = Object.keys((SettlementMarket.config() && SettlementMarket.config().goods) || {});
+        const MC = SettlementMarket.config();
+        const goods = (MC && MC.goodIds) || Object.keys((MC && MC.goods) || {});
         const budget = Math.max(0, rival.gold * C.spend);
-        let best = null;
-        // (a town's price for a lot of a good is the same whichever source it came from: asked once)
-        const sales = new Map();
-        // (and a town's season, weather, coin and fashion on a good the same for every lot: SettlementMarket.valueFactors)
-        const facs = new Map();
-        const fac = (s, t, gi, id) => {
-            let row = facs.get(s);
-            if (!row) facs.set(s, row = []);
-            return row[gi] || (row[gi] = SettlementMarket.valueFactors(world, s, t, id));
+        const bases = goods.map(id => _num(_goodDef(id).basePrice));
+        // First a rough look over every good, from what the House last heard of each town:
+        // the good's craftsmen's floor and its weather, coin and fashion there, heard at
+        // most `lookDays` ago (the dearest things to ask, and slow to move), on today's
+        // season and today's stock against the stock the town aims to hold, before and
+        // after the lot.
+        // Only the `shortlist` best-looking lots are priced in full below, at today's
+        // prices: a stale look can only pass a good lot over, never make a bad one.
+        const day = _day(world);
+        const lookDays = Math.max(1, _num(C.lookDays, 15));
+        // (the season is the same in every town, and cheap to ask: today's)
+        const today = Seasons.today(world);
+        const season = goods.map(id => Seasons.priceMultiplier(id, today));
+        const looks = new Map();
+        const lookOf = (s) => {
+            let lk = looks.get(s);
+            if (lk) return lk;
+            const m = s.market;
+            lk = _tradeLooks.get(m);
+            if (!lk || lk.cfg !== MC || lk.floor.length !== goods.length) {
+                _tradeLooks.set(m, lk = { cfg: MC, day: new Float64Array(goods.length).fill(-1e9), floor: new Float64Array(goods.length), fac: new Float64Array(goods.length) });
+            }
+            lk.sh = SettlementMarket._shape(s);
+            lk.s = s;
+            looks.set(s, lk);
+            return lk;
         };
-        for (const from of sources) {
-            const tf = world.getTile(from.q, from.r);
-            // What each good costs here doesn't depend on where it goes: priced once a source
-            // (null where it can't be had), the destinations below only price the sale
-            const offers = goods.map((id, gi) => {
-                const have = SettlementMarket.available(from, id);
-                if (have < C.minQty) return null;
-                const base = _goodDef(id).basePrice;
-                const buy = SettlementMarket.value(world, from, tf, id, base, null, fac(from, tf, gi, id));
-                if (!(buy > 0)) return null;
+        const rough = (lk, gi, level) => {
+            if (day - lk.day[gi] >= lookDays || lk.day[gi] > day) {
+                const s = lk.s;
+                const t = world.getTile(s.q, s.r);
+                // (a glut's price: the floor if it holds one, else the curve's least)
+                lk.floor[gi] = SettlementMarket.scarcity(s, goods[gi], 1e12);
+                const f = SettlementMarket.valueFactors(world, s, t, goods[gi]);
+                lk.fac[gi] = f[1] * f[2] * f[3] * f[4];
+                lk.day[gi] = day;
+            }
+            const sh = lk.sh;
+            return bases[gi] * season[gi] * lk.fac[gi] * Math.max(lk.floor[gi], SettlementMarket.curve(Math.max(0, level) / sh.targetA[gi], sh.usedA[gi] === 1));
+        };
+        const sources = near(unit, C.sources);
+        const routes = [];
+        const cands = [];
+        for (let si = 0; si < sources.length; si++) {
+            const from = sources[si];
+            const lkF = lookOf(from);
+            const lots = [];
+            for (let gi = 0; gi < goods.length; gi++) {
+                const have = SettlementMarket.available(from, goods[gi]);
+                if (have < C.minQty || !(bases[gi] > 0)) continue;
+                const buy = rough(lkF, gi, have);
                 const qty = Math.min(C.maxQty, Math.floor(have / 2), Math.floor(budget / buy));
-                if (qty < C.minQty) return null;
-                return { base, qty, buyAt: SettlementMarket.value(world, from, tf, id, base, have - qty / 2, fac(from, tf, gi, id)) };
-            });
-            for (const to of near(from, C.destinations)) {
-                if (to === from) continue;
-                const tt = world.getTile(to.q, to.r);
-                for (let gi = 0; gi < goods.length; gi++) {
-                    const o = offers[gi];
-                    if (!o) continue;
-                    const id = goods[gi];
-                    const { base, qty, buyAt } = o;
-                    let byTo = sales.get(to);
-                    if (!byTo) sales.set(to, byTo = new Map());
-                    const sk = gi * 100000 + qty;
-                    let sellAt = byTo.get(sk);
-                    if (sellAt === undefined) byTo.set(sk, sellAt = SettlementMarket.value(world, to, tt, id, base, SettlementMarket.stock(to, id) + qty / 2, fac(to, tt, gi, id)));
-                    if (!(buyAt > 0) || sellAt / buyAt - 1 < C.minMargin) continue;
-                    const gain = (sellAt - buyAt) * qty / (1 + _dist(world, from, to) / 10);
-                    if (!best || gain > best.gain) best = { from, to, good: id, qty, buy: buyAt, sell: sellAt, gain };
+                if (qty < C.minQty) continue;
+                lots.push({ gi, qty, buyAt: rough(lkF, gi, have - qty / 2) });
+            }
+            const dests = near(from, C.destinations).filter(to => to !== from);
+            routes.push({ from, dests });
+            for (let di = 0; di < dests.length; di++) {
+                const to = dests[di];
+                const lkT = lookOf(to);
+                const far = 1 + _dist(world, from, to) / 10;
+                for (const l of lots) {
+                    const sellAt = rough(lkT, l.gi, SettlementMarket.stock(to, goods[l.gi]) + l.qty / 2);
+                    if (!(sellAt > l.buyAt)) continue;
+                    cands.push({ si, di, gi: l.gi, est: (sellAt - l.buyAt) * l.qty / far });
                 }
             }
+        }
+        if (!cands.length) return null;
+        const keep = Math.max(1, Math.floor(_num(C.shortlist, 16)));
+        // (the best-looking first; then back in the order the full look would meet them, for the same ties)
+        const short = cands.length > keep ? cands.sort((a, b) => b.est - a.est).slice(0, keep) : cands;
+        short.sort((a, b) => a.si - b.si || a.di - b.di || a.gi - b.gi);
+        let best = null;
+        // (a town's season, weather, coin and fashion on a good the same for every lot: SettlementMarket.valueFactors)
+        const facs = new Map();
+        const fac = (s, t, gi) => {
+            let row = facs.get(s);
+            if (!row) facs.set(s, row = []);
+            return row[gi] || (row[gi] = SettlementMarket.valueFactors(world, s, t, goods[gi]));
+        };
+        const offers = new Map();
+        for (const c of short) {
+            const { from, dests } = routes[c.si];
+            const to = dests[c.di];
+            const id = goods[c.gi];
+            const base = bases[c.gi];
+            // What the good costs here doesn't depend on where it goes: priced once a source
+            const ok = c.si * goods.length + c.gi;
+            let o = offers.get(ok);
+            if (o === undefined) {
+                o = null;
+                const tf = world.getTile(from.q, from.r);
+                const have = SettlementMarket.available(from, id);
+                const buy = SettlementMarket.value(world, from, tf, id, base, null, fac(from, tf, c.gi));
+                const qty = buy > 0 ? Math.min(C.maxQty, Math.floor(have / 2), Math.floor(budget / buy)) : 0;
+                if (qty >= C.minQty) o = { qty, buyAt: SettlementMarket.value(world, from, tf, id, base, have - qty / 2, fac(from, tf, c.gi)) };
+                offers.set(ok, o);
+            }
+            if (!o || !(o.buyAt > 0)) continue;
+            const tt = world.getTile(to.q, to.r);
+            const sellAt = SettlementMarket.value(world, to, tt, id, base, SettlementMarket.stock(to, id) + o.qty / 2, fac(to, tt, c.gi));
+            if (sellAt / o.buyAt - 1 < C.minMargin) continue;
+            const gain = (sellAt - o.buyAt) * o.qty / (1 + _dist(world, from, to) / 10);
+            if (!best || gain > best.gain) best = { from, to, good: id, qty: o.qty, buy: o.buyAt, sell: sellAt, gain };
         }
         return best;
     },

@@ -90,6 +90,7 @@
             "hp": 70,
             "effects": {},
             "breeds": { "riding": { "name": "Riding Horse", "price": 120, "desc": "Your mount: more movement each day and room in your packs.", "mult": {} } },
+            "streetRide": { "speed": 1.8, "_doc": "Ridden on the street map (ui/innerMapPets.js): the walk this many times as quick; a foal is too young to bear you" },
             "spriteFrom": "horse",
             "spriteScale": 0.9
         }

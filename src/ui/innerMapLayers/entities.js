@@ -1446,6 +1446,9 @@ Object.assign(InnerMapRenderer, {
                         }
                         ctx.restore();
                         this._drawDeadPlumbob(ctx, px, py - charH + ds * 0.1, ds);
+                    } else if (!pSwimming && InnerMapPets.riding && InnerMapPets.mounted()
+                        && InnerMapPets.drawRider(ctx, InnerMapPets.mounted(), playerPreset, px, py, ds, pDir, pAnim === 'walk', now)) {
+                        // On horseback (ui/innerMapPets.js): the horse and you in the saddle, drawn above
                     } else if (pSwimming && InnerMapDiving.isUnder()) {
                         // Under the water, diving (ui/innerMapDiving.js): the whole body, sunk in the murk
                         InnerMapDiving.drawUnder(ctx, px, py, ds, now,

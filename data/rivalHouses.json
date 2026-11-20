@@ -1,5 +1,5 @@
 {
-    "_doc": "Rival Houses in the flesh (src/systems/rivalHouses.js): each rival House's head, purse, family and retinue on the map. Each errand (trade, court, shadow the player, invest in land, home) is scored by what it is worth now: weights × the best bargain's gain / think.tradeNorm (capped), the best estate's yield / invest.minYield, standing at court / standing.favourite; trait weights add; the ambition's errand is multiplied by think.ambition. Money is gold; days are game days.",
+    "_doc": "Rival Houses in the flesh (src/systems/rivalHouses.js): each rival House's head, purse, family and retinue on the map. Each errand (trade, court, shadow the player, invest in land, home) is scored by what it is worth now: weights × the best bargain's gain / think.tradeNorm (capped), the best estate's yield / invest.minYield, standing at court / standing.favourite; trait weights add; the ambition's errand is multiplied by think.ambition. A bargain (trade) is first looked over roughly for every good at trade.sources towns near the retinue × trade.destinations near each, from each town's craftsmen's floor and weather/coin/fashion factors as last heard (at most trade.lookDays old) on today's stock and season; only the trade.shortlist best-looking lots are priced in full at today's prices, and the best of those that clears trade.minMargin is taken. Money is gold; days are game days.",
     "enabled": true,
     "icon": "🏰",
     "speed": 3,
@@ -10,7 +10,7 @@
     "plotCost": 150,
     "weights": { "trade": 3, "court": 2, "shadow": 2, "home": 1, "invest": 2, "waylay": 2 },
     "think": { "tradeNorm": 100, "tradeCap": 2.5, "investCap": 3, "courtCap": 3, "ambition": 1.6 },
-    "trade": { "sources": 6, "destinations": 10, "range": 18, "minMargin": 0.25, "maxQty": 60, "minQty": 8, "spend": 0.5, "minGold": 300 },
+    "trade": { "sources": 6, "destinations": 10, "range": 18, "minMargin": 0.25, "maxQty": 60, "minQty": 8, "spend": 0.5, "minGold": 300, "shortlist": 16, "lookDays": 15 },
     "court": { "stay": [4, 9], "favour": 3, "whisper": 2, "whisperFeud": 40, "gift": 60 },
     "home": { "stay": [6, 14], "restAfter": 150, "poorBelow": 200 },
     "shadow": { "feud": 60, "stay": [3, 6], "plotEvery": 90 },

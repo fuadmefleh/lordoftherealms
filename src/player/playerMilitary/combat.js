@@ -293,6 +293,23 @@ Object.assign(PlayerMilitary, {
     _spoilsSource(context = {}) {
         if (context.lootPurse !== undefined) {
             const purse = context.lootPurse;
+            // A unit whose coin is its purse (a trade caravan: its packed gold only mirrors
+            // it, systems/merchantCaravans.js _syncInventory): the spoils come out of the
+            // purse, and the packs follow — not out of the mirror, leaving the purse whole
+            // to be taken again with the packs (coin from nowhere)
+            const u = context.lootUnit;
+            if (purse && u && u.inventory === purse && typeof u.purse === 'number') {
+                const have = Math.max(0, Math.floor(u.purse));
+                return {
+                    have,
+                    take: (n) => {
+                        const t = Math.max(0, Math.min(have, Math.floor(n)));
+                        u.purse = Math.round((u.purse - t) * 100) / 100;
+                        purse.gold = Math.max(0, Math.floor(u.purse));
+                        return t;
+                    },
+                };
+            }
             const have = purse ? Math.max(0, Math.floor(Number(purse.gold) || 0)) : 0;
             return { have, take: (n) => { const t = Math.max(0, Math.min(have, Math.floor(n))); if (purse) purse.gold = have - t; return t; } };
         }
@@ -873,8 +890,10 @@ Object.assign(PlayerMilitary, {
                 // Coin goes straight to the purse (it used to sit in the packs as
                 // an 'item' nothing ever spent)
                 const { gold: packed = 0, ...goods } = worldUnit.inventory;
-                // (a trade caravan's packed gold mirrors its purse: the purse is the coin)
-                const coin = Math.max(0, typeof worldUnit.purse === 'number' ? worldUnit.purse : 0, Number(packed) || 0);
+                // (a trade caravan's packed gold mirrors its purse: the purse is the coin — the
+                // packed figure can be stale, from before a toll was paid out of the purse, so a
+                // unit with a purse gives up exactly that, as systems/coinCensus.js counts it)
+                const coin = typeof worldUnit.purse === 'number' ? Math.max(0, worldUnit.purse) : Math.max(0, Number(packed) || 0);
                 if (coin > 0) player.gold = (player.gold || 0) + coin;
                 if (coin > 0) Ledger.record(player, 'plunder', coin);
                 // (taken off them: none of it is left to be found in town — World.settleUnitCoin)

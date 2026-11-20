@@ -19,6 +19,7 @@ import { Ships } from '../../systems/ships.js';
 import { RiverBoats } from '../../systems/riverBoats.js';
 import { PlayerMilitary } from '../playerMilitary.js';
 import { Plague } from '../../systems/plague.js';
+import { DataLoader } from '../../core/dataLoader.js';
 
 export const PlayerMovementMethods = {
     /**
@@ -192,6 +193,18 @@ export const PlayerMovementMethods = {
     _travelPace() {
         if (this._dayPace > 0) return this._dayPace;
         return Math.max(1, this.maxStamina || this.stamina || 10);
+    },
+
+    /**
+     * The least a free day's walk is worth, however hungry, low or wounded
+     * (data/travel.json weakFloor × the full day, _travelPace): starving slows
+     * a traveller to a crawl, never to a standstill — a hill of 1½ days still
+     * takes three, not fifteen. 0 when the floor is off.
+     */
+    _weakDayFloor() {
+        const T = DataLoader._gamedata && DataLoader._gamedata.travel;
+        const f = T && Number.isFinite(T.weakFloor) ? Math.max(0, Math.min(1, T.weakFloor)) : 0.5;
+        return f > 0 ? Math.max(1, Math.round(this._travelPace() * f)) : 0;
     },
 
     /** The day's full strength, for spreading a crossing over the days to come. */

@@ -24,6 +24,31 @@
     },
     "surfaceFish": {
         "_doc": "Fish seen from above in the water of the street map (ui/innerMapLayers/surfaceFish.js), drawn over the water and under its sparkles and foam: dark backs swimming loose shoals in the deep water on screen (never in the shallows, under bridges or on ice), holding against a river's current (each cell's t._flow) with a slow drift down it now and then. The species are the divers' (data/diving.json fish, by the waters they live in), seen as their backs darkened by the water (depth = how much of the water's colour; breadth = width seen from above, of the side-on height; alpha = how plainly they show; night = alpha by night). perCell: fish to each deep cell on screen by water kind, up to max; seasons scale it (winter: few). Now and then one turns and flashes silver (glint: chance a second per fish) or jumps (jump: chance a second per fish, a ring of ripples and a splash). Within shy tiles of the player in or at the water they dart away at fleeSpeed times their speed. drift: how much the river's current carries a fish; upstream: share of new marks taken up the river.",
+        "feeding": {
+            "_doc": "Throwing food to the fish (ui/innerMapFeedFish.js menu on deep water; drawn and swum by ui/innerMapLayers/surfaceFish.js). reach: how far you can throw (tiles). flight: seconds in the air. pull: how far off a fish notices it (tiles); takers: most fish at one morsel. biteEvery: seconds between one fish's nibbles; morselEvery: seconds between any two bites at one morsel (they take turns at it). life: seconds it floats before it sinks out of reach; drift: how much a river's current carries it. extra: fish that come up from deeper while it floats (a shoal a time, every comeEvery seconds). After feeding, a line cast within near tiles of it gets biteBonus more chance of a bite, for fedSeconds. foods: what you can throw (one from the packs a throw): bites it lasts, how many fish it draws (draw scales extra), its colour on the water, scatter (a handful of grains spread out rather than one lump), and the words.",
+            "reach": 6,
+            "flight": 0.55,
+            "pull": 6,
+            "takers": 7,
+            "biteEvery": [1.1, 2.6],
+            "morselEvery": 1.4,
+            "life": 45,
+            "drift": 0.45,
+            "extra": 6,
+            "comeEvery": 2.5,
+            "near": 2.5,
+            "biteBonus": 0.15,
+            "fedSeconds": 120,
+            "foods": {
+                "bread":      { "bites": 14,  "draw": 1,   "color": "#d6a15a", "what": "a crust of bread" },
+                "grain":      { "bites": 12,  "draw": 0.9, "color": "#e6cf7c", "what": "a handful of grain", "scatter": true },
+                "flour":      { "bites": 8,  "draw": 0.7, "color": "#f1ece0", "what": "a pinch of flour", "scatter": true },
+                "berries":    { "bites": 8,  "draw": 0.7, "color": "#8e2f4f", "what": "a few berries", "scatter": true },
+                "cheese":     { "bites": 12,  "draw": 1.1, "color": "#f2d16b", "what": "a rind of cheese" },
+                "meat":       { "bites": 12,  "draw": 1.3, "color": "#a8443e", "what": "a scrap of meat" },
+                "small_fish": { "bites": 10,  "draw": 1.4, "color": "#9fb1bd", "what": "a small fish, cut up" }
+            }
+        },
         "enabled": true,
         "max": 28,
         "perCell": { "river": 0.2, "lake": 0.1, "pond": 0.14, "sea": 0.06 },

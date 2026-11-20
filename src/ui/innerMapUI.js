@@ -48,6 +48,7 @@ import { InnerMapDiving } from './innerMapDiving.js';
 import { InnerMapClimbing } from './innerMapClimbing.js';
 import { InnerMapMining } from './innerMapMining.js';
 import { InnerMapRiverDrift } from './innerMapRiverDrift.js';
+import { InnerMapFeedFish } from './innerMapFeedFish.js';
 import { InnerMapRoadWalk } from './innerMapRoadWalk.js';
 import { NpcDisposition } from '../systems/npcDisposition.js';
 import { Townsfolk } from '../systems/townsfolk.js';
@@ -533,6 +534,8 @@ Object.assign(InnerMapRenderer, {
                 // Water deep enough to swim: dive and scavenge the bottom (ui/innerMapDiving.js)
                 // A river: throw something in, fish out what floats by (ui/innerMapRiverDrift.js)
                 menuItems.push(...InnerMapRiverDrift.menuItems(game, tile, q, r));
+                // Deep water in a throw: food to the fish, to watch them come up for it (ui/innerMapFeedFish.js)
+                menuItems.push(...InnerMapFeedFish.menuItems(game, tile, q, r));
                 menuItems.push(...InnerMapDiving.menuItems(game, tile, q, r));
                 // A crag's rock face: up it or down it (ui/innerMapClimbing.js)
                 menuItems.push(...InnerMapClimbing.menuItems(game, tile, q, r));
@@ -1012,6 +1015,7 @@ Object.assign(InnerMapRenderer, {
         if (/^mine_/.test(item.action || '') && InnerMapMining.handle(game, item, q, r)) return;
         if (/^farm_/.test(item.action || '') && InnerMapFarming.handle(game, item, q, r)) return;
         if (/^drift_/.test(item.action || '') && InnerMapRiverDrift.handle(game, item, q, r)) return;
+        if (item.action === 'feedfish_throw' && InnerMapFeedFish.handle(game, item, q, r)) return;
         if (item.action === 'hunt_animal') {
             if (item.animal && InnerMap.animals.includes(item.animal)) ActionMenu.huntAnimal(game, item.animal);
             return;

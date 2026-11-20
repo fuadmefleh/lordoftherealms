@@ -28,6 +28,10 @@ import { InnerMapCompanions } from './innerMapCompanions.js';
 import { AnimalCompanions } from '../systems/animalCompanions.js';
 import { StreetFollowers } from '../systems/streetFollowers.js';
 import { AnimalsPanel } from './animalsPanel.js';
+import { InnerMapCarry } from './innerMapCarry.js';
+import { InnerMapCarts } from './innerMapCarts.js';
+import { InnerMapCombat } from './innerMapCombat.js';
+import { InnerMapCharacters } from './innerMapCharacters.js';
 
 const T_PX = 32;
 const SPACING = 1.1;     // tiles between animals along the trail (a dog side-on is near two tiles long)
@@ -62,6 +66,85 @@ export const InnerMapPets = {
     _shown: false,
     _stray: null,    // { key, x, y, home, tx, ty, wait, facing, moving, t }
     _told: new Set(),
+    riding: null,    // the horse's id while you ride it (Ride / Dismount on its menu)
+
+    // ── Riding ──
+    // Your horse can be ridden on the street map (its species' streetRide: data/animalCompanions.json):
+    // it carries you at its own quicker walk (InnerMap._rideSpeed, read by world/innerMap/movement.js)
+    // and you are drawn in the saddle (drawRider, from the player's pass in innerMapLayers/entities.js).
+    // You swing down of yourself at a door, into the water or onto a rock face, to take something up
+    // in your hands or set to a task, and when you are knocked down or the map is left.
+
+    /** The horse you ride now (its walking record), or null. */
+    mounted() {
+        const P = InnerMapPets;
+        if (!P.riding) return null;
+        return P._pets.find(p => p.a && p.a.id === P.riding) || null;
+    },
+
+    /** Its species' riding rules (streetRide), or null for an animal that can't be ridden. */
+    _rideCfg(a) {
+        const sp = a && AnimalCompanions.species(a.species);
+        return sp && sp.streetRide ? sp.streetRide : null;
+    },
+
+    /** Why you couldn't get up on it now, or null when you can. */
+    _whyNotRide(game, m) {
+        const a = m && m.a;
+        if (!a || !InnerMapPets._rideCfg(a)) return 'You can\'t ride that.';
+        if (AnimalCompanions.isYoung(a, game.world)) return `${a.name} is a foal yet, too young to bear you.`;
+        if (InnerMap.isPlayerSwimming && InnerMap.isPlayerSwimming()) return 'Not in the water.';
+        if (InnerMapCarry.handsFull() || InnerMapCarts.pushing) return 'Your hands are full: put down what you carry first.';
+        if (InnerMapCombat.playerKnockedOut && InnerMapCombat.playerKnockedOut()) return 'You can barely stand.';
+        return null;
+    },
+
+    /** Up into the saddle (the horse brought alongside first if it stands off). */
+    ride(game, m) {
+        const P = InnerMapPets;
+        const why = P._whyNotRide(game, m);
+        if (why) { _notify(game, '🐎 Not Now', why, 'warning'); return false; }
+        const at = InnerMap.getPlayerWorldPos();
+        const up = () => {
+            if (!P._pets.includes(m) || P._whyNotRide(game, m)) return;
+            m.stay = null;
+            P.riding = m.a.id;
+            InnerMap._rideSpeed = Math.max(1, _num(P._rideCfg(m.a).speed, 1.6));
+            _notify(game, `🐎 ${m.a.name}`, `You swing up into the saddle. ${m.a.name} carries you at a brisk walk; you'll get down of yourself at a door.`, 'info');
+        };
+        // (beside you or near enough: up you get; further off, you walk over to it)
+        if (Math.hypot(m.x - at.x, m.y - at.y) <= T_PX * 2.2 || !InnerMap.approachAndThen) { up(); return true; }
+        const res = InnerMap.approachAndThen(Math.round((m.x - T_PX / 2) / T_PX), Math.round((m.y - T_PX / 2) / T_PX), up);
+        if (res === 'unreachable') { _notify(game, '🐎 Not Now', `You can't get to ${m.a.name}.`, 'warning'); return false; }
+        return true;
+    },
+
+    /** Down from the saddle: the horse stands where you got down, then falls in behind. why: a word on it (none: quiet). */
+    dismount(game, why = null) {
+        const P = InnerMapPets;
+        const m = P.mounted();
+        P.riding = null;
+        InnerMap._rideSpeed = 0;
+        if (m && why) _notify(game, `🐎 ${m.a.name}`, why, 'info');
+    },
+
+    /** Each frame while you ride: get down of yourself where a horse can't go or your hands are wanted. */
+    _checkRide(game) {
+        const P = InnerMapPets;
+        if (!P.riding) { if (InnerMap._rideSpeed) InnerMap._rideSpeed = 0; return; }
+        const m = P.mounted();
+        const name = m ? m.a.name : 'your horse';
+        if (!InnerMap.active || !m && P._pets.length) { P.dismount(game); return; }
+        if (InnerMap._insideBuilding) { P.dismount(game, `You get down and leave ${name} at the door.`); return; }
+        if (InnerMapBattle.active || game.player && game.player.boardedShip) { P.dismount(game); return; }
+        const pos = InnerMap.getPlayerWorldPos();
+        if (pos.climbing || InnerMap._climbRequest) { P.dismount(game, `You get down from ${name} to climb.`); return; }
+        if (InnerMap.isPlayerSwimming && InnerMap.isPlayerSwimming()) { P.dismount(game, `${name} balks at the water: you slide off into it.`); return; }
+        if (InnerMapCombat.playerKnockedOut && InnerMapCombat.playerKnockedOut()) { P.dismount(game, `You are knocked from ${name}'s back.`); return; }
+        if (InnerMapCarry.handsFull() || InnerMapCarts.pushing) { P.dismount(game, `You swing down from ${name} to take it up.`); return; }
+        const ia = InnerMap._activeInteraction;
+        if (ia && !ia.done) { P.dismount(game, `You swing down from ${name} to set to it.`); }
+    },
 
     _hidden(game) {
         return !InnerMap.active || InnerMap._insideBuilding || InnerMapBattle.active
@@ -72,7 +155,7 @@ export const InnerMapPets = {
     count() {
         if (!InnerMapPets._shown) return 0;
         // (in places in the file: a led horse takes three)
-        return InnerMapPets._pets.filter(p => !p.fly && !p.stay).reduce((n, p) => n + (p.a && p.a.id === 'mount' ? 3 : 1), 0);
+        return InnerMapPets._pets.filter(p => !p.fly && !p.stay && !(p.a && p.a.id === InnerMapPets.riding)).reduce((n, p) => n + (p.a && p.a.id === 'mount' ? 3 : 1), 0);
     },
 
     /** The animals that walk with you now, horse first (it's led on the rein right behind). */
@@ -147,6 +230,7 @@ export const InnerMapPets = {
     update(dt, game) {
         const P = InnerMapPets;
         P._shown = false;
+        P._checkRide(game);
         if (P._hidden(game)) {
             if (!InnerMap.active) { P._pets = []; P._trail = []; P._sig = ''; P._map = null; P._stray = null; }
             return;
@@ -180,6 +264,12 @@ export const InnerMapPets = {
         for (const m of P._pets) {
             m.t += dt;
             if (m.fly) { P._flyAbout(m, dt, at); continue; }
+            // Ridden: under you, at your pace (drawn with you: drawRider); out of the file
+            if (m.a.id === P.riding) {
+                m.x = at.x; m.y = at.y; m.stay = null; m.fighting = false; m.moving = !!at.walking;
+                if (at.walking) m.facing = _facing(at.dq, at.dr, m.facing);
+                continue;
+            }
             let tx, ty;
             m.fighting = false;
             const dmg = foe && !m.stay ? AnimalCompanions.streetDamage(m.a, game.world) : 0;
@@ -382,8 +472,16 @@ export const InnerMapPets = {
             const foods = AnimalCompanions.foodsFor(player, a);
             if (foods.length) out.push({ type: 'action', action: 'pet_feed', petId: a.id, label: `Feed (${foods[0].id.replace(/_/g, ' ')})`, icon: '🍖', desc: `From your packs: ${foods.map(f => `${f.id.replace(/_/g, ' ')} ×${f.have}`).join(', ')}` });
             else out.push({ type: 'disabled', label: `🍖 Nothing in your packs ${a.name} will eat` });
+            // Riding (a horse): up into the saddle, or down from it
+            const riding = InnerMapPets.riding === a.id;
+            if (riding) out.push({ type: 'action', action: 'pet_dismount', petId: a.id, label: 'Dismount', icon: '🦶', desc: `Get down from ${a.name}; it falls in behind you on its rein` });
+            else if (InnerMapPets._rideCfg(a)) {
+                const why = InnerMapPets._whyNotRide(game, m);
+                if (why) out.push({ type: 'disabled', label: `🐎 Ride — ${why}` });
+                else out.push({ type: 'action', action: 'pet_ride', petId: a.id, label: 'Ride', icon: '🐎', desc: `Up into the saddle: ${a.name} carries you about the streets at a brisk walk (you get down at doors)` });
+            }
             if (m.stay) out.push({ type: 'action', action: 'pet_come', petId: a.id, label: 'Come Along', icon: '👣', desc: `${a.name} falls in behind you again` });
-            else out.push({ type: 'action', action: 'pet_stay', petId: a.id, label: 'Stay Here', icon: '✋', desc: `${a.name} waits on this spot until you call it (or leave the map)` });
+            else if (!riding) out.push({ type: 'action', action: 'pet_stay', petId: a.id, label: 'Stay Here', icon: '✋', desc: `${a.name} waits on this spot until you call it (or leave the map)` });
             out.push({ type: 'action', action: 'pet_wait', petId: a.id, label: 'Wait at the Inn', icon: '🏠', desc: 'Leave it at your lodging or camp while you walk the streets (Who Walks With You)' });
             out.push({ type: 'action', action: 'pet_card', petId: a.id, label: 'Its Card', icon: '📜', desc: 'Name, age, what it does for you; rename it, keep it at home' });
             out.push({ type: 'separator' });
@@ -416,9 +514,12 @@ export const InnerMapPets = {
         switch (item.action) {
             case 'pet_pet': res = AnimalCompanions.pet(player, item.petId, world); break;
             case 'pet_feed': res = AnimalCompanions.feed(player, item.petId, null, world); break;
+            case 'pet_ride': if (m) InnerMapPets.ride(game, m); return true;
+            case 'pet_dismount': InnerMapPets.dismount(game, `You swing down from ${m ? m.a.name : 'the saddle'}.`); return true;
             case 'pet_stay': if (m) { m.stay = { x: m.x, y: m.y }; res = { success: true, text: `${m.a.name} sits and stays.` }; } break;
             case 'pet_come': if (m) { m.stay = null; res = { success: true, text: `${m.a.name} comes running.` }; } break;
             case 'pet_wait': {
+                if (InnerMapPets.riding === item.petId) InnerMapPets.dismount(game);
                 StreetFollowers.set(player, StreetFollowers.animalKey(item.petId), false);
                 const a = AnimalCompanions.get(player, item.petId);
                 res = { success: true, text: `${a ? a.name : 'It'} goes back to wait for you.` };
@@ -446,6 +547,47 @@ export const InnerMapPets = {
 
     // ── Drawing ──
 
+    /**
+     * You on horseback (the player's pass, innerMapLayers/entities.js): the horse from its sheet at
+     * your feet, you seated on its back — only the body above the saddle and the thigh on the flank,
+     * the horse hiding the rest (as the battle map's horsemen: ui/innerMapBattle.js _drawRider).
+     * Facing away you are drawn first and the horse over you. False when it can't be drawn (the
+     * caller then draws you on foot).
+     */
+    drawRider(ctx, m, preset, px, py, ds, dir, walking, now) {
+        const sp = InnerMapPets.sprite(m.a);
+        if (!sp || !preset) return false;
+        const UP = 0, LEFT = 1, RIGHT = 3;
+        const side = dir === LEFT || dir === RIGHT;
+        const speed = Math.max(1, _num(InnerMap._rideSpeed, 1));
+        const pseudo = {
+            id: m.a.id, facing: ['up', 'left', 'down', 'right'][dir] || 'down', state: 'walk',
+            moving: !!walking, animT: m.t * speed, idleT: m.t, atkT: 9, hp: 1, maxHp: 1,
+        };
+        const cw = ds * 1.2, ch = ds * 1.8;
+        const k = (_num(sp.drawTiles, 2) * _num(sp.scale, 1) * ds) / _num(sp.frameW, 112);
+        const feet = py + ds * 0.3;
+        // (the saddle on the horse's sheet: its back ~70px above the hooves side on, ~84px seen
+        // from in front or behind; your hips there, ~42px down your 64; rocking with its gait)
+        const gait = walking ? Math.abs(Math.sin(m.t * speed * Math.PI * 1.6)) * ds * 0.035 : 0;
+        const saddle = feet - (side ? 70 : 84) * k - gait;
+        const top = saddle - 42 * (ch / 64);
+        // (a little behind the withers, toward the tail)
+        const along = side ? (dir === RIGHT ? -1 : 1) * 6 * k : 0;
+        const rider = () => {
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(px - cw, top - ds, cw * 2, saddle - top + ds + (side ? 0.22 : 0.12) * ds);
+            ctx.clip();
+            InnerMapCharacters.drawCharacter(ctx, preset, 'ready', dir, now, px + along - cw / 2, top, cw, ch);
+            ctx.restore();
+        };
+        if (dir === UP) rider();
+        if (!InnerMapAnimals.drawAt(ctx, pseudo, sp, px, feet, ds)) return false;
+        if (dir !== UP) rider();
+        return true;
+    },
+
     _drawOne(ctx, m, sp, fx, fy, ds, o = {}) {
         const pseudo = {
             // (walking while it moves; standing, its idle — a wag, a breath, a tail flick;
@@ -472,6 +614,8 @@ export const InnerMapPets = {
         const off = (sx, sy) => sx < -ds * 4 || sx > W + ds * 4 || sy < -ds * 4 || sy > H + ds * 4;
         if (P._shown) {
             for (const m of P._pets) {
+                // (the horse you ride is drawn with you, in your own pass: drawRider)
+                if (m.a.id === P.riding) continue;
                 const sp = P.sprite(m.a);
                 if (!sp) continue;
                 const wx = m.x * k, wy = m.y * k;

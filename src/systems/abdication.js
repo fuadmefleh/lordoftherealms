@@ -336,7 +336,8 @@ export const Abdication = {
         // ── The succession (the purse passes whole: an abdication owes no death's dues)
         const res = Relationships.succeedAsHeir(player, childId, world, {
             cause: null, regency: succ.minor, regent: regentChoice, secure: !!opts.secure,
-            keepShare: 1, disputeChance,
+            // (the old ruler hands over in person: the heir is where they stand)
+            keepShare: 1, disputeChance, arrive: false,
             renownShare: how === 'forced' ? undefined : cfg.keepRenown,
             reputationShare: how === 'forced' ? undefined : cfg.keepReputation,
             abdication: true,

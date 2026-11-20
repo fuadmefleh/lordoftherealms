@@ -48,6 +48,7 @@ import { Livestock } from '../systems/livestock.js';
 import { DataLoader } from '../core/dataLoader.js';
 import { Utils } from '../core/utils.js';
 import { ParentsGuard } from './parentsGuard.js';
+import { walkBob } from './jobItems.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _fmt = (s, v) => String(s == null ? '' : s).replace(/\{(\w+)\}/g, (m, k) => (v[k] == null ? m : String(v[k])));
@@ -67,6 +68,13 @@ const _phase = (a) => {
     return h * 0.37;
 };
 /** How far a standing beast's body swells with a breath (share of its height) and how long a breath takes, s. */
+// A carcass carried over the shoulders (_collectCarried), per view: where its feet line sits (y,
+// tiles from the player's tile centre), how far behind the face side on (back), and its size
+const SHOULDER_POSES = {
+    down: { y: -0.5, back: 0, scale: 0.85 },
+    up: { y: -0.42, back: 0, scale: 0.66 },
+    side: { y: -0.4, back: 0.15, scale: 0.66 },
+};
 const BREATH = 0.022;
 const BREATH_S = 2.6;
 
@@ -261,10 +269,17 @@ export const InnerMapAnimals = {
         const pos = InnerMap.getPlayerWorldPos ? InnerMap.getPlayerWorldPos() : { x: InnerMap.playerInnerQ * T + T / 2, y: InnerMap.playerInnerR * T + T / 2 };
         const px = pos.x, py = pos.y;
         if (this._carry.how === 'shoulder') {
+            // Across the shoulders: facing us, behind the player's head (showing either side of the
+            // neck); from behind, across their back; side on, on the near shoulder behind the face
+            const f = _num(InnerMapRenderer._playerFacing, 2);
+            const pose = f === 2 ? SHOULDER_POSES.down : f === 0 ? SHOULDER_POSES.up : SHOULDER_POSES.side;
+            const toward = f === 1 ? -1 : f === 3 ? 1 : 0;
             const s = camera.worldToScreenFast(px, py);
-            const fx = s.x, fy = s.y - ds * 0.45;
-            items.push({ sortY: py + T / 2 + 0.5, zLayer: 2, sortX: px / T, draw: () => {
-                this.drawAt(ctx, a, sp, fx, fy, ds, { scale: 0.6, noShadow: true });
+            const fx = s.x - toward * pose.back * ds, fy = s.y + pose.y * ds;
+            const walking = !!pos.walking;
+            items.push({ sortY: py + T / 2 + (f === 2 ? -0.5 : 0.5), zLayer: 2, sortX: px / T, draw: () => {
+                // (rising and falling with the player's step)
+                this.drawAt(ctx, a, sp, fx, fy + walkBob(walking, _now(), ds), ds, { scale: pose.scale, noShadow: true });
             } });
             return;
         }

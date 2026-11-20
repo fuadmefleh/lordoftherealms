@@ -66,6 +66,24 @@ function newLife(game) {
     return { start: world.day, gold0: Math.round(p.gold), station: p.origin && p.origin.station, hp0: p.health, food0: cheapest, tail: [] };
 }
 
+/** Each day: how many towns have no bread and no grain on their stalls (a local dearth). */
+function bareCount(game, stats) {
+    const views = game.world.getSettlementViews();
+    stats.townDays = (stats.townDays || 0) + views.length;
+    stats.runs = stats.runs || {};
+    for (const v of views) {
+        const t = game.world.getTile(v.q, v.r);
+        if (!t || !t.settlement) continue;
+        const key = `${v.q},${v.r}`;
+        const bare = SettlementMarket.available(t.settlement, 'bread') < 1 && SettlementMarket.available(t.settlement, 'grain') < 1;
+        if (bare) {
+            stats.bareDays = (stats.bareDays || 0) + 1;
+            stats.runs[key] = (stats.runs[key] || 0) + 1;
+            stats.longest = Math.max(stats.longest || 0, stats.runs[key]);
+        } else stats.runs[key] = 0;
+    }
+}
+
 function probe(seed) {
     const game = newGame(seed);
     // (PROBE_LEGACY=1: the harness's old automatic road encounters, as before the bot read the odds)
@@ -82,6 +100,7 @@ function probe(seed) {
         try { botDay(game, stats); } catch (e) { life.err = String(e).slice(0, 120); }
         let res = {};
         try { res = endDay(game) || {}; } catch (e) { life.err = String(e).slice(0, 120); }
+        bareCount(game, stats);
         life.tail.push(snap(game));
         if (life.tail.length > 25) life.tail.shift();
         if (res.died) {
@@ -111,11 +130,13 @@ function probe(seed) {
 describe.skipIf(!ON)('stranger lives probe', () => {
     it('plays stranger lives across seeds', () => {
         const all = [];
+        let bareAll = 0, townAll = 0;
         for (const seed of SEEDS) {
             const r = probe(seed);
             all.push(...r.lives);
             const line = r.lives.map(l => `${l.cause}@${l.days}d(${l.station},${l.gold0}g,${l.food0})`).join(' ');
-            console.info(`seed ${seed}: ${line}${r.note ? ' ' + r.note : ''}`);
+            console.info(`seed ${seed}: ${line}${r.note ? ' ' + r.note : ''} | bare bread+grain town-days ${r.stats && r.stats.bareDays || 0}/${r.stats && r.stats.townDays || 0}, longest ${r.stats && r.stats.longest || 0}`);
+            if (r.stats) { bareAll += r.stats.bareDays || 0; townAll += r.stats.townDays || 0; delete r.stats.runs; }
             if (OUT) {
                 for (const l of r.lives) fs.appendFileSync(OUT, JSON.stringify({ seed, ...l }) + '\n');
                 fs.appendFileSync(OUT, JSON.stringify({ seed, stats: r.stats }) + '\n');
@@ -125,6 +146,7 @@ describe.skipIf(!ON)('stranger lives probe', () => {
         const by = {};
         for (const l of dead) by[l.cause] = (by[l.cause] || 0) + 1;
         const days = all.map(l => l.days).sort((a, b) => a - b);
+        console.info(`TOTAL bare bread+grain town-days ${bareAll}/${townAll}`);
         console.info(`TOTAL lives ${all.length}, deaths ${dead.length} ${JSON.stringify(by)}, median days ${days[Math.floor(days.length / 2)]}`);
     }, 4 * 3600 * 1000);
 });

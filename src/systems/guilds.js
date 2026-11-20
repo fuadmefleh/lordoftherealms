@@ -1431,7 +1431,9 @@ export const Guilds = {
         const cost = Math.min(Math.max(0, _num(g.treasury)), _num(L.cost, 250));
         g.treasury -= cost;
         const p = _num(L.chance) + _num(g.crown) * _num(L.perStanding);
-        const k = s.kingdom && world.getKingdom ? world.getKingdom(s.kingdom) : null;
+        // (a fallen crown hears no suits: its chests are not counted coin — the purse is spent in town)
+        const kc = s.kingdom && world.getKingdom ? world.getKingdom(s.kingdom) : null;
+        const k = kc && kc.isAlive !== false ? kc : null;
         const toCourt = (amount) => {
             if (!(amount > 0)) return;
             if (!(k && CrownBooks.spendAtCapital(world, k, amount) > 0)) Economy.payTown(s, amount);

@@ -92,6 +92,28 @@ describe('rival Houses come to life', () => {
         expect(rival.stats.trades).toBe(1);
         expect(rival.plan).toBe(null);
     }, 120000);
+
+    it('prices only a shortlist of the bargains in full, and on a fresh look picks the best of them all', () => {
+        const game = newGame(313);
+        days(game, 1);
+        const rival = rivalsOf(game)[0];
+        const unit = RivalHouses.retinueOf(game.world, rival);
+        rival.gold = 5000;
+        const T = RivalHouses.config().trade;
+        const keep = T.shortlist;
+        expect(keep).toBeGreaterThan(0);
+        const short = RivalHouses._findTrade(game.world, unit, rival);
+        let all;
+        try {
+            T.shortlist = 1e9; // every lot priced in full: the exhaustive search
+            all = RivalHouses._findTrade(game.world, unit, rival);
+        } finally {
+            T.shortlist = keep;
+        }
+        expect(short && all).toBeTruthy();
+        expect([short.from.name, short.to.name, short.good, short.qty]).toEqual([all.from.name, all.to.name, all.good, all.qty]);
+        expect(short.gain).toBeCloseTo(all.gain, 6);
+    }, 120000);
 });
 
 describe('their lives', () => {

@@ -1,6 +1,8 @@
 {
     "_doc": "How far a day's walk goes (src/player/core/lifecycle.js, movement.js; systems/infrastructure.js getPlayerHexDays). Travel is counted in DAYS PER HEX: crossing one hex of open land takes three quarters of a day, a forest a whole day, a mountain three. The day's movement budget (stamina plus every bonus, after starvation, mood and wounds, times dayScale) is the day; a hex costs its days times the full, unimpaired day (player._dayPace), divided by the travel speed. A hex longer than what is left of the day is crossed over several days: the traveller camps on the way and arrives when it is done (player.crossing).",
     "dayScale": 0.6,
+    "_weakFloor": "However hungry, low-spirited or wounded, a free day's walk is never shorter than this share of the full, unimpaired day (player._dayPace): starvation, a black mood and wounds slow a traveller to a crawl, but a starving walker still makes slow headway across a hill over a few days instead of none (player/core/lifecycle.js endDay, systems/ailments.js; travelEstimate reads the same day). 0 turns the floor off.",
+    "weakFloor": 0.5,
     "_hexDays": "Days to cross one hex off the road, by terrain id ('default' for anything not listed).",
     "hexDays": {
         "default": 0.75,

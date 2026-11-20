@@ -78,6 +78,9 @@ Object.assign(InnerMap, {
     // Is the player currently walking?
     _playerSpeed: 4.0,
 
+    // On horseback on the street map: the walk this many times as quick (0: on foot; ui/innerMapPets.js)
+    _rideSpeed: 0,
+
     // Tiles per second walk speed
     _playerArrivalResult: null,
 

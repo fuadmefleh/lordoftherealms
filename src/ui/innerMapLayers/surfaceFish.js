@@ -16,6 +16,12 @@
 //   • Now and then one turns and flashes silver, or jumps — a splash and a
 //     ring of ripples.
 //   • The player swimming (or wading) near: they dart off for a moment.
+//   • Food thrown on the water (throwBait, from ui/innerMapFeedFish.js): it
+//     arcs out, lands with a splash, floats (a river carries it), and sinks
+//     in the end. The fish near turn and come to it, more come up from
+//     deeper while it lasts, and they nibble it down — a ring at each bite —
+//     then scatter. A line cast near where they were fed bites the readier
+//     for a while (biteBonus: ui/mapTasks/wildTasks.js).
 //
 // Settings: data/innerMap.json `surfaceFish`. Cosmetic only: its own random
 // stream (seeded per map), never the game's seeded RNG. The deep cells are
@@ -25,6 +31,7 @@
 import { InnerMapRenderer } from '../innerMapRenderer.js';
 import { InnerMap } from '../../world/innerMap.js';
 import { DataLoader } from '../../core/dataLoader.js';
+import { FishFed } from '../fishFed.js';
 
 const DEFAULTS = {
     enabled: true, max: 28,
@@ -78,7 +85,10 @@ const HIDDEN = 8;
 export const SurfaceFish = {
     fish: [],          // pool: { alive, sp, x, y, vx, vy, sh, ox, oy, tx, ty, wait, phase, ang, age, scared, glint }
     shoals: [],        // pool: { alive, tx, ty, tick }
-    ripples: [],       // pool: { alive, x, y, age, sp, ang }
+    ripples: [],       // pool: { alive, x, y, age, sp, ang, kind: 'jump' | 'nibble' | 'splash' }
+    baits: [],         // food on the water: { alive, x, y, fx, fy, t, flight, landed, bites, max, age, life, sink, food, comeT, came, seed }
+    fed: [],           // where fish were fed lately: { x, y, at } (seconds, _clock)
+    _clock: 0,
     _tiles: null,      // the map the mask is for
     _stamp: -1,
     mask: null,        // Uint8Array W*H: 0 not fish water, else KIND_CODE
@@ -160,6 +170,8 @@ export const SurfaceFish = {
         for (const f of this.fish) f.alive = false;
         for (const s of this.shoals) s.alive = false;
         for (const r of this.ripples) r.alive = false;
+        for (const b of this.baits) b.alive = false;
+        this.fed.length = 0;
         this._rand = _mulberry(seed);
         this._recount = 0;
         this._last = null;
@@ -301,7 +313,7 @@ export const SurfaceFish = {
         return true;
     },
 
-    _addRipple(f) {
+    _addRipple(f, kind = 'jump') {
         const C = this.config();
         let slot = null;
         for (const r of this.ripples) if (!r.alive) { slot = r; break; }
@@ -310,7 +322,156 @@ export const SurfaceFish = {
             slot = { alive: false };
             this.ripples.push(slot);
         }
-        slot.alive = true; slot.x = f.x; slot.y = f.y; slot.age = 0; slot.sp = f.sp; slot.ang = f.ang;
+        slot.alive = true; slot.x = f.x; slot.y = f.y; slot.age = 0; slot.sp = f.sp; slot.ang = f.ang; slot.kind = kind;
+    },
+
+    // ── Food on the water ──
+
+    /** The feeding rules (data/innerMap.json surfaceFish.feeding). */
+    feeding(C = this.config()) {
+        return C.feeding || {};
+    },
+
+    /** Food thrown from (fx, fy) to land at (x, y) (tiles): food is its feeding.foods entry. → the bait */
+    throwBait(fx, fy, x, y, food) {
+        const F = this.feeding();
+        let b = null;
+        for (const o of this.baits) if (!o.alive) { b = o; break; }
+        if (!b) { b = { alive: false }; this.baits.push(b); }
+        const bites = Math.max(1, Math.round(Number(food && food.bites) || 6));
+        Object.assign(b, {
+            alive: true, x, y, fx, fy, t: 0, flight: Math.max(0.15, Number(F.flight) || 0.5), landed: false,
+            bites, max: bites, age: 0, life: Math.max(5, Number(F.life) || 40), sink: 0, food: food || {},
+            comeT: 0.8, came: 0, cool: 0, seed: this._rand() * 1000,
+        });
+        return b;
+    },
+
+    /** Can food float at (x, y)? Any fish water — the edge by the bank too, where the fish don't swim. */
+    floatable(x, y) {
+        const t = InnerMap.tiles && InnerMap.tiles[Math.floor(y)] && InnerMap.tiles[Math.floor(y)][Math.floor(x)];
+        return isFishWater(t);
+    },
+
+    /**
+     * Where a fish can get to food at (x, y): the spot itself in the fish's water, else the
+     * nearest point of it within 1.6 tiles (by the bank they nose up from the deep side). → { x, y } or null
+     */
+    reachPoint(x, y) {
+        if (!this.mask) return null;
+        if (this.swimmable(x, y)) return { x, y };
+        let best = null, bd = Infinity;
+        for (let dy = -1.5; dy <= 1.5; dy += 0.25) {
+            for (let dx = -1.5; dx <= 1.5; dx += 0.25) {
+                const d = Math.hypot(dx, dy);
+                if (d > 1.6 || d >= bd || !this.swimmable(x + dx, y + dy)) continue;
+                bd = d; best = { x: x + dx, y: y + dy };
+            }
+        }
+        return best;
+    },
+
+    /** Food still floating within d tiles of (x, y)? (landed, not sunk) */
+    baitNear(x, y, d) {
+        for (const b of this.baits) if (b.alive && b.landed && Math.hypot(b.x - x, b.y - y) <= d) return b;
+        return null;
+    },
+
+    /**
+     * The edge a line cast at (q, r) gets from fish fed there lately: the
+     * feeding's biteBonus while food floats near or for fedSeconds after they
+     * ate near it, else 0.
+     */
+    biteBonus(q, r) {
+        const F = this.feeding();
+        const bonus = Number(F.biteBonus) || 0;
+        if (!(bonus > 0)) return 0;
+        const x = q + 0.5, y = r + 0.5, near = Number(F.near) || 2.5;
+        if (this.baitNear(x, y, near)) return bonus;
+        const keep = Number(F.fedSeconds) || 0;
+        for (const f of this.fed) if (this._clock - f.at <= keep && Math.hypot(f.x - x, f.y - y) <= near) return bonus;
+        return 0;
+    },
+
+    /** One bite taken from the bait (by fish f): a ring on the water; the last bite and it's gone. */
+    _bite(b, f) {
+        b.bites -= 1;
+        this._addRipple({ x: b.x + (f.x - b.x) * 0.5, y: b.y + (f.y - b.y) * 0.5, sp: f.sp, ang: f.ang }, 'nibble');
+        // (where they were fed: a line here bites the readier for a while)
+        const last = this.fed[this.fed.length - 1];
+        if (!last || Math.hypot(last.x - b.x, last.y - b.y) > 1 || this._clock - last.at > 5) {
+            this.fed.push({ x: b.x, y: b.y, at: this._clock });
+            if (this.fed.length > 12) this.fed.shift();
+        } else last.at = this._clock;
+        if (b.bites <= 0) this._endBait(b);
+    },
+
+    _endBait(b) {
+        b.alive = false;
+        for (const f of this.fish) if (f.lure === b) { f.lure = null; f.wait = 0.5 + this._rand(); }
+    },
+
+    /** The baits by dt: in the air, landing, floating (a river carries it), sinking; fish drawn to them. */
+    _updateBaits(dt, range, C) {
+        const F = this.feeding(C);
+        for (const b of this.baits) {
+            if (!b.alive) continue;
+            if (!b.landed) {
+                b.t += dt;
+                if (b.t < b.flight) continue;
+                b.landed = true;
+                // (onto ice or the bank after all: nothing comes for it)
+                if (!this.floatable(b.x, b.y)) { b.alive = false; continue; }
+                this._addRipple({ x: b.x, y: b.y, sp: null, ang: 0 }, 'splash');
+                // (the splash: the fish right under it start, then come back for it)
+                for (const f of this.fish) if (f.alive && Math.hypot(f.x - b.x, f.y - b.y) < 0.9) { f.scared = 0.5; f.sx = b.x; f.sy = b.y; }
+                continue;
+            }
+            b.age += dt;
+            if (b.cool > 0) b.cool -= dt;
+            // A river carries it down
+            const i = this._code(b.x, b.y) ? Math.floor(b.y) * this.W + Math.floor(b.x) : -1;
+            if (i >= 0) {
+                const k = Number(F.drift) || 0;
+                const nx = b.x + this.flowX[i] * k * dt, ny = b.y + this.flowY[i] * k * dt;
+                if (this.floatable(nx, ny)) { b.x = nx; b.y = ny; }
+            }
+            // (where the fish can get at it: worked out afresh as it drifts)
+            const rp = this.reachPoint(b.x, b.y);
+            b.ax = rp ? rp.x : null; b.ay = rp ? rp.y : null;
+            if (b.age >= b.life) {
+                b.sink += dt;
+                if (b.sink >= 2.5) { this._endBait(b); continue; }
+                continue;
+            }
+            // More come up from deeper while it floats (a shoal at a time, near it)
+            const draw = Number(b.food.draw) || 1;
+            const extra = Math.round((Number(F.extra) || 0) * draw);
+            b.comeT -= dt;
+            if (b.comeT <= 0 && b.came < extra) {
+                b.comeT = Math.max(0.5, Number(F.comeEvery) || 2.5);
+                const R = 4;
+                const near = { qMin: Math.floor(b.x) - R, qMax: Math.floor(b.x) + R, rMin: Math.floor(b.y) - R, rMax: Math.floor(b.y) + R };
+                const capC = this._capC || (this._capC = {});
+                Object.assign(capC, C, { max: (C.max | 0) + extra });
+                b.came += this._spawn(near, capC, Math.min(3, extra - b.came)) || 1;
+            }
+            // The fish about it notice, up to its takers
+            const pull = Number(F.pull) || 5;
+            const most = Math.max(1, Math.round((Number(F.takers) || 6) * Math.min(1.5, draw)));
+            let takers = 0;
+            for (const f of this.fish) if (f.alive && f.lure === b) takers++;
+            if (b.ax == null) continue;
+            for (const f of this.fish) {
+                if (takers >= most) break;
+                if (!f.alive || f.lure || f.scared > 0) continue;
+                if (Math.hypot(f.x - b.ax, f.y - b.ay) > pull || !this._clearBetween(f.x, f.y, b.ax, b.ay)) continue;
+                f.lure = b;
+                f.lureA = this._rand() * Math.PI * 2;
+                f.nib = 0.4 + this._rand() * 1.2;
+                takers++;
+            }
+        }
     },
 
     /**
@@ -346,10 +507,14 @@ export const SurfaceFish = {
                 have += made;
             }
         }
+        this._clock += dt;
+        this._updateBaits(dt, range, C);
+        const F = this.feeding(C);
         const shy = Number(C.shy) || 0;
         const drift = Number(C.drift) || 0;
         for (const f of this.fish) {
             if (!f.alive) continue;
+            if (f.lure && (!f.lure.alive || f.lure.sink > 0)) f.lure = null;
             const sp = f.sp;
             const speed = (Number(sp.speed) || 1) * 0.55;
             const i = Math.floor(f.y) * this.W + Math.floor(f.x);
@@ -370,6 +535,31 @@ export const SurfaceFish = {
             }
             let gx = (f.sh ? m.tx + f.ox : m.tx) - f.x, gy = (f.sh ? m.ty + f.oy : m.ty) - f.y;
             let want = speed;
+            // Drawn to food on the water: to its side, nose in, nibbling at it
+            const lure = f.lure;
+            if (lure && lure.ax == null) { f.lure = null; }
+            else if (lure) {
+                const L = 0.22 + (Number(sp.length) || 0.5) * 0.45;
+                let ox = lure.ax + Math.cos(f.lureA) * L, oy = lure.ay + Math.sin(f.lureA) * L * 0.8;
+                if (!this.swimmable(ox, oy)) { ox = lure.ax; oy = lure.ay; }
+                gx = ox - f.x;
+                gy = oy - f.y;
+                want = speed * 1.6;
+                if (Math.hypot(gx, gy) < 0.2) {
+                    f.nib -= dt;
+                    // (one at a time at it: the others jostle until the morsel is free again)
+                    if (f.nib <= 0 && lure.cool > 0) f.nib = 0.15 + this._rand() * 0.5;
+                    else if (f.nib <= 0) {
+                        const [lo, hi] = Array.isArray(F.biteEvery) ? F.biteEvery : [0.6, 1.5];
+                        const gap = Number(F.morselEvery) || 0;
+                        lure.cool = gap * (0.7 + this._rand() * 0.6);
+                        f.nib = lo + this._rand() * Math.max(0, hi - lo);
+                        // (a dart in at it)
+                        f.vx += (lure.x - f.x) * 1.5; f.vy += (lure.y - f.y) * 1.5;
+                        this._bite(lure, f);
+                    }
+                }
+            }
             // The player close by in the water: away, for a moment after too
             if (player && player.inWater) {
                 const dd = Math.hypot(f.x - player.x, f.y - player.y);
@@ -404,8 +594,12 @@ export const SurfaceFish = {
                 this._newMark(m, f.sh ? m.tx : f.x, f.sh ? m.ty : f.y, C);
                 if (!this.swimmable(m.tx, m.ty)) { m.tx = f.x; m.ty = f.y; }
             }
-            // Facing where it swims (into the current, holding against it)
-            if (sv > 0.04) {
+            // Facing where it swims (into the current, holding against it); at food, toward it
+            if (f.lure && Math.hypot(f.lure.x - f.x, f.lure.y - f.y) < 0.7) {
+                let d = Math.atan2(f.lure.y - f.y, f.lure.x - f.x) - f.ang;
+                d -= Math.round(d / (Math.PI * 2)) * Math.PI * 2;
+                f.ang += d * Math.min(1, dt * 5);
+            } else if (sv > 0.04) {
                 let d = Math.atan2(f.vy, f.vx) - f.ang;
                 d -= Math.round(d / (Math.PI * 2)) * Math.PI * 2;
                 f.ang += d * Math.min(1, dt * 6);
@@ -542,19 +736,21 @@ export const SurfaceFish = {
             if (sx < -ds * 2 || sx > cw + ds * 2 || sy < -ds * 2 || sy > ch + ds * 2) continue;
             const k = r.age / RIPPLE_LIFE;
             ctx.strokeStyle = '#e8f6ff';
-            for (let n = 0; n < 2; n++) {
+            // (a nibble: one small ring; a jump or a splash: two spreading wide)
+            const nib = r.kind === 'nibble';
+            for (let n = 0; n < (nib ? 1 : 2); n++) {
                 const kk = k - n * 0.18;
                 if (kk <= 0) continue;
-                ctx.globalAlpha = (1 - kk) * 0.6 * (0.4 + 0.6 * day);
-                const rx = (0.12 + kk * 0.65) * ds;
+                ctx.globalAlpha = (1 - kk) * (nib ? 0.5 : 0.6) * (0.4 + 0.6 * day);
+                const rx = (nib ? 0.06 + kk * 0.3 : 0.12 + kk * 0.65) * ds;
                 ctx.beginPath();
                 ctx.ellipse(sx, sy, rx, rx * 0.62, 0, 0, Math.PI * 2);
                 ctx.stroke();
             }
-            if (r.age < JUMP_TIME) {
+            if (r.age < JUMP_TIME && r.kind !== 'nibble') {
                 const j = r.age / JUMP_TIME;
                 const lift = Math.sin(Math.PI * j) * ds * 0.4;
-                const spr = this._sprite(r.sp, 1, false, C);
+                const spr = r.kind === 'jump' && r.sp ? this._sprite(r.sp, 1, false, C) : null;
                 if (spr) {
                     const len = (Number(r.sp.length) || 0.5) * ds;
                     const scale = len / spr.width;
@@ -578,9 +774,75 @@ export const SurfaceFish = {
                 }
             }
         }
+        this._drawBaits(ctx, origin, ds, range, day, cw, ch);
         ctx.restore();
     },
+
+    /**
+     * Food on the water: in the air, an arc from the hand with its shadow below;
+     * landed, a lump (or a scatter of grains) bobbing on the surface, smaller with
+     * each bite, going under once it sinks.
+     */
+    _drawBaits(ctx, origin, ds, range, day, cw, ch) {
+        const tiles = InnerMap.tiles;
+        const now = this._clock;
+        for (const b of this.baits) {
+            if (!b.alive) continue;
+            const color = b.food.color || '#d6a15a';
+            const px = Math.max(1, Math.round(ds * 0.07));
+            if (!b.landed) {
+                const k = Math.min(1, b.t / b.flight);
+                const x = b.fx + (b.x - b.fx) * k, y = b.fy + (b.y - b.fy) * k;
+                const lift = Math.sin(Math.PI * k) * ds * (0.6 + Math.hypot(b.x - b.fx, b.y - b.fy) * 0.12);
+                const sx = origin.x + (x - range.qMin) * ds, sy = origin.y + (y - range.rMin) * ds;
+                if (sx < -ds || sx > cw + ds || sy < -ds * 3 || sy > ch + ds) continue;
+                ctx.globalAlpha = 0.25;
+                ctx.fillStyle = '#000';
+                ctx.beginPath(); ctx.ellipse(sx, sy, px * 1.4, px * 0.7, 0, 0, Math.PI * 2); ctx.fill();
+                ctx.globalAlpha = 1;
+                ctx.fillStyle = color;
+                if (b.food.scatter) {
+                    for (let n = 0; n < 5; n++) ctx.fillRect(sx + Math.cos(n * 1.3 + k * 4) * px * (1 + k * 2) - px / 2, sy - lift + Math.sin(n * 2.1) * px * (1 + k), px, px);
+                } else ctx.fillRect(sx - px, sy - lift - px, px * 2, px * 2);
+                continue;
+            }
+            const t = tiles[Math.floor(b.y)] && tiles[Math.floor(b.y)][Math.floor(b.x)];
+            if (!t || !t.explored || !t.visible) continue;
+            const sx = origin.x + (b.x - range.qMin) * ds, sy = origin.y + (b.y - range.rMin) * ds;
+            if (sx < -ds || sx > cw + ds || sy < -ds || sy > ch + ds) continue;
+            const left = Math.max(0.25, b.bites / Math.max(1, b.max));
+            const under = Math.min(1, b.sink / 2.5);
+            const bob = Math.sin(now * 2.2 + b.seed) * ds * 0.02;
+            ctx.globalAlpha = (1 - under) * (0.55 + 0.45 * day);
+            ctx.fillStyle = color;
+            if (b.food.scatter) {
+                // (grains spread a little on the water, fewer as they are eaten)
+                const n = Math.max(1, Math.round(9 * left));
+                for (let i = 0; i < n; i++) {
+                    const a = b.seed + i * 2.399, d = (0.08 + (i % 4) * 0.06) * ds * (1 + Math.min(1, b.age / 6) * 0.6);
+                    ctx.fillRect(Math.round(sx + Math.cos(a) * d - px / 2), Math.round(sy + Math.sin(a) * d * 0.6 + bob - px / 2), px, px);
+                }
+            } else {
+                const w = Math.max(px, Math.round(ds * 0.2 * Math.sqrt(left))), h = Math.max(px, Math.round(w * 0.6));
+                ctx.fillRect(Math.round(sx - w / 2), Math.round(sy - h / 2 + bob), w, h);
+                // (wet: a darker edge where it sits in the water)
+                ctx.globalAlpha *= 0.35;
+                ctx.fillStyle = '#000';
+                ctx.fillRect(Math.round(sx - w / 2), Math.round(sy + h / 2 + bob - px / 2), w, Math.max(1, Math.round(px / 2)));
+            }
+            // A faint ring where it floats
+            ctx.globalAlpha = (1 - under) * 0.25 * (0.4 + 0.6 * day);
+            ctx.strokeStyle = '#e8f6ff';
+            ctx.lineWidth = Math.max(1, ds * 0.025);
+            const rr = ds * (0.22 + 0.04 * Math.sin(now * 1.6 + b.seed));
+            ctx.beginPath(); ctx.ellipse(sx, sy + bob, rr, rr * 0.6, 0, 0, Math.PI * 2); ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+    },
 };
+
+// (fishing reads where they were fed through ui/fishFed.js)
+FishFed.biteBonus = (q, r) => SurfaceFish.biteBonus(q, r);
 
 Object.assign(InnerMapRenderer, {
     /** Fish in the water on screen (called from _renderWaterFx, under the surface's effects). */

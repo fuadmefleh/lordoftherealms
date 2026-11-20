@@ -539,7 +539,9 @@ export const Ailments = {
         const pen = Ailments.movementPenalty(player);
         if (pen > 0 && _num(player.movementRemaining) > 1) {
             const before = player.movementRemaining;
-            player.movementRemaining = Math.max(1, before - pen);
+            // (never below the weak day's floor: player/core/movement.js _weakDayFloor, data/travel.json weakFloor)
+            const floor = typeof player._weakDayFloor === 'function' ? Math.min(before, player._weakDayFloor()) : 1;
+            player.movementRemaining = Math.max(1, floor, before - pen);
             out.movementLost = before - player.movementRemaining;
             // A wounded day's full strength still carries one hex (Player.stepAlongPath)
             if (_num(player._dayMovement) > player.movementRemaining) player._dayMovement = player.movementRemaining;        }

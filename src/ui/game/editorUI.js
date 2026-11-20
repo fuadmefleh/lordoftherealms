@@ -9,6 +9,7 @@ import { House } from '../../systems/house.js';
 import { FirstSteps } from '../../systems/firstSteps.js';
 import { InnerMapCarry } from '../innerMapCarry.js';
 import { InnerMapCarts } from '../innerMapCarts.js';
+import { InnerMapPets } from '../innerMapPets.js';
 import { InnerMapDowned } from '../innerMapDowned.js';
 import { MetaLegacy } from '../../systems/metaLegacy.js';
 import { bindIronmanQuit, pendingIronmanDeath } from './ironman.js';
@@ -21,6 +22,9 @@ export async function resumeGame(key = null) {
     // (the street maps aren't saved: whoever was over your shoulder is let go, nothing left dangling)
     InnerMapCarry.reset();
     InnerMapCarts.reset();
+    // (nor whether you were in the saddle: ui/innerMapPets.js)
+    InnerMapPets.riding = null;
+    InnerMap._rideSpeed = 0;
     // (the court scribe's retellings were of the world left behind: ui/actionMenu/annals.js)
     this._annalsScribe = null;
 

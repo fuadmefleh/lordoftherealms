@@ -41,6 +41,7 @@ import { Foraging, Hunting } from '../../player/foraging.js';
 import { HuntingBow } from '../../player/huntingBow.js';
 import { FoodSkills } from '../../systems/foodSkills.js';
 import { drawMapMarker } from '../mapInk.js';
+import { FishFed } from '../fishFed.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _me = () => ({ q: InnerMap.playerInnerQ, r: InnerMap.playerInnerR });
@@ -245,7 +246,9 @@ function _lineTick(ctx, dt) {
     if (L.t > 0) return;
     if (L.state === 'wait') {
         const sk = L.skill || {};
-        if (ctx.rng() < Math.min(0.98, Rules.biteChance(L.luck, c) + _num(sk.bites))) {
+        // (fish fed there lately bite the readier: ui/fishFed.js, from ui/innerMapLayers/surfaceFish.js)
+        const fed = FishFed.biteBonus(L.spot.q, L.spot.r);
+        if (ctx.rng() < Math.min(0.98, Rules.biteChance(L.luck, c) + _num(sk.bites) + fed)) {
             L.state = 'bite';
             L.t = Rules.strikeWindow(L.luck, c) + _num(sk.window);
             L.mark.glyph = c.biteGlyph || 'warning';

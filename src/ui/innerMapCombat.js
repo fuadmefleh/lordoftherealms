@@ -55,6 +55,18 @@ import { InnerMapWatchStop } from './watchStop.js';
 import { InnerMapNight } from './innerMapNight.js';
 import { InnerMapScavengers } from './innerMapScavengers.js';
 import { drawMapText, labelZoom, textPx } from './mapInk.js';
+import { walkBob } from './jobItems.js';
+
+// One carried across the shoulders (drawCarriedCorpse): where the character frame folds (the hips,
+// as a share of its height from the top), and per view the fold's height (y, tiles from the player's
+// tile centre), how far behind the face it sits side on (back), and how far the torso and the legs
+// droop below level (radians)
+const CARRY_HIP = 0.62;
+const CARRY_POSES = {
+    down: { y: -0.66, back: 0, torso: 0.9, legs: 0.7 },
+    up: { y: -0.44, back: 0, torso: 0.9, legs: 0.7 },
+    side: { y: -0.5, back: 0.06, torso: 1.25, legs: 1.1 },
+};
 import { ParentsGuard } from './parentsGuard.js';
 
 function _nowMs() {
@@ -1308,66 +1320,66 @@ export const InnerMapCombat = {
     },
 
     /**
-     * Someone carried over the player's shoulder (a body, or the living senseless — c.alive keeps
-     * their colour): folded at the hips over one shoulder, the legs hanging down the player's front,
-     * the torso, arms and head hanging head-down the back. Drawn in two parts about the player:
-     * part 'back' before the player's sprite, 'front' after it — which half is which goes by the way
-     * the player faces (facing away, the torso hangs on the side we see).
+     * Someone carried over the player's shoulders (a body, or the living senseless — c.alive keeps
+     * their colour): one figure folded at the hips across the shoulders (_drawDraped). Seen from the
+     * front, it lies behind the player's head, the head and torso drooping down one side and the legs
+     * the other; from behind, the same across the player's back; side on, over the near shoulder,
+     * the legs hanging down the player's front and the torso down their back. Drawn whole in one of
+     * the two passes about the player's sprite — 'back' (before it) facing us, 'front' otherwise.
      * @param {number} px @param {number} py the player's tile centre on screen
      * @param {number} facing InnerMapCharacters.DIR_*
      * @param {'back'|'front'} part
      */
     drawCarriedCorpse(ctx, camera, c, px, py, facing = InnerMapCharacters.DIR_DOWN, part = 'front') {
-        const T = InnerMapRenderer.TILE_SIZE;
-        const ds = T * camera.zoom;
-        const scale = InnerMapCharacters.drawScale(c) * 0.8;
-        if (!(c.preset && InnerMapCharacters.isReady() && InnerMapCharacters.getComposited(c.preset))) {
-            if (part === 'front') drawGlyph(ctx, 'skull', px, py - ds * 0.6, Math.max(10, ds * 0.35), '#d8cfc4', 2);
+        const D = InnerMapCharacters;
+        const ds = InnerMapRenderer.TILE_SIZE * camera.zoom;
+        if (part !== (facing === D.DIR_DOWN ? 'back' : 'front')) return;
+        if (!(c.preset && D.isReady() && D.getComposited(c.preset))) {
+            drawGlyph(ctx, 'skull', px, py - ds * 0.6, Math.max(10, ds * 0.35), '#d8cfc4', 2);
             return;
         }
-        const D = InnerMapCharacters;
+        const scale = D.drawScale(c) * 0.88;
         const cw = ds * 1.2 * scale, ch = ds * 1.8 * scale;
-        const HIP = 0.62;   // (where the frame folds: the hips, as a share of its height from the top)
-        // Over which shoulder, and which half hangs on the side we see
-        const side = facing === D.DIR_UP ? -1 : facing === D.DIR_LEFT ? 1 : facing === D.DIR_RIGHT ? -1 : 1;
-        const sideways = facing === D.DIR_LEFT || facing === D.DIR_RIGHT;
-        const sx = px + side * ds * (sideways ? 0.02 : 0.17), sy = py - ds * 0.58;
-        // legs: in front unless facing away; torso: behind unless facing away (side on: both in sight)
-        const legsPart = facing === D.DIR_UP ? 'back' : 'front';
-        const torsoPart = facing === D.DIR_UP ? 'front' : 'back';
-        const toward = facing === D.DIR_LEFT ? -1 : facing === D.DIR_RIGHT ? 1 : 0;   // (side on: legs forward, torso back)
         const filter = c.alive ? 'none' : 'grayscale(0.45) brightness(0.75)';
-        const bonds = c.bound || c.gagged ? { _bound: c.bound, _gagged: c.gagged } : null;
-        if (part === legsPart) {
+        const pose = CARRY_POSES[facing === D.DIR_UP ? 'up' : facing === D.DIR_DOWN ? 'down' : 'side'];
+        // (rising and falling with the player's step)
+        const y = py + pose.y * ds + walkBob(InnerMap.getPlayerWorldPos().walking, _nowMs() / 1000, ds);
+        if (facing === D.DIR_LEFT || facing === D.DIR_RIGHT) {
+            // (side on: the fold a little behind the player's face, the torso out behind them)
+            const toward = facing === D.DIR_LEFT ? -1 : 1;
+            this._drawDraped(ctx, c, px - toward * pose.back * ds, y, cw, ch, -toward, filter, pose);
+        } else {
+            this._drawDraped(ctx, c, px, y, cw, ch, facing === D.DIR_UP ? -1 : 1, filter, pose);
+        }
+    },
+
+    /**
+     * One draped across the shoulders (drawCarriedCorpse): the frame cut at the hips, each half
+     * turned about that fold — the torso out to `side` and the legs the other way, each drooping
+     * by the pose's angle (pose.torso, pose.legs, radians below level). (x, y) is the fold.
+     */
+    _drawDraped(ctx, c, x, y, cw, ch, side, filter, pose) {
+        const D = InnerMapCharacters;
+        const foldY = (CARRY_HIP - 0.5) * ch;   // (the hips, in the frame's own centred box)
+        const seam = ch * 0.02;                  // (the halves overlap a little: no gap at the fold)
+        const halves = [
+            { turn: Math.PI / 2 + pose.torso, from: -ch, to: foldY + seam, torso: true },
+            { turn: Math.PI / 2 - pose.legs, from: foldY - seam, to: ch, torso: false },
+        ];
+        for (const h of halves) {
             ctx.save();
-            ctx.translate(sx + toward * ds * 0.16, sy);
-            ctx.rotate(side * 0.12 - toward * 0.25);
-            ctx.translate(0, (0.5 - HIP) * ch);
+            ctx.translate(x, y);
+            ctx.rotate(side * h.turn);
+            ctx.translate(0, -foldY);
             ctx.beginPath();
-            ctx.rect(-cw, (HIP - 0.5) * ch, cw * 2, ch);
+            ctx.rect(-cw, h.from, cw * 2, h.to - h.from);
             ctx.clip();
             ctx.filter = filter;
             D.drawCharacter(ctx, c.preset, 'idle', D.DIR_DOWN, 0, -cw / 2, -ch / 2, cw, ch);
             ctx.filter = 'none';
-            // (tied at the ankles: the rope on the legs that hang in front)
-            if (bonds && bonds._bound) this._drawBonds(ctx, { _bound: true }, cw, ch, ds, { anklesOnly: true });
-            ctx.restore();
-        }
-        if (part === torsoPart) {
-            ctx.save();
-            // (hanging down beside the player's body, so the head and arms show past it)
-            ctx.translate(sx - toward * ds * 0.24 + (sideways ? 0 : side * ds * 0.16), sy + ds * 0.02);
-            ctx.rotate(-side * 0.1 + toward * 0.2);
-            ctx.scale(1, -1);
-            ctx.translate(0, -(HIP - 0.5) * ch);
-            ctx.beginPath();
-            ctx.rect(-cw, -ch, cw * 2, ch * (HIP + 0.5));
-            ctx.clip();
-            ctx.filter = filter;
-            // (their back toward us when they hang behind the player; their face when we see that side)
-            D.drawCharacter(ctx, c.preset, 'idle', torsoPart === 'front' && !sideways ? D.DIR_UP : sideways ? (toward > 0 ? D.DIR_LEFT : D.DIR_RIGHT) : D.DIR_UP, 0, -cw / 2, -ch / 2, cw, ch);
-            ctx.filter = 'none';
-            if (bonds && bonds._gagged) this._drawBonds(ctx, { _gagged: true }, cw, ch, ds);
+            // (tied at the ankles; gagged: the cloth across the mouth)
+            if (!h.torso && c.bound) this._drawBonds(ctx, { _bound: true }, cw, ch, ch / 1.8, { anklesOnly: true });
+            if (h.torso && c.gagged) this._drawBonds(ctx, { _gagged: true }, cw, ch, ch / 1.8);
             ctx.restore();
         }
     },

@@ -42,6 +42,7 @@ import { InnerMapRites } from '../innerMapRites.js';
 import { InnerMapKin } from '../innerMapKin.js';
 import { InnerMapOverheard } from '../innerMapOverheard.js';
 import { InnerMapRiverDrift } from '../innerMapRiverDrift.js';
+import { isRiverSwim, riverRunsOn, riverCarriesOut, riverEntryCell } from '../innerMapRiverEdge.js';
 import { InnerMapSeasons } from '../innerMapSeasons.js';
 
 // Blows at a tree or a rock land harder with Woodcutting / Mining (player/gathering.js): the
@@ -1191,12 +1192,51 @@ function _currentStep(game, dt) {
     const sw = OceanCurrents.config().swim || {};
     const resist = game.player ? Swimming.practice(game.player) * (Number(sw.skillResist) || 0) : 0;
     const res = InnerMap.driftPlayer(dt, sea, resist);
-    if (!InnerMap.isPlayerSwimming()) { game._currentTold = false; return; }
+    if (!InnerMap.isPlayerSwimming()) { game._currentTold = false; game._riverEdgeTried = null; return; }
+    _riverEdgeStep(game);
     if (res && res.carried && !game._currentTold) {
         game._currentTold = true;
         if (res.kind === 'river') game.ui.showNotification('🌊 The Current', 'The river takes you — it carries you downstream. Swim across it, or make for the bank.', 'info');
         else game.ui.showNotification('🌊 The Current', `The sea runs ${OceanCurrents.sideName(sea && sea.dir)} here and carries you with it.`, 'info');
     }
+}
+
+/**
+ * Carried to the map's edge where the river runs off it: on with the river
+ * into the next hex (ui/innerMapRiverEdge.js). Only drifting — a swim under
+ * way to somewhere crosses by its own arrival. Tried once a cell: held at
+ * the edge, the reason is told once, not every frame.
+ */
+function _riverEdgeStep(game) {
+    if (!InnerMap.active || InnerMap._insideBuilding || game._crossingEdge || InnerMap._playerWalking) return;
+    const q = InnerMap.playerInnerQ, r = InnerMap.playerInnerR;
+    const side = edgeSide(q, r, InnerMap.width, InnerMap.height);
+    const at = InnerMap.currentWorldTile;
+    const key = side === null || !at ? null : `${at.q},${at.r}|${q},${r}`;
+    // (just swum in upstream: not swept straight back out until clear of the edge)
+    if (game._riverEdgeHold && (!at || game._riverEdgeHold !== `${at.q},${at.r}` || Math.min(q, r, InnerMap.width - 1 - q, InnerMap.height - 1 - r) > 2)) game._riverEdgeHold = null;
+    if (game._riverEdgeHold) return;
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    if (InnerMap.isPlayerSwimming()) game._riverSwamAt = now;
+    if (!key) { game._riverEdgeTried = null; return; }
+    let out = isRiverSwim(InnerMap.tiles, q, r) && riverCarriesOut(InnerMap.currentAt(q, r), side);
+    // (washed by the current into the river's own shallows at the very edge, a moment ago
+    // still swimming, where it runs off the map beside you: on with it all the same — but
+    // not one who walked down to the bank there on purpose)
+    if (!out && game._riverSwamAt && now - game._riverSwamAt < 1500) {
+        const t = InnerMap.tiles[r] && InnerMap.tiles[r][q];
+        if (t && t._wet && t._waterKind === 'river' && !t._bridge) {
+            for (let d = -2; d <= 2 && !out; d++) {
+                const nq = side === 0 || side === 3 ? q : q + d, nr = side === 0 || side === 3 ? r + d : r;
+                if (edgeSide(nq, nr, InnerMap.width, InnerMap.height) !== side) continue;
+                out = isRiverSwim(InnerMap.tiles, nq, nr) && riverCarriesOut(InnerMap.currentAt(nq, nr), side);
+            }
+        }
+    }
+    if (!out) { if (!isRiverSwim(InnerMap.tiles, q, r)) game._riverEdgeTried = null; return; }
+    if (game._riverEdgeTried === key) return;
+    game._riverEdgeTried = key;
+    _crossEdge(game, { drift: true });
 }
 
 /**
@@ -1258,7 +1298,7 @@ export function edgeEntry(side, q, r, W, H) {
  * edge, the clock running on. Not out of a building, off your ship's deck,
  * onto ground no one can walk, or out over the open sea.
  */
-function _crossEdge(game) {
+function _crossEdge(game, opts = {}) {
     if (!InnerMap.active || InnerMap._insideBuilding || game._crossingEdge) return;
     const W = InnerMap.width, H = InnerMap.height;
     const q = InnerMap.playerInnerQ, r = InnerMap.playerInnerR;
@@ -1273,14 +1313,23 @@ function _crossEdge(game) {
     const n = Hex.neighbors(player.q, player.r)[side];
     const nq = world.width ? Hex.wrapQ(n.q, world.width) : n.q;
     const nt = n.r >= 0 && n.r < world.height ? world.getTile(nq, n.r) : null;
-    if (!nt) { game.ui.showNotification('🌫️ The Edge of the World', 'There is nothing beyond.', 'info'); return; }
+    // In a river that runs on across this edge: carried (or swimming) on in it (ui/innerMapRiverEdge.js)
+    const inRiver = isRiverSwim(InnerMap.tiles, q, r);
+    if (!nt) { game.ui.showNotification('🌫️ The Edge of the World', inRiver ? 'The river runs out into nothing. The current holds you at the edge.' : 'There is nothing beyond.', 'info'); return; }
     const water = Terrain.isWaterId(nt.terrain.id);
     if (water) {
-        game.ui.showNotification('🌊 Open Water', `${nt.terrain.name || 'The sea'} stretches away — too far to swim. You need a ship.`, 'warning');
+        game.ui.showNotification('🌊 Open Water', inRiver
+            ? `The river runs out into ${nt.terrain.name ? nt.terrain.name.toLowerCase() : 'the sea'} beyond — too far to swim. Make for the bank, or take a ship.`
+            : `${nt.terrain.name || 'The sea'} stretches away — too far to swim. You need a ship.`, 'warning');
         return;
     }
     if (!nt.terrain.passable) {
         game.ui.showNotification('⛰️ No Way Through', `${nt.terrain.name || 'That ground'} lies beyond — there is no way on from here.`, 'warning');
+        return;
+    }
+    const byRiver = inRiver && riverRunsOn(world, nq, n.r, (side + 3) % 6);
+    if (opts.drift && !byRiver) {
+        game.ui.showNotification('🌊 The River Ends', `The river goes no further into ${nt.terrain.name ? nt.terrain.name.toLowerCase() : 'the next hex'} — the current holds you at the edge. Swim on out, or make for the bank.`, 'info');
         return;
     }
     // On to the next hex, the hour unchanged
@@ -1299,8 +1348,8 @@ function _crossEdge(game) {
         if (!InnerMap.active) return;
         InnerMap.timeOfDay = clock.timeOfDay;
         InnerMap._timeAccumulator = clock.acc;
-        // In on the matching edge: there, or the nearest spot you can stand (or swim)
-        let at = null;
+        // In on the matching edge: in the river there (still in the water, the current on), or the nearest spot you can stand (or swim)
+        let at = byRiver ? riverEntryCell(InnerMap.tiles, (side + 3) % 6, entry, (x, y) => edgeSide(x, y, W, H)) : null;
         for (let d = 0; d <= 8 && !at; d++) {
             for (let dq = -d; dq <= d && !at; dq++) {
                 for (let dr = -d; dr <= d && !at; dr++) {
@@ -1319,7 +1368,18 @@ function _crossEdge(game) {
             const pw = InnerMap.getPlayerWorldPos();
             game.innerMapCamera.centerOn(pw.x, pw.y);
             game.innerMapCamera.precomputeFrame();
+            if (byRiver && InnerMap.isPlayerSwimming()) {
+                game._currentTold = true;
+                game._riverEdgeTried = null;
+                game._riverEdgeHold = opts.drift ? null : `${nq},${n.r}`;
+                game.ui.showNotification('🌊 Downstream', opts.drift
+                    ? `The river carries you on into ${nt.terrain.name ? nt.terrain.name.toLowerCase() : 'the next hex'}.`
+                    : `You swim on along the river into ${nt.terrain.name ? nt.terrain.name.toLowerCase() : 'the next hex'}.`, 'info');
+            }
         }
         game.ui.updateStats(player, world);
     }).finally(() => { game._crossingEdge = false; });
 }
+
+/** The edge crossing, for specs (src/__tests__/innerMapRiverEdge.test.js); takes the game as its argument, not as `this`. */
+export const _edgeCrossing = { cross: _crossEdge, riverStep: _riverEdgeStep };

@@ -368,6 +368,45 @@ export const MarketDynamics = {
      * border and the realms' balance of trade (world/moneySupply.js) stood at
      * nothing. Adds to `pairs` in place.
      */
+    /**
+     * The grain road: a town whose land grows less food than its people eat
+     * (its production profile against its need, under granaryLink.deficit) and
+     * none of whose partners grows a surplus trades also with the nearest town
+     * that does (at granaryLink.surplus or more, within maxRange, same land or
+     * two ports). The haul's friction grows with the distance, so the grain
+     * comes only when the dearth's price pays for the road — a cluster of hungry
+     * towns draws on the breadbasket beyond its neighbours instead of going bare.
+     */
+    _granaryPairs(lives, cands, pairs, pairKey, T) {
+        const G = T.granaryLink;
+        if (!G || !(_num(G.surplus) > 0)) return;
+        const food = SettlementMarket.config().groupIdx.food;
+        if (!food || !food.length) return;
+        const n = lives.length;
+        const bal = new Float64Array(n).fill(-1);
+        for (let i = 0; i < n; i++) {
+            const m = lives[i].market;
+            if (!m || !Array.isArray(m.prod)) continue;
+            const need = SettlementMarket._shape(lives[i]).needA;
+            let p = 0, w = 0;
+            for (let x = 0; x < food.length; x++) { p += _num(m.prod[food[x]]); w += _num(need[food[x]]); }
+            if (w > 0) bal[i] = p / w;
+        }
+        const partners = new Map();
+        const join = (x, y) => { let s = partners.get(x); if (!s) partners.set(x, s = []); s.push(y); };
+        for (const p of pairs.values()) { join(p.i, p.j); join(p.j, p.i); }
+        const surplus = _num(G.surplus), deficit = _num(G.deficit, 1);
+        const range = Math.min(_num(G.range, T.maxRange), T.maxRange);
+        for (let i = 0; i < n; i++) {
+            if (!(bal[i] >= 0) || bal[i] >= deficit) continue;
+            if ((partners.get(i) || []).some(j => bal[j] >= surplus)) continue;
+            const c = cands[i].find(x => x.d <= range && bal[x.j] >= surplus);
+            if (!c) continue;
+            const k = pairKey(i, c.j);
+            if (!pairs.has(k)) pairs.set(k, { i: Math.min(i, c.j), j: Math.max(i, c.j), d: c.d, sea: c.sea });
+        }
+    },
+
     _frontierPairs(world, lives, tiles, port, pairs, pairKey, T) {
         const range = _num(T.frontierRange);
         if (!(range > 0)) return;
@@ -484,6 +523,7 @@ export const MarketDynamics = {
                 if (!pairs.has(k)) pairs.set(k, { i: Math.min(i, c.j), j: Math.max(i, c.j), d: c.d, sea: c.sea });
             }
         }
+        this._granaryPairs(lives, cands, pairs, pairKey, T);
         this._frontierPairs(world, lives, tiles, port, pairs, pairKey, T);
         // A road the whole way (towns on one network share its flood; the
         // floods are kept for a month — new roads are rare)

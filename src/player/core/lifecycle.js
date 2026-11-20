@@ -15,11 +15,21 @@ import { Ships } from '../../systems/ships.js';
 import { DawnBirth } from '../dawnBirth.js';
 import { Parentage } from '../parentage.js';
 import { Household } from '../household.js';
+import { HeirArrival } from '../heirArrival.js';
 import { Endurance } from '../endurance.js';
 import { DataLoader } from '../../core/dataLoader.js';
 import { Names } from '../../core/names.js';
 
 export const PlayerLifecycleMethods = {
+    /**
+     * An heir takes up the mantle (Relationships.succeedAsHeir): where they
+     * were, not where the late ruler fell, with food of their own
+     * (player/heirArrival.js). ctx: { child, away }.
+     */
+    takeUpTheMantle(world, ctx = {}) {
+        return HeirArrival.arrive(this, world, ctx);
+    },
+
     /**
      * Consume 1 unit of food (best type first). Returns true if food was consumed.
      */
@@ -192,6 +202,13 @@ export const PlayerLifecycleMethods = {
         if (dayScale !== 1 && this.movementRemaining > 0) this.movementRemaining = Math.max(1, Math.round(this.movementRemaining * dayScale));
         // What a whole day of travel is worth in movement (a hex's days x this)
         this._dayPace = Math.max(1, Math.round(Math.max(1, fullDay) * dayScale));
+        // However hungry or low, a free day still carries a traveller some way: never
+        // less than weakFloor of the full day (data/travel.json), so a starving walker
+        // can still cross a hill over a few days and reach bread
+        if (!this.jailState && !this.indenturedServitude && this.movementRemaining > 0) {
+            const floor = this._weakDayFloor();
+            if (this.movementRemaining < floor) this.movementRemaining = floor;
+        }
         // The day's full strength (what is left of a long crossing is spread over such days)
         this._dayMovement = this.movementRemaining;
 

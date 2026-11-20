@@ -580,6 +580,11 @@ Object.assign(Relationships, {
             return { success: false, reason: `Heir must be at least ${settings.minAgeToPlay} years old` };
         }
 
+        // Where the heir is: away on their years abroad (systems/heirPaths.js), read
+        // before the path is closed below — they take up the mantle there
+        const path = child.upbringing && child.upbringing.path;
+        const away = path && path.active && Number.isFinite(path.q) && Number.isFinite(path.r) ? { q: path.q, r: path.r, name: path.where || path.name || null } : null;
+
         // Store old player info for history
         const oldName = player.name;
         const oldAge = player.age;
@@ -742,8 +747,16 @@ Object.assign(Relationships, {
             });
         }
 
+        // The heir takes up the mantle where they were — the House's home, their
+        // branch's seat, their years abroad, else the nearest friendly town — not
+        // where the late ruler fell, with food of their own bought or from the
+        // larder (player/heirArrival.js; an abdication hands over in place: opts.arrive false)
+        const arrival = opts.arrive !== false && typeof player.takeUpTheMantle === 'function'
+            ? player.takeUpTheMantle(world, { child, away }) : null;
+
         return {
             success: true,
+            arrival,
             oldName,
             oldAge,
             newName: player.name,

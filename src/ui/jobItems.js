@@ -68,6 +68,15 @@ export function carryPose(how, dir, ds) {
     return { dx: side * ds * 0.16, dy: -ds * 0.02, k: 0.55, back: false };
 }
 
+/**
+ * How far a load on the player rises and falls with their walk (screen px, negative is up), in step
+ * with the walk sheet's own bob: 0 standing still. `now` in seconds, as the entity layer's clock.
+ */
+export function walkBob(walking, now, ds) {
+    if (!walking) return 0;
+    return (WALK_BOB[Math.floor(now * WALK_FPS) % WALK_BOB.length] || 0) * (ds * 1.8 / 64);
+}
+
 export const JobItems = {
     /** The item a task glyph shows, or null (no art: keep the glyph). */
     itemFor(glyph, plan = null) {

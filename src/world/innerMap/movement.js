@@ -497,7 +497,9 @@ Object.assign(InnerMap, {
         const under = this._underwater ? (this._underwaterSpeed || 0.75) : 1; // (slower again under the surface)
         // (deep snow off the cleared streets, mud, slush, ice: world/innerMap/streetSeasons.js)
         const pace = !inWater && next && this._groundPace ? this._groundPace(next.q, next.r) : 1;
-        this._playerMoveProgress += deltaTime * this._playerSpeed * (inWater ? this.swimConfig().speed * (this._swimSpeedBonus || 1) * under : pace);
+        // (on horseback the walk is the horse's: ui/innerMapPets.js sets _rideSpeed while you ride)
+        const ride = !inWater && this._rideSpeed > 0 ? this._rideSpeed : 1;
+        this._playerMoveProgress += deltaTime * this._playerSpeed * (inWater ? this.swimConfig().speed * (this._swimSpeedBonus || 1) * under : pace * ride);
 
         if (this._playerMoveProgress >= 1.0) {
             this._playerMoveProgress = 0;

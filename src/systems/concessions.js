@@ -694,7 +694,9 @@ export const Concessions = {
         c.wages = Math.round(_num(c.wages) + wages);
         c.lastNet = Math.round(net);
         c.lastFed = fed;
-        const realm = typeof world.getKingdom === 'function' ? world.getKingdom(c.kingdomId) : null;
+        // (a fallen crown's chests are not counted coin: its dues go to the home town instead)
+        const crown = typeof world.getKingdom === 'function' ? world.getKingdom(c.kingdomId) : null;
+        const realm = crown && crown.isAlive !== false ? crown : null;
         if (c.holder === 'player') {
             const L = Concessions._ledger(world);
             if (player) {

@@ -1316,9 +1316,14 @@ Object.assign(UI.prototype, {
         // A busy day must not bury the screen: keep the newest few cards and fold
         // the rest into a "+N more" chip that opens the event log.
         const MAX_CARDS = 3;
+        // Errors and warnings (starving, a fleet in trouble) outlast routine news:
+        // the cards folded first are the oldest of the least urgent.
+        notif._rank = type === 'error' ? 3 : type === 'warning' ? 2 : 1;
         const live = [...area.querySelectorAll('.notification')].filter(n => !n._gone);
         if (live.length > MAX_CARDS) {
-            for (const old of live.slice(MAX_CARDS)) {
+            const keep = new Set(live.map((n, i) => ({ n, i, r: n._rank || 1 }))
+                .sort((a, b) => b.r - a.r || a.i - b.i).slice(0, MAX_CARDS).map(x => x.n));
+            for (const old of live.filter(n => !keep.has(n))) {
                 old._gone = true;
                 old.remove();
                 this._notifFolded = (this._notifFolded || 0) + 1;

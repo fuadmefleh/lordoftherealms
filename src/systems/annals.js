@@ -40,8 +40,11 @@ import { LlmProse } from './llmProse.js';
 // What the daily scribe tick last saw, per world (not saved: a load just looks once more)
 const _autoMemo = new WeakMap();
 import { Crises } from './crises.js';
+import { LastCrisis } from './lastCrisis.js';
 import { Climate } from '../world/climate.js';
 import { Names } from '../core/names.js';
+// (the House's code, names on the map, founding tale and last chapters: systems/namedLegacy.js)
+import { NamedLegacy } from './namedLegacy.js';
 
 const DEFAULTS = {
     minWeight: 4, minEvents: 4, maxEventsPerChapter: 40, maxEventsPerYear: 6, quietGapYears: 3,
@@ -640,6 +643,8 @@ export const Annals = {
             _fill(L.prestige, { prestige: _fmt(house.prestige), score: _fmt(score) }),
             best && reigns.length > 1 ? _fill(L.best, { best: best.name, bestEpithet: best.epithet ? ` ${best.epithet}` : '' }) : '',
         ]);
+        // What the House wrote on the world: its code, its names, its tale, what its old rulers asked to be remembered for
+        try { push('legacy', NamedLegacy.annalsLines(player, world)); } catch (e) { /* nothing written */ }
 
         // What the House holds (the living line only)
         if (!ended && !ctx.archived) {
@@ -751,7 +756,8 @@ export const Annals = {
             before: ctx.archived ? [] : _arr(player.annalsPast),
             // The age's crises the House lived through, each a chapter of its own (systems/crises.js)
             // ...and the climate's eras: little ice ages, droughts, warm ages (world/climate.js)
-            ages: [...Crises.annalChapters(world, _num(house.foundedDay)), ...Climate.annalChapters(world, _num(house.foundedDay))]
+            // ...and the last crisis of the age, with the Golden or Dark Age it brought (systems/lastCrisis.js)
+            ages: [...Crises.annalChapters(world, _num(house.foundedDay)), ...Climate.annalChapters(world, _num(house.foundedDay)), ...LastCrisis.annalChapters(world, _num(house.foundedDay))]
                 .sort((a, b) => _num(a.fromYear) - _num(b.fromYear)),
             day: _num(world && world.day),
         };
@@ -903,7 +909,7 @@ export const Annals = {
             const facts = {
                 house: epitaph.houseName, motto: epitaph.motto || null, generations: gens, yearsOfTheLine: years,
                 crownsWon: crowns || null, standing: epitaph.rank && epitaph.rank.label, rulers,
-                rememberedFor: epitaph.best ? `${epitaph.best.name}${epitaph.best.epithet ? ` ${epitaph.best.epithet}` : ''}` : null,
+                rememberedFor: (NamedLegacy.lastChapter(house) || {}).line || (epitaph.best ? `${epitaph.best.name}${epitaph.best.epithet ? ` ${epitaph.best.epithet}` : ''}` : null),
                 lastRuler: ended.lastRuler || null, cause: ended.cause || null,
                 endedInYear: ended.day != null ? Annals.year(world, _num(ended.day)) : null,
             };

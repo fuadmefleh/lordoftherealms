@@ -1,0 +1,75 @@
+{
+    "_doc": "Write your name on the world (systems/namedLegacy.js; the panel ui/actionMenu/namedLegacy.js, Dynasty → Your Name on the World). Late spends of Prestige and gold that outlive the ruler. CODE: a ruler sets jurists to compile the realm's laws into a code bearing their name (the Code of Aldric): costs code.prestige Prestige and code.goldBase + code.goldPerTown per town of the realm from the treasury (paid to the capital's jurists, CrownBooks.spendAtCapital), takes code.days days, then fixes each law as it stands: changing a codified law (Laws.canEnact) costs repeal.prestige Prestige, repeal.treasury more gold and repeal.stability more stability, and strikes it from the code. A code in force adds stabilityOnce at its proclamation and stabilityPerMonth every 30 days while the realm's stability is under stabilityCap; cases before the ruler's court come disputeFactor as often and a rival's suit may be shut by the code (settleShare); the other realms' hostility (coalitions) is respect × as high against a crown under a code; the courts name the code in their verdicts. An AI ruler of a steady realm (stability ≥ ai.minStability) may compile one too (ai.yearlyShare a year, a hash roll). NAMES: a town, a region (the land within region.radius of a town) or a sea (the water within sea.radius of the nearest water to a coastal town) named after the House or its ruler: prestige + gold from the purse into the town. A town of the House's own culture is proud (a 'name' mark: mood, a plaque, prestige.prideYearly a year); another culture resents it (a grudge of grudge.mood for grudge.years years, the realm's stability −grudge.stability), and a resentful town takes its old name back once out of the House's hands for revertYears years. MYTH: a founding myth from the House's real deeds, adopted for myth.prestige + myth.gold; each reign may invoke it once: rally (stability, officers' loyalty), legitimacy (only in the first legitimacyDays of a reign: more of both, and a steadier succession), a claim (+claim Heralds' claim on a realm). Townsfolk repeat it (systems/overheard.js). FINAL CHAPTER: a ruler of finalChapter.minAge or more (or within nearDeathYears of their span) chooses what they are remembered for and the House's motto: the epitaph, the Annals' Legacy, the chronicle book's epilogue and the Hall of Houses say it, and the heir takes the choice's trait.",
+    "code": {
+        "prestige": 80,
+        "goldBase": 1500,
+        "goldPerTown": 150,
+        "days": 240,
+        "minReignDays": 120,
+        "stabilityOnce": 6,
+        "stabilityPerMonth": 1,
+        "stabilityCap": 70,
+        "disputeFactor": 0.6,
+        "settleShare": 0.35,
+        "respect": 0.88,
+        "names": ["the Code of {name}", "the {name}ine Code", "the Laws of {name}", "the Book of {name}"],
+        "repeal": { "prestige": 25, "treasury": 400, "stability": 5 },
+        "ai": { "minStability": 60, "yearlyShare": 0.006, "minDay": 600 }
+    },
+    "names": {
+        "town": { "prestige": 40, "gold": 400, "cooldownDays": 360 },
+        "region": { "prestige": 60, "gold": 800, "radius": 4 },
+        "sea": { "prestige": 50, "gold": 600, "radius": 7, "search": 6 },
+        "maxPlaces": 6,
+        "revertYears": 10,
+        "prideYearly": 1,
+        "grudge": { "mood": -4, "years": 20, "stability": 3 },
+        "townForms": ["{root}sburg", "{root}ton", "Port {root}", "{root}'s Ford", "{root}stead", "{root}opolis", "Fort {root}", "{root}'s Rest"],
+        "regionForms": ["the {root} March", "{root}land", "the Vale of {root}", "the {root} Reach"],
+        "seaForms": ["the {root} Sea", "the Sea of {root}", "the {root} Gulf", "the Waters of {root}"]
+    },
+    "myth": {
+        "prestige": 50,
+        "gold": 300,
+        "replacePrestige": 100,
+        "legitimacyDays": 240,
+        "legitimacyHoldDays": 480,
+        "rally": { "stability": 6, "loyalty": 5, "renown": 6 },
+        "legitimacy": { "stability": 8, "loyalty": 10, "dispute": 0.5 },
+        "claim": { "amount": 15, "cap": 45 },
+        "kinds": {
+            "sword": { "name": "the Sword-Born", "icon": "⚔️", "tale": "born on the field of {place}, where the first of them broke {foe}", "gist": "comes of a line born on the field of {place}, they say" },
+            "crown": { "name": "the Crown-Takers", "icon": "👑", "tale": "the line that took the crown of {realm} by its own hand", "gist": "comes of the line that took the crown of {realm}" },
+            "faith": { "name": "the God-Touched", "icon": "🕯️", "tale": "chosen by heaven, raisers of {temples} temples", "gist": "comes of a House that heaven chose, they say" },
+            "storm": { "name": "the Storm-Born", "icon": "🌊", "tale": "born of {crisis}, the House that came through when others fell", "gist": "comes of a House born of {crisis}" },
+            "gold": { "name": "the Gold-Blooded", "icon": "💰", "tale": "the line whose purse once held {gold} gold, and whose word was worth as much", "gist": "comes of a House with gold in its blood" },
+            "founders": { "name": "the Founders", "icon": "🏰", "tale": "the founders, who held {towns} towns in their own name", "gist": "comes of the House that founded half the country round" },
+            "sea": { "name": "the Sea-Kings", "icon": "⛵", "tale": "the line that ruled the waves and fought upon them", "gist": "comes of the Sea-Kings' line" },
+            "elder": { "name": "the Line of {elder}", "icon": "🐺", "tale": "the line of {elder}, of whom the old folk still tell", "gist": "is of the blood of {elder}, they say" },
+            "road": { "name": "the Risen", "icon": "🛤️", "tale": "risen from the road and the dust to stand among lords", "gist": "comes of a House that rose from the road" }
+        }
+    },
+    "finalChapter": {
+        "minAge": 60,
+        "nearDeathYears": 4,
+        "choices": {
+            "conquest": { "label": "conquest", "icon": "⚔️", "line": "the sword, and the lands it won", "trait": "brave", "mottos": ["By the Sword We Hold", "What We Take, We Keep", "Steel Before Silk"] },
+            "law": { "label": "law", "icon": "📕", "line": "the law written in the House's name", "trait": "honest", "mottos": ["Law Before Crown", "Written and Kept", "The Word Endures"] },
+            "faith": { "label": "faith", "icon": "🕯️", "line": "faith, and the houses of prayer raised", "trait": "pious", "mottos": ["Heaven Keeps Us", "Lit by the Faith", "In Prayer, Steel"] },
+            "wealth": { "label": "wealth", "icon": "💰", "line": "the fortune made, and what it bought", "trait": "merchant_prince", "mottos": ["Gold Remembers", "Every Coin Counted", "Rich in All Weathers"] },
+            "building": { "label": "great works", "icon": "🏛️", "line": "the stone left standing", "trait": "scholar", "mottos": ["We Build to Last", "Stone Outlives Kings", "Raise It High"] },
+            "peace": { "label": "peace", "icon": "🕊️", "line": "the peace kept, and the folk who lived in it", "trait": "merciful", "mottos": ["Peace Is Our Shield", "The Long Quiet", "Mercy Holds"] },
+            "family": { "label": "family", "icon": "🌳", "line": "the children, and the line carried on", "trait": "generous", "mottos": ["Blood Holds", "Many Branches, One Root", "Our Children Are Our Wall"] },
+            "sea": { "label": "the sea", "icon": "⛵", "line": "the ships, and the waters sailed", "trait": "sea_wolf", "mottos": ["The Sea Is Ours", "By Wind and Oar", "Salt in the Blood"] }
+        }
+    },
+    "lines": {
+        "codeCourt": "judged under {code}",
+        "codeSettled": "The clerks of {court} opened {code} and shut the matter: {house}'s suit is not heard.",
+        "codeSuit": "{code} governs the hearing.",
+        "codeBound": "{law} is fixed in {code}: to change it is to strike it from your forebear's book.",
+        "renamedProud": "The folk of {old} take to the new name, {new}, and raise a stone to it in the square.",
+        "renamedResent": "The folk of {old} mutter at the new name, {new}: it is not their tongue, nor their House.",
+        "renamedReverted": "{new} is {old} again: with your House's hand gone from it, the folk took back their old name."
+    }
+}

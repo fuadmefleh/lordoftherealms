@@ -194,7 +194,7 @@ export const NPCLords = {
 
             // Death from old age (a player-ruled realm's lord is only its
             // steward — the player's line holds the throne)
-            const playerRuled = !!(kingdom.crown && kingdom.crown.playerRuled);
+            const playerRuled = !!(kingdom.crown && (kingdom.crown.playerRuled || kingdom.crown.union));
             if (!playerRuled && lord.age > 70 && Utils.random() < (lord.age - 70) * 0.1) {
                 NPCLords.lordDies(kingdom, world);
                 return;
@@ -205,7 +205,8 @@ export const NPCLords = {
         // will (its goals and their standing effects: wars, peace, tribute,
         // temples, pioneers) gives way to the crown's own policies, council
         // and edicts (systems/throne.js, systems/kingship.js)
-        if (kingdom.crown && kingdom.crown.playerRuled) {
+        // (so is a far crown worn in personal union: its viceroy keeps the player's policies, systems/highCrowns.js)
+        if (kingdom.crown && (kingdom.crown.playerRuled || kingdom.crown.union)) {
             kingdom.lordModifiers = {};
             return;
         }

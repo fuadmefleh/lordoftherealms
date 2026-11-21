@@ -23,6 +23,8 @@ import { ChronicleMaps } from './chronicleMaps.js';
 import { Barter } from '../world/barter.js';
 import { MoneySupply } from '../world/moneySupply.js';
 import { Cultures } from '../world/cultures.js';
+// (a founding tale invoked steadies the succession: run time only)
+import { NamedLegacy } from './namedLegacy.js';
 
 // The five family-role slots. Each holds a family-member id (or null).
 const ROLE_IDS = ['steward', 'marshal', 'chancellor', 'spymaster', 'heir'];
@@ -1082,6 +1084,8 @@ export const House = {
         c -= Math.min(0.2, (house.prestige || 0) / 500);
         c += Math.min(0.3, House._maxRivalFeud(house) / 200);
         if (house._pendingClaim || opts.claimant) c += 0.25;
+        // A reign made legitimate by the House's founding tale (systems/namedLegacy.js)
+        c *= NamedLegacy.disputeFactorFor(house, opts.day != null ? opts.day : null);
         return Utils.clamp(c, 0.02, 0.9);
     },
 
@@ -1140,7 +1144,7 @@ export const House = {
         };
 
         const disputeChance = opts.disputeChance != null
-            ? opts.disputeChance : House._disputeChance(house, opts);
+            ? opts.disputeChance : House._disputeChance(house, { ...opts, day });
         if (Utils.random() < disputeChance) {
             result.disputed = true;
             const cost = House._getSinks().secureSuccession;

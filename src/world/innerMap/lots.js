@@ -86,7 +86,7 @@ Object.assign(InnerMap, {
             // (a property the player built stands as that property; a house they raised to let stands like the AI's)
             if (!b || (b.by === 'player' && b.kind !== 'house') || (b.readyDay != null && day < b.readyDay)) continue;
             if (this._lotHasBuilding(lot)) continue;
-            this._standOnLot(lot, b.type || 'house', _strHash(`${settlement.name}|${lot.id}|${b.type}`), settlement);
+            this._standOnLot(lot, b.type || 'house', _strHash(`${settlement.foundingName || settlement.name}|${lot.id}|${b.type}`), settlement);
         }
     },
 
@@ -285,7 +285,7 @@ Object.assign(InnerMap, {
             }
             let at = this._lotAnchor(lot);
             if (!at && !this._lotHasBuilding(lot)) {
-                const seed = _strHash(`${settlement.name}|${lot.id}|${p.type}`);
+                const seed = _strHash(`${settlement.foundingName || settlement.name}|${lot.id}|${p.type}`);
                 // (its own kind within the lot; else reaching a few rows back onto open ground; else a house)
                 const kinds = LotBook.propertyKinds(p.type).filter(k => k !== 'house');
                 for (const [list, overhang] of [[kinds, 0], [kinds, 4], [['house'], 0]]) {
@@ -310,7 +310,7 @@ Object.assign(InnerMap, {
     _markVacancies(settlement) {
         if (!settlement) return;
         const n = Math.max(0, Math.round(Number(LotBook.byType('vacant', settlement.type)) || 0));
-        const salt = _strHash(settlement.name || `${settlement.q},${settlement.r}`);
+        const salt = _strHash(settlement.foundingName || settlement.name || `${settlement.q},${settlement.r}`);
         const houses = (this.buildings || []).filter(b => b && b.type === 'house' && !b.isPlayerProperty && !b.isPlayerOwned && !b._lotId)
             .sort((a, b) => _hash(a.q, a.r, salt) - _hash(b.q, b.r, salt));
         for (const b of houses.slice(0, n)) {

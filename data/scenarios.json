@@ -274,6 +274,7 @@
     "conqueror":       { "name": "Conqueror", "icon": "🏰", "blurb": "Hold {target} settlements in your own hands.", "target": 8 },
     "empire":          { "name": "Empire", "icon": "🗺️", "blurb": "Rule a realm of {target} settlements.", "target": 10 },
     "faith":           { "name": "Faith Ascendant", "icon": "🕯️", "blurb": "Make {target} settlements devoted to your faith.", "target": 10 },
-    "kingpin":         { "name": "Kingpin", "icon": "🗝️", "blurb": "Be boss of the underworld in {target} towns at once (a gang of your own, or one you took).", "target": 4 }
+    "kingpin":         { "name": "Kingpin", "icon": "🗝️", "blurb": "Be boss of the underworld in {target} towns at once (a gang of your own, or one you took).", "target": 4 },
+    "high_crown":      { "name": "Crowned Above Kings", "icon": "🏛️", "blurb": "Wear {crowns} crowns at once and proclaim an Empire or High Kingship over them.", "crowns": 2 }
   }
 }

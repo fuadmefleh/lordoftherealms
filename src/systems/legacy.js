@@ -23,6 +23,8 @@ import { House } from './house.js';
 import { Traits } from './traits.js';
 import { Deeds } from './deeds.js';
 import { MetaLegacy } from './metaLegacy.js';
+// (what an old ruler asked the House to remember: systems/namedLegacy.js; run time only)
+import { NamedLegacy } from './namedLegacy.js';
 
 const DEFAULT_LEGACY = {
     weights: {
@@ -263,7 +265,9 @@ export const Legacy = {
             if (live) reigns.push(live);
         }
         return Math.round(reigns.reduce((s, r) => s + _num(r.score), 0)
-            + _num(house.generation || 1) * w.generation + _num(house.prestige) * w.prestige);
+            + _num(house.generation || 1) * w.generation + _num(house.prestige) * w.prestige
+            // A Golden Age named for the House, or the Dark Age it fell into (systems/lastCrisis.js)
+            + _num(house.ageScore));
     },
 
     rank(score) {
@@ -310,7 +314,8 @@ export const Legacy = {
             prestige: _num(house.prestige),
             crowns: reigns.reduce((s, r) => s + _num(r.crownsWon), 0),
             score, rank, best, reigns,
-            line: best ? `Remembered for ${best.name}${best.epithet ? ` ${best.epithet}` : ''}.` : '',
+            // (the last chapter an old ruler wrote, else the best reign)
+            line: NamedLegacy.epitaphLine(house) || (best ? `Remembered for ${best.name}${best.epithet ? ` ${best.epithet}` : ''}.` : ''),
         };
     },
 

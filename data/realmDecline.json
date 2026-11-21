@@ -1,0 +1,93 @@
+{
+    "_comment": "systems/realmDecline.js — the weight of greatness. Four strains (0-100) on a realm the player rules creep toward a pressure set by its size, its age and the House's years on the throne; countermeasures knock them down and they creep back over years. 'bite' = (strain - biteFrom) / (100 - biteFrom), 0..1: every effect scales with it. Weekly ticks (cadence days); a year is 120 days.",
+    "enabled": true,
+    "cadence": 7,
+    "biteFrom": 20,
+    "rise": 0.006,
+    "fall": 0.012,
+    "_rise": "share of the gap to the pressure closed each week while the strain is below it (0.006: about ten years to close two thirds of the gap); fall: the same, when the pressure has dropped below the strain",
+    "noticeAt": 40,
+    "graveAt": 70,
+    "hysteresis": 10,
+    "historyWeeks": 18,
+    "size": { "townsFrom": 3, "townsSpan": 12, "cap": 1.5, "holdingsSpan": 12 },
+    "strains": {
+        "graft": {
+            "label": "Court bloat and graft", "icon": "🪙",
+            "blurb": "Clerks multiply, offices are farmed out, and the treasury leaks into the purses of the men who keep it.",
+            "base": 0.12, "size": 0.4, "reignYears": 30, "age": 0.35, "holdings": 0.1, "lavish": 0.1, "frugal": -0.05,
+            "stewardRelief": 0.25, "stewardDisloyal": 0.15, "softRuler": 0.1,
+            "skimShare": 0.3, "takerShare": 0.6, "skimTreasuryCap": 0.04,
+            "start": 0.3
+        },
+        "drift": {
+            "label": "Far provinces drifting", "icon": "🧭",
+            "blurb": "The farther a town lies from the crown, the more its lord acts as his own king: dues kept back, the king's writ obeyed when it suits.",
+            "near": 8, "span": 16, "size": 0.25, "far": 0.65, "ageYears": 40, "ageFloor": 0.5,
+            "chancellorRelief": 0.2, "royalPostRelief": 0.1, "roadsRelief": 0.05,
+            "opinion": 35, "taxShare": 0.4, "keepDuesAt": 0.55, "keepDuesChance": 0.25, "keepDuesDays": 60,
+            "start": 0.4
+        },
+        "soft": {
+            "label": "Heirs born in the purple", "icon": "🧸",
+            "blurb": "Children raised among silk and flatterers come of age soft: fearful, greedy, fond of the cup.",
+            "base": 0.05, "size": 0.2, "reignYears": 25, "age": 0.6, "prestigeSpan": 1500, "prestige": 0.15,
+            "seeds": { "craven": 4, "drunkard": 3, "greedy": 3, "brave": -4 },
+            "skillLoss": { "combat": 1, "leadership": 1 }, "skillLossAt": 0.5,
+            "start": 0
+        },
+        "entrench": {
+            "label": "Guilds and clergy entrenched", "icon": "⛪",
+            "blurb": "Old charters, old benefices: the guild halls and the cathedral chapters have their privileges in writing and will not be moved.",
+            "base": 0.05, "realmYears": 40, "realmWeight": 0.6, "age": 0.5, "size": 0.25, "guilds": 0.15, "guildsPerTown": 2, "temples": 0.1, "templesSpan": 5,
+            "edictCost": 1.0, "edictUpkeep": 0.6, "factionMove": 0.6, "factions": ["merchants", "clergy"],
+            "start": 0.5
+        }
+    },
+    "stability": { "perBite": 4, "cap": 12 },
+    "measures": {
+        "audit": {
+            "label": "Audit the treasury", "icon": "🧾", "strain": "graft", "cut": 40, "stewardBonus": 0.5,
+            "cost": 150, "perTown": 20, "recover": 0.5, "takerGrudge": -10, "cooldownYears": 2,
+            "blurb": "Royal auditors go through every ledger. A share of what was skimmed comes back; those who skimmed it will not forget."
+        },
+        "reorganise": {
+            "label": "Reorganise the provinces", "icon": "🗺️", "strain": "drift", "cut": 35,
+            "cost": 200, "perFarTown": 80, "stability": -5, "farGrudge": -8, "cooldownYears": 3,
+            "blurb": "New shires, new sheriffs, the king's judges riding circuit in the far towns. Dear, and the far lords lose their little kingdoms."
+        },
+        "purge": {
+            "label": "Purge the court", "icon": "⛓️", "strains": { "graft": 30, "entrench": 40 },
+            "grudge": -15, "councilGrudge": -10, "stability": -8, "prestige": -20, "cooldownYears": 5,
+            "blurb": "Arrest the worst of them, seize their purses, strip the guilds and chapters of their charters. Every lord in the realm takes note — and some will rise."
+        },
+        "moveCapital": {
+            "label": "Move the capital", "icon": "🏰", "strains": { "drift": 20, "entrench": 35, "graft": 15 },
+            "cost": 600, "perTown": 40, "stability": -10, "seatGrudge": -30, "cooldownYears": 10, "candidates": 5,
+            "blurb": "Leave the old court and its parasites behind: raise a new seat nearer the heart of the realm."
+        },
+        "marchCommand": {
+            "label": "Give an heir a march command", "icon": "🛡️", "cost": 200, "years": 2, "minAge": 16, "maxAge": 35,
+            "scarredChance": 0.25, "skills": { "combat": 1, "leadership": 1 }, "softTraits": ["craven", "drunkard", "greedy"], "hardTrait": "brave",
+            "blurb": "Send a grown child to hold a far border for two years, among soldiers and hard winters. They come home harder — and sometimes scarred."
+        }
+    },
+    "ai": {
+        "enabled": true, "scale": 0.8, "size": 0.4, "age": 0.5, "realmYears": 50, "biteFrom": 25,
+        "stabilityPerBite": 8, "skimShare": 0.15, "reformAt": 55, "reformChance": 0.12, "reformKeep": 0.4, "reformStability": -3
+    },
+    "text": {
+        "bite": {
+            "graft": "The court of {realm} has grown fat: clerks on clerks, and the treasury leaks {pct}% of its dues into their purses.",
+            "drift": "The far towns of {realm} drift from the crown; their lords keep their own counsel and a part of the king's dues.",
+            "soft": "The children of the court of {realm} grow up soft. Heirs raised at home will come of age weaker for it.",
+            "entrench": "The guilds and the chapters of {realm} have dug in: every edict costs more to proclaim and keep."
+        },
+        "grave": {
+            "graft": "Graft eats the treasury of {realm}. Unless the books are audited or the court purged, the crown pays a fortune to its own servants.",
+            "drift": "The far provinces of {realm} are crowns in all but name. Reorganise them, or move the capital nearer, before they go their own way.",
+            "soft": "No heir raised at the court of {realm} comes of age hard. Send them away — to the marches, to another court, to the church.",
+            "entrench": "The old charters of {realm} bind the crown hand and foot. A purge, or a new capital, would break them."
+        }
+    }
+}

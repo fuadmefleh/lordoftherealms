@@ -45,6 +45,8 @@ import { Regency } from './regency.js';
 import { Names } from '../core/names.js';
 import { Economy } from '../world/economy.js';
 import { MoneySupply } from '../world/moneySupply.js';
+// Far crowns in personal union, the high crown (systems/highCrowns.js; read at call time)
+import { HighCrowns } from './highCrowns.js';
 
 // Code defaults (data/throne.json → config overrides them key by key).
 const DEFAULT_CONFIG = {
@@ -245,6 +247,7 @@ export const Throne = {
         if (!player || !kingdom || !kingdom.isAlive) return 0;
         const st = Throne.state(player);
         if (st.ruling && st.ruling.kingdomId === kid) return 0;
+        if (HighCrowns.unionCrown(player, kid)) return 0; // (worn already, through a viceroy)
         if (!st.claims[kid]) st.claims[kid] = { kingdomId: kid, sources: {}, gainedDay: (world && world.day) || 0 };
         const src = st.claims[kid].sources;
         const before = src[source] || 0;
@@ -265,7 +268,7 @@ export const Throne = {
     /** Living kingdoms the player could hold a claim on (not their own crown). */
     claimableKingdoms(player, world) {
         const st = Throne.state(player);
-        return (world.kingdoms || []).filter(k => k.isAlive && !(st.ruling && st.ruling.kingdomId === k.id));
+        return (world.kingdoms || []).filter(k => k.isAlive && !(st.ruling && st.ruling.kingdomId === k.id) && !HighCrowns.unionCrown(player, k.id));
     },
 
     // ── Royal marriage ──────────────────────────────────────────
@@ -556,6 +559,7 @@ export const Throne = {
             if (!k.isAlive || !succ || succ.day <= (st.successionSeen[k.id] || 0)) continue;
             st.successionSeen[k.id] = succ.day;
             if (Throne.ruledKingdom(player, world) === k) continue;
+            if (HighCrowns.unionCrown(player, k.id)) continue;
             if (st.civilWar && st.civilWar.kingdomId === k.id) continue;
             const cause = Throne._crisisCause(succ, cfg);
             const stability = typeof k.stability === 'number' ? k.stability : 60;
@@ -686,7 +690,11 @@ export const Throne = {
         const k = Throne._kingdom(world, kid);
         if (!k || !k.isAlive) return { ok: false, reason: 'No such kingdom.' };
         if (st.civilWar) return { ok: false, reason: 'You are already fighting for a crown.' };
-        if (st.ruling) return { ok: false, reason: 'You already wear a crown.' };
+        // A ruler may seek a second crown, to wear in personal union (systems/highCrowns.js)
+        if (st.ruling) {
+            const more = HighCrowns.canSeekAnother(player, world, kid);
+            if (!more.ok) return { ok: false, reason: more.reason };
+        }
         // A child under a regent raises no banners: pressing a claim is war (systems/regency.js)
         const minor = Regency.forbids(player, 'war');
         if (minor) return { ok: false, reason: minor };
@@ -977,11 +985,13 @@ export const Throne = {
     },
 
     /** Seat the player on a kingdom's throne (after a civil war, or founding). */
-    _takeThrone(player, world, kingdom, { founded = false } = {}) {
+    _takeThrone(player, world, kingdom, { founded = false, how = null } = {}) {
         const st = Throne.state(player);
         const defaults = {};
         for (const axis of POLICY_AXES) defaults[axis] = (Throne.policies()[axis] || FALLBACK_POLICIES[axis]).default;
-        if (player.currentTitle) Titles.resign(player, world);
+        // A second crown: worn in personal union beside the home crown (systems/highCrowns.js)
+        const union = !!(st.ruling && st.ruling.kingdomId !== kingdom.id);
+        if (player.currentTitle && !union) Titles.resign(player, world);
         const ruler = Throne._playerRuler(player, kingdom);
         if (!kingdom.characterData) {
             kingdom.characterData = {
@@ -1000,6 +1010,19 @@ export const Throne = {
         kingdom.ruler = Characters.getDisplayName(ruler, kingdom);
         if (kingdom.lord) kingdom.lord.name = kingdom.ruler;
         Throne._dismissLordTemper(kingdom);
+        if (union) {
+            delete st.claims[kingdom.id];
+            st.crises = st.crises.filter(c => c.kingdomId !== kingdom.id);
+            if (player.house) {
+                player.house.stats = player.house.stats || {};
+                player.house.stats.crowned = (player.house.stats.crowned || 0) + 1;
+            }
+            if (!player.reputation) player.reputation = {};
+            player.reputation[kingdom.id] = Math.max(player.reputation[kingdom.id] || 0, Throne.config().crownedReputation);
+            HighCrowns.addCrown(player, world, kingdom, { how: how || (founded ? 'founded' : 'civilWar') });
+            Throne.syncCrowns(player, world);
+            return;
+        }
         st.ruling = { kingdomId: kingdom.id, since: world.day, founded, policies: defaults, levyTotal: 0, peaceCooldown: {} };
         delete st.claims[kingdom.id];
         st.crises = st.crises.filter(c => c.kingdomId !== kingdom.id);
@@ -1109,6 +1132,18 @@ export const Throne = {
                 // The edicts in force and their effects beyond the kingdom AI
                 if (court && court.edicts) crown.edicts = Object.keys(court.edicts);
                 if (court && court.effects) crown.effects = { ...court.effects };
+                // An Empire's name steadies the home crown too (systems/highCrowns.js)
+                for (const [key, v] of Object.entries(HighCrowns.crownMods(player, k.id))) crown.mods[key] = (crown.mods[key] || 0) + v;
+                touched = true;
+            }
+            // A far crown in personal union: its own policies, viceroy, decrees and lords' temper (systems/highCrowns.js)
+            const far = HighCrowns.unionCrown(player, k.id);
+            if (far && !crown.playerRuled) {
+                crown.union = true;
+                crown.policies = { ...(far.policies || {}) };
+                crown.mods = HighCrowns.crownMods(player, k.id);
+                if (far.viceroy) crown.viceroy = far.viceroy.name;
+                if (far.decrees) crown.edicts = Object.keys(far.decrees);
                 touched = true;
             }
             if (st.civilWar && st.civilWar.kingdomId === k.id) {
@@ -1297,7 +1332,8 @@ export const Throne = {
         player.title = `Citizen of ${Kingdom.rulerStyle(k, player.gender).realm}`;
         Throne.syncCrowns(player, world);
         Throne._log(player, world, `👑 ${player.name || 'You'} sets down the crown of ${Names.realm(k.name)}. ${k.ruler} rules now.`);
-        return { success: true, message: `You abdicate. ${k.ruler} takes the throne of ${Names.realm(k.name)}.` };
+        const seat = HighCrowns.onHomeLost(player, world);
+        return { success: true, message: `You abdicate. ${k.ruler} takes the throne of ${Names.realm(k.name)}.${seat ? ` You keep the crown of ${Names.realm(seat.name)}, your seat now.` : ''}` };
     },
 
     /**
@@ -1309,6 +1345,8 @@ export const Throne = {
      */
     passCrown(player, world, how = 'died') {
         const st = Throne.state(player);
+        // The far crowns go back to their old lines too (systems/highCrowns.js)
+        HighCrowns.releaseAll(player, world, how);
         const k = Throne.ruledKingdom(player, world);
         if (!k) return null;
         Throne._archiveReign(player, world, how, k);
@@ -1414,6 +1452,8 @@ export const Throne = {
         k.ruler = Characters.getDisplayName(ruler, k);
         if (k.lord) k.lord.name = k.ruler;
         Throne._styleRuler(player, k, ruler);
+        // ...or, crowned above kings, the high title (systems/highCrowns.js)
+        if (HighCrowns.isEmperor(player)) HighCrowns.styleTitle(player, world);
 
         // The royal levy: a share of the crown's revenue, as far as its upkeep
         // and the realm's temper allow (Throne.levyQuote)

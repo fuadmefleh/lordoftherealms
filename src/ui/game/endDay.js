@@ -119,9 +119,14 @@ import { GreatWorks } from '../../systems/greatWorks.js';
 import { Mints } from '../../systems/mints.js';
 import { Engrossing } from '../../systems/engrossing.js';
 import { LawCouncil } from '../../systems/lawCouncil.js';
+import { NamedLegacy } from '../../systems/namedLegacy.js';
 import { FirstSteps } from '../../systems/firstSteps.js';
 import { Reckoning } from '../../systems/reckoning.js';
 import { Crises } from '../../systems/crises.js';
+import { HighCrowns } from '../../systems/highCrowns.js';
+import { CrownSuccession } from '../../systems/crownSuccession.js';
+import { LastCrisis } from '../../systems/lastCrisis.js';
+import { RealmDecline } from '../../systems/realmDecline.js';
 import { Plague } from '../../systems/plague.js';
 import { Climate } from '../../world/climate.js';
 import { RealmTimeline } from '../../systems/realmTimeline.js';
@@ -877,6 +882,10 @@ export function endDay() {
             // The royal court — council, edicts, vassals, factions and revolts (systems/kingship.js)
             const courtDay = Kingship.processDay(this.world, this.player);
             for (const n of courtDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            // Far crowns in personal union: viceroys, the lords' temper, offers of a crown, the high crown (systems/highCrowns.js)
+            for (const n of HighCrowns.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            // Realms carved out of yours in a war of succession: their wars to take the rest (systems/crownSuccession.js)
+            for (const n of CrownSuccession.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
             // Sieges — the siege in progress, tribute owed (systems/sieges.js)
             const siegeDay = Sieges.processDay(this.world, this.player);
@@ -916,6 +925,7 @@ export function endDay() {
                 _proseWired = true;
                 try {
                     if (typeof Crises.useProse === 'function') Crises.useProse(LlmProse);
+                    if (typeof LastCrisis.useProse === 'function') LastCrisis.useProse(LlmProse);
                     if (typeof Climate.useProse === 'function') Climate.useProse(LlmProse);
                     if (typeof Nemesis.setProse === 'function') Nemesis.setProse(LlmProse);
                     if (typeof NpcMemory.setProse === 'function') NpcMemory.setProse(LlmProse);
@@ -940,6 +950,8 @@ export function endDay() {
             for (const n of Engrossing.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             // The AI crowns change their laws: gates shut against a plague near, opened once it has passed (systems/lawCouncil.js)
             LawCouncil.processDay(this.world, this.player);
+            // Written codes (the jurists' work, the realms they steady), names on the map kept or taken back (systems/namedLegacy.js)
+            for (const n of NamedLegacy.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
             // The hinterland: the rural sites around the towns dig and send their goods to
             // market on its day, deposits run down and veins are struck; mining leases
@@ -1094,6 +1106,10 @@ export function endDay() {
             for (const n of Climate.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             // Age-defining crises: invasions, great plagues, schisms, famines, gold rushes (systems/crises.js)
             for (const n of Crises.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            // The last crisis of the age: the reckoning of a House grown too great (systems/lastCrisis.js)
+            for (const n of LastCrisis.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            // The weight of greatness: great old realms rot from within (systems/realmDecline.js)
+            for (const n of RealmDecline.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             // The Timeline of the Realm: borders each season, wars, crises, reigns, deeds with places (systems/realmTimeline.js)
             RealmTimeline.processDay(this.world, this.player);
 

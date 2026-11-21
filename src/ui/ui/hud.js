@@ -3,6 +3,7 @@ import { UI } from './core.js';
 import { Seasons } from '../../world/seasons.js';
 import { Utils, ActionMenu, Religion, Economy, Terrain, PlayerEconomy, PlayerMilitary, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, InnerMapCharacters, WEATHER_TYPES, Treasures, InnerMap } from './_imports.js';
 import { Traits } from '../../systems/traits.js';
+import { NamedLegacy } from '../../systems/namedLegacy.js';
 import { Companions } from '../../systems/companions.js';
 import { Ailments } from '../../systems/ailments.js';
 import { Crafting } from '../../player/crafting.js';
@@ -1334,7 +1335,9 @@ Object.assign(UI.prototype, {
             };
             this._regionCache[rid] = info;
         }
-        this._setHudText('regionName', info.name);
+        // A region or sea named after a House (systems/namedLegacy.js) wins over the land's own
+        const named = NamedLegacy.placeAt(world, tile.q, tile.r);
+        this._setHudText('regionName', named ? named.name : info.name);
         this._setHudText('regionDesc', info.desc);
 
         // Claim status.

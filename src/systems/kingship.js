@@ -65,6 +65,8 @@ import { Couriers } from './couriers.js';
 import { NpcMemory } from './npcMemory.js';
 import { Names } from '../core/names.js';
 import { MoneySupply } from '../world/moneySupply.js';
+// A succession revolt's ending: the claimant's fate, the realm split (systems/crownSuccession.js; run time only)
+import { CrownSuccession } from './crownSuccession.js';
 
 const OFFICES = ['chancellor', 'marshal', 'steward', 'spymaster', 'highPriest'];
 const TAX_STEPS = ['heavy', 'standard', 'light'];
@@ -304,6 +306,8 @@ export const Kingship = {
         if (v.refusingUntil > _day(world)) t += add('Defying the crown', _num(O.refusingLevy) * 0.2);
         t += add('Favours', _num(v.favour));
         t += add('Grudges', _num(v.grudge));
+        // A far seat drifts from the crown (systems/realmDecline.js keeps vassal.drift)
+        if (v.drift) t += add('Far from the crown', -_num(v.drift));
         return { target: Utils.clamp(Math.round(t), -100, 100), parts };
     },
 
@@ -486,21 +490,28 @@ export const Kingship = {
         const blocking = (def.excludes || []).filter(x => court.edicts[x]);
         if (blocking.length) return { ok: false, reason: `Repeal ${blocking.map(x => (Kingship.edicts()[x] || {}).label || x).join(', ')} first.` };
         if (Object.keys(court.edicts).length >= Kingship.edictSlots(player, world)) return { ok: false, reason: `The court can enforce only ${Kingship.edictSlots(player, world)} edicts at once.` };
-        const cost = Kingship._passCost(def);
+        const cost = Kingship._passCost(def, court);
         if (_num(k.treasury) < cost) return { ok: false, reason: `Proclaiming it costs ${Utils.formatGold(cost)}g from the royal treasury.` };
         return { ok: true };
     },
 
-    _passCost(def) {
-        return def.passCost != null ? def.passCost : _num((Kingship.config().edictRules || {}).defaultPassCost);
+    _passCost(def, court = null) {
+        const base = def.passCost != null ? def.passCost : _num((Kingship.config().edictRules || {}).defaultPassCost);
+        // Entrenched guilds and clergy make every edict dearer (systems/realmDecline.js → court.declineFx)
+        const fx = court && court.declineFx;
+        return fx && fx.edictCost > 1 ? Math.round(base * fx.edictCost) : base;
     },
 
     _shiftFactions(player, shifts, mult) {
         if (!shifts) return;
         const state = Councils._ensureState(player);
+        // (entrenched guilds and clergy move less: systems/realmDecline.js → court.declineFx)
+        const court = Kingship.court(player);
+        const fx = court && court.declineFx;
         for (const [id, amt] of Object.entries(shifts)) {
             const f = state.factions[id];
-            if (f) f.support = Utils.clamp(f.support + amt * mult, 0, 100);
+            const dug = fx && Array.isArray(fx.factions) && fx.factions.includes(id) && fx.factionMove < 1 ? Math.max(0, fx.factionMove) : 1;
+            if (f) f.support = Utils.clamp(f.support + amt * mult * dug, 0, 100);
         }
     },
 
@@ -514,8 +525,8 @@ export const Kingship = {
         if (opts.free) {
             for (const x of def.excludes || []) if (court.edicts[x]) Kingship.revokeEdict(player, world, x, { quiet: true });
         } else {
-            k.treasury -= Kingship._passCost(def);
-            _spendRealm(world, k, Kingship._passCost(def), 'edicts');
+            k.treasury -= Kingship._passCost(def, court);
+            _spendRealm(world, k, Kingship._passCost(def, court), 'edicts');
         }
         court.edicts[id] = { since: _day(world), ...(def.royalPost ? { courierId: opts.courierId } : {}) };
         court.stats.edictsPassed++;
@@ -549,7 +560,8 @@ export const Kingship = {
     upkeep(player) {
         const court = Kingship.court(player);
         if (!court) return 0;
-        return Object.keys(court.edicts).reduce((s, id) => s + _num((Kingship.edicts()[id] || {}).upkeep), 0);
+        const m = court.declineFx && court.declineFx.edictUpkeep > 1 ? court.declineFx.edictUpkeep : 1;
+        return Object.keys(court.edicts).reduce((s, id) => s + _num((Kingship.edicts()[id] || {}).upkeep), 0) * m;
     },
 
     // ── Grants, feasts, favours — and breaking a lord ───────────
@@ -744,7 +756,7 @@ export const Kingship = {
     demandText(demand) {
         const D = (Kingship.data().demands || {})[demand.type] || { label: demand.type, icon: '📜' };
         const ed = demand.edict ? (Kingship.edicts()[demand.edict] || {}).label || demand.edict : '';
-        return { icon: D.icon, label: D.label.replace('{edict}', ed) };
+        return { icon: D.icon, label: D.label.replace('{edict}', ed).replace('{claimant}', demand.claimant || 'a claimant') };
     },
 
     demandSatisfied(player, demand) {
@@ -930,6 +942,8 @@ export const Kingship = {
     _endRevolt(player, world, court, k, how, out) {
         const R = Kingship.config().revolt || {};
         const rv = court.revolt;
+        // A war for the crown lost: the realm splits, or the crown itself goes (systems/crownSuccession.js)
+        if (rv && rv.succession && how === 'conceded') return CrownSuccession.warEnded(player, world, court, k, rv, how, out);
         court.revolt = null;
         for (const h of rv.hosts) {
             const unit = (world.units || []).find(u => u.id === h.id);
@@ -970,6 +984,8 @@ export const Kingship = {
         Throne._log(player, world, text);
         if (Array.isArray(world.events)) world.events.push({ text, type: 'political', category: 'political', kingdom: k.id });
         Kingship._note(out, how === 'crushed' ? '👑' : '🥀', how === 'crushed' ? 'Revolt Crushed' : 'Revolt Ends', text, how === 'crushed' ? 'success' : 'warning');
+        // ...and a war for the crown held or bought off: the claimant's fate (systems/crownSuccession.js)
+        if (rv.succession) CrownSuccession.warEnded(player, world, court, k, rv, how, out);
         Kingship.refresh(player, world);
         return text;
     },
@@ -1199,6 +1215,8 @@ export const Kingship = {
         court.effects = effects;
         const G = (Kingship.config().grants || {}).land || {};
         add('tax', -court.vassals.reduce((s, v) => s + _num(v.lands), 0) * _num(G.taxLoss));
+        // The far provinces keep back their dues (systems/realmDecline.js → court.declineMods)
+        for (const [key, v] of Object.entries(court.declineMods || {})) if (typeof v === 'number') add(key, v);
         // Lords who refuse the levy keep their men and their dues
         const day = _day(world);
         for (const v of court.vassals) {
@@ -1547,7 +1565,8 @@ export const Kingship = {
     _payUpkeep(player, world, court, k, out) {
         for (const id of Object.keys(court.edicts)) {
             const def = Kingship.edicts()[id];
-            const cost = _num(def && def.upkeep);
+            // (dearer where guilds and clergy are entrenched: systems/realmDecline.js → court.declineFx)
+            const cost = _num(def && def.upkeep) * (court.declineFx && court.declineFx.edictUpkeep > 1 ? court.declineFx.edictUpkeep : 1);
             if (!def) { delete court.edicts[id]; continue; }
             if (!cost) continue;
             if (_num(k.treasury) >= cost) {

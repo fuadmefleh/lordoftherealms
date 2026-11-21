@@ -269,7 +269,8 @@
   "demands": {
     "lowerLevy": { "label": "a lighter royal levy", "icon": "🍃" },
     "passEdict": { "label": "the edict of {edict}", "icon": "📜" },
-    "revokeEdict": { "label": "the repeal of {edict}", "icon": "✂️" }
+    "revokeEdict": { "label": "the repeal of {edict}", "icon": "✂️" },
+    "crown": { "label": "the crown for {claimant}", "icon": "👑" }
   },
 
   "goalDemands": {

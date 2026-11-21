@@ -68,6 +68,7 @@
 // (Utils.random). No import-time side effects.
 
 import { Utils } from '../core/utils.js';
+import { Hex } from '../core/hex.js';
 import { DataLoader } from '../core/dataLoader.js';
 import { NPCLords } from '../world/npcLords.js';
 import { Economy } from '../world/economy.js';
@@ -301,6 +302,26 @@ export const HeirPaths = {
                     out.push({
                         key: `town:${cap.q},${cap.r}:university`, name: `the university of ${cap.s.name}`, where: k.name, kingdomId: k.id,
                         payee: { type: 'town', q: cap.q, r: cap.r }, q: cap.q, r: cap.r, quality: 1.25, note: 'university',
+                    });
+                }
+            }
+        } else if (def.venue === 'march') {
+            // The far borders of the realm the player rules: a march-warden's household
+            // in its farthest towns (systems/realmDecline.js: a child raised away is not soft)
+            const kid = player && player.throne && player.throne.ruling && player.throne.ruling.kingdomId;
+            const k = HeirPaths._kingdom(world, kid);
+            const cap = k && k.isAlive !== false ? HeirPaths._capital(world, k) : null;
+            if (cap) {
+                const far = HeirPaths._towns(world)
+                    .filter(s => s && s.kingdom === k.id && !(s.q === cap.q && s.r === cap.r))
+                    .map(s => ({ s, d: Hex.wrappingDistance(cap.q, cap.r, s.q, s.r, _num(world.width) || 9999) }))
+                    .sort((a, b) => b.d - a.d || String(a.s.name).localeCompare(String(b.s.name)))
+                    .slice(0, 3);
+                for (const { s, d } of far) {
+                    out.push({
+                        key: `march:${s.q},${s.r}`, name: `the march-warden at ${s.name}`, where: k.name, kingdomId: k.id,
+                        payee: { type: 'town', q: s.q, r: s.r }, q: s.q, r: s.r, quality: 1 + Math.min(0.2, d / 100),
+                        note: `${d} leagues from the capital`,
                     });
                 }
             }

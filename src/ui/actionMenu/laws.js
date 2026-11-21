@@ -108,7 +108,8 @@ function crownTab(game) {
                 icon: '📜',
                 name: `Make it ${esc(o.label.toLowerCase())}`,
                 desc: esc(o.desc || ''),
-                side: can.ok ? `${price(can.cost, (k.treasury || 0) >= can.cost)}<br><small style="color:#e0846a;">−${can.stability} stab.</small>` : '',
+                // (a law fixed in the realm's code: Prestige to strike it out — systems/namedLegacy.js)
+                side: can.ok ? `${price(can.cost, (k.treasury || 0) >= can.cost)}<br><small style="color:#e0846a;">−${can.stability} stab.</small>${can.bound ? `<br><small style="color:#f5c542;">${can.bound.prestige} ⭐ · struck from the code</small>` : ''}` : '',
                 off: !can.ok, why: esc(can.reason || ''),
                 act: 'lawsAct', args: ['enact', law.id, o.id],
             };

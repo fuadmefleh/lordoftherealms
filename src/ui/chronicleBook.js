@@ -338,7 +338,10 @@ export function render(book, opts = {}) {
     const vars = { house: house.name || 'the House', from, to, generations: gens, generationsWord: gens === 1 ? 'generation' : 'generations', last: last ? last.ruler.name : '', rank: (book.appendix && book.appendix.rank) || '' };
     const pick = (list) => _arr(list)[0] || '';
     const foreword = _prose(opts, 'foreword', { house: hid }, _fill(pick(book.ended ? cfg.forewordEnded : cfg.foreword), vars));
-    const epilogue = _prose(opts, 'epilogue', { house: hid }, _fill(pick(book.ended ? cfg.epilogueEnded : cfg.epilogue), vars));
+    // (the old rulers' last chapters and the House's tale close it: systems/namedLegacy.js bookView)
+    const named = book.named && book.named.epilogue ? book.named.epilogue : '';
+    const epilogueBase = _prose(opts, 'epilogue', { house: hid }, _fill(pick(book.ended ? cfg.epilogueEnded : cfg.epilogue), vars));
+    const epilogue = [epilogueBase, named].filter(Boolean).join('\n\n');
 
     const out = [];
     out.push(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -499,6 +502,8 @@ export const ChronicleBookExport = {
             // Ask for the foreword and epilogue (written in the background; the templates stand until then)
             const facts = {
                 house: book.house.name, motto: book.house.motto, from: book.foundedYear, to: book.year, ended: !!book.ended,
+                rememberedFor: (book.named && book.named.chapters && book.named.chapters.length) ? book.named.chapters.map(c => `${c.ruler}: ${c.label}`) : null,
+                myth: (book.named && book.named.myth) || null,
                 rulers: book.sections.map(s => `${s.ruler.name}${s.ruler.epithet ? ` ${s.ruler.epithet}` : ''} (${s.from}–${s.live ? 'now' : s.to})`),
             };
             for (const kind of ['foreword', 'epilogue']) {

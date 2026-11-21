@@ -84,6 +84,8 @@ import { Delves } from '../../systems/delves.js';
 import { RealmWars } from '../../systems/realmWars.js';
 import { Throne } from '../../systems/throne.js';
 import { Kingship } from '../../systems/kingship.js';
+import { HighCrowns } from '../../systems/highCrowns.js';
+import { CrownSuccession } from '../../systems/crownSuccession.js';
 import { Espionage } from '../../systems/espionage.js';
 import { Gossip } from '../../systems/gossip.js';
 import { Traits } from '../../systems/traits.js';
@@ -161,6 +163,7 @@ import { Commissions } from '../../systems/commissions.js';
 import { Victory } from '../../systems/victory.js';
 import { Fame } from '../../systems/fame.js';
 import { Crises } from '../../systems/crises.js';
+import { LastCrisis } from '../../systems/lastCrisis.js';
 import { Climate } from '../../world/climate.js';
 import { RealmTimeline } from '../../systems/realmTimeline.js';
 
@@ -594,6 +597,10 @@ function _endDay(game) {
     mark(game, 'Throne.processDaily');
     Kingship.processDay(world, player);
     mark(game, 'Kingship.processDay');
+    HighCrowns.processDay(world, player);
+    mark(game, 'HighCrowns.processDay');
+    CrownSuccession.processDay(world, player);
+    mark(game, 'CrownSuccession.processDay');
     Sieges.processDay(world, player);
     mark(game, 'Sieges.processDay');
     Atrocities.processDay(world, player);
@@ -679,6 +686,8 @@ function _endDay(game) {
     mark(game, 'Climate.processDay');
     game.crisisDay = Crises.processDay(world, player);
     mark(game, 'Crises.processDay');
+    game.lastCrisisDay = LastCrisis.processDay(world, player);
+    mark(game, 'LastCrisis.processDay');
     RealmTimeline.processDay(world, player);
     mark(game, 'RealmTimeline.processDay');
     game.taxDay = world.day % 7 === 0 ? Taxation.collectTaxes(player, world) : null;

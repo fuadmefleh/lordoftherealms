@@ -1,0 +1,109 @@
+{
+    "_doc": "High crowns (systems/highCrowns.js): holding more than one crown in personal union, the viceroys who rule the far crowns, the lords who want a king of their own, proclaiming an Empire or High Kingship, and the choice at succession to keep the crowns whole or partition them among the younger children. Days: 120 to the year.",
+    "config": {
+        "enabled": true,
+        "maxCrowns": 4,
+        "cadence": 7,
+        "offset": 5,
+        "levy": {
+            "_doc": "A far crown's levy to your purse: its tax policy's share of the crown's daily dues (as the home crown's), times share, scaled by the realm's stability and lowered by separatism; never below the treasury's reserve; at most cap a day. A disloyal viceroy keeps part of it.",
+            "share": 0.6, "cap": 90, "reserve": 400, "stability": [25, 75], "separatismCut": 0.5
+        },
+        "viceroy": {
+            "_doc": "Kinds: spouse, kin (a grown child or sibling of the House), courtier (of systems/court.js), native (a great lord of that realm's own council). Loyalty settles toward a target from the House's Prestige, your favours and your visits, and sinks with neglect; competence moves the realm's stability and taxes; a disloyal viceroy skims the levy into his own purse; a disloyal, ambitious one plots and at last crowns himself.",
+            "baseLoyalty": { "spouse": 72, "kin": 64, "courtier": 58, "native": 48 },
+            "baseAmbition": { "spouse": 25, "kin": 55, "courtier": 45, "native": 60 },
+            "baseCompetence": { "spouse": 50, "kin": 52, "courtier": 55, "native": 60 },
+            "spread": 30,
+            "loyaltyTarget": 55, "prestigeLoyalty": 0.03, "prestigeLoyaltyCap": 15, "favourLoyalty": 1,
+            "neglectDays": 360, "neglectLoyaltyPerYear": 10, "neglectCap": 25,
+            "presenceLoyalty": 6, "separatismLoyalty": 0.15,
+            "drift": 2,
+            "favourDecayDays": 120,
+            "competenceStability": 0.001, "competenceTax": 0.001,
+            "skimBelow": 45, "skimMax": 0.4,
+            "plotBelow": 30, "plotAmbition": 50, "rumourAt": 50, "plotDecay": 4,
+            "giftGold": 200, "giftFavour": 10,
+            "honourPrestige": 12, "honourFavour": 14, "honourAmbition": -6,
+            "replacePrestige": 10, "replaceExposedPrestige": 2, "replacedLoyaltyHit": 10,
+            "nativeSeparatism": -0.35, "kinSeparatism": -0.2, "noViceroySeparatism": 0.6, "noViceroyStability": -0.06
+        },
+        "separatism": {
+            "_doc": "0-100: how much a far crown's lords want a king of their own. Weekly change in points. Read by the realm's stability (crown.mods), the levy, the viceroy's loyalty and the breakaway.",
+            "start": { "civilWar": 30, "conquest": 50, "inherited": 15, "founded": 10, "promoted": 0 },
+            "base": 0.15, "absentAfterDays": 120, "absent": 0.35, "foreignCulture": 0.25, "heavyTax": 0.3, "lightTax": -0.15,
+            "present": -1.5, "lowStability": 0.3, "stabilityPivot": 45, "empireMult": 1.25,
+            "minorRuler": 0.3, "settle": -0.1,
+            "stabilityMod": 0.0012,
+            "warnAt": 70, "breakAt": 90, "breakStability": 70, "breakChance": 0.25
+        },
+        "presence": { "_doc": "Standing anywhere in a far crown's realm counts as a royal progress.", "progressPrestige": 0 },
+        "inherit": {
+            "_doc": "A realm's royal line fails or wavers (an AI succession) while you hold a claim of blood or marriage on it: its council may offer you the crown in personal union. chance = clamp((claim - minClaim) / span) x the cause's factor x maxChance.",
+            "minClaim": 40, "span": 50, "maxChance": 0.75,
+            "causes": { "distant_relative": 1, "disputed": 0.8, "regent": 0.7, "young_heir": 0.3, "heir": 0.08 },
+            "sources": ["marriage", "blood"],
+            "offerDays": 40, "feePerTown": 25, "feeMin": 150
+        },
+        "dictate": {
+            "_doc": "Your crown at war with a realm whose capital you once stormed (a conquest claim), its host broken: dictate the crown to its court.",
+            "minClaim": 35, "maxRatio": 0.5, "prestige": 40, "reputation": -20
+        },
+        "proclaim": {
+            "_doc": "Proclaiming an Empire or High Kingship: needs minCrowns crowns, minPrestige, minSettlements across them; costs prestigeCost and the coronation feast (gold, into the capital's town, half from the purse and half from the home crown's chests at most). Lasting: yearlyPrestige, stability to every crown, envoys' regard; new problems: separatism x separatism.empireMult, the leagues' fear and resolve.",
+            "minCrowns": 2, "minPrestige": 250, "minSettlements": 10, "prestigeCost": 120, "feast": 1500, "treasuryShare": 0.5,
+            "renown": 120, "yearlyPrestige": 10, "stability": 0.03, "coalitionFear": 1.3, "leagueResolve": 15
+        },
+        "succession": {
+            "_doc": "At a succession with far crowns: 'whole' keeps every crown for the heir (each far crown's separatism +wholeSpike; the younger children grow aggrieved); 'partition' gives each far crown, in order, to a grown younger child of the House (they rule it as kin: allied, warm, a cadet crown). A child heir: +minorSpike.",
+            "default": "whole", "wholeSpike": 12, "minorSpike": 10, "viceroyLoyaltyHit": 8, "partitionRelations": 60, "partitionMinAge": 16
+        },
+        "breakaway": { "relations": -50, "warChance": 0.5, "prestigeLoss": 25 },
+        "power": { "_doc": "Coalitions.power: each far crown counts as crownShare of a crown and its towns; an Empire adds empire.", "crownShare": 0.75, "empire": 30 }
+    },
+    "titles": {
+        "_doc": "The high title by the home crown's culture: male, female, the realm word (\"Empire of Valdoria\").",
+        "Imperial": { "male": "Emperor", "female": "Empress", "realm": "Empire" },
+        "Woodland": { "male": "High King", "female": "High Queen", "realm": "High Kingdom" },
+        "Nordic": { "male": "High King", "female": "High Queen", "realm": "High Kingship" },
+        "Mountain": { "male": "High Thane", "female": "High Thane", "realm": "High Holds" },
+        "Nomadic": { "male": "Khagan", "female": "Khatun of Khatuns", "realm": "Khaganate" },
+        "Desert": { "male": "Padishah", "female": "Padishah", "realm": "Sublime Sultanate" },
+        "Religious": { "male": "Hierarch", "female": "Hierarch", "realm": "Holy Dominion" },
+        "Arcane": { "male": "Archon", "female": "Archon", "realm": "Archonate" },
+        "Swamp": { "male": "Witch-Emperor", "female": "Witch-Empress", "realm": "Mire Empire" },
+        "Maritime": { "male": "Sea-Emperor", "female": "Sea-Empress", "realm": "Thalassocracy" },
+        "default": { "male": "Emperor", "female": "Empress", "realm": "Empire" }
+    },
+    "decrees": {
+        "_doc": "Each far crown may keep up to slots decrees, proclaimed for Prestige. mods go to the realm (KingdomBonuses via kingdom.crown.mods); separatism is points a week; levy multiplies the far crown's levy.",
+        "slots": 2,
+        "charter": {
+            "label": "Confirm the ancient charter", "icon": "📜", "prestige": 15,
+            "blurb": "Swear to keep the realm's old laws and liberties. Its lords are soothed; your levy from it is smaller.",
+            "separatism": -0.5, "levy": 0.7, "mods": { "stability": 0.02 }
+        },
+        "garrisons": {
+            "label": "Royal garrisons", "icon": "🛡️", "prestige": 10,
+            "blurb": "Your soldiers in its castles. Order and fewer plots; its treasury pays the soldiers 4 gold a day.",
+            "separatism": -0.25, "cost": 4, "mods": { "stability": 0.04, "defense": 0.05 }
+        },
+        "tribute": {
+            "label": "Tribute to the high crown", "icon": "💰", "prestige": 5,
+            "blurb": "The realm sends more of its dues to you. Your purse fills; its lords grumble that they serve a foreign king.",
+            "separatism": 0.4, "levy": 1.4, "mods": { "stability": -0.03 }
+        },
+        "native_court": {
+            "label": "Native lords at court", "icon": "🏰", "prestige": 12,
+            "blurb": "Offices of the realm only for its own born. Its lords are content; your viceroy's hand is tied.",
+            "separatism": -0.35, "viceroyCompetence": -10, "mods": { "loyalty": 0.03 }
+        }
+    },
+    "text": {
+        "offer": "The royal line of {realm} has faltered. Its council remembers your claim of {claim} and offers you its crown, to wear beside your own.",
+        "coronation": "In the great hall of {seat}, before the lords of {crowns}, {name} is crowned {title} of the {realmWord} of {proper}. {crownCount} crowns are one name now.",
+        "breakaway": "The lords of {realm} will serve a foreign king no longer. They crown {ruler} at {seat}; the union is broken.",
+        "usurp": "{viceroy}, your viceroy in {realm}, has crowned himself at {seat}. The union is broken.",
+        "partition": "As the old {title} wished, the crowns are parted: {list}."
+    }
+}

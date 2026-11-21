@@ -136,6 +136,8 @@ Object.assign(Renderer.prototype, {
         this.renderPirateHavens(ctx);
         // Roadhouses on the open road (systems/hospitality.js)
         this.renderRoadhouses(ctx);
+        // Regions and seas named after a House (systems/namedLegacy.js)
+        this.renderNamedPlaces(ctx);
         // Where your quests send you next (systems/npcTasks.js)
         this.renderQuestMarkers(ctx);
         // Your holdings under siege (systems/holdingSieges.js)

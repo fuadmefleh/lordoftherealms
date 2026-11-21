@@ -14,8 +14,13 @@ import { Names } from '../../core/names.js';
 import { Inheritance } from '../inheritance.js';
 import { Vanishings } from '../vanishings.js';
 import { Literacy } from '../literacy.js';
+// (the old ruler's last chapter: the heir raised to what they wished to be remembered for — systems/namedLegacy.js)
+import { NamedLegacy } from '../namedLegacy.js';
 // (what folk said of the late ruler stays theirs: systems/hearsay.js; run time only)
 import { Hearsay } from '../hearsay.js';
+import { HighCrowns } from '../highCrowns.js';
+// (the war for the crown at the seat's passing: systems/crownSuccession.js; run time only)
+import { CrownSuccession } from '../crownSuccession.js';
 
 Object.assign(Relationships, {
     // ────────────────────────────────────────────────────────────────────
@@ -584,6 +589,8 @@ Object.assign(Relationships, {
         // before the path is closed below — they take up the mantle there
         const path = child.upbringing && child.upbringing.path;
         const away = path && path.active && Number.isFinite(path.q) && Number.isFinite(path.r) ? { q: path.q, r: path.r, name: path.where || path.name || null } : null;
+        // A ruler's crown: who might contest it, read before the household changes hands (systems/crownSuccession.js)
+        const crownCtx = CrownSuccession.capture(player, world, child, { ...opts, regency: minorReign });
 
         // Store old player info for history
         const oldName = player.name;
@@ -725,13 +732,19 @@ Object.assign(Relationships, {
         const heirEducation = Raising.onSuccession(player, world, child);
         // ...and the friends and tongues of their years away (systems/heirPaths.js)
         HeirPaths.onSuccession(player, world, child);
+        // ...and the trait of the late ruler's last chapter, if their reign earned it (systems/namedLegacy.js)
+        NamedLegacy.onSuccession(player, world, { oldName });
         // ...and what they remember of the late ruler's crimes against the blood (systems/kinCrimes.js)
         KinCrimes.onSuccession(player, world, child);
         // ...and what folk said of the late ruler: told of them by name, a faded share of it of the heir (systems/hearsay.js)
         Hearsay.onSuccession(player, world, { oldName, oldGender, heirGender: child.gender });
+        // ...and the far crowns: kept whole for the heir, or parted among the younger children (systems/highCrowns.js)
+        const highCrowns = HighCrowns.onSuccession(player, world, child, { regency: minorReign });
         // A child on the throne reigns under a regent (systems/regency.js)
         player.regency = null;
         const regency = minorReign ? Regency.begin(player, world, regent) : null;
+        // ...and the crown: the claimants weigh the heir's standing, and one may rise (systems/crownSuccession.js)
+        const crown = crownCtx ? CrownSuccession.onSuccession(player, world, crownCtx, { house: houseResult }) : null;
         if (player.house) {
             for (const r of House.ROLE_IDS) {
                 if (player.house.roles && player.house.roles[r] === childId) player.house.roles[r] = null;
@@ -770,6 +783,8 @@ Object.assign(Relationships, {
             reign,
             ownChildren,
             inheritance,
+            highCrowns,
+            crown,
         };
     },
 

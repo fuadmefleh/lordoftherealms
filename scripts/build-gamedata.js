@@ -83,12 +83,20 @@ const topLevel = [
     'annals',
     'heirlooms',
     'coalitions',
+    // Many crowns on one head: personal union, viceroys, the high crown (systems/highCrowns.js)
+    'highCrowns',
     'crises',
+    // The last crisis of the age (systems/lastCrisis.js)
+    'lastCrisis',
+    // The weight of greatness: graft, drifting provinces, soft heirs, entrenched guilds and clergy (systems/realmDecline.js)
+    'realmDecline',
     'climate',
     'rivalHouses',
     'rivalVoice',
     // Cadet branches of the House (systems/cadetBranches.js)
     'cadetBranches',
+    // The war for your own crown at the seat's passing (systems/crownSuccession.js)
+    'crownSuccession',
     // Crimes against your own blood (systems/kinCrimes.js)
     'kinCrimes',
     'realmIntel',
@@ -208,6 +216,8 @@ const topLevel = [
     'begging',
     // Works of the Ages: cathedrals, universities, great bridges, canals, walls, keeps, harbours over decades (systems/greatWorks.js)
     'greatWorks',
+    // Your name on the world: law codes, places named after the House, founding myths, last chapters (systems/namedLegacy.js)
+    'namedLegacy',
     // Law courts: the player tried, the player as judge, lawsuits between Houses (player/trials.js)
     'trials',
     // Tournaments fought in person on the town's lists: the joust, the melee, wagers (systems/lists.js)

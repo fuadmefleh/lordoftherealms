@@ -289,7 +289,7 @@ Object.assign(InnerMap, {
      */
     _layVillageCamp(tiles, settlement, worldQ, worldR) {
         const H = tiles.length, W = tiles[0].length;
-        const rng = _rng(worldQ, worldR, 9091 + _hashStr(String(settlement.name || '')));
+        const rng = _rng(worldQ, worldR, 9091 + _hashStr(String(settlement.foundingName || settlement.name || '')));
         const hub = { q: Math.floor(W / 2) + 3, r: Math.floor(H / 2) - 2 };
         const pop = Math.max(30, settlement.population || 100);
         this._clearGround(tiles, hub, 16);

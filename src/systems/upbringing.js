@@ -441,6 +441,18 @@ export const Upbringing = {
             if (Number.isFinite(R.closeBond) && rb.bond >= R.closeBond) Upbringing._addSeeds(child, R.closeSeeds || {});
             else if (Number.isFinite(R.distantBond) && rb.bond <= R.distantBond) Upbringing._addSeeds(child, R.distantSeeds || {});
         }
+        // Born in the purple (systems/realmDecline.js → player.realmDecline.purple): a child
+        // raised at a great old court — never fostered, never sent away — comes of age soft
+        const purple = player && player.realmDecline && player.realmDecline.purple;
+        const away = up.hardened || (up.placement && up.placement.kind === 'ward')
+            || (Array.isArray(up.pathRecord) && up.pathRecord.some(r => r && r.how === 'completed'));
+        if (purple && _num(purple.bite) > 0 && !away) {
+            Upbringing._addSeeds(child, purple.seeds || {});
+            for (const [s, n] of Object.entries(purple.skillLoss || {})) {
+                if (typeof child.skills[s] === 'number') child.skills[s] = Math.max(0, child.skills[s] - _num(n));
+            }
+            up.purple = Math.round(_num(purple.bite) * 100);
+        }
         up.adultTraits = Upbringing.childhoodTraits(child);
         up.comeOfAge = true;
         up.comeOfAgeDay = (world && world.day) || 0;
@@ -449,7 +461,7 @@ export const Upbringing = {
         const focus = Upbringing.focus(up.focus);
         const names = up.adultTraits.map(id => Traits.TRAITS[id].name);
         const text = `${child.firstName} comes of age${focus ? `, raised in ${focus.name.toLowerCase()} arts` : ''}`
-            + `${names.length ? ` — ${names.join(', ')}` : ''}.`;
+            + `${names.length ? ` — ${names.join(', ')}` : ''}${up.purple ? ', born in the purple and soft from the court' : ''}.`;
         if (player && player.house) House._chronicle(player.house, world, text, ['upbringing', 'heirs']);
         return { child, traits: up.adultTraits.slice(), text };
     },

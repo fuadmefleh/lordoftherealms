@@ -8,6 +8,7 @@ import { Throne, PlayerMilitary, House } from './_imports.js';
 import { chips, purse, sectionHead, card, actRow, rowList, price, BTN_GOLD, BTN_DARK, BTN_RED, BTN_OFF } from './uiKit.js';
 import { Names } from '../../core/names.js';
 import { Utils } from '../../core/utils.js';
+import { HighCrowns } from '../../systems/highCrowns.js';
 
 const MUTED = 'color: #9d937c; font-size: 11px;';
 const AP = { battle: 2 };
@@ -156,6 +157,17 @@ Object.assign(ActionMenu, {
                 attrs: 'onclick="window._throne.court()"', side: '›', tone: 'gold',
             }]);
         }
+        // ── Many crowns: the far crowns, their viceroys, the high crown (systems/highCrowns.js) ──
+        if (HighCrowns.hasBusiness(player, world)) {
+            const hc = HighCrowns.crownsOf(player, world);
+            const emp = HighCrowns.empire(player);
+            const offers = Object.keys(HighCrowns.state(player).offers).length;
+            html += rowList([{
+                icon: '🏛️', name: emp ? `${_esc(emp.title)} of the ${_esc(emp.name)}` : 'High Crowns',
+                desc: `${hc.length} crown${hc.length === 1 ? '' : 's'} worn${offers ? ` · ${offers} crown${offers === 1 ? '' : 's'} offered to you` : ''} · viceroys, the lords' temper, the crown above crowns`,
+                attrs: 'onclick="window._throne.highCrowns()"', side: '›', tone: offers ? 'warn' : '',
+            }]);
+        }
 
         // ── The war for a throne ──
         const cw = st.civilWar;
@@ -287,6 +299,7 @@ Object.assign(ActionMenu, {
         };
         window._throne = {
             court: () => ActionMenu.showRoyalCourt(game, tile, 'realm'),
+            highCrowns: () => ActionMenu.showHighCrowns(game, tile),
             match: (id) => result('💍 Royal Match', Throne.arrangeRoyalMatch(player, world, id)),
             forge: (id) => result('📜 Forgery', Throne.forgeClaim(player, world, id)),
             buy: (id) => result('🛡️ Heralds', Throne.purchaseClaim(player, world, id)),

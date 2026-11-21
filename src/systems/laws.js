@@ -22,9 +22,12 @@
 import { DataLoader } from '../core/dataLoader.js';
 import { CrownBooks } from '../world/crownBooks.js';
 import { Names } from '../core/names.js';
+import { House } from './house.js';
 // (a law posted in a lettered realm is read and understood: systems/literacy.js; run time only)
 import { Literacy } from './literacy.js';
 import { Utils } from '../core/utils.js';
+// (a law fixed in the realm's written code costs more to change: systems/namedLegacy.js; run time only)
+import { NamedLegacy } from './namedLegacy.js';
 
 const DEFAULTS = {
     changeCost: { treasury: 150, stability: 2 },
@@ -167,7 +170,8 @@ export const Laws = {
         if (set === 'forbidden' || set === 'follow') return set === 'forbidden' ? 'forbidden' : null;
         const L = _obj(Laws.config().local) || {};
         const share = _num((L.vice || {}).banShare, 0.2);
-        return _hash01(`${settlement.name || ''}|${settlement.q},${settlement.r}|vice`) < share ? 'forbidden' : null;
+        // (a town renamed keeps its old ordinance: its founding name, systems/namedLegacy.js)
+        return _hash01(`${settlement.foundingName || settlement.name || ''}|${settlement.q},${settlement.r}|vice`) < share ? 'forbidden' : null;
     },
 
     /**
@@ -205,16 +209,24 @@ export const Laws = {
         if (!o) return { ok: false, reason: 'No such law.' };
         if (Laws.value(world, k.id, lawId) === optionId) return { ok: false, reason: 'That is already the law.' };
         const C = Laws.config();
-        const cost = Math.round(_num(C.changeCost.treasury, 150));
+        let cost = Math.round(_num(C.changeCost.treasury, 150));
         // The upheaval of any change, and more for a hard law (a law the people like costs nothing extra)
         // (a realm that reads its posted laws grumbles less at a change: systems/literacy.js)
-        const stability = Math.round((_num(C.changeCost.stability, 2) + Math.max(0, -_num(o.stability))) * Literacy.lawStabilityFactor(world, k.id));
+        let stability = Math.round((_num(C.changeCost.stability, 2) + Math.max(0, -_num(o.stability))) * Literacy.lawStabilityFactor(world, k.id));
         const last = k.laws && k.laws.changed && k.laws.changed[lawId];
         const readyDay = last != null ? _num(last) + _num(C.cooldownDays, 30) : 0;
         const day = _num(world && world.day);
         if (day < readyDay) return { ok: false, reason: `The law was changed lately; the realm won't stand another change until day ${readyDay}.`, cost, stability, readyDay };
+        // A law the realm's code fixed: struck from the book only at a price (systems/namedLegacy.js)
+        const bound = NamedLegacy.codeBinding(world, k, lawId);
+        if (bound) {
+            cost += bound.treasury;
+            stability += bound.stability;
+            const pr = _num(player.house && player.house.prestige);
+            if (pr < bound.prestige) return { ok: false, reason: `${L.name} is fixed in ${bound.name}: striking it from the code needs ${bound.prestige} Prestige (you have ${Math.floor(pr)}).`, cost, stability, readyDay, bound };
+        }
         if (_num(k.treasury) < cost) return { ok: false, reason: `Proclaiming a new law costs the crown ${Utils.formatGold(cost)}g; the treasury holds ${Utils.formatGold(_num(k.treasury))}g.`, cost, stability, readyDay };
-        return { ok: true, cost, stability, readyDay };
+        return { ok: true, cost, stability, readyDay, bound };
     },
 
     /** The ruler proclaims a law. → { success, text|reason } */
@@ -236,7 +248,14 @@ export const Laws = {
         if (!Array.isArray(k.laws.history)) k.laws.history = [];
         k.laws.history.push({ day, law: lawId, from: was ? was.id : null, to: optionId });
         if (k.laws.history.length > 30) k.laws.history.splice(0, k.laws.history.length - 30);
-        return { success: true, text: `By your proclamation, ${L.name.toLowerCase()} in ${Names.realm(k.name)}: ${o.label.toLowerCase()}${was ? ` (was ${was.label.toLowerCase()})` : ''}. ${Utils.formatGold(can.cost)}g from the treasury; stability −${can.stability}.` };
+        // (struck from the code: the Prestige of unmaking a forebear's book)
+        let struck = '';
+        if (can.bound) {
+            House.spend(player.house, can.bound.prestige, `struck from ${can.bound.name}`, day);
+            NamedLegacy.strike(world, k, lawId);
+            struck = ` Struck from ${can.bound.name}: ${can.bound.prestige} Prestige.`;
+        }
+        return { success: true, text: `By your proclamation, ${L.name.toLowerCase()} in ${Names.realm(k.name)}: ${o.label.toLowerCase()}${was ? ` (was ${was.label.toLowerCase()})` : ''}. ${Utils.formatGold(can.cost)}g from the treasury; stability −${can.stability}.${struck}` };
     },
 
     // ──────────── THE AI RULERS' HAND ────────────

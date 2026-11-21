@@ -8,10 +8,14 @@ import { Throne, House } from './_imports.js';
 import { panelTabs, lede, chips, sectionHead, kv, card, more, actRow, rowList, price, BTN_GOLD, BTN_RED, BTN_OFF } from './uiKit.js';
 import { Names } from '../../core/names.js';
 import { crownRuleHtml, bindCrownRule } from './throne.js';
+// The State of the Realm: graft, drifting provinces, soft heirs, entrenchment (systems/realmDecline.js)
+import { stateOfRealmHtml, bindStateOfRealm } from './realmDecline.js';
+// The Succession: the heir's standing, the claimants, the war for the crown (systems/crownSuccession.js)
+import { successionTabHtml, bindSuccession } from './crownSuccession.js';
 import { Utils } from '../../core/utils.js';
 
 const MUTED = 'color: #9d937c; font-size: 11px;';
-const TABS = [['council', '🏛️ Council'], ['edicts', '📜 Edicts'], ['vassals', '🛡️ Vassals'], ['realm', '👑 Realm']];
+const TABS = [['council', '🏛️ Council'], ['edicts', '📜 Edicts'], ['vassals', '🛡️ Vassals'], ['realm', '👑 Realm'], ['decline', '⚖️ State of the Realm'], ['succession', '⚜️ Succession']];
 
 const _esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', '\'': '&#39;' }[c]));
 const _sign = v => `${v > 0 ? '+' : ''}${v}`;
@@ -295,6 +299,8 @@ Object.assign(ActionMenu, {
         } else if (tab === 'edicts') html += _edictsTab(player, world);
         else if (tab === 'vassals') html += _vassalsTab(player, world);
         else if (tab === 'realm') html += _realmTab(game);
+        else if (tab === 'decline') html += stateOfRealmHtml(game);
+        else if (tab === 'succession') html += successionTabHtml(game);
         else html += _councilTab(player, world);
         html += '</div>';
         game.ui.showCustomPanel(`🏛️ The Royal Court of ${Names.realm(k.name)}`, html);
@@ -302,6 +308,8 @@ Object.assign(ActionMenu, {
         const reopen = () => ActionMenu.showRoyalCourt(game, tile, tab);
         // The Realm tab's policies and diplomacy (ui/actionMenu/throne.js crownRuleHtml)
         if (tab === 'realm') bindCrownRule(game, reopen);
+        if (tab === 'decline') bindStateOfRealm(game, reopen);
+        if (tab === 'succession') bindSuccession(game, reopen);
         const result = (title, res) => ActionMenu._realmResult(game, title, res, reopen);
         window._court = {
             tab: (id) => ActionMenu.showRoyalCourt(game, tile, id),

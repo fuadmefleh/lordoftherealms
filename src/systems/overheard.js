@@ -44,6 +44,8 @@ import { Whispers } from './whispers.js';
 import { Fame } from './fame.js';
 import { StreetCrime } from './streetCrime.js';
 import { TownMarks } from '../world/townMarks.js';
+// (the House's founding tale and the names it put on the map: systems/namedLegacy.js)
+import { NamedLegacy } from './namedLegacy.js';
 
 const DEFAULTS = {
     enabled: true, radius: 6, chance: 0.35, cooldownSecs: [45, 90], perTownDay: 4, repeatDays: 12,
@@ -306,6 +308,7 @@ export const Overheard = {
                 if (gist) out.push({ key: `tm:${id}:${_num(m.d)}`, src: 'town', kind: id, v, w: _num(W.townMark, 5), who, gist: _fill(gist, pn), from: null });
             }
         }
+        try { out.push(...NamedLegacy.overheardFacts(player, world, settlement, who, pn)); } catch { /* no tale */ }
         const C = Overheard.config();
         const st = _obj(settlement.overheard);
         for (const b of _arr(st && st.brawls)) {

@@ -66,7 +66,7 @@ export const BackRooms = {
     frontName(settlement, keeper) {
         const F = BackRooms.config().fronts;
         const list = Array.isArray(F) && F.length ? F : DEFAULTS.fronts;
-        const i = Math.floor(_hash01(`${settlement && settlement.name}|${keeper}|front`) * list.length) % list.length;
+        const i = Math.floor(_hash01(`${settlement && (settlement.foundingName || settlement.name)}|${keeper}|front`) * list.length) % list.length;
         return list[i];
     },
 
@@ -94,7 +94,7 @@ export const BackRooms = {
                 if (_num(g.dens) <= 0) continue;
                 out.push({ id: `gang:${g.id}`, kind: 'gang', name: `${g.name}'s tables`, front: BackRooms.frontName(s, g.id), gang: g });
             }
-        } else if (_hash01(`${s.name}|${s.q},${s.r}|localgame`) < _num(BackRooms.config().localShare, 0.6)) {
+        } else if (_hash01(`${s.foundingName || s.name}|${s.q},${s.r}|localgame`) < _num(BackRooms.config().localShare, 0.6)) {
             out.push({ id: 'local', kind: 'local', name: 'A quiet game', front: BackRooms.frontName(s, 'local') });
         }
         return out;

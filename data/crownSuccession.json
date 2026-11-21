@@ -1,0 +1,143 @@
+{
+  "_comment": "The war for your own crown at your death (systems/crownSuccession.js). When the player rules a realm and the seat passes (death, abdication, the return from an interregnum), claimants weigh their strength against the heir's standing; one who rises is backed by the realm's named lords (Kingship vassals) and makes war as a succession revolt (Kingship revolt machinery: hosts, field battles, sieges, momentum, parley). Lost, the realm splits: the claimant takes his lords' seats as a kingdom of his own (a rival with a claim on the crown). The capital lost, the crown itself goes. Years are heirSettings.daysPerYear days.",
+
+  "config": {
+    "_rise": "A claimant rises with chance (strength - heir standing + riseBase) / riseDivisor, at most riseMax. Only claimants of strength 1+ are weighed.",
+    "riseBase": 20,
+    "riseDivisor": 80,
+    "riseMax": 0.9,
+    "_minLordShare": "A risen claimant needs lords holding this share of the realm's lord power behind him to make war; with fewer he finds no swords and stands down.",
+    "minLordShare": 0.15,
+
+    "claimants": {
+      "brother": {
+        "_": "The late ruler's other grown children (16+), and his own siblings (uncles: x uncleMult). Sons and daughters weigh differently. Excluded: in holy orders, wed abroad, exiled, unfit.",
+        "son": 30,
+        "daughter": 14,
+        "uncleMult": 0.6,
+        "elder": 18,
+        "ambitious": 10,
+        "turned": 15,
+        "passedOver": 25,
+        "wedToLord": 10,
+        "aggrieved": 15,
+        "grudge": 8,
+        "boughtOffGold": 1000,
+        "boughtOffCut": 0.7
+      },
+      "cadet": {
+        "_": "A cadet branch's head: (50 - loyalty) x perLoyaltyBelow50 + base, +estranged; none at loyaltyAbove or more.",
+        "base": 6,
+        "perLoyaltyBelow50": 0.6,
+        "estranged": 15,
+        "loyalAbove": 60
+      },
+      "spouseKin": {
+        "_": "The late ruler's royal spouse's kin, of another realm: they want the regency of a child heir (none if the spouse is regent), and press harder if their realm is hostile.",
+        "regencyDenied": 28,
+        "adult": 6,
+        "hostileRealm": 12,
+        "hostileBelow": 0,
+        "widowedMult": 0.6
+      },
+      "pretender": {
+        "_": "The realm's old royal line, where the crown was taken rather than founded: base, less decayPerYear for each year the House has held it; a pension quiets it (x quietMult), a cloister ends it for cloister years, a marriage into it (the ruler's or heir's royal spouse of this realm) joins the lines.",
+        "base": 38,
+        "decayPerYear": 0.8,
+        "quietMult": 0.4
+      }
+    },
+
+    "standing": {
+      "mythLegitimacy": 12,
+      "purpleFrom": 50,
+      "purpleWeight": 0.3,
+      "designated": 12,
+      "crowned": 28,
+      "oathMax": 24,
+      "minor": -18,
+      "regentLoyal": 6,
+      "regentLoyalAt": 60,
+      "regentDisloyal": -10,
+      "regentDisloyalBelow": 40,
+      "prestigePer": 25,
+      "prestigeCap": 12,
+      "reignPerYear": 0.5,
+      "reignCap": 10,
+      "stabilityPivot": 50,
+      "stabilityWeight": 0.3,
+      "opinionWeight": 0.2,
+      "heirSkillWeight": 0.8,
+      "heirSkillCap": 8,
+      "secured": 10,
+      "disputed": -10,
+      "abdicationBlessed": 14,
+      "abdicationPassedOver": -12,
+      "interregnumPerYear": -6
+    },
+
+    "lean": {
+      "_": "A lord backs the claimant when his lean is above 0: his opinion of the crown x opinionWeight, the claimant's edge over the heir x edgeWeight, (ambition - 5.5) x ambitionPer, an oath to the heir (honor x oathPerHonor), kin of the claimant, kin of the crown, a council seat, cowed, and his own temper (a fixed hash, +-noise).",
+      "opinionWeight": -0.5,
+      "edgeWeight": 0.6,
+      "ambitionPer": 2.5,
+      "oathPerHonor": -4,
+      "kinOfClaimant": 40,
+      "kinOfCrown": -15,
+      "onCouncil": -10,
+      "cowed": -20,
+      "noise": 15
+    },
+
+    "war": {
+      "_": "Starting momentum (crown's share of support - 0.5) x startMomentum. A foreign realm behind the claimant (the spouse's kin; a realm hostile to yours behind the old line) sends foreignShare of its army (at most foreignMax) to the rebels.",
+      "startMomentum": 40,
+      "foreignShare": 0.12,
+      "foreignMax": 250,
+      "foreignHostileBelow": -30,
+      "wonPrestige": 10,
+      "parleyQuietYears": 20,
+      "crushedCadetLoyalty": 5,
+      "crushedCadetFine": 0.5,
+      "crushedSpouseRealm": -20,
+      "farSeparatismPer": 0.5
+    },
+
+    "prep": {
+      "coronation": { "prestige": 25, "gold": 400, "minAge": 16 },
+      "oaths": { "prestige": 10, "gold": 150, "minOpinion": 0, "cooldownDays": 120 },
+      "portion": { "step": 250 },
+      "orders": { "gold": 200, "minAge": 14 },
+      "pension": { "gold": 500, "years": 12 },
+      "cloister": { "prestige": 30, "stability": -5, "years": 40 }
+    },
+
+    "split": {
+      "truceDays": 360,
+      "relations": -60,
+      "claimStrength": 40,
+      "prestige": -30,
+      "stability": -10,
+      "minMilitary": 20,
+      "reunionMilitaryShare": 0.6,
+      "reunitedPrestige": 30
+    },
+
+    "usurp": { "claimStrength": 55, "prestige": -40 },
+
+    "interregnum": {
+      "_": "A wait of usurpYears or more with a claimant of usurpMinStrength who rises: he took the crown while the House waited.",
+      "usurpYears": 5,
+      "usurpMinStrength": 30
+    },
+
+    "historyCap": 20
+  },
+
+  "kinds": {
+    "brother": { "icon": "🗡️", "label": "a younger son", "labelDaughter": "a daughter of the House", "labelUncle": "an uncle of the heir" },
+    "cadet": { "icon": "🌿", "label": "a cadet branch" },
+    "spouseKin": { "icon": "💍", "label": "the late consort's kin" },
+    "pretender": { "icon": "🏚️", "label": "the old royal line" }
+  }
+}

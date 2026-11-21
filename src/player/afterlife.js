@@ -94,6 +94,7 @@ import { MarketFairs } from '../systems/marketFairs.js';
 import { Harvests } from '../world/harvests.js';
 import { Engrossing } from '../systems/engrossing.js';
 import { LawCouncil } from '../systems/lawCouncil.js';
+import { NamedLegacy } from '../systems/namedLegacy.js';
 import { LandMarket } from '../systems/landMarket.js';
 import { PuttingOut } from '../systems/puttingOut.js';
 import { TradePolicy } from '../systems/tradePolicy.js';
@@ -121,6 +122,8 @@ import { Characters } from '../world/characters.js';
 import { Cultures } from '../world/cultures.js';
 import { Languages } from '../systems/languages.js';
 import { Crises } from '../systems/crises.js';
+import { LastCrisis } from '../systems/lastCrisis.js';
+import { RealmDecline } from '../systems/realmDecline.js';
 import { CadetBranches } from '../systems/cadetBranches.js';
 import { Abdication } from '../systems/abdication.js';
 import { Climate } from '../world/climate.js';
@@ -211,6 +214,8 @@ const WORLD_DAY = [
     { sys: 'Harvests', run: (w) => Harvests.processDay(w, null) },
     { sys: 'Engrossing', run: (w) => Engrossing.processDay(w, null) },
     { sys: 'LawCouncil', run: (w) => LawCouncil.processDay(w, null) },
+    // The jurists finish their codes, codes steady their realms, resentful towns take back their names (systems/namedLegacy.js)
+    { sys: 'NamedLegacy', run: (w) => NamedLegacy.processDay(w, null) },
     { sys: 'Concessions', run: (w) => Concessions.processDay(w, null) },
     { sys: 'LandMarket', run: (w) => LandMarket.processDay(w, null) },
     { sys: 'PuttingOut', run: (w) => PuttingOut.processDay(w, null) },
@@ -238,6 +243,10 @@ const WORLD_DAY = [
     { sys: 'Climate', run: (w) => Climate.processDay(w, null) },
     // Age-defining crises: invasions, great plagues, schisms, famines, gold rushes (systems/crises.js)
     { sys: 'Crises', run: (w) => Crises.processDay(w, null) },
+    // The last crisis of the age plays on (the reckoning does not gather with no one alive; systems/lastCrisis.js)
+    { sys: 'LastCrisis', run: (w) => LastCrisis.processDay(w, null) },
+    // Great old realms sag under their own weight; the player's strains wait (systems/realmDecline.js)
+    { sys: 'RealmDecline', run: (w) => RealmDecline.processDay(w, null) },
     // The Timeline of the Realm keeps recording while no one lives (systems/realmTimeline.js)
     { sys: 'RealmTimeline', run: (w) => RealmTimeline.processDay(w, null) },
     // The House's cadet branches live on while it is held in trust: they keep their
@@ -267,6 +276,7 @@ const WORLD_DAY_SKIPPED = {
     HeirPaths: 'run on the estate in passDay',
     Abdication: 'run on the estate in passDay (interregnum: no pensions)',
     Regency: "a reigning child's regency: no one reigns in the wait",
+    CrownSuccession: 'player-held: the contest for the crown waits with the estate; on the return each year of the empty throne weighs against the heir',
     Heirlooms: "player-held: the House's heirlooms wait with the estate",
     Vanishings: "player-held: the player's companions who never came home",
     PeopleCrimes: "player-held: the player's crimes against people",
@@ -300,6 +310,7 @@ const WORLD_DAY_SKIPPED = {
     Landings: "player-held: reavers on the player's coastal holdings",
     Coalitions: 'player-held: the league against the House (its ultimatum is extended by the days missed)',
     RivalAgents: "player-held: rival Houses' agents against the House",
+    HighCrowns: 'player-held: the far crowns in union and their viceroys (Throne.passCrown hands them back to their old lines)',
     Atrocities: "player-held: the player's infamy and hostages",
     Holdings: "player-held: the player's holdings",
     Annals: 'player-held: the House Annals (the reign was filed in Afterlife.begin)',

@@ -243,10 +243,24 @@ export const MetaLegacy = {
                 .sort((x, y) => _num(y.legend) - _num(x.legend))
                 .slice(0, 5)
                 .map(h => ({ name: String(h.name), kind: _str(h.kind, 'relic'), icon: _str(h.icon), legend: _num(h.legend) }))),
+            // What the House wrote on the world: its last chapter, founding tale, codes, names (systems/namedLegacy.js: house.namedLegacy)
+            ...MetaLegacy._named(house, world),
             // A seam for the exportable chronicle (ui/chronicleBook.js, when it exists):
             // whatever it hands MetaLegacy.attachChronicle is kept with the entry
             chronicle: null,
+            // The Golden or Dark Age the House gave its name to (systems/lastCrisis.js: house.ages)
+            ages: (Array.isArray(house.ages) ? house.ages : []).slice(0, 4).map(a => ({ kind: _str(a.kind), name: _str(a.name), realm: _str(a.realm) })),
         };
+    },
+
+    /** The named-legacy fields of a Hall entry, read off the House's own record (no import of the module). */
+    _named(house, world) {
+        const st = _obj(house && house.namedLegacy) || {};
+        const ch = Array.isArray(st.chapters) && st.chapters.length ? st.chapters[st.chapters.length - 1] : null;
+        const myth = _obj(st.myth);
+        const codes = (Array.isArray(world && world.kingdoms) ? world.kingdoms : [])
+            .map(k => _obj(k && k.laws) && _obj(k.laws.code)).filter(c => c && c.stage === 'proclaimed' && c.houseId && c.houseId === house.id).map(c => _str(c.name));
+        return { rememberedFor: ch ? _str(ch.line, null) : null, myth: myth ? _str(myth.name, null) : null, codes: codes.slice(0, 4) };
     },
 
     /** File an ended House in the Hall (Legacy.endDynasty calls this). Idempotent. */

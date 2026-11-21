@@ -8,6 +8,7 @@ import { Quests } from '../../systems/quests.js';
 import { Pirates } from '../../systems/pirates.js';
 import { Hospitality } from '../../systems/hospitality.js';
 import { RealmIntel } from '../../systems/realmIntel.js';
+import { NamedLegacy } from '../../systems/namedLegacy.js';
 
 /** Each unit type's glyph on its map token (ui/icons.js); unknown types keep their emoji. */
 const UNIT_GLYPHS = {
@@ -591,6 +592,29 @@ Object.assign(Renderer.prototype, {
             }
         }
         ctx.restore();
+    },
+
+    /**
+     * Regions and seas named after a House (systems/namedLegacy.js): the name in
+     * wide italic letters over the place, where its anchor hex is explored.
+     */
+    renderNamedPlaces(ctx) {
+        if (!this.world) return;
+        const z = this.camera.zoom;
+        if (z < 0.3) return;
+        const labels = NamedLegacy.mapLabels(this.world);
+        if (!labels.length) return;
+        for (const p of labels) {
+            const tile = this.world.getTile(p.q, p.r);
+            if (!tile || !tile.explored) continue;
+            const pos = this.getHexPixelPos(p.q, p.r);
+            const s = this.camera.worldToScreen(pos.x, pos.y);
+            if (s.x < -200 || s.x > this.canvas.width + 200 || s.y < -60 || s.y > this.canvas.height + 60) continue;
+            this.drawMapText(ctx, p.name, s.x, s.y, {
+                size: Math.max(11, 15 * z), weight: 600, alpha: 0.85,
+                color: p.kind === 'sea' ? 'rgba(190, 220, 245, 0.95)' : 'rgba(245, 228, 180, 0.95)',
+            });
+        }
     },
 
     /**

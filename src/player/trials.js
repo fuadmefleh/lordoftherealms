@@ -76,6 +76,8 @@ import { CourtLetters } from '../systems/courtLetters.js';
 import { Brands } from '../world/brands.js';
 import { Prison } from './prison.js';
 import { PlayerCoin } from './playerCoin.js';
+// (a realm under a written code: fewer cases, suits shut, the code named in verdicts — systems/namedLegacy.js)
+import { NamedLegacy } from '../systems/namedLegacy.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = v => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -716,6 +718,9 @@ export const Trials = {
                 res = { outcome: 'exiled', convicted: true, text: Trials.line('exiled', key, { ...vars, years, grace: _num(S.exileGraceDays, 4) }) };
             }
         }
+        // (the court names the realm's code, when it has one: systems/namedLegacy.js)
+        const under = NamedLegacy.courtLine(world, kid);
+        if (under && res && res.text) res.text = `${res.text} (${under.charAt(0).toUpperCase()}${under.slice(1)}.)`;
         st.last = { day, town: trial.town, judge: trial.judge.name, outcome: res.outcome, text: res.text };
         st.trial = null;
         if (player.jailState && player.jailState.trialId === trial.id && res.outcome !== 'jailed') player.jailState.tried = true;
@@ -1161,6 +1166,14 @@ export const Trials = {
                 RivalHouses._note(rival, world, 'Their suit against you came to nothing: the court would not hear it.');
                 continue;
             }
+            // The realm's written code shuts some suits before they are heard (systems/namedLegacy.js)
+            if (NamedLegacy.codeSettles(world, venue.kingdomId != null ? venue.kingdomId : filing.kingdomId, `${rival.kingdomId}|${filing.day}`)) {
+                const text = NamedLegacy.settledLine(world, venue.kingdomId != null ? venue.kingdomId : filing.kingdomId, venue.town, rival.name);
+                RivalHouses._note(rival, world, 'Their suit against you was shut by the realm\'s code before it was heard.');
+                Trials._log(player, world, text, 'suit');
+                out.notices.push({ icon: '📕', title: 'A Suit Shut', text, type: 'success' });
+                continue;
+            }
             const suit = Trials._newSuit(player, world, rival, ground, rival.kingdomId, venue, rng);
             // A House of little honour slips the judge something
             const honour = _num(rival.head.persona && rival.head.persona.honour, 5);
@@ -1397,9 +1410,10 @@ export const Trials = {
             const seats = Trials.seats(player, world);
             for (const seat of seats) {
                 if (st.cases.length >= _num(J.maxPending, 3)) break;
-                if (!(rng() < _byType(J.perDay, seat.settlement.type))) continue;
+                if (!(rng() < _byType(J.perDay, seat.settlement.type) * NamedLegacy.disputeFactor(world, seat.kingdomId))) continue;
                 const c = Trials._makeCase(player, world, seat, rng);
-                if (c) out.notices.push({ icon: '⚖️', title: 'A Case for Your Court', text: `${c.accused.name} of ${c.town} stands accused of ${c.crimeLabel}, against ${c.victim.name}. Judge it within ${c.expires - day} days (Family → Courts & Lawsuits).`, type: 'info' });
+                const under = c ? NamedLegacy.courtLine(world, c.kingdomId) : '';
+                if (c) out.notices.push({ icon: '⚖️', title: 'A Case for Your Court', text: `${c.accused.name} of ${c.town} stands accused of ${c.crimeLabel}, against ${c.victim.name}. Judge it within ${c.expires - day} days${under ? `, ${under}` : ''} (Family → Courts & Lawsuits).`, type: 'info' });
             }
             // Old verdicts surfacing
             for (const j of st.judged) if (!j.surfaced && j.surface != null && day >= j.surface) Trials._surface(player, world, j, out);

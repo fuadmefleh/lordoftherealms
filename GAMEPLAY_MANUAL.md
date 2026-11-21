@@ -4516,9 +4516,76 @@ Factions form in **secret**. Each day each hidden faction has a 3% chance to be 
 
 **Other crowns** treat your realm as a real power. Once a week each one weighs it: a neighbour (capitals within 28 hexes) envies a crown more than 1.2× its might (−2 relations, −3 for an ambitious lord); a peaceful or mercantile realm on good terms warms to a stronger one (+2); when yours is the mightiest realm, wary crowns ally against it; and a hostile neighbour (relations −20 or worse) declares a war of conquest when its might × its lord's war appetite exceeds 90% of yours, or only 60% while you face a revolt or a civil war or your stability is under 35.
 
+#### The War for Your Own Crown
+
+A crown does not pass by itself. When you rule a realm and the seat passes — you die and an heir takes up the mantle, you abdicate, or you come back after an interregnum — the heir you go on as must hold it against those who would take it. Prepare for that day on the Royal Court's **⚜️ Succession** tab: it shows who would take the crown if you died today, their **standing**, every **claimant** with his **strength**, his chance to rise and the lords who would follow him, every factor with its weight. Tunables live in `data/crownSuccession.json`.
+
+**The claimants** and what makes their strength:
+
+| Claimant | Strength | What answers him |
+|----------|----------|------------------|
+| 🗡️ A younger son (or daughter) of 16+ | son 30, daughter 14 (an uncle of the heir ×0.6); older than the heir +18; the rightful heir passed over in an abdication +25; Ambitious +10; turned against the House while held abroad +15; wed into one of your lords' houses +10; denied a far crown kept whole +15 | a **portion** (250g at a time from your purse into theirs: at 1,000g the claim is cut by 70%); **holy orders** (200g alms to the capital: the claim is gone for good); a **match abroad** (an alliance or royal marriage into another realm takes the claim with them); a **cadet branch** (a branch of 60+ loyalty claims nothing) |
+| 🌿 A cadet branch below 60 loyalty | 6, +0.6 per point of loyalty under 50, +15 estranged | gifts and summons (Dynasty → House → Cadet branches) |
+| 💍 The late royal consort's kin, of another realm | 28 against a child heir whose regency is not theirs (6 against a grown heir), +12 if their realm is cold to yours; ×0.6 if the consort is dead | the consort as regent |
+| 🏚️ The old royal line of a crown you took (not founded) | 38, −0.8 for each year your House has held it | a **pension** (500g to its household in the capital: ×0.4 for 12 years); a **cloister** (30 Prestige, −5 stability: broken for 40 years); a marriage into it (your or your heir's royal spouse of this realm joins the lines) |
+
+**The heir's standing:** named heir in life +12; **crowned in your lifetime** +28 (25 Prestige and a 400g coronation feast paid into the capital; heir 16+); **the lords' oaths** up to +24 by the share of the lords' power sworn (10 Prestige and 150g; every lord of opinion 0+ swears; once every 120 days); a child heir −18 (a regent of 60+ loyalty +6, of under 40 −10); the House's Prestige ÷ 25 (up to +12); the late reign, +0.5 a year (up to +10); the realm's stability, (stability − 50) × 0.3; the lords' average opinion × 0.2; the heir's leadership and diplomacy × 0.8 (up to +8); the succession secured with Prestige at the deathbed +10, disputed −10; the House's **founding tale** told for the heir +12 (invoked for legitimacy, see [Your Name on the World](#your-name-on-the-world)); an heir **born in the purple** (see [The Weight of Greatness](#the-weight-of-greatness-realm-decline)) −0.3 for each point of softness above 50, unless hardened since; an abdication with the old ruler's blessing +14, one that passed the rightful heir over −12; and −6 for every year of an empty throne. The oaths and the crowning are spent at the succession: the next heir needs their own.
+
+**Rising.** Each claimant rises with a chance of (strength − standing + 20) ÷ 80, at most 90%. The strongest who rises leads; any others stand with him. Each lord of the royal court then leans: his opinion × −0.5, the claimant's edge over the heir × 0.6, (ambition − 5.5) × 2.5, an oath to the heir −4 per point of his honour, kin of the claimant +40, kin of the crown −15, a council seat −10, cowed −20, and his own temper (±15). Those who lean over back the claimant; the power they hold is his **support**, the rest (and 5% of the royal army) the crown's. With less than 15% of the lords' power behind him he finds no swords and stands down (a younger son remembers it: +8 strength the next time).
+
+**The war** runs as a revolt (above): his lords' seats withhold their levies and raise his host, his hosts march, the royal army meets them in the field, you break his hosts and besiege his seats, and you can **buy him off** at the usual parley price. It starts at momentum (the crown's share of the support − 50%) × 40. A foreign realm behind him sends 12% of its army (up to 250): the consort's kin, or the realm most hostile to yours (−30 or worse) behind the old line. A child on the throne may lay no siege while the regent rules.
+
+- **Held** (crushed): his lords are broken as in any revolt, +10 Prestige more. A son is exiled (he claims no more), the old line is broken for 40 years, a cadet branch falls to 5 loyalty and pays half its purse into the royal treasury, the consort's realm −20 relations.
+- **Bought off**: the claim is renounced (the old line quiet for 20 years, a cadet branch back to 40 loyalty).
+- **Lost** (momentum −100, or the war runs out behind): **the realm splits**. His seats, and the open land around them, leave as the *Kingdom of* his greatest town, with his host as its army, a truce of 360 days and relations of −60. His lords leave your court, −30 Prestige, −10 stability, and a son who wins it leaves your House to reign there. You hold a **blood claim of 40** on it: press it from Claims & Crowns. Once a year, when its truce is over and its army is 60% of yours, it goes to war to take the rest of your crown. If it falls, the realm is whole again: +30 Prestige.
+- **His hosts take the capital**: the **crown itself** passes to him. Your reign is closed, −40 Prestige, and your heir holds a blood claim of 55 to win it back.
+
+**Far crowns** worn in personal union have no court of yours: a claimant who rises there adds half his strength to their lords' wish for a king of their own (see High Crowns).
+
+**The interregnum.** While you wait out the years, the contest waits too. On your return each empty year weighs −6 against the heir, and after **5 years** a claimant of strength 30+ who rises has already taken the throne: the crown is lost, and you come back with a blood claim of 55.
+
 #### Founding your own kingdom
 
 Instead of taking a throne, you may make one. Hold **3+ settlements** (your colonies, including towns you conquered while unsworn) and have **50+ Prestige**, then use **Form Kingdom** (6 AP) at one of them. It costs 25 Prestige and earns +50 when the realm is proclaimed. The new kingdom is a full kingdom: its capital is that settlement, its land is your settlements and the free (or old liege's) land around them, and it has an army of max(80, 7% of its people), a treasury of max(800, 20% of your gold), a royal council, the faith of its seat, a fleet if it has ports, and the traits Orderly and Mercantile. Seceding from your liege costs −25 reputation with them and −3 karma, and they start out hostile. You rule it exactly as above.
+
+#### High Crowns: many crowns, and the crown above them
+
+A king may wear more than one crown. The first is your **seat** — the realm you rule in person through the Royal Court. Every crown after it you hold in **personal union**: it stays its own kingdom, with its own lords, laws and army, and you rule it through a **viceroy**. Open **Claims & Crowns → 🏛️ High Crowns**. (`systems/highCrowns.js`, `data/highCrowns.json`.) No head carries more than **4** crowns.
+
+**Winning another crown.**
+- **Press a claim** on a second throne exactly as on the first (claim 40+, an army, 300 gold, a realm that leans your way). Win the civil war and its crown joins yours. Its lords start at **30** discontent.
+- **The council's offer.** When a realm's ruler dies and the line wavers — a distant cousin, a regency, a disputed or child heir — and you hold a claim of **blood or marriage** of 40+ on it, its council may offer you the crown. The odds grow with the claim (up to 75% for a distant cousin's succession; 30% for a child heir, 8% for a plain heir). You have **40 days** to answer; the coronation costs 25 gold a town (at least 150), paid into its capital. A crown taken this way starts at only **15** discontent. A royal match, for yourself or your children, is the long road here.
+- **By the sword.** Storm a realm's capital (a claim by conquest of 35), then have your crown fight it until its host is broken — below **half** of your crown's army and yours together. For **40 Prestige** its court yields its crown (−20 reputation there). Its lords hate it: **50** discontent.
+
+With no crown yet, an offered crown becomes your seat.
+
+**Each crown its own.** A far crown keeps its own **tax, war stance and faith** policies (the same choices as your seat's). On a defensive or peaceful stance it declares no wars of its own; on an aggressive one its marshals may. It is always at peace and allied with your seat. It may also bear **two decrees** of yours:
+
+| Decree | Cost | Effect |
+|---|---|---|
+| 📜 Confirm the ancient charter | 15 ⭐ | −0.5 discontent a week, +2 stability; your levy from it ×0.7 |
+| 🛡️ Royal garrisons | 10 ⭐ | −0.25 discontent a week, +4 stability, +5% defence; its treasury pays the soldiers 4 gold a day (into its own towns) |
+| 💰 Tribute to the high crown | 5 ⭐ | your levy ×1.4; +0.4 discontent a week, −3 stability |
+| 🏰 Native lords at court | 12 ⭐ | −0.35 discontent a week, +3 loyalty; your viceroy's competence −10 |
+
+**The levy.** Each far crown sends you its tax policy's share of its daily dues × **0.6** (the viceroy's court keeps more than yours does), scaled by its stability, cut by up to half as its lords' discontent rises, never below a reserve of 400 in its treasury and never more than **90 gold a day**. The coin leaves its treasury (the Crown's Purse books it as the ruler's purse).
+
+**The viceroy.** Name your spouse, a grown child or sibling at home, a courtier, or one of the realm's own great lords. Each has **loyalty, ambition and competence**. Competence moves the realm's stability and taxes (±5% at the extremes). Loyalty settles each week toward a target: duty (55), your House's Prestige (up to +15), your favours, **+6 while you have been in the realm within 30 days**, minus the lords' discontent (×0.15) and a grasping man's ambition, and minus **neglect** — after a year without a visit, up to −25 more over the next two and a half years. You can **send a gift** (200 gold into his purse) or **honour him** before both courts (12 Prestige; ambition −6). Replacing a viceroy costs 10 Prestige (2 if his plot is already whispered).
+- Below **45** loyalty he skims the levy — up to 40% of it at loyalty 0 — into his own purse (a native lord's into his seat's coffers).
+- Below **30**, if his ambition is 50+, he plots. Half-way there, the whispers reach you (a time skip stops). If the plot ripens he **crowns himself**: the union breaks, you lose 25 Prestige, the realm turns hostile (−50 relations) and half the time marches on your seat.
+- A realm with no viceroy drifts: −6 stability and +0.6 discontent a week.
+
+**The lords' discontent (0–100).** Each week: +0.15 by nature (−0.1 as old grievances settle), **+0.35** once you have been away 120 days, **+0.25** if the realm's culture is not your seat's, +0.3 on heavy taxes (−0.15 on light), +0.3 while its stability is under 45, +0.3 while a child rules, −0.35 with a native viceroy, −0.2 with one of your blood, the decrees above, and **−1.5 every week you stand in the realm** (a royal progress). It lowers the realm's stability (−12 at 100) and your levy. At **70** its lords talk of a king of their own (a warning; a time skip stops). Past **90**, while the realm's stability is under 70 (at **100**, whatever its stability), there is a one-in-four chance each week that they crown a native of the old line and the union breaks (−25 Prestige, hostility, perhaps war). An absent ruler of a foreign realm loses it in about five years under a courtier viceroy, in ten to fifteen under a native lord; one who visits, keeps light taxes and confirms the charter can hold it for a lifetime.
+
+**You can lay down a far crown** at any time: its old line takes it back in peace. If your seat is lost (abdicated, fallen), your oldest far crown becomes your seat. If your line ends, every crown returns to its old line.
+
+**The crown above crowns.** With **2+ crowns**, **10+ settlements** across them and **250+ Prestige**, you may be crowned **Emperor / High King** — the title by your seat's culture: Imperial Emperor, Woodland and Nordic High King, Mountain High Thane, Nomadic Khagan, Desert Padishah, Religious Hierarch, Arcane Archon, Swamp Witch-Emperor, Maritime Sea-Emperor — of the *Empire of Valdoria* (or whatever your seat is called). The coronation costs **120 Prestige** and a feast of **1,500 gold**, half from your purse into your capital and half from your seat's treasury into its towns. It brings +120 renown, a page in the chronicle and the Annals (told by the court chronicler when the scribe is on), and meets the victory goal **Crowned Above Kings**.
+- Lasting: **+10 Prestige a year** and **+3 stability** in every crown.
+- New problems: the far lords' discontent rises **25% faster**; the realms fear you **30% more** (each far crown also counts as three-quarters of a crown and its towns in their reckoning of your power, the high crown +30 more); a league sworn against you names its cause *"to break the false empire"* and starts with +15 resolve. If your crowns fall to one, the high title is lost.
+
+**At your death: whole or partitioned.** Choose in life (High Crowns → The crowns at your death):
+- **Keep the crowns whole** (the default): your heir wears them all. Each far realm tests the new ruler (**+12** discontent, +10 more for a child heir); every viceroy's loyalty falls 8; the grown younger children are **passed over** — they remember it, and may rise against the heir in a contested succession.
+- **Partition**: each far crown, oldest first, goes to a grown younger child (16+) of the House, eldest first. They rule it as kin: allied to your heir, relations 60+. A crown with no child to take it stays with the heir. If only one crown is left, the high title lapses.
 
 ---
 
@@ -5848,6 +5915,35 @@ The text is the Annals' own (or the court scribe's prose, where it has written a
 
 When a line ends, its chronicle is also kept on this machine: **title screen → 🏛️ Hall of Houses → 📖 Open the chronicle** opens it again long after the game is gone (see [Ironman and the Hall of Houses](#ironman-and-the-hall-of-houses)).
 
+### Your Name on the World
+
+Late in a life, Prestige and gold can buy things that outlive you. **Dynasty → ✍️ Your Name on the World** holds four of them. (`systems/namedLegacy.js`, `ui/actionMenu/namedLegacy.js`, `data/namedLegacy.json`.)
+
+**A code of laws.** A ruler who has sat the seat at least 120 days may set the realm's jurists to write its laws into a code bearing their name — *the Code of Aldric*, *the Laws of Aldric*, *the Book of Aldric*. It costs **80 Prestige** and **1,500g plus 150g a town of the realm** from the treasury, paid to the jurists and scribes of the capital, and takes **240 days** (two years). Proclaimed, it fixes every law of the realm as it stands that day:
+
+- **Heirs are bound.** To change a law fixed in the code costs **25 Prestige**, **400g more** and **5 more stability** than an ordinary proclamation, and strikes that law from the code (Laws → 👑 Your crown shows the price). A code under 40 years old cannot be rewritten wholesale — only struck from, law by law.
+- **The realm steadies**: stability **+6** at the proclamation, then **+1 a month** while it is under 70.
+- **Fewer disputes**: cases come before your court **0.6×** as often, and about **a third** of rival Houses' suits are shut by the clerks before they are heard. The courts name the code in their verdicts and in the cases they send you (*judged under the Code of Aldric*).
+- **Respect abroad**: the other realms' hostility toward a crown that rules by a written code is **0.88×** (Threats lists it among their reasons), so leagues are slower to form against you.
+
+The AI crowns write codes too: a ruler of a realm at **60 stability or more** compiles one now and then (a few a century across the world, named after its king or queen). Take that crown and you are bound by a stranger's book.
+
+**Names on the map.** In a town you hold — a holding of yours, or any town of the realm you rule — you may name:
+
+- **the town itself** (**40 Prestige, 400g**): *Aldricsburg*, *Vaneton*, *Port Aldric* (a port name only on the coast). The town's people, and your house there, answer to the new name; a town renamed lately won't take another for a year;
+- **the country about it** (**60 Prestige, 800g**): every hex within 4 of the town is *the Vane March* in the hex info and on maps charted from then on, and the name is written across the world map;
+- **the sea off it** (**50 Prestige, 600g**): the water within 7 hexes of the nearest open water is *the Sea of Aldric*.
+
+The gold goes to the town's heralds, masons and clerks. A House may name six regions and seas. **The folk react by their culture.** A town of your own culture is proud: a stone with the new name stands in its square, its mood rises, and the House gains **1 Prestige a year** while it keeps the name. A town of another culture resents it: a grudge of **−4 mood** fading over **20 years**, the realm's stability **−3**, and talk against you in its streets — and once the town is out of your House's hands for **10 years**, it takes its old name back. A named region spreads half the resentment through its towns of another culture.
+
+**The founding tale.** A House can take up a tale of itself, drawn only from what its record bears out — *the Sword-Born*, born on the field of a battle it won (three field victories in the chronicle); *the Crown-Takers* (a crown taken); *the God-Touched* (a faith founded or two temples raised); *the Storm-Born*, born of a great crisis the House lived through; *the Gold-Blooded* (20,000g once in the purse); *the Founders* (three towns held); *the Sea-Kings* (three ships, or two sea battles won); *the Line of* its most famous forebear; or, for anyone, *the Risen*, from the road and the dust. Taking one up costs **50 Prestige** and **300g** to the bards (**100 Prestige** to make folk forget an old tale). Townsfolk where you rule or hold repeat it to each other in the street. **Each reign may call on it once:**
+
+- **Rally**: the realm's stability **+6**, your officers' and courtiers' loyalty **+5** (with no realm, renown **+6**).
+- **Proclaim the line legitimate**: the next succession is half as likely to be disputed for **4 years**; in a new heir's first **240 days** it also gives stability **+8** and loyalty **+10**.
+- **A claim**: genealogists find the tale in the old rolls of a realm you already have a claim on — the claim **+15** (to 45 at most).
+
+**The final chapter.** A ruler of **60** or more — or within **4 years** of the end of their span — may write the last chapter of their life, once: what they wish to be remembered for (conquest, law, faith, wealth, great works, peace, family, the sea) and the House's motto (one of three for the choice, the old one, or words of your own). The epitaph then reads *Remembered for the law written in the House's name, as Aldric Vane wished*; the Annals' Legacy page, the illustrated chronicle's epilogue and the Hall of Houses entry say it too. **If the reign earned it** — three battles won or a crown for conquest, a code of your own for law, a temple for faith, 10,000g for wealth, a Great Work for great works, ten years without a war for peace, three living children for family, two ships for the sea — the heir is raised to it and begins with its trait (Brave, Honest, Pious, Merchant Prince, Scholar, Merciful, Generous, Sea Wolf). If not, the court nods politely and the heir inherits only the words.
+
 ### The Timeline of the Realm
 
 The whole world's history on one map, season by season. Open it from the top bar's menu (**🗺️ Timeline of the Realm**, beside the Annals), from the Dynasty panel (**Timeline of the Realm**), or from a jump-to link: **🗺️ See these years on the map** in the Annals (a ruler's chapter opens at the start of the reign, an age at the crisis's start), **🗺️ See the realm in these years** under each reign in the House Chronicle, the **Day N** of any line in the Dynasty panel's chronicle, and **🌋 The Age** panel (the running crisis's *See it on the timeline*, and each crisis on record, which opens at its start with its place ringed).
@@ -7079,6 +7175,31 @@ Saga monsters and fleets are named world units. A kingdom patrol cannot bring do
 
 ---
 
+## The Weight of Greatness: Realm Decline
+
+A great realm rots from within. The bigger the realm you rule, the older it is, the longer your House has sat on its throne and the more you hold, the harder four **strains** press on it — unless you fight them. Open **Royal Court → ⚖️ State of the Realm** to see each one: its value (0–100), where it is heading (a pale mark on its bar), its trend over the last year, what feeds it, what it is doing to you now, and what you can do. (`systems/realmDecline.js`, `data/realmDecline.json`.)
+
+**How fast.** Each week a strain closes 0.6% of the gap to where its causes push it — about **ten years** to close two thirds of it. When its causes ease it falls back twice as fast. A strain does nothing below **20**; above that its *bite* grows to full at 100. At **40** the court warns you it is biting; at **70** it turns *grave* (a time skip stops). A crown taken from an old court comes with its habits: graft starts at 30% of its pressure, the far provinces at 40%, entrenchment at 50%.
+
+| Strain | Fed by | What it does |
+|---|---|---|
+| 🪙 **Court bloat and graft** | the realm's size, your House's years on the throne (full at 30), your holdings, a lavish court (+10), a greedy or drunken ruler (+10); a competent, loyal Steward holds it down (up to −25), a disloyal one (<40) feeds it | Each week up to **30%** of the crown's dues (at full bite; at most 4% of the treasury) are skimmed. Your council's officers outside the family take 60% — the least loyal the most, the Steward double — and the clerks the rest. The coin is real: a lord's share is spent in his seat's town, a companion's goes into their purse, the clerks' into the capital's purse. Who took what is kept. |
+| 🧭 **Far provinces drifting** | the realm's size, how far its people live from the capital (past 8 leagues, full at 24), over the years; the Chancellor (up to −20), the Royal Post (−10) and the road programme (−5) pull them in | Each far lord thinks up to **35** less of the crown ("Far from the crown"), so far lords join factions and revolt sooner. The crown's taxes fall by up to 40% of the far towns' share. Once it bites past 55%, once a year the sulkiest far lord may keep the king's dues and his men at home for 60 days. |
+| 🧸 **Heirs born in the purple** | the realm's size, your House's years on the throne (full at 25), the House's Prestige (full at 1500) | A child raised at your court — never fostered, never sent away on a path — comes of age soft: at full bite +4 craven, +3 drunkard, +3 greedy and −4 brave seeds, and past half bite −1 combat and leadership. Those traits go with them onto the throne. |
+| ⛪ **Guilds and clergy entrenched** | the realm's age and your reign's (full at 40 years), its size, its guild halls and great churches | Edicts cost up to **×2** to proclaim and **×1.6** to keep; the Guild Coalition and the Clerical Synod move only 40% as far when edicts push them. |
+
+Together they take up to **−12 stability** ("Weight of greatness": 4 per full bite).
+
+**What you can do.**
+- **🧾 Audit the treasury** — 150g + 20g a town from the treasury, paid to the auditors at the capital. Graft falls by 40 (up to 60 with a good Steward), and half of what was skimmed comes back from those who took it; every lord caught at it takes a −10 grudge. Once in 2 years.
+- **🗺️ Reorganise the provinces** — 200g + 80g a far town, paid out in the far towns for sheriffs, judges and clerks. Drift falls by 35; stability −5; every far lord takes a −8 grudge. Once in 3 years.
+- **⛓️ Purge the court** — no gold, but every lord takes a −15 grudge (−25 for those on the council), stability −8 and the House loses 20 Prestige. All that was skimmed is seized for the treasury; graft −30, entrenchment −40. Grudges this deep make factions, and factions make revolts. Once in 5 years.
+- **🏰 Move the capital** — to one of the five towns nearer the realm's heart (its people's mean distance) than the old seat. 600g + 40g a town, paid to the new capital's builders; stability −10; a lord seated there loses his seat (−30). Drift −20, entrenchment −35, graft −15, and the far provinces are measured from the new seat. Once in 10 years.
+- **🛡️ Give an heir a march command** — a grown child (16–35) holds your farthest town for 2 years (200g from your purse to that town). They come home without craven, drunkard or greedy, brave, +1 combat and leadership — and one in four comes home scarred.
+- **🏔️ Ward of the March** — a new path for children of 10–14 (Dynasty → the child → The Years Away): 3 years in a march-warden's household in one of your realm's three farthest towns (60g, 25g a year), brave and hard. Any child fostered or sent away on a path comes home untouched by the court.
+
+**Other realms sag too.** Every other realm carries a lighter strain of its own, pushed up by its size and its age (full at 50 years). Past 25 it costs the realm up to −8 stability and skims up to 15% of its dues into its capital's purse — old, big realms grow brittle, and rebellions and your armies find them softer. Once a year a realm deep in decline (55+) may find a reforming ruler (12%): the strain falls to 40% of itself and the realm shakes (−3 stability). A sagging neighbour is an opening; it may not stay one.
+
 ## The Age: Age-Defining Crises
 
 A few times a century the whole world lives through a **crisis**: an invasion from beyond the edge of the map, a great plague, a schism of a faith, a famine decade or a gold rush. Each runs for years in phases, and it works through the game's own systems: real hosts on the map, named townsfolk falling sick, harvests failing, people moving. Open **Dynasty → 🌋 The Age** to follow it. (`systems/crises.js`, `data/crises.json`.)
@@ -7121,6 +7242,43 @@ Losses stick to both sides. A town taken is **sacked**: 30% of its purse goes to
 Every coin moves between real purses: your ledger lists them as *crisis aid* and *crisis trade*. Your deeds go into the House chronicle. The great turns of a crisis reach you as notices wherever you are, and the Steward's Counsel warns of a host or the plague near you and points out a choice that is open.
 
 **The Age panel** shows the running crisis (its phase, its hosts or the towns struck and the dead, the camps, the regions or the boomtown, and its last five events), what of it is near you, your purse and choices, and **the crises on record**. Each finished crisis becomes a chapter in the Annals. With the AI brain set up, the court scribe may write the narration (see [The Court Scribe's Pen](#the-court-scribes-pen)), with the template text as the fallback.
+
+## The Last Crisis: the Age's Climax
+
+When one House comes to dominate the world, the age turns against it. Once per long age a **last crisis** comes, aimed at your crown and sized to it. Weather it and the chroniclers name the years after your House: a **Golden Age**. Fail and your realm breaks into successor states, and the years that follow are a **Dark Age**. (`systems/lastCrisis.js`, `data/lastCrisis.json`.)
+
+**The reckoning.** Every week the world measures you. You dominate if any of these is true and you rule a crown (with 3+ realms still standing):
+- your crowns and your own towns hold **30%** of the world's towns, or
+- the blend of your town share and your arms share (your realms' armies plus your own host, against every realm's) reaches **35%**, or
+- the coalitions' measure of your might reaches **320**, or
+- you are an emperor (High Crowns).
+
+While you dominate, the reckoning gathers a week at a time. It needs **6–10 years** of dominance (fixed per world). If you slip back it drains twice as fast. It will not break before **year 15**, never while a world crisis is running (it waits for that crisis to end), and only once in **150 years**. **Dynasty → 🌋 The Age** shows the meter all along: half of it is how close you are to dominating, the other half is how long you have held it. The Dynasty "Against you" row turns amber while it gathers.
+
+**Omens.** For **120–240 days** before it breaks, three omens are told, fitting what is coming. While they run, no world crisis begins.
+
+**The kinds.** The kind is chosen to fit the world:
+
+| Kind | Needs | What happens |
+|---|---|---|
+| ⚔️ **The Great Invasion** | A coast or the world's rim 6–16 hexes from your towns | A people from beyond the charts land near your realm. Their host is **1.0–1.4×** your realm's army plus your own, at least 400, and **3** more waves follow, a year apart. It is a full world invasion (see *The Age*), with sieges, sacks, a Grand Alliance and its own choices. It is judged when it ends. |
+| ⛪ **The Holy War** | 2+ realms of another faith or rite, not allied to you | Up to **4** of them end their own wars and declare a holy war on you. Each pays out of its treasury (up to 60%, at 4 gold a man, the wages going to its capital) to bring the league to **1.1–1.6×** your army. Your faith loses **15** unity. It runs **4–7 years**. |
+| 👑 **The Pretender** | 5+ towns | A pretender of the old line (the fallen realm whose towns you took, if you took any) raises the far provinces. **30–45%** of your towns, the farthest province, become a real kingdom with a lord and a royal family. It takes their land, the same share (×0.9) of your levies, your chests and your royal bank. Up to **2** hostile neighbours back him. It runs **4–7 years**. |
+
+**Resolve.** In the holy war and the pretender's war the enemy has **100** resolve. It falls **1** a week (**1.5** while your armies outweigh theirs) and rises **0.5** a week while theirs are half again yours. Each foe that makes peace or falls costs them **20**.
+
+**What you can do** (on the Age panel, while it runs):
+- 🛡️ **Pay into the royal host**: 200, 500 or 1,000 gold into your realm's treasury, one man for every 4 gold.
+- 💰 **Buy a foe out**: half its treasury plus 2 gold a soldier, at least 300 gold, paid into its chests. It goes home, and the rest lose 20 resolve. The pretender himself cannot be bought.
+- ⚔️ **Take the field**: within 8 hexes of a foe's town, fight 15% of its army. A win costs them 12 resolve, 80% of the men you faced and 15 Prestige to you. Against the pretender, his nearest town opens its gates to you. A loss gives them 6 resolve.
+
+**The verdict.** You survive if, when it ends, your realm still stands, you hold your capital and at least **67%** of the towns you had when it began, and the enemy is broken. Broken means their resolve is spent or no foes are left. If the years run out first, their armies must be no stronger than yours, and the pretender must hold no more than a third of the towns he took. The invasion counts as broken if the invaders were repelled or hold none of the towns they took. If you fall below **half** your towns, the verdict comes at once.
+
+**A Golden Age** (*the Golden Age of House X*, *the X Peace*, *the Age of X*) lasts **50 years**. A beaten pretender's towns and land come home, and his crown is gone. While your House rules the realm: **+10% stability, +8% taxes, +5% growth, +10% culture, +5% loyalty**. You also get **+300 Prestige** and **+60 renown**. The realms' hostility toward you (coalitions) is **×0.75**. Your **legacy score** gains **600**. The age goes into the House chronicle, the Annals (a chapter of its own, and so the Chronicle Book) and the Hall of Houses.
+
+**A Dark Age** (*the Dark Age*, *the Sundering of X*, *the Breaking of X*) lasts **30 years**. The realm breaks. Your House keeps the capital and the **30%** of towns nearest it. The rest become up to **3** successor kingdoms, one for every three towns or so, each around a far town. Each has a lord, a royal family, its share of the land, levies, chests and vault, and starts at **−40** relations with you. Your rump realm suffers **−10% stability, −8% taxes, −5% loyalty**. The House loses **35%** of its Prestige and **30%** of its renown, and **150** legacy. Hostility toward you is **×0.85**. Play goes on from the lesser seat.
+
+If you die during the last crisis, it plays on without you. Its reward or ruin falls on the next head of the House.
 
 ## Climate Over Centuries
 

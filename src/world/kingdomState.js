@@ -144,6 +144,9 @@ export const KingdomBonuses = {
         // crisis (kingdom.crown, kept by systems/throne.js)
         const cm = kingdom.crown && kingdom.crown.mods;
         if (cm && typeof cm[key] === 'number') total += cm[key];
+        // A Golden or a Dark Age named for the House that ruled it (kingdom.ageMods, kept by systems/lastCrisis.js)
+        const am = kingdom.ageMods;
+        if (am && typeof am[key] === 'number') total += am[key];
         return total;
     },
 
@@ -429,6 +432,8 @@ export const KingdomStability = {
         if (kingdom.tradePolicy && Number.isFinite(kingdom.tradePolicy.stab)) t += add('Trade policy', kingdom.tradePolicy.stab);
         // Tales about the ruler running hot in the taverns (systems/whispers.js → kingdom.scandal.stab)
         if (kingdom.scandal && Number.isFinite(kingdom.scandal.stab)) t += add('Court scandal', kingdom.scandal.stab);
+        // A great old realm sagging under its own weight (systems/realmDecline.js → kingdom.decline.stab)
+        if (kingdom.decline && Number.isFinite(kingdom.decline.stab)) t += add('Weight of greatness', kingdom.decline.stab);
         if (kingdom.religion && typeof kingdom.religion.unity === 'number') {
             t += add('Faith unity', (kingdom.religion.unity - 50) * 0.1);
         }

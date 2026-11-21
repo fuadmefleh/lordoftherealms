@@ -567,6 +567,17 @@
                     { "role": "fosterSibling", "label": "their foster sibling", "occupation": "noble", "age": "near", "noble": true, "opposite": true },
                     { "role": "host", "label": "the household that raised them", "occupation": "noble", "age": [30, 55], "noble": true }
                 ]
+            },
+            "march": {
+                "name": "Ward of the March", "icon": "🏔️", "venue": "march", "years": 3, "fee": 60, "yearly": 25,
+                "blurb": "Raised in a march-warden's household at the far edge of your own realm: hard winters, watch fires, soldiers for company. Strength, combat and leadership; brave. A child raised there is not born in the purple. (Only for a realm you rule.)",
+                "focus": "martial", "stats": { "strength": 0.3, "luck": 0.05 }, "skills": { "combat": 0.55, "leadership": 0.4 },
+                "seeds": { "brave": 0.6 }, "finish": { "seeds": { "brave": 2 }, "skills": { "combat": 1, "leadership": 1 } },
+                "hostage": "never",
+                "contacts": [
+                    { "role": "warden", "label": "the march-warden who raised them", "occupation": "knight", "age": [35, 60], "noble": true },
+                    { "role": "soldier", "label": "a sergeant of the march", "occupation": "soldier", "age": [25, 45] }
+                ]
             }
         }
     }

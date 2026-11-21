@@ -82,7 +82,11 @@ import { Economy } from '../world/economy.js';
 import { Taxation } from './marketDynamics.js';
 import { CourtLetters } from './courtLetters.js';
 import { Pressure } from './pressure.js';
+import { LastCrisis } from './lastCrisis.js';
 import { Names } from '../core/names.js';
+import { HighCrowns } from './highCrowns.js';
+// (a crown that rules by a written code is respected: slower to be banded against — systems/namedLegacy.js)
+import { NamedLegacy } from './namedLegacy.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -154,6 +158,7 @@ const DEFAULTS = {
         conquest: 'To win back the towns {house} tore from its neighbours.',
         crown: 'To cast down the upstart crown of {realm}.',
         power: 'To check the overmighty {house} before it swallows them all.',
+        empire: 'To break the false empire of {house} before every crown is its own.',
     },
 };
 
@@ -294,6 +299,8 @@ export const Coalitions = {
             const towns = typeof world.getSettlementsOf === 'function' ? world.getSettlementsOf(realm.id).length : 0;
             parts.crown = _num(P.crown) + towns * _num(P.crownTown);
         }
+        // Far crowns worn in personal union, and a high crown proclaimed (systems/highCrowns.js)
+        parts.crown += HighCrowns.coalitionPower(player, world, P);
         if (player.currentTitle) parts.title = _num(P.title);
         const army = Number.isFinite(opts.armyStrength) ? opts.armyStrength : Coalitions._army(player);
         parts.army = Math.min(_num(P.armyCap), army / Math.max(1, _num(P.armyPer, 25)));
@@ -358,12 +365,14 @@ export const Coalitions = {
         const day = _day(world);
         const out = { kingdomId: kingdom.id, name: kingdom.name, fear: 0, envy: 0, grudge: 0, vendetta: 0, generations: 0, hostility: 0, prox: 0, reasons: [] };
         if (!kingdom.isAlive || kingdom.id === player.allegiance || (realm && kingdom.id === realm.id)) return out;
+        if (HighCrowns.unionCrown(player, kingdom.id)) return out; // (a crown the player wears through a viceroy)
         const pers = _obj((T.personality || {})[KingdomAI.personalityId(kingdom)]) || {};
         const P = _num(power && power.score);
         const prox = Coalitions.proximity(world, kingdom, points, player);
         out.prox = prox;
         // Fear: power at the door. Envy: power anywhere, more so for an ambitious lord.
-        out.fear = _clamp(P * prox * _num(T.fear) * _num(pers.fear, 1), 0, 100);
+        // An emperor is feared the more (systems/highCrowns.js)
+        out.fear = _clamp(P * prox * _num(T.fear) * _num(pers.fear, 1) * HighCrowns.coalitionFear(player), 0, 100);
         const ambition = Math.max(0, LordInfluence.lean(kingdom, 'ambition'));
         out.envy = _clamp(P * _num(T.envy) * _num(pers.envy, 1) * (1 + ambition * _num(T.ambitionEnvy)) * (0.5 + 0.5 * prox), 0, 100);
         // The grudge: what the lord remembers, the blood owed, standing, a House feud
@@ -382,7 +391,11 @@ export const Coalitions = {
         // Kin by marriage or betrothal (systems/heirs.js, systems/heirAgency.js) are slow to turn on the House
         const kinship = Heirs.kinshipFactor(player, kingdom.id);
         if (kinship.kin) { h *= kinship.factor; out.kin = kinship.kin; }
+        const respect = NamedLegacy.respectFactor(world, realm);
+        if (respect < 1) { h *= respect; out.code = NamedLegacy.inForce(world, realm).name; }
         h *= Coalitions.difficulty(player);
+        // A Golden Age holds the realms in awe; a Dark Age leaves less to fear (systems/lastCrisis.js)
+        h *= LastCrisis.threatMult(world, player);
         out.hostility = Math.round(_clamp(h, 0, 100));
         out.fear = Math.round(out.fear);
         out.envy = Math.round(out.envy);
@@ -393,6 +406,7 @@ export const Coalitions = {
         else if (mem <= -10) out.reasons.push('its lord remembers your wrongs');
         if (rival && _num(rival.feud) >= 30) out.reasons.push(`${rival.name} feuds with your House`);
         if (rep <= -30) out.reasons.push('your name is hated there');
+        if (out.code) out.reasons.push(`respects a crown that rules by ${out.code} (slower to turn on you)`);
         if (out.kin) out.reasons.push(out.kin === 'married' ? 'bound to your House by marriage (slow to turn on you)' : 'promised to your House by a betrothal (slow to turn on you)');
         return out;
     },
@@ -556,7 +570,8 @@ export const Coalitions = {
             cb = 'vendetta';
             const v = NPCLords.vendettaOf(feud.k.lord, day);
             cause = v.causes[0] ? `${v.causes[0].label}${v.causes[0].note ? ` (${v.causes[0].note})` : ''}` : 'old wrongs';
-        } else if (power.parts.conquests >= _num(C.power.conquest, 12)) cb = 'conquest';
+        } else if (HighCrowns.isEmperor(player)) cb = 'empire';
+        else if (power.parts.conquests >= _num(C.power.conquest, 12)) cb = 'conquest';
         else if (power.realm) cb = 'crown';
         const casusBelli = _fill((C.casusBelli || {})[cb] || DEFAULTS.casusBelli[cb], { house: houseName, realm: power.realm ? power.realm.name : '', cause });
         const members = {};
@@ -574,7 +589,7 @@ export const Coalitions = {
             target: houseName, generation: _num(player.house && player.house.generation, 1),
             powerAtForm: power.score, lastPower: power.score,
             // Each member's will to fight (threat.personality.*.war): warlike lords stiffen the league
-            resolve: Math.min(_num(R.max, 100), _r1(_num(R.start) + pool.reduce((sum, { k }) => sum + _num(R.perMember) * Coalitions.warWill(k), 0))),
+            resolve: Math.min(_num(R.max, 100), _r1(_num(R.start) + HighCrowns.leagueResolve(player) + pool.reduce((sum, { k }) => sum + _num(R.perMember) * Coalitions.warWill(k), 0))),
             members, bought: [], log: [], tally: {},
             terms: Coalitions.concessionQuote(player, world, { power: power.score, members: pool.length }),
         };

@@ -63,7 +63,11 @@ const EXPECTED_KEYS = [
     // Crises, nemesis, estate card, Annals scribe cache (2026-11-12): +7
     // Friends & Bonds (ui/actionMenu/bonds.js, 2026-11-13): +2
     'showBondsPanel', 'bondsAct',
-    'showCrisesPanel', 'crisisAct', 'showNemesisPanel', 'nemesisAct', 'showAbdication', 'abdicationAct', '_estateHtml', 'annalsScribeFor', 'clearAnnalsScribe',
+    // High Crowns: crowns in personal union, the Empire (ui/actionMenu/highCrowns.js): +2
+    'showHighCrowns', 'showHighCrown',
+    // The last crisis of the age (ui/actionMenu/lastCrisis.js): +1
+    'lastCrisisAct',
+    'showCrisesPanel', 'crisisAct', 'showNemesisPanel', 'nemesisAct', 'showAbdication', 'abdicationAct', 'showNamedLegacy', 'namedLegacyAct', '_estateHtml', 'annalsScribeFor', 'clearAnnalsScribe',
     'showSickness', 'sicknessAct',
     // Stewards & governors (ui/actionMenu/stewards.js): +2
     'showStewards', 'stewardsAct',
@@ -224,7 +228,7 @@ describe('ActionMenu split — structural equivalence', () => {
     });
 
     it('has 461 members', () => {
-        expect(Object.keys(ActionMenu)).toHaveLength(492); // (+6 haggling, ui/actionMenu/haggle.js)
+        expect(Object.keys(ActionMenu)).toHaveLength(497); // (+6 haggling, ui/actionMenu/haggle.js; +1 lastCrisisAct; +2 namedLegacy; +2 highCrowns)
     });
 
     it('every member except the known data props is a function', () => {

@@ -597,6 +597,8 @@ Object.assign(ActionMenu, {
             // Where the rest of the purse went: debts, the other children's portions, the heriot (systems/inheritance.js)
             if (res.inheritance && res.inheritance.line) out += `<div style="font-size:11px;color:#c9b27a;margin:4px 0 8px;">💰 ${_esc(res.inheritance.line)}</div>`;
             if (res.cadet) out += `<div style="font-size:11px;color:#8fd18a;margin:4px 0 8px;">🌿 ${_esc(res.cadet.text)}</div>`;
+            // The crown after the empty years (systems/crownSuccession.js)
+            if (res.crown && res.crown.text) out += `<div style="font-size:11px;color:${res.crown.war || res.crown.usurped ? '#e0846a' : '#c9b27a'};margin:4px 0 8px;">${_esc(res.crown.text)}</div>`;
             out += `<button data-am-act="closePanelAndRefresh" style="${BTN_GOLD}display:block;width:100%;padding:10px;font-size:14px;">Begin Your Story</button>`;
             out += '</div>';
             game.ui.showCustomPanel('New Heir', out);

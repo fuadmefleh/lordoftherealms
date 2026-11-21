@@ -11,6 +11,7 @@ import { ActionMenu } from './_ref.js';
 import { PlayerMilitary, InnerMap } from './_imports.js';
 import { Crises } from '../../systems/crises.js';
 import { lede, chips, rowList, card, price, purse, esc } from './uiKit.js';
+import { lastCrisisHtml } from './lastCrisis.js';
 
 const PHASES = {
     omens: 'Omens', war: 'At war', spreading: 'Spreading', waning: 'Waning', dispute: 'The dispute',
@@ -82,6 +83,8 @@ Object.assign(ActionMenu, {
         const v = Crises.view(player, world);
         let html = '<div style="font-size:12px; max-height:560px; overflow-y:auto;">';
         if (message) html += card(esc(message.text), { tone: message.ok ? 'good' : 'warn' });
+        // The last crisis of the age: how close the reckoning is, or the trial itself (ui/actionMenu/lastCrisis.js)
+        html += lastCrisisHtml(game);
         const c = v.active;
         if (!c) {
             html += lede('No great crisis grips the world. The years run quiet, as they do between the storms: invasions, great plagues, schisms, famines and gold rushes come a few times a century.');

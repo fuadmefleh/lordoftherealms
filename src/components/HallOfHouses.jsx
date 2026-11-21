@@ -47,6 +47,14 @@ function HouseCard({ e, onForget }) {
         {e.rankIcon} <strong>{e.rank || 'A House'}</strong> · legacy {e.score} · {Math.round(e.years || 0)} years · {e.generations} generation{e.generations === 1 ? '' : 's'}
       </div>
       {(e.peak || []).length > 0 && <div style={muted}>👑 {e.peak.join(' · ')}</div>}
+      {/* What the House wrote on the world (systems/namedLegacy.js) */}
+      {(e.rememberedFor || e.myth || (e.codes || []).length > 0) && (
+        <div style={muted}>
+          {e.rememberedFor ? `✍️ Remembered for ${e.rememberedFor}` : ''}
+          {e.myth ? `${e.rememberedFor ? ' · ' : ''}🐺 ${e.myth}` : ''}
+          {(e.codes || []).length > 0 ? `${e.rememberedFor || e.myth ? ' · ' : ''}📕 ${e.codes.join(', ')}` : ''}
+        </div>
+      )}
       <div style={muted}>
         🕯️ Ended {e.cause ? `by ${e.cause}` : ''} with {e.lastRuler || 'its last ruler'}
         {e.endYear ? ` in year ${e.endYear}` : ''}{e.startYear ? ` (begun in ${e.startYear})` : ''} · {when(e.endedAt)}

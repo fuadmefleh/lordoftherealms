@@ -55,7 +55,9 @@ import { HandBuilding } from '../world/handBuilding.js';
 import { RiverLife } from './riverLife.js';
 import { LlmProse } from './llmProse.js';
 import { Crises } from './crises.js';
+import { LastCrisis } from './lastCrisis.js';
 import { GreatWorks } from './greatWorks.js';
+import { NamedLegacy } from './namedLegacy.js';
 import { Climate } from '../world/climate.js';
 import { PriceAnchors } from '../world/priceAnchors.js';
 import { RealmTimeline } from './realmTimeline.js';
@@ -418,6 +420,10 @@ export const SaveLoad = {
             riverLife: RiverLife.serialize(world),
             // The age-defining crises: the one running and those on record (systems/crises.js)
             crises: Crises.serialize(world),
+            // Regions and seas named after Houses (systems/namedLegacy.js; codes ride on kingdom.laws, renamed towns on their tiles)
+            namedLegacy: NamedLegacy.serialize(world),
+            // The last crisis of the age: the reckoning, its trial, the Golden or Dark Age (systems/lastCrisis.js)
+            lastCrisis: LastCrisis.serialize(world),
             // The climate's eras begun and their chronicle (world/climate.js)
             climate: Climate.serialize(world),
             // Each good's price anchor, learnt from the markets (world/priceAnchors.js)
@@ -550,7 +556,9 @@ export const SaveLoad = {
                 'armoury',
                 // What its shipwrights know (world/shipcraft.js: absent = the whole craft) and
                 // the tongues its court has learned (world/cultures.js)
-                'shipcraft', 'tongues']),
+                'shipcraft', 'tongues',
+                // How far a great old realm has sagged under its own weight (systems/realmDecline.js)
+                'decline']),
             // A realm born after world generation (founded by the player, or risen at the
             // Dawn of Man) isn't regenerated from the seed: keep what made it
             ...(k.createdByPlayer || k.dawnBorn ? {
@@ -573,6 +581,12 @@ export const SaveLoad = {
         'charisma', 'intelligence', 'faith', 'maxInventory',
         // What the player did in the age's crises (systems/crises.js)
         'crises',
+        // The weight of greatness on the realm the player rules: strains, skimmers, march commands (systems/realmDecline.js)
+        'realmDecline',
+        // Far crowns in personal union, their viceroys and lords' temper, the high crown, the succession plan (systems/highCrowns.js)
+        'highCrowns',
+        // The war for the crown at the seat's passing: preparation per crown, contests on record, breakaway realms (systems/crownSuccession.js)
+        'crownSuccession',
         // Where the player has begged lately, and what it brought (player/begging.js)
         'begging',
         // The household guard's standing order: defend against anyone, the watch too (ui/innerMapEscort.js)
@@ -1127,6 +1141,10 @@ export const SaveLoad = {
         LlmProse.restore(saveData.prose, world);
         // The crises (older saves: none yet; the first is scheduled on the next day)
         Crises.restore(saveData.crises, world);
+        // The named regions and seas (older saves: none)
+        NamedLegacy.restore(saveData.namedLegacy, world);
+        // The last crisis (older saves: none, the reckoning starts from nothing)
+        LastCrisis.restore(saveData.lastCrisis, world);
         // The climate's eras (older saves: none recorded — the curve is the seed's, so it runs on the same)
         Climate.restore(saveData.climate, world);
         // The price anchors (older saves: none - they start again from the data prices), the markets bound to them

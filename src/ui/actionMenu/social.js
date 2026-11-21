@@ -9,6 +9,7 @@ import { HeirAgency } from '../../systems/heirAgency.js';
 import { Demands } from '../../systems/demands.js';
 import { RivalHouses } from '../../systems/rivalHouses.js';
 import { CadetBranches } from '../../systems/cadetBranches.js';
+import { CrownSuccession } from '../../systems/crownSuccession.js';
 import { Court } from '../../systems/court.js';
 import { Regency } from '../../systems/regency.js';
 import { ConversationScene } from '../conversationScene.js';
@@ -680,6 +681,11 @@ Object.assign(ActionMenu, {
         }
         if (house) nav.push({ icon: '🛡️', name: `Manage ${house.name}`, desc: 'Ambition, offices, demands, plots, Prestige', act: 'openTileMenu', args: ['showHousePanel', ...at], tone: 'gold', side: '›' });
         nav.push({ icon: '👑', name: 'Claims & Crowns', act: 'openTileMenu', args: ['showClaimsPanel', ...at] });
+        // What outlives the ruler: a code of laws, names on the map, the founding tale, the last chapter (ui/actionMenu/namedLegacy.js)
+        if (house) {
+            const nl = house.namedLegacy || {};
+            nav.push({ icon: '✍️', name: 'Your Name on the World', desc: nl.myth ? `${nl.myth.name} · laws, names, the last chapter` : 'A code of laws, names on the map, a founding tale, the last chapter', act: 'showNamedLegacy' });
+        }
         {
             const unread = (player.letters && player.letters.unread) || 0;
             const open = (player.letters && player.letters.inbox && player.letters.inbox.length) || 0;
@@ -734,7 +740,11 @@ Object.assign(ActionMenu, {
             }
             // The age's crisis: an invasion, a great plague, a schism, a famine, a gold rush (systems/crises.js)
             const crisis = game.world && game.world.crises && game.world.crises.active;
-            against.push({ icon: '🌋', name: 'The Age', desc: crisis ? crisis.name.charAt(0).toUpperCase() + crisis.name.slice(1) : 'The great crises of the world', act: 'showCrisesPanel', side: crisis ? 'crisis' : '', tone: crisis ? 'bad' : '' });
+            // ...and the last crisis of the age, gathering against a House grown too great (systems/lastCrisis.js)
+            const lc = game.world && game.world.lastCrisis;
+            const lcLive = !!(lc && (lc.phase === 'omens' || lc.phase === 'trial'));
+            const lcGathering = !!(lc && lc.phase === 'watch' && lc.held > 0 && lc.need);
+            against.push({ icon: '🌋', name: 'The Age', desc: lcLive ? (lc.phase === 'omens' ? 'Omens of the last crisis gather against your House' : 'The last crisis of the age is upon you') : crisis ? crisis.name.charAt(0).toUpperCase() + crisis.name.slice(1) : lcGathering ? `The great crises of the world · the reckoning gathers (${Math.round(50 + 50 * Math.min(1, lc.held / lc.need))}%)` : 'The great crises of the world', act: 'showCrisesPanel', side: lcLive || crisis ? 'crisis' : '', tone: lcLive || crisis ? 'bad' : lcGathering ? 'warn' : '' });
         }
         html += rowList(against, 'Against you');
 
@@ -1466,6 +1476,9 @@ Object.assign(ActionMenu, {
                 let body = '';
                 if (heir.traits?.length > 0) body += `<div style="${MUTED}">Born: ${traitStr}</div>`;
                 body += `<div style="text-align: left;">${ActionMenu._heirProfileHtml(player, heir)}</div>`;
+                // The crown: how likely a claimant rises against this heir (systems/crownSuccession.js)
+                const crownRisk = CrownSuccession.riskFor(player, game.world, heir);
+                if (crownRisk && crownRisk.top) body += `<div style="${MUTED}">⚔️ The crown: standing ${crownRisk.standing}; a claimant rises ${Math.round(crownRisk.risk * 100)}% of the time (likeliest ${esc(crownRisk.top.name)}, ${esc(crownRisk.top.label)}).</div>`;
                 body += rowList([{ icon: '👑', name: `Play as ${esc(heir.firstName)}`, desc: isDesignated ? 'Your designated heir takes up the mantle' : 'Take up the mantle as them', side: '›', tone: isDesignated ? 'gold' : '', attrs: `onclick="window._succeedAsHeir('${heir.id}')"` }]);
                 const block = card(body, {
                     icon: genderIcon, title: `${heir.firstName} ${heir.dynasty}`,
@@ -1555,6 +1568,8 @@ Object.assign(ActionMenu, {
                 if (player.house) successHtml += kv(player.house.name, `Prestige ${player.house.prestige || 0} · Generation ${hr.generation || player.house.generation || 1}`);
                 const notes = [];
                 if (result.cadet) notes.push(`<div style="color:#8fd18a;">🌿 ${esc(result.cadet.text)}</div>`);
+                // The crown: taken unopposed, a claimant set aside, a war for it, or lost (systems/crownSuccession.js)
+                if (result.crown && result.crown.text) notes.push(`<div style="color:${result.crown.war || result.crown.usurped ? '#e0846a' : '#c9b27a'};">${esc(result.crown.text)}${result.crown.war ? ' Royal Court → Succession.' : ''}</div>`);
                 if (hr.regency) notes.push(`<div style="color:#f0b35a;">Ascended under a regency — a weaker start.</div>`);
                 if (result.regency) notes.push(`<div style="color:#f0b35a;">👑 ${result.regency.regent.name} rules as regent until you come of age at ${result.regency.majorityAge}. Dynasty → Regency.</div>`);
                 // The life the heir lived before the throne (systems/heirAgency.js)

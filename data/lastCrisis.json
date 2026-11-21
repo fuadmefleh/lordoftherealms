@@ -1,0 +1,55 @@
+{
+    "_doc": "The last crisis (src/systems/lastCrisis.js): the age's climax, aimed at a House that has come to dominate the world. While the player's crowns hold a large share of the world's towns or armies (or the player is an emperor, systems/highCrowns.js), a reckoning gathers week by week; held for holdYears it breaks as one of three kinds (horde, crusade, breakaway) chosen to fit the world. Survived: a Golden Age named for the House. Failed: a Dark Age, the realm broken into successor states. At most once per long age (ageYears). Times in years of 120 days unless named *Days. Every roll is a hash of the world seed (no shared RNG). {tokens} are filled by the system.",
+    "enabled": true,
+    "cadence": 7,
+    "offset": 5,
+    "minYears": 15,
+    "ageYears": 150,
+    "holdYears": [6, 10],
+    "slipRate": 2,
+    "dominance": { "share": 0.35, "townShare": 0.3, "power": 320, "minRealms": 3 },
+    "omensDays": [120, 240],
+    "omens": 3,
+    "hold": 0.67,
+    "breakShare": 0.5,
+    "weights": { "horde": 1, "crusade": 1, "breakaway": 1 },
+    "horde": { "hostMult": [1.0, 1.4], "minHost": 400, "waves": 3, "land": [6, 16] },
+    "crusade": { "years": [4, 7], "minMembers": 2, "maxMembers": 4, "raiseMult": [1.1, 1.6], "goldPerSoldier": 4, "treasuryShare": 0.6, "resolve": 100, "weekly": -1, "battleWon": -12, "battleLost": 6, "memberOut": -20, "unityHit": 15 },
+    "breakaway": { "years": [4, 7], "share": [0.3, 0.45], "minTowns": 5, "backers": 2, "levyShare": 0.9, "resolve": 100, "weekly": -1, "battleWon": -12, "battleLost": 6, "pretenders": ["Aldred", "Cynric", "Eadmund", "Osric", "Wulfstan", "Godric", "Leofric", "Sigebert"] },
+    "choices": { "fundCost": [200, 500, 1000], "goldPerSoldier": 4, "buyOffTreasury": 0.5, "buyOffPerSoldier": 2, "buyOffMin": 300, "battleShare": 0.15, "battleRadius": 8 },
+    "golden": {
+        "years": 50, "prestige": 300, "renown": 60, "legacy": 600, "threat": 0.75,
+        "mods": { "stability": 0.1, "tax": 0.08, "population": 0.05, "culture": 0.1, "loyalty": 0.05 },
+        "names": ["the Golden Age of {house}", "the {houseShort} Peace", "the Age of {houseShort}"]
+    },
+    "dark": {
+        "years": 30, "prestigeLoss": 0.35, "renownLoss": 0.3, "legacy": -150, "threat": 0.85, "keep": 0.3, "maxStates": 3, "relations": -40,
+        "mods": { "stability": -0.1, "tax": -0.08, "loyalty": -0.05 },
+        "names": ["the Dark Age", "the Sundering of {realm}", "the Breaking of {realm}"],
+        "states": ["the Kingdom of {town}", "the Principality of {town}", "the March of {town}", "the Free Crown of {town}", "the Duchy of {town}"]
+    },
+    "text": {
+        "omens": {
+            "horde": ["Fishermen off the far coasts speak of sails without number beyond the edge of the charts, and of {people} who say the world's great crown is theirs to break.", "A burning star hangs over {realm} for forty nights. In the harbours they say {people} are gathering, and that it is {house} they are coming for.", "Envoys of {people} were seen at the courts of {realm}'s neighbours, counting {house}'s towns on their fingers."],
+            "crusade": ["Preachers walk the roads of the other faiths crying that {house} has grown too great for God's patience.", "In the temples beyond {realm}'s borders the priests read out {house}'s sins on every holy day.", "A holy man of the {faith} has a vision: a crown of {realm} trodden into the mud. The pilgrims carry it everywhere."],
+            "breakaway": ["In the old halls of {old}, men drink to the true blood and turn their cups upside down when {house} is named.", "A young man who calls himself {pretender} of the line of {old} is sheltered from lord to lord in {realm}'s far provinces.", "Coins of the old kings of {old} turn up in the markets of {realm}'s far towns, freshly polished."]
+        },
+        "begin": {
+            "horde": ["The reckoning has come: {people} land within striking distance of {realm}, the greatest host the age has seen, and they march on the House of {house}."],
+            "crusade": ["{members} proclaim a holy war against {realm} and the House of {house}. Their priests bless the banners in every square."],
+            "breakaway": ["{pretender} raises the old standard of {old}. {towns} declare for him and the levies of the far provinces go over to the pretender's crown."]
+        },
+        "member": ["{realm} takes the cross against {house}, pouring {gold} gold from its chests into {men} fresh levies."],
+        "backer": ["{realm} declares for the pretender {pretender} and marches against {house}."],
+        "battleWon": ["{player} breaks the army of {foe} in the field. The enemy's resolve wavers."],
+        "battleLost": ["{player} is beaten by {foe} in the field, and the enemy takes heart."],
+        "boughtOff": ["{foe} takes {gold} gold of {house} and goes home. The others call it treachery."],
+        "funded": ["{player} pays {gold} gold into the royal chests: {men} more men answer the summons."],
+        "retaken": ["{town} opens its gates to {house} again."],
+        "survived": ["The last crisis is over and the House of {house} still stands at the height of the world. They are already calling the years to come {age}.", "The storm has broken against the walls of {house} and passed. Chroniclers name the age after them: {age}."],
+        "failed": ["The House of {house} could not hold what it had built. {realm} breaks apart, and the years to come are remembered as {age}.", "The great crown of {house} falls into pieces. What follows is {age}."],
+        "fragment": ["{state} rises from the ruins of {realm}, ruled from {town}."],
+        "goldenEnd": ["{age} draws to its close. Men say they will not see such years again."],
+        "darkEnd": ["{age} lifts at last. The successor crowns are old now, and the House of {house} remembers what it was."]
+    }
+}

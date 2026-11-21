@@ -5,6 +5,7 @@ import { Quests } from '../quests.js';
 import { Discovery } from '../discovery.js';
 import { TreasureDigs } from '../treasureDigs.js';
 import { Names } from '../../core/names.js';
+import { NamedLegacy } from '../namedLegacy.js';
 
 Object.assign(Cartography, {
     // ── Map Reading / Applying ─────────────────
@@ -776,6 +777,9 @@ Object.assign(Cartography, {
     _getRegionName(q, r, world) {
         const tile = world.getTile(q, r);
         if (!tile) return 'Unknown Region';
+        // A region or sea named after a House (systems/namedLegacy.js)
+        const named = NamedLegacy.placeAt(world, q, r);
+        if (named) return named.name;
 
         // Check for nearby settlement
         const hexes = Hex.hexesInRange(q, r, 3);

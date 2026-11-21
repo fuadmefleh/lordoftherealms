@@ -345,6 +345,8 @@ export const Crises = {
         const day = _day(world);
         st.seq++;
         const c = { uid: `${kind}${st.seq}`, kind, name: KIND_INFO[kind].label, startDay: day, phase: 'start', phaseDay: day, phaseEnd: null, endDay: null, outcome: null, log: [], data: {}, place: null };
+        // Aimed at a House (systems/lastCrisis.js: the age's climax): where it lands, who, how strong
+        if (opts.aim) c.aim = opts.aim;
         st.active = c;
         if (!H.begin(world, c, day)) { st.active = null; st.seq--; return null; }
         // A new age begins: a time skip stops for it (core/interrupts.js)
@@ -1222,11 +1224,11 @@ const HANDLERS = {
         eligible(world) { return world.kingdoms.filter(_alive).length >= 3 && !!Crises._beachhead(world); },
         begin(world, c, day) {
             const I = Crises.config().invasion;
-            const at = Crises._beachhead(world);
+            const at = (c.aim && c.aim.at) || Crises._beachhead(world);
             if (!at) return false;
-            const people = _pick(world, `people:${c.uid}`, I.peoples) || DEFAULTS.invasion.peoples[0];
+            const people = (c.aim && c.aim.people) || _pick(world, `people:${c.uid}`, I.peoples) || DEFAULTS.invasion.peoples[0];
             const cultures = (Cultures.cultureNames ? Cultures.cultureNames() : []) || [];
-            c.name = `the Coming of ${people.name.replace(/^the /, 'the ')}`;
+            c.name = (c.aim && c.aim.name) || `the Coming of ${people.name.replace(/^the /, 'the ')}`;
             c.data = { people, culture: cultures.includes(people.culture) ? people.culture : (people.culture || 'Nomadic'), at: { q: at.q, r: at.r }, edge: at.edge, hosts: [], alliance: [], aloof: [], chest: 0, realmId: null };
             c.place = { q: at.q, r: at.r };
             Crises._phase(c, 'omens', day, day + _irange(world, `omens:${c.uid}`, I.omensDays));
@@ -1240,7 +1242,7 @@ const HANDLERS = {
                 const at = c.data.at;
                 const near = world.kingdoms.filter(k => _alive(k) && k.capital).sort((a, b) => _dist(world, a.capital, at) - _dist(world, b.capital, at)).slice(0, 3);
                 const avg = near.reduce((s, k) => s + _num(k.military), 0) / Math.max(1, near.length);
-                const total = Math.max(I.minHost, Math.round(avg * _range(world, `host:${c.uid}`, I.hostMult)));
+                const total = c.aim && c.aim.host ? Math.max(I.minHost, Math.round(c.aim.host)) : Math.max(I.minHost, Math.round(avg * _range(world, `host:${c.uid}`, I.hostMult)));
                 const n = _irange(world, `nhosts:${c.uid}`, I.hosts);
                 for (let i = 0; i < n; i++) {
                     Crises._landHost(world, c, at, n > 1 ? `${c.data.people.host} (${['the Van', 'the Main', 'the Rear'][i] || `the ${i + 1}th`})` : c.data.people.host, Math.round(total / n));
@@ -1256,7 +1258,7 @@ const HANDLERS = {
             if (c.phase !== 'war') return;
             // Fresh waves from over the edge, a year apart, while the invasion lives
             const wave = Math.floor((day - c.phaseDay) / YEAR);
-            if (wave >= 1 && wave <= I.waves && _num(c.data.waves) < wave && (Crises._hosts(world, c).length || _alive(_kingdom(world, c.data.realmId)))) {
+            if (wave >= 1 && wave <= (c.aim && c.aim.waves != null ? c.aim.waves : I.waves) && _num(c.data.waves) < wave && (Crises._hosts(world, c).length || _alive(_kingdom(world, c.data.realmId)))) {
                 c.data.waves = wave;
                 const str = Math.round(_num(c.data.strength0) * I.waveShare);
                 Crises._landHost(world, c, c.data.at, `${c.data.people.host} (wave ${wave + 1})`, str);

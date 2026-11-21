@@ -578,6 +578,8 @@ export const KingdomAI = {
         // the crown's war stance lets its marshals act (systems/throne.js)
         const crown = kingdom.crown;
         if (crown && crown.playerRuled && !(crown.policies && crown.policies.stance === 'aggressive')) return;
+        // ...and so does a realm the player wears in personal union, ruled by a viceroy (systems/highCrowns.js)
+        if (crown && crown.union && !(crown.policies && crown.policies.stance === 'aggressive')) return;
         const otherKingdoms = world.kingdoms.filter(k =>
             k.isAlive &&
             k.id !== kingdom.id &&

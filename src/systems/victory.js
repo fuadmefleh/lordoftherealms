@@ -31,6 +31,7 @@ import { Guilds } from './guilds.js';
 import { Relationships } from './relationships.js';
 import { Religion } from './religion.js';
 import { Gangs } from './gangs.js';
+import { HighCrowns } from './highCrowns.js';
 
 const DEFAULTS = {
     none: { name: 'Sandbox', icon: '🌍', blurb: 'No goal: live as you please.' },
@@ -42,6 +43,7 @@ const DEFAULTS = {
     empire: { name: 'Empire', icon: '🗺️', blurb: 'Rule a realm of {target} settlements.', target: 10 },
     faith: { name: 'Faith Ascendant', icon: '🕯️', blurb: 'Make {target} settlements devoted to your faith.', target: 10 },
     kingpin: { name: 'Kingpin', icon: '🗝️', blurb: 'Be boss of the underworld in {target} towns at once.', target: 4 },
+    high_crown: { name: 'Crowned Above Kings', icon: '🏛️', blurb: 'Wear {crowns} crowns at once and proclaim an Empire or High Kingship over them.', crowns: 2 },
 };
 
 /** Goals whose reading is heavy (net worth, every town's monopolies): checked weekly. */
@@ -239,6 +241,19 @@ export const Victory = {
             out.done = held.length >= target;
             out.text = `Boss in ${held.length} of ${target} towns.`;
             for (const h of held.slice(0, 6)) out.lines.push(`${h.gang.name} of ${h.town}`);
+            return out;
+        }
+        if (def.id === 'high_crown') {
+            // Many crowns, and the crown above them (systems/highCrowns.js)
+            const crowns = world ? HighCrowns.crownsOf(player, world) : [];
+            const need = Math.max(2, _num(def.crowns, 2));
+            const emp = HighCrowns.empire(player);
+            out.done = !!emp && crowns.length >= need;
+            out.pct = out.done ? 1 : Math.min(0.9, (Math.min(crowns.length, need) / need) * 0.8);
+            out.text = emp
+                ? `${emp.title} of the ${emp.name}, over ${crowns.length} crowns.`
+                : crowns.length >= need ? `You wear ${crowns.length} crowns: proclaim the high crown (Claims & Crowns → High Crowns).` : `You wear ${crowns.length} of ${need} crowns.`;
+            for (const c of crowns.slice(0, 6)) out.lines.push(`${c.home ? '👑' : '🏛️'} ${c.name}${c.home ? '' : ` (viceroy ${c.viceroy ? c.viceroy.name : 'none'})`}`);
             return out;
         }
         if (def.id === 'conqueror') {

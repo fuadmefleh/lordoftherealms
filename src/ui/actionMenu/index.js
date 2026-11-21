@@ -41,6 +41,8 @@ import './court.js';
 import './delves.js';
 import './underworld.js';
 import './throne.js';
+// High Crowns: crowns in personal union, viceroys, the Empire (systems/highCrowns.js)
+import './highCrowns.js';
 import './royalCourt.js';
 import './holdings.js';
 import './stewards.js';
@@ -50,6 +52,8 @@ import './heirs.js';
 import './heirAgency.js';
 import './raising.js';
 import './abdication.js';
+// Your Name on the World: law codes, names on the map, the founding tale, the last chapter (systems/namedLegacy.js)
+import './namedLegacy.js';
 import './afterlife.js';
 import './parents.js';
 import './sagas.js';
@@ -57,6 +61,7 @@ import './whispers.js';
 import './letters.js';
 import './threats.js';
 import './crises.js';
+import './lastCrisis.js';
 import './nemesis.js';
 // Friends & Bonds: sworn kin, drinking companions, mentors, protégés (systems/bonds.js)
 import './bonds.js';

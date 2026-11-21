@@ -25,6 +25,8 @@ import { Legacy } from './legacy.js';
 import { Deeds } from './deeds.js';
 import { Ledger } from './ledger.js';
 import { DynastyTree } from './dynastyTree.js';
+// (the last chapters and the founding tale, for the epilogue: systems/namedLegacy.js)
+import { NamedLegacy } from './namedLegacy.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _arr = (v) => (Array.isArray(v) ? v : []);
@@ -213,6 +215,8 @@ export const ChronicleBook = {
             foundedYear: house ? ChronicleMaps.year(world, _num(house.foundedDay, 1)) : null,
             ended: ended ? { ...ended, year: ChronicleMaps.year(world, ended.day) } : null,
             annals, sections, atlas,
+            // What the old rulers asked to be remembered for, and the House's tale (the epilogue)
+            named: house ? NamedLegacy.bookView(player, world) : null,
             // The age's crises, each its own chapter (systems/crises.js via the annals)
             ages: _arr(annals.ages).map(a => ({ id: a.id, kind: a.kind, icon: a.icon || '', title: a.title, fromYear: a.fromYear, toYear: a.toYear, live: !!a.live, paragraphs: _arr(a.paragraphs).map(p => ({ text: p.text })) })),
             tree: opts.tree || ChronicleBook._lineage(player, world, annals.chapters, opts) || ChronicleBook.tree(player, world, annals.chapters, opts),

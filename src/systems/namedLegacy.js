@@ -50,6 +50,7 @@
 // interregnum. No Math.random and no shared RNG: rolls are hashes of the world's seed.
 
 import { DataLoader } from '../core/dataLoader.js';
+import { Names } from '../core/names.js';
 import { Utils } from '../core/utils.js';
 import { Hex } from '../core/hex.js';
 import { Interrupts } from '../core/interrupts.js';
@@ -665,7 +666,7 @@ export const NamedLegacy = {
                 if (mark) { mark.state = 'reverted'; mark.changed = day; }
                 delete s.namedBy;
                 if (ours) {
-                    out.notices.push({ icon: '🪧', title: 'A Name Taken Back', text: _fill(NamedLegacy.config().lines.renamedReverted, { new: now, old: back }), type: 'warning' });
+                    out.notices.push({ icon: '🏷️', title: 'A Name Taken Back', text: _fill(NamedLegacy.config().lines.renamedReverted, { new: now, old: back }), type: 'warning' });
                     House._chronicle(house, world, `${now} took back its old name, ${back}.`, ['legacy', 'naming']);
                 }
                 continue;
@@ -704,7 +705,11 @@ export const NamedLegacy = {
         const ruling = player.throne && player.throne.ruling;
         const crown = ruling ? _kingdom(world, ruling.kingdomId) : null;
         const crowned = hist.find(h => h && _arr(h.tags).some(t => t === 'throne' || t === 'crown'));
-        if (crown || crowned || _num(stats.crowned) > 0) add('crown', { realm: crown ? crown.name : 'a realm' });
+        if (crown || crowned || _num(stats.crowned) > 0) {
+            // a crown inherited is worn, not taken (a Monarch's start, an heir after the founder)
+            const held = !!(ruling && ruling.inherited && !ruling.founded);
+            add(held && K.crownHeld ? 'crownHeld' : 'crown', { realm: crown ? Names.realm(crown.name) : 'a realm' });
+        }
         // Faith
         if (_num(stats.religionFounded) > 0 || _num(stats.templeRaised) >= 2) add('faith', { temples: Math.max(1, _num(stats.templeRaised)) });
         // A crisis lived through

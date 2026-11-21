@@ -48,7 +48,7 @@ export function stateOfRealmHtml(game) {
     let html = lede(`Greatness weighs. The bigger and older ${_esc(realm)} grows, the more it rots from within — unless you fight it. Each strain creeps toward where its causes push it (the pale mark), over years.`);
     html += chips([
         ['⚖️', 'Stability', `${r.stab ? r.stab : 0} from the weight of greatness`],
-        ['🪙', 'Skimmed', `${Utils.formatGold(r.stats.graftTotal)}g`],
+        ['💰', 'Skimmed', `${Utils.formatGold(r.stats.graftTotal)}g`],
         ['↩️', 'Recovered', `${Utils.formatGold(r.stats.recovered)}g`],
     ]);
     const measures = Object.fromEntries(r.measures.map(m => [m.id, m]));
@@ -80,7 +80,7 @@ export function stateOfRealmHtml(game) {
     }
     if (r.takers.length) {
         html += more('Who has been skimming', rowList(r.takers.map(t => ({
-            icon: t.kind === 'clerks' ? '📜' : '🪙', name: _esc(t.name), desc: t.office ? _esc(t.office) : (t.kind === 'clerks' ? 'the capital\'s purse' : _esc(t.kind)),
+            icon: t.kind === 'clerks' ? '📜' : '💰', name: _esc(t.name), desc: t.office ? _esc(t.office) : (t.kind === 'clerks' ? 'the capital\'s purse' : _esc(t.kind)),
             side: `${Utils.formatGold(t.take)}g`, tone: 'warn',
         }))));
     }

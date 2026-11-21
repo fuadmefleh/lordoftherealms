@@ -458,6 +458,22 @@ describe('Succession', () => {
         expect(HighCrowns.isEmperor(player)).toBe(false); // (one crown left: the high title lapses)
     });
 
+    it('partition passes over a child in holy orders, exiled or renounced, and follows the named heir', () => {
+        const world = makeWorld();
+        const { player } = twoCrowns(world);
+        withChildren(player);
+        player.children.push({ id: 'c3', firstName: 'Dain', dynasty: 'Ashborne', gender: 'male', age: 20, isAlive: true });
+        HighCrowns.setPlan(player, 'partition');
+        player.children[1].crownSuccession = { orders: 5 }; // Cora took holy orders (systems/crownSuccession.js)
+        expect(HighCrowns.partitionPreview(player, world)[0].child.id).toBe('c3');
+        player.children[2].crownSuccession = { renounced: true };
+        expect(HighCrowns.partitionPreview(player, world)[0].child).toBeNull();
+        // a named heir who is not the eldest: the eldest may take the far crown
+        player.children[1].crownSuccession = null;
+        player.heir = 'c2';
+        expect(HighCrowns.partitionPreview(player, world)[0].child.id).toBe('c1');
+    });
+
     it('kept whole, the far crowns test the new ruler and the younger children are aggrieved', () => {
         const world = makeWorld();
         const { player, far } = twoCrowns(world);

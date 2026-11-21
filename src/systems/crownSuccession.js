@@ -241,6 +241,9 @@ export const CrownSuccession = {
         const named = kids.find(c => c.id === player.heir);
         if (named) return named;
         const grown = Relationships.getEligibleHeirs(player);
+        // one in holy orders has given the crown up: the next in line stands before him
+        const lay = grown.filter(c => !(c.crownSuccession && c.crownSuccession.orders));
+        if (lay.length) return lay[0];
         if (grown.length) return grown[0];
         return kids.filter(c => !c.isSibling).sort((a, b) => _num(b.age) - _num(a.age))[0] || null;
     },
@@ -763,7 +766,7 @@ export const CrownSuccession = {
             others: others.map(o => ({ name: o.name, kind: o.kind, strength: o.strength })), foreign,
         };
         const backed = sides.backers.map(b => `${b.name} (${b.power})`).join(', ');
-        const text = `⚔️ War for the crown of ${Names.realm(k.name)}! ${lead.name}, ${lead.label}, claims the throne against ${ctx.heir.name}. Behind ${lead.gender === 'female' ? 'her' : 'him'}: ${backed} — support ${sides.claimantPower} against the crown's ${sides.crownPower}.${foreign ? ` ${Names.realm(foreign.name)} sends ${foreign.men} men.` : ''}${others.length ? ` ${others.map(o => o.name).join(' and ')} also put${others.length === 1 ? 's' : ''} forward a claim, and stand${others.length === 1 ? 's' : ''} with ${lead.name}.` : ''}`;
+        const text = `⚔️ War for the crown of ${Names.realm(k.name)}! ${lead.name}, ${lead.label}, claims the throne against ${ctx.heir.name}. Behind ${lead.gender === 'female' ? 'her' : 'him'}: ${backed} — support ${sides.claimantPower} against the crown's ${sides.crownPower}.${foreign ? ` ${Names.realm(foreign.name, true)} sends ${foreign.men} men.` : ''}${others.length ? ` ${others.map(o => o.name).join(' and ')} also put${others.length === 1 ? 's' : ''} forward a claim, and stand${others.length === 1 ? 's' : ''} with ${lead.name}.` : ''}`;
         const proseKey = `crownSuccession:${k.id}:${day}:war`;
         CrownSuccession._prose(world, proseKey, {
             event: 'a war of succession begins', realm: k.name, heir: ctx.heir.name, claimant: lead.name, claimantIs: lead.label,

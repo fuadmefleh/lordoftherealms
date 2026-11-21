@@ -115,6 +115,17 @@ describe('LastCrisis', () => {
         expect(Crises.state(world).nextDay).toBeGreaterThan(world.day);
     }, 60000);
 
+    it('refuses a kind it does not know, and leaves the watch untouched', () => {
+        const { world, player, realm } = crowned(11);
+        grow(world, realm, 9);
+        const seq = LastCrisis.state(world).seq;
+        expect(LastCrisis.start(world, player, { kind: 'pretender' })).toBe(false);
+        const st = LastCrisis.state(world);
+        expect(st.phase).toBe('watch');
+        expect(st.trial == null).toBe(true);
+        expect(st.seq).toBe(seq);
+    });
+
     it('a pretender carves out a real kingdom; beaten, the House wins a Golden Age', () => {
         const { world, player, realm } = crowned(11);
         grow(world, realm, 9);

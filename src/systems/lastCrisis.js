@@ -384,6 +384,7 @@ export const LastCrisis = {
     start(world, player, opts = {}) {
         const st = LastCrisis.state(world);
         if (!st || st.phase !== 'watch' || !player) return false;
+        if (opts.kind && !KIND_INFO[opts.kind]) return false; // horde | crusade | breakaway
         const m = LastCrisis.measure(world, player);
         if (!m.realm) return false;
         if (st.need == null) st.need = LastCrisis._need(world, st);
@@ -623,7 +624,7 @@ export const LastCrisis = {
         // The pretender's towns: the farthest, and those nearest it (one province, not scattered)
         const seat = far[0];
         const mine = far.slice().sort((a, b) => _dist(world, a, seat) - _dist(world, b, seat)).slice(0, n);
-        const pretender = `${st.trial.pretender} of ${String(st.trial.old).replace(/^the /i, '')}`;
+        const pretender = `${st.trial.pretender} of ${st.trial.old}`;
         const k = LastCrisis._raiseRealm(world, st, {
             from: realm, seat, towns: mine, keep: towns.filter(t => !mine.includes(t)),
             name: _fill('the Kingdom of {town}', { town: seat.settlement.name }), ruler: pretender, share: (n / towns.length) * _num(X.levyShare, 0.9), key: `pretender:${st.seq}`,
@@ -1184,7 +1185,8 @@ export const LastCrisis = {
         const realm = _kingdom(world, st.realmId);
         return {
             meter, phase: st.phase, trial: t, age: st.age, history: st.history.slice().reverse(), foes,
-            realm: realm ? { name: realm.name, military: Math.round(_num(realm.military)), towns: _townsOf(world, realm).length, towns0: st.towns0 } : null,
+            realm: realm ? { name: realm.name, military: Math.round(_num(realm.military)), towns: _townsOf(world, realm).length, towns0: st.towns0,
+                ptowns: t && t.kind === 'breakaway' && t.pretenderId && _alive(_kingdom(world, t.pretenderId)) ? _townsOf(world, _kingdom(world, t.pretenderId)).length : null } : null,
             choices: LastCrisis.choices(player, world), acts: st.acts.filter(a => a.seq === st.seq).slice().reverse(),
             log: st.log.filter(e => e.seq === st.seq).slice(-6).reverse(), omenEnd: st.omenEnd, until: t ? t.until : null, crisisUid: t ? t.uid : null,
             hold: LastCrisis.config().hold,

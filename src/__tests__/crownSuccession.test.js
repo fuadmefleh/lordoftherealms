@@ -4,7 +4,7 @@
 // makes war on the Kingship revolt machinery; lost, the realm splits (or the
 // crown goes). Preparation in life lowers the odds, every factor with its weight.
 
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, vi } from 'vitest';
 import { Utils } from '../core/utils.js';
 import { DataLoader } from '../core/dataLoader.js';
 import { Throne } from '../systems/throne.js';
@@ -300,12 +300,22 @@ describe('At the succession', () => {
         expect(CrownSuccession.forecast(player, world).standing.value).toBe(base);
     }, 60000);
 
+    it('a child in holy orders is passed over as the likely heir', () => {
+        const { player, heir, younger } = crowned(31);
+        player.heir = null;
+        heir.crownSuccession = { orders: 10 };
+        expect(CrownSuccession.likelyHeir(player).id).toBe(younger.id);
+    }, 60000);
+
     it('after a long interregnum a risen claimant has taken the empty throne', () => {
         const { world, player, heir, younger, court, k } = crowned(31, { prestige: 0 });
         sour(world, court, k, younger);
         Afterlife.begin(player, world, 'old age');
         world.day += 120 * 6;
+        // the rise itself is a roll (at most 90%): make it certain, so the test doesn't hang on the stream
+        const rise = vi.spyOn(CrownSuccession, 'riseChance').mockReturnValue(1);
         const res = Afterlife.returnAsHeir(player, world, heir.id);
+        rise.mockRestore();
         expect(res.success).toBe(true);
         expect(res.crown.usurped).toBe(true);
         expect(Throne.ruledKingdom(player, world)).toBe(null);

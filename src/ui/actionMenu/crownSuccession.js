@@ -29,7 +29,7 @@ function _warCard(player, world) {
     if (!rv || !rv.succession) return '';
     const s = rv.succession;
     const cl = s.claimant;
-    let body = `<div style="${MUTED}">${_esc(cl.name)}, ${_esc(cl.label)}, claims the crown against ${_esc(s.heir)}. ${s.foreign ? `${_esc(Names.realm(s.foreign.name))} sent ${s.foreign.men} men.` : ''}</div>`;
+    let body = `<div style="${MUTED}">${_esc(cl.name)}, ${_esc(cl.label)}, claims the crown against ${_esc(s.heir)}. ${s.foreign ? `${_esc(Names.realm(s.foreign.name, true))} sent ${s.foreign.men} men.` : ''}</div>`;
     body += chips([
         ['⚔️', 'Momentum', `${_sign(Math.round(rv.momentum))} (crushed at +100, the realm splits at −100)`],
         ['🔥', 'Rebel host', Math.round(rv.strength)], ['🏰', 'Rebel seats', rv.seats.length],
@@ -84,6 +84,9 @@ export function successionTabHtml(game) {
     html += _warCard(player, world);
     if (!f.heir) {
         html += lede(`You have no child to take the crown of ${_esc(Names.realm(f.kingdom.name))}. Die now and it goes back to the old line, or to a branch of your House.`);
+        html += rowList([
+            { icon: '💍', name: player.spouse ? 'Raise an heir' : 'Take a spouse and raise an heir', desc: player.spouse ? 'A child of age, named in your lifetime, holds the crown best.' : 'Court someone in town (Meet People), then raise a child to name as heir.', act: 'showDynastyMenu', args: [null], side: '›' },
+        ]);
         return html + _historyHtml(player, world);
     }
     html += lede(`If you died today, <b>${_esc(f.heir.firstName)}</b> would take the crown. Each claimant weighs his strength against the heir's standing; one who rises needs lords behind him, and makes war for the crown. Lose that war and his lords' towns leave the realm with him.`);

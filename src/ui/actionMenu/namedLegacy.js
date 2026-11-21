@@ -126,7 +126,7 @@ function _finalCard(game, v, step) {
         if (ch) {
             body += `<div style="font-size:12px; color:#cbbf9f; margin:2px 0 6px;">To be remembered for <b>${esc(ch.line)}</b>. ${ch.fits ? `Your reign earned it: your heir will be raised to it.` : 'Your reign did not quite earn it: the heir inherits only the words.'} What words will the House carry?</div>`;
             body += rowList([
-                ...ch.mottos.map(mo => ({ icon: '🪶', name: `“${esc(mo)}”`, act: 'namedLegacyAct', args: ['final', ch.id, mo], tone: 'gold' })),
+                ...ch.mottos.map(mo => ({ icon: '✒️', name: `“${esc(mo)}”`, act: 'namedLegacyAct', args: ['final', ch.id, mo], tone: 'gold' })),
                 player.house && player.house.motto ? { icon: '🛡️', name: `Keep “${esc(player.house.motto)}”`, act: 'namedLegacyAct', args: ['final', ch.id, ''] } : null,
             ]);
             body += `<input id="nl-motto" type="text" maxlength="60" placeholder="Or words of your own…" style="${FIELD}">`;

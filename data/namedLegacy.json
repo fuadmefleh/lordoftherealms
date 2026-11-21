@@ -12,7 +12,7 @@
         "disputeFactor": 0.6,
         "settleShare": 0.35,
         "respect": 0.88,
-        "names": ["the Code of {name}", "the {name}ine Code", "the Laws of {name}", "the Book of {name}"],
+        "names": ["the Code of {name}", "the Laws of {name}", "the Book of {name}", "the Great Code of {name}"],
         "repeal": { "prestige": 25, "treasury": 400, "stability": 5 },
         "ai": { "minStability": 60, "yearlyShare": 0.006, "minDay": 600 }
     },
@@ -39,6 +39,7 @@
         "claim": { "amount": 15, "cap": 45 },
         "kinds": {
             "sword": { "name": "the Sword-Born", "icon": "⚔️", "tale": "born on the field of {place}, where the first of them broke {foe}", "gist": "comes of a line born on the field of {place}, they say" },
+            "crownHeld": { "name": "the Crowned Line", "icon": "👑", "tale": "the line that has worn the crown of {realm} through its long years", "gist": "comes of the line that wears the crown of {realm}" },
             "crown": { "name": "the Crown-Takers", "icon": "👑", "tale": "the line that took the crown of {realm} by its own hand", "gist": "comes of the line that took the crown of {realm}" },
             "faith": { "name": "the God-Touched", "icon": "🕯️", "tale": "chosen by heaven, raisers of {temples} temples", "gist": "comes of a House that heaven chose, they say" },
             "storm": { "name": "the Storm-Born", "icon": "🌊", "tale": "born of {crisis}, the House that came through when others fell", "gist": "comes of a House born of {crisis}" },

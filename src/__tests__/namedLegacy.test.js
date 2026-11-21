@@ -290,6 +290,19 @@ describe('the founding myth', () => {
         expect(NamedLegacy.canInvoke(player, world, 'legitimacy').ok).toBe(true);
     });
 
+    it('a crown inherited is worn, not taken; codes are never named with an -ine form', () => {
+        player.throne.ruling.inherited = true;
+        const cands = NamedLegacy.mythCandidates(player, world);
+        expect(cands.find(c => c.id === 'crown')).toBeFalsy();
+        const held = cands.find(c => c.id === 'crownHeld');
+        expect(held).toBeTruthy();
+        expect(held.tale).not.toMatch(/took the crown/);
+        expect(held.tale).not.toMatch(/crown of Kingdom/); // (the realm takes its article)
+        for (const n of ['Aldric', 'Wanderer', 'Bram', 'Osric']) {
+            for (let i = 0; i < 8; i++) expect(NamedLegacy.codeNameFor(n, `k${i}`)).not.toMatch(/ine Code/);
+        }
+    });
+
     it('legitimacy steadies the next succession (House._disputeChance reads it) until it lapses', () => {
         NamedLegacy.adoptMyth(player, world, 'road');
         const before = House._disputeChance(player.house, { day: world.day });

@@ -13,7 +13,7 @@
     "size": { "townsFrom": 3, "townsSpan": 12, "cap": 1.5, "holdingsSpan": 12 },
     "strains": {
         "graft": {
-            "label": "Court bloat and graft", "icon": "🪙",
+            "label": "Court bloat and graft", "icon": "💰",
             "blurb": "Clerks multiply, offices are farmed out, and the treasury leaks into the purses of the men who keep it.",
             "base": 0.12, "size": 0.4, "reignYears": 30, "age": 0.35, "holdings": 0.1, "lavish": 0.1, "frugal": -0.05,
             "stewardRelief": 0.25, "stewardDisloyal": 0.15, "softRuler": 0.1,

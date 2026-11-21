@@ -1224,10 +1224,18 @@ export const HighCrowns = {
     },
 
     /** Who would take each far crown if the crowns were parted today: [{ kingdomId, name, child }]. */
+    /** A child who may be given a far crown at a partition: not crowned already, not in holy orders, exiled or renounced (systems/crownSuccession.js). */
+    _canTakeFarCrown(c) {
+        if (!c || c.crownedIn) return false;
+        const cs = c.crownSuccession;
+        return !(cs && (cs.orders || cs.exiled || cs.renounced));
+    },
+
     partitionPreview(player, world, heirId = null) {
         const S = HighCrowns.config().succession;
         const st = HighCrowns.state(player);
-        const kids = (player.children || []).filter(c => c && c.isAlive !== false && c.id !== heirId && _num(c.age) >= _num(S.partitionMinAge, 16) && !c.crownedIn)
+        if (!heirId && player.heir) heirId = player.heir;
+        const kids = (player.children || []).filter(c => c && c.isAlive !== false && c.id !== heirId && _num(c.age) >= _num(S.partitionMinAge, 16) && HighCrowns._canTakeFarCrown(c))
             .sort((a, b) => _num(b.age) - _num(a.age));
         if (!heirId && kids.length) kids.shift(); // (the eldest is the heir)
         return Object.values(st.crowns).sort((a, b) => _num(a.since) - _num(b.since))
@@ -1248,7 +1256,7 @@ export const HighCrowns = {
         const res = { partitioned: [], kept: 0, plan: HighCrowns.plan(player) };
         if (!far.length) { st.aggrieved = []; return res; }
         const day = _day(world);
-        const sibs = (player.children || []).filter(c => c && c.isSibling && c.isAlive !== false && _num(c.age) >= _num(S.partitionMinAge, 16) && !c.crownedIn)
+        const sibs = (player.children || []).filter(c => c && c.isSibling && c.isAlive !== false && _num(c.age) >= _num(S.partitionMinAge, 16) && HighCrowns._canTakeFarCrown(c))
             .sort((a, b) => _num(b.age) - _num(a.age));
         const home = Throne.ruledKingdom(player, world);
         if (res.plan === 'partition') {

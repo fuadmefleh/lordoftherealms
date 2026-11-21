@@ -37,11 +37,11 @@ export function lastCrisisHtml(game) {
         html += card(body, { icon: '⏳', title: 'The reckoning', side: m.stage === 'spent' ? 'spent' : `${Math.round(m.pct * 100)}%` });
     } else if (v.phase === 'omens') {
         const recent = v.log.map(e => `<div style="font-size:12px; margin:3px 0;"><span style="color:#a99a78;">Year ${_yr(world, e.day)}:</span> ${esc(LastCrisis.line(world, e))}</div>`).join('');
-        html += card(`${lede('The age is turning against your House. What comes will be aimed at your crown, and sized to it.')}${recent}`, { icon: '🌠', title: 'Omens of the last crisis', side: v.omenEnd ? `breaks about year ${_yr(world, v.omenEnd)}` : '', tone: 'warn' });
+        html += card(`${lede('The age is turning against your House. What comes will be aimed at your crown, and sized to it.')}${recent}`, { icon: '🌠', title: 'Omens of the last crisis', side: !v.omenEnd ? '' : ((world && world.day) || 0) >= v.omenEnd ? 'waits for the age to still' : `breaks about year ${_yr(world, v.omenEnd)}`, tone: 'warn' });
     } else if (v.phase === 'trial' && v.trial) {
         const info = LastCrisis.KIND_INFO[v.trial.kind] || {};
         const facts = [];
-        if (v.realm) facts.push(['🏰', 'Your towns', `${v.realm.towns} of ${v.realm.towns0 || v.realm.towns}`], ['⚔️', 'Royal host', v.realm.military]);
+        if (v.realm) facts.push(['🏰', 'Your towns', `${v.realm.towns} of ${v.realm.towns0 || v.realm.towns}${v.realm.ptowns != null ? ` · ${v.realm.ptowns} with the pretender` : ''}`], ['⚔️', 'Royal host', v.realm.military]);
         if (v.trial.kind !== 'horde') {
             facts.push(['🔥', 'Their resolve', Math.max(0, Math.round(v.trial.resolve || 0))]);
             if (v.until) facts.push(['⏳', 'Until', `year ${_yr(world, v.until)}`]);

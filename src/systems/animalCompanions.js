@@ -273,6 +273,8 @@ export const AnimalCompanions = {
     huntQtyBonus(player, entry = null, world = null) {
         const item = entry && (entry.item || entry.name);
         return AnimalCompanions._best(player, 'huntQty', world, (a) => {
+            // (a hawk flown at quarry on the street map today has had its hunting: systems/falconry.js)
+            if (a.hawked) return false;
             const sp = AnimalCompanions.species(a.species) || {};
             const items = sp.effects && sp.effects.huntItems;
             return !Array.isArray(items) || (item != null && items.includes(item));
@@ -518,7 +520,16 @@ export const AnimalCompanions = {
                 if (a.hunger > 30) a.bond = Math.max(Math.min(_num(a.bond), cfg.bondFloorAway), _num(a.bond) + cfg.bondPerDayAway);
             } else {
                 // What it finds itself: in town, out in the wild (a horse grazes but not on winter's snow)
-                a.hunger = _clamp(a.hunger + (town ? _num(F.town) : (winter && F.winterWild != null ? _num(F.winterWild) : _num(F.wild))), 0, 100);
+                let found = town ? _num(F.town) : (winter && F.winterWild != null ? _num(F.winterWild) : _num(F.wild));
+                // (a hawk flown at quarry on the street map today hunted with you, not for itself:
+                // fed off a kill, nothing more; flown only, half — systems/falconry.js, data/falconry.json daily)
+                const flown = _obj(a.hawked) && day - _num(a.hawked.day, -9) <= 1 ? a.hawked : null;
+                if (flown) {
+                    const D = _obj(((DataLoader.get && DataLoader.get('falconry')) || {}).daily) || {};
+                    found *= flown.fed ? _num(D.fedForage, 0) : _num(D.flownForage, 0.5);
+                }
+                if (a.hawked) a.hawked = null;
+                a.hunger = _clamp(a.hunger + found, 0, 100);
                 // Then from your packs
                 for (const f of AnimalCompanions.foodsFor(player, a)) {
                     while (a.hunger < cfg.feedBelow && AnimalCompanions._takeFood(player, f.id)) a.hunger = _clamp(a.hunger + f.fills, 0, 100);

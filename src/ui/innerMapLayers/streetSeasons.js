@@ -127,6 +127,36 @@ Object.assign(InnerMapRenderer, {
     // THE GROUND (into the ground cache)
     // ══════════════════════════════════════════════
 
+    /**
+     * The thin ice of this map as a small canvas, a pixel a cell (the darker wash where
+     * the ice is thin, clear elsewhere), kept until the thin cells change. → canvas or null
+     */
+    _thinIceWash(tiles) {
+        if (typeof document === 'undefined' || !tiles || !tiles.length) return null;
+        const H = tiles.length, W = tiles[0].length;
+        let n = 0, sig = 0;
+        for (let r = 0; r < H; r++) {
+            const row = tiles[r];
+            for (let q = 0; q < W; q++) if (row[q] && row[q]._iced === 1) { n++; sig = (sig + (r * W + q) * 2654435761) >>> 0; }
+        }
+        const C = this._thinWash || (this._thinWash = { tiles: null, n: -1, sig: -1, canvas: null });
+        if (C.tiles === tiles && C.n === n && C.sig === sig) return n ? C.canvas : null;
+        C.tiles = tiles; C.n = n; C.sig = sig;
+        if (!n) return null;
+        const c = C.canvas && C.canvas.width === W && C.canvas.height === H ? C.canvas : document.createElement('canvas');
+        c.width = W; c.height = H;
+        // (setting the width above cleared it)
+        const g = c.getContext && c.getContext('2d');
+        if (!g || typeof g.fillRect !== 'function') return null;
+        g.fillStyle = 'rgba(30, 84, 118, 0.34)';
+        for (let r = 0; r < H; r++) {
+            const row = tiles[r];
+            for (let q = 0; q < W; q++) if (row[q] && row[q]._iced === 1) g.fillRect(q, r, 1, 1);
+        }
+        C.canvas = c;
+        return c;
+    },
+
     _renderSeasonGround(ctx, camera) {
         const ss = InnerMap._ss;
         if (!ss || InnerMap._insideBuilding || !InnerMap.tiles) return;
@@ -154,6 +184,20 @@ Object.assign(InnerMapRenderer, {
         const dustWash = dust > 0.4 ? `rgba(236, 242, 248, ${((dust - 0.4) * 0.9).toFixed(3)})` : null;
         const mudFill = MUD + (0.16 + mud * 0.3).toFixed(3) + ')';
         const rutFill = MUD + Math.min(0.7, 0.25 + mud * 0.4).toFixed(3) + ')';
+        // Thin ice: one soft wash for the whole view (a cell a pixel, scaled up smoothly), so a
+        // patch of thin ice fades into the solid round it instead of standing as squares
+        const wash = this._thinIceWash(tiles);
+        if (wash) {
+            const w = qMax - qMin + 1, h = rMax - rMin + 1;
+            const sq = Math.max(0, qMin), sr = Math.max(0, rMin);
+            const ew = Math.min(wash.width, qMax + 1) - sq, eh = Math.min(wash.height, rMax + 1) - sr;
+            if (w > 0 && h > 0 && ew > 0 && eh > 0) {
+                ctx.save();
+                ctx.imageSmoothingEnabled = true;
+                ctx.drawImage(wash, sq, sr, ew, eh, ox + (sq - qMin) * ds, oy + (sr - rMin) * ds, ew * ds, eh * ds);
+                ctx.restore();
+            }
+        }
 
         for (let r = rMin; r <= rMax; r++) {
             const row = tiles[r];
@@ -168,8 +212,6 @@ Object.assign(InnerMapRenderer, {
 
                 // ── Ice: thin ice darker and cracked; the hole where it broke ──
                 if (t._iced === 1) {
-                    ctx.fillStyle = 'rgba(38, 92, 122, 0.16)';
-                    ctx.fillRect(x, y, cw, ch);
                     this._ssCrack(ctx, x, y, ds, p, q, r, 'rgba(22, 58, 84, 0.6)', 'rgba(235, 248, 255, 0.55)');
                     continue;
                 }

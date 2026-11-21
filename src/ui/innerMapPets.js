@@ -67,6 +67,8 @@ export const InnerMapPets = {
     _stray: null,    // { key, x, y, home, tx, ty, wait, facing, moving, t }
     _told: new Set(),
     riding: null,    // the horse's id while you ride it (Ride / Dismount on its menu)
+    hitched: null,   // the horse's id while it stands in your horse cart's shafts (ui/innerMapHitch.js)
+    _hitchPos: null, // where ui/innerMapHitch.js has it: { x, y, facing, moving } (drawn there, not here)
 
     // ── Riding ──
     // Your horse can be ridden on the street map (its species' streetRide: data/animalCompanions.json):
@@ -93,6 +95,7 @@ export const InnerMapPets = {
         const a = m && m.a;
         if (!a || !InnerMapPets._rideCfg(a)) return 'You can\'t ride that.';
         if (AnimalCompanions.isYoung(a, game.world)) return `${a.name} is a foal yet, too young to bear you.`;
+        if (InnerMapPets.hitched === a.id) return `${a.name} is in the cart's shafts: unhitch it first.`;
         if (InnerMap.isPlayerSwimming && InnerMap.isPlayerSwimming()) return 'Not in the water.';
         if (InnerMapCarry.handsFull() || InnerMapCarts.pushing) return 'Your hands are full: put down what you carry first.';
         if (InnerMapCombat.playerKnockedOut && InnerMapCombat.playerKnockedOut()) return 'You can barely stand.';
@@ -155,7 +158,7 @@ export const InnerMapPets = {
     count() {
         if (!InnerMapPets._shown) return 0;
         // (in places in the file: a led horse takes three)
-        return InnerMapPets._pets.filter(p => !p.fly && !p.stay && !(p.a && p.a.id === InnerMapPets.riding)).reduce((n, p) => n + (p.a && p.a.id === 'mount' ? 3 : 1), 0);
+        return InnerMapPets._pets.filter(p => !p.fly && !p.stay && !(p.a && (p.a.id === InnerMapPets.riding || p.a.id === InnerMapPets.hitched))).reduce((n, p) => n + (p.a && p.a.id === 'mount' ? 3 : 1), 0);
     },
 
     /** The animals that walk with you now, horse first (it's led on the rein right behind). */
@@ -263,7 +266,15 @@ export const InnerMapPets = {
         let slot = 0, back = lead;
         for (const m of P._pets) {
             m.t += dt;
-            if (m.fly) { P._flyAbout(m, dt, at); continue; }
+            // (a hawk on your fist or flown at quarry is ui/innerMapHawk.js's: hawkHeld)
+            if (m.fly) { if (!m.hawkHeld) P._flyAbout(m, dt, at); continue; }
+            // In the shafts of your horse cart: where ui/innerMapHitch.js has it (and drawn there); out of the file
+            if (m.a.id === P.hitched && P._hitchPos) {
+                const h = P._hitchPos;
+                m.x = h.x; m.y = h.y; m.stay = null; m.fighting = false; m.moving = !!h.moving;
+                if (h.facing) m.facing = h.facing;
+                continue;
+            }
             // Ridden: under you, at your pace (drawn with you: drawRider); out of the file
             if (m.a.id === P.riding) {
                 m.x = at.x; m.y = at.y; m.stay = null; m.fighting = false; m.moving = !!at.walking;
@@ -481,7 +492,7 @@ export const InnerMapPets = {
                 else out.push({ type: 'action', action: 'pet_ride', petId: a.id, label: 'Ride', icon: '🐎', desc: `Up into the saddle: ${a.name} carries you about the streets at a brisk walk (you get down at doors)` });
             }
             if (m.stay) out.push({ type: 'action', action: 'pet_come', petId: a.id, label: 'Come Along', icon: '👣', desc: `${a.name} falls in behind you again` });
-            else if (!riding) out.push({ type: 'action', action: 'pet_stay', petId: a.id, label: 'Stay Here', icon: '✋', desc: `${a.name} waits on this spot until you call it (or leave the map)` });
+            else if (!riding && InnerMapPets.hitched !== a.id) out.push({ type: 'action', action: 'pet_stay', petId: a.id, label: 'Stay Here', icon: '✋', desc: `${a.name} waits on this spot until you call it (or leave the map)` });
             out.push({ type: 'action', action: 'pet_wait', petId: a.id, label: 'Wait at the Inn', icon: '🏠', desc: 'Leave it at your lodging or camp while you walk the streets (Who Walks With You)' });
             out.push({ type: 'action', action: 'pet_card', petId: a.id, label: 'Its Card', icon: '📜', desc: 'Name, age, what it does for you; rename it, keep it at home' });
             out.push({ type: 'separator' });
@@ -616,6 +627,10 @@ export const InnerMapPets = {
             for (const m of P._pets) {
                 // (the horse you ride is drawn with you, in your own pass: drawRider)
                 if (m.a.id === P.riding) continue;
+                // (the horse in the cart's shafts too: ui/innerMapHitch.js draws it with the cart)
+                if (m.a.id === P.hitched && P._hitchPos) continue;
+                // (a hawk on your fist or flown at quarry: ui/innerMapHawk.js draws it)
+                if (m.fly && m.hawkHeld) continue;
                 const sp = P.sprite(m.a);
                 if (!sp) continue;
                 const wx = m.x * k, wy = m.y * k;

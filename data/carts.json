@@ -4,13 +4,17 @@
     "_art": "Sprites made with PixelLab's object creator (8 sides, 4 used): one sheet per kind, a column per facing (up, left, down, right: the game's facing order) and a row per variant. cell: the source cell in px. scale: drawn size of a cell in tiles (a standing person is about 1 x 1.8 tiles). lead: how far the sprite's middle sits from the body's tile toward the one leading it, in tiles. lift: drawn this many tiles up from the tile's middle.",
     "art": {
         "handcart": { "sheet": "assets/carts/handcart.png", "cell": 68, "scale": 1.7, "rows": { "empty": 0, "loaded": 1, "plague": 2 }, "lead": 0.42, "lift": 0.18 },
-        "wagon": { "sheet": "assets/carts/wagon.png", "cell": 97, "scale": 3.2, "rows": { "loaded": 0 }, "lead": 0.1, "lift": 0.35 }
+        "wagon": { "sheet": "assets/carts/wagon.png", "cell": 97, "scale": 3.2, "rows": { "loaded": 0 }, "lead": 0.1, "lift": 0.35 },
+        "horsecart": { "sheet": "assets/carts/handcart.png", "cell": 68, "scale": 2.2, "rows": { "empty": 0, "loaded": 1, "plague": 2 }, "lead": 0.2, "lift": 0.26 }
     },
-    "_kinds": "length: tiles the cart's body (and a wagon's horse) take behind the one leading it. speed: share of the leader's walk. good: the market good a player's cart is (in the pack: a handcart of their own on every street map they walk).",
+    "_kinds": "length: tiles the cart's body (and a wagon's horse) take behind the one leading it. speed: share of the leader's walk. horse: wants a horse in the shafts (never pushed by hand). good: the market good a player's cart is (in the pack: a handcart of their own on every street map they walk).",
     "kinds": {
         "handcart": { "name": "handcart", "length": 1, "speed": 0.8, "good": "handcart", "icon": "🛒" },
-        "wagon": { "name": "merchant's wagon", "length": 2, "speed": 0.7, "icon": "🐴" }
+        "wagon": { "name": "merchant's wagon", "length": 2, "speed": 0.7, "icon": "🐴" },
+        "horsecart": { "name": "horse cart", "length": 1, "speed": 1.0, "good": "horse_cart", "icon": "🐴", "horse": true }
     },
+    "_hitch": "Your own horse cart (kinds.horsecart: the market good horse_cart, sold at the woodworkers' stalls, made by the cartwrights) is drawn by your grown horse on the street map (ui/innerMapHitch.js): hitched, you drive it from the seat, the horse walking in the shafts ahead. speed: share of your own walk while driving (pushing a handcart is push.base); laden: x this with someone laid on it. horseAhead: the horse drawn this many tiles ahead of its tile, toward the way it goes. seatUp: the driver drawn this many tiles above the cart's middle. reach: tiles from the cart (and from your horse) you may hitch it within.",
+    "hitch": { "speed": 1.5, "laden": 0.85, "horseAhead": 0.3, "seatUp": 0.12, "reach": 1, "horseReach": 4 },
     "_push": "The player hauling a cart: share of their own walk (base, + perStrength a point of strength over 5, at most max; laden: x this with someone or goods on it).",
     "push": { "base": 0.62, "perStrength": 0.02, "max": 0.8, "laden": 0.8 },
     "_use": "Using a cart that isn't yours (any cart standing with no one at it) is theft of its use: seen by anyone within seenWithin tiles, it is a petty theft (underworld 'theft' x crimeScale, the owner's opinion of you down by disposition) and they shout. A cart someone is pulling is never free to take.",

@@ -642,6 +642,14 @@ export const InnerMapCombat = {
      */
     _knockOutPlayer(game, attacker) {
         if (!game || !game.player || this._playerOut) return;
+        // A bout in the lists (ui/innerMapTournament.js): floored is beaten, not senseless — the bout ends there
+        if (attacker && attacker._taskFoe && typeof attacker._taskFoe.onFloored === 'function') {
+            game.player.health = Math.max(1, Math.round(Number(game.player.health) || 0));
+            if (this._attackState) this.cancelAttack();
+            this._npcReactions.delete(attacker.id);
+            attacker._taskFoe.onFloored();
+            return;
+        }
         this._playerOut = true;
         const player = game.player;
         player.health = 0;

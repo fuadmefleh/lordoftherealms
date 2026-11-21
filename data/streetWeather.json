@@ -1,0 +1,112 @@
+{
+    "_comment": "Weather on the street map, hour by hour (world/streetWeather.js, world/innerMap/streetWeather.js, player/wetness.js, ui/innerMapWeather.js, ui/innerMapLayers/weatherFx.js). Driven by the world's own precipitation field (world/weather.js) read at the hour.",
+    "enabled": true,
+    "hourly": {
+        "showerAmp": 0.07,
+        "showerHours": 3,
+        "rainAbove": 0.68,
+        "stormAbove": 0.9,
+        "blizzardAbove": 0.85,
+        "cloudyAbove": 0.45,
+        "desertStormAbove": 0.92,
+        "snowBelowC": 1,
+        "diurnalC": 3.5,
+        "lookbackHours": 36
+    },
+    "ground": {
+        "puddleFill": 0.42,
+        "puddleDry": 0.09,
+        "mudSoak": 0.22,
+        "mudDry": 0.028,
+        "dampFill": 0.9,
+        "dampDry": 0.14,
+        "nightDry": 0.5,
+        "warmDryAbove": 16,
+        "warmDry": 0.5,
+        "frozenDry": 0.15
+    },
+    "pace": {
+        "_comment": "x speed at full mud on unpaved roads and soft ground: feet, horseback, carts; NPCs hurry in the rain",
+        "mudFoot": 0.84,
+        "mudRide": 0.7,
+        "mudCart": 0.58,
+        "mudAt": 0.12,
+        "hurryInRain": 1.15
+    },
+    "wind": {
+        "calm": [0.12, 0.45],
+        "cloudy": 0.55,
+        "rain": 0.6,
+        "snow": 0.5,
+        "storm": 1,
+        "blizzard": 1
+    },
+    "rainbow": {
+        "hours": 1.6,
+        "minRain": 0.25,
+        "maxCloud": 0.6,
+        "chance": 0.7,
+        "sunHours": [7, 18.5]
+    },
+    "fireflies": {
+        "seasons": ["Summer"],
+        "lateSpringFrom": 20,
+        "hours": [21, 3],
+        "minC": 12,
+        "maxWind": 0.6
+    },
+    "fog": {
+        "hours": [4, 9.5],
+        "peak": 6.2,
+        "seasons": { "Spring": 0.9, "Summer": 0.55, "Autumn": 1, "Winter": 0.7 },
+        "maxWind": 0.75
+    },
+    "wetness": {
+        "rainPerHour": 70,
+        "snowPerHour": 16,
+        "dryIndoors": 28,
+        "dryByFire": 70,
+        "dryCovered": 10,
+        "dryOutdoors": 7,
+        "dryWarmPerC": 0.6,
+        "dryWind": 6,
+        "comfortPerHour": 2.2,
+        "coldBelowC": 10,
+        "coldComfortPerC": 0.16,
+        "clothesPerHour": 3,
+        "funPerHour": 0.5,
+        "fireTiles": 2.5,
+        "chill": { "wetAbove": 75, "belowC": 6, "afterHours": 2, "chancePerHour": 0.03, "ailment": "chill" },
+        "levels": [
+            { "min": 75, "label": "Soaked", "icon": "💧" },
+            { "min": 40, "label": "Wet", "icon": "💧" },
+            { "min": 12, "label": "Damp", "icon": "💧" }
+        ],
+        "notices": {
+            "soaked": ["💧 Soaked Through", "The rain has soaked you to the skin. Get indoors, or by a fire, to dry off."],
+            "dry": ["☀️ Dry Again", "Your clothes have dried out."]
+        }
+    },
+    "shelter": {
+        "_comment": "Townsfolk out in the rain: the share that hurries home or under the eaves when they next choose what to do",
+        "heavyAt": 0.55,
+        "heavyShare": 0.65,
+        "lightShare": 0.2,
+        "eavesShare": 0.4
+    },
+    "fx": {
+        "drops": 260,
+        "flakes": 220,
+        "splashes": 70,
+        "rings": 40,
+        "fogPuffs": 36,
+        "fireflies": 46,
+        "puddleCells": 420,
+        "glossCells": 900,
+        "lightningEvery": [5, 16],
+        "thunderDelay": [0.8, 4.5],
+        "rainbowAlpha": 0.32,
+        "wetTint": 0.16,
+        "stormDark": 0.22
+    }
+}

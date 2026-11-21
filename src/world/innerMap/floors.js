@@ -459,7 +459,8 @@ Object.assign(InnerMap, {
         this._floor = k;
         const b = this._insideBuilding;
         this.npcs = this._peopleOnFloor(interior, k);
-        if (k === 0 && this.applyHomeFurnishings && game && game.player) this.applyHomeFurnishings(game.player);
+        // (each floor of a home keeps its own layout — world/innerMap/furnishing.js)
+        if (this.applyHomeFurnishings && game && game.player) this.applyHomeFurnishings(game.player);
         if (this._householdArrive) this._householdArrive(game);
         // Stand beside the stairs that brought you (up: this floor's stairs down; down: its stairs up)
         const st = interior._stairs || {};

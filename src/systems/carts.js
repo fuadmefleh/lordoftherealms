@@ -17,7 +17,7 @@
 //   plagueRound(doors, from)— the death cart's round: marked doors, nearest first
 //   bodiesDue(folk, day)    — the town's dead of these last days, for the cart
 //   departingCaravan(...)   — a trade caravan leaving this town today
-//   owns(player)            — the player has a handcart of their own (the market good)
+//   owns(player, kind)      — the player has a handcart (or a horse cart) of their own (the market good)
 //
 // Data: data/carts.json.
 
@@ -29,8 +29,10 @@ const DEFAULTS = {
     kinds: {
         handcart: { name: 'handcart', length: 1, speed: 0.8, good: 'handcart', icon: '🛒' },
         wagon: { name: "merchant's wagon", length: 2, speed: 0.7, icon: '🐴' },
+        horsecart: { name: 'horse cart', length: 1, speed: 1, good: 'horse_cart', icon: '🐴', horse: true },
     },
     push: { base: 0.62, perStrength: 0.02, max: 0.8, laden: 0.8 },
+    hitch: { speed: 1.5, laden: 0.85, horseAhead: 0.3, seatUp: 0.12, reach: 1, horseReach: 4 },
     use: { seenWithin: 7, crimeScale: 0.4, disposition: -12, reach: 1 },
     carters: { hours: [6, 11], max: 2, gapSecs: 40, minStores: 2, jobs: ['carter'], from: [], to: [], parkedMax: 2, lines: [] },
     plague: { hours: [[5, 9], [18, 22]], stopSecs: 7, bodyDays: 3, maxBodies: 4, maxDoors: 8, lines: {} },
@@ -69,6 +71,7 @@ export const Carts = {
                 art: _obj(d.art) || {},
                 kinds,
                 push: { ...DEFAULTS.push, ...(_obj(d.push) || {}) },
+                hitch: { ...DEFAULTS.hitch, ...(_obj(d.hitch) || {}) },
                 use: { ...DEFAULTS.use, ...(_obj(d.use) || {}) },
                 carters: { ...DEFAULTS.carters, ...(_obj(d.carters) || {}) },
                 plague: { ...DEFAULTS.plague, ...(_obj(d.plague) || {}) },
@@ -156,8 +159,18 @@ export const Carts = {
 
     // ──────────── THE PLAYER AT THE HANDLES ────────────
 
-    /** The share of the player's walk while hauling `cart` (strength helps; laden is slower). */
+    /**
+     * The share of the player's walk while hauling `cart` (strength helps; laden is slower).
+     * A horse cart with the horse in its shafts (cart.horse) goes at the horse's pace (hitch.speed),
+     * laden only a little slower (hitch.laden).
+     */
     pushSpeed(player, cart) {
+        if (cart && cart.horse) {
+            const H = Carts.config().hitch;
+            let h = _num(H.speed, 1.5);
+            if (cart.load || cart.bodies > 0 || cart.variant === 'loaded') h *= _num(H.laden, 0.85);
+            return Math.max(0.2, h);
+        }
         const P = Carts.config().push;
         const str = _num(player && player.strength, 5);
         let f = _num(P.base, 0.62) + Math.max(0, str - 5) * _num(P.perStrength, 0);
@@ -174,7 +187,8 @@ export const Carts = {
      */
     canUse(cart, ctx = {}) {
         if (!cart) return { ok: false, theft: false, reason: 'no cart' };
-        if (cart.kind !== 'handcart') return { ok: false, theft: false, reason: 'a wagon' };
+        // (a horse cart is the player's own, never pushed by hand: ui/innerMapHitch.js drives it)
+        if (cart.kind !== 'handcart' && !(Carts.kind(cart.kind).horse && cart.owner === 'player')) return { ok: false, theft: false, reason: 'a wagon' };
         if (cart.driver) return { ok: false, theft: false, reason: 'someone is pulling it' };
         if (cart.job === 'plague') return { ok: false, theft: false, reason: 'the death cart' };
         if (ctx.near === false) return { ok: false, theft: false, reason: 'too far' };
@@ -182,9 +196,9 @@ export const Carts = {
         return { ok: true, theft: !mine && !cart._takenBy, reason: null };
     },
 
-    /** Has the player a handcart of their own (the market good, in the pack)? */
-    owns(player) {
-        const good = Carts.kind('handcart').good || 'handcart';
+    /** Has the player a handcart of their own (the market good, in the pack)? (kind: another cart's good — 'horsecart') */
+    owns(player, kind = 'handcart') {
+        const good = (Carts.config().kinds[kind] || Carts.kind('handcart')).good || 'handcart';
         const inv = player && player.inventory;
         if (!inv) return false;
         if (typeof inv.getQuantity === 'function') return inv.getQuantity(good) > 0;

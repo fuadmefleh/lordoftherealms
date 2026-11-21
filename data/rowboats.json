@@ -1,0 +1,13 @@
+{
+    "_doc": "A rowboat of your own on the street map's water (player/rowboats.js rules, ui/innerMapRowboat.js on the map). Bought from the boatwright of a town whose map has water (price: into that town's purse, PlayerCoin.pay; sold back out of it at sellBack of the price, what the purse holds), or built on a bank from what is in your packs (build.ingredients, build.hours on the clock). It stays where you tie it up: player.rowboats [{ id, name, hq, hr, q, r }] by world hex and street-map cell. Aboard you row over water at rowSpeed of a walk (dry, not swimming); a river's current carries you when you stop rowing (unless tied up), on into the next hex at the river's edge. max: boats owned at once.",
+    "enabled": true,
+    "price": 60,
+    "sellBack": 0.5,
+    "max": 3,
+    "rowSpeed": 0.9,
+    "build": {
+        "ingredients": { "planks": 6, "rope": 1, "resin": 1 },
+        "hours": 5
+    },
+    "names": ["Little Wren", "Dipper", "Old Faithful", "Mayfly", "Heron", "Otter", "Minnow", "Kingfisher", "Willow", "Bramble", "Swallow", "Water Rat"]
+}

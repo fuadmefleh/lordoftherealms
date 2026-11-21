@@ -1,0 +1,45 @@
+{
+    "_doc": "Tournaments fought in person on a town's street map (systems/lists.js rules; world/innerMap/lists.js the field; ui/innerMapTournament.js the lists themselves). schedule: the towns' own tournaments — every periodDays a town of a listed type holds one with chance[type], on a day of the period hashed from the town (never the shared RNG); announceDays before it the herald cries it; the lists stand from openHour to closeHour. prize[type]: the champion's purse for a town's own tournament (paid by the sponsor: the crown for a capital, else the town's market purse — what it can pay); feeShare: the entry fee as a share of the purse (whole gold, at least minFee), paid into the sponsor's purse. hireHorse: the gold a destrier from the town's stables costs for the day (to the town). joust: the lance-meter — chargeSeconds a pass takes, the strike window round impactAt (window, widened by skill, horse and armour: perSkill a combat level over 1, ownHorse, perArmour of armour), aimSwing how far the lance tip wobbles (steadied by perSkillAim), missBelow the strike quality under which the lance misses; a hit's force against the seat (seat: base + perDefense + perArmour) decides glance / broken lance / unhorsed (unhorseOver, breakOver, the margin over the seat); points per glance and broken lance; passes the best of, maxPasses with tie-breaks; harm: the share of the bout pool a lance landed on you costs (for Duels.settleTournament's harm). ai: an opponent's strike — timing spread falls with their attack, aim spread with their skill. melee: yieldAt the share of health a fighter yields at (no one dies in the lists), hpScale the knight's bout health from their duel hp, forfeitDistance how far from the ring walking away forfeits the bout. wager: the stake on yourself, odds from your strength against the field (minOdds..maxOdds), paid to and from the bookie's own purse. crowd: mood steps per result. watch: the AI passes played out while you watch (secondsBetween).",
+    "schedule": {
+        "periodDays": 40,
+        "chance": { "capital": 0.7, "city": 0.5, "town": 0.3 },
+        "announceDays": 4,
+        "openHour": 9,
+        "closeHour": 18
+    },
+    "prize": { "capital": 360, "city": 240, "town": 150 },
+    "feeShare": 0.15,
+    "minFee": 10,
+    "hireHorse": 15,
+    "boutKinds": ["joust", "melee", "joust"],
+    "joust": {
+        "chargeSeconds": 2.6,
+        "impactAt": 0.86,
+        "window": 0.06,
+        "perSkill": 0.006,
+        "ownHorse": 0.012,
+        "perArmour": 0.03,
+        "aimSwing": 0.5,
+        "perSkillAim": 0.035,
+        "missBelow": 0.3,
+        "seat": { "base": 0.42, "perDefense": 0.04, "perArmour": 0.35 },
+        "force": { "base": 0.7, "perAttack": 0.08, "jitter": 0.12 },
+        "unhorseOver": 0.45,
+        "breakOver": 0.12,
+        "points": { "glance": 1, "broken": 2, "unhorsed": 3 },
+        "passes": 3,
+        "maxPasses": 5,
+        "harm": { "glance": 0.06, "broken": 0.16, "unhorsed": 0.55 }
+    },
+    "ai": { "timingSpread": 0.16, "timingPerAttack": 0.012, "aimSpread": 0.55, "aimPerSkill": 0.04 },
+    "melee": { "yieldAt": 0.2, "hpScale": 3.5, "forfeitDistance": 9 },
+    "wager": { "stakes": [10, 25, 50], "minOdds": 1.5, "maxOdds": 6 },
+    "crowd": { "miss": -0.1, "glance": 0.05, "broken": 0.15, "unhorsed": 0.35, "unhorsedYou": -0.3, "won": 0.2, "lost": -0.15, "loveAt": 0.5, "loveRenown": 1 },
+    "watch": { "secondsBetween": 7 },
+    "barks": {
+        "cheer": ["Huzzah!", "Well struck!", "Again! Again!", "A hit!", "Ho, the lance!"],
+        "groan": ["Ohh…", "Wide!", "A miss!", "For shame!"],
+        "unhorsed": ["Down he goes!", "Unhorsed!", "Oh, the fall!"],
+        "herald": ["Hear ye! The lists are open!", "Knights, to your places!", "Make way for the champions!"]
+    }
+}

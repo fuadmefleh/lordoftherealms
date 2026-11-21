@@ -83,7 +83,9 @@ Object.assign(InnerMap, {
             return null;
         }
         const off = this._driftPx || (this._driftPx = { x: 0, y: 0 });
-        const cur = this.isPlayerSwimming() ? this.currentAt(this.playerInnerQ, this.playerInnerR, sea) : null;
+        // (a rowboat drifts with it once the oars rest — not tied up: ui/innerMapRowboat.js)
+        const adrift = this._aboardBoat && !this._boatTied && !this._playerWalking;
+        const cur = this.isPlayerSwimming() || adrift ? this.currentAt(this.playerInnerQ, this.playerInnerR, sea) : null;
         if (!cur) {
             // Out of the stream: the drift eases off onto the cell
             const k = Math.min(1, dt * 5);

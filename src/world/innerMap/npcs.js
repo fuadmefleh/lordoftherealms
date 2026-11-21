@@ -521,7 +521,9 @@ Object.assign(InnerMap, {
                     if (npc.path && npc.pathIndex < npc.path.length) {
                         // (slower through snow and mud off the cleared streets: world/innerMap/streetSeasons.js)
                         const nx = npc.path[npc.pathIndex];
-                        npc.moveProgress += deltaTime * npc.speed * 2 * (this._ssPace && nx ? this._groundPace(nx.q, nx.r) : 1);
+                        npc.moveProgress += deltaTime * npc.speed * 2 * (this._ssPace && nx ? this._groundPace(nx.q, nx.r) : 1)
+                            // (the rain's mud, and a hurry to be out of the wet: world/innerMap/streetWeather.js)
+                            * (this._swPace && nx ? this.weatherPace(nx.q, nx.r, 'npc') : 1);
                         if (npc.moveProgress >= 1.0) {
                             npc.moveProgress = 0;
                             npc.prevQ = npc.q;

@@ -50,6 +50,7 @@ import { Mail } from './mail.js';
 import { Couriers } from './couriers.js';
 import { Hospitality } from './hospitality.js';
 import { RiverDrift } from './riverDrift.js';
+import { FishTraps } from './fishTraps.js';
 import { RiverLife } from './riverLife.js';
 import { LlmProse } from './llmProse.js';
 import { Crises } from './crises.js';
@@ -395,6 +396,8 @@ export const SaveLoad = {
             gates: world.gates ? JSON.parse(JSON.stringify(world.gates)) : null,
             // The trees felled on the maps, their stumps and what grows back (world/innerMap/felling.js)
             felled: world.felled ? JSON.parse(JSON.stringify(world.felled)) : null,
+            // Holes broken through the winter ice, till they freeze over (world/innerMap/ice.js)
+            iceHoles: world.iceHoles ? JSON.parse(JSON.stringify(world.iceHoles)) : null,
             // The caves entered, the drifts and shafts dug, every cell cut, hauled and timbered (world/innerMap/mines.js)
             mines: world.mines ? JSON.parse(JSON.stringify(world.mines)) : null,
             // The player's own dead buried on the maps, and the markers raised over them (world/burials.js)
@@ -406,6 +409,8 @@ export const SaveLoad = {
             fieldMarks: world.fieldMarks ? JSON.parse(JSON.stringify(world.fieldMarks)) : null,
             // Things adrift on the rivers, caught on weirs, lying in lakes (systems/riverDrift.js)
             riverDrift: RiverDrift.serialize(world),
+            // The player's fish traps set in the edge water, and what is in them (systems/fishTraps.js)
+            fishTraps: FishTraps.serialize(world),
             // Fishing rights leased, spring floods up and coming down the rivers (systems/riverLife.js)
             riverLife: RiverLife.serialize(world),
             // The age-defining crises: the one running and those on record (systems/crises.js)
@@ -569,6 +574,8 @@ export const SaveLoad = {
         'begging',
         // The household guard's standing order: defend against anyone, the watch too (ui/innerMapEscort.js)
         'escortStance',
+        // Your horse in your horse cart's shafts on the street map, and whether you sit up driving it (ui/innerMapHitch.js)
+        'streetHitch',
         'loans', 'taxRate', 'activeContract',
         'mapDeceptions', 'marriageAllianceKingdom', 'cultureIncomeCarry',
         'foragingTrips', 'huntingTrips', 'jobsCompleted', 'performancesGiven',
@@ -598,6 +605,8 @@ export const SaveLoad = {
         'watchQuestioning',
         // Law courts: the trial awaited, cases before your court, verdicts that may surface, lawsuits between Houses (player/trials.js)
         'trials',
+        // Tournaments on the town's lists today: the one you hold, your place in the bracket (ui/innerMapTournament.js)
+        'lists',
         // The night's business: the lantern shuttered, curfew stops, landings, the gangs' grudges (systems/nightStreets.js)
         'nightStreets',
         // Dead and waiting out the years; or a new life begun in the world (player/afterlife.js)
@@ -659,6 +668,8 @@ export const SaveLoad = {
         'hotbar',
         // Your river boat (its hold, where it lies) and the days your raw fish were caught (systems/riverBoats.js, systems/riverLife.js)
         'riverBoat', 'fishLots',
+        // Your rowboats on the street maps' water, where each is tied up (player/rowboats.js)
+        'rowboats', 'rowboatSeq',
         // Your dogs, cats and hawks (the horse rides on player.mount), and who walks the streets with you
         // (systems/animalCompanions.js, systems/streetFollowers.js; both backfilled when missing)
         'animalCompanions', 'walkWith',
@@ -1090,6 +1101,8 @@ export const SaveLoad = {
         world.gates = saveData.gates && typeof saveData.gates === 'object' ? saveData.gates : {};
         // The trees felled (older saves: none — the woods stand whole)
         world.felled = saveData.felled && typeof saveData.felled === 'object' ? saveData.felled : {};
+        // The holes in the ice (older saves: none)
+        world.iceHoles = saveData.iceHoles && typeof saveData.iceHoles === 'object' ? saveData.iceHoles : {};
         // The mines (older saves: none — the rock stands whole)
         world.mines = saveData.mines && typeof saveData.mines === 'object' ? saveData.mines : {};
         // The player's burials (older saves: none)
@@ -1100,6 +1113,8 @@ export const SaveLoad = {
         world.fieldMarks = saveData.fieldMarks && typeof saveData.fieldMarks === 'object' ? saveData.fieldMarks : {};
         // Things adrift on the rivers (older saves: none)
         RiverDrift.restore(saveData.riverDrift, world);
+        // The fish traps (older saves: none)
+        FishTraps.restore(saveData.fishTraps, world);
         RiverLife.restore(saveData.riverLife, world);
         // The chronicler's prose (older saves: none — the Annals' scribe writes again)
         LlmProse.restore(saveData.prose, world);

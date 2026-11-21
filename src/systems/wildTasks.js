@@ -80,10 +80,12 @@ export const WildTasks = {
                 }
                 if (!free(t) || t.isRoad) continue;
                 const id = t.subTerrain.id;
-                if (ICE_IDS.has(id)) out.ice.push({ q, r });
+                // (and the winter's ice on a street map's water, solid enough to stand on: world/innerMap/streetSeasons.js)
+                const iced = ICE_IDS.has(id) || t._iced === 2;
+                if (iced) out.ice.push({ q, r });
                 // the bank: dry ground beside the water or its shallows (never the shallows themselves)
                 if (!t._wet && N4.some(([dq, dr]) => { const n = tile(q + dq, r + dr); return isWater(n) || !!(n && n._wet); })) out.shore.push({ q, r });
-                else if (!ICE_IDS.has(id)) out.open.push({ q, r });
+                else if (!iced) out.open.push({ q, r });
             }
         }
         return out;

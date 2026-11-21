@@ -85,7 +85,7 @@ Object.assign(InnerMap, {
 
         // A* pathfinding (the player may swim where swimming is allowed, and climb faces they can)
         const path = this._findPath(this.playerInnerQ, this.playerInnerR, targetQ, targetR,
-            { swim: !!this._swimAllowed, levels: true, climb: climbing ? { max: this._climbMax } : null });
+            { swim: !!(this._swimAllowed || this._aboardBoat), levels: true, climb: climbing ? { max: this._climbMax } : null });
         if (!path || path.length <= 1) {
             return { started: false, moved: false, encounter: null, outOfBounds: false };
         }
@@ -499,7 +499,13 @@ Object.assign(InnerMap, {
         const pace = !inWater && next && this._groundPace ? this._groundPace(next.q, next.r) : 1;
         // (on horseback the walk is the horse's: ui/innerMapPets.js sets _rideSpeed while you ride)
         const ride = !inWater && this._rideSpeed > 0 ? this._rideSpeed : 1;
-        this._playerMoveProgress += deltaTime * this._playerSpeed * (inWater ? this.swimConfig().speed * (this._swimSpeedBonus || 1) * under : pace * ride);
+        // (in your rowboat: the oars' pace, not a stroke's — ui/innerMapRowboat.js sets _rowSpeed)
+        const row = this._aboardBoat ? (this._rowSpeed > 0 ? this._rowSpeed : 0.9) : 0;
+        // (on the ice: a skater's glide, down after a fall, a horse balking at thin ice — world/innerMap/ice.js)
+        const skate = !row && !inWater && this._icePace ? this._icePace(next, deltaTime) : 1;
+        // (the rain's fresh mud on the unpaved roads and soft ground, worse on horseback — world/innerMap/streetWeather.js)
+        const mud = !row && !inWater && next && this.weatherPace ? this.weatherPace(next.q, next.r, ride !== 1 ? 'ride' : 'foot') : 1;
+        this._playerMoveProgress += deltaTime * this._playerSpeed * (row ? row : inWater ? this.swimConfig().speed * (this._swimSpeedBonus || 1) * under : pace * ride * skate * mud);
 
         if (this._playerMoveProgress >= 1.0) {
             this._playerMoveProgress = 0;
@@ -609,7 +615,9 @@ Object.assign(InnerMap, {
         const W = this.width, H = this.height;
         // The player's paths may swim (each water tile dearer than a step); nobody else's do
         const swim = !!(opts && opts.swim);
-        const swimCost = swim ? Math.max(1, Number(this.swimConfig().pathCost) || 3) : 1;
+        // (in your rowboat the player's paths keep to the water, each cell a stroke of the oars: ui/innerMapRowboat.js)
+        const boat = swim && !!this._aboardBoat;
+        const swimCost = swim && !boat ? Math.max(1, Number(this.swimConfig().pathCost) || 3) : 1;
         // The player's paths keep to their own height, and may climb faces no taller than climb.max
         // (world/innerMap/climbing.js); nobody else's do
         const climb = opts && opts.climb ? opts.climb : null;
@@ -725,12 +733,15 @@ Object.assign(InnerMap, {
                     // across a crag's top
                 } else if (!tile.subTerrain.passable && tile.customObject && this._isShutGateTile(tile)) {
                     // A shut gate: people open it to pass, so a walk round is taken when it isn't much longer
+                    if (boat) continue;
                     ng = gScore[ci] + GATE_PATH_COST;
                 } else if (!tile.subTerrain.passable) {
                     if (!swim || !this.isSwimmable(nq, nr)) continue;
                     ng = gScore[ci] + swimCost;
                 } else if (swim && this._underwater) {
                     continue; // under the water: no land, no shallows (world/innerMap/swimming.js)
+                } else if (boat && !this.isSwimmable(nq, nr)) {
+                    continue; // in the boat: the shallows, but not the dry bank
                 }
                 if (tile._fieldSoil && !high) ng += FIELD_PATH_COST - 1;
                 // (thin ice: a walk round is taken when there is one — world/innerMap/streetSeasons.js)

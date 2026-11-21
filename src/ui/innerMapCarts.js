@@ -344,7 +344,9 @@ export const InnerMapCarts = {
             c.claim = [{ q: d.q, r: d.r }, { q: next.q, r: next.r }];
         }
         // (wheels drag in mud and snow, slip on ice: world/innerMap/streetSeasons.js)
-        const ground = InnerMap._groundPace ? InnerMap._groundPace(next.q, next.r, true) : 1;
+        // (and the rain's fresh mud on the unpaved roads, worst of all for wheels: world/innerMap/streetWeather.js)
+        const ground = (InnerMap._groundPace ? InnerMap._groundPace(next.q, next.r, true) : 1)
+            * (InnerMap.weatherPace ? InnerMap.weatherPace(next.q, next.r, 'cart') : 1);
         d.moveProgress += dt * _num(d._cartPace, 1) * 2 * _num(Carts.kind(c.kind).speed, 0.8) * ground;
         if (d.moveProgress >= 1) {
             const from = { q: d.q, r: d.r };
@@ -773,10 +775,12 @@ export const InnerMapCarts = {
             .sort((a, b) => _cheb(a.trail[0], me) - _cheb(b.trail[0], me));
     },
 
-    /** Take hold of a cart's handles: it follows the player at a slow walk. */
-    take(game, c) {
+    /** Take hold of a cart's handles: it follows the player at a slow walk (opts.hitched: a horse cart driven — ui/innerMapHitch.js). */
+    take(game, c, opts = {}) {
         const chk = Carts.canUse(c);
         if (!chk.ok) { _note(game, '🛒 Not that cart', `You can't take that cart: ${chk.reason}.`, 'warning'); return false; }
+        // (a horse cart is drawn by your horse, driven from the seat: ui/innerMapHitch.js)
+        if (Carts.kind(c.kind).horse && !opts.hitched) { _note(game, '🐴 A horse cart', 'It is too heavy to push by hand: hitch your horse to it.', 'warning'); return false; }
         if (InnerMapCarry.handsFull()) { _note(game, '🙌 Your hands are full', InnerMapCarry.person ? `Lay ${InnerMapCarry.person.name} on it, or put them down first.` : 'Put down what you carry first.', 'warning'); return false; }
         if (this.pushing && this.pushing !== c) this._release(game, { quiet: true });
         if (chk.theft) this._theft(game, c);
@@ -788,7 +792,7 @@ export const InnerMapCarts = {
         if (this._baseSpeed == null) this._baseSpeed = InnerMap._playerSpeed;
         InnerMap._playerSpeed = this._baseSpeed * Carts.pushSpeed(game && game.player, c);
         InnerMap._cartsChanged();
-        _note(game, '🛒 At the handles', c.owner === 'player' ? 'You take up your handcart.' : 'You take up the cart by its handles.', 'info');
+        if (!opts.quiet) _note(game, '🛒 At the handles', c.owner === 'player' ? 'You take up your handcart.' : 'You take up the cart by its handles.', 'info');
         return true;
     },
 
@@ -826,7 +830,8 @@ export const InnerMapCarts = {
         c.parked = true;
         InnerMap._cartsChanged();
         if (!opts.quiet) {
-            if (opts.at === 'door') _note(game, '🛒 Left at the door', 'A cart won\'t go indoors: you leave it standing outside.', 'info');
+            if (c.horse) _note(game, '🐴 Climbed down', opts.at === 'door' ? 'You leave the horse cart standing at the door, the horse in its shafts.' : 'You climb down from the seat; the horse stands in the shafts.', 'info');
+            else if (opts.at === 'door') _note(game, '🛒 Left at the door', 'A cart won\'t go indoors: you leave it standing outside.', 'info');
             else _note(game, '🛒 Let go', 'You set the cart down where it stands.', 'info');
         }
         return c;
@@ -915,7 +920,8 @@ export const InnerMapCarts = {
         const me = { q: InnerMap.playerInnerQ, r: InnerMap.playerInnerR };
         const clicked = InnerMap.cartAt(q, r);
         const c = this.pushing;
-        if (c) {
+        // (driving a horse cart: its menu is ui/innerMapHitch.js's)
+        if (c && !c.horse) {
             out.push({ type: 'header', label: `🛒 Hauling ${c.owner === 'player' ? 'your handcart' : 'a handcart'}${c.load ? ` (${c.load.name} on it)` : ''}` });
             out.push({ type: 'action', action: 'cart_let_go', label: 'Let Go of the Cart', icon: '⬇️', desc: 'Set it down where it stands' });
             if (c.load && !InnerMapCarry.handsFull()) out.push({ type: 'action', action: 'cart_lift', label: 'Lift Them off the Cart', icon: '🚶', desc: `Over your shoulder again: ${c.load.name}`, cartId: c.id });
@@ -927,10 +933,10 @@ export const InnerMapCarts = {
         }
         if (clicked && clicked !== c) {
             const K = Carts.kind(clicked.kind);
-            const whose = clicked.owner === 'player' ? 'Your handcart' : clicked.job === 'plague' || clicked.job === 'plague_done' ? 'The death cart' : clicked.kind === 'wagon' ? 'A merchant\'s wagon' : 'A town handcart';
+            const whose = clicked.owner === 'player' ? (K.horse ? 'Your horse cart' : 'Your handcart') : clicked.job === 'plague' || clicked.job === 'plague_done' ? 'The death cart' : clicked.kind === 'wagon' ? 'A merchant\'s wagon' : 'A town handcart';
             out.push({ type: 'header', label: `${K.icon || '🛒'} ${whose}${clicked.load ? ` — ${clicked.load.name} lies on it` : clicked.bodies > 0 ? ' — the dead on it' : ''}` });
             const chk = Carts.canUse(clicked);
-            if (chk.ok && !c) {
+            if (chk.ok && !c && !K.horse) {
                 out.push({ type: 'action', action: 'cart_take', label: 'Take the Cart\'s Handles', icon: '🛒', desc: chk.theft ? 'Haul it off at a slow walk (not yours: theft of its use, if anyone sees)' : 'Haul it along at a slow walk', cartId: clicked.id });
             } else if (!chk.ok) out.push({ type: 'disabled', label: `Can't take it: ${chk.reason}` });
             if (clicked.load && !InnerMapCarry.handsFull() && _cheb(me, clicked.trail[0]) <= 1) {

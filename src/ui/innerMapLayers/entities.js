@@ -16,12 +16,16 @@ import { InnerMapTasks } from '../innerMapTasks.js';
 import { InnerMapSleepers } from '../innerMapSleepers.js';
 import { InnerMapCarry } from '../innerMapCarry.js';
 import { InnerMapCarts } from '../innerMapCarts.js';
+import { InnerMapHitch } from '../innerMapHitch.js';
 import { InnerMapDowned } from '../innerMapDowned.js';
 import { InnerMapFelling } from '../innerMapFelling.js';
 import { InnerMapBattle } from '../innerMapBattle.js';
 import { InnerMapEscort } from '../innerMapEscort.js';
 import { InnerMapCompanions } from '../innerMapCompanions.js';
 import { InnerMapPets } from '../innerMapPets.js';
+import { InnerMapTournament } from '../innerMapTournament.js';
+import { InnerMapHawk } from '../innerMapHawk.js';
+import { InnerMapRowboat } from '../innerMapRowboat.js';
 import { InnerMapSickness } from '../innerMapSickness.js';
 import { InnerMapPlague } from '../innerMapPlague.js';
 import { InnerMapRites } from '../innerMapRites.js';
@@ -34,6 +38,7 @@ import { layoutLabels, labelPriority } from '../labelLayout.js';
 /** How far one sat in a pew (seen from behind, facing the altar) sinks below their standing place, in tiles. */
 const PEW_SINK = 0.26;
 import { BareBushes } from '../bareBushes.js';
+import { InnerMapIce } from '../innerMapIce.js';
 
 // Where the rod's tip is in its line-out frame (frame 3 of
 // assets/lpc/Tools/fishing_pole_cast_128.png, by scripts/make_rod_noline.py),
@@ -1308,8 +1313,17 @@ Object.assign(InnerMapRenderer, {
         InnerMapCompanions.collect(items, ctx, camera, T);
         // ── Phase 3f3: Your animals with you, and a town's stray (ui/innerMapPets.js) ──
         InnerMapPets.collect(items, ctx, camera, T);
+        // ── Phase 3f4: Your hawk on your fist, on the wing, on its kill (ui/innerMapHawk.js) ──
+        // (riding a pass at the lists the player is drawn by the tournament, not here: nor the hawk on their fist)
+        if (!InnerMapTournament.hidesPlayer()) InnerMapHawk.collect(items, ctx, camera, T, this._playerFacing);
         // ── Phase 3g: Handcarts and wagons, and whoever lies on one (ui/innerMapCarts.js) ──
         InnerMapCarts.collect(items, ctx, camera, T);
+        // ── Phase 3h: A tournament's lists: barrier, stands, pavilions, the riders, the lance-meter (ui/innerMapTournament.js) ──
+        InnerMapTournament.collect(items, ctx, camera, T);
+        // ── Phase 3h: Your rowboats tied up on the water (ui/innerMapRowboat.js) ──
+        InnerMapRowboat.collect(items, ctx, camera, T);
+        // ── Phase 3g2: Your horse in the cart's shafts, and you on its seat (ui/innerMapHitch.js) ──
+        InnerMapHitch.collect(items, ctx, camera, T, this._playerPreset || InnerMapCharacters.playerPreset || 'male_noble');
 
         // ── Phase 4: Collect Player ─────────────────────────────────────────────
         {
@@ -1327,7 +1341,8 @@ Object.assign(InnerMapRenderer, {
                     direction = InnerMapCharacters.DIR_UP;
                     this._playerFacing = direction;
                 } else if (pos.walking) {
-                    anim = 'walk';
+                    // (gliding on skates past the walk's end: the legs still — world/innerMap/ice.js)
+                    anim = InnerMap._iceGliding && InnerMap._iceGliding() ? 'idle' : 'walk';
                     direction = InnerMapCharacters.getDirection(pos.dq, pos.dr);
                     this._playerFacing = direction;
                 } else if (digging) {
@@ -1411,8 +1426,19 @@ Object.assign(InnerMapRenderer, {
             const playerPreset = this._playerPreset || InnerMapCharacters.playerPreset || 'male_noble';
             const pDeathState = deathState; // capture for closure
             const pSwimming = !deathState && typeof InnerMap.isPlayerSwimming === 'function' && InnerMap.isPlayerSwimming();
+            // In your rowboat (ui/innerMapRowboat.js): the rod, if you fish from it, drawn as on the bank
+            const pBoat = !deathState && !!InnerMap._aboardBoat;
+            const pBoatRod = pBoat && pRod && this._sheets && this._sheets.get('fishing_pole_cast');
+            const boatRod = pBoatRod ? (bx, by, bw, bh) => {
+                const ox = bx - bw / 2, oy = by - bh / 2;
+                ctx.drawImage(pBoatRod, pRod.frame * 128, pDir * 128, 128, 128, ox, oy, bw * 2, bh * 2);
+                const tip = pRod.frame === 3 && pRod.bobber && ROD_TIPS[pDir];
+                if (tip) this._drawFishingLine(ctx, camera, T, ds, now, ox + tip[0] * bw * 2 / 128, oy + tip[1] * bh * 2 / 128, pRod.bobber);
+            } : null;
 
             items.push({ sortY, zLayer: 2, draw: () => {
+                // (riding a pass in the lists you are drawn as the rider: ui/innerMapTournament.js)
+                if (InnerMapTournament.hidesPlayer()) return;
                 // Glow — turns red during death
                 const glR = pDeathState ? 200 : 245, glG = pDeathState ? 50 : 197, glB = pDeathState ? 50 : 66;
                 const gradient = ctx.createRadialGradient(px, py, 0, px, py, ds * 0.5);
@@ -1446,9 +1472,16 @@ Object.assign(InnerMapRenderer, {
                         }
                         ctx.restore();
                         this._drawDeadPlumbob(ctx, px, py - charH + ds * 0.1, ds);
+                    } else if (!pSwimming && InnerMapHitch.driving()) {
+                        // Driving your horse cart (ui/innerMapHitch.js): the horse here, you on the seat — both drawn there
+                    } else if (pBoat && InnerMapRowboat.drawAboard(ctx, { preset: playerPreset, px, py, ds, dir: pDir, rowing: pAnim === 'walk', now, rod: boatRod })) {
+                        // In your rowboat (ui/innerMapRowboat.js): the hull on the water, you sat at the oars
                     } else if (!pSwimming && InnerMapPets.riding && InnerMapPets.mounted()
                         && InnerMapPets.drawRider(ctx, InnerMapPets.mounted(), playerPreset, px, py, ds, pDir, pAnim === 'walk', now)) {
                         // On horseback (ui/innerMapPets.js): the horse and you in the saddle, drawn above
+                    } else if (!pSwimming && InnerMapIce.drawFallen(ctx,
+                        (c, x, y, w, h) => InnerMapCharacters.drawCharacter(c, playerPreset, 'idle', pDir, 0, x, y, w, h), px, py, ds, charW, charH)) {
+                        // Down on the ice after a slip (ui/innerMapIce.js): tipped over, then up again
                     } else if (pSwimming && InnerMapDiving.isUnder()) {
                         // Under the water, diving (ui/innerMapDiving.js): the whole body, sunk in the murk
                         InnerMapDiving.drawUnder(ctx, px, py, ds, now,

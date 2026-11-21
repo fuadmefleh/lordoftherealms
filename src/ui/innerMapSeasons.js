@@ -9,12 +9,15 @@
 //     surf and flow are laid out afresh (innerMapLayers/waterFx.js);
 //   - the player is told: thin ice groaning underfoot, the ice giving way, the
 //     harvest fair or the midwinter fire on in the town, the water frozen hard,
-//     the ground gone to mud.
+//     the ground gone to mud;
+//   - skating, falls on the ice and the cold of the water under it
+//     (ui/innerMapIce.js).
 // Data: data/streetSeasons.json `notices`.
 
 import { InnerMap } from '../world/innerMap.js';
 import { InnerMapRenderer } from './innerMapRenderer.js';
 import { StreetSeasons } from '../world/streetSeasons.js';
+import { InnerMapIce } from './innerMapIce.js';
 
 function _note(game, key, vars = {}, type = 'info') {
     const N = StreetSeasons.config().notices || {};
@@ -29,8 +32,10 @@ export const InnerMapSeasons = {
     _tiles: null,
     _told: new Set(),
 
-    update(game) {
+    update(game, dt) {
         if (!InnerMap.active || !game || !game.world || !InnerMap._bindStreetSeason) return;
+        // Skates, falls, the cold of the water under the ice (ui/innerMapIce.js)
+        InnerMapIce.update(game, dt);
         const at = InnerMap.currentWorldTile;
         // A new day on this map: its season laid again (not while indoors: the street's tiles are put by)
         if (at && !InnerMap._insideBuilding && Number.isFinite(InnerMap.worldDay) && InnerMap._ssDay !== InnerMap.worldDay) {
@@ -49,6 +54,8 @@ export const InnerMapSeasons = {
             InnerMap._ssEvent = null;
             if (ev.kind === 'crack') _note(game, 'crack', {}, 'warning');
             else if (ev.kind === 'thin') _note(game, 'thinIce', {}, 'warning');
+            // (and its sound, its marks, what it does to you: a slip, a horse balking, the plunge)
+            InnerMapIce.onEvent(game, ev);
         }
         this._tell(game);
     },

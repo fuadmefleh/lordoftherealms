@@ -244,6 +244,7 @@
         "driftwood": ["goods", 70, 394, 55, 40, 0.95],
         "reeds": ["goods", 135, 390, 50, 48, 0.88],
         "fishing_net": ["goods", 197, 394, 54, 42, 0.9],
+        "fish_trap": ["baskets", 1, 2, 30, 23],
         "message_bottle": ["goods", 276, 389, 22, 48, 0.62],
         "coin_purse": ["goods", 335, 396, 34, 36, 0.6]
     }

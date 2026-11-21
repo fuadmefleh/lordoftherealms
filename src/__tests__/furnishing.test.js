@@ -240,3 +240,44 @@ describe('the layout lasts', () => {
         expect(player.furnitureStore.some(p => p.uid === 'zz')).toBe(true);
     });
 });
+
+describe('upstairs', () => {
+    it('each floor keeps its own layout: pieces move upstairs, and are where you left them next time', () => {
+        const game = { player, ui: { showNotification() {} } };
+        const house = enterHouse(player);
+        expect(InnerMap._floorCount).toBeGreaterThan(1);
+        InnerMap.adoptHomeFurniture(player);
+        const ground = InnerMap.homeLayout(player).pieces.length;
+        expect(InnerMap.goToFloor(1, game).ok).toBe(true);
+        expect(InnerMap.furnishLayoutKey()).toBe('house:5,6#f1');
+        const rec = InnerMap.adoptHomeFurniture(player);
+        expect(rec.name).toMatch(/2nd floor/);
+        const piece = rec.pieces.find(p => FurnitureCatalogue.view(p).type !== 'stairs');
+        expect(piece).toBeTruthy();
+        // somewhere free to set it down
+        const from = { q: piece.q, r: piece.r };
+        const lifted = InnerMap.liftPiece(player, piece.uid);
+        expect(lifted).toBe(piece);
+        let spot = null;
+        for (let r = 1; r < InnerMap.height - 1 && !spot; r++) {
+            for (let q = 1; q < InnerMap.width - 1 && !spot; q++) {
+                if (q === from.q && r === from.r) continue;
+                if (InnerMap.placePiece(player, lifted, q, r).ok) spot = { q, r };
+            }
+        }
+        expect(spot).toBeTruthy();
+        expect(InnerMap.getTile(from.q, from.r)._furniture).toBeNull();
+        // the stairs are the house's, never moved
+        const down = InnerMap._stairsDownTile();
+        expect(InnerMap._movableFurniture(InnerMap.getTile(down.q, down.r))).toBe(false);
+
+        // out, a fresh interior, back up: it stands where it was set; the ground floor untouched
+        expect(InnerMap.goToFloor(0, game).ok).toBe(true);
+        expect(InnerMap.homeLayout(player).pieces.length).toBe(ground);
+        InnerMap.exitBuilding({ player });
+        InnerMap._interiorCache = {};
+        enterHouse(player, { ...house });
+        expect(InnerMap.goToFloor(1, game).ok).toBe(true);
+        expect(InnerMap.getTile(spot.q, spot.r)._furniture._piece).toBe(piece.uid);
+    });
+});

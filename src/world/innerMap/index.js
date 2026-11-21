@@ -47,5 +47,8 @@ import './felling.js';
 import './mines.js';
 import './carts.js';
 import './streetSeasons.js';
+import './streetWeather.js';
+import './ice.js';
+import './lists.js';
 
 export { InnerMap };

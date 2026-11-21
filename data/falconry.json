@@ -1,0 +1,59 @@
+{
+    "_doc": "Hawking on the street map (systems/falconry.js rules; ui/innerMapHawk.js the flight). Your hawk rides your gloved fist; right-click a small wild beast or bird within range and fly it. chance = quarry.base + training (0..1: bond and kills, killsToMaster) x trainWeight + huntRank (the Hunting & Butchering rank, 0..4) x perHuntRank - perTile beyond freeTiles, times the breed's mult for the quarry's class (ground / fowl), the weather's mult (out in the open), the hawk's fitness (bond, belly, health; an eyas half) and a sated hawk's lazier flight (hunger above satedAbove: satedMult); clamped to [minChance, maxChance]. rake: the chance it goes off on its own at the launch and takes stand in a tree (base + untrained x (1 - training) + hungry when its belly is under hungryBelow + young for an eyas, times (1 - kills/killsToMaster x steadied)); lured back with meat from your packs (lure: base + perBond x bond/100 + hungry when its belly is under 50; the meat is only taken when it comes); left raked when you leave the map, it finds you again by nightfall, bond down leftBond. reward: what it is given off a kill you take from it (hunger, bond); feedUp: what it eats when you leave it on the kill feedUpSeconds (the kill is then eaten, nothing left to butcher). daily: the day you flew it, its own hunting for itself (species forage) is cut to fedForage once fed off a kill, else flownForage, and its share in the hunt's small game (huntQty) is off that day: no double-dipping. Times are seconds of the street map's clock, distances tiles.",
+    "range": 12,
+    "minRange": 1,
+    "freeTiles": 5,
+    "perTile": 0.025,
+    "trainWeight": 0.3,
+    "killsToMaster": 25,
+    "perHuntRank": 0.025,
+    "minChance": 0.05,
+    "maxChance": 0.9,
+    "satedAbove": 88,
+    "satedMult": 0.6,
+    "minHealth": 25,
+    "maxFlightsPerDay": 8,
+    "words": { "goshawk": "Hawk", "falcon": "Falcon" },
+    "quarry": {
+        "rabbit": { "base": 0.55, "class": "ground" },
+        "snow_rabbit": { "base": 0.5, "class": "ground" },
+        "pheasant": { "base": 0.5, "class": "fowl" },
+        "wild_duck": { "base": 0.45, "class": "fowl" },
+        "fox": { "base": 0.18, "class": "ground" },
+        "arctic_fox": { "base": 0.2, "class": "ground" }
+    },
+    "breeds": {
+        "goshawk": { "ground": 1.1, "fowl": 0.95 },
+        "falcon": { "ground": 0.85, "fowl": 1.3 }
+    },
+    "weather": { "clear": 1, "cloudy": 1, "overcast": 0.95, "fog": 0.8, "rain": 0.75, "snow": 0.75, "storm": 0.45, "blizzard": 0.35, "sandstorm": 0.4, "heatwave": 0.9, "none": 1 },
+    "rake": { "base": 0.03, "untrained": 0.22, "hungry": 0.18, "hungryBelow": 22, "young": 0.1, "steadied": 0.6, "bondLoss": 4 },
+    "lure": { "base": 0.45, "perBond": 0.4, "hungry": 0.2, "leftBond": 6 },
+    "reward": { "hunger": 18, "bond": 2 },
+    "feedUp": { "hunger": 45, "seconds": 45 },
+    "daily": { "fedForage": 0, "flownForage": 0.5 },
+    "flight": {
+        "launchSeconds": 0.55,
+        "circleSeconds": 2.2,
+        "circleRadius": 1.6,
+        "circleAlt": 3.2,
+        "stoopSeconds": 0.45,
+        "throwUpSeconds": 0.7,
+        "flySpeed": 7,
+        "takeReach": 1.3,
+        "perchAlt": 1.7,
+        "rakeTiles": [7, 13]
+    },
+    "lines": {
+        "launch": "You cast {name} off the fist at the {quarry}.",
+        "kill": "{name} binds to the {quarry} and mantles over it. Walk up and take it.",
+        "miss": "{name} stoops and misses: the {quarry} bolts. {name} throws up and comes back.",
+        "rake": "{name} rakes away from the {quarry} and takes stand in a tree. Lure it down with meat.",
+        "taken": "You take the {quarry} from {name} and reward it with the head and neck.",
+        "fedUp": "Left on the kill, {name} has fed up on the {quarry}: nothing worth butchering is left.",
+        "called": "{name} comes back to the glove.",
+        "lured": "{name} drops out of the tree onto the lure on your fist.",
+        "lureFail": "{name} eyes the meat from its branch, and stays where it is.",
+        "leftRaked": "{name} found you again by nightfall, hungry and wild."
+    }
+}

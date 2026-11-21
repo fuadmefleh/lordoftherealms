@@ -10,6 +10,7 @@ import { InnerMapTasks } from '../innerMapTasks.js';
 import { InnerMapDigging } from '../innerMapDigging.js';
 import { InnerMapCarry } from '../innerMapCarry.js';
 import { InnerMapCarts } from '../innerMapCarts.js';
+import { InnerMapHitch } from '../innerMapHitch.js';
 import { InnerMapDowned } from '../innerMapDowned.js';
 import { InnerMapDiving } from '../innerMapDiving.js';
 import { InnerMapClimbing } from '../innerMapClimbing.js';
@@ -34,6 +35,9 @@ import { isInventoryKey } from '../inventoryHotkey.js';
 import { InnerMapEscort } from '../innerMapEscort.js';
 import { InnerMapCompanions } from '../innerMapCompanions.js';
 import { InnerMapPets } from '../innerMapPets.js';
+import { InnerMapTournament } from '../innerMapTournament.js';
+import { InnerMapHawk } from '../innerMapHawk.js';
+import { InnerMapRowboat } from '../innerMapRowboat.js';
 import { InnerMapBrawls } from '../innerMapBrawls.js';
 import { InnerMapCourting } from '../innerMapCourting.js';
 import { InnerMapSickness } from '../innerMapSickness.js';
@@ -42,8 +46,10 @@ import { InnerMapRites } from '../innerMapRites.js';
 import { InnerMapKin } from '../innerMapKin.js';
 import { InnerMapOverheard } from '../innerMapOverheard.js';
 import { InnerMapRiverDrift } from '../innerMapRiverDrift.js';
+import { InnerMapFishTraps } from '../innerMapFishTraps.js';
 import { isRiverSwim, riverRunsOn, riverCarriesOut, riverEntryCell } from '../innerMapRiverEdge.js';
 import { InnerMapSeasons } from '../innerMapSeasons.js';
+import { InnerMapWeather } from '../innerMapWeather.js';
 
 // Blows at a tree or a rock land harder with Woodcutting / Mining (player/gathering.js): the
 // world's swing damage (world/innerMap/movement.js), wrapped once, for every caller
@@ -78,8 +84,12 @@ export function gameLoop(timestamp, loopId) {
     // does, cell by cell, at the map's pace (ui/innerMapRiverDrift.js)
     const _driftSpeed = Number.isFinite(this.timeSpeed) ? this.timeSpeed : 1;
     InnerMapRiverDrift.update(this, InnerMap.active ? deltaTime * (_driftSpeed === 3 ? 4 : _driftSpeed) : deltaTime);
+    // Your fish traps on this street map: brought up to the hour, a poacher seen off (ui/innerMapFishTraps.js)
+    if (InnerMap.active) InnerMapFishTraps.update(this);
     // Off the inner map a winded diver still gets their breath back (ui/innerMapDiving.js)
     if (!InnerMap.active && this.player && this.player.breathRecovery) InnerMapDiving.recoverOnSurface(deltaTime, this);
+    // Off the street map you are out of your rowboat (not between two maps of a river: ui/innerMapRowboat.js)
+    if (!InnerMap.active && InnerMap._aboardBoat) InnerMapRowboat.update(deltaTime, this);
 
     // What people wear follows the world's year (world/eraWardrobe.js: a no-op unless it changed)
     InnerMapCharacters.setYear(this.world ? this.world.year : null);
@@ -183,7 +193,9 @@ export function gameLoop(timestamp, loopId) {
         // The current takes a swimmer: down the river, along the sea (world/innerMap/currents.js)
         _currentStep(this, simDelta);
         // The season on the street: a new day's ground, the ice underfoot, the fair or the fire told (ui/innerMapSeasons.js)
-        InnerMapSeasons.update(this);
+        InnerMapSeasons.update(this, simDelta);
+        // The weather on the street hour by hour: rain, mud, puddles, getting wet, the storm's thunder (ui/innerMapWeather.js)
+        InnerMapWeather.update(this, simDelta);
         // Wilderness encounters come into sight a few paces off (player/wilds.js)
         if (InnerMap._playerWalking || playerStepResult) {
             for (const e of InnerMap.spotWildEncounters(6)) {
@@ -458,6 +470,8 @@ export function gameLoop(timestamp, loopId) {
         }
         // Jobs done in person on the street map (ui/innerMapTasks.js)
         InnerMapTasks.update(simDelta, this);
+        // A tournament's lists: the joust you ride, the melee, the knights' bouts you watch (ui/innerMapTournament.js)
+        InnerMapTournament.update(simDelta, this);
         // Sweethearts' words, flowers, a ♥, a wedding at the church (ui/innerMapCourting.js)
         InnerMapCourting.update(simDelta, this);
         // A funeral walked to the churchyard; the town's word on a ruler who missed the holy day (ui/innerMapRites.js)
@@ -476,6 +490,8 @@ export function gameLoop(timestamp, loopId) {
         InnerMapCarry.update(simDelta, this);
         // Handcarts and wagons: carters, the death cart, a caravan loading, the player's own (ui/innerMapCarts.js)
         InnerMapCarts.update(simDelta, this);
+        // Your horse in your horse cart's shafts, you driving from the seat (ui/innerMapHitch.js)
+        InnerMapHitch.update(simDelta, this);
         // The downed: bleeding out, the bound calling out, the buried alive (ui/innerMapDowned.js)
         InnerMapDowned.update(simDelta, this);
         // Under the water, scavenging the bottom (ui/innerMapDiving.js)
@@ -489,6 +505,10 @@ export function gameLoop(timestamp, loopId) {
         InnerMapCompanions.update(simDelta, this);
         // Your dog, cat, hawk and horse after them (ui/innerMapPets.js)
         InnerMapPets.update(simDelta, this);
+        // Your hawk on the fist, flown at quarry (ui/innerMapHawk.js: after the pets, it takes the hawk over)
+        InnerMapHawk.update(simDelta, this);
+        // Your rowboats on the water, and you in one (ui/innerMapRowboat.js)
+        InnerMapRowboat.update(simDelta, this);
         InnerMapEscort.update(simDelta, this);
 
         // Update light system from time of day
@@ -723,6 +743,8 @@ export function setupInputHandlers() {
         if (!this.ui || !this.world || !this.player) return;
         // A battle on the field takes its keys first: select, orders, pause, pan (ui/innerMapBattle.js)
         if (InnerMapBattle.active && InnerMap.active && InnerMapBattle.key(this, e)) return;
+        // Riding a pass in the lists: SPACE strikes (ui/innerMapTournament.js)
+        if (InnerMap.active && InnerMapTournament.key(this, e)) return;
         // Cheats panel: ` or F9
         if (e.key === '`' || e.key === 'F9') {
             e.preventDefault();
@@ -901,6 +923,8 @@ export function handleClick(screenX, screenY, button = 'left') {
         if (!innerHex) return;
         // A battle on the field: clicks select companies and give orders (ui/innerMapBattle.js)
         if (InnerMapBattle.active && InnerMapBattle.click(this, innerHex.q, innerHex.r, button, screenX, screenY)) return;
+        // Riding a pass in the lists: a click strikes (ui/innerMapTournament.js)
+        if (InnerMapTournament.click(this, button)) return;
         // Furnishing a home: clicks pick up and set down furniture (ui/innerMapFurnish.js)
         if (InnerMapFurnish.active && InnerMapFurnish.click(this, innerHex.q, innerHex.r, button)) return;
 
@@ -1190,13 +1214,14 @@ function _currentStep(game, dt) {
         sea = _seaCur.cur;
     }
     const sw = OceanCurrents.config().swim || {};
-    const resist = game.player ? Swimming.practice(game.player) * (Number(sw.skillResist) || 0) : 0;
+    const resist = game.player && !InnerMap._aboardBoat ? Swimming.practice(game.player) * (Number(sw.skillResist) || 0) : 0;
     const res = InnerMap.driftPlayer(dt, sea, resist);
-    if (!InnerMap.isPlayerSwimming()) { game._currentTold = false; game._riverEdgeTried = null; return; }
+    if (!InnerMap.isPlayerSwimming() && !InnerMap._aboardBoat) { game._currentTold = false; game._riverEdgeTried = null; return; }
     _riverEdgeStep(game);
     if (res && res.carried && !game._currentTold) {
         game._currentTold = true;
-        if (res.kind === 'river') game.ui.showNotification('🌊 The Current', 'The river takes you — it carries you downstream. Swim across it, or make for the bank.', 'info');
+        if (res.kind === 'river' && InnerMap._aboardBoat) game.ui.showNotification('🛶 The Current', 'The oars rest and the river takes the boat downstream. Row to hold against it, or Tie Up at a bank.', 'info');
+        else if (res.kind === 'river') game.ui.showNotification('🌊 The Current', 'The river takes you — it carries you downstream. Swim across it, or make for the bank.', 'info');
         else game.ui.showNotification('🌊 The Current', `The sea runs ${OceanCurrents.sideName(sea && sea.dir)} here and carries you with it.`, 'info');
     }
 }
@@ -1217,7 +1242,7 @@ function _riverEdgeStep(game) {
     if (game._riverEdgeHold && (!at || game._riverEdgeHold !== `${at.q},${at.r}` || Math.min(q, r, InnerMap.width - 1 - q, InnerMap.height - 1 - r) > 2)) game._riverEdgeHold = null;
     if (game._riverEdgeHold) return;
     const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
-    if (InnerMap.isPlayerSwimming()) game._riverSwamAt = now;
+    if (InnerMap.isPlayerSwimming() || InnerMap._aboardBoat) game._riverSwamAt = now;
     if (!key) { game._riverEdgeTried = null; return; }
     let out = isRiverSwim(InnerMap.tiles, q, r) && riverCarriesOut(InnerMap.currentAt(q, r), side);
     // (washed by the current into the river's own shallows at the very edge, a moment ago
@@ -1332,6 +1357,12 @@ function _crossEdge(game, opts = {}) {
         game.ui.showNotification('🌊 The River Ends', `The river goes no further into ${nt.terrain.name ? nt.terrain.name.toLowerCase() : 'the next hex'} — the current holds you at the edge. Swim on out, or make for the bank.`, 'info');
         return;
     }
+    // In your rowboat: on by water only where the river runs on (ui/innerMapRowboat.js); the boat comes too
+    if (InnerMap._aboardBoat && !byRiver) {
+        game.ui.showNotification('🛶 No Way On by Water', 'The boat can go no further this way. Step ashore first, or row back.', 'info');
+        return;
+    }
+    const boatCarry = InnerMapRowboat.beforeCross(game);
     // On to the next hex, the hour unchanged
     const clock = { timeOfDay: InnerMap.timeOfDay, acc: InnerMap._timeAccumulator };
     const entry = edgeEntry(side, q, r, W, H);
@@ -1360,6 +1391,8 @@ function _crossEdge(game, opts = {}) {
                 }
             }
         }
+        // (your rowboat, carried on with you: tied up afresh on this hex — or left on the old one)
+        InnerMapRowboat.afterCross(game, boatCarry, at);
         if (at) {
             InnerMap.playerInnerQ = at.q;
             InnerMap.playerInnerR = at.r;
@@ -1368,13 +1401,13 @@ function _crossEdge(game, opts = {}) {
             const pw = InnerMap.getPlayerWorldPos();
             game.innerMapCamera.centerOn(pw.x, pw.y);
             game.innerMapCamera.precomputeFrame();
-            if (byRiver && InnerMap.isPlayerSwimming()) {
+            if (byRiver && (InnerMap.isPlayerSwimming() || InnerMap._aboardBoat)) {
                 game._currentTold = true;
                 game._riverEdgeTried = null;
                 game._riverEdgeHold = opts.drift ? null : `${nq},${n.r}`;
                 game.ui.showNotification('🌊 Downstream', opts.drift
                     ? `The river carries you on into ${nt.terrain.name ? nt.terrain.name.toLowerCase() : 'the next hex'}.`
-                    : `You swim on along the river into ${nt.terrain.name ? nt.terrain.name.toLowerCase() : 'the next hex'}.`, 'info');
+                    : `You ${InnerMap._aboardBoat ? 'row' : 'swim'} on along the river into ${nt.terrain.name ? nt.terrain.name.toLowerCase() : 'the next hex'}.`, 'info');
             }
         }
         game.ui.updateStats(player, world);

@@ -19,6 +19,11 @@
 // once per species (three beats of the tail; PX_PER_TILE pixels to a tile of
 // the fish's length, near the art's own grain) and scaled up unsmoothed.
 //
+// The fish seen from above (innerMapLayers/surfaceFish.js) are these fish: a
+// dive takes the ones about the diver under just where they were (inherit),
+// coming up hands them back (handBack), and as many swim here as are seen
+// from above (surfaceCount). Both hooks are filled by surfaceFish.js.
+//
 // Its own random stream: the fish must not draw from the game's seeded RNG.
 
 import { InnerMap } from '../../world/innerMap.js';
@@ -47,6 +52,10 @@ export const UnderwaterFish = {
     _target: 0,
     _recount: 0,
     _sprites: new Map(),
+    /** (x, y, radius) → the fish seen from above about the diver, taken under: [{ sp, x, y, ang, group, ox, oy, mx, my }] */
+    inherit: null,
+    /** (x, y, radius, most) → how many fish the water about the diver holds as seen from above, or null */
+    surfaceCount: null,
 
     config() {
         const g = DataLoader._gamedata;
@@ -77,8 +86,11 @@ export const UnderwaterFish = {
         return out;
     },
 
-    /** How many fish the water about the diver holds. */
+    /** How many fish the water about the diver holds (as many as are seen from above, where that's known). */
     _countFor(cells, C) {
+        const p = this.surfaceCount ? this._diver() : null;
+        const above = p ? this.surfaceCount(p.x, p.y, C.radius, C.max) : null;
+        if (Number.isFinite(above)) return above;
         let n = 0;
         for (const c of cells) n += Number(C.perCell[c.kind]) || 0;
         return Math.min(C.max, Math.round(n));
@@ -157,17 +169,69 @@ export const UnderwaterFish = {
 
     /** New fish for a new dive, about where the diver went under. */
     reset(dive, seed = 1) {
+        // (no dive: just come up — the fish wait for the surface to take them back, handBack)
+        if (!dive) return;
         this.fish = [];
         this._dive = dive;
         this._rand = _mulberry(seed);
         const C = this.config();
         const p = this._diver();
-        const cells = this._cellsNear(p.x, p.y, C.radius, C.shy + 1);
         this._target = this._countFor(this._cellsNear(p.x, p.y, C.radius), C);
         this._recount = 2;
+        // The fish seen from above about the diver, just where they were
+        const above = this.inherit ? this.inherit(p.x, p.y, C.radius) || [] : null;
+        if (above) {
+            const shoals = new Map();
+            for (const u of above) {
+                if (!u || !u.sp || !this._divable(u.x, u.y)) continue;
+                let shoal = null;
+                if (u.group != null) {
+                    shoal = shoals.get(u.group);
+                    if (!shoal) {
+                        const mx = Number.isFinite(u.mx) ? u.mx : u.x, my = Number.isFinite(u.my) ? u.my : u.y;
+                        shoal = { x: mx, y: my, tx: mx, ty: my };
+                        shoals.set(u.group, shoal);
+                    }
+                }
+                const v = (Number(u.sp.speed) || 1) * 0.3;
+                const a = Number.isFinite(u.ang) ? u.ang : 0;
+                this.fish.push({
+                    sp: u.sp, x: u.x, y: u.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v * 0.5,
+                    tx: shoal ? u.x : (Number.isFinite(u.mx) ? u.mx : u.x), ty: shoal ? u.y : (Number.isFinite(u.my) ? u.my : u.y),
+                    shoal, ox: shoal ? u.ox || 0 : 0, oy: shoal ? (u.oy || 0) * 0.7 : 0,
+                    phase: this._rand() * 4, wait: this._rand() * 1.5,
+                });
+            }
+        }
+        // (the rest of the water's fish: out past what was seen from above, when that was seen)
+        const cells = this._cellsNear(p.x, p.y, C.radius, above && above.length ? C.radius * 0.65 : C.shy + 1);
         for (let tries = 0; this.fish.length < this._target && cells.length && tries < 60; tries++) {
             this._spawnAt(cells[Math.floor(this._rand() * cells.length)], C, this._target - this.fish.length);
         }
+    },
+
+    /**
+     * Coming up: the fish about the diver now, for the surface (surfaceFish.js giveBack),
+     * and this dive's fish done with. → [{ sp, x, y, ang, group, ox, oy, mx, my }]
+     */
+    handBack() {
+        const groups = new Map();
+        const out = this.fish.map(f => {
+            let group = null;
+            if (f.shoal) {
+                if (!groups.has(f.shoal)) groups.set(f.shoal, groups.size + 1);
+                group = groups.get(f.shoal);
+            }
+            const v = Math.hypot(f.vx, f.vy);
+            return {
+                sp: f.sp, x: f.x, y: f.y, ang: v > 0.01 ? Math.atan2(f.vy, f.vx) : (f.vx < 0 ? Math.PI : 0), group,
+                ox: f.shoal ? f.ox : 0, oy: f.shoal ? f.oy / 0.7 : 0,
+                mx: f.shoal ? f.shoal.tx : f.tx, my: f.shoal ? f.shoal.ty : f.ty,
+            };
+        });
+        this.fish = [];
+        this._dive = null;
+        return out;
     },
 
     /** Swim them on by `dt` seconds. */

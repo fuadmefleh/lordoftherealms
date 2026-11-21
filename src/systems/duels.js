@@ -428,6 +428,10 @@ export const Duels = {
 
     /** An inner-map NPC as a combatant (profile by type). opts.hpNow: carried injury. */
     fromNpc(npc, opts = {}) {
+        // One fighting as a known combatant (a knight in the lists: ui/innerMapTournament.js) fights as that profile
+        if (npc && _obj(npc._duelProfile)) {
+            return Duels.fromProfile({ ...npc._duelProfile, id: npc.id != null ? `npc_${npc.id}` : 'npc', kind: 'npc', hpNow: opts.hpNow, ref: npc });
+        }
         const C = Duels.config();
         const prof = C.npcs[npc && npc.type] || C.npcs.villager || DEFAULTS.npcs.villager;
         // Their level in what they fight with (systems/combatSkills.js): a

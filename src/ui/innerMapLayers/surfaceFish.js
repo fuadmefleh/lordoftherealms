@@ -16,6 +16,11 @@
 //   • Now and then one turns and flashes silver, or jumps — a splash and a
 //     ring of ripples.
 //   • The player swimming (or wading) near: they dart off for a moment.
+//   • The same fish as the diver's: dive, and the fish about you go under with
+//     you, just where they were (UnderwaterFish.reset takes them: takeNear);
+//     come up, and the fish about you then are laid back here as they were
+//     (giveBack). Below, as many swim in the water as are seen from above
+//     (countNear).
 //   • Food thrown on the water (throwBait, from ui/innerMapFeedFish.js): it
 //     arcs out, lands with a splash, floats (a river carries it), and sinks
 //     in the end. The fish near turn and come to it, more come up from
@@ -32,6 +37,7 @@ import { InnerMapRenderer } from '../innerMapRenderer.js';
 import { InnerMap } from '../../world/innerMap.js';
 import { DataLoader } from '../../core/dataLoader.js';
 import { FishFed } from '../fishFed.js';
+import { UnderwaterFish } from './underwaterFish.js';
 
 const DEFAULTS = {
     enabled: true, max: 28,
@@ -115,6 +121,87 @@ export const SurfaceFish = {
             };
         }
         return this._cfgVal;
+    },
+
+    // ── One population with the diver's (underwaterFish.js) ──
+
+    /**
+     * The fish going under with a diver at (x, y): the live ones within `radius`,
+     * taken off the surface. → [{ sp, x, y, ang, group, ox, oy, mx, my }] (group: their shoal, or null)
+     */
+    takeNear(x, y, radius) {
+        const out = [];
+        const groups = new Map();
+        for (const f of this.fish) {
+            if (!f.alive || Math.hypot(f.x - x, f.y - y) > radius) continue;
+            let group = null;
+            if (f.sh) {
+                if (!groups.has(f.sh)) groups.set(f.sh, groups.size + 1);
+                group = groups.get(f.sh);
+            }
+            out.push({ sp: f.sp, x: f.x, y: f.y, ang: f.ang, group, ox: f.sh ? f.ox : 0, oy: f.sh ? f.oy : 0, mx: f.sh ? f.sh.tx : f.tx, my: f.sh ? f.sh.ty : f.ty });
+            f.alive = false;
+            f.lure = null;
+        }
+        for (const sh of groups.keys()) sh.alive = false;
+        return out;
+    },
+
+    /**
+     * The diver's fish coming back up: the surface's own within `radius` of (x, y) let go,
+     * and each of theirs that is in water seen from above laid back as it was. → how many
+     */
+    giveBack(list, x, y, radius) {
+        if (!this.mask || !Array.isArray(list)) return 0;
+        for (const f of this.fish) if (f.alive && Math.hypot(f.x - x, f.y - y) <= radius) { f.alive = false; f.lure = null; }
+        const C = this.config();
+        const shoals = new Map();
+        const at = (u) => (Number.isFinite(u.mx) && Number.isFinite(u.my) && this.swimmable(u.mx, u.my) ? { x: u.mx, y: u.my } : null);
+        let n = 0;
+        for (const u of list) {
+            if (!u || !u.sp || !this.swimmable(u.x, u.y)) continue;
+            const f = this._freeFish(C.max);
+            if (!f) break;
+            const mark = at(u);
+            let sh = null;
+            if (u.group != null) {
+                sh = shoals.get(u.group) || null;
+                if (!sh) {
+                    sh = this._freeShoal();
+                    sh.alive = true; sh.tick = -1;
+                    sh.tx = mark ? mark.x : u.x - (u.ox || 0);
+                    sh.ty = mark ? mark.y : u.y - (u.oy || 0);
+                    shoals.set(u.group, sh);
+                }
+            }
+            f.alive = true; f.sp = u.sp; f.sh = sh;
+            f.ox = sh ? Math.max(-1.2, Math.min(1.2, u.ox || 0)) : 0;
+            f.oy = sh ? Math.max(-1.2, Math.min(1.2, u.oy || 0)) : 0;
+            f.x = u.x; f.y = u.y;
+            f.tx = !sh && mark ? mark.x : f.x; f.ty = !sh && mark ? mark.y : f.y;
+            f.vx = 0; f.vy = 0; f.ang = Number.isFinite(u.ang) ? u.ang : 0;
+            f.wait = this._rand() * 2; f.phase = this._rand() * 4;
+            // (they were there all along: no fading in)
+            f.age = 3; f.scared = 0; f.glint = 0; f.lure = null; f.nib = 0;
+            n++;
+        }
+        return n;
+    },
+
+    /** How many fish the water within `radius` of (x, y) holds, as seen from above (the season's share; at most `most`). */
+    countNear(x, y, radius, most = Infinity) {
+        if (!this.mask) return 0;
+        const C = this.config();
+        let n = 0;
+        const R = Math.ceil(radius);
+        for (let r = Math.max(0, Math.floor(y) - R); r <= Math.min(this.H - 1, Math.floor(y) + R); r++) {
+            for (let q = Math.max(0, Math.floor(x) - R); q <= Math.min(this.W - 1, Math.floor(x) + R); q++) {
+                const k = this.mask[r * this.W + q];
+                if (!k || Math.hypot(q + 0.5 - x, r + 0.5 - y) > radius) continue;
+                n += Number(C.perCell[KINDS[k & 7]]) || 0;
+            }
+        }
+        return Math.min(most, Math.round(n * this._seasonK(C)));
     },
 
     /** The species list (the divers'). */
@@ -843,6 +930,9 @@ export const SurfaceFish = {
 
 // (fishing reads where they were fed through ui/fishFed.js)
 FishFed.biteBonus = (q, r) => SurfaceFish.biteBonus(q, r);
+// The diver's fish are these fish (underwaterFish.js reads them through its hooks)
+UnderwaterFish.inherit = (x, y, radius) => (SurfaceFish.cells(InnerMap.tiles) >= 0 ? SurfaceFish.takeNear(x, y, radius) : []);
+UnderwaterFish.surfaceCount = (x, y, radius, most) => (SurfaceFish.cells(InnerMap.tiles) >= 0 ? SurfaceFish.countNear(x, y, radius, Math.min(most, SurfaceFish.config().max)) : null);
 
 Object.assign(InnerMapRenderer, {
     /** Fish in the water on screen (called from _renderWaterFx, under the surface's effects). */
@@ -850,6 +940,14 @@ Object.assign(InnerMapRenderer, {
         const C = SurfaceFish.config();
         if (!C.enabled || InnerMap._underwater || !InnerMap.tiles || !InnerMap.tiles.length) return;
         if (!SurfaceFish.cells(InnerMap.tiles)) return;
+        // Back up from a dive: the fish that were about the diver are the fish about you here
+        const back = UnderwaterFish._dive;
+        if (back && back.tiles === InnerMap.tiles) {
+            const p = UnderwaterFish._diver();
+            SurfaceFish.giveBack(UnderwaterFish.handBack(), p.x, p.y, UnderwaterFish.config().radius);
+        } else if (back) {
+            UnderwaterFish.handBack();
+        }
         const range = this._frameRange;
         if (!range) return;
         const now = this._waterFxNow ? this._waterFxNow() : performance.now() / 1000;

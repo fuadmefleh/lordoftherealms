@@ -28,6 +28,9 @@ Object.assign(InnerMap, {
     _swimRefusal: null,
     _underwater: false,
     _underwaterSpeed: 0.75,
+    // Aboard your rowboat (set by ui/innerMapRowboat.js): over water only, at _rowSpeed of a walk
+    _aboardBoat: false,
+    _rowSpeed: 0.9,
 
     swimConfig() {
         const g = DataLoader._gamedata;
@@ -54,6 +57,8 @@ Object.assign(InnerMap, {
     _playerMayEnter(tile, q, r) {
         if (!tile) return false;
         if (this._underwater) return this.isDivable(q, r);
+        // In your rowboat: water only, deep or the shallows it grounds in (ui/innerMapRowboat.js)
+        if (this._aboardBoat) return this.isSwimmable(q, r);
         // A cart in the street is in the way (not the one the player pushes: world/innerMap/carts.js)
         if (this._cartBlocks && q != null && this._cartBlocks(q, r, 'player')) return false;
         // Up on a crag, or below one: only ground at your own height (world/innerMap/climbing.js)
@@ -67,6 +72,8 @@ Object.assign(InnerMap, {
 
     /** Is the player in the water (not wading the shallows: in water they can't stand in)? */
     isPlayerSwimming() {
+        // (rowing a boat is not swimming: dry, and no strokes — ui/innerMapRowboat.js)
+        if (this._aboardBoat) return false;
         const q = this.playerInnerQ, r = this.playerInnerR;
         const t = this.tiles && this.tiles[r] && this.tiles[r][q];
         return !!(t && !(t.subTerrain && t.subTerrain.passable) && this.isSwimmable(q, r));

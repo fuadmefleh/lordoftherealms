@@ -675,8 +675,14 @@ export const InnerMapRenderer = {
         if (this._renderWaterFx) this._renderWaterFx(ctx, camera);
         // ── Layer 1.65: Things adrift on the river, and the weir that catches them (innerMapLayers/riverDrift.js) ──
         if (this._renderRiverDrift) this._renderRiverDrift(ctx, camera);
+        // ── Layer 1.66: Your fish traps in the edge water, and a poacher at one by night (innerMapLayers/fishTraps.js) ──
+        if (this._renderFishTraps) this._renderFishTraps(ctx, camera);
         // ── Layer 1.68: Footprints in the snow and the mud, snowmen (innerMapLayers/streetSeasons.js) ──
         if (this._renderSeasonFx) this._renderSeasonFx(ctx, camera);
+        // ── Layer 1.69: The weather on the ground — wet, fresh mud, puddles, splashes, rings (innerMapLayers/weatherFx.js) ──
+        if (this._renderWeatherGround) this._renderWeatherGround(ctx, camera);
+        // ── Layer 1.69: Skate marks, cracks running under your feet, the splash where the ice broke (innerMapLayers/ice.js) ──
+        if (this._renderIceFx) this._renderIceFx(ctx, camera);
         // ── Layer 1.7: Under the water, diving — the bottom and its finds (innerMapLayers/underwater.js) ──
         if (this._renderUnderwaterFloor) this._renderUnderwaterFloor(ctx, camera);
 
@@ -689,6 +695,8 @@ export const InnerMapRenderer = {
         if (this._renderAmbient) this._renderAmbient(ctx, camera);
         // ── Layer 2.3: Leaves drifting down, the fiddler's notes at the fair (innerMapLayers/streetSeasons.js) ──
         if (this._renderSeasonAir) this._renderSeasonAir(ctx, camera);
+        // ── Layer 2.4: Mist at dawn over the water and the low ground (innerMapLayers/weatherFx.js) ──
+        if (this._renderWeatherLow) this._renderWeatherLow(ctx, camera);
         // ── Layer 2.5: Under the water — all above it dimmed (innerMapLayers/underwater.js) ──
         if (this._renderUnderwaterVeil) this._renderUnderwaterVeil(ctx, camera);
 

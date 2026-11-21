@@ -47,8 +47,8 @@ export const InnerMapFurnish = {
 
     /** May the player furnish where they stand? */
     available() {
-        // (the ground floor only: the layout is laid there each time you come in)
-        return !!(InnerMap.active && InnerMap._insideBuilding && !(InnerMap._floor > 0) && InnerMap.isOwnHome && InnerMap.isOwnHome());
+        // (any floor: each keeps its own layout, laid each time you come to it)
+        return !!(InnerMap.active && InnerMap._insideBuilding && InnerMap.isOwnHome && InnerMap.isOwnHome());
     },
 
     /** Context-menu entries inside a home of the player's. */
@@ -88,7 +88,7 @@ export const InnerMapFurnish = {
         if (!this.available()) { _notify(game, '💺 Furnish', 'You can only furnish a home of your own.', 'error'); return false; }
         this._game = game;
         InnerMap.adoptHomeFurniture(game.player);
-        this._homeKey = InnerMap.furnishHomeKey();
+        this._homeKey = InnerMap.furnishLayoutKey();
         if (!this.active) {
             this.active = true;
             this._keys = (e) => this._onKey(e);
@@ -187,7 +187,7 @@ export const InnerMapFurnish = {
         const from = this.heldFrom;
         this.heldFrom = null;
         if (from) {
-            const here = this.available() && InnerMap.furnishHomeKey() === from.key;
+            const here = this.available() && InnerMap.furnishLayoutKey() === from.key;
             if (here && InnerMap.placePiece(player, piece, from.q, from.r, from.rot).ok) return;
             // Not here any more (walked out): it goes back to its spot in the layout, laid on the next visit
             const rec = player.homeFurnishings && player.homeFurnishings[from.key];
@@ -227,6 +227,13 @@ export const InnerMapFurnish = {
         if (!this.active) return false;
         if (!this.available()) { this.stop(); return false; }
         this._game = game;
+        // Gone up or down the stairs: this floor's layout now (a piece in hand comes along,
+        // to set down here — or, put back, it goes back where it was on its own floor)
+        const key = InnerMap.furnishLayoutKey();
+        if (key !== this._homeKey) {
+            this._homeKey = key;
+            InnerMap.adoptHomeFurniture(game.player);
+        }
         if (button === 'right') {
             if (this.held) this.cancelHold();
             else this.stop();

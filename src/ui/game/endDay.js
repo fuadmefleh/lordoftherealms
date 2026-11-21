@@ -20,6 +20,7 @@ import { Hospitality } from '../../systems/hospitality.js';
 import { RiverDrift } from '../../systems/riverDrift.js';
 import { RiverFlotsam } from '../../systems/riverFlotsam.js';
 import { RiverNets } from '../../systems/riverNets.js';
+import { FishTraps } from '../../systems/fishTraps.js';
 import { RiverLife } from '../../systems/riverLife.js';
 import { OceanCurrents } from '../../world/oceanCurrents.js';
 import { Crops } from '../../systems/crops.js';
@@ -773,6 +774,8 @@ export function endDay() {
                 goodOf: (id) => { const g = (PlayerEconomy.GOODS || {})[String(id).toUpperCase()]; return { name: (g && g.name) || id, icon: (g && g.icon) || '🐟' }; },
                 rollBonus: (net) => RiverLife.netRollBonus(this.world, net),
             }).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            // Your fish traps: the hours' fish, a poacher in the night, an otter, a flood (systems/fishTraps.js)
+            for (const n of FishTraps.processDay(this.world, this.player, this.world.day).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             // River life: spring floods, the water bailiff and poachers at your nets, fish going off (systems/riverLife.js)
             for (const n of RiverLife.processDay(this.world, this.player, this.world.day).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             // Your beasts: fodder, eggs and milk, births, sickness, wolves (systems/livestock.js)

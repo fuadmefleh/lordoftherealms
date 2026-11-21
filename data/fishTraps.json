@@ -1,0 +1,40 @@
+{
+    "_doc": "Wicker fish traps (eel and fish baskets) the player sets in the edge water by a bank on the street map and comes back to (systems/fishTraps.js; on the map ui/innerMapFishTraps.js, drawn by ui/innerMapLayers/fishTraps.js). The good is 'fish_trap' (woven from reeds or willow withies at a craft bench, or bought from a chandler's stall with the nets, or wherever the market has them: data/playerEconomy.json, data/markets.json, data/crafting.json). Set one in shallows or in the water at most `bankReach` cells from dry land or the shallows; never on land, ice, a ford, a bridge or a pier; no nearer than `spacing` cells to another of yours; `perHex` to a map and `maxTraps` in all. Each hour in the water a trap takes a fish with chance `perHour[water]` x the hour (`hours`: dawn and dusk are the feeding times) x the season (`seasons`; nothing at all while its water is frozen over: world/streetSeasons.js) x `current` in a river (the fish run along the bank and into the mouth) x `baitMult` while baited. Bait (`baits`: bread, meat, cheese, a small fry...) is one from the packs and lasts `baitHours`. A trap holds `cap` catches; full, it takes no more. The species are the divers' of that water (data/diving.json fish.species, by weight), landed as the goods in `speciesItem`; `crayfish` is the share of catches that are crayfish instead (fresh water). Wear: `wearPerDay` a day; at 1 it has fallen apart and takes nothing till mended (`mendCost`). Losses, rolled once a day (night-time for poachers) on hashes of the world seed, the trap and the day: `poach` (only a trap with fish in it; townMult when a town stands on or beside the hex; x (1 + days unchecked / ageDays)): the catch goes to the thief, sold on in the nearest town's market (a named townsman of it when the town keeps a roster); now and then the trap too (`takeTrap`). On the map at night you may see the poacher at it: get within `scareReach` cells while he is there and he runs, the fish left. `otter`: an otter at the catch (rivers and lakes, wild water: townMult near a town), eating `otterEats` of it and tearing the wicker (`otterWear`). `flood`: a river in flood (systems/riverLife.js) washes a trap away with chance flood x the flood's severity. `catchUpDays`: hours caught up at most when time passes at a stroke. `reach`: cells from the trap you must stand to bait, haul or take it up.",
+    "enabled": true,
+    "maxTraps": 8,
+    "perHex": 4,
+    "spacing": 2,
+    "bankReach": 1,
+    "reach": 2,
+    "cap": 6,
+    "catchUpDays": 20,
+    "perHour": { "river": 0.05, "lake": 0.035, "pond": 0.04, "sea": 0.03 },
+    "current": 1.4,
+    "hours": { "dawn": [4, 8, 2.2], "dusk": [17, 21, 2.0], "night": [21, 4, 1.0], "day": [8, 17, 0.5] },
+    "seasons": { "spring": 1.1, "summer": 1.0, "autumn": 0.85, "winter": 0.25 },
+    "baitMult": 1.9,
+    "baitHours": 36,
+    "baits": {
+        "bread": "a heel of bread",
+        "meat": "a scrap of meat",
+        "cheese": "a rind of cheese",
+        "small_fish": "a small fry, cut up",
+        "sausage": "a piece of sausage",
+        "grain": "a handful of grain",
+        "mussels": "a few opened mussels"
+    },
+    "speciesItem": {
+        "minnow": "small_fish", "sprat": "small_fish",
+        "perch": "fish", "trout": "fish", "carp": "fish", "pike": "fish",
+        "mackerel": "fish", "bream": "fish", "snapper": "fish", "wrasse": "fish",
+        "cod": "large_fish", "dogfish": "fish"
+    },
+    "speciesName": { "minnow": "minnows", "sprat": "sprats", "dogfish": "a dogfish" },
+    "crayfish": 0.18,
+    "wearPerDay": 0.012,
+    "mendCost": { "reeds": 2 },
+    "poach": { "chance": 0.05, "townMult": 2.5, "ageDays": 6, "takeTrap": 0.15 },
+    "scareReach": 5,
+    "otter": { "chance": 0.03, "townMult": 0.3, "otterEats": 0.6, "otterWear": 0.15 },
+    "flood": 0.7
+}

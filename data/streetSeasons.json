@@ -37,7 +37,7 @@
         "crackBase": 0.22,
         "warnEvery": 6,
         "thinPathCost": 6,
-        "holeRefreezeDays": 2
+        "holeRefreezeDays": 3
     },
     "mud": {
         "_doc": "Rain on soft ground (precipitation over `wetAbove`, above freezing) wets it; dry days dry it; snowmelt soaks it. Mud 0..1 on unpaved roads, trodden soil, bare earth and fields.",
@@ -106,12 +106,32 @@
         "labels": ["Sowing the field", "Breaking the soil", "Sowing seed in the furrows"],
         "lines": ["Good soft soil this year.", "Rain, please, just a little.", "Barley this end, beans that."]
     },
+    "winterIce": {
+        "_doc": "The ice cell by cell, skating, falling through (world/innerMap/ice.js, player/icyWater.js, ui/innerMapIce.js). `local`: how much thinner (in ice thickness) a cell is than the water's ice as a whole: a river's running channel (`riverChannel` x the river's ice, against `riverBank` x beside the bank), a cell beside open water (`openEdge`, two off `openEdge2`), every degree above freezing (`warmPerDegree`), and a hashed patchiness (`jitter`). `holes`: a hole broken through is open `ice.holeRefreezeDays`, then skinned over thin `thinDays` more (kept on world.iceHoles, per hex). `skating`: with skates on solid ice you pick up speed to `top` x a walk (`accel` a second), keep `turnKeep` of it round a turn and glide on up to `glideCells` past where you stop; on foot (or on thin ice) you slip, `slip` a step (skates: `slipSkates`; more the faster), down `fallSeconds`. `load`: thin ice breaks likelier under a full pack, a cart, a horse (each adds to x1); a horse balks at thin ice when `horseRefusesThin`. `plunge`: in ice-cold water a second costs health, energy and comfort; out after `chillAfter` seconds you take a chill (data/ailments.json). `townSkating`: townsfolk skate on solid ice in the afternoon.",
+        "local": { "riverChannel": 0.4, "riverBank": 0.7, "openEdge": 0.25, "openEdge2": 0.1, "warmPerDegree": 0.03, "jitter": 0.05, "refrozenStrength": 0.2 },
+        "holes": { "thinDays": 3 },
+        "skating": {
+            "skates": { "iron_skates": { "top": 2.0, "slipSkates": 0.004 }, "bone_skates": { "top": 1.65, "slipSkates": 0.012 } },
+            "accel": 0.9, "turnKeep": 0.55, "glideCells": 2, "glideAt": 1.25,
+            "slip": 0.04, "slipThin": 0.06, "slipPerSpeed": 0.03, "fallSeconds": 1.4, "fallHealth": 1, "fallComfort": -3
+        },
+        "load": { "ladenAbove": 0.5, "laden": 1.0, "cart": 2.5, "horse": 3.0, "horseRefusesThin": true },
+        "plunge": { "shockHealth": 3, "shockComfort": -10, "healthPerSecond": 1.1, "energyPerSecond": 0.8, "comfortPerSecond": -1.0, "warnEvery": 6, "chillAfter": 4, "chillAilment": "chill" },
+        "townSkating": {
+            "hours": [12, 17],
+            "share": { "child": 0.45, "villager": 0.15, "farmer": 0.12, "traveler": 0.1, "merchant": 0.08, "noble": 0.1 },
+            "hops": [3, 6],
+            "radius": 40,
+            "lines": ["Wheee!", "Watch me spin!", "Mind the thin bit by the reeds!", "Catch me if you can!", "Cold enough to freeze your nose off!", "Arms out, arms out!"]
+        }
+    },
     "stay": {
         "ss_fair": [14, 30],
         "ss_music": [40, 70],
         "ss_bonfire": [20, 40],
         "ss_shovel": [14, 26],
-        "ss_play": [10, 20]
+        "ss_play": [10, 20],
+        "ss_skate": [3, 7]
     },
     "notices": {
         "thinIce": ["❄️ Thin Ice", "The ice groans underfoot. It's thin here."],
@@ -119,6 +139,13 @@
         "fair": ["🎪 Harvest Fair", "{town} keeps its harvest fair: stalls on the square, music and dancing."],
         "midwinter": ["🔥 Midwinter", "{town} lights its midwinter bonfire on the square tonight."],
         "frozen": ["❄️ Frozen Over", "The water here is frozen hard enough to walk on."],
+        "slip": ["⛸️ Down on the Ice", "Your feet go out from under you and you come down hard on the ice."],
+        "balk": ["🐴 The Horse Balks", "Your horse will not set a hoof on the thin ice. Lead it round, or get down and go on foot."],
+        "plunge": ["🥶 Ice-Cold Water", "The cold knocks the breath out of you. Get out — to the edge of the hole, or the bank — before it takes you."],
+        "numb": ["🥶 Going Numb", "Your hands and legs are going numb. Get out of the water, now!"],
+        "out": ["❄️ Out of the Water", "You drag yourself out onto firm ground, soaked and shaking. Get by a fire."],
+        "chilled": ["🤧 Chilled to the Bone", "The cold has got into you: {ailment}."],
+        "skates": ["⛸️ On Skates", "You strap on your {skates} and push off across the ice."],
         "mud": ["⬛ Mud", "The rain has turned the unpaved ground to mud: slow going on foot and for carts."]
     }
 }

@@ -189,6 +189,13 @@ Object.assign(AudioManager.prototype, {
             case 'handbell':      this._sfxHandbell(); break;
             // Someone buried alive (ui/innerMapDowned.js): a cry through the earth, the soil shifting
             case 'muffled_cry':   this._sfxMuffledCry(); break;
+            // The winter ice on the street map (ui/innerMapIce.js): thin ice creaking, giving way, a fall on it
+            case 'ice_crack':     this._sfxIceCrack(); break;
+            case 'ice_break':     this._sfxIceBreak(); break;
+            case 'ice_thump':     this._sfxIceThump(); break;
+            // A storm over the street map (ui/innerMapWeather.js): thunder close by, and far off
+            case 'thunder':       this._sfxThunder(true); break;
+            case 'thunder_far':   this._sfxThunder(false); break;
         }
     },
 
@@ -248,6 +255,16 @@ Object.assign(AudioManager.prototype, {
         this._noiseBurst(0.04, 'highpass', 4000, 0.12);
     },
 
+    /** Thunder: near, a crack and a long low roll; far off, only the rumble. */
+    _sfxThunder(near) {
+        if (near) {
+            this._noiseBurst(0.35, 'lowpass', 1600, 0.32);
+            this._noiseBurst(0.6, 'lowpass', 420, 0.3, 0.05);
+        }
+        this._noiseBurst(near ? 2.6 : 3.2, 'lowpass', near ? 160 : 110, near ? 0.55 : 0.35, near ? 0.15 : 0);
+        this._noiseBurst(1.8, 'lowpass', 80, near ? 0.4 : 0.25, near ? 0.9 : 0.7);
+    },
+
     /** A voice through the earth: a low wavering moan, everything high filtered away, and grit trickling. */
     _sfxMuffledCry() {
         const now = this.ctx.currentTime;
@@ -300,6 +317,28 @@ Object.assign(AudioManager.prototype, {
         this._noiseBurst(0.12, 'bandpass', 1800, 0.28);
         this._knock('sine', 120, 60, 0.3, 0.25, 0.04);
         this._noiseBurst(0.4, 'lowpass', 900, 0.14, 0.08);
+    },
+
+    /** Thin ice underfoot: a sharp tick and a long singing creak through the sheet. */
+    _sfxIceCrack() {
+        this._noiseBurst(0.05, 'highpass', 3200, 0.18);
+        this._knock('sine', 1900, 420, 0.45, 0.05, 0.02);
+        this._knock('triangle', 260, 140, 0.35, 0.06, 0.05);
+    },
+
+    /** The ice gives way: a crack, the sheet breaking, the splash. */
+    _sfxIceBreak() {
+        this._noiseBurst(0.08, 'highpass', 2800, 0.3);
+        this._knock('sine', 1400, 200, 0.3, 0.08);
+        this._noiseBurst(0.25, 'bandpass', 1200, 0.22, 0.05);
+        this._noiseBurst(0.6, 'lowpass', 700, 0.3, 0.12);
+        this._knock('sine', 110, 45, 0.5, 0.25, 0.1);
+    },
+
+    /** Down on the ice: a dull thump. */
+    _sfxIceThump() {
+        this._knock('sine', 120, 50, 0.25, 0.3);
+        this._noiseBurst(0.12, 'lowpass', 500, 0.15);
     },
 
     /** The trunk gives: a low groaning creak. */

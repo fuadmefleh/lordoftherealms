@@ -53,9 +53,20 @@ Object.assign(InnerMap, {
         return `bld:${at}:${building.type}@${building.q},${building.r}`;
     },
 
-    /** The current home's layout record (made when create is set), or null. */
-    homeLayout(player, create = false) {
+    /**
+     * The key the layout of the floor the player stands on is kept under: the
+     * home's own key on the ground floor, `<key>#f<k>` on floor k above (each
+     * floor is its own room to arrange — world/innerMap/floors.js). null when not theirs.
+     */
+    furnishLayoutKey(floor = this._floor || 0) {
         const key = this.furnishHomeKey();
+        if (!key) return null;
+        return floor > 0 ? `${key}#f${floor}` : key;
+    },
+
+    /** The current floor's layout record (made when create is set), or null. */
+    homeLayout(player, create = false) {
+        const key = this.furnishLayoutKey();
         if (!key || !player) return null;
         if (!player.homeFurnishings || typeof player.homeFurnishings !== 'object') {
             if (!create) return null;
@@ -64,8 +75,10 @@ Object.assign(InnerMap, {
         let rec = player.homeFurnishings[key];
         if (!rec && create) {
             const wt = this._currentWorldTileRef;
+            const floor = this._floor || 0;
+            const home = String((this._insideBuilding && this._insideBuilding.name) || 'Home').replace(/ \((Yours|Rented|To Let|Building)\)$/, '');
             rec = {
-                name: String((this._insideBuilding && this._insideBuilding.name) || 'Home').replace(/ \((Yours|Rented|To Let|Building)\)$/, ''),
+                name: floor > 0 && this.floorLabel ? `${home} (${this.floorLabel(floor).replace(/^the /, '')})` : home,
                 town: (wt && wt.settlement && wt.settlement.name) || null,
                 adopted: false,
                 pieces: [],
@@ -241,9 +254,9 @@ Object.assign(InnerMap, {
         return null;
     },
 
-    /** Can one still walk from (fromQ, fromR) to the door with these tiles blocked? */
+    /** Can one still walk from (fromQ, fromR) to the way out (the door; upstairs, the stairs down) with these tiles blocked? */
     _doorReachable(fromQ, fromR, blocked) {
-        const door = this._furnishDoor();
+        const door = this._furnishDoor() || (this._stairsDownTile && this._stairsDownTile());
         if (!door) return true;
         const seen = new Set([`${fromQ},${fromR}`]);
         const queue = [[fromQ, fromR]];

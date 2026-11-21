@@ -421,6 +421,8 @@ Object.assign(InnerMap, {
         if (this._courtPick && this._courtPick(npc, period)) return true;
         // The harvest fair, the midwinter fire, snow to shovel or play in, the spring sowing (world/innerMap/streetSeasons.js)
         if (this._seasonPick && this._seasonPick(npc, period)) return true;
+        // Out of the rain: home, or under the eaves, in a downpour (world/innerMap/streetWeather.js)
+        if (this._weatherPick && this._weatherPick(npc, period)) return true;
         // The stall, the service, the crier's round, a drunk's way home (world/innerMap/townScenes.js)
         if (this._scenePick && this._scenePick(npc, period)) return true;
         // A producer's sack to market of a morning, a hawker's or a pedlar's round, a neighbour to swap with (world/innerMap/townTrading.js)

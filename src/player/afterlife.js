@@ -70,6 +70,7 @@ import { Hospitality } from '../systems/hospitality.js';
 import { RiverFlotsam } from '../systems/riverFlotsam.js';
 import { RiverDrift } from '../systems/riverDrift.js';
 import { RiverNets } from '../systems/riverNets.js';
+import { FishTraps } from '../systems/fishTraps.js';
 import { RiverLife } from '../systems/riverLife.js';
 import { OutlawLairs } from '../systems/outlawLairs.js';
 import { Gangs } from '../systems/gangs.js';
@@ -190,6 +191,7 @@ const WORLD_DAY = [
     { sys: 'RiverFlotsam', run: (w) => RiverFlotsam.processDay(w, null, _num(w.day)) },
     { sys: 'RiverDrift', run: (w) => RiverDrift.processDay(w, null, _num(w.day) * 24) },
     { sys: 'RiverNets', run: (w) => RiverNets.processDay(w, null, _num(w.day)) },
+    { sys: 'FishTraps', run: (w) => FishTraps.processDay(w, null, _num(w.day)) },
     { sys: 'RiverLife', run: (w) => RiverLife.processDay(w, null, _num(w.day)) },
     { sys: 'Gangs', run: (w) => Gangs.processDay(w, null) },
     { sys: 'OutlawLairs', run: (w) => OutlawLairs.processDay(w, null) }, // waits (player-held)

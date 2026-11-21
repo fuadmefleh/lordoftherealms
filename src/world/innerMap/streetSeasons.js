@@ -149,6 +149,8 @@ Object.assign(InnerMap, {
         }
         this._ssKey =[look, Math.round(ss.dust * 4), ss.banks ? 1 : 0, Math.round(ss.mudShow * 4), Math.round(ss.leavesShow * 5),
             Math.round(st.slush * 3), Math.round(st.ice * 10), st.thawing ? 1 : 0, ss.roof].join('|');
+        // (this hex's holes broken through, kept on the world: world/innerMap/ice.js)
+        if (this._iceBind) this._iceBind(world, q, r, day);
         this._reconcileIce(ss, day);
         this._reconcileSeasonProps(world, day);
         this._buildPaceGrid(ss);
@@ -168,6 +170,9 @@ Object.assign(InnerMap, {
         const canFreeze = !!(ss && ss.winterLook);
         const byKind = {};
         const iceFor = kind => byKind[kind] || (byKind[kind] = canFreeze ? StreetSeasons.iceOn(ss, kind) : { state: 'none', strength: 0 });
+        // (cell by cell: thinner over a river's channel, by open water, in a warm spell — world/innerMap/ice.js)
+        const grid = canFreeze && this._iceLocalGrid ? this._iceLocalGrid(ss, day) : null;
+        if (!grid) this._iceSolid = null;
         let frozen = 0, solid = 0, changed = 0;
         for (const row of tiles) {
             for (const t of row) {
@@ -180,7 +185,7 @@ Object.assign(InnerMap, {
                 if (t._bridge) { t._iced = iceFor(_waterKind(orig)).state === 'none' ? 0 : 2; continue; }
                 // (already frozen by the map itself — a glacier, a frozen stream: left as it is)
                 if (!t._ssOrigSub && orig && /frozen|ice|glacier/.test(orig.id || '')) continue;
-                let ice = iceFor(_waterKind(orig));
+                let ice = (grid && grid.get(t)) || iceFor(_waterKind(orig));
                 if (t._ssHole != null) {
                     if (day - t._ssHole < refreeze && ice.state !== 'none') ice = { state: 'none', strength: 0 };
                     else delete t._ssHole;
@@ -221,10 +226,14 @@ Object.assign(InnerMap, {
     _iceStep(q, r) {
         if (this._insideBuilding) return null;
         const t = this.tiles && this.tiles[r] && this.tiles[r][q];
+        // On the ice: a skater's turn and glide, a slip (world/innerMap/ice.js)
+        const slip = this._iceStepped ? this._iceStepped(q, r, t) : null;
+        if (slip) return (this._ssEvent = slip);
         if (!t || t._iced !== 1) { this._ssThinSteps = 0; return null; }
         const I = StreetSeasons.config().ice;
         const n = ++this._ssThinSteps;
-        if (Utils.random() < StreetSeasons.crackChance(t._iceStrength)) {
+        // (likelier under a full pack, a cart, a horse)
+        if (Utils.random() < StreetSeasons.crackChance(t._iceStrength) * (this._iceCrackMult ? this._iceCrackMult() : 1)) {
             this._breakIce(q, r);
             this._ssThinSteps = 0;
             return (this._ssEvent = { kind: 'crack', q, r, at: _now() });
@@ -244,6 +253,7 @@ Object.assign(InnerMap, {
         t._iceCost = 0;
         t._iceStrength = 0;
         t._ssHole = _num(this._ssDay, _num(this.worldDay, 0));
+        if (this._iceRecordHole) this._iceRecordHole(q, r, t._ssHole);
         this._waterStamp = (this._waterStamp || 0) + 1;
         if (this._ssPace && this._ssPaceTiles === this.tiles) {
             const i = r * this.width + q;
@@ -528,6 +538,8 @@ Object.assign(InnerMap, {
             const spot = this._ssSpotNear(fest, _num(ring[0], 2), _num(ring[1], 3), rnd);
             if (spot && this._goStand(npc, spot, 'ss_bonfire', _dirTo(fest.q - spot.q, fest.r - spot.r))) return true;
         }
+        // Skating on the town's ice of a winter afternoon (world/innerMap/ice.js)
+        if (this._iceSkatePick && this._iceSkatePick(npc, period)) return true;
         // Children out in the snow
         const P = cfg.snowPlay;
         if (npc.type === 'child' && ss.winterLook && ss.snow >= _num(P.snowAt, 0.3) && period !== 'night' && period !== 'evening' && rnd() < _num(P.share, 0.5)) {
@@ -581,6 +593,9 @@ Object.assign(InnerMap, {
                 npc.activity = { type: 'season', icon: '❄️', label: 'Shovelling snow', anim: 'swing', tool: 'hoe' };
                 npc.idleTimer = _span(stay.ss_shovel || cfg.shovelling.stay, rnd);
                 say(cfg.shovelling.lines, 0.3);
+                break;
+            case 'ss_skate':
+                if (this._iceSkateArrived) this._iceSkateArrived(npc);
                 break;
             case 'ss_play':
                 npc.activity = rnd() < 0.5

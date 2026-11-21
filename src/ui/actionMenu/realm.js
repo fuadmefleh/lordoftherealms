@@ -8,6 +8,8 @@ import { FeastPanel } from './feast.js';
 import { BTN_GOLD, BTN_PLAIN, esc, lede, chips, purse, sectionHead, kv, card, actRow, rowList, price } from './uiKit.js';
 import { Throne, PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, Festivals, PlayerEffects, Rivals } from './_imports.js';
 import { Names } from '../../core/names.js';
+import { Lists } from '../../systems/lists.js';
+import { InnerMap } from '../../world/innerMap.js';
 
 const BOUT_NAMES = ['Opening bout', 'Semi-final', 'The final'];
 
@@ -133,6 +135,34 @@ function _runTournament(game, tile, settlement, prizePool, baseRenown) {
 
     window._tourney = { fight, auto: autoAll };
     interlude();
+}
+
+/**
+ * Ride the tournament you hold in person on the town's lists (the street map:
+ * ui/innerMapTournament.js — joust and melee), or have it settled here at once
+ * (the bracket above: the duel panel or instinct).
+ */
+function _chooseLists(game, tile, settlement, prizePool, baseRenown) {
+    const player = game.player;
+    let h = '<div>';
+    h += lede(`🏟️ <b>The lists are raised at ${esc(settlement.name)}.</b> Barrier, stands and pavilions; the herald has your name.`);
+    h += rowList([
+        { icon: '🐎', name: 'Ride the Lists in Person', desc: 'On the town’s street map: the joust with lance and horse, the melee on foot. Find the herald by the barrier', attrs: 'onclick="window._listsChoice(true)"', tone: 'gold', side: '›' },
+        { icon: '⚡', name: 'Quick Results', desc: 'The bracket here and now: the duel panel, or instinct', attrs: 'onclick="window._listsChoice(false)"', side: '›' },
+    ]);
+    h += '</div>';
+    game.ui.showCustomPanel('Tournament', h);
+    window._listsChoice = (inPerson) => {
+        if (!inPerson) {
+            if (player.lists) Object.assign(player.lists, { day: player.lists.held.day, key: player.lists.held.key, entered: true, done: true });
+            _runTournament(game, tile, settlement, prizePool, baseRenown);
+            return;
+        }
+        if (typeof game.ui.hideCustomPanel === 'function') game.ui.hideCustomPanel();
+        const tell = () => game.ui.showNotification('📯 To the Lists', `The lists stand by ${settlement.name}'s streets. Find the herald by the barrier and Enter the Lists.`, 'info');
+        if (!InnerMap.active && typeof game.enterInnerMap === 'function') Promise.resolve(game.enterInnerMap(player.q, player.r)).then(tell, tell);
+        else tell();
+    };
 }
 
 Object.assign(ActionMenu, {
@@ -363,8 +393,10 @@ Object.assign(ActionMenu, {
             const renownGain = compete ? 5 : 3;
             player.renown = (player.renown || 0) + renownGain;
 
+            // The lists stand in the town today, on its street map (ui/innerMapTournament.js)
+            player.lists = { held: { key: Lists.townKey(settlement), day, prizePool, baseRenown: renownGain, compete } };
             if (compete) {
-                _runTournament(game, tile, settlement, prizePool, renownGain);
+                _chooseLists(game, tile, settlement, prizePool, renownGain);
                 return;
             } else {
                 // Just hosting

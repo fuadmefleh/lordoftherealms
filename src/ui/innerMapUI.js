@@ -13,6 +13,7 @@ import { Utils } from '../core/utils.js';
 import { ActionMenu } from './actionMenu.js';
 import { InnerMapEscort } from './innerMapEscort.js';
 import { InnerMapPets } from './innerMapPets.js';
+import { InnerMapHawk } from './innerMapHawk.js';
 import { RealmEscort } from '../player/realmEscort.js';
 import { CustomObjects } from '../world/customObjects.js';
 import { InnerMapCombat } from './innerMapCombat.js';
@@ -49,6 +50,9 @@ import { InnerMapClimbing } from './innerMapClimbing.js';
 import { InnerMapMining } from './innerMapMining.js';
 import { InnerMapRiverDrift } from './innerMapRiverDrift.js';
 import { InnerMapFeedFish } from './innerMapFeedFish.js';
+import { InnerMapTournament } from './innerMapTournament.js';
+import { InnerMapFishTraps } from './innerMapFishTraps.js';
+import { InnerMapRowboat } from './innerMapRowboat.js';
 import { InnerMapRoadWalk } from './innerMapRoadWalk.js';
 import { NpcDisposition } from '../systems/npcDisposition.js';
 import { Townsfolk } from '../systems/townsfolk.js';
@@ -59,6 +63,7 @@ import { drawGlyph, buildingGlyph, pictureIcon } from './icons.js';
 import { uiZoom } from './uiScale.js';
 import { InnerMapCarry } from './innerMapCarry.js';
 import { InnerMapCarts } from './innerMapCarts.js';
+import { InnerMapHitch } from './innerMapHitch.js';
 import { InnerMapDowned } from './innerMapDowned.js';
 import { Downed } from '../systems/downed.js';
 import { Carrying } from '../systems/carrying.js';
@@ -80,6 +85,8 @@ Object.assign(InnerMapRenderer, {
     // ══════════════════════════════════════════════
 
     _renderWeatherParticles(ctx, canvas, camera, deltaTime) {
+        // The street's hourly weather, when it is bound: rain, snow, lightning, rainbow, fireflies (innerMapLayers/weatherFx.js)
+        if (this._renderWeatherFx && InnerMap._sw && this._renderWeatherFx(ctx, canvas, camera, deltaTime)) return;
         const w = InnerMap.weather;
         if (!w || w.type === 'clear' || w.type === 'cloudy' || w.type === 'none') return;
 
@@ -196,7 +203,8 @@ Object.assign(InnerMapRenderer, {
         const subColor = 'rgba(255,255,255,0.7)';
         let x = run(null, subInfo, 16, barHeight / 2 + 9, subFont, subColor);
         if (wt || tmp) {
-            const weather = `${wt ? wt.type : ''}${tmp ? ` ${tmp.celsius}°C` : ''}`.trim();
+            // (and wet through, out in it: player/wetness.js via ui/innerMapWeather.js)
+            const weather = `${wt ? wt.type : ''}${tmp ? ` ${tmp.celsius}°C` : ''}${this._wxWetLabel ? ` · ${this._wxWetLabel}` : ''}`.trim();
             x = run(null, ' · ', x, barHeight / 2 + 9, subFont, subColor);
             run(wt ? weatherGlyphs[wt.type] : null, weather, x, barHeight / 2 + 9, subFont, subColor);
         }
@@ -427,7 +435,8 @@ Object.assign(InnerMapRenderer, {
         }
         // A cart here or at hand, the one hauled, laying the carried on one (ui/innerMapCarts.js)
         if (!building) {
-            const cartItems = InnerMapCarts.menuItems(game, tile, q, r);
+            // (and your horse cart: hitch your horse, drive, climb down, unhitch — ui/innerMapHitch.js)
+            const cartItems = [...InnerMapCarts.menuItems(game, tile, q, r), ...InnerMapHitch.menuItems(game, q, r)];
             if (cartItems.length) {
                 if (menuItems.length > 0) menuItems.push({ type: 'separator' });
                 menuItems.push(...cartItems);
@@ -456,6 +465,8 @@ Object.assign(InnerMapRenderer, {
             const animalItems = InnerMapAnimals.menuItems(game, q, r);
             if (animalItems.length && menuItems.length === 0) animalItems.shift();
             menuItems.push(...animalItems);
+            // Your hawk: fly it at the quarry here; call it, lure it, take its kill (ui/innerMapHawk.js)
+            menuItems.push(...InnerMapHawk.menuItems(game, q, r));
         }
 
         // ── Ground item pick-up ──
@@ -465,6 +476,13 @@ Object.assign(InnerMapRenderer, {
             menuItems.push({ type: 'header', label: `${gi.icon} ${gi.name}` });
             if (gi.placedBy === 'wreck') menuItems.push({ type: 'action', action: 'pickup_ground_item', label: `Salvage ${gi.name}`, icon: '⚓', desc: 'Wreckage on the water: swim or wade out to it and haul it in', groundItemTileQ: q, groundItemTileR: r });
             else menuItems.push({ type: 'action', action: 'pickup_ground_item', label: `Pick Up ${gi.name}`, icon: '🖐️', desc: 'Add this item back to your inventory', groundItemTileQ: q, groundItemTileR: r });
+        }
+
+        // ── The lists of a tournament held here today: the herald, the bouts (ui/innerMapTournament.js) ──
+        if (!building && !tile._isInterior) {
+            const listsItems = InnerMapTournament.menuItems(game, tile, q, r);
+            if (listsItems.length && menuItems.length === 0) listsItems.shift();
+            menuItems.push(...listsItems);
         }
 
         // ── Terrain actions (only for bare terrain, no building or object) ──
@@ -521,7 +539,10 @@ Object.assign(InnerMapRenderer, {
                 if (!isPlayerHere) {
                     // Water you can't stand in: swim there (world/innerMap/swimming.js, player/swimming.js)
                     const swimTo = !tile.subTerrain.passable && InnerMap.isSwimmable(q, r);
-                    if (!swimTo) menuItems.push({ type: 'action', action: 'move_here', label: 'Move Here', icon: '🚶', desc: 'Walk to this spot' });
+                    if (!swimTo && InnerMap._aboardBoat && tile.subTerrain.passable && InnerMap.isSwimmable(q, r)) menuItems.push({ type: 'action', action: 'move_here', label: 'Row Here', icon: '🛶', desc: 'Into the shallows: she grounds there' });
+                    else if (!swimTo) menuItems.push({ type: 'action', action: 'move_here', label: 'Move Here', icon: '🚶', desc: 'Walk to this spot' });
+                    // In your rowboat: row there (ui/innerMapRowboat.js)
+                    else if (InnerMap._aboardBoat) menuItems.push({ type: 'action', action: 'move_here', label: 'Row Here', icon: '🛶', desc: 'Pull for it: about a walking pace, and dry' });
                     else if (InnerMap._swimAllowed) menuItems.push({ type: 'action', action: 'move_here', label: 'Swim Here', icon: '🏊', desc: 'Into the water: slow, tiring — and cold in winter' });
                     else menuItems.push({ type: 'disabled', label: `🏊 Swim — ${InnerMap._swimRefusal || 'not now'}` });
                 }
@@ -536,7 +557,11 @@ Object.assign(InnerMapRenderer, {
                 menuItems.push(...InnerMapRiverDrift.menuItems(game, tile, q, r));
                 // Deep water in a throw: food to the fish, to watch them come up for it (ui/innerMapFeedFish.js)
                 menuItems.push(...InnerMapFeedFish.menuItems(game, tile, q, r));
+                // Edge water by a bank: set a fish trap; bait, haul up or take up your own (ui/innerMapFishTraps.js)
+                menuItems.push(...InnerMapFishTraps.menuItems(game, tile, q, r));
                 menuItems.push(...InnerMapDiving.menuItems(game, tile, q, r));
+                // Your rowboat: board, tie up, step ashore, dive from it; buy or build one by the bank (ui/innerMapRowboat.js)
+                menuItems.push(...InnerMapRowboat.menuItems(game, tile, q, r));
                 // A crag's rock face: up it or down it (ui/innerMapClimbing.js)
                 menuItems.push(...InnerMapClimbing.menuItems(game, tile, q, r));
                 // A cave's mouth, a drift into the face, a shaft into the ground (ui/innerMapMining.js)
@@ -1003,6 +1028,7 @@ Object.assign(InnerMapRenderer, {
         }
         if (InnerMapCarry.handle(game, item)) return;
         if (InnerMapCarts.handle(game, item)) return;
+        if (InnerMapHitch.handle(game, item)) return;
         if (InnerMapDowned.handle(game, item)) return;
         if (InnerMapJail.handle(game, item)) return;
         if (InnerMapDeck.handle(game, item)) return;
@@ -1016,6 +1042,10 @@ Object.assign(InnerMapRenderer, {
         if (/^farm_/.test(item.action || '') && InnerMapFarming.handle(game, item, q, r)) return;
         if (/^drift_/.test(item.action || '') && InnerMapRiverDrift.handle(game, item, q, r)) return;
         if (item.action === 'feedfish_throw' && InnerMapFeedFish.handle(game, item, q, r)) return;
+        if (typeof item.action === 'string' && item.action.startsWith('lists_') && InnerMapTournament.handle(game, item)) return;
+        if (/^fishtrap_/.test(item.action || '') && InnerMapFishTraps.handle(game, item, q, r)) return;
+        // Your rowboat (and, sat in it, a click on the bank: row in and step ashore there — ui/innerMapRowboat.js)
+        if ((/^rowboat_/.test(item.action || '') || item.action === 'move_here') && InnerMapRowboat.handle(game, item, q, r)) return;
         if (item.action === 'hunt_animal') {
             if (item.animal && InnerMap.animals.includes(item.animal)) ActionMenu.huntAnimal(game, item.animal);
             return;
@@ -1032,6 +1062,7 @@ Object.assign(InnerMapRenderer, {
         }
         if (/^animal_/.test(item.action || '') && InnerMapAnimals.handle(game, item)) return;
         if (/^pet_/.test(item.action || '') && InnerMapPets.handle(game, item)) return;
+        if (/^hawk_/.test(item.action || '') && InnerMapHawk.handle(game, item)) return;
         const action = item.action;
         const playerQ = InnerMap.playerInnerQ;
         const playerR = InnerMap.playerInnerR;
@@ -1408,9 +1439,13 @@ Object.assign(InnerMapRenderer, {
                 // Dry ground to stand on: not the shallows, a ford or the water itself
                 const dryBank = (t) => !!(t && t.subTerrain.passable && !t._wet && !t._sea && !t.building && !t.customObjectPart);
                 const REACH = 3; // how far a line is cast
-                let bank = null;
+                // In your rowboat: cast from where you sit (ui/innerMapRowboat.js)
+                let bank = InnerMapRowboat.castFrom(q, r, REACH);
+                if (!bank && InnerMap._aboardBoat) { game.ui.showNotification('🎣 Fishing', 'Row within a cast of it first.', 'warning'); break; }
                 const here = InnerMap.getTile(playerQ, playerR);
-                if (dryBank(here) && Math.max(Math.abs(q - playerQ), Math.abs(r - playerR)) <= REACH) {
+                if (bank) {
+                    // (from the boat)
+                } else if (dryBank(here) && Math.max(Math.abs(q - playerQ), Math.abs(r - playerR)) <= REACH) {
                     bank = { q: playerQ, r: playerR }; // cast from where you stand
                 } else {
                     // the nearest dry bank within a cast of the water, the closer to you the better

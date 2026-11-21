@@ -50,6 +50,8 @@ const topLevel = [
     'npcKnowledge',
     'townLife',
     'streetSeasons',
+    // The weather on the street map hour by hour: rain, mud, puddles, getting wet (world/streetWeather.js)
+    'streetWeather',
     'townScenes',
     'knockout',
     'jail',
@@ -117,6 +119,8 @@ const topLevel = [
     'livestock',
     // Your own dogs, cats, hawks and the horse, walking with you (systems/animalCompanions.js)
     'animalCompanions',
+    // Flying your hawk at quarry on the street map (systems/falconry.js, ui/innerMapHawk.js)
+    'falconry',
     'graves',
     'ambient',
     'autoUpkeep',
@@ -127,6 +131,10 @@ const topLevel = [
     'mining',
     // River boats, fishing rights, salting and spring floods (systems/riverBoats.js, systems/riverLife.js)
     'riverLife',
+    // Wicker fish traps set in the edge water and checked later (systems/fishTraps.js)
+    'fishTraps',
+    // A rowboat of your own on the street map's rivers and lakes (player/rowboats.js, ui/innerMapRowboat.js)
+    'rowboats',
     // Pixel sprites for goods lying on the inner map, dropped or afloat (ui/itemSprites.js)
     'itemSprites',
     // The set of the sea (world/oceanCurrents.js)
@@ -193,7 +201,9 @@ const topLevel = [
     // Works of the Ages: cathedrals, universities, great bridges, canals, walls, keeps, harbours over decades (systems/greatWorks.js)
     'greatWorks',
     // Law courts: the player tried, the player as judge, lawsuits between Houses (player/trials.js)
-    'trials'
+    'trials',
+    // Tournaments fought in person on the town's lists: the joust, the melee, wagers (systems/lists.js)
+    'lists'
 ];
 
 const merged = {};

@@ -1,0 +1,192 @@
+{
+    "_doc": "Haggling face to face at a market stall on the street map (player/haggling.js, ui/actionMenu/haggle.js). The keeper names a price from the market's own (Trading.buyCost / the sale Trading.sellGoods would make), moved by their mood and what they think of you (NpcDisposition.getPriceModifiers: disposition, traits, your name, your brand), their margin, how much they have, the hour (the last hours of the market sell cheaper, perishables most) and the tongue. You counter; each round costs their patience; push past it and they will not deal with you again that day (kept on the townsperson). The final price is that one transaction's: the goods and coin move exactly as the stall's trade does (the town's stock and purse). `bound` keeps any haggled price inside the buy-and-sell-back gap: a haggled buy never under what selling the lot straight back would fetch plus `buyGapShare` of the gap, a haggled sale never over the sale price plus `sellGapShare` of the gap to the buy-back cap (sellGapShare < buyGapShare: no loop). Fractions are of the list price.",
+    "enabled": true,
+    "minLot": 1,
+    "bound": { "buyGapShare": 0.35, "sellGapShare": 0.3, "noCapSell": 1.08 },
+    "margin": { "base": 0.12, "scarcity": 0.1, "scarcityCap": 0.06, "late": 0.08, "foreign": 0.06 },
+    "give": {
+        "base": 0.1, "glut": 0.1, "glutCap": [-0.05, 0.08], "late": 0.06, "latePerishable": 0.15,
+        "skillPerLevel": 0.01, "skillCap": 0.05, "charismaPerPoint": 0.006,
+        "traits": { "generous": 0.03, "kind": 0.02, "jovial": 0.01, "greedy": -0.04, "stubborn": -0.02, "stern": -0.01 }
+    },
+    "late": { "hours": 2.5 },
+    "patience": {
+        "base": 4, "perDisposition": 20, "noWords": -1, "min": 1, "max": 7,
+        "traits": { "jovial": 1, "kind": 1, "generous": 1, "stubborn": 1, "stern": -1, "greedy": -1, "cautious": 0 }
+    },
+    "concession": { "base": 0.35, "skillPerLevel": 0.03, "traits": { "stubborn": -0.15, "generous": 0.12, "greedy": -0.08, "kind": 0.08 } },
+    "offers": { "low": 0.7, "mid": 0.85, "sellHigh": 1.3, "sellMid": 1.15 },
+    "lowball": { "fair": 0.9, "rude": 0.75 },
+    "hold": 0.5,
+    "words": { "need": 40, "translator": 0.8 },
+    "tactics": {
+        "flatter": {
+            "chance": 0.35, "perCharisma": 0.04, "perPersuasion": 0.02, "perDisposition": 0.005,
+            "traits": { "jovial": 0.2, "kind": 0.1, "generous": 0.05, "stern": -0.2, "cautious": -0.05 },
+            "askCut": 0.04, "floorCut": 0.03, "disposition": 2, "failPatience": 1
+        },
+        "flaw": {
+            "chance": 0.3, "perCommerce": 0.04, "perHaggling": 0.02, "latePerishable": 0.2, "glut": 0.1,
+            "askCut": 0.06, "floorCut": 0.04, "failPatience": 1, "failDisposition": -1
+        },
+        "praise": {
+            "chance": 0.3, "perCommerce": 0.04, "perHaggling": 0.02, "scarce": 0.15, "fineGrade": 0.15,
+            "askCut": 0.06, "floorCut": 0.04, "failPatience": 1, "failDisposition": -1
+        },
+        "scoff": {
+            "chance": 0.25, "perStrength": 0.03, "perFame": 0.002,
+            "traits": { "cautious": 0.2, "kind": 0.1, "bold": -0.2, "stern": -0.15, "stubborn": -0.1 },
+            "askCut": 0.08, "floorCut": 0.05, "disposition": -3, "failPatience": 2, "failDisposition": -5
+        }
+    },
+    "walkAway": { "minPatience": 2, "room": 1.03, "back": 0.4 },
+    "refuse": { "disposition": -5 },
+    "after": { "warmAt": 0.5, "grudgingUnder": 0.15, "warm": 3, "grudging": -1 },
+    "xp": { "haggling": 2, "perRound": 0.5, "charisma": 0.6 },
+    "crowd": { "reach": 5, "chance": 0.6 },
+    "lines": {
+        "openBuy": [
+            "{price} for the {lot}. A fair price, and you know it.",
+            "For you? {price}. And I'm robbing myself.",
+            "{price}, and not a copper under.",
+            "The {lot}? {price}, friend."
+        ],
+        "openSell": [
+            "{good}, is it? I'd give you {price} for the {lot}.",
+            "Let's see... {price}. That's as fair as I can do.",
+            "{price} for the {lot}, and I'm doing you a kindness."
+        ],
+        "openLate": [
+            "Market's nearly done. {price} for the {lot}, and save me the carrying home.",
+            "Late in the day... call it {price}."
+        ],
+        "counterBuy": [
+            "{offer}? Ha! {price}, and that's me being soft.",
+            "I've a family to feed. {price}.",
+            "Meet me somewhere sensible. {price}.",
+            "You'll ruin me. {price}, no less."
+        ],
+        "counterSell": [
+            "{offer}? I'd never sell it on. {price}.",
+            "I'm not made of coin. {price}.",
+            "{price}, and you're lucky to get it."
+        ],
+        "lowball": [
+            "{offer}?! Are you mad, or just cheap?",
+            "Don't insult me. {price}.",
+            "That's daylight robbery! {price}, if you're serious."
+        ],
+        "thin": [
+            "My patience is wearing thin. {price}.",
+            "Last time I'll say it: {price}.",
+            "Make up your mind. {price}."
+        ],
+        "accept": [
+            "Done. Shake on it.",
+            "Fine, fine. {price} it is.",
+            "Done, and may you choke on the bargain!"
+        ],
+        "grudging": [
+            "{price}... you drive a hard bargain. Take it before I change my mind.",
+            "You've bled me white. Done.",
+            "Done, curse you. Don't tell the others what you paid."
+        ],
+        "warm": [
+            "A pleasure doing business. Come back soon!",
+            "Done! You've a good eye. Come again.",
+            "Done, and a fine day to you."
+        ],
+        "callback": [
+            "Wait, wait! {price}, my final word.",
+            "Come back! {price}, and that's the last of it.",
+            "Don't be like that. {price}?"
+        ],
+        "walked": [
+            "Suit yourself.",
+            "Your loss, friend.",
+            "Go on then. You'll not find better."
+        ],
+        "refuse": [
+            "That's enough! Get away from my stall.",
+            "I'll not deal with you. Not today. Off with you!",
+            "Out! Go and haggle with the pigs."
+        ],
+        "spurned": [
+            "I told you: not today.",
+            "You again? Move along.",
+            "We're done for the day, you and I."
+        ],
+        "flatterOk": [
+            "Ha! Flattery... well, it works. {price}.",
+            "You've a silver tongue. For you, {price}."
+        ],
+        "flatterFail": [
+            "Sweet words don't feed my children.",
+            "Save your honey for the bees."
+        ],
+        "flawOk": [
+            "...Well, I suppose. {price}, then.",
+            "Hm. Not my best, true. {price}."
+        ],
+        "flawFail": [
+            "There's nothing wrong with it! Look again.",
+            "Best in the square, and you know it."
+        ],
+        "praiseOk": [
+            "Hm... it is good work. {price}, then.",
+            "All right, all right. {price}."
+        ],
+        "praiseFail": [
+            "I've seen better this week.",
+            "Everyone says theirs is the best."
+        ],
+        "scoffOk": [
+            "No need for that... {price}, then.",
+            "All right! All right. {price}."
+        ],
+        "scoffFail": [
+            "Go on then, try elsewhere. See if I care.",
+            "Threaten me at my own stall? The nerve."
+        ],
+        "crowd": [
+            "Ha! Hear that?",
+            "Go on, haggle him down!",
+            "Ooh, she's not happy.",
+            "A hard bargain, that.",
+            "They'll be at it all day."
+        ]
+    },
+    "you": {
+        "low": "{offer}, not a copper more.",
+        "mid": "I'll give you {offer}.",
+        "half": "Let's meet halfway: {offer}.",
+        "sellHigh": "{offer}, or I take them elsewhere.",
+        "sellMid": "I want {offer} for them.",
+        "accept": "Done. {price}.",
+        "walk": "I'll take my custom elsewhere.",
+        "flatter": "Finest stall in the square, and the finest keeper.",
+        "praise": "Look at the quality of these. You'll not see better this year.",
+        "scoff": "You call that a price? I could do better at any stall in {town}."
+    },
+    "flaws": {
+        "_doc": "What you can find fault with at each trade's stall: [your line, ...].",
+        "greengrocer": ["These are bruised.", "Half of these are going soft.", "There's mud and worse on these."],
+        "butcher": ["This is more gristle than meat.", "Smells a day past its best.", "There's flies on it."],
+        "fishmonger": ["The eyes are cloudy. Caught last week, was it?", "This fish smells of yesterday.", "Soft as butter. Not fresh."],
+        "baker": ["This loaf's a day old if it's an hour.", "Hard as a cobble.", "Burnt on the bottom."],
+        "cheesemonger": ["There's mould on this, and not the good kind.", "Sweating in the sun all day.", "Dry as dust."],
+        "draper": ["The weave's loose here.", "This dye will run in the first rain.", "Moth holes."],
+        "cobbler": ["The stitching's coming away.", "Thin leather, cheap soles.", "These will pinch."],
+        "potter": ["There's a crack in this glaze.", "Lopsided.", "Chipped at the rim."],
+        "chandler": ["These candles are half tallow and smoke.", "The wick's crooked.", "Frayed already."],
+        "ironmonger": ["Rust in the joints.", "Soft iron, this. It'll bend.", "Badly tempered."],
+        "spicer": ["Half of this is sawdust.", "Gone stale. No smell to it.", "Damp. Clumped."],
+        "herbalist": ["These are wilted.", "Picked too early.", "More stalk than leaf."],
+        "woodworker": ["The grain's split here.", "Green wood. It'll warp.", "Rough. Badly planed."],
+        "jeweller": ["The setting's loose.", "Is that paste?", "Scratched."],
+        "vintner": ["This has turned. Vinegar by Sunday.", "Watered, surely.", "Cloudy."],
+        "stationer": ["Foxed pages.", "The ink's blotted.", "Water damage."],
+        "woodmonger": ["This is damp. It'll smoke, not burn.", "Half rotten.", "Short measure."],
+        "any": ["This isn't your best.", "I've seen better down the road.", "Shoddy, this."]
+    }
+}

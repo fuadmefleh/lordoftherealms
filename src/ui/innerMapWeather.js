@@ -8,7 +8,9 @@
 //     (player/wetness.js), told when soaked through and dry again;
 //   - the storm's lightning struck (the flash and the bolt: innerMapLayers/
 //     weatherFx.js) and its thunder sent after it, nearer the sooner
-//     (systems/audio sfx 'thunder' / 'thunder_far').
+//     (systems/audio sfx 'thunder' / 'thunder_far');
+//   - the rain's sound (systems/audio sfx setRain): a looping hiss as loud as the
+//     rain falls, muffled indoors, silent when it stops or you leave the street.
 // Its own random stream for the lightning (cosmetic, never the game's RNG).
 //
 // QA from the console (the engine's dev handle):
@@ -47,12 +49,16 @@ export const InnerMapWeather = {
     _strikeIn: 4,
     _thunder: [],     // [{ at, kind }] on this module's clock
     _clock: 0,
+    _rainLv: 0,       // the rain's sound as last set: level 0..1, muffled
+    _rainMuffled: false,
 
     update(game, dt) {
-        if (!InnerMap.active || !game || !game.world || !InnerMap.bindStreetWeather) return;
+        if (!InnerMap.active || !game || !game.world || !InnerMap.bindStreetWeather) { this.offMap(); return; }
         const world = game.world;
         const hour = InnerMap.streetHour();
         const sw = InnerMap.bindStreetWeather(world, hour);
+        // ── The rain's sound: as loud as it falls, through the walls indoors ──
+        this._rainSound(sw && sw.raining !== false ? _num(sw.rain) : 0, !!InnerMap._insideBuilding);
         // (a cart in hand takes the mud as wheels do: world/innerMap/streetWeather.js weatherPace)
         InnerMap._wxCartInHand = InnerMapCarts._baseSpeed != null;
         const step = Math.max(0, Math.min(0.25, _num(dt)));
@@ -110,6 +116,23 @@ export const InnerMapWeather = {
             this._thunder.splice(i, 1);
             try { audioManager.playSFX(kind); } catch { /* sound is best-effort */ }
         }
+    },
+
+    /** Set the rain's sound (systems/audio sfx setRain) when it changes: level 0..1, muffled indoors. */
+    _rainSound(level, muffled) {
+        const lv = Math.max(0, Math.min(1, _num(level)));
+        if (Math.abs(lv - this._rainLv) < 0.02 && muffled === this._rainMuffled && (lv > 0) === (this._rainLv > 0)) return;
+        let done = true;
+        try { if (typeof audioManager.setRain === 'function') done = audioManager.setRain(lv, muffled) !== false; } catch { /* sound is best-effort */ }
+        // (no audio yet — before the first click: asked again next frame)
+        if (!done) return;
+        this._rainLv = lv;
+        this._rainMuffled = muffled;
+    },
+
+    /** Off the street map (or no weather to bind): the rain falls silent. */
+    offMap() {
+        if (this._rainLv > 0) this._rainSound(0, false);
     },
 
     /** A fire's glow within reach of the player (the ambient layer's glows on screen: hearths, campfires, braziers). */

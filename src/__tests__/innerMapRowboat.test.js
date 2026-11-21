@@ -412,3 +412,163 @@ describe('fishing and feeding from the boat', () => {
         expect([InnerMap.playerInnerQ, InnerMap.playerInnerR]).toEqual([15, 8]);
     });
 });
+
+describe('moored at the bank, she lies out on the water', () => {
+    it('drawn out from the land toward the open water, lengthwise along the bank; a click where she lies finds her', () => {
+        lakeMap();
+        const world = townWorld(100);
+        const game = makeGame(world);
+        const boat = Rowboats.buy(world, game.player, { hq: HQ, hr: HR, q: 5, r: 4 }).boat;
+        // (land above her: drawn down the screen, out onto the lake, lying across it)
+        const lie = InnerMapRowboat._lie(boat);
+        expect(lie.ox).toBeCloseTo(0, 5);
+        expect(lie.oy).toBeGreaterThan(0.3);
+        expect(lie.horiz).toBe(true);
+        expect(InnerMapRowboat._leanCell(boat)).toEqual({ q: 5, r: 5 });
+        // (on the far bank: drawn up toward the water)
+        expect(InnerMapRowboat._lie({ id: 'x', q: 9, r: 12 }).oy).toBeLessThan(-0.3);
+        // (a bank to the west: drawn east, lying up the screen)
+        for (let r = 4; r < 13; r++) { InnerMap.tiles[r][2].subTerrain = { id: 'grass', passable: true }; InnerMap.tiles[r][2]._wet = false; }
+        const west = InnerMapRowboat._lie({ id: 'y', q: 3, r: 8 });
+        expect(west.ox).toBeGreaterThan(0.3);
+        expect(west.horiz).toBe(false);
+        // out in the middle of the lake: where she is
+        expect(InnerMapRowboat._lie({ id: 'z', q: 15, r: 8 })).toMatchObject({ ox: 0, oy: 0 });
+        // clicked on her own cell or the one she leans into, she answers
+        InnerMap.playerInnerQ = 5; InnerMap.playerInnerR = 3;
+        InnerMapRowboat._player = game.player;
+        for (const [q, r] of [[5, 4], [5, 5]]) {
+            const item = InnerMapRowboat.menuItems(game, InnerMap.tiles[r][q], q, r).find(i => i.action === 'rowboat_board');
+            expect(item && item.boatId).toBe(boat.id);
+        }
+        expect(InnerMapRowboat.menuItems(game, InnerMap.tiles[7][5], 5, 7).some(i => i.action === 'rowboat_board')).toBe(false);
+        // and boarding from there puts you in her, at her own cell
+        InnerMapRowboat.handle(game, { action: 'rowboat_board', boatId: boat.id }, 5, 5);
+        expect([InnerMap.playerInnerQ, InnerMap.playerInnerR]).toEqual([5, 4]);
+    });
+});
+
+describe('carrying the boat over land', () => {
+    function lifted() {
+        lakeMap();
+        const world = townWorld(100);
+        const game = makeGame(world);
+        const boat = Rowboats.buy(world, game.player, { hq: HQ, hr: HR, q: 5, r: 4 }).boat;
+        InnerMap.playerInnerQ = 5; InnerMap.playerInnerR = 3;
+        InnerMapRowboat._player = game.player;
+        const item = InnerMapRowboat.menuItems(game, InnerMap.tiles[4][5], 5, 4).find(i => i.action === 'rowboat_carry');
+        expect(item && item.label).toBe('Carry the Boat');
+        expect(InnerMapRowboat.handle(game, item, 5, 4)).toBe(true);
+        return { world, game, boat };
+    }
+
+    it('Carry the Boat: up on your shoulders, over land only, slowly; Set the Boat Down by water, refused on dry land', () => {
+        // (the pace on foot without her, for the comparison)
+        lakeMap();
+        InnerMap.playerInnerQ = 5; InnerMap.playerInnerR = 1;
+        InnerMap.movePlayerTo(15, 1);
+        const free = walkOut();
+        const { game, boat } = lifted();
+        expect(boat.carried).toBe(true);
+        expect(InnerMap._boatCarried).toBe(true);
+        expect(InnerMapRowboat.carrying).toBe(boat.id);
+        expect(InnerMapRowboat.here(game)).toHaveLength(0);
+        // no swimming with her
+        expect(InnerMap._playerMayEnter(InnerMap.tiles[8][5], 5, 8)).toBe(false);
+        expect(InnerMap.movePlayerTo(5, 8).started).toBe(false);
+        // over the land she comes with you, at a heavy walk
+        InnerMap.playerInnerQ = 5; InnerMap.playerInnerR = 1;
+        InnerMap.movePlayerTo(15, 1);
+        const heavy = walkOut();
+        expect(heavy).toBeGreaterThan(free * 1.6);
+        InnerMapRowboat.update(0.05, game);
+        expect(boat).toMatchObject({ hq: HQ, hr: HR, q: 15, r: 1, carried: true });
+        // no water beside you: she stays on your shoulders
+        const here = InnerMapRowboat.menuItems(game, InnerMap.tiles[1][15], 15, 1);
+        expect(here.some(i => i.type === 'disabled' && /Set the Boat Down/.test(i.label))).toBe(true);
+        expect(InnerMapRowboat.setDown(game)).toBe(false);
+        expect(boat.carried).toBe(true);
+        // beside the water: down into it, tied to the bank
+        InnerMap.playerInnerQ = 15; InnerMap.playerInnerR = 3;
+        InnerMapRowboat.update(0.05, game);
+        const down = InnerMapRowboat.menuItems(game, InnerMap.tiles[4][16], 16, 4).find(i => i.action === 'rowboat_setdown');
+        expect(down && down.label).toBe('Set the Boat Down');
+        InnerMapRowboat.handle(game, down, 16, 4);
+        expect(boat).toMatchObject({ q: 16, r: 4 });
+        expect(boat.carried).toBeUndefined();
+        expect(InnerMap._boatCarried).toBe(false);
+        expect(InnerMapRowboat.here(game).map(b => b.id)).toEqual([boat.id]);
+    });
+
+    it('your hands are full: no riding, carts, climbing or doorways with her', async () => {
+        const { game, boat } = lifted();
+        const { InnerMapCarry } = await import('../ui/innerMapCarry.js');
+        expect(InnerMapCarry.handsFull()).toBe(true);
+        // (the door: refused, with a word why)
+        expect(InnerMap.enterBuilding({ type: 'house', q: 8, r: 1, name: 'A House' }, game)).toBe(false);
+        expect(InnerMap._entryRefused.text).toMatch(/door/);
+        // (no climbing: a face on the walk is refused)
+        InnerMap._climbMax = 4;
+        InnerMap._playerPath = [{ q: 5, r: 3 }, { q: 5, r: 1 }];
+        InnerMap._playerPathIndex = 1;
+        InnerMap._playerWalking = true;
+        InnerMap.linkBetween = () => ({ rows: 1, up: true });
+        const res = InnerMap.updatePlayer(0.05);
+        delete InnerMap.linkBetween;
+        expect(res && res.climbRefused).toBe(true);
+        InnerMap._climbMax = 0;
+        // (nor into another boat)
+        expect(InnerMapRowboat.whyNotBoard(game, boat)).toMatch(/Set down/);
+        InnerMapRowboat.setDown(game);
+        expect(InnerMapCarry.handsFull()).toBe(false);
+    });
+
+    it('she goes with you off the map: set down on the next if you come in by water, else carried on', () => {
+        const { game, boat } = lifted();
+        // off onto the world's roads: still on your shoulders
+        InnerMap.active = false;
+        InnerMapRowboat.update(0.05, game);
+        expect(boat.carried).toBe(true);
+        // into a dry corner of the next hex's map: carried on there
+        lakeMap();
+        InnerMap.currentWorldTile = { q: HQ + 1, r: HR };
+        InnerMap.playerInnerQ = 10; InnerMap.playerInnerR = 0;
+        InnerMapRowboat.update(0.05, game);
+        expect(boat).toMatchObject({ hq: HQ + 1, hr: HR, q: 10, r: 0, carried: true });
+        expect(InnerMap._boatCarried).toBe(true);
+        // onto the next map beside its water: set down there at once
+        lakeMap();
+        InnerMap.currentWorldTile = { q: HQ + 2, r: HR };
+        InnerMap.playerInnerQ = 12; InnerMap.playerInnerR = 3;
+        InnerMapRowboat.update(0.05, game);
+        expect(boat.carried).toBeUndefined();
+        expect(boat).toMatchObject({ hq: HQ + 2, hr: HR, r: 4 });
+        expect(InnerMap._boatCarried).toBe(false);
+    });
+
+    it('through a map edge on foot (beforeCross / afterCross) she comes too, and a save keeps her on your shoulders', () => {
+        const { game, boat } = lifted();
+        const token = InnerMapRowboat.beforeCross(game);
+        expect(token && token.carried).toBe(true);
+        // (between the maps nothing happens to her)
+        InnerMapRowboat.update(0.05, game);
+        expect(boat.carried).toBe(true);
+        lakeMap();
+        InnerMap.currentWorldTile = { q: HQ, r: HR + 1 };
+        InnerMapRowboat.afterCross(game, token, { q: 7, r: 1 });
+        expect(boat).toMatchObject({ hq: HQ, hr: HR + 1, q: 7, r: 1, carried: true });
+        const p = new Player();
+        p.rowboats = JSON.parse(JSON.stringify(game.player.rowboats));
+        const back = new Player();
+        SaveLoad.restorePlayer(JSON.parse(JSON.stringify(SaveLoad.serializePlayer(p))), back);
+        expect(Rowboats.carried(back)).toMatchObject({ id: boat.id, carried: true });
+        expect(Rowboats.boatAt(back, HQ, HR + 1, 7, 1)).toBe(null);
+        // in beside the water on the far side of the next edge: set down there
+        const t2 = InnerMapRowboat.beforeCross(game);
+        lakeMap();
+        InnerMap.currentWorldTile = { q: HQ, r: HR + 2 };
+        InnerMapRowboat.afterCross(game, t2, { q: 7, r: 3 });
+        expect(boat.carried).toBeUndefined();
+        expect(boat).toMatchObject({ hq: HQ, hr: HR + 2, r: 4 });
+    });
+});

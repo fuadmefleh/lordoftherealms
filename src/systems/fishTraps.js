@@ -326,6 +326,8 @@ export const FishTraps = {
         const st = this.state(world);
         st.traps = st.traps.filter(t => t.id !== id);
         PlayerInventory.addItem(player, back, back === 'reeds' ? 2 : 1);
+        // (a lantern hung at it comes back with it: systems/carriedLight.js)
+        if (res.trap.lantern) { delete res.trap.lantern; PlayerInventory.addItem(player, 'lantern', 1, { force: true }); }
         return { ...res, back };
     },
 
@@ -449,6 +451,9 @@ export const FishTraps = {
     poacherAt(world, trap, h) {
         if (!trap || !trap.catch || !trap.catch.length) return -1;
         const hh = Math.floor(h);
+        // A lantern hung at it, burning (systems/carriedLight.js hangLantern): no poacher comes near
+        const lan = trap.lantern;
+        if (lan && hh >= Math.floor(_num(lan.from)) && hh < _num(lan.until)) return -1;
         for (const d of [Math.floor(hh / 24), Math.floor(hh / 24) - 1]) {
             if (this.poachHour(world, trap, d) !== hh) continue;
             if (flotsamHash(`${_seed(world)}|ftp|${trap.id}|${d}`) < this.poachChance(world, trap, d)) return d;
@@ -480,6 +485,8 @@ export const FishTraps = {
         const takeTrap = flotsamHash(`${_seed(world)}|fttk|${trap.id}|${d}`) < _num(P.takeTrap);
         if (takeTrap) {
             if (town && SettlementMarket.tracks('fish_trap')) SettlementMarket.add(town, 'fish_trap', 1);
+            // (and the lantern hung at it, burnt out, with it)
+            if (trap.lantern && town && SettlementMarket.tracks('lantern')) SettlementMarket.add(town, 'lantern', 1);
             out.gone = true;
         }
         const name = who ? `${who}${town ? ` of ${town.name}` : ''}` : 'Someone';

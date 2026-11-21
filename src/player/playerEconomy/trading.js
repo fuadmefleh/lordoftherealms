@@ -96,7 +96,7 @@ export const Trading = {
      * the sale itself is the town market's (Trading.sellGoods): its price, its
      * purse, its stock.
      */
-    sellToStall(player, tradeId, goodId, quantity, settlement = null, world = null, grade = null) {
+    sellToStall(player, tradeId, goodId, quantity, settlement = null, world = null, grade = null, opts = null) {
         const t = MarketStalls.trade(tradeId);
         if (!t) return { success: false, reason: 'No such stall' };
         if (!MarketStalls.accepts(tradeId, goodId)) {
@@ -104,7 +104,7 @@ export const Trading = {
             const what = String((good && good.name) || goodId).toLowerCase();
             return { success: false, reason: `The ${t.name.toLowerCase()} doesn't deal in ${what}.`, notTrade: true };
         }
-        return Trading.sellGoods(player, goodId, quantity, settlement, world, grade);
+        return Trading.sellGoods(player, goodId, quantity, settlement, world, grade, opts);
     },
 
     /**
@@ -359,7 +359,7 @@ export const Trading = {
     /**
      * Buy goods from a settlement
      */
-    buyGoods(player, good, quantity, settlement, grade = null) {
+    buyGoods(player, good, quantity, settlement, grade = null, opts = null) {
         if (quantity > good.quantity) {
             return { success: false, reason: 'Not enough in stock' };
         }
@@ -369,7 +369,8 @@ export const Trading = {
             return { success: false, reason: `Not that many ${Grades.get(gradeId).name.toLowerCase()} ${good.name || good.id} on the stalls` };
         }
 
-        const totalCost = Trading.buyGradeCost(player, good, quantity, settlement, gradeId);
+        // (a price haggled at the stall for this one deal, to the cent: player/haggling.js)
+        const totalCost = opts && Number.isFinite(opts.totalCost) && opts.totalCost > 0 ? Utils.cents(opts.totalCost) : Trading.buyGradeCost(player, good, quantity, settlement, gradeId);
 
         if (player.gold < totalCost) {
             return { success: false, reason: 'Not enough gold' };
@@ -464,7 +465,7 @@ export const Trading = {
     /**
      * Sell goods to a settlement
      */
-    sellGoods(player, goodId, quantity, settlement = null, world = null, grade = null) {
+    sellGoods(player, goodId, quantity, settlement = null, world = null, grade = null, opts = null) {
         if (!player.inventory || !player.inventory[goodId] || player.inventory[goodId] < quantity) {
             return { success: false, reason: 'Not enough in inventory' };
         }
@@ -505,7 +506,9 @@ export const Trading = {
         // Made goods sell by their grade: a masterwork blade fetches more than a poor one
         // (core/grades.js; a sale that names no grade sells the Common units first)
         const qualityMult = Crafting.saleMult(player, goodId, quantity, grade);
-        const totalEarned = Math.floor(Trading.saleUnitPrice(player, good, settlement, world, legality.priceMult * policy.mult, quantity) * quantity * qualityMult);
+        // (or a price haggled at the stall for this one deal, to the cent: player/haggling.js)
+        const totalEarned = opts && Number.isFinite(opts.totalEarned) && opts.totalEarned > 0 ? Utils.centsDown(opts.totalEarned)
+            : Math.floor(Trading.saleUnitPrice(player, good, settlement, world, legality.priceMult * policy.mult, quantity) * quantity * qualityMult);
         // The town pays out of its purse: the price, and the crown's duty and the
         // guild's toll inside it. A town without the coin can't buy
         const outlay = Trading.saleOutlay(player, settlement, goodId, totalEarned, policy);

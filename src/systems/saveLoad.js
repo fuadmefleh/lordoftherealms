@@ -51,6 +51,7 @@ import { Couriers } from './couriers.js';
 import { Hospitality } from './hospitality.js';
 import { RiverDrift } from './riverDrift.js';
 import { FishTraps } from './fishTraps.js';
+import { HandBuilding } from '../world/handBuilding.js';
 import { RiverLife } from './riverLife.js';
 import { LlmProse } from './llmProse.js';
 import { Crises } from './crises.js';
@@ -411,6 +412,8 @@ export const SaveLoad = {
             riverDrift: RiverDrift.serialize(world),
             // The player's fish traps set in the edge water, and what is in them (systems/fishTraps.js)
             fishTraps: FishTraps.serialize(world),
+            // What the player built by hand on the street maps: sites, fences, sheds, wells, their stores, camps staked (world/handBuilding.js)
+            handBuilt: HandBuilding.serialize(world),
             // Fishing rights leased, spring floods up and coming down the rivers (systems/riverLife.js)
             riverLife: RiverLife.serialize(world),
             // The age-defining crises: the one running and those on record (systems/crises.js)
@@ -576,6 +579,8 @@ export const SaveLoad = {
         'escortStance',
         // Your horse in your horse cart's shafts on the street map, and whether you sit up driving it (ui/innerMapHitch.js)
         'streetHitch',
+        // How wet you are from the rain, 0 dry .. 100 soaked (player/wetness.js)
+        'wetness',
         'loans', 'taxRate', 'activeContract',
         'mapDeceptions', 'marriageAllianceKingdom', 'cultureIncomeCarry',
         'foragingTrips', 'huntingTrips', 'jobsCompleted', 'performancesGiven',
@@ -1115,6 +1120,8 @@ export const SaveLoad = {
         RiverDrift.restore(saveData.riverDrift, world);
         // The fish traps (older saves: none)
         FishTraps.restore(saveData.fishTraps, world);
+        // What was built by hand (older saves: nothing)
+        HandBuilding.restore(saveData.handBuilt, world);
         RiverLife.restore(saveData.riverLife, world);
         // The chronicler's prose (older saves: none — the Annals' scribe writes again)
         LlmProse.restore(saveData.prose, world);
@@ -1181,6 +1188,14 @@ export const SaveLoad = {
 
         // The hunt's old 'hides' / 'feathers' / 'antlers' are the market's hide, feather and antler now
         PlayerInventory.renameLegacy(player);
+
+        // How wet you were (player/wetness.js): 0..100, dry when missing or bad; soaked through,
+        // the soaked notice already given (so it tells you once you have dried)
+        {
+            const w = Number(saveData && saveData.wetness);
+            player.wetness = Number.isFinite(w) ? Math.max(0, Math.min(100, Math.round(w * 100) / 100)) : 0;
+            player._wetTold = player.wetness >= 75;
+        }
 
         // Ship crews and naval units (backfills crews for saves from before them)
         Ships.restoreFromSave(player);

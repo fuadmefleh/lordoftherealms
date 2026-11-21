@@ -348,8 +348,8 @@ export const Crops = {
         return `your fields (${wq}, ${wr})`;
     },
 
-    /** The harvest a ripe cell yields for this player (rolls Utils): × the farming level's yield. */
-    yieldFor(player, cell) {
+    /** The harvest a ripe cell yields for this player (rolls Utils): × the farming level's yield (× mult: a scarecrow's guard). */
+    yieldFor(player, cell, mult = 1) {
         const C = this.config();
         const crop = this.crop(cell && cell.crop);
         if (!crop) return 0;
@@ -357,18 +357,18 @@ export const Crops = {
         const base = Utils.randInt(Math.round(lo), Math.round(hi));
         const days = Math.max(1, _num(cell.days));
         const care = Math.max(_num(C.careFloor, 0.5), Math.min(1, _num(cell.wetDays) / days));
-        return Math.max(1, Math.round(base * care * FoodSkills.farmYieldMult(player)));
+        return Math.max(1, Math.round(base * care * FoodSkills.farmYieldMult(player) * (Number.isFinite(mult) && mult > 0 ? mult : 1)));
     },
 
-    /** Harvest a ripe cell into the packs; the ground stays tilled. { ok, reason, good, qty, crop } */
-    harvest(player, wq, wr, iq, ir) {
+    /** Harvest a ripe cell into the packs; the ground stays tilled (opts.yieldMult: a scarecrow by it). { ok, reason, good, qty, crop } */
+    harvest(player, wq, wr, iq, ir, opts = {}) {
         const cell = this.cell(player, wq, wr, iq, ir);
         if (!cell || !cell.crop) return { ok: false, reason: 'Nothing is growing here.' };
         if (cell.dead) return { ok: false, reason: 'There is nothing worth taking: clear it.' };
         if (!this.isRipe(cell)) return { ok: false, reason: 'It isn\'t ripe yet.' };
         const crop = this.crop(cell.crop);
         if (!PlayerInventory.canAdd(player, crop.product)) return { ok: false, reason: PlayerInventory.fullMessage(player), full: true };
-        const qty = this.yieldFor(player, cell);
+        const qty = this.yieldFor(player, cell, opts && opts.yieldMult);
         PlayerInventory.addItem(player, crop.product, qty);
         this._reset(cell);
         return { ok: true, good: crop.product, qty, crop };

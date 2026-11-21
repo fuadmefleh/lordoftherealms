@@ -1,0 +1,16 @@
+{
+    "_doc": "A light carried on the street map at night (systems/carriedLight.js; the map's half ui/innerMapTorchlight.js). TORCH: the good 'torch' (bound by hand: one stick-stuff from `bind.sticks` — n torches per unit — and one binder from `bind.binders`, resin, tallow or a strip of linen/cloth, all used up), lit from the packs (Light a Torch), burns `torch.hours` game hours and is gone (smoke: the sink); put out part-burnt, the stub is kept and lit first next time. A fresh one is lit from the packs when it gutters out, while you have any. LANTERN: the good 'lantern' (glassblowers, the chandler's stall), lasting; it burns fuel: one of `fuels` (lamp oil, candles, tallow: game hours a unit) filled in from the packs when you light it dry or when it runs dry, up to `lantern.capacity` hours in it. Either goes out in the water (a swim, a dive: a torch is lost) and when you leave the street map (a torch's stub kept). L on the street map (ui/innerMapNight.js) shutters the light: a carried light goes out. LIGHT: by night (the street's darkness over `minDarkness`, full at `fullDarkness`) a warm pool round you, `radius` px at zoom 1 grown with the dark (a torch flickers); carrying none you see only `bareNight` px into the dark (at full dark). FISH: held by deep water at night (the bank, or your rowboat) the fish within `fish.pull` tiles of the light gather slowly (`fish.speed` of their pace) in a ring `fish.ring` tiles about where it falls on the water (`fish.reach` tiles at most off the bank), up to `fish.extra` more come up from deeper (one shoal every `fish.comeEvery` s), their backs show brighter in it (`fish.glow`), and a line cast within `fish.near` tiles of you gets the light's `biteBonus` more chance of a bite, scaled by the dark: nothing by day. POACHERS: a poacher at your fish trap sees a light coming from `poach.scareMult` x the trap's scareReach (data/fishTraps.json); a lantern hung at a trap (Hang a Lantern at the Trap: the lantern and its fuel go with it, topped up with a unit from the packs if under `poach.minHang` hours) keeps any poacher off while it burns; taken down, the lantern and what fuel is left come back.",
+    "enabled": true,
+    "minDarkness": 0.25,
+    "fullDarkness": 0.85,
+    "bareNight": 55,
+    "torch": { "item": "torch", "hours": 3, "radius": 185, "intensity": 0.92, "color": [255, 168, 72], "biteBonus": 0.2, "lure": 1 },
+    "lantern": { "item": "lantern", "capacity": 10, "radius": 160, "intensity": 0.85, "color": [255, 206, 136], "biteBonus": 0.15, "lure": 0.8 },
+    "fuels": { "lamp_oil": 8, "candles": 5, "tallow": 3 },
+    "bind": {
+        "sticks": { "sticks": 2, "firewood": 2, "driftwood": 1, "wood": 4 },
+        "binders": ["resin", "tallow", "linen", "textiles"]
+    },
+    "fish": { "pull": 7, "ring": [0.8, 1.8], "reach": 3, "speed": 0.7, "extra": 3, "comeEvery": 4, "near": 3.5, "glow": 0.75 },
+    "poach": { "scareMult": 2.2, "minHang": 6 }
+}

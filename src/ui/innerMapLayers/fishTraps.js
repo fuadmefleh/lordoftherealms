@@ -13,6 +13,7 @@ import { InnerMapRenderer } from '../innerMapRenderer.js';
 import { InnerMap } from '../../world/innerMap.js';
 import { InnerMapFishTraps } from '../innerMapFishTraps.js';
 import { FishTraps } from '../../systems/fishTraps.js';
+import { InnerMapTorchlight } from '../innerMapTorchlight.js';
 
 const WICKER = { body: '#8a6a3a', hi: '#b8925a', lo: '#4e3a1e', mouth: '#1d150c', stake: '#4a3420' };
 
@@ -126,6 +127,8 @@ Object.assign(InnerMapRenderer, {
         ctx.closePath();
         ctx.fill();
         ctx.globalAlpha = 1;
+        // A lantern hung on the stake to keep poachers off (ui/innerMapTorchlight.js)
+        if (trap.lantern) InnerMapTorchlight.drawTrapLantern(ctx, trap, sx, sy - cs * 0.42, cs, now, hour);
     },
 
     /** A dark crouched figure on the bank by the trap, an arm reaching to the water */

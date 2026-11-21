@@ -58,8 +58,8 @@
         },
         "cobbler": {
             "name": "Cobbler", "stall": "Boot Stall", "icon": "👢",
-            "goods": ["boots", "leather", "saddle", "leather_goods"],
-            "buys": ["boots", "leather", "saddle", "leather_goods", "hide"],
+            "goods": ["boots", "leather", "saddle", "leather_goods", "bone_skates"],
+            "buys": ["boots", "leather", "saddle", "leather_goods", "hide", "bone_skates"],
             "tiers": ["poor", "mid", "rich"], "weight": 0.8, "land": { "pasture": 0.6 },
             "cultures": { "Nomadic": 1.4 },
             "cries": ["Boots! Stout boots for the road!", "{good}, stitched to last!", "Mend your shoes, buy new ones!"]
@@ -74,16 +74,16 @@
         },
         "chandler": {
             "name": "Chandler", "stall": "Candle Stall", "icon": "🕯️",
-            "goods": ["candles", "soap", "tallow", "lamp_oil", "oil", "rope", "fishing_net", "fish_trap", "lantern"],
-            "buys": ["candles", "soap", "tallow", "lamp_oil", "oil", "rope", "fishing_net", "fish_trap", "lantern"],
+            "goods": ["candles", "soap", "tallow", "lamp_oil", "oil", "rope", "fishing_net", "fish_trap", "lantern", "torch"],
+            "buys": ["candles", "soap", "tallow", "lamp_oil", "oil", "rope", "fishing_net", "fish_trap", "lantern", "torch"],
             "tiers": ["poor", "mid", "rich"], "weight": 0.9,
             "cultures": { "Maritime": 1.3, "Nordic": 1.2 },
             "cries": ["Candles! Light against the dark!", "{good}! Good and cheap!", "Soap and candles, rope and oil!"]
         },
         "ironmonger": {
             "name": "Ironmonger", "stall": "Ironmongery", "icon": "🔨",
-            "goods": ["tools", "steel_tools", "iron", "steel", "tin", "copper", "bronze", "iron_ingot", "bronze_bar", "fishing_spear"],
-            "buys": ["tools", "steel_tools", "iron", "steel", "tin", "copper", "bronze", "iron_ingot", "bronze_bar", "ore", "fishing_spear"],
+            "goods": ["tools", "steel_tools", "iron", "steel", "tin", "copper", "bronze", "iron_ingot", "bronze_bar", "fishing_spear", "iron_skates"],
+            "buys": ["tools", "steel_tools", "iron", "steel", "tin", "copper", "bronze", "iron_ingot", "bronze_bar", "ore", "fishing_spear", "iron_skates"],
             "tiers": ["poor", "mid", "rich"], "weight": 0.9, "minType": "village", "land": { "upland": 1.2 },
             "cultures": { "Mountain": 1.6, "Nordic": 1.2 },
             "cries": ["Tools! Good iron tools!", "{good}, sharp and true!", "Pots mended, blades ground, tools for sale!"]

@@ -150,6 +150,27 @@ describe('Market stall trades', () => {
         expect(MarketStalls.wares(s, 'herbalist')).toContain('healing_salve');
     });
 
+    it('skates: the town makes them, the cobbler and the ironmonger sell them, and the cold wants more', () => {
+        for (const id of ['bone_skates', 'iron_skates']) expect(SettlementMarket.tracks(id), id).toBe(true);
+        expect(MarketStalls.trade('cobbler').goods).toContain('bone_skates');
+        expect(MarketStalls.trade('ironmonger').goods).toContain('iron_skates');
+        const s = town({}, 0.6);
+        expect(SettlementMarket.hasTrade(s, 'bone_carver')).toBe(true);
+        expect(SettlementMarket.hasTrade(s, 'skatesmith')).toBe(true);
+        // Bare of skates, with the smith's and carver's stuff in store: they make some
+        Object.assign(s.market.stock, { bone_skates: 0, iron_skates: 0, iron: 50, planks: 50, leather: 50, hide: 50 });
+        for (let d = 0; d < 20; d++) SettlementMarket.processSettlement(s, {}, { day: 300 + d, cold: true });
+        expect(s.market.stock.bone_skates).toBeGreaterThan(0);
+        expect(s.market.stock.iron_skates).toBeGreaterThan(0);
+        s.market.stock.bone_skates = 3;
+        s.market.stock.iron_skates = 2;
+        expect(MarketStalls.wares(s, 'cobbler')).toContain('bone_skates');
+        expect(MarketStalls.wares(s, 'ironmonger')).toContain('iron_skates');
+        // Wanted in the cold far more than in the warm
+        expect(SettlementMarket.good('bone_skates').coldMult).toBeGreaterThan(2);
+        expect(SettlementMarket.good('iron_skates').coldMult).toBeGreaterThan(2);
+    });
+
     it("sell only their trade's goods, out of the market's stock, at the market's prices", () => {
         const s = town({ isPort: true }, 0.9);
         const tile = plains(s);

@@ -32,6 +32,12 @@ export const LightSystem = {
     playerLightDoused: false,
     // More lights from the night's street life (ui/innerMapNight.js): fn(lightSystem, camera), each frame
     extraLights: null,
+    // The torch or lantern the player carries (ui/innerMapTorchlight.js): { radius, intensity, color, flicker } | null
+    carried: null,
+    // With none carried, how far you see into the dark at full night (px at zoom 1, over the base 60)
+    bareNight: 110,
+    // Yet more lights, fn(lightSystem, camera) each frame (a lantern hung at a fish trap: ui/innerMapTorchlight.js)
+    moreLights: [],
     ambientColor: { r: 10, g: 10, b: 40 },  // Night tint color
     // The light map's base colour (multiplied over the scene): white by day
     ambientLight: { r: 255, g: 255, b: 255 },
@@ -166,9 +172,15 @@ export const LightSystem = {
             this.addLight(screenX, screenY, 38 * zoom, { r: 150, g: 165, b: 200 }, 0.45, 'point');
             return;
         }
-        // Player carries a torch at night, subtle visibility during day
+        // A torch (flickering) or a lantern (steady) carried: a warm pool well out into the dark
+        const c = this.carried;
+        if (c && darkness > 0.05) {
+            this.addLight(screenX, screenY, (60 + darkness * c.radius) * zoom, c.color, c.intensity, c.flicker ? 'fire' : 'point');
+            return;
+        }
+        // No light carried: what you can make out about you at night, subtle visibility during day
         const baseRadius = 60 * zoom;
-        const nightBonus = darkness * 110 * zoom;
+        const nightBonus = darkness * (Number.isFinite(this.bareNight) ? this.bareNight : 110) * zoom;
         const radius = baseRadius + nightBonus;
 
         const color = darkness > 0.1
@@ -435,6 +447,7 @@ export const LightSystem = {
 
         // ── The night's street life: the smugglers' shuttered lantern, the night market's lamp (ui/innerMapNight.js) ──
         if (typeof this.extraLights === 'function') this.extraLights(this, camera);
+        if (Array.isArray(this.moreLights)) for (const fn of this.moreLights) fn(this, camera);
 
         // ── NPC-carried lights at night ──
         if (this.ambientDarkness > 0.2 && InnerMap.npcs) {

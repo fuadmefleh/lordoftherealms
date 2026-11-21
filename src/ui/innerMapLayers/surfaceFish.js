@@ -27,6 +27,10 @@
 //     deeper while it lasts, and they nibble it down — a ring at each bite —
 //     then scatter. A line cast near where they were fed bites the readier
 //     for a while (biteBonus: ui/mapTasks/wildTasks.js).
+//   • A torch or lantern held by the water at night (FishFed.light, from
+//     ui/innerMapTorchlight.js): the fish near gather slowly in a ring in the
+//     lit water, a few more come up from deeper, their backs show bright in
+//     its pool, and a line cast near it bites the readier (FishFed.lightBonus).
 //
 // Settings: data/innerMap.json `surfaceFish`. Cosmetic only: its own random
 // stream (seeded per map), never the game's seeded RNG. The deep cells are
@@ -94,6 +98,7 @@ export const SurfaceFish = {
     ripples: [],       // pool: { alive, x, y, age, sp, ang, kind: 'jump' | 'nibble' | 'splash' }
     baits: [],         // food on the water: { alive, x, y, fx, fy, t, flight, landed, bites, max, age, life, sink, food, comeT, came, seed }
     fed: [],           // where fish were fed lately: { x, y, at } (seconds, _clock)
+    _lightAt: null,    // where a carried light falls on the water (FishFed.light): { x, y, pull, ring, speed, came, comeT }
     _clock: 0,
     _tiles: null,      // the map the mask is for
     _stamp: -1,
@@ -259,6 +264,7 @@ export const SurfaceFish = {
         for (const r of this.ripples) r.alive = false;
         for (const b of this.baits) b.alive = false;
         this.fed.length = 0;
+        this._lightAt = null;
         this._rand = _mulberry(seed);
         this._recount = 0;
         this._last = null;
@@ -498,6 +504,56 @@ export const SurfaceFish = {
         for (const f of this.fish) if (f.lure === b) { f.lure = null; f.wait = 0.5 + this._rand(); }
     },
 
+    // ── A light held over the water at night ──
+
+    /** The nearest point of the fish's water within R tiles of (x, y), or null */
+    _nearestSwim(x, y, R) {
+        if (this.swimmable(x, y)) return { x, y };
+        let best = null, bd = Infinity;
+        for (let dy = -R; dy <= R; dy += 0.5) {
+            for (let dx = -R; dx <= R; dx += 0.5) {
+                const d = Math.hypot(dx, dy);
+                if (d > R || d >= bd || !this.swimmable(x + dx, y + dy)) continue;
+                bd = d; best = { x: x + dx, y: y + dy };
+            }
+        }
+        return best;
+    },
+
+    /**
+     * Where the carried light falls on the fish's water (FishFed.light, set by
+     * ui/innerMapTorchlight.js; null by day): worked out afresh as it moves; while
+     * it is held there, more come up from deeper (a shoal at a time).
+     */
+    _updateLight(dt, C) {
+        const L = FishFed.light;
+        if (!L || !this.mask) { this._lightAt = null; return; }
+        let p = this._lightAt;
+        if (!p || Math.hypot(p.hx - L.x, p.hy - L.y) > 0.4) {
+            const pt = this._nearestSwim(L.x, L.y, Math.max(0.5, Number(L.reach) || 3));
+            if (!pt) { this._lightAt = null; return; }
+            const moved = !p || Math.hypot(p.x - pt.x, p.y - pt.y) > 3;
+            p = this._lightAt = { hx: L.x, hy: L.y, x: pt.x, y: pt.y, came: moved ? 0 : p.came, comeT: moved ? 1.5 : p.comeT, pull: 7, ring: [0.8, 1.8], speed: 0.7 };
+        }
+        const shy = Number(C.shy) || 0;
+        const ring = Array.isArray(L.ring) ? L.ring : [0.8, 1.8];
+        // (from a boat: they keep out of reach of the hull)
+        const r0 = L.boat ? Math.max(Number(ring[0]) || 0, shy * 0.5 + 0.3) : Number(ring[0]) || 0;
+        p.ring[0] = r0; p.ring[1] = Math.max(r0, Number(ring[1]) || r0);
+        p.pull = (Number(L.pull) || 7) * Math.max(0.2, Number(L.lure) || 1);
+        p.speed = Math.max(0.1, Number(L.speed) || 0.7);
+        const extra = Math.round((Number(L.extra) || 0) * Math.max(0, Number(L.lure) || 1));
+        p.comeT -= dt;
+        if (p.comeT <= 0 && p.came < extra) {
+            p.comeT = Math.max(0.5, Number(L.comeEvery) || 4);
+            const R = 4;
+            const near = { qMin: Math.floor(p.x) - R, qMax: Math.floor(p.x) + R, rMin: Math.floor(p.y) - R, rMax: Math.floor(p.y) + R };
+            const capC = this._capL || (this._capL = {});
+            Object.assign(capC, C, { max: (C.max | 0) + extra });
+            p.came += this._spawn(near, capC, Math.min(3, extra - p.came)) || 1;
+        }
+    },
+
     /** The baits by dt: in the air, landing, floating (a river carries it), sinking; fish drawn to them. */
     _updateBaits(dt, range, C) {
         const F = this.feeding(C);
@@ -596,6 +652,8 @@ export const SurfaceFish = {
         }
         this._clock += dt;
         this._updateBaits(dt, range, C);
+        this._updateLight(dt, C);
+        const LP = this._lightAt;
         const F = this.feeding(C);
         const shy = Number(C.shy) || 0;
         const drift = Number(C.drift) || 0;
@@ -647,10 +705,30 @@ export const SurfaceFish = {
                     }
                 }
             }
-            // The player close by in the water: away, for a moment after too
+            // A light held over the water at night (ui/innerMapTorchlight.js): they gather slowly
+            // in the lit water, turning about in a loose ring where it falls
+            if (!f.lure && LP && f.scared <= 0 && Math.hypot(f.x - LP.x, f.y - LP.y) <= LP.pull) {
+                if (f.lightA == null) {
+                    f.lightA = this._rand() * Math.PI * 2;
+                    f.lightR = this._rand();
+                    f.lightS = this._rand() < 0.5 ? 1 : -1;
+                    f.lightT = 0;
+                }
+                f.lightT -= dt;
+                if (f.lightT <= 0) { f.lightT = 0.6; f.lightOk = this._clearBetween(f.x, f.y, LP.x, LP.y); }
+                if (f.lightOk) {
+                    const rr = LP.ring[0] + f.lightR * Math.max(0, LP.ring[1] - LP.ring[0]);
+                    let ox = LP.x + Math.cos(f.lightA) * rr, oy = LP.y + Math.sin(f.lightA) * rr * 0.8;
+                    if (!this.swimmable(ox, oy)) { ox = LP.x; oy = LP.y; }
+                    gx = ox - f.x; gy = oy - f.y;
+                    want = speed * LP.speed;
+                    f.lightA += dt * 0.18 * f.lightS;
+                }
+            }
+            // The player close by in the water: away, for a moment after too (sat still in a boat, only close under it)
             if (player && player.inWater) {
                 const dd = Math.hypot(f.x - player.x, f.y - player.y);
-                if (dd < shy) { f.scared = 1.2; f.sx = player.x; f.sy = player.y; }
+                if (dd < shy * (player.boat ? 0.5 : 1)) { f.scared = 1.2; f.sx = player.x; f.sy = player.y; }
             }
             let tvx, tvy;
             if (f.scared > 0) {
@@ -779,6 +857,8 @@ export const SurfaceFish = {
         const base = (Number(C.alpha) || 0.6) * light;
         const cw = ctx.canvas ? ctx.canvas.width : 1e9, ch = ctx.canvas ? ctx.canvas.height : 1e9;
         const shx = ds * 0.1, shy = ds * 0.16;
+        const FL = FishFed.light;
+        const glowL = FL && FL.glow > 0 ? { x: FL.x, y: FL.y, r: Math.max(1, Number(FL.radius) || 4), k: Math.min(1, FL.glow) } : null;
         ctx.save();
         ctx.imageSmoothingEnabled = false;
         for (const f of this.fish) {
@@ -793,7 +873,12 @@ export const SurfaceFish = {
             const spr = this._sprite(f.sp, beat, false, C);
             const shd = this._sprite(f.sp, beat, true, C);
             if (!spr) continue;
-            const a = base * Math.min(1, f.age / 1.5);
+            let a = base * Math.min(1, f.age / 1.5);
+            // In the pool of a carried light at night their backs show as by day, or brighter
+            if (glowL) {
+                const k = 1 - Math.hypot(f.x - glowL.x, f.y - glowL.y) / glowL.r;
+                if (k > 0) a += ((Number(C.alpha) || 0.6) * Math.min(1, f.age / 1.5) * 1.1 - a) * Math.min(1, k * 1.6) * glowL.k;
+            }
             if (a <= 0.01) continue;
             const scale = len / spr.width;
             const cs = Math.cos(f.ang), sn = Math.sin(f.ang);
@@ -929,7 +1014,8 @@ export const SurfaceFish = {
 };
 
 // (fishing reads where they were fed through ui/fishFed.js)
-FishFed.biteBonus = (q, r) => SurfaceFish.biteBonus(q, r);
+// (and where a light is held over the water at night: FishFed.lightBonus)
+FishFed.biteBonus = (q, r) => SurfaceFish.biteBonus(q, r) + FishFed.lightBonus(q, r);
 // The diver's fish are these fish (underwaterFish.js reads them through its hooks)
 UnderwaterFish.inherit = (x, y, radius) => (SurfaceFish.cells(InnerMap.tiles) >= 0 ? SurfaceFish.takeNear(x, y, radius) : []);
 UnderwaterFish.surfaceCount = (x, y, radius, most) => (SurfaceFish.cells(InnerMap.tiles) >= 0 ? SurfaceFish.countNear(x, y, radius, Math.min(most, SurfaceFish.config().max)) : null);
@@ -958,7 +1044,7 @@ Object.assign(InnerMapRenderer, {
             const pt = InnerMap.tiles[InnerMap.playerInnerR] && InnerMap.tiles[InnerMap.playerInnerR][InnerMap.playerInnerQ];
             const inWater = !!((InnerMap.isPlayerSwimming && InnerMap.isPlayerSwimming()) || (pt && pt._wet));
             const p = this._surfaceFishPlayer || (this._surfaceFishPlayer = { x: 0, y: 0, inWater: false });
-            p.x = pos.x / this.TILE_SIZE; p.y = pos.y / this.TILE_SIZE; p.inWater = inWater;
+            p.x = pos.x / this.TILE_SIZE; p.y = pos.y / this.TILE_SIZE; p.inWater = inWater; p.boat = !!InnerMap._aboardBoat;
             player = p;
         }
         SurfaceFish.update(dt, range, player, C);

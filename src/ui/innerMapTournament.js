@@ -771,9 +771,11 @@ export const InnerMapTournament = {
         if ((this._joust || this._melee) && this._boutMap !== InnerMap.tiles) this._abandon(game);
         // (passers-by kept out of the lanes while knights ride them)
         if (this._joust) this._clearLanes(this._joust && this.run(game) && this.run(game).ev.site);
+        // (the barrier, stands and pavilions are solid while the lists stand: world/innerMap/lists.js)
+        const ev = this.eventHere(game);
+        if (InnerMap.setListsStanding) InnerMap.setListsStanding(ev ? ev.site : null);
         if (this._melee) { this._updateMelee(dt, game); return; }
         if (this._joust) { this._updateJoust(dt, game); return; }
-        const ev = this.eventHere(game);
         if (ev && this._watch) this._clearLanes(ev.site);
         const s = _settlementHere();
         // The herald cries it: today's lists, or one in the days to come
@@ -855,6 +857,7 @@ export const InnerMapTournament = {
         this._melee = null;
         this._joust = null;
         this._watch = null;
+        if (InnerMap.setListsStanding) InnerMap.setListsStanding(null);
         this._barks = [];
         this._fx = [];
     },
@@ -868,6 +871,7 @@ export const InnerMapTournament = {
             const x = q + dq, y = r + dr;
             const t = InnerMap.tiles && InnerMap.tiles[y] && InnerMap.tiles[y][x];
             if (!t || !t.subTerrain || !t.subTerrain.passable) continue;
+            if (InnerMap._listsBlocks && InnerMap._listsBlocks(x, y)) continue;
             if (not && not.q === x && not.r === y) continue;
             return { q: x, r: y };
         }

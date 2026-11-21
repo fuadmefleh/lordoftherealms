@@ -897,6 +897,8 @@ Object.assign(ActionMenu, {
         // town market's own stock at its prices; its keeper buys back only goods of the trade
         const ST = stall && MarketStalls.trade(stall.trade) ? MarketStalls.trade(stall.trade) : null;
         if (!ST) stall = null;
+        // (a keeper you haggled past their patience will not serve you again today: player/haggling.js)
+        if (stall && stall.keeper && ActionMenu.haggleRefusal && ActionMenu.haggleRefusal(game, stall)) return;
         const goods = ST ? Trading.stallGoods(tile.settlement, tile, game.world, stall.trade) : Trading.getAvailableGoods(tile.settlement, tile, game.world);
         const playerGold = game.player.gold || 0;
         const settlementName = tile.settlement?.name || 'Market';
@@ -1206,6 +1208,8 @@ Object.assign(ActionMenu, {
                         { key: 'buy', label: '🛒 Buy', run: () => ActionMenu.showTradeMenu(game, tile, 'buy', stall) },
                         { key: 'sell', label: `💰 Sell${stall.keeper && stall.keeper.name ? ` to ${String(stall.keeper.name).split(' ')[0]}` : ''}`, run: () => ActionMenu.showTradeMenu(game, tile, 'sell', stall) },
                         { key: 'market', label: '🏪 The Market', title: `Every stall of ${settlementName}`, run: () => ActionMenu.showTradeMenu(game, tile, tab) },
+                        // (face to face with the keeper: ui/actionMenu/haggle.js)
+                        ...(stall.keeper && typeof ActionMenu.showHaggle === 'function' ? [{ key: 'haggle', label: '⚖️ Haggle', title: `Name your price with ${stall.keeper.name || 'the keeper'}`, run: () => ActionMenu.showHaggle(game, stall) }] : []),
                     ],
                 });
             }

@@ -41,6 +41,7 @@ import { Hex } from '../core/hex.js';
 import { PlayerInventory } from '../core/inventory.js';
 import { Seasons } from '../world/seasons.js';
 import { Estates } from '../world/estates.js';
+import { HandBuilding } from '../world/handBuilding.js';
 import { MoneySupply } from '../world/moneySupply.js';
 import { Lots } from './lots.js';
 import { Ledger } from './ledger.js';
@@ -247,11 +248,18 @@ export const Livestock = {
         if (!player) return [];
         const out = [];
         const P = Livestock.config().places || {};
+        // A hen coop you built by hand on a hex adds its room to your first place there (world/handBuilding.js)
+        const roomed = new Set();
         const push = (place, name, cfg, extra = {}) => {
             if (!cfg) return;
+            const hk = `${place.q},${place.r}`;
+            const built = !roomed.has(hk) ? HandBuilding.roomOn(world, place.q, place.r) : null;
+            if (built && built.capacity > 0) roomed.add(hk);
+            const extraRoom = built ? built.capacity : 0;
+            const species = extraRoom ? [...new Set([...(cfg.species || []), ...built.species])] : (cfg.species || []);
             out.push({
                 key: Livestock.placeKey(place), place, name, q: place.q, r: place.r,
-                capacity: Math.round(_num(cfg.capacity) * (extra.scale || 1)), species: cfg.species || [], grazing: !!cfg.grazing,
+                capacity: Math.round(_num(cfg.capacity) * (extra.scale || 1)) + extraRoom, species, grazing: !!cfg.grazing,
                 works: _obj(cfg.works), draft: !!cfg.draft, building: !!extra.building, town: extra.town || null,
                 inTown: !!(_tile(world, place.q, place.r) || {}).settlement,
             });

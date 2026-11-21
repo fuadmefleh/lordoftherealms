@@ -106,6 +106,8 @@ Object.assign(InnerMap, {
         if (hasSettlement) TownProps.growFields(this.tiles, this.worldDay);
         // ── Its fences joined at the corners (a town laid out before fences joined comes right on entry) ──
         if (hasSettlement) TownProps.joinFences(this.tiles);
+        // ── What the player built here by hand: sites, fences, gates, sheds… (world/innerMap/handBuilding.js; before the gates) ──
+        if (this._bindHandBuilt) this._bindHandBuilt(game.world, `${worldQ},${worldR}`);
         // ── Its gates as the player left them: shut, or open (world/innerMap/gates.js) ──
         this._bindGates(game.world, `${worldQ},${worldR}`);
         // ── The trees felled here: their stumps, saplings, or the trees grown back (world/innerMap/felling.js) ──
@@ -937,6 +939,11 @@ Object.assign(InnerMap, {
         if (!building || !this.active) return false;
         if (this._insideBuilding) return false; // Already inside
         this._entryRefused = null;
+        // A rowboat on your shoulders doesn't go through a door (ui/innerMapRowboat.js); the gaol takes you regardless
+        if (this._boatCarried && !opts.force && !(building._jail || building.type === 'jail')) {
+            this._entryRefused = { ok: false, text: 'You can\'t get a rowboat through the door: set her down by the water first.' };
+            return false;
+        }
         // A lord's seat: barred when nobody's home, its guards say who goes in (world/innerMap/seats.js)
         let seatVerdict = null;
         if (!opts.force && this.isSeat && this.isSeat(building)) {

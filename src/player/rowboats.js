@@ -15,7 +15,8 @@
 //     price, and no more than the purse holds).
 //
 // State on the player (saved: SaveLoad EXTRA_PLAYER_FIELDS 'rowboats', 'rowboatSeq'):
-//   player.rowboats   = [{ id, name, hq, hr, q, r, day, built }]
+//   player.rowboats   = [{ id, name, hq, hr, q, r, day, built, carried? }]
+//                       (carried: on your shoulders — hq/hr/q/r follow you, see lift / setDown)
 //   player.rowboatSeq = the last id number given
 // Settings: data/rowboats.json. No randomness, no globals.
 
@@ -25,7 +26,7 @@ import { PlayerCoin } from './playerCoin.js';
 import { Economy } from '../world/economy.js';
 
 const DEFAULTS = {
-    enabled: true, price: 60, sellBack: 0.5, max: 3, rowSpeed: 0.9,
+    enabled: true, price: 60, sellBack: 0.5, max: 3, rowSpeed: 0.9, carrySpeed: 0.5, mooredOffset: 0.42,
     build: { ingredients: { planks: 6, rope: 1, resin: 1 }, hours: 5 },
     names: ['Little Wren'],
 };
@@ -72,9 +73,31 @@ export const Rowboats = {
         return this.list(player).filter(b => b && b.hq === hq && b.hr === hr);
     },
 
-    /** Is there one of your boats at cell (q, r) of hex (hq, hr)? → it, or null */
+    /** Is there one of your boats lying at cell (q, r) of hex (hq, hr)? (not one you carry) → it, or null */
     boatAt(player, hq, hr, q, r) {
-        return this.list(player).find(b => b && b.hq === hq && b.hr === hr && b.q === q && b.r === r) || null;
+        return this.list(player).find(b => b && !b.carried && b.hq === hq && b.hr === hr && b.q === q && b.r === r) || null;
+    },
+
+    /** The boat on your shoulders, or null. */
+    carried(player) {
+        return this.list(player).find(b => b && b.carried) || null;
+    },
+
+    /** Lift a boat of yours onto your shoulders (one at a time). → it, or null */
+    lift(player, id) {
+        const boat = this.get(player, id);
+        if (!boat || this.carried(player)) return null;
+        boat.carried = true;
+        return boat;
+    },
+
+    /** Set the boat you carry down at `at` ({ hq, hr, q, r }): tied up there. → it, or null */
+    setDown(player, id, at) {
+        const boat = this.get(player, id);
+        if (!boat || !this._placeOk(at)) return null;
+        this.moor(player, id, at);
+        delete boat.carried;
+        return boat;
     },
 
     _newBoat(world, player, at, built) {

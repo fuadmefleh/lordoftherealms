@@ -52,4 +52,24 @@ describe('save/load keeps player fields', () => {
         expect(back.charisma).toBe(new Player().charisma);
         expect(back.loans).toEqual({});
     });
+
+    it('keeps how wet you are from the rain, clamped; an old save loads dry', () => {
+        const p = new Player();
+        p.wetness = 82.5;
+        const json = JSON.parse(JSON.stringify(SaveLoad.serializePlayer(p)));
+        expect(json.wetness).toBe(82.5);
+        const back = new Player();
+        SaveLoad.restorePlayer(json, back);
+        expect(back.wetness).toBe(82.5);
+        expect(back._wetTold).toBe(true);   // soaked: told already, told again once dry
+        const bad = new Player();
+        SaveLoad.restorePlayer({ ...json, wetness: 400 }, bad);
+        expect(bad.wetness).toBe(100);
+        const old = { ...json };
+        delete old.wetness;
+        const dry = new Player();
+        SaveLoad.restorePlayer(old, dry);
+        expect(dry.wetness).toBe(0);
+        expect(dry._wetTold).toBe(false);
+    });
 });

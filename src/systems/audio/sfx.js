@@ -565,4 +565,86 @@ Object.assign(AudioManager.prototype, {
         osc.start(now);
         osc.stop(now + 0.65);
     },
+
+    // ── The rain (ui/innerMapWeather.js) ────────
+    /**
+     * The rain on the street map: a looping hiss of noise — a bright patter of drops over a
+     * low wash — at `level` 0..1 (the street weather's rain), muffled through a low-pass
+     * indoors; 0 fades it out and stops it. It plays on the ambience bus, so the ambience
+     * and master volumes and mute rule it. It never starts the audio context itself — that
+     * waits for the player's first click (init) — and never throws. → true when the sound is
+     * as asked (false: no audio yet, ask again later).
+     */
+    setRain(level, muffled = false) {
+        try {
+            const lv = Math.max(0, Math.min(1, Number(level) || 0));
+            const ctx = this.ctx;
+            let R = this._rain;
+            if (R && R.ctx !== ctx) R = this._rain = null;   // (the context was closed and made anew)
+            if (!ctx || !this.ambienceGain || typeof ctx.createBiquadFilter !== 'function') return lv <= 0.02;
+            const now = ctx.currentTime;
+            if (lv <= 0.02) {
+                if (R && !R.stopping) {
+                    R.stopping = true;
+                    R.out.gain.setTargetAtTime(0, now, 0.5);
+                    try { R.src.stop(now + 2.5); } catch (_) { /* already stopped */ }
+                    this._rain = null;
+                }
+                return true;
+            }
+            if (!R) R = this._rain = this._startRain(ctx);
+            // louder with the rain, the hiss brighter in a downpour; indoors, through the walls
+            const target = (0.12 + 0.5 * lv) * (muffled ? 0.45 : 1);
+            const cut = muffled ? 650 : 2500 + 6500 * lv;
+            if (Math.abs(target - R.target) > 0.01 || muffled !== R.muffled) {
+                R.out.gain.setTargetAtTime(target, now, 0.8);
+                R.lp.frequency.setTargetAtTime(cut, now, 0.5);
+                R.target = target;
+                R.muffled = muffled;
+            }
+            return true;
+        } catch (_) {
+            return true;   // (sound is best-effort: not asked again)
+        }
+    },
+
+    /** Build the rain's nodes: a 3 s noise loop with drops in it → patter (high) + wash (low) → muffle → out. */
+    _startRain(ctx) {
+        const n = Math.floor(ctx.sampleRate * 3);
+        const buffer = ctx.createBuffer(1, n, ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        // (its own little noise stream: cosmetic, never the game's RNG)
+        let seed = 0x5eed1234;
+        const rnd = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
+        let drop = 0;
+        for (let i = 0; i < n; i++) {
+            if (rnd() < 0.0009) drop = 0.5 + rnd() * 0.6;   // a drop striking: a quick tick dying away
+            drop *= 0.992;
+            data[i] = (rnd() * 2 - 1) * (0.35 + drop);
+        }
+        const src = ctx.createBufferSource();
+        src.buffer = buffer;
+        src.loop = true;
+        const patter = ctx.createBiquadFilter();
+        patter.type = 'highpass';
+        patter.frequency.value = 1400;
+        const patterG = ctx.createGain();
+        patterG.gain.value = 0.55;
+        const wash = ctx.createBiquadFilter();
+        wash.type = 'lowpass';
+        wash.frequency.value = 450;
+        const washG = ctx.createGain();
+        washG.gain.value = 0.6;
+        const lp = ctx.createBiquadFilter();
+        lp.type = 'lowpass';
+        lp.frequency.value = 6000;
+        const out = ctx.createGain();
+        out.gain.value = 0;
+        src.connect(patter); patter.connect(patterG); patterG.connect(lp);
+        src.connect(wash); wash.connect(washG); washG.connect(lp);
+        lp.connect(out);
+        out.connect(this.ambienceGain);
+        src.start();
+        return { ctx, src, lp, out, target: -1, muffled: null, stopping: false };
+    },
 });

@@ -43,6 +43,7 @@ import './cliffs.js';
 import './climbing.js';
 import './palms.js';
 import './gates.js';
+import './handBuilding.js';
 import './felling.js';
 import './mines.js';
 import './carts.js';

@@ -452,6 +452,39 @@ export const InnerMapHitch = {
 
     // ──────────── DRAWN ────────────
 
+    /** Which way the horse leads the cart while you drive (0 up, 1 left, 2 down, 3 right). */
+    _drivingFace(c, b) {
+        let face = c.facing;
+        if (b && b.lead) {
+            const dx = b.lead.x - b.x, dy = b.lead.y - b.y;
+            if (Math.abs(dx) > 1 || Math.abs(dy) > 1) face = Math.abs(dx) >= Math.abs(dy) ? (dx >= 0 ? 3 : 1) : (dy >= 0 ? 2 : 0);
+        }
+        return face;
+    },
+
+    /**
+     * Where you sit driving, on screen: { px, seatY (the seat, screen px), dir, sortY, sortX, ds },
+     * or null when you aren't on the seat. The driver is drawn from here (the character's top
+     * 42 of its 64 px above the seat), and so is the hawk on your fist (ui/innerMapHawk.js).
+     */
+    seat(camera, T) {
+        if (!InnerMap.active || InnerMap._insideBuilding) return null;
+        const c = this.cart();
+        if (!c || !c.horse || InnerMapCarts.pushing !== c || !Array.isArray(c.trail) || !c.trail.length) return null;
+        const H = this._cfg();
+        const A = Carts.config().art.horsecart || {};
+        const b = InnerMapCarts._bodyPos(c, T);
+        if (!b) return null;
+        const dir = this._drivingFace(c, b);
+        const [fx, fy] = STEP[dir];
+        const lead = _num(A.lead, 0.2), lift = _num(A.lift, 0.26);
+        const wx = b.x + fx * lead * T, wy = b.y + fy * lead * T - (lift + _num(H.seatUp, 0.12)) * T;
+        const ps = camera.worldToScreenFast(wx, wy);
+        const maxR = Math.max(...c.trail.map(t => t.r));
+        const sortY = Math.max(maxR * T + T / 2, b.y) + T / 2 - 0.5;
+        return { px: ps.x, seatY: ps.y, dir, sortY, sortX: c.trail[0].q + 0.1, ds: T * camera.zoom };
+    },
+
     /**
      * The horse in harness before the cart (walking in step while you drive), and you on the seat
      * (only the body above the cart's bed). The cart is ui/innerMapCarts.js's.
@@ -464,14 +497,12 @@ export const InnerMapHitch = {
         const sp = m && InnerMapPets.sprite(m.a);
         if (!sp) return;
         const H = this._cfg();
-        const A = Carts.config().art.horsecart || {};
         const ds = T * camera.zoom;
         const driving = InnerMapCarts.pushing === c;
         const b = InnerMapCarts._bodyPos(c, T);
         let face = c.facing, hx, hy, moving = false;
         if (driving && b.lead) {
-            const dx = b.lead.x - b.x, dy = b.lead.y - b.y;
-            if (Math.abs(dx) > 1 || Math.abs(dy) > 1) face = Math.abs(dx) >= Math.abs(dy) ? (dx >= 0 ? 3 : 1) : (dy >= 0 ? 2 : 0);
+            face = this._drivingFace(c, b);
             hx = b.lead.x; hy = b.lead.y;
             moving = !!InnerMap.getPlayerWorldPos().walking;
         } else {
@@ -504,15 +535,11 @@ export const InnerMapHitch = {
         }
         // You on the seat: just after the cart in the depth sort, the bed hiding you below the hips
         if (!driving || !preset || !InnerMapCharacters.getComposited || !InnerMapCharacters.getComposited(preset)) return;
-        const lead = _num(A.lead, 0.2), lift = _num(A.lift, 0.26);
-        const wx = b.x + fx * lead * T, wy = b.y + fy * lead * T - (lift + _num(H.seatUp, 0.12)) * T;
-        const ps = camera.worldToScreenFast(wx, wy);
-        const px = ps.x, seatY = ps.y;
+        const seat = this.seat(camera, T);
+        if (!seat) return;
+        const { px, seatY, sortY, sortX, dir } = seat;
         if (off(px, seatY)) return;
-        const maxR = Math.max(...c.trail.map(t => t.r));
-        const sortY = Math.max(maxR * T + T / 2, b.y) + T / 2 - 0.5;
-        const dir = face;
-        items.push({ sortY, zLayer: 2, sortX: c.trail[0].q + 0.1, draw: () => {
+        items.push({ sortY, zLayer: 2, sortX, draw: () => {
             const cw = ds * 1.2, ch = ds * 1.8;
             const top = seatY - 42 * (ch / 64);
             ctx.save();

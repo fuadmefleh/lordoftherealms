@@ -23,13 +23,24 @@
 //     surfacing beside it you climb back in.
 //   • You are put ashore of yourself (the boat left where it lies): knocked
 //     down, a battle on the map, a ship boarded, the map left, the water frozen.
+//   • Carry the Boat (from the ground beside her): up onto your shoulders,
+//     upturned, and over land at a heavy walk (InnerMap._boatCarried /
+//     _boatCarrySpeed, read by world/innerMap/movement.js and swimming.js): no
+//     swimming, climbing, riding, carts or doorways with her (your hands are
+//     full: InnerMapCarry.handsFull). Set the Boat Down puts her in the water
+//     beside you, tied to the bank — never on dry ground of your choosing (only
+//     when you are made to drop her: knocked down, a battle). The record keeps
+//     `carried: true` and follows you; off the map she goes with you, and on the
+//     next map she is set down at once if you come in beside water.
+//   • A moored boat is drawn out from the bank toward the open water (_lie), and
+//     answers a click on the cell she leans into as well as her own.
 //
 //   update(dt, game)                   each frame: the boat kept under you, the checks
-//   menuItems(game, tile, q, r)        board / tie up / cast off / ashore / dive / buy / build / sell
+//   menuItems(game, tile, q, r)        board / tie up / cast off / ashore / dive / carry / set down / buy / build / sell
 //   handle(game, item, q, r)           'rowboat_*' (and a click on land while aboard)
 //   castFrom(q, r, reach)              the cell to fish from while aboard, or null
 //   beforeCross(game) / afterCross(game, carry, at)   the boat through a river edge
-//   collect(items, ctx, camera, T)     the moored boats (innerMapLayers/entities.js)
+//   collect(items, ctx, camera, T)     the moored boats, and the one on your shoulders (innerMapLayers/entities.js)
 //   drawAboard(ctx, o)                 you in the boat at the oars (the player's pass)
 
 import { InnerMap } from '../world/innerMap.js';
@@ -44,6 +55,7 @@ import { InnerMapCarts } from './innerMapCarts.js';
 import { InnerMapPets } from './innerMapPets.js';
 import { InnerMapDiving } from './innerMapDiving.js';
 import { InnerMapCharacters } from './innerMapCharacters.js';
+import { InnerMapHitch } from './innerMapHitch.js';
 
 const N4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 const N8 = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
@@ -61,7 +73,10 @@ function _stats(game) {
 export const InnerMapRowboat = {
     aboard: null,     // the id of the boat you are in, or null
     tied: false,      // made fast to the bank while you sit in it (the current can't take it)
-    _carry: null,     // { id, at } through a river-edge crossing
+    _carry: null,     // { id, at, carried? } through an edge crossing
+    carrying: null,   // the id of the boat on your shoulders, or null (the record's `carried`)
+    _carryMap: null,  // the street map you carry her on (a new one: set her down if there's water by you)
+    _carryDir: 2,     // the way you last walked with her (the characters' 0..3)
     _player: null,
     _map: null,
     _t: 0,
@@ -75,10 +90,10 @@ export const InnerMapRowboat = {
         return Number.isFinite(h.q) && Number.isFinite(h.r) ? { q: h.q, r: h.r } : null;
     },
 
-    /** Your boats on this map (the one you are in among them). */
+    /** Your boats on this map (the one you are in among them; not the one on your shoulders). */
     here(game) {
         const h = this.hex();
-        return h && game && game.player ? Rowboats.boatsOn(game.player, h.q, h.r) : [];
+        return h && game && game.player ? Rowboats.boatsOn(game.player, h.q, h.r).filter(b => !b.carried) : [];
     },
 
     /** The boat you sit in now, or null. */
@@ -144,7 +159,8 @@ export const InnerMapRowboat = {
     whyNotBoard(game, boat) {
         if (!boat || !game || !game.player) return 'You have no boat here.';
         if (this.aboard) return 'You are in a boat already.';
-        if (!this.isBoatWater(boat.q, boat.r)) return 'She is frozen fast in the ice.';
+        if (this.carrying) return 'Set down the boat you carry first.';
+        if (!this.isBoatWater(boat.q, boat.r)) return this._iced(boat.q, boat.r) ? 'She is frozen fast in the ice.' : 'She lies on dry ground: carry her down to the water.';
         if (InnerMapDiving.isUnder && InnerMapDiving.isUnder()) return 'Come up for air first.';
         if (InnerMapPets.riding) return 'Get down from your horse first.';
         if (InnerMapCarry.handsFull() || InnerMapCarts.pushing) return 'Your hands are full: put down what you carry first.';
@@ -271,12 +287,149 @@ export const InnerMapRowboat = {
         return Math.max(Math.abs(q - pq), Math.abs(r - pr)) <= reach ? { q: pq, r: pr } : null;
     },
 
-    // ── Through a river's edge into the next hex ──
+    // ── On your shoulders ──
 
-    /** Leaving by the river aboard: the boat goes too. → a carry token, or null */
+    _iced(q, r) {
+        const t = this._tile(q, r);
+        return !!(t && t.subTerrain && /frozen|ice/.test(t.subTerrain.id || ''));
+    },
+
+    _setCarry(id) {
+        this.carrying = id || null;
+        InnerMap._boatCarried = !!id;
+        InnerMap._boatCarrySpeed = Math.max(0.15, Math.min(1, _num(Rowboats.config().carrySpeed, 0.5)));
+    },
+
+    /** The boat on your shoulders, or null. */
+    carriedBoat(game) {
+        return game && game.player ? Rowboats.carried(game.player) : null;
+    },
+
+    /** Why you couldn't take this boat up on your shoulders now (or null). */
+    whyNotLift(game, boat) {
+        if (!boat || !game || !game.player) return 'You have no boat here.';
+        if (this.aboard) return 'Step ashore first.';
+        if (this.carrying || Rowboats.carried(game.player)) return 'You carry a boat already.';
+        if (this._iced(boat.q, boat.r)) return 'She is frozen fast in the ice.';
+        if (InnerMap.isPlayerSwimming() || (InnerMapDiving.isUnder && InnerMapDiving.isUnder())) return 'Not from the water: go round to the bank.';
+        if (InnerMapPets.riding) return 'Get down from your horse first.';
+        if (InnerMapCarry.handsFull() || InnerMapCarts.pushing || (InnerMapHitch.driving && InnerMapHitch.driving())) return 'Your hands are full: put down what you carry first.';
+        if (InnerMap._climb) return 'Not on the rock.';
+        if (InnerMapCombat.playerKnockedOut && InnerMapCombat.playerKnockedOut()) return 'You can barely stand.';
+        if (InnerMapBattle.active || game.player.boardedShip) return 'Not now.';
+        return null;
+    },
+
+    /** Up onto your shoulders (walked over to her first when she lies off). → true when under way or done */
+    lift(game, boat) {
+        const why = this.whyNotLift(game, boat);
+        if (why) { _notify(game, '🛶 Not Now', why, 'warning'); return false; }
+        const up = () => {
+            if (this.whyNotLift(game, boat) || !this._beside(boat.q, boat.r)) return;
+            const h = this.hex();
+            if (!h) return;
+            InnerMap.cancelPlayerWalk();
+            Rowboats.lift(game.player, boat.id);
+            Rowboats.moor(game.player, boat.id, { hq: h.q, hr: h.r, q: InnerMap.playerInnerQ, r: InnerMap.playerInnerR });
+            this._player = game.player;
+            this._setCarry(boat.id);
+            this._carryMap = InnerMap.tiles;
+            _notify(game, `🛶 The ${boat.name}`, `You haul the ${boat.name} out of the water, tip her over and heave her up onto your shoulders. Slow going: Set the Boat Down beside other water to launch her.`, 'info');
+        };
+        if (this._beside(boat.q, boat.r)) { up(); return true; }
+        const res = InnerMap.approachAndThen ? InnerMap.approachAndThen(boat.q, boat.r, up) : 'unreachable';
+        if (res === 'unreachable') { _notify(game, '🛶 Not Now', `You can't get to the ${boat.name} from here.`, 'warning'); return false; }
+        return true;
+    },
+
+    /**
+     * Water beside (q, r) to set a boat in (`prefer`, the cell asked for, first;
+     * then the four sides, the corners, and last the shallows you stand in) — not
+     * where another boat of yours lies. → { q, r } or null
+     */
+    _waterBeside(q, r, prefer = null, player = this._player) {
+        const h = this.hex();
+        const free = (x, y) => this.isBoatWater(x, y) && !(h && player && Rowboats.boatAt(player, h.q, h.r, x, y));
+        if (prefer && Math.max(Math.abs(prefer.q - q), Math.abs(prefer.r - r)) <= 1 && free(prefer.q, prefer.r)) return { q: prefer.q, r: prefer.r };
+        for (const [a, b] of N8) if (free(q + a, r + b)) return { q: q + a, r: r + b };
+        return free(q, r) ? { q, r } : null;
+    },
+
+    /**
+     * Set the boat you carry down: into the water beside you (opts.to: the cell
+     * asked for), tied to the bank. With no water by you she stays on your
+     * shoulders — unless opts.force (knocked down, a battle): then she is laid
+     * on the ground where you stand. opts.why: the word on it. → true when down
+     */
+    setDown(game, opts = {}) {
+        const boat = this.carriedBoat(game);
+        if (!boat) { this._setCarry(null); return false; }
+        const h = this.hex();
+        const q = InnerMap.playerInnerQ, r = InnerMap.playerInnerR;
+        const spot = h ? this._waterBeside(q, r, opts.to || null, game.player) : null;
+        if (!spot && !opts.force) {
+            _notify(game, '🛶 No Water Here', `There is no water beside you to set the ${boat.name} in: carry her to the bank.`, 'warning');
+            return false;
+        }
+        const at = spot || { q, r };
+        if (h) Rowboats.setDown(game.player, boat.id, { hq: h.q, hr: h.r, q: at.q, r: at.r });
+        else delete boat.carried;
+        this._setCarry(null);
+        _notify(game, `🛶 The ${boat.name}`, opts.why || (spot
+            ? `You swing the ${boat.name} down off your shoulders into the water and make her fast to the bank.`
+            : `You let the ${boat.name} down onto the ground.`), 'info');
+        return true;
+    },
+
+    /** Each frame with a boat on your shoulders: she follows you; you are made to drop her now and then. */
+    _updateCarried(game) {
+        const player = game && game.player;
+        const boat = player ? Rowboats.carried(player) : null;
+        if (!boat) { if (this.carrying || InnerMap._boatCarried) this._setCarry(null); return; }
+        if (this.carrying !== boat.id || !InnerMap._boatCarried) this._setCarry(boat.id);
+        // (off the street map, on the world's roads: she goes with you)
+        if (!InnerMap.active) return;
+        if (InnerMap._insideBuilding) {
+            // (taken indoors regardless — to the gaol: she is left lying outside the door)
+            const wt = InnerMap.currentWorldTile, o = InnerMap._outerMapState;
+            if (wt && o) Rowboats.setDown(player, boat.id, { hq: wt.q, hr: wt.r, q: o.playerInnerQ, r: o.playerInnerR });
+            else delete boat.carried;
+            this._setCarry(null);
+            this._carryMap = null;
+            _notify(game, `🛶 The ${boat.name}`, `The ${boat.name} is left lying outside.`, 'info');
+            return;
+        }
+        const h = this.hex();
+        if (!h) return;
+        const q = InnerMap.playerInnerQ, r = InnerMap.playerInnerR;
+        Rowboats.moor(player, boat.id, { hq: h.q, hr: h.r, q, r });
+        const pos = InnerMap.getPlayerWorldPos ? InnerMap.getPlayerWorldPos() : null;
+        if (pos && pos.walking && (pos.dq || pos.dr)) this._carryDir = Math.abs(pos.dq) >= Math.abs(pos.dr) ? (pos.dq > 0 ? 3 : 1) : (pos.dr > 0 ? 2 : 0);
+        if (InnerMap.tiles !== this._carryMap) {
+            // (come onto a new map with her: down into the water at once, if there is water by you)
+            this._carryMap = InnerMap.tiles;
+            if (this._waterBeside(q, r, null, player)) { this.setDown(game, { why: `You set the ${boat.name} down in the water beside you and tie her up.` }); return; }
+        }
+        if (InnerMapBattle.active || player.boardedShip) { this.setDown(game, { force: true }); return; }
+        if (InnerMapCombat.playerKnockedOut && InnerMapCombat.playerKnockedOut()) {
+            this.setDown(game, { force: true, why: `The blow knocks the ${boat.name} from your shoulders.` });
+            return;
+        }
+        if (InnerMap.isPlayerSwimming() || InnerMap._aboardBoat) { this.setDown(game, { force: true }); return; }
+        InnerMap._boatCarried = true;
+    },
+
+    // ── Through a map's edge into the next hex ──
+
+    /** Leaving by the river aboard (or by any edge with her on your shoulders): the boat goes too. → a carry token, or null */
     beforeCross(game) {
-        if (!this.aboard || !this.boat(game)) return null;
-        this._carry = { id: this.aboard, at: _now() };
+        if (this.aboard && this.boat(game)) {
+            this._carry = { id: this.aboard, at: _now() };
+            return this._carry;
+        }
+        const held = this.carrying ? this.carriedBoat(game) : null;
+        if (!held) return null;
+        this._carry = { id: held.id, at: _now(), carried: true };
         return this._carry;
     },
 
@@ -289,6 +442,20 @@ export const InnerMapRowboat = {
         if (this._carry === carry) this._carry = null;
         const boat = game && game.player ? Rowboats.get(game.player, carry.id) : null;
         const h = this.hex();
+        if (carry.carried) {
+            // (on your shoulders: set down in the water you come in beside, else carried on)
+            if (!boat || !boat.carried) return;
+            if (!h || !at) { this._carryMap = null; return; }
+            Rowboats.moor(game.player, boat.id, { hq: h.q, hr: h.r, q: at.q, r: at.r });
+            this._carryMap = InnerMap.tiles;
+            const spot = this._waterBeside(at.q, at.r, null, game.player);
+            if (spot) {
+                Rowboats.setDown(game.player, boat.id, { hq: h.q, hr: h.r, q: spot.q, r: spot.r });
+                this._setCarry(null);
+                _notify(game, `🛶 The ${boat.name}`, `You set the ${boat.name} down in the water beside you and tie her up.`, 'info');
+            }
+            return;
+        }
         if (!boat || !h || !at || !this.isBoatWater(at.q, at.r)) {
             this._set(null);
             if (boat) _notify(game, `🛶 The ${boat.name}`, `You had to leave the ${boat.name} behind, at the edge of the last map.`, 'warning');
@@ -305,13 +472,14 @@ export const InnerMapRowboat = {
 
     update(dt, game) {
         const player = game && game.player;
-        if (player !== this._player) { this._player = player; this._carry = null; this._set(null); }
+        if (player !== this._player) { this._player = player; this._carry = null; this._set(null); this._setCarry(null); this._carryMap = null; }
         this._t += Math.max(0, Math.min(_num(dt), 0.1));
         if (this._carry) {
             // (between the two maps of a river crossing: the boat goes with you — unless it never arrives)
-            if (_now() - this._carry.at > 15000) { this._carry = null; this._set(null); }
+            if (_now() - this._carry.at > 15000) { this._carry = null; this._set(null); this._carryMap = null; }
             return;
         }
+        this._updateCarried(game);
         if (!this.aboard) { if (InnerMap._aboardBoat) this._set(null); return; }
         const boat = this.boat(game);
         if (!boat || !InnerMap.active || InnerMap.tiles !== this._map) { this._set(null); return; }
@@ -370,12 +538,33 @@ export const InnerMapRowboat = {
             }
             return out;
         }
-        if (mine) {
+        const held = this.carrying ? Rowboats.get(player, this.carrying) : null;
+        if (held) {
+            // On your shoulders: down into the water beside you (the cell clicked, if it is water by you)
+            const atMe = q === pq && r === pr;
+            const water = !atMe && this._beside(q, r) && this.isBoatWater(q, r);
+            if (atMe || water) {
+                out.push({ type: 'header', label: `🛶 The ${held.name} — on your shoulders` });
+                const spot = this._waterBeside(pq, pr, water ? { q, r } : null, player);
+                if (spot) out.push({ type: 'action', action: 'rowboat_setdown', label: 'Set the Boat Down', icon: '🛶', desc: water ? 'Into the water here, tied to the bank' : 'Into the water beside you, tied to the bank' });
+                else out.push({ type: 'disabled', label: '🛶 Set the Boat Down — no water beside you' });
+                out.push({ type: 'separator' });
+            }
+            return out;
+        }
+        const lying = mine || this._leanAt(player, h, q, r);
+        if (lying) {
+            const mine = lying;
             out.push({ type: 'header', label: `🛶 Your Rowboat, the ${mine.name}` });
             const why = this.whyNotBoard(game, mine);
             const swimming = InnerMap.isPlayerSwimming();
             if (why) out.push({ type: 'disabled', label: `🛶 Board — ${why}` });
             else out.push({ type: 'action', action: 'rowboat_board', boatId: mine.id, label: swimming ? 'Climb into the Boat' : 'Board the Boat', icon: '🛶', desc: 'Take up the oars: row about the water, fish from her, drift down a river' });
+            if (!swimming) {
+                const whyL = this.whyNotLift(game, mine);
+                if (!whyL) out.push({ type: 'action', action: 'rowboat_carry', boatId: mine.id, label: 'Carry the Boat', icon: '💪', desc: 'Up onto your shoulders, upturned: carry her over land to other water (a slow, heavy walk)' });
+                else out.push({ type: 'disabled', label: `💪 Carry the Boat — ${whyL}` });
+            }
             if (Rowboats.sellerHere(game.world, player)) {
                 const v = Rowboats.saleValue(game.world, player);
                 if (v > 0) out.push({ type: 'action', action: 'rowboat_sell', boatId: mine.id, label: `Sell Her to the Boatwright (${Utils.formatGold(v)}g)`, icon: '🪙', desc: 'The town\'s boatwright buys her back, out of the town\'s purse' });
@@ -417,6 +606,12 @@ export const InnerMapRowboat = {
                 return true;
             }
             case 'rowboat_ashore': this.stepAshore(game); return true;
+            case 'rowboat_carry': {
+                const boat = Rowboats.get(player, item.boatId);
+                if (boat) this.lift(game, boat);
+                return true;
+            }
+            case 'rowboat_setdown': this.setDown(game, { to: { q, r } }); return true;
             case 'rowboat_landat': return this._rowAshore(game, q, r);
             case 'rowboat_tie': this.tieUp(game); return true;
             case 'rowboat_untie': this.castOff(game); return true;
@@ -477,22 +672,69 @@ export const InnerMapRowboat = {
         return true;
     },
 
+    /**
+     * How a moored boat lies: drawn out from the land about her toward the open
+     * water (ox, oy in cells: mooredOffset, less where the water that way is
+     * narrow), lengthwise along the bank (horiz: across the screen).
+     */
+    _lie(b) {
+        let vx = 0, vy = 0;
+        for (const [a, c] of N8) {
+            const t = this._tile(b.q + a, b.r + c);
+            if (!t || this.isBoatWater(b.q + a, b.r + c)) continue;
+            const w = a && c ? 0.7 : 1;
+            vx -= a * w; vy -= c * w;
+        }
+        const n = Math.hypot(vx, vy);
+        if (n < 0.3) return { ox: 0, oy: 0, horiz: this._lengthwise(b) };
+        vx /= n; vy /= n;
+        let m = Math.max(0, Math.min(0.5, _num(Rowboats.config().mooredOffset, 0.42)));
+        const lq = b.q + (Math.abs(vx) >= 0.38 ? Math.sign(vx) : 0), lr = b.r + (Math.abs(vy) >= 0.38 ? Math.sign(vy) : 0);
+        if ((lq !== b.q || lr !== b.r) && !this.isBoatWater(lq, lr)) m = Math.min(m, 0.15);
+        return { ox: vx * m, oy: vy * m, horiz: Math.abs(vy) >= Math.abs(vx) };
+    },
+
+    /** The cell a moored boat is drawn leaning into (her own, or the next one out). */
+    _leanCell(b) {
+        const L = this._lie(b);
+        return { q: b.q + (Math.abs(L.ox) >= 0.25 ? Math.sign(L.ox) : 0), r: b.r + (Math.abs(L.oy) >= 0.25 ? Math.sign(L.oy) : 0) };
+    },
+
+    /** A boat of yours lying moored so she is drawn over (q, r) (not her own cell), or null. */
+    _leanAt(player, h, q, r) {
+        if (!player || !h) return null;
+        for (const b of Rowboats.boatsOn(player, h.q, h.r)) {
+            if (!b || b.carried || b.id === this.aboard || (b.q === q && b.r === r)) continue;
+            const c = this._leanCell(b);
+            if (c.q === q && c.r === r) return b;
+        }
+        return null;
+    },
+
     collect(items, ctx, camera, T) {
         const game = this._player ? { player: this._player } : null;
         if (!game || !InnerMap.active || InnerMap._insideBuilding || InnerMapBattle.active) return;
+        const ds = T * camera.zoom;
+        if (this.carrying && InnerMap._boatCarried) {
+            // The one on your shoulders: upturned over your head, drawn over you
+            const pos = InnerMap.getPlayerWorldPos();
+            const s = camera.worldToScreenFast(pos.x, pos.y);
+            const sx = s.x, sy = s.y, dir = this._carryDir, walking = !!pos.walking;
+            items.push({ sortY: pos.y + T / 2 + 0.6, zLayer: 2, draw: () => this._drawCarried(ctx, sx, sy, ds, dir, walking) });
+        }
         const boats = this.here(game);
         if (!boats.length) return;
-        const ds = T * camera.zoom;
         const W = ctx.canvas.width, H = ctx.canvas.height;
         for (const b of boats) {
             if (b.id === this.aboard) continue;
             const t = this._tile(b.q, b.r);
             if (t && t.visible === false) continue;
-            const wx = (b.q + 0.5) * T, wy = (b.r + 0.5) * T;
+            const lie = this._lie(b);
+            const wx = (b.q + 0.5 + lie.ox) * T, wy = (b.r + 0.5 + lie.oy) * T;
             const s = camera.worldToScreenFast(wx, wy);
             const sx = s.x, sy = s.y;
             if (sx < -ds * 3 || sx > W + ds * 3 || sy < -ds * 3 || sy > H + ds * 3) continue;
-            const horiz = this._lengthwise(b);
+            const horiz = lie.horiz;
             const frozen = !this.isBoatWater(b.q, b.r);
             const phase = (b.q * 1.7 + b.r * 0.9) % 6.28;
             items.push({ sortY: wy, zLayer: 1, sortX: wx / T, draw: () => {
@@ -623,6 +865,60 @@ export const InnerMapRowboat = {
             ctx.lineWidth = Math.max(1, Math.round(ds / 24));
             ctx.stroke();
         }
+        ctx.restore();
+    },
+
+    /**
+     * The boat on your shoulders: upturned over your head (the keel up, the bow
+     * the way you face), rocking a little with your steps. (px, py): your feet.
+     */
+    _drawCarried(ctx, px, py, ds, dir, walking) {
+        const across = dir === 1 || dir === 3;
+        const L = ds * (across ? 1.62 : 0.95), B = ds * (across ? 0.52 : 0.62);
+        const step = walking ? Math.abs(Math.sin(this._t * 7)) * ds * 0.035 : 0;
+        const cx = Math.round(px), cy = Math.round(py - ds * (across ? 1.15 : 1.25) - step);
+        const ang = dir === 3 ? 0 : dir === 1 ? Math.PI : dir === 2 ? Math.PI / 2 : -Math.PI / 2;
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(ang + (walking ? Math.sin(this._t * 3.5) * 0.025 : 0));
+        ctx.beginPath();
+        ctx.moveTo(L / 2, 0);
+        ctx.quadraticCurveTo(L * 0.36, -B * 0.52, L * 0.12, -B / 2);
+        ctx.lineTo(-L * 0.42, -B * 0.46);
+        ctx.quadraticCurveTo(-L / 2, -B * 0.44, -L / 2, -B * 0.3);
+        ctx.lineTo(-L / 2, B * 0.3);
+        ctx.quadraticCurveTo(-L / 2, B * 0.44, -L * 0.42, B * 0.46);
+        ctx.lineTo(L * 0.12, B / 2);
+        ctx.quadraticCurveTo(L * 0.36, B * 0.52, L / 2, 0);
+        ctx.closePath();
+        // The tarred bottom planking, a dark outline
+        ctx.fillStyle = '#5e391c';
+        ctx.fill();
+        ctx.lineWidth = Math.max(1, Math.round(ds / 16));
+        ctx.strokeStyle = '#2b180b';
+        ctx.stroke();
+        // The strakes' seams, run to the bow
+        ctx.strokeStyle = 'rgba(30,16,6,0.7)';
+        ctx.lineWidth = Math.max(1, ds / 30);
+        for (const f of [-0.26, 0.26]) {
+            ctx.beginPath();
+            ctx.moveTo(-L * 0.46, B * f);
+            ctx.quadraticCurveTo(L * 0.2, B * f * 1.05, L * 0.44, B * f * 0.25);
+            ctx.stroke();
+        }
+        // The keel along her middle, catching the light
+        ctx.strokeStyle = '#3a2210';
+        ctx.lineWidth = Math.max(2, Math.round(ds / 11));
+        ctx.beginPath();
+        ctx.moveTo(-L * 0.48, 0);
+        ctx.lineTo(L * 0.47, 0);
+        ctx.stroke();
+        ctx.strokeStyle = 'rgba(255,220,160,0.4)';
+        ctx.lineWidth = Math.max(1, ds / 28);
+        ctx.beginPath();
+        ctx.moveTo(-L * 0.46, -B * 0.06);
+        ctx.lineTo(L * 0.44, -B * 0.06);
+        ctx.stroke();
         ctx.restore();
     },
 

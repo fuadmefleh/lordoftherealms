@@ -119,6 +119,8 @@ const topLevel = [
     'livestock',
     // Your own dogs, cats, hawks and the horse, walking with you (systems/animalCompanions.js)
     'animalCompanions',
+    // Your horse through fords and swimming you across rivers on the street map (player/horseSwim.js, ui/innerMapHorseSwim.js)
+    'horseSwim',
     // Flying your hawk at quarry on the street map (systems/falconry.js, ui/innerMapHawk.js)
     'falconry',
     'graves',
@@ -133,6 +135,10 @@ const topLevel = [
     'riverLife',
     // Wicker fish traps set in the edge water and checked later (systems/fishTraps.js)
     'fishTraps',
+    // Small things built with your own hands on the street map: fences, gates, sheds, wells (world/handBuilding.js, ui/innerMapHandBuild.js)
+    'handBuilding',
+    // A torch or lantern carried at night; fishing by torchlight (systems/carriedLight.js, ui/innerMapTorchlight.js)
+    'torchlight',
     // A rowboat of your own on the street map's rivers and lakes (player/rowboats.js, ui/innerMapRowboat.js)
     'rowboats',
     // Pixel sprites for goods lying on the inner map, dropped or afloat (ui/itemSprites.js)
@@ -140,6 +146,8 @@ const topLevel = [
     // The set of the sea (world/oceanCurrents.js)
     'currents',
     'marketStalls',
+    // Haggling face to face with a stall's keeper (player/haggling.js, ui/actionMenu/haggle.js)
+    'haggling',
     'npcTheft',
     'brawls',
     'romance',

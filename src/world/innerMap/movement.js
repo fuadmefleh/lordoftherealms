@@ -71,7 +71,7 @@ Object.assign(InnerMap, {
 
         if (this._climb) return { started: false, moved: false, encounter: null, outOfBounds: false };
         // A climber makes for a crag's top, or down off it; a click on a face is its far end (world/innerMap/climbing.js)
-        const climbing = this._climbMax > 0 && !this._insideBuilding;
+        const climbing = this._climbMax > 0 && !this._insideBuilding && !this._boatCarried;
         if (climbing) {
             const to = this.climbTargetFor(targetQ, targetR);
             if (to) { targetQ = to.q; targetR = to.r; }
@@ -85,7 +85,7 @@ Object.assign(InnerMap, {
 
         // A* pathfinding (the player may swim where swimming is allowed, and climb faces they can)
         const path = this._findPath(this.playerInnerQ, this.playerInnerR, targetQ, targetR,
-            { swim: !!(this._swimAllowed || this._aboardBoat), levels: true, climb: climbing ? { max: this._climbMax } : null });
+            { swim: !!((this._swimAllowed && !this._boatCarried) || this._aboardBoat), levels: true, climb: climbing ? { max: this._climbMax } : null });
         if (!path || path.length <= 1) {
             return { started: false, moved: false, encounter: null, outOfBounds: false };
         }
@@ -485,7 +485,7 @@ Object.assign(InnerMap, {
         // A step that jumps from a face's foot to its top (or back) is a climb (world/innerMap/climbing.js)
         if (next && Math.abs(next.q - this.playerInnerQ) + Math.abs(next.r - this.playerInnerR) > 1) {
             const link = this.linkBetween(this.playerInnerQ, this.playerInnerR, next.q, next.r);
-            if (!link || link.rows > (this._climbMax || 0)) {
+            if (!link || link.rows > (this._climbMax || 0) || this._boatCarried) {
                 this.cancelPlayerWalk();
                 return { moved: false, encounter: null, blocked: true, climbRefused: true };
             }
@@ -505,7 +505,11 @@ Object.assign(InnerMap, {
         const skate = !row && !inWater && this._icePace ? this._icePace(next, deltaTime) : 1;
         // (the rain's fresh mud on the unpaved roads and soft ground, worse on horseback — world/innerMap/streetWeather.js)
         const mud = !row && !inWater && next && this.weatherPace ? this.weatherPace(next.q, next.r, ride !== 1 ? 'ride' : 'foot') : 1;
-        this._playerMoveProgress += deltaTime * this._playerSpeed * (row ? row : inWater ? this.swimConfig().speed * (this._swimSpeedBonus || 1) * under : pace * ride * skate * mud);
+        // (your rowboat on your shoulders: a slow, heavy walk — ui/innerMapRowboat.js sets _boatCarrySpeed)
+        const haul = !row && !inWater && this._boatCarried ? (this._boatCarrySpeed > 0 ? this._boatCarrySpeed : 0.5) : 1;
+        // (your horse through a ford at a careful walk, or swimming you over deep water — ui/innerMapHorseSwim.js sets _horsePace)
+        const horse = !row && this._horsePace ? this._horsePace(next, inWater) : 0;
+        this._playerMoveProgress += deltaTime * this._playerSpeed * (row ? row : inWater ? (horse > 0 ? horse : this.swimConfig().speed * (this._swimSpeedBonus || 1) * under) : pace * ride * skate * mud * haul * (horse > 0 ? horse : 1));
 
         if (this._playerMoveProgress >= 1.0) {
             this._playerMoveProgress = 0;
@@ -628,6 +632,8 @@ Object.assign(InnerMap, {
         const avoid = !levels && this._avoidTiles && this._avoidTiles.size && this._avoidTiles.w === W ? this._avoidTiles : null;
         // Carts parked in the street are solid: everyone's paths go round them (world/innerMap/carts.js)
         const parked = !this._insideBuilding && this._cartParkedIdx && this._cartParkedIdx.w === W && this._cartsTiles === tiles ? this._cartParkedIdx : null;
+        // A tournament's barrier, stands and pavilions while the lists stand: everyone's paths go round (world/innerMap/lists.js)
+        const lists = this._listsBlock && this._listsBlock.tiles === tiles && this._listsBlock.w === W ? this._listsBlock.set : null;
         // Flat index helpers
         const idx = (q, r) => r * W + q;
         const endIdx = idx(endQ, endR);
@@ -749,6 +755,7 @@ Object.assign(InnerMap, {
                 // (not the player's walk: theirs keeps to its levels)
                 if (avoid && ni !== endIdx && avoid.has(ni)) ng += AVOID_PATH_COST;
                 if (parked && ni !== endIdx && parked.has(ni)) continue;
+                if (lists && lists.has(ni)) continue;
                 // Blocked tile sides (interior floor edges, see core/tileSides.js)
                 if ((tile.blockedSides || tiles[cr][cq].blockedSides) &&
                     stepBlockedBySides(tiles[cr][cq].blockedSides, tile.blockedSides, dq[d], dr[d])) continue;

@@ -112,6 +112,60 @@ describe('the lists on the street map', () => {
         for (const row of wet) for (const t of row) { t._wet = true; t.subTerrain.passable = false; }
         expect(InnerMap.listsSite(wet, 1, 1)).toBeNull();
     });
+
+    it('stand solid while they are up: the barrier, stands and pavilions turn walks and paths aside, the lanes still reachable', () => {
+        const s = makeTown();
+        const tiles = makeTiles();
+        const before = JSON.stringify(tiles);
+        openTown(s, tiles);
+        const player = makePlayer();
+        const game = makeGame(player);
+        // (your own tournament today: the lists stand all day)
+        player.lists = { held: { key: Lists.townKey(s), day: 400, prizePool: 300, baseRenown: 0, compete: false } };
+        InnerMapTournament.update(0.05, game);
+        const L = InnerMapTournament.site();
+        const mid = L.q0 + Math.floor(L.w / 2);
+        const solid = InnerMap.listsSolidCells(L);
+        expect(solid.length).toBe((L.barrierTo - L.barrierFrom + 1) + L.stands.w * L.stands.h + 16);
+        for (const c of solid) expect(InnerMap._listsBlocks(c.q, c.r)).toBe(true);
+        // the barrier's row from end to end, the stands, the pavilions; not the lanes, the rail, the ring, the herald
+        expect(InnerMap._listsBlocks(L.barrierFrom, L.barrier)).toBe(true);
+        expect(InnerMap._listsBlocks(L.barrierTo, L.barrier)).toBe(true);
+        expect(InnerMap._listsBlocks(L.stands.q, L.stands.r + 1)).toBe(true);
+        expect(InnerMap._listsBlocks(L.pavilions[1].q + 1, L.pavilions[1].r + 3)).toBe(true);
+        for (const [q, r] of [[mid, L.laneA], [mid, L.laneB], [L.ring.q, L.ring.r], [L.herald.q, L.herald.r], [L.barrierFrom - 1, L.barrier], [L.barrierTo + 1, L.barrier]]) {
+            expect(InnerMap._listsBlocks(q, r)).toBe(false);
+        }
+        // the player can't step onto them, nor walk through
+        expect(InnerMap._playerMayEnter(tiles[L.barrier][mid], mid, L.barrier)).toBe(false);
+        expect(InnerMap.movePlayerTo(mid, L.barrier).started).toBe(false);
+        // from the crowd's side into the far lane: round the barrier's end, through the gap by the pavilion
+        for (const path of [InnerMap._findPath(L.herald.q, L.herald.r, mid, L.laneA), InnerMap._findPath(L.herald.q, L.herald.r, mid, L.laneA, { swim: true, levels: true })]) {
+            expect(path).toBeTruthy();
+            expect(path.some(p => InnerMap._listsBlocks(p.q, p.r))).toBe(false);
+            expect(path.length - 1).toBeGreaterThan(Math.abs(L.herald.r - L.laneA));
+        }
+        // the stands are no place to walk to
+        expect(InnerMap._findPath(mid, L.laneB, L.stands.q + 2, L.stands.r)).toBeNull();
+        // a townsman whose old path ran across the barrier stops short of it
+        const npc = { id: 'n1', name: 'Tom', state: 'walking', q: mid, r: L.laneB, prevQ: mid, prevR: L.laneB, speed: 1, moveProgress: 0.99, path: [{ q: mid, r: L.barrier }, { q: mid, r: L.laneA }], pathIndex: 0 };
+        InnerMap.npcs = [npc];
+        InnerMap.updateNPCs(0.05);
+        expect([npc.q, npc.r]).toEqual([mid, L.laneB]);
+        expect(npc.path).toBeNull();
+        // the day over (no tournament): the ground open again — and the tiles never touched
+        player.lists = null;
+        InnerMapTournament.update(0.05, game);
+        expect(InnerMap._listsBlocks(mid, L.barrier)).toBe(false);
+        expect(InnerMap._findPath(mid, L.laneB, mid, L.laneA).length).toBe(3);
+        expect(JSON.stringify(tiles)).toBe(before);
+        // (and leaving the map strikes them)
+        player.lists = { held: { key: Lists.townKey(s), day: 400, prizePool: 300, baseRenown: 0, compete: false } };
+        InnerMapTournament.update(0.05, game);
+        expect(InnerMap._listsBlocks(mid, L.barrier)).toBe(true);
+        InnerMapTournament.reset();
+        expect(InnerMap._listsBlocks(mid, L.barrier)).toBe(false);
+    });
 });
 
 describe('the towns\' own tournaments', () => {

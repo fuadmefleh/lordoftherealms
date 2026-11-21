@@ -759,6 +759,7 @@
         "ANCIENT_COIN": { "id": "ancient_coin", "name": "Ancient Coin", "icon": "💰", "basePrice": 35, "description": "A coin from a fallen empire. Collectors and scholars pay well for it." },
         "RARE_BOOK": { "id": "rare_book", "name": "Rare Book", "icon": "📕", "basePrice": 50, "description": "A precious manuscript. Scholars, monasteries and libraries want it." },
         "COMPASS": { "id": "compass", "name": "Compass", "icon": "🧭", "basePrice": 30, "description": "A lodestone needle in a brass case. Sailors and explorers swear by it." },
+        "TORCH": { "id": "torch", "name": "Torch", "icon": "🔥", "basePrice": 2, "description": "A stick with resin, tallow or a pitch-soaked rag bound about its head. Lit, it burns three hours or so: a wide, flickering light, and by the water at night the fish come up to it." },
         "LANTERN": { "id": "lantern", "name": "Lantern", "icon": "🏮", "basePrice": 18, "description": "A horn-paned lantern that lights the road at night and keeps the flame out of the wind." },
         "AMULET": { "id": "amulet", "name": "Amulet", "icon": "🔮", "basePrice": 75, "description": "A charm said to ward off ill luck. Some believe in it more than others." },
         "ENCHANTED_RING": { "id": "enchanted_ring", "name": "Enchanted Ring", "icon": "💍", "basePrice": 150, "description": "A ring with a strange glimmer. Its owner swears it brings fortune." },

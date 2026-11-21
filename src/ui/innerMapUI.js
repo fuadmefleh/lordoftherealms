@@ -44,6 +44,7 @@ import { InnerMapFarming } from './innerMapFarming.js';
 import { InnerMapFields } from './innerMapFields.js';
 import { InnerMapGranary } from './innerMapGranary.js';
 import { InnerMapGates } from './innerMapGates.js';
+import { InnerMapHandBuild } from './innerMapHandBuild.js';
 import { InnerMapMemory } from './innerMapMemory.js';
 import { InnerMapDiving } from './innerMapDiving.js';
 import { InnerMapClimbing } from './innerMapClimbing.js';
@@ -52,6 +53,7 @@ import { InnerMapRiverDrift } from './innerMapRiverDrift.js';
 import { InnerMapFeedFish } from './innerMapFeedFish.js';
 import { InnerMapTournament } from './innerMapTournament.js';
 import { InnerMapFishTraps } from './innerMapFishTraps.js';
+import { InnerMapTorchlight } from './innerMapTorchlight.js';
 import { InnerMapRowboat } from './innerMapRowboat.js';
 import { InnerMapRoadWalk } from './innerMapRoadWalk.js';
 import { NpcDisposition } from '../systems/npcDisposition.js';
@@ -415,6 +417,8 @@ Object.assign(InnerMapRenderer, {
         if (!building) this._groundMenu(menuItems, tile, q, r, game);
         // ── A grave, a plot, a bone mill or ossuary of yours (ui/innerMapGraves.js) ──
         if (!building) menuItems.push(...InnerMapGraves.menuItems(game, tile, q, r));
+        // ── Building by hand on your own ground: the mode, your sites and structures, a camp in the wilds (ui/innerMapHandBuild.js) ──
+        if (!building) menuItems.push(...InnerMapHandBuild.menuItems(game, tile, q, r));
 
         // ── Someone beaten senseless (ui/innerMapCombat.js, systems/knockout.js) ──
         // (not the one over the player's shoulder, nor one left lying in a room the player isn't in)
@@ -559,6 +563,8 @@ Object.assign(InnerMapRenderer, {
                 menuItems.push(...InnerMapFeedFish.menuItems(game, tile, q, r));
                 // Edge water by a bank: set a fish trap; bait, haul up or take up your own (ui/innerMapFishTraps.js)
                 menuItems.push(...InnerMapFishTraps.menuItems(game, tile, q, r));
+                // ...and a lantern hung at your trap to keep poachers off (ui/innerMapTorchlight.js)
+                menuItems.push(...InnerMapTorchlight.trapItems(game, tile, q, r));
                 menuItems.push(...InnerMapDiving.menuItems(game, tile, q, r));
                 // Your rowboat: board, tie up, step ashore, dive from it; buy or build one by the bank (ui/innerMapRowboat.js)
                 menuItems.push(...InnerMapRowboat.menuItems(game, tile, q, r));
@@ -616,6 +622,8 @@ Object.assign(InnerMapRenderer, {
                 menuItems.push({ type: 'header', label: '⚙️ General' });
                 menuItems.push({ type: 'action', action: 'wait_here', label: 'Wait', icon: '⏳', desc: 'Wait and let time pass' });
                 menuItems.push({ type: 'action', action: 'rest', label: 'Rest', icon: '💤', desc: 'Take a break and recover' });
+                // A torch or lantern: light it, put it out, bind a torch (ui/innerMapTorchlight.js)
+                menuItems.push(...InnerMapTorchlight.menuItems(game));
             }
         }
 
@@ -1038,12 +1046,14 @@ Object.assign(InnerMapRenderer, {
         if (/^scav_/.test(item.action || '') && InnerMapScavengers.handle(game, item)) return;
         if (/^brawl_/.test(item.action || '') && InnerMapBrawls.handle(game, item)) return;
         if (/^furnish_/.test(item.action || '') && InnerMapFurnish.handle(game, item)) return;
+        if (/^hb_/.test(item.action || '') && InnerMapHandBuild.handle(game, item)) return;
         if (/^mine_/.test(item.action || '') && InnerMapMining.handle(game, item, q, r)) return;
         if (/^farm_/.test(item.action || '') && InnerMapFarming.handle(game, item, q, r)) return;
         if (/^drift_/.test(item.action || '') && InnerMapRiverDrift.handle(game, item, q, r)) return;
         if (item.action === 'feedfish_throw' && InnerMapFeedFish.handle(game, item, q, r)) return;
         if (typeof item.action === 'string' && item.action.startsWith('lists_') && InnerMapTournament.handle(game, item)) return;
         if (/^fishtrap_/.test(item.action || '') && InnerMapFishTraps.handle(game, item, q, r)) return;
+        if (/^torch_/.test(item.action || '') && InnerMapTorchlight.handle(game, item)) return;
         // Your rowboat (and, sat in it, a click on the bank: row in and step ashore there — ui/innerMapRowboat.js)
         if ((/^rowboat_/.test(item.action || '') || item.action === 'move_here') && InnerMapRowboat.handle(game, item, q, r)) return;
         if (item.action === 'hunt_animal') {

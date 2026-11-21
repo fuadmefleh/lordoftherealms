@@ -21,6 +21,8 @@ import { InnerMap } from '../world/innerMap.js';
 import { FishTraps } from '../systems/fishTraps.js';
 import { PlayerEconomy } from '../player/playerEconomy.js';
 import { DayClock } from './game/dayClock.js';
+import { CarriedLight } from '../systems/carriedLight.js';
+import { LightSystem } from './lightSystem.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _iced = t => !!(t && t.subTerrain && (t.subTerrain.frozen || /frozen|ice/.test(t.subTerrain.id || '')));
@@ -119,10 +121,15 @@ export const InnerMapFishTraps = {
         if (P && !InnerMap._insideBuilding && !InnerMap._underwater) {
             const trap = FishTraps.find(game.world, P.trapId);
             if (!trap) { this.poacher = null; return; }
-            if (this._playerDist(trap.x, trap.y) <= Math.max(1, _num(FishTraps.config().scareReach, 5))) {
+            // (a light carried at night: he sees it coming from far off — systems/carriedLight.js)
+            const base = Math.max(1, _num(FishTraps.config().scareReach, 5));
+            const reach = CarriedLight.scareReach(base, game.player, LightSystem.ambientDarkness);
+            if (this._playerDist(trap.x, trap.y) <= reach) {
                 FishTraps.scare(game.world, trap, P.hour);
                 this.poacher = null;
-                _note(game, '🧺 A Poacher', 'Someone is crouched at your fish trap in the dark, arm in the water. He sees you, lets it drop and runs off into the night. The fish are still in it.', 'info');
+                _note(game, '🧺 A Poacher', reach > base
+                    ? 'Someone is crouched at your fish trap in the dark, arm in the water. He sees your light coming along the bank, lets it drop and runs off into the night. The fish are still in it.'
+                    : 'Someone is crouched at your fish trap in the dark, arm in the water. He sees you, lets it drop and runs off into the night. The fish are still in it.', 'info');
             }
         }
     },

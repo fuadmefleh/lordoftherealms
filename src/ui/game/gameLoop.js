@@ -35,6 +35,7 @@ import { isInventoryKey } from '../inventoryHotkey.js';
 import { InnerMapEscort } from '../innerMapEscort.js';
 import { InnerMapCompanions } from '../innerMapCompanions.js';
 import { InnerMapPets } from '../innerMapPets.js';
+import { InnerMapHorseSwim } from '../innerMapHorseSwim.js';
 import { InnerMapTournament } from '../innerMapTournament.js';
 import { InnerMapHawk } from '../innerMapHawk.js';
 import { InnerMapRowboat } from '../innerMapRowboat.js';
@@ -47,6 +48,8 @@ import { InnerMapKin } from '../innerMapKin.js';
 import { InnerMapOverheard } from '../innerMapOverheard.js';
 import { InnerMapRiverDrift } from '../innerMapRiverDrift.js';
 import { InnerMapFishTraps } from '../innerMapFishTraps.js';
+import { InnerMapHandBuild } from '../innerMapHandBuild.js';
+import { InnerMapTorchlight } from '../innerMapTorchlight.js';
 import { isRiverSwim, riverRunsOn, riverCarriesOut, riverEntryCell } from '../innerMapRiverEdge.js';
 import { InnerMapSeasons } from '../innerMapSeasons.js';
 import { InnerMapWeather } from '../innerMapWeather.js';
@@ -86,10 +89,16 @@ export function gameLoop(timestamp, loopId) {
     InnerMapRiverDrift.update(this, InnerMap.active ? deltaTime * (_driftSpeed === 3 ? 4 : _driftSpeed) : deltaTime);
     // Your fish traps on this street map: brought up to the hour, a poacher seen off (ui/innerMapFishTraps.js)
     if (InnerMap.active) InnerMapFishTraps.update(this);
+    // Building by hand: the mode kept to the open air, the work's chain (ui/innerMapHandBuild.js)
+    if (InnerMap.active || InnerMapHandBuild.active) InnerMapHandBuild.update(this);
+    // The torch or lantern you carry: burning down by the clock, its light, the fish drawn to it (ui/innerMapTorchlight.js)
+    InnerMapTorchlight.update(this);
     // Off the inner map a winded diver still gets their breath back (ui/innerMapDiving.js)
     if (!InnerMap.active && this.player && this.player.breathRecovery) InnerMapDiving.recoverOnSurface(deltaTime, this);
     // Off the street map you are out of your rowboat (not between two maps of a river: ui/innerMapRowboat.js)
     if (!InnerMap.active && InnerMap._aboardBoat) InnerMapRowboat.update(deltaTime, this);
+    // Off the street map the rain's sound falls silent (ui/innerMapWeather.js)
+    if (!InnerMap.active) InnerMapWeather.offMap();
 
     // What people wear follows the world's year (world/eraWardrobe.js: a no-op unless it changed)
     InnerMapCharacters.setYear(this.world ? this.world.year : null);
@@ -175,6 +184,8 @@ export function gameLoop(timestamp, loopId) {
         InnerMap._swimAllowed = swimOk.ok || InnerMap.isPlayerSwimming(); // (already in: always on to the shore)
         InnerMap._swimRefusal = swimOk.ok ? null : swimOk.reason;
         InnerMap._swimSpeedBonus = Swimming.speedBonus(this.player);
+        // On horseback the horse decides: it swims you over, or won't (ui/innerMapHorseSwim.js)
+        InnerMapHorseSwim.gate(this);
 
         // Up and down the crags' faces; the body skills' level-ups told (ui/innerMapClimbing.js)
         InnerMapClimbing.update(simDelta, this);
@@ -505,6 +516,8 @@ export function gameLoop(timestamp, loopId) {
         InnerMapCompanions.update(simDelta, this);
         // Your dog, cat, hawk and horse after them (ui/innerMapPets.js)
         InnerMapPets.update(simDelta, this);
+        // Your horse through the fords and swimming the rivers: its strength spent and got back (ui/innerMapHorseSwim.js)
+        InnerMapHorseSwim.update(simDelta, this);
         // Your hawk on the fist, flown at quarry (ui/innerMapHawk.js: after the pets, it takes the hawk over)
         InnerMapHawk.update(simDelta, this);
         // Your rowboats on the water, and you in one (ui/innerMapRowboat.js)
@@ -927,6 +940,8 @@ export function handleClick(screenX, screenY, button = 'left') {
         if (InnerMapTournament.click(this, button)) return;
         // Furnishing a home: clicks pick up and set down furniture (ui/innerMapFurnish.js)
         if (InnerMapFurnish.active && InnerMapFurnish.click(this, innerHex.q, innerHex.r, button)) return;
+        // Building by hand: a click stakes out the thing in hand (ui/innerMapHandBuild.js)
+        if (InnerMapHandBuild.active && InnerMapHandBuild.click(this, innerHex.q, innerHex.r, button)) return;
 
         if (button === 'left') {
             // ── Hotbar placement on left-click ──
@@ -1214,7 +1229,9 @@ function _currentStep(game, dt) {
         sea = _seaCur.cur;
     }
     const sw = OceanCurrents.config().swim || {};
-    const resist = game.player && !InnerMap._aboardBoat ? Swimming.practice(game.player) * (Number(sw.skillResist) || 0) : 0;
+    // (a swimming horse under you holds against it in its own way: ui/innerMapHorseSwim.js)
+    const resist = InnerMapHorseSwim.carrying() ? InnerMapHorseSwim.resist()
+        : game.player && !InnerMap._aboardBoat ? Swimming.practice(game.player) * (Number(sw.skillResist) || 0) : 0;
     const res = InnerMap.driftPlayer(dt, sea, resist);
     if (!InnerMap.isPlayerSwimming() && !InnerMap._aboardBoat) { game._currentTold = false; game._riverEdgeTried = null; return; }
     _riverEdgeStep(game);
@@ -1277,6 +1294,8 @@ function _swimStep(game) {
         if (strokes && strokes > 3) game.ui.showNotification('🏖️ Ashore', 'You haul yourself out of the water, dripping.', 'info');
         return;
     }
+    // (on a swimming horse it is the horse that swims, not you: ui/innerMapHorseSwim.js)
+    if (InnerMapHorseSwim.carrying()) return;
     const wt = game.world && InnerMap.currentWorldTile ? game.world.getTile(InnerMap.currentWorldTile.q, InnerMap.currentWorldTile.r) : null;
     const res = Swimming.stroke(player, game.world, wt, { deep: true });
     for (const n of res.notices.slice(0, 2)) game.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);

@@ -1,0 +1,36 @@
+{
+    "_doc": "Your horse in the water on the street map (player/horseSwim.js: the rules; ui/innerMapHorseSwim.js: each frame and the look). Riding a ford or a bank's shallows: the horse slows to wadePace of its riding walk, splashing, and each wet cell wets the rider's legs by wadeWet, no further than wadeWetCap. Ridden (or led) into deep river or lake water the horse swims: swimSpeed of a walk (instead of a swimmer's stroke), the current's push cut by currentResist, the rider soaked. Its strength in the water is stamina cells of swimming (times healthFloor..1 by its health); each cell costs drainPerStroke (drainPerDrift when the current carried it), and each second in the water drainPerSecond. Below flagAt of its strength it flags (told); at nothing it panics and throws you (or, led, scrambles for the bank) and waits there. Ashore it gets its wind back at restPerSecond; below refuseBelow it is blown and refuses deep water. It refuses water at or below coldRefuseC, or where the water has frozen on the map; a foal won't swim at all. A long swim (packSoak.afterStrokes cells) soaks the packs: packSoak.share of each of packSoak.goods is spoiled, once a swim.",
+    "wadePace": 0.55,
+    "wadeWet": 4,
+    "wadeWetCap": 22,
+    "swimSpeed": 0.6,
+    "currentResist": 0.35,
+    "stamina": 26,
+    "healthFloor": 0.5,
+    "drainPerStroke": 1,
+    "drainPerDrift": 0.5,
+    "drainPerSecond": 0.12,
+    "restPerSecond": 0.4,
+    "refuseBelow": 0.45,
+    "flagAt": 0.3,
+    "coldRefuseC": 3,
+    "riderWet": 90,
+    "packSoak": { "afterStrokes": 6, "share": 0.15, "goods": ["flour", "bread", "grain", "salt", "cheese", "food"] },
+    "notices": {
+        "swimIn": ["🐎 {name} Swims", "{name} goes in over its depth and swims, only its head, neck and back above the water; you hold on, waist-deep. It can swim only so far: make for the far bank."],
+        "wade": ["🐎 Through the Water", "{name} slows to a careful splashing walk through the shallows."],
+        "flag": ["🐎 {name} Is Flagging", "{name} is tiring in the water, snorting and labouring. Make for the bank, now."],
+        "throw": ["🐎 {name} Panics", "{name} is spent: it panics, rolls, and throws you into the water, then scrambles for the bank and stands there blowing. Swim for it."],
+        "ledSpent": ["🐎 {name} Turns Back", "{name} is spent and scrambles back to the bank, where it stands blowing."],
+        "ashore": ["🐎 Out of the Water", "{name} heaves out onto the bank, streaming water, and shakes itself. Let it get its wind back before you swim it again."],
+        "rested": ["🐎 {name} Is Rested", "{name} has got its wind back."],
+        "packs": ["💧 Wet Packs", "The water got into your packs: {lost} spoiled."],
+        "refuseLed": ["🐎 {name} Won't Follow", "{why} It waits on the bank."]
+    },
+    "refusals": {
+        "foal": "{name} is a foal yet, too young to swim behind you.",
+        "cold": "{name} won't go into water this cold: it snorts and plants its feet.",
+        "blown": "{name} is blown from the last swim: let it get its wind back first.",
+        "spent": "{name} has nothing left to swim with."
+    }
+}

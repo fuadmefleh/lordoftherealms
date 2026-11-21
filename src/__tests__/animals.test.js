@@ -1028,3 +1028,33 @@ describe('carcasses', () => {
 function stubWorld() {
     return { width: 1, height: 1, day: 1, season: 'Spring', year: 1, tiles: [], kingdoms: [], events: [], units: [] };
 }
+
+describe('the pheasant in its own colours', () => {
+    it('wears the hen sheet recoloured: green head for the comb, wattle kept, copper body, beak and legs left; a tail', async () => {
+        const { AnimalRecolor } = await import('../ui/animalRecolor.js');
+        const sp = cfg().species.pheasant;
+        expect(sp.recolor).toBeTruthy();
+        expect(sp.tail).toBeTruthy();
+        // one 20×20 cell: comb (red, top), wattle (red, below), brown body, a yellow leg
+        const W = 20, px = new Uint8ClampedArray(W * W * 4);
+        const put = (x, y, c) => { const i = (y * W + x) * 4; px[i] = c[0]; px[i + 1] = c[1]; px[i + 2] = c[2]; px[i + 3] = 255; };
+        put(10, 2, [200, 40, 30]); put(10, 8, [200, 40, 30]);   // comb above, wattle below: red middle at y 5
+        put(2, 18, [110, 52, 26]);                               // body, far from the head
+        put(5, 19, [220, 170, 90]);                              // leg
+        AnimalRecolor.recolorPixels(px, W, W, W, W, -1, sp.recolor);   // (-1: not the seen-from-behind row)
+        const at = (x, y) => Array.from(px.slice((y * W + x) * 4, (y * W + x) * 4 + 3));
+        const [cr, cg] = at(10, 2);
+        expect(cg).toBeGreaterThan(cr);                          // the comb: green now
+        expect(at(10, 8)).toEqual([200, 40, 30]);                // the face wattle: red still
+        expect(at(5, 19)).toEqual([220, 170, 90]);               // the leg: as it was
+        const [br, bg] = at(2, 18);
+        expect(br).toBeGreaterThan(110);                         // copper
+        expect(bg).toBeLessThan(br);
+        // its tail is drawn (a stub canvas), and in node the plain sheet stands in: no throw
+        const calls = [];
+        const ctx = new Proxy({}, { get: (t, k) => (k in t ? t[k] : (...a) => calls.push(k)), set: (t, k, v) => { t[k] = v; return true; } });
+        AnimalRecolor.drawTail(ctx, 'left', 100, 100, 0.2, 64, 124, sp.tail);
+        expect(calls).toContain('fill');
+        expect(AnimalRecolor.sheet(null, 'x', sp, 0)).toBe(null);
+    });
+});

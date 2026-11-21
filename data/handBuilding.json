@@ -1,0 +1,115 @@
+{
+    "_doc": "Building small things with your own hands on the street map (systems/handBuilding.js the model; world/innerMap/handBuilding.js the ground, the laying and the standing; ui/innerMapHandBuild.js the Build by Hand mode, the work and the drawing). Only on ground that is yours: your building lot in town (every cell of it), the ground within ground.aroundHome cells of a building you own (a house, a property, a home on its lot — in town or out in the wilds), every cell of a wilds hex whose estate you hold, or within ground.campRadius cells of the camp you staked on a wilds map (one a hex, never on another holder's estate, never in a town). Laying a structure stakes a site (stakes and string; its cells block from the first stake). You build it yourself: stand beside it and Work on It. Each piece of work is work.chunkSeconds of swinging (a real time) for work.chunkMinutes on the clock; a stage's goods come out of your packs as you start it (needs, by good id) and its hours of work (hours) are done at speed = toolSpeed when you carry any of work.toolGoods x (1 + hands.perHandSpeed x hands hired today). A stage done shows: frame, then walls, then roof. Work stops at work.lateHour, when you walk off, or when the next stage's goods are not in your packs. hands: townsfolk hired for the day at the nearest town's land wage x hands.wageMult (coin from your purse into the town's), at most hands.max; they work beside you and only while you do. Finished structures are kept on world.handBuilt[hex] (saved) and stand again each time the map is entered: a structure with a prop stands as that town prop (a fence joined to its neighbours, a gate that opens and shuts as every gate does and is kept in world.gates, the woodpile, the bough lean-to, the well); the others are drawn by hand (shed, hen coop, stone wall, scarecrow, signpost, bench). store: goods it holds (capacity units, goods: only those; none listed: any good). room: head of livestock room it adds to a place of yours on the same hex (systems/livestock.js), species it opens there. guard: a scarecrow's yield bonus (share) for your crops within guardReach cells (systems/crops.js harvest). seat: comfort and fun a sit on it gives, minutes it takes. water: a well is water to carry from for your crops (ui/innerMapFarming.js waterDistance). Dismantling takes dismantle.hoursShare of its build hours and gives back dismantle.finishedShare of the goods its stages took (a site: siteShare); a store must be empty first.",
+    "enabled": true,
+    "ground": { "aroundHome": 4, "campRadius": 7, "maxPerHex": 80 },
+    "work": {
+        "chunkSeconds": 2.5,
+        "chunkMinutes": 30,
+        "lateHour": 22,
+        "toolGoods": ["tools", "steel_tools"],
+        "toolSpeed": 1.35,
+        "needs": { "energy": -2, "hygiene": -1 }
+    },
+    "hands": { "perHandSpeed": 0.75, "max": 2, "wageMult": 1.5, "fallbackWage": 0.6 },
+    "dismantle": { "finishedShare": 0.5, "siteShare": 0.8, "hoursShare": 0.25 },
+    "order": ["fence", "gate", "stone_wall", "woodpile", "lean_to", "shed", "coop", "well", "scarecrow", "signpost", "bench"],
+    "structures": {
+        "fence": {
+            "name": "Fence", "icon": "🪵", "footprint": [1, 1], "prop": "tp_fence_ew", "repeat": true,
+            "desc": "A length of post-and-rail fence. Lay a run of them; with a gate they make a pen.",
+            "stages": [
+                { "id": "posts", "name": "Sinking the post", "look": "posts", "hours": 0.5, "needs": { "wood": 1 } },
+                { "id": "rails", "name": "Fixing the rails", "look": "rails", "hours": 0.5, "needs": { "wood": 1 } }
+            ]
+        },
+        "gate": {
+            "name": "Gate", "icon": "🚪", "footprint": [1, 1], "prop": "tp_fence_gate",
+            "desc": "A hung gate in your fence: open it, shut it; it stays as you leave it.",
+            "stages": [
+                { "id": "posts", "name": "Setting the gateposts", "look": "posts", "hours": 0.5, "needs": { "wood": 1 } },
+                { "id": "hang", "name": "Hanging the gate", "look": "rails", "hours": 1, "needs": { "planks": 2, "iron": 1 } }
+            ]
+        },
+        "stone_wall": {
+            "name": "Stone Wall", "icon": "🧱", "footprint": [1, 1], "repeat": true, "blocks": true,
+            "desc": "A length of dry-stone wall, knee high. Slow to raise and it outlasts you.",
+            "stages": [
+                { "id": "footing", "name": "Laying the footing", "look": "stones", "hours": 1, "needs": { "stone": 2 } },
+                { "id": "courses", "name": "Raising the courses", "look": "walls", "hours": 1.5, "needs": { "stone": 3 } }
+            ]
+        },
+        "woodpile": {
+            "name": "Woodpile", "icon": "🪵", "footprint": [2, 2], "prop": "tp_firewood_big",
+            "desc": "A stacked woodpile between stakes: keeps your wood and firewood out of your packs.",
+            "store": { "capacity": 60, "goods": ["wood", "firewood", "driftwood", "planks"] },
+            "stages": [
+                { "id": "stakes", "name": "Driving the stakes", "look": "posts", "hours": 0.5, "needs": { "wood": 2 } },
+                { "id": "stack", "name": "Stacking the base", "look": "pile", "hours": 0.5, "needs": { "wood": 2 } }
+            ]
+        },
+        "lean_to": {
+            "name": "Bough Lean-to", "icon": "⛺", "footprint": [4, 4], "prop": "tp_tent_bough",
+            "desc": "Poles, boughs and reed thatch: a dry corner to keep things in, out in the wilds or behind the house.",
+            "store": { "capacity": 40 },
+            "stages": [
+                { "id": "poles", "name": "Lashing the poles", "look": "frame", "hours": 1, "needs": { "wood": 4, "rope": 1 } },
+                { "id": "thatch", "name": "Thatching the boughs", "look": "roof", "hours": 1.5, "needs": { "reeds": 6 } }
+            ]
+        },
+        "shed": {
+            "name": "Wooden Shed", "icon": "🛖", "footprint": [3, 2], "blocks": true,
+            "desc": "A plank shed with a door and a reed roof: a lockless store for whatever you like.",
+            "store": { "capacity": 150 },
+            "stages": [
+                { "id": "frame", "name": "Raising the frame", "look": "frame", "hours": 3, "needs": { "wood": 6 } },
+                { "id": "walls", "name": "Boarding the walls", "look": "walls", "hours": 4, "needs": { "planks": 8, "iron": 1 } },
+                { "id": "roof", "name": "Thatching the roof", "look": "roof", "hours": 3, "needs": { "reeds": 8, "planks": 2 } }
+            ]
+        },
+        "coop": {
+            "name": "Hen Coop", "icon": "🐔", "footprint": [2, 1], "blocks": true,
+            "desc": "A raised coop with a ladder and nest boxes: room for more hens and ducks at a place of yours here.",
+            "room": { "capacity": 8, "species": ["chicken", "duck"] },
+            "stages": [
+                { "id": "frame", "name": "Raising the frame", "look": "frame", "hours": 1.5, "needs": { "wood": 3 } },
+                { "id": "walls", "name": "Boarding it in", "look": "walls", "hours": 2, "needs": { "planks": 4 } },
+                { "id": "roof", "name": "Roofing it", "look": "roof", "hours": 1, "needs": { "reeds": 3 } }
+            ]
+        },
+        "well": {
+            "name": "Well", "icon": "🪣", "footprint": [2, 2], "prop": "tp_well", "water": true,
+            "desc": "Dig down to the water, line the shaft, raise the head and the winch. Long, hard work: water at your door for good.",
+            "stages": [
+                { "id": "dig", "name": "Digging the shaft", "look": "pit", "hours": 8, "needs": {} },
+                { "id": "line", "name": "Lining the shaft", "look": "stones", "hours": 6, "needs": { "stone": 10 } },
+                { "id": "head", "name": "Raising the head and winch", "look": "walls", "hours": 3, "needs": { "stone": 4, "wood": 2, "rope": 1 } }
+            ]
+        },
+        "scarecrow": {
+            "name": "Scarecrow", "icon": "🧑‍🌾", "footprint": [1, 1], "blocks": true, "onTilled": true,
+            "desc": "A cross of poles in an old coat, stuffed with reeds: the birds keep off your crops nearby.",
+            "guard": { "bonus": 0.2, "reach": 4 },
+            "stages": [
+                { "id": "frame", "name": "Lashing the cross", "look": "posts", "hours": 0.5, "needs": { "wood": 2 } },
+                { "id": "dress", "name": "Dressing it", "look": "figure", "hours": 0.5, "needs": { "reeds": 3, "wool": 1 } }
+            ]
+        },
+        "signpost": {
+            "name": "Signpost", "icon": "🪧", "footprint": [1, 1], "blocks": true,
+            "desc": "A post and a painted board with your House's name on it, for all who pass to read.",
+            "stages": [
+                { "id": "post", "name": "Sinking the post", "look": "posts", "hours": 0.5, "needs": { "wood": 1 } },
+                { "id": "board", "name": "Painting the board", "look": "board", "hours": 1, "needs": { "planks": 1 } }
+            ]
+        },
+        "bench": {
+            "name": "Bench", "icon": "🪑", "footprint": [2, 1], "blocks": true,
+            "desc": "A plank bench on two stumps: sit a while and watch the street.",
+            "seat": { "comfort": 8, "fun": 3, "minutes": 20 },
+            "stages": [
+                { "id": "legs", "name": "Setting the legs", "look": "posts", "hours": 0.5, "needs": { "wood": 1 } },
+                { "id": "seat", "name": "Fixing the seat", "look": "seat", "hours": 0.5, "needs": { "planks": 2 } }
+            ]
+        }
+    }
+}

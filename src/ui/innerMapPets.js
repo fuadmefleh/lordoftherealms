@@ -74,7 +74,8 @@ export const InnerMapPets = {
     // Your horse can be ridden on the street map (its species' streetRide: data/animalCompanions.json):
     // it carries you at its own quicker walk (InnerMap._rideSpeed, read by world/innerMap/movement.js)
     // and you are drawn in the saddle (drawRider, from the player's pass in innerMapLayers/entities.js).
-    // You swing down of yourself at a door, into the water or onto a rock face, to take something up
+    // Through fords and across deep water it wades and swims you (ui/innerMapHorseSwim.js).
+    // You swing down of yourself at a door, at water it won't swim, onto a rock face, to take something up
     // in your hands or set to a task, and when you are knocked down or the map is left.
 
     /** The horse you ride now (its walking record), or null. */
@@ -142,7 +143,8 @@ export const InnerMapPets = {
         if (InnerMapBattle.active || game.player && game.player.boardedShip) { P.dismount(game); return; }
         const pos = InnerMap.getPlayerWorldPos();
         if (pos.climbing || InnerMap._climbRequest) { P.dismount(game, `You get down from ${name} to climb.`); return; }
-        if (InnerMap.isPlayerSwimming && InnerMap.isPlayerSwimming()) { P.dismount(game, `${name} balks at the water: you slide off into it.`); return; }
+        // (into deep water it swims you across, unless it won't: a foal, the water near freezing — ui/innerMapHorseSwim.js)
+        if (InnerMap.isPlayerSwimming && InnerMap.isPlayerSwimming() && !(P._swimsYou && P._swimsYou(game, m))) { P.dismount(game, `${name} balks at the water: you slide off into it.`); return; }
         if (InnerMapCombat.playerKnockedOut && InnerMapCombat.playerKnockedOut()) { P.dismount(game, `You are knocked from ${name}'s back.`); return; }
         if (InnerMapCarry.handsFull() || InnerMapCarts.pushing) { P.dismount(game, `You swing down from ${name} to take it up.`); return; }
         const ia = InnerMap._activeInteraction;
@@ -627,6 +629,8 @@ export const InnerMapPets = {
             for (const m of P._pets) {
                 // (the horse you ride is drawn with you, in your own pass: drawRider)
                 if (m.a.id === P.riding) continue;
+                // (a led horse swimming: sunk to its back, by ui/innerMapHorseSwim.js)
+                if (P._swimDraw && P._swimDraw(m)) continue;
                 // (the horse in the cart's shafts too: ui/innerMapHitch.js draws it with the cart)
                 if (m.a.id === P.hitched && P._hitchPos) continue;
                 // (a hawk on your fist or flown at quarry: ui/innerMapHawk.js draws it)

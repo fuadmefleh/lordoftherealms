@@ -49,6 +49,7 @@ import { DataLoader } from '../core/dataLoader.js';
 import { Utils } from '../core/utils.js';
 import { ParentsGuard } from './parentsGuard.js';
 import { walkBob } from './jobItems.js';
+import { AnimalRecolor } from './animalRecolor.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _fmt = (s, v) => String(s == null ? '' : s).replace(/\{(\w+)\}/g, (m, k) => (v[k] == null ? m : String(v[k])));
@@ -152,7 +153,7 @@ export const InnerMapAnimals = {
      * at or below it). Measured once per frame cell and cached.
      */
     _frameGap(img, f, fw, fh, ay) {
-        const key = `${img.src}|${f.row}|${f.col}`;
+        const key = `${img.src || f.sheet}|${f.row}|${f.col}`;
         const cache = this._gaps || (this._gaps = new Map());
         if (cache.has(key)) return cache.get(key);
         let gap = 0;
@@ -178,8 +179,12 @@ export const InnerMapAnimals = {
      */
     drawAt(ctx, a, sp, fx, fy, ds, o = {}) {
         const f = this.frame(a, sp);
-        const img = this.image(f.sheet);
-        if (!img) return false;
+        const base = this.image(f.sheet);
+        if (!base) return false;
+        // A species on another's sheet in its own colours (the pheasant on the hen's): recoloured
+        // once per sheet and cached (ui/animalRecolor.js); the plain sheet where there is no canvas
+        const rows0 = sp.rows || {};
+        const img = sp.recolor ? (AnimalRecolor.sheet(base, `${f.sheet}|${a.species || sp.name}`, sp, _num(rows0.up, 0)) || base) : base;
         const fw = _num(sp.frameW, 112), fh = _num(sp.frameH, 112);
         const scale = _num(sp.scale, 1) * _num(o.scale, 1);
         const k = (_num(sp.drawTiles, 2) * scale * ds) / fw;
@@ -212,7 +217,11 @@ export const InnerMapAnimals = {
         const standing = a.state !== 'dead' && !(a.next || a.moving) && !f.idle && !(sheets.attack && f.sheet === sheets.attack);
         const ky = standing ? k * (1 + BREATH * (0.5 + 0.5 * Math.sin((_now() / BREATH_S) * Math.PI * 2 + _phase(a)))) : k;
         const lunge = this.lungeOffset(a, sp, f);
+        // its long tail (species.tail): behind the body, or before it seen from behind
+        const tail = sp.tail && a.state !== 'dead' ? sp.tail : null;
+        if (tail && a.facing !== 'up') AnimalRecolor.drawTail(ctx, a.facing, fx, fy, k, ax, ay, tail);
         ctx.drawImage(img, f.col * fw, f.row * fh, fw, fh, Math.round(fx - ax * k + lunge.dx * k), Math.round(fy - ay * ky + lunge.dy * k), Math.round(fw * k), Math.round(fh * ky));
+        if (tail && a.facing === 'up') AnimalRecolor.drawTail(ctx, a.facing, fx, fy, k, ax, ay, tail);
         if (fade < 1) ctx.restore();
         ctx.imageSmoothingEnabled = smooth;
         // Hurt: its blood on a bar over it

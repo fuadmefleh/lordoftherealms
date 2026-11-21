@@ -416,3 +416,89 @@ describe('drawn on the street', () => {
         }
     });
 });
+
+describe('the rain heard', () => {
+    /** A Web Audio stand-in that remembers what was built and scheduled. */
+    function fakeAudio() {
+        const log = { started: 0, stopped: 0, targets: [] };
+        const param = (v = 0) => ({ value: v, setTargetAtTime: (t) => log.targets.push(t), setValueAtTime() {} });
+        const node = () => ({ connect() {}, gain: param(1), frequency: param(0), type: '' });
+        const ctx = {
+            currentTime: 1, sampleRate: 8000,
+            createBuffer: (ch, n) => ({ getChannelData: () => new Float32Array(n) }),
+            createBufferSource: () => ({ connect() {}, start: () => log.started++, stop: () => log.stopped++, loop: false }),
+            createBiquadFilter: node, createGain: node,
+        };
+        return { ctx, log };
+    }
+
+    it('a looping hiss as loud as the rain, muffled indoors, faded out when it stops; never throws', async () => {
+        const { audioManager } = await import('../systems/audio.js');
+        const keep = { ctx: audioManager.ctx, gain: audioManager.ambienceGain, rain: audioManager._rain };
+        try {
+            // no audio yet (before the first click): nothing to stop is done, rain asks again later
+            audioManager.ctx = null; audioManager._rain = null;
+            expect(audioManager.setRain(0.8, false)).toBe(false);
+            expect(audioManager.setRain(0, false)).toBe(true);
+            const { ctx, log } = fakeAudio();
+            audioManager.ctx = ctx; audioManager.ambienceGain = { connect() {} };
+            expect(audioManager.setRain(1, false)).toBe(true);
+            expect(log.started).toBe(1);
+            const loud = log.targets[0];
+            audioManager.setRain(0.2, false);
+            const soft = log.targets[2];
+            expect(soft).toBeLessThan(loud);
+            audioManager.setRain(0.2, true);
+            expect(log.targets[4]).toBeLessThan(soft);   // through the walls
+            audioManager.setRain(0, false);
+            expect(log.stopped).toBe(1);
+            expect(audioManager._rain).toBe(null);
+            // a broken context: best-effort, no throw
+            audioManager.ctx = { createBiquadFilter: () => { throw new Error('x'); }, createBuffer: () => { throw new Error('x'); }, currentTime: 0 };
+            expect(() => audioManager.setRain(0.5, false)).not.toThrow();
+        } finally {
+            audioManager.ctx = keep.ctx; audioManager.ambienceGain = keep.gain; audioManager._rain = keep.rain;
+        }
+    });
+
+    it('the street map sets it from the hour\'s rain, muffled inside, silent off the map', async () => {
+        const { vi } = await import('vitest');
+        const { audioManager } = await import('../systems/audio.js');
+        const { InnerMapWeather } = await import('../ui/innerMapWeather.js');
+        const calls = [];
+        const spy = vi.spyOn(audioManager, 'setRain').mockImplementation((lv, m) => { calls.push([lv, m]); return true; });
+        const keep = { active: InnerMap.active, inside: InnerMap._insideBuilding, bind: InnerMap.bindStreetWeather, hour: InnerMap.streetHour };
+        try {
+            let sw = { type: 'rain', rain: 0.6, raining: true, storm: false };
+            InnerMap.active = true;
+            InnerMap._insideBuilding = null;
+            InnerMap.bindStreetWeather = () => sw;
+            InnerMap.streetHour = () => 14;
+            InnerMapWeather._rainLv = 0;
+            const g = { world: { day: 300 }, player: null };
+            InnerMapWeather.update(g, 0.016);
+            expect(calls.at(-1)).toEqual([0.6, false]);
+            const n = calls.length;
+            InnerMapWeather.update(g, 0.016);
+            expect(calls.length).toBe(n);                  // (only when it changes)
+            InnerMap._insideBuilding = { name: 'Inn' };
+            InnerMapWeather.update(g, 0.016);
+            expect(calls.at(-1)).toEqual([0.6, true]);
+            sw = { type: 'clear', rain: 0, raining: false, storm: false };
+            InnerMap._insideBuilding = null;
+            InnerMapWeather.update(g, 0.016);
+            expect(calls.at(-1)).toEqual([0, false]);
+            // raining again, then off the street map
+            sw = { type: 'rain', rain: 0.9, raining: true, storm: false };
+            InnerMapWeather.update(g, 0.016);
+            InnerMap.active = false;
+            InnerMapWeather.offMap();
+            expect(calls.at(-1)).toEqual([0, false]);
+        } finally {
+            spy.mockRestore();
+            InnerMap.active = keep.active; InnerMap._insideBuilding = keep.inside; InnerMap.bindStreetWeather = keep.bind; InnerMap.streetHour = keep.hour;
+            InnerMap._sw = null;
+            InnerMapWeather._rainLv = 0;
+        }
+    });
+});

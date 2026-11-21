@@ -34,6 +34,12 @@ function _ctx(game) {
     return { world, worldTile: world && at ? world.getTile(at.q, at.r) : null };
 }
 
+/** Climbing.canClimb — and not with a rowboat on your shoulders (ui/innerMapRowboat.js). */
+function _canClimb(player, rows, ctx) {
+    if (InnerMap._boatCarried) return { ok: false, reason: 'Not with a boat on your shoulders: set her down first.' };
+    return Climbing.canClimb(player, rows, ctx);
+}
+
 export const InnerMapClimbing = {
     _refusal: null,
 
@@ -48,7 +54,7 @@ export const InnerMapClimbing = {
         if (!player || !InnerMap.active) return;
         // How tall a face may the player take on now?
         const ctx = _ctx(game);
-        const ok = InnerMap._insideBuilding ? { ok: false, reason: null } : Climbing.canClimb(player, 0, ctx);
+        const ok = InnerMap._insideBuilding ? { ok: false, reason: null } : _canClimb(player, 0, ctx);
         InnerMap._climbMax = ok.ok ? Climbing.maxRows(player, ctx.world, ctx.worldTile) : 0;
         InnerMap._climbPathCost = Climbing.config().pathCost;
         this._refusal = ok.ok ? null : ok.reason;
@@ -65,7 +71,7 @@ export const InnerMapClimbing = {
         const player = game.player;
         InnerMap._climbRequest = null;
         const ctx = _ctx(game);
-        const can = Climbing.canClimb(player, link.rows, ctx);
+        const can = _canClimb(player, link.rows, ctx);
         if (!can.ok) {
             InnerMap.cancelPlayerWalk();
             _note(game, '⛰️ Can\'t Climb', can.reason, 'warning');
@@ -147,7 +153,7 @@ export const InnerMapClimbing = {
         const rows = r1 - r0 + 1;
         const label = up ? 'Climb Up' : 'Climb Down';
         const ctx = _ctx(game);
-        const can = Climbing.canClimb(game.player, rows, ctx);
+        const can = _canClimb(game.player, rows, ctx);
         if (!can.ok) return [{ type: 'disabled', label: `⛰️ ${label} — ${can.reason}` }];
         const chance = Math.round(Climbing.slipChance(game.player, rows, ctx.world, ctx.worldTile) * 100);
         return [{

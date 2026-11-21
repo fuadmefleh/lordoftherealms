@@ -49,9 +49,9 @@ export const InnerMapCarry = {
     _baseSpeed: null,
     _game: null,
 
-    /** Is the player carrying anyone or anything (a person, a body, a carcass)? */
+    /** Is the player carrying anyone or anything (a person, a body, a carcass, a rowboat: ui/innerMapRowboat.js)? */
     handsFull() {
-        return !!(this.person || InnerMapCombat._carrying || InnerMapAnimals._carry);
+        return !!(this.person || InnerMapCombat._carrying || InnerMapAnimals._carry || InnerMap._boatCarried);
     },
 
     /** Let go of everything (a load, a new game): nothing about the carry outlives the map. */

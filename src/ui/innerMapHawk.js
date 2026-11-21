@@ -35,6 +35,7 @@ import { InnerMapAnimals } from './innerMapAnimals.js';
 import { InnerMapCarry } from './innerMapCarry.js';
 import { InnerMapCombat } from './innerMapCombat.js';
 import { InnerMapCarts } from './innerMapCarts.js';
+import { InnerMapHitch } from './innerMapHitch.js';
 import { Falconry } from '../systems/falconry.js';
 import { AnimalCompanions } from '../systems/animalCompanions.js';
 import { Hunting } from '../player/foraging.js';
@@ -674,8 +675,14 @@ export const InnerMapHawk = {
             if (typeof InnerMap.isPlayerSwimming === 'function' && InnerMap.isPlayerSwimming()) return;
             const pos = InnerMap.getPlayerWorldPos();
             if (pos.climbing) return;
-            // (up on a cart's seat, driving: ui/innerMapHitch.js seats you there; the hawk rides hooded)
-            if (InnerMapCarts.pushing && InnerMapCarts.pushing.horse) return;
+            // Up on a cart's seat, driving (ui/innerMapHitch.js seats you there): the hawk on your
+            // fist up there, just after the driver in the depth sort, jolting a little as you go
+            if (InnerMapCarts.pushing && InnerMapCarts.pushing.horse) {
+                const seat = InnerMapHitch.seat(camera, T);
+                if (!seat) return;
+                items.push({ sortY: seat.sortY + 0.01, zLayer: 2, sortX: seat.sortX + 0.01, draw: () => this._drawOnFist(ctx, hawk, pal, seat.px, seat.seatY, ds, p, seat.dir, !!pos.walking, now, true) });
+                return;
+            }
             const s = camera.worldToScreenFast(pos.x, pos.y);
             const px = s.x, py = s.y;
             const dir = facing != null ? facing : 2;
@@ -732,13 +739,17 @@ export const InnerMapHawk = {
         } });
     },
 
-    /** Where the glove is (screen px) for you at (px, py) facing `dir`, on foot or in the saddle. */
-    _fistAt(px, py, ds, dir, walking, now) {
+    /**
+     * Where the glove is (screen px) for you at (px, py) facing `dir`, on foot or in the saddle;
+     * `seated`: (px, py) is a cart's seat (InnerMapHitch.seat), the driver drawn 42 px of 64 above it.
+     */
+    _fistAt(px, py, ds, dir, walking, now, seated = false) {
         const u = ds * 1.8 / 64;
         let top = py - ds * 1.8 + ds * 0.3;
         let along = 0;
-        const m = InnerMapPets.riding && InnerMapPets.mounted ? InnerMapPets.mounted() : null;
-        if (m) {
+        const m = !seated && InnerMapPets.riding && InnerMapPets.mounted ? InnerMapPets.mounted() : null;
+        if (seated) top = py - 42 * u;
+        else if (m) {
             // (as drawRider seats you: the saddle up the horse's flank, you a little behind the withers)
             const sp = InnerMapPets.sprite(m.a);
             if (sp) {
@@ -755,8 +766,8 @@ export const InnerMapHawk = {
         return { x: px + along + dx * u, y: top + 37 * u + bob, u };
     },
 
-    _drawOnFist(ctx, hawk, pal, px, py, ds, p, dir, walking, now) {
-        const f = this._fistAt(px, py, ds, dir, walking, now);
+    _drawOnFist(ctx, hawk, pal, px, py, ds, p, dir, walking, now, seated = false) {
+        const f = this._fistAt(px, py, ds, dir, walking, now, seated);
         const view = ['up', 'left', 'down', 'right'][dir] || 'down';
         // the glove, then the hawk standing on it, rousing now and then
         _blit(ctx, GLOVE_ART.fist, GLOVE, f.x, f.y + 3 * p, p, 0.5, 1);

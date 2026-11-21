@@ -282,4 +282,38 @@ describe('the hawk on the street map', () => {
         tick(g, 0.2);
         expect(InnerMapPets._pets.find(p => p.a.id === hawk.id).hawkHeld).toBe(true);
     });
+
+    it('on the seat of your horse cart: drawn on your fist up there, and flown from it', async () => {
+        const { InnerMapCarts } = await import('../ui/innerMapCarts.js');
+        const { InnerMapHitch } = await import('../ui/innerMapHitch.js');
+        openMap();
+        const g = game();
+        hawkFor(g);
+        tick(g, 0.3);
+        const was = InnerMapCarts.pushing;
+        InnerMapCarts.pushing = { horse: 'h1', trail: [{ q: 64, r: 65 }] };
+        try {
+            vi.spyOn(InnerMapHitch, 'seat').mockImplementation(() => ({ px: 300, seatY: 200, dir: 2, sortY: 999, sortX: 64.1, ds: 32 }));
+            tick(g, 0.2);
+            expect(InnerMapHawk.onFist()).toBe(true);
+            const items = [];
+            const ctx = { canvas: { width: 800, height: 600 } };
+            const camera = { zoom: 1, worldToScreenFast: (x, y) => ({ x, y }) };
+            InnerMapHawk.collect(items, ctx, camera, 32, 2);
+            expect(items.length).toBe(1);
+            expect(items[0].sortY).toBeGreaterThan(999);
+            // the glove up by the seated driver's left hand: above the seat, to the screen's right
+            const f = InnerMapHawk._fistAt(300, 200, 32, 2, false, 0, true);
+            expect(f.y).toBeLessThan(200);
+            expect(f.y).toBeGreaterThan(200 - 32 * 1.8 * 42 / 64);
+            expect(f.x).toBeGreaterThan(300);
+            // and "Fly the Hawk" from the seat
+            const rabbit = beast('rabbit', 70, 64);
+            const fly = InnerMapHawk.menuItems(g, 70, 64).find(i => i.action === 'hawk_fly');
+            expect(fly && fly.type).toBe('action');
+            expect(fly.animal).toBe(rabbit);
+        } finally {
+            InnerMapCarts.pushing = was;
+        }
+    });
 });

@@ -31,6 +31,9 @@ Object.assign(InnerMap, {
     // Aboard your rowboat (set by ui/innerMapRowboat.js): over water only, at _rowSpeed of a walk
     _aboardBoat: false,
     _rowSpeed: 0.9,
+    // Your rowboat on your shoulders (set by ui/innerMapRowboat.js): dry land only, at _boatCarrySpeed of a walk
+    _boatCarried: false,
+    _boatCarrySpeed: 0.5,
 
     swimConfig() {
         const g = DataLoader._gamedata;
@@ -61,12 +64,16 @@ Object.assign(InnerMap, {
         if (this._aboardBoat) return this.isSwimmable(q, r);
         // A cart in the street is in the way (not the one the player pushes: world/innerMap/carts.js)
         if (this._cartBlocks && q != null && this._cartBlocks(q, r, 'player')) return false;
+        // The tilt barrier, stands and pavilions of a tournament standing today (world/innerMap/lists.js)
+        if (this._listsBlocks && q != null && this._listsBlocks(q, r)) return false;
         // Up on a crag, or below one: only ground at your own height (world/innerMap/climbing.js)
         const lv = this.standLevel(tile), mine = this.playerLevel();
         if (lv !== 0 || mine !== 0) return lv === mine;
         if (tile.subTerrain && tile.subTerrain.passable) return true;
         // A shut gate: walking into it opens it (world/innerMap/gates.js)
         if (this._isShutGateTile && this._isShutGateTile(tile)) return true;
+        // (a boat on your shoulders: no swimming with it)
+        if (this._boatCarried) return false;
         return !!(this._swimAllowed && this.isSwimmable(q, r));
     },
 

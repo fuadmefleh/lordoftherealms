@@ -17,15 +17,18 @@ import { InnerMapSleepers } from '../innerMapSleepers.js';
 import { InnerMapCarry } from '../innerMapCarry.js';
 import { InnerMapCarts } from '../innerMapCarts.js';
 import { InnerMapHitch } from '../innerMapHitch.js';
+import { InnerMapHandBuild } from '../innerMapHandBuild.js';
 import { InnerMapDowned } from '../innerMapDowned.js';
 import { InnerMapFelling } from '../innerMapFelling.js';
 import { InnerMapBattle } from '../innerMapBattle.js';
 import { InnerMapEscort } from '../innerMapEscort.js';
 import { InnerMapCompanions } from '../innerMapCompanions.js';
 import { InnerMapPets } from '../innerMapPets.js';
+import { InnerMapHorseSwim } from '../innerMapHorseSwim.js';
 import { InnerMapTournament } from '../innerMapTournament.js';
 import { InnerMapHawk } from '../innerMapHawk.js';
 import { InnerMapRowboat } from '../innerMapRowboat.js';
+import { InnerMapTorchlight } from '../innerMapTorchlight.js';
 import { InnerMapSickness } from '../innerMapSickness.js';
 import { InnerMapPlague } from '../innerMapPlague.js';
 import { InnerMapRites } from '../innerMapRites.js';
@@ -1313,6 +1316,8 @@ Object.assign(InnerMapRenderer, {
         InnerMapCompanions.collect(items, ctx, camera, T);
         // ── Phase 3f3: Your animals with you, and a town's stray (ui/innerMapPets.js) ──
         InnerMapPets.collect(items, ctx, camera, T);
+        // (your horse in the water: splashes at its hooves through a ford, a led horse swimming — ui/innerMapHorseSwim.js)
+        InnerMapHorseSwim.collect(items, ctx, camera, T, this._sheets);
         // ── Phase 3f4: Your hawk on your fist, on the wing, on its kill (ui/innerMapHawk.js) ──
         // (riding a pass at the lists the player is drawn by the tournament, not here: nor the hawk on their fist)
         if (!InnerMapTournament.hidesPlayer()) InnerMapHawk.collect(items, ctx, camera, T, this._playerFacing);
@@ -1324,6 +1329,9 @@ Object.assign(InnerMapRenderer, {
         InnerMapRowboat.collect(items, ctx, camera, T);
         // ── Phase 3g2: Your horse in the cart's shafts, and you on its seat (ui/innerMapHitch.js) ──
         InnerMapHitch.collect(items, ctx, camera, T, this._playerPreset || InnerMapCharacters.playerPreset || 'male_noble');
+
+        // ── Phase 3g3: What you are building by hand, and the hands hired to help (ui/innerMapHandBuild.js) ──
+        InnerMapHandBuild.collect(items, ctx, camera, T);
 
         // ── Phase 4: Collect Player ─────────────────────────────────────────────
         {
@@ -1482,6 +1490,8 @@ Object.assign(InnerMapRenderer, {
                     } else if (!pSwimming && InnerMapIce.drawFallen(ctx,
                         (c, x, y, w, h) => InnerMapCharacters.drawCharacter(c, playerPreset, 'idle', pDir, 0, x, y, w, h), px, py, ds, charW, charH)) {
                         // Down on the ice after a slip (ui/innerMapIce.js): tipped over, then up again
+                    } else if (pSwimming && InnerMapHorseSwim.drawSwimRider(ctx, { preset: playerPreset, px, py, ds, dir: pDir, walking: pAnim === 'walk', now, sheets: this._sheets })) {
+                        // On your horse swimming (ui/innerMapHorseSwim.js): its head and back above the water, you waist-deep
                     } else if (pSwimming && InnerMapDiving.isUnder()) {
                         // Under the water, diving (ui/innerMapDiving.js): the whole body, sunk in the murk
                         InnerMapDiving.drawUnder(ctx, px, py, ds, now,
@@ -1535,10 +1545,13 @@ Object.assign(InnerMapRenderer, {
                         if (rodSheet && pDir === InnerMapCharacters.DIR_UP) drawRod();
                         // A job's load or tool (ui/innerMapTasks.js): behind the body or in front, by facing
                         InnerMapTasks.drawCarried(ctx, px, py, ds, pDir, pAnim, now, true);
+                        // A torch or lantern in hand (ui/innerMapTorchlight.js): behind you facing away, else in front
+                        InnerMapTorchlight.drawHeld(ctx, px, py, ds, pDir, now, true);
                         if (chopP != null) InnerMapFelling.drawAxe(ctx, px, py, ds, pDir, chopP, true);
                         InnerMapCharacters.drawCharacter(ctx, playerPreset, pAnim, pDir, pTime != null ? pTime : pSeatTime != null ? pSeatTime : now, cx, cy, charW, charH);
                         if (chopP != null) InnerMapFelling.drawAxe(ctx, px, py, ds, pDir, chopP, false);
                         InnerMapTasks.drawCarried(ctx, px, py, ds, pDir, pAnim, now, false);
+                        InnerMapTorchlight.drawHeld(ctx, px, py, ds, pDir, now, false);
                         if (rodSheet && pDir !== InnerMapCharacters.DIR_UP) drawRod();
                         if (pClipY != null) ctx.restore();
                     }

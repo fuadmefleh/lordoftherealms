@@ -14,6 +14,7 @@
 
 import { InnerMap } from '../world/innerMap.js';
 import { Crops } from '../systems/crops.js';
+import { HandBuilding } from '../world/handBuilding.js';
 import { InnerMapDigging } from './innerMapDigging.js';
 import { FoodSkills } from '../systems/foodSkills.js';
 import { sheetScale } from './sheetScale.js';
@@ -309,7 +310,8 @@ export const InnerMapFarming = {
         if (!h) return;
         const got = tally || {};
         this._work(game, 'harvest', q, r, 'Harvesting', () => {
-            const res = Crops.harvest(game.player, h.q, h.r, q, r);
+            // (a scarecrow of yours in reach keeps the birds off: world/handBuilding.js)
+            const res = Crops.harvest(game.player, h.q, h.r, q, r, { yieldMult: 1 + HandBuilding.guardBonus(game.world, h.q, h.r, q, r) });
             if (!res.ok) {
                 _note(game, '🧺 Harvest', res.reason, res.full ? 'error' : 'info');
                 return;

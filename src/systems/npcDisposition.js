@@ -161,6 +161,10 @@ export const NpcDisposition = {
                 refuseReason: `${npc.name || 'They'} won't deal with someone who threatened them.`,
             };
         }
+        // Haggled past their patience today (player/haggling.js): no deal till tomorrow
+        if (mem.haggleSpurned != null && ctx && ctx.world && mem.haggleSpurned === Math.floor(Number(ctx.world.day) || 0)) {
+            return { buy: 1, sell: 1, pct: 0, reasons, refuses: true, refuseReason: `${npc.name || 'They'} won't deal with you again today: you haggled them past their patience.` };
+        }
         // Saw the player beat or kill someone in the street (systems/streetCrime.js)
         const street = StreetCrime.tradeRefusal(npc);
         if (street.refuses) return { buy: 1, sell: 1, pct: 0, reasons, refuses: true, refuseReason: street.reason };

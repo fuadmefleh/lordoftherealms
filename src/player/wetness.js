@@ -17,7 +17,8 @@
 // coldFactor(player) — 1 dry … 2 soaked — for anything else that asks how
 // much the cold bites (the winter's ice and cold).
 //
-// Not saved: a reload finds you dry. Numbers: data/streetWeather.json
+// Saved with the player (systems/saveLoad.js EXTRA_PLAYER_FIELDS; restored clamped to
+// 0..100). Numbers: data/streetWeather.json
 // `wetness`. Draws from Utils only for the chill (Ailments).
 
 import { DataLoader } from '../core/dataLoader.js';

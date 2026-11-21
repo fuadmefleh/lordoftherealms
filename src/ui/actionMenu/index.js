@@ -6,6 +6,7 @@ import { trackShows } from '../panelRefresh.js';
 import { trackFirstStepsPanels } from './counsel.js';
 import './core.js';
 import './trade.js';
+import './haggle.js';
 import './barterTable.js';
 import './build.js';
 import './roadPlan.js';

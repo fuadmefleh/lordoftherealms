@@ -532,6 +532,18 @@ export function _renderChoices(box) {
             const extra = pm.pct === 0 ? ''
                 : `<span class="npc-dialog-price ${pm.pct > 0 ? 'is-up' : 'is-down'}">${pm.pct > 0 ? '+' : ''}${pm.pct}%</span>`;
             choices.push({ icon: '💰', label: 'Show me your wares.', action: 'trade', extra, tooltip: why ? `Prices: ${why}.` : 'Fair prices.' });
+            // A stall's keeper will haggle, face to face (player/haggling.js, ui/actionMenu/haggle.js)
+            if (keepsStall && typeof ActionMenu.showHaggle === 'function') {
+                choices.push({
+                    icon: '⚖️', label: 'Let\'s haggle.', tooltip: 'Name your price for their wares, or for yours. Push too hard and they won\'t deal with you today.',
+                    onPick: () => {
+                        const g = dialogState._game;
+                        const stall = InnerMap.stallOfKeeper(dialogState._npc);
+                        NpcDialog.close();
+                        if (g && stall) ActionMenu.showHaggle(g, stall);
+                    },
+                });
+            }
         }
     }
 

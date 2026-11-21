@@ -16,7 +16,9 @@
 //   ends  a pavilion at either end (west, east), where the riders wait
 //
 // Pure on the tiles: the same map gives the same field (scores are a
-// hash of the hex, never the shared RNG). Tiles are not changed.
+// hash of the hex, never the shared RNG). Tiles are not changed: while the
+// lists stand (setListsStanding) the barrier, stands and pavilions are kept
+// in a side index the walks read (_listsBlocks, _findPath), never on the tiles.
 
 import { InnerMap } from './_ref.js';
 
@@ -142,5 +144,50 @@ Object.assign(InnerMap, {
     /** Is (q, r) on the lists (`L` from listsSite)? */
     onLists(L, q, r) {
         return !!(L && q >= L.q0 && q < L.q0 + L.w && r >= L.r0 && r < L.r0 + L.h);
+    },
+
+    /**
+     * The cells the lists' solid parts take up (`L` from listsSite): the tilt
+     * barrier (x0..x1 on its row), the stands, the two pavilions. The lanes, the
+     * rail side, the ring and the gaps at the barrier's ends (between it and the
+     * pavilions: the way round into the north lane) stay open. → [{ q, r }]
+     */
+    listsSolidCells(L) {
+        if (!L) return [];
+        const out = [];
+        for (let q = L.barrierFrom; q <= L.barrierTo; q++) out.push({ q, r: L.barrier });
+        const S = L.stands;
+        if (S) for (let r = S.r; r < S.r + S.h; r++) for (let q = S.q; q < S.q + S.w; q++) out.push({ q, r });
+        for (const p of L.pavilions || []) {
+            for (let r = p.r; r < p.r + p.h; r++) for (let q = p.q; q < p.q + p.w; q++) out.push({ q, r });
+        }
+        return out;
+    },
+
+    // While the lists stand on this map ({ tiles, w, L, set } — the cells' index r * w + q), or null.
+    // Nothing on the tiles is changed and nothing is saved: the block goes with the day, or the map.
+    _listsBlock: null,
+
+    /**
+     * Raise (L) or strike (null) the lists' solid parts on the current street map:
+     * the player's walk, everyone's paths (_findPath) and the townsfolk's steps go
+     * round them. Called each frame by ui/innerMapTournament.js (cheap when unchanged).
+     */
+    setListsStanding(L) {
+        if (!L) { this._listsBlock = null; return; }
+        const b = this._listsBlock;
+        if (b && b.L === L && b.tiles === this.tiles && b.w === this.width) return;
+        const W = this.width;
+        const set = new Set();
+        for (const c of this.listsSolidCells(L)) {
+            if (c.q >= 0 && c.r >= 0 && c.q < W && c.r < this.height) set.add(c.r * W + c.q);
+        }
+        this._listsBlock = { tiles: this.tiles, w: W, L, set };
+    },
+
+    /** Is (q, r) a solid part of the lists standing on this map now? */
+    _listsBlocks(q, r) {
+        const b = this._listsBlock;
+        return !!(b && b.tiles === this.tiles && b.w === this.width && b.set.has(r * b.w + q));
     },
 });

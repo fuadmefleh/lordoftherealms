@@ -1,10 +1,12 @@
 {
-    "_doc": "A rowboat of your own on the street map's water (player/rowboats.js rules, ui/innerMapRowboat.js on the map). Bought from the boatwright of a town whose map has water (price: into that town's purse, PlayerCoin.pay; sold back out of it at sellBack of the price, what the purse holds), or built on a bank from what is in your packs (build.ingredients, build.hours on the clock). It stays where you tie it up: player.rowboats [{ id, name, hq, hr, q, r }] by world hex and street-map cell. Aboard you row over water at rowSpeed of a walk (dry, not swimming); a river's current carries you when you stop rowing (unless tied up), on into the next hex at the river's edge. max: boats owned at once.",
+    "_doc": "A rowboat of your own on the street map's water (player/rowboats.js rules, ui/innerMapRowboat.js on the map). Bought from the boatwright of a town whose map has water (price: into that town's purse, PlayerCoin.pay; sold back out of it at sellBack of the price, what the purse holds), or built on a bank from what is in your packs (build.ingredients, build.hours on the clock). It stays where you tie it up: player.rowboats [{ id, name, hq, hr, q, r }] by world hex and street-map cell. Aboard you row over water at rowSpeed of a walk (dry, not swimming); a river's current carries you when you stop rowing (unless tied up), on into the next hex at the river's edge. max: boats owned at once. Carry the Boat (from the bank beside her) lifts her onto your shoulders: over land only, at carrySpeed of a walk, no riding, carts, swimming, climbing or doorways; Set the Boat Down puts her in the water beside you (the record keeps carried: true meanwhile, and she goes with you off the map). mooredOffset: how far (in cells) a moored boat is drawn out from the bank toward the open water.",
     "enabled": true,
     "price": 60,
     "sellBack": 0.5,
     "max": 3,
     "rowSpeed": 0.9,
+    "carrySpeed": 0.5,
+    "mooredOffset": 0.42,
     "build": {
         "ingredients": { "planks": 6, "rope": 1, "resin": 1 },
         "hours": 5

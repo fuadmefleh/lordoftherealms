@@ -532,6 +532,13 @@ Object.assign(InnerMap, {
 
                             // A cart in the way (world/innerMap/carts.js): wait for it, then go round
                             if (this._cartBlocks && this._cartBlocks(step.q, step.r, npc) && this._npcWaitForCart(npc, step, deltaTime)) continue;
+                            // The lists raised across their way (world/innerMap/lists.js): stop, and go round on the next walk
+                            if (this._listsBlock && this._listsBlocks(step.q, step.r)) {
+                                npc.path = null;
+                                npc.state = 'idle';
+                                npc.idleTimer = 1;
+                                break;
+                            }
 
                             // Defensive: never step onto impassable tile
                             const stepTile = this.tiles[step.r] && this.tiles[step.r][step.q];

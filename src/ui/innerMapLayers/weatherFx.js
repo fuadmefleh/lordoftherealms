@@ -223,15 +223,23 @@ Object.assign(InnerMapRenderer, {
         const mud = Math.max(sw.mud, ssMud * 0.6);
         if (mud > 0.1 && !frozen) {
             const G = cells.gloss;
-            const a = Math.min(0.5, 0.12 + mud * 0.32);
+            const a = Math.min(0.34, 0.08 + mud * 0.22);
             ctx.fillStyle = MUD(a);
             const i0 = G.start[Math.max(0, rMin)], i1 = G.start[Math.min(rMax + 1, G.start.length - 1)];
             for (let i = i0; i < i1; i++) {
                 const q = G.q[i];
                 if (q < qMin || q > qMax || G.k[i] > mud + 0.25) continue;
-                const s = camera.worldToScreenFast(q * T, G.r[i] * T);
-                const w = Math.floor(ds * (0.45 + G.k[i] * 0.35)), h = Math.floor(ds * (0.3 + G.k[i] * 0.25));
-                ctx.fillRect(Math.floor(s.x + (ds - w) * hh(q, G.r[i], 3)), Math.floor(s.y + (ds - h) * hh(q, G.r[i], 4)), w, h);
+                const r = G.r[i];
+                const s = camera.worldToScreenFast(q * T, r * T);
+                // an irregular patch (a wide middle and a narrower top and foot, corners cut), never a square
+                const w = Math.floor(ds * (0.32 + G.k[i] * 0.3)), h = Math.max(2 * p, Math.floor(w * (0.38 + hh(q, r, 7) * 0.2)));
+                const x = Math.floor(s.x + (ds - w) * (0.15 + hh(q, r, 3) * 0.7)), y = Math.floor(s.y + (ds - h) * (0.2 + hh(q, r, 4) * 0.6));
+                const inset = Math.max(p, Math.floor(w * 0.18));
+                ctx.fillRect(x, y + p, w, Math.max(p, h - 2 * p));
+                ctx.fillRect(x + inset, y, w - 2 * inset, h);
+                // a lobe off to one side
+                const lw = Math.floor(w * 0.45), lx = hh(q, r, 8) < 0.5 ? x - Math.floor(lw * 0.4) : x + w - Math.floor(lw * 0.6);
+                ctx.fillRect(lx, y + Math.floor(h * 0.3), lw, Math.max(p, Math.floor(h * 0.5)));
             }
             // the shine: the sky on the wet mud, glinting as you move
             ctx.fillStyle = sw.sun > 0.4 ? 'rgba(235, 228, 205, 0.5)' : 'rgba(170, 180, 190, 0.38)';

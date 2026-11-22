@@ -314,6 +314,8 @@ Object.assign(InnerMap, {
             for (let q = door.q - reach; q <= door.q + reach; q++) {
                 const t = this.tiles[r] && this.tiles[r][q];
                 if (!t || !t.customObject || !want.has(t.customObject.defId) || t._isInterior) continue;
+                // (not at a foul well: ui/innerMapWater.js → InnerMap._wellState)
+                if (this._wellState && this._wellState.foul && this._wellState.foul.has(`${q},${r}`)) continue;
                 for (const key of this._footprintAt(q, r)) {
                     const [fq, fr] = key.split(',').map(Number);
                     for (const [dq, dr] of DIRS4) {

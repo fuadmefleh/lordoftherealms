@@ -6,6 +6,8 @@
 import { InnerMapCharacters } from './innerMapCharacters.js';
 import { Arms, ARMS_SLOTS } from '../systems/arms.js';
 import { EraWardrobe } from '../world/eraWardrobe.js';
+import { MaimMarks } from '../systems/maimMarks.js';
+import { applyMaim, maimKey } from './maimLook.js';
 
 const HAIR_COLORS = ['Black', 'Raven', 'Charcoal', 'Brown', 'Chestnut', 'Ash Brown', 'Blonde', 'Platinum',
     'Orange', 'Red', 'Ruby', 'Gray', 'Silver', 'White', 'Pink', 'Purple', 'Violet', 'Blue', 'Teal', 'Green'];
@@ -167,8 +169,10 @@ export function randomAppearance(gender, rand = Math.random, year = null, eraDat
  * nothing is worn. Reads only: pieces no longer in the packs are left off.
  */
 export function gearKit(player) {
+    // (what the body lost shows on the sprite: a stump, a hook, a wooden leg, the patch… ui/maimLook.js)
+    const maimed = player ? MaimMarks.visible(player) : null;
     const eq = player && player.equipment;
-    if (!eq || typeof eq !== 'object') return null;
+    if (!eq || typeof eq !== 'object') return maimed ? { maimed } : null;
     const kit = {};
     let any = false;
     for (const s of ARMS_SLOTS) {
@@ -176,6 +180,7 @@ export function gearKit(player) {
         kit[s] = id && Arms.item(id) && Number((player.inventory || {})[id]) >= 1 ? id : null;
         if (kit[s]) any = true;
     }
+    if (maimed) { kit.maimed = maimed; any = true; }
     return any ? kit : null;
 }
 
@@ -194,14 +199,19 @@ export function appearanceLayers(a, kit = null) {
     ];
     if (a.beard && a.beard !== 'none') layers.push(`Hair/${a.beard}/${a.hairColor}`);
     if (a.hair && a.hair !== 'none') layers.push(`Hair/${a.hair}/${a.hairColor}`);
-    if (!kit) return layers;
+    // (an older kit: the eye patch alone)
+    const maimed = kit && (kit.maimed || (kit.eyepatch ? { eyes: 'patch' } : null));
+    if (!kit || !ARMS_SLOTS.some(s => kit[s])) return applyMaim(layers, maimed);
     // (a tabard over mail or plate, a brigandine's cover, in the shirt's colour)
-    return Arms.liveryLayers(Arms.lookLayers(layers, kit, { build: fem ? 'Feminine, Thin' : 'Masculine, Thin', paint: a.shirtColor }), a.shirtColor);
+    const armed = Arms.liveryLayers(Arms.lookLayers(layers, kit, { build: fem ? 'Feminine, Thin' : 'Masculine, Thin', paint: a.shirtColor }), a.shirtColor);
+    // (the stump, the hook, the peg over the arms worn — a gauntlet or a boot is cut away with the hand or foot)
+    return applyMaim(armed, maimed);
 }
 
 /** A preset id unique to this look, so a changed look is a new preset. */
 export function appearancePresetId(a, kit = null) {
-    const gear = kit ? '|' + ARMS_SLOTS.map(s => kit[s] || '').join(',') : '';
+    const mk = kit ? maimKey(kit.maimed || (kit.eyepatch ? { eyes: 'patch' } : null)) : '';
+    const gear = (kit ? '|' + ARMS_SLOTS.map(s => kit[s] || '').join(',') : '') + (mk ? `|${mk}` : '');
     return 'player:' + APPEARANCE_ROWS.map(r => a[r.key]).join('|') + gear;
 }
 

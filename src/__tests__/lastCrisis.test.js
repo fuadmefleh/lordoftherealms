@@ -57,6 +57,8 @@ function days(world, player, n) {
 
 /** Make the realm dominate: the lion's share of the world's arms. */
 function dominate(world, realm) {
+    // (and the towns: dominance is towering over the next greatest realm, not arms alone)
+    grow(world, realm, Math.ceil(world.getSettlementViews().length * 0.4));
     const others = world.kingdoms.filter(k => k.isAlive && k !== realm).reduce((s, k) => s + (k.military || 0), 0);
     realm.military = Math.max(realm.military || 0, others * 2);
 }
@@ -79,8 +81,15 @@ describe('LastCrisis', () => {
         const meter = LastCrisis.meter(world, player);
         expect(meter.pct).toBeGreaterThan(0.5);
         expect(meter.pct).toBeLessThan(1);
-        // Slipping back, it ebbs twice as fast
+        // Slipping back (its arms gone and its provinces lost), it ebbs twice as fast
         realm.military = 0;
+        const taker = world.kingdoms.find(k => k.isAlive && k !== realm);
+        for (const t of KingdomAI._settlementsOf(realm, world).slice()) {
+            if (realm.capital && t.q === realm.capital.q && t.r === realm.capital.r) continue;
+            KingdomAI.takeTile(taker, realm, world, t.q, t.r);
+        }
+        if (typeof world.invalidateSettlements === 'function') world.invalidateSettlements();
+        expect(LastCrisis.measure(world, player).dominant).toBe(false);
         const before = st.held;
         days(world, player, 14);
         expect(st.held).toBeLessThan(before - 20);
@@ -294,17 +303,25 @@ describe('LastCrisis', () => {
         expect(LastCrisis.meter(world, player).stage).not.toBe('watch');
     }, 180000);
 
-    it('an emperor dominates, and every crown worn counts (systems/highCrowns.js)', () => {
+    it('an emperor eases the bars, and every crown worn counts (systems/highCrowns.js)', () => {
         const { world, player, realm } = crowned(11);
         const other = world.kingdoms.find(k => k.isAlive && k !== realm);
         const m0 = LastCrisis.measure(world, player);
+        // one of ten realms, however great its arms, does not tower over the rest
+        expect(m0.dominant).toBe(false);
+        const crowns = () => [{ kingdomId: realm.id, kingdom: realm }, { kingdomId: other.id, kingdom: other }];
         try {
-            LastCrisis.useHighCrowns({ isEmperor: () => true, crownsOf: () => [{ kingdomId: realm.id, kingdom: realm }, { kingdomId: other.id, kingdom: other }] });
+            LastCrisis.useHighCrowns({ isEmperor: () => false, crownsOf: crowns });
+            const king = LastCrisis.measure(world, player);
+            LastCrisis.useHighCrowns({ isEmperor: () => true, crownsOf: crowns });
             const m = LastCrisis.measure(world, player);
             expect(m.emperor).toBe(true);
-            expect(m.dominant).toBe(true);
             expect(m.crowns.length).toBe(2);
             expect(m.myTowns).toBeGreaterThan(m0.myTowns);
+            expect(m.progress).toBeGreaterThan(Math.min(0.999, king.progress));
+            // ...and an emperor who towers over the world dominates
+            dominate(world, realm);
+            expect(LastCrisis.measure(world, player).dominant).toBe(true);
         } finally {
             LastCrisis.useHighCrowns(HighCrowns);
         }

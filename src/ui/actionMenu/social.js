@@ -6,6 +6,7 @@ import { AnimalsPanel } from '../animalsPanel.js';
 import { AnimalCompanions } from '../../systems/animalCompanions.js';
 import { Upbringing } from '../../systems/upbringing.js';
 import { HeirAgency } from '../../systems/heirAgency.js';
+import { Betrothals } from '../../systems/betrothals.js';
 import { Demands } from '../../systems/demands.js';
 import { RivalHouses } from '../../systems/rivalHouses.js';
 import { CadetBranches } from '../../systems/cadetBranches.js';
@@ -705,6 +706,12 @@ Object.assign(ActionMenu, {
         record.push({ icon: '🌳', name: 'Family Tree', desc: 'Every generation of the House', act: 'showDynastyTree' });
         record.push({ icon: '🗝️', name: 'Heirlooms', desc: 'The named things handed down', act: 'showHeirlooms' });
         // Other realms' children raised at your court (ui/actionMenu/raising.js)
+        // Children promised to bind Houses and realms; offers of a match (ui/actionMenu/matches.js)
+        {
+            const promised = (player.children || []).filter(c => c && c.isAlive !== false && c.upbringing && c.upbringing.agency && c.upbringing.agency.betrothal).length;
+            const offers = ((player.betrothals && player.betrothals.offers) || []).length;
+            nav.push({ icon: '💍', name: 'Matches & Betrothals', desc: offers ? `${offers} offer${offers === 1 ? '' : 's'} of a match` : promised ? `${promised} child${promised === 1 ? '' : 'ren'} promised` : 'Promise a child to a rival House, a crown, a lord', act: 'showMatchesPanel', side: offers ? `${offers} new` : '', tone: offers ? 'gold' : '' });
+        }
         if (player.house) nav.push({ icon: '🎓', name: 'Wards at Court', desc: (player.house.wards || []).length ? `${player.house.wards.length} at court` : "Raise another realm's child", act: 'showHouseWards' });
         // The Annals: the House's story as a book (ui/actionMenu/annals.js)
         record.push({ icon: '📖', name: 'The Annals', desc: 'Your life and line told as a book, to read or save', act: 'showAnnals' });
@@ -738,6 +745,13 @@ Object.assign(ActionMenu, {
                 const open = (tr.cases || []).length + (tr.suits || []).filter(s => s.status === 'open').length + (tr.trial ? 1 : 0);
                 against.push({ icon: '⚖️', name: 'Courts & Lawsuits', desc: tr.trial ? `On trial at ${tr.trial.town}` : open ? `${open} matter${open === 1 ? '' : 's'} before the courts` : 'Trials, your own court, suits between Houses', act: 'showTrialsPanel', side: open ? String(open) : '', tone: tr.trial ? 'bad' : open ? 'warn' : '' });
             }
+            // The commons risen against you, the grievance of your towns, rebel leaders held (ui/actionMenu/peasantRevolts.js)
+            {
+                const pr = game.world && game.world.peasantRevolts;
+                const up = pr && Array.isArray(pr.revolts) ? pr.revolts.filter(rv => rv.against !== 'ai') : [];
+                const judge = !!(player.peasantRevolts && player.peasantRevolts.aftermath);
+                against.push({ icon: '🔥', name: 'Risings', desc: up.length ? `${up[0].leader.name} leads ${up[0].townNames[0]} against you` : judge ? 'A crushed rising awaits your judgement' : "The commons' grievances, risings, rebel leaders held", act: 'showRisingsPanel', side: up.length ? 'rising' : judge ? 'judge' : '', tone: up.length ? 'bad' : judge ? 'warn' : '' });
+            }
             // The age's crisis: an invasion, a great plague, a schism, a famine, a gold rush (systems/crises.js)
             const crisis = game.world && game.world.crises && game.world.crises.active;
             // ...and the last crisis of the age, gathering against a House grown too great (systems/lastCrisis.js)
@@ -770,6 +784,9 @@ Object.assign(ActionMenu, {
                 body += `<div style="font-size: 11px; margin-top: 2px; color: #c9b27a;">${Upbringing.summary(player, child)}</div>`;
                 const where = HeirAgency.status(player, game.world, child);
                 if (where) body += `<div style="font-size: 11px; margin-top: 2px; color: #9cc8ff;">${where}</div>`;
+                // Promised in marriage (systems/betrothals.js), when the line above tells something else
+                const promise = Betrothals.line(child, game.world);
+                if (promise && !(where || '').startsWith('💍')) body += `<div style="font-size: 11px; margin-top: 2px; color: #ff9ad5;">${esc(promise)}</div>`;
                 if (child.upbringing && child.upbringing.pending) body += `<div style="font-size: 11px; color: #f0b35a;">⚠️ A matter awaits your decision</div>`;
 
                 // Stats and skills
@@ -1428,6 +1445,12 @@ Object.assign(ActionMenu, {
             html += `<div style="${DEATH}">💀 Starvation</div>`;
             html += lede(`${player.name} has perished from starvation after ${player.starvationDays || '?'} day${player.starvationDays === 1 ? '' : 's'} without food, at the age of ${player.age}.`);
             html += `<p style="${QUOTE}">"Even the mightiest lord cannot defy hunger forever."</p>`;
+        } else if (cause === 'thirst') {
+            // Days without water (player/thirst.js)
+            const pd = player.water && player.water.parched;
+            html += `<div style="${DEATH}">🏜️ Thirst</div>`;
+            html += lede(`${player.name} died of thirst${pd ? ` after ${pd} day${pd === 1 ? '' : 's'} without water` : ''}, at the age of ${player.age}.`);
+            html += `<p style="${QUOTE}">"A man can go a month without bread. Not a week without water."</p>`;
         } else if (cause === 'drowning') {
             // Spent or frozen in the water (player/swimming.js)
             html += `<div style="${DEATH}">🌊 Drowned</div>`;

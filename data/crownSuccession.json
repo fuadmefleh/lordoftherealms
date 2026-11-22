@@ -3,7 +3,7 @@
 
   "config": {
     "_rise": "A claimant rises with chance (strength - heir standing + riseBase) / riseDivisor, at most riseMax. Only claimants of strength 1+ are weighed.",
-    "riseBase": 20,
+    "riseBase": 15,
     "riseDivisor": 80,
     "riseMax": 0.9,
     "_minLordShare": "A risen claimant needs lords holding this share of the realm's lord power behind him to make war; with fewer he finds no swords and stands down.",
@@ -28,8 +28,8 @@
       "cadet": {
         "_": "A cadet branch's head: (50 - loyalty) x perLoyaltyBelow50 + base, +estranged; none at loyaltyAbove or more.",
         "base": 6,
-        "perLoyaltyBelow50": 0.6,
-        "estranged": 15,
+        "perLoyaltyBelow50": 0.5,
+        "estranged": 12,
         "loyalAbove": 60
       },
       "spouseKin": {
@@ -53,8 +53,8 @@
       "purpleFrom": 50,
       "purpleWeight": 0.3,
       "designated": 12,
-      "crowned": 28,
-      "oathMax": 24,
+      "crowned": 24,
+      "oathMax": 20,
       "minor": -18,
       "regentLoyal": 6,
       "regentLoyalAt": 60,

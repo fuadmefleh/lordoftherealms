@@ -302,12 +302,15 @@ export const InnerMapCharacters = {
             const n = one ? cols : Math.min(cols, Math.floor(img.width / src)), m = Math.min(rows, Math.floor(img.height / src));
             const take = Math.min(src, cellSize);
             const so = (src - take) / 2, doff = (cellSize - take) / 2;
+            // (a maimed body's mask cuts the hand or foot out of what is beneath: ui/maimLook.js)
+            if (this.isEraseLayer(layerPath)) ctx.globalCompositeOperation = 'destination-out';
             for (let r = 0; r < m; r++) {
                 for (let f = 0; f < n; f++) {
                     ctx.drawImage(img, (one ? 0 : f) * src + so, r * src + so, take, take,
                         f * cellSize + doff, r * cellSize + doff, take, take);
                 }
             }
+            ctx.globalCompositeOperation = 'source-over';
             anyLoaded = true;
         }
 
@@ -342,6 +345,7 @@ export const InnerMapCharacters = {
                 for (let r = 0; r < this.DIR_ROWS; r++) for (let f = 0; f < frames; f++) cellOf(img, f, r, f, r);
                 continue;
             }
+            if (this.isEraseLayer(layerPath)) ctx.globalCompositeOperation = 'destination-out';
             for (let r = 0; r < this.DIR_ROWS; r++) {
                 for (let f = 0; f < frames; f++) {
                     const [anim, sf] = pick[r][f];
@@ -350,8 +354,14 @@ export const InnerMapCharacters = {
                     if (img) cellOf(img, sf, r, f, r);
                 }
             }
+            ctx.globalCompositeOperation = 'source-over';
         }
         return canvas;
+    },
+
+    /** A mask layer (assets/lpc/Characters/Maimed/Erase - …): drawn with destination-out, it cuts away what is beneath. */
+    isEraseLayer(layerPath) {
+        return typeof layerPath === 'string' && layerPath.startsWith('Maimed/Erase - ');
     },
 
     // Gear's ready-stance sheet ('Combat 1h - Idle'), and the animation it is carried through

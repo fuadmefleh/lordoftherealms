@@ -3,9 +3,9 @@
     "enabled": true,
     "cadence": 7,
     "biteFrom": 20,
-    "rise": 0.006,
-    "fall": 0.012,
-    "_rise": "share of the gap to the pressure closed each week while the strain is below it (0.006: about ten years to close two thirds of the gap); fall: the same, when the pressure has dropped below the strain",
+    "rise": 0.003,
+    "fall": 0.006,
+    "_rise": "share of the gap to the pressure closed each week while the strain is below it (0.003: about twenty years to close two thirds of the gap — tuned by the century soak, src/__tests__/endgame.soak.test.js, so a strain bites near year 15 and matters by 30-40); fall: the same, when the pressure has dropped below the strain",
     "noticeAt": 40,
     "graveAt": 70,
     "hysteresis": 10,
@@ -31,7 +31,7 @@
         "soft": {
             "label": "Heirs born in the purple", "icon": "🧸",
             "blurb": "Children raised among silk and flatterers come of age soft: fearful, greedy, fond of the cup.",
-            "base": 0.05, "size": 0.2, "reignYears": 25, "age": 0.6, "prestigeSpan": 1500, "prestige": 0.15,
+            "base": 0.05, "size": 0.2, "reignYears": 40, "age": 0.4, "prestigeSpan": 1500, "prestige": 0.15,
             "seeds": { "craven": 4, "drunkard": 3, "greedy": 3, "brave": -4 },
             "skillLoss": { "combat": 1, "leadership": 1 }, "skillLossAt": 0.5,
             "start": 0
@@ -39,9 +39,9 @@
         "entrench": {
             "label": "Guilds and clergy entrenched", "icon": "⛪",
             "blurb": "Old charters, old benefices: the guild halls and the cathedral chapters have their privileges in writing and will not be moved.",
-            "base": 0.05, "realmYears": 40, "realmWeight": 0.6, "age": 0.5, "size": 0.25, "guilds": 0.15, "guildsPerTown": 2, "temples": 0.1, "templesSpan": 5,
+            "base": 0.05, "realmYears": 40, "realmWeight": 0.6, "age": 0.4, "size": 0.12, "guilds": 0.15, "guildsPerTown": 2, "temples": 0.1, "templesSpan": 5,
             "edictCost": 1.0, "edictUpkeep": 0.6, "factionMove": 0.6, "factions": ["merchants", "clergy"],
-            "start": 0.5
+            "start": 0.15
         }
     },
     "stability": { "perBite": 4, "cap": 12 },
@@ -73,7 +73,7 @@
         }
     },
     "ai": {
-        "enabled": true, "scale": 0.8, "size": 0.4, "age": 0.5, "realmYears": 50, "biteFrom": 25,
+        "enabled": true, "rise": 0.006, "fall": 0.012, "scale": 0.8, "size": 0.4, "age": 0.5, "realmYears": 50, "biteFrom": 25,
         "stabilityPerBite": 8, "skimShare": 0.15, "reformAt": 55, "reformChance": 0.12, "reformKeep": 0.4, "reformStability": -3
     },
     "text": {

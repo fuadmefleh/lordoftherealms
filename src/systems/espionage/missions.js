@@ -255,6 +255,10 @@ Object.assign(Espionage, {
         // If captured, remove spy from roster
         if (outcome === 'captured') {
             player.espionage.spies = player.espionage.spies.filter(s => s.id !== spy.id);
+            // (in their cells: the crown may put them to the question — systems/interrogation.js reads this)
+            if (!Array.isArray(player.espionage.takenSpies)) player.espionage.takenSpies = [];
+            player.espionage.takenSpies.push({ id: spy.id, name: spy.name, kingdomId: mission.targetKingdom, day: (world && world.day) || 0 });
+            if (player.espionage.takenSpies.length > 20) player.espionage.takenSpies.splice(0, player.espionage.takenSpies.length - 20);
         }
 
         return result;

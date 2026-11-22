@@ -87,7 +87,7 @@
         "warehouse": { "activity": { "icon": "📦", "label": "Hauling crates", "anim": "idle" } },
         "beggar": { "activity": { "icon": "💰", "label": "Begging", "anim": "sitting", "pose": 0 }, "barks": ["Alms… alms for the poor…", "Spare a coin?"] }
     },
-    "well": { "activity": { "icon": "💧", "label": "Drawing water", "anim": "idle" }, "lines": ["Did you hear? {news}", "They say {news}", "Water's low again.", "Heavy bucket, this."] },
+    "well": { "activity": { "icon": "💧", "label": "Drawing water", "anim": "idle" }, "lines": ["Did you hear? {news}", "They say {news}", "Water's low again.", "Heavy bucket, this."], "foulLines": ["Don't drink from the square well. It stinks.", "My boy's had the flux since Tuesday.", "We carry it up from the river now.", "The carriers want a copper a bucket!", "Who would foul a well? Who?"] },
     "play": ["Tag! You're it!", "Can't catch me!", "Wait for me!", "My turn!"],
     "crier": {
         "hours": [9, 17],

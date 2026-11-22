@@ -152,6 +152,7 @@ Object.assign(ActionMenu, {
         const q = HighCrowns.levyQuote(player, world, kid);
         const v = entry.viceroy;
         const away = world.day - (entry.lastPresentDay || entry.since);
+        const court = entry.court || null;
         let html = '<div style="font-size:12px;">';
         html += chips([
             ['🏴', 'Discontent', Math.round(entry.separatism)],
@@ -161,7 +162,7 @@ Object.assign(ActionMenu, {
         ]);
         html += lede(`Yours since day ${entry.since}${entry.how === 'inherited' ? ', by right of blood' : entry.how === 'conquest' ? ', yielded at the sword\'s point' : ''}. Its lords are ${_temperWord(entry.separatism)}. ${away <= 7 ? 'You are in the realm: your presence quiets them.' : `You were last in the realm ${away} days ago.`}`);
         html += _bar(entry.separatism, entry.separatism >= cfg.separatism.warnAt ? '#e0846a' : '#f0b35a');
-        html += `<div style="${MUTED}">At ${cfg.separatism.breakAt} discontent, with stability under ${cfg.separatism.breakStability}, the lords crown a native. Going there, a native or kin viceroy, light taxes and the charter calm them; absence, foreign rule, tribute and heavy taxes stir them.</div>`;
+        html += `<div style="${MUTED}">At ${cfg.separatism.breakAt} discontent, with stability under ${cfg.separatism.breakStability} (or its lords in revolt for a king of their own), the lords crown a native. Going there, a native or kin viceroy, light taxes and the charter calm them; absence, foreign rule, tribute and heavy taxes stir them — and so do its lords at court, by their opinion of you and their factions.</div>`;
 
         // ── The viceroy ──
         let vb = '';
@@ -212,6 +213,8 @@ Object.assign(ActionMenu, {
         }), `📜 Decrees (${used}/${slots})`);
 
         html += rowList([
+            // Its own royal court: council (the viceroy at its head), edicts, vassals, factions, revolts (ui/actionMenu/royalCourt.js)
+            { icon: '🏛️', name: `The Royal Court of ${esc(Names.realm(k.name))}`, desc: `${court && court.initialized ? `${court.vassals.length} lords${court.revolt ? ' · <span style="color:#e0846a;">in revolt</span>' : ''}` : 'Its lords come to swear fealty'} · council, edicts, vassals and their factions`, side: '›', tone: court && court.revolt ? 'bad' : 'gold', attrs: 'onclick="window._highCrown.court()"' },
             { icon: '👑', name: `Lay down the crown of ${esc(Names.realm(k.name))}`, desc: 'Its old line takes it back, in peace', tone: 'bad', attrs: 'onclick="window._highCrown.release()"' },
             { icon: '←', name: 'Back to your crowns', attrs: 'onclick="window._highCrown.back()"' },
         ]);
@@ -228,6 +231,7 @@ Object.assign(ActionMenu, {
             decree: (id) => result('📜 A Decree', HighCrowns.proclaimDecree(player, world, kid, id)),
             revoke: (id) => result('📜 A Decree Revoked', HighCrowns.revokeDecree(player, world, kid, id)),
             release: () => result('👑 A Crown Laid Down', HighCrowns.release(player, world, kid), home),
+            court: () => ActionMenu.showRoyalCourt(game, tile, 'council', kid),
             back: home,
         };
     },

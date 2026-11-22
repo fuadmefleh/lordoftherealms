@@ -34,6 +34,7 @@ import { Quests } from './quests.js';
 import { Traits } from './traits.js';
 import { Underworld } from './underworld.js';
 import { Ailments } from './ailments.js';
+import { Water } from './water.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 
@@ -214,6 +215,9 @@ export const VoyageMethods = {
         const reports = [];
         for (const ship of player.ships || []) {
             const away = ['at_sea', 'anchored', 'moving'].includes(ship.status);
+            // The water casks: filled free in a port with clean water, drunk a day at sea (systems/water.js)
+            const water = Water.shipDay(world, ship, away, this.getCrew(ship), (sh, m) => { this._ensureCrew(sh); this._setMorale(sh, m); }, (sh) => this.getMorale(sh));
+            if (away && (water.dry || water.daysLeft <= 3) && this.getCrew(ship) > 0) reports.push({ shipId: ship.id, name: ship.name, eaten: 0, short: 0, hungryDays: _num(ship.hungryDays), outbreak: false, daysLeft: this.getProvisionDays(ship), water });
             if (!away || this.getCrew(ship) <= 0) {
                 ship.hungryDays = 0;
                 ship.rationCarry = 0;
@@ -375,7 +379,10 @@ export const VoyageMethods = {
         player.queuedPath = null;
         const food = this.getProvisionDays(ship);
         this._voyageLog(ship, '⛵', `Set sail from ${from} for ${destName}: ${route.length} leagues, about ${days} day${days === 1 ? '' : 's'}.`, world);
-        const warn = food < days ? ` Provisions for only ${food} day${food === 1 ? '' : 's'} — the crew will go hungry.` : '';
+        let warn = food < days ? ` Provisions for only ${food} day${food === 1 ? '' : 's'} — the crew will go hungry.` : '';
+        // (the water casks: systems/water.js)
+        const water = Math.floor(Water.shipWater(ship));
+        if (water < days) warn += ` Water for only ${water} day${water === 1 ? '' : 's'} — the crew will thirst.`;
         return {
             success: true, ship, days, distance: route.length,
             message: `${ship.name} sets sail for ${destName} — about ${days} day${days === 1 ? '' : 's'} at sea.${warn}`,
@@ -545,6 +552,16 @@ export const VoyageMethods = {
         }
         for (const p of day.provisions || []) {
             if (p.shipId !== id) continue;
+            // The water casks (systems/water.js shipDay)
+            if (p.water) {
+                if (p.water.dry) {
+                    notable = true;
+                    this._voyageLog(ship, '💧', `The water casks are dry.${p.water.lost ? ` ${p.water.lost} sailor${p.water.lost === 1 ? '' : 's'} died of thirst.` : ' The crew licks the dew off the rigging.'}`, world);
+                } else {
+                    this._voyageLog(ship, '💧', `Water for ${p.water.daysLeft} more day${p.water.daysLeft === 1 ? '' : 's'}.`, world);
+                }
+                continue;
+            }
             if (p.short > 0) {
                 notable = true;
                 this._voyageLog(ship, '🍞', `Short rations: the hold is empty (${p.hungryDays} hungry day${p.hungryDays === 1 ? '' : 's'}).${p.outbreak ? ' Scurvy has broken out.' : ''}`, world);

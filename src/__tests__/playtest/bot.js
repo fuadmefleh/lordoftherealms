@@ -60,6 +60,8 @@ import { CrownBooks } from '../../world/crownBooks.js';
 import { Underwriting, KINDS as COVER_KINDS } from '../../systems/underwriting.js';
 import { Bills } from '../../systems/bills.js';
 import { Bourse } from '../../systems/bourse.js';
+import { Thirst } from '../../player/thirst.js';
+import { Water } from '../../systems/water.js';
 import { MerchantPrince } from '../../systems/merchantPrince.js';
 import { Guilds } from '../../systems/guilds.js';
 import { MerchantCaravans } from '../../systems/merchantCaravans.js';
@@ -82,6 +84,9 @@ import { travelTo as harnessTravelTo } from './harness.js';
 import { HouseQuests } from '../../systems/houseQuests.js';
 import { Devotion } from '../../systems/devotion.js';
 import { Plague } from '../../systems/plague.js';
+import { Household } from '../../player/household.js';
+import { HighCrowns } from '../../systems/highCrowns.js';
+import { MEAL_HUNGER } from '../../player/core/needs.js';
 
 const FOOD = ['grain', 'bread'];
 // Bought only when there's no grain or bread for sale
@@ -142,6 +147,9 @@ const COMPANY_PLAN_DAYS = 600;
 function companyTarget(game) {
     const { player, world } = game;
     if (world.day <= 150 || temper(game).id === 'drifter' || MerchantHouses.hasCompany(player)) return 0;
+    // (a crowned ruler does not labour town to town to save for a company: the levy is its income,
+    // and the plan's frugality paid off the royal guard each morning)
+    if (Throne.ruledKingdom(player, world)) return 0;
     const plan = game.companyPlan || (game.companyPlan = { from: world.day });
     if (world.day - plan.from > COMPANY_PLAN_DAYS) {
         if (world.day - plan.from < COMPANY_PLAN_DAYS + 360) return 0;
@@ -198,8 +206,35 @@ const JOB_AP = 4;
  * (Player.moveTo), and a life that changed its mind each morning sat on one
  * highland hex for a week and starved with 1,500 gold in its purse.
  */
+/**
+ * Thirsty with the skins dry and no water here: the nearest river, lake or
+ * clean town within a few hexes first (player/thirst.js, systems/water.js).
+ * → true when the bot turned aside for it today.
+ */
+function waterDetour(game) {
+    const { player, world } = game;
+    if (player.boardedShip != null || !Thirst.on(player)) return false;
+    if (Thirst.level(player) >= 35 || Thirst.held(player) >= 1 || Thirst.sourceHere(player, world)) return false;
+    let best = null;
+    for (let dr = -4; dr <= 4; dr++) {
+        for (let dq = -4; dq <= 4; dq++) {
+            const tq = Hex.wrapQ(player.q + dq, world.width), tr = player.r + dr;
+            const src = Water.sourceAt(world, tq, tr);
+            if (!src || src.foul) continue;
+            const d = Hex.wrappingDistance(player.q, player.r, tq, tr, world.width);
+            if (!best || d < best.d) best = { q: tq, r: tr, d };
+        }
+    }
+    if (!best) return false;
+    count(game._roadStats || (game._roadStats = {}), 'waterDetour');
+    harnessTravelTo(game, best.q, best.r);
+    return true;
+}
+
 function travelTo(game, q, r) {
     const { player, world } = game;
+    // (the skins dry and thirsty: water first)
+    if (waterDetour(game)) return false;
     const c = !player.boardedShip && typeof player.crossingStatus === 'function' ? player.crossingStatus(world) : null;
     const w = world.width;
     // Out of a town that sells bread, not on fewer meals than the road may take
@@ -247,6 +282,15 @@ function shutSeen(player) {
     let m = _shut.get(player);
     if (!m) _shut.set(player, (m = {}));
     return m;
+}
+
+// Bread, grain and fish a town's stalls can sell today, in whole units. Under
+// STALL_ENOUGH (a few days' meals) a town counts as bare: a crowned life with
+// 2,000 gold starved in a village that put out one sack of grain a day, buying
+// it each morning and staying for the next (round 3's endgame soak, seed 101).
+const STALL_ENOUGH = 3;
+function stallFood(settlement) {
+    return [...FOOD, ...FOOD_FALLBACK].reduce((a, id) => a + Math.floor(SettlementMarket.available(settlement, id) || 0), 0);
 }
 
 // The days of food the packs are kept at in a town that sells it, and the
@@ -1932,7 +1976,129 @@ function delveSite(game) {
     return best ? { q: best.q, r: best.r, delve: true } : null;
 }
 
+// ── A crowned ruler keeps court ─────────────────────────────
+// The bot used to rule as it wandered: a king working odd jobs town to town,
+// the palace a thousand miles behind, and in a dearth (a bare market, the
+// next town days off) lives died in the wild with 700 gold in the purse — 25
+// of 40 deaths in the round-2 endgame soak were monarchs starved so. A ruler
+// keeps the palace larder full from the capital's market (player/household.js:
+// its table feeds the ruler when the packs are empty), takes bread from it for
+// the road, comes home when the packs run low, and keeps within a few days of
+// the seat (chooseDestination).
+
+/** The ruler's seat: the palace kept by the crown, else a house in the capital, else the capital. */
+export function royalSeat(game) {
+    const { player, world } = game;
+    const k = Throne.ruledKingdom(player, world);
+    if (!k || !k.capital) return null;
+    // A royal progress to a far crown (game.progress, set by the endgame soak's grow mode:
+    // { kingdomId, until }): its capital is the seat until then — the court rides with the ruler
+    const pr = game.progress;
+    if (pr && world.day < pr.until && HighCrowns.unionCrown(player, pr.kingdomId)) {
+        const fk = world.getKingdom(pr.kingdomId);
+        if (fk && fk.isAlive && fk.capital) return { q: fk.capital.q, r: fk.capital.r, key: null, kingdom: fk, progress: true };
+    }
+    const houses = player.houses || [];
+    const h = houses.find(x => x && String(x.keptBy) === String(k.id))
+        || houses.find(x => x && x.q === k.capital.q && x.r === k.capital.r);
+    const q = h ? h.q : k.capital.q;
+    const r = h ? h.r : k.capital.r;
+    const key = h ? Household.houseKey(h) : null;
+    return { q, r, key, kingdom: k };
+}
+// Rations the palace larder is kept at, and the packs a ruler sets out with
+const COURT_LARDER = 15;
+const COURT_TETHER = 12;
+const larderOf = (player, seat) => (seat && seat.key ? Household.home(player, seat.key, true, { q: seat.q, r: seat.r }) : null);
+
+function keepCourt(game, stats) {
+    const { player, world } = game;
+    if (player.boardedShip || Ships.getVoyage(player)) return false;
+    const seat = royalSeat(game);
+    if (!seat) return false;
+    const home = larderOf(player, seat);
+    const atSeat = player.q === seat.q && player.r === seat.r;
+    // On a royal progress: on the road to the far capital (fed for the way: the food runs below come first)
+    if (seat.progress && !atSeat && player.getFoodCount() > 4 && !Delves.active(player) && !Sieges.active(player) && !Throne.state(player).civilWar) {
+        const from = `${player.q},${player.r}`;
+        game.dest = { q: seat.q, r: seat.r, court: true };
+        travelTo(game, seat.q, seat.r);
+        if (`${player.q},${player.r}` !== from || player.crossing) { count(stats, 'progressDays'); return true; }
+        // (no step today — the day's legs already walked, or no road at all: over the sea, it is given up)
+        if (typeof player._overlandReachable === 'function' && !player._overlandReachable(seat.q, seat.r, world)) game.progress = null;
+        count(stats, 'progressNoWay');
+        return false;
+    }
+    if (atSeat && home) {
+        // The larder kept full from the capital's market: grain first (it keeps), then what the stalls have
+        if (Household.rations(home) < COURT_LARDER && player.gold >= 60) {
+            const food = Household.marketFood(player, world, home).sort((a, b) => (a.id === 'grain' ? -1 : 0) - (b.id === 'grain' ? -1 : 0));
+            for (const g of food) {
+                if (Household.rations(home) >= COURT_LARDER) break;
+                const want = Math.ceil((COURT_LARDER - Household.rations(home)) * 35 / Math.max(1, MEAL_HUNGER[g.id] || 15));
+                const res = Household.buy(player, world, seat.key, g.id, want, Math.max(0, player.gold - 40));
+                if (res.success) count(stats, 'courtLarder', res.n);
+            }
+        }
+        // The market bare and the packs light: bread for the road from the larder (two days' worth left at home)
+        if (player.getFoodCount() < 6 && Household.rations(home) > 2) {
+            for (const id of Object.keys(home.larder)) {
+                while (player.getFoodCount() < 6 && Household.rations(home) > 2 && (home.larder[id] || 0) > 0) {
+                    if (!Household.take(player, seat.key, id, 1).success) break;
+                    count(stats, 'courtLarderTaken');
+                }
+            }
+        }
+        return false;
+    }
+    // A thin purse: home to court, to earn and eat there (the capital's work and stalls, the
+    // royal kitchens — Household.royalTable), not on the road town to town after wages
+    const left0 = player.getFoodCount();
+    if (player.gold < poorBelow(game) && !Delves.active(player) && !Sieges.active(player) && !Throne.state(player).civilWar) {
+        const days = tripDays(game, seat.q, seat.r);
+        if (days != null && days <= left0 + 3) {
+            const from = `${player.q},${player.r}`;
+            game.dest = { q: seat.q, r: seat.r, court: true };
+            game.headingTo = { q: seat.q, r: seat.r, day: world.day };
+            travelTo(game, seat.q, seat.r);
+            if (`${player.q},${player.r}` !== from || player.crossing) {
+                count(stats, 'poorToCourt');
+                const now = world.getTile(player.q, player.r);
+                if (now && now.settlement) booked(game, 'buyFood', () => buyFood(game, now, stats));
+                return true;
+            }
+        }
+    }
+    // Away with the packs running low and no bread on this town's stalls: home to the
+    // royal table while the packs last the road (the larder stocked, or the capital's market)
+    const here = world.getTile(player.q, player.r);
+    const sells = here && here.settlement && stallFood(here.settlement) >= STALL_ENOUGH;
+    const left = player.getFoodCount();
+    if (left <= 4 && !sells && !Delves.active(player) && !Sieges.active(player)) {
+        const days = tripDays(game, seat.q, seat.r);
+        if (days != null && days <= left + 3 && (!home || Household.rations(home) >= 2 || player.gold >= 30)) {
+            game.dest = { q: seat.q, r: seat.r, court: true };
+            game.headingTo = { q: seat.q, r: seat.r, day: world.day };
+            travelTo(game, seat.q, seat.r);
+            count(stats, 'homeToCourt');
+            const now = world.getTile(player.q, player.r);
+            if (now && now.settlement) booked(game, 'buyFood', () => buyFood(game, now, stats));
+            return true;
+        }
+    }
+    return false;
+}
+
 function chooseDestination(game) {
+    const dest = pickDestination(game);
+    // (a ruler keeps within a few days of the seat: back to court from a road that strays)
+    const seat = royalSeat(game);
+    if (seat && dest && Hex.wrappingDistance(seat.q, seat.r, dest.q, dest.r, game.world.width) > COURT_TETHER
+        && (game.player.q !== seat.q || game.player.r !== seat.r)) return { q: seat.q, r: seat.r, court: true };
+    return dest;
+}
+
+function pickDestination(game) {
     const { player, world } = game;
     const roll = Utils.random();
     // (only when fit for it: hale, fed for the road and not broke — a delve trek on an empty
@@ -2453,13 +2619,17 @@ export function botDay(game, stats) {
 
     // Saving for the company (companyTarget): soldiers' wages would eat what the
     // labour earns, so pay them off (not in the middle of a siege)
-    if (frugal(game) && (player.army || []).length && !Sieges.active(player)) {
-        player.army.splice(0);
+    // (a realm's guard riding with the player is the crown's to pay, not the purse's: player/realmEscort.js —
+    // the bot paid a king's household guard off every morning it was short, and rode out alone)
+    const paid = (player.army || []).filter(u => u && u.realmGuard == null);
+    if (frugal(game) && paid.length && !Sieges.active(player)) {
+        player.army = player.army.filter(u => !paid.includes(u));
         count(stats, 'disbandedToSave');
     }
     // Broke: pay off soldiers and sailors rather than starve
-    if (player.gold < 150 && (player.army || []).length > 2) {
-        player.army.splice(0, Math.ceil(player.army.length / 2));
+    if (player.gold < 150 && paid.length > 2) {
+        const off = new Set(paid.slice(0, Math.ceil(paid.length / 2)));
+        player.army = player.army.filter(u => !off.has(u));
         count(stats, 'disbanded');
     }
     // Broke: let the spies and paid companions go too — wages can't come before bread
@@ -2489,6 +2659,8 @@ export function botDay(game, stats) {
         // (no buyer at her port: pay the crew off and lay her up — a quarter of her upkeep)
         else if (docked && (docked.crew || 0) > 0 && Ships.dismissCrew(player, docked.id, docked.crew).success) count(stats, 'laidUp');
     }
+    // A crowned ruler: the palace larder, and home to it when the packs run low (keepCourt)
+    if (booked(game, 'keepCourt', () => keepCourt(game, stats))) return;
     // Running out of food with money in the purse: make for the nearest town and buy some
     // (one that had food the last time it was tried: a dawn village picked bare is no use)
     const foodless = game.foodlessAt || (game.foodlessAt = {});
@@ -2501,7 +2673,7 @@ export function botDay(game, stats) {
             const before = player.getFoodCount();
             // (bare: no bread or grain on its stalls at all — a town the bot merely can't
             // afford more of is not bare, and walking off from it on a thin purse kills)
-            const bare = ![...FOOD, ...FOOD_FALLBACK].some(id => SettlementMarket.available(at.settlement, id) >= 1);
+            const bare = stallFood(at.settlement) < STALL_ENOUGH;
             if (before <= 4 && bare) {
                 // (nothing on the stalls here: with a few days' food left, walk on to the
                 // next town that had some, rather than sit in a bare town until it is gone)
@@ -2587,7 +2759,7 @@ export function botDay(game, stats) {
     // In a town with bread on its stalls but none for this purse: a day's wage buys it.
     // Walking out to forage crosses a hex of days on an empty belly (lives starved so).
     const inTown = world.getTile(player.q, player.r);
-    if (lowFood && inTown && inTown.settlement && [...FOOD, ...FOOD_FALLBACK].some(id => SettlementMarket.available(inTown.settlement, id) >= 1)) {
+    if (lowFood && inTown && inTown.settlement && stallFood(inTown.settlement) >= STALL_ENOUGH) {
         if ((player.actionPoints || 0) >= JOB_AP) booked(game, 'labour', () => dayLabour(game, inTown, stats));
         booked(game, 'buyFood', () => buyFood(game, inTown, stats));
         if (player.getFoodCount() > 0) { count(stats, 'workedForBread'); lowFood = false; }
@@ -2732,7 +2904,9 @@ export function botDay(game, stats) {
         // A town whose employers could not pay the day's wages lately is no place
         // to earn bread (three lives starved labouring for nothing in one): move on
         const broke = (t) => world.day - ((game.brokeTowns || {})[`${t.q},${t.r}`] ?? -1e9) < 30;
-        if (here && here.settlement && broke(here)) {
+        // (a ruler at court stays: the royal kitchens feed it there — Household.royalTable)
+        const atCourt = (() => { const st = royalSeat(game); return !!st && st.q === player.q && st.r === player.r; })();
+        if (here && here.settlement && broke(here) && !atCourt) {
             const next = nearest(world, player, settlementTiles(world), 6).find(t => !broke(t));
             if (next && fedFor(game, next.q, next.r)) {
                 const from = `${player.q},${player.r}`;

@@ -50,6 +50,7 @@ import { Duels } from '../systems/duels.js';
 import { Arms } from '../systems/arms.js';
 import { Nemesis } from '../systems/nemesis.js';
 import { House } from '../systems/house.js';
+import { Interrogation } from '../systems/interrogation.js';
 
 const DEFAULTS = {
     phases: [
@@ -615,6 +616,12 @@ export const FieldBattle = {
         // A world unit: its losses stand, and its fate follows the usual rules
         const unit = battle.unitId && world && Array.isArray(world.units)
             ? world.units.find(u => u.id === battle.unitId && !u.destroyed) : null;
+        // A realm's host beaten: a captain, a knight or a lord of theirs may be taken (systems/interrogation.js prisoners of war)
+        let powText = null;
+        if (unit && victory && unit.kingdomId != null && !['caravan', 'settler', 'ship', 'fishing_boat', 'pioneer'].includes(unit.type)) {
+            const pow = Interrogation.takePrisoners(player, world, { kingdomId: unit.kingdomId, strength: battle.eStr0, how: 'in the field' });
+            if (pow) powText = `${pow.name} of ${pow.realm} is taken alive: your prisoner now (🔗 The Dungeon).`;
+        }
         if (unit) {
             if (!victory) unit.strength = Math.max(1, Math.round(battle.sim.eStr));
             if (withdrew) {
@@ -629,6 +636,7 @@ export const FieldBattle = {
                 result = PlayerMilitary.attackUnit(player, unit, world, { defending: battle.defending, combatResult: result });
             }
         }
+        if (powText) result = { ...result, prisonerTaken: powText };
         battle.result = result;
         return result;
     },

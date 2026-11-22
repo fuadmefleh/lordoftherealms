@@ -29,11 +29,12 @@ export function lastCrisisHtml(game) {
     if (v.phase === 'watch') {
         const ms = m.measure;
         const facts = [['🏰', 'Towns of the world', _pc(ms.townShare)], ['⚔️', 'Arms of the world', _pc(ms.mightShare)]];
+        if (ms.rival) facts.push(['📏', `Against ${esc(ms.rival.name)}`, `${ms.myTowns} towns to ${ms.rivalTowns}`]);
         if (ms.power) facts.push(['', 'Might', Math.round(ms.power)]);
         if (ms.emperor) facts.push(['👑', 'Emperor', 'yes']);
         const tone = m.pct >= 0.75 ? '#c0533a' : m.pct >= 0.5 ? '#d8a64a' : '#8a9a6a';
         const body = `${_bar(m.pct, tone)}<div style="font-size:12px; margin:2px 0 6px;">${esc(m.label)}</div>${chips(facts)}`
-            + '<div style="font-size:11px; color:var(--text-secondary); margin-top:4px;">A House that holds a third of the world\'s towns, or its arms, long enough brings the last crisis of the age upon itself: once in a long age, and aimed at it.</div>';
+            + '<div style="font-size:11px; color:var(--text-secondary); margin-top:4px;">A House that holds a third of the world\'s towns (or as much of its towns and arms together), with near twice the towns of the next greatest realm, and holds it for years, brings the last crisis of the age upon itself: once in a long age, and aimed at it.</div>';
         html += card(body, { icon: '⏳', title: 'The reckoning', side: m.stage === 'spent' ? 'spent' : `${Math.round(m.pct * 100)}%` });
     } else if (v.phase === 'omens') {
         const recent = v.log.map(e => `<div style="font-size:12px; margin:3px 0;"><span style="color:#a99a78;">Year ${_yr(world, e.day)}:</span> ${esc(LastCrisis.line(world, e))}</div>`).join('');

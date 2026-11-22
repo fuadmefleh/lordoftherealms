@@ -36,6 +36,11 @@ import { RiverLife } from '../../systems/riverLife.js';
 import { AnimalCompanions } from '../../systems/animalCompanions.js';
 import { BackRooms } from '../../systems/backRooms.js';
 import { Atrocities } from '../../systems/atrocities.js';
+import { Maiming } from '../../systems/maiming.js';
+import { Thirst } from '../../player/thirst.js';
+import { Ordeals } from '../../player/ordeals.js';
+import { Water } from '../../systems/water.js';
+import { Executions } from '../../systems/executions.js';
 import { Annals } from '../../systems/annals.js';
 import { LawCouncil } from '../../systems/lawCouncil.js';
 import { PlayerWorks } from '../../player/playerWorks.js';
@@ -164,6 +169,9 @@ import { Victory } from '../../systems/victory.js';
 import { Fame } from '../../systems/fame.js';
 import { Crises } from '../../systems/crises.js';
 import { LastCrisis } from '../../systems/lastCrisis.js';
+import { RealmDecline } from '../../systems/realmDecline.js';
+import { PeasantRevolts } from '../../systems/peasantRevolts.js';
+import { NamedLegacy } from '../../systems/namedLegacy.js';
 import { Climate } from '../../world/climate.js';
 import { RealmTimeline } from '../../systems/realmTimeline.js';
 
@@ -181,8 +189,10 @@ export async function loadData() {
 /** A fresh game, set up in gameSetup.js's order. */
 export function newGame(seed, gen = {}) {
     Utils.setSeed(seed);
-    const world = new World(WORLD_W, WORLD_H);
-    world.generate({ ...GEN, ...gen });
+    // (gen.width / gen.height size the map: the New Game sheet's presets; 80×60 by default)
+    const { width = WORLD_W, height = WORLD_H, ...genRest } = gen || {};
+    const world = new World(width, height);
+    world.generate({ ...GEN, ...genRest });
     const player = new Player({ firstName: 'Bot', lastName: 'Harness', gender: 'male', age: 20 });
     player.placeInWorld(world);
 
@@ -373,6 +383,9 @@ function _endDay(game) {
         game.upkeep = game.autoUpkeep ? AutoUpkeep.run(player, world, { mode: game.autoUpkeep }) : null;
     }
     mark(game, 'AutoUpkeep.run');
+    // Trial by combat and ordeal: perjury found out, kin accused, a rival's wager, a champion wanted (player/ordeals.js, as endDay.js)
+    game.ordealsDay = Ordeals.processDay(world, player);
+    mark(game, 'Ordeals.processDay');
     game.trialsDay = Trials.processDay(world, player);
     mark(game, 'Trials.processDay');
     PlayerActions.endDay(player, world);
@@ -394,6 +407,13 @@ function _endDay(game) {
     mark(game, 'player.endDay');
     const eventEffects = WorldEvents.applyPlayerDailyEffects(world, player) || {};
     mark(game, 'WorldEvents.applyPlayerDailyEffects');
+    // Thirst: the day's drain, drinking what is to hand, the parched days (player/thirst.js, as endDay.js)
+    const thirstDay = Thirst.processDay(player, world, { weather: eventEffects.weather });
+    mark(game, 'Thirst.processDay');
+    if (thirstDay && thirstDay.died) {
+        out.died = 'thirst';
+        return out;
+    }
     const ailmentDay = Ailments.processDay(world, player, {
         exposure: eventEffects.weatherHealthLost || 0,
         weather: eventEffects.weather,
@@ -479,6 +499,9 @@ function _endDay(game) {
     mark(game, 'TownMemory.processDay');
     TownCrimes.processDay(world, player);
     mark(game, 'TownCrimes.processDay');
+    // Water: wells, springs and the towns' supply (systems/water.js, as endDay.js beside TownCrimes)
+    Water.processDay(world, player);
+    mark(game, 'Water.processDay');
     // (endDay.js: the towns age once a year)
     game.townErasDay = TownEras.processDay(world, player);
     mark(game, 'TownEras.processDay');
@@ -605,6 +628,12 @@ function _endDay(game) {
     mark(game, 'Sieges.processDay');
     Atrocities.processDay(world, player);
     mark(game, 'Atrocities.processDay');
+    // Maiming: harsh realms take thieves' hands, the raided count their maimed, enemies' blades (systems/maiming.js)
+    Maiming.processDay(world, player);
+    mark(game, 'Maiming.processDay');
+    // Executions: proclaimed days, the realms' scaffolds, martyrs' shrines (systems/executions.js)
+    Executions.processDay(world, player);
+    mark(game, 'Executions.processDay');
     game.holdingsDay = Holdings.processDay(player, world);
     mark(game, 'Holdings.processDay');
     game.stewardsDay = Stewards.processDay(world, player);
@@ -627,6 +656,11 @@ function _endDay(game) {
     mark(game, 'Engrossing.processDay');
     LawCouncil.processDay(world, player);
     mark(game, 'LawCouncil.processDay');
+    // (game.endgame: the endgame's weekly systems endDay.js runs too — opt-in so older specs' worlds don't shift)
+    if (game.endgame) {
+        NamedLegacy.processDay(world, player);
+        mark(game, 'NamedLegacy.processDay');
+    }
     game.hinterlandDay = Concessions.processDay(world, player);
     mark(game, 'Concessions.processDay');
     game.landDay = LandMarket.processDay(world, player);
@@ -688,6 +722,12 @@ function _endDay(game) {
     mark(game, 'Crises.processDay');
     game.lastCrisisDay = LastCrisis.processDay(world, player);
     mark(game, 'LastCrisis.processDay');
+    if (game.endgame) {
+        RealmDecline.processDay(world, player);
+        mark(game, 'RealmDecline.processDay');
+        game.revoltsDay = PeasantRevolts.processDay(world, player);
+        mark(game, 'PeasantRevolts.processDay');
+    }
     RealmTimeline.processDay(world, player);
     mark(game, 'RealmTimeline.processDay');
     game.taxDay = world.day % 7 === 0 ? Taxation.collectTaxes(player, world) : null;

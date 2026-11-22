@@ -732,6 +732,7 @@
         "HONEY": { "id": "honey", "name": "Honey", "icon": "🍯", "basePrice": 20, "description": "Honey from the hives: sweetener, preserver, and the makings of mead." },
         "SALT": { "id": "salt", "name": "Salt", "icon": "🧂", "basePrice": 15, "description": "Salt from pans or mines. Without it no meat or fish keeps through the winter." },
         "ROPE": { "id": "rope", "name": "Rope", "icon": "🧶", "basePrice": 10, "description": "Hemp rope for ships, wells, cranes and farms." },
+        "WATERSKIN": { "id": "waterskin", "name": "Waterskin", "icon": "💧", "basePrice": 6, "description": "A goat's skin stitched and pitched to hold water: a day's drinking on the road (data/water.json). Filled free at any well, river or lake." },
         "CANDLES": { "id": "candles", "name": "Candles", "icon": "🕯️", "basePrice": 8, "description": "Tallow candles for light after dark. Beeswax ones go to churches and the rich." },
         "POTTERY": { "id": "pottery", "name": "Pottery", "icon": "🏺", "basePrice": 22, "description": "Fired pots, jugs and bowls for every kitchen and storeroom." },
         "LEATHER_ARMOR": { "id": "leather_armor", "name": "Leather Armour", "icon": "🥋", "basePrice": 70, "description": "A boiled-leather jerkin. Light, quiet and cheap; it turns a glancing blow." },

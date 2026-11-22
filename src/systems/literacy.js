@@ -64,6 +64,7 @@ import { House } from './house.js';
 import { Ledger } from './ledger.js';
 import { Gossip } from './gossip.js';
 import { Whispers } from './whispers.js';
+import { MaimMarks } from './maimMarks.js';
 
 const DEFAULTS = {
     enabled: true, readAt: 40, writeAt: 50, refreshDays: 30, minKnown: 6, histCap: 200,
@@ -336,8 +337,9 @@ export const Literacy = {
         return r.lv;
     },
 
-    canRead(player) { const lv = Literacy.level(player); return lv == null || lv >= Literacy.config().readAt; },
-    canWrite(player) { const lv = Literacy.level(player); return lv == null || lv >= Literacy.config().writeAt; },
+    // (the blind read nothing, and the handless write nothing, however lettered: systems/maimMarks.js)
+    canRead(player) { if (!MaimMarks.canRead(player)) return false; const lv = Literacy.level(player); return lv == null || lv >= Literacy.config().readAt; },
+    canWrite(player) { if (!MaimMarks.canWrite(player)) return false; const lv = Literacy.level(player); return lv == null || lv >= Literacy.config().writeAt; },
 
     /** A new life's letters: their wits and their station. */
     derive(player) {
@@ -373,6 +375,7 @@ export const Literacy = {
     /** Null if the player may read a book; else the reason. */
     readingGate(player) {
         if (Literacy.canRead(player)) return null;
+        if (MaimMarks.blind(player)) return 'You are blind. A book is only the smell of old vellum to you now; letters must be read to you.';
         return 'The letters are only marks to you. You cannot read yet: a schoolmaster or a priest will teach you your letters (a town\'s School panel).';
     },
 

@@ -1,0 +1,69 @@
+{
+    "_note": "Water (systems/water.js: the towns' wells, fouled wells, sieges, armies and ships; player/thirst.js: the player's thirst; ui/actionMenu/water.js the Water panel; ui/innerMapWater.js the street map's wells, pumps and rivers). player.thirst: 100 slaked .. 0 parched. drain: thirst lost a world day; heat: × (1 + (temp - hotAbove) × perHeat) above hotAbove (the tile's temperature with its season and the climate's era, world/climate.js seasonalTemp), × terrain on desert and the like, × coldMult below coldBelow; march: × for a day with marchHexes or more hexes walked; fight: × for a day with a fight. draught: thirst one draught gives (a skin holds skin.draughts, a cask — a barrel in the pack — cask.draughts; filled free at a well, a river or a lake). autoBelow: the character drinks from the skins without being told below this. drinks: what ale, cider, mead, wine or milk in the pack gives a draught (drunk only below drinksBelow, and never on a vow: it's for survival). parched: below `below` the day is shorter (movement × moveMult), below `badBelow` shorter still; at 0 each day parched costs healthPerDay[days-1] health (the last repeats) — death in three or four days. foulWater: drinking a fouled well's water anyway: fluxChance of the flux (systems/ailments.js). rain: a day of rain gives `thirst` and fills `draughts` of the skins. buyWater: in a town whose wells are all foul, water carted in from elsewhere, `price` a draught (to the town's purse: its water carriers). startSkins: the waterskins a character first takes up (filled). town: wells by size, + perEra a town era (world/townEras.js); a river or a lake beside a town is a source of its own (the sea is salt). foul: days a well stays foul by cause; clean: the well-diggers' price per foul well (cleanDays to clear it). noWater: a town with no clean source — mood a day, the share of its people who sicken drinking it anyway (dailySick; partSick while some wells still run clean), the coin a day per 100 souls it pays water carriers (to the nearest town with water), and fleeShare a week of its people who go to the nearest town. drought: in summer, in a drought (the climate's era with wet below wetBelow at the town, or a drought event of the world), a town with no river or lake may find its wells run dry: weekChance a week, for days. plague: a town with a serious plague: weekChance a week the dead foul a well. agent: a town of a realm at war: weekChance a week an enemy agent fouls a well. siege: a besieged town with no clean water drinks its cisterns (cisternDays by size, + stoneEraDays from the stone era up), then thirsts (morale and garrison lost a day). holdingFoul: the besiegers of your holding foul its wells on foulDay of the siege (chance). camp: a siege camp far from a river or lake loses campMorale a day hauling water. army: your army's units drink from the land; a dry day past graceDays costs unitShare of the land units (at least one). host: a commanded host away at war with no water near loses morale and desertShare men a day. ship: a ship carries capDays of water for its crew, filled free at a port with clean water; with none left at sea, morale and crewShare of the crew a day past graceDays.",
+    "enabled": true,
+    "player": {
+        "drain": 32,
+        "heat": { "hotAbove": 0.62, "perHeat": 2.2, "max": 2.2, "coldBelow": 0.25, "coldMult": 0.85,
+            "terrain": { "desert": 1.6, "savanna": 1.2, "beach": 1.1, "badlands": 1.4, "scrubland": 1.25 } },
+        "march": { "hexes": 2, "mult": 1.2 },
+        "fight": { "mult": 1.15 },
+        "draught": 35,
+        "autoBelow": 70,
+        "skin": { "good": "waterskin", "draughts": 2 },
+        "cask": { "good": "barrel", "draughts": 12 },
+        "drinks": { "beer": 30, "cider": 30, "mead": 22, "wine": 22, "milk": 25 },
+        "drinksBelow": 40,
+        "parched": { "below": 30, "moveMult": 0.8, "badBelow": 12, "badMoveMult": 0.6, "badEnergy": 10, "healthPerDay": [12, 25, 40, 60] },
+        "foulWater": { "fluxChance": 0.55, "ailment": "flux", "desperateBelow": 15 },
+        "rain": { "thirst": 20, "draughts": 1 },
+        "buyWater": { "price": 1 },
+        "buySkin": { "enabled": true, "purseShare": 0.3, "keep": 2 },
+        "_land": "Water off the land where you stop for the night with no river, lake or town on the hex: a river or lake a hex off is a short walk (always found); else the land's streams, springs, snowmelt and pools — a hash roll at terrain[id] (default for any other), × season, × droughtMult in a drought age of the climate, + perSkill a point of hunting, foraging or survival (at most skillMax). Generated maps put a river, lake or town on about one hex in fifteen, two to four hexes apart: the hexes between are a day's walk across and have their own small water, the desert hardly any.",
+        "land": {
+            "default": 0.6,
+            "terrain": { "woodland": 0.9, "seasonal_forest": 0.9, "boreal_forest": 0.9, "temperate_rainforest": 0.95, "tropical_rainforest": 0.95, "swamp": 1, "marsh": 1,
+                "grassland": 0.7, "plains": 0.7, "hills": 0.75, "highlands": 0.7, "mountain": 0.6, "snow_peak": 0.6, "snow": 0.9, "tundra": 0.85, "ice": 0.8,
+                "island": 0.5, "beach": 0.3, "savanna": 0.35, "scrubland": 0.25, "badlands": 0.1, "desert": 0.05 },
+            "season": { "Spring": 1.05, "Summer": 0.85, "Autumn": 1, "Winter": 1 },
+            "droughtBelow": -0.06, "droughtMult": 0.5,
+            "perSkill": 0.02, "skillMax": 0.15,
+            "kinds": {
+                "default": ["a stream", "a spring", "a pool in the rocks"],
+                "snow": ["snowmelt"], "ice": ["snowmelt"], "tundra": ["a meltwater pool", "a stream"],
+                "desert": ["a seep under the rocks", "a dry wash with water under the sand"], "swamp": ["the marsh water"]
+            }
+        },
+        "startSkins": 1
+    },
+    "town": {
+        "wells": { "village": 1, "town": 2, "city": 4, "capital": 5 },
+        "perEra": 0.5,
+        "foul": { "carcasses": 24, "plague": 18, "agent": 14, "poison": 8, "drought": 21 },
+        "clean": { "pricePerWell": 30, "days": 2 },
+        "noWater": { "happiness": -0.6, "dailySick": 0.02, "partSick": 0.004, "carrierPer100": 0.4, "fleeShare": 0.02 },
+        "someFoulHappiness": -0.15,
+        "drought": { "wetBelow": -0.06, "weekChance": 0.2, "days": [15, 30] },
+        "plague": { "weekChance": 0.25 },
+        "agent": { "weekChance": 0.003 },
+        "noticeRange": 6
+    },
+    "siege": {
+        "cisternDays": { "village": 1, "town": 3, "city": 6, "capital": 8 },
+        "stoneEraDays": 3,
+        "thirstMorale": 9,
+        "thirstGarrisonLoss": 0.05,
+        "holdingFoul": { "foulDay": 6, "chance": 0.4 },
+        "camp": { "campMorale": 1 }
+    },
+    "army": { "graceDays": 1, "unitShare": 0.1 },
+    "host": { "moraleLoss": 4, "desertShare": 0.02 },
+    "_aiArmy": "The realms' armies: a war host or relief host on the map (systems/realmWars.js, systems/sieges.js) with no river or lake on or beside its hex, and no clean town, loses strengthShare of its strength a day past graceDays. The realms' own battles (world/kingdomAI.js simulateBattle via world/waterSources.js): an attack on a frontline in dry country × dryAttack and the attacker loses dryAttrition of its army; a town with every well foul or dry and no river or lake defends × dryDefense. The besiegers of your holding far from water lose siege.camp.campMorale a day.",
+    "aiArmy": { "graceDays": 2, "strengthShare": 0.03, "dryAttack": 0.9, "dryDefense": 0.8, "dryAttrition": 0.004 },
+    "ship": { "capDays": 20, "graceDays": 1, "thirstMorale": 12, "crewShare": 0.05 },
+    "lines": {
+        "parched": "Your tongue is thick and your head pounds. Find water: a well, a river, a lake — or a skin of it.",
+        "dying": "You are dying of thirst.",
+        "foulDrink": "The water stinks, and you drink it anyway.",
+        "skinsDry": "Your waterskins are empty."
+    }
+}

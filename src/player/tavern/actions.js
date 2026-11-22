@@ -14,6 +14,7 @@ import { BackRooms } from '../../systems/backRooms.js';
 import { Utils, Hex, PlayerEconomy, MarketDynamics, Characters, Cartography, Religion, Gossip, Quests, Peoples, Sagas } from './_imports.js';
 import { Names } from '../../core/names.js';
 import { PlayerCoin } from '../playerCoin.js';
+import { Thirst } from '../thirst.js';
 
 Object.assign(Tavern, {
     // ── Cost & Configuration ───────────────────────────────────────────
@@ -301,6 +302,8 @@ Object.assign(Tavern, {
 
         switch (actionId) {
             case 'buy_drinks':
+                // A drink slakes the thirst too (player/thirst.js)
+                Thirst.slake(player, 40);
                 // Drinking satisfies social and fun
                 if (player.modifyNeed) {
                     player.modifyNeed('social', 15);
@@ -375,6 +378,8 @@ Object.assign(Tavern, {
         const meal = Peoples.mealBonus(tile.settlement);
         if (player.modifyNeed) {
             player.modifyNeed('hunger', 35);
+            // (a mug with the meal: player/thirst.js)
+            Thirst.slake(player, 35);
             player.modifyNeed('comfort', 10 + meal.comfort);
             player.modifyNeed('energy', 5);
         }

@@ -28,6 +28,7 @@ import { Literacy } from './literacy.js';
 import { Utils } from '../core/utils.js';
 // (a law fixed in the realm's written code costs more to change: systems/namedLegacy.js; run time only)
 import { NamedLegacy } from './namedLegacy.js';
+import { MaimFaith } from './maimFaith.js';
 
 const DEFAULTS = {
     changeCost: { treasury: 150, stability: 2 },
@@ -213,6 +214,13 @@ export const Laws = {
         // The upheaval of any change, and more for a hard law (a law the people like costs nothing extra)
         // (a realm that reads its posted laws grumbles less at a change: systems/literacy.js)
         let stability = Math.round((_num(C.changeCost.stability, 2) + Math.max(0, -_num(o.stability))) * Literacy.lawStabilityFactor(world, k.id));
+        // A law that takes a limb: the realm's faith weighs on it (systems/maimFaith.js; a sacred-body faith resists, a harsh one grumbles less)
+        let faith = null;
+        if (lawId === 'mutilation') {
+            faith = MaimFaith.lawCost(world, k.id, optionId);
+            cost = Math.round(cost * faith.costMult);
+            stability = Math.max(0, stability + faith.stability);
+        }
         const last = k.laws && k.laws.changed && k.laws.changed[lawId];
         const readyDay = last != null ? _num(last) + _num(C.cooldownDays, 30) : 0;
         const day = _num(world && world.day);
@@ -226,7 +234,7 @@ export const Laws = {
             if (pr < bound.prestige) return { ok: false, reason: `${L.name} is fixed in ${bound.name}: striking it from the code needs ${bound.prestige} Prestige (you have ${Math.floor(pr)}).`, cost, stability, readyDay, bound };
         }
         if (_num(k.treasury) < cost) return { ok: false, reason: `Proclaiming a new law costs the crown ${Utils.formatGold(cost)}g; the treasury holds ${Utils.formatGold(_num(k.treasury))}g.`, cost, stability, readyDay };
-        return { ok: true, cost, stability, readyDay, bound };
+        return { ok: true, cost, stability, readyDay, bound, faith };
     },
 
     /** The ruler proclaims a law. → { success, text|reason } */

@@ -4640,7 +4640,7 @@ button#turnDisplay:focus-visible { box-shadow: 0 0 0 1px var(--gold-dark); }
 .hud-conditions:empty { display: none; }
 .hud-condition { font-size: 13px; line-height: 1; padding: 1px 3px; border-radius: 3px; background: rgba(229, 115, 115, 0.15); border: 1px solid rgba(229, 115, 115, 0.35); cursor: help; }
 .hud-condition.infected, .hud-condition.deadly { background: rgba(231, 76, 60, 0.3); border-color: #e74c3c; }
-.hud-needs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px 8px; }
+.hud-needs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px 8px; }
 .hud-needs.hidden { display: none; }
 .hud-need { display: flex; align-items: center; gap: 3px; cursor: default; }
 .hud-need-icon { font-size: 10px; line-height: 1; }

@@ -625,6 +625,11 @@ export const Raising = {
             if (Raising._rivalWardMonth(player, world, ward, out)) Raising._wardmates(player, world, ward, k.id);
             return;
         }
+        // A lord of your own realm's child, raised at your court for a match: no fee, no standing — his favour (systems/betrothals.js)
+        if (ward.vassalId != null) {
+            Raising._wardmates(player, world, ward, k.id);
+            return;
+        }
         const war = CourtLetters.atWar(player, world, k.id);
         if (war && !ward.held) {
             ward.held = true;

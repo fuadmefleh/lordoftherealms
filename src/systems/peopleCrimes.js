@@ -63,6 +63,7 @@ import { Laws } from './laws.js';
 import { Lots } from './lots.js';
 import { Infrastructure } from './infrastructure.js';
 import { Economy } from '../world/economy.js';
+import { MaimMarks } from './maimMarks.js';
 import { MoneySupply } from '../world/moneySupply.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
@@ -804,6 +805,8 @@ export const PeopleCrimes = {
         if (p) {
             p.pcMark = how === 'maim' ? 'maimed' : (p.pcMark === 'maimed' ? 'maimed' : 'branded');
             p.pcMarkDay = day;
+            // (the hand or the brand is on the body for life: their trade, their looks — systems/maimMarks.js)
+            MaimMarks.mark(p, how === 'maim' ? 'hand' : 'brand', { day, by: player.name || null, why: 'a thief' });
             NpcMemory.remember(world, { folk, person: p }, { kind: how === 'maim' ? 'maimed' : 'branded', player, kin: true });
             if (how === 'maim') Townsfolk.injure(p, day, 3, 10);
             if (how === 'maim' || stance === 'condemn') {

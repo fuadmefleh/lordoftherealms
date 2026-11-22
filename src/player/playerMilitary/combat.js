@@ -19,7 +19,9 @@ import { KingdomAI } from '../../world/kingdomAI.js';
 import { Difficulty } from '../../core/difficulty.js';
 import { DataLoader } from '../../core/dataLoader.js';
 import { Ledger } from '../../systems/ledger.js';
+import { PeasantRevolts } from '../../systems/peasantRevolts.js';
 import { PlayerCoin } from '../playerCoin.js';
+import { Thirst } from '../thirst.js';
 import { Utils, Technology, House, Quests, RealmWars, Throne, PlayerEffects, Housing, Culture, PlayerReligion, PlayerInventory, WorldEvents, WEATHER_EFFECTS, Economy, Arms } from './_imports.js';
 
 Object.assign(PlayerMilitary, {
@@ -27,6 +29,8 @@ Object.assign(PlayerMilitary, {
      * Combat encounter (for random events or player-initiated)
      */
     combat(player, enemyStrength, enemyName = 'Bandits', context = {}) {
+        // Fighting is thirsty work (player/thirst.js)
+        Thirst.exert(player, context.world || null);
         // Who fights depends on the theatre: inland, war galleys stay at sea;
         // at a port they blockade; on the water they lead (see theatreWeights)
         const theatre = context.theatre || 'land';
@@ -913,6 +917,8 @@ Object.assign(PlayerMilitary, {
                 if (worldUnit.revoltId) Kingship.onRebelHostDefeated(player, world, worldUnit);
                 else RealmWars.onHostDefeated(player, world, worldUnit);
             }
+            // The commons risen against a lord: crushed, their fate to judge (systems/peasantRevolts.js)
+            if (worldUnit.peasantRevoltId != null) PeasantRevolts.onHostDefeated(player, world, worldUnit);
             // Beating raiders, pirates, monsters (saga beasts among them) and sellswords
             // is a battle won for the House's legacy ("the Warlike"); war hosts are
             // counted by RealmWars, and robbing caravans and boats is no glory.

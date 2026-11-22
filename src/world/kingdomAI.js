@@ -22,6 +22,7 @@ import { CrownBooks } from './crownBooks.js';
 import { Cultures } from './cultures.js';
 import { RealmArms } from './realmArms.js';
 import { TownMarks } from './townMarks.js';
+import { WaterSources } from './waterSources.js';
 
 const _fy = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
 /** The distant years' survey of each realm's recruiting ground (updateMilitary): kingdom → { world, day, … }. */
@@ -712,6 +713,7 @@ export const KingdomAI = {
     makePeace(kingdom, enemy, world) {
         if (!kingdom || !enemy) return false;
         if (!(kingdom.wars || []).includes(enemy.id)) return false;
+        if (KingdomAI.isSworn(kingdom, enemy, world)) return false;
         KingdomAI.endWar(kingdom, enemy, world, { text: `🕊️ ${kingdom.name} and ${enemy.name} have made peace.` });
         return true;
     },
@@ -839,9 +841,31 @@ export const KingdomAI = {
         return { tribute };
     },
 
+    /**
+     * A sworn war (warState[enemy].sworn: the day until which it holds) is not
+     * ended by the lords' peace, a weak side suing or weariness: a holy war or
+     * a pretender's war of the last crisis (systems/lastCrisis.js) is fought
+     * out and ended by its own verdict.
+     */
+    isSworn(a, b, world) {
+        const day = KingdomAI._day(world);
+        const s1 = a && a.warState && b ? a.warState[b.id] : null;
+        const s2 = b && b.warState && a ? b.warState[a.id] : null;
+        return !!((s1 && s1.sworn > day) || (s2 && s2.sworn > day));
+    },
+
+    /** Swear a war: neither side makes peace before `until` but by the war's own end. */
+    swearWar(a, b, world, until) {
+        if (!a || !b || !(a.wars || []).includes(b.id)) return false;
+        KingdomAI._warState(a, b.id, world).sworn = until;
+        KingdomAI._warState(b, a.id, world).sworn = until;
+        return true;
+    },
+
     /** Daily check whether a war ends: goals met, the weak sue, or both tire. */
     _resolveWar(a, b, world) {
         const W = KingdomAI.WAR;
+        if (KingdomAI.isSworn(a, b, world)) return null;
         const sa = KingdomAI._warState(a, b.id, world);
         const sb = KingdomAI._warState(b, a.id, world);
         // War goals met — the winner dictates terms
@@ -1294,6 +1318,17 @@ export const KingdomAI = {
         // weaker, one in mail better (world/realmArms.js)
         attackPower *= RealmArms.factor(attacker);
         defensePower *= RealmArms.factor(defender);
+        // Water (world/waterSources.js; data/water.json aiArmy): a host campaigning in dry
+        // country thirsts — weaker, and some of its men fall away; a town with no clean
+        // well (fouled, run dry, no river) holds out the worse
+        if (frontline) {
+            const WA = (DataLoader._gamedata && DataLoader._gamedata.water && DataLoader._gamedata.water.aiArmy) || {};
+            if (!(battleTile && battleTile.settlement) && !WaterSources.nearFresh(world, frontline.q, frontline.r)) {
+                attackPower *= Number.isFinite(WA.dryAttack) ? WA.dryAttack : 0.9;
+                attacker.military = Math.max(0, Math.floor((attacker.military || 0) * (1 - (Number.isFinite(WA.dryAttrition) ? WA.dryAttrition : 0.004))));
+            }
+            if (battleTile && battleTile.settlement && WaterSources.townDry(world, battleTile.settlement)) defensePower *= Number.isFinite(WA.dryDefense) ? WA.dryDefense : 0.8;
+        }
         // Knowing the enemy's land (the royal archive's chart of it) wins
         // battles — and a doctored chart loses them
         attackPower *= KingdomAtlas.campaignMultiplier(attacker, defender.id);

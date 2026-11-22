@@ -425,7 +425,7 @@
         "fosterBondPerMonth": 1, "fosterBondCap": 20, "fosterRivalFeudCut": 10,
         "hostageRegard": -30, "hostageCheckDays": 15,
         "hostFocus": { "militaristic": "martial", "aggressive": "martial", "mercantile": "stewardship", "peaceful": "diplomacy", "balanced": "diplomacy" },
-        "betrothalMinAge": 4, "betrothalDowryShare": 0.5, "betrothalReputation": 8, "betrothalBreakReputation": -15,
+        "betrothalMinAge": 0, "betrothalDowryShare": 0.5, "betrothalReputation": 8, "betrothalBreakReputation": -15,
         "kinshipMarried": 0.5, "kinshipBetrothed": 0.75,
         "commandMinAge": 16, "commandCombat": 0.025, "commandLeadership": 0.015, "commandCap": 0.3,
         "regencyBattleMult": 0.92,

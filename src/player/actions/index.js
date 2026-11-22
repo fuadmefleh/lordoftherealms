@@ -40,6 +40,7 @@ import { Arms } from '../../systems/arms.js';
 import { Parentage } from '../parentage.js';
 import { addSettlementActions } from './settlementActions.js';
 import { addWildernessActions } from './wildernessActions.js';
+import { Thirst } from '../thirst.js';
 
 export const PlayerActions = {
     /**
@@ -162,6 +163,22 @@ export const PlayerActions = {
                 // (a notice lifts the action into the menu's "At Hand" list — ui/actionMenu/core.js)
                 notice: player.needs.hunger < 35 ? 'You are hungry' : null,
             });
+        }
+
+        // Water: thirst, the skins, a town's wells (player/thirst.js, ui/actionMenu/water.js)
+        if (Thirst.on(player)) {
+            const lvl = Thirst.level(player);
+            const src = Thirst.sourceHere(player, world);
+            const townFoul = !!(tile.settlement && src && src.foul);
+            if (lvl < 70 || townFoul || (src && !src.foul && Thirst.held(player) < Thirst.capacity(player))) {
+                actions.push({
+                    type: 'water',
+                    label: townFoul ? 'Water (the wells are foul)' : 'Water',
+                    icon: '💧',
+                    description: `Thirst ${lvl}%${src ? ` — ${src.foul ? `${src.label} is foul` : `${src.label} is here`}` : ''}; ${Thirst.held(player)} draughts carried`,
+                    notice: lvl < 30 ? 'You are thirsty' : townFoul ? 'The wells are foul' : null,
+                });
+            }
         }
 
         // Disembark from ship

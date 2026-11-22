@@ -1,4 +1,5 @@
 {
+    "memory": { "kinds": { "tortured": -70, "diedInYourKeeping": -150, "executedKin": -160, "guestRightBroken": -40 } },
     "_doc": "Rival Houses in the flesh (src/systems/rivalHouses.js): each rival House's head, purse, family and retinue on the map. Each errand (trade, court, shadow the player, invest in land, home) is scored by what it is worth now: weights × the best bargain's gain / think.tradeNorm (capped), the best estate's yield / invest.minYield, standing at court / standing.favourite; trait weights add; the ambition's errand is multiplied by think.ambition. A bargain (trade) is first looked over roughly for every good at trade.sources towns near the retinue × trade.destinations near each, from each town's craftsmen's floor and weather/coin/fashion factors as last heard (at most trade.lookDays old) on today's stock and season; only the trade.shortlist best-looking lots are priced in full at today's prices, and the best of those that clears trade.minMargin is taken. Money is gold; days are game days.",
     "enabled": true,
     "icon": "🏰",

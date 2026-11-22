@@ -264,6 +264,17 @@ export const DynastyTree = {
                 };
                 _link(rec.spouses, sid);
                 _link(srec.spouses, rec.id);
+                // The children of a match the House promised (systems/betrothals.js): of the House, or of the other House's line
+                for (const i of (Array.isArray(sp.issue) ? sp.issue : [])) {
+                    if (!i || !i.id) continue;
+                    const irec = L.people[i.id] || (L.people[i.id] = _blank({ id: i.id, kind: 'blood', parents: [rec.id, sid], generation: rec.generation + 1 }));
+                    irec.name = sp.line === 'ours' ? `${i.first} ${c.dynasty || ''}`.trim() : i.first;
+                    irec.first = i.first;
+                    irec.gender = i.gender || irec.gender;
+                    irec.born = _num(i.born);
+                    irec.alive = i.alive !== false;
+                    if (sp.line !== 'ours') irec.branch = `of ${sp.house || realm || 'another House'}`;
+                }
                 if (rec.sibling && realm && (sp.kind === 'alliance' || sp.kind === 'royal')) rec.branch = `the cadet line wed into ${realm}`;
                 else if (rec.sibling && sp.kind === 'local') rec.branch = 'a cadet line in the towns';
             }

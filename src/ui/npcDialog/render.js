@@ -33,6 +33,9 @@ import { NpcChat } from '../../systems/npcChat.js';
 import { IllnessPlayer } from '../../systems/illnessPlayer.js';
 import { Hearsay } from '../../systems/hearsay.js';
 import { Names } from '../../core/names.js';
+// (the tongueless talk by signs, the blind turn to your voice; what they make of your own losses — systems/maimMarks.js, maiming.js)
+import { MaimMarks } from '../../systems/maimMarks.js';
+import { Maiming } from '../../systems/maiming.js';
 
 /**
  * The tongue the NPC speaks and what the player makes of it (systems/
@@ -57,6 +60,8 @@ function _tongueOf(npc) {
 
 /** A line as the player hears it: the words they don't know in the foreign tongue */
 function _heard(line) {
+    // (a tongueless speaker answers by signs: you make out the gist)
+    if (dialogState._mute && line && line.isNpc && line !== dialogState._lines[0]) return `${Maiming.line('muteAside') || '*By signs:*'} ${line.text}`;
     const t = dialogState._tongue;
     if (!t || !line || !line.isNpc || t.via === 'translator') return line ? line.text : '';
     if (line._heardFor !== line.text) {
@@ -142,6 +147,13 @@ export function _buildConversation(npc) {
         const learned = Languages.noteTalk(player, world, tongue.lang);
         if (learned && dialogState._game.ui && dialogState._game.ui.showNotification) dialogState._game.ui.showNotification(`${learned.icon} ${learned.title}`, learned.text, learned.type);
     }
+    // The maimed speak as they can: no tongue, no words; no eyes, a face turned to your voice. And what they see of yours
+    const maimBody = npc._person || npc;
+    dialogState._mute = MaimMarks.mute(maimBody);
+    if (dialogState._mute) greeting = Maiming.line('muteGreeting', { name: npc.name || 'They' }, npc.uid || npc.id) || '*They have no tongue, and make signs at you.*';
+    else if (MaimMarks.blind(maimBody)) greeting = `${Maiming.line('blindGreeting', { name: npc.name || 'They' }, npc.uid || npc.id)} ${greeting}`;
+    const looked = player && !dialogState._mute ? Maiming.lookLine(player, npc) : null;
+    if (looked) greeting = `${looked} ${greeting}`;
     dialogState._lines = [{
         speaker: npc.name,
         icon: npc.icon,
@@ -155,7 +167,7 @@ export function _buildConversation(npc) {
     // LLM voice (Spec 2): when the brain is enabled, a bespoke greeting is asked
     // for and swapped in as it streams. The template shows at once and stays if
     // the model is off, slow, or offline.
-    if (typeof NpcBrain !== 'undefined' && NpcBrain.isEnabled()) {
+    if (typeof NpcBrain !== 'undefined' && NpcBrain.isEnabled() && !dialogState._mute) {
         _voiceLine(dialogState._lines[0], npc, { topic: 'a fitting greeting' });
     }
 }

@@ -82,6 +82,9 @@ import { Economy } from '../world/economy.js';
 import { MoneySupply } from '../world/moneySupply.js';
 import { PlayerInventory } from '../core/inventory.js';
 import { Brands } from '../world/brands.js';
+import { MaimMarks } from './maimMarks.js';
+// (run time only: a child of theirs taken when their retinue is beaten)
+import { RivalCaptives } from './rivalCaptives.js';
 
 export const RIVAL_TYPE = 'rival_retinue';
 const ERRANDS = ['trade', 'court', 'shadow', 'invest', 'waylay', 'law', 'home'];
@@ -165,6 +168,7 @@ const DEFAULTS = {
             gift: 6, parleyOk: 4, parleyFail: -3, insult: -10, attacked: -20, repelled: -4, ambushBeaten: -8, robbedYou: 3,
             match: 25, flattered: 3, flatterFail: -2, threatened: -6, declined: -2, helped: 15, spokeForThem: 10, loanGiven: 8,
             loanDemanded: -4, bloodPrice: 10, duelYouWon: 4, duelYouLost: 2, truceBroken: -5, estateSold: 6,
+            captured: -30, ransomedKin: -6, releasedKin: 18, maimedKin: -120, seizeFailed: -50, diedCaptive: -90,
         },
     },
     deals: { loanDays: 60, loanRate: 0.2, graceDays: 30, truceDays: 120, breakChance: 0.01, breakHonour: 3, breakFeud: 60, payHonour: 4, againstDays: 90, againstFeud: -30, matchDowry: 0 },
@@ -935,7 +939,18 @@ export const RivalHouses = {
     /** Does the player's court host a child of this House (a ward, systems/raising.js)? */
     hostsChild(player, rival) {
         const wards = player && player.house && Array.isArray(player.house.wards) ? player.house.wards : [];
-        return !!rival && wards.some(w => w && w.rivalId != null && String(w.rivalId) === String(rival.kingdomId));
+        if (!!rival && wards.some(w => w && w.rivalId != null && String(w.rivalId) === String(rival.kingdomId))) return true;
+        // ...or a child of theirs you hold whole (systems/rivalCaptives.js; one you maimed is no leverage)
+        const caps = player && player.maiming && Array.isArray(player.maiming.captives) ? player.maiming.captives : [];
+        return !!rival && caps.some(cap => { const c = cap && String(cap.rivalId) === String(rival.kingdomId) ? this.childByUid(rival, cap.uid) : null; return !!c && !MaimMarks.any(c); });
+    },
+
+    /** One of the House by its uid (systems/rivalCaptives.js): the head, or one of the head's household. */
+    childByUid(rival, uid) {
+        const h = rival && rival.head;
+        if (!h || !uid) return null;
+        if (h.uid === uid) return h;
+        return (h.children || []).find(c => c && c.uid === uid) || null;
     },
 
     /**
@@ -1500,20 +1515,39 @@ export const RivalHouses = {
             this._note(rival, world, `A child, ${child.firstName}, is born to ${head.firstName}.`, 'birth');
         }
         for (const c of head.children) {
-            if (!c.wed && c.age >= C.marryFrom && Utils.random() < C.childWedChance) c.wed = 'another House';
+            if (!c.wed && c.age >= C.marryFrom && Utils.random() < C.childWedChance && !c.betrothed) c.wed = 'another House';
         }
         // Death
         const risk = head.age >= C.maxAge ? 1 : Math.max(0, head.age - C.deathFrom) * C.deathPerYear;
         if (Utils.random() < risk) this._succeed(world, rival, out, player);
     },
 
-    /** The head dies: the eldest grown child (else the eldest, else a cousin) takes the House. */
-    _succeed(world, rival, out, player) {
+    /**
+     * Who would head the House now: the eldest grown child unwed elsewhere
+     * (else the eldest grown) — never one maimed past ruling (MaimMarks.barsRule:
+     * blinded, slit-nosed, tongueless, gelded, handless) nor one held captive.
+     * opts.any: a child not yet grown counts too (the heir in waiting). → child or null.
+     */
+    heirOf(rival, opts = {}) {
+        const C = this.config().life;
+        const kids = ((rival && rival.head && rival.head.children) || []).filter(c => c && !MaimMarks.barsRule(c) && !c.captiveOf).sort((a, b) => b.age - a.age);
+        const grown = kids.find(c => c.age >= C.comeOfAge && !(c.wed && c.wed !== 'another House')) || kids.find(c => c.age >= C.comeOfAge) || null;
+        return grown || (opts.any ? kids.find(c => !c.wed) || null : null);
+    },
+
+    /** The head dies: the eldest grown child fit to rule (else a cousin) takes the House. */
+    _succeed(world, rival, out, player, opts = {}) {
         const C = this.config().life;
         const old = rival.head;
         const oldName = this.headName(rival);
-        const kids = old.children.slice().sort((a, b) => b.age - a.age);
-        const heir = kids.find(c => c.age >= C.comeOfAge && !(c.wed && c.wed !== 'another House')) || kids.find(c => c.age >= C.comeOfAge) || null;
+        // (a child maimed past ruling, or held captive by you, is passed over: systems/rivalCaptives.js)
+        const heir = this.heirOf(rival);
+        // Those of the old head's children you hold captive stay with the House (systems/rivalCaptives.js);
+        // with no child free and fit to rule, a grown captive fit to rule heads it from your keeping
+        const held = (old.children || []).filter(c => c && c.captiveOf);
+        // (a captive head maimed past ruling is set aside, not buried: they stay the House's, and yours)
+        if (opts.deposed && old.captiveOf) held.push(old);
+        const capHeir = !heir ? held.filter(c => c.age >= C.comeOfAge && !MaimMarks.barsRule(c)).sort((a, b) => b.age - a.age)[0] || null : null;
         let head;
         if (heir) {
             head = this._makeHead(world, rival, heir.age, heir.gender);
@@ -1521,9 +1555,18 @@ export const RivalHouses = {
             head.children = [];
             head.spouse = null;
             if (heir.age >= C.marryFrom + 4 && Utils.random() < 0.6) head.spouse = this._person(world, rival, heir.age, heir.gender === 'female' ? 'male' : 'female');
+        } else if (capHeir) {
+            // (the same record: the captive is the head now; their skills by hash, no dice drawn)
+            head = capHeir;
+            for (const k of ['diplomacy', 'stewardship', 'intrigue', 'martial']) if (!Number.isFinite(head[k])) head[k] = 2 + (_hash(`${head.uid || head.firstName}:${k}`) % 8);
+            if (!Array.isArray(head.traits)) head.traits = [];
+            if (!Array.isArray(head.children)) head.children = [];
+            head.spouse = head.spouse || null;
         } else {
             head = this._makeHead(world, rival);
         }
+        for (const c of held) if (c !== head) { c.sibling = true; head.children.push(c); }
+        rival.headCaptive = !!head.captiveOf;
         head.martial = Number.isFinite(head.martial) ? head.martial : this._skill();
         head.persona = this._persona(rival, head);
         rival.head = head;
@@ -1538,12 +1581,13 @@ export const RivalHouses = {
         this._setAmbition(player, world, rival);
         rival.stats.heads = _num(rival.stats.heads, 1) + 1;
         const newName = this.headName(rival);
-        const text = `${oldName} dies at ${old.age}. ${heir ? `${old.gender === 'female' ? 'Her' : 'His'} ${heir.gender === 'female' ? 'daughter' : 'son'}` : 'A cousin,'} ${newName}${heir ? '' : ','} now heads ${rival.name}.`;
+        const kin = heir || capHeir;
+        const text = `${opts.deposed ? `${oldName}, maimed in your keeping, is set aside.` : `${oldName} dies at ${old.age}.`} ${kin ? `${old.gender === 'female' ? 'Her' : 'His'} ${kin.gender === 'female' ? 'daughter' : 'son'}` : 'A cousin,'} ${newName}${kin ? '' : ','} now heads ${rival.name}${capHeir ? ', from your keeping' : ''}.`;
         this._note(rival, world, text, 'bereaved');
         const unit = this.retinueOf(world, rival);
         if (unit) unit.name = `${newName}'s Retinue`;
         if (player && player.house) House._chronicle(player.house, world, text, ['rival', 'death']);
-        out.notices.push({ icon: '⚰️', title: 'A Rival Dies', text: `${text} The feud cools a little with the new head.`, type: 'info' });
+        out.notices.push({ icon: opts.deposed ? '🔪' : '⚰️', title: opts.deposed ? 'A Rival Set Aside' : 'A Rival Dies', text: `${text} The feud cools a little with the new head.`, type: 'info' });
     },
 
     // ──────────── THE DAY ────────────
@@ -1581,6 +1625,8 @@ export const RivalHouses = {
                     if (!hunted || hunted.destroyed) {
                         this._endWaylay(player, world, rival, hunted || null, 'beaten', out);
                         delete rival.armsDropped; // (left where they fell)
+                        const taken = RivalCaptives.onBeaten(player, world, rival);
+                        if (taken) out.notices.push({ icon: '⛓️', title: 'A Rival House\'s Child Taken', text: taken, type: 'success' });
                     }
                 }
                 let unit = this.retinueOf(world, rival);
@@ -1824,7 +1870,7 @@ export const RivalHouses = {
     _yearOfHouses(player, world, live, out) {
         const T = this.config().ties;
         const L = this.config().life;
-        const free = (r) => (r.head.children || []).filter(c => c.age >= L.marryFrom && !c.wed);
+        const free = (r) => (r.head.children || []).filter(c => c.age >= L.marryFrom && !c.wed && !c.betrothed); // (a promised child waits for the match: systems/betrothals.js)
         for (let i = 0; i < live.length; i++) {
             for (let j = i + 1; j < live.length; j++) {
                 const a = live[i];
@@ -2135,7 +2181,7 @@ export const RivalHouses = {
     matchableChildren(rival) {
         const C = this.config().life;
         return ((rival && rival.head && rival.head.children) || []).map((c, i) => ({ ...c, idx: i }))
-            .filter(c => c.age >= C.comeOfAge && !c.wed);
+            .filter(c => c.age >= C.comeOfAge && !c.wed && !c.betrothed && !c.captiveOf && !MaimMarks.gelded(c));
     },
 
     _metToday(rival, world) {
@@ -2277,6 +2323,9 @@ export const RivalHouses = {
                 this._succeed(world, rival, { notices: [] }, player);
                 text += ` ${name} falls in the fight; the new head swears vengeance.`;
             }
+            // ...and a child of theirs riding with them may be taken (systems/rivalCaptives.js, a hash roll)
+            const taken = RivalCaptives.onBeaten(player, world, rival);
+            if (taken) text += ` ${taken}`;
             return text;
         }
         this._fulfilAsks(player, world, rival.kingdomId, 'attack');
@@ -2311,6 +2360,8 @@ export const RivalHouses = {
             rival.feud = Math.min(100, _num(rival.feud) + A.slainFeud);
             text += ` ${name} falls in the fight; the new head swears vengeance.`;
         }
+        const taken = RivalCaptives.onBeaten(player, world, rival);
+        if (taken) text += ` ${taken}`;
         return text;
     },
 
@@ -2335,7 +2386,7 @@ export const RivalHouses = {
             traits: (h.traits || []).map(t => C.traits[t]).filter(Boolean),
             skills: { diplomacy: h.diplomacy, stewardship: h.stewardship, intrigue: h.intrigue, martial: _num(h.martial, 5) },
             spouse: h.spouse ? h.spouse.firstName : null,
-            children: h.children.map(c => ({ name: c.firstName, age: c.age, gender: c.gender, wed: c.wed || null })),
+            children: h.children.map(c => ({ name: c.firstName, age: c.age, gender: c.gender, wed: c.wed || null, maimed: MaimMarks.tag(c) || null, held: !!c.captiveOf, heir: this.heirOf(rival, { any: true }) === c })),
             wealth: this.wealthLabel(_num(rival.gold) + this.landValue(world, rival)), feud: Math.round(_num(rival.feud)), doing: this.doing(world, rival),
             where: this.whereabouts(world, rival), seat: rival.seat ? rival.seat.name : null,
             heads: _num(rival.stats && rival.stats.heads, 1), log: (rival.log || []).slice(-5).reverse(),

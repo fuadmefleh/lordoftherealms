@@ -658,7 +658,7 @@ describe('the panel', () => {
         expect(panels.length).toBeGreaterThanOrEqual(6);
         for (const h of panels) expect(h).not.toMatch(/undefined|NaN|\[object Object\]/);
         expect(p.trials.trial).toBe(null);
-    });
+    }, 120000); // (importing the whole ActionMenu takes ~25–35 s)
 });
 
 describe('the day without a player', () => {

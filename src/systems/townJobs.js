@@ -58,6 +58,7 @@ import { Ledger } from './ledger.js';
 import { TownSchool } from './townSchool.js';
 // (what they remember of the player's House: systems/npcMemory.js)
 import { NpcMemory } from './npcMemory.js';
+import { MaimMarks } from './maimMarks.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -323,6 +324,8 @@ export const TownJobs = {
         let w = _num(R.weight, 1) * (0.9 + 0.2 * Math.min(1, years / Math.max(1, _num(C.skillYears, 12))));
         const hurt = Townsfolk.injury(p, day);
         if (hurt) w *= Math.max(0.2, hurt.hp / hurt.max);
+        // (a smith with one hand, a blind weaver: what they can still do of the trade — systems/maimMarks.js)
+        if (p.maimed) w *= MaimMarks.workFactor(p, j.id);
         try { w *= Romance.workFactor(folk, p, day, courts); } catch (e) { /* no courtships */ }
         if (p.hungry != null && day - p.hungry < Townsfolk.config().tickDays) w *= _num(C.living.hungryWork, 0.8);
         // (a babe in the house keeps them up at night)

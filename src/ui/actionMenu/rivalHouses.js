@@ -9,6 +9,7 @@ import { RivalHouses } from '../../systems/rivalHouses.js';
 import { openRivalAudience } from './rivalAudience.js';
 import { esc, lede, bullets, chips, card, more } from './uiKit.js';
 import { Utils } from '../../core/utils.js';
+import { MaimMarks } from '../../systems/maimMarks.js';
 
 const NOTE = 'font-size: 11px; color: #9d937c;';
 
@@ -21,7 +22,7 @@ function ordinal(n) {
 }
 
 /** The head's card: who they are, where they are and what they are about, then the rest folded away. */
-function headCard(v) {
+function headCard(v, rival = null) {
     const where = !v.where ? ' · nowhere to be found'
         : v.where.atTown ? (v.doing.includes(v.where.near) ? '' : ` · in ${esc(v.where.near)}`)
             : v.where.near ? ` · on the road near ${esc(v.where.near)}` : ` · at (${v.where.q}, ${v.where.r})`;
@@ -41,7 +42,8 @@ function headCard(v) {
         const prog = am.id === 'wealth' ? `${am.have.toLocaleString()} / ${Utils.formatGold(am.target)}g` : `${am.have} / ${am.target}`;
         facts.push(`${am.icon} Ambition: <b>${esc(am.name)}</b> (${prog})`);
     }
-    const kids = v.children.map(c => `${esc(c.name)} (${c.age}${c.wed ? `, wed${c.wed !== 'another House' ? ` to your ${esc(c.wed)}` : ''}` : ''})`);
+    // (the heir, one you hold captive, one maimed: systems/rivalCaptives.js)
+    const kids = v.children.map(c => `${esc(c.name)} (${c.age}${c.wed ? `, wed${c.wed !== 'another House' ? ` to your ${esc(c.wed)}` : ''}` : ''}${c.heir ? ', the heir' : ''}${c.held ? ', your captive' : ''}${c.maimed ? `, ${esc(c.maimed)}` : ''})`);
     facts.push(`💍 ${v.spouse ? `Married to ${esc(v.spouse)}` : 'Unmarried'}${kids.length ? ` · children: ${kids.join(', ')}` : ' · no children'}`);
     if (v.allies.length) facts.push(`🤝 Stands allied with ${v.allies.map(esc).join(', ')}`);
     if (v.enemies.length) facts.push(`💢 At odds with ${v.enemies.map(esc).join(', ')}`);
@@ -51,7 +53,9 @@ function headCard(v) {
     body += bullets(facts);
     if (v.log.length) body += more(`Latest doings (${v.log.length})`, `<div style="${NOTE}">${v.log.map(e => `Day ${e.day}: ${esc(e.text)}`).join('<br>')}</div>`);
     const tone = v.feud >= 60 ? 'bad' : v.feud >= 30 ? 'warn' : '';
-    return card(body, { icon: '🏰', title: `${esc(v.name)}, ${v.age}`, side: `<span title="Their feud with your House, 0–100">${feudLabel(v.feud)} · feud ${v.feud}</span>`, tone });
+    // (the head maimed — blinded, a hand gone — carries it on the card)
+    const marks = rival && rival.head ? MaimMarks.tag(rival.head) : '';
+    return card(body, { icon: '🏰', title: `${esc(v.name)}, ${v.age}${marks ? ` · <span style="color:#e0846a;">${esc(marks)}</span>` : ''}`, side: `<span title="Their feud with your House, 0–100">${feudLabel(v.feud)} · feud ${v.feud}</span>`, tone });
 }
 
 Object.assign(ActionMenu, {
@@ -68,7 +72,7 @@ Object.assign(ActionMenu, {
         html += lede(rivals.length
             ? 'The Houses that resent yours. Their lords ride the map (🏰) with their retinues: come within a hex of one to talk. They remember what you do to them, trade in your markets and pay for their plots from their own purses.'
             : 'No rival House has shown its face yet.');
-        for (const r of rivals) html += headCard(RivalHouses.view(player, world, r));
+        for (const r of rivals) html += headCard(RivalHouses.view(player, world, r), r);
         html += '</div>';
         game.ui.showCustomPanel('🏰 Rival Houses', html);
     },

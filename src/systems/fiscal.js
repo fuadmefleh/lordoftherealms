@@ -184,7 +184,9 @@ export const Fiscal = {
         const k = _kingdom(world, s.kingdom);
         if (!k || k.isAlive === false) return null;
         const farm = _obj(s.taxFarm);
-        return CrownBooks.burden(k, farm ? _num(farm.squeeze, 1) : 1);
+        const b = CrownBooks.burden(k, farm ? _num(farm.squeeze, 1) : 1);
+        // (a charter wrung from the crown by a rising lightens it: systems/peasantRevolts.js)
+        return b == null ? null : b * (1 - _clamp(_num(s.charter && s.charter.taxCut), 0, 0.6));
     },
 
     /** The extraordinary levy's share (systems/finance.js), while it runs. */
@@ -233,9 +235,11 @@ export const Fiscal = {
             + _num(R.hoard) * CrownBooks.levelMult(rt.land) * n * Math.max(0, _num(e.gold) - _num(R.hoardReserve, 2) * pop);
         const poll = _num(R.poll) * CrownBooks.levelMult(rt.poll) * heads * n;
         const excise = _num(R.excise) * CrownBooks.levelMult(rt.excise) * (craftInc * n + trade);
-        const levy = (land + poll + excise) * Fiscal._levyShare(k, day);
+        // A charter of freedoms a rising won (systems/peasantRevolts.js): the town pays the less
+        const cc = 1 - _clamp(_num(s.charter && s.charter.taxCut), 0, 0.6);
+        const levy = (land + poll + excise) * cc * Fiscal._levyShare(k, day);
         const demesne = f.demesne * prodG * (isCapital ? _num(C.demesne.capital, 2) : 1);
-        return { land, poll, excise, levy, demesne, due: land + poll + excise + levy };
+        return { land: land * cc, poll: poll * cc, excise: excise * cc, levy, demesne, due: (land + poll + excise) * cc + levy };
     },
 
     // ── The daily turn ────────────────────────────────────

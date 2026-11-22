@@ -18,6 +18,9 @@ import { SeasonalWork } from '../seasonalWork.js';
 import { Delves } from '../../systems/delves.js';
 import { Sieges } from '../../systems/sieges.js';
 import { Atrocities } from '../../systems/atrocities.js';
+import { Maiming } from '../../systems/maiming.js';
+import { MaimMarks } from '../../systems/maimMarks.js';
+import { Interrogation } from '../../systems/interrogation.js';
 import { OutlawLairs } from '../../systems/outlawLairs.js';
 import { MerchantCaravans } from '../../systems/merchantCaravans.js';
 import { CourierRiders } from '../../systems/courierRiders.js';
@@ -29,6 +32,7 @@ import { Names } from '../../core/names.js';
 import { RiverBoats } from '../../systems/riverBoats.js';
 import { RiverLife } from '../../systems/riverLife.js';
 import { Utils } from '../../core/utils.js';
+import { Executions } from '../../systems/executions.js';
 
 export function addWildernessActions(actions, player, tile, world) {
     // The tongues you speak and the one spoken here; lessons and interpreters in town (systems/languages.js)
@@ -566,6 +570,26 @@ export function addWildernessActions(actions, player, tile, world) {
             icon: '💀',
             description: 'Salt its fields, take hostages, fling the dead over the walls, or put a surrendered town to the sword',
         });
+    }
+    // The knife: those in your power — a rebel lord, your own blood, the old line, a captive, an outlaw (systems/maiming.js)
+    if (tile.settlement && Maiming.targets(player, world).some(t => t.kind !== 'kin')) {
+        actions.push({ type: 'maiming', label: 'The knife', icon: '🔪', description: 'Those in your power: a rebel lord, your own blood, the old line, a captive in your cellar' });
+    }
+    // The dungeon: those you hold, put to the question (systems/interrogation.js)
+    if (tile.settlement && Interrogation.held(player, world).length) {
+        actions.push({ type: 'dungeon', label: 'The dungeon', icon: '🔗', description: 'Put a prisoner to the question: a captive in your cellar, a child of a rival House, an outlaw' });
+    }
+    // The scaffold: the condemned awaiting your word, those you could bring to it, your martyrs' shrines (systems/executions.js)
+    if (tile.settlement && (Executions.list(player).length || Executions.targets(player, world).length || Executions.cults(world).some(c => c.by.kind === 'player'))) {
+        actions.push({ type: 'executions', label: 'The scaffold', icon: '⚖️', description: 'The condemned awaiting your word: the place, the manner, the crowd, or mercy' });
+    }
+    // A realm's execution in this town today: join the crowd (systems/executions.js)
+    if (tile.settlement && Executions.crowdsAt(world, tile.q != null ? tile.q : player.q, tile.r != null ? tile.r : player.r).length) {
+        actions.push({ type: 'scaffold_crowd', label: 'The crowd at the scaffold', icon: '💀', description: 'Someone dies in the square today: watch, or cry out for mercy' });
+    }
+    // Aids for your own losses: an eye patch, a hook, a wooden leg from the town's craftsmen (systems/maiming.js)
+    if (tile.settlement && MaimMarks.any(player)) {
+        actions.push({ type: 'maim_aids', label: 'Aids for the maimed', icon: '🦵', description: 'An eye patch, an iron hook, a wooden leg: made by the craftsmen in town' });
     }
 
     // Attack settlement

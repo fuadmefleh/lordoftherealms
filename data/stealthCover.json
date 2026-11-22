@@ -1,0 +1,99 @@
+{
+    "_doc": "Hiding in cover on the street map and springing from it (systems/stealthCover.js the odds, world/streetCover.js where cover is, ui/innerMapHiding.js the play). Cover: a cell you can stand in that hides you — the row behind a bush, a haystack, a market stall or a tree's trunk (props.tags / props.ids: the first walkable row above what the prop blocks), a whole ripe field of tall crops (fields), the tall reeds on a bank (decor drawn two tiles tall), tall grass in the wilds (ground), and a dark corner between two walls at night (alley). quality 0..1: the share of the watcher's notice it takes away.",
+    "cover": {
+        "bush":   { "quality": 0.85, "word": "bush" },
+        "hay":    { "quality": 0.75, "word": "hay" },
+        "crops":  { "quality": 0.7,  "word": "tall crop" },
+        "stall":  { "quality": 0.6,  "word": "market stall" },
+        "crates": { "quality": 0.5,  "word": "crates" },
+        "reeds":  { "quality": 0.8,  "word": "reeds" },
+        "boughs": { "quality": 0.45, "word": "tree" },
+        "grass":  { "quality": 0.5,  "word": "tall grass" },
+        "alley":  { "quality": 0.6,  "word": "dark corner", "minDarkness": 0.45 }
+    },
+    "props": {
+        "tags": { "bush": "bush", "tree": "boughs", "stall": "stall" },
+        "ids": {
+            "tp_hay_green": "hay", "tp_hay_gold": "hay", "tp_haystack": "hay",
+            "tp_crate_stack": "crates", "tp_barrels": "crates", "tp_sacks": "crates", "tp_firewood_big": "crates"
+        },
+        "onlyIds": ["tp_stall"]
+    },
+    "fields": ["wheat", "greens", "veg_ripe"],
+    "ground": { "tall_grass": "grass", "brush": "grass", "reeds": "reeds" },
+    "townCover": {
+        "_doc": "Bushes, thickets and hedges the town is given beyond what its planner and the wild scatter leave (world/streetCover.js layTown, hash-placed: the plan underneath stands): along the town's edge (the near farm ring), by the roads leading out, and a few in its yards. Counts by size; never on a road, a lot, the square, water, in front of a door or a gate.",
+        "edge":  { "hamlet": 6, "village": 10, "town": 16, "city": 22, "capital": 26 },
+        "yards": { "hamlet": 1, "village": 3, "town": 5, "city": 7, "capital": 8 },
+        "roadStep": [7, 11],
+        "roadMax": 14,
+        "ids": ["tp_bush_leafy", "tp_bush_low", "tp_bush_hawthorn", "tp_bush_bramble", "tp_bush_shrub", "tp_bush_hedge", "tp_bush_juniper", "tp_bush_boxwood", "tp_bush_holly", "tp_bush_redberry"],
+        "edgeFade": [0.02, 0.4]
+    },
+    "sight": {
+        "_doc": "A watcher's notice of someone hidden, per second: rate x falloff (1 - dist/range)^falloff, range shortened by the dark (unless a light is carried), fog and rain. Beyond range: nothing.",
+        "range": 9, "minRange": 1.5, "rate": 0.9, "falloff": 1.5,
+        "darkCut": 0.65, "fogCut": 0.5, "rainCut": 0.25, "snowCut": 0.2,
+        "adjacent": 0.35
+    },
+    "watcher": {
+        "guard": 1.6, "child": 0.8, "alert": 2.2, "chatting": 0.6, "working": 0.8,
+        "perceptive": 1.35,
+        "perceptiveTraits": ["perceptive", "observant", "vigilant", "watchful", "alert", "paranoid", "wary", "cautious"]
+    },
+    "hider": {
+        "stealthPerLevel": 0.06, "stealthFloor": 0.4,
+        "moving": 2.2, "armour": 1.6,
+        "torch": 0.85, "lantern": 0.55,
+        "npcStealth": { "base": 3, "cutthroat": 5, "assassin": 7, "footpad": 4, "outlaw": 4 }
+    },
+    "perceive": {
+        "_doc": "The player spotting someone lying in wait: the same notice, the player as watcher. Stealth level is your eye too (perLevel), the cunning and the wanderer see more, a light you carry shows them (the dark does not shorten your sight).",
+        "base": 1, "perLevel": 0.07, "traits": { "cunning": 0.25, "wanderer": 0.2, "craven": 0.1 }
+    },
+    "train": { "hideMinute": 1.5, "hideMax": 12, "ambush": 6, "unseen": 10, "spot": 4, "grab": 5, "mug": 5 },
+    "ambush": {
+        "_doc": "Springing from cover on someone who passes within reach (Chebyshev tiles). strike: the first blow lands, x strikeMult (x unawareMult more when they had not seen you); it may fell them at once (ko). A blow that fells an unaware victim in the dark (or in one blow from cover) is blindside: they never saw who, and no one but those in sight saw it. grab: seize and bind (rope needed; cloth gags them). mug: a blade at their back, their purse or a fight.",
+        "reach": 2,
+        "strikeMult": 1.8, "unawareMult": 1.3,
+        "ko": { "base": 0.2, "perStealth": 0.03, "night": 0.1, "brawling": 0.12, "unaware": 0.1, "guard": -0.15, "child": 0.3, "max": 0.8 },
+        "stunSecs": 1.4,
+        "grab": { "base": 0.3, "perBrawling": 0.04, "perStealth": 0.02, "unaware": 0.25, "night": 0.05, "guard": -0.25, "child": 0.25, "aggressive": -0.1, "min": 0.05, "max": 0.9 },
+        "mug": { "base": 0.45, "armed": 0.15, "unaware": 0.15, "night": 0.1, "guard": -0.5, "aggressive": -0.3, "noble": -0.05, "min": 0.05, "max": 0.92 },
+        "openSightCut": 0
+    },
+    "lurk": {
+        "_doc": "Someone lying in wait for the player in cover: chance per game hour on the street (day/night, the wilds), times what draws them (bounty on you, a rival House's feud, an assassin plot, your nemesis, a poor town or an outlaw lair near). At most maxPerVisit a map visit; they spring when you come within springReach. kinds weigh who it is by what drew them.",
+        "perHour": { "day": 0.015, "night": 0.06 },
+        "wilds": { "day": 0.03, "night": 0.08 },
+        "mult": { "bounty": 1.5, "bountyPer100": 0.25, "feud": 0.02, "assassinPlot": 2.5, "nemesis": 1.6, "poor": 1.4, "lair": 1.6, "curfew": 0.7, "max": 5 },
+        "maxPerVisit": 2,
+        "minDist": 6, "maxDist": 14,
+        "springReach": 2,
+        "fleeChance": 0.4,
+        "kinds": {
+            "footpad":   { "name": "Footpad",          "role": "Footpad",   "weight": 3, "rob": 0.95, "kill": 0.03, "hp": 1.0, "night": true, "day": true },
+            "cutthroat": { "name": "Cutthroat",        "role": "Cutthroat", "weight": 2, "rob": 0.9,  "kill": 0.2,  "hp": 1.25, "night": true, "day": false },
+            "outlaw":    { "name": "Outlaw",           "role": "Outlaw",    "weight": 0, "rob": 0.9,  "kill": 0.1,  "hp": 1.2, "night": true, "day": true },
+            "hunter":    { "name": "Bounty hunter",    "role": "Bounty hunter", "weight": 0, "rob": 0.3, "kill": 0.05, "hp": 1.4, "night": true, "day": true },
+            "agent":     { "name": "Hooded stranger",  "role": "Hired blade", "weight": 0, "rob": 0.4, "kill": 0.45, "hp": 1.3, "night": true, "day": true },
+            "assassin":  { "name": "Hooded stranger",  "role": "Assassin",  "weight": 0, "rob": 0.1, "kill": 0.8,  "hp": 1.35, "night": true, "day": true }
+        }
+    },
+    "listen": {
+        "_doc": "Hidden and still, you hear what folk say when they think no one is by: the chance of overhearing talk of yourself (systems/overheard.js) x chanceMult, earshot + radiusBonus; within earshot of a rival House's hidden agent (systems/rivalAgents.js), their suspicion rises by agentSuspicion once a day.",
+        "chanceMult": 2.2, "radiusBonus": 2, "agentSuspicion": 30, "agentRadius": 5, "stillSecs": 4
+    },
+    "lines": {
+        "spotted": ["Who's there?", "Oi! What are you doing in there?", "There's someone in the bushes!", "Come out where I can see you!", "*squints* Is someone there?"],
+        "spottedGuard": ["You, in there! Come out slowly.", "Skulking about? Show yourself!", "I see you. Out, now."],
+        "spring": ["Your purse, or your life!", "Not a sound.", "Got you now.", "Should've stayed home tonight.", "Hand it over!"],
+        "springAssassin": ["{house} sends its regards.", "This is for {house}.", "Quietly now."],
+        "springHunter": ["There's a price on your head, and I mean to collect.", "You're coming with me — or in pieces."],
+        "made": ["Damn it.", "Seen, are we?", "*hisses* Keep walking."],
+        "mugged": ["Take it! Take it, just don't hurt me!", "All right, all right — here!", "Please, I've children..."],
+        "mugRefused": ["Over my dead body!", "You picked the wrong one!", "Help! Thief!"],
+        "grabbed": ["Mmph—!", "Get off me!", "Let go— help!"],
+        "grabFailed": ["Get off me!", "Help! Help! Murder!", "Thief! Help!"]
+    }
+}

@@ -58,7 +58,7 @@
         },
         "cobbler": {
             "name": "Cobbler", "stall": "Boot Stall", "icon": "👢",
-            "goods": ["boots", "leather", "saddle", "leather_goods", "bone_skates"],
+            "goods": ["boots", "leather", "saddle", "leather_goods", "bone_skates", "waterskin"],
             "buys": ["boots", "leather", "saddle", "leather_goods", "hide", "bone_skates"],
             "tiers": ["poor", "mid", "rich"], "weight": 0.8, "land": { "pasture": 0.6 },
             "cultures": { "Nomadic": 1.4 },

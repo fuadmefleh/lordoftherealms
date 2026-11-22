@@ -47,6 +47,8 @@ import { Economy } from '../world/economy.js';
 import { MoneySupply } from '../world/moneySupply.js';
 // Far crowns in personal union, the high crown (systems/highCrowns.js; read at call time)
 import { HighCrowns } from './highCrowns.js';
+// (the loser of a succession crisis blinded: systems/maiming.js; run time only)
+import { Maiming } from './maiming.js';
 
 // Code defaults (data/throne.json → config overrides them key by key).
 const DEFAULT_CONFIG = {
@@ -278,7 +280,7 @@ export const Throne = {
         const k = Throne._kingdom(world, kid);
         const data = k && k.characterData;
         if (!data || !Array.isArray(data.children)) return [];
-        return data.children.filter(c => c && c.isAlive && c.age >= 16 && !c.spouseId)
+        return data.children.filter(c => c && c.isAlive && c.age >= 16 && !c.spouseId && !c.betrothedTo) // (one promised to your child waits for the wedding: systems/betrothals.js)
             .sort((a, b) => b.age - a.age);
     },
 
@@ -665,6 +667,9 @@ export const Throne = {
         } else {
             Throne._log(player, world, `👑 The crisis in ${crisis.kingdomName} ends: ${winner.name} holds the throne.`);
         }
+        // The winner may put out the loser's eyes, or slit his nose, so he never rises again (systems/maiming.js)
+        const maimed = Maiming.onCrisisResolved(world, crisis, winner);
+        if (maimed) { result.maimed = maimed; Throne._log(player, world, `👁️ ${maimed}`); }
         out.crisesResolved.push(result);
     },
 
@@ -1144,6 +1149,11 @@ export const Throne = {
                 crown.mods = HighCrowns.crownMods(player, k.id);
                 if (far.viceroy) crown.viceroy = far.viceroy.name;
                 if (far.decrees) crown.edicts = Object.keys(far.decrees);
+                // ...and its own royal court's edicts, their effects, a revolt (systems/kingship.js)
+                const fc = far.court;
+                if (fc && fc.edicts) crown.edicts = [...(crown.edicts || []), ...Object.keys(fc.edicts)];
+                if (fc && fc.effects) crown.effects = { ...fc.effects };
+                if (fc && fc.revolt) crown.revolt = true;
                 touched = true;
             }
             if (st.civilWar && st.civilWar.kingdomId === k.id) {
@@ -1220,6 +1230,8 @@ export const Throne = {
         if (!(k.wars || []).includes(e.id)) return { success: false, reason: `You are not at war with ${e.name}.` };
         const r = Throne.state(player).ruling;
         if ((r.peaceCooldown[e.id] || 0) > world.day) return { success: false, reason: `${e.name} will not hear your envoys until day ${r.peaceCooldown[e.id]}.` };
+        // (the last crisis's holy war or pretender's war: fought out, or bought off on the Age panel)
+        if (KingdomAI.isSworn && KingdomAI.isSworn(k, e, world)) return { success: false, reason: `${e.name} has sworn this war against your House: it will not hear envoys. Beat it, or buy it out (Dynasty → The Age).` };
         if (Utils.random() < Throne.peaceChance(player, world, enemyId)) {
             KingdomAI.endWar(k, e, world, { text: `🕊️ ${k.name} and ${e.name} make peace.` });
             Throne._log(player, world, `🕊️ ${k.name} makes peace with ${e.name}.`);
@@ -1473,7 +1485,8 @@ export const Throne = {
         if (r.policies.stance === 'peace') {
             for (const eid of (k.wars || []).slice()) {
                 const e = Throne._kingdom(world, eid);
-                if (e && Utils.random() < R.peaceSeekChance) {
+                // (a sworn war — the last crisis's holy war or pretender — is not ended by envoys)
+                if (e && Utils.random() < R.peaceSeekChance && !(KingdomAI.isSworn && KingdomAI.isSworn(k, e, world))) {
                     KingdomAI.endWar(k, e, world, { text: `🕊️ ${k.name}'s envoys win peace with ${e.name}.` });
                     out.peace.push(e.name);
                 }

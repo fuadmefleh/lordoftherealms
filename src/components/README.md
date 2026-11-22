@@ -12,6 +12,7 @@ React UI components. These are pure display/interaction shells — they read fro
 | `SettingsScreen.jsx` | New game setup: character creation, world seed, and **Origin & Challenge** (origin, difficulty and victory goal read from `data/scenarios.json`; picking an origin also sets its suggested goal and guided start). These are passed as `origin` / `difficulty` / `victory` in the settings to `_doStartNewGame` → `Scenarios.apply` |
 | `CharacterForge.jsx` | Character-creation look picker: turnable figure, HUD bust preview, a cycler per feature |
 | `TitleScreen.jsx` | Title screen with New Game / Load Game / Editor buttons |
+| `HallOfHouses.jsx` | 🏛️ Hall of Houses (title screen): every ended House kept across games (`systems/metaLegacy.js`) — rank, reigns, heirlooms, the Golden/Dark Age it named (years, realm), its high crowns, its successions and contested crowns, its codes, myth, last chapters and places on the map; the Legacy unlocks; chronicle books (`ui/hallChronicles.js`) |
 | `Icon.jsx` | `<Icon name="…" />` — one engraved glyph from `ui/icons.js`, used across the HUD chrome |
 | `TitleBackdrop.jsx` | Canvas for `ui/titleBackdrop.js`; mounted once by `App` across title → settings → loading so the flight never cuts |
 | `TopBar.jsx` | In-game top bar: the menus (Map, Character, Realm, Quests, Journal, Counsel — see `ui/README.md` "Where panels are reached"), date, AP, resources, Help/audio/settings, portrait |

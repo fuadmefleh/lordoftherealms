@@ -15,3 +15,5 @@ import './innerMapLayers/ambient.js';
 import './innerMapLayers/streetSeasons.js';
 import './innerMapLayers/weatherFx.js';
 import './innerMapLayers/ice.js';
+// A foul well marked on the street map (ui/innerMapWater.js)
+import './innerMapLayers/wells.js';

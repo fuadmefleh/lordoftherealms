@@ -1182,6 +1182,8 @@ export const Nemesis = {
         if (Utils.random() >= chance) return { outcome: 'foiled', text: _fill(Nemesis._text('acts', 'assassinFoiled'), { name: nm.name, where }) };
         const id = Utils.randPick(A.wounds || ['gash']);
         const w = Ailments.inflict(player, world, id, { source: 'assassin' });
+        // (the blade may take an eye or a hand for good: systems/ailments.js _graveWound)
+        if (w) Ailments._graveWound(player, world, 'assassin', w);
         const loss = _roll(A.health, [10, 25]);
         player.health = Math.max(1, _num(player.health, 100) - loss);
         return { outcome: 'struck', text: _fill(Nemesis._text('acts', 'assassinHit'), { name: nm.name, where, wound: w ? String(w.name).toLowerCase() : 'deep wound' }) };

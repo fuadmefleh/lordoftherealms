@@ -167,6 +167,8 @@ export const InnerMapNight = {
 
     _curfewWatch(game, tile, s, day, hour, lit) {
         if (this._walk || !InnerMap._curfew || !InnerMap._curfewNow(hour)) return;
+        // (hidden in cover the watch must notice you first: ui/innerMapHiding.js weighs it)
+        if (InnerMap._playerHidden) return;
         const now = day * 24 + hour;
         if (now < this._grace || this._busy(game)) return;
         if (NightStreets.exempt(game.player, game.world, s)) return;

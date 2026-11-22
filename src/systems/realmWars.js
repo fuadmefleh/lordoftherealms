@@ -31,6 +31,7 @@ import { Technology } from './technology.js';
 import { Holdings } from './holdings.js';
 import { HoldingSieges } from './holdingSieges.js';
 import { Names } from '../core/names.js';
+import { Water } from './water.js';
 
 const CONFIG = {
     checkCadence: 10,          // days between hostility checks
@@ -471,6 +472,8 @@ export const RealmWars = {
             if (rec.besieging) continue;  // camped before a holding (systems/holdingSieges.js)
             rec.stuckDays = (unit.q === rec.q && unit.r === rec.r) ? (rec.stuckDays || 0) + 1 : 0;
             rec.q = unit.q; rec.r = unit.r;
+            // Dry country on the march: the host thirsts and thins (systems/water.js)
+            Water.armyUnitDay(world, unit, rec);
             rec.chest = unit.inventory ? Math.max(0, Math.floor(Number(unit.inventory.gold) || 0)) : 0;
             if (rec.stuckDays >= 8) {
                 // No way through — the host gives up and marches home.

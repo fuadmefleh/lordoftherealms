@@ -11,6 +11,7 @@
 // voice (ui/actionMenu/uiKit.js): rows to click, cards for the forms.
 import { ActionMenu } from './_ref.js';
 import { HeirAgency } from '../../systems/heirAgency.js';
+import { Betrothals } from '../../systems/betrothals.js';
 import { Regency } from '../../systems/regency.js';
 import { Heirs } from '../../systems/heirs.js';
 import { Upbringing } from '../../systems/upbringing.js';
@@ -68,6 +69,13 @@ Object.assign(ActionMenu, {
             });
         }
 
+        // A promise in marriage: to a rival's child, a prince, a lord's house (ui/actionMenu/matches.js)
+        if (!up.spouse) {
+            rows.push(a.betrothal
+                ? { icon: '💔', name: 'Break the betrothal', desc: esc(Betrothals.line(child, world)), act: 'matchesDo', args: ['breakAsk', child.id], side: 'cost…', tone: 'bad' }
+                : { icon: '💍', name: 'Seek a match', desc: 'A rival House’s child, a foreign crown’s, a lord’s house — terms, ward and dowry', act: 'showMatchSeek', args: [child.id], side: '›', tone: 'gold' });
+        }
+
         let forms = '';
         if (!up.comeOfAge) {
             // A child: fostered at a court, or promised in marriage
@@ -84,13 +92,6 @@ Object.assign(ActionMenu, {
                     `Promise ${esc(child.firstName)} to a realm's nobility: the match is made at coming of age. A realm bound by betrothal is slower to join a league against you.`,
                     `<select id="familyBetrothKingdom" style="${SEL}">${opts}</select>`,
                     `<button onclick="window._familyUI.betroth('${child.id}')" style="${BTN_GOLD}">💍 Betroth (${Utils.formatGold(gift)}g, +${cfg.betrothalReputation} rep)</button>`);
-            }
-            if (a.betrothal) {
-                rows.push({
-                    icon: '💔', name: 'Break the betrothal', desc: a.betrothal.name ? `Promised to ${esc(a.betrothal.name)}` : '',
-                    attrs: `onclick="window._familyUI.unbetroth('${child.id}')"`,
-                    side: `${cfg.betrothalBreakReputation} rep`, tone: 'bad',
-                });
             }
         } else if (!away) {
             // A grown child at home: a commission with real stakes

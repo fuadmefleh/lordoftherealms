@@ -9,6 +9,7 @@ import { Seasons } from './seasons.js';
 import { Economy } from './economy.js';
 import { CrownBooks } from './crownBooks.js';
 import { Names } from '../core/names.js';
+import { DataLoader } from '../core/dataLoader.js';
 
 export const WorldEvents = {
     /**
@@ -223,6 +224,8 @@ export const WorldEvents = {
 
         switch (type) {
             case 'succession':
+                // a crown the player wears (home or far) passes only by the player's own death (no extra draw)
+                if (kingdom.characterData && kingdom.characterData.ruler && kingdom.characterData.ruler.isPlayer) return null;
                 const oldRuler = kingdom.ruler;
                 kingdom.ruler = Kingdom.generateRulerName(kingdom.culture);
                 return {
@@ -233,19 +236,21 @@ export const WorldEvents = {
                 };
 
             case 'rebellion':
-                // Small rebellion reduces population
+                // Agitators stir a town against its lord: its grievance rises (settlement.revoltSpark,
+                // read by systems/peasantRevolts.js — whether it boils over into a rising is theirs)
                 {
                     const settlement = WorldEvents._pickTown(world, kingdom, type);
                     if (settlement) {
                         const tile = world.getTile(settlement.q, settlement.r);
                         if (tile && tile.settlement) {
-                            // (the fighting's dead: a tenth of the town every time, at a rebellion
-                            // every few weeks somewhere, bled the realms white over a long game)
-                            tile.settlement.population = Math.floor(tile.settlement.population * 0.97);
+                            // (no fighting yet: the dead come only if a rising breaks out and is met)
+                            const sp = tile.settlement.revoltSpark;
+                            const amt = WorldEvents._revoltSpark();
+                            tile.settlement.revoltSpark = { amt: Math.min(amt * 2, (sp && Number(sp.amt)) || 0) + amt, day: world.day || 0 };
                             WorldEvents._nudgeStability(kingdom, -8);
                             return {
                                 category: WorldEvents.CATEGORIES.POLITICAL,
-                                text: `${kingdom.name}: Rebellion in ${settlement.name}! Population reduced.`,
+                                text: `${kingdom.name}: Agitators stir ${settlement.name} against its lord. The commons mutter of rising.`,
                                 kingdom: kingdom.id,
                                 impact: 'negative',
                             };
@@ -716,6 +721,13 @@ export const WorldEvents = {
             if (ev) started.push(ev);
         }
         return { started, ended };
+    },
+
+    /** How much a 'rebellion' event stirs its town's grievance (data/peasantRevolts.json spark.amount). */
+    _revoltSpark() {
+        const d = DataLoader._gamedata && DataLoader._gamedata.peasantRevolts;
+        const v = d && d.spark && Number(d.spark.amount);
+        return Number.isFinite(v) ? v : 15;
     },
 
     /**

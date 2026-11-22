@@ -56,6 +56,8 @@ import { RiverLife } from './riverLife.js';
 import { LlmProse } from './llmProse.js';
 import { Crises } from './crises.js';
 import { LastCrisis } from './lastCrisis.js';
+import { Executions } from './executions.js';
+import { PeasantRevolts } from './peasantRevolts.js';
 import { GreatWorks } from './greatWorks.js';
 import { NamedLegacy } from './namedLegacy.js';
 import { Climate } from '../world/climate.js';
@@ -424,6 +426,10 @@ export const SaveLoad = {
             namedLegacy: NamedLegacy.serialize(world),
             // The last crisis of the age: the reckoning, its trial, the Golden or Dark Age (systems/lastCrisis.js)
             lastCrisis: LastCrisis.serialize(world),
+            // Martyrs' shrines and the realms' scaffolds (systems/executions.js)
+            executions: Executions.serializeWorld(world),
+            // The commons' grievances town by town, the risings afoot, burned fields growing back (systems/peasantRevolts.js)
+            peasantRevolts: PeasantRevolts.serialize(world),
             // The climate's eras begun and their chronicle (world/climate.js)
             climate: Climate.serialize(world),
             // Each good's price anchor, learnt from the markets (world/priceAnchors.js)
@@ -581,12 +587,22 @@ export const SaveLoad = {
         'charisma', 'intelligence', 'faith', 'maxInventory',
         // What the player did in the age's crises (systems/crises.js)
         'crises',
+        // Match offers, the record of promises made, kept and broken (systems/betrothals.js)
+        'betrothals',
         // The weight of greatness on the realm the player rules: strains, skimmers, march commands (systems/realmDecline.js)
         'realmDecline',
+        // Rebel leaders in your prison, a crushed rising awaiting your judgement (systems/peasantRevolts.js)
+        'peasantRevolts',
         // Far crowns in personal union, their viceroys and lords' temper, the high crown, the succession plan (systems/highCrowns.js)
         'highCrowns',
         // The war for the crown at the seat's passing: preparation per crown, contests on record, breakaway realms (systems/crownSuccession.js)
         'crownSuccession',
+        // The body's losses (a hand, an eye…) and the aids worn; the maimings done and their record (systems/maimMarks.js, maiming.js)
+        'maimed', 'maiming',
+        // The condemned awaiting your word, and the scaffold's record (systems/executions.js)
+        'executions',
+        // The dungeon: prisoners' sessions, the names they gave, what they told of the Houses (systems/interrogation.js)
+        'interrogation',
         // Where the player has begged lately, and what it brought (player/begging.js)
         'begging',
         // The household guard's standing order: defend against anyone, the watch too (ui/innerMapEscort.js)
@@ -595,6 +611,8 @@ export const SaveLoad = {
         'streetHitch',
         // How wet you are from the rain, 0 dry .. 100 soaked (player/wetness.js)
         'wetness',
+        // Thirst and the water in your skins (player/thirst.js; each town's wells travel with it: settlement.water)
+        'water',
         'loans', 'taxRate', 'activeContract',
         'mapDeceptions', 'marriageAllianceKingdom', 'cultureIncomeCarry',
         'foragingTrips', 'huntingTrips', 'jobsCompleted', 'performancesGiven',
@@ -624,6 +642,8 @@ export const SaveLoad = {
         'watchQuestioning',
         // Law courts: the trial awaited, cases before your court, verdicts that may surface, lawsuits between Houses (player/trials.js)
         'trials',
+        // Trial by combat and ordeal: a kinsman accused, champions wanted, perjury that may come out (player/ordeals.js)
+        'ordeals',
         // Tournaments on the town's lists today: the one you hold, your place in the bracket (ui/innerMapTournament.js)
         'lists',
         // The night's business: the lantern shuttered, curfew stops, landings, the gangs' grudges (systems/nightStreets.js)
@@ -1145,6 +1165,10 @@ export const SaveLoad = {
         NamedLegacy.restore(saveData.namedLegacy, world);
         // The last crisis (older saves: none, the reckoning starts from nothing)
         LastCrisis.restore(saveData.lastCrisis, world);
+        // Martyrs' shrines and the realms' scaffolds (older saves: none)
+        Executions.restoreWorld(saveData.executions, world);
+        // The commons' grievances and risings (older saves: none — grievance gathers from the next week)
+        PeasantRevolts.restore(saveData.peasantRevolts, world);
         // The climate's eras (older saves: none recorded — the curve is the seed's, so it runs on the same)
         Climate.restore(saveData.climate, world);
         // The price anchors (older saves: none - they start again from the data prices), the markets bound to them

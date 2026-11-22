@@ -53,7 +53,9 @@ import { InnerMapRiverDrift } from './innerMapRiverDrift.js';
 import { InnerMapFeedFish } from './innerMapFeedFish.js';
 import { InnerMapTournament } from './innerMapTournament.js';
 import { InnerMapFishTraps } from './innerMapFishTraps.js';
+import { InnerMapWater } from './innerMapWater.js';
 import { InnerMapTorchlight } from './innerMapTorchlight.js';
+import { InnerMapHiding } from './innerMapHiding.js';
 import { InnerMapRowboat } from './innerMapRowboat.js';
 import { InnerMapRoadWalk } from './innerMapRoadWalk.js';
 import { NpcDisposition } from '../systems/npcDisposition.js';
@@ -67,6 +69,9 @@ import { InnerMapCarry } from './innerMapCarry.js';
 import { InnerMapCarts } from './innerMapCarts.js';
 import { InnerMapHitch } from './innerMapHitch.js';
 import { InnerMapDowned } from './innerMapDowned.js';
+// (the knife over someone downed: ui/innerMapMaiming.js; how the maimed are named: systems/maimMarks.js)
+import { InnerMapMaiming } from './innerMapMaiming.js';
+import { MaimMarks } from '../systems/maimMarks.js';
 import { Downed } from '../systems/downed.js';
 import { Carrying } from '../systems/carrying.js';
 
@@ -257,7 +262,8 @@ Object.assign(InnerMapRenderer, {
         if (!tile || !tile.visible) return;
 
         const building = InnerMap.getBuildingAt(q, r);
-        const npcsHere = InnerMap.getNPCsAt(q, r);
+        // (not anyone lying unseen in cover for you: ui/innerMapHiding.js)
+        const npcsHere = InnerMap.getNPCsAt(q, r).filter(n => !InnerMapHiding.unseenLurker(n));
         const isPlayerHere = (q === InnerMap.playerInnerQ && r === InnerMap.playerInnerR);
 
         // ── Resolve custom object on this tile ──
@@ -379,10 +385,16 @@ Object.assign(InnerMapRenderer, {
                         InnerMap._insideBuilding, objAnchorQ, objAnchorR);
                 }
             }
+            // (no washing in a foul well: ui/innerMapWater.js)
+            if (InnerMapWater.isWellDef(customObjDef) && InnerMapWater.isFoulAt(game, customObjDef, objAnchorQ, objAnchorR)) objActionItems = objActionItems.filter(ai => ai._objectActionKey !== 'wash');
             if (objActionItems.length > 0) {
                 menuItems.push({ type: 'separator' });
                 for (const ai of objActionItems) menuItems.push(ai);
             }
+            // A well, a fountain, a pool: drink, fill your skins; a foul one marked; foul it yourself (ui/innerMapWater.js)
+            menuItems.push(...InnerMapWater.menuItems(game, customObjDef, objAnchorQ, objAnchorR));
+            // A bush, a haystack, a stall, a tree, tall crops: hide behind it (ui/innerMapHiding.js)
+            menuItems.push(...InnerMapHiding.objectItems(game, customObjDef, objAnchorQ, objAnchorR));
             // A ship: over the side from her deck, or up her side from the water (ui/innerMapDiving.js)
             menuItems.push(...InnerMapDiving.shipItems(game, q, r));
             // A town field: bring in its crop, or help yourself (ui/innerMapFields.js)
@@ -431,6 +443,7 @@ Object.assign(InnerMapRenderer, {
             menuItems.push({ type: 'action', action: 'ko_leave', label: 'Leave Them Be', icon: '🚶', desc: npc.state === 'bound' ? 'Leave them lying there, tied' : 'They\'ll come round in a while', npc });
             menuItems.push(...InnerMapCarry.menuItems(game, tile, q, r, [npc]));
             menuItems.push(...InnerMapDowned.menuItems(game, npc));
+            menuItems.push(...InnerMapMaiming.menuItems(game, npc));
         }
         // Someone over the player's shoulder: put them down, or lay them on a bed (ui/innerMapCarry.js)
         if (InnerMapCarry.person) {
@@ -456,12 +469,16 @@ Object.assign(InnerMapRenderer, {
                 const npcDef = InnerMap.NPC_TYPES[npc.type] || {};
                 const npcHealth = (typeof InnerMapCombat !== 'undefined') ? InnerMapCombat.getNPCHealth(npc.id) : null;
                 const hpDesc = npcHealth ? `${Math.ceil(npcHealth.current)}/${npcHealth.max} HP` : '';
-                menuItems.push({ type: 'person', npc, role: npc.roleTitle || npcDef.name || npc.type, hpDesc, asleep: !!npc._asleep });
+                // (the maimed are known by it: one-eyed, a hand gone, tongueless — systems/maimMarks.js)
+                const maimTag = MaimMarks.tag(npc._person || npc);
+                menuItems.push({ type: 'person', npc, role: `${npc.roleTitle || npcDef.name || npc.type}${maimTag ? ` · ${maimTag}` : ''}`, hpDesc, asleep: !!npc._asleep });
             }
             // A grave robber or a looter at it: stop them (ui/innerMapScavengers.js)
             menuItems.push(...InnerMapScavengers.menuItems(game, standing));
             // A fight between townsfolk: cheer, bet, break it up, join a side (ui/innerMapBrawls.js)
             menuItems.push(...InnerMapBrawls.menuItems(game, standing));
+            // Hidden, and they are in reach: spring on them, seize them, rob them (ui/innerMapHiding.js)
+            menuItems.push(...InnerMapHiding.personItems(game, standing));
         }
 
         // ── An animal here: hunt it, fight it, butcher its carcass (ui/innerMapAnimals.js) ──
@@ -518,6 +535,8 @@ Object.assign(InnerMapRenderer, {
                         if (isBox && ai._objectActionKey === 'look_inside') continue;
                         menuItems.push(ai);
                     }
+                    // A castle's or a house's own well: Drink, Fill Your Waterskins (ui/innerMapWater.js)
+                    menuItems.push(...InnerMapWater.furnitureItems(game, tile._furniture, q, r));
                     menuItems.push({ type: 'action', action: 'interact_furniture', label: `Inspect ${tile._furniture.name}`, icon: '🔍', desc: isBox ? 'See what it holds, and take (or steal) it' : `Examine the ${tile._furniture.name}`, _furniture: tile._furniture, objAnchorQ: q, objAnchorR: r });
                 }
 
@@ -556,6 +575,8 @@ Object.assign(InnerMapRenderer, {
                 if ((tile._wet || tile._sea) && !/frozen|ice/.test(tile.subTerrain.id || '')) {
                     menuItems.push({ type: 'action', action: 'fish_here', label: 'Fish Here', icon: '🎣', desc: tile._deep ? 'Deep water: bigger fish, and a harder fight' : 'Cast a line from the bank' });
                 }
+                // Fresh water: drink from it, fill your skins (ui/innerMapWater.js; the sea is salt)
+                menuItems.push(...InnerMapWater.waterItems(game, tile, q, r));
                 // Water deep enough to swim: dive and scavenge the bottom (ui/innerMapDiving.js)
                 // A river: throw something in, fish out what floats by (ui/innerMapRiverDrift.js)
                 menuItems.push(...InnerMapRiverDrift.menuItems(game, tile, q, r));
@@ -624,6 +645,8 @@ Object.assign(InnerMapRenderer, {
                 menuItems.push({ type: 'action', action: 'rest', label: 'Rest', icon: '💤', desc: 'Take a break and recover' });
                 // A torch or lantern: light it, put it out, bind a torch (ui/innerMapTorchlight.js)
                 menuItems.push(...InnerMapTorchlight.menuItems(game));
+                // In cover: hide here, or come out (ui/innerMapHiding.js)
+                menuItems.push(...InnerMapHiding.selfItems(game));
             }
         }
 
@@ -814,7 +837,9 @@ Object.assign(InnerMapRenderer, {
                 InnerMap.startInteraction(tq, tr, null, 0, anim);
                 // Sat down as the townsfolk sit (world/innerMap/furnitureUse.js playerSeatAt): on the
                 // pew or throne facing out or toward the altar, on a stool at a table's edge
-                const seat = anim === 'sitting' && item._furniture ? InnerMap.playerSeatAt(tq, tr) : null;
+                // (a furniture action from the piece's own menu carries no _furniture, only its def: read the tile)
+                const onTile = InnerMap.getTile(tq, tr);
+                const seat = anim === 'sitting' && (item._furniture || (onTile && onTile._furniture)) ? InnerMap.playerSeatAt(tq, tr) : null;
                 if (seat && InnerMap._activeInteraction) {
                     InnerMap._activeInteraction.seat = seat;
                     InnerMapRenderer._playerFacing = seat.facing;
@@ -1038,6 +1063,7 @@ Object.assign(InnerMapRenderer, {
         if (InnerMapCarts.handle(game, item)) return;
         if (InnerMapHitch.handle(game, item)) return;
         if (InnerMapDowned.handle(game, item)) return;
+        if (InnerMapMaiming.handle(game, item)) return;
         if (InnerMapJail.handle(game, item)) return;
         if (InnerMapDeck.handle(game, item)) return;
         if (/^(lot|vacancy)_/.test(item.action || '') && InnerMapLots.handle(game, item)) return;
@@ -1053,7 +1079,9 @@ Object.assign(InnerMapRenderer, {
         if (item.action === 'feedfish_throw' && InnerMapFeedFish.handle(game, item, q, r)) return;
         if (typeof item.action === 'string' && item.action.startsWith('lists_') && InnerMapTournament.handle(game, item)) return;
         if (/^fishtrap_/.test(item.action || '') && InnerMapFishTraps.handle(game, item, q, r)) return;
+        if (/^wm_/.test(item.action || '') && InnerMapWater.handle(game, item)) return;
         if (/^torch_/.test(item.action || '') && InnerMapTorchlight.handle(game, item)) return;
+        if (/^hide_/.test(item.action || '') && InnerMapHiding.handle(game, item)) return;
         // Your rowboat (and, sat in it, a click on the bank: row in and step ashore there — ui/innerMapRowboat.js)
         if ((/^rowboat_/.test(item.action || '') || item.action === 'move_here') && InnerMapRowboat.handle(game, item, q, r)) return;
         if (item.action === 'hunt_animal') {

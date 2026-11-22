@@ -117,6 +117,33 @@ describe('filing an ended House', () => {
         expect(e.peak).toEqual(['Crown of Vael', 'Duke']);
         expect(e.heirlooms.map(h => h.name)).toContain('the Ring of Test');
     });
+
+    it('files the endgame: the Ages with their years, the high crowns, the contested successions, the chapters', () => {
+        const g = newGame(74);
+        g.world.run = MetaLegacy.newRun({ seed: 74, now: 1 });
+        g.world.baseYear = 800;
+        const house = g.player.house;
+        house.ages = [{ kind: 'golden', name: 'the Golden Age of Test', day: 1201, until: 7201, realm: 'Vael' }];
+        g.player.highCrowns = {
+            past: [{ name: 'Empire of Vael', title: 'Emperor', from: 600, until: 1300, why: 'its crowns fell to one' }],
+            empire: { name: 'High Kingdom of Vael', title: 'High King', day: 2401 },
+        };
+        g.player.crownSuccession = { history: [
+            { outcome: 'peaceful', day: 300, heir: 'A' },
+            { outcome: 'war', day: 2400, heir: 'B', claimant: { name: 'Osric', kind: 'brother' }, kingdomId: null },
+            { outcome: 'usurped', day: 2500, heir: 'B', claimant: { name: 'Osric', kind: 'brother' } },
+            { outcome: 'unbacked', day: 4000, heir: 'C', claimant: { name: 'Wulf', kind: 'cadet' } },
+        ] };
+        house.namedLegacy = { chapters: [{ ruler: 'A Test', year: 820, label: 'law', line: 'the law', motto: 'By Law' }, { ruler: 'B Test', year: 840, label: 'conquest', line: 'the sword', motto: '' }] };
+        const e = MetaLegacy.entryFor(g.player, g.world, { houseName: 'House Test', reigns: [], generations: 3, years: 60, score: 900 }, 'old age', 9);
+        expect(e.ages).toEqual([{ kind: 'golden', name: 'the Golden Age of Test', realm: 'Vael', fromYear: 810, toYear: 860 }]);
+        expect(e.empires.map(x => [x.name, x.fromYear, x.toYear])).toEqual([['Empire of Vael', 804, 810], ['High Kingdom of Vael', 820, null]]);
+        // the war and the crown it cost count once as contested; the unbacked claim is the second
+        expect(e.successions).toEqual({ peaceful: 1, contested: 2, wars: 1, lost: 1, split: 0 });
+        expect(e.crownWars.map(w => w.outcome)).toEqual(['war', 'usurped', 'unbacked']);
+        expect(e.rememberedFor).toBe('the sword');
+        expect(e.chapters.map(c => c.motto)).toEqual(['By Law', '']);
+    });
 });
 
 describe('a new game from the Hall', () => {

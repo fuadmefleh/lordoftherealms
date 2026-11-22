@@ -1,0 +1,169 @@
+{
+    "_doc": "PUBLIC EXECUTIONS (systems/executions.js). The condemned wait on a list for your word (Executions.condemn: a trial's 'scaffold' verdict, a crushed revolt's leader, a broken rebel, an outlaw you caught, a captive, another system's prisoner). You choose the PLACE (a seat you rule, or the town of the crime), the METHOD (methods: who it suits — ranks; crimes it is for — crimes; faith it needs — faith, by the realm faith's stance from data/maiming.json faiths) or a MERCY, and whether to PROCLAIM it (proclaimDays ahead: a bigger crowd, and anyone in town may come) or do it here and now. THE CROWD: size = the town's population x crowd.share by town type (x crowd.unproclaimed when not proclaimed, x crowd.lordPresent when you stand there). MOOD (-100..100) = the crime's bloodlust (crimes.*.crowd) - popularity x crowd.popularity + (town happiness - 50) x crowd.happiness + your realm reputation x crowd.reputation - crowd.innocentSense when the condemned is innocent + the method's horror (methods.*.horror, waived when the crime suits it) + crowd.highborn when a lord dies. moods: the bands. DISRUPTION (hash rolls, no shared dice): a rescue (disruption.rescue: base + per kin/House/band, + per popularity, + angry crowd; x present when you stand there; success: escapes), a riot (an angry crowd: disruption.riot), the rope breaks (hanging only: disruption.rope — the crowd cries a sign of God; the condemned goes back on your list). EFFECTS: effects.* are Petitions effects at the place (happiness, loyalty, prestige, stability, court…): kill (always), crowd.<mood> (by the crowd's mood), method.<id>, innocent, mercy.<id>; fear: Traits deeds (cruelty, dread, mercy) x methods.*.fear/cruelty; town deterrence: a public death cows the town's thieves for fearDays (npcTheft reads Executions.deterrence); lords: lordDeeds; kin vengeance: nemesis scores by rank; martyr: martyr.* (an innocent or popular victim's cult: a shrine in town, pilgrims' coin from the realm's capital, unrest against the killer weekly while it lasts). THE TRUTH: an innocent executed (not by a trial, which surfaces its own) is found out surfaceDays later: effects.truth, the kin, the lords, the cult. AI REALMS: ai.* — each realm's capital hangs (burns, beheads) its condemned now and then: world notices only for the highborn and the burnings; anyone in town on the day can join the crowd.",
+    "enabled": true,
+    "proclaimDays": 2,
+    "maxWaitDays": 240,
+    "waitRescuePerMonth": 0.04,
+    "fearDays": 45,
+    "deterrence": { "proclaimed": 0.55, "unproclaimed": 0.75, "cruel": 0.45 },
+    "crowd": {
+        "share": { "hamlet": 0.6, "village": 0.4, "town": 0.18, "city": 0.1, "capital": 0.08 },
+        "min": 12, "max": 6000, "unproclaimed": 0.35, "lordPresent": 1.25,
+        "popularity": 0.9, "happiness": 0.4, "reputation": 0.15, "innocentSense": 18, "highborn": 6
+    },
+    "moods": [
+        { "id": "baying", "at": 35, "label": "baying for blood", "icon": "🔥" },
+        { "id": "eager", "at": 10, "label": "eager", "icon": "👀" },
+        { "id": "quiet", "at": -10, "label": "quiet", "icon": "🤐" },
+        { "id": "sullen", "at": -35, "label": "sullen", "icon": "😠" },
+        { "id": "angry", "at": -1000, "label": "angry", "icon": "💢" }
+    ],
+    "ranks": {
+        "commoner": { "label": "commoner", "highborn": false, "popularity": 0, "nemesis": 40 },
+        "outlaw": { "label": "outlaw", "highborn": false, "popularity": -10, "nemesis": 25 },
+        "cleric": { "label": "cleric", "highborn": false, "popularity": 15, "nemesis": 50 },
+        "noble": { "label": "noble", "highborn": true, "popularity": 0, "nemesis": 60 },
+        "vassal": { "label": "lord", "highborn": true, "popularity": 5, "nemesis": 65 },
+        "rival": { "label": "of a rival House", "highborn": true, "popularity": 0, "nemesis": 0 },
+        "royal": { "label": "of royal blood", "highborn": true, "popularity": 15, "nemesis": 80 },
+        "kin": { "label": "of your own blood", "highborn": true, "popularity": 10, "nemesis": 0 }
+    },
+    "crimes": {
+        "treason": { "label": "treason", "crowd": 15, "severity": 5, "treason": true },
+        "rebellion": { "label": "rebellion against the crown", "crowd": 5, "severity": 5, "treason": true },
+        "plotting": { "label": "plotting against you", "crowd": 8, "severity": 4, "treason": true },
+        "spying": { "label": "spying", "crowd": 12, "severity": 4, "treason": true },
+        "heresy": { "label": "heresy", "crowd": 10, "severity": 4, "heresy": true },
+        "witchcraft": { "label": "witchcraft", "crowd": 20, "severity": 4, "heresy": true },
+        "murder": { "label": "murder", "crowd": 30, "severity": 4 },
+        "arson": { "label": "setting a fire", "crowd": 22, "severity": 3 },
+        "banditry": { "label": "robbery on the roads", "crowd": 18, "severity": 3 },
+        "piracy": { "label": "piracy", "crowd": 15, "severity": 3 },
+        "burglary": { "label": "housebreaking", "crowd": 2, "severity": 2 },
+        "theft": { "label": "theft", "crowd": -8, "severity": 2 },
+        "pickpocket": { "label": "cutting purses", "crowd": -6, "severity": 2 },
+        "assault": { "label": "a beating", "crowd": -4, "severity": 2 },
+        "poaching": { "label": "poaching in the lord's woods", "crowd": -22, "severity": 1 },
+        "debt": { "label": "an unpaid debt", "crowd": -30, "severity": 1 },
+        "cheating": { "label": "short weights at market", "crowd": -12, "severity": 1 },
+        "slander": { "label": "slander", "crowd": -25, "severity": 1 },
+        "desertion": { "label": "desertion", "crowd": -6, "severity": 2 },
+        "enmity": { "label": "the enmity of their House", "crowd": -15, "severity": 1 },
+        "your_word": { "label": "what you charge them with", "crowd": -12, "severity": 2 },
+        "default": { "label": "their crimes", "crowd": 0, "severity": 2 }
+    },
+    "methods": {
+        "behead": { "label": "The axe", "icon": "🪓", "desc": "A clean death on the block, as the highborn are owed.", "highbornOnly": true, "fear": 1, "cruelty": 0.5, "horror": 0, "memory": "beheaded", "cause": "the headsman's axe" },
+        "hang": { "label": "The rope", "icon": "💀", "desc": "The gallows in the square, the common death.", "fear": 1, "cruelty": 0.8, "horror": 0, "highbornHorror": -6, "memory": "hanged", "cause": "the gallows" },
+        "burn": { "label": "The stake", "icon": "🔥", "desc": "Burned alive for heresy, where the faith allows it.", "crimes": ["heresy"], "faith": { "harsh": true, "mild": true }, "fear": 2.2, "cruelty": 3, "horror": -25, "cruel": true, "memory": "burned", "cause": "the stake", "clergy": { "mild": 2 } },
+        "quarter": { "label": "Drawn and quartered", "icon": "🐎", "desc": "Hanged, drawn and quartered, the death for treason.", "crimes": ["treason"], "fear": 2.6, "cruelty": 4, "horror": -30, "cruel": true, "memory": "quartered", "cause": "drawing and quartering" }
+    },
+    "mercies": {
+        "pardon": { "label": "Pardon", "icon": "🕊️", "desc": "Let them go, before the crowd. Mercy, or weakness, as the crowd takes it." },
+        "exile": { "label": "Exile", "icon": "🚪", "desc": "Out of the realm, never to come back on pain of death." },
+        "cloister": { "label": "The cloister", "icon": "⛪", "desc": "Shorn and sent to a monastery for life: dead to the world, and no blood on your hands." },
+        "maim": { "label": "The knife instead", "icon": "✋", "desc": "Spare the life; take a hand (systems/maiming.js)." }
+    },
+    "effects": {
+        "kill": { "court": { "severity": 1 } },
+        "crowd": {
+            "baying": { "happiness": 2, "prestige": 2 },
+            "eager": { "happiness": 1, "prestige": 1 },
+            "quiet": {},
+            "sullen": { "happiness": -3 },
+            "angry": { "happiness": -6, "stability": -1 }
+        },
+        "method": {
+            "behead": { "prestige": 1 },
+            "hang": {},
+            "burn": { "happiness": -2, "karma": -3 },
+            "quarter": { "happiness": -3, "karma": -4, "stability": 1 }
+        },
+        "treasonDone": { "stability": 2, "prestige": 3 },
+        "innocent": { "karma": -6 },
+        "highbornHanged": { "prestige": -2 },
+        "mercy": {
+            "pardon": { "court": { "mercy": 2 }, "karma": 2 },
+            "exile": { "court": { "mercy": 1 } },
+            "cloister": { "court": { "mercy": 1 }, "karma": 1 },
+            "maim": {}
+        },
+        "mercyCrowd": {
+            "baying": { "happiness": -4, "prestige": -2 },
+            "eager": { "happiness": -1 },
+            "quiet": { "happiness": 1 },
+            "sullen": { "happiness": 4, "prestige": 1 },
+            "angry": { "happiness": 7, "prestige": 2 }
+        },
+        "signOfGod": { "spared": { "happiness": 5, "karma": 3, "prestige": 2 }, "again": { "happiness": -8, "karma": -6 } },
+        "riot": { "happiness": -6, "stability": -2, "population": -4 },
+        "rescued": { "prestige": -4 },
+        "truth": { "happiness": -8, "prestige": -10, "karma": -5, "court": { "justice": -3 } }
+    },
+    "disruption": {
+        "rescue": { "base": 0.015, "perKin": 0.012, "house": 0.08, "band": 0.07, "perPopularity": 0.0015, "angry": 0.05, "present": 0.55, "max": 0.35, "success": 0.45 },
+        "riot": { "angry": 0.3, "sullen": 0.06, "finishes": 0.6 },
+        "rope": { "chance": 0.035 }
+    },
+    "lordDeeds": { "highbornUnjust": "execution_highborn", "highbornHanged": "execution_highborn", "cruelHeard": "execution_cruel_heard", "traitor": "execution_traitor" },
+    "martyr": {
+        "innocent": 0.45, "popularAt": 25, "popular": 0.2, "cruel": 1.5, "angry": 1.5, "signDefied": 0.8,
+        "strength": [55, 85], "decayPerWeek": 0.35, "endAt": 4, "unrestPerWeek": 0.6, "happinessFloor": 20,
+        "stabilityPerWeek": 0.15, "pilgrimCoin": 3, "endowCost": 120, "endowFade": 4, "tearDown": { "hardenChance": 0.5, "harden": 20, "happiness": -6, "dread": 2 }, "truthBoost": 30
+    },
+    "street": {
+        "_doc": "The scaffold on the town's street map (world/scaffolds.js lays the prop in the square from the proclamation to the day: gallows for hang/quarter, the block for the axe, the stake for burning) and its crowd (world/innerMap/scaffoldCrowd.js): on the day, in hours [from, to), share of the grown townsfolk stand packed in rows before it, facing it; on the days before, gawkers of them stop by in gawkHours. lines (and cruel, for a burning or a quartering) are muttered over their heads on the day; gawk on the days before. {name}: the condemned.",
+        "hours": [9, 15], "share": 0.65, "gawkers": 0.1, "gawkHours": [8, 18], "rows": 6,
+        "lines": ["They say {name} confessed.", "I never thought I'd see {name} up there.", "Make room, I can't see!", "God have mercy on {name}.", "Serves them right.", "It isn't right. Not {name}.", "My father saw the last one. He never slept the same.", "Hats off when they bring them out."],
+        "cruel": ["Fire. God forgive us all.", "I'll not watch this. I'll not.", "They say you can hear it from the river.", "That's no justice. That's butchery."],
+        "gawk": ["Who's that for, then?", "Built it overnight, they did.", "Day after tomorrow, the crier says.", "I don't like to walk past it."]
+    },
+    "guestRight": {
+        "_doc": "A ward raised at your court (Raising wards, a rival House's child) put to death: guest-right broken. effects: Petitions effects at the place; otherHousesFeud: every other rival House's feud with you rises (and they remember guestRightBroken); lordDeed: every realm's lord remembers it; cruelty, deceit: Traits deeds.",
+        "effects": { "prestige": -15, "karma": -10, "happiness": -3 },
+        "otherHousesFeud": 15, "lordDeed": "guest_right_broken", "cruelty": 3, "deceit": 3,
+        "line": "A ward raised under your own roof: guest-right is broken, and every House and every lord will hear of it."
+    },
+    "surfaceDays": [60, 420],
+    "surfaceChance": 0.6,
+    "ai": {
+        "everyDays": 7, "chance": 0.035, "guiltyShare": 0.8, "proclaimDays": 2, "keep": 30, "logKeep": 40,
+        "crimes": { "murder": 4, "theft": 3, "banditry": 3, "treason": 1, "heresy": 1.2, "witchcraft": 0.8, "arson": 1, "poaching": 1.5 },
+        "highbornShare": 0.08
+    },
+    "attend": {
+        "mercy": { "base": 0.12, "perCharisma": 0.015, "sullen": 0.15, "angry": 0.25, "innocent": 0.1, "max": 0.6, "reputation": -2, "heat": 4, "renown": 1 }
+    },
+    "lines": {
+        "lastGuilty": [
+            "I did what they say. God have mercy on me, for I had none.",
+            "Make it quick, headsman. I have kept the crowd waiting long enough.",
+            "Pray for me. I never prayed for anyone.",
+            "Tell my mother I was sorry. Tell no one else."
+        ],
+        "lastInnocent": [
+            "I never did it. God knows it, and so will you, {lord}.",
+            "You hang an innocent today. Remember my face.",
+            "I forgive the crowd. I do not forgive {lord}.",
+            "Look at me, all of you. I am no {crime}. I am one of you."
+        ],
+        "lastDefiant": [
+            "Do it, then. My blood will water your fields with curses.",
+            "{lord}, I will be waiting for you.",
+            "Long after you are dust, they will sing of me in {town}."
+        ],
+        "lastHighborn": [
+            "I die as I lived: of better blood than the one who sends me.",
+            "My House will remember this day, {lord}. Every day of it.",
+            "Strike clean. I am owed that much."
+        ],
+        "lastSilent": ["*says nothing, and looks at the crowd until the end*", "*only shakes {his} head*"],
+        "scene": "{crowd} came to the {place} of {town} to see {name} die for {crime}. The crowd was {mood}.",
+        "rope": "The rope breaks. {name} drops to the boards alive, and the crowd cries out: a sign of God!",
+        "rescue": "As {name} mounts the scaffold, men burst from the crowd, cut the bonds and are gone into the lanes with {him}.",
+        "rescueFailed": "Men rush the scaffold to free {name}; the guards cut them down, and the sentence stands.",
+        "riot": "The crowd will not have it: stones fly, the guards are driven back, stalls burn.",
+        "cult": "In {town} they say {name} was a saint. Flowers and candles gather where the scaffold stood; pilgrims come.",
+        "truth": "The truth comes out: {name} was innocent of {crime}. {town} will not forget whose word sent {him} to die."
+    }
+}

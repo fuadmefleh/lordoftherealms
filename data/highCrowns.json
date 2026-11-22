@@ -22,7 +22,7 @@
             "favourDecayDays": 120,
             "competenceStability": 0.001, "competenceTax": 0.001,
             "skimBelow": 45, "skimMax": 0.4,
-            "plotBelow": 30, "plotAmbition": 50, "rumourAt": 50, "plotDecay": 4,
+            "plotBelow": 32, "plotAmbition": 58, "rumourAt": 50, "plotDecay": 4,
             "giftGold": 200, "giftFavour": 10,
             "honourPrestige": 12, "honourFavour": 14, "honourAmbition": -6,
             "replacePrestige": 10, "replaceExposedPrestige": 2, "replacedLoyaltyHit": 10,
@@ -31,7 +31,7 @@
         "separatism": {
             "_doc": "0-100: how much a far crown's lords want a king of their own. Weekly change in points. Read by the realm's stability (crown.mods), the levy, the viceroy's loyalty and the breakaway.",
             "start": { "civilWar": 30, "conquest": 50, "inherited": 15, "founded": 10, "promoted": 0 },
-            "base": 0.15, "absentAfterDays": 120, "absent": 0.35, "foreignCulture": 0.25, "heavyTax": 0.3, "lightTax": -0.15,
+            "base": 0.15, "absentAfterDays": 120, "absent": 0.25, "foreignCulture": 0.25, "heavyTax": 0.3, "lightTax": -0.15,
             "present": -1.5, "lowStability": 0.3, "stabilityPivot": 45, "empireMult": 1.25,
             "minorRuler": 0.3, "settle": -0.1,
             "stabilityMod": 0.0012,
@@ -59,7 +59,20 @@
             "default": "whole", "wholeSpike": 12, "minorSpike": 10, "viceroyLoyaltyHit": 8, "partitionRelations": 60, "partitionMinAge": 16
         },
         "breakaway": { "relations": -50, "warChance": 0.5, "prestigeLoss": 25 },
-        "power": { "_doc": "Coalitions.power: each far crown counts as crownShare of a crown and its towns; an Empire adds empire.", "crownShare": 0.75, "empire": 30 }
+        "power": { "_doc": "Coalitions.power: each far crown counts as crownShare of a crown and its towns; an Empire adds empire.", "crownShare": 0.75, "empire": 30 },
+        "court": {
+            "_doc": "Each far crown's own royal court (systems/kingship.js run through Kingship.withCourt): vassals, a council headed by the viceroy, edicts sharing the law slots with the decrees, factions and revolts. opinion: what its lords add to their opinion of the crown (absence per year past absentAfterDays, capped; present; a foreign king; the viceroy by kind plus (competence - 50) x viceroyCompetence; separatism past separatismPivot x separatism). demands: at nativeKingAt separatism a lord of opinion <= nativeKingOpinion bands for a king of their own; at nativeViceroyAt for a native viceroy. separatism (points a week): -mean opinion x opinion, + each native-king faction's threat x faction, + revolt (x1.5 for a native king); league wars: townLost per town taken, warLost / warWon per war ended; a revolt crushed: crushed (native king) or quelled. conceded: granting a king of their own ends the union in peace (relations, Prestige lost).",
+            "enabled": true,
+            "opinion": {
+                "absentAfterDays": 120, "absentPerYear": 4, "absentCap": 15, "present": 8, "foreign": 8,
+                "viceroy": { "native": 6, "kin": 2, "spouse": 0, "courtier": -4, "none": -10 }, "viceroyCompetence": 0.1,
+                "separatismPivot": 30, "separatism": 0.25
+            },
+            "demands": { "nativeKingAt": 60, "nativeKingOpinion": -20, "nativeViceroyAt": 35 },
+            "separatism": { "opinion": 0.004, "faction": 0.8, "revolt": 0.8, "townLost": 3, "warLost": 6, "warWon": -5, "crushed": -30, "quelled": -10 },
+            "townLostGrudge": -3, "warWonFavour": 5,
+            "conceded": { "relations": 20, "prestigeLoss": 15 }
+        }
     },
     "titles": {
         "_doc": "The high title by the home crown's culture: male, female, the realm word (\"Empire of Valdoria\").",
@@ -81,22 +94,26 @@
         "charter": {
             "label": "Confirm the ancient charter", "icon": "📜", "prestige": 15,
             "blurb": "Swear to keep the realm's old laws and liberties. Its lords are soothed; your levy from it is smaller.",
-            "separatism": -0.5, "levy": 0.7, "mods": { "stability": 0.02 }
+            "separatism": -0.5, "levy": 0.7, "mods": { "stability": 0.02 },
+            "vassalOpinion": 8, "likes": ["justice", "survive"]
         },
         "garrisons": {
             "label": "Royal garrisons", "icon": "🛡️", "prestige": 10,
             "blurb": "Your soldiers in its castles. Order and fewer plots; its treasury pays the soldiers 4 gold a day.",
-            "separatism": -0.25, "cost": 4, "mods": { "stability": 0.04, "defense": 0.05 }
+            "separatism": -0.25, "cost": 4, "mods": { "stability": 0.04, "defense": 0.05 },
+            "vassalOpinion": -3, "likes": ["survive"], "hates": ["domination"]
         },
         "tribute": {
             "label": "Tribute to the high crown", "icon": "💰", "prestige": 5,
             "blurb": "The realm sends more of its dues to you. Your purse fills; its lords grumble that they serve a foreign king.",
-            "separatism": 0.4, "levy": 1.4, "mods": { "stability": -0.03 }
+            "separatism": 0.4, "levy": 1.4, "mods": { "stability": -0.03 },
+            "vassalOpinion": -10, "hates": ["wealth", "trade"]
         },
         "native_court": {
             "label": "Native lords at court", "icon": "🏰", "prestige": 12,
             "blurb": "Offices of the realm only for its own born. Its lords are content; your viceroy's hand is tied.",
-            "separatism": -0.35, "viceroyCompetence": -10, "mods": { "loyalty": 0.03 }
+            "separatism": -0.35, "viceroyCompetence": -10, "mods": { "loyalty": 0.03 },
+            "vassalOpinion": 6, "likes": ["expand", "alliance"]
         }
     },
     "text": {

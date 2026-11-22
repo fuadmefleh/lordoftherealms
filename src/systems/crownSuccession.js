@@ -87,17 +87,19 @@ import { Ledger } from './ledger.js';
 import { LlmProse } from './llmProse.js';
 import { HighCrowns } from './highCrowns.js';
 import { NamedLegacy } from './namedLegacy.js';
+// (a child blinded, slit-nosed or gelded can never sit the seat: systems/maimMarks.js)
+import { MaimMarks } from './maimMarks.js';
 
 const DEFAULTS = {
-    riseBase: 20, riseDivisor: 80, riseMax: 0.9, minLordShare: 0.15,
+    riseBase: 15, riseDivisor: 80, riseMax: 0.9, minLordShare: 0.15,
     claimants: {
         brother: { son: 30, daughter: 14, uncleMult: 0.6, elder: 18, ambitious: 10, turned: 15, passedOver: 25, wedToLord: 10, aggrieved: 15, grudge: 8, boughtOffGold: 1000, boughtOffCut: 0.7 },
-        cadet: { base: 6, perLoyaltyBelow50: 0.6, estranged: 15, loyalAbove: 60 },
+        cadet: { base: 6, perLoyaltyBelow50: 0.5, estranged: 12, loyalAbove: 60 },
         spouseKin: { regencyDenied: 28, adult: 6, hostileRealm: 12, hostileBelow: 0, widowedMult: 0.6 },
         pretender: { base: 38, decayPerYear: 0.8, quietMult: 0.4 },
     },
     standing: {
-        designated: 12, crowned: 28, oathMax: 24, minor: -18, regentLoyal: 6, regentLoyalAt: 60, regentDisloyal: -10, regentDisloyalBelow: 40,
+        designated: 12, crowned: 24, oathMax: 20, minor: -18, regentLoyal: 6, regentLoyalAt: 60, regentDisloyal: -10, regentDisloyalBelow: 40,
         prestigePer: 25, prestigeCap: 12, reignPerYear: 0.5, reignCap: 10, stabilityPivot: 50, stabilityWeight: 0.3, opinionWeight: 0.2,
         heirSkillWeight: 0.8, heirSkillCap: 8, secured: 10, disputed: -10, abdicationBlessed: 14, abdicationPassedOver: -12, interregnumPerYear: -6,
     },
@@ -237,7 +239,7 @@ export const CrownSuccession = {
 
     /** The heir who would take the seat today: the named heir if living, else the eldest of age, else the eldest child. */
     likelyHeir(player) {
-        const kids = (player && player.children || []).filter(c => c && c.isAlive !== false && !(c.kin && c.kin.unfit));
+        const kids = (player && player.children || []).filter(c => c && c.isAlive !== false && !(c.kin && c.kin.unfit) && !MaimMarks.barsRule(c));
         const named = kids.find(c => c.id === player.heir);
         if (named) return named;
         const grown = Relationships.getEligibleHeirs(player);
@@ -299,7 +301,7 @@ export const CrownSuccession = {
                 abroad: CrownSuccession._wedAbroad(c, k.id), wedToLord: CrownSuccession._wedToLord(c),
                 grudge: !!(c.crownSuccession && c.crownSuccession.grudge),
                 ambitious: (c.traits || []).some(t => (t && (t.id || t)) === 'ambitious'),
-                turned: !!(c.upbringing && c.upbringing.turned), unfit: !!(c.kin && c.kin.unfit),
+                turned: !!(c.upbringing && c.upbringing.turned), unfit: !!(c.kin && c.kin.unfit) || !!MaimMarks.barsRule(c),
                 elder: !c.isSibling && _num(c.age) > _num(child.age),
                 passedOver: !!(house._pendingClaim && eldest && eldest.id === c.id),
             })),

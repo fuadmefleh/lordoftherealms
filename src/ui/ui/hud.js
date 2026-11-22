@@ -17,6 +17,7 @@ import { updatePrestigeChip } from '../prestigeChip.js';
 import { updateAPChip } from '../apChip.js';
 import { Calendar } from '../../systems/calendar.js';
 import { Climate } from '../../world/climate.js';
+import { Thirst } from '../../player/thirst.js';
 import { Barter } from '../../world/barter.js';
 import { setCoinless, lede, chips, rowList } from '../actionMenu/uiKit.js';
 import { installTimeSkipControls } from '../actionMenu/timeSkip.js';
@@ -569,6 +570,24 @@ Clothes: ${cs.icon} ${cs.label} (${cs.freshness}%)`;
                     if (cs.capped) tip += ` — you can't get cleaner than ${cs.cap}% until they're washed`;
                 }
                 if (cell) cell.title = tip;
+            }
+            // Thirst, beside the needs (player/thirst.js)
+            {
+                const t = Thirst.level(player);
+                this._setNeedBar('simsThirstBar', null, t, '');
+                const bar = document.getElementById('simsThirstBar');
+                const cell = bar && bar.closest ? bar.closest('.hud-need') : null;
+                if (cell) {
+                    const L = Thirst.label(player);
+                    cell.title = `Thirst: ${t}% (${L.label})
+Water carried: ${Thirst.held(player)} of ${Thirst.capacity(player)} draughts
+Click for water`;
+                    if (!cell._thirstClick) {
+                        cell._thirstClick = true;
+                        cell.style.cursor = 'pointer';
+                        cell.addEventListener('click', () => { const g = this.game; if (g && g.player) ActionMenu.showWater(g); });
+                    }
+                }
             }
         }
 

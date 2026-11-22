@@ -102,6 +102,12 @@
             "effects": { "battlePower": -0.03 },
             "description": "A long cut that needs keeping clean."
         },
+        "burned_hand": {
+            "kind": "wound", "name": "Burned Hand", "icon": "🔥", "severity": 2, "days": [10, 16], "infection": 0.05,
+            "effects": { "battlePower": -0.06 },
+            "permanent": { "chance": 0.6, "deed": "scarring" },
+            "description": "The ordeal's iron burned to the bone. Bound and sealed by the priest; if it festers, the court calls you guilty (player/ordeals.js)."
+        },
         "cracked_ribs": {
             "kind": "wound", "name": "Cracked Ribs", "icon": "🦴", "severity": 2, "days": [12, 18], "infection": 0,
             "effects": { "attrs": { "strength": -1 }, "movement": -1, "battlePower": -0.05 },
@@ -111,6 +117,11 @@
             "kind": "wound", "name": "Broken Arm", "icon": "🦴", "severity": 3, "days": [20, 30], "infection": 0.02,
             "effects": { "attrs": { "strength": -2 }, "skills": { "combat": -1 }, "battlePower": -0.12 },
             "description": "Splinted and slung. You fight one-handed."
+        },
+        "fresh_stump": {
+            "kind": "wound", "name": "Fresh Stump", "icon": "🤕", "severity": 3, "days": [14, 24], "infection": 0.06,
+            "effects": { "attrs": { "strength": -1 }, "battlePower": -0.08 },
+            "description": "Where the blade took you, the wound is raw and seeping. Keep it clean, or it will turn."
         },
         "head_wound": {
             "kind": "wound", "name": "Head Wound", "icon": "🤕", "severity": 2, "days": [8, 14], "infection": 0.05,

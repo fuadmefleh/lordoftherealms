@@ -25,6 +25,8 @@ import { MoneySupply } from '../world/moneySupply.js';
 import { Cultures } from '../world/cultures.js';
 // (a founding tale invoked steadies the succession: run time only)
 import { NamedLegacy } from './namedLegacy.js';
+// (a child maimed so as never to rule is no heir: systems/maimMarks.js)
+import { MaimMarks } from './maimMarks.js';
 
 // The five family-role slots. Each holds a family-member id (or null).
 const ROLE_IDS = ['steward', 'marshal', 'chancellor', 'spymaster', 'heir'];
@@ -1047,7 +1049,7 @@ export const House = {
     /** Classify a player's heirs so the death screen can branch. */
     assessSuccession(player, minAge = 16) {
         // (a child declared unfit to rule — systems/kinCrimes.js — is no heir)
-        const children = (player && player.children || []).filter(c => c.isAlive && !(c.kin && c.kin.unfit));
+        const children = (player && player.children || []).filter(c => c.isAlive && !(c.kin && c.kin.unfit) && !MaimMarks.barsRule(c));
         const adults = children.filter(c => (c.age || 0) >= minAge);
         const minors = children.filter(c => (c.age || 0) < minAge);
         return {

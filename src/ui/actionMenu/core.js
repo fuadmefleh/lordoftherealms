@@ -58,7 +58,7 @@ const AMX_COURT_TYPES = new Set([
     'view_title_status', 'resign_title', 'collect_tax', 'request_bounty', 'capture_fugitive',
     'hold_council', 'espionage_menu', 'manage_spies', 'hold_court', 'rivals_here', 'hall_of_heroes',
     'patronage', 'manage_dynasty', 'treasury', 'host_feast', 'hold_tournament', 'host_festival',
-    'meet_courier',
+    'meet_courier', 'maiming', 'dungeon', 'executions', 'scaffold_crowd',
 ]);
 const AMX_DISTRICTS = {
     hearth:    { icon: '🏕️', label: 'Hearth', hint: 'Rest, food, body and the road' },
@@ -84,7 +84,7 @@ const AMX_WAX = {
 const AMX_GROUP_MIN = 8;
 const AMX_GROUPS = {
     hearth: [
-        { id: 'rest', icon: '🛏️', label: 'Rest & Body', types: ['rest', 'pass_time', 'eat_meal', 'seek_physician', 'craft_campfire', 'meditate', 'bathe', 'wash_clothes'] },
+        { id: 'rest', icon: '🛏️', label: 'Rest & Body', types: ['rest', 'pass_time', 'eat_meal', 'water', 'seek_physician', 'craft_campfire', 'meditate', 'bathe', 'wash_clothes'] },
         { id: 'gather', icon: '🧺', label: 'Gather & Hunt', types: ['forage', 'hunt', 'fish', 'trap_furs', 'ice_fish', 'clear_trees', 'prospect', 'tame_horse', 'dig_treasure'] },
         { id: 'explore', icon: '🔭', label: 'Explore', types: ['explore_poi', 'delve', 'delve_resume', 'explore_inner_map', 'explore_ocean'] },
         { id: 'sea', icon: '⛵', label: 'Ship & Shore', types: ['disembark', 'row_ashore', 'row_to_ship', 'make_for_port', 'river_life'] },
@@ -101,14 +101,14 @@ const AMX_GROUPS = {
     ],
     folk: [
         { id: 'talk', icon: '🍺', label: 'Tavern & Talk', types: ['tavern', 'talk_locals', 'meet_people', 'view_relationships', 'languages', 'town_school', 'hearsay', 'lodging'] },
-        { id: 'faith', icon: '⛪', label: 'Faith & Healing', types: ['preach', 'denounce_heresy', 'pilgrimage', 'miracle', 'donate', 'bless_settlement', 'town_sickness'] },
+        { id: 'faith', icon: '⛪', label: 'Faith & Healing', types: ['preach', 'denounce_heresy', 'pilgrimage', 'miracle', 'donate', 'bless_settlement', 'town_sickness', 'maim_aids'] },
     ],
     court: [
         { id: 'realm', icon: '👑', label: 'Crown & Realm', types: ['pledge_allegiance', 'renounce_allegiance', 'realm_wars', 'form_kingdom', 'claims_crowns', 'royal_court', 'treasury', 'collect_tax', 'hold_council', 'hold_court'] },
         { id: 'titles', icon: '📜', label: 'Titles', types: ['seek_title', 'view_title_status', 'resign_title'] },
         { id: 'house', icon: '🏰', label: 'House & Rivals', types: ['manage_dynasty', 'rivals_here', 'meet_rival_house', 'request_meeting', 'hall_of_heroes', 'patronage', 'meet_courier'] },
         { id: 'feasts', icon: '🎉', label: 'Feasts & Works of Fame', types: ['host_feast', 'hold_tournament', 'host_festival', 'fund_restoration', 'great_works'] },
-        { id: 'intrigue', icon: '🗝️', label: 'Intrigue & the Law', types: ['espionage_menu', 'manage_spies', 'request_bounty', 'capture_fugitive'] },
+        { id: 'intrigue', icon: '🗝️', label: 'Intrigue & the Law', types: ['espionage_menu', 'manage_spies', 'request_bounty', 'capture_fugitive', 'maiming', 'dungeon', 'executions', 'scaffold_crowd'] },
     ],
     arms: [
         { id: 'army', icon: '🛡️', label: 'The Army', types: ['recruit', 'army_command', 'household_guard', 'train_combat', 'arms_armour', 'reforge_artifact'] },
@@ -272,7 +272,7 @@ Object.assign(ActionMenu, {
         };
 
         const mapping = {
-            rest: 'general', pass_time: 'general', eat_meal: 'general', seek_physician: 'general', explore_poi: 'general', delve: 'general', delve_resume: 'general', clear_trees: 'general', dig_treasure: 'general',
+            rest: 'general', pass_time: 'general', eat_meal: 'general', water: 'general', seek_physician: 'general', explore_poi: 'general', delve: 'general', delve_resume: 'general', clear_trees: 'general', dig_treasure: 'general',
             forage: 'general', hunt: 'general', meditate: 'general', fish: 'general', bathe: 'general', wash_clothes: 'general',
             trap_furs: 'general', ice_fish: 'general', planting_contract: 'commerce',
             prospect: 'general', tame_horse: 'general', craft_campfire: 'general', languages: 'social', town_school: 'social', hearsay: 'social', dawn_settle: 'general', dawn_instep: 'general', your_parents: 'general', commissions: 'commerce',
@@ -306,6 +306,7 @@ Object.assign(ActionMenu, {
             servitude_buy_freedom: 'servitude',
             seek_title: 'social', view_title_status: 'social', resign_title: 'social',
             collect_tax: 'social', request_bounty: 'social', capture_fugitive: 'social',
+            maiming: 'social', maim_aids: 'social', dungeon: 'social', executions: 'social', scaffold_crowd: 'social',
             bless_settlement: 'social', hold_council: 'social',
             espionage_menu: 'social', manage_spies: 'social',
             hold_court: 'social', manage_holding: 'frontier',
@@ -771,6 +772,7 @@ Object.assign(ActionMenu, {
         // Free actions (0 AP)
         rest: 0,
         eat_meal: 0,
+        water: 0,
         arms_armour: 0,
         your_parents: 0,
         dawn_instep: 0,
@@ -827,7 +829,7 @@ Object.assign(ActionMenu, {
 
         // Title actions
         seek_title: 1, view_title_status: 0, resign_title: 1,
-        collect_tax: 3, request_bounty: 1, capture_fugitive: 5, capture_criminal: 4,
+        collect_tax: 3, request_bounty: 1, capture_fugitive: 5, capture_criminal: 4, maiming: 0, maim_aids: 0, dungeon: 0, executions: 0, scaffold_crowd: 1,
         bless_settlement: 3, hold_council: 5,
 
         // Espionage actions
@@ -1065,6 +1067,10 @@ Object.assign(ActionMenu, {
                 // Making camp on purpose beats collapsing by the roadside
                 if (!game.player._restTypeOverride) game.player._restTypeOverride = 'camp';
                 game.endDay();
+                break;
+            case 'water':
+                // Thirst, the skins, the town's wells (ui/actionMenu/water.js)
+                ActionMenu.showWater(game);
                 break;
             case 'eat_meal': {
                 const meal = game.player.eatMeal();
@@ -1521,6 +1527,21 @@ Object.assign(ActionMenu, {
                 break;
             case 'capture_fugitive':
                 ActionMenu.doCaptureFugitive(game, tile);
+                break;
+            case 'maiming':
+                ActionMenu.showMaiming(game);
+                break;
+            case 'dungeon':
+                ActionMenu.showDungeon(game);
+                break;
+            case 'executions':
+                ActionMenu.showExecutions(game);
+                break;
+            case 'scaffold_crowd':
+                ActionMenu.showScaffoldCrowd(game);
+                break;
+            case 'maim_aids':
+                ActionMenu.showMaimAids(game);
                 break;
             case 'capture_criminal':
                 ActionMenu.doCaptureCriminal(game, tile);

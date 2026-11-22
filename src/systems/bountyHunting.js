@@ -8,6 +8,7 @@ import { Sagas } from './sagas.js';
 import { OutlawLairs } from './outlawLairs.js';
 import { Ledger } from './ledger.js';
 import { Economy } from '../world/economy.js';
+import { MaimMarks } from './maimMarks.js';
 
 /** A hunter who took the notice on a saga beast earns this much over the realm's bounty. */
 const SAGA_NOTICE_BONUS = 0.25;
@@ -343,7 +344,8 @@ export const BountyHunting = {
                 type: `bounty_${bounty.id}`,
                 name: bounty.recruitedUnit.name,
                 icon: bounty.recruitedUnit.icon,
-                strength: bounty.recruitedUnit.strength,
+                // (one you maimed fights as what is left of him: systems/maimMarks.js)
+                strength: Math.max(1, Math.round(bounty.recruitedUnit.strength * MaimMarks.fightShare(bounty))),
                 upkeep: bounty.recruitedUnit.upkeep,
                 experience: 18 + bounty.difficulty * 3,
                 level: 1,

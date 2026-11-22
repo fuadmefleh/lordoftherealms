@@ -6,6 +6,7 @@ import { CustomBuildings } from '../../world/customBuildings.js';
 import { CustomInteriors } from '../../world/customInteriors.js';
 import { InnerMapCharacters } from '../innerMapCharacters.js';
 import { InnerMapCombat } from '../innerMapCombat.js';
+import { InnerMapMaiming } from '../innerMapMaiming.js';
 import { InnerMapDigging } from '../innerMapDigging.js';
 import { InnerMapMining } from '../innerMapMining.js';
 import { InnerMapGraves } from '../innerMapGraves.js';
@@ -29,6 +30,7 @@ import { InnerMapTournament } from '../innerMapTournament.js';
 import { InnerMapHawk } from '../innerMapHawk.js';
 import { InnerMapRowboat } from '../innerMapRowboat.js';
 import { InnerMapTorchlight } from '../innerMapTorchlight.js';
+import { InnerMapHiding } from '../innerMapHiding.js';
 import { InnerMapSickness } from '../innerMapSickness.js';
 import { InnerMapPlague } from '../innerMapPlague.js';
 import { InnerMapRites } from '../innerMapRites.js';
@@ -310,7 +312,9 @@ Object.assign(InnerMapRenderer, {
 
                 // Stagger animation time per NPC so they don't all step in sync
                 const npcTime = now + npc.id * 0.37;
-                InnerMapCharacters.drawCharacter(ctx, npc.preset, anim, direction, npcTime, cx, cy, cw, ch);
+                // (one who lost an eye and covers it wears the patch: ui/innerMapMaiming.js)
+                const look = (npc.maimed || (npc._person && npc._person.maimed)) ? InnerMapMaiming.drawPreset(npc) : npc.preset;
+                InnerMapCharacters.drawCharacter(ctx, look, anim, direction, npcTime, cx, cy, cw, ch);
             } else {
                 // Stand-in token while the sprites load
                 this._drawNpcStandIn(ctx, npc, screenX, screenY, ds);
@@ -1008,6 +1012,8 @@ Object.assign(InnerMapRenderer, {
             for (const npc of InnerMap.npcs) {
                 // Skip NPCs that are hidden inside a building (on outdoor map)
                 if (npc.state === 'inside_building' && !InnerMap._insideBuilding) continue;
+                // ...and anyone lying unseen in cover, waiting for the player (ui/innerMapHiding.js)
+                if (InnerMapHiding.unseenLurker(npc)) continue;
                 if (charReady && !npc.preset) {
                     npc.preset = InnerMapCharacters.getPresetForNPC(npc.type, npc.id, npc.gender);
                 }
@@ -1114,7 +1120,9 @@ Object.assign(InnerMapRenderer, {
                     if (onPiece) {
                         const mode = npc.activity.on, A = onPiece.art || {};
                         worldX = onPiece.x + onPiece.w / 2;
-                        if (mode === 'sit') worldY = onPiece.y + (A.seat || 0.6) * onPiece.h + T * 0.38;
+                        const pewAt = mode === 'sit' ? InnerMap.getTile(npc.activity.at.q, npc.activity.at.r) : null;
+                        const pewUp = !!(pewAt && pewAt._furniture && pewAt._furniture.type === 'pew' && pewAt._furniture.facing === 'up');
+                        if (mode === 'sit') worldY = pewUp ? npc.activity.at.r * T + T / 2 : onPiece.y + (A.seat || 0.6) * onPiece.h + T * 0.38;
                         else if (mode === 'soak') { soakAt = onPiece.y + (A.rim || 0.4) * onPiece.h; worldY = soakAt + T * (A.sink != null ? A.sink : 0.42); }   // (sink: how deep they sit below the rim)
                         else if (mode === 'lie') {
                             const ls = camera.worldToScreenFast(worldX, onPiece.y);
@@ -1412,7 +1420,9 @@ Object.assign(InnerMapRenderer, {
                 const rect = pSeat.on ? this._pieceRect(pSeat.at, T) : null;
                 if (rect) {
                     wx = rect.x + rect.w / 2;
-                    wy = rect.y + ((rect.art && rect.art.seat) || 0.6) * rect.h + T * 0.38;
+                    // (a pew facing the altar: from its tile's middle, as the townsfolk in the pews, so head
+                    // and shoulders show over its back; the seat line put you half a tile down behind it)
+                    wy = pSeat.pew ? pSeat.at.r * T + T / 2 : rect.y + ((rect.art && rect.art.seat) || 0.6) * rect.h + T * 0.38;
                     sortY = rect.y + rect.h - 0.5;
                 } else if (pSeat.seat) {
                     pSeatArt = this._interiorArt && this._interiorArt.furniture && this._interiorArt.furniture[pSeat.seat];
@@ -1565,6 +1575,8 @@ Object.assign(InnerMapRenderer, {
                     InnerMapDiving.drawRecovery(ctx, px, py - ds * 1.8 + ds * (pSwimming ? 0.62 : 0.3), ds, g && g.player);
                 }
             }});
+            // Hidden in cover: drawn faint, the eye over the head, who is in reach (ui/innerMapHiding.js)
+            InnerMapHiding.wrapPlayerDraw(items[items.length - 1], ctx, px, py, ds);
         }
 
         // ── Phase 5: Sort by Y and draw ─────────────────────────────────────────

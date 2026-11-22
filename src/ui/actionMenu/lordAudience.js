@@ -16,6 +16,7 @@ import { Causes } from '../../player/causes.js';
 import { whyIcon, opinionWhy } from '../whyPopover.js';
 import { Names } from '../../core/names.js';
 import { PlayerCoin } from '../../player/playerCoin.js';
+import { MaimMarks } from '../../systems/maimMarks.js';
 
 let _current = null; // the audience on stage: { unitId, used, paid, scene, total }
 
@@ -181,10 +182,11 @@ export function openLordAudience(game, unitId) {
     state.scene = ConversationScene.open({
         variant: 'royal',
         name: lord.name,
-        subtitle: `Ruler of <span style="color:${kingdom.color || '#4fc3f7'}">${kingdom.name}</span> · age ${lord.age}`,
+        subtitle: `Ruler of <span style="color:${kingdom.color || '#4fc3f7'}">${kingdom.name}</span> · age ${lord.age}${MaimMarks.tag(lord) ? ` · ${MaimMarks.tag(lord)}` : ''}`,
         where: `${place} · Day ${world.day || 1}`,
         icon: '👑', badge: '👑',
-        sprite: { type: 'noble', id: ConversationScene.seedOf(lord.name) },
+        // (what the ruler's body lost shows on the bust: ui/maimLook.js)
+        sprite: { type: 'noble', id: ConversationScene.seedOf(lord.name), maimed: lord.maimed || null },
         mood: ConversationScene.moodFromStanding(st.total),
         moodTitle: `How ${lord.name} regards you`,
         facts: _factsHtml(player, kingdom, lord, st, world),

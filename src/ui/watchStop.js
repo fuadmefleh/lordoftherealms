@@ -83,6 +83,8 @@ export const InnerMapWatchStop = {
         if (this._walk) { this._driveGuard(deltaTime, game); return; }
         if (this._checked || this._clock < this._armAt || this._scene) return;
         if (InnerMap._insideBuilding || NpcDialog.active || game._scene || ConversationScene.active || game.player.jailState) return;
+        // (lying hidden in cover: no guard walks up to one he hasn't seen — ui/innerMapHiding.js)
+        if (InnerMap._playerHidden) return;
         this._checked = true;
         const tile = game.world.getTile(wt.q, wt.r);
         const s = tile && tile.settlement;

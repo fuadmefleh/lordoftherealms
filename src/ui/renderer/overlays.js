@@ -19,6 +19,7 @@ const UNIT_GLYPHS = {
     beast: 'paw', monster: 'claw', diplomatic_envoy: 'seal', courier_rider: 'horseshoe', rival_retinue: 'crown', cadet_retinue: 'crown',
     clan: 'fire', // a wandering clan's campfire of the Dawn of Man (world/dawn.js)
     migrants: 'sack', // families moving to a new town, refugees fleeing (systems/migration.js)
+    peasant_host: 'fire', // the commons risen against their lord (systems/peasantRevolts.js)
 };
 
 /** Token metal by allegiance: rim/glyph colour and the enamel behind it. */

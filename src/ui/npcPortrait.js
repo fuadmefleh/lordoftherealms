@@ -4,6 +4,7 @@
 import { InnerMapCharacters } from './innerMapCharacters.js';
 import { DataLoader } from '../core/dataLoader.js';
 import { appearancePresetId, registerAppearance, gearKit } from './playerAppearance.js';
+import { MaimLook } from './maimLook.js';
 
 // The head-and-shoulders region of a 64×64 LPC frame
 const CROP_X = 14, CROP_Y = 10, CROP = 36;
@@ -11,7 +12,16 @@ const CROP_X = 14, CROP_Y = 10, CROP = 36;
 function _preset(npc) {
     if (!npc || !InnerMapCharacters.isReady()) return null;
     if (!npc.preset) npc.preset = InnerMapCharacters.getPresetForNPC(npc.type, npc.id || 0, npc.gender);
-    return npc.preset && InnerMapCharacters.getComposited(npc.preset) ? npc.preset : null;
+    if (!npc.preset || !InnerMapCharacters.getComposited(npc.preset)) return null;
+    // One who was maimed looks it here too: the patch, the scar, the slit nose, the brand (ui/maimLook.js;
+    // a townsperson's body is their roster entry)
+    const body = npc._person || npc;
+    if (body && body.maimed && !String(npc.preset).startsWith('child:')) {
+        const drawn = typeof InnerMapCharacters._live === 'function' ? InnerMapCharacters._live(npc.preset) : npc.preset;
+        const maimed = MaimLook.presetOver(drawn, body);
+        if (maimed) return maimed;
+    }
+    return npc.preset;
 }
 
 let _loading = null;
@@ -90,9 +100,12 @@ export const NpcPortrait = {
         if (!ctx) return false;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.imageSmoothingEnabled = false;
-        const s = canvas.width / CROP;
+        // (one who lost a hand or a foot is shown lower and wider, so the stump, the hook,
+        // the peg or the crutch is in the picture: ui/maimLook.js)
+        const c = MaimLook.bustCrop(preset);
+        const s = canvas.width / c.size;
         return InnerMapCharacters.drawCharacter(ctx, preset, 'idle', InnerMapCharacters.DIR_DOWN, time,
-            -CROP_X * s, -CROP_Y * s, 64 * s, 64 * s);
+            -c.x * s, -c.y * s, 64 * s, 64 * s);
     },
 
     /**

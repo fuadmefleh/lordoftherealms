@@ -419,6 +419,8 @@ Object.assign(InnerMap, {
         if (this._kinPick && this._kinPick(npc, period)) return true;
         // Sweethearts walking out, flowers from the market, a broken heart at the well (world/innerMap/townCourting.js)
         if (this._courtPick && this._courtPick(npc, period)) return true;
+        // The crowd before a scaffold in the square, on the day of an execution (world/innerMap/scaffoldCrowd.js)
+        if (this._scaffoldPick && this._scaffoldPick(npc, period)) return true;
         // The harvest fair, the midwinter fire, snow to shovel or play in, the spring sowing (world/innerMap/streetSeasons.js)
         if (this._seasonPick && this._seasonPick(npc, period)) return true;
         // Out of the rain: home, or under the eaves, in a downpour (world/innerMap/streetWeather.js)
@@ -479,7 +481,30 @@ Object.assign(InnerMap, {
                 const b = pickB(['church', 'temple']);
                 return b ? this._goInto(npc, b, 'church') : this._doActivity(npc, 'plaza', period);
             }
-            case 'well':
+            case 'well': {
+                // A foul well is shunned (InnerMap._wellState, set by ui/innerMapWater.js from
+                // systems/water.js): to a clean well, else the river bank, else the market for
+                // the water carriers; the few who drink it anyway are the town's flux cases
+                const WS = this._wellState;
+                if (WS && WS.foul && WS.foul.size) {
+                    const clean = WS.clean || [];
+                    if (clean.length) {
+                        const [cq, cr] = clean[Math.floor(rnd() * clean.length) % clean.length].split(',').map(Number);
+                        const at = this._findPassableAdjacentTile(cq, cr);
+                        if (at) return this._goStand(npc, at, 'well');
+                    }
+                    const shore = this._shoreSpots ? this._shoreSpots() : [];
+                    if (shore.length) {
+                        const sp = shore[Math.floor(rnd() * shore.length) % shore.length];
+                        return this._goStand(npc, sp, 'well', sp.face);
+                    }
+                    const b = pickB(['marketplace']);
+                    if (b) return this._goInto(npc, b, 'market');
+                    return this._goStand(npc, this.townSpot(rnd, A.center, 7), 'market');
+                }
+                const s = A.square[Math.floor(rnd() * A.square.length)];
+                return this._goStand(npc, s, act);
+            }
             case 'plaza': {
                 const s = A.square[Math.floor(rnd() * A.square.length)];
                 return this._goStand(npc, s, act);

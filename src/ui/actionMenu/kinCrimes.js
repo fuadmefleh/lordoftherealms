@@ -97,6 +97,8 @@ Object.assign(ActionMenu, {
                     ? { icon: '💊', name: 'Declare them fit after all', desc: 'They may inherit again; a little Prestige for the physicians\' error. The grievance stays.', act: 'kinCrimeAct', args: [child.id, 'restore'], off: !!why('restore'), why: why('restore') || '' }
                     : { icon: '💊', name: 'Declare them sickly and unfit', desc: 'They can never take the seat. A hale child makes the court doubt it.', act: 'kinCrimeAct', args: [child.id, 'unfit'], tone: 'warn', off: !!why('unfit'), why: why('unfit') || '' },
             ], '🌑 Remove from the Succession');
+            // The throne's oldest trick: blinded, slit-nosed or gelded, they can never rule (systems/maiming.js)
+            html += rowList([{ icon: '🔪', name: 'Have them maimed', desc: 'Blinded, the nose slit, the tongue cut out, gelded: no one so marked may ever sit the seat. They will know who ordered it.', act: 'showMaimTarget', args: ['kin', child.id], side: '›', tone: 'bad' }]);
             const dis = why('disinherit');
             html += rowList([
                 { icon: '🚪', name: 'Disinherit and cast out', desc: 'They found a cadet branch with their portion — estranged, and holding a grudge for generations', act: 'kinCrimeAct', args: [child.id, 'disinherit', false], tone: 'warn', off: !!dis, why: dis || '' },

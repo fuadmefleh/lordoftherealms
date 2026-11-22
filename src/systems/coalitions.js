@@ -29,6 +29,10 @@
 //              player rules; its towns lay a trade levy on the player
 //              (TradePolicy.barPlayer, read by TradePolicy.saleCheck) and
 //              cancel their licences; a crown the player rules is embargoed;
+//              so is every far crown they wear in personal union, which the
+//              members make war on too (systems/highCrowns.js: the towns it
+//              loses and the wars it loses stir its lords, those it wins quiet
+//              them; a far crown's victory over a member costs the league heart);
 //              member lords grow cold (NPCLords.coalitionChill → their
 //              opinion, audiences); member rival Houses' feuds flare. The
 //              league's resolve wears down week by week, with each host
@@ -700,11 +704,86 @@ export const Coalitions = {
             TradePolicy._embargo(world, k, realm, 'coalition');
             m.embargo = realm.id;
         }
+        // Each far crown worn in personal union: a realm war and an embargo too (systems/highCrowns.js)
+        if (Coalitions._declareFar(player, world, c, m, k)) declared = true;
         TradePolicy.barPlayer(player, world, k.id, { levy: _num(C.embargoLevy, 0.25), why: c.name });
         m.levied = true;
         m.warDay = day;
         if (declared && player.house && player.house.rivals && player.house.rivals[k.id]) House.accrueRivalFeud(player, world, k.id, 5, `war for ${c.name}`);
         return declared;
+    },
+
+    /**
+     * A member goes to war on each far crown the player wears in personal
+     * union (systems/highCrowns.js), as on the home crown: a realm war and an
+     * embargo. m.farWars[kid] = { towns (at the start), lost, day, war, prior,
+     * seen (the last war-history entry read) }. → true when a war was declared.
+     */
+    _declareFar(player, world, c, m, k) {
+        const day = _day(world);
+        let declared = false;
+        for (const fc of HighCrowns.crownsOf(player, world)) {
+            if (fc.home || !fc.kingdom || fc.kingdom === k) continue;
+            const f = fc.kingdom;
+            if (!_obj(m.farWars)) m.farWars = {};
+            if (m.farWars[f.id] && m.farWars[f.id].war) continue;
+            const rec = m.farWars[f.id] || (m.farWars[f.id] = { name: f.name, towns: fc.towns, lost: 0, day, war: false, prior: false, seen: _num(world.warHistorySeq) });
+            if ((k.wars || []).includes(f.id)) {
+                rec.war = true;
+                rec.prior = true; // its own war, older than the league
+            } else if (!KingdomAI.hasTruce(k, f, world) && (k.wars || []).length < 4) {
+                Utils.withRng(Utils.seededRandom((Utils.hashStr(`coalition-farwar:${_seed(world)}:${k.id}:${f.id}:${day}`) >>> 0) % 233279 + 1),
+                    () => KingdomAI.startWar(k, f, world));
+                if (Array.isArray(world.events)) world.events.push({ text: `⚔️ ${k.name} marches on ${f.name}, your far crown, for ${c.name}!`, type: 'military', kingdom: f.id });
+                rec.war = true;
+                rec.towns = fc.towns;
+                rec.day = day;
+                declared = true;
+            }
+            TradePolicy._embargo(world, k, f, 'coalition');
+            rec.embargo = true;
+        }
+        return declared;
+    },
+
+    /** A member's wars on the far crowns, week by week: towns taken, wars won and lost (systems/highCrowns.js). */
+    _tickFar(player, world, c, m, k, out) {
+        const R = Coalitions.config().resolve;
+        let open = false;
+        let humbled = false;
+        for (const [fid, rec] of Object.entries(_obj(m.farWars) || {})) {
+            if (!rec || !rec.war) continue;
+            const f = world.getKingdom ? world.getKingdom(fid) : null;
+            // (a crown no longer worn: its war is its own now)
+            if (!f || !f.isAlive || !HighCrowns.unionCrown(player, fid)) { rec.war = false; rec.gone = true; continue; }
+            const towns = typeof world.getSettlementsOf === 'function' ? world.getSettlementsOf(f.id).length : rec.towns;
+            const lost = Math.max(0, _num(rec.towns) - towns);
+            if (lost > _num(rec.lost)) {
+                const n = lost - _num(rec.lost);
+                c.resolve += n * _num(R.holdingTaken);
+                HighCrowns.onFarWar(player, world, f.id, 'townLost', n, k.name);
+                out.notices.push({ icon: '🏴', title: `${f.name} Loses Ground`, text: `${k.name} takes ${n} town${n === 1 ? '' : 's'} of ${f.name} for ${c.name}. Its lords say a far king cannot keep them.`, type: 'warning' });
+            }
+            rec.lost = Math.max(_num(rec.lost), lost);
+            // The war's end, read from the realms' war history (world.warHistory, KingdomAI.endWar)
+            for (const h of (world.warHistory || [])) {
+                if (_num(h.id) <= _num(rec.seen)) continue;
+                if (!((h.a === k.id && h.b === f.id) || (h.a === f.id && h.b === k.id))) continue;
+                rec.seen = _num(h.id);
+                if (h.victor === f.id) {
+                    rec.won = _num(rec.won) + 1;
+                    humbled = true;
+                    c.resolve += _num(R.hostBroken) * 2;
+                    HighCrowns.onFarWar(player, world, f.id, 'won', 1, k.name);
+                } else if (h.victor === k.id) {
+                    rec.lostWar = _num(rec.lostWar) + 1;
+                    HighCrowns.onFarWar(player, world, f.id, 'lost', 1, k.name);
+                }
+            }
+            if ((k.wars || []).includes(f.id)) open = true;
+            else rec.war = false;
+        }
+        return { open, humbled };
     },
 
     /** A member leaves the league: its levy is lifted; its embargo is left to the crowns' own weekly turn. */
@@ -723,10 +802,22 @@ export const Coalitions = {
             const e = p && p.embargo ? p.embargo[realm.id] : null;
             if (e && e.why === 'coalition') TradePolicy._lift(world, k, realm);
         }
+        // The far crowns: the embargo lifted, the league's wars on them ended with it
+        for (const [fid, rec] of Object.entries(_obj(m.farWars) || {})) {
+            const f = k && world.getKingdom ? world.getKingdom(fid) : null;
+            if (!f || !rec) continue;
+            const p = k.tradePolicy;
+            const e = rec.embargo && p && p.embargo ? p.embargo[f.id] : null;
+            if (e && e.why === 'coalition') TradePolicy._lift(world, k, f);
+            if (opts.endWars && rec.war && !rec.gone && (k.wars || []).includes(f.id) && !(opts.leagueWarsOnly && rec.prior) && !KingdomAI.isSworn(k, f, world)) {
+                KingdomAI.endWar(k, f, world, { text: `🕊️ ${k.name} makes peace with ${Names.realm(f.name)} and leaves ${c.name}.` });
+            }
+            rec.war = false;
+        }
         if (opts.endWars && k) {
             // (a disbanding league ends only the wars it started: opts.leagueWarsOnly)
             if (RealmWars.atWarWith(player, k.id) && !(opts.leagueWarsOnly && m.priorWar)) RealmWars.endWar(player, world, k.id, opts.how || 'exhaustion');
-            if (realm && (k.wars || []).includes(realm.id) && !(opts.leagueWarsOnly && m.priorRealmWar)) KingdomAI.endWar(k, realm, world, { text: `🕊️ ${k.name} makes peace with ${Names.realm(realm.name)} and leaves ${c.name}.` });
+            if (realm && (k.wars || []).includes(realm.id) && !(opts.leagueWarsOnly && m.priorRealmWar) && !KingdomAI.isSworn(k, realm, world)) KingdomAI.endWar(k, realm, world, { text: `🕊️ ${k.name} makes peace with ${Names.realm(realm.name)} and leaves ${c.name}.` });
         }
         Coalitions._log(c, day, `${m.name} leaves ${c.name}: ${why}.`);
     },
@@ -764,8 +855,13 @@ export const Coalitions = {
             }
             const holdingsWarOver = m.war === 'holdings' && !war;
             const realmWarOver = m.realmWar && (!realm || !(k.wars || []).includes(m.realmWar));
-            if ((holdingsWarOver && (!m.realmWar || realmWarOver)) || (realmWarOver && !m.war)) {
-                const humbled = NPCLords.memoryOf(k.lord, day).some(e => e.key === 'humbled' && !e.inherited && e.day >= _num(m.warDay));
+            // ...and its wars on the far crowns: a crown won since is marched on too
+            Coalitions._declareFar(player, world, c, m, k);
+            const far = Coalitions._tickFar(player, world, c, m, k, out);
+            const farWars = Object.values(_obj(m.farWars) || {}).some(r => r && (r.war || r.lostWar || r.won || r.lost));
+            const over = (!m.war || holdingsWarOver) && (!m.realmWar || realmWarOver) && !far.open && !!(m.war || m.realmWar || farWars);
+            if (over) {
+                const humbled = far.humbled || NPCLords.memoryOf(k.lord, day).some(e => e.key === 'humbled' && !e.inherited && e.day >= _num(m.warDay));
                 Coalitions._leave(player, world, c, m, humbled ? 'humbled in the field' : 'its war with you is over');
                 c.resolve += humbled ? _num(R.memberHumbled) : _num(R.memberLost);
                 if (humbled && player.house) House.recordPlayerDeed(player, world, 'battleWon', { reason: `broke ${k.name} out of ${c.name}` });

@@ -69,6 +69,7 @@ import { NpcMemory } from '../systems/npcMemory.js';
 import { TownMarks } from '../world/townMarks.js';
 import { Names } from '../core/names.js';
 import { PlayerCoin } from './playerCoin.js';
+import { Water } from '../systems/water.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 // A rival at court may be a lady: the texts written of 'him' read of 'her'
@@ -1559,6 +1560,12 @@ export const Generalship = {
                 c.men -= gone;
                 k.military = Math.max(0, _num(k.military) - gone);
                 out.notices.push({ icon: '🍞', title: 'The Host Goes Hungry', text: `${gone} men desert for want of bread. Requisition grain from a town of ${Names.realm(k.name)} in reach.`, type: 'warning' });
+            }
+            // Water: the host camps where you are; with no river, lake or clean town near it thirsts (systems/water.js)
+            const dry = Water.hostDay(world, player.q, player.r, c);
+            if (dry.gone > 0) {
+                k.military = Math.max(0, _num(k.military) - dry.gone);
+                if (c.dryDays === 2 || c.dryDays % 5 === 0) out.notices.push({ icon: '🏜️', title: 'The Host Thirsts', text: `No water where the host camps: ${dry.gone} men slip away to find some. March it to a river or a town.`, type: 'warning' });
             }
         }
 

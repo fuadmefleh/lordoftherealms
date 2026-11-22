@@ -422,6 +422,27 @@ const TEMPLATES = {
 
 let _seq = 0;
 
+/**
+ * The rest of a click pressed on a task button (Strike!, Reel in…). The button
+ * acts on pointerdown and the HUD redraws at once, so the button is gone before
+ * the mousedown, mouseup and click that follow: they fell on the street map
+ * under it, opening a menu or walking you off and losing the fish. Swallow them.
+ */
+function _swallowClick() {
+    if (typeof window === 'undefined' || !window.addEventListener) return;
+    const until = Date.now() + 700;
+    const types = ['mousedown', 'mouseup', 'click', 'pointerup', 'contextmenu'];
+    const stop = (ev) => {
+        if (Date.now() > until) return;
+        ev.stopPropagation();
+        ev.preventDefault();
+        if (ev.type === 'click') done();
+    };
+    const done = () => types.forEach(t => window.removeEventListener(t, stop, true));
+    types.forEach(t => window.addEventListener(t, stop, true));
+    setTimeout(done, 800);
+}
+
 export const InnerMapTasks = {
     active: null,
     TEMPLATES,
@@ -1059,6 +1080,7 @@ export const InnerMapTasks = {
 
     // ── The tracker ──
 
+
     _mountHud(ctx) {
         this._unmountHud();
         const el = document.createElement('div');
@@ -1111,7 +1133,7 @@ export const InnerMapTasks = {
                 el.textContent = b.label;
                 el.style.cssText = `padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:bold;
                     border:1px solid ${b.hot ? '#f39c12' : 'rgba(245,197,66,0.5)'};background:${b.hot ? 'rgba(243,156,18,0.35)' : 'rgba(245,197,66,0.12)'};color:${b.hot ? '#fff' : '#f5c542'}`;
-                el.onpointerdown = (e) => { e.preventDefault(); e.stopPropagation(); if (this.active === ctx) b.act(); };
+                el.onpointerdown = (e) => { e.preventDefault(); e.stopPropagation(); _swallowClick(); if (this.active === ctx) b.act(); };
                 row.appendChild(el);
             }
             this._hud.appendChild(row);

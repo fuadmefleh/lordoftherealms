@@ -1,0 +1,118 @@
+{
+    "_comment": "systems/peasantRevolts.js — the commons rise. Every week each town of a living realm has a GRIEVANCE (0-100) that creeps toward a PRESSURE built from real state: the tax burden (Fiscal.townBurden, a tax revolt), hunger (the peasants' welfare, the harvest, the price of grain), debased coin (Coinage.purity), the lord's cruelty (the player's butchery, a cruel AI lord, harsh punishment laws, hangings), plague, war levies, the realm's decline and instability, and old wounds (fear and resentment after a rising crushed). Charters and bread granted pull it down. When a town's grievance boils over (boilAt) a rising breaks out: a named leader (a real townsperson where the town keeps a roster), a cause and demands, and a rebel host on the map (a peasant_host world unit). It burns the estates about the towns it passes (their soil, so their crops and rents, fall until it regrows), spreads to aggrieved neighbours if no one meets it, and at last marches on its lord's seat. A year is 120 days.",
+    "enabled": true,
+    "cadence": 7,
+    "rise": 0.05,
+    "fall": 0.03,
+    "_rise": "share of the gap to the pressure closed each week (0.05: a bad year shows within a season, most of it within a year); fall: the same when the pressure drops below the grievance",
+    "minPop": 60,
+    "boilAt": 62,
+    "chance": 0.05,
+    "_chance": "weekly chance at full grievance (100); scales with ((g - boilAt) / (100 - boilAt))^1.5, so a town just over the line rarely rises and one at 90 within a year or two",
+    "realmCooldownYears": 4,
+    "townCooldownYears": 10,
+    "pressure": {
+        "tax": { "label": "Taxes", "icon": "💰", "from": 0.16, "per": 260, "taxRevolt": 10, "cap": 45 },
+        "hunger": { "label": "Hunger", "icon": "🍞", "welfareAt": 0.72, "perWelfare": 110, "harvestAt": 0.9, "perHarvest": 60, "grainAt": 1.35, "perGrain": 22, "cap": 45 },
+        "coin": { "label": "Debased coin", "icon": "🔩", "per": 70, "cap": 25 },
+        "cruelty": { "label": "The lord's cruelty", "icon": "👊", "perButcher": 0.25, "cruelTrait": 9, "cruelTraits": ["cruel", "tyrant", "ruthless", "paranoid"], "perDeter": 12, "perHanged": 6, "hangedHalfYears": 1.5, "cap": 35 },
+        "plague": { "label": "Plague", "icon": "☠️", "flat": 12, "cap": 15 },
+        "levy": { "label": "Levies and war", "icon": "⚔️", "atWar": 5, "levy": 10, "cap": 15 },
+        "decline": { "label": "A realm gone rotten", "icon": "🕸️", "from": 30, "per": 0.3, "cap": 15 },
+        "unrest": { "label": "Unrest", "icon": "😠", "stabilityAt": 45, "perStability": 0.45, "happinessAt": 40, "perHappiness": 0.35, "perHoldingUnrest": 0.25, "cap": 25 },
+        "spark": { "label": "Agitators", "icon": "📣", "halfYears": 0.5, "cap": 20 },
+        "wounds": { "label": "Old wounds", "icon": "🕯️", "cap": 30 },
+        "relief": { "label": "Bread and charters", "icon": "📜" }
+    },
+    "spark": { "_doc": "a 'rebellion' political event (world/worldEvents.js) in a town: agitators stir it (settlement.revoltSpark), fading by half every pressure.spark.halfYears. event: while a timed 'Peasant Rebellion' world event (a realm's collapse) runs in the town.", "amount": 15, "event": 25 },
+    "host": {
+        "_doc": "the rising's rebel host (a peasant_host world unit). Strength: base + the town's people x perHead x grievance/100, capped; a town that joins adds the same of its own. They go slowly on foot and live off the land.",
+        "base": 10, "perHead": 0.06, "min": 15, "max": 260, "speed": 2, "unitShare": 1
+    },
+    "march": {
+        "_doc": "the rising stays about its first town for gatherDays, burning estates; then, if no one meets it, it marches on the nearest aggrieved town of the realm within reach hexes (grievance >= spreadAt), which joins it, up to maxTowns; then on its lord's seat (the player's holding, the nearest city, or the capital within seatReach). At the seat it besieges for siegeDays, then storms: strength x 0.8-1.3 against the seat's defence. Men drift home: decay a day (x harvestDecay in the harvest season); under dispersAt it melts away; after maxDays it ends of itself.",
+        "gatherDays": 12, "reach": 6, "spreadAt": 48, "maxTowns": 4, "seatReach": 14, "siegeDays": 10,
+        "decay": 0.004, "harvestDecay": 3, "dispersAt": 8, "maxDays": 180, "stuckDays": 10
+    },
+    "burn": {
+        "_doc": "estates burned: on arriving at a town (and while gathering) the host fires up to perTown of its estates not held by the town's own peasants or burghers; an estate's soil falls by soilLoss (its crops, rents and value with it) and grows back over regrowYears. A property of the player's on the town's hex is plundered: its stores go into the rebels' packs and it stops working for sabotageDays.",
+        "perTown": 2, "every": 5, "soilLoss": 0.45, "regrowYears": 3, "sabotageDays": 25, "spare": ["town"]
+    },
+    "seat": { "popDefence": 0.05, "capitalMilitary": 0.3, "townMilitary": 0.1, "populationLoss": 0.05, "holdingUnrest": 25, "holdingGarrisonLoss": 0.3 },
+    "demands": {
+        "lower_tax": { "label": "lower taxes", "icon": "💰", "taxCut": 0.25, "relief": 18, "reliefYears": 20 },
+        "bread": { "label": "bread for the hungry", "icon": "🍞", "perHead": 0.6, "relief": 22, "reliefYears": 3 },
+        "steward": { "label": "the hated steward's head", "icon": "🗡️", "relief": 12, "reliefYears": 8 },
+        "sound_coin": { "label": "honest coin", "icon": "⚖️", "taxCut": 0.1, "relief": 14, "reliefYears": 10 },
+        "charter": { "label": "a charter of freedoms", "icon": "📜", "taxCut": 0.1, "relief": 20, "reliefYears": 60 }
+    },
+    "causeDemand": { "tax": "lower_tax", "hunger": "bread", "coin": "sound_coin", "cruelty": "steward", "plague": "bread", "levy": "lower_tax", "decline": "charter", "unrest": "charter", "spark": "charter", "wounds": "charter" },
+    "charterAt": 82,
+    "player": {
+        "_doc": "what the lord of the land can do (the realm's ruler, or the lord of a holding). Meeting the demands: the lords call you weak (each vassal's favour, Prestige). A parley: a chance by your diplomacy, charisma and renown against their anger; failing it, they grow bolder and will not talk again. Buying off the leader: perMan gold a man, paid to the leader (spent in their town); they go home or a new leader rises angrier. The royal host: the realm's army at royalShare against them. After a rising is crushed, its fate is yours: mercy, the leader hanged, the ringleaders hanged, or the leader taken.",
+        "concedePrestige": 25, "concedeFavour": 6, "concedeStability": 4,
+        "parley": { "base": 0.35, "perDiplomacy": 0.04, "perCharisma": 0.015, "perRenown": 0.0008, "angerFrom": 60, "perAnger": 0.01, "far": -0.15, "nearHexes": 3, "min": 0.05, "max": 0.9, "prestige": 5, "relief": 10, "reliefYears": 2, "emboldened": 1.2 },
+        "buyOff": { "perMan": 6, "disperse": 0.6, "betrayed": 8 },
+        "royalHost": { "share": 0.25, "cooldownDays": 10, "loseStrength": 1.3, "royalLoss": 0.1, "stability": -3 },
+        "crushPrestige": 10, "crushRenown": 8, "aftermathDays": 30,
+        "seatLostPrestige": 40, "seatLostFavour": 8, "seatLostStability": -8
+    },
+    "aftermath": {
+        "_doc": "a crushed rising's fate. keep: grievance x keep in every town of the rising. fear: pressure off while it lasts (fearYears), then resent: pressure on for resentYears (the martyrs). hanged: the dead counted against the lord's cruelty. karma/cruelty: on the player who chose it.",
+        "mercy": { "label": "Mercy", "icon": "🕊️", "keep": 0.7, "fear": 0, "fearYears": 0, "resent": 0, "resentYears": 0, "hanged": 0, "karma": 3, "renown": 4, "cruelty": 0 },
+        "hang_leader": { "label": "Hang the leader", "icon": "💀", "keep": 0.55, "fear": 15, "fearYears": 3, "resent": 8, "resentYears": 6, "hanged": 1, "karma": -2, "renown": 2, "cruelty": 1 },
+        "hang_ringleaders": { "label": "Hang the ringleaders", "icon": "⚰️", "keep": 0.3, "fear": 35, "fearYears": 4, "resent": 25, "resentYears": 12, "hanged": 12, "karma": -10, "renown": 0, "cruelty": 3, "populationLoss": 0.01 },
+        "imprison": { "label": "Take the leader", "icon": "⛓️", "keep": 0.6, "fear": 8, "fearYears": 2, "resent": 5, "resentYears": 4, "hanged": 0, "karma": 0, "renown": 2, "cruelty": 0, "heldPressure": 5 }
+    },
+    "ai": {
+        "_doc": "AI realms meet their risings after reactDays by their lord's traits: weights for crushing, conceding (a charter), a parley, and buying the leader off. The realm's army at share against the rebels, the lord's martial skill adding perMartial. Crushed: the lord's traits pick the fate (cruel lords hang). The seat stormed: the demands are forced; a weak lord (martial <= weakMartial, or the realm under weakStability) holding the capital is dragged down and another takes the throne.",
+        "reactDays": [10, 30],
+        "weights": {
+            "crush": { "base": 1, "cruel": 2, "tyrant": 2, "ruthless": 2, "brave": 1, "paranoid": 1, "ambitious": 0.5, "zealous": 0.5 },
+            "concede": { "base": 0.4, "just": 1.5, "honorable": 1, "generous": 1.5, "pious": 0.8, "cautious": 0.5 },
+            "parley": { "base": 0.5, "diplomat": 1.5, "cautious": 1, "cunning": 0.5, "honorable": 0.5 },
+            "buyOff": { "base": 0.3, "greedy": 1.2, "merchant": 1.5, "cunning": 1 }
+        },
+        "share": 0.3, "perMartial": 0.04, "parleyChance": 0.55, "buyPerMan": 6, "buyDisperse": 0.6,
+        "loseStrength": 1.25, "loseMilitary": 0.08, "lostStability": -4, "crushStability": 2, "concedeStability": 2,
+        "weakMartial": 4, "weakStability": 35, "toppleStability": -12
+    },
+    "stability": { "start": -3, "townJoins": -1 },
+    "road": {
+        "_doc": "a peasant host met on the road (player/roadEncounters.js: it bars the road to every traveller out of a town). A passer-by may give alms (share of the purse, at least min, at most capPerMan a man; the coin into the rebels' packs, goldPerMan of it feeding one more man; they leave you be respiteDays), swear to the cause (reputation with the realm now, brokenReputation more if the rising is crushed; left alone while it lasts) or, with an army, bring their men (share of the army's strength joins the host). Their own lord — or anyone whose name for butchery is hatedButcher+ — gets no toll and no talk of passing: within chaseHexes, out of a town, the host goes for him; he may only promise to hear them (the panel's parley chance; fail and they fall on him) or grant their demands on the spot.",
+        "hatedButcher": 40, "chaseHexes": 3,
+        "alms": { "share": 0.12, "min": 5, "capPerMan": 3, "goldPerMan": 20, "karma": 1, "respiteDays": 30 },
+        "swear": { "reputation": -10, "brokenReputation": -10, "karma": 1 },
+        "join": { "reputation": -20, "renown": 4, "karma": 2, "share": 0.5 }
+    },
+    "prisoner": { "_doc": "a rebel leader taken: held in your prison (PeasantRevolts.prisoners — the dungeon reads it). Hanged at your word (the scaffold, if it stands: Executions.condemn), or set free (grievance in their town eases, renown for mercy).", "releaseKeep": 0.85, "releaseKarma": 2 },
+    "leaderNames": {
+        "_doc": "for a town that keeps no roster of its people: a first name and a byname",
+        "male": ["Wat", "Jack", "Tom", "Hob", "Will", "Dickon", "Piers", "Hal", "Geoff", "Rob", "Simkin", "Adam", "Jonas", "Bram", "Col"],
+        "female": ["Joan", "Meg", "Agnes", "Maud", "Alys", "Bess", "Kate", "Nell", "Mab", "Isolde", "Edith", "Gwen"],
+        "bynames": ["the Tyler", "Straw", "the Carter", "Longshanks", "the Smith", "of the Fen", "Ploughwright", "the Miller", "Greenhood", "Blackthorn", "Shepherd", "Cobbler", "the Red", "Hardstone", "Ashford"]
+    },
+    "text": {
+        "rise": "🔥 {town} rises! {leader}, {role}, leads the commons against {lord}, crying {cause}. They demand {demands}.",
+        "riseYours": "{town} rises against you! {leader}, {role}, leads {strength} angry commoners, crying {cause}. They demand {demands}. Meet them, talk, pay, or put them down — from 🔥 Risings in your House panel.",
+        "burn": "{host} burns {estate} outside {town}.",
+        "burnYours": "{host} burns your estate {estate} outside {town}: its fields are blackened and will bear little for years.",
+        "plunder": "{host} plunders your {prop} at {town} and carries off its stores.",
+        "joins": "{town} joins the rising of {leader}.",
+        "marchSeat": "{host} marches on {seat}.",
+        "seatFalls": "{host} storms {seat}. {lord} must grant {demands}.",
+        "seatHolds": "{seat} holds against {host}; the rebels are scattered.",
+        "toppled": "The mob drags {lord} from the throne of {realm}. {heir} takes the crown, and grants {demands}.",
+        "disperse": "The rising of {leader} melts away as the men go home to their fields.",
+        "crushed": "The rising of {leader} is crushed by {by}.",
+        "conceded": "{lord} grants the rising of {leader} {demands}; the commons go home.",
+        "parleyed": "{lord} parleys with {leader}; the commons go home with promises.",
+        "boughtOff": "{leader} takes {lord}'s gold and goes home; the rising falls apart.",
+        "newLeader": "{leader} takes {lord}'s gold — and {newLeader} takes their place, angrier still.",
+        "hanged": "{leader} is hanged at {town}.",
+        "ringleaders": "{lord} hangs the ringleaders of the rising at {town}: {n} bodies swing from the gibbets.",
+        "mercy": "{lord} pardons the commons of the rising of {leader}.",
+        "taken": "{leader} is taken in chains.",
+        "released": "{leader} is set free and walks home to {town}."
+    }
+}

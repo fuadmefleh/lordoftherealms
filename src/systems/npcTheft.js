@@ -75,6 +75,8 @@ import { TownTrade } from './townTrade.js';
 import { AnimalCompanions } from './animalCompanions.js';
 import { Ledger } from './ledger.js';
 import { Utils } from '../core/utils.js';
+// (a public death cows the town's thieves for a while: systems/executions.js deterrence)
+import { Executions } from './executions.js';
 
 const DEFAULTS = {
     enabled: true,
@@ -413,6 +415,7 @@ export const NpcTheft = {
         if (dearth) p *= _num(B.dearthMult, 1.8);
         const lair = NpcTheft._lairNear(world, s, player);
         if (lair) p *= _num(B.lairMult, 1.6);
+        p *= Executions.deterrence(s, day);
         p /= 1 + Math.max(0, st.heat - _num(C.pickpocket.crackdownAt, 6)) * 0.1;
         if (_frac(key) >= p) return null;
         const when = _frac(`${key}|when`) < _num(B.nightShare, 0.7) ? 'night' : 'day';

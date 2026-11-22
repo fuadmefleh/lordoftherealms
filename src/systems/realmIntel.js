@@ -17,6 +17,8 @@
 //   spies     a spy of yours placed in one of its towns, or on a mission
 //             against it — everything, while they are there
 //   lease     the realm's mint you hold on lease (Mints): its mint's books
+//   prisoner  one of its captains or lords who talked in your dungeon
+//             (systems/interrogation.js) — all but the mint, for a season
 //
 // can(player, world, kid, kind) answers for one realm and one kind ('books',
 // 'mint', 'military', 'court'); why() names the reason for the panels.
@@ -44,7 +46,7 @@ const DEFAULTS = {
         fleet: [[200, 'a great fleet'], [60, 'a fair fleet'], [1, 'a few ships'], [-Infinity, 'no fleet to speak of']],
         capital: [[20000, 'a great fortune'], [5000, 'deep pockets'], [1000, 'a fair purse'], [-Infinity, 'thin reserves']],
     },
-    labels: { ruler: 'you rule it', office: 'your office at its court', kin: 'your kin at its court', spy: 'your spies inside it', lease: 'you hold its mint', own: 'your own' },
+    labels: { ruler: 'you rule it', office: 'your office at its court', kin: 'your kin at its court', spy: 'your spies inside it', lease: 'you hold its mint', own: 'your own', prisoner: 'what a prisoner of theirs told you' },
 };
 
 const KINDS = ['books', 'mint', 'military', 'court'];
@@ -119,6 +121,9 @@ export const RealmIntel = {
         if (kind === 'court' && RealmIntel.royalKin(player, kid)) return 'kin';
         if (kind === 'mint' && RealmIntel._leases(player, kid)) return 'lease';
         if (RealmIntel.spyCovered(player, world, kid)) return 'spy';
+        // A captain or lord of theirs who talked in your dungeon (systems/interrogation.js: player.interrogation.eyes)
+        const eyes = player.interrogation && player.interrogation.eyes;
+        if (kind !== 'mint' && eyes && _num(eyes[kid]) >= _num(world && world.day)) return 'prisoner';
         return null;
     },
 

@@ -270,7 +270,10 @@
     "lowerLevy": { "label": "a lighter royal levy", "icon": "🍃" },
     "passEdict": { "label": "the edict of {edict}", "icon": "📜" },
     "revokeEdict": { "label": "the repeal of {edict}", "icon": "✂️" },
-    "crown": { "label": "the crown for {claimant}", "icon": "👑" }
+    "crown": { "label": "the crown for {claimant}", "icon": "👑" },
+    "nativeKing": { "label": "a king of their own", "icon": "🏴" },
+    "nativeViceroy": { "label": "a viceroy of their own blood", "icon": "🏰" },
+    "revokeDecree": { "label": "the repeal of the decree {edict}", "icon": "✂️" }
   },
 
   "goalDemands": {

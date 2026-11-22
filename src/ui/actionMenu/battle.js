@@ -144,10 +144,12 @@ Object.assign(ActionMenu, {
             const color = r.withdrew ? '#f0b35a' : r.victory ? '#8fd18a' : '#e0846a';
             let rep = `<div style="font-family:var(--font-display); font-size:16px; margin:0 0 6px; color:${color};">${title}</div><div style="font-size:12px; line-height:1.6; color:#cbbf9f;">`;
             if (b.reportText) rep += `<div>${esc(b.reportText)}</div>`;
+            if (b.reportText && r.prisonerTaken) rep += `<div>🔗 ${esc(r.prisonerTaken)}</div>`;
             else {
                 if (r.loot > 0) rep += `<div>💰 Gold looted: <strong style="color:#ffcf6a;">${r.loot}</strong></div>`;
                 if (r.armsTaken) rep += `<div>⚔️ Arms stripped from the fallen: ${Object.entries(r.armsTaken).map(([k, v]) => { const nm = Arms.nameOf(k).toLowerCase(); return `${v} ${nm}${v > 1 && !/s$/.test(nm) ? 's' : ''}`; }).join(', ')}</div>`;
                 if (Arms.quiverNote(r.quivers)) rep += `<div>${esc(Arms.quiverNote(r.quivers))}</div>`;
+                if (r.prisonerTaken) rep += `<div>🔗 ${esc(r.prisonerTaken)}</div>`;
                 rep += `<div>⚔️ Lost ${r.casualties || 0} soldier${r.casualties === 1 ? '' : 's'}${r.wounded ? `; ${r.wounded} carried off wounded` : ''}.</div>`;
                 if (r.karmaChange < 0) rep += `<div style="color:#e0846a;">😈 Karma: ${r.karmaChange}</div>`;
                 if (r.renownChange > 0) rep += `<div style="color:#7cc7e8;">⭐ Renown +${r.renownChange}</div>`;

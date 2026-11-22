@@ -78,6 +78,7 @@
         "acquitted": ["{judge} finds the case not proven. You walk out of {town} a free {man}.", "Not guilty. The crowd mutters; the clerk strikes your name from the roll."],
         "fined": ["Guilty. {judge} fines you {fine} gold, to be paid to {payee} before you leave the court.", "The court finds against you: a fine of {fine} gold, paid to {payee}."],
         "jailed": ["Guilty. {judge} sentences you to {days} days in the cells of {town}.", "The verdict is guilty: {days} days in {town}'s cells."],
+        "maimed": ["Guilty. By the law of {realm} the court takes {what}. It is done on the scaffold before {town}, and you are let go.", "Guilty. The court of {town} keeps the old law: it takes {what}, there and then."],
         "branded": ["Guilty. The iron is heated: you are branded before the court of {town}, and turned out.", "Guilty: the brand of {realm} is burned into your hand, and you are let go."],
         "exiled": ["Guilty. {judge} banishes you from {realm} for {years} years. Be gone across the border within {grace} days.", "You are cast out of {realm}: return within {years} years and the cells will have you."]
     },
@@ -111,7 +112,9 @@
             "stocks": { "label": "The stocks", "icon": "📢", "harsh": 2, "desc": "A day in the stocks, for the town to see." },
             "jail": { "label": "The cells", "icon": "⛓️", "harsh": 2, "days": 20, "desc": "Some weeks in the cells." },
             "exile": { "label": "Banish", "icon": "🚪", "harsh": 3, "desc": "Out of the town, and not to come back." },
-            "hang": { "label": "Hang", "icon": "💀", "harsh": 4, "desc": "The gallows. The square will remember." }
+            "maim": { "label": "Take the limb", "icon": "✋", "harsh": 3, "maim": true, "desc": "What the realm's law takes for this crime: a thief's hand, a cheat's ear, a slanderer's tongue." },
+            "hang": { "label": "Hang", "icon": "💀", "harsh": 4, "desc": "The gallows. The square will remember." },
+            "scaffold": { "label": "Condemn to the scaffold", "icon": "⚰️", "harsh": 4, "scaffold": true, "desc": "Death on a day you name: the place, the manner, the crowd. Until then, the cells." }
         },
         "effects": {
             "proportionate": { "happiness": 2, "prestige": 2, "court": { "justice": 1 } },

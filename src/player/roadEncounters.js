@@ -53,6 +53,8 @@ import { Difficulty } from '../core/difficulty.js';
 import { WorldUnit } from '../world/units.js';
 import { Wanted } from '../systems/wanted.js';
 import { AnimalCompanions } from '../systems/animalCompanions.js';
+import { Maiming } from '../systems/maiming.js';
+import { PeasantRevolts } from '../systems/peasantRevolts.js';
 
 const DEFAULTS = {
     minChance: 0.05,
@@ -321,6 +323,8 @@ export const RoadEncounters = {
         }
         // Bounty hunters (systems/wanted.js): no toll, but a bribe — or give yourself up
         if (attacker && attacker.bountyHunt) Wanted.encounterOptions(player, attacker, world, out);
+        // The commons risen (systems/peasantRevolts.js): alms, an oath or your men for the cause — or, their lord, promises
+        if (attacker && attacker.peasantRevoltId != null) PeasantRevolts.encounterOptions(player, attacker, world, out, sit);
         return out;
     },
 
@@ -393,7 +397,9 @@ export const RoadEncounters = {
             if (result.goldConfiscated > 0) msg += ` ${result.goldConfiscated} gold confiscated.`;
         }
         msg += _woundText(wound);
-        return { kind: 'defeat', result, wound, notification: { title: '💀 Defeat!', body: msg.trim(), type: 'error' } };
+        const maim = Maiming.roadMaim(player, world, attacker, 'defeat');
+        if (maim) msg += ` ${maim.text}`;
+        return { kind: 'defeat', result, wound, maim, notification: { title: '💀 Defeat!', body: msg.trim(), type: 'error' } };
     },
 
     /**
@@ -412,6 +418,13 @@ export const RoadEncounters = {
         const roll = (chance) => Utils.random() < chance;
         const done = (kind, success, title, body, type, extra = {}) => ({ kind, choice, success, notification: { title, body, type }, ...extra });
         if (attacker && attacker.bountyHunt && (choice === 'payoff' || choice === 'surrender')) return Wanted.resolveEncounter(player, attacker, world, choice);
+        if (attacker && attacker.peasantRevoltId != null && PeasantRevolts.ENCOUNTER_CHOICES.includes(choice)) {
+            const r = PeasantRevolts.resolveEncounter(player, attacker, world, choice, sit);
+            if (!r.fallOn) return r;
+            // Promises spurned: they fall on you
+            if (sit.hasArmy) return { ...RoadEncounters._battle(player, attacker, world, opts, `${r.lead} `), choice, success: false };
+            return { ...RoadEncounters._caught(player, attacker, world, r.lead), choice, success: false };
+        }
 
         switch (choice) {
             case 'flee': {
@@ -672,6 +685,9 @@ export const RoadEncounters = {
             msg += ` You lost ${healthLost} health.`;
             const wound = healthLost > 0 ? Ailments.maybeWound(player, world, 'ambush') : null;
             msg += _woundText(wound);
+            // ...and, rarely, they take something you will carry for life (systems/maiming.js roadMaim)
+            const maim = Maiming.roadMaim(player, world, attacker, 'robbed');
+            if (maim) msg += ` ${maim.text}`;
 
             if (world && world.events) {
                 world.events.push({
@@ -690,6 +706,7 @@ export const RoadEncounters = {
                 healthLost,
                 stolenItems,
                 wound,
+                maim,
                 notification: { title: `⚔️ ${attacker.name} Attack!`, body: msg, type: 'error' },
             };
         }
@@ -726,6 +743,8 @@ export const RoadEncounters = {
         }
         const wound = result.noArmy ? null : Ailments.afterBattle(player, world, false, { sea: theatre === 'sea' });
         defeatMsg += _woundText(wound);
-        return { kind: 'defeat', result, wound, notification: { title: `💀 Defeat!`, body: defeatMsg, type: 'error' } };
+        const maim = Maiming.roadMaim(player, world, attacker, 'defeat');
+        if (maim) defeatMsg += ` ${maim.text}`;
+        return { kind: 'defeat', result, wound, maim, notification: { title: `💀 Defeat!`, body: defeatMsg, type: 'error' } };
     },
 };

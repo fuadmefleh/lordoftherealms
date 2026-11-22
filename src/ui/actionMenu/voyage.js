@@ -11,6 +11,7 @@ import { ActionMenu } from './_ref.js';
 import { Ships } from '../../systems/ships.js';
 import { InnerMapDeck } from '../innerMapDeck.js';
 import { esc, lede, chips, card, rowList } from './uiKit.js';
+import { Water } from '../../systems/water.js';
 
 /**
  * Sail on by itself after a quiet day — not while the captain is on deck,
@@ -32,6 +33,8 @@ function shipChips(ship, withFood = true) {
     const food = Ships.getProvisionDays(ship);
     return chips([
         withFood ? { icon: '🍞', label: 'Provisions', value: food === Infinity ? '—' : `${food} days`, cls: food !== Infinity && food <= 2 ? 'dim' : '' } : null,
+        // The water casks, filled free in port (systems/water.js)
+        withFood ? { icon: '💧', label: 'Water', value: `${Math.floor(Water.shipWater(ship))} days`, cls: Water.shipWater(ship) <= 2 ? 'dim' : '' } : null,
         ['👥', 'Crew', `${Ships.getCrew(ship)}/${Ships.getShipEffectiveStats(ship).crewRequired}`],
         ['🙂', 'Morale', Ships.getMorale(ship)],
         ['🔧', 'Hull', `${ship.condition}%`],

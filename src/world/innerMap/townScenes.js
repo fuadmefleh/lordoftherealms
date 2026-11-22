@@ -558,8 +558,10 @@ Object.assign(InnerMap, {
                 if (!near) return;
                 const other = (this.npcs || []).find(o => o !== npc && o.state === 'idle' && o.activity && o.activity.type === 'well'
                     && Math.max(Math.abs(o.q - npc.q), Math.abs(o.r - npc.r)) <= 3);
+                // (a town of foul wells talks of nothing else: InnerMap._wellState, ui/innerMapWater.js)
+                const foulTalk = this._wellState && this._wellState.foul && this._wellState.foul.size && Array.isArray(W.foulLines) ? W.foulLines : null;
                 if (other && u < 0.7) {
-                    this._sceneSay(npc, this._sceneFill(this._scenePickLine(W.lines, 'well')));
+                    this._sceneSay(npc, this._sceneFill(this._scenePickLine(foulTalk || W.lines, 'well')));
                     this._sceneSay(other, this._sceneFill(this._scenePickLine(['Is that so?', 'Never!', 'Well I never.', 'So I heard.'], 'well2')), 2600);
                 }
                 return;

@@ -6,6 +6,7 @@
 // Court and the Counsel. Buttons route through data-am-act → ActionMenu.lawsAct.
 import { ActionMenu } from './_ref.js';
 import { Laws } from '../../systems/laws.js';
+import { MaimFaith } from '../../systems/maimFaith.js';
 import { TownSchool } from '../../systems/townSchool.js';
 import { panelTabs, lede, chips, rowList, card, price, more } from './uiKit.js';
 import { Utils } from '../../core/utils.js';
@@ -33,6 +34,8 @@ function forYou(game, k, lawId, option) {
         return Laws.isSubject(player, k.id) ? 'You are sworn to the realm: you may hold land here.' : 'You are not sworn to this realm: you may not buy or rent land or houses here.';
     }
     if (lawId === 'privatePrisons' && option.id === 'allowed') return 'Anyone who sets on you and wins may take you for their prison camp.';
+    // (what the courts would take from you, convicted here: systems/maiming.js)
+    if (lawId === 'mutilation') return option.id === 'thieves' ? 'Convicted of theft here a second time, you would lose a hand on the scaffold.' : option.id === 'old' ? 'Convicted here of theft you would lose a hand; of cheating, an ear; of slander, your tongue.' : 'The courts here take no limb.';
     if (lawId === 'vice') {
         // The town's own ordinance on top of the realm's (Laws.gambling)
         const tile = world.getTile(player.q, player.r);
@@ -108,6 +111,8 @@ function crownTab(game) {
                 icon: '📜',
                 name: `Make it ${esc(o.label.toLowerCase())}`,
                 desc: esc(o.desc || ''),
+                // (the realm's faith on a law that takes a limb: systems/maimFaith.js)
+                note: can.faith && can.faith.stance !== 'mild' && o.id !== 'never' ? esc(`The faith ${MaimFaith.def(can.faith.stance).label}: ${can.faith.stance === 'sacred' ? 'the realm resists it' : 'the realm takes it calmly'}.`) : '',
                 // (a law fixed in the realm's code: Prestige to strike it out — systems/namedLegacy.js)
                 side: can.ok ? `${price(can.cost, (k.treasury || 0) >= can.cost)}<br><small style="color:#e0846a;">−${can.stability} stab.</small>${can.bound ? `<br><small style="color:#f5c542;">${can.bound.prestige} ⭐ · struck from the code</small>` : ''}` : '',
                 off: !can.ok, why: esc(can.reason || ''),

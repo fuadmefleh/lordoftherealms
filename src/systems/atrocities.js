@@ -58,8 +58,9 @@ import { Petitions } from './petitions.js';
 import { Illness } from './illness.js';
 import { Townsfolk } from './townsfolk.js';
 import { Crises } from './crises.js';
+import { Water } from './water.js';
 
-const KINDS = ['salt', 'hostages', 'plague', 'massacre'];
+const KINDS = ['salt', 'hostages', 'plague', 'massacre', 'wells'];
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
 const _day = (world) => _num(world && world.day);
@@ -71,6 +72,8 @@ const DEFAULTS = {
     hostages: { apCost: 2, share: 0.01, min: 4, max: 40, deadlineDays: 5, graceDays: 2, termsBonus: 0.15, takeMorale: 5, moraleDaily: 1, hollowMorale: 10, hollowCamp: 5, executeMorale: 25, executeFlee: 0.08, takeButcher: 3, takeKarma: -3, releaseKarma: 2 },
     plague: { apCost: 3, rangeHexes: 14, seedCases: [3, 7], morale: 12, campRisk: 0.3, campDays: [4, 8] },
     massacre: { apCost: 4, windowDays: 30, popKeep: 0.45, plunder: [4, 8], lootShare: 0.85, happiness: -40 },
+    // Carcasses down the town's wells (systems/water.js): it drinks its cisterns, then thirsts
+    wells: { apCost: 3, morale: 6, happiness: -10 },
     marks: {}, chronicle: {}, events: {}, lines: {},
 };
 
@@ -270,6 +273,14 @@ export const Atrocities = {
                 src ? `Your engines hurl the ${src.label} dead into ${settlement.name}: sickness inside the walls, among its people.${src.kind === 'plague' ? ' Your own camp may catch it back.' : ''}` : 'Corpses of the sick, sent over the walls by engine.',
                 P.apCost, siege.plagueFlung ? 'The town already sickens with what you sent.' : !src ? 'You have no sick dead to throw: no plague near, and your camp is not sick.' : apWhy(P.apCost));
         }
+        if (siege) {
+            // Carcasses down the wells (systems/water.js): no clean water, the cisterns, then thirst
+            const W = C.wells;
+            const fresh = Water.freshAt(world, settlement.q, settlement.r);
+            row('wells', '🐀', `Foul the wells of ${settlement.name}`,
+                `Your men throw the carcasses of the camp's slaughtered beasts down every well outside and in reach. ${fresh ? `The ${fresh} still waters it: this only crowds them.` : `It drinks its cisterns (about ${Water.cisternDays(settlement)} days), then thirsts on the walls.`}`,
+                W.apCost, siege.wellsFouled ? 'Its wells are already foul.' : !army ? 'You need soldiers to do it.' : apWhy(W.apCost));
+        }
         const surr = Atrocities._takenAt(player, world, tile.q, tile.r, 'surrender', _num(C.massacre.windowDays, 30));
         if (surr && !siege) {
             const M = C.massacre;
@@ -323,6 +334,7 @@ export const Atrocities = {
         case 'release': return Atrocities.releaseHostages(player, world);
         case 'plague': return Atrocities.flingPlague(player, world);
         case 'massacre': return Atrocities.massacre(player, world, tile);
+        case 'wells': return Atrocities.foulWells(player, world);
         default: return { success: false, reason: 'Unknown deed.' };
         }
     },
@@ -471,6 +483,28 @@ export const Atrocities = {
         let message = _fill(C.lines.plague, { town: s.name, illness: src.label });
         if (back) message += ` ${_fill(C.lines.plagueBack, { town: s.name })}`;
         return { success: true, kind: src.kind, seeded, campSick: back, message };
+    },
+
+    /** Carcasses down the besieged town's wells (systems/water.js): it drinks its cisterns, then thirsts. */
+    foulWells(player, world) {
+        const s = Atrocities._siegeAt(player);
+        const tile = s && world.getTile(s.q, s.r);
+        const why = Atrocities._check(player, world, tile, 'wells');
+        if (why) return { success: false, reason: why };
+        const C = Atrocities.config();
+        const W = C.wells;
+        const settlement = tile.settlement;
+        Atrocities._spendAP(player, W.apCost);
+        s.wellsFouled = true;
+        Water.foul(world, settlement, 'carcasses', { n: Water.wellsOf(settlement), by: Atrocities._by(player) });
+        s.morale = Utils.clamp(_num(s.morale) - _num(W.morale, 6), 0, 100);
+        settlement.happiness = Utils.clamp(_num(settlement.happiness, 50) + _num(W.happiness, -10), 0, 100);
+        Atrocities._siegeLog(s, world, `Carcasses go down the wells of ${s.name}.`);
+        Atrocities._brand(player, world, 'wells', settlement, { kingdomId: s.kingdomId });
+        const fresh = Water.freshAt(world, settlement.q, settlement.r);
+        let message = _fill(C.lines.wells || "Your men drag the carcasses of the camp's beasts to the wells of {town} and tip them in.", { town: s.name });
+        message += fresh ? ` The ${fresh} still runs through ${s.name}: it will not thirst, only sicken and crowd.` : ` ${s.name} drinks its cisterns now: about ${Water.cisternDays(settlement)} days, then thirst.`;
+        return { success: true, message };
     },
 
     /** Seed an illness among the town's people (its named townsfolk, else a town-wide sickness record). */

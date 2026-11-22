@@ -31,6 +31,11 @@
 //             the packs or bought at the home town's market (its stock and
 //             purse), eaten by every mouth in the house each day, spoiling
 //             slowly. A steward restocks it within an allowance.
+//   ROYAL     a palace the crown keeps (house.keptBy: Housing._keeper) has
+//   TABLE     the royal kitchens: a reigning ruler at home with empty packs
+//             and a bare larder is fed at the crown's table, one ration
+//             bought off the palace town's stalls by the treasury (its
+//             'court' line, coin into the town's purse) — Household.royalTable.
 //
 // State: player.household = { v, seq, homes: { key: home } } (saved:
 // systems/saveLoad.js EXTRA_PLAYER_FIELDS). Daily: Household.processDay
@@ -53,6 +58,8 @@ import { Upbringing } from '../systems/upbringing.js';
 import { OddJobs } from './oddJobs.js';
 import { Trading } from './playerEconomy.js';
 import { AnimalCompanions } from '../systems/animalCompanions.js';
+import { Housing } from '../systems/housing.js';
+import { CrownBooks } from '../world/crownBooks.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = v => (v && typeof v === 'object' && !Array.isArray(v) ? v : {});
@@ -98,6 +105,7 @@ export const Household = {
             mood: { start: 70, paid: 0.6, unpaid: -12, fed: 0.3, hungry: -8, overworked: -1.2, goodRoom: 0.4, raise: 15, praise: 6, praiseEvery: 10, quitBelow: 20, quitDays: 3, warnBelow: 35, max: 100, ..._obj(d.mood) },
             cleanliness: { decayPerRoom: 1.2, decayBase: 2, maidRestores: 9, dirtyBelow: 40, comfortPerHour: 0.15, ..._obj(d.cleanliness) },
             larder: { baseCapacity: 30, perLarderQuality: 90, ration: 35, spoilPerDay: 0.02, larderSpoilCut: 0.75, stewardTarget: 20, stewardAllowance: 40, bareStrikes: 2, ..._obj(d.larder) },
+            royalTable: { enabled: true, reserve: 0, ..._obj(d.royalTable) },
             guests: { chancePerDay: 0.12, maxAtOnce: 3, stay: [1, 3], needHall: true, kinds: {}, welcomePrestige: 1, remarkPrestige: 2, remarkRenown: 1, remarkCapPerYear: 24, envoyFeudCut: 2, kinOpinion: 3, badStayPrestige: -2, badStayOpinion: -4, ..._obj(d.guests) },
             names: { ...DEFAULTS.names, ..._obj(d.names) },
         };
@@ -482,6 +490,53 @@ export const Household = {
             home.fedDay = day;
             player._tableMealDay = day;
             return key;
+        }
+        return null;
+    },
+
+    /**
+     * The crown's table (player/core/lifecycle.js endDay, after tableMeal):
+     * a reigning ruler at a palace the crown keeps, packs and larder empty,
+     * eats from the royal kitchens. A day's ration (L.ration hunger) of the
+     * cheapest food on the palace town's stalls is bought by the treasury —
+     * the town's stock to the table, the coin into the town's purse, booked
+     * on the crown's 'court' line — while the chests hold more than
+     * royalTable.reserve. The round-2 century soak found crowned rulers
+     * starving in their own capitals with the treasury full and nothing in
+     * the purse. → { key, food, n, cost } or null.
+     */
+    royalTable(player, world) {
+        const T = Household.config().royalTable;
+        if (!player || !world || T.enabled === false || typeof world.getTile !== 'function') return null;
+        const L = Household.config().larder;
+        const ration = _num(L.ration, 35);
+        for (const h of player.houses || []) {
+            if (!h || h.q !== player.q || h.r !== player.r || h.keptBy == null || typeof h.keptBy === 'object') continue;
+            const k = Housing._keeper(player, world, h);
+            if (!k) continue;
+            const tile = world.getTile(h.q, h.r);
+            const s = tile && tile.settlement;
+            if (!s) continue;
+            let goods = [];
+            try { goods = Trading.getAvailableGoods(s, tile, world) || []; } catch { goods = []; }
+            const food = goods.filter(g => g && Household.isFood(g.id) && SettlementMarket.available(s, g.id) >= 1 && _num(g.price) > 0)
+                .map(g => ({ g, n: Math.max(1, Math.ceil(ration / Math.max(1, MEAL_HUNGER[g.id]))) }))
+                .filter(x => SettlementMarket.available(s, x.g.id) >= x.n)
+                .sort((a, b) => a.n * _num(a.g.price) - b.n * _num(b.g.price))[0];
+            if (!food) continue;
+            const cost = Utils.cents(food.n * _num(food.g.price));
+            if (_num(k.treasury) - cost < _num(T.reserve)) continue;
+            k.treasury = Utils.cents(_num(k.treasury) - cost);
+            CrownBooks.note(k, 'court', cost);
+            // (a town that barters takes no coin: the realm's towns are paid instead)
+            if (!Economy.payTown(s, cost)) Economy.payRealm(k, world, cost);
+            SettlementMarket.take(s, food.g.id, food.n);
+            const key = Household.houseKey(h);
+            // (fed tonight: not a mouth at the larder as well — Household.mouths)
+            const rec = Household.home(player, key);
+            if (rec) rec.fedDay = _day(world);
+            player._tableMealDay = _day(world);
+            return { key, food: food.g.id, n: food.n, cost };
         }
         return null;
     },

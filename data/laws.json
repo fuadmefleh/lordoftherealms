@@ -66,6 +66,34 @@
                 "harsh": { "label": "Harsh", "desc": "Heavy fines and long sentences. The streets are quieter; the people grumble.", "share": 0.25, "stability": -2, "fine": 1.6, "jail": 1.6, "deter": 0.6 }
             }
         },
+        "mutilation": {
+            "name": "Mutilation", "icon": "✋",
+            "desc": "Does the realm's law take a limb for a crime? (systems/maiming.js: what the courts take — the player tried, the player as judge, the realm's own courts each week — and how the realm's folk take a hand cut off in the street.)",
+            "options": {
+                "never": { "label": "No limb taken", "desc": "Fines, the cells, the brand and the rope; never a hand.", "share": 0.4, "stability": 0 },
+                "thieves": { "label": "A thief's hand", "desc": "A thief convicted a second time loses a hand on the scaffold. Thieves keep away; the poor mutter.", "share": 0.45, "stability": -1 },
+                "old": { "label": "The old law", "desc": "A thief's hand on the first conviction, a cheat's ear, a slanderer's tongue. The streets are very quiet.", "share": 0.15, "stability": -2 }
+            }
+        },
+        "trialCustoms": {
+            "name": "Trial Customs", "icon": "🔥",
+            "desc": "May a case be settled by another judgement than the court's: trial by combat, the hot iron, the water, the blessed bread, oath-helpers? (player/ordeals.js: your own trial, the cases before your court, your kin accused, lawsuits between Houses. The realm's faith may still forbid the ordeals.)",
+            "options": {
+                "court": { "label": "The court alone", "desc": "Judges and juries decide. No one may demand combat or an ordeal.", "share": 0.35, "stability": 0, "allows": [] },
+                "combat": { "label": "Wager of battle", "desc": "The accused may demand trial by combat, or clear themselves with oath-helpers. No ordeals.", "share": 0.25, "stability": 0, "allows": ["combat", "compurgation"] },
+                "ordeal": { "label": "The church's ordeals", "desc": "The hot iron, the water and the blessed bread, and oath-helpers. No combat.", "share": 0.2, "stability": 0, "allows": ["iron", "water", "bread", "compurgation"] },
+                "old": { "label": "The old customs", "desc": "Combat, every ordeal and oath-helpers: God decides whatever the court thinks. The lettered grumble.", "share": 0.2, "stability": -1, "allows": ["combat", "iron", "water", "bread", "compurgation"] }
+            }
+        },
+        "torture": {
+            "name": "Torture", "icon": "🔗",
+            "desc": "May a prisoner be put to the question with irons and fire? (systems/interrogation.js: what is lawful in your dungeon, and what costs you heat with the crown and the realm's regard when word gets out.)",
+            "options": {
+                "forbidden": { "label": "Forbidden", "desc": "A prisoner may be questioned and threatened, never hurt. Whoever starves, racks or burns one has broken the law.", "share": 0.35, "stability": 0 },
+                "treason": { "label": "For treason only", "desc": "The irons are for those who plot against the crown and its lords: a rival House's blood, a bought man, a plotter's tool.", "share": 0.45, "stability": 0 },
+                "free": { "label": "At the gaoler's will", "desc": "Any prisoner may be put to the question as hard as the gaoler likes. The cellars are full of screams; the people fear the crown.", "share": 0.2, "stability": -2 }
+            }
+        },
         "vice": {
             "name": "Gaming & Vice", "icon": "🎲",
             "desc": "Dice dens, card tables and back rooms: does the crown hunt them, wink at them, or license them?",

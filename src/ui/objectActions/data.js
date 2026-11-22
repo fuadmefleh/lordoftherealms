@@ -117,7 +117,8 @@ export const FURNITURE_ACTIONS = {
     altar:     ['pray', 'give_alms'],
     pew:       ['attend_service', 'sit', 'meditate'],
     statue:    ['pray'],
-    well:      ['draw_water', 'wash'],
+    // (drinking and filling skins at a well: ui/innerMapWater.js — one menu, Drink / Fill there, Wash here)
+    well:      ['wash'],
     bucket:    ['wash'],
     desk:      ['sit', 'read'],
     shelf:     ['shop'],

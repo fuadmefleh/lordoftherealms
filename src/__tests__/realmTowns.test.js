@@ -24,7 +24,7 @@ describe('realm towns in a generated world', () => {
     it('plague, flood, rebellion and discovery strike named towns', () => {
         Utils.setSeed(7);
         const seen = new Set();
-        const marks = { plague: /Plague strikes/, flood: /floods near/, rebellion: /Rebellion in/, discovery: /deposit discovered near/ };
+        const marks = { plague: /Plague strikes/, flood: /floods near/, rebellion: /Agitators stir/, discovery: /deposit discovered near/ };
         for (let i = 0; i < 300; i++) {
             for (const gen of ['generateNaturalEvent', 'generatePoliticalEvent', 'generateEconomicEvent']) {
                 const ev = WorldEvents[gen](game.world);

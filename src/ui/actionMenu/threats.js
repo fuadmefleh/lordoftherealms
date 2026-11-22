@@ -109,7 +109,8 @@ function _leagueHtml(player, world, v, gold) {
         const k = world.getKingdom(m.kingdomId);
         const a = v.realms.find(r => r.kingdomId === m.kingdomId);
         const cost = Coalitions.buyOffPrice(player, world, m.kingdomId);
-        const war = [m.war === 'holdings' ? 'war on your holdings' : null, m.realmWar ? 'war on your realm' : null].filter(Boolean).join(', ') || (c.stage === 'active' ? 'levies only' : 'waiting');
+        const farNames = Object.values(m.farWars || {}).filter(r => r && r.war).map(r => r.name);
+        const war = [m.war === 'holdings' ? 'war on your holdings' : null, m.realmWar ? 'war on your realm' : null, farNames.length ? `war on ${farNames.join(' and ')}` : null].filter(Boolean).join(', ') || (c.stage === 'active' ? 'levies only' : 'waiting');
         let army = '';
         if (k) {
             const seen = RealmIntel.seen(player, world, k, 'military', 'military', k.military || 0, typeof player.knowsAbout !== 'function' || player.knowsAbout(k.id, 'military'));

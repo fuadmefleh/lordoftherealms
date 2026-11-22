@@ -27,6 +27,23 @@
 //                discontent; a disloyal viceroy skims the levy into his own
 //                purse; a disloyal, ambitious one plots — whispers first —
 //                and at last crowns himself, breaking the union.
+//   ITS COURT    each far crown keeps a royal court of its own (systems/
+//                kingship.js, run on the union entry's `court` through
+//                Kingship.withCourt): its lords as vassals, a council of five
+//                offices with the viceroy at its head (he fills empty seats),
+//                its own edicts beside the far king's decrees (one pool of law
+//                slots; decrees move the lords' opinion too), factions,
+//                ultimatums and revolts. Its lords weigh a far king: absence,
+//                foreign blood, the viceroy, the decrees, the talk of a king of
+//                their own; past data → court.demands they band together for a
+//                native viceroy, a decree repealed or a KING OF THEIR OWN. Their
+//                opinion, those factions and a revolt feed separatism; a revolt
+//                for a native king that wins (or is conceded) breaks the union,
+//                one crushed quiets the realm. Opened from High Crowns → the far
+//                crown → its Royal Court (the Royal Court switches crowns).
+//   LEAGUES      a league at war (systems/coalitions.js) makes war on every far
+//                crown too; towns it loses and wars it loses stir its lords
+//                (onFarWar), wars it wins quiet them.
 //   SEPARATISM   0–100 per far crown: its lords want a king of their own.
 //                Rises with absence, foreign blood, heavy taxes, tribute,
 //                unrest, a child on the throne, an Empire's weight; falls with
@@ -79,6 +96,8 @@ import { Court } from './court.js';
 import { Regency } from './regency.js';
 import { RealmWars } from './realmWars.js';
 import { LlmProse } from './llmProse.js';
+// Each far crown's own royal court (council, edicts, vassals, revolts: systems/kingship.js; run time only)
+import { Kingship } from './kingship.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -139,7 +158,7 @@ const DEFAULTS = {
         spread: 30, loyaltyTarget: 55, prestigeLoyalty: 0.03, prestigeLoyaltyCap: 15, favourLoyalty: 1,
         neglectDays: 360, neglectLoyaltyPerYear: 10, neglectCap: 25, presenceLoyalty: 6, separatismLoyalty: 0.15,
         drift: 2, favourDecayDays: 120, competenceStability: 0.001, competenceTax: 0.001,
-        skimBelow: 45, skimMax: 0.4, plotBelow: 30, plotAmbition: 50, rumourAt: 50, plotDecay: 4,
+        skimBelow: 45, skimMax: 0.4, plotBelow: 32, plotAmbition: 58, rumourAt: 50, plotDecay: 4,
         giftGold: 200, giftFavour: 10, honourPrestige: 12, honourFavour: 14, honourAmbition: -6,
         replacePrestige: 10, replaceExposedPrestige: 2, replacedLoyaltyHit: 10,
         nativeSeparatism: -0.35, kinSeparatism: -0.2, noViceroySeparatism: 0.6, noViceroyStability: -0.06,
@@ -163,6 +182,17 @@ const DEFAULTS = {
     succession: { default: 'whole', wholeSpike: 12, minorSpike: 10, viceroyLoyaltyHit: 8, partitionRelations: 60, partitionMinAge: 16 },
     breakaway: { relations: -50, warChance: 0.5, prestigeLoss: 25 },
     power: { crownShare: 0.75, empire: 30 },
+    court: {
+        enabled: true,
+        opinion: {
+            absentAfterDays: 120, absentPerYear: 4, absentCap: 15, present: 8, foreign: 8,
+            viceroy: { native: 6, kin: 2, spouse: 0, courtier: -4, none: -10 }, viceroyCompetence: 0.1,
+            separatismPivot: 30, separatism: 0.25,
+        },
+        demands: { nativeKingAt: 60, nativeKingOpinion: -20, nativeViceroyAt: 35 },
+        separatism: { opinion: 0.004, faction: 0.8, revolt: 0.8, townLost: 3, warLost: 6, warWon: -5, crushed: -30, quelled: -10 },
+        townLostGrudge: -3, warWonFavour: 5, conceded: { relations: 20, prestigeLoss: 15 },
+    },
 };
 
 const TITLE_FALLBACK = { male: 'Emperor', female: 'Empress', realm: 'Empire' };
@@ -699,6 +729,9 @@ export const HighCrowns = {
         if (!def) return { success: false, reason: 'No such decree.' };
         if (entry.decrees[id]) return { success: false, reason: 'That decree is already in force.' };
         if (Object.keys(entry.decrees).length >= HighCrowns.decreeSlots()) return { success: false, reason: `A realm bears ${HighCrowns.decreeSlots()} decrees from a far king at most. Revoke one first.` };
+        // (decrees and the court's edicts share its law slots)
+        const full = entry.court && entry.court.initialized ? HighCrowns.inCourt(player, world, kid, () => Kingship.lawsInForce(player) >= Kingship.edictSlots(player, world)) : false;
+        if (full) return { success: false, reason: 'The court of the realm enforces no more laws: repeal an edict or a decree first.' };
         const cost = _num(def.prestige);
         if (cost > 0 && !House.spend(player.house, cost, `${def.label} in ${entry.name}`, _day(world))) return { success: false, reason: `Need ${cost} Prestige.` };
         entry.decrees[id] = _day(world);
@@ -760,6 +793,9 @@ export const HighCrowns = {
             for (const id of Object.keys(entry.decrees || {})) {
                 for (const [key, v] of Object.entries((D[id] && D[id].mods) || {})) add(key, _num(v));
             }
+            // Its royal court: council offices, edicts, lands granted, a revolt (systems/kingship.js)
+            const cm = entry.court && _obj(entry.court.mods);
+            for (const [key, v] of Object.entries(cm || {})) add(key, _num(v));
         }
         if (HighCrowns.isEmperor(player) && (entry || (player.throne && player.throne.ruling && player.throne.ruling.kingdomId === kid))) {
             add('stability', _num(HighCrowns.config().proclaim.stability));
@@ -880,6 +916,8 @@ export const HighCrowns = {
                 if (next) HighCrowns._seatViceroy(player, world, entry, next, { quiet: true });
                 out.notices.push({ icon: '🏛️', title: 'A New Viceroy', text: `${gone} can rule ${Names.realm(entry.name)} no longer.${entry.viceroy ? ` ${entry.viceroy.name} takes up the seals until you choose otherwise.` : ' The realm has no viceroy: name one.'}`, type: 'warning' });
             }
+            // Its own royal court: council, edicts, vassals, factions, revolts
+            HighCrowns._courtDay(player, world, entry, k, out);
         }
 
         const cad = Math.max(1, _num(C.cadence, 7));
@@ -940,6 +978,9 @@ export const HighCrowns = {
             if (d > 0 && HighCrowns.isEmperor(player)) d *= _num(S.empireMult, 1);
             if (away <= 7) d += _num(S.present);
             d += _num(S.settle);
+            // ...and its lords at court: their opinion of you, their factions for a king of their own, a revolt
+            const temper = HighCrowns.courtTemper(player, world, entry.kingdomId);
+            d += temper.separatism;
             entry.separatism = _clamp(_r1(_num(entry.separatism) + d), 0, 100);
             if (!entry.warned && entry.separatism >= _num(S.warnAt)) {
                 entry.warned = true;
@@ -947,7 +988,7 @@ export const HighCrowns = {
                 Interrupts.raise(world, { reason: `${k.name}'s lords want a king of their own`, icon: '🏴', source: 'highCrowns' });
             } else if (entry.warned && entry.separatism < _num(S.warnAt) - 10) entry.warned = false;
             // (past breakAt an unruly realm rises; at 100 even a quiet one does)
-            if (entry.separatism >= _num(S.breakAt) && (stab < _num(S.breakStability) || entry.separatism >= 100) && Utils.random() < _num(S.breakChance)) {
+            if (entry.separatism >= _num(S.breakAt) && (stab < _num(S.breakStability) || entry.separatism >= 100 || temper.nativeRevolt) && Utils.random() < _num(S.breakChance)) {
                 HighCrowns._breakaway(player, world, entry, 'lords', out);
             }
         }
@@ -1007,6 +1048,12 @@ export const HighCrowns = {
         const st = HighCrowns.state(player);
         const data = k.characterData;
         const stand = data && data.ruler && data.ruler.isPlayer ? data.ruler : null;
+        // Its court's rebel hosts go home with the union
+        const rv = entry.court && entry.court.revolt;
+        for (const h of (rv && rv.hosts) || []) {
+            const u = (world.units || []).find(x => x.id === h.id);
+            if (u) u.destroyed = true;
+        }
         Throne._installRuler(world, k, heir);
         if (stand) { stand.isAlive = false; stand.deposed = false; }
         delete st.crowns[entry.kingdomId];
@@ -1115,6 +1162,8 @@ export const HighCrowns = {
         const ts = Throne.state(player);
         delete st.crowns[pick.k.id];
         ts.ruling = { kingdomId: pick.k.id, since: _num(pick.e.since), founded: pick.e.how === 'founded', policies: { ...pick.e.policies }, levyTotal: 0, peaceCooldown: {} };
+        // (its royal court comes with it: the lords, the council, the edicts)
+        if (_obj(pick.e.court)) ts.ruling.court = pick.e.court;
         player.allegiance = pick.k.id;
         player.kingdomTitle = 'king';
         Throne._styleRuler(player, pick.k, Throne._playerRuler(player, pick.k));
@@ -1308,6 +1357,241 @@ export const HighCrowns = {
             }
         }
         return res;
+    },
+
+    // ──────────── THE FAR CROWN'S COURT (systems/kingship.js) ────────────
+
+    /** Kingship.withCourt's scope for a far crown: its realm, policies, viceroy and lords' demands. */
+    _scope(player, world, entry) {
+        const K = HighCrowns.config().court;
+        const O = K.opinion || {};
+        const Dm = K.demands || {};
+        const goalsOf = (v) => (v.goals || []).map(g => g.type);
+        return {
+            player, entry, far: true,
+            setTax(opt) { entry.policies.tax = opt; },
+            viceroyPerson() {
+                const v = entry.viceroy;
+                if (!v || !HighCrowns._viceroyAlive(player, world, entry)) return null;
+                return {
+                    kind: 'viceroy', id: 'viceroy', name: v.name,
+                    competence: Math.round(_clamp(HighCrowns.competence(entry) / 5, 1, 20)),
+                    loyalty: Math.round(_num(v.loyalty)), desc: `Your viceroy (${KIND_LABEL[v.kind] || v.kind})`,
+                };
+            },
+            opinionParts(v, add) {
+                const day = _day(world);
+                const k = HighCrowns._kingdom(world, entry.kingdomId);
+                const home = Throne.ruledKingdom(player, world);
+                let t = 0;
+                const away = day - _num(entry.lastPresentDay, entry.since);
+                if (away <= 7) t += add('Their king among them', _num(O.present));
+                else if (away > _num(O.absentAfterDays, 120)) t += add('A king far away', -Math.min(_num(O.absentCap, 15), (away - _num(O.absentAfterDays, 120)) / YEAR * _num(O.absentPerYear, 4)));
+                if (home && k && home.culture && k.culture && home.culture !== k.culture && (!v.culture || v.culture === k.culture)) t += add('A foreign king', -_num(O.foreign));
+                const vic = entry.viceroy;
+                t += add(vic ? 'Your viceroy' : 'No viceroy', _num((O.viceroy || {})[vic ? vic.kind : 'none']) + (vic ? (HighCrowns.competence(entry) - 50) * _num(O.viceroyCompetence) : 0));
+                const KO = Kingship.config().opinion || {};
+                const goals = goalsOf(v);
+                let dec = 0;
+                for (const id of Object.keys(entry.decrees || {})) {
+                    const d = HighCrowns.decrees()[id];
+                    if (!d) continue;
+                    dec += _num(d.vassalOpinion);
+                    if (_arr(d.likes).some(g => goals.includes(g))) dec += _num(KO.edictLike);
+                    if (_arr(d.hates).some(g => goals.includes(g))) dec += _num(KO.edictHate);
+                }
+                t += add('Your decrees', dec);
+                const sep = _num(entry.separatism);
+                if (sep > _num(O.separatismPivot, 30)) t += add('Talk of a king of their own', -(sep - _num(O.separatismPivot, 30)) * _num(O.separatism));
+                return t;
+            },
+            demandFor(v) {
+                if (_num(entry.separatism) >= _num(Dm.nativeKingAt, 60) && _num(v.opinion) <= _num(Dm.nativeKingOpinion, -25)) return { type: 'nativeKing' };
+                const goals = goalsOf(v);
+                for (const id of Object.keys(entry.decrees || {})) {
+                    const d = HighCrowns.decrees()[id];
+                    if (d && _arr(d.hates).some(g => goals.includes(g))) return { type: 'revokeDecree', edict: id, edictLabel: d.label };
+                }
+                if (_num(entry.separatism) >= _num(Dm.nativeViceroyAt, 35) && !(entry.viceroy && entry.viceroy.kind === 'native')
+                    && HighCrowns.candidates(player, world, entry.kingdomId).some(c => c.kind === 'native')) return { type: 'nativeViceroy' };
+                return null;
+            },
+            demandSatisfied(d) {
+                if (d.type === 'nativeKing') return false;
+                if (d.type === 'nativeViceroy') return !!(entry.viceroy && entry.viceroy.kind === 'native');
+                if (d.type === 'revokeDecree') return !(entry.decrees || {})[d.edict];
+                return null;
+            },
+            applyDemand(d) {
+                if (d.type === 'nativeKing') {
+                    if (!entry.pendingBreak) entry.pendingBreak = 'conceded';
+                    return true;
+                }
+                if (d.type === 'nativeViceroy') {
+                    const c = HighCrowns.candidates(player, world, entry.kingdomId).find(x => x.kind === 'native');
+                    if (c) HighCrowns._seatViceroy(player, world, entry, c);
+                    return true;
+                }
+                if (d.type === 'revokeDecree') {
+                    if (entry.decrees) delete entry.decrees[d.edict];
+                    return true;
+                }
+                return false;
+            },
+            onRevoltStart(rv) {
+                const d = Kingship.demandText(rv.demand);
+                HighCrowns._log(player, world, `🔥 The lords of ${Names.realm(entry.name)} rise against your crown, led by ${rv.leaderName}, demanding ${d.label}.`, ['throne', 'war']);
+                Interrupts.raise(world, { reason: `The lords of ${entry.name} rise in revolt`, icon: '🔥', source: 'highCrowns' });
+            },
+            onRevoltEnd(how, rv) {
+                const S2 = K.separatism || {};
+                const native = rv && rv.demand && rv.demand.type === 'nativeKing';
+                if (how === 'conceded' && native) entry.pendingBreak = 'revolt';
+                else if (how === 'crushed') entry.separatism = _clamp(_r1(_num(entry.separatism) + _num(native ? S2.crushed : S2.quelled)), 0, 100);
+            },
+        };
+    },
+
+    /**
+     * Run fn(court) with this far crown's court in scope (systems/kingship.js):
+     * Kingship's court functions then work on that realm. Afterwards a union
+     * the lords have won is broken. → fn's result, or null without the crown.
+     */
+    inCourt(player, world, kid, fn, out = null) {
+        const entry = HighCrowns.unionCrown(player, kid);
+        if (!entry || !world) return null;
+        const res = Kingship.withCourt(HighCrowns._scope(player, world, entry), () => {
+            const court = Kingship.court(player);
+            if (court && !court.idTag) court.idTag = `k${entry.kingdomId}`;
+            return fn(court);
+        });
+        HighCrowns._settleCourt(player, world, entry, out);
+        return res;
+    },
+
+    /** The lords have their way: a king of their own, granted in peace or won in revolt. */
+    _settleCourt(player, world, entry, out) {
+        const how = entry && entry.pendingBreak;
+        if (!how) return;
+        delete entry.pendingBreak;
+        if (!HighCrowns.unionCrown(player, entry.kingdomId)) return;
+        if (how === 'revolt') { HighCrowns._breakaway(player, world, entry, 'lords', out); return; }
+        // Conceded: the old line crowned by consent; the realms part as neighbours
+        const K = HighCrowns.config().court;
+        const st = HighCrowns.state(player);
+        const k = HighCrowns._kingdom(world, entry.kingdomId);
+        if (!k) return;
+        HighCrowns._handOver(player, world, entry, k, HighCrowns._oldLineHeir(world, k));
+        st.stats.released++;
+        const home = Throne.ruledKingdom(player, world);
+        if (home) {
+            home.allies = (home.allies || []).filter(id => id !== k.id);
+            k.allies = (k.allies || []).filter(id => id !== home.id);
+            if (!k.relations) k.relations = {};
+            if (!home.relations) home.relations = {};
+            k.relations[home.id] = _num((K.conceded || {}).relations, 20);
+            home.relations[k.id] = _num((K.conceded || {}).relations, 20);
+        }
+        const loss = Math.min(_num((K.conceded || {}).prestigeLoss), House.getPrestige(player));
+        if (loss > 0 && player.house) House.spend(player.house, loss, `granting ${k.name} a king of its own`, _day(world));
+        const text = `👑 You grant the lords of ${Names.realm(k.name)} a king of their own: ${k.ruler} of the old line is crowned, and the union ends in peace.`;
+        HighCrowns._log(player, world, text, ['throne']);
+        if (out) out.notices.push({ icon: '👑', title: `${Names.realm(k.name, true)} Has Its Own King`, text, type: 'warning' });
+        HighCrowns._refreshMods(player, world);
+    },
+
+    /** One day of a far crown's court, on this system's own stream; its notices (not the small news) to out. */
+    _courtDay(player, world, entry, k, out) {
+        const K = HighCrowns.config().court;
+        if (!K || K.enabled === false) return;
+        const day = _day(world);
+        const inner = { notices: [] };
+        Utils.withRng(_rng(world, `court:${k.id}:${day}`), () => HighCrowns.inCourt(player, world, k.id, (court) => {
+            const fresh = !court.initialized;
+            Kingship._courtDay(player, world, k, court, _num(entry.since), inner);
+            if (fresh || (day - _num(entry.since)) % 7 === 0) HighCrowns._viceroyFills(player, world, entry, court);
+        }, out));
+        for (const n of inner.notices) {
+            if (n.type === 'info') continue;
+            out.notices.push({ ...n, title: `${n.title} — ${k.name}` });
+        }
+    },
+
+    /** The viceroy heads the council (the chancellor's seat) and fills empty seats with the best at hand. */
+    _viceroyFills(player, world, entry, court) {
+        if (!entry.viceroy || !court) return;
+        const seated = Kingship.OFFICES.some(o => court.council[o] && court.council[o].kind === 'viceroy');
+        if (!seated && !court.council.chancellor) Kingship.appoint(player, world, 'chancellor', 'viceroy', 'viceroy');
+        for (const o of Kingship.OFFICES) {
+            if (court.council[o]) continue;
+            const c = Kingship.candidates(player, world, o).find(x => !x.office && x.kind !== 'viceroy');
+            if (c) Kingship.appoint(player, world, o, c.kind, c.id);
+        }
+    },
+
+    /**
+     * What a far crown's lords at court do to its separatism this week, and
+     * why: { separatism, opinion (power-weighted mean), factions, revolt, nativeRevolt }.
+     */
+    courtTemper(player, world, kid) {
+        const out = { separatism: 0, opinion: 0, factions: 0, revolt: false, nativeRevolt: false };
+        const entry = HighCrowns.unionCrown(player, kid);
+        const court = entry && _obj(entry.court);
+        if (!court || !court.initialized || !Array.isArray(court.vassals) || !court.vassals.length) return out;
+        const S2 = HighCrowns.config().court.separatism || {};
+        const k = HighCrowns._kingdom(world, kid);
+        if (!k) return out;
+        let sum = 0;
+        let wsum = 0;
+        for (const v of court.vassals) {
+            const p = Math.max(1, Kingship.power(world, v, k));
+            sum += (v.rebel ? -100 : _num(v.opinion)) * p;
+            wsum += p;
+        }
+        out.opinion = wsum ? _r1(sum / wsum) : 0;
+        let d = -out.opinion * _num(S2.opinion);
+        HighCrowns.inCourt(player, world, kid, () => {
+            for (const f of _arr(court.factions)) {
+                if (!f || !f.demand || f.demand.type !== 'nativeKing') continue;
+                out.factions++;
+                d += Kingship.threat(player, world, f) * _num(S2.faction);
+            }
+        });
+        if (court.revolt) {
+            out.revolt = true;
+            out.nativeRevolt = !!(court.revolt.demand && court.revolt.demand.type === 'nativeKing');
+            d += _num(S2.revolt) * (out.nativeRevolt ? 1.5 : 1);
+        }
+        out.separatism = Math.round(d * 1000) / 1000;
+        return out;
+    },
+
+    /**
+     * A far crown in a league's war (systems/coalitions.js): what = 'townLost'
+     * (n towns taken from it), 'lost' or 'won' (a war ended). Its lords blame
+     * the far king for what they lose and cheer what he wins. → the new separatism.
+     */
+    onFarWar(player, world, kid, what, n = 1, by = null) {
+        const entry = HighCrowns.unionCrown(player, kid);
+        if (!entry) return null;
+        const K = HighCrowns.config().court;
+        const S2 = K.separatism || {};
+        const court = _obj(entry.court);
+        let d = 0;
+        if (what === 'townLost') {
+            d = _num(S2.townLost) * n;
+            for (const v of (court && court.vassals) || []) v.grudge = _num(v.grudge) + _num(K.townLostGrudge) * n;
+            HighCrowns._log(player, world, `🏴 ${by || 'The enemy'} takes ${n} town${n === 1 ? '' : 's'} of ${Names.realm(entry.name)}; its lords say a far king cannot keep them.`, ['throne', 'war']);
+        } else if (what === 'lost') {
+            d = _num(S2.warLost);
+            HighCrowns._log(player, world, `🏴 ${Names.realm(entry.name, true)} sues for peace with ${by || 'its enemy'}. Its lords blame their far king.`, ['throne', 'war']);
+        } else if (what === 'won') {
+            d = _num(S2.warWon);
+            for (const v of (court && court.vassals) || []) if (!v.rebel) v.favour = _num(v.favour) + _num(K.warWonFavour);
+            HighCrowns._log(player, world, `⚔️ ${Names.realm(entry.name, true)} beats ${by || 'its enemy'} in your name; its lords drink to their king.`, ['throne', 'war']);
+        }
+        entry.separatism = _clamp(_r1(_num(entry.separatism) + d), 0, 100);
+        return entry.separatism;
     },
 
     // ──────────── THE LEAGUES (systems/coalitions.js) ────────────

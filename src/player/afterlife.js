@@ -41,12 +41,14 @@ import { MoneySupply } from '../world/moneySupply.js';
 import { Plague } from '../systems/plague.js';
 import { TownMemory } from '../systems/townMemory.js';
 import { TownCrimes } from '../systems/townCrimes.js';
+import { Water } from '../systems/water.js';
 import { TownEras } from '../world/townEras.js';
 import { NpcMemory } from '../systems/npcMemory.js';
 import { Illness } from '../systems/illness.js';
 import { Relationships } from '../systems/relationships.js';
 import { Upbringing } from '../systems/upbringing.js';
 import { HeirAgency } from '../systems/heirAgency.js';
+import { Betrothals, CrownMatches } from '../systems/betrothals.js';
 import { Raising } from '../systems/raising.js';
 import { HeirPaths } from '../systems/heirPaths.js';
 import { Legacy } from '../systems/legacy.js';
@@ -94,6 +96,8 @@ import { MarketFairs } from '../systems/marketFairs.js';
 import { Harvests } from '../world/harvests.js';
 import { Engrossing } from '../systems/engrossing.js';
 import { LawCouncil } from '../systems/lawCouncil.js';
+import { Maiming } from '../systems/maiming.js';
+import { Executions } from '../systems/executions.js';
 import { NamedLegacy } from '../systems/namedLegacy.js';
 import { LandMarket } from '../systems/landMarket.js';
 import { PuttingOut } from '../systems/puttingOut.js';
@@ -124,10 +128,12 @@ import { Languages } from '../systems/languages.js';
 import { Crises } from '../systems/crises.js';
 import { LastCrisis } from '../systems/lastCrisis.js';
 import { RealmDecline } from '../systems/realmDecline.js';
+import { PeasantRevolts } from '../systems/peasantRevolts.js';
 import { CadetBranches } from '../systems/cadetBranches.js';
 import { Abdication } from '../systems/abdication.js';
 import { Climate } from '../world/climate.js';
 import { RealmTimeline } from '../systems/realmTimeline.js';
+import { MaimMarks } from '../systems/maimMarks.js';
 
 const DEFAULTS = {
     candidates: 4,
@@ -170,6 +176,8 @@ function _num(v, d = 0) { return typeof v === 'number' && isFinite(v) ? v : d; }
  */
 const WORLD_DAY = [
     { sys: 'Townsfolk', run: (w) => Townsfolk.processDay(w, null) },
+    // The crowns' promises of their royal children to each other (systems/betrothals.js)
+    { sys: 'CrownMatches', run: (w) => CrownMatches.processDay(w) },
     { sys: 'NpcMemory', run: (w) => NpcMemory.processDay(w, null) },
     // (endDay.js runs IllnessPlayer: its towns' half is Illness.processDay)
     { sys: 'IllnessPlayer', run: (w) => Illness.processDay(w, null) },
@@ -180,6 +188,8 @@ const WORLD_DAY = [
     { sys: 'Brawls', run: (w) => Brawls.processDay(w, null) },
     { sys: 'TownMemory', run: (w) => TownMemory.processDay(w, null) },
     { sys: 'TownCrimes', run: (w) => TownCrimes.processDay(w, null) },
+    // The towns' water: foul and dry wells, the sick, the carriers, the leaving (systems/water.js)
+    { sys: 'Water', run: (w) => Water.processDay(w, null) },
     { sys: 'TownEras', run: (w) => TownEras.processDay(w, null) },
     { sys: 'Demands', run: (w) => Demands.processDay(w, null) }, // waits (player-held)
     { sys: 'Delves', run: (w) => Delves.processDay(w, null) }, // waits (player-held)
@@ -214,6 +224,10 @@ const WORLD_DAY = [
     { sys: 'Harvests', run: (w) => Harvests.processDay(w, null) },
     { sys: 'Engrossing', run: (w) => Engrossing.processDay(w, null) },
     { sys: 'LawCouncil', run: (w) => LawCouncil.processDay(w, null) },
+    // The realms' courts take thieves' hands, the raided count their maimed (the enemies' blades at the House wait: systems/maiming.js)
+    { sys: 'Maiming', run: (w) => Maiming.processDay(w, null) },
+    // The realms' capitals hang their condemned, martyrs' shrines draw pilgrims and fade (the House's own list waits: systems/executions.js)
+    { sys: 'Executions', run: (w) => Executions.processDay(w, null) },
     // The jurists finish their codes, codes steady their realms, resentful towns take back their names (systems/namedLegacy.js)
     { sys: 'NamedLegacy', run: (w) => NamedLegacy.processDay(w, null) },
     { sys: 'Concessions', run: (w) => Concessions.processDay(w, null) },
@@ -247,6 +261,8 @@ const WORLD_DAY = [
     { sys: 'LastCrisis', run: (w) => LastCrisis.processDay(w, null) },
     // Great old realms sag under their own weight; the player's strains wait (systems/realmDecline.js)
     { sys: 'RealmDecline', run: (w) => RealmDecline.processDay(w, null) },
+    // The commons rise and the realms meet them by their lords' lights; a rising against the empty throne is the realm's (systems/peasantRevolts.js)
+    { sys: 'PeasantRevolts', run: (w) => PeasantRevolts.processDay(w, null) },
     // The Timeline of the Realm keeps recording while no one lives (systems/realmTimeline.js)
     { sys: 'RealmTimeline', run: (w) => RealmTimeline.processDay(w, null) },
     // The House's cadet branches live on while it is held in trust: they keep their
@@ -272,6 +288,7 @@ const WORLD_DAY_SKIPPED = {
     Relationships: "the player's marriage, courtship and own aging (the House's children age in passDay)",
     Upbringing: 'run on the estate in passDay',
     HeirAgency: 'run on the estate in passDay',
+    Betrothals: 'run on the estate in passDay (promises keep; no offers in the wait)',
     Raising: 'run on the estate in passDay',
     HeirPaths: 'run on the estate in passDay',
     Abdication: 'run on the estate in passDay (interregnum: no pensions)',
@@ -288,6 +305,7 @@ const WORLD_DAY_SKIPPED = {
     Rivals: "player-held: the player's rival adventurers",
     Nemesis: "player-held: the player's nemeses (they watch the succession on return)",
     Wanted: 'player-held: the charge sheet (it dies with the criminal on succession; blood debts cool a generation)',
+    Ordeals: "player-held: a kinsman's case, champions wanted and perjury waiting to come out are the player's",
     Trials: 'player-held: the trial awaited, the cases before your court and the lawsuits all wait with the player (a dead defendant is tried by no one)',
     ProfaneCrimes: "player-held: the player's profane crimes",
     KinCrimes: "player-held: the House's crimes against the blood",
@@ -322,6 +340,8 @@ const WORLD_DAY_SKIPPED = {
     Underworld: "player-held: the player's heat and crimes",
     FirstSteps: "player-held: the player's opening guide",
     Reckoning: "player-held: the player's reckoning",
+    Interrogation: "player-held: the player's dungeon, and rivals' hold on the player's children",
+    Thirst: "player-held: the player's own thirst and waterskins (the towns' water runs: Water)",
 };
 
 export const Afterlife = {
@@ -409,6 +429,8 @@ export const Afterlife = {
                 const up = Upbringing.processDay(estate, world);
                 // Children abroad come home, betrothals are kept, embassies end (systems/heirAgency.js)
                 HeirAgency.processDay(estate, world);
+                // Promises to rival Houses, crowns and lords keep; weddings wait for both to be of age (systems/betrothals.js)
+                Betrothals.processDay(estate, world);
                 // Tutors paid from the estate, wards at court, coming-of-age summaries (systems/raising.js)
                 Raising.processDay(estate, world);
                 // Children away on their paths, hostages' terms, wards kept (systems/heirPaths.js)
@@ -451,7 +473,7 @@ export const Afterlife = {
         if (!estate || !Array.isArray(estate.children)) return [];
         const min = Relationships._getHeirSettings().minAgeToPlay;
         return estate.children
-            .filter(c => c.isAlive && _num(c.age) < min && !(c.kin && c.kin.unfit))
+            .filter(c => c.isAlive && _num(c.age) < min && !(c.kin && c.kin.unfit) && !MaimMarks.barsRule(c))
             .map(child => ({ child, years: min - _num(child.age) }))
             .sort((a, b) => a.years - b.years);
     },

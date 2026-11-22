@@ -92,13 +92,15 @@ export const InnerMapOverheard = {
         if (!s || !a._person || !b._person) return false;
         const C = Overheard.config();
         const me = { q: InnerMap.playerInnerQ, r: InnerMap.playerInnerR };
-        if (Math.min(_dist(a, me), _dist(b, me)) > _num(C.radius, 6)) return false;
+        // (hidden in cover nearby: folk talk freely, and you hear more — ui/innerMapHiding.js)
+        const hid = InnerMap._playerHidden || null;
+        if (Math.min(_dist(a, me), _dist(b, me)) > _num(C.radius, 6) + (hid ? _num(hid.radius) : 0)) return false;
         const now = _now();
         if (now < this._nextAt) return false;
         const world = game.world;
         const day = _num(world.day, 1);
         const salt = `${(world.generationParams && world.generationParams.seed) || 0}|${s.q},${s.r}|${day}|${a._person.id}|${b._person.id}|${this._n++}`;
-        if (overheardFrac(`${salt}|chance`) >= _num(C.chance, 0.35)) return false;
+        if (overheardFrac(`${salt}|chance`) >= Math.min(0.95, _num(C.chance, 0.35) * (hid ? Math.max(1, _num(hid.chance, 1)) : 1))) return false;
         if (!Overheard.roomToday(s, day)) return false;
         const res = Overheard.compose({
             world, player: game.player, settlement: s, day, salt,

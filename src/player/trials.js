@@ -78,6 +78,13 @@ import { Prison } from './prison.js';
 import { PlayerCoin } from './playerCoin.js';
 // (a realm under a written code: fewer cases, suits shut, the code named in verdicts — systems/namedLegacy.js)
 import { NamedLegacy } from '../systems/namedLegacy.js';
+// (a realm whose law takes a limb: the thief's hand, the cheat's ear — systems/maiming.js)
+import { Maiming } from '../systems/maiming.js';
+import { MaimMarks } from '../systems/maimMarks.js';
+// (a death sentence carried out on a day you name, before a crowd: systems/executions.js)
+import { Executions } from '../systems/executions.js';
+// (trial by combat, the hot iron, the water, the bread, oath-helpers: player/ordeals.js)
+import { Ordeals } from './ordeals.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = v => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -618,7 +625,10 @@ export const Trials = {
         const rng = Trials._rng(world, `trial|${trial.id}|${trial.opened}`);
         const cu = Trials.customDef(trial.custom);
         const noise = (rng() * 2 - 1) * (_num(cu.noise) + _num(Trials._c('verdict').noise));
-        const convicted = trial.plea === 'guilty' || rng() < _clamp(o.p + noise, 0.02, 0.98);
+        let convicted = trial.plea === 'guilty' || rng() < _clamp(o.p + noise, 0.02, 0.98);
+        // (another judgement than the court's — combat, an ordeal, oath-helpers — decides instead: player/ordeals.js)
+        const ordeal = Ordeals.decide(player, world, trial);
+        if (ordeal) convicted = ordeal.convicted;
         const pj = Trials.persona(trial.judge && trial.judge.persona);
         const sev = _num(pj.severity);
         const plea = trial.plea === 'guilty' ? _num(S.pleaMult, 0.7) : 1;
@@ -658,9 +668,18 @@ export const Trials = {
                 else if (rng() < _num(S.brandChance, 0.15) + Math.max(0, sev) * _num(S.brandSeverity, 0.5)) kind = 'branded';
                 else kind = 'jailed';
             } else kind = trial.offenseNumber >= _num(S.repeatCells, 3) ? 'jailed' : 'fined';
+            // The realm's law takes a limb for this crime (systems/laws.js mutilation): it is done there and then
+            const maimAct = kid != null && present ? Maiming.lawAct(world, kid, (standing.length ? standing : trial.charges).map(c => c.group), trial.offenseNumber) : null;
+            if (maimAct && !MaimMarks.whyNot(player, maimAct) && kind !== 'exiled') kind = 'maimed';
             const law = kid != null ? Laws.punishment(world, kid) : { fine: 1, jail: 1 };
             const days = Trials._sentenceDays(trial, graveCs, graveCs.length ? [] : lesserCs, Math.max(-0.5, sev), plea, law.jail);
-            if (kind === 'fined') {
+            if (kind === 'maimed') {
+                release('maimed');
+                const crime = ((standing.length ? standing : trial.charges)[0] || {}).label || 'a crime';
+                const m = Maiming.maimPlayer(player, world, maimAct, { by: `the court of ${trial.town}`, why: crime, lawful: true, kingdomId: kid });
+                const what = { hand: 'your hand', ear: 'your ear', tongue: 'your tongue', eye: 'your eye', nose: 'your nose', foot: 'your foot' }[maimAct] || 'its due';
+                res = { outcome: 'maimed', convicted: true, act: maimAct, text: `${Trials.line('maimed', key, { ...vars, what }) || `Guilty: the court takes ${what}.`} ${m.ok ? m.text : ''}`.trim() };
+            } else if (kind === 'fined') {
                 const fine = Trials._fineFor(world, trial, lesserCs.length ? lesserCs : trial.charges, sev, plea);
                 const payee = trial.judge.lord && k && 'treasury' in k ? k : (Trials._court(world, trial) || { q: trial.q, r: trial.r });
                 const payeeName = trial.judge.lord && k ? `the crown of ${k.name}` : `the court of ${trial.town}`;
@@ -719,6 +738,7 @@ export const Trials = {
             }
         }
         // (the court names the realm's code, when it has one: systems/namedLegacy.js)
+        if (ordeal && ordeal.text && res && res.text) res.text = `${ordeal.text} ${res.text}`;
         const under = NamedLegacy.courtLine(world, kid);
         if (under && res && res.text) res.text = `${res.text} (${under.charAt(0).toUpperCase()}${under.slice(1)}.)`;
         st.last = { day, town: trial.town, judge: trial.judge.name, outcome: res.outcome, text: res.text };
@@ -797,6 +817,8 @@ export const Trials = {
             id: st.next++, q: seat.q, r: seat.r, key: seat.key, town: s.name || 'the town', kingdomId: seat.kingdomId != null ? seat.kingdomId : null,
             opened: day, expires: day + _num(J.expireDays, 12), crimeLabel: def.label, severity: _num(def.severity, 2), ...c,
         };
+        // (the accused may demand combat, an ordeal or oath-helpers as of right: player/ordeals.js)
+        out.demand = Ordeals.demandFor(world, out, folk);
         st.cases.push(out);
         return out;
     },
@@ -805,8 +827,11 @@ export const Trials = {
         return (Trials._c('judge').proofText || {})[String(c.proof)] || '';
     },
 
-    verdicts() {
-        return Object.entries(Trials._c('judge').verdicts || {}).map(([id, v]) => ({ id, ...v }));
+    verdicts(world = null, c = null) {
+        // (taking a limb only where the realm's law takes one for this case's crime: systems/maiming.js)
+        return Object.entries(Trials._c('judge').verdicts || {}).map(([id, v]) => ({ id, ...v }))
+            .filter(v => !v.maim || !!(c && Maiming.judgeAct(world, c.kingdomId, c.crime)))
+            .filter(v => !v.scaffold || Executions.enabled());
     },
 
     /** What a verdict would do to the town (before the hidden truth): the effects object. */
@@ -841,6 +866,8 @@ export const Trials = {
         const { folk, p, s } = f;
         const ctx = { q: c.q, r: c.r, kingdomId: c.kingdomId, name: c.accused.name };
         const fx = Trials.verdictEffects(c, verdictId);
+        // (an ordeal's judgement heeded or defied, a demanded right refused: player/ordeals.js)
+        Ordeals.adjustFx(world, c, verdictId, fx, player);
         const victim = c.victim && c.victim.pid != null ? Trials._person(world, c, c.victim.pid) : null;
         let text;
         let surface = null;
@@ -866,11 +893,20 @@ export const Trials = {
             } else if (verdictId === 'exile') {
                 Townsfolk.exile(folk, p, day, 'exile', world);
                 text = `You banish ${c.accused.name} from ${c.town} for ${c.crimeLabel}.`;
+            } else if (verdictId === 'maim') {
+                const act = Maiming.judgeAct(world, c.kingdomId, c.crime);
+                const m = act ? Maiming.maimFolk(player, world, { settlement: s, folk, person: p, act, lawful: true, why: c.crimeLabel }) : null;
+                text = m && m.ok ? `By the law of the realm, ${c.accused.name} is taken to the scaffold of ${c.town} for ${c.crimeLabel}: ${MaimMarks._shortOf(act, MaimMarks.count(p, act))}.`
+                    : `The law of the realm takes no limb for ${c.crimeLabel}: ${c.accused.name} goes free.`;
             } else if (verdictId === 'hang') {
                 NpcMemory.rememberKin(world, { folk, person: p }, { kind: 'hanged', player });
                 NpcMemory.rememberTown(world, s, { kind: 'hanged', player, victim: c.accused.name });
                 Townsfolk.slay(folk, p, day, 'the gallows', world);
                 text = `${c.accused.name} hangs in the square of ${c.town} for ${c.crimeLabel}.`;
+            } else if (verdictId === 'scaffold') {
+                // To the cells, and the scaffold on a day you name (systems/executions.js: the place, the manner, the crowd)
+                const e = Executions.condemn(player, world, { kind: 'folk', q: c.q, r: c.r, pid: c.accused.pid }, { crime: c.crime, crimeLabel: c.crimeLabel, source: 'trial', ref: c.id, guilty: !!c.guilty, quiet: true });
+                text = e ? `${c.accused.name} is condemned to die for ${c.crimeLabel}, and taken to the cells to await your word on the scaffold.` : `${c.accused.name} is condemned to die for ${c.crimeLabel}.`;
             }
             if (verdictId !== 'hang') NpcMemory.remember(world, { folk, person: p }, { kind: 'condemned', player, kin: true });
             if (victim && Townsfolk.isHere(victim.p)) NpcMemory.remember(world, { folk: victim.folk, person: victim.p }, { kind: 'justice_done', player });
@@ -1071,7 +1107,8 @@ export const Trials = {
         const V = Trials._c('suits').verdict || {};
         const o = Trials.suitOdds(player, world, suit);
         const noise = (rng() * 2 - 1) * _num(V.noise, 0.1);
-        const plaintiffWins = rng() < _clamp(o.p + noise, 0.03, 0.97);
+        // (a suit settled by the wager of battle goes with the victor: player/ordeals.js)
+        const plaintiffWins = suit.combat && suit.combat.done ? !!suit.combat.plaintiffWon : rng() < _clamp(o.p + noise, 0.03, 0.97);
         const playerWins = plaintiffWins === (suit.plaintiff === 'player');
         suit.status = 'decided';
         suit.won = playerWins;
@@ -1451,7 +1488,7 @@ export const Trials = {
         const rivals = RivalHouses.rivals(player).filter(r => r && r.kingdomId != null).map(r => ({ rival: r, grounds: Trials.grounds(player, world, r).player }));
         return {
             trial: t, last: st.last, surrender: trial ? { ok: false } : Trials.surrenderCheck(player, world),
-            cases: st.cases.map(c => ({ c, effects: Object.fromEntries(Trials.verdicts().map(v => [v.id, Trials.verdictEffects(c, v.id)])) })),
+            cases: st.cases.map(c => ({ c, effects: Object.fromEntries(Trials.verdicts(world, c).map(v => [v.id, Trials.verdictEffects(c, v.id)])) })),
             wrongs: st.judged.filter(j => j.amends), seats: Trials.seats(player, world).length,
             suits: st.suits.map(s => ({ suit: s, odds: s.status === 'open' ? Trials.suitOdds(player, world, s) : null, advocates: s.status === 'open' && !s.advocate ? Trials.advocates(world, s) : [] })),
             rivals, exiles: st.exiles || [], brands: Trials.brandsView(player, world), history: st.history.slice().reverse(),

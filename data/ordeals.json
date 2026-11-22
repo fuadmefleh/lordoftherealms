@@ -1,0 +1,116 @@
+{
+    "_doc": "TRIAL BY COMBAT AND BY ORDEAL (player/ordeals.js; rows in the Courts & Lawsuits panel, ui/actionMenu/ordeals.js). Where the realm's law of trial customs (data/laws.json trialCustoms) and its faith allow it, a case may be settled by another judgement than the court's: COMBAT (the accused or a champion against the accuser's champion: fought in person in the duel panel, or by a champion hired for real coin — a companion who fights, a guard of the town paid into his purse), the HOT IRON (carried nine paces, the hand bound; unbound after unbindDays — festered, or an infected wound, means guilty; a real burn either way), the WATER (bound and lowered into blessed water: sinking is innocence), the BLESSED BREAD (the corsned: choke and you are guilty) and COMPURGATION (oath-helpers who will swear with you, drawn from your real ties: companions, friends, the grown of your family, townsfolk who remember you well; too few and you are guilty, and an oath sworn against the plain proof may be found out as perjury, which shames every one of them). Four courts use it: your own trial, the cases before your court (the accused may demand it: an AI right), a kinsman of your House accused, and lawsuits between Houses (a rival House may demand the wager of battle). You can also hire yourself out as a champion.",
+    "enabled": true,
+    "methods": {
+        "combat": { "name": "Trial by Combat", "icon": "⚔️", "kind": "combat", "desc": "God gives the strength to the right side. You fight, or your champion does, against the accuser's champion, until one yields or falls." },
+        "iron": { "name": "Ordeal of the Hot Iron", "icon": "🔥", "kind": "ordeal", "desc": "Carry the red iron nine paces. The hand is bound and sealed; if it heals clean in three days, you are innocent." },
+        "water": { "name": "Ordeal of Water", "icon": "🌊", "kind": "ordeal", "desc": "Bound and lowered into blessed water. The water takes the innocent and spits out the guilty." },
+        "bread": { "name": "Ordeal of the Blessed Bread", "icon": "🍞", "kind": "ordeal", "desc": "Swallow a morsel of blessed bread and cheese before the altar. The guilty choke." },
+        "compurgation": { "name": "Oath-Helpers", "icon": "🤝", "kind": "oath", "desc": "Swear your innocence, and find enough people of good name to swear with you." }
+    },
+    "iron": {
+        "_doc": "The festering chance at unbinding: base + guiltPer × the case's strongest proof (the priest reads the hand with the case in mind) − luck × luckPer − priestPaid when the priest was paid (never in a sacred faith); an infected burn (systems/ailments.js burned_hand) is always guilty. The burn is a real wound (burned_hand) with a chance of a lasting scar.",
+        "unbindDays": 3, "base": 0.3, "guiltPer": 0.06, "luckPer": 0.015, "priestPaid": 0.15, "min": 0.08, "max": 0.8,
+        "wound": "burned_hand",
+        "child": { "_doc": "The iron on a child of your House (a kinsman accused): health lost, the burned_hand wound's days to heal, max health lost for good if it festered, a scar by the wound's permanent chance (always when festered). Kept on child.ordealMarks, shown on the child's page.", "health": [8, 16], "festeredMaxHealth": -4 }
+    },
+    "water": {
+        "_doc": "Sinking (innocence): base + strength × strengthPer (a heavier body sinks) − swimming × swimPer (one who can swim fights the water) + priestPaid. Pulled up half-drowned: health lost in health.",
+        "base": 0.5, "strengthPer": 0.02, "swimPer": 0.04, "priestPaid": 0.15, "min": 0.12, "max": 0.88, "health": [4, 14]
+    },
+    "bread": {
+        "_doc": "Swallowing clean: base + karma × karmaPer (a clear conscience) − guiltPer × proof + priestPaid.",
+        "base": 0.62, "karmaPer": 0.002, "guiltPer": 0.05, "priestPaid": 0.12, "min": 0.15, "max": 0.9
+    },
+    "priest": {
+        "_doc": "The priest who blesses the ordeal can be paid: fee by town type, into a priest of the town's purse (else the town's). A priest of a sacred faith refuses and tells the court: the ordeal goes ahead, and the judge counts it against you (a charge of tampering with God's judgement, proof 2).",
+        "fee": { "village": 15, "town": 30, "city": 50, "capital": 80, "default": 30 }
+    },
+    "compurgation": {
+        "_doc": "Oath-helpers needed by town type. Each of your ties is willing by its warmth (companions' approval, a friend's score, family) and swears with chance swear (a willing helper may still lose nerve before the altar). Townsfolk of the trial town who remember you well count (npcMemory weight at least townWarmth). An oath sworn against proof 3 (caught in the act) or a guilty plea's truth is perjury: found out with chance perjuryChance after perjuryDays, each helper is shamed (their regard for you falls by perjuryRegard; townsfolk remember perjury_shamed), and your standing in the realm falls by perjuryRep.",
+        "need": { "village": 4, "town": 6, "city": 8, "capital": 12, "default": 6 },
+        "swear": 0.85, "minFriendScore": 25, "minApproval": 55, "townWarmth": 6, "maxHelpers": 14,
+        "perjuryChance": 0.4, "perjuryDays": [40, 360], "perjuryRegard": 20, "perjuryRep": 12, "perjuryPrestige": 10
+    },
+    "combat": {
+        "_doc": "The accuser's champion: the strongest guard of the town (a real resident; he may die), else the court's champion profile by town type. A champion who falls to zero dies with chance deathChance (else is carried off maimed by wounds: injured for weeks). The player who falls takes harm from fallHarm and a grave wound roll (Ailments 'duel'); yielding ('craven') is guilty, and costs renown. Champions for hire: the town's guards (fee by town type × (0.6 + skill/8), into the guard's purse) and the fighting companions of your party (no fee; their life is the risk).",
+        "mode": "toDeath", "rounds": 24, "deathChance": 0.55, "playerFallHarm": [20, 45], "playerWinHarm": [2, 16], "cravenRenown": -8, "winRenown": 6,
+        "championFee": { "village": 25, "town": 45, "city": 70, "capital": 110, "default": 45 },
+        "champions": {
+            "village": { "name": "the village's strongest man", "attack": 3, "defense": 2.5, "power": 7, "hp": 30, "stamina": 12, "armour": 0.05, "weapon": "a quarterstaff", "temperament": "aggressive" },
+            "town": { "name": "the court's champion", "attack": 4.5, "defense": 3.5, "power": 8, "hp": 32, "stamina": 12, "armour": 0.2, "weapon": "a sword and buckler", "temperament": "balanced" },
+            "city": { "name": "the city's sworn champion", "attack": 5.5, "defense": 4.5, "power": 8, "hp": 34, "stamina": 13, "armour": 0.25, "weapon": "a longsword", "temperament": "tricky" },
+            "capital": { "name": "the King's Champion", "attack": 6.5, "defense": 5, "power": 9, "hp": 36, "stamina": 14, "armour": 0.3, "weapon": "a great sword", "temperament": "balanced" }
+        },
+        "rival": { "_doc": "A rival House in the wager of battle: its head fights, unless old (over swornAge), no fighter (martial under swornMartial) or maimed past ruling, with guards to send: then a sworn sword (the city champion's profile). A sworn sword who falls dies with deathChance: one guard fewer, feud +swornFeud. A head who falls dies with headDeathChance: the House passes to the heir (RivalHouses._succeed), feud +headFeud, and the new head swears vengeance (a Nemesis grudge, nemesisScore).", "swornAge": 55, "swornMartial": 5, "swornFeud": 10, "headDeathChance": 0.35, "headFeud": 30, "nemesisScore": 60 },
+        "companionOccupations": { "general": 2.5, "knight": 2.2, "guard": 1.4, "hunter": 1, "spymaster": 0.8 },
+        "fighterRoles": ["guard", "noble", "blacksmith_npc", "hunter", "soldier"]
+    },
+    "faith": {
+        "_doc": "How a faith takes judgement by ordeal. sacred: the result is God's own (belief × believe: reputation, the accuser's shame, the town's regard for a verdict that heeds it; its priests take no coin). accepted: the old custom, believed. forbids: its clergy will bless no ordeal (iron, water and bread are not allowed; combat and oath-helpers still are). A founded religion leans by its tenets (sum ≥ 2 sacred, ≤ −2 forbids). A player whose own creed forbids ordeals who undergoes one, or puts another to one, loses karma (creedKarma).",
+        "faiths": {
+            "solaris": "sacred", "ironfaith": "sacred", "flameheralds": "sacred", "stormfather": "accepted", "ashwalkers": "sacred", "bloodmoon": "accepted",
+            "tidemother": "accepted", "stoneheart": "accepted", "serpentway": "accepted", "dunewalkers": "accepted", "voidcallers": "accepted",
+            "earthroot": "forbids", "starseers": "forbids", "dreamweavers": "accepted", "bonesingers": "accepted", "silentorder": "forbids", "arcanum": "forbids"
+        },
+        "tenets": { "Justice": 1, "Valor": 1, "Mysticism": 1, "Sovereignty": 0, "Wisdom": -2, "Peace": -1, "Charity": -1, "Humility": 0, "Nature": 0, "Prosperity": 0 },
+        "stances": {
+            "sacred": { "label": "holds the ordeal sacred", "icon": "✨", "believe": 1.5, "priestBribe": false },
+            "accepted": { "label": "keeps the old ordeals", "icon": "🕯️", "believe": 1, "priestBribe": true },
+            "forbids": { "label": "forbids ordeals", "icon": "🚫", "believe": 0.5, "priestBribe": true }
+        },
+        "creedKarma": -4
+    },
+    "outcome": {
+        "_doc": "Cleared by combat or ordeal: reputation in the realm + acquitRep × belief; each standing witness (an accuser) is shamed (Townsfolk note, NpcMemory ordeal_shamed). Found guilty: the court's sentence follows (player/trials.js), as for any conviction. In your own court: cleared → acquitted, and the accuser pays falseAccusation gold (purse to purse) to the cleared; guilty → you choose the sentence. Heeding an ordeal's judgement moves the town by heeded × belief; refusing a demanded right moves it by deniedRight.",
+        "acquitRep": 6, "falseAccusation": 8,
+        "heeded": { "happiness": 1, "court": { "justice": 1 } },
+        "deniedRight": { "happiness": -2, "court": { "justice": -1, "severity": 1 } }
+    },
+    "demand": {
+        "_doc": "THE AI SIDE. A case before your court: an accused of a fighter role demands combat (combatShare) where the law allows it; one of a believing faith demands the iron or the water (ordealShare); one with family in town asks for oath-helpers (oathShare). A hash of the case: no shared dice. Rival Houses: a rival head with might (prowess) at least mightAt and honour at least minHonour demands the wager of battle in an open suit (once, a hash of the suit) where the venue realm's law allows it; refusing costs refusePrestige and the rival remembers.",
+        "combatShare": 0.45, "ordealShare": 0.3, "oathShare": 0.25, "minSeverity": 2,
+        "rival": { "mightAt": 6, "minHonour": 4, "chance": 0.5, "refusePrestige": 8 }
+    },
+    "kin": {
+        "_doc": "A KINSMAN ACCUSED. Each grown child of the House (age minAge+, at home) may be accused (perYear by a hash of the day; reckless/wrathful/cruel traits ×traitMult) of one of crimes, in the town the player stands in or nearest. The case comes before the town's court in days; before then: let the court decide (guilt from proof − House prestige/prestigeDiv), stand as their champion yourself, hire a champion, or put them to an ordeal or oath-helpers. Guilty: a fine (crimes[c].fine × the law's fine) from your purse into the crown's chests, Prestige lost; for theft where the law takes a hand, the hand (systems/maimMarks.js). Cleared: the accuser pays damages to you; standing for you as champion warms the child's bond (championBond).",
+        "minAge": 16, "perYear": 0.05, "traitMult": 2, "traits": ["reckless", "wrathful", "cruel", "greedy", "brawler"],
+        "days": 6, "prestigeDiv": 200, "prestige": 6, "championBond": 12, "damages": 30,
+        "crimes": {
+            "brawl": { "label": "brawling in the street", "fine": 12, "group": "brawling", "weight": 4 },
+            "theft": { "label": "theft", "fine": 25, "group": "theft", "weight": 2 },
+            "assault": { "label": "beating a townsman", "fine": 30, "group": "assault", "weight": 2 },
+            "poaching": { "label": "poaching in the lord's woods", "fine": 15, "group": "poaching", "weight": 2 },
+            "slander": { "label": "slander", "fine": 10, "group": "slander", "weight": 1 }
+        },
+        "guiltByProof": { "1": 0.35, "2": 0.6, "3": 0.85 }
+    },
+    "hire": {
+        "_doc": "THE PLAYER AS CHAMPION FOR HIRE. In a town whose law allows combat, someone in a case may want a champion: perDay by town type (more with champion renown: perWin per win, at most maxMult) while the player stands there; one call open at a time, lasting expireDays. The fee (fee by type × (1 + wins × feePerWin), at most the client's purse) is paid on victory. The other side's champion is a guard of the town or the court's champion. Lose, and the client takes the sentence: condemned to the rope for murder (Executions if present, else the gallows), a hand for theft where the law takes one, else the cells.",
+        "perDay": { "village": 0.01, "town": 0.03, "city": 0.04, "capital": 0.05, "default": 0.03 },
+        "perWin": 0.15, "maxMult": 2.5, "expireDays": 4, "feePerWin": 0.1,
+        "fee": { "village": 20, "town": 40, "city": 60, "capital": 90, "default": 40 },
+        "crimes": ["theft", "assault", "murder", "debt", "slander", "arson"]
+    },
+    "scenes": {
+        "_doc": "The beats the panel tells before an ordeal's judgement (ui/actionMenu/ordeals.js, over a drawn picture). {who}: you, or the one put to it.",
+        "iron": ["The priest blesses the iron in the brazier until it glows red.", "{Who} takes it up and walks: one pace, three, nine. The crowd counts aloud.", "The iron falls. The priest binds the hand in linen and seals it with wax."],
+        "water": ["The water is blessed. {Who} is bound, knees to chest, a rope at the waist.", "They lower the bundle from the bank. The crowd leans in.", "A long breath. The rope goes taut."],
+        "bread": ["Before the altar the priest breaks the blessed bread and the cheese.", "{Who} takes the morsel. The church is silent.", "A swallow. Then another."],
+        "compurgation": ["The relics are carried out on a cloth of gold.", "{Who} swears first, hand on the reliquary. Then the oath-helpers come forward, one by one.", "The clerk counts the hands."],
+        "combat": ["The lists are cleared and the marshal reads the charge.", "The fighters salute the court, and God.", "They close."]
+    },
+    "lines": {
+        "combatWon": ["The accuser's champion goes down in the dust. God has spoken: the court of {town} lets you go."],
+        "combatLost": ["You lie in the dust of the lists. God has spoken against you, says the court of {town}."],
+        "craven": ["You cry craven. The court of {town} takes the word for guilt."],
+        "ironClean": ["The priest unbinds your hand before the court of {town}: the burn is clean. Innocent."],
+        "ironFoul": ["The priest unbinds your hand: the burn has festered. The court of {town} finds you guilty."],
+        "waterSank": ["The water takes you, and they haul you up half-drowned: innocent, by God's judgement."],
+        "waterFloated": ["The water will not have you. You float, and the crowd shouts guilty."],
+        "breadClean": ["You swallow the blessed bread, and breathe. Innocent."],
+        "breadChoked": ["The bread sticks in your throat. You choke before the altar: guilty."],
+        "oathCarried": ["{n} oath-helpers lay their hands on the relics and swear with you. The court of {town} accepts the oath."],
+        "oathFailed": ["Only {n} of the {need} you needed would swear. The oath fails, and with it your case."]
+    }
+}

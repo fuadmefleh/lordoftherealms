@@ -693,6 +693,8 @@ export const InnerMapRenderer = {
         this._renderDepthSortedSprites(ctx, camera, deltaTime);
         // ── Layer 2.2: Smoke and steam rising over the roofs (innerMapLayers/ambient.js) ──
         if (this._renderAmbient) this._renderAmbient(ctx, camera);
+        // ── Layer 2.21: A foul well — scum, planks across it, flies (innerMapLayers/wells.js) ──
+        if (this._renderFouledWells) this._renderFouledWells(ctx, camera);
         // ── Layer 2.3: Leaves drifting down, the fiddler's notes at the fair (innerMapLayers/streetSeasons.js) ──
         if (this._renderSeasonAir) this._renderSeasonAir(ctx, camera);
         // ── Layer 2.4: Mist at dawn over the water and the low ground (innerMapLayers/weatherFx.js) ──

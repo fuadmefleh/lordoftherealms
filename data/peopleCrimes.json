@@ -50,7 +50,7 @@
         "starved": { "rep": -40, "prestige": 30, "heat": 45, "karma": -20, "deeds": { "cruelty": 4, "dread": 2 } },
         "bondage": { "rep": -35, "prestige": 25, "heat": 30, "karma": -18, "deeds": { "cruelty": 3, "greed": 2 } },
         "brand": { "karma": -3, "deeds": { "cruelty": 1, "dread": 0.5 } },
-        "maim": { "karma": -8, "deeds": { "cruelty": 2, "dread": 1, "maiming": 1 } },
+        "maim": { "karma": -8, "deeds": { "cruelty": 2, "dread": 1 } },
         "stocks": { "rep": -2, "karma": -2, "deeds": { "greed": 1, "cruelty": 0.5 } },
         "evict": { "karma": -5, "deeds": { "greed": 1.5, "cruelty": 1 } }
     },

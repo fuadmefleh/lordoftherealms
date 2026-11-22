@@ -6,7 +6,7 @@
 // Each week each creeps toward a PRESSURE worked out from the realm's size
 // (its towns), its age (the realm's years and the House's years on the
 // throne) and the player's holdings, less what the council does about it.
-// The climb is slow (about ten years to close two thirds of the gap), so a
+// The climb is slow (about twenty years to close two thirds of the gap), so a
 // strain takes years to bite; every effect scales with its BITE,
 // (strain − biteFrom) / (100 − biteFrom):
 //
@@ -98,7 +98,7 @@ const _r1 = (v) => Math.round(v * 10) / 10;
 const _key = (q, r) => `${q},${r}`;
 
 const DEFAULTS = {
-    enabled: true, cadence: 7, biteFrom: 20, rise: 0.006, fall: 0.012, noticeAt: 40, graveAt: 70, hysteresis: 10, historyWeeks: 18,
+    enabled: true, cadence: 7, biteFrom: 20, rise: 0.003, fall: 0.006, noticeAt: 40, graveAt: 70, hysteresis: 10, historyWeeks: 18,
     size: { townsFrom: 3, townsSpan: 12, cap: 1.5, holdingsSpan: 12 },
     strains: { graft: {}, drift: {}, soft: {}, entrench: {} },
     stability: { perBite: 4, cap: 12 },
@@ -593,7 +593,8 @@ export const RealmDecline = {
         const P = 100 * _clamp((_num(A.size) * RealmDecline._sizeF(towns.length)
             + _num(A.age) * _clamp(realmY / Math.max(1, _num(A.realmYears, 50)), 0, 1.2)) * _num(A.scale, 0.8), 0, 1);
         const cur = _num(d.s);
-        d.s = _r1(_clamp(cur + (P - cur) * (P > cur ? _num(C.rise) : _num(C.fall)) * (cadence / 7), 0, 100));
+        // (the AI realms' own pace, ai.rise / ai.fall, else the player's)
+        d.s = _r1(_clamp(cur + (P - cur) * (P > cur ? _num(A.rise, _num(C.rise)) : _num(A.fall, _num(C.fall))) * (cadence / 7), 0, 100));
         const b = RealmDecline.bite(d.s, _num(A.biteFrom, 25));
         d.stab = -Math.round(b * _num(A.stabilityPerBite, 8) * 10) / 10;
         // Its own court's skim: out of the chests into the capital's purse

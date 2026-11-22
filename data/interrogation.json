@@ -1,0 +1,66 @@
+{
+    "_doc": "The dungeon: putting a prisoner to the question (src/systems/interrogation.js; panel ui/actionMenu/interrogation.js, Intrigue & the Law → 🔗 The Dungeon, and from 🔪 The Knife's captive panels). WHO: a townsperson in your cellar (systems/peopleCrimes.js captives), a rival House's child you took (systems/rivalCaptives.js), an outlaw you took for a bounty (systems/bountyHunting.js, captured_pending_decision), a crushed rising's leader (systems/peasantRevolts.js prisoners: knows its ringleaders, accomplice.rebel; a name accused true calms the town's grievance by names.ringleaderCalm), a prisoner of war (pow below: knows its realm's treasury, army and war plans, realm.<rank>; told, systems/realmIntel.js opens that realm's books and army to you for realm.days). STEPS: one session a day per prisoner. break: the base chance they talk; + strain (each session they hold out adds the step's strain, × strainPer) + (100 − hp) × hpPer, − their resolve (resolve: traits, blood loyalty, rank), + the player's diplomacy × diplomacyPer on the gentle steps (gentle: true) or the name for cruelty (Atrocities butcher) × dreadPer up to dreadMax on the hard ones. hp: what the step costs their body (out of 100; they mend recoverPerDay a day); hunger: a cellar prisoner's hunger rises (systems/peopleCrimes.js starves them at starveAt); mark: a body mark at this step (systems/maimMarks.js, read defensively) with markChance; death: the base chance they die under it, + (deathBelowHp − hp) × deathPerHp. lie: when they break with something true to tell, the chance they lie instead; lieEmpty: when they break with nothing left, the chance they name an innocent anyway. harsh: torture in law (systems/laws.js 'torture': forbidden / treason / free). cruelty/dread/karma/butcher: what each session costs you (traits, the name for cruelty). leak: the chance word of a harsh session gets out of an unlawful cellar (by where the prisoner is held), then gossip ('torture'), heat with the crown (heat) and the realm's regard (rep), the realm's lords (lordMemory torture / torture_heard), the faith (systems/maimFaith.js stance: sacred × sacredMult, harsh × harshMult; the realm's clergy standing −clergy when seen). KNOW: the chance (a fixed hash per prisoner and secret) a prisoner knows each real secret of the game: scheme (a hidden plot against you), agent (a rival's bought man in your towns: a NAME), thief (who robbed you: a NAME), lair (an outlaw lair not on your charts, within radius hexes), cache (buried treasure not yet found, within radius), intel (a rival House's purse, ambition and errand, and an informant on their plots for intelDays). LIES name a real innocent: a townsperson of the prisoner's town (or the nearest), or a lord of your court. Acting on a name: accuse (true: the agent exposed, the thief named, the realm +trueRep; false: the town's and the kin's memory, the realm's regard falseRep, a lord's grudge +falseGrudge and the court's +courtGrudge) or condemn (systems/executions.js: onto the scaffold's list, told whether they are guilty; an innocent put to death may be found out later there). THE AI: a rival House holding a child of yours as hostage, its feud ≥ ai.feud, may put the child to the question (ai.weekly, once every ai.everyDays): the child is hurt and the House hatches a plot from what it learned.",
+    "enabled": true,
+    "recoverPerDay": 3,
+    "strainPer": 0.03,
+    "hpPer": 0.003,
+    "diplomacyPer": 0.01,
+    "dreadPer": 0.002,
+    "dreadMax": 0.15,
+    "deathBelowHp": 45,
+    "deathPerHp": 0.006,
+    "steps": {
+        "talk": { "label": "Talk with them", "icon": "🗣️", "desc": "Bread, a stool, a quiet word: what would it cost them to tell?", "gentle": true, "break": 0.08, "strain": 0.5, "hp": 0, "death": 0, "lie": 0, "lieEmpty": 0, "cruelty": 0, "dread": 0, "karma": 0, "butcher": 0, "harsh": false },
+        "threaten": { "label": "Threaten them", "icon": "😠", "desc": "Show them the irons and say what they are for", "gentle": true, "break": 0.16, "strain": 1, "hp": 0, "death": 0, "lie": 0.1, "lieEmpty": 0.2, "cruelty": 0.3, "dread": 0.5, "karma": -1, "butcher": 0.3, "harsh": false },
+        "deprive": { "label": "No sleep, no bread", "icon": "🌑", "desc": "Kept awake in the dark, a day and a night, with nothing to eat", "break": 0.24, "strain": 1.5, "hp": 14, "hunger": 2, "death": 0.01, "lie": 0.25, "lieEmpty": 0.45, "cruelty": 1, "dread": 0.8, "karma": -2, "butcher": 1, "harsh": true },
+        "irons": { "label": "The rack and the irons", "icon": "⛓️", "desc": "Stretched on the rack, the thumbscrews, the iron boot", "break": 0.38, "strain": 2, "hp": 26, "death": 0.03, "lie": 0.45, "lieEmpty": 0.75, "cruelty": 2.5, "dread": 1.5, "karma": -4, "butcher": 2.5, "harsh": true },
+        "fire": { "label": "The fire", "icon": "🔥", "desc": "Hot iron to the skin. Few hold out; many say anything", "break": 0.52, "strain": 2.5, "hp": 32, "mark": "brand", "markChance": 0.5, "death": 0.06, "lie": 0.55, "lieEmpty": 0.85, "cruelty": 4, "dread": 2.5, "karma": -6, "butcher": 4, "harsh": true }
+    },
+    "resolve": {
+        "base": 0.05,
+        "traits": { "bold": 0.12, "stubborn": 0.15, "stern": 0.08, "quiet": 0.04, "cautious": -0.06, "kind": -0.03, "jovial": -0.04, "generous": -0.02 },
+        "rivalBlood": 0.15,
+        "heir": 0.06,
+        "outlaw": 0.08,
+        "noble": 0.05,
+        "rebel": 0.1,
+        "pow": { "captain": 0.08, "knight": 0.12, "lord": 0.15 },
+        "minBreak": 0.02,
+        "maxBreak": 0.92
+    },
+    "know": {
+        "scheme": { "self": 1, "town": 0.4, "rival": 0.75, "outlaw": 0.25 },
+        "agent": { "self": 1, "town": 0.35, "rival": 0.6, "outlaw": 0 },
+        "thief": { "town": 0.4, "outlaw": 0.3 },
+        "lair": { "town": 0.25, "outlaw": 0.85, "townRadius": 10, "outlawRadius": 25 },
+        "cache": { "town": 0.15, "outlaw": 0.5, "townRadius": 8, "outlawRadius": 15 },
+        "intel": { "rival": 1, "intelDays": 120 },
+        "accomplice": { "rebel": 0.9 },
+        "realm": { "captain": 0.7, "knight": 0.8, "lord": 1, "days": 120 }
+    },
+    "leak": { "captive": 0.05, "rival": 0.12, "bounty": 0.08, "rebel": 0.08, "pow": 0.15 },
+    "pow": {
+        "_doc": "Prisoners of war (Interrogation.takePrisoners): after you beat a realm's host in the field (player/fieldBattle.js) or take one of its towns by storm (systems/sieges.js; a surrender has safe conduct). Chance = chance + strength × perStrength (+ siegeBonus), at most maxChance, a hash roll; a lord from a host of lordAt or more (lordChance), a knight from knightAt, else a captain. ransom by rank out of the realm's treasury (at most treasuryShare of it; × maimedShare when maimed). After offerAfter days the realm offers it. Each month you keep one, that realm's regard −monthlyRep (up to grumbleCap). Released whole: +releaseRep and the lords' memory gift. Dead in your keeping: deathRep and lordMemory torture.",
+        "minStrength": 20, "chance": 0.35, "perStrength": 0.0025, "siegeBonus": 0.15, "maxChance": 0.7, "lordAt": 90, "lordChance": 0.5, "knightAt": 40,
+        "ransom": { "lord": 500, "knight": 200, "captain": 80 }, "treasuryShare": 0.3, "maimedShare": 0.6,
+        "offerAfter": 21, "monthlyRep": 2, "grumbleCap": 12, "releaseRep": 6, "deathRep": -12
+    },
+    "spies": {
+        "_doc": "Your spies taken abroad (systems/espionage/missions.js pushes them onto player.espionage.takenSpies): afterDays later, chance that crown puts them to the question and they talk: every mission of yours against it is blown (the spies come home idle), secondChance another of your spies placed in that realm is taken, regard rep, the lords' memory spy_confessed, a rival House of that realm +feud.",
+        "afterDays": 3, "chance": 0.4, "secondChance": 0.5, "rep": -8, "feud": 8
+    },
+    "brand": {
+        "heat": 6, "rep": -4, "sacredMult": 1.5, "harshMult": 0.5, "clergy": 2, "lawfulRep": 0.3,
+        "rivalFeud": 25, "rivalOthers": 4, "courtGrudge": 2, "deathFeud": 100
+    },
+    "names": {
+        "falseRep": -6, "falseGrudge": 15, "courtGrudge": 3, "trueRep": 2,
+        "ringleaderCalm": 8, "keep": 30
+    },
+    "ai": { "enabled": true, "feud": 70, "weekly": 0.02, "everyDays": 240, "hp": 30, "markChance": 0.25 },
+    "lines": {
+        "holds": ["{Name} says nothing. {He} spits on the floor.", "{Name} holds out, though it costs {him}.", "{Name} only weeps, and tells you nothing.", "{Name} stares at the wall until you go."],
+        "nothing": ["{Name} breaks, and swears on {his} mother there is nothing more to tell.", "{Name} gives you everything {he} has, and it is nothing you can use."],
+        "died": ["{Name} dies under the question. {He} took what {he} knew with {him}.", "Something gives in {Name}'s chest, and {he} is gone."]
+    }
+}

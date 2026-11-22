@@ -154,6 +154,8 @@ export const Knockout = {
             let k = _num(N.finish.base);
             if (temperament === 'aggressive') k = Math.max(k, _num(N.finish.aggressive));
             if (grudge) k = Math.max(k, grudge.severity === 'murder' ? _num(N.finish.murderGrudge) : _num(N.finish.grudge));
+            // (one who lay in wait for the player came for blood — an assassin, a hired blade: ui/innerMapHiding.js)
+            if (npc && _num(npc._killIntent) > 0) k = Math.max(k, _num(npc._killIntent));
             k = Math.max(0, Math.min(1, k * deter));
             if (rnd() < k) return { act: 'finish', line: say('finish'), chance: k, why: 'They meant to kill you from the first.' };
             if (ctx.campsAllowed && rnd() < _num(N.capture)) {
@@ -170,6 +172,8 @@ export const Knockout = {
         const R = C.rob;
         let rob = _num(R[npc && npc.type], _num(R.base));
         if (temperament === 'aggressive') rob = Math.max(rob, _num(R.aggressive));
+        // (a footpad or cutthroat who lay in wait came for the purse: ui/innerMapHiding.js)
+        if (npc && _num(npc._robIntent) > 0) rob = Math.max(rob, _num(npc._robIntent));
         rob = Math.min(1, rob * deter);
         const act = _num(player && player.gold) > 0 && rnd() < rob ? 'rob' : 'leave';
         return { act, line: say(act), chance, why };

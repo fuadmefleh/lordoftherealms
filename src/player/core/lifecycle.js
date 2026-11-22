@@ -81,8 +81,10 @@ export const PlayerLifecycleMethods = {
             this._kinMeal = kinMeal;
             this.starvationDays = 0;
             this.modifyNeed('hunger', DAILY_RATION_HUNGER);
-        } else if (!(this.getFoodCount && this.getFoodCount() > 0) && world && !this.jailState && !this.indenturedServitude && Household.tableMeal(this, world)) {
-            // (the packs empty, supper from the larder at home — player/household.js)
+        } else if (!(this.getFoodCount && this.getFoodCount() > 0) && world && !this.jailState && !this.indenturedServitude
+            && (Household.tableMeal(this, world) || Household.royalTable(this, world))) {
+            // (the packs empty, supper from the larder at home — player/household.js —
+            // or, at a palace the crown keeps, from the royal kitchens: Household.royalTable)
             this.starvationDays = 0;
             this.modifyNeed('hunger', DAILY_RATION_HUNGER);
         } else if (this.consumeFood()) {

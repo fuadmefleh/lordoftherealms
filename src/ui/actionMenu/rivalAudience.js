@@ -14,7 +14,9 @@ import { Duels } from '../../systems/duels.js';
 import { npcVoice } from '../npcVoice.js';
 import { DuelPanel } from './duel.js';
 import { esc } from './uiKit.js';
+import { MaimMarks } from '../../systems/maimMarks.js';
 import { Utils } from '../../core/utils.js';
+import { RivalCaptives } from '../../systems/rivalCaptives.js';
 
 let _current = null; // { unitId, kingdomId, paid, scene, regard, asked }
 
@@ -107,10 +109,11 @@ export function openRivalAudience(game, unitId) {
     state.scene = ConversationScene.open({
         variant: 'royal',
         name: RivalHouses.headName(rival),
-        subtitle: `Head of ${esc(rival.name)}${rival.role ? `, ${esc(rival.role)}` : ''} · age ${rival.head.age}${rival.seat ? ` · seat at ${esc(rival.seat.name)}` : ''}`,
+        subtitle: `Head of ${esc(rival.name)}${rival.role ? `, ${esc(rival.role)}` : ''} · age ${rival.head.age}${rival.seat ? ` · seat at ${esc(rival.seat.name)}` : ''}${MaimMarks.tag(rival.head) ? ` · ${esc(MaimMarks.tag(rival.head))}` : ''}`,
         where: `${place} · Day ${world.day || 1}`,
         icon: '🏰', badge: '🏰',
-        sprite: { type: 'noble', id: ConversationScene.seedOf(`${rival.houseKey}:${rival.head.firstName}`) },
+        // (what the head's body lost shows on the bust: ui/maimLook.js)
+        sprite: { type: 'noble', id: ConversationScene.seedOf(`${rival.houseKey}:${rival.head.firstName}`), gender: rival.head.gender, maimed: rival.head.maimed || null },
         mood: _mood(game, rival),
         moodTitle: `How ${RivalHouses.headName(rival)} regards you: the feud against what they remember`,
         facts: _factsHtml(game, rival),
@@ -275,6 +278,27 @@ function _choices(game, state) {
             icon: '😤', label: `Everyone knows what ${rival.name} is.`, group: 'hard', cls: 'npc-dialog-choice-dark',
             tooltip: `+3 renown with the crowd; feud +${RivalHouses.has(rival.head, 'proud') ? 15 : 10}.`,
             onPick: () => _act(game, state, `*loudly, for the crowd* Everyone knows what ${rival.name} is.`, (r) => _play(game, state, RivalAudience.act(player, world, r, 'insult'))),
+        });
+    }
+
+    // Seize a child of theirs, here, under guest-right (systems/rivalCaptives.js): a grave crime
+    const sz = RivalCaptives.seizeChance(player, world, rival);
+    if (sz && !sz.tried) {
+        const heir = RivalHouses.heirOf(rival, { any: true });
+        const who = sz.can.includes(heir) ? heir : sz.can[0];
+        const pct = Math.round(sz.chance * 100);
+        list.push({
+            icon: '⛓️', label: `*signals your men* Take ${who.firstName}.`, group: 'hard', cls: 'npc-dialog-choice-dark',
+            check: 'Seize', chance: pct, skillTag: pct >= 60 ? 'likely' : 'risky',
+            tooltip: `${pct}%${sz.feast ? ' (at your own table: their guard is down)' : ''}: ${who.firstName} becomes your captive (🔪 The Knife). Taken or not, you break guest-right: every House and realm hears of it, the priests call it sacrilege, karma −15, the feud to the top.`,
+            onPick: () => _act(game, state, `*signals your men* Take ${who.firstName}.`, (r) => {
+                const res = RivalCaptives.seize(player, world, r.kingdomId, who.firstName);
+                if (!res.success) { scene.note(esc(res.reason), 'bad'); return; }
+                scene.seal('Seize', res.ok ? 'Taken' : 'Fought clear', res.ok);
+                scene.npc(res.ok ? '*shouts, steel rasping out too late* You break bread with us and lay hands on my blood? Every House will hear of this.' : '*the guards close round, blades out* So this is what your word is worth. We are leaving.');
+                scene.note(esc(res.text), 'bad');
+                scene.leave();
+            }),
         });
     }
 

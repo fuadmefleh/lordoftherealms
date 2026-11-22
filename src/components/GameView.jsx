@@ -259,6 +259,7 @@ export default function GameView() {
           <div className="hud-needs" id="hudNeeds">
             {[
               ['hunger', 'bread', 'simsHungerBar'],
+              ['thirst', 'bucket', 'simsThirstBar'],
               ['energy', 'moon', 'simsEnergyBar'],
               ['social', 'speech', 'simsSocialBar'],
               ['fun', 'dice', 'simsFunBar'],

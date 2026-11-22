@@ -50,6 +50,8 @@ import './holdingSieges.js';
 import './rivals.js';
 import './heirs.js';
 import './heirAgency.js';
+// Matches & Betrothals: children promised to rival Houses, crowns and lords (systems/betrothals.js)
+import './matches.js';
 import './raising.js';
 import './abdication.js';
 // Your Name on the World: law codes, names on the map, the founding tale, the last chapter (systems/namedLegacy.js)
@@ -62,6 +64,8 @@ import './letters.js';
 import './threats.js';
 import './crises.js';
 import './lastCrisis.js';
+// 🔥 Risings: the commons risen against you, the grievance of your towns (systems/peasantRevolts.js)
+import './peasantRevolts.js';
 import './nemesis.js';
 // Friends & Bonds: sworn kin, drinking companions, mentors, protégés (systems/bonds.js)
 import './bonds.js';
@@ -77,6 +81,8 @@ import './townCrimes.js';
 // Profane crimes: a rival House's crypt, the relic trade (systems/profaneCrimes.js)
 import './profane.js';
 import './sickness.js';
+// Water: thirst, the skins, the town's wells (player/thirst.js, systems/water.js)
+import './water.js';
 import './livestock.js';
 import './furnishing.js';
 import './household.js';
@@ -84,6 +90,12 @@ import './courierRiders.js';
 import './rivalHouses.js';
 import './cadetBranches.js';
 import './kinCrimes.js';
+// The knife: hands, eyes, noses, tongues — and aids for your own losses (systems/maiming.js)
+import './maiming.js';
+// The scaffold: public executions, the crowd, martyrs' shrines (systems/executions.js)
+import './executions.js';
+// The dungeon: prisoners put to the question (systems/interrogation.js)
+import './interrogation.js';
 import './townsfolk.js';
 import './discovery.js';
 import './outlawLairs.js';

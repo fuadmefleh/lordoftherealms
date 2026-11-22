@@ -9,6 +9,7 @@ import { Dawn } from '../../world/dawn.js';
 import { OceanCurrents } from '../../world/oceanCurrents.js';
 import { LandRegions } from '../../world/landRegions.js';
 import { Endurance } from '../endurance.js';
+import { Thirst } from '../thirst.js';
 import { Utils } from '../../core/utils.js';
 import { Infrastructure } from '../../systems/infrastructure.js';
 import { PublicWorks } from '../../systems/publicWorks.js';
@@ -568,6 +569,8 @@ export const PlayerMovementMethods = {
             if (this.dawnInStep) Dawn.keepStep(world, this);
             // The miles build Endurance (player/endurance.js)
             Endurance.walked(this, 'hex', 1);
+            // Water on the way: a river, a lake, a town's clean well slakes you and fills the skins (player/thirst.js)
+            Thirst.passHex(this, world, currentTile);
 
             // A toll gate or a ferry on the road (systems/publicWorks.js)
             // (a river boat pays a town's mill weir and bridge instead: systems/riverBoats.js)

@@ -205,7 +205,8 @@ export const StreetCrime = {
         const dark = scene.indoors || scene.noDark ? 0 : NightSight.cut();
         const radius = Math.max(1, _num(C.sight.radius, 7) - cut - dark);
         // (the dark hides a deed from the eye, not the ear)
-        const hear = Math.max(radius, _num(C.sight.guardHearRadius, radius) - cut);
+        // (scene.hearCut: a blow from cover that fells them at once makes little noise — ui/innerMapHiding.js)
+        const hear = Math.max(radius, _num(C.sight.guardHearRadius, radius) - cut - Math.max(0, _num(scene.hearCut)));
         for (const npc of npcs) {
             if (!npc || npc === victim || (victim && npc.id === victim.id)) continue;
             if (npc.state === 'gone' || npc.state === 'unconscious') continue;
@@ -409,12 +410,13 @@ export const StreetCrime = {
         let g = { witnessed: false, witnessCount: 0, rumor: null };
         if (player && world) {
             const sceneNpcs = seenBy.map(w => w.npc);
-            if (crime === 'assault' && victim.name) sceneNpcs.push(victim);
+            // (one struck down unseen from cover cannot tell who did it: ui/innerMapHiding.js)
+            if (crime === 'assault' && victim.name && !victim._blindside) sceneNpcs.push(victim);
             g = Gossip.reportCrime(player, world, {
                 crimeType: crime,
                 victim: { name: victim.name || 'someone', type: victim.type || 'villager', icon: victim.icon, uid: vuid },
                 q: opts.q, r: opts.r,
-                scene: { npcs: sceneNpcs, q: _num(opts.scene && opts.scene.q), r: _num(opts.scene && opts.scene.r), radius: 1e9, victimTestifies: crime === 'assault' },
+                scene: { npcs: sceneNpcs, q: _num(opts.scene && opts.scene.q), r: _num(opts.scene && opts.scene.r), radius: 1e9, victimTestifies: crime === 'assault' && !victim._blindside },
             }) || g;
         }
         const witnessed = !!g.witnessed;
@@ -461,7 +463,7 @@ export const StreetCrime = {
             StreetCrime.remember(npc, { ...base, rel: 'kin', kin: rel.word, mood: 'anger', seen: false }, _num(C.disposition.kin[crime]), player);
         }
         // The victim of a beating remembers it
-        if (crime === 'assault' && victim && typeof victim === 'object' && victim.name) {
+        if (crime === 'assault' && victim && typeof victim === 'object' && victim.name && !victim._blindside) {
             StreetCrime.remember(victim, { ...base, rel: 'victim', mood: StreetCrime._moodOf(victim), seen: true }, _num(C.disposition.victim.assault), player);
         }
 

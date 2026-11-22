@@ -9,7 +9,10 @@
 //             the player's own host), the coalitions' power score
 //             (player.coalitions.power, systems/coalitions.js) and an
 //             imperial title (HighCrowns.isEmperor, systems/highCrowns.js,
-//             handed in with useHighCrowns). Dominant, the reckoning gathers
+//             handed in with useHighCrowns) — and the House must tower over
+//             the next greatest realm (dominance.lead × its towns), so one of
+//             a small world's three or four realms is not "dominant" by
+//             default. An emperor's bars are eased (emperorEase). Dominant, the reckoning gathers
 //             a week at a time; slipping back, it drains twice as fast. Held
 //             for holdYears (6–10, by hash) and with no world crisis running
 //             (systems/crises.js), the last crisis breaks. The Age panel shows
@@ -142,7 +145,7 @@ let _hc = HighCrowns || null;
 
 const DEFAULTS = {
     enabled: true, cadence: 7, offset: 5, minYears: 15, ageYears: 150, holdYears: [6, 10], slipRate: 2,
-    dominance: { share: 0.35, townShare: 0.3, power: 320, minRealms: 3 },
+    dominance: { share: 0.4, townShare: 0.33, power: 320, minRealms: 3, lead: 1.75, emperorEase: 0.85 },
     omensDays: [120, 240], omens: 3, hold: 0.67, breakShare: 0.5,
     weights: { horde: 1, crusade: 1, breakaway: 1 },
     horde: { hostMult: [1.0, 1.4], minHost: 400, waves: 3, land: [6, 16] },
@@ -253,7 +256,7 @@ export const LastCrisis = {
      */
     measure(world, player) {
         const D = LastCrisis.config().dominance;
-        const out = { realm: null, crowns: [], myTowns: 0, allTowns: 0, townShare: 0, mightShare: 0, share: 0, power: 0, emperor: false, dominant: false, progress: 0 };
+        const out = { realm: null, crowns: [], myTowns: 0, allTowns: 0, townShare: 0, mightShare: 0, share: 0, power: 0, emperor: false, rival: null, rivalTowns: 0, lead: 0, dominant: false, progress: 0 };
         if (!world || !player || !Array.isArray(world.kingdoms)) return out;
         const crowns = LastCrisis._crowns(world, player);
         out.crowns = crowns;
@@ -282,7 +285,22 @@ export const LastCrisis = {
         out.power = _num(player.coalitions && player.coalitions.power && player.coalitions.power.score);
         out.emperor = LastCrisis._emperor(player);
         const live = world.kingdoms.filter(_alive).length;
-        out.progress = _r3(Math.max(out.share / D.share, out.townShare / D.townShare, out.power / D.power, out.emperor ? 1 : 0));
+        // The next greatest realm outside the House's crowns: dominance is towering over it, not
+        // merely being one of three or four (a small world's realms each hold a quarter of it)
+        let rival = null, rivalTowns = 0;
+        for (const k of world.kingdoms) {
+            if (!_alive(k) || ids.has(k.id)) continue;
+            const n = _townsOf(world, k).length;
+            if (n > rivalTowns) { rival = k; rivalTowns = n; }
+        }
+        out.rival = rival;
+        out.rivalTowns = rivalTowns;
+        out.lead = rivalTowns > 0 ? _r3(mine / rivalTowns) : (mine > 0 ? 99 : 0);
+        // An emperor's title eases every bar (× emperorEase): the world measures a high crown more harshly
+        const ease = out.emperor ? _clamp(_num(D.emperorEase, 1), 0.3, 1) : 1;
+        const reach = Math.max(out.share / (_num(D.share, 0.4) * ease), out.townShare / (_num(D.townShare, 0.33) * ease), out.power / (_num(D.power, 320) * ease));
+        const lead = _num(D.lead, 0) > 0 ? out.lead / (_num(D.lead) * ease) : reach;
+        out.progress = _r3(Math.min(reach, lead));
         out.dominant = !!crowns.length && live >= _num(D.minRealms, 3) && out.progress >= 1;
         out.progress = Math.min(1, out.progress);
         return out;
@@ -581,10 +599,14 @@ export const LastCrisis = {
     },
 
     _war(world, a, b) {
-        if (!_alive(a) || !_alive(b) || a.id === b.id || _arr(a.wars).includes(b.id)) return;
+        if (!_alive(a) || !_alive(b) || a.id === b.id) return;
         if (!Array.isArray(a.wars)) a.wars = [];
         if (!Array.isArray(b.wars)) b.wars = [];
-        Utils.withRng(_rng(world, `war:${a.id}:${b.id}:${_day(world)}`), () => KingdomAI.startWar(a, b, world));
+        if (!a.wars.includes(b.id)) Utils.withRng(_rng(world, `war:${a.id}:${b.id}:${_day(world)}`), () => KingdomAI.startWar(a, b, world));
+        // A sworn war: the lords' peace and weariness do not end it, only the verdict (_judge ends it)
+        const C = LastCrisis.config();
+        const yrs = Math.max(..._arr(C.crusade && C.crusade.years), ..._arr(C.breakaway && C.breakaway.years), 1);
+        if (typeof KingdomAI.swearWar === 'function') KingdomAI.swearWar(a, b, world, _day(world) + Math.round((yrs + 1) * YEAR));
     },
 
     _beginCrusade(world, st, realm, day) {

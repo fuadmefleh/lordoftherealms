@@ -23,6 +23,7 @@
 
 import { InnerMap } from '../world/innerMap.js';
 import { InnerMapCharacters } from './innerMapCharacters.js';
+import { FollowerStep } from './followerStep.js';
 import { InnerMapBattle } from './innerMapBattle.js';
 import { Companions } from '../systems/companions.js';
 import { InnerMapEscort } from './innerMapEscort.js';
@@ -166,11 +167,12 @@ export const InnerMapCompanions = {
         let foe = null, fc = null;
         try { foe = InnerMapEscort._foe(game); fc = InnerMapEscort._fightCfg(); } catch { foe = null; }
         C._men.forEach((m, i) => {
-            let tx, ty;
+            let tx, ty, base = null;
             m.fighting = false;
             if (foe) {
                 // Round the foe, each to their own side of it (off the guard's angles)
                 const fp = InnerMapEscort._foePos(foe);
+                base = fp;
                 const ang = (i / Math.max(1, C._men.length)) * Math.PI * 2 + 2.2;
                 tx = fp.x + Math.cos(ang) * T_PX * 0.9;
                 ty = fp.y + Math.sin(ang) * T_PX * 0.7;
@@ -186,18 +188,26 @@ export const InnerMapCompanions = {
             } else {
                 m.swingT = null;
                 const back = C._along(at, SPACING * T_PX * (i + 1));
+                base = back;
                 // (a little to alternate sides of the trail, so they don't walk in one another)
                 tx = back.x + (i % 2 ? 1 : -1) * T_PX * 0.18; ty = back.y;
             }
+            // (never a place inside a wall: beside the trail, or round a foe, falls back to the trail itself, then to you)
+            if (!FollowerStep.walkable(tx, ty)) {
+                const alt = FollowerStep.place(base, { x: at.x, y: at.y });
+                if (alt) { tx = alt.x; ty = alt.y; }
+            }
             const dx = tx - m.x, dy = ty - m.y;
             const dist = Math.hypot(dx, dy);
-            if (dist > SNAP * T_PX) { m.x = tx; m.y = ty; m.moving = false; m.walkHold = 0; return; }
+            if (dist > SNAP * T_PX) { m.x = tx; m.y = ty; m.moving = false; m.walkHold = 0; m.stuckT = 0; return; }
             let moved = 0;
-            if (dist > 0.5) {
-                const k = Math.min(1, step * (dist > T_PX * 2 ? 1.6 : 1) / dist);
-                m.x += dx * k;
-                m.y += dy * k;
-                moved = dist * k;
+            if (dist > 0.5) moved = FollowerStep.move(m, tx, ty, step * (dist > T_PX * 2 ? 1.6 : 1));
+            // (caught on a corner, a good way behind: set down at its place on the trail)
+            m.stuckT = dist > T_PX * 1.5 && moved < 0.1 ? (m.stuckT || 0) + dt : 0;
+            if (m.stuckT > 1.2) {
+                const to = FollowerStep.place({ x: tx, y: ty }, base, { x: at.x, y: at.y });
+                if (to) { m.x = to.x; m.y = to.y; }
+                m.stuckT = 0;
             }
             if (dt > 0 && moved / dt > T_PX * 0.6) {
                 m.walkHold = 0.2;

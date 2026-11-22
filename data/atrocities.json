@@ -112,23 +112,34 @@
         "grief": -18,
         "griefLong": 5
     },
+    "wells": {
+        "_doc": "Carcasses of the camp's slaughtered beasts thrown down every well of a town you besiege (systems/water.js foul 'carcasses'): with no river or lake it drinks its cisterns (water.json siege.cisternDays), then thirsts — morale and garrison lost daily (Water.siegeDay, read by Sieges._defendersDay). Its people sicken drinking it and the wells stay foul long after the siege.",
+        "apCost": 3, "morale": 6, "happiness": -10,
+        "butcher": 8, "perfidy": 0, "karma": -10, "deeds": { "cruelty": 2, "dread": 1 },
+        "reputation": -10, "otherReputation": -2, "severity": 1,
+        "lordDeed": "atrocity", "othersDeed": "atrocity_heard", "gossip": "well_poisoning",
+        "grief": -6, "griefLong": 2
+    },
     "marks": {
         "salt": "The fields of {town} were sown with salt {when} by {by}.",
         "hostages": "{n} hostages of {town} were hanged before its walls {when} by {by}.",
         "plague": "The dead of the {illness} were flung over the walls of {town} {when} by {by}'s engines.",
-        "massacre": "{town} opened its gates to {by} {when} and was put to the sword; {n} were killed."
+        "massacre": "{town} opened its gates to {by} {when} and was put to the sword; {n} were killed.",
+        "wells": "The wells of {town} were fouled with carcasses {when} by {by}'s soldiers."
     },
     "chronicle": {
         "salt": "Sowed the fields of {town} with salt.",
         "hostages": "Hanged {n} hostages before the walls of {town}.",
         "plague": "Flung the {illness} dead over the walls of {town}.",
-        "massacre": "Put {town} to the sword after it had surrendered."
+        "massacre": "Put {town} to the sword after it had surrendered.",
+        "wells": "Fouled the wells of {town} with carcasses."
     },
     "events": {
         "salt": "🧂 {by} sows the fields of {town} with salt.",
         "hostages": "💀 {by} hangs {n} hostages before the walls of {town}.",
         "plague": "☠️ {by} flings the {illness} dead over the walls of {town}.",
-        "massacre": "⚰️ {by} puts {town} to the sword after it surrendered!"
+        "massacre": "⚰️ {by} puts {town} to the sword after it surrendered!",
+        "wells": "🐀 {by} fouls the wells of besieged {town} with carcasses."
     },
     "lines": {
         "salt": "Your men drag the salt across the furrows of {town}. Nothing will grow there for years.",
@@ -141,6 +152,7 @@
         "deadline": "The ultimatum to {town} runs out today. The hostages wait on your word.",
         "plague": "Your engines hurl the bloated dead of the {illness} over the walls of {town}.",
         "plagueBack": "The sickness you sent into {town} finds its way back into your own camp.",
-        "massacre": "The gates you were opened in good faith become a slaughter pen. {n} of {town}'s people die; {plunder} gold is carried off."
+        "massacre": "The gates you were opened in good faith become a slaughter pen. {n} of {town}'s people die; {plunder} gold is carried off.",
+        "wells": "Your men drag the carcasses of the camp's beasts to the wells of {town} and tip them in."
     }
 }

@@ -32,6 +32,7 @@ import { InnerMapCarry } from './innerMapCarry.js';
 import { InnerMapCarts } from './innerMapCarts.js';
 import { InnerMapCombat } from './innerMapCombat.js';
 import { InnerMapCharacters } from './innerMapCharacters.js';
+import { FollowerStep } from './followerStep.js';
 
 const T_PX = 32;
 const SPACING = 1.1;     // tiles between animals along the trail (a dog side-on is near two tiles long)
@@ -283,11 +284,12 @@ export const InnerMapPets = {
                 if (at.walking) m.facing = _facing(at.dq, at.dr, m.facing);
                 continue;
             }
-            let tx, ty;
+            let tx, ty, base = null;
             m.fighting = false;
             const dmg = foe && !m.stay ? AnimalCompanions.streetDamage(m.a, game.world) : 0;
             if (dmg > 0) {
                 const fp = InnerMapEscort._foePos(foe);
+                base = fp;
                 const ang = (slot / Math.max(1, P._pets.length)) * Math.PI * 2 + 1.1;
                 tx = fp.x + Math.cos(ang) * T_PX * 0.8;
                 ty = fp.y + Math.sin(ang) * T_PX * 0.6;
@@ -310,6 +312,7 @@ export const InnerMapPets = {
                 // (the horse, long as it is, on its rein a good step behind; the dogs and cats a little to one side)
                 back += m.a.id === 'mount' ? HORSE_GAP : SPACING;
                 const pt = P._along(at, T_PX * back);
+                base = pt;
                 if (m.a.id === 'mount') back += HORSE_GAP - SPACING;
                 // (to the side of the way you're going, not of the map)
                 const side = m.a.id === 'mount' ? 0 : (slot % 2 ? 1 : -1) * T_PX * 0.35;
@@ -317,15 +320,22 @@ export const InnerMapPets = {
             }
             if (!m.stay) slot++;
             m.atkT += dt;
+            // (never a place inside a wall: off to the side of the trail, or round a foe, falls back to the trail itself, then to you)
+            if (!FollowerStep.walkable(tx, ty)) {
+                const alt = FollowerStep.place(base, { x: at.x, y: at.y });
+                if (alt) { tx = alt.x; ty = alt.y; }
+            }
             const dx = tx - m.x, dy = ty - m.y;
             const dist = Math.hypot(dx, dy);
-            if (dist > SNAP * T_PX) { m.x = tx; m.y = ty; m.moving = false; m.walkHold = 0; continue; }
+            if (dist > SNAP * T_PX) { m.x = tx; m.y = ty; m.moving = false; m.walkHold = 0; m.stuckT = 0; continue; }
             let moved = 0;
-            if (dist > 0.5) {
-                const k = Math.min(1, step * (dist > T_PX * 2 ? 1.6 : 1) / dist);
-                m.x += dx * k;
-                m.y += dy * k;
-                moved = dist * k;
+            if (dist > 0.5) moved = FollowerStep.move(m, tx, ty, step * (dist > T_PX * 2 ? 1.6 : 1));
+            // (caught on a corner, a good way behind: it finds its way round, set down at its place on the trail)
+            m.stuckT = dist > T_PX * 1.5 && moved < 0.1 ? (m.stuckT || 0) + dt : 0;
+            if (m.stuckT > 1.2) {
+                const to = FollowerStep.place({ x: tx, y: ty }, base, { x: at.x, y: at.y });
+                if (to) { m.x = to.x; m.y = to.y; }
+                m.stuckT = 0;
             }
             if (dt > 0 && moved / dt > T_PX * 0.5) {
                 m.walkHold = 0.2;

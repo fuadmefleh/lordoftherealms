@@ -1,0 +1,10 @@
+Maimed — overlay layers for the LPC bodies (stumps, hooks, wooden legs, crutches,
+blindfold, scarred eye, cropped ears, slit/copper nose, brand).
+
+Drawn by scripts/make_maim_layers.py. Each frame is fitted from the LPC sheets in this
+folder's parent (Body, Head, Head Overlay - Eyes, Clothing Hands/Gloves, Feet/Shoes,
+Feet/Shoes 02 - Boots, Feet/Socks 02 - High Socks): the 'Erase - ...' masks are those
+layers' own silhouettes. The same authors and licences as those sheets apply (see
+../Credits.txt and the Clothing/Head credits).
+
+Re-run: python scripts/make_maim_layers.py

@@ -65,6 +65,8 @@ export const InnerMapReactions = {
         // (Stealth: seen and heard from less far off, the watch slower to start — systems/socialSkills.js)
         this._player = game.player;
         const scene = { q: victim.q, r: victim.r, indoors: !!InnerMap._insideBuilding, sightCut: SocialSkills.perk(game.player, 'stealth', 'sight') };
+        // (felled in one blow from cover: little noise to bring the watch — ui/innerMapHiding.js)
+        if (victim._hushed) scene.hearCut = victim._hushed;
         const npcs = InnerMap.npcs || [];
         const witnesses = StreetCrime.selectWitnesses(npcs, scene, victim);
         let playerAttack = 0;
@@ -96,7 +98,7 @@ export const InnerMapReactions = {
         victim._crime = crime;
         if (!victim._reacted) victim._reacted = new Set();
         for (const w of witnesses) victim._reacted.add(w.npc.id);
-        this._earshot(npcs, scene, victim, witnesses, `${seed}|heard`);
+        if (!victim._hushed) this._earshot(npcs, scene, victim, witnesses, `${seed}|heard`);
         // A beaten victim cries out
         if (crime === 'assault' && !victim._barked) {
             victim._barked = true;

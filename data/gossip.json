@@ -144,6 +144,60 @@
             "spreadChance": 0.95,
             "description": "{perpetrator} took the surrender of {location} and then put it to the sword"
         },
+        "torture": {
+            "label": "Screams in a Cellar",
+            "icon": "🔗",
+            "deed": true,
+            "localRenown": false,
+            "baseSeverity": 50,
+            "credibility": 0.75,
+            "decayDays": 140,
+            "spreadChance": 0.6,
+            "description": "{perpetrator} put {victim} to the irons near {location}"
+        },
+        "execution": {
+            "label": "An Execution",
+            "icon": "💀",
+            "deed": true,
+            "baseSeverity": 35,
+            "credibility": 0.9,
+            "decayDays": 90,
+            "spreadChance": 0.65,
+            "description": "{perpetrator} put {victim} to death on the scaffold at {location}"
+        },
+        "burning": {
+            "label": "A Burning",
+            "icon": "🔥",
+            "deed": true,
+            "localRenown": false,
+            "baseSeverity": 60,
+            "credibility": 0.9,
+            "decayDays": 200,
+            "spreadChance": 0.8,
+            "description": "{perpetrator} had {victim} burned alive at {location}"
+        },
+        "quartering": {
+            "label": "A Quartering",
+            "icon": "🐎",
+            "deed": true,
+            "localRenown": false,
+            "baseSeverity": 60,
+            "credibility": 0.9,
+            "decayDays": 200,
+            "spreadChance": 0.8,
+            "description": "{perpetrator} had {victim} drawn and quartered at {location}"
+        },
+        "mutilation": {
+            "label": "A Mutilation",
+            "icon": "🔪",
+            "deed": true,
+            "localRenown": false,
+            "baseSeverity": 55,
+            "credibility": 0.85,
+            "decayDays": 150,
+            "spreadChance": 0.7,
+            "description": "{perpetrator} had {victim} maimed at {location}"
+        },
         "hostages_hanged": {
             "label": "Hostages Hanged",
             "icon": "💀",

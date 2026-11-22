@@ -329,6 +329,11 @@
         "stewardAllowance": 40,
         "bareStrikes": 2
     },
+    "royalTable": {
+        "_doc": "A palace the crown keeps (an origin's royal apartments: house.keptBy): a reigning ruler at home with empty packs and a bare larder eats at the crown's table, a day's ration of the cheapest food on the palace town's stalls bought by the treasury (the crown's 'court' line, coin to the town). Not while the chests would fall below reserve.",
+        "enabled": true,
+        "reserve": 0
+    },
     "guests": {
         "chancePerDay": 0.12,
         "maxAtOnce": 3,

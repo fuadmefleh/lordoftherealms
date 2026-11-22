@@ -50,12 +50,14 @@ import { Holdings } from './holdings.js';
 import { Names } from '../core/names.js';
 import { Economy } from '../world/economy.js';
 import { MoneySupply } from '../world/moneySupply.js';
+// (run time only: promises to a real person are kept and broken there)
+import { Betrothals } from './betrothals.js';
 
 const DEFAULTS = {
     fosterMinAge: 7, fosterYears: [1, 2, 3], fosterMinReputation: -10, fosterQuality: 1.4,
     fosterBondPerMonth: 1, fosterBondCap: 20, fosterRivalFeudCut: 10,
     hostageRegard: -30, hostageCheckDays: 15, hostFocus: {},
-    betrothalMinAge: 4, betrothalDowryShare: 0.5, betrothalReputation: 8, betrothalBreakReputation: -15,
+    betrothalMinAge: 0, betrothalDowryShare: 0.5, betrothalReputation: 8, betrothalBreakReputation: -15,
     kinshipMarried: 0.5, kinshipBetrothed: 0.75,
     commandMinAge: 16, commandCombat: 0.025, commandLeadership: 0.015, commandCap: 0.3, regencyBattleMult: 0.92,
     fate: { woundWin: 0.06, woundLoss: 0.2, captureLoss: 0.08, deathWin: 0.01, deathLoss: 0.04, woundDays: 30, captiveDays: 60, ransom: 150, unransomedPrestige: 6 },
@@ -346,6 +348,8 @@ export const HeirAgency = {
         const a = child && HeirAgency.ensure(child);
         if (!a || !a.betrothal) return { success: false, reason: 'No betrothal to break.' };
         const b = a.betrothal;
+        // A promise to a real person — a rival's child, a prince, a lord's house (systems/betrothals.js)
+        if (b.kind && b.kind !== 'noble') return Betrothals.breakOff(player, world, childId, why, opts);
         a.betrothal = null;
         const k = HeirAgency._kingdom(world, b.kingdomId);
         let refund = 0;
@@ -636,7 +640,7 @@ export const HeirAgency = {
                 }
                 // The rival House of that realm, its feud running hot, breaks the match itself (grounds for a suit)
                 const BR = HeirAgency._raisingCfg().betrothal || {};
-                const rv = a.betrothal && player.house && player.house.rivals ? player.house.rivals[b.kingdomId] : null;
+                const rv = a.betrothal && (!b.kind || b.kind === 'noble' || b.kind === 'rival') && player.house && player.house.rivals ? player.house.rivals[b.kingdomId] : null;
                 const every = _num(BR.rivalCheckDays, 30);
                 if (rv && rv.head && !player.interregnum && every > 0 && day % every === 0 && _num(rv.feud) >= _num(BR.rivalBreakFeud, 60)
                     && HeirAgency._roll(world, `${child.id}:rivalBreak:${day}`) < _num(BR.rivalBreakChance, 0.2)) {
@@ -647,9 +651,10 @@ export const HeirAgency = {
             // The betrothed come of age (or are married elsewhere)
             if (a.betrothal) {
                 if (up.spouse) {
-                    if (up.spouse.kingdomId !== a.betrothal.kingdomId) HeirAgency.breakBetrothal(player, world, child.id, 'wed elsewhere');
+                    if (up.spouse.kingdomId !== a.betrothal.kingdomId || (a.betrothal.kind && a.betrothal.kind !== 'noble')) HeirAgency.breakBetrothal(player, world, child.id, 'wed elsewhere');
                     else a.betrothal = null;
-                } else if (up.comeOfAge) {
+                } else if (up.comeOfAge && (!a.betrothal.kind || a.betrothal.kind === 'noble')) {
+                    // (a promise to a real person is kept when both are of age: systems/betrothals.js)
                     HeirAgency._fulfilBetrothal(player, world, child, a, out);
                 }
             }
@@ -688,6 +693,8 @@ export const HeirAgency = {
 
     /** A host court that has come to think ill of the House keeps the child. */
     _hostageCheck(player, world, child, p, out) {
+        // (a child raised in a vassal's hall for a match is in your own realm: systems/betrothals.js)
+        if (p.vassalId) return;
         const k = HeirAgency._kingdom(world, p.kingdomId);
         if (!k || !k.lord || k.isAlive === false) return;
         // At open war the court letters carry it (child_hostage); this is the cold peace

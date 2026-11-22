@@ -63,6 +63,7 @@ import { Kingship } from './kingship.js';
 import { Pressure } from './pressure.js';
 import { NpcMemory } from './npcMemory.js';
 import { Names } from '../core/names.js';
+import { Water } from './water.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _day = (world) => (world && world.day) || 0;
@@ -778,6 +779,8 @@ export const HoldingSieges = {
             && PlayerMilitary.getArmyStrength(player) >= s.besiegers * M.reliefMinRatio) {
             dm += M.reliefNear;
         }
+        // The besiegers may foul the wells; no clean water left: the cisterns, then thirst (systems/water.js)
+        dm += Water.siegeDay(world, s, settlement, { enemyFoul: true, log: (t) => HoldingSieges._log(s, world, t), notice: (title, text, type) => out.notices.push({ title, text, type }) });
         s.morale = Utils.clamp(_r1(s.morale + dm), 0, 100);
     },
 
@@ -785,6 +788,8 @@ export const HoldingSieges = {
         const C = HoldingSieges.config();
         const B = C.besiegers;
         const day = _day(world);
+        // A camp far from a river or lake hauls its water (systems/water.js)
+        s.besiegerMorale = Utils.clamp(_num(s.besiegerMorale) - Water.siegeCampDay(world, s), 0, 100);
         // Works: a ram, then the walls battered day after day
         if (!s.ramBuilt) {
             s.ram = _r1(s.ram + 1);

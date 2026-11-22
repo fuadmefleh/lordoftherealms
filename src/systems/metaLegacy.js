@@ -249,8 +249,59 @@ export const MetaLegacy = {
             // whatever it hands MetaLegacy.attachChronicle is kept with the entry
             chronicle: null,
             // The Golden or Dark Age the House gave its name to (systems/lastCrisis.js: house.ages)
-            ages: (Array.isArray(house.ages) ? house.ages : []).slice(0, 4).map(a => ({ kind: _str(a.kind), name: _str(a.name), realm: _str(a.realm) })),
+            ages: (Array.isArray(house.ages) ? house.ages : []).slice(0, 4).map(a => ({
+                kind: _str(a.kind), name: _str(a.name), realm: _str(a.realm),
+                fromYear: MetaLegacy._year(world, a.day), toYear: a.until != null ? MetaLegacy._year(world, a.until) : null,
+            })),
+            // The high crowns it proclaimed (systems/highCrowns.js: player.highCrowns.empire / .past)
+            empires: MetaLegacy._empires(player, world),
+            // Its crowns' successions, the contested ones by name (systems/crownSuccession.js: player.crownSuccession.history)
+            ...MetaLegacy._successions(player, world),
         };
+    },
+
+    /** The calendar year of a world day (as the Annals count it: world.baseYear + whole years). */
+    _year(world, day) {
+        if (!Number.isFinite(day)) return null;
+        const base = _num(world && world.baseYear, 1);
+        return base + Math.floor((Math.max(1, Math.floor(day)) - 1) / 120);
+    },
+
+    /** Every Empire / High Kingship the House proclaimed: [{ name, title, fromYear, toYear, why }] (toYear null: it stood at the end). */
+    _empires(player, world) {
+        const st = _obj(player && player.highCrowns);
+        if (!st) return [];
+        const out = (Array.isArray(st.past) ? st.past : []).filter(_obj).map(e => ({
+            name: _str(e.name), title: _str(e.title), fromYear: MetaLegacy._year(world, e.from), toYear: MetaLegacy._year(world, e.until), why: _str(e.why, null),
+        }));
+        const cur = _obj(st.empire);
+        if (cur) out.push({ name: _str(cur.name), title: _str(cur.title), fromYear: MetaLegacy._year(world, cur.day), toYear: null, why: null });
+        return out.filter(e => e.name).slice(-4);
+    },
+
+    /** { successions: { peaceful, contested, wars, lost, split }, crownWars: [{ year, heir, claimant, kind, outcome, realm }] } */
+    _successions(player, world) {
+        const st = _obj(player && player.crownSuccession);
+        const hist = st && Array.isArray(st.history) ? st.history.filter(_obj) : [];
+        const tally = { peaceful: 0, contested: 0, wars: 0, lost: 0, split: 0 };
+        const wars = [];
+        let atWar = false;
+        for (const r of hist) {
+            const o = _str(r.outcome);
+            if (o === 'peaceful') { tally.peaceful++; atWar = false; continue; }
+            // (a war's end — held, bought off, usurped, split — is its own record: listed, not counted twice)
+            if (o === 'war' || o === 'unbacked' || (o === 'usurped' && !atWar)) tally.contested++;
+            if (o === 'war') tally.wars++;
+            if (o === 'usurped') tally.lost++;
+            if (o === 'split') tally.split++;
+            atWar = o === 'war';
+            const k = world && typeof world.getKingdom === 'function' && r.kingdomId != null ? world.getKingdom(r.kingdomId) : null;
+            wars.push({
+                year: MetaLegacy._year(world, r.day), heir: _str(r.heir), claimant: _str(r.claimant && r.claimant.name), kind: _str(r.claimant && r.claimant.kind),
+                outcome: o, realm: _str(k && k.name, null), newRealm: _str(r.newKingdom, null),
+            });
+        }
+        return { successions: tally, crownWars: wars.slice(-8) };
     },
 
     /** The named-legacy fields of a Hall entry, read off the House's own record (no import of the module). */
@@ -260,7 +311,20 @@ export const MetaLegacy = {
         const myth = _obj(st.myth);
         const codes = (Array.isArray(world && world.kingdoms) ? world.kingdoms : [])
             .map(k => _obj(k && k.laws) && _obj(k.laws.code)).filter(c => c && c.stage === 'proclaimed' && c.houseId && c.houseId === house.id).map(c => _str(c.name));
-        return { rememberedFor: ch ? _str(ch.line, null) : null, myth: myth ? _str(myth.name, null) : null, codes: codes.slice(0, 4) };
+        // Every head's last chapter (what each asked to be remembered for, and the words they gave the House)
+        const chapters = (Array.isArray(st.chapters) ? st.chapters : []).filter(_obj).slice(-6)
+            .map(c => ({ ruler: _str(c.ruler), year: _num(c.year, null), label: _str(c.label), motto: _str(c.motto) }));
+        // The places on the map that bear its name (regions and seas: world.namedLegacy.places; towns: settlement.namedBy)
+        const places = (Array.isArray(world && world.namedLegacy && world.namedLegacy.places) ? world.namedLegacy.places : [])
+            .filter(p => _obj(p) && p.name && house && p.house === house.name).map(p => _str(p.name));
+        try {
+            const views = world && typeof world.getSettlementViews === 'function' ? world.getSettlementViews() : [];
+            for (const v of views || []) {
+                const s = v && (v.settlement || v);
+                if (s && s.name && _obj(s.namedBy) && s.namedBy.house === house.name) places.push(_str(s.name));
+            }
+        } catch (e) { /* the regions stand */ }
+        return { rememberedFor: ch ? _str(ch.line, null) : null, myth: myth ? _str(myth.name, null) : null, codes: codes.slice(0, 4), chapters, places: places.slice(0, 8) };
     },
 
     /** File an ended House in the Hall (Legacy.endDynasty calls this). Idempotent. */

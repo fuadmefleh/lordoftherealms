@@ -67,8 +67,18 @@ const EXPECTED_KEYS = [
     'showHighCrowns', 'showHighCrown',
     // The last crisis of the age (ui/actionMenu/lastCrisis.js): +1
     'lastCrisisAct',
+    // 🔥 Risings: the commons risen against you (ui/actionMenu/peasantRevolts.js)
+    'showRisingsPanel', 'risingAct',
+    // The knife: maiming, and aids for your own losses (ui/actionMenu/maiming.js): +6
+    'showMaiming', 'showMaimTarget', 'maimingAct', 'showMaimAids', 'maimAidAct', 'streetMaimAct', 'rivalCaptiveAct', 'rivalSeizeAct',
+    // The dungeon: prisoners put to the question (ui/actionMenu/interrogation.js): +3
+    'showDungeon', 'showDungeonPrisoner', 'dungeonAct',
+    // The scaffold: public executions (ui/actionMenu/executions.js): +5
+    'showExecutions', 'showCondemned', 'executionsAct', 'showScaffoldCrowd', 'scaffoldCrowdAct',
     'showCrisesPanel', 'crisisAct', 'showNemesisPanel', 'nemesisAct', 'showAbdication', 'abdicationAct', 'showNamedLegacy', 'namedLegacyAct', '_estateHtml', 'annalsScribeFor', 'clearAnnalsScribe',
     'showSickness', 'sicknessAct',
+    // Water: thirst, the skins, the town's wells (ui/actionMenu/water.js)
+    'showWater', 'waterAct',
     // Stewards & governors (ui/actionMenu/stewards.js): +2
     'showStewards', 'stewardsAct',
     // Migration: where the people go, settlers & borders (ui/actionMenu/migration.js, 2026-11-14): +2
@@ -209,6 +219,8 @@ const EXPECTED_KEYS = [
     'showSiegeConfirm', 'showSiegePanel', 'siegeAct', 'showSmuggleMenu', 'showTalkLocalsMenu', 'showTavernMenu', 'showTerraformMenu',
     'showTitleStatusPanel', 'showTournamentMenu', 'showTradeMenu', 'showTravelPartyMenu', 'spendAP',
     'tradeWithIndigenous', 'visitHolySite',
+    // Matches & Betrothals (ui/actionMenu/matches.js)
+    'showMatchesPanel', 'showMatchSeek', 'showMatchTerms', 'matchesDo',
 ];
 
 let ActionMenu;
@@ -228,7 +240,7 @@ describe('ActionMenu split — structural equivalence', () => {
     });
 
     it('has 461 members', () => {
-        expect(Object.keys(ActionMenu)).toHaveLength(497); // (+6 haggling, ui/actionMenu/haggle.js; +1 lastCrisisAct; +2 namedLegacy; +2 highCrowns)
+        expect(Object.keys(ActionMenu)).toHaveLength(521); // (+1 rivalSeizeAct; +2 water, ui/actionMenu/water.js; +3 the dungeon, ui/actionMenu/interrogation.js; +5 the scaffold, ui/actionMenu/executions.js; +2 risings, ui/actionMenu/peasantRevolts.js; +4 matches & betrothals, ui/actionMenu/matches.js; +1 rivalCaptiveAct; +6 maiming, ui/actionMenu/maiming.js; +6 haggling, ui/actionMenu/haggle.js; +1 lastCrisisAct; +2 namedLegacy; +2 highCrowns)
     });
 
     it('every member except the known data props is a function', () => {

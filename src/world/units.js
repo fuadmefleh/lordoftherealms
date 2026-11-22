@@ -276,6 +276,7 @@ export class WorldUnit {
                 break;
             case 'war_host':
             case 'relief_host': // a realm marching to relieve a town the player besieges (systems/sieges.js)
+            case 'peasant_host': // the commons risen against their lord (systems/peasantRevolts.js)
                 this.updateWarHost(world);
                 break;
             default:

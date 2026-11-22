@@ -90,8 +90,12 @@ const topLevel = [
     'lastCrisis',
     // The weight of greatness: graft, drifting provinces, soft heirs, entrenched guilds and clergy (systems/realmDecline.js)
     'realmDecline',
+    // The commons rise: grievances, risings, rebel hosts, charters (systems/peasantRevolts.js)
+    'peasantRevolts',
     'climate',
     'rivalHouses',
+    // Children promised to bind Houses and realms (systems/betrothals.js)
+    'betrothals',
     'rivalVoice',
     // Cadet branches of the House (systems/cadetBranches.js)
     'cadetBranches',
@@ -99,6 +103,12 @@ const topLevel = [
     'crownSuccession',
     // Crimes against your own blood (systems/kinCrimes.js)
     'kinCrimes',
+    // Maiming: hands, eyes, noses, tongues — the deed, the law, the aids (systems/maiming.js, maimMarks.js)
+    'maiming',
+    // Public executions: the condemned, the crowd, the last words, martyrs (systems/executions.js)
+    'executions',
+    // The dungeon: putting prisoners to the question (systems/interrogation.js)
+    'interrogation',
     'realmIntel',
     'containers',
     'townProps',
@@ -185,6 +195,8 @@ const topLevel = [
     'townMemory',
     // Deplorable acts against a town: a poisoned well, a plague lie, a burnt granary, hoarded grain (systems/townCrimes.js)
     'townCrimes',
+    // Water: thirst, waterskins, the towns' wells, foul and dry wells, water in sieges, armies and ships (systems/water.js, player/thirst.js)
+    'water',
     // The towns' architectural eras, weathering and walls (world/townEras.js)
     'townEras',
     // Questioned by the watch when a town's suspicion adds up (systems/watchQuestioning.js)
@@ -220,8 +232,12 @@ const topLevel = [
     'namedLegacy',
     // Law courts: the player tried, the player as judge, lawsuits between Houses (player/trials.js)
     'trials',
+    // Trial by combat and by ordeal: the hot iron, the water, the bread, oath-helpers, champions (player/ordeals.js)
+    'ordeals',
     // Tournaments fought in person on the town's lists: the joust, the melee, wagers (systems/lists.js)
-    'lists'
+    'lists',
+    // Hiding in cover on the street map, being spotted, the ambush, those who lie in wait (systems/stealthCover.js)
+    'stealthCover'
 ];
 
 const merged = {};

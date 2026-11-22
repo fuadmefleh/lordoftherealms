@@ -21,6 +21,7 @@
 
 import { InnerMap } from '../world/innerMap.js';
 import { InnerMapCharacters } from './innerMapCharacters.js';
+import { FollowerStep } from './followerStep.js';
 import { InnerMapAnimals } from './innerMapAnimals.js';
 import { InnerMapBattle } from './innerMapBattle.js';
 import { Battlefield } from '../player/battlefield.js';
@@ -157,11 +158,12 @@ export const InnerMapEscort = {
         const foe = E._foe(game);
         const fc = E._fightCfg();
         E._men.forEach((m, i) => {
-            let tx, ty;
+            let tx, ty, base = null;
             m.fighting = false;
             if (foe) {
                 // Round the foe, each to his own side of it
                 const fp = E._foePos(foe);
+                base = fp;
                 const ang = (i / Math.max(1, E._men.length)) * Math.PI * 2 + 0.6;
                 tx = fp.x + Math.cos(ang) * T_PX * 0.95;
                 ty = fp.y + Math.sin(ang) * T_PX * 0.75;
@@ -180,24 +182,32 @@ export const InnerMapEscort = {
                 // (and your animals: ui/innerMapPets.js)
                 const lead = InnerMapCompanions.count() * 0.9 + InnerMapPets.count() * 1.1;
                 const back = E._along(at, SPACING * T_PX * (Math.floor(i / 2) + 1 + lead));
+                base = back;
                 // (two abreast: each of a pair a little to its side of the trail)
                 const side = (i % 2 ? 1 : -1) * T_PX * 0.32;
                 tx = back.x + side; ty = back.y;
             }
+            // (never a place inside a wall: beside the trail, or round a foe, falls back to the trail itself, then to you)
+            if (!FollowerStep.walkable(tx, ty)) {
+                const alt = FollowerStep.place(base, { x: at.x, y: at.y });
+                if (alt) { tx = alt.x; ty = alt.y; }
+            }
             const dx = tx - m.x, dy = ty - m.y;
             const dist = Math.hypot(dx, dy);
-            if (dist > SNAP * T_PX) { m.x = tx; m.y = ty; m.moving = false; m.walkHold = 0; return; }
+            if (dist > SNAP * T_PX) { m.x = tx; m.y = ty; m.moving = false; m.walkHold = 0; m.stuckT = 0; return; }
             // Walking is judged by how far a figure actually went, not how far
             // it has left to go: trailing the player it closes the gap each
             // frame (a couple of px), so the gap alone read as standing still
             // and the guard glided along in the idle pose. A short hold keeps
             // the stride from flickering frame to frame.
             let moved = 0;
-            if (dist > 0.5) {
-                const k = Math.min(1, step * (dist > T_PX * 2 ? 1.6 : 1) / dist);
-                m.x += dx * k;
-                m.y += dy * k;
-                moved = dist * k;
+            if (dist > 0.5) moved = FollowerStep.move(m, tx, ty, step * (dist > T_PX * 2 ? 1.6 : 1));
+            // (caught on a corner, a good way behind: set down at its place on the trail)
+            m.stuckT = dist > T_PX * 1.5 && moved < 0.1 ? (m.stuckT || 0) + dt : 0;
+            if (m.stuckT > 1.2) {
+                const to = FollowerStep.place({ x: tx, y: ty }, base, { x: at.x, y: at.y });
+                if (to) { m.x = to.x; m.y = to.y; }
+                m.stuckT = 0;
             }
             if (dt > 0 && moved / dt > T_PX * 0.6) {
                 m.walkHold = 0.2;

@@ -58,6 +58,7 @@ import { Ailments } from './ailments.js';
 import { Petitions } from './petitions.js';
 import { RealmWars } from './realmWars.js';
 import { Kingship } from './kingship.js';
+import { Water } from './water.js';
 import { Regency } from './regency.js';
 import { Gossip } from './gossip.js';
 import { PlayerMilitary } from '../player/playerMilitary.js';
@@ -65,6 +66,7 @@ import { WorldUnit } from '../world/units.js';
 import { RealmArms } from '../world/realmArms.js';
 import { TownMemory } from './townMemory.js';
 import { Atrocities } from './atrocities.js';
+import { Interrogation } from './interrogation.js';
 
 const STANCES = ['blockade', 'works', 'sap'];
 const TERMS = ['surrender', 'ransom', 'tribute'];
@@ -530,7 +532,7 @@ export const Sieges = {
             log: [],
         };
         // Rebels hold their own walls: their men, not the crown's army
-        if (s.revolt) s.garrison = Math.max(1, Math.round(Kingship.rebelStrength(player) * _num((Kingship.config().revolt || {}).garrisonShare) + s.population * 0.02));
+        if (s.revolt) s.garrison = Math.max(1, Math.round(Kingship.rebelStrength(player, tile.q, tile.r) * _num((Kingship.config().revolt || {}).garrisonShare) + s.population * 0.02));
         s.garrisonStart = s.garrison;
         // They know what you did to a town that surrendered: they will fight to the last (systems/atrocities.js)
         s.lastStand = Atrocities.lastStand(player);
@@ -710,6 +712,8 @@ export const Sieges = {
             }
         }
         rel.q = unit.q; rel.r = unit.r;
+        // Dry country on the march: the host thirsts and thins (systems/water.js)
+        if (!rel.arrived) Water.armyUnitDay(world, unit, rel);
         if (rel.arrived) return unit;
         if (unit.q === s.q && unit.r === s.r) return unit;
         rel.stuckDays = (!moved && unit.objectiveQ != null) ? _num(rel.stuckDays) + 1 : 0;
@@ -1015,6 +1019,8 @@ export const Sieges = {
             s.garrison = Math.max(0, Math.floor(s.garrison * (1 - D.garrisonLoss)));
             settlement.population = Math.max(1, Math.floor(_num(settlement.population) * (1 - D.popLoss)));
         }
+        // No clean well left (the wells fouled, run dry): the cisterns, then thirst (systems/water.js)
+        dm += Water.siegeDay(world, s, settlement, { log: (t) => Sieges._log(s, world, t), notice: (title, text, type) => out.notices.push({ title, text, type }) });
         s.morale = Utils.clamp(Math.round((s.morale + dm) * 10) / 10, 0, 100);
         // Walls mended by night
         if (s.wallHp < 100 && !starving && s.morale >= C.walls.repairMorale) s.wallHp = Math.min(100, s.wallHp + C.walls.repairPerDay);
@@ -1076,6 +1082,8 @@ export const Sieges = {
             s.hungryDays = 0;
         }
         if (day - s.startDay > K.boredomAfter) s.campMorale -= K.boredom;
+        // Far from a river or lake the camp hauls its water (systems/water.js)
+        s.campMorale -= Water.siegeCampDay(world, s);
 
         // Camp disease
         const D = C.campDisease;
@@ -1204,14 +1212,19 @@ export const Sieges = {
         const opts = surrender
             ? { plunder: T.surrenderPlunder, popKeep: T.surrenderPopKeep, karma: T.surrenderKarma, reputationMult: T.surrenderReputation }
             : {};
+        // Taken by storm: the garrison's captain or the town's lord may be taken (systems/interrogation.js prisoners of war; a surrender has safe conduct)
+        const powKid = s.kingdomId != null ? s.kingdomId : settlement.kingdom;
+        const pow = surrender ? null : Interrogation.takePrisoners(player, world, { kingdomId: powKid, strength: Math.max(_num(s.garrisonStart), _num(s.garrison), 30), how: `at ${s.name}`, siege: true });
+        const powNote = pow ? ` ${pow.name} of ${pow.realm} is taken in its fall: your prisoner now (🔗 The Dungeon).` : '';
+        if (pow) result.prisonerTaken = powNote.trim();
         PlayerMilitary.conquerSettlement(player, settlement, tile, world, result, opts);
         if (surrender) {
             Traits.recordDeeds(player, { mercy: 2, honesty: 1 });
             Sieges._court(player, { mercy: 2 });
         }
         return Sieges._finish(player, world, 'captured',
-            surrender ? `${s.name} surrenders; its garrison marches out under safe conduct. ${result.newOwner ? `It now belongs to ${result.newOwner}.` : ''}`.trim()
-                : `${s.name} is taken by storm. ${result.newOwner ? `It now belongs to ${result.newOwner}.` : ''}`.trim());
+            surrender ? `${s.name} surrenders; its garrison marches out under safe conduct. ${result.newOwner ? `It now belongs to ${result.newOwner}.` : ''}`.trim() + powNote
+                : `${s.name} is taken by storm. ${result.newOwner ? `It now belongs to ${result.newOwner}.` : ''}`.trim() + powNote);
     },
 
     /** Loot the town and leave it burning. */

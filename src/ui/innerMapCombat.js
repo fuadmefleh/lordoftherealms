@@ -36,6 +36,9 @@ import { Ailments } from '../systems/ailments.js';
 import { Duels } from '../systems/duels.js';
 import { Townsfolk } from '../systems/townsfolk.js';
 import { Knockout } from '../systems/knockout.js';
+// (vengeance taken on the player lying senseless: systems/maiming.js)
+import { Maiming } from '../systems/maiming.js';
+import { MaimMarks } from '../systems/maimMarks.js';
 import { Carrying } from '../systems/carrying.js';
 import { Downed } from '../systems/downed.js';
 import { InnerMapCarry } from './innerMapCarry.js';
@@ -248,6 +251,14 @@ export const InnerMapCombat = {
             chaseTimer: 0,
             chasePath: null,
         };
+        // A blow from cover (ui/innerMapHiding.js): the first swing comes at once, can't miss, lands heavier,
+        // and may fell them outright
+        const sur = this._surprise;
+        this._surprise = null;
+        if (sur && sur.npcId === npc.id) {
+            this._attackState.surprise = sur;
+            this._attackState.swingTimer = this._attackState.swingInterval;
+        }
 
         // Face the NPC immediately
         const dq = npc.q - InnerMap.playerInnerQ;
@@ -268,9 +279,15 @@ export const InnerMapCombat = {
             this._initiateNPCReaction(npc, game);
             // A job's opponent (a brawler on the watch round, an arena bout): fair game, no crime
             if (npc._taskFoe) return;
-            this.applyAttackRelationshipPenalties(game, npc);
+            // (struck down unseen from cover: they never saw who — no grudge, no word to their kin; ui/innerMapHiding.js)
+            if (!npc._blindside) this.applyAttackRelationshipPenalties(game, npc);
 
             // Family & friends turn against the player (once per NPC per assault)
+            if (npc._blindside && !npc._assaultRippled) {
+                npc._assaultRippled = true;
+                // The street may still have seen it (StreetCrime.selectWitnesses: the dark hides it)
+                InnerMapReactions.onViolence(game, npc, 'assault');
+            }
             if (!npc._assaultRippled) {
                 npc._assaultRippled = true;
                 const ripple = NpcDisposition.onNpcHarmed(npc, InnerMap.npcs || [], 'assault');
@@ -443,9 +460,12 @@ export const InnerMapCombat = {
         const player = g && g.player;
         const T = InnerMapRenderer.TILE_SIZE;
         const sk = ia.skill;
+        // A blow from cover lands (ui/innerMapHiding.js)
+        const sur = ia.surprise || null;
+        ia.surprise = null;
         // Does it land? Your skill's aim against their parry or footwork
-        const roll = sk && player ? Utils.random() : 0;
-        if (sk && player && roll >= this._playerHitChance(player, sk, ia.foeGuard)) {
+        const roll = sk && player && !sur ? Utils.random() : 0;
+        if (sk && player && !sur && roll >= this._playerHitChance(player, sk, ia.foeGuard)) {
             // Wide of them, or turned by their parry / slipped by their footwork
             const guarded = ia.foeGuard && ia.foeGuard.chance > 0 && roll < this._playerHitChance(player, sk, null);
             this._spawnFloat(npc.q * T + T / 2, npc.r * T + T * 0.1, 0, 'normal', guarded ? ia.foeGuard.word : 'Miss');
@@ -464,8 +484,11 @@ export const InnerMapCombat = {
                 label = 'Power swing!';
             }
         }
+        if (sur) { rawDmg *= Math.max(1, Number(sur.mult) || 1); label = sur.label || 'Ambush!'; }
         // The NPC's armour (a guard's mail) turns part of the blow
-        const dmg      = Math.max(1, Math.round(rawDmg * (1 - (ia.npcArmour || 0))));
+        let dmg      = Math.max(1, Math.round(rawDmg * (1 - (ia.npcArmour || 0))));
+        // (felled outright by it: the surprise's knock-out)
+        if (sur && sur.ko) dmg = Math.max(dmg, health.current);
         const isCrit   = !!label || rawDmg > ia.baseDamage * 1.09;
         // (how far past senseless the blow went, as a share of their health: a crushing one may leave them bleeding)
         const overkill = Math.max(0, dmg - health.current) / Math.max(1, health.max);
@@ -586,8 +609,8 @@ export const InnerMapCombat = {
         const parts = [];
         if (gold > 0) parts.push(`${Utils.formatGold(gold)} gold`);
         for (const it of items) parts.push(`${it.qty} ${String(it.id).replace(/_/g, ' ')}`);
-        // They'll know who did it when they come round
-        NpcDisposition.adjustDisposition(npc, -15, game && game.player);
+        // They'll know who did it when they come round (not one struck down unseen: ui/innerMapHiding.js)
+        if (!npc._blindside) NpcDisposition.adjustDisposition(npc, -15, game && game.player);
         // Robbing the senseless in sight of the street: a crime as a beating is (the watch comes)
         if (game && game.player && !npc._robSeen) {
             const sight = StreetCrime.selectWitnesses(InnerMap.npcs || [], { q: npc.q, r: npc.r, indoors: !!InnerMap._insideBuilding }, npc);
@@ -691,6 +714,12 @@ export const InnerMapCombat = {
             }
             const res = Knockout.playerWakes(player, verdict, undefined, game.world);
             InnerMap.passHours(res.hours);
+            // One with a grudge for one you maimed takes the same from you while you lie there (systems/maiming.js)
+            const venge = attacker && !attacker._taskFoe && !['arrest', 'warn'].includes(verdict.act) ? Maiming.vengeance(attacker, player, game.world) : null;
+            if (venge) {
+                const m = Maiming.maimPlayer(player, game.world, venge, { by: who, why: 'vengeance' });
+                if (m.ok) game.ui.showNotification(`${(MaimMarks.act(venge) || {}).icon || '🔪'} ${who}'s Vengeance`, `While you lay senseless ${who} took what you took. ${m.text}`, 'error');
+            }
             if (attacker) {
                 attacker._broke = true;
                 InnerMapReactions._flee(attacker, { indoors: !!InnerMap._insideBuilding });

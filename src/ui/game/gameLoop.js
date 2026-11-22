@@ -48,8 +48,10 @@ import { InnerMapKin } from '../innerMapKin.js';
 import { InnerMapOverheard } from '../innerMapOverheard.js';
 import { InnerMapRiverDrift } from '../innerMapRiverDrift.js';
 import { InnerMapFishTraps } from '../innerMapFishTraps.js';
+import { setWellsGame } from '../innerMapLayers/wells.js';
 import { InnerMapHandBuild } from '../innerMapHandBuild.js';
 import { InnerMapTorchlight } from '../innerMapTorchlight.js';
+import { InnerMapHiding } from '../innerMapHiding.js';
 import { isRiverSwim, riverRunsOn, riverCarriesOut, riverEntryCell } from '../innerMapRiverEdge.js';
 import { InnerMapSeasons } from '../innerMapSeasons.js';
 import { InnerMapWeather } from '../innerMapWeather.js';
@@ -89,10 +91,14 @@ export function gameLoop(timestamp, loopId) {
     InnerMapRiverDrift.update(this, InnerMap.active ? deltaTime * (_driftSpeed === 3 ? 4 : _driftSpeed) : deltaTime);
     // Your fish traps on this street map: brought up to the hour, a poacher seen off (ui/innerMapFishTraps.js)
     if (InnerMap.active) InnerMapFishTraps.update(this);
+    // The foul wells marked on the street map read this game's world (ui/innerMapLayers/wells.js)
+    if (InnerMap.active) setWellsGame(this);
     // Building by hand: the mode kept to the open air, the work's chain (ui/innerMapHandBuild.js)
     if (InnerMap.active || InnerMapHandBuild.active) InnerMapHandBuild.update(this);
     // The torch or lantern you carry: burning down by the clock, its light, the fish drawn to it (ui/innerMapTorchlight.js)
     InnerMapTorchlight.update(this);
+    // Hiding in cover on the street map, being spotted, those lying in wait (ui/innerMapHiding.js)
+    InnerMapHiding.update(InnerMap.active ? deltaTime * (Number.isFinite(this.timeSpeed) ? (this.timeSpeed === 3 ? 4 : this.timeSpeed) : 1) : deltaTime, this);
     // Off the inner map a winded diver still gets their breath back (ui/innerMapDiving.js)
     if (!InnerMap.active && this.player && this.player.breathRecovery) InnerMapDiving.recoverOnSurface(deltaTime, this);
     // Off the street map you are out of your rowboat (not between two maps of a river: ui/innerMapRowboat.js)
@@ -779,6 +785,8 @@ export function setupInputHandlers() {
             this.ui.showNotification('🧪 Teleport', 'Cancelled', 'default');
             return;
         }
+        // H: hide in cover or come out; F: spring on whoever passes within reach (ui/innerMapHiding.js)
+        if (InnerMap.active && InnerMapHiding.key(this, e)) return;
         // L: shutter or light your lantern on the street map (ui/innerMapNight.js)
         if ((e.key === 'l' || e.key === 'L') && InnerMap.active && !e.ctrlKey && !e.metaKey && !e.altKey) {
             InnerMapNight.toggleLight(this);

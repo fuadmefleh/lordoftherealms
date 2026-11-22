@@ -542,6 +542,24 @@ export const RivalAgents = {
         return { success: true, cost, text, named, warmer };
     },
 
+    /**
+     * The player, hidden and still, watched one of a rival's agents in the
+     * street (ui/innerMapHiding.js): their suspicion rises by amount, once a
+     * day for each. → { agent, known, notice } or null (none of theirs, or
+     * already watched today).
+     */
+    overheard(player, world, pid, amount) {
+        if (!player || pid == null || !(amount > 0)) return null;
+        const day = _day(world);
+        const a = RivalAgents.list(player).find(x => x && String(x.pid) === String(pid) && !x.known && !x.turned);
+        if (!a || a.watchedDay === day) return null;
+        a.watchedDay = day;
+        a.suspicion = _num(a.suspicion) + amount;
+        const out = { notices: [] };
+        if (a.suspicion >= _num(RivalAgents.config().suspicion.known, 100)) RivalAgents._reveal(player, world, a, out);
+        return { agent: a, known: !!a.known, notice: out.notices[0] || null };
+    },
+
     turnCost(player, a) {
         const C = RivalAgents.config();
         const rival = player.house && player.house.rivals ? player.house.rivals[a.rivalId] : null;

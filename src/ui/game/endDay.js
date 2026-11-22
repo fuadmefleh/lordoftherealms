@@ -7,6 +7,8 @@ import { DayClock } from './dayClock.js';
 import { Infrastructure } from '../../systems/infrastructure.js';
 import { PlayerWorks } from '../../player/playerWorks.js';
 import { TradeLines } from '../../player/tradeLines.js';
+import { Thirst } from '../../player/thirst.js';
+import { Water } from '../../systems/water.js';
 import { BackRooms } from '../../systems/backRooms.js';
 import { Afterlife } from '../../player/afterlife.js';
 import { DawnBirth } from '../../player/dawnBirth.js';
@@ -37,12 +39,14 @@ import { Nemesis } from '../../systems/nemesis.js';
 import { Bonds } from '../../systems/bonds.js';
 import { Wanted } from '../../systems/wanted.js';
 import { Trials } from '../../player/trials.js';
+import { Ordeals } from '../../player/ordeals.js';
 import { Begging } from '../../player/begging.js';
 import { ProfaneCrimes } from '../../systems/profaneCrimes.js';
 import { KinCrimes } from '../../systems/kinCrimes.js';
 import { HouseQuests } from '../../systems/houseQuests.js';
 import { Upbringing } from '../../systems/upbringing.js';
 import { HeirAgency } from '../../systems/heirAgency.js';
+import { Betrothals, CrownMatches } from '../../systems/betrothals.js';
 import { Raising } from '../../systems/raising.js';
 import { HeirPaths } from '../../systems/heirPaths.js';
 import { Regency } from '../../systems/regency.js';
@@ -82,6 +86,9 @@ import { Fame } from '../../systems/fame.js';
 import { Demands } from '../../systems/demands.js';
 import { Sieges } from '../../systems/sieges.js';
 import { Atrocities } from '../../systems/atrocities.js';
+import { Maiming } from '../../systems/maiming.js';
+import { Executions } from '../../systems/executions.js';
+import { Interrogation } from '../../systems/interrogation.js';
 import { HoldingSieges } from '../../systems/holdingSieges.js';
 import { Discovery } from '../../systems/discovery.js';
 import { MerchantHouses } from '../../systems/merchantHouses.js';
@@ -127,6 +134,7 @@ import { HighCrowns } from '../../systems/highCrowns.js';
 import { CrownSuccession } from '../../systems/crownSuccession.js';
 import { LastCrisis } from '../../systems/lastCrisis.js';
 import { RealmDecline } from '../../systems/realmDecline.js';
+import { PeasantRevolts } from '../../systems/peasantRevolts.js';
 import { Plague } from '../../systems/plague.js';
 import { Climate } from '../../world/climate.js';
 import { RealmTimeline } from '../../systems/realmTimeline.js';
@@ -306,6 +314,8 @@ export function endDay() {
             if (lastHours.order) this.ui.showNotification(lastHours.order.title, lastHours.order.text, lastHours.order.ran ? 'info' : 'warning');
             // The courts (player/trials.js): an arrest held for trial before the jail's night,
             // the trial due, cases before your own court, the Houses' lawsuits
+            // Trial by combat and ordeal (player/ordeals.js): perjury found out, a kinsman accused, a rival's wager of battle, a champion wanted
+            for (const n of Ordeals.processDay(this.world, this.player).notices.slice(0, 3)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             for (const n of Trials.processDay(this.world, this.player).notices.slice(0, 4)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             // Process player's daily activities
             const playerResults = PlayerActions.endDay(this.player, this.world);
@@ -390,6 +400,16 @@ export function endDay() {
                 this.ui.showNotification('❄️ Attrition', `The harsh conditions claimed ${eventEffects.unitsLost} of your soldiers. Shelter in a settlement to stop the losses.`, 'warning');
             }
             this._reportWeather(eventEffects);
+
+            // Thirst: the day's drain, drinking what is to hand, the parched days (player/thirst.js)
+            {
+                const thirstDay = Thirst.processDay(this.player, this.world, { weather: eventEffects.weather });
+                for (const n of thirstDay.notices.slice(0, 2)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+                if (thirstDay.died) {
+                    this._triggerDeath('thirst');
+                    return;
+                }
+            }
 
             // Wounds and sickness: mend or fester, pass or worsen; new illness
             // from the night's exposure, the food, the swamp, plague or the sea
@@ -568,6 +588,10 @@ export function endDay() {
                 // Children abroad and at work (fosterings, betrothals, embassies, a commander's wounds),
                 // and a child's reign under a regent (systems/heirAgency.js, systems/regency.js)
                 for (const n of HeirAgency.processDay(this.player, this.world).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+                // Children promised to a rival's child, a prince, a lord's house: the bond, their breaking it, the wedding (systems/betrothals.js)
+                for (const n of Betrothals.processDay(this.player, this.world).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+                // The crowns promise their royal children to each other: truces, alliances at the wedding (systems/betrothals.js)
+                CrownMatches.processDay(this.world);
                 // Time together, tutors' wages, wards at court, the coming-of-age summary (systems/raising.js)
                 for (const n of Raising.processDay(this.player, this.world).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
                 // Formative paths, hostages and their terms, wards kept as leverage (systems/heirPaths.js)
@@ -618,6 +642,8 @@ export function endDay() {
                 for (const n of TownMemory.processDay(this.world, this.player).notices.slice(0, 3)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
                 // Crimes done to towns: a foul well, a plague scare, the hunt for the culprit, your grain lofts (systems/townCrimes.js)
                 for (const n of TownCrimes.processDay(this.world, this.player).notices.slice(0, 3)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+                // The towns' water: foul and dry wells, the sick and the thirsty (systems/water.js)
+                for (const n of Water.processDay(this.world, this.player).notices.slice(0, 2)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
                 // The towns age: a new era of building, walls raised (world/townEras.js; once a year)
                 for (const n of TownEras.processDay(this.world, this.player).notices.slice(0, 2)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
                 // Who can read: towns' letters reckoned, the schools you endowed paid, your children's lessons (systems/literacy.js)
@@ -892,6 +918,12 @@ export function endDay() {
             for (const n of siegeDay.notices) this.ui.showNotification(n.title, n.text, n.type);
             // Atrocities — hostages' ultimatum, the name for cruelty fading (systems/atrocities.js)
             for (const n of Atrocities.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            // Maiming — harsh realms take thieves' hands, raided towns count their maimed, an enemy's blades find your children (systems/maiming.js)
+            for (const n of Maiming.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            // Executions — proclaimed days, the realms' scaffolds, martyrs' shrines, the truth about the innocent (systems/executions.js)
+            for (const n of Executions.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            // The dungeon — an innocent you condemned found innocent; a rival House puts your hostage child to the question (systems/interrogation.js)
+            for (const n of Interrogation.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
             // Holdings — construction, governors, garrisons, unrest and rebellion, bandit raids
             const holdingsDay = Holdings.processDay(this.player, this.world);
@@ -1110,6 +1142,8 @@ export function endDay() {
             for (const n of LastCrisis.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             // The weight of greatness: great old realms rot from within (systems/realmDecline.js)
             for (const n of RealmDecline.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            // The commons rise: grievances, risings, rebel hosts burning estates (systems/peasantRevolts.js)
+            for (const n of PeasantRevolts.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             // The Timeline of the Realm: borders each season, wars, crises, reigns, deeds with places (systems/realmTimeline.js)
             RealmTimeline.processDay(this.world, this.player);
 

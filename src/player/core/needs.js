@@ -372,6 +372,8 @@ export const PlayerNeedsMethods = {
         if (!this.needs || !this.needsEnabled) return { score: 75, label: 'Fine', icon: '😐', effects: {} };
 
         const vals = Object.values(this.needs);
+        // Thirst weighs on the mood like any need (player/thirst.js: player.water.thirst)
+        if (this.water && Number.isFinite(this.water.thirst)) vals.push(this.water.thirst);
         const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
         const lowest = Math.min(...vals);
 

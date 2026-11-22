@@ -3,6 +3,7 @@ import { Relationships } from './_ref.js';
 import { DataLoader, Utils, Characters, House, Traits, Upbringing, Legacy, Townsfolk } from './_imports.js';
 import { NPCLords } from '../../world/npcLords.js';
 import { HeirAgency } from '../heirAgency.js';
+import { Betrothals } from '../betrothals.js';
 import { Raising } from '../raising.js';
 import { HeirPaths } from '../heirPaths.js';
 import { KinCrimes } from '../kinCrimes.js';
@@ -21,6 +22,7 @@ import { Hearsay } from '../hearsay.js';
 import { HighCrowns } from '../highCrowns.js';
 // (the war for the crown at the seat's passing: systems/crownSuccession.js; run time only)
 import { CrownSuccession } from '../crownSuccession.js';
+import { MaimMarks } from '../maimMarks.js';
 
 Object.assign(Relationships, {
     // ────────────────────────────────────────────────────────────────────
@@ -200,6 +202,8 @@ Object.assign(Relationships, {
 
         if (motherAge < settings.motherMinAge || motherAge > settings.motherMaxAge) return null;
         if (fatherAge < settings.fatherMinAge || fatherAge > (settings.fatherMaxAge ?? Infinity)) return null;
+        // (a gelded ruler fathers no children; nor does a gelded husband — systems/maimMarks.js)
+        if (MaimMarks.gelded(player) || MaimMarks.gelded(spouse)) return null;
 
         // Only check once per year (roughly every daysPerYear days)
         if (world.day % settings.daysPerYear !== 0) return null;
@@ -442,7 +446,7 @@ Object.assign(Relationships, {
         const settings = Relationships._getHeirSettings();
         // The ruler's own children first (eldest first), then siblings kept from the last succession
         // (a child declared unfit to rule — systems/kinCrimes.js — is never offered the seat)
-        return player.children.filter(c => c.isAlive && c.age >= settings.minAgeToPlay && !(c.kin && c.kin.unfit))
+        return player.children.filter(c => c.isAlive && c.age >= settings.minAgeToPlay && !(c.kin && c.kin.unfit) && !MaimMarks.barsRule(c))
             .sort((a, b) => (a.isSibling ? 1 : 0) - (b.isSibling ? 1 : 0) || (b.age || 0) - (a.age || 0));
     },
 
@@ -454,6 +458,7 @@ Object.assign(Relationships, {
         if (!child) return { success: false, reason: 'Child not found' };
         if (!child.isAlive) return { success: false, reason: 'That child has passed away' };
         if (child.kin && child.kin.unfit) return { success: false, reason: `${child.firstName} has been declared unfit to rule` };
+        if (MaimMarks.barsRule(child)) return { success: false, reason: `${child.firstName} is ${MaimMarks.barsRule(child)}: no one so marked may hold the seat` };
 
         player.heir = childId;
         return { success: true, heir: child };
@@ -542,6 +547,8 @@ Object.assign(Relationships, {
         // A spouse since dead or gone (a townsperson who died before the heir
         // inherited) still had the children: born of the marriage, not of today
         const parent = spouse || { culture: player.culture || child.culture, age: player.age };
+        // A match the House promised keeps its own children: of your House or of theirs (systems/betrothals.js)
+        if (Array.isArray(sp.issue)) return Betrothals.heirIssue(player, child, sp, world, () => Relationships.generateChild(player, parent, world, { quiet: true }));
         const settings = Relationships._getHeirSettings();
         const Y = settings.daysPerYear || 120;
         const chance = typeof settings.heirOwnChildChance === 'number' ? settings.heirOwnChildChance : 0.35;
@@ -636,6 +643,8 @@ Object.assign(Relationships, {
             player.ailments.deathCause = null;
         }
         if (player.delves && Array.isArray(player.delves.injuries)) player.delves.injuries = [];
+        // The body the heir brings to the seat: their own losses, if any (the late ruler's die with them) — systems/maimMarks.js
+        player.maimed = child.maimed ? JSON.parse(JSON.stringify(child.maimed)) : null;
 
         // Health — full for young heir
         player.health = child.maxHealth || 100;

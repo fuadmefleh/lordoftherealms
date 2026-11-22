@@ -395,6 +395,39 @@ If you eat every day and sleep under a roof, hunger, energy and comfort stay hig
 
 **The day's last hours.** End the day with action points left and your character spends them on itself, the most pressing need first, with what is to hand. It uses the real actions at their real costs: it eats from the pack, bathes at the river, the shore, a village well (1 g) or a town bathhouse (4 g), and washes its clothes at water (3 AP). In the wilds it makes a proper camp, and sits by a campfire if it carries 2 wood. In town it can take a private room for the night, or pay an inn for laundry, a bath or a supper. For leisure it talks with the locals (1 AP, at most twice) or spends the evening in a hotel's bathhouse or grand hall. It never risks anything: no drink, no dice, no common-room bunk, and no wild bath in cold water unless it is filthy. It spends at most 15 g an evening and never more than a fifth of your purse. The coin goes into the purse of the town that served you. A notice tells you what it did, for example: *With the day's last hours you scrubbed your clothes and bathed in the river and talked with the folk of Ashford.* It does nothing in jail or servitude, at a siege, below ground or under water. **Settings → The Day's Last Hours** chooses **Upkeep and leisure** (the default), **Upkeep only** (food, washing, clothes and a bed) or **Off**. Tuning: `data/autoUpkeep.json`.
 
+### Thirst & Water
+
+A seventh bar beside hunger is **thirst** (100 slaked, 0 parched). Hover it for the water you carry; click it for the **Water** panel (also the world map's **Water** action, free, shown when you are thirsty, or the wells here are foul, or your skins want filling).
+
+- **It comes fast.** A day drains about 32. Heat drains more: up to a little over twice as much on a hot summer day in hot country, ×1.6 again in the desert (×1.2 savanna, ×1.25 scrubland, ×1.4 badlands); a cold day a little less. A march of two or more hexes is ×1.2, a day with a fight ×1.15.
+- **Mostly you never think of it.** Every hex you walk onto with a river, a lake beside it, or a town whose water runs clean, you drink your fill and fill your skins, free. At the day's end the same where you stand, and aboard ship you drink from her casks. Away from water you drink from your skins when thirst falls below 70: a **waterskin** holds 2 draughts (35 thirst each, about a day's drinking), a **barrel** in the pack 12. Everyone sets out with one waterskin. With none, the character buys one off the stalls in the next town (the cobbler's), as it buys bread. A day of rain gives +20 and a draught into the skins. A drink at the tavern gives +40, a tavern meal +35. Ale, cider, mead, wine or milk in the pack is drunk below 40 when there is nothing else.
+- **The land's own water.** Where you stop for the night with no river, lake or town on the hex, a river or lake a hex off is a short walk and always found. Otherwise the land has its streams, springs, snowmelt and pools: found 9 nights in 10 in the woods, three in four in hills, seven in ten on grassland, a third on the savanna, one in twenty in the desert (less in summer, half in a drought age; a practised hunter or forager finds more). Found, you drink your fill and fill your skins. Generated maps have a river, lake or town on about one hex in fifteen, two to four hexes apart, so in green country the skins see you across.
+- **Skins for the road.** In a town with clean water the character keeps two waterskins, buying the second (or a first) off the cobbler's stall.
+- **Where it bites.** Deserts and dry savanna, a drought age, the sea (salt), a long voyage with dry casks, a siege, a town whose wells are foul.
+- **Parched.** Below 30 the day is shorter (movement ×0.8); below 12 shorter still (×0.6) and tiring (−10 energy). At 0, each day costs 12, then 25, 40 and 60 health: three or four days without water kill you (*Thirst* on the deathbed). In jail or bound in service your captors give you water. Thirst also counts in your mood like any need.
+- **Your army drinks from the land.** A day without water where it camps is borne; each day after costs a tenth of your land companies. A commanded realm's host away at war loses 4 morale and 2% of its men a day after the first with no river, lake or clean town near.
+
+**A town's water.** A village has 1 well, a town 2, a city 4, a capital 5, and one more for each two eras it has grown through (timber, stone, guild). A river through it or a lake beside it is a source of its own; the sea is not. While any source runs clean, the town and you drink.
+
+**Foul wells.** A well can be fouled:
+- by a besieger: **Foul the wells** is a dark deed of the siege (3 AP, an army; carcasses of the camp's beasts down every well; butcher +8, karma −10, the realm's regard −10, a rumour of well-poisoning, the town's memory) — or the besiegers of *your* holding may do it on the sixth day (four sieges in ten);
+- by the plague dead, in a town with a serious plague (a quarter of the weeks);
+- by an enemy agent, in a town of a realm at war (rare);
+- by the drought: in summer, in a drought age of the climate or a drought event, a town with no river or lake may find its wells dry for 15–30 days;
+- by you: poison or carrion down the well (the Back Rooms, or by hand on the street map) — a crime against the town, named if seen, wanted.
+
+Carcasses foul a well for 24 days, the plague dead 18, an agent's poison 14, your poison 8. A foul well can't be drunk. While some wells still run clean the town crowds the rest (a little mood). With **no clean water at all**: its people drink it anyway (2% of them fall sick of the flux a day), its mood falls 0.6 a day, its purse pays water carriers 0.4 gold a day per 100 souls (to the nearest town with water), and each week 2% of its people leave for that town. You can buy carried water there (1 g a draught, to the town) or drink the foul well anyway (likely the flux). **Pay the well-diggers** (30 g a foul well, to the town's purse) and it runs clean in 2 days. The Water panel shows the town's wells, which are foul, why and until when.
+
+**Besieged and thirsting.** A besieged town with no clean water left (wells fouled or dry, no river) drinks its cisterns — a village 1 day, a town 3, a city 6, a capital 8, three more from the stone era on — then thirsts: −9 morale and 5% of the garrison a day. A siege camp with no river or lake on or beside the town hauls its water (−1 camp morale a day).
+
+**Ships.** A ship carries 20 days of water for her crew, filled free whenever she is docked at a port with clean water. At sea her crew drinks a day's water a day; dry for more than a day, morale −12 and 5% of the crew a day die. The voyage log counts the days of water left, and setting sail warns you when there is not enough.
+
+**On the street map.** Click (left-click: a right-click walks you there) a town's well, fountain well, pool or rain barrel: **Drink**, **Fill Your Waterskins**, and **Wash** at a well. You walk up to it first. A foul well is marked — scum in its mouth, planks laid across with a red rag, flies — and offers **Drink It Anyway** and **Pay the Well-Diggers** (no washing in it). A clean one offers **Poison the Well** (a vial of poison) or **Throw Carrion Down the Well** (four joints of meat or six fish): the town's crime of the same name. Click river or lake water anywhere for **Drink from the River** (or the Lake) and **Fill Your Waterskins**. The well in a castle or house is clean water of its own: **Drink**, **Fill Your Waterskins**. The townsfolk shun a foul well: they go to a clean one, down to the river, or to the market for the carriers, and talk of nothing else at the well; the few who drink it anyway are the town's flux cases, and the sick show pale in the street.
+
+**A well of your own.** A well you dig with your own hands (Build by Hand) is yours alone: never counted with the town's, never foul, and it waters you on the world map when the town's wells are foul. So does the well of your seat — your colony, your House's seat, your crown's capital.
+
+**The realms' armies thirst too.** A realm's war host or relief host on the map with no river, lake or clean town on or beside its hex loses 3% of its strength a day after two dry days. In the realms' own wars, an attack through dry country fights at 90% and loses a little of the attacker's army each time; a town with every well foul or dry and no river or lake defends at 80%. The besiegers of your holding, camped far from water, lose heart a little each day. Tuning: `data/water.json`.
+
 ### Wounds, Sickness & Medicine
 
 Besides your health points, you can carry **conditions**: wounds and diseases. Each one shows as an icon in the bottom bar next to your mood. Hover it to see its effects and how long it has left. The **Character panel** lists them under *Condition*, with buttons to use remedies from your pack.
@@ -3027,6 +3060,7 @@ Anyone in a town can **Beg for Alms** (Work & Wages, 3 AP: half a day with a bow
 - **The cost.** A little standing with the realm each time. A **noble** seen begging (a ruler, a titled officer, a landholder, or the head of a House of 150+ Prestige) is a scandal: six times the reputation loss, 6 Prestige, and the talk of it spreads from town to town. Where the realm's punishment law is harsh (35%) or standard (10%), the watch may move you on before the bowl fills, and fine you if they have seen you begging there before.
 - **Townsfolk beg too.** A grown hand out of work or labouring by the day, with almost nothing in the purse, who went hungry this season takes to begging rather than starve (`systems/townJobs.js`). They take the beggar's place in town life but keep their home. Their alms come out of the town's purse with every beggar's. Once they have 10 g put by, or find work while the town can pay, they leave it.
 - **An empty larder at home.** With nothing in your packs, you sup from the larder of a home of yours you are in, so an heir who comes home to a stocked house does not starve.
+- **The royal kitchens.** A reigning ruler in a palace the crown keeps (the Monarch's royal apartments) never goes hungry there while the treasury has coin. With your packs and the larder empty, the kitchens buy a day's ration of the cheapest food on the palace town's stalls. The treasury pays the town for it, booked on the crown's court line. Away from the palace, on the road or at war, you eat what you carry like anyone else. Tuned in `data/household.json` (`royalTable`).
 - **A warning before the hunger.** In a town with 2 meals or fewer in your packs and no meal on its stalls your purse can buy, the day ends with **Bread Out of Reach**: the cheapest meal there and its price (or that the stalls are bare), and the ways out (alms, a day's work, something to sell, a cheaper town). At most every 3 days (`data/begging.json` `hunger`).
 
 ### Going to Church
@@ -3734,7 +3768,7 @@ A brand is burned into you, not your House: an heir does not bear it. It is read
 
 When you rule a town, hold an office at a capital or rule a realm, the folk's crimes come before you: a crime on the town's record (a burglar named, a looter caught, a brawl) or a complaint the townsfolk bring. You see the accused, the charge, the victim and the evidence (the complainant's word, witnesses, or caught in the act). You never see the truth.
 
-- **Verdicts:** acquit, fine (out of the accused's purse into yours), a day in the stocks, the cells, banish from the town, or hang.
+- **Verdicts:** acquit, fine (out of the accused's purse into yours), a day in the stocks, the cells, banish from the town, or hang. Where the realm's law takes a limb, also **take the limb** (see *Maiming*).
 - **Proportion.** A sentence that fits the crime earns happiness, prestige and a name for justice. A harsher one costs happiness but buys fear: loyalty and prestige, and a name for severity. A softer one wins a little happiness and costs loyalty. Acquitting someone caught in the act angers the town.
 - **Memory.** The condemned and their family remember the sentence. A hanging is blood: the dead one's children may grow up to avenge it. Those you spare remember the mercy, and victims remember justice done or denied. A harsh judgement or a hanging is remembered by the town itself.
 - **Wrong verdicts surface.** Condemn an innocent and the truth may come out months later. You lose happiness and prestige (far more for a hanging), the family hold it as a blood wrong, and the town remembers an unjust ruling. You can then **make amends** with coin to the family. Free the guilty and that can come out too.
@@ -3750,6 +3784,315 @@ Your House and a rival House can take each other to law before a realm's lord (i
 - **Slander:** their slander plot against you, or your insult to their head's face.
 
 Filing costs a court fee. The hearing comes six to twelve days later. Your advocate against theirs, your standing at that court against theirs, and bribes move the court. Damages pass purse to purse. The winner gains prestige and the loser loses it. A House that loses grows more bitter, and one that wins is a little appeased. Damages you cannot pay go on the crown's sheet as contempt of court. You may withdraw your own suit, or settle one against you for half the claim. Rival heads with some honour go to law when they have grounds, rather than to blades. **Going to law is one of their errands** (see *Rival Houses and Their Schemes*), weighed against trade, court and plots: the head rides to the court (your liege's capital, else his own), pays the 25 gold fee into that town's purse, and the summons reaches you the next day. A scheming House sues less often and may grease the judge.
+
+### Trial by Combat and by Ordeal
+
+Some realms let God judge instead of the court. Each realm keeps a **Trial Customs** law (📜 Laws): *the court alone* (about a third of realms), *the wager of battle* (combat and oath-helpers), *the church's ordeals* (the iron, the water, the bread and oath-helpers) or *the old customs* (all of them). A ruler can change it like any other law. The realm's **faith** has a say too. Solaris, the Ironfaith, the Flame Heralds and the Ashwalkers hold the ordeal **sacred**: its judgement counts half again as much, and their priests take no coin. The Earthroot, the Starseers, the Silent Order and the Arcanum **forbid** ordeals: no priest of theirs will bless one, though combat and oath-helpers are still allowed. The rest keep the old ordeals. If your own creed forbids ordeals, taking part costs you 4 karma.
+
+**At your own trial** (⚖️ Courts & Lawsuits → Your Case → *Another judgement*), if you stand before the court and have not pleaded guilty:
+
+- **Trial by combat.** You fight the accusers' champion: the strongest guard of the town (a real man, who can die of it), or the court's champion (in a capital, the King's Champion). You fight it out in the duel panel until someone yields or falls. If you win, you walk free (+6 renown). If you lose, it is guilt, and you take 20 to 45 health in harm and a good chance of a wound. If you cry craven, it is guilt and −8 renown. You can also **hire a champion**: a fighting companion of your party (no fee, but they may die on the field) or one of the town's other guards, whose fee (about 45 gold in a town, 110 in a capital) goes into his own purse.
+- **The hot iron.** You carry the red iron nine paces. It is a real burned hand (a wound that can turn and often scars), bound and sealed for three days. The court sits when it is unbound: if the burn is infected, or the priest reads it as festered (about 3 in 10, more when the proof against you is strong, less with luck), you are guilty.
+- **The water.** You are lowered bound into blessed water. If you sink, you are innocent; if you float, you are guilty. A heavier body sinks, and a swimmer fights the water. Either way you come up half-drowned (4 to 14 health).
+- **The blessed bread.** If you swallow it cleanly, you are innocent. A clear conscience (karma) helps, and strong proof against you hurts.
+- **Oath-helpers.** People of good name swear with you. They can be your companions who think well of you, friends (a bond of 25 or more), your grown children, and the folk of the town who remember you kindly. The custom asks for 4 in a village, 6 in a town, 8 in a city and 12 in a capital, and a few lose their nerve at the altar. Too few means guilt. If you were caught in the act, the oath is **perjury**. It may come out months later: everyone who swore is shamed (their regard for you falls by 20), and you lose 12 standing in the realm and 10 Prestige.
+- **The telling.** Every ordeal and every champion's bout fought for you is told in the panel before the verdict, over a small drawn picture: the brazier and the nine paces, the rope and the water, the altar, the relics, the lists. A champion's bout shows its last exchanges. A fight you take on yourself opens the duel panel.
+- **Paying the priest** (30 gold in a town) makes the iron cooler, the rope looser and the bread softer. A priest of a sacred faith refuses, and tells the court: that is a new charge.
+
+Cleared by combat or an ordeal, you gain standing in the realm (+6 × the faith's belief). The witnesses who swore against you are shamed. Found guilty, the court sentences you as for any conviction.
+
+**At your own court**, the accused may **demand** another judgement as their right. A guard or noble often demands combat, one of a believing faith the iron or the water, and one with family in town asks for oath-helpers. Refusing a demanded right and convicting anyway costs happiness and the court's name for justice. You can grant **trial by combat** (the accused against the accuser, who may hire the town's best guard out of their own purse), **fight the accused yourself** as your court's champion, or put them to an ordeal or oath-helpers. If they are cleared, the case is acquitted and the accuser pays them 8 gold for the false accusation. If they are found guilty, you pass the sentence. Heeding God's judgement wins the town's regard, by the faith's belief. Pardoning one whom God found guilty costs it. Those you put to an ordeal remember it.
+
+**A kinsman accused** (🛡️ Champions & Kin). Now and then a grown child of your House is accused in a nearby town: of brawling, theft, a beating, poaching or slander. Reckless, wrathful, cruel or greedy children are accused twice as often. The court sits six days later. Before then you can let the court decide (your House's Prestige weighs with it), stand as their **champion** in person (their bond with you grows by 12), hire a champion, pay the priest, or put them to an ordeal or to oath-helpers. If they are guilty, you pay a fine into the crown's chests and lose 6 Prestige, and where the law takes a thief's hand, it takes theirs. The iron burns your child's hand as it would burn yours: 8 to 16 health lost and 10 to 16 days to heal. If the burn festers, they also lose 4 max health for good. It usually scars. The burn and the scar show on their page (Dynasty → the child). The water leaves them half-drowned. If they are cleared, the accuser pays your House 30 gold.
+
+**The wager of battle** (📜 Lawsuits). Where the law allows combat, you may offer to settle a lawsuit by the sword: you fight the rival head, or send your champion. The suit goes with the victor, whatever its merits. A rival head of martial skill 6 or more and honour 4 or more may **demand** it of you (about half of them do, once a suit). Refuse, or leave it unanswered until the hearing, and you lose 8 Prestige and the realm says your House fears the sword. An old head (over 55), one who is no fighter, or one maimed past ruling sends the House's **sworn sword** instead, if the House keeps guards. If the sworn sword falls, he may die: the House has one guard fewer and the feud rises by 10. If their **head** falls, there is about a one-in-three chance he dies of it. His heir takes the House, the feud flares by 30, and the new head swears vengeance on you (a nemesis).
+
+**A champion for hire.** In a town whose law allows combat, people with a case before the court look for a champion. About once a month in a town, more often once you have won a few, the call reaches you while you stand there. Fight for them in person. If you win, they pay you from their own purse (40 gold in a town, more with every win behind you), and they and their kin remember it. If you lose, they take the sentence: the rope for murder or arson (a court of yours sends them to your list for the scaffold), a hand where the law takes one, or the cells.
+
+## Hiding in Cover and the Ambush
+
+On the street map you can get down behind a bush and wait. So can others.
+
+### Where you can hide
+
+| Cover | Where | How well it hides you |
+|---|---|---|
+| Bush, thicket, hedge | the row behind it (it is drawn over your legs) | 85% |
+| Tall reeds | on a river or pond bank | 80% |
+| Haystack, hay bale | the row behind it | 75% |
+| Tall crops | anywhere in a field of ripe wheat, young wheat or ripe vegetables | 70% |
+| Market stall | behind the counter | 60% |
+| Dark corner | a cell between two walls, **only at night** | 60% |
+| Tall grass, brush | out in the wilds | 50% |
+| Crates, barrels, sacks, woodpile | the row behind it | 50% |
+| Tree | behind its trunk, under the boughs | 45% |
+
+Towns now have bushes along their edge, by the roads leading out, and a few in their yards: 6 in a hamlet up to 26 round a capital, plus up to 14 by the roads.
+
+**H** hides you where you stand, or walks you to cover within 4 tiles and hides you there. You can also click a bush, haystack, stall or tree and choose **Hide Behind the …**, or click yourself and choose **Hide in the …**. Press **H** again to come out. While you are hidden you are drawn faint, with an eye over your head. It stays shut and green while nobody is looking your way, turns amber as someone's notice grows, and goes red just before you are seen. Standing in cover without hiding shows the hint "H — hide in the bush".
+
+When you hide at night your lantern is shuttered for you. A torch cannot be shuttered: put it out first, or anyone looking your way will see you. Walking out of cover ends your hiding. So do starting a fight, opening a talk, or picking someone up. You can creep from one cover cell to the next and stay hidden, but moving makes you more than twice as easy to notice.
+
+### Being noticed
+
+Four times a second, everyone in sight weighs you. Each check counts:
+- **Distance.** Their sight reaches 9 tiles in daylight. Full dark cuts that by 65% (to about 3 tiles), fog by up to half, and rain by a quarter. Anyone right beside you may notice you whatever your cover.
+- **Your light.** A lantern you carry gives the dark no say, and leaves at least 55% of you showing in any cover. A torch leaves 85%.
+- **Your Stealth.** Each level takes 6% off their notice, down to 40% of it.
+- **You.** Moving counts ×2.2. Armour that clanks counts more the heavier it is.
+- **Them.** The watch is ×1.6 sharper, and anyone already after you or who saw you hide is ×2.2. The perceptive, observant, vigilant, wary and cautious are ×1.35. Children are ×0.8, people chatting ×0.6, and sleepers notice nothing.
+
+If someone spots you, they call out ("Who's there?", "You, in there! Come out slowly.") and you are out of hiding. Ordinary folk think a little less of anyone they find skulking in a bush. A guard who spots you after curfew walks up and challenges you. While you stay hidden, the curfew watch and the watch's questioning cannot pick you out from a distance. Every minute hidden trains Stealth (up to 12 minutes a visit), and so does every ambush.
+
+### The ambush
+
+When someone passes within 2 tiles while you are hidden, the hint reads **F — spring on (their name)**. You can also click them for the full set of choices:
+
+- **Spring on Them** (F): you burst out to their side. The first blow lands at once, cannot miss, and hits ×1.8 harder (×1.3 more if they had not seen you). It may knock them out on the spot: 20% to start, +3% per Stealth level, +10% in the dark, +12% fighting barehanded (Brawling), +10% if they were unaware, 15% less against the watch, at most 80%. If they fight back, their first blow comes 1.4 seconds late.
+- **Seize and Bind** (needs rope; cloth gags them): about 30% to start, better with Brawling and Stealth, +25% if they are unaware, 25% worse against the watch. On a success they lie bound and awake, and gagged if you had cloth. On a failure they break free and the fight starts.
+- **Rob Them**: a blade at their back, or a hand over their mouth if you are unarmed. About 45% to start, +15% armed, +15% if they are unaware, +10% at night, and much less against the watch or the bold. If they give in, you get their real purse (the town's coin, not new money) and they run. If not, they shout and fight.
+
+**Blindside.** If you knock someone out before they ever saw you, or strike them unaware in the dark with no light on you, *they never saw who did it*. They hold no grudge against you, their kin do not turn on you, and they cannot name you to the watch. Whoever saw it still did: witnesses are anyone within sight of the victim, and darkness shortens that sight. A one-blow knockout makes little noise, so guards out of sight do not come running. An ambush at night, with no light and nobody near, may have no witness at all. You still carry it on your conscience.
+
+### Listening
+
+Hidden and still, you hear what folk say when they think no one is by. Talk about you is overheard 2.2 times as often, from 2 tiles further off. If you keep still within 5 tiles of a rival House's hidden agent, you watch them at work, and suspicion of them rises by 30 a day, enough to unmask them in a few days.
+
+### Those who lie in wait for you
+
+Now and then someone hides in cover to wait for you. In town by day the chance is about 1.5% each hour you are there, and 6% at night; in the wilds it is 3% by day and 8% at night. These things raise it (all together at most ×5):
+- **a bounty on your head:** ×1.5, and more the bigger it is
+- **a rival House's feud:** up to ×3
+- **an assassin plot against your family:** ×2.5
+- **a nemesis:** ×1.6
+- **a poor town:** ×1.4
+- **an outlaw lair nearby:** ×1.6
+- **a curfew:** ×0.7, since more of the watch is out
+
+At most two will wait for you per visit.
+
+Who it is depends on what drew them. A **footpad** wants your purse. A **cutthroat** comes only at night and is harder. Out in the wilds it is an **outlaw**. A bounty brings a **bounty hunter**. A hot feud sends "(House)'s man", a hired blade. An assassin plot sends an **assassin**, who means to kill you.
+
+While they wait unseen they are not drawn at all. You might spot them first: your Stealth sharpens your eye too, and the cunning and the wanderer see more. A light of your own also helps, because it shows half of what the dark hides. Spotted from further than 4 tiles, they may slink off (40%); otherwise they come at you. If you come within 2 tiles without seeing them, they spring out with a heavy first blow (×1.8). They started it: if you go down, a footpad takes your purse, but an assassin is likely to finish you. Fighting them off is not a crime.
+
+## Maiming
+
+The old world mutilates. A thief loses a hand on the scaffold, a beaten rival loses an eye, a prince is blinded so he can never rule. What is taken is taken for life: the body keeps it, and so do the victim's kin.
+
+### What can be taken
+
+| Act | What it costs the one who suffers it |
+|---|---|
+| ✋ **A hand** | Strength −1, combat −3, commerce −1, fighting power −15%. A one-handed smith, carpenter or weaver works at about a third. **Both hands**: combat −4 more, commerce −2, stealth −2, fighting power −35% more; cannot write; may never rule or sit a council. Most trades are lost. |
+| 👁️ **An eye** | Charisma −1, combat −1, cartography −1, fighting power −6%. **Both eyes (blinded)**: intelligence −1, combat −6, cartography −6, leadership −4, stealth −3, commerce −2, fighting power −50%, a hex a day slower; cannot read or write (letters are read to you by a scribe for a fee); may never rule or hold office. A blind townsperson keeps almost no trade. |
+| 👂 **An ear** | Charisma −1 each. The old mark of a cheat: market folk trust them less. |
+| 👃 **The nose slit** | Charisma −3, diplomacy −1. By the old law, no one so marked may sit a throne. |
+| 👅 **The tongue** | Charisma −2, diplomacy −6, leadership −2. Mute: in talk they answer only by signs. May never rule or hold office. |
+| 🦶 **A foot** | Combat −2, stealth −2, fighting power −12%, two hexes a day slower. A guard or a farmer keeps a fraction of their work. |
+| 🔥 **A brand on the face** | Charisma −2 (done to others; the courts brand you on the hand instead). |
+| ✂️ **Gelding** | Fathers no more children, and may never rule. Done to men. |
+
+A townsperson who can no longer work their trade (below a quarter of their work) loses it and begs. One who lost an eye mostly covers it, and you will see the patch on them in the street.
+
+### Doing it
+
+- **On the street.** Beat someone senseless or tie them up, then **Maim Them…** from the menu over them. Anyone in sight sees it: it goes on the record as an assault, the watch comes, the town talks. Those who saw it are afraid of you, so a threat works on them more easily.
+- **🔪 The Knife** (a town's action list, under Intrigue & the Law, when someone is in your power):
+  - **The lords of your royal court.** A rebel lord, or one broken for rebellion, is the crown's justice. A lord who has done nothing is tyranny: every other lord's grudge rises by 6 and the realm loses 3 stability. Either way the rest are **cowed** for about four months for each three points of the act's weight. Cowed lords join no faction and lean 20 less towards a claimant. A blinded, tongueless or handless lord can never sit your council.
+  - **Your own blood** (also from a child's **Dark Counsel** page). A child blinded, slit-nosed, tongueless, handless or gelded can never take the seat. The heir lists, the crown's claimants and the death screen all pass them by. It costs 15 Prestige, leaves them a grievance of 60, and may raise a nemesis.
+  - **The old line's pretender.** Put out his eyes, slit his nose, take his tongue or geld him, and the old line has no one fit to press its claim for 40 years. The realm loses 6 stability and you lose 5 Prestige. Every court hears of it, and his blood may become your nemesis.
+  - **A captive in your cellar**, or **an outlaw taken for a bounty**. Unseen, it costs you only in karma and the name for cruelty. The magistrate pays the same bounty, but a maimed outlaw taken into your company fights only as well as what is left of him.
+  - **A rival House's blood.** See *A rival House's children* below.
+- **Your own court.** Where the realm's law takes a limb, the verdicts include **Take the limb** for theft, housebreaking, cutting purses, robbing the fallen or a grave, poaching, cheating or slander.
+
+### A rival House's children
+
+**Taking them.** When you beat a rival House's retinue on the road, whether you fell on it or beat off its ambush, a grown child of the head (12 or older, unwed, not away as a ward) riding with them may be pulled from the saddle and taken: 45% each time you beat them, and the heir is the one riding with them 60% of the time. Taking them adds 15 to the feud. A child of a rival House who is a ward at your court, kept as a hostage or held in a war (Dynasty → Wards at Court), is in your power too. Both appear in **🔪 The Knife** under *Blood of the rival Houses*.
+
+**Seizing them under guest-right.** When a rival's retinue is with you (you meet it on the road or in your town, and talk with its head), you can have your men seize one of the head's grown children: from the audience (*Take Edric.*) or from **🔪 The Knife** under *Under your roof*. The chance is 20%, plus up to 60% by your army and stealth against their retinue, plus 25% at your own table: if you held a feast in that town today and their feud is no more than 70, they were your guests. The chance runs from 10% to 90%, and you get one try a day. Taken or not, **you have broken guest-right**, and that is a grave crime, far worse than taking someone on the road. Every House allied to them adds 40 to its feud with you, the rest add 20, and even their enemies add 5. You lose 15 karma, gain deceit and cruelty deeds, and 15 points of perfidy, so towns refuse your terms. Every realm thinks 5 less of you, their own realm 20 less, and the lords remember. The priests call it sacrilege: you lose 10 clergy standing with their realm's faith (15 if it holds the body sacred) and with your own creed, and half a point of faith. Their head may become your nemesis. A failed try costs half of all that, adds 40 to their feud, and their guards ride off with the child. A child taken this way is held like any other, marked *guest-right broken*.
+
+**Holding them.** While you hold a child of theirs whole, the House dares not plot against you or ride out to waylay you. Each month held the feud grows by 3, the House may break in by night and carry them home (4% a month), and every two months it offers a ransom.
+
+**The years in your keeping.** Captives age with their House, and you are told when one comes of age in your keeping. They can die there: 0.4% a month from sickness, plus 0.2% a month for each year held (up to five years) from despair. The risk is three times higher for the maimed and half again for those under 14. A quarter of rescues go wrong in the dark, and the child dies. Their House blames you: feud +50, blood owed and a nemesis, or feud +20 for a rescue gone wrong. If their head dies while you hold a child, the child stays with the House as the new head's sibling. If no child free and fit to rule is left, the eldest grown captive fit to rule **heads the House from your keeping**. They are dearer to ransom: four times a child's price, out of up to three quarters of the purse. Letting them go cools the feud half as much again. Maim a captive head past ruling and the House sets them aside for the next fit child or a cousin. The maiming weighs ×2.4, and the House loses 30 renown.
+
+- **Ransom.** The House pays 180 gold for a child, 360 for its heir, out of its own purse into yours: never more than 40% of what it has, and only 40% of the price for one no longer fit to rule. Feud +10.
+- **Let them go** for nothing. Feud −20, +3 renown, and the House remembers it kindly. A child sent home maimed is no gift.
+- **Maim them.** A child of a rival House weighs ×1.8, its heir ×2.1. The House becomes your **blood enemy**: the feud runs to 100 and any truce ends. Houses friendly with it (ties 50 or more) add 25 to their own feud with you, its enemies are glad (−5), and every other House is warier (+10). The lords of your own court think the less of you (grudge +4 each, +6 under a faith that holds the body sacred, +2 under a harsh one). Its head may become your **nemesis**. A heir blinded, slit-nosed, tongueless, handless or gelded can **never head the House**: when the head dies the next child fit to rule takes it, else a cousin, and the House loses 20 renown. A gelded child is never offered in marriage. Maiming a ward raised under your own roof breaks guest-right, and the chronicle says so.
+
+**Blood owed.** For five years after you maim one of theirs, the House owes you blood. Its hired blades come for your grown children far sooner than any common enemy's (8% a week instead of 2%, with no wait of years), and take the same part. If its waylaying men beat you on the road, they take the same from you half the time. Whichever comes first settles the debt.
+
+**They do it to yours.** A rival House that holds a child of yours as a hostage (see *Heir paths*), with a feud of 90 or more and its terms refused at least once, may maim the child: 3% a week, at most once a year (three times as likely while it owes you blood). The notice stops a time skip.
+
+### What it costs the one who does it
+
+Each act has a weight: an ear or a brand 1, a hand, the nose or a foot 2, an eye or the tongue 3, blinding 5, gelding 4. Who the victim is multiplies it: an outlaw ×0.7, a commoner ×1, a noble or a lord ×1.6, your own blood ×1.8, royal blood ×2.2.
+
+- **Karma** −3 per point (half as much when lawful). **Cruelty** and **dread** deeds build the Cruel and Dread Lord traits.
+- **The name for cruelty** rises 3 per point (less if no one saw). It is the same name the dark deeds of war build. A dreaded name makes besieged towns likelier to pay ransom or tribute.
+- **The realm's regard** falls 3 per point, if it was seen. A realm that **condemns** mutilation (Imperial, Religious, Arcane and Maritime folk) counts it in full. One that **tolerates** it (Woodland and Swamp folk) counts it at 60%. One that **approves** (Nordic, Mountain, Nomadic and Desert folk) counts it at a quarter. A lawful sentence, or the crown's justice on a rebel, counts at 30%.
+- **The crown's heat** rises 5 per point when it was no lawful act and you do not rule there.
+- **The lords** of the victim's realm remember the maiming of a man of rank. Every lord hears of an act weighing 4 or more.
+- **The victim and their kin remember it**, and it is blood, so they hand it down. One of them may become a **nemesis**.
+- **The House chronicle** records it.
+
+**The faith.** The realm's faith, and the creed you keep yourself, decide how the knife is judged (see the table). A faith that **holds the body sacred** makes the realm's regard fall half as much again (×1.5), the crown's heat ×1.3, and excuses a lawful sentence less (it counts at 60%, not 30%). Its clergy think less of you (clergy standing −1.5 per point of weight, a third as much for a lawful sentence), and it costs a realm 3 more stability and 60% more from the treasury to proclaim a law that takes a limb. Its own courts take only half as many thieves' hands. If **your own creed** holds the body sacred, the deed costs you 40% more karma and 30% more cruelty, standing with your creed's clergy (−2 per point), and a little of your faith (−0.05 per point). A **harsh** faith holds the law's knife to be the god's justice: regard ×0.6, heat ×0.7, a lawful sentence counts at only 10%, a mutilation law costs 1 less stability and 20% less to proclaim, and its courts take hands 30% more often. Your own founded religion leans by its tenets: Peace (−2), Charity, Humility and Nature (−1 each) toward the sacred; Justice (+2), Valor and Sovereignty (+1 each) toward the harsh. A sum of −2 or less is sacred, +2 or more harsh. **🔪 The Knife** shows the faith of the realm you stand in, and Kingdom → Laws notes it on the mutilation law.
+
+| Faith | Stance |
+|---|---|
+| The Solar Covenant, the Iron Creed, the Stormfather (and the old Ashwalkers, Flame Heralds, Blood Moon) | Harsh |
+| The Tidemother, Stoneheart, the Serpent Way, the Arcanum, the Dunewalkers (and the old Void cult) | Neither |
+| The Earthroot Communion, the Starseers, the Dreamweavers (and the old Bonesingers, Silent Order) | Holds the body sacred |
+
+### Done to you
+
+- **Battle wounds.** A wound taken in a rout has a 5% chance of costing an eye, a hand, a foot or an ear for good. In a victory the chance is 1%, at sea 3%, in a duel 2%, in an ambush 3%, from a monster 4%, from an assassin's blade 25%.
+- **Vengeance.** One you maimed, or kin of one you maimed, who beats you senseless in the street takes the same from you more often than not (55%).
+- **The law.** A realm's **Mutilation** law (Kingdom → Laws) is *No limb taken* (40% of realms by custom), *A thief's hand* (45%: a hand on the second conviction for theft) or *The old law* (15%: a thief's hand on the first conviction, a cheat's ear, a slanderer's tongue). Convicted of such a crime before such a court, you lose the limb on the scaffold instead of going to the cells, and walk out. A ruler may change the law. *A thief's hand* costs 1 more stability to proclaim, *the old law* 2 more.
+- **Enemies.** A nemesis whose hatred reaches 85, or a rival House whose feud reaches 90, may have hired men maim one of your grown children. It happens about once in years, and the child may never sit the seat after.
+- **On the road.** Bandits, outlaws, raiders or pirates who rob you when you travel alone, or beat your army, may take something before they go: an ear, the nose, rarely a hand or an eye. The base chance is 1% when robbed and 2% when your army is beaten. Outlaws ×1.4, pirates ×1.2, raiders ×1, a war host ×0.3, and each band has its own cruelty (×0.5 to ×1.6). It rises with a name they hate: +1 for every 60 points of your name for cruelty, +8% for each outlaw you hunted down for a bounty, +35% for each outlaw you maimed. It is never more than 20%. A known thief-hunter (4 bounties or more, or any outlaw maimed) loses a hand: *"For every one of ours you dragged to the rope."* Beasts and bounty hunters never do it. A careful life sees it once, or never.
+- **The stump.** A fresh stump is a wound (14–24 days, strength −1, fighting power −8%). Left dirty, it can turn and fester.
+- **Your heir.** The heir takes the seat with their own body, not yours.
+
+**🦵 Aids for the maimed** (a town's action list, under Faith & Healing). A town's craftsman makes them. His fee goes into his purse; the material comes out of the town's market, and its price goes into the town's purse. If no townsperson of that trade can be found (a town's folk take up their trades on its first turn after you arrive), the town's market stalls make it to order, and the fee goes into the town's purse. If the market has no material, there is no aid.
+
+| Aid | Maker, material | Cost | Gives back |
+|---|---|---|---|
+| Eye patch | tailor or cobbler, leather | 7g | charisma +1 (one eye gone; shows on your sprite) |
+| Iron hook | smith, iron | 24g | combat +1, commerce +1, fighting power +5% |
+| Wooden leg | carpenter, 2 wood | 16g | a hex a day, combat +1, fighting power +5% |
+| Crutch | carpenter, wood | 4g | a hex a day |
+| False nose | smith, copper | 35g | charisma +2 |
+
+An aid never gives back more than its part took. A wooden leg and a crutch take the same place.
+
+**What shows.** Your body shows what it lost, on your sprite in the street, in your portrait in the corner, and on anyone else who was maimed: on their sprite and in their portrait when you talk with them.
+- The first hand to go is the right, a thief's hand. The arm ends in a stump bound with rag, or in the iron hook once a smith fits one. With both hands gone, both arms end in stumps.
+- The first foot to go is the left. The leg ends at the ankle in a rag wrap. A wooden leg puts an ash peg below the knee, strapped on. A crutch goes under the arm on the side of the lost foot. Sitting, you lay the crutch by.
+- One eye gone shows as a puckered scar, or under the patch if you wear one. Townsfolk who lose an eye mostly cover it. Both eyes gone show as a cloth bound over them.
+- A cropped ear shows as a notch of scar, a slit nose as a red split down it, a copper nose as a copper nose, a brand as a raw mark on the right cheek. These are small: you see them best in a portrait.
+- A cut-out tongue or a gelding doesn't show. Children's sprites show nothing.
+- A weapon is held in the right hand: once that hand is gone, the sword stays in its sheath, hook or not. A bow, a crossbow or a polearm needs both hands. A shield stays on the left arm until that hand goes too.
+- With a hand or a foot gone, the portrait shows more of you, so the stump, the hook, the peg or the crutch is in the picture.
+- A ruler or a rival House's head you meet in audience shows their marks on the bust and next to their name. A maimed vassal's card on the Vassals tab, and a rival head's card, say what they lost.
+
+### The world maims too
+
+Every week, a realm whose law takes hands takes them from townsfolk caught at theft (60% of those caught). A raided town may count a resident who lost an eye or a hand to the raiders (35% a raid). An AI realm's succession crisis may end with the winner blinding the loser or slitting his nose (30%), and the realm's news tells of it. Townsfolk talk of all of it, and the maimed carry it in the street: one-eyed, a hand gone, tongueless.
+
+## The Dungeon: Putting Prisoners to the Question
+
+Those you hold know things. **🔗 The Dungeon** (a town's action list, under Intrigue & the Law, when you hold anyone; also *Put them to the question* in a captive's panel in 🔪 The Knife) lists everyone you can question: a townsperson locked in your cellar, a rival House's child taken from its retinue, an outlaw you took alive for a bounty and have not yet turned in, the leader of a rising you crushed, and prisoners of war (below). A rival's ward at your court is a guest, not a prisoner, and is not on the list.
+
+**The ladder.** Once a day for each prisoner, choose how hard to push:
+
+| Step | Base chance to break | Body | Lies when they know something / nothing |
+|---|---|---|---|
+| 🗣️ Talk with them | 8% | none | never |
+| 😠 Threaten them | 16% | none | 10% / 20% |
+| 🌑 No sleep, no bread | 24% | −14 health; a cellar prisoner goes 2 days hungrier | 25% / 45% |
+| ⛓️ The rack and the irons | 38% | −26 health | 45% / 75% |
+| 🔥 The fire | 52% | −32 health; half the time a brand on the face for life | 55% / 85% |
+
+Each session they hold out adds strain (+0.5 to +2.5), and every point of strain adds 3% to the next. A hurt body breaks easier (+0.3% per point of health lost). Their **resolve** takes off: bold +12%, stubborn +15%, stern +8%, quiet +4% (cautious −6%, jovial −4%, kind −3%); a rival House's blood +15% (its heir +6% more); an outlaw +8% and +1% per point of his notoriety; a noble +5%. Your diplomacy adds 1% a point on the gentle steps; a dreaded name (your cruelty) adds up to 15% on the hard ones and on threats. The chance is never below 2% or above 92%. They mend 3 health a day. Below 45 health after a step, every point lower adds 0.6% to the chance they die under it (on top of 1% / 3% / 6% for the three hard steps); a step that would take their last health kills them.
+
+**Dying in your keeping.** A cellar prisoner who dies stays in the cellar: if it is ever found, it is a starved body (the cellar rules). A rival House's child who dies under the question is struck from the House: the feud runs to 100, any truce is off, the House remembers it as the worst thing you could do (−150), a nemesis may rise, and blood is owed (its hired blades come for your children, as for a maiming). A dead outlaw is worth nothing to the magistrate.
+
+**What they give up is real.** When they break they tell the best thing they know and have not told yet:
+- **A plot against you.** A rival House's hidden scheme. Its own tool always knows it; a rival's child knows its House's plots 75% of the time; a townsperson knows one worked through their town 40% of the time; an outlaw knows of a raid planned against your property 25% of the time. The plot is revealed at once, and the townsperson it works through is named a suspect (Dynasty → Threats: guard, send a spy, buy them off, or confront the suspect).
+- **A rival's bought man** (an informant, a saboteur, a bribed official in your towns): their own man always knows, the rival's child 60%, a townsperson of the same town 35%. You get a **name**.
+- **Who robbed you**: an open theft case in the prisoner's town (40%), or one an outlaw's friends did (30%). A **name**.
+- **An outlaw lair not on your charts**: an outlaw knows any within 25 hexes 85% of the time, a townsperson any within 10 hexes 25%. It goes on your charts (Journal → Outlaw Lairs), with its chief, the men at home and the size of its hoard.
+- **Buried treasure no one has dug up**: an outlaw knows of one within 15 hexes half the time, a townsperson within 8 hexes 15%. You get a map of it (Cartography → your maps).
+- **A rival House's secrets**: its child always knows the purse, the head's ambition and what the head is doing now (hunting you on the roads, at court, buying land). For 120 days after, that House's plots are likelier to come to light (as if you had turned one of its informants). Once a season.
+
+Whether a prisoner knows a thing is fixed for that prisoner: asking again will not change it. Once they have told all they know, breaking them gets "nothing more".
+
+**Lies.** Under pain they may name someone instead: a real townsperson of their town (or of the town nearest you), or, for a rival's child when you rule, a lord of your own court; said to be in a rival House's pay, the one who robbed you, or a friend of the outlaws. A name looks the same whether it is true or a lie. **Names given** in the Dungeon lets you act on each:
+- **Accuse them** openly. If it was true, a bought man is exposed and driven out (as from Dynasty → Threats); a thief is named to the watch (+2 regard in the realm), and you can face them in town to get your goods back. If it was a lie, the innocent denies it and the town believes them: −6 regard in that realm, and the innocent and their town remember that you believed a tortured man's word; a lord of your court so accused takes +15 grudge, and every other lord +3.
+- **Condemn them**: onto the scaffold's list (⚖️ The Scaffold) to await your word. The scaffold knows the truth even if you do not: an innocent put to death on a tortured prisoner's word may be found out later.
+- **Let it lie.**
+
+A name given under the question is grounds enough for the law: a townsperson named as a rival's bought man counts as a traitor while the name stands open.
+
+**The law.** Each realm has a law on **🔗 Torture** (Kingdom → Laws): *Forbidden* (35% of realms by custom: only talk and threats are lawful), *For treason only* (45%: the hard steps are lawful on a rival House's child when that House's feud with you is 60 or more or it is plotting against you, and on a townsperson who is, or was named as, a rival's bought man or a plotter's tool), *At the gaoler's will* (20%: anything goes; −2 stability to proclaim). The law that counts is the realm where they are held: the cellar's town, the bounty's realm, or for a rival's child the realm you rule or stand in. Each step shows whether it is lawful there.
+
+**The price.** Every hard session costs karma (−2 / −4 / −6, half when lawful), cruelty and dread, and adds to your name for cruelty (+1 / +2.5 / +4, under half that while it stays secret). Threats cost a little too. The first hard session is written in your House's chronicle; a cellar prisoner remembers it for life; a rival House's child's House adds +25 feud and remembers it (−70). Word gets out now and then (5% a session for a cellar prisoner, 12% for a rival's child, whose House has servants who talk, 8% for an outlaw; × 1 / 2 / 3 for the three hard steps; doubled when lawful, since it is done openly). When it does: the towns talk ("Screams in a Cellar"); the realm's regard falls (−4 per step weight, 30% of that when lawful); the crown's heat rises (+6 per step weight) if it was unlawful and the realm is not yours; the realm's lords remember (the torture of a noble or a rival's child for long, of commoners a little); the clergy think less of you; the victim's kin remember it; other rival Houses' feud +4; your own court's lords +2 grudge. A faith that **holds the body sacred** weighs all of it half as much again (×1.5); a **harsh** faith half as much (and its clergy do not mind). If your own creed holds the body sacred, the hard steps cost a little of your faith too.
+
+**Prisoners of war.** When you beat a realm's host in the field, or take one of its towns by storm, one of its captains, knights or lords may be taken alive: a 35% chance, +0.25% for every point of the beaten host's strength, +15% for a town stormed, at most 70% (no host under 20 strong; a town that surrenders marches out under safe conduct). A host of 90 or more yields a lord half the time; one of 40 or more a knight; else a captain. They are named from their realm's culture and held in the Dungeon under *Prisoners of war*:
+- **Ransom**: their realm pays out of its treasury into your purse: a captain 80 gold, a knight 200, a lord 500 (at most 30% of the treasury; 60% for one you maimed). Three weeks after you take one, the realm offers it.
+- **Send them home** for nothing: +6 regard in their realm and its lords remember it kindly (not if you hurt them).
+- **To the scaffold**: onto the list of the condemned (⚖️ The Scaffold).
+- **Question them**: their resolve is +8% (captain) to +15% (lord). A captain knows his realm's affairs 70% of the time, a knight 80%, a lord always: its treasury, its army, and where its host marches if you are at war. For 120 days after, you can read that realm's books and army as if you sat at its court (the realm's panels show *what a prisoner of theirs told you*). Under *For treason only* the hard steps are lawful on a prisoner of a realm you are at war with.
+- Every month you keep one, his realm's regard for you falls by 2 (at most 12 for each). One who dies in your keeping costs 12 more, and its lords remember it.
+
+**A rising's leader.** One you took when you crushed a rising (Peasant Revolts) waits in the Dungeon under *Leaders of risings*. Rebels are traitors under the law. Their resolve is +10%. They know the rising's ringleaders by name (90% each): accused, a true ringleader is taken and the town's grievance falls by 8, so it is slower to boil over again. One who dies under the question is struck from the risings' prisoners, and the town will call them a martyr.
+
+**Your spies in their cells.** A spy of yours captured on a mission may be put to the question by that crown (40%, three days after): your other missions against it are blown and your spies come home; half the time another of your spies hidden in that realm is taken too; its regard for you falls by 8, its lords remember whose hand it was, and a rival House of that realm adds 8 to its feud. The Dungeon lists *Your spies in their cells*.
+
+**They do it too.** A rival House holding a child of yours as a hostage, with a feud of 70 or more, may put the child to the question (a 2% chance a week, at most once every 240 days per child): the child is hurt (−30 health), a quarter of the time branded for life, and the House lays a plot against you from what the child told them. It stops a time skip.
+
+## The Scaffold: Public Executions
+
+A death sentence is a day in a town. **⚖️ The scaffold** (Hall & Court → Intrigue & the Law, in any town while someone awaits your word) shows the condemned, those in your power you could bring to it, and the martyrs your scaffold has made.
+
+### Who comes to the scaffold
+
+- **Your court's verdict.** Judging a case, **Condemn to the scaffold** sends the convicted to the cells to wait for your word. (**Hang** still hangs them at once, without ceremony.)
+- **A crushed revolt.** When you crush a revolt of your lords, its leader is taken and waits for your word.
+- **Those in your power.** A captive in your cellar, an outlaw you took for a bounty, a lord of your court (a rebel or broken lord is guilty of treason; a loyal one is not, and the court knows it), a child of a rival House you hold, or a ward of a rival House raised at your court. Bring any of them to the cells from the panel.
+- **A ward under your roof.** Putting to death a child raised at your own hearth breaks guest-right: −15 Prestige, −10 karma on top of the rest, every other rival House's feud with you rises 15 and remembers it, every realm's lord holds it against you, and your name grows crueller and less trusted. A ward pardoned at the foot of the scaffold goes back to your household; one exiled is sent home.
+- **Other prisoners.** Anyone another part of the realm hands over: a prisoner who confessed under the question, a risen peasant's captain.
+
+While they wait, kin, a House or an outlaw band may break them out: about 4% a month for those with friends outside.
+
+### The day
+
+- **Where.** A seat you rule (a holding, your office's capital, your crown's capital), or the town of the crime when it is one of yours. With no seat you have no right of the sword: you can only show mercy.
+- **How.**
+  - 🗡️ **The axe**: a clean death on the block. Only for the highborn (nobles, lords, royal blood, a rival House's child).
+  - 💀 **The rope**: the gallows, the common death. Hanging a lord is an insult his peers remember.
+  - 🔥 **The stake**: only for heresy or witchcraft, and only where the realm's faith allows it (a harsh faith; a mild one allows it but its priests think less of you). Twice the fear of the rope, three times the cruelty.
+  - 🐎 **Drawn and quartered**: only for treason, rebellion, plotting or spying. The cruellest name, the most fear.
+- **When.** **Proclaim the day** and it happens 2 days on before a full crowd, wherever you are (your officers see to it). Or do it **here and now** if you stand in the town: a third of the crowd.
+- **Or mercy.** 🕊️ Pardon (they walk home through the crowd), 🚪 exile (out of the realm), ⛪ the cloister (shorn and sent to a monastery: no blood on your hands), ✋ the knife instead (a hand taken, see Maiming).
+
+### The crowd
+
+Its size comes from the town (a fifth of a town's people, a tenth of a city's). Its **mood** runs from 🔥 baying for blood through 👀 eager, 🤐 quiet and 😠 sullen to 💢 angry, from:
+- the crime: a murderer draws a baying crowd, a debtor or a poacher a sullen one;
+- how loved the condemned is: kin in town, a healer's or a priest's trade, a name already wronged;
+- how happy the town is, and your name in the realm;
+- whether the crowd senses innocence;
+- the manner: a burning or a quartering horrifies a crowd unless it suits the crime;
+- a martyr's shrine already in the town.
+
+The panel shows, for each manner, how many will come, their mood and the risks. Each condemned speaks **last words** (the chronicler retells them when a language model is on): the guilty repent, the innocent accuse you, the highborn promise their House's memory.
+
+**What can go wrong.** A rescue from the crowd (more likely with kin, a House or a band behind them, a loved name, an angry crowd; less likely with you there): the condemned is gone into the lanes. A riot in an angry crowd (−6 happiness, −2 stability): the guards may drag the condemned back to the cells. The rope can break (about 1 hanging in 30): the crowd cries a sign of God, and the condemned waits for your word again. Spare them then and the town blesses you (+5 happiness); hang them again and you defy God before every soul who saw.
+
+### What a death costs, and what it buys
+
+- **The town.** A baying crowd is pleased (+2 happiness, +2 Prestige), a sullen or angry one is not (−3, −6). A burning costs −2 happiness and 3 karma, a quartering −3 and 4. A traitor's death steadies the realm (+2 stability, +3 Prestige).
+- **Fear.** Cruelty and dread on your name (cowed townsfolk and witnesses), the butcher's name for a burning, a quartering or an innocent (it opens purses at a siege's terms), your court's name for severity. A public death cows the town's thieves: burglaries there fall to about half for 45 days (a burning or a quartering, more).
+- **Your court.** A traitor's head cows the other lords for half a year (they join no faction). An innocent lord's head makes every lord of your court hate you a little more.
+- **The lords of the realms.** A highborn put to death unjustly, or hanged like a thief, is a vendetta with that realm's lord. Every lord hears of a burning or a quartering. A traitor's death is respected.
+- **The kin.** The family remember the hanging, the beheading, the burning (it outlasts generations: the avengers count the blood). An innocent's or a loved one's kin may rise as your nemesis. A rival House whose child you put to death is your blood enemy.
+- **The talk.** An execution, a burning or a quartering spreads from town to town.
+- **Mercy** earns the court's name for mercy and karma. How the crowd takes it depends on the crowd: sparing one an angry crowd loved is +7 happiness; sparing a murderer a baying crowd wanted dead is −4.
+
+### Martyrs
+
+An innocent put to death (45%), or a loved one (20%), may become a **martyr**: more likely after a burning or a quartering, before an angry crowd, or after the rope broke. Flowers and candles gather where the scaffold stood. Each week the shrine sours a town you rule (happiness down, never below 20) and the realm's stability, for years; pilgrims come, and their coin goes from the realm's capital into the shrine town's purse. The next crowd at that town's scaffold is sullener. **Endow the shrine** (120 gold into the town's purse: penance, and the cult fades in peace) or **pull it down** (fear; half the time the cult only hardens).
+
+**The truth.** An innocent sent to die on another's word (a false confession, a lie: not by your own court, which keeps its own reckoning) is found out 60% of the time, months to a year on: −8 happiness, −10 Prestige, −5 karma, the kin remember the wrong, the lords of rank hear of it, and the martyr's cult grows.
+
+### In the square
+
+From the day an execution is proclaimed until it is done, the scaffold stands in the town's square on the street map: the gallows for a hanging or a quartering, the headsman's block for the axe, the stake and its faggots for a burning. On the days before, a few townsfolk stop to stare at it. On the day itself, from mid-morning to mid-afternoon, about two in three of the town's grown folk come and stand packed before it, muttering, praying or jeering. A death done here and now leaves the scaffold up for the rest of that day. A mercy before the day takes it down.
+
+### The realms' scaffolds
+
+The realms hang, behead and burn their own condemned in their capitals, a few times a year each. When you are in town as one is proclaimed, you hear the criers; on the day, **💀 The crowd at the scaffold** lets you watch, or **cry out for mercy**: the crowd may take it up (more likely if it is sullen or angry, or the condemned innocent) and the condemned is exiled instead. The crown thinks less of you (−2 reputation, some heat), the town remembers you spoke. An innocent the crown puts to death may become a martyr against that crown. The world's news tells of the highborn and the burnings.
 
 ## 15. Ships & Naval
 
@@ -4525,13 +4868,13 @@ A crown does not pass by itself. When you rule a realm and the seat passes — y
 | Claimant | Strength | What answers him |
 |----------|----------|------------------|
 | 🗡️ A younger son (or daughter) of 16+ | son 30, daughter 14 (an uncle of the heir ×0.6); older than the heir +18; the rightful heir passed over in an abdication +25; Ambitious +10; turned against the House while held abroad +15; wed into one of your lords' houses +10; denied a far crown kept whole +15 | a **portion** (250g at a time from your purse into theirs: at 1,000g the claim is cut by 70%); **holy orders** (200g alms to the capital: the claim is gone for good); a **match abroad** (an alliance or royal marriage into another realm takes the claim with them); a **cadet branch** (a branch of 60+ loyalty claims nothing) |
-| 🌿 A cadet branch below 60 loyalty | 6, +0.6 per point of loyalty under 50, +15 estranged | gifts and summons (Dynasty → House → Cadet branches) |
+| 🌿 A cadet branch below 60 loyalty | 6, +0.5 per point of loyalty under 50, +12 estranged | gifts and summons (Dynasty → House → Cadet branches) |
 | 💍 The late royal consort's kin, of another realm | 28 against a child heir whose regency is not theirs (6 against a grown heir), +12 if their realm is cold to yours; ×0.6 if the consort is dead | the consort as regent |
 | 🏚️ The old royal line of a crown you took (not founded) | 38, −0.8 for each year your House has held it | a **pension** (500g to its household in the capital: ×0.4 for 12 years); a **cloister** (30 Prestige, −5 stability: broken for 40 years); a marriage into it (your or your heir's royal spouse of this realm joins the lines) |
 
-**The heir's standing:** named heir in life +12; **crowned in your lifetime** +28 (25 Prestige and a 400g coronation feast paid into the capital; heir 16+); **the lords' oaths** up to +24 by the share of the lords' power sworn (10 Prestige and 150g; every lord of opinion 0+ swears; once every 120 days); a child heir −18 (a regent of 60+ loyalty +6, of under 40 −10); the House's Prestige ÷ 25 (up to +12); the late reign, +0.5 a year (up to +10); the realm's stability, (stability − 50) × 0.3; the lords' average opinion × 0.2; the heir's leadership and diplomacy × 0.8 (up to +8); the succession secured with Prestige at the deathbed +10, disputed −10; the House's **founding tale** told for the heir +12 (invoked for legitimacy, see [Your Name on the World](#your-name-on-the-world)); an heir **born in the purple** (see [The Weight of Greatness](#the-weight-of-greatness-realm-decline)) −0.3 for each point of softness above 50, unless hardened since; an abdication with the old ruler's blessing +14, one that passed the rightful heir over −12; and −6 for every year of an empty throne. The oaths and the crowning are spent at the succession: the next heir needs their own.
+**The heir's standing:** named heir in life +12; **crowned in your lifetime** +24 (25 Prestige and a 400g coronation feast paid into the capital; heir 16+); **the lords' oaths** up to +20 by the share of the lords' power sworn (10 Prestige and 150g; every lord of opinion 0+ swears; once every 120 days); a child heir −18 (a regent of 60+ loyalty +6, of under 40 −10); the House's Prestige ÷ 25 (up to +12); the late reign, +0.5 a year (up to +10); the realm's stability, (stability − 50) × 0.3; the lords' average opinion × 0.2; the heir's leadership and diplomacy × 0.8 (up to +8); the succession secured with Prestige at the deathbed +10, disputed −10; the House's **founding tale** told for the heir +12 (invoked for legitimacy, see [Your Name on the World](#your-name-on-the-world)); an heir **born in the purple** (see [The Weight of Greatness](#the-weight-of-greatness-realm-decline)) −0.3 for each point of softness above 50, unless hardened since; an abdication with the old ruler's blessing +14, one that passed the rightful heir over −12; and −6 for every year of an empty throne. The oaths and the crowning are spent at the succession: the next heir needs their own.
 
-**Rising.** Each claimant rises with a chance of (strength − standing + 20) ÷ 80, at most 90%. The strongest who rises leads; any others stand with him. Each lord of the royal court then leans: his opinion × −0.5, the claimant's edge over the heir × 0.6, (ambition − 5.5) × 2.5, an oath to the heir −4 per point of his honour, kin of the claimant +40, kin of the crown −15, a council seat −10, cowed −20, and his own temper (±15). Those who lean over back the claimant; the power they hold is his **support**, the rest (and 5% of the royal army) the crown's. With less than 15% of the lords' power behind him he finds no swords and stands down (a younger son remembers it: +8 strength the next time).
+**Rising.** Each claimant rises with a chance of (strength − standing + 15) ÷ 80, at most 90%. In the century soak, a grown heir crowned in life with the lords sworn faced a rising about 3% of the time (never above 20%); an unprepared one with a grown younger brother about 80%, and one with no brothers (only cold cadet branches or the old line) about 30%. Not every rising is a war: a claimant needs 15% of the lords' power behind him. The strongest who rises leads; any others stand with him. Each lord of the royal court then leans: his opinion × −0.5, the claimant's edge over the heir × 0.6, (ambition − 5.5) × 2.5, an oath to the heir −4 per point of his honour, kin of the claimant +40, kin of the crown −15, a council seat −10, cowed −20, and his own temper (±15). Those who lean over back the claimant; the power they hold is his **support**, the rest (and 5% of the royal army) the crown's. With less than 15% of the lords' power behind him he finds no swords and stands down (a younger son remembers it: +8 strength the next time).
 
 **The war** runs as a revolt (above): his lords' seats withhold their levies and raise his host, his hosts march, the royal army meets them in the field, you break his hosts and besiege his seats, and you can **buy him off** at the usual parley price. It starts at momentum (the crown's share of the support − 50%) × 40. A foreign realm behind him sends 12% of its army (up to 250): the consort's kin, or the realm most hostile to yours (−30 or worse) behind the old line. A child on the throne may lay no siege while the regent rules.
 
@@ -4540,7 +4883,7 @@ A crown does not pass by itself. When you rule a realm and the seat passes — y
 - **Lost** (momentum −100, or the war runs out behind): **the realm splits**. His seats, and the open land around them, leave as the *Kingdom of* his greatest town, with his host as its army, a truce of 360 days and relations of −60. His lords leave your court, −30 Prestige, −10 stability, and a son who wins it leaves your House to reign there. You hold a **blood claim of 40** on it: press it from Claims & Crowns. Once a year, when its truce is over and its army is 60% of yours, it goes to war to take the rest of your crown. If it falls, the realm is whole again: +30 Prestige.
 - **His hosts take the capital**: the **crown itself** passes to him. Your reign is closed, −40 Prestige, and your heir holds a blood claim of 55 to win it back.
 
-**Far crowns** worn in personal union have no court of yours: a claimant who rises there adds half his strength to their lords' wish for a king of their own (see High Crowns).
+**Far crowns** worn in personal union keep a royal court of their own (see High Crowns), but no contested succession of yours: a claimant who rises there adds half his strength to their lords' wish for a king of their own.
 
 **The interregnum.** While you wait out the years, the contest waits too. On your return each empty year weighs −6 against the heir, and after **5 years** a claimant of strength 30+ who rises has already taken the throne: the crown is lost, and you come back with a blood claim of 55.
 
@@ -4572,10 +4915,21 @@ With no crown yet, an offered crown becomes your seat.
 
 **The viceroy.** Name your spouse, a grown child or sibling at home, a courtier, or one of the realm's own great lords. Each has **loyalty, ambition and competence**. Competence moves the realm's stability and taxes (±5% at the extremes). Loyalty settles each week toward a target: duty (55), your House's Prestige (up to +15), your favours, **+6 while you have been in the realm within 30 days**, minus the lords' discontent (×0.15) and a grasping man's ambition, and minus **neglect** — after a year without a visit, up to −25 more over the next two and a half years. You can **send a gift** (200 gold into his purse) or **honour him** before both courts (12 Prestige; ambition −6). Replacing a viceroy costs 10 Prestige (2 if his plot is already whispered).
 - Below **45** loyalty he skims the levy — up to 40% of it at loyalty 0 — into his own purse (a native lord's into his seat's coffers).
-- Below **30**, if his ambition is 50+, he plots. Half-way there, the whispers reach you (a time skip stops). If the plot ripens he **crowns himself**: the union breaks, you lose 25 Prestige, the realm turns hostile (−50 relations) and half the time marches on your seat.
+- Below **32**, if his ambition is 58+, he plots. Half-way there, the whispers reach you (a time skip stops). If the plot ripens he **crowns himself**: the union breaks, you lose 25 Prestige, the realm turns hostile (−50 relations) and half the time marches on your seat.
 - A realm with no viceroy drifts: −6 stability and +0.6 discontent a week.
 
-**The lords' discontent (0–100).** Each week: +0.15 by nature (−0.1 as old grievances settle), **+0.35** once you have been away 120 days, **+0.25** if the realm's culture is not your seat's, +0.3 on heavy taxes (−0.15 on light), +0.3 while its stability is under 45, +0.3 while a child rules, −0.35 with a native viceroy, −0.2 with one of your blood, the decrees above, and **−1.5 every week you stand in the realm** (a royal progress). It lowers the realm's stability (−12 at 100) and your levy. At **70** its lords talk of a king of their own (a warning; a time skip stops). Past **90**, while the realm's stability is under 70 (at **100**, whatever its stability), there is a one-in-four chance each week that they crown a native of the old line and the union breaks (−25 Prestige, hostility, perhaps war). An absent ruler of a foreign realm loses it in about five years under a courtier viceroy, in ten to fifteen under a native lord; one who visits, keeps light taxes and confirms the charter can hold it for a lifetime.
+**The lords' discontent (0–100).** Each week: +0.15 by nature (−0.1 as old grievances settle), **+0.25** once you have been away 120 days, **+0.25** if the realm's culture is not your seat's, +0.3 on heavy taxes (−0.15 on light), +0.3 while its stability is under 45, +0.3 while a child rules, −0.35 with a native viceroy, −0.2 with one of your blood, the decrees above, and **−1.5 every week you stand in the realm** (a royal progress). It lowers the realm's stability (−12 at 100) and your levy. At **70** its lords talk of a king of their own (a warning; a time skip stops). Past **90**, while the realm's stability is under 70 (at **100**, whatever its stability), there is a one-in-four chance each week that they crown a native of the old line and the union breaks (−25 Prestige, hostility, perhaps war). An absent ruler of a foreign realm loses it in about seven years under a courtier viceroy, in fifteen to twenty under a native lord (sooner as an emperor, whose crowns chafe more); one who visits, keeps light taxes and confirms the charter can hold it for a lifetime.
+
+**Each far crown's own royal court.** A far crown has a Royal Court of its own, run exactly like your seat's (council, edicts, vassals, factions, revolts — see Kingship) but in its realm, from its treasury: open **High Crowns → the far crown → 🏛️ The Royal Court of …**, or switch crowns with the **Your crowns** buttons at the top of any Royal Court. What differs:
+- **The council.** Your **viceroy** heads it: he takes the Chancellor's seat when it is empty (competence = his competence ÷ 5, loyalty = his loyalty) and each week fills any empty office with the best at hand — the realm's lords and its old court. Your family and companions serve only at home.
+- **Edicts and decrees share one pool of law slots** (4, +1 with a Chancellor of competence 12+). The Royal Post and the crown monopolies are for your seat's court alone. The decrees also move its lords: the charter **+8** opinion (and pleases lords who seek justice or safety), native lords at court **+6**, garrisons **−3**, tribute **−10** (and lords who seek wealth or trade band together to repeal it).
+- **Its lords weigh a far king.** On top of the usual reasons: **+8** while you stand in the realm, **−4 a year** you have been away past 120 days (at most −15), **−8** for a lord of the realm's own blood under a king of another, the viceroy (**+6** a native lord, +2 your blood, −4 a courtier of yours, **−10** none; ±5 for his competence), and once discontent passes 30, **−0.25 per point** of it (talk of a king of their own).
+- **What they demand.** At **35** discontent, a sour lord may band together for **a viceroy of their own blood** (conceded: the best native lord is named); at **60**, one whose opinion is −20 or worse bands together for **a king of their own**. Conceding that ends the union in peace: the old line is crowned, relations +20, −15 Prestige.
+- **They feed its discontent**, each week: −0.004 per point of their power-weighted opinion of you (−50 → +0.2), **+0.8 × the threat** of each faction for a king of their own, **+0.8** while they are in revolt (+1.2 for a native king).
+- **Their revolt is how the union breaks.** A revolt for a king of their own that wins (or that you concede) breaks the union as if the lords had crowned a native (−25 Prestige, hostility, perhaps war). While it runs, the one-in-four weekly break past 90 discontent no longer needs low stability. **Crushed**, it takes **30** off the discontent (any other far revolt crushed, 10). Its rebel hosts and seats are fought like your seat's: break the hosts in the field, besiege the seats.
+
+**How long a far crown keeps.** In the far-crown soak (eight worlds, forty years each), a far crown never visited was lost in **11–15 years**: five times in eight to its lords (a king of their own), three in eight to an ambitious viceroy crowning himself. One where you make a royal progress every second year, or rule through a native viceroy with the old charter confirmed and the viceroy honoured, held for all forty years.
+- A **league** at war makes war on every far crown too (see Coalitions): each town it takes from a far crown adds **3** discontent (its lords −3 opinion), a war the far crown loses **+6**, a war it wins **−5** (its lords +5 favour).
 
 **You can lay down a far crown** at any time: its old line takes it back in peace. If your seat is lost (abdicated, fallen), your oldest far crown becomes your seat. If your line ends, every crown returns to its old line.
 
@@ -5545,9 +5899,28 @@ What you do with your children while you live pays off when one of them succeeds
 - If the court comes to think ill of you (its regard falls to −30 in peacetime), it keeps the child as a **hostage**. A held child does not come home. Ransom them home by letter (Post); a fosterage cut short this way counts for nothing at succession. At open war the danger comes by letter instead: the child writes that they are afraid.
 - A grown child goes as a ward for a season instead (see above).
 
-**Betrothal (ages 4–15).** Promise a child to a realm's nobility. The betrothal gift is half the alliance dowry (100 gold), paid into that realm's treasury; it gives +8 reputation, and the lord remembers it. When the child comes of age the match is made, with the rest of the alliance's standing and Prestige, and the **rest of the dowry** (another 100 gold) is paid into their treasury. If the House cannot pay it all, the wedding goes ahead short, at −6 standing. Breaking a betrothal yourself costs 15 reputation, **5 Prestige**, the gift (they keep it) and a lasting grudge. If the child is married elsewhere, the betrothal breaks itself the same way. If your realms are **at war for 60 days**, they break it — and send back the gift, as far as their treasury allows.
+**Betrothal (from the cradle to 15).** Promise a child to a realm's nobility (for a promise to a real person — a rival's child, a prince, a lord's house — see *Matches & Betrothals* below). The betrothal gift is half the alliance dowry (100 gold), paid into that realm's treasury; it gives +8 reputation, and the lord remembers it. When the child comes of age the match is made, with the rest of the alliance's standing and Prestige, and the **rest of the dowry** (another 100 gold) is paid into their treasury. If the House cannot pay it all, the wedding goes ahead short, at −6 standing. Breaking a betrothal yourself costs 15 reputation, **5 Prestige**, the gift (they keep it) and a lasting grudge. If the child is married elsewhere, the betrothal breaks itself the same way. If your realms are **at war for 60 days**, they break it — and send back the gift, as far as their treasury allows.
 
 **Kin are slow to turn on you.** A realm bound to your House by marriage (yours, or a child wed into it) counts only half its hostility toward a league against you. A realm bound by a betrothal counts three-quarters (see [Coalitions & Threats](#coalitions--threats)). The Threats panel shows the reason.
+
+**Matches & Betrothals** (Dynasty → 💍 Matches & Betrothals, or a child's page → *Seek a match*). Any unwed child — an infant too — can be promised to a real person:
+- **Who.** A rival House's child; a foreign crown's prince or princess (the eldest is the **heir**, and the crown asks a standing of 5 for its heir, −10 for the others); a lord of your own realm's house, when you rule; or a realm's nobility (the plain betrothal above). Suitors are of the other sex and within 8 years of your child's age. A rival whose feud is over 60, or a realm at war with you, will not hear of it.
+- **The price.** Their side names a dowry: a base (nobility 120, a lord 100, a rival House 220, a prince 600, **an heir 1,400**) times their standing over yours (the square root of their weight against your Prestige, between ×0.35 and ×2.6), less up to 40% for a House that thinks well of you. A House greater than theirs pays less. The terms move it:
+  - **Whose House.** *Your child goes to them* (−35% of the base) or *they take your name* (+60%, +4 more Prestige at the wedding). It decides whose the **children of the match** are (see *The children of the match* below).
+  - **A ward.** *Your child raised at their court* until the wedding (−30%: a pledge — their court becomes the tutor, and a court grown cold keeps the child as a hostage; from age 7) or *their child raised at yours* (+35%: you hold their child; your own children grow up beside them; it needs a free ward's seat). A lord of your own realm takes either too: your child raised in his hall (his temper rubs off; no hostage-taking within your realm), or his child at your court (no fee). While he holds yours or you hold his, he gains +1 favour a month, up to 10.
+  - **Land.** One of your estates may be settled on them as part of the dowry, counted at its worth; it passes at the wedding, if it is still yours.
+  - Half the coin is paid now — into the rival's own purse, the crown's treasury, the lord's towns — and half at the wedding. When the ask is below nothing, they pay you.
+- **While the promise stands.** A rival House keeps a **truce** (no plots, no agents, no ambush) and its feud eases by 1 a week down to 10. A realm you rule and the betrothed's realm keep the peace with each other (neither marches on the other) and warm by 1 a week to 40. The realm is slower to join a league against you. A lord of your realm gains 15 favour; a royal match pleases every lord (+3 favour) and the House (+4 Prestige).
+- **The wedding** comes when your child has come of age and theirs is 16. The rest of the dowry and the land change hands (a short dowry costs 8 standing or feud). A match with a crown grants a **claim by marriage**: 15, 30 for the heir, 40 if the heir has been crowned meanwhile — ×1.3 if your child went to them. A claim by marriage is one a falling royal line's council honours (High Crowns). A lord's house becomes kin. A rival's feud drops by 30.
+- **Breaking it yourself** costs 6 Prestige (12 for a royal match), 15 standing (a rival: +25 feud; a lord: a grudge), the coin you paid, and the lord's memory of the broken word — grounds for their lawsuit. What they paid you goes back. If their child has been **maimed or taken captive**, you may put the match aside without shame.
+- **Broken by them.** A war that will not end, a feud run hot, a House fallen to half the Prestige it had at the promise (a 15% chance a month), a child of yours blinded, gelded or otherwise maimed past rule (50% a month), a rival head of little honour (6% a month while the feud is 40 or more). They send back what you paid as far as their purse allows, and a rival's broken word is yours to sue on (Courts & Lawsuits).
+- **Endings.** A betrothed who dies, a House that falls, a royal wed to another, a rival child who becomes head of their House: the promise ends, no one blamed.
+- **The rival Houses** do the same among themselves: Houses on good terms (regard 15 or more) promise their young children (a quarter of the years), break it when their regard falls to −10, and wed them when both are 18 — the bond between the Houses grows each time.
+- **The children of the match.** Each year of a promised match a child may be born (30% a year, up to 4, while the mother is 16–42); you hear of it, and the House Chronicle and Family Tree record it.
+  - *They took your name:* the children are of your House. They stand in the Family Tree under their parent, and when that parent inherits the seat, they come to it as the new ruler's own children.
+  - *Your child went to them:* the children are of the other House. When your child inherits, they stay behind. A rival House's grandchild cools the feud by 5. When your child's spouse becomes the head of that House, the grandchildren become its children and heirs. A **royal line** with your blood in it gives your House a **claim by blood** on that throne: 12 while a grandchild lives, 25 once one is the crown's eldest child (its heir), 40 if one is crowned. When your child's royal spouse is crowned, their children join the crown's line of succession. A claim by blood is one a falling royal line's council honours (High Crowns).
+- **The crowns among themselves.** Each year two realms at peace that are allied, or think well of each other (relations 20 both ways), may promise their royal children to each other (20% a year; aged up to 15, at most 6 years apart). While the promise stands, neither marches on the other, and their relations warm by 1 a week, to 50. A war between them breaks it (−15 relations). At 16 the two wed, and the realms stand **allied**. A royal promised so is no match for your children. (A royal wedding binds two crowns by alliance, not by a personal union: only your House holds crowns in union.)
+- **Offers.** Now and then (about once in twenty months, never closer than 240 days) a rival House on good terms (feud 30 or less), a crown that thinks well of you (standing 15) or one of your lords proposes a match, at a fifth off their price. It stands 45 days.
 
 **Commissions for a grown child.** A grown child at home can take one commission with real stakes:
 - **Command the company.** The child leads your army. Battle power rises by 2.5% per point of their combat and 1.5% per point of leadership, up to +30%. Every battle teaches them combat (+0.5) and leadership (+0.25). Every battle also risks them:
@@ -6844,7 +7217,7 @@ The realms start to watch at **70**; past **140** for two weekly reckonings in a
 
 **At war.** Defied or ignored, every member goes to war:
 - on your **holdings** (properties, colonies, towns in your name) with real war hosts and sieges (see Realm Wars, Holding Sieges) — unless a truce with you still stands;
-- on a **crown you rule**, as a war between the realms, with an **embargo** on your realm's trade;
+- on a **crown you rule**, as a war between the realms, with an **embargo** on your realm's trade — and on **every far crown** you wear in personal union too (a war and an embargo each; a crown you win while the league stands is marched on the next week). Each town a member takes from a far crown adds 3 to the league's resolve and 3 to that realm's discontent; a far crown that wins its war with a member costs the league 8 resolve and counts as humbling it (a member leaves once all its wars with you are over);
 - their towns levy **25% on everything you sell there**, paid into their treasuries, and cancel your trade licences (no new ones while the league stands);
 - member rival Houses' feuds flare — more plots, more agents.
 
@@ -7179,13 +7552,13 @@ Saga monsters and fleets are named world units. A kingdom patrol cannot bring do
 
 A great realm rots from within. The bigger the realm you rule, the older it is, the longer your House has sat on its throne and the more you hold, the harder four **strains** press on it — unless you fight them. Open **Royal Court → ⚖️ State of the Realm** to see each one: its value (0–100), where it is heading (a pale mark on its bar), its trend over the last year, what feeds it, what it is doing to you now, and what you can do. (`systems/realmDecline.js`, `data/realmDecline.json`.)
 
-**How fast.** Each week a strain closes 0.6% of the gap to where its causes push it — about **ten years** to close two thirds of it. When its causes ease it falls back twice as fast. A strain does nothing below **20**; above that its *bite* grows to full at 100. At **40** the court warns you it is biting; at **70** it turns *grave* (a time skip stops). A crown taken from an old court comes with its habits: graft starts at 30% of its pressure, the far provinces at 40%, entrenchment at 50%.
+**How fast.** Each week a strain closes 0.3% of the gap to where its causes push it — about **twenty years** to close two thirds of it. When its causes ease it falls back twice as fast. A strain does nothing below **20**; above that its *bite* grows to full at 100. At **40** the court warns you it is biting; at **70** it turns *grave* (a time skip stops). A crown taken from an old court comes with its habits: graft starts at 30% of its pressure, the far provinces at 40%, entrenchment at 15%. In a realm of a dozen towns left alone, the strains begin to bite around **year 15** of the reign and reach the court's warning (40) around **years 30–40**; a realm of twenty-five towns or more rots about half again as fast.
 
 | Strain | Fed by | What it does |
 |---|---|---|
 | 🪙 **Court bloat and graft** | the realm's size, your House's years on the throne (full at 30), your holdings, a lavish court (+10), a greedy or drunken ruler (+10); a competent, loyal Steward holds it down (up to −25), a disloyal one (<40) feeds it | Each week up to **30%** of the crown's dues (at full bite; at most 4% of the treasury) are skimmed. Your council's officers outside the family take 60% — the least loyal the most, the Steward double — and the clerks the rest. The coin is real: a lord's share is spent in his seat's town, a companion's goes into their purse, the clerks' into the capital's purse. Who took what is kept. |
 | 🧭 **Far provinces drifting** | the realm's size, how far its people live from the capital (past 8 leagues, full at 24), over the years; the Chancellor (up to −20), the Royal Post (−10) and the road programme (−5) pull them in | Each far lord thinks up to **35** less of the crown ("Far from the crown"), so far lords join factions and revolt sooner. The crown's taxes fall by up to 40% of the far towns' share. Once it bites past 55%, once a year the sulkiest far lord may keep the king's dues and his men at home for 60 days. |
-| 🧸 **Heirs born in the purple** | the realm's size, your House's years on the throne (full at 25), the House's Prestige (full at 1500) | A child raised at your court — never fostered, never sent away on a path — comes of age soft: at full bite +4 craven, +3 drunkard, +3 greedy and −4 brave seeds, and past half bite −1 combat and leadership. Those traits go with them onto the throne. |
+| 🧸 **Heirs born in the purple** | the realm's size, your House's years on the throne (full at 40), the House's Prestige (full at 1500) | A child raised at your court — never fostered, never sent away on a path — comes of age soft: at full bite +4 craven, +3 drunkard, +3 greedy and −4 brave seeds, and past half bite −1 combat and leadership. Those traits go with them onto the throne. |
 | ⛪ **Guilds and clergy entrenched** | the realm's age and your reign's (full at 40 years), its size, its guild halls and great churches | Edicts cost up to **×2** to proclaim and **×1.6** to keep; the Guild Coalition and the Clerical Synod move only 40% as far when edicts push them. |
 
 Together they take up to **−12 stability** ("Weight of greatness": 4 per full bite).
@@ -7198,7 +7571,57 @@ Together they take up to **−12 stability** ("Weight of greatness": 4 per full 
 - **🛡️ Give an heir a march command** — a grown child (16–35) holds your farthest town for 2 years (200g from your purse to that town). They come home without craven, drunkard or greedy, brave, +1 combat and leadership — and one in four comes home scarred.
 - **🏔️ Ward of the March** — a new path for children of 10–14 (Dynasty → the child → The Years Away): 3 years in a march-warden's household in one of your realm's three farthest towns (60g, 25g a year), brave and hard. Any child fostered or sent away on a path comes home untouched by the court.
 
-**Other realms sag too.** Every other realm carries a lighter strain of its own, pushed up by its size and its age (full at 50 years). Past 25 it costs the realm up to −8 stability and skims up to 15% of its dues into its capital's purse — old, big realms grow brittle, and rebellions and your armies find them softer. Once a year a realm deep in decline (55+) may find a reforming ruler (12%): the strain falls to 40% of itself and the realm shakes (−3 stability). A sagging neighbour is an opening; it may not stay one.
+**Other realms sag too.** Every other realm carries a lighter strain of its own, pushed up by its size and its age (full at 50 years), and climbing at the old pace (0.6% of the gap a week). Past 25 it costs the realm up to −8 stability and skims up to 15% of its dues into its capital's purse — old, big realms grow brittle, and rebellions and your armies find them softer. Once a year a realm deep in decline (55+) may find a reforming ruler (12%): the strain falls to 40% of itself and the realm shakes (−3 stability). A sagging neighbour is an opening; it may not stay one.
+
+## Peasant Revolts: the Commons Rise
+
+The common people bear a great deal, but not everything. Every town of every realm carries a **grievance** (0–100). Each week it closes 5% of the gap toward the **pressure** its life puts on it (3% when the pressure eases), so one bad year shows within a season.
+
+| Grievance | Fed by |
+|---|---|
+| 💰 **Taxes** | the burden the people feel above the customary 16% (the crown's tax levels, a tax farmer's squeeze, corruption): +2.6 per point, up to +45; +10 while the town has driven out the tax collectors |
+| 🍞 **Hunger** | the peasants' welfare below 0.72 (+1.1 per hundredth), a harvest below 90% (+0.6 per point), grain 35%+ dearer than it should be; up to +45 |
+| 🔩 **Debased coin** | +0.7 for every point of silver taken out of the realm's coin, up to +25 |
+| 👊 **The lord's cruelty** | your name for butchery (a quarter of it) where you are lord; a cruel, tyrannical, ruthless or paranoid AI lord (+9 a trait); harsh punishment laws; +6 for each hanging at the town (halving every 1.5 years); up to +35 |
+| ☠️ **Plague** | +12 while it is in the town |
+| ⚔️ **Levies and war** | +5 at war, +10 under an extraordinary levy |
+| 🕸️ **A realm gone rotten** | its decline above 30 (yours: the average of your four strains) |
+| 😠 **Unrest** | the realm's stability below 45, the town's happiness below 40, a holding's unrest |
+| 📣 **Agitators** | a "rebellion" in the realm's news stirs a town by 15 (halving every half year); a realm's collapse into a Peasant Rebellion event, +25 while it runs |
+| 🕯️ **Old wounds** | resentment after a rising was put down cruelly; a leader held in your prison (+5) |
+| 📜 **Bread and charters** | each demand once granted pulls the grievance down, fading over its years (bread 3, a parley's promises 2, a charter of freedoms 60) |
+
+**A rising.** A town of 60+ people whose grievance passes **62** may rise: a weekly chance that grows steeply with its anger (about one in four a year at 80). Only one rising at a time in a realm, 4 years between them in the realm and 10 in the town, so a decently ruled realm sees a few a century and a cruel, hungry, overtaxed one many more. A rising has a **leader** — a real townsperson where the town keeps a roster of its people, a carter or a widow, never a noble — a **cause** (the heaviest grievance) and **demands**: lower taxes, bread for the hungry, the hated steward's head, honest coin, and a **charter of freedoms** too when the town's grievance is past 82.
+
+**Its host** is on the map (🔥 a peasant host, 10 + 6% of the town's people × its anger, 15–260 strong, slow on foot). It stays about its town for 12 days burning the estates around it (two at a time, never the burghers'): a burned estate's soil falls by 45%, so its crops, rents and value fall, and grows back over three years. A property of yours on the town's hex is plundered — its stores go into the rebels' packs (beat them to get them back) and it stops working for 25 days. Then, if no one meets it, it marches on the nearest angry town of the realm within 6 hexes (grievance 48+), which joins it and adds its men (up to 4 towns), and at last on its lord's **seat**: your holding itself, the capital if within 14 hexes, else the nearest city. It besieges for 10 days, then storms: its strength (× 0.8–1.3) against 5% of the seat's people (none, if its commons have joined the rising) and 30% of the realm's army at the capital (10% elsewhere), plus your holding's walls and garrison. Men drift home all the while (0.4% a day, three times that at harvest); a rising under 8 men, or six months old, melts away.
+
+**Against you** — a rising in a realm you rule or a holding of yours — the 🔥 **Risings** row of the House panel ("Against you") opens the panel:
+- **📜 Meet their demands.** Every town of the rising gets what it asked: lower taxes and honest coin as a **charter** that cuts the crown's taxes from the town by 25% (10%) for good; bread, paid for at 0.6g a head from the royal treasury (your purse for a holding) into the towns' purses; the steward's head — your holding's governor dismissed, or the realm's Steward put off your council (−15 with that lord). The commons go home; the lords call you weak: −25 Prestige and −6 with every lord of your court.
+- **🕊️ Parley.** 35% + 4% per point of diplomacy + charisma and renown, less their anger past 60; −15% unless you are within 3 hexes of their host. Success: promises (−5 Prestige) and the host goes home. Failure: they grow 20% bolder and will not talk again.
+- **💰 Buy off the leader** — 6g a man, from the treasury (or your purse), to the leader, spent in their town. 60% the rising falls apart; else another leader takes their place, crying betrayal (+8 grievance).
+- **⚔️ Send the royal host** (a crown only) — a quarter of the realm's army against them. Beaten, they swell by 30% and the realm loses a tenth of its army and 3 stability; you may send it again after 10 days.
+- **Ride out and fight them** — go to their host and ⚔️ Attack: a field battle as any other. Win and you take its packs, +10 Prestige and the judgement.
+
+**Their fate** (a crushed rising waits 30 days for your word, then your captains let them go):
+
+| Choice | Grievance in its towns | Afterwards |
+|---|---|---|
+| 🕊️ Mercy | × 0.7 | +3 karma, +4 renown |
+| 💀 Hang the leader | × 0.55 | fear (−15) for 3 years, then resentment (+8) for 6; −2 karma. If the scaffold stands, the leader goes to it to be executed in public |
+| ⚰️ Hang the ringleaders | × 0.3 | 12 hanged at the first town, 4 at each other; 1% of the people lost; fear (−35) for 4 years, then resentment (+25) for 12; −10 karma, cruelty |
+| ⛓️ Take the leader | × 0.6 | fear (−8) for 2 years; the leader in your prison (+5 grievance at home while held) — to question, hang or set free from the panel |
+
+Left to storm your seat, it takes what it demanded anyway: a holding sacked (+25 unrest, a third of its garrison lost, 5% of its people), −40 Prestige, −8 with every lord and −8 stability.
+
+**On the road.** A peasant host bars the road to every traveller outside a town, as a band of raiders would. There is no toll; instead:
+- **💰 Give to the cause.** 12% of your purse (at least 5g, at most 3g a man). The coin goes into their packs, where it is plunder again if they are beaten, and every 20g feeds one more man. +1 karma; they leave you be for 30 days.
+- **✊ Swear to their cause.** −10 reputation with their realm now, and −10 more if the rising is crushed (the crown has the names). +1 karma; they leave you be while the rising lasts.
+- **🔥 Bring your men to the rising** (with an army). Half your army's strength joins their host for the march on the seat. −20 reputation with the realm, +4 renown, +2 karma.
+- You may still flee, hide, talk your way past or fight, as with any band.
+
+**Their own lord** (and anyone whose name for butchery is 40 or more) gets none of that and no talk of passing. If you ride within 3 hexes of their host outside a town, it turns and comes for you. Face to face you may **🗣️ promise to hear them**: the panel's parley chance, better for being close. If they believe you, they go home with promises (−5 Prestige). If not, they grow 20% bolder and fall on you, and you fight the field battle. You may also **📜 grant their demands** there on the road, with the same cost as meeting them from the panel. Beat them in that battle and their fate is yours to judge.
+
+**Other realms** meet their risings 10–30 days in, as their lord's nature bids: the cruel, tyrannical and ruthless crush (their army's 30%, + 4% for each point of the lord's martial skill, against the rebels) and hang the ringleaders; the just, generous and honourable grant a charter; diplomats parley; the greedy and merchant princes buy the leader off. A lord who fails tries again 25 days later with fewer men. A **weak lord** (martial 4 or less, or a realm under 35 stability) whose capital the mob storms is dragged from the throne, and another takes the crown. Beating a rising in another lord's realm earns +8 renown and +5 reputation there; its fate is that lord's.
 
 ## The Age: Age-Defining Crises
 
@@ -7247,11 +7670,11 @@ Every coin moves between real purses: your ledger lists them as *crisis aid* and
 
 When one House comes to dominate the world, the age turns against it. Once per long age a **last crisis** comes, aimed at your crown and sized to it. Weather it and the chroniclers name the years after your House: a **Golden Age**. Fail and your realm breaks into successor states, and the years that follow are a **Dark Age**. (`systems/lastCrisis.js`, `data/lastCrisis.json`.)
 
-**The reckoning.** Every week the world measures you. You dominate if any of these is true and you rule a crown (with 3+ realms still standing):
-- your crowns and your own towns hold **30%** of the world's towns, or
-- the blend of your town share and your arms share (your realms' armies plus your own host, against every realm's) reaches **35%**, or
-- the coalitions' measure of your might reaches **320**, or
-- you are an emperor (High Crowns).
+**The reckoning.** Every week the world measures you. You dominate when you rule a crown (with 3+ realms still standing) and **both** of these hold:
+- **you are great:** your crowns and your own towns hold **33%** of the world's towns, or the blend of your town share and your arms share (your realms' armies plus your own host, against every realm's) reaches **40%**, or the coalitions' measure of your might reaches **320**; and
+- **you tower over the rest:** you hold at least **1.75×** the towns of the next greatest realm outside your crowns. (On a small map of three or four realms, being one of them is not dominance; holding half the world against a quarter is.)
+
+An emperor (High Crowns) is measured more harshly: every bar is **×0.85** (28% of the towns, 1.5× the next realm).
 
 While you dominate, the reckoning gathers a week at a time. It needs **6–10 years** of dominance (fixed per world). If you slip back it drains twice as fast. It will not break before **year 15**, never while a world crisis is running (it waits for that crisis to end), and only once in **150 years**. **Dynasty → 🌋 The Age** shows the meter all along: half of it is how close you are to dominating, the other half is how long you have held it. The Dynasty "Against you" row turns amber while it gathers.
 
@@ -7264,6 +7687,8 @@ While you dominate, the reckoning gathers a week at a time. It needs **6–10 ye
 | ⚔️ **The Great Invasion** | A coast or the world's rim 6–16 hexes from your towns | A people from beyond the charts land near your realm. Their host is **1.0–1.4×** your realm's army plus your own, at least 400, and **3** more waves follow, a year apart. It is a full world invasion (see *The Age*), with sieges, sacks, a Grand Alliance and its own choices. It is judged when it ends. |
 | ⛪ **The Holy War** | 2+ realms of another faith or rite, not allied to you | Up to **4** of them end their own wars and declare a holy war on you. Each pays out of its treasury (up to 60%, at 4 gold a man, the wages going to its capital) to bring the league to **1.1–1.6×** your army. Your faith loses **15** unity. It runs **4–7 years**. |
 | 👑 **The Pretender** | 5+ towns | A pretender of the old line (the fallen realm whose towns you took, if you took any) raises the far provinces. **30–45%** of your towns, the farthest province, become a real kingdom with a lord and a royal family. It takes their land, the same share (×0.9) of your levies, your chests and your royal bank. Up to **2** hostile neighbours back him. It runs **4–7 years**. |
+
+**A sworn war.** The holy war and the pretender's war are sworn: no envoys end them, the lords' peace and war-weariness do not touch them, and your own peace stance cannot sue them away. They end by the verdict below, or when you buy a foe out.
 
 **Resolve.** In the holy war and the pretender's war the enemy has **100** resolve. It falls **1** a week (**1.5** while your armies outweigh theirs) and rises **0.5** a week while theirs are half again yours. Each foe that makes peace or falls costs them **20**.
 
@@ -7667,7 +8092,7 @@ The game auto-saves every 5 in-game days.
 - **There is one Ironman slot.** Starting a new Ironman run replaces one under way, and the sheet warns you first. On the title screen the run shows as **⚒️ Continue (Ironman)** and is marked ⚒️ IRONMAN in the save list.
 - **The cheats panel is shut.** You may open it anyway, which **taints** the run for good: it stays Ironman, but it earns nothing in the Hall. Using a cheat in any game, Ironman or not, taints the run.
 
-**The Hall of Houses.** Every House whose line ends is entered in the Hall. Open it with **🏛️ Hall of Houses** on the title screen. The Hall is kept in your browser, outside every save, so it outlives the game it was earned in (up to 200 Houses). Each entry shows the House's sigil and motto, its rank and Legacy score, its years and generations, and up to three peak titles (crowns first). It also shows how, when and with whom the House ended, its origin and difficulty, the House it descended from, any victory, the heirlooms it still held (up to five) and every reign. Ironman and 🧪 tainted Houses are marked. **📖 Open the chronicle** downloads the House's chronicle book (see [The Illustrated Chronicle](#the-illustrated-chronicle)), which is built and kept when the line ends. **Forget** removes a House, and what it earned, for good.
+**The Hall of Houses.** Every House whose line ends is entered in the Hall. Open it with **🏛️ Hall of Houses** on the title screen. The Hall is kept in your browser, outside every save, so it outlives the game it was earned in (up to 200 Houses). Each entry shows the House's sigil and motto, its rank and Legacy score, its years and generations, and up to three peak titles (crowns first). It also shows how, when and with whom the House ended, its origin and difficulty, the House it descended from, any victory, the heirlooms it still held (up to five) and every reign. From the endgame it keeps the **Age** the House gave its name to (☀️ a Golden Age or 🌑 a Dark Age, its name, its years and the realm), the ⚜️ **high crowns** it proclaimed (title, years, and how each ended), its ⚔️ **successions** (how many passed in peace, how many were contested, the wars and crowns lost, the realms split off, with each contested crown listed by year, claimant and outcome), the law codes and founding tale it wrote, the 🗺️ places on the map that bear its name, and every head's last chapter and motto. Golden and Dark Ages and high crowns are badged beside the House's name. Ironman and 🧪 tainted Houses are marked. **📖 Open the chronicle** downloads the House's chronicle book (see [The Illustrated Chronicle](#the-illustrated-chronicle)), which is built and kept when the line ends. **Forget** removes a House, and what it earned, for good.
 
 **What the Hall earns.** Only untainted Houses count:
 

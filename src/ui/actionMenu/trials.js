@@ -8,9 +8,11 @@ import { ActionMenu } from './_ref.js';
 import { Trials } from '../../player/trials.js';
 import { lede, chips, rowList, card, price, purse, bullets, more, esc, panelTabs } from './uiKit.js';
 import { Utils } from '../../core/utils.js';
+// (trial by combat and by ordeal: rows in each tab, and the Champions & Kin tab — ui/actionMenu/ordeals.js)
+import { ordealTrialRows, ordealCaseRows, ordealSuitRows, championsTab, ordealsAct } from './ordeals.js';
 
 let _tab = 'trial';
-const TABS = [['trial', '⚖️ Your Case'], ['court', '🏛️ Your Court'], ['suits', '📜 Lawsuits']];
+const TABS = [['trial', '⚖️ Your Case'], ['court', '🏛️ Your Court'], ['suits', '📜 Lawsuits'], ['ordeal', '🛡️ Champions & Kin']];
 
 const STATE = { stands: ['will testify', 'bad'], swayed: ['swayed', 'good'], cowed: ['cowed', 'warn'] };
 
@@ -103,6 +105,7 @@ function trialTab(player, world, v, shown = null) {
         : { icon: '🙏', name: 'Plead guilty', desc: 'The court is kinder to an honest sinner, but you will be convicted', act: 'trialsAct', args: ['plea', 'guilty'] });
     if (t.present) def.push({ icon: '⚖️', name: 'Stand trial now', desc: 'Ask for your case to be heard at once', act: 'trialsAct', args: ['stand'], tone: 'gold' });
     html += rowList(def, 'Your defence');
+    html += ordealTrialRows(player, world, tr);
     return html;
 }
 
@@ -115,7 +118,8 @@ function courtTab(player, world, v) {
     for (const { c, effects } of v.cases) {
         const days = Math.max(0, c.expires - (world.day || 0));
         let body = `<div style="margin-bottom:4px;">${esc(c.accused.name)} stands accused of <b>${esc(c.crimeLabel)}</b>, against ${esc(c.victim.name)}. The evidence: ${esc(Trials.proofText(c))}${c.witnesses && c.witnesses.length ? ` (${esc(c.witnesses.join(', '))})` : ''}.</div>`;
-        body += rowList(Trials.verdicts().map(vd => ({ icon: vd.icon, name: esc(vd.label), desc: esc(vd.desc || ''), note: fxText(effects[vd.id]), act: 'trialsAct', args: ['rule', c.id, vd.id], tone: vd.harsh >= 3 ? 'bad' : vd.harsh === 0 ? 'good' : '' })));
+        body += ordealCaseRows(player, world, c);
+        if (!(c.ordeal && c.ordeal.pending)) body += rowList(Trials.verdicts(world, c).map(vd => ({ icon: vd.icon, name: esc(vd.label), desc: esc(vd.desc || ''), note: fxText(effects[vd.id]), act: 'trialsAct', args: ['rule', c.id, vd.id], tone: vd.harsh >= 3 ? 'bad' : vd.harsh === 0 ? 'good' : '' })));
         html += card(body, { icon: '⚖️', title: esc(c.town), side: `${days} day${days === 1 ? '' : 's'}`, tone: 'warn' });
     }
     if (v.wrongs.length) {
@@ -145,6 +149,7 @@ function suitsTab(player, world, v) {
                 ? { icon: '✋', name: 'Withdraw the suit', desc: 'The fee is not returned', act: 'trialsAct', args: ['settle', suit.id] }
                 : (() => { const cost = Trials.settleCost(suit); return { icon: '🤝', name: 'Settle out of court', desc: 'Pay part of the claim and end it', side: price(cost, player.gold >= cost), act: 'trialsAct', args: ['settle', suit.id], off: player.gold < cost, why: 'You cannot pay it.' }; })());
             body += rowList(rows);
+            body += ordealSuitRows(player, world, suit);
         } else body += `<div style="color:#cfc3a5;">${esc(suit.text || suit.status)}</div>`;
         html += card(body, { icon: D.icon, title: esc(D.name), side: esc(suit.status === 'decided' ? (suit.won ? 'won' : 'lost') : suit.status), tone: suit.status === 'open' ? 'warn' : suit.won ? 'good' : '' });
     }
@@ -177,6 +182,7 @@ Object.assign(ActionMenu, {
         });
         if (_tab === 'court') html += courtTab(player, world, v);
         else if (_tab === 'suits') html += suitsTab(player, world, v);
+        else if (_tab === 'ordeal') html += championsTab(player, world);
         else html += trialTab(player, world, v, message && message.raw);
         if (v.history.length) html += more('What has passed', bullets(v.history.slice(0, 12).map(h => `${esc(h.text)} <span style="color:#8f8a7e;">(day ${h.day})</span>`)));
         html += '</div>';
@@ -188,6 +194,7 @@ Object.assign(ActionMenu, {
         const { player, world } = game;
         if (!player || !world) return;
         if (action === 'tab') { ActionMenu.showTrialsPanel(game, null, a); return; }
+        if (action === 'ordeal') { ordealsAct(game, a, b); return; }
         const st = Trials.state(player);
         const suit = (id) => st.suits.find(s => s.id === id);
         let res;

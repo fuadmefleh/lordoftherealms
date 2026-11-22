@@ -2,8 +2,12 @@
 // factions, and the realm's state, for a player who rules a realm. Logic lives
 // in systems/kingship.js; this panel presents it in the action menu's voice
 // (ui/actionMenu/uiKit.js): a lede and chips, then a row for each choice.
+// A ruler of several crowns switches between their courts at the top: a far
+// crown's court (systems/highCrowns.js → Kingship.withCourt) has its council
+// (the viceroy at its head), edicts and decrees, vassals and its realm.
 import { ActionMenu } from './_ref.js';
 import { Kingship } from '../../systems/kingship.js';
+import { HighCrowns } from '../../systems/highCrowns.js';
 import { Throne, House } from './_imports.js';
 import { panelTabs, lede, chips, sectionHead, kv, card, more, actRow, rowList, price, BTN_GOLD, BTN_RED, BTN_OFF } from './uiKit.js';
 import { Names } from '../../core/names.js';
@@ -13,9 +17,11 @@ import { stateOfRealmHtml, bindStateOfRealm } from './realmDecline.js';
 // The Succession: the heir's standing, the claimants, the war for the crown (systems/crownSuccession.js)
 import { successionTabHtml, bindSuccession } from './crownSuccession.js';
 import { Utils } from '../../core/utils.js';
+import { MaimMarks } from '../../systems/maimMarks.js';
 
 const MUTED = 'color: #9d937c; font-size: 11px;';
 const TABS = [['council', '🏛️ Council'], ['edicts', '📜 Edicts'], ['vassals', '🛡️ Vassals'], ['realm', '👑 Realm'], ['decline', '⚖️ State of the Realm'], ['succession', '⚜️ Succession']];
+const FAR_TABS = [['council', '🏛️ Council'], ['edicts', '📜 Edicts & Decrees'], ['vassals', '🛡️ Vassals'], ['realm', '👑 Realm']];
 
 const _esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', '\'': '&#39;' }[c]));
 const _sign = v => `${v > 0 ? '+' : ''}${v}`;
@@ -45,7 +51,10 @@ function _modsText(mods) {
 
 function _councilTab(player, world) {
     const offices = Kingship.offices();
-    let html = lede('Each office\'s bonus is its holder\'s competence (1-20) times a loyalty factor. Lords on the council think better of the crown; ambitious lords resent upstarts (family and companions) in the great offices.');
+    const fs = Kingship.farScope(player);
+    let html = lede(fs
+        ? `Your viceroy${fs.entry.viceroy ? `, ${_esc(fs.entry.viceroy.name)},` : ''} heads this council in your name and fills an empty seat with the best at hand each week. Each office's bonus is its holder's competence (1-20) times a loyalty factor; lords on the council think better of a far king.`
+        : 'Each office\'s bonus is its holder\'s competence (1-20) times a loyalty factor. Lords on the council think better of the crown; ambitious lords resent upstarts (family and companions) in the great offices.');
     for (const o of Kingship.OFFICES) {
         const def = offices[o] || {};
         const cur = Kingship.councillor(player, world, o);
@@ -96,7 +105,10 @@ function _edictsTab(player, world) {
         { icon: '🏦', label: 'Treasury', value: `${Utils.formatGold(stats.treasury)}g`, cls: 'gold' },
     ]);
     const rows = [];
+    const fs = Kingship.farScope(player);
     for (const [id, def] of Object.entries(Kingship.edicts())) {
+        // (the Royal Post and the crown monopolies are the home court's)
+        if (fs && (def.royalPost || def.monopoly)) continue;
         const active = !!court.edicts[id];
         const facts = _edictFacts(def);
         const passCost = def.passCost != null ? def.passCost : 150;
@@ -144,8 +156,30 @@ function _edictsTab(player, world) {
             }));
         }
     }
-    html += rowList(rows, 'Decrees');
+    html += rowList(rows, fs ? 'Edicts' : 'Decrees');
+    if (fs) html += _farDecrees(player, world, fs.entry, stats);
     return html;
+}
+
+/** A far crown's decrees (systems/highCrowns.js): the far king's own laws, in the same slots as the edicts. */
+function _farDecrees(player, world, entry, stats) {
+    const D = HighCrowns.decrees();
+    const slots = HighCrowns.decreeSlots();
+    const used = Object.keys(entry.decrees || {}).length;
+    const full = stats.edicts >= stats.edictSlots;
+    const rows = Object.entries(D).map(([id, d]) => {
+        const on = !!(entry.decrees || {})[id];
+        const facts = [d.vassalOpinion ? `lords ${_sign(d.vassalOpinion)}` : '', d.hates && d.hates.length ? `lords who seek ${d.hates.join('/')} object` : '', d.likes && d.likes.length ? `lords who seek ${d.likes.join('/')} approve` : ''].filter(Boolean).join(' · ');
+        const why = used >= slots ? `${slots} decrees at most` : full ? 'Every law slot is taken' : `Need ${d.prestige || 0} Prestige`;
+        return {
+            icon: d.icon || '📜', name: `${_esc(d.label)}${on ? ` <span style="color:#ffcf6a; font-size:11px; font-weight:400;">· in force since day ${entry.decrees[id]}</span>` : ''}`,
+            desc: _esc(d.blurb || ''), note: facts ? _muted(_esc(facts)) : '',
+            side: on ? 'Revoke' : `${d.prestige || 0} ⭐`, tone: on ? 'bad' : 'gold',
+            off: !on && (used >= slots || full || House.getPrestige(player) < (d.prestige || 0)), why: _esc(why),
+            attrs: on ? `onclick="window._court.undecree('${id}')"` : `onclick="window._court.decree('${id}')"`,
+        };
+    });
+    return rowList(rows, `👑 Decrees of a far king (${used}/${slots}, for Prestige)`);
 }
 
 function _vassalsTab(player, world) {
@@ -193,7 +227,9 @@ function _vassalsTab(player, world) {
     }]);
     for (const s of Kingship.vassalSummary(player, world).sort((a, b) => b.power - a.power)) {
         const v = s.vassal;
-        let body = `<div style="${MUTED}">of ${_esc(s.seatName)} · age ${v.age} · ${_esc(s.traits.join(', '))}</div>`;
+        // (a lord you had maimed carries it: "one-eyed · a hand gone")
+        const marks = MaimMarks.tag(v);
+        let body = `<div style="${MUTED}">of ${_esc(s.seatName)} · age ${v.age} · ${_esc(s.traits.join(', '))}${marks ? ` · <span style="color:#e0846a;">${_esc(marks)}</span>` : ''}</div>`;
         body += `<div style="font-size:11px; margin-top:2px;">Opinion <span style="color:${_opinionColor(s.opinion)};font-weight:bold;">${_sign(s.opinion)}</span> (heading ${_sign(s.forecast.target)}) · power ${s.power} · ambition ${v.ambition} · honor ${v.honor} · seeks ${_esc(s.goals.join(', '))}${v.kin ? ' · 💍 kin' : ''}${s.refusing ? ' · <span style="color:#e0846a;">refusing the levy</span>' : ''}${s.cowed ? ' · cowed' : ''}${s.faction && s.faction.revealed ? ' · <span style="color:#f0b35a;">in a faction</span>' : ''}</div>`;
         body += `<div style="${MUTED}">${s.forecast.parts.map(p => `${_esc(p.label)} ${_sign(p.value)}`).join(' · ')}</div>`;
         if (!v.rebel) body += rowList([{ icon: '🎁', name: 'Grant or punish', desc: 'Gold, a title, land, a match, a favour, or break them', side: '›', attrs: `onclick="window._court.vassal('${v.id}')"` }]);
@@ -213,7 +249,7 @@ function _vassalPage(player, world, id) {
     if (!s) return '';
     const v = s.vassal;
     const G = Kingship.config().grants || {};
-    const k = Throne.ruledKingdom(player, world);
+    const k = Kingship._realm(player, world);
     const treasury = (k && k.treasury) || 0;
     const prestige = House.getPrestige(player);
     const gold = player.gold || 0;
@@ -277,53 +313,111 @@ function _realmTab(game) {
     return html;
 }
 
+/** A far crown's Realm tab: its state, its lords' temper, the viceroy's page. */
+function _farRealmTab(game, entry) {
+    const { player, world } = game;
+    const s = Kingship.realmStats(player, world);
+    const k = s.kingdom;
+    const t = HighCrowns.courtTemper(player, world, k.id);
+    const v = entry.viceroy;
+    let html = lede(`👑 <b>${_esc(k.name)}</b>, yours in personal union since day ${entry.since}. ${v ? `${_esc(v.name)} rules it as your viceroy.` : '<span style="color:#e0846a;">It has no viceroy.</span>'}${s.wars.length ? ` At war with ${s.wars.map(_esc).join(', ')}.` : ''}`);
+    html += chips([
+        { icon: '🏦', label: 'Treasury', value: `${Utils.formatGold(s.treasury)}g`, cls: 'gold' },
+        ['⚔️', 'Army', s.military], ['⚖️', 'Stability', s.stability], ['🏘️', 'Towns', s.towns],
+        { icon: '🏴', label: 'Discontent', value: Math.round(entry.separatism), cls: entry.separatism >= HighCrowns.config().separatism.warnAt ? 'bad' : '' },
+        ['🛡️', 'Vassals', `${s.vassals} (${s.disloyal} discontented)`],
+        ['📜', 'Laws', `${s.edicts}/${s.edictSlots}`],
+    ]);
+    const parts = [`their opinion of you ${_sign(Math.round(t.opinion))}`];
+    if (t.factions) parts.push(`${t.factions} faction${t.factions === 1 ? '' : 's'} for a king of their own`);
+    if (t.revolt) parts.push(t.nativeRevolt ? 'a revolt for a native king' : 'a revolt');
+    html += `<div style="${MUTED} margin:4px 0;">The lords at court move the realm's discontent ${_sign(Math.round(t.separatism * 100) / 100)} a week: ${_esc(parts.join(' · '))}. A revolt for a king of their own that wins breaks the union; one crushed quiets the realm.</div>`;
+    html += rowList([
+        { icon: '🏛️', name: 'The viceroy, policies and decrees', desc: 'Name or favour the viceroy, set its taxes and stance, lay down the crown', act: 'showHighCrown', args: [null, k.id], side: '›' },
+    ], 'Governing the realm');
+    html += `<div style="${MUTED} margin:6px 0;"><b>The court adds:</b> ${_esc(_modsText(s.mods)) || 'nothing yet'}</div>`;
+    const court = Kingship.court(player);
+    html += more('The court\'s chronicle', court.log.slice(-8).reverse().map(h => `<div style="${MUTED} padding:2px 0;">Day ${h.day}: ${_esc(h.text)}</div>`).join('') || `<div style="${MUTED}">Nothing yet.</div>`);
+    return html;
+}
+
+/** The crowns you wear, to switch between their courts (only when you wear more than one). */
+function _crownSwitch(player, world, far) {
+    const crowns = HighCrowns.crownsOf(player, world);
+    if (crowns.length < 2) return '';
+    const btns = crowns.map(c => {
+        const on = c.home ? far == null : String(c.kingdomId) === String(far);
+        return `<button onclick="window._court.crown(${c.home ? 'null' : `'${_esc(String(c.kingdomId))}'`})" style="${on ? BTN_GOLD : BTN_OFF} margin:0 4px 4px 0;">${c.home ? '👑' : '🏛️'} ${_esc(c.name)}</button>`;
+    }).join('');
+    return `<div style="margin-bottom:6px;"><span style="${MUTED}">Your crowns:</span> ${btns}</div>`;
+}
+
 Object.assign(ActionMenu, {
-    /** The Royal Court: council, edicts, vassals and factions, and the realm. */
-    showRoyalCourt(game, tile, tab = 'council') {
+    /**
+     * The Royal Court: council, edicts, vassals and factions, and the realm.
+     * kid: a far crown worn in union (systems/highCrowns.js) — its own court.
+     */
+    showRoyalCourt(game, tile, tab = 'council', kid = null) {
         const player = game.player;
         const world = game.world;
-        const k = Throne.ruledKingdom(player, world);
+        const far = kid != null && HighCrowns.unionCrown(player, kid) ? kid : null;
+        const entry = far != null ? HighCrowns.unionCrown(player, far) : null;
+        const k = far != null ? world.getKingdom(far) : Throne.ruledKingdom(player, world);
         if (!k) {
             game.ui.showNotification('🏛️ Royal Court', 'You rule no realm.', 'error');
             return;
         }
-        const court = Kingship.court(player);
+        // A far crown's court functions run in its scope; the home court's as they always have
+        const run = (fn) => (far != null ? HighCrowns.inCourt(player, world, far, fn) : fn());
+        const tabs = far != null ? FAR_TABS : TABS;
+        if (!tabs.some(t => t[0] === tab)) tab = 'council';
+        const title = `🏛️ The Royal Court of ${Names.realm(k.name)}`;
         let html = '<div style="font-size:12px;">';
         html += panelTabs(game, {
-            id: 'royalCourt', title: `🏛️ The Royal Court of ${Names.realm(k.name)}`, tabs: TABS, active: tab,
-            go: (id) => { ActionMenu.showRoyalCourt(game, tile, id); },
+            id: 'royalCourt', title, tabs, active: tab,
+            go: (id) => { ActionMenu.showRoyalCourt(game, tile, id, far); },
             attrsFor: (id) => `onclick="window._court.tab('${id}')"`,
         });
-        if (!court.initialized) {
-            html += lede(`The lords of ${_esc(Names.realm(k.name))} will come to swear fealty at the end of the day.`);
-        } else if (tab === 'edicts') html += _edictsTab(player, world);
-        else if (tab === 'vassals') html += _vassalsTab(player, world);
-        else if (tab === 'realm') html += _realmTab(game);
-        else if (tab === 'decline') html += stateOfRealmHtml(game);
-        else if (tab === 'succession') html += successionTabHtml(game);
-        else html += _councilTab(player, world);
+        html += _crownSwitch(player, world, far);
+        html += run(() => {
+            const court = Kingship.court(player);
+            if (!court.initialized) return lede(`The lords of ${_esc(Names.realm(k.name))} will come to swear fealty at the end of the day.`);
+            if (tab === 'edicts') return _edictsTab(player, world);
+            if (tab === 'vassals') return _vassalsTab(player, world);
+            if (tab === 'realm') return far != null ? _farRealmTab(game, entry) : _realmTab(game);
+            if (tab === 'decline') return stateOfRealmHtml(game);
+            if (tab === 'succession') return successionTabHtml(game);
+            return _councilTab(player, world);
+        }) || '';
         html += '</div>';
-        game.ui.showCustomPanel(`🏛️ The Royal Court of ${Names.realm(k.name)}`, html);
+        game.ui.showCustomPanel(title, html);
 
-        const reopen = () => ActionMenu.showRoyalCourt(game, tile, tab);
+        const reopen = () => ActionMenu.showRoyalCourt(game, tile, tab, far);
         // The Realm tab's policies and diplomacy (ui/actionMenu/throne.js crownRuleHtml)
-        if (tab === 'realm') bindCrownRule(game, reopen);
-        if (tab === 'decline') bindStateOfRealm(game, reopen);
-        if (tab === 'succession') bindSuccession(game, reopen);
-        const result = (title, res) => ActionMenu._realmResult(game, title, res, reopen);
+        if (far == null) {
+            if (tab === 'realm') bindCrownRule(game, reopen);
+            if (tab === 'decline') bindStateOfRealm(game, reopen);
+            if (tab === 'succession') bindSuccession(game, reopen);
+        }
+        // (a far crown the lords have taken in the meantime: back to the High Crowns)
+        const after = () => (far != null && !HighCrowns.unionCrown(player, far) ? ActionMenu.showHighCrowns(game, tile) : reopen());
+        const result = (label, fn) => ActionMenu._realmResult(game, label, run(fn) || { success: false, reason: 'That crown is no longer yours.' }, after);
         window._court = {
-            tab: (id) => ActionMenu.showRoyalCourt(game, tile, id),
-            appoint: (office, kind, id) => result('🏛️ The Council', Kingship.appoint(player, world, office, kind, id)),
-            dismiss: (office) => result('🏛️ The Council', Kingship.dismiss(player, world, office)),
-            pass: (id) => result('📜 Edict', Kingship.passEdict(player, world, id)),
-            revoke: (id) => result('📜 Edict', Kingship.revokeEdict(player, world, id)),
-            royalPost: (courierId) => result('📮 The Royal Post', Kingship.grantRoyalPost(player, world, courierId)),
-            feast: () => result('🍖 Royal Feast', Kingship.holdFeast(player, world)),
-            concede: (id) => result('🏳️ Faction', Kingship.concede(player, world, id)),
-            arrest: (id) => result('⛓️ Faction', Kingship.arrestLeader(player, world, id)),
-            parley: () => result('🕊️ Parley', Kingship.parley(player, world)),
+            tab: (id) => ActionMenu.showRoyalCourt(game, tile, id, far),
+            crown: (id) => ActionMenu.showRoyalCourt(game, tile, 'council', id),
+            appoint: (office, kind, id) => result('🏛️ The Council', () => Kingship.appoint(player, world, office, kind, id)),
+            dismiss: (office) => result('🏛️ The Council', () => Kingship.dismiss(player, world, office)),
+            pass: (id) => result('📜 Edict', () => Kingship.passEdict(player, world, id)),
+            revoke: (id) => result('📜 Edict', () => Kingship.revokeEdict(player, world, id)),
+            decree: (id) => ActionMenu._realmResult(game, '📜 A Decree', HighCrowns.proclaimDecree(player, world, far, id), after),
+            undecree: (id) => ActionMenu._realmResult(game, '📜 A Decree Revoked', HighCrowns.revokeDecree(player, world, far, id), after),
+            royalPost: (courierId) => result('📮 The Royal Post', () => Kingship.grantRoyalPost(player, world, courierId)),
+            feast: () => result('🍖 Royal Feast', () => Kingship.holdFeast(player, world)),
+            concede: (id) => result('🏳️ Faction', () => Kingship.concede(player, world, id)),
+            arrest: (id) => result('⛓️ Faction', () => Kingship.arrestLeader(player, world, id)),
+            parley: () => result('🕊️ Parley', () => Kingship.parley(player, world)),
             vassal: (id) => {
-                const html = _vassalPage(player, world, id);
+                const html = run(() => _vassalPage(player, world, id));
                 if (html) game.ui.showCustomPanel('🛡️ Your Vassal', `<div style="font-size:12px;">${html}</div>`);
             },
             grant: (kind, id) => {
@@ -331,7 +425,7 @@ Object.assign(ActionMenu, {
                     gold: Kingship.grantGold, title: Kingship.grantTitle, land: Kingship.grantLand,
                     marriage: Kingship.arrangeMarriage, favour: Kingship.grantFavour, break: Kingship.breakVassal,
                 }[kind];
-                if (fn) ActionMenu._realmResult(game, '🛡️ Your Vassals', fn(player, world, id), () => (_vassalPage(player, world, id) ? window._court.vassal(id) : reopen()));
+                if (fn) ActionMenu._realmResult(game, '🛡️ Your Vassals', run(() => fn(player, world, id)), () => (run(() => _vassalPage(player, world, id)) ? window._court.vassal(id) : after()));
             },
         };
     },

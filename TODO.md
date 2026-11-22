@@ -145,3 +145,82 @@ Open:
 - [x] **The Dawn of Man is hard to find.** *(Fixed: "Begin in: 👑 The age of realms / 🔥 The Dawn of Man" heads Origin & Challenge on the New Game screen (components/SettingsScreen.jsx). Browser-checked: a dawn world in year 100.)*
 - [x] **The House is named after the placeholder first name.** *(Fixed: with no last name and the first name left as the placeholder, you take a surname of the culture where you start (a house name for a high-born start; House.familyNameFor, hashed, no RNG): "Wanderer Shaw, House Shaw". A Born child takes its family's name, a dawn clansman its clan's.)*
   - Still open: a Great Lord's library has "The Rolls of House Quincy" (the noble house whose estates the start hands over: player/scenarios.js) while the player's House has its own name. Naming the player's House after it belongs with the Great Lord work in scenarios.js.
+
+## Brutality (ideas, 2026-11-21)
+
+Not built yet. In progress elsewhere: the dungeon (interrogation), public executions, peasant revolts, trial by combat/ordeal, betrothals.
+
+- [ ] **Harrying the countryside.** In war, burn villages, drive off livestock, fire crops and mills, kill or scatter peasants, to starve the enemy realm, wreck its lord's rents and force his army out to fight. Real economy, realm decline and revolts read it.
+- [ ] **No quarter: the fate of prisoners.** After a battle: ransom the knights, take the men into service, release on oath, cut them down, or blind them and send them home as a warning. Slaughter feeds broken faith; the enemy fights to the death next time.
+- [ ] **Heads on spikes, gibbets and trophies.** The executed, rebels and slain enemy lords shown at the gates and crossroads: less crime and revolt nearby, a sourer town, desecration with their kin and faith. A slain king's skull cup, banner or sword give dread and prestige; his realm wants them back. Build on the executions system.
+- [ ] **Pit fights and blood sports.** Fights to the death, bear-baiting and cockfights in town pits: bet, sponsor fighters, fight yourself, or ban them by law. Faith and town mood react. Reuse duels and gambling.
+- [ ] **Lesser punishments and penal labour.** Flogging, the pillory, branding, sentencing criminals to the mines or the galleys (real labour for your mines and ships). More sentences for judges and trials than a fine, a hand or a noose.
+- [ ] **Blood feuds and blood money.** A killing makes the dead man's kin owe vengeance; feuds pass down generations; settle them with a blood price (wergild), a marriage, or by wiping out the other family. Lords and townsfolk feud with each other, not only with you.
+
+### The very brutal (ideas, 2026-11-21)
+
+- [ ] **Blind a beaten army.** Put out the eyes of every captured soldier, one in a hundred left one eye to lead them home (Basil II, 1014). The column walks home; the realm that sees it loses heart; every faith hates you.
+- [ ] **A forest of stakes.** Impale captives along the road into your realm (Vlad). Invaders may turn back; your name becomes a tale told to children everywhere; it rots for months and your own lords fear you more than the enemy.
+- [ ] **Flaying.** A traitor flayed and the skin hung on the gate, or stretched over the judge's chair for a corrupt judge. The next steward thinks twice before stealing.
+- [ ] **Walling up alive.** A traitor, a disgraced wife or a heretic bricked into the castle wall. Unseen, but the servants talk, and the castle is haunted for generations.
+- [ ] **Decimation.** A company that broke draws lots; every tenth man is beaten to death by his comrades. The rest stop running; desertion and hatred of you rise.
+- [x] **Poisoning the wells / scorched earth.** *(Wells: done 2026-11-21 in the water system (systems/water.js): a siege's "Foul the wells", besiegers, plague dead, enemy agents, drought, your own poison. Scorched earth of your own land is still open.)* Carcasses or poison in a besieged town's wells, or your own as you retreat; burn your own land so the invader starves. Disease spreads further than meant; your own peasants starve.
+- [ ] **Putting a dead enemy on trial.** Dig up a rival king, seat the corpse, try it, cut off the fingers, throw it in the river (the Cadaver Synod, 897). His heirs lose legitimacy; the faith is outraged.
+- [ ] **Wiping their name from the world.** Deface a destroyed House's tombs, burn its chronicles, rename its towns, kill or geld its last sons; its marks vanish from named legacy unless a survivor remembers.
+- [ ] **The law of fratricide.** A succession law: the new ruler strangles his brothers on taking the throne. No crown wars, a stumped family tree, every mother at court scheming for her son to be the one who lives.
+- [ ] **Eating the dead in a siege.** A starving garrison (maybe yours) eats its dead: holds months longer, but the survivors and the town's name are never the same.
+
+## Gaps from the brutality round (2026-11-21, not yet built)
+
+Maiming:
+- [x] Seize a rival House's child at a feast, visit or audience (capture is only from the road or a kept ward). *(Done 2026-11-21.)*
+- [x] Captive rival children don't age out or die on their own; if the rival head dies while you hold one, the captive keeps a stale copy of the body. *(Done 2026-11-21.)*
+- [ ] Road maiming rate (bandits) never soak-checked.
+- [x] Crutch/hook/peg: a sword still draws in the hooked hand; side-on the far limb draws over the body; hands and feet mostly fall outside the portrait crop. Rival House kin and court lords have no sprites, so their marks never show. *(Done: weapons dropped with the hand (two-handers with either), far limb clipped, busts drop lower for a lost hand/foot, audiences of rulers and rival heads show marks, vassal and rival-head cards name them.)*
+- [ ] Marks not shown in council lists or a vassal's own page.
+- [x] Day-1 aids panel says "no tailor or cobbler" (townsfolk get jobs only after the first town turn). *(Done 2026-11-21.)*
+
+Executions:
+- [x] The scaffold isn't drawn on the town's street map. *(Done 2026-11-21: PixelLab gallows/block/stake in the square, crowd on the day.)*
+- [ ] Clicking the scaffold on the street map has no menu; the pillory prop is unused.
+- [x] Rival wards (not captives) can't be brought to the scaffold. *(Done 2026-11-21.)*
+- [ ] The playtest bot never uses the scaffold (and harness.js doesn't call Executions.processDay).
+
+The dungeon: *(gaps done 2026-11-21: prisoners of war from field battles and stormed towns (ransom, send home, question, scaffold); foreign crowns make your caught spies talk; rebel leaders in the dungeon; plain import)*
+- [ ] Prisoners of war come only from units with a realm (kingdomId); realm-less bands give none.
+
+Trial by combat & ordeal:
+- [x] A rival head never dies in the wager of battle (only "carried from the field"). *(Done 2026-11-21.)*
+- [x] A kinsman's ordeal burn is text only, not a lasting wound on the child. *(Done 2026-11-21.)*
+- [x] How often kin are accused and champion calls come is not soak-tuned. No visuals. *(Soak: ~4 kin cases a life, ~0.9 champion calls a year — fine. Ordeals and champion bouts are now told with a picture.)*
+
+Betrothals: *(gaps done 2026-11-21: crowns betroth and wed into alliances; "whose House" decides where the grandchildren go, with royal claims by blood; vassal wards)*
+- [ ] Personal union between two AI realms isn't modelled (only the player can hold union crowns), so royal AI weddings make alliances, not unions.
+
+Peasant revolts:
+- [ ] How often risings come over decades is not soak-tuned.
+- [x] Rebels meeting you on the road use the generic hostile-unit path (untested). *(Done: a proper road encounter — give to the cause, swear to it, bring your men; their hated lord is hunted and can promise or grant demands.)*
+
+Tests:
+- [ ] actionMenu.structure and trials specs time out at vitest's 30 s default under load (importing the whole ActionMenu took ~58 s); trials got a 120 s timeout. Look at the import cost.
+
+Water & thirst: *(all five gaps done 2026-11-21: AI war/relief hosts and realm battles thirst; townsfolk skip foul wells; interior wells and your own well (also your seat) are clean sources, one Drink/Fill/Wash menu; menus open on left click; ~0.2–1.0 ms/day on a 120×80 map)*
+- [ ] The playtest harness still needs Thirst.processDay + Water.processDay (sent to the soak agent).
+
+Hiding & ambush (street map):
+- [ ] No "in the bush" sprite art (the bush draws over your legs, the player faint).
+- [ ] Ambush from 2 tiles jumps to the target's side with no leap animation.
+- [ ] NPC-on-NPC brawls have no surprise rules; lurkers fight with ordinary weapons.
+- [ ] Check the added town bushes at game zoom (only a schematic was looked at).
+
+Followers:
+- [ ] Pets/companions/guard now step round walls (ui/followerStep.js); a stuck follower is set down on the trail (a small pop). Watch it in the browser.
+
+Nothing from this round has been browser-checked yet.
+
+## From the round-3 soak (2026-11-21)
+
+- [ ] **Civil wars for a second crown are won in 2–68 days** (mostly 6–25): momentum is fed by the home crown's army and war score (data/throne.json). Too fast for a crown war.
+- [ ] **Late-game regional food dearths:** two crowned lives starved at 55 and 62 with 1,300–2,000g in the purse; no bread or grain on any stall nearby though stock exists.
+- [ ] Soak bot can't sail on a royal progress (overseas far crowns always break), ignores last-crisis choices, never uses the scaffold.
+- [ ] Thirst killed every soak monarch in the countryside within 1–3 years (being fixed now; afterlife.test.js seeds 35/38 fail until then).

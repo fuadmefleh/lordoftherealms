@@ -42,6 +42,17 @@
 // State lives on player.throne.ruling.court (saved with the throne; gone when
 // the crown is). Tunables and text live in data/kingship.json. Randomness
 // flows through Utils only, and nothing here draws unless the player rules.
+//
+// FAR CROWNS  a crown held in personal union (systems/highCrowns.js) keeps a
+//             court of its own on its union entry (entry.court). The court
+//             functions here work on the court IN SCOPE: the home crown's by
+//             default, or a far crown's while HighCrowns runs them through
+//             Kingship.withCourt(scope, fn). The scope supplies that realm, its
+//             policies and hooks for what only a far crown has: the viceroy at
+//             the head of its council, demands for a native king or viceroy,
+//             its decrees, and the union broken when the lords win. The edicts
+//             that bind a house across the realm (the Royal Post, the crown
+//             monopolies) are for the home court alone.
 
 import { Utils } from '../core/utils.js';
 import { Hex } from '../core/hex.js';
@@ -65,8 +76,13 @@ import { Couriers } from './couriers.js';
 import { NpcMemory } from './npcMemory.js';
 import { Names } from '../core/names.js';
 import { MoneySupply } from '../world/moneySupply.js';
+import { MaimMarks } from './maimMarks.js';
 // A succession revolt's ending: the claimant's fate, the realm split (systems/crownSuccession.js; run time only)
 import { CrownSuccession } from './crownSuccession.js';
+// Far crowns' courts: a rebel host or seat of a far crown's revolt (systems/highCrowns.js; run time only)
+import { HighCrowns } from './highCrowns.js';
+// (the leader of a crushed revolt goes to the scaffold, awaiting your word: systems/executions.js)
+import { Executions } from './executions.js';
 
 const OFFICES = ['chancellor', 'marshal', 'steward', 'spymaster', 'highPriest'];
 const TAX_STEPS = ['heavy', 'standard', 'light'];
@@ -75,6 +91,10 @@ const LOG_CAP = 30;
 const _num = v => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
 const _day = world => (world && world.day) || 0;
 const _key = (q, r) => `${q},${r}`;
+
+/** The far crown's court in scope (Kingship.withCourt), or null: the home court. */
+let _scope = null;
+const _far = player => (_scope && player && _scope.player === player ? _scope : null);
 
 
 /** Crown (or royal) coin spent at court: into the capital's purse, else the realm's towns (else lost, booked). */
@@ -98,6 +118,48 @@ export const Kingship = {
 
 
     OFFICES,
+
+    // ── The court in scope (a far crown's: systems/highCrowns.js) ──
+
+    /**
+     * Run fn with a far crown's court in scope: every court function below
+     * works on scope.entry.court and that realm while it runs. scope: { player,
+     * entry, setTax(opt), opinionParts(v, add), demandFor(v), demandSatisfied(d),
+     * applyDemand(d), viceroyPerson(office), onRevoltStart(rv), onRevoltEnd(how, rv) }.
+     */
+    withCourt(scope, fn) {
+        const prev = _scope;
+        _scope = scope;
+        try { return fn(); } finally { _scope = prev; }
+    },
+
+    /** The far crown's scope in force for this player, or null (the home court). */
+    farScope(player) {
+        return _far(player);
+    },
+
+    /** The far crowns' revolts (outside any scope): [{ kid, rv }]. */
+    _farRevolts(player) {
+        if (_far(player)) return [];
+        const crowns = player && player.highCrowns && player.highCrowns.crowns;
+        const out = [];
+        for (const e of Object.values(crowns || {})) if (e && e.court && e.court.revolt) out.push({ kid: e.kingdomId, rv: e.court.revolt });
+        return out;
+    },
+
+    /** The tax policy of the crown in scope. */
+    _tax(player) {
+        const s = _far(player);
+        if (s) return s.entry.policies && s.entry.policies.tax;
+        const r = player && player.throne && player.throne.ruling;
+        return r && r.policies && r.policies.tax;
+    },
+
+    /** Laws in force in the court in scope: its edicts and, for a far crown, its decrees. */
+    lawsInForce(player, court = Kingship.court(player)) {
+        const s = _far(player);
+        return (court ? Object.keys(court.edicts).length : 0) + (s && s.entry.decrees ? Object.keys(s.entry.decrees).length : 0);
+    },
 
     // ── Data ────────────────────────────────────────────────────
 
@@ -132,7 +194,8 @@ export const Kingship = {
 
     /** The court of the realm the player rules, created/backfilled on use; null if no crown. */
     court(player) {
-        const r = player && player.throne && player.throne.ruling;
+        const s = _far(player);
+        const r = s ? s.entry : player && player.throne && player.throne.ruling;
         if (!r) return null;
         if (!r.court || typeof r.court !== 'object') r.court = Kingship._blank();
         const c = r.court;
@@ -151,6 +214,11 @@ export const Kingship = {
     },
 
     _realm(player, world) {
+        const s = _far(player);
+        if (s) {
+            const k = world && typeof world.getKingdom === 'function' ? world.getKingdom(s.entry.kingdomId) : null;
+            return k && k.isAlive ? k : null;
+        }
         return Throne.ruledKingdom(player, world);
     },
 
@@ -271,7 +339,7 @@ export const Kingship = {
         const traitOp = Kingship.data().traitOpinion || {};
         t += add('Temperament', (v.traits || []).reduce((s, id) => s + _num(traitOp[id]), 0)
             + (_num(v.honor) - 5.5) * _num(O.honorPer) + (_num(v.ambition) - 5.5) * _num(O.ambitionPer));
-        const tax = player.throne && player.throne.ruling && player.throne.ruling.policies && player.throne.ruling.policies.tax;
+        const tax = Kingship._tax(player);
         t += add('The royal levy', _num((O.levy || {})[tax]));
         if (court) {
             const onCouncil = OFFICES.some(o => court.council[o] && court.council[o].kind === 'vassal' && court.council[o].id === v.id);
@@ -291,6 +359,9 @@ export const Kingship = {
             }
             t += add('Your edicts', ed);
         }
+        // A far crown's lords weigh the far king: absence, foreign rule, the viceroy, the decrees (systems/highCrowns.js)
+        const fs = _far(player);
+        if (fs && fs.opinionParts) t += _num(fs.opinionParts(v, add));
         if (v.kin) t += add('Kinship with your House', _num(O.kin));
         if (k) {
             const stab = typeof k.stability === 'number' ? k.stability : 60;
@@ -355,9 +426,14 @@ export const Kingship = {
         if (!court || !k || !def) return null;
         const C = Kingship.config().council || {};
         const clampC = v => Math.round(Utils.clamp(v, 1, 20));
+        const fs = _far(player);
+        // A far crown: its viceroy heads the council; the House's family and companions are not there
+        if (kind === 'viceroy') return fs && fs.viceroyPerson ? fs.viceroyPerson(office, def) : null;
+        if (fs && (kind === 'family' || kind === 'companion')) return null;
         if (kind === 'vassal') {
             const v = court.vassals.find(x => x.id === id);
-            if (!v || v.rebel) return null;
+            // (blinded, tongueless, handless: no seat at the council — systems/maimMarks.js)
+            if (!v || v.rebel || MaimMarks.barsOffice(v)) return null;
             let comp = _num(v.skills && v.skills[def.skill]);
             if (office === 'highPriest' && (v.traits || []).includes('pious')) comp += _num(def.piousBonus);
             return { kind, id, name: Kingship.fullName(v), competence: clampC(comp),
@@ -382,7 +458,7 @@ export const Kingship = {
                     loyalty: _num(C.familyLoyalty), desc: 'Your spouse' };
             }
             const child = (player.children || []).find(c => c && c.id === id);
-            if (!child || !Kingship._grownChild(child)) return null;
+            if (!child || !Kingship._grownChild(child) || MaimMarks.barsOffice(child)) return null;
             const comp = _num(child.skills && child.skills[def.childSkill]) * 2 + _num(child[def.childStat]) * 0.4;
             const rl = player.house && player.house.roleLoyalty && player.house.roleLoyalty[id];
             return { kind, id, name: `${child.firstName || 'Your child'}`, competence: clampC(comp),
@@ -406,11 +482,16 @@ export const Kingship = {
         const k = Kingship._realm(player, world);
         if (!court || !k || !OFFICES.includes(office)) return [];
         const refs = [];
+        const fs = _far(player);
+        const vic = fs && fs.entry.viceroy;
+        if (vic) refs.push(['viceroy', 'viceroy']);
         for (const v of court.vassals) refs.push(['vassal', v.id]);
-        for (const a of Kingship._advisors(k)) refs.push(['courtier', a.id]);
-        if (player.spouse) refs.push(['family', player.spouse]);
-        for (const c of player.children || []) if (c && c.id) refs.push(['family', c.id]);
-        for (const npc of Companions.members(player, world)) refs.push(['companion', npc.id]);
+        for (const a of Kingship._advisors(k)) if (!(vic && vic.kind === 'native' && vic.id === a.id)) refs.push(['courtier', a.id]);
+        if (!fs) {
+            if (player.spouse) refs.push(['family', player.spouse]);
+            for (const c of player.children || []) if (c && c.id) refs.push(['family', c.id]);
+            for (const npc of Companions.members(player, world)) refs.push(['companion', npc.id]);
+        }
         const seated = {};
         for (const o of OFFICES) if (court.council[o]) seated[`${court.council[o].kind}:${court.council[o].id}`] = o;
         const out = [];
@@ -481,6 +562,7 @@ export const Kingship = {
         if (!court || !k) return { ok: false, reason: 'You rule no realm.' };
         if (!def) return { ok: false, reason: 'No such edict.' };
         if (court.edicts[id]) return { ok: false, reason: 'That edict is already law.' };
+        if (_far(player) && (def.royalPost || def.monopoly)) return { ok: false, reason: 'Only your home court can grant that.' };
         // The Royal Post names its house (systems/couriers.js)
         if (def.royalPost) {
             const why = Kingship._royalPostBar(world, k, courierId);
@@ -489,7 +571,7 @@ export const Kingship = {
         if (free) return { ok: true };
         const blocking = (def.excludes || []).filter(x => court.edicts[x]);
         if (blocking.length) return { ok: false, reason: `Repeal ${blocking.map(x => (Kingship.edicts()[x] || {}).label || x).join(', ')} first.` };
-        if (Object.keys(court.edicts).length >= Kingship.edictSlots(player, world)) return { ok: false, reason: `The court can enforce only ${Kingship.edictSlots(player, world)} edicts at once.` };
+        if (Kingship.lawsInForce(player, court) >= Kingship.edictSlots(player, world)) return { ok: false, reason: `The court can enforce only ${Kingship.edictSlots(player, world)} ${_far(player) ? 'edicts and decrees' : 'edicts'} at once.` };
         const cost = Kingship._passCost(def, court);
         if (_num(k.treasury) < cost) return { ok: false, reason: `Proclaiming it costs ${Utils.formatGold(cost)}g from the royal treasury.` };
         return { ok: true };
@@ -503,7 +585,8 @@ export const Kingship = {
     },
 
     _shiftFactions(player, shifts, mult) {
-        if (!shifts) return;
+        // (the council factions are the home realm's: a far crown's edicts leave them be)
+        if (!shifts || _far(player)) return;
         const state = Councils._ensureState(player);
         // (entrenched guilds and clergy move less: systems/realmDecline.js → court.declineFx)
         const court = Kingship.court(player);
@@ -755,17 +838,19 @@ export const Kingship = {
 
     demandText(demand) {
         const D = (Kingship.data().demands || {})[demand.type] || { label: demand.type, icon: '📜' };
-        const ed = demand.edict ? (Kingship.edicts()[demand.edict] || {}).label || demand.edict : '';
+        const ed = demand.edictLabel || (demand.edict ? (Kingship.edicts()[demand.edict] || {}).label || demand.edict : '');
         return { icon: D.icon, label: D.label.replace('{edict}', ed).replace('{claimant}', demand.claimant || 'a claimant') };
     },
 
     demandSatisfied(player, demand) {
         const court = Kingship.court(player);
         if (!court || !demand) return true;
-        if (demand.type === 'lowerLevy') {
-            const tax = player.throne.ruling.policies && player.throne.ruling.policies.tax;
-            return tax === 'light';
+        const fs = _far(player);
+        if (fs && fs.demandSatisfied) {
+            const r = fs.demandSatisfied(demand);
+            if (r != null) return !!r;
         }
+        if (demand.type === 'lowerLevy') return Kingship._tax(player) === 'light';
         if (demand.type === 'passEdict') return !!court.edicts[demand.edict];
         if (demand.type === 'revokeEdict') return !court.edicts[demand.edict];
         return true;
@@ -773,6 +858,10 @@ export const Kingship = {
 
     /** What this lord would band together to demand, or null. */
     _demandFor(player, v) {
+        // A far crown's lords: a king of their own, a native viceroy, a decree repealed (systems/highCrowns.js)
+        const fs = _far(player);
+        const own = fs && fs.demandFor ? fs.demandFor(v) : null;
+        if (own && !Kingship.demandSatisfied(player, own)) return own;
         const table = Kingship.data().goalDemands || {};
         const rank = { high: 3, medium: 2, low: 1 };
         const goals = (v.goals || []).slice().sort((a, b) => (rank[b.priority] || 0) - (rank[a.priority] || 0));
@@ -827,11 +916,16 @@ export const Kingship = {
     },
 
     _applyDemand(player, world, demand) {
+        const fs = _far(player);
+        if (fs && fs.applyDemand && fs.applyDemand(demand)) return;
         if (demand.type === 'lowerLevy') {
-            const r = player.throne.ruling;
-            const i = TAX_STEPS.indexOf(r.policies.tax);
+            const tax = Kingship._tax(player);
+            const i = TAX_STEPS.indexOf(tax);
             const next = TAX_STEPS[Math.min(TAX_STEPS.length - 1, (i < 0 ? 1 : i) + 1)];
-            if (next !== r.policies.tax) Throne.setPolicy(player, world, 'tax', next);
+            if (next !== tax) {
+                if (fs && fs.setTax) fs.setTax(next);
+                else Throne.setPolicy(player, world, 'tax', next);
+            }
         } else if (demand.type === 'passEdict') {
             Kingship.passEdict(player, world, demand.edict, { free: true });
         } else if (demand.type === 'revokeEdict') {
@@ -897,11 +991,18 @@ export const Kingship = {
     /** Is this a seat held by rebels against the player's crown? (systems/sieges.js) */
     isRebelSeat(player, q, r) {
         const rv = Kingship.revolt(player);
-        return !!(rv && rv.seats.includes(_key(q, r)));
+        if (rv && rv.seats.includes(_key(q, r))) return true;
+        // ...or a seat of lords in revolt against a far crown of yours (systems/highCrowns.js)
+        return Kingship._farRevolts(player).some(x => x.rv.seats.includes(_key(q, r)));
     },
 
-    rebelStrength(player) {
+    /** The rebels' strength: the home revolt's, or (given a seat) the far revolt holding it. */
+    rebelStrength(player, q = null, r = null) {
         const rv = Kingship.revolt(player);
+        if (q != null && !(rv && rv.seats.includes(_key(q, r)))) {
+            const far = Kingship._farRevolts(player).find(x => x.rv.seats.includes(_key(q, r)));
+            if (far) return Math.round(far.rv.strength);
+        }
         return rv ? Math.round(rv.strength) : 0;
     },
 
@@ -937,6 +1038,8 @@ export const Kingship = {
         Throne._log(player, world, text);
         if (Array.isArray(world.events)) world.events.push({ text, type: 'military', category: 'MILITARY', kingdom: k.id });
         Kingship._note(out, '🔥', 'Revolt!', `${text} Their levies (${levies}) desert the royal host. Break their war hosts, besiege their seats, or parley from the Royal Court.`, 'error');
+        const fs = _far(player);
+        if (fs && fs.onRevoltStart) fs.onRevoltStart(court.revolt);
     },
 
     _endRevolt(player, world, court, k, how, out) {
@@ -954,6 +1057,8 @@ export const Kingship = {
         let text;
         if (how === 'crushed') {
             for (const v of members) Kingship._breakLord(player, world, court, k, v, 'defeated in revolt');
+            const leaderV = court.vassals.find(v => v.id === rv.leaderId);
+            if (leaderV && player) Executions.condemn(player, world, { kind: 'vassal', id: leaderV.id }, { crime: 'rebellion', source: 'revolt', ref: rv.id, guilty: true });
             court.stats.revoltsCrushed++;
             k.stability = Utils.clamp(_num(k.stability) + _num(R.crushedStability), 0, 100);
             House.award(player.house, _num(R.crushedPrestige), `crushed the revolt of ${rv.leaderName}`, _day(world));
@@ -986,6 +1091,9 @@ export const Kingship = {
         Kingship._note(out, how === 'crushed' ? '👑' : '🥀', how === 'crushed' ? 'Revolt Crushed' : 'Revolt Ends', text, how === 'crushed' ? 'success' : 'warning');
         // ...and a war for the crown held or bought off: the claimant's fate (systems/crownSuccession.js)
         if (rv.succession) CrownSuccession.warEnded(player, world, court, k, rv, how, out);
+        // ...or a far crown's lords: crushed, they quiet; victorious for a native king, the union breaks (systems/highCrowns.js)
+        const fs = _far(player);
+        if (fs && fs.onRevoltEnd) fs.onRevoltEnd(how, rv);
         Kingship.refresh(player, world);
         return text;
     },
@@ -1012,6 +1120,11 @@ export const Kingship = {
     onRebelHostDefeated(player, world, unit) {
         const R = Kingship.config().revolt || {};
         const rv = Kingship.revolt(player);
+        if (unit && !(rv && unit.revoltId === rv.id)) {
+            // A host of lords in revolt against a far crown of yours (systems/highCrowns.js)
+            const far = Kingship._farRevolts(player).find(x => x.rv.id === unit.revoltId);
+            return far ? HighCrowns.inCourt(player, world, far.kid, () => Kingship.onRebelHostDefeated(player, world, unit)) : null;
+        }
         if (!rv || !unit || unit.revoltId !== rv.id) return null;
         const before = rv.hosts.length;
         rv.hosts = rv.hosts.filter(h => h.id !== unit.id);
@@ -1028,6 +1141,11 @@ export const Kingship = {
         const court = Kingship.court(player);
         const k = Kingship._realm(player, world);
         const rv = court && court.revolt;
+        if (!(rv && rv.seats.includes(_key(q, r)))) {
+            // A seat of a far crown's rebels (systems/highCrowns.js)
+            const far = Kingship._farRevolts(player).find(x => x.rv.seats.includes(_key(q, r)));
+            if (far) return HighCrowns.inCourt(player, world, far.kid, () => Kingship.onRebelSeatTaken(player, world, q, r));
+        }
         if (!rv || !k) return null;
         const key = _key(q, r);
         if (!rv.seats.includes(key)) return null;
@@ -1255,7 +1373,7 @@ export const Kingship = {
             piety: k.religion && typeof k.religion.piety === 'number' ? Math.round(k.religion.piety) : null,
             wars: (k.wars || []).map(id => (world.getKingdom(id) || { name: id }).name),
             allies: (k.allies || []).map(id => (world.getKingdom(id) || { name: id }).name),
-            upkeep: Kingship.upkeep(player), edicts: Object.keys(court.edicts).length, edictSlots: Kingship.edictSlots(player, world),
+            upkeep: Kingship.upkeep(player), edicts: Kingship.lawsInForce(player, court), edictSlots: Kingship.edictSlots(player, world),
             mods: { ...court.mods }, peaceChance: court.peaceChance, stats: { ...court.stats },
             vassals: court.vassals.length, loyal: court.vassals.filter(v => v.opinion >= 20 && !v.rebel).length,
             disloyal: court.vassals.filter(v => v.opinion < 0 || v.rebel).length,
@@ -1688,7 +1806,7 @@ export const Kingship = {
             const key = `${demand.type}:${demand.edict || ''}`;
             let f = court.factions.find(x => x.key === key);
             if (!f) {
-                f = { id: `faction_${court.nextId++}`, key, demand, leaderId: v.id, members: [], formedDay: day, revealed: false, ultimatum: null, refusedDay: -999 };
+                f = { id: `faction_${court.idTag ? `${court.idTag}_` : ''}${court.nextId++}`, key, demand, leaderId: v.id, members: [], formedDay: day, revealed: false, ultimatum: null, refusedDay: -999 };
                 court.factions.push(f);
             }
             f.members.push(v.id);
@@ -1735,13 +1853,24 @@ export const Kingship = {
         if (!player || !world) return out;
         const k = Kingship._realm(player, world);
         if (!k) {
-            // A lost crown leaves no rebel hosts behind
-            for (const u of world.units || []) if (u.revoltId && !u.destroyed) u.destroyed = true;
+            // A lost crown leaves no rebel hosts behind (a far crown's own revolt runs on)
+            const far = new Set(Kingship._farRevolts(player).map(x => x.rv.id));
+            for (const u of world.units || []) if (u.revoltId && !u.destroyed && !far.has(u.revoltId)) u.destroyed = true;
             return out;
         }
-        const court = Kingship.court(player);
+        Kingship._courtDay(player, world, k, Kingship.court(player), _num(player.throne.ruling.since), out);
+        return out;
+    },
+
+    /**
+     * One day of the court in scope (the home court, or a far crown's inside
+     * Kingship.withCourt): `since` is the day the crown was won (the weekly and
+     * yearly turns count from it).
+     */
+    _courtDay(player, world, k, court, since, out) {
         const C = Kingship.config();
         const day = _day(world);
+        const far = !!_far(player);
         if (!court.initialized) {
             Kingship._generateVassals(player, world, k, court);
             court.initialized = true;
@@ -1751,12 +1880,14 @@ export const Kingship = {
         Kingship._validateCouncil(player, world, court, out);
         Kingship._payUpkeep(player, world, court, k, out);
         Kingship._famineDole(player, world, court, k, out);
-        Kingship.syncCrownMonopolies(player, world);
-        Kingship.syncRoyalPost(player, world);
+        // (the monopolies and the Royal Post are the home court's: they bind houses across the map)
+        if (!far) {
+            Kingship.syncCrownMonopolies(player, world);
+            Kingship.syncRoyalPost(player, world);
+        }
         Kingship._faithDay(player, world, court, k);
         Kingship._revealPlots(player, world, court, out);
         Kingship._resolveUltimatums(player, world, court, k, out);
-        const since = _num(player.throne.ruling.since);
         if ((day - since) % (C.vassalTick || 7) === 0) {
             Kingship._vassalWeek(player, world, court, k, out);
             Kingship._peoplesWeek(world, court, k);

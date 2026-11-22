@@ -1,0 +1,172 @@
+{
+    "_doc": "Maiming (systems/maimMarks.js: the body; systems/maiming.js: the deed and what it costs). A person's losses live on person.maimed = { parts: { hand, eye, ear, nose, tongue, foot, brand, geld }, log, taken, aids } — a townsperson on the town's roster, a vassal of the royal court, a child of the House, a pretender, a captured outlaw, the player. acts: what can be done; each count of a part (the first hand, the second) has its own effects: attrs and skills taken from the person's stats (kept in maimed.taken, given back only by an aid's offset), movement (hexes a day lost), battle (share of fighting power lost). flags: blind (no reading, no office, no rule), mute (no speech: the dialog is by signs), noWrite. barsRule: never sits a throne (the heir lists, the crown's claimants, the old line); barsOffice: never sits a council. work: × the work a townsperson puts in at each occupation (systems/townJobs.js weight; under loseTradeBelow they lose the trade and beg). severity: how much the deed weighs on the doer (systems/maiming.js brand). aids: what a town's craftsman makes for the maimed: fits the part, offsets part of its loss, made by one of `makers` (a townsperson of that occupation in town: the fee into their purse), from `material` taken out of the town's market (its cost into the town's purse). Days are game days (120 to a year).",
+    "enabled": true,
+    "loseTradeBelow": 0.25,
+    "stumpWound": "fresh_stump",
+    "acts": {
+        "hand": {
+            "label": "Cut off a hand", "short": "a hand gone", "both": "both hands gone", "icon": "✋", "max": 2, "severity": 2,
+            "counts": [
+                { "attrs": { "strength": -1 }, "skills": { "combat": -3, "commerce": -1 }, "battle": 0.15 },
+                { "attrs": { "strength": -1 }, "skills": { "combat": -4, "commerce": -2, "stealth": -2 }, "battle": 0.35, "flags": ["noWrite"], "barsRule": true, "barsOffice": true }
+            ],
+            "work": [
+                { "smith": 0.35, "carpenter": 0.35, "mason": 0.4, "weaver": 0.3, "tailor": 0.3, "cobbler": 0.3, "scribe": 0.6, "healer": 0.5, "butcher": 0.4, "baker": 0.55, "brewer": 0.6, "miller": 0.6, "fisher": 0.5, "woodcutter": 0.4, "miner": 0.4, "guard": 0.5, "farmer": 0.6, "herder": 0.75, "shepherd": 0.75, "labourer": 0.6, "default": 0.7 },
+                { "default": 0.1, "beggar": 1, "priest": 0.6, "noble": 0.8, "merchant": 0.3, "stallkeeper": 0.3 }
+            ],
+            "look": ["the stump of a wrist", "no hands, only bound stumps"],
+            "done": "{victim}'s hand comes off at the wrist. You bind the stump with a rag so they will live to show it.",
+            "suffer": "Your hand is gone at the wrist."
+        },
+        "eye": {
+            "label": "Put out an eye", "short": "one-eyed", "both": "blinded", "icon": "👁️", "max": 2, "severity": 3,
+            "counts": [
+                { "attrs": { "charisma": -1 }, "skills": { "combat": -1, "cartography": -1 }, "battle": 0.06 },
+                { "attrs": { "intelligence": -1 }, "skills": { "combat": -6, "cartography": -6, "leadership": -4, "stealth": -3, "commerce": -2 }, "battle": 0.5, "movement": 1, "flags": ["blind", "noWrite"], "barsRule": true, "barsOffice": true }
+            ],
+            "work": [
+                { "scribe": 0.8, "guard": 0.8, "default": 0.95 },
+                { "default": 0.08, "beggar": 1, "priest": 0.5, "noble": 0.6, "servant": 0.3, "washer": 0.3 }
+            ],
+            "look": ["one eye a puckered scar", "both eyes put out"],
+            "done": "You put out {victim}'s eye with the point of the knife.",
+            "doneBoth": "{victim} will never see again.",
+            "suffer": "An eye is put out. The world goes flat on that side."
+        },
+        "ear": {
+            "label": "Crop an ear", "short": "an ear cropped", "both": "both ears cropped", "icon": "👂", "max": 2, "severity": 1,
+            "counts": [ { "attrs": { "charisma": -1 } }, { "attrs": { "charisma": -1 } } ],
+            "work": [ { "merchant": 0.85, "stallkeeper": 0.85, "default": 1 }, { "merchant": 0.7, "stallkeeper": 0.7, "default": 1 } ],
+            "look": ["an ear cropped", "both ears cropped, the old mark of a cheat"],
+            "done": "You crop {victim}'s ear, the old mark of a cheat. They will wear it in every market.",
+            "suffer": "An ear is cropped, the old mark of a cheat."
+        },
+        "nose": {
+            "label": "Slit the nose", "short": "the nose slit", "icon": "👃", "max": 1, "severity": 2,
+            "counts": [ { "attrs": { "charisma": -3 }, "skills": { "diplomacy": -1 }, "barsRule": true } ],
+            "work": [ { "innkeeper": 0.7, "merchant": 0.75, "servant": 0.7, "default": 0.95 } ],
+            "look": ["the nose slit"],
+            "done": "You slit {victim}'s nose. By the old law no one so marked may ever sit a throne.",
+            "suffer": "Your nose is slit. By the old law you may never sit a throne."
+        },
+        "tongue": {
+            "label": "Cut out the tongue", "short": "tongueless", "icon": "👅", "max": 1, "severity": 3,
+            "counts": [ { "attrs": { "charisma": -2 }, "skills": { "diplomacy": -6, "leadership": -2, "commerce": -1 }, "flags": ["mute"], "barsRule": true, "barsOffice": true } ],
+            "work": [ { "merchant": 0.3, "stallkeeper": 0.4, "innkeeper": 0.4, "priest": 0.3, "scribe": 0.9, "healer": 0.7, "default": 0.85 } ],
+            "look": ["no tongue"],
+            "done": "You cut out {victim}'s tongue. Whatever they know, they will not say it.",
+            "suffer": "Your tongue is cut out. You will speak by signs now, or not at all."
+        },
+        "foot": {
+            "label": "Cut off a foot", "short": "a foot gone", "both": "both feet gone", "icon": "🦶", "max": 2, "severity": 2,
+            "counts": [
+                { "skills": { "combat": -2, "stealth": -2 }, "battle": 0.12, "movement": 2 },
+                { "skills": { "combat": -3, "stealth": -2 }, "battle": 0.25, "movement": 2 }
+            ],
+            "work": [
+                { "guard": 0.3, "farmer": 0.55, "herder": 0.5, "shepherd": 0.5, "carter": 0.5, "labourer": 0.45, "woodcutter": 0.45, "miner": 0.5, "fisher": 0.7, "servant": 0.6, "default": 0.85 },
+                { "default": 0.25, "scribe": 0.9, "weaver": 0.8, "tailor": 0.8, "cobbler": 0.8, "beggar": 1, "priest": 0.8, "noble": 0.8 }
+            ],
+            "look": ["a foot gone at the ankle", "both feet gone"],
+            "done": "You take {victim}'s foot off at the ankle. They will never run again.",
+            "suffer": "Your foot is gone at the ankle."
+        },
+        "brand": {
+            "label": "Brand the face", "short": "branded", "icon": "🔥", "max": 1, "severity": 1, "npcOnly": true, "needs": "fire",
+            "counts": [ { "attrs": { "charisma": -2 } } ],
+            "work": [ { "merchant": 0.6, "stallkeeper": 0.65, "innkeeper": 0.7, "servant": 0.6, "default": 0.95 } ],
+            "look": ["a brand on the cheek"],
+            "done": "You burn a thief's mark into {victim}'s cheek. Every stranger will know it.",
+            "suffer": "A brand is burned into your cheek."
+        },
+        "geld": {
+            "label": "Geld", "short": "gelded", "icon": "✂️", "max": 1, "severity": 4, "males": true,
+            "counts": [ { "flags": ["gelded"], "barsRule": true } ],
+            "work": [ { "default": 1 } ],
+            "look": ["gelded"],
+            "done": "You have {victim} gelded. He will father no sons to press his claim.",
+            "suffer": "You are gelded. You will father no more children."
+        }
+    },
+    "aids": {
+        "eye_patch": { "name": "Eye patch", "icon": "🕶️", "fits": "eye", "slot": "eye", "maxCount": 1, "offsets": { "attrs": { "charisma": 1 } }, "makers": ["tailor", "cobbler"], "material": "leather", "qty": 1, "materialCost": 3, "fee": 4, "desc": "A leather patch over the empty socket: folk stop staring." },
+        "iron_hook": { "name": "Iron hook", "icon": "⚓", "fits": "hand", "slot": "hand", "maxCount": 1, "offsets": { "skills": { "combat": 1, "commerce": 1 }, "battle": 0.05 }, "makers": ["smith"], "material": "iron", "qty": 1, "materialCost": 6, "fee": 18, "desc": "A hook strapped to the stump: it holds a shield's grip or a sack's neck." },
+        "wooden_leg": { "name": "Wooden leg", "icon": "🦵", "fits": "foot", "slot": "foot", "offsets": { "skills": { "combat": 1 }, "movement": 1, "battle": 0.05 }, "makers": ["carpenter"], "material": "wood", "qty": 2, "materialCost": 2, "fee": 12, "desc": "A peg of seasoned ash strapped below the knee: you walk again, badly." },
+        "crutch": { "name": "Crutch", "icon": "🚶", "fits": "foot", "slot": "foot", "offsets": { "movement": 1 }, "makers": ["carpenter"], "material": "wood", "qty": 1, "materialCost": 1, "fee": 3, "desc": "A forked stick under the arm. It gets you down the road, a hand always on it." },
+        "false_nose": { "name": "False nose", "icon": "👃", "fits": "nose", "slot": "nose", "offsets": { "attrs": { "charisma": 2 } }, "makers": ["smith"], "material": "copper", "qty": 1, "materialCost": 10, "fee": 25, "desc": "A nose of beaten copper, painted to the skin and tied behind the ears." }
+    },
+    "rank": { "_doc": "× the deed's weight by who the victim is.", "commoner": 1, "outlaw": 0.7, "noble": 1.6, "vassal": 1.6, "kin": 1.8, "rival": 1.8, "rivalHeir": 2.1, "rivalHead": 2.4, "royal": 2.2 },
+    "brand": {
+        "_doc": "What a deed of severity s costs the one who does it (systems/maiming.js brand): karma (karmaPer × s × rank), deeds of character (cruelty, dread per s), the name for cruelty (butcher per s: systems/atrocities.js infamy — a dreaded name opens purses at a siege's terms), reputation in the victim's realm (repPer × s × rank × the culture's stance × lawful), heat with its crown when unlawful (heatPer × s), the court's name for severity (severity per s, capped), lords' memory (a noble victim's realm: lordDeed; any realm for s ≥ heardAt: heardDeed), a rumour (gossip). stance: how the realm's culture takes a mutilation (data/peopleCrimes.json thief.stances: approve/tolerate/condemn) and lawful (the realm's mutilation law allows it, or the crown's justice on a rebel or a convict): × lawfulMult. witnessesCowed: on the street map, those who saw it are frightened of you (threats fold easier). vassalsCowedDays: maiming a vassal cows the rest of the court that many days (× s/3); an innocent lord: grudgeOthers on every other vassal.",
+        "karmaPer": -3, "cruelty": 1, "dread": 0.8, "butcherPer": 3, "repPer": -3, "heatPer": 5, "severityPer": 0.5, "lawfulMult": 0.3,
+        "stance": { "approve": 0.25, "tolerate": 0.6, "condemn": 1 },
+        "heardAt": 4, "lordDeed": "mutilation", "heardDeed": "mutilation_heard", "gossip": "mutilation",
+        "vassalsCowedDays": 120, "grudgeOthers": 6, "victimGrudge": 40, "stabilityInnocent": -3, "stabilityRebel": 1,
+        "nemesis": { "commoner": 40, "noble": 60, "vassal": 65, "kin": 70, "rival": 75, "royal": 80 },
+        "kinGrievance": 60, "kinPrestige": 15, "pretenderStability": -6, "pretenderPrestige": 5, "pretenderYears": 40,
+        "witnessFearful": true
+    },
+    "player": {
+        "_doc": "The player maimed. graveWound: after a wound in a fight of these sources (systems/ailments.js maybeWound), the chance (a hash roll, no shared dice) the blow costs an eye, a hand or a foot for good (pool: weights). vengeance: on the street map, one who beat you senseless with a grudge for one you maimed may take the same from you while you lie there (chance by the grudge). nemesis: an enemy at obsession (hatred ≥ hatred) or a rival House with a feud ≥ feud may have a grown child of yours maimed (once per everyDays per enemy; chance a week).",
+        "graveWound": { "battle_loss": 0.05, "battle_win": 0.01, "sea_battle": 0.03, "duel": 0.02, "ambush": 0.03, "brawl": 0.005, "monster": 0.04, "assassin": 0.25 },
+        "pool": { "eye": 4, "hand": 3, "foot": 2, "ear": 1 },
+        "vengeance": { "maimGrudge": 0.55, "grudge": 0.08 },
+        "enemies": { "hatred": 85, "feud": 90, "weekly": 0.02, "everyDays": 1200, "minAge": 14, "pool": { "eye": 3, "hand": 3, "nose": 1, "tongue": 1 } }
+    },
+    "ai": {
+        "_doc": "The world maims too, sparingly (systems/maiming.js processDay, weekly, own hash rolls): a realm whose law takes a thief's hand takes it from a townsperson caught at theft (settlement.npcCrimes, caught, within recordDays) with chance lawHand; a town raided lately (lastRaidedDay within raidDays) may have a resident who lost an eye or a hand to the raiders (raidMaim, once per raid); a succession crisis in an AI realm ends with the loser blinded or his nose slit by the winner (crisisBlind) — the realm's news and the heralds tell it.",
+        "everyDays": 7, "recordDays": 40, "lawHand": 0.6, "raidDays": 30, "raidMaim": 0.35, "crisisBlind": 0.3, "townsPerWeek": 40
+    },
+    "law": {
+        "_doc": "What each option of the realms' mutilation law (data/laws.json laws.mutilation) takes for which crime (trial charge group / judge crime). repeat: the first conviction is spared (the second takes it). crimeGroups: the judge's crimes (data/trials.json judge.crimes) to the law's groups.",
+        "never": {},
+        "thieves": { "theft": "hand", "repeat": true },
+        "old": { "theft": "hand", "cheating": "ear", "slander": "tongue", "grave robbing": "hand" },
+        "crimeGroups": { "burglary": "theft", "pickpocket": "theft", "theft": "theft", "loot": "theft", "graveRobbing": "grave robbing", "poaching": "theft", "cheating": "cheating", "slander": "slander" }
+    },
+    "rivals": {
+        "_doc": "A rival House's children in your power (systems/rivalCaptives.js). capture: when you beat their retinue on the road (you fell on them, or beat off their ambush), a grown child of the head (minAge+) riding with them may be taken (chance, a hash roll; the heir rides along heirShare of the time); feud on taking. A kept or held rival ward at your court (systems/heirPaths.js) is in your power too. hold: each month held the feud grows (monthlyFeud), the House may get them back (rescueMonthly, a hash roll) and offers a ransom every offerEvery days; while a child is held unmaimed the House dares not plot or waylay you. ransom: what the House pays out of its purse into yours (base, × heir for the heir, at most purseShare of its purse, × barred for one no longer fit to rule); feud. release: let them go for nothing: feud, renown, mercy. maim: the House is a blood enemy (feud set to at least feud; nemesis score), Houses allied to them take it up (allyFeud), the rest are wary (othersFeud) and their enemies glad (enemyFeud); your court's lords think the less of you (courtGrudge); a heir blinded, slit-nosed, tongueless, gelded or handless can never head the House (systems/rivalHouses.js _succeed reads MaimMarks.barsRule) and the House loses renown (renownLoss). The House owes you blood (owedDays): its hired blades come for your children (systems/maiming.js _enemiesWeek, owedWeekly) and its waylaying men take the same from you if they beat you (road.owed). hostage: a rival House that holds a child of yours (heirPaths heldBy.rival) with a feud ≥ feud, after its terms were refused at least minRefused times (or with blood owed), may maim the child (weekly, a hash roll).",
+        "capture": { "minAge": 12, "chance": 0.45, "heirShare": 0.6, "feud": 15 },
+        "hold": { "monthlyFeud": 3, "rescueMonthly": 0.04, "offerEvery": 60, "offerDays": 30 },
+        "ransom": { "base": 180, "heir": 2, "head": 4, "purseShare": 0.4, "headPurseShare": 0.75, "barred": 0.4, "feud": 10 },
+        "seize": { "_doc": "Seizing a child of theirs under guest-right (RivalCaptives.seize): their retinue on your hex (an audience, a visit to your town; at your own table if you feasted in this town today and their feud is at most feastMaxFeud). chance = base + 0.6 × your strength (army + stealth × perStealth) / (yours + theirs) + feastBonus, between min and max; one try a day, a hash roll. Taken or not, guest-right is broken: every other House (allies allyFeud, the rest othersFeud, their enemies enemyFeud), karma, deceit and cruelty deeds, perfidy (Atrocities: towns refuse your terms), reputation in every realm (repAll; repHome in theirs), the lords remember, clergy standing (their realm's faith, × 1.5 if it holds the body sacred; and your own creed's), your faith, a nemesis. A failed try costs failShare of it, and feud +failFeud.", "base": 0.2, "perStealth": 4, "feastBonus": 0.25, "feastMaxFeud": 70, "min": 0.1, "max": 0.9, "failShare": 0.5, "failFeud": 40, "allyFeud": 40, "othersFeud": 20, "enemyFeud": 5, "karma": 15, "deceit": 3, "cruelty": 1, "perfidy": 15, "repHome": 20, "repAll": 5, "clergy": 10, "faithLoss": 0.5, "nemesis": 70 },
+        "death": { "_doc": "A captive dies in your keeping (monthly, a hash roll): sickMonthly + despairPerYear × years held (to 5), × maimedMult if maimed, × youngMult under 14; a rescue goes wrong rescueGoneWrong of the time. The House blames you: feud (rescueFeud for a botched rescue), blood owed and a nemesis (not for a rescue).", "sickMonthly": 0.004, "despairPerYear": 0.002, "maimedMult": 3, "youngMult": 1.5, "rescueGoneWrong": 0.25, "feud": 50, "rescueFeud": 20, "nemesis": 75 },
+        "release": { "feud": -20, "renown": 3, "mercy": 2 },
+        "maim": { "feud": 100, "allyFeud": 25, "othersFeud": 10, "enemyFeud": -5, "courtGrudge": 4, "renownLoss": 20, "nemesis": 85, "owedDays": 1800 },
+        "hostage": { "feud": 90, "minRefused": 1, "weekly": 0.03, "pool": { "eye": 3, "hand": 2, "nose": 2, "ear": 1 } },
+        "owedWeekly": 0.08
+    },
+    "road": {
+        "_doc": "Bandits, outlaws, raiders and pirates who beat you may take something (systems/maiming.js roadMaim, called by player/roadEncounters.js when you are robbed alone or your army is beaten). chance = base[how] × the band's kind (types; unlisted men: other) × its cruelty (a hash of the band, cruelty[0]..cruelty[1]) × (1 + your name for cruelty / butcherNorm + outlaws you hunted down × perBounty + outlaws you maimed × perMaimedOutlaw), at most cap. A thief-hunter's grudge (hunterAt bounties, or any outlaw you maimed) takes a hand; otherwise the pool. A rival House's waylaying men take the same from you that you took from their blood when it is owed (owed), and only rarely otherwise (feudAt+: feudChance). Rare by design: a long life on the roads sees it once, or never.",
+        "base": { "robbed": 0.01, "defeat": 0.02 },
+        "types": { "raider": 1, "pirate": 1.2, "outlaw": 1.4, "bandit": 1, "war_host": 0.3, "other": 0.7 },
+        "cruelty": [0.5, 1.6],
+        "butcherNorm": 60, "perBounty": 0.08, "perMaimedOutlaw": 0.35, "cap": 0.2, "hunterAt": 4,
+        "pool": { "ear": 3, "nose": 2, "hand": 1, "eye": 1 },
+        "owed": 0.5, "feudAt": 95, "feudChance": 0.05,
+        "lines": {
+            "hunter": "\"For every one of ours you dragged to the rope.\" They hold your arm across a stone.",
+            "band": "They hold you down while the one with the knife decides what to take.",
+            "owed": "\"{house} remembers what you did to {victim}.\" They take the same.",
+            "feud": "\"A gift from {house}.\""
+        }
+    },
+    "faith": {
+        "_doc": "How faith takes a mutilation (systems/maimFaith.js). The realm's faith (kingdom.religion.faithId) and the creed you keep (your founded religion, by its tenets; or a world faith you adopted: systems/devotion.js creed) each take a stance: sacred (the body is the god's), mild, or harsh (the law's knife is the god's justice). faiths: each world faith's stance. tenets: your founded religion's tenets lean it (sum ≤ −2 sacred, ≥ 2 harsh). stances: rep × the realm's regard lost; heat × the crown's heat; lawful: the lawful deed's weight (instead of brand.lawfulMult); clergy: the realm faith's clergy standing lost per severity (systems/devotion.js standing; × lawfulClergy when lawful); karma, cruelty: × what the deed costs your character when it is your own creed's stance; ownClergy, faithLoss: your own creed's clergy standing and your faith lost per severity; lawStability, lawCost: proclaiming a mutilation law that takes a limb costs that much more stability and × the treasury (systems/laws.js canEnact; a harsh faith's realm grumbles less, never below 0); aiLaw: × the chance the realm's own courts take a thief's hand (systems/maiming.js weekly).",
+        "faiths": { "solaris": "harsh", "ironfaith": "harsh", "stormfather": "harsh", "flameheralds": "harsh", "ashwalkers": "harsh", "bloodmoon": "harsh", "tidemother": "mild", "stoneheart": "mild", "serpentway": "mild", "arcanum": "mild", "dunewalkers": "mild", "voidcallers": "mild", "earthroot": "sacred", "starseers": "sacred", "dreamweavers": "sacred", "bonesingers": "sacred", "silentorder": "sacred" },
+        "tenets": { "Peace": -2, "Charity": -1, "Humility": -1, "Nature": -1, "Mysticism": 0, "Wisdom": 0, "Prosperity": 0, "Justice": 2, "Valor": 1, "Sovereignty": 1 },
+        "stances": {
+            "sacred": { "label": "holds the body sacred", "icon": "🕊️", "rep": 1.5, "heat": 1.3, "lawful": 0.6, "clergy": 1.5, "lawfulClergy": 0.5, "karma": 1.4, "cruelty": 1.3, "ownClergy": 2, "faithLoss": 0.05, "lawStability": 3, "lawCost": 1.6, "aiLaw": 0.5, "line": "The priests of {faith} call it a sin against the body the god made." },
+            "mild": { "label": "neither blesses nor curses the knife", "icon": "⚖️", "rep": 1, "heat": 1, "lawful": 0.3, "clergy": 0.3, "lawfulClergy": 0, "karma": 1, "cruelty": 1, "ownClergy": 0.5, "faithLoss": 0, "lawStability": 0, "lawCost": 1, "aiLaw": 1, "line": "" },
+            "harsh": { "label": "holds the law's knife to be the god's justice", "icon": "⚔️", "rep": 0.6, "heat": 0.7, "lawful": 0.1, "clergy": 0.2, "lawfulClergy": 0, "karma": 0.8, "cruelty": 0.8, "ownClergy": 0, "faithLoss": 0, "lawStability": -1, "lawCost": 0.8, "aiLaw": 1.3, "line": "" }
+        }
+    },
+    "lines": {
+        "muteGreeting": ["*{name} opens their mouth and only a thick sound comes out. They point at it, then shake their head.*", "*{name} has no tongue. They make signs at you, slow and patient.*"],
+        "muteAside": "*By signs:*",
+        "blindGreeting": ["*{name} turns their face toward your voice, the sockets empty.* Who's there?"],
+        "lookAtYou": ["*{name}'s eyes go to {what}, then away.*", "*{name} stares at {what} a moment too long.*", "*{name} pretends not to see {what}.*"],
+        "verdict": "Guilty. By the law of {realm} the court takes {what}. It is done on the scaffold before the town.",
+        "trialLabel": "maimed"
+    }
+}

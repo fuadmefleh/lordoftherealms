@@ -70,7 +70,7 @@ describe('Crown succession data (data/crownSuccession.json)', () => {
         expect(DataLoader._gamedata.crownSuccession).toBeTruthy();
         const C = CrownSuccession.config();
         expect(C.claimants.brother.son).toBe(30);
-        expect(C.standing.crowned).toBe(28);
+        expect(C.standing.crowned).toBe(24);
         expect(C.prep.coronation.prestige).toBe(25);
         expect(C.split.claimStrength).toBe(40);
         expect(Kingship.demandText({ type: 'crown', claimant: 'Bram' }).label).toBe('the crown for Bram');
@@ -151,8 +151,8 @@ describe('The Succession card', () => {
         expect(court.vassals.every(v => v.heirOath && v.heirOath.heirId === heir.id)).toBe(true);
         expect(CrownSuccession.takeOaths(player, world).success).toBe(false); // (cooldown)
         const after = CrownSuccession.forecast(player, world);
-        expect(after.standing.parts.find(p => p.label.startsWith('Crowned')).value).toBe(28);
-        expect(after.standing.parts.find(p => p.label.startsWith('Oaths')).value).toBe(24);
+        expect(after.standing.parts.find(p => p.label.startsWith('Crowned')).value).toBe(24);
+        expect(after.standing.parts.find(p => p.label.startsWith('Oaths')).value).toBe(20);
         expect(after.standing.value).toBeGreaterThan(before + 45);
         expect(after.sworn).toBe(court.vassals.length);
     }, 60000);

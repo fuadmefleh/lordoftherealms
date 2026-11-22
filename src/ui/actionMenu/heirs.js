@@ -18,6 +18,8 @@ import { Throne } from '../../systems/throne.js';
 import { heirPathsHtml } from './heirPaths.js';
 import { BTN_DARK, BTN_RED, sectionHead, lede, chips, card, actRow, rowList, price } from './uiKit.js';
 import { Utils } from '../../core/utils.js';
+// (the hot iron's burn and scar on a child put to the ordeal: player/ordeals.js)
+import { Ordeals } from '../../player/ordeals.js';
 
 const MUTED = 'color:#9d937c; font-size:11px;';
 const SEL = 'width:100%; padding:5px 6px; background:rgba(0,0,0,0.35); color:#ece2c8; border:1px solid rgba(245,197,66,0.18); border-radius:6px; font-family:var(--font-body); font-size:12px;';
@@ -86,6 +88,7 @@ Object.assign(ActionMenu, {
         const stageText = p.stage === 'infant' ? `An infant — education begins at ${cfg.startAge}.` : p.stage === 'child' ? `Coming of age at ${cfg.comeOfAgeAge}.` : 'Of age.';
         let who = `<div style="${MUTED}">${stageText}${p.role ? ` · 🏰 ${_esc((House.roleDefs()[p.role] || {}).label || p.role)}` : ''}${player.heir === p.id ? ' · <span style="color:#ffcf6a;">👑 Designated heir</span>' : ''}</div>`;
         if (p.birthTraits.length) who += `<div style="font-size:11px; margin-top:2px;">Born: ${p.birthTraits.map(t => `${t.icon} ${_esc(t.name)}`).join(', ')}</div>`;
+        for (const m of Ordeals.childMarks(child, world && world.day)) who += `<div style="font-size:11px; margin-top:2px; color:#e0a07a;">${m.icon} ${_esc(m.text)}</div>`;
         who += _profileBlock(p);
         if (p.leanings.length) who += `<div style="${MUTED}">Leaning toward: ${p.leanings.map(l => `${l.icon} ${_esc(l.name)} (${l.pct}%)`).join(', ')}</div>`;
         if (p.spouse) who += `<div style="font-size:11px; color:#ff9ad5; margin-top:2px;">💍 Wed to ${_esc(p.spouse.name)}${p.spouse.kind === 'royal' ? ' (royal)' : (p.spouse.kind === 'local' ? ` (of ${_esc(p.spouse.townName || 'town')})` : '')}</div>`;

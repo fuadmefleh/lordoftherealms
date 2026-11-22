@@ -55,6 +55,9 @@ import { Companions } from './companions.js';
 import { Quests } from './quests.js';
 import { PracticeSkills } from './practiceSkills.js';
 import { TradeSkills } from './tradeSkills.js';
+// (what a body has lost for good: systems/maimMarks.js)
+import { MaimMarks } from './maimMarks.js';
+import { House } from './house.js';
 
 export const AILMENT_ATTRS = ['strength', 'charisma', 'intelligence', 'faith', 'luck'];
 export const AILMENT_SKILLS = ['combat', 'stealth', 'diplomacy', 'leadership', 'commerce', 'cartography'];
@@ -267,6 +270,8 @@ export const Ailments = {
         let pen = 0;
         for (const rec of Ailments.list(player)) pen += -Math.min(0, _num(Ailments._effectsOf(rec).movement));
         if (Traits.has(player, 'lame')) pen += 1;
+        // (a foot gone, both eyes: for life, less what a wooden leg or a crutch gives back — systems/maimMarks.js)
+        pen += MaimMarks.movement(player);
         return pen;
     },
 
@@ -277,7 +282,8 @@ export const Ailments = {
             m *= 1 + Math.min(0, _num(Ailments._effectsOf(rec).battlePower));
             if (rec.infected) m *= 0.95;
         }
-        return Math.max(0.4, m);
+        // (a hand, an eye, a foot lost: a one-handed swordsman fights as one — systems/maimMarks.js)
+        return Math.max(0.4, m) * MaimMarks.fightShare(player);
     },
 
     /** A deadly stage only kills at or below this share of max health. */
@@ -364,7 +370,43 @@ export const Ailments = {
         }
         if (!(Utils.random() < chance)) return null;
         const id = _weightedPick(src.pool);
-        return id ? Ailments.inflict(player, world, id, { source }) : null;
+        const rep = id ? Ailments.inflict(player, world, id, { source }) : null;
+        // A blow that costs an eye, a hand or a foot for good (a hash roll: no shared dice) — systems/maimMarks.js
+        if (rep) Ailments._graveWound(player, world, source, rep);
+        return rep;
+    },
+
+    /**
+     * After a wound: the chance (data/maiming.json player.graveWound[source],
+     * a hash of the day and the wounds taken) the blow maims for life. The loss
+     * goes on the body (MaimMarks.mark) and the chronicle; the wound's report
+     * says it. → the part lost, or null.
+     */
+    _graveWound(player, world, source, rep) {
+        const M = MaimMarks.config();
+        const P = (M && M.player) || {};
+        const chance = _num((P.graveWound || {})[source]);
+        if (!(chance > 0) || M.enabled === false) return null;
+        const st = Ailments.getState(player);
+        const key = `${(world && world.generationParams && world.generationParams.seed) || 0}|grave|${player.name || ''}|${_day(world)}|${source}|${st.stats.wounds}`;
+        const u = ((Utils.hashStr(key) >>> 0) % 100000) / 100000;
+        if (u >= chance) return null;
+        const pool = {};
+        for (const [a, w] of Object.entries(P.pool || {})) if (!MaimMarks.whyNot(player, a)) pool[a] = w;
+        const entries = Object.entries(pool).filter(([, w]) => w > 0);
+        const total = entries.reduce((s, [, w]) => s + w, 0);
+        if (!total) return null;
+        let x = (((Utils.hashStr(`${key}|pick`) >>> 0) % 100000) / 100000) * total;
+        let part = entries[entries.length - 1][0];
+        for (const [a, w] of entries) { x -= w; if (x < 0) { part = a; break; } }
+        const def = MaimMarks.mark(player, part, { day: _day(world), why: `a wound (${source.replace(/_/g, ' ')})` });
+        if (!def) return null;
+        const lost = MaimMarks._shortOf(part, MaimMarks.count(player, part));
+        rep.maimed = part;
+        rep.name = `${rep.name}: ${lost}`;
+        rep.text = `${def.suffer || 'The wound maims you for life.'} ${rep.text || ''}`.trim();
+        if (player.house) House._chronicle(player.house, world, `${player.name || 'The head of the House'} was maimed in a fight (${lost}).`, ['wounds']);
+        return part;
     },
 
     /** After a battle the player fought in: maybe a wound. */

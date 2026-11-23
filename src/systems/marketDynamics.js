@@ -378,19 +378,60 @@ export const MarketDynamics = {
      * towns draws on the breadbasket beyond its neighbours instead of going bare.
      */
     _granaryPairs(lives, cands, pairs, pairKey, T) {
-        const G = T.granaryLink;
+        this._supplyPairs(lives, cands, pairs, pairKey, T, T.granaryLink, SettlementMarket.config().groupIdx.food);
+    },
+
+    /**
+     * The iron road (trade.oreLink, same rule as the grain road): a town whose land
+     * and mines bring in less iron than it uses, none of whose partners digs a
+     * surplus, trades also with the nearest town that does — so the smiths' tools
+     * and the iron itself reach the towns of a land without ore fields (terrainGen 15).
+     */
+    _orePairs(world, lives, tiles, port, cands, pairs, pairKey, T) {
+        const G = T.oreLink;
+        if (!G || !Array.isArray(G.goods)) return;
+        const idx = SettlementMarket.config().idx;
+        // (the iron road may run further than a neighbour's trade: a land without ore
+        // fields can be wider than maxRange; same land, or port to port)
+        const range = _num(G.range, T.maxRange);
+        const find = (i, ok) => {
+            const a = lives[i];
+            let best = null;
+            for (let j = 0; j < lives.length; j++) {
+                if (j === i || !ok(j)) continue;
+                const b = lives[j];
+                if (Math.abs(a.r - b.r) > range) continue;
+                const d = Hex.wrappingDistance(a.q, a.r, b.q, b.r, world.width);
+                if (d > range || (best && (d > best.d || (d === best.d && j > best.j)))) continue;
+                const sameLand = !!(tiles[i] && tiles[j] && tiles[i].regionId !== undefined && tiles[i].regionId === tiles[j].regionId);
+                if (!sameLand && !(port[i] && port[j])) continue;
+                best = { j, d, sea: !sameLand };
+            }
+            return best;
+        };
+        this._supplyPairs(lives, cands, pairs, pairKey, T, G, G.goods.map(id => idx[id]).filter(i => i !== undefined), find);
+    },
+
+    /** A supply road for goods `gi` (indexes) by config G { deficit, surplus, range }: see _granaryPairs. */
+    _supplyPairs(lives, cands, pairs, pairKey, T, G, gi, find = null) {
         if (!G || !(_num(G.surplus) > 0)) return;
-        const food = SettlementMarket.config().groupIdx.food;
+        const food = gi;
         if (!food || !food.length) return;
         const n = lives.length;
         const bal = new Float64Array(n).fill(-1);
+        // (a supplier must have at least minSpare units a day over its own use: a village
+        // with a trace of ore and no smiths is no iron road)
+        const minSpare = _num(G.minSpare, 0);
         for (let i = 0; i < n; i++) {
             const m = lives[i].market;
             if (!m || !Array.isArray(m.prod)) continue;
             const need = SettlementMarket._shape(lives[i]).needA;
             let p = 0, w = 0;
             for (let x = 0; x < food.length; x++) { p += _num(m.prod[food[x]]); w += _num(need[food[x]]); }
+            // (a mining village that uses none of its iron has all of it to spare)
             if (w > 0) bal[i] = p / w;
+            else if (p > 0) bal[i] = Infinity;
+            if (bal[i] >= _num(G.surplus) && p - w < minSpare) bal[i] = Math.min(bal[i], _num(G.deficit, 1));
         }
         const partners = new Map();
         const join = (x, y) => { let s = partners.get(x); if (!s) partners.set(x, s = []); s.push(y); };
@@ -400,7 +441,7 @@ export const MarketDynamics = {
         for (let i = 0; i < n; i++) {
             if (!(bal[i] >= 0) || bal[i] >= deficit) continue;
             if ((partners.get(i) || []).some(j => bal[j] >= surplus)) continue;
-            const c = cands[i].find(x => x.d <= range && bal[x.j] >= surplus);
+            const c = find ? find(i, j => bal[j] >= surplus) : cands[i].find(x => x.d <= range && bal[x.j] >= surplus);
             if (!c) continue;
             const k = pairKey(i, c.j);
             if (!pairs.has(k)) pairs.set(k, { i: Math.min(i, c.j), j: Math.max(i, c.j), d: c.d, sea: c.sea });
@@ -524,6 +565,7 @@ export const MarketDynamics = {
             }
         }
         this._granaryPairs(lives, cands, pairs, pairKey, T);
+        this._orePairs(world, lives, tiles, port, cands, pairs, pairKey, T);
         this._frontierPairs(world, lives, tiles, port, pairs, pairKey, T);
         // A road the whole way (towns on one network share its flood; the
         // floods are kept for a month — new roads are rare)

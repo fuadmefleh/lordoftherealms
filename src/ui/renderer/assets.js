@@ -33,6 +33,10 @@ Object.assign(Renderer.prototype, {
             'swamp': ['hexMarsh00.png', 'hexMarsh01.png', 'hexMarsh02.png', 'hexMarsh03.png'],
             'snow': ['cold/hexSnowField00.png', 'cold/hexSnowField01.png', 'cold/hexSnowField02.png', 'cold/hexSnowField03.png'],
             'tundra': ['cold/hexPlainsCold00.png', 'cold/hexPlainsCold01.png', 'cold/hexPlainsCold02.png', 'cold/hexPlainsCold03.png'],
+            // terrainGen 16 coasts (scripts/terrain_art/coast_tiles.py): fjord water, cold rocky skerries, temperate shingle beaches
+            'fjord': ['cold/hexFjord00.png', 'cold/hexFjord01.png', 'cold/hexFjord02.png', 'cold/hexFjord03.png'],
+            'skerry': ['cold/hexSkerry00.png', 'cold/hexSkerry01.png'],
+            'beach_temperate': ['temperate/hexShingle00.png', 'temperate/hexShingle01.png', 'temperate/hexShingle02.png', 'temperate/hexShingle03.png'],
             'ocean_cold': ['cold/hexOceanIceBergs00.png', 'cold/hexOceanIceBergs01.png', 'cold/hexOceanIceBergs02.png', 'cold/hexOceanIceBergs03.png'],
             'savanna': ['hexScrublands01.png', 'hexScrublands02.png', 'hexScrublands03.png'],
             'beach': [
@@ -355,13 +359,19 @@ Object.assign(Renderer.prototype, {
                 break;
             case 'sea':
             case 'coast':
-                // Lighter ocean variants for shallower water
-                variants = ['ocean/hexOceanCalm00.png', 'ocean/hexOceanCalm01.png', 'ocean/hexOceanCalm02.png', 'ocean/hexOceanCalm03.png'];
+                // Lighter ocean variants for shallower water; a fjord's deep cold water between its cliffs
+                variants = tile._fjord
+                    ? ['cold/hexFjord00.png', 'cold/hexFjord01.png', 'cold/hexFjord02.png', 'cold/hexFjord03.png']
+                    : ['ocean/hexOceanCalm00.png', 'ocean/hexOceanCalm01.png', 'ocean/hexOceanCalm02.png', 'ocean/hexOceanCalm03.png'];
                 isAnimatedWater = true;
                 break;
             case 'island':
-                // Islands also use ocean folder assets
-                variants = ['ocean/hexIslandSandy00.png', 'ocean/hexIslandSandy01.png', 'ocean/hexIslandRocky00.png', 'ocean/hexIslandRocky01.png'];
+                // Islands also use ocean folder assets; a skerry is bare rock (in cold seas, cold
+                // water and lichen), never a sandy palm isle
+                // (and no palm isle in a cold sea: any island there is rock)
+                if ((tile.temperature ?? 0.5) < 0.45) variants = ['cold/hexSkerry00.png', 'cold/hexSkerry01.png'];
+                else if (tile._skerry || (tile.temperature ?? 0.5) < 0.55) variants = ['ocean/hexIslandRocky00.png', 'ocean/hexIslandRocky01.png'];
+                else variants = ['ocean/hexIslandSandy00.png', 'ocean/hexIslandSandy01.png', 'ocean/hexIslandRocky00.png', 'ocean/hexIslandRocky01.png'];
                 break;
             case 'lake':
                 // Lake uses ocean folder variants specifically for lakes
@@ -369,7 +379,12 @@ Object.assign(Renderer.prototype, {
                 isAnimatedWater = true;
                 break;
             case 'beach':
-                // Mix of plain sand and palms
+                // Temperate shores: cool shingle and dune grass, no palms
+                if ((tile.temperature ?? 0.7) < 0.6) {
+                    variants = ['temperate/hexShingle00.png', 'temperate/hexShingle01.png', 'temperate/hexShingle02.png', 'temperate/hexShingle03.png'];
+                    break;
+                }
+                // Warm shores: a mix of plain sand and palms
                 if (hash % 3 === 0) {
                     variants = ['tropics_wetlands/hexSandPalms00.png', 'tropics_wetlands/hexSandPalms01.png', 'tropics_wetlands/hexSandPalms02.png', 'tropics_wetlands/hexSandPalms03.png'];
                 } else {

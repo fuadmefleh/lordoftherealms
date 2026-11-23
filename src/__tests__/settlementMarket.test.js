@@ -95,12 +95,19 @@ describe('production and consumption', () => {
         expect(m.stock.bread).toBeGreaterThan(0);
         expect(m.stock.tools).toBeGreaterThan(0);
         expect(m.stock.iron).toBeLessThan(100);
-        // A village has no smithy
+        // A village has no smithy, but its smith works a little iron over the hearth (village_smith)
         const v = { type: 'village', population: 400 };
         const mv = SettlementMarket.ensure(v);
-        mv.stock.iron = 100; mv.stock.coal = 100; mv.stock.tools = 0;
+        mv.stock.iron = 100; mv.stock.coal = 100; mv.stock.firewood = 100; mv.stock.tools = 0;
         SettlementMarket.processSettlement(v, {}, { day: 40 });
-        expect(mv.stock.tools).toBe(0);
+        expect(mv.stock.tools).toBeGreaterThan(0);
+        expect(mv.stock.iron).toBeLessThan(100);
+        // ...and without iron it makes fewer
+        const bare = { type: 'village', population: 400 };
+        const mb = SettlementMarket.ensure(bare);
+        mb.stock.iron = 0; mb.stock.bronze = 0; mb.stock.firewood = 100; mb.stock.tools = 0;
+        SettlementMarket.processSettlement(bare, {}, { day: 40 });
+        expect(mb.stock.tools).toBeLessThan(mv.stock.tools);
     });
 
     it('cold weather burns through firewood faster', () => {
@@ -436,5 +443,38 @@ describe('save, load and determinism', () => {
         MarketDynamics.updatePrices(g.world, g.player);
         expect(Utils.random()).toBe(before);
         vi.restoreAllMocks();
+    });
+});
+
+describe('The iron road (trade.oreLink)', () => {
+    it('links a town without iron to the nearest real mine beyond its neighbours, not to a trace of ore', () => {
+        const C = SettlementMarket.config();
+        const ii = C.idx.iron;
+        const mk = (name, type, q, population, iron) => {
+            const s = { name, type, q, r: 10, population, happiness: 50 };
+            const m = SettlementMarket.ensure(s);
+            m.prod = C.goodIds.map((id, i) => (i === ii ? iron : 0));
+            return s;
+        };
+        const poor = mk('Poorhold', 'town', 10, 3000, 0);
+        const trace = mk('Tracey', 'village', 14, 200, 0.02);
+        const mine = mk('Ironmouth', 'village', 35, 200, 8);
+        const lives = [poor, trace, mine];
+        const world = { width: 120 };
+        const tiles = lives.map(() => ({ regionId: 1 }));
+        const port = lives.map(() => false);
+        const pairKey = (a, b) => (a < b ? `${a}|${b}` : `${b}|${a}`);
+        const pairs = new Map([[pairKey(0, 1), { i: 0, j: 1, d: 4, sea: false }]]);
+        const T = C.trade;
+        MarketDynamics._orePairs(world, lives, tiles, port, [[], [], []], pairs, pairKey, T);
+        const road = pairs.get(pairKey(0, 2));
+        expect(road).toBeTruthy();
+        expect(road.d).toBe(25);
+        expect(road.d).toBeGreaterThan(T.maxRange);
+        // no road where the mine lies beyond the iron road's reach
+        const far = mk('Farmine', 'village', 70, 200, 8);
+        const pairs2 = new Map([[pairKey(0, 1), { i: 0, j: 1, d: 4, sea: false }]]);
+        MarketDynamics._orePairs(world, [poor, trace, far], tiles, port, [[], [], []], pairs2, pairKey, T);
+        expect(pairs2.size).toBe(1);
     });
 });

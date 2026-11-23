@@ -379,9 +379,14 @@ export const Trading = {
         const blocked = Trading.monopolyBlock(settlement, good.id, player);
         if (blocked) return { success: false, reason: blocked };
 
-        // Carrying capacity: a new kind of good needs a free slot
-        if (!PlayerInventory.canAdd(player, good.id)) {
+        // Carrying capacity: a new kind of good needs a free slot, and the lot must not be more than can be carried
+        if (!PlayerInventory.hasSlotFor(player, good.id)) {
             return { success: false, reason: PlayerInventory.fullMessage(player), inventoryFull: true };
+        }
+        const room = PlayerInventory.loadRoomFor(player, good.id);
+        if (room < quantity) {
+            const more = room > 0 ? ` You can carry ${room} more ${good.name || good.id}.` : '';
+            return { success: false, reason: PlayerInventory.heavyMessage(player) + more, inventoryFull: true, tooHeavy: true, room };
         }
 
         player.gold -= totalCost;
@@ -398,7 +403,7 @@ export const Trading = {
         if (settlement) Economy.payTown(settlement, totalCost - crownCut);
 
         // Add to player inventory (at the grade bought)
-        PlayerInventory.addItem(player, good.id, quantity);
+        PlayerInventory.addItem(player, good.id, quantity, { force: true });
         if (gradeId !== 'common') {
             Grades.add(player, good.id, quantity, gradeId);
             if (settlement) MarketGrades.take(settlement, good.id, quantity, gradeId);

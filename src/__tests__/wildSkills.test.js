@@ -59,6 +59,28 @@ describe('Woodcutting and Mining (player/gathering.js)', () => {
         expect(Gathering.damageMult(at('mining', 5), ROCK)).toBeGreaterThan(1);
     });
 
+    it('felling is a day of labour: each blow takes time on the clock and real energy; spent, you stop', () => {
+        const p = at('woodcutting', 1);
+        p.needs = { energy: 100 };
+        p.modifyNeed = function (k, d) { this.needs[k] = Math.max(0, this.needs[k] + d); };
+        const sw = Gathering.swing(p, TREE);
+        expect(sw.minutes).toBeGreaterThanOrEqual(15);
+        expect(Gathering.swingMinutes(p, CHAIR)).toBe(0);
+        // an oak at a starting strength: hours of work and a good share of the day's energy
+        const oak = { ...TREE, resistance: 35 };
+        const swings = Math.ceil(100 / (InnerMap._computeObjectDamage({ strength: 5, luck: 5 }, oak) * Gathering.damageMult(p, oak)));
+        expect(swings * Gathering.swingMinutes(p, oak)).toBeGreaterThanOrEqual(120);
+        expect(swings * Gathering.swingEnergy(p, oak)).toBeGreaterThanOrEqual(12);
+        expect(Gathering.tooSpent(p)).toBe(false);
+        p.needs.energy = 2;
+        expect(Gathering.tooSpent(p)).toBe(true);
+    });
+
+    it('a felled tree gives a few logs, not a wagonload', () => {
+        const props = DataLoader._gamedata.townProps.props.filter(x => (x.tags || []).includes('tree') && x.wild);
+        for (const t of props) expect(t.wild.wood, t.id).toBeLessThanOrEqual(12);
+    });
+
     it('each swing tires you (less with practice) and teaches the skill', () => {
         const mk = (L) => {
             const p = at('woodcutting', L);

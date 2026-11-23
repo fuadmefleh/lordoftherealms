@@ -234,6 +234,7 @@ describe('StandingOrders', () => {
 
         tile.playerProperty = { type: 'logging_camp', name: 'Logging Camp', level: 1 };
         fresh(player);
+        player.inventory.handcart = 1; // (logs are heavy: a cart to carry the camp's bigger haul — core/inventory.js)
         expect(StandingOrders.plan(player, world).label).toMatch(/camp/i);
         const before = player.inventory.wood;
         const boosted = StandingOrders.run(player, world);

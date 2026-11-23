@@ -156,6 +156,24 @@ export const Dawn = {
 
         const land = [];
         for (const row of world.tiles) for (const t of row) if (t.terrain.passable && !UNSETTLEABLE.has(t.terrain.id)) land.push(t);
+
+        // People begin in one cradle, not on every land (data/dawn.json cradle)
+        const R = Dawn.data().cradle || {};
+        if (R.enabled !== false && land.length) {
+            const placedC = Dawn._seedCradle(world, land, R);
+            if (placedC.length) {
+                let bestC = null;
+                for (const t of placedC) {
+                    const reach = Dawn._landReach(world, t, 40);
+                    if (!bestC || reach > bestC.reach) bestC = { t, reach };
+                }
+                world.playerStart = { q: bestC.t.q, r: bestC.t.r };
+                const L = Dawn.data().lines || {};
+                if (L.cradle && Array.isArray(world.events)) world.events.push({ text: `🔥 ${L.cradle}`, type: 'growth' });
+                return placedC.length;
+            }
+        }
+
         const count = Utils.clamp(Math.round(land.length / _num(C.perLandHexes, 90)), _num(C.min, 6), _num(C.max, 40));
 
         const placed = [];
@@ -178,6 +196,54 @@ export const Dawn = {
         return placed.length;
     },
 
+    /**
+     * The cradle of the peoples: the most fertile country of the largest
+     * landmass (siteScore summed over cradle.radius, from cradle.samples
+     * hexes tried), and its first few clans together there. Sets
+     * world.dawn.cradle. -> the tiles the clans were placed on.
+     */
+    _seedCradle(world, land, R) {
+        const sizes = new Map();
+        for (const t of land) sizes.set(t.regionId, (sizes.get(t.regionId) || 0) + 1);
+        let region = null, most = -1;
+        for (const [id, n] of sizes) if (n > most) { most = n; region = id; }
+        const mine = land.filter(t => t.regionId === region);
+        const good = mine.filter(t => Dawn.siteScore(world, t) >= 2);
+        const pool = good.length ? good : mine;
+        const radius = Math.max(2, _num(R.radius, 6));
+        const tries = Math.min(pool.length, Math.max(1, _num(R.samples, 240)));
+        let heart = null;
+        for (let i = 0; i < tries; i++) {
+            const t = pool[Utils.randInt(0, pool.length - 1)];
+            let v = 0;
+            for (const h of Hex.hexesInRange(t.q, t.r, radius)) {
+                const ht = Dawn._tile(world, h.q, h.r);
+                if (ht && ht.regionId === region) v += Dawn.siteScore(world, ht);
+            }
+            if (!heart || v > heart.v) heart = { t, v };
+        }
+        if (!heart) return [];
+        world.dawn.cradle = { q: heart.t.q, r: heart.t.r, region };
+
+        const count = Utils.clamp(Math.round(land.length / _num(R.perLandHexes, 450)), _num(R.min, 5), _num(R.max, 10));
+        const near = [];
+        for (const h of Hex.hexesInRange(heart.t.q, heart.t.r, radius)) {
+            const t = Dawn._tile(world, h.q, h.r);
+            if (t && t.regionId === region && t.terrain.passable && !UNSETTLEABLE.has(t.terrain.id)) near.push(t);
+        }
+        const nearGood = near.filter(t => Dawn.siteScore(world, t) >= 2);
+        const spot = nearGood.length >= count ? nearGood : near;
+        const spacing = Math.max(0, _num(R.spacing, 2));
+        const placed = [];
+        for (let i = 0; i < count * 40 && placed.length < count && spot.length; i++) {
+            const t = spot[Utils.randInt(0, spot.length - 1)];
+            if (placed.some(p => Hex.wrappingOffsetDistance(p.q, p.r, t.q, t.r, world.width) < spacing)) continue;
+            placed.push(t);
+            world.units.push(Dawn.makeClan(world, t.q, t.r, null));
+        }
+        return placed;
+    },
+
     /** A new wandering clan at (q, r) — of a culture, or the land's own */
     makeClan(world, q, r, culture) {
         const D = Dawn.data();
@@ -196,6 +262,10 @@ export const Dawn = {
         clan.daysOut = 0;
         clan.targetQ = null;
         clan.targetR = null;
+        // where its people came from (the cradle, or the village it budded from): settled far
+        // from it, a clan takes up its new land's ways (foundVillage, data/dawn.json drift)
+        clan.originQ = q;
+        clan.originR = r;
         if (world.dawn) world.dawn.clansFormed++;
         return clan;
     },
@@ -225,6 +295,8 @@ export const Dawn = {
      * bud, rise, gather. `player` is passed by the world tick (may be null).
      */
     processDay(world, player = null) {
+        // The dawn over, the empty lands across the sea are still being reached (_afterDawn)
+        if (world && world.dawn && world.dawn.over) { Dawn._afterDawn(world); return; }
         if (!Dawn.isActive(world)) return;
         const D = Dawn.data();
         const st = world.dawn;
@@ -238,13 +310,59 @@ export const Dawn = {
         const day = world.day || 0;
         if (day % 30 === 0) Dawn._grow(world);
         if (!st.realmsDone && day % _num((D.budding || {}).everyDays, 30) === 0) Dawn._bud(world);
+        if (st.cradle && day % _num((D.sea || {}).everyDays, 120) === 60) Dawn._crossSea(world);
         if (day % 30 === 15) Dawn._raiseTowns(world);
-        if (!st.realmsDone && day % _num((D.chiefdom || {}).everyDays, 60) === 0) Dawn._gatherRealms(world);
+        // (past the realms asked for, only a land with no realm yet may raise one: _gatherRealms)
+        if (day % _num((D.chiefdom || {}).everyDays, 60) === 0) Dawn._gatherRealms(world);
 
         if (st.realmsDone && !world.units.some(u => u.type === 'clan' && !u.destroyed)) {
             st.over = true;
             st.overYear = world.year;
         }
+    },
+
+    /**
+     * After the dawn (a world begun from a cradle): until every sizeable land
+     * (sea.minLandmass hexes or more) has people, or sea.untilYears have
+     * passed, families still cross the sea, the clans that landed still
+     * wander and settle, their villages still become towns, and a land
+     * with no realm yet still raises its own. Then st.seaDone.
+     */
+    _afterDawn(world) {
+        const st = world.dawn;
+        if (!st.cradle || st.seaDone) return;
+        const D = Dawn.data();
+        const S = D.sea || {};
+        for (const clan of world.units) {
+            if (clan.type === 'clan' && !clan.destroyed) Dawn._clanDay(world, clan);
+        }
+        const day = world.day || 0;
+        const every = _num(S.everyDays, 120);
+        if (day % every === 60) Dawn._crossSea(world);
+        if (day % every === 15) Dawn._raiseTowns(world);
+        if (day % _num((D.chiefdom || {}).everyDays, 60) === 0) Dawn._gatherRealms(world);
+        if (day % every === 0) {
+            const years = _num(world.year, 0) - _num(st.startYear, 0);
+            if (years >= _num(S.untilYears, 500) || !Dawn.emptyLands(world).length) st.seaDone = true;
+        }
+    },
+
+    /** Landmasses of sea.minLandmass hexes or more with no one on them yet: [regionId] */
+    emptyLands(world) {
+        const min = _num((Dawn.data().sea || {}).minLandmass, 30);
+        const size = new Map();
+        for (const row of world.tiles) for (const t of row) if (t.terrain.passable) size.set(t.regionId, (size.get(t.regionId) || 0) + 1);
+        const peopled = new Set();
+        for (const s of world.getAllSettlements()) {
+            const t = Dawn._tile(world, s.q, s.r);
+            if (t) peopled.add(t.regionId);
+        }
+        for (const u of world.units) {
+            if (u.type !== 'clan' || u.destroyed) continue;
+            const t = Dawn._tile(world, u.q, u.r);
+            if (t) peopled.add(t.regionId);
+        }
+        return [...size].filter(([id, n]) => n >= min && !peopled.has(id)).map(([id]) => id);
     },
 
     /** The player's clan, if it still wanders (null once it has settled or is gone) */
@@ -363,8 +481,18 @@ export const Dawn = {
             }
             if (best) { clan.targetQ = best.t.q; clan.targetR = best.t.r; }
             else {
-                // Nowhere good in sight: drift
-                const n = Utils.randPick(Dawn._near(world, here).filter(t => t.terrain.passable));
+                // Nowhere good in sight: drift outward, away from the cradle and the crowded
+                // country, to where the land is still free (at random in a world with no cradle)
+                const opts = Dawn._near(world, here).filter(t => t.terrain.passable);
+                const cr = world.dawn && world.dawn.cradle;
+                let n = null;
+                if (cr && opts.length) {
+                    let bestV = -Infinity;
+                    for (const t of opts) {
+                        const v = Hex.wrappingOffsetDistance(t.q, t.r, cr.q, cr.r, world.width) + Utils.random() * 1.5;
+                        if (v > bestV) { bestV = v; n = t; }
+                    }
+                } else n = Utils.randPick(opts);
                 if (n) { clan.targetQ = n.q; clan.targetR = n.r; }
             }
         }
@@ -391,6 +519,12 @@ export const Dawn = {
         const V = D.village || {};
         const L = D.lines || {};
         const P = V.population || {};
+        // Far from where its people came from, or over the sea: the ways of the new land (data/dawn.json drift)
+        const far = _num((D.drift || {}).distance, 10);
+        if (clan.crossedSea || (Number.isFinite(clan.originQ) && Number.isFinite(clan.originR)
+            && Hex.wrappingOffsetDistance(clan.originQ, clan.originR, tile.q, tile.r, world.width) >= far)) {
+            clan.culture = Dawn._cultureFor(tile);
+        }
         const name = Kingdom.generateCityName(clan.culture || 'Woodland', world);
         tile.settlement = {
             type: 'village',
@@ -487,6 +621,77 @@ export const Dawn = {
         }
     },
 
+    /**
+     * Over the water: a village by the sea sends families in boats to the
+     * best open shore of another landmass within reach, the reach growing
+     * with the years since the world began (data/dawn.json sea). So the
+     * near lands are peopled first and the far ones last.
+     */
+    _crossSea(world) {
+        const S = Dawn.data().sea || {};
+        const L = Dawn.data().lines || {};
+        const st = world.dawn;
+        const years = _num(world.year, 0) - _num(st.startYear, _num(world.year, 0));
+        const from = _num(S.fromYears, 25);
+        if (years < from) return 0;
+        const reach = Math.min(_num(S.maxReach, 22), _num(S.reach, 3) + Math.floor((years - from) / Math.max(1, _num(S.yearsPerHex, 20))));
+        const B = Dawn.data().budding || {};
+        const isSea = (n) => n.terrain && WATER.has(n.terrain.id) && n.terrain.id !== 'lake';
+        const shores = [];
+        const landBy = new Map();
+        for (const row of world.tiles) {
+            for (const t of row) {
+                if (!t.terrain.passable) continue;
+                landBy.set(t.regionId, (landBy.get(t.regionId) || 0) + 1);
+                if (UNSETTLEABLE.has(t.terrain.id) || t.settlement || t.improvement) continue;
+                if (Dawn._near(world, t).some(isSea) && Dawn.siteScore(world, t) >= 2) shores.push(t);
+            }
+        }
+        if (!shores.length) return 0;
+        const settlements = world.getAllSettlements();
+        const peopled = new Map();
+        const count = (q, r) => {
+            const t = Dawn._tile(world, q, r);
+            if (t) peopled.set(t.regionId, (peopled.get(t.regionId) || 0) + 1);
+        };
+        for (const s of settlements) count(s.q, s.r);
+        for (const u of world.units) if (u.type === 'clan' && !u.destroyed) count(u.q, u.r);
+        let crossed = 0;
+        for (const s of settlements) {
+            if (crossed >= _num(S.perCheck, 2)) break;
+            const home = Dawn._tile(world, s.q, s.r);
+            const live = home && home.settlement;
+            if (!live || live.population < _num(S.minPopulation, 220)) continue;
+            if (!Dawn._near(world, home).some(isSea)) continue;
+            if (Utils.random() >= _num(S.chance, 0.2)) continue;
+            // (only to a land emptier than their own: people leave where it is crowded)
+            const homeDensity = (peopled.get(home.regionId) || 0) / Math.max(1, landBy.get(home.regionId) || 1);
+            let best = null;
+            for (const t of shores) {
+                if (t.regionId === home.regionId) continue;
+                const d = Hex.wrappingOffsetDistance(home.q, home.r, t.q, t.r, world.width);
+                if (d > reach || !Dawn.canSettle(world, t)) continue;
+                const density = (peopled.get(t.regionId) || 0) / Math.max(1, landBy.get(t.regionId) || 1);
+                if (density >= homeDensity) continue;
+                const v = -d - density * _num(S.densityWeight, 400) + Dawn.siteScore(world, t) * 0.5 + Utils.random();
+                if (!best || v > best.v) best = { t, v };
+            }
+            if (!best) continue;
+            const size = _num(B.clanSize, 40);
+            live.population -= size;
+            const clan = Dawn.makeClan(world, best.t.q, best.t.r, live.culture || null);
+            clan.population = size;
+            clan.homeName = live.name;
+            clan.crossedSea = true;
+            world.units.push(clan);
+            count(best.t.q, best.t.r);
+            crossed++;
+            st.seaCrossings = (st.seaCrossings || 0) + 1;
+            if (L.sea) world.events.push({ text: `⛵ ${_fill(L.sea, { name: live.name, clan: clan.clanName })}`, type: 'growth' });
+        }
+        return crossed;
+    },
+
     /** Big, old villages become towns */
     _raiseTowns(world) {
         const T = Dawn.data().town || {};
@@ -510,11 +715,21 @@ export const Dawn = {
         const st = world.dawn;
         const radius = _num(K.radius, 6);
         const settlements = world.getAllSettlements();
+        // Past the realms asked for, a land with no realm on it (peopled over the sea) still raises its own
+        let realmLands = null;
+        if (st.realmsDone) {
+            realmLands = new Set();
+            for (const k of world.kingdoms) {
+                if (!k || !k.isAlive || !k.capital) continue;
+                const ct = Dawn._tile(world, k.capital.q, k.capital.r);
+                if (ct) realmLands.add(ct.regionId);
+            }
+        }
         for (const s of settlements) {
-            if (st.realmsDone) break;
             const tile = Dawn._tile(world, s.q, s.r);
             const town = tile.settlement;
             if (!town || town.type !== 'town' || town.kingdom || tile.kingdom) continue;
+            if (realmLands && realmLands.has(tile.regionId)) continue;
             const age = (world.year || 0) - _num(town.founded, world.year);
             if (age < _num(K.minTownAgeYears, 6)) continue;
             const members = settlements.filter(o => {
@@ -529,6 +744,7 @@ export const Dawn = {
             const need = age >= _num(K.loneTownAgeYears, Infinity) ? 0 : _num(K.minVillages, 2);
             if (members.length < need) continue;
             Dawn.foundRealm(world, { q: s.q, r: s.r }, members.map(m => ({ q: m.q, r: m.r })));
+            if (realmLands) realmLands.add(tile.regionId);
         }
     },
 

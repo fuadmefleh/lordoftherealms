@@ -432,8 +432,10 @@ export const Crafting = {
         const tierIdx = recipe.quality === false ? Grades.COMMON : Grades.roll(odds.score, Crafting.rollConfig().noise);
         const snapshot = { ...inv };
         const snapG = player.craftGrades ? JSON.parse(JSON.stringify(player.craftGrades)) : undefined;
+        // (the work may leave you overburdened, but never heavier than before it began: core/inventory.js)
+        const loadBefore = PlayerInventory.getLoad(player);
         for (const [item, amt] of Object.entries(recipe.ingredients || {})) Grades.remove(player, item, amt, { order: 'best' });
-        const given = PlayerInventory.addItems(player, recipe.result || {});
+        const given = PlayerInventory.addItems(player, recipe.result || {}, { ceiling: loadBefore });
         if (given.full) {
             player.inventory = snapshot;
             if (snapG !== undefined) player.craftGrades = snapG;
@@ -448,7 +450,7 @@ export const Crafting = {
         const spareChance = Crafting.perk(player, skill, 'spare') / 100;
         if (spareChance > 0 && Utils.random() < spareChance) {
             const [item] = Object.keys(recipe.result || {});
-            if (item && !PlayerInventory.addItems(player, { [item]: 1 }).full) {
+            if (item && !PlayerInventory.addItems(player, { [item]: 1 }, { ceiling: loadBefore }).full) {
                 if (recipe.quality !== false) Grades.add(player, item, 1, tierIdx);
                 spare = item;
             }

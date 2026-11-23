@@ -62,10 +62,50 @@ describe('a world begun at the dawn', () => {
         expect(world.getAllSettlements()).toEqual([]);
         expect(roads(world)).toBe(0);
         expect(world.tiles.flat().some(t => t.improvement && ['ruins', 'shrine', 'monument'].includes(t.improvement.type))).toBe(false);
-        expect(clans(world).length).toBeGreaterThanOrEqual(6);
+        expect(clans(world).length).toBeGreaterThanOrEqual(5);
         expect(world.playerStart).toBeTruthy();
         expect(world.tiles[world.playerStart.r][world.playerStart.q].terrain.passable).toBe(true);
         expect(Dawn.eraName(world)).toBe('the Dawn Age');
+    });
+
+    it('all the first clans begin together in one cradle, on the largest land; the rest of the world is empty', () => {
+        const world = dawnWorld();
+        const cr = world.dawn.cradle;
+        expect(cr).toBeTruthy();
+        const radius = Dawn.data().cradle.radius;
+        const sizes = new Map();
+        for (const t of world.tiles.flat()) if (t.terrain.passable) sizes.set(t.regionId, (sizes.get(t.regionId) || 0) + 1);
+        const largest = [...sizes].sort((a, b) => b[1] - a[1])[0][0];
+        expect(cr.region).toBe(largest);
+        for (const c of clans(world)) {
+            expect(Hex.wrappingOffsetDistance(c.q, c.r, cr.q, cr.r, W)).toBeLessThanOrEqual(radius);
+            expect(world.getTile(c.q, c.r).regionId).toBe(largest);
+        }
+        expect(Hex.wrappingOffsetDistance(world.playerStart.q, world.playerStart.r, cr.q, cr.r, W)).toBeLessThanOrEqual(radius);
+    });
+
+    it('in time a crowded village by the sea sends a clan over the water to an emptier land, which takes up its own ways', () => {
+        const world = dawnWorld();
+        const cr = world.dawn.cradle;
+        const isSea = (t) => t && ['ocean', 'deep_ocean', 'coast', 'sea'].includes(t.terrain.id);
+        // a village on the cradle land's shore
+        const shore = world.tiles.flat().find(t => t.regionId === cr.region && t.terrain.passable && !t.settlement
+            && Hex.neighbors(t.q, t.r).some(n => isSea(world.getTile(Hex.wrapQ(n.q, W), n.r))) && Dawn.canSettle(world, t));
+        expect(shore).toBeTruthy();
+        const clan = Dawn.makeClan(world, shore.q, shore.r, null);
+        Dawn.foundVillage(world, clan, shore);
+        shore.settlement.population = 600;
+        // too early: no crossing
+        expect(Dawn._crossSea(world)).toBe(0);
+        // a century on, with reach enough for any nearby shore
+        world.year = world.dawn.startYear + 300;
+        let crossed = 0;
+        for (let i = 0; i < 80 && !crossed; i++) crossed = Dawn._crossSea(world);
+        expect(crossed).toBeGreaterThan(0);
+        const boat = world.units.find(u => u.type === 'clan' && u.crossedSea);
+        expect(boat).toBeTruthy();
+        expect(world.getTile(boat.q, boat.r).regionId).not.toBe(cr.region);
+        expect(world.dawn.seaCrossings).toBeGreaterThan(0);
     });
 
     it('over the years clans settle, villages become towns, and chiefdoms become realms', () => {

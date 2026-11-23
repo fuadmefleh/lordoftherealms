@@ -38,6 +38,24 @@ import { Utils } from '../../core/utils.js';
 
 export const INVENTORY_TITLE = 'Inventory';
 
+/**
+ * The packs' weight: what is carried against what back, horse and cart can
+ * bear (core/inventory.js), and the pace it leaves you.
+ */
+function loadHtml(player) {
+    const L = PlayerInventory.loadSummary(player);
+    if (!Number.isFinite(L.max)) return '';
+    const pct = Math.min(100, Math.round(L.share * 100));
+    const tone = L.load > L.hard ? 'full' : (L.over ? 'near' : '');
+    const by = [`your back ${Math.round(L.back)}`].concat(L.carriers.map(c => `${c.icon} ${c.name} ${c.load}`)).join(' + ');
+    const pace = L.over ? ` · <span style="color:#e08a5a">overburdened: ${Math.round(L.speed * 100)}% pace</span>` : '';
+    const tip = `What you carry, by weight. Up to ${Math.round(L.max)} ${L.unit} you travel at your full pace; past it you are overburdened and slowed, and past ${Math.round(L.hard)} ${L.unit} you can pick up nothing more. Carried by: ${by}. A horse, a handcart or a horse cart (with a horse to draw it) carries more.`;
+    return `<div class="inv-cap${tone ? ' inv-cap--' + tone : ''}" title="${esc(tip)}">
+            <div class="inv-cap-label"><span>⚖️ Load</span><b>${Math.round(L.load)} / ${Math.round(L.max)}</b><small>${esc(L.unit)}${pace}</small></div>
+            <div class="inv-cap-bar"><div class="inv-cap-fill" style="width:${pct}%"></div></div>
+        </div>`;
+}
+
 /** Is a (non-locked, non-minigame) Inventory window the one open? */
 function _inventoryOpen() {
     if (typeof document === 'undefined' || typeof document.getElementById !== 'function') return false;
@@ -103,6 +121,7 @@ export function inventoryPanelHtml(game, st = {}) {
             <div class="inv-cap-label"><span>🎒 Packs</span><b>${used} / ${cap}</b><small>kinds of goods</small></div>
             <div class="inv-cap-bar"><div class="inv-cap-fill" style="width:${pct}%"></div></div>
         </div>
+        ${loadHtml(player)}
         <div class="inv-worth" title="What everything carried would fetch at the usual price">Worth about ${price(worth)}</div>
     </div>`;
 

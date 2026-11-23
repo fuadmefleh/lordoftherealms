@@ -185,6 +185,9 @@ describe('buying and selling move real stock', () => {
         for (const id of ['grain', 'bread', 'tools', 'wood', 'beer']) {
             for (const qty of [1, 10, 40]) {
                 const p = player({ tradeAgreements: { k1: { untilDay: 999 } }, skills: { commerce: 10 } });
+                // (a horse and cart to carry the big lots home: core/inventory.js weight)
+                p.mount = { name: 'Bess' };
+                p.inventory = { ...(p.inventory || {}), horse_cart: 1 };
                 const e = Trading.getAvailableGoods(s, tile, world).find(g => g.id === id);
                 if (!e || e.quantity < qty) continue;
                 const goldBefore = p.gold;

@@ -158,8 +158,8 @@ describe('what a swim does to you', () => {
         expect(Swimming.canSwim(p).ok).toBe(false);
         p.needs.energy = 60;
         expect(Swimming.canSwim(p).ok).toBe(true);
-        p.inventory = {};
-        for (let i = 0; i < 40; i++) p.inventory['good' + i] = 1;
+        // (the weight on your back, not the kinds of goods: core/inventory.js)
+        p.inventory = { stone: 5 };
         const no = Swimming.canSwim(p);
         expect(no.ok).toBe(false);
         expect(no.reason).toMatch(/heavy/);

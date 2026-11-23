@@ -136,6 +136,35 @@
             }
         ]
     },
+    "cradle": {
+        "_doc": "Where people begin (world/dawn.js seed, 2026-11-22): not scattered over every land, but a few clans together in one cradle, the most fertile country (siteScore summed over radius hexes, sampled from samples hexes) of the largest landmass. clans: how many begin there (land hexes / perLandHexes, between min and max), placed within radius of its heart, at least spacing apart. The rest of the world is empty: clans wander out from the cradle (a clan with nowhere good in sight drifts away from it), villages bud new clans, and the sea is crossed in time (sea).",
+        "enabled": true,
+        "radius": 6,
+        "samples": 240,
+        "perLandHexes": 450,
+        "min": 5,
+        "max": 10,
+        "spacing": 2
+    },
+    "sea": {
+        "_doc": "Crossing the water to an empty land (world/dawn.js _crossSea), checked every everyDays: from fromYears after the world began, a village by the sea of minPopulation or more may (chance) send families over the water as a new clan, to the best open shore of ANOTHER landmass, emptier than their own, within reach hexes (reach + 1 for every yearsPerHex years since the first crossings could be made, at most maxReach) — the nearest and emptiest land first (density: settlements per land hex, weighted). At most perCheck crossings a check. A clan that lands keeps its people's ways only so long: see drift.",
+        "everyDays": 120,
+        "fromYears": 20,
+        "minPopulation": 220,
+        "chance": 0.2,
+        "reach": 4,
+        "yearsPerHex": 8,
+        "maxReach": 30,
+        "densityWeight": 400,
+        "perCheck": 2,
+        "_after": "When the dawn is over (its realms formed, its clans settled), the crossings go on until every land of minLandmass hexes or more has people, or untilYears after the world began: the clans that landed wander and settle, their villages become towns, and a land with no realm yet raises its own (past the realms the world was made for).",
+        "minLandmass": 30,
+        "untilYears": 500
+    },
+    "drift": {
+        "_doc": "Peoples drift apart (world/dawn.js foundVillage): a clan that settles distance hexes or more from where its people came from (the cradle, or the village it budded from), or across the sea, takes up the ways of its new land (cultures.byTerrain) — so a world peopled from one cradle still comes to many cultures and tongues.",
+        "distance": 10
+    },
     "clans": {
         "perLandHexes": 90,
         "min": 6,
@@ -286,6 +315,8 @@
     },
     "lines": {
         "settle": "The {clan} clan made camp {where} and stayed: {name} is founded.",
+        "sea": "Families of {name} put out over the water in hide boats as the {clan} clan, to land on an empty shore.",
+        "cradle": "The first clans gather together in one country, the cradle of the peoples. Beyond it the world is empty of people.",
         "bud": "Families of {name} set out as the {clan} clan, looking for land of their own.",
         "town": "{name} has grown from a village into a town.",
         "chiefdom": "{ruler} of {name} gathers the villages about it: the {realm} is born.",

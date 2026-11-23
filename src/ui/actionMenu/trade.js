@@ -1127,7 +1127,8 @@ Object.assign(ActionMenu, {
                 const unitCost = Trading.buyCost(game.player, good, 1, tile.settlement) || good.price;
                 const canAfford = playerGold >= unitCost;
                 // The price climbs as the stall empties: offer what the purse covers
-                const maxBuy = Math.max(1, Trading.affordable(game.player, good, tile.settlement));
+                // ...and what can be carried (core/inventory.js: the weight past which nothing more is picked up)
+                const maxBuy = Math.max(1, Trading.affordable(game.player, good, tile.settlement, PlayerInventory.loadRoomFor(game.player, good.id)));
                 // Graded lots on the stall (world/marketGrades.js): Common is the rest
                 const lots = good.lots;
                 const commonQty = lots ? lots.common : good.quantity;
@@ -1469,8 +1470,8 @@ Object.assign(ActionMenu, {
                     game.ui.showNotification('Not Enough Gold', `You need ${Utils.formatGold(totalCost)} gold but only have ${Utils.formatGold(game.player.gold)}.`, 'error');
                     return;
                 }
-                if (!PlayerInventory.canAdd(game.player, itemId)) {
-                    game.ui.showNotification('🎒 Inventory Full', PlayerInventory.fullMessage(game.player), 'error');
+                if (!PlayerInventory.canAdd(game.player, itemId, qty)) {
+                    game.ui.showNotification('🎒 Too Much to Carry', PlayerInventory.fullMessage(game.player), 'error');
                     return;
                 }
                 // The units out of the trader's real stock, the coin to whose goods they were

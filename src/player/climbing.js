@@ -108,8 +108,9 @@ export const Climbing = {
         }
         const energy = player.needs ? _num(player.needs.energy, 100) : 100;
         if (energy < C.minEnergy) return { ok: false, reason: 'You are too spent to climb. Rest first.' };
-        const used = PlayerInventory.getUsedSlots(player), cap = PlayerInventory.getCapacity(player);
-        if (cap > 0 && used / cap > C.ladenShare) return { ok: false, reason: `Your pack is too heavy to climb with (${used}/${cap}). Lighten it first.` };
+        // (the weight on your own back: a horse or a cart can't go up a cliff with you — core/inventory.js)
+        const used = Math.round(PlayerInventory.getLoad(player)), cap = PlayerInventory.getBackLoad(player);
+        if (cap > 0 && Number.isFinite(cap) && used / cap > C.ladenShare) return { ok: false, reason: `Your pack is too heavy to climb with (${used}/${Math.round(cap)} lb). Lighten it first.` };
         return { ok: true, reason: null };
     },
 

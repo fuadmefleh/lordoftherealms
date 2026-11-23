@@ -13,7 +13,9 @@
 //     swings to bring it down. Its hardness (def.resistance, the tree's fell
 //     block in data/townProps.json) takes off in InnerMap._computeObjectDamage.
 //   • swing(player, def): one blow landed → its energy (the skill's `effort`
-//     perk eases it) and its XP. → { skill, energy, levelUp }
+//     perk eases it), its XP and the minutes it takes on the clock
+//     (swingMinutes). → { skill, energy, levelUp, minutes }
+//   • tooSpent(player): energy below gathering.minEnergy — no more swinging.
 //   • felled(player, def, resource, terrainId): it came down → the resource,
 //     maybe an extra share (logs / stone perk), for a rock maybe something
 //     rarer (ore perk; gathering.rareFinds by the hex's terrain), and the
@@ -32,7 +34,9 @@ const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d)
 const DEFAULTS = {
     byObjectType: { tree: 'woodcutting', rock: 'mining' },
     byResource: { wood: 'woodcutting', stone: 'mining' },
-    energyPerSwing: 0.6,
+    energyPerSwing: 2.5,
+    minutesPerSwing: 30,
+    minEnergy: 5,
     extraShare: 0.4,
     rareFinds: {},
     axes: [],
@@ -144,6 +148,22 @@ export const Gathering = {
         return _num(Gathering.config().energyPerSwing, 0.6) * (1 - ease);
     },
 
+    /**
+     * Game minutes one blow that lands takes on the clock (gathering.minutesPerSwing):
+     * felling and breaking rock is hours of labour, so the skill, an axe or a camp
+     * (fewer blows) are what make a day's work go further. 0 for anything else.
+     */
+    swingMinutes(player, def) {
+        if (!Gathering.skillFor(def)) return 0;
+        return Math.max(0, _num(Gathering.config().minutesPerSwing, 30));
+    },
+
+    /** Too spent to swing at a tree or a rock (energy below gathering.minEnergy)? */
+    tooSpent(player) {
+        if (!player || !player.needs) return false;
+        return _num(player.needs.energy, 100) < Math.max(0, _num(Gathering.config().minEnergy, 5));
+    },
+
     /** One blow landed on it: tire the player, teach the skill. → { skill, energy, levelUp } | null */
     swing(player, def) {
         const id = Gathering.skillFor(def);
@@ -152,7 +172,7 @@ export const Gathering = {
         if (energy > 0 && typeof player.modifyNeed === 'function' && player.needs) player.modifyNeed('energy', -energy);
         const X = (PracticeSkills.def(id) || {}).xp || {};
         const levelUp = PracticeSkills.gain(player, id, _num(X.perSwing, 0.5));
-        return { skill: id, energy, levelUp };
+        return { skill: id, energy, levelUp, minutes: Gathering.swingMinutes(player, def) };
     },
 
     /** A rarer find out of the broken rock: { item, qty } or null (the ore perk's chance) */

@@ -362,6 +362,7 @@ export const StandingOrders = {
         // (the hex's trees: every felling on it — by hand, the town's woodcutters, this order — holds one back until it grows again)
         const standing = Woodlands.standing(world, tile.q, tile.r, tile.terrain.id);
         if (standing <= 0) return { why: 'The woods here are cut over; they will grow back in time.' };
+        if (Gathering.tooSpent(player)) return { why: 'You are too spent to fell a tree. Eat and sleep first.' };
         const p = StandingOrders._parents(player, world, 'clear_trees');
         if (p) return { why: p };
         const camp = Gathering.campBoost(player, { objectType: 'tree' }, tile);

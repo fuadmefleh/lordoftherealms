@@ -71,9 +71,10 @@ export const Swimming = {
     canSwim(player) {
         if (!player) return { ok: false, reason: 'No one to swim.' };
         const C = Swimming.config();
-        const used = PlayerInventory.getUsedSlots(player);
-        const cap = PlayerInventory.getCapacity(player);
-        if (cap > 0 && used / cap > C.ladenShare) return { ok: false, reason: `Your pack is too heavy to swim with (${used}/${cap}). Lighten it first.` };
+        // (the weight on your own back: what a horse or a cart carries doesn't swim with you — core/inventory.js)
+        const used = Math.round(PlayerInventory.getLoad(player));
+        const cap = PlayerInventory.getBackLoad(player);
+        if (cap > 0 && Number.isFinite(cap) && used / cap > C.ladenShare) return { ok: false, reason: `Your pack is too heavy to swim with (${used}/${Math.round(cap)} lb). Lighten it first.` };
         const energy = player.needs ? _num(player.needs.energy, 100) : 100;
         if (energy < C.spentBelow) return { ok: false, reason: 'You are too spent to swim. Rest first.' };
         return { ok: true, reason: null };

@@ -243,13 +243,51 @@ describe('Inventory cap', () => {
         return inv;
     };
 
-    it('caps distinct kinds of goods at maxInventory; stacks are unlimited', () => {
+    it('caps distinct kinds of goods at maxInventory; a stack grows while it can be carried', () => {
         const p = { maxInventory: 3, inventory: full(3) };
         expect(PlayerInventory.addItem(p, 'grain', 5).success).toBe(false);
         expect(p.inventory.grain).toBeUndefined();
-        expect(PlayerInventory.addItem(p, 'item_0', 500).success).toBe(true);
-        expect(p.inventory.item_0).toBe(501);
+        expect(PlayerInventory.addItem(p, 'item_0', 50).success).toBe(true);
+        expect(p.inventory.item_0).toBe(51);
         expect(PlayerInventory.addItem(p, 'grain', 5, { force: true }).success).toBe(true);
+    });
+
+    it('caps the load by weight: back, then a horse, a handcart, a horse cart', () => {
+        const p = { maxInventory: 20, inventory: {} };
+        const back = PlayerInventory.getMaxLoad(p);
+        expect(back).toBe(60);
+        // 20 lb of stone a block: three fit at full pace, four overburden, five reach the hard limit (90)
+        expect(PlayerInventory.addItem(p, 'stone', 3).success).toBe(true);
+        expect(PlayerInventory.isOverburdened(p)).toBe(false);
+        expect(PlayerInventory.loadSpeed(p)).toBe(1);
+        expect(PlayerInventory.addItem(p, 'stone', 1).success).toBe(true);
+        expect(PlayerInventory.isOverburdened(p)).toBe(true);
+        expect(PlayerInventory.loadSpeed(p)).toBeLessThan(1);
+        expect(PlayerInventory.addItem(p, 'stone', 1).success).toBe(false);
+        expect(PlayerInventory.canAdd(p, 'stone')).toBe(false);
+        // partial: as many as fit
+        const r = PlayerInventory.addItem(p, 'grain', 10, { partial: true });
+        expect(r.added).toBe(5);
+        // weightless goods always go in
+        expect(PlayerInventory.addItem(p, 'treasure_map', 1).success).toBe(true);
+        // what carries for you
+        p.mount = { name: 'Bess' };
+        expect(PlayerInventory.getMaxLoad(p)).toBe(back + 120);
+        p.inventory.handcart = 1;
+        expect(PlayerInventory.getMaxLoad(p)).toBe(back + 120 + 250);
+        p.inventory.horse_cart = 1;
+        expect(PlayerInventory.getMaxLoad(p)).toBe(back + 120 + 250 + 700);
+        delete p.mount; // a horse cart wants a horse in the shafts
+        expect(PlayerInventory.getMaxLoad(p)).toBe(back + 250);
+        expect(PlayerInventory.loadSpeed(p)).toBe(1);
+    });
+
+    it('goods owed that are too heavy are sold, only the part that does not fit', () => {
+        const p = { maxInventory: 20, inventory: {}, gold: 0 };
+        const r = PlayerInventory.addOrSell(p, { stone: 6 });
+        expect(r.added.stone).toBe(4);
+        expect(r.sold.stone).toBe(2);
+        expect(r.gold).toBe(16);
     });
 
     it('a mount and houses add slots', () => {

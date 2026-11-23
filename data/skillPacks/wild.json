@@ -56,10 +56,13 @@
         }
     },
     "gathering": {
-        "_doc": "player/gathering.js: which skill a swing at an object trains (by objectType, or the resource it gives), the energy a swing costs before the skill's effort perk, the extra share of the resource the logs / stone perk adds, and the rarer finds a broken rock may give by the hex's terrain (weights; qty [min, max]).",
+        "_doc": "player/gathering.js: which skill a swing at an object trains (by objectType, or the resource it gives), the energy a swing costs before the skill's effort perk, the game minutes it takes and the energy below which you are too spent to swing, the extra share of the resource the logs / stone perk adds, and the rarer finds a broken rock may give by the hex's terrain (weights; qty [min, max]).",
         "byObjectType": { "tree": "woodcutting", "stump": "woodcutting", "rock": "mining" },
         "byResource": { "wood": "woodcutting", "stone": "mining" },
-        "energyPerSwing": 0.6,
+        "energyPerSwing": 2.5,
+        "_timeDoc": "Felling and breaking rock is a day's labour, not a few seconds' (2026-11-22: a strong start could fell a wood in an afternoon and sell it for thousands). minutesPerSwing: game minutes each blow that lands takes on the clock (InnerMap.passHours: an oak of ~8 blows is about 4 hours, fewer blows with skill, an axe or a camp); minEnergy: too spent below this to swing at all (the work stops).",
+        "minutesPerSwing": 30,
+        "minEnergy": 5,
         "extraShare": 0.4,
         "_campsDoc": "A works of yours standing finished on the hex (player/gathering.js campBoost): a logging camp for trees, a mine or quarry for rock. Its cut paths, sawpits and gear make every blow land harder (speed ×) and each felled tree or broken rock give more (yield ×, rounded up).",
         "camps": {

@@ -284,7 +284,10 @@ export function gameLoop(timestamp, loopId) {
                 if (playerStepResult.arrived && InnerMap._pendingInteraction) {
                     const pi = InnerMap._pendingInteraction;
                     const piDef = typeof CustomObjects !== 'undefined' ? CustomObjects.getDef(pi.defId) : null;
-                    InnerMap.startInteraction(pi.anchorQ, pi.anchorR, pi.defId,
+                    InnerMap._pendingInteraction = null;
+                    if (Gathering.skillFor(piDef) && Gathering.tooSpent(this.player)) {
+                        this.ui.showNotification('😮‍💨 Spent', 'You are too tired for that work. Eat and sleep first.', 'warning');
+                    } else InnerMap.startInteraction(pi.anchorQ, pi.anchorR, pi.defId,
                         InnerMap._computeObjectDamage(this.player, piDef));
                     // Face the object
                     const dir = InnerMap.getDirectionTowardObject(pi.anchorQ, pi.anchorR, piDef);
@@ -371,6 +374,13 @@ export function gameLoop(timestamp, loopId) {
             const hitDef = ia && CustomObjects.getDef(ia.defId);
             const sw = hitDef && Gathering.swing(this.player, hitDef);
             if (sw && sw.levelUp) this.ui.showNotification(`${sw.levelUp.icon} ${sw.levelUp.name} Improved`, sw.levelUp.text, 'success');
+            // ...and hours of it: each blow takes its time on the clock (a tree is a morning's work, not a moment's)
+            if (sw && sw.minutes > 0) InnerMap.passHours(sw.minutes / 60);
+            // Worn out: the work stops, the tree left standing as it is (its cuts stay)
+            if (sw && InnerMap._activeInteraction && Gathering.tooSpent(this.player)) {
+                InnerMap._activeInteraction = null;
+                this.ui.showNotification('😮‍💨 Spent', 'You are too tired to swing again. Eat and sleep, then come back to it.', 'warning');
+            }
             // chips fly, the crown shudders and sheds, the axe knocks
             if (ia) InnerMapFelling.onHit(ia.anchorQ, ia.anchorR, hitDef, InnerMap.playerInnerQ, InnerMap.playerInnerR);
         }
@@ -1049,7 +1059,9 @@ export function handleClick(screenX, screenY, button = 'left') {
                 const adj = InnerMap.findAdjacentToObject(objAnchorQ, objAnchorR, objDef);
                 if (adj) {
                     // If player is already at the adjacent tile, start immediately
-                    if (InnerMap.playerInnerQ === adj.q && InnerMap.playerInnerR === adj.r) {
+                    if (Gathering.skillFor(objDef) && Gathering.tooSpent(this.player)) {
+                        this.ui.showNotification('😮‍💨 Spent', 'You are too tired for that work. Eat and sleep first.', 'warning');
+                    } else if (InnerMap.playerInnerQ === adj.q && InnerMap.playerInnerR === adj.r) {
                         InnerMap.startInteraction(objAnchorQ, objAnchorR, objDef.id,
                             InnerMap._computeObjectDamage(this.player, objDef));
                         // Face the object

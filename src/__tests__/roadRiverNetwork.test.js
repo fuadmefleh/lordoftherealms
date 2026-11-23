@@ -156,3 +156,71 @@ describe('Hex metric on the offset grid', () => {
         expect(Hex.withLegacyMetric(() => Hex.hexesInRange(0, 0, 1).length)).toBe(7);
     });
 });
+
+describe('Water that drains (terrainGen 10: Terrain.generateHydrology)', () => {
+    const GEN = { seed: 31337, kingdomCount: 4, terrainGen: 10, riverCount: 40, lakeFreq: 'normal' };
+    let w10;
+    const at10 = (q, r) => w10.tiles[r][Hex.wrapQ(q, w10.width)];
+    const step10 = (t, dir) => {
+        const n = Hex.neighbors(t.q, t.r)[dir];
+        return n.r >= 0 && n.r < w10.height ? at10(n.q, n.r) : null;
+    };
+    beforeAll(() => {
+        w10 = new World(120, 80);
+        w10.generate({ ...GEN });
+    });
+
+    it('has rivers and lakes, no river on water', () => {
+        const flat = w10.tiles.flat();
+        const rivers = flat.filter(t => t.hasRiver);
+        expect(rivers.length).toBeGreaterThan(30);
+        expect(rivers.filter(t => WATER.has(t.terrain.id))).toEqual([]);
+        expect(flat.filter(t => t.terrain.id === 'lake').length).toBeGreaterThanOrEqual(5);
+    });
+
+    it('rivers branch: tributaries join trunks (more sources than mouths)', () => {
+        const flat = w10.tiles.flat();
+        const rivers = flat.filter(t => t.hasRiver);
+        const mouths = rivers.filter(t => { const d = step10(t, t.riverDir); return d && !d.hasRiver; });
+        const sources = rivers.filter(t => t.riverSource);
+        expect(sources.length).toBeGreaterThan(mouths.length);
+    });
+
+    it('following the flow always reaches water (no loops, no dead ends)', () => {
+        for (const src of w10.tiles.flat().filter(x => x.hasRiver && x.riverSource)) {
+            let t = src;
+            const seen = new Set();
+            while (t && t.hasRiver) {
+                expect(seen.has(t)).toBe(false);
+                seen.add(t);
+                t = step10(t, t.riverDir);
+            }
+            expect(t && (WATER.has(t.terrain.id) || t.elevation < 0.42 || t.terrain.id === 'island')).toBe(true);
+        }
+    });
+
+    it('some river runs out of a lake (a lake fills and spills)', () => {
+        const flat = w10.tiles.flat();
+        const outflow = flat.some(t => t.hasRiver && t.riverSource && Hex.neighbors(t.q, t.r)
+            .some(n => n.r >= 0 && n.r < w10.height && at10(n.q, n.r).terrain.id === 'lake'));
+        const intoLake = flat.some(t => t.hasRiver && (() => { const d = step10(t, t.riverDir); return d && d.terrain.id === 'lake'; })());
+        expect(outflow || intoLake).toBe(true);
+    });
+
+    it('is the same world from the same seed', () => {
+        const again = new World(120, 80);
+        again.generate({ ...GEN });
+        const sig = (wd) => wd.tiles.flat().map(t => `${t.terrain.id[0]}${t.hasRiver ? t.riverDir : '-'}`).join('');
+        expect(sig(again)).toBe(sig(w10));
+    });
+
+    it('lakeFreq none makes no lakes of the drainage; many makes more than normal', () => {
+        const count = (lakeFreq) => {
+            const wd = new World(120, 80);
+            wd.generate({ ...GEN, lakeFreq });
+            return wd.tiles.flat().filter(t => t._lake).length;
+        };
+        expect(count('none')).toBe(0);
+        expect(count('many')).toBeGreaterThan(count('normal'));
+    });
+});

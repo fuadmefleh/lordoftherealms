@@ -237,7 +237,9 @@ const topLevel = [
     // Tournaments fought in person on the town's lists: the joust, the melee, wagers (systems/lists.js)
     'lists',
     // Hiding in cover on the street map, being spotted, the ambush, those who lie in wait (systems/stealthCover.js)
-    'stealthCover'
+    'stealthCover',
+    // Pack load: what every good weighs, what you can carry on your back, a horse, a handcart, a horse cart (core/inventory.js)
+    'packLoad'
 ];
 
 const merged = {};

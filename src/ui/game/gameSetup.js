@@ -430,8 +430,9 @@ export async function _doStartNewGame(settingsOverride) {
         // year before the mature year ages the world back (world/worldAge.js); 7 = a town's house
         // mix humbler or grander by its wealth (world/settlementWealth.js, world/townPlanner.js); 8 =
         // towns that age through architectural eras, weather, rebuild, pave and wall themselves (world/townEras.js); 9 =
-        // bigger crags in up to three tiers, with caves in their faces (world/innerMap/cliffs.js, mines.js)
-        terrainGen: 9,
+        // bigger crags in up to three tiers, with caves in their faces (world/innerMap/cliffs.js, mines.js); 10 =
+        // water that drains as water does: branching river systems and lakes in the hollows (Terrain.generateHydrology)
+        terrainGen: 10,
         continentCount,
         terrainFreq,
         riverCount,

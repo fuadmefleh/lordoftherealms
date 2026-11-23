@@ -11,6 +11,7 @@ import { KingdomBonuses } from '../world/kingdomState.js';
 import { Transport } from '../world/transport.js';
 import { Construction } from './construction.js';
 import { DataLoader } from '../core/dataLoader.js';
+import { PlayerInventory } from '../core/inventory.js';
 import { MoneySupply } from '../world/moneySupply.js';
 import { Utils } from '../core/utils.js';
 
@@ -564,12 +565,36 @@ export const Infrastructure = {
      * a little off, but never below the terrain's floor off the road.
      * Infinity when impassable.
      */
+    /** A route search under way: { player, speed } — the load's pace worked out once for it (withLoadSpeed). */
+    _loadScope: null,
+
+    /**
+     * Run fn() with `player`'s load pace (PlayerInventory.loadSpeed) worked out
+     * once, not for every hex a route search weighs. → fn's result.
+     */
+    withLoadSpeed(player, fn) {
+        if (!player || !player.inventory) return fn();
+        const prev = Infrastructure._loadScope;
+        Infrastructure._loadScope = { player, speed: PlayerInventory.loadSpeed(player) };
+        try {
+            return fn();
+        } finally {
+            Infrastructure._loadScope = prev;
+        }
+    },
+
     getPlayerHexDays(tile, player) {
         if (!tile || !tile.terrain || !tile.terrain.passable) return Infinity;
         const C = Infrastructure.travelConfig();
         const id = tile.terrain.id;
         const num = (v, d) => (Number.isFinite(v) && v > 0 ? v : d);
-        const speed = player && Number.isFinite(player._travelSpeed) && player._travelSpeed > 0 ? player._travelSpeed : 1;
+        let speed = player && Number.isFinite(player._travelSpeed) && player._travelSpeed > 0 ? player._travelSpeed : 1;
+        // Overburdened: a load past what back, horse and cart carry slows every hex (core/inventory.js;
+        // a route search works it out once: withLoadSpeed)
+        if (player && player.inventory) {
+            const sc = Infrastructure._loadScope;
+            speed *= sc && sc.player === player ? sc.speed : PlayerInventory.loadSpeedCached(player);
+        }
         const road = Infrastructure._roadDays(tile, C);
         let days;
         if (road != null) {
@@ -599,6 +624,10 @@ export const Infrastructure = {
      * Stops early once `target` ({ q, r }) is settled. → Map 'q,r' → days.
      */
     travelDaysFrom(world, q, r, maxDays = 12, player = null, target = null) {
+        return Infrastructure.withLoadSpeed(player, () => Infrastructure._travelDaysFrom(world, q, r, maxDays, player, target));
+    },
+
+    _travelDaysFrom(world, q, r, maxDays, player, target) {
         const out = new Map();
         if (!world || typeof world.getTile !== 'function' || !Number.isFinite(q) || !Number.isFinite(r)) return out;
         const W = world.width || 0;

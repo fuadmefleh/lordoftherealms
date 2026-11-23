@@ -1,0 +1,65 @@
+{
+    "_note": "Pack load: how much the player can carry, by weight (core/inventory.js PlayerInventory.getLoad / getMaxLoad). Every good weighs something (pounds a unit): weights[id], else the weight of its Inventory-window category (data/inventory.json; categoryWeights), else defaultWeight. What you can carry is your back (back + Endurance's carry perk x perkLoad a level + strength over 5 x perStrength) plus what carries for you (carriers): a horse (player.mount) with packs on it, your own handcart (the market good) pushed along, your own horse cart (wants a horse in the shafts: player.mount). Up to maxLoad you go at your full pace; past it you are overburdened and slowed, down to overSpeed at hardShare x maxLoad, where you can pick up nothing more; past even that (goods that came by other roads) you crawl at crawlSpeed. A piece of arms or armour you wear counts wornShare of its weight (it sits on you, not in the packs). Swimming and climbing look at the share of your back's own load (Climbing/Swimming ladenShare).",
+    "enabled": true,
+    "unit": "lb",
+    "back": 60,
+    "perStrength": 5,
+    "perkLoad": 10,
+    "hardShare": 1.5,
+    "overSpeed": 0.5,
+    "crawlSpeed": 0.25,
+    "wornShare": 0.4,
+    "carriers": {
+        "mount": { "name": "your horse's packs", "icon": "🐴", "load": 120 },
+        "handcart": { "name": "your handcart", "icon": "🛒", "load": 250, "good": "handcart" },
+        "horse_cart": { "name": "your horse cart", "icon": "🐴", "load": 700, "good": "horse_cart", "needsHorse": true }
+    },
+    "defaultWeight": 1,
+    "categoryWeights": {
+        "food": 1,
+        "materials": 3,
+        "clothing": 2,
+        "tools": 4,
+        "arms": 5,
+        "physic": 0.5,
+        "seeds": 0.2,
+        "trade": 2,
+        "valuables": 0.5
+    },
+    "weights": {
+        "grain": 2, "flour": 2, "milk": 2, "beer": 2, "liquor": 1.5, "wine": 2, "mead": 2, "cider": 2, "fine_wine": 2.5, "rum": 2,
+        "berries": 0.5, "eggs": 0.2, "mushrooms": 0.5, "seaweed": 0.5, "tea": 0.3, "small_fish": 0.5, "large_fish": 3, "swordfish": 8, "lobster": 1.5, "golden_fish": 1, "honey": 1.5, "cheese": 1.5, "food": 1, "cabbage": 1.5,
+
+        "wood": 10, "planks": 6, "firewood": 4, "sticks": 1, "driftwood": 4, "reeds": 1,
+        "stone": 20, "clay": 10, "ore": 15, "gold_ore": 15, "silver_ore": 15, "coal": 8, "salt": 3,
+        "iron": 10, "iron_ingot": 10, "steel": 10, "copper": 10, "tin": 10, "bronze": 10, "bronze_bar": 10,
+        "wool": 3, "textiles": 3, "linen": 2, "flax": 3, "hemp": 3, "rope": 1.5,
+        "pelts": 4, "hide": 5, "leather": 3, "cured_furs": 4, "antler": 2, "feather": 0.1, "sinew": 0.2,
+        "agri_parts": 10, "industry_parts": 12, "military_parts": 12, "infra_parts": 12, "commerce_parts": 8,
+        "glass": 3, "oil": 3, "lamp_oil": 2, "resin": 1, "tallow": 1, "dyes": 1, "ink": 0.5, "parchment": 0.2,
+        "haft": 2, "grip": 0.5, "shield_boss": 2,
+
+        "clothes": 2, "boots": 3, "wool_cloak": 4, "fur_coat": 6, "fine_garments": 2,
+
+        "tools": 8, "steel_tools": 8, "waterskin": 1, "candles": 0.5, "fishing_net": 6, "fish_trap": 5, "fishing_spear": 4,
+        "bone_skates": 2, "iron_skates": 3, "treasure_map": 0, "book": 2, "rare_book": 2, "compass": 0.5, "torch": 1, "lantern": 2,
+        "barrel": 15, "saddle": 15, "whetstone": 1, "handcart": 0, "horse_cart": 0,
+
+        "weapons": 6, "leather_armor": 12, "shield": 10, "bow": 2, "arrows": 0.1, "bolts": 0.1, "crossbow": 8, "spear": 4,
+        "chainmail": 25, "plate_armor": 45, "helmet": 5, "steel_sword": 3, "padded_chausses": 4, "leather_leggings": 5,
+        "mail_chausses": 12, "plate_greaves": 12, "sabatons": 6, "leather_gloves": 0.5, "gauntlets": 4,
+        "bronze_dagger": 1, "iron_dagger": 1, "rondel_dagger": 1, "bronze_sword": 3, "iron_sword": 3, "steel_arming_sword": 3,
+        "bronze_axe": 4, "iron_axe": 4, "dane_axe": 6, "bronze_mace": 4, "iron_mace": 4, "flanged_mace": 4,
+        "bronze_spear": 4, "pike": 7, "iron_bill": 6, "halberd": 8, "buckler": 3, "heater_shield": 8, "kite_shield": 10, "pavise": 15,
+        "leather_cap": 1, "steel_helm": 5, "gambeson": 6, "brigandine": 18,
+
+        "gold_bar": 2, "silver_bar": 2, "gems": 0.1, "ancient_coin": 0.1, "dragon_scale": 3, "dragonscale_armor": 20,
+        "gift_chest": 10, "ancient_artifact": 3, "enchanted_weapon": 4, "cursed_idol": 2, "relics": 1, "scriptures": 2,
+
+        "horse": 0, "horses": 0, "boot": 0,
+        "ivory": 3, "spices": 0.5, "exotic_spices": 0.5, "silk": 1, "luxuries": 2, "perfume": 0.5, "pottery": 4,
+        "bear_rug": 10, "leather_goods": 1, "carvings": 2, "ivory_carving": 2, "quills": 0.1, "incense": 0.5,
+        "stolen_goods": 2, "flowers": 0.2, "joinery": 15, "grave_cross": 10, "headstone": 60, "carved_headstone": 60,
+        "glassware": 3, "sea_sponge": 0.2, "bones": 2
+    }
+}

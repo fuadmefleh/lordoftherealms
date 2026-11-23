@@ -140,6 +140,7 @@ describe('crafting through the levels', () => {
     it('a practised brewer sometimes gets an extra measure (seeded)', () => {
         let spares = 0;
         const p = crafter({ inventory: { grain: 400, honey: 0 } });
+        p.strength = 1000; // (a granary's worth of grain on their back: room by weight for the spares)
         PracticeSkills.setLevel(p, 'brewing', 10);
         for (let i = 0; i < 60; i++) {
             const res = Crafting.craft(p, 'brew_ale');

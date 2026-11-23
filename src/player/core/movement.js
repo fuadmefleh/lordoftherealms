@@ -309,13 +309,13 @@ export const PlayerMovementMethods = {
         if (this.indenturedServitude) return false;
         if (!this._overlandReachable(targetQ, targetR, world)) return false;
 
-        const path = Hex.findPath(
+        const path = Infrastructure.withLoadSpeed(this, () => Hex.findPath(
             this.q, this.r,
             targetQ, targetR,
             world.width, world.height,
             (q, r) => this._canEnterHex(q, r, world),
             (q, r, fq, fr) => this._pathCostFrom(world, q, r, fq, fr)
-        );
+        ));
 
         if (path && path.length > 1) {
             // Turning back (or anywhere else) gives up the crossing under way
@@ -346,11 +346,11 @@ export const PlayerMovementMethods = {
         if (targetQ === this.q && targetR === this.r) return null;
         if (!this._canEnterHex(targetQ, targetR, world)) return null;
         if (!this._overlandReachable(targetQ, targetR, world)) return null;
-        const path = Hex.findPath(
+        const path = Infrastructure.withLoadSpeed(this, () => Hex.findPath(
             this.q, this.r, targetQ, targetR, world.width, world.height,
             (q, r) => this._canEnterHex(q, r, world),
             (q, r, fq, fr) => this._pathCostFrom(world, q, r, fq, fr)
-        );
+        ));
         if (!path || path.length < 2) return null;
         const EPS = this.MOVE_EPS;
         const pace = this._travelPace();
@@ -643,6 +643,10 @@ export const PlayerMovementMethods = {
      * Get reachable hexes from current position with remaining movement
      */
     getReachableHexes(world, opts = {}) {
+        return Infrastructure.withLoadSpeed(this, () => this._getReachableHexes(world, opts));
+    },
+
+    _getReachableHexes(world, opts = {}) {
         const EPS = this.MOVE_EPS;
         const today = Math.max(0, this.movementRemaining || 0);
         const full = this._fullDayMovement();

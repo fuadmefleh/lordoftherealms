@@ -477,6 +477,8 @@ describe('no money loop', () => {
         const { world, player, capital, tile } = fixture();
         Guilds.ensureTown(world, capital, 50);
         makeMember(player, world, tile, 'bakers', 2);
+        // (the fixture's player hauls a warehouse: strong enough to carry it, so weight doesn't refuse the buy)
+        player.strength = 1000;
         for (const id of ['grain', 'bread']) {
             const entry = Trading.getAvailableGoods(capital, tile, world).find(x => x.id === id);
             const cost = Trading.buyCost(player, entry, 10, capital);

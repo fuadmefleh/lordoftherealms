@@ -278,6 +278,7 @@ describe('inventory cap', () => {
         Utils.setSeed(3);
         const w = makeWorld();
         const p = makePlayer();
+        p.strength = 20; // (room by weight for the iron: this is about slots)
         Delves.start(p, w, addPoi(w, 3, 3, 'ruins'));
         const cap = PlayerInventory.getCapacity(p);
         const goods = ['grain', 'flour', 'bread', 'fish', 'wood', 'firewood', 'wool', 'textiles', 'clothes', 'stone',

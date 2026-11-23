@@ -6,7 +6,7 @@
     "animation": "combat_1h_halfslash",
     "resource": {
       "type": "wood",
-      "amount": 50
+      "amount": 8
     },
     "spawnAfter": "stump_1",
     "terrainBindings": [
@@ -595,7 +595,7 @@
     "animation": "combat_1h_halfslash",
     "resource": {
       "type": "wood",
-      "amount": 10
+      "amount": 2
     },
     "terrainBindings": [],
     "spawnWeight": 1,

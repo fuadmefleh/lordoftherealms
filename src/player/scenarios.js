@@ -90,6 +90,7 @@ import { StartKnowledge } from './startKnowledge.js';
 import { Parentage } from './parentage.js';
 import { Names } from '../core/names.js';
 import { Housing } from '../systems/housing.js';
+import { PlayerInventory } from '../core/inventory.js';
 
 const FALLBACK = {
     wanderer: {
@@ -176,6 +177,15 @@ export const Scenarios = {
         player.travelDestination = null;
         if (typeof player.revealArea === 'function') player.revealArea(world, 4);
         if (typeof player.discoverNearbyHolySites === 'function') player.discoverNearbyHolySites(world, 4);
+    },
+
+    /**
+     * A trade start's stock of its goods. More than can be carried (by weight:
+     * core/inventory.js), and the master's shop handcart comes with it.
+     */
+    _stock(player, good, n) {
+        player.inventory[good] = _num(player.inventory[good]) + Math.floor(_num(n));
+        if (PlayerInventory.isOverburdened(player) && !(player.inventory.handcart > 0)) player.inventory.handcart = 1;
     },
 
     _train(player, o) {
@@ -352,7 +362,7 @@ export const Scenarios = {
         }
         // A little of the guild's own goods to sell
         const good = Guilds.def(gid).goods[0];
-        if (good && _num(o.stock) > 0) player.inventory[good] = _num(player.inventory[good]) + Math.floor(_num(o.stock));
+        if (good && _num(o.stock) > 0) Scenarios._stock(player, good, o.stock);
         Scenarios._train(player, o);
         if (o.gold != null) player.gold = _num(o.gold);
         player.title = o.title || player.title;
@@ -856,7 +866,7 @@ export const Scenarios = {
         g.nextElection = day + Math.max(7, Math.floor(_num(o.electionDays, 45)));
         Guilds._log(st, world, `Elected guildmaster of the ${g.name}${before ? `, after ${before}` : ''}.`);
         const goods = Guilds.def(gid).goods || [];
-        if (goods[0] && _num(o.stock) > 0) player.inventory[goods[0]] = _num(player.inventory[goods[0]]) + Math.floor(_num(o.stock));
+        if (goods[0] && _num(o.stock) > 0) Scenarios._stock(player, goods[0], o.stock);
         Scenarios._standing(player, world, o, `elected master of the ${g.name}`);
         player.title = `${o.title || 'Guildmaster'} of the ${g.name}`;
         // The master's house in the guild's town (systems/housing.js)

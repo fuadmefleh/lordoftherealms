@@ -254,6 +254,7 @@ Object.assign(UI.prototype, {
 
         const modes = [
             { id: 'normal',    icon: '🗺️', label: 'Normal',    desc: 'Default terrain view' },
+            { id: 'topo',      icon: '⛰️', label: 'Topography', desc: 'Heights, slopes, rivers and lakes' },
             { id: 'political', icon: '🏰', label: 'Political',  desc: 'Kingdom territories' },
             { id: 'religion',  icon: '🙏', label: 'Religion',   desc: 'Faith distribution' },
             { id: 'wealth',    icon: '💰', label: 'Wealth',     desc: 'Economic output' },
@@ -337,10 +338,11 @@ Object.assign(UI.prototype, {
         if (this.game.minimap) this.game.minimap.invalidate();
 
         const labels = {
-            normal: 'Normal', political: 'Political', religion: 'Religion',
+            normal: 'Normal', topo: 'Topography', political: 'Political', religion: 'Religion',
             wealth: 'Wealth', military: 'Military', trade: 'Trade Routes', prices: 'Trade Map (known prices)', culture: 'Culture'
         };
         this.showNotification('Map Mode', `${labels[mode] || mode} view active`, 'info');
+        this._topoLegend(mode === 'topo');
 
         // Mark the active mode in the top bar's Map dropdown (TopBar.jsx [data-map-mode])
         if (typeof document !== 'undefined' && document.querySelectorAll) {
@@ -350,6 +352,32 @@ Object.assign(UI.prototype, {
                 if (mark) { mark.textContent = on ? 'ON' : ''; mark.classList.toggle('on', on); }
             });
         }
+    },
+
+    /** The topographic map's key: height bands from the deep sea to the peaks, rivers, lakes (top left) */
+    _topoLegend(show) {
+        if (typeof document === 'undefined' || !document.getElementById) return;
+        let el = document.getElementById('topoLegend');
+        if (!show) { if (el) el.remove(); return; }
+        const r = this.game.renderer;
+        if (el || !r || typeof r.topoLegendColors !== 'function') return;
+        const { colors, sea } = r.topoLegendColors();
+        const cells = colors.map((c, i) => `<span style="flex:${i < sea ? 0.6 : 1};background:${c}"></span>`).join('');
+        el = document.createElement('div');
+        el.id = 'topoLegend';
+        el.style.cssText = 'position:fixed;top:64px;left:12px;zoom:var(--ui-zoom,1);z-index:40;pointer-events:none;'
+            + 'background:rgba(12,16,26,0.85);border:1px solid rgba(232,196,104,0.45);border-radius:6px;padding:7px 10px 6px;width:250px;'
+            + 'font:11px var(--font-body, sans-serif);color:#c9c2b0;';
+        el.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+                <span style="color:#e8c468;font-family:var(--font-display, serif);font-size:12px">Topography</span>
+                <span><span style="display:inline-block;width:16px;height:3px;background:rgb(38,92,200);vertical-align:middle"></span> River
+                &nbsp;<span style="display:inline-block;width:9px;height:9px;background:rgb(96,170,224);vertical-align:middle"></span> Lake</span>
+            </div>
+            <div style="display:flex;height:11px;border-radius:2px;overflow:hidden">${cells}</div>
+            <div style="display:flex;justify-content:space-between;margin-top:3px;font-size:10px">
+                <span>Deep sea</span><span>Shore</span><span>Hills</span><span>Peaks</span>
+            </div>`;
+        document.body.appendChild(el);
     },
 
     /**
@@ -844,6 +872,7 @@ Object.assign(UI.prototype, {
             this.game.renderer.showResources = settings.showResources;
             this.game.renderer.showTerritories = settings.showTerritories;
             this.game.renderer.mapMode = settings.defaultMapMode;
+            this._topoLegend(settings.defaultMapMode === 'topo');
 
             // Update toggle button states in the UI
             const resEl = document.getElementById('resourceToggleState');
@@ -926,6 +955,7 @@ Object.assign(UI.prototype, {
 
         const mapModeOptions = [
             { value: 'normal', label: 'Normal' },
+            { value: 'topo', label: 'Topography' },
             { value: 'political', label: 'Political' },
             { value: 'religion', label: 'Religion' },
             { value: 'wealth', label: 'Wealth' },

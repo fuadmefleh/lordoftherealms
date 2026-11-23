@@ -610,18 +610,20 @@ Object.assign(Renderer.prototype, {
         // Fog of war: this face is darkened with the others after all the terrain (renderFogFaces)
         if (!tile.visible && this._fogFaces) this._fogFaces.push(corners);
 
-        if (sprite) {
+        // (the topographic map leaves the tile art off: renderer/topography.js paints the face)
+        const topo = this.mapMode === 'topo';
+        if (sprite && !topo) {
             ctx.drawImage(sprite, drawX, drawY, targetWidth, targetHeight);
         }
 
         // River first, then the road (or bridge) over it, so a road
         // crossing water reads as crossing it. Same frame as the base sprite
         // so the overlays line up whatever their transparency.
-        if (overlaySprite) {
+        if (overlaySprite && !topo) {
             ctx.drawImage(overlaySprite, drawX, drawY, targetWidth, targetHeight);
         }
 
-        if (roadSprite) {
+        if (roadSprite && !topo) {
             ctx.drawImage(roadSprite, drawX, drawY, targetWidth, targetHeight);
         }
 
@@ -646,7 +648,8 @@ Object.assign(Renderer.prototype, {
         }
 
         // Map mode overlay
-        if (this.mapMode !== 'normal') {
+        if (topo) this.renderTopoHex(ctx, tile, corners, size);
+        else if (this.mapMode !== 'normal') {
             this.renderMapModeOverlay(ctx, tile);
         }
 

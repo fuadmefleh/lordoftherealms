@@ -228,6 +228,13 @@ export const Terrain = {
             }
         }
 
+        // Worlds since terrainGen 11: continents sized to the land asked for (landMass is the
+        // share of the map that is land, as the setting says), with warped, ragged coasts, on
+        // noise that wraps round the world's seam without mirroring (Terrain._land11)
+        const land11 = terrainGen >= 11
+            ? Terrain._land11({ width, height, rng, seeds, landMass, continentCount, continentSize, terrainOctaves, mountainDensity, polarFactor })
+            : null;
+
         for (let r = 0; r < height; r++) {
             const row = [];
             for (let q = 0; q < width; q++) {
@@ -290,8 +297,11 @@ export const Terrain = {
                 elevation = (elevation < 0) ? elevation : Math.pow(elevation, flatnessPow);
                 elevation = Utils.clamp(elevation, 0, 1);
 
+                // (since terrainGen 11 the height is the land field's, set to sea level below)
+                if (land11) elevation = land11.height(q, r);
+
                 // Apply hill density: compress hills region
-                if (elevation > waterThreshold && elevation < mountainLevel) {
+                if (!land11 && elevation > waterThreshold && elevation < mountainLevel) {
                     const landRange = mountainLevel - waterThreshold;
                     const normalizedLand = (elevation - waterThreshold) / landRange;
                     // Compress or expand the hilly part of the elevation
@@ -363,6 +373,10 @@ export const Terrain = {
             tiles.push(row);
         }
 
+        // terrainGen 11: the sea set so the land is landMass% of the map, then the land's
+        // heights spread over the lowlands, hills and mountains (Terrain._seaLevel11)
+        if (land11) Terrain._seaLevel11(tiles, width, height, { landMass, waterThreshold, hillsLevel, highlandsLevel, mountainLevel, snowPeakLevel, hillDensity, mountainDensity, flatnessPow, deepWaterLevel });
+
         // Sprinkle super-peaks (Post-processing) — scaled by mountain density
         const numPeaks = Math.round(Utils.randInt(8, 14) * mountainDensity);
         for (let i = 0; i < numPeaks; i++) {
@@ -398,9 +412,11 @@ export const Terrain = {
 
         // Generate Rivers — scale count by map size relative to default 120x80
         const scaledRiverCount = Math.round(riverCount * Math.sqrt((width * height) / (120 * 80)));
+        // (since terrainGen 11 the springs are counted by the land itself: the count is not
+        // scaled up again by the map's size)
         // Worlds since terrainGen 10: water drains as water does (rain gathers downhill into
         // branching river systems, basins fill into lakes); older worlds keep their rivers
-        if (terrainGen >= 10) Terrain.generateHydrology(tiles, width, height, rng, { riverCount: scaledRiverCount, lakeFreq, waterLevel: waterThreshold, mountainLevel });
+        if (terrainGen >= 10) Terrain.generateHydrology(tiles, width, height, rng, { riverCount: terrainGen >= 11 ? riverCount : scaledRiverCount, lakeFreq, waterLevel: waterThreshold, mountainLevel, hillsLevel, valleyLakes: terrainGen >= 11 });
         else Terrain.generateRivers(tiles, width, height, scaledRiverCount, lakeFreq, { v2: terrainGen >= 2, waterThreshold, mountainLevel, highlandsLevel });
 
         // Classify Water Bodies (Lake vs Sea vs Ocean)
@@ -464,6 +480,9 @@ export const Terrain = {
                     // If it's a lone tile in the ocean, sink it
                     if (landNeighbors === 0) {
                         tile.elevation = 0.38;
+                        // (since terrainGen 11 a speck of land in a lake goes under as lake, not sea)
+                        const inLake = terrainGen >= 11 && neighbors.some(n => n.r >= 0 && n.r < height && tiles[n.r][Hex.wrapQ(n.q, width)]._lake);
+                        if (inLake) { tile._lake = true; tile.waterBodyType = 'lake'; tile.hasRiver = false; }
                         tile.terrain = Terrain.classifyTerrain(tile);
                     }
                 }
@@ -651,6 +670,9 @@ export const Terrain = {
         const water = new Uint8Array(N);
         for (let i = 0; i < N; i++) if (at(i).elevation < waterLevel) water[i] = 1;
 
+        // (since terrainGen 11 the lakes lie in the valleys, dammed on their rivers: below)
+        const valley = !!o.valleyLakes;
+
         // 1. Hollows pressed into the land (not by the sea, not on the mountains)
         const inland = [];
         for (let i = 0; i < N; i++) {
@@ -659,7 +681,7 @@ export const Terrain = {
             if (nbrs(i).some(j => water[j])) continue;
             inland.push(i);
         }
-        const basins = lakeMult > 0 ? Math.round(inland.length / H.basinsPerLand * lakeMult) : 0;
+        const basins = lakeMult > 0 && !valley ? Math.round(inland.length / H.basinsPerLand * lakeMult) : 0;
         for (let k = 0, tries = 0; k < basins && tries < basins * 6 && inland.length; tries++) {
             const i = inland[Math.floor(rng() * inland.length)];
             const t = at(i);
@@ -755,8 +777,12 @@ export const Terrain = {
             return { filled, recv, order };
         };
 
+        const jit = new Float64Array(N);
+        if (valley) for (let i = 0; i < N; i++) jit[i] = (rng() - 0.5) * H.jitter;
+        if (valley && lakeMult > 0) Terrain._valleyLakes({ N, at, nbrs, water, flood, jit, rng, lakeMult, lakeLevel, mountainLevel, H });
+
         // 3. Lakes: the land's true hollows (a flood of the heights as they are), up to
-        // maxLake hexes each (their deepest)
+        // maxLake hexes each (their deepest); with valley lakes only the deep ones, whole
         if (lakeMult > 0) {
             const plain = new Float64Array(N);
             for (let i = 0; i < N; i++) plain[i] = at(i).elevation;
@@ -766,6 +792,7 @@ export const Terrain = {
             for (let i = 0; i < N; i++) if (!water[i] && depthOf(i) > H.minLakeDepth) inHollow[i] = 1;
             const done = new Uint8Array(N);
             const maxLake = Math.max(1, Math.round(H.maxLake * Math.min(2, 0.5 + lakeMult * 0.5)));
+            const basinsFound = [];
             for (let i = 0; i < N; i++) {
                 if (!inHollow[i] || done[i]) continue;
                 const group = [i];
@@ -776,14 +803,34 @@ export const Terrain = {
                     }
                 }
                 const deepest = Math.max(...group.map(depthOf));
-                // a shallow hollow of the noise is a lake only sometimes (more with lakeFreq)
-                if (deepest < H.minLakeDepth * 2 && rng() > Math.min(1, 0.5 * lakeMult)) continue;
+                if (valley) {
+                    // a speck of a hollow in the noise is no lake; a real basin fills whole (the
+                    // deepest few only, by the root of the land: below)
+                    if (group.length >= 2 && deepest >= H.minLakeDepth * 3
+                        && !group.some(g => nbrs(g).some(n => water[n] && !inHollow[n]))) basinsFound.push({ group, deepest });
+                    continue;
+                } else if (deepest < H.minLakeDepth * 2 && rng() > Math.min(1, 0.5 * lakeMult)) continue;
                 group.sort((a, b) => depthOf(b) - depthOf(a));
-                for (const j of group.slice(0, maxLake)) {
+                for (const j of group.slice(0, valley ? maxLake * 2 : maxLake)) {
                     const t = at(j);
                     t.elevation = lakeLevel;
                     t._lake = true;
                     water[j] = 1;
+                }
+            }
+            if (valley) {
+                let landN = 0;
+                for (let i = 0; i < N; i++) if (!water[i]) landN++;
+                basinsFound.sort((a, b) => b.deepest - a.deepest);
+                const keepN = Math.round(Math.sqrt(landN) * H.v11.hollowLakesPerRoot * lakeMult);
+                for (const { group } of basinsFound.slice(0, keepN)) {
+                    group.sort((a, b) => depthOf(b) - depthOf(a));
+                    for (const j of group.slice(0, maxLake * 2)) {
+                        const t = at(j);
+                        t.elevation = lakeLevel;
+                        t._lake = true;
+                        water[j] = 1;
+                    }
                 }
             }
         }
@@ -792,7 +839,7 @@ export const Terrain = {
         // slope wanders and meets other water rather than running beside it to the sea; the
         // lakes are water now, so a river runs into a lake and out at its spill point
         const z = new Float64Array(N);
-        for (let i = 0; i < N; i++) z[i] = at(i).elevation + (rng() - 0.5) * H.jitter;
+        for (let i = 0; i < N; i++) z[i] = at(i).elevation + (valley ? jit[i] : (rng() - 0.5) * H.jitter);
         const { recv, order } = flood(z);
 
         // 4. Rivers: the rain gathered downhill; the hexes carrying the most water
@@ -811,11 +858,19 @@ export const Terrain = {
         for (let i = 0; i < N; i++) if (!water[i]) landFlows.push(flow[i]);
         if (!landFlows.length) return;
         landFlows.sort((a, b) => b - a);
+        const isRiver = new Uint8Array(N);
+        if (valley) {
+            // Since terrainGen 11 a river rises at a spring in the hills or mountains and runs
+            // down the drainage to the sea or a lake, as rivers do; where two meet, one is a
+            // tributary of the other; every lake drains by a river (Terrain._traceRivers)
+            Terrain._traceRivers({ N, at, nbrs, water, recv, order, flow, isRiver, rng, H,
+                land: landFlows.length, riverCount: o.riverCount ?? 40,
+                hillsLevel: o.hillsLevel || 0.52, mountainLevel });
+        } else {
         // (a share of the land, by the rivers asked for: riverCount 40 is the usual)
         const target = Math.max(0, Math.round(landFlows.length * H.riverShare * (o.riverCount ?? 40) / 40));
         if (!target) return;
         const T = Math.max(H.minFlow, landFlows[Math.min(landFlows.length - 1, target)]);
-        const isRiver = new Uint8Array(N);
         for (let i = 0; i < N; i++) if (!water[i] && flow[i] >= T && recv[i] >= 0) isRiver[i] = 1;
         // A stream that reaches the sea within a hex or two is no river: a system whose
         // longest course is shorter than HYDRO.minLength is let go (walked from the mouth up)
@@ -858,6 +913,7 @@ export const Terrain = {
                 c = best;
             }
         }
+        }
         const fed = new Uint8Array(N);
         for (let i = 0; i < N; i++) if (isRiver[i]) fed[recv[i]] = 1;
         for (let i = 0; i < N; i++) {
@@ -865,7 +921,227 @@ export const Terrain = {
             const t = at(i), d = at(recv[i]);
             t.hasRiver = true;
             t.riverDir = Hex.directionTo(t.q, t.r, d.q, d.r, width);
-            t.riverSource = !fed[i];
+            // (a river out of a lake rises in the lake, not at a spring)
+            t.riverSource = !fed[i] && !(valley && nbrs(i).some(j => at(j)._lake && recv[j] === i));
+        }
+    },
+
+    /**
+     * Rivers as they run (worlds since terrainGen 11). Springs are chosen in
+     * the hills and mountains (the highest first, with a little chance,
+     * spaced and counted by the root of the land, HYDRO.v11.springsPerRoot /
+     * spacingRoot / lengthRoot, so a big continent has longer rivers, not a web; land
+     * hexes, by riverCount), each far enough from the sea that its river runs
+     * HYDRO.v11.minLength hexes or more. Each river follows the drainage
+     * (`recv`) down to the sea or a lake. A river that meets one already laid
+     * joins it as a tributary, if it has run HYDRO.v11.minBranch hexes of its
+     * own first (else it is no river). Every lake of HYDRO.v11.lakeOutflow
+     * hexes or more drains by a river from its spill point. Fills `isRiver`.
+     */
+    _traceRivers({ N, at, nbrs, water, recv, order, flow, isRiver, rng, H, land, riverCount, hillsLevel, mountainLevel }) {
+        const V = H.v11;
+        // (by the root of the land, and spaced by it: a continent twice as wide has twice the
+        // rivers, each twice as long, not four times as many crowded together)
+        const root = Math.sqrt(land);
+        const want = Math.max(1, Math.round(root * V.springsPerRoot * riverCount / 40));
+        const spacing = Math.max(V.springSpacing, Math.round(root / V.spacingRoot));
+        const minLength = Math.max(V.minLength, Math.round(root / V.lengthRoot));
+        // how many hexes from each land hex down to water
+        const steps = new Int32Array(N);
+        for (let k = 0; k < order.length; k++) {
+            const c = order[k];
+            if (water[c]) continue;
+            const d = recv[c];
+            steps[c] = d < 0 ? 0 : (water[d] ? 1 : steps[d] + 1);
+        }
+        // the water a spring may reach: down to the sea, or a lake
+        const cands = [];
+        for (let i = 0; i < N; i++) {
+            if (water[i] || recv[i] < 0) continue;
+            const e = at(i).elevation;
+            if (e < hillsLevel || steps[i] < minLength) continue;
+            // (the highest country first, a wet slope before a dry one, with some chance)
+            cands.push({ i, v: Math.min(e, mountainLevel + 0.1) + (at(i).moisture ?? 0.5) * 0.08 + rng() * 0.12 });
+        }
+        cands.sort((a, b) => b.v - a.v);
+        const near = new Uint8Array(N);
+        const mark = (i) => {
+            let fr = [i];
+            near[i] = 1;
+            for (let d = 0; d < spacing; d++) {
+                const next = [];
+                for (const c of fr) for (const n of nbrs(c)) if (!near[n]) { near[n] = 1; next.push(n); }
+                fr = next;
+            }
+        };
+        // walk a river down from `i`: -> its course, or null if it is too short before it meets another
+        const course = (i, minOwn) => {
+            const path = [];
+            let c = i;
+            for (let s = 0; c >= 0 && !water[c] && !isRiver[c] && s < 400; s++) { path.push(c); c = recv[c]; }
+            if (c >= 0 && isRiver[c] && path.length < minOwn) return null;
+            return path;
+        };
+        let made = 0;
+        for (const { i } of cands) {
+            if (made >= want) break;
+            if (near[i] || isRiver[i]) continue;
+            const path = course(i, V.minBranch);
+            if (!path || path.length < Math.min(minLength, steps[i])) continue;
+            for (const c of path) isRiver[c] = 1;
+            mark(i);
+            made++;
+        }
+        // Every lake drains by a river from its spill point (to the sea or the next lake)
+        const lakeOf = new Int32Array(N).fill(-1);
+        const lakeSize = new Map();
+        for (let i = 0; i < N; i++) {
+            if (!at(i)._lake || lakeOf[i] >= 0) continue;
+            const g = [i];
+            lakeOf[i] = i;
+            for (let k = 0; k < g.length; k++) for (const n of nbrs(g[k])) if (at(n)._lake && lakeOf[n] < 0) { lakeOf[n] = i; g.push(n); }
+            lakeSize.set(i, g.length);
+        }
+        for (let i = 0; i < N; i++) {
+            if (lakeOf[i] < 0 || lakeSize.get(lakeOf[i]) < V.lakeOutflow) continue;
+            const c = recv[i];
+            if (c < 0 || water[c]) continue;
+            for (const h of course(c, 0)) isRiver[h] = 1;
+        }
+        return isRiver;
+    },
+
+    /**
+     * Lakes in the valleys (worlds since terrainGen 11). The water is first
+     * run off the land as it lies; then, on streams in the hills and plains
+     * away from the sea, a valley is dammed (a moraine, a rockfall, a lip of
+     * hard rock) and fills from its lowest ground up within the country that
+     * drains to the dam, so a lake follows the contours: long and branching
+     * up a valley and its side valleys, round in a bowl, and a river runs in
+     * at its head and out over the dam. More in cold country, where the ice
+     * left them; in the far cold a scatter of small kettle ponds besides.
+     * Lakes are kept HYDRO.lakeSpacing apart. Marks tiles _lake at lakeLevel.
+     */
+    _valleyLakes({ N, at, nbrs, water, flood, jit, rng, lakeMult, lakeLevel, mountainLevel, H }) {
+        const z0 = new Float64Array(N);
+        for (let i = 0; i < N; i++) z0[i] = at(i).elevation + jit[i];
+        const { recv, order } = flood(z0);
+        const flow = new Float64Array(N);
+        let landN = 0;
+        for (let i = 0; i < N; i++) {
+            if (water[i]) continue;
+            landN++;
+            flow[i] = 0.35 + (at(i).moisture ?? 0.5);
+        }
+        for (let k = order.length - 1; k >= 0; k--) {
+            const c = order[k];
+            if (recv[c] >= 0) flow[recv[c]] += flow[c];
+        }
+        const donors = new Array(N);
+        for (let i = 0; i < N; i++) {
+            const d = recv[i];
+            if (d >= 0 && !water[i]) (donors[d] || (donors[d] = [])).push(i);
+        }
+        // how far each land hex is from the sea (to 4)
+        const seaDist = new Uint8Array(N).fill(9);
+        let ring = [];
+        for (let i = 0; i < N; i++) if (water[i] && !at(i)._lake) { seaDist[i] = 0; ring.push(i); }
+        for (let d = 1; d <= 4 && ring.length; d++) {
+            const next = [];
+            for (const c of ring) for (const n of nbrs(c)) if (seaDist[n] > d) { seaDist[n] = d; next.push(n); }
+            ring = next;
+        }
+        const noGo = new Uint8Array(N);
+        const halo = (lake) => {
+            let fr = lake.slice();
+            for (const j of fr) noGo[j] = 1;
+            for (let d = 0; d < H.lakeSpacing; d++) {
+                const next = [];
+                for (const c of fr) for (const n of nbrs(c)) if (!noGo[n]) { noGo[n] = 1; next.push(n); }
+                fr = next;
+            }
+        };
+        const fill = (lake) => {
+            for (const j of lake) {
+                const t = at(j);
+                t.elevation = lakeLevel;
+                t._lake = true;
+                water[j] = 1;
+            }
+            halo(lake);
+        };
+        // grow from `start` over the lowest ground first, within `allowed`, to `size` hexes
+        const grow = (start, size, allowed) => {
+            const lake = [start];
+            const inLake = new Set([start]);
+            const front = [];
+            const add = (c) => {
+                for (const n of nbrs(c)) {
+                    if (inLake.has(n) || water[n] || noGo[n] || seaDist[n] < 2 || !allowed(n)) continue;
+                    if (at(n).elevation >= mountainLevel + 0.06) continue;
+                    inLake.add(n);
+                    front.push(n);
+                }
+            };
+            add(start);
+            while (lake.length < size && front.length) {
+                let bi = 0;
+                for (let k = 1; k < front.length; k++) if (at(front[k]).elevation < at(front[bi]).elevation) bi = k;
+                const c = front[bi];
+                front[bi] = front[front.length - 1];
+                front.pop();
+                lake.push(c);
+                add(c);
+            }
+            return lake;
+        };
+
+        // 1. Dammed valleys on the streams
+        const cands = [];
+        for (let i = 0; i < N; i++) {
+            if (water[i] || seaDist[i] < 3 || recv[i] < 0) continue;
+            const t = at(i);
+            if (t.elevation >= mountainLevel + 0.04 || flow[i] < H.lakeMinFlow) continue;
+            const cold = 1 - (t.temperature ?? 0.5);
+            cands.push({ i, v: rng() * (1 + H.coldLakes * cold) + Math.min(0.3, flow[i] / 200) });
+        }
+        cands.sort((a, b) => b.v - a.v);
+        // (by the root of the land: a continent twice as wide has twice the lakes, not four times)
+        const want = Math.round(Math.sqrt(landN) * H.lakesPerRoot * lakeMult);
+        const sizeMult = Math.min(1.6, 0.7 + 0.3 * lakeMult);
+        let made = 0;
+        for (const { i } of cands) {
+            if (made >= want) break;
+            if (noGo[i] || water[i]) continue;
+            // the country that drains to this hex (the lake may fill only that)
+            const basin = new Set([i]);
+            const stack = [i];
+            while (stack.length && basin.size < 600) {
+                const c = stack.pop();
+                for (const j of donors[c] || []) if (!basin.has(j)) { basin.add(j); stack.push(j); }
+            }
+            if (basin.size < 5) continue;
+            const span = H.lakeSize[1] - H.lakeSize[0];
+            const size = Math.min(Math.floor(basin.size * 0.6),
+                Math.round((H.lakeSize[0] + span * Math.pow(rng(), 1.3)) * sizeMult));
+            if (size < 2) continue;
+            const lake = grow(i, size, (n) => basin.has(n));
+            if (lake.length < 2) continue;
+            fill(lake);
+            made++;
+        }
+
+        // 2. Kettle ponds in the far cold
+        const cold = [];
+        for (let i = 0; i < N; i++) if (!water[i] && seaDist[i] >= 2 && (at(i).temperature ?? 0.5) < H.kettleTemp && at(i).elevation < mountainLevel) cold.push(i);
+        const ponds = Math.round(Math.sqrt(cold.length) * H.kettlesPerRoot * lakeMult);
+        for (let k = 0, tries = 0; k < ponds && tries < ponds * 5 && cold.length; tries++) {
+            const i = cold[Math.floor(rng() * cold.length)];
+            if (noGo[i] || water[i]) continue;
+            const e = at(i).elevation;
+            const lake = grow(i, 1 + Math.floor(rng() * 3), (n) => at(n).elevation <= e + 0.03);
+            fill(lake);
+            k++;
         }
     },
 
@@ -881,7 +1157,142 @@ export const Terrain = {
         minLength: 3,         // no river system shorter than this, source to mouth
         headFlow: 2.2,        // a river climbs its biggest feeder while that carries this much
         wideBasin: 0.3,       // share of the hollows pressed in two hexes wide
+        // rivers since terrainGen 11: from springs in the hills (Terrain._traceRivers)
+        v11: {
+            springsPerRoot: 0.42, // springs per root of the land hexes (at riverCount 40): ~13 on 950 land, ~32 on 6000
+            springSpacing: 3,   // fewest hexes between one spring and the next...
+            spacingRoot: 9,     // ...or the root of the land / this, if more
+            minLength: 5,       // no river shorter than this, spring to the sea or a lake...
+            lengthRoot: 12,     // ...or the root of the land / this, if more
+            hollowLakesPerRoot: 0.08, // deep natural hollows filled, per root of the land
+            minBranch: 3,       // a tributary runs this far on its own before it joins
+            lakeOutflow: 3,     // a lake this big (hexes) always drains by a river
+        },
+        // valley lakes (terrainGen 11, Terrain._valleyLakes)
+        lakesPerRoot: 0.26,   // dammed valley lakes per root of the land hexes (at lakeFreq normal): ~8 on 950 land, ~20 on 6000
+        lakeSize: [3, 30],    // hexes a valley lake fills (skewed small; x up to 1.6 by lakeFreq)
+        lakeMinFlow: 4,       // a lake is dammed only on a stream carrying this much rain
+        lakeSpacing: 3,       // hexes between one lake and the next
+        coldLakes: 1.5,       // how much likelier a lake is in cold country
+        kettleTemp: 0.25,     // below this the land is strewn with kettle ponds
+        kettlesPerRoot: 0.5,  // kettle ponds per root of the cold land hexes (at normal)
     },
+
+    /**
+     * The land field of worlds since terrainGen 11. Each continent seed is
+     * sized so the continents together make about the land asked for
+     * (landMass % of the map); the distance to a seed is taken through a
+     * domain warp, so coasts are ragged with bays and peninsulas, not round
+     * blobs; a broad noise at the continents' own scale adds and takes away
+     * land, and ridges raise ranges. The noise is laid on the hex grid in
+     * true proportion (rows 0.866 apart) and wraps round the world's east-
+     * west seam by blending with its copy one world over, so the map is
+     * neither stretched nor mirrored. -> { height(q, r) } (a raw height,
+     * not yet set to sea level: Terrain._seaLevel11)
+     */
+    _land11({ width, height, rng, seeds, landMass, continentCount, continentSize, terrainOctaves, mountainDensity, polarFactor }) {
+        const target = width * height * Utils.clamp(landMass, 5, 95) / 100;
+        const count = continentSize === 'pangaea' ? 1 : Math.max(1, continentCount);
+        const sizeMul = ({ small: 0.75, medium: 1, large: 1.25, pangaea: 1.3 })[continentSize] || 1;
+        // (a continent's radius in grid units, rows 0.866 apart: its share of the land)
+        const radius = Math.sqrt(target * 0.866 / count / Math.PI) * sizeMul;
+        const f = 1 / (radius * 1.4);           // the broad noise: about a continent across
+        const warp = radius * 0.55;              // how far the coasts are pushed about
+        const ox = rng() * 200, oy = rng() * 200;
+        const W = width;
+        // fbm that wraps east-west: blended with its copy one world over
+        const wrapped = (x, y, fr, oct, sx, sy) => {
+            const t = x / W;
+            const a = Utils.fbm(x * fr + sx, y * fr + sy, oct, 2.0, 0.5);
+            const b = Utils.fbm((x - W) * fr + sx, y * fr + sy, oct, 2.0, 0.5);
+            return (a * (1 - t) + b * t) / Math.sqrt((1 - t) * (1 - t) + t * t);
+        };
+        const cont = seeds.map((s, i) => ({
+            x: s.q + 0.25, y: s.r * 0.866,
+            rad: (i === 0 || continentSize !== 'pangaea' ? radius : radius * 0.35) * (0.85 + rng() * 0.3),
+        }));
+        return {
+            height(q, r) {
+                const x = q + (r % 2 === 0 ? 0.5 : 0);
+                const y = r * 0.866;
+                const wx = x + warp * wrapped(x, y, f * 1.6, 4, ox + 11, oy + 3);
+                const wy = y + warp * wrapped(x, y, f * 1.6, 4, ox + 47, oy + 29);
+                let best = 0, second = 0;
+                for (const c of cont) {
+                    let dx = Math.abs(wx - c.x);
+                    dx = Math.min(dx, W - dx);
+                    const d = Math.hypot(dx, wy - c.y) / c.rad;
+                    const b = 1 - Utils.clamp(d, 0, 1.6) / 1.6;
+                    if (b > best) { second = best; best = b; } else if (b > second) second = b;
+                }
+                // (a sea between two continents where their pulls meet, so they stay apart)
+                const ragged = wrapped(x, y, f * 4, 3, ox + 130, oy + 150) * 0.12;
+                const strait = second > 0.05 ? Utils.clamp(1 - (best - second + ragged) / 0.16, 0, 1) : 0;
+                const broad = wrapped(x, y, f, terrainOctaves, ox, oy);           // -1..1
+                let ridge = 1 - Math.abs(wrapped(x, y, f * 3, 4, ox + 90, oy + 70));
+                ridge = Math.pow(ridge, 3) * mountainDensity;
+                const polar = Math.abs((r / height) - 0.5) * 2;
+                return best * 0.62 + broad * 0.3 + ridge * 0.12 - strait * 0.3 - Math.pow(polar, 3) * (0.25 + polarFactor);
+            },
+        };
+    },
+
+    /**
+     * Set the sea level of a terrainGen 11 world: the raw heights are ranked,
+     * the sea fills the lowest (100 - landMass)% (deeper further from the
+     * shore), and the land's heights are spread from the water level to the
+     * peaks by rank, shaped by flatness and hill density, so a world has about
+     * as much lowland, hill and mountain whatever its size or land share.
+     */
+    _seaLevel11(tiles, width, height, { landMass, waterThreshold, hillsLevel, highlandsLevel, mountainLevel, snowPeakLevel, hillDensity, mountainDensity, flatnessPow, deepWaterLevel }) {
+        const all = [];
+        for (const row of tiles) for (const t of row) all.push(t);
+        const sorted = all.map(t => t.elevation).sort((a, b) => a - b);
+        const n = sorted.length;
+        const seaShare = 1 - Utils.clamp(landMass, 5, 95) / 100;
+        const cut = sorted[Math.min(n - 1, Math.floor(seaShare * n))];
+        const lo = sorted[0];
+        // rank of each land height among the land (0 at the shore, 1 the highest peak)
+        const landVals = sorted.slice(Math.floor(seaShare * n));
+        const rankOf = (v) => {
+            let a = 0, b = landVals.length - 1;
+            while (a < b) { const m = (a + b + 1) >> 1; if (landVals[m] <= v) a = m; else b = m - 1; }
+            return landVals.length > 1 ? a / (landVals.length - 1) : 0;
+        };
+        // (the height a land rank stands at, by bands: most land low, then hills and highlands,
+        // a fringe of mountains and a few snowy peaks; hill and mountain density widen or
+        // narrow their bands, a flatter world lowers them all)
+        const flat = Utils.clamp(1.1 / flatnessPow, 0.5, 1.5);
+        const share = {
+            snow: 0.02 * mountainDensity * flat,
+            mtn: 0.07 * mountainDensity * flat,
+            high: 0.09 * hillDensity * flat,
+            hill: 0.20 * hillDensity * flat,
+        };
+        const k4 = 1 - share.snow, k3 = k4 - share.mtn, k2 = k3 - share.high, k1 = Math.max(0.05, k2 - share.hill);
+        const knots = [
+            [0, waterThreshold + 0.005], [k1, hillsLevel], [k2, highlandsLevel], [k3, mountainLevel], [k4, snowPeakLevel], [1, 1],
+        ];
+        const bandHeight = (rk) => {
+            for (let i = 1; i < knots.length; i++) {
+                if (rk <= knots[i][0]) {
+                    const [r0, e0] = knots[i - 1], [r1, e1] = knots[i];
+                    return e0 + (e1 - e0) * ((rk - r0) / Math.max(1e-9, r1 - r0));
+                }
+            }
+            return 1;
+        };
+        for (const t of all) {
+            const v = t.elevation;
+            if (v < cut) {
+                const k = (v - lo) / Math.max(1e-9, cut - lo);           // 0 deepest .. 1 the shore
+                t.elevation = Utils.clamp(deepWaterLevel * 0.5 + (waterThreshold - 0.005 - deepWaterLevel * 0.5) * Math.pow(k, 0.7), 0, waterThreshold - 0.005);
+            } else {
+                t.elevation = Utils.clamp(bandHeight(rankOf(v)), 0, 1);
+            }
+        }
+    },
+
 
     /** Flood up to `count` low land hexes beside a new lake (not the river's own) */
     _expandLake(tiles, width, height, lake, count, waterLevel, lakeLevel, keep) {

@@ -1172,6 +1172,9 @@ Object.assign(Renderer.prototype, {
             case 'prices':
                 return tile.settlement ? '#e08e45' : this.dimColor(tile.terrain.color, 0.35);
 
+            case 'topo':
+                return this.topoColor(tile);
+
             case 'culture': {
                 if (tile.culturalBuilding) return '#9b59b6';
                 if (tile.kingdom) {

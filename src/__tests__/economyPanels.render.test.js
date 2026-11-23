@@ -500,7 +500,7 @@ function crown(game) {
 
 // ── The renderer ──────────────────────────────────────────────────────────
 
-const MAP_MODES = ['normal', 'political', 'religion', 'wealth', 'military', 'trade', 'prices', 'culture'];
+const MAP_MODES = ['normal', 'topo', 'political', 'religion', 'wealth', 'military', 'trade', 'prices', 'culture'];
 
 function renderAudit(game, label) {
     const problems = [];

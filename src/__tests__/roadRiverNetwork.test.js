@@ -224,3 +224,134 @@ describe('Water that drains (terrainGen 10: Terrain.generateHydrology)', () => {
         expect(count('many')).toBeGreaterThan(count('normal'));
     });
 });
+
+describe('Lakes in the valleys (terrainGen 11: Terrain._valleyLakes)', () => {
+    const GEN = { seed: 31337, kingdomCount: 4, terrainGen: 11, riverCount: 40, lakeFreq: 'normal' };
+    let w;
+    const at = (q, r) => w.tiles[r][Hex.wrapQ(q, w.width)];
+    const lakeGroups = (wd) => {
+        const seen = new Set();
+        const groups = [];
+        for (const t of wd.tiles.flat()) {
+            if (t.terrain.id !== 'lake' || seen.has(t)) continue;
+            const g = [t];
+            seen.add(t);
+            for (let i = 0; i < g.length; i++) {
+                for (const n of Hex.neighbors(g[i].q, g[i].r)) {
+                    if (n.r < 0 || n.r >= wd.height) continue;
+                    const nt = wd.tiles[n.r][Hex.wrapQ(n.q, wd.width)];
+                    if (nt.terrain.id === 'lake' && !seen.has(nt)) { seen.add(nt); g.push(nt); }
+                }
+            }
+            groups.push(g);
+        }
+        return groups;
+    };
+    beforeAll(() => {
+        w = new World(120, 80);
+        w.generate({ ...GEN });
+    });
+
+    it('lakes are real bodies of water, not scattered single-hex ponds', () => {
+        const groups = lakeGroups(w);
+        expect(groups.length).toBeGreaterThanOrEqual(4);
+        const big = groups.filter(g => g.length >= 3);
+        expect(big.length).toBeGreaterThanOrEqual(3);
+        expect(Math.max(...groups.map(g => g.length))).toBeGreaterThanOrEqual(6);
+    });
+
+    it('lakes sit on the rivers: water runs into them and out of them', () => {
+        const flat = w.tiles.flat();
+        const intoLake = flat.filter(t => t.hasRiver && (() => {
+            const n = Hex.neighbors(t.q, t.r)[t.riverDir];
+            return n.r >= 0 && n.r < w.height && at(n.q, n.r).terrain.id === 'lake';
+        })());
+        const outOf = flat.filter(t => t.hasRiver && Hex.neighbors(t.q, t.r)
+            .some((n, i) => n.r >= 0 && n.r < w.height && i !== t.riverDir && at(n.q, n.r).terrain.id === 'lake'));
+        expect(intoLake.length).toBeGreaterThanOrEqual(2);
+        expect(outOf.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('rivers rise at springs in the hills and mountains, a handful per land, not a brook to every cove', () => {
+        const flat = w.tiles.flat();
+        const land = flat.filter(t => t.terrain.passable).length;
+        const rivers = flat.filter(t => t.hasRiver);
+        const springs = rivers.filter(t => t.riverSource);
+        expect(springs.length).toBeGreaterThan(3);
+        for (const t of springs) expect(t.elevation).toBeGreaterThanOrEqual(0.52);
+        expect(springs.length).toBeLessThanOrEqual(Math.ceil(land / 70));
+        expect(rivers.length / land).toBeLessThan(0.15);
+    });
+
+    it('every lake of 3 hexes or more drains by a river', () => {
+        const drains = (g) => g.some(t => Hex.neighbors(t.q, t.r).some(n => {
+            if (n.r < 0 || n.r >= w.height) return false;
+            const nt = at(n.q, n.r);
+            if (!nt.hasRiver) return false;
+            const d = Hex.neighbors(nt.q, nt.r)[nt.riverDir];
+            return !(d.r >= 0 && d.r < w.height && at(d.q, d.r) === t);
+        }) || Hex.neighbors(t.q, t.r).some(n => n.r >= 0 && n.r < w.height && ['ocean', 'coast', 'deep_ocean', 'sea'].includes(at(n.q, n.r).terrain.id)));
+        // (lakes the drainage filled; a little landlocked pool of the sea itself has no river)
+        for (const g of lakeGroups(w).filter(g => g.length >= 3 && g.every(t => t._lake))) expect(drains(g)).toBe(true);
+    });
+
+    it('no lake touches the sea', () => {
+        for (const t of w.tiles.flat().filter(x => x.terrain.id === 'lake')) {
+            for (const n of Hex.neighbors(t.q, t.r)) {
+                if (n.r < 0 || n.r >= w.height) continue;
+                expect(['ocean', 'deep_ocean', 'coast', 'sea']).not.toContain(at(n.q, n.r).terrain.id);
+            }
+        }
+    });
+
+    it('lakeFreq none makes none; abundant makes more', () => {
+        const count = (lakeFreq) => {
+            const wd = new World(120, 80);
+            wd.generate({ ...GEN, lakeFreq });
+            return wd.tiles.flat().filter(t => t._lake).length;
+        };
+        expect(count('none')).toBe(0);
+        expect(count('abundant')).toBeGreaterThan(count('normal'));
+    });
+});
+
+describe('Land as asked for (terrainGen 11: Terrain._land11 / _seaLevel11)', () => {
+    const make = (extra = {}) => {
+        const wd = new World(120, 80);
+        wd.generate({ seed: 4711, kingdomCount: 6, terrainGen: 11, riverCount: 40, lakeFreq: 'normal', ...extra });
+        return wd;
+    };
+    const landShare = (wd) => wd.tiles.flat().filter(t => !['ocean', 'deep_ocean', 'coast', 'sea', 'lake'].includes(t.terrain.id)).length / (wd.width * wd.height);
+    it('Land Coverage is the share of the map that is land', () => {
+        expect(landShare(make())).toBeGreaterThan(0.38);
+        expect(landShare(make())).toBeLessThan(0.5);
+        expect(landShare(make({ landMass: 25 }))).toBeLessThan(0.3);
+        expect(landShare(make({ landMass: 70 }))).toBeGreaterThan(0.6);
+    });
+    it('most of the land is lowland, with hills and a fringe of mountains', () => {
+        const flat = make().tiles.flat();
+        const land = flat.filter(t => t.terrain.passable || ['mountain', 'snow_peak'].includes(t.terrain.id));
+        const share = (ids) => land.filter(t => ids.includes(t.terrain.id)).length / land.length;
+        expect(share(['mountain', 'snow_peak'])).toBeLessThan(0.18);
+        expect(share(['mountain', 'snow_peak'])).toBeGreaterThan(0.04);
+        expect(share(['hills', 'highlands'])).toBeGreaterThan(0.15);
+    });
+    it('is the same world from the same seed', () => {
+        const sig = (wd) => wd.tiles.flat().map(t => t.terrain.id[0] + (t.hasRiver ? t.riverDir : '-')).join('');
+        expect(sig(make())).toBe(sig(make()));
+    });
+});
+
+describe('Water on an Epic map (terrainGen 11, 350x240)', () => {
+    it('a big continent gets longer rivers, not a web of them, and lakes stay a small share', () => {
+        const wd = new World(350, 240);
+        wd.generate({ seed: 4711, kingdomCount: 16, terrainGen: 11, riverCount: 40, lakeFreq: 'normal' });
+        const flat = wd.tiles.flat();
+        const land = flat.filter(t => t.terrain.passable).length;
+        const springs = flat.filter(t => t.hasRiver && t.riverSource).length;
+        const lakes = flat.filter(t => t.terrain.id === 'lake').length;
+        expect(springs).toBeGreaterThan(10);
+        expect(springs).toBeLessThanOrEqual(Math.ceil(Math.sqrt(land) * 0.5));
+        expect(lakes / land).toBeLessThan(0.06);
+    }, 60000);
+});

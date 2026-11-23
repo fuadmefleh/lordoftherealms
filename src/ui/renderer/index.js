@@ -7,6 +7,7 @@ import './world.js';
 import './features.js';
 import './overlays.js';
 import './tradeMap.js';
+import './topography.js';
 import './transport.js';
 import './fog.js';
 import './currents.js';

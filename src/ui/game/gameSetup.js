@@ -432,7 +432,8 @@ export async function _doStartNewGame(settingsOverride) {
         // towns that age through architectural eras, weather, rebuild, pave and wall themselves (world/townEras.js); 9 =
         // bigger crags in up to three tiers, with caves in their faces (world/innerMap/cliffs.js, mines.js); 10 =
         // water that drains as water does: branching river systems and lakes in the hollows (Terrain.generateHydrology)
-        terrainGen: 10,
+        // 11 = lakes in the valleys, dammed on their rivers and filled along the contours (Terrain._valleyLakes)
+        terrainGen: 11,
         continentCount,
         terrainFreq,
         riverCount,

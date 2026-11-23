@@ -61,6 +61,8 @@ export const PlayerLifecycleMethods = {
      * as finding rough lodgings rather than sleeping in a ditch.
      */
     endDay(world = null) {
+        // (the hex costs read the day: winter on the heights — world/mountainBarriers.js)
+        if (world && Number.isFinite(world.day) && typeof this._noteTravelDay === 'function') this._noteTravelDay(world);
         // The day's wear on needs (minus hours already lived on the inner map)
         this.decayNeedsForDay();
 

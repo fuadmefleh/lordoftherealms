@@ -18,6 +18,12 @@ beforeAll(async () => {
         DataLoader.clearCache();
         await DataLoader.initializeAll();
     }
+    // These specs are about the crossing mechanics, with a three-day mountain as the
+    // long hex: pin it (the mountains' own figures — six days, snowbound in winter —
+    // are mountainBarriers.test.js's)
+    const TR = DataLoader._gamedata.travel;
+    TR.hexDays = { ...TR.hexDays, mountain: 3 };
+    TR.floorDays = { ...TR.floorDays, mountain: 2.5 };
 });
 
 const T = (id) => ({ id, name: id, passable: true, moveCost: 2 });

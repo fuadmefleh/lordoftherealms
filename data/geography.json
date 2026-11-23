@@ -1,0 +1,131 @@
+{
+    "_doc": "The names of the land and the water (world/geoNames.js), drawn on the world map like an atlas (ui/renderer/geoLabels.js) and shown in the Region Details panel. Worked out from the tiles and the world seed (a hash, never the game's RNG), so every world has them whatever version made it; once saved they are kept (saveLoad 'geography'), so a town founded later does not rename a range. A feature takes its name from the people who live round it: the culture of the towns nearest its hexes (within cultureRadius), weighted by nearness, else fallbackCulture by kind. `sizes` are the smallest features named (hexes; a river by the river hexes that run into its mouth); `zoom` is the camera zoom from which a feature's label shows, by kind and size (a bigger feature shows from further out: small is below `big` hexes). Patterns: {root} a word from the culture's roots or the kind's own, {croot} the same run into one word ('Greywater'), {tongue} a word in the culture's own tongue (its language's syllables, data/cultures.json), {noun} from the culture's nouns for the kind, else the kind's, {town} the nearest town.",
+
+    "cultureRadius": 14,
+    "sizes": {
+        "range": 10, "river": 14, "tributary": 18, "lake": 3, "bay": 6, "gulf": 30,
+        "forest": 30, "desert": 18, "marsh": 7, "island": 4, "archipelago": 3,
+        "seaChunk": 420, "ocean": 700, "minBasin": 10, "openDist": 3, "inletSteps": 3,
+        "islandMax": 90, "isleGap": 3, "riverLabelEvery": 16, "soundRatio": 3
+    },
+    "zoom": {
+        "sea": { "small": 0.3, "big": 0.3, "hexes": 0 },
+        "range": { "small": 0.62, "big": 0.3, "hexes": 40 },
+        "pass": { "small": 0.95, "big": 0.95, "hexes": 0 },
+        "river": { "small": 0.85, "big": 0.6, "hexes": 60 },
+        "lake": { "small": 0.9, "big": 0.55, "hexes": 25 },
+        "bay": { "small": 0.75, "big": 0.5, "hexes": 30 },
+        "forest": { "small": 0.65, "big": 0.4, "hexes": 120 },
+        "desert": { "small": 0.6, "big": 0.35, "hexes": 80 },
+        "marsh": { "small": 0.85, "big": 0.6, "hexes": 30 },
+        "island": { "small": 0.8, "big": 0.5, "hexes": 25 }
+    },
+    "fallbackCulture": {
+        "sea": "Maritime", "bay": "Maritime", "range": "Mountain", "pass": "Mountain", "river": "Imperial",
+        "lake": "Woodland", "forest": "Woodland", "desert": "Desert", "marsh": "Swamp", "island": "Maritime"
+    },
+
+    "kinds": {
+        "range": {
+            "nouns": { "default": ["Mountains", "Peaks", "Teeth", "Spine", "Crags", "Heights", "Mountains", "Range"] },
+            "roots": ["Grey", "Storm", "Iron", "Thunder", "Frost", "Dragon", "Broken", "Black", "White", "Cloud", "Giant's", "Raven", "Wolf", "Ember", "Hollow", "Knife"],
+            "patterns": ["the {root} {noun}", "the {root} {noun}", "the {tongue} {noun}", "the {noun} of {tongue}"]
+        },
+        "pass": {
+            "nouns": { "default": ["Pass", "Gap", "Gate", "Col", "Saddle", "Notch"] },
+            "roots": ["High", "Windy", "Narrow", "Eagle's", "Old", "Cold", "Bitter", "Long", "Shepherd's", "Red", "Goat", "Echo"],
+            "patterns": ["the {root} {noun}", "{tongue} {noun}", "the {town} {noun}", "the {root} {noun}"]
+        },
+        "river": {
+            "nouns": { "default": ["River"] },
+            "roots": ["Silver", "Swift", "Black", "Clear", "Long", "Winding", "Green", "Cold", "Bright", "Muddy", "Slow", "Amber", "Willow", "Otter"],
+            "patterns": ["the River {tongue}", "the {tongue}", "the {tongue}", "the {root} River", "the {croot}water", "the {croot}run"]
+        },
+        "lake": {
+            "nouns": { "default": ["Lake", "Mere", "Water", "Lake"] },
+            "roots": ["Still", "Mirror", "Deep", "Blue", "Moon", "Swan", "Glass", "Reed", "Silver", "Heron", "Cold", "Grey"],
+            "patterns": ["Lake {tongue}", "Lake {tongue}", "the {root} {noun}", "{croot}mere", "{tongue} {noun}"]
+        },
+        "sea": {
+            "nouns": { "default": ["Sea"], "ocean": ["Ocean", "Deep", "Ocean"], "inland": ["Sea"] },
+            "roots": ["Grey", "Storm", "Pearl", "Silver", "Sunset", "Dawn", "Whale", "Sapphire", "Restless", "Endless", "Shining", "Dark", "Wine-dark", "Mist"],
+            "patterns": ["the {root} {noun}", "the {root} {noun}", "the {noun} of {tongue}", "the {tongue} {noun}"]
+        },
+        "bay": {
+            "nouns": { "default": ["Bay", "Bay", "Cove"], "gulf": ["Gulf"], "sound": ["Sound", "Firth", "Narrows"] },
+            "roots": ["Quiet", "Seal", "Anchor", "Gull", "Crescent", "Shell", "Sheltered", "Salt", "Oyster", "Harbour", "Driftwood", "Kelp"],
+            "patterns": ["{town} {noun}", "the {noun} of {tongue}", "the {root} {noun}", "{tongue} {noun}"]
+        },
+        "forest": {
+            "nouns": { "default": ["Forest", "Weald", "Wood", "Woods", "Forest"], "jungle": ["Jungle", "Wilds", "Tangle"], "pine": ["Pinewood", "Forest", "Wood", "Taiga"] },
+            "roots": ["Green", "Dark", "Whispering", "Old", "Elder", "Deep", "Moss", "Thorn", "Shadow", "Wild", "Oak", "Hart", "Ash", "Misty"],
+            "patterns": ["the {root} {noun}", "the {root} {noun}", "the {tongue} {noun}", "the {croot}wood", "{tongue} {noun}"]
+        },
+        "desert": {
+            "nouns": { "default": ["Waste", "Sands", "Barrens", "Desert", "Wastes", "Dunes"] },
+            "roots": ["Red", "Burning", "Golden", "Bleached", "Thirsting", "Singing", "Bone", "Sun", "Endless", "Glass", "Copper", "Silent"],
+            "patterns": ["the {root} {noun}", "the {root} {noun}", "the {tongue} {noun}", "the {noun} of {tongue}"]
+        },
+        "marsh": {
+            "nouns": { "default": ["Fens", "Marsh", "Mire", "Bogs", "Marshes", "Fen"] },
+            "roots": ["Black", "Weeping", "Reed", "Drowned", "Grey", "Misty", "Sunken", "Rotting", "Heron", "Frog", "Willow", "Murk"],
+            "patterns": ["the {root} {noun}", "the {root} {noun}", "the {tongue} {noun}", "{town} {noun}"]
+        },
+        "island": {
+            "nouns": { "default": ["Isle", "Island"], "isles": ["Isles", "Islands", "Skerries", "Isles"] },
+            "roots": ["Gull", "Seal", "Lonely", "Green", "Black", "Lost", "Windward", "Low", "Rocky", "Holy", "Puffin", "Fair"],
+            "patterns": ["{tongue}", "the Isle of {tongue}", "{root} {noun}", "{tongue} {noun}"],
+            "isles": ["the {root} {noun}", "the {tongue} {noun}", "the {root} {noun}"]
+        }
+    },
+
+    "cultures": {
+        "Imperial": {
+            "roots": ["King's", "Crown", "Grey", "White", "High", "Silver", "Iron", "Emperor's", "Legion", "Stone", "Old", "Marble"],
+            "tongue": 0.3
+        },
+        "Religious": {
+            "roots": ["Holy", "Saint's", "Blessed", "Pilgrim's", "Martyr's", "Bright", "Prophet's", "Angel", "Hallowed", "Chapel", "Vesper", "Psalm"],
+            "tongue": 0.3
+        },
+        "Arcane": {
+            "roots": ["Star", "Rune", "Moon", "Shimmering", "Glimmer", "Witch", "Sigil", "Mage's", "Crystal", "Veiled", "Aether", "Dreaming"],
+            "tongue": 0.35
+        },
+        "Woodland": {
+            "roots": ["Green", "Fern", "Moss", "Willow", "Birch", "Dew", "Thrush", "Hazel", "Elder", "Bramble", "Fox", "Bluebell"],
+            "tongue": 0.35,
+            "nouns": { "lake": ["Mere", "Pool", "Water"], "forest": ["Weald", "Wood", "Greenwood", "Forest"] }
+        },
+        "Swamp": {
+            "roots": ["Murk", "Bog", "Gloom", "Mire", "Rot", "Leech", "Toad", "Black", "Sunken", "Eel", "Stagnant", "Rush"],
+            "tongue": 0.4,
+            "nouns": { "lake": ["Pool", "Mere", "Water"], "marsh": ["Fens", "Mire", "Bogs", "Slough"] }
+        },
+        "Nordic": {
+            "roots": ["Frost", "Wolf", "Raven", "Rime", "Storm", "Bear", "Troll", "Winter", "Thunder", "Ice", "Skald's", "Grim"],
+            "tongue": 0.45,
+            "nouns": { "lake": ["Vatn", "Loch", "Lake", "Mere"], "bay": ["Fjord", "Vik", "Bay"], "sound": ["Fjord", "Sound", "Firth"], "range": ["Fells", "Teeth", "Mountains", "Peaks"] }
+        },
+        "Mountain": {
+            "roots": ["Anvil", "Hammer", "Deep", "Granite", "Forge", "Iron", "Copper", "Boulder", "Thunder", "Dwarf", "Flint", "Slate"],
+            "tongue": 0.4,
+            "nouns": { "range": ["Peaks", "Teeth", "Crags", "Mountains", "Spine"], "lake": ["Tarn", "Lake", "Loch"] }
+        },
+        "Nomadic": {
+            "roots": ["Wind", "Horse", "Dust", "Sky", "Hawk", "Red", "Thunder", "Grass", "Bone", "Spear", "Eagle", "Khan's"],
+            "tongue": 0.5,
+            "nouns": { "lake": ["Nuur", "Lake", "Water"], "desert": ["Steppe", "Waste", "Barrens", "Sands"] }
+        },
+        "Desert": {
+            "roots": ["Sun", "Mirage", "Scorpion", "Golden", "Ember", "Palm", "Serpent", "Dune", "Salt", "Jackal", "Sultan's", "Amber"],
+            "tongue": 0.5,
+            "nouns": { "desert": ["Sands", "Erg", "Waste", "Dunes", "Desert"], "lake": ["Oasis", "Lake", "Water"] }
+        },
+        "Maritime": {
+            "roots": ["Tide", "Coral", "Pearl", "Gull", "Salt", "Wave", "Anchor", "Drift", "Shell", "Sail", "Kraken", "Mariner's"],
+            "tongue": 0.35,
+            "nouns": { "bay": ["Bay", "Cove", "Harbour"] }
+        }
+    }
+}

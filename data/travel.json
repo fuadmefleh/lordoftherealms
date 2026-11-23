@@ -1,5 +1,5 @@
 {
-    "_doc": "How far a day's walk goes (src/player/core/lifecycle.js, movement.js; systems/infrastructure.js getPlayerHexDays). Travel is counted in DAYS PER HEX: crossing one hex of open land takes three quarters of a day, a forest a whole day, a mountain three. The day's movement budget (stamina plus every bonus, after starvation, mood and wounds, times dayScale) is the day; a hex costs its days times the full, unimpaired day (player._dayPace), divided by the travel speed. A hex longer than what is left of the day is crossed over several days: the traveller camps on the way and arrives when it is done (player.crossing).",
+    "_doc": "How far a day's walk goes (src/player/core/lifecycle.js, movement.js; systems/infrastructure.js getPlayerHexDays). Travel is counted in DAYS PER HEX: crossing one hex of open land takes three quarters of a day, a forest a whole day, a mountain six (a range is a wall: go by its passes, data 'mountains' below). The day's movement budget (stamina plus every bonus, after starvation, mood and wounds, times dayScale) is the day; a hex costs its days times the full, unimpaired day (player._dayPace), divided by the travel speed. A hex longer than what is left of the day is crossed over several days: the traveller camps on the way and arrives when it is done (player.crossing).",
     "dayScale": 0.6,
     "_weakFloor": "However hungry, low-spirited or wounded, a free day's walk is never shorter than this share of the full, unimpaired day (player._dayPace): starvation, a black mood and wounds slow a traveller to a crawl, but a starving walker still makes slow headway across a hill over a few days instead of none (player/core/lifecycle.js endDay, systems/ailments.js; travelEstimate reads the same day). 0 turns the floor off.",
     "weakFloor": 0.5,
@@ -19,11 +19,12 @@
         "temperate_rainforest": 1,
         "tropical_rainforest": 1,
         "hills": 1.5,
-        "highlands": 2,
+        "highlands": 2.5,
         "swamp": 2,
+        "badlands": 2,
         "snow": 2,
         "ice": 2,
-        "mountain": 3
+        "mountain": 6
     },
     "_floorDays": "However fast the traveller (horse, technology, endurance, scouts...), crossing this terrain off the road never takes less than this many days. A road through it uses the road's figure instead.",
     "floorDays": {
@@ -36,11 +37,12 @@
         "temperate_rainforest": 0.75,
         "tropical_rainforest": 0.75,
         "hills": 1.25,
-        "highlands": 1.5,
+        "highlands": 2,
         "swamp": 1.5,
         "snow": 1.5,
         "ice": 1.5,
-        "mountain": 2.5
+        "badlands": 1.5,
+        "mountain": 5
     },
     "_roads": "Days per hex on a road, whatever the ground under it. dirt: a dirt road the player built; stone: a paved road the player built (and a bridge); track / road / highway: the world's road tiers (world/transport.js; a rutted road is slower by its rutted factor, a ruined one is no road at all). defaultWorldRoad: a generated road with no tier recorded.",
     "roads": {
@@ -58,7 +60,8 @@
         "highlands": 1.25,
         "snow": 1.25,
         "ice": 1.25,
-        "swamp": 1.25
+        "swamp": 1.25,
+        "badlands": 1.25
     },
     "_roadExtraDays": "Days added per point of a road's extra (world/transport.js: spring mud +1, a pass closed by snow +3).",
     "roadExtraDays": 0.25,
@@ -84,6 +87,27 @@
         "tropical_rainforest": "the jungle",
         "desert": "the desert",
         "tundra": "the tundra",
-        "beach": "the strand"
+        "beach": "the strand",
+        "badlands": "the badlands",
+        "ash_plains": "the ash fields"
+    },
+    "_mountains": "Mountain ranges are walls; their passes (tile._pass, worlds since terrainGen 16: hills and highlands notched through a range) are the gates (world/mountainBarriers.js). winter: off the road, a hex's days (the player, hexDays above) and its march cost (world units, march below) are multiplied in Winter by early, and from day deepFrom of Winter on (deep winter, when the high passes of world/transport.js close too) by deep, by terrain id; a pass hex uses passWinter instead, so the peaks are snowbound while a pass stays open, only slower. passDays: off the road a pass hex takes at most this many days before winter (a way trodden through the range: the hills' pace even at the highland crest); passMarch the same for march costs. march: what a hex costs a marching host, caravan or procession off the road, in hexes of its daily speed (anything not listed 1; a hex dearer than what is left of the day is climbed over several days). marchRoad: the same on a road; marchRoadExtra: added per point of a road's extra (a pass road closed by snow). pathTypes: world units that plan their march with these costs (so they go by a pass); costTypes: units that only pay them on their straight way. caravanFactor: merchant caravans (systems/merchantCaravans.js) pay march x this on top of their route cost when choosing a way. roads: since terrainGen 17 the world's road builder (World.findRoadPath) pays these costs by terrain id instead of the terrain's moveCost, and passRoad x its cost on a pass hex, so generated roads go by the passes (older worlds keep their roads).",
+    "mountains": {
+        "deepFrom": 8,
+        "winter": {
+            "mountain": { "early": 1.5, "deep": 2.5 },
+            "highlands": { "early": 1.25, "deep": 1.5 }
+        },
+        "passWinter": { "early": 1, "deep": 1.25 },
+        "passDays": 1.5,
+        "march": { "mountain": 5, "highlands": 1.25 },
+        "passMarch": 1,
+        "marchRoad": { "mountain": 1.5 },
+        "marchRoadExtra": 0.5,
+        "pathTypes": ["war_host", "relief_host", "peasant_host", "invader_host"],
+        "costTypes": ["caravan", "lord_party", "mercenary_band", "pilgrim_group", "smuggler", "refugee", "diplomatic_envoy"],
+        "caravanFactor": 1,
+        "roads": { "mountain": 14, "highlands": 5 },
+        "passRoad": 0.8
     }
 }

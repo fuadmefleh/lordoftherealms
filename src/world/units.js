@@ -10,6 +10,9 @@ import { Kingdom } from './kingdom.js';
 import { Colonization } from './colonization.js';
 import { WEATHER_EFFECTS } from './weather.js';
 import { Seasons } from './seasons.js';
+import { MountainBarriers } from './mountainBarriers.js';
+import { TownSiting } from './townSiting.js';
+import { Rivers } from './rivers.js';
 
 export class WorldUnit {
     constructor(type, q, r, targetQ = null, targetR = null) {
@@ -291,10 +294,95 @@ export class WorldUnit {
         if (this.objectiveQ == null) return;
         this.targetQ = this.objectiveQ;
         this.targetR = this.objectiveR;
-        for (let i = 0, steps = this.stepsToday(world); i < steps; i++) {
-            if (this.q === this.targetQ && this.r === this.targetR) break;
-            this.moveTowardsTarget(world);
+        let steps = this.stepsToday(world);
+        // Still getting across a great river (rafts, the horses swum over): that eats the march first
+        if (this._riverDebt > 0) {
+            const pay = Math.min(steps, this._riverDebt);
+            this._riverDebt -= pay;
+            steps -= pay;
         }
+        this.marchToward(world, steps);
+    }
+
+    /**
+     * A day's march toward the target that pays the ground (world/mountainBarriers.js):
+     * each hex costs its march cost out of the day's speed (stepsToday), a hex
+     * dearer than what is left is climbed over several days (the rest carried in
+     * _marchCarry). A unit that plans its march (pathTypes: the hosts) goes the
+     * cheapest way, so it takes a pass through a range; the rest go straight.
+     * A unit of a type that pays nothing walks as moveTowardsTarget always did.
+     */
+    marchToward(world, steps = this.stepsToday(world)) {
+        if (!MountainBarriers.paysMarch(this.type)) {
+            for (let i = 0; i < steps; i++) {
+                if (this.q === this.targetQ && this.r === this.targetR) break;
+                this.moveTowardsTarget(world);
+            }
+            return;
+        }
+        const EPS = 1e-9;
+        const day = world && Number.isFinite(world.day) ? world.day : null;
+        const plans = MountainBarriers.plansMarch(this.type);
+        let budget = steps + (Number(this._marchCarry) || 0);
+        this._marchCarry = 0;
+        for (let guard = 0; guard < 64; guard++) {
+            if (this.targetQ == null || (this.q === this.targetQ && this.r === this.targetR)) return;
+            const next = (plans && this._plannedStep(world, day)) || this._greedyStep(world);
+            if (!next) {
+                this.age += 5; // Age faster if stuck (as moveTowardsTarget)
+                return;
+            }
+            const cost = MountainBarriers.marchCost(world.getTile(next.q, next.r), day);
+            if (!Number.isFinite(cost)) return;
+            if (cost > budget + EPS) {
+                // Camped on the climb: the day's march goes into the hex
+                this._marchCarry = budget;
+                return;
+            }
+            budget -= cost;
+            const fq = this.q, fr = this.r;
+            this.q = next.q;
+            this.r = next.r;
+            // A war host crossing a great river with no bridge, road, town or ford loses
+            // hexes of its march (world/rivers.js); what the day can't pay is carried
+            if (this.type === 'war_host') {
+                const cx = Rivers.crossExtra(world, fq, fr, this.q, this.r, 'army');
+                const x = cx > 0 ? Math.max(1, Math.round(cx)) : 0;
+                if (x > 0) {
+                    const pay = Math.min(Math.max(0, Math.floor(budget + EPS)), x);
+                    budget -= pay;
+                    this._riverDebt = (this._riverDebt || 0) + x - pay;
+                    this._riverCrossings = (this._riverCrossings || 0) + 1;
+                }
+            }
+        }
+    }
+
+    /**
+     * The next hex of the cheapest way to the target by march cost (Hex.findPath),
+     * kept while the target and winter's grip hold; null when there is none (too
+     * far, or no way), and the unit goes straight instead.
+     */
+    _plannedStep(world, day) {
+        const key = `${this.targetQ},${this.targetR}|${MountainBarriers.winterPhase(day) || ''}`;
+        let plan = this._marchPlan;
+        if (!plan || plan.key !== key) {
+            const path = Hex.findPath(this.q, this.r, this.targetQ, this.targetR, world.width, world.height,
+                (q, r) => { const t = world.getTile(q, r); return !!(t && t.terrain && t.terrain.passable); },
+                (q, r) => MountainBarriers.marchCost(world.getTile(q, r), day));
+            plan = { key, path: path || null, i: 0 };
+            // (not saved with the unit: planned afresh after a load)
+            Object.defineProperty(this, '_marchPlan', { value: plan, enumerable: false, writable: true, configurable: true });
+        }
+        const P = plan.path;
+        if (!P) return null;
+        // Find where the unit stands on the plan (it may have been pushed off it)
+        while (plan.i < P.length && !(P[plan.i].q === this.q && P[plan.i].r === this.r)) plan.i++;
+        if (plan.i >= P.length - 1) {
+            plan.key = null; // off the plan, or at its end: plan again next time
+            return null;
+        }
+        return P[plan.i + 1];
     }
 
     /** War fleets sink any pirate ship that comes within a hex. */
@@ -382,11 +470,8 @@ export class WorldUnit {
             }
         }
 
-        // Move multiple times based on speed
-        for (let i = 0, steps = this.stepsToday(world); i < steps; i++) {
-            if (this.q === this.targetQ && this.r === this.targetR) break;
-            this.moveTowardsTarget(world);
-        }
+        // Move multiple times based on speed (overland, a caravan pays the mountains: marchToward)
+        this.marchToward(world);
 
         // Check if arrived at target
         if (this.targetQ !== null && this.targetR !== null &&
@@ -614,6 +699,16 @@ export class WorldUnit {
                     if (dist > 6) {
                         this.targetQ = q;
                         this.targetR = r;
+                        // Since terrainGen 16: the best site near the spot drawn, where a
+                        // town would grow (world/townSiting.js), by the same rules; no dice
+                        if (TownSiting.forWorld(world)) {
+                            const F = TownSiting.founded('settler');
+                            const far = (t) => settlements.every(s => Hex.wrappingDistance(t.q, t.r, s.q, s.r, world.width) > 6);
+                            const pick = TownSiting.bestNear(world, q, r, Number.isFinite(F.radius) ? F.radius : 3,
+                                (t) => t.terrain.passable && !t.settlement && t.regionId === regionId && far(t),
+                                { distWeight: Number.isFinite(F.distWeight) ? F.distWeight : 0.3, kind: 'village' });
+                            if (pick) { this.targetQ = pick.q; this.targetR = pick.r; }
+                        }
                         break;
                     }
                 }
@@ -719,11 +814,8 @@ export class WorldUnit {
             this._pickNextLordDestination(world);
         }
 
-        // Move towards target (slower than patrols)
-        for (let i = 0, steps = this.stepsToday(world); i < steps; i++) {
-            if (this.targetQ !== null && this.q === this.targetQ && this.r === this.targetR) break;
-            this.moveTowardsTarget(world);
-        }
+        // Move towards target (slower than patrols; the mountains slow it: marchToward)
+        this.marchToward(world);
     }
 
     /**
@@ -788,6 +880,19 @@ export class WorldUnit {
     moveTowardsTarget(world) {
         const dist = Hex.wrappingDistance(this.q, this.r, this.targetQ, this.targetR, world.width);
         if (dist === 0) return;
+        const best = this._greedyStep(world, dist);
+        if (best) {
+            this.q = best.q;
+            this.r = best.r;
+        } else {
+            // Stuck? 
+            this.age += 5; // Age faster if stuck
+        }
+    }
+
+    /** The neighbour that brings the unit nearest its target (the straight way), or null. */
+    _greedyStep(world, dist = Hex.wrappingDistance(this.q, this.r, this.targetQ, this.targetR, world.width)) {
+        if (dist === 0) return null;
 
         // Simple step-by-step for now to avoid heavy A* every tick
         const neighbors = Hex.neighbors(this.q, this.r);
@@ -823,14 +928,7 @@ export class WorldUnit {
                 best = { q: wq, r: n.r };
             }
         }
-
-        if (best) {
-            this.q = best.q;
-            this.r = best.r;
-        } else {
-            // Stuck? 
-            this.age += 5; // Age faster if stuck
-        }
+        return best;
     }
 
     /**

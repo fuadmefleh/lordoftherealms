@@ -8,6 +8,7 @@ import { Hex } from '../../core/hex.js';
 import { Dawn } from '../../world/dawn.js';
 import { OceanCurrents } from '../../world/oceanCurrents.js';
 import { LandRegions } from '../../world/landRegions.js';
+import { Rivers } from '../../world/rivers.js';
 import { Endurance } from '../endurance.js';
 import { Thirst } from '../thirst.js';
 import { Utils } from '../../core/utils.js';
@@ -105,7 +106,8 @@ export const PlayerMovementMethods = {
         const tile = world.getTile(q, r);
         if (!tile) return false;
         // Aboard a river boat: the rivers and the lakes they run into (systems/riverBoats.js)
-        if (this._onRiverBoat()) return (q === this.q && r === this.r) || RiverBoats.navigable(world, q, r);
+        // (and a brook, only to float down it: RiverBoats.link's leg is Infinity any other way)
+        if (this._onRiverBoat()) return (q === this.q && r === this.r) || RiverBoats.navigable(world, q, r) || RiverBoats._brook(world, q, r);
         if (!this.boardedShip) return !!tile.terrain.passable;
         if (q === this.q && r === this.r) return true;
         if (this.SHIP_TERRAINS.includes(tile.terrain.id)) return true;
@@ -179,11 +181,38 @@ export const PlayerMovementMethods = {
         return { moved: true, q, r, dir: cur.dir, name: cur.name };
     },
 
+    /**
+     * Movement to go from (fq, fr) into (tq, tr), whose tile is `tile`: the
+     * hex's cost, times the current's factor afloat, plus — on foot — the
+     * time to get across a big river there with no bridge, road, town or
+     * ford (world/rivers.js crossExtra; as a host at the head of an army).
+     */
+    _legMoveCost(world, tile, fq, fr, tq, tr) {
+        const c = this._hexMoveCost(tile) * this._sailCurrent(world, fq, fr, tq, tr);
+        const x = this._riverCrossDays(world, fq, fr, tq, tr);
+        return x > 0 && Number.isFinite(c) ? c + x * this._travelPace() : c;
+    },
+
+    /** Extra days on foot to get across the river on (tq, tr) coming from (fq, fr), by its size (0 afloat). */
+    _riverCrossDays(world, fq, fr, tq, tr) {
+        if (!world || this.boardedShip || this._onRiverBoat() || !Number.isFinite(fq)) return 0;
+        const x = Rivers.crossExtra(world, fq, fr, tq, tr, Rivers.crossesAsHost(this) ? 'host' : 'player');
+        return x > 0 ? x * Infrastructure.riverCrossFactor(this) : 0;
+    },
+
     /** Days to cross a tile on foot (or, aboard ship, its sailing cost as a share of the day). */
     _hexDays(tile) {
         if (this.boardedShip) return this._hexMoveCost(tile) / this._travelPace();
         if (this._onRiverBoat()) return RiverBoats.hexDays(this);
         return Infrastructure.getPlayerHexDays(tile, this);
+    },
+
+    /**
+     * Note the world's day for the hex costs (this._travelDay: winter on the
+     * heights, world/mountainBarriers.js). Every route search and step calls it.
+     */
+    _noteTravelDay(world) {
+        if (world && Number.isFinite(world.day)) this._travelDay = world.day;
     },
 
     /**
@@ -294,10 +323,13 @@ export const PlayerMovementMethods = {
         return !!(b && b.aboard && !this.boardedShip);
     },
 
-    /** Route-planning cost of entering (q, r) from (fq, fr): a river boat's leg goes by the current. */
+    /** Route-planning cost of entering (q, r) from (fq, fr): a river boat's leg goes by the current; on foot, a big river's crossing. */
     _pathCostFrom(world, q, r, fq, fr) {
         const c = this._hexPathCost(world.getTile(q, r));
-        return this._onRiverBoat() && Number.isFinite(fq) ? c * this._sailCurrent(world, fq, fr, q, r) : c;
+        if (this._onRiverBoat()) return Number.isFinite(fq) ? c * this._sailCurrent(world, fq, fr, q, r) : c;
+        // (on foot a great river is a barrier: the way round by a bridge or a ford may be quicker)
+        const x = this._riverCrossDays(world, fq, fr, q, r);
+        return x > 0 && Number.isFinite(c) ? c + x * this._travelPace() : c;
     },
 
     /**
@@ -308,6 +340,7 @@ export const PlayerMovementMethods = {
         if (this.jailState) return false;
         if (this.indenturedServitude) return false;
         if (!this._overlandReachable(targetQ, targetR, world)) return false;
+        this._noteTravelDay(world);
 
         const path = Infrastructure.withLoadSpeed(this, () => Hex.findPath(
             this.q, this.r,
@@ -346,6 +379,7 @@ export const PlayerMovementMethods = {
         if (targetQ === this.q && targetR === this.r) return null;
         if (!this._canEnterHex(targetQ, targetR, world)) return null;
         if (!this._overlandReachable(targetQ, targetR, world)) return null;
+        this._noteTravelDay(world);
         const path = Infrastructure.withLoadSpeed(this, () => Hex.findPath(
             this.q, this.r, targetQ, targetR, world.width, world.height,
             (q, r) => this._canEnterHex(q, r, world),
@@ -372,7 +406,7 @@ export const PlayerMovementMethods = {
         for (let i = 1; i < path.length && days <= 365; i++) {
             const tile = world.getTile(path[i].q, path[i].r);
             const under = i === 1 ? this._crossingTo(path[1].q, path[1].r) : null;
-            const full = under ? under.need : (tile ? this._hexMoveCost(tile) * this._sailCurrent(world, path[i - 1].q, path[i - 1].r, path[i].q, path[i].r) : 1);
+            const full = under ? under.need : (tile ? this._legMoveCost(world, tile, path[i - 1].q, path[i - 1].r, path[i].q, path[i].r) : 1);
             let left = under ? Math.max(0, under.need - under.done) : full;
             travelDays += left / pace;
             // Setting out across a hex takes an action point (going on with one doesn't)
@@ -471,6 +505,7 @@ export const PlayerMovementMethods = {
         this.moveAnimProgress += deltaTime * 4; // Speed of movement animation
 
         if (this.moveAnimProgress >= 1) {
+            this._noteTravelDay(world);
             const nextHex = this.path[this.pathIndex];
             const tile = world.getTile(nextHex.q, nextHex.r);
 
@@ -497,7 +532,7 @@ export const PlayerMovementMethods = {
             // way. Setting out across a hex costs 1 AP; going on with one doesn't.
             const EPS = this.MOVE_EPS;
             const under = this.boardedShip ? null : this._crossingTo(nextHex.q, nextHex.r);
-            const moveCost = under ? Math.max(0, under.need - under.done) : this._hexMoveCost(tile) * this._sailCurrent(world, this.q, this.r, nextHex.q, nextHex.r);
+            const moveCost = under ? Math.max(0, under.need - under.done) : this._legMoveCost(world, tile, this.q, this.r, nextHex.q, nextHex.r);
             const queueRest = () => {
                 this.queuedPath = this.path;
                 this.queuedPathIndex = this.pathIndex;
@@ -647,6 +682,7 @@ export const PlayerMovementMethods = {
     },
 
     _getReachableHexes(world, opts = {}) {
+        this._noteTravelDay(world);
         const EPS = this.MOVE_EPS;
         const today = Math.max(0, this.movementRemaining || 0);
         const full = this._fullDayMovement();
@@ -675,7 +711,7 @@ export const PlayerMovementMethods = {
 
                 // A crossing under way: only what is left of it
                 const under = current.cost === 0 && current.q === this.q && current.r === this.r ? this._crossingTo(wq, wr) : null;
-                const step = under ? Math.max(0, under.need - under.done) : this._hexMoveCost(world.getTile(wq, wr)) * this._sailCurrent(world, current.q, current.r, wq, wr);
+                const step = under ? Math.max(0, under.need - under.done) : this._legMoveCost(world, world.getTile(wq, wr), current.q, current.r, wq, wr);
                 const newCost = current.cost + step;
                 const key = `${wq},${wr}`;
 

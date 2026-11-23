@@ -1,6 +1,6 @@
 // World — generation methods.
 import { World } from './core.js';
-import { Terrain, Kingdom, WeatherSystem, NPCLords, Hex, MinHeap, Utils, WorldEvents, WorldUnit, Characters, Religion, Culture, Peoples, Colonization, Cartography, KingdomAI, Dawn, Cultures, WorldAge, Castles, TownSiting } from './_imports.js';
+import { Terrain, Kingdom, WeatherSystem, NPCLords, Hex, MinHeap, Utils, WorldEvents, WorldUnit, Characters, Religion, Culture, Peoples, Colonization, Cartography, KingdomAI, Dawn, Cultures, WorldAge, Castles, TownSiting, LandHistory, MountainBarriers } from './_imports.js';
 
 Object.assign(World.prototype, {
     /**
@@ -11,22 +11,7 @@ Object.assign(World.prototype, {
      * The caller's RNG stream is restored afterwards.
      */
     generate(terrainParams = {}) {
-        const seed = terrainParams.seed || Utils.randInt(1, 2147483646);
-        this.generationParams = { ...terrainParams, seed };
-        // A younger world (start year between the dawn and the mature year,
-        // world/worldAge.js) keeps the age settings it was made with, so a
-        // save regenerates the same world
-        const age = WorldAge.forParams(this.generationParams);
-        if (age.t < 1 && !this.generationParams.worldAge) this.generationParams.worldAge = age.snapshot;
-        // The calendar starts in the chosen year (before the dawn year: no
-        // towns or realms yet — world/dawn.js)
-        this.baseYear = Dawn.startYear(terrainParams);
-        this.year = this.baseYear;
-        this.dawn = null;
-        const outerRng = Utils.getRng();
-        // A new world numbers its characters, maps, spies, ... from 1
-        Utils.setIdCounter(0);
-        Utils.setSeed(typeof seed === 'string' ? Math.abs(Utils.hashStr(seed)) : seed);
+        const outerRng = this._seedGeneration(terrainParams);
         // Worlds made before the hex-distance fix (terrainGen < 3, every save
         // older than it) regenerate with the old metric so their map is the same
         const build = () => {
@@ -44,16 +29,147 @@ Object.assign(World.prototype, {
         }
     },
 
+    /**
+     * The land only: the terrain and the realms' first seats (capitals, their
+     * first lands and towns), drawn exactly as generate() draws them, and
+     * nothing after (no lords, roads, history, units). The New Game preview
+     * (world/worldPreview.js) shows this, so it is the very land a New Game
+     * with the same params makes. The caller's RNG stream is restored.
+     */
+    generateLand(terrainParams = {}) {
+        const outerRng = this._seedGeneration(terrainParams);
+        const build = () => this._generateLand(this.generationParams);
+        try {
+            if ((Number(this.generationParams.terrainGen) || 1) >= 3) build();
+            else Hex.withLegacyMetric(build);
+        } finally {
+            Utils.setRng(outerRng);
+        }
+    },
+
+    /** generate()'s start: the seed (drawn if none given), the calendar, the seeded RNG. Returns the caller's RNG. */
+    _seedGeneration(terrainParams) {
+        const seed = terrainParams.seed || Utils.randInt(1, 2147483646);
+        this.generationParams = { ...terrainParams, seed };
+        // A younger world (start year between the dawn and the mature year,
+        // world/worldAge.js) keeps the age settings it was made with, so a
+        // save regenerates the same world
+        const age = WorldAge.forParams(this.generationParams);
+        if (age.t < 1 && !this.generationParams.worldAge) this.generationParams.worldAge = age.snapshot;
+        // The calendar starts in the chosen year (before the dawn year: no
+        // towns or realms yet — world/dawn.js)
+        this.baseYear = Dawn.startYear(terrainParams);
+        this.year = this.baseYear;
+        this.dawn = null;
+        const outerRng = Utils.getRng();
+        // A new world numbers its characters, maps, spies, ... from 1
+        Utils.setIdCounter(0);
+        Utils.setSeed(typeof seed === 'string' ? Math.abs(Utils.hashStr(seed)) : seed);
+        return outerRng;
+    },
+
     _generateWorld(terrainParams) {
+        // The terrain and the realms' seats (shared with generateLand, the New Game preview)
+        if (!this._generateLand(terrainParams)) {
+            this._generateDawnWorld(terrainParams);
+            return;
+        }
+
+        // Initialize diplomatic relations
+        Kingdom.initRelations(this.kingdoms);
+
+        console.log('Initializing NPC lords...');
+        // Initialize lords for all kingdoms
+        NPCLords.initializeLords(this);
+
+        console.log('Initializing character system...');
+        // Initialize dynasty, advisors, marriages for all kingdoms
+        if (typeof Characters !== 'undefined') {
+            Characters.initialize(this);
+        }
+
+        console.log('Placing independent settlements...');
+        // Scatter some independent settlements
+        const indepSettlementFreq = terrainParams.independentSettlements || 'normal';
+        this.placeIndependentSettlements(indepSettlementFreq);
+        // Two towns drew the same name? Rename the later ones (hash, no RNG).
+        Kingdom.dedupeSettlementNames(this);
+
+        console.log('Placing points of interest...');
+        // Place some villages as points of interest
+        const ruinsFreq = terrainParams.ruinsFreq || 'normal';
+        this.placePointsOfInterest(ruinsFreq);
+
+        // A start year before the mature year: the world as it stood then —
+        // fewer, smaller places, smaller realms, fewer ruins, founded earlier
+        // (world/worldAge.js). Everything below derives from what is left.
+        const age = WorldAge.forParams(terrainParams);
+        const young = age.t < 1;
+        if (young) WorldAge.apply(this, age);
+        // Castles come late: a capital before its castle's year keeps a great hall (world/castles.js)
+        Castles.sync(this, { creating: true });
+
+        console.log('Generating road network...');
+        this.generateRoads(young ? { maxEdge: WorldAge.roadReach(age) } : {});
+        // terrainGen 17+: faint old roads between the ruins and to the passes (world/landHistory.js)
+        if (LandHistory.applies(terrainParams.terrainGen)) LandHistory.layOldRoads(this);
+
+        console.log('Generating world history...');
+        this.history = WorldEvents.generateHistory(this, young ? { from: age.dawnYear } : {});
+
+        // Initialize world religion system
+        console.log('Initializing religions & holy sites...');
+        if (typeof Religion !== 'undefined') {
+            Religion.initialize(this, young ? { holySites: WorldAge.curve(age.cfg.holySites, age.t) } : {});
+        }
+
+        // Initialize cultural system
+        console.log('Initializing cultural traditions...');
+        if (typeof Culture !== 'undefined') {
+            Culture.initialize(this);
+        }
+
+        // Initialize multicultural peoples system
+        console.log('Initializing multicultural peoples...');
+        if (typeof Peoples !== 'undefined') {
+            Peoples.initialize(this);
+        }
+
+        // Initialize colonization system (indigenous populations, kingdom policies)
+        console.log('Initializing colonization system...');
+        if (typeof Colonization !== 'undefined') {
+            Colonization.initialize(this);
+        }
+
+        // Initialize cartography system (ancient maps in ruins, kingdom cartography)
+        console.log('Initializing cartography system...');
+        if (typeof Cartography !== 'undefined') {
+            Cartography.initialize(this);
+        }
+
+        // Populate the world with initial units so it feels alive from the start
+        console.log('Spawning initial world units...');
+        this.spawnInitialUnits();
+
+        // Nothing has happened yet that a young world's calendar hasn't reached
+        if (young) this.history = this.history.filter(h => !(h && h.year >= this.year));
+
+        console.log(`World generated: ${this.width}x${this.height}, ${this.kingdoms.length} kingdoms`);
+    },
+
+    /**
+     * The terrain, then the realms and their seats (capitals, first lands and
+     * towns). False at the Dawn of Man (no realms yet). Called by
+     * _generateWorld and generateLand, so both draw the same RNG.
+     */
+    _generateLand(terrainParams) {
         console.log('Generating terrain...');
         // Generate terrain
         this.tiles = Terrain.generateMap(this.width, this.height, terrainParams);
         console.log('Terrain generated');
 
-        if (Dawn.isDawnStart(terrainParams)) {
-            this._generateDawnWorld(terrainParams);
-            return;
-        }
+        // (at the Dawn of Man there are no realms yet: world/dawn.js)
+        if (Dawn.isDawnStart(terrainParams)) return false;
 
         console.log('Creating kingdoms...');
         // Create kingdoms — respect kingdomCount parameter
@@ -122,85 +238,7 @@ Object.assign(World.prototype, {
         // Place kingdoms on map (since terrainGen 16 on the best sites: world/townSiting.js)
         Kingdom.placeKingdoms(this.kingdoms, this.tiles, this.width, this.height, { terrainGen: terrainParams.terrainGen });
         console.log('Kingdoms placed');
-
-        // Initialize diplomatic relations
-        Kingdom.initRelations(this.kingdoms);
-
-        console.log('Initializing NPC lords...');
-        // Initialize lords for all kingdoms
-        NPCLords.initializeLords(this);
-
-        console.log('Initializing character system...');
-        // Initialize dynasty, advisors, marriages for all kingdoms
-        if (typeof Characters !== 'undefined') {
-            Characters.initialize(this);
-        }
-
-        console.log('Placing independent settlements...');
-        // Scatter some independent settlements
-        const indepSettlementFreq = terrainParams.independentSettlements || 'normal';
-        this.placeIndependentSettlements(indepSettlementFreq);
-        // Two towns drew the same name? Rename the later ones (hash, no RNG).
-        Kingdom.dedupeSettlementNames(this);
-
-        console.log('Placing points of interest...');
-        // Place some villages as points of interest
-        const ruinsFreq = terrainParams.ruinsFreq || 'normal';
-        this.placePointsOfInterest(ruinsFreq);
-
-        // A start year before the mature year: the world as it stood then —
-        // fewer, smaller places, smaller realms, fewer ruins, founded earlier
-        // (world/worldAge.js). Everything below derives from what is left.
-        const age = WorldAge.forParams(terrainParams);
-        const young = age.t < 1;
-        if (young) WorldAge.apply(this, age);
-        // Castles come late: a capital before its castle's year keeps a great hall (world/castles.js)
-        Castles.sync(this, { creating: true });
-
-        console.log('Generating road network...');
-        this.generateRoads(young ? { maxEdge: WorldAge.roadReach(age) } : {});
-
-        console.log('Generating world history...');
-        this.history = WorldEvents.generateHistory(this, young ? { from: age.dawnYear } : {});
-
-        // Initialize world religion system
-        console.log('Initializing religions & holy sites...');
-        if (typeof Religion !== 'undefined') {
-            Religion.initialize(this, young ? { holySites: WorldAge.curve(age.cfg.holySites, age.t) } : {});
-        }
-
-        // Initialize cultural system
-        console.log('Initializing cultural traditions...');
-        if (typeof Culture !== 'undefined') {
-            Culture.initialize(this);
-        }
-
-        // Initialize multicultural peoples system
-        console.log('Initializing multicultural peoples...');
-        if (typeof Peoples !== 'undefined') {
-            Peoples.initialize(this);
-        }
-
-        // Initialize colonization system (indigenous populations, kingdom policies)
-        console.log('Initializing colonization system...');
-        if (typeof Colonization !== 'undefined') {
-            Colonization.initialize(this);
-        }
-
-        // Initialize cartography system (ancient maps in ruins, kingdom cartography)
-        console.log('Initializing cartography system...');
-        if (typeof Cartography !== 'undefined') {
-            Cartography.initialize(this);
-        }
-
-        // Populate the world with initial units so it feels alive from the start
-        console.log('Spawning initial world units...');
-        this.spawnInitialUnits();
-
-        // Nothing has happened yet that a young world's calendar hasn't reached
-        if (young) this.history = this.history.filter(h => !(h && h.year >= this.year));
-
-        console.log(`World generated: ${this.width}x${this.height}, ${this.kingdoms.length} kingdoms`);
+        return true;
     },
 
     /**
@@ -461,6 +499,7 @@ Object.assign(World.prototype, {
             tropical_rainforest: 0.54, savanna: 0.52, desert: 0.50,
             hills: 0.68, mountain: 0.82, snow_peak: 0.95,
             swamp: 0.46, island: 0.48, highlands: 0.72,
+            badlands: 0.62, ash_plains: 0.55, glacier: 0.92, volcano: 0.9,
         };
         return map[t.id] ?? 0.5;
     },
@@ -474,6 +513,7 @@ Object.assign(World.prototype, {
             temperate_rainforest: 0.5, hills: 0.45, mountain: 0.3, highlands: 0.35,
             beach: 0.6, savanna: 0.7, desert: 0.8,
             tropical_rainforest: 0.85, swamp: 0.6, island: 0.65,
+            badlands: 0.7, ash_plains: 0.55, glacier: 0.05, volcano: 0.5,
             deep_ocean: 0.4, ocean: 0.4, coast: 0.45, sea: 0.4, lake: 0.45,
         };
         const b = base[t.id] ?? 0.5;
@@ -492,6 +532,7 @@ Object.assign(World.prototype, {
             tropical_rainforest: 0.9, savanna: 0.35, desert: 0.1,
             hills: 0.4, mountain: 0.35, snow_peak: 0.3,
             swamp: 0.85, island: 0.5, highlands: 0.45,
+            badlands: 0.1, ash_plains: 0.5, glacier: 0.3, volcano: 0.2,
         };
         return map[t.id] ?? 0.5;
     },
@@ -624,6 +665,8 @@ Object.assign(World.prototype, {
             { type: 'oasis', icon: '🌴', name: 'Desert Oasis' },
             { type: 'monument', icon: '🗿', name: 'Stone Monument' },
         ];
+        // terrainGen 17+: the ruins where history left them (world/landHistory.js)
+        if (!(this.generationParams || {}).customWorld && LandHistory.applies((this.generationParams || {}).terrainGen)) return LandHistory.placePointsOfInterest(this, freq, opts);
         // Before anyone built anything, only what nature made
         const poiTypes = opts.natural ? allTypes.filter(p => p.type === 'cave' || p.type === 'oasis') : allTypes;
 
@@ -781,11 +824,14 @@ Object.assign(World.prototype, {
      * of running side by side), and shuns river hexes (each is a crossing to
      * bridge or ford, so a road shouldn't run down a river's length). The
      * heuristic is the true grid distance times the cheapest step, so the
-     * route found is the cheapest one.
+     * route found is the cheapest one. Since terrainGen 17 the mountains are
+     * dear and a pass cheap (world/mountainBarriers.js roadCost), so roads go
+     * through a range by its pass; older worlds keep the roads they were made with.
      */
     findRoadPath(startQ, startR, endQ, endR) {
         const width = this.width;
         const height = this.height;
+        const terrainGen = Number((this.generationParams || {}).terrainGen) || 1;
         const sq = Hex.wrapQ(startQ, width);
         const eq = Hex.wrapQ(endQ, width);
         const ROAD_REUSE = 0.35;
@@ -822,7 +868,7 @@ Object.assign(World.prototype, {
                 const t = this.tiles[nb.r][nq];
                 if (!t || !t.terrain.passable) continue;
 
-                let step = t.terrain.moveCost || 1;
+                let step = MountainBarriers.roadCost(t, terrainGen);
                 if (!Number.isFinite(step)) continue;
                 if (t.hasRoad) step *= ROAD_REUSE;
                 else if (t.hasRiver && !t.settlement) step += RIVER_PENALTY;

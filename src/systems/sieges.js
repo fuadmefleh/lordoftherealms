@@ -702,7 +702,8 @@ export const Sieges = {
             unit.objectiveR = s.r;
         }
         let moved = unit.q !== rel.q || unit.r !== rel.r;
-        if (!moved && !rel.arrived && unit.objectiveQ != null && !(unit.q === s.q && unit.r === s.r)) {
+        // (not when it is only slow on a climb: WorldUnit.marchToward carries the day into the hex)
+        if (!moved && !(unit._marchCarry > 0) && !rel.arrived && unit.objectiveQ != null && !(unit.q === s.q && unit.r === s.r)) {
             // The straight march is blocked (water, mountains): take the long road round
             const path = Sieges._landPath(world, unit, s);
             if (path && path.length) {

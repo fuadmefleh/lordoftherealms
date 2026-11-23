@@ -10,7 +10,8 @@
         "tundra": 1.6, "snow": 2.0, "ice": 3.0,
         "woodland": 1.8, "seasonal_forest": 2.0, "boreal_forest": 2.1, "temperate_rainforest": 2.4, "tropical_rainforest": 2.8,
         "hills": 1.8, "highlands": 2.3, "mountain": 3.5, "snow_peak": 4.0,
-        "swamp": 3.0
+        "swamp": 3.0,
+        "badlands": 2.2, "ash_plains": 1.0, "glacier": 4.0, "volcano": 4.0
     },
     "river": 1.5,
     "crews": { "hands": 6, "wageMult": 1.5, "speedPerCrew": 0.5, "max": 3 }

@@ -398,6 +398,7 @@ Object.assign(UI.prototype, {
             <div style="display:flex;flex-wrap:wrap;row-gap:3px;font-size:10px">${sw}</div>
             <div style="margin-top:5px;font-size:10px;line-height:1.5">
                 Brighter: the heart of an ore field.<br>
+                Fish in the sea: the fishing grounds, brighter where richer.<br>
                 Under a town you have price news of:<br>
                 <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#c9c2b0;vertical-align:middle"></span> plenty to sell
                 &nbsp;<span style="display:inline-block;width:6px;height:6px;border-radius:50%;border:1.5px solid #c9c2b0;vertical-align:middle"></span> short, will pay well
@@ -921,6 +922,7 @@ Object.assign(UI.prototype, {
         if (this.game.renderer) {
             this.game.renderer.showResources = settings.showResources;
             this.game.renderer.showTerritories = settings.showTerritories;
+            this.game.renderer.showGeoNames = settings.showGeoNames !== false;
             this.game.renderer.mapMode = settings.defaultMapMode;
             this._topoLegend(settings.defaultMapMode === 'topo');
             this._flowLegend(settings.defaultMapMode === 'flow');
@@ -936,6 +938,11 @@ Object.assign(UI.prototype, {
             if (bordEl) {
                 bordEl.textContent = settings.showTerritories ? 'ON' : 'OFF';
                 bordEl.classList.toggle('on', settings.showTerritories);
+            }
+            const geoEl = document.getElementById('geoNamesToggleState');
+            if (geoEl) {
+                geoEl.textContent = settings.showGeoNames !== false ? 'ON' : 'OFF';
+                geoEl.classList.toggle('on', settings.showGeoNames !== false);
             }
         }
 
@@ -1194,6 +1201,13 @@ Object.assign(UI.prototype, {
                     <label>Show Kingdom Borders</label>
                     <label class="gs-toggle">
                         <input type="checkbox" id="gsShowTerritories" ${s.showTerritories ? 'checked' : ''}>
+                        <span class="gs-toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="gs-row">
+                    <label>Show Place Names<br><span style="font-size:10px;color:var(--text-secondary);">Ranges, rivers, lakes, seas, forests and deserts named on the map</span></label>
+                    <label class="gs-toggle">
+                        <input type="checkbox" id="gsShowGeoNames" ${s.showGeoNames !== false ? 'checked' : ''}>
                         <span class="gs-toggle-slider"></span>
                     </label>
                 </div>
@@ -1612,6 +1626,7 @@ Object.assign(UI.prototype, {
             notificationDuration: parseInt(getVal('gsNotifDuration')) || 4,
             showResources: getChecked('gsShowResources'),
             showTerritories: getChecked('gsShowTerritories'),
+            showGeoNames: getChecked('gsShowGeoNames'),
             defaultMapMode: getVal('gsDefaultMapMode') || 'normal',
             uiScale: getVal('gsUiScale') || 'auto',
             cameraSmoothSpeed: parseInt(getVal('gsSmoothSpeed')) || 6,
@@ -1689,6 +1704,7 @@ Object.assign(UI, {
             notificationDuration: 4,
             showResources: true,
             showTerritories: false,
+            showGeoNames: true,
             defaultMapMode: 'normal',
             uiScale: 'auto',
             cameraSmoothSpeed: 6,

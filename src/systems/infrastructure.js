@@ -9,11 +9,13 @@ import { Quests } from './quests.js';
 import { Economy } from '../world/economy.js';
 import { KingdomBonuses } from '../world/kingdomState.js';
 import { Transport } from '../world/transport.js';
+import { LandHistory } from '../world/landHistory.js';
 import { Construction } from './construction.js';
 import { DataLoader } from '../core/dataLoader.js';
 import { PlayerInventory } from '../core/inventory.js';
 import { MoneySupply } from '../world/moneySupply.js';
 import { Utils } from '../core/utils.js';
+import { MountainBarriers } from '../world/mountainBarriers.js';
 
 
 /** Player-built works a road search may cross (Infrastructure._roadReach). */
@@ -493,14 +495,23 @@ export const Infrastructure = {
     getRiverPenalty(tile, player) {
         if (!tile || !tile.hasRiver || !tile.terrain || !tile.terrain.passable) return 0;
         if (Infrastructure.hasRiverCrossing(tile)) return 0;
-        // Bridge Construction, plus a Grand Bridge's wardens (systems/patronage.js → player.patronage.fx)
-        const pfx = player && player.patronage && player.patronage.fx;
-        const reduction = player ? Technology.getEffectTotal(player, 'riverCrossReduction')
-            + (pfx && Number.isFinite(pfx.riverCross) ? pfx.riverCross : 0) : 0;
-        const factor = Math.max(0, 1 - Math.min(1, reduction));
+        const factor = Infrastructure.riverCrossFactor(player);
         // A road's ford or ferry is easier than wading where there is no road
         const base = tile.hasRoad && Number.isFinite(tile.roadCrossMove) ? tile.roadCrossMove : Infrastructure.RIVER_CROSSING_PENALTY;
         return Math.round(base * factor);
+    },
+
+    /**
+     * What the player's river crossings cost of the full (1: all of it):
+     * Bridge Construction (riverCrossReduction techs), plus a Grand Bridge's
+     * wardens (systems/patronage.js → player.patronage.fx). Also scales a big
+     * river's crossing (world/rivers.js, player/core/movement.js).
+     */
+    riverCrossFactor(player) {
+        const pfx = player && player.patronage && player.patronage.fx;
+        const reduction = player ? Technology.getEffectTotal(player, 'riverCrossReduction')
+            + (pfx && Number.isFinite(pfx.riverCross) ? pfx.riverCross : 0) : 0;
+        return Math.max(0, 1 - Math.min(1, reduction));
     },
 
     /**
@@ -562,8 +573,10 @@ export const Infrastructure = {
      * Days it takes the player to cross this hex on foot (data/travel.json):
      * the terrain's days, or a road's; a river with no crossing adds a little;
      * the player's travel speed (player._travelSpeed, bonuses, capped) shaves
-     * a little off, but never below the terrain's floor off the road.
-     * Infinity when impassable.
+     * a little off, but never below the terrain's floor off the road; in
+     * winter, off the road, the heights cost more (`day`, the player's
+     * _travelDay by default: world/mountainBarriers.js winterMult — the peaks
+     * snowbound in deep winter, a pass only slower). Infinity when impassable.
      */
     /** A route search under way: { player, speed } — the load's pace worked out once for it (withLoadSpeed). */
     _loadScope: null,
@@ -583,7 +596,7 @@ export const Infrastructure = {
         }
     },
 
-    getPlayerHexDays(tile, player) {
+    getPlayerHexDays(tile, player, day = player && Number.isFinite(player._travelDay) ? player._travelDay : null) {
         if (!tile || !tile.terrain || !tile.terrain.passable) return Infinity;
         const C = Infrastructure.travelConfig();
         const id = tile.terrain.id;
@@ -604,6 +617,11 @@ export const Infrastructure = {
             days = num(C.hexDays[id], num(C.hexDays.default, 0.75)) / speed;
             const floor = C.floorDays[id];
             if (Number.isFinite(floor) && floor > 0) days = Math.max(days, floor);
+            // A pass goes at a trodden way's pace; winter on the heights: the peaks
+            // snowbound, a pass only slower (world/mountainBarriers.js)
+            days = MountainBarriers.passDays(tile, days) * MountainBarriers.winterMult(tile, day);
+            // An old road (world/landHistory.js, terrainGen 17): a little quicker than open ground
+            if (tile._oldRoad) days *= LandHistory.travelFactor();
         }
         // Fording: the stamina penalty's share of a full wade (a road's ford or ferry is half, a bridge none)
         const pen = Infrastructure.getRiverPenalty(tile, player);
@@ -632,6 +650,7 @@ export const Infrastructure = {
         if (!world || typeof world.getTile !== 'function' || !Number.isFinite(q) || !Number.isFinite(r)) return out;
         const W = world.width || 0;
         const H = world.height || 0;
+        const day = Number.isFinite(world.day) ? world.day : null; // (winter on the heights)
         const wrap = (x) => (W ? ((x % W) + W) % W : x);
         const startKey = `${wrap(q)},${r}`;
         const tKey = target ? `${wrap(target.q)},${target.r}` : null;
@@ -679,7 +698,7 @@ export const Infrastructure = {
                 if (out.has(nk)) continue;
                 const t = world.getTile(nq, n.r);
                 if (!t) continue;
-                const step = Infrastructure.getPlayerHexDays(t, player);
+                const step = Infrastructure.getPlayerHexDays(t, player, day);
                 if (!Number.isFinite(step)) continue;
                 const nd = d + step;
                 if (nd > maxDays + 1e-9) continue;

@@ -163,6 +163,8 @@ const topLevel = [
     'itemSprites',
     // The set of the sea (world/oceanCurrents.js)
     'currents',
+    // History written into the land: sited ruins, pass forts, old mines, old roads (world/landHistory.js, terrainGen 17)
+    'landHistory',
     'marketStalls',
     // Haggling face to face with a stall's keeper (player/haggling.js, ui/actionMenu/haggle.js)
     'haggling',
@@ -239,7 +241,9 @@ const topLevel = [
     // Hiding in cover on the street map, being spotted, the ambush, those who lie in wait (systems/stealthCover.js)
     'stealthCover',
     // Pack load: what every good weighs, what you can carry on your back, a horse, a handcart, a horse cart (core/inventory.js)
-    'packLoad'
+    'packLoad',
+    // The names of the land and the water, drawn like an atlas (world/geoNames.js, ui/renderer/geoLabels.js)
+    'geography'
 ];
 
 const merged = {};

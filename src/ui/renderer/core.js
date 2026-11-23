@@ -48,6 +48,7 @@ export class Renderer {
         // Display settings
         this.showResources = true;
         this.showTerritories = false;
+        this.showGeoNames = true;     // the atlas names of ranges, rivers, seas... (renderer/geoLabels.js)
 
         // Map mode system
         // Modes: 'normal','political','religion','wealth','military','trade','culture'

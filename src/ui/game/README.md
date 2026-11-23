@@ -9,6 +9,7 @@ This folder contains the `Game` class split into focused modules. The class is a
 | `core.js` | ~180 | Class definition, constructor — sets up canvas, camera, renderer |
 | `editorUI.js` | ~415 | `resumeGame`, settings screen, editor overlays, custom world picker |
 | `gameSetup.js` | ~503 | Audio controls, title screen, randomize settings, `startNewGame`, `_doStartNewGame` |
+| `worldParams.js` | ~90 | `newWorldParams(settings)`: the New Game settings as the world's size and `World.generate` params (the current `terrainGen` lives here). Used by `_doStartNewGame` and the New Game preview's worker, so the world made is the world previewed |
 | `gameLoop.js` | ~763 | Game loop tick, input handlers, `handleClick`, `handleDoubleClick`; a panel waiting on a map pick sets `game._hexPick = { onPick(q, r), onCancel }` and takes the next world-map click (Esc cancels) |
 | `innerMap.js` | ~642 | Enter/exit inner map, inner map UI, Tiled export/import |
 | `endDay.js` | ~643 | `onPlayerArrived`, full `endDay` turn processing |

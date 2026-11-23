@@ -1,0 +1,77 @@
+{
+    "_doc": "History written into the land (world/landHistory.js, terrainGen 17+). The ruins among the points of interest stand where towns once grew on good sites no living town took (TownSiting scores), a few are hill forts on high ground over a mountain pass, a few are worked-out mines in an ore field; faint old roads link some of them to each other and to the passes.",
+    "_ruins": "townPool: candidate lost-town sites kept per ruin (the best scoring, then a weighted pick); minSettlement: hexes from any living settlement; minApart: hexes between points of interest; fortShare / mineShare: the share of the ruins that are pass forts / old mines (each at least one when the world has a pass / an ore field and two or more ruins).",
+    "ruins": {
+        "townPool": 6,
+        "minSettlement": 3,
+        "minApart": 5,
+        "fortShare": 0.25,
+        "mineShare": 0.2
+    },
+    "_forts": "A fort stands on the highest hills, highlands or mountain hex 1..reach hexes from a pass (not on the way itself); one per pass.",
+    "forts": {
+        "reach": 3,
+        "terrains": ["hills", "highlands", "mountain"]
+    },
+    "_mines": "An old mine stands on a hill or mountain hex of an ore field (tile.ores >= minOre) with no resource left showing; veinChance of them still hide a vein, struck first by prospecting from a town within reach (world/hinterland.js strike).",
+    "mines": {
+        "minOre": 0.45,
+        "terrains": ["hills", "highlands", "mountain"],
+        "veinChance": 0.3,
+        "kinds": { "iron": "iron_mine", "copper": "copper_mine", "silver": "silver_mine", "gold_ore": "gold_mine", "gems": "gem_mine", "coal": "coal_pit" }
+    },
+    "_oldRoads": "Each ruin is linked to the nearest other ruin within maxLength hexes, and to the nearest pass within toPass hexes; the way is laid by the road router and marks tile._oldRoad off the living roads. travelFactor: days per hex on an old road, times the open ground's (still dearer than any road).",
+    "oldRoads": {
+        "maxLength": 24,
+        "toPass": 12,
+        "travelFactor": 0.85,
+        "render": { "minZoom": 0.45, "color": "#8a7350", "alpha": 0.55, "width": 1.5, "dash": [2, 5] }
+    },
+    "_text": "Names and lore by what the ruin was. {old}: the dead town's name; {ore}: the ore dug out. A lost town is told by its site: ford, mouth, confluence, lake, pass, coast, river, plain (the first that fits).",
+    "text": {
+        "town": {
+            "ford": {
+                "names": ["Ruins of {old} Ford", "{old}, the Drowned Ford", "Old {old} Crossing"],
+                "lore": ["A town once kept the ford here. Its quay stones still break the current, and a road ran down into the water.", "Here the great river could be waded. A toll town grew on both banks, and fell; the ford outlived it."]
+            },
+            "mouth": {
+                "names": ["Ruins of Old {old}", "{old} Harbour, Fallen", "The Silted Port of {old}"],
+                "lore": ["A port stood where the river meets the sea. The harbour silted, the trade went elsewhere, and the sea wind took the roofs.", "Wharf posts black with age stand in the mud of the river mouth: all that is left of {old}."]
+            },
+            "confluence": {
+                "names": ["Ruins of {old} Meeting", "Old {old} between the Waters", "{old}, the Fork Town"],
+                "lore": ["Two rivers meet here, and a market town once stood in the fork between them, its walls still traced in the turf.", "Boats from two valleys tied up at {old}. The rivers still meet; the town is grass and fallen stone."]
+            },
+            "lake": {
+                "names": ["Ruins of {old} on the Lake", "Old {old} Shore", "{old}, the Lake Town"],
+                "lore": ["Stilts and a broken jetty: a lake town fished these waters for generations before it emptied.", "A town once climbed the lake shore here. Its stones lie half in the water now."]
+            },
+            "pass": {
+                "names": ["Ruins of {old} below the Pass", "Old {old} Waystation", "{old}, the Pass Town"],
+                "lore": ["Caravans rested here before the climb. The inn walls and stables of {old} still stand roofless at the foot of the pass.", "A town kept the way over the mountains, and lived on the traffic. When the traffic stopped, so did the town."]
+            },
+            "coast": {
+                "names": ["Ruins of Old {old}", "{old} by the Sea, Fallen", "The Empty Harbour of {old}"],
+                "lore": ["A fishing town once stood on this shore. The sea took its boats and the plague took its people.", "Salt-white walls on the cliff: {old} looked out to sea for a thousand years, and then was empty."]
+            },
+            "river": {
+                "names": ["Ruins of Old {old}", "{old}, the River Town", "Fallen {old}"],
+                "lore": ["A river town stood here, milling the valley's grain. The mill wheel is gone; the race still runs.", "Old walls follow the river bank: {old} had good water and good land, and still it fell."]
+            },
+            "plain": {
+                "names": ["Ruins of Old {old}", "Fallen {old}", "The Old Town of {old}"],
+                "lore": ["The bones of a town lie in the grass: streets, a market cross, the stumps of walls.", "{old} was a town of some size once. No one now living remembers why it was left."]
+            }
+        },
+        "fort": {
+            "names": ["{old} Hill Fort", "The Watch over the Pass", "Ruined Fort of {old}", "{old} Tower"],
+            "lore": ["A fort on the heights once watched the pass below; its ring of walls still crowns the hill.", "From these broken walls the old lords watched every traveller come over the mountains, and took their toll.", "A watch tower fallen on its hill. Whoever held it held the way through the range."]
+        },
+        "mine": {
+            "names": ["The Old {Ore} Workings", "{old} Mine, Worked Out", "Abandoned {Ore} Diggings"],
+            "lore": ["The {ore} ran out here long ago. Spoil heaps and a black adit are what the miners left.", "Generations dug {ore} from this hill until the seam was gone. The galleries are flooded now."],
+            "veinLore": "Old miners swore there was {ore} left, deeper than they could follow."
+        },
+        "ores": { "iron": "iron", "copper": "copper", "silver": "silver", "gold_ore": "gold", "gems": "gem", "coal": "coal" }
+    }
+}

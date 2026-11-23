@@ -229,6 +229,32 @@ export const Hinterland = {
         return out;
     },
 
+    /**
+     * The fishing ground a fishery at (q, r) works (worlds since terrainGen 17:
+     * tile.fishing, Terrain._fishingGrounds17): its own hex's, or on an islet or
+     * the shore the best beside it; null in older worlds (no tile.fishing).
+     */
+    groundOf(world, q, r) {
+        if (!world || typeof world.getTile !== 'function') return null;
+        const t = world.getTile(q, r);
+        if (!t || typeof t.fishing !== 'number') return null;
+        let k = t.fishing;
+        for (const h of Hex.neighbors(q, r)) {
+            const n = world.getTile(world.width ? Hex.wrapQ(h.q, world.width) : h.q, h.r);
+            if (n && typeof n.fishing === 'number' && n.fishing > k) k = n.fishing;
+        }
+        return k;
+    },
+
+    /** A fishery's catch for its ground: floor + gain x the ground (1 for other sites and older worlds). */
+    groundFactor(world, site) {
+        if (!site || site.kind !== 'fishery') return 1;
+        const g = Hinterland.groundOf(world, site.q, site.r);
+        if (g == null) return 1;
+        const F = _obj(Hinterland.config().fishGrounds) || {};
+        return Math.max(0, _num(F.floor, 0.5) + _num(F.gain, 1) * g);
+    },
+
     /** A kind from { kindId: weight } by the hash `key`, or null. */
     _pickKind(weights, key) {
         const ws = Object.entries(weights || {}).filter(([id, w]) => Hinterland.kind(id) && _num(w) > 0);
@@ -338,7 +364,9 @@ export const Hinterland = {
             const kind = Hinterland.kindFor(t, world);
             if (!kind) continue;
             const arr = cands.get(sk);
-            const c = { kind, q: o.q, r: o.r, d: o.d, pr: Hinterland.kind(kind).priority, h: _roll(`hl:pick:${Hinterland.seed(world)}:${hk}`) };
+            // (a fishery on a richer ground is worked first: 0 for every other site and older worlds)
+            const g = kind === 'fishery' ? _num(Hinterland.groundOf(world, o.q, o.r)) : 0;
+            const c = { kind, q: o.q, r: o.r, d: o.d, g, pr: Hinterland.kind(kind).priority, h: _roll(`hl:pick:${Hinterland.seed(world)}:${hk}`) };
             if (arr) arr.push(c); else cands.set(sk, [c]);
         }
         // A young world's towns work fewer sites (world/worldAge.js; 1 when full-grown)
@@ -349,7 +377,7 @@ export const Hinterland = {
             st.towns[sk] = 1;
             const arr = cands.get(sk);
             if (!arr) continue;
-            arr.sort((a, b) => (b.pr - a.pr) || (a.d - b.d) || (a.h - b.h));
+            arr.sort((a, b) => (b.pr - a.pr) || (b.g - a.g) || (a.d - b.d) || (a.h - b.h));
             const full = _num(C.maxSites[s.type], 2);
             const max = ageScale < 1 ? Math.max(1, Math.round(full * ageScale)) : full;
             const per = {};
@@ -513,7 +541,9 @@ export const Hinterland = {
         const land = TownLabour.factors(home, day).land;
         // Herds follow the year's grazing, murrain and war (world/harvests.js)
         const herd = Harvests.isHerdSite(site.kind) ? Harvests.stockFactor(home) : 1;
-        const f = y * land * herd * Math.max(0, _num(mult, 1)) * Math.max(1, k);
+        // A fishery lands by the ground it works (terrainGen 17; 1 otherwise)
+        const ground = Hinterland.groundFactor(world, site);
+        const f = y * land * herd * ground * Math.max(0, _num(mult, 1)) * Math.max(1, k);
         for (let i = 0; i < kd.goods.length; i++) {
             const n = kd.goods[i][1] * f;
             if (n > 0) out.goods[kd.goods[i][0]] = n;
@@ -604,8 +634,10 @@ export const Hinterland = {
         if (own.filter(s => s.st === 'open').length >= max) return null;
         const hexes = Hinterland.prospectHexes(world, town);
         if (!hexes.length) return null;
-        const hx = hexes[Math.floor(_roll(`${key}:hex`) * hexes.length) % hexes.length];
-        const kindId = Hinterland._pickKind(hx.weights, `${key}:kind`);
+        // An old mine's vein the miners never reached is struck first (world/landHistory.js, terrainGen 17)
+        const old = hexes.find(h => { const t = world.getTile(h.q, h.r); return !!(t && t._oldVein && Hinterland.kind(t._oldVein)); });
+        const hx = old || hexes[Math.floor(_roll(`${key}:hex`) * hexes.length) % hexes.length];
+        const kindId = old ? world.getTile(old.q, old.r)._oldVein : Hinterland._pickKind(hx.weights, `${key}:kind`);
         if (!kindId) return null;
         const views = typeof world.getSettlementViews === 'function' ? world.getSettlementViews() : world.getAllSettlements();
         const market = Hinterland._marketFor(world, views, town, hx.q, hx.r);

@@ -1,5 +1,6 @@
 // UI — hexinfo methods.
 import { UI } from './core.js';
+import { Rivers } from '../../world/rivers.js';
 import { voice } from '../barterVoice.js';
 import { Cultures } from '../../world/cultures.js';
 import { Languages } from '../../systems/languages.js';
@@ -131,6 +132,18 @@ Object.assign(UI.prototype, {
                 <span class="info-value">${tile.terrain.moveCost === Infinity ? '∞' : tile.terrain.moveCost}${tile.infrastructure ? ` → ${typeof Infrastructure !== 'undefined' ? Infrastructure.getEffectiveMoveCost(tile) : tile.terrain.moveCost} (${tile.infrastructure.name})` : ''}${riverPenalty > 0 ? ` +${riverPenalty} (river)` : ''}</span>
             </div>
         `;
+
+        // The river's size, and how it is crossed (world/rivers.js)
+        const riverBand = Rivers.band(this.game.world, q, r);
+        if (riverBand) {
+            const how = Rivers.crossingAt(tile);
+            const C = Rivers.config().crossing;
+            const wade = riverBand === 'great' && !how ? ` · no crossing: +${C.player.great} day to get across` : '';
+            const cross = { town: ' · bridged in the town', bridge: ' · bridged', road: ` · the road's ${tile.roadCross || 'ford'}`, ford: ' · a ford' }[how] || '';
+            const boats = Rivers.boatable(this.game.world, q, r) ? ' · boats' : '';
+            const name = Rivers.bandName(riverBand);
+            html += `<div class="info-row"><span class="info-label">River</span><span class="info-value">${name.charAt(0).toUpperCase()}${name.slice(1)}${boats}${cross}${wade}</span></div>`;
+        }
 
         // Timed world events reaching this tile (droughts, plagues, booms, ...)
         const tileEvents = WorldEvents.getEventsAt(this.game.world, tile);
@@ -415,6 +428,7 @@ Object.assign(UI.prototype, {
                 <div class="info-row">
                     <span class="info-value" style="color:#ffffff !important;">${tile.improvement.icon} ${tile.improvement.name}</span>
                 </div>
+                ${tile.improvement.lore ? `<div class="info-row"><span class="info-value" style="font-style:italic;">${tile.improvement.lore}</span></div>` : ''}
                 <div class="info-row">
                     <span class="info-label">Discovered</span>
                     <span class="info-value">${tile.improvement.founded ? `Year ${tile.improvement.founded} (${this.game.world.year - tile.improvement.founded} years ago)` : 'Unknown'}</span>

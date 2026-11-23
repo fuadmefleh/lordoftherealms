@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useGame } from '../context/GameContext';
 import CharacterForge from './CharacterForge';
 import LegacySetup from './LegacySetup';
+import WorldPreview from './WorldPreview';
+import { randomSeed } from './worldPreviewClient.js';
 import { buildForGender, defaultAppearance, eraMisfits, fitAppearanceToYear } from '../ui/playerAppearance';
 import erasData from '../../data/eras.json';
 import dawnData from '../../data/dawn.json';
@@ -103,7 +105,8 @@ export default function SettingsScreen() {
     victory: 'none',
     worldWidth: 120,
     worldHeight: 80,
-    mapSeed: '',
+    // Always a seed: the world preview shows its land, and the New Game makes that very world
+    mapSeed: randomSeed(),
     continentCount: 3,
     continentSize: 'medium',
     islandFreq: 1.0,
@@ -209,17 +212,19 @@ export default function SettingsScreen() {
     // The age box holds whatever was typed (a cleared box would be NaN): settle it here
     const age = parseInt(settings.charAge, 10);
     const charAge = Number.isFinite(age) ? Math.min(60, Math.max(16, age)) : 20;
+    // The seed previewed (a blank one, never previewed, gets one now)
+    const mapSeed = String(settings.mapSeed || '').trim() || randomSeed();
     setGameState(prev => ({
       ...prev,
       phase: 'loading',
-      settings: { ...settings, charAge },
+      settings: { ...settings, charAge, mapSeed },
     }));
   }, [settings, setGameState]);
 
   const handleRandomize = useCallback(() => {
     setSettings(prev => ({
       ...prev,
-      mapSeed: Math.random().toString(36).slice(2, 10),
+      mapSeed: randomSeed(prev.mapSeed),
       continentCount: 1 + Math.floor(Math.random() * 10),
       landMass: 20 + Math.floor(Math.random() * 60),
       riverCount: Math.floor(Math.random() * 150),
@@ -275,6 +280,9 @@ export default function SettingsScreen() {
           ))}
         </div>
         )}
+
+        {/* The land these settings and this seed make, before it is made (components/WorldPreview.jsx) */}
+        {!custom && <WorldPreview settings={settings} onSeedChange={seed => handleChange('mapSeed', seed)} />}
 
         <div className="settings-groups-container">
           {/* Character: who you are and what you look like */}
@@ -434,17 +442,7 @@ export default function SettingsScreen() {
             <h3>World Dimensions</h3>
             <RangeInput {...bind} id="worldWidth" label="Width:" field="worldWidth" min={40} max={500} />
             <RangeInput {...bind} id="worldHeight" label="Height:" field="worldHeight" min={30} max={350} />
-            <div className="input-row">
-              <label htmlFor="mapSeed">Seed:</label>
-              <input
-                type="text"
-                id="mapSeed"
-                placeholder="Random"
-                maxLength={20}
-                value={settings.mapSeed}
-                onChange={e => handleChange('mapSeed', e.target.value)}
-              />
-            </div>
+            {/* (the seed is set in the World Preview above) */}
           </div>
 
           {/* Continents & Land */}

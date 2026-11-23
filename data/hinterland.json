@@ -6,6 +6,8 @@
     "homeShare": 0.5,
     "maxSites": { "village": 2, "town": 3, "city": 4, "capital": 5 },
     "maxPerKind": 2,
+    "_fishGrounds": "Worlds since terrainGen 17 (tile.fishing, Terrain._fishingGrounds17): a fishery lands floor + gain x the fishing ground under it (0..1; for a fishery on an islet or the shore, the best ground beside it), and among sites of equal priority a town works the fishery on the richer ground first. Older worlds (no tile.fishing) are unchanged.",
+    "fishGrounds": { "floor": 0.5, "gain": 1 },
     "_hidden": "Share of the hill and mountain hexes without a map resource that hide a vein the locals know of (a hash of the world seed and the hex; its kind by the terrain's prospecting weights below). 0.25 (was 0.2) since copper joined the weights: as many hidden iron and coal veins as before, plus the copper ones (no map resource makes copper: every copper mine is a vein the locals know of, or one prospecting strikes).",
     "hidden": 0.25,
     "_hiddenExtra": "Veins with a band of their own past `hidden` (share of the hexes whose terrain lists the kind in its prospecting weights), kept out of the usual pick so adding one never reshuffles the veins a world already had: silver (Specie & Mints pass; data/mints.json), which no map resource makes.",

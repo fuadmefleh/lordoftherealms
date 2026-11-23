@@ -3,9 +3,11 @@
 // the land is a quiet wash and each ore field (tile.ores, terrainGen 15,
 // world/terrain.js _mineralFields) is tinted by its richest mineral, stronger
 // toward the field's heart. A world from before the ore fields shows its
-// mineral map resources instead. Over each town the player has price news of
+// mineral map resources instead. The sea shows its fishing grounds (tile.fishing,
+// terrainGen 17: Terrain._fishingGrounds17), silver-teal by their strength.
+// Over each town the player has price news of
 // (systems/priceKnowledge.js — nothing here is omniscient) a row of chips: a
-// filled chip a mineral the town has plenty of, a hollow ring one it is short
+// filled chip a mineral (or fish) the town has plenty of, a hollow ring one it is short
 // of, so where to buy and where to sell can be read off the map.
 import { Renderer } from './core.js';
 import { PriceKnowledge } from '../../systems/priceKnowledge.js';
@@ -20,8 +22,11 @@ export const ORE_KEY = [
     { id: 'gems', good: 'gems', name: 'Gems', color: [64, 208, 122] },
     { id: 'salt', good: 'salt', name: 'Salt', color: [240, 176, 200] },
     { id: 'oil', good: 'oil', name: 'Oil', color: [150, 96, 214] },
+    // (not mined: the fishing grounds in the sea, tile.fishing, terrainGen 17 — Terrain._fishingGrounds17)
+    { id: 'fish', good: 'fish', name: 'Fish', color: [120, 214, 200], sea: true },
 ];
-const BY_ID = Object.fromEntries(ORE_KEY.map(o => [o.id, o]));
+const BY_ID = Object.fromEntries(ORE_KEY.filter(o => !o.sea).map(o => [o.id, o]));
+const FISH = ORE_KEY.find(o => o.id === 'fish');
 const SEA_IDS = new Set(['deep_ocean', 'ocean', 'coast', 'sea']);
 const SEA = [18, 26, 40], LAKE = [40, 62, 84];
 const LOW = [62, 64, 56], HIGH = [104, 100, 90];
@@ -50,7 +55,12 @@ Object.assign(Renderer.prototype, {
     oreColor(tile) {
         const id = tile && tile.terrain && tile.terrain.id;
         if (id === 'lake') return rgb(LAKE);
-        if (SEA_IDS.has(id)) return rgb(SEA);
+        if (SEA_IDS.has(id)) {
+            // the fishing grounds, silver-teal by their strength (older worlds: their fish banks)
+            const k = typeof tile.fishing === 'number' ? tile.fishing
+                : (tile.resource && (tile.resource.id || tile.resource) === 'fish' ? 0.5 : 0);
+            return rgb(k > 0 ? mix(SEA, FISH.color, 0.18 + 0.6 * Math.min(1, k)) : SEA);
+        }
         const e = Math.max(0, Math.min(1, ((tile.elevation ?? 0.5) - 0.42) / 0.5));
         const land = mix(LOW, HIGH, e);
         const o = this.oreOf(tile);

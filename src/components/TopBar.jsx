@@ -60,6 +60,11 @@ export default function TopBar() {
               <span className="civ-dd-text">Kingdom Borders</span>
               <span className="civ-dd-toggle" id="borderToggleState">OFF</span>
             </button>
+            <button className="civ-dropdown-item" id="btnToggleGeoNames" title="The names of ranges, rivers, lakes, seas, forests and deserts, lettered like an atlas">
+              <span className="civ-dd-icon"><Icon name="map" /></span>
+              <span className="civ-dd-text">Place Names</span>
+              <span className="civ-dd-toggle on" id="geoNamesToggleState">ON</span>
+            </button>
             <div className="civ-dd-heading">Map Mode (M cycles)</div>
             <button className="civ-dropdown-item" data-map-mode="normal">
               <span className="civ-dd-icon"><Icon name="map" /></span>

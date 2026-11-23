@@ -5167,6 +5167,116 @@ body > :not(#root):not(script):not(style):not(#buildingCreatorOverlay):not(a) {
 }
 .settings-actions .title-btn { min-width: 170px; }
 
+/* New-game setup: the World Preview (components/WorldPreview.jsx). #settingsContent is
+   --ui-zoom'd, so its vh are divided by the zoom */
+.world-preview .wp-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 260px;
+    gap: 20px;
+    align-items: start;
+}
+.wp-map {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    padding: 8px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+}
+.wp-map canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-height: calc(46vh / var(--ui-zoom));
+    object-fit: contain;
+    image-rendering: pixelated;
+    border-radius: var(--radius-sm);
+    cursor: crosshair;
+    transition: opacity var(--transition-fast);
+}
+.wp-map.is-working canvas { opacity: 0.45; }
+.wp-empty {
+    width: 100%;
+    aspect-ratio: 3 / 2;
+    max-height: calc(40vh / var(--ui-zoom));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    font-size: 13px;
+}
+.wp-spinner {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    pointer-events: none;
+    color: var(--gold);
+    font-family: var(--font-display);
+    font-size: 12px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    text-shadow: 0 1px 3px #000;
+}
+.wp-spinner .loading-spinner { width: 32px; height: 32px; border-width: 3px; }
+.wp-caption {
+    align-self: stretch;
+    min-height: 16px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.wp-side { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.wp-side .input-row label { min-width: 0; }
+.wp-side .input-row input[type="text"] { min-width: 0; width: 100%; }
+.wp-buttons { display: flex; gap: 8px; }
+.wp-buttons .preset-btn { flex: 1; padding: 6px 8px; text-transform: none; }
+.wp-buttons .preset-btn:disabled { opacity: 0.45; cursor: default; }
+.wp-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+}
+.wp-stats > div {
+    display: flex;
+    flex-direction: column;
+    padding: 6px 10px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: var(--radius-sm);
+}
+.wp-stats span { font-size: 10.5px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+.wp-stats b { font-size: 14px; color: var(--gold); }
+.wp-realms {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    max-height: calc(18vh / var(--ui-zoom));
+    overflow-y: auto;
+    font-size: 12px;
+    color: var(--text-primary);
+}
+.wp-realms li { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.wp-realms li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wp-realms i { width: 10px; height: 10px; flex-shrink: 0; border-radius: 50%; border: 1px solid var(--gold); }
+.wp-note { font-size: 11px; color: var(--text-secondary); opacity: 0.85; line-height: 1.4; }
+.wp-note.wp-error { color: #e8a090; opacity: 1; }
+@media (max-width: 760px) {
+    .world-preview .wp-body { grid-template-columns: 1fr; }
+}
+
 .hud-bb-datecol { min-width: 176px; }
 
 

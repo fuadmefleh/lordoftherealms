@@ -11,6 +11,7 @@
 import { Renderer } from './core.js';
 import { Hex } from './_imports.js';
 import { OceanCurrents } from '../../world/oceanCurrents.js';
+import { Rivers } from '../../world/rivers.js';
 
 const SEA_IDS = new Set(['deep_ocean', 'ocean', 'coast', 'sea']);
 
@@ -48,44 +49,12 @@ Object.assign(Renderer.prototype, {
     /**
      * How much river runs into each hex (the river hexes upstream of it, itself
      * counted), as a Float32Array by r * width + q — so a great river can be
-     * drawn broader than a brook. Rivers don't change in play, so it is worked
-     * out once for each world.
+     * drawn broader than a brook. The shared river grid (world/rivers.js),
+     * worked out once for each world.
      */
     _riverFeed() {
-        const world = this.world;
-        if (this._feedFor === world && this._feed) return this._feed;
-        const W = world.width, H = world.height;
-        const feed = new Float32Array(W * H);
-        const down = new Int32Array(W * H).fill(-1);
-        const ins = new Uint16Array(W * H);
-        for (let r = 0; r < H; r++) {
-            for (let q = 0; q < W; q++) {
-                const t = world.tiles[r][q];
-                if (!t || !t.hasRiver) continue;
-                feed[r * W + q] = 1;
-                if (!Number.isInteger(t.riverDir) || t.riverDir < 0) continue;
-                const n = Hex.neighbors(q, r)[t.riverDir];
-                if (!n || n.r < 0 || n.r >= H) continue;
-                const nq = Hex.wrapQ(n.q, W);
-                const nt = world.tiles[n.r][nq];
-                if (!nt || !nt.hasRiver) continue;
-                down[r * W + q] = n.r * W + nq;
-                ins[n.r * W + nq]++;
-            }
-        }
-        // (from the springs down: a hex hands on its count once all its feeders are in)
-        const stack = [];
-        for (let i = 0; i < W * H; i++) if (feed[i] > 0 && ins[i] === 0) stack.push(i);
-        while (stack.length) {
-            const i = stack.pop();
-            const d = down[i];
-            if (d < 0) continue;
-            feed[d] += feed[i];
-            if (--ins[d] === 0) stack.push(d);
-        }
-        this._feedFor = world;
-        this._feed = feed;
-        return feed;
+        const g = Rivers.grid(this.world);
+        return g ? g.feed : new Float32Array(0);
     },
 
     /**

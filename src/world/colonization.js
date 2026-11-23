@@ -15,6 +15,7 @@ import { Religion } from '../systems/religion.js';
 import { VillageFounding } from './villageFounding.js';
 import { Barter } from './barter.js';
 import { MoneySupply } from './moneySupply.js';
+import { TownSiting } from './townSiting.js';
 
 export const Colonization = {
 
@@ -513,33 +514,60 @@ export const Colonization = {
         const attempts = Math.round(40 * (1 + vision));
         let bestTarget = null;
         let bestScore = -Infinity;
+        // Since terrainGen 16 the pioneers also weigh where a town would grow
+        // (world/townSiting.js, read as the land is now), and settle on the best
+        // such hex near their pick; the dice are drawn as before.
+        const sited = TownSiting.forWorld(world);
+        const PF = sited ? TownSiting.founded('pioneer') : {};
+        const siteW = Number.isFinite(PF.siteWeight) ? PF.siteWeight : 5;
+        const settlements = (world.getSettlementViews ? world.getSettlementViews() : world.getAllSettlements()); // read-only
+        // (the pioneers' reckoning of an open hex, or null when it is not for them)
+        const reckon = (wq, tr) => {
+            if (tr < 3 || tr >= world.height - 3) return null;
+            const tile = world.getTile(wq, tr);
+            if (!tile || !tile.terrain.passable || tile.settlement || tile.kingdom) return null;
+
+            // Score by resources, distance from others
+            const minDist = settlements.reduce((min, s) => Math.min(min, Hex.wrappingDistance(wq, tr, s.q, s.r, world.width)), Infinity);
+            if (minDist < Colonization.MIN_SETTLEMENT_DISTANCE) return null;
+
+            let score = minDist * 2;
+            if (tile.resource) score += 30;
+            const nearbyRes = Economy.getNearbyResources(wq, tr, world, 3);
+            score += nearbyRes.length * 10;
+            let site = 0;
+            if (sited) {
+                site = sited.live(wq, tr, 'village');
+                if (!Number.isFinite(site)) return null;
+                score += siteW * site;
+            }
+            return { score, site };
+        };
 
         for (let attempt = 0; attempt < attempts; attempt++) {
             const angle = Utils.random() * Math.PI * 2;
             const tq = Math.round(kingdom.capital.q + Math.cos(angle) * targetDist);
             const tr = Math.round(kingdom.capital.r + Math.sin(angle) * targetDist * 0.75);
             const wq = Hex.wrapQ(tq, world.width);
-            if (tr < 3 || tr >= world.height - 3) continue;
+            const v = reckon(wq, tr);
+            if (!v) continue;
 
-            const tile = world.getTile(wq, tr);
-            if (!tile || !tile.terrain.passable || tile.settlement || tile.kingdom) continue;
-
-            // Score by resources, distance from others
-            const settlements = (world.getSettlementViews ? world.getSettlementViews() : world.getAllSettlements()); // read-only
-            const minDist = settlements.reduce((min, s) => Math.min(min, Hex.wrappingDistance(wq, tr, s.q, s.r, world.width)), Infinity);
-            if (minDist < Colonization.MIN_SETTLEMENT_DISTANCE) continue;
-
-            let score = minDist * 2;
-            if (tile.resource) score += 30;
-            const nearbyRes = Economy.getNearbyResources(wq, tr, world, 3);
-            score += nearbyRes.length * 10;
-
-            if (score > bestScore) {
-                bestScore = score;
-                bestTarget = { q: wq, r: tr };
+            if (v.score > bestScore) {
+                bestScore = v.score;
+                bestTarget = { q: wq, r: tr, site: v.site };
             }
         }
 
+        if (sited && bestTarget) {
+            const refine = Number.isFinite(PF.refine) ? PF.refine : 2;
+            for (const h of Hex.hexesInRange(bestTarget.q, bestTarget.r, refine)) {
+                const wq = Hex.wrapQ(h.q, world.width);
+                if (wq === bestTarget.q && h.r === bestTarget.r) continue;
+                const v = reckon(wq, h.r);
+                if (v && v.score > bestScore) { bestScore = v.score; bestTarget = { q: wq, r: h.r, site: v.site }; }
+            }
+            if (bestTarget.site < (Number.isFinite(PF.minScore) ? PF.minScore : -1)) return null;
+        }
         if (!bestTarget) return null;
 
         // Spawn a pioneer settler unit

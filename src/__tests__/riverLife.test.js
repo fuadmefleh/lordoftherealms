@@ -24,6 +24,9 @@ beforeAll(async () => {
     ({ SettlementMarket } = await import('../world/settlementMarket.js'));
     ({ Player } = await import('../player/player.js'));
     ({ SaveLoad } = await import('../systems/saveLoad.js'));
+    // (the fixture's river is seven hexes from spring to sea — a brook by world/rivers.js's
+    // bands; here every river is a boat's river: the river sizes have their own spec, riversInPlay)
+    DataLoader._gamedata.rivers = { ...(DataLoader._gamedata.rivers || {}), bands: { river: 1, great: 999 } };
 }, 120000);
 
 let baseLife;

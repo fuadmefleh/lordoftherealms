@@ -59,6 +59,9 @@ Object.assign(Renderer.prototype, {
         // Mines, quarries, ranches and the estates' farms about the towns, as buildings (beneath the towns)
         this.renderRuralSites(ctx);
 
+        // Faint old roads between ruins and passes (renderer/oldRoads.js, terrainGen 17)
+        this.renderOldRoads(ctx);
+
         // Render settlements
         this.renderSettlements(ctx);
 
@@ -162,6 +165,9 @@ Object.assign(Renderer.prototype, {
         // Render weather (renderer/atmosphere.js), then frame the map
         this.renderWeather(ctx);
         this.renderVignette(ctx);
+
+        // The names of the land and the water, like an atlas, kept clear of the labels queued (renderer/geoLabels.js)
+        this.renderGeoLabels(ctx);
 
         // Render all labels (with collision detection)
         this.renderLabels(ctx);
@@ -590,7 +596,7 @@ Object.assign(Renderer.prototype, {
         for (const n of nb) {
             if (!n || !n.terrain) continue;
             const id = n.terrain.id;
-            if (['snow', 'ice', 'tundra', 'snow_peak'].includes(id)) { ground = 'tundra'; break; }
+            if (['snow', 'ice', 'tundra', 'snow_peak', 'glacier'].includes(id)) { ground = 'tundra'; break; }
             if (['desert'].includes(id)) ground = 'desert';
             else if (id === 'savanna' && ground === 'grassland') ground = 'savanna';
         }

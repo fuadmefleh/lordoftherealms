@@ -33,6 +33,7 @@ import { SettlementMarket } from './settlementMarket.js';
 import { WorldUnit } from './units.js';
 import { Colonization } from './colonization.js';
 import { Names } from '../core/names.js';
+import { TownSiting } from './townSiting.js';
 
 const UNSETTLEABLE = new Set(['mountain', 'snow_peak', 'ice', 'snow']);
 const WATER = new Set(['deep_ocean', 'ocean', 'coast', 'sea', 'lake']);
@@ -208,7 +209,16 @@ export const VillageFounding = {
             const s = VillageFounding.survey(world, t.q, t.r, { player: opts.player, from });
             if (s.ok) out.push(s);
         }
-        out.sort((a, b) => b.score - a.score || a.distance - b.distance);
+        // Since terrainGen 16 the sites rank where a town would grow as well
+        // (world/townSiting.js, read as the land is now): survey score + weight x site score.
+        // Only the order of the suggestions changes; a site the player picks is theirs.
+        const sited = TownSiting.forWorld(world);
+        if (sited) {
+            const w = _num(TownSiting.founded('bud').weight, 0.25);
+            for (const s of out) s.siteScore = sited.live(s.q, s.r, 'village');
+            const key = (s) => s.score + w * (Number.isFinite(s.siteScore) ? s.siteScore : 0);
+            out.sort((a, b) => key(b) - key(a) || a.distance - b.distance);
+        } else out.sort((a, b) => b.score - a.score || a.distance - b.distance);
         // Spread the picks out: no two within the spacing of each other
         const spacing = _num(C.minSpacing, 3);
         const picked = [];

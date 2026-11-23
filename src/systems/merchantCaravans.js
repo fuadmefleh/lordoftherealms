@@ -52,6 +52,7 @@ import { Utils } from '../core/utils.js';
 import { Hex } from '../core/hex.js';
 import { PlayerInventory } from '../core/inventory.js';
 import { WorldUnit } from '../world/units.js';
+import { MountainBarriers } from '../world/mountainBarriers.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
 import { CrownBooks } from '../world/crownBooks.js';
 import { Economy } from '../world/economy.js';
@@ -296,6 +297,8 @@ export const MerchantCaravans = {
         if (!(W > 0) || !(H > 0)) return null;
         const id = (q, r) => r * W + q;
         const startK = id(sq, sr), endK = id(eq, er);
+        const day = _day(world);
+        const mtn = _num(MountainBarriers.config().caravanFactor, 1);
         const g = new Map([[startK, 0]]);
         const from = new Map();
         const closed = new Set();
@@ -335,6 +338,9 @@ export const MerchantCaravans = {
                 } else {
                     if (!t.terrain.passable) continue;
                     cost = _isRoad(t) ? 0.5 : Math.max(1, Math.min(3, _num(t.terrain.moveCost, 1)));
+                    // The mountains: a range is crossed by its pass (world/mountainBarriers.js)
+                    const m = MountainBarriers.marchCost(t, day);
+                    if (m > 1) cost *= 1 + (m - 1) * mtn;
                 }
                 const ng = gc + cost;
                 const old = g.get(nk);
@@ -718,7 +724,18 @@ export const MerchantCaravans = {
         const isShip = u.type === 'trade_ship';
         let seizeRolled = false;
         if (!Array.isArray(u.lairsPassed)) u.lairsPassed = [];
-        for (let s = 0; s < _num(u.speed, 3) && _num(u.step) < last; s++) {
+        // A day's way: a hex a step, a mountain dearer (world/mountainBarriers.js marchCost) — the
+        // rest of a day short of a climb is carried into it (u.marchCarry). Ships sail on.
+        let budget = _num(u.speed, 3) + (isShip ? 0 : _num(u.marchCarry));
+        u.marchCarry = 0;
+        while (_num(u.step) < last) {
+            const m = isShip ? 1 : MountainBarriers.marchCost(world.getTile(route[(_num(u.step) + 1) * 2], route[(_num(u.step) + 1) * 2 + 1]), day);
+            const cost = Number.isFinite(m) ? m : 1; // (its route was found over land: it goes on)
+            if (cost > budget + 1e-9) {
+                if (!isShip) u.marchCarry = budget;
+                break;
+            }
+            budget -= cost;
             u.step = _num(u.step) + 1;
             u.q = route[u.step * 2];
             u.r = route[u.step * 2 + 1];

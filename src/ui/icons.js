@@ -586,6 +586,7 @@ const MAP_GLYPHS = {
     '🏇': 'horseshoe', '🧱': 'brick', '🎣': 'fish', '🐟': 'fish', '🌾': 'wheat', '💎': 'gem', '💰': 'coins',
     '🏚': 'ruin', '🗿': 'stones', '⛲': 'droplet', '🔭': 'spyglass', '⚱': 'urn', '🦴': 'bone', '⛈': 'storm', '🏝': 'island',
     '🌕': 'moon', '🔴': 'orb', '🏫': 'book', '🎓': 'book', '🗽': 'obelisk', '🏟': 'tower', '🌉': 'bridge', '🌊': 'wave',
+    '♨': 'droplet', '🌋': 'fire', '🧊': 'snowflake', '🪸': 'shell',
     '🐚': 'shell', '⛴': 'boat', '🚧': 'barrier', '🏕': 'tent', '⛪': 'church', '⛩': 'church', '🏛': 'temple',
     '🏗': 'hammer', '🔨': 'hammer', '❔': 'help', '❓': 'help', '👤': 'person', '💀': 'skull', '⚓': 'anchor', '🛶': 'boat',
     '🗡': 'dagger', '🕯': 'candle', '🐺': 'paw', '🏘': 'house', '🏠': 'house', '🏰': 'castle', '🐪': 'wagon', '🐫': 'wagon',

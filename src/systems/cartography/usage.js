@@ -6,6 +6,7 @@ import { Discovery } from '../discovery.js';
 import { TreasureDigs } from '../treasureDigs.js';
 import { Names } from '../../core/names.js';
 import { NamedLegacy } from '../namedLegacy.js';
+import { GeoNames } from '../../world/geoNames.js';
 
 Object.assign(Cartography, {
     // ── Map Reading / Applying ─────────────────
@@ -787,6 +788,10 @@ Object.assign(Cartography, {
             const t = world.getTile(h.q, h.r);
             if (t && t.settlement) return `the ${t.settlement.name} Region`;
         }
+
+        // The land's own name for the place: a range, a forest, a sea (world/geoNames.js)
+        const geo = GeoNames.nameAt(world, q, r);
+        if (geo) return geo;
 
         // Use terrain descriptors
         const terrainNames = {

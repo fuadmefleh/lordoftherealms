@@ -23,6 +23,7 @@ import { Cultures } from './cultures.js';
 import { RealmArms } from './realmArms.js';
 import { TownMarks } from './townMarks.js';
 import { WaterSources } from './waterSources.js';
+import { TownSiting } from './townSiting.js';
 
 const _fy = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
 /** The distant years' survey of each realm's recruiting ground (updateMilitary): kingdom → { world, day, … }. */
@@ -491,6 +492,22 @@ export const KingdomAI = {
         if (roll < foundChance * Math.max(0.2, 1 + KingdomBonuses.get(kingdom, 'construction')) && !target.tile.settlement) {
             // (the same draw the old 100-500 souls took, so the dice run on as before)
             const draw = inside ? 100 + KingdomAI._hash(`${world.day || 0}|${kingdom.id}|souls`) % 401 : Utils.randInt(100, 500);
+            // Since terrainGen 16 the settlers take the best site of the realm's own
+            // land near the hex it claimed, where a town would grow (world/townSiting.js;
+            // the spacing, crowding and donor rules as before) — and none at all when
+            // even that is ground no one would farm. No extra dice either way. (A village
+            // is founded only when one could be on the claimed hex, as before: the site
+            // moves, the pace of founding does not.)
+            const sited = TownSiting.forWorld(world);
+            if (sited) {
+                if (!KingdomAI._villageDonor(kingdom, world, target, G)) return;
+                const F = TownSiting.founded('expand');
+                const pick = TownSiting.bestNear(world, target.q, target.r, Number.isFinite(F.radius) ? F.radius : 3,
+                    (t) => t.kingdom === kingdom.id && t.terrain.passable && !t.settlement && !!KingdomAI._villageDonor(kingdom, world, t, G),
+                    { map: sited, distWeight: F.distWeight, kind: 'village' });
+                if (!pick || pick.score < (Number.isFinite(F.minScore) ? F.minScore : -1)) return;
+                target = { q: pick.q, r: pick.r, tile: pick.tile };
+            }
             const donor = KingdomAI._villageDonor(kingdom, world, target, G);
             if (!donor) return;
             const S = G.settlers || {};

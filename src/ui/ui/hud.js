@@ -4,6 +4,7 @@ import { Seasons } from '../../world/seasons.js';
 import { Utils, ActionMenu, Religion, Economy, Terrain, PlayerEconomy, PlayerMilitary, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, InnerMapCharacters, WEATHER_TYPES, Treasures, InnerMap } from './_imports.js';
 import { Traits } from '../../systems/traits.js';
 import { NamedLegacy } from '../../systems/namedLegacy.js';
+import { GeoNames } from '../../world/geoNames.js';
 import { Companions } from '../../systems/companions.js';
 import { Ailments } from '../../systems/ailments.js';
 import { Crafting } from '../../player/crafting.js';
@@ -144,6 +145,18 @@ Object.assign(UI.prototype, {
                 stateEl.classList.toggle('on', renderer.showTerritories);
             }
             this.showNotification('Display', `Kingdom Borders: ${renderer.showTerritories ? 'ON' : 'OFF'}`, 'info');
+        });
+        // The atlas names of the land and the water (renderer/geoLabels.js), kept in the settings
+        document.getElementById('btnToggleGeoNames')?.addEventListener('click', () => {
+            const renderer = this.game.renderer;
+            renderer.showGeoNames = renderer.showGeoNames === false;
+            const stateEl = document.getElementById('geoNamesToggleState');
+            if (stateEl) {
+                stateEl.textContent = renderer.showGeoNames ? 'ON' : 'OFF';
+                stateEl.classList.toggle('on', renderer.showGeoNames);
+            }
+            UI.saveSettings({ ...UI.loadSettings(), showGeoNames: renderer.showGeoNames });
+            this.showNotification('Display', `Place Names: ${renderer.showGeoNames ? 'ON' : 'OFF'}`, 'info');
         });
 
         // Map modes: listed in the Map dropdown itself (M cycles them; ui/game/gameLoop.js)
@@ -1340,7 +1353,7 @@ Object.assign(UI.prototype, {
         this._setHudText('regionTerrain', tile.terrain.name);
         this._setHudText('regionTerrainIcon', tile.terrain.icon || '');
         // How long the hex takes to cross on foot (days per hex, data/travel.json)
-        const days = Infrastructure.getPlayerHexDays(tile, player);
+        const days = Infrastructure.getPlayerHexDays(tile, player, world.day);
         this._setHudText('regionMoveCost', Infrastructure.formatDays(days));
 
         // Region name + description, memoized by regionId.
@@ -1356,7 +1369,9 @@ Object.assign(UI.prototype, {
         }
         // A region or sea named after a House (systems/namedLegacy.js) wins over the land's own
         const named = NamedLegacy.placeAt(world, tile.q, tile.r);
-        this._setHudText('regionName', named ? named.name : info.name);
+        // ...and the land's own name for the place, if it has one: "Coastal Highlands — the Grey Teeth" (world/geoNames.js)
+        const geo = named ? null : GeoNames.nameAt(world, tile.q, tile.r);
+        this._setHudText('regionName', named ? named.name : (geo ? `${info.name} — ${geo}` : info.name));
         this._setHudText('regionDesc', info.desc);
 
         // Claim status.

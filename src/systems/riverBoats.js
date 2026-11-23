@@ -17,6 +17,10 @@
 //     or where it is, aboard), cargo: { good: qty }, tolls (paid in all),
 //     fishLots: [{ d, n }] (its raw fish by the day caught: riverLife.js) }
 // The movement hooks live in player/core/movement.js (_onRiverBoat).
+// Only rivers of a boat's size (world/rivers.js: 'river' and 'great river',
+// not brooks) and the lakes they run into are navigable; a great river is
+// quicker both ways (data/rivers.json boats.great). A boat lying on a brook
+// (a save from before river sizes) may still float down it to bigger water.
 // Settings: data/riverLife.json (boats, tolls, flood). No randomness.
 
 import { DataLoader } from '../core/dataLoader.js';
@@ -26,6 +30,7 @@ import { RiverDrift } from './riverDrift.js';
 import { Ledger } from './ledger.js';
 import { RiverLife } from './riverLife.js';
 import { Utils } from '../core/utils.js';
+import { Rivers } from '../world/rivers.js';
 
 const DEFAULTS = {
     enabled: true,
@@ -96,13 +101,19 @@ export const RiverBoats = {
         return RiverDrift._tile(world, q, r);
     },
 
-    /** Can a boat be on this hex? A river hex, or a lake. */
+    /** Can a boat be on this hex? A river hex big enough for boats (world/rivers.js: not a brook), or a lake. */
     navigable(world, q, r) {
         const t = this._tile(world, q, r);
         if (!t) return false;
         if (t.terrain && t.terrain.id === 'lake') return true;
-        if (RiverDrift.isRiverHex(t)) return true;
+        if (RiverDrift.isRiverHex(t)) return Rivers.boatable(world, q, r) || this._lakeLanding(world, q, r, t);
         return this._lakeLanding(world, q, r, t);
+    },
+
+    /** A river hex too small for boats (a brook): a boat on it can only float down. */
+    _brook(world, q, r) {
+        const t = this._tile(world, q, r);
+        return !!(t && RiverDrift.isRiverHex(t) && !this.navigable(world, q, r));
     },
 
     /** A town on a lake shore: boats put in and out there */
@@ -122,9 +133,14 @@ export const RiverBoats = {
      * or null (no water joins them).
      */
     link(world, fq, fr, tq, tr) {
-        if (!this.navigable(world, fq, fr) || !this.navigable(world, tq, tr)) return null;
         const W = world && world.width > 0 ? world.width : 0;
         const same = (a, b, c, d) => b === d && (W ? Hex.wrapQ(a, W) === Hex.wrapQ(c, W) : a === c);
+        // (aboard on a brook — an older save, or moored where a brook meets a town: float on down it)
+        if (this._brook(world, fq, fr)) {
+            const d = RiverDrift.downstream(world, fq, fr);
+            return (d.kind === 'river' || d.kind === 'lake') && same(d.q, d.r, tq, tr) ? 'down' : null;
+        }
+        if (!this.navigable(world, fq, fr) || !this.navigable(world, tq, tr)) return null;
         const lakeF = this._isLake(world, fq, fr), lakeT = this._isLake(world, tq, tr);
         if (lakeF && lakeT) return 'still';
         // (in and out of a lakeside town's landing)
@@ -160,15 +176,18 @@ export const RiverBoats = {
         const k = (b && this.kind(b.kind)) || {};
         const cfg = this.config();
         const sev = Math.max(RiverLife.floodAt(world, fq, fr), RiverLife.floodAt(world, tq, tr));
-        if (how === 'down') return _num(k.down, 0.55) * (sev > 0 ? 1 - (1 - _num(cfg.flood.down, 0.75)) * sev : 1);
-        return _num(k.up, 2.2) * (sev > 0 ? 1 + (_num(cfg.flood.up, 1.6) - 1) * sev : 1);
+        // (a great river: broad, deep water, quicker going both ways: data/rivers.json boats.great)
+        const great = Rivers.band(world, fq, fr) === 'great' && Rivers.band(world, tq, tr) === 'great';
+        const G = great ? (Rivers.config().boats.great || {}) : null;
+        if (how === 'down') return _num(k.down, 0.55) * (G ? _num(G.down, 1) : 1) * (sev > 0 ? 1 - (1 - _num(cfg.flood.down, 0.75)) * sev : 1);
+        return _num(k.up, 2.2) * (G ? _num(G.up, 1) : 1) * (sev > 0 ? 1 + (_num(cfg.flood.up, 1.6) - 1) * sev : 1);
     },
 
-    /** A river town's boatwrights: a settlement standing on a river hex (or by a lake) */
+    /** A river town's boatwrights: a settlement standing on a river a boat can use (not a brook), or by a lake */
     canBuyAt(world, q, r) {
         const t = this._tile(world, q, r);
         if (!t || !t.settlement) return false;
-        if (RiverDrift.isRiverHex(t)) return true;
+        if (RiverDrift.isRiverHex(t) && Rivers.boatable(world, q, r)) return true;
         return Hex.neighbors(q, r).some(n => this._isLake(world, n.q, n.r));
     },
 

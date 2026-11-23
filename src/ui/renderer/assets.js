@@ -47,7 +47,13 @@ Object.assign(Renderer.prototype, {
                 'tropics_wetlands/hexSwamp00.png', 'tropics_wetlands/hexSwamp01.png', 'tropics_wetlands/hexSwamp02.png', 'tropics_wetlands/hexSwamp03.png',
                 'tropics_wetlands/hexWetlands00.png', 'tropics_wetlands/hexWetlands01.png', 'tropics_wetlands/hexWetlands02.png', 'tropics_wetlands/hexWetlands03.png'
             ],
-            'highlands': ['hexHighlands01.png', 'hexHighlands02.png', 'hexHighlands03.png']
+            'highlands': ['hexHighlands01.png', 'hexHighlands02.png', 'hexHighlands03.png'],
+            // terrainGen 17 landscapes (scripts/terrain_art/landscape_tiles.py): glaciers, badlands and canyons, volcanoes, reefs
+            'glacier': ['cold/hexGlacier00.png', 'cold/hexGlacier01.png', 'cold/hexGlacier02.png', 'cold/hexGlacier03.png', 'cold/hexGlacierPeak00.png', 'cold/hexGlacierPeak01.png'],
+            'badlands': ['desert/hexBadlands00.png', 'desert/hexBadlands01.png', 'desert/hexBadlands02.png', 'desert/hexBadlands03.png', 'desert/hexCanyon00.png', 'desert/hexCanyon01.png', 'desert/hexCanyon02.png'],
+            'volcano': ['volcanic/hexVolcano00.png', 'volcanic/hexVolcano01.png'],
+            'ash_plains': ['volcanic/hexAshPlains00.png', 'volcanic/hexAshPlains01.png', 'volcanic/hexAshPlains02.png', 'volcanic/hexAshPlains03.png'],
+            'reef': ['ocean/hexReef00.png', 'ocean/hexReef01.png', 'ocean/hexReef02.png', 'ocean/hexReef03.png']
         };
 
         const RIVER_IMAGES = [
@@ -353,8 +359,10 @@ Object.assign(Renderer.prototype, {
                 isAnimatedWater = true;
                 break;
             case 'ocean':
-                // Standard ocean variants from the ocean folder
-                variants = ['ocean/hexOceanCalm00.png', 'ocean/hexOceanCalm01.png', 'ocean/hexOceanCalm02.png', 'ocean/hexOceanCalm03.png'];
+                // Standard ocean variants from the ocean folder (an atoll's reef: terrainGen 17)
+                variants = tile._reef
+                    ? ['ocean/hexReef00.png', 'ocean/hexReef01.png', 'ocean/hexReef02.png', 'ocean/hexReef03.png']
+                    : ['ocean/hexOceanCalm00.png', 'ocean/hexOceanCalm01.png', 'ocean/hexOceanCalm02.png', 'ocean/hexOceanCalm03.png'];
                 isAnimatedWater = true;
                 break;
             case 'sea':
@@ -362,7 +370,9 @@ Object.assign(Renderer.prototype, {
                 // Lighter ocean variants for shallower water; a fjord's deep cold water between its cliffs
                 variants = tile._fjord
                     ? ['cold/hexFjord00.png', 'cold/hexFjord01.png', 'cold/hexFjord02.png', 'cold/hexFjord03.png']
-                    : ['ocean/hexOceanCalm00.png', 'ocean/hexOceanCalm01.png', 'ocean/hexOceanCalm02.png', 'ocean/hexOceanCalm03.png'];
+                    // (terrainGen 17: warm coral shallows, world/landscapes17.js)
+                    : tile._reef ? ['ocean/hexReef00.png', 'ocean/hexReef01.png', 'ocean/hexReef02.png', 'ocean/hexReef03.png']
+                        : ['ocean/hexOceanCalm00.png', 'ocean/hexOceanCalm01.png', 'ocean/hexOceanCalm02.png', 'ocean/hexOceanCalm03.png'];
                 isAnimatedWater = true;
                 break;
             case 'island':
@@ -462,6 +472,24 @@ Object.assign(Renderer.prototype, {
                 break;
             case 'savanna':
                 variants = ['hexScrublands01.png', 'hexScrublands02.png', 'hexScrublands03.png'];
+                break;
+            // ── terrainGen 17 landscapes (world/landscapes17.js; art: scripts/terrain_art/landscape_tiles.py) ──
+            case 'glacier':
+                // an ice-capped peak where the land stands high, a crevassed ice field in the cold valleys
+                variants = (tile.elevation ?? 0.9) >= 0.88
+                    ? ['cold/hexGlacierPeak00.png', 'cold/hexGlacierPeak01.png']
+                    : ['cold/hexGlacier00.png', 'cold/hexGlacier01.png', 'cold/hexGlacier02.png', 'cold/hexGlacier03.png'];
+                break;
+            case 'badlands':
+                variants = tile._canyon
+                    ? ['desert/hexCanyon00.png', 'desert/hexCanyon01.png', 'desert/hexCanyon02.png']
+                    : ['desert/hexBadlands00.png', 'desert/hexBadlands01.png', 'desert/hexBadlands02.png', 'desert/hexBadlands03.png'];
+                break;
+            case 'volcano':
+                variants = ['volcanic/hexVolcano00.png', 'volcanic/hexVolcano01.png'];
+                break;
+            case 'ash_plains':
+                variants = ['volcanic/hexAshPlains00.png', 'volcanic/hexAshPlains01.png', 'volcanic/hexAshPlains02.png', 'volcanic/hexAshPlains03.png'];
                 break;
             default:
                 return null;

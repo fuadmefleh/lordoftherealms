@@ -60,6 +60,7 @@ import { Executions } from './executions.js';
 import { PeasantRevolts } from './peasantRevolts.js';
 import { GreatWorks } from './greatWorks.js';
 import { NamedLegacy } from './namedLegacy.js';
+import { GeoNames } from '../world/geoNames.js';
 import { Climate } from '../world/climate.js';
 import { PriceAnchors } from '../world/priceAnchors.js';
 import { RealmTimeline } from './realmTimeline.js';
@@ -424,6 +425,8 @@ export const SaveLoad = {
             crises: Crises.serialize(world),
             // Regions and seas named after Houses (systems/namedLegacy.js; codes ride on kingdom.laws, renamed towns on their tiles)
             namedLegacy: NamedLegacy.serialize(world),
+            // The names of the ranges, rivers, seas... as first given, so a town founded later renames none (world/geoNames.js)
+            geography: GeoNames.serialize(world),
             // The last crisis of the age: the reckoning, its trial, the Golden or Dark Age (systems/lastCrisis.js)
             lastCrisis: LastCrisis.serialize(world),
             // Martyrs' shrines and the realms' scaffolds (systems/executions.js)
@@ -1163,6 +1166,7 @@ export const SaveLoad = {
         Crises.restore(saveData.crises, world);
         // The named regions and seas (older saves: none)
         NamedLegacy.restore(saveData.namedLegacy, world);
+        GeoNames.restore(saveData.geography, world);
         // The last crisis (older saves: none, the reckoning starts from nothing)
         LastCrisis.restore(saveData.lastCrisis, world);
         // Martyrs' shrines and the realms' scaffolds (older saves: none)

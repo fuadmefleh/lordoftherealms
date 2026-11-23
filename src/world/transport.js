@@ -63,7 +63,7 @@ const DEFAULTS = {
     passes: { terrain: ['mountain', 'highlands', 'snow', 'tundra', 'ice'], high: ['mountain', 'snow', 'ice'], minHexes: 1, deepFrom: 8, closedMove: 3 },
     rivers: { fordMove: 1, fordFriction: 0.12, ferryMove: 1, ferryFare: 2, ferryFriction: 0.06, ferryRange: 2, floodChance: 0.12, washChance: 0.025, washStorm: 0.12, washRutted: 2 },
     terrain: { base: 0.7, perMove: 0.15, min: 0.85, max: 1.45 },
-    perish: { goods: ['fish', 'meat', 'bread', 'cheese'], perDay: 0.025, loss: 0.02, maxLoss: 0.35, landSpeed: 3, roadSpeed: 4, seaSpeed: 6, canalSpeed: 5 },
+    perish: { goods: ['fish', 'meat', 'bread', 'cheese'], perDay: 0.025, loss: 0.02, maxLoss: 0.35, landSpeed: 3, roadSpeed: 4, seaSpeed: 6, canalSpeed: 5, riverSpeed: 5 },
     upkeep: { floor: 400, maxDebt: 0.8, warShare: 0.5, freeRepair: 2 },
     haulage: { flowBySpeed: 1, refSpeed: 0.75, minRate: 0.6, maxRate: 1.8, keepBySpeed: 1, minKeep: 0.6, maxKeep: 1.3 },
     works: {},
@@ -671,6 +671,8 @@ export const Transport = {
             hexPerDay = _num(P.landSpeed, 3);
             speed = hexPerDay / _num(P.roadSpeed, 4);
         }
+        // (goods that go by river go at the boats' pace: world/rivers.js, systems/marketDynamics.js link.river)
+        if (link.river && !link.sea) hexPerDay = Math.max(hexPerDay, _num(P.riverSpeed, 5));
         const days = Math.max(0.5, _num(link.dist, 1) / Math.max(0.5, hexPerDay));
         link.friction = link.fr0 * mult + toll;
         link.perish = Math.round(_num(P.perDay) * days * 10000) / 10000;

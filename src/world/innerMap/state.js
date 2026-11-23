@@ -396,6 +396,9 @@ Object.assign(InnerMap, {
         ice:                  'water',
         beach:                'sand',
         island:               'sand',
+        // (terrainGen 17 landscapes, world/landscapes17.js)
+        badlands:             'dry_dirt',
+        ash_plains:           'grass',
     },
 
     // Sub-terrain IDs that override the parent's base terrain.

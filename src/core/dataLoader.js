@@ -320,7 +320,9 @@ export const DataLoader = {
         Terrain.MINERAL_FIELDS = terrainData.mineralFields || {};
         Terrain.COASTS_DATA = terrainData.coasts || {};
         Terrain.WETLANDS = terrainData.wetlands || null;
+        Terrain.FISHING_GROUNDS = terrainData.fishingGrounds || null;
         Terrain.PASSES = terrainData.passes || {};
+        Terrain.LANDSCAPES = terrainData.landscapes || null;
         Terrain.BIOME_TABLE = terrainData.biomeTable;
 
         // ── World units (types beyond the hand-written ones) ──

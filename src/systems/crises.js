@@ -533,7 +533,7 @@ export const Crises = {
                 h.targetR = h.objectiveR;
                 // A host that cannot find its way (water, mountains) gives that town up
                 const was = _key(h.q, h.r);
-                if (h.lastPos === was) h.stuck = _num(h.stuck) + 1; else h.stuck = 0;
+                if (h.lastPos === was && !(h._marchCarry > 0)) h.stuck = _num(h.stuck) + 1; else h.stuck = 0;
                 h.lastPos = was;
                 // (or wandering: two months on the road without reaching it)
                 if (h.stuck >= 14 || day - _num(h.objDay, day) > 60) {
@@ -546,12 +546,8 @@ export const Crises = {
                     continue;
                 }
                 const rng = _rng(world, `march:${h.id}:${day}`);
-                Utils.withRng(rng, () => {
-                    for (let i = 0, n = Math.max(1, _num(h.speed, I.speed)); i < n; i++) {
-                        if (h.q === h.targetQ && h.r === h.targetR) break;
-                        h.moveTowardsTarget(world);
-                    }
-                });
+                // (the cheapest way by the ground: over a range by its pass — world/mountainBarriers.js)
+                Utils.withRng(rng, () => h.marchToward(world, Math.max(1, _num(h.speed, I.speed))));
             } else if (day - _num(h.lastAssault, -99) >= I.assaultGapDays) {
                 // Every host before the walls storms together, led by the strongest
                 const band = hosts.filter(o => !o.destroyed && _dist(world, o, obj) <= 1);

@@ -21,3 +21,5 @@ export { Shipcraft } from '../shipcraft.js';
 export { WorldAge } from '../worldAge.js';
 export { Castles } from '../castles.js';
 export { TownSiting } from '../townSiting.js';
+export { LandHistory } from '../landHistory.js';
+export { MountainBarriers } from '../mountainBarriers.js';

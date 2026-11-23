@@ -470,7 +470,8 @@ export const RealmWars = {
             if (!unit) unit = RealmWars._spawnUnit(world, kingdom, rec);
             if (unit.destroyed) continue; // defeated today; onHostDefeated already ran
             if (rec.besieging) continue;  // camped before a holding (systems/holdingSieges.js)
-            rec.stuckDays = (unit.q === rec.q && unit.r === rec.r) ? (rec.stuckDays || 0) + 1 : 0;
+            // (a host slow on a climb is not stuck: WorldUnit.marchToward carries its day into the hex)
+            rec.stuckDays = (unit.q === rec.q && unit.r === rec.r && !(unit._marchCarry > 0)) ? (rec.stuckDays || 0) + 1 : 0;
             rec.q = unit.q; rec.r = unit.r;
             // Dry country on the march: the host thirsts and thins (systems/water.js)
             Water.armyUnitDay(world, unit, rec);

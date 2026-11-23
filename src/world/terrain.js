@@ -4,6 +4,10 @@
 
 import { Utils } from '../core/utils.js';
 import { Hex, MinHeap } from '../core/hex.js';
+// (terrainGen 17 landscapes: glaciers, badlands and canyons, volcanoes, reefs)
+import { Landscapes17 } from './landscapes17.js';
+import { Rivers } from './rivers.js';
+import { OceanCurrents } from './oceanCurrents.js';
 
 export const Terrain = {
     // Terrain type definitions
@@ -541,6 +545,13 @@ export const Terrain = {
                 rng: params.seed ? Utils.seededRandom(Math.abs(Utils.hashStr(`wetlands:${params.seed}`)) || 1) : rng,
             });
         }
+
+        // ── terrainGen 17 landscapes: glaciers, badlands and canyons, volcanoes, reefs (world/landscapes17.js) ──
+        if (terrainGen >= 17) Terrain._lastLandscapes17 = Landscapes17.apply(tiles, width, height, { T: Terrain, rng: params.seed ? Utils.seededRandom(Math.abs(Utils.hashStr(`landscapes:${params.seed}`)) || 1) : rng, waterThreshold, hillsLevel, minerals, resMultiplier, strategicMultiplier });
+        // Worlds since terrainGen 17: a few natural fords on the great rivers (world/rivers.js; no RNG)
+        if (Rivers.fordsApply(terrainGen)) Rivers.markFords(tiles, width, height);
+        // ── terrainGen 17: fishing grounds — fish follow the sea as ore follows the rock (Terrain._fishingGrounds17) ──
+        if (terrainGen >= 17) Terrain._fishingGrounds17(tiles, width, height, { seed: params.seed, waterThreshold, deepWaterLevel, resMultiplier });
 
         // Identify connected regions for reachable pathfinding
         Terrain.identifyRegions(tiles, width, height);
@@ -2585,6 +2596,169 @@ export const Terrain = {
         return null;
     },
 
+    // ── terrainGen 17: fishing grounds (data/terrain.json fishingGrounds) ──
+
+    FISHING_DEFAULTS: {
+        wShelf: 0.55, shelfReach: 3, shelfNear: 0.25, wCurrent: 0.35, wMeet: 0.45, meetWidth: 0.06, meetOpen: 0.5,
+        wMouth: 0.55, mouthReach: 3, bigFeed: 30, mouthMin: 0.3, deltaBoost: 0.4, coldTemp: 0.3, warmTemp: 0.75, warmMult: 0.55,
+        openReach: 5, openMult: 0.35, enclosedHexes: 60, enclosedMult: 0.4, jitter: 0.12, smooth: 0.4, floor: 0.28, ceil: 0.85,
+        minGround: 0.05, nearReach: 0.7, core: 0.5, edge: 0.06, lake: 0.45,
+    },
+
+    /** The sea a fishing ground lies in (not lakes) */
+    _fishSea(t) {
+        return !!(t && t.terrain && ['coast', 'sea', 'ocean', 'deep_ocean'].includes(t.terrain.id) && !t._lake);
+    },
+
+    /**
+     * The fishing grounds of worlds since terrainGen 17 (data/terrain.json
+     * fishingGrounds): rich on the shallow shelves by the coasts, where the
+     * currents run strong over them or two streams meet, off the mouths of
+     * the great rivers and deltas, richer in cold water; poor in the deep
+     * open ocean and the small enclosed seas. Marks every hex with
+     * tile.fishing (strength 0..1; 0 off the grounds), then lays the fish map
+     * resources on the grounds only (lakes and marshes keep theirs).
+     * Reads the ocean currents from the tiles alone (an adapter for
+     * OceanCurrents.at). No RNG is drawn: hashes of the seed and the hex.
+     */
+    _fishingGrounds17(tiles, width, height, opts = {}) {
+        const C = { ...Terrain.FISHING_DEFAULTS, ...(Terrain.FISHING_GROUNDS || {}) };
+        const wt = opts.waterThreshold ?? 0.42;
+        const deep = Math.min(wt - 0.01, opts.deepWaterLevel ?? 0.2);
+        const N = width * height;
+        const idx = (q, r) => r * width + q;
+        const at = (q, r) => (r < 0 || r >= height ? null : tiles[r][Hex.wrapQ(q, width)]);
+        const nbrs = (t) => Hex.neighbors(t.q, t.r).map(n => at(n.q, n.r));
+        const sea = Terrain._fishSea;
+        const isWaterT = (t) => !!(t && t.terrain && (sea(t) || t.terrain.id === 'lake' || t._lake));
+        const lat = (r) => Math.abs((r / Math.max(1, height - 1)) * 2 - 1);
+        const hash = (k) => (Math.abs(Utils.hashStr(`fg17:${opts.seed ?? ''}:${k}`)) % 10000) / 10000;
+
+        // distance from land over the water (a search out from the shore)
+        const dLand = new Float32Array(N).fill(99);
+        const bfs = [];
+        for (const row of tiles) for (const t of row) {
+            if (!sea(t)) continue;
+            if (nbrs(t).some(n => n && !isWaterT(n))) { dLand[idx(t.q, t.r)] = 1; bfs.push(t); }
+        }
+        for (let k = 0; k < bfs.length; k++) {
+            const t = bfs[k];
+            const d = dLand[idx(t.q, t.r)];
+            for (const n of nbrs(t)) {
+                if (!sea(n) || dLand[idx(n.q, n.r)] <= d + 1) continue;
+                dLand[idx(n.q, n.r)] = d + 1;
+                bfs.push(n);
+            }
+        }
+        // the size of each sea body
+        const body = new Int32Array(N).fill(-1);
+        const sizes = [];
+        for (const row of tiles) for (const t of row) {
+            if (!sea(t) || body[idx(t.q, t.r)] >= 0) continue;
+            const id = sizes.length, q0 = [t];
+            body[idx(t.q, t.r)] = id;
+            for (let k = 0; k < q0.length; k++) for (const n of nbrs(q0[k])) {
+                if (sea(n) && body[idx(n.q, n.r)] < 0) { body[idx(n.q, n.r)] = id; q0.push(n); }
+            }
+            sizes.push(q0.length);
+        }
+        // the rivers' mouths, by how much river is behind them
+        const down = (t) => (t.hasRiver && Number.isInteger(t.riverDir) && t.riverDir >= 0 ? nbrs(t)[t.riverDir] : null);
+        const indeg = new Map(), feed = new Map(), rivers = [];
+        for (const row of tiles) for (const t of row) {
+            if (!t.hasRiver) continue;
+            rivers.push(t);
+            const d = down(t);
+            if (d && d.hasRiver) indeg.set(d, (indeg.get(d) || 0) + 1);
+        }
+        const rq = rivers.filter(t => !indeg.get(t));
+        for (let k = 0; k < rq.length; k++) {
+            const t = rq[k];
+            const f = (feed.get(t) || 0) + 1;
+            feed.set(t, f);
+            const d = down(t);
+            if (d && d.hasRiver && indeg.get(d)) {
+                feed.set(d, (feed.get(d) || 0) + f);
+                indeg.set(d, indeg.get(d) - 1);
+                if (!indeg.get(d)) rq.push(d);
+            }
+        }
+        const mouth = new Float32Array(N);
+        const reach = Math.max(1, C.mouthReach);
+        for (const t of rivers) {
+            const outs = [down(t)];
+            if (Number.isInteger(t.riverBranch)) outs.push(nbrs(t)[t.riverBranch]);
+            const o = outs.find(sea);
+            if (!o) continue;
+            let k = Math.max(C.mouthMin, Math.min(1, Math.sqrt((feed.get(t) || 1) / Math.max(1, C.bigFeed))));
+            if (t._delta || t.riverDistributary) k = Math.min(1 + C.deltaBoost, k + C.deltaBoost);
+            for (const h of Hex.hexesInRange(o.q, o.r, Math.ceil(reach))) {
+                const s = at(h.q, h.r);
+                if (!sea(s)) continue;
+                const d = Hex.wrappingDistance(o.q, o.r, s.q, s.r, width);
+                const v = k * Math.max(0, 1 - d / (reach + 1));
+                if (v > mouth[idx(s.q, s.r)]) mouth[idx(s.q, s.r)] = v;
+            }
+        }
+        // where the current bands meet (their inner edges); the currents read off the tiles
+        const cur = OceanCurrents.config();
+        const edges = (cur.bands || []).slice(0, -1).map(b => b.to).filter(Number.isFinite);
+        const adapter = { width, height, generationParams: { seed: opts.seed }, getTile: (q, r) => at(q, r) };
+
+        const raw = new Float32Array(N);
+        for (const row of tiles) for (const t of row) {
+            if (!sea(t)) continue;
+            const i = idx(t.q, t.r);
+            const depthK = Utils.clamp(((t.elevation ?? deep) - deep) / Math.max(0.01, wt - deep), 0, 1);
+            const near = Math.max(0, 1 - (dLand[i] - 1) / Math.max(1, C.shelfReach));
+            const shelf = depthK * (C.shelfNear + (1 - C.shelfNear) * near);
+            const c = OceanCurrents.at(adapter, t.q, t.r);
+            const strength = c ? c.strength : 0;
+            const la = lat(t.r);
+            let meet = 0;
+            for (const e of edges) meet = Math.max(meet, 1 - Math.abs(la - e) / Math.max(0.005, C.meetWidth));
+            let v = C.wShelf * shelf + C.wCurrent * strength * shelf + C.wMouth * mouth[i];
+            // (out past the shelf the sea is poor, but a front where two streams meet still draws fish)
+            if (dLand[i] > C.openReach) v *= C.openMult;
+            v += C.wMeet * meet * (C.meetOpen + (1 - C.meetOpen) * shelf);
+            const temp = Number.isFinite(t.temperature) ? t.temperature : 1 - la;
+            const cold = Utils.clamp((C.warmTemp - temp) / Math.max(0.01, C.warmTemp - C.coldTemp), 0, 1);
+            v *= C.warmMult + (1 - C.warmMult) * cold;
+            const size = sizes[body[i]] || 0;
+            if (size < C.enclosedHexes) v *= C.enclosedMult + (1 - C.enclosedMult) * size / Math.max(1, C.enclosedHexes);
+            raw[i] = v + C.jitter * hash(`${t.q},${t.r}`);
+        }
+        // smoothed over the neighbours, then rescaled between floor and ceil
+        for (const row of tiles) for (const t of row) {
+            if (!sea(t)) { t.fishing = 0; continue; }
+            let s = 0, n = 0;
+            for (const o of nbrs(t)) if (sea(o)) { s += raw[idx(o.q, o.r)]; n++; }
+            const v = n ? raw[idx(t.q, t.r)] * (1 - C.smooth) + (s / n) * C.smooth : raw[idx(t.q, t.r)];
+            const k = Utils.clamp((v - C.floor) / Math.max(0.01, C.ceil - C.floor), 0, 1);
+            t.fishing = Math.round(k * 1000) / 1000;
+        }
+        // fish as a map resource: only on the grounds (lakes and marshes keep their own)
+        const dens = opts.resMultiplier ?? 1;
+        let grounds = 0, fish = 0;
+        for (const row of tiles) for (const t of row) {
+            const id = t.terrain && t.terrain.id;
+            const onSea = sea(t), isle = id === 'island';
+            if (!onSea && !isle) continue;
+            if (t.fishing > 0) grounds++;
+            const isFish = !!(t.resource && t.resource.id === 'fish');
+            if (isle && !isFish) continue;            // (an islet's timber or spices stay)
+            if (onSea && t.resource && !isFish) continue;
+            let k = onSea ? t.fishing : 0;
+            // (a ground's edge spills onto the hexes beside it, but not down into the deep)
+            if (id !== 'deep_ocean') for (const o of nbrs(t)) if (o && o.fishing > 0) k = Math.max(k, o.fishing * C.nearReach);
+            const chance = k < C.minGround ? 0 : (C.edge + (C.core - C.edge) * k) * dens;
+            const has = hash(`res:${t.q},${t.r}`) < chance;
+            t.resource = has ? Terrain.RESOURCES.FISH : null;
+            if (has) fish++;
+        }
+        return { grounds, fish };
+    },
+
     classifyWaterBodies(tiles, width, height) {
         const visited = new Set();
         const waterThreshold = 0.42; // Include Coast in connectivity check
@@ -2798,7 +2972,12 @@ export const Terrain = {
         hills: 'Hills', highlands: 'Highlands', mountain: 'Mountains',
         desert: 'Desert', tundra: 'Tundra', snow: 'Snowfields', ice: 'Frostlands',
         swamp: 'Marshes', beach: 'Shores', island: 'Isles',
+        // (terrainGen 17 landscapes, world/landscapes17.js)
+        badlands: 'Badlands', ash_plains: 'Ashlands', glacier: 'Glaciers', volcano: 'Fire Mountain',
     },
+
+    // A hex's own name in worlds since terrainGen 17, before its region's (canyon: tile._canyon)
+    LANDMARK_NAMES: { canyon: 'Canyon', glacier: 'Glacier', volcano: 'Volcano' },
 
     // Short flavour description keyed by family noun.
     REGION_DESC: {
@@ -2819,6 +2998,10 @@ export const Terrain = {
         Marshes: 'Reed and bog conspire to swallow careless feet.',
         Shores: 'Sand and tide mark where the land meets the sea.',
         Isles: 'Scattered land rises from the surrounding waters.',
+        Badlands: 'Red gullies and bare, crumbling ridges: poor farming, but the stone lies open.',
+        Ashlands: 'Black volcanic soil, rich and warm: the fields here yield like nowhere else.',
+        Glaciers: 'Rivers of blue ice grind slowly down between the peaks.',
+        'Fire Mountain': 'A smoking cone looms over the land, its flanks streaked with old lava.',
     },
 
     /**
@@ -2836,9 +3019,13 @@ export const Terrain = {
     getRegionName(tile, world) {
         if (!tile || !world) return 'Uncharted Lands';
         const info = Terrain._regionInfo(tile, world);
-        if (info.isWater) return info.coastal ? 'Coastal Waters' : 'Open Waters';
+        // (worlds since terrainGen 17: coral shallows, world/landscapes17.js)
+        if (info.isWater) return tile._reef ? 'Coral Reef' : info.coastal ? 'Coastal Waters' : 'Open Waters';
         // (worlds since terrainGen 16: a gap through a range, Terrain._passes16)
         if (tile._pass) return 'Mountain Pass';
+        // (worlds since terrainGen 17: a hex's own landmark names it before its region does)
+        const own = Terrain.LANDMARK_NAMES[tile._canyon ? 'canyon' : tile.terrain.id];
+        if (own) return own;
         const noun = Terrain.REGION_FAMILY[info.dominant] || 'Wilds';
         return info.coastal ? `Coastal ${noun}` : noun;
     },
@@ -2849,8 +3036,10 @@ export const Terrain = {
     getRegionDescription(tile, world) {
         if (!tile || !world) return 'An unexplored stretch of the realm.';
         const info = Terrain._regionInfo(tile, world);
-        if (info.isWater) return 'Restless waters roll toward a far horizon.';
+        if (info.isWater) return tile._reef ? 'Warm, clear shallows over coral: rich fishing, and a keel to mind.' : 'Restless waters roll toward a far horizon.';
         if (tile._pass) return 'A narrow way climbs between the peaks: the one road through the range.';
+        if (tile._canyon) return 'Sheer red walls close in on a winding gorge cut deep through the dry hills.';
+        if (tile.hotSpring) return 'Steam drifts from hot springs warmed by the fire under the mountain.';
         const noun = Terrain.REGION_FAMILY[info.dominant] || 'Wilds';
         return Terrain.REGION_DESC[noun] || 'Untamed country awaits the bold.';
     },

@@ -1180,13 +1180,38 @@ export const SettlementMarket = {
             if (ct && typeof ct.temperature === 'number' && Number.isFinite(ct.temperature)) temp = ct.temperature;
         }
         const resources = [];
+        // (worlds since terrainGen 17: the fishing grounds off the town — Terrain._fishingGrounds17)
+        let gSum = 0, gMax = 0, gN = 0, marked = false;
         if (world && typeof world.getTile === 'function') {
             for (const h of Hex.hexesInRange(q, r, 2)) {
                 const t = world.getTile(world.width ? Hex.wrapQ(h.q, world.width) : h.q, h.r);
                 if (t && t.resource && t.resource.id) resources.push({ id: t.resource.id, direct: h.q === q && h.r === r });
+                if (t && typeof t.fishing === 'number') {
+                    marked = true;
+                    if (SettlementMarket._isSeaTile(t)) { gN++; gSum += t.fishing; gMax = Math.max(gMax, t.fishing); }
+                }
             }
         }
-        return { shares, fertility, river, resources, temp };
+        const out = { shares, fertility, river, resources, temp };
+        if (marked) {
+            // the grounds' strength (half the best within two hexes, half their mean) and the
+            // share of the seven hexes that is sea (the rest of the water: lakes, fished as before)
+            out.fishing = gN ? Math.round((0.5 * gMax + 0.5 * gSum / gN) * 1000) / 1000 : 0;
+            let seaN = 0, n7 = 0;
+            for (const h of Hex.hexesInRange(q, r, 1)) {
+                const t = world.getTile(world.width ? Hex.wrapQ(h.q, world.width) : h.q, h.r);
+                if (!t || !t.terrain) continue;
+                n7++;
+                if (SettlementMarket._isSeaTile(t)) seaN++;
+            }
+            out.seaShare = n7 ? seaN / n7 : 0;
+        }
+        return out;
+    },
+
+    /** Open sea water (not a lake) — where the fishing grounds of terrainGen 17 lie. */
+    _isSeaTile(t) {
+        return !!(t && t.terrain && ['coast', 'sea', 'ocean', 'deep_ocean'].includes(t.terrain.id) && !t._lake);
     },
 
     // ── Produce ───────────────────────────────────────────
@@ -1275,7 +1300,14 @@ export const SettlementMarket = {
         food += _num(items.food) * C.resourceScale;
         const res = (land && land.resources) || [];
         const has = (id) => res.some(r => r.id === id);
-        const wFish = _num(shares.water) * C.food.fishWater + (has('fish') ? C.food.fishResource : 0);
+        let water = _num(shares.water);
+        // (worlds since terrainGen 17: the sea fishes by the grounds off the town, lakes as before)
+        if (land && Number.isFinite(land.fishing)) {
+            const G = C.food.fishGrounds || {};
+            const seaW = Math.min(water, _num(land.seaShare));
+            water += seaW * (_num(G.floor, 0.35) + _num(G.gain, 1.3) * land.fishing - 1);
+        }
+        const wFish = water * C.food.fishWater + (has('fish') ? C.food.fishResource : 0);
         const wMeat = _num(C.food.meatBase) + _num(shares.pasture) * C.food.meatPasture + (has('cattle') ? C.food.meatResource : 0);
         const wGrain = Math.max(C.food.grainMin, 1 - wFish - wMeat);
         const wSum = wFish + wMeat + wGrain;

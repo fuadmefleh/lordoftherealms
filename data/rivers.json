@@ -1,0 +1,34 @@
+{
+    "_doc": "River size in play (world/rivers.js). A river hex's size is its feed: how many river hexes run into it, itself counted (from tile.riverDir; a delta's second channel carries the river it leaves). bands: the feed from which a river is a 'river' (a boat's water) and a 'great river'; below 'river' it is a brook. On a gen-16 world 120x80 about 45% of river hexes are brooks, 40% rivers and 12-22% great rivers. unknownBand: a river hex with no course recorded (painted in an editor) counts as this. navigable.minBand: the least river a boat can use (systems/riverBoats.js; lakes the river runs into too).",
+    "bands": { "river": 6, "great": 24 },
+    "unknownBand": "river",
+    "names": { "brook": "brook", "river": "river", "great": "great river" },
+    "navigable": { "minBand": "river" },
+
+    "_docCrossing": "Crossing a river on land with no bridge, road, town or ford (world/rivers.js crossExtra), stepping into its hex from the side (going along its course is free). player: extra days on foot, by band (on top of the old fording time, systems/infrastructure.js getPlayerHexDays). host: the same for the player at the head of armyFrom units or more. army: hexes of a day's march a war host loses (world/units.js updateWarHost: it builds rafts, swims the horses). fordShare: a natural ford (tile._ford, terrainGen 17) costs this share of it. A road's ford or ferry is paid on the road (world/transport.js) and costs nothing more here.",
+    "crossing": {
+        "player": { "brook": 0, "river": 0, "great": 0.5 },
+        "armyFrom": 6,
+        "host": { "brook": 0, "river": 0.25, "great": 1.5 },
+        "army": { "brook": 0, "river": 0, "great": 2 },
+        "fordShare": 0.25
+    },
+
+    "_docFords": "Natural fords, marked at generation on worlds since terrainGen fromGen (world/rivers.js markFords; older worlds have none): hexes of a river of minBand or bigger on open flat land (terrain), dropping no more than maxDrop to the next hex down, with flatNeighbours or more of its six neighbours flat land too, at least minFromMouth hexes up from where the river ends; the flattest first, no two within spacing hexes, one per perHexes hexes of such river, at most maxFords.",
+    "fords": {
+        "fromGen": 17,
+        "minBand": "great",
+        "terrain": ["plains", "grassland", "savanna", "tundra", "desert", "beach", "woodland", "seasonal_forest", "boreal_forest", "temperate_rainforest", "tropical_rainforest"],
+        "maxDrop": 0.01,
+        "flatNeighbours": 4,
+        "minFromMouth": 4,
+        "spacing": 7,
+        "perHexes": 14,
+        "maxFords": 24
+    },
+
+    "_docBoats": "River boats by river size (systems/riverBoats.js legFactor): on a great river the current's factors are multiplied by great.down (with the current: quicker) and great.up (against it: a broad slow stream is easier to pole or tow up than a fast narrow one). A boat lying on a brook (an older save) may still float down it to bigger water.",
+    "boats": {
+        "great": { "down": 0.8, "up": 0.85 }
+    }
+}

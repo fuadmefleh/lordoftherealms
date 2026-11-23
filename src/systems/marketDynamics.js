@@ -35,6 +35,7 @@ import { TownCrimes } from './townCrimes.js';
 import { TradePolicy } from './tradePolicy.js';
 import { Harvests } from '../world/harvests.js';
 import { Transport } from '../world/transport.js';
+import { Rivers } from '../world/rivers.js';
 import { PublicWorks } from './publicWorks.js';
 import { MoneySupply } from '../world/moneySupply.js';
 import { Estates } from '../world/estates.js';
@@ -490,12 +491,16 @@ export const MarketDynamics = {
         const bucket = Math.floor(_num(day) / LINK_DAYS);
         // Towns founded meanwhile join the trade when the links are next drawn
         if (cache.links && cache.links.bucket === bucket) return cache.links.list;
-        const make = (a, b, d, sea, road, nRoutes) => {
-            const friction = T.perHex * Math.max(1, d) * (road ? T.roadFactor : 1) * (sea ? T.seaFactor : 1);
+        // By water a river at least part of the way (world/rivers.js tradeByWater: one river or
+        // lake, or down a river to the sea and a port): cheaper by riverFactor (a sea link has seaFactor)
+        const portOf = (s) => KingdomNavy.isPortTile(world, s.q, s.r);
+        const make = (a, b, d, sea, road, nRoutes, river = undefined) => {
+            if (river === undefined) river = !sea && _num(T.riverFactor, 1) !== 1 ? !!Rivers.tradeByWater(world, a, b, portOf) : false;
+            const friction = T.perHex * Math.max(1, d) * (road ? T.roadFactor : 1) * (sea ? T.seaFactor : 1) * (river ? _num(T.riverFactor, 1) : 1);
             const base = T.capacity + T.perRoute * Math.min(nRoutes, T.maxRoutes);
             return {
                 // fr0: the distance's friction; the roads' state sets the day's (world/transport.js applyLink)
-                a, b, dist: d, sea, road, routes: nRoutes, friction, fr0: friction, base, capacity: base, factor: 1,
+                a, b, dist: d, sea, road, river, routes: nRoutes, friction, fr0: friction, base, capacity: base, factor: 1,
                 perish: 0, loss: 0, toll: 0, tolls: null, val: 0, closed: false, _speed: 1, rate: 1, keep: 1, _tf: NaN,
                 slot: SettlementMarket.slot(a.q + b.q, a.r + b.r),
                 // Crown tariffs read and paid on the link (systems/tradePolicy.js; laid out here so every link keeps one shape)
@@ -521,6 +526,12 @@ export const MarketDynamics = {
         // Who could trade with whom (distance, land or sea)
         const tiles = lives.map(s => world.getTile(s.q, s.r));
         const port = lives.map(s => KingdomNavy.isPortTile(world, s.q, s.r));
+        // (the navigable water each town is on, and whether it runs to the sea: world/rivers.js)
+        const riverOn = _num(T.riverFactor, 1) !== 1 || _num(T.riverRange) > 0;
+        const nets = riverOn ? lives.map(s => Rivers.townNets(world, s.q, s.r)) : null;
+        const toSea = riverOn ? nets.map(ns => ns.some(x => Rivers.netReachesSea(world, x))) : null;
+        const byWater = (i, j) => !!nets && (nets[i].some(x => nets[j].includes(x))
+            || (toSea[i] && (toSea[j] || port[j])) || (toSea[j] && port[i]));
         const cands = [];
         for (let i = 0; i < n; i++) {
             const a = lives[i];
@@ -533,7 +544,9 @@ export const MarketDynamics = {
                 if (d > T.maxRange) continue;
                 const sameLand = !!(tiles[i] && tiles[j] && tiles[i].regionId !== undefined && tiles[i].regionId === tiles[j].regionId);
                 if (!sameLand && !(port[i] && port[j])) continue;
-                list.push({ j, d, sea: !sameLand, near: sameLand ? d <= T.localRange : d <= T.seaRange });
+                // (towns on one river trade further along it than overland: riverRange)
+                const near = sameLand ? d <= T.localRange || (d <= _num(T.riverRange) && byWater(i, j)) : d <= T.seaRange;
+                list.push({ j, d, sea: !sameLand, near });
             }
             list.sort((x, y) => (x.d - y.d) || (x.j - y.j));
             cands.push(list);
@@ -591,7 +604,7 @@ export const MarketDynamics = {
             const a = lives[p.i], b = lives[p.j];
             const road = !p.sea && reach(a).has(_key(b.q, b.r));
             const nRoutes = routeCount.get(k) || 0;
-            list.push(make(a, b, p.d, p.sea, road, nRoutes));
+            list.push(make(a, b, p.d, p.sea, road, nRoutes, !p.sea && _num(T.riverFactor, 1) !== 1 ? byWater(p.i, p.j) : false));
             saved.get(a).push([b.q, b.r, p.d, p.sea ? 1 : 0, road ? 1 : 0, nRoutes]);
         }
         for (const s of lives) {

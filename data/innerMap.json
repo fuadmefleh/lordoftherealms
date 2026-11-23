@@ -105,14 +105,15 @@
     "_undergrowthNote": "The chance a cell the wild trees left grows a bush (the tp_bush_* props, data/townProps.json; world/innerMap/terrain.js scatter).",
     "treeDensity": {
         "_note": "Share of the usual wild trees a terrain's inner map grows (world/innerMap/terrain.js scatter; 1 = as on grassland).",
-        "mountain": 0.2, "snow_peak": 0.1, "highlands": 0.4, "hills": 0.5, "swamp": 0.15
+        "mountain": 0.2, "snow_peak": 0.1, "highlands": 0.4, "hills": 0.5, "swamp": 0.15, "badlands": 0.08, "ash_plains": 0.5
     },
     "cliffs": {
         "_note": "Raised crags in rocky country (world/innerMap/cliffs.js): how many on a hex, and their width, the depth of their top and the height of the rock face below in tiles, the chance a big one carries a second step up (tier), and the share with an angled front (5+ wide) rather than a square one. A settlement hex gets 40% of them.",
         "mountain":  { "count": [22, 32], "width": [4, 14], "height": [3, 8], "face": [2, 4], "tier": 0.6, "angled": 0.55 },
         "snow_peak": { "count": [22, 32], "width": [4, 14], "height": [3, 8], "face": [3, 4], "tier": 0.7, "angled": 0.45 },
         "highlands": { "count": [8, 14],  "width": [3, 10], "height": [2, 5], "face": [2, 3], "tier": 0.2, "angled": 0.65 },
-        "hills":     { "count": [2, 5],   "width": [4, 8],  "height": [2, 4], "face": [2, 2], "angled": 0.75 }
+        "hills":     { "count": [2, 5],   "width": [4, 8],  "height": [2, 4], "face": [2, 2], "angled": 0.75 },
+        "badlands":  { "count": [10, 16], "width": [3, 9],  "height": [2, 5], "face": [2, 3], "tier": 0.35, "angled": 0.5 }
     },
     "subTerrains": {
         "grassland": {
@@ -283,6 +284,23 @@
             ],
             "encounters": ["parrot", "coconut_crab", "pirate_cache", "castaway", "tropical_fruit", "shipwreck"],
             "waterFeatures": { "chance": 0.4, "count": [1, 1], "radius": [3, 7], "lobes": [1, 2] }
+        },
+        "badlands": {
+            "primary": [
+                { "id": "rocks", "name": "Eroded Rock", "icon": "⛰️", "color": "#b4643c", "weight": 45 },
+                { "id": "dirt", "name": "Red Clay", "icon": "🌰", "color": "#a0583a", "weight": 35 },
+                { "id": "dry_grass", "name": "Scrub", "icon": "🌾", "color": "#b59a5a", "weight": 20 }
+            ],
+            "encounters": ["scorpion", "vultures", "prospector", "old_mine_shaft", "bandit_lookout"]
+        },
+        "ash_plains": {
+            "primary": [
+                { "id": "grass", "name": "Rich Grass", "icon": "🌿", "color": "#5f7a3e", "weight": 55 },
+                { "id": "dirt", "name": "Black Soil", "icon": "🌰", "color": "#3e3630", "weight": 30 },
+                { "id": "rocks", "name": "Pumice", "icon": "⛰️", "color": "#6a6460", "weight": 15 }
+            ],
+            "encounters": ["rabbit", "herb_patch", "traveler", "hidden_spring", "horse_herd"],
+            "waterFeatures": { "chance": 0.3, "count": [1, 2], "radius": [3, 6], "lobes": [1, 2] }
         }
     },
     "encounterChance": 0.15,

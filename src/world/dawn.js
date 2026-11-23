@@ -28,6 +28,7 @@ import { Characters } from './characters.js';
 import { Economy } from './economy.js';
 import { WorldUnit } from './units.js';
 import { Barter } from './barter.js';
+import { TownSiting } from './townSiting.js';
 
 const UNSETTLEABLE = new Set(['mountain', 'snow_peak', 'ice', 'snow']);
 const WATER = new Set(['deep_ocean', 'ocean', 'coast', 'sea', 'lake']);
@@ -460,7 +461,13 @@ export const Dawn = {
         const minScore = _num(C.minSiteScore, 4);
         const ready = clan.daysOut >= (clan.wanderFor || 60);
         const desperate = clan.daysOut >= _num(C.giveUpDays, 400);
-        if ((ready && score >= minScore) || (desperate && score >= 1)) {
+        // Since terrainGen 16 a clan also weighs where a town would grow (world/townSiting.js,
+        // read as the land is now) and stays only where it would (a desperate clan takes any ground)
+        const sited = TownSiting.forWorld(world);
+        const SF = sited ? TownSiting.founded('dawn') : {};
+        const siteW = _num(SF.weight, 0.5);
+        const goodHere = !sited || sited.live(here.q, here.r, 'village') >= _num(SF.minLive, 2);
+        if ((ready && score >= minScore && goodHere) || (desperate && score >= 1)) {
             if (Dawn.canSettle(world, here)) {
                 Dawn.foundVillage(world, clan, here);
                 return;
@@ -476,7 +483,8 @@ export const Dawn = {
                 const t = Dawn._tile(world, h.q, h.r);
                 if (!t || t === here || !t.terrain.passable || t.regionId !== here.regionId) continue;
                 if (!Dawn.canSettle(world, t)) continue;
-                const v = Dawn.siteScore(world, t) + Utils.random() * 2;
+                let v = Dawn.siteScore(world, t) + Utils.random() * 2;
+                if (sited) v += siteW * Math.max(-10, sited.live(t.q, t.r, 'village'));
                 if (!best || v > best.v) best = { t, v };
             }
             if (best) { clan.targetQ = best.t.q; clan.targetR = best.t.r; }
@@ -637,6 +645,8 @@ export const Dawn = {
         const reach = Math.min(_num(S.maxReach, 22), _num(S.reach, 3) + Math.floor((years - from) / Math.max(1, _num(S.yearsPerHex, 20))));
         const B = Dawn.data().budding || {};
         const isSea = (n) => n.terrain && WATER.has(n.terrain.id) && n.terrain.id !== 'lake';
+        const sited = TownSiting.forWorld(world);
+        const seaW = sited ? _num(TownSiting.founded('dawn').seaWeight, 0.25) : 0;
         const shores = [];
         const landBy = new Map();
         for (const row of world.tiles) {
@@ -673,7 +683,9 @@ export const Dawn = {
                 if (d > reach || !Dawn.canSettle(world, t)) continue;
                 const density = (peopled.get(t.regionId) || 0) / Math.max(1, landBy.get(t.regionId) || 1);
                 if (density >= homeDensity) continue;
-                const v = -d - density * _num(S.densityWeight, 400) + Dawn.siteScore(world, t) * 0.5 + Utils.random();
+                let v = -d - density * _num(S.densityWeight, 400) + Dawn.siteScore(world, t) * 0.5 + Utils.random();
+                // (since terrainGen 16: + where a town would grow, world/townSiting.js)
+                if (sited) v += seaW * Math.max(-10, sited.live(t.q, t.r, 'village'));
                 if (!best || v > best.v) best = { t, v };
             }
             if (!best) continue;

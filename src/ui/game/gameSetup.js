@@ -5,13 +5,13 @@
 import { icon } from '../icons.js';
 import { FirstSteps } from '../../systems/firstSteps.js';
 import { Scenarios } from '../../player/scenarios.js';
-import { Dawn } from '../../world/dawn.js';
 import { Barter } from '../../world/barter.js';
 import { DawnBirth } from '../../player/dawnBirth.js';
 import { Languages } from '../../systems/languages.js';
 import { MetaLegacy } from '../../systems/metaLegacy.js';
 import { MetaLegacyStart } from '../../systems/metaLegacyStart.js';
 import { bindIronmanQuit } from './ironman.js';
+import { newWorldParams } from './worldParams.js';
 import { Camera, Renderer, Player, World, SaveLoad, Terrain, Banking, MarketDynamics, Taxation, Characters, Minimap, UI, Quests, Achievements, Technology, Relationships, Ships, Titles, Councils, InnerMap, InnerMapRenderer, InnerMapCharacters, InnerMapCombat, LightSystem, ModStore, audioManager, DataLoader, Hex, Utils, PlayerActions, PlayerEconomy, PlayerMilitary, ActionMenu, Housing, House, Espionage, Gossip, Tavern, Economy, TiledExport, CustomObjects, CustomBuildings, Hotbar, NpcDialog } from './_gameImports.js';
 
 export function _setupAudioControls() {
@@ -361,42 +361,11 @@ export async function _doStartNewGame(settingsOverride) {
     const charLastName = s.charLastName || '';
     const charGender = s.charGender || 'male';
     const charAge = parseInt(s.charAge) || 20;
-    const width = parseInt(s.worldWidth) || 120;
-    const height = parseInt(s.worldHeight) || 80;
-    const continentCount = parseInt(s.continentCount) || 3;
-    const terrainFreq = parseFloat(s.terrainFreq) || 1.1;
-    const riverCount = parseInt(s.riverCount) || 40;
-    const waterThreshold = parseFloat(s.waterLevel) || 0.42;
-    const mapSeed = s.mapSeed || null;
-    const continentSize = s.continentSize || 'medium';
-    const islandFreq = parseFloat(s.islandFreq) || 1.0;
-    const landMass = parseInt(s.landMass) || 45;
-    const mountainDensity = parseInt(s.mountainDensity) || 100;
-    const hillDensity = parseInt(s.hillDensity) || 100;
-    const flatness = s.flatness || 'normal';
-    const temperature = s.temperature || 'normal';
-    const rainfall = s.rainfall || 'normal';
-    const polarIce = s.polarIce || 'normal';
-    const desertFreq = s.desertFreq || 'normal';
-    const forestDensity = parseInt(s.forestDensity) || 100;
-    const lakeFreq = s.lakeFreq || 'normal';
-    const resourceDensity = s.resourceDensity || 'normal';
-    const strategicRes = s.strategicRes || 'normal';
-    const terrainOctaves = parseInt(s.terrainOctaves) || 6;
-    const heatFreq = parseFloat(s.heatFreq) || 3.0;
-    const moistFreq = parseFloat(s.moistFreq) || 2.0;
-    const coastalDetail = parseInt(s.coastalDetail) || 5;
-    const deepWaterLevel = parseFloat(s.deepWaterLevel) || 0.20;
-    const hillsLevel = parseFloat(s.hillsLevel) || 0.52;
-    const mountainLevel = parseFloat(s.mountainLevel) || 0.70;
-    const snowPeakLevel = parseFloat(s.snowPeakLevel) || 0.88;
-    const kingdomCount = parseInt(s.kingdomCount) || 6;
-    // The calendar's first year; before the dawn year there are no towns or realms yet (world/dawn.js)
-    // (a hand-made map can't begin at the Dawn of Man: it has no wandering clans)
-    const startYear = Math.max(s.customWorldId ? Dawn.dawnYear() : 1, parseInt(s.startYear) || 853);
-    const dawnStart = Dawn.isDawnStart({ startYear });
-    const independentSettlements = s.independentSettlements || 'normal';
-    const ruinsFreq = s.ruinsFreq || 'normal';
+    // The world's size and generation params (worldParams.js, shared with the New Game
+    // screen's preview, so the world made is the one previewed)
+    const { width, height, startYear, dawnStart, params: worldParams } = newWorldParams(s);
+    const mapSeed = worldParams.seed;
+    const kingdomCount = worldParams.kingdomCount;
     // Game options (available to subsystems like InnerMap)
     window.gameOptions = window.gameOptions || {};
 
@@ -421,61 +390,7 @@ export async function _doStartNewGame(settingsOverride) {
         this.world.loadFromEditorData(customWorld, kingdomCount, { startYear });
     } else {
     this.world = new World(width, height);
-    this.world.generate({
-        seed: mapSeed,
-        // Current terrain generator: 2 = peaks on land, rivers that reach the
-        // sea; 3 = generated with the true hex distance (core/hex.js); 4 =
-        // towns built in their culture's own architecture (data/architecture.json); 5 = towns
-        // with a churchyard planned beside the church (world/churchyard.js); 6 = a start
-        // year before the mature year ages the world back (world/worldAge.js); 7 = a town's house
-        // mix humbler or grander by its wealth (world/settlementWealth.js, world/townPlanner.js); 8 =
-        // towns that age through architectural eras, weather, rebuild, pave and wall themselves (world/townEras.js); 9 =
-        // bigger crags in up to three tiers, with caves in their faces (world/innerMap/cliffs.js, mines.js); 10 =
-        // water that drains as water does: branching river systems and lakes in the hollows (Terrain.generateHydrology)
-        // 11 = lakes in the valleys, dammed on their rivers and filled along the contours (Terrain._valleyLakes)
-        // 12 = mountain ranges along tectonic plate seams; a climate of prevailing winds, rain shadows,
-        // colder heights and greener riverbanks (Terrain._plates, _climate12, _riverbanks12)
-        // 13 = subtropical desert belts; narrower, more broken mountain chains (Terrain._climate12, _plates)
-        // 14 = continents of several lobes, archipelagos, finer coasts, winding straits; the land's
-        // heights from its relief (ranges, foothills, rolling hills), so a continent's heart can be
-        // a plain; snow only on the highest crags (Terrain._land11 relief, _seaLevel11)
-        // 15 = mined things (iron, coal, copper, silver, gold, gems, salt, oil) lie in a few ore fields,
-        // so lands trade for what they lack; stone, timber and the rest stay everywhere (Terrain._mineralFields)
-        // 16 = mountain passes through the long ranges, fjords, beaches and skerries, marshes and river
-        // deltas, and towns sited at river mouths, confluences, fords and lake shores
-        // (Terrain._passes16, _fjords16, _shores16, _wetlands16; world/townSiting.js)
-        terrainGen: 16,
-        continentCount,
-        terrainFreq,
-        riverCount,
-        waterThreshold,
-        continentSize,
-        islandFreq,
-        landMass,
-        mountainDensity,
-        hillDensity,
-        flatness,
-        temperature,
-        rainfall,
-        polarIce,
-        desertFreq,
-        forestDensity,
-        lakeFreq,
-        resourceDensity,
-        strategicRes,
-        terrainOctaves,
-        heatFreq,
-        moistFreq,
-        coastalDetail,
-        deepWaterLevel,
-        hillsLevel,
-        mountainLevel,
-        snowPeakLevel,
-        kingdomCount,
-        startYear,
-        independentSettlements,
-        ruinsFreq
-    });
+    this.world.generate(worldParams);
     }
 
     // Create player

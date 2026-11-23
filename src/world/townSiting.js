@@ -49,6 +49,51 @@ export const TownSiting = {
         return m;
     },
 
+    /**
+     * The site map of a world in play, or null when its settlements are not
+     * sited (made before terrainGen 16, or a custom world): founding in play
+     * (KingdomAI.tryExpand, Colonization pioneers, wandering settlers, dawn
+     * clans, a village's daughter party) ranks its candidates with it.
+     */
+    forWorld(world) {
+        const gp = (world && world.generationParams) || {};
+        if (gp.customWorld || !TownSiting.applies(gp.terrainGen)) return null;
+        if (!world.tiles || !world.tiles.length || !world.width || !world.height) return null;
+        return TownSiting.map(world.tiles, world.width, world.height);
+    },
+
+    /** The weights for settlements founded in play (data/kingdoms.json siting.founded). */
+    founded(path) {
+        const F = TownSiting.cfg().founded || {};
+        return (path ? F[path] : F) || {};
+    },
+
+    /**
+     * The best site within `radius` of (q, r) for a settlement founded in
+     * play: the live score less distWeight per hex from (q, r), over the hexes
+     * `accept(tile, d)` lets through (the founder's own rules: territory,
+     * spacing, reach). Ties keep the nearer, earlier hex. Draws no RNG.
+     * → { tile, q, r, score (live, undiscounted), d } | null
+     */
+    bestNear(world, q, r, radius, accept, opts = {}) {
+        const m = opts.map || TownSiting.forWorld(world);
+        if (!m) return null;
+        const kind = opts.kind || 'village';
+        const dw = num(opts.distWeight, 0.5);
+        let best = null, bestV = -Infinity;
+        for (const h of Hex.hexesInRange(q, r, Math.max(0, radius | 0))) {
+            const t = world.getTile(h.q, h.r);
+            if (!t || !t.terrain) continue;
+            const d = typeof Hex.wrappingDistance === 'function' ? Hex.wrappingDistance(q, r, t.q, t.r, world.width) : Hex.distance(q, r, t.q, t.r);
+            if (accept && !accept(t, d)) continue;
+            const s = m.live(t.q, t.r, kind);
+            if (!Number.isFinite(s)) continue;
+            const v = s - dw * d;
+            if (v > bestV) { bestV = v; best = { tile: t, q: t.q, r: t.r, score: s, d }; }
+        }
+        return best;
+    },
+
     /** Score of one hex (convenience). */
     score(tiles, width, height, q, r, kind = 'town') {
         return TownSiting.map(tiles, width, height).score(q, r, kind);
@@ -111,9 +156,8 @@ export const TownSiting = {
         const foodIds = new Set(Array.isArray(C.foodIds) ? C.foodIds : ['wheat', 'fish', 'cattle', 'horses']);
         const bigFeed = num(C.bigRiverFeed, 12);
         const features = new Map();
-        const feat = (t) => {
-            let f = features.get(t);
-            if (f) return f;
+        // (what a hex offers, read fresh; feat() keeps it for the generation pass)
+        const readFeat = (t) => {
             const ns = nbrs(t);
             const waterN = ns.filter(isWater);
             const seaN = ns.filter(isSea).length;
@@ -127,7 +171,7 @@ export const TownSiting = {
                 if (o.resource && foodIds.has(o.resource.id)) food++;
                 if (o.ores) for (const k in o.ores) ore = Math.max(ore, num(o.ores[k], 0));
             }
-            f = {
+            return {
                 river: !!t.hasRiver,
                 riverNear: !t.hasRiver && riverN,
                 confluence: !!t.hasRiver && (into.get(t) || 0) >= 2,
@@ -142,18 +186,20 @@ export const TownSiting = {
                 ore,
                 land: landSize.get(t) || 0,
             };
-            features.set(t, f);
+        };
+        const feat = (t) => {
+            let f = features.get(t);
+            if (!f) { f = readFeat(t); features.set(t, f); }
             return f;
         };
 
         const scores = new Map();
-        const base = (t) => {
-            let s = scores.get(t);
-            if (s !== undefined) return s;
+        // (the score of a hex from what it offers: f is feat(t) at generation, readFeat(t) in play)
+        const scoreOf = (t, getF) => {
             const id = t.terrain && t.terrain.id;
-            if (!t.terrain || !t.terrain.passable || WATER.has(id)) { scores.set(t, -Infinity); return -Infinity; }
-            const f = feat(t);
-            s = num(T[id], 0.5);
+            if (!t.terrain || !t.terrain.passable || WATER.has(id)) return -Infinity;
+            const f = getF(t);
+            let s = num(T[id], 0.5);
             let fert = 0, landN = 0;
             for (const n of nbrs(t)) {
                 if (!n || !n.terrain || !n.terrain.passable || isWater(n)) continue;
@@ -179,7 +225,11 @@ export const TownSiting = {
             const dryLand = DRY.has(id) || (id === 'savanna' && (t.moisture ?? 0.5) < 0.3);
             if (dryLand && !f.river && !f.riverNear && !f.lakeShore && !f.coast) s += num(C.desertInterior, -4);
             if (COLD.has(id)) s += num(C.cold, -1);
-            scores.set(t, s);
+            return s;
+        };
+        const base = (t) => {
+            let s = scores.get(t);
+            if (s === undefined) { s = scoreOf(t, feat); scores.set(t, s); }
             return s;
         };
 
@@ -192,6 +242,22 @@ export const TownSiting = {
                 if (kind === 'capital' && Number.isFinite(s) && feat(t).land < num(C.islandMin, 40)) s += num(C.tinyIsland, -8);
                 return s;
             },
+            /**
+             * The score of a hex as it is now, for a settlement founded in play:
+             * read fresh (no per-hex cache), so ground cleared, a resource worked
+             * out or a hex scored once at generation counts as it stands today.
+             * The rivers' shape and the land masses are the world's own, fixed
+             * since generation, and come from the map.
+             */
+            live(q, r, kind = 'town') {
+                const t = at(q, r);
+                if (!t) return -Infinity;
+                let s = scoreOf(t, readFeat);
+                if (kind === 'capital' && Number.isFinite(s) && (landSize.get(t) || 0) < num(C.islandMin, 40)) s += num(C.tinyIsland, -8);
+                return s;
+            },
+            /** What live() saw (fresh). */
+            liveFeatures: (q, r) => { const t = at(q, r); return t ? readFeat(t) : null; },
         };
     },
 };

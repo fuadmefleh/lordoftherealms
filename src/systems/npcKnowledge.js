@@ -446,7 +446,7 @@ export const NpcKnowledge = {
                     const t = world.getTile(nq, nb.r);
                     if (!t) continue;
                     const first = n.first || key;
-                    const step = t.terrain ? Infrastructure.getPlayerHexDays(t, null) : Infrastructure.openDays();
+                    const step = t.terrain ? Infrastructure.getPlayerHexDays(t, null, world.day) : Infrastructure.openDays();
                     const days = n.days + (Number.isFinite(step) ? step : Infrastructure.openDays());
                     if (t.settlement) {
                         if (!found.some(f => f.first === first || f.name === t.settlement.name)) found.push({ name: t.settlement.name, d: n.d + 1, days, q: nq, r: nb.r, first });

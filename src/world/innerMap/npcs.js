@@ -462,6 +462,8 @@ Object.assign(InnerMap, {
         if (!this._insideBuilding && this._closeGatesBehind) this._closeGatesBehind();
         // Stalls kept, services held, the tavern full — people come in to an empty room (world/innerMap/townScenes.js)
         if (this._updateTownScenes) this._updateTownScenes(deltaTime);
+        // Inside: the fires, candles, shutters and tables as the hour turns (world/innerMap/interiorState.js)
+        if (this._insideBuilding && this._interiorStateTick) this._interiorStateTick();
         if (this.npcs.length === 0) return;
         // The town's woodcutters at their trees (world/innerMap/townWoodcutters.js)
         if (!this._insideBuilding && this._updateTownChopping) this._updateTownChopping(deltaTime);

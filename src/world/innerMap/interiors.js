@@ -810,10 +810,10 @@ Object.assign(InnerMap, {
      * each only where the room has a free tile for it and never shutting a walkable tile
      * off from the door. Placed by a scan of the room: no dice.
      */
-    _addFinery(tiles, w, h, kind) {
+    _addFinery(tiles, w, h, kind, door = null) {
         const A = ((this._wealthRules().furnish || {}).rich || {}).add || [];
         const T = (q, r) => (tiles[r] && tiles[r][q]) || null;
-        const door = { q: Math.floor(w / 2), r: h - 1 };
+        door = door || { q: Math.floor(w / 2), r: h - 1 };
         const free = (t) => !!(t && t.baseTerrain !== 'wall' && !t._isDoor && !t._furniture && t.subTerrain.passable);
         const has = (type) => tiles.some(row => row.some(t => t && t._furniture && t._furniture.type === type));
         const reachAll = () => {
@@ -993,14 +993,17 @@ Object.assign(InnerMap, {
         if (this.applyHomeFurnishings && game && game.player) this.applyHomeFurnishings(game.player);
         // The marketplace hall's stalls: each its trade and its name (world/innerMap/stalls.js)
         if (this._dressHallStalls) this._dressHallStalls(building);
+        // The hour, the season and what has happened, laid over the plan (world/innerMap/interiorState.js)
+        if (this._applyInteriorState) this._applyInteriorState(building, interiorKey);
 
         // Populate interior with NPCs that are currently inside this building: those
         // on the ground floor (upstairs folk are met upstairs, sleepers in their beds — world/innerMap/floors.js)
         this.npcs = this._peopleOnFloor(interior, 0);
 
-        // Place player at the door (bottom center)
-        this.playerInnerQ = Math.floor(this.width / 2);
-        this.playerInnerR = this.height - 2;
+        // Place player just inside the door (where the street front has it: interiorPlanner.js)
+        const inDoor = this._interiorDoorOf(interior);
+        this.playerInnerQ = inDoor.q;
+        this.playerInnerR = Math.max(0, inDoor.r - 1);
 
         // The castle: its garrison and household, the lord before the throne (world/innerMap/seats.js)
         this._seatVisit = seatVerdict ? { building, held: this.playerHoldsSeat(building, game), verdict: seatVerdict } : null;
@@ -1020,6 +1023,16 @@ Object.assign(InnerMap, {
         return true;
     },
 
+    /** An interior's front door: its own (interior.door), else the door tile in its bottom row, else the bottom middle. */
+    _interiorDoorOf(interior) {
+        if (!interior || !interior.tiles) return { q: 0, r: 0 };
+        if (interior.door) return interior.door;
+        const h = interior.height, w = interior.width;
+        const row = interior.tiles[h - 1] || [];
+        const q = row.findIndex(t => t && t._isDoor);
+        return { q: q >= 0 ? q : Math.floor(w / 2), r: h - 1 };
+    },
+
     /**
      * Exit the building interior and restore the outer inner map.
      * @param {Object} game - The game instance
@@ -1031,6 +1044,8 @@ Object.assign(InnerMap, {
         if ((this._insideBuilding._jail || this._insideBuilding.type === 'jail') && this.clearJail) this.clearJail();
 
         const building = this._insideBuilding;
+        // (the hour's layer taken off: the cached interior is the plan again — world/innerMap/interiorState.js)
+        if (this._clearInteriorState) this._clearInteriorState();
 
         // Interior NPCs drop whatever they were doing in here
         for (const npc of this.npcs) {
@@ -1222,14 +1237,18 @@ Object.assign(InnerMap, {
         // Planned by rules (world/innerMap/interiorPlanner.js, data/interiorPlans.json): its own size,
         // rooms, furniture and decor from its seed; the old fixed layout where no plan is loaded
         const seedKey = interiorKey || `${building.type}_${building.q}_${building.r}`;
-        const plan = this._planInterior ? this._planInterior(building, seedKey, baseLayout, look, ownDef) : null;
+        // (whose it is: its street front, its household and trades, its culture — interiorPlanner.js)
+        const who = this._interiorIdentity ? this._interiorIdentity(building, ownDef) : null;
+        const plan = this._planInterior ? this._planInterior(building, seedKey, baseLayout, look, ownDef, who) : null;
         const { tiles, width: w, height: h } = plan || this._layFixedInterior(layout, look, building);
+        // (the door where the street front has it: the planner's, else the bottom middle)
+        const door = (plan && plan.door) || { q: Math.floor(w / 2), r: h - 1 };
 
         // A rich house's finery, where the room has the space for it (furnish.rich.add)
-        if (look.tier === 'rich' && look.kind !== 'work') this._addFinery(tiles, w, h, look.kind);
+        if (look.tier === 'rich' && look.kind !== 'work') this._addFinery(tiles, w, h, look.kind, door);
 
         // Beds, tables, baths, stalls, altars and forges at their own size, where the room allows
-        this._joinPieces(tiles, w, h, { q: Math.floor(w / 2), r: h - 1 });
+        this._joinPieces(tiles, w, h, door);
 
         // Things on its tables and shelves, and on its walls (world/innerMap/interiorPlanner.js)
         if (plan && this._decorateInterior) this._decorateInterior(tiles, w, h, plan.info);
@@ -1279,7 +1298,8 @@ Object.assign(InnerMap, {
         }
 
         // (its rooms, where it was planned: [{ id, name, cells }])
-        return plan ? { tiles, width: w, height: h, rooms: plan.rooms } : { tiles, width: w, height: h };
+        // (and whose it is, for the floors above: floors.js — its household's beds, its upper windows)
+        return plan ? { tiles, width: w, height: h, rooms: plan.rooms, door, _who: who, _tier: plan.info.tier } : { tiles, width: w, height: h };
     },
 
     /**

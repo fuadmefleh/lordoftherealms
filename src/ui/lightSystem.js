@@ -11,6 +11,11 @@
 //   4. A faint additive glow round each light, for warmth
 //
 // Integrated with InnerMap.timeOfDay for automatic day/night transitions.
+//
+// Indoors (a room, not a cave or a mine) render() is not called: the room's own
+// light map (ui/interiorLight.js) is the one light pass there, so a room is never
+// darkened twice (InnerMapRenderer._renderLighting). ambientDarkness is still kept
+// (capped indoors) for what reads it — the ambient glows, the carried light.
 // ============================================
 
 import { InnerMap } from '../world/innerMap.js';

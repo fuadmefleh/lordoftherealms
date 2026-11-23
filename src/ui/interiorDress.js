@@ -1,5 +1,6 @@
 // Interiors dressed — the walls of a room drawn in the round, what hangs on them,
-// what lies on its tables, the light a window lets in.
+// what lies on its tables, soot and broken pieces. (The light in a room — windows,
+// fires, the corners' dark — is ui/interiorLight.js, laid over it all.)
 //
 // Drawn for innerMapLayers/terrainRoads.js (_renderInteriorArt / _drawWallTile) from
 // data/innerMapRenderer.json interiorArt: `walls` (the material's face, body and top
@@ -13,9 +14,12 @@
 //                 top row), the wall's top as a thin cap above that
 //     side walls  a thin cap along the room's edge, the rest of the tile dark
 //     front wall  its cap, and below that its outer face (the door stands in it)
-//     inner walls (tile._innerWall) a thin cap along the run; where a room lies to the
-//                 south of it, its face under the cap; doorways (tile._doorway) open
-//   The floor takes a soft shadow where it meets a wall.
+//     inner walls (tile._innerWall) a thin cap along the run, unbroken down a north–south
+//                 run (its end face in shade); where a room lies to the south of it, its
+//                 face under the cap; T and L joins one shape; doorways (tile._doorway) open
+//   The floor takes a soft shadow where it meets a wall. Soot (tile._soot) smudges a floor
+//   and streaks a wall's face; a broken piece (tile._furniture.broken) is darkened, cracked,
+//   its splinters at its foot.
 //
 // Exports are plain functions over a drawing context `W`:
 //   { ctx, img, kb, mat, tile, at, dx, dy, sz }  (img: the wall sheet; kb: its cell scale;
@@ -197,9 +201,20 @@ export function drawOuterWall(W, s) {
 }
 
 /**
- * A wall within the room (tile._innerWall): a thin cap along its run, its face under the
- * cap where a room lies to the south. floor(dx, dy, sz) draws the room's floor under it
- * first. Returns its face { x, y, w, h, floor, kind: 'inner' } (the widest part), or null.
+ * A wall within the room (tile._innerWall), seen from above and a little south: its cap
+ * (CAP of a tile thick) along its run, its face under the cap where floor lies south of it.
+ *
+ *   an east–west run   the cap along the tile's head, the face below it
+ *   a north–south run  the cap down the tile's middle, unbroken from tile to tile (one
+ *                      texture, one rim and edge the length of it); where the run ends
+ *                      to the south, its end face under the cap, in shade
+ *   joins              T and L: the cap's head strip and the run down meet as one shape,
+ *                      outlined only on its outside; a face either side of a run going on
+ *                      south. A doorway or a door beside it: the run ends square.
+ *
+ * floor() draws the room's floor under it first. Returns its face { x, y, w, h, floor,
+ * kind: 'inner' } (the widest part), or null. W.geom (when given an object) is filled
+ * with the shape drawn: { cap: [[x, y, w, h], …], face: [[x, y, w, h], …] }.
  */
 export function drawInnerWall(W, floor) {
     const { ctx, dx, dy, sz, at } = W;
@@ -209,44 +224,70 @@ export function drawInnerWall(W, floor) {
     // (a doorway or a door beside it: the run ends square against the opening)
     const joins = (o) => isWall(o) || !!(o && (o._doorway || o._isDoor));
     const N = isWall(at(0, -1)), S = isWall(at(0, 1)), E = joins(at(1, 0)), Wst = joins(at(-1, 0));
+    const run = N || S;                       // (a run going north–south through here)
     const cx0 = dx + Math.round((sz - c) / 2), cx1 = cx0 + c;
     const bx0 = Wst ? dx : cx0, bx1 = E ? dx + sz : cx1;
-    // the floor's shadow beside the run
-    if (S || N) {
-        rect(ctx, 'rgba(0, 0, 0, 0.16)', cx1, dy, Math.round(sz * 0.08), sz);
-        rect(ctx, 'rgba(0, 0, 0, 0.10)', cx0 - Math.round(sz * 0.05), dy, Math.round(sz * 0.05), sz);
+    const yCapEnd = S ? dy + sz : dy + c;     // (the run's cap down the tile, or its end)
+    const geom = W.geom && typeof W.geom === 'object' ? W.geom : null;
+    if (geom) { geom.cap = []; geom.face = []; }
+    const capRect = (x, y, w, h) => { if (w > 0 && h > 0) { fillTop(W, x, y, w, h); if (geom) geom.cap.push([x, y, w, h]); } };
+    const faceRect = (x, y, w, h, end) => {
+        if (w <= 0 || h <= 0) return;
+        fillFace(W, x, y, w, h);
+        rect(ctx, SEAM, x, y, w, ln);
+        rect(ctx, 'rgba(0, 0, 0, 0.22)', x, y + h - Math.round(sz * 0.12), w, Math.round(sz * 0.12));
+        // (the end of a run, a cap's width: in shade, so it reads as the wall's end, not a pale post)
+        if (end) rect(ctx, 'rgba(24, 16, 10, 0.42)', x, y, w, h);
+        if (geom) geom.face.push([x, y, w, h]);
+    };
+    // the floor's shadow beside a run (the light from the north-west: more on its east)
+    if (run) {
+        const y0 = N ? dy : dy + c, y1 = S ? dy + sz : dy + sz;
+        rect(ctx, 'rgba(0, 0, 0, 0.16)', cx1, y0, Math.round(sz * 0.08), y1 - y0);
+        rect(ctx, 'rgba(0, 0, 0, 0.08)', cx0 - Math.round(sz * 0.05), y0, Math.round(sz * 0.05), y1 - y0);
     }
-    // the face under the cap, where the floor runs up to it from the south
+    // the faces: under the head strip where no run goes on south; else either side of it
     let face = null;
     if (!S) {
-        fillFace(W, bx0, dy + c, bx1 - bx0, sz - c);
-        rect(ctx, SEAM, bx0, dy + c, bx1 - bx0, ln);
-        rect(ctx, 'rgba(0, 0, 0, 0.22)', bx0, dy + sz * 0.88, bx1 - bx0, sz * 0.12);
-        face = { x: bx0, y: dy + c, w: bx1 - bx0, h: sz - c, floor: dy + sz, kind: 'inner' };
-    } else if (bx0 < cx0 || bx1 > cx1) {
-        // (a run going on south from here: its face either side of it)
-        fillFace(W, bx0, dy + c, cx0 - bx0, sz - c);
-        fillFace(W, cx1, dy + c, bx1 - cx1, sz - c);
-        rect(ctx, SEAM, bx0, dy + c, bx1 - bx0, ln);
+        const end = run && !Wst && !E;
+        faceRect(bx0, dy + c, bx1 - bx0, sz - c, end);
+        if (!end) face = { x: bx0, y: dy + c, w: bx1 - bx0, h: sz - c, floor: dy + sz, kind: 'inner' };
+    } else {
+        faceRect(bx0, dy + c, cx0 - bx0, sz - c);
+        faceRect(cx1, dy + c, bx1 - cx1, sz - c);
+        const lw = cx0 - bx0, rw = bx1 - cx1;
+        if (Math.max(lw, rw) > sz * 0.3) face = lw >= rw ? { x: bx0, y: dy + c, w: lw, h: sz - c, floor: dy + sz, kind: 'inner' } : { x: cx1, y: dy + c, w: rw, h: sz - c, floor: dy + sz, kind: 'inner' };
     }
-    // the cap: along the run (its head) and down it
-    fillTop(W, bx0, dy, bx1 - bx0, c);
-    if (S) fillTop(W, cx0, dy + c, c, sz - c);
-    rect(ctx, RIM, bx0, dy, bx1 - bx0, ln);
-    rect(ctx, RIM, cx0 + ln, dy + c, ln, S ? sz - c : 0);
-    rect(ctx, EDGE, bx0, dy + c - ln, bx1 - bx0, ln);
-    if (!N) rect(ctx, EDGE, bx0, dy, bx1 - bx0, ln);
-    if (!Wst) rect(ctx, EDGE, bx0, dy, ln, S ? sz : c);
-    if (!E) rect(ctx, EDGE, bx1 - ln, dy, ln, S ? sz : c);
-    if (S) { rect(ctx, EDGE, cx1 - ln, dy + c, ln, sz - c); rect(ctx, EDGE, cx0, dy + c, ln, sz - c); }
+    // the cap: its head strip, and the run down (one shape)
+    capRect(bx0, dy, bx1 - bx0, c);
+    if (S) capRect(cx0, dy + c, c, sz - c);
+    // its outline, outside only: the head's north edge (not where the run comes in from the north)
+    const hline = (style, x0, x1, y) => rect(ctx, style, x0, y, x1 - x0, ln);
+    const vline = (style, x, y0, y1) => rect(ctx, style, x, y0, ln, y1 - y0);
+    if (N) { hline(EDGE, bx0, cx0, dy); hline(EDGE, cx1, bx1, dy); } else hline(EDGE, bx0, bx1, dy);
+    // the head's south edge, where the face begins: a lit rim on the cap, the face's seam below
+    if (S) { hline(RIM, bx0, cx0, dy + c - ln); hline(RIM, cx1, bx1, dy + c - ln); } else hline(RIM, bx0, bx1, dy + c - ln);
+    // the head's ends (no join that way)
+    if (!Wst) vline(EDGE, bx0, dy, Wst ? dy + c : (run ? yCapEnd : dy + c));
+    if (!E) vline(EDGE, bx1 - ln, dy, run ? yCapEnd : dy + c);
+    if (run) {
+        // the run's sides, the length of the tile: a rim on its west, an edge each side
+        const yTop = N ? dy : dy + (Wst ? c : 0);
+        if (Wst) vline(EDGE, cx0, dy + c, yCapEnd);
+        if (E) vline(EDGE, cx1 - ln, dy + c, yCapEnd);
+        vline(RIM, cx0 + ln, Wst ? dy + c : yTop, yCapEnd - (S ? 0 : ln));
+        if (!E) vline('rgba(0, 0, 0, 0.18)', cx1 - 2 * ln, yTop, yCapEnd);
+        // the run's end face: outlined either side
+        if (!S) { vline(EDGE, cx0, dy + c, dy + sz); vline(EDGE, cx1 - ln, dy + c, dy + sz); }
+    }
     return face;
 }
 
 /**
- * The soft shadow a wall throws on the floor beside it (the floor tile's own share),
- * and a window's light lying on it.
+ * The soft shadow a wall throws on the floor beside it (the floor tile's own share). The
+ * light from windows and fires is the room's light map's (ui/interiorLight.js).
  */
-export function shadeFloor(ctx, tile, at, dx, dy, sz, light) {
+export function shadeFloor(ctx, tile, at, dx, dy, sz) {
     const n = at(0, -1), w = at(-1, 0), e = at(1, 0);
     if (isWall(n)) {
         rect(ctx, 'rgba(0, 0, 0, 0.20)', dx, dy, sz, sz * 0.08);
@@ -255,67 +296,149 @@ export function shadeFloor(ctx, tile, at, dx, dy, sz, light) {
     const side = (o) => isWall(o) && !o._innerWall && !!wallSides(o);
     if (side(w)) { rect(ctx, 'rgba(0, 0, 0, 0.18)', dx, dy, sz * 0.07, sz); rect(ctx, 'rgba(0, 0, 0, 0.08)', dx + sz * 0.07, dy, sz * 0.07, sz); }
     if (side(e)) rect(ctx, 'rgba(0, 0, 0, 0.12)', dx + sz * 0.93, dy, sz * 0.07, sz);
-    if (light > 0.02) windowLight(ctx, at, dx, dy, sz, light);
 }
 
 const WINDOWS = new Set(['window', 'windows', 'curtains']);
-const hasWindow = (o) => !!o && asIds(o._wallDecor).some(id => WINDOWS.has(id));
 
-/** The light of a window above (in the back or an inner wall) or beside (a side wall) on this floor */
-function windowLight(ctx, at, dx, dy, sz, light) {
-    // from above: a pool spreading as it falls, up to three tiles from the wall
-    for (let k = 1; k <= 3; k++) {
-        const o = at(0, -k);
-        if (!o) break;
-        if (o.baseTerrain === 'wall') {
-            if (!hasWindow(o)) break;
-            const a = [0.17, 0.11, 0.06][k - 1] * light;
-            const i0 = sz * (0.2 - 0.06 * (k - 1)), i1 = sz * (0.2 - 0.06 * k);
-            ctx.fillStyle = `rgba(255, 238, 196, ${a.toFixed(3)})`;
+/** How sooty a tile is, 0..1 (tile._soot: a number, or true) */
+export function sootOf(tile) {
+    const s = tile && tile._soot;
+    if (!s) return 0;
+    if (s === true) return 0.6;
+    const v = Number(s);
+    return Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0.6;
+}
+
+/**
+ * Soot (tile._soot) on a tile: dark smudges on a floor, streaks rising up a wall's face
+ * (face: where it is, from drawOuterWall / drawInnerWall; none for a floor). Layered
+ * translucent ellipses, placed by the tile's hash: no gradients, nothing kept.
+ */
+export function drawSoot(ctx, tile, dx, dy, sz, face) {
+    const k = sootOf(tile);
+    if (k <= 0) return;
+    let h = ((tile.q * 73856093) ^ (tile.r * 19349663) ^ 0x5bd1e995) >>> 0;
+    const rnd = () => { h = (Math.imul(h ^ (h >>> 15), 2246822507) + 0x9e3779b9) >>> 0; return h / 4294967296; };
+    const blob = (x, y, rx, ry, a) => {
+        for (const [f, m] of [[1, 0.35], [0.7, 0.6], [0.42, 1]]) {
+            ctx.fillStyle = `rgba(22, 16, 12, ${(a * m * 0.45).toFixed(3)})`;
             ctx.beginPath();
-            ctx.moveTo(dx + i0, dy);
-            ctx.lineTo(dx + sz - i0, dy);
-            ctx.lineTo(dx + sz - i1, dy + sz);
-            ctx.lineTo(dx + i1, dy + sz);
-            ctx.closePath();
+            ctx.ellipse(x, y, rx * f, ry * f, 0, 0, Math.PI * 2);
             ctx.fill();
-            break;
         }
-    }
-    // from the side: a shaft across the floor, two tiles in
-    for (const dir of [-1, 1]) {
-        for (let k = 1; k <= 2; k++) {
-            const o = at(dir * k, 0);
-            if (!o) break;
-            if (o.baseTerrain === 'wall') {
-                if (!hasWindow(o) || o._innerWall) break;
-                // (a shaft widening away from the wall, fading as it goes)
-                const a = [0.13, 0.06][k - 1] * light;
-                const i0 = sz * (0.3 - 0.08 * (k - 1)), i1 = sz * (0.3 - 0.08 * k);
-                const near = dir < 0 ? dx : dx + sz, far = dir < 0 ? dx + sz : dx;
-                ctx.fillStyle = `rgba(255, 238, 196, ${a.toFixed(3)})`;
-                ctx.beginPath();
-                ctx.moveTo(near, dy + i0);
-                ctx.lineTo(far, dy + i1);
-                ctx.lineTo(far, dy + sz - i1);
-                ctx.lineTo(near, dy + sz - i0);
-                ctx.closePath();
-                ctx.fill();
-                break;
+    };
+    if (face && face.h > 0) {
+        // up the wall: a streak or two, darker at the foot, thinning as they rise
+        const n = 1 + Math.round(k * 2);
+        for (let i = 0; i < n; i++) {
+            const x = face.x + face.w * (0.2 + 0.6 * rnd());
+            const foot = face.floor - sz * 0.05;
+            const tall = Math.min(face.h, sz * (0.5 + 0.7 * k * rnd()));
+            for (let j = 0; j < 4; j++) {
+                const y = foot - tall * (j / 4 + 0.1);
+                blob(x + (rnd() - 0.5) * sz * 0.08, y, sz * (0.16 - j * 0.025), tall * 0.22, k * (1 - j * 0.2));
             }
         }
+        return;
+    }
+    const n = 2 + Math.round(k * 2);
+    for (let i = 0; i < n; i++) {
+        blob(dx + sz * (0.2 + 0.6 * rnd()), dy + sz * (0.25 + 0.55 * rnd()), sz * (0.18 + 0.16 * rnd()), sz * (0.1 + 0.08 * rnd()), k * (0.6 + 0.4 * rnd()));
+    }
+}
+
+/**
+ * A broken piece (tile._furniture.broken), over its sprite: the sprite darkened in itself
+ * (drawn again over itself, multiplied), cracks across it and splinters at its foot.
+ * img/c: the sprite drawn (c: its sx, sy, sw, sh in sheet px × k), box: where on screen.
+ */
+export function drawBroken(ctx, img, c, k, box, sz, seed = 0) {
+    const { x, y, w, h } = box;
+    if (w <= 0 || h <= 0) return;
+    ctx.save();
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.globalAlpha = 0.55;
+    ctx.drawImage(img, c.sx * k, c.sy * k, (c.sw || 32) * k, (c.sh || 32) * k, x, y, w, h);
+    ctx.restore();
+    let hs = (seed * 2654435761 + 12345) >>> 0;
+    const rnd = () => { hs = (Math.imul(hs ^ (hs >>> 13), 1274126177) + 0x6d2b79f5) >>> 0; return hs / 4294967296; };
+    const ln = Math.max(1, Math.round(sz / 24));
+    // cracks: a jagged dark line or two across the piece, a pale split beside each
+    for (let i = 0; i < 2; i++) {
+        let px = x + w * (0.25 + 0.5 * rnd()), py = y + h * (0.2 + 0.2 * rnd());
+        const steps = 3 + Math.floor(rnd() * 2);
+        for (let s = 0; s < steps; s++) {
+            const nx = px + (rnd() - 0.5) * w * 0.3, ny = py + h * (0.12 + 0.1 * rnd());
+            for (const [style, off] of [['rgba(20, 12, 8, 0.85)', 0], ['rgba(236, 206, 160, 0.55)', ln]]) {
+                ctx.strokeStyle = style;
+                ctx.lineWidth = ln;
+                ctx.beginPath();
+                ctx.moveTo(px + off, py);
+                ctx.lineTo(nx + off, ny);
+                ctx.stroke();
+            }
+            px = nx; py = ny;
+        }
+    }
+    // splinters on the floor at its foot
+    const foot = y + h - sz * 0.06;
+    for (let i = 0; i < 4; i++) {
+        const sx = x + w * (0.1 + 0.8 * rnd()), sy = foot + sz * 0.05 * (rnd() - 0.3);
+        const len = sz * (0.06 + 0.07 * rnd());
+        ctx.fillStyle = i % 2 ? 'rgba(150, 100, 58, 0.95)' : 'rgba(96, 60, 34, 0.95)';
+        ctx.fillRect(Math.round(sx), Math.round(sy), Math.max(1, Math.round(len)), ln);
+    }
+}
+
+/** Whether a fire piece is out: any of its tiles' furniture says lit false and none says lit true */
+export function fireOut(parts) {
+    const ls = parts.filter(Boolean).map(p => p.lit);
+    return ls.includes(false) && !ls.includes(true);
+}
+
+/**
+ * A hearth, oven or forge let die (furniture.lit false): its firebox — the art's `fire`
+ * [x0, y0, x1, y1], fractions of the sprite — dark with ash and a charred log, no flame.
+ */
+export function drawColdFire(ctx, box, fire, sz, seed = 0) {
+    if (!fire || fire.length < 4) return;
+    const x0 = box.x + box.w * fire[0], y0 = box.y + box.h * fire[1];
+    const w = box.w * (fire[2] - fire[0]), h = box.h * (fire[3] - fire[1]);
+    if (w <= 0 || h <= 0) return;
+    const cx = x0 + w / 2, cy = y0 + h / 2;
+    ctx.fillStyle = 'rgba(26, 20, 18, 0.96)';
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, w / 2, h / 2, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // the ash on the hearth's floor, a log burnt black across it
+    ctx.fillStyle = 'rgba(120, 114, 108, 0.75)';
+    ctx.beginPath();
+    ctx.ellipse(cx, y0 + h * 0.8, w * 0.42, Math.max(1, h * 0.14), 0, 0, Math.PI * 2);
+    ctx.fill();
+    const ln = Math.max(1, Math.round(sz / 24));
+    ctx.fillStyle = 'rgba(48, 34, 26, 0.95)';
+    ctx.fillRect(Math.round(cx - w * 0.3), Math.round(y0 + h * 0.66), Math.round(w * 0.6), ln + 1);
+    let hs = (seed * 2246822519 + 7) >>> 0;
+    ctx.fillStyle = 'rgba(160, 152, 140, 0.7)';
+    for (let i = 0; i < 4; i++) {
+        hs = (Math.imul(hs ^ (hs >>> 15), 2654435761) + 1) >>> 0;
+        const px = cx + ((hs % 1000) / 1000 - 0.5) * w * 0.7;
+        ctx.fillRect(Math.round(px), Math.round(y0 + h * (0.72 + 0.1 * ((hs >>> 10) % 3) / 2)), ln, ln);
     }
 }
 
 /**
  * What hangs on a wall's face (tile._wallDecor), drawn over it. face: from drawOuterWall /
  * drawInnerWall. getImg(path) the loaded sheet or null; scale(img) its cell scale.
- * night: true when the windows show dark. Returns false while a sheet is still loading.
+ * night: true when the windows show dark. A window shuttered for the night
+ * (tile._wallDecorState 'shut') shows its shutters (the art's `shut` cell).
+ * Returns false while a sheet is still loading.
  */
 export function drawWallDecor(ctx, art, tile, face, sz, getImg, scale, night) {
     const ids = asIds(tile._wallDecor);
     if (!ids.length || !face || !art) return true;
     const hash = ((tile.q * 73856093) ^ (tile.r * 19349663)) >>> 0;
+    const shut = tile._wallDecorState === 'shut';
     let ok = true;
     ids.forEach((id, i) => {
         const a = artFor(art, id);
@@ -324,7 +447,8 @@ export function drawWallDecor(ctx, art, tile, face, sz, getImg, scale, night) {
         if (!img) { ok = false; return; }
         let c = a;
         if (a.variants && a.variants.length) c = { ...a, ...a.variants[hash % a.variants.length] };
-        if (night && a.night) c = { ...c, ...a.night };
+        if (shut && a.shut) c = { ...c, ...a.shut };
+        else if (night && a.night) c = { ...c, ...a.night };
         const grid = c.grid || 48;
         let w = c.sw * sz / grid, h = c.sh * sz / grid;
         const k = scale(img);
@@ -341,7 +465,8 @@ export function drawWallDecor(ctx, art, tile, face, sz, getImg, scale, night) {
                 const px = Math.max(1, Math.round(face.w * 0.3));
                 const x = face.x + Math.round((face.w - px) / 2);
                 rect(ctx, 'rgba(30, 22, 16, 0.9)', x - 1, face.y + sz * 0.18 - 1, px + 2, sz * 0.64 + 2);
-                rect(ctx, night ? 'rgba(40, 52, 80, 0.95)' : 'rgba(196, 224, 240, 0.95)', x, face.y + sz * 0.18, px, sz * 0.64);
+                rect(ctx, shut ? 'rgba(112, 70, 40, 0.98)' : night ? 'rgba(40, 52, 80, 0.95)' : 'rgba(196, 224, 240, 0.95)', x, face.y + sz * 0.18, px, sz * 0.64);
+                if (shut) rect(ctx, 'rgba(43, 26, 18, 0.9)', x, face.y + sz * 0.5, px, Math.max(1, Math.round(sz / 32)));
             }
             return;
         }

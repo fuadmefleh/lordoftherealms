@@ -9,8 +9,14 @@
 // bar, in rows before the altar…), each kept usable and the whole house walkable from
 // the door (checked by a flood on every piece set down). Then its decor: things on its
 // tables, counters and shelves (tile._decor) and on its walls (tile._wallDecor).
+//
+// Each interior belongs to its building and its people (_interiorIdentity): its width from
+// the street front's frontage, its depth from the footprint, its door where the facade's
+// door is and its front windows where the facade's are (_exteriorOf); its trade's pieces
+// and decor and a bed for each of its household (data/interiorPlans.json `trades`,
+// `household`); its culture's taste in rugs, hangings and things about the house (`cultures`).
 import { InnerMap } from './_ref.js';
-import { DataLoader } from './_imports.js';
+import { DataLoader, CustomBuildings } from './_imports.js';
 
 const D4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 const _hash = (s) => {
@@ -44,12 +50,160 @@ const _tiersOk = (e, tier) => !Array.isArray(e.tiers) || e.tiers.includes(tier);
 const PRIORITY = { far: 0, bar: 1, rows: 2, back: 3, centre: 4, aisles: 5, side: 6, wall: 6, corner: 7, foot: 8, near: 8, behind: 8, ends: 9, aisle: 9, any: 10 };
 // Tall pieces against a wall hide what would hang on it
 const TALL = new Set(['bookshelf', 'shelf', 'cupboard', 'wardrobe', 'rack', 'barrel_rack', 'crate_stack', 'stairs']);
+// (each design's front read once: def id → its exterior)
+const _exteriorCache = new Map();
+const _bare = (b) => String((b && b.type) || '').replace(/^player_/, '');
 
 Object.assign(InnerMap, {
     /** The planning rules (data/interiorPlans.json), or null when they aren't loaded. */
     _planData() {
         const g = DataLoader._gamedata;
         return (g && g.interiorPlans) || null;
+    },
+
+    /**
+     * What a building design shows the street (its tile-composed def: bounds, meta, layers):
+     * { frontage, rows, doorFrac, front: [fractions], upper: [fractions], storeys, wall,
+     * style, culture, party } — its width in tiles, its height in rows, where along the
+     * front its door stands (0..1, its middle), its ground-floor and upper windows along the
+     * front (0..1 each), how many storeys its windows show, what it is built of, its style,
+     * and whether it stands shoulder to shoulder with its neighbours (no side windows).
+     * Null for no design. Storeys are only known for a composed front (`composed` tag).
+     */
+    _exteriorOf(def) {
+        if (!def || !def.bounds) return null;
+        const key = def.id != null ? String(def.id) : null;
+        if (key && _exteriorCache.has(key) && _exteriorCache.get(key).def === def) return _exteriorCache.get(key).ex;
+        const b = def.bounds;
+        const frontage = Math.max(1, _num(b.maxCol) - _num(b.minCol) + 1);
+        const rows = Math.max(1, _num(b.maxRow) - _num(b.minRow) + 1);
+        const door = (Array.isArray(def.meta) ? def.meta : []).find(m => m && m.door);
+        const doorFrac = door ? _clamp01((_num(door.q) - _num(b.minCol) + 0.5) / frontage) : 0.5;
+        const X = (this._planData() || {}).exterior || {};
+        const upperRow = _num(X.upperRow, -4);
+        const front = [], upper = [];
+        const walls = def.layers && Array.isArray(def.layers.walls) ? def.layers.walls : [];
+        let top = 0;
+        for (const c of walls) {
+            if (!c || !/window/i.test(String(c.sheetPath || ''))) continue;
+            const f = _clamp01((_num(c.q) - _num(b.minCol) + 0.5) / frontage);
+            if (_num(c.r) > upperRow) { if (!front.some(x => Math.abs(x - f) < 0.02)) front.push(f); }
+            else {
+                if (!upper.some(x => Math.abs(x - f) < 0.02)) upper.push(f);
+                top = Math.min(top, _num(c.r));
+            }
+        }
+        front.sort((a, z) => a - z); upper.sort((a, z) => a - z);
+        const composed = Array.isArray(def.tags) && def.tags.includes('composed');
+        const step = Math.max(1, Math.abs(upperRow) - 1);
+        const storeys = composed ? (upper.length ? 1 + Math.max(1, Math.round((upperRow - top) / step) + 1) : 1) : null;
+        const ex = {
+            frontage, rows, doorFrac, front, upper, storeys,
+            wall: def.wall || null, style: def.style || null, culture: def.culture || null,
+            party: (X.partyWalls || []).includes(def.style),
+        };
+        if (key) _exteriorCache.set(key, { def, ex });
+        return ex;
+    },
+
+    /**
+     * Whose a building is: { exterior, household, trades, culture, wear, storeys } —
+     * what its design shows the street, who lives there (InnerMap.npcs whose home it is:
+     * ages, couples, their trades; none known → null), the culture it was built by (its
+     * design's, its town's), how worn it stands (the street tile's era wear) and how many
+     * floors it has (floors.js). `def` its custom design, when it has one.
+     */
+    _interiorIdentity(building, def = null) {
+        if (!building) return null;
+        const P = this._planData() || {};
+        const exterior = this._exteriorOf(def);
+        const type = _bare(building);
+        // Its people: those whose home it is (a lodger passing through is not of the house)
+        let household = null;
+        const H = P.household || {};
+        const npcs = Array.isArray(this.npcs) ? this.npcs : [];
+        const here = npcs.filter(n => n && n._home && n._home.q === building.q && n._home.r === building.r
+            && n.type !== 'traveler' && n.state !== 'dead' && n.state !== 'gone' && !n.departing);
+        if (here.length && (H.types || ['house', 'farm']).includes(type) && !building.isPlayerOwned && !building.isPlayerProperty) {
+            const adultAge = _num(H.adultAge, 14), infantAge = _num(H.infantAge, 2);
+            const ids = new Set(here.map(n => n.id));
+            const ageOf = (n) => (Number.isFinite(Number(n.age)) ? Number(n.age) : adultAge);
+            const adults = here.filter(n => ageOf(n) >= adultAge);
+            const infants = here.filter(n => ageOf(n) < infantAge).length;
+            const children = here.filter(n => ageOf(n) >= infantAge && ageOf(n) < adultAge).length;
+            let couples = 0;
+            const paired = new Set();
+            for (const n of adults) {
+                if (paired.has(n.id) || n.spouseId == null || !ids.has(n.spouseId) || paired.has(n.spouseId)) continue;
+                paired.add(n.id); paired.add(n.spouseId); couples++;
+            }
+            household = { size: here.length, adults: adults.length, couples, singles: adults.length - 2 * couples, children, infants };
+        }
+        // Their trades: what those of the house do (worked at home where the town has no shop of it)
+        const trades = [];
+        if ((((P.trades || {})._types) || ['house', 'farm']).includes(type)) {
+            const owner = building.ownerId != null ? npcs.find(n => n && n.id === building.ownerId) : null;
+            const people = [...(owner && !here.includes(owner) ? [owner] : []), ...here]
+                .filter(n => Number.isFinite(Number(n.age)) ? Number(n.age) >= _num(H.adultAge, 14) : true)
+                .sort((a, z) => String(a.id).localeCompare(String(z.id), 'en', { numeric: true }));
+            for (const n of people) {
+                const j = n.job || n.type;
+                if (j && (P.trades || {})[j] && !trades.includes(j)) trades.push(j);
+            }
+        }
+        // Its culture: its design's, else its town's, else its people's
+        const st = this._currentWorldTileRef && this._currentWorldTileRef.settlement;
+        const folk = here.find(n => n._folk && n._folk.culture);
+        const culture = (exterior && exterior.culture) || (st && st.culture) || (folk && folk._folk.culture) || null;
+        // How worn it stands on the street (world/townEras.js, the anchor tile's wear)
+        const at = this.tiles && this.tiles[building.r] && this.tiles[building.r][building.q];
+        const wear = at && at.customBuilding && Number.isFinite(at.customBuilding.wear) ? at.customBuilding.wear : 0;
+        const storeys = this.floorsOf ? this.floorsOf(building) : 1;
+        return { exterior, household, trades: trades.slice(0, Math.max(1, _num((P.trades || {})._max, 2))), culture, wear, storeys };
+    },
+
+    /**
+     * The beds a household sleeps in (data/interiorPlans.json `household`): { adult, child:
+     * [piece specs], cradles } — a bed for each couple and each other grown one (at least
+     * one), the children `childrenPerBed` to a bed (straw pallets in a poor house), a cradle
+     * for each infant; all held to maxBeds / maxCradles.
+     */
+    _householdBeds(hh, tier) {
+        const H = (this._planData() || {}).household || {};
+        const maxBeds = Math.max(1, _num(H.maxBeds, 6));
+        const adult = Math.min(maxBeds, Math.max(1, _num(hh.couples) + Math.max(0, _num(hh.singles))));
+        const per = Math.max(1, _num(H.childrenPerBed, 2));
+        const nChild = Math.min(maxBeds - adult, Math.ceil(_num(hh.children) / per));
+        const spec = (tier === 'poor' ? H.childBedPoor : H.childBed) || { type: 'bed', name: 'Children\'s Bed', icon: '🛏️' };
+        const child = [];
+        for (let i = 0; i < nChild; i++) child.push(spec);
+        return { adult, child, cradles: Math.min(Math.max(0, _num(H.maxCradles, 2)), _num(hh.infants)) };
+    },
+
+    /** Does this household sleep upstairs (a floor of bedchambers over the house: floors.js)? */
+    _householdUpstairs(building, who) {
+        if (!who || !(who.storeys >= 2) || !this.floorRoom) return false;
+        const room = this.floorRoom(building, 1);
+        return !!(room && (room.furniture || []).some(f => f.type === 'bed'));
+    },
+
+    /**
+     * An upper floor's room furnished for the household that sleeps there (floors.js
+     * _buildUpperFloor): its beds as many as the household's, its children's pallets and
+     * its cradles beside them; the room as it was where nobody is known.
+     */
+    _householdRoom(room, who, tier) {
+        const hh = who && who.household;
+        if (!hh || !room || !(room.furniture || []).some(f => f.type === 'bed')) return room;
+        const beds = this._householdBeds(hh, tier || 'mid');
+        const furniture = [];
+        for (const f of room.furniture) {
+            if (f.type !== 'bed') { furniture.push(f); continue; }
+            furniture.push({ ...f, count: beds.adult });
+            for (const c of beds.child) furniture.push({ type: c.type, icon: c.icon || '🛏️', name: c.name || 'Bed', count: 1, ...(c.art || tier === 'poor' ? { art: c.art || 'straw', noJoin: true } : {}) });
+            if (beds.cradles) furniture.push({ type: 'cradle', icon: '🛏️', name: 'Cradle', count: beds.cradles });
+        }
+        return { ...room, furniture };
     },
 
     /**
@@ -85,7 +239,7 @@ Object.assign(InnerMap, {
      * data: the caller lays the old fixed layout). `look` is _interiorLook's; `ownDef` the
      * building's custom def (its footprint leans the size).
      */
-    _planInterior(building, seedKey, baseLayout, look, ownDef = null) {
+    _planInterior(building, seedKey, baseLayout, look, ownDef = null, who = null) {
         const P = this._planData();
         if (!P || !P.types) return null;
         const bare = String((building && building.type) || '').replace(/^player_/, '');
@@ -94,13 +248,41 @@ Object.assign(InnerMap, {
         if (!T) return null;
         const tier = look.tier || 'mid';
         const rng = _rng(`${seedKey}|plan`);
+        const ex = (who && who.exterior) || null;
+        const X = P.exterior || {};
 
-        // ── Its size: the tier's range, leaning with the building's footprint ──
+        // ── Its size: as wide as its street front, as deep as its footprint (each held to the
+        // type's range about its tier, so its pieces fit); else the tier's range, leaning ──
         const size = _byTier(T.size, tier) || [[baseLayout.width, baseLayout.width], [baseLayout.height, baseLayout.height]];
-        const fw = ownDef ? _num(ownDef.width) : 0, fh = ownDef ? _num(ownDef.height) : 0;
-        const W = Math.max(5, _pickRange(rng, size[0], fw > 0 ? _clamp01((fw - 3) / 6) : null));
-        const H = Math.max(5, _pickRange(rng, size[1], fh > 0 ? _clamp01((fh - 5) / 5) : null));
-        const doorQ = Math.floor(W / 2);
+        let W, H;
+        if (ex) {
+            const all = ['poor', 'mid', 'rich'].map(t => _byTier(T.size, t)).filter(Boolean);
+            const span = (i, lean) => {
+                const lo0 = Math.min(...all.map(s => _num(Array.isArray(s[i]) ? s[i][0] : s[i])));
+                const hi0 = Math.max(...all.map(s => _num(Array.isArray(s[i]) ? s[i][1] : s[i])));
+                const own = Array.isArray(size[i]) ? size[i] : [size[i], size[i]];
+                const slack = _num(X.slack, 2);
+                const lo = Math.max(lo0, _num(own[0]) - slack), hi = Math.min(hi0 + 1, _num(own[1]) + slack);
+                return lo + Math.round(_clamp01(lean) * Math.max(0, hi - lo));
+            };
+            const fr = X.frontage || [3, 10], dp = X.depth || [5, 10];
+            W = Math.max(5, span(0, (ex.frontage - fr[0]) / Math.max(1, fr[1] - fr[0])));
+            H = Math.max(5, span(1, (ex.rows - dp[0]) / Math.max(1, dp[1] - dp[0])));
+        } else {
+            const fw = ownDef ? _num(ownDef.width) : 0, fh = ownDef ? _num(ownDef.height) : 0;
+            // (no front to go by: a big household's house the roomier — household.leanFrom/leanTo)
+            const hh0 = who && who.household, HH = P.household || {};
+            const lean = hh0 ? _clamp01((_num(hh0.size) - _num(HH.leanFrom, 2)) / Math.max(1, _num(HH.leanTo, 7) - _num(HH.leanFrom, 2))) : null;
+            W = Math.max(5, _pickRange(rng, size[0], fw > 0 ? _clamp01((fw - 3) / 6) : lean));
+            H = Math.max(5, _pickRange(rng, size[1], fh > 0 ? _clamp01((fh - 5) / 5) : lean));
+        }
+        // The door where the street front has it (its middle, along the inside of the front
+        // wall), kept a step off the corners; in the middle where the front is unknown
+        let doorQ = Math.floor(W / 2);
+        if (ex) {
+            const m = Math.max(1, Math.min(_num(X.doorMargin, 2), Math.floor((W - 3) / 2)));
+            doorQ = Math.max(m, Math.min(W - 1 - m, 1 + Math.round(ex.doorFrac * (W - 2) - 0.5)));
+        }
 
         // ── The shell, then its rooms carved off the main room ──
         const grid = [];
@@ -212,8 +394,12 @@ Object.assign(InnerMap, {
         }
 
         // ── The tiles ──
-        const floorDef = this.INTERIOR_FLOORS[look.floor] || this.INTERIOR_FLOORS.wood_floor;
-        const ctx = { floor: look.floor, floorDef, wall: look.wall, wallColor: baseLayout.wallColor, tint: look.tint, buildingType: building.type };
+        // (a hut, hovel, croft or longhouse of an older age keeps an earth floor where its tier allows: exterior.styles)
+        let floorId = look.floor;
+        const styleLook = ex && ex.style && (X.styles || {})[ex.style];
+        if (styleLook && styleLook.floor && look.kind === 'home' && !(styleLook.tiers && !styleLook.tiers.includes(tier)) && this.INTERIOR_FLOORS[styleLook.floor]) floorId = styleLook.floor;
+        const floorDef = this.INTERIOR_FLOORS[floorId] || this.INTERIOR_FLOORS.wood_floor;
+        const ctx = { floor: floorId, floorDef, wall: look.wall, wallColor: baseLayout.wallColor, tint: look.tint, buildingType: building.type };
         const tiles = [];
         for (let r = 0; r < H; r++) {
             tiles[r] = [];
@@ -270,21 +456,57 @@ Object.assign(InnerMap, {
         }
         for (const g of groups) for (let i = 0; i < g.count; i++) units[0].push(unitOf(g.f, 0, true));
         const pieceDefs = P.pieces || {};
-        rooms.forEach((rm, ri) => {
-            for (const e of (rm.spec.extras || [])) {
+        const hh = (who && who.household) || null;
+        const pieceOf = (e) => {
+            const base = pieceDefs[e.type] || {};
+            return {
+                type: e.type, icon: e.icon || base.icon || '📦', name: e.name || base.name || e.type,
+                passable: !!(e.passable != null ? e.passable : base.passable),
+                ...(e.place || base.place ? { place: e.place || base.place } : {}),
+                ...(e.art ? { art: e.art } : {}),
+                ...(e.noJoin ? { noJoin: true } : {}),
+                ...(e.decor ? { decor: e.decor } : {}),
+            };
+        };
+        const addExtras = (list, ri, req = false) => {
+            for (const e of (list || [])) {
                 if (!e || !e.type || !_tiersOk(e, tier)) continue;
-                if (e.onlySub != null && rm.sub !== e.onlySub) continue;
+                if (e.onlySub != null && rooms[ri].sub !== e.onlySub) continue;
+                // (a cradle or a spare bed by chance only where nobody knows who lives here)
+                if (e.household && hh) continue;
                 if (e.chance != null && rng() >= _num(e.chance)) continue;
                 const n = e.count != null ? _pickRange(rng, e.count) : 1;
-                const base = pieceDefs[e.type] || {};
-                const f = {
-                    type: e.type, icon: e.icon || base.icon || '📦', name: e.name || base.name || e.type,
-                    passable: !!(e.passable != null ? e.passable : base.passable),
-                    ...(e.place || base.place ? { place: e.place || base.place } : {}),
-                };
-                for (let i = 0; i < n; i++) units[ri].push(unitOf(f, ri, false));
+                const f = pieceOf(e);
+                for (let i = 0; i < n; i++) units[ri].push(unitOf(f, ri, req));
             }
-        });
+        };
+        rooms.forEach((rm, ri) => addExtras(rm.spec.extras, ri));
+        // Its people's trades, worked at home: the cobbler's bench, the weaver's loom (trades)
+        const trades = ((who && who.trades) || []).map(id => ({ id, ...((P.trades || {})[id] || {}) }));
+        for (const tr of trades) {
+            const ri = tr.room ? Math.max(0, rooms.findIndex(rm => rm.spec && rm.spec.id === tr.room)) : 0;
+            // (they come first in their room: unshifted, so a crowded house drops a stool before the loom)
+            const before = units[ri].length;
+            addExtras(tr.pieces, ri, true);
+            const added = units[ri].splice(before);
+            units[ri].unshift(...added.map(u => ({ ...u, _first: true })));
+        }
+        // Its culture's own things about the house: the north's furs, the south's rugs and lamps (cultures)
+        const cult = (who && who.culture && (P.cultures || {})[who.culture]) || null;
+        if (cult && look.kind !== 'work') addExtras(cult.extras, 0);
+        // A bed for each of the household (household): one for a couple, one for each other
+        // grown one, the children two to a bed (on straw in a poor house), a cradle for each
+        // infant — upstairs where the house has a floor of bedchambers (floors.js), else here
+        if (hh && !this._householdUpstairs(building, who)) {
+            const beds = this._householdBeds(hh, tier);
+            const bedRoom = units.findIndex(list => list.some(u => u.type === 'bed'));
+            const ri = bedRoom >= 0 ? bedRoom : 0;
+            const have = units.reduce((n, list) => n + list.filter(u => u.type === 'bed').length, 0);
+            const proto = (units[ri].find(u => u.type === 'bed')) || unitOf({ type: 'bed', icon: '🛏️', name: 'Bed', passable: false }, ri, true);
+            for (let i = have; i < beds.adult; i++) units[ri].push({ ...proto, req: true, _first: true });
+            for (const c of beds.child) units[ri].push({ ...unitOf(pieceOf(c), ri, true), _first: true });
+            for (let i = 0; i < beds.cradles; i++) units[ri].push({ ...unitOf(pieceOf({ type: 'cradle' }), ri, true), _first: true });
+        }
         // As the tier keeps house: the poor without finery, sleeping on straw (_furnishByTier)
         for (let ri = 0; ri < units.length; ri++) units[ri] = this._furnishByTier(units[ri], look.tier, look.kind);
 
@@ -295,8 +517,9 @@ Object.assign(InnerMap, {
         order.push(0);
         for (const ri of order) {
             const list = units[ri].slice().sort((a, b) => {
-                const pa = (a.passable ? 20 : 0) + (PRIORITY[String(a.place).split(':')[0]] ?? 10);
-                const pb = (b.passable ? 20 : 0) + (PRIORITY[String(b.place).split(':')[0]] ?? 10);
+                const pr = (u) => { const p = PRIORITY[String(u.place).split(':')[0]] ?? 10; return (u.passable ? 20 : 0) + (u._first ? Math.min(p, 6) - 0.5 : p); };
+                const pa = pr(a);
+                const pb = pr(b);
                 if (pa !== pb) return pa - pb;
                 const sa = this.PIECE_SPANS[a.type] ? 1 : 0, sb = this.PIECE_SPANS[b.type] ? 1 : 0;
                 return sb - sa;
@@ -330,8 +553,9 @@ Object.assign(InnerMap, {
         }
         return {
             tiles, width: W, height: H,
+            door: { q: doorQ, r: H - 1 },
             rooms: rooms.map((rm, i) => ({ id: rm.id, name: rm.name, cells: cellsOf[i].length })),
-            info: { rooms, roomOf, tier, look, rng, P },
+            info: { rooms, roomOf, tier, look, rng, P, who, doorQ, trades, cult },
         };
     },
 
@@ -385,25 +609,32 @@ Object.assign(InnerMap, {
             if (!u.passable && !u._ringOk && ring.has(K(q, r))) return false;
             return true;
         };
+        // (the flood from the door over a flat grid: run on every piece set down, so kept cheap)
+        const seenAt = new Uint8Array(W * H), queueAt = new Int32Array(W * H);
         const reach = () => {
-            const start = [doorQ, H - 1];
-            const seen = new Set([K(...start)]), queue = [start];
-            while (queue.length) {
-                const [q, r] = queue.shift();
+            seenAt.fill(0);
+            let head = 0, tail = 0;
+            const s0 = (H - 1) * W + doorQ;
+            seenAt[s0] = 1; queueAt[tail++] = s0;
+            while (head < tail) {
+                const i = queueAt[head++], q = i % W, r = (i - q) / W;
                 for (const [dq, dr] of D4) {
-                    const t = F(q + dq, r + dr), k = K(q + dq, r + dr);
-                    if (!t || seen.has(k) || !t.subTerrain.passable) continue;
-                    seen.add(k); queue.push([q + dq, r + dr]);
+                    const nq = q + dq, nr = r + dr;
+                    if (nq < 0 || nr < 0 || nq >= W || nr >= H) continue;
+                    const j = nr * W + nq;
+                    if (seenAt[j] || !tiles[nr][nq].subTerrain.passable) continue;
+                    seenAt[j] = 1; queueAt[tail++] = j;
                 }
             }
-            return seen;
+            return seenAt;
         };
+        const seenHas = (seen, q, r) => q >= 0 && r >= 0 && q < W && r < H && seen[r * W + q] === 1;
         const valid = () => {
             const seen = reach();
-            for (let r = 0; r < H; r++) for (let q = 0; q < W; q++) if (tiles[r][q].subTerrain.passable && !seen.has(K(q, r))) return false;
+            for (let r = 0; r < H; r++) for (let q = 0; q < W; q++) if (tiles[r][q].subTerrain.passable && !seen[r * W + q]) return false;
             for (const p of placed) {
                 if (p.unit.passable) continue;
-                if (!p.cells.some(([q, r]) => D4.some(([dq, dr]) => seen.has(K(q + dq, r + dr))))) return false;
+                if (!p.cells.some(([q, r]) => D4.some(([dq, dr]) => seenHas(seen, q + dq, r + dr)))) return false;
             }
             return true;
         };
@@ -413,6 +644,8 @@ Object.assign(InnerMap, {
                 t._furniture = { type: u.type, icon: u.icon, name: u.name, passable: !!u.passable };
                 if (u.art) t._furniture.art = u.art;
                 if (u.noJoin || u._single) t._furniture.noJoin = true;
+                // (a trade's piece comes with its work on it: the cobbler's leather, the baker's loaves)
+                if (u.decor && cells[0][0] === q && cells[0][1] === r) t._decor = u.decor;
                 if (!u.passable) {
                     t._planFloor = t.subTerrain;
                     t.subTerrain = { id: `furniture_${u.type}`, name: u.name, icon: u.icon, color: self.FURNITURE_COLORS[u.type] || '#6a5a4a', passable: false };
@@ -423,6 +656,7 @@ Object.assign(InnerMap, {
             for (const [q, r] of cells) {
                 const t = F(q, r);
                 t._furniture = null;
+                delete t._decor;
                 if (t._planFloor) { t.subTerrain = t._planFloor; delete t._planFloor; }
             }
         };
@@ -648,24 +882,34 @@ Object.assign(InnerMap, {
     /**
      * The things about the house (data/interiorPlans.json): on its tables, counters, desks
      * and shelves (tile._decor), and on the walls facing into its rooms (tile._wallDecor,
-     * tile._wallDecorFace 'down' | 'left' | 'right': the side the room lies): windows along
-     * the back wall at the tier's spacing (curtained in homes), a side window for a room
-     * the back wall misses, then the room's own hangings and the tier's finery.
+     * tile._wallDecorFace 'down' | 'left' | 'right' | 'up': the side the room lies): windows
+     * along the back wall at the tier's spacing (curtained in homes), in the front wall where
+     * the street front shows them (its ground-floor windows), a side window for a room the
+     * back wall misses (never through a wall shared with the house next door), then the
+     * room's own hangings, its trade's, its culture's and the tier's finery — fewer where
+     * the house stands worn.
      */
     _decorateInterior(tiles, w, h, info) {
         if (!info || !info.P) return;
         const { P, rooms, roomOf, tier, look, rng } = info;
+        const who = info.who || null, ex = (who && who.exterior) || null;
+        const trades = info.trades || [], cult = info.cult || null;
+        const X = P.exterior || {};
         const items = new Set(P.decorItems || []), walls = new Set(P.wallDecor || []);
         const TD = (P.tiers || {})[tier] || {};
         const on = new Set(P.decorOn || []);
         const F = (q, r) => (tiles[r] && tiles[r][q]) || null;
         const pick = (list) => (list.length ? list[Math.floor(rng() * list.length)] : null);
         const work = look.kind === 'work';
+        // (a worn house keeps less about it: exterior.wear, by the street's era wear 0..2)
+        const wearK = _num((X.wear || [1, 0.85, 0.6])[Math.max(0, Math.min(2, _num(who && who.wear)))], 1);
+        const cultItems = (!work && cult && cult.items) || [];
+        const tradeItems = trades.flatMap(tr => tr.items || []);
         // ── On the furniture ──
         for (let r = 0; r < h; r++) for (let q = 0; q < w; q++) {
             const t = tiles[r][q], f = t._furniture;
-            if (!f || !on.has(f.type) || f.passable) continue;
-            if (rng() >= _num(TD.itemChance, 0.6)) continue;
+            if (!f || !on.has(f.type) || f.passable || t._decor) continue;
+            if (rng() >= _num(TD.itemChance, 0.6) * wearK) continue;
             const ri = roomOf[r] ? roomOf[r][q] : 0;
             const spec = (rooms[ri >= 0 ? ri : 0] || rooms[0]).spec || {};
             const own = (P.itemsFor || {})[f.type] || [];
@@ -674,6 +918,8 @@ Object.assign(InnerMap, {
             else if (f.type === 'desk' || f.type === 'workbench') pool = own.concat((spec.items || []).filter(x => x === 'papers' || x === 'books' || x === 'tools' || x === 'herbs' || x === 'coins'));
             else pool = own.concat(spec.items || []);
             if (!work && f.type !== 'workbench') pool = pool.concat(TD.items || []);
+            // (the house's trade and its culture leave their things about: twice as likely as any one other)
+            if (f.type !== 'bar') pool = pool.concat(tradeItems, tradeItems, cultItems);
             const id = pick(pool.filter(x => items.has(x)));
             if (id) t._decor = id;
         }
@@ -691,44 +937,98 @@ Object.assign(InnerMap, {
         const off = Math.floor(rng() * gap);
         const curtainsOk = (spec) => home || (spec.wall || []).includes('curtains');
         const hang = (t, id, face) => { if (walls.has(id)) { t._wallDecor = id; t._wallDecorFace = face; } };
+        const glaze = (spec) => (curtainsOk(spec) && rng() < _num(TD.curtains, 0) ? 'curtains' : 'window');
         const windowed = new Set();
-        // Windows along the back wall
-        for (let q = 1; q < w - 1; q++) {
+        // Windows along the back wall (a front with none — a hovel's — has few at the back too)
+        let backLeft = ex && !ex.front.length ? Math.max(0, _num(X.blindBackMax, 1)) : Infinity;
+        for (let q = 1; q < w - 1 && backLeft > 0; q++) {
             const t = tiles[0][q];
             if (t.baseTerrain !== 'wall' || (q + off) % gap !== 0) continue;
             const fc = faceOf(q, 0);
             const rm = fc && fc.face === 'down' ? roomAt(fc.at) : null;
             if (!rm || rm.spec.windows === false) continue;
-            hang(t, curtainsOk(rm.spec) && rng() < _num(TD.curtains, 0) ? 'curtains' : 'window', 'down');
+            hang(t, glaze(rm.spec), 'down');
             windowed.add(rm);
+            backLeft--;
         }
-        // A side window for a room the back wall misses
-        rooms.forEach((rm, ri) => {
-            if (windowed.has(rm) || rm.spec.windows === false || ri === 0) return;
-            const side = [];
-            for (let r = 1; r < h - 1; r++) for (const q of [0, w - 1]) {
-                const fc = tiles[r][q].baseTerrain === 'wall' ? faceOf(q, r) : null;
-                if (fc && fc.face !== 'down' && roomOf[fc.at[1]][fc.at[0]] === ri) side.push([q, r, fc.face]);
+        // Windows in the front wall where the street front has them (either side of the door)
+        if (ex && ex.front.length) {
+            const doorQ = info.doorQ != null ? info.doorQ : Math.floor(w / 2);
+            const fits = (q) => {
+                const t = F(q, h - 1), inside = F(q, h - 2);
+                // (in the wall, off the door's frame, not where an inner wall meets the front, not beside another)
+                if (q < 1 || q > w - 2 || !t || t.baseTerrain !== 'wall' || t._wallDecor || t._isDoor || Math.abs(q - doorQ) <= 1) return null;
+                if (!inside || inside.baseTerrain === 'wall') return null;
+                if ([-1, 1].some(d => { const o = F(q + d, h - 1); return !!(o && o._wallDecor); })) return null;
+                const rm = roomAt([q, h - 2]);
+                return rm && rm.spec.windows !== false ? rm : null;
+            };
+            for (const f of ex.front) {
+                const at = Math.max(1, Math.min(w - 2, 1 + Math.round(f * (w - 2) - 0.5)));
+                const side = f < ex.doorFrac ? -1 : 1;
+                // (where the facade has it, else the nearest good stretch of wall on the window's own side of the door)
+                for (const d of [0, 1, -1, 2, -2]) {
+                    const q = at + d;
+                    if ((q - doorQ) * side <= 0) continue;
+                    const rm = fits(q);
+                    if (!rm) continue;
+                    hang(F(q, h - 1), glaze(rm.spec), 'up');
+                    windowed.add(rm);
+                    break;
+                }
             }
-            if (!side.length) return;
-            const [q, r, face] = side[Math.floor(side.length / 2)];
-            hang(tiles[r][q], 'window', face);
-        });
-        // The room's own hangings and the tier's finery
-        const near = (q, r) => [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dq, dr]) => { const o = F(q + dq, r + dr); return !!(o && o._wallDecor); });
-        for (let r = 0; r < h - 1; r++) for (let q = 0; q < w; q++) {
-            const t = tiles[r][q];
-            if (t.baseTerrain !== 'wall' || t._wallDecor) continue;
+        }
+        // A side window for a room the back and front walls miss (none through a party wall)
+        if (!(ex && ex.party)) {
+            rooms.forEach((rm, ri) => {
+                if (windowed.has(rm) || rm.spec.windows === false || ri === 0) return;
+                const side = [];
+                for (let r = 1; r < h - 1; r++) for (const q of [0, w - 1]) {
+                    const fc = tiles[r][q].baseTerrain === 'wall' ? faceOf(q, r) : null;
+                    if (fc && fc.face !== 'down' && roomOf[fc.at[1]][fc.at[0]] === ri) side.push([q, r, fc.face]);
+                }
+                if (!side.length) return;
+                const [q, r, face] = side[Math.floor(side.length / 2)];
+                hang(tiles[r][q], 'window', face);
+            });
+        }
+        // The trade's own sign on the wall (the hunter's antlers, the scribe's map): one, by the work
+        const hangable = (q, r) => {
+            const t = F(q, r);
+            if (!t || t.baseTerrain !== 'wall' || t._wallDecor || r >= h - 1) return null;
             const fc = faceOf(q, r);
-            if (!fc) continue;
+            if (!fc) return null;
             const below = F(fc.at[0], fc.at[1]);
-            if (below._doorway || (below._furniture && TALL.has(below._furniture.type))) continue;
+            if (below._doorway || (below._furniture && TALL.has(below._furniture.type))) return null;
+            return fc;
+        };
+        for (const tr of trades) {
+            const id = (tr.wall || [])[0];
+            if (!id || !walls.has(id)) continue;
+            let done = false;
+            for (let r = 0; r < h - 1 && !done; r++) for (let q = 0; q < w && !done; q++) {
+                const fc = hangable(q, r);
+                if (!fc || (roomOf[fc.at[1]] && roomOf[fc.at[1]][fc.at[0]]) !== 0) continue;
+                hang(F(q, r), id, fc.face);
+                done = true;
+            }
+        }
+        // The room's own hangings, its trade's and culture's, and the tier's finery
+        const near = (q, r) => [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dq, dr]) => { const o = F(q + dq, r + dr); return !!(o && o._wallDecor); });
+        const wallK = wearK * (cult && !work ? _num(cult.wallChance, 1) : 1);
+        const tradeWall = trades.flatMap(tr => tr.wall || []);
+        const cultWall = (!work && cult && cult.wall) || [];
+        for (let r = 0; r < h - 1; r++) for (let q = 0; q < w; q++) {
+            const fc = hangable(q, r);
+            if (!fc) continue;
             const rm = roomAt(fc.at);
-            if (!rm || near(q, r) || rng() >= _num(TD.wallChance, 0.2)) continue;
+            if (!rm || near(q, r) || rng() >= _num(TD.wallChance, 0.2) * wallK) continue;
             const pool = (rm.spec.wall || []).filter(x => x !== 'window' && x !== 'curtains');
             if (!work) pool.push(...(TD.wall || []));
+            if (rm === rooms[0]) pool.push(...tradeWall);
+            pool.push(...cultWall.filter(x => x !== 'window' && x !== 'curtains'));
             const id = pick(pool);
-            if (id) hang(t, id, fc.face);
+            if (id) hang(F(q, r), id, fc.face);
         }
     },
 });

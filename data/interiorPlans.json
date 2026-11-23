@@ -43,6 +43,69 @@
         "mid":  { "itemChance": 0.6, "wallChance": 0.24, "windowGap": 3, "curtains": 0.35, "items": ["candles"], "wall": ["painting"] },
         "rich": { "itemChance": 0.78, "wallChance": 0.36, "windowGap": 2, "curtains": 0.6, "items": ["candles", "flowers", "fruit"], "wall": ["painting", "tapestry", "mirror", "clock"] }
     },
+    "_exterior": "Inside as it stands outside (interiorPlanner.js _exteriorOf, from the building's tile-composed design). Its width from its street frontage (frontage [narrow, wide] in tiles maps onto the type's size range about its tier, ± slack), its depth from its rows (depth [shallow, deep]); its door along the front wall where the facade's door is (doorMargin tiles off the corners); its front-wall windows where the facade's ground-floor windows are (window cells above upperRow are the upper storey's: they go on the floor above, and count its storeys for floors.js); a front with no windows has at most blindBackMax at the back; partyWalls styles stand shoulder to shoulder (no side windows). styles: an earth floor for the humbler old styles in the tiers given. wear: what is about the house (decor chances) by the street's era wear 0 fresh, 1 weathered, 2 old.",
+    "exterior": {
+        "frontage": [3, 10], "depth": [5, 10], "slack": 2, "doorMargin": 2, "upperRow": -4, "blindBackMax": 1,
+        "partyWalls": ["row", "townhouse"],
+        "styles": {
+            "hovel": { "floor": "dirt_floor", "tiers": ["poor", "mid"] },
+            "hut": { "floor": "dirt_floor", "tiers": ["poor", "mid"] },
+            "croft": { "floor": "dirt_floor", "tiers": ["poor"] },
+            "longhouse": { "floor": "dirt_floor", "tiers": ["poor"] }
+        },
+        "wear": [1, 0.85, 0.6]
+    },
+    "_household": "Beds for who lives there (InnerMap.npcs whose home it is; types it applies to): a bed for each couple and each other grown one (adultAge and over), the children childrenPerBed to a bed (childBedPoor in a poor house: a straw pallet), a cradle for each infant (under infantAge); at most maxBeds beds and maxCradles cradles. A house with no street front to go by is planned the roomier the bigger its household (leanFrom..leanTo people lean its size from the bottom to the top of its tier range). Upstairs in the bedchamber where the house has one (data/buildingFloors.json), else on the ground floor. Extras marked household: true (a chance cradle, a spare bed) are left out where the household is known.",
+    "household": {
+        "types": ["house", "farm"], "adultAge": 14, "infantAge": 2, "leanFrom": 2, "leanTo": 7, "childrenPerBed": 2, "maxBeds": 6, "maxCradles": 2,
+        "childBed": { "type": "bed", "name": "Children's Bed", "icon": "🛏️" },
+        "childBedPoor": { "type": "bed", "name": "Straw Pallet", "icon": "🛌", "art": "straw", "noJoin": true }
+    },
+    "_trades": "What a house's people do (townsfolk occupations, data/townJobs.json; else their npc type) shows in it: each trade's pieces (placed first, in the main room, each with the decor on it given as 'decor'), its things on the furniture ('items', twice as likely as any other) and on the walls ('wall': its first hung once for certain, all in the main room's pool). _types: the building types it applies to; _max: trades shown per house.",
+    "trades": {
+        "_types": ["house", "farm"], "_max": 2,
+        "cobbler":    { "pieces": [{ "type": "workbench", "name": "Cobbler's Bench", "decor": "tools" }, { "type": "basket", "name": "Basket of Lasts", "chance": 0.6 }], "items": ["cloth", "tools"], "wall": ["shelf"] },
+        "tailor":     { "pieces": [{ "type": "workbench", "name": "Cutting Table", "decor": "cloth" }, { "type": "dresser", "name": "Bolt Press", "chance": 0.5 }], "items": ["cloth"], "wall": ["shelf", "curtains"] },
+        "weaver":     { "pieces": [{ "type": "loom", "name": "Loom" }, { "type": "spinning_wheel", "chance": 0.7 }, { "type": "basket", "name": "Wool Basket" }], "items": ["cloth"], "wall": ["shelf"] },
+        "baker":      { "pieces": [{ "type": "oven", "name": "Bread Oven", "icon": "🔥" }, { "type": "sack_pile", "name": "Flour Sacks" }, { "type": "workbench", "name": "Kneading Trough", "decor": "bread", "chance": 0.6 }], "items": ["bread"], "wall": ["hanging_pots"] },
+        "miller":     { "pieces": [{ "type": "sack_pile", "name": "Flour Sacks", "count": [1, 2] }], "items": ["bread"], "wall": ["shelf"] },
+        "butcher":    { "pieces": [{ "type": "workbench", "name": "Chopping Block", "decor": "tools" }, { "type": "barrel", "name": "Salting Barrel", "icon": "🛢️" }], "items": ["tools", "pots"], "wall": ["hanging_pots"] },
+        "brewer":     { "pieces": [{ "type": "barrel_rack", "name": "Brewing Barrels" }, { "type": "barrel", "name": "Mash Tun", "icon": "🛢️" }], "items": ["bottles", "mugs"], "wall": ["hanging_herbs"] },
+        "carpenter":  { "pieces": [{ "type": "workbench", "name": "Carpenter's Bench", "decor": "tools" }, { "type": "crate_stack", "name": "Timber Offcuts", "chance": 0.6 }], "items": ["tools"], "wall": ["shelf"] },
+        "mason":      { "pieces": [{ "type": "workbench", "name": "Mason's Banker", "decor": "tools" }, { "type": "crate", "name": "Tool Crate", "icon": "📦" }], "items": ["tools"], "wall": ["shelf"] },
+        "smith":      { "pieces": [{ "type": "workbench", "name": "Smith's Bench", "decor": "tools" }], "items": ["tools"], "wall": ["weapon_rack"] },
+        "woodcutter": { "pieces": [{ "type": "firewood", "name": "Split Logs", "count": [1, 2], "place": "corner" }], "items": ["tools"], "wall": ["weapon_rack"] },
+        "miner":      { "pieces": [{ "type": "crate", "name": "Ore Crate", "icon": "📦" }], "items": ["tools"], "wall": ["torch"] },
+        "fisher":     { "pieces": [{ "type": "basket", "name": "Fish Creel", "count": [1, 2] }, { "type": "barrel", "name": "Salting Barrel", "icon": "🛢️", "chance": 0.6 }], "items": ["bowls", "cloth"], "wall": ["hanging_pots"] },
+        "hunter":     { "pieces": [{ "type": "rug", "name": "Hide", "icon": "🟫", "passable": true }, { "type": "rack", "name": "Bow Rack", "icon": "🏹", "chance": 0.6 }], "items": ["cloth", "tools"], "wall": ["antlers", "weapon_rack"] },
+        "herder":     { "pieces": [{ "type": "rug", "name": "Sheepskin", "icon": "🟫", "passable": true }, { "type": "basket", "name": "Fodder Basket" }], "items": ["cloth"], "wall": ["antlers"] },
+        "shepherd":   { "pieces": [{ "type": "spinning_wheel" }, { "type": "basket", "name": "Fleece Basket" }], "items": ["cloth"], "wall": ["hanging_herbs"] },
+        "farmer":     { "pieces": [{ "type": "sack_pile", "name": "Seed Sacks" }, { "type": "basket", "name": "Harvest Basket", "chance": 0.7 }], "items": ["fruit", "tools"], "wall": ["hanging_herbs"] },
+        "labourer":   { "pieces": [{ "type": "basket", "name": "Basket" }], "items": ["tools"], "wall": ["hanging_pots"] },
+        "healer":     { "pieces": [{ "type": "cauldron", "name": "Simmering Pot", "icon": "🫕" }, { "type": "workbench", "name": "Mixing Bench", "decor": "herbs" }], "items": ["herbs", "bottles"], "wall": ["hanging_herbs"] },
+        "scribe":     { "pieces": [{ "type": "desk", "name": "Writing Desk", "icon": "🖋️" }, { "type": "bookshelf", "name": "Bookshelf", "icon": "📚" }], "items": ["papers", "books"], "wall": ["map"] },
+        "priest":     { "pieces": [{ "type": "bookshelf", "name": "Bookshelf", "icon": "📚" }], "items": ["books", "candles"], "wall": ["tapestry"] },
+        "merchant":   { "pieces": [{ "type": "crate_stack", "name": "Stock" }, { "type": "chest", "name": "Strongbox", "icon": "📦" }], "items": ["coins", "papers"], "wall": ["map"] },
+        "stallkeeper":{ "pieces": [{ "type": "crate_stack", "name": "Stall Goods" }, { "type": "basket", "chance": 0.6 }], "items": ["fruit", "coins"], "wall": ["shelf"] },
+        "innkeeper":  { "pieces": [{ "type": "barrel", "name": "Ale Cask", "icon": "🛢️" }], "items": ["mugs", "bottles"], "wall": ["hanging_pots"] },
+        "washer":     { "pieces": [{ "type": "tub", "name": "Wash Tub", "icon": "🛁" }, { "type": "basket", "name": "Laundry Basket" }], "items": ["cloth"], "wall": ["shelf"] },
+        "carter":     { "pieces": [{ "type": "crate_stack", "name": "Crates" }], "items": ["tools"], "wall": ["shelf"] },
+        "guard":      { "pieces": [{ "type": "rack", "name": "Weapon Rack", "icon": "⚔️" }], "items": ["mugs"], "wall": ["weapon_rack"] },
+        "noble":      { "pieces": [{ "type": "bookshelf", "name": "Bookshelf", "icon": "📚" }], "items": ["candles", "books"], "wall": ["painting"] }
+    },
+    "_cultures": "A culture's taste in its homes and halls (not its workshops): extras (pieces, by chance and tier, in the main room), items (on its furniture) and wall (hangings) added to every room's pool, wallChance a multiple of the tier's. Its floors and walls are the culture's own building materials (data/architecture.json); these are its furnishings.",
+    "cultures": {
+        "Nordic":    { "extras": [{ "type": "rug", "name": "Fur Rug", "icon": "🟫", "passable": true, "chance": 0.8 }, { "type": "firewood", "chance": 0.7 }], "items": ["cloth", "mugs"], "wall": ["antlers", "antlers", "weapon_rack", "tapestry"], "wallChance": 1.2 },
+        "Mountain":  { "extras": [{ "type": "rug", "name": "Sheepskin", "icon": "🟫", "passable": true, "chance": 0.6 }, { "type": "firewood", "chance": 0.6 }], "items": ["cloth", "bowls"], "wall": ["antlers", "hanging_pots", "weapon_rack"] },
+        "Woodland":  { "extras": [{ "type": "plant", "chance": 0.6, "tiers": ["mid", "rich"] }, { "type": "basket", "chance": 0.6 }], "items": ["herbs", "fruit", "flowers"], "wall": ["hanging_herbs", "antlers", "hanging_herbs"] },
+        "Swamp":     { "extras": [{ "type": "basket", "count": [1, 2] }], "items": ["herbs", "bowls"], "wall": ["hanging_herbs", "hanging_herbs", "hanging_pots"] },
+        "Desert":    { "extras": [{ "type": "rug", "name": "Woven Rug", "icon": "♦️", "passable": true, "count": [1, 2] }, { "type": "rug", "name": "Floor Cushions", "icon": "♦️", "passable": true, "chance": 0.6 }, { "type": "candle", "name": "Oil Lamp", "icon": "🪔", "passable": true, "chance": 0.7 }], "items": ["cloth", "bowls", "fruit", "candles"], "wall": ["tapestry", "hanging_pots", "shelf"], "wallChance": 0.9 },
+        "Nomadic":   { "extras": [{ "type": "rug", "name": "Felt Rug", "icon": "♦️", "passable": true, "count": [1, 2] }, { "type": "basket", "chance": 0.5 }], "items": ["cloth", "bowls"], "wall": ["tapestry", "weapon_rack", "hanging_pots"] },
+        "Imperial":  { "extras": [{ "type": "chair", "chance": 0.5, "tiers": ["mid", "rich"] }, { "type": "plant", "chance": 0.4, "tiers": ["mid", "rich"] }], "items": ["plates", "candles", "papers"], "wall": ["painting", "map", "clock"] },
+        "Religious": { "extras": [{ "type": "candle", "name": "Votive Candle", "icon": "🕯️", "passable": true, "chance": 0.7 }], "items": ["books", "candles"], "wall": ["tapestry", "banner"] },
+        "Arcane":    { "extras": [{ "type": "bookshelf", "name": "Bookshelf", "icon": "📚", "chance": 0.5, "tiers": ["mid", "rich"] }], "items": ["books", "bottles", "papers", "candles"], "wall": ["map", "shelf", "clock"] },
+        "Maritime":  { "extras": [{ "type": "basket", "name": "Net Basket", "chance": 0.6 }, { "type": "barrel", "name": "Salt Barrel", "icon": "🛢️", "chance": 0.4 }], "items": ["bowls", "bottles"], "wall": ["map", "hanging_pots", "shelf"] }
+    },
     "types": {
         "house": {
             "size": { "poor": [[7, 9], [6, 7]], "mid": [[10, 11], [7, 8]], "rich": [[11, 13], [8, 10]] },
@@ -67,8 +130,8 @@
                     "extras": [
                         { "type": "washstand", "chance": 0.5 },
                         { "type": "wardrobe", "tiers": ["rich"], "chance": 0.8 },
-                        { "type": "cradle", "chance": 0.2 },
-                        { "type": "bed", "name": "Bed", "icon": "🛏️", "tiers": ["rich"], "chance": 0.6, "onlySub": 1 }
+                        { "type": "cradle", "chance": 0.2, "household": true },
+                        { "type": "bed", "name": "Bed", "icon": "🛏️", "tiers": ["rich"], "chance": 0.6, "onlySub": 1, "household": true }
                     ]
                 }
             ]

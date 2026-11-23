@@ -21,6 +21,7 @@ const NEW_TYPES = ['dresser', 'cupboard', 'workbench', 'loom', 'spinning_wheel',
 // (these specs place by the old fixed house layout, as furnishing.test.js: the planned
 // interiors (world/innerMap/interiorPlanner.js) are covered by interiorPlanner.test.js)
 let planner = null;
+let stateLayer = null;
 beforeAll(async () => {
     if (!DataLoader._gamedata) {
         DataLoader.clearCache();
@@ -28,8 +29,11 @@ beforeAll(async () => {
     }
     planner = InnerMap._planInterior;
     InnerMap._planInterior = null;
+    // (nor the hour's layer — meals laid, fires lit: world/innerMap/interiorState.js, its own spec)
+    stateLayer = InnerMap._applyInteriorState;
+    InnerMap._applyInteriorState = null;
 }, 120000);
-afterAll(() => { InnerMap._planInterior = planner; });
+afterAll(() => { InnerMap._planInterior = planner; InnerMap._applyInteriorState = stateLayer; });
 
 /** The player's house on a one-row street, entered (as furnishing.test.js). */
 function enterHouse(player, building = null) {

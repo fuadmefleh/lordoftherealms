@@ -8,6 +8,8 @@ import './buildings.js';
 import './interiors.js';
 // Interiors planned by rules: rooms, furniture, decor (data/interiorPlans.json)
 import './interiorPlanner.js';
+// Interiors by the hour, the season and what has happened: a layer over the plan (data/interiorState.json)
+import './interiorState.js';
 import './floors.js';
 import './movement.js';
 import './npcs.js';

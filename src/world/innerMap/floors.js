@@ -16,7 +16,7 @@
 // up to a floor. Anyone inside keeps to their own floor.
 
 import { InnerMap } from './_ref.js';
-import { DataLoader, Utils } from './_imports.js';
+import { DataLoader, Utils, CustomBuildings } from './_imports.js';
 
 const _cfg = () => {
     const d = (DataLoader.get && DataLoader.get('buildingFloors')) || (DataLoader._gamedata && DataLoader._gamedata.buildingFloors) || {};
@@ -79,6 +79,11 @@ Object.assign(InnerMap, {
         if (cap <= 1) return 1;
         if (_ownBuilding(building)) return cap;
         const lo = Math.min(cap, Math.max(1, Number(C.minFloors[type]) || 1));
+        // A tile-composed building stands as many storeys as its street front shows (its upper
+        // windows: interiorPlanner.js _exteriorOf), held to what its type and builders allow
+        const def = building._customDefId != null && CustomBuildings && CustomBuildings.getBuilding ? CustomBuildings.getBuilding(building._customDefId) : null;
+        const shown = def && this._exteriorOf ? (this._exteriorOf(def) || {}).storeys : null;
+        if (Number.isFinite(shown) && shown >= 1) return Math.max(lo, Math.min(cap, shown));
         const wt = this.currentWorldTile || {};
         return lo + (_hash(`${wt.q},${wt.r}|${building.q},${building.r}|${type}`) % (cap - lo + 1));
     },
@@ -199,7 +204,10 @@ Object.assign(InnerMap, {
     _buildUpperFloor(below, building, k, hasAbove, seed) {
         const C = _cfg();
         const { width: w, height: h } = below;
-        const room = this.floorRoom(building, k);
+        // (whose it is: the household sleeps in the bedchamber over the house — interiorPlanner.js)
+        const who = below._who || null;
+        let room = this.floorRoom(building, k);
+        if (who && k === 1 && this._householdRoom) room = this._householdRoom(room, who, below._tier);
         const floorId = room.floor || 'wood_floor';
         const floorDef = (this.INTERIOR_FLOORS && this.INTERIOR_FLOORS[floorId]) || { color: '#8B7355', altColor: '#7A6548', name: 'Floor' };
         // A wall tile to copy where the door was
@@ -250,7 +258,19 @@ Object.assign(InnerMap, {
                 };
             }
         }
-        const interior = { tiles, width: w, height: h, _floor: k, _room: room.kind };
+        const interior = { tiles, width: w, height: h, _floor: k, _room: room.kind, _who: who, _tier: below._tier };
+        // The front wall's windows where the street front shows its upper ones (interiorPlanner.js)
+        const ex = who && who.exterior;
+        if (ex && Array.isArray(ex.upper)) {
+            const front = tiles[h - 1] || [];
+            for (const t of front) if (t && (t._wallDecor === 'window' || t._wallDecor === 'curtains')) { delete t._wallDecor; delete t._wallDecorFace; }
+            for (const f of ex.upper) {
+                const q = Math.max(1, Math.min(w - 2, 1 + Math.round(f * (w - 2) - 0.5)));
+                const t = front[q];
+                const inside = tiles[h - 2] && tiles[h - 2][q];
+                if (t && t.baseTerrain === 'wall' && inside && inside.baseTerrain !== 'wall') { t._wallDecor = 'window'; t._wallDecorFace = 'up'; }
+            }
+        }
         // The stairs down, where the stairs below come up
         const down = below._stairs.up;
         const dt = tiles[down.r] && tiles[down.r][down.q];
@@ -313,6 +333,9 @@ Object.assign(InnerMap, {
                     const passable = !!f.passable;
                     const prev = t.subTerrain;
                     t._furniture = { type: f.type, icon: f.icon, name: f.name, passable };
+                    // (a straw pallet keeps its look, and stays a tile's piece)
+                    if (f.art) t._furniture.art = f.art;
+                    if (f.noJoin) t._furniture.noJoin = true;
                     if (!passable) {
                         t.subTerrain = { id: `furniture_${f.type}`, name: f.name, icon: f.icon, color: (this.FURNITURE_COLORS && this.FURNITURE_COLORS[f.type]) || '#6a5a4a', passable: false };
                         if (!allReached()) { t._furniture = null; t.subTerrain = prev; continue; }

@@ -6,7 +6,7 @@ the credits files beside the originals (each section names its source sheet).
 The kit pieces (banner, weapon rack: assets/buildingKit/furniture48.png) are the
 building kit's own. Drawn by the script pixel by pixel: the tankards (mugs), the
 stack of books, the coins, the antlers, the wall map, the coat rack, the cradle's
-blanket and the tapestry's rod.
+blanket, the tapestry's rod and the window shutters.
 
 [Objects/Small Items/Credits.txt]
 Dishes

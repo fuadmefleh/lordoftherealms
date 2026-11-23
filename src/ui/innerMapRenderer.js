@@ -6,6 +6,7 @@ import { CustomObjects } from '../world/customObjects.js';
 import { CustomBuildings } from '../world/customBuildings.js';
 import { CustomInteriors } from '../world/customInteriors.js';
 import { LightSystem } from './lightSystem.js';
+import { InteriorLight } from './interiorLight.js';
 import { InnerMapCombat } from './innerMapCombat.js';
 import { drawHoverCoords } from './hoverCoords.js';
 import { resetCanvasTransform } from './hiDpi.js';
@@ -761,28 +762,7 @@ export const InnerMapRenderer = {
         }
 
         // ── Layer 9: Dynamic lighting & ambient overlays ──
-        // The light system replaces the old flat ambient overlay with proper
-        // 2D radial lights (player torch, building lights, road torches, etc.)
-        if (typeof LightSystem !== 'undefined' && LightSystem.enabled && LightSystem.ambientDarkness > 0.01) {
-            // Render dynamic light/shadow overlay
-            LightSystem.render(ctx, canvas, deltaTime);
-
-            // Weather overlay on top of lighting (still additive)
-            if (!InnerMap._insideBuilding) {
-                const weatherColor = InnerMap.getWeatherOverlay();
-                if (weatherColor) { ctx.fillStyle = weatherColor; ctx.fillRect(0, 0, w, h); }
-                const tempColor = InnerMap.getTemperatureOverlay();
-                if (tempColor) { ctx.fillStyle = tempColor; ctx.fillRect(0, 0, w, h); }
-            }
-        } else {
-            // During full daylight: just draw weather/temperature overlays
-            if (!InnerMap._insideBuilding) {
-                const weatherColor = InnerMap.getWeatherOverlay();
-                if (weatherColor) { ctx.fillStyle = weatherColor; ctx.fillRect(0, 0, w, h); }
-                const tempColor = InnerMap.getTemperatureOverlay();
-                if (tempColor) { ctx.fillStyle = tempColor; ctx.fillRect(0, 0, w, h); }
-            }
-        }
+        this._renderLighting(ctx, canvas, camera, deltaTime);
 
         // ── Layer 9.5: Fire glow, embers and sparks — shining through the night (innerMapLayers/ambient.js) ──
         if (this._renderAmbientGlow) {
@@ -806,6 +786,45 @@ export const InnerMapRenderer = {
             drawHoverCoords(ctx, canvas, this._mouseX, this._mouseY,
                 this._hoveredInnerHex.q, this._hoveredInnerHex.r);
         }
+    },
+
+    /**
+     * Layer 9, the light. Indoors (a room, not a cave or a mine) the room's own light map
+     * (ui/interiorLight.js: windows by the hour, fires, candles, the corners' dark) is the
+     * only pass — LightSystem's night overlay is left off, so a room is never darkened twice.
+     * Elsewhere LightSystem's 2D radial lights (player torch, building lights, road torches)
+     * and the weather's tints. Returns which ran: 'interior' | 'lightSystem' | 'none'.
+     */
+    _renderLighting(ctx, canvas, camera, deltaTime) {
+        const w = canvas.width, h = canvas.height;
+        if (InnerMap._insideBuilding) {
+            let done = false;
+            try { done = InteriorLight.render(ctx, canvas, camera, this._interiorArt, this._ambientT || 0, this.TILE_SIZE); } catch (err) { console.warn('[InnerMapRenderer] interior light:', err); }
+            if (done) return 'interior';
+        }
+        let ran = 'none';
+        if (typeof LightSystem !== 'undefined' && LightSystem.enabled && LightSystem.ambientDarkness > 0.01) {
+            ran = 'lightSystem';
+            // Render dynamic light/shadow overlay
+            LightSystem.render(ctx, canvas, deltaTime);
+
+            // Weather overlay on top of lighting (still additive)
+            if (!InnerMap._insideBuilding) {
+                const weatherColor = InnerMap.getWeatherOverlay();
+                if (weatherColor) { ctx.fillStyle = weatherColor; ctx.fillRect(0, 0, w, h); }
+                const tempColor = InnerMap.getTemperatureOverlay();
+                if (tempColor) { ctx.fillStyle = tempColor; ctx.fillRect(0, 0, w, h); }
+            }
+        } else {
+            // During full daylight: just draw weather/temperature overlays
+            if (!InnerMap._insideBuilding) {
+                const weatherColor = InnerMap.getWeatherOverlay();
+                if (weatherColor) { ctx.fillStyle = weatherColor; ctx.fillRect(0, 0, w, h); }
+                const tempColor = InnerMap.getTemperatureOverlay();
+                if (tempColor) { ctx.fillStyle = tempColor; ctx.fillRect(0, 0, w, h); }
+            }
+        }
+        return ran;
     },
 
     // Render layers are defined in innerMapLayers.js

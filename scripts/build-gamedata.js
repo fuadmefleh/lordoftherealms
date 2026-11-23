@@ -247,7 +247,9 @@ const topLevel = [
     // Pack load: what every good weighs, what you can carry on your back, a horse, a handcart, a horse cart (core/inventory.js)
     'packLoad',
     // The names of the land and the water, drawn like an atlas (world/geoNames.js, ui/renderer/geoLabels.js)
-    'geography'
+    'geography',
+    // Interiors by the hour, the season and what has happened (world/innerMap/interiorState.js)
+    'interiorState'
 ];
 
 const merged = {};

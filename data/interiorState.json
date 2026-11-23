@@ -1,0 +1,82 @@
+{
+    "_doc": "Interiors by the hour, the season and what has happened (world/innerMap/interiorState.js): a layer laid over the planned interior each time it is shown and again each hour while you are inside, taken off on leaving; never saved, never written into the plan. Hours are [from, to) spans; a 'to' past 24 runs on past midnight (26 = 2 at night). 'kinds' sorts the building types (the rest go by data/architecture.json wealth.floors: work, hall, else home). 'fires' is when each kind keeps its hearths lit (fireplace, oven, cauldron) — 'winter' replaces 'lit' in winter, 'banked' is when a fire not lit is banked for the night rather than out; the forge and the bakery's oven keep their trade's hours (data/townScenes.json interiors smithy/bakery hours, else these). 'candles' when candles are lit, 'shutters' when windows are shut. 'meals' lays the table at breakfast and supper in homes and halls; 'tavern' fills the tables with mugs as the tavern fills (data/townScenes.json interiors.tavern.crowdByHour) and clears them when it is near empty. 'marks': what raids (settlement.lastRaidedDay), a sack (world/townMarks.js 'sack' marks), plague looting (settlement.plague.looted) and a fire (a 'scorched' building, a fire mark nearby) leave — broken furniture, pieces carried off, decor stripped, soot — fading over their days; a building rebuilt since is clean. 'wealth': a town poorer than when its houses were built strips their finery, a richer one adds to it. 'winter': firewood by the hearths (never shutting a tile off from the door), furs on the beds. 'feast': garlands on the walls and extra food on midwinter, the harvest fair and holy days.",
+    "enabled": true,
+    "kinds": {
+        "tavern": ["tavern", "inn", "roadhouse", "guest_house", "hotel"],
+        "smithy": ["blacksmith", "mint"],
+        "bakery": ["bakery"]
+    },
+    "hearths": ["fireplace", "oven", "cauldron"],
+    "forges": ["forge"],
+    "fires": {
+        "home":   { "lit": [[5, 10], [17, 22]], "winter": [[5, 23]], "banked": [[22, 29]] },
+        "hall":   { "lit": [[7, 11], [17, 21]], "winter": [[6, 22]], "banked": [[21, 30]] },
+        "tavern": { "lit": [[6, 11], [16, 26]], "winter": [[6, 26]], "banked": [[2, 6]] },
+        "work":   { "lit": [], "winter": [[7, 18]], "banked": [] },
+        "smithy": { "lit": [[6, 19]], "banked": [[19, 30]] },
+        "bakery": { "lit": [[4, 15]], "banked": [[15, 28]] },
+        "ownHomeAlwaysLit": true
+    },
+    "forgeHours": [[6, 19]],
+    "candles": { "home": [[18, 23]], "hall": [[18, 22]], "tavern": [[17, 26]], "work": [], "smithy": [], "bakery": [[4, 6]], "winterDawn": [[5, 7]] },
+    "shutters": [[21, 30]],
+    "meals": {
+        "kinds": ["home", "hall"],
+        "breakfast": { "hours": [[6, 8]], "items": ["bread", "bowls"] },
+        "supper": { "hours": [[18, 20]], "items": ["bowls", "plates", "bread"] },
+        "tables": 2,
+        "on": ["table"]
+    },
+    "tavern": {
+        "on": ["table", "bar"],
+        "item": "mugs",
+        "lateItems": ["plates", "bottles"],
+        "lateAbove": 0.75,
+        "emptyBelow": 0.2,
+        "clear": ["mugs", "plates", "bottles", "bowls"],
+        "crowdByHour": [4, 2, 0, 0, 0, 0, 0, 0, 1, 1, 1, 2, 3, 3, 2, 2, 3, 4, 6, 8, 9, 9, 8, 6]
+    },
+    "marks": {
+        "raid":   { "days": 40, "share": 0.6 },
+        "sack":   { "days": 120, "share": 0.85 },
+        "plague": { "days": 90 },
+        "fire":   { "days": 60, "share": 0.35 },
+        "scorched": { "broken": 0.45, "soot": 0.8 },
+        "broken": 0.55,
+        "removed": 0.3,
+        "stripDecor": 0.85,
+        "stripWall": 0.6,
+        "soot": 0.6,
+        "keep": ["stairs", "well", "millstone", "altar", "anvil", "forge", "fireplace", "oven", "cell", "bar", "stall", "press", "throne"],
+        "windows": ["window", "curtains"]
+    },
+    "wealth": {
+        "fall": 0.08,
+        "rise": 0.08,
+        "share": 0.7,
+        "finery": ["rug", "candle", "banner", "statue"],
+        "fineDecor": ["candles", "flowers", "fruit", "coins", "bottles"],
+        "fineWall": ["painting", "tapestry", "mirror", "clock", "curtains"],
+        "riseItems": ["flowers", "candles", "fruit"],
+        "riseOn": ["table", "desk", "shelf", "dresser", "cupboard"],
+        "riseShare": 0.5
+    },
+    "winter": {
+        "coldTerrains": ["snow", "ice", "snow_peak"],
+        "firewood": { "type": "firewood", "name": "Firewood", "icon": "🪵", "passable": false, "color": "#6a4a2a" },
+        "firewoodKinds": ["home", "hall", "tavern"],
+        "beds": ["bed"]
+    },
+    "feast": {
+        "kinds": ["home", "hall", "tavern"],
+        "garland": "banner",
+        "garlands": 4,
+        "greenery": "flowers",
+        "food": ["bread", "fruit"],
+        "tables": 3,
+        "midwinter": true,
+        "fair": true,
+        "holyDay": true,
+        "garlandsOnHolyDay": false
+    }
+}

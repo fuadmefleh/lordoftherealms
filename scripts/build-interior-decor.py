@@ -297,16 +297,43 @@ def window(night=False):
     return trim(stack((top, 0, 0), (foot, 0, 24), w=32, h=44))
 
 
+def shutters(win):
+    """The window shut for the night: two leaves of boards filling its opening (drawn here
+    pixel by pixel in the LPC woods: upright boards, a batten across, the seam between)."""
+    o = win.copy()
+    dark = lambda p: p[3] and sum(p[:3]) < 330
+    stone = lambda p: p[3] and not dark(p)
+    tone = [WD2, WD3, WD2, WD1]
+    for y in range(win.height):
+        row = [win.getpixel((x, y)) for x in range(win.width)]
+        xs = [x for x in range(1, win.width - 1) if dark(row[x])
+              and any(stone(row[k]) for k in range(0, x)) and any(stone(row[k]) for k in range(x + 1, win.width))]
+        if not xs:
+            continue
+        x0, x1 = min(xs), max(xs)
+        for x in range(x0, x1 + 1):
+            p = tone[(x - x0) % 4]
+            if (y - 5) % 9 in (5, 6):                       # a batten across each leaf
+                p = WD3 if (y - 5) % 9 == 5 else WD1
+            if x in (x0, x1) or x == win.width // 2 - 1:   # the leaves' edges, the seam
+                p = OUTL
+            o.putpixel((x, y), p)
+    return o
+
+
 def wall_items():
     """On a wall's face (tile._wallDecor). hang: the foot of the sprite, in tiles above the floor."""
     W = {}
     win = window()
-    W['window'] = (win, 34, {'hang': 0.25, 'night': 'window_night', 'light': 'window'})
+    shut = shutters(window(night=True))
+    W['window'] = (win, 34, {'hang': 0.25, 'night': 'window_night', 'shut': 'window_shut', 'light': 'window'})
     W['window_night'] = (window(night=True), 34, {'hang': 0.25})
+    W['window_shut'] = (shut, 34, {'hang': 0.25})
     curt = cut('Wall Items/Curtains.png', 160, 128, 64, 72)
     W['curtains'] = (stack((win, (curt.width - win.width) // 2, 3), (curt, 0, 0)), 48,
-                     {'hang': 0.3, 'night': 'curtains_night', 'light': 'window'})
+                     {'hang': 0.3, 'night': 'curtains_night', 'shut': 'curtains_shut', 'light': 'window'})
     W['curtains_night'] = (stack((window(night=True), (curt.width - 32) // 2, 3), (curt, 0, 0)), 48, {'hang': 0.3})
+    W['curtains_shut'] = (stack((shut, (curt.width - 32) // 2, 3), (curt, 0, 0)), 48, {'hang': 0.3})
     W['torch'] = (cut('Wall Items/Lighting, Wall.png', 64, 0, 32, 64), 32, {'hang': 0.35, 'light': 'torch'})
     W['painting'] = (cut('Wall Items/Paintings, Landscape.png', 0, 0, 64, 32), 32, {'hang': 0.55})
     W['painting_portrait'] = (cut('Wall Items/Paintings, Portraits.png', 64, 0, 32, 64), 36, {'hang': 0.45})
@@ -409,7 +436,7 @@ def entry(ox, oy, im, grid, extra):
     if grid != 48:
         e['grid'] = grid
     for k, v in extra.items():
-        if k in ('night',):
+        if k in ('night', 'shut'):
             continue
         e[k] = v
     return e
@@ -521,7 +548,7 @@ def write_credits():
         'The kit pieces (banner, weapon rack: assets/buildingKit/furniture48.png) are the',
         'building kit\'s own. Drawn by the script pixel by pixel: the tankards (mugs), the',
         'stack of books, the coins, the antlers, the wall map, the coat rack, the cradle\'s',
-        'blanket and the tapestry\'s rod.',
+        'blanket, the tapestry\'s rod and the window shutters.',
         '',
     ]
     body = [f'[{path}]\n' + section(path, title) + '\n' for path, title in CREDITS]
@@ -540,9 +567,10 @@ def main():
     wall = {}
     for k, (im, grid, extra) in W.items():
         e = dict(by[('wall', k)])
-        if extra.get('night'):
-            n = by[('wall', extra['night'])]
-            e['night'] = {'sx': n['sx'], 'sy': n['sy'], 'sw': n['sw'], 'sh': n['sh']}
+        for alt in ('night', 'shut'):
+            if extra.get(alt):
+                n = by[('wall', extra[alt])]
+                e[alt] = {'sx': n['sx'], 'sy': n['sy'], 'sw': n['sw'], 'sh': n['sh']}
         wall[k] = e
     for k, vs in WALL_VARIANTS.items():
         wall[k]['variants'] = [{f: by[('wall', v)][f] for f in ('sx', 'sy', 'sw', 'sh')} | ({'grid': by[('wall', v)]['grid']} if 'grid' in by[('wall', v)] else {}) for v in vs]

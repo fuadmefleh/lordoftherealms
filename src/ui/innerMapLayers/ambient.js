@@ -302,7 +302,8 @@ Object.assign(InnerMapRenderer, {
                 if (inside) {
                     const f = tile._furniture;
                     const spec = f && cfg.furniture[f.type];
-                    if (spec) this._ambFromSpec(cfg, spec, q, r, seed, conds, ds, camera, T);
+                    // (a hearth let die, a candle out — f.lit / tile._decorLit false — neither glows nor spits embers)
+                    if (spec && f.lit !== false && !(f.type === 'candle' && tile._decorLit === false)) this._ambFromSpec(cfg, spec, q, r, seed, conds, ds, camera, T);
                     continue;
                 }
                 if (tile.customObject) {

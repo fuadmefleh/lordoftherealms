@@ -10,7 +10,7 @@ import { furnitureGlyph } from '../icons.js';
 import { engraveGlyph } from '../mapInk.js';
 import { sheetScale } from '../sheetScale.js';
 import { tintedWallSheet } from '../wallTint.js';
-import { CAP, asIds, daylight, wallSides, drawOuterWall, drawInnerWall, shadeFloor, drawWallDecor, drawTableDecor } from '../interiorDress.js';
+import { CAP, asIds, daylight, wallSides, drawOuterWall, drawInnerWall, shadeFloor, drawWallDecor, drawTableDecor, drawSoot, drawBroken, drawColdFire, fireOut } from '../interiorDress.js';
 import { drawKerbs } from '../pavingEdges.js';
 import { drawLaneGround, drawLaneTufts } from '../laneEdges.js';
 import { drawTilledSoil } from '../tilledSoil.js';
@@ -547,6 +547,8 @@ Object.assign(InnerMapRenderer, {
             const fl = tile._innerWall || !wallSides(tile) ? floorOf() : null;
             if ((tile._innerWall || !wallSides(tile)) && !fl) return false;
             const face = this._drawWallTile(ctx, tile, mat, base.img, this._sheetScale(base.img), dx, dy, sz, fl ? () => drawFloor(fl) : null);
+            // (soot up its face: tile._soot, from the house's days)
+            if (tile._soot && face) drawSoot(ctx, tile, dx, dy, sz, face);
             if (tile._wallDecor && art.wallDecor) {
                 // (after the row is done: a painting wider than its tile lies over the next)
                 const night = light < 0.35;
@@ -584,8 +586,9 @@ Object.assign(InnerMapRenderer, {
             return true;
         }
         drawFloor(base);
-        // the walls' shadows on it, a window's light
-        shadeFloor(ctx, tile, at, dx, dy, sz, light);
+        // the walls' shadows on it (its windows' and fires' light: ui/interiorLight.js), soot
+        shadeFloor(ctx, tile, at, dx, dy, sz);
+        if (tile._soot) drawSoot(ctx, tile, dx, dy, sz, null);
         if (tile._isDoor) {
             const door = pick(art.door);
             if (door) { const kd = this._sheetScale(door.img); ctx.drawImage(door.img, door.c.sx * kd, door.c.sy * kd, (door.c.sw || 32) * kd, (door.c.sh || 32) * kd, dx, dy, sz, sz); }
@@ -609,11 +612,21 @@ Object.assign(InnerMapRenderer, {
             }
             const bx = Math.round(left + (piece.w * sz - dw) / 2), by = Math.round(bottom - dh);
             ctx.drawImage(furnImg.img, c.sx * k, c.sy * k, c.sw * k, c.sh * k, bx, by, Math.round(dw), Math.round(dh));
-            // (what lies on any of its tiles, spread along the whole of it)
-            const ids = [];
+            // (what lies on any of its tiles, spread along the whole of it; broken when any of it is)
+            const ids = [], parts = [];
+            let broken = false;
             for (let j = 0; j < piece.h; j++) {
-                for (let i = 0; i < piece.w; i++) ids.push(...asIds((at(i - piece.w + 1, j - piece.h + 1) || {})._decor));
+                for (let i = 0; i < piece.w; i++) {
+                    const o = at(i - piece.w + 1, j - piece.h + 1) || {};
+                    ids.push(...asIds(o._decor));
+                    parts.push(o._furniture);
+                    if (o._furniture && o._furniture.broken) broken = true;
+                }
             }
+            const pbox = { x: bx, y: by, w: Math.round(dw), h: Math.round(dh) };
+            // (a hearth let die: tile._furniture.lit false)
+            if (c.fire && fireOut(parts)) drawColdFire(ctx, pbox, c.fire, sz, hash);
+            if (broken && !c.flat) drawBroken(ctx, furnImg.img, c, k, pbox, sz, hash);
             onTop({ x: bx, y: by, w: dw, h: dh }, ids, c.top);
             return true;
         }
@@ -649,12 +662,16 @@ Object.assign(InnerMapRenderer, {
                 box = { x: dx, y: dy - ly, w: sz, h: sz };
                 ctx.drawImage(fimg, fc.sx * kf, fc.sy * kf, (fc.sw || 32) * kf, (fc.sh || 32) * kf, dx, dy - ly, sz, sz);
             }
+            if (fc.fire && furniture.lit === false) drawColdFire(ctx, box, fc.fire, sz, hash);
+            // (broken: tile._furniture.broken — a rug or straw lying flat is only worn, not broken)
+            if (furniture.broken && !furnArt.flat) drawBroken(ctx, fimg, fc, kf, box, sz, hash);
             onTop(box, asIds(tile._decor), furnArt.top);
         } else if (furniture) {
             // A piece with no sprite yet: its glyph cut into a dark plate
             const pad = sz * 0.14;
             ctx.fillStyle = InnerMap.FURNITURE_COLORS[furniture.type] || '#6a5a4a';
             ctx.fillRect(dx + pad, dy + pad, sz - pad * 2, sz - pad * 2);
+            if (furniture.broken) { ctx.fillStyle = 'rgba(20, 12, 8, 0.4)'; ctx.fillRect(dx + pad, dy + pad, sz - pad * 2, sz - pad * 2); }
             const glyph = sz >= 16 && furnitureGlyph(furniture);
             if (glyph) engraveGlyph(ctx, glyph, dx + sz / 2, dy + sz / 2, sz * 0.62);
         }

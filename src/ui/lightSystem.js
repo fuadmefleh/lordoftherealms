@@ -427,8 +427,22 @@ export const LightSystem = {
                     const tile = InnerMap.tiles[r] && InnerMap.tiles[r][q];
                     if (!tile || !tile._isInterior) continue;
 
-                    if (tile._interiorMeta) {
-                        const meta = tile._interiorMeta;
+                    // A torch on the wall, candles on a table (ui/interiorDress.js): their own small light
+                    if (tile._wallDecor || tile._decor) {
+                        const lit = (v, id) => (Array.isArray(v) ? v : [v]).some(x => x === id || (x && (x.type === id || x.id === id)));
+                        if (tile._wallDecor && lit(tile._wallDecor, 'torch')) {
+                            // (on the back wall's face, up the wall; on a side wall's top, at its edge)
+                            const screen = camera.worldToScreenFast(q * T + T / 2, r * T + (r === 0 ? T * 0.1 : T / 2));
+                            this.addLight(screen.x, screen.y, 60 * camera.zoom, { r: 255, g: 170, b: 70 }, 0.65, 'torch');
+                        }
+                        if (tile._decor && (lit(tile._decor, 'candles') || lit(tile._decor, 'candle'))) {
+                            const screen = camera.worldToScreenFast(q * T + T / 2, r * T + T * 0.3);
+                            this.addLight(screen.x, screen.y, 36 * camera.zoom, { r: 255, g: 214, b: 140 }, 0.5, 'torch');
+                        }
+                    }
+                    // (a procedural room keeps its furniture on the tile; a sprite room in _interiorMeta)
+                    const meta = tile._interiorMeta || (tile._furniture ? { furniture: tile._furniture } : null);
+                    if (meta) {
                         if (meta.furniture) {
                             const fType = meta.furniture.type;
                             if (fType === 'fireplace' || fType === 'forge') {

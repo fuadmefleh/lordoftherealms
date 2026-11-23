@@ -213,6 +213,9 @@ Object.assign(InnerMap, {
             const t = s ? JSON.parse(JSON.stringify(s)) : { baseTerrain: 'wall', subTerrain: { id: 'wall', name: 'Wall', icon: '🧱', color: '#5a4a3a', passable: false } };
             Object.assign(t, { q, r, _isDoor: false, _furniture: null, _stairs: null, customObject: null, customObjectPart: null, explored: true, visible: true, _floorAbove: k });
             if (t.baseTerrain !== 'void') { t.baseTerrain = 'wall'; t.subTerrain = { ...(t.subTerrain || {}), id: 'wall', name: 'Wall', icon: '🧱', passable: false }; }
+            // (the windows go up with the walls; what hangs on them below stays below: interiorPlanner.js)
+            if (t._wallDecor && t._wallDecor !== 'window' && t._wallDecor !== 'curtains') { delete t._wallDecor; delete t._wallDecorFace; }
+            delete t._decor;
             return t;
         };
         const tiles = [];

@@ -2,6 +2,7 @@
 import { icon } from '../icons.js';
 import { UI } from './core.js';
 import { applyUiScale, UI_SCALE_OPTIONS } from '../uiScale.js';
+import { ScreenTransition } from '../screenTransition.js';
 import { RealmIntel } from '../../systems/realmIntel.js';
 import { ORE_KEY } from '../renderer/oreMap.js';
 import { LlmClient } from '../../systems/llmClient.js';
@@ -966,6 +967,8 @@ Object.assign(UI.prototype, {
 
         // Interface size (zooms all HUD chrome; ui/uiScale.js)
         applyUiScale(settings.uiScale);
+        // The fade / door wipe in and out of buildings and towns (ui/screenTransition.js)
+        ScreenTransition.configure({ enabled: settings.screenTransitions !== false });
 
         // Minimap
         const minimap = document.getElementById('minimapCanvas');
@@ -1226,6 +1229,13 @@ Object.assign(UI.prototype, {
                     <label>Show Day Counter</label>
                     <label class="gs-toggle">
                         <input type="checkbox" id="gsShowDayCounter" ${s.showDayCounter ? 'checked' : ''}>
+                        <span class="gs-toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="gs-row">
+                    <label>Screen Transitions<br><span style="font-size:10px;color:var(--text-secondary);">A short fade or door wipe going in and out of buildings and towns</span></label>
+                    <label class="gs-toggle">
+                        <input type="checkbox" id="gsScreenTransitions" ${s.screenTransitions !== false ? 'checked' : ''}>
                         <span class="gs-toggle-slider"></span>
                     </label>
                 </div>
@@ -1635,6 +1645,7 @@ Object.assign(UI.prototype, {
             minZoom: parseFloat(getVal('gsMinZoom')) || 0.55,
             maxZoom: parseFloat(getVal('gsMaxZoom')) || 1.5,
             showDayCounter: getChecked('gsShowDayCounter'),
+            screenTransitions: getChecked('gsScreenTransitions'),
             showMinimap: getChecked('gsShowMinimap'),
             confirmEndDay: getChecked('gsConfirmEndDay'),
             autoUpkeep: getVal('gsAutoUpkeep') || 'full',
@@ -1714,6 +1725,7 @@ Object.assign(UI, {
             maxZoom: 1.5,
             showDayCounter: true,
             showMinimap: true,
+            screenTransitions: true,
             confirmEndDay: false,
             autoUpkeep: 'full',
             morningBrief: true,

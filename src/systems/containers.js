@@ -66,7 +66,7 @@ function _hash(str) {
 
 const DEFAULTS = {
     restockDays: 14,
-    containerTypes: ['chest', 'crate', 'barrel', 'shelf', 'bookshelf', 'sack', 'rack', 'desk', 'stall', 'cauldron', 'oven'],
+    containerTypes: ['chest', 'crate', 'barrel', 'shelf', 'bookshelf', 'sack', 'rack', 'desk', 'stall', 'cauldron', 'oven', 'dresser', 'cupboard', 'wardrobe', 'basket', 'sack_pile', 'crate_stack', 'barrel_rack', 'firewood'],
     loot: {},
     byBuilding: {},
     outdoors: {},

@@ -111,6 +111,8 @@ const topLevel = [
     'interrogation',
     'realmIntel',
     'containers',
+    // Using furniture indoors: sit, sleep, warm up, read, eat, wash (player/furnitureActions.js)
+    'furnitureActions',
     'townProps',
     'buildingFloors',
     'mapTasks',
@@ -130,6 +132,8 @@ const topLevel = [
     'practiceSkills',
     'wrecks',
     'furniture',
+    // Interiors planned by rules: sizes, rooms, placement, decor (world/innerMap/interiorPlanner.js)
+    'interiorPlans',
     // The player's own house, lived in: rooms, servants, guests, larder (player/household.js)
     'household',
     'crops',

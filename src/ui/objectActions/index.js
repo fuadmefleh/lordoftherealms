@@ -29,6 +29,7 @@ import {
 import { OBJECT_ACTIONS } from './actions.js';
 import { showContentsModal } from './contents.js';
 import { Containers } from '../../systems/containers.js';
+import { FurnitureActions } from '../../player/furnitureActions.js';
 
 export const ObjectActions = {
 
@@ -62,10 +63,23 @@ export const ObjectActions = {
     /**
      * Action keys usable on a piece of furniture inside `building`
      * (null when outdoors). Private furniture — beds, chests — in a home the
-     * player doesn't own offers nothing beyond inspection.
+     * player doesn't own offers nothing beyond inspection, but a bed: Sleep
+     * (greyed out: not yours) and Sleep Here Anyway (a trespass). An inn's
+     * bed is the room you took tonight (opts: { furniture, player, world }).
+     * Over the built-in tables: data/furnitureActions.json (offers, byBuilding,
+     * and what stands on the piece: decorOffers).
      */
-    getFurnitureActionKeys(furnitureType, building) {
+    getFurnitureActionKeys(furnitureType, building, opts = {}) {
         if (!furnitureType) return [];
+        const fa = FurnitureActions.offers(furnitureType, building, opts.furniture || null);
+        const plus = keys => {
+            const out = [...keys];
+            for (const k of fa.add) if (!out.includes(k) && OBJECT_ACTIONS[k]) out.push(k);
+            // A room taken here tonight: its bed is yours to sleep in
+            if (furnitureType === 'bed' && !out.includes('sleep') && opts.player
+                && FurnitureActions.standing(building) === 'lodging' && FurnitureActions.rentedHere(opts.player, opts.world, building)) out.unshift('sleep');
+            return out;
+        };
         // Anything with an inside can be looked into — and its contents taken
         // or stolen (systems/containers.js) — wherever it stands.
         // (Your own chests already open as storage.)
@@ -74,18 +88,18 @@ export const ObjectActions = {
         const withLook = keys => (Containers.isContainer(furnitureType) && !keys.includes('look_inside') && !ownStore(keys)
             ? [...keys, 'look_inside'] : keys);
         const bType = building ? String(building.type || '').replace(/^player_/, '') : null;
-        const override = bType && BUILDING_FURNITURE_ACTIONS[bType] && BUILDING_FURNITURE_ACTIONS[bType][furnitureType];
-        if (override) return withLook(override);
-        if (PRIVATE_FURNITURE.has(furnitureType) && !owned) return withLook([]);
-        return withLook(FURNITURE_ACTIONS[furnitureType] || []);
+        const override = fa.building || (bType && BUILDING_FURNITURE_ACTIONS[bType] && BUILDING_FURNITURE_ACTIONS[bType][furnitureType]);
+        if (override) return withLook(plus(override));
+        if (PRIVATE_FURNITURE.has(furnitureType) && !owned) return withLook(plus(furnitureType === 'bed' ? ['sleep', 'sleep_trespass'] : []));
+        return withLook(plus(fa.type || FURNITURE_ACTIONS[furnitureType] || []));
     },
 
     /** Context menu items for a piece of furniture at (q, r). */
     buildFurnitureMenuItems(game, furniture, building, q, r) {
-        const actions = this.getFurnitureActionKeys(furniture.type, building);
+        const actions = this.getFurnitureActionKeys(furniture.type, building, { furniture, player: game.player, world: game.world });
         if (!actions.length) return [];
         // (restBonus: a bed of the player's own makes for better sleep — world/innerMap/furnishing.js)
-        return this.buildMenuItems(game, { name: furniture.name, icon: furniture.icon, actions, furnitureType: furniture.type, restBonus: furniture.restBonus }, q, r);
+        return this.buildMenuItems(game, { name: furniture.name, icon: furniture.icon, actions, furnitureType: furniture.type, restBonus: furniture.restBonus, furniture }, q, r);
     },
 
     /**
@@ -107,6 +121,14 @@ export const ObjectActions = {
                     disabledReason = action.conditionFail || 'Not available';
                 }
             }
+            // A furniture rule (player/furnitureActions.js): may you, here, and why not
+            if (!disabled && typeof action.check === 'function') {
+                const c = action.check(game, objDef, objAnchorQ, objAnchorR) || { ok: true };
+                if (!c.ok) {
+                    disabled = true;
+                    disabledReason = c.reason || 'Not available';
+                }
+            }
 
             if (disabled) {
                 items.push({
@@ -120,7 +142,7 @@ export const ObjectActions = {
                     action: `obj_action_${action.key}`,
                     label: action.label,
                     icon: action.icon,
-                    desc: action.desc,
+                    desc: typeof action.describe === 'function' ? action.describe(game, objDef, objAnchorQ, objAnchorR) : action.desc,
                     customObjDef: objDef,
                     objAnchorQ,
                     objAnchorR,
@@ -146,6 +168,13 @@ export const ObjectActions = {
         if (actionDef.condition && typeof actionDef.condition === 'function') {
             if (!actionDef.condition(game)) {
                 game.ui.showNotification(`${actionDef.icon} ${actionDef.label}`, actionDef.conditionFail || 'Not available right now.', 'error');
+                return;
+            }
+        }
+        if (typeof actionDef.check === 'function') {
+            const c = actionDef.check(game, objDef, anchorQ, anchorR) || { ok: true };
+            if (!c.ok) {
+                game.ui.showNotification(`${actionDef.icon} ${actionDef.label}`, c.reason || 'Not available right now.', 'error');
                 return;
             }
         }

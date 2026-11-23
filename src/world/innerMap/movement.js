@@ -19,6 +19,8 @@ Object.assign(InnerMap, {
     movePlayer(dq, dr) {
         // Not halfway up a rock face (world/innerMap/climbing.js)
         if (this._climb) return { moved: false, encounter: null, outOfBounds: false };
+        // Sat down: a step gets you up (world/innerMap/furnitureUse.js)
+        if (this._playerSeated && this.standPlayerUp) this.standPlayerUp();
         // Cancel any animated walk in progress
         this.cancelPlayerWalk();
 
@@ -90,6 +92,8 @@ Object.assign(InnerMap, {
             return { started: false, moved: false, encounter: null, outOfBounds: false };
         }
 
+        // Sat down: up to walk (world/innerMap/furnitureUse.js)
+        if (this._playerSeated && this.standPlayerUp) this.standPlayerUp();
         // Start animated walk (skip index 0 which is the current position)
         this._playerPath = path;
         this._playerPathIndex = 1;

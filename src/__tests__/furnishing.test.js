@@ -4,7 +4,7 @@
 // go with it, and a full chest can't be put away), the layout surviving
 // leaving the house and a save/load, and what the furniture does.
 
-import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterAll } from 'vitest';
 import { DataLoader } from '../core/dataLoader.js';
 import { InnerMap } from '../world/innerMap.js';
 import { FurnitureCatalogue } from '../world/furnitureCatalogue.js';
@@ -13,12 +13,18 @@ import { SaveLoad } from '../systems/saveLoad.js';
 import { Player } from '../player/player.js';
 import { ObjectActions } from '../ui/objectActions.js';
 
+// (these walk a known house, its pieces where the old fixed layout puts them — not a planned
+// one, whose rooms and pieces fall where its seed has them: world/innerMap/interiorPlanner.js)
+let planner = null;
 beforeAll(async () => {
     if (!DataLoader._gamedata) {
         DataLoader.clearCache();
         await DataLoader.initializeAll();
     }
+    planner = InnerMap._planInterior;
+    InnerMap._planInterior = null;
 }, 120000);
+afterAll(() => { InnerMap._planInterior = planner; });
 
 /** A one-row street with the player's house on it, entered. */
 function enterHouse(player, building = null) {

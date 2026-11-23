@@ -1,0 +1,463 @@
+{
+    "_note": "How the procedural interiors are planned (world/innerMap/interiorPlanner.js). Each building type's required pieces are its INTERIOR_LAYOUTS furniture (world/innerMap/interiors.js; their coordinates only count the pieces); here are its size by wealth tier, its rooms (carved off the main room with inner walls and doorways: 'side' strips the depth of the house, split into k rooms; 'corner' rooms at the back or front), what each room takes of the required pieces ('type' or 'type:Name'), its extra pieces (by tier, chance and count), and its decor: 'items' set on tables, counters, desks and shelves (tile._decor), 'wall' hung on the walls facing into the room (tile._wallDecor). 'place' is each furniture type's placement rule: back, wall, side, corner, centre, far, bar, behind:bar, near:<type>, foot:bed, ends:table, rows, aisles, aisle, any. Sizes are [[minW,maxW],[minH,maxH]] in tiles, walls included; the building's own footprint leans the pick.",
+    "decorItems": ["mugs", "plates", "bread", "candles", "books", "papers", "pots", "fruit", "cloth", "tools", "flowers", "bottles", "bowls", "coins", "herbs"],
+    "wallDecor": ["window", "shelf", "torch", "painting", "banner", "curtains", "mirror", "antlers", "hanging_pots", "hanging_herbs", "weapon_rack", "map", "tapestry", "clock"],
+    "pieces": {
+        "dresser":        { "name": "Dresser", "icon": "📦", "place": "wall" },
+        "cupboard":       { "name": "Cupboard", "icon": "🏺", "place": "wall" },
+        "workbench":      { "name": "Workbench", "icon": "🔨", "place": "wall" },
+        "loom":           { "name": "Loom", "icon": "🧺", "place": "wall" },
+        "spinning_wheel": { "name": "Spinning Wheel", "icon": "🧺", "place": "near:fireplace" },
+        "basket":         { "name": "Basket", "icon": "🧺", "place": "corner" },
+        "firewood":       { "name": "Firewood", "icon": "📦", "place": "near:fireplace" },
+        "plant":          { "name": "Potted Plant", "icon": "🌾", "place": "corner" },
+        "washstand":      { "name": "Washstand", "icon": "🧺", "place": "wall" },
+        "chair":          { "name": "Chair", "icon": "💺", "place": "ends:table" },
+        "wardrobe":       { "name": "Wardrobe", "icon": "📦", "place": "wall" },
+        "cradle":         { "name": "Cradle", "icon": "🛏️", "place": "near:bed" },
+        "sack_pile":      { "name": "Sacks", "icon": "🌾", "place": "corner" },
+        "crate_stack":    { "name": "Stacked Crates", "icon": "📦", "place": "corner" },
+        "barrel_rack":    { "name": "Barrel Rack", "icon": "🛢️", "place": "wall" },
+        "coat_rack":      { "name": "Coat Rack", "icon": "💺", "place": "side" }
+    },
+    "place": {
+        "bed": "back", "fireplace": "back", "oven": "back", "forge": "back", "cauldron": "wall", "bookshelf": "wall",
+        "shelf": "wall", "chest": "foot:bed", "barrel": "corner", "crate": "corner", "sack": "wall", "table": "centre",
+        "desk": "wall", "bar": "bar", "altar": "far", "throne": "far", "pew": "rows", "rack": "wall", "anvil": "near:forge",
+        "stall": "centre", "candle": "near:table|altar|desk|bed|bar", "banner": "back", "rug": "centre", "stairs": "corner", "bucket": "wall",
+        "tub": "wall", "statue": "side", "lectern": "near:altar", "scales": "near:bar", "millstone": "centre", "cell": "back",
+        "press": "centre", "well": "centre"
+    },
+    "decorOn": ["table", "bar", "desk", "shelf", "workbench", "dresser", "cupboard"],
+    "itemsFor": {
+        "table": ["plates", "bowls", "bread", "mugs"],
+        "bar": ["mugs", "bottles"],
+        "desk": ["papers", "books", "candles"],
+        "shelf": ["pots", "bottles", "bowls"],
+        "workbench": ["tools"],
+        "dresser": ["candles", "cloth", "flowers"],
+        "cupboard": ["plates", "bowls", "pots"]
+    },
+    "tiers": {
+        "poor": { "itemChance": 0.4, "wallChance": 0.14, "windowGap": 4, "curtains": 0, "items": [], "wall": [] },
+        "mid":  { "itemChance": 0.6, "wallChance": 0.24, "windowGap": 3, "curtains": 0.35, "items": ["candles"], "wall": ["painting"] },
+        "rich": { "itemChance": 0.78, "wallChance": 0.36, "windowGap": 2, "curtains": 0.6, "items": ["candles", "flowers", "fruit"], "wall": ["painting", "tapestry", "mirror", "clock"] }
+    },
+    "types": {
+        "house": {
+            "size": { "poor": [[7, 9], [6, 7]], "mid": [[10, 11], [7, 8]], "rich": [[11, 13], [8, 10]] },
+            "main": {
+                "name": "Main Room", "items": ["plates", "bread", "bowls", "fruit"], "wall": ["hanging_herbs", "hanging_pots", "shelf", "curtains"],
+                "extras": [
+                    { "type": "firewood", "chance": 0.7 },
+                    { "type": "chair", "tiers": ["mid", "rich"], "count": [1, 2] },
+                    { "type": "cupboard", "tiers": ["mid", "rich"], "chance": 0.8 },
+                    { "type": "dresser", "tiers": ["rich"] },
+                    { "type": "spinning_wheel", "chance": 0.3 },
+                    { "type": "loom", "tiers": ["mid", "rich"], "chance": 0.2 },
+                    { "type": "basket", "chance": 0.5 },
+                    { "type": "plant", "tiers": ["rich"], "chance": 0.7 },
+                    { "type": "coat_rack", "tiers": ["mid", "rich"], "chance": 0.35 }
+                ]
+            },
+            "rooms": [
+                {
+                    "id": "sleeping", "name": "Sleeping Room", "shape": "side", "width": [2, 3], "split": { "mid": [1, 1], "rich": [1, 2] },
+                    "tiers": ["mid", "rich"], "take": ["bed", "chest"], "items": ["candles", "cloth"], "wall": ["curtains", "shelf", "mirror"],
+                    "extras": [
+                        { "type": "washstand", "chance": 0.5 },
+                        { "type": "wardrobe", "tiers": ["rich"], "chance": 0.8 },
+                        { "type": "cradle", "chance": 0.2 },
+                        { "type": "bed", "name": "Bed", "icon": "🛏️", "tiers": ["rich"], "chance": 0.6, "onlySub": 1 }
+                    ]
+                }
+            ]
+        },
+        "farm": {
+            "size": { "poor": [[7, 9], [6, 7]], "mid": [[8, 10], [6, 8]], "rich": [[9, 11], [7, 8]] },
+            "main": {
+                "name": "Farmhouse", "items": ["bread", "bowls", "tools", "fruit"], "wall": ["hanging_herbs", "hanging_pots", "shelf"],
+                "extras": [
+                    { "type": "sack_pile", "chance": 0.6 },
+                    { "type": "basket", "count": [1, 2] },
+                    { "type": "firewood", "chance": 0.5, "place": "corner" },
+                    { "type": "workbench", "chance": 0.5 },
+                    { "type": "spinning_wheel", "chance": 0.25, "place": "wall" }
+                ]
+            }
+        },
+        "tavern": {
+            "size": { "poor": [[11, 12], [9, 10]], "mid": [[12, 14], [9, 11]], "rich": [[13, 15], [10, 12]] },
+            "scale": ["table"],
+            "main": {
+                "name": "Taproom", "items": ["mugs", "bottles", "plates", "mugs"], "wall": ["torch", "antlers", "shelf", "banner", "torch"],
+                "extras": [
+                    { "type": "chair", "count": [1, 3], "tiers": ["mid", "rich"] },
+                    { "type": "barrel_rack", "chance": 0.5, "place": "behind:bar" },
+                    { "type": "firewood", "chance": 0.6 },
+                    { "type": "coat_rack", "chance": 0.3 }
+                ]
+            },
+            "rooms": [
+                {
+                    "id": "kitchen", "name": "Kitchen", "shape": "corner", "end": "back", "width": [3, 4], "depth": [2, 3],
+                    "items": ["bread", "pots", "herbs", "bowls"], "wall": ["hanging_pots", "hanging_herbs", "shelf"],
+                    "extras": [
+                        { "type": "workbench", "name": "Kitchen Bench" },
+                        { "type": "cupboard", "chance": 0.7 },
+                        { "type": "sack_pile", "chance": 0.6 },
+                        { "type": "basket", "chance": 0.4 }
+                    ]
+                }
+            ]
+        },
+        "inn": {
+            "size": { "poor": [[13, 14], [10, 11]], "mid": [[13, 15], [10, 12]], "rich": [[14, 16], [11, 12]] },
+            "main": {
+                "name": "Common Room", "items": ["mugs", "plates", "bread", "bottles"], "wall": ["torch", "antlers", "shelf", "banner"],
+                "extras": [
+                    { "type": "chair", "count": [1, 2], "tiers": ["mid", "rich"] },
+                    { "type": "firewood", "chance": 0.6 },
+                    { "type": "coat_rack", "chance": 0.4 }
+                ]
+            },
+            "rooms": [
+                {
+                    "id": "guest", "name": "Guest Room", "shape": "side", "width": [2, 3], "split": { "poor": [2, 2], "mid": [2, 3], "rich": [2, 3] },
+                    "take": ["bed:Room Bed"], "items": ["candles", "cloth"], "wall": ["curtains", "shelf", "painting"],
+                    "extras": [
+                        { "type": "chest", "name": "Guest Chest", "icon": "📦", "chance": 0.5 },
+                        { "type": "washstand", "chance": 0.4, "tiers": ["mid", "rich"] }
+                    ]
+                },
+                {
+                    "id": "kitchen", "name": "Kitchen", "shape": "corner", "end": "back", "width": [3, 3], "depth": [2, 3],
+                    "take": ["bucket"], "items": ["bread", "pots", "herbs"], "wall": ["hanging_pots", "hanging_herbs", "shelf"],
+                    "extras": [
+                        { "type": "workbench", "name": "Kitchen Bench" },
+                        { "type": "sack_pile", "chance": 0.5 }
+                    ]
+                }
+            ]
+        },
+        "hotel": {
+            "size": { "poor": [[15, 16], [12, 13]], "mid": [[15, 17], [12, 13]], "rich": [[16, 18], [12, 14]] },
+            "main": {
+                "name": "Hall", "items": ["plates", "bottles", "flowers", "candles"], "wall": ["painting", "banner", "tapestry", "mirror"],
+                "extras": [
+                    { "type": "chair", "count": [2, 3] },
+                    { "type": "plant", "count": [1, 2] },
+                    { "type": "coat_rack" }
+                ]
+            },
+            "rooms": [
+                {
+                    "id": "suite", "name": "Suite", "shape": "side", "width": [3, 3], "split": [2, 3],
+                    "take": ["bed"], "items": ["candles", "flowers", "cloth"], "wall": ["curtains", "painting", "mirror"],
+                    "extras": [
+                        { "type": "wardrobe", "chance": 0.6 },
+                        { "type": "washstand", "chance": 0.6 }
+                    ]
+                },
+                {
+                    "id": "baths", "name": "Bath Room", "shape": "corner", "end": "back", "width": [3, 4], "depth": [3, 3],
+                    "take": ["bucket"], "items": ["cloth"], "wall": ["mirror", "shelf"], "windows": false,
+                    "extras": [{ "type": "washstand" }]
+                }
+            ]
+        },
+        "guest_house": {
+            "size": { "poor": [[9, 10], [8, 8]], "mid": [[10, 12], [8, 9]], "rich": [[11, 13], [8, 10]] },
+            "main": {
+                "name": "Front Room", "items": ["plates", "bread", "mugs", "bowls"], "wall": ["curtains", "shelf", "hanging_herbs", "painting"],
+                "extras": [
+                    { "type": "chair", "count": [1, 2] },
+                    { "type": "cupboard", "chance": 0.5 },
+                    { "type": "plant", "tiers": ["rich"] }
+                ]
+            },
+            "rooms": [
+                {
+                    "id": "guest", "name": "Guest Room", "shape": "side", "width": [2, 3], "split": [1, 2],
+                    "take": ["bed"], "items": ["candles", "cloth"], "wall": ["curtains", "shelf", "mirror"],
+                    "extras": [{ "type": "washstand", "chance": 0.4 }]
+                }
+            ]
+        },
+        "roadhouse": {
+            "size": { "poor": [[9, 11], [7, 8]], "mid": [[10, 12], [8, 9]], "rich": [[11, 12], [8, 9]] },
+            "main": {
+                "name": "Taproom", "items": ["mugs", "bread", "bowls"], "wall": ["torch", "antlers", "shelf"],
+                "extras": [
+                    { "type": "firewood" },
+                    { "type": "sack_pile", "chance": 0.4 },
+                    { "type": "coat_rack", "chance": 0.4 }
+                ]
+            },
+            "rooms": [
+                {
+                    "id": "bunks", "name": "Bunk Room", "shape": "side", "width": [2, 3], "split": [1, 1],
+                    "take": ["bed"], "items": ["candles"], "wall": ["shelf", "torch"]
+                }
+            ]
+        },
+        "blacksmith": {
+            "size": { "poor": [[9, 10], [7, 8]], "mid": [[10, 12], [8, 9]], "rich": [[11, 13], [8, 10]] },
+            "main": {
+                "name": "Forge Floor", "items": ["tools"], "wall": ["weapon_rack", "torch", "shelf", "weapon_rack"],
+                "extras": [
+                    { "type": "workbench", "name": "Workbench" },
+                    { "type": "firewood", "name": "Charcoal Heap", "chance": 0.5, "place": "near:forge" },
+                    { "type": "crate_stack", "chance": 0.4 }
+                ]
+            },
+            "rooms": [
+                {
+                    "id": "store", "name": "Store", "shape": "corner", "end": "back", "width": [2, 3], "depth": [2, 3],
+                    "take": ["chest", "sack"], "items": ["tools"], "wall": ["shelf", "weapon_rack"], "windows": false,
+                    "extras": [{ "type": "crate_stack", "chance": 0.7 }]
+                }
+            ]
+        },
+        "church": {
+            "size": { "poor": [[9, 11], [11, 13]], "mid": [[10, 12], [12, 14]], "rich": [[11, 13], [13, 15]] },
+            "scale": ["pew"],
+            "place": { "rug": "aisle" },
+            "main": { "name": "Nave", "wall": ["banner", "torch", "tapestry", "banner"] },
+            "rooms": [
+                {
+                    "id": "vestry", "name": "Vestry", "shape": "corner", "end": "back", "width": [2, 2], "depth": [2, 3],
+                    "take": ["bookshelf"], "items": ["candles", "books", "cloth"], "wall": ["shelf", "banner"],
+                    "extras": [{ "type": "chest", "name": "Vestment Chest", "icon": "📦" }, { "type": "cupboard", "chance": 0.5 }]
+                }
+            ]
+        },
+        "chapel": {
+            "size": { "poor": [[7, 9], [8, 9]], "mid": [[8, 10], [9, 10]], "rich": [[9, 10], [9, 11]] },
+            "scale": ["pew"],
+            "place": { "rug": "aisle" },
+            "main": { "name": "Chapel", "wall": ["banner", "torch", "tapestry"] }
+        },
+        "temple": {
+            "size": { "poor": [[11, 12], [11, 12]], "mid": [[11, 13], [11, 13]], "rich": [[12, 14], [12, 14]] },
+            "scale": ["pew"],
+            "main": {
+                "name": "Sanctum", "wall": ["banner", "torch", "tapestry"],
+                "extras": [{ "type": "plant", "count": [0, 2], "name": "Sacred Plant" }]
+            }
+        },
+        "barracks": {
+            "size": { "poor": [[13, 14], [9, 10]], "mid": [[13, 15], [9, 11]], "rich": [[14, 16], [10, 11]] },
+            "scale": ["bed"],
+            "main": {
+                "name": "Mess Hall", "items": ["mugs", "bowls", "bread"], "wall": ["weapon_rack", "banner", "torch", "map"],
+                "extras": [{ "type": "barrel", "name": "Water Barrel", "icon": "🛢️" }, { "type": "crate_stack", "chance": 0.4 }]
+            },
+            "rooms": [
+                {
+                    "id": "dorm", "name": "Dormitory", "shape": "side", "width": [3, 5], "split": [1, 1],
+                    "take": ["bed", "chest"], "wall": ["torch", "shelf", "weapon_rack"]
+                }
+            ]
+        },
+        "manor": {
+            "size": { "poor": [[14, 15], [12, 13]], "mid": [[15, 17], [12, 14]], "rich": [[16, 18], [13, 14]] },
+            "main": {
+                "name": "Great Hall", "items": ["plates", "bottles", "candles", "fruit", "bread"], "wall": ["banner", "painting", "tapestry", "antlers", "weapon_rack"],
+                "extras": [{ "type": "chair", "count": [2, 4] }, { "type": "plant", "tiers": ["rich"], "count": [1, 2] }]
+            },
+            "rooms": [
+                {
+                    "id": "chamber", "name": "Chamber", "shape": "side", "width": [3, 3], "split": [2, 2],
+                    "take": ["bed", "chest"], "items": ["candles", "flowers", "cloth"], "wall": ["curtains", "painting", "mirror", "tapestry"],
+                    "extras": [
+                        { "type": "wardrobe", "chance": 0.7 },
+                        { "type": "washstand", "chance": 0.5 },
+                        { "type": "bed", "name": "Guest Bed", "icon": "🛏️", "onlySub": 1 }
+                    ]
+                },
+                {
+                    "id": "study", "name": "Study", "shape": "corner", "end": "back", "width": [3, 4], "depth": [3, 3],
+                    "take": ["bookshelf", "desk"], "items": ["papers", "books", "candles"], "wall": ["map", "painting", "clock"],
+                    "extras": [{ "type": "chair", "place": "ends:desk" }]
+                },
+                {
+                    "id": "kitchen", "name": "Kitchen", "shape": "corner", "end": "front", "width": [3, 4], "depth": [3, 3],
+                    "items": ["bread", "pots", "herbs", "bowls"], "wall": ["hanging_pots", "hanging_herbs", "shelf"],
+                    "extras": [
+                        { "type": "oven", "name": "Kitchen Oven", "icon": "🔥" },
+                        { "type": "workbench", "name": "Kitchen Bench" },
+                        { "type": "barrel", "name": "Water Barrel", "icon": "🛢️" },
+                        { "type": "sack_pile", "chance": 0.6 }
+                    ]
+                }
+            ]
+        },
+        "town_hall": {
+            "size": { "poor": [[12, 13], [10, 11]], "mid": [[12, 15], [10, 12]], "rich": [[14, 16], [11, 12]] },
+            "main": {
+                "name": "Council Hall", "items": ["papers", "books", "candles"], "wall": ["banner", "map", "tapestry", "painting"],
+                "extras": [{ "type": "chair", "count": [2, 3] }]
+            },
+            "rooms": [
+                {
+                    "id": "office", "name": "Clerk's Office", "shape": "corner", "end": "back", "width": [3, 4], "depth": [3, 3],
+                    "take": ["desk", "chest"], "items": ["papers", "books", "coins"], "wall": ["map", "shelf", "clock"],
+                    "extras": [{ "type": "chair", "place": "ends:desk" }, { "type": "cupboard", "chance": 0.5 }]
+                }
+            ]
+        },
+        "guildhall": {
+            "size": { "poor": [[12, 13], [10, 11]], "mid": [[12, 14], [10, 12]], "rich": [[13, 15], [11, 12]] },
+            "main": {
+                "name": "Guild Hall", "items": ["papers", "mugs", "candles"], "wall": ["banner", "tapestry", "painting", "shelf"],
+                "extras": [{ "type": "chair", "count": [1, 3] }]
+            },
+            "rooms": [
+                {
+                    "id": "registry", "name": "Registry", "shape": "corner", "end": "back", "width": [3, 4], "depth": [3, 3],
+                    "take": ["desk", "bookshelf"], "items": ["papers", "books"], "wall": ["map", "shelf", "clock"],
+                    "extras": [{ "type": "cupboard", "chance": 0.5 }]
+                }
+            ]
+        },
+        "bank": {
+            "size": { "poor": [[10, 11], [8, 9]], "mid": [[10, 12], [9, 10]], "rich": [[11, 13], [9, 11]] },
+            "main": { "name": "Counting House", "items": ["coins", "papers"], "wall": ["clock", "painting", "map", "shelf"] },
+            "rooms": [
+                {
+                    "id": "vault", "name": "Vault", "shape": "corner", "end": "back", "width": [2, 3], "depth": [2, 3],
+                    "take": ["chest"], "items": ["coins"], "wall": [], "windows": false
+                }
+            ]
+        },
+        "post_house": {
+            "size": { "poor": [[10, 11], [8, 9]], "mid": [[10, 12], [8, 10]], "rich": [[11, 13], [9, 10]] },
+            "main": { "name": "Post Room", "items": ["papers", "books"], "wall": ["map", "clock", "shelf"], "extras": [{ "type": "coat_rack", "chance": 0.5 }] },
+            "rooms": [
+                {
+                    "id": "sorting", "name": "Sorting Room", "shape": "corner", "end": "back", "width": [2, 3], "depth": [2, 3],
+                    "take": ["desk", "sack"], "items": ["papers"], "wall": ["shelf", "map"],
+                    "extras": [{ "type": "crate_stack", "chance": 0.4 }]
+                }
+            ]
+        },
+        "apothecary": {
+            "size": { "poor": [[9, 10], [8, 9]], "mid": [[10, 12], [8, 9]], "rich": [[11, 12], [9, 10]] },
+            "main": {
+                "name": "Shop", "items": ["herbs", "bottles", "pots"], "wall": ["hanging_herbs", "shelf", "hanging_herbs"],
+                "extras": [{ "type": "basket", "chance": 0.6 }, { "type": "plant", "chance": 0.6 }]
+            },
+            "rooms": [
+                {
+                    "id": "still", "name": "Still Room", "shape": "side", "width": [2, 3], "split": [1, 1],
+                    "take": ["cauldron", "bed", "bookshelf"], "items": ["herbs", "bottles"], "wall": ["hanging_herbs", "shelf"],
+                    "extras": [{ "type": "workbench", "name": "Mixing Bench", "chance": 0.7 }]
+                }
+            ]
+        },
+        "bathhouse": {
+            "size": { "poor": [[12, 13], [9, 10]], "mid": [[12, 14], [9, 11]], "rich": [[13, 15], [10, 11]] },
+            "main": { "name": "Bath Hall", "items": ["cloth"], "wall": ["torch", "mirror", "shelf"], "extras": [{ "type": "plant", "tiers": ["mid", "rich"], "chance": 0.6 }] },
+            "rooms": [
+                {
+                    "id": "stove", "name": "Stove Room", "shape": "corner", "end": "back", "width": [3, 3], "depth": [2, 3],
+                    "take": ["fireplace", "bucket"], "items": ["cloth"], "wall": ["shelf", "hanging_pots"], "windows": false,
+                    "extras": [{ "type": "firewood" }]
+                }
+            ]
+        },
+        "library": {
+            "size": { "poor": [[12, 13], [10, 11]], "mid": [[12, 14], [10, 12]], "rich": [[13, 15], [11, 12]] },
+            "main": {
+                "name": "Reading Hall", "items": ["books", "papers", "candles"], "wall": ["map", "painting", "clock", "tapestry"],
+                "extras": [{ "type": "chair", "count": [1, 3], "place": "ends:desk" }, { "type": "plant", "tiers": ["rich"] }]
+            }
+        },
+        "bakery": {
+            "size": { "poor": [[9, 10], [7, 8]], "mid": [[10, 11], [8, 9]], "rich": [[10, 12], [8, 9]] },
+            "main": {
+                "name": "Bakehouse", "items": ["bread", "bread", "bowls"], "wall": ["shelf", "hanging_pots", "hanging_herbs"],
+                "extras": [{ "type": "firewood", "place": "near:oven" }, { "type": "basket", "count": [1, 2] }]
+            },
+            "rooms": [
+                {
+                    "id": "flour", "name": "Flour Store", "shape": "corner", "end": "back", "width": [2, 3], "depth": [2, 2],
+                    "take": ["sack", "barrel"], "items": [], "wall": ["shelf"], "windows": false,
+                    "extras": [{ "type": "sack_pile", "chance": 0.7 }]
+                }
+            ]
+        },
+        "mill": {
+            "size": { "poor": [[9, 10], [8, 8]], "mid": [[9, 11], [8, 9]], "rich": [[10, 12], [8, 10]] },
+            "main": { "name": "Mill Floor", "items": ["tools"], "wall": ["shelf", "torch"], "extras": [{ "type": "sack_pile", "count": [1, 2] }, { "type": "workbench", "chance": 0.4 }] }
+        },
+        "mint": {
+            "size": { "poor": [[11, 12], [9, 10]], "mid": [[12, 14], [9, 11]], "rich": [[13, 14], [10, 11]] },
+            "main": { "name": "Coining Floor", "items": ["coins", "tools"], "wall": ["torch", "weapon_rack", "shelf"], "extras": [{ "type": "workbench", "chance": 0.6 }] },
+            "rooms": [
+                {
+                    "id": "counting", "name": "Counting Room", "shape": "corner", "end": "back", "width": [3, 4], "depth": [3, 3],
+                    "take": ["chest", "desk", "scales"], "items": ["coins", "papers"], "wall": ["clock", "shelf"], "windows": false
+                }
+            ]
+        },
+        "jail": {
+            "size": { "poor": [[11, 12], [9, 10]], "mid": [[11, 13], [9, 10]], "rich": [[12, 13], [9, 11]] },
+            "main": { "name": "Gaol", "items": ["papers", "mugs"], "wall": ["torch", "weapon_rack"] }
+        },
+        "marketplace": {
+            "size": { "poor": [[13, 14], [9, 10]], "mid": [[14, 16], [10, 11]], "rich": [[15, 17], [10, 12]] },
+            "scale": ["stall"],
+            "main": {
+                "name": "Market Hall", "items": ["fruit", "bread", "cloth", "pots"], "wall": ["banner", "torch", "shelf"],
+                "extras": [{ "type": "basket", "count": [1, 3] }, { "type": "sack_pile", "count": [0, 2] }, { "type": "crate_stack", "count": [0, 2] }]
+            }
+        },
+        "granary": {
+            "size": { "poor": [[8, 9], [8, 9]], "mid": [[8, 10], [8, 10]], "rich": [[9, 11], [9, 10]] },
+            "scale": ["sack", "barrel"],
+            "main": { "name": "Granary", "wall": ["torch", "shelf"], "extras": [{ "type": "sack_pile", "count": [1, 3], "place": "aisles" }] }
+        },
+        "warehouse": {
+            "size": { "poor": [[11, 12], [9, 10]], "mid": [[12, 14], [10, 11]], "rich": [[13, 15], [10, 12]] },
+            "scale": ["crate", "barrel"],
+            "place": { "crate": "aisles", "barrel": "aisles", "sack": "aisles" },
+            "main": {
+                "name": "Warehouse", "wall": ["torch", "shelf"],
+                "extras": [
+                    { "type": "crate_stack", "count": [2, 4], "place": "aisles" },
+                    { "type": "barrel_rack", "count": [1, 2] },
+                    { "type": "sack_pile", "count": [1, 2], "place": "aisles" }
+                ]
+            },
+            "rooms": [
+                {
+                    "id": "tally", "name": "Tally Office", "shape": "corner", "end": "front", "width": [3, 3], "depth": [3, 3],
+                    "take": ["desk", "chest"], "items": ["papers", "coins"], "wall": ["map", "shelf"],
+                    "extras": [{ "type": "chair", "place": "ends:desk" }]
+                }
+            ]
+        },
+        "stable": {
+            "size": { "poor": [[10, 11], [8, 8]], "mid": [[10, 12], [8, 9]], "rich": [[11, 13], [8, 9]] },
+            "main": { "name": "Stable", "items": ["tools"], "wall": ["torch", "shelf"], "extras": [{ "type": "sack_pile", "chance": 0.6 }, { "type": "basket", "chance": 0.4 }] },
+            "place": { "stall": "back" }
+        },
+        "barn": {
+            "size": { "poor": [[9, 11], [8, 8]], "mid": [[10, 12], [8, 9]], "rich": [[10, 12], [8, 10]] },
+            "main": {
+                "name": "Barn", "items": ["tools"], "wall": ["torch", "shelf", "hanging_herbs"],
+                "extras": [{ "type": "sack_pile", "count": [1, 2] }, { "type": "basket", "chance": 0.6 }, { "type": "workbench", "chance": 0.5 }, { "type": "firewood", "chance": 0.5, "place": "corner" }]
+            }
+        },
+        "well": {
+            "size": { "poor": [[6, 7], [6, 7]], "mid": [[6, 7], [6, 7]], "rich": [[6, 7], [6, 7]] },
+            "main": { "name": "Well House", "wall": ["torch", "shelf"] }
+        },
+        "guard_tower": {
+            "size": { "poor": [[6, 7], [8, 9]], "mid": [[7, 8], [8, 9]], "rich": [[7, 8], [8, 10]] },
+            "main": { "name": "Guard Room", "items": ["mugs", "papers"], "wall": ["weapon_rack", "torch", "map", "banner"] }
+        }
+    }
+}

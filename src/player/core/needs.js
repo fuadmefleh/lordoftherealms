@@ -141,6 +141,8 @@ export const PlayerNeedsMethods = {
             rates.hygiene += 0.5;
             // The furniture you've given it (world/innerMap/furnishing.js homeComfort, already capped)
             if (Number.isFinite(context.homeComfort)) rates.comfort += Math.max(0, context.homeComfort);
+            // Its decorations cheer you (world/innerMap/furnishing.js homeCheer, already capped)
+            if (Number.isFinite(context.homeCheer)) rates.fun += Math.max(0, context.homeCheer);
         }
 
         // The hardy tire slower (player/endurance.js)

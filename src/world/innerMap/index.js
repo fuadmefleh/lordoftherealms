@@ -6,6 +6,8 @@ import './state.js';
 import './terrain.js';
 import './buildings.js';
 import './interiors.js';
+// Interiors planned by rules: rooms, furniture, decor (data/interiorPlans.json)
+import './interiorPlanner.js';
 import './floors.js';
 import './movement.js';
 import './npcs.js';

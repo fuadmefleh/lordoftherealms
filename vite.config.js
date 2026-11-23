@@ -61,6 +61,11 @@ export default defineConfig({
     fs: {
       allow: ['.'],
     },
+    // Agents' git worktrees (.claude/worktrees: whole copies of the repo) and the
+    // built output are not ours to watch: scanning them stalls the dev server
+    watch: {
+      ignored: ['**/.claude/**', '**/dist-web/**'],
+    },
   },
   resolve: {
     alias: {
@@ -78,7 +83,8 @@ export default defineConfig({
   // Pre-bundling it up front stops the dev server reloading the page the first
   // time a player picks the WebLLM provider mid-game.
   worker: { format: 'es' },
-  optimizeDeps: { include: ['@mlc-ai/web-llm'] },
+  // (dependency scan from the root's own pages only, never the copies under .claude/worktrees)
+  optimizeDeps: { include: ['@mlc-ai/web-llm'], entries: ['*.html'] },
   build: {
     outDir: 'dist-web',
     assetsDir: 'js',

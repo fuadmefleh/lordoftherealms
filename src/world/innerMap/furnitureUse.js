@@ -71,6 +71,18 @@ Object.assign(InnerMap, {
         cauldron:  { icon: '⚗️', label: 'stirring',    anim: 'idle',    duration: [5, 9] },
         press:     { icon: '💰', label: 'striking coin', anim: 'slash', duration: [5, 9] },
         millstone: { icon: '🌾', label: 'grinding',    anim: 'idle',    duration: [6, 10] },
+        // Seats of their own (sat on, facing the way the piece faces), and the house's other furniture
+        chair:     { icon: '💺', label: 'resting',     anim: 'sitting', duration: [8, 16], on: 'sit' },
+        bench:     { icon: '💺', label: 'resting',     anim: 'sitting', duration: [8, 16], on: 'sit' },
+        stool:     { icon: '💺', label: 'resting',     anim: 'sitting', duration: [6, 12], on: 'sit' },
+        washstand: { icon: '💧', label: 'washing',     anim: 'idle',    duration: [3, 6] },
+        dresser:   { icon: '📦', label: 'tidying',     anim: 'idle',    duration: [3, 6] },
+        wardrobe:  { icon: '📦', label: 'dressing',    anim: 'idle',    duration: [3, 6] },
+        cupboard:  { icon: '📦', label: 'fetching',    anim: 'idle',    duration: [3, 6] },
+        workbench: { icon: '🔨', label: 'working',     anim: 'emotes',  duration: [6, 12] },
+        loom:      { icon: '🧶', label: 'weaving',     anim: 'sitting', duration: [10, 18], seat: 'stool' },
+        spinning_wheel: { icon: '🧶', label: 'spinning', anim: 'sitting', duration: [10, 18], seat: 'stool' },
+        cradle:    { icon: '👶', label: 'rocking the cradle', anim: 'idle', duration: [4, 8] },
     },
 
     /** Furniture each kind of NPC gravitates to; anything else is a fallback. */
@@ -80,11 +92,11 @@ Object.assign(InnerMap, {
         farmer:         ['table', 'bar', 'barrel', 'crate', 'fireplace'],
         priest:         ['altar', 'statue', 'pew', 'bookshelf'],
         blacksmith_npc: ['anvil', 'forge', 'rack', 'barrel'],
-        villager:       ['table', 'bar', 'pew', 'fireplace', 'stall'],
-        child:          ['fireplace', 'table', 'pew'],
+        villager:       ['table', 'bar', 'pew', 'fireplace', 'stall', 'chair', 'bench'],
+        child:          ['fireplace', 'table', 'pew', 'stool', 'cradle'],
         noble:          ['throne', 'table', 'bookshelf', 'altar'],
-        traveler:       ['bar', 'table', 'fireplace', 'bed'],
-        beggar:         ['fireplace', 'pew', 'altar'],
+        traveler:       ['bar', 'table', 'fireplace', 'bed', 'bench', 'chair'],
+        beggar:         ['fireplace', 'pew', 'altar', 'bench'],
     },
 
     /** Furniture type of a name, or null. */
@@ -127,6 +139,8 @@ Object.assign(InnerMap, {
     approachAndThen(q, r, onArrive) {
         this.cancelPlayerWalk();
         this._pendingAction = null;
+        // (sat down: up first, whatever the next thing is)
+        if (this._playerSeated) this.standPlayerUp();
         if (this.isPlayerNextTo(q, r)) {
             onArrive();
             return 'now';
@@ -277,9 +291,58 @@ Object.assign(InnerMap, {
         return (this.npcs || []).some(n => n !== who && n.activity && n.activity.on && n.activity.at && n.activity.at.q === head.q && n.activity.at.r === head.r);
     },
 
-    /** Which way one sat on a piece faces: out (down), or toward the altar from a pew that faces it (up). */
+    /**
+     * Which way one sat on a piece faces: out (down), toward the altar from a pew
+     * that faces it (up), or the way a chair or bench is set (f.facing).
+     */
     _pieceFacing(f) {
-        return f && f.type === 'pew' && f.facing === 'up' ? 0 : 2;
+        const FACE = { up: 0, left: 1, down: 2, right: 3 };
+        const seat = f && (f.type === 'pew' || f.type === 'chair' || f.type === 'bench' || f.type === 'stool');
+        return seat && FACE[f.facing] != null ? FACE[f.facing] : 2;
+    },
+
+    // ══════════════════════════════════════════════
+    // THE PLAYER SAT DOWN
+    // ══════════════════════════════════════════════
+
+    /** The player's seat while they sit a while: { q, r, type, since, onStand, tiles } or null. */
+    _playerSeated: null,
+
+    /**
+     * Sit the player down and keep them sat (the seated frame held, not the
+     * moment's use: ui/objectActions/furniture.js sitDown). rec.onStand(rec)
+     * settles the hours sat when they get up.
+     */
+    seatPlayer(rec) {
+        this._playerSeated = { ...rec, tiles: this.tiles };
+        const ia = this._activeInteraction;
+        if (ia && ia.nonDestructive) {
+            ia.duration = Infinity;
+            ia.held = true;
+        }
+        return this._playerSeated;
+    },
+
+    /** Is the player sat down (on this map)? */
+    isPlayerSeated() {
+        return !!(this._playerSeated && this._playerSeated.tiles === this.tiles);
+    },
+
+    /**
+     * Up out of the seat (on any move, or another use of the furniture): the
+     * held frame let go and the seat's onStand run (not when the map has
+     * changed under them: left the building, the seat is forgotten). Returns
+     * the seat record, or null when they weren't sat.
+     */
+    standPlayerUp() {
+        const seat = this._playerSeated;
+        if (!seat) return null;
+        this._playerSeated = null;
+        const ia = this._activeInteraction;
+        if (ia && ia.held) this._activeInteraction = null;
+        if (seat.tiles !== this.tiles) return null;
+        if (typeof seat.onStand === 'function') seat.onStand(seat);
+        return seat;
     },
 
     /**

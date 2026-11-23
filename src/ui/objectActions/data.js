@@ -183,7 +183,7 @@ export const BUILDING_FURNITURE_ACTIONS = {
  * Furniture that belongs to whoever lives there — usable only in buildings the
  * player owns, unless the building's own entry above says otherwise.
  */
-export const PRIVATE_FURNITURE = new Set(['bed', 'chest']);
+export const PRIVATE_FURNITURE = new Set(['bed', 'chest', 'dresser', 'cupboard', 'wardrobe', 'basket', 'sack_pile', 'crate_stack', 'barrel_rack', 'firewood', 'cradle']);
 
 /** Name patterns for recognising editor-placed furniture (shared with interior NPCs). */
 export const FURNITURE_NAME_PATTERNS = InnerMap.FURNITURE_NAME_PATTERNS;

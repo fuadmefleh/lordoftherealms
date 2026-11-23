@@ -6,6 +6,7 @@
 // (ui/innerMapFurnish.js). Buttons route through data-am-act → furnitureAct.
 import { ActionMenu } from './_ref.js';
 import { Furnishing } from '../../systems/furnishing.js';
+import { FurnitureCatalogue } from '../../world/furnitureCatalogue.js';
 import { esc, lede, chips, purse, card, rowList, sectionHead, price } from './uiKit.js';
 
 // In the action menu's voice (ui/actionMenu/uiKit.js): one row a piece, its
@@ -23,7 +24,13 @@ function _does(item) {
     if (item.comfort) out.push(`comfort +${item.comfort}/h`);
     const fp = item.footprint || [1, 1];
     if (fp[0] * fp[1] > 1) out.push(`${fp[0]}×${fp[1]} tiles`);
-    if (item.passable) out.push('walk over it');
+    if (item.cheer) out.push(`cheer +${item.cheer}/h`);
+    if (item.light) out.push('light');
+    if (item.prestige) out.push('guests remark on it');
+    if (item.kind === 'decor') out.push('on a table or shelf');
+    else if (item.kind === 'wall') out.push(item.onWindow ? 'at a window' : 'on a wall');
+    else if (item.passable) out.push('walk over it');
+    if (FurnitureCatalogue.holdsThings(item.type)) out.push('storage');
     return out.join(' · ');
 }
 
@@ -37,15 +44,26 @@ Object.assign(ActionMenu, {
         const stored = Furnishing.storeView(player);
         let html = '<div style="font-size:12px;">';
         if (message) html += card(esc(message.text), { tone: message.ok ? 'good' : 'bad' });
-        html += lede(`${s ? `The joiner of ${esc(s.name)}` : 'A joiner'} makes what a ${esc(type)} can make: bigger places, finer pieces. What you buy waits in your store until you go inside a home you own and choose <b>Furnish</b>.`);
+        html += lede(`${s ? `The joiner, weaver, potter, chandler and smith of ${esc(s.name)}` : 'The makers'} make what a ${esc(type)} can make: bigger places, finer pieces. What you buy waits in your store until you go inside a home you own and choose <b>Furnish</b>.`);
         html += chips([purse(player.gold), ['📦', 'In store', stored.length]]);
 
-        html += rowList(Furnishing.shopList(player, type).map(item => ({
-            icon: item.icon || '💺', name: esc(item.name),
-            desc: `${esc(item.desc || '')}${_does(item) ? ` <i>(${esc(_does(item))})</i>` : ''}`,
-            side: price(item.price, item.affordable), off: !item.affordable, why: `Your purse is short. ${esc(item.desc || '')}`,
-            act: 'furnitureAct', args: ['buy', item.id],
-        })), '💺 For sale');
+        // One list a maker: the joiner, the weaver, the potter, the chandler, the smith
+        const forSale = Furnishing.shopList(player, type);
+        const makers = FurnitureCatalogue.makers();
+        const order = [...Object.keys(makers), ...new Set(forSale.map(i => i.maker || 'joiner'))].filter((m, i, a) => a.indexOf(m) === i);
+        for (const m of order) {
+            const list = forSale.filter(i => (i.maker || 'joiner') === m);
+            if (!list.length) continue;
+            const mk = makers[m] || { name: m, icon: '💺' };
+            html += rowList(list.map(item => ({
+                icon: item.icon || '💺', name: esc(item.name),
+                desc: `${esc(item.desc || '')}${_does(item) ? ` <i>(${esc(_does(item))})</i>` : ''}`,
+                side: price(item.price, item.affordable), off: !item.affordable, why: `Your purse is short. ${esc(item.desc || '')}`,
+                act: 'furnitureAct', args: ['buy', item.id],
+            })), `${mk.icon || '💺'} ${esc(mk.name)}`);
+        }
+        const job = Furnishing.windowJob();
+        html += `<div style="${NOTE} margin-top:6px;">🪟 A window is building work, not a piece: inside a home of yours, Furnish → <b>Knock Through a Window</b> (${esc(job.price)}g to a mason).</div>`;
 
         html += rowList(stored.map(({ piece, view, value }) => ({
             icon: view.icon, name: `Sell the ${esc(view.name)}`,
@@ -55,7 +73,7 @@ Object.assign(ActionMenu, {
         if (!stored.length) html += sectionHead('📦 Your furniture store') + `<div style="${NOTE}">Nothing in store.</div>`;
         const homes = Furnishing.homesView(player);
         if (homes.length) {
-            html += `<div style="${NOTE} margin-top:8px;">Furnished: ${homes.map(h => `${esc(h.name)}${h.town ? ` in ${esc(h.town)}` : ''} (${h.pieces})`).join(' · ')}</div>`;
+            html += `<div style="${NOTE} margin-top:8px;">Furnished: ${homes.map(h => `${esc(h.name)}${h.town ? ` in ${esc(h.town)}` : ''} (${h.pieces}${h.decor ? ` + ${h.decor} things` : ''})`).join(' · ')}</div>`;
         }
         html += '</div>';
         game.ui.showCustomPanel('💺 Furniture Maker', html);

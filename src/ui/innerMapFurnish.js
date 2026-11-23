@@ -12,6 +12,13 @@
 //     stand and red (with the reason) where it may not; left-click sets it
 //     down, R turns a long piece, Put in Store puts it away (a chest only
 //     when empty), right-click or Esc puts it back where it was;
+//   - decorations (mugs, candles, books … and wall hangings) are placed the
+//     same way: a 'decor' item on a table, desk, shelf or dresser of the
+//     house, a wall piece on a wall facing into a room (curtains at a
+//     window); the ghost says why where it can't go. A click on a decorated
+//     table or wall takes the decoration up first (Move on the table's menu
+//     moves the table, and what stands on it with it);
+//   - Knock Through a Window: pay a mason, click a bare wall;
 //   - Esc or Done (or walking out) ends the mode.
 //
 // Wired in from the game loop's inner-map click (click) and the renderer's
@@ -44,6 +51,8 @@ export const InnerMapFurnish = {
     _homeKey: null,
     _keys: null,
     _lastHover: null,
+    // Choosing a wall for a window to be knocked through
+    windowMode: false,
 
     /** May the player furnish where they stand? */
     available() {
@@ -55,6 +64,12 @@ export const InnerMapFurnish = {
     menuItems(game, tile, q, r) {
         if (!this.available() || this.active) return [];
         const items = [{ type: 'separator' }, { type: 'header', label: '💺 Your Home' }];
+        const deco = InnerMap.decorAt(game.player, q, r);
+        if (deco) {
+            const dv = FurnitureCatalogue.view(deco);
+            items.push({ type: 'action', action: 'furnish_movedecor', label: `Move the ${dv.name}`, icon: '✋', desc: dv.kind === 'wall' ? 'Take it down and hang it elsewhere' : 'Take it up and set it elsewhere', fq: q, fr: r });
+            items.push({ type: 'action', action: 'furnish_takedown', label: `Put the ${dv.name} in Store`, icon: '📦', desc: 'Into your furniture store, to use later or sell', fq: q, fr: r });
+        }
         const f = tile && tile._furniture;
         if (f && InnerMap._movableFurniture(tile)) {
             items.push({ type: 'action', action: 'furnish_move', label: `Move the ${f.name}`, icon: '✋', desc: 'Pick it up and set it down elsewhere', fq: q, fr: r });
@@ -71,9 +86,20 @@ export const InnerMapFurnish = {
             case 'furnish_start': this.start(game); return true;
             case 'furnish_move':
                 this.start(game);
-                this.liftAt(item.fq, item.fr);
+                this.liftAt(item.fq, item.fr, { furniture: true });
                 return true;
             case 'furnish_putaway': {
+                const was = this.active;
+                this.start(game);
+                if (this.liftAt(item.fq, item.fr, { furniture: true })) this.putAwayHeld();
+                if (!was) this.stop();
+                return true;
+            }
+            case 'furnish_movedecor':
+                this.start(game);
+                this.liftAt(item.fq, item.fr);
+                return true;
+            case 'furnish_takedown': {
                 const was = this.active;
                 this.start(game);
                 if (this.liftAt(item.fq, item.fr)) this.putAwayHeld();
@@ -101,6 +127,7 @@ export const InnerMapFurnish = {
     stop() {
         if (this.held) this.cancelHold();
         this.active = false;
+        this.windowMode = false;
         if (this._keys && typeof window !== 'undefined') window.removeEventListener('keydown', this._keys, true);
         this._keys = null;
         this._homeKey = null;
@@ -118,6 +145,7 @@ export const InnerMapFurnish = {
             this.rotate();
         } else if (e.key === 'Escape') {
             if (this.held) this.cancelHold();
+            else if (this.windowMode) this.windowMode = false;
             else this.stop();
         } else {
             return;
@@ -136,6 +164,7 @@ export const InnerMapFurnish = {
         if (this.held) this.cancelHold();
         const piece = Furnishing.takeFromStore(player, uid);
         if (!piece) return false;
+        this.windowMode = false;
         this.held = piece;
         this.rot = piece.rot || 0;
         this.heldFrom = null;
@@ -143,10 +172,30 @@ export const InnerMapFurnish = {
         return true;
     },
 
-    /** Pick up the piece standing at (q, r). */
-    liftAt(q, r) {
+    /** Is the thing in hand a decoration (on a table, on a wall)? */
+    _heldDecor() {
+        return !!(this.held && FurnitureCatalogue.decorKind(this.held));
+    },
+
+    /**
+     * Pick up what is at (q, r): a decoration on it or hung on it first (unless
+     * opts.furniture), else the piece standing there (what stands on it rides along).
+     */
+    liftAt(q, r, opts = {}) {
         const player = this._player();
         if (!player) return false;
+        const deco = opts.furniture ? null : InnerMap.decorAt(player, q, r);
+        if (deco) {
+            if (this.held) this.cancelHold();
+            const from = { key: this._homeKey, q, r, decor: true, on: deco.on, cell: deco.cell, face: deco.face };
+            if (!InnerMap.liftDecor(player, deco.uid)) return false;
+            this.held = deco;
+            this.rot = 0;
+            this.heldFrom = from;
+            this.windowMode = false;
+            this.renderPanel();
+            return true;
+        }
         const piece = InnerMap.pieceAt(player, q, r);
         if (!piece) return false;
         if (this.held) this.cancelHold();
@@ -160,7 +209,7 @@ export const InnerMapFurnish = {
     },
 
     rotate() {
-        if (!this.held) return;
+        if (!this.held || this._heldDecor()) return;
         const [w, h] = FurnitureCatalogue.view(this.held).footprint;
         if (w !== h) this.rot = (this.rot + 1) % 2;
     },
@@ -169,7 +218,7 @@ export const InnerMapFurnish = {
     drop(q, r) {
         const player = this._player();
         if (!this.held || !player) return { ok: false, reason: 'Nothing in hand.' };
-        const res = InnerMap.placePiece(player, this.held, q, r, this.rot);
+        const res = this._heldDecor() ? InnerMap.placeDecor(player, this.held, q, r) : InnerMap.placePiece(player, this.held, q, r, this.rot);
         if (res.ok) {
             this.held = null;
             this.heldFrom = null;
@@ -186,6 +235,22 @@ export const InnerMapFurnish = {
         if (!piece || !player) return;
         const from = this.heldFrom;
         this.heldFrom = null;
+        if (from && from.decor) {
+            const here = this.available() && InnerMap.furnishLayoutKey() === from.key;
+            if (here && InnerMap.placeDecor(player, piece, from.q, from.r).ok) return;
+            const rec = player.homeFurnishings && player.homeFurnishings[from.key];
+            if (rec && !here) {
+                piece.q = from.q; piece.r = from.r;
+                if (from.on) { piece.on = from.on; piece.cell = from.cell || 0; }
+                if (from.face) piece.face = from.face;
+                if (!Array.isArray(rec.decor)) rec.decor = [];
+                rec.decor.push(piece);
+                return;
+            }
+            delete piece.q; delete piece.r; delete piece.on; delete piece.cell; delete piece.face;
+            Furnishing.store(player).push(piece);
+            return;
+        }
         if (from) {
             const here = this.available() && InnerMap.furnishLayoutKey() === from.key;
             if (here && InnerMap.placePiece(player, piece, from.q, from.r, from.rot).ok) return;
@@ -212,9 +277,11 @@ export const InnerMapFurnish = {
             this.renderPanel();
             return false;
         }
+        // (what stood on a table put away goes into the store with it)
+        const off = this.held.uid && !this._heldDecor() ? InnerMap.releaseDecorOn(player, this.held.uid) : [];
         this.held = null;
         this.heldFrom = null;
-        _notify(this._game, '📦 Put Away', res.text, 'success');
+        _notify(this._game, '📦 Put Away', off.length ? `${res.text} What stood on it goes into the store too.` : res.text, 'success');
         this.renderPanel();
         return true;
     },
@@ -245,11 +312,33 @@ export const InnerMapFurnish = {
             if (!res.ok) _notify(game, '💺 Furnish', res.reason, 'warning');
             return true;
         }
+        if (this.windowMode) {
+            this.cutWindowAt(q, r);
+            return true;
+        }
         if (!this.liftAt(q, r)) {
             const t = InnerMap.getTile(q, r);
             if (t && t._furniture) _notify(game, '💺 Furnish', `The ${t._furniture.name} is built in.`, 'info');
         }
         return true;
+    },
+
+    /** Knock a window through the wall at (q, r): checked, paid for, made. → { ok, reason } */
+    cutWindowAt(q, r) {
+        const player = this._player();
+        const game = this._game;
+        const chk = InnerMap.windowCheck(q, r);
+        if (!chk.ok) { _notify(game, '🪟 Window', chk.reason, 'warning'); return chk; }
+        const paid = Furnishing.payWindowJob(player, game && game.world);
+        if (!paid.success) { _notify(game, '🪟 Window', paid.text, 'warning'); return { ok: false, reason: paid.text }; }
+        const res = InnerMap.cutWindow(player, q, r);
+        this.windowMode = false;
+        if (res.ok) {
+            _notify(game, '🪟 Window', paid.text, 'success');
+            if (game && game.ui && game.ui.updateStats) game.ui.updateStats(player, game.world);
+        }
+        this.renderPanel();
+        return res;
     },
 
     // ──────────── THE PALETTE ────────────
@@ -275,23 +364,51 @@ export const InnerMapFurnish = {
         if (this.held) {
             const v = FurnitureCatalogue.view(this.held);
             const [w, h] = v.footprint;
+            const where = v.kind === 'decor' ? 'Click a table, desk, shelf or dresser to set it on.'
+                : v.kind === 'wall' ? (v.onWindow ? 'Click a window to hang them at.' : 'Click a wall facing into a room to hang it.')
+                    : 'Click a floor tile to set it down.';
             html += `<div style="background:rgba(245,197,66,0.1);border-radius:6px;padding:6px 8px;margin-bottom:6px;">`;
             html += `<div>In hand: <b>${_esc(v.icon)} ${_esc(v.name)}</b></div>`;
-            html += `<div style="color:#aaa;font-size:11px;">Click a floor tile to set it down. Right-click or Esc puts it back.</div>`;
-            if (w !== h) html += btn('rotate', '↻ Turn (R)');
+            html += `<div style="color:#aaa;font-size:11px;">${where} Right-click or Esc puts it back.</div>`;
+            if (w !== h && v.kind === 'furniture') html += btn('rotate', '↻ Turn (R)');
             html += btn('putaway', '📦 Put in Store');
             html += btn('cancel', '✖ Put Back');
             html += '</div>';
+        } else if (this.windowMode) {
+            const job = Furnishing.windowJob();
+            html += `<div style="background:rgba(245,197,66,0.1);border-radius:6px;padding:6px 8px;margin-bottom:6px;">`;
+            html += `<div><b>🪟 A window</b> (${_esc(job.price)}g to the mason)</div>`;
+            html += `<div style="color:#aaa;font-size:11px;">Click a bare wall facing into a room. Esc to think better of it.</div>`;
+            html += btn('nowindow', '✖ Never mind');
+            html += '</div>';
         } else {
-            html += `<div style="color:#aaa;font-size:11px;margin-bottom:6px;">Click a piece on the floor to pick it up and move it.</div>`;
+            html += `<div style="color:#aaa;font-size:11px;margin-bottom:6px;">Click a piece on the floor to pick it up and move it; a thing on a table or a wall to take it up.</div>`;
+        }
+        const fx = InnerMap.homeDecorEffects();
+        if (fx.cheer || fx.light || fx.prestige) {
+            const bits = [];
+            if (fx.cheer) bits.push(`cheer +${fx.cheer}/h`);
+            if (fx.light) bits.push(`light ${fx.light}`);
+            if (fx.prestige) bits.push(`guests' Prestige +${Math.round(fx.prestige)}`);
+            html += `<div style="color:#aaa;font-size:11px;margin-bottom:6px;">✨ Decorations: ${bits.join(' · ')}</div>`;
         }
         const stored = Furnishing.storeView(player);
         html += `<div style="color:#f5c542;font-weight:bold;margin-top:4px;">📦 In store (${stored.length})</div>`;
-        if (!stored.length) html += `<div style="color:#888;font-size:11px;padding:4px 0;">Nothing in store. A furniture maker in town sells beds, chests, tables and hearths.</div>`;
-        for (const { piece, view } of stored) {
-            const fp = view.footprint[0] * view.footprint[1] > 1 ? ` <span style="color:#888;">${view.footprint[0]}×${view.footprint[1]}</span>` : '';
-            html += `<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-top:1px solid rgba(255,255,255,0.05);">`;
-            html += `<span>${_esc(view.icon)} ${_esc(view.name)}${fp}</span>${btn('pick', 'Place', `data-uid="${_esc(piece.uid)}"`, true)}</div>`;
+        if (!stored.length) html += `<div style="color:#888;font-size:11px;padding:4px 0;">Nothing in store. The joiner, weaver, potter, chandler and smith in town sell furniture and things to dress a house.</div>`;
+        const groups = [['furniture', null], ['decor', 'On tables & shelves'], ['wall', 'On the walls']];
+        for (const [kind, label] of groups) {
+            const list = stored.filter(s => (s.view.kind || 'furniture') === kind);
+            if (!list.length) continue;
+            if (label) html += `<div style="color:#c9b98a;font-size:11px;margin-top:6px;">${label}</div>`;
+            for (const { piece, view } of list) {
+                const fp = view.footprint[0] * view.footprint[1] > 1 ? ` <span style="color:#888;">${view.footprint[0]}×${view.footprint[1]}</span>` : '';
+                html += `<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-top:1px solid rgba(255,255,255,0.05);">`;
+                html += `<span>${_esc(view.icon)} ${_esc(view.name)}${fp}</span>${btn('pick', kind === 'wall' ? 'Hang' : 'Place', `data-uid="${_esc(piece.uid)}"`, true)}</div>`;
+            }
+        }
+        if (!this.held && !this.windowMode) {
+            const job = Furnishing.windowJob();
+            html += `<div style="margin-top:6px;">${btn('window', `🪟 Knock Through a Window (${_esc(job.price)}g)`)}</div>`;
         }
         html += `<div style="margin-top:8px;text-align:right;">${btn('done', 'Done (Esc)')}</div>`;
         el.innerHTML = html;
@@ -306,6 +423,8 @@ export const InnerMapFurnish = {
             case 'rotate': this.rotate(); break;
             case 'putaway': this.putAwayHeld(); break;
             case 'cancel': this.cancelHold(); break;
+            case 'window': if (this.held) this.cancelHold(); this.windowMode = true; break;
+            case 'nowindow': this.windowMode = false; break;
             case 'done': this.stop(); return;
         }
         this.renderPanel();
@@ -322,7 +441,49 @@ export const InnerMapFurnish = {
         const hov = InnerMapRenderer._hoveredInnerHex;
         const player = this._player();
         ctx.save();
-        if (this.held) {
+        const mark = (q, r, ok) => {
+            const s = camera.worldToScreen(q * T, r * T);
+            const x = Math.floor(s.x), y = Math.floor(s.y);
+            ctx.fillStyle = ok ? 'rgba(93,219,106,0.28)' : 'rgba(224,80,70,0.32)';
+            ctx.fillRect(x, y, ds, ds);
+            ctx.strokeStyle = ok ? 'rgba(93,219,106,0.9)' : 'rgba(224,80,70,0.9)';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(x + 1, y + 1, ds - 2, ds - 2);
+            return { x, y };
+        };
+        const why = (q, r, reason) => {
+            if (!reason || ds < 14) return;
+            const s = camera.worldToScreen(q * T, r * T);
+            ctx.font = 'bold 12px Georgia, serif';
+            const tw = ctx.measureText(reason).width + 10;
+            ctx.fillStyle = 'rgba(20,10,8,0.85)';
+            ctx.fillRect(s.x, s.y - 20, tw, 17);
+            ctx.fillStyle = '#f0a090';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(reason, s.x + 5, s.y - 11);
+        };
+        if (this.held && this._heldDecor()) {
+            // A decoration: one tile, its icon over a green or red mark (with the reason)
+            if (!hov) { ctx.restore(); return; }
+            const chk = InnerMap.decorCheck(this.held, hov.q, hov.r, { player });
+            const v = FurnitureCatalogue.view(this.held);
+            const { x, y } = mark(hov.q, hov.r, chk.ok);
+            if (ds >= 10) {
+                ctx.globalAlpha = 0.85;
+                ctx.font = `${Math.floor(ds * 0.55)}px serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(v.icon || '✨', x + ds / 2, y + ds / 2);
+                ctx.textAlign = 'start';
+                ctx.globalAlpha = 1;
+            }
+            if (!chk.ok) why(hov.q, hov.r, chk.reason);
+        } else if (this.windowMode) {
+            if (!hov) { ctx.restore(); return; }
+            const chk = InnerMap.windowCheck(hov.q, hov.r);
+            mark(hov.q, hov.r, chk.ok);
+            if (!chk.ok) why(hov.q, hov.r, chk.reason);
+        } else if (this.held) {
             if (!hov) { ctx.restore(); return; }
             const trial = { ...this.held, rot: this.rot };
             const chk = InnerMap.furnishCheck(trial, hov.q, hov.r, { player });
@@ -358,7 +519,16 @@ export const InnerMapFurnish = {
                 ctx.fillText(chk.reason, s.x + 5, s.y - 11);
             }
         } else if (hov) {
-            // What a click would pick up
+            // What a click would pick up (a decoration before the table it stands on)
+            const deco = InnerMap.decorAt(player, hov.q, hov.r);
+            if (deco) {
+                const s = camera.worldToScreen(hov.q * T, hov.r * T);
+                ctx.strokeStyle = 'rgba(160,210,255,0.95)';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(Math.floor(s.x) + 3, Math.floor(s.y) + 3, ds - 6, ds - 6);
+                ctx.restore();
+                return;
+            }
             const piece = InnerMap.pieceAt(player, hov.q, hov.r);
             if (piece) {
                 ctx.strokeStyle = 'rgba(245,197,66,0.95)';

@@ -103,7 +103,13 @@ export function _removeModal(id) {
     if (el) el.remove();
 }
 
-export function _showSleepModal(game, objDef, cost = 0) {
+/**
+ * The sleep window. opts (ui/objectActions/furniture.js): mult — how well one
+ * sleeps in this bed (a rented suite more, a stranger's less: player/furnitureActions.js
+ * bedAccess); note — the header line; before(hours) — run as you lie down: false
+ * stops the sleep (found in a stranger's bed), a string is added to the notice.
+ */
+export function _showSleepModal(game, objDef, cost = 0, opts = {}) {
     _removeModal('objActionModal');
     const id = 'objActionModal';
     const modal = document.createElement('div');
@@ -115,7 +121,7 @@ export function _showSleepModal(game, objDef, cost = 0) {
     // A good bed of your own: sleep restores more (data/furniture.json restBonus)
     // (and your own bedchamber, by its furniture and how clean the maids keep it: player/household.js)
     const own = InnerMap.isOwnHome && InnerMap.isOwnHome() ? Household.sleepBonus(game.player, InnerMap.furnishHomeKey()) : 0;
-    const bed = 1 + Math.max(0, Number(objDef && objDef.restBonus) || 0) + own;
+    const bed = (1 + Math.max(0, Number(objDef && objDef.restBonus) || 0) + own) * (Number.isFinite(opts.mult) && opts.mult > 0 ? opts.mult : 1);
     const energyFor = h => Math.round(_calcSleepEnergy(h) * bed * Endurance.recoveryMult(game.player)); // (more for the hardy: player/endurance.js)
     const healthFor = h => Math.round(_calcSleepHealth(h) * bed);
     const comfortFor = h => Math.round(_calcSleepComfort(h) * bed);
@@ -126,7 +132,7 @@ export function _showSleepModal(game, objDef, cost = 0) {
             <span style="font-size:28px">🛏️</span>
             <div>
                 <div style="font-family:var(--font-display,'Cinzel',serif);font-size:16px;color:var(--gold,#f5c542)">Sleep</div>
-                <div style="font-size:11px;color:#999">${cost > 0 ? `A night's lodging costs ${Utils.formatGold(cost)} gold` : bed > 1 ? `A good bed: sleep restores ${Math.round((bed - 1) * 100)}% more` : 'Rest to recover energy and health'}</div>
+                <div style="font-size:11px;color:#999">${cost > 0 ? `A night's lodging costs ${Utils.formatGold(cost)} gold` : opts.note ? `${opts.note}${bed !== 1 ? `: sleep restores ${Math.round(Math.abs(bed - 1) * 100)}% ${bed > 1 ? 'more' : 'less'}` : ''}` : bed > 1 ? `A good bed: sleep restores ${Math.round((bed - 1) * 100)}% more` : 'Rest to recover energy and health'}</div>
             </div>
         </div>
         <div style="${MODAL_BODY_STYLE}">
@@ -175,6 +181,8 @@ export function _showSleepModal(game, objDef, cost = 0) {
             // (the innkeeper is the town's: the room money into its purse)
             PlayerCoin.pay(game.world, game.player, cost, PlayerCoin.townHere(game.world, game.player), 'lodging');
         }
+        const told = typeof opts.before === 'function' ? opts.before(hours) : null;
+        if (told === false) { delete window._execSleep; return; }
         _advanceTime(hours);
         if (game.player.modifyNeed) {
             game.player.modifyNeed('energy', energyFor(hours));
@@ -185,7 +193,7 @@ export function _showSleepModal(game, objDef, cost = 0) {
             const hp = game.player.health != null ? game.player.health : 100;
             game.player.health = Math.min(game.player.maxHealth || 100, hp + hpGain);
         }
-        game.ui.showNotification('💤 Slept', `You slept for ${hours} hours and feel refreshed.`, 'success');
+        game.ui.showNotification('💤 Slept', `You slept for ${hours} hours and feel refreshed.${typeof told === 'string' && told ? ` ${told}` : ''}`, 'success');
         game.ui.updateStats(game.player, game.world);
         Hotbar.refresh();
         delete window._execSleep;

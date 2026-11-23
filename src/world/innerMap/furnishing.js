@@ -21,6 +21,17 @@
 // see it as ordinary furniture. A piece's storage is shared with its tile
 // (_furniture._storage), so a chest's contents go where the chest goes.
 //
+// DECORATIONS (data/furniture.json items of kind 'decor' and 'wall') are kept
+// beside the pieces, in rec.decor = [{ uid, id, look?, q, r, face?, on?, cell? }]:
+// a 'decor' item stands on a table, desk, shelf, dresser … (decorOn) and sets
+// that tile's _decor; it rides on the piece under it (on: its uid, cell: which
+// of its tiles), so moving the table moves the mugs. A 'wall' item hangs on a
+// wall tile facing into a room (down, left or right: the front wall's inside
+// can't be seen) and sets _wallDecor/_wallDecorFace; curtains hang only at a
+// window. Windows knocked through (rec.windows = [{ q, r, face }]) are building
+// work, never taken down. The house's own decorations are adopted with its
+// furniture; on entering, every decoration is laid again from the layout.
+//
 // The buying, storing and selling are systems/furnishing.js; the edit mode
 // (ghost preview, pick up, set down, turn) is ui/innerMapFurnish.js.
 
@@ -134,16 +145,48 @@ Object.assign(InnerMap, {
                 rec.pieces.push(piece);
             }
         }
+        // The things on its tables and walls (world/innerMap/interiorPlanner.js lays them)
+        const under = new Map();
+        for (const piece of rec.pieces) {
+            FurnitureCatalogue.tilesOf(piece, piece.q, piece.r).forEach((c, i) => under.set(`${c.q},${c.r}`, { uid: piece.uid, cell: i }));
+        }
+        rec.decor = Array.isArray(rec.decor) ? rec.decor : [];
+        for (let r = 0; r < this.height; r++) {
+            for (let q = 0; q < this.width; q++) {
+                const t = this._furnishTile(q, r);
+                if (!t || !t._decor || t._decorUid) continue;
+                const u = under.get(`${q},${r}`);
+                if (!u) continue; // (on something built in: it stays where it is)
+                rec.decor.push({ uid: `f${++seq}`, id: null, look: { kind: 'decor', decor: t._decor }, q, r, on: u.uid, cell: u.cell });
+            }
+        }
+        seq = this._adoptWallDecor(rec, seq);
+        rec.decorAdopted = true;
         player.furnitureSeq = seq;
         rec.adopted = true;
         this._layFurnishings(rec, player);
         return rec;
     },
 
+    /** The house's own wall hangings (not its windows) into the layout. → the last uid number */
+    _adoptWallDecor(rec, seq) {
+        rec.decor = Array.isArray(rec.decor) ? rec.decor : [];
+        for (let r = 0; r < this.height; r++) {
+            for (let q = 0; q < this.width; q++) {
+                const t = this._furnishTile(q, r);
+                if (!t || !t._wallDecor || t._wallDecor === 'window' || t._wallDecorUid) continue;
+                const face = t._wallDecorFace || (this._wallFace(q, r) || {}).face || 'down';
+                rec.decor.push({ uid: `f${++seq}`, id: null, look: { kind: 'wall', wallDecor: t._wallDecor }, q, r, face });
+            }
+        }
+        return seq;
+    },
+
     /** Clear a tile of its furniture, its ground walkable again. */
     _clearFurnitureTile(t) {
         if (!t || !t._furniture) return;
         t._furniture = null;
+        delete t._decor; delete t._decorUid; // (what stood on it goes with it)
         t.subTerrain = this._floorSubTerrain(t);
     },
 
@@ -222,14 +265,285 @@ Object.assign(InnerMap, {
                 player.furnitureStore.push(p);
             }
         }
+        bumped.push(...this._layDecor(rec, player));
         this._furnitureChanged();
         return bumped;
+    },
+
+    // ──────────── DECORATIONS ────────────
+
+    _isWallTile(t) {
+        return !!(t && !t._isDoor && (t.baseTerrain === 'wall' || (t.subTerrain && t.subTerrain.id === 'wall')));
+    },
+
+    /** Which way a wall tile faces into a room: { face: 'down' | 'right' | 'left', q, r } (the floor before it), or null. */
+    _wallFace(q, r) {
+        const floor = (fq, fr) => {
+            const t = this._furnishTile(fq, fr);
+            return !!(t && t._isInterior && !t._isDoor && !this._isWallTile(t));
+        };
+        if (floor(q, r + 1)) return { face: 'down', q, r: r + 1 };
+        if (floor(q + 1, r)) return { face: 'right', q: q + 1, r };
+        if (floor(q - 1, r)) return { face: 'left', q: q - 1, r };
+        return null;
+    },
+
+    /** Where a decoration stands now: its piece's tile when it rides on one, else its own (q, r). */
+    _decorSpot(rec, d) {
+        if (d.on) {
+            const piece = (rec.pieces || []).find(p => p.uid === d.on);
+            if (!piece || !Number.isFinite(piece.q)) return null;
+            const cells = FurnitureCatalogue.tilesOf(piece, piece.q, piece.r);
+            return cells[Math.min(cells.length - 1, Math.max(0, Number(d.cell) || 0))] || null;
+        }
+        return Number.isFinite(d.q) && Number.isFinite(d.r) ? { q: d.q, r: d.r } : null;
+    },
+
+    /** Which of a laid piece's tiles (q, r) is (0 when it isn't one of the layout's). */
+    _cellOf(rec, f, q, r) {
+        const piece = f && f._piece && rec && (rec.pieces || []).find(p => p.uid === f._piece);
+        if (!piece) return 0;
+        return Math.max(0, FurnitureCatalogue.tilesOf(piece, piece.q, piece.r).findIndex(c => c.q === q && c.r === r));
+    },
+
+    /**
+     * May this decoration go at (q, r)? A 'decor' item on a table, desk, shelf …
+     * with nothing on it yet; a 'wall' item on a wall facing into a room with
+     * nothing hung there (curtains: only at a window). opts.laying: the layout
+     * laid on entry (ownership not checked); opts.rec: the layout (for what's
+     * under it). → { ok, reason, face?, on?, cell? }
+     */
+    decorCheck(piece, q, r, opts = {}) {
+        if (!this._insideBuilding || !this.tiles) return { ok: false, reason: 'You can only decorate inside a building.' };
+        if (!opts.laying && !this.isOwnHome()) return { ok: false, reason: 'This isn\'t your home to decorate.' };
+        const v = FurnitureCatalogue.view(piece);
+        const kind = v && (v.kind === 'decor' || v.kind === 'wall') ? v.kind : null;
+        if (!kind) return { ok: false, reason: 'That stands on the floor.' };
+        const t = Number.isFinite(q) && Number.isFinite(r) ? this._furnishTile(q, r) : null;
+        if (!t || !t._isInterior) return { ok: false, reason: 'Nowhere to put it.' };
+        const ignore = piece && piece.uid;
+        const rec = opts.rec || this.homeLayout(opts.player || null, false);
+        if (!opts.laying && rec && Array.isArray(rec.decor) && !rec.decor.some(d => d.uid === ignore)) {
+            const max = Number(FurnitureCatalogue.config().maxDecorPerHome) || 40;
+            if (rec.decor.length >= max) return { ok: false, reason: `No room for more: ${max} things at most.` };
+        }
+        if (kind === 'decor') {
+            const f = t._furniture;
+            if (!f) return { ok: false, reason: `Set the ${v.name} on a table, a desk, a shelf or a dresser.` };
+            if (!FurnitureCatalogue.holdsDecor(f.type) || f.passable) return { ok: false, reason: `Nothing can stand on the ${f.name}.` };
+            if (t._decor && t._decorUid !== ignore) return { ok: false, reason: `There is something on the ${f.name} already.` };
+            return { ok: true, reason: null, on: f._piece || null, cell: this._cellOf(rec, f, q, r) };
+        }
+        if (!this._isWallTile(t)) return { ok: false, reason: t._isDoor ? 'Not on the door.' : `Hang the ${v.name} on a wall.` };
+        const fc = this._wallFace(q, r);
+        if (!fc) return { ok: false, reason: 'That wall doesn\'t face into a room.' };
+        if (v.onWindow) {
+            const mine = t._wallDecorUid === ignore && !!ignore;
+            if (t._wallDecor !== 'window' && !mine) return { ok: false, reason: `${v.name} hang at a window.` };
+            return { ok: true, reason: null, face: t._wallDecorFace || fc.face };
+        }
+        if (t._wallDecor && !(t._wallDecorUid === ignore && ignore)) {
+            return { ok: false, reason: t._wallDecor === 'window' || t._wallDecor === 'curtains' ? 'That\'s a window.' : 'Something hangs there already.' };
+        }
+        return { ok: true, reason: null, face: fc.face };
+    },
+
+    /** Lay one decoration's look on its tile (no checks). */
+    _layDecorAt(d, spot, face) {
+        const t = this._furnishTile(spot.q, spot.r);
+        if (!t) return;
+        const v = FurnitureCatalogue.view(d);
+        if (v.kind === 'decor') {
+            t._decor = v.decor;
+            t._decorUid = d.uid;
+        } else {
+            t._wallDecor = v.wallDecor;
+            t._wallDecorFace = face || d.face || t._wallDecorFace || 'down';
+            t._wallDecorUid = d.uid;
+        }
+    },
+
+    /** Take a decoration's look off its tile (curtains leave the window behind). */
+    _unlayDecor(d) {
+        for (let r = 0; r < this.height; r++) {
+            for (let q = 0; q < this.width; q++) {
+                const t = this._furnishTile(q, r);
+                if (!t) continue;
+                if (t._decorUid === d.uid) { delete t._decor; delete t._decorUid; }
+                if (t._wallDecorUid === d.uid) this._bareWall(t);
+            }
+        }
+    },
+
+    /** A wall tile with nothing on it again: a window (cut, or the house's own under curtains) stays a window. */
+    _bareWall(t) {
+        const win = t._wallDecor === 'window' || t._wallDecor === 'curtains' || t._windowCut;
+        delete t._wallDecorUid;
+        if (win) t._wallDecor = 'window';
+        else { delete t._wallDecor; delete t._wallDecorFace; }
+    },
+
+    /**
+     * Lay the layout's decorations (after its pieces): every movable thing on a
+     * table or wall comes off, the windows knocked through go in, then each
+     * decoration where it was set. Those with nowhere to go go into the store. → those bumped
+     */
+    _layDecor(rec, player) {
+        for (let r = 0; r < this.height; r++) {
+            for (let q = 0; q < this.width; q++) {
+                const t = this._furnishTile(q, r);
+                if (!t) continue;
+                if (t._decor && (!t._furniture || t._furniture._piece)) { delete t._decor; delete t._decorUid; }
+                if (t._wallDecor) this._bareWall(t);
+            }
+        }
+        for (const w of Array.isArray(rec.windows) ? rec.windows : []) {
+            const t = this._furnishTile(w.q, w.r);
+            if (!this._isWallTile(t) || (t._wallDecor && t._wallDecor !== 'window')) continue;
+            t._wallDecor = 'window';
+            t._wallDecorFace = w.face || 'down';
+            t._windowCut = true;
+        }
+        if (!Array.isArray(rec.decor)) rec.decor = [];
+        const bumped = [];
+        const kept = [];
+        for (const d of rec.decor) {
+            const spot = this._decorSpot(rec, d);
+            const chk = spot ? this.decorCheck(d, spot.q, spot.r, { laying: true, rec }) : { ok: false };
+            if (!chk.ok) { bumped.push(d); continue; }
+            if (!d.on) { d.q = spot.q; d.r = spot.r; }
+            this._layDecorAt(d, spot, chk.face);
+            kept.push(d);
+        }
+        if (bumped.length && player) {
+            rec.decor = kept;
+            if (!Array.isArray(player.furnitureStore)) player.furnitureStore = [];
+            for (const d of bumped) {
+                delete d.q; delete d.r; delete d.on; delete d.cell; delete d.face;
+                player.furnitureStore.push(d);
+            }
+        }
+        return bumped;
+    },
+
+    /** The decoration of the current home at a tile (on it, or hung on it), or null. */
+    decorAt(player, q, r) {
+        const t = this._furnishTile(q, r);
+        const uid = t && (t._decorUid || t._wallDecorUid);
+        const rec = uid && this.homeLayout(player, false);
+        return (rec && Array.isArray(rec.decor) && rec.decor.find(d => d.uid === uid)) || null;
+    },
+
+    /** Set a decoration on a table or hang it on a wall of the current home. → { ok, reason } */
+    placeDecor(player, piece, q, r) {
+        const rec = this.adoptHomeFurniture(player);
+        if (!rec) return { ok: false, reason: 'This isn\'t your home to decorate.' };
+        const chk = this.decorCheck(piece, q, r, { player, rec });
+        if (!chk.ok) return chk;
+        if (!Array.isArray(rec.decor)) rec.decor = [];
+        if (rec.decor.includes(piece)) this._unlayDecor(piece);
+        else rec.decor.push(piece);
+        piece.q = q; piece.r = r;
+        if (FurnitureCatalogue.decorKind(piece) === 'decor') {
+            if (chk.on) { piece.on = chk.on; piece.cell = chk.cell || 0; } else { delete piece.on; delete piece.cell; }
+            delete piece.face;
+        } else {
+            piece.face = chk.face;
+            delete piece.on; delete piece.cell;
+        }
+        this._layDecorAt(piece, { q, r }, chk.face);
+        return { ok: true, reason: null };
+    },
+
+    /** Take a decoration down (off its table, off its wall) and out of the layout. → it, or null */
+    liftDecor(player, uid) {
+        const rec = this.adoptHomeFurniture(player);
+        if (!rec || !Array.isArray(rec.decor)) return null;
+        const i = rec.decor.findIndex(d => d.uid === uid);
+        if (i < 0) return null;
+        const d = rec.decor[i];
+        this._unlayDecor(d);
+        rec.decor.splice(i, 1);
+        return d;
+    },
+
+    /**
+     * A piece of furniture gone into the store: what stood on it comes off
+     * and into the store too. → the decorations returned
+     */
+    releaseDecorOn(player, uid) {
+        const rec = this.homeLayout(player, false);
+        if (!rec || !Array.isArray(rec.decor) || !player) return [];
+        const off = rec.decor.filter(d => d.on === uid);
+        if (!off.length) return [];
+        rec.decor = rec.decor.filter(d => d.on !== uid);
+        if (!Array.isArray(player.furnitureStore)) player.furnitureStore = [];
+        for (const d of off) {
+            this._unlayDecor(d);
+            delete d.q; delete d.r; delete d.on; delete d.cell;
+            player.furnitureStore.push(d);
+        }
+        return off;
+    },
+
+    /** May a window be knocked through the wall at (q, r)? → { ok, reason, face } */
+    windowCheck(q, r) {
+        if (!this._insideBuilding || !this.tiles || !this.isOwnHome()) return { ok: false, reason: 'Only in a home of your own.' };
+        const t = this._furnishTile(q, r);
+        if (!this._isWallTile(t) || !t._isInterior) return { ok: false, reason: 'A window goes in a wall.' };
+        // (the corners hold the house up)
+        if ((q === 0 || q === this.width - 1) && (r === 0 || r === this.height - 1)) return { ok: false, reason: 'Not in the corner of the house.' };
+        const fc = this._wallFace(q, r);
+        if (!fc) return { ok: false, reason: 'That wall doesn\'t face into a room.' };
+        if (t._wallDecor === 'window' || t._wallDecor === 'curtains') return { ok: false, reason: 'There is a window there already.' };
+        if (t._wallDecor) return { ok: false, reason: 'Take down what hangs there first.' };
+        return { ok: true, reason: null, face: fc.face };
+    },
+
+    /** Knock a window through the wall at (q, r) of the current home (paid for: systems/furnishing.js windowJob). → { ok, reason } */
+    cutWindow(player, q, r) {
+        const chk = this.windowCheck(q, r);
+        if (!chk.ok) return chk;
+        const rec = this.adoptHomeFurniture(player);
+        if (!rec) return { ok: false, reason: 'Only in a home of your own.' };
+        if (!Array.isArray(rec.windows)) rec.windows = [];
+        rec.windows.push({ q, r, face: chk.face });
+        const t = this._furnishTile(q, r);
+        t._wallDecor = 'window';
+        t._wallDecorFace = chk.face;
+        t._windowCut = true;
+        return { ok: true, reason: null };
+    },
+
+    /** The decorations about the home the player stands in, as looks for FurnitureCatalogue.decorEffects. */
+    homeDecorLooks() {
+        if (!this._insideBuilding || !this.isOwnHome() || !this.tiles) return [];
+        const out = [];
+        for (let r = 0; r < this.height; r++) {
+            for (let q = 0; q < this.width; q++) {
+                const t = this.tiles[r] && this.tiles[r][q];
+                if (!t) continue;
+                if (t._decor) out.push({ kind: 'decor', look: t._decor });
+                if (t._wallDecor) out.push({ kind: 'wall', look: t._wallDecor });
+            }
+        }
+        return out;
+    },
+
+    /** What the decorations of the home the player stands in do (capped): { comfort, cheer, light, prestige }. */
+    homeDecorEffects() {
+        return FurnitureCatalogue.decorEffects(this.homeDecorLooks());
     },
 
     /** On entering a building: if it's the player's and they've furnished it, lay it out. */
     applyHomeFurnishings(player) {
         const rec = this.homeLayout(player, false);
         if (!rec || !rec.adopted) return [];
+        // (a layout from before decorations: the house's own wall hangings are taken in once)
+        if (!rec.decorAdopted) {
+            player.furnitureSeq = this._adoptWallDecor(rec, Math.max(0, Number(player.furnitureSeq) || 0));
+            rec.decorAdopted = true;
+        }
         const bumped = this._layFurnishings(rec, player);
         this._furnishBumped = bumped.length ? bumped : null;
         return bumped;
@@ -335,6 +649,12 @@ Object.assign(InnerMap, {
         else rec.pieces.push(piece);
         piece.q = q; piece.r = r; piece.rot = rot;
         this._layPiece(piece);
+        // What stood on it stands on it still
+        for (const d of Array.isArray(rec.decor) ? rec.decor : []) {
+            if (d.on !== piece.uid) continue;
+            const spot = this._decorSpot(rec, d);
+            if (spot) { d.q = spot.q; d.r = spot.r; this._layDecorAt(d, spot); }
+        }
         this._furnitureChanged();
         // Anyone using it gets up
         for (const n of this.npcs || []) if (n && n._act && n._act.spot && cellsHas(chk.cells, n._act.spot) && this.yieldFurniture) this.yieldFurniture(n);
@@ -372,8 +692,15 @@ Object.assign(InnerMap, {
                 sum += Number.isFinite(f.comfort) ? f.comfort : FurnitureCatalogue.typeComfort(f.type);
             }
         }
+        // The things on its tables and walls, a little (capped on their own: FurnitureCatalogue.decorEffects)
+        sum += this.homeDecorEffects().comfort;
         const cap = Number(FurnitureCatalogue.config().comfortCap) || 1.2;
         return Math.round(Math.min(cap, sum) * 100) / 100;
+    },
+
+    /** How cheering the home is (fun each hour spent in it): its flowers, books, paintings … capped. 0 when it isn't theirs. */
+    homeCheer() {
+        return this.homeDecorEffects().cheer;
     },
 });
 

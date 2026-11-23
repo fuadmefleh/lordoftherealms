@@ -699,6 +699,11 @@ Object.assign(InnerMap, {
         desk: '#6a4a2a', shelf: '#5a3a1a', cauldron: '#3a3a3a', tub: '#b87333', oven: '#8a4a3a',
         millstone: '#8a8a8a', cell: '#4a4a52', press: '#5a5a5a', lectern: '#6a4a2a', sack: '#a08a5a', rug: '#8a2a2a',
         flagstone: '#5a5a60',
+        // (the planner's pieces: world/innerMap/interiorPlanner.js, data/interiorPlans.json)
+        dresser: '#6a4a2a', cupboard: '#5a3a1a', workbench: '#6a4a2a', loom: '#7a5a3a', spinning_wheel: '#7a5a3a',
+        basket: '#a08a5a', firewood: '#6a4a2a', plant: '#4a7a3a', washstand: '#7a6a5a', chair: '#6a4a2a',
+        wardrobe: '#5a3a1a', cradle: '#7a5a3a', sack_pile: '#a08a5a', crate_stack: '#7a5a2a', barrel_rack: '#6a4a2a',
+        coat_rack: '#5a4a3a',
     },
 
     /**
@@ -1214,6 +1219,74 @@ Object.assign(InnerMap, {
         const ownDef = building._customDefId && typeof CustomBuildings !== 'undefined' ? CustomBuildings.getBuilding(building._customDefId) : null;
         const look = this._interiorLook(ownDef, building.type, baseLayout);
         const layout = { ...baseLayout, wall: look.wall, floor: look.floor, furniture: this._furnishByTier(baseLayout.furniture || [], look.tier, look.kind) };
+        // Planned by rules (world/innerMap/interiorPlanner.js, data/interiorPlans.json): its own size,
+        // rooms, furniture and decor from its seed; the old fixed layout where no plan is loaded
+        const seedKey = interiorKey || `${building.type}_${building.q}_${building.r}`;
+        const plan = this._planInterior ? this._planInterior(building, seedKey, baseLayout, look, ownDef) : null;
+        const { tiles, width: w, height: h } = plan || this._layFixedInterior(layout, look, building);
+
+        // A rich house's finery, where the room has the space for it (furnish.rich.add)
+        if (look.tier === 'rich' && look.kind !== 'work') this._addFinery(tiles, w, h, look.kind);
+
+        // Beds, tables, baths, stalls, altars and forges at their own size, where the room allows
+        this._joinPieces(tiles, w, h, { q: Math.floor(w / 2), r: h - 1 });
+
+        // Things on its tables and shelves, and on its walls (world/innerMap/interiorPlanner.js)
+        if (plan && this._decorateInterior) this._decorateInterior(tiles, w, h, plan.info);
+
+        // ── Overlay nine-tile brush sprites if available ──
+        if (typeof CustomInteriors !== 'undefined' && CustomInteriors.getBrushes().length > 0) {
+            const seed = interiorKey || `${building.type}_${building.q}_${building.r}`;
+            const floorBrush = CustomInteriors.pickFloorBrush(seed);
+            const wallBrush  = CustomInteriors.pickWallBrush(seed + '_wall');
+
+            if (floorBrush || wallBrush) {
+                // Build brushGroupMap for auto-tiling
+                const brushGroupMap = {};
+                for (let r2 = 0; r2 < h; r2++) {
+                    for (let q2 = 0; q2 < w; q2++) {
+                        const tile = tiles[r2][q2];
+                        const key = `${q2},${r2}`;
+                        if (tile.baseTerrain === 'wall' && wallBrush) {
+                            brushGroupMap[key] = { brushId: wallBrush.id, layer: 'walls' };
+                        } else if (tile.baseTerrain !== 'wall' && !tile._isDoor && floorBrush) {
+                            brushGroupMap[key] = { brushId: floorBrush.id, layer: 'floor' };
+                        }
+                    }
+                }
+
+                // Resolve auto-tile for each cell and attach _customTile data
+                for (let r2 = 0; r2 < h; r2++) {
+                    for (let q2 = 0; q2 < w; q2++) {
+                        const tile = tiles[r2][q2];
+                        const key = `${q2},${r2}`;
+                        const entry = brushGroupMap[key];
+                        if (!entry) continue;
+
+                        const brush = entry.layer === 'walls' ? wallBrush : floorBrush;
+                        const resolved = CustomInteriors.resolveNineTile(brush, q2, r2, brushGroupMap, w, h);
+                        if (resolved && resolved.sheetPath) {
+                            tile._customTile = {
+                                floor:   entry.layer === 'floor' ? resolved : null,
+                                walls:   entry.layer === 'walls' ? resolved : null,
+                                furniture: null,
+                                overlay:   null,
+                            };
+                        }
+                    }
+                }
+            }
+        }
+
+        // (its rooms, where it was planned: [{ id, name, cells }])
+        return plan ? { tiles, width: w, height: h, rooms: plan.rooms } : { tiles, width: w, height: h };
+    },
+
+    /**
+     * The old fixed layout: INTERIOR_LAYOUTS' rectangle, its furniture at its own coordinates
+     * (where no interior plan is loaded: data/interiorPlans.json).
+     */
+    _layFixedInterior(layout, look, building) {
         const w = layout.width;
         const h = layout.height;
         const floorDef = this.INTERIOR_FLOORS[layout.floor] || this.INTERIOR_FLOORS.wood_floor;
@@ -1294,57 +1367,6 @@ Object.assign(InnerMap, {
                 }
             }
         }
-
-        // A rich house's finery, where the room has the space for it (furnish.rich.add)
-        if (look.tier === 'rich' && look.kind !== 'work') this._addFinery(tiles, w, h, look.kind);
-
-        // Beds, tables, baths, stalls, altars and forges at their own size, where the room allows
-        this._joinPieces(tiles, w, h, { q: Math.floor(w / 2), r: h - 1 });
-
-        // ── Overlay nine-tile brush sprites if available ──
-        if (typeof CustomInteriors !== 'undefined' && CustomInteriors.getBrushes().length > 0) {
-            const seed = interiorKey || `${building.type}_${building.q}_${building.r}`;
-            const floorBrush = CustomInteriors.pickFloorBrush(seed);
-            const wallBrush  = CustomInteriors.pickWallBrush(seed + '_wall');
-
-            if (floorBrush || wallBrush) {
-                // Build brushGroupMap for auto-tiling
-                const brushGroupMap = {};
-                for (let r2 = 0; r2 < h; r2++) {
-                    for (let q2 = 0; q2 < w; q2++) {
-                        const tile = tiles[r2][q2];
-                        const key = `${q2},${r2}`;
-                        if (tile.baseTerrain === 'wall' && wallBrush) {
-                            brushGroupMap[key] = { brushId: wallBrush.id, layer: 'walls' };
-                        } else if (tile.baseTerrain !== 'wall' && !tile._isDoor && floorBrush) {
-                            brushGroupMap[key] = { brushId: floorBrush.id, layer: 'floor' };
-                        }
-                    }
-                }
-
-                // Resolve auto-tile for each cell and attach _customTile data
-                for (let r2 = 0; r2 < h; r2++) {
-                    for (let q2 = 0; q2 < w; q2++) {
-                        const tile = tiles[r2][q2];
-                        const key = `${q2},${r2}`;
-                        const entry = brushGroupMap[key];
-                        if (!entry) continue;
-
-                        const brush = entry.layer === 'walls' ? wallBrush : floorBrush;
-                        const resolved = CustomInteriors.resolveNineTile(brush, q2, r2, brushGroupMap, w, h);
-                        if (resolved && resolved.sheetPath) {
-                            tile._customTile = {
-                                floor:   entry.layer === 'floor' ? resolved : null,
-                                walls:   entry.layer === 'walls' ? resolved : null,
-                                furniture: null,
-                                overlay:   null,
-                            };
-                        }
-                    }
-                }
-            }
-        }
-
         return { tiles, width: w, height: h };
     },
 

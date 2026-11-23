@@ -55,6 +55,8 @@ import { InnerMapHiding } from '../innerMapHiding.js';
 import { isRiverSwim, riverRunsOn, riverCarriesOut, riverEntryCell } from '../innerMapRiverEdge.js';
 import { InnerMapSeasons } from '../innerMapSeasons.js';
 import { InnerMapWeather } from '../innerMapWeather.js';
+import { InteriorAmbience } from '../innerMapInteriorSound.js';
+import { ScreenTransition } from '../screenTransition.js';
 
 // Blows at a tree or a rock land harder with Woodcutting / Mining (player/gathering.js): the
 // world's swing damage (world/innerMap/movement.js), wrapped once, for every caller
@@ -105,6 +107,9 @@ export function gameLoop(timestamp, loopId) {
     if (!InnerMap.active && InnerMap._aboardBoat) InnerMapRowboat.update(deltaTime, this);
     // Off the street map the rain's sound falls silent (ui/innerMapWeather.js)
     if (!InnerMap.active) InnerMapWeather.offMap();
+    // The room's sound indoors, the street ducked meanwhile; silent outside, paused, in the settings
+    // (ui/innerMapInteriorSound.js)
+    InteriorAmbience.update(this, deltaTime);
 
     // What people wear follows the world's year (world/eraWardrobe.js: a no-op unless it changed)
     InnerMapCharacters.setYear(this.world ? this.world.year : null);
@@ -155,6 +160,8 @@ export function gameLoop(timestamp, loopId) {
             if (InnerMap._insideBuilding && InnerMap.isOwnHome && InnerMap.isOwnHome()) {
                 context.inOwnHouse = true;
                 context.homeComfort = InnerMap.homeComfort();
+                // (its flowers, books and paintings lift the spirits: capped, data/furniture.json decorCap)
+                if (InnerMap.homeCheer) context.homeCheer = InnerMap.homeCheer();
             }
             // Decay once per hour that passed
             const hoursPassed = InnerMap.timeOfDay - prevHour;
@@ -550,6 +557,9 @@ export function gameLoop(timestamp, loopId) {
         InnerMapRenderer.render(this.renderer.ctx, this.canvas, this.innerMapCamera, deltaTime);
         InnerMapTasks.render(this.renderer.ctx, this.innerMapCamera, this.canvas);
         InnerMapDeck.renderHud(this.renderer.ctx, this.innerMapCamera, this.canvas);
+        // A door's wipe / a fade when the place changed this frame (ui/screenTransition.js)
+        ScreenTransition.update(this, InnerMap, deltaTime);
+        ScreenTransition.draw(this.renderer.ctx, this.canvas);
 
         // Render minimap for inner map
         this.minimap.render();
@@ -678,6 +688,9 @@ export function gameLoop(timestamp, loopId) {
 
     // Render
     this.renderer.render(deltaTime);
+    // ...and the fade off the street map (ui/screenTransition.js)
+    ScreenTransition.update(this, InnerMap, deltaTime);
+    ScreenTransition.draw(this.renderer.ctx, this.canvas);
 
     // Render minimap (less frequently)
     this.minimap.render();
@@ -1001,6 +1014,8 @@ export function handleClick(screenX, screenY, button = 'left') {
             InnerMap.cancelPlayerWalk();
             InnerMap._pendingInteraction = null;
             InnerMap._pendingAction = null;
+            // (sat down: up, and the time sat settled — world/innerMap/furnitureUse.js)
+            if (InnerMap._playerSeated) InnerMap.standPlayerUp();
             InnerMap._activeInteraction = null;
 
             // Unfreeze NPC if we were walking to talk

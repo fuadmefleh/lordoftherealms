@@ -15,7 +15,8 @@ Object.assign(AudioManager.prototype, {
     setMusicVolume(v) {
         this.musicVolume = Math.max(0, Math.min(1, v));
         if (this.musicGain) {
-            this.musicGain.gain.setValueAtTime(this.musicVolume, this.ctx.currentTime);
+            // (ducked while a room plays indoors: audio/interior.js)
+            this.musicGain.gain.setValueAtTime(this.musicVolume * this._duckOf('music'), this.ctx.currentTime);
         }
         this._savePreferences();
     },
@@ -31,8 +32,10 @@ Object.assign(AudioManager.prototype, {
     setAmbienceVolume(v) {
         this.ambienceVolume = Math.max(0, Math.min(1, v));
         if (this.ambienceGain) {
-            this.ambienceGain.gain.setValueAtTime(this.ambienceVolume, this.ctx.currentTime);
+            this.ambienceGain.gain.setValueAtTime(this.ambienceVolume * this._duckOf('ambience'), this.ctx.currentTime);
         }
+        // the room indoors plays at the ambience volume too
+        this._syncInteriorBus();
         this._savePreferences();
     },
 
@@ -120,6 +123,7 @@ Object.assign(AudioManager.prototype, {
     /** Clean up everything */
     destroy() {
         this._stopMusic();
+        this.setInteriorAmbience(null);
         if (this.ctx) {
             this.ctx.close();
         }

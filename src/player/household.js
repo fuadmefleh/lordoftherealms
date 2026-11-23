@@ -60,6 +60,7 @@ import { Trading } from './playerEconomy.js';
 import { AnimalCompanions } from '../systems/animalCompanions.js';
 import { Housing } from '../systems/housing.js';
 import { CrownBooks } from '../world/crownBooks.js';
+import { Furnishing } from '../systems/furnishing.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = v => (v && typeof v === 'object' && !Array.isArray(v) ? v : {});
@@ -726,9 +727,11 @@ export const Household = {
         if (good) {
             if (rel) rel.score = _num(rel.score) + _num(G.kinOpinion);
             if (rival) rival.feud = Math.max(0, _num(rival.feud) - _num(G.envoyFeudCut));
-            if (player.house) House.award(player.house, _num(G.welcomePrestige), `${name} was well received`, _day(world));
+            // The house's finery (its tapestries, paintings, clock: systems/furnishing.js homeDecor, capped) is spoken of
+            const finery = Math.max(0, Math.round(Furnishing.homeDecor(player, home.key).prestige));
+            if (player.house) House.award(player.house, _num(G.welcomePrestige) + finery, `${name} was well received`, _day(world));
             Household._note(home, world, `${g.name} left well pleased.`);
-            out.push({ icon: g.icon, title: 'A Guest Leaves', text: `${name} leaves your house well pleased${rival ? ', and the feud cools a little' : ''}.`, type: 'success' });
+            out.push({ icon: g.icon, title: 'A Guest Leaves', text: `${name} leaves your house well pleased${rival ? ', and the feud cools a little' : ''}${finery ? `, and speaks of its fine hangings (+${finery} Prestige)` : ''}.`, type: 'success' });
             return;
         }
         if (rel) rel.score = _num(rel.score) + _num(G.badStayOpinion);

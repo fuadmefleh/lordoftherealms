@@ -1,0 +1,106 @@
+{
+    "_note": "What the player can do with furniture inside buildings, and what it costs in time, coin and the law (player/furnitureActions.js; the menu: ui/objectActions). 'offers' adds a furniture type's actions over the built-in table (ui/objectActions/data.js FURNITURE_ACTIONS); 'decorOffers' adds actions for what stands on a piece (tile._decor: books on a table, mugs in a tavern). 'hours' is game time; effects are needs (energy, comfort, fun, hygiene, hunger, social).",
+    "offers": {
+        "chair": ["sit"],
+        "bench": ["sit"],
+        "stool": ["sit"],
+        "pew": ["attend_service", "sit", "meditate"],
+        "oven": ["warm", "cook"],
+        "washstand": ["wash_basin"],
+        "tub": ["bathe_tub"],
+        "workbench": ["craft"],
+        "loom": ["tan"],
+        "spinning_wheel": ["tan"],
+        "dresser": ["store"],
+        "cupboard": ["store"],
+        "wardrobe": ["store"],
+        "basket": ["store"],
+        "sack_pile": ["store"],
+        "crate_stack": ["store"],
+        "barrel_rack": ["store"],
+        "firewood": ["store"]
+    },
+    "_offers": "In someone else's building the dresser, cupboard, wardrobe, basket and stores are theirs (ui/objectActions/data.js PRIVATE_FURNITURE): only Look Inside (and take or steal: systems/containers.js). Your own open as storage, where Eat from the Larder finds the food you put by.",
+    "byBuilding": {
+        "tavern": { "table": ["listen_bard", "sit", "order_meal", "eat", "gamble"] },
+        "inn": { "washstand": ["bathe_here"], "tub": ["bathe_here"] },
+        "guest_house": { "washstand": ["bathe_here"], "tub": ["bathe_here"] },
+        "hotel": { "washstand": ["bathe_here"], "tub": ["bathe_here"] },
+        "roadhouse": { "washstand": ["bathe_here"], "tub": ["bathe_here"] },
+        "bathhouse": { "tub": ["public_bath"], "washstand": ["wash_basin"] }
+    },
+    "decorOffers": {
+        "books": ["read"],
+        "papers": ["read"],
+        "mugs": { "tavern": ["drink"], "inn": ["drink"], "roadhouse": ["drink"] },
+        "bottles": { "tavern": ["drink"], "inn": ["drink"], "roadhouse": ["drink"] },
+        "plates": { "tavern": ["order_meal"] },
+        "bread": { "tavern": ["order_meal"] },
+        "bowls": { "tavern": ["order_meal"] }
+    },
+    "_ownership": "Whose a building is decides what you may do in it: 'own' (yours), 'lodging' (an inn, tavern or guest house: its rooms are let), 'public' (anyone may come in and sit), 'home' (someone else's house: their bed and washstand are theirs), 'business' (a shop or workshop). Anything else counts as 'business'.",
+    "homes": ["house", "cottage", "farm", "farmhouse", "barn", "manor", "hut", "hovel", "longhouse", "townhouse", "villa", "keep", "castle", "palace", "home"],
+    "lodgings": ["tavern", "inn", "guest_house", "hotel", "roadhouse"],
+    "public": ["church", "temple", "chapel", "cathedral", "monastery", "shrine", "library", "bathhouse", "town_hall", "guildhall", "marketplace", "barracks", "guard_tower", "jail", "post_house", "school", "ruin", "abandoned", "camp", "cave", "lair"],
+    "privateFurniture": ["bed", "washstand", "tub", "cradle"],
+    "sit": {
+        "types": ["chair", "bench", "stool", "pew", "table", "desk"],
+        "perHour": { "energy": 4, "comfort": 7, "fun": 1 },
+        "maxHours": 3,
+        "minMinutes": 5,
+        "text": "You get up after {time}: {gains}."
+    },
+    "sleep": {
+        "own": 1.0,
+        "permitted": 0.95,
+        "trespass": 0.8,
+        "rented": { "common": 0.85, "private": 1.1, "suite": 1.3 },
+        "trespassOdds": { "base": 0.2, "perWitness": 0.18, "ownerInside": 0.3, "night": 0.1, "nightFrom": 22, "nightTo": 6, "perStealth": -0.03, "min": 0.05, "max": 0.95 },
+        "trespassFine": { "min": 4, "max": 25, "perHour": 2 },
+        "trespassReputation": 2,
+        "notYours": "This isn't your bed. The household hasn't offered it.",
+        "caught": "{who} finds you in their bed and throws you out. Fined {fine}g for trespass{rep}.",
+        "unseen": "Nobody found you in a stranger's bed."
+    },
+    "warm": {
+        "types": ["fireplace", "oven", "forge", "cauldron"],
+        "hours": 0.5,
+        "effects": { "comfort": 12, "fun": 3, "energy": 2 },
+        "dry": 45,
+        "coldComfort": 10,
+        "unlit": "The fire is out: there's no warmth in it.",
+        "text": "You warm your hands at the {what}.",
+        "dried": " Your clothes steam dry ({before}% → {after}% wet).",
+        "thawed": " The chill goes out of your bones."
+    },
+    "read": {
+        "decor": ["books", "papers"],
+        "hours": 2
+    },
+    "order_meal": {
+        "cost": 8,
+        "hours": 0.75,
+        "seatedComfort": 3,
+        "poor": "A meal is {cost} gold, and you haven't got it."
+    },
+    "eat_home": {
+        "hours": 0.5,
+        "seatedComfort": 4,
+        "foods": ["cooked_meal", "meat_pie", "cooked_meat", "cooked_fish", "dried_meat", "sausage", "bread", "cheese", "honey_cake", "preserved_fish", "fish", "eggs", "milk", "apples", "pears", "plums", "cherries", "berries", "fruit", "vegetables", "cabbage", "turnips", "carrots", "beans", "onions", "pickles", "jam", "honey", "grain"],
+        "empty": "There's nothing to eat in the house: put food away in your chests and cupboards first.",
+        "notHome": "Only at your own table: here you would have to buy a meal."
+    },
+    "wash_basin": {
+        "hours": 0.25,
+        "effects": { "hygiene": 18, "comfort": 3 },
+        "notYours": "It's the household's washstand, not yours.",
+        "text": "You splash your face and scrub your hands at the basin."
+    },
+    "bathe_tub": {
+        "hours": 1,
+        "effects": { "hygiene": 55, "comfort": 15, "energy": 4, "fun": 4 },
+        "clothes": 70,
+        "notYours": "It's the household's bathtub, not yours.",
+        "text": "You fill the tub and soak until the water goes cold."
+    }
+}

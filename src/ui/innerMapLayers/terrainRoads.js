@@ -10,6 +10,7 @@ import { furnitureGlyph } from '../icons.js';
 import { engraveGlyph } from '../mapInk.js';
 import { sheetScale } from '../sheetScale.js';
 import { tintedWallSheet } from '../wallTint.js';
+import { CAP, asIds, daylight, wallSides, drawOuterWall, drawInnerWall, shadeFloor, drawWallDecor, drawTableDecor } from '../interiorDress.js';
 import { drawKerbs } from '../pavingEdges.js';
 import { drawLaneGround, drawLaneTufts } from '../laneEdges.js';
 import { drawTilledSoil } from '../tilledSoil.js';
@@ -116,6 +117,7 @@ Object.assign(InnerMapRenderer, {
             const sz = Math.ceil(ds) + 1;
             if (dyFloor + sz < 0 || dyFloor > canvasH) continue;
 
+            let interiorRow = false;
             for (let q = qMin; q <= qMax; q++) {
                 const dx0 = originX + (q - qMin) * ds;
                 const dx = Math.floor(dx0);
@@ -136,6 +138,7 @@ Object.assign(InnerMapRenderer, {
                 // ── Interior tiles: custom rendering ──
                 if (tile._isInterior) {
                     this._renderInteriorTile(ctx, tile, dx, dy, sz);
+                    interiorRow = true;
                     continue;
                 }
 
@@ -159,6 +162,8 @@ Object.assign(InnerMapRenderer, {
                 // Collect for batched grid drawing
                 (tile.visible ? gridVisible : gridDim).push(dx, dy, sz);
             }
+            // (what hangs on a room's walls, over the row's tiles: ui/interiorDress.js)
+            if (interiorRow) this._flushInteriorRow();
         }
 
         // Batched grid strokes — two paths instead of per-tile strokeRect
@@ -484,10 +489,11 @@ Object.assign(InnerMapRenderer, {
 
     /**
      * Draw a procedural interior tile from sprites: the floor's material (a few
-     * variants, picked by position), the wall's material (its face along the back
-     * wall, shaded where the side walls run), the door, and the furniture's sprite.
-     * Returns false while the sheets are still loading, or when no art is
-     * configured, so the flat-colour drawing stands in.
+     * variants, picked by position), the walls in the round (ui/interiorDress.js:
+     * the back wall's tall face, thin caps along the sides and the front, inner walls
+     * as runs with a face toward the room below them), what hangs on them, the door,
+     * the furniture's sprite and what lies on it. Returns false while the sheets are
+     * still loading, or when no art is configured, so the flat-colour drawing stands in.
      */
     _renderInteriorArt(ctx, tile, dx, dy, sz) {
         const art = this._interiorArt;
@@ -496,11 +502,12 @@ Object.assign(InnerMapRenderer, {
             const img = c && this._getSheetByPath(c.sheet);
             return img ? { img, c } : null;
         };
+        const getImg = (p) => this._getSheetByPath(p);
+        const scale = (img) => this._sheetScale(img);
         const hash = ((tile.q * 73856093) ^ (tile.r * 19349663)) >>> 0;
-        const isWall = tile.baseTerrain === 'wall';
+        // (a doorway in an inner wall is walked through: drawn as the floor it is)
+        const isWall = tile.baseTerrain === 'wall' && !tile._doorway;
         const at = (dq, dr) => InnerMap.getTile(tile.q + dq, tile.r + dr);
-        // (a door counts as the wall it stands in: no lit rim along its sides)
-        const walled = (o) => !o || o.baseTerrain === 'wall' || !!o._isDoor;
         // A seamless texture of whole tiles (tw × th): each tile shows its own cell of it, by
         // position, so the floor runs on unbroken. With variants (textures sharing one border),
         // each tw × th block of the room takes one by a hash of where it is, so nothing repeats.
@@ -515,17 +522,39 @@ Object.assign(InnerMapRenderer, {
             }
             return [sx + mod(tile.q, nx) * 32, sy + mod(tile.r, ny) * 32];
         };
+        // The floor (a wall standing in the room shows the room's floor round it: a neighbour's)
+        const floorOf = () => {
+            let id = tile.baseTerrain;
+            if (id === 'wall') {
+                for (const [a, b] of [[0, 1], [0, -1], [-1, 0], [1, 0]]) {
+                    const o = at(a, b);
+                    if (o && o.baseTerrain !== 'wall') { id = o.baseTerrain; break; }
+                }
+            }
+            const vars = art.floors[id] || art.floors[art.defaultFloor];
+            return vars && vars.length ? pick(vars[hash % vars.length]) : null;
+        };
+        const drawFloor = (fl) => {
+            const cell = cellOf(fl.c), kf = this._sheetScale(fl.img);
+            ctx.drawImage(fl.img, cell[0] * kf, cell[1] * kf, 32 * kf, 32 * kf, dx, dy, sz, sz);
+        };
+        const light = daylight(InnerMap.timeOfDay);
 
-        let base, cell, mat = null;
         if (isWall) {
-            mat = art.walls[tile._wallMaterial] || art.walls[art.defaultWall];
-            base = pick(mat);
-            if (base) cell = cellOf(mat);
-        } else {
-            const vars = art.floors[tile.baseTerrain] || art.floors[art.defaultFloor];
-            base = vars && vars.length ? pick(vars[hash % vars.length]) : null;
-            if (base) cell = cellOf(base.c);
+            const mat = art.walls[tile._wallMaterial] || art.walls[art.defaultWall];
+            const base = pick(mat);
+            if (!base) return false;
+            const fl = tile._innerWall || !wallSides(tile) ? floorOf() : null;
+            if ((tile._innerWall || !wallSides(tile)) && !fl) return false;
+            const face = this._drawWallTile(ctx, tile, mat, base.img, this._sheetScale(base.img), dx, dy, sz, fl ? () => drawFloor(fl) : null);
+            if (tile._wallDecor && art.wallDecor) {
+                // (after the row is done: a painting wider than its tile lies over the next)
+                const night = light < 0.35;
+                this._interiorAfterRow.push(() => drawWallDecor(ctx, art.wallDecor, tile, face, sz, getImg, scale, night));
+            }
+            return true;
         }
+        const base = floorOf();
         if (!base) return false;
         const furniture = tile._furniture;
         // A big piece (world/innerMap/interiors.js _joinPieces) is drawn once, from its last tile
@@ -540,41 +569,52 @@ Object.assign(InnerMapRenderer, {
         const furnImg = furnArt ? pick(furnArt) : null;
         if (furnArt && !furnImg) return false; // wait for the sheet rather than flash a box
 
-        const kb = this._sheetScale(base.img);
-        if (isWall) {
-            this._drawWallTile(ctx, tile, mat, base.img, kb, cellOf, at, walled, dx, dy, sz);
-            return true;
-        }
-        // A door in the front wall (walls either side of it): the wall's top round it, the door in that
-        const wallSides = (o) => !!o && o.baseTerrain === 'wall';
-        if (tile._isDoor && wallSides(at(-1, 0)) && wallSides(at(1, 0))) {
+        // A door in the front wall (walls either side of it): the wall round it, the door in that
+        const wallSide = (o) => !!o && o.baseTerrain === 'wall';
+        if (tile._isDoor && wallSide(at(-1, 0)) && wallSide(at(1, 0))) {
             const wm = art.walls[tile._wallMaterial] || art.walls[art.defaultWall];
             const wb = pick(wm);
             const door = pick(art.door);
             if (!wb || !door) return false;
-            this._drawWallTile(ctx, tile, wm, wb.img, this._sheetScale(wb.img), cellOf, at, walled, dx, dy, sz);
+            const front = tile.r === InnerMap.height - 1;
+            this._drawWallTile(ctx, tile, wm, wb.img, this._sheetScale(wb.img), dx, dy, sz, front ? null : () => drawFloor(base));
             const kd = this._sheetScale(door.img);
-            ctx.drawImage(door.img, door.c.sx * kd, door.c.sy * kd, (door.c.sw || 32) * kd, (door.c.sh || 32) * kd, dx, dy, sz, sz);
+            const c = Math.round(sz * CAP * 0.5);
+            ctx.drawImage(door.img, door.c.sx * kd, door.c.sy * kd, (door.c.sw || 32) * kd, (door.c.sh || 32) * kd, dx, dy + c, sz, sz - c);
             return true;
         }
-        ctx.drawImage(base.img, cell[0] * kb, cell[1] * kb, 32 * kb, 32 * kb, dx, dy, sz, sz);
+        drawFloor(base);
+        // the walls' shadows on it, a window's light
+        shadeFloor(ctx, tile, at, dx, dy, sz, light);
         if (tile._isDoor) {
             const door = pick(art.door);
             if (door) { const kd = this._sheetScale(door.img); ctx.drawImage(door.img, door.c.sx * kd, door.c.sy * kd, (door.c.sw || 32) * kd, (door.c.sh || 32) * kd, dx, dy, sz, sz); }
             return true;
         }
+        // What lies on it (tile._decor): over the piece, along its top
+        const onTop = (box, ids, top) => {
+            if (ids.length && art.decor) drawTableDecor(ctx, art.decor, ids, box, top, sz, getImg, scale, hash);
+        };
         if (furnImg && pieceArt) {
             if (piece.i !== piece.w - 1 || piece.j !== piece.h - 1) return true;   // (drawn from its last tile)
             const c = furnImg.c, k = this._sheetScale(furnImg.img);
             const left = dx - (piece.w - 1) * sz, bottom = dy + sz;
-            const dw = c.sw * sz / 48, dh = c.sh * sz / 48;   // (at the 48px pieces' scale)
+            const grid = c.grid || 48;
+            const dw = c.sw * sz / grid, dh = c.sh * sz / grid;   // (at the 48px pieces' scale)
             if (!c.flat) {
                 ctx.fillStyle = 'rgba(0, 0, 0, 0.18)';
                 ctx.beginPath();
                 ctx.ellipse(left + piece.w * sz / 2, bottom - sz * 0.1, piece.w * sz * 0.42, sz * 0.1, 0, 0, Math.PI * 2);
                 ctx.fill();
             }
-            ctx.drawImage(furnImg.img, c.sx * k, c.sy * k, c.sw * k, c.sh * k, Math.round(left + (piece.w * sz - dw) / 2), Math.round(bottom - dh), Math.round(dw), Math.round(dh));
+            const bx = Math.round(left + (piece.w * sz - dw) / 2), by = Math.round(bottom - dh);
+            ctx.drawImage(furnImg.img, c.sx * k, c.sy * k, c.sw * k, c.sh * k, bx, by, Math.round(dw), Math.round(dh));
+            // (what lies on any of its tiles, spread along the whole of it)
+            const ids = [];
+            for (let j = 0; j < piece.h; j++) {
+                for (let i = 0; i < piece.w; i++) ids.push(...asIds((at(i - piece.w + 1, j - piece.h + 1) || {})._decor));
+            }
+            onTop({ x: bx, y: by, w: dw, h: dh }, ids, c.top);
             return true;
         }
         if (furnImg) {
@@ -596,14 +636,20 @@ Object.assign(InnerMapRenderer, {
             const kf = this._sheetScale(fimg);
             // (lift: hung up the wall behind it — a banner — rather than stood on the floor)
             const ly = furnArt.lift && tile.r > 0 ? Math.round(sz * furnArt.lift) : 0;
-            // (a 48px piece of another size — a bookshelf taller than a person — stands on its tile
-            // at the same scale, its foot on the tile's, reaching up the wall behind)
-            if (fc.sw && fc.sh && (fc.sw !== 48 || fc.sh !== 48)) {
-                const dw = fc.sw * sz / 48, dh = fc.sh * sz / 48;
-                ctx.drawImage(fimg, fc.sx * kf, fc.sy * kf, fc.sw * kf, fc.sh * kf, Math.round(dx + (sz - dw) / 2), Math.round(dy + sz - dh - ly), Math.round(dw), Math.round(dh));
+            // (a piece of another size — a bookshelf taller than a person — stands on its tile at
+            // its own scale (grid: its pixels a tile, 48 when unsaid), its foot on the tile's,
+            // reaching up the wall behind)
+            const grid = fc.grid || 48;
+            let box;
+            if (fc.sw && fc.sh && (fc.sw !== 48 || fc.sh !== 48 || grid !== 48)) {
+                const dw = fc.sw * sz / grid, dh = fc.sh * sz / grid;
+                box = { x: Math.round(dx + (sz - dw) / 2), y: Math.round(dy + sz - dh - ly), w: Math.round(dw), h: Math.round(dh) };
+                ctx.drawImage(fimg, fc.sx * kf, fc.sy * kf, fc.sw * kf, fc.sh * kf, box.x, box.y, box.w, box.h);
             } else {
+                box = { x: dx, y: dy - ly, w: sz, h: sz };
                 ctx.drawImage(fimg, fc.sx * kf, fc.sy * kf, (fc.sw || 32) * kf, (fc.sh || 32) * kf, dx, dy - ly, sz, sz);
             }
+            onTop(box, asIds(tile._decor), furnArt.top);
         } else if (furniture) {
             // A piece with no sprite yet: its glyph cut into a dark plate
             const pad = sz * 0.14;
@@ -615,50 +661,33 @@ Object.assign(InnerMapRenderer, {
         return true;
     },
 
+    /** Drawn once a row of the room is: what hangs on its walls (it may reach over the next tile) */
+    _interiorAfterRow: [],
+    _flushInteriorRow() {
+        const list = this._interiorAfterRow;
+        if (!list.length) return;
+        this._interiorAfterRow = [];
+        for (const fn of list) fn();
+    },
+
     /**
-     * A wall tile. The back wall (the top row) shows its face; a wall with floor before it (to
-     * the south) shows its top and, below that, a strip of its face; any other wall is seen from
-     * above: its top (the material's `top` texture), lit along the edges that meet the floor.
+     * A wall tile (ui/interiorDress.js): one of the room's outside walls — the back wall's
+     * face, a thin cap along a side, the front wall's cap and outer face — or a wall within
+     * it (tile._innerWall, or any wall off the room's edge), a cap along its run with its
+     * face toward the room south of it, drawn over floor (drawFloor). An old plain wall cell
+     * (a material without tw) is drawn the same, its one cell standing for face and top.
+     * Returns its face (for what hangs on it) or null.
      */
-    _drawWallTile(ctx, tile, mat, img, kb, cellOf, at, walled, dx, dy, sz) {
+    _drawWallTile(ctx, tile, mat, img, kb, dx, dy, sz, drawFloor) {
         // (in the outside wall's own colour, where the building says what that is: ui/wallTint.js)
         if (tile._wallTint) img = tintedWallSheet(img, mat, tile._wallTint, kb);
-        const mod = (v, n) => ((v % n) + n) % n;
-        const fw = mat.tw ? ((mat.face && mat.face.tw) || mat.tw) / 32 : 1;
-        const faceCell = () => (mat.face ? [mat.face.sx + mod(tile.q, fw) * 32, mat.face.sy] : [mat.sx + mod(tile.q, fw) * 32, mat.sy]);
-        if (tile.r === 0 || !mat.tw) {
-            const c = mat.tw ? faceCell() : [mat.sx, mat.sy];
-            ctx.drawImage(img, c[0] * kb, c[1] * kb, 32 * kb, 32 * kb, dx, dy, sz, sz);
-            if (tile.r === 0) {
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
-                ctx.fillRect(dx, dy + sz * 0.85, sz, sz * 0.15);
-            } else {
-                // (an old plain wall cell: seen from above as before, darkened)
-                ctx.fillStyle = 'rgba(20, 14, 10, 0.55)';
-                ctx.fillRect(dx, dy, sz, sz);
-            }
-            return;
-        }
-        const top = mat.top ? cellOf(mat, mat.top.sx, mat.top.sy) : cellOf(mat);
-        const open = !walled(at(0, 1));
-        const capH = open ? Math.round(sz * 0.55) : sz;
-        // its top
-        ctx.drawImage(img, top[0] * kb, top[1] * kb, 32 * kb, (open ? 32 * 0.55 : 32) * kb, dx, dy, sz, capH);
-        if (!mat.top) { ctx.fillStyle = 'rgba(20, 14, 10, 0.55)'; ctx.fillRect(dx, dy, sz, capH); }
-        // its face below that, where the floor runs up to it from the south
-        if (open) {
-            const c = faceCell();
-            ctx.drawImage(img, c[0] * kb, (c[1] + 32 * 0.45) * kb, 32 * kb, 32 * 0.55 * kb, dx, dy + capH, sz, sz - capH);
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.22)';
-            ctx.fillRect(dx, dy + sz * 0.88, sz, sz * 0.12);
-        }
-        // the rims: light where its top meets the room
-        const rim = Math.max(1, Math.round(sz / 24));
-        ctx.fillStyle = 'rgba(255, 244, 225, 0.22)';
-        if (!walled(at(-1, 0))) ctx.fillRect(dx, dy, rim, capH);
-        if (!walled(at(1, 0))) ctx.fillRect(dx + sz - rim, dy, rim, capH);
-        if (!walled(at(0, -1))) ctx.fillRect(dx, dy, sz, rim);
-        if (open) { ctx.fillStyle = 'rgba(255, 244, 225, 0.28)'; ctx.fillRect(dx, dy + capH - rim, sz, rim); }
+        const at = (dq, dr) => InnerMap.getTile(tile.q + dq, tile.r + dr);
+        const W = { ctx, img, kb, mat, tile, at, dx, dy, sz };
+        const sides = !tile._innerWall && wallSides(tile);
+        // (a door in the front wall: drawn as the wall it stands in)
+        if (sides) return drawOuterWall(W, sides);
+        if (!drawFloor) return drawOuterWall(W, { bottom: true });
+        return drawInnerWall(W, drawFloor);
     },
 
     /**

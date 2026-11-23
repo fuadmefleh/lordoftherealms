@@ -30,6 +30,11 @@ import { Devotion } from '../../systems/devotion.js';
 import { Books } from '../../systems/books.js';
 import { DevotionPanel } from '../actionMenu/devotion.js';
 import { PlayerActions } from '../../player/playerActions.js';
+import { FurnitureActions } from '../../player/furnitureActions.js';
+import { furnitureCtx, sitDown, runFurnitureAction, sleepHere, sleepTrespass, trespassDesc } from './furniture.js';
+
+/** A furniture rule's check (player/furnitureActions.js) for the piece an action is on. */
+const _fcheck = key => (game, objDef, q, r) => FurnitureActions.check(key, furnitureCtx(game, objDef, q, r));
 
 /** Building types whose altar is a temple's (place 'temple' for devotion; a temple's shelf holds rare books). */
 const TEMPLE_BUILDINGS = ['temple', 'church', 'cathedral', 'monastery', 'shrine', 'chapel'];
@@ -65,33 +70,61 @@ function _townOffers(game, type) {
 
 export const OBJECT_ACTIONS = {
     // ──────────── REST & RECOVERY ────────────
+    // A bed: your own, a room you've taken, or one the household offers
+    // (player/furnitureActions.js bedAccess; someone else's only as a trespass)
     sleep: {
         label: 'Sleep',
         icon: '🛏️',
         desc: 'Rest and recover energy',
         category: 'rest',
-        modal: 'sleep',
-        condition: null, // always available
+        check: _fcheck('sleep'),
+        onExecute: (game, objDef, q, r) => { sleepHere(game, objDef, q, r); return null; },
     },
+    sleep_trespass: {
+        label: 'Sleep Here Anyway',
+        icon: '🛌',
+        desc: "Someone else's bed: you may be found in it",
+        describe: trespassDesc,
+        category: 'rest',
+        check: _fcheck('sleep_trespass'),
+        onExecute: (game, objDef, q, r) => { sleepTrespass(game, objDef, q, r); return null; },
+    },
+    // Sat down and staying sat: energy and comfort by the hour, up when you move
     sit: {
         label: 'Sit Down',
         icon: '💺',
-        desc: 'Take a seat and relax',
+        desc: 'Take a seat and rest a while (get up by moving)',
         category: 'rest',
-        modal: null, // instant
-        effects: { comfort: 15, energy: 5, fun: 3 },
-        message: 'You sit down and rest your legs.',
-        timeSkip: 0,
+        modal: null,
+        onExecute: (game, objDef, q, r) => sitDown(game, objDef, q, r),
     },
+    // A lit hearth or oven: warmth, and the wet steamed out of your clothes
     warm: {
         label: 'Warm Up',
         icon: '🔥',
-        desc: 'Warm yourself by the fire',
+        desc: 'Warm yourself by the fire and dry off',
         category: 'rest',
         modal: null,
-        effects: { comfort: 20, energy: 5, fun: 5 },
-        message: 'The warmth of the fire soothes your weary body.',
-        timeSkip: 1,
+        check: _fcheck('warm'),
+        onExecute: (game, objDef, q, r) => runFurnitureAction(game, 'warm', objDef, q, r),
+    },
+    // A washstand's basin: a quick wash (less than a bath)
+    wash_basin: {
+        label: 'Wash at the Basin',
+        icon: '🧼',
+        desc: 'A quick wash: face, hands and neck',
+        category: 'hygiene',
+        check: _fcheck('wash_basin'),
+        onExecute: (game, objDef, q, r) => runFurnitureAction(game, 'wash_basin', objDef, q, r),
+    },
+    // A bathtub of your own: a full bath (the clothes scrubbed too, soap if you have it)
+    bathe_tub: {
+        label: 'Take a Bath',
+        icon: '🛁',
+        desc: 'Fill the tub and soak (an hour)',
+        category: 'hygiene',
+        check: _fcheck('bathe_tub'),
+        onExecute: (game, objDef, q, r) => runFurnitureAction(game, 'bathe_tub', objDef, q, r),
     },
     // ──────────── HYGIENE ────────────
     wash: {
@@ -140,6 +173,24 @@ export const OBJECT_ACTIONS = {
         message: 'You enjoy a refreshing ale. Cheers!',
         timeSkip: 1,
     },
+    // A tavern's table: the house's hot meal, paid at the tavern's price (player/tavern: buy_meal)
+    order_meal: {
+        label: 'Order a Hot Meal',
+        icon: '🍲',
+        desc: "The tavern's stew and bread, served at the table",
+        category: 'food',
+        check: _fcheck('order_meal'),
+        onExecute: (game, objDef, q, r) => runFurnitureAction(game, 'order_meal', objDef, q, r),
+    },
+    // Your own table: something from the house's chests and cupboards
+    eat_home: {
+        label: 'Eat from the Larder',
+        icon: '🥣',
+        desc: 'Sit down to a meal from what the house has put by',
+        category: 'food',
+        check: _fcheck('eat_home'),
+        onExecute: (game, objDef, q, r) => runFurnitureAction(game, 'eat_home', objDef, q, r),
+    },
     cook: {
         label: 'Cook',
         icon: '🍳',
@@ -161,10 +212,12 @@ export const OBJECT_ACTIONS = {
         modal: null,
         effects: { fun: 20, comfort: 8, social: -3 },
         message: null, // dynamic message
-        timeSkip: 2,
         // Real books (systems/books.js, data/books.json): the open book, or one
-        // the shelf holds; a few sittings each, the reward once on finishing
+        // the shelf holds; a few sittings each, the reward once on finishing.
+        // At a bookshelf, a lectern, a desk, or a piece with books or papers on it
+        // (data/furnitureActions.json decorOffers); a sitting's hours: read.hours
         onExecute: (game, objDef, anchorQ, anchorR) => {
+            _advanceTime(Math.max(0, Number(FurnitureActions.cfg('read').hours) || 0));
             const tile = _settlementTile(game);
             const inside = InnerMap._insideBuilding;
             const r = Books.read(game.player, game.world, {

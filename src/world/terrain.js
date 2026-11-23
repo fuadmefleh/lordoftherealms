@@ -182,7 +182,8 @@ export const Terrain = {
 
         // Desert frequency factor
         const desertFactorMap = { none: 0, few: 0.5, normal: 1.0, many: 1.8, wasteland: 3.0 };
-        const desertFactor = desertFactorMap[desertFreq] || 1.0;
+        // (since terrainGen 14 'none' means none: it used to fall through to normal)
+        const desertFactor = terrainGen >= 14 ? (desertFactorMap[desertFreq] ?? 1.0) : (desertFactorMap[desertFreq] || 1.0);
 
         // Generate continent seed points using a jittered grid for better distribution
         const seeds = [];
@@ -232,7 +233,7 @@ export const Terrain = {
         // share of the map that is land, as the setting says), with warped, ragged coasts, on
         // noise that wraps round the world's seam without mirroring (Terrain._land11)
         const land11 = terrainGen >= 11
-            ? Terrain._land11({ width, height, rng, seeds, landMass, continentCount, continentSize, terrainOctaves, mountainDensity, polarFactor, plates: terrainGen >= 12 })
+            ? Terrain._land11({ width, height, rng, seeds, landMass, continentCount, continentSize, terrainOctaves, mountainDensity, polarFactor, plates: terrainGen >= 12, sharpRanges: terrainGen >= 13, relief: terrainGen >= 14, islandFreq, coastalDetail })
             : null;
 
         for (let r = 0; r < height; r++) {
@@ -298,7 +299,9 @@ export const Terrain = {
                 elevation = Utils.clamp(elevation, 0, 1);
 
                 // (since terrainGen 11 the height is the land field's, set to sea level below)
-                if (land11) elevation = land11.height(q, r);
+                let relief;
+                if (land11 && terrainGen >= 14) [elevation, relief] = land11.sample(q, r);
+                else if (land11) elevation = land11.height(q, r);
 
                 // Apply hill density: compress hills region
                 if (!land11 && elevation > waterThreshold && elevation < mountainLevel) {
@@ -369,6 +372,7 @@ export const Terrain = {
                     hasRoad: false,
                     riverSource: false
                 });
+                if (relief !== undefined) row[row.length - 1]._relief = relief;
             }
             tiles.push(row);
         }
@@ -419,7 +423,7 @@ export const Terrain = {
         // branching river systems, basins fill into lakes); older worlds keep their rivers
         // Worlds since terrainGen 12: the climate on the finished heights (colder up high, rain
         // off the sea on the prevailing winds, dry in the lee of the ranges: Terrain._climate12)
-        if (terrainGen >= 12) Terrain._climate12(tiles, width, height, { waterThreshold, rainBias: rainBias * 0.75 });
+        if (terrainGen >= 12) Terrain._climate12(tiles, width, height, { waterThreshold, rainBias: rainBias * 0.75, desertBelts: terrainGen >= 13, desertFactor, wideBelts: terrainGen >= 14 });
         if (terrainGen >= 10) Terrain.generateHydrology(tiles, width, height, rng, { riverCount: terrainGen >= 11 ? riverCount : scaledRiverCount, lakeFreq, waterLevel: waterThreshold, mountainLevel, hillsLevel, valleyLakes: terrainGen >= 11 });
         else Terrain.generateRivers(tiles, width, height, scaledRiverCount, lakeFreq, { v2: terrainGen >= 2, waterThreshold, mountainLevel, highlandsLevel });
 
@@ -1197,7 +1201,7 @@ export const Terrain = {
      * neither stretched nor mirrored. -> { height(q, r) } (a raw height,
      * not yet set to sea level: Terrain._seaLevel11)
      */
-    _land11({ width, height, rng, seeds, landMass, continentCount, continentSize, terrainOctaves, mountainDensity, polarFactor, plates = false }) {
+    _land11({ width, height, rng, seeds, landMass, continentCount, continentSize, terrainOctaves, mountainDensity, polarFactor, plates = false, sharpRanges = false, relief = false, islandFreq = 1, coastalDetail = 5 }) {
         const target = width * height * Utils.clamp(landMass, 5, 95) / 100;
         const count = continentSize === 'pangaea' ? 1 : Math.max(1, continentCount);
         const sizeMul = ({ small: 0.75, medium: 1, large: 1.25, pangaea: 1.3 })[continentSize] || 1;
@@ -1215,25 +1219,125 @@ export const Terrain = {
             return (a * (1 - t) + b * t) / Math.sqrt((1 - t) * (1 - t) + t * t);
         };
         // (worlds since terrainGen 12: ranges where the plates press together, Terrain._plates)
-        const uplift = plates ? Terrain._plates({ width, height, rng, radius, count, wrapped, f, ox, oy }) : null;
+        const uplift = plates && !relief ? Terrain._plates({ width, height, rng, radius, count, wrapped, f, ox, oy, sharp: sharpRanges }) : null;
         const cont = seeds.map((s, i) => ({
             x: s.q + 0.25, y: s.r * 0.866,
             rad: (i === 0 || continentSize !== 'pangaea' ? radius : radius * 0.35) * (0.85 + rng() * 0.3),
+            id: i,
         }));
-        return {
-            height(q, r) {
-                const x = q + (r % 2 === 0 ? 0.5 : 0);
-                const y = r * 0.866;
-                const wx = x + warp * wrapped(x, y, f * 1.6, 4, ox + 11, oy + 3);
-                const wy = y + warp * wrapped(x, y, f * 1.6, 4, ox + 47, oy + 29);
-                let best = 0, second = 0;
+        // Worlds since terrainGen 14: a continent is not one round mass but a body with two or
+        // three lobes (so it is long, bent or forked: peninsulas, gulfs, an inland sea's
+        // shores), and small islands and archipelagos lie off the coasts and out at sea (as
+        // many as the Islands setting asks); the coasts take a finer fringe of bays and capes
+        // (the Coastal Detail setting)
+        const isles = [];
+        const detail = Utils.clamp(coastalDetail / 5, 0, 2);
+        if (relief) {
+            const bodies = cont.slice();
+            for (const c of bodies) {
+                const lobes = 1 + Math.floor(rng() * 2.4);
+                let a = rng() * Math.PI * 2;
+                for (let k = 0; k < lobes; k++) {
+                    a += (0.6 + rng() * 1.6) * (rng() < 0.5 ? -1 : 1) + (k ? Math.PI * 0.5 : 0);
+                    const dist = c.rad * (0.55 + rng() * 0.4);
+                    cont.push({
+                        x: ((c.x + Math.cos(a) * dist) % W + W) % W,
+                        y: Utils.clamp(c.y + Math.sin(a) * dist * 0.8, height * 0.866 * 0.08, height * 0.866 * 0.92),
+                        rad: c.rad * (0.45 + rng() * 0.3),
+                        id: c.id,
+                    });
+                }
+            }
+            // archipelagos: a few groups of small islands, each strung along a line
+            const groups = Math.round((count + 1) * 1.5 * Utils.clamp(islandFreq, 0, 3));
+            for (let g = 0; g < groups; g++) {
+                let gx = rng() * W, gy = (0.12 + rng() * 0.76) * height * 0.866;
+                const ga = rng() * Math.PI * 2;
+                const n = 2 + Math.floor(rng() * 5);
+                for (let k = 0; k < n; k++) {
+                    isles.push({ x: gx, y: gy, rad: Math.max(1.8, radius * (0.09 + rng() * 0.13)) });
+                    const step = radius * (0.18 + rng() * 0.2);
+                    gx = ((gx + Math.cos(ga + (rng() - 0.5)) * step) % W + W) % W;
+                    gy = Utils.clamp(gy + Math.sin(ga + (rng() - 0.5)) * step, 2, height * 0.866 - 2);
+                }
+            }
+        }
+        // (the pull of the nearest body of each continent, through the warped coordinates)
+        const pull = (wx, wy, c) => {
+            let dx = Math.abs(wx - c.x);
+            dx = Math.min(dx, W - dx);
+            const d = Math.hypot(dx, wy - c.y) / c.rad;
+            return 1 - Utils.clamp(d, 0, 1.6) / 1.6;
+        };
+        const byId = new Float64Array(cont.length);
+        const sample = (q, r) => {
+            const x = q + (r % 2 === 0 ? 0.5 : 0);
+            const y = r * 0.866;
+            let wx = x + warp * wrapped(x, y, f * 1.6, 4, ox + 11, oy + 3);
+            let wy = y + warp * wrapped(x, y, f * 1.6, 4, ox + 47, oy + 29);
+            if (relief) {
+                // a second, finer warp: the fringe of bays and capes
+                wx += warp * 0.22 * detail * wrapped(x, y, f * 5, 3, ox + 61, oy + 17);
+                wy += warp * 0.22 * detail * wrapped(x, y, f * 5, 3, ox + 83, oy + 41);
+            }
+            let best = 0, second = 0, bi = -1, si = -1;
+            if (relief) {
+                byId.fill(0);
+                for (const c of cont) { const b = pull(wx, wy, c); if (b > byId[c.id]) byId[c.id] = b; }
+                for (let i = 0; i < seeds.length; i++) {
+                    const b = byId[i];
+                    if (b > best) { second = best; si = bi; best = b; bi = i; } else if (b > second) { second = b; si = i; }
+                }
+            } else {
                 for (const c of cont) {
-                    let dx = Math.abs(wx - c.x);
-                    dx = Math.min(dx, W - dx);
-                    const d = Math.hypot(dx, wy - c.y) / c.rad;
-                    const b = 1 - Utils.clamp(d, 0, 1.6) / 1.6;
+                    const b = pull(wx, wy, c);
                     if (b > best) { second = best; best = b; } else if (b > second) second = b;
                 }
+            }
+            return { x, y, wx, wy, best, second, bi, si };
+        };
+        if (relief) {
+            const uplift14 = Terrain._plates({ width, height, rng, radius, count, wrapped, f, ox, oy, sharp: true, foothills: true });
+            return {
+                /** -> [the land's shape (for the sea level), its relief (for its heights)] */
+                sample(q, r) {
+                    const { x, y, wx, wy, best, second, bi, si } = sample(q, r);
+                    let isle = 0;
+                    for (const c of isles) { const b = pull(wx, wy, c); if (b > isle) isle = b; }
+                    // (a strait only where two continents truly come near each other, so a lone coast
+                    // is not cut along a straight line where two far-off pulls happen to be equal)
+                    // (and its line bent well off the straight: the sea between two lands winds)
+                    const ragged = wrapped(x, y, f * 1.8, 3, ox + 130, oy + 150) * 1.1 + wrapped(x, y, f * 5, 2, ox + 140, oy + 160) * 0.2;
+                    // (signed by which of the two it is, so the noise moves the line itself, not
+                    // only its width: a winding sound, not a ruled canal)
+                    const lead = bi < si ? best - second : second - best;
+                    // (and only at the two lands' margins: where they overlap deep they have grown
+                    // into one, and a strait there would be a canal through the heart of it)
+                    const margin = Utils.clamp((second - 0.08) / 0.12, 0, 1) * (1 - Utils.clamp((second - 0.32) / 0.14, 0, 1));
+                    const strait = Utils.clamp(1 - Math.abs(lead + ragged) / 0.16, 0, 1) * margin;
+                    const broad = wrapped(x, y, f, terrainOctaves, ox, oy);
+                    const fringe = wrapped(x, y, f * 6, 3, ox + 171, oy + 191) * 0.07 * detail;
+                    const polar = Math.abs((r / height) - 0.5) * 2;
+                    const [up, foot] = uplift14(wx, wy, x, y);
+                    const core = Math.min(best, 0.5) / 0.5;
+                    // (islands rise from the sea floor: they stand clear of the broad noise's dips)
+                    const land = Math.max(core * 0.5 + broad * 0.24 - strait * 0.26, isle * 0.62 - 0.08)
+                        + up * 0.12 * mountainDensity + fringe - Math.pow(polar, 4) * (0.2 + polarFactor);
+                    // the relief: ranges on the seams, foothills about them, and a rolling country of
+                    // scattered hills between (higher a little inland, lower by the sea)
+                    const rolls = wrapped(x, y, f * 5.5, 2, ox + 241, oy + 263);
+                    const knolls = Math.max(0, rolls) * Math.max(0, rolls);
+                    // (the crest sharpened, so only the highest crags of a range carry snow)
+                    const peaks = 0.45 + 0.55 * Math.abs(wrapped(x, y, f * 13, 2, ox + 307, oy + 331));
+                    const rel = Math.pow(Math.max(0, up), 1.6) * (0.7 + 0.6 * peaks) * mountainDensity + Math.min(0, up) + foot * 0.45 + knolls * 0.55 + core * 0.12 + broad * 0.08;
+                    return [land, rel];
+                },
+                height(q, r) { return this.sample(q, r)[0]; },
+            };
+        }
+        return {
+            height(q, r) {
+                const { x, y, wx, wy, best, second } = sample(q, r);
                 // (a sea between two continents where their pulls meet, so they stay apart)
                 const ragged = wrapped(x, y, f * 4, 3, ox + 130, oy + 150) * 0.12;
                 const strait = second > 0.05 ? Utils.clamp(1 - (best - second + ragged) / 0.16, 0, 1) : 0;
@@ -1262,7 +1366,7 @@ export const Terrain = {
      * range into peaks and passes. -> uplift(x, y, wx, wy) in about 0..1, for
      * the land field (Terrain._land11), on the warped grid coordinates.
      */
-    _plates({ width, height, rng, radius, count, wrapped, f, ox, oy }) {
+    _plates({ width, height, rng, radius, count, wrapped, f, ox, oy, sharp = false, foothills = false }) {
         const W = width;
         const n = Math.max(4, count * 2 + 2);
         const plates = [];
@@ -1270,7 +1374,8 @@ export const Terrain = {
             const a = rng() * Math.PI * 2;
             plates.push({ x: rng() * W, y: (0.1 + rng() * 0.8) * height * 0.866, vx: Math.cos(a), vy: Math.sin(a) });
         }
-        const seamW = Math.max(1.6, radius * 0.11);
+        // (since terrainGen 13 the ranges are narrower and more broken: chains, not massifs)
+        const seamW = sharp ? Math.max(1.2, radius * 0.065) : Math.max(1.6, radius * 0.11);
         return (wx, wy, x, y) => {
             let a = null, b = null, da = Infinity, db = Infinity;
             for (const p of plates) {
@@ -1279,9 +1384,25 @@ export const Terrain = {
                 const d = Math.hypot(dx, wy - p.y);
                 if (d < da) { db = da; b = a; da = d; a = p; } else if (d < db) { db = d; b = p; }
             }
-            if (!a || !b) return 0;
+            if (!a || !b) return foothills ? [0, 0] : 0;
             // how far from the seam (the bisector between the two nearest plates)
             const seam = (db - da) / 2;
+            if (foothills) {
+                // (since terrainGen 14) -> [the range, its foothills: a broader, lower skirt of
+                // hills either side, rough with knolls]
+                if (seam > seamW * 6) return [0, 0];
+                let nx = b.x - a.x;
+                if (Math.abs(nx) > W / 2) nx -= Math.sign(nx) * W;
+                const ny = b.y - a.y;
+                const len = Math.hypot(nx, ny) || 1;
+                const press = ((a.vx - b.vx) * nx + (a.vy - b.vy) * ny) / len;
+                if (press <= 0) return [Math.exp(-(seam * seam) / (2 * seamW * seamW)) * press * 0.15, 0];
+                const p = Utils.clamp(press / 1.2, 0, 1);
+                const cragN = 1 - Math.abs(wrapped(x, y, f * 9, 3, ox + 210, oy + 230));
+                const near = Math.exp(-(seam * seam) / (2 * seamW * seamW));
+                const wide = Math.exp(-(seam * seam) / (2 * 9 * seamW * seamW));
+                return [near * p * (0.35 + 0.65 * cragN * cragN), wide * p * (0.4 + 0.6 * cragN)];
+            }
             if (seam > seamW * 3) return 0;
             // press: the plates' drift against each other, across the seam
             let nx = b.x - a.x;
@@ -1290,7 +1411,8 @@ export const Terrain = {
             const len = Math.hypot(nx, ny) || 1;
             const press = ((a.vx - b.vx) * nx + (a.vy - b.vy) * ny) / len;   // -2..2: + colliding
             const near = Math.exp(-(seam * seam) / (2 * seamW * seamW));
-            const crags = 0.55 + 0.45 * (1 - Math.abs(wrapped(x, y, f * 6, 3, ox + 210, oy + 230)));
+            const cragN = 1 - Math.abs(wrapped(x, y, f * (sharp ? 9 : 6), 3, ox + 210, oy + 230));
+            const crags = sharp ? 0.35 + 0.65 * cragN * cragN : 0.55 + 0.45 * cragN;
             return press > 0 ? near * Utils.clamp(press / 1.2, 0, 1) * crags : near * press * 0.15;
         };
     },
@@ -1307,7 +1429,7 @@ export const Terrain = {
      *  - a little of the old noise stays, so it is not all bands.
      * Writes tile.temperature and tile.moisture (0..1).
      */
-    _climate12(tiles, width, height, { waterThreshold, rainBias = 0 }) {
+    _climate12(tiles, width, height, { waterThreshold, rainBias = 0, desertBelts = false, desertFactor = 1, wideBelts = false }) {
         const rain = new Float64Array(width * height);
         // (rain carries further inland on a bigger map, so a big continent is not all dry: the
         // air lets fall a share of its water per hex by the map's scale)
@@ -1369,6 +1491,30 @@ export const Terrain = {
                 t.moisture = Utils.clamp(wet * 0.65 + t.moisture * 0.35 + rainBias, 0, 1);
                 // colder with height (a hill a little, a mountain much)
                 t.temperature = Utils.clamp(t.temperature - Math.max(0, t.elevation - waterThreshold) * 0.45, 0, 1);
+                if (desertBelts) {
+                    // (since terrainGen 13) the subtropical dry belts, where the air that rose at the
+                    // equator comes down dry, about a third of the way to the poles: hot and parched,
+                    // the great deserts, worst inland and in the lee (the Desert setting widens them)
+                    // (the belt wanders north and south and comes and goes along its length,
+                    // and a wet coast or a well-watered country keeps it off)
+                    const tq = q / width;
+                    const wob = (sx, sy, fr) => {
+                        const a1 = Utils.fbm(q * fr + sx, r * fr + sy, 3, 2.0, 0.5);
+                        const a2 = Utils.fbm((q - width) * fr + sx, r * fr + sy, 3, 2.0, 0.5);
+                        return a1 * (1 - tq) + a2 * tq;
+                    };
+                    const fr = 6 / Math.max(40, width);
+                    // (since terrainGen 14 it wanders further, with a finer kink, so it is no stripe)
+                    const lat = Math.abs((r / Math.max(1, height - 1)) - 0.5) * 2
+                        + (wideBelts ? wob(311, 97, fr) * 0.2 + wob(401, 157, fr * 2.5) * 0.07 : wob(311, 97, fr) * 0.12);
+                    const patch = Utils.clamp(0.75 + wob(517, 233, fr * 1.6) * 1.2, 0, 1.4);
+                    const belt = Math.exp(-Math.pow((lat - 0.3) / 0.11, 2)) * patch * Utils.clamp(desertFactor, 0, 3);
+                    if (belt > 0.02) {
+                        const dry = Utils.clamp(belt * (1.35 - t.moisture * 1.0), 0, 1);
+                        t.moisture = Utils.clamp(t.moisture * (1 - 0.88 * dry), 0, 1);
+                        t.temperature = Utils.clamp(t.temperature + 0.36 * dry, 0, 1);
+                    }
+                }
             }
         }
     },
@@ -1413,11 +1559,14 @@ export const Terrain = {
         // a fringe of mountains and a few snowy peaks; hill and mountain density widen or
         // narrow their bands, a flatter world lowers them all)
         const flat = Utils.clamp(1.1 / flatnessPow, 0.5, 1.5);
+        // (worlds since terrainGen 14, ranked by relief, keep a little less upland: a smaller
+        // skirt of hills and highlands about the ranges, the snow on the highest crags only)
+        const r14 = all[0]._relief !== undefined;
         const share = {
-            snow: 0.02 * mountainDensity * flat,
+            snow: (r14 ? 0.012 : 0.02) * mountainDensity * flat,
             mtn: 0.07 * mountainDensity * flat,
-            high: 0.09 * hillDensity * flat,
-            hill: 0.20 * hillDensity * flat,
+            high: (r14 ? 0.075 : 0.09) * hillDensity * flat,
+            hill: (r14 ? 0.17 : 0.20) * hillDensity * flat,
         };
         const k4 = 1 - share.snow, k3 = k4 - share.mtn, k2 = k3 - share.high, k1 = Math.max(0.05, k2 - share.hill);
         const knots = [
@@ -1432,14 +1581,25 @@ export const Terrain = {
             }
             return 1;
         };
+        // (worlds since terrainGen 14 rank the land by its relief, not by how far inland it lies:
+        // the mountains stand on the ranges, wherever on the continent they run, and the
+        // heart of a continent can be a wide plain)
+        let reliefRank = null;
+        if (all[0]._relief !== undefined) {
+            const land = all.filter(t => t.elevation >= cut);
+            land.sort((a, b) => a._relief - b._relief);
+            reliefRank = new Map();
+            land.forEach((t, i) => reliefRank.set(t, land.length > 1 ? i / (land.length - 1) : 0));
+        }
         for (const t of all) {
             const v = t.elevation;
             if (v < cut) {
                 const k = (v - lo) / Math.max(1e-9, cut - lo);           // 0 deepest .. 1 the shore
                 t.elevation = Utils.clamp(deepWaterLevel * 0.5 + (waterThreshold - 0.005 - deepWaterLevel * 0.5) * Math.pow(k, 0.7), 0, waterThreshold - 0.005);
             } else {
-                t.elevation = Utils.clamp(bandHeight(rankOf(v)), 0, 1);
+                t.elevation = Utils.clamp(bandHeight(reliefRank ? reliefRank.get(t) : rankOf(v)), 0, 1);
             }
+            delete t._relief;
         }
     },
 

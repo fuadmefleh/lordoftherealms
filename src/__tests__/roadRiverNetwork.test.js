@@ -399,3 +399,98 @@ describe('Ranges and climate (terrainGen 12: Terrain._plates / _climate12 / _riv
         expect(mean(eastCoast, t => t.moisture)).toBeGreaterThan(mean(westCoast, t => t.moisture));
     });
 });
+
+describe('Desert belts (terrainGen 13)', () => {
+    it('the subtropical dry belts have deserts; gen 12 hardly any', () => {
+        const deserts = (gen) => {
+            const wd = new World(120, 80);
+            wd.generate({ seed: 4711, kingdomCount: 6, terrainGen: gen, riverCount: 40, lakeFreq: 'normal' });
+            const land = wd.tiles.flat().filter(t => !['ocean', 'deep_ocean', 'coast', 'sea', 'lake'].includes(t.terrain.id));
+            const d = land.filter(t => t.terrain.id === 'desert');
+            return { share: d.length / land.length, lat: d.map(t => Math.abs(t.r / (wd.height - 1) - 0.5) * 2) };
+        };
+        const g13 = deserts(13);
+        expect(g13.share).toBeGreaterThan(0.02);
+        expect(g13.share).toBeGreaterThan(deserts(12).share);
+        // most of them a quarter to a half of the way to the poles
+        const inBelt = g13.lat.filter(l => l > 0.12 && l < 0.5).length / Math.max(1, g13.lat.length);
+        expect(inBelt).toBeGreaterThan(0.7);
+    });
+});
+
+describe('Lobed continents, archipelagos and relief (terrainGen 14)', () => {
+    const make = (extra = {}, seed = 4711) => {
+        const wd = new World(120, 80);
+        wd.generate({ seed, kingdomCount: 6, terrainGen: 14, riverCount: 40, lakeFreq: 'normal', ...extra });
+        return wd;
+    };
+    const isLand = (t) => !WATER.has(t.terrain.id);
+    const nb = (wd, t) => Hex.neighbors(t.q, t.r).filter(n => n.r >= 0 && n.r < wd.height).map(n => wd.tiles[n.r][Hex.wrapQ(n.q, wd.width)]);
+    // the land's separate bodies, by size
+    const bodies = (wd) => {
+        const seen = new Set(), sizes = [];
+        for (const t of wd.tiles.flat()) {
+            if (!isLand(t) || seen.has(t)) continue;
+            let n = 0; const stack = [t]; seen.add(t);
+            while (stack.length) { const c = stack.pop(); n++; for (const o of nb(wd, c)) if (isLand(o) && !seen.has(o)) { seen.add(o); stack.push(o); } }
+            sizes.push(n);
+        }
+        return sizes.sort((a, b) => b - a);
+    };
+    let w14;
+    beforeAll(() => { w14 = make(); });
+
+    it('keeps the land share and the mix of lowland, hills and mountains', () => {
+        const flat = w14.tiles.flat();
+        const land = flat.filter(isLand);
+        expect(land.length / flat.length).toBeGreaterThan(0.38);
+        expect(land.length / flat.length).toBeLessThan(0.5);
+        const share = (ids) => land.filter(t => ids.includes(t.terrain.id)).length / land.length;
+        expect(share(['mountain', 'snow_peak'])).toBeGreaterThan(0.05);
+        expect(share(['mountain', 'snow_peak'])).toBeLessThan(0.12);
+        expect(share(['hills', 'highlands'])).toBeGreaterThan(0.15);
+        expect(share(['hills', 'highlands'])).toBeLessThan(0.32);
+    });
+
+    it('stands its mountains in chains, not scattered alone', () => {
+        const high = new Set(['mountain', 'snow_peak']);
+        const mtns = w14.tiles.flat().filter(t => high.has(t.terrain.id));
+        const chained = mtns.filter(t => nb(w14, t).filter(o => high.has(o.terrain.id)).length >= 2).length;
+        expect(chained / mtns.length).toBeGreaterThan(0.75);
+    });
+
+    it('leaves the heart of a continent a lowland in good part', () => {
+        // land four or more hexes from any sea is not all hills and mountains
+        const flat = w14.tiles.flat();
+        const dist = new Map();
+        let front = flat.filter(t => isLand(t) && nb(w14, t).some(o => !isLand(o)));
+        front.forEach(t => dist.set(t, 0));
+        for (let d = 1; front.length; d++) {
+            const next = [];
+            for (const t of front) for (const o of nb(w14, t)) if (isLand(o) && !dist.has(o)) { dist.set(o, d); next.push(o); }
+            front = next;
+        }
+        const inland = flat.filter(t => (dist.get(t) ?? -1) >= 4);
+        const low = inland.filter(t => !['hills', 'highlands', 'mountain', 'snow_peak'].includes(t.terrain.id));
+        expect(inland.length).toBeGreaterThan(200);
+        expect(low.length / inland.length).toBeGreaterThan(0.5);
+    });
+
+    it('scatters islands and archipelagos as the Islands setting asks', () => {
+        const isles = (wd) => bodies(wd).filter(n => n >= 2 && n <= 60).length;
+        const many = isles(make({ islandFreq: 2 }));
+        const none = isles(make({ islandFreq: 0 }));
+        expect(isles(w14)).toBeGreaterThan(3);
+        expect(many).toBeGreaterThan(none);
+    });
+
+    it('has no deserts when Deserts is none (it used to fall back to normal)', () => {
+        const d = make({ desertFreq: 'none' }).tiles.flat().filter(t => t.terrain.id === 'desert').length;
+        expect(d).toBe(0);
+    });
+
+    it('is the same world from the same seed', () => {
+        const sig = (wd) => wd.tiles.flat().map(t => t.terrain.id[0] + (t.hasRiver ? t.riverDir : '-')).join('');
+        expect(sig(make({}, 99))).toBe(sig(make({}, 99)));
+    });
+});

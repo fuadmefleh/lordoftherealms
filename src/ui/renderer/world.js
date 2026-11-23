@@ -1,6 +1,9 @@
 // Renderer — world methods.
 import { Renderer } from './core.js';
 import { Hex, Religion, Economy, Infrastructure } from './_imports.js';
+
+// The water a lake's edge runs on into (renderLakeHex)
+const Terrain_WATER = new Set(['lake', 'ocean', 'deep_ocean', 'coast', 'sea']);
 import { drawHoverCoords } from '../hoverCoords.js';
 import { resetCanvasTransform } from '../hiDpi.js';
 import { drawIcon } from '../icons.js';
@@ -565,6 +568,87 @@ Object.assign(Renderer.prototype, {
     },
 
     /**
+     * A lake hex with a shore. The hex is laid with the land of the country
+     * round it (grass, tundra or sand, by its neighbours), and the water is a
+     * rounded pool on it: each edge that meets more water (lake or sea) runs
+     * the water out to that edge, so a lake of many hexes reads as one body;
+     * each edge that meets land is pulled in to a curving shore, edged with a
+     * strand of pale sand and a darker wet line. The water is the lake art,
+     * clipped to the pool.
+     */
+    renderLakeHex(ctx, tile, waterSprite, corners, cx, cy, size, drawX, drawY, tw, th) {
+        const w = this.world;
+        const WATER = Terrain_WATER;
+        const nb = Hex.neighbors(tile.q, tile.r).map(n =>
+            (n.r < 0 || n.r >= w.height) ? null : w.tiles[n.r][Hex.wrapQ(n.q, w.width)]);
+        // the shore's ground: the country round the lake
+        let ground = 'grassland';
+        for (const n of nb) {
+            if (!n || !n.terrain) continue;
+            const id = n.terrain.id;
+            if (['snow', 'ice', 'tundra', 'snow_peak'].includes(id)) { ground = 'tundra'; break; }
+            if (['desert'].includes(id)) ground = 'desert';
+            else if (id === 'savanna' && ground === 'grassland') ground = 'savanna';
+        }
+        const gName = this.getTileImage({ q: tile.q, r: tile.r, terrain: { id: ground }, temperature: tile.temperature, moisture: tile.moisture, elevation: 0.5 });
+        const gSprite = gName ? this.tileSprites.get(gName) : null;
+        if (gSprite) ctx.drawImage(gSprite, drawX, drawY, tw, th);
+        else ctx.drawImage(waterSprite, drawX, drawY, tw, th);
+
+        // edge i of the face (corners i..i+1) faces neighbour EDGE_NBR[i]
+        const EDGE_NBR = [1, 0, 5, 4, 3, 2];
+        const open = EDGE_NBR.map(d => !!(nb[d] && nb[d].terrain && WATER.has(nb[d].terrain.id)));
+        const mx = cx, my = cy + 0.134 * size;      // the middle of the face
+        const toward = (p, k) => ({ x: mx + (p.x - mx) * k, y: my + (p.y - my) * k });
+        const mid = (i) => {
+            const a = corners[i], b = corners[(i + 1) % 6];
+            const m = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+            return open[i] ? m : toward(m, 0.58);
+        };
+        const corner = (i) => {
+            // corner i lies between edge i-1 and edge i
+            const both = open[(i + 5) % 6] && open[i];
+            const one = open[(i + 5) % 6] || open[i];
+            return toward(corners[i], both ? 1 : one ? 0.82 : 0.6);
+        };
+        const pool = () => {
+            ctx.beginPath();
+            const start = mid(5);
+            ctx.moveTo(start.x, start.y);
+            for (let i = 0; i < 6; i++) {
+                const c = corner(i), m = mid(i);
+                // (water on both sides of a corner runs right into it, so neighbouring
+                // lake hexes meet without a gap; a corner by the shore is rounded off)
+                if (open[(i + 5) % 6] && open[i]) { ctx.lineTo(c.x, c.y); ctx.lineTo(m.x, m.y); } else ctx.quadraticCurveTo(c.x, c.y, m.x, m.y);
+            }
+            ctx.closePath();
+        };
+        if (gSprite && open.some(o => !o)) {
+            // the strand and the wet line along the shore (only where the pool meets land)
+            ctx.beginPath();
+            for (let i = 0; i < 6; i++) {
+                if (open[(i + 5) % 6] && open[i]) continue;
+                const a0 = mid((i + 5) % 6), c = corner(i), m = mid(i);
+                ctx.moveTo(a0.x, a0.y);
+                ctx.quadraticCurveTo(c.x, c.y, m.x, m.y);
+            }
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = 'rgba(222, 205, 150, 0.9)';
+            ctx.lineWidth = Math.max(2, size * 0.16);
+            ctx.stroke();
+            ctx.strokeStyle = 'rgba(60, 70, 50, 0.45)';
+            ctx.lineWidth = Math.max(1, size * 0.05);
+            ctx.stroke();
+        }
+        ctx.save();
+        pool();
+        ctx.clip();
+        ctx.drawImage(waterSprite, drawX, drawY, tw, th);
+        ctx.restore();
+    },
+
+    /**
      * Render a hex with a PNG sprite (clipped to hex shape)
      */
     renderSpriteHex(ctx, cx, cy, size, sprite, tile, overlaySprite = null, roadSprite = null) {
@@ -613,7 +697,10 @@ Object.assign(Renderer.prototype, {
         // (the topographic map leaves the tile art off: renderer/topography.js paints the face)
         const topo = this.mapMode === 'topo';
         if (sprite && !topo) {
-            ctx.drawImage(sprite, drawX, drawY, targetWidth, targetHeight);
+            // A lake is drawn with a shore: the land around it, and its water rounded off
+            // toward the land and running on into the water beside it (renderLakeHex)
+            if (tile.terrain && tile.terrain.id === 'lake' && this.world) this.renderLakeHex(ctx, tile, sprite, corners, cx, cy, size, drawX, drawY, targetWidth, targetHeight);
+            else ctx.drawImage(sprite, drawX, drawY, targetWidth, targetHeight);
         }
 
         // River first, then the road (or bridge) over it, so a road

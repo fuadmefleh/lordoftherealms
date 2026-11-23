@@ -435,7 +435,11 @@ export async function _doStartNewGame(settingsOverride) {
         // 11 = lakes in the valleys, dammed on their rivers and filled along the contours (Terrain._valleyLakes)
         // 12 = mountain ranges along tectonic plate seams; a climate of prevailing winds, rain shadows,
         // colder heights and greener riverbanks (Terrain._plates, _climate12, _riverbanks12)
-        terrainGen: 12,
+        // 13 = subtropical desert belts; narrower, more broken mountain chains (Terrain._climate12, _plates)
+        // 14 = continents of several lobes, archipelagos, finer coasts, winding straits; the land's
+        // heights from its relief (ranges, foothills, rolling hills), so a continent's heart can be
+        // a plain; snow only on the highest crags (Terrain._land11 relief, _seaLevel11)
+        terrainGen: 14,
         continentCount,
         terrainFreq,
         riverCount,

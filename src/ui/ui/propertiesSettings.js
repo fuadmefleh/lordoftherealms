@@ -255,6 +255,7 @@ Object.assign(UI.prototype, {
         const modes = [
             { id: 'normal',    icon: '🗺️', label: 'Normal',    desc: 'Default terrain view' },
             { id: 'topo',      icon: '⛰️', label: 'Topography', desc: 'Heights, slopes, rivers and lakes' },
+            { id: 'flow',      icon: '🌊', label: 'Currents & Rivers', desc: 'Which way the sea and the rivers run' },
             { id: 'political', icon: '🏰', label: 'Political',  desc: 'Kingdom territories' },
             { id: 'religion',  icon: '🙏', label: 'Religion',   desc: 'Faith distribution' },
             { id: 'wealth',    icon: '💰', label: 'Wealth',     desc: 'Economic output' },
@@ -338,11 +339,12 @@ Object.assign(UI.prototype, {
         if (this.game.minimap) this.game.minimap.invalidate();
 
         const labels = {
-            normal: 'Normal', topo: 'Topography', political: 'Political', religion: 'Religion',
+            normal: 'Normal', topo: 'Topography', flow: 'Currents & Rivers', political: 'Political', religion: 'Religion',
             wealth: 'Wealth', military: 'Military', trade: 'Trade Routes', prices: 'Trade Map (known prices)', culture: 'Culture'
         };
         this.showNotification('Map Mode', `${labels[mode] || mode} view active`, 'info');
         this._topoLegend(mode === 'topo');
+        this._flowLegend(mode === 'flow');
 
         // Mark the active mode in the top bar's Map dropdown (TopBar.jsx [data-map-mode])
         if (typeof document !== 'undefined' && document.querySelectorAll) {
@@ -355,6 +357,28 @@ Object.assign(UI.prototype, {
     },
 
     /** The topographic map's key: height bands from the deep sea to the peaks, rivers, lakes (top left) */
+    /** The key of the Currents & Rivers map (an HTML box, so it follows the UI zoom like the topography key). */
+    _flowLegend(show) {
+        if (typeof document === 'undefined' || !document.getElementById) return;
+        let el = document.getElementById('flowLegend');
+        if (!show) { if (el) el.remove(); return; }
+        if (el) return;
+        el = document.createElement('div');
+        el.id = 'flowLegend';
+        el.style.cssText = 'position:fixed;top:64px;left:12px;zoom:var(--ui-zoom,1);z-index:40;pointer-events:none;'
+            + 'background:rgba(12,16,26,0.85);border:1px solid rgba(232,196,104,0.45);border-radius:6px;padding:7px 10px 6px;width:250px;'
+            + 'font:11px var(--font-body, sans-serif);color:#c9c2b0;';
+        el.innerHTML = `<div style="color:#e8c468;font-family:var(--font-display, serif);font-size:12px;margin-bottom:5px">Currents &amp; Rivers</div>
+            <div style="display:flex;height:11px;border-radius:2px;overflow:hidden;background:linear-gradient(90deg,rgb(14,30,58),rgb(38,150,170))"></div>
+            <div style="display:flex;justify-content:space-between;margin-top:3px;font-size:10px"><span>Slack water</span><span>Strong current</span></div>
+            <div style="margin-top:5px;font-size:10px;line-height:1.5">
+                <span style="color:#e2f4ff">➜</span> the way the sea sets (longer, brighter: stronger)<br>
+                <span style="color:rgb(96,190,255)">➜</span> a river, pointing downstream
+                &nbsp;<span style="display:inline-block;width:9px;height:9px;background:rgb(104,168,206);vertical-align:middle"></span> lake
+            </div>`;
+        document.body.appendChild(el);
+    },
+
     _topoLegend(show) {
         if (typeof document === 'undefined' || !document.getElementById) return;
         let el = document.getElementById('topoLegend');
@@ -873,6 +897,7 @@ Object.assign(UI.prototype, {
             this.game.renderer.showTerritories = settings.showTerritories;
             this.game.renderer.mapMode = settings.defaultMapMode;
             this._topoLegend(settings.defaultMapMode === 'topo');
+            this._flowLegend(settings.defaultMapMode === 'flow');
 
             // Update toggle button states in the UI
             const resEl = document.getElementById('resourceToggleState');
@@ -956,6 +981,7 @@ Object.assign(UI.prototype, {
         const mapModeOptions = [
             { value: 'normal', label: 'Normal' },
             { value: 'topo', label: 'Topography' },
+            { value: 'flow', label: 'Currents & Rivers' },
             { value: 'political', label: 'Political' },
             { value: 'religion', label: 'Religion' },
             { value: 'wealth', label: 'Wealth' },

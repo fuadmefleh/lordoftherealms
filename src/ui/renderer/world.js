@@ -47,6 +47,8 @@ Object.assign(Renderer.prototype, {
 
         // The set of the sea: streaks drifting with each sea hex's current (renderer/currents.js)
         this.renderOceanCurrents(ctx);
+        // (the Currents & Rivers map: an arrow for each sea hex's current and each river's run, renderer/flowMap.js)
+        this.renderFlowArrows(ctx);
 
         // Render territory borders
         this.renderTerritoryBorders(ctx);
@@ -598,13 +600,26 @@ Object.assign(Renderer.prototype, {
         // edge i of the face (corners i..i+1) faces neighbour EDGE_NBR[i]
         const EDGE_NBR = [1, 0, 5, 4, 3, 2];
         const open = EDGE_NBR.map(d => !!(nb[d] && nb[d].terrain && WATER.has(nb[d].terrain.id)));
+        // a river meeting the lake across an edge (running in, or out of it): the water opens a
+        // mouth there, out to the edge where the river's own art ends, so the two run together
+        const nbHex = Hex.neighbors(tile.q, tile.r);
+        const inlet = EDGE_NBR.map((d, i) => {
+            const n = nb[d];
+            if (open[i] || !n || !n.hasRiver) return false;
+            const back = (d + 3) % 6;
+            return n.riverDir === back || this.lakeOutletDir(n, Hex.wrapQ(nbHex[d].q, w.width), nbHex[d].r, w.width, w.height) === back;
+        });
         const mx = cx, my = cy + 0.134 * size;      // the middle of the face
         const toward = (p, k) => ({ x: mx + (p.x - mx) * k, y: my + (p.y - my) * k });
-        const mid = (i) => {
+        const edgeAt = (i, t) => {
             const a = corners[i], b = corners[(i + 1) % 6];
-            const m = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
-            return open[i] ? m : toward(m, 0.58);
+            return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
         };
+        const MOUTH = 0.17;       // half the mouth's width, as a share of the edge
+        const mid = (i) => open[i] ? edgeAt(i, 0.5) : toward(edgeAt(i, 0.5), 0.58);
+        // where the outline reaches edge i coming round from corner i, and leaves it for corner i+1
+        const reach = (i) => inlet[i] ? edgeAt(i, 0.5 - MOUTH) : mid(i);
+        const leave = (i) => inlet[i] ? edgeAt(i, 0.5 + MOUTH) : mid(i);
         const corner = (i) => {
             // corner i lies between edge i-1 and edge i
             const both = open[(i + 5) % 6] && open[i];
@@ -613,22 +628,24 @@ Object.assign(Renderer.prototype, {
         };
         const pool = () => {
             ctx.beginPath();
-            const start = mid(5);
+            const start = leave(5);
             ctx.moveTo(start.x, start.y);
             for (let i = 0; i < 6; i++) {
-                const c = corner(i), m = mid(i);
+                const c = corner(i), m = reach(i);
                 // (water on both sides of a corner runs right into it, so neighbouring
                 // lake hexes meet without a gap; a corner by the shore is rounded off)
                 if (open[(i + 5) % 6] && open[i]) { ctx.lineTo(c.x, c.y); ctx.lineTo(m.x, m.y); } else ctx.quadraticCurveTo(c.x, c.y, m.x, m.y);
+                if (inlet[i]) { const l = leave(i); ctx.lineTo(l.x, l.y); }
             }
             ctx.closePath();
         };
         if (gSprite && open.some(o => !o)) {
-            // the strand and the wet line along the shore (only where the pool meets land)
+            // the strand and the wet line along the shore (only where the pool meets land; a
+            // river's mouth is left open, its banks running down to the water)
             ctx.beginPath();
             for (let i = 0; i < 6; i++) {
                 if (open[(i + 5) % 6] && open[i]) continue;
-                const a0 = mid((i + 5) % 6), c = corner(i), m = mid(i);
+                const a0 = leave((i + 5) % 6), c = corner(i), m = reach(i);
                 ctx.moveTo(a0.x, a0.y);
                 ctx.quadraticCurveTo(c.x, c.y, m.x, m.y);
             }
@@ -694,9 +711,12 @@ Object.assign(Renderer.prototype, {
         // Fog of war: this face is darkened with the others after all the terrain (renderFogFaces)
         if (!tile.visible && this._fogFaces) this._fogFaces.push(corners);
 
-        // (the topographic map leaves the tile art off: renderer/topography.js paints the face)
+        // (the topographic map and the Currents & Rivers map leave the tile art off:
+        // renderer/topography.js and renderer/flowMap.js paint the face)
         const topo = this.mapMode === 'topo';
-        if (sprite && !topo) {
+        const flow = this.mapMode === 'flow';
+        const bare = topo || flow;
+        if (sprite && !bare) {
             // A lake is drawn with a shore: the land around it, and its water rounded off
             // toward the land and running on into the water beside it (renderLakeHex)
             if (tile.terrain && tile.terrain.id === 'lake' && this.world) this.renderLakeHex(ctx, tile, sprite, corners, cx, cy, size, drawX, drawY, targetWidth, targetHeight);
@@ -706,11 +726,11 @@ Object.assign(Renderer.prototype, {
         // River first, then the road (or bridge) over it, so a road
         // crossing water reads as crossing it. Same frame as the base sprite
         // so the overlays line up whatever their transparency.
-        if (overlaySprite && !topo) {
+        if (overlaySprite && !bare) {
             ctx.drawImage(overlaySprite, drawX, drawY, targetWidth, targetHeight);
         }
 
-        if (roadSprite && !topo) {
+        if (roadSprite && !bare) {
             ctx.drawImage(roadSprite, drawX, drawY, targetWidth, targetHeight);
         }
 
@@ -736,6 +756,7 @@ Object.assign(Renderer.prototype, {
 
         // Map mode overlay
         if (topo) this.renderTopoHex(ctx, tile, corners, size);
+        else if (flow) this.renderFlowHex(ctx, tile, corners);
         else if (this.mapMode !== 'normal') {
             this.renderMapModeOverlay(ctx, tile);
         }

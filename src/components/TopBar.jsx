@@ -71,6 +71,11 @@ export default function TopBar() {
               <span className="civ-dd-text">Topography</span>
               <span className="civ-dd-toggle"></span>
             </button>
+            <button className="civ-dropdown-item" data-map-mode="flow">
+              <span className="civ-dd-icon"><Icon name="wave" /></span>
+              <span className="civ-dd-text">Currents &amp; Rivers</span>
+              <span className="civ-dd-toggle"></span>
+            </button>
             <button className="civ-dropdown-item" data-map-mode="political">
               <span className="civ-dd-icon"><Icon name="banner" /></span>
               <span className="civ-dd-text">Political</span>

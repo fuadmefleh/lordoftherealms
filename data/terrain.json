@@ -37,8 +37,21 @@
         "STONE": { "id": "stone", "name": "Quarry Stone", "icon": "⛰️", "color": "#808080" },
         "SALT": { "id": "salt", "name": "Salt Flats", "icon": "🧂", "color": "#f0f0f0" },
         "COAL": { "id": "coal", "name": "Coal", "icon": "⚫", "color": "#333333" },
+        "COPPER": { "id": "copper", "name": "Copper Lodes", "icon": "🔶", "color": "#b87333" },
+        "SILVER": { "id": "silver", "name": "Silver Lodes", "icon": "🥈", "color": "#c0c0c0" },
         "OIL": { "id": "oil", "name": "Oil", "icon": "🛢️", "color": "#111111" },
         "CATTLE": { "id": "cattle", "name": "Cattle", "icon": "🐄", "color": "#a0522d" }
+    },
+    "_mineralFields": "Worlds since terrainGen 15 (Terrain._mineralFields): the things you mine lie in a few ore fields, not in every hill, so one land has iron and coal and must buy its silver and salt from another. Each mineral gets perRoot fields per square root of the world's land hexes (at least min), placed apart (spacing in hexes, x the map's scale) on the land it likes (centre: terrain ids a field may be centred on; on: terrain ids that carry the mineral inside a field). A field is radius hexes across (x the map's scale, sqrt(land)/64), and a hex of the right land in it carries the mineral at core chance in its heart, falling to edge at its rim. Outside its fields a mineral is not found at all: not as a map resource, not as a hidden vein, not by prospecting. Stone, timber, fish, farmland, herds and spices are not minerals: they stay everywhere. Copper and silver are map resources only in these worlds.",
+    "mineralFields": {
+        "iron":     { "perRoot": 0.14,  "min": 4, "radius": 4.5, "spacing": 8,  "core": 0.5,  "edge": 0.15, "centre": ["mountain", "hills", "highlands"], "on": ["mountain", "hills", "highlands"] },
+        "coal":     { "perRoot": 0.1,   "min": 3, "radius": 4.5, "spacing": 9,  "core": 0.35, "edge": 0.1,  "centre": ["hills", "highlands", "mountain", "plains", "grassland", "woodland", "seasonal_forest", "boreal_forest"], "on": ["hills", "highlands", "mountain", "plains", "grassland", "woodland", "seasonal_forest", "boreal_forest", "forest"] },
+        "copper":   { "perRoot": 0.075,  "min": 2, "radius": 3.5, "spacing": 12, "core": 0.35, "edge": 0.1,  "centre": ["mountain", "hills", "highlands"], "on": ["mountain", "hills", "highlands"] },
+        "silver":   { "perRoot": 0.035, "min": 2, "radius": 3,   "spacing": 16, "core": 0.3,  "edge": 0.08, "centre": ["mountain", "highlands"], "on": ["mountain", "hills", "highlands", "snow_peak"] },
+        "gold_ore": { "perRoot": 0.03,  "min": 1, "radius": 3,   "spacing": 18, "core": 0.28, "edge": 0.08, "centre": ["mountain", "hills"], "on": ["mountain", "hills", "highlands", "snow_peak"] },
+        "gems":     { "perRoot": 0.025, "min": 1, "radius": 2.5, "spacing": 18, "core": 0.25, "edge": 0.06, "centre": ["mountain", "tropical_rainforest", "highlands"], "on": ["mountain", "highlands", "hills", "snow_peak", "tropical_rainforest", "island"] },
+        "salt":     { "perRoot": 0.08,  "min": 2, "radius": 4,   "spacing": 12, "core": 0.35, "edge": 0.1,  "centre": ["desert", "savanna", "plains", "tundra"], "on": ["desert", "savanna", "plains", "tundra", "beach"] },
+        "oil":      { "perRoot": 0.025, "min": 1, "radius": 4,   "spacing": 18, "core": 0.25, "edge": 0.06, "centre": ["desert", "plains", "tundra", "savanna"], "on": ["desert", "plains", "tundra", "savanna", "grassland"] }
     },
     "resourceChances": {
         "mountain": [{ "resource": "iron", "chance": 0.15 }, { "resource": "gold_ore", "chance": 0.05 }, { "resource": "coal", "chance": 0.15 }, { "resource": "gems", "chance": 0.02 }],

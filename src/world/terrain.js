@@ -463,13 +463,28 @@ export const Terrain = {
                     // Scale island chance by islandFreq parameter
                     const baseChance = (tile.terrain.id === 'ocean') ? 0.005 : 0.01;
                     const chance = baseChance * islandFreq;
-                    if (islandRng() < chance) {
+                    // (since terrainGen 15 a river's mouth is not stopped up by an islet)
+                    const mouth = terrainGen >= 15 && Hex.neighbors(q, r).some((n, i) => n.r >= 0 && n.r < height
+                        && tiles[n.r][Hex.wrapQ(n.q, width)].hasRiver && tiles[n.r][Hex.wrapQ(n.q, width)].riverDir === (i + 3) % 6);
+                    if (islandRng() < chance && !mouth) {
                         tile.terrain = Terrain.TYPES.ISLAND;
                         tile.elevation = 0.45;
                     }
                 }
+            }
+        }
 
-                tile.resource = Terrain.rollResource(tile.terrain.id, q, r, resMultiplier, strategicMultiplier);
+        // Worlds since terrainGen 15: what is mined lies in a few ore fields, each mineral in its
+        // own places, so lands must trade for what they lack (Terrain._mineralFields)
+        const minerals = terrainGen >= 15
+            ? Terrain._mineralFields(tiles, width, height, params.seed ? Utils.seededRandom(Math.abs(Utils.hashStr(`minerals:${params.seed}`)) || 1) : rng)
+            : null;
+        for (let r = 0; r < height; r++) {
+            for (let q = 0; q < width; q++) {
+                const tile = tiles[r][q];
+                tile.resource = minerals
+                    ? Terrain.rollResource15(tile, minerals, resMultiplier, strategicMultiplier)
+                    : Terrain.rollResource(tile.terrain.id, q, r, resMultiplier, strategicMultiplier);
             }
         }
 
@@ -502,6 +517,10 @@ export const Terrain = {
 
         // No river left drawn on a hex that became water
         Terrain.cleanRivers(tiles);
+
+        // Worlds since terrainGen 15: a small river that runs on through dry country dries up
+        // there; any other river that would end on land ends in a lake instead (Terrain._riverEnds15)
+        if (terrainGen >= 15) Terrain._riverEnds15(tiles, width, height, { waterThreshold });
 
         // Identify connected regions for reachable pathfinding
         Terrain.identifyRegions(tiles, width, height);
@@ -1620,6 +1639,111 @@ export const Terrain = {
     },
 
     /**
+     * How rivers end, in worlds since terrainGen 15. A river reaches the sea or
+     * a lake, except that a small one (fed by fewer than RIVER_END.bigRiver
+     * river hexes) running RIVER_END.aridRun hexes or more through arid
+     * country (desert, or dry savanna and plains) sinks into the sand there:
+     * the course below is let go, down to where another river joins it. Any
+     * river still ending on land (its next hex neither water nor river) ends
+     * in a lake: the hex it runs into becomes one, unless that course ran
+     * through dry country for a while, where a river may well die out.
+     */
+    RIVER_END: { aridRun: 5, bigRiver: 25, dryMoisture: 0.3 },
+
+    _riverEnds15(tiles, width, height, { waterThreshold = 0.42 } = {}) {
+        const C = Terrain.RIVER_END;
+        const WATER = new Set(Terrain.WATER_IDS);
+        const at = (q, r) => (r < 0 || r >= height) ? null : tiles[r][Hex.wrapQ(q, width)];
+        const down = (t) => {
+            if (!t.hasRiver || !Number.isInteger(t.riverDir) || t.riverDir < 0) return null;
+            const n = Hex.neighbors(t.q, t.r)[t.riverDir];
+            return at(n.q, n.r);
+        };
+        const dryLand = (t) => t && t.terrain && (t.terrain.id === 'desert'
+            || (['savanna', 'plains', 'tundra'].includes(t.terrain.id) && (t.moisture ?? 0.5) < C.dryMoisture));
+        // (the country a river runs through: its own banks are kept green by it, so judge by
+        // the land on either side: half or more of it dry)
+        const arid = (t) => {
+            let dry = 0, land = 0;
+            for (const n of Hex.neighbors(t.q, t.r)) {
+                const o = at(n.q, n.r);
+                if (!o || o.hasRiver || WATER.has(o.terrain.id)) continue;
+                land++;
+                if (dryLand(o)) dry++;
+            }
+            return dryLand(t) || (land >= 2 && dry * 2 >= land);
+        };
+        // river hexes in order from the springs down, and how many river hexes feed each
+        const rivers = [];
+        const into = new Map();
+        for (const row of tiles) for (const t of row) {
+            if (!t.hasRiver) continue;
+            rivers.push(t);
+            const d = down(t);
+            if (d && d.hasRiver) into.set(d, (into.get(d) || 0) + 1);
+        }
+        const feed = new Map();
+        const indeg = new Map(into);
+        const queue = rivers.filter(t => !indeg.get(t));
+        for (let k = 0; k < queue.length; k++) {
+            const t = queue[k];
+            const f = (feed.get(t) || 0) + 1;
+            feed.set(t, f);
+            const d = down(t);
+            if (d && d.hasRiver) {
+                feed.set(d, (feed.get(d) || 0) + f);
+                indeg.set(d, indeg.get(d) - 1);
+                if (!indeg.get(d)) queue.push(d);
+            }
+        }
+        // the run of dry country each river hex has come through (from its spring down)
+        const dryRun = new Map();
+        const ended = new Set();
+        for (const t of queue) {
+            if (ended.has(t)) continue;
+            const run = arid(t) ? (dryRun.get(t) || 0) + 1 : 0;
+            dryRun.set(t, run);
+            const d = down(t);
+            if (run >= C.aridRun && (feed.get(t) || 0) < C.bigRiver && d && d.hasRiver && !WATER.has(d.terrain.id)) {
+                // it sinks here: the course below is let go until another river joins it
+                let c = d;
+                while (c && c.hasRiver && !WATER.has(c.terrain.id) && (into.get(c) || 0) <= 1) {
+                    const next = down(c);
+                    c.hasRiver = false;
+                    c.riverSource = false;
+                    delete c.riverDir;
+                    ended.add(c);
+                    c = next;
+                }
+                // (a tributary still joining below now rises where the dry river would have met it)
+                if (c && c.hasRiver && (into.get(c) || 0) > 1) into.set(c, into.get(c) - 1);
+                continue;
+            }
+            if (d && d.hasRiver && run > (dryRun.get(d) || 0)) dryRun.set(d, run);
+        }
+        // a river still ending on land ends in a lake, unless it dried out in the desert
+        for (const t of rivers) {
+            if (!t.hasRiver) continue;
+            const d = down(t);
+            if (!d || d.hasRiver || WATER.has(d.terrain.id)) continue;
+            if ((dryRun.get(t) || 0) >= C.aridRun) continue;
+            if (d.settlement) continue;
+            d.elevation = waterThreshold - 0.04;
+            d._lake = true;
+            d.waterBodyType = 'lake';
+            d.resource = null;
+            d.terrain = Terrain.classifyTerrain(d);
+        }
+        // (a hex left with a river but nothing upstream is a spring now)
+        const fed = new Set();
+        for (const t of rivers) if (t.hasRiver) { const d = down(t); if (d && d.hasRiver) fed.add(d); }
+        for (const t of rivers) if (t.hasRiver && !fed.has(t) && !t.riverSource) {
+            const fromLake = Hex.neighbors(t.q, t.r).some(n => { const o = at(n.q, n.r); return o && o._lake; });
+            if (!fromLake) t.riverSource = true;
+        }
+    },
+
+    /**
      * Drop river marks from hexes that ended up as water after the terrain
      * pass (sunk islets, flooded basins), so no river is drawn on the sea.
      */
@@ -1702,6 +1826,91 @@ export const Terrain = {
             const isStrategic = strategicResources.includes(resource);
             const mult = isStrategic ? densityMultiplier * strategicMultiplier : densityMultiplier;
             if (rng() < chance * mult) {
+                return Terrain.RESOURCES[resource.toUpperCase()];
+            }
+        }
+        return null;
+    },
+
+    /**
+     * The ore fields of worlds since terrainGen 15 (data/terrain.json
+     * mineralFields). Each mineral gets a few fields, by the square root of
+     * the land, centred on the land it likes and kept apart from its own
+     * kind, so iron is in some ranges and not others, salt in some dry
+     * country, silver and gold in a few places on the whole world. Marks each
+     * hex in a field with tile.ores = { mineral: strength 0..1 } (1 at a
+     * field's heart). -> { fields, byMineral } (a mineral's id -> its config)
+     */
+    NO_ORES: Object.freeze({}),
+
+    _mineralFields(tiles, width, height, rng) {
+        const cfg = Terrain.MINERAL_FIELDS || {};
+        const land = [];
+        for (const row of tiles) for (const t of row) if (t.terrain && t.terrain.passable || (t.terrain && ['mountain', 'snow_peak'].includes(t.terrain.id))) land.push(t);
+        const root = Math.sqrt(land.length);
+        const scale = Utils.clamp(root / 64, 0.6, 3);
+        const fields = [];
+        for (const [id, c] of Object.entries(cfg)) {
+            if (!c || id.startsWith('_')) continue;
+            const centre = new Set(c.centre || []);
+            const cands = land.filter(t => centre.has(t.terrain.id));
+            if (!cands.length) continue;
+            const want = Math.max(c.min || 1, Math.round(root * (c.perRoot || 0)));
+            const spacing = (c.spacing || 10) * scale;
+            const placed = [];
+            for (let tries = 0; placed.length < want && tries < want * 40; tries++) {
+                const t = cands[Math.floor(rng() * cands.length) % cands.length];
+                if (placed.some(p => Hex.wrappingDistance(p.q, p.r, t.q, t.r, width) < spacing)) continue;
+                placed.push({ q: t.q, r: t.r });
+            }
+            const radius = Math.max(2, (c.radius || 3) * Math.sqrt(scale));
+            for (const p of placed) {
+                // (a field is not a round blot: its rim wobbles with the hash of each hex)
+                const R = Math.ceil(radius * 1.3);
+                for (const h of Hex.hexesInRange(p.q, p.r, R)) {
+                    if (h.r < 0 || h.r >= height) continue;
+                    const t = tiles[h.r][Hex.wrapQ(h.q, width)];
+                    const d = Hex.wrappingDistance(p.q, p.r, t.q, t.r, width);
+                    const wob = 0.75 + 0.5 * ((Math.abs(Utils.hashStr(`mf:${id}:${t.q},${t.r}`)) % 1000) / 1000);
+                    const k = 1 - d / (radius * wob);
+                    if (k <= 0) continue;
+                    if (!t.ores) t.ores = {};
+                    t.ores[id] = Math.max(t.ores[id] || 0, k);
+                }
+                fields.push({ mineral: id, q: p.q, r: p.r, radius });
+            }
+        }
+        // (every other hex of such a world is marked too, with no ore: the mark is how the
+        // hinterland knows this world's veins lie in fields)
+        for (const row of tiles) for (const t of row) if (!t.ores) t.ores = Terrain.NO_ORES;
+        return { fields, byMineral: cfg };
+    },
+
+    /**
+     * A hex's resource in worlds since terrainGen 15: the minerals only inside
+     * their ore fields (likelier toward a field's heart), everything else
+     * (stone, timber, fish, farmland, herds, spices) by the old chances.
+     */
+    rollResource15(tile, minerals, densityMultiplier = 1.0, strategicMultiplier = 1.0) {
+        const { q, r } = tile;
+        const id = tile.terrain && tile.terrain.id;
+        const cfg = minerals.byMineral;
+        const rng = Utils.seededRandom(Math.abs(Utils.hashStr(`${q}_${r}_res`)));
+        // the minerals of the fields this hex lies in, strongest first
+        if (tile.ores) {
+            const here = Object.entries(tile.ores).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1));
+            for (const [m, k] of here) {
+                const c = cfg[m];
+                if (!c || !(c.on || []).includes(id) || !Terrain.RESOURCES[m.toUpperCase()]) continue;
+                const chance = ((c.edge || 0.1) + ((c.core || 0.35) - (c.edge || 0.1)) * k) * densityMultiplier * strategicMultiplier;
+                if (rng() < chance) return Terrain.RESOURCES[m.toUpperCase()];
+            }
+        }
+        const chances = Terrain.RESOURCE_CHANCES[id];
+        if (!chances) return null;
+        for (const { resource, chance } of chances) {
+            if (cfg[resource]) continue;     // (a mineral: only in its fields, above)
+            if (rng() < chance * (resource === 'horses' ? densityMultiplier * strategicMultiplier : densityMultiplier)) {
                 return Terrain.RESOURCES[resource.toUpperCase()];
             }
         }

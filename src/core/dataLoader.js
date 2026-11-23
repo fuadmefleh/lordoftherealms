@@ -313,6 +313,7 @@ export const DataLoader = {
         Terrain.TYPES = terrainData.types;
         Terrain.RESOURCES = terrainData.resources;
         Terrain.RESOURCE_CHANCES = terrainData.resourceChances;
+        Terrain.MINERAL_FIELDS = terrainData.mineralFields || {};
         Terrain.BIOME_TABLE = terrainData.biomeTable;
 
         // ── World units (types beyond the hand-written ones) ──

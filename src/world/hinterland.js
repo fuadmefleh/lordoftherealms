@@ -63,7 +63,7 @@ function _build(src) {
         for (const [g, n] of Object.entries(k.good || {})) if (_num(n) > 0) good[g] = _num(n);
         kinds[id] = {
             id, name: k.name || id, icon: k.icon || '⛏️', good, goods: Object.entries(good), first: Object.keys(good)[0] || null,
-            resource: k.resource || null, terrain: Array.isArray(k.terrain) ? k.terrain.slice() : [],
+            resource: k.resource || null, ore: k.ore || null, terrain: Array.isArray(k.terrain) ? k.terrain.slice() : [],
             priority: _num(k.priority), hands: Math.max(0, _num(k.hands, 8)), deposit: !!k.deposit,
             reserve: Array.isArray(k.reserve) ? [_num(k.reserve[0], 500), _num(k.reserve[1], 1000)] : [0, 0],
             leasable: !!k.leasable,
@@ -188,7 +188,7 @@ export const Hinterland = {
         const C = Hinterland.config();
         const res = tile.resource && tile.resource.id;
         if (res && C.byResource[res]) return C.byResource[res];
-        const weights = _obj(C.prospect.terrain) && _obj(C.prospect.terrain[tile.terrain.id]);
+        const weights = Hinterland.oreWeights(tile, _obj(C.prospect.terrain) && _obj(C.prospect.terrain[tile.terrain.id]));
         if (weights && Number.isFinite(tile.q)) {
             const roll = _roll(`hl:hid:${Hinterland.seed(world)}:${tile.q},${tile.r}`);
             const hidden = _num(C.hidden, 0);
@@ -208,6 +208,25 @@ export const Hinterland = {
             }
         }
         return C.byTerrain[tile.terrain.id] || null;
+    },
+
+    /**
+     * The prospecting weights of a hex, less the mines whose ore is not in it:
+     * in worlds since terrainGen 15 a hex carries tile.ores (the ore fields it
+     * lies in: Terrain._mineralFields), and a vein of iron, copper, silver,
+     * gold, gems or coal is only found inside that mineral's fields (a quarry
+     * anywhere). Older worlds (no tile.ores) keep every weight.
+     */
+    oreWeights(tile, weights) {
+        if (!weights || !tile || !tile.ores) return weights;
+        const ores = tile.ores || {};
+        const out = {};
+        for (const [id, w] of Object.entries(weights)) {
+            const k = Hinterland.kind(id);
+            if (k && k.ore && !(ores[k.ore] > 0)) continue;
+            out[id] = w;
+        }
+        return out;
     },
 
     /** A kind from { kindId: weight } by the hash `key`, or null. */
@@ -555,7 +574,7 @@ export const Hinterland = {
             const t = world.getTile(q, h.r);
             if (!t || t.settlement || !t.terrain || !_obj(T[t.terrain.id])) continue;
             if (Hinterland.siteAt(world, q, h.r)) continue;
-            out.push({ q, r: h.r, weights: T[t.terrain.id] });
+            out.push({ q, r: h.r, weights: Hinterland.oreWeights(t, T[t.terrain.id]) });
         }
         return out;
     },

@@ -494,3 +494,36 @@ describe('Lobed continents, archipelagos and relief (terrainGen 14)', () => {
         expect(sig(make({}, 99))).toBe(sig(make({}, 99)));
     });
 });
+
+describe('How rivers end (terrainGen 15: Terrain._riverEnds15)', () => {
+    const make = (extra = {}, seed = 5) => {
+        const wd = new World(120, 80);
+        wd.generate({ seed, kingdomCount: 6, terrainGen: 15, riverCount: 40, ...extra });
+        return wd;
+    };
+    const deadEnds = (wd) => {
+        const out = [];
+        for (const t of wd.tiles.flat()) {
+            if (!t.hasRiver) continue;
+            const n = Hex.neighbors(t.q, t.r)[t.riverDir];
+            const d = n.r >= 0 && n.r < wd.height ? wd.tiles[n.r][Hex.wrapQ(n.q, wd.width)] : null;
+            if (d && !d.hasRiver && !WATER.has(d.terrain.id)) out.push(t);
+        }
+        return out;
+    };
+    const dryNear = (wd, t) => Hex.hexesInRange(t.q, t.r, 2).some(h => {
+        const o = h.r >= 0 && h.r < wd.height ? wd.tiles[h.r][Hex.wrapQ(h.q, wd.width)] : null;
+        return o && (o.terrain.id === 'desert' || (['savanna', 'plains', 'tundra'].includes(o.terrain.id) && o.moisture < 0.3));
+    });
+
+    it('runs every river to the sea or a lake on an ordinary world', () => {
+        for (const seed of [4711, 99]) expect(deadEnds(make({}, seed)).length).toBe(0);
+    });
+
+    it('lets a small river die out only in dry country', () => {
+        const wd = make({ desertFreq: 'wasteland' });
+        const ends = deadEnds(wd);
+        expect(ends.length).toBeGreaterThan(0);
+        for (const t of ends) expect(dryNear(wd, t)).toBe(true);
+    });
+});

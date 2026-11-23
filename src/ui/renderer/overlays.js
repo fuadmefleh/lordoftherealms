@@ -1175,6 +1175,9 @@ Object.assign(Renderer.prototype, {
             case 'topo':
                 return this.topoColor(tile);
 
+            case 'flow':
+                return this.flowColor(tile);
+
             case 'culture': {
                 if (tile.culturalBuilding) return '#9b59b6';
                 if (tile.kingdom) {

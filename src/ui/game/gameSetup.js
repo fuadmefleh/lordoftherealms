@@ -439,7 +439,9 @@ export async function _doStartNewGame(settingsOverride) {
         // 14 = continents of several lobes, archipelagos, finer coasts, winding straits; the land's
         // heights from its relief (ranges, foothills, rolling hills), so a continent's heart can be
         // a plain; snow only on the highest crags (Terrain._land11 relief, _seaLevel11)
-        terrainGen: 14,
+        // 15 = mined things (iron, coal, copper, silver, gold, gems, salt, oil) lie in a few ore fields,
+        // so lands trade for what they lack; stone, timber and the rest stay everywhere (Terrain._mineralFields)
+        terrainGen: 15,
         continentCount,
         terrainFreq,
         riverCount,

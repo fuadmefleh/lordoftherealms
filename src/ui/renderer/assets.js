@@ -492,7 +492,35 @@ Object.assign(Renderer.prototype, {
             }
             if (connected) dirs.push(i);
         }
+        // (a river running out of a lake reaches back into it, not up from a spring beside it)
+        if (flows) {
+            const o = this.lakeOutletDir(tile, q, r, width, height);
+            if (o >= 0 && !dirs.includes(o)) dirs.push(o);
+        }
         return dirs;
+    },
+
+    /**
+     * The direction from a river hex to the lake it runs out of, or -1: a
+     * flowing hex that is no spring and has no river running into it, beside
+     * a lake (the lake drains into it). The lake hex most nearly upstream of
+     * its flow is the one it leaves.
+     */
+    lakeOutletDir(tile, q, r, width, height) {
+        if (!tile || !tile.hasRiver || tile.riverSource || !Number.isInteger(tile.riverDir) || tile.riverDir < 0) return -1;
+        const neighbors = Hex.neighbors(q, r);
+        let best = -1, bestGap = -1;
+        for (let i = 0; i < 6; i++) {
+            const n = neighbors[i];
+            if (n.r < 0 || n.r >= height) continue;
+            const nt = this.world.tiles[n.r][Hex.wrapQ(n.q, width)];
+            if (!nt) continue;
+            if (nt.hasRiver && nt.riverDir === (i + 3) % 6) return -1;     // fed by a river: not an outlet
+            if (!nt.terrain || nt.terrain.id !== 'lake') continue;
+            const d = Math.abs(i - tile.riverDir), gap = Math.min(d, 6 - d);
+            if (gap > bestGap) { bestGap = gap; best = i; }
+        }
+        return best;
     },
 
     /**

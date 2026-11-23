@@ -30,6 +30,8 @@ const HEX_W = Math.sqrt(3);
 // Loose building sprites (not a full hex-tile frame) are drawn at this many
 // radii wide at most, centred on the hex face.
 const LOOSE_PLACE_W = 1.4;
+// Map markers of the metals that share a glyph (ore, ingot): copper, silver and gold by tint
+const ORE_TINT = { copper: '#e39a5e', silver: '#e4eaf2', gold_ore: '#f4cf55' };
 
 Object.assign(Renderer.prototype, {
     /**
@@ -867,7 +869,9 @@ Object.assign(Renderer.prototype, {
                     || tile.holySite || tile.culturalBuilding || built.has(`${q},${r}`);
                 const px = screen.x + (occupied ? renderSize * 0.35 : 0);
                 const py = screen.y + renderSize * (occupied ? 0.35 : HEX_FACE_DY);
-                this.drawMapMarker(ctx, tile.resource.icon || 'satchel', px, py, Math.max(10, renderSize * 0.27));
+                // (the metals share glyphs: copper, silver and gold are told apart by their tint)
+                const tint = ORE_TINT[tile.resource.id];
+                this.drawMapMarker(ctx, tile.resource.icon || 'satchel', px, py, Math.max(10, renderSize * 0.27), tint ? { color: tint } : undefined);
             }
         }
     },

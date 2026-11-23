@@ -156,6 +156,8 @@ Object.assign(Renderer.prototype, {
 
         // The trade map: known prices of one good (map mode 'prices', renderer/tradeMap.js)
         this.renderTradeMap(ctx);
+        // The Ore map: the minerals towns are known to have plenty of or want (renderer/oreMap.js)
+        this.renderOreTowns(ctx);
 
         // Render weather (renderer/atmosphere.js), then frame the map
         this.renderWeather(ctx);
@@ -616,7 +618,10 @@ Object.assign(Renderer.prototype, {
             return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
         };
         const MOUTH = 0.17;       // half the mouth's width, as a share of the edge
-        const mid = (i) => open[i] ? edgeAt(i, 0.5) : toward(edgeAt(i, 0.5), 0.58);
+        // (an edge open to more water runs a hair past the hex's edge, so no thread of
+        // the shore's ground shows between two lake hexes where the clip is smoothed)
+        const OVER = 1.03;
+        const mid = (i) => open[i] ? toward(edgeAt(i, 0.5), OVER) : toward(edgeAt(i, 0.5), 0.58);
         // where the outline reaches edge i coming round from corner i, and leaves it for corner i+1
         const reach = (i) => inlet[i] ? edgeAt(i, 0.5 - MOUTH) : mid(i);
         const leave = (i) => inlet[i] ? edgeAt(i, 0.5 + MOUTH) : mid(i);
@@ -624,7 +629,7 @@ Object.assign(Renderer.prototype, {
             // corner i lies between edge i-1 and edge i
             const both = open[(i + 5) % 6] && open[i];
             const one = open[(i + 5) % 6] || open[i];
-            return toward(corners[i], both ? 1 : one ? 0.82 : 0.6);
+            return toward(corners[i], both ? OVER : one ? 0.82 : 0.6);
         };
         const pool = () => {
             ctx.beginPath();
@@ -661,7 +666,10 @@ Object.assign(Renderer.prototype, {
         ctx.save();
         pool();
         ctx.clip();
-        ctx.drawImage(waterSprite, drawX, drawY, tw, th);
+        // (the water art a little larger than the hex, so the rim painted round the tile's
+        // edge falls outside the pool and a lake of many hexes shows no seams)
+        const BIG = 1.16;
+        ctx.drawImage(waterSprite, mx - (mx - drawX) * BIG, my - (my - drawY) * BIG, tw * BIG, th * BIG);
         ctx.restore();
     },
 
@@ -711,11 +719,12 @@ Object.assign(Renderer.prototype, {
         // Fog of war: this face is darkened with the others after all the terrain (renderFogFaces)
         if (!tile.visible && this._fogFaces) this._fogFaces.push(corners);
 
-        // (the topographic map and the Currents & Rivers map leave the tile art off:
-        // renderer/topography.js and renderer/flowMap.js paint the face)
+        // (the topographic, Currents & Rivers and Ore maps leave the tile art off:
+        // renderer/topography.js, flowMap.js and oreMap.js paint the face)
         const topo = this.mapMode === 'topo';
         const flow = this.mapMode === 'flow';
-        const bare = topo || flow;
+        const ores = this.mapMode === 'ores';
+        const bare = topo || flow || ores;
         if (sprite && !bare) {
             // A lake is drawn with a shore: the land around it, and its water rounded off
             // toward the land and running on into the water beside it (renderLakeHex)
@@ -757,6 +766,7 @@ Object.assign(Renderer.prototype, {
         // Map mode overlay
         if (topo) this.renderTopoHex(ctx, tile, corners, size);
         else if (flow) this.renderFlowHex(ctx, tile, corners);
+        else if (ores) this.renderOreHex(ctx, tile, corners);
         else if (this.mapMode !== 'normal') {
             this.renderMapModeOverlay(ctx, tile);
         }

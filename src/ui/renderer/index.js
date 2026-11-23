@@ -9,6 +9,7 @@ import './overlays.js';
 import './tradeMap.js';
 import './topography.js';
 import './flowMap.js';
+import './oreMap.js';
 import './transport.js';
 import './fog.js';
 import './currents.js';

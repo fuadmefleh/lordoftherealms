@@ -76,6 +76,11 @@ export default function TopBar() {
               <span className="civ-dd-text">Currents &amp; Rivers</span>
               <span className="civ-dd-toggle"></span>
             </button>
+            <button className="civ-dropdown-item" data-map-mode="ores">
+              <span className="civ-dd-icon"><Icon name="pickaxe" /></span>
+              <span className="civ-dd-text">Ores &amp; Trade</span>
+              <span className="civ-dd-toggle"></span>
+            </button>
             <button className="civ-dropdown-item" data-map-mode="political">
               <span className="civ-dd-icon"><Icon name="banner" /></span>
               <span className="civ-dd-text">Political</span>

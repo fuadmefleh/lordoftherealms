@@ -4,6 +4,7 @@
 
 import { Utils } from '../core/utils.js';
 import { Hex } from '../core/hex.js';
+import { TownSiting } from './townSiting.js';
 
 export const Kingdom = {
     // Default starting kingdoms
@@ -111,10 +112,18 @@ export const Kingdom = {
     },
 
     /**
-     * Place kingdoms on the map — find suitable capital locations
+     * Place kingdoms on the map — find suitable capital locations.
+     * `opts.terrainGen` >= 16: a capital weighs the site score
+     * (world/townSiting.js) — rivers, river mouths, lake shores, good land —
+     * and its first towns take the best sites of its land. Older worlds keep
+     * the old scoring, draw for draw.
      */
-    placeKingdoms(kingdoms, tiles, mapWidth, mapHeight) {
+    placeKingdoms(kingdoms, tiles, mapWidth, mapHeight, opts = {}) {
         const placedCapitals = [];
+        const sited = TownSiting.applies(opts.terrainGen);
+        const site = sited ? TownSiting.map(tiles, mapWidth, mapHeight) : null;
+        const CW = sited ? (TownSiting.cfg().capital || {}) : null;
+        const num = (v, d) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
         const idealMinDistance = Math.floor(mapWidth / 4); // Ideal spacing
 
         for (const kingdom of kingdoms) {
@@ -140,9 +149,11 @@ export const Kingdom = {
                     // Must be passable land
                     if (!tile.terrain.passable) continue;
                     if (tile.terrain.id === 'coast' || tile.terrain.id === 'beach') continue;
+                    // (no capital in a marsh, terrainGen 16, unless the realm is a marsh folk's)
+                    if (tile.terrain.id === 'swamp' && !Kingdom.placementTerrain(kingdom).includes('swamp')) continue;
 
                     // Preferred terrain bonus
-                    const terrainBonus = Kingdom.placementTerrain(kingdom).includes(tile.terrain.id) ? 50 : 0;
+                    const terrainBonus = Kingdom.placementTerrain(kingdom).includes(tile.terrain.id) ? (sited ? num(CW.cultureBonus, 10) : 50) : 0;
 
                     // Distance from other capitals
                     let tooClose = false;
@@ -158,12 +169,19 @@ export const Kingdom = {
                     if (tooClose) continue;
 
                     // Score: prefer terrain match + distance from others + some randomness
-                    const score = terrainBonus + distScore * 0.5 + Utils.randFloat(0, 20);
+                    // (since terrainGen 16: + where a town would really grow)
+                    const score = sited
+                        ? num(CW.siteWeight, 8) * site.score(q, r, 'capital') + terrainBonus + distScore * num(CW.distWeight, 0.35) + Utils.randFloat(0, num(CW.jitter, 12))
+                        : terrainBonus + distScore * 0.5 + Utils.randFloat(0, 20);
                     if (score > bestScore) {
                         bestScore = score;
                         bestTile = { q, r };
                     }
                 }
+
+                // Since terrainGen 16: settle on the best site near the chosen spot (the
+                // river mouth beside it, the confluence down the valley), no RNG drawn
+                if (bestTile && sited) bestTile = Kingdom._refineCapital(bestTile, tiles, mapWidth, mapHeight, site, placedCapitals, minCapitalDistance, num(CW.refine, 3));
 
                 // If we found a valid position, stop reducing distance
                 if (bestTile) break;
@@ -194,9 +212,32 @@ export const Kingdom = {
 
             if (bestTile) {
                 placedCapitals.push(bestTile);
-                Kingdom.foundAt(kingdom, bestTile, tiles, mapWidth, mapHeight);
+                Kingdom.foundAt(kingdom, bestTile, tiles, mapWidth, mapHeight, sited ? { terrainGen: opts.terrainGen } : {});
             }
         }
+    },
+
+    /**
+     * The best capital site within `radius` of `from` (terrainGen 16+): the
+     * highest site score among open inland hexes that keep the capitals'
+     * spacing; `from` itself when nothing near beats it. Draws no RNG.
+     */
+    _refineCapital(from, tiles, mapWidth, mapHeight, site, placedCapitals, minDist, radius) {
+        let best = from;
+        let bestScore = site.score(from.q, from.r, 'capital');
+        for (const h of Hex.hexesInRange(from.q, from.r, Math.max(0, Math.floor(radius)))) {
+            const q = Hex.wrapQ(h.q, mapWidth);
+            const r = h.r;
+            if (r < Math.floor(mapHeight * 0.15) || r > Math.floor(mapHeight * 0.85)) continue;
+            const tile = tiles[r][q];
+            if (!tile.terrain.passable || tile.terrain.id === 'coast' || tile.terrain.id === 'beach') continue;
+            const s = site.score(q, r, 'capital');
+            if (!(s > bestScore)) continue;
+            if (placedCapitals.some(c => Hex.wrappingDistance(q, r, c.q, c.r, mapWidth) < minDist)) continue;
+            best = { q, r };
+            bestScore = s;
+        }
+        return best;
     },
 
     /**
@@ -205,6 +246,7 @@ export const Kingdom = {
      * usual 3-5 hex claim; `opts.towns: false` skips the 1-2 random towns
      * (a hand-made map that placed its own). With no opts the RNG draws are
      * exactly those placeKingdoms always made, so seeded worlds don't change.
+     * `opts.terrainGen` >= 16: the towns take the best sites (placeTown).
      */
     foundAt(kingdom, site, tiles, mapWidth, mapHeight, opts = {}) {
         kingdom.capital = { q: site.q, r: site.r };
@@ -242,7 +284,7 @@ export const Kingdom = {
             // Place 1-2 towns nearby
             const numTowns = Utils.randInt(1, 2);
             for (let i = 0; i < numTowns; i++) {
-                Kingdom.placeTown(kingdom, tiles, mapWidth, mapHeight);
+                Kingdom.placeTown(kingdom, tiles, mapWidth, mapHeight, { terrainGen: opts.terrainGen });
             }
         }
 
@@ -290,9 +332,10 @@ export const Kingdom = {
     },
 
     /**
-     * Place a town in kingdom territory
+     * Place a town in kingdom territory: a random open hex, or since
+     * terrainGen 16 (`opts.terrainGen`) the best scored one (+ a little luck).
      */
-    placeTown(kingdom, tiles, mapWidth, mapHeight) {
+    placeTown(kingdom, tiles, mapWidth, mapHeight, opts = {}) {
         // Collect all existing settlements to check distance against
         const existingSettlements = [];
         for (let r = 0; r < mapHeight; r++) {
@@ -306,7 +349,7 @@ export const Kingdom = {
         const territory = kingdom.territory.filter(t => {
             const tile = tiles[t.r][t.q];
             if (!tile.terrain.passable || tile.settlement ||
-                tile.terrain.id === 'coast' || tile.terrain.id === 'beach') {
+                tile.terrain.id === 'coast' || tile.terrain.id === 'beach' || tile.terrain.id === 'swamp') {
                 return false;
             }
 
@@ -323,7 +366,18 @@ export const Kingdom = {
 
         if (territory.length === 0) return;
 
-        const loc = Utils.randPick(territory);
+        let loc;
+        if (TownSiting.applies(opts.terrainGen)) {
+            const site = TownSiting.map(tiles, mapWidth, mapHeight);
+            const jitter = Number(TownSiting.cfg().town && TownSiting.cfg().town.jitter);
+            let best = -Infinity;
+            for (const t of territory) {
+                const v = site.score(t.q, t.r, 'town') + Utils.randFloat(0, Number.isFinite(jitter) ? jitter : 3);
+                if (v > best) { best = v; loc = t; }
+            }
+        } else {
+            loc = Utils.randPick(territory);
+        }
         tiles[loc.r][loc.q].settlement = {
             type: 'town',
             name: Kingdom.generateCityName(kingdom.culture),

@@ -61,6 +61,28 @@ describe('production and consumption', () => {
         expect(SettlementMarket.stock(fed, 'grain')).toBeGreaterThan(before);
     });
 
+    it('a town without iron casts its tools in bronze from its copper', () => {
+        const s = town();
+        const m = SettlementMarket.ensure(s);
+        m.stock.iron = 0;
+        m.stock.tools = 0;
+        m.stock.bronze = 0;
+        m.stock.copper = 200;
+        m.stock.coal = 100;
+        m.stock.wood = 100;
+        for (let d = 0; d < 5; d++) SettlementMarket.processSettlement(s, { tools: 2 }, { day: 40 + d });
+        expect(m.stock.iron || 0).toBe(0);
+        expect(m.stock.copper).toBeLessThan(200);
+        expect(m.stock.tools).toBeGreaterThan(0);
+    });
+
+    it('the craftsmen fall back on a later recipe for a good when the first lacks its inputs', () => {
+        const C = SettlementMarket.config();
+        const i = C.idx.tools;
+        expect(C.recipesI[C.craftRc[i]].id).toBe('smithy');
+        expect((C.craftAlt[i] || []).map(([ri]) => C.recipesI[ri].id)).toContain('bronzesmith');
+    });
+
     it('local industry works grain into bread, and iron and coal into tools where the town has smiths', () => {
         const s = town();
         const m = SettlementMarket.ensure(s);

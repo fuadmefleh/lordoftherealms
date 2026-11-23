@@ -441,7 +441,10 @@ export async function _doStartNewGame(settingsOverride) {
         // a plain; snow only on the highest crags (Terrain._land11 relief, _seaLevel11)
         // 15 = mined things (iron, coal, copper, silver, gold, gems, salt, oil) lie in a few ore fields,
         // so lands trade for what they lack; stone, timber and the rest stay everywhere (Terrain._mineralFields)
-        terrainGen: 15,
+        // 16 = mountain passes through the long ranges, fjords, beaches and skerries, marshes and river
+        // deltas, and towns sited at river mouths, confluences, fords and lake shores
+        // (Terrain._passes16, _fjords16, _shores16, _wetlands16; world/townSiting.js)
+        terrainGen: 16,
         continentCount,
         terrainFreq,
         riverCount,

@@ -557,7 +557,8 @@ Object.assign(InnerMap, {
             const n = world.getTile(p.q, p.r);
             if (!n) return;
             if (n.hasRiver && Number.isInteger(n.riverDir)) {
-                if (n.riverDir === (i + 3) % 6) out.inflows.push(i);
+                // (riverBranch: a delta's distributary, fed from its side, terrainGen 16)
+                if (n.riverDir === (i + 3) % 6 || n.riverBranch === (i + 3) % 6) out.inflows.push(i);
             } else if (tile.hasRiver && !flows && !isLake) {
                 // painted rivers: join the river beside it, and run out to lower water
                 const nWater = !!(n.terrain && WATER_IDS.has(n.terrain.id));

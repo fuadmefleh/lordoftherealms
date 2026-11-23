@@ -483,8 +483,9 @@ Object.assign(Renderer.prototype, {
             if (!neighbor) continue;
             let connected;
             if (flows || Number.isInteger(neighbor.riverDir)) {
-                connected = (flows && tile.riverDir === i)
-                    || (neighbor.hasRiver && neighbor.riverDir === (i + 3) % 6);
+                // (riverBranch: a delta's second way out, terrainGen 16)
+                connected = (flows && (tile.riverDir === i || tile.riverBranch === i))
+                    || (neighbor.hasRiver && (neighbor.riverDir === (i + 3) % 6 || neighbor.riverBranch === (i + 3) % 6));
             } else {
                 const isWater = RIVER_WATER_IDS.has(neighbor.terrain.id);
                 connected = (neighbor.hasRiver && Math.abs(neighbor.elevation - tile.elevation) > 0.0001)
@@ -515,7 +516,7 @@ Object.assign(Renderer.prototype, {
             if (n.r < 0 || n.r >= height) continue;
             const nt = this.world.tiles[n.r][Hex.wrapQ(n.q, width)];
             if (!nt) continue;
-            if (nt.hasRiver && nt.riverDir === (i + 3) % 6) return -1;     // fed by a river: not an outlet
+            if (nt.hasRiver && (nt.riverDir === (i + 3) % 6 || nt.riverBranch === (i + 3) % 6)) return -1;     // fed by a river: not an outlet
             if (!nt.terrain || nt.terrain.id !== 'lake') continue;
             const d = Math.abs(i - tile.riverDir), gap = Math.min(d, 6 - d);
             if (gap > bestGap) { bestGap = gap; best = i; }

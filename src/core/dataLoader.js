@@ -7,6 +7,7 @@ import { applySectionPatches, mergeCustomTechs } from './dataPatch.js';
 import { CustomSheets } from './customSheets.js';
 import { Terrain } from '../world/terrain.js';
 import { Kingdom } from '../world/kingdom.js';
+import { TownSiting } from '../world/townSiting.js';
 import { Characters } from '../world/characters.js';
 import { Economy } from '../world/economy.js';
 import { Seasons } from '../world/seasons.js';
@@ -218,11 +219,14 @@ export const DataLoader = {
         // the Resource Types editor). Never overwrite types or biomeTable.
         if (stored.terrain && typeof stored.terrain === 'object') {
             if (!this._gamedata.terrain) this._gamedata.terrain = {};
+            // (entry by entry over the base: an editor copy saved before a resource
+            // was added to the game — copper and silver, 2026-11 — must not take it away)
             const safeTerrainKeys = ['resources', 'resourceChances'];
             for (const key of safeTerrainKeys) {
-                if (stored.terrain[key] !== undefined &&
-                    Object.keys(stored.terrain[key]).length > 0) {
-                    this._gamedata.terrain[key] = stored.terrain[key];
+                const mod = stored.terrain[key];
+                if (mod && typeof mod === 'object' && Object.keys(mod).length > 0) {
+                    const base = this._gamedata.terrain[key];
+                    this._gamedata.terrain[key] = base && typeof base === 'object' ? { ...base, ...mod } : mod;
                 }
             }
         }
@@ -314,6 +318,9 @@ export const DataLoader = {
         Terrain.RESOURCES = terrainData.resources;
         Terrain.RESOURCE_CHANCES = terrainData.resourceChances;
         Terrain.MINERAL_FIELDS = terrainData.mineralFields || {};
+        Terrain.COASTS_DATA = terrainData.coasts || {};
+        Terrain.WETLANDS = terrainData.wetlands || null;
+        Terrain.PASSES = terrainData.passes || {};
         Terrain.BIOME_TABLE = terrainData.biomeTable;
 
         // ── World units (types beyond the hand-written ones) ──
@@ -334,6 +341,8 @@ export const DataLoader = {
         Kingdom._rulerNames = kingdomData.rulerNames;
         Kingdom._rulerTitleGender = kingdomData.rulerTitleGender || null;
         Kingdom._epithets = kingdomData.epithets;
+        // Where towns stand in worlds since terrainGen 16 (world/townSiting.js)
+        TownSiting.DATA = kingdomData.siting || null;
         // What each kingdom trait does (read by KingdomBonuses.get)
         if (kingdomData.traitEffects) KingdomBonuses.TRAITS = kingdomData.traitEffects;
 

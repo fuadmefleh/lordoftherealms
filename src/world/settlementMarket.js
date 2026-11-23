@@ -139,10 +139,14 @@ function buildConfig(src) {
     // for each good, the first recipe that makes it (or -1). The craftsmen work the
     // same inputs (craftInputs.share of their output must be made from them)
     const craftRc = new Int32Array(n).fill(-1), craftOut = new Float64Array(n);
+    // (and the later recipes that make it too — the bronzesmith's tools for the
+    // smithy's: what the first can't make for want of inputs, they make from theirs)
+    const craftAlt = new Array(n).fill(null);
     for (const rc of recipesI) {
         for (let j = 0; j < rc.outIdx.length; j++) {
             const i = rc.outIdx[j];
-            if (craftRc[i] >= 0 || !(d.supply && d.supply[goodIds[i]])) continue;
+            if (!(d.supply && d.supply[goodIds[i]])) continue;
+            if (craftRc[i] >= 0) { (craftAlt[i] || (craftAlt[i] = [])).push([rc.ix, rc.outPer[j]]); continue; }
             craftRc[i] = rc.ix;
             craftOut[i] = rc.outPer[j];
         }
@@ -233,6 +237,7 @@ function buildConfig(src) {
         recipeById: Object.fromEntries(recipesI.map(r => [r.id, r])),
         craftRc,
         craftOut,
+        craftAlt,
         craftInputs: { share: 0, ...(d.craftInputs || {}) },
         // Each good's anchor learns what it trades for across the world (world/priceAnchors.js)
         anchors: { enabled: true, sampleDays: 30, smooth: 0.1, rate: 0.3, maxStep: 0.03, min: 0.5, max: 2.5, ...(d.anchors || {}) },
@@ -1465,15 +1470,23 @@ export const SettlementMarket = {
             if (crewG && crewG[ids[i]] != null) amt *= crewG[ids[i]];
             const ri = cShare > 0 ? C.craftRc[i] : -1;
             if (ri >= 0) {
-                const rc = C.recipesI[ri];
-                let runs = amt * cShare / C.craftOut[i];
-                for (let j = 0; j < rc.inIdx.length; j++) {
-                    const x = rc.inIdx[j];
-                    runs = Math.min(runs, Math.max(0, st[x] - needOf[x] * k) / rc.inPer[j]);
+                // (made by the first recipe as far as its inputs go, the rest by the next)
+                let want = amt * cShare, made = 0;
+                const alts = C.craftAlt[i];
+                for (let a = -1; a < (alts ? alts.length : 0) && want > 1e-9; a++) {
+                    const rc = C.recipesI[a < 0 ? ri : alts[a][0]];
+                    const per = a < 0 ? C.craftOut[i] : alts[a][1];
+                    let runs = want / per;
+                    for (let j = 0; j < rc.inIdx.length; j++) {
+                        const x = rc.inIdx[j];
+                        runs = Math.min(runs, Math.max(0, st[x] - needOf[x] * k) / rc.inPer[j]);
+                    }
+                    if (!(runs > 0)) continue;
+                    for (let j = 0; j < rc.inIdx.length; j++) st[rc.inIdx[j]] = Math.max(0, st[rc.inIdx[j]] - runs * rc.inPer[j]);
+                    made += runs * per;
+                    want -= runs * per;
                 }
-                if (!(runs > 0)) runs = 0;
-                for (let j = 0; j < rc.inIdx.length; j++) st[rc.inIdx[j]] = Math.max(0, st[rc.inIdx[j]] - runs * rc.inPer[j]);
-                amt = amt * (1 - cShare) + runs * C.craftOut[i];
+                amt = amt * (1 - cShare) + made;
             }
             if (whG && whG[ids[i]] > 0 && amt > 0) {
                 const kept = Math.min(whG[ids[i]], amt * whShare);

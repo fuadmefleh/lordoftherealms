@@ -225,5 +225,32 @@
         "Stonefist", "the Alchemist", "the Conqueror", "the Pious", "Frostbane",
         "the Wanderer", "Dragonslayer", "the Golden", "the Silent", "Oathbreaker",
         "the Beloved", "the Feared", "the Architect", "Thunderborn", "the Undying"
-    ]
+    ],
+    "_siting": "Worlds since terrainGen 16 (world/townSiting.js): capitals, their first towns and the free villages stand where real towns grow. Every land hex gets a site score: terrain is the hex's own ground (and ringFertility x the mean of its neighbours'); water adds river (a river through it), riverNear (one beside it), confluence (two or more rivers join here), riverMouth (a river meets the sea here: harbour and river trade), lakeShore, coast, sheltered (the sea on only 1-3 sides: a bay, not a headland), bigRiver (a ford on a river fed by bigRiverFeed or more river hexes upstream), passFoot (beside a mountain pass, tile._pass, if the terrain marks any; a pass foot also cancels the mountain penalty), dry (no river, lake or sea within a hex); food counts wheat/fish/cattle/... resources within 2 hexes (each foodEach, at most foodMax); ore adds ore x the strongest ore field strength (tile.ores) within 2 hexes, so some towns are mining towns; desertInterior strikes a desert/dry hex with no river, lake or sea beside it, cold one in ice/snow/tundra; capitals on a land of fewer than islandMin hexes lose tinyIsland. capital: a capital weighs siteWeight x the score + its culture's favoured ground (cultureBonus, was 50) + distWeight x its distance to the capitals already placed + up to jitter (same sample count and spacing as before), then moves to the best scored open hex within refine hexes of the pick (no RNG). town: the kingdom's 1-2 first towns take the best scored open hexes of its land (score + up to jitter), spacing unchanged. village: a free village looks at up to samples open hexes (spacing unchanged) and takes the best (score + up to jitter). Worlds before 16 keep the old placement.",
+    "siting": {
+        "terrain": { "grassland": 3, "plains": 3, "seasonal_forest": 2.2, "woodland": 1.8, "savanna": 2, "temperate_rainforest": 1.2, "hills": 1.5, "highlands": 1, "beach": 1.5, "island": 1.5, "boreal_forest": 0.6, "tropical_rainforest": 0.6, "desert": -1, "tundra": -1.5, "swamp": -3, "snow": -4, "ice": -5, "mountain": -3 },
+        "ringFertility": 0.6,
+        "river": 3.5,
+        "riverNear": 2,
+        "confluence": 3,
+        "riverMouth": 4,
+        "lakeShore": 3,
+        "coast": 1.5,
+        "sheltered": 1.5,
+        "bigRiver": 1.5,
+        "bigRiverFeed": 12,
+        "passFoot": 3,
+        "dry": -1.5,
+        "foodIds": ["wheat", "fish", "cattle", "horses"],
+        "foodEach": 0.75,
+        "foodMax": 2.5,
+        "ore": 1.5,
+        "desertInterior": -4,
+        "cold": -1,
+        "islandMin": 40,
+        "tinyIsland": -8,
+        "capital": { "siteWeight": 8, "cultureBonus": 10, "distWeight": 0.35, "jitter": 12, "refine": 3 },
+        "town": { "jitter": 3 },
+        "village": { "samples": 14, "jitter": 3 }
+    }
 }

@@ -3,6 +3,7 @@ import { icon } from '../icons.js';
 import { UI } from './core.js';
 import { applyUiScale, UI_SCALE_OPTIONS } from '../uiScale.js';
 import { RealmIntel } from '../../systems/realmIntel.js';
+import { ORE_KEY } from '../renderer/oreMap.js';
 import { LlmClient } from '../../systems/llmClient.js';
 import { LlmProse } from '../../systems/llmProse.js';
 import { Nemesis } from '../../systems/nemesis.js';
@@ -256,6 +257,7 @@ Object.assign(UI.prototype, {
             { id: 'normal',    icon: '🗺️', label: 'Normal',    desc: 'Default terrain view' },
             { id: 'topo',      icon: '⛰️', label: 'Topography', desc: 'Heights, slopes, rivers and lakes' },
             { id: 'flow',      icon: '🌊', label: 'Currents & Rivers', desc: 'Which way the sea and the rivers run' },
+            { id: 'ores',      icon: '⛏️', label: 'Ores & Trade', desc: 'Where the mined goods lie, and which towns want them' },
             { id: 'political', icon: '🏰', label: 'Political',  desc: 'Kingdom territories' },
             { id: 'religion',  icon: '🙏', label: 'Religion',   desc: 'Faith distribution' },
             { id: 'wealth',    icon: '💰', label: 'Wealth',     desc: 'Economic output' },
@@ -339,12 +341,13 @@ Object.assign(UI.prototype, {
         if (this.game.minimap) this.game.minimap.invalidate();
 
         const labels = {
-            normal: 'Normal', topo: 'Topography', flow: 'Currents & Rivers', political: 'Political', religion: 'Religion',
+            normal: 'Normal', topo: 'Topography', flow: 'Currents & Rivers', ores: 'Ores & Trade', political: 'Political', religion: 'Religion',
             wealth: 'Wealth', military: 'Military', trade: 'Trade Routes', prices: 'Trade Map (known prices)', culture: 'Culture'
         };
         this.showNotification('Map Mode', `${labels[mode] || mode} view active`, 'info');
         this._topoLegend(mode === 'topo');
         this._flowLegend(mode === 'flow');
+        this._oreLegend(mode === 'ores');
 
         // Mark the active mode in the top bar's Map dropdown (TopBar.jsx [data-map-mode])
         if (typeof document !== 'undefined' && document.querySelectorAll) {
@@ -375,6 +378,29 @@ Object.assign(UI.prototype, {
                 <span style="color:#e2f4ff">➜</span> the way the sea sets (longer, brighter: stronger)<br>
                 <span style="color:rgb(96,190,255)">➜</span> a river, pointing downstream
                 &nbsp;<span style="display:inline-block;width:9px;height:9px;background:rgb(104,168,206);vertical-align:middle"></span> lake
+            </div>`;
+        document.body.appendChild(el);
+    },
+
+    /** The key of the Ore map: each mineral's colour, and what a town's chips mean (an HTML box, top left). */
+    _oreLegend(show) {
+        if (typeof document === 'undefined' || !document.getElementById) return;
+        let el = document.getElementById('oreLegend');
+        if (!show) { if (el) el.remove(); return; }
+        if (el) return;
+        el = document.createElement('div');
+        el.id = 'oreLegend';
+        el.style.cssText = 'position:fixed;top:64px;left:12px;zoom:var(--ui-zoom,1);z-index:40;pointer-events:none;'
+            + 'background:rgba(12,16,26,0.85);border:1px solid rgba(232,196,104,0.45);border-radius:6px;padding:7px 10px 6px;width:250px;'
+            + 'font:11px var(--font-body, sans-serif);color:#c9c2b0;';
+        const sw = ORE_KEY.map(o => `<span style="display:inline-flex;align-items:center;gap:4px;width:56px"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:rgb(${o.color.join(',')})"></span>${o.name}</span>`).join('');
+        el.innerHTML = `<div style="color:#e8c468;font-family:var(--font-display, serif);font-size:12px;margin-bottom:5px">Ores &amp; Trade</div>
+            <div style="display:flex;flex-wrap:wrap;row-gap:3px;font-size:10px">${sw}</div>
+            <div style="margin-top:5px;font-size:10px;line-height:1.5">
+                Brighter: the heart of an ore field.<br>
+                Under a town you have price news of:<br>
+                <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#c9c2b0;vertical-align:middle"></span> plenty to sell
+                &nbsp;<span style="display:inline-block;width:6px;height:6px;border-radius:50%;border:1.5px solid #c9c2b0;vertical-align:middle"></span> short, will pay well
             </div>`;
         document.body.appendChild(el);
     },
@@ -898,6 +924,7 @@ Object.assign(UI.prototype, {
             this.game.renderer.mapMode = settings.defaultMapMode;
             this._topoLegend(settings.defaultMapMode === 'topo');
             this._flowLegend(settings.defaultMapMode === 'flow');
+            this._oreLegend(settings.defaultMapMode === 'ores');
 
             // Update toggle button states in the UI
             const resEl = document.getElementById('resourceToggleState');
@@ -982,6 +1009,7 @@ Object.assign(UI.prototype, {
             { value: 'normal', label: 'Normal' },
             { value: 'topo', label: 'Topography' },
             { value: 'flow', label: 'Currents & Rivers' },
+            { value: 'ores', label: 'Ores & Trade' },
             { value: 'political', label: 'Political' },
             { value: 'religion', label: 'Religion' },
             { value: 'wealth', label: 'Wealth' },

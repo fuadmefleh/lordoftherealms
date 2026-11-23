@@ -104,3 +104,17 @@ describe('Ore fields (terrainGen 15)', () => {
         expect(['copper', 'silver'].some(m => count(w14, m) > 0)).toBe(false);
     });
 });
+
+describe('Editor data saved in the browser', () => {
+    it('cannot take away a resource added to the game after it was saved', () => {
+        const res = DataLoader._gamedata.terrain.resources;
+        const old = Object.fromEntries(Object.entries(res).filter(([k]) => k !== 'COPPER' && k !== 'SILVER'));
+        old.IRON = { ...res.IRON, name: 'Bog Iron' };
+        DataLoader._mergeEditorData({ terrain: { resources: old } });
+        const now = DataLoader._gamedata.terrain.resources;
+        expect(now.COPPER && now.COPPER.id).toBe('copper');
+        expect(now.SILVER && now.SILVER.id).toBe('silver');
+        expect(now.IRON.name).toBe('Bog Iron');
+        now.IRON = res.IRON;
+    });
+});

@@ -20,3 +20,4 @@ export { Cultures } from '../cultures.js';
 export { Shipcraft } from '../shipcraft.js';
 export { WorldAge } from '../worldAge.js';
 export { Castles } from '../castles.js';
+export { TownSiting } from '../townSiting.js';

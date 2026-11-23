@@ -4,9 +4,10 @@
 // how strongly its current runs (deep slack water dark, a strong stream a
 // bright teal), and every charted sea hex carries an arrow the way its
 // current sets (world/oceanCurrents.js), longer and brighter the stronger it
-// runs. Each river hex carries a bright arrow pointing downstream, so a river
-// can be followed from its spring to the sea or a lake; a river running out
-// of a lake starts in the lake. Lakes are pale and still.
+// runs. Each river is one bright line with chevrons pointing downstream, so a
+// river can be followed from its spring to the sea or a lake, broader the more
+// river runs into it (_riverFeed); a river running out of a lake starts in the
+// lake. Lakes are pale and still.
 import { Renderer } from './core.js';
 import { Hex } from './_imports.js';
 import { OceanCurrents } from '../../world/oceanCurrents.js';
@@ -45,6 +46,49 @@ Object.assign(Renderer.prototype, {
     },
 
     /**
+     * How much river runs into each hex (the river hexes upstream of it, itself
+     * counted), as a Float32Array by r * width + q — so a great river can be
+     * drawn broader than a brook. Rivers don't change in play, so it is worked
+     * out once for each world.
+     */
+    _riverFeed() {
+        const world = this.world;
+        if (this._feedFor === world && this._feed) return this._feed;
+        const W = world.width, H = world.height;
+        const feed = new Float32Array(W * H);
+        const down = new Int32Array(W * H).fill(-1);
+        const ins = new Uint16Array(W * H);
+        for (let r = 0; r < H; r++) {
+            for (let q = 0; q < W; q++) {
+                const t = world.tiles[r][q];
+                if (!t || !t.hasRiver) continue;
+                feed[r * W + q] = 1;
+                if (!Number.isInteger(t.riverDir) || t.riverDir < 0) continue;
+                const n = Hex.neighbors(q, r)[t.riverDir];
+                if (!n || n.r < 0 || n.r >= H) continue;
+                const nq = Hex.wrapQ(n.q, W);
+                const nt = world.tiles[n.r][nq];
+                if (!nt || !nt.hasRiver) continue;
+                down[r * W + q] = n.r * W + nq;
+                ins[n.r * W + nq]++;
+            }
+        }
+        // (from the springs down: a hex hands on its count once all its feeders are in)
+        const stack = [];
+        for (let i = 0; i < W * H; i++) if (feed[i] > 0 && ins[i] === 0) stack.push(i);
+        while (stack.length) {
+            const i = stack.pop();
+            const d = down[i];
+            if (d < 0) continue;
+            feed[d] += feed[i];
+            if (--ins[d] === 0) stack.push(d);
+        }
+        this._feedFor = world;
+        this._feed = feed;
+        return feed;
+    },
+
+    /**
      * The arrows of the Currents & Rivers map: the set of each charted sea hex
      * and the run of each river hex, over the painted faces. Only hexes on screen.
      */
@@ -61,6 +105,7 @@ Object.assign(Renderer.prototype, {
         const maxR = Math.min(world.height - 1, Math.ceil(bounds.bottom / rowHeight) + 1);
         const W = world.width, H = world.height;
         const sea = [], river = [];
+        const feed = this._riverFeed();
         const centre = (q, r) => {
             const p = this.getHexPixelPos(q, r);
             const c = this.camera.worldToScreen(p.x, p.y);
@@ -86,7 +131,16 @@ Object.assign(Renderer.prototype, {
                     // sea or a lake only as far as the shore)
                     const dn = world.tiles[n.r] && world.tiles[n.r][Hex.wrapQ(n.q, W)];
                     const k = dn && !dn.hasRiver && dn.terrain && (SEA_IDS.has(dn.terrain.id) || dn.terrain.id === 'lake') ? 0.55 : 1;
-                    river.push([from.x, from.y, c.x + (d.x - c.x) * k, c.y + (d.y - c.y) * k]);
+                    // (broader the more river runs in: a brook 1, a great river about 2.4)
+                    const wide = 1 + Math.min(1.4, Math.log2(feed[r * W + wq] || 1) / 4);
+                    river.push([from.x, from.y, c.x + (d.x - c.x) * k, c.y + (d.y - c.y) * k, wide]);
+                    // (a delta's second channel splits off here: drawn on to its own hex,
+                    // the size of the river it leaves)
+                    if (Number.isInteger(tile.riverBranch) && tile.riverBranch >= 0 && tile.riverBranch !== tile.riverDir) {
+                        const b = Hex.neighbors(q, r)[tile.riverBranch];
+                        const bc = centre(b.q, b.r);
+                        river.push([c.x, c.y, bc.x, bc.y, wide]);
+                    }
                     continue;
                 }
                 if (!SEA_IDS.has(tile.terrain && tile.terrain.id)) continue;
@@ -124,14 +178,20 @@ Object.assign(Renderer.prototype, {
             ctx.lineTo(mx, my);
             ctx.lineTo(mx - Math.cos(a + 0.6) * head, my - Math.sin(a + 0.6) * head);
         };
-        ctx.beginPath();
-        for (const [x0, y0, x1, y1] of river) { ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); chevron(x0, y0, x1, y1, s * 0.2); }
-        ctx.strokeStyle = 'rgba(8, 22, 48, 0.85)';
-        ctx.lineWidth = Math.max(2, 4.2 * zoom);
-        ctx.stroke();
-        ctx.strokeStyle = 'rgb(96, 190, 255)';
-        ctx.lineWidth = Math.max(1.2, 2.2 * zoom);
-        ctx.stroke();
+        // (in three widths, by how much river runs in: brook, river, great river)
+        for (const [lo, hi] of [[0, 1.45], [1.45, 1.9], [1.9, 9]]) {
+            const part = river.filter(v => v[4] >= lo && v[4] < hi);
+            if (!part.length) continue;
+            const wide = part.reduce((a, v) => a + v[4], 0) / part.length;
+            ctx.beginPath();
+            for (const [x0, y0, x1, y1] of part) { ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); chevron(x0, y0, x1, y1, s * 0.2 * Math.sqrt(wide)); }
+            ctx.strokeStyle = 'rgba(8, 22, 48, 0.85)';
+            ctx.lineWidth = Math.max(2, (2 + 2.2 * wide) * zoom);
+            ctx.stroke();
+            ctx.strokeStyle = 'rgb(96, 190, 255)';
+            ctx.lineWidth = Math.max(1.2, 2.2 * wide * zoom);
+            ctx.stroke();
+        }
         ctx.restore();
     },
 });

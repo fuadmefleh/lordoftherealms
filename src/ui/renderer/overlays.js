@@ -1178,6 +1178,9 @@ Object.assign(Renderer.prototype, {
             case 'flow':
                 return this.flowColor(tile);
 
+            case 'ores':
+                return this.oreColor(tile);
+
             case 'culture': {
                 if (tile.culturalBuilding) return '#9b59b6';
                 if (tile.kingdom) {

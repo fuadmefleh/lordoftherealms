@@ -3,7 +3,7 @@
 // ============================================
 
 import { Utils } from '../core/utils.js';
-import { Hex } from '../core/hex.js';
+import { Hex, MinHeap } from '../core/hex.js';
 
 export const Terrain = {
     // Terrain type definitions
@@ -381,6 +381,10 @@ export const Terrain = {
         // heights spread over the lowlands, hills and mountains (Terrain._seaLevel11)
         if (land11) Terrain._seaLevel11(tiles, width, height, { landMass, waterThreshold, hillsLevel, highlandsLevel, mountainLevel, snowPeakLevel, hillDensity, mountainDensity, flatnessPow, deepWaterLevel });
 
+        // ── terrainGen 16: passes through the long ranges, before the climate and the rivers
+        // so both run over them (Terrain._passes16, data/terrain.json passes) ──
+        if (terrainGen >= 16) Terrain._passes16(tiles, width, height, { rng: params.seed ? Utils.seededRandom(Math.abs(Utils.hashStr(`passes:${params.seed}`)) || 1) : () => Utils.random(), waterThreshold, hillsLevel, highlandsLevel, mountainLevel, snowPeakLevel });
+
         // Sprinkle super-peaks (Post-processing) — scaled by mountain density
         // (since terrainGen 12 the mountains stand in ranges along the plates' seams instead)
         const numPeaks = terrainGen >= 12 ? 0 : Math.round(Utils.randInt(8, 14) * mountainDensity);
@@ -429,6 +433,10 @@ export const Terrain = {
 
         // (since terrainGen 12 the country beside a river or lake is greener)
         if (terrainGen >= 12) Terrain._riverbanks12(tiles, width, height);
+
+        // ── terrainGen 16 coasts: fjords cut into cold high coasts (Terrain._fjords16) ──
+        const coastRng = terrainGen >= 16 ? (params.seed ? Utils.seededRandom(Math.abs(Utils.hashStr(`coasts:${params.seed}`)) || 1) : rng) : null;
+        if (terrainGen >= 16) Terrain._fjords16(tiles, width, height, coastRng, { waterThreshold, hillsLevel });
 
         // Classify Water Bodies (Lake vs Sea vs Ocean)
         Terrain.classifyWaterBodies(tiles, width, height);
@@ -488,6 +496,9 @@ export const Terrain = {
             }
         }
 
+        // ── terrainGen 16 coasts: beaches on low warm shores, skerries off rocky ones (Terrain._shores16) ──
+        if (terrainGen >= 16) Terrain._shores16(tiles, width, height, coastRng, { waterThreshold });
+
         // --- Post-process: Sink single-tile "noise" islands ---
         for (let r = 0; r < height; r++) {
             for (let q = 0; q < width; q++) {
@@ -521,6 +532,15 @@ export const Terrain = {
         // Worlds since terrainGen 15: a small river that runs on through dry country dries up
         // there; any other river that would end on land ends in a lake instead (Terrain._riverEnds15)
         if (terrainGen >= 15) Terrain._riverEnds15(tiles, width, height, { waterThreshold });
+
+        // Worlds since terrainGen 16: marshes on the low wet flats, and deltas at the mouths of
+        // the greatest rivers (Terrain._wetlands16, data/terrain.json wetlands)
+        if (terrainGen >= 16) {
+            Terrain._wetlands16(tiles, width, height, {
+                waterThreshold, rainfall, minerals, resMultiplier, strategicMultiplier,
+                rng: params.seed ? Utils.seededRandom(Math.abs(Utils.hashStr(`wetlands:${params.seed}`)) || 1) : rng,
+            });
+        }
 
         // Identify connected regions for reachable pathfinding
         Terrain.identifyRegions(tiles, width, height);
@@ -1107,7 +1127,7 @@ export const Terrain = {
             const front = [];
             const add = (c) => {
                 for (const n of nbrs(c)) {
-                    if (inLake.has(n) || water[n] || noGo[n] || seaDist[n] < 2 || !allowed(n)) continue;
+                    if (inLake.has(n) || water[n] || noGo[n] || seaDist[n] < 2 || !allowed(n) || at(n)._pass) continue;   // (no lake drowns a mountain pass: terrainGen 16)
                     if (at(n).elevation >= mountainLevel + 0.06) continue;
                     inLake.add(n);
                     front.push(n);
@@ -1142,7 +1162,7 @@ export const Terrain = {
         let made = 0;
         for (const { i } of cands) {
             if (made >= want) break;
-            if (noGo[i] || water[i]) continue;
+            if (noGo[i] || water[i] || at(i)._pass) continue;
             // the country that drains to this hex (the lake may fill only that)
             const basin = new Set([i]);
             const stack = [i];
@@ -1167,7 +1187,7 @@ export const Terrain = {
         const ponds = Math.round(Math.sqrt(cold.length) * H.kettlesPerRoot * lakeMult);
         for (let k = 0, tries = 0; k < ponds && tries < ponds * 5 && cold.length; tries++) {
             const i = cold[Math.floor(rng() * cold.length)];
-            if (noGo[i] || water[i]) continue;
+            if (noGo[i] || water[i] || at(i)._pass) continue;
             const e = at(i).elevation;
             const lake = grow(i, 1 + Math.floor(rng() * 3), (n) => at(n).elevation <= e + 0.03);
             fill(lake);
@@ -1622,6 +1642,225 @@ export const Terrain = {
         }
     },
 
+    /** Tuning for Terrain._passes16 (data/terrain.json passes; set by DataLoader) */
+    PASSES: {},
+
+    /**
+     * Worlds since terrainGen 16: a long mountain range is a wall with gateways.
+     * Run on the finished heights (after Terrain._seaLevel11), before the climate and
+     * the rivers. Each range (a connected band of mountain/snow peak) long enough is
+     * crossed by one to three passes where good lowland lies on both sides: each
+     * follows the lowest saddle across (a search on height with a little jitter, so
+     * it bends), its hexes set to highlands at the crest falling to hills at the
+     * feet, its flanking peaks pulled down to bare mountain (the way must cross
+     * the range's spine, not skirt its end). Pass hexes are marked `tile._pass`
+     * (the pass's number). Returns (and keeps on Terrain._lastPasses16, for tests
+     * and probes) { ranges: [{ id, size, length, crossings }], passes: [...] }.
+     */
+    _passes16(tiles, width, height, { rng, waterThreshold, hillsLevel, highlandsLevel, mountainLevel, snowPeakLevel }) {
+        const c = {
+            minRangeHexes: 14, minRangeLength: 10, hexesPerPass: 20, maxPerRange: 3, window: 8, strip: 3,
+            minLowland: 25, spacing: 0.7, apart: 5, crest: 0.55, foot: 0.5, shoulder: 0.5, jitter: 1.5,
+            ...(Terrain.PASSES || {}),
+        };
+        const N = width * height;
+        const elev = new Float64Array(N);
+        for (let r = 0; r < height; r++) for (let q = 0; q < width; q++) elev[r * width + q] = tiles[r][q].elevation;
+        const nbr = new Int32Array(N * 6).fill(-1);
+        for (let r = 0; r < height; r++) {
+            for (let q = 0; q < width; q++) {
+                Hex.neighbors(q, r).forEach((n, k) => {
+                    if (n.r >= 0 && n.r < height) nbr[(r * width + q) * 6 + k] = n.r * width + Hex.wrapQ(n.q, width);
+                });
+            }
+        }
+        const jit = new Float64Array(N);
+        for (let i = 0; i < N; i++) jit[i] = rng();
+        const isMtn = i => elev[i] > mountainLevel;
+        const isLow = i => elev[i] >= waterThreshold && elev[i] <= highlandsLevel;
+        // (a hex's place on the plane: even rows sit half a hex east)
+        const px = i => (i % width) + (((i / width) | 0) & 1 ? 0 : 0.5);
+        const py = i => ((i / width) | 0) * 0.866;
+        const dX = (a, b) => { let d = px(b) - px(a); if (d > width / 2) d -= width; if (d < -width / 2) d += width; return d; };
+        // components of a kind of hex
+        const comps = (test) => {
+            const id = new Int32Array(N).fill(-1);
+            const list = [];
+            for (let s = 0; s < N; s++) {
+                if (id[s] >= 0 || !test(s)) continue;
+                const members = [s];
+                id[s] = list.length;
+                for (let p = 0; p < members.length; p++) {
+                    for (let k = 0; k < 6; k++) {
+                        const j = nbr[members[p] * 6 + k];
+                        if (j >= 0 && id[j] < 0 && test(j)) { id[j] = list.length; members.push(j); }
+                    }
+                }
+                list.push(members);
+            }
+            return { id, list };
+        };
+        const low = comps(isLow);
+        const goodLow = i => low.id[i] >= 0 && low.list[low.id[i]].length >= c.minLowland;
+        const ranges = comps(isMtn);
+        // a walk through one range from s: distances and parents
+        const walk = (s, rid) => {
+            const dist = new Map([[s, 0]]);
+            const par = new Map();
+            const q = [s];
+            let far = s;
+            for (let p = 0; p < q.length; p++) {
+                const i = q[p];
+                if (dist.get(i) > dist.get(far)) far = i;
+                for (let k = 0; k < 6; k++) {
+                    const j = nbr[i * 6 + k];
+                    if (j >= 0 && ranges.id[j] === rid && !dist.has(j)) { dist.set(j, dist.get(i) + 1); par.set(j, i); q.push(j); }
+                }
+            }
+            return { far, par };
+        };
+        // what a step onto a hex costs the search for a saddle: the higher the dearer, a peak
+        // dearest (with a little jitter, so the way bends like a notch, not a cut)
+        const stepCost = (j) => {
+            const e = elev[j];
+            return isMtn(j)
+                ? 3 + 60 * (e - mountainLevel) + (e > snowPeakLevel ? 4 : 0) + c.jitter * jit[j]
+                : (e > highlandsLevel ? 1.6 : 1) + c.jitter * 0.3 * jit[j];
+        };
+        // the cheapest way across the range through spine[k], within a strip across it
+        const cross = (spine, k) => {
+            const S = spine.length - 1;
+            const site = spine[k];
+            const a = spine[Math.max(0, k - 3)], b = spine[Math.min(S, k + 3)];
+            let tx = dX(a, b), ty = py(b) - py(a);
+            const tl = Math.hypot(tx, ty) || 1;
+            tx /= tl; ty /= tl;
+            const sq = site % width, sr = (site / width) | 0;
+            const inWin = new Map();   // hex → side (+1 / -1 / 0)
+            for (const h of Hex.hexesInRange(sq, sr, c.window)) {
+                if (h.r < 0 || h.r >= height) continue;
+                const i = h.r * width + Hex.wrapQ(h.q, width);
+                if (elev[i] < waterThreshold) continue;
+                const ox = dX(site, i), oy = py(i) - py(site);
+                if (Math.abs(ox * tx + oy * ty) > c.strip + 0.5) continue;
+                const cr = tx * oy - ty * ox;
+                inWin.set(i, cr > 0.5 ? 1 : cr < -0.5 ? -1 : 0);
+            }
+            const sources = [], targets = new Set();
+            for (const [i, side] of inWin) {
+                if (!goodLow(i)) continue;
+                if (side > 0) sources.push(i);
+                else if (side < 0) targets.add(i);
+            }
+            if (!sources.length || !targets.size) return null;
+            // (cheapest ways in from either side; the pass is where they meet on the range's spine)
+            const flood = (starts) => {
+                const cost = new Map(), par = new Map();
+                const heap = new MinHeap((x, y) => x[0] < y[0]);
+                for (const s of starts) { cost.set(s, 0); heap.push([0, s]); }
+                while (heap.size()) {
+                    const [d, i] = heap.pop();
+                    if (d > cost.get(i)) continue;
+                    for (let n = 0; n < 6; n++) {
+                        const j = nbr[i * 6 + n];
+                        if (j < 0 || !inWin.has(j)) continue;
+                        const nd = d + stepCost(j);
+                        if (nd < (cost.has(j) ? cost.get(j) : Infinity)) { cost.set(j, nd); par.set(j, i); heap.push([nd, j]); }
+                    }
+                }
+                return { cost, par };
+            };
+            const A = flood(sources), B = flood([...targets]);
+            let mid = -1, best = Infinity;
+            for (let m = Math.max(0, k - 1); m <= Math.min(S, k + 1); m++) {
+                const i = spine[m];
+                if (!A.cost.has(i) || !B.cost.has(i)) continue;
+                const v = A.cost.get(i) + B.cost.get(i) - stepCost(i);
+                if (v < best) { best = v; mid = i; }
+            }
+            if (mid < 0) return null;
+            const trace = (F, i) => { const out = [i]; while (F.par.has(out[out.length - 1])) out.push(F.par.get(out[out.length - 1])); return out; };
+            const path = trace(A, mid).reverse().concat(trace(B, mid).slice(1));
+            let maxE = 0, bars = 0;
+            for (const i of path) { maxE = Math.max(maxE, elev[i]); if (isMtn(i)) bars++; }
+            return { k, path, maxE, bars, score: maxE + 0.004 * bars + 0.002 * path.length };
+        };
+        const crestLevel = highlandsLevel + (mountainLevel - highlandsLevel) * Utils.clamp(c.crest, 0, 0.95);
+        const footLevel = hillsLevel + (highlandsLevel - hillsLevel) * Utils.clamp(c.foot, 0, 1);
+        const at = i => ({ q: i % width, r: (i / width) | 0 });
+        const info = { ranges: [], passes: [] };
+        ranges.list.forEach((members, rid) => {
+            if (members.length < c.minRangeHexes) return;
+            const end1 = walk(members[0], rid).far;
+            const { far: end2, par } = walk(end1, rid);
+            const spine = [end2];
+            while (par.has(spine[spine.length - 1])) spine.push(par.get(spine[spine.length - 1]));
+            const S = spine.length - 1;
+            if (S < c.minRangeLength) return;
+            const want = Utils.clamp(Math.ceil(S / c.hexesPerPass), 1, c.maxPerRange);
+            const margin = Math.min(4, Math.floor(S / 4));
+            const cands = [];
+            for (let k = margin; k <= S - margin; k += 2) {
+                const x = cross(spine, k);
+                if (x) cands.push(x);
+            }
+            cands.sort((x, y) => x.score - y.score);
+            const gap = Math.max(3, (S / want) * c.spacing);
+            const chosen = [];
+            for (const x of cands) {
+                if (chosen.length >= want) break;
+                if (chosen.some(o => Math.abs(o.k - x.k) < gap)) continue;
+                // (no pass runs beside another: their climbs lie apart hexes apart or more)
+                const climb = x.path.filter(i => elev[i] > highlandsLevel);
+                if (chosen.some(o => o.path.some(i => elev[i] > highlandsLevel
+                    && climb.some(j => Hex.wrappingOffsetDistance(i % width, (i / width) | 0, j % width, (j / width) | 0, width) < c.apart)))) continue;
+                chosen.push(x);
+            }
+            const range = { id: rid, size: members.length, length: S, want, sites: cands.length, crossings: [] };
+            for (const x of chosen) {
+                const p = x.path;
+                const id = info.passes.length + 1;
+                const pass = { id, range: rid, from: at(p[0]), to: at(p[p.length - 1]), path: p.map(at), hexes: [], saddle: x.maxE, crest: crestLevel };
+                // the climb: from the first to the last hex above the highlands line
+                let lo = 0, hi = p.length - 1;
+                while (lo < hi && elev[p[lo]] <= highlandsLevel) lo++;
+                while (hi > lo && elev[p[hi]] <= highlandsLevel) hi--;
+                const seg = p.slice(lo, hi + 1);
+                let top = 0;
+                seg.forEach((i, n) => { if (elev[i] > elev[seg[top]]) top = n; });
+                // (each foot stands a little above the land it climbs from, so no hollow holds water)
+                const footA = Math.min(crestLevel - 0.01, Math.max(footLevel, (lo > 0 ? elev[p[lo - 1]] : footLevel) + 0.003));
+                const footB = Math.min(crestLevel - 0.01, Math.max(footLevel, (hi < p.length - 1 ? elev[p[hi + 1]] : footLevel) + 0.003));
+                const set = new Set(seg);
+                seg.forEach((i, n) => {
+                    const t = n <= top
+                        ? (top === 0 ? 1 : n / top)
+                        : (seg.length - 1 === top ? 1 : (seg.length - 1 - n) / (seg.length - 1 - top));
+                    const foot = n <= top ? footA : footB;
+                    elev[i] = foot + (crestLevel - foot) * t;
+                    const tile = tiles[(i / width) | 0][i % width];
+                    tile.elevation = elev[i];
+                    tile._pass = id;
+                    pass.hexes.push(at(i));
+                });
+                // the shoulders: the peaks either side come down to bare rock
+                for (const i of seg) {
+                    for (let n = 0; n < 6; n++) {
+                        const j = nbr[i * 6 + n];
+                        if (j < 0 || set.has(j) || !isMtn(j)) continue;
+                        elev[j] = mountainLevel + 0.005 + (elev[j] - mountainLevel - 0.005) * (1 - Utils.clamp(c.shoulder, 0, 1));
+                        tiles[(j / width) | 0][j % width].elevation = elev[j];
+                    }
+                }
+                range.crossings.push(pass);
+                info.passes.push(pass);
+            }
+            info.ranges.push(range);
+        });
+        Terrain._lastPasses16 = info;
+        return info;
+    },
+
 
     /** Flood up to `count` low land hexes beside a new lake (not the river's own) */
     _expandLake(tiles, width, height, lake, count, waterLevel, lakeLevel, keep) {
@@ -1741,6 +1980,435 @@ export const Terrain = {
             const fromLake = Hex.neighbors(t.q, t.r).some(n => { const o = at(n.q, n.r); return o && o._lake; });
             if (!fromLake) t.riverSource = true;
         }
+    },
+
+    // ── Coasts with character (worlds since terrainGen 16) ─────────────
+    /** Tunables (data/terrain.json coasts, see _coasts there); these are the fallbacks */
+    COASTS: {
+        fjords: { perMap: 6, minLength: 3, maxLength: 8, minLatitude: 0.55, maxTemp: 0.4, highFlanks: 2, spacing: 7, depth: 0.012, tries: 40 },
+        beaches: { minTemp: 0.42, maxRise: 0.03, seedChance: 0.14, runMin: 2, runMax: 6, notOn: ['swamp', 'ice', 'snow', 'tundra', 'desert'] },
+        skerries: { chance: 0.05, nearFjord: 0.25, reach: 2, rocky: ['hills', 'highlands', 'mountain', 'snow_peak'] },
+    },
+
+    /** The coasts tuning: data/terrain.json coasts over the fallbacks above */
+    _coastCfg() {
+        const d = Terrain.COASTS_DATA || {};
+        const C = Terrain.COASTS;
+        return {
+            fjords: { ...C.fjords, ...(d.fjords || {}) },
+            beaches: { ...C.beaches, ...(d.beaches || {}) },
+            skerries: { ...C.skerries, ...(d.skerries || {}) },
+        };
+    },
+
+    /**
+     * Fjords (worlds since terrainGen 16), cut before the water bodies are
+     * classified. On cold coasts far from the equator, where hills or
+     * mountains meet the open sea, a few narrow winding inlets (3-8 hexes)
+     * run inland from the sea, each hex flanked by high ground. An inlet only
+     * ever widens the sea it opens off (each new hex touches no water but the
+     * hex before it, so it never reaches another sea or a lake), never runs
+     * over a river or a lake, and is dropped if it would leave any land cut
+     * off. The water is set just under sea level so it classes as the
+     * coastal waters ships sail. Marks each fjord hex tile._fjord; returns
+     * how many fjords were cut.
+     */
+    _fjords16(tiles, width, height, rng, { waterThreshold = 0.42, hillsLevel = 0.52 } = {}) {
+        const C = Terrain._coastCfg().fjords;
+        const N = width * height;
+        const WL = Math.min(waterThreshold, 0.42);          // (classifyWaterBodies' own level)
+        const idx = (q, r) => r * width + q;
+        const at = (q, r) => (r < 0 || r >= height) ? null : tiles[r][Hex.wrapQ(q, width)];
+        const nbrs = (t) => Hex.neighbors(t.q, t.r).map(n => at(n.q, n.r)).filter(Boolean);
+        const isWater = (t) => t.elevation < WL;
+        const lat = (r) => Math.abs((r / Math.max(1, height - 1)) - 0.5) * 2;
+        // the open sea: water bodies of more than 15 hexes that are not lakes
+        const body = new Int32Array(N).fill(-1);
+        const open = [];
+        for (let r = 0; r < height; r++) for (let q = 0; q < width; q++) {
+            const s = tiles[r][q];
+            if (!isWater(s) || body[idx(q, r)] >= 0) continue;
+            const id = open.length;
+            const group = [s];
+            body[idx(q, r)] = id;
+            for (let k = 0; k < group.length; k++) {
+                for (const o of nbrs(group[k])) {
+                    if (isWater(o) && body[idx(o.q, o.r)] < 0) { body[idx(o.q, o.r)] = id; group.push(o); }
+                }
+            }
+            open.push(group.length > 15 && !group.every(t => t._lake));
+        }
+        const isSea = (t) => isWater(t) && !t._lake && open[body[idx(t.q, t.r)]];
+        // how far inland each land hex lies (hexes from the nearest water)
+        const depth = new Int32Array(N).fill(-1);
+        const queue = [];
+        for (const row of tiles) for (const t of row) if (isWater(t)) { depth[idx(t.q, t.r)] = 0; queue.push(t); }
+        for (let k = 0; k < queue.length; k++) {
+            const t = queue[k];
+            for (const o of nbrs(t)) if (depth[idx(o.q, o.r)] < 0) { depth[idx(o.q, o.r)] = depth[idx(t.q, t.r)] + 1; queue.push(o); }
+        }
+        const high = (t) => t && !isWater(t) && t.elevation >= hillsLevel;
+        const cold = (t) => lat(t.r) >= C.minLatitude && (t.temperature ?? 0.5) <= C.maxTemp;
+        const carvable = (t) => t && !isWater(t) && !t.hasRiver && !t._lake && !t.settlement && !t._pass
+            && !nbrs(t).some(o => o._lake);
+        // mouths: open sea beside cold high ground
+        const mouths = [];
+        for (const row of tiles) for (const t of row) {
+            if (!isSea(t)) continue;
+            if (nbrs(t).some(o => high(o) && cold(o) && carvable(o))) mouths.push(t);
+        }
+        for (let i = mouths.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [mouths[i], mouths[j]] = [mouths[j], mouths[i]]; }
+        const scale = Math.sqrt(N / (120 * 80));
+        const target = Math.max(0, Math.round(C.perMap * scale));
+        const spacing = C.spacing * Math.max(0.6, scale);
+        const made = [];
+        // would carving these hexes leave any land hex cut off from the rest?
+        const cutsLand = (path) => {
+            const inPath = new Set(path);
+            const flank = new Set();
+            for (const p of path) for (const o of nbrs(p)) if (!isWater(o) && !inPath.has(o)) flank.add(o);
+            if (!flank.size) return true;
+            const start = flank.values().next().value;
+            const seen = new Set([start]);
+            const reached = [start];
+            let found = 1;
+            for (let k = 0; k < reached.length && found < flank.size && k < 6000; k++) {
+                for (const o of nbrs(reached[k])) {
+                    if (isWater(o) || inPath.has(o) || seen.has(o)) continue;
+                    seen.add(o);
+                    reached.push(o);
+                    if (flank.has(o)) found++;
+                }
+            }
+            return found < flank.size;
+        };
+        for (let m = 0; m < mouths.length && made.length < target && m < target * C.tries; m++) {
+            const mouth = mouths[m];
+            if (made.some(f => Hex.wrappingDistance(f.q, f.r, mouth.q, mouth.r, width) < spacing)) continue;
+            const want = C.minLength + Math.floor(rng() * (C.maxLength - C.minLength + 1));
+            const path = [];
+            const inPath = new Set();
+            let prev = mouth, dir = -1;
+            for (let step = 0; step < want; step++) {
+                const ring = Hex.neighbors(prev.q, prev.r);
+                let best = null, bestScore = -Infinity, bestDir = -1;
+                for (let d = 0; d < 6; d++) {
+                    const n = at(ring[d].q, ring[d].r);
+                    if (!carvable(n) || inPath.has(n) || !cold(n)) continue;
+                    // (inland, never along the shore or back)
+                    if (step > 0 && depth[idx(n.q, n.r)] < depth[idx(prev.q, prev.r)]) continue;
+                    // (straight on or a turn of 60 degrees, so it touches only the hex before it)
+                    if (dir >= 0 && d !== dir && d !== (dir + 1) % 6 && d !== (dir + 5) % 6) continue;
+                    // (it touches no water but the inlet itself, and the open sea only at the mouth)
+                    const touch = nbrs(n).filter(o => isWater(o) || inPath.has(o));
+                    if (step === 0 ? touch.some(o => !isSea(o)) : touch.some(o => o !== prev)) continue;
+                    // (between high ground)
+                    const highFlanks = nbrs(n).filter(o => o !== prev && !inPath.has(o) && high(o)).length;
+                    if (highFlanks < C.highFlanks) continue;
+                    const score = highFlanks + (d === dir ? 0.5 : 0) + depth[idx(n.q, n.r)] * 0.3 + rng() * 2;
+                    if (score > bestScore) { bestScore = score; best = n; bestDir = d; }
+                }
+                if (!best) break;
+                path.push(best);
+                inPath.add(best);
+                prev = best;
+                dir = bestDir;
+            }
+            if (path.length < C.minLength || cutsLand(path)) continue;
+            for (const t of path) {
+                t.elevation = WL - C.depth;
+                t._fjord = true;
+                t.hasRiver = false;
+                t.riverSource = false;
+                delete t.riverDir;
+            }
+            made.push(mouth);
+        }
+        return made.length;
+    },
+
+    /**
+     * Beaches and skerries (worlds since terrainGen 16), once the terrain is
+     * classed and the resources rolled.
+     *  - A fjord hex the old islet roll made an island goes back under.
+     *  - Beaches: low shore land (hardly above the sea) in warm and temperate
+     *    country, with no hills behind it, becomes BEACH in short patchy runs
+     *    along the shore; steep coasts (hills, highlands, mountains at the
+     *    water) stay rocky.
+     *  - Skerries: off rocky high coasts and fjord mouths, a few one-hex
+     *    ISLAND islets on the shelf, a hex or two out, never touching the
+     *    shore, a fjord, another islet or a river's mouth; each keeps the
+     *    fishing ground its water had.
+     * Returns { beaches, skerries } counts.
+     */
+    _shores16(tiles, width, height, rng, { waterThreshold = 0.42 } = {}) {
+        const cfg = Terrain._coastCfg();
+        const { beaches: B, skerries: S } = cfg;
+        const T = Terrain.TYPES;
+        const WATER = new Set(Terrain.WATER_IDS);
+        const at = (q, r) => (r < 0 || r >= height) ? null : tiles[r][Hex.wrapQ(q, width)];
+        const nbrs = (t) => Hex.neighbors(t.q, t.r).map(n => at(n.q, n.r)).filter(Boolean);
+        const seaWater = (t) => t && WATER.has(t.terrain.id) && t.terrain.id !== 'lake' && t.waterBodyType !== 'lake';
+        // fjords stay open water
+        for (const row of tiles) for (const t of row) {
+            if (t._fjord && t.terrain.id === 'island') {
+                t.elevation = Math.min(waterThreshold, 0.42) - cfg.fjords.depth;
+                t.terrain = Terrain.classifyTerrain(t);
+                t.resource = null;
+            }
+        }
+        // beaches, in runs along the shore
+        const notOn = new Set(B.notOn || []);
+        const hillsLvl = (Terrain._currentThresholds || {}).hillsLevel || 0.52;
+        const beachable = (t) => t && t.terrain.passable && !WATER.has(t.terrain.id) && t.terrain.id !== 'island'
+            && t.terrain.id !== 'beach' && !notOn.has(t.terrain.id) && !t.hasRiver && !t.settlement && !t._lake
+            && t.elevation < hillsLvl && t.elevation - waterThreshold <= B.maxRise && (t.temperature ?? 0.5) >= B.minTemp
+            && nbrs(t).some(seaWater) && !nbrs(t).some(o => !WATER.has(o.terrain.id) && o.elevation >= hillsLvl);
+        const cand = [];
+        for (const row of tiles) for (const t of row) if (beachable(t)) cand.push(t);
+        let beaches = 0;
+        const used = new Set();
+        for (const t of cand) {
+            if (used.has(t) || rng() >= B.seedChance) continue;
+            const len = B.runMin + Math.floor(rng() * (B.runMax - B.runMin + 1));
+            const run = [t];
+            used.add(t);
+            for (let k = 0; k < run.length && run.length < len; k++) {
+                for (const o of nbrs(run[k])) {
+                    if (run.length >= len) break;
+                    if (!used.has(o) && beachable(o)) { used.add(o); run.push(o); }
+                }
+            }
+            for (const b of run) { b.terrain = T.BEACH; b.resource = null; beaches++; }
+        }
+        // skerries off the rocky coasts
+        const rocky = new Set(S.rocky || []);
+        const reach = Math.max(1, S.reach | 0);
+        const near = (t, test) => {
+            for (let dr = -reach; dr <= reach; dr++) for (let dq = -reach - 1; dq <= reach + 1; dq++) {
+                const o = at(t.q + dq, t.r + dr);
+                if (o && Hex.wrappingDistance(t.q, t.r, o.q, o.r, width) <= reach && test(o)) return true;
+            }
+            return false;
+        };
+        let skerries = 0;
+        for (const row of tiles) for (const t of row) {
+            if (!(t.terrain.id === 'coast' || t.terrain.id === 'ocean') || t.waterBodyType === 'lake' || t._fjord) continue;
+            const ns = Hex.neighbors(t.q, t.r).map(n => at(n.q, n.r));
+            // (open water all round: no shore, islet or fjord beside it, no river running in)
+            if (ns.some(o => !o || !WATER.has(o.terrain.id) || o._fjord || o.waterBodyType === 'lake')) continue;
+            if (ns.some((o, i) => o.hasRiver && o.riverDir === (i + 3) % 6)) continue;
+            if (!near(t, o => rocky.has(o.terrain.id))) continue;
+            const chance = near(t, o => o._fjord) ? S.nearFjord : S.chance;
+            if (rng() >= chance) continue;
+            t.terrain = T.ISLAND;
+            t.elevation = 0.45;
+            t._skerry = true;
+            if (t.resource && t.resource.id !== 'fish') t.resource = null;
+            skerries++;
+        }
+        return { beaches, skerries };
+    },
+    /** Tunables for Terrain._wetlands16 (data/terrain.json wetlands overrides them) */
+    WETLANDS_DEFAULTS: {
+        on: ['grassland', 'plains', 'woodland', 'seasonal_forest', 'temperate_rainforest', 'tropical_rainforest', 'savanna', 'boreal_forest', 'tundra', 'beach'],
+        lowBand: 0.03, waterBand: 0.015, minMoisture: 0.62, wetBonus: 0.08,
+        minTemp: 0.3, coldTemp: 0.38, coldPenalty: 0.35,
+        patchesPerLand: 0.004, patchSpacing: 4, patchMin: 3, patchMax: 7, grow: 1.5,
+        riverBonus: 0.15, lakeBonus: 0.2, seaBonus: 0.1, lowPenalty: 0.25, jitter: 0.15,
+        rainfall: { arid: 0.05, dry: 0.4, normal: 1, wet: 1.6, tropical: 2.2 },
+        delta: { minFeed: 18, maxDeltas: 4, spacing: 8, maxRise: 0.06, fan: 3, branch: true },
+    },
+
+    /**
+     * Wetlands, in worlds since terrainGen 16 (data/terrain.json wetlands,
+     * documented there under _wetlands). Runs once the rivers are final.
+     * 1. Marshes: patches of a few hexes on flat, low, wet ground, likeliest
+     *    along lowland rivers, at lake margins and by river mouths.
+     * 2. Deltas: the mouths of the few greatest rivers that reach the sea
+     *    across a flat coast fan out into marsh, and where it fits the river
+     *    splits above the sea into a second channel: the hex where it splits
+     *    keeps its riverDir and gains tile.riverBranch (the direction of the
+     *    distributary hex), which itself flows straight to the sea.
+     * Hexes turned to marsh roll their resource again (marsh: fish; no mines).
+     */
+    _wetlands16(tiles, width, height, ctx = {}) {
+        const C = { ...Terrain.WETLANDS_DEFAULTS, ...(Terrain.WETLANDS || {}) };
+        const D = { ...Terrain.WETLANDS_DEFAULTS.delta, ...(C.delta || {}) };
+        const SWAMP = Terrain.TYPES.SWAMP;
+        if (!SWAMP) return { marsh: 0, deltas: [] };
+        const rng = ctx.rng || (() => Utils.random());
+        const wt = ctx.waterThreshold ?? 0.42;
+        const WATER = new Set(Terrain.WATER_IDS);
+        const SEA = new Set(['ocean', 'deep_ocean', 'coast', 'sea']);
+        const ON = new Set(C.on || []);
+        const at = (q, r) => (r < 0 || r >= height) ? null : tiles[r][Hex.wrapQ(q, width)];
+        const nbrs = (t) => Hex.neighbors(t.q, t.r).map(n => at(n.q, n.r));
+        const isWater = (t) => !!(t && t.terrain && WATER.has(t.terrain.id));
+        const isSea = (t) => !!(t && t.terrain && SEA.has(t.terrain.id) && !t._lake);
+        const down = (t) => (t.hasRiver && Number.isInteger(t.riverDir) && t.riverDir >= 0) ? nbrs(t)[t.riverDir] : null;
+        const rerollResource = (t) => {
+            t.resource = ctx.minerals
+                ? Terrain.rollResource15(t, ctx.minerals, ctx.resMultiplier ?? 1, ctx.strategicMultiplier ?? 1)
+                : Terrain.rollResource(t.terrain.id, t.q, t.r, ctx.resMultiplier ?? 1, ctx.strategicMultiplier ?? 1);
+        };
+        const toMarsh = (t) => {
+            if (t.terrain && t.terrain.id === 'swamp') return false;
+            t.terrain = SWAMP;
+            rerollResource(t);
+            return true;
+        };
+
+        // ---- 1. marsh patches ----
+        // what lies beside each land hex: a river, a lake, the sea at a river's mouth
+        const near = new Map();
+        let land = 0;
+        for (const row of tiles) for (const t of row) {
+            if (!t.terrain || !t.terrain.passable || isWater(t)) continue;
+            land++;
+            const ns = nbrs(t);
+            near.set(t, {
+                river: t.hasRiver || ns.some(n => n && n.hasRiver),
+                lake: ns.some(n => n && (n._lake || (n.terrain && n.terrain.id === 'lake'))),
+                mouth: !!(t.hasRiver && isSea(down(t))) || ns.some(n => n && n.hasRiver && isSea(down(n))),
+                sea: ns.some(isSea),
+            });
+        }
+        // eligibility: k widens the bands (1 for a seed, C.grow for a patch growing out)
+        const score = (t, k = 1) => {
+            if (!t || !ON.has(t.terrain && t.terrain.id) || t.settlement) return -Infinity;
+            const nb = near.get(t);
+            if (!nb) return -Infinity;
+            const watered = nb.river || nb.lake || nb.sea;
+            const rise = (t.elevation ?? 0.5) - wt;
+            if (rise < 0 || rise > (C.lowBand + (watered ? C.waterBand : 0)) * k) return -Infinity;
+            const m = t.moisture ?? 0.5;
+            if (m < C.minMoisture - (nb.river || nb.lake ? C.wetBonus : 0) - (k - 1) * 0.05) return -Infinity;
+            const temp = t.temperature ?? 0.5;
+            if (temp < C.minTemp) return -Infinity;
+            let s = m + (t.hasRiver ? C.riverBonus : nb.river ? C.riverBonus * 0.5 : 0)
+                + (nb.lake ? C.lakeBonus : 0) + (nb.mouth ? C.seaBonus : 0)
+                - (rise / Math.max(1e-6, C.lowBand)) * C.lowPenalty;
+            if (temp < C.coldTemp) s -= C.coldPenalty;
+            return s;
+        };
+        const cand = [];
+        for (const t of near.keys()) {
+            const s = score(t);
+            if (s > -Infinity) cand.push({ t, s: s + rng() * C.jitter });
+        }
+        cand.sort((a, b) => b.s - a.s || a.t.r - b.t.r || a.t.q - b.t.q);
+        const rainF = (C.rainfall || {})[ctx.rainfall || 'normal'] ?? 1;
+        const want = Math.round(land * C.patchesPerLand * rainF);
+        const seeds = [];
+        let marsh = 0;
+        for (const { t } of cand) {
+            if (seeds.length >= want) break;
+            if (t.terrain.id === 'swamp') continue;
+            if (seeds.some(o => Hex.wrappingDistance(t.q, t.r, o.q, o.r, width) < C.patchSpacing)) continue;
+            // grow the patch out over its best eligible neighbours
+            const size = C.patchMin + Math.floor(rng() * (C.patchMax - C.patchMin + 1));
+            const patch = [t];
+            const inPatch = new Set(patch);
+            while (patch.length < size) {
+                let best = null, bestS = -Infinity;
+                for (const p of patch) for (const n of nbrs(p)) {
+                    if (!n || inPatch.has(n) || n.terrain.id === 'swamp') continue;
+                    const s = score(n, C.grow);
+                    if (s > bestS) { bestS = s; best = n; }
+                }
+                if (!best) break;
+                patch.push(best);
+                inPatch.add(best);
+            }
+            if (patch.length < C.patchMin) continue;
+            seeds.push(t);
+            for (const p of patch) if (toMarsh(p)) marsh++;
+        }
+
+        // ---- 2. deltas ----
+        const deltas = [];
+        if (D.maxDeltas > 0) {
+            // how many river hexes feed each (itself included), from the springs down
+            const rivers = [];
+            const indeg = new Map();
+            for (const row of tiles) for (const t of row) {
+                if (!t.hasRiver) continue;
+                rivers.push(t);
+                const d = down(t);
+                if (d && d.hasRiver) indeg.set(d, (indeg.get(d) || 0) + 1);
+            }
+            const feed = new Map();
+            const queue = rivers.filter(t => !indeg.get(t));
+            for (let k = 0; k < queue.length; k++) {
+                const t = queue[k];
+                const f = (feed.get(t) || 0) + 1;
+                feed.set(t, f);
+                const d = down(t);
+                if (d && d.hasRiver) {
+                    feed.set(d, (feed.get(d) || 0) + f);
+                    indeg.set(d, indeg.get(d) - 1);
+                    if (!indeg.get(d)) queue.push(d);
+                }
+            }
+            const flat = (t) => !!(t && t.terrain && t.terrain.passable && !t.settlement && !isWater(t)
+                && (ON.has(t.terrain.id) || t.terrain.id === 'swamp')
+                && (t.elevation ?? 0.5) - wt <= D.maxRise && (t.temperature ?? 0.5) >= C.minTemp);
+            const mouths = rivers.filter(t => t.hasRiver && isSea(down(t)) && (feed.get(t) || 0) >= D.minFeed && flat(t))
+                .sort((a, b) => feed.get(b) - feed.get(a) || a.r - b.r || a.q - b.q);
+            const maxDeltas = Math.max(1, Math.round(D.maxDeltas * Math.sqrt((width * height) / (120 * 80))));
+            for (const m of mouths) {
+                if (deltas.length >= maxDeltas) break;
+                if (deltas.some(o => Hex.wrappingDistance(m.q, m.r, o.q, o.r, width) < D.spacing)) continue;
+                const out = down(m);
+                // the hex above the mouth: the river hex flowing into it with the most behind it
+                const mn = nbrs(m);
+                const ins = mn.filter((n, i) => n && n.hasRiver && n.riverDir === (i + 3) % 6);
+                const up = ins.reduce((a, n) => (!a || feed.get(n) > feed.get(a) ? n : a), null);
+                const delta = { q: m.q, r: m.r, feed: feed.get(m), marsh: [], branch: null };
+                if (toMarsh(m)) marsh++;
+                delta.marsh.push(m);
+                if (up && flat(up) && toMarsh(up)) { marsh++; delta.marsh.push(up); }
+                // the fan: the lowest flat land beside the mouth, by the sea first
+                const fan = [...new Set([...mn, ...(up ? nbrs(up) : [])])]
+                    .filter(n => n && n !== m && n !== up && flat(n) && !n.hasRiver && n.terrain.id !== 'swamp')
+                    .sort((a, b) => (nbrs(b).some(isSea) - nbrs(a).some(isSea)) || a.elevation - b.elevation || a.r - b.r || a.q - b.q);
+                for (const n of fan.slice(0, D.fan)) if (toMarsh(n)) { marsh++; delta.marsh.push(n); }
+                // the distributary: from the mouth (or a hex above it) through a low hex
+                // beside it that touches the sea elsewhere than the main outlet
+                if (D.branch) {
+                    let best = null;
+                    for (const from of [...ins, m]) {
+                        if (!from || !from.hasRiver || Number.isInteger(from.riverBranch)) continue;
+                        nbrs(from).forEach((dh, i) => {
+                            if (!dh || dh === m || dh.hasRiver || !flat(dh)) return;
+                            // nothing may already flow into it
+                            if (nbrs(dh).some((o, j) => o && o.hasRiver && o.riverDir === (j + 3) % 6)) return;
+                            nbrs(dh).forEach((s, j) => {
+                                if (!isSea(s) || s === out) return;
+                                const gap = Hex.wrappingDistance(s.q, s.r, out.q, out.r, width);
+                                // (the farther from the main outlet the better; from above the mouth
+                                // rather than the mouth itself, so the split is a channel's length up)
+                                const v = gap * 10 + (from !== m ? 5 : 0) - dh.elevation;
+                                if (gap >= 1 && (!best || v > best.v)) best = { from, dirFrom: i, dh, dirOut: j, v };
+                            });
+                        });
+                    }
+                    if (best) {
+                        best.from.riverBranch = best.dirFrom;
+                        best.dh.hasRiver = true;
+                        best.dh.riverSource = false;
+                        best.dh.riverDir = best.dirOut;
+                        best.dh.riverDistributary = true;
+                        if (toMarsh(best.dh)) { marsh++; delta.marsh.push(best.dh); }
+                        delta.branch = { q: best.dh.q, r: best.dh.r };
+                    }
+                }
+                m._delta = true;
+                deltas.push(delta);
+            }
+        }
+        return { marsh, deltas };
     },
 
     /**
@@ -2169,6 +2837,8 @@ export const Terrain = {
         if (!tile || !world) return 'Uncharted Lands';
         const info = Terrain._regionInfo(tile, world);
         if (info.isWater) return info.coastal ? 'Coastal Waters' : 'Open Waters';
+        // (worlds since terrainGen 16: a gap through a range, Terrain._passes16)
+        if (tile._pass) return 'Mountain Pass';
         const noun = Terrain.REGION_FAMILY[info.dominant] || 'Wilds';
         return info.coastal ? `Coastal ${noun}` : noun;
     },
@@ -2180,6 +2850,7 @@ export const Terrain = {
         if (!tile || !world) return 'An unexplored stretch of the realm.';
         const info = Terrain._regionInfo(tile, world);
         if (info.isWater) return 'Restless waters roll toward a far horizon.';
+        if (tile._pass) return 'A narrow way climbs between the peaks: the one road through the range.';
         const noun = Terrain.REGION_FAMILY[info.dominant] || 'Wilds';
         return Terrain.REGION_DESC[noun] || 'Untamed country awaits the bold.';
     },

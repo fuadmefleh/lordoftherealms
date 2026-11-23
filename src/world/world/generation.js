@@ -1,6 +1,6 @@
 // World — generation methods.
 import { World } from './core.js';
-import { Terrain, Kingdom, WeatherSystem, NPCLords, Hex, MinHeap, Utils, WorldEvents, WorldUnit, Characters, Religion, Culture, Peoples, Colonization, Cartography, KingdomAI, Dawn, Cultures, WorldAge, Castles } from './_imports.js';
+import { Terrain, Kingdom, WeatherSystem, NPCLords, Hex, MinHeap, Utils, WorldEvents, WorldUnit, Characters, Religion, Culture, Peoples, Colonization, Cartography, KingdomAI, Dawn, Cultures, WorldAge, Castles, TownSiting } from './_imports.js';
 
 Object.assign(World.prototype, {
     /**
@@ -119,8 +119,8 @@ Object.assign(World.prototype, {
         this.kingdoms = kingdomDefs.map(def => Kingdom.create(def));
 
         console.log('Placing kingdoms on map...');
-        // Place kingdoms on map
-        Kingdom.placeKingdoms(this.kingdoms, this.tiles, this.width, this.height);
+        // Place kingdoms on map (since terrainGen 16 on the best sites: world/townSiting.js)
+        Kingdom.placeKingdoms(this.kingdoms, this.tiles, this.width, this.height, { terrainGen: terrainParams.terrainGen });
         console.log('Kingdoms placed');
 
         // Initialize diplomatic relations
@@ -515,7 +515,9 @@ Object.assign(World.prototype, {
     },
 
     /**
-     * Place independent (unaligned) settlements
+     * Place independent (unaligned) settlements. Since terrainGen 16 a
+     * village looks over a few open hexes and takes the best site
+     * (world/townSiting.js) instead of favouring any coast at random.
      */
     placeIndependentSettlements(freq = 'normal') {
         const freqMap = { none: 0, few: 0.4, normal: 1.0, many: 2.0 };
@@ -526,6 +528,11 @@ Object.assign(World.prototype, {
         if (numSettlements === 0) return;
         const existingSettlements = this.getAllSettlements();
         const minDistance = 4; // Minimum distance between settlements
+        const params = this.generationParams || {};
+        if (!params.customWorld && TownSiting.applies(params.terrainGen)) {
+            this._placeSitedVillages(numSettlements, existingSettlements, minDistance);
+            return;
+        }
 
         for (let i = 0; i < numSettlements; i++) {
             let attempts = 0;
@@ -536,6 +543,7 @@ Object.assign(World.prototype, {
                 const tile = this.tiles[r][q];
 
                 if (!tile.terrain.passable || tile.settlement || tile.kingdom) continue;
+                if (tile.terrain.id === 'swamp') continue;     // (no village in a marsh, terrainGen 16)
 
                 // Coastal preference: higher chance if next to ocean
                 const isCoastal = Hex.neighbors(q, r).some(n => {
@@ -568,6 +576,40 @@ Object.assign(World.prototype, {
                 existingSettlements.push({ q, r, ...newSettlement });
                 break;
             }
+        }
+    },
+
+    /** placeIndependentSettlements since terrainGen 16: the best of a few open sites each */
+    _placeSitedVillages(numSettlements, existingSettlements, minDistance) {
+        const site = TownSiting.map(this.tiles, this.width, this.height);
+        const V = TownSiting.cfg().village || {};
+        const samples = Math.max(1, Number(V.samples) || 14);
+        const jitter = Number.isFinite(Number(V.jitter)) ? Number(V.jitter) : 3;
+        for (let i = 0; i < numSettlements; i++) {
+            let best = null;
+            let bestScore = -Infinity;
+            let found = 0;
+            for (let attempts = 0; attempts < 200 && found < samples; attempts++) {
+                const q = Utils.randInt(0, this.width - 1);
+                const r = Utils.randInt(Math.floor(this.height * 0.1), Math.floor(this.height * 0.9));
+                const tile = this.tiles[r][q];
+                if (!tile.terrain.passable || tile.settlement || tile.kingdom) continue;
+                if (existingSettlements.some(s => Hex.wrappingDistance(q, r, s.q, s.r, this.width) < minDistance)) continue;
+                found++;
+                const v = site.score(q, r, 'village') + Utils.randFloat(0, jitter);
+                if (v > bestScore) { bestScore = v; best = { q, r, tile }; }
+            }
+            if (!best) continue;
+            const newSettlement = {
+                type: 'village',
+                name: Kingdom.generateCityName(Utils.randPick(['Imperial', 'Woodland', 'Nomadic', 'Religious', 'Maritime'])),
+                population: Utils.randInt(50, 500),
+                level: 0,
+                kingdom: null,
+                founded: Utils.randInt(500, 800),
+            };
+            best.tile.settlement = newSettlement;
+            existingSettlements.push({ q: best.q, r: best.r, ...newSettlement });
         }
     },
 

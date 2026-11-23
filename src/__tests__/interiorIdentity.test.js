@@ -255,6 +255,23 @@ describe('the owner\'s trade and household', () => {
         expect(InnerMap._interiorIdentity({ type: 'tavern', q: 10, r: 12 }, null).household).toBe(null);
         InnerMap.npcs = [];
     });
+
+    it('a trade worked at a shop stays there: a baker who works at the bakery keeps no oven at home', () => {
+        InnerMap.currentWorldTile = { q: 4, r: 4 };
+        InnerMap._currentWorldTileRef = { q: 4, r: 4, settlement: { name: 'Fernby', type: 'town' } };
+        InnerMap.tiles = [];
+        const home = { type: 'house', q: 10, r: 12 };
+        const bakery = { type: 'bakery', q: 20, r: 12 };
+        InnerMap.npcs = [
+            { id: 1, age: 40, job: 'baker', _home: home, _work: bakery },
+            { id: 2, age: 38, job: 'cobbler', _home: home, _work: null },
+            { id: 3, age: 30, job: 'weaver', _home: home, _work: home },
+        ];
+        const who = InnerMap._interiorIdentity(home, null);
+        expect(who.trades).not.toContain('baker');
+        expect(who.trades).toEqual(['cobbler', 'weaver']);
+        InnerMap.npcs = [];
+    });
 });
 
 describe('culture', () => {

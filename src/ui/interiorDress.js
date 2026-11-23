@@ -357,19 +357,19 @@ export function drawBroken(ctx, img, c, k, box, sz, seed = 0) {
     if (w <= 0 || h <= 0) return;
     ctx.save();
     ctx.globalCompositeOperation = 'multiply';
-    ctx.globalAlpha = 0.55;
+    ctx.globalAlpha = 0.3;   // (a shade worn, not blackened: the piece still reads as itself)
     ctx.drawImage(img, c.sx * k, c.sy * k, (c.sw || 32) * k, (c.sh || 32) * k, x, y, w, h);
     ctx.restore();
     let hs = (seed * 2654435761 + 12345) >>> 0;
     const rnd = () => { hs = (Math.imul(hs ^ (hs >>> 13), 1274126177) + 0x6d2b79f5) >>> 0; return hs / 4294967296; };
     const ln = Math.max(1, Math.round(sz / 24));
-    // cracks: a jagged dark line or two across the piece, a pale split beside each
-    for (let i = 0; i < 2; i++) {
+    // a crack: a jagged dark line across the piece, a pale split beside it (soft: wear, not ruin)
+    for (let i = 0; i < 1; i++) {
         let px = x + w * (0.25 + 0.5 * rnd()), py = y + h * (0.2 + 0.2 * rnd());
         const steps = 3 + Math.floor(rnd() * 2);
         for (let s = 0; s < steps; s++) {
             const nx = px + (rnd() - 0.5) * w * 0.3, ny = py + h * (0.12 + 0.1 * rnd());
-            for (const [style, off] of [['rgba(20, 12, 8, 0.85)', 0], ['rgba(236, 206, 160, 0.55)', ln]]) {
+            for (const [style, off] of [['rgba(28, 18, 12, 0.6)', 0], ['rgba(236, 206, 160, 0.32)', ln]]) {
                 ctx.strokeStyle = style;
                 ctx.lineWidth = ln;
                 ctx.beginPath();
@@ -382,10 +382,10 @@ export function drawBroken(ctx, img, c, k, box, sz, seed = 0) {
     }
     // splinters on the floor at its foot
     const foot = y + h - sz * 0.06;
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 3; i++) {
         const sx = x + w * (0.1 + 0.8 * rnd()), sy = foot + sz * 0.05 * (rnd() - 0.3);
-        const len = sz * (0.06 + 0.07 * rnd());
-        ctx.fillStyle = i % 2 ? 'rgba(150, 100, 58, 0.95)' : 'rgba(96, 60, 34, 0.95)';
+        const len = sz * (0.05 + 0.05 * rnd());
+        ctx.fillStyle = i % 2 ? 'rgba(150, 100, 58, 0.8)' : 'rgba(96, 60, 34, 0.8)';
         ctx.fillRect(Math.round(sx), Math.round(sy), Math.max(1, Math.round(len)), ln);
     }
 }
@@ -441,7 +441,9 @@ export function drawWallDecor(ctx, art, tile, face, sz, getImg, scale, night) {
     const shut = tile._wallDecorState === 'shut';
     let ok = true;
     ids.forEach((id, i) => {
-        const a = artFor(art, id);
+        // (a wall torch burns after dark unless put out — as ui/interiorLight.js lights it)
+        const out = id === 'torch' && (!night || tile._decorLit === false) && art.torch_unlit;
+        const a = artFor(art, out ? 'torch_unlit' : id);
         if (!a) return;
         const img = getImg(a.sheet);
         if (!img) { ok = false; return; }

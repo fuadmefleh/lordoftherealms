@@ -148,6 +148,11 @@ Object.assign(InnerMap, {
                 .sort((a, z) => String(a.id).localeCompare(String(z.id), 'en', { numeric: true }));
             for (const n of people) {
                 const j = n.job || n.type;
+                // (only a trade worked at home: a baker who bakes at the town's bakery keeps no oven
+                // in the house — world/innerMap/townLife.js gives each their workplace, npc._work)
+                const w = n._work;
+                const awayAtWork = !!(w && w !== building && !(w.q === building.q && w.r === building.r) && w.type !== 'house');
+                if (awayAtWork) continue;
                 if (j && (P.trades || {})[j] && !trades.includes(j)) trades.push(j);
             }
         }

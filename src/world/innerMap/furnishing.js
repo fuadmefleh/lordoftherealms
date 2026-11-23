@@ -285,6 +285,9 @@ Object.assign(InnerMap, {
         if (floor(q, r + 1)) return { face: 'down', q, r: r + 1 };
         if (floor(q + 1, r)) return { face: 'right', q: q + 1, r };
         if (floor(q - 1, r)) return { face: 'left', q: q - 1, r };
+        // (the front wall, its room behind it: only a window's curtains or a torch show there —
+        // ui/interiorDress.js draws nothing else on the front wall)
+        if (floor(q, r - 1)) return { face: 'up', q, r: r - 1 };
         return null;
     },
 
@@ -337,6 +340,7 @@ Object.assign(InnerMap, {
         if (!this._isWallTile(t)) return { ok: false, reason: t._isDoor ? 'Not on the door.' : `Hang the ${v.name} on a wall.` };
         const fc = this._wallFace(q, r);
         if (!fc) return { ok: false, reason: 'That wall doesn\'t face into a room.' };
+        if (fc.face === 'up' && !v.onWindow && v.wallDecor !== 'torch') return { ok: false, reason: 'Only curtains at a window or a torch hang on the front wall.' };
         if (v.onWindow) {
             const mine = t._wallDecorUid === ignore && !!ignore;
             if (t._wallDecor !== 'window' && !mine) return { ok: false, reason: `${v.name} hang at a window.` };

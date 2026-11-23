@@ -21,6 +21,7 @@ It writes the sheet and rewrites the generated entries in data/innerMapRenderer.
 (`interiorArt.decor`, `interiorArt.wallDecor` and the furniture entries that point at
 the sheet); run `npm run build:data` after.
 """
+import colorsys
 import json
 import os
 import re
@@ -264,6 +265,48 @@ def rod(w):
 # What is drawn: id -> (image, grid, extra fields)
 # ══════════════════════════════════════════════
 
+# ── Flames put out (the unlit candles, torch and candelabra: ui/interiorDress.js draws them
+# where the light model has them unlit) ──
+def _hsv(p):
+    r,g,b,a=p; return colorsys.rgb_to_hsv(r/255,g/255,b/255)
+def snuff(im, mode='wax', band=0.0):
+    """A flame put out. mode 'wax' (candles): in each column with wax (a white run of 3+ px),
+    the flame and its bright core above the wax go; elsewhere nothing. mode 'all' (a torch):
+    every flame-coloured pixel goes, leaving the empty bowl."""
+    im=im.copy(); px=im.load(); w,h=im.size
+    def flame(p):
+        if p[3]==0: return False
+        hh,s,v=_hsv(p); return 0.0<=hh<=0.17 and s>0.45 and v>0.65
+    def white(p):
+        if p[3]==0: return False
+        hh,s,v=_hsv(p); return s<0.3 and v>0.8
+    if mode=='all':
+        for y in range(h):
+            for x in range(w):
+                if flame(px[x,y]): px[x,y]=(0,0,0,0)
+        return im
+    # (band: a top share of the sprite where every flame colour is flame — a candelabra's
+    # candles stand above its gilded arms, whose gold must stay)
+    for y in range(int(h * band)):
+        for x in range(w):
+            if flame(px[x,y]): px[x,y]=(0,0,0,0)
+    tops={}
+    for x in range(w):
+        for y in range(h-2):
+            if white(px[x,y]) and white(px[x,y+1]) and white(px[x,y+2]):
+                # (a run of three: the candle's wax, not the flame's 1-2 px core)
+                tops[x]=y; break
+    for x in range(w):
+        # (the flame can stand a pixel or two wider than its candle)
+        near=[tops[c] for c in range(x-2,x+3) if c in tops]
+        if not near: continue
+        top=max(near)
+        for y in range(top):
+            if flame(px[x,y]) or (x in tops and white(px[x,y])): px[x,y]=(0,0,0,0)
+    # (the wick: a dark pixel atop each candle's wax)
+    return im
+
+
 def decor_items():
     """On a table, a counter, a shelf (tile._decor)."""
     T = 32
@@ -273,6 +316,7 @@ def decor_items():
     D['plates'] = (cut('Small Items/Dishes A.png', 0, 0, 32, 32), S, {})
     D['bread'] = (cut('Small Items/Food/Bread A.png', 0, 32, 32, 32), S, {})
     D['candles'] = (cut('Small Items/Lighting, Table.png', 128, 0, 32, 32), T, {'light': 'candle'})
+    D['candles_unlit'] = (snuff(cut('Small Items/Lighting, Table.png', 128, 0, 32, 32)), T, {})
     D['books'] = (books(), T, {})
     D['papers'] = (cut('Small Items/Loose Paper.png', 64, 64, 32, 32), S, {})
     D['pots'] = (stack((cut('Small Items/Flowers.png', 32, 96, 32, 32), 0, 0),
@@ -335,6 +379,7 @@ def wall_items():
     W['curtains_night'] = (stack((window(night=True), (curt.width - 32) // 2, 3), (curt, 0, 0)), 48, {'hang': 0.3})
     W['curtains_shut'] = (stack((shut, (curt.width - 32) // 2, 3), (curt, 0, 0)), 48, {'hang': 0.3})
     W['torch'] = (cut('Wall Items/Lighting, Wall.png', 64, 0, 32, 64), 32, {'hang': 0.35, 'light': 'torch'})
+    W['torch_unlit'] = (snuff(cut('Wall Items/Lighting, Wall.png', 64, 0, 32, 64), 'all'), 32, {'hang': 0.35})
     W['painting'] = (cut('Wall Items/Paintings, Landscape.png', 0, 0, 64, 32), 32, {'hang': 0.55})
     W['painting_portrait'] = (cut('Wall Items/Paintings, Portraits.png', 64, 0, 32, 64), 36, {'hang': 0.45})
     W['painting_king'] = (cut('Wall Items/Paintings, Portraits.png', 0, 0, 32, 64), 36, {'hang': 0.45})
@@ -374,6 +419,9 @@ def furniture_items():
     wheel = cut('Furniture/Sewing & Weaving/Spinning Wheel.png', 64, 0, 64, 64, keep=True)
     F['spinning_wheel'] = (stack((stand, 0, 0), (wheel, 0, 0)), 44, {})
     F['basket'] = (cut('Small Items/Baskets A.png', 64, 0, 32, 32), 40, {})
+    # (the kit's candelabra, its candles out)
+    kit48 = Image.open(os.path.join(KIT, 'furniture48.png')).convert('RGBA')
+    F['candle_unlit'] = (snuff(kit48.crop((0, 48, 48, 96)), 'wax', 0.36), 48, {})
     F['firewood'] = (stack((cut('Small Items/Lumber.png', 0, 64, 64, 32), 0, 8),
                            (cut('Small Items/Lumber.png', 224, 0, 32, 32), 14, 0)), 48, {})
     F['plant'] = (cut('Furniture/Planter.png', 0, 32, 32, 32), 34, {})

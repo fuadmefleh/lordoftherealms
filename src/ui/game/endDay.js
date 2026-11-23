@@ -1589,9 +1589,11 @@ export function endDay() {
                 }
                 InnerMap.dayEnded = false;
                 this._innerMapDayEndShown = false;
+                // (the street map's day, town or not: an interior's hour and season read it, world/innerMap/interiorState.js)
+                InnerMap.worldDay = this.world.day;
+                if (InnerMap._insideBuilding && InnerMap._interiorStateTick) InnerMap._interiorStateTick();
                 // The town's fields grow on to the new day (world/townProps.js)
                 if (InnerMap.tiles && InnerMap._currentWorldTileRef && InnerMap._currentWorldTileRef.settlement) {
-                    InnerMap.worldDay = this.world.day;
                     TownProps.growFields(InnerMap.tiles, this.world.day);
                     // A pedlar come into town overnight, or moved on (world/innerMap/townTrading.js)
                     if (InnerMap._tradeNewDay) InnerMap._tradeNewDay(this.world);

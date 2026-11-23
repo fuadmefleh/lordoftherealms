@@ -221,7 +221,7 @@ describe('hanging things on walls', () => {
         expect(InnerMap.decorCheck(tapestry, 0, 0, { player }).reason).toMatch(/face/);     // a corner
         const door = InnerMap._furnishDoor();
         expect(InnerMap.decorCheck(tapestry, door.q, door.r, { player }).ok).toBe(false);  // the door
-        expect(InnerMap.decorCheck(tapestry, 2, InnerMap.height - 1, { player }).reason).toMatch(/face/); // the front wall's outside
+        expect(InnerMap.decorCheck(tapestry, 2, InnerMap.height - 1, { player }).reason).toMatch(/front wall/); // the front wall: only curtains or a torch hang there
         const side = InnerMap.decorCheck(tapestry, 0, 3, { player });
         expect(side.ok).toBe(true);
         expect(side.face).toBe('right');

@@ -567,6 +567,8 @@ Object.assign(InnerMapRenderer, {
         // (a piece may name its own look: coal in a sack, `art: 'sack_coal'`)
         const furnArt = furniture && (pieceArt
             || (furniture.art && art.furniture[furniture.art])
+            // (a candelabra put out: its candles without flame, world/innerMap/interiorState.js lit false)
+            || (furniture.lit === false && art.furniture[`${furniture.type}_unlit`])
             || (furniture.facing === 'up' && art.furniture[`${furniture.type}_back`]) || art.furniture[furniture.type] || null);
         const furnImg = furnArt ? pick(furnArt) : null;
         if (furnArt && !furnImg) return false; // wait for the sheet rather than flash a box
@@ -596,7 +598,11 @@ Object.assign(InnerMapRenderer, {
         }
         // What lies on it (tile._decor): over the piece, along its top
         const onTop = (box, ids, top) => {
-            if (ids.length && art.decor) drawTableDecor(ctx, art.decor, ids, box, top, sz, getImg, scale, hash);
+            if (!ids.length || !art.decor) return;
+            // (candles burn when lit — tile._decorLit — or after dark when nobody says: as ui/interiorLight.js)
+            const lit = tile._decorLit === true || (tile._decorLit == null && daylight(InnerMap.timeOfDay) < 0.35);
+            const shown = lit ? ids : ids.map(id => ((id === 'candles' || id === 'candle') && art.decor.candles_unlit ? 'candles_unlit' : id));
+            drawTableDecor(ctx, art.decor, shown, box, top, sz, getImg, scale, hash);
         };
         if (furnImg && pieceArt) {
             if (piece.i !== piece.w - 1 || piece.j !== piece.h - 1) return true;   // (drawn from its last tile)

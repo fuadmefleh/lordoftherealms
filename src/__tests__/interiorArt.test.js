@@ -184,3 +184,15 @@ describe('drawing a dressed room', () => {
         }
     });
 });
+
+describe('flames put out', () => {
+    it('has unlit art for table candles, the wall torch and the candelabra, inside the sheet', () => {
+        const size = (p) => { const b = fs.readFileSync(p); return { w: b.readUInt32BE(16), h: b.readUInt32BE(20) }; };
+        for (const a of [ART.decor.candles_unlit, ART.wallDecor.torch_unlit, ART.furniture.candle_unlit]) {
+            expect(a && a.sheet).toBeTruthy();
+            const { w, h } = size(a.sheet);
+            expect(a.sx + a.sw).toBeLessThanOrEqual(w);
+            expect(a.sy + a.sh).toBeLessThanOrEqual(h);
+        }
+    });
+});

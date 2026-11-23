@@ -232,7 +232,7 @@ export const Terrain = {
         // share of the map that is land, as the setting says), with warped, ragged coasts, on
         // noise that wraps round the world's seam without mirroring (Terrain._land11)
         const land11 = terrainGen >= 11
-            ? Terrain._land11({ width, height, rng, seeds, landMass, continentCount, continentSize, terrainOctaves, mountainDensity, polarFactor })
+            ? Terrain._land11({ width, height, rng, seeds, landMass, continentCount, continentSize, terrainOctaves, mountainDensity, polarFactor, plates: terrainGen >= 12 })
             : null;
 
         for (let r = 0; r < height; r++) {
@@ -378,7 +378,8 @@ export const Terrain = {
         if (land11) Terrain._seaLevel11(tiles, width, height, { landMass, waterThreshold, hillsLevel, highlandsLevel, mountainLevel, snowPeakLevel, hillDensity, mountainDensity, flatnessPow, deepWaterLevel });
 
         // Sprinkle super-peaks (Post-processing) — scaled by mountain density
-        const numPeaks = Math.round(Utils.randInt(8, 14) * mountainDensity);
+        // (since terrainGen 12 the mountains stand in ranges along the plates' seams instead)
+        const numPeaks = terrainGen >= 12 ? 0 : Math.round(Utils.randInt(8, 14) * mountainDensity);
         for (let i = 0; i < numPeaks; i++) {
             let pq = Math.floor(rng() * width);
             let pr = Math.floor(rng() * height);
@@ -416,8 +417,14 @@ export const Terrain = {
         // scaled up again by the map's size)
         // Worlds since terrainGen 10: water drains as water does (rain gathers downhill into
         // branching river systems, basins fill into lakes); older worlds keep their rivers
+        // Worlds since terrainGen 12: the climate on the finished heights (colder up high, rain
+        // off the sea on the prevailing winds, dry in the lee of the ranges: Terrain._climate12)
+        if (terrainGen >= 12) Terrain._climate12(tiles, width, height, { waterThreshold, rainBias: rainBias * 0.75 });
         if (terrainGen >= 10) Terrain.generateHydrology(tiles, width, height, rng, { riverCount: terrainGen >= 11 ? riverCount : scaledRiverCount, lakeFreq, waterLevel: waterThreshold, mountainLevel, hillsLevel, valleyLakes: terrainGen >= 11 });
         else Terrain.generateRivers(tiles, width, height, scaledRiverCount, lakeFreq, { v2: terrainGen >= 2, waterThreshold, mountainLevel, highlandsLevel });
+
+        // (since terrainGen 12 the country beside a river or lake is greener)
+        if (terrainGen >= 12) Terrain._riverbanks12(tiles, width, height);
 
         // Classify Water Bodies (Lake vs Sea vs Ocean)
         Terrain.classifyWaterBodies(tiles, width, height);
@@ -1190,7 +1197,7 @@ export const Terrain = {
      * neither stretched nor mirrored. -> { height(q, r) } (a raw height,
      * not yet set to sea level: Terrain._seaLevel11)
      */
-    _land11({ width, height, rng, seeds, landMass, continentCount, continentSize, terrainOctaves, mountainDensity, polarFactor }) {
+    _land11({ width, height, rng, seeds, landMass, continentCount, continentSize, terrainOctaves, mountainDensity, polarFactor, plates = false }) {
         const target = width * height * Utils.clamp(landMass, 5, 95) / 100;
         const count = continentSize === 'pangaea' ? 1 : Math.max(1, continentCount);
         const sizeMul = ({ small: 0.75, medium: 1, large: 1.25, pangaea: 1.3 })[continentSize] || 1;
@@ -1207,6 +1214,8 @@ export const Terrain = {
             const b = Utils.fbm((x - W) * fr + sx, y * fr + sy, oct, 2.0, 0.5);
             return (a * (1 - t) + b * t) / Math.sqrt((1 - t) * (1 - t) + t * t);
         };
+        // (worlds since terrainGen 12: ranges where the plates press together, Terrain._plates)
+        const uplift = plates ? Terrain._plates({ width, height, rng, radius, count, wrapped, f, ox, oy }) : null;
         const cont = seeds.map((s, i) => ({
             x: s.q + 0.25, y: s.r * 0.866,
             rad: (i === 0 || continentSize !== 'pangaea' ? radius : radius * 0.35) * (0.85 + rng() * 0.3),
@@ -1232,9 +1241,150 @@ export const Terrain = {
                 let ridge = 1 - Math.abs(wrapped(x, y, f * 3, 4, ox + 90, oy + 70));
                 ridge = Math.pow(ridge, 3) * mountainDensity;
                 const polar = Math.abs((r / height) - 0.5) * 2;
+                if (uplift) {
+                    // ranges along the plates' seams take the place of most of the scattered ridges
+                    const up = uplift(wx, wy, x, y) * mountainDensity;
+                    // (the heart of a continent is land, not a mountain: its pull levels off inland,
+                    // so the heights come from the ranges and the broad roll of the land)
+                    const core = Math.min(best, 0.5) / 0.5;
+                    return core * 0.42 + broad * 0.26 + ridge * 0.04 + up * 0.4 - strait * 0.3 - Math.pow(polar, 3) * (0.25 + polarFactor);
+                }
                 return best * 0.62 + broad * 0.3 + ridge * 0.12 - strait * 0.3 - Math.pow(polar, 3) * (0.25 + polarFactor);
             },
         };
+    },
+
+    /**
+     * Tectonic plates (worlds since terrainGen 12): a few more plates than
+     * continents, each drifting its own way. Where two plates press together
+     * the land is pushed up into a long range along their seam (where they
+     * pull apart, a little lower: rifts); a ragged ridge noise breaks each
+     * range into peaks and passes. -> uplift(x, y, wx, wy) in about 0..1, for
+     * the land field (Terrain._land11), on the warped grid coordinates.
+     */
+    _plates({ width, height, rng, radius, count, wrapped, f, ox, oy }) {
+        const W = width;
+        const n = Math.max(4, count * 2 + 2);
+        const plates = [];
+        for (let i = 0; i < n; i++) {
+            const a = rng() * Math.PI * 2;
+            plates.push({ x: rng() * W, y: (0.1 + rng() * 0.8) * height * 0.866, vx: Math.cos(a), vy: Math.sin(a) });
+        }
+        const seamW = Math.max(1.6, radius * 0.11);
+        return (wx, wy, x, y) => {
+            let a = null, b = null, da = Infinity, db = Infinity;
+            for (const p of plates) {
+                let dx = Math.abs(wx - p.x);
+                dx = Math.min(dx, W - dx);
+                const d = Math.hypot(dx, wy - p.y);
+                if (d < da) { db = da; b = a; da = d; a = p; } else if (d < db) { db = d; b = p; }
+            }
+            if (!a || !b) return 0;
+            // how far from the seam (the bisector between the two nearest plates)
+            const seam = (db - da) / 2;
+            if (seam > seamW * 3) return 0;
+            // press: the plates' drift against each other, across the seam
+            let nx = b.x - a.x;
+            if (Math.abs(nx) > W / 2) nx -= Math.sign(nx) * W;
+            const ny = b.y - a.y;
+            const len = Math.hypot(nx, ny) || 1;
+            const press = ((a.vx - b.vx) * nx + (a.vy - b.vy) * ny) / len;   // -2..2: + colliding
+            const near = Math.exp(-(seam * seam) / (2 * seamW * seamW));
+            const crags = 0.55 + 0.45 * (1 - Math.abs(wrapped(x, y, f * 6, 3, ox + 210, oy + 230)));
+            return press > 0 ? near * Utils.clamp(press / 1.2, 0, 1) * crags : near * press * 0.15;
+        };
+    },
+
+    /**
+     * The climate of worlds since terrainGen 12, on the finished heights:
+     *  - it is colder the higher the land (a lapse with height above the sea);
+     *  - rain comes off the sea on the prevailing winds (trade winds from the
+     *    east in the tropics, westerlies from the west in the middle
+     *    latitudes, easterlies again near the poles): the air takes up water
+     *    over the sea and lets it fall over the land, most where the land
+     *    rises, so the windward side of a range is wet and the lee lies in
+     *    its rain shadow, and the heart of a great continent is dry;
+     *  - a little of the old noise stays, so it is not all bands.
+     * Writes tile.temperature and tile.moisture (0..1).
+     */
+    _climate12(tiles, width, height, { waterThreshold, rainBias = 0 }) {
+        const rain = new Float64Array(width * height);
+        // (rain carries further inland on a bigger map, so a big continent is not all dry: the
+        // air lets fall a share of its water per hex by the map's scale)
+        const scale = Math.sqrt((120 * 80) / Math.max(1, width * height));
+        const base = 0.07 * Utils.clamp(scale, 0.35, 1.5);
+        // one row's rain with the wind blowing east (dir 1) or west (-1)
+        const sweep = (r, dir, out, weight) => {
+            const row = tiles[r];
+            let air = 0.6;
+            // two laps round the world, so the air reaching the first coast has crossed the sea
+            for (let lap = 0; lap < 2; lap++) {
+                let prevE = waterThreshold;
+                for (let s2 = 0; s2 < width; s2++) {
+                    const q = dir > 0 ? s2 : width - 1 - s2;
+                    const e = row[q].elevation;
+                    if (e < waterThreshold) {
+                        air = Math.min(1, air + 0.12);
+                        prevE = waterThreshold;
+                        continue;
+                    }
+                    const rise = Math.max(0, e - prevE);
+                    const fall = Utils.clamp(base + rise * 4.5, 0, 0.65) * air;
+                    air = Math.max(0, air - fall) + fall * 0.25;  // (some taken up again from the wet land)
+                    if (lap === 1) out[r * width + q] += fall * weight;
+                    prevE = e;
+                }
+            }
+        };
+        const smooth = (a, b, x) => { const t = Utils.clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+        for (let r = 0; r < height; r++) {
+            const lat = Math.abs((r / Math.max(1, height - 1)) - 0.5) * 2;   // 0 equator .. 1 pole
+            // the westerlies of the middle latitudes, fading into the easterlies either side
+            const west = smooth(0.22, 0.42, lat) * (1 - smooth(0.62, 0.82, lat));
+            if (west > 0.001) sweep(r, 1, rain, west);
+            if (west < 0.999) sweep(r, -1, rain, 1 - west);
+        }
+        // spread a little between rows (the wind is not a ruler)
+        const sm = new Float64Array(rain.length);
+        for (let r = 0; r < height; r++) {
+            for (let q = 0; q < width; q++) {
+                let sum = 0, w = 0;
+                for (let dr = -2; dr <= 2; dr++) {
+                    const rr = r + dr;
+                    if (rr < 0 || rr >= height) continue;
+                    for (let dq = -1; dq <= 1; dq++) {
+                        const k = (dr === 0 ? 2 : 1) * (dq === 0 ? 2 : 1) / (1 + Math.abs(dr));
+                        sum += rain[rr * width + Hex.wrapQ(q + dq, width)] * k;
+                        w += k;
+                    }
+                }
+                sm[r * width + q] = sum / w;
+            }
+        }
+        for (let r = 0; r < height; r++) {
+            for (let q = 0; q < width; q++) {
+                const t = tiles[r][q];
+                if (t.elevation < waterThreshold) continue;
+                const wet = 1 - Math.exp(-sm[r * width + q] * 14 / Utils.clamp(scale, 0.35, 1.5));
+                t.moisture = Utils.clamp(wet * 0.65 + t.moisture * 0.35 + rainBias, 0, 1);
+                // colder with height (a hill a little, a mountain much)
+                t.temperature = Utils.clamp(t.temperature - Math.max(0, t.elevation - waterThreshold) * 0.45, 0, 1);
+            }
+        }
+    },
+
+    /** Worlds since terrainGen 12: land by a river or lake is greener (it waters the country beside it) */
+    _riverbanks12(tiles, width, height) {
+        const wet = [];
+        for (const row of tiles) for (const t of row) if (t.hasRiver || t._lake) wet.push(t);
+        for (const t of wet) {
+            if (t.hasRiver) t.moisture = Utils.clamp((t.moisture ?? 0.5) + 0.18, 0, 1);
+            for (const n of Hex.neighbors(t.q, t.r)) {
+                if (n.r < 0 || n.r >= height) continue;
+                const nt = tiles[n.r][Hex.wrapQ(n.q, width)];
+                if (!nt._lake) nt.moisture = Utils.clamp((nt.moisture ?? 0.5) + 0.1, 0, 1);
+            }
+        }
     },
 
     /**

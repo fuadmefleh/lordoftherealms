@@ -355,3 +355,47 @@ describe('Water on an Epic map (terrainGen 11, 350x240)', () => {
         expect(lakes / land).toBeLessThan(0.06);
     }, 60000);
 });
+
+describe('Ranges and climate (terrainGen 12: Terrain._plates / _climate12 / _riverbanks12)', () => {
+    let w;
+    const WATER_IDS = ['ocean', 'deep_ocean', 'coast', 'sea', 'lake'];
+    beforeAll(() => {
+        w = new World(120, 80);
+        w.generate({ seed: 4711, kingdomCount: 6, terrainGen: 12, riverCount: 40, lakeFreq: 'normal' });
+    });
+    const land = () => w.tiles.flat().filter(t => !WATER_IDS.includes(t.terrain.id));
+    const mean = (a, f) => a.reduce((s, t) => s + f(t), 0) / Math.max(1, a.length);
+
+    it('still makes the land asked for, with a fringe of mountains', () => {
+        const l = land();
+        expect(l.length / (w.width * w.height)).toBeGreaterThan(0.38);
+        const mtn = l.filter(t => ['mountain', 'snow_peak'].includes(t.terrain.id)).length / l.length;
+        expect(mtn).toBeGreaterThan(0.04);
+        expect(mtn).toBeLessThan(0.18);
+    });
+
+    it('high ground is colder than the lowland of the same latitude', () => {
+        const band = land().filter(t => Math.abs(t.r / w.height - 0.5) < 0.15);
+        const high = band.filter(t => t.elevation >= 0.6);
+        const low = band.filter(t => t.elevation < 0.5);
+        expect(high.length).toBeGreaterThan(5);
+        expect(mean(high, t => t.temperature)).toBeLessThan(mean(low, t => t.temperature));
+    });
+
+    it('the country by a river is wetter than the land at large', () => {
+        const l = land();
+        expect(mean(l.filter(t => t.hasRiver), t => t.moisture)).toBeGreaterThan(mean(l, t => t.moisture));
+    });
+
+    it('rain falls on the windward coast and the lee of the land is drier (tropical easterlies)', () => {
+        // in the tropics the wind blows from the east: east-facing coasts wetter than west-facing ones
+        const at = (q, r) => w.tiles[r][Hex.wrapQ(q, w.width)];
+        const isSea = (t) => t && ['ocean', 'deep_ocean', 'coast', 'sea'].includes(t.terrain.id);
+        const tropic = land().filter(t => Math.abs(t.r / (w.height - 1) - 0.5) * 2 < 0.2);
+        const eastCoast = tropic.filter(t => isSea(at(t.q + 1, t.r)) && !isSea(at(t.q - 1, t.r)));
+        const westCoast = tropic.filter(t => isSea(at(t.q - 1, t.r)) && !isSea(at(t.q + 1, t.r)));
+        expect(eastCoast.length).toBeGreaterThan(3);
+        expect(westCoast.length).toBeGreaterThan(3);
+        expect(mean(eastCoast, t => t.moisture)).toBeGreaterThan(mean(westCoast, t => t.moisture));
+    });
+});

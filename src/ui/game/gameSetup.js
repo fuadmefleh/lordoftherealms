@@ -433,7 +433,9 @@ export async function _doStartNewGame(settingsOverride) {
         // bigger crags in up to three tiers, with caves in their faces (world/innerMap/cliffs.js, mines.js); 10 =
         // water that drains as water does: branching river systems and lakes in the hollows (Terrain.generateHydrology)
         // 11 = lakes in the valleys, dammed on their rivers and filled along the contours (Terrain._valleyLakes)
-        terrainGen: 11,
+        // 12 = mountain ranges along tectonic plate seams; a climate of prevailing winds, rain shadows,
+        // colder heights and greener riverbanks (Terrain._plates, _climate12, _riverbanks12)
+        terrainGen: 12,
         continentCount,
         terrainFreq,
         riverCount,

@@ -49,7 +49,11 @@ export const InnerMapScaffold = {
             const ref = obj && obj.pillory;
             const st = (player.peopleCrimes && player.peopleCrimes.stocks) || [];
             const x = st.find(o => o.q === player.q && o.r === player.r && String(o.ref) === String(ref)) || null;
+            // (a court's sentence: the pillory, the post, the iron — systems/penalLabour.js writes settlement.pillory with a 'pen' ref)
+            const wt = world.getTile(player.q, player.r);
+            const pl = !x && wt && wt.settlement && wt.settlement.pillory && String(wt.settlement.pillory.ref || '').startsWith('pen') && Number(wt.settlement.pillory.until) >= day ? wt.settlement.pillory : null;
             if (x) out.push({ type: 'disabled', label: `🔒 ${x.name} sits in the stocks for the rent owed you, until day ${x.until}${x.winter ? ' (the cold can kill)' : ''}` });
+            else if (pl) out.push({ type: 'disabled', label: pl.why === 'flogging' ? `🩸 ${pl.name} was flogged at the post today` : pl.why === 'the iron' ? `🔥 ${pl.name} was branded here today` : `🔒 ${pl.name} sits in the pillory for ${pl.why}, until day ${pl.until}` });
             else out.push({ type: 'disabled', label: '🔒 The pillory stands empty' });
         }
         out.push({ type: 'action', action: 'scaffold_panel', label: scaffold ? 'Who Is Condemned, and the Law' : 'The Law Here', icon: '⚖️', desc: 'The condemned, the deaths and punishments the realm\'s law allows' });

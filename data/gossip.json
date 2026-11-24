@@ -198,6 +198,39 @@
             "spreadChance": 0.7,
             "description": "{perpetrator} had {victim} maimed at {location}"
         },
+        "prisoners_slaughtered": {
+            "label": "Prisoners Cut Down",
+            "icon": "⚔️",
+            "deed": true,
+            "localRenown": false,
+            "baseSeverity": 60,
+            "credibility": 0.85,
+            "decayDays": 150,
+            "spreadChance": 0.75,
+            "description": "{perpetrator} had {victim} cut down after they yielded near {location}"
+        },
+        "prisoners_blinded": {
+            "label": "An Army Blinded",
+            "icon": "👁️",
+            "deed": true,
+            "localRenown": false,
+            "baseSeverity": 90,
+            "credibility": 0.95,
+            "decayDays": 360,
+            "spreadChance": 0.95,
+            "description": "{perpetrator} put out the eyes of {victim} near {location} and sent them home led by the one-eyed"
+        },
+        "prisoners_impaled": {
+            "label": "A Forest of Stakes",
+            "icon": "🪵",
+            "deed": true,
+            "localRenown": false,
+            "baseSeverity": 90,
+            "credibility": 0.95,
+            "decayDays": 360,
+            "spreadChance": 0.95,
+            "description": "{perpetrator} set {victim} on stakes along the road near {location}"
+        },
         "hostages_hanged": {
             "label": "Hostages Hanged",
             "icon": "💀",
@@ -208,6 +241,28 @@
             "decayDays": 180,
             "spreadChance": 0.85,
             "description": "{perpetrator} hanged hostages before the walls of {location}"
+        },
+        "countryside_harried": {
+            "label": "Countryside Harried",
+            "icon": "🔥",
+            "deed": true,
+            "localRenown": false,
+            "baseSeverity": 35,
+            "credibility": 0.9,
+            "decayDays": 180,
+            "spreadChance": 0.7,
+            "description": "{perpetrator}'s riders burned the farms and fired the fields of {location}"
+        },
+        "peasants_slaughtered": {
+            "label": "Peasants Slaughtered",
+            "icon": "⚰️",
+            "deed": true,
+            "localRenown": false,
+            "baseSeverity": 75,
+            "credibility": 0.9,
+            "decayDays": 300,
+            "spreadChance": 0.85,
+            "description": "{perpetrator}'s soldiers cut down the peasants of {location} in their fields"
         },
         "fields_salted": {
             "label": "Fields Salted",

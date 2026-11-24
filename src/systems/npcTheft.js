@@ -77,6 +77,9 @@ import { Ledger } from './ledger.js';
 import { Utils } from '../core/utils.js';
 // (a public death cows the town's thieves for a while: systems/executions.js deterrence)
 import { Executions } from './executions.js';
+import { Gibbets } from './gibbets.js';
+// (the realm's lash and iron cow thieves; the watch knows a branded face: systems/penalLabour.js)
+import { PenalLabour } from './penalLabour.js';
 
 const DEFAULTS = {
     enabled: true,
@@ -416,6 +419,9 @@ export const NpcTheft = {
         const lair = NpcTheft._lairNear(world, s, player);
         if (lair) p *= _num(B.lairMult, 1.6);
         p *= Executions.deterrence(s, day);
+        // (and the dead on show at the gate and the crossroads: systems/gibbets.js)
+        p *= Gibbets.deterrence(s, day);
+        p *= PenalLabour.deterrence(world, s, day);
         p /= 1 + Math.max(0, st.heat - _num(C.pickpocket.crackdownAt, 6)) * 0.1;
         if (_frac(key) >= p) return null;
         const when = _frac(`${key}|when`) < _num(B.nightShare, 0.7) ? 'night' : 'day';
@@ -450,6 +456,7 @@ export const NpcTheft = {
         let c = _byType(K.base, s.type) + target.guarded + (when === 'night' && !target.empty ? _num(K.nightOccupied) : 0)
             + (force ? _num(K.forced) : 0) + thief.skill * _num(K.perSkill);
         c *= 1 + Math.max(0, st.heat - _num(C.pickpocket.crackdownAt, 6)) * _num(C.pickpocket.crackdownCatch, 0.15);
+        if (thief.pid != null) c *= PenalLabour.watchedMult(Townsfolk.get(s.folk, thief.pid));
         c = _clamp(c, _num(K.min, 0.02), _num(K.max, 0.8));
         const caught = _frac(`${key}|caught`) < c;
         const seen = caught || _frac(`${key}|seen`) < _num(B.seenChance, 0.3);
@@ -1017,7 +1024,7 @@ export const NpcTheft = {
         const st = NpcTheft.state(s);
         if (st.pickDay === day) return null;
         const key = `${_seed(world)}|pick|${s.q},${s.r}|${day}`;
-        const p = _byType(C.pickpocket.perDay, s.type) * NpcTheft.watchFactor(s);
+        const p = _byType(C.pickpocket.perDay, s.type) * NpcTheft.watchFactor(s) * Gibbets.deterrence(s, day);
         if (_frac(key) >= p) return null;
         const thief = NpcTheft._townThief(world, s, day, key, new Set(), { urchins: true });
         if (!thief) return null;
@@ -1036,7 +1043,7 @@ export const NpcTheft = {
         if (!C.enabled || !player || !s || !s.folk || !NpcTheft.hasThieves(world, s)) return null;
         if (_num(player.gold) <= 0) return null;
         const key = `${_seed(world)}|pickP|${s.q},${s.r}|${day}`;
-        let p = _byType(P.playerPerDay, s.type) * NpcTheft.watchFactor(s) * Math.min(2, 0.5 + _num(player.gold) / Math.max(1, _num(P.playerGoldLooks, 400)));
+        let p = _byType(P.playerPerDay, s.type) * NpcTheft.watchFactor(s) * Gibbets.deterrence(s, day) * Math.min(2, 0.5 + _num(player.gold) / Math.max(1, _num(P.playerGoldLooks, 400)));
         // The ruler's own watch keeps a closer eye on the ruler
         if (StreetCrime.aboveLaw(player, world, s)) p *= _num(P.rulerWatchMult, 0.5);
         if (_frac(key) >= p) return null;

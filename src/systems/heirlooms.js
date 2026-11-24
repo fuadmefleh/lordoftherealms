@@ -631,7 +631,7 @@ export const Heirlooms = {
         const C = Heirlooms.config();
         const rng = _rng(world, `dig|${_day(world)}|${tile.q},${tile.r}`);
         if (rng() >= _num(C.finds.digChance)) return null;
-        return Heirlooms.create(player, world, { kind: _pick(rng, Object.keys(C.kinds)), origin: 'found', line: 'found', vars: { place: `a cache buried near ${_hereName(world, player)}` } });
+        return Heirlooms.create(player, world, { kind: _pick(rng, Object.keys(C.kinds).filter(k => !C.kinds[k].trophy)), origin: 'found', line: 'found', vars: { place: `a cache buried near ${_hereName(world, player)}` } });
     },
 
     // ── The day ───────────────────────────────────────
@@ -704,7 +704,7 @@ export const Heirlooms = {
             for (let i = st.delvesSeen; i < cleared; i++) {
                 const rng = _rng(world, `delve|${day}|${i}`);
                 if (rng() >= _num(C.finds.delveChance)) continue;
-                const kinds = Object.keys(C.kinds);
+                const kinds = Object.keys(C.kinds).filter(k => !C.kinds[k].trophy); // (war trophies come only off a slain enemy: systems/gibbets.js)
                 const h = Heirlooms.create(player, world, { kind: _pick(rng, kinds), origin: 'found', line: 'found', vars: { place: `the deep places under ${_hereName(world, player)}` } });
                 if (h) notices.push({ icon: h.icon, title: 'Found in the Deep', text: `Among the bones at the bottom lay ${h.name}. It is the House's now.`, type: 'success' });
             }

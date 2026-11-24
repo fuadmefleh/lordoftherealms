@@ -102,6 +102,11 @@
             "effects": { "battlePower": -0.03 },
             "description": "A long cut that needs keeping clean."
         },
+        "flogged_back": {
+            "kind": "wound", "name": "Flogged Back", "icon": "🩸", "severity": 1, "days": [7, 12], "infection": 0.08,
+            "effects": { "battlePower": -0.04 },
+            "description": "The lash's stripes across your back (systems/penalLabour.js). Keep them clean; they will scar."
+        },
         "burned_hand": {
             "kind": "wound", "name": "Burned Hand", "icon": "🔥", "severity": 2, "days": [10, 16], "infection": 0.05,
             "effects": { "battlePower": -0.06 },

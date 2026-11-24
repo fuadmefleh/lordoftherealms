@@ -419,7 +419,10 @@ export const Livestock = {
         if (!_obj(b.stock)) b.stock = {};
         const M = Livestock.config().market || {};
         const days = Math.max(0, _day(world) - _num(b.day, _day(world)));
-        const per = 1 / Math.max(1, _num(M.restockDays, 20));
+        let per = 1 / Math.max(1, _num(M.restockDays, 20));
+        // Herds driven off by harriers (systems/harrying.js): the pens fill back slowly, with what the farmers have left to breed from
+        const hh = _obj(s.harried) && _obj(s.harried.herds);
+        if (hh && _num(hh.until) > _day(world)) per *= _clamp(_num(hh.slow, 0.25), 0, 1);
         for (const [id, target] of Object.entries(offer)) {
             const now = b.stock[id] == null ? target : _num(b.stock[id]);
             // Back toward the target: refilled when bought down, sold on when glutted

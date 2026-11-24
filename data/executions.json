@@ -62,7 +62,9 @@
         "pardon": { "label": "Pardon", "icon": "🕊️", "desc": "Let them go, before the crowd. Mercy, or weakness, as the crowd takes it." },
         "exile": { "label": "Exile", "icon": "🚪", "desc": "Out of the realm, never to come back on pain of death." },
         "cloister": { "label": "The cloister", "icon": "⛪", "desc": "Shorn and sent to a monastery for life: dead to the world, and no blood on your hands." },
-        "maim": { "label": "The knife instead", "icon": "✋", "desc": "Spare the life; take a hand (systems/maiming.js)." }
+        "maim": { "label": "The knife instead", "icon": "✋", "desc": "Spare the life; take a hand (systems/maiming.js)." },
+        "mines": { "label": "The mines instead", "icon": "⛏️", "desc": "Spare the life for a long term of hard labour, where the realm's law allows (systems/penalLabour.js)." },
+        "galleys": { "label": "The galleys instead", "icon": "⚓", "desc": "Spare the life for a long term at the oar, where the realm's law allows (systems/penalLabour.js)." }
     },
     "effects": {
         "kill": { "court": { "severity": 1 } },

@@ -776,6 +776,13 @@ export const Harvests = {
                 y.salted = 1;
                 f.soil = C.soil.min;
             }
+            // Standing crops fired by harriers before the reckoning (systems/harrying.js): this harvest is the less
+            const hf = _obj(live.harried) && _obj(live.harried.fields);
+            if (hf && !hf.applied && _num(hf.until) > day) {
+                const keep = 1 - _clamp(_num(hf.share), 0, 0.95);
+                for (const c of YIELDS) if (c !== 'stock') y[c] = _r3(y[c] * keep);
+                hf.applied = Y;
+            }
             f.y = y;
             f.yr = Y;
             f.rg = id;

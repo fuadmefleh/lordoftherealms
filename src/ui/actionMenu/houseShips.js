@@ -3,6 +3,8 @@ import { ActionMenu } from './_ref.js';
 import { beginVoyage } from './voyage.js';
 import { Pirates } from '../../systems/pirates.js';
 import { esc, lede, bullets, chips, purse, sectionHead, kv, card, actRow, rowList, price, BTN_GOLD, BTN_PLAIN, BTN_DARK, BTN_RED } from './uiKit.js';
+import { convictRoll } from './convicts.js';
+import { PenalLabour } from '../../systems/penalLabour.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, InnerMap, KingdomNavy, Discovery } from './_imports.js';
 import { Names } from '../../core/names.js';
 import { SeaPassage } from '../../systems/seaPassage.js';
@@ -546,6 +548,11 @@ Object.assign(ActionMenu, {
         crewBody += `<div>Wages ${Utils.formatGold(Ships._getCrewSettings().wagePerSailorPerDay)}g per sailor a day. Storms, defeats and missed wages sap morale; below ${Ships._getCrewSettings().desertionMorale} morale, sailors desert.</div>`;
         if (!Ships.isLaidUp(ship)) crewBody += `<div>Away from port the crew eats from the hold: ${Math.round(Ships.getDailyRations(ship) * 10) / 10} provisions a day. A hungry crew loses heart, then scurvy comes aboard.</div>`;
         html += card(`<div style="font-size:11px; color:#cbbf9f;">${crewBody}</div>`, { icon: '👥', title: 'Crew', side: `<span style="color:${crewColor}">${crew}/${eff.crewRequired}</span>` });
+        // Convicts at her oars (systems/penalLabour.js): unpaid hands in the crew, a sullen bench
+        html += convictRoll(game, `ship:${ship.id}`, {
+            title: 'Convicts at the oars',
+            note: `${ship.convictOars || 0} of her ${crew} hands are convicts: no wages (${Utils.formatGold((ship.convictOars || 0) * Ships._getCrewSettings().wagePerSailorPerDay)}g a day saved), resting morale ${Ships.convictMoraleShift(ship)}. In port they slip away; at sea, a big sullen bench may rise.`,
+        });
 
         // What can be done with her: one row an action
         const acts = [];
@@ -1289,6 +1296,10 @@ Object.assign(ActionMenu, {
             if (Ships.isLaidUp(ship)) return { icon: st.icon, name: ship.name, desc: facts.join(' · '), side: '⚓ laid up', tone: 'warn' };
             return { icon: st.icon, name: ship.name, desc: facts.join(' · '), side: `${stl.icon} ${stl.text}`, tone: ship.status === 'careened' ? 'warn' : '' };
         }), '⚓ Your Fleet');
+        // The war galleys' convict benches (systems/penalLabour.js): oars without wages, a cut in the galley's upkeep
+        for (const u of Ships.getSquadron(player)) {
+            if (u.galleyId && u.convictOars) html += convictRoll(game, `galley:${u.galleyId}`, { title: `${esc(u.name || 'War galley')}: the bench`, note: `${u.convictOars} convicts row her: ${Utils.formatGold(Math.round(PenalLabour.galleyUpkeepSaving(u)))}g a day off her upkeep.` });
+        }
         // Standing routes for a ship (player/tradeLines.js)
         html += rowList([{ icon: '🔁', name: 'Trade Lines', desc: 'Put a ship on a standing loop of harbours, buying and selling by your orders', act: 'showTradeLines', side: '›', tone: 'gold' }]);
         game.ui.showCustomPanel('⚓ Fleet Overview', html);

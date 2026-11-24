@@ -119,7 +119,7 @@ function courtTab(player, world, v) {
         const days = Math.max(0, c.expires - (world.day || 0));
         let body = `<div style="margin-bottom:4px;">${esc(c.accused.name)} stands accused of <b>${esc(c.crimeLabel)}</b>, against ${esc(c.victim.name)}. The evidence: ${esc(Trials.proofText(c))}${c.witnesses && c.witnesses.length ? ` (${esc(c.witnesses.join(', '))})` : ''}.</div>`;
         body += ordealCaseRows(player, world, c);
-        if (!(c.ordeal && c.ordeal.pending)) body += rowList(Trials.verdicts(world, c).map(vd => ({ icon: vd.icon, name: esc(vd.label), desc: esc(vd.desc || ''), note: fxText(effects[vd.id]), act: 'trialsAct', args: ['rule', c.id, vd.id], tone: vd.harsh >= 3 ? 'bad' : vd.harsh === 0 ? 'good' : '' })));
+        if (!(c.ordeal && c.ordeal.pending)) body += rowList(Trials.verdicts(world, c, player).map(vd => ({ icon: vd.icon, name: esc(vd.label), desc: esc(vd.desc || ''), note: fxText(effects[vd.id]), act: 'trialsAct', args: ['rule', c.id, vd.id], tone: vd.harsh >= 3 ? 'bad' : vd.harsh === 0 ? 'good' : '' })));
         html += card(body, { icon: '⚖️', title: esc(c.town), side: `${days} day${days === 1 ? '' : 's'}`, tone: 'warn' });
     }
     if (v.wrongs.length) {

@@ -1,0 +1,116 @@
+{
+    "_note": "Harrying the countryside (systems/harrying.js, player/harrying.js): in a war, a lord with soldiers burns the villages and farmsteads of the enemy realm, fires its standing crops and its mill, drives off its herds and kills or scatters its peasants — to starve the realm, wreck its rents and taxes and force its army out to fight. Every hurt is real and read by the systems that already run the town: settlement.damage (production, the harvest, refugees), the harvest in force and the next one (world/harvests.js: market grain, granary food, the crown's land tax, rents, revolt hunger), the pens (systems/livestock.js), the mill (market.idle.mill), the people (population, the labour mix, named townsfolk), the estates' soil (rents and land values). Recovery takes seasons and timber. Days are game days (120 to a year).",
+    "enabled": true,
+    "minStrength": 30,
+    "resist": {
+        "_doc": "The village levy and whatever of the garrison sallies meet the first harrying of a day at a place: PlayerMilitary.getSettlementDefense x share[type], fought (PlayerMilitary.combat) when at least min. Beaten off, the deed is not done (the AP are spent).",
+        "share": { "village": 0.4, "town": 0.25, "city": 0.15, "capital": 0.1 },
+        "min": 5
+    },
+    "acts": {
+        "torch": {
+            "_doc": "Fire the houses (a village) or the outlying farmsteads (a town and up): damage[type] onto settlement.damage (kept from repairing below what is left of it until rebuilt over rebuildDays, each week's rebuilding eating woodPerWeek of the market's wood per 100 people — no wood, no rebuilding), a fire mark (burnt shells on the street map), deadRate and homelessRate of the people (the homeless flee as refugees to the realm's other towns), the granary (granary) and the market's stores (stores) burned, after the men carry off up to carry food into their packs.",
+            "apCost": 3,
+            "damage": { "village": 0.45, "town": 0.22, "city": 0.1, "capital": 0.06 },
+            "fireShare": { "village": 0.6, "town": 0.25, "city": 0.1, "capital": 0.06 },
+            "deadRate": 0.03,
+            "homelessRate": 0.16,
+            "granary": 0.6,
+            "stores": 0.5,
+            "carry": 30,
+            "carryGoods": ["grain", "bread", "flour", "meat", "cheese"],
+            "rebuildDays": 180,
+            "woodPerWeek": 1.2
+        },
+        "fields": {
+            "_doc": "Fire the crops: in spring and summer the standing crop (the harvest in force falls by share, and the next harvest reckoned before fieldsDays is out by nextShare), in autumn and winter the barns and ricks (the market's grain and flour by barns, the granary by granary). The estates about the town lose soilLoss of their soil, growing back over regrowDays (their rents and value follow).",
+            "apCost": 3,
+            "share": 0.35,
+            "nextShare": 0.5,
+            "fieldsDays": 90,
+            "barns": 0.6,
+            "granary": 0.4,
+            "soilLoss": 0.25,
+            "regrowDays": 240
+        },
+        "mill": {
+            "_doc": "Fire the mill: no flour is ground until it is rebuilt (market.idle.mill) — days[type], then it waits on wood (woodNeed per type, out of the town's market) — and the flour in store burns.",
+            "apCost": 2,
+            "days": { "village": 60, "town": 75, "city": 90, "capital": 100 },
+            "woodNeed": { "village": 6, "town": 10, "city": 16, "capital": 20 },
+            "flour": 0.8
+        },
+        "herds": {
+            "_doc": "Drive off the herds: share of every beast in the town's pens (settlement.livestockMarket) is taken. Driven to one of your own places that can keep them (systems/livestock.js; within its drover's reach) they are yours, by the head; else your men butcher them for the camp (meat and hides into your packs, what does not fit eaten on the march). The pens fill back only at slow of their pace for herdsDays, and the town's own herds (hinterland sheep runs, ranches, studs) yield stockLoss less until the next harvest.",
+            "apCost": 2,
+            "share": 0.7,
+            "slow": 0.25,
+            "herdsDays": 150,
+            "stockLoss": 0.45
+        },
+        "scatter": {
+            "_doc": "Drive the peasants off their land: share of the people flee as refugees to the realm's other towns (they come home once it is safe again: systems/labour.js), named townsfolk among them.",
+            "apCost": 2,
+            "share": 0.2,
+            "minPop": 40
+        },
+        "slaughter": {
+            "_doc": "Put the peasants to the sword: share of the people killed, named townsfolk among them. The cruellest of the acts: an atrocity (systems/atrocities.js 'slaughter').",
+            "apCost": 3,
+            "share": 0.25,
+            "minPop": 30
+        }
+    },
+    "cooldownDays": 60,
+    "realm": {
+        "_doc": "What a realm's harried countryside does to it, reckoned weekly: kingdom.harried { towns, stab, lords }. stab (world/kingdomState.js 'Countryside harried'): -perTown a scar on its land (up to cap), halved while the crown answers it (a pursuit host out, or one lost fighting the harriers within answeredDays). lords (systems/kingship.js, the player's own realm: 'The countryside burns'): -lordsPerTown, the same halving; a vassal whose own seat is harried -seatHarried more.",
+        "perTown": 2.5,
+        "cap": 14,
+        "lordsPerTown": 3,
+        "lordsCap": 18,
+        "seatHarried": 10,
+        "answeredDays": 60
+    },
+    "pursuit": {
+        "_doc": "The harried realm's answer to the player: a host (a hostile war_host) out of its nearest town after the harriers, if its crown can pay the muster (musterPerMan into the capital's purse) and the chest (chestPerMan, carried: the spoils of beating it). strength = base + military x share (min..max), taken from kingdom.military while it marches; it follows the player while they are within leashHexes of the realm's towns, for up to days, then marches home (its men and its chest back). One at a time per realm; minMilitary to send one; it engages as any war host does when it reaches them.",
+        "minMilitary": 50,
+        "base": 20,
+        "share": 0.25,
+        "min": 25,
+        "max": 220,
+        "musterPerMan": 1,
+        "chestPerMan": 1.5,
+        "days": 30,
+        "leashHexes": 8,
+        "speed": 3,
+        "cooldownDays": 20
+    },
+    "ai": {
+        "_doc": "Realms at war harry each other's border villages: weekly per war a hash roll (chance; x cruel for a lord with a cruel trait), the victim's village or town nearest the attacker's land within rangeHexes, not lately harried; the attacker needs minMilitary. Its riders torch, fire the fields, drive the herds (to the attacker's nearest town's pens) and scatter the peasants; what they carry off of the stores (carryShare) goes into that town's market. A cruel lord's men slaughter instead of scattering (slaughterChance).",
+        "chance": 0.12,
+        "cruel": 1.6,
+        "cruelTraits": ["cruel", "tyrant", "ruthless", "wrathful"],
+        "rangeHexes": 10,
+        "minMilitary": 40,
+        "carryShare": 0.4,
+        "slaughterChance": 0.35,
+        "acts": ["torch", "fields", "herds", "scatter"],
+        "logCap": 40
+    },
+    "lines": {
+        "torch": "Your men fire the thatch of {town}. By nightfall the houses are black shells; {dead} dead, {fled} fled into the dark.",
+        "torchTown": "Your riders burn the farmsteads and the outlying houses of {town}. {dead} dead, {fled} homeless on the roads.",
+        "fieldsStanding": "The standing corn of {town} goes up in a wall of smoke. This year's harvest is ash.",
+        "fieldsBarns": "The barns and ricks of {town} burn: the winter's grain with them.",
+        "mill": "The mill of {town} burns to the waterline. No flour will be ground there for months.",
+        "herdsHome": "Your men drive off {n} head from the pens of {town}, to {place}.",
+        "herdsCamp": "Your men drive off {n} head from the pens of {town} and butcher them for the camp.",
+        "scatter": "Your riders drive the peasants of {town} off their land: {n} flee for the towns of the realm.",
+        "slaughter": "Your men fall on the peasants of {town}. {n} are cut down in the fields and lanes.",
+        "resisted": "The levy of {town} turns out and drives your men off.",
+        "pursuit": "{realm} sends {host} ({n} men) out of {from} after you.",
+        "pursuitHome": "{host} gives up the chase and marches home.",
+        "aiHarry": "{realm}'s riders harry {town} of {victim}: houses burned, fields fired, {fled} folk on the roads.",
+        "aiHarryYours": "The riders of {realm} harry {town}: houses burned, fields fired, herds driven off. {fled} of your people are on the roads."
+    }
+}

@@ -98,6 +98,9 @@ import { Engrossing } from '../systems/engrossing.js';
 import { LawCouncil } from '../systems/lawCouncil.js';
 import { Maiming } from '../systems/maiming.js';
 import { Executions } from '../systems/executions.js';
+import { Gibbets } from '../systems/gibbets.js';
+import { PrisonerFates } from './prisonerFates.js';
+import { PenalLabour } from '../systems/penalLabour.js';
 import { NamedLegacy } from '../systems/namedLegacy.js';
 import { LandMarket } from '../systems/landMarket.js';
 import { PuttingOut } from '../systems/puttingOut.js';
@@ -126,14 +129,17 @@ import { Characters } from '../world/characters.js';
 import { Cultures } from '../world/cultures.js';
 import { Languages } from '../systems/languages.js';
 import { Crises } from '../systems/crises.js';
+import { BloodFeuds } from '../systems/bloodFeuds.js';
 import { LastCrisis } from '../systems/lastCrisis.js';
 import { RealmDecline } from '../systems/realmDecline.js';
 import { PeasantRevolts } from '../systems/peasantRevolts.js';
+import { Harrying } from '../systems/harrying.js';
 import { CadetBranches } from '../systems/cadetBranches.js';
 import { Abdication } from '../systems/abdication.js';
 import { Climate } from '../world/climate.js';
 import { RealmTimeline } from '../systems/realmTimeline.js';
 import { MaimMarks } from '../systems/maimMarks.js';
+import { PitFights } from '../systems/pitFights.js';
 
 const DEFAULTS = {
     candidates: 4,
@@ -186,6 +192,8 @@ const WORLD_DAY = [
     { sys: 'Graveyards', run: (w) => Graveyards.processDay(w, null) },
     { sys: 'NpcTheft', run: (w) => NpcTheft.processDay(w, null) },
     { sys: 'Brawls', run: (w) => Brawls.processDay(w, null) },
+    // The town pits fight their nights (the player's bets and fighters wait: systems/pitFights.js)
+    { sys: 'PitFights', run: (w) => PitFights.processDay(w, null) },
     { sys: 'TownMemory', run: (w) => TownMemory.processDay(w, null) },
     { sys: 'TownCrimes', run: (w) => TownCrimes.processDay(w, null) },
     // The towns' water: foul and dry wells, the sick, the carriers, the leaving (systems/water.js)
@@ -228,6 +236,12 @@ const WORLD_DAY = [
     { sys: 'Maiming', run: (w) => Maiming.processDay(w, null) },
     // The realms' capitals hang their condemned, martyrs' shrines draw pilgrims and fade (the House's own list waits: systems/executions.js)
     { sys: 'Executions', run: (w) => Executions.processDay(w, null) },
+    // The realms' dead on show rot and come down (systems/gibbets.js)
+    { sys: 'Gibbets', run: (w) => Gibbets.processDay(w, null) },
+    // The realms treat their own captives, blinded columns walk home, the stakes rot (the House's own column and talks wait: player/prisonerFates.js)
+    { sys: 'PrisonerFates', run: (w) => PrisonerFates.processDay(w, null) },
+    // The realms' courts flog, brand and send their convicts to the mines and the oars; the crown's gangs work (the House's own wait: systems/penalLabour.js)
+    { sys: 'PenalLabour', run: (w) => PenalLabour.processDay(w, null) },
     // The jurists finish their codes, codes steady their realms, resentful towns take back their names (systems/namedLegacy.js)
     { sys: 'NamedLegacy', run: (w) => NamedLegacy.processDay(w, null) },
     { sys: 'Concessions', run: (w) => Concessions.processDay(w, null) },
@@ -257,12 +271,16 @@ const WORLD_DAY = [
     { sys: 'Climate', run: (w) => Climate.processDay(w, null) },
     // Age-defining crises: invasions, great plagues, schisms, famines, gold rushes (systems/crises.js)
     { sys: 'Crises', run: (w) => Crises.processDay(w, null) },
+    // Townsfolk families feud on, kill and settle with no one alive; the House's own feuds wait for the heir (systems/bloodFeuds.js)
+    { sys: 'BloodFeuds', run: (w) => BloodFeuds.processDay(w, null) },
     // The last crisis of the age plays on (the reckoning does not gather with no one alive; systems/lastCrisis.js)
     { sys: 'LastCrisis', run: (w) => LastCrisis.processDay(w, null) },
     // Great old realms sag under their own weight; the player's strains wait (systems/realmDecline.js)
     { sys: 'RealmDecline', run: (w) => RealmDecline.processDay(w, null) },
     // The commons rise and the realms meet them by their lords' lights; a rising against the empty throne is the realm's (systems/peasantRevolts.js)
     { sys: 'PeasantRevolts', run: (w) => PeasantRevolts.processDay(w, null) },
+    // Burnt towns rebuild and the realms at war harry each other; the hosts after the player go home (systems/harrying.js)
+    { sys: 'Harrying', run: (w) => Harrying.processDay(w, null) },
     // The Timeline of the Realm keeps recording while no one lives (systems/realmTimeline.js)
     { sys: 'RealmTimeline', run: (w) => RealmTimeline.processDay(w, null) },
     // The House's cadet branches live on while it is held in trust: they keep their

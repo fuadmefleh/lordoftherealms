@@ -77,6 +77,8 @@ import { Traits } from './traits.js';
 import { Ledger } from './ledger.js';
 import { Townsfolk } from './townsfolk.js';
 import { RealmDecline } from './realmDecline.js';
+// The dead on show: the commons' fear of rising (systems/gibbets.js)
+import { Gibbets } from './gibbets.js';
 // The scaffold: a rebel leader condemned waits there for the player's word (systems/executions.js; run time only)
 import { Executions } from './executions.js';
 
@@ -377,6 +379,11 @@ export const PeasantRevolts = {
             v += _num(t.held);
             if (v > 0) add('wounds', v);
             else if (v < 0) parts.push({ id: 'fear', label: 'Fear', icon: '😨', v: _r1(v) });
+        }
+        // The dead on show at its gate and crossroads, and its neighbours' (systems/gibbets.js)
+        {
+            const dread = Gibbets.revoltDread(world, s, day);
+            if (dread >= 0.5) parts.push({ id: 'gibbets', label: 'Heads on the gate', icon: '💀', v: _r1(-dread) });
         }
         // Bread and charters
         {
@@ -1267,6 +1274,8 @@ export const PeasantRevolts = {
                         if (p && p.died == null) { p.away = null; Townsfolk.slay(s.folk, p, day, 'hanged for leading a rising', world); }
                     }
                     Traits.recordDeed(player, 'cruelty', 1);
+                    // The leader's body is yours to show (systems/gibbets.js)
+                    Gibbets.offerBody(player, world, { key: `revolt:${pr.id}`, name: pr.name, rank: 'rebel', source: 'rebel', how: `hanged for leading the rising at ${pr.town}`, q: pr.q, r: pr.r, kingdomId: pr.kingdomId, rebel: true, kin: pr.pid != null ? { q: pr.q, r: pr.r, pid: pr.pid } : null });
                 }
                 ps.stats.hanged = _num(ps.stats.hanged) + 1;
                 return { success: true, text: handed ? `${pr.name} is given to the scaffold.` : PeasantRevolts.line('hanged', { leader: pr.name, town: pr.town }) };

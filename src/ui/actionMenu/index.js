@@ -26,6 +26,8 @@ import './dutyScenes.js';
 import './winterScenes.js';
 import './jobs.js';
 import './gambling.js';
+// The Fighting Pit: bouts, the book, fighters, the bear and the birds (systems/pitFights.js)
+import './pitFights.js';
 import './realm.js';
 import './skills.js';
 import './social.js';
@@ -70,6 +72,8 @@ import './lastCrisis.js';
 // 🔥 Risings: the commons risen against you, the grievance of your towns (systems/peasantRevolts.js)
 import './peasantRevolts.js';
 import './nemesis.js';
+// Blood Feuds: families, Houses and crowns owing blood; wergild, matches, judgement (systems/bloodFeuds.js)
+import './bloodFeuds.js';
 // Friends & Bonds: sworn kin, drinking companions, mentors, protégés (systems/bonds.js)
 import './bonds.js';
 // Your Crimes & Enemies: charge sheets, bounty hunters, blood debts (systems/wanted.js)
@@ -97,8 +101,12 @@ import './kinCrimes.js';
 import './maiming.js';
 // The scaffold: public executions, the crowd, martyrs' shrines (systems/executions.js)
 import './executions.js';
+// The dead on show and war trophies (systems/gibbets.js)
+import './gibbets.js';
 // The dungeon: prisoners put to the question (systems/interrogation.js)
 import './interrogation.js';
+// The fate of prisoners after a battle: the captives scene, ransoms, oaths, stakes (player/prisonerFates.js)
+import './prisonerFates.js';
 import './townsfolk.js';
 import './discovery.js';
 import './outlawLairs.js';
@@ -143,6 +151,7 @@ import './calendar.js';
 import './timeSkip.js';
 import './scenario.js';
 import './atrocities.js';
+import './harrying.js';
 
 // Every panel's show* method is remembered, so the open panel redraws after the day (ui/panelRefresh.js)
 trackShows(ActionMenu);

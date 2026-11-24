@@ -28,6 +28,10 @@ const topLevel = [
     'patronage', 'digging', 'carrying', 'downed', 'npcChat', 'llmModels',
     'outlawLairs',
     'atrocities',
+    // The fate of prisoners after a battle (player/prisonerFates.js)
+    'prisonerFates',
+    // Harrying the countryside in war (systems/harrying.js, player/harrying.js)
+    'harrying',
     'finance',
     'markets',
     'merchantCaravans',
@@ -107,6 +111,12 @@ const topLevel = [
     'maiming',
     // Public executions: the condemned, the crowd, the last words, martyrs (systems/executions.js)
     'executions',
+    // The dead on show and war trophies (systems/gibbets.js, world/deadDisplays.js)
+    'gibbets',
+    // Pit fights and blood sports: bouts, bear-baiting, cockfights, the book, the law (systems/pitFights.js)
+    'pitFights',
+    // Lesser punishments and penal labour: the lash, the pillory, the iron, the mines and the oar (systems/penalLabour.js)
+    'penalLabour',
     // The dungeon: putting prisoners to the question (systems/interrogation.js)
     'interrogation',
     'realmIntel',
@@ -219,6 +229,8 @@ const topLevel = [
     // Questioned by the watch when a town's suspicion adds up (systems/watchQuestioning.js)
     'watchQuestioning',
     'nemesis',
+    // Blood feuds and blood money: wergild tariffs, avengers, feuds among the world's own (systems/bloodFeuds.js)
+    'bloodFeuds',
     // Friends & Bonds: sworn kin, drinking companions, mentors, protégés (systems/bonds.js)
     'bonds',
     // Personal quests from the House's own history (systems/houseQuests.js)

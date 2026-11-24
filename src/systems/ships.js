@@ -380,7 +380,19 @@ export const Ships = {
 
     /** Daily wages for the sailors aboard. */
     getDailyWages(ship) {
-        return Math.round(this.getCrew(ship) * this._getCrewSettings().wagePerSailorPerDay);
+        // (convicts at the oars draw no wage: systems/penalLabour.js keeps ship.convictOars)
+        const unpaid = Math.min(this.getCrew(ship), Math.max(0, Number((ship && ship.convictOars) || 0)));
+        return Math.round((this.getCrew(ship) - unpaid) * this._getCrewSettings().wagePerSailorPerDay);
+    },
+
+    /** Resting morale lost to a sullen convict bench: the convicts' share of the crew × moralePerShare (data/penalLabour.json galleys). */
+    convictMoraleShift(ship) {
+        const n = Math.max(0, Number((ship && ship.convictOars) || 0));
+        const crew = this.getCrew(ship);
+        if (!n || !(crew > 0)) return 0;
+        const g = DataLoader._gamedata && DataLoader._gamedata.penalLabour && DataLoader._gamedata.penalLabour.galleys;
+        const per = g && Number.isFinite(g.moralePerShare) ? g.moralePerShare : -20;
+        return Math.round(Math.min(1, n / crew) * per);
     },
 
     /** Gold to sign on `count` sailors. */
@@ -2055,12 +2067,14 @@ export const Ships = {
         for (const ship of ships) {
             if (ship.crew <= 0) continue;
             crewed++;
+            // (a sullen convict bench holds the whole ship's spirits down)
+            const rest = resting + this.convictMoraleShift(ship);
             if (!paid) {
                 this._setMorale(ship, ship.morale - cfg.unpaidMoraleLoss);
-            } else if (ship.morale < resting) {
+            } else if (ship.morale < rest) {
                 // Shore leave in a harbour mends spirits faster than the open sea
-                this._setMorale(ship, Math.min(resting, ship.morale + (ship.status === 'docked' ? 3 : 1)));
-            } else if (ship.morale > resting) {
+                this._setMorale(ship, Math.min(rest, ship.morale + (ship.status === 'docked' ? 3 : 1)));
+            } else if (ship.morale > rest) {
                 this._setMorale(ship, ship.morale - 1);
             }
             if (ship.morale < cfg.desertionMorale - lead) {

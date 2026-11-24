@@ -53,6 +53,8 @@ import { NPCLords } from '../world/npcLords.js';
 import { RivalHouses } from './rivalHouses.js';
 import { Maiming } from './maiming.js';
 import { Raising } from './raising.js';
+// (a captive dead in your keeping: blood owed, systems/bloodFeuds.js; run time only)
+import { BloodFeuds } from './bloodFeuds.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -570,6 +572,7 @@ export const RivalCaptives = {
         if (i >= 0) kids.splice(i, 1);
         if (wasHead) RivalHouses._succeed(world, rival, { notices: [] }, player, { deposed: false });
         const blame = how === 'rescue' ? _num(D.rescueFeud, 20) : _num(D.feud, 50);
+        BloodFeuds.onHouseBlood(world, player, rival, `${c.firstName} ${RivalHouses.surname(rival)}`, how === 'rescue' ? 'battle' : 'captive', wasHead);
         House.accrueRivalFeud(player, world, rival.kingdomId, blame, `${c.firstName} died in your keeping`);
         RivalHouses.remember(rival, world, 'diedCaptive', c.firstName);
         RivalHouses._note(rival, world, `${c.firstName} died a captive of yours.`, 'bereaved');

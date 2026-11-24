@@ -1122,8 +1122,27 @@ export const Interrogation = {
         const key = `pow|${kid}|${day}|${o.how || ''}|${st.nextPow}`;
         const chance = Math.min(_num(P.maxChance, 0.7), _num(P.chance, 0.35) + strength * _num(P.perStrength, 0.0025) + (o.siege ? _num(P.siegeBonus, 0.15) : 0));
         if (_roll(world, key) >= chance) return null;
-        const rank = strength >= _num(P.lordAt, 90) && _roll(world, `${key}|lord`) < _num(P.lordChance, 0.5) ? 'lord'
-            : strength >= _num(P.knightAt, 40) ? 'knight' : 'captain';
+        return Interrogation.addPow(player, world, { ...o, strength });
+    },
+
+    /**
+     * A captain, knight or lord of realm o.kingdomId into the dungeon, no roll
+     * (takePrisoners after its roll; player/prisonerFates.js for the knights of
+     * a beaten column). o.rank forces the rank; else by o.strength. → the prisoner, or null.
+     */
+    addPow(player, world, o = {}) {
+        if (!player || !world || !Interrogation.enabled()) return null;
+        const P = Interrogation.config().pow;
+        const kid = o.kingdomId;
+        const k = kid != null && typeof world.getKingdom === 'function' ? world.getKingdom(kid) : null;
+        if (!k || k.isAlive === false) return null;
+        const strength = _num(o.strength);
+        const st = Interrogation.state(player);
+        const day = _day(world);
+        const key = `pow|${kid}|${day}|${o.how || ''}|${st.nextPow}`;
+        const rank = ['lord', 'knight', 'captain'].includes(o.rank) ? o.rank
+            : strength >= _num(P.lordAt, 90) && _roll(world, `${key}|lord`) < _num(P.lordChance, 0.5) ? 'lord'
+                : strength >= _num(P.knightAt, 40) ? 'knight' : 'captain';
         const title = { lord: 'Lord', knight: 'Ser', captain: 'Captain' }[rank];
         const name = `${title} ${Interrogation._powName(world, kid, key)}`;
         const w = { id: st.nextPow++, name, title: { lord: 'A lord', knight: 'A knight', captain: 'A captain' }[rank], rank, gender: 'male', kingdomId: kid, realm: Names.realm(k.name), day, how: o.how || 'in the field', offered: null, grumbled: 0 };
@@ -1221,7 +1240,8 @@ export const Interrogation = {
                 continue;
             }
             const held = day - _num(w.day);
-            if (held >= _num(P.offerAfter, 21) && !w.offered) {
+            // (talks of your own under way — player/prisonerFates.js: their herald answers those instead)
+            if (held >= _num(P.offerAfter, 21) && !w.offered && !w.talks) {
                 const amount = Interrogation.powRansom(player, world, w);
                 w.offered = day;
                 if (amount > 0) out.notices.push({ icon: '💰', title: `A Ransom for ${w.name}`, text: `${w.realm} will pay ${Utils.formatGold(amount)} gold out of its treasury to have ${w.name} home (🔗 The Dungeon).`, type: 'info' });

@@ -1,6 +1,8 @@
 // Espionage — missions members (split from the original monolith).
 import { Espionage } from './_ref.js';
 import { Traits } from '../traits.js';
+// (a ruler's blood on the House's hands: systems/bloodFeuds.js; run time only)
+import { BloodFeuds } from '../bloodFeuds.js';
 import { DataLoader, Utils, Technology, Hex, Tavern, Characters, House, Schemes, RealmWars, NPCLords, Economy, MoneySupply } from './_imports.js';
 
 // A realm's chests lose `amount` to a spy's work (unrest put down, stores wrecked, a
@@ -666,6 +668,7 @@ Object.assign(Espionage, {
                     const oldRulerName = kingdom.ruler;
                     // The court suspects whose knife it was; the heir swears it on his own heirs
                     if (kingdom.lord) NPCLords.rememberDeed(world, kingdom.lord, 'kin_slain', { note: oldRulerName });
+                    BloodFeuds.onLordBlood(world, player, kingdom, oldRulerName, 'assassinated', true);
                     // Generate new ruler (succession)
                     if (typeof Characters !== 'undefined') {
                         const newRuler = Characters.generateCharacter({ culture: kingdom.culture, isRuler: true });

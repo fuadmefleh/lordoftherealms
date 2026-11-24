@@ -55,8 +55,11 @@ import { HandBuilding } from '../world/handBuilding.js';
 import { RiverLife } from './riverLife.js';
 import { LlmProse } from './llmProse.js';
 import { Crises } from './crises.js';
+import { BloodFeuds } from './bloodFeuds.js';
 import { LastCrisis } from './lastCrisis.js';
 import { Executions } from './executions.js';
+import { Gibbets } from './gibbets.js';
+import { PenalLabour } from './penalLabour.js';
 import { PeasantRevolts } from './peasantRevolts.js';
 import { GreatWorks } from './greatWorks.js';
 import { NamedLegacy } from './namedLegacy.js';
@@ -67,6 +70,7 @@ import { RealmTimeline } from './realmTimeline.js';
 import { Sagas } from './sagas.js';
 import { Sieges } from './sieges.js';
 import { Atrocities } from './atrocities.js';
+import { WarStakes } from '../world/warStakes.js';
 import { HoldingSieges } from './holdingSieges.js';
 import { Discovery } from './discovery.js';
 import { Heralds } from './heralds.js';
@@ -103,6 +107,7 @@ import { Labour } from './labour.js';
 import { Migration } from './migration.js';
 import { Hinterland } from '../world/hinterland.js';
 import { Harvests } from '../world/harvests.js';
+import { Harrying } from './harrying.js';
 import { Transport } from '../world/transport.js';
 import { Infrastructure } from './infrastructure.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
@@ -380,6 +385,9 @@ export const SaveLoad = {
             // The growing season, the harvests reckoned and their news (world/harvests.js;
             // each town's fields travel with it: settlement.farm)
             harvests: Harvests.serialize(world),
+            // The countryside harried in war: scarred towns, pursuit hosts, the realms' grudges (systems/harrying.js;
+            // each town's scar travels with it: settlement.harried)
+            harrying: Harrying.serialize(world),
             // The grain dealers' bans and news (systems/engrossing.js; each town's loft travels with it: settlement.engross)
             engrossing: Engrossing.serialize(world),
             // The roads' state (tier, repair, crossings, closures), public works, canals,
@@ -430,6 +438,8 @@ export const SaveLoad = {
             riverLife: RiverLife.serialize(world),
             // The age-defining crises: the one running and those on record (systems/crises.js)
             crises: Crises.serialize(world),
+            // Blood feuds between families, Houses, the crowns and yours (systems/bloodFeuds.js)
+            bloodFeuds: BloodFeuds.serialize(world),
             // Regions and seas named after Houses (systems/namedLegacy.js; codes ride on kingdom.laws, renamed towns on their tiles)
             namedLegacy: NamedLegacy.serialize(world),
             // The names of the ranges, rivers, seas... as first given, so a town founded later renames none (world/geoNames.js)
@@ -438,6 +448,12 @@ export const SaveLoad = {
             lastCrisis: LastCrisis.serialize(world),
             // Martyrs' shrines and the realms' scaffolds (systems/executions.js)
             executions: Executions.serializeWorld(world),
+            // The towns with the dead on show, the desecrations on record (systems/gibbets.js; the displays travel with their towns)
+            gibbets: Gibbets.serializeWorld(world),
+            // Captives impaled along the roads, blinded columns walking home (world/warStakes.js, player/prisonerFates.js)
+            prisonerFates: world.prisonerFates ? JSON.parse(JSON.stringify(world.prisonerFates)) : null,
+            // The crown's convict gangs at its mines and oars, and the courts' tally (systems/penalLabour.js)
+            penal: PenalLabour.serialize(world),
             // The commons' grievances town by town, the risings afoot, burned fields growing back (systems/peasantRevolts.js)
             peasantRevolts: PeasantRevolts.serialize(world),
             // The climate's eras begun and their chronicle (world/climate.js)
@@ -574,7 +590,9 @@ export const SaveLoad = {
                 // the tongues its court has learned (world/cultures.js)
                 'shipcraft', 'tongues',
                 // How far a great old realm has sagged under its own weight (systems/realmDecline.js)
-                'decline']),
+                'decline',
+                // A blinded army come home, men sworn to the player, the stakes it dreads (world/warStakes.js)
+                'captivity']),
             // A realm born after world generation (founded by the player, or risen at the
             // Dawn of Man) isn't regenerated from the seed: keep what made it
             ...(k.createdByPlayer || k.dawnBorn ? {
@@ -611,8 +629,14 @@ export const SaveLoad = {
         'maimed', 'maiming',
         // The condemned awaiting your word, and the scaffold's record (systems/executions.js)
         'executions',
+        // The bodies in your hands and what became of the dead you showed (systems/gibbets.js)
+        'gibbets',
+        // Convicts at your mines, ships and galleys; your own stripes and terms served (systems/penalLabour.js)
+        'penal',
         // The dungeon: prisoners' sessions, the names they gave, what they told of the Houses (systems/interrogation.js)
         'interrogation',
+        // The fate of prisoners: a column awaiting your word, oaths, your men held, no quarter, the record (player/prisonerFates.js)
+        'prisonerFates',
         // Where the player has begged lately, and what it brought (player/begging.js)
         'begging',
         // The household guard's standing order: defend against anyone, the watch too (ui/innerMapEscort.js)
@@ -704,6 +728,8 @@ export const SaveLoad = {
         'household',
         // What thieves took from you: the watch's and the fence's part in it, the clues (systems/npcTheft.js)
         'theftBook',
+        // Your bets, fighters, birds and record at the town pits (systems/pitFights.js; each pit travels with its town: settlement.pit)
+        'pitFights',
         // Tilled ground and crops on the hexes' inner maps (systems/crops.js; re-laid by world/innerMap/farmPlots.js)
         'farmPlots',
         // Your beasts, head by head, at the places you keep them (systems/livestock.js;
@@ -1133,6 +1159,8 @@ export const SaveLoad = {
         TradePolicy.restore(saveData.tradePolicy, world);
         // The harvests (older saves: none — the next day sows and the towns derive their fields)
         Harvests.restore(saveData.harvests, world);
+        // The harried countryside (older saves: none)
+        Harrying.restore(saveData.harrying, world);
         // The grain dealers (older saves: none)
         Engrossing.restore(saveData.engrossing, world);
         // The roads the player built: real road hexes again in the regenerated world
@@ -1177,6 +1205,8 @@ export const SaveLoad = {
         LlmProse.restore(saveData.prose, world);
         // The crises (older saves: none yet; the first is scheduled on the next day)
         Crises.restore(saveData.crises, world);
+        // The blood feuds (older saves: none sworn yet)
+        BloodFeuds.restore(saveData.bloodFeuds, world);
         // The named regions and seas (older saves: none)
         NamedLegacy.restore(saveData.namedLegacy, world);
         GeoNames.restore(saveData.geography, world);
@@ -1184,6 +1214,14 @@ export const SaveLoad = {
         LastCrisis.restore(saveData.lastCrisis, world);
         // Martyrs' shrines and the realms' scaffolds (older saves: none)
         Executions.restoreWorld(saveData.executions, world);
+        // The dead on show (older saves: none)
+        Gibbets.restoreWorld(saveData.gibbets, world);
+        // The stakes and the blinded columns (older saves: none); the realms' battles feed the captives' inbox again
+        world.prisonerFates = saveData.prisonerFates ? JSON.parse(JSON.stringify(saveData.prisonerFates)) : undefined;
+        if (world.prisonerFates) WarStakes.state(world);
+        world.captivesFeed = [];
+        // The crown's convict gangs (older saves: none)
+        PenalLabour.restore(saveData.penal, world);
         // The commons' grievances and risings (older saves: none — grievance gathers from the next week)
         PeasantRevolts.restore(saveData.peasantRevolts, world);
         // The climate's eras (older saves: none recorded — the curve is the seed's, so it runs on the same)

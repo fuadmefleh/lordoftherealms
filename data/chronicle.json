@@ -111,6 +111,7 @@
             "crewWages": { "name": "Crew wages", "group": "military" },
             "ships": { "name": "Ships: upkeep, repairs, fittings", "group": "military" },
             "plunder": { "name": "Battle spoils", "group": "military" },
+            "warRansoms": { "name": "Prisoners of war: ransoms and sales", "group": "military", "desc": "Knights ransomed out of their realm's treasury or sold to another crown; your own men bought back." },
             "crownWages": { "name": "Crown wages (commission)", "group": "military", "desc": "The crown's pay for a commission (a captain's or general's wages and bonuses), from its treasury." },
             "banditTolls": { "name": "Tolls paid to bandits on the road", "group": "military" },
             "robbery": { "name": "Robbed on the road", "group": "other" },

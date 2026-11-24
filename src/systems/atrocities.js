@@ -59,6 +59,8 @@ import { Illness } from './illness.js';
 import { Townsfolk } from './townsfolk.js';
 import { Crises } from './crises.js';
 import { Water } from './water.js';
+// War trophies: dread in the realm whose dead you keep (systems/gibbets.js; run time only)
+import { Gibbets } from './gibbets.js';
 
 const KINDS = ['salt', 'hostages', 'plague', 'massacre', 'wells'];
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
@@ -74,6 +76,9 @@ const DEFAULTS = {
     massacre: { apCost: 4, windowDays: 30, popKeep: 0.45, plunder: [4, 8], lootShare: 0.85, happiness: -40 },
     // Carcasses down the town's wells (systems/water.js): it drinks its cisterns, then thirsts
     wells: { apCost: 3, morale: 6, happiness: -10 },
+    // Harrying the countryside in war (systems/harrying.js, player/harrying.js): burning, firing the fields, driving the herds — and the peasants put to the sword
+    harry: { butcher: 2, karma: -3, reputation: -8 },
+    slaughter: { butcher: 20, karma: -18, reputation: -20 },
     marks: {}, chronicle: {}, events: {}, lines: {},
 };
 
@@ -164,6 +169,8 @@ export const Atrocities = {
         if (h && s && h.q === s.q && h.r === s.r && !h.hollow) p += _num(C.hostages.termsBonus);
         if (term === 'ransom' || term === 'tribute') p += Math.min(_num(I.fearMax), Atrocities.butcher(player) * _num(I.fearPerPoint));
         if (term === 'surrender') p -= Atrocities.perfidy(player) * _num(I.surrenderPenaltyPerPoint);
+        // The skull of their king in your hall, his banner on your wall: the town fears you the more (systems/gibbets.js)
+        if (s && s.kingdom != null) p += Gibbets.trophyDread(player, s.kingdom);
         return p;
     },
 

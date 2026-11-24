@@ -13,6 +13,7 @@ import { CadetBranches } from '../../systems/cadetBranches.js';
 import { CrownSuccession } from '../../systems/crownSuccession.js';
 import { Court } from '../../systems/court.js';
 import { Regency } from '../../systems/regency.js';
+import { BloodFeuds } from '../../systems/bloodFeuds.js';
 import { ConversationScene } from '../conversationScene.js';
 import { NpcPortrait } from '../npcPortrait.js';
 import { openPersonScene, personSprite } from './peopleScene.js';
@@ -732,6 +733,12 @@ Object.assign(ActionMenu, {
             // Named enemies who remember you (ui/actionMenu/nemesis.js)
             const foes = (player.nemesis && player.nemesis.list) || [];
             against.push({ icon: '🗡️', name: 'Nemeses', desc: foes.length ? foes.map(n => n.name).join(', ') : '', act: 'showNemesisPanel', side: foes.length ? String(foes.length) : '', tone: foes.length ? 'bad' : '' });
+            // Families, Houses and crowns your House owes blood, or who owe it to you (ui/actionMenu/bloodFeuds.js)
+            {
+                const bf = BloodFeuds.ofPlayer(game.world);
+                const owing = bf.filter(f => f.owes !== BloodFeuds.playerIndex(f));
+                against.push({ icon: '⚔️', name: 'Blood Feuds', desc: bf.length ? bf.map(f => f.sides[1 - BloodFeuds.playerIndex(f)].name).slice(0, 3).join(', ') : 'Blood owed, the blood price, matches, judgement', act: 'showBloodFeuds', side: bf.length ? String(bf.length) : '', tone: owing.length ? 'bad' : bf.length ? 'gold' : '' });
+            }
             // The crowns' charge sheets, bounty hunters, the orphans growing up (ui/actionMenu/wanted.js)
             {
                 const wr = Object.values((player.wanted && player.wanted.realms) || {});

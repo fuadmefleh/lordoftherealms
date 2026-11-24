@@ -75,12 +75,18 @@ const EXPECTED_KEYS = [
     'showMaiming', 'showMaimTarget', 'maimingAct', 'showMaimAids', 'maimAidAct', 'streetMaimAct', 'rivalCaptiveAct', 'rivalSeizeAct',
     // The dungeon: prisoners put to the question (ui/actionMenu/interrogation.js): +3
     'showDungeon', 'showDungeonPrisoner', 'dungeonAct',
+    // The fate of prisoners: the captives scene, ransoms, oaths, stakes (ui/actionMenu/prisonerFates.js): +3
+    'showCaptivesScene', 'showCaptives', 'captivesAct',
     // The scaffold: public executions (ui/actionMenu/executions.js): +5
     'showExecutions', 'showCondemned', 'executionsAct', 'showScaffoldCrowd', 'scaffoldCrowdAct', 'showScaffoldHere',
-    'showCrisesPanel', 'crisisAct', 'showNemesisPanel', 'nemesisAct', 'showAbdication', 'abdicationAct', 'showNamedLegacy', 'namedLegacyAct', '_estateHtml', 'annalsScribeFor', 'clearAnnalsScribe',
+    // The dead on show and war trophies (ui/actionMenu/gibbets.js): +2
+    'showGibbets', 'gibbetsAct',
+    'showCrisesPanel', 'crisisAct', 'showNemesisPanel', 'nemesisAct', 'showBloodFeuds', 'bloodFeudAct', 'showAbdication', 'abdicationAct', 'showNamedLegacy', 'namedLegacyAct', '_estateHtml', 'annalsScribeFor', 'clearAnnalsScribe',
     'showSickness', 'sicknessAct',
     // Water: thirst, the skins, the town's wells (ui/actionMenu/water.js)
     'showWater', 'waterAct',
+    // The Fighting Pit (ui/actionMenu/pitFights.js)
+    'showPit', 'showPitBet', 'showPitFighter', 'pitAct',
     // Stewards & governors (ui/actionMenu/stewards.js): +2
     'showStewards', 'stewardsAct',
     // Migration: where the people go, settlers & borders (ui/actionMenu/migration.js, 2026-11-14): +2
@@ -118,6 +124,8 @@ const EXPECTED_KEYS = [
     'showGraveyards', 'gravesAct',
     // The dark deeds of war (ui/actionMenu/atrocities.js): +2
     'showAtrocities', 'atrocityAct',
+    // Harrying the countryside in war (ui/actionMenu/harrying.js): +2
+    'showHarrying', 'harryAct',
     // Foul Deeds against a town: its well, its granary, a plague lie, hoarded grain (ui/actionMenu/townCrimes.js): +2
     'showTownCrimes', 'townCrimesAct',
     // The livestock market and your herds (ui/actionMenu/livestock.js): +4
@@ -242,7 +250,7 @@ describe('ActionMenu split — structural equivalence', () => {
     });
 
     it('has 461 members', () => {
-        expect(Object.keys(ActionMenu)).toHaveLength(524); // (+1 showScaffoldHere; +2 the harbour, ui/actionMenu/harbour.js; +1 rivalSeizeAct; +2 water, ui/actionMenu/water.js; +3 the dungeon, ui/actionMenu/interrogation.js; +5 the scaffold, ui/actionMenu/executions.js; +2 risings, ui/actionMenu/peasantRevolts.js; +4 matches & betrothals, ui/actionMenu/matches.js; +1 rivalCaptiveAct; +6 maiming, ui/actionMenu/maiming.js; +6 haggling, ui/actionMenu/haggle.js; +1 lastCrisisAct; +2 namedLegacy; +2 highCrowns)
+        expect(Object.keys(ActionMenu)).toHaveLength(537); // (+2 harrying, ui/actionMenu/harrying.js; +3 prisoners of war, ui/actionMenu/prisonerFates.js; +4 the pit, ui/actionMenu/pitFights.js; +2 blood feuds, ui/actionMenu/bloodFeuds.js; +2 the dead & trophies, ui/actionMenu/gibbets.js; +1 showScaffoldHere; +2 the harbour, ui/actionMenu/harbour.js; +1 rivalSeizeAct; +2 water, ui/actionMenu/water.js; +3 the dungeon, ui/actionMenu/interrogation.js; +5 the scaffold, ui/actionMenu/executions.js; +2 risings, ui/actionMenu/peasantRevolts.js; +4 matches & betrothals, ui/actionMenu/matches.js; +1 rivalCaptiveAct; +6 maiming, ui/actionMenu/maiming.js; +6 haggling, ui/actionMenu/haggle.js; +1 lastCrisisAct; +2 namedLegacy; +2 highCrowns)
     });
 
     it('every member except the known data props is a function', () => {

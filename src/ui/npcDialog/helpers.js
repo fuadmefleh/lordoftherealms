@@ -15,6 +15,7 @@ import { SocialSkills } from '../../systems/socialSkills.js';
 import { Fame } from '../../systems/fame.js';
 import { Hospitality } from '../../systems/hospitality.js';
 import { Brawls } from '../../systems/brawls.js';
+import { PitFights } from '../../systems/pitFights.js';
 import { InnerMapBrawls } from '../innerMapBrawls.js';
 
 export function _mem(npc) {
@@ -281,6 +282,8 @@ function _ownFights(npc, world) {
     }
     let lines = [];
     try { lines = Brawls.selfLines(world, _getSettlement(), npc && npc._person, day, live); } catch { lines = []; }
+    // (the pit: their record, the belt, the men they killed in it, the book they keep — systems/pitFights.js)
+    try { lines = lines.concat(PitFights.selfLines(world, _getSettlement(), npc && npc._person)); } catch { /* no pit */ }
     if (!lines.length) return [];
     return ['Your own fights:', ...lines, 'If asked about a fight, answer from this, in your own voice: own it, justify it, or play it down, but do not pretend it did not happen.'];
 }

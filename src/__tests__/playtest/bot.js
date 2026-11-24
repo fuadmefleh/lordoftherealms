@@ -48,8 +48,10 @@ import { Heirs } from '../../systems/heirs.js';
 import { CadetBranches } from '../../systems/cadetBranches.js';
 import { Townsfolk } from '../../systems/townsfolk.js';
 import { Hospitality } from '../../systems/hospitality.js';
+import { PitFights } from '../../systems/pitFights.js';
 import { Ailments } from '../../systems/ailments.js';
 import { Sieges } from '../../systems/sieges.js';
+import { PlayerHarrying } from '../../player/harrying.js';
 import { HoldingSieges } from '../../systems/holdingSieges.js';
 import { Discovery } from '../../systems/discovery.js';
 import { MerchantHouses } from '../../systems/merchantHouses.js';
@@ -65,6 +67,10 @@ import { Bourse } from '../../systems/bourse.js';
 import { Thirst } from '../../player/thirst.js';
 import { Water } from '../../systems/water.js';
 import { Executions } from '../../systems/executions.js';
+import { Gibbets } from '../../systems/gibbets.js';
+import { PrisonerFates } from '../../player/prisonerFates.js';
+import { Interrogation } from '../../systems/interrogation.js';
+import { Trials } from '../../player/trials.js';
 import { MerchantPrince } from '../../systems/merchantPrince.js';
 import { Guilds } from '../../systems/guilds.js';
 import { MerchantCaravans } from '../../systems/merchantCaravans.js';
@@ -80,6 +86,7 @@ import { Transport } from '../../world/transport.js';
 import { PublicWorks } from '../../systems/publicWorks.js';
 import { Mints } from '../../systems/mints.js';
 import { RivalAgents } from '../../systems/rivalAgents.js';
+import { BloodFeuds } from '../../systems/bloodFeuds.js';
 import { Languages } from '../../systems/languages.js';
 import { Commissions } from '../../systems/commissions.js';
 import { Stewards } from '../../systems/stewards.js';
@@ -1218,23 +1225,26 @@ function royalCourt(game, stats) {
         const best = Kingship.candidates(player, world, office).find(c => !c.office);
         if (best && Kingship.appoint(player, world, office, best.kind, best.id).success) count(stats, 'councilAppointed');
     }
-    // Keep the crown's books (systems/fiscal.js): a player's crown never
-    // reviews its own taxes, so a ruler who never looks runs the chests dry
+    // The crown's books (systems/fiscal.js): the ruler leaves taxes, the court and
+    // the army's pay to the treasurers (Fiscal._review reviews the ruled realm as it
+    // does an AI crown's, within ruledMaxTax), so the soak measures a hands-off
+    // ruler. Only in a real crisis — the realm near revolt under heavy taxes — does
+    // the ruler take the taxes in hand and ease them, handing them back once calm.
+    // (Before 2026-11-24 the bot set every lever by days of spending alone, which
+    // held the realm at heavy taxes for good and overruled the treasurers.)
     const ruled = Throne.ruledKingdom(player, world);
     if (ruled && world.day % 7 === 0) {
         const f = CrownBooks.state(ruled);
-        const days = Fiscal.reserveDays(ruled);
-        const levels = ['light', 'standard', 'heavy', 'crushing'];
-        const cur = Math.max(0, levels.indexOf(f.level));
+        const manual = f.manual || {};
         const stab = typeof ruled.stability === 'number' ? ruled.stability : 60;
-        let want = cur;
-        if (days < 15 && stab > 30) want = Math.min(2, cur + 1);
-        else if (days > 90 || stab < 25) want = Math.max(0, cur - 1);
-        if (want !== cur && Fiscal.setRate(player, world, 'all', levels[want]).success) count(stats, 'crownTaxSet');
-        const court = days < 10 ? 'frugal' : days > 120 ? 'lavish' : 'standard';
-        if (court !== f.courtLevel && Fiscal.setCourt(player, world, court).success) count(stats, 'crownCourtSet');
-        const pay = f.arrearsDays > 0 && days < 4 ? 'half' : 'full';
-        if (pay !== f.armyPay && Fiscal.setArmyPay(player, world, pay).success) count(stats, 'crownPaySet');
+        const crisis = !manual.tax && stab < 20 && ['heavy', 'crushing'].includes(f.level);
+        if (crisis) {
+            if (Fiscal.setRate(player, world, 'all', 'standard').success) count(stats, 'crownTaxSet');
+        } else if (manual.tax && stab > 40) {
+            if (Fiscal.setRate(player, world, 'all', 'auto').success) count(stats, 'crownTaxAuto');
+        }
+        if (manual.court && Fiscal.setCourt(player, world, 'auto').success) count(stats, 'crownCourtAuto');
+        if (manual.army && Fiscal.setArmyPay(player, world, 'auto').success) count(stats, 'crownPayAuto');
     }
     // (edicts only from a treasury with a cushion: their upkeep is the crown's, every day)
     const realm = Throne.ruledKingdom(player, world);
@@ -1840,6 +1850,43 @@ function fight(game, stats) {
     if (!foes.length) return;
     const res = PlayerMilitary.attackUnit(player, foes[0], world);
     count(stats, res && res.victory ? 'battlesWon' : 'battlesFought');
+    prisonersDay(game, stats);
+}
+
+/**
+ * The fate of prisoners (player/prisonerFates.js), as a middling lord would
+ * choose: oath-breakers hang; knights are ransomed at a fair price; a realm's
+ * men are mostly sent home on oath, sometimes taken into service, now and
+ * then just sent home (and, rarely, a hard lord cuts them down); outlaws
+ * mostly hang. Counter-offers are taken, a refused knight sold where a crown
+ * will buy him, and your own men bought back when the purse allows.
+ */
+export function prisonersDay(game, stats) {
+    const { player, world } = game;
+    const col = PrisonerFates.pending(player);
+    if (col) {
+        if (!col.oathDone) PrisonerFates.decideOathBreakers(player, world, true);
+        if (PrisonerFates.pending(player) && !col.noblesDone) PrisonerFates.decideNobles(player, world, 'ransom');
+        if (PrisonerFates.pending(player)) {
+            const x = Utils.random();
+            const fate = col.outlaw ? (x < 0.7 ? 'hang' : x < 0.85 ? 'service' : 'release')
+                : (x < 0.5 ? 'oath' : x < 0.8 ? 'service' : x < 0.98 ? 'release' : 'slaughter');
+            const r = PrisonerFates.decide(player, world, fate);
+            count(stats, r.success ? `captives_${fate}` : 'captivesFailed');
+        }
+    }
+    if (!player.interrogation) return;
+    for (const w of Interrogation.state(player).pows.slice()) {
+        const t = w && w.talks;
+        if (t && t.stage === 'offered') { if (PrisonerFates.acceptOffer(player, world, w.id).success) count(stats, 'ransomOffersTaken'); continue; }
+        if (t && (t.stage === 'refused' || t.stage === 'broken')) {
+            const b = PrisonerFates.buyers(player, world, w)[0];
+            if (b && PrisonerFates.sell(player, world, w.id, b.kingdomId).success) count(stats, 'knightsSold');
+        }
+    }
+    for (const h of (player.prisonerFates ? player.prisonerFates.held : []).slice()) {
+        if (h.fate === 'ransom' && player.gold >= h.ask * 2 && PrisonerFates.buyBack(player, world, h.id).success) count(stats, 'menBoughtBack');
+    }
 }
 
 /** An outlaw lair next door: storm it with a clearly stronger army, or buy peace when rich. */
@@ -2245,6 +2292,28 @@ function siege(game, stats) {
 }
 
 /**
+ * At war, in an enemy town with soldiers at its back: now and then harry it —
+ * fire the fields, drive off the herds, burn the farmsteads, scatter the
+ * peasants (never the slaughter). The realm's pursuit host that answers is met
+ * as any war host is (the harness's encounters). Returns true when it harried.
+ */
+function harry(game, stats) {
+    const { player, world } = game;
+    if (Sieges.active(player) || player.health < 50) return false;
+    const tile = world.getTile(player.q, player.r);
+    if (!tile || !tile.settlement || !PlayerHarrying.available(player, world, tile)) return false;
+    if (Utils.random() > 0.3) return false;
+    const opts = PlayerHarrying.options(player, world, tile).filter(o => o.ok && o.id !== 'slaughter');
+    const pick = ['fields', 'herds', 'torch', 'mill', 'scatter'].map(id => opts.find(o => o.id === id)).find(Boolean);
+    if (!pick) return false;
+    const r = PlayerHarrying.act(player, world, pick.id);
+    if (!r.success) return false;
+    count(stats, r.resisted ? 'harryResisted' : 'harried');
+    if (r.pursuit) count(stats, 'harryPursued');
+    return true;
+}
+
+/**
  * A holding under siege: march to relieve it when the army is strong enough
  * (and fight the host there), pay the enemy off when rich, send food when the
  * stores run low, and let the governor sally when the garrison outnumbers the
@@ -2358,6 +2427,37 @@ function cadets(game, stats) {
     }
 }
 
+/**
+ * A fight night at the town's pit (systems/pitFights.js): one evening in three
+ * with a settled purse the bot puts a small stake (a fiftieth of the purse, 5–25g)
+ * on the favourite of one bout and watches from the rail. It never steps into
+ * the pit, never bets where the pit has gone underground (a raid's fine and heat),
+ * and a long losing run puts it off for a season.
+ */
+function pitNight(game, tile, stats) {
+    const { player, world } = game;
+    const s = tile.settlement;
+    if (!s || !s.folk || player.gold < 300 || frugal(game)) return;
+    const pit = PitFights.ensure(world, s);
+    const card = pit && !pit.underground ? PitFights.card(world, s) : null;
+    if (!card || card.ran) return;
+    const st = PitFights.state(player);
+    if (st.offUntil > world.day) return;
+    if (((world.day * 2654435761) >>> 0) % 3 !== 0) return;
+    const men = card.bouts.filter(b => b.kind === 'men');
+    const bout = men[men.length - 1] || card.bouts[0];
+    const book = bout && PitFights.odds(world, s, bout);
+    if (!book) return;
+    const side = book.pA >= 0.5 ? 'a' : 'b';
+    const stake = Math.max(5, Math.min(25, Math.floor(player.gold / 50)));
+    const before = player.gold;
+    if (PitFights.bet(player, world, s, bout.i, side, stake).success) count(stats, 'pitBets');
+    if (PitFights.watch(player, world, s).success) count(stats, 'pitNights');
+    // (a run of bad nights — down 100g at the pits — and the bot stays away a season)
+    st.botNet = (st.botNet || 0) + (player.gold - before);
+    if (st.botNet <= -100) { st.offUntil = world.day + 30; st.botNet = 0; }
+}
+
 /** A spendthrift's day in town: supper, a bath, the laundry or the valet at the best house there. */
 function livingWell(game, tile, stats) {
     const { player, world } = game;
@@ -2458,6 +2558,37 @@ export function rivalHouses(game, stats) {
     }
 }
 
+/**
+ * Blood feuds (systems/bloodFeuds.js), as a careful player would meet them:
+ * once a week, buy off the hottest feud the House owes with the blood price
+ * when the purse can stand it three times over (a refusal waits out the
+ * cooldown); a feud with a rival House or a crown may end in a match instead;
+ * and in a town the House holds, judge the townsfolk's own feuds.
+ */
+export function bloodFeuds(game, stats) {
+    const { player, world } = game;
+    if (world.day % 7 !== 5) return;
+    const open = BloodFeuds.ofPlayer(world).filter(f => f.owes !== BloodFeuds.playerIndex(f)).sort((a, b) => b.heat - a.heat);
+    count(stats, 'feudDaysOwed', open.length ? 1 : 0);
+    for (const f of open) {
+        const q = BloodFeuds.wergildQuote(world, player, f.id);
+        if (q.ok && player.gold > q.price * 3) {
+            const r = BloodFeuds.offerWergild(world, player, f.id);
+            if (r.success) count(stats, r.accepted ? 'feudWergildPaid' : 'feudWergildRefused');
+            if (r.success && r.accepted) count(stats, 'feudWergildGold', r.cost);
+            break;
+        }
+        const m = f.sides[1 - BloodFeuds.playerIndex(f)].kind !== 'folk' ? BloodFeuds.marriageOptions(world, player, f.id) : null;
+        if (m && m.ok && player.gold > 500 && BloodFeuds.proposeMarriage(world, player, f.id).success) { count(stats, 'feudMatches'); break; }
+    }
+    const here = world.getTile(player.q, player.r);
+    if (here && here.settlement) {
+        for (const j of BloodFeuds.judgeable(world, player, here.settlement).slice(0, 1)) {
+            if (BloodFeuds.arbitrate(world, player, j.feud.id).success) count(stats, 'feudsJudged');
+        }
+    }
+}
+
 /** One day of the bot's play (before the harness ends the day). */
 /**
  * The House's unfinished business (systems/houseQuests.js): a matter is settled
@@ -2505,7 +2636,55 @@ export function scaffoldDay(game, stats) {
         const place = e.guilty !== false ? Executions.places(player, world, e).find(p => p.ok) : null;
         const m = place ? Executions.methods(player, world, e, place).find(x => x.ok && !x.cruel) : null;
         if (m && Executions.proclaim(player, world, e.id, m.id, place.key).success) { count(stats, 'scaffoldProclaimed'); continue; }
+        // Spared for the mines or the oar where the realm's law sends convicts (systems/penalLabour.js), else pardoned
+        const labour = ['mines', 'galleys'].find(id => Executions.mercies(player, world, e).some(x => x.id === id && x.ok));
+        if (labour && Executions.spare(player, world, e.id, labour).success) { count(stats, 'scaffoldCommuted'); continue; }
         if (Executions.spare(player, world, e.id, 'pardon').success) count(stats, 'scaffoldPardoned');
+    }
+    gibbetsDay(game, stats);
+}
+
+/**
+ * The dead in your hands and the trophies (systems/gibbets.js), as a player might:
+ * a great enemy's banner taken, a rebel's or a traitor's head over the gate of the
+ * nearest seat, the rest given back to the kin; a trophy's envoys answered (the
+ * price taken half the time, else sent away).
+ */
+export function gibbetsDay(game, stats) {
+    const { player, world } = game;
+    for (const b of Gibbets.bodies(player, world).slice()) {
+        if (b.great && Gibbets.trophyOptions(player, world, b).find(o => o.id === 'trophy_banner' && o.ok)) {
+            if (Gibbets.takeTrophy(player, world, b.id, 'trophy_banner').success) count(stats, 'trophiesTaken');
+        }
+        const show = (b.rebel || b.traitor || b.source === 'field') && Gibbets.displayOptions(player, world, b).find(o => o.ok);
+        if (show && Gibbets.display(player, world, b.id, show.id).success) { count(stats, 'deadDisplayed'); continue; }
+        if (Gibbets.returnBody(player, world, b.id).success) count(stats, 'bodiesReturned');
+    }
+    for (const h of Gibbets.trophies(player)) {
+        if (!h.trophy.demand) continue;
+        if (Utils.random() < 0.5 && Gibbets.returnTrophy(player, world, h.id, 'price').success) count(stats, 'trophiesReturned');
+        else if (Gibbets.refuseDemand(player, world, h.id).success) count(stats, 'trophyDemandsRefused');
+    }
+}
+
+/**
+ * The House's court (player/trials.js), as a player might keep it: the cases
+ * before its seats ruled each day — the unproven acquitted, the proven
+ * sentenced in proportion to the crime, with the lash, the iron, the mines
+ * and the oar where the realm's law has them (systems/penalLabour.js);
+ * never the scaffold. The convicts then work the House's mines and oars.
+ */
+export function judgeDay(game, stats) {
+    const { player, world } = game;
+    const st = Trials.state(player);
+    if (!st.cases.length) return;
+    const WANT = { 1: ['fine', 'flog', 'stocks'], 2: ['flog', 'mines', 'stocks', 'fine'], 3: ['mines', 'galleys', 'brand', 'jail'], 4: ['galleys', 'mines', 'jail'] };
+    for (const c of st.cases.slice()) {
+        if (c.ordeal && c.ordeal.pending) continue;
+        const ids = new Set(Trials.verdicts(world, c, player).map(v => v.id));
+        const pick = c.proof <= 1 ? 'acquit' : (WANT[Math.min(4, Math.max(1, Math.round(c.severity || 2)))].find(id => ids.has(id)) || 'fine');
+        const r = Trials.rule(player, world, c.id, pick);
+        if (r.success) count(stats, `judged_${pick}`);
     }
 }
 
@@ -2620,7 +2799,7 @@ export function botDay(game, stats) {
     }
     if (player.indenturedServitude) {
         if (player.indenturedServitude.canBuyFreedom && player.gold >= player.indenturedServitude.freedomCost) {
-            PlayerMilitary.buyFreedom(player);
+            PlayerMilitary.buyFreedom(player, world);
         }
         count(stats, 'servitudeDays');
         return;
@@ -2644,6 +2823,9 @@ export function botDay(game, stats) {
     delveTrek(game, stats);
     if (world.day > 150 && !player.boardedShip && !Ships.getVoyage(player)) houseBusiness(game, stats);
     if (!player.boardedShip && !Ships.getVoyage(player)) scaffoldDay(game, stats);
+    // (captives taken on the road yesterday, ransom talks, your men held)
+    prisonersDay(game, stats);
+    judgeDay(game, stats);
     if (Ships.getVoyage(player)) {
         voyageDay(game, stats);
         return;
@@ -2868,6 +3050,7 @@ export function botDay(game, stats) {
     booked(game, 'cadets', () => cadets(game, stats));
     booked(game, 'rivalAgents', () => rivalAgents(game, stats));
     booked(game, 'rivalHouses', () => rivalHouses(game, stats));
+    booked(game, 'bloodFeuds', () => bloodFeuds(game, stats));
     // Badly hurt: get to a town, see a physician and rest there (a pauper
     // can't pay one; better to go and live off the land)
     if (player.health < 50) {
@@ -3004,6 +3187,7 @@ export function botDay(game, stats) {
     }
     if (booked(game, 'holdingSieges', () => defendHoldings(game, stats))) return;
     if (booked(game, 'siege', () => siege(game, stats))) return;
+    if (booked(game, 'harry', () => harry(game, stats))) return;
     booked(game, 'court', () => court(game, stats));
     booked(game, 'stewards', () => stewards(game, stats));
     booked(game, 'throne', () => throne(game, stats));
@@ -3017,6 +3201,8 @@ export function botDay(game, stats) {
     const tile = world.getTile(player.q, player.r);
     // A spendthrift lives well in town while the purse allows
     if (tile && tile.settlement && temper(game).spends) booked(game, 'livingWell', () => livingWell(game, tile, stats));
+    // A fight night at the town pit: now and then a small bet on the favourite, from the rail (never into the sand)
+    if (tile && tile.settlement) booked(game, 'pitFights', () => pitNight(game, tile, stats));
     // Grand ventures, for a temperament that risks them with what's saved
     // (not while saving for the company, or on the road to its charter)
     const venturing = player.gold >= temper(game).ventureAt && !frugal(game);

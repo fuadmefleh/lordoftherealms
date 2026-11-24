@@ -27,6 +27,8 @@ import { Ledger } from './ledger.js';
 import { Traits } from './traits.js';
 import { Economy } from '../world/economy.js';
 import { MoneySupply } from '../world/moneySupply.js';
+// (a guard cut down by a House's raiders: their family's blood feud, systems/bloodFeuds.js; run time only)
+import { BloodFeuds } from './bloodFeuds.js';
 
 const CONFIG = {
     plotCadence: 20,          // days between rival plotting rolls
@@ -543,6 +545,10 @@ export const Schemes = {
                     const cause = `cut down by ${scheme.rivalName}'s raiders`;
                     Townsfolk.slay(folk, victim, day, cause);
                     Townsfolk.record(folk, world, day, { k: 'died', a: victim.id, x: cause });
+                    // The guard's family owes the House blood (systems/bloodFeuds.js)
+                    const rv = player && player.house && player.house.rivals ? player.house.rivals[scheme.rivalId] || null : null;
+                    const town = rv && world && typeof world.getTile === 'function' ? world.getTile(folk.q, folk.r) : null;
+                    if (rv && town && town.settlement) BloodFeuds.onHouseKilledFolk(world, player, town.settlement, victim, rv, 'raid');
                     parts.push(`${Townsfolk.name(victim)}, a guard of ${scheme.agent.town}, died defending your holding.`);
                 }
                 for (const p of Townsfolk.residents(folk).filter(x => x !== person && x.mem && x.mem.timesSpoken > 0).slice(0, 2)) {

@@ -17,7 +17,10 @@
 // town's own ban (localVice), by Laws.gambling: where gaming is forbidden no
 // gaming house opens and dice go underground, behind a front
 // (systems/backRooms.js); curfew by systems/nightStreets.js (the streets
-// emptied after the bell, the watch stopping anyone out). The panel is ui/actionMenu/laws.js.
+// emptied after the bell, the watch stopping anyone out); bloodSports, with a
+// town's own ban (localBloodSports), by Laws.bloodSports: the pits fight in the
+// open, pay the crown a fifth of the gate, or go underground and are raided
+// (systems/pitFights.js). The panel is ui/actionMenu/laws.js.
 
 import { DataLoader } from '../core/dataLoader.js';
 import { CrownBooks } from '../world/crownBooks.js';
@@ -191,6 +194,38 @@ export const Laws = {
             ? `Gaming is forbidden by the law of ${(k && k.name) || 'the realm'}.`
             : forbiddenBy === 'town' ? `${name} bans dice and cards by its own ordinance, whatever the crown allows.` : '';
         return { legal: !forbiddenBy, realm, local, forbiddenBy, why };
+    },
+
+    /**
+     * A town's own ordinance on its pit (settlement.ordinances.bloodSports:
+     * 'banned' | 'follow'; else its old custom, a hash of the town: a share of
+     * towns forbid blood sports whatever the realm allows). 'banned' or null.
+     */
+    localBloodSports(settlement) {
+        if (!settlement) return null;
+        const set = settlement.ordinances && settlement.ordinances.bloodSports;
+        if (set === 'banned' || set === 'follow') return set === 'banned' ? 'banned' : null;
+        const L = _obj(Laws.config().local) || {};
+        const share = _num((L.bloodSports || {}).banShare, 0.12);
+        return _hash01(`${settlement.foundingName || settlement.name || ''}|${settlement.q},${settlement.r}|bloodSports`) < share ? 'banned' : null;
+    },
+
+    /**
+     * May the town's pit fight in the open? → { legal, taxed, realm, local,
+     * forbiddenBy: 'realm'|'town'|null, why }. Open and taxed realms let the pits
+     * fight (taxed pays the crown a share of the gate); a ban, the realm's or the
+     * town's own, drives them underground (systems/pitFights.js).
+     */
+    bloodSports(world, settlement) {
+        const realm = settlement && settlement.kingdom != null ? (Laws.value(world, settlement.kingdom, 'bloodSports') || 'open') : 'open';
+        const local = Laws.localBloodSports(settlement);
+        const forbiddenBy = realm === 'banned' ? 'realm' : (local === 'banned' ? 'town' : null);
+        const k = settlement && settlement.kingdom != null ? _kingdom(world, settlement.kingdom) : null;
+        const name = (settlement && settlement.name) || 'this town';
+        const why = forbiddenBy === 'realm'
+            ? `Blood sports are banned by the law of ${(k && k.name) || 'the realm'}.`
+            : forbiddenBy === 'town' ? `${name} forbids its pit by its own ordinance, whatever the crown allows.` : '';
+        return { legal: !forbiddenBy, taxed: !forbiddenBy && realm === 'taxed', realm, local, forbiddenBy, why };
     },
 
     // ──────────── THE RULER'S HAND ────────────

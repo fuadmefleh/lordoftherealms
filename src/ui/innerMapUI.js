@@ -48,6 +48,8 @@ import { InnerMapGates } from './innerMapGates.js';
 import { InnerMapHandBuild } from './innerMapHandBuild.js';
 import { InnerMapMemory } from './innerMapMemory.js';
 import { InnerMapScaffold } from './innerMapScaffold.js';
+import { InnerMapDisplays } from './innerMapDisplays.js';
+import { InnerMapPit } from './innerMapPit.js';
 import { InnerMapDiving } from './innerMapDiving.js';
 import { InnerMapClimbing } from './innerMapClimbing.js';
 import { InnerMapMining } from './innerMapMining.js';
@@ -408,6 +410,10 @@ Object.assign(InnerMapRenderer, {
             if (_memTile && _memTile.customObject && _memTile.customObject.memory) menuItems.push(...InnerMapMemory.menuItems(game, _memTile.customObject.memory));
             // The scaffold or the pillory in the square: who it stands for, the crowd, the law (ui/innerMapScaffold.js)
             menuItems.push(...InnerMapScaffold.menuItems(game, customObjDef, objAnchorQ, objAnchorR));
+            // A head on a spike, a gibbet, a body on the gallows: whose, and cut it down (ui/innerMapDisplays.js)
+            menuItems.push(...InnerMapDisplays.menuItems(game, customObjDef, objAnchorQ, objAnchorR));
+            // The fighting pit's fence and gate: tonight's bouts, the pit's panel (ui/innerMapPit.js)
+            menuItems.push(...InnerMapPit.menuItems(game, objAnchorQ, objAnchorR));
             // A tree to fell or a stump to grub out: one order, with how many blows it will
             // take you and what it gives (player/gathering.js; world/innerMap/felling.js)
             const _chopped = customObjDef.resource && (customObjDef.topples || customObjDef.objectType === 'stump');
@@ -1142,6 +1148,8 @@ Object.assign(InnerMapRenderer, {
         if (/^gate_/.test(action) && InnerMapGates.handle(game, item)) return;
         if (/^memory_/.test(action) && InnerMapMemory.handle(game, item)) return;
         if (/^scaffold_/.test(action) && InnerMapScaffold.handle(game, item)) return;
+        if (/^gibbet_/.test(action) && InnerMapDisplays.handle(game, item)) return;
+        if (/^pit_/.test(action) && InnerMapPit.handle(game, item)) return;
         if (action === 'lock_door' && InnerMapLocks.handle(game, item, q, r, it => this._handleContextAction(game, it, q, r))) return;
         if (/^dive_/.test(action) && InnerMapDiving.handle(game, item, q, r)) return;
         if (/^climb_/.test(action) && InnerMapClimbing.handle(game, item, q, r)) return;

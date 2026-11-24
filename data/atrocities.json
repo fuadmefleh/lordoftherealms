@@ -120,26 +120,62 @@
         "lordDeed": "atrocity", "othersDeed": "atrocity_heard", "gossip": "well_poisoning",
         "grief": -6, "griefLong": 2
     },
+    "harry": {
+        "_doc": "Harrying an enemy realm's countryside in war (player/harrying.js): torching villages and farmsteads, firing crops and mills, driving off herds, scattering the peasants. The ordinary cruelty of war, branded lightly: once a town a day.",
+        "butcher": 2,
+        "perfidy": 0,
+        "karma": -3,
+        "deeds": { "cruelty": 1, "dread": 1 },
+        "reputation": -8,
+        "otherReputation": 0,
+        "severity": 1,
+        "lordDeed": "harried",
+        "othersDeed": null,
+        "gossip": "countryside_harried",
+        "grief": -5,
+        "griefLong": 2
+    },
+    "slaughter": {
+        "_doc": "Peasants put to the sword in a harrying (player/harrying.js): the cruellest of the harrier's work. Every realm hears of it.",
+        "butcher": 20,
+        "perfidy": 0,
+        "karma": -18,
+        "deeds": { "cruelty": 3, "dread": 3 },
+        "reputation": -20,
+        "otherReputation": -3,
+        "severity": 3,
+        "lordDeed": "atrocity",
+        "othersDeed": "atrocity_heard",
+        "gossip": "peasants_slaughtered",
+        "grief": -12,
+        "griefLong": 4
+    },
     "marks": {
         "salt": "The fields of {town} were sown with salt {when} by {by}.",
         "hostages": "{n} hostages of {town} were hanged before its walls {when} by {by}.",
         "plague": "The dead of the {illness} were flung over the walls of {town} {when} by {by}'s engines.",
         "massacre": "{town} opened its gates to {by} {when} and was put to the sword; {n} were killed.",
-        "wells": "The wells of {town} were fouled with carcasses {when} by {by}'s soldiers."
+        "wells": "The wells of {town} were fouled with carcasses {when} by {by}'s soldiers.",
+        "harry": "The farms of {town} were burned and its fields fired {when} by {by}'s riders.",
+        "slaughter": "{n} peasants of {town} were cut down in the fields {when} by {by}'s soldiers."
     },
     "chronicle": {
         "salt": "Sowed the fields of {town} with salt.",
         "hostages": "Hanged {n} hostages before the walls of {town}.",
         "plague": "Flung the {illness} dead over the walls of {town}.",
         "massacre": "Put {town} to the sword after it had surrendered.",
-        "wells": "Fouled the wells of {town} with carcasses."
+        "wells": "Fouled the wells of {town} with carcasses.",
+        "harry": "Harried the countryside of {town}: farms burned, fields fired.",
+        "slaughter": "Put {n} peasants of {town} to the sword in a harrying."
     },
     "events": {
         "salt": "🧂 {by} sows the fields of {town} with salt.",
         "hostages": "💀 {by} hangs {n} hostages before the walls of {town}.",
         "plague": "☠️ {by} flings the {illness} dead over the walls of {town}.",
         "massacre": "⚰️ {by} puts {town} to the sword after it surrendered!",
-        "wells": "🐀 {by} fouls the wells of besieged {town} with carcasses."
+        "wells": "🐀 {by} fouls the wells of besieged {town} with carcasses.",
+        "harry": "🔥 {by} harries the countryside of {town}.",
+        "slaughter": "⚰️ {by}'s soldiers cut down {n} peasants of {town}."
     },
     "lines": {
         "salt": "Your men drag the salt across the furrows of {town}. Nothing will grow there for years.",

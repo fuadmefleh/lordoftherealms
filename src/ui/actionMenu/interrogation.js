@@ -82,6 +82,8 @@ Object.assign(ActionMenu, {
             }), KIND_WORD[kind] || kind);
         }
         if (!held.length) html += card('You hold no one: lock a townsperson in your cellar, take a rival House\'s child from its retinue, take an outlaw alive for a bounty, take a captain from a beaten host or a stormed town, or the leader of a crushed rising.', { icon: '🔗' });
+        // The men who yielded in battle: ransom talks, the column, oaths, stakes (ui/actionMenu/prisonerFates.js)
+        html += rowList([{ icon: '🛡️', name: 'Prisoners of war', desc: 'Ransom talks for the men of rank, the column awaiting your word, oaths, turncoats, your stakes', side: '›', act: 'showCaptives' }]);
         html += _namesHtml(game);
         html += _intelHtml(game);
         if ((st.spiesDone || []).length) html += rowList(st.spiesDone.slice(0, 5).map(x => ({ icon: '🕵️', name: esc(x.name), desc: `Put to the question by ${esc(x.realm)} · day ${x.day}`, side: 'Talked', tone: 'bad' })), '🕵️ Your spies in their cells');

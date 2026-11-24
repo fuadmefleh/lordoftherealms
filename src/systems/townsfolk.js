@@ -1318,6 +1318,8 @@ export const Townsfolk = {
                 return `${who} and I came to blows ${when}, till we were pulled apart.`;
             }
             case 'jailed': return `I spent some days in the cells ${when}${e.x ? ` for ${e.x}` : ''}.`;
+            // The lash, the pillory, the iron, the mines and the oar (systems/penalLabour.js): x = what was done
+            case 'penal': return e.x ? `${e.x} ${when}.` : null;
             // Matters of the heart (systems/romance.js)
             // Their work (systems/townJobs.js)
             case 'job': return TownJobs.lifeText(folk, p, e, world);
@@ -1369,6 +1371,8 @@ export const Townsfolk = {
         if (entry.k === 'townMemory') return _cap2(String(entry.x || '').replace('{when}', when)) || null;
         // Fights between townsfolk (systems/brawls.js): x = the told line, {when} filled in
         if (entry.k === 'brawl') return _cap2(String(entry.x || '').replace('{when}', when)) || null;
+        // Blood feuds between families (systems/bloodFeuds.js): x = the told line, {when} filled in
+        if (entry.k === 'bloodFeud') return _cap2(String(entry.x || '').replace(' {when}', ` ${when}`).replace('{when}', when)) || null;
         // Apprenticed, made master, a trade taken up (systems/townJobs.js)
         if (entry.k === 'job') return TownJobs.annalText(folk, entry, world, speaker);
         // Burials and a service shouted down (systems/townWorship.js)

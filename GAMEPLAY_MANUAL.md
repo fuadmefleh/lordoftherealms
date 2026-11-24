@@ -2806,6 +2806,31 @@ From the siege panel (**💀 Darker means…**), a siege's result, or **Dark dee
 
 Every deed costs karma, earns cruelty and dread, hardens your court's name for severity, lowers your standing with the realm (and every realm, for the worst), is remembered by their lords (and through them war and diplomacy), is talked of from town to town and cried by the heralds, goes into the House chronicle, and is remembered by the town itself — its mood darkens for decades. Two marks stay on your name and fade only slowly: **cruelty** (a dreaded name makes ransom and tribute likelier) and **broken faith** (a massacred surrender). With broken faith at 25 or more no town will surrender to you: they refuse terms of surrender, keep their gates shut even starving and broken, and fight harder when stormed (+20%) until the last defender is dead. One massacre is remembered for about a generation. Tuning: `data/atrocities.json`.
 
+#### Harrying the Countryside
+
+A siege takes a town; a harrying ruins a realm. At a village or town (not a capital) of a realm you are at war with — your own war with it, or the war of the realm you rule or are sworn to — with soldiers at your back (army strength 30+), **Harry the countryside** in the town's action list opens the orders:
+
+- **Torch it** (3 AP) — a village burns (45% damage to the town); a town loses its farmsteads and outlying houses (22%; a city 10%). About 3% of its people die and 16% are left homeless and flee as refugees to the realm's nearest towns (they come home when it is safe). The granary loses 60% of its food and the market half its stores — after your men carry off up to 30 grain, bread, flour, meat and cheese into your packs (what will not fit stays, and burns). The street map shows burnt shells. The damage cuts the town's production and harvest and keeps its people leaving, and it is not repaired until the town has rebuilt (about 1½ years), each week's rebuilding eating timber from its market. No timber, no rebuilding.
+- **Fire the crops** (3 AP) — in spring and summer the standing crop: the harvest in force falls 35% at once and the next harvest reckoned within 90 days a further 50%. Out of season the barns and ricks burn instead (60% of the market's grain and flour, 40% of the granary). Either way the estates about the town lose a quarter of their soil (their rents and value with it), growing back over two years. Less grain means dearer bread, a smaller land tax for the crown (it is assessed on the harvest), lower rents for whoever holds the town, and hungry peasants (the revolt's hunger grievance reads the harvest).
+- **Burn the mill** (2 AP) — no flour is ground for 60–100 days by the town's size, and then not until the millwrights get their timber from the market. The flour in store burns.
+- **Drive off the herds** (2 AP) — 70% of every beast in the town's pens. Driven home to a pasture, farm, estate, lot or house of yours within a drover's reach that has room, they are yours by the head (sell them at any livestock market); the rest your men butcher for the camp (meat and hides into your packs, what will not fit eaten on the march). The pens refill at a quarter of their pace for 150 days and the town's own sheep runs, ranches and studs yield less until the next harvest.
+- **Scatter the peasants** (2 AP) — a fifth of the people flee as refugees to the realm's other towns, named townsfolk among them. Its fields go short of hands.
+- **Put the peasants to the sword** (3 AP) — a quarter of the people are killed. An atrocity: cruelty +20, karma −18, every realm hears of it.
+
+The first harrying of a day at a place meets the **levy** — a share of its defence (40% at a village, 25% at a town) turns out. Beaten off, the deed is not done (the AP are spent). Each deed is done once a season at a place (60 days).
+
+**Your name.** Harrying is the ordinary cruelty of war and is branded lightly — once a town a day: karma −3, cruelty +2, a little dread, −8 with the realm, its lord remembers the villages you burned (a vendetta), the towns talk of it, the town remembers, and it goes into the chronicle. The slaughter is branded as an atrocity every time.
+
+**The realm answers.** If its crown has the men (50+ under arms) and can pay the muster, a **pursuit host** rides out of its nearest town after you: a hostile war host (25–220 men), its muster paid to the captains in its capital and a war chest carried in its bags out of the treasury. It follows you while you are within 8 hexes of the realm's towns, for 30 days, and falls on you as any war host does (away from the towns: none will fight in a village or town). Break it and its chest is yours; outrun it and it marches home with its men and its coin. One at a time per realm, 20 days apart.
+
+**The realm suffers.** Every week each realm reckons its harried towns: stability falls 2.5 a town (up to 14: "Countryside harried"), halved while its crown answers (a host out after the harriers, or one lost fighting them in the last 60 days). If it is your own realm that burns, your lords' opinion of you falls 3 a town (up to 18: "The countryside burns"), and a lord whose own seat was harried 10 more — answer the raiders, or they will remember who did not.
+
+**The realms harry each other.** Realms at war send riders over the border: each week a war may see the attacker (with 40+ men under arms) harry the enemy's village or town nearest its own land — houses burned, fields fired, herds driven off to its own town's pens, peasants scattered (a cruel lord's men slaughter them) and some of the stores carried to its own market. The harried crown rides out after them when it has the men, and both sides bleed a little. The news goes about, and if it is your realm that burns you hear of it.
+
+**On the map.** A harried town's hex lies under an ash-dark wash that fades as it rebuilds and regrows, with a smouldering fire marker while its houses are in ashes or its fields burnt.
+
+Tuning: `data/harrying.json` (the deeds, the levy, the realm's answer, the AI riders), the brand in `data/atrocities.json` (`harry`, `slaughter`).
+
 ### Creatures and Travelers
 
 Besides caravans, raiders and patrols, the world holds **mercenary companies, pilgrims, smugglers, envoys and refugee columns** travelling between settlements (refugees add to the population where they arrive), **war fleets** that sink pirate ships, and **wild beasts** and **legendary creatures** that hunt travellers like raiders do. Unarmed, a creature mauls you rather than robbing you. Attacking pilgrims, refugees or envoys costs karma; slaying beasts and legendary creatures earns renown. Their coin goes to your purse and their goods into your packs (if there is room).
@@ -4110,6 +4135,103 @@ A name given under the question is grounds enough for the law: a townsperson nam
 
 **They do it too.** A rival House holding a child of yours as a hostage, with a feud of 70 or more, may put the child to the question (a 2% chance a week, at most once every 240 days per child): the child is hurt (−30 health), a quarter of the time branded for life, and the House lays a plot against you from what the child told them. It stops a time skip.
 
+## No Quarter: the Fate of Prisoners
+
+Beat a band of men in battle (a realm's war host or patrol; raiders, pirates, sellswords or smugglers with no realm) and some of them yield: the survivors × 40% (60% when they broke and ran), two men a strength point. The battle report shows **⛓️ N men yield to you** and a row, **Decide the fate of the captives**. Walk away and your captains settle it at the end of the next day: the men of rank are offered back for a fair ransom, a realm's men go home on their oath, outlaws hang. The scene, and everything after it, is also under **🛡️ Prisoners of war** (Intrigue & the Law, and a row in 🔗 The Dungeon). Tuning: `data/prisonerFates.json`.
+
+**Oath-breakers first.** Men you once sent home on their oath and who came against you again are found out among the captives. Hang them by right (no stain of cruelty) or let them share the others' fate.
+
+**The men of rank.** A realm's column of 15 strength or more has its captains, knights or a lord (one, plus one per 50 strength, at most 4); they lie in your Dungeon. **Ransom them**, keep them in the dungeon, or let them share the men's fate (a lord's death is remembered as a highborn execution). Ransom is **talks over days**:
+
+- You name a price: *fair* (the dungeon's ransom: captain 80, knight 200, lord 500), *high* (×1.6) or *ruinous* (×2.5). A herald rides: the answer comes after 3 days, plus a day per 12 hexes to their capital.
+- Their crown will pay up to about 1.3× the fair price (more for an ambitious or honourable lord), and never more than 35% of its treasury. At or under that: agreed, and the coin rides in four days later, **out of their treasury into your purse**. If the treasury is short it pays what it has and the rest later; still unpaid 30 days after you opened the talks, it has defaulted.
+- Over that: they offer what they will pay. Take it, or **press** for more (each press asks 20% less). After three rounds they refuse.
+- Refused or defaulted, the knight stays in your dungeon. After 120 days there he may die in the dark (4% a month): no ransom comes for the dead, his realm's regard falls by 10 and its lord remembers it. Or **sell him** to a crown at war with his realm (or no friend of it): 60% of the fair price, out of the buyer's treasury (at most a quarter of it). His realm's regard falls by 8 and its lord remembers it.
+
+**The men.** A realm's men:
+
+| Fate | What happens |
+|---|---|
+| 🛡️ Take them into your service | Half their strength joins your army as real companies (soldiers; outlaws as militia), at most 6, on upkeep. They are **turncoats**: loyalty 25 (outlaws 15), +0.4 a day (half that while you war on their realm), yours for good at 70. Each day a turncoat may desert: 3% × (1 − loyalty/100), ×2 within 6 hexes of a town of their realm, ×2.5 while you are at war with it. A deserter walks home and his realm's army gains his strength. The rest of the column is sent home disarmed. |
+| 🕊️ Release them on oath | They walk home (their realm's army gains them), sworn not to bear arms against you for 240 days. Their realm's regard +6, karma +3, mercy; its lord remembers it kindly; your own lords' grudges ease. While the oath stands, when its crown sends a war host against you it keeps the sworn men home with a chance of 35% + 6% × its lord's honour (at most 95%); otherwise up to half the host can be oath-breakers. **Meet them in battle** and they are found out: your men fight 8% harder that day and theirs with less heart, every other realm thinks less of that crown (−6 relations) and a little better of you, the oath is marked broken, and the oath-breakers among the next captives may be hanged by right. |
+| 🚶 Send them home disarmed | Home, no oath asked: regard +3, a little mercy. |
+| ⚔️ Cut them down | They are dead; their realm loses them. **Their realm gives you no quarter for 240 days**: its men do not break and run (a battle routs them only at 15% of their strength; in a quick battle they never break), they fight with more heart, you lose more men fighting them, and they leave almost no captives (8% of the survivors). The name: butcher +14 and perfidy +8 (they had yielded: towns facing you refuse to surrender sooner), karma −15, cruelty and dread, regard −25 with them and −3 with every other realm, their lord's lasting memory (and every other lord hears), their realm's clergy turn from you, gossip, your own lords cowed for 20 days, +5 war score. |
+| 👁️ Blind them and send them home | (10 men or more, not at sea.) Basil II: one in a hundred is left an eye to lead the rest. **The column walks home on the world map** (3 hexes a day, toward their capital). When it comes in, the realm **loses heart for 120 days**: its armies fight with −15% morale against everyone, it sends no new war hosts against you, its stability falls by 8. **Every faith hates you** (your standing falls with all of them), butcher +30, karma −30, regard −40 with them and −10 with every realm, renown +12 (a tale), gossip in every capital, your lords cowed for 40 days, +25 war score. A one-eyed captain who led them home may become your nemesis. |
+| ☠️ Impale them along the road | (6 men or more.) Vlad: stakes on six hexes of the road from the field **into your realm** (toward your crown's capital, else your nearest holding, else your liege's capital), drawn on the world map with the crows over them, and **rotting over 90 days** (gone 45 days after). While they stand, and the fresher the more: a war host within 6 hexes may **turn back** (35% a day × freshness; its men go home), a crown whose target lies within 6 hexes may **not march at all** (60% × freshness), and the victims' realm and every realm whose capital is within 30 hexes **will not open a war of conquest on your realm** while the stakes are fresh. Your name becomes a tale: renown +30, butcher +40 (a dreaded name opens purses: ransoms and tribute come easier), gossip in every capital, regard −45 with them and −8 with every realm, every faith a little colder, karma −35, and **your own lords fear you more than the enemy**: cowed 60 days (no factions), a grudge each. |
+
+**Outlaws** (bandits, raiders, pirates, sellswords, smugglers) have no realm and no ransom. **Hang them by the road**: renown +2, the nearest realm's regard +2, the nearest town's thieves cowed for 45 days (as after the scaffold), but outlaws fight to the last against you for 120 days. Or take them into service (militia, loyalty 15), let them go (karma +3; some go back to the road), cut them down (karma −5, outlaws fight to the last for 240 days), or impale them (renown +15, butcher +15, karma −10: a tale, but no realm's war is deterred). There is no penal labour (the mines, the galleys) to send them to yet.
+
+**Your men in their hands.** Beaten by a realm, about a third of your fallen were taken alive (at least a company). Their lord decides, by his temper and by **what you did to his men**: a greedy lord asks a ransom (40 gold a company, out of your purse into his treasury, within 30 days, or they serve in his army; buy them back under 🛡️ Prisoners of war), an honourable one sends them home within a week, a cruel one may cut them down or blind them. If you slaughtered, blinded or impaled his men, he is far likelier to do the same, and never sends them home free; if you spared his, he is likelier to spare yours. Your men killed or blinded want blood: +6% in battle against that realm for 120 days.
+
+**The realms do it too.** After their own battles the victor treats the loser's captives (a third of the dead): a ransom between the treasuries, the men sent home or taken into the victor's army; now and then cut down; rarely blinded (the column walks home, the realm loses heart); and a cruel lord may set them on stakes where they fell (shown on the map; the beaten realm dreads the victor and will not start a war on it while they are fresh). The worst are in the world's news.
+
+## The Lash, the Pillory, the Iron, the Mines and the Oar
+
+A court can do more than fine, jail, maim or hang. Between those lie the lesser punishments and penal labour (`systems/penalLabour.js`, tuning in `data/penalLabour.json`).
+
+### The laws that allow them
+
+Two laws of each realm decide which sentences exist. Both show in the **Laws** panel, and a ruler can change them like any other law.
+
+- **The Lash and the Iron:** *the stocks only* (the pillory, nothing more), *the lash* (flogging at the post), or *the lash and the iron* (flogging, and the court's letter burned into the cheek).
+- **Penal Labour:** *no convict labour*, *to the mines*, or *the mines and the oars* (the galley bench too).
+
+The realm's **Punishment** law scales the sentences. A lenient law gives ×0.7 lashes and days, a harsh one ×1.4. The pillory and outlawry exist under every law.
+
+Harder law cows thieves. Under the lash a town's burglaries fall to ×0.93, under the iron to ×0.86. The mines bring ×0.95 and the oars ×0.9. Every public punishment cows the town's thieves for weeks after (for example ×0.88 for a month after a flogging). Each one also sours the town a little. A faith that holds the body sacred feels it 1.6 times as much, a harsh faith half as much. A judge who orders the lash or the iron under a sacred faith loses standing with it.
+
+### Sentencing at your own court
+
+When you judge a case in **Courts & Lawsuits → Your court**, these verdicts appear next to the old ones, but only where the law allows them:
+
+- **🩸 Flog.** 12, 24, 39 or 60 lashes, by how grave the crime is, at the post by the pillory. The flogged person is hurt and heals over days. They and their kin remember it. The crowd may jeer, stay quiet, or murmur for mercy, which sours the town twice as much. Enough lashes can kill, more easily an old back or one already hurt. A death under the lash is blood the kin remember.
+- **📢 The stocks.** The pillory goes up in the square for a day. The person does no work while they sit there. A crowd that dislikes them pelts them.
+- **🔥 Brand.** The court's letter is burned into the cheek for life: a thief's **T**, a poacher's **P**, the **M** of a man of blood, an arsonist's **A**, a slanderer's **S**, a felon's **F**. The watch knows a branded face, so a branded thief is caught ×1.6 as often. Merchants, innkeepers and stallholders give the branded less work. When you meet someone branded, the narrator mentions it, and you can ask how they came by it. No one is branded twice.
+- **⛏️ To the mines** and **⚓ to the galleys.** A term of hard labour: 40, 100, 240 or 480 days by severity (scaled by the law). The convict leaves town for the term (*At: your mine at Ashford*).
+- **🌲 Outlaw** (only for crimes of some weight). Their purse is forfeit to your court, and they go to the greenwood.
+
+### Where convicts go, and what they do there
+
+A convict goes first to a site of your own that has room:
+
+- **A mine or quarry of yours** holds 6 convicts per level. Each convict adds 10% to its output, up to +80% in all. Their bread is bought every day in the nearest town, out of your purse (0.25g each). The mine's panel lists its convict gang and the days each has left.
+- **A ship of yours with an empty berth.** The convict becomes one more hand in her crew, unpaid (no wage). A convict bench makes the ship sullen: her resting morale drops by up to 20, by the convicts' share of the crew. In port convicts slip away. At sea, if the bench is a third of the crew or more and morale is under 35, they may rise in the night, kill a few hands and take the boats. If her crew shrinks in a fight, a storm or desertion, convicts are among those lost. The ship's panel lists *Convicts at the oars*.
+- **A war galley's bench** (30 seats). Each convict saves 0.3g a day of the galley's upkeep, up to half of it. The Fleet panel lists each bench.
+
+With no room of yours, the convict goes to **the crown's own gang** of the realm, if its law sends convicts. Each week the crown's mine convicts dig ore (iron, stone or coal) into the capital's market. The capital's purse pays the crown for it. Their bread comes out of the crown's chests into its towns. The crown's galley convicts row the royal fleet and cut its upkeep.
+
+If you sell a mine, lose a ship or disband a galley, its convicts pass to the crown, or go free where no law holds them.
+
+Every week convicts die (more at the mines) and escape (more from a ship in port). When their term ends they walk home hurt and changed, with a line in their own life story (*"I came home from the mines of Valdor, after 8 months of it"*). Some townsfolk may then mention the years they did there.
+
+### The scaffold's mercy
+
+At the scaffold, a condemned townsperson can be spared for **the mines instead** or **the galleys instead**, where the law sends convicts. They serve the longest term.
+
+### The realms' own courts
+
+Every week the realms' courts sentence the townsfolk caught at a crime, by the realm's law:
+
+- a brawler goes to the post or the pillory
+- a housebreaker gets the iron or the mines
+- the worst go to the galleys
+
+The town is soured and cowed as if you had ordered it. They act on 45% of the cases, and never on someone the law has already maimed.
+
+### When it is you
+
+Convicted at a trial where the law allows it:
+
+- **A lesser crime that would have meant the cells** (a repeat offence) may be **the lash** instead (60% where the law keeps a post) or **the pillory** (half the rest). The same goes for a fine you cannot pay where the law has the lash.
+  - The lash costs you health (0.6 per lash), opens a *Flogged Back* wound, costs 3 renown and 4 of the realm's regard, and leaves the stripes counted on your character sheet.
+  - The pillory holds you a day in the stocks, pelted by a town that hates you. The pelting is worse where the town remembers wrongs you did, or your name in the realm is bad.
+- **A long term for a grave crime** (20 days or more) may be **the mines or the galleys** (55%). You are bound like a captive (indentured servitude):
+  - The days are hard: health lost, and now and then an accident (a fall of rock, a broken oar).
+  - Your labour counts in the crown's gang.
+  - You can **slip your chain**, which puts a warrant and heat on you in that realm. A galley that has put in at port gives better odds.
+  - You can bribe an overseer, or **buy your release from the crown** at 5g per day of the term, paid into that crown's chests.
+- **The brand** happens only where the law keeps the iron (elsewhere it is the cells). It bears its letter: your character sheet shows *A thief's T of Valdor* among the marks against you.
+
 ## The Scaffold: Public Executions
 
 A death sentence is a day in a town. **⚖️ The scaffold** (Hall & Court → Intrigue & the Law, in any town while someone awaits your word) shows the condemned, those in your power you could bring to it, and the martyrs your scaffold has made.
@@ -4172,6 +4294,82 @@ From the day an execution is proclaimed until it is done, the scaffold stands in
 ### The realms' scaffolds
 
 The realms hang, behead and burn their own condemned in their capitals, a few times a year each. When you are in town as one is proclaimed, you hear the criers; on the day, **💀 The crowd at the scaffold** lets you watch, or **cry out for mercy**: the crowd may take it up (more likely if it is sullen or angry, or the condemned innocent) and the condemned is exiled instead. The crown thinks less of you (−2 reputation, some heat), the town remembers you spoke. An innocent the crown puts to death may become a martyr against that crown. The world's news tells of the highborn and the burnings.
+
+## Heads on Spikes, Gibbets and War Trophies
+
+A death is not always the end of the sermon. The dead can be put on show, and a great enemy's skull, banner or sword can be kept. Open **💀 The dead & trophies** (Intrigue & the Law) in any town.
+
+### The bodies in your hands
+
+These bodies come to you, and you have about 20 days to decide what to do with each:
+
+- anyone put to death on your scaffold (not the burned: nothing is left of them);
+- a rising's leader you hang on the spot;
+- an enemy commander cut down when you beat a realm's host in the field: a captain, a knight, or a lord from a great host. Now and then, from a host of 250 or more, it is **the king himself**. He dies, and his realm passes to his heir, who remembers;
+- a rival House's head slain in the lists.
+
+For each body you can:
+
+- **Display it** at a seat you rule (you choose which):
+  - the **head on a spike over the gate**;
+  - the body in a **gibbet cage at the crossroads** outside town;
+  - the body **left on the gallows** in the square.
+- **Give it back to the kin.** They are grateful, and his House's feud eases. A lord's realm counts it as amends.
+- **Bury it**, unmarked.
+- **Take a trophy**, if he was a lord, a noble or a king (see below).
+
+### On show
+
+A display stands on the town's street map: the head by the gate (the walls' gate, else where the road leaves town), the gibbet at a crossroads, the body on the gallows. A pike with a head on it also marks the town on the world map. Displays rot as the weeks pass. A body is **fresh** for about two weeks and **rotting** for about two months. Then it is **picked to the bones**, and after about ten months it falls to pieces.
+
+While it stands:
+
+- **Crime falls.** Burglars and cutpurses in that town try less often: about 30% less for a fresh head, less so once only bones are left.
+- **Revolt falls.** The commons' grievance gets a *Heads on the gate* fear part, strongest for a rebel's head. Villages within two hexes feel it too.
+- **The town sours.** It loses some happiness when the display goes up and a little more every week it stands.
+
+When you put one up:
+
+- The town remembers who hung it there.
+- The dead man's kin remember it as a blood wrong, which feeds the Nemesis.
+- His House's feud with you grows.
+- A lord's or a commander's realm swears a vendetta. Leagues read that as a casus belli.
+- The clergy of his faith think less of you. A faith that holds the body sacred takes it hardest.
+- Your name is dreaded (dread, renown).
+- A traitor's or rebel's head cows the lords of your court for months.
+
+Every such desecration goes on the world's record, so a blood feud can be traced to it.
+
+### Taken down
+
+A display comes down in one of these ways:
+
+- **You cut it down.** Click it on the street map. If it is your own, the kin are grateful and the fear fades. If it is another lord's, his crown resents it (heat, standing), the kin remember the kindness, and a sacred faith thanks you.
+- **The kin cut it down at night.** The more kin he has in town, the likelier this is.
+- **The priests take it.** This is likeliest where the faith holds the body sacred.
+- **Time.** It falls to pieces.
+
+You are told when this happens to one of yours.
+
+### The realms' dead
+
+The realms put their own executed on show too, at their capitals. Most highborn and traitors go up, and now and then a thief. The towns you visit have heads over their gates and gibbets at their crossroads, with the same effects on their thieves, their commons and their mood.
+
+### War trophies
+
+From a great body you can take a **skull cup** (which takes the head: no spike afterwards), his **banner**, or his **sword**. A trophy becomes an **heirloom** of your House: it has its own history, gives Prestige every year (and a little battle power or negotiation), and passes to your heir. Like any heirloom it can be stolen or lost at a succession.
+
+- **Prestige at court** when you take it, and every year after.
+- **Dread in his realm.** Its besieged towns are likelier to accept your terms, more so for a king's skull.
+- **His heirs hate you.** Their vendetta is renewed every year you keep it.
+- **The faith frowns.** A skull cup costs you standing with your faith when you take it and every year after.
+- **His realm wants it back.** About three months after you take it, then once a year, its envoys offer a price out of its treasury. You can:
+  - sell it back to them;
+  - give it back as a **term of peace** if you are at war with them (the war ends);
+  - give it back for nothing, as amends;
+  - send the envoys away. Their hatred grows, and an unanswered offer counts as a refusal.
+
+  Now and then their agents steal it back. It is then held in their capital, and you can go after it like any lost heirloom.
 
 ## 15. Ships & Naval
 
@@ -5329,6 +5527,56 @@ While a nemesis lives, the old grudge behind it stays hot. A rival House's feud 
 
 **Not the same as an adventurer's "Nemesis" tier.** In [Rival Adventurers](#rival-adventurers), *Nemesis* is the adventurer's own attitude (−60 or worse), and it brings slander and ambushes. This layer is separate and wider: it can raise a lord, a House head, an avenger or your own kin, and it only takes an adventurer at −70 or worse.
 
+### Blood Feuds and Blood Money
+
+A killing makes the dead one's **family** owe vengeance on the killer's family. A nemesis is one named enemy; a blood feud is a debt between two whole lines, and it is passed down. Feuds run between townsfolk families, rival Houses, a realm's royal house and your own House. Open **Dynasty → ⚔️ Blood Feuds**. (`systems/bloodFeuds.js`, `data/bloodFeuds.json`.)
+
+**Families.** A townsfolk family is a surname in one town: everyone living there born to it or married out of it. A rival House is its head and children. A royal house is the realm's ruling line. Your House is you and your heirs.
+
+**What starts one.**
+
+| Killing | Feud | Heat |
+|---|---|---|
+| A murder by you that someone saw | Their family against your House | 60 |
+| A hanging, beheading, burning or quartering you ordered | The same, but only if the kin think it unjust: 30% for the rope, 60% for the fire or the quartering, always for an innocent | 35–55 (×1.2 for an innocent) |
+| Starving a captive, a death in your stocks, a family turned out to freeze, a witch burned | Their family against your House | 40–55 |
+| A townsperson you kill in a trial by combat | Their family against your House, if they think it unjust (40%) | 20 |
+| A rival House head or child killed by your men, in the lists, or dead in your keeping | That House against yours | 15–65 |
+| A ruler assassinated by your spies | The royal house against yours | 70 |
+| A brawl between townsfolk that ends in a death, a trial by combat between them | The dead one's family against the killer's | 45 / 20 |
+| A guard cut down by a rival House's raiders | The guard's family against that House | 50 |
+| A realm's own hanging of an innocent (or one the kin deem unjust) | The family against the royal house | 35–60 |
+
+A death is counted once: a hanging later found to be wrongful heats the feud, it does not add a second death. **A lone soul with no kin in town leaves no one to swear**, and a killing nobody saw is not laid at your door.
+
+**Heat and the years.** Heat runs 0–100. It cools by 7 a year (the realm's law changes this, below) and flares with every new death. Below 8 the feud is forgotten. When the one who carries it dies (a family's eldest grown man, else its eldest woman; a House's head; a royal house's ruler), the next takes it up at 80% of the heat. At your own succession every feud of yours passes to the heir at 80%. Either way, a feud cooled below 15 is let lie. A family with no one left living in the town, or a House gone, ends the feud.
+
+**What avengers do to your House** (only feuds where a townsfolk family owes you blood, once a month):
+- **They will not deal with you.** At heat 20+, everyone of that family refuses to trade with you, whatever their own mood.
+- **They testify.** At heat 25+, if you stand trial in their town, the one who carries the feud stands witness against you (+0.25 to the court's case each, up to three families).
+- **They act.** Each month a feud acts with a chance of heat ÷ 280 (× the law's avenge). At most one act every 45 days across all your feuds:
+  - **Hire a blade** (heat 70+, once per feud): the carrier becomes a sworn nemesis (see above).
+  - **A blow** (heat 55+, at most one every 300 days across all feuds): a knife in the streets, or an ambush on the road. It lands 55% of the time, −4% per point of your combat skill, up to −25% for men under arms with you (−0.2% each), −8% with companions (10–75%). A hit leaves a wound and costs 6–16 health, and sates them (−18 heat). A miss drives them off (+5 heat); one time in five they die on your blade, a death in self-defence that heats the feud by 15.
+  - **Speak against you**: −2 to −5 standing in their realm.
+- A **rival House** that owes you blood keeps its rival feud with you at 70% of the heat or more, so its own waylaying and plots carry the vengeance.
+
+**Ending it.**
+- 💰 **The blood price (wergild).** The tariff of each unavenged dead by rank: a child or beggar 40g, a commoner 80g, a craftsman or guard 110g, a merchant 150g, a priest 180g, a noble 350g, a House's kin 450g, a House's head 900g, royal kin 800g, a ruler 1,800g. The sum is × the law's tariff × (1 + heat ÷ 200) × 0.8 per generation since. They take it with a chance of 55% + 3% per point of Diplomacy + the law's acceptance − 0.4% per point of heat (10–95%). Refused, the heat rises by 4 and you must wait 60 days. Accepted, the coin goes into the carrier's own purse (a House's gold, a crown's treasury), less the arbiter's tithe of a tenth: into the town's purse before the priest and council, into the treasury before the crown's justiciar, nothing where vengeance is the kin's right. You gain +3 standing in the realm; the family's blood debts on your charge sheet are paid, any nemesis it raised makes peace, and its memory of the dead softens. Offer it from the panel, or face to face with any of the family.
+- 💍 **A match.** With a rival House or a royal house, promise one of your children into their line (Matches & Betrothals) at half the usual price. A hot feud does not stop this match; only war does. The feud ends with the promise.
+- 💀 **Wiping them out.** Kill the last of a family yourself and the feud ends, the worst way: +30 butcher's infamy, −20 karma, −20 standing in their realm, and the town grieves for years.
+
+**The law.** Each realm has a **Blood Price** law (Laws panel):
+
+| Option | Tariff | Acceptance | Cooling | Avengers | Arbiter |
+|---|---|---|---|---|---|
+| The kin's right | ×1 | −15% | ×0.8 | ×1.3 | none |
+| Customary wergild | ×1 | — | ×1 | ×1 | priest and council (town's purse) |
+| The crown's tariff | ×1.4 | +25% | ×1.4 | ×0.6 | the crown (treasury) |
+
+**Feuds of the world.** Townsfolk families, rival Houses and royal houses feud among themselves. Once a month an avenger may strike (heat 40+): one killing per feud a year at most, and one in the whole world every 150 days at most, so it never becomes a bloodbath. The killing goes in the town's annals (the town's news), and the town's mood drops a little for a few years. The debt then passes to the other family. Once a year a feud may be settled (35% × (1 − heat ÷ 100)): a wedding between the two families (a match between two Houses), or a blood price moved from the killers' purses to the bereaved's before the arbiter, if they can raise half of it. New feuds come from brawls that bleed, a street grudge so hot (60+) that it turns to murder (about one a year at most across the world), and two rival Houses whose regard has fallen to −60.
+
+**Sitting in judgement.** In a town you hold, or anywhere in a realm you rule, you may judge a feud between two of its families (the panel's *Feuds to judge*, or talking to one of them). The killers' family pays the bereaved their blood price (a quarter of the tariff, townsfolk being poor), and a tenth goes to you. If they cannot raise half of it between them, nothing is settled.
+
 ### Friends & Bonds: Friendships Beyond Romance
 
 The relationship score says how much someone likes you. A **bond** is more: a friendship the two of you have built, with a *kind* and a *strength* (0–100). Open it from **Relationships → 🤝 Friends & Bonds**.
@@ -5884,6 +6132,43 @@ A thief caught by the watch may fight instead of going quietly (35% × their tem
 - **Join a side.** That side thinks 10 better of you, and you take their opponent out of the brawl yourself. That is an assault, and the watch wants you unless the town is yours.
 
 Tuning: `data/brawls.json`.
+
+### Pit Fights and Blood Sports
+
+Some towns keep a **fighting pit** (`systems/pitFights.js`): 15% of villages, half the towns, 85% of cities and every capital. While the law lets it fight in the open, it is a fenced ring of trodden ground with a gate on its south side, next to the tavern (or near the square if there is no tavern). Click its fence on the street map to see what is on and to open its panel. You can also open it from **🥊 The Fighting Pit** in the action menu (Tavern & Talk). A townsperson runs it. That person is the **master**, and their purse is the house's book: about 120g is drawn from the town when they take the pit on.
+
+**Fight nights.** The pit fights on the town's market night (one night in seven, the same night every week for that town), on the first day of each season (the feasts), and on every day of a fair. Cities and capitals fight a second night a week, three days after the first. The bouts start at dusk, and a share of the town's grown folk come and stand at the fence and shout. The night's card is fought whether you are there or not. If you are not watching, it is fought at the day's end.
+
+**The card.** The fighters are real townsfolk. Each pit keeps 3–8 of them, taken from the town's strongest men aged 18–42 (and now and then a woman), never priests, children or nobles. Each fighter has a record: wins, losses, the men they killed, their training and their owner. Each night the master matches them by strength. The **champion** defends the belt in the last bout against the best fighter fit to face them, and the first fighter to win twice takes an empty belt. Each men's bout is fought to one of three ends:
+
+| Bout | Weight | Purse (town ×1) | Loser |
+|---|---|---|---|
+| To first blood | 5 | 6g | hurt; dies 1% of the time if badly beaten |
+| To submission | 3.5 | 10g | hurt; dies 4% of the time if badly beaten |
+| To the death | 1.2 (×2 at a feast, ×1.5 at a fair, ×2.5 underground) | 40g | dies 70% of the time; spared by the crowd otherwise, near death |
+
+Purses scale by town size: ×0.5 in a village, ×1 in a town, ×1.5 in a city and ×2 in a capital. The duel engine fights every bout. Each fighter is built from the person: their trade, their traits and practised skills, plus their training (+0.35 attack, +0.25 defence, +0.3 power and +1 health a level, up to 5) and their seasoning (+0.05 a win, up to 12 wins). They lose 0.1 a year past 34, and they fight with whatever hurt they still carry. Bouts to the death are fought with short blades. A beaten man is hurt (he sits out until he is three-quarters healed). A killed man dies on the town's roster, and his purse goes to his heir. The town tells of a death, a new champion and a raid. One men's bout in about twelve (never one to the death) is **fixed**: the master pays the favourite to go down. A quarter of those come out as gossip later.
+
+**The beasts.** In a quarter of the towns, 60% of the cities and 80% of the capitals, the pit also keeps a **bear**. The master buys it from the trappers for 140g (the coin goes to the town). Every 6 days or so it is **baited** by three dogs, bought at 9g each from the town. Each round each dog bites 55% of the time for 3–8, and the bear kills a dog 30% of the time. The bear's wounds heal 4 a day. If the dogs pull the bear down, the furriers and butchers buy the carcass (45g from the town's purse), 2 pelts and 6 meat go onto the town's stalls, and the master buys another bear when his book can stand it. Every night ends with a **cockfight**. The birds are bought from the town's yards at 3g. The stronger bird wins more often, and the loser dies 80% of the time (the cookshop takes it).
+
+**Betting.** Open a bout to bet 5, 10, 25 or 50 gold on either side, with the master. The odds are 70% what simulated bouts between the two real fighters say and 30% what their records make the crowd believe, less a 10% margin for the house (1.1× to 6×). Fighters with a good record but little skill are overbet, so there is value against them. The master won't take a bet he couldn't pay out of half his book. A winning bet is paid the stake × the odds out of his purse. If he hasn't got it all, he pays what he has. If a bout doesn't happen, you get your stake back. If you are in the thieves' guild, or you own a fighter on the card, you sometimes hear that a bout is fixed.
+
+**Owning a fighter.** You can sign any fighter. His signing money (20g + 5g a win, by town size) goes into his own purse. After that he costs 6g a week (by town size), paid into his purse. If you can't pay him, he goes back to fighting for the house. You take 60% of every purse he wins. You can pay the town's trainers for a week at the posts (12g, +50% a level, once a week, up to level 5). If he dies, he's gone.
+
+**Fighting yourself.** Once a night you can step into the pit against the champion, or the best fighter fit to fight: to first blood, to submission or to the death. You fight it in the duel panel. The purse is 15g, 25g or 120g (by town size). A win also brings renown (+2, +4 more to the death, +6 for taking the belt). Your harm comes from the share of the bout you lost (a win 2–14, a loss 12–35, a death bout 30–60), and a loss may leave a wound. If you kill your opponent in a death bout, he dies on the roster. If you go down in a death bout, the crowd decides: 35% spare you, plus 0.4% per point of renown (+10% if you yielded), up to 85%. Spared after yielding, you lose 6 renown. Otherwise you die in the sand, and your heir carries on.
+
+**The law.** Every realm has a law on **Blood Sports** (the Laws panel), set by its old custom until a ruler changes it:
+- **Open** (40% of realms): the pits fight in the open.
+- **Taxed** (35%): the master pays the crown a fifth of every night's gate.
+- **Banned** (25%): the pits go underground.
+
+A town may forbid its own pit whatever the realm allows (12% of towns do). A banned pit fights in a **cellar behind some honest front**: it draws 40% of the crowd, the gate is 1g a head rather than 0.5g, there are more bouts to the death, and the doorman wants 6g. The watch may raid any fight night (6% and up, more where the gangs' crackdown is hot). A raid fines the master 30g, jails the night's fighters for 4 days (both scaled by the realm's punishment law) and takes the stakes on the table into the town's purse. If you were in the crowd, you are fined 25g and gain heat. An AI crown bans its pits once they have killed more people in 60 days than its faith will stand: 2 for a faith that holds the body sacred, 5 for most others, never for a harsh one. It may reopen them, taxed, a year later if they have stopped killing. The ruler of a realm can set the law from the pit's panel.
+
+**Coin.** Every coin moves between real purses. The crowd's gate (half a coin a head, at most 3% of the town's purse) goes from the town to the master. The master pays the purses into the fighters' own purses, buys the animals from the town, pays the crown's fifth and pays the fines. Whatever he holds past 400g, he spends 30% of in the town.
+
+**Faith and mood.** A fight night raises the town's happiness for the share who love it and lowers it for the pious, depending on the realm's faith. In a realm whose faith holds the body sacred it falls; in one with a harsh faith it rises. Each death that night costs 0.6, and an underground night counts for less. If you bet, watch, fight or sign a fighter, the realm's clergy think less of you (−3 standing under a sacred faith, −1 under most, once a night). A night with a death bout costs a point of karma. The champion and the killers know their own pit life when you talk to them.
+
+Tuning: `data/pitFights.json`, the law in `data/laws.json` (`bloodSports`).
 
 ### Relationship Tiers
 

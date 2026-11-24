@@ -421,6 +421,8 @@ Object.assign(InnerMap, {
         if (this._courtPick && this._courtPick(npc, period)) return true;
         // The crowd before a scaffold in the square, on the day of an execution (world/innerMap/scaffoldCrowd.js)
         if (this._scaffoldPick && this._scaffoldPick(npc, period)) return true;
+        // The crowd at the fighting pit's fence on a fight night (world/innerMap/pitCrowd.js)
+        if (this._pitPick && this._pitPick(npc, period)) return true;
         // The harvest fair, the midwinter fire, snow to shovel or play in, the spring sowing (world/innerMap/streetSeasons.js)
         if (this._seasonPick && this._seasonPick(npc, period)) return true;
         // Out of the rain: home, or under the eaves, in a downpour (world/innerMap/streetWeather.js)

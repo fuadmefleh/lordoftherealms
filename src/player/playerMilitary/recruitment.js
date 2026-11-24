@@ -1,6 +1,7 @@
 // PlayerMilitary — recruitment members (split from the original monolith).
 import { PlayerMilitary } from './_ref.js';
 import { PlayerCoin } from '../playerCoin.js';
+import { PenalLabour } from '../../systems/penalLabour.js';
 import { Utils, Technology, House, SettlementServices, PlayerEffects, Peoples, Ships, Economy, SettlementSize, Arms } from './_imports.js';
 
 Object.assign(PlayerMilitary, {
@@ -609,6 +610,8 @@ Object.assign(PlayerMilitary, {
         let total = 0;
         for (const unit of player.army) {
             total += unit.upkeep;
+            // (a war galley's convict bench rows without wages: systems/penalLabour.js)
+            if (unit.convictOars) total -= Math.round(PenalLabour.galleyUpkeepSaving(unit));
         }
         // A House Marshal lowers upkeep (multiplier is 1 when no Marshal serves).
         if (typeof House !== 'undefined' && player.house) {

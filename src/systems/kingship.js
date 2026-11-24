@@ -83,6 +83,8 @@ import { CrownSuccession } from './crownSuccession.js';
 import { HighCrowns } from './highCrowns.js';
 // (the leader of a crushed revolt goes to the scaffold, awaiting your word: systems/executions.js)
 import { Executions } from './executions.js';
+// A harried countryside angers the lords (systems/harrying.js)
+import { Harrying } from './harrying.js';
 
 const OFFICES = ['chancellor', 'marshal', 'steward', 'spymaster', 'highPriest'];
 const TAX_STEPS = ['heavy', 'standard', 'light'];
@@ -379,6 +381,11 @@ export const Kingship = {
         t += add('Grudges', _num(v.grudge));
         // A far seat drifts from the crown (systems/realmDecline.js keeps vassal.drift)
         if (v.drift) t += add('Far from the crown', -_num(v.drift));
+        // The realm's countryside burning while the crown does nothing (systems/harrying.js → kingdom.harried.lords), worse for his own seat
+        if (k && k.harried) {
+            const seat = v.seat && Number.isFinite(v.seat.q) ? Harrying.seatPenalty(world, v.seat.q, v.seat.r) : 0;
+            t += add('The countryside burns', -(_num(k.harried.lords) + seat * (k.harried.answered ? 0.5 : 1)));
+        }
         return { target: Utils.clamp(Math.round(t), -100, 100), parts };
     },
 

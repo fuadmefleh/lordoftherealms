@@ -85,6 +85,9 @@ import { MaimMarks } from '../systems/maimMarks.js';
 import { Executions } from '../systems/executions.js';
 // (trial by combat, the hot iron, the water, the bread, oath-helpers: player/ordeals.js)
 import { Ordeals } from './ordeals.js';
+import { BloodFeuds } from '../systems/bloodFeuds.js';
+// (the lash, the pillory, the court's letter, the mines and the oar: systems/penalLabour.js)
+import { PenalLabour } from '../systems/penalLabour.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = v => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -455,6 +458,8 @@ export const Trials = {
             advocate: null, bribe: 0, bribeRefused: false, bribeDay: null, plea: null, surrendered: !!opts.surrendered,
         };
         court.witnesses = Trials._witnesses(world, s, charges);
+        // Kin who owe you blood vengeance stand up against you (systems/bloodFeuds.js)
+        court.bloodWitnesses = BloodFeuds.witnessesAgainst(world, player, s);
         jail.trialId = court.id;
         jail.daysRemaining = Math.max(_num(jail.daysRemaining), remand + 1);
         jail.totalDays = Math.max(_num(jail.totalDays), jail.daysRemaining);
@@ -495,6 +500,8 @@ export const Trials = {
         const karma = _num(player.karma) / _num(V.karmaDiv, 100) * _num(pj.mercy);
         const defence = adv + rep + prestige + bribe + karma + (trial.surrendered ? _num(V.surrendered, 0.45) : 0);
         z -= defence;
+        // ...and the families with blood against you speak against you (systems/bloodFeuds.js)
+        z += BloodFeuds.testimony(trial);
         if (trial.bribeRefused) z += 0.3;
         if (opts.absent) z += _num(V.absent, 0.6);
         if (trial.plea === 'guilty') z = Math.max(z, _num(V.pleaGuilty, 3));
@@ -609,6 +616,30 @@ export const Trials = {
     },
 
     /**
+     * The lesser punishments and penal labour for the player convicted (systems/penalLabour.js;
+     * data/penalLabour.json player): the iron only where the law allows it (else the cells), a long
+     * term for a grave crime to the mines or the oar, a lesser one to the lash or the pillory. Hash rolls.
+     */
+    _penalKind(world, trial, kind, days, grave) {
+        const P = PenalLabour.config().player || {};
+        const kid = trial.kingdomId;
+        const u = salt => _frac(`${_seed(world)}|penalTrial|${trial.id}|${trial.opened}|${salt}`);
+        if (!PenalLabour.enabled()) return kind;
+        if (kind === 'branded' && !PenalLabour.allowed(world, kid, 'brand').ok) kind = 'jailed';
+        if (kind !== 'jailed') return kind;
+        if (grave) {
+            if (days < _num(P.minDays, 20) || u('labour') >= _num(P.labourShare, 0.55)) return kind;
+            const mines = PenalLabour.allowed(world, kid, 'mines').ok;
+            const oars = PenalLabour.allowed(world, kid, 'galleys').ok;
+            if (!mines && !oars) return kind;
+            return oars && (!mines || u('oar') < 0.5) ? 'galleys' : 'mines';
+        }
+        if (PenalLabour.allowed(world, kid, 'flog').ok && u('flog') < _num(P.flogShare, 0.6)) return 'flogged';
+        if (u('pillory') < _num(P.pilloryShare, 0.5)) return 'pilloried';
+        return kind;
+    },
+
+    /**
      * The trial's day: the verdict and its sentence. → { outcome, text, fine?, days?, convicted }
      * outcome: 'acquitted' | 'fined' | 'jailed' | 'branded' | 'exiled'
      */
@@ -673,7 +704,16 @@ export const Trials = {
             if (maimAct && !MaimMarks.whyNot(player, maimAct) && kind !== 'exiled') kind = 'maimed';
             const law = kid != null ? Laws.punishment(world, kid) : { fine: 1, jail: 1 };
             const days = Trials._sentenceDays(trial, graveCs, graveCs.length ? [] : lesserCs, Math.max(-0.5, sev), plea, law.jail);
-            if (kind === 'maimed') {
+            // The lash, the pillory, the mines and the oar where the realm's law has them; the iron only where it allows it (systems/penalLabour.js)
+            if (kid != null && present) kind = Trials._penalKind(world, trial, kind, days, graveCs.length > 0);
+            const crimeOf = ((graveCs.length ? graveCs : (standing.length ? standing : trial.charges))[0] || {});
+            if (kind === 'flogged' || kind === 'pilloried' || kind === 'mines' || kind === 'galleys') {
+                if (kind !== 'pilloried') release(kind);
+                const sevN = graveCs.length ? 3 : (trial.offenseNumber >= 2 ? 2 : 1);
+                const r = PenalLabour.sentencePlayer(player, world, kind, { kingdomId: kid, town: trial.town, q: trial.q, r: trial.r, days, crime: crimeOf.label || 'a crime', severity: sevN, jail: kind === 'pilloried' ? jail : null });
+                if (kind === 'pilloried' && !jail) release(kind);
+                res = { outcome: kind, convicted: true, days: kind === 'mines' || kind === 'galleys' ? r.days : undefined, text: r.text };
+            } else if (kind === 'maimed') {
                 release('maimed');
                 const crime = ((standing.length ? standing : trial.charges)[0] || {}).label || 'a crime';
                 const m = Maiming.maimPlayer(player, world, maimAct, { by: `the court of ${trial.town}`, why: crime, lawful: true, kingdomId: kid });
@@ -687,7 +727,12 @@ export const Trials = {
                     const paid = Math.min(fine, Utils.centsDown(Math.max(0, _num(player.gold))));
                     if (paid > 0) PlayerCoin.pay(world, player, paid, payee, 'fines');
                     const short = Utils.cents(fine - paid);
-                    if (short > 0) {
+                    // (what you cannot pay, your back pays, where the law keeps a whipping post: systems/penalLabour.js)
+                    if (short > 0 && kid != null && PenalLabour.allowed(world, kid, 'flog').ok && _frac(`${_seed(world)}|penalTrial|${trial.id}|${trial.opened}|short`) < _num((PenalLabour.config().player || {}).flogShare, 0.6)) {
+                        release('flogged');
+                        const r = PenalLabour.sentencePlayer(player, world, 'flogged', { kingdomId: kid, town: trial.town, q: trial.q, r: trial.r, crime: crimeOf.label || 'a crime', severity: 1 });
+                        res = { outcome: 'flogged', convicted: true, fine, paid, text: `${_fill(Trials.line('fined', key, { ...vars, fine: Utils.formatGold(fine), payee: payeeName }))} You cannot pay it all. ${r.text}` };
+                    } else if (short > 0) {
                         const d = Math.round(_clamp(Math.ceil(short / _num(S.absentGoldPerDay, 6)), 2, _num(S.maxDays, 90)));
                         if (jail) { jail.daysRemaining = d; jail.totalDays = d; jail.tried = true; jail.bailCost = 0; jail.offense = 'a fine unpaid'; }
                         res = { outcome: 'jailed', convicted: true, fine, paid, days: d, text: `${_fill(Trials.line('fined', key, { ...vars, fine: Utils.formatGold(fine), payee: payeeName }))} You cannot pay it all: ${d} days in the cells for the rest.` };
@@ -720,7 +765,7 @@ export const Trials = {
                     player.renown = Math.max(0, _num(player.renown) + _num(B.renown, -5));
                     if (player.house) { const loss = Math.min(_num(player.house.prestige), _num(B.prestige, 10)); if (loss > 0) House.spend(player.house, loss, 'branded by a court', day); }
                     WatchQuestioning.shift(player, trial.key, day, _num(B.suspicion, 20));
-                    st.brands.push({ kingdomId: kid, realm: vars.realm, day, crime: (graveCs[0] || {}).label || 'a grave crime', gen: player.house ? _num(player.house.generation, 1) : null });
+                    st.brands.push({ kingdomId: kid, realm: vars.realm, day, crime: (graveCs[0] || {}).label || 'a grave crime', gen: player.house ? _num(player.house.generation, 1) : null, letter: PenalLabour.chargeLetter((graveCs[0] || {}).group) });
                     if (st.brands.length > 10) st.brands.shift();
                     res = { outcome: 'branded', convicted: true, text: Trials.line('branded', key, vars) };
                 } else {
@@ -827,11 +872,30 @@ export const Trials = {
         return (Trials._c('judge').proofText || {})[String(c.proof)] || '';
     },
 
-    verdicts(world = null, c = null) {
+    verdicts(world = null, c = null, player = null) {
         // (taking a limb only where the realm's law takes one for this case's crime: systems/maiming.js)
+        // (the lash, the iron, the mines, the oars and outlawry only where the realm's law has them: systems/penalLabour.js)
         return Object.entries(Trials._c('judge').verdicts || {}).map(([id, v]) => ({ id, ...v }))
             .filter(v => !v.maim || !!(c && Maiming.judgeAct(world, c.kingdomId, c.crime)))
-            .filter(v => !v.scaffold || Executions.enabled());
+            .filter(v => !v.scaffold || Executions.enabled())
+            .filter(v => !v.penal || Trials._penalOk(world, c, v.penal, player))
+            .map(v => {
+                const note = v.penal && c ? PenalLabour.verdictNote(player, world, c, v.penal) : '';
+                return note ? { ...v, desc: `${v.desc || ''} ${note}`.trim() } : v;
+            });
+    },
+
+    /** Can this case take this penal sentence here (the law, a brand not borne, somewhere to send them)? */
+    _penalOk(world, c, sentence, player) {
+        const kid = c ? c.kingdomId : null;
+        if (!PenalLabour.allowed(world, kid, sentence).ok) return false;
+        if (sentence === 'outlaw' && c && _num(c.severity, 2) < 2) return false;
+        if ((sentence === 'mines' || sentence === 'galleys') && !PenalLabour.siteFor(player, world, sentence, kid)) return false;
+        if (sentence === 'brand' && c && world) {
+            const f = Trials._person(world, c, c.accused && c.accused.pid);
+            if (f && MaimMarks.whyNot(f.p, 'brand')) return false;
+        }
+        return true;
     },
 
     /** What a verdict would do to the town (before the hidden truth): the effects object. */
@@ -885,7 +949,15 @@ export const Trials = {
                 text = `You fine ${c.accused.name} ${Utils.formatGold(want)} gold for ${c.crimeLabel}${got < want ? `; they could pay only ${Utils.formatGold(got)}` : ''}.`;
             } else if (verdictId === 'stocks') {
                 Townsfolk.note(p, day, 'jailed', null, 'a day in the stocks');
-                text = `${c.accused.name} spends a day in the stocks of ${c.town} for ${c.crimeLabel}.`;
+                // (the pillory in the square, the crowd's mood and its stones: systems/penalLabour.js)
+                const r = PenalLabour.sentenceFolk(player, world, { settlement: s, folk, person: p, sentence: 'stocks', crimeId: c.crime, crimeLabel: c.crimeLabel, severity: c.severity, kingdomId: c.kingdomId, by: 'player', guilty: c.guilty });
+                text = r.ok ? r.text : `${c.accused.name} spends a day in the stocks of ${c.town} for ${c.crimeLabel}.`;
+                if (r.ok) _addFx(fx, r.fx);
+            } else if (v.penal) {
+                // The lash, the iron, the mines, the oar, outlawry (systems/penalLabour.js)
+                const r = PenalLabour.sentenceFolk(player, world, { settlement: s, folk, person: p, sentence: v.penal, crimeId: c.crime, crimeLabel: c.crimeLabel, severity: c.severity, kingdomId: c.kingdomId, by: 'player', guilty: c.guilty });
+                text = r.ok ? r.text : `${r.reason || 'It cannot be done.'} ${c.accused.name} goes free.`;
+                if (r.ok) _addFx(fx, r.fx);
             } else if (verdictId === 'jail') {
                 p.jailedUntil = day + _num(v.days, 20);
                 Townsfolk.note(p, day, 'jailed', null, c.crimeLabel);

@@ -72,6 +72,8 @@ import { MaimFaith } from './maimFaith.js';
 import { Devotion } from './devotion.js';
 import { Underworld } from './underworld.js';
 import { Ledger } from './ledger.js';
+// (a term at the mines or the oar instead of death: systems/penalLabour.js)
+import { PenalLabour } from './penalLabour.js';
 // (run time only: those in your power, and what becomes of them)
 import { Maiming } from './maiming.js';
 import { Kingship } from './kingship.js';
@@ -81,6 +83,8 @@ import { RivalHouses } from './rivalHouses.js';
 import { BountyHunting } from './bountyHunting.js';
 import { Raising } from './raising.js';
 import { Laws } from './laws.js';
+// (a crown's hanging the kin deem unjust: their blood feud with the royal house, systems/bloodFeuds.js; run time only)
+import { BloodFeuds } from './bloodFeuds.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -489,6 +493,8 @@ export const Executions = {
             let why = '';
             if (id === 'maim' && !(Maiming.enabled() && ['folk', 'captive', 'bounty', 'vassal', 'rival'].includes(e.kind))) why = 'Not to be had here.';
             if (id === 'exile' && e.kind === 'other') why = 'Nowhere to send them from here.';
+            // (hard labour instead of death, where the realm's law sends convicts: systems/penalLabour.js)
+            if (id === 'mines' || id === 'galleys') why = e.kind !== 'folk' ? 'Not to be had here.' : (PenalLabour.allowed(world, e.kingdomId, id).ok ? (PenalLabour.siteFor(player, world, id, e.kingdomId) ? '' : 'Nowhere to send them.') : PenalLabour.allowed(world, e.kingdomId, id).why);
             return { id, label: m.label, icon: m.icon, desc: m.desc, ok: !why, why };
         });
     },
@@ -900,6 +906,8 @@ export const Executions = {
             guilty: e.guilty, outcome: o.outcome, method: o.method || null, mercy: o.mercy || null, place: o.place ? o.place.name : null, q: o.place ? o.place.q : null, r: o.place ? o.place.r : null,
             kingdomId: o.place ? o.place.kingdomId : e.kingdomId, crowd: o.crowd ? o.crowd.size : 0, mood: o.crowd ? o.crowd.mood.id : null, words: o.words || null, text: o.text || '',
             surface, surfaced: false, folkRef: e.kind === 'folk' ? e.ref : null,
+            // (whose the body was, for systems/gibbets.js: the kin, the House, the realm that will want it back)
+            ref: e.ref || null, house: e.house || null, victimKingdomId: e.kingdomId != null ? e.kingdomId : null,
         });
         if (st.history.length > 40) st.history.length = 40;
     },
@@ -933,6 +941,15 @@ export const Executions = {
             const r = Executions._maim(player, world, e, res);
             if (!r.ok) return { success: false, reason: r.reason || 'It cannot be done.' };
             text = r.text;
+        } else if (mercy === 'mines' || mercy === 'galleys') {
+            // Spared for a term at hard labour (systems/penalLabour.js): the longest term the crime has
+            res.p.jailedUntil = null;
+            if (res.p.away && res.p.away.to === 'the cells') res.p.away = null;
+            const s = _settlementAt(world, e.ref.q, e.ref.r);
+            const r = PenalLabour.sentenceFolk(player, world, { settlement: s, folk: res.folk, person: res.p, sentence: mercy, crimeId: e.crime, crimeLabel: e.crimeLabel, severity: 4, kingdomId: e.kingdomId, by: 'player', guilty: e.guilty !== false });
+            if (!r.ok) return { success: false, reason: r.reason || 'It cannot be done.' };
+            text = `Spared the scaffold: ${r.text}`;
+            e.gone = true;
         } else {
             text = Executions._mercyOf(player, world, e, res, mercy, place);
         }
@@ -1214,6 +1231,14 @@ export const Executions = {
             if (words) text += ` Last words: “${words}”`;
             Townsfolk.slay(folk, p, _day(world), m.cause || 'the gallows', world);
             text += ` ${e.name} is dead.`;
+            // The kin may hold the crown to blame: an innocent always, a guilty one when they deem it unjust (systems/bloodFeuds.js)
+            const crown = _kingdom(world, e.kingdomId);
+            if (crown && p.last) {
+                BloodFeuds.killing(world, {
+                    player, victim: BloodFeuds.folkSide(s, p.last), killer: BloodFeuds.lordSide(crown), dead: { name: e.name, rank: BloodFeuds.folkRank(p, _day(world)), person: p },
+                    killerName: 'the crown', how: e.guilty ? (m.cruel ? 'burned' : 'hanged') : 'wrongly_condemned', innocent: !e.guilty, where: { q: s.q, r: s.r, town: s.name },
+                });
+            }
             e.outcome = 'executed';
             s.gallowsFear = { until: _day(world) + _num(Executions.config().fearDays, 45), m: m.cruel ? 0.45 : 0.6 };
             // An innocent of the realm's own: a martyr against its crown

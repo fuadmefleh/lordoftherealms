@@ -46,6 +46,8 @@ import { Couriers } from '../../systems/couriers.js';
 import { LandMarket } from '../../systems/landMarket.js';
 import { PuttingOut } from '../../systems/puttingOut.js';
 import { BackRooms } from '../../systems/backRooms.js';
+import { PitFights } from '../../systems/pitFights.js';
+import { PitRing } from '../../world/pitRing.js';
 import { DataLoader } from '../../core/dataLoader.js';
 import { Names } from '../../core/names.js';
 import { Utils } from '../../core/utils.js';
@@ -482,6 +484,21 @@ export function addSettlementActions(actions, player, tile, world, ctx) {
             icon: '🎲',
             description: 'Join the locals for a friendly wager'
         });
+    }
+
+    // The town's fighting pit: tonight's card, the book, the fighters, the bear and the birds (systems/pitFights.js);
+    // where the law bans it, a cellar behind some honest front
+    if (tile.settlement && tile.settlement.folk && (tile.settlement.pit || PitFights.keepsPit(tile.settlement))) {
+        const pit = PitFights.ensure(world, tile.settlement);
+        if (pit) {
+            const night = PitRing.nightOf(tile.settlement, world.day || 0);
+            actions.push({
+                type: 'fight_pit',
+                label: pit.underground ? 'The Cellar Pit' : 'The Fighting Pit',
+                icon: '🥊',
+                description: `${pit.underground ? `Behind ${pit.front}, since the law forbids it: ` : ''}${night.fight ? 'bouts tonight — bet, watch, or fight' : 'men, the bear and the birds on fight nights'}`,
+            });
+        }
     }
 
     // --- Social / Political ---

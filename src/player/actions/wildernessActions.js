@@ -18,6 +18,7 @@ import { SeasonalWork } from '../seasonalWork.js';
 import { Delves } from '../../systems/delves.js';
 import { Sieges } from '../../systems/sieges.js';
 import { Atrocities } from '../../systems/atrocities.js';
+import { PlayerHarrying } from '../harrying.js';
 import { Maiming } from '../../systems/maiming.js';
 import { MaimMarks } from '../../systems/maimMarks.js';
 import { Interrogation } from '../../systems/interrogation.js';
@@ -33,6 +34,8 @@ import { RiverBoats } from '../../systems/riverBoats.js';
 import { RiverLife } from '../../systems/riverLife.js';
 import { Utils } from '../../core/utils.js';
 import { Executions } from '../../systems/executions.js';
+import { Gibbets } from '../../systems/gibbets.js';
+import { PrisonerFates } from '../prisonerFates.js';
 
 export function addWildernessActions(actions, player, tile, world) {
     // The tongues you speak and the one spoken here; lessons and interpreters in town (systems/languages.js)
@@ -571,6 +574,15 @@ export function addWildernessActions(actions, player, tile, world) {
             description: 'Salt its fields, take hostages, fling the dead over the walls, or put a surrendered town to the sword',
         });
     }
+    // Harry the countryside of a realm you are at war with: burn, fire the crops and the mill, drive the herds, scatter the peasants (player/harrying.js)
+    if (tile.settlement && PlayerHarrying.available(player, world, tile)) {
+        actions.push({
+            type: 'harry',
+            label: `Harry the countryside of ${tile.settlement.name}`,
+            icon: '🔥',
+            description: 'Burn its farms, fire its crops and its mill, drive off its herds, scatter its peasants: starve the enemy and draw out his army',
+        });
+    }
     // The knife: those in your power — a rebel lord, your own blood, the old line, a captive, an outlaw (systems/maiming.js)
     if (tile.settlement && Maiming.targets(player, world).some(t => t.kind !== 'kin')) {
         actions.push({ type: 'maiming', label: 'The knife', icon: '🔪', description: 'Those in your power: a rebel lord, your own blood, the old line, a captive in your cellar' });
@@ -579,9 +591,17 @@ export function addWildernessActions(actions, player, tile, world) {
     if (tile.settlement && Interrogation.held(player, world).length) {
         actions.push({ type: 'dungeon', label: 'The dungeon', icon: '🔗', description: 'Put a prisoner to the question: a captive in your cellar, a child of a rival House, an outlaw' });
     }
+    // Prisoners of war: a column awaiting your word, ransom talks, oaths, turncoats, your stakes (player/prisonerFates.js)
+    if (PrisonerFates.hasBusiness(player, world)) {
+        actions.push({ type: 'captives', label: 'Prisoners of war', icon: '🛡️', description: 'The men who yielded to you: their fate, the ransoms, the oaths, the stakes' });
+    }
     // The scaffold: the condemned awaiting your word, those you could bring to it, your martyrs' shrines (systems/executions.js)
     if (tile.settlement && (Executions.list(player).length || Executions.targets(player, world).length || Executions.cults(world).some(c => c.by.kind === 'player'))) {
         actions.push({ type: 'executions', label: 'The scaffold', icon: '⚖️', description: 'The condemned awaiting your word: the place, the manner, the crowd, or mercy' });
+    }
+    // The dead in your hands, the dead on show, your war trophies (systems/gibbets.js)
+    if (tile.settlement && (Gibbets.bodies(player, world).length || Gibbets.trophies(player).length || Gibbets.standingAt(world, tile.q != null ? tile.q : player.q, tile.r != null ? tile.r : player.r).length || Gibbets.all(world).some(x => x.d.by && x.d.by.kind === 'player'))) {
+        actions.push({ type: 'gibbets', label: 'The dead & trophies', icon: '💀', description: 'Heads over the gate, the gibbet at the crossroads, the bodies in your hands, war trophies and their envoys' });
     }
     // A realm's execution in this town today: join the crowd (systems/executions.js)
     if (tile.settlement && Executions.crowdsAt(world, tile.q != null ? tile.q : player.q, tile.r != null ? tile.r : player.r).length) {

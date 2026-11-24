@@ -36,6 +36,9 @@ function forYou(game, k, lawId, option) {
     if (lawId === 'privatePrisons' && option.id === 'allowed') return 'Anyone who sets on you and wins may take you for their prison camp.';
     // (what the courts would take from you, convicted here: systems/maiming.js)
     if (lawId === 'mutilation') return option.id === 'thieves' ? 'Convicted of theft here a second time, you would lose a hand on the scaffold.' : option.id === 'old' ? 'Convicted here of theft you would lose a hand; of cheating, an ear; of slander, your tongue.' : 'The courts here take no limb.';
+    // (what the courts would do to your body, or with your years: systems/penalLabour.js)
+    if (lawId === 'corporal') return option.id === 'iron' ? 'Convicted here, you may be flogged at the post, or have the court\'s letter burned into your cheek for life.' : option.id === 'lash' ? 'Convicted here of a lesser crime, you may be flogged at the post instead of the cells.' : 'The courts here pillory, but take no lash and no iron to you.';
+    if (lawId === 'penalLabour') return option.id === 'oars' ? 'Convicted here of a grave crime, you may be sent to the crown\'s mines or chained to its galleys\' oars.' : option.id === 'mines' ? 'Convicted here of a grave crime, you may be sent to the crown\'s mines.' : 'The courts here send no one to hard labour.';
     if (lawId === 'vice') {
         // The town's own ordinance on top of the realm's (Laws.gambling)
         const tile = world.getTile(player.q, player.r);
@@ -47,6 +50,18 @@ function forYou(game, k, lawId, option) {
             return `In ${s.name} the tables may stand in the open.`;
         }
         return option.id === 'forbidden' ? 'No gaming house may open in this realm: only back rooms behind some honest front.' : '';
+    }
+    if (lawId === 'bloodSports') {
+        // The town's own ordinance on top of the realm's (Laws.bloodSports)
+        const tile = world.getTile(player.q, player.r);
+        const s = tile && tile.settlement;
+        if (s) {
+            const g = Laws.bloodSports(world, s);
+            if (g.forbiddenBy === 'town') return `${s.name} forbids its pit by its own ordinance: any bouts here are fought in a cellar behind some honest front.`;
+            if (g.forbiddenBy === 'realm') return 'No pit may fight in the open: they go underground, and the watch raids them.';
+            return g.taxed ? `${s.name}'s pit fights in the open and pays the crown a fifth of its gate.` : `${s.name}'s pit may fight in the open.`;
+        }
+        return option.id === 'banned' ? 'The pits go underground, and the watch raids them.' : '';
     }
     if (lawId === 'punishment') {
         const p = Laws.punishment(world, k.id);

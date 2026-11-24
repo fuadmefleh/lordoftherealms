@@ -1,0 +1,69 @@
+{
+    "_doc": "THE DEAD ON SHOW AND WAR TROPHIES (systems/gibbets.js; the street-map part world/deadDisplays.js). BODIES: those who die by your word or your hand — the executed (the scaffold's record, systems/executions.js), a rebel leader hanged, an enemy commander slain on the field (player/fieldBattle.js), a rival House's head killed in the lists — lie in your hands for bodyDays: display them (kinds: spike over the gate, gibbet at a crossroads, gallows in the square; at a seat you rule), return them to their kin, bury them, or take a TROPHY from a great one (trophies.kinds). STAGES: days since it went up (x lasts): fresh, rotting, bones; past the last it has fallen to pieces. WHILE IT STANDS, read elsewhere: crime — a burglar's or cutpurse's chance in that town x deterrence (systems/npcTheft.js reads Gibbets.deterrence; each display: 1 - (1 - kinds.*.crime) x stageWeight); revolt — a FEAR part of the peasants' grievance pressure (systems/peasantRevolts.js reads Gibbets.revoltDread: kinds.*.revolt x stageWeight, rebels x rebelMult, towns within reach hexes at neighbourShare); mood — the town's happiness falls moodPerWeek x stageWeight (floor moodFloor). AT THE RAISING: the town remembers (npcMemory kind dead_displayed), the dead man's kin (desecrated_dead: a blood memory, read by the Nemesis), his House (rival feud + memory kinDisplayed), his realm's lord (lordMemory kin_displayed: a vendetta, read by coalitions' casus belli), his faith (clergy standing - desecration.faithStanding by its stance); your dread (Traits dread x fear.dread), renown (fear.renown), the court cowed by a traitor's head (fear.courtCowedDays). TAKEN DOWN: by you (here; your own: kin mollified; another lord's: heat, the kin grateful, the faith's thanks if it holds the body sacred), by the kin at night (kinTakeDown: weekly hash roll), by the faith (faithTakeDown by stance, after its afterDays). Every desecration is logged on world.gibbets.grievances (Gibbets.grievances: the hook a blood-feud system reads). AI REALMS (ai.*): the realms' own executed go up at their capitals (highborn and traitors likelier). TROPHIES are heirlooms (data/heirlooms.json kinds skull_cup, trophy_banner, trophy_sword: their bonus and Prestige a year read by the heirloom machinery) carrying item.trophy: dread in that realm (Atrocities.termsShift reads Gibbets.trophyDread: siege terms), its lord's vendetta (trophy_held, renewed yearly), the faith's disapproval (a skull cup: faithStanding, yearly), demands for its return (demandEveryDays: the realm offers its treasury's price; return it for that, or as a peace term when at war), and the realm may steal it back (stealChance a year).",
+    "enabled": true,
+    "bodyDays": 20,
+    "maxPerTown": 8,
+    "stages": [
+        { "id": "fresh", "until": 14, "label": "fresh", "weight": 1 },
+        { "id": "rotting", "until": 75, "label": "rotting", "weight": 0.8 },
+        { "id": "bones", "until": 300, "label": "picked to the bones", "weight": 0.45 }
+    ],
+    "kinds": {
+        "spike": { "label": "Head on a spike over the gate", "short": "head on a spike", "icon": "💀", "where": "over the gate", "crime": 0.7, "revolt": 9, "mood": 1, "desecration": 1, "fear": 1.2, "needsHead": true, "desc": "Set the head on a pike above the gate, where every carter and pilgrim passes under it." },
+        "gibbet": { "label": "Gibbet cage at the crossroads", "short": "gibbet", "icon": "⛓️", "where": "at the crossroads", "crime": 0.6, "revolt": 11, "mood": 1.2, "desecration": 1.2, "fear": 1.4, "desc": "Hang the body in an iron cage at the crossroads outside town, for the crows and the travellers." },
+        "gallows": { "label": "Left hanging on the gallows", "short": "body on the gallows", "icon": "🪢", "where": "on the gallows in the square", "crime": 0.75, "revolt": 7, "mood": 0.9, "desecration": 0.8, "fear": 1, "desc": "Leave the body on the gallows in the square, where the market is held." }
+    },
+    "rankWeight": { "commoner": 1, "outlaw": 1, "rebel": 1.4, "cleric": 1.2, "noble": 1.6, "vassal": 1.8, "rival": 1.8, "lord": 2, "king": 3, "commander": 1.5 },
+    "great": ["noble", "vassal", "rival", "lord", "king"],
+    "rebelMult": 1.5,
+    "reach": 2,
+    "neighbourShare": 0.4,
+    "crimeFloor": 0.3,
+    "revoltCap": 30,
+    "moodPerWeek": 0.8,
+    "moodFloor": 15,
+    "raisingMood": 3,
+    "desecration": {
+        "townKind": "dead_displayed",
+        "kinKind": "desecrated_dead",
+        "lordDeed": "kin_displayed",
+        "rivalFeud": 30,
+        "rivalMemory": "kinDisplayed",
+        "faithStanding": { "sacred": 8, "mild": 4, "harsh": 1 },
+        "keep": 40
+    },
+    "fear": { "dread": 1.5, "cruelty": 0.5, "renown": 2, "courtCowedDays": 120 },
+    "kinTakeDown": { "base": 0.03, "perKin": 0.025, "house": 0.08, "max": 0.3, "afterDays": 3 },
+    "faithTakeDown": { "sacred": 0.15, "mild": 0.04, "harsh": 0, "afterDays": 21 },
+    "takeDown": {
+        "foreignHeat": 6, "foreignReputation": -4, "kinThanks": "body_returned", "sacredStanding": 3,
+        "ownMollify": "body_returned", "ownRivalFeud": -10
+    },
+    "returnBody": { "rivalFeud": -15, "lordDeed": "amends_made", "kinThanks": "body_returned" },
+    "ai": { "highborn": 0.75, "treason": 0.6, "common": 0.12, "keep": 30 },
+    "field": { "minStrength": 30, "lordAt": 90, "kingAt": 250, "kingChance": 0.12 },
+    "trophies": {
+        "kinds": {
+            "skull_cup": { "label": "Skull cup", "icon": "💀", "needsHead": true, "prestige": 25, "dread": 0.06, "lordWeight": -45, "faithStanding": 10, "faithYearly": 2, "desc": "Have his skull rimmed in silver and drink from it at your table." },
+            "trophy_banner": { "label": "Captured banner", "icon": "🚩", "prestige": 15, "dread": 0.03, "lordWeight": -25, "faithStanding": 0, "faithYearly": 0, "desc": "Hang his banner upside down in your hall." },
+            "trophy_sword": { "label": "His sword", "icon": "🗡️", "prestige": 12, "dread": 0.03, "lordWeight": -25, "faithStanding": 0, "faithYearly": 0, "desc": "Take up his sword, and wear it where his kin can see it." }
+        },
+        "dreadMax": 0.12,
+        "kingMult": 1.6,
+        "demandEveryDays": 360,
+        "demandFirstDays": 90,
+        "price": { "skull_cup": 900, "trophy_banner": 500, "trophy_sword": 450 },
+        "treasuryShare": 0.35,
+        "refuseWeight": -10,
+        "returnedDeed": "amends_made",
+        "stealChance": 0.06,
+        "lordDeed": "trophy_held"
+    },
+    "lines": {
+        "raised": ["{name}'s {what} now stands {where} in {town}.", "By your order {name}'s {what} goes up {where} in {town}. People cross the street rather than look."],
+        "kinTook": ["In the night someone cut down {name}'s {what} in {town}. Fresh earth was found in the churchyard by morning.", "{name}'s kin came for the body in the dark. The {what} in {town} stands empty."],
+        "faithTook": ["The priests of {town} took {name} down from the {what} and buried {him} in hallowed ground. They say the dead belong to God, not to {lord}.", "The clergy of {town} would not suffer {name} to hang longer: the body is down and buried."],
+        "fell": ["What was left of {name} has fallen from the {what} in {town}."],
+        "demand": ["Envoys of {realm} come to your hall: they want {item} back, and will pay {price} gold out of their treasury for it."]
+    }
+}

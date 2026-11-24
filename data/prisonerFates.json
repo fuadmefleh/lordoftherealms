@@ -1,0 +1,73 @@
+{
+    "_note": "The fate of prisoners after a battle (player/prisonerFates.js). Days are game days (120 to a year, ~10 to a month). Every coin moves between real purses: a ransom out of the captive's realm treasury into yours, a sale out of the buying crown's treasury, your own men bought back out of your purse into theirs.",
+    "capture": {
+        "_doc": "A beaten band of men (types) leaves captives: the survivors (enemyRemaining, or survivors × the one-shot battle's strength) × share (routShare when they broke). A foe who fought to the death (noQuarter) leaves lastStandShare. men = strength × menPerStrength. Fewer than minStrength: no captives. Knights from a realm's host: one per knightPer strength from knightFrom, at most maxKnights (the dungeon's prisoner of war taken the same day counts among them).",
+        "types": ["war_host", "patrol", "road_patrol", "raider", "pirate", "mercenary", "smuggler"],
+        "outlawTypes": ["raider", "pirate", "mercenary", "smuggler"],
+        "share": 0.4, "routShare": 0.6, "lastStandShare": 0.08, "survivors": 0.4,
+        "menPerStrength": 2, "minStrength": 3,
+        "knightFrom": 15, "knightPer": 50, "maxKnights": 4
+    },
+    "service": {
+        "_doc": "Taken into your service: share of the captives' strength as real companies (unitType for a realm's men, outlawUnit for outlaws) with loyalty (outlawLoyalty). Each day loyalty grows by loyaltyPerDay (halved when you are at war with their realm); at loyalTo they are yours. Each day a turncoat may desert: desert × (1 − loyalty/100) × (homeMult within homeRadius of their realm's towns) × (warMult at war with it). A deserter of a realm walks home: its military gains his strength. The rest of the column walks home disarmed.",
+        "share": 0.5, "unitType": "soldier", "outlawUnit": "militia", "maxUnits": 6,
+        "loyalty": 25, "outlawLoyalty": 15, "loyaltyPerDay": 0.4, "loyalTo": 70,
+        "desert": 0.03, "homeMult": 2, "homeRadius": 6, "warMult": 2.5
+    },
+    "oath": {
+        "_doc": "Released on oath not to bear arms against you for days. They walk home (the realm's military gains them). The realm's regard +rep, mercy deeds, the lords' memory pow_spared. While the oath stands its crown sends war hosts: it keeps the sworn men home with keepBase + honour × keepPerHonour (its lord's honour 1-10, at most keepMax); else a host marches with up to breakShare of its men oath-breakers. Met in battle they are found out: your men fight harder that day (angerPower) and theirs worse (shameMorale), the realms think less of that crown (othersRelations), and the oath-breakers among the next captives may be hanged lawfully.",
+        "days": 240, "rep": 6, "karma": 3, "keepBase": 0.35, "keepPerHonour": 0.06, "keepMax": 0.95, "breakShare": 0.5,
+        "angerPower": 0.08, "shameMorale": -0.08, "othersRelations": -6, "brokenRep": 4
+    },
+    "ransom": {
+        "_doc": "Knights ransomed by talks over days: you name a price (asks: × the dungeon's ransom by rank), a herald carries it (replyDays, + 1 per distPer hexes to their capital), and their crown answers. It will pay up to its cap = base × greed(lord) and at most treasuryShare of its treasury. At or under the cap: agreed, the coin rides in after payDays out of the treasury (if it is short then, what it has, the rest owed until dueDays). Over: it offers its cap; you may take it or press again (each press asks pressCut less; after maxRounds it refuses). Refused or unpaid by dueDays: the knight stays in your dungeon to rot (rotChance a month of dying there from rotAfter days: deathRep, the lords' memory) or you sell him to a crown hostile to his (sale × the dungeon's ransom, out of its treasury).",
+        "asks": { "fair": 1, "high": 1.6, "ruinous": 2.5 },
+        "replyDays": 3, "distPer": 12, "payDays": 4, "dueDays": 30,
+        "greedBase": 1.3, "greedPerAmbition": 0.05, "honourPer": 0.03, "treasuryShare": 0.35,
+        "pressCut": 0.2, "maxRounds": 3, "sale": 0.6, "saleTreasuryShare": 0.25, "saleRep": -8,
+        "rotAfter": 120, "rotChance": 0.04, "deathRep": -10
+    },
+    "slaughter": {
+        "_doc": "Cut down where they stand. The dead are lost to their realm. Their realm (and for outlaws, the outlaws) fight to the death against you for noQuarterDays: they do not rout (a phased battle breaks them only at noRoutShare of their strength), fight with moraleBonus, and leave almost no captives. Atrocity marks (butcher, perfidy: a broken surrender), karma, cruelty and dread, regard with them and the others, the lords' memory, the realm's faith, gossip, your lords' fear.",
+        "noQuarterDays": 240, "noRoutShare": 0.15, "moraleBonus": 0.12, "casualtyMult": 1.2,
+        "butcher": 14, "perfidy": 8, "karma": -15, "deeds": { "cruelty": 3, "dread": 2 },
+        "rep": -25, "otherRep": -3, "faith": 6, "allFaiths": 0,
+        "lordDeed": "pow_slaughtered", "othersDeed": "pow_slaughter_heard", "gossip": "prisoners_slaughtered",
+        "cowedDays": 20, "grudge": 2, "warScore": 5, "renown": 0
+    },
+    "blind": {
+        "_doc": "Basil II: every captive blinded, one in leaderEvery left one eye to lead the column home. The column walks to its capital at speed hexes a day (shown on the map); when it comes in, the realm loses heart for dismayDays: its armies' morale −dismay (KingdomAI._moraleBonus), it sends no new war hosts against you, its stability −stability, its war will (your war score +warScore). Every faith hates you (allFaiths standing), every realm's regard otherRep. A one-eyed leader may become your nemesis.",
+        "minMen": 10, "leaderEvery": 100, "speed": 3, "dismayDays": 120, "dismay": 0.15, "stability": 8,
+        "butcher": 30, "perfidy": 4, "karma": -30, "deeds": { "cruelty": 5, "dread": 4 },
+        "rep": -40, "otherRep": -10, "faith": 12, "allFaiths": 8,
+        "lordDeed": "pow_blinded", "othersDeed": "pow_blinded_heard", "gossip": "prisoners_blinded",
+        "cowedDays": 40, "grudge": 4, "warScore": 25, "renown": 12, "nemesis": 75
+    },
+    "impale": {
+        "_doc": "Vlad: the captives impaled along the road into your realm (tiles hexes from the field toward your realm's capital, your nearest holding, or your liege's capital). The stakes stand rotDays, shown on the world map; while they stand (deterrence fresh = 1 − age/rotDays): a war host within deterRadius may turn back each day (turnBack × fresh), a crown whose target lies within deterRadius may not march at all (stayHome × fresh), and the victims' realm and its neighbours within fearRadius do not start a war of conquest on your realm while fresh ≥ fearFresh. Your name becomes a tale told everywhere (renown, gossip in every capital, dread that opens purses), every realm's regard otherRep, every faith allFaiths; your own lords fear you (cowed, a grudge).",
+        "minMen": 6, "tiles": 6, "rotDays": 90, "deterRadius": 6, "turnBack": 0.35, "stayHome": 0.6, "fearRadius": 30, "fearFresh": 0.4,
+        "butcher": 40, "perfidy": 4, "karma": -35, "deeds": { "cruelty": 6, "dread": 6 },
+        "rep": -45, "otherRep": -8, "faith": 10, "allFaiths": 5,
+        "lordDeed": "pow_impaled", "othersDeed": "pow_impaled_heard", "gossip": "prisoners_impaled",
+        "cowedDays": 60, "grudge": 3, "warScore": 15, "renown": 30
+    },
+    "outlaws": {
+        "_doc": "Bandits, raiders, pirates and sellswords with no realm. Hanged by the road's law: renown, the nearest realm's regard +hangRep, the nearest town's thieves cowed (gallowsFear, fearDays), and outlaws fight harder against you (noQuarterDays/2). Cut down without a rope: karma and cruelty. Released: mercy, karma; some go back to the road. Impaled: the stakes and the tale, no realm's war deterred. There is no penal labour (the mines, the galleys) to send them to yet.",
+        "hangRep": 2, "hangRenown": 2, "fearDays": 45, "fearMult": 0.6, "slayKarma": -5, "releaseKarma": 3,
+        "impaleKarma": -10, "impaleButcher": 15, "impaleRenown": 15
+    },
+    "yourMen": {
+        "_doc": "Beaten by a realm, some of your fallen were taken alive (taken of the casualties, at least 1). Their lord decides (a hash pick weighted by his traits and by what you did to his men: reciprocity): ransom (ask perUnit a man's company, out of your purse into its treasury, by dueDays or they serve in its army), release (home in releaseDays), service (its military takes them), slaughter or blind (lost, and your men want vengeance on that realm for vengeanceDays: +vengeancePower).",
+        "taken": 0.35, "perUnit": 40, "dueDays": 30, "releaseDays": 7, "vengeanceDays": 120, "vengeancePower": 0.06,
+        "weights": { "ransom": 4, "release": 2, "service": 2, "slaughter": 1, "blind": 0.2 },
+        "cruel": { "slaughter": 3, "blind": 1 }, "honourable": { "release": 3, "ransom": 1 }, "greedy": { "ransom": 3 }
+    },
+    "ai": {
+        "_doc": "The realms' own battles (world/kingdomAI.js simulateBattle → world.captivesFeed). The victor takes share of the loser's dead as captives and its lord (a hash pick by traits, honour) treats them: ransom (perMan out of the loser's treasury, at most treasuryShare), release (home), service (victor's military × serviceShare), slaughter (the loser's lords hate it: relations), blind (the loser's dismay), impale (cruel lords only: stakes on the field, shown on the map; the loser fears the victor). At most perDay battles a day; eventsFor only.",
+        "share": 0.3, "perMan": 2, "treasuryShare": 0.1, "serviceShare": 0.5, "slaughterRelations": -10, "blindRelations": -20,
+        "perDay": 4, "minMen": 20,
+        "weights": { "ransom": 4, "release": 3, "service": 3, "slaughter": 1, "blind": 0.05, "impale": 0 },
+        "cruel": { "slaughter": 3, "blind": 0.5, "impale": 0.4 }, "honourable": { "release": 3, "ransom": 1 }
+    },
+    "history": 40
+}

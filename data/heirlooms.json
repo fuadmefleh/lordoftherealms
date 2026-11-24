@@ -7,7 +7,10 @@
         "book":   { "icon": "📕", "label": "Book",   "bonus": { "negotiation": 0.01 }, "prestigeYear": 1, "nouns": ["book", "codex", "testament", "ledger"], "titles": ["the Book of {house}", "{founder}'s Codex"] },
         "banner": { "icon": "🚩", "label": "Banner", "bonus": { "battlePower": 0.015 }, "prestigeYear": 1, "nouns": ["banner", "standard", "pennon"], "titles": ["the Banner of {house}", "{founder}'s Standard"] },
         "armour": { "icon": "🛡️", "label": "Armour", "bonus": { "damageReduction": 0.04 }, "nouns": ["mail", "plate", "harness", "ward"], "titles": ["the Harness of {founder}", "the Mail of {house}"] },
-        "relic":  { "icon": "🏺", "label": "Relic",  "prestigeYear": 2, "bonus": {}, "nouns": ["relic", "cup", "horn", "stone"], "titles": ["the Relic of {house}", "{founder}'s Horn"] }
+        "relic":  { "icon": "🏺", "label": "Relic",  "prestigeYear": 2, "bonus": {}, "nouns": ["relic", "cup", "horn", "stone"], "titles": ["the Relic of {house}", "{founder}'s Horn"] },
+        "skull_cup": { "icon": "💀", "label": "Skull cup", "trophy": true, "prestigeYear": 3, "bonus": { "negotiation": 0.01 }, "nouns": ["cup"], "titles": ["the Skull of {founder}'s Enemy"] },
+        "trophy_banner": { "icon": "🚩", "label": "Captured banner", "trophy": true, "prestigeYear": 2, "bonus": { "battlePower": 0.01 }, "nouns": ["banner"], "titles": ["the Taken Banner"] },
+        "trophy_sword": { "icon": "🗡️", "label": "Taken sword", "trophy": true, "prestigeYear": 1, "bonus": { "battlePower": 0.015 }, "nouns": ["sword"], "titles": ["the Taken Sword"] }
     },
     "adjectives": ["Dawn", "Grey", "Oath", "Storm", "Raven", "Ember", "Winter", "Iron", "Gold", "Ash", "Star", "Wolf", "Moon", "Thorn", "Red", "Hollow", "Sun", "River"],
     "titleChance": 0.4,

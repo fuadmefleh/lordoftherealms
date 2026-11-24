@@ -9,6 +9,7 @@ import { Hospitality } from '../../systems/hospitality.js';
 import { Livestock } from '../../systems/livestock.js';
 import { BackRooms } from '../../systems/backRooms.js';
 import { Lots } from '../../systems/lots.js';
+import { PenalLabour } from '../../systems/penalLabour.js';
 import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, WorldEvents, PlayerEffects, PlayerInventory, WEATHER_EFFECTS, Economy, Seasons, SettlementSize, SettlementMarket } from './_imports.js';
 
 Object.assign(PlayerEconomy, {
@@ -495,8 +496,9 @@ Object.assign(PlayerEconomy, {
 
             // Prosperity miracle and a House Steward
             amount *= PlayerEffects.propertyIncomeMultiplier(player);
-            // Only as many hands as the nearest town can spare (world/townLabour.js)
-            amount *= TownLabour.staffing(property.hire);
+            // Only as many hands as the nearest town can spare (world/townLabour.js),
+            // and a mine's or quarry's convict gang on top (systems/penalLabour.js)
+            amount *= PenalLabour.mineStaffing(property, TownLabour.staffing(property.hire));
             // Bountiful Harvest miracle
             if (def && def.category === 'farming') amount *= PlayerEffects.farmProductionMultiplier(player);
 

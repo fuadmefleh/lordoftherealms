@@ -222,6 +222,20 @@ registerScene('servitude', {
             { id: 'work', icon: '🧱', label: 'Work for an earlier release', hint: 'Takes the day; it counts double against your bond.', chance: null },
         ];
         if (s.canBuyFreedom) options.push({ id: 'buy', icon: '💰', label: 'Buy your freedom', chance: null, cost: `${Utils.formatGold(s.freedomCost)} gold`, can: (player.gold || 0) >= s.freedomCost, reason: `You need ${Utils.formatGold(s.freedomCost)} gold` });
+        // (a court's sentence to the mines or the oar: systems/penalLabour.js; the ransom goes to the crown)
+        if (s.penal) {
+            const mines = s.penal.kind === 'mines';
+            const buy = options.find(o => o.id === 'buy');
+            if (buy) buy.label = `Buy your release from the crown of ${s.penal.realm || 'the realm'}`;
+            const slip = options.find(o => o.id === 'slip');
+            if (slip) slip.hint = `Caught, they flog you and add days. Away, the crown posts a warrant for you.${!mines && s.penal.inPort ? ' Tonight the galley lies in port.' : ''}`;
+            return {
+                icon: mines ? '⛏️' : '⚓', title: `Sentenced to ${s.captor}`, panelTitle: mines ? '⛏️ The Mines' : '⚓ The Galleys',
+                stats: [`${s.daysRemaining} day(s) left`, `💰 ${Math.floor(player.gold || 0)}`, `❤️ ${Math.round(player.health || 0)}`],
+                text: mines ? 'Down the shaft at first light, chained to the others; up at dark with the ore. The gallery roofs creak.' : 'Chained to the bench, the drum keeping the stroke, the overseer\'s whip for the slow.',
+                options,
+            };
+        }
         return {
             icon: '⛓️', title: `Bound to ${s.captor}`, panelTitle: '⛓️ Indentured Servitude',
             stats: [`${s.daysRemaining} day(s) left`, `💰 ${Math.floor(player.gold || 0)}`, `❤️ ${Math.round(player.health || 0)}`],
@@ -236,7 +250,7 @@ registerScene('servitude', {
         if (choice === 'slip') {
             if (!Prison.canTryServitudeEscape(player, world)) return fail('You have tried your luck today.');
             s.lastEscapeDay = world.day;
-            const r = PlayerMilitary.attemptEscape(player);
+            const r = PlayerMilitary.attemptEscape(player, world);
             return { notification: { title: r.success ? '🏃 Escaped!' : '❌ Escape Failed', body: r.message, type: r.success ? 'success' : 'error' } };
         }
         if (choice === 'bribe') {
@@ -249,7 +263,7 @@ registerScene('servitude', {
             return r.success ? { endDay: true, notification: { title: '🧱 Hard Labour', body: r.text, type: 'info' } } : fail(r.reason);
         }
         if (choice === 'buy') {
-            const r = PlayerMilitary.buyFreedom(player);
+            const r = PlayerMilitary.buyFreedom(player, world);
             return r.success ? { notification: { title: 'Freedom Bought!', body: r.message, type: 'success' } } : fail(r.reason);
         }
         return fail('That cannot be done now.');

@@ -1178,7 +1178,7 @@ export const InnerMapBrawls = {
         const s = this._town();
         if (!by || !s || !game || !game.world) return;
         const day = this._day(game);
-        if (npc._person) Brawls.recordDeath(game.world, s, npc._person.id, by.name, day);
+        if (npc._person) Brawls.recordDeath(game.world, s, npc._person.id, by.name, day, by.pid != null ? by.pid : null);
         // The killer: the watch wants them for it
         if (by.pid != null && s.folk) {
             const k = Townsfolk.get(s.folk, by.pid);

@@ -20,8 +20,11 @@ import { Difficulty } from '../../core/difficulty.js';
 import { DataLoader } from '../../core/dataLoader.js';
 import { Ledger } from '../../systems/ledger.js';
 import { PeasantRevolts } from '../../systems/peasantRevolts.js';
+import { Harrying } from '../../systems/harrying.js';
 import { PlayerCoin } from '../playerCoin.js';
 import { Thirst } from '../thirst.js';
+import { PrisonerFates } from '../prisonerFates.js';
+import { PenalLabour } from '../../systems/penalLabour.js';
 import { Utils, Technology, House, Quests, RealmWars, Throne, PlayerEffects, Housing, Culture, PlayerReligion, PlayerInventory, WorldEvents, WEATHER_EFFECTS, Economy, Arms } from './_imports.js';
 
 Object.assign(PlayerMilitary, {
@@ -97,6 +100,8 @@ Object.assign(PlayerMilitary, {
         if (context.defending) playerPower *= 1 + Technology.getDefenseBonus(player);
         // A fortified house (watchtower, fortification upgrades) adds +1% per point of defense
         if (context.defending) playerPower *= 1 + Housing.getTotalBonuses(player).defense / 100;
+        // Oath-breakers in their ranks, vengeance for your own men they killed (player/prisonerFates.js foeSpirit)
+        if (context.foePower) playerPower *= context.foePower;
         let enemyPower = enemyStrength * Utils.randFloat(0.8, 1.2) * enemyCounterMult * enemyTerrainMult * enemyWeatherMult * enemyMorale;
         enemyPower *= Difficulty.mult(player, 'enemyStrength'); // the difficulty (1 on Normal)
 
@@ -113,7 +118,8 @@ Object.assign(PlayerMilitary, {
             Traits.recordDeed(player, 'cowardice', 2); // the army broke and ran
             playerPower *= 0.55;
             enemyPower *= 1.12;
-        } else if (specials.commanderSlain || PlayerMilitary._checkMoraleBreak(enemyStrength, playerStrength, enemyMorale)) {
+        } else if (specials.commanderSlain || (!context.enemyNoRout && PlayerMilitary._checkMoraleBreak(enemyStrength, playerStrength, enemyMorale))) {
+            // (a foe you gave no quarter does not break: player/prisonerFates.js)
             moraleBreak = 'enemy';
             enemyPower *= 0.55;
             playerPower *= 1.12;
@@ -138,6 +144,8 @@ Object.assign(PlayerMilitary, {
         // Surgery saves soldiers who would otherwise be lost
         casualtyRate *= Math.max(0, 1 - Technology.getEffectTotal(player, 'battleCasualtyReduction'));
         if (moraleBreak === 'player' && !victory) casualtyRate *= 1.25;
+        // ...and one fighting to the last man costs you more
+        if (context.foeCasualtyMult) casualtyRate *= context.foeCasualtyMult;
         // Divine Protection: no one falls
         casualtyRate *= PlayerEffects.casualtyMultiplier(player);
         // Plate armour turns blows that would have killed
@@ -413,6 +421,8 @@ Object.assign(PlayerMilitary, {
 
         const servitude = player.indenturedServitude;
         servitude.daysRemaining--;
+        // A court's sentence to the mines or the oar: hard days, accidents, the crown's gang (systems/penalLabour.js)
+        const labour = servitude.penal ? PenalLabour.playerLabourDay(player, world, servitude) : '';
 
         // Player can attempt escape each day
         const escaped = false;
@@ -446,14 +456,14 @@ Object.assign(PlayerMilitary, {
             freed: false,
             daysRemaining: servitude.daysRemaining,
             captor: servitude.captor,
-            message: `You toil under ${servitude.captor}. ${servitude.daysRemaining} days of servitude remain.`,
+            message: `${servitude.penal ? `You labour at ${servitude.captor}.` : `You toil under ${servitude.captor}.`}${labour ? ` ${labour}` : ''} ${servitude.daysRemaining} days of servitude remain.`,
         };
     },
 
     /**
      * Attempt to escape indentured servitude
      */
-    attemptEscape(player) {
+    attemptEscape(player, world = null) {
         if (!player.indenturedServitude) return { success: false, reason: 'Not in servitude' };
 
         const servitude = player.indenturedServitude;
@@ -465,6 +475,11 @@ Object.assign(PlayerMilitary, {
                 success: true,
                 message: `You slipped away in the night and escaped ${servitude.captor}! You are free, but they may seek revenge.`,
             };
+            // (a convict who broke the crown's chain: a warrant, heat — systems/penalLabour.js)
+            if (servitude.penal && world) {
+                PenalLabour.playerEscaped(player, world, servitude);
+                result.message = `You slipped your chain in the night and escaped ${servitude.captor}! The crown will want you for it.`;
+            }
             player.indenturedServitude = null;
             player.stamina = player.maxStamina;
             // A day's walk, scaled as each morning's (data/travel.json dayScale)
@@ -496,8 +511,9 @@ Object.assign(PlayerMilitary, {
         const cost = player.indenturedServitude.freedomCost;
         if (player.gold < cost) return { success: false, reason: `Need ${Utils.formatGold(cost)} gold (have ${Math.floor(player.gold)})` };
 
-        // (the ransom goes to the captors: the band's packs, its realm, else the town nearest)
-        PlayerCoin.pay(world, player, cost, null, 'ransoms');
+        // (the ransom goes to the captors: the band's packs, its realm, else the town nearest;
+        // a court's term at hard labour is bought off the crown that passed it — systems/penalLabour.js)
+        PlayerCoin.pay(world, player, cost, PenalLabour.ransomPayee(world, player.indenturedServitude), 'ransoms');
         Traits.recordDeed(player, 'honesty', 1); // paid the debt rather than fled
         const captor = player.indenturedServitude.captor;
         player.indenturedServitude = null;
@@ -849,9 +865,15 @@ Object.assign(PlayerMilitary, {
      */
     attackUnit(player, worldUnit, world, opts = {}) {
         const unitTile = world.getTile(worldUnit.q, worldUnit.r);
+        // How their men fight you: no quarter given, oath-breakers, vengeance (player/prisonerFates.js)
+        const spirit = PrisonerFates.foeSpirit(player, world, worldUnit);
         // A phased field battle (player/fieldBattle.js) hands in its own result
         const combatResult = opts.combatResult || PlayerMilitary.combat(player, worldUnit.strength, worldUnit.name, {
             terrainId: unitTile?.terrain?.id,
+            enemyMoraleBonus: spirit.moraleBonus,
+            enemyNoRout: spirit.noRout,
+            foePower: spirit.power,
+            foeCasualtyMult: spirit.casualtyMult,
             enemyComposition: PlayerMilitary._getWorldUnitComposition(worldUnit),
             world,
             defending: !!opts.defending,
@@ -916,6 +938,8 @@ Object.assign(PlayerMilitary, {
                 // A rebel host against your own crown (systems/kingship.js), or a realm's
                 if (worldUnit.revoltId) Kingship.onRebelHostDefeated(player, world, worldUnit);
                 else RealmWars.onHostDefeated(player, world, worldUnit);
+                // A realm's host sent after your harriers (systems/harrying.js): the crown answered, and lost
+                if (worldUnit.harryPursuit) Harrying.onHostDefeated(player, world, worldUnit);
             }
             // The commons risen against a lord: crushed, their fate to judge (systems/peasantRevolts.js)
             if (worldUnit.peasantRevoltId != null) PeasantRevolts.onHostDefeated(player, world, worldUnit);
@@ -1069,6 +1093,8 @@ Object.assign(PlayerMilitary, {
             }
         }
 
+        // The captives (a column awaiting your word), oath-breakers found out, your own men taken (player/prisonerFates.js)
+        const fates = PrisonerFates.afterBattle(player, world, worldUnit, combatResult);
         return {
             ...combatResult,
             enemyName: combatResult.enemyName || worldUnit.name,
@@ -1076,6 +1102,9 @@ Object.assign(PlayerMilitary, {
             renownChange,
             inventoryLoot,
             lootLeftBehind,
+            ...(fates.column ? { captives: { id: fates.column.id, men: fates.column.men, outlaw: fates.column.outlaw, realm: fates.column.realm } } : {}),
+            ...(fates.oathText ? { oathBroken: fates.oathText } : {}),
+            ...(fates.takenText ? { menTaken: fates.takenText } : {}),
         };
     },
 

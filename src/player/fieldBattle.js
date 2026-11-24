@@ -51,6 +51,8 @@ import { Arms } from '../systems/arms.js';
 import { Nemesis } from '../systems/nemesis.js';
 import { House } from '../systems/house.js';
 import { Interrogation } from '../systems/interrogation.js';
+import { Gibbets } from '../systems/gibbets.js';
+import { PrisonerFates } from './prisonerFates.js';
 
 const DEFAULTS = {
     phases: [
@@ -163,7 +165,13 @@ export const FieldBattle = {
         if (specials.commanderSlain) eMult *= cfg.commanderSlainPower;
         eMult *= Difficulty.mult(player, 'enemyStrength'); // the difficulty (1 on Normal)
 
+        // How their men fight you: no quarter given (they fight to the last), oath-breakers, vengeance (player/prisonerFates.js)
+        const foeUnit = enemy.unitId && world && Array.isArray(world.units) ? world.units.find(u => u.id === enemy.unitId) : null;
+        const spirit = PrisonerFates.foeSpirit(player, world, foeUnit);
+        pMult *= spirit.power;
+
         let pCasMult = Math.max(0, 1 - Technology.getEffectTotal(player, 'battleCasualtyReduction'));
+        pCasMult *= spirit.casualtyMult;
         pCasMult *= PlayerEffects.casualtyMultiplier(player);
         pCasMult *= specials.casualtyMult;
 
@@ -184,7 +192,10 @@ export const FieldBattle = {
             eComp,
             leadership,
             leadershipSkill: player.skills?.leadership || 1,
-            enemyMoraleBonus: (ctx.enemyMoraleBonus || 0) - (specials.commanderSlain ? 0.2 : 0),
+            enemyMoraleBonus: (ctx.enemyMoraleBonus || 0) - (specials.commanderSlain ? 0.2 : 0) + spirit.moraleBonus,
+            // They fight to the last man: no rout until all but a remnant are down (PrisonerFates.foeSpirit)
+            noRout: spirit.noRout,
+            spiritText: spirit.text || '',
             pMult,
             eMult,
             pCasMult,
@@ -336,9 +347,14 @@ export const FieldBattle = {
     /** After a phase's losses: does a side rout? 'enemy' | 'player' | null. */
     _routCheck(battle, sim, r) {
         const cfg = FieldBattle.config();
-        if (sim.eStr <= battle.eStr0 * cfg.rout.strengthShare) return 'enemy';
+        // (a foe given no quarter before stands until only a remnant is left: player/prisonerFates.js)
+        const noRout = battle.noRout ? Number(PrisonerFates.config().slaughter.noRoutShare) || 0.15 : null;
+        if (noRout != null) {
+            if (sim.eStr <= battle.eStr0 * noRout) return 'enemy';
+        } else if (sim.eStr <= battle.eStr0 * cfg.rout.strengthShare) return 'enemy';
         if (sim.pStr <= battle.pStr0 * cfg.rout.strengthShare) return 'player';
         if (r >= 0.5) {
+            if (noRout != null) return null;
             const eMorale = PlayerMilitary._moraleValue(sim.eStr, sim.pStr, battle.enemyMoraleBonus);
             if (PlayerMilitary._checkMoraleBreak(sim.eStr, sim.pStr, eMorale)) return 'enemy';
         } else {
@@ -637,6 +653,11 @@ export const FieldBattle = {
             }
         }
         if (powText) result = { ...result, prisonerTaken: powText };
+        // Their commander slain on the field: his body is yours to show, a great one's trophies to take (systems/gibbets.js)
+        if (unit && victory && battle.commanderSlain && unit.kingdomId != null) {
+            const fallen = Gibbets.onFieldSlain(player, world, { kingdomId: unit.kingdomId, foe: unit.name, strength: battle.eStr0 });
+            if (fallen) result = { ...result, commanderBody: `${fallen.name} lies dead on the field: his body is yours (💀 The Dead & Trophies).` };
+        }
         battle.result = result;
         return result;
     },

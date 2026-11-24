@@ -364,6 +364,34 @@ describe('the NPC houses\' week and the save', () => {
             expect(Math.abs(coin() - before)).toBeLessThan(houses.length + 1);
         }
     });
+    it('a house keeps only keepWeeks of its running costs as its float and spends the rest into its town', () => {
+        // (2026-11-24: a flat 800 a house had the player's capital's houses sitting on
+        // many times the capital's own purse, and the crown's taxes found the town dry)
+        const { world, player } = game;
+        const t = townOf('capital') || townOf('city') || townOf('town');
+        const s = world.getTile(t.q, t.r).settlement;
+        const houses = Hospitality.listAt(world, player, t.q, t.r);
+        const st = Hospitality.state(world).houses;
+        if (!s.economy) Economy.initSettlement(s);
+        s.economy.gold = 100;
+        const N = Hospitality.config().npc;
+        expect(N.keepWeeks).toBeGreaterThan(0);
+        // (no guests: the price at the top, so the week's costs are the house's weekly costs alone)
+        for (const v of houses) { st[v.id].priceMult = 50; st[v.id].cash = 3000; }
+        const coin = () => s.economy.gold + houses.reduce((a, v) => a + st[v.id].cash, 0);
+        const before = coin();
+        for (let w = 0; w < 8; w++) { world.day += 7; Hospitality._npcWeek(world, player); }
+        for (const v of houses) {
+            const K = Hospitality.kind(st[v.id].kind);
+            const keep = Math.min(N.cashKeep, N.keepWeeks * K.weeklyCosts);
+            expect(keep).toBeLessThan(N.cashKeep);
+            expect(st[v.id].cash).toBeLessThanOrEqual(keep + 2);
+            expect(st[v.id].cash).toBeGreaterThanOrEqual(0);
+        }
+        // ...the rest went to the town, and the week only moved coin (to the copper)
+        expect(s.economy.gold).toBeGreaterThan(100 + houses.length * 2000);
+        expect(Math.abs(coin() - before)).toBeLessThan(0.01);
+    });
 });
 
 describe('on the inner map and in the panels', () => {

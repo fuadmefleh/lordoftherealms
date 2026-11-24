@@ -36,12 +36,16 @@ import { RiverLife } from '../../systems/riverLife.js';
 import { Ports } from '../../systems/ports.js';
 import { AnimalCompanions } from '../../systems/animalCompanions.js';
 import { BackRooms } from '../../systems/backRooms.js';
+import { PitFights } from '../../systems/pitFights.js';
 import { Atrocities } from '../../systems/atrocities.js';
+import { PrisonerFates } from '../../player/prisonerFates.js';
 import { Maiming } from '../../systems/maiming.js';
 import { Thirst } from '../../player/thirst.js';
 import { Ordeals } from '../../player/ordeals.js';
 import { Water } from '../../systems/water.js';
 import { Executions } from '../../systems/executions.js';
+import { Gibbets } from '../../systems/gibbets.js';
+import { PenalLabour } from '../../systems/penalLabour.js';
 import { Annals } from '../../systems/annals.js';
 import { LawCouncil } from '../../systems/lawCouncil.js';
 import { PlayerWorks } from '../../player/playerWorks.js';
@@ -101,6 +105,7 @@ import { Cartography } from '../../systems/cartography.js';
 import { Ailments } from '../../systems/ailments.js';
 import { Rivals } from '../../systems/rivals.js';
 import { Nemesis } from '../../systems/nemesis.js';
+import { BloodFeuds } from '../../systems/bloodFeuds.js';
 import { HouseQuests } from '../../systems/houseQuests.js';
 import { Sagas } from '../../systems/sagas.js';
 import { Whispers } from '../../systems/whispers.js';
@@ -172,6 +177,7 @@ import { Crises } from '../../systems/crises.js';
 import { LastCrisis } from '../../systems/lastCrisis.js';
 import { RealmDecline } from '../../systems/realmDecline.js';
 import { PeasantRevolts } from '../../systems/peasantRevolts.js';
+import { Harrying } from '../../systems/harrying.js';
 import { NamedLegacy } from '../../systems/namedLegacy.js';
 import { Climate } from '../../world/climate.js';
 import { RealmTimeline } from '../../systems/realmTimeline.js';
@@ -541,6 +547,8 @@ function _endDay(game) {
     mark(game, 'Rivals.processDay');
     Nemesis.processDay(world, player);
     mark(game, 'Nemesis.processDay');
+    game.bloodFeudsDay = BloodFeuds.processDay(world, player);
+    mark(game, 'BloodFeuds.processDay');
     Wanted.processDay(world, player);
     mark(game, 'Wanted.processDay');
     ProfaneCrimes.processDay(world, player);
@@ -602,6 +610,8 @@ function _endDay(game) {
     mark(game, 'Gangs.processDay');
     BackRooms.processDay(player, world);
     mark(game, 'BackRooms.processDay');
+    PitFights.processDay(world, player);
+    mark(game, 'PitFights.processDay');
     OutlawLairs.processDay(world, player);
     mark(game, 'OutlawLairs.processDay');
     game.discoveryDay = Discovery.processDay(world, player);
@@ -633,12 +643,21 @@ function _endDay(game) {
     mark(game, 'Sieges.processDay');
     Atrocities.processDay(world, player);
     mark(game, 'Atrocities.processDay');
+    // The fate of prisoners: columns, talks, turncoats, stakes, the realms' captives (player/prisonerFates.js)
+    PrisonerFates.processDay(world, player);
+    mark(game, 'PrisonerFates.processDay');
     // Maiming: harsh realms take thieves' hands, the raided count their maimed, enemies' blades (systems/maiming.js)
     Maiming.processDay(world, player);
     mark(game, 'Maiming.processDay');
     // Executions: proclaimed days, the realms' scaffolds, martyrs' shrines (systems/executions.js)
     Executions.processDay(world, player);
     mark(game, 'Executions.processDay');
+    // The dead on show and war trophies (systems/gibbets.js)
+    Gibbets.processDay(world, player);
+    mark(game, 'Gibbets.processDay');
+    // Penal labour: convicts at the player's mines and oars, the crown's gangs, the realms' courts (systems/penalLabour.js)
+    PenalLabour.processDay(world, player);
+    mark(game, 'PenalLabour.processDay');
     game.holdingsDay = Holdings.processDay(player, world);
     mark(game, 'Holdings.processDay');
     game.stewardsDay = Stewards.processDay(world, player);
@@ -733,6 +752,8 @@ function _endDay(game) {
         game.revoltsDay = PeasantRevolts.processDay(world, player);
         mark(game, 'PeasantRevolts.processDay');
     }
+    game.harryDay = Harrying.processDay(world, player, (Throne.ruledKingdom(player, world) || {}).id);
+    mark(game, 'Harrying.processDay');
     RealmTimeline.processDay(world, player);
     mark(game, 'RealmTimeline.processDay');
     game.taxDay = world.day % 7 === 0 ? Taxation.collectTaxes(player, world) : null;

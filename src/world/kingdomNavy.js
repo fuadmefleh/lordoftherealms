@@ -44,6 +44,7 @@ const CONFIG = {
     buildCost: 25,             // gold per point of new strength
     buildRate: 0.05,           // share of the gap to the cap built each day (at least 1)
     upkeep: 0.3,               // gold per point of strength per day
+    convictOarSave: 0.12,      // upkeep saved a day per convict at the crown's oars (navy.convictOars, systems/penalLabour.js)
     unpaidDecay: 0.05,         // share lost each day the upkeep goes unpaid
     overCapDecay: 0.1,         // share of any excess over the cap laid up each day
     startShare: 0.5,           // share of the cap afloat when the fleet is first counted
@@ -212,7 +213,9 @@ export const KingdomNavy = {
         // (`days`: the distant years — upkeep and building a day at a time on one survey of the ports)
         for (let d = 0; d < span; d++) {
         // Upkeep — an unpaid fleet rots at its moorings
-        const upkeep = Math.ceil(n.strength * CONFIG.upkeep);
+        // (convicts at the crown's oars draw no wage: systems/penalLabour.js counts them into n.convictOars)
+        const oars = Math.min(n.strength * CONFIG.upkeep * 0.5, (Number(n.convictOars) || 0) * CONFIG.convictOarSave);
+        const upkeep = Math.ceil(n.strength * CONFIG.upkeep - oars);
         if (upkeep > 0) {
             if ((kingdom.treasury || 0) >= upkeep) { kingdom.treasury -= upkeep; CrownBooks.note(kingdom, 'army', upkeep); CrownBooks.spendAtCapital(world, kingdom, upkeep); }
             else n.strength = Math.floor(n.strength * (1 - CONFIG.unpaidDecay));

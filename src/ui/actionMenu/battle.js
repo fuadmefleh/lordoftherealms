@@ -19,6 +19,7 @@ import { FieldBattle } from '../../player/fieldBattle.js';
 import { Bonds } from '../../systems/bonds.js';
 import { Ailments } from '../../systems/ailments.js';
 import { InnerMapBattle } from '../innerMapBattle.js';
+import { PrisonerFates } from '../../player/prisonerFates.js';
 
 /** A result's one way on. */
 const CONTINUE = rowList([{ icon: '➡️', name: 'Continue', act: 'closePanelAndRefresh', tone: 'gold' }]);
@@ -119,7 +120,7 @@ Object.assign(ActionMenu, {
         let html = `<div>
             <div class="pk-card" style="display:flex; gap:14px;"><div style="flex:1;">${_bar('⚔️ Your force', b.sim.pStr, b.pStr0, '#7cc7e8')}</div>
             <div style="flex:1;">${_bar(`${b.enemyIcon} ${esc(b.enemyName)}`, b.sim.eStr, b.eStr0, '#e0a060')}</div></div>
-            <div style="font-size:11px; color:#9d937c; margin:4px 0;">📐 ${esc((b.terrainId || 'mixed ground').replace(/_/g, ' '))} · ${esc(b.weather || 'clear')} <span title="How well your companies' kinds answer theirs (horse against foot, spears against horse...)">· matchup ×${b.pCounter.toFixed(2)} against their ×${b.eCounter.toFixed(2)}</span>${b.ambushed ? ' · <span style="color:#e0a060;">they caught you unready</span>' : ''}${b.commanderSlain ? ' · <span style="color:#ce93d8;">your assassins slew their commander</span>' : ''}${b.aidNames && b.aidNames.length ? ` · <span style="color:#a5d6a7;">${esc(Bonds.aidLine(b.aidNames))}</span>` : ''}</div>`;
+            <div style="font-size:11px; color:#9d937c; margin:4px 0;">📐 ${esc((b.terrainId || 'mixed ground').replace(/_/g, ' '))} · ${esc(b.weather || 'clear')} <span title="How well your companies' kinds answer theirs (horse against foot, spears against horse...)">· matchup ×${b.pCounter.toFixed(2)} against their ×${b.eCounter.toFixed(2)}</span>${b.ambushed ? ' · <span style="color:#e0a060;">they caught you unready</span>' : ''}${b.commanderSlain ? ' · <span style="color:#ce93d8;">your assassins slew their commander</span>' : ''}${b.aidNames && b.aidNames.length ? ` · <span style="color:#a5d6a7;">${esc(Bonds.aidLine(b.aidNames))}</span>` : ''}${b.spiritText ? ` · <span style="color:#e0846a;">${esc(b.spiritText)}</span>` : ''}</div>`;
         html += _phaseLogHtml(b.log);
         if (!b.done && !b.log.length && b.theatre === 'land') {
             // Before the first blow: fight it on the ground yourself, or leave it to the captains
@@ -144,6 +145,11 @@ Object.assign(ActionMenu, {
             const color = r.withdrew ? '#f0b35a' : r.victory ? '#8fd18a' : '#e0846a';
             let rep = `<div style="font-family:var(--font-display); font-size:16px; margin:0 0 6px; color:${color};">${title}</div><div style="font-size:12px; line-height:1.6; color:#cbbf9f;">`;
             if (b.reportText) rep += `<div>${esc(b.reportText)}</div>`;
+            if (r.commanderBody) rep += `<div>💀 ${esc(r.commanderBody)}</div>`;
+            // The captives, oath-breakers found out, your own men taken (player/prisonerFates.js)
+            if (r.oathBroken) rep += `<div style="color:#f0b35a;">🕊️ ${esc(r.oathBroken)}</div>`;
+            if (r.captives) rep += `<div>⛓️ ${esc(r.captives.outlaw ? `${r.captives.men} of them yield to you.` : `${r.captives.men} men of ${r.captives.realm} yield to you.`)} Their fate is your word.</div>`;
+            if (r.menTaken) rep += `<div style="color:#e0846a;">⛓️ ${esc(r.menTaken)}</div>`;
             if (b.reportText && r.prisonerTaken) rep += `<div>🔗 ${esc(r.prisonerTaken)}</div>`;
             else {
                 if (r.loot > 0) rep += `<div>💰 Gold looted: <strong style="color:#ffcf6a;">${r.loot}</strong></div>`;
@@ -159,7 +165,11 @@ Object.assign(ActionMenu, {
             }
             rep += '</div>';
             html += card(rep, { tone: r.withdrew ? 'warn' : r.victory ? 'good' : 'bad' });
-            html += CONTINUE;
+            const col = PrisonerFates.pending(game.player);
+            html += col && r.captives && col.id === r.captives.id
+                ? rowList([{ icon: '⛓️', name: 'Decide the fate of the captives', desc: `${col.men} ${col.outlaw ? 'outlaws' : `men of ${esc(col.realm)}`} kneel before you`, act: 'showCaptivesScene', tone: 'gold', side: '›' },
+                    { icon: '➡️', name: 'Continue', desc: 'Leave it to your captains: home on their oath (outlaws hang) at the end of the day', act: 'closePanelAndRefresh' }])
+                : CONTINUE;
         }
         html += '</div>';
         game.ui.showCustomPanel(`⚔️ Battle: ${b.enemyName}`, html);

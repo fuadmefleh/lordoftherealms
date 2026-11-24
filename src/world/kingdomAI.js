@@ -24,6 +24,7 @@ import { RealmArms } from './realmArms.js';
 import { TownMarks } from './townMarks.js';
 import { WaterSources } from './waterSources.js';
 import { TownSiting } from './townSiting.js';
+import { WarStakes } from './warStakes.js';
 
 const _fy = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
 /** The distant years' survey of each realm's recruiting ground (updateMilitary): kingdom → { world, day, … }. */
@@ -611,8 +612,8 @@ export const KingdomAI = {
 
         if (otherKingdoms.length === 0) return;
 
-        // Find kingdoms with poor relations
-        const enemies = otherKingdoms.filter(k => (kingdom.relations[k.id] || 0) < -30);
+        // Find kingdoms with poor relations (but not one whose stakes it still dreads: world/warStakes.js)
+        const enemies = otherKingdoms.filter(k => (kingdom.relations[k.id] || 0) < -30 && !WarStakes.fears(kingdom, k.id, world.day));
         if (enemies.length === 0) return;
 
         // A realm whose cartographers have charted a rival marches on it first
@@ -708,7 +709,8 @@ export const KingdomAI = {
                 world.events.push({ text: `🤝 ${kingdom.name} and ${partner.name} ally against the might of ${realm.name}.`, type: 'diplomatic' });
             }
         }
-        // Wars of conquest against the player's crown
+        // Wars of conquest against the player's crown (not while its stakes stand fresh on the road: world/warStakes.js)
+        if (WarStakes.fears(kingdom, 'player', world.day)) return;
         if (atWar || allied || !near || KingdomAI.hasTruce(kingdom, realm, world) || (kingdom.wars || []).length >= 2) return;
         if ((kingdom.relations[realm.id] || 0) >= (A.warRelations || -20)) return;
         const crown = realm.crown || {};
@@ -1308,7 +1310,9 @@ export const KingdomAI = {
         return (kingdom.characterBonuses?.military || 0)
             + KingdomStability.moraleBonus(kingdom)
             + KingdomCulture.moraleBonus(kingdom)
-            + WorldEvents.getModifier(world, 'morale', { kingdom: kingdom.id }) / 100;
+            + WorldEvents.getModifier(world, 'morale', { kingdom: kingdom.id }) / 100
+            // A blinded army come home: the realm has lost heart (world/warStakes.js, player/prisonerFates.js)
+            - WarStakes.dismay(kingdom, world && world.day);
     },
 
     _checkMoraleBreak(ownStrength, enemyStrength, moraleValue) {
@@ -1436,6 +1440,11 @@ export const KingdomAI = {
         if (frontline) {
             const dead = Math.max(0, menBefore[attacker.id] - attacker.military) + Math.max(0, menBefore[defender.id] - defender.military);
             TownMarks.noteBattle(world, frontline.q, frontline.r, { dead, victor: (won ? attacker : defender).name, loser: (won ? defender : attacker).name, day: world.day });
+            // The beaten's captives, for the victor to treat (player/prisonerFates.js reads the inbox daily)
+            if (Array.isArray(world.captivesFeed) && world.captivesFeed.length < 40) {
+                const loser = won ? defender : attacker;
+                world.captivesFeed.push({ day: world.day, victor: (won ? attacker : defender).id, loser: loser.id, q: frontline.q, r: frontline.r, lost: Math.max(0, menBefore[loser.id] - loser.military) });
+            }
         }
     },
 

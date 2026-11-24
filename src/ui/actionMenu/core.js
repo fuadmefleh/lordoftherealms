@@ -58,7 +58,7 @@ const AMX_COURT_TYPES = new Set([
     'view_title_status', 'resign_title', 'collect_tax', 'request_bounty', 'capture_fugitive',
     'hold_council', 'espionage_menu', 'manage_spies', 'hold_court', 'rivals_here', 'hall_of_heroes',
     'patronage', 'manage_dynasty', 'treasury', 'host_feast', 'hold_tournament', 'host_festival',
-    'meet_courier', 'maiming', 'dungeon', 'executions', 'scaffold_crowd',
+    'meet_courier', 'maiming', 'dungeon', 'executions', 'scaffold_crowd', 'gibbets', 'captives'
 ]);
 const AMX_DISTRICTS = {
     hearth:    { icon: '🏕️', label: 'Hearth', hint: 'Rest, food, body and the road' },
@@ -100,7 +100,7 @@ const AMX_GROUPS = {
         { id: 'shady', icon: '🎲', label: 'Back Rooms', types: ['smuggle', 'pickpocket', 'stolen_goods', 'gambling', 'underworld', 'town_crimes'] },
     ],
     folk: [
-        { id: 'talk', icon: '🍺', label: 'Tavern & Talk', types: ['tavern', 'talk_locals', 'meet_people', 'view_relationships', 'languages', 'town_school', 'hearsay', 'lodging'] },
+        { id: 'talk', icon: '🍺', label: 'Tavern & Talk', types: ['tavern', 'talk_locals', 'meet_people', 'view_relationships', 'languages', 'town_school', 'hearsay', 'lodging', 'fight_pit'] },
         { id: 'faith', icon: '⛪', label: 'Faith & Healing', types: ['preach', 'denounce_heresy', 'pilgrimage', 'miracle', 'donate', 'bless_settlement', 'town_sickness', 'maim_aids'] },
     ],
     court: [
@@ -108,11 +108,11 @@ const AMX_GROUPS = {
         { id: 'titles', icon: '📜', label: 'Titles', types: ['seek_title', 'view_title_status', 'resign_title'] },
         { id: 'house', icon: '🏰', label: 'House & Rivals', types: ['manage_dynasty', 'rivals_here', 'meet_rival_house', 'request_meeting', 'hall_of_heroes', 'patronage', 'meet_courier'] },
         { id: 'feasts', icon: '🎉', label: 'Feasts & Works of Fame', types: ['host_feast', 'hold_tournament', 'host_festival', 'fund_restoration', 'great_works'] },
-        { id: 'intrigue', icon: '🗝️', label: 'Intrigue & the Law', types: ['espionage_menu', 'manage_spies', 'request_bounty', 'capture_fugitive', 'maiming', 'dungeon', 'executions', 'scaffold_crowd'] },
+        { id: 'intrigue', icon: '🗝️', label: 'Intrigue & the Law', types: ['espionage_menu', 'manage_spies', 'request_bounty', 'capture_fugitive', 'maiming', 'dungeon', 'executions', 'scaffold_crowd', 'gibbets', 'captives'] },
     ],
     arms: [
         { id: 'army', icon: '🛡️', label: 'The Army', types: ['recruit', 'army_command', 'household_guard', 'train_combat', 'arms_armour', 'reforge_artifact'] },
-        { id: 'fight', icon: '⚔️', label: 'Fight', types: ['attack_unit', 'attack_settlement', 'siege_camp', 'dark_deeds', 'capture_criminal', 'outlaw_lair'] },
+        { id: 'fight', icon: '⚔️', label: 'Fight', types: ['attack_unit', 'attack_settlement', 'siege_camp', 'dark_deeds', 'harry', 'capture_criminal', 'outlaw_lair'] },
         { id: 'sea', icon: '⚓', label: 'At Sea', types: ['hunt_pirates', 'commit_piracy', 'raid_haven', 'landing_party', 'sea_rovers'] },
     ],
     works: [
@@ -279,7 +279,7 @@ Object.assign(ActionMenu, {
             disembark: 'general', river_life: 'general', row_ashore: 'general', row_to_ship: 'general', ship_hold: 'commerce', port_market: 'commerce', explore_ocean: 'general', make_for_port: 'general', hunt_pirates: 'military', commit_piracy: 'military', raid_haven: 'military', landing_party: 'military', explore_inner_map: 'general',
             trade: 'commerce', contract: 'commerce', ship_passage: 'commerce',
             collect_goods: 'commerce', manage_property: 'commerce', start_caravan: 'commerce',
-            odd_jobs: 'commerce', bounty_board: 'commerce', busking: 'commerce', beg: 'social', gambling: 'commerce',
+            odd_jobs: 'commerce', bounty_board: 'commerce', busking: 'commerce', beg: 'social', gambling: 'commerce', fight_pit: 'social',
             smuggle: 'commerce', pickpocket: 'commerce', stolen_goods: 'commerce', town_crimes: 'commerce',
             tavern: 'social', talk_locals: 'social', lodging: 'social', manage_lodging: 'commerce', town_lots: 'commerce', graveyards: 'commerce', town_sickness: 'social', livestock_market: 'commerce', my_herds: 'commerce', furniture_maker: 'commerce', my_household: 'commerce', preach: 'social', denounce_heresy: 'social',
             pilgrimage: 'social', miracle: 'social', donate: 'social',
@@ -288,7 +288,7 @@ Object.assign(ActionMenu, {
             form_kingdom: 'social', claims_crowns: 'social', royal_court: 'social',
             host_feast: 'social', hold_tournament: 'social', host_festival: 'social',
             meet_people: 'social', view_relationships: 'social', manage_dynasty: 'social',
-            recruit: 'military', attack_unit: 'military', attack_settlement: 'military', siege_camp: 'military', dark_deeds: 'military',
+            recruit: 'military', attack_unit: 'military', attack_settlement: 'military', siege_camp: 'military', dark_deeds: 'military', harry: 'military',
             train_combat: 'military', reforge_artifact: 'military', capture_criminal: 'military',
             request_meeting: 'social', meet_rival_house: 'social',
             build_property: 'building', build_temple: 'building',
@@ -306,7 +306,7 @@ Object.assign(ActionMenu, {
             servitude_buy_freedom: 'servitude',
             seek_title: 'social', view_title_status: 'social', resign_title: 'social',
             collect_tax: 'social', request_bounty: 'social', capture_fugitive: 'social',
-            maiming: 'social', maim_aids: 'social', dungeon: 'social', executions: 'social', scaffold_crowd: 'social',
+            maiming: 'social', maim_aids: 'social', dungeon: 'social', captives: 'social', executions: 'social', scaffold_crowd: 'social',
             bless_settlement: 'social', hold_council: 'social',
             espionage_menu: 'social', manage_spies: 'social',
             hold_court: 'social', manage_holding: 'frontier',
@@ -800,7 +800,7 @@ Object.assign(ActionMenu, {
         buy_house: 1, meet_people: 0,
 
         // Moderate actions (2 AP)
-        pickpocket: 2, gambling: 0, smuggle: 0, stolen_goods: 0, // gambling/smuggle cost 2 AP per use inside their menus
+        pickpocket: 2, gambling: 0, smuggle: 0, stolen_goods: 0, fight_pit: 0, // gambling/smuggle cost 2 AP per use inside their menus
         recruit: 2, cartography: 2, chart_tile: 1, wash_clothes: 3, bathe: 2, map_trade: 2, steal_map: 2,
         craft_campfire: 2, negotiate_indigenous: 2, preach: 2, denounce_heresy: 2,
 
@@ -824,12 +824,12 @@ Object.assign(ActionMenu, {
         demolish_infrastructure: 6, send_pioneers: 6,
 
         // Combat / Major ship operations (8 AP)
-        attack_unit: 8, attack_settlement: 8, siege_camp: 0, dark_deeds: 0,
+        attack_unit: 8, attack_settlement: 8, siege_camp: 0, dark_deeds: 0, harry: 0,
         board_ship: 8, visit_shipyard: 1, row_ashore: 4, row_to_ship: 4, ship_hold: 0, port_market: 0, explore_ocean: 6, make_for_port: 0, hunt_pirates: 10, commit_piracy: 10, raid_haven: 10, landing_party: 0, sea_rovers: 0,
 
         // Title actions
         seek_title: 1, view_title_status: 0, resign_title: 1,
-        collect_tax: 3, request_bounty: 1, capture_fugitive: 5, capture_criminal: 4, maiming: 0, maim_aids: 0, dungeon: 0, executions: 0, scaffold_crowd: 1,
+        collect_tax: 3, request_bounty: 1, capture_fugitive: 5, capture_criminal: 4, maiming: 0, maim_aids: 0, dungeon: 0, captives: 0, executions: 0, scaffold_crowd: 1,
         bless_settlement: 3, hold_council: 5,
 
         // Espionage actions
@@ -1300,6 +1300,9 @@ Object.assign(ActionMenu, {
             case 'gambling':
                 ActionMenu.showGamblingMenu(game, tile);
                 break;
+            case 'fight_pit':
+                ActionMenu.showPit(game);
+                break;
             case 'forage':
                 ActionMenu.doForage(game, tile);
                 break;
@@ -1484,6 +1487,9 @@ Object.assign(ActionMenu, {
             case 'dark_deeds':
                 ActionMenu.showAtrocities(game);
                 break;
+            case 'harry':
+                ActionMenu.showHarrying(game);
+                break;
             case 'request_meeting':
                 ActionMenu.showLordMeetingMenu(game, tile, { type: actionType, unitId });
                 break;
@@ -1537,8 +1543,14 @@ Object.assign(ActionMenu, {
             case 'dungeon':
                 ActionMenu.showDungeon(game);
                 break;
+            case 'captives':
+                ActionMenu.showCaptives(game);
+                break;
             case 'executions':
                 ActionMenu.showExecutions(game);
+                break;
+            case 'gibbets':
+                ActionMenu.showGibbets(game);
                 break;
             case 'scaffold_crowd':
                 ActionMenu.showScaffoldCrowd(game);

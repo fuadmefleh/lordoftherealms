@@ -1020,7 +1020,14 @@ export const Hospitality = {
                 // (the keeper takes their share of what the house cleared, into their own purse)
                 const cleared = takings - paid;
                 if (cleared > 0 && h.cash > 0) this._payKeeper(world, h, Math.min(h.cash, Math.floor(cleared * _num(N.keeperShare, 0.25))));
-                const keep = _num(N.cashKeep, 800);
+                // (the float an innkeeper holds is a few weeks of the house's running costs, at most
+                // cashKeep: a fixed 800 a house had the capital's five houses sitting on many times the
+                // town's own purse — and the inns are opened where the player goes, so the ruler's own
+                // capital ran dry of the coin its crown taxes, while the AI capitals had no inns at all)
+                const keepWeeks = _num(N.keepWeeks, 0);
+                const keep = keepWeeks > 0
+                    ? Math.min(_num(N.cashKeep, 800), keepWeeks * Math.max(costs, _num(K.weeklyCosts, 20)))
+                    : _num(N.cashKeep, 800);
                 if (town && h.cash > keep) {
                     const spend = Math.floor((h.cash - keep) * _num(N.spendShare, 0.5));
                     if (spend > 0) { h.cash -= spend; Economy.payTown(town, spend); }

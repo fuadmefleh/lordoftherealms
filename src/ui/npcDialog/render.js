@@ -22,6 +22,7 @@ import { _heartChoices } from './hearts.js';
 import { _workChoices } from './work.js';
 import { _guestChoices } from './guests.js';
 import { _darkChoices } from './darkDeeds.js';
+import { _feudChoices } from './bloodFeud.js';
 import { _schoolChoices } from './schooling.js';
 import { _waresChoices, _pedlarEmptyChoice } from './wares.js';
 import { GREETINGS, RETURNING_GREETINGS, RESPECTFUL_GREETINGS, HOSTILE_GREETINGS, RUMORS, FAREWELLS, THREAT_RESPONSES, THREAT_SUCCESS, FLATTER_RESPONSES, FLATTER_SUCCESS, TIME_COMMENTS, WEATHER_COMMENTS, NPC_QUEST_HOOKS, LOCATION_INFO, KINGDOM_INFO } from '../npcDialog.data.js';
@@ -36,6 +37,7 @@ import { Hearsay } from '../../systems/hearsay.js';
 import { Names } from '../../core/names.js';
 // (the tongueless talk by signs, the blind turn to your voice; what they make of your own losses — systems/maimMarks.js, maiming.js)
 import { MaimMarks } from '../../systems/maimMarks.js';
+import { PenalLabour } from '../../systems/penalLabour.js';
 import { Maiming } from '../../systems/maiming.js';
 
 /**
@@ -161,6 +163,9 @@ export function _buildConversation(npc) {
         text: greeting,
         isNpc: true,
     }];
+    // (the court's letter on a cheek, years at hard labour in a face: systems/penalLabour.js)
+    const mark = PenalLabour.markAside(maimBody);
+    if (mark) aside = aside ? `${mark} ${aside}` : mark;
     // (the aside is the narrator's, in plain words, not the NPC's)
     if (aside) dialogState._lines[0].aside = aside;
     dialogState._lineIndex = 0;
@@ -451,6 +456,8 @@ export function _renderChoices(box) {
         for (const c of _waresChoices()) choices.push(c);
         // A tip to the watch about goods you hid; a mark of yours on them (ui/npcDialog/darkDeeds.js)
         for (const c of _darkChoices()) choices.push(c);
+        // Blood owed between your House and theirs; a feud of two families to judge (ui/npcDialog/bloodFeud.js)
+        for (const c of _feudChoices()) choices.push(c);
     }
 
     // ── Say whatever you like, with the AI brain on (systems/npcChat.js) ──

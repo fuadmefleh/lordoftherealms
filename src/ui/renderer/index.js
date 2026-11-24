@@ -18,6 +18,8 @@ import './fog.js';
 import './currents.js';
 import './seaWeather.js';
 import './navySquadrons.js';
+import './deadDisplays.js';
+import './warStakes.js';
 import './atmosphere.js';
 
 export { Renderer };

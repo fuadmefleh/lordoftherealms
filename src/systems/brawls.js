@@ -49,6 +49,8 @@ import { Laws } from './laws.js';
 import { TownJobs } from './townJobs.js';
 import { Romance } from './romance.js';
 import { PracticeSkills } from './practiceSkills.js';
+// (a brawl that bleeds lights a blood feud between the families: systems/bloodFeuds.js; run time only)
+import { BloodFeuds } from './bloodFeuds.js';
 
 // (Brawls.fighter: the seeded skill holders of roster people's shims, by skill set, id and kind)
 const _shimSkills = new Map();
@@ -781,7 +783,7 @@ export const Brawls = {
             if (!p || p.died != null) continue;
             if (f.out === 'dead') {
                 const killer = Brawls.find(fight, f.by) || (f.side === 0 ? b : a);
-                Brawls.recordDeath(world, s, f.pid, killer ? killer.name : 'a brawler', day);
+                Brawls.recordDeath(world, s, f.pid, killer ? killer.name : 'a brawler', day, killer ? killer.pid : null);
                 out.deaths.push(f.pid);
                 continue;
             }
@@ -862,13 +864,16 @@ export const Brawls = {
     },
 
     /** Someone died of a fight (bled out on the street map, or off it): the roster and the annals keep it. */
-    recordDeath(world, s, pid, killerName, day) {
+    recordDeath(world, s, pid, killerName, day, killerPid = null) {
         const folk = s && s.folk;
         const p = folk && pid != null ? Townsfolk.get(folk, pid) : null;
         if (!p || p.died != null) return false;
         const cause = `killed in a brawl${killerName ? ` with ${killerName}` : ''}`;
         Townsfolk.slay(folk, p, _num(day), cause);
         Townsfolk.record(folk, world, _num(day), { k: 'died', a: p.id, x: cause });
+        // The dead one's family owes the killer's blood (systems/bloodFeuds.js)
+        const killer = killerPid != null ? Townsfolk.get(folk, killerPid) : null;
+        if (killer) BloodFeuds.onFolkKilling(world, s, p, killer, 'brawl');
         return true;
     },
 

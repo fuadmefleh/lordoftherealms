@@ -30,6 +30,8 @@ import { Names } from '../core/names.js';
 import { Economy } from '../world/economy.js';
 import { Brands } from '../world/brands.js';
 import { Townsfolk } from './townsfolk.js';
+// (a family that owes your House blood will not deal with you: systems/bloodFeuds.js; run time only)
+import { BloodFeuds } from './bloodFeuds.js';
 
 /**
  * What a flattered NPC actually hands over — aligned index-for-index with the
@@ -173,6 +175,9 @@ export const NpcDisposition = {
         const memPlayer = ctx && ctx.player;
         const remembered = memPlayer && npc._person ? NpcMemory.priceShift((ctx && ctx.world) || null, npc, memPlayer) : null;
         if (remembered && remembered.refuses) return { buy: 1, sell: 1, pct: 0, reasons, refuses: true, refuseReason: remembered.reason };
+        // Their family owes your House blood vengeance (systems/bloodFeuds.js)
+        const blood = memPlayer && ctx.world ? BloodFeuds.refusesTrade(ctx.world, memPlayer, npc) : null;
+        if (blood && blood.refuses) return { buy: 1, sell: 1, pct: 0, reasons, refuses: true, refuseReason: blood.reason };
         // A court's brand (world/brands.js): respectable folk of the realm that burned it will not deal
         const branded = memPlayer && ctx.kingdomId != null ? memPlayer : null;
         if (branded && Brands.refuses(branded, ctx.kingdomId, npc.type, (ctx && ctx.world) || null)) {

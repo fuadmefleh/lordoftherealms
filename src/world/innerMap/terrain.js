@@ -3,6 +3,8 @@ import { InnerMap } from './_ref.js';
 import { Utils, Hex, CustomObjects, CustomBuildings, CustomInteriors, generateSpriteInterior, SettlementGenerator, DataLoader, Terrain, NpcFamily, Cultures, SettlementWealth } from './_imports.js';
 import { TownMarks } from '../townMarks.js';
 import { Scaffolds } from '../scaffolds.js';
+import { DeadDisplays } from '../deadDisplays.js';
+import { PitRing } from '../pitRing.js';
 import { TownEras } from '../townEras.js';
 import { TownWalls } from '../townWalls.js';
 import { StreetCover } from '../streetCover.js';
@@ -392,8 +394,8 @@ Object.assign(InnerMap, {
         // (and a town whose history has changed its streets since — a fire, a statue, a new quarter: world/townMarks.js;
         // an open hex where a battle has since been fought)
         const wday = game && game.world && Number.isFinite(game.world.day) ? game.world.day : 0;
-        // (and the scaffold of a proclaimed execution, up or down: world/scaffolds.js)
-        const memStamp = st ? TownMarks.stamp(st, wday) + Scaffolds.stamp(st, wday) : (game && game.world ? TownMarks.fieldMarks(game.world, worldQ, worldR).map(m => m.id).join(',') : '');
+        // (and the scaffold of a proclaimed execution, up or down: world/scaffolds.js; the dead on show: world/deadDisplays.js; the town's pit, in the open or gone underground: world/pitRing.js)
+        const memStamp = st ? TownMarks.stamp(st, wday) + Scaffolds.stamp(st, wday) + DeadDisplays.stamp(st, wday) + PitRing.stamp(st) : (game && game.world ? TownMarks.fieldMarks(game.world, worldQ, worldR).map(m => m.id).join(',') : '');
         // (and a town whose age has moved on — its era, its walls, its houses weathered and rebuilt by the decade: world/townEras.js)
         const ageStamp = st && game && game.world ? TownEras.stamp(game.world, st) : '';
         const settledAs = st ? `${st.name || 'settlement'}|${st.type || 'village'}|${this._isDawnVillage && this._isDawnVillage(st) ? 'camp' : 'town'}${st.type === 'capital' && st.castle === false ? '|hall' : ''}${era}${memStamp}${ageStamp}` : (memStamp ? `field|${memStamp}` : null);
@@ -709,6 +711,10 @@ Object.assign(InnerMap, {
             TownMarks.relay(tiles, worldTile.settlement, Number.isFinite(game.world.day) ? game.world.day : 0, { plaza: lay.plaza || null, center: lay.center || null });
             // ...and a proclaimed execution's scaffold in the square, until the day it is done (world/scaffolds.js)
             Scaffolds.lay(tiles, worldTile.settlement, Number.isFinite(game.world.day) ? game.world.day : 0, { plaza: lay.plaza || null, center: lay.center || null });
+            // ...and the dead on show: heads over the gate, a gibbet at the crossroads, a body left on the gallows (world/deadDisplays.js)
+            DeadDisplays.lay(tiles, worldTile.settlement, Number.isFinite(game.world.day) ? game.world.day : 0, { plaza: lay.plaza || null, center: lay.center || null });
+            // ...and the town's fighting pit by the tavern, while the law lets it fight in the open (world/pitRing.js)
+            PitRing.lay(tiles, worldTile.settlement, { plaza: lay.plaza || null, center: lay.center || null });
         }
         // --- Cover for one lying low: bushes and thickets at the town's edge, by its roads out, in its yards
         // (world/streetCover.js; hash-placed: draws nothing from rng) ---

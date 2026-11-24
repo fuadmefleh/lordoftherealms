@@ -24,6 +24,8 @@ import './nightWatch.js';
 import './townScenes.js';
 // The crowd before a proclaimed execution's scaffold (world/scaffolds.js, systems/executions.js)
 import './scaffoldCrowd.js';
+// The crowd at the town's fighting pit on its fight nights (world/pitRing.js, systems/pitFights.js)
+import './pitCrowd.js';
 import './townCourting.js';
 import './townTrading.js';
 import './townSickness.js';

@@ -18,6 +18,8 @@ import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Bank
 import { SocialSkills } from '../../systems/socialSkills.js';
 import { Livestock } from '../../systems/livestock.js';
 import { StandingOrders } from '../../player/standingOrders.js';
+import { PenalLabour } from '../../systems/penalLabour.js';
+import { convictRoll } from './convicts.js';
 import { lede, chips, purse, bullets, actRow, rowList, price, sectionHead, card, kv, BTN_GOLD, BTN_PLAIN, BTN_RED, BTN_OFF } from './uiKit.js';
 import { BackRooms } from '../../systems/backRooms.js';
 import { ParentsGuard } from '../parentsGuard.js';
@@ -304,6 +306,12 @@ Object.assign(ActionMenu, {
             if (draft && draft > 1) bits.push(`horses and muck lift the harvest +${Math.round((draft - 1) * 100)}%`);
             html += rowList([{ icon: '🐑', name: 'Your Herds', desc: bits.join(' · '), side: '›', act: 'showHerds' }]);
         }
+
+        // The convict gang (systems/penalLabour.js): sentenced by your court to this mine or quarry
+        if (prop.type === 'mine' || prop.type === 'quarry') html += convictRoll(game, PenalLabour.propertyKey(tile.q, tile.r, prop), {
+            empty: 'No convicts work here. Sentence one to the mines at your court, where the realm\'s law allows it, and they come here.',
+            note: `Each convict adds ${Math.round((PenalLabour.config().mines || {}).perConvict * 100 || 10)}% to the output (at most +${Math.round(((PenalLabour.config().mines || {}).maxBoost || 0.8) * 100)}%); their bread is bought in town out of your purse.`,
+        });
 
         // ── Operational property management below ──
         const adminMult = PlayerEconomy.getAdministrationMultiplier(game.player);

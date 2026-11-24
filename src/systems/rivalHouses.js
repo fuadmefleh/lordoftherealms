@@ -83,6 +83,8 @@ import { MoneySupply } from '../world/moneySupply.js';
 import { PlayerInventory } from '../core/inventory.js';
 import { Brands } from '../world/brands.js';
 import { MaimMarks } from './maimMarks.js';
+// (blood spilt on the road: the rival House's blood feud with yours, systems/bloodFeuds.js; run time only)
+import { BloodFeuds } from './bloodFeuds.js';
 // (run time only: a child of theirs taken when their retinue is beaten)
 import { RivalCaptives } from './rivalCaptives.js';
 
@@ -2322,6 +2324,8 @@ export const RivalHouses = {
             if (Utils.random() < A.slayChance) {
                 this._succeed(world, rival, { notices: [] }, player);
                 text += ` ${name} falls in the fight; the new head swears vengeance.`;
+                // (they struck first: blood owed, but cooler)
+                BloodFeuds.killing(world, { player, victim: BloodFeuds.houseSide(rival), killer: BloodFeuds.playerSide(player), dead: { name, rank: 'houseHead' }, killerName: player.name || 'you', how: 'selfDefence', byPlayer: true });
             }
             // ...and a child of theirs riding with them may be taken (systems/rivalCaptives.js, a hash roll)
             const taken = RivalCaptives.onBeaten(player, world, rival);
@@ -2359,6 +2363,7 @@ export const RivalHouses = {
             this._succeed(world, rival, out, player);
             rival.feud = Math.min(100, _num(rival.feud) + A.slainFeud);
             text += ` ${name} falls in the fight; the new head swears vengeance.`;
+            BloodFeuds.onHouseBlood(world, player, rival, name, 'battle', true);
         }
         const taken = RivalCaptives.onBeaten(player, world, rival);
         if (taken) text += ` ${taken}`;

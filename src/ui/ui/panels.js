@@ -17,6 +17,7 @@ import { Hotbar } from '../hotbar.js';
 import { Causes } from '../../player/causes.js';
 import { whyIcon, stabilityWhy } from '../whyPopover.js';
 import { HouseQuests } from '../../systems/houseQuests.js';
+import { PenalLabour } from '../../systems/penalLabour.js';
 import { houseQuestsHtml } from '../houseQuestsPanel.js';
 import { PlayerInventory, Utils, ActionMenu, Religion, Economy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, Titles, KingdomBonuses, KingdomStability, Treasures, KingdomAI, KingdomNavy } from './_imports.js';
 
@@ -84,6 +85,8 @@ Object.assign(UI.prototype, {
         if (player.soulSoldCount) marks.push(['🔥', 'Soul', `Sold ×${player.soulSoldCount}`, '#e74c3c']);
         if (player.indenturedServitude) marks.push(['⛓️', 'Servitude', `${player.indenturedServitude.daysRemaining} days under ${esc(player.indenturedServitude.captor)}`, '#e67e22']);
         if (player.jailState) marks.push(['🔒', 'Jail', `${player.jailState.daysRemaining} days (${esc(player.jailState.offense)} #${player.jailState.offenseNumber})`, '#e74c3c']);
+        // The courts' marks on your body and your years: the brand's letter, the lash's stripes, hard labour (systems/penalLabour.js)
+        for (const m of PenalLabour.playerMarks(player)) marks.push([m.icon, m.label, esc(m.value), '#e0846a']);
         const rec = player.criminalRecord;
         if (rec && (rec.pickpocket > 0 || rec.smuggling > 0)) {
             marks.push(['📋', 'Record', [rec.pickpocket > 0 ? `Pickpocket ×${rec.pickpocket}` : '', rec.smuggling > 0 ? `Smuggling ×${rec.smuggling}` : ''].filter(Boolean).join(', '), '#e67e22']);

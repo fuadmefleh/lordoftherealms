@@ -9,6 +9,7 @@ import { Pirates } from '../../systems/pirates.js';
 import { Hospitality } from '../../systems/hospitality.js';
 import { RealmIntel } from '../../systems/realmIntel.js';
 import { NamedLegacy } from '../../systems/namedLegacy.js';
+import { Harrying } from '../../systems/harrying.js';
 
 /** Each unit type's glyph on its map token (ui/icons.js); unknown types keep their emoji. */
 const UNIT_GLYPHS = {
@@ -740,6 +741,53 @@ Object.assign(Renderer.prototype, {
                 this.drawMapText(ctx, `Siege · day ${(this.world.day || 0) - s.startDay}`, p.x, p.y - size * 0.95, {
                     size: 11 * z, color: 'rgba(255, 190, 170, 1)',
                 });
+            }
+        }
+        ctx.restore();
+    },
+
+    /**
+     * Towns harried in war (systems/harrying.js): an ash-dark wash over the hex
+     * (burnt fields and houses, fading as they are rebuilt and regrow), a
+     * smouldering fire marker while the houses are still in ashes. Only the
+     * hexes the player has seen.
+     */
+    renderHarried(ctx) {
+        if (!this.world || !this.world.harrying) return;
+        const scars = Harrying.scars(this.world);
+        if (!scars.length) return;
+        const z = this.camera.zoom;
+        const size = this.hexSize * z;
+        const day = this.world.day || 0;
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        for (const s of scars) {
+            const tile = this.world.getTile(s.q, s.r);
+            if (!tile || !tile.explored) continue;
+            const pos = this.getHexPixelPos(s.q, s.r);
+            const p = this.camera.worldToScreen(pos.x, pos.y);
+            if (p.x < -60 || p.x > this.canvas.width + 60 || p.y < -60 || p.y > this.canvas.height + 60) continue;
+            // The fresher the harrying, the darker the land
+            const fresh = Math.max(0.25, 1 - Math.max(0, day - s.d) / 240);
+            const g = ctx.createRadialGradient(p.x, p.y, size * 0.1, p.x, p.y, size * 1.05);
+            g.addColorStop(0, `rgba(28, 18, 12, ${0.55 * fresh})`);
+            g.addColorStop(0.7, `rgba(46, 30, 20, ${0.35 * fresh})`);
+            g.addColorStop(1, 'rgba(46, 30, 20, 0)');
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = g;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, size * 1.05, 0, Math.PI * 2);
+            ctx.fill();
+            if (s.burnt > 0.05 || s.fields) {
+                const flicker = 0.75 + 0.25 * Math.sin((this.time || 0) * 0.004 + s.q * 1.7 + s.r);
+                this.drawMarkerPlate(ctx, p.x + size * 0.45, p.y - size * 0.45, Math.max(7, size * 0.24), '#e0773a');
+                ctx.globalAlpha = flicker;
+                drawIcon(ctx, 'fire', p.x + size * 0.45, p.y - size * 0.45, Math.max(9, size * 0.3), '#ffa048', 2);
+                ctx.globalAlpha = 1;
+            }
+            if (z > 0.7) {
+                this.drawMapText(ctx, 'Harried', p.x, p.y + size * 0.95, { size: 10 * z, color: 'rgba(240, 170, 120, 0.95)' });
             }
         }
         ctx.restore();

@@ -34,6 +34,8 @@
 
 import { DataLoader } from '../core/dataLoader.js';
 import { NPCLords } from '../world/npcLords.js';
+// (a death pinned on the player's House lights a blood feud: systems/bloodFeuds.js; run time only)
+import { BloodFeuds } from './bloodFeuds.js';
 
 const DEFAULTS = {
     enabled: true, perPerson: 6, perTown: 8, forgetBelow: 0.5, foreverAt: 14, foreverFloor: 0.35,
@@ -276,6 +278,10 @@ export const NpcMemory = {
         const r = NpcMemory.resolve(world, personRef);
         if (!r || r.type !== 'folk' || !r.folk) return [];
         const ep = NpcMemory._episode(world, episode);
+        // The dead one's family owes the House blood (systems/bloodFeuds.js: only the kinds it names)
+        if (ep && episode.player) {
+            try { BloodFeuds.onKinMemory(world, episode.player, r.folk, r.p, episode.kind); } catch (e) { /* no feud */ }
+        }
         return ep ? NpcMemory._tellKin(r.folk, r.p, ep) : [];
     },
 

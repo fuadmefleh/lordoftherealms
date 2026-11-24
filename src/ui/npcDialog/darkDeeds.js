@@ -5,6 +5,7 @@
 //   - to someone who carries your mark (a thief's brand, a lost hand): ask
 //     about it, and hear what they make of you.
 import { PeopleCrimes } from '../../systems/peopleCrimes.js';
+import { PenalLabour } from '../../systems/penalLabour.js';
 import { NpcDisposition } from '../../systems/npcDisposition.js';
 import { InnerMap } from '../../world/innerMap.js';
 import { dialogState } from './shared.js';
@@ -65,6 +66,15 @@ export function _darkChoices() {
         out.push({
             icon: mark.mark === 'maimed' ? '🤕' : '🔥', label: ask, group: 'talk', tooltip: mark.text,
             onPick: () => _say(c, 'pc_mark', ask, reply, -3),
+        });
+    }
+    // A court's letter on their cheek (systems/penalLabour.js): ask how they came by it
+    const brand = !mark ? PenalLabour.brandOf(p) : null;
+    if (brand && !_asked('pen_brand')) {
+        const ask = PenalLabour.line('askBrand') || 'Where did you get that brand?';
+        out.push({
+            icon: '🔥', label: ask, group: 'talk', tooltip: `${brand.letterName}, burned in by a court for ${brand.crime || 'a crime'}`,
+            onPick: () => _say(c, 'pen_brand', ask, PenalLabour.brandReply(p, c.world, c.player), brand.by === 'player' ? -3 : -1),
         });
     }
     return out;

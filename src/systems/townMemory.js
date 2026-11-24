@@ -327,6 +327,8 @@ export const TownMemory = {
             // A work of the ages finished here: the town's pride; one left to ruin: its bitterness while the grudge lasts (systems/greatWorks.js)
             else if (m.k === 'greatwork') mood += _num(m.pride, 3);
             else if (m.k === 'grudge') mood += _num(m.mood, -3) * Math.max(0, 1 - age / (Y * Math.max(1, _num(m.years, 60))));
+            // Blood spilt between two of its families (systems/bloodFeuds.js): the town on edge while it is fresh
+            else if (m.k === 'feud') mood += _num(m.mood, -2) * Math.max(0, 1 - age / (Y * Math.max(1, _num(m.years, 3))));
         }
         mem.mood = Math.round(_clamp(mood, C.moodMin, C.moodMax) * 10) / 10;
         return mem.mood;
@@ -507,6 +509,7 @@ export const TownMemory = {
             : m.crime === 'granary' ? `The granary of ${s.name} was burnt ${w}${m.by ? ` by ${m.by}` : ''}${m.lean ? ', in the lean weeks' : ''}.`
             : `A false plague was cried on ${s.name} ${w}${m.by ? `, a lie of ${m.by}'s` : ''}; the traders stayed away.`;
         case 'greatwork': return `${m.work || 'A great work'} was finished ${w}${m.carved ? `; carved over its door: ${m.carved}` : ''}.`;
+        case 'feud': return `${m.dead || 'One of the town'} was killed ${w} in the blood feud between the ${m.a || 'one family'} and the ${m.b || 'another'}.`;
         case 'grudge': return `${m.work || 'A great work'} was left a ruin ${w}${m.by ? `; ${s.name} has not forgiven ${m.by}` : ''}.`;
         default: return `${s.name} remembers something ${w}.`;
         }

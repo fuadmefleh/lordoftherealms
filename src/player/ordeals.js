@@ -58,7 +58,9 @@ import { Maiming } from '../systems/maiming.js';
 import { Petitions } from '../systems/petitions.js';
 import { Executions } from '../systems/executions.js';
 import { Nemesis } from '../systems/nemesis.js';
+import { BloodFeuds } from '../systems/bloodFeuds.js';
 import { PlayerCoin } from './playerCoin.js';
+import { Gibbets } from '../systems/gibbets.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = v => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -355,7 +357,12 @@ export const Ordeals = {
         }
         // Theirs
         if (cleared && outcome.yielded !== 'b' && fell(outcome.bLost, outcome.bHp)) {
-            if (them.kind === 'folk' && them.ref && dies('them')) { Townsfolk.slay(them.folk, them.ref, day, 'a trial by combat', world); parts.push(`${them.name} lies dead`); }
+            if (them.kind === 'folk' && them.ref && dies('them')) {
+                Townsfolk.slay(them.folk, them.ref, day, 'a trial by combat', world);
+                // (God's judgement or no, their kin may not take it so: systems/bloodFeuds.js)
+                BloodFeuds.onKinMemory(world, player, them.folk, them.ref, 'combat');
+                parts.push(`${them.name} lies dead`);
+            }
             else if (them.kind === 'folk' && them.ref) { Townsfolk.injure(them.ref, day, 2, 30); parts.push(`${them.name} is carried off`); }
             else if (them.kind === 'rival' && them.ref) Ordeals._rivalFell(player, world, them, dies('them'), parts);
             else if (them.kind === 'rival') parts.push(`${them.name} is carried from the field`);
@@ -396,6 +403,9 @@ export const Ordeals = {
             deed: { key: 'head_slain', label: `the death of ${oldName} in the lists`, note: 'trial by combat' },
             score: _num(R.nemesisScore, 60), age: rival.head && rival.head.age, gender: rival.head && rival.head.gender,
         });
+        // His body lies in the lists: yours to show, his trophies yours to take (systems/gibbets.js)
+        Gibbets.offerBody(player, world, { key: `lists:${rival.kingdomId}:${_day(world)}`, name: oldName, rank: 'rival', source: 'lists', how: 'slain in the lists', kingdomId: rival.kingdomId, house: { id: rival.kingdomId, name: rival.name } });
+        BloodFeuds.onHouseBlood(world, player, rival, oldName, 'combat', true);
         parts.push(`${oldName} dies on the field; ${heir} now heads ${rival.name} and swears vengeance`);
         if (player.house) House._chronicle(player.house, world, `${oldName} of ${rival.name} died in the lists, in a trial by combat against ${player.name || 'the House'}.`, ['rival', 'death', 'trial']);
     },
@@ -834,6 +844,9 @@ export const Ordeals = {
             if (loser && !(lostHp > 0) && Ordeals._u(world, `${key}|fell`) < _num(Ordeals._c('combat').deathChance, 0.55)) {
                 Townsfolk.slay(folk, loser, day, 'a trial by combat', world);
                 dead = ` ${_pname(loser)} died of it.`;
+                // (the loser's kin may hold it against the winner's: systems/bloodFeuds.js)
+                const winner = cleared ? acc : them.p;
+                if (winner) BloodFeuds.onFolkKilling(world, s, loser, winner, 'combat', player);
             } else if (loser) Townsfolk.injure(loser, day, 3, 30);
             text = `${name} fights for ${acc.gender === 'female' ? 'her' : 'his'} innocence before ${c.town}.${hiredText} ${cleared ? `${name} wins: God has spoken.` : `${name} goes down.`}${dead}`;
             if (!cleared && acc.died != null) {

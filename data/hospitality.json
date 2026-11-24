@@ -99,8 +99,10 @@
             "starsDrift": 0.15,
             "repDrift": 0.15,
             "maxHistory": 8,
+            "_cashKeep": "An NPC house's float: keepWeeks of its running costs (this week's, at least its weeklyCosts), at most cashKeep; each week it spends spendShare of the cash above that in its town. 2026-11-24: was a flat 800 a house at half a week — the five houses of the player's capital held ~7k while the capital's own purse held ~450, and since NPC houses open only where someone asks (the player), the ruler's own realm was the one whose towns ran dry of the coin its crown taxes.",
             "cashKeep": 800,
-            "spendShare": 0.5,
+            "keepWeeks": 4,
+            "spendShare": 0.75,
             "_keeper": "Real coin to the innkeeper: each week the keeper (a townsperson, keeperUid) draws keeperShare of what the house cleared to their own purse. On the street map a traveller lodging the night pays a common-room bed (or the house's cheapest tier), and anyone sat to supper at an inn, tavern or roadhouse pays a supper, from their own purse into the keeper's (Hospitality.npcPays); a house with no townsperson keeper banks it. walkIn: the prices at a tavern with no house of hospitality behind it.",
             "keeperShare": 0.25,
             "walkIn": { "room": 2, "meal": 1 }

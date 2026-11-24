@@ -32,6 +32,20 @@ import { Holdings } from './holdings.js';
 import { HoldingSieges } from './holdingSieges.js';
 import { Names } from '../core/names.js';
 import { Water } from './water.js';
+import { WarStakes } from '../world/warStakes.js';
+import { DataLoader } from '../core/dataLoader.js';
+
+/** The fate-of-prisoners tuning this module reads (data/prisonerFates.json): oaths kept or broken, stakes that turn hosts back. */
+function _pf(key) {
+    const d = DataLoader._gamedata && DataLoader._gamedata.prisonerFates;
+    return (d && d[key]) || {};
+}
+
+/** 0..1, fixed for a key in this world (no shared dice). */
+function _pfRoll(world, key) {
+    const seed = (world && world.generationParams && world.generationParams.seed) || 0;
+    return ((Utils.hashStr(`${seed}|realmWarsCaptives|${key}`) >>> 0) % 100000) / 100000;
+}
 
 const CONFIG = {
     checkCadence: 10,          // days between hostility checks
@@ -318,6 +332,8 @@ export const RealmWars = {
         // (its war chest, drawn from the treasury when it marched: rec.chest)
         unit.inventory = { gold: Math.max(0, Math.floor(Number(rec.chest) || 0)), food: rec.strength };
         if (rec.besieging) unit.besieging = rec.besieging;
+        // (men sworn to the player never to bear arms against them, marching anyway: player/prisonerFates.js)
+        if (rec.oathBreakers > 0) unit.oathBreakers = rec.oathBreakers;
         world.units.push(unit);
         return unit;
     },
@@ -325,6 +341,8 @@ export const RealmWars = {
     _dispatchHost(player, world, kingdom, war) {
         const targets = RealmWars.holdings(player, world);
         if (!targets.length || !world.getAllSettlements) return null;
+        // A realm whose blinded army came home has no heart to send another (world/warStakes.js)
+        if (WarStakes.dismay(kingdom, world.day) > 0) return null;
         const bases = world.getAllSettlements().filter(s => s.kingdom === kingdom.id);
         if (!bases.length) return null;
         // March on the holding closest to any of the kingdom's settlements.
@@ -335,7 +353,27 @@ export const RealmWars = {
                 if (!best || d < best.d) best = { d, t, b };
             }
         }
-        const strength = Utils.clamp(Math.round(20 + (kingdom.military || 0) * 0.04), 25, 180);
+        // The player's stakes on the road to the target: the crown may not march at all (player/prisonerFates.js)
+        const I = _pf('impale');
+        const dread = WarStakes.dreadAt(world, best.t.q, best.t.r, Number(I.deterRadius) || 6);
+        if (dread > 0 && _pfRoll(world, `stay|${kingdom.id}|${world.day}`) < (Number(I.stayHome) || 0.6) * dread) {
+            war.lastHostDay = world.day;
+            war.deterred = (war.deterred || 0) + 1;
+            return null;
+        }
+        // Men sworn to the player: an honourable crown keeps them home, another marches them anyway
+        const O = _pf('oath');
+        const bound = WarStakes.oathBound(kingdom, world.day);
+        let oathBreakers = 0;
+        let available = kingdom.military || 0;
+        if (bound > 0) {
+            const honour = Number(kingdom.lord && kingdom.lord.honor) || 5;
+            const keep = Math.min(Number(O.keepMax) || 0.95, (Number(O.keepBase) || 0.35) + honour * (Number(O.keepPerHonour) || 0.06));
+            if (_pfRoll(world, `oath|${kingdom.id}|${world.day}`) < keep) available = Math.max(0, available - Math.round(bound / 2));
+            else oathBreakers = bound;
+            if (available < CONFIG.minMilitaryToSend) { war.lastHostDay = world.day; return null; }
+        }
+        const strength = Utils.clamp(Math.round(20 + available * 0.04), 25, 180);
         // A host marches on its crown's coin: its muster (paid to the captains and the
         // sutlers in the capital) and its war chest (carried, the spoils of beating it).
         // A crown that cannot pay the muster sends none
@@ -361,6 +399,8 @@ export const RealmWars = {
             arms: arms ? arms.stock : null,
             armed: arms ? arms.armed : 1,
             chest,
+            // (oath-breakers in its ranks, found out when the player meets it: player/prisonerFates.js)
+            ...(oathBreakers > 0 ? { oathBreakers: Math.min(oathBreakers, Math.round(strength * 2 * (Number(O.breakShare) || 0.5))) } : {}),
         };
         war.hosts.push(rec);
         war.lastHostDay = world.day;
@@ -476,6 +516,19 @@ export const RealmWars = {
             // Dry country on the march: the host thirsts and thins (systems/water.js)
             Water.armyUnitDay(world, unit, rec);
             rec.chest = unit.inventory ? Math.max(0, Math.floor(Number(unit.inventory.gold) || 0)) : 0;
+            // The player's stakes along the road: the host may turn back (player/prisonerFates.js)
+            const I = _pf('impale');
+            const dread = WarStakes.dreadAt(world, unit.q, unit.r, Number(I.deterRadius) || 6);
+            if (dread > 0 && _pfRoll(world, `turn|${rec.id}|${world.day}`) < (Number(I.turnBack) || 0.35) * dread) {
+                RealmWars._homeChest(kingdom, unit, rec);
+                unit.destroyed = true;
+                war.hosts = war.hosts.filter(h => h.id !== rec.id);
+                kingdom.military = (kingdom.military || 0) + rec.strength;
+                RealmArms.attach(kingdom, { stock: rec.arms }, 1);
+                war.deterred = (war.deterred || 0) + 1;
+                out.struck.push({ kingdomId: kingdom.id, text: `${rec.name} came upon the stakes along your road, and turned back.` });
+                continue;
+            }
             if (rec.stuckDays >= 8) {
                 // No way through — the host gives up and marches home.
                 RealmWars._homeChest(kingdom, unit, rec);

@@ -77,6 +77,9 @@ Object.assign(Renderer.prototype, {
         // Render Great Works standing and rising (systems/patronage.js)
         this.renderGreatWorks(ctx);
 
+        // The dead on show: a pike with a head on it by the towns that keep them (systems/gibbets.js)
+        this.renderDeadDisplays(ctx);
+
         // Render infrastructure (roads, bridges, irrigation)
         this.renderInfrastructure(ctx);
 
@@ -158,6 +161,10 @@ Object.assign(Renderer.prototype, {
         this.renderQuestMarkers(ctx);
         // Your holdings under siege (systems/holdingSieges.js)
         this.renderHoldingSieges(ctx);
+        // Captives on stakes along the roads, blinded columns walking home (renderer/warStakes.js)
+        this.renderWarStakes(ctx);
+        // Villages and fields burned by harriers in war (systems/harrying.js)
+        this.renderHarried(ctx);
 
         // Royal squadrons at sea: blockades on station, patrols (renderer/navySquadrons.js)
         this.renderNavySquadrons(ctx);

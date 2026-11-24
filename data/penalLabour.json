@@ -1,0 +1,99 @@
+{
+    "_doc": "LESSER PUNISHMENTS AND PENAL LABOUR (systems/penalLabour.js). Sentences between a fine and the noose, for the player as judge (player/trials.js rule: flog, stocks, brand, mines, galleys, outlaw), for the realms' own courts (a weekly hash roll over each town's caught crimes, settlement.npcCrimes), as a mercy at the scaffold (systems/executions.js spare: mines, galleys) and for the player tried (player/trials.js resolveTrial). Two realm laws decide which exist (data/laws.json corporal: stocks | lash | iron; penalLabour: none | mines | oars); the punishment law's jail multiplier scales the lashes and the terms (severity). Every sentence is real: FLOG — lashes by the crime's severity (lashes), a beating that heals (Townsfolk.injure), a death past a share of lashes (deathPerLash, the old ×oldMult), the crowd's mood (crowd), the town soured (sour × faith) and cowed (fear: npcTheft's chance ×m for days), the flogged and kin remember. STOCKS — the pillory in the square (settlement.pillory, world/scaffolds.js lays it) for days, pelted by a crowd that hates them (crowd.pelt), at no work while they sit (jailedUntil). BRAND — a court's letter burned in the cheek (letters by crime; MaimMarks 'brand' and person.brandMark): read by the trades (maiming.json acts.brand work), by the watch (watched: × the chance a branded thief is caught), by talk (an aside, a question). MINES and GALLEYS — the convict leaves town for a term (days by severity × the law's severity; person.away.convict), to a mine or quarry of the player's (each convict a share of staffing: perConvict, at most maxBoost, room gangPerLevel × level) or a ship of theirs (an empty berth filled, no wage: Ships.getDailyWages; the ship's morale sinks by the convict share; at sea a desperate bench mutinies, in port they slip away) or a war galley's bench (bench seats, each saves oarSave of the galley's upkeep), else the crown's own gang (its mines' ore to the capital's market, the value from the capital's purse into the crown's chests; its galleys' oars cut the royal fleet's upkeep, world/kingdomNavy.js convictOars). Rations go from the keeper's purse into the nearest town's (bread bought). Weekly deaths and escapes; at term's end they walk home (hurt, changed, a line in their life) or, their town gone, stay gone. OUTLAW — out of the realm's peace: the purse forfeit to the judge, gone to the greenwood. THE PLAYER: flogged (health, a wound, renown and the realm's regard), pilloried (a day in the stocks, pelted by a town that hates you), branded with the letter, or sent to the mines or the galleys as indentured servitude (servitude.penal: hard days, accidents, the crown's output; escape — a warrant for it — or a ransom into the crown's chests). Rolls are hashes of the world seed (no shared dice).",
+    "enabled": true,
+    "letters": {
+        "theft": "T", "burglary": "T", "pickpocket": "T", "loot": "T", "graveRobbing": "T",
+        "poaching": "P", "cheating": "F", "slander": "S", "assault": "M", "brawl": "M", "murder": "M",
+        "arson": "A", "debt": "D", "default": "F"
+    },
+    "letterNames": {
+        "T": "a thief's T", "P": "a poacher's P", "F": "a felon's F", "S": "a slanderer's S",
+        "M": "the M of a man of blood", "A": "an arsonist's A", "D": "a debtor's D"
+    },
+    "chargeLetters": {
+        "_doc": "The player's trial charges (watchQuestioning groups) by a word in the group's name.",
+        "thie": "T", "theft": "T", "steal": "T", "burgl": "T", "purse": "T", "loot": "T", "grave": "T", "smuggl": "F",
+        "poach": "P", "murder": "M", "assault": "M", "kill": "M", "brawl": "M", "arson": "A", "fire": "A", "slander": "S", "debt": "D"
+    },
+    "laws": {
+        "corporal": { "stocks": ["stocks"], "lash": ["stocks", "flog"], "iron": ["stocks", "flog", "brand"] },
+        "penalLabour": { "none": [], "mines": ["mines"], "oars": ["mines", "galleys"] }
+    },
+    "always": ["stocks", "outlaw"],
+    "severity": { "_doc": "× lashes and terms by the realm's punishment law.", "lenient": 0.7, "standard": 1, "harsh": 1.4 },
+    "faith": {
+        "_doc": "How the realm's faith (systems/maimFaith.js stance) takes the lash and the iron: × the town's souring; devotion standing lost by a player judge who orders them under a faith that holds the body sacred.",
+        "sour": { "sacred": 1.6, "mild": 1, "harsh": 0.5 },
+        "devotion": { "sacred": 2, "mild": 0, "harsh": 0 }
+    },
+    "deterLaw": {
+        "_doc": "× tonight's chance of a burglary in every town of a realm by its laws (systems/npcTheft.js), with a recent public punishment's fear on top (settlement.penalFear).",
+        "corporal": { "stocks": 1, "lash": 0.93, "iron": 0.86 },
+        "penalLabour": { "none": 1, "mines": 0.95, "oars": 0.9 }
+    },
+    "crowd": {
+        "_doc": "The square's mood at a flogging or the stocks: score = guilt (guilty + 1 / innocent −1.5) + kin in town × −0.4 + the condemned's role (a noble −0.5, a beggar +0.5, a stranger +0.5) + the town's happiness below 40 × −0.04 + the crime's severity × 0.3 + a hash ±1. Above jeer they jeer (pelt them in the stocks, a cheer for justice); below pity they murmur for the condemned (the town sours twice).",
+        "jeer": 1, "pity": -0.5, "pelt": [2, 5], "pityHappiness": -2, "jeerHappiness": 1
+    },
+    "flog": {
+        "lashes": { "1": 12, "2": 24, "3": 39, "4": 60 },
+        "hurtPerLash": 0.12, "hurtMax": 10,
+        "deathPerLash": 0.0012, "deathMax": 0.15, "oldAge": 55, "oldMult": 2.5,
+        "sour": 1, "fear": { "days": 30, "m": 0.88 }
+    },
+    "stocks": { "days": 1, "sour": 0, "fear": { "days": 12, "m": 0.94 }, "hurtMax": 10 },
+    "brand": { "sour": 1, "fear": { "days": 45, "m": 0.88 }, "watched": 1.6, "hurt": 3 },
+    "outlaw": { "sour": 0, "minSeverity": 2 },
+    "terms": { "1": 40, "2": 100, "3": 240, "4": 480 },
+    "mines": {
+        "deathPerWeek": 0.012, "escapePerWeek": 0.008, "perConvict": 0.1, "maxBoost": 0.8, "gangPerLevel": 6,
+        "rations": 0.25, "crownGood": "iron", "crownGoods": ["iron", "stone", "coal"], "crownPerWeek": 0.5, "crownPriceShare": 0.6,
+        "returnHurt": 4, "label": "the mines"
+    },
+    "galleys": {
+        "deathPerWeek": 0.008, "escapeDockedPerWeek": 0.03, "escapeAtSeaPerWeek": 0.004, "rations": 0.2,
+        "moralePerShare": -20, "bench": 30, "oarSave": 0.3,
+        "mutiny": { "share": 0.35, "morale": 35, "perDay": 0.03, "killed": [1, 3], "morale_after": -15 },
+        "returnHurt": 3, "label": "the galleys"
+    },
+    "crownCap": 400,
+    "realm": {
+        "_doc": "The realms' own courts each week (day % everyDays === offset): in up to townsPerWeek towns, a caught crime on the record (recordDays old at most, the doer at home and not yet sentenced or maimed) is sentenced with chance act, by its severity under the realm's laws (pick: the first allowed of each severity's list).",
+        "everyDays": 7, "offset": 3, "townsPerWeek": 40, "recordDays": 40, "act": 0.45,
+        "pick": {
+            "1": ["flog", "stocks"],
+            "2": ["brand", "mines", "flog", "stocks"],
+            "3": ["mines", "galleys", "brand", "flog"],
+            "4": ["galleys", "mines", "brand"]
+        }
+    },
+    "player": {
+        "_doc": "The player tried (player/trials.js resolveTrial): a long cell term for a grave crime becomes the mines or the galleys (labourShare, at least minDays, where the law allows: the galleys at a harbour court or by a hash); a lesser conviction that would have gone to the cells (a repeat offender, a fine unpaid) becomes the lash (flogShare, where the law allows) or the pillory (pilloryShare). Flogged: lashes × hpPerLash health (never below minHealth), the wound, renown and the realm's regard; pilloried: daysIn the stocks (the cell), pelted by a town that hates you (pelt × the score). At the mines or the galleys: servitude.penal; each day health (mines: dayHurt), an accident now and then (accident → the wound), the escape chance (escape) and a ransom (ransomPerDay of the days left, into the crown's chests).",
+        "labourShare": 0.55, "minDays": 20, "flogShare": 0.6, "pilloryShare": 0.5,
+        "hpPerLash": 0.6, "minHealth": 5, "wound": "flogged_back", "renown": -3, "reputation": -4,
+        "pillory": { "days": 1, "pelt": [3, 12], "renown": -2, "reputation": -2 },
+        "mines": { "dayHurt": [0, 2], "accident": 0.02, "wound": "cracked_ribs", "escape": 0.08, "ransomPerDay": 5 },
+        "galleys": { "dayHurt": [0, 1], "accident": 0.01, "wound": "gash", "escape": 0.05, "portEscape": 0.15, "portEvery": 6, "ransomPerDay": 5 },
+        "escapedHeat": 12
+    },
+    "lines": {
+        "flog": ["{name} is tied to the post in the square of {town} and given {lashes} lashes for {crime}.", "{lashes} strokes of the lash for {name}, before the folk of {town}, for {crime}."],
+        "flogDied": ["{name} dies under the lash in the square of {town}: {lashes} strokes were more than the body could bear."],
+        "stocks": ["{name} goes to the pillory of {town} for {crime}, for the town to see."],
+        "brand": ["The court's iron burns {letter} into {name}'s cheek for {crime}. Every stranger will read it."],
+        "mines": ["{name} is chained and marched off to {site} for {days} days, for {crime}."],
+        "galleys": ["{name} is chained to an oar of {site} for {days} days, for {crime}."],
+        "outlaw": ["{name} is put out of the peace of {realm} for {crime}: any man may take them, and their purse is forfeit."],
+        "jeer": ["The crowd jeers and pelts them."],
+        "pity": ["The crowd is quiet; some turn away, and someone calls out for mercy."],
+        "quiet": ["The crowd watches, and goes back to its work."],
+        "asideBrand": ["*{letterName} is burned into {his} cheek.*", "*An old court brand, {letterName}, puckers {his} cheek.*"],
+        "asideServed": ["*{He} has the look of one who has done hard years at {site}.*"],
+        "askBrand": "Where did you get that brand?",
+        "replyBrand": ["The court of {town} put it there, {when}, for {crime}. Folk count their coins when I pass now.", "{crime}. A court burned it in, and it stays. Doors close that used to open."],
+        "replyBrandYou": ["You know where. Your court. Your iron. I wear your judgement on my face."],
+        "returned": ["{name} has come home to {town} from {site}, thinner and harder."],
+        "diedAway": ["{name} of {town} died at {site}."],
+        "escaped": ["{name} has broken out of {site} and is gone."]
+    }
+}

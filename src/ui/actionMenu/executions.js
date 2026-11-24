@@ -9,6 +9,9 @@
 //   showScaffoldCrowd  a realm's execution in this town today: join the crowd
 //                      ('scaffold_crowd').
 //   scaffoldCrowdAct   watch, or cry out for mercy.
+//   showScaffoldHere   the scaffold or pillory clicked on the street map
+//                      (ui/innerMapScaffold.js): the condemned here, today's
+//                      crowd, the deaths and punishments the realm's law allows.
 import { ActionMenu } from './_ref.js';
 import { Executions } from '../../systems/executions.js';
 import { lede, chips, card, rowList, price, esc } from './uiKit.js';
@@ -158,10 +161,52 @@ Object.assign(ActionMenu, {
         game.ui.showCustomPanel('💀 The Crowd at the Scaffold', html);
     },
 
-    scaffoldCrowdAct(game, pubId, how) {
+    scaffoldCrowdAct(game, pubId, how, from = null) {
         const r = Executions.attend(game.player, game.world, pubId, how);
         if (!r.success) { game.ui.showNotification('💀 The Scaffold', r.reason || 'Not today.', 'error'); return; }
         game.ui.updateStats(game.player, game.world);
-        ActionMenu.showScaffoldCrowd(game, r.text);
+        if (from === 'here') ActionMenu.showScaffoldHere(game, r.text);
+        else ActionMenu.showScaffoldCrowd(game, r.text);
+    },
+
+    /**
+     * The scaffold (or the pillory) in this town's square, from the street map
+     * (ui/innerMapScaffold.js): who is condemned here and when, today's crowd,
+     * the deaths this realm's law and faith allow, its punishments, how the
+     * town's thieves are cowed, a martyr's shrine, who sits in the stocks.
+     */
+    showScaffoldHere(game, flash = '') {
+        const { player, world } = game;
+        const q = player.q, r = player.r;
+        const at = Executions.atTown(player, world, q, r);
+        const day = Number.isFinite(world && world.day) ? world.day : 0;
+        let html = lede(esc(`The square of ${at.town || 'the town'}${at.realm ? `, under the law of ${at.realm}` : ''}. Folk give the timbers a wide berth and their children a hard look.`));
+        if (flash) html += card(esc(flash), { icon: '💀', title: 'The scaffold' });
+        const rows = [];
+        for (const c of at.condemned) {
+            const when = c.today ? 'today' : `day ${c.day} (in ${c.day - day} day${c.day - day === 1 ? '' : 's'})`;
+            const by = c.kind === 'yours' ? 'by your sentence' : `by the law of ${at.realm || 'the realm'}`;
+            rows.push({ icon: c.icon, name: esc(c.name), desc: esc(`${c.methodLabel} for ${c.crimeLabel}, ${by}: ${when}`), tone: c.kind === 'yours' && c.guilty === false ? 'warn' : '',
+                side: c.kind === 'yours' ? '›' : '', act: c.kind === 'yours' ? 'showCondemned' : null, args: c.kind === 'yours' ? [c.id] : null });
+            if (c.kind === 'realm' && c.today) {
+                rows.push({ icon: '👁️', name: `Watch ${esc(c.name)} die`, desc: 'Stand in the crowd to the end', act: 'scaffoldCrowdAct', args: [c.id, 'watch', 'here'] });
+                rows.push({ icon: '🕊️', name: 'Cry out for mercy', desc: 'The crowd may take it up. The crown will not thank you.', act: 'scaffoldCrowdAct', args: [c.id, 'mercy', 'here'], tone: 'good' });
+            }
+        }
+        html += rows.length ? rowList(rows, '⛓️ The condemned') : card('No one is condemned to die here now.', { icon: '🕊️' });
+        // Who sits in the stocks here (your tenants in arrears: systems/peopleCrimes.js)
+        const stocks = ((player.peopleCrimes && player.peopleCrimes.stocks) || []).filter(x => x.q === q && x.r === r);
+        if (stocks.length) {
+            html += rowList(stocks.map(x => ({ icon: '🔒', name: esc(x.name), desc: esc(`In the stocks for the rent owed you, until day ${x.until}${x.winter ? '; in this cold it can kill' : ''}`), tone: x.winter ? 'bad' : '' })), '🔒 In the stocks');
+        }
+        html += rowList(at.methods.map(m => ({ icon: m.icon, name: esc(m.label), desc: esc(m.ok ? (m.why ? `Allowed, ${m.why}` : 'Allowed') : `Not here: ${m.why}`), tone: m.ok ? '' : 'bad', off: !m.ok, why: esc(m.why) })), `⚖️ The deaths the law allows${at.realm ? ` in ${esc(at.realm)}` : ''}`);
+        const law = [];
+        if (at.punishment) law.push({ icon: '⚖️', name: `Punishment: ${esc(at.punishment.label)}`, desc: esc(at.punishment.desc || '') });
+        if (at.mutilation) law.push({ icon: '✋', name: `Mutilation: ${esc(at.mutilation.label)}`, desc: esc(at.mutilation.desc || '') });
+        if (at.fear < 1) law.push({ icon: '🫣', name: 'The thieves are cowed', desc: `A death here not long ago: the town's thieves try their luck ${Math.round((1 - at.fear) * 100)}% less often` });
+        if (at.cult) law.push({ icon: '🕯️', name: esc(`The shrine of ${at.cult.name}`), desc: esc(`A martyr of the scaffold, prayed to in ${at.cult.town || 'town'}: the next crowd here will be sullen`) });
+        if (law.length) html += rowList(law, '📜 The law here');
+        if (Executions.canJudge(player, world)) html += rowList([{ icon: '⚖️', name: 'Your Scaffold', desc: 'The condemned awaiting your word, and those in your power', act: 'showExecutions', side: '›', tone: 'gold' }]);
+        game.ui.showCustomPanel(`💀 The Scaffold of ${esc(at.town || 'the Town')}`, html);
     },
 });

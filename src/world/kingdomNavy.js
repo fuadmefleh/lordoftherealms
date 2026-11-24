@@ -47,6 +47,7 @@ const CONFIG = {
     unpaidDecay: 0.05,         // share lost each day the upkeep goes unpaid
     overCapDecay: 0.1,         // share of any excess over the cap laid up each day
     startShare: 0.5,           // share of the cap afloat when the fleet is first counted
+    minWaterBody: 12,          // water hexes a port must open onto to keep a war fleet (no navies on ponds)
     blockade: {
         minStrength: 8,        // a fleet this small can't hold a blockade
         superiority: 1.25,     // must outnumber the defender's fleet by this much
@@ -125,7 +126,36 @@ export const KingdomNavy = {
         });
     },
 
-    /** The realm's settlements and which of them are ports. */
+    /**
+     * A port that can keep a war fleet: on water that runs at least
+     * minWaterBody hexes (a town on a pond trades by boat, but no realm keeps
+     * galleys there). The search stops once that many are found.
+     */
+    isNavalPort(world, q, r) {
+        if (!KingdomNavy.isPortTile(world, q, r)) return false;
+        const need = Math.max(1, CONFIG.minWaterBody || 1);
+        const isWater = (a, b) => {
+            const t = world.getTile(a, b);
+            return !!(t && t.terrain && Terrain.isWaterId(t.terrain.id));
+        };
+        const seen = new Set();
+        const queue = [];
+        for (const n of Hex.neighbors(q, r)) {
+            const k = `${n.q},${n.r}`;
+            if (!seen.has(k) && isWater(n.q, n.r)) { seen.add(k); queue.push(n); }
+        }
+        for (let i = 0; i < queue.length && seen.size < need; i++) {
+            for (const n of Hex.neighbors(queue[i].q, queue[i].r)) {
+                const k = `${n.q},${n.r}`;
+                if (seen.has(k) || !isWater(n.q, n.r)) continue;
+                seen.add(k);
+                queue.push(n);
+            }
+        }
+        return seen.size >= need;
+    },
+
+    /** The realm's settlements and which of them are ports (ports that can keep a war fleet). */
     survey(kingdom, world) {
         const ports = [];
         let settlements = 0;
@@ -133,7 +163,7 @@ export const KingdomNavy = {
             const tile = world.getTile(t.q, t.r);
             if (!tile || !tile.settlement || tile.settlement.kingdom !== kingdom.id) continue;
             settlements++;
-            if (KingdomNavy.isPortTile(world, t.q, t.r)) ports.push({ q: t.q, r: t.r });
+            if (KingdomNavy.isNavalPort(world, t.q, t.r)) ports.push({ q: t.q, r: t.r });
         }
         return { ports, settlements };
     },

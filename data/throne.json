@@ -65,18 +65,19 @@
     },
 
     "civilWar": {
+      "_note": "A war for a crown runs many months to a couple of years (2026-11-24: the round-3 soak's were won in 2-68 days, a ruler's royal guard breaking a vanguard most days). vanguardRestDays: a vanguard broken counts in full only once the loyalists have had that many days to field another; sooner, its momentum and its chance to sway a town scale with the days since the last.",
       "levyShare": 0.8,
       "advisorMomentum": 3,
-      "battleChance": 0.3,
+      "battleChance": 0.2,
       "fieldShare": 0.6,
-      "momentumPerBattle": 6,
+      "momentumPerBattle": 2.5,
       "loyalistLoss": 0.05,
       "rebelLoss": 0.07,
-      "flipChance": 0.35,
+      "flipChance": 0.15,
       "driftPivot": 0.45,
-      "driftWeight": 2,
+      "driftWeight": 1,
       "levyRegen": 0.02,
-      "hostScoreWeight": 0.5,
+      "hostScoreWeight": 0.2,
       "victoryMomentum": 100,
       "defeatMomentum": -100,
       "maxDays": 360,
@@ -86,10 +87,11 @@
       "vanguardShare": 0.15,
       "vanguardMin": 40,
       "vanguardMax": 400,
-      "vanguardWin": 10,
-      "vanguardLoss": -8,
-      "vanguardFlipChance": 0.4,
-      "capitalMomentum": 50
+      "vanguardWin": 4,
+      "vanguardLoss": -4,
+      "vanguardFlipChance": 0.2,
+      "vanguardRestDays": 10,
+      "capitalMomentum": 70
     },
 
     "crisis": {

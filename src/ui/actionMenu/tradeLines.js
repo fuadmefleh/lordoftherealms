@@ -68,7 +68,7 @@ Object.assign(ActionMenu, {
                 { icon: '⛵', name: 'A ship line', desc: ships.length ? `One of your ships, between harbours: ${ship ? esc(ship.name) : 'choose her below'}` : 'You have no ship free to give a line', off: !ships.length, why: 'You have no ship free to give a line', act: 'tradeLinesAct', args: ['draftKind', 'ship'], side: d.kind === 'ship' ? '✓' : '›', tone: d.kind === 'ship' ? 'gold' : '' },
             ], 'What runs it');
             if (d.kind === 'ship' && ships.length > 1) {
-                html += rowList(ships.map(s => ({ icon: '⛵', name: esc(s.name), desc: `${esc(s.dockedAt || s.destinationName || s.status)} · hold ${Ships.getCargoFree(s)} free`, act: 'tradeLinesAct', args: ['draftShip', s.id], side: d.shipId === s.id ? '✓' : '›', tone: d.shipId === s.id ? 'gold' : '' })), 'Which ship');
+                html += rowList(ships.map(s => ({ icon: '⛵', name: esc(s.name), desc: `${esc(s.dockedAt || s.destinationName || Ships.statusLabel(s.status).text)} · hold ${Ships.getCargoFree(s)} free`, act: 'tradeLinesAct', args: ['draftShip', s.id], side: d.shipId === s.id ? '✓' : '›', tone: d.shipId === s.id ? 'gold' : '' })), 'Which ship');
             }
             html += rowList(d.stops.map((s, i) => ({ icon: i === 0 ? '🏠' : `${i + 1}.`, name: esc(s.name), desc: i === 0 ? 'Home: each round begins and ends here' : '', act: 'tradeLinesAct', args: ['draftDrop', i], side: 'Remove', tone: 'bad' })), 'Stops so far');
             const last = d.stops[d.stops.length - 1] || null;

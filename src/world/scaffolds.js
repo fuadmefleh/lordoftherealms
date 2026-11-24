@@ -9,6 +9,10 @@
 // map's cache key, so the map is laid anew when the scaffold goes up or comes
 // down, and calls lay() after the town's memorials; the crowd that gathers on
 // the day is world/innerMap/townScenes.js (_scaffoldScene, reading spot()).
+// The PILLORY stands beside it while someone sits in the stocks there
+// (systems/peopleCrimes.js writes settlement.pillory = { ref, name, from,
+// until, why, owed } and clears it when they go free or die there).
+// Clicking either on the street map: ui/innerMapScaffold.js.
 //
 // Pure: hash-placed, draws nothing from the map's rng; no globals.
 
@@ -32,6 +36,14 @@ export const Scaffolds = {
         return d >= _num(sc.from) && d <= _num(sc.day) ? sc : null;
     },
 
+    /** Someone in the stocks in this town on `day` ({ ref, name, from, until, why }), or null. */
+    pillory(settlement, day) {
+        const pl = settlement && settlement.pillory;
+        if (!pl || typeof pl !== 'object') return null;
+        const d = _num(day);
+        return d >= _num(pl.from) && d <= _num(pl.until) ? pl : null;
+    },
+
     /** Is this the day itself (the crowd gathers)? */
     isTheDay(settlement, day) {
         const sc = Scaffolds.current(settlement, day);
@@ -41,22 +53,44 @@ export const Scaffolds = {
     /** Part of the street map's cache key: '' when nothing stands. */
     stamp(settlement, day) {
         const sc = Scaffolds.current(settlement, day);
-        return sc ? `|scaf:${sc.id}${PROPS[sc.method] || PROPS.hang}` : '';
+        const pl = Scaffolds.pillory(settlement, day);
+        return (sc ? `|scaf:${sc.id}${PROPS[sc.method] || PROPS.hang}` : '') + (pl ? `|pil:${pl.ref}` : '');
     },
 
     /**
-     * Stand the scaffold in the square (opts.plaza { q, r, w, h }, opts.center).
-     * → { q, r } where it stands, or null.
+     * Stand the scaffold in the square (opts.plaza { q, r, w, h }, opts.center),
+     * and the pillory beside it while someone sits in the stocks.
+     * → { q, r } where the scaffold stands, or null.
      */
     lay(tiles, settlement, day, opts = {}) {
+        if (!tiles || !tiles.length || !tiles[0]) return null;
         const sc = Scaffolds.current(settlement, day);
-        if (!sc || !tiles || !tiles.length || !tiles[0]) return null;
-        const id = PROPS[sc.method] || PROPS.hang;
-        const def = CustomObjects.getDef(id);
+        const def = sc ? CustomObjects.getDef(PROPS[sc.method] || PROPS.hang) : null;
+        const at = def ? Scaffolds._place(tiles, def, `scaffold|${sc.id}`, opts) : null;
+        if (at) {
+            tiles[at.r][at.q].customObject.scaffold = sc.id;
+            tiles._scaffold = { q: at.q, r: at.r, id: sc.id, method: sc.method, name: sc.name || null, day: sc.day };
+        }
+        // (the pillory after it: the scaffold keeps the middle of the square)
+        const pl = Scaffolds.pillory(settlement, day);
+        if (pl) Scaffolds._layPillory(tiles, pl, opts);
+        return at;
+    },
+
+    /** The pillory in the square (its own spot, by its own hash). → { q, r } or null */
+    _layPillory(tiles, pl, opts) {
+        const def = CustomObjects.getDef('ex_pillory');
         if (!def) return null;
+        const at = Scaffolds._place(tiles, def, `pillory|${pl.ref}`, opts);
+        if (!at) return null;
+        tiles[at.r][at.q].customObject.pillory = pl.ref;
+        tiles._pillory = { q: at.q, r: at.r, ref: pl.ref, name: pl.name || null, until: pl.until };
+        return at;
+    },
+
+    _place(tiles, def, key, opts) {
         const W = tiles[0].length, H = tiles.length;
         const center = opts.center || { q: Math.floor(W / 2), r: Math.floor(H / 2) };
-        const key = `scaffold|${sc.id}`;
         // The middle of the square first (a scaffold stands where all can see), then its sides, then near the middle of town
         const spots = [];
         const p = opts.plaza || null;
@@ -73,8 +107,6 @@ export const Scaffolds = {
             if (q < 2 || r < 3 || q >= W - 4 || r >= H - 2) continue;
             if (TownMarks._blocksDoor(tiles, def, q, r)) continue;
             if (!TownProps.place(tiles, def, q, r, { onRoad: true, ignoreReserved: true })) continue;
-            tiles[r][q].customObject.scaffold = sc.id;
-            tiles._scaffold = { q, r, id: sc.id, method: sc.method, name: sc.name || null, day: sc.day };
             return { q, r };
         }
         return null;
@@ -84,5 +116,10 @@ export const Scaffolds = {
     spot(tiles) {
         const s = tiles && tiles._scaffold;
         return s ? { q: s.q + 1, r: s.r + 1, anchor: { q: s.q, r: s.r }, ...s } : null;
+    },
+
+    /** Where the pillory stands on these tiles ({ q, r, ref, name, until }), or null. */
+    pilloryAt(tiles) {
+        return (tiles && tiles._pillory) || null;
     },
 };

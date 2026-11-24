@@ -112,6 +112,16 @@ describe('royal fleets', () => {
         expect(n.strength).toBeLessThan(40);
     });
 
+    it('a town on a pond is no naval port: the fleet needs open water', () => {
+        const { world, a } = makeWorld();
+        // A's inland town gets a two-hex pond beside it; its coastal capital is still a port
+        for (const [q, r] of [[1, 4], [2, 4]]) world.getTile(q, r).terrain = { id: 'lake', passable: false };
+        expect(KingdomNavy.isPortTile(world, 2, 3)).toBe(true);
+        expect(KingdomNavy.isNavalPort(world, 2, 3)).toBe(false);
+        expect(KingdomNavy.isNavalPort(world, 2, 1)).toBe(true);
+        expect(KingdomNavy.updateFleet(a, world).ports).toBe(1);
+    });
+
     it('a realm without ports keeps no fleet', () => {
         const { world, a } = makeWorld();
         world.getTile(2, 1).settlement = null; // the port is gone

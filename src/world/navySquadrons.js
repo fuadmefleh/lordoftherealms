@@ -248,13 +248,22 @@ export const NavySquadrons = {
             // The rest of the fleet on patrol
             const rest = strength - onStation;
             const count = rest >= C.minStrength ? Math.max(1, Math.min(C.maxPatrols, Math.floor(rest / C.perPatrol))) : 0;
+            // Squadrons that would sail the same water are one squadron (a lone port's pickets can coincide)
+            const routes = [];
+            const routeKeys = new Set();
             for (let i = 0; i < count; i++) {
                 const route = NavySquadrons._patrolRoute(world, k, i, c);
-                if (!route.length) continue;
+                const rk = route.map(h => _key(h.q, h.r)).join(';');
+                if (!route.length || routeKeys.has(rk)) continue;
+                routeKeys.add(rk);
+                routes.push(route);
+            }
+            for (let i = 0; i < routes.length; i++) {
+                const route = routes[i];
                 const id = `p:${k.id}:${i}`;
                 const step = day * C.patrolSpeed + (_hash(id) % Math.max(1, route.length * 2));
                 const at = route[_pingPong(step, route.length)];
-                const per = rest / count;
+                const per = rest / routes.length;
                 out.push({
                     id, kind: 'patrol', kingdomId: k.id, kingdomName: k.name, color: k.color || '#8fb8ea',
                     q: at.q, r: at.r, strength: Math.round(per), ships: NavySquadrons.shipsFor(per),

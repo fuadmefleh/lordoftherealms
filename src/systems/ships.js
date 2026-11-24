@@ -75,6 +75,26 @@ export const Ships = {
             };
     },
 
+    /* ── Status words for the panels ─────────────────────────── */
+
+    /** A ship's status as the panels show it: { icon, text } (ships.json statusLabels may reword it). */
+    STATUS_LABELS: {
+        docked: { icon: '⚓', text: 'in harbour' },
+        anchored: { icon: '⚓', text: 'at anchor' },
+        at_sea: { icon: '🌊', text: 'at sea' },
+        moving: { icon: '🧭', text: 'under way' },
+        building: { icon: '🏗️', text: 'on the slip' },
+        careened: { icon: '🛠️', text: 'careened for repair' },
+    },
+
+    statusLabel(status) {
+        const over = typeof DataLoader !== 'undefined' && DataLoader.ships && DataLoader.ships.statusLabels;
+        const L = (over && over[status]) || this.STATUS_LABELS[status];
+        if (L) return { icon: L.icon || '⛵', text: L.text || String(status) };
+        // (an unknown id still reads as words, not snake_case)
+        return { icon: '⛵', text: String(status || 'unknown').replace(/_/g, ' ') };
+    },
+
     /* ── Type / customization lookups ────────────────────────── */
 
     getShipType(id) {

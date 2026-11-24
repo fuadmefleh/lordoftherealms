@@ -592,7 +592,7 @@ export const TradeLines = {
                 line.stallReason = res.success ? null : res.message;
                 return;
             } else {
-                line.stallReason = `${ship.name} is not under the line's orders (${ship.status}).`;
+                line.stallReason = `${ship.name} is not under the line's orders (${Ships.statusLabel(ship.status).text}).`;
                 return;
             }
         }

@@ -44,6 +44,7 @@
 
 import { DataLoader } from '../core/dataLoader.js';
 import { Utils } from '../core/utils.js';
+import { Hex } from '../core/hex.js';
 import { MEAL_HUNGER } from './core/needs.js';
 import { Economy } from '../world/economy.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
@@ -518,28 +519,122 @@ export const Household = {
             const tile = world.getTile(h.q, h.r);
             const s = tile && tile.settlement;
             if (!s) continue;
-            let goods = [];
-            try { goods = Trading.getAvailableGoods(s, tile, world) || []; } catch { goods = []; }
-            const food = goods.filter(g => g && Household.isFood(g.id) && SettlementMarket.available(s, g.id) >= 1 && _num(g.price) > 0)
-                .map(g => ({ g, n: Math.max(1, Math.ceil(ration / Math.max(1, MEAL_HUNGER[g.id]))) }))
-                .filter(x => SettlementMarket.available(s, x.g.id) >= x.n)
-                .sort((a, b) => a.n * _num(a.g.price) - b.n * _num(b.g.price))[0];
-            if (!food) continue;
-            const cost = Utils.cents(food.n * _num(food.g.price));
-            if (_num(k.treasury) - cost < _num(T.reserve)) continue;
-            k.treasury = Utils.cents(_num(k.treasury) - cost);
-            CrownBooks.note(k, 'court', cost);
-            // (a town that barters takes no coin: the realm's towns are paid instead)
-            if (!Economy.payTown(s, cost)) Economy.payRealm(k, world, cost);
-            SettlementMarket.take(s, food.g.id, food.n);
             const key = Household.houseKey(h);
-            // (fed tonight: not a mouth at the larder as well — Household.mouths)
             const rec = Household.home(player, key);
+            const food = Household._cheapestRation(s, tile, world, ration, 0);
+            let got = null;
+            if (food) {
+                const cost = Utils.cents(food.n * food.price);
+                const payer = Household._crownPayer(player, k, cost, T);
+                if (payer) {
+                    Household._payForTable(player, world, k, payer, cost);
+                    // (a town that barters takes no coin: the realm's towns are paid instead)
+                    if (!Economy.payTown(s, cost)) Economy.payRealm(k, world, cost);
+                    SettlementMarket.take(s, food.id, food.n);
+                    got = { key, food: food.id, n: food.n, cost, paidBy: payer };
+                }
+            }
+            // The palace town's stalls bare (a regional dearth): the royal purveyors send
+            // for it — bought off the nearest towns with food to spare, at their price
+            // and the carriage, a week's rations at once into the palace larder
+            if (!got) got = Household._purvey(player, world, k, h, key, rec, ration, T);
+            if (!got) continue;
+            // (fed tonight: not a mouth at the larder as well — Household.mouths)
             if (rec) rec.fedDay = _day(world);
             player._tableMealDay = _day(world);
-            return { key, food: food.g.id, n: food.n, cost };
+            return got;
         }
         return null;
+    },
+
+    /**
+     * The cheapest day's ration of food on a town's stalls, leaving its people
+     * `keepDays` of their own need of it: → { id, n, price, spare } or null.
+     */
+    _cheapestRation(s, tile, world, ration, keepDays = 0) {
+        let goods = [];
+        try { goods = Trading.getAvailableGoods(s, tile, world) || []; } catch { goods = []; }
+        let best = null;
+        for (const g of goods) {
+            if (!g || !Household.isFood(g.id) || !(_num(g.price) > 0)) continue;
+            const spare = SettlementMarket.available(s, g.id) - (keepDays > 0 ? Math.ceil(_num(SettlementMarket.need(s, g.id)) * keepDays) : 0);
+            const n = Math.max(1, Math.ceil(ration / Math.max(1, MEAL_HUNGER[g.id])));
+            if (spare < n) continue;
+            const per = _num(g.price) / Math.max(1, MEAL_HUNGER[g.id]);
+            if (!best || per < best.per) best = { id: g.id, n, price: _num(g.price), spare, per };
+        }
+        return best;
+    },
+
+    /** Who pays the crown's table: the treasury above its reserve, else the ruler's own purse. */
+    _crownPayer(player, k, cost, T) {
+        if (_num(k.treasury) - cost >= _num(T.reserve)) return 'treasury';
+        if (T.purseFallback !== false && _num(player.gold) >= cost) return 'purse';
+        return null;
+    },
+
+    _payForTable(player, world, k, payer, cost) {
+        if (payer === 'treasury') {
+            k.treasury = Utils.cents(_num(k.treasury) - cost);
+            CrownBooks.note(k, 'court', cost);
+        } else {
+            player.gold = Utils.cents(_num(player.gold) - cost);
+            Ledger.record(player, 'larder', -cost);
+        }
+    },
+
+    /**
+     * The royal purveyors (royalTable.purvey): the palace town has no food to
+     * sell, so the court sends for it. The nearest towns within `range` hexes
+     * (the realm's own first: a foreign town counts `foreignHexes` further) that
+     * hold more than `keepDays` of their own people's need; the cheapest ration
+     * with the carriage (`carriagePerHex` of the price a hex) is bought — the
+     * goods off that town's stalls, the coin (and the carters' hire) into its
+     * purse — `days` rations of it, as many as the palace larder has room for
+     * beyond tonight's supper, which is eaten at once. → the meal or null.
+     */
+    _purvey(player, world, k, h, key, rec, ration, T) {
+        const P = _obj(T.purvey);
+        if (P.enabled === false || typeof world.getSettlementViews !== 'function') return null;
+        const range = _num(P.range, 10), foreign = _num(P.foreignHexes, 3), perHex = _num(P.carriagePerHex, 0.04);
+        const width = world.width || 0;
+        const near = [];
+        for (const v of world.getSettlementViews()) {
+            if (!v || (v.q === h.q && v.r === h.r)) continue;
+            const d = Hex.wrappingDistance(h.q, h.r, v.q, v.r, width);
+            if (d > range) continue;
+            near.push({ v, d, w: d + (v.kingdom === k.id ? 0 : foreign) });
+        }
+        near.sort((a, b) => a.w - b.w || a.d - b.d || a.v.q - b.v.q || a.v.r - b.v.r);
+        let best = null;
+        for (const x of near.slice(0, Math.max(1, _num(P.towns, 8)))) {
+            const tile = world.getTile(x.v.q, x.v.r);
+            const s = tile && tile.settlement;
+            if (!s) continue;
+            const f = Household._cheapestRation(s, tile, world, ration, _num(P.keepDays, 2));
+            if (!f) continue;
+            const unit = f.price * (1 + perHex * x.d);
+            const per = unit / Math.max(1, MEAL_HUNGER[f.id]);
+            if (!best || per < best.per) best = { ...f, s, d: x.d, unit, per };
+        }
+        if (!best) return null;
+        // (tonight's supper, and the rest of the week's into the larder as it has room)
+        const days = Math.max(1, Math.floor(_num(P.days, 7)));
+        const room = rec ? Math.max(0, Household.capacity(rec) - Household.units(rec)) : 0;
+        let n = Math.min(best.spare, best.n + Math.min(room, best.n * (days - 1)));
+        let payer = null;
+        for (; n >= best.n; n = n > best.n * 2 ? Math.floor(n / 2) : n - 1) {
+            payer = Household._crownPayer(player, k, Utils.cents(n * best.unit), T);
+            if (payer) break;
+        }
+        if (!payer) return null;
+        const cost = Utils.cents(n * best.unit);
+        Household._payForTable(player, world, k, payer, cost);
+        if (!Economy.payTown(best.s, cost)) Economy.payRealm(k, world, cost);
+        const took = SettlementMarket.take(best.s, best.id, n);
+        const stored = Math.max(0, Math.floor(took) - best.n);
+        if (rec && stored > 0) rec.larder[best.id] = _num(rec.larder[best.id]) + stored;
+        return { key, food: best.id, n: Math.floor(took), cost, paidBy: payer, purveyed: { from: best.s.name, d: best.d, stored } };
     },
 
     isFood(id) { return Object.prototype.hasOwnProperty.call(MEAL_HUNGER, id); },

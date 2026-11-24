@@ -611,8 +611,16 @@ Object.assign(Renderer.prototype, {
         }
         const gName = this.getTileImage({ q: tile.q, r: tile.r, terrain: { id: ground }, temperature: tile.temperature, moisture: tile.moisture, elevation: 0.5 });
         const gSprite = gName ? this.tileSprites.get(gName) : null;
+        // (clipped to this hex: the art is scaled to cover and spills past the face, and the
+        // next lake hex's land painted over this one's water drew a sandy rim between them)
+        ctx.save();
+        ctx.beginPath();
+        corners.forEach((c, i) => (i ? ctx.lineTo(c.x, c.y) : ctx.moveTo(c.x, c.y)));
+        ctx.closePath();
+        ctx.clip();
         if (gSprite) ctx.drawImage(gSprite, drawX, drawY, tw, th);
         else ctx.drawImage(waterSprite, drawX, drawY, tw, th);
+        ctx.restore();
 
         // edge i of the face (corners i..i+1) faces neighbour EDGE_NBR[i]
         const EDGE_NBR = [1, 0, 5, 4, 3, 2];
@@ -650,15 +658,29 @@ Object.assign(Renderer.prototype, {
             const one = open[(i + 5) % 6] || open[i];
             return toward(corners[i], both ? OVER : one ? CORNER_ONE : CORNER_LAND);
         };
+        // Round corner i, from where the outline leaves edge i-1 to where it reaches edge i.
+        // Water on both sides: right into the corner. Land on both: a rounded shore. Water on
+        // one side only: the water runs along that edge right into the corner (the next lake
+        // hex meets it there), and the shore curves from the corner along the land edge —
+        // the strand starts at the corner, never out along the edge two lake hexes share.
+        // `shore(i)` gives that shore part as [from, control, to], or null.
+        const shore = (i) => {
+            const pOpen = open[(i + 5) % 6], nOpen = open[i];
+            if (pOpen && nOpen) return null;
+            if (!pOpen && !nOpen) return [leave((i + 5) % 6), corner(i), reach(i)];
+            const v = toward(corners[i], OVER);
+            if (pOpen) return [v, toward(edgeAt(i, 0.25), (OVER + LAND_MID) / 2), reach(i)];
+            return [leave((i + 5) % 6), toward(edgeAt((i + 5) % 6, 0.75), (OVER + LAND_MID) / 2), v];
+        };
         const pool = () => {
             ctx.beginPath();
             const start = leave(5);
             ctx.moveTo(start.x, start.y);
             for (let i = 0; i < 6; i++) {
-                const c = corner(i), m = reach(i);
-                // (water on both sides of a corner runs right into it, so neighbouring
-                // lake hexes meet without a gap; a corner by the shore is rounded off)
-                if (open[(i + 5) % 6] && open[i]) { ctx.lineTo(c.x, c.y); ctx.lineTo(m.x, m.y); } else ctx.quadraticCurveTo(c.x, c.y, m.x, m.y);
+                const m = reach(i), sh = shore(i);
+                if (!sh) { const c = corner(i); ctx.lineTo(c.x, c.y); ctx.lineTo(m.x, m.y); }
+                else if (open[(i + 5) % 6]) { ctx.lineTo(sh[0].x, sh[0].y); ctx.quadraticCurveTo(sh[1].x, sh[1].y, sh[2].x, sh[2].y); }
+                else { ctx.quadraticCurveTo(sh[1].x, sh[1].y, sh[2].x, sh[2].y); if (open[i]) ctx.lineTo(m.x, m.y); }
                 if (inlet[i]) { const l = leave(i); ctx.lineTo(l.x, l.y); }
             }
             ctx.closePath();
@@ -668,10 +690,10 @@ Object.assign(Renderer.prototype, {
             // river's mouth is left open, its banks running down to the water)
             ctx.beginPath();
             for (let i = 0; i < 6; i++) {
-                if (open[(i + 5) % 6] && open[i]) continue;
-                const a0 = leave((i + 5) % 6), c = corner(i), m = reach(i);
-                ctx.moveTo(a0.x, a0.y);
-                ctx.quadraticCurveTo(c.x, c.y, m.x, m.y);
+                const sh = shore(i);
+                if (!sh) continue;
+                ctx.moveTo(sh[0].x, sh[0].y);
+                ctx.quadraticCurveTo(sh[1].x, sh[1].y, sh[2].x, sh[2].y);
             }
             ctx.lineJoin = 'round';
             ctx.lineCap = 'round';

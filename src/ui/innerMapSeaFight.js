@@ -57,6 +57,9 @@ const SHOT = [['round', 'Round shot', 'Hulls'], ['chain', 'Chain shot', 'Rigging
 const SQUADRON = [['follow', 'Follow me'], ['engage', 'Engage'], ['hold', 'Hold']];
 
 /** Hull drawn for a fight ship: its type's LPC hull. */
+// How much wider the fight is drawn than it is sailed (see _toWorld)
+const SPREAD = 1.5;
+
 function _hullOf(s) {
     return s.hullId || ShipHulls.hullFor(s.typeId) || 'hull_sloop';
 }
@@ -124,8 +127,16 @@ export const InnerMapSeaFight = {
             if (typeof prev === 'function') prev(c, cam, canvas, dt);
             this.render(c, cam, canvas);
         };
-        // Zoom out a little: the enemy comes up from the horizon
-        if (game.innerMapCamera) game.innerMapCamera.targetZoom = Math.max(game.innerMapCamera.minZoom || 0.5, game.innerMapCamera.zoom * 0.7);
+        // Zoom out to the water round her: the deck camera shows a few yards of planking, and
+        // a foe a dozen lengths off (or alongside, her hull merging with yours) can't be read.
+        // About 64 tiles across: both ships and the sea between them (min zoom put back after)
+        const cam = game.innerMapCamera;
+        if (cam) {
+            const fitZ = ((game.canvas && game.canvas.width) || 1600) / (64 * InnerMapRenderer.TILE_SIZE);
+            this._camBefore = { minZoom: cam.minZoom, zoom: cam.zoom };
+            cam.minZoom = Math.min(cam.minZoom || fitZ, fitZ);
+            cam.targetZoom = Math.min(cam.zoom, fitZ);
+        }
         game.ui.showNotification('⚔️ Clear for Action', `${f.log[0] || ''} Give your orders from the panel: the helm, the shot, the squadron.`, 'warning');
         this.showPanel(game);
         return true;
@@ -271,6 +282,12 @@ export const InnerMapSeaFight = {
         if (this._hooked) InnerMapRenderer.onSeaLayer = this._prevSeaLayer;
         this._hooked = false;
         this._prevSeaLayer = null;
+        // The deck camera as it was before the guns ran out
+        if (this._camBefore && game.innerMapCamera) {
+            game.innerMapCamera.minZoom = this._camBefore.minZoom;
+            game.innerMapCamera.targetZoom = this._camBefore.zoom;
+        }
+        this._camBefore = null;
         const p = game.player;
         const w = game.world;
         const res = ctx.kind === 'blockade' ? BlockadeRunning.settleFight(p, w, ctx.state, f) : SeaFights.settlePirates(p, w, ctx.state, f);
@@ -358,14 +375,49 @@ export const InnerMapSeaFight = {
         const F = f && SeaFights.flagship(f);
         if (!L || !F) return null;
         const T = InnerMapRenderer.TILE_SIZE;
-        return { F, T, rot: Math.PI - F.heading, cx: ((L.minQ + L.maxQ) / 2 + 0.5) * T, cy: ((L.minR + L.maxR) / 2 + 0.5) * T };
+        // Half the length and beam of your deck and of the (first) foe's hull, in tiles
+        const ours = { a: Math.max(1, (L.maxQ - L.minQ + 1) / 2), b: Math.max(1, (L.maxR - L.minR + 1) / 2) };
+        const foeShip = f.ships.find(s => s.side === 'enemy');
+        const foe = (foeShip && this._halfOf(_hullOf(foeShip))) || { a: 6, b: 3 };
+        return { F, T, ours, foe, rot: Math.PI - F.heading, cx: ((L.minQ + L.maxQ) / 2 + 0.5) * T, cy: ((L.minR + L.maxR) / 2 + 0.5) * T };
     },
 
-    /** A point of the fight (tiles) → world pixels on the inner map, in the flagship's frame. */
+    /** Half a hull's drawn length and beam (tiles): { a, b }, or null. */
+    _halfOf(hullId) {
+        const key = `half:${hullId}`;
+        if (this._centres.has(key)) return this._centres.get(key);
+        const def = CustomObjects.getDef(hullId);
+        const foot = def ? ShipHulls.footprint(def) : [];
+        let out = null;
+        if (foot.length) {
+            const cols = foot.map(m => m.localCol), rows = foot.map(m => m.localRow);
+            out = { a: Math.max(1, (Math.max(...cols) - Math.min(...cols) + 1) / 2), b: Math.max(1, (Math.max(...rows) - Math.min(...rows) + 1) / 2) };
+        }
+        this._centres.set(key, out);
+        return out;
+    },
+
+    /**
+     * A point of the fight (tiles) → world pixels on the inner map, in the flagship's frame.
+     * The fight is sailed in yards (grapples at 1.6 tiles) but the hulls are drawn many tiles
+     * long and never turned: drawn 1:1 the foe sits inside your deck. So the drawing spreads
+     * the distances out a little and stands every point off by the two hulls' half-extents
+     * that way (an ellipse each): alongside at grapple range, clear water otherwise.
+     */
     _toWorld(fr, x, y) {
         const dx = x - fr.F.x, dy = y - fr.F.y;
         const c = Math.cos(fr.rot), s = Math.sin(fr.rot);
-        return { x: fr.cx + (dx * c - dy * s) * fr.T, y: fr.cy + (dx * s + dy * c) * fr.T };
+        let sx = dx * c - dy * s, sy = dx * s + dy * c;
+        const d = Math.hypot(sx, sy);
+        if (d > 1e-6 && fr.ours && fr.foe) {
+            const ux = sx / d, uy = sy / d;
+            const rad = (h) => 1 / Math.sqrt((ux / h.a) ** 2 + (uy / h.b) ** 2);
+            // (points about your own ship, a gun's flash or smoke, stay on her)
+            const clear = (rad(fr.ours) + rad(fr.foe)) * 0.85 * Math.min(1, d);
+            const k = (d * SPREAD + clear) / d;
+            sx *= k; sy *= k;
+        }
+        return { x: fr.cx + sx * fr.T, y: fr.cy + sy * fr.T };
     },
 
     /** The middle of a hull's footprint, in tiles from its anchor. */
@@ -516,7 +568,8 @@ export const InnerMapSeaFight = {
         if (!F) return;
         const rot = Math.PI - F.heading;
         const R = 30;
-        const x = canvas.width - R - 24, y = Math.round(canvas.height * 0.11) + R + 30;
+        // (top left, under the Leave/World map buttons: the right side is the HUD's panels')
+        const x = R + 30, y = Math.round(canvas.height * 0.17) + R + 20;
         ctx.save();
         ctx.fillStyle = 'rgba(12,16,24,0.6)';
         ctx.beginPath(); ctx.arc(x, y, R + 6, 0, Math.PI * 2); ctx.fill();
@@ -545,9 +598,10 @@ export const InnerMapSeaFight = {
         const order = f.auto ? "sailing master's orders" : (HELM.find(h => h[0] === F.order) || [null, '', F.order])[2];
         const sail = Math.round(SeaFights.sailFactor(f, F) * 100);
         const line = `⚔️ ${order} · ${F.shot} shot · ${sail}% of her sail drawing · hull ${Math.round(F.hull)}% · crew ${Math.round(F.crew)}`;
-        const y0 = Math.round(canvas.height * 0.11) + 40;
+        // (above the hotbar and the day panel: the orders panel covers the top, the day panel the foot)
+        const y0 = Math.round(canvas.height * 0.70);
         drawMapText(ctx, line, canvas.width / 2, y0, { size: 12, weight: 700, color: '#ffd36b' });
         const log = f.log.slice(-3);
-        log.forEach((l, i) => drawMapText(ctx, l, canvas.width / 2, canvas.height - 120 + i * 17, { size: 11, weight: 600, family: 'body', color: '#f4efe4', alpha: 0.6 + 0.4 * (i / Math.max(1, log.length - 1)) }));
+        log.forEach((l, i) => drawMapText(ctx, l, canvas.width / 2, y0 + 20 + i * 17, { size: 11, weight: 600, family: 'body', color: '#f4efe4', alpha: 0.6 + 0.4 * (i / Math.max(1, log.length - 1)) }));
     },
 };

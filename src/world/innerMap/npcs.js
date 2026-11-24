@@ -49,6 +49,14 @@ Object.assign(InnerMap, {
             }
         }
 
+        // A walled, roofed building (a tile-composed cottage or shop) is never handed an
+        // open-air role: a "well" there was a cottage with a well for its interior
+        const OPEN_AIR = new Set(['well']);
+        const takeRole = (list, walled) => {
+            const i = walled ? list.findIndex((t) => !OPEN_AIR.has(t)) : 0;
+            return i >= 0 && i < list.length ? list.splice(i, 1)[0] : null;
+        };
+
         // Center tile gets the first required building (town_hall / marketplace / tavern)
         const centerQ = Math.floor(this.width / 2);
         const centerR = Math.floor(this.height / 2);
@@ -90,10 +98,10 @@ Object.assign(InnerMap, {
                 if (reqIdx !== -1) required.splice(reqIdx, 1);
                 const optIdx = optional.indexOf(buildingType);
                 if (optIdx !== -1) optional.splice(optIdx, 1);
-            } else if (!buildingType && required.length > 0) {
-                buildingType = required.shift();
-            } else if (!buildingType && optional.length > 0) {
-                buildingType = optional.shift();
+            } else if (!buildingType && (buildingType = takeRole(required, !!tile.customBuilding))) {
+                // (taken from the town's required roles)
+            } else if (!buildingType && (buildingType = takeRole(optional, !!tile.customBuilding))) {
+                // (taken from its optional roles)
             } else if (!buildingType) {
                 buildingType = 'house'; // fallback
             }
@@ -104,7 +112,11 @@ Object.assign(InnerMap, {
                 q: bt.q,
                 r: bt.r,
                 type: buildingType,
-                name: customBuildingDef && customBuildingDef.name ? customBuildingDef.name : def.name,
+                // (its own name only while it is what it was drawn as: a farmhouse handed the
+                // town's chapel is the Chapel, not a "Farmhouse" with an altar inside)
+                name: customBuildingDef && customBuildingDef.name
+                    && ((customBuildingDef.buildingType || 'house') === buildingType || buildingType === 'house' || !this.BUILDING_TYPES[buildingType])
+                    ? customBuildingDef.name : def.name,
                 icon: def.icon,
                 sprite: bt.sprite,  // keep original sprite for visuals
                 actions: [...def.actions],

@@ -304,3 +304,18 @@ describe('trade by river', () => {
         }
     });
 });
+
+describe('data/rivers.json reaches the game', () => {
+    it('is merged into gamedata and read by Rivers.config()', async () => {
+        const fs = await import('fs');
+        const file = JSON.parse(fs.readFileSync('data/rivers.json', 'utf8'));
+        expect(baseRivers).toBeTruthy();
+        expect(baseRivers.bands).toEqual(file.bands);
+        expect(baseRivers.crossing).toEqual(file.crossing);
+        // config() reads what gamedata carries, not only its own defaults
+        DataLoader._gamedata.rivers = { ...baseRivers, bands: { river: 7, great: 31 }, boats: { great: { down: 0.5, up: 0.9 } } };
+        expect(Rivers.config().bands).toEqual({ river: 7, great: 31 });
+        expect(Rivers.config().boats.great.down).toBe(0.5);
+        expect(Rivers.config().fords.maxFords).toBe(file.fords.maxFords);
+    });
+});

@@ -262,7 +262,9 @@ const topLevel = [
     // Interiors by the hour, the season and what has happened (world/innerMap/interiorState.js)
     'interiorState',
     // Ports as places, ferries and the working boats: harbourmaster and dues, the slip, careening, the fishing fleet, ferries, barges (systems/ports.js, world/ferries.js, systems/barges.js)
-    'ports'
+    'ports',
+    // River size in play: brooks, rivers, great rivers; crossing costs, natural fords, boats by river size (world/rivers.js)
+    'rivers'
 ];
 
 const merged = {};

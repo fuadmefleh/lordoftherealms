@@ -80,6 +80,7 @@ import { RivalCaptives } from './rivalCaptives.js';
 import { RivalHouses } from './rivalHouses.js';
 import { BountyHunting } from './bountyHunting.js';
 import { Raising } from './raising.js';
+import { Laws } from './laws.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -1233,6 +1234,54 @@ export const Executions = {
         const w = world && world.executions;
         if (!w || !Array.isArray(w.public)) return [];
         return w.public.filter(e => !e.resolved && e.q === q && e.r === r && _num(e.day) === day);
+    },
+
+    /**
+     * What a visitor at the scaffold in the town at (q, r) can learn
+     * (the street map's scaffold and pillory menus, ui/innerMapScaffold.js):
+     * → { town, kingdomId, realm, condemned: [{ id, kind: 'realm'|'yours', name, crimeLabel,
+     *   method, methodLabel, icon, day, today, guilty }], methods: [{ id, label, icon, ok, why }],
+     *   punishment, mutilation, fear (thieves' chance ×, from deterrence), cult }.
+     * Every line read from state that other systems keep and read.
+     */
+    atTown(player, world, q, r) {
+        const C = Executions.config();
+        const s = _settlementAt(world, q, r);
+        const day = _day(world);
+        const kid = s ? s.kingdom : null;
+        const k = _kingdom(world, kid);
+        const condemned = [];
+        const w = world && world.executions;
+        for (const e of (w && Array.isArray(w.public) ? w.public : [])) {
+            if (e.resolved || e.q !== q || e.r !== r || _num(e.day) < day) continue;
+            const m = C.methods[e.method] || {};
+            condemned.push({ id: e.id, kind: 'realm', name: e.name, crimeLabel: e.crimeLabel, method: e.method, methodLabel: m.label || e.method, icon: m.icon || '💀', day: _num(e.day), today: _num(e.day) === day, guilty: null });
+        }
+        for (const e of Executions.list(player)) {
+            const pl = e.proclaimed && e.proclaimed.place;
+            if (!pl || pl.q !== q || pl.r !== r) continue;
+            const m = C.methods[e.proclaimed.method] || {};
+            condemned.push({ id: e.id, kind: 'yours', name: e.name, crimeLabel: e.crimeLabel, method: e.proclaimed.method, methodLabel: m.label || e.proclaimed.method, icon: m.icon || '💀', day: _num(e.proclaimed.day), today: _num(e.proclaimed.day) === day, guilty: e.guilty });
+        }
+        condemned.sort((a, b) => a.day - b.day);
+        // The deaths this realm's law and faith allow
+        const stance = kid != null ? Executions._faithStance(world, kid) : 'mild';
+        const methods = Object.entries(C.methods).map(([id, m]) => {
+            let why = '';
+            if (m.faith && !m.faith[stance]) why = `forbidden by the faith (it holds the body ${stance === 'sacred' ? 'sacred' : 'its own'})`;
+            else if (m.highbornOnly) why = 'for the highborn only';
+            else if (Array.isArray(m.crimes)) why = `only for ${m.crimes.join(' or ')}`;
+            return { id, label: m.label, icon: m.icon, ok: !(m.faith && !m.faith[stance]), why };
+        });
+        let punishment = null, mutilation = null;
+        if (kid != null) {
+            try { punishment = Laws.option(world, kid, 'punishment'); } catch (err) { punishment = null; }
+            try { mutilation = Laws.option(world, kid, 'mutilation'); } catch (err) { mutilation = null; }
+        }
+        return {
+            town: s ? s.name : null, kingdomId: kid, realm: k ? k.name : null, condemned, methods, punishment, mutilation,
+            fear: Executions.deterrence(s, day), cult: Executions.cultAt(world, q, r),
+        };
     },
 
     /** Join a realm's crowd: watch, or cry out for mercy. → { success, text } */

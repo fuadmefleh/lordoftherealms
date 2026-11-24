@@ -234,8 +234,11 @@ describe('PeopleCrimes — a hard landlord', () => {
             expect(w.tom.purse + w.ann.purse + w.will.purse).toBeLessThan(60);
             expect(w.tom.nm.some(e => e.k === 'stocked')).toBe(true);
             expect(w.folk.nm.some(e => e.k === 'stocked')).toBe(true);
+            // (the pillory stands in the square meanwhile: world/scaffolds.js)
+            expect(w.town.pillory && w.town.pillory.ref).toBe('h1');
             days(w.world, player, 4);
             expect(PeopleCrimes.state(player).stocks).toHaveLength(0);
+            expect(w.town.pillory).toBeUndefined();
         } finally { Lots._letRecord = orig; }
     });
 

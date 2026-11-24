@@ -689,6 +689,9 @@ export const PeopleCrimes = {
         }
         const winter = PeopleCrimes.isWinter(day);
         st.stocks.push({ q, r, ref, name: t.name, pid: p ? p.id : null, town: (s && s.name) || null, until: day + _num(S.stocksDays, 3), winter });
+        // (the pillory stands in the square while they sit there: world/scaffolds.js lays it on the street map)
+        const ps = s || PeopleCrimes.settlementAt(world, q, r);
+        if (ps) ps.pillory = { ref: String(ref), name: t.name, from: day, until: day + _num(S.stocksDays, 3), why: 'rent', owed: _num(t.owed) };
         if (p) {
             NpcMemory.remember(world, { folk, person: p }, { kind: 'stocked', player, kin: true });
             const hurt = Math.max(1, Math.round(10 * _num(S.hurt, 0.35)));
@@ -700,6 +703,12 @@ export const PeopleCrimes = {
         const text = PeopleCrimes.line('stocked', { name: t.name, town: PeopleCrimes._town(s), owed: t.owed + paid, paid });
         PeopleCrimes._annal(folk, world, `${t.name} was put in the stocks for the rent`);
         return { ok: true, text };
+    },
+
+    /** Out of the stocks: the pillory comes down, if it was theirs. */
+    _clearPillory(world, x) {
+        const s = PeopleCrimes.settlementAt(world, x.q, x.r);
+        if (s && s.pillory && s.pillory.ref === String(x.ref)) delete s.pillory;
     },
 
     _stocksDay(player, world, x, out) {
@@ -716,11 +725,13 @@ export const PeopleCrimes = {
             if (kin) PeopleCrimes._nemesis(player, world, folk, kin, _num(N.stocksDied, 50), { key: 'stocks_died', label: `${x.name}'s death in your stocks`, note: x.town });
             PeopleCrimes.expose(player, world, 'evict', { kingdom: (PeopleCrimes.settlementAt(world, x.q, x.r) || {}).kingdom, chronicle: PeopleCrimes.line('stocksDied', { name: x.name, town: x.town }) });
             st.stocks = st.stocks.filter(o => o !== x);
+            PeopleCrimes._clearPillory(world, x);
             out.notices.push({ icon: '🥶', title: 'Dead in the Stocks', text: PeopleCrimes.line('stocksDied', { name: x.name, town: x.town }), type: 'error' });
             return;
         }
         if (day >= x.until) {
             st.stocks = st.stocks.filter(o => o !== x);
+            PeopleCrimes._clearPillory(world, x);
             out.notices.push({ icon: '🔒', title: 'Out of the Stocks', text: PeopleCrimes.line('stocksFreed', { name: x.name, town: x.town }), type: 'info' });
         }
     },

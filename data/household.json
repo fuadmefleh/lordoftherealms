@@ -331,8 +331,11 @@
     },
     "royalTable": {
         "_doc": "A palace the crown keeps (an origin's royal apartments: house.keptBy): a reigning ruler at home with empty packs and a bare larder eats at the crown's table, a day's ration of the cheapest food on the palace town's stalls bought by the treasury (the crown's 'court' line, coin to the town). Not while the chests would fall below reserve.",
+        "_purvey": "The palace town's stalls bare (a regional dearth, 2026-11-24: two crowned lives starved at court with 1,300-2,000g in the purse): the royal purveyors send for food. The nearest `towns` towns within `range` hexes (a foreign town counts foreignHexes further) that hold more than keepDays of their own people's need; the cheapest ration with the carriage (carriagePerHex of the price a hex) bought there, the goods off that town's stalls and the coin into its purse; tonight's supper and up to `days` rations into the palace larder as it has room. purseFallback: with the chests below reserve, the ruler's own purse pays the table.",
         "enabled": true,
-        "reserve": 0
+        "reserve": 0,
+        "purseFallback": true,
+        "purvey": { "enabled": true, "range": 10, "towns": 8, "foreignHexes": 3, "keepDays": 2, "carriagePerHex": 0.04, "days": 7 }
     },
     "guests": {
         "chancePerDay": 0.12,

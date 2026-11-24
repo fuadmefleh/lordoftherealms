@@ -502,6 +502,26 @@ describe('the harbour on screen', () => {
         expect(panels[panels.length - 1].h).toContain('hauled down on the beach');
     }, 120000);
 
+    it('the Fleet panel words every ship status, careened too, never the raw id', async () => {
+        const { ActionMenu } = await import('../ui/actionMenu.js');
+        for (const id of ['docked', 'anchored', 'at_sea', 'moving', 'building', 'careened']) {
+            const L = Ships.statusLabel(id);
+            expect(L.text).not.toBe(id);
+            expect(L.text).not.toContain('_');
+        }
+        expect(Ships.statusLabel('some_new_state').text).toBe('some new state');
+        const w = portWorld();
+        const player = { q: 5, r: 5, gold: 1000, army: [], ships: [sloop({ condition: 60 })] };
+        const panels = [];
+        const game = { player, world: w, ui: { showCustomPanel: (t, h) => panels.push({ t: String(t), h: String(h) }), showNotification() {}, hideCustomPanel() {}, updateStats() {} } };
+        expect(Ports.careen(w, player, 'ship_9001', 'beach').ok).toBe(true);
+        ActionMenu.showFleetMenu(game, w.getTile(5, 5));
+        const html = panels[panels.length - 1].h;
+        expect(html).toContain('careened for repair');
+        expect(html).toContain('afloat in');
+        expect(html).not.toMatch(/(⚓|🛠️) careened</u);
+    }, 120000);
+
     it('the street map finds the pier, its foot, the moorings and the slip from the cells', async () => {
         const { InnerMapPort } = await import('../ui/innerMapPort.js');
         // a 60 x 40 map: land to row 24, the sea below; a pier down from (30, 22) to (30, 33)

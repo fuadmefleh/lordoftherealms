@@ -1272,7 +1272,7 @@ Object.assign(ActionMenu, {
         html += rowList(allShips.map(ship => {
             const st = Ships.getShipType(ship.typeId);
             if (!st) return null;
-            const statusIcon = ship.status === 'docked' ? '⚓' : ship.status === 'building' ? '🏗️' : ship.status === 'moving' ? '🧭' : '⚓';
+            const stl = Ships.statusLabel(ship.status);
             const fleetFood = Ships.getProvisionDays(ship);
             const facts = [
                 `📍 ${ship.dockedAt || ship.destinationName || 'Unknown'}`,
@@ -1284,9 +1284,10 @@ Object.assign(ActionMenu, {
             if (ship.voyage) facts.push(`🧭 → ${ship.voyage.destName}`);
             if (ship.status === 'building') facts.push(`🏗️ ${ship.buildDaysLeft} days left`);
             if (ship.status === 'moving') facts.push(`🧭 ${ship.travelDaysLeft || '?'} days ETA`);
+            if (ship.status === 'careened' && ship.careen) facts.push(`🛠️ ${ship.careen.kind === 'dock' ? 'in the dry dock' : 'on the beach'}, afloat in ${ship.careen.left} day${ship.careen.left === 1 ? '' : 's'}`);
             // (a docked ship with no crew is laid up: a share of her upkeep, no wages)
             if (Ships.isLaidUp(ship)) return { icon: st.icon, name: ship.name, desc: facts.join(' · '), side: '⚓ laid up', tone: 'warn' };
-            return { icon: st.icon, name: ship.name, desc: facts.join(' · '), side: `${statusIcon} ${ship.status}` };
+            return { icon: st.icon, name: ship.name, desc: facts.join(' · '), side: `${stl.icon} ${stl.text}`, tone: ship.status === 'careened' ? 'warn' : '' };
         }), '⚓ Your Fleet');
         // Standing routes for a ship (player/tradeLines.js)
         html += rowList([{ icon: '🔁', name: 'Trade Lines', desc: 'Put a ship on a standing loop of harbours, buying and selling by your orders', act: 'showTradeLines', side: '›', tone: 'gold' }]);

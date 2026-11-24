@@ -40,12 +40,14 @@ const PLAINS = { id: 'plains', passable: true };
  * Open sea, with a strip of land on rows 0-1. Realm A has a port at (5,2)
  * on the coast; realm B a port at (25,2). A's strong fleet blockades B.
  */
-function makeWorld({ blockade = true, aStrength = 80, bStrength = 10 } = {}) {
+function makeWorld({ blockade = true, aStrength = 80, bStrength = 10, narrowMouth = false } = {}) {
     const width = 40, height = 20;
     const tiles = new Map();
     const land = new Set();
     for (let q = 0; q < width; q++) { land.add(`${q},0`); land.add(`${q},1`); }
     land.add('5,2'); land.add('25,2');
+    // A's port opening onto the sea through a single hex
+    if (narrowMouth) Hex.neighbors(5, 2).filter(n => !land.has(`${n.q},${n.r}`)).slice(1).forEach(n => land.add(`${n.q},${n.r}`));
     const a = { id: 'A', name: 'Avalon', color: '#3366cc', isAlive: true, wars: ['B'], allies: [], territory: [{ q: 5, r: 2 }], capital: { q: 5, r: 2 }, treasury: 100000 };
     const b = { id: 'B', name: 'Brennor', color: '#cc3333', isAlive: true, wars: ['A'], allies: [], territory: [{ q: 25, r: 2 }], capital: { q: 25, r: 2 }, treasury: 100000 };
     for (const k of [a, b]) KingdomNavy.ensure(k);
@@ -106,6 +108,16 @@ describe('squadrons on the map', () => {
         expect(d11).not.toBe(d10);
         world.day = 10;
         expect(where()).toBe(d10);
+    });
+
+    it('a big fleet with one port sends out no two patrols on the same water', () => {
+        const { world, a } = makeWorld({ blockade: false, aStrength: 300, narrowMouth: true });
+        const patrols = NavySquadrons.list(world).filter(s => s.kind === 'patrol' && s.kingdomId === 'A');
+        expect(patrols.length).toBeGreaterThanOrEqual(1);
+        const keys = patrols.map(s => s.route.map(h => `${h.q},${h.r}`).join(';'));
+        expect(new Set(keys).size).toBe(keys.length);
+        // the whole fleet still sails: the merged squadrons carry it
+        expect(patrols.reduce((t, s) => t + s.strength, 0)).toBeGreaterThanOrEqual(KingdomNavy.effectiveStrength(a) - patrols.length);
     });
 
     it('no blockade, no blockade squadron; a fleet too small keeps to harbour', () => {

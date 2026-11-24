@@ -62,6 +62,7 @@ import { Bills } from '../../systems/bills.js';
 import { Bourse } from '../../systems/bourse.js';
 import { Thirst } from '../../player/thirst.js';
 import { Water } from '../../systems/water.js';
+import { Executions } from '../../systems/executions.js';
 import { MerchantPrince } from '../../systems/merchantPrince.js';
 import { Guilds } from '../../systems/guilds.js';
 import { MerchantCaravans } from '../../systems/merchantCaravans.js';
@@ -1107,7 +1108,9 @@ function throne(game, stats) {
     const st = Throne.state(player);
     if (st.civilWar) {
         // Meet the loyalists in the field
-        if (armyStrength > 0 && Utils.random() < 0.4) {
+        // (once the loyalists have fielded a fresh vanguard: one broken sooner counts for little — Throne.recordThroneBattle)
+        const rested = !Number.isFinite(st.civilWar.lastVanguardDay) || world.day - st.civilWar.lastVanguardDay >= (Throne.config().civilWar.vanguardRestDays || 0);
+        if (armyStrength > 0 && rested && Utils.random() < 0.4) {
             const k = world.getKingdom(st.civilWar.kingdomId);
             const t = world.getTile(player.q, player.r);
             const battle = PlayerMilitary.combat(player, Throne.loyalistVanguard(player, world), `${k ? k.name : 'Crown'} loyalists`,
@@ -2452,6 +2455,28 @@ function houseBusiness(game, stats) {
 }
 
 /**
+ * The scaffold (systems/executions.js), as a player might use it: join a
+ * realm's crowd in town on the day (now and then crying out for mercy), and
+ * give the word on anyone left waiting in the cells a fortnight — the guilty
+ * to a proclaimed rope (or the axe) where the law allows, the rest pardoned.
+ */
+export function scaffoldDay(game, stats) {
+    const { player, world } = game;
+    for (const e of Executions.crowdsAt(world, player.q, player.r)) {
+        const how = Utils.random() < 0.2 ? 'mercy' : 'watch';
+        if (Executions.attend(player, world, e.id, how).success) count(stats, how === 'mercy' ? 'scaffoldMercyCries' : 'scaffoldWatched');
+    }
+    const day = world.day || 0;
+    for (const e of Executions.list(player).slice()) {
+        if (e.proclaimed || day - (e.day || 0) < 14) continue;
+        const place = e.guilty !== false ? Executions.places(player, world, e).find(p => p.ok) : null;
+        const m = place ? Executions.methods(player, world, e, place).find(x => x.ok && !x.cruel) : null;
+        if (m && Executions.proclaim(player, world, e.id, m.id, place.key).success) { count(stats, 'scaffoldProclaimed'); continue; }
+        if (Executions.spare(player, world, e.id, 'pardon').success) count(stats, 'scaffoldPardoned');
+    }
+}
+
+/**
  * Broke and hungry in a town (a fresh heir of an empty House, a new life with
  * nothing): beg for alms — coppers and a loaf from the passers-by — then buy
  * bread. First thing in the day, before the House's business spends the AP.
@@ -2585,6 +2610,7 @@ export function botDay(game, stats) {
     stockUp(game, stats);
     delveTrek(game, stats);
     if (world.day > 150 && !player.boardedShip && !Ships.getVoyage(player)) houseBusiness(game, stats);
+    if (!player.boardedShip && !Ships.getVoyage(player)) scaffoldDay(game, stats);
     if (Ships.getVoyage(player)) {
         voyageDay(game, stats);
         return;

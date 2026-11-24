@@ -70,12 +70,12 @@ const DEFAULT_CONFIG = {
         advisorNoise: 10, advisorLoyaltyWeight: 0.5, waver: 5,
     },
     civilWar: {
-        levyShare: 0.8, advisorMomentum: 3, battleChance: 0.3, fieldShare: 0.6, momentumPerBattle: 6,
-        loyalistLoss: 0.05, rebelLoss: 0.07, flipChance: 0.35, driftPivot: 0.45, driftWeight: 2,
-        levyRegen: 0.02, hostScoreWeight: 0.5, victoryMomentum: 100, defeatMomentum: -100, maxDays: 360,
+        levyShare: 0.8, advisorMomentum: 3, battleChance: 0.2, fieldShare: 0.6, momentumPerBattle: 2.5,
+        loyalistLoss: 0.05, rebelLoss: 0.07, flipChance: 0.15, driftPivot: 0.45, driftWeight: 1,
+        levyRegen: 0.02, hostScoreWeight: 0.2, victoryMomentum: 100, defeatMomentum: -100, maxDays: 360,
         lateVictoryMomentum: 30, collapseDays: 10, stabilityMod: -0.15,
-        vanguardShare: 0.15, vanguardMin: 40, vanguardMax: 400, vanguardWin: 10, vanguardLoss: -8,
-        vanguardFlipChance: 0.4, capitalMomentum: 50,
+        vanguardShare: 0.15, vanguardMin: 40, vanguardMax: 400, vanguardWin: 4, vanguardLoss: -4,
+        vanguardFlipChance: 0.2, vanguardRestDays: 10, capitalMomentum: 70,
     },
     crisis: {
         chance: { regent: 0.6, distant_relative: 0.8, young_heir: 0.35, disputed: 1.0, heir: 0.08 },
@@ -836,12 +836,18 @@ export const Throne = {
         const k = cw ? Throne._kingdom(world, cw.kingdomId) : null;
         if (!cw || !k) return { success: false, reason: 'You are not fighting for a crown.' };
         let flipped = null;
+        let fresh = 1;
         if (victory) {
-            cw.momentum += W.vanguardWin;
+            // (the loyalists need days to field another vanguard: one broken sooner than
+            // vanguardRestDays after the last is a skirmish, and counts for that much)
+            const rest = Number(W.vanguardRestDays) || 0;
+            if (rest > 0 && Number.isFinite(cw.lastVanguardDay)) fresh = Utils.clamp(((world.day || 0) - cw.lastVanguardDay) / rest, 0, 1);
+            cw.lastVanguardDay = world.day || 0;
+            cw.momentum += W.vanguardWin * fresh;
             cw.battlesWon++;
-            k.military = Math.floor((k.military || 0) * (1 - W.loyalistLoss));
+            k.military = Math.floor((k.military || 0) * (1 - W.loyalistLoss * fresh));
             // (a vanguard broken sways a town now and then, not every time)
-            if (Utils.random() < (W.vanguardFlipChance == null ? 1 : W.vanguardFlipChance)) flipped = Throne._flipOne(world, k, cw, 'pretender');
+            if (Utils.random() < (W.vanguardFlipChance == null ? 1 : W.vanguardFlipChance) * fresh) flipped = Throne._flipOne(world, k, cw, 'pretender');
             House.recordPlayerDeed(player, world, 'battleWon', { reason: `battle for the throne of ${Names.realm(k.name)}` });
         } else {
             cw.momentum += W.vanguardLoss;
@@ -850,7 +856,7 @@ export const Throne = {
         return {
             success: true, flipped,
             message: victory
-                ? `The loyalist vanguard breaks before you.${flipped ? ` ${flipped} declares for you.` : ''} Momentum ${Math.round(cw.momentum)}.`
+                ? `The loyalist vanguard breaks before you.${fresh < 1 ? ' (Only a skirmish: the loyalists had not yet fielded a new vanguard since the last.)' : ''}${flipped ? ` ${flipped} declares for you.` : ''} Momentum ${Math.round(cw.momentum)}.`
                 : `The loyalists throw you back. Momentum ${Math.round(cw.momentum)}.`,
             failed: !victory,
         };

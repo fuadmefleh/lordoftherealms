@@ -104,6 +104,56 @@ O = {
     '☯': 'a yin yang symbol', '🧠': 'a pink brain', '🗳': 'a wooden ballot box', '🔔️': 'a brass bell',
 }
 
+# Second tries after review (2026-11-23): the first prompt drew the wrong thing
+O.update({
+    "🤝": "two forearms clasping hands in a firm handshake, side view",
+    "🌾": "a bundle of golden wheat stalks with ears of grain, tied with twine",
+    "🗣": "a bearded man's head in side profile, mouth open, shouting, with curved sound lines",
+    "🔨": "a blacksmith hammer with a wooden handle and a heavy iron head, diagonal",
+    "⚒": "a hammer and a pickaxe crossed in an X",
+    "⛰": "a mountain with a snowy peak and grey rocky slopes",
+    "🍖": "a roasted ham leg on a white bone, golden brown meat",
+    "👤": "a dark grey silhouette of a person's head and shoulders",
+    "💔": "a red heart cracked in two halves with a jagged split",
+    "🎣": "a wooden fishing rod with a line and a fish hanging on the hook",
+    "🛢": "a wooden barrel with iron hoops, side view",
+    "✋": "an open palm raised in a stop gesture",
+    "🤒": "a round pale sick face with a thermometer in its mouth",
+    "👁": "a single human eye, almond shaped, blue iris",
+    "🔱": "a golden three-pronged trident spear",
+    "🐚": "a spiral conch sea shell, pink and cream",
+    "🛤": "a dirt path with wheel ruts winding through grass",
+    "🐾": "four dark animal paw prints",
+    "📉": "a parchment chart with a red line going down",
+    "😊": "a round yellow smiling face",
+    "⚕": "a wooden staff with a green snake coiled around it",
+    "💨": "a white puff of wind with swirling lines",
+    "🚧": "a wooden barricade with red and white striped planks",
+    "💪": "a flexed muscular arm with a bulging bicep",
+    "🌅": "a sun rising over green hills at dawn",
+    "✊": "a clenched fist raised",
+    "🤫": "a round face with a white bandage wrapped around the head",
+    "🤕": "a round face with a finger pressed to its lips, hushing",
+    "💤": "blue letters Z Z Z floating, sleep",
+    "🏭": "a stone blacksmith forge building with a smoking chimney",
+    "🙂": "a round yellow face with a slight smile",
+    "😐": "a round yellow face with a straight flat mouth",
+    "👣": "two bare human footprints",
+    "📨": "an envelope flying in with motion lines",
+    "🦵": "a human leg in a leather boot",
+    "🛣": "a cobblestone road going into the distance",
+    "🛠": "a hammer and a wrench crossed in an X",
+    "🚨": "a brass bell ringing with motion lines",
+    "😤": "a round face snorting steam from its nose",
+    "🤐": "a round face with a zipper across its mouth",
+    "⛔": "a red circle sign with a white horizontal bar",
+    "🙇": "a person bowing deeply from the waist, side view",
+    "🏟": "a wooden tournament arena with banners and stands",
+    "🌫": "a bank of grey mist drifting",
+    "💫": "a ring of small yellow stars spinning",
+    "📊": "a parchment with a bar chart of three bars",
+})
+
 
 def uname(e):
     try:
@@ -139,7 +189,10 @@ def main():
             'desc': O.get(e) or ('a ' + nm.replace(' + ', ' with ')),
             'file': '-'.join(f'{ord(ch):x}' for ch in e if ch not in '‍️') + '.png',
         })
+    # Two tries and still wrong: left as emoji (build_sheet.py skips them)
+    rejected = ['🤝', '⚒', '🛤', '📉', '💨', '🚧', '💪', '✊', '💤', '🛣', '🛠', '😤', '🤐', '⛔', '🏟', '🌫', '💫', '📊', '👁', '🤫', '🎣']
     out = {
+        'rejected': rejected,
         '_doc': 'Pixel icons made with PixelLab (scripts/pixel_icons/generate.mjs) standing in for emoji in the HUD and on the canvas (src/ui/pixelIcons.js). desc is the prompt, file the emoji code points. The most-used emoji (make_list.py).',
         'suffix': ', medieval fantasy game UI icon, centered, transparent background, bold dark outline',
         'icons': icons,

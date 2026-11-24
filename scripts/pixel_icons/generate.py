@@ -7,6 +7,7 @@
 import json
 import os
 import subprocess
+import time
 import sys
 from concurrent.futures import ThreadPoolExecutor
 
@@ -32,12 +33,21 @@ def main():
                '--view', 'side']
         if '--style' in argv:
             cmd += ['--style', os.path.join(HERE, 'style_ref.png'), '--crop', '0,0,32,32', '--strength', '30']
-        for _attempt in range(3):
+        fails = 0
+        for _attempt in range(40):
             r = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8')
             if r.returncode == 0:
                 print('made', ic['file'], ic['desc'], flush=True)
                 return True
-            print('retry', ic['file'], (r.stderr or r.stdout).strip()[-200:], flush=True)
+            err = (r.stderr or r.stdout).strip()[-200:]
+            # (PixelLab caps jobs at once: a 429 just waits its turn and costs nothing)
+            if '429' in err:
+                time.sleep(8)
+                continue
+            fails += 1
+            print('retry', ic['file'], err, flush=True)
+            if fails >= 3:
+                break
         print('FAILED', ic['file'], flush=True)
         return False
 

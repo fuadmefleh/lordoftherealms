@@ -1,4 +1,27 @@
 {
+ "rejected": [
+  "🤝",
+  "⚒",
+  "🛤",
+  "📉",
+  "💨",
+  "🚧",
+  "💪",
+  "✊",
+  "💤",
+  "🛣",
+  "🛠",
+  "😤",
+  "🤐",
+  "⛔",
+  "🏟",
+  "🌫",
+  "💫",
+  "📊",
+  "👁",
+  "🤫",
+  "🎣"
+ ],
  "_doc": "Pixel icons made with PixelLab (scripts/pixel_icons/generate.mjs) standing in for emoji in the HUD and on the canvas (src/ui/pixelIcons.js). desc is the prompt, file the emoji code points. The most-used emoji (make_list.py).",
  "suffix": ", medieval fantasy game UI icon, centered, transparent background, bold dark outline",
  "icons": [
@@ -83,7 +106,7 @@
    "emoji": "🤝",
    "uses": 198,
    "name": "handshake",
-   "desc": "two hands clasped in a handshake",
+   "desc": "two forearms clasping hands in a firm handshake, side view",
    "file": "1f91d.png"
   },
   {
@@ -97,7 +120,7 @@
    "emoji": "🌾",
    "uses": 188,
    "name": "ear of rice",
-   "desc": "a sheaf of golden wheat",
+   "desc": "a bundle of golden wheat stalks with ears of grain, tied with twine",
    "file": "1f33e.png"
   },
   {
@@ -181,14 +204,14 @@
    "emoji": "🗣",
    "uses": 107,
    "name": "speaking head in silhouette",
-   "desc": "a speaking head silhouette with sound lines",
+   "desc": "a bearded man's head in side profile, mouth open, shouting, with curved sound lines",
    "file": "1f5e3.png"
   },
   {
    "emoji": "🔨",
    "uses": 105,
    "name": "hammer",
-   "desc": "an iron hammer",
+   "desc": "a blacksmith hammer with a wooden handle and a heavy iron head, diagonal",
    "file": "1f528.png"
   },
   {
@@ -265,7 +288,7 @@
    "emoji": "⚒",
    "uses": 83,
    "name": "hammer and pick",
-   "desc": "a hammer and a pick crossed",
+   "desc": "a hammer and a pickaxe crossed in an X",
    "file": "2692.png"
   },
   {
@@ -307,7 +330,7 @@
    "emoji": "⛰",
    "uses": 78,
    "name": "mountain",
-   "desc": "a rocky mountain peak",
+   "desc": "a mountain with a snowy peak and grey rocky slopes",
    "file": "26f0.png"
   },
   {
@@ -426,7 +449,7 @@
    "emoji": "🍖",
    "uses": 60,
    "name": "meat on bone",
-   "desc": "a roasted meat leg on the bone",
+   "desc": "a roasted ham leg on a white bone, golden brown meat",
    "file": "1f356.png"
   },
   {
@@ -440,7 +463,7 @@
    "emoji": "👤",
    "uses": 60,
    "name": "bust in silhouette",
-   "desc": "a person silhouette bust",
+   "desc": "a dark grey silhouette of a person's head and shoulders",
    "file": "1f464.png"
   },
   {
@@ -482,7 +505,7 @@
    "emoji": "💔",
    "uses": 54,
    "name": "broken heart",
-   "desc": "a broken red heart",
+   "desc": "a red heart cracked in two halves with a jagged split",
    "file": "1f494.png"
   },
   {
@@ -538,7 +561,7 @@
    "emoji": "🎣",
    "uses": 49,
    "name": "fishing pole and fish",
-   "desc": "a fishing rod with a caught fish",
+   "desc": "a wooden fishing rod with a line and a fish hanging on the hook",
    "file": "1f3a3.png"
   },
   {
@@ -573,7 +596,7 @@
    "emoji": "🛢",
    "uses": 46,
    "name": "oil drum",
-   "desc": "a wooden barrel",
+   "desc": "a wooden barrel with iron hoops, side view",
    "file": "1f6e2.png"
   },
   {
@@ -636,7 +659,7 @@
    "emoji": "✋",
    "uses": 40,
    "name": "raised hand",
-   "desc": "a raised open hand",
+   "desc": "an open palm raised in a stop gesture",
    "file": "270b.png"
   },
   {
@@ -657,7 +680,7 @@
    "emoji": "🤒",
    "uses": 38,
    "name": "face with thermometer",
-   "desc": "a sick face with a thermometer",
+   "desc": "a round pale sick face with a thermometer in its mouth",
    "file": "1f912.png"
   },
   {
@@ -671,7 +694,7 @@
    "emoji": "👁",
    "uses": 37,
    "name": "eye",
-   "desc": "a single eye",
+   "desc": "a single human eye, almond shaped, blue iris",
    "file": "1f441.png"
   },
   {
@@ -720,7 +743,7 @@
    "emoji": "🔱",
    "uses": 35,
    "name": "trident emblem",
-   "desc": "a golden trident",
+   "desc": "a golden three-pronged trident spear",
    "file": "1f531.png"
   },
   {
@@ -734,7 +757,7 @@
    "emoji": "🐚",
    "uses": 34,
    "name": "spiral shell",
-   "desc": "a spiral sea shell",
+   "desc": "a spiral conch sea shell, pink and cream",
    "file": "1f41a.png"
   },
   {
@@ -776,14 +799,14 @@
    "emoji": "🛤",
    "uses": 32,
    "name": "railway track",
-   "desc": "a dirt road with cart tracks",
+   "desc": "a dirt path with wheel ruts winding through grass",
    "file": "1f6e4.png"
   },
   {
    "emoji": "🐾",
    "uses": 31,
    "name": "paw prints",
-   "desc": "animal paw prints",
+   "desc": "four dark animal paw prints",
    "file": "1f43e.png"
   },
   {
@@ -853,7 +876,7 @@
    "emoji": "📉",
    "uses": 29,
    "name": "chart with downwards trend",
-   "desc": "a parchment chart with a falling red line",
+   "desc": "a parchment chart with a red line going down",
    "file": "1f4c9.png"
   },
   {
@@ -867,7 +890,7 @@
    "emoji": "😊",
    "uses": 29,
    "name": "smiling face with smiling eyes",
-   "desc": "a smiling happy face",
+   "desc": "a round yellow smiling face",
    "file": "1f60a.png"
   },
   {
@@ -902,7 +925,7 @@
    "emoji": "⚕",
    "uses": 28,
    "name": "staff of aesculapius",
-   "desc": "a staff with a serpent, the healer sign",
+   "desc": "a wooden staff with a green snake coiled around it",
    "file": "2695.png"
   },
   {
@@ -916,14 +939,14 @@
    "emoji": "💨",
    "uses": 28,
    "name": "dash symbol",
-   "desc": "a puff of wind",
+   "desc": "a white puff of wind with swirling lines",
    "file": "1f4a8.png"
   },
   {
    "emoji": "🚧",
    "uses": 28,
    "name": "construction sign",
-   "desc": "a wooden barricade with striped boards",
+   "desc": "a wooden barricade with red and white striped planks",
    "file": "1f6a7.png"
   },
   {
@@ -951,14 +974,14 @@
    "emoji": "💪",
    "uses": 27,
    "name": "flexed biceps",
-   "desc": "a flexed arm muscle",
+   "desc": "a flexed muscular arm with a bulging bicep",
    "file": "1f4aa.png"
   },
   {
    "emoji": "🌅",
    "uses": 27,
    "name": "sunrise",
-   "desc": "a sun rising over hills",
+   "desc": "a sun rising over green hills at dawn",
    "file": "1f305.png"
   },
   {
@@ -986,7 +1009,7 @@
    "emoji": "✊",
    "uses": 26,
    "name": "raised fist",
-   "desc": "a raised fist",
+   "desc": "a clenched fist raised",
    "file": "270a.png"
   },
   {
@@ -1007,7 +1030,7 @@
    "emoji": "🤫",
    "uses": 26,
    "name": "face with finger covering closed lips",
-   "desc": "a face with a finger to the lips",
+   "desc": "a round face with a white bandage wrapped around the head",
    "file": "1f92b.png"
   },
   {
@@ -1035,7 +1058,7 @@
    "emoji": "🤕",
    "uses": 25,
    "name": "face with head-bandage",
-   "desc": "a face with a head bandage",
+   "desc": "a round face with a finger pressed to its lips, hushing",
    "file": "1f915.png"
   },
   {
@@ -1063,7 +1086,7 @@
    "emoji": "💤",
    "uses": 24,
    "name": "sleeping symbol",
-   "desc": "sleeping zzz letters",
+   "desc": "blue letters Z Z Z floating, sleep",
    "file": "1f4a4.png"
   },
   {
@@ -1084,7 +1107,7 @@
    "emoji": "🏭",
    "uses": 23,
    "name": "factory",
-   "desc": "a smoking blacksmith workshop",
+   "desc": "a stone blacksmith forge building with a smoking chimney",
    "file": "1f3ed.png"
   },
   {
@@ -1133,7 +1156,7 @@
    "emoji": "🙂",
    "uses": 22,
    "name": "slightly smiling face",
-   "desc": "a slightly smiling face",
+   "desc": "a round yellow face with a slight smile",
    "file": "1f642.png"
   },
   {
@@ -1161,7 +1184,7 @@
    "emoji": "😐",
    "uses": 21,
    "name": "neutral face",
-   "desc": "a neutral face",
+   "desc": "a round yellow face with a straight flat mouth",
    "file": "1f610.png"
   },
   {
@@ -1231,7 +1254,7 @@
    "emoji": "👣",
    "uses": 19,
    "name": "footprints",
-   "desc": "bare footprints",
+   "desc": "two bare human footprints",
    "file": "1f463.png"
   },
   {
@@ -1287,7 +1310,7 @@
    "emoji": "📨",
    "uses": 18,
    "name": "incoming envelope",
-   "desc": "an incoming letter",
+   "desc": "an envelope flying in with motion lines",
    "file": "1f4e8.png"
   },
   {
@@ -1315,7 +1338,7 @@
    "emoji": "🦵",
    "uses": 17,
    "name": "leg",
-   "desc": "a leg",
+   "desc": "a human leg in a leather boot",
    "file": "1f9b5.png"
   },
   {
@@ -1336,7 +1359,7 @@
    "emoji": "🛣",
    "uses": 16,
    "name": "motorway",
-   "desc": "a paved stone road",
+   "desc": "a cobblestone road going into the distance",
    "file": "1f6e3.png"
   },
   {
@@ -1364,7 +1387,7 @@
    "emoji": "🛠",
    "uses": 15,
    "name": "hammer and wrench",
-   "desc": "a hammer and wrench crossed",
+   "desc": "a hammer and a wrench crossed in an X",
    "file": "1f6e0.png"
   },
   {
@@ -1427,7 +1450,7 @@
    "emoji": "🚨",
    "uses": 14,
    "name": "police cars revolving light",
-   "desc": "a ringing alarm bell",
+   "desc": "a brass bell ringing with motion lines",
    "file": "1f6a8.png"
   },
   {
@@ -1490,7 +1513,7 @@
    "emoji": "😤",
    "uses": 13,
    "name": "face with look of triumph",
-   "desc": "a huffing triumphant face",
+   "desc": "a round face snorting steam from its nose",
    "file": "1f624.png"
   },
   {
@@ -1504,7 +1527,7 @@
    "emoji": "🤐",
    "uses": 13,
    "name": "zipper-mouth face",
-   "desc": "a face with a sealed mouth",
+   "desc": "a round face with a zipper across its mouth",
    "file": "1f910.png"
   },
   {
@@ -1574,7 +1597,7 @@
    "emoji": "⛔",
    "uses": 12,
    "name": "no entry",
-   "desc": "a red no entry sign",
+   "desc": "a red circle sign with a white horizontal bar",
    "file": "26d4.png"
   },
   {
@@ -1588,7 +1611,7 @@
    "emoji": "🙇",
    "uses": 12,
    "name": "person bowing deeply",
-   "desc": "a person bowing deeply",
+   "desc": "a person bowing deeply from the waist, side view",
    "file": "1f647.png"
   },
   {
@@ -1630,7 +1653,7 @@
    "emoji": "🏟",
    "uses": 11,
    "name": "stadium",
-   "desc": "a tournament arena with stands",
+   "desc": "a wooden tournament arena with banners and stands",
    "file": "1f3df.png"
   },
   {
@@ -1651,7 +1674,7 @@
    "emoji": "🌫",
    "uses": 11,
    "name": "fog",
-   "desc": "a bank of grey fog",
+   "desc": "a bank of grey mist drifting",
    "file": "1f32b.png"
   },
   {
@@ -1707,7 +1730,7 @@
    "emoji": "💫",
    "uses": 10,
    "name": "dizzy symbol",
-   "desc": "swirling yellow stars of dizziness",
+   "desc": "a ring of small yellow stars spinning",
    "file": "1f4ab.png"
   },
   {
@@ -1721,7 +1744,7 @@
    "emoji": "📊",
    "uses": 10,
    "name": "bar chart",
-   "desc": "a parchment bar chart",
+   "desc": "a parchment with a bar chart of three bars",
    "file": "1f4ca.png"
   },
   {

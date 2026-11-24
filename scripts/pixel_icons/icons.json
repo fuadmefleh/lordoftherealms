@@ -1,0 +1,1756 @@
+{
+ "_doc": "Pixel icons made with PixelLab (scripts/pixel_icons/generate.mjs) standing in for emoji in the HUD and on the canvas (src/ui/pixelIcons.js). desc is the prompt, file the emoji code points. The most-used emoji (make_list.py).",
+ "suffix": ", medieval fantasy game UI icon, centered, transparent background, bold dark outline",
+ "icons": [
+  {
+   "emoji": "⚔",
+   "uses": 530,
+   "name": "crossed swords",
+   "desc": "two steel swords crossed in an X",
+   "file": "2694.png"
+  },
+  {
+   "emoji": "💰",
+   "uses": 486,
+   "name": "money bag",
+   "desc": "a leather money bag full of gold coins",
+   "file": "1f4b0.png"
+  },
+  {
+   "emoji": "📜",
+   "uses": 480,
+   "name": "scroll",
+   "desc": "a rolled parchment scroll with a red wax seal, tied with a ribbon",
+   "file": "1f4dc.png"
+  },
+  {
+   "emoji": "👑",
+   "uses": 343,
+   "name": "crown",
+   "desc": "a golden royal crown with red gems",
+   "file": "1f451.png"
+  },
+  {
+   "emoji": "🔥",
+   "uses": 283,
+   "name": "fire",
+   "desc": "a bright orange flame",
+   "file": "1f525.png"
+  },
+  {
+   "emoji": "⚖",
+   "uses": 278,
+   "name": "scales",
+   "desc": "golden balance scales of justice",
+   "file": "2696.png"
+  },
+  {
+   "emoji": "🛡",
+   "uses": 277,
+   "name": "shield",
+   "desc": "a heater shield with a heraldic cross",
+   "file": "1f6e1.png"
+  },
+  {
+   "emoji": "📦",
+   "uses": 226,
+   "name": "package",
+   "desc": "a wooden crate with iron bands",
+   "file": "1f4e6.png"
+  },
+  {
+   "emoji": "🗡",
+   "uses": 220,
+   "name": "dagger knife",
+   "desc": "a steel dagger",
+   "file": "1f5e1.png"
+  },
+  {
+   "emoji": "🏰",
+   "uses": 211,
+   "name": "european castle",
+   "desc": "a stone castle with towers and a gate",
+   "file": "1f3f0.png"
+  },
+  {
+   "emoji": "🏛",
+   "uses": 205,
+   "name": "classical building",
+   "desc": "a classical stone temple with columns",
+   "file": "1f3db.png"
+  },
+  {
+   "emoji": "🤝",
+   "uses": 198,
+   "name": "handshake",
+   "desc": "two hands clasped in a handshake",
+   "file": "1f91d.png"
+  },
+  {
+   "emoji": "🕯",
+   "uses": 192,
+   "name": "candle",
+   "desc": "a lit wax candle on a brass holder",
+   "file": "1f56f.png"
+  },
+  {
+   "emoji": "🌾",
+   "uses": 188,
+   "name": "ear of rice",
+   "desc": "a sheaf of golden wheat",
+   "file": "1f33e.png"
+  },
+  {
+   "emoji": "🌿",
+   "uses": 140,
+   "name": "herb",
+   "desc": "a green herb sprig",
+   "file": "1f33f.png"
+  },
+  {
+   "emoji": "⚓",
+   "uses": 139,
+   "name": "anchor",
+   "desc": "an iron ship anchor",
+   "file": "2693.png"
+  },
+  {
+   "emoji": "🧭",
+   "uses": 136,
+   "name": "compass",
+   "desc": "a brass compass",
+   "file": "1f9ed.png"
+  },
+  {
+   "emoji": "💍",
+   "uses": 131,
+   "name": "ring",
+   "desc": "a gold ring with a gem",
+   "file": "1f48d.png"
+  },
+  {
+   "emoji": "🕊",
+   "uses": 130,
+   "name": "dove of peace",
+   "desc": "a white dove with an olive branch",
+   "file": "1f54a.png"
+  },
+  {
+   "emoji": "⛓",
+   "uses": 130,
+   "name": "chains",
+   "desc": "iron chain links",
+   "file": "26d3.png"
+  },
+  {
+   "emoji": "⛏",
+   "uses": 120,
+   "name": "pick",
+   "desc": "an iron pickaxe",
+   "file": "26cf.png"
+  },
+  {
+   "emoji": "💀",
+   "uses": 118,
+   "name": "skull",
+   "desc": "a white skull",
+   "file": "1f480.png"
+  },
+  {
+   "emoji": "⚠",
+   "uses": 113,
+   "name": "warning sign",
+   "desc": "a yellow warning triangle with an exclamation mark",
+   "file": "26a0.png"
+  },
+  {
+   "emoji": "🌊",
+   "uses": 112,
+   "name": "water wave",
+   "desc": "a blue ocean wave",
+   "file": "1f30a.png"
+  },
+  {
+   "emoji": "⭐",
+   "uses": 110,
+   "name": "white medium star",
+   "desc": "a gold star",
+   "file": "2b50.png"
+  },
+  {
+   "emoji": "🗣",
+   "uses": 107,
+   "name": "speaking head in silhouette",
+   "desc": "a speaking head silhouette with sound lines",
+   "file": "1f5e3.png"
+  },
+  {
+   "emoji": "🔨",
+   "uses": 105,
+   "name": "hammer",
+   "desc": "an iron hammer",
+   "file": "1f528.png"
+  },
+  {
+   "emoji": "🗺",
+   "uses": 103,
+   "name": "world map",
+   "desc": "an unrolled parchment map",
+   "file": "1f5fa.png"
+  },
+  {
+   "emoji": "⛵",
+   "uses": 103,
+   "name": "sailboat",
+   "desc": "a small sailing ship",
+   "file": "26f5.png"
+  },
+  {
+   "emoji": "🏗",
+   "uses": 98,
+   "name": "building construction",
+   "desc": "a wooden building under construction with scaffolding",
+   "file": "1f3d7.png"
+  },
+  {
+   "emoji": "🙏",
+   "uses": 96,
+   "name": "person with folded hands",
+   "desc": "two hands pressed together in prayer",
+   "file": "1f64f.png"
+  },
+  {
+   "emoji": "🗝",
+   "uses": 95,
+   "name": "old key",
+   "desc": "an old iron key",
+   "file": "1f5dd.png"
+  },
+  {
+   "emoji": "💺",
+   "uses": 92,
+   "name": "seat",
+   "desc": "a simple wooden chair",
+   "file": "1f4ba.png"
+  },
+  {
+   "emoji": "⛪",
+   "uses": 91,
+   "name": "church",
+   "desc": "a stone chapel with a bell tower",
+   "file": "26ea.png"
+  },
+  {
+   "emoji": "📖",
+   "uses": 87,
+   "name": "open book",
+   "desc": "an open old book",
+   "file": "1f4d6.png"
+  },
+  {
+   "emoji": "🛏",
+   "uses": 86,
+   "name": "bed",
+   "desc": "a wooden bed with a blanket",
+   "file": "1f6cf.png"
+  },
+  {
+   "emoji": "👥",
+   "uses": 86,
+   "name": "busts in silhouette",
+   "desc": "two people silhouettes",
+   "file": "1f465.png"
+  },
+  {
+   "emoji": "⚒",
+   "uses": 83,
+   "name": "hammer and pick",
+   "desc": "a hammer and a pick crossed",
+   "file": "2692.png"
+  },
+  {
+   "emoji": "⏳",
+   "uses": 80,
+   "name": "hourglass with flowing sand",
+   "desc": "an hourglass with flowing sand",
+   "file": "23f3.png"
+  },
+  {
+   "emoji": "🧺",
+   "uses": 80,
+   "name": "basket",
+   "desc": "a woven wicker basket",
+   "file": "1f9fa.png"
+  },
+  {
+   "emoji": "🚪",
+   "uses": 80,
+   "name": "door",
+   "desc": "a wooden door with iron hinges",
+   "file": "1f6aa.png"
+  },
+  {
+   "emoji": "🎒",
+   "uses": 79,
+   "name": "school satchel",
+   "desc": "a leather travel backpack",
+   "file": "1f392.png"
+  },
+  {
+   "emoji": "🏘",
+   "uses": 78,
+   "name": "house buildings",
+   "desc": "a cluster of medieval cottages",
+   "file": "1f3d8.png"
+  },
+  {
+   "emoji": "⛰",
+   "uses": 78,
+   "name": "mountain",
+   "desc": "a rocky mountain peak",
+   "file": "26f0.png"
+  },
+  {
+   "emoji": "💧",
+   "uses": 76,
+   "name": "droplet",
+   "desc": "a blue water droplet",
+   "file": "1f4a7.png"
+  },
+  {
+   "emoji": "🍞",
+   "uses": 74,
+   "name": "bread",
+   "desc": "a loaf of bread",
+   "file": "1f35e.png"
+  },
+  {
+   "emoji": "⚰",
+   "uses": 74,
+   "name": "coffin",
+   "desc": "a wooden coffin",
+   "file": "26b0.png"
+  },
+  {
+   "emoji": "🏠",
+   "uses": 74,
+   "name": "house building",
+   "desc": "a medieval timber cottage",
+   "file": "1f3e0.png"
+  },
+  {
+   "emoji": "🐴",
+   "uses": 74,
+   "name": "horse face",
+   "desc": "a brown horse head",
+   "file": "1f434.png"
+  },
+  {
+   "emoji": "🏹",
+   "uses": 72,
+   "name": "bow and arrow",
+   "desc": "a wooden bow with an arrow",
+   "file": "1f3f9.png"
+  },
+  {
+   "emoji": "🏚",
+   "uses": 71,
+   "name": "derelict house building",
+   "desc": "a ruined cottage with a broken roof",
+   "file": "1f3da.png"
+  },
+  {
+   "emoji": "🌲",
+   "uses": 69,
+   "name": "evergreen tree",
+   "desc": "a pine tree",
+   "file": "1f332.png"
+  },
+  {
+   "emoji": "🚩",
+   "uses": 68,
+   "name": "triangular flag on post",
+   "desc": "a red pennant flag on a pole",
+   "file": "1f6a9.png"
+  },
+  {
+   "emoji": "📚",
+   "uses": 66,
+   "name": "books",
+   "desc": "a stack of old leather books",
+   "file": "1f4da.png"
+  },
+  {
+   "emoji": "🎲",
+   "uses": 65,
+   "name": "game die",
+   "desc": "a bone die",
+   "file": "1f3b2.png"
+  },
+  {
+   "emoji": "✨",
+   "uses": 65,
+   "name": "sparkles",
+   "desc": "golden sparkles",
+   "file": "2728.png"
+  },
+  {
+   "emoji": "🍺",
+   "uses": 63,
+   "name": "beer mug",
+   "desc": "a wooden tankard of ale with foam",
+   "file": "1f37a.png"
+  },
+  {
+   "emoji": "✉",
+   "uses": 62,
+   "name": "envelope",
+   "desc": "a sealed letter with a wax seal",
+   "file": "2709.png"
+  },
+  {
+   "emoji": "🐎",
+   "uses": 62,
+   "name": "horse",
+   "desc": "a galloping brown horse",
+   "file": "1f40e.png"
+  },
+  {
+   "emoji": "📋",
+   "uses": 60,
+   "name": "clipboard",
+   "desc": "a parchment list pinned to a wooden board",
+   "file": "1f4cb.png"
+  },
+  {
+   "emoji": "🍖",
+   "uses": 60,
+   "name": "meat on bone",
+   "desc": "a roasted meat leg on the bone",
+   "file": "1f356.png"
+  },
+  {
+   "emoji": "🎭",
+   "uses": 60,
+   "name": "performing arts",
+   "desc": "theatre masks of comedy and tragedy",
+   "file": "1f3ad.png"
+  },
+  {
+   "emoji": "👤",
+   "uses": 60,
+   "name": "bust in silhouette",
+   "desc": "a person silhouette bust",
+   "file": "1f464.png"
+  },
+  {
+   "emoji": "🏳",
+   "uses": 59,
+   "name": "waving white flag",
+   "desc": "a white flag on a pole",
+   "file": "1f3f3.png"
+  },
+  {
+   "emoji": "🛶",
+   "uses": 59,
+   "name": "canoe",
+   "desc": "a small wooden rowing boat",
+   "file": "1f6f6.png"
+  },
+  {
+   "emoji": "🔒",
+   "uses": 58,
+   "name": "lock",
+   "desc": "a closed iron padlock",
+   "file": "1f512.png"
+  },
+  {
+   "emoji": "🕵",
+   "uses": 56,
+   "name": "sleuth or spy",
+   "desc": "a hooded spy in a dark cloak",
+   "file": "1f575.png"
+  },
+  {
+   "emoji": "❄",
+   "uses": 56,
+   "name": "snowflake",
+   "desc": "a white snowflake",
+   "file": "2744.png"
+  },
+  {
+   "emoji": "💔",
+   "uses": 54,
+   "name": "broken heart",
+   "desc": "a broken red heart",
+   "file": "1f494.png"
+  },
+  {
+   "emoji": "⚡",
+   "uses": 53,
+   "name": "high voltage sign",
+   "desc": "a yellow lightning bolt",
+   "file": "26a1.png"
+  },
+  {
+   "emoji": "🌱",
+   "uses": 53,
+   "name": "seedling",
+   "desc": "a green seedling sprout",
+   "file": "1f331.png"
+  },
+  {
+   "emoji": "🏃",
+   "uses": 53,
+   "name": "runner",
+   "desc": "a running person",
+   "file": "1f3c3.png"
+  },
+  {
+   "emoji": "🏴‍☠",
+   "uses": 52,
+   "name": "waving black flag + skull and crossbones",
+   "desc": "a black pirate flag with a white skull and crossbones",
+   "file": "1f3f4-2620.png"
+  },
+  {
+   "emoji": "🏦",
+   "uses": 52,
+   "name": "bank",
+   "desc": "a stone counting house with columns and a gold coin sign",
+   "file": "1f3e6.png"
+  },
+  {
+   "emoji": "🏆",
+   "uses": 51,
+   "name": "trophy",
+   "desc": "a golden trophy cup",
+   "file": "1f3c6.png"
+  },
+  {
+   "emoji": "🎓",
+   "uses": 50,
+   "name": "graduation cap",
+   "desc": "a black scholar cap",
+   "file": "1f393.png"
+  },
+  {
+   "emoji": "🎣",
+   "uses": 49,
+   "name": "fishing pole and fish",
+   "desc": "a fishing rod with a caught fish",
+   "file": "1f3a3.png"
+  },
+  {
+   "emoji": "🎯",
+   "uses": 49,
+   "name": "direct hit",
+   "desc": "an archery target with an arrow in the bullseye",
+   "file": "1f3af.png"
+  },
+  {
+   "emoji": "💎",
+   "uses": 49,
+   "name": "gem stone",
+   "desc": "a blue cut gemstone",
+   "file": "1f48e.png"
+  },
+  {
+   "emoji": "🔧",
+   "uses": 48,
+   "name": "wrench",
+   "desc": "an iron spanner tool",
+   "file": "1f527.png"
+  },
+  {
+   "emoji": "🔪",
+   "uses": 46,
+   "name": "hocho",
+   "desc": "a kitchen knife",
+   "file": "1f52a.png"
+  },
+  {
+   "emoji": "🛢",
+   "uses": 46,
+   "name": "oil drum",
+   "desc": "a wooden barrel",
+   "file": "1f6e2.png"
+  },
+  {
+   "emoji": "🐟",
+   "uses": 44,
+   "name": "fish",
+   "desc": "a silver fish",
+   "file": "1f41f.png"
+  },
+  {
+   "emoji": "🍲",
+   "uses": 44,
+   "name": "pot of food",
+   "desc": "an iron cooking pot of stew",
+   "file": "1f372.png"
+  },
+  {
+   "emoji": "☠",
+   "uses": 43,
+   "name": "skull and crossbones",
+   "desc": "a skull and crossbones",
+   "file": "2620.png"
+  },
+  {
+   "emoji": "❤",
+   "uses": 43,
+   "name": "heavy black heart",
+   "desc": "a red heart",
+   "file": "2764.png"
+  },
+  {
+   "emoji": "📈",
+   "uses": 43,
+   "name": "chart with upwards trend",
+   "desc": "a parchment chart with a rising green line",
+   "file": "1f4c8.png"
+  },
+  {
+   "emoji": "🛒",
+   "uses": 43,
+   "name": "shopping trolley",
+   "desc": "a wooden market handcart",
+   "file": "1f6d2.png"
+  },
+  {
+   "emoji": "🚶",
+   "uses": 41,
+   "name": "pedestrian",
+   "desc": "a walking person",
+   "file": "1f6b6.png"
+  },
+  {
+   "emoji": "🎖",
+   "uses": 40,
+   "name": "military medal",
+   "desc": "a military medal with a ribbon",
+   "file": "1f396.png"
+  },
+  {
+   "emoji": "✋",
+   "uses": 40,
+   "name": "raised hand",
+   "desc": "a raised open hand",
+   "file": "270b.png"
+  },
+  {
+   "emoji": "💬",
+   "uses": 39,
+   "name": "speech balloon",
+   "desc": "a white speech bubble",
+   "file": "1f4ac.png"
+  },
+  {
+   "emoji": "🏡",
+   "uses": 38,
+   "name": "house with garden",
+   "desc": "a cottage with a garden fence",
+   "file": "1f3e1.png"
+  },
+  {
+   "emoji": "🤒",
+   "uses": 38,
+   "name": "face with thermometer",
+   "desc": "a sick face with a thermometer",
+   "file": "1f912.png"
+  },
+  {
+   "emoji": "🌑",
+   "uses": 37,
+   "name": "new moon symbol",
+   "desc": "a dark new moon",
+   "file": "1f311.png"
+  },
+  {
+   "emoji": "👁",
+   "uses": 37,
+   "name": "eye",
+   "desc": "a single eye",
+   "file": "1f441.png"
+  },
+  {
+   "emoji": "📒",
+   "uses": 37,
+   "name": "ledger",
+   "desc": "a ledger book",
+   "file": "1f4d2.png"
+  },
+  {
+   "emoji": "🧱",
+   "uses": 37,
+   "name": "brick",
+   "desc": "a stack of red bricks",
+   "file": "1f9f1.png"
+  },
+  {
+   "emoji": "🕳",
+   "uses": 36,
+   "name": "hole",
+   "desc": "a dark hole in the ground",
+   "file": "1f573.png"
+  },
+  {
+   "emoji": "😠",
+   "uses": 35,
+   "name": "angry face",
+   "desc": "an angry red face",
+   "file": "1f620.png"
+  },
+  {
+   "emoji": "🐫",
+   "uses": 35,
+   "name": "bactrian camel",
+   "desc": "a camel with two humps",
+   "file": "1f42b.png"
+  },
+  {
+   "emoji": "🎁",
+   "uses": 35,
+   "name": "wrapped present",
+   "desc": "a gift box with a ribbon",
+   "file": "1f381.png"
+  },
+  {
+   "emoji": "🔱",
+   "uses": 35,
+   "name": "trident emblem",
+   "desc": "a golden trident",
+   "file": "1f531.png"
+  },
+  {
+   "emoji": "🦅",
+   "uses": 34,
+   "name": "eagle",
+   "desc": "an eagle",
+   "file": "1f985.png"
+  },
+  {
+   "emoji": "🐚",
+   "uses": 34,
+   "name": "spiral shell",
+   "desc": "a spiral sea shell",
+   "file": "1f41a.png"
+  },
+  {
+   "emoji": "🧑",
+   "uses": 33,
+   "name": "adult",
+   "desc": "a medieval peasant person",
+   "file": "1f9d1.png"
+  },
+  {
+   "emoji": "🏅",
+   "uses": 33,
+   "name": "sports medal",
+   "desc": "a gold medal",
+   "file": "1f3c5.png"
+  },
+  {
+   "emoji": "🧾",
+   "uses": 33,
+   "name": "receipt",
+   "desc": "a parchment receipt",
+   "file": "1f9fe.png"
+  },
+  {
+   "emoji": "🐀",
+   "uses": 33,
+   "name": "rat",
+   "desc": "a grey rat",
+   "file": "1f400.png"
+  },
+  {
+   "emoji": "✒",
+   "uses": 33,
+   "name": "black nib",
+   "desc": "a quill pen nib",
+   "file": "2712.png"
+  },
+  {
+   "emoji": "🛤",
+   "uses": 32,
+   "name": "railway track",
+   "desc": "a dirt road with cart tracks",
+   "file": "1f6e4.png"
+  },
+  {
+   "emoji": "🐾",
+   "uses": 31,
+   "name": "paw prints",
+   "desc": "animal paw prints",
+   "file": "1f43e.png"
+  },
+  {
+   "emoji": "🐑",
+   "uses": 31,
+   "name": "sheep",
+   "desc": "a white sheep",
+   "file": "1f411.png"
+  },
+  {
+   "emoji": "🧶",
+   "uses": 31,
+   "name": "ball of yarn",
+   "desc": "a ball of wool yarn",
+   "file": "1f9f6.png"
+  },
+  {
+   "emoji": "🏕",
+   "uses": 31,
+   "name": "camping",
+   "desc": "a campsite with a tent and a campfire",
+   "file": "1f3d5.png"
+  },
+  {
+   "emoji": "📯",
+   "uses": 31,
+   "name": "postal horn",
+   "desc": "a brass post horn",
+   "file": "1f4ef.png"
+  },
+  {
+   "emoji": "🐉",
+   "uses": 31,
+   "name": "dragon",
+   "desc": "a green dragon",
+   "file": "1f409.png"
+  },
+  {
+   "emoji": "🏺",
+   "uses": 30,
+   "name": "amphora",
+   "desc": "a clay amphora",
+   "file": "1f3fa.png"
+  },
+  {
+   "emoji": "🏇",
+   "uses": 30,
+   "name": "horse racing",
+   "desc": "a rider on a galloping horse",
+   "file": "1f3c7.png"
+  },
+  {
+   "emoji": "🥀",
+   "uses": 30,
+   "name": "wilted flower",
+   "desc": "a wilted rose",
+   "file": "1f940.png"
+  },
+  {
+   "emoji": "🏪",
+   "uses": 30,
+   "name": "convenience store",
+   "desc": "a market stall with a striped awning",
+   "file": "1f3ea.png"
+  },
+  {
+   "emoji": "📉",
+   "uses": 29,
+   "name": "chart with downwards trend",
+   "desc": "a parchment chart with a falling red line",
+   "file": "1f4c9.png"
+  },
+  {
+   "emoji": "🎨",
+   "uses": 29,
+   "name": "artist palette",
+   "desc": "a painter palette with paint",
+   "file": "1f3a8.png"
+  },
+  {
+   "emoji": "😊",
+   "uses": 29,
+   "name": "smiling face with smiling eyes",
+   "desc": "a smiling happy face",
+   "file": "1f60a.png"
+  },
+  {
+   "emoji": "🗿",
+   "uses": 29,
+   "name": "moyai",
+   "desc": "a carved stone head statue",
+   "file": "1f5ff.png"
+  },
+  {
+   "emoji": "🖋",
+   "uses": 29,
+   "name": "lower left fountain pen",
+   "desc": "a quill pen and ink pot",
+   "file": "1f58b.png"
+  },
+  {
+   "emoji": "🧪",
+   "uses": 28,
+   "name": "test tube",
+   "desc": "a glass potion vial",
+   "file": "1f9ea.png"
+  },
+  {
+   "emoji": "⛺",
+   "uses": 28,
+   "name": "tent",
+   "desc": "a canvas tent",
+   "file": "26fa.png"
+  },
+  {
+   "emoji": "⚕",
+   "uses": 28,
+   "name": "staff of aesculapius",
+   "desc": "a staff with a serpent, the healer sign",
+   "file": "2695.png"
+  },
+  {
+   "emoji": "🏴",
+   "uses": 28,
+   "name": "waving black flag",
+   "desc": "a black flag on a pole",
+   "file": "1f3f4.png"
+  },
+  {
+   "emoji": "💨",
+   "uses": 28,
+   "name": "dash symbol",
+   "desc": "a puff of wind",
+   "file": "1f4a8.png"
+  },
+  {
+   "emoji": "🚧",
+   "uses": 28,
+   "name": "construction sign",
+   "desc": "a wooden barricade with striped boards",
+   "file": "1f6a7.png"
+  },
+  {
+   "emoji": "📣",
+   "uses": 28,
+   "name": "cheering megaphone",
+   "desc": "a herald brass horn",
+   "file": "1f4e3.png"
+  },
+  {
+   "emoji": "🍷",
+   "uses": 28,
+   "name": "wine glass",
+   "desc": "a goblet of red wine",
+   "file": "1f377.png"
+  },
+  {
+   "emoji": "🦊",
+   "uses": 27,
+   "name": "fox face",
+   "desc": "a red fox head",
+   "file": "1f98a.png"
+  },
+  {
+   "emoji": "💪",
+   "uses": 27,
+   "name": "flexed biceps",
+   "desc": "a flexed arm muscle",
+   "file": "1f4aa.png"
+  },
+  {
+   "emoji": "🌅",
+   "uses": 27,
+   "name": "sunrise",
+   "desc": "a sun rising over hills",
+   "file": "1f305.png"
+  },
+  {
+   "emoji": "👶",
+   "uses": 27,
+   "name": "baby",
+   "desc": "a baby swaddled in cloth",
+   "file": "1f476.png"
+  },
+  {
+   "emoji": "🍂",
+   "uses": 27,
+   "name": "fallen leaf",
+   "desc": "a fallen autumn leaf",
+   "file": "1f342.png"
+  },
+  {
+   "emoji": "📮",
+   "uses": 26,
+   "name": "postbox",
+   "desc": "a courier satchel with letters",
+   "file": "1f4ee.png"
+  },
+  {
+   "emoji": "✊",
+   "uses": 26,
+   "name": "raised fist",
+   "desc": "a raised fist",
+   "file": "270a.png"
+  },
+  {
+   "emoji": "🦴",
+   "uses": 26,
+   "name": "bone",
+   "desc": "a white bone",
+   "file": "1f9b4.png"
+  },
+  {
+   "emoji": "🚫",
+   "uses": 26,
+   "name": "no entry sign",
+   "desc": "a red prohibition sign",
+   "file": "1f6ab.png"
+  },
+  {
+   "emoji": "🤫",
+   "uses": 26,
+   "name": "face with finger covering closed lips",
+   "desc": "a face with a finger to the lips",
+   "file": "1f92b.png"
+  },
+  {
+   "emoji": "📍",
+   "uses": 26,
+   "name": "round pushpin",
+   "desc": "a red map pin",
+   "file": "1f4cd.png"
+  },
+  {
+   "emoji": "🏮",
+   "uses": 26,
+   "name": "izakaya lantern",
+   "desc": "a hanging paper lantern",
+   "file": "1f3ee.png"
+  },
+  {
+   "emoji": "☀",
+   "uses": 25,
+   "name": "black sun with rays",
+   "desc": "a bright yellow sun",
+   "file": "2600.png"
+  },
+  {
+   "emoji": "🤕",
+   "uses": 25,
+   "name": "face with head-bandage",
+   "desc": "a face with a head bandage",
+   "file": "1f915.png"
+  },
+  {
+   "emoji": "🔗",
+   "uses": 25,
+   "name": "link symbol",
+   "desc": "two iron chain links",
+   "file": "1f517.png"
+  },
+  {
+   "emoji": "🌳",
+   "uses": 24,
+   "name": "deciduous tree",
+   "desc": "a leafy oak tree",
+   "file": "1f333.png"
+  },
+  {
+   "emoji": "🌙",
+   "uses": 24,
+   "name": "crescent moon",
+   "desc": "a crescent moon",
+   "file": "1f319.png"
+  },
+  {
+   "emoji": "💤",
+   "uses": 24,
+   "name": "sleeping symbol",
+   "desc": "sleeping zzz letters",
+   "file": "1f4a4.png"
+  },
+  {
+   "emoji": "🐺",
+   "uses": 23,
+   "name": "wolf face",
+   "desc": "a grey wolf head",
+   "file": "1f43a.png"
+  },
+  {
+   "emoji": "🏜",
+   "uses": 23,
+   "name": "desert",
+   "desc": "desert sand dunes",
+   "file": "1f3dc.png"
+  },
+  {
+   "emoji": "🏭",
+   "uses": 23,
+   "name": "factory",
+   "desc": "a smoking blacksmith workshop",
+   "file": "1f3ed.png"
+  },
+  {
+   "emoji": "🔓",
+   "uses": 23,
+   "name": "open lock",
+   "desc": "an open iron padlock",
+   "file": "1f513.png"
+  },
+  {
+   "emoji": "🥅",
+   "uses": 23,
+   "name": "goal net",
+   "desc": "a rope net",
+   "file": "1f945.png"
+  },
+  {
+   "emoji": "⚜",
+   "uses": 22,
+   "name": "fleur-de-lis",
+   "desc": "a golden fleur-de-lis",
+   "file": "269c.png"
+  },
+  {
+   "emoji": "🔍",
+   "uses": 22,
+   "name": "left-pointing magnifying glass",
+   "desc": "a brass magnifying glass",
+   "file": "1f50d.png"
+  },
+  {
+   "emoji": "🧳",
+   "uses": 22,
+   "name": "luggage",
+   "desc": "a leather travelling trunk",
+   "file": "1f9f3.png"
+  },
+  {
+   "emoji": "💢",
+   "uses": 22,
+   "name": "anger symbol",
+   "desc": "a red anger mark",
+   "file": "1f4a2.png"
+  },
+  {
+   "emoji": "🙂",
+   "uses": 22,
+   "name": "slightly smiling face",
+   "desc": "a slightly smiling face",
+   "file": "1f642.png"
+  },
+  {
+   "emoji": "🔮",
+   "uses": 21,
+   "name": "crystal ball",
+   "desc": "a glowing crystal ball",
+   "file": "1f52e.png"
+  },
+  {
+   "emoji": "🛁",
+   "uses": 21,
+   "name": "bathtub",
+   "desc": "a wooden bathtub",
+   "file": "1f6c1.png"
+  },
+  {
+   "emoji": "🦌",
+   "uses": 21,
+   "name": "deer",
+   "desc": "a deer with antlers",
+   "file": "1f98c.png"
+  },
+  {
+   "emoji": "😐",
+   "uses": 21,
+   "name": "neutral face",
+   "desc": "a neutral face",
+   "file": "1f610.png"
+  },
+  {
+   "emoji": "📿",
+   "uses": 21,
+   "name": "prayer beads",
+   "desc": "prayer beads",
+   "file": "1f4ff.png"
+  },
+  {
+   "emoji": "💊",
+   "uses": 21,
+   "name": "pill",
+   "desc": "a small pouch of medicinal herbs",
+   "file": "1f48a.png"
+  },
+  {
+   "emoji": "✍",
+   "uses": 20,
+   "name": "writing hand",
+   "desc": "a hand writing with a quill",
+   "file": "270d.png"
+  },
+  {
+   "emoji": "🌟",
+   "uses": 20,
+   "name": "glowing star",
+   "desc": "a glowing gold star",
+   "file": "1f31f.png"
+  },
+  {
+   "emoji": "👂",
+   "uses": 20,
+   "name": "ear",
+   "desc": "an ear",
+   "file": "1f442.png"
+  },
+  {
+   "emoji": "🏝",
+   "uses": 20,
+   "name": "desert island",
+   "desc": "a small island with a palm tree",
+   "file": "1f3dd.png"
+  },
+  {
+   "emoji": "🎉",
+   "uses": 20,
+   "name": "party popper",
+   "desc": "a burst of festive confetti",
+   "file": "1f389.png"
+  },
+  {
+   "emoji": "💛",
+   "uses": 20,
+   "name": "yellow heart",
+   "desc": "a yellow heart",
+   "file": "1f49b.png"
+  },
+  {
+   "emoji": "🐍",
+   "uses": 20,
+   "name": "snake",
+   "desc": "a green snake",
+   "file": "1f40d.png"
+  },
+  {
+   "emoji": "👣",
+   "uses": 19,
+   "name": "footprints",
+   "desc": "bare footprints",
+   "file": "1f463.png"
+  },
+  {
+   "emoji": "👛",
+   "uses": 19,
+   "name": "purse",
+   "desc": "a small coin purse",
+   "file": "1f45b.png"
+  },
+  {
+   "emoji": "🌋",
+   "uses": 19,
+   "name": "volcano",
+   "desc": "an erupting volcano",
+   "file": "1f30b.png"
+  },
+  {
+   "emoji": "💥",
+   "uses": 19,
+   "name": "collision symbol",
+   "desc": "an explosion burst",
+   "file": "1f4a5.png"
+  },
+  {
+   "emoji": "📕",
+   "uses": 18,
+   "name": "closed book",
+   "desc": "a closed red book",
+   "file": "1f4d5.png"
+  },
+  {
+   "emoji": "💂",
+   "uses": 18,
+   "name": "guardsman",
+   "desc": "a medieval guard with a spear and helmet",
+   "file": "1f482.png"
+  },
+  {
+   "emoji": "🎪",
+   "uses": 18,
+   "name": "circus tent",
+   "desc": "a striped fair pavilion tent",
+   "file": "1f3aa.png"
+  },
+  {
+   "emoji": "🧂",
+   "uses": 18,
+   "name": "salt shaker",
+   "desc": "a small bowl of salt",
+   "file": "1f9c2.png"
+  },
+  {
+   "emoji": "📨",
+   "uses": 18,
+   "name": "incoming envelope",
+   "desc": "an incoming letter",
+   "file": "1f4e8.png"
+  },
+  {
+   "emoji": "📐",
+   "uses": 18,
+   "name": "triangular ruler",
+   "desc": "a wooden carpenter set square",
+   "file": "1f4d0.png"
+  },
+  {
+   "emoji": "🗼",
+   "uses": 18,
+   "name": "tokyo tower",
+   "desc": "a stone watchtower",
+   "file": "1f5fc.png"
+  },
+  {
+   "emoji": "🚢",
+   "uses": 17,
+   "name": "ship",
+   "desc": "a large sailing galleon",
+   "file": "1f6a2.png"
+  },
+  {
+   "emoji": "🦵",
+   "uses": 17,
+   "name": "leg",
+   "desc": "a leg",
+   "file": "1f9b5.png"
+  },
+  {
+   "emoji": "📅",
+   "uses": 17,
+   "name": "calendar",
+   "desc": "a parchment calendar",
+   "file": "1f4c5.png"
+  },
+  {
+   "emoji": "🧵",
+   "uses": 17,
+   "name": "spool of thread",
+   "desc": "a spool of thread",
+   "file": "1f9f5.png"
+  },
+  {
+   "emoji": "🛣",
+   "uses": 16,
+   "name": "motorway",
+   "desc": "a paved stone road",
+   "file": "1f6e3.png"
+  },
+  {
+   "emoji": "👀",
+   "uses": 16,
+   "name": "eyes",
+   "desc": "a pair of eyes",
+   "file": "1f440.png"
+  },
+  {
+   "emoji": "🏫",
+   "uses": 16,
+   "name": "school",
+   "desc": "a stone schoolhouse",
+   "file": "1f3eb.png"
+  },
+  {
+   "emoji": "⚙",
+   "uses": 16,
+   "name": "gear",
+   "desc": "an iron cog gear",
+   "file": "2699.png"
+  },
+  {
+   "emoji": "🛠",
+   "uses": 15,
+   "name": "hammer and wrench",
+   "desc": "a hammer and wrench crossed",
+   "file": "1f6e0.png"
+  },
+  {
+   "emoji": "🧼",
+   "uses": 15,
+   "name": "bar of soap",
+   "desc": "a bar of soap",
+   "file": "1f9fc.png"
+  },
+  {
+   "emoji": "🍄",
+   "uses": 15,
+   "name": "mushroom",
+   "desc": "a red mushroom",
+   "file": "1f344.png"
+  },
+  {
+   "emoji": "⛲",
+   "uses": 15,
+   "name": "fountain",
+   "desc": "a stone fountain",
+   "file": "26f2.png"
+  },
+  {
+   "emoji": "🌍",
+   "uses": 15,
+   "name": "earth globe europe-africa",
+   "desc": "a globe of the world",
+   "file": "1f30d.png"
+  },
+  {
+   "emoji": "💸",
+   "uses": 15,
+   "name": "money with wings",
+   "desc": "gold coins with wings flying away",
+   "file": "1f4b8.png"
+  },
+  {
+   "emoji": "🌉",
+   "uses": 15,
+   "name": "bridge at night",
+   "desc": "a stone arch bridge",
+   "file": "1f309.png"
+  },
+  {
+   "emoji": "🖐",
+   "uses": 15,
+   "name": "raised hand with fingers splayed",
+   "desc": "an open hand with fingers spread",
+   "file": "1f590.png"
+  },
+  {
+   "emoji": "🌰",
+   "uses": 15,
+   "name": "chestnut",
+   "desc": "a chestnut",
+   "file": "1f330.png"
+  },
+  {
+   "emoji": "🚨",
+   "uses": 14,
+   "name": "police cars revolving light",
+   "desc": "a ringing alarm bell",
+   "file": "1f6a8.png"
+  },
+  {
+   "emoji": "🐄",
+   "uses": 14,
+   "name": "cow",
+   "desc": "a cow",
+   "file": "1f404.png"
+  },
+  {
+   "emoji": "🥈",
+   "uses": 14,
+   "name": "second place medal",
+   "desc": "a silver medal",
+   "file": "1f948.png"
+  },
+  {
+   "emoji": "🔑",
+   "uses": 14,
+   "name": "key",
+   "desc": "a golden key",
+   "file": "1f511.png"
+  },
+  {
+   "emoji": "🥩",
+   "uses": 14,
+   "name": "cut of meat",
+   "desc": "a raw cut of meat",
+   "file": "1f969.png"
+  },
+  {
+   "emoji": "🛌",
+   "uses": 13,
+   "name": "sleeping accommodation",
+   "desc": "a person asleep in a bed",
+   "file": "1f6cc.png"
+  },
+  {
+   "emoji": "🚣",
+   "uses": 13,
+   "name": "rowboat",
+   "desc": "a person rowing a boat",
+   "file": "1f6a3.png"
+  },
+  {
+   "emoji": "📢",
+   "uses": 13,
+   "name": "public address loudspeaker",
+   "desc": "a herald horn blaring",
+   "file": "1f4e2.png"
+  },
+  {
+   "emoji": "🔎",
+   "uses": 13,
+   "name": "right-pointing magnifying glass",
+   "desc": "a brass magnifying glass",
+   "file": "1f50e.png"
+  },
+  {
+   "emoji": "😤",
+   "uses": 13,
+   "name": "face with look of triumph",
+   "desc": "a huffing triumphant face",
+   "file": "1f624.png"
+  },
+  {
+   "emoji": "😒",
+   "uses": 13,
+   "name": "unamused face",
+   "desc": "an unamused face",
+   "file": "1f612.png"
+  },
+  {
+   "emoji": "🤐",
+   "uses": 13,
+   "name": "zipper-mouth face",
+   "desc": "a face with a sealed mouth",
+   "file": "1f910.png"
+  },
+  {
+   "emoji": "🏷",
+   "uses": 13,
+   "name": "label",
+   "desc": "a price tag on a string",
+   "file": "1f3f7.png"
+  },
+  {
+   "emoji": "💼",
+   "uses": 13,
+   "name": "briefcase",
+   "desc": "a leather satchel",
+   "file": "1f4bc.png"
+  },
+  {
+   "emoji": "✂",
+   "uses": 13,
+   "name": "black scissors",
+   "desc": "iron shears",
+   "file": "2702.png"
+  },
+  {
+   "emoji": "🔬",
+   "uses": 12,
+   "name": "microscope",
+   "desc": "a brass magnifying lens on a stand",
+   "file": "1f52c.png"
+  },
+  {
+   "emoji": "🧹",
+   "uses": 12,
+   "name": "broom",
+   "desc": "a straw broom",
+   "file": "1f9f9.png"
+  },
+  {
+   "emoji": "⛈",
+   "uses": 12,
+   "name": "thunder cloud and rain",
+   "desc": "a dark storm cloud with rain and lightning",
+   "file": "26c8.png"
+  },
+  {
+   "emoji": "🦁",
+   "uses": 12,
+   "name": "lion face",
+   "desc": "a lion head",
+   "file": "1f981.png"
+  },
+  {
+   "emoji": "👪",
+   "uses": 12,
+   "name": "family",
+   "desc": "a family of three",
+   "file": "1f46a.png"
+  },
+  {
+   "emoji": "🔔",
+   "uses": 12,
+   "name": "bell",
+   "desc": "a brass bell",
+   "file": "1f514.png"
+  },
+  {
+   "emoji": "⛔",
+   "uses": 12,
+   "name": "no entry",
+   "desc": "a red no entry sign",
+   "file": "26d4.png"
+  },
+  {
+   "emoji": "⚗",
+   "uses": 12,
+   "name": "alembic",
+   "desc": "an alchemist alembic",
+   "file": "2697.png"
+  },
+  {
+   "emoji": "🙇",
+   "uses": 12,
+   "name": "person bowing deeply",
+   "desc": "a person bowing deeply",
+   "file": "1f647.png"
+  },
+  {
+   "emoji": "🗑",
+   "uses": 11,
+   "name": "wastebasket",
+   "desc": "a wicker waste basket",
+   "file": "1f5d1.png"
+  },
+  {
+   "emoji": "⛩",
+   "uses": 11,
+   "name": "shinto shrine",
+   "desc": "a wooden wayside shrine",
+   "file": "26e9.png"
+  },
+  {
+   "emoji": "🕸",
+   "uses": 11,
+   "name": "spider web",
+   "desc": "a spider web",
+   "file": "1f578.png"
+  },
+  {
+   "emoji": "🧘",
+   "uses": 11,
+   "name": "person in lotus position",
+   "desc": "a person meditating cross-legged",
+   "file": "1f9d8.png"
+  },
+  {
+   "emoji": "🥶",
+   "uses": 11,
+   "name": "freezing face",
+   "desc": "a freezing blue face",
+   "file": "1f976.png"
+  },
+  {
+   "emoji": "🏟",
+   "uses": 11,
+   "name": "stadium",
+   "desc": "a tournament arena with stands",
+   "file": "1f3df.png"
+  },
+  {
+   "emoji": "🍽",
+   "uses": 11,
+   "name": "fork and knife with plate",
+   "desc": "a plate with a knife and fork",
+   "file": "1f37d.png"
+  },
+  {
+   "emoji": "💌",
+   "uses": 11,
+   "name": "love letter",
+   "desc": "a love letter with a heart seal",
+   "file": "1f48c.png"
+  },
+  {
+   "emoji": "🌫",
+   "uses": 11,
+   "name": "fog",
+   "desc": "a bank of grey fog",
+   "file": "1f32b.png"
+  },
+  {
+   "emoji": "🥾",
+   "uses": 11,
+   "name": "hiking boot",
+   "desc": "a leather boot",
+   "file": "1f97e.png"
+  },
+  {
+   "emoji": "🔭",
+   "uses": 11,
+   "name": "telescope",
+   "desc": "a brass spyglass",
+   "file": "1f52d.png"
+  },
+  {
+   "emoji": "🍻",
+   "uses": 11,
+   "name": "clinking beer mugs",
+   "desc": "two clinking tankards of ale",
+   "file": "1f37b.png"
+  },
+  {
+   "emoji": "🌴",
+   "uses": 11,
+   "name": "palm tree",
+   "desc": "a palm tree",
+   "file": "1f334.png"
+  },
+  {
+   "emoji": "👦",
+   "uses": 11,
+   "name": "boy",
+   "desc": "a boy",
+   "file": "1f466.png"
+  },
+  {
+   "emoji": "🍇",
+   "uses": 11,
+   "name": "grapes",
+   "desc": "a bunch of purple grapes",
+   "file": "1f347.png"
+  },
+  {
+   "emoji": "🥕",
+   "uses": 11,
+   "name": "carrot",
+   "desc": "a carrot",
+   "file": "1f955.png"
+  },
+  {
+   "emoji": "💫",
+   "uses": 10,
+   "name": "dizzy symbol",
+   "desc": "swirling yellow stars of dizziness",
+   "file": "1f4ab.png"
+  },
+  {
+   "emoji": "🥣",
+   "uses": 10,
+   "name": "bowl with spoon",
+   "desc": "a wooden bowl with a spoon",
+   "file": "1f963.png"
+  },
+  {
+   "emoji": "📊",
+   "uses": 10,
+   "name": "bar chart",
+   "desc": "a parchment bar chart",
+   "file": "1f4ca.png"
+  },
+  {
+   "emoji": "☯",
+   "uses": 10,
+   "name": "yin yang",
+   "desc": "a yin yang symbol",
+   "file": "262f.png"
+  },
+  {
+   "emoji": "🌀",
+   "uses": 10,
+   "name": "cyclone",
+   "desc": "a blue swirling whirlwind",
+   "file": "1f300.png"
+  },
+  {
+   "emoji": "🪟",
+   "uses": 10,
+   "name": "window",
+   "desc": "a wooden framed window",
+   "file": "1fa9f.png"
+  },
+  {
+   "emoji": "🧠",
+   "uses": 10,
+   "name": "brain",
+   "desc": "a pink brain",
+   "file": "1f9e0.png"
+  }
+ ]
+}

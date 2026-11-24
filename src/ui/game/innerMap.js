@@ -8,6 +8,7 @@ import { Wilds } from '../../player/wilds.js';
 import { Prison } from '../../player/prison.js';
 import { showWildsEncounter } from '../wildsEncounter.js';
 import { InnerMapDeck } from '../innerMapDeck.js';
+import { InnerMapSeaFight } from '../innerMapSeaFight.js';
 import { InnerMapTasks } from '../innerMapTasks.js';
 import { Cartography } from '../../systems/cartography.js';
 import { InnerMapAnimals } from '../innerMapAnimals.js';
@@ -172,7 +173,9 @@ export function exitInnerMap(opts = {}) {
     // Off the field mid-battle: your captains fight it out without you (ui/innerMapBattle.js)
     if (InnerMapBattle.active) InnerMapBattle.abandon(this);
     if (InnerMap.clearJail) InnerMap.clearJail();
-    // Off the deck: a fight left unfinished goes as the dice say (ui/innerMapDeck.js)
+    // Off the deck: a sea fight under sail is sailed out by the sailing master (ui/innerMapSeaFight.js),
+    // a fight on deck left unfinished goes as the dice say (ui/innerMapDeck.js)
+    InnerMapSeaFight.abandon(this);
     InnerMapDeck.onExit(this);
 
     InnerMapRenderer.closeContextMenu();
@@ -577,6 +580,15 @@ export function _leaveBuilding() {
 }
 
 /**
+ * Before a save (systems/saveLoad.js saveGame): what changed inside the buildings
+ * visited written to the world's records (world/innerMap/persistInteriors.js).
+ */
+export function flushInteriors() {
+    if (typeof InnerMap.flushInteriorRecords === 'function') return InnerMap.flushInteriorRecords(this.world);
+    return 0;
+}
+
+/**
  * Up or down the stairs to floor `to` of the building the player is in
  * (world/innerMap/floors.js), or straight to it from the front door.
  */
@@ -650,7 +662,7 @@ export function _updateBuildingExitButton() {
     // In a locked cell the button says so (and only says so); unlocked, it's the way out
     const locked = !!(InnerMap.jailLocked && InnerMap.jailLocked());
     // Upstairs, the button says which floor you're on (world/innerMap/floors.js)
-    const floorTag = InnerMap._floor > 0 ? ` (${InnerMap.floorLabel(InnerMap._floor).replace(/^the /, '')})` : '';
+    const floorTag = InnerMap._floor ?` (${InnerMap.floorLabel(InnerMap._floor).replace(/^the /, '')})` : '';
     if (existingBtn && insideBuilding) {
         existingBtn.innerHTML = locked ? '🔒 Locked In' : `← Leave ${insideBuilding.name}${floorTag}`;
         return;

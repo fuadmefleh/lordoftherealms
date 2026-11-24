@@ -31,7 +31,20 @@ import { Books } from '../../systems/books.js';
 import { DevotionPanel } from '../actionMenu/devotion.js';
 import { PlayerActions } from '../../player/playerActions.js';
 import { FurnitureActions } from '../../player/furnitureActions.js';
+import { ShopStock } from '../../world/innerMap/shopStock.js';
 import { furnitureCtx, sitDown, runFurnitureAction, sleepHere, sleepTrespass, trespassDesc } from './furniture.js';
+
+/** The goods on a shop's piece, by name: "bread and cheese". */
+export function shelfNames(stock) {
+    const names = (stock ? stock.goods : []).map(g => ShopStock.goodName(g.id));
+    return names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}` : (names[0] || 'goods');
+}
+
+/** What a shop's piece holds, as the menu says it: "Bread (plenty), Cheese (short)". */
+export function shelfDesc(stock) {
+    if (!stock || !stock.goods.length) return 'Buy what lies here';
+    return stock.goods.map(g => `${ShopStock.goodName(g.id)} (${ShopStock.label(g.level)})`).join(', ');
+}
 
 /** A furniture rule's check (player/furnitureActions.js) for the piece an action is on. */
 const _fcheck = key => (game, objDef, q, r) => FurnitureActions.check(key, furnitureCtx(game, objDef, q, r));
@@ -443,6 +456,22 @@ export const OBJECT_ACTIONS = {
     // ──────────── SETTLEMENT SERVICES ────────────
     // Furniture inside town buildings opens the same services as the world
     // action menu, run against the settlement the player is visiting.
+    // A shop's shelf, counter or barrel: the market's buy window on just what lies on it
+    // (world/innerMap/shopStock.js; ObjectActions.execute opens it)
+    buy_shelf: {
+        label: 'Buy from the Shelf',
+        icon: '🛒',
+        desc: "Buy what lies here, at the market's prices",
+        category: 'service',
+        condition: (game) => !!_settlementTile(game),
+        conditionFail: 'Only available in a settlement.',
+        describe: (game, objDef, q, r) => shelfDesc(InnerMap.shopStockAt ? InnerMap.shopStockAt(q, r) : null),
+        check: (game, objDef, q, r) => {
+            const st = InnerMap.shopStockAt ? InnerMap.shopStockAt(q, r) : null;
+            if (st && st.goods.length && st.goods.every(g => g.level === 0)) return { ok: false, reason: `Bare: the market has no ${shelfNames(st)} to sell.` };
+            return { ok: true };
+        },
+    },
     shop: {
         label: 'Browse Wares',
         icon: '🛒',

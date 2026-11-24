@@ -143,6 +143,21 @@ input[type="text"]:focus,input[type="number"]:focus,select:focus{outline:none;bo
 .igen-btns button.primary{background:var(--blue);color:#fff;border-color:var(--blue)}
 .igen-btns button.primary:hover{filter:brightness(1.15)}
 .igen-warn{color:#d4a05a;font-size:11px;margin:4px 0}
+
+/* ─── Dressing: decor / wall decor palettes ─── */
+.dress-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(58px,1fr));gap:4px;max-height:240px;overflow-y:auto;padding:2px}
+.dress-item{display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px 2px;border:1px solid var(--border2);border-radius:5px;background:var(--bg);cursor:pointer;font-size:9px;color:var(--text-dim);text-align:center;line-height:1.1}
+.dress-item:hover{border-color:#484f58;color:var(--text)}
+.dress-item.active{border-color:var(--gold);color:var(--gold);background:#2a1f00}
+.dress-item canvas{image-rendering:pixelated;width:40px;height:40px}
+.dress-help{font-size:10px;color:var(--text-dim);line-height:1.45;margin-bottom:8px}
+.dress-help b{color:var(--text)}
+/* ─── Rooms: names painted on the floor ─── */
+.room-used{display:flex;flex-wrap:wrap;gap:4px;margin-top:2px}
+.room-used .eui-tag{cursor:pointer}
+.room-used .eui-tag.active{background:#2a1f00;border-color:var(--gold)}
+.room-used .room-swatch{width:8px;height:8px;border-radius:2px;display:inline-block}
+.room-warn{font-size:10px;color:#d4a05a;line-height:1.4;margin-top:4px}
 </style>
 </head>
 <body>
@@ -165,6 +180,12 @@ input[type="text"]:focus,input[type="number"]:focus,select:focus{outline:none;bo
     <button id="tool-impass"  onclick="setTool('impass')" title="Block/Unblock — shows the green/red passability overlay. Click the middle of a tile to block the whole tile (red ✕). Click near a tile's edge to block just that side: people can stand on the tile but not cross that edge. Drag to do a row.">⛔ Block</button>
     <button id="tool-door"    onclick="setTool('door')">🚪 Door</button>
     <button id="tool-furn"    onclick="setTool('furniture')">🪑 Furniture</button>
+    <button id="tool-innerwall" onclick="setTool('innerwall')" title="Inner wall (W) — a wall within the room, drawn in the game in the building's inside wall unless a wall sprite is painted there. Drag to draw a run; click a wall to take it away.">🧱 Inner Wall</button>
+    <button id="tool-doorway" onclick="setTool('doorway')" title="Doorway (O) — an opening in an inner wall: walked through, belongs to no room, lets light through">⬚ Doorway</button>
+    <button id="tool-decor"   onclick="setTool('decor')" title="Decor (D) — things lying on a table, counter, shelf or the floor: pick one on the right, click a tile to add it, click again to take it off">🏺 Decor</button>
+    <button id="tool-walldecor" onclick="setTool('walldecor')" title="Wall decor (H) — things hanging on a wall facing into a room: torches, paintings, shelves, tapestries…">🖼 Wall Decor</button>
+    <button id="tool-window"  onclick="setTool('window')" title="Window (J) — a window in a wall, giving daylight into the room it faces (shuttered at night in the game)">🪟 Window</button>
+    <button id="tool-room"    onclick="setTool('room')" title="Room (M) — name the room a cell lies in (Kitchen, Bedchamber, Cold Store…): pick a role or type a name, click the floor; Fill names the whole room between its walls, doors and doorways">🏷 Room</button>
     <button id="tool-9tile"   onclick="setTool('9tile')" title="9-Tile Auto-Brush (N)">🖼 9-Tile</button>
   </div>
   <div class="tb-sep"></div>
@@ -253,6 +274,50 @@ input[type="text"]:focus,input[type="number"]:focus,select:focus{outline:none;bo
         <label>Variant Group <span style="color:var(--text-dim)">(same group = interchangeable)</span></label>
         <input type="text" id="int-group" placeholder="e.g. tavern_interiors">
       </div>
+      <div class="rp-field">
+        <label>Inner Wall Material <span style="color:var(--text-dim)">(drawn inner walls)</span></label>
+        <select id="int-wall-material" onchange="renderCanvas(); scheduleAutoSave()">
+          <option value="">Building's own inside wall</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="rp-section" id="dress-props" style="display:none">
+      <h3 id="dress-title">Decor</h3>
+      <div class="dress-help" id="dress-help"></div>
+      <div class="rp-field" id="dress-face-field" style="display:none">
+        <label>Faces into the room</label>
+        <select id="dress-face">
+          <option value="">Auto (the floor beside it)</option>
+          <option value="down">Down — a back wall or a wall above the room</option>
+          <option value="right">Right — the room lies east (a left-hand wall)</option>
+          <option value="left">Left — the room lies west (a right-hand wall)</option>
+          <option value="up">Up — the front wall, the room above it</option>
+        </select>
+      </div>
+      <div class="rp-field" id="dress-window-field" style="display:none">
+        <label>Window</label>
+        <select id="dress-window-kind" onchange="_dressRenderPalette()">
+          <option value="window">Glazed window</option>
+          <option value="curtains">Curtained window</option>
+        </select>
+      </div>
+      <div id="dress-room-field" style="display:none">
+        <div class="rp-field">
+          <label>Room name <span style="color:var(--text-dim)">(a role, or your own)</span></label>
+          <input type="text" id="dress-room-name" list="dress-room-roles" placeholder="e.g. Kitchen" autocomplete="off" oninput="_roomRenderUsed()">
+          <datalist id="dress-room-roles"></datalist>
+        </div>
+        <div class="rp-field">
+          <label style="cursor:pointer"><input type="checkbox" id="dress-room-fill" checked> Fill the room (the floor between walls, doors and doorways)</label>
+        </div>
+        <div class="rp-field">
+          <label>In this interior</label>
+          <div class="room-used" id="dress-room-used"></div>
+          <div class="room-warn" id="dress-room-warn"></div>
+        </div>
+      </div>
+      <div class="dress-grid" id="dress-grid"></div>
     </div>
 
     <div class="rp-section" id="furniture-props" style="display:none">
@@ -444,11 +509,12 @@ let PAL_ZOOM = 2;
 let gridW = 10, gridH = 8;
 let canvasZoom = 2, panX = 20, panY = 20;
 let layers = { floor: {}, furniture: {}, walls: {}, overlay: {} };
-let meta = {};       // "q,r" → { impassable?, door?, furniture?: { type, name, passable }, blockSides? ('nw'…) }
+let meta = {};       // "q,r" → { impassable?, door?, furniture?: { type, name, passable }, blockSides? ('nw'…),
+                     //         innerWall?, doorway?, decor?: [ids], wallDecor?, wallDecorFace?, room? (INTERIOR DRESSING) }
 
 // A meta entry with nothing left in it can be dropped.
 function metaIsEmpty(m) {
-  return !m || (!m.impassable && !m.door && !m.furniture && !m.blockSides && !m.openSides);
+  return !m || (!m.impassable && !m.door && !m.furniture && !m.blockSides && !m.openSides && !_dressHasAny(m));
 }
 
 // Sides a painted 9-tile floor brush blocks at a cell: the slot's
@@ -1286,6 +1352,9 @@ function setTool(t) {
   if (btn) btn.classList.add('active');
   // Show/hide furniture props
   document.getElementById('furniture-props').style.display = t === 'furniture' ? '' : 'none';
+  // The dressing tools' palette and options (INTERIOR DRESSING)
+  _dressShowProps(t);
+  if (typeof renderCanvas === 'function' && cvs) renderCanvas();
   // If switching away from 9tile, deselect brush
   if (t !== '9tile') {
     // Don't deselect — keep brush selected but allow other tools
@@ -1369,6 +1438,10 @@ function renderCanvas() {
     }
   }
 
+  // Inner walls, doorways, decor, wall decor and windows (INTERIOR DRESSING)
+  _dressRenderCanvas();
+  _roomRenderCanvas();
+
   // Grid overlay
   ctx.strokeStyle = 'rgba(255,255,255,0.12)';
   ctx.lineWidth = 0.5;
@@ -1403,8 +1476,8 @@ function renderCanvas() {
       for (let q = 0; q < gridW; q++) {
         const key = `${q},${r}`;
         const dx = panX + q * ds, dy = panY + r * ds;
-        const isWall = !!(layers.walls[key]);
-        const isBlocked = !!(meta[key] && meta[key].impassable) || isWall;
+        const isWall = !!(layers.walls[key]) || !!(meta[key] && meta[key].innerWall);
+        const isBlocked = (!!(meta[key] && meta[key].impassable) || isWall) && !(meta[key] && (meta[key].doorway || meta[key].door));
         if (isBlocked) {
           ctx.fillStyle = 'rgba(248,81,73,0.30)';
         } else if (layers.floor[key] || layers.furniture[key] || layers.overlay[key]) {
@@ -1581,7 +1654,8 @@ function _autoSaveInterior() {
       walls: { ...layers.walls },
       overlay: { ...layers.overlay },
     },
-    meta: { ...meta },
+    meta: JSON.parse(JSON.stringify(meta)),
+    wallMaterial: document.getElementById('int-wall-material').value || undefined,
     placedObjects: JSON.parse(JSON.stringify(placedObjects)),
     brushGroupMap: JSON.parse(JSON.stringify(brushGroupMap)),
     nineTileBrushes: JSON.parse(JSON.stringify(nineTileBrushes)),
@@ -1597,6 +1671,7 @@ function _autoSaveInterior() {
   console.log('[AutoSave] interior saved');
 }
 
+let _dressShift = false;   // shift held on this stroke (the dressing tools clear the tile)
 function applyTool(sx, sy) {
   const { q, r, valid } = screenToTile(sx, sy);
   if (!valid) return;
@@ -1739,8 +1814,539 @@ function applyTool(sx, sy) {
       }
       break;
     }
+
+    case 'innerwall':
+    case 'doorway':
+    case 'decor':
+    case 'walldecor':
+    case 'window':
+    case 'room':
+      if (!_dressApply(q, r, _dressShift)) return;
+      break;
   }
   renderCanvas();
+}
+
+// ═══════════════════════════════════════════════════════
+//  INTERIOR DRESSING — inner walls, doorways, decor, wall
+//  decor and windows, as the game's planned rooms have them
+//  (world/innerMap/authoredInterior.js reads them from meta:
+//  innerWall, doorway, decor [ids], wallDecor + wallDecorFace).
+//  Previewed with the game's own decor art
+//  (data/innerMapRenderer.json interiorArt, the sheet
+//  assets/buildingKit/interior_decor.png).
+// ═══════════════════════════════════════════════════════
+
+const DRESS_TOOLS = new Set(['innerwall', 'doorway', 'decor', 'walldecor', 'window', 'room']);
+const DRESS_FACES = ['down', 'right', 'left', 'up'];
+// (the game's vocabulary when its art can't be read: data/interiorPlans.json decorItems / wallDecor)
+const DRESS_FALLBACK = {
+  decor: ['mugs', 'plates', 'bread', 'candles', 'books', 'papers', 'pots', 'fruit', 'cloth', 'tools', 'flowers', 'bottles', 'bowls', 'coins', 'herbs'],
+  wallDecor: ['torch', 'painting', 'painting_portrait', 'painting_king', 'painting_still', 'mirror', 'shelf', 'hanging_pots', 'hanging_herbs', 'antlers', 'map', 'tapestry', 'clock', 'banner', 'weapon_rack'],
+};
+// (states of a piece the game draws itself, not chosen by hand)
+const DRESS_HIDDEN = /(_unlit|_night|_shut)$/;
+const DRESS_WINDOWS = new Set(['window', 'curtains']);
+const DRESS_MAX_DECOR = 4;
+
+let _dressArt = null;          // interiorArt from data/innerMapRenderer.json, once read
+let _dressPick = { decor: 'candles', walldecor: 'torch' };
+let _dressStroke = null;       // cells already done this stroke
+let _dressDragSet = null;      // true = this stroke adds, false = it takes away
+
+function _dressIds(v) {
+  if (!v) return [];
+  return (Array.isArray(v) ? v : [v]).map(x => typeof x === 'string' ? x : (x && (x.type || x.id)) || '').filter(Boolean);
+}
+
+/** The art entry for an id (mug → mugs), as the game finds it (ui/interiorDress.js artFor). */
+function _dressArtFor(group, id) {
+  const g = _dressArt && _dressArt[group];
+  if (!g || !id) return null;
+  return g[id] || g[id + 's'] || (id.endsWith('s') ? g[id.slice(0, -1)] : null) || null;
+}
+
+function _dressIdList(group) {
+  const g = _dressArt && _dressArt[group];
+  const ids = g ? Object.keys(g).filter(k => !k.startsWith('_') && !DRESS_HIDDEN.test(k)) : DRESS_FALLBACK[group].slice();
+  return group === 'wallDecor' ? ids.filter(id => !DRESS_WINDOWS.has(id)) : ids;
+}
+
+function _loadDressArt() {
+  fetch('data/innerMapRenderer.json').then(r => (r.ok ? r.json() : null)).then(j => {
+    if (!j || !j.interiorArt) return;
+    _dressArt = j.interiorArt;
+    const sheets = new Set();
+    for (const grp of ['decor', 'wallDecor']) for (const a of Object.values(_dressArt[grp] || {})) if (a && a.sheet) sheets.add(a.sheet);
+    // The inner wall's materials
+    const sel = document.getElementById('int-wall-material');
+    const keep = sel.value;
+    for (const k of Object.keys(_dressArt.walls || {})) {
+      if (k.startsWith('_') || [...sel.options].some(o => o.value === k)) continue;
+      const o = document.createElement('option');
+      o.value = k; o.textContent = k.replace(/_/g, ' ').replace(/^./, c => c.toUpperCase());
+      sel.appendChild(o);
+    }
+    sel.value = keep;
+    Promise.all([...sheets].map(loadImage)).then(() => { _dressRenderPalette(); renderCanvas(); });
+  }).catch(() => { /* opened from the file system: names only */ });
+}
+
+/** Set the inner-wall material select, adding the value if the art list hasn't come in yet. */
+function _dressSetWallMaterial(v) {
+  const sel = document.getElementById('int-wall-material');
+  if (v && ![...sel.options].some(o => o.value === v)) {
+    const o = document.createElement('option');
+    o.value = v; o.textContent = v;
+    sel.appendChild(o);
+  }
+  sel.value = v || '';
+}
+
+/** Draw one art entry into a box (centred, its foot at the box's foot) at a scale. */
+function _dressDraw(c, a, x, y, w, h, scale) {
+  const img = a && imageCache[a.sheet];
+  if (!(img instanceof HTMLImageElement)) return false;
+  const k = scale || 1;
+  const dw = a.sw * k, dh = a.sh * k;
+  c.drawImage(img, a.sx, a.sy, a.sw, a.sh, Math.round(x + (w - dw) / 2), Math.round(y + h - dh), Math.round(dw), Math.round(dh));
+  return true;
+}
+
+function _dressRenderPalette() {
+  const grid = document.getElementById('dress-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  const tool = activeTool;
+  if (tool !== 'decor' && tool !== 'walldecor') { grid.style.display = 'none'; return; }
+  grid.style.display = '';
+  const group = tool === 'decor' ? 'decor' : 'wallDecor';
+  for (const id of _dressIdList(group)) {
+    const item = document.createElement('div');
+    item.className = 'dress-item' + (_dressPick[tool] === id ? ' active' : '');
+    item.title = id;
+    const cv = document.createElement('canvas');
+    cv.width = 40; cv.height = 40;
+    const c = cv.getContext('2d');
+    c.imageSmoothingEnabled = false;
+    const a = _dressArtFor(group, id);
+    if (!a || !_dressDraw(c, a, 2, 2, 36, 36, Math.min(36 / a.sw, 36 / a.sh, 3))) {
+      c.fillStyle = '#30363d'; c.fillRect(8, 8, 24, 24);
+    }
+    item.appendChild(cv);
+    const lab = document.createElement('span');
+    lab.textContent = id.replace(/_/g, ' ');
+    item.appendChild(lab);
+    item.addEventListener('click', () => { _dressPick[tool] = id; _dressRenderPalette(); });
+    grid.appendChild(item);
+  }
+}
+
+function _dressShowProps(t) {
+  const box = document.getElementById('dress-props');
+  const on = DRESS_TOOLS.has(t);
+  box.style.display = on ? '' : 'none';
+  if (!on) return;
+  const help = {
+    innerwall: ['Inner Wall', 'Drag to draw a <b>wall within the room</b>; drag over walls to take them away. Where no wall sprite is painted the game draws it in the building\'s inside wall (or the <b>Inner Wall Material</b> above). It blocks people and light.'],
+    doorway: ['Doorway', 'Click a cell of an inner wall to make it a <b>doorway</b>: walked through, light passes, it belongs to no room. Rooms are the floor between walls and doorways.'],
+    decor: ['Decor', 'Pick a thing, then click a <b>table, counter, shelf or the floor</b> to add it (up to 4 a tile); click again to take it off. <b>Shift-click</b> clears the tile. Candles burn after dark in the game.'],
+    walldecor: ['Wall Decor', 'Pick a thing, then click a <b>wall</b> beside the room. It hangs on the side the room lies (Auto), or the side you choose; the blue arrow points into the room. <b>Shift-click</b> clears it. Torches burn after dark.'],
+    window: ['Window', 'Click a <b>wall</b> to set a window in it: daylight falls into the room it faces, shuttered at night in the game. Click again or <b>shift-click</b> to take it out.'],
+    room: ['Room', 'Pick a role or type a name, then click the <b>floor</b>. With <b>Fill</b> the whole room takes it — the floor between walls, doors and doorways, as the game floods it; without, only the cells you paint. <b>Shift-click</b> takes the name off. The game names a room by the first name it finds in it; an unnamed one is the <b>Main room</b> (the first, top-left) or <b>Room 2, 3…</b> (shown in grey).'],
+  }[t];
+  document.getElementById('dress-title').textContent = help[0];
+  document.getElementById('dress-help').innerHTML = help[1];
+  document.getElementById('dress-face-field').style.display = (t === 'walldecor' || t === 'window') ? '' : 'none';
+  document.getElementById('dress-window-field').style.display = t === 'window' ? '' : 'none';
+  document.getElementById('dress-room-field').style.display = t === 'room' ? '' : 'none';
+  if (t === 'room') _roomRenderUsed();
+  _dressRenderPalette();
+}
+
+// What a cell is, by what is painted and set there
+function _dressIsDoor(q, r) { return !!(meta[`${q},${r}`] && meta[`${q},${r}`].door); }
+function _dressIsWall(q, r) {
+  const k = `${q},${r}`, m = meta[k];
+  if (m && (m.doorway || m.door)) return false;
+  return !!(layers.walls[k] || (m && m.innerWall));
+}
+function _dressIsFloor(q, r) {
+  if (q < 0 || r < 0 || q >= gridW || r >= gridH) return false;
+  const k = `${q},${r}`, m = meta[k];
+  if (_dressIsWall(q, r) || _dressIsDoor(q, r)) return false;
+  return !!(layers.floor[k] || (m && m.doorway) || brushGroupMap[k]);
+}
+/** The side of a wall its room lies (as the game works it out: down, right, left, up). */
+function _dressAutoFace(q, r) {
+  if (_dressIsFloor(q, r + 1)) return 'down';
+  if (_dressIsFloor(q + 1, r)) return 'right';
+  if (_dressIsFloor(q - 1, r)) return 'left';
+  if (_dressIsFloor(q, r - 1)) return 'up';
+  return null;
+}
+function _dressFaceOf(q, r) {
+  const m = meta[`${q},${r}`];
+  return (m && DRESS_FACES.includes(m.wallDecorFace)) ? m.wallDecorFace : _dressAutoFace(q, r);
+}
+
+function _dressTidy(key) {
+  const m = meta[key];
+  if (!m) return;
+  if (Array.isArray(m.decor) && !m.decor.length) delete m.decor;
+  if (!m.wallDecor) { delete m.wallDecor; delete m.wallDecorFace; }
+  if (metaIsEmpty(m)) delete meta[key];
+}
+
+/** Apply a dressing tool to a cell (once a stroke). Returns false when nothing changed. */
+function _dressApply(q, r, shift) {
+  const key = `${q},${r}`;
+  if (!_dressStroke) _dressStroke = new Set();
+  if (_dressStroke.has(key)) return false;
+  _dressStroke.add(key);
+  const m0 = meta[key] || {};
+  const t = activeTool;
+  if (t === 'room') return _roomApply(q, r, shift);
+  if (t === 'innerwall' || t === 'doorway') {
+    const field = t === 'innerwall' ? 'innerWall' : 'doorway';
+    if (_dressDragSet === null) _dressDragSet = !m0[field];
+    if (_dressDragSet) {
+      if (m0.door) { toast('That is the front door', 'err'); return false; }
+      const m = meta[key] = { ...m0, [field]: true };
+      delete m[field === 'innerWall' ? 'doorway' : 'innerWall'];
+      if (field === 'innerWall') { delete m.decor; delete m.furniture; }
+    } else if (meta[key]) {
+      meta[key] = { ...m0 };
+      delete meta[key][field];
+    }
+    _dressTidy(key);
+    return true;
+  }
+  if (t === 'decor') {
+    if (shift) { if (meta[key]) { meta[key] = { ...m0 }; delete meta[key].decor; } _dressTidy(key); return true; }
+    const id = _dressPick.decor;
+    if (!id) return false;
+    if (_dressIsWall(q, r)) { toast('Decor lies on tables and floors — use Wall Decor for walls', 'err'); return false; }
+    const ids = _dressIds(m0.decor);
+    if (_dressDragSet === null) _dressDragSet = !ids.includes(id);
+    let next = ids.filter(x => x !== id);
+    if (_dressDragSet) {
+      if (ids.length >= DRESS_MAX_DECOR && !ids.includes(id)) { toast(`At most ${DRESS_MAX_DECOR} things a tile`, 'err'); return false; }
+      next = ids.includes(id) ? ids : ids.concat([id]);
+    }
+    meta[key] = { ...m0, decor: next };
+    _dressTidy(key);
+    return true;
+  }
+  // Wall decor and windows: one thing a wall tile
+  if (shift) { if (meta[key]) { meta[key] = { ...m0 }; delete meta[key].wallDecor; delete meta[key].wallDecorFace; } _dressTidy(key); return true; }
+  const id = t === 'window' ? document.getElementById('dress-window-kind').value : _dressPick.walldecor;
+  if (!id) return false;
+  if (!_dressIsWall(q, r)) { toast('Hang it on a wall (a wall sprite or an inner wall)', 'err'); return false; }
+  const face = document.getElementById('dress-face').value;
+  if (!face && !_dressAutoFace(q, r)) { toast('No room beside this wall — choose the side it faces', 'err'); return false; }
+  const has = _dressIds(m0.wallDecor).includes(id);
+  if (_dressDragSet === null) _dressDragSet = !has;
+  const m = meta[key] = { ...m0 };
+  if (_dressDragSet) {
+    m.wallDecor = id;
+    if (face) m.wallDecorFace = face; else delete m.wallDecorFace;
+  } else if (has) {
+    delete m.wallDecor; delete m.wallDecorFace;
+  }
+  _dressTidy(key);
+  return true;
+}
+
+/** The dressing over the canvas: inner walls, doorways, decor, wall decor with its facing. */
+function _dressRenderCanvas() {
+  const ds = TILE * canvasZoom;
+  const cap = Math.max(2, Math.round(ds * 0.28));
+  // Inner walls without a wall sprite: a cap along the run, its face below where the room is
+  for (const [key, m] of Object.entries(meta)) {
+    if (!m.innerWall || m.doorway || layers.walls[key]) continue;
+    const [q, r] = key.split(',').map(Number);
+    const dx = panX + q * ds, dy = panY + r * ds;
+    const N = _dressIsWall(q, r - 1), S = _dressIsWall(q, r + 1);
+    const E = _dressIsWall(q + 1, r) || _dressIsDoor(q + 1, r) || !!(meta[`${q + 1},${r}`] && meta[`${q + 1},${r}`].doorway);
+    const W = _dressIsWall(q - 1, r) || _dressIsDoor(q - 1, r) || !!(meta[`${q - 1},${r}`] && meta[`${q - 1},${r}`].doorway);
+    const cx0 = dx + Math.round((ds - cap) / 2);
+    const bx0 = W ? dx : cx0, bx1 = E ? dx + ds : cx0 + cap;
+    if (!S) {
+      ctx.fillStyle = '#8a7356'; ctx.fillRect(bx0, dy + cap, bx1 - bx0, ds - cap);
+      ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(bx0, dy + ds * 0.88, bx1 - bx0, ds * 0.12);
+    }
+    ctx.fillStyle = '#4b3b2b';
+    ctx.fillRect(bx0, dy, bx1 - bx0, cap);
+    if (N || S) ctx.fillRect(cx0, dy, cap, S ? ds : cap);
+    ctx.strokeStyle = 'rgba(255,240,220,0.35)'; ctx.lineWidth = 1;
+    ctx.strokeRect(bx0 + 0.5, dy + 0.5, bx1 - bx0 - 1, cap - 1);
+  }
+  // Doorways: a dashed opening
+  for (const [key, m] of Object.entries(meta)) {
+    if (!m.doorway) continue;
+    const [q, r] = key.split(',').map(Number);
+    const dx = panX + q * ds, dy = panY + r * ds;
+    ctx.save();
+    ctx.setLineDash([Math.max(2, ds * 0.12), Math.max(2, ds * 0.08)]);
+    ctx.strokeStyle = 'rgba(126,231,135,0.85)'; ctx.lineWidth = Math.max(1, ds * 0.05);
+    ctx.strokeRect(dx + ds * 0.12, dy + ds * 0.12, ds * 0.76, ds * 0.76);
+    ctx.restore();
+  }
+  // Decor: on a piece's top band, or at the tile's foot on the floor, at the game's scale
+  for (const [key, m] of Object.entries(meta)) {
+    const ids = _dressIds(m.decor);
+    if (!ids.length) continue;
+    const [q, r] = key.split(',').map(Number);
+    const dx = panX + q * ds, dy = panY + r * ds;
+    const onPiece = !!(m.furniture || layers.furniture[key] || placedObjects[key]);
+    const foot = onPiece ? dy + ds * 0.4 : dy + ds * 0.96;
+    ids.forEach((id, i) => {
+      const a = _dressArtFor('decor', id);
+      const cx = dx + ds * (0.14 + 0.72 * (i + 0.5) / ids.length);
+      if (!a || !_dressDraw(ctx, a, cx - ds / 2, dy, ds, foot - dy, ds / (a.grid || 48))) {
+        ctx.fillStyle = 'rgba(230,168,23,0.9)';
+        ctx.beginPath(); ctx.arc(cx, foot - ds * 0.1, Math.max(2, ds * 0.07), 0, Math.PI * 2); ctx.fill();
+      }
+    });
+  }
+  // Wall decor: hung on the face its room lies, with an arrow into the room
+  for (const [key, m] of Object.entries(meta)) {
+    const ids = _dressIds(m.wallDecor);
+    if (!ids.length) continue;
+    const [q, r] = key.split(',').map(Number);
+    const dx = panX + q * ds, dy = panY + r * ds;
+    const face = _dressFaceOf(q, r);
+    const a = _dressArtFor('wallDecor', ids[0]);
+    const side = face === 'left' || face === 'right';
+    let drew = false;
+    if (a) {
+      const sc = ds / (a.grid || 48) * (side ? 0.6 : face === 'up' ? 0.7 : 1);
+      const lift = side || face === 'up' ? 0.12 : (a.stands ? 0 : (a.hang || 0));
+      drew = _dressDraw(ctx, a, dx, dy - ds * 0.2, ds, ds * (1.2 - lift), sc);
+    }
+    if (!drew) {
+      ctx.fillStyle = DRESS_WINDOWS.has(ids[0]) ? 'rgba(160,210,240,0.9)' : 'rgba(230,168,23,0.85)';
+      ctx.fillRect(dx + ds * 0.25, dy + ds * 0.2, ds * 0.5, ds * 0.5);
+    }
+    // the facing: an arrow at the tile's edge toward the room (fainter when worked out)
+    const dir = { down: [0, 1], up: [0, -1], left: [-1, 0], right: [1, 0] }[face];
+    if (dir) {
+      const cx = dx + ds / 2 + dir[0] * ds * 0.36, cy = dy + ds / 2 + dir[1] * ds * 0.36, s = Math.max(3, ds * 0.1);
+      ctx.fillStyle = m.wallDecorFace ? 'rgba(88,166,255,0.95)' : 'rgba(88,166,255,0.6)';
+      ctx.beginPath();
+      ctx.moveTo(cx + dir[0] * s, cy + dir[1] * s);
+      ctx.lineTo(cx - dir[1] * s - dir[0] * s * 0.2, cy + dir[0] * s - dir[1] * s * 0.2);
+      ctx.lineTo(cx + dir[1] * s - dir[0] * s * 0.2, cy - dir[0] * s - dir[1] * s * 0.2);
+      ctx.closePath(); ctx.fill();
+    } else {
+      // (no room beside it: the game won't hang it)
+      ctx.strokeStyle = 'rgba(248,81,73,0.9)'; ctx.lineWidth = 2;
+      ctx.strokeRect(dx + 2, dy + 2, ds - 4, ds - 4);
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  ROOMS — a room's name painted on its floor (meta.room),
+//  read by the game (world/innerMap/authoredInterior.js):
+//  its rooms are the floor between walls, doors and
+//  doorways, flooded from the top-left, each named by the
+//  first name found in it (else Main room, Room 2, 3…).
+//  Saved, exported and imported with the rest of the
+//  dressing (_dressCopyMeta); older interiors have none.
+// ═══════════════════════════════════════════════════════
+
+// (the game's room roles when data/interiorPlans.json can't be read)
+const ROOM_FALLBACK = ['Main Room', 'Kitchen', 'Pantry', 'Bedchamber', "Children's Room", 'Solar', "Servants' Room", 'Guest Room',
+  'Landing', 'Hall', 'Office', 'Workshop', 'Store Room', 'Cellar', 'Cold Store', 'Wine Vault', 'Strongroom', 'Chapel', 'Vestry'];
+let _roomRoles = ROOM_FALLBACK.slice();
+let _roomSig = null;           // the rooms' names as last listed in the panel
+
+/** The room names the game plans (data/interiorPlans.json: each type's and floor's main room and side rooms). */
+function _loadRoomRoles() {
+  _roomFillRoles();
+  fetch('data/interiorPlans.json').then(r => (r.ok ? r.json() : null)).then(P => {
+    if (!P) return;
+    const names = new Set();
+    const add = (spec) => { if (spec && typeof spec.name === 'string' && spec.name.trim()) names.add(spec.name.trim()); };
+    for (const group of [P.types, P.floors]) {
+      for (const T of Object.values(group || {})) {
+        if (!T || typeof T !== 'object') continue;
+        add(T.main);
+        for (const rm of (Array.isArray(T.rooms) ? T.rooms : [])) add(rm);
+      }
+    }
+    if (names.size) _roomRoles = [...names].sort((a, b) => a.localeCompare(b));
+    _roomFillRoles();
+  }).catch(() => { /* opened from the file system: the fallback roles */ });
+}
+function _roomFillRoles() {
+  const dl = document.getElementById('dress-room-roles');
+  if (!dl) return;
+  dl.innerHTML = '';
+  for (const n of _roomRoles) { const o = document.createElement('option'); o.value = n; dl.appendChild(o); }
+}
+
+/** A cell a room is made of: floor, not a door or a doorway (a doorway belongs to no room). */
+function _roomFloor(q, r) {
+  const m = meta[`${q},${r}`];
+  return _dressIsFloor(q, r) && !(m && m.doorway);
+}
+function _roomName(q, r) {
+  const m = meta[`${q},${r}`];
+  return m && typeof m.room === 'string' && m.room.trim() ? m.room.trim() : '';
+}
+/** The room a cell lies in, flooded as the game floods it (the same steps, the same order). */
+function _roomRegion(q, r) {
+  if (!_roomFloor(q, r)) return [];
+  const seen = new Set([`${q},${r}`]), out = [], queue = [[q, r]];
+  while (queue.length) {
+    const [cq, cr] = queue.shift();
+    out.push([cq, cr]);
+    for (const [dq, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nq = cq + dq, nr = cr + dr, k = `${nq},${nr}`;
+      if (seen.has(k) || !_roomFloor(nq, nr)) continue;
+      seen.add(k);
+      queue.push([nq, nr]);
+    }
+  }
+  return out;
+}
+/** Every room as the game will find it: { cells, names (in flood order), name (what the game calls it), auto }. */
+function _roomRegions() {
+  const done = new Set(), out = [];
+  for (let r = 0; r < gridH; r++) for (let q = 0; q < gridW; q++) {
+    if (done.has(`${q},${r}`) || !_roomFloor(q, r)) continue;
+    const cells = _roomRegion(q, r);
+    const names = [];
+    for (const [cq, cr] of cells) {
+      done.add(`${cq},${cr}`);
+      const n = _roomName(cq, cr);
+      if (n && !names.includes(n)) names.push(n);
+    }
+    const n = out.length;
+    out.push({ cells, names, name: names[0] || (n === 0 ? 'Main room' : `Room ${n + 1}`), auto: !names.length });
+  }
+  return out;
+}
+/** A steady colour for a room name (its tint and swatch). */
+function _roomColor(name, alpha) {
+  let h = 2166136261;
+  for (let i = 0; i < name.length; i++) h = Math.imul(h ^ name.charCodeAt(i), 16777619);
+  return `hsla(${(h >>> 0) % 360}, 62%, 56%, ${alpha})`;
+}
+
+/** The Room tool on a cell: name it (or its whole room, Fill), or with shift take the name off. */
+function _roomApply(q, r, shift) {
+  const fill = document.getElementById('dress-room-fill').checked;
+  if (!_roomFloor(q, r)) {
+    if (!_dressStroke || _dressStroke.size <= 1) toast('Rooms are named on the floor (not a wall, door or doorway)', 'err');
+    return false;
+  }
+  const name = document.getElementById('dress-room-name').value.trim();
+  if (!shift && !name) { toast('Pick a room role or type a name first', 'err'); return false; }
+  const cells = fill ? _roomRegion(q, r) : [[q, r]];
+  for (const [cq, cr] of cells) {
+    const key = `${cq},${cr}`;
+    _dressStroke.add(key);
+    if (shift) {
+      if (!meta[key] || !meta[key].room) continue;
+      meta[key] = { ...meta[key] };
+      delete meta[key].room;
+      _dressTidy(key);
+    } else {
+      meta[key] = { ...(meta[key] || {}), room: name };
+    }
+  }
+  _roomRenderUsed();
+  return true;
+}
+
+/** The names in this interior (click one to paint with it), and rooms that hold more than one. */
+function _roomRenderUsed() {
+  const box = document.getElementById('dress-room-used');
+  const warn = document.getElementById('dress-room-warn');
+  if (!box || activeTool !== 'room') return;
+  const regions = _roomRegions();
+  const cur = document.getElementById('dress-room-name').value.trim();
+  const used = [];
+  for (const rg of regions) for (const n of rg.names) if (!used.includes(n)) used.push(n);
+  box.innerHTML = '';
+  if (!used.length) box.innerHTML = '<span style="font-size:10px;color:var(--text-dim)">No room named yet.</span>';
+  for (const n of used) {
+    const tag = document.createElement('span');
+    tag.className = 'eui-tag' + (n === cur ? ' active' : '');
+    tag.title = `Paint with "${n}"`;
+    const sw = document.createElement('span');
+    sw.className = 'room-swatch';
+    sw.style.background = _roomColor(n, 1);
+    tag.appendChild(sw);
+    tag.appendChild(document.createTextNode(n));
+    tag.addEventListener('click', () => { document.getElementById('dress-room-name').value = n; _roomRenderUsed(); });
+    box.appendChild(tag);
+  }
+  const mixed = regions.filter(rg => rg.names.length > 1);
+  warn.textContent = mixed.length
+    ? `⚠ ${mixed.length === 1 ? 'A room holds' : `${mixed.length} rooms hold`} more than one name (${mixed.map(rg => rg.names.join(' / ')).join('; ')}): the game takes the first, ${mixed.map(rg => `"${rg.names[0]}"`).join(', ')}. Wall it off or Fill it with one name.`
+    : '';
+}
+
+/** With the Room tool: each room tinted by its name, its name over it (grey where the game names it). */
+function _roomRenderCanvas() {
+  if (activeTool !== 'room') return;
+  const ds = TILE * canvasZoom;
+  const regions = _roomRegions();
+  // (the panel's list kept up with an undo, a load or a wall drawn through a room)
+  const sig = regions.map(rg => rg.names.join('/')).join('|');
+  if (sig !== _roomSig) { _roomSig = sig; _roomRenderUsed(); }
+  for (const rg of regions) {
+    // the cells: their own name's tint (the room's where unnamed; a painted cell of another name outlined)
+    for (const [q, r] of rg.cells) {
+      const dx = panX + q * ds, dy = panY + r * ds;
+      const own = _roomName(q, r);
+      ctx.fillStyle = rg.auto ? 'rgba(139,148,158,0.10)' : _roomColor(own || rg.name, own ? 0.32 : 0.16);
+      ctx.fillRect(dx, dy, ds, ds);
+      if (own && own !== rg.name) {
+        ctx.strokeStyle = 'rgba(212,160,90,0.95)'; ctx.lineWidth = Math.max(1, ds * 0.05);
+        ctx.strokeRect(dx + 1.5, dy + 1.5, ds - 3, ds - 3);
+      }
+    }
+    // the label at the room's middle cell
+    let cq = 0, cr = 0;
+    for (const [q, r] of rg.cells) { cq += q; cr += r; }
+    cq /= rg.cells.length; cr /= rg.cells.length;
+    const mid = rg.cells.reduce((b, c) => (Math.hypot(c[0] - cq, c[1] - cr) < Math.hypot(b[0] - cq, b[1] - cr) ? c : b), rg.cells[0]);
+    const lx = panX + (mid[0] + 0.5) * ds, ly = panY + (mid[1] + 0.5) * ds;
+    const text = rg.names.length > 1 ? `${rg.name} (+${rg.names.length - 1})` : rg.name;
+    ctx.save();
+    ctx.font = `${rg.auto ? 'italic ' : ''}600 ${Math.max(9, Math.round(ds * 0.32))}px system-ui, sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const tw = ctx.measureText(text).width;
+    ctx.fillStyle = 'rgba(13,17,23,0.78)';
+    ctx.fillRect(lx - tw / 2 - 4, ly - ds * 0.24, tw + 8, ds * 0.48);
+    ctx.fillStyle = rg.auto ? 'rgba(139,148,158,0.95)' : rg.names.length > 1 ? '#d4a05a' : '#e6edf3';
+    ctx.fillText(text, lx, ly);
+    ctx.restore();
+  }
+}
+
+/** A meta entry's dressing fields, for export / import (older interiors have none). */
+function _dressCopyMeta(m, entry) {
+  if (m.innerWall) entry.innerWall = true;
+  if (m.doorway) entry.doorway = true;
+  const d = _dressIds(m.decor);
+  if (d.length) entry.decor = d.slice(0, DRESS_MAX_DECOR);
+  const w = _dressIds(m.wallDecor);
+  if (w.length) {
+    entry.wallDecor = w.length === 1 ? w[0] : w;
+    if (DRESS_FACES.includes(m.wallDecorFace)) entry.wallDecorFace = m.wallDecorFace;
+  }
+  if (typeof m.room === 'string' && m.room.trim()) entry.room = m.room.trim();
+  return entry;
+}
+function _dressHasAny(m) {
+  return !!(m && (m.innerWall || m.doorway || _dressIds(m.decor).length || _dressIds(m.wallDecor).length || (typeof m.room === 'string' && m.room.trim())));
 }
 
 function floodFill(startQ, startR) {
@@ -1804,6 +2410,8 @@ function initCanvas() {
       } else {
         _impassDragSet = null;
       }
+      // (the dressing tools: each cell once a stroke, adding or taking away as the first cell said)
+      _dressStroke = null; _dressDragSet = null; _dressShift = !!e.shiftKey;
       applyTool(sx, sy);
     }
   });
@@ -1846,6 +2454,12 @@ function initCanvas() {
     if (e.key === 'i' || e.key === 'I') setTool('eyedrop');
     if (e.key === 'f' || e.key === 'F') setTool('furniture');
     if (e.key === 'n' || e.key === 'N') setTool('9tile');
+    if (e.key === 'w' || e.key === 'W') setTool('innerwall');
+    if (e.key === 'o' || e.key === 'O') setTool('doorway');
+    if (e.key === 'd' || e.key === 'D') setTool('decor');
+    if (e.key === 'h' || e.key === 'H') setTool('walldecor');
+    if (e.key === 'j' || e.key === 'J') setTool('window');
+    if (e.key === 'm' || e.key === 'M') setTool('room');
     if (e.key === 'r' && !e.shiftKey) rotateObjectStamp(1);    // R = rotate CW
     if (e.key === 'R' && e.shiftKey)  rotateObjectStamp(-1);   // Shift+R = rotate CCW
     if (e.key === 't' && !e.shiftKey) cycleColorVariant(1);    // T = next color variant
@@ -3408,6 +4022,7 @@ function newInterior() {
   document.getElementById('int-type').value = 'house';
   document.getElementById('int-tags').value = '';
   document.getElementById('int-group').value = '';
+  _dressSetWallMaterial('');
   _linkedBuildingIds = [];
   _refreshLinkedBuildingChecklist();
   refreshList();
@@ -3466,7 +4081,8 @@ function saveInterior() {
       walls: { ...layers.walls },
       overlay: { ...layers.overlay },
     },
-    meta: { ...meta },
+    meta: JSON.parse(JSON.stringify(meta)),
+    wallMaterial: document.getElementById('int-wall-material').value || undefined,
     placedObjects: JSON.parse(JSON.stringify(placedObjects)),
     brushGroupMap: JSON.parse(JSON.stringify(brushGroupMap)),
     nineTileBrushes: JSON.parse(JSON.stringify(nineTileBrushes)),
@@ -3492,6 +4108,7 @@ function loadInterior(index) {
   document.getElementById('int-type').value = b.buildingType || 'house';
   document.getElementById('int-tags').value = (b.tags || []).join(', ');
   document.getElementById('int-group').value = b.variantGroup || '';
+  _dressSetWallMaterial(b.wallMaterial || '');
   // Support both old linkedBuildingId (string) and new linkedBuildingIds (array)
   if (Array.isArray(b.linkedBuildingIds)) {
     _linkedBuildingIds = [...b.linkedBuildingIds];
@@ -3507,7 +4124,7 @@ function loadInterior(index) {
     walls: { ...(b.layers.walls || {}) },
     overlay: { ...(b.layers.overlay || {}) },
   };
-  meta = { ...(b.meta || {}) };
+  meta = JSON.parse(JSON.stringify(b.meta || {}));
   placedObjects = JSON.parse(JSON.stringify(b.placedObjects || {}));
   brushGroupMap = JSON.parse(JSON.stringify(b.brushGroupMap || {}));
   if (b.nineTileBrushes) nineTileBrushes = JSON.parse(JSON.stringify(b.nineTileBrushes));
@@ -3606,7 +4223,7 @@ function _exportInterior(interior) {
   // Floor-brush edge sides are worked out from the painted cells and
   // exported as meta.brushSides (the game unions them with blockSides)
   const metaOut = {};
-  for (const [key, m] of Object.entries(interior.meta || {})) metaOut[key] = { ...m };
+  for (const [key, m] of Object.entries(interior.meta || {})) metaOut[key] = JSON.parse(JSON.stringify(m));
   const bgm = interior.brushGroupMap || {};
   const brushes = interior.nineTileBrushes || nineTileBrushes;
   for (const key of Object.keys(bgm)) {
@@ -3617,7 +4234,8 @@ function _exportInterior(interior) {
   out.meta = Object.entries(metaOut).map(([key, m]) => {
     const [q, r] = key.split(',').map(Number);
     return { q: q - minQ, r: r - minR, ...m };
-  }).filter(m => m.impassable || m.door || m.furniture || m.blockSides || m.openSides || m.brushSides);
+  }).filter(m => m.impassable || m.door || m.furniture || m.blockSides || m.openSides || m.brushSides || _dressHasAny(m));
+  if (!out.wallMaterial) delete out.wallMaterial;
   // Export placed objects with offset-adjusted anchor positions
   out.placedObjects = Object.entries(interior.placedObjects || {}).map(([key, obj]) => {
     const [aq, ar] = key.split(',').map(Number);
@@ -3873,6 +4491,7 @@ window.addEventListener('message', ev => {
           if (m.openSides) entry.openSides = m.openSides;
           if (m.door) entry.door = true;
           if (m.furniture) entry.furniture = { ...m.furniture };
+          _dressCopyMeta(m, entry);   // (inner walls, doorways, decor, wall decor: none in older interiors)
           newMeta[key] = entry;
         }
         // Convert placedObjects from export array [{anchorQ, anchorR, ...}] back to dict {"q,r": obj}
@@ -3931,6 +4550,8 @@ window.addEventListener('message', ev => {
   initPaletteResize();
   buildPaletteCats();
   _loadSavedCustomSheets(); // restore persisted custom sheets
+  _loadDressArt();          // the game's decor art for the dressing tools
+  _loadRoomRoles();         // the room roles the game plans (data/interiorPlans.json) for the Room tool
   // Show first category
   const firstCat = Object.keys(PALETTE_DATA)[0];
   if (firstCat) {

@@ -18,6 +18,8 @@
 //   bedAccess(ctx)                       sleeping here: own / rented / permitted
 //                                        / public / trespass / lodging (take a
 //                                        room first), and how well you sleep
+//   usable(key, furniture)               a broken piece (furniture.broken) is
+//                                        no use: only looked into or emptied
 //   check(key, ctx)                      → { ok, reason } (the menu greys the
 //                                        action out with the reason)
 //   apply(key, ctx)                      → { ok, text, hours, ... } — mutates the
@@ -46,6 +48,7 @@ import { Laws } from '../systems/laws.js';
 import { Ledger } from '../systems/ledger.js';
 import { Fame } from '../systems/fame.js';
 import { Economy } from '../world/economy.js';
+import { pieceUsable } from '../world/furnitureUsable.js';
 import { Wetness } from './wetness.js';
 import { Tavern } from './tavern/index.js';
 
@@ -76,6 +79,11 @@ const DEFAULTS = {
     eat_home: { hours: 0.5, seatedComfort: 4, foods: ['cooked_meal', 'meat_pie', 'cooked_meat', 'bread', 'cheese'], empty: "There's nothing to eat in the house.", notHome: 'Only at your own table.' },
     wash_basin: { hours: 0.25, effects: { hygiene: 18, comfort: 3 }, notYours: "It's the household's washstand, not yours.", text: 'You splash your face and scrub your hands at the basin.' },
     bathe_tub: { hours: 1, effects: { hygiene: 55, comfort: 15, energy: 4, fun: 4 }, clothes: 70, notYours: "It's the household's bathtub, not yours.", text: 'You fill the tub and soak until the water goes cold.' },
+    broken: {
+        allow: ['look_inside', 'store', 'shop', 'buy_shelf', 'pray', 'give_alms'],
+        text: 'The {what} is broken: no use to anyone until it is mended.',
+        byType: {},
+    },
 };
 
 function _bType(building) {
@@ -224,9 +232,26 @@ export const FurnitureActions = {
         return null;
     },
 
+    /**
+     * Can a piece be used for this at all? A broken one (furniture.broken: wrecked in a
+     * raid or a fire, world/innerMap/interiorState.js) is no bed, seat, fire or bench any
+     * more: only looked into, emptied, or prayed at (data broken.allow). → { ok, reason }
+     */
+    usable(key, furniture) {
+        const B = FurnitureActions.cfg('broken');
+        // (the same rule the townsfolk go by: world/furnitureUsable.js)
+        if (pieceUsable(furniture, key, B.allow || [])) return { ok: true };
+        const type = String(furniture.type || '');
+        const what = type.replace(/_/g, ' ') || 'piece';
+        const by = (B.byType || {})[type];
+        return { ok: false, reason: _fill(by || B.text, { what }) };
+    },
+
     /** May the player do this here? → { ok, reason } */
     check(key, ctx) {
         const p = ctx.player || {};
+        const u = FurnitureActions.usable(key, ctx.furniture);
+        if (!u.ok) return u;
         switch (key) {
             case 'sleep': {
                 const a = FurnitureActions.bedAccess(ctx);

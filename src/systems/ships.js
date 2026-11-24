@@ -10,6 +10,7 @@ import { Traits } from './traits.js';
 import { Technology } from './technology.js';
 import { WorldEvents } from '../world/worldEvents.js';
 import { WEATHER_EFFECTS } from '../world/weather.js';
+import { SeaStorms } from '../world/seaWinds.js';
 import { LegendaryArtifacts } from './legendaryArtifacts.js';
 import { Infrastructure } from './infrastructure.js';
 import { KingdomNavy } from '../world/kingdomNavy.js';
@@ -1517,10 +1518,18 @@ export const Ships = {
         return KingdomNavy.portBlockade(world, q, r);
     },
 
-    _closedPortMessage(world, q, r) {
+    _closedPortMessage(world, q, r, player = null) {
         const b = this.getPortBlockade(world, q, r);
         if (!b || !b.closed) return null;
+        // A ship that ran the blockade in trades here a while (systems/blockadeRunning.js)
+        if (this._blockadeRunnerAt(player, world, q, r)) return null;
         return `The harbour is closed: ${b.blockaders.map(k => k.name).join(' and ')} blockades the ports of ${Names.realm(b.kingdom.name)}.`;
+    },
+
+    /** Did the player run the blockade into the port at (q, r) lately (player.blockadeRun)? */
+    _blockadeRunnerAt(player, world, q, r) {
+        const b = player && player.blockadeRun;
+        return !!(b && b.q === q && b.r === r && (b.until || 0) >= ((world && world.day) || 0));
     },
 
     /** The player's ship docked at a port on the player's hex, if any. */
@@ -1534,7 +1543,7 @@ export const Ships = {
     buyTradeGood(player, world, shipId, goodId, qty) {
         const ship = this._getShipAtPort(player, world, shipId);
         if (!ship) return { success: false, message: 'Your ship must be docked at this port.' };
-        const closedBuy = this._closedPortMessage(world, player.q, player.r);
+        const closedBuy = this._closedPortMessage(world, player.q, player.r, player);
         if (closedBuy) return { success: false, message: closedBuy };
         const entry = this.getPortMarket(world, player.q, player.r).find(e => e.id === goodId);
         if (!entry || entry.buy === null) return { success: false, message: 'This port does not sell that.' };
@@ -1601,7 +1610,9 @@ export const Ships = {
             + (Technology.hasBuildingNear(player, world, 'lighthouse_building', q, r, 1) ? 0.15 : 0)
             // Lighthouse tech: charted harbours pay better at every port
             + Technology.getEffectTotal(player, 'portTradeBonus');
-        const price = entry.sell * depth * (1 + Technology.getTradeProfitBonus(player)) * (1 + eventMod);
+        // A runner's cargo in a shut harbour: the only goods in for weeks (systems/blockadeRunning.js)
+        const runner = entry.blockaded && this._blockadeRunnerAt(player, world, q, r) ? 1.4 : 1;
+        const price = entry.sell * depth * runner * (1 + Technology.getTradeProfitBonus(player)) * (1 + eventMod);
         // Never past what the same goods cost here or in a settlement next door
         const near = this.nearbyAsks(world, q, r, entry.id);
         let unitCap = entry.buy ? entry.buy - 1 : Infinity;
@@ -1650,7 +1661,7 @@ export const Ships = {
     sellTradeGood(player, world, shipId, goodId, qty) {
         const ship = this._getShipAtPort(player, world, shipId);
         if (!ship) return { success: false, message: 'Your ship must be docked at this port.' };
-        const closedSell = this._closedPortMessage(world, player.q, player.r);
+        const closedSell = this._closedPortMessage(world, player.q, player.r, player);
         if (closedSell) return { success: false, message: closedSell };
         const entry = this.getPortMarket(world, player.q, player.r).find(e => e.id === goodId);
         if (!entry) return { success: false, message: 'Nobody here buys that.' };
@@ -1719,7 +1730,7 @@ export const Ships = {
                 const damage = this.mitigateHullDamage(ship, Math.round(Utils.randInt(3, 8) * storm.danger * safe));
                 const condBefore = ship.condition || 100;
                 ship.condition = Math.max(10, condBefore - damage);
-                const report = { shipId: ship.id, name: ship.name, weather: storm.type, damage, delayed: false, cargoLost: null };
+                const report = { shipId: ship.id, name: ship.name, weather: storm.type, stormName: storm.name || null, damage, delayed: false, cargoLost: null };
                 if (ship.status === 'moving' && Utils.random() < 0.5 * storm.danger) {
                     ship.travelDaysLeft = (ship.travelDaysLeft || 0) + 1;
                     report.delayed = true;
@@ -2020,15 +2031,18 @@ export const Ships = {
      * rides it out in harbour. Returns { type, danger } or null.
      */
     _stormAtSea(ship, world) {
-        if (!world || !world.weather || !['moving', 'at_sea', 'anchored'].includes(ship.status)) return null;
+        if (!world || !['moving', 'at_sea', 'anchored'].includes(ship.status)) return null;
         const spots = [[ship.q, ship.r]];
         if (ship.status === 'moving' && typeof ship.destQ === 'number') spots.push([ship.destQ, ship.destR]);
         let worst = null;
         for (const [q, r] of spots) {
             if (typeof q !== 'number') continue;
-            const w = world.weather.getWeather(q, r);
-            const danger = WEATHER_EFFECTS[w.type]?.seaDanger || 0;
+            const w = world.weather ? world.weather.getWeather(q, r) : null;
+            const danger = (w && WEATHER_EFFECTS[w.type]?.seaDanger) || 0;
             if (danger > 0 && (!worst || danger > worst.danger)) worst = { type: w.type, danger };
+            // ...or a storm crossing the sea (a gale, a hurricane: world/seaWinds.js SeaStorms)
+            const sea = SeaStorms.dangerAt(world, q, r, world.day);
+            if (sea && (!worst || sea.danger > worst.danger)) worst = { type: sea.type, danger: sea.danger, name: sea.storm.name };
         }
         return worst;
     },

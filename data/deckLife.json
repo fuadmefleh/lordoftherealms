@@ -44,7 +44,8 @@
         },
         "event": { "pace": 1.3, "stations": { "deckhand": "rail", "topman": "rail", "cook": "rail" } },
         "pray": { "pace": 0.8, "stations": { "deckhand": "pray", "topman": "pray", "cook": "pray", "carpenter": "pray", "bosun": "pray" } },
-        "boarding": { "pace": 1.6 }
+        "boarding": { "pace": 1.6 },
+        "battle": { "pace": 1.6, "stations": { "deckhand": "rail", "topman": "mast", "cook": "hatch", "carpenter": "pump", "bosun": "rail", "lookout": "bow", "mate": "quarterdeck" } }
     },
     "events": {
         "becalmed": { "scene": "calm", "situation": "calm", "callout": "Not a breath of wind, Captain." },

@@ -283,6 +283,8 @@ const WORLD_DAY_SKIPPED = {
     Housing: "the player's houses' upkeep",
     Household: "the player's household: wages, larder, guests",
     Ships: "the player's ships and crews",
+    ShipOfficers: "the officers of the player's ships: pay, loyalty, desertion",
+    Ports: "the player's ships in harbour: dues, careening, the slip (the town's fishing fleet runs in the market turn)",
     TradeLines: "the player's standing trade lines",
     PlayerWorks: "the player's building works",
     Relationships: "the player's marriage, courtship and own aging (the House's children age in passDay)",

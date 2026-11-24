@@ -221,6 +221,8 @@ Object.assign(InnerMap, {
      * walk to a free cell of it — or to npc.deckTarget (a fight) when set.
      */
     _deckDestination(npc) {
+        // (a hand below decks: world/innerMap/belowDecks.js)
+        if (npc._belowHand && this._belowDestination) { this._belowDestination(npc); return; }
         if (!this._deck) { npc.state = 'idle'; npc.idleTimer = 3; return; }
         const go = (to) => {
             const path = to ? this._findPath(npc.q, npc.r, to.q, to.r) : null;

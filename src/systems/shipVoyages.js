@@ -35,6 +35,10 @@ import { Traits } from './traits.js';
 import { Underworld } from './underworld.js';
 import { Ailments } from './ailments.js';
 import { Water } from './water.js';
+import { SeaPassage } from './seaPassage.js';
+import { ShipOfficers } from './shipOfficers.js';
+import { SeaWinds, SeaStorms } from '../world/seaWinds.js';
+import { NavySquadrons } from '../world/navySquadrons.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 
@@ -141,7 +145,7 @@ export const VoyageMethods = {
     buyProvisions(player, world, shipId, units) {
         const ship = this._getShipAtPort(player, world, shipId);
         if (!ship) return { success: false, message: 'Your ship must be docked at this port.' };
-        const closed = this._closedPortMessage(world, player.q, player.r);
+        const closed = this._closedPortMessage(world, player.q, player.r, player);
         if (closed) return { success: false, message: closed };
         const price = this.provisionPrice(world, player.q, player.r);
         const n = Math.min(Math.floor(units), this.getCargoFree(ship), Math.floor((player.gold || 0) / price));
@@ -282,15 +286,15 @@ export const VoyageMethods = {
         return seen;
     },
 
-    /** The hexes from (from) to (to) by sea, excluding the start; null when no route. */
-    seaPath(world, from, to) {
-        const tq = world.width ? Hex.wrapQ(to.q, world.width) : to.q;
-        const seen = this._seaSearch(world, from.q, from.r, { q: tq, r: to.r });
-        let node = seen.get(`${tq},${to.r}`);
-        if (!node || node.d === 0) return null;
-        const path = [];
-        while (node && node.prev) { path.push({ q: node.q, r: node.r }); node = node.prev; }
-        return path.reverse();
+    /**
+     * The hexes from (from) to (to) by sea, excluding the start; null when no
+     * route. Planned by the wind, the current and the coast's dangers
+     * (systems/seaPassage.js) — `opts` { player, ship } for her rig, her
+     * pilot and the charts carried; the plain shortest way where the wind
+     * is not felt.
+     */
+    seaPath(world, from, to, opts = {}) {
+        return SeaPassage.route(this, world, from, to, { maxNodes: this._getVoyageSettings().maxRouteNodes, ...opts });
     },
 
     /** Ports reachable by sea from (q, r): [{ q, r, name, type, distance }], nearest first. */
@@ -358,10 +362,11 @@ export const VoyageMethods = {
         const ice = !atHelm && typeof this.iceSailReason === 'function' ? this.iceSailReason(world, ship) : null;
         if (ice) return { success: false, message: ice };
         if (ship.q === destQ && ship.r === destR) return { success: false, message: 'You are already there.' };
-        const route = world ? this.seaPath(world, ship, { q: destQ, r: destR }) : null;
+        const route = world ? this.seaPath(world, ship, { q: destQ, r: destR }, { player, ship }) : null;
         if (!route) return { success: false, message: `There is no sea route from here to ${destName}.` };
 
-        const days = this.voyageDays(player, ship, route.length);
+        // (the way the wind and the current make of it: systems/seaPassage.js)
+        const days = SeaPassage.routeDays(world, { player, ship }, { q: ship.q, r: ship.r }, route, 0, this.getSailingSpeed(player, ship));
         const tile = world.getTile(ship.q, ship.r);
         const from = (tile && tile.settlement && tile.settlement.name) || ship.dockedAt || (atHelm ? 'the open sea' : 'port');
         ship.status = 'at_sea';
@@ -379,6 +384,13 @@ export const VoyageMethods = {
         player.queuedPath = null;
         const food = this.getProvisionDays(ship);
         this._voyageLog(ship, '⛵', `Set sail from ${from} for ${destName}: ${route.length} leagues, about ${days} day${days === 1 ? '' : 's'}.`, world);
+        // The wind she sets out on, and the pilot aboard (systems/seaPassage.js)
+        if (SeaWinds.active(world)) {
+            const w = SeaWinds.at(world, ship.q, ship.r, world.day);
+            this._voyageLog(ship, '🌬️', `The wind: ${SeaWinds.describe(w)}.`, world);
+        }
+        const pilot = SeaPassage.pilotFor(ship, world);
+        if (pilot) this._voyageLog(ship, '🧭', `${pilot.name} of ${pilot.port} has the pilotage of these waters.`, world);
         let warn = food < days ? ` Provisions for only ${food} day${food === 1 ? '' : 's'} — the crew will go hungry.` : '';
         // (the water casks: systems/water.js)
         const water = Math.floor(Water.shipWater(ship));
@@ -442,6 +454,24 @@ export const VoyageMethods = {
         if (v.pending) out.autoResolved = this.resolveVoyageEvent(player, world, null);
         if (!ship.voyage) return out;
 
+        // A blockade across the harbour mouth (world/navySquadrons.js): she lies off until the
+        // captain runs it, submits or turns back (systems/blockadeRunning.js); leaving a held port, likewise
+        if (!v.blockade && !v.blockadePassed && v.step === 0 && v.day === 1) {
+            const g = NavySquadrons.holdsShip(world, player, v.fromQ, v.fromR);
+            if (g) v.blockade = this._blockadeHold(g, v.fromQ, v.fromR, 'out', world);
+        }
+        if (v.blockade) {
+            if (!NavySquadrons.holdsShip(world, player, v.blockade.portQ, v.blockade.portR)) {
+                this._voyageLog(ship, '⛵', `The blockade off ${v.blockade.portName} is gone.`, world);
+                v.blockade = null;
+                v.blockadePassed = true;
+            } else {
+                this._voyageLog(ship, '⚓', `Lying off the blockade at ${v.blockade.portName}.`, world);
+                out.blockade = v.blockade;
+                return out;
+            }
+        }
+
         // Steered off the route by hand: plot a new one from here
         const expected = this._voyagePos(ship);
         const here = { q: player.q, r: player.r };
@@ -456,6 +486,9 @@ export const VoyageMethods = {
             v.step = 0;
             v.fromQ = here.q;
             v.fromR = here.r;
+        } else if (SeaPassage.replot(this, player, world, ship)) {
+            // The wind has shifted: a better way from here (systems/seaPassage.js)
+            this._voyageLog(ship, '🧭', 'The wind has shifted: the master lays a new course.', world);
         }
 
         let hexes = this.getSailingSpeed(player, ship);
@@ -469,19 +502,45 @@ export const VoyageMethods = {
         if (v.delay > 0) {
             v.delay -= 1;
             hexes = 0;
+            v.legCarry = 0;
             this._voyageLog(ship, '⏸️', 'Lay to all day.', world);
         } else if (storm) {
             // ...and keeps more of it in a storm (Sailing's stormHold)
             const hold = this.seamanship(player, ship, 'stormHold');
             hexes = Math.floor(hexes * (cfg.stormProgress + (1 - cfg.stormProgress) * hold));
         }
-        const before = v.step;
-        v.step = Math.min(v.route.length, v.step + hexes);
-        out.moved = v.step - before;
+        // The day's way, hex by hex at the wind's and the current's cost, past the coast's
+        // dangers (systems/seaPassage.js: reefs, shoals, bars, fjords; pilots, charts, lights)
+        // A navigator reads the wind and the set and makes more of the day (systems/shipOfficers.js)
+        if (hexes > 0) hexes *= 1 + ShipOfficers.bonus(ship, 'speed', world);
+        const stepBefore = v.step; // (a blockade's hold measures the day's way from here)
+        const run = hexes > 0 ? SeaPassage.sailDay(this, player, world, ship, hexes) : { moved: 0, strikes: [] };
+        out.moved = run.moved;
+        out.strikes = run.strikes;
+        if (run.wind) out.wind = { text: SeaWinds.describe(run.wind), point: SeaWinds.pointName(run.point), factor: Math.round(run.mult * 100) / 100 };
+        if (run.cutter) this._voyageLog(ship, '🚣', run.cutter, world);
+        for (const s of run.strikes) this._voyageLog(ship, s.icon, s.text, world);
+        if (run.lay) this._voyageLog(ship, '🌙', `Lay to for the night rather than run the ${SeaPassage.config().coast.hazards[run.lay].name} in the dark.`, world);
         if (out.moved > 0) {
             const [q, r] = v.route[v.step - 1];
             player.q = q; player.r = r;
             ship.q = q; ship.r = r;
+        }
+
+        // Bound into a blockaded port: she heaves to off the harbour mouth, short of it
+        if (v.step >= v.route.length && !v.expedition && !v.blockadePassed) {
+            const g = NavySquadrons.holdsShip(world, player, v.destQ, v.destR);
+            if (g) {
+                v.step = Math.max(0, v.route.length - 1);
+                const at = this._voyagePos(ship);
+                player.q = at.q; player.r = at.r;
+                ship.q = at.q; ship.r = at.r;
+                out.moved = Math.max(0, v.step - stepBefore);
+                v.blockade = this._blockadeHold(g, v.destQ, v.destR, 'in', world);
+                this._voyageLog(ship, '⚓', `${g.squadron.ships} sail of ${g.squadron.kingdomName} lie across the mouth of ${v.blockade.portName}. She heaves to out of range.`, world);
+                out.blockade = v.blockade;
+                return out;
+            }
         }
 
         // An expedition (systems/discovery.js) ends out at sea, the player at the helm
@@ -501,6 +560,9 @@ export const VoyageMethods = {
             player.q = v.destQ; player.r = v.destR;
             player.boardedShip = null;
             out.arrived = true;
+            // (the pilot goes ashore: systems/seaPassage.js)
+            const pilot = SeaPassage.onArrive(ship);
+            if (pilot) this._voyageLog(ship, '🧭', `${pilot} goes ashore, paid off.`, world);
             this._endVoyage(ship, world, `Made port at ${v.destName} after ${v.day} day${v.day === 1 ? '' : 's'} at sea.`);
             Traits.recordDeed(player, 'seafaring', 1);
             _voyageStat(player, 'voyages');
@@ -508,11 +570,19 @@ export const VoyageMethods = {
             return out;
         }
 
-        const left = this.voyageDays(player, ship, v.route.length - v.step);
+        const left = SeaPassage.routeDays(world, { player, ship, orders: SeaPassage.orders(v) }, { q: v.fromQ, r: v.fromR }, v.route, v.step, this.getSailingSpeed(player, ship));
         if (out.moved > 0) {
-            this._voyageLog(ship, '🌊', `Made ${out.moved} league${out.moved === 1 ? '' : 's'}${storm ? ' against the storm' : ''}; ${left} day${left === 1 ? '' : 's'} to ${v.destName}.`, world);
+            const how = out.wind ? `, ${out.wind.point} in ${out.wind.text}` : '';
+            this._voyageLog(ship, '🌊', `Made ${out.moved} league${out.moved === 1 ? '' : 's'}${storm ? ' against the storm' : how}; ${left} day${left === 1 ? '' : 's'} to ${v.destName}.`, world);
         }
         out.daysLeft = left;
+        // A storm on the horizon (world/seaWinds.js: storms cross the sea over days)
+        const seen = SeaStorms.near(world, ship.q, ship.r, world.day).find(e => e.distance > e.storm.radius);
+        if (seen && v.stormSeen !== seen.storm.id) {
+            v.stormSeen = seen.storm.id;
+            out.stormSighted = SeaStorms.describe(world, seen.storm, ship);
+            this._voyageLog(ship, '🌀', `The glass is falling: ${out.stormSighted}.`, world);
+        }
 
         if (Utils.random() < cfg.eventChance) {
             const event = this._pickVoyageEvent(player, ship);
@@ -526,6 +596,16 @@ export const VoyageMethods = {
         return out;
     },
 
+    /** The blockade a voyage waits on (voyage.blockade): which squadron, which port, in or out. */
+    _blockadeHold(g, q, r, dir, world) {
+        const tile = world && world.getTile ? world.getTile(q, r) : null;
+        return {
+            squadronId: g.squadron.id, kingdomId: g.squadron.kingdomId, kingdomName: g.squadron.kingdomName,
+            portQ: q, portR: r, portName: (tile && tile.settlement && tile.settlement.name) || g.squadron.portName || 'the port',
+            dir, closed: !!g.closed, day: (world && world.day) || 0,
+        };
+    },
+
     /**
      * Write the rest of the day's tick (storm, interception, rations, wages,
      * desertion) for the voyage ship into its log, and hand the day's log
@@ -536,11 +616,12 @@ export const VoyageMethods = {
         const ship = this.getShipById(player, out.shipId);
         if (!ship) return;
         const id = ship.id;
-        let notable = !!out.event || !!out.lost;
+        // (the coast struck, a storm sighted: systems/seaPassage.js, world/seaWinds.js; a blockade: systems/blockadeRunning.js)
+        let notable = !!out.event || !!out.lost || !!(out.strikes && out.strikes.length) || !!out.stormSighted || !!out.blockade;
         for (const s of day.stormReports || []) {
             if (s.shipId !== id) continue;
             notable = true;
-            let t = `Caught in a ${String(s.weather).replace(/_/g, ' ')} (hull −${s.damage}%).`;
+            let t = `Caught in a ${String(s.weather).replace(/_/g, ' ')}${s.stormName ? `, ${s.stormName}` : ''} (hull −${s.damage}%).`;
             if (s.cargoLost) t += ` ${s.cargoLost.qty} ${s.cargoLost.good} washed overboard.`;
             if (s.crewLost) t += ' A sailor was lost overboard.';
             this._voyageLog(ship, '⛈️', t, world);

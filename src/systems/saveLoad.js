@@ -107,6 +107,7 @@ import { Transport } from '../world/transport.js';
 import { Infrastructure } from './infrastructure.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
 import { Utils } from '../core/utils.js';
+import { InteriorRecords } from '../world/interiorRecords.js';
 
 
 export const SaveLoad = {
@@ -147,6 +148,10 @@ export const SaveLoad = {
             // An Ironman run that is over saves no more (its slot is gone)
             if (run && run.ironman && run.final) return Promise.resolve({ success: false, error: 'This Ironman run is over' });
             const house = game.player && game.player.house;
+            // (what changed inside the buildings visited written to the world first: world/innerMap/persistInteriors.js)
+            if (typeof game.flushInteriors === 'function') {
+                try { game.flushInteriors(); } catch (e) { console.warn('Interiors not flushed before save:', e); }
+            }
             const saveData = {
                 version: '1.0',
                 timestamp: Date.now(),
@@ -406,6 +411,8 @@ export const SaveLoad = {
             iceHoles: world.iceHoles ? JSON.parse(JSON.stringify(world.iceHoles)) : null,
             // The caves entered, the drifts and shafts dug, every cell cut, hauled and timbered (world/innerMap/mines.js)
             mines: world.mines ? JSON.parse(JSON.stringify(world.mines)) : null,
+            // The insides of the buildings visited, every floor and cellar, as last seen (world/interiorRecords.js)
+            interiors: InteriorRecords.serialize(world),
             // The player's own dead buried on the maps, and the markers raised over them (world/burials.js)
             burials: world.burials ? JSON.parse(JSON.stringify(world.burials)) : null,
             // Things the player buried in the ground with no one: caches (world/burials.js)
@@ -637,6 +644,8 @@ export const SaveLoad = {
         'trapLines',
         // Pirate captains, their havens, what they remember of you, your infamy at sea (systems/pirates.js)
         'seaRoving',
+        // A blockade run into a shut harbour: trade there a while (systems/blockadeRunning.js)
+        'blockadeRun',
         // Beach runs, coast alarms after raids from the sea, landfall colonies, reaver landings (systems/landings.js; ensure() backfills)
         'landings',
         // Map owners you robbed, and whether they found out (systems/mapTheft.js)
@@ -704,6 +713,8 @@ export const SaveLoad = {
         // (inn, camp) and the last one slept (systems/hospitality.js, player/core/lifecycle.js;
         // _lastRestType is read by ailments.js, worldEvents.js and firstSteps.js)
         'lodging', '_restTypeOverride', '_lastRestType',
+        // The houses that have asked you in (keys read by ui/objectActions/furniture.js) and how long each welcome holds (player/guests.js)
+        'guestAt', 'guestStays',
         // What the day's spare hours go on, and what they went on last (player/standingOrders.js)
         'standingOrder',
         // The street map's hotbar: which goods sit in which slot, and whether the player laid it out (player/hotbarLayout.js)
@@ -1147,6 +1158,8 @@ export const SaveLoad = {
         world.iceHoles = saveData.iceHoles && typeof saveData.iceHoles === 'object' ? saveData.iceHoles : {};
         // The mines (older saves: none — the rock stands whole)
         world.mines = saveData.mines && typeof saveData.mines === 'object' ? saveData.mines : {};
+        // The insides of buildings visited (older saves, or another version: none — each planned afresh and kept from the next visit)
+        InteriorRecords.restore(saveData.interiors, world);
         // The player's burials (older saves: none)
         world.burials = saveData.burials && typeof saveData.burials === 'object' ? saveData.burials : {};
         // The player's caches (older saves: none)

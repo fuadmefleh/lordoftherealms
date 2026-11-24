@@ -10,8 +10,10 @@ import { whyIcon, stabilityWhy } from '../whyPopover.js';
 import { Fame } from '../../systems/fame.js';
 import { Kingship } from '../../systems/kingship.js';
 import { Pirates } from '../../systems/pirates.js';
+import { NavySquadrons } from '../../world/navySquadrons.js';
 import { Construction } from '../../systems/construction.js';
 import { OceanCurrents } from '../../world/oceanCurrents.js';
+import { SeaPassage } from '../../systems/seaPassage.js';
 import { Literacy } from '../../systems/literacy.js';
 import { Migration } from '../../systems/migration.js';
 import { Plague } from '../../systems/plague.js';
@@ -92,6 +94,8 @@ Object.assign(UI.prototype, {
 
         // The set of the sea (world/oceanCurrents.js)
         const seaCurrent = OceanCurrents.describe(OceanCurrents.at(this.game.world, q, r));
+        // The wind, a storm, the coast's dangers and a lighthouse's light (systems/seaPassage.js)
+        const seaNotes = SeaPassage.hexNotes(this.game.world, this.game.player, q, r);
         let html = `
             <div class="info-row">
                 <span class="info-label">Terrain</span>
@@ -118,6 +122,10 @@ Object.assign(UI.prototype, {
             ${seaCurrent ? `<div class="info-row">
                 <span class="info-label">Current</span>
                 <span class="info-value" style="color:#9fc8e8">🌊 ${seaCurrent}</span>
+            </div>` : ''}
+            ${seaNotes.length ? `<div class="info-row">
+                <span class="info-label">At Sea</span>
+                <span class="info-value" style="color:#9fc8e8">${seaNotes.join('<br>')}</span>
             </div>` : ''}
             ${mapClaim ? `<div class="info-row">
                 <span class="info-label">Your Map</span>
@@ -495,6 +503,15 @@ Object.assign(UI.prototype, {
             html += `
                 <div class="info-section-title">Sea Rovers</div>
                 ${rovers.map(line => `<div class="info-row"><span class="info-value" style="text-align:left;">${String(line).replace(/&/g, '&amp;').replace(/</g, '&lt;')}</span></div>`).join('')}
+            `;
+        }
+
+        // Royal squadrons on this hex: a blockade on station, a patrol (world/navySquadrons.js)
+        const squadrons = tile.visible ? NavySquadrons.list(world).filter(s => s.q === q && s.r === r) : [];
+        if (squadrons.length) {
+            html += `
+                <div class="info-section-title">Royal Squadrons</div>
+                ${squadrons.map(s => `<div class="info-row"><span class="info-value" style="text-align:left;">⚓ ${String(s.name).replace(/&/g, '&amp;').replace(/</g, '&lt;')}: ${s.ships} sail, strength ${s.strength}${s.kind === 'blockade' ? ' — on station, stopping ships in and out' : ' — on patrol'}</span></div>`).join('')}
             `;
         }
 

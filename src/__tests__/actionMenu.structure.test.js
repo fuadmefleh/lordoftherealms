@@ -49,6 +49,8 @@ const EXPECTED_KEYS = [
     'showTradeLines', 'tradeLinesAct',
     // River & Water: river boats, fishing rights, salting, floods (ui/actionMenu/riverLife.js, 2026-11-13): +2
     'showRiverLife', 'riverLifeAct',
+    // the Harbour (ui/actionMenu/harbour.js)
+    'showHarbour', 'harbourAct',
     'showHearsay',
     // Schools & Letters: a town's literacy and schools, lessons, endowing a school (ui/actionMenu/school.js, 2026-11-14): +2
     'showSchool', 'schoolAct',
@@ -240,7 +242,7 @@ describe('ActionMenu split — structural equivalence', () => {
     });
 
     it('has 461 members', () => {
-        expect(Object.keys(ActionMenu)).toHaveLength(521); // (+1 rivalSeizeAct; +2 water, ui/actionMenu/water.js; +3 the dungeon, ui/actionMenu/interrogation.js; +5 the scaffold, ui/actionMenu/executions.js; +2 risings, ui/actionMenu/peasantRevolts.js; +4 matches & betrothals, ui/actionMenu/matches.js; +1 rivalCaptiveAct; +6 maiming, ui/actionMenu/maiming.js; +6 haggling, ui/actionMenu/haggle.js; +1 lastCrisisAct; +2 namedLegacy; +2 highCrowns)
+        expect(Object.keys(ActionMenu)).toHaveLength(523); // (+2 the harbour, ui/actionMenu/harbour.js; +1 rivalSeizeAct; +2 water, ui/actionMenu/water.js; +3 the dungeon, ui/actionMenu/interrogation.js; +5 the scaffold, ui/actionMenu/executions.js; +2 risings, ui/actionMenu/peasantRevolts.js; +4 matches & betrothals, ui/actionMenu/matches.js; +1 rivalCaptiveAct; +6 maiming, ui/actionMenu/maiming.js; +6 haggling, ui/actionMenu/haggle.js; +1 lastCrisisAct; +2 namedLegacy; +2 highCrowns)
     });
 
     it('every member except the known data props is a function', () => {

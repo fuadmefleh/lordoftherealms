@@ -80,6 +80,9 @@ Object.assign(Renderer.prototype, {
         // The roads' tier and repair, closed passes, fords, toll gates, canals, works (world/transport.js)
         this.renderRoadState(ctx);
 
+        // Ferries over the great rivers and the straits, fishing boats off the towns, barges with the river trade (renderer/waterTraffic.js)
+        if (this.renderWaterTraffic) this.renderWaterTraffic(ctx);
+
         // Render player-built structures (Farms, Mines, Temples)
         this.renderBuiltStructures(ctx);
 
@@ -123,6 +126,8 @@ Object.assign(Renderer.prototype, {
             this.renderPlayerShips(ctx);
             this.renderPlayer(ctx);
         }
+        // Storms crossing the sea, the major ports' lighthouses, the wind by your ship (renderer/seaWeather.js)
+        this.renderSeaWeather(ctx);
 
         // Render hover highlight
         if (this.hoveredHex) {
@@ -150,6 +155,9 @@ Object.assign(Renderer.prototype, {
         this.renderQuestMarkers(ctx);
         // Your holdings under siege (systems/holdingSieges.js)
         this.renderHoldingSieges(ctx);
+
+        // Royal squadrons at sea: blockades on station, patrols (renderer/navySquadrons.js)
+        this.renderNavySquadrons(ctx);
 
         // Render units
         this.renderUnits(ctx);
@@ -582,8 +590,9 @@ Object.assign(Renderer.prototype, {
      * round it (grass, tundra or sand, by its neighbours), and the water is a
      * rounded pool on it: each edge that meets more water (lake or sea) runs
      * the water out to that edge, so a lake of many hexes reads as one body;
-     * each edge that meets land is pulled in to a curving shore, edged with a
-     * strand of pale sand and a darker wet line. The water is the lake art,
+     * each edge that meets land keeps a thin curving shore just inside the
+     * hex's edge (the water fills the tile), a strand of pale sand and a
+     * darker wet line. The water is the lake art,
      * clipped to the pool.
      */
     renderLakeHex(ctx, tile, waterSprite, corners, cx, cy, size, drawX, drawY, tw, th) {
@@ -627,7 +636,11 @@ Object.assign(Renderer.prototype, {
         // (an edge open to more water runs a hair past the hex's edge, so no thread of
         // the shore's ground shows between two lake hexes where the clip is smoothed)
         const OVER = 1.03;
-        const mid = (i) => open[i] ? toward(edgeAt(i, 0.5), OVER) : toward(edgeAt(i, 0.5), 0.58);
+        // The water takes the whole tile: an edge facing land keeps only a strand of beach
+        // along the hex's own edge (it used to pull in to a small pool, and the strands of
+        // two lake hexes pinched together in the middle of a lake)
+        const LAND_MID = 0.9, CORNER_ONE = 0.97, CORNER_LAND = 0.88;
+        const mid = (i) => open[i] ? toward(edgeAt(i, 0.5), OVER) : toward(edgeAt(i, 0.5), LAND_MID);
         // where the outline reaches edge i coming round from corner i, and leaves it for corner i+1
         const reach = (i) => inlet[i] ? edgeAt(i, 0.5 - MOUTH) : mid(i);
         const leave = (i) => inlet[i] ? edgeAt(i, 0.5 + MOUTH) : mid(i);
@@ -635,7 +648,7 @@ Object.assign(Renderer.prototype, {
             // corner i lies between edge i-1 and edge i
             const both = open[(i + 5) % 6] && open[i];
             const one = open[(i + 5) % 6] || open[i];
-            return toward(corners[i], both ? OVER : one ? 0.82 : 0.6);
+            return toward(corners[i], both ? OVER : one ? CORNER_ONE : CORNER_LAND);
         };
         const pool = () => {
             ctx.beginPath();

@@ -8,12 +8,27 @@
 // raises none. Which count a town building has is fixed by where it stands.
 //
 // The ground floor is the interior entered by the door (interiors.js). Each
-// floor above has the same footprint, its walls copied from the one below,
-// and rooms by the building's type (bedchambers over a house, guest rooms
-// over an inn, a loft over a barn). Stairs up stand on each floor but the top;
-// they come out on the stairs down of the floor above. Walk onto the stairs
-// (or right-click them) to climb or go down; at the front door, go straight
-// up to a floor. Anyone inside keeps to their own floor.
+// floor above has the same footprint and outer walls, and is planned by the
+// interior planner where the ground floor was (_planFloor; data/interiorPlans.json
+// `floors`): its own rooms by the building's type and wealth — a house's
+// bedchamber with the children's room off it, a rich one's solar or servants'
+// room; a manor's upper hall with its bedchamber, solar and servants' room; guest
+// rooms off a landing over an inn; offices and a master's office — its pieces
+// (data/buildingFloors.json `rooms`, a household's beds counted in) set down by
+// the placement rules, its decor and its front's upper windows. An authored
+// ground floor keeps the old way: walls copied from below, pieces along them.
+// Stairs up stand on each floor but the top; they come out on the stairs down
+// of the floor above, at the same tile, the landing round them kept clear.
+// Under a tavern, a manor, a shop or a bank (data/buildingFloors.json `cellars`)
+// the cellar steps on the ground floor go down to a cellar (floor -1) of the
+// same footprint, no windows: its stores in rows with aisles between (the planner's
+// 'stacks' rule, filled out by its size: rooms' `perArea`), a room split off behind an
+// inner wall (a cold store, a wine vault, a grain store, a vault's strongroom), the
+// landing round the steps kept clear, then wall torches spaced for the light, cobwebs,
+// straw, spilt grain and damp on the floor (_dressCellar, buildingFloors `cellarDress`).
+// Walk onto the stairs (or right-click them) to climb or go down; at the front
+// door, go straight up to a floor. Anyone inside keeps to their own floor
+// (nobody lives in the cellar).
 
 import { InnerMap } from './_ref.js';
 import { DataLoader, Utils, CustomBuildings } from './_imports.js';
@@ -88,13 +103,15 @@ Object.assign(InnerMap, {
         return lo + (_hash(`${wt.q},${wt.r}|${building.q},${building.r}|${type}`) % (cap - lo + 1));
     },
 
-    /** "the ground floor", "the 2nd floor"… */
+    /** "the cellar", "the ground floor", "the 2nd floor"… */
     floorLabel(k) {
-        return k <= 0 ? 'the ground floor' : `the ${_ord(k + 1)} floor`;
+        if (k < 0) return 'the cellar';
+        return k === 0 ? 'the ground floor' : `the ${_ord(k + 1)} floor`;
     },
 
-    /** The kind of room on floor k (≥1) of a building. */
+    /** The kind of room on floor k (≥1) of a building; k < 0: its cellar's (null when it has none). */
     floorRoom(building, k) {
+        if (k < 0) return this.cellarRoom(building);
         const C = _cfg();
         const type = _type(building);
         const list = C.upperRooms[type] || C.upperRooms._default || ['quarters'];
@@ -103,9 +120,42 @@ Object.assign(InnerMap, {
     },
 
     /**
+     * The cellar under a building (data/buildingFloors.json `cellars`): its room kind, or
+     * null. By type (a tavern's ale cellar, a manor's wine cellar, a shop's store cellar, a
+     * bank's vault), some only of a wealth tier and by a hash of the place (a rich house's
+     * root cellar); none under a jail, a castle, a way underground or a Dawn of Man camp.
+     */
+    cellarOf(building, tier = null) {
+        if (!building || building._jail || building._underground) return null;
+        const type = _type(building);
+        if (type === 'jail' || type === 'castle') return null;
+        const st = this._currentWorldTileRef && this._currentWorldTileRef.settlement;
+        if (st && this._isDawnVillage && this._isDawnVillage(st)) return null;
+        const spec = (_cfg().cellars || {})[type];
+        if (!spec) return null;
+        const s = typeof spec === 'string' ? { kind: spec } : spec;
+        if (!s.kind) return null;
+        if (Array.isArray(s.tiers) && !s.tiers.includes(tier || 'mid')) return null;
+        if (s.chance != null) {
+            const wt = this.currentWorldTile || {};
+            if ((_hash(`${wt.q},${wt.r}|${building.q},${building.r}|${type}|cellar`) % 1000) / 1000 >= Number(s.chance)) return null;
+        }
+        return s.kind;
+    },
+
+    /** The cellar's room ({ kind, name, floor, wall, furniture }) of the building shown, or of `building`; null for none. */
+    cellarRoom(building) {
+        const kind = this._insideBuilding === building && this._cellarKind !== undefined ? this._cellarKind
+            : this.cellarOf(building, this._floorInteriors && this._floorInteriors[0] && this._floorInteriors[0]._tier);
+        if (!kind) return null;
+        return { kind, ...((_cfg().rooms || {})[kind] || { name: 'Cellar', furniture: [] }) };
+    },
+
+    /**
      * On entering: how many floors the building has, the ground floor's stairs
      * up (made functional where the layout drew some, put in where it didn't,
-     * taken out when there's no floor above), and the player on the ground floor.
+     * taken out when there's no floor above), its stairs down to the cellar
+     * where it has one, and the player on the ground floor.
      */
     _prepareFloors(interior, building, interiorKey, game) {
         const n = this.floorsOf(building, game);
@@ -113,29 +163,44 @@ Object.assign(InnerMap, {
         this._floorCount = n;
         this._floorKey = interiorKey;
         this._floorInteriors = { 0: interior };
+        const cellar = this.cellarOf(building, interior._tier);
+        this._cellarKind = cellar;
+        this._hasCellar = !!cellar;
         const C = _cfg();
         const { tiles, width: w, height: h } = interior;
-        let stairs = null;
-        for (let r = 0; r < h && !stairs; r++) {
+        let stairs = null, down = null;
+        for (let r = 0; r < h; r++) {
             for (let q = 0; q < w; q++) {
                 const t = tiles[r][q];
-                if (t && t._furniture && (t._furniture.type === 'stairs' || t._stairs)) { stairs = { q, r }; break; }
+                if (!t || !t._furniture) continue;
+                if (t._stairs && t._stairs.to < 0) { if (!down) down = { q, r }; continue; }
+                if (!stairs && (t._furniture.type === 'stairs' || t._stairs)) stairs = { q, r };
             }
         }
-        if (n <= 1) {
-            if (stairs) { tiles[stairs.r][stairs.q]._furniture = null; tiles[stairs.r][stairs.q]._stairs = null; }
-            interior._stairs = {};
-            return n;
+        const clear = (at) => { if (at) { tiles[at.r][at.q]._furniture = null; tiles[at.r][at.q]._stairs = null; } };
+        if (n <= 1) { clear(stairs); stairs = null; }
+        else {
+            if (!stairs) stairs = this._stairsSpot(interior, [], `${interiorKey}|up0`);
+            if (stairs) {
+                const t = tiles[stairs.r][stairs.q];
+                const keep = t._furniture && t._furniture.type === 'stairs' ? t._furniture.name : null;
+                t._furniture = { ...C.stairs.up, name: keep || C.stairs.up.name, passable: true, _stairs: true };
+                t._stairs = { to: 1 };
+                t.subTerrain = { ...t.subTerrain, passable: true };
+            }
         }
-        if (!stairs) stairs = this._stairsSpot(interior, [], `${interiorKey}|up0`);
-        if (stairs) {
-            const t = tiles[stairs.r][stairs.q];
-            const keep = t._furniture && t._furniture.type === 'stairs' ? t._furniture.name : null;
-            t._furniture = { ...C.stairs.up, name: keep || C.stairs.up.name, passable: true, _stairs: true };
-            t._stairs = { to: 1 };
-            t.subTerrain = { ...t.subTerrain, passable: true };
+        // The stairs down to the cellar, away from the stairs up
+        if (!cellar) { clear(down); down = null; }
+        else {
+            if (!down) down = this._stairsSpot(interior, stairs ? [stairs] : [], `${interiorKey}|cellar`);
+            if (down) {
+                const t = tiles[down.r][down.q];
+                t._furniture = { ...C.stairs.down, name: (C.stairs.cellar && C.stairs.cellar.name) || 'Cellar Steps', passable: true, _stairs: true };
+                t._stairs = { to: -1 };
+                t.subTerrain = { ...t.subTerrain, passable: true };
+            } else this._hasCellar = false;
         }
-        interior._stairs = { up: stairs };
+        interior._stairs = { up: stairs, down };
         return n;
     },
 
@@ -179,16 +244,25 @@ Object.assign(InnerMap, {
         return best;
     },
 
-    /** Floor k's interior (k ≥ 1), built from the floor below the first time. */
+    /** The cache key of floor k of the building whose ground floor is keyed `key` (the cellar: k < 0). */
+    _floorCacheKey(key, k) {
+        return k < 0 ? `${key}_cellar` : k === 0 ? key : `${key}_f${k}`;
+    },
+
+    /** Floor k's interior (k ≥ 1; -1 the cellar), built from the floor below (above) the first time. */
     _floorInterior(k) {
-        if (k <= 0) return this._floorInteriors && this._floorInteriors[0];
+        if (k === 0) return this._floorInteriors && this._floorInteriors[0];
         if (this._floorInteriors && this._floorInteriors[k]) return this._floorInteriors[k];
-        const key = `${this._floorKey}_f${k}`;
+        if (k < 0 && (k !== -1 || !this._hasCellar)) return null;
+        const key = this._floorCacheKey(this._floorKey, k);
         let interior = this._interiorCache[key];
         if (!interior) {
-            const below = this._floorInterior(k - 1);
-            if (!below || !below._stairs || !below._stairs.up) return null;
-            interior = this._buildUpperFloor(below, this._insideBuilding, k, k < this._floorCount - 1, key);
+            const below = this._floorInterior(k < 0 ? 0 : k - 1);
+            const way = below && below._stairs && (k < 0 ? below._stairs.down : below._stairs.up);
+            if (!way) return null;
+            interior = k < 0 ? this._buildCellar(below, this._insideBuilding, key)
+                : this._buildUpperFloor(below, this._insideBuilding, k, k < this._floorCount - 1, key);
+            if (!interior) return null;
             this._interiorCache[key] = interior;
         }
         this._floorInteriors[k] = interior;
@@ -196,18 +270,289 @@ Object.assign(InnerMap, {
     },
 
     /**
-     * An upper floor over `below`: the same footprint and walls (no door: its
-     * doorway is floor), the room's floor and furniture laid along
-     * the walls, the stairs down where the stairs below come up, and stairs up
-     * when a floor stands above.
+     * Every floor of the building shown built now (and its cellar): on the first visit, so
+     * the whole house is fixed at once and kept (world/innerMap/interiorRecords.js).
      */
-    _buildUpperFloor(below, building, k, hasAbove, seed) {
+    _buildAllFloors() {
+        for (let k = 1; k < (this._floorCount || 1); k++) if (!this._floorInterior(k)) break;
+        if (this._hasCellar) this._floorInterior(-1);
+    },
+
+    /**
+     * A floor planned over (or under) the ground floor by the interior planner
+     * (interiorPlanner.js, data/interiorPlans.json `floors`): the ground floor's footprint,
+     * its outer walls of the same stuff, its own rooms (bedchambers, a solar, servants'
+     * rooms; guest rooms off a landing; a cellar's wine vault) with inner walls and
+     * doorways, entered by the stairs at `entry` (kept clear, in the main room), the
+     * room's pieces (data/buildingFloors.json `rooms`) set down by the placement rules,
+     * then its decor. Null where the ground floor wasn't planned (an authored interior).
+     */
+    _planFloor(below, building, k, room, entry, seed) {
+        if (!this._planInterior || !this._planData || !Array.isArray(below.rooms)) return null;
+        const P = this._planData();
+        if (!P || !room) return null;
+        const cellar = k < 0;
+        const type = _type(building);
+        const FP = P.floors || {};
+        // (its type's own plan of the room, else the room's, over what every floor above / cellar has)
+        const base = (cellar ? FP._cellar : FP._upper) || {};
+        const own = FP[`${type}.${room.kind}`] || FP[room.kind] || {};
+        const plan = {
+            ...base, ...own,
+            place: { ...(base.place || {}), ...(own.place || {}) },
+            main: { name: room.name, ...(base.main || {}), ...(own.main || {}) },
+        };
+        // Its walls of the ground floor's stuff (a cellar's of its own: rooms[kind].wall)
+        let proto = null;
+        for (let r = 0; r < below.height && !proto; r++) for (let q = 0; q < below.width; q++) {
+            const t = below.tiles[r][q];
+            if (t && t.baseTerrain === 'wall' && !t._innerWall) { proto = t; break; }
+        }
+        const wall = (cellar && room.wall) || (proto && proto._wallMaterial) || null;
+        const wallColor = (cellar && room.wallColor) || (proto && proto.subTerrain && proto.subTerrain.color) || '#5a4a3a';
+        const tier = below._tier || 'mid';
+        const look0 = this._interiorLook ? this._interiorLook(null, building && building.type, { wall, floor: room.floor || 'wood_floor' }) : { kind: 'home' };
+        const look = { wall, floor: room.floor || 'wood_floor', tier, kind: look0.kind || 'home', tint: cellar ? null : (proto && proto._wallTint) || null };
+        // (a cellar's stores fill out its rows by its size: `perArea` pieces a floor tile, up to `max`,
+        // the ones past `count` set down in their rows or not at all — _fill)
+        const area = Math.max(1, (below.width - 2) * (below.height - 2));
+        const pieces = [];
+        for (const f of (room.furniture || [])) {
+            const base = {
+                type: f.type, icon: f.icon, name: f.name, passable: !!f.passable,
+                ...(f.art ? { art: f.art } : {}), ...(f.noJoin ? { noJoin: true } : {}),
+                ...(f.place ? { place: f.place } : f.middle ? { place: 'centre' } : {}),
+            };
+            const count = Math.max(0, Number(f.count) || 1);
+            pieces.push({ f: base, count });
+            const want = Number(f.perArea) > 0 ? Math.min(Number(f.max) || Infinity, Math.round(Number(f.perArea) * area)) : 0;
+            if (want > count) pieces.push({ f: { ...base, _fill: true }, count: want - count });
+        }
+        const out = this._planInterior(building, seed, { width: below.width, height: below.height, furniture: [], wallColor }, look, null, below._who || null, {
+            size: [below.width, below.height], entry, plan, pieces, floorId: room.floor, upper: !cellar, cellar, landing: cellar,
+        });
+        if (!out) return null;
+        if (this._joinPieces) this._joinPieces(out.tiles, out.width, out.height, entry);
+        if (this._decorateInterior) this._decorateInterior(out.tiles, out.width, out.height, out.info);
+        if (cellar) this._dressCellar(out, room.kind, entry, seed);
+        for (const row of out.tiles) for (const t of row) { t._floorAbove = k; if (cellar) t._cellar = true; }
+        return {
+            tiles: out.tiles, width: out.width, height: out.height, rooms: out.rooms,
+            _floor: k, _room: room.kind, _who: below._who || null, _tier: tier, _planned: true,
+        };
+    },
+
+    /**
+     * A cellar's own look over its plan and decor (data/buildingFloors.json `cellarDress`, its
+     * kind's over `_default`): wall torches spaced for the light model (ui/interiorLight.js) —
+     * the fewest that leave no walkable tile further than `torch.cover` (by the floor, as the
+     * light spreads) from a torch or candle, none side by side — cobwebs in the back wall's top
+     * corners, and on the bare floor (tile._decor, drawn at the tile's foot) straw kicked about
+     * the casks and sacks, grain spilt by the sacks and damp patches. Seeded by `seed`; never on
+     * the steps, their landing or a doorway. Pure over `interior`. → what it added.
+     */
+    _dressCellar(interior, kind, entry, seed) {
+        const all = _cfg().cellarDress || {};
+        const D = { ...(all._default || {}), ...(all[kind] || {}) };
+        const { tiles, width: w, height: h } = interior;
+        const rng = _rng(`${seed}|dress`);
+        const T = (q, r) => (tiles[r] && tiles[r][q]) || null;
+        const isWall = (t) => !t || t.baseTerrain === 'wall' || t.baseTerrain === 'void';
+        const open = (t) => !!t && !isWall(t) && !t._isDoor && !!(t.subTerrain && t.subTerrain.passable);
+        // (the light spreads over every tile that is no wall, the pieces' too: ui/interiorLight.js)
+        const bright = (t) => !!t && (!isWall(t) || !!t._doorway);
+        const landing = (q, r) => !!entry && Math.max(Math.abs(q - entry.q), Math.abs(r - entry.r)) <= 1;
+        const out = { torches: 0, cobwebs: 0, floor: 0 };
+        // ── Torches: greedy cover of the walkable floor ──
+        const tc = D.torch || {};
+        const R = Number(tc.cover) || 3.5, maxT = Number.isFinite(Number(tc.max)) ? Number(tc.max) : 10;
+        const N = w * h;
+        // (the floor distance from seeds, by 8-steps — a diagonal only past two open sides — as the light spreads)
+        const spread = (seeds) => {
+            const d = new Float32Array(N).fill(Infinity);
+            for (const [q, r, d0] of seeds) d[r * w + q] = Math.min(d[r * w + q], d0);
+            for (let pass = 0, changed = true; changed && pass < w + h; pass++) {
+                changed = false;
+                for (let r = 1; r < h - 1; r++) for (let q = 1; q < w - 1; q++) {
+                    if (!bright(tiles[r][q])) continue;
+                    let best = d[r * w + q];
+                    for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) {
+                        if (!i && !j) continue;
+                        if (!bright(T(q + i, r + j))) continue;
+                        if (i && j && !(bright(T(q + i, r)) && bright(T(q, r + j)))) continue;
+                        const nd = d[(r + j) * w + q + i] + (i && j ? 1.414 : 1);
+                        if (nd < best) best = nd;
+                    }
+                    if (best < d[r * w + q]) { d[r * w + q] = best; changed = true; }
+                }
+            }
+            return d;
+        };
+        // (a light on a wall lights the floor before it; a candle its own tile and round it)
+        const seedsOf = (q, r) => {
+            const t = T(q, r);
+            if (bright(t)) return [[q, r, 0]];
+            const s = [];
+            for (const [i, j] of [[0, 1], [1, 0], [-1, 0], [0, -1]]) if (bright(T(q + i, r + j))) s.push([q + i, r + j, 0.6]);
+            return s;
+        };
+        // (a candle lights less far than a torch: `stand.cover`)
+        const sc = D.stand || {};
+        const Rc = Number(sc.cover) || 3, maxS = Number.isFinite(Number(sc.max)) ? Number(sc.max) : 3;
+        const torchLights = [], candleLights = [];
+        for (let r = 0; r < h; r++) for (let q = 0; q < w; q++) {
+            const t = tiles[r][q];
+            const decor = [].concat(t._decor || []);
+            if (t._wallDecor === 'torch' || (t._furniture && t._furniture.type === 'fireplace')) torchLights.push(...seedsOf(q, r));
+            else if ((t._furniture && t._furniture.type === 'candle') || decor.includes('candles')) candleLights.push(...seedsOf(q, r));
+        }
+        const litT = torchLights.length ? spread(torchLights) : null, litC = candleLights.length ? spread(candleLights) : null;
+        const dark = new Set();
+        for (let r = 1; r < h - 1; r++) for (let q = 1; q < w - 1; q++) {
+            const i = r * w + q;
+            if (open(tiles[r][q]) && !(litT && litT[i] <= R) && !(litC && litC[i] <= Rc)) dark.add(i);
+        }
+        // (where a torch could hang: a wall with floor before it — not the front wall, over a
+        // doorway or behind a tall rack — nothing on it, and no torch beside it)
+        const TALL = new Set(['barrel_rack', 'shelf', 'crate_stack', 'bookshelf', 'cupboard', 'wardrobe', 'rack']);
+        const faceOf = (q, r) => {
+            const fit = (t) => bright(t) && !t._doorway && !(t._furniture && TALL.has(t._furniture.type));
+            if (r < h - 1 && fit(T(q, r + 1))) return { face: 'down', at: [q, r + 1] };
+            if (fit(T(q + 1, r))) return { face: 'right', at: [q + 1, r] };
+            if (fit(T(q - 1, r))) return { face: 'left', at: [q - 1, r] };
+            return null;
+        };
+        const cands = [];
+        for (let r = 0; r < h - 1; r++) for (let q = 0; q < w; q++) {
+            const t = tiles[r][q];
+            if (!isWall(t) || t.baseTerrain === 'void' || t._wallDecor || t._doorway) continue;
+            const fc = faceOf(q, r);
+            if (!fc) continue;
+            cands.push({ q, r, fc, d: spread(seedsOf(q, r)), j: rng() * 0.5 });
+        }
+        const torchNear = (q, r) => [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]].some(([i, j]) => { const o = T(q + i, r + j); return !!(o && o._wallDecor === 'torch'); });
+        while (dark.size && out.torches < maxT) {
+            let best = null, bestGain = 0;
+            for (const c of cands) {
+                if (tiles[c.r][c.q]._wallDecor || torchNear(c.q, c.r)) continue;
+                let gain = 0;
+                for (const i of dark) if (c.d[i] <= R) gain++;
+                if (gain && gain + c.j > bestGain) { bestGain = gain + c.j; best = c; }
+            }
+            if (!best) break;
+            const t = tiles[best.r][best.q];
+            t._wallDecor = 'torch';
+            t._wallDecorFace = best.fc.face;
+            out.torches++;
+            for (const i of [...dark]) if (best.d[i] <= R) dark.delete(i);
+        }
+        // ── Where no wall is near enough (the middle of a big cellar): a candle stand on the floor ──
+        for (let n = 0; dark.size && n < maxS; n++) {
+            let best = null, bestGain = 0, bestD = null;
+            for (let r = 1; r < h - 1; r++) for (let q = 1; q < w - 1; q++) {
+                const t = tiles[r][q];
+                if (!open(t) || t._furniture || t._decor || t._stairs || landing(q, r)) continue;
+                if (!dark.has(r * w + q)) continue;
+                const d = spread([[q, r, 0]]);
+                let gain = 0;
+                for (const i of dark) if (d[i] <= Rc) gain++;
+                gain += rng() * 0.5;
+                if (gain > bestGain) { bestGain = gain; best = t; bestD = d; }
+            }
+            if (!best) break;
+            best._furniture = { type: 'candle', icon: '🕯️', name: sc.name || 'Candle Stand', passable: true };
+            out.stands = (out.stands || 0) + 1;
+            for (const i of [...dark]) if (bestD[i] <= Rc) dark.delete(i);
+        }
+        // ── Cobwebs in the back wall's top corners (and where an inner wall meets it) ──
+        const webK = Number((D.cobweb || {}).chance) || 0;
+        for (let q = 1; q < w - 1 && webK > 0; q++) {
+            const t = tiles[0][q], below = T(q, 1);
+            if (!isWall(t) || t._wallDecor || isWall(below) || below._doorway) continue;
+            const left = isWall(T(q - 1, 1)), right = isWall(T(q + 1, 1));
+            if (!left && !right) continue;
+            if (rng() >= webK) continue;
+            t._wallDecor = left ? 'cobweb' : 'cobweb_r';
+            t._wallDecorFace = 'down';
+            out.cobwebs++;
+        }
+        // ── On the bare floor: straw by the casks and sacks, grain by the sacks, damp patches ──
+        const by = (q, r, types) => [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([i, j]) => {
+            const o = T(q + i, r + j);
+            return !!(o && o._furniture && types.includes(o._furniture.type));
+        });
+        const grain = D.grain || {}, straw = D.straw || {}, damp = D.puddle || {};
+        for (let r = 1; r < h - 1; r++) for (let q = 1; q < w - 1; q++) {
+            const t = tiles[r][q];
+            if (!open(t) || t._furniture || t._decor || t._doorway || t._stairs || landing(q, r)) continue;
+            let id = null;
+            if (grain.chance && by(q, r, grain.near || ['sack', 'sack_pile']) && rng() < grain.chance) id = 'grain_spill';
+            else if (straw.chance && by(q, r, straw.near || ['barrel', 'barrel_rack', 'crate', 'sack']) && rng() < straw.chance) id = 'straw_loose';
+            else if (damp.chance && (!damp.floors || damp.floors.includes(t.baseTerrain)) && rng() < damp.chance) id = 'puddle';
+            if (!id) continue;
+            t._decor = id;
+            out.floor++;
+        }
+        return out;
+    },
+
+    /** The cellar under `ground`: planned, its stairs up where the ground floor's go down. */
+    _buildCellar(ground, building, seed) {
+        const C = _cfg();
+        const room = this.cellarRoom(building);
+        const down = ground._stairs && ground._stairs.down;
+        if (!room || !down) return null;
+        let interior = this._planFloor(ground, building, -1, room, down, seed);
+        if (!interior) {
+            // (an authored ground floor: a plain cellar of its footprint, its pieces along the walls)
+            interior = this._buildUpperFloor(ground, building, -1, false, seed, room);
+            for (const row of interior.tiles) for (const t of row) t._cellar = true;
+            return interior;
+        }
+        const t = interior.tiles[down.r][down.q];
+        t._furniture = { ...C.stairs.up, name: (C.stairs.cellar && C.stairs.cellar.upName) || 'Steps Up', passable: true, _stairs: true };
+        t._stairs = { to: 0 };
+        interior._stairs = { up: down, down: null };
+        return interior;
+    },
+
+    /**
+     * An upper floor over `below`: planned where the ground floor was (_planFloor), else
+     * the same footprint and walls (no door: its doorway is floor), the room's floor and
+     * furniture laid along the walls; the stairs down where the stairs below come up, and
+     * stairs up when a floor stands above. (`asRoom`: a cellar under an authored floor.)
+     */
+    _buildUpperFloor(below, building, k, hasAbove, seed, asRoom = null) {
         const C = _cfg();
         const { width: w, height: h } = below;
+        if (!asRoom) {
+            const who0 = below._who || null;
+            let room0 = this.floorRoom(building, k);
+            if (who0 && k === 1 && this._householdRoom) room0 = this._householdRoom(room0, who0, below._tier);
+            const planned = this._planFloor(below, building, k, room0, below._stairs.up, seed);
+            if (planned) {
+                const down = below._stairs.up;
+                const dt = planned.tiles[down.r][down.q];
+                dt._furniture = { ...C.stairs.down, passable: true, _stairs: true };
+                dt._stairs = { to: k - 1 };
+                let up = null;
+                if (hasAbove) {
+                    up = this._stairsSpot(planned, [down], `${seed}|up`);
+                    if (up) {
+                        const ut = planned.tiles[up.r][up.q];
+                        ut._furniture = { ...C.stairs.up, passable: true, _stairs: true };
+                        ut._stairs = { to: k + 1 };
+                        delete ut._decor;
+                    }
+                }
+                planned._stairs = { up, down };
+                return planned;
+            }
+        }
         // (whose it is: the household sleeps in the bedchamber over the house — interiorPlanner.js)
         const who = below._who || null;
-        let room = this.floorRoom(building, k);
-        if (who && k === 1 && this._householdRoom) room = this._householdRoom(room, who, below._tier);
+        let room = asRoom || this.floorRoom(building, k);
+        if (!asRoom && who && k === 1 && this._householdRoom) room = this._householdRoom(room, who, below._tier);
         const floorId = room.floor || 'wood_floor';
         const floorDef = (this.INTERIOR_FLOORS && this.INTERIOR_FLOORS[floorId]) || { color: '#8B7355', altColor: '#7A6548', name: 'Floor' };
         // A wall tile to copy where the door was
@@ -261,7 +606,10 @@ Object.assign(InnerMap, {
         const interior = { tiles, width: w, height: h, _floor: k, _room: room.kind, _who: who, _tier: below._tier };
         // The front wall's windows where the street front shows its upper ones (interiorPlanner.js)
         const ex = who && who.exterior;
-        if (ex && Array.isArray(ex.upper)) {
+        if (asRoom) {
+            // (underground: no windows)
+            for (const row of tiles) for (const t of row) if (t._wallDecor === 'window' || t._wallDecor === 'curtains') { delete t._wallDecor; delete t._wallDecorFace; }
+        } else if (ex && Array.isArray(ex.upper)) {
             const front = tiles[h - 1] || [];
             for (const t of front) if (t && (t._wallDecor === 'window' || t._wallDecor === 'curtains')) { delete t._wallDecor; delete t._wallDecorFace; }
             for (const f of ex.upper) {
@@ -271,7 +619,18 @@ Object.assign(InnerMap, {
                 if (t && t.baseTerrain === 'wall' && inside && inside.baseTerrain !== 'wall') { t._wallDecor = 'window'; t._wallDecorFace = 'up'; }
             }
         }
-        // The stairs down, where the stairs below come up
+        // The stairs down, where the stairs below come up (a cellar's up, where the ground floor's go down)
+        if (asRoom) {
+            const at = below._stairs.down;
+            const st = tiles[at.r] && tiles[at.r][at.q];
+            if (st) {
+                st._furniture = { ...C.stairs.up, name: (C.stairs.cellar && C.stairs.cellar.upName) || 'Steps Up', passable: true, _stairs: true };
+                st._stairs = { to: 0 };
+            }
+            interior._stairs = { up: at, down: null };
+            this._furnishUpperFloor(interior, room, [at], seed);
+            return interior;
+        }
         const down = below._stairs.up;
         const dt = tiles[down.r] && tiles[down.r][down.q];
         if (dt) {
@@ -356,17 +715,28 @@ Object.assign(InnerMap, {
      * downstairs.
      */
     npcFloor(npc) {
+        // (down in the cellar fetching ale, wine or stores: world/innerMap/cellarTrips.js)
+        const below = this._cellarFloorFor ? this._cellarFloorFor(npc) : null;
+        if (below != null) return below;
         const n = this._floorCount || 1;
         const b = this._insideBuilding;
         if (n <= 1 || !npc || !b) return 0;
         const h = _hash(String(npc.id != null ? npc.id : npc.name || ''));
+        // (a household planned by the bed sleeps together on the first floor of beds, a babe in its cradle there: householdRooms.js)
+        const together = this._hhPlanned && this._hhPlanned(b) && npc._home && npc._home.q === b.q && npc._home.r === b.r;
+        const own = together && this._householdOwn ? this._householdOwn(npc) : null;
         if (this._townAbed && this._townAbed(npc)) {
+            if (own) return own.k;
             const beds = this.bedFloors(b);
-            return beds.length ? beds[h % beds.length] : 0;
+            return beds.length ? beds[together ? 0 : h % beds.length] : 0;
         }
+        if (own && own.kind === 'cradle' && this._hhInfant(npc)) return own.k;
         const home = npc._home;
         // (home for a meal: down at the family table — world/innerMap/townWork.js _homeMealSeat)
         if (home && home.q === b.q && home.r === b.r && (npc._meal === 'supper' || npc._meal === 'breakfast')) return 0;
+        // (a babe's parents and the children keep about the cradle's floor by day: householdRooms.js)
+        const byCradle = together && this._hhCradleFloor ? this._hhCradleFloor(npc, b) : null;
+        if (byCradle != null) return byCradle;
         if (home && home.q === b.q && home.r === b.r) return h % n;
         if (this._isLodger && this._isLodger(npc, b)) return 1 + (h % (n - 1));
         return 0;
@@ -389,13 +759,37 @@ Object.assign(InnerMap, {
      */
     _placeNpcOnFloor(npc, interior) {
         npc._asleep = null;
+        // A babe of the house in its cradle, day and night (world/innerMap/householdRooms.js)
+        if (this._layInCradle && this._layInCradle(npc, interior)) {
+            (this._sleepersPlaced = this._sleepersPlaced || []).push({ q: npc.q, r: npc.r });
+            return true;
+        }
         if (this._townAbed && this._townAbed(npc)) {
+            // The household in its own beds: a couple side by side, the children paired (householdRooms.js)
+            const own = this._householdBedFor && this._householdBedFor(npc, interior);
+            if (own && own.kind === 'bed') {
+                npc.q = npc.prevQ = own.q;
+                npc.r = npc.prevR = own.r;
+                npc.path = null;
+                npc.moveProgress = 0;
+                npc._act = null;
+                npc._asleep = { q: own.q, r: own.r, side: own.side || 0 };
+                npc.activity = { type: 'bed', icon: '💤', label: 'asleep', anim: 'idle' };
+                npc.facing = 2;
+                (this._sleepersPlaced = this._sleepersPlaced || []).push({ q: own.q, r: own.r });
+                return true;
+            }
             const taken = new Set((this._sleepersPlaced || []).map(s => `${s.q},${s.r}`));
-            const beds = [];
+            // (anyone else leaves the household's own beds to it while there are others free)
+            const reserved = this._householdReserved ? this._householdReserved(interior) : new Set();
+            let beds = [];
             for (const row of interior.tiles) for (const t of row) {
                 // (a bed of two tiles is lain in from its head)
-                if (t && t._furniture && t._furniture.type === 'bed' && !(t._furniture.piece && t._furniture.piece.j) && !taken.has(`${t.q},${t.r}`)) beds.push(t);
+                if (t && t._furniture && t._furniture.type === 'bed' && !(t._furniture.piece && t._furniture.piece.j) && !taken.has(`${t.q},${t.r}`)
+                    && (!this._npcCanUseAt || this._npcCanUseAt(t.q, t.r, interior.tiles))) beds.push(t);   // (not a broken one: world/furnitureUsable.js)
             }
+            const spare = beds.filter(t => !reserved.has(`${t.q},${t.r}`));
+            if (spare.length) beds = spare;
             if (beds.length) {
                 const bed = beds[_hash(String(npc.id != null ? npc.id : npc.name || '')) % beds.length];
                 npc.q = npc.prevQ = bed.q;
@@ -459,8 +853,10 @@ Object.assign(InnerMap, {
 
     /** The stairs down on this floor (the way out from upstairs), or null. */
     _stairsDownTile() {
-        if (!(this._floor > 0) || !this.tiles) return null;
-        for (const row of this.tiles) for (const t of row) if (t && t._stairs && t._stairs.to < this._floor) return { q: t.q, r: t.r };
+        if (!this._floor || !this.tiles) return null;
+        // (up from the cellar: its steps up to the ground floor)
+        const toward = (to) => (this._floor > 0 ? to < this._floor : to > this._floor);
+        for (const row of this.tiles) for (const t of row) if (t && t._stairs && toward(t._stairs.to)) return { q: t.q, r: t.r };
         return null;
     },
 
@@ -472,7 +868,7 @@ Object.assign(InnerMap, {
     goToFloor(k, game) {
         if (!this._insideBuilding) return { ok: false, reason: 'You are not inside a building.' };
         const n = this._floorCount || 1;
-        if (k < 0 || k >= n) return { ok: false, reason: 'There is no such floor.' };
+        if (k < 0 ? !(k === -1 && this._hasCellar) : k >= n) return { ok: false, reason: k < 0 ? 'There is no cellar here.' : 'There is no such floor.' };
         if (k === this._floor) return { ok: true };
         const from = this._floor || 0;
         const interior = this._floorInterior(k);
@@ -497,7 +893,7 @@ Object.assign(InnerMap, {
         this._pendingInteraction = null;
         this._pendingAction = null;
         this._activeInteraction = null;
-        const room = k > 0 ? this.floorRoom(b, k) : null;
+        const room = k !== 0 ? this.floorRoom(b, k) : null;
         return { ok: true, room, from, to: k };
     },
 

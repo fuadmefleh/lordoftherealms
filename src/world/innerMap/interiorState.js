@@ -587,7 +587,34 @@ Object.assign(InnerMap, {
         const ctx = this._interiorStateCtx(building, k);
         const res = applyInteriorStateTo(this.tiles, this.width, this.height, ctx);
         this._istate = { tiles: this.tiles, building, key: k, sig: `${ctx.day}|${ctx.hour}|${this._floor || 0}` };
+        // Nobody keeps to a piece the layer has broken: the household's beds counted again, a
+        // sleeper in a broken bed laid elsewhere (world/innerMap/householdRooms.js, floors.js)
+        if (res && res.broken) this._afterBreakage();
+        // A shop's shelves and barrels by what its market holds (world/innerMap/shopStock.js: once a day)
+        if (this._dressShopStock) this._dressShopStock(building);
         return res;
+    },
+
+    /**
+     * After the layer has broken pieces on this floor: the household's bed plan made afresh
+     * (broken beds are nobody's), and anyone lying in a broken bed or cradle, or sat on a
+     * broken seat, moved — to another bed (or a bedroll), or up onto the floor.
+     */
+    _afterBreakage() {
+        this._hhPlanCache = null;
+        // (on entering, the layer is laid before anyone is placed: the street's list is not this floor's)
+        if (!this._insideBuilding || (this._outerMapState && this.npcs === this._outerMapState.npcs)) return;
+        const interior = { tiles: this.tiles, width: this.width, height: this.height };
+        const brokenAt = (q, r) => { const t = this.tiles[r] && this.tiles[r][q]; return !!(t && t._furniture && t._furniture.broken); };
+        for (const npc of this.npcs || []) {
+            if (npc._asleep && !npc._asleep.bedroll && brokenAt(npc._asleep.q, npc._asleep.r) && this._placeNpcOnFloor) {
+                this._sleepersPlaced = (this.npcs || []).filter(n => n !== npc && n._asleep).map(n => ({ q: n._asleep.q, r: n._asleep.r }));
+                this._placeNpcOnFloor(npc, interior);
+                this._sleepersPlaced = null;
+            } else if (npc._act && npc._act.spot && brokenAt(npc._act.spot.q, npc._act.spot.r) && this.yieldFurniture) {
+                this.yieldFurniture(npc);
+            }
+        }
     },
 
     /** Each frame inside (npcs.updateNPCs): laid again only when the hour, the day or the floor has turned. */

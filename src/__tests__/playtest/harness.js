@@ -33,6 +33,7 @@ import { RiverFlotsam } from '../../systems/riverFlotsam.js';
 import { RiverDrift } from '../../systems/riverDrift.js';
 import { RiverNets } from '../../systems/riverNets.js';
 import { RiverLife } from '../../systems/riverLife.js';
+import { Ports } from '../../systems/ports.js';
 import { AnimalCompanions } from '../../systems/animalCompanions.js';
 import { BackRooms } from '../../systems/backRooms.js';
 import { Atrocities } from '../../systems/atrocities.js';
@@ -443,9 +444,13 @@ function _endDay(game) {
     mark(game, 'Housing.processDaily');
     Household.processDay(player, world);
     mark(game, 'Household.processDay');
+    // The slip's timber, then the ships, then the harbours (systems/ports.js) — as endDay.js
+    Ports.yardDay(world, player);
     const shipDay = Ships.processDaily(player, world);
     mark(game, 'Ships.processDaily');
     game.voyageDay = (shipDay && shipDay.voyage) || null;
+    Ports.processDay(world, player);
+    mark(game, 'Ports.processDay');
     // Standing trade lines (player/tradeLines.js) — as endDay.js
     game.tradeLinesDay = TradeLines.processDay(world, player);
     mark(game, 'TradeLines.processDay');

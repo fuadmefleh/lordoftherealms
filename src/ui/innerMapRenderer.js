@@ -678,6 +678,8 @@ export const InnerMapRenderer = {
         if (this._renderRiverDrift) this._renderRiverDrift(ctx, camera);
         // ── Layer 1.66: Your fish traps in the edge water, and a poacher at one by night (innerMapLayers/fishTraps.js) ──
         if (this._renderFishTraps) this._renderFishTraps(ctx, camera);
+        // ── Layer 1.67: The harbour and the river at work — slip, careening beach, dockers, boats, barges, ferry (innerMapLayers/portLife.js) ──
+        if (this._renderPortLife) this._renderPortLife(ctx, camera);
         // ── Layer 1.68: Footprints in the snow and the mud, snowmen (innerMapLayers/streetSeasons.js) ──
         if (this._renderSeasonFx) this._renderSeasonFx(ctx, camera);
         // ── Layer 1.69: The weather on the ground — wet, fresh mud, puddles, splashes, rings (innerMapLayers/weatherFx.js) ──

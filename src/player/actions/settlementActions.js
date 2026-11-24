@@ -10,6 +10,7 @@ import { Colonization } from '../../world/colonization.js';
 import { LegendaryArtifacts } from '../../systems/legendaryArtifacts.js';
 import { Espionage } from '../../systems/espionage.js';
 import { Ships } from '../../systems/ships.js';
+import { Ports } from '../../systems/ports.js';
 import { Housing } from '../../systems/housing.js';
 import { Titles } from '../../systems/titles.js';
 import { Festivals } from '../../systems/festivals.js';
@@ -314,6 +315,22 @@ export function addSettlementActions(actions, player, tile, world, ctx) {
             icon: '⛴️',
             description: 'Hire a ship to travel to another coastal settlement'
         });
+
+        // The harbour as a place: harbourmaster, berths and dues, the slip, careening, the boats, the ferries (systems/ports.js)
+        {
+            const master = Ports.portAt(world, tile.q, tile.r) ? Ports.master(world, tile.settlement) : null;
+            if (master) {
+                const straits = Ports.straitOffers(world, player).length;
+                const owed = Math.round((tile.settlement.harbourBook && tile.settlement.harbourBook.owed) || 0);
+                actions.push({
+                    type: 'harbour',
+                    label: 'The Harbour',
+                    icon: '⚓',
+                    description: `${master.name}, the harbourmaster: berths, dues, the slip and the careening beach, the fishing boats${straits ? ', the ferry across the strait' : ''}`,
+                    notice: owed > 0 ? `${owed}g owed` : null,
+                });
+            }
+        }
 
         // Shipyard actions at coastal settlements
         if (typeof Ships !== 'undefined') {

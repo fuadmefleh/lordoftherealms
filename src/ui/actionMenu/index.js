@@ -21,6 +21,7 @@ import './thiefScenes.js';
 import './nightScenes.js';
 import './prisonScenes.js';
 import './seaScenes.js';
+import './blockadeScenes.js';
 import './dutyScenes.js';
 import './winterScenes.js';
 import './jobs.js';
@@ -31,6 +32,8 @@ import './social.js';
 import './houseShips.js';
 import './tradeLines.js';
 import './riverLife.js';
+// The harbour: harbourmaster, dues, the slip, careening, the fishing fleet, ferries (systems/ports.js)
+import './harbour.js';
 import './landings.js';
 import './titlesEspionage.js';
 import './services.js';

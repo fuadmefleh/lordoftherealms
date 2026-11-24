@@ -1,7 +1,7 @@
 // InnerMap — furniture use: walking up to furniture before using it (player)
 // and interior NPCs going about their business on the furniture around them.
 import { InnerMap } from './_ref.js';
-import { Utils, CustomObjects } from './_imports.js';
+import { Utils, CustomObjects, npcCanUse } from './_imports.js';
 
 const DIRS8 = [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]];
 
@@ -83,6 +83,9 @@ Object.assign(InnerMap, {
         loom:      { icon: '🧶', label: 'weaving',     anim: 'sitting', duration: [10, 18], seat: 'stool' },
         spinning_wheel: { icon: '🧶', label: 'spinning', anim: 'sitting', duration: [10, 18], seat: 'stool' },
         cradle:    { icon: '👶', label: 'rocking the cradle', anim: 'idle', duration: [4, 8] },
+        // The cellar's stores (world/innerMap/cellarTrips.js)
+        barrel_rack: { icon: '🍷', label: 'choosing a bottle', anim: 'idle', duration: [4, 8] },
+        sack:      { icon: '🌾', label: 'filling a measure', anim: 'idle', duration: [3, 6] },
     },
 
     /** Furniture each kind of NPC gravitates to; anything else is a fallback. */
@@ -210,13 +213,29 @@ Object.assign(InnerMap, {
         npc._act.timer = 2 + Utils.random() * 3;
     },
 
-    /** Pick furniture for an NPC: preferred types first, never one that's taken. */
+    /**
+     * May a townsperson use the piece at (q, r)? Not one broken in a raid or a fire (but a
+     * chest still rummaged, an altar still prayed at): the rule the player's actions go by
+     * too (world/furnitureUsable.js). An editor-placed object with no piece of its own: yes.
+     */
+    _npcCanUseAt(q, r, tiles = this.tiles) {
+        const t = tiles && tiles[r] && tiles[r][q];
+        return npcCanUse(t && t._furniture);
+    },
+
+    /** Pick furniture for an NPC: preferred types first, never one that's taken or broken. */
     _pickFurnitureFor(npc) {
         const spots = this.getFurnitureSpots();
         if (!spots.length) return null;
         const pa = this._pendingAction;
+        // (a cradle with the babe in it is still free to be rocked: world/innerMap/householdRooms.js)
+        const taken = (s) => (s.type === 'cradle'
+            ? (this.npcs || []).some(n => n !== npc && !(n._asleep && n._asleep.cradle) && ((n._act && n._act.spot && n._act.spot.q === s.q && n._act.spot.r === s.r) || (n._asleep && n._asleep.q === s.q && n._asleep.r === s.r)))
+            : !!this.getFurnitureOccupant(s.q, s.r));
+        // (never a broken piece: another, else they mill about — world/furnitureUsable.js)
         const free = spots.filter(s =>
-            !this.getFurnitureOccupant(s.q, s.r) &&
+            this._npcCanUseAt(s.q, s.r) &&
+            !taken(s) &&
             !(pa && pa.q === s.q && pa.r === s.r) &&
             !this.isPlayerNextTo(s.q, s.r));
         if (!free.length) return null;
@@ -266,7 +285,7 @@ Object.assign(InnerMap, {
     _onPiece(npc, act, def) {
         const t = this.getTile(act.spot.q, act.spot.r);
         const f = t && t._furniture;
-        if (!f) return;
+        if (!f || !npcCanUse(f)) return;
         const head = this._pieceHead(act.spot.q, act.spot.r);
         if (this._pieceTaken(head, npc)) return;
         act.from = { q: npc.q, r: npc.r };
@@ -419,9 +438,11 @@ Object.assign(InnerMap, {
     _updateInteriorNpc(npc, deltaTime) {
         // Asleep in bed till the hour comes round (world/innerMap/floors.js)
         if (npc._asleep) {
-            if (this._townAbed && this._townAbed(npc)) { npc.idleTimer = Math.max(npc.idleTimer || 0, 5); return; }
+            if ((this._townAbed && this._townAbed(npc)) || (this._inCradle && this._inCradle(npc))) { npc.idleTimer = Math.max(npc.idleTimer || 0, 5); return; }
             this._wakeNpc(npc);
         }
+        // Off to the stairs on a trip down to the cellar, or back up from it (world/innerMap/cellarTrips.js)
+        if (this._cellarTripStep && this._cellarTripStep(npc, deltaTime)) return;
         // The household at its table for a meal (world/innerMap/townWork.js)
         if (this._jobTableMeal && this._jobTableMeal(npc, deltaTime)) return;
         if (!npc._act) npc._act = { phase: 'rest', timer: 0.5 + Utils.random() * 2, spot: null };
@@ -473,8 +494,11 @@ Object.assign(InnerMap, {
 
             case 'walk':
                 if (!this._npcStep(npc, deltaTime)) return;
-                if (act.spot && Math.max(Math.abs(act.spot.q - npc.q), Math.abs(act.spot.r - npc.r)) <= 1) {
-                    const def = (npc._homeActs && npc._homeActs[act.spot.type]) || this.FURNITURE_ACTIVITIES[act.spot.type];
+                // (broken while they walked over — wrecked, or the hour's layer laid again: not used)
+                if (act.spot && Math.max(Math.abs(act.spot.q - npc.q), Math.abs(act.spot.r - npc.r)) <= 1 && this._npcCanUseAt(act.spot.q, act.spot.r)) {
+                    const def = (npc._homeActs && npc._homeActs[act.spot.type])
+                        || (this._householdActFor && this._householdActFor(npc, act.spot.type)) // (the hearth, the cradle: householdRooms.js)
+                        || this.FURNITURE_ACTIVITIES[act.spot.type];
                     const [lo, hi] = def.duration;
                     act.phase = 'use';
                     act.timer = lo + Utils.random() * (hi - lo);

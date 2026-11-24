@@ -20,6 +20,7 @@ import { _witchChoices } from './witchcraft.js';
 import { _heartChoices } from './hearts.js';
 // (their work, your service, the church: systems/townJobs.js, systems/townWorship.js)
 import { _workChoices } from './work.js';
+import { _guestChoices } from './guests.js';
 import { _darkChoices } from './darkDeeds.js';
 import { _schoolChoices } from './schooling.js';
 import { _waresChoices, _pedlarEmptyChoice } from './wares.js';
@@ -442,6 +443,8 @@ export function _renderChoices(box) {
         for (const c of _heartChoices()) choices.push(c);
         // Their work; work in your service; the church (ui/npcDialog/work.js)
         for (const c of _workChoices()) choices.push(c);
+        // Calling on them at home: a visit, their table, a bed for the night (ui/npcDialog/guests.js)
+        for (const c of _guestChoices()) choices.push(c);
         // The town's school: how it fares, a gift to it, a poor child's schooling paid (systems/townSchool.js)
         for (const c of _schoolChoices()) choices.push(c);
         // Buying from their own stock, or a pedlar's pack (ui/npcDialog/wares.js)

@@ -65,6 +65,17 @@ export function daylight(hour) {
     return 1;
 }
 
+/**
+ * Screen pixels for each of a decor sprite's pixels at tile size sz (grid: its pixels a
+ * tile). Close in (two screen pixels or more to each of its own) it is rounded to a whole
+ * number, so a mug's pixels are as even as the table's under it rather than 2, 3, 2 wide;
+ * farther out it is left as it is (rounding there would change sizes by half).
+ */
+export function decorPx(sz, grid = 48) {
+    const f = sz / Math.max(1, grid);
+    return f >= 2 ? Math.round(f) : f;
+}
+
 const isWall = (o) => !!o && o.baseTerrain === 'wall' && !o._doorway;
 
 /** Which wall a wall tile is: 'back', 'left', 'right', 'front' (the room's outside walls), or 'inner' */
@@ -451,8 +462,8 @@ export function drawWallDecor(ctx, art, tile, face, sz, getImg, scale, night) {
         if (a.variants && a.variants.length) c = { ...a, ...a.variants[hash % a.variants.length] };
         if (shut && a.shut) c = { ...c, ...a.shut };
         else if (night && a.night) c = { ...c, ...a.night };
-        const grid = c.grid || 48;
-        let w = c.sw * sz / grid, h = c.sh * sz / grid;
+        const px = decorPx(sz, c.grid || 48);
+        let w = c.sw * px, h = c.sh * px;
         const k = scale(img);
         // spread along the wall when more than one thing hangs on it
         const cx = face.x + face.w * (ids.length > 1 ? (i + 0.5) / ids.length : 0.5);
@@ -509,8 +520,8 @@ export function drawTableDecor(ctx, art, ids, box, top, sz, getImg, scale, seed 
         if (!a) return;
         const img = getImg(a.sheet);
         if (!img) { ok = false; return; }
-        const grid = a.grid || 48;
-        const w = a.sw * sz / grid, h = a.sh * sz / grid;
+        const f = decorPx(sz, a.grid || 48);
+        const w = a.sw * f, h = a.sh * f;
         const row = Math.floor(i / perRow), col = i % perRow, inRow = Math.min(perRow, n - row * perRow);
         const jitter = ((((seed + i) * 2654435761) >>> 0) % 7 - 3) / 100 * (x1 - x0);
         const cx = x0 + (x1 - x0) * (col + 0.5) / inRow + jitter;
@@ -519,4 +530,46 @@ export function drawTableDecor(ctx, art, ids, box, top, sz, getImg, scale, seed 
         ctx.drawImage(img, a.sx * k, a.sy * k, a.sw * k, a.sh * k, Math.round(cx - w / 2), Math.round(foot - h), Math.round(w), Math.round(h));
     });
     return ok;
+}
+
+
+/**
+ * A shop's wares on a piece (tile._stock, world/innerMap/shopStock.js): a shelf's boards
+ * (stock.rows: the art ids on each, top to bottom; stock.rowBox: each board's [x0, x1, foot,
+ * height] as fractions of the sprite), each ware fitted to its board's height and set in
+ * its slot (perRow slots: a board half full shows its gaps); or a counter's, a barrel's, a
+ * sack's wares heaped along its top (stock.ids, through drawTableDecor). Returns false
+ * while a sheet is still loading.
+ */
+export function drawWares(ctx, art, stock, box, sz, getImg, scale, seed = 0, perRow = 3) {
+    if (!stock || !art) return true;
+    if (stock.rows && stock.rowBox) {
+        let ok = true;
+        stock.rows.forEach((ids, ri) => {
+            const rb = stock.rowBox[ri];
+            if (!rb || !ids.length) return;
+            const x0 = box.x + box.w * rb[0], x1 = box.x + box.w * rb[1];
+            const foot = box.y + box.h * rb[2], room = box.h * rb[3];
+            const slot = (x1 - x0) / Math.max(perRow, ids.length);
+            ids.forEach((id, i) => {
+                const a = artFor(art, id);
+                if (!a) return;
+                const img = getImg(a.sheet);
+                if (!img) { ok = false; return; }
+                const f = decorPx(sz, a.grid || 48);
+                let w = a.sw * f, h = a.sh * f;
+                // (fitted to the board: never taller than the space under the next, nor wider than its slot)
+                const fit = Math.min(1, (room * 0.95) / h, (slot * 1.15) / w);
+                w *= fit; h *= fit;
+                const jit = ((((seed + ri * 7 + i) * 2654435761) >>> 0) % 5 - 2) * slot * 0.03;
+                const cx = x0 + slot * (i + 0.5) + jit;
+                const k = scale(img);
+                ctx.drawImage(img, a.sx * k, a.sy * k, a.sw * k, a.sh * k, Math.round(cx - w / 2), Math.round(foot - h), Math.round(w), Math.round(h));
+            });
+        });
+        return ok;
+    }
+    const ids = stock.ids || [];
+    if (!ids.length) return true;
+    return drawTableDecor(ctx, art, ids, box, stock.top, sz, getImg, scale, seed);
 }

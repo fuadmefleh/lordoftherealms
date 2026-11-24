@@ -38,6 +38,7 @@ import { InnerMapScavengers } from './innerMapScavengers.js';
 import { InnerMapBrawls } from './innerMapBrawls.js';
 import { InnerMapLocks } from './innerMapLocks.js';
 import { InnerMapDeck } from './innerMapDeck.js';
+import { InnerMapBelowDecks } from './innerMapBelowDecks.js';
 import { InnerMapAnimals } from './innerMapAnimals.js';
 import { InnerMapFurnish } from './innerMapFurnish.js';
 import { InnerMapFarming } from './innerMapFarming.js';
@@ -518,7 +519,7 @@ Object.assign(InnerMapRenderer, {
                 if (tile._stairs) {
                     const to = tile._stairs.to;
                     const up = to > (InnerMap._floor || 0);
-                    const room = to > 0 ? InnerMap.floorRoom(InnerMap._insideBuilding, to) : null;
+                    const room = to !== 0 ? InnerMap.floorRoom(InnerMap._insideBuilding, to) : null;
                     menuItems.push({ type: 'action', action: 'take_stairs', label: up ? 'Climb the Stairs' : 'Go Downstairs', icon: up ? '⬆️' : '⬇️', desc: `To ${InnerMap.floorLabel(to)}${room ? ` (${room.name})` : ''}`, stairsTo: to });
                 }
 
@@ -658,6 +659,8 @@ Object.assign(InnerMapRenderer, {
         }
         // On deck: the helm, the hold, orders to the crew — not "Strike Galleon" (ui/innerMapDeck.js)
         else if (InnerMapDeck.active(game)) InnerMapDeck.menuItems(game, menuItems, tile, q, r, npcsHere);
+        // Below decks: the ladder, the cargo, the cabin's log, charts and officers (ui/innerMapBelowDecks.js)
+        else if (InnerMapBelowDecks.active(game)) InnerMapBelowDecks.menuItems(game, menuItems, tile, q, r, npcsHere);
 
         if (menuItems.length === 0) return;
 
@@ -1066,6 +1069,7 @@ Object.assign(InnerMapRenderer, {
         if (InnerMapMaiming.handle(game, item)) return;
         if (InnerMapJail.handle(game, item)) return;
         if (InnerMapDeck.handle(game, item)) return;
+        if (InnerMapBelowDecks.handle(game, item)) return;
         if (/^(lot|vacancy)_/.test(item.action || '') && InnerMapLots.handle(game, item)) return;
         if (/^grave_/.test(item.action || '') && InnerMapGraves.handle(game, item)) return;
         if (/^plague_/.test(item.action || '') && InnerMapPlague.handle(game, item)) return;

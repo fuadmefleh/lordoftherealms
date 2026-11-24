@@ -3,10 +3,11 @@ assets/buildingKit/interior_decor.png
 Cut (not redrawn) from the Liberated Pixel Cup (LPC) art in assets/lpc, by
 scripts/build-interior-decor.py. Their artists and licences follow, as given in
 the credits files beside the originals (each section names its source sheet).
-The kit pieces (banner, weapon rack: assets/buildingKit/furniture48.png) are the
+The kit pieces (banner, weapon rack: assets/buildingKit/furniture48.png; the emptied shop shelf: furniture_big.png) are the
 building kit's own. Drawn by the script pixel by pixel: the tankards (mugs), the
 stack of books, the coins, the antlers, the wall map, the coat rack, the cradle's
-blanket, the tapestry's rod and the window shutters.
+blanket, the tapestry's rod, the window shutters, and a cellar's loose straw,
+spilt grain, damp patches and cobwebs.
 
 [Objects/Small Items/Credits.txt]
 Dishes
@@ -121,6 +122,91 @@ Herbs & Spices
   NOTES: 
     1st Row: tarragon, burdock root, chamomile, arugula, cress, fenugreek, licorice root, lemongrass, vanilla, saffron, chives, sumac, cloves, allspice, bay leaves
     2nd Row: ginger, tumeric, ginseng, horseraddish, wasabi, mustard, sesame, fennel, parsley, cilantro, dill, cumin, peppercorn, nutmeg, cinnamon
+
+[Objects/Small Items/Food/Credits.txt]
+Grains, Grasses
+-------------------
+  ARTIST(S): BlueCarrot16, Eliza Wyatt (DeathsDarling)
+  SOURCE: https://opengameart.org/content/lpc-food
+  LICENSE: OGA-BY 3.0 (Original art CC0)
+  DETAILS: Original by BlueCarrot16. Recolored by Eliza Wyatt.
+  NOTES:
+    1st Row: taro root, bamboo, rice, oats, barley, rye, wheat, quinoa, sugar cane, amaranth
+
+[Objects/Small Items/Food/Credits.txt]
+Seafood A
+-------------------
+  ARTIST(S): BlueCarrot16, Eliza Wyatt (DeathsDarling)
+  SOURCE: https://opengameart.org/content/lpc-food
+  LICENSE: OGA-BY 3.0 (Original art CC0)
+  DETAILS: Original by BlueCarrot16. Recolored by Eliza Wyatt.
+
+[Objects/Small Items/Food/Credits.txt]
+Meats B
+-------------------
+  ARTIST(S): BlueCarrot16, Eliza Wyatt (DeathsDarling)
+  SOURCE: https://opengameart.org/content/lpc-food
+  LICENSE: OGA-BY 3.0 (Original art CC0)
+  DETAILS: Original by BlueCarrot16. Recolored by Eliza Wyatt.
+
+[Objects/Small Items/Food/Credits.txt]
+Cheese A
+-------------------
+  ARTIST(S): Thekingphoenix, BlueCarrot16, Eliza Wyatt (DeathsDarling)
+  SOURCE: http://opengameart.org/content/icons-food
+  SOURCE: https://opengameart.org/content/lpc-food
+  LICENSE: OGA-BY 3.0 (Original art CC0)
+  DETAILS: Original by thekingphoenix. Recolored by BlueCarrot16 and Eliza Wyatt.
+
+[Objects/Small Items/Food/Credits.txt]
+Eggs
+-------------------
+  ARTIST(S): BlueCarrot16, Eliza Wyatt (DeathsDarling)
+  SOURCE: https://opengameart.org/content/lpc-food
+  LICENSE: OGA-BY 3.0 (Original art CC0)
+  DETAILS: Original by BlueCarrot16. Recolored by Eliza Wyatt.
+
+[Objects/Small Items/Food/Credits.txt]
+Vegetables A
+-------------------
+  ARTIST(S): BlueCarrot16, Eliza Wyatt (DeathsDarling)
+  SOURCE: https://opengameart.org/content/lpc-meals
+  LICENSE: OGA-BY 3.0 (Original art CC0)
+  DETAILS: Original by BlueCarrot16. Recolored by Eliza Wyatt.
+
+[Objects/Small Items/Food/Credits.txt]
+Mushrooms
+-------------------
+  ARTIST(S): BlueCarrot16, Eliza Wyatt (DeathsDarling)
+  SOURCE: https://opengameart.org/content/lpc-food
+  LICENSE: OGA-BY 3.0 (Original art CC0)
+  DETAILS: Original by BlueCarrot16. Recolored by Eliza Wyatt.
+  NOTES: 
+    1st Row: shiitake, button mushroom, oyster mushroom, sulfur shelf mushrooms, maitake mushroom, chanterelle mushroom, portobello mushroom, king trumpet mushroom, black morel mushroom, enoki mushroom
+
+[Objects/Small Items/Fabric/Credits.txt]
+Fabric Rolls, Groups
+-------------------
+  ARTIST(S): BlueCarrot16, Eliza Wyatt (DeathsDarling)
+  SOURCE: https://opengameart.org/content/lpc-tailor
+  LICENSE: OGA-BY 3.0
+  DETAILS: Original by BlueCarrot16. Edited and recolored by Eliza Wyatt.
+
+[Objects/Small Items/Fabric/Credits.txt]
+Fabric Rolls
+-------------------
+  ARTIST(S): BlueCarrot16, Eliza Wyatt (DeathsDarling)
+  SOURCE: https://opengameart.org/content/lpc-tailor
+  LICENSE: OGA-BY 3.0
+  DETAILS: Original by BlueCarrot16. Edited and recolored by Eliza Wyatt.
+
+[Objects/Small Items/Ores & Ingots/Credits.txt]
+Alloys & Ores
+-------------------
+  ARTIST(S): BlueCarrot16
+  SOURCE: https://opengameart.org/content/lpc-ore-and-forge
+  LICENSE: OGA-BY 3.0
+  DETAILS: Original by BlueCarrot. Recolored by Eliza Wyatt.
 
 [Objects/Wall Items/Credits.txt]
 Curtains

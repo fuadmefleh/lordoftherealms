@@ -12,7 +12,7 @@ import { WEATHER_EFFECTS } from './weather.js';
 import { Seasons } from './seasons.js';
 import { MountainBarriers } from './mountainBarriers.js';
 import { TownSiting } from './townSiting.js';
-import { Rivers } from './rivers.js';
+import { Ferries } from './ferries.js';
 
 export class WorldUnit {
     constructor(type, q, r, targetQ = null, targetR = null) {
@@ -346,7 +346,8 @@ export class WorldUnit {
             // A war host crossing a great river with no bridge, road, town or ford loses
             // hexes of its march (world/rivers.js); what the day can't pay is carried
             if (this.type === 'war_host') {
-                const cx = Rivers.crossExtra(world, fq, fr, this.q, this.r, 'army');
+                // (a ferry near a town carries it over quicker: world/ferries.js)
+                const cx = Ferries.crossExtra(world, fq, fr, this.q, this.r, 'army');
                 const x = cx > 0 ? Math.max(1, Math.round(cx)) : 0;
                 if (x > 0) {
                     const pay = Math.min(Math.max(0, Math.floor(budget + EPS)), x);

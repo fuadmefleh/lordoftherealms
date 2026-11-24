@@ -140,6 +140,9 @@ Object.assign(InnerMapRenderer, {
     _drawInBed(ctx, npc, p, x, y, sc, ds) {
         const A = p.art || {};
         const top = y, w = p.w * sc, h = p.h * sc, left = x - w / 2;
+        // (two in one bed — a couple, a pair of children: world/innerMap/householdRooms.js — each to their side of it)
+        const side = npc._asleep && npc._asleep.side ? npc._asleep.side : 0;
+        if (side) x += side * Math.max(w * 0.22, ds * 0.18);
         const useSprite = npc.preset && InnerMapCharacters.isReady() && InnerMapCharacters.getComposited(npc.preset);
         const cw = ds * 1.2 * 0.8, ch = ds * 1.8 * 0.8;
         const headY = top + h * (A.pillow || 0.2);
@@ -1031,7 +1034,7 @@ Object.assign(InnerMapRenderer, {
                         continue;
                     }
                     const zs = camera.worldToScreenFast(npc.q * T + T / 2, npc.r * T + T / 2);
-                    const zx = zs.x, zy = zs.y;
+                    const zx = zs.x + (npc._asleep.side || 0) * ds * 0.22, zy = zs.y;
                     const zRef = npc, zArt = bedP && bedP.art;
                     items.push({ sortY: npc.r * T + T / 2, zLayer: 0, draw() { InnerMapSleepers.draw(ctx, zRef, zx, zy, ds, undefined, zArt); } });
                     continue;

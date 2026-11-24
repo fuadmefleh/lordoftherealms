@@ -786,6 +786,8 @@ Object.assign(InnerMap, {
         if (!this.townArea() || this._insideBuilding) return 0;
         // (the sick laid up stay abed, day or night: world/innerMap/townSickness.js)
         if (this._sickAbed && this._sickAbed(npc)) return _span(this.townLifeConfig().stay.sleep, Utils.random);
+        // (a babe stays home in its cradle: world/innerMap/householdRooms.js)
+        if (this._hhInfant && npc._home && npc._insideBuildingQ === npc._home.q && npc._insideBuildingR === npc._home.r && this._hhInfant(npc)) return _span(this.townLifeConfig().stay.home, Utils.random);
         if (npc.type === 'guard' && npc._home && !this._guardOnDuty(npc)) return _span(this.townLifeConfig().stay.post, Utils.random);
         // (abed by their trade's hours: the baker before dawn, the innkeeper late — world/innerMap/townWork.js)
         const js = this._jobSleeps && !npc.departing ? this._jobSleeps(npc) : null;

@@ -121,12 +121,15 @@ export const Containers = {
 
     /**
      * The stable key of one container.
-     * ctx: { worldQ, worldR, building: { type, q, r, name } | null, q, r, furnitureType }
+     * ctx: { worldQ, worldR, building: { type, q, r, name } | null, q, r, furnitureType, floor? }
+     * (a floor above the ground or the cellar — floor ≠ 0 — keys its boxes apart from the
+     * ground floor's at the same tile; the ground floor's keys are as they always were)
      */
     key(ctx) {
         const b = ctx.building;
         const where = b ? `${_bType(b)}@${_num(b.q)},${_num(b.r)}` : 'out';
-        return `${_num(ctx.worldQ)},${_num(ctx.worldR)}|${where}|${_num(ctx.q)},${_num(ctx.r)}|${ctx.furnitureType || '?'}`;
+        const floor = b && _num(ctx.floor) ? `~${_num(ctx.floor)}` : '';
+        return `${_num(ctx.worldQ)},${_num(ctx.worldR)}|${where}${floor}|${_num(ctx.q)},${_num(ctx.r)}|${ctx.furnitureType || '?'}`;
     },
 
     /** The loot table a container draws from. */

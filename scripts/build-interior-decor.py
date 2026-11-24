@@ -209,38 +209,59 @@ def wall_map():
 
 
 def coat_rack():
-    pal = {'o': OUTL, 'w': WD1, 'x': WD2, 'y': WD3, 'c': CLOAK, 'd': CLOAK2, 'h': (96, 72, 48, 255), 'g': (64, 48, 32, 255)}
+    """A coat rack, not a dress form: a turned pole on three feet, pegs at its head, a
+    felt hat on the left peg and a cloak hung from the right one, falling straight down
+    one side of the pole (the pole seen whole above and below it)."""
+    pal = {'o': OUTL, 'w': WD1, 'x': WD2, 'y': WD3, 'c': CLOAK, 'd': CLOAK2,
+           'h': (104, 80, 54, 255), 'g': (70, 52, 34, 255), 'b': (150, 120, 70, 255)}
     rows = [
-        '.....oo.....',
-        '..o.oyxo.o..',
-        '.oxoowxoxo..',
-        '..oogggoo...',
-        '...ghhhgo...',
-        '..ogghhgxo..',
-        '..occdcwo...',
-        '.occcdcco...',
-        '.occcdccxo..',
-        '.occcdccco..',
-        'occcdcccco..',
-        'occcdccccco.',
-        'occccdcccco.',
-        'occccdcccdo.',
-        'odccccdccdo.',
-        '.odcccdcdo..',
-        '..oddddxo...',
-        '.....oxo....',
-        '.....oxo....',
-        '.....oxo....',
-        '.....oxo....',
-        '.....oxo....',
-        '.....oxo....',
-        '.....oxo....',
-        '....owxwo...',
-        '..oowwxwwoo.',
-        '.owwwoooowwo',
-        '.oo......oo.',
+        '.......oo.......',
+        '......oyxo......',
+        '..ooo.owxo......',
+        '.ohhho.wx..oo...',
+        'ohhbbhowxooxo...',
+        'ogggggggxwxco...',
+        '.ooooo.wxocco...',
+        '.......wxoccdo..',
+        '.......wxocdcco.',
+        '.......wxoccdco.',
+        '.......wxocdccdo',
+        '.......wxocdccdo',
+        '.......wxoccdcdo',
+        '.......wxocdccdo',
+        '.......wxocdcdco',
+        '.......wxoccdcdo',
+        '.......wxocdcdco',
+        '.......wxocdcddo',
+        '.......wxodddddo',
+        '.......wxooddoo.',
+        '.......wx..oo...',
+        '.......wx.......',
+        '......owxo......',
+        '.......wx.......',
+        '.......wx.......',
+        '......owxwo.....',
+        '....oowxowxoo...',
+        '..oowwo...owwoo.',
+        '..oo.........oo.',
     ]
-    return px(12, 28, rows, pal)
+    return px(16, len(rows), rows, pal)
+
+
+def shelf_bare():
+    """The kit's shelf (furniture_big.png) with its jars and bottles gone: each of its five
+    compartments the dark of its back board (a shop's shelf in a shortage; its wares are
+    drawn onto the boards by ui/interiorDress.js drawWares)."""
+    big = Image.open(os.path.join(KIT, 'furniture_big.png')).convert('RGBA').crop((576, 0, 624, 101))
+    back, shade = (42, 20, 19, 255), (34, 18, 19, 255)
+    for (y0, y1) in ((12, 25), (29, 41), (45, 57), (61, 73), (78, 90)):
+        for y in range(y0, y1 + 1):
+            for x in range(7, 42):
+                big.putpixel((x, y), back)
+        # (the board's own shadow on the back, under the board above)
+        for x in range(7, 42):
+            big.putpixel((x, y0), shade)
+    return big
 
 
 def blanket(w, h):
@@ -250,6 +271,58 @@ def blanket(w, h):
     d.line([(1, h - 2), (w - 2, h - 2)], fill=WOOL2)
     d.line([(1, 2), (w - 2, 2)], fill=(150, 60, 50, 255))
     return o
+
+
+def straw_loose():
+    """Straw kicked about a cellar's floor (tile._decor on bare floor): a few strands, flat."""
+    o = Image.new('RGBA', (24, 9), (0, 0, 0, 0))
+    d = ImageDraw.Draw(o)
+    lo, mid, hi = (150, 116, 52, 255), (196, 160, 78, 255), (226, 198, 112, 255)
+    for (x0, y0, x1, y1, c) in ((1, 6, 9, 4, mid), (4, 8, 13, 7, lo), (7, 3, 15, 5, hi), (12, 6, 21, 3, mid),
+                                (15, 8, 23, 7, lo), (2, 3, 6, 1, hi), (17, 2, 22, 1, lo), (9, 7, 11, 2, mid)):
+        d.line([(x0, y0), (x1, y1)], fill=c)
+    return o
+
+
+def grain_spill():
+    """Grain spilt from a sack (tile._decor on bare floor): a low fan of kernels."""
+    o = Image.new('RGBA', (20, 7), (0, 0, 0, 0))
+    k1, k2, k3 = (178, 140, 70, 255), (210, 176, 96, 255), (132, 98, 46, 255)
+    pts = [(2, 5), (4, 4), (5, 6), (7, 3), (8, 5), (9, 4), (10, 6), (11, 3), (12, 5), (13, 4), (14, 6),
+           (15, 5), (17, 5), (6, 5), (9, 2), (12, 2), (16, 4), (3, 6), (8, 6), (11, 5)]
+    for i, (x, y) in enumerate(pts):
+        o.putpixel((x, y), (k1, k2, k3)[i % 3])
+    return o
+
+
+def puddle():
+    """A damp patch on a cellar's flags (tile._decor on bare floor): dark water, a glint."""
+    o = Image.new('RGBA', (22, 8), (0, 0, 0, 0))
+    d = ImageDraw.Draw(o)
+    d.ellipse([0, 1, 21, 7], fill=(38, 44, 52, 120))
+    d.ellipse([3, 2, 15, 6], fill=(30, 36, 46, 150))
+    d.line([(6, 3), (10, 3)], fill=(150, 170, 190, 150))
+    return o
+
+
+def cobweb(right=False):
+    """A cobweb in the top corner of a cellar's back wall (tile._wallDecor cobweb / cobweb_r):
+    the tile's full width, the web in its left corner (the right corner's mirrored)."""
+    W, H = 32, 20
+    o = Image.new('RGBA', (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(o)
+    silk, faint = (226, 226, 220, 170), (210, 210, 204, 110)
+    # radials from the corner
+    for (x, y) in ((17, 0), (15, 6), (11, 12), (5, 17), (0, 19)):
+        d.line([(0, 0), (x, y)], fill=silk)
+    # the spiral: sagging threads between the radials
+    for k in (0.3, 0.55, 0.8, 1.0):
+        pts = [(round(x * k), round(y * k)) for (x, y) in ((17, 0), (15, 6), (11, 12), (5, 17), (0, 19))]
+        for a, b in zip(pts, pts[1:]):
+            d.line([a, b], fill=faint)
+    # a loose strand hanging down
+    d.line([(9, 9), (10, 16)], fill=faint)
+    return o.transpose(Image.FLIP_LEFT_RIGHT) if right else o
 
 
 def rod(w):
@@ -330,6 +403,33 @@ def decor_items():
     D['bowls'] = (cut('Small Items/Dishes A.png', 96, 0, 32, 32), S, {})
     D['coins'] = (coins(), T, {})
     D['herbs'] = (cut('Small Items/Food/Herbs & Spices.png', 0, 32, 32, 32), S, {})
+    # ── A shop's wares (world/innerMap/shopStock.js: what its market holds, on its shelves,
+    # counters, barrels, sacks and crates; data/shopStock.json says which good is which) ──
+    D['ware_grain'] = (cut('Small Items/Food/Grains, Grasses.png', 128, 32, 32, 32), S, {})
+    D['ware_flour'] = (cut('Small Items/Food/Grains, Grasses.png', 224, 32, 32, 32), S, {})
+    D['ware_salt'] = (cut('Small Items/Food/Grains, Grasses.png', 64, 32, 32, 32), S, {})
+    D['ware_fish'] = (cut('Small Items/Food/Seafood A.png', 128, 0, 32, 32), S, {})
+    D['ware_crab'] = (cut('Small Items/Food/Seafood A.png', 352, 0, 32, 32), S, {})
+    D['ware_meat'] = (cut('Small Items/Food/Meats B.png', 96, 0, 32, 32), S, {})
+    D['ware_sausage'] = (cut('Small Items/Food/Meats B.png', 32, 0, 32, 32), S, {})
+    D['ware_cheese'] = (cut('Small Items/Food/Cheese A.png', 128, 32, 32, 32), S, {})
+    D['ware_eggs'] = (cut('Small Items/Food/Eggs.png', 0, 32, 32, 32), S, {})
+    D['ware_cabbage'] = (cut('Small Items/Food/Vegetables A.png', 224, 0, 32, 32), S, {})
+    D['ware_roots'] = (cut('Small Items/Food/Vegetables A.png', 0, 32, 32, 32), S, {})
+    D['ware_mushrooms'] = (cut('Small Items/Food/Mushrooms.png', 0, 32, 32, 32), S, {})
+    D['ware_ingots'] = (cut('Small Items/Ores & Ingots/Alloys.png', 64, 0, 32, 32), S, {})
+    D['ware_copper'] = (cut('Small Items/Ores & Ingots/Alloys.png', 32, 0, 32, 32), S, {})
+    D['ware_coal'] = (cut('Small Items/Ores & Ingots/Ore, Coal.png', 32, 0, 32, 32), S, {})
+    D['ware_stone'] = (cut('Small Items/Ores & Ingots/Ore, Stone.png', 0, 0, 32, 32), S, {})
+    D['ware_cloth'] = (cut('Small Items/Fabric/Fabric Rolls, Groups.png', 0, 0, 32, 32), 44, {})
+    D['ware_wool'] = (cut('Small Items/Fabric/Fabric Rolls.png', 0, 0, 32, 32), 44, {})
+    D['ware_leather'] = (cut('Small Items/Fabric/Fabric Rolls.png', 96, 0, 32, 32), 44, {})
+    D['ware_planks'] = (cut('Small Items/Lumber.png', 160, 32, 32, 32), S, {})
+    D['ware_sack'] = (cut('Small Items/Kitchen Clutter A.png', 32, 96, 32, 32), S, {})
+    # ── On a cellar's bare floor (world/innerMap/floors.js _dressCellar): drawn here ──
+    D['straw_loose'] = (straw_loose(), T, {})
+    D['grain_spill'] = (grain_spill(), T, {})
+    D['puddle'] = (puddle(), T, {})
     return D
 
 
@@ -403,6 +503,9 @@ def wall_items():
     kit = Image.open(os.path.join(KIT, 'furniture48.png')).convert('RGBA')
     W['banner'] = (trim(kit.crop((48, 48, 96, 96))), 48, {'hang': 0.3})
     W['weapon_rack'] = (trim(kit.crop((96, 96, 144, 144))), 48, {'hang': 0, 'stands': True})
+    # (in the top corner of a cellar's back wall: its top at the face's head)
+    W['cobweb'] = (cobweb(), 32, {'hang': 0.92})
+    W['cobweb_r'] = (cobweb(right=True), 32, {'hang': 0.92})
     return W
 
 
@@ -416,8 +519,10 @@ def furniture_items():
                       {'top': [0.06, 0.1, 0.94, 0.45]})
     F['loom'] = (cut('Furniture/Sewing & Weaving/Loom.png', 0, 0, 64, 64), 60, {})
     stand = cut('Furniture/Sewing & Weaving/Spinning Wheel.png', 0, 0, 64, 64, keep=True)
-    wheel = cut('Furniture/Sewing & Weaving/Spinning Wheel.png', 64, 0, 64, 64, keep=True)
-    F['spinning_wheel'] = (stack((stand, 0, 0), (wheel, 0, 0)), 44, {})
+    # (the wheel's layer without the yarn's long arc over its head: drawn, it rose half a
+    # tile above the piece and over the wall behind it; the wheel and the distaff's wool stay)
+    wheel = cut('Furniture/Sewing & Weaving/Spinning Wheel.png', 64, 30, 64, 34, keep=True)
+    F['spinning_wheel'] = (stack((stand, 0, 0), (wheel, 0, 30), w=64, h=64), 44, {})
     F['basket'] = (cut('Small Items/Baskets A.png', 64, 0, 32, 32), 40, {})
     # (the kit's candelabra, its candles out)
     kit48 = Image.open(os.path.join(KIT, 'furniture48.png')).convert('RGBA')
@@ -435,7 +540,8 @@ def furniture_items():
     crate = cut('Furniture/Crate.png', 64, 32, 32, 32)
     F['crate_stack'] = (stack((cut('Furniture/Crate.png', 0, 32, 64, 32), 0, 14), (crate, 14, 0)), 52, {})
     F['barrel_rack'] = (cut('Furniture/Barrel.png', 96, 0, 64, 64), 56, {})
-    F['coat_rack'] = (coat_rack(), 30, {})
+    F['coat_rack'] = (coat_rack(), 27, {})
+    F['shelf_bare'] = (shelf_bare(), 48, {})
     return F
 
 
@@ -550,6 +656,16 @@ CREDITS = [
     ('Objects/Small Items/Food/Credits.txt', 'Bread A'),
     ('Objects/Small Items/Food/Credits.txt', 'Fruit B'),
     ('Objects/Small Items/Food/Credits.txt', 'Herbs & Spices'),
+    ('Objects/Small Items/Food/Credits.txt', 'Grains, Grasses'),
+    ('Objects/Small Items/Food/Credits.txt', 'Seafood A'),
+    ('Objects/Small Items/Food/Credits.txt', 'Meats B'),
+    ('Objects/Small Items/Food/Credits.txt', 'Cheese A'),
+    ('Objects/Small Items/Food/Credits.txt', 'Eggs'),
+    ('Objects/Small Items/Food/Credits.txt', 'Vegetables A'),
+    ('Objects/Small Items/Food/Credits.txt', 'Mushrooms'),
+    ('Objects/Small Items/Fabric/Credits.txt', 'Fabric Rolls, Groups'),
+    ('Objects/Small Items/Fabric/Credits.txt', 'Fabric Rolls'),
+    ('Objects/Small Items/Ores & Ingots/Credits.txt', 'Alloys & Ores'),
     ('Objects/Wall Items/Credits.txt', 'Curtains'),
     ('Objects/Wall Items/Credits.txt', 'Lighting, Wall'),
     ('Objects/Wall Items/Credits.txt', 'Mirrors'),
@@ -593,10 +709,11 @@ def write_credits():
         'Cut (not redrawn) from the Liberated Pixel Cup (LPC) art in assets/lpc, by',
         'scripts/build-interior-decor.py. Their artists and licences follow, as given in',
         'the credits files beside the originals (each section names its source sheet).',
-        'The kit pieces (banner, weapon rack: assets/buildingKit/furniture48.png) are the',
+        'The kit pieces (banner, weapon rack: assets/buildingKit/furniture48.png; the emptied shop shelf: furniture_big.png) are the',
         'building kit\'s own. Drawn by the script pixel by pixel: the tankards (mugs), the',
         'stack of books, the coins, the antlers, the wall map, the coat rack, the cradle\'s',
-        'blanket, the tapestry\'s rod and the window shutters.',
+        'blanket, the tapestry\'s rod, the window shutters, and a cellar\'s loose straw,',
+        'spilt grain, damp patches and cobwebs.',
         '',
     ]
     body = [f'[{path}]\n' + section(path, title) + '\n' for path, title in CREDITS]

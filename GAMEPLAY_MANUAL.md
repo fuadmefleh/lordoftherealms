@@ -4234,6 +4234,36 @@ If you steer off the route by hand, the ship plots a new one from wherever you a
 
 **Expeditions** (in the same Voyage menu) sail toward a rumoured or charted uncharted place, or out into open sea far from every port, and end at sea with you at the helm (see [Uncharted Lands](#uncharted-lands)).
 
+### Wind, Storms & the Coast
+
+**The wind.** The winds blow by latitude, the same winds that bring the rain over the land. In the warm belt the **trade winds** blow west and toward the equator. In the middle latitudes the **westerlies** blow east and poleward. Near the poles the **polar easterlies** blow west again. At the equator lie the calm **doldrums**, and where the trades meet the westerlies the wind goes slack. The belts follow the sun north in the northern summer and south in the southern, and the trades and westerlies blow hardest in their hemisphere's winter. Day by day the wind veers and freshens about its prevailing direction. The westerlies change the most and the trades the least.
+
+**Points of sail.** How fast a ship goes depends on her heading against the wind:
+- A **beam reach** (the wind across her side) is best.
+- **Running** before the wind is good.
+- **Close-hauled** is slower.
+- **Dead upwind** she must tack, and makes a third to a half of her way.
+
+In light airs every heading drifts. Sloops, caravels and fishing boats (fore-and-aft rigs) sail closer to the wind than square-rigged cogs and galleons. A rowboat rows whatever the wind blows, and a war galley's oars carry half her way. The current counts too.
+
+The **Set Sail** list gives each port's days by the wind, the current and the coast. The voyage keeps to the cheapest way, not the shortest. Every few days the master looks again and lays a new course if the wind has opened a better one. The voyage panel's **🌬️ The Sea** card shows the wind, your point of sail (with its % of way), the current, your pilot, the dangers ahead and any storms in sight. At the helm, a small arrow beside your ship on the world map shows the wind: it points the way the wind blows, and the longer it is the harder it blows.
+
+**Storms crossing the sea.** **Hurricanes** are born in the trade-wind belt in late summer, and **gales** in the westerlies in winter. Each is named, and each travels with the wind over several days. A hurricane turns poleward as it ages. Storms grow and blow themselves out, and die over land. On the world map they show as turning cloud over sea you have charted. A ship inside one is caught in it, whether under way or at anchor. The voyage log warns you when a storm comes in sight ("The glass is falling…"), and the route planner steers wide of storms it can see.
+
+**The coast.** Coasts from terrainGen 16–17 have dangers of their own:
+- 🪸 **Reefs**: warm coral shallows.
+- 🏝️ **Shoals**: off the skerries and on a delta's flats.
+- 🏞️ **River bars**: at the mouth of every river bigger than a brook, and at deltas. Going over one is slow.
+- 🏔️ **Fjord rocks**: fjords are also slow, because the wind between the walls is fickle.
+
+Each hazard hex you sail through risks a strike. The risk is greatest at speed and in the dark. A deep hull runs the most risk (a galleon), a rowboat the least. A reef strike tears the hull, may cost a hand, may cost cargo thrown over to float her off, and loses the rest of the day and the next. Shoals and bars ground you for the rest of the day.
+- **Orders.** By default the ship **goes carefully**: she shortens sail in foul water and lies to for the night rather than run an unpiloted, unlit hazard in the dark. **Press on** (in the voyage panel) sails day and night at full speed. It is quicker but riskier.
+- **A pilot.** In the Set Sail menu you can **hire a local pilot** at any port. His fee goes into the town's purse: about 8g in a village and up to 34g in a capital. He knows every reef, bar and shoal within 5–10 leagues of his port, a wider stretch at a bigger port, and takes the ship through them for a tenth of the risk. The route planner no longer steers wide of those waters. He sails with you for the next voyage and goes ashore at its end.
+- **Charts.** Any map you carry that shows the hex (or your chart draft) halves the risk there.
+- **Lighthouses.** They stand at the **major ports** (capitals and cities on the water) and at any **Lighthouse** you build. Within reach of their light (4–5 leagues) the night is hardly darker than day. A port with a lighthouse sends a **pilot cutter** out to a ship making for it, for half the pilot's fee.
+
+The hex panel's **At Sea** row names the wind, a storm, any reef, shoal, bar or fjord rocks (and whether you have charted them), and a lighthouse whose light reaches there. Sailing by hand at the helm risks the coast the same way, in daylight at speed.
+
 ### Events at Sea
 
 On each day of a voyage there is a 30% chance of an event. Each offers choices; an event left unanswered takes its default choice the next day. Events tie into morale, crew, cargo, provisions, hull, gold, renown, karma, traits and the underworld:
@@ -4357,6 +4387,13 @@ A merchantman can be **run down**, approached **under false colours** (you board
 
 If you lose to pirates, they take 10–25% of your purse, and their captain keeps it until you beat them.
 
+**Fight her under sail.** At sea aboard your own ship, the battle also offers **Fight her under sail**: you go on deck and the fight is fought on the water (`systems/seaFights.js`, `ui/innerMapSeaFight.js`, tuning in `data/seaFights.json` → fight). Your ship is the deck you stand on, always drawn heading west; the enemy, and your own squadron, sail round her, and a compass shows the wind.
+- **Sailing.** Each ship has a heading and a speed that depends on the wind: fastest on a beam reach, slow running before it, and unable to point within 150° of the wind's eye (she tacks). Galleys row and care less about the wind. Damaged rigging and a short crew slow her.
+- **Guns.** A broadside fires when a foe lies on the beam within range and the guns are loaded (about 7 s with a full crew). Chasers fore and aft fire a fifth of the guns at a ship dead ahead or astern. Crossing a ship's bow or stern **rakes** her: 1.8× the damage. **Round shot** (range 7) breaks hulls, **chain shot** (range 5) cuts rigging, **grape** (range 4) kills men. Dark, fog and storm spoil the aim; your Combat skill steadies it.
+- **Orders.** At the helm: Close, Rake, Keep at range, Grapple, Flee, Heave to, and which enemy to target. Your **squadron** is your other crewed ships within a hex and the war galleys of your army: Follow me (keep station astern), Engage, or Hold. You can also hand the fight to the sailing master, or strike your colours.
+- **The end.** A beaten ship strikes her colours: a merchant strikes when run down, a cruel crew only when nearly sunk. A ship with no hull left sinks. A grapple with your ship becomes a **boarding**: her hull is laid alongside and her crew comes over the rail, fought hand to hand on your deck as boarders are. Flee far enough and you escape; after five minutes both sides draw off. Then the fight goes back to the encounter: a victory leads to the usual aftermath (ransom, hang, prize…), a defeat is a defeat. Your hulls and crews keep the damage; a consort can be sunk or taken, and a mauled galley is wounded.
+- Leave the deck mid-fight, or let the day end, and the sailing master fights it out. The rows below keep the quick phased fight.
+
 **Aftermath of a beaten pirate.** First you decide what happens to the captain and crew:
 - **Ransom the captain.** Their haven pays, and so you learn where it lies; the captain goes free.
 - **Hand them to the crown.** You get the bounty and renown, and the captain hangs. Their haven-mates never forgive it.
@@ -4408,6 +4445,20 @@ The squadron is about 30% of the realm's fleet (6–60 strength). Your ship figh
 
 - **Win:** +2 renown, a few sailors may be lost, and the realm's fleet loses half the squadron. Against a realm at war with you, you also gain +10 war score.
 - **Lose:** the hull takes 8–20% damage, 10–25% of the crew is lost, and the squadron seizes 30% of every good in the hold.
+
+**Squadrons on the map.** The royal fleets are shown as ships on the world map, where you can see the water they sit on (`world/navySquadrons.js`, tuning in `data/seaFights.json` → squadrons). A realm with a fleet of at least 8 keeps:
+- **blockade squadrons**: when it blockades an enemy, 60% of its fleet lies on station off up to three of the enemy's ports (the capital first). Each squadron is ringed red and tied to its port, beating back and forth across the harbour mouth;
+- **patrol squadrons**: the rest of the fleet, one squadron for every 30 strength (up to 3), sailing out and back each day along a sea route between two of its ports, or along a picket line out from one.
+Each squadron shows 1–3 ships by its size. The hex panel names it, with its ships and strength. Trading ships go about their lanes as world units.
+
+**Running a blockade.** A voyage bound into a port under blockade, or leaving one, heaves to off the harbour mouth, unless you are sworn to the blockading realm or one of its allies. She lies off, day after day, until you decide (`systems/blockadeRunning.js`):
+- **Run past them now**, or **wait for dark, then run** (the day passes). Your odds start at 30%. The dark adds 25%; fog adds 20%, a storm 15% and rain 10% (the weather at the port). Every knot you sail faster than the squadron adds 5%, each point of your stealth 3% and each point of your ship's stealth fittings 5%. Each ship on watch beyond the first takes 4% off, and a close blockade (the harbour shut) 12%. Odds stay between 5% and 90%.
+- **Heave to and be searched** (only if you are not at war with them). A loose blockade takes 15% of each good as dues and lets you through; a close one turns you away.
+- **Attack the squadron**, under sail on the water, or fought out at once.
+- **Lie off a day**, waiting for the weather, or **turn back**.
+- **Seen**, you can fight, try to outsail them, or strike. If you strike, they take 30% of every good (50% and a fine at war, paid into the realm's treasury) and send you off.
+- **Beat the squadron off** and you go through: +3 renown, +12 war score if you are at war with them, and their fleet loses half the squadron's strength, which may break the blockade.
+- **Run into a shut harbour** and you may trade there for 10 days, and buyers pay a runner's price (1.4×).
 
 ### Uncharted Lands
 

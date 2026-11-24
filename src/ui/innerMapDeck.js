@@ -40,6 +40,8 @@ import { InnerMapCharacters } from './innerMapCharacters.js';
 import { ActionMenu } from './actionMenu.js';
 import { Ships } from '../systems/ships.js';
 import { DeckLife } from '../systems/deckLife.js';
+import { InnerMapBelowDecks } from './innerMapBelowDecks.js';
+import { BelowDecks } from '../systems/belowDecks.js';
 import { drawMapText } from './mapInk.js';
 
 const BTN = 'padding:7px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;transition:all 0.12s;';
@@ -63,6 +65,8 @@ export const InnerMapDeck = {
     _day: null,
     _fight: null,
     _game: null,
+    // A sea fight on the water (ui/innerMapSeaFight.js) puts the crew to the guns or the rail: merged over the situation
+    situationOverride: null,
 
     /* ── Where we are ─────────────────────────────────────────── */
 
@@ -102,6 +106,7 @@ export const InnerMapDeck = {
         const ship = this.ship(game);
         const wt = game && game.world && InnerMap.currentWorldTile ? game.world.getTile(InnerMap.currentWorldTile.q, InnerMap.currentWorldTile.r) : null;
         if (!ship || !wt || !Ships.isWaterTile(wt)) return false;
+        InnerMapBelowDecks.resetDeck();
         InnerMap._manDeck(DeckLife.roster(ship));
         if (!InnerMap._deck) return false;
         // (a pirate hull left on the cached map by a fight that was saved or left)
@@ -122,6 +127,12 @@ export const InnerMapDeck = {
 
     /** Leaving the deck (exitInnerMap): an unfinished fight is settled by the dice. */
     onExit(game) {
+        // A boarding from a sea fight goes back to the fight, which settles it by the dice
+        if (this._fight && this._fight.onEnd) {
+            const onEnd = this._fight.onEnd;
+            this._clearFight();
+            onEnd(null);
+        }
         if (this._fight) {
             this._clearFight();
             const res = Ships.finishBoarding(game.player, game.world, null);
@@ -130,6 +141,7 @@ export const InnerMapDeck = {
         this._fight = null;
         if (InnerMap._clearPirateHull && InnerMap.tiles) InnerMap._clearPirateHull();
         InnerMap._deck = null;
+        InnerMapBelowDecks.resetDeck();
         this._sit = null;
         this._sitKey = null;
     },
@@ -144,6 +156,8 @@ export const InnerMapDeck = {
 
     /** A day has ended aboard: the ship is somewhere new, the crew may be fewer. */
     _newDay(game) {
+        // (below decks: the deck takes up the new day when you come back up — ui/innerMapBelowDecks.js)
+        if (InnerMap._insideBuilding) return;
         this._day = game.world.day;
         const p = game.player;
         const wt = game.world.getTile(p.q, p.r);
@@ -151,9 +165,9 @@ export const InnerMapDeck = {
         InnerMap._currentWorldTileRef = wt;
         this._snapWeather(game);
         // A fight the day's end settled by the dice (Ships._voyageDay): its boarders are gone
-        if (this._fight && !Ships.getBoarding(p)) this._clearFight();
+        if (this._fight && !this._fight.onEnd && !Ships.getBoarding(p)) this._clearFight();
         const ship = this.ship(game);
-        if (ship && !this._fight && DeckLife.roster(ship).length !== this._crew().length) InnerMap._manDeck(DeckLife.roster(ship));
+        if (ship && !this._fight && DeckLife.roster(ship).length !== this._crew().length + InnerMapBelowDecks.stowedCount()) { InnerMapBelowDecks.resetDeck(); InnerMap._manDeck(DeckLife.roster(ship)); }
         for (const n of this._crew()) n._deckWounded = false;
         this._sitKey = null;
         this._refresh(game, true);
@@ -208,6 +222,8 @@ export const InnerMapDeck = {
             this._refresh(game, false);
         }
         if (this._fight) this._fightTick(dt, game);
+        // Hands at the hatch go below (ui/innerMapBelowDecks.js)
+        InnerMapBelowDecks.tickDeck(game);
         // The hands talk among themselves
         this._chatTimer -= dt;
         if (this._chatTimer <= 0) {
@@ -223,10 +239,13 @@ export const InnerMapDeck = {
     _refresh(game, force) {
         const ship = this.ship(game);
         if (!ship) return;
-        const sit = DeckLife.situation(game.player, game.world, ship, { hour: InnerMap.timeOfDay });
+        const sit0 = DeckLife.situation(game.player, game.world, ship, { hour: InnerMap.timeOfDay });
+        const sit = this.situationOverride ? { ...sit0, ...this.situationOverride } : sit0;
         const key = `${sit.kind}|${sit.eventId || ''}`;
         const prev = this._sit;
         this._sit = sit;
+        // Who is below at this hour is not on deck: to the hatch and down, or up again (ui/innerMapBelowDecks.js)
+        InnerMapBelowDecks.syncDeck(game, ship, sit);
         // Under way or hove to: how the water runs past (ui/innerMapLayers/waterFx.js)
         if (InnerMap._deck) InnerMap._deck.underway = !!ship.voyage;
         if (sit.landNear && !(prev && prev.landNear)) this._landHo(game, ship);
@@ -303,7 +322,10 @@ export const InnerMapDeck = {
         if (this._fight) deck.push({ type: 'action', action: 'deck_helm', label: 'Boarders on Deck!', icon: '⚔️', desc: `${this._fight.boarders.filter(b => !b._down).length} left — fight them, or strike your colours at the helm` });
         else if (ev) deck.push({ type: 'action', action: 'deck_helm', label: `${ev.title}: Give Orders`, icon: ev.icon, desc: 'At the helm' });
         deck.push({ type: 'action', action: 'deck_helm', label: tile && tile._helm ? 'Take the Helm' : 'Go to the Helm', icon: '🧭', desc: ship.voyage ? `Bound for ${ship.voyage.destName}` : 'Make for port' });
-        deck.push({ type: 'action', action: 'deck_hold', label: 'Go Below to the Hold', icon: '📦', desc: `${Ships.getCargoUsed(ship)}/${Ships.getShipEffectiveStats(ship).cargoCapacity} stowed · ${this._foodText(ship)}` });
+        // Down the ladder: berths, galley, hold, cabin (ui/innerMapBelowDecks.js)
+        const below = BelowDecks.reason(ship);
+        if (!below) deck.push({ type: 'action', action: 'deck_below', label: 'Go Below Decks', icon: '🔼', desc: 'Down the hatch: the berths, the galley, the hold, the cabin' });
+        deck.push({ type: 'action', action: 'deck_hold', label: "The Hold's Manifest", icon: '📦', desc: `${Ships.getCargoUsed(ship)}/${Ships.getShipEffectiveStats(ship).cargoCapacity} stowed · ${this._foodText(ship)}` });
         for (const o of DeckLife.ordersFor(game.player, game.world, ship)) {
             if (o.available) deck.push({ type: 'action', action: 'deck_order', order: o.id, label: o.label, icon: o.icon, desc: o.desc });
             else deck.push({ type: 'disabled', label: `${o.label} — ${o.why}` });
@@ -329,6 +351,11 @@ export const InnerMapDeck = {
         }
         if (item.action === 'deck_hold') {
             const go = () => this.showHold(game);
+            if (InnerMap.approachAndThen(L.hatch.q, L.hatch.r, go) === 'unreachable') go();
+            return true;
+        }
+        if (item.action === 'deck_below') {
+            const go = () => InnerMapBelowDecks.goBelow(game);
             if (InnerMap.approachAndThen(L.hatch.q, L.hatch.r, go) === 'unreachable') go();
             return true;
         }
@@ -591,12 +618,24 @@ export const InnerMapDeck = {
 
     /* ── Boarders ─────────────────────────────────────────────── */
 
-    /** Pirates come alongside and over the rail (voyage.boarding). */
-    _startBoarding(game, fresh) {
-        const b = Ships.getBoarding(game.player);
+    /**
+     * A boarding from a sea fight on the water (ui/innerMapSeaFight.js):
+     * sea = { enemy (strength), hullId, lead, onEnd(won|null) } — the enemy
+     * hull alongside, her crew over the rail, and the end handed to onEnd
+     * instead of Ships.finishBoarding. → true when the fight is on.
+     */
+    startSeaBoarding(game, sea) {
+        if (!sea || this._fight || !this.active(game)) return false;
+        this._startBoarding(game, true, sea);
+        return !!this._fight;
+    },
+
+    /** Pirates come alongside and over the rail (voyage.boarding, or a sea fight's grapple). */
+    _startBoarding(game, fresh, sea = null) {
+        const b = sea ? { enemy: sea.enemy } : Ships.getBoarding(game.player);
         if (!b || this._fight) return;
         const party = DeckLife.boardingParty(b);
-        InnerMap._layPirateHull(b.enemy >= 22 ? 'hull_brig' : 'hull_sloop');
+        InnerMap._layPirateHull(sea && sea.hullId ? sea.hullId : (b.enemy >= 22 ? 'hull_brig' : 'hull_sloop'));
         const boarders = InnerMap._spawnBoarders(party.names.map(name => ({ name, hp: party.hp })));
         for (const n of boarders) {
             InnerMapCombat._npcHealth.set(n.id, { current: party.hp, max: party.hp });
@@ -606,11 +645,11 @@ export const InnerMapDeck = {
             n._skillRole = 'pirate'; // sea-rovers' blades and fists (systems/combatSkills.js)
         }
         for (const n of this._crew()) n._deckHp = DeckLife.crewHp();
-        this._fight = { boarders, blowTimer: 0, started: _now() };
+        this._fight = { boarders, blowTimer: 0, started: _now(), onEnd: sea ? sea.onEnd : null };
         this._sitKey = null;
         this._refresh(game, false);
         if (fresh || boarders.length) {
-            game.ui.showNotification('🏴‍☠️ Boarders!', `${boarders.length} of them come over the rail, steel out. Fight beside your crew — click a boarder to attack — or strike your colours at the helm.`, 'error');
+            game.ui.showNotification('🏴‍☠️ Boarders!', `${sea && sea.lead ? `${sea.lead} ` : ''}${boarders.length} of them come over the rail, steel out. Fight beside your crew — click a boarder to attack — or strike your colours at the helm.`, 'error');
         }
     },
 
@@ -640,7 +679,15 @@ export const InnerMapDeck = {
     },
 
     _endFight(game, won, lead = '') {
+        const onEnd = this._fight && this._fight.onEnd;
         this._clearFight();
+        if (onEnd) {
+            this._sitKey = null;
+            this._refresh(game, false);
+            if (won) for (const n of this._crew().slice(0, 5)) InnerMapReactions.bark(n, 'Huzzah!', 3);
+            onEnd(!!won, lead);
+            return;
+        }
         const res = Ships.finishBoarding(game.player, game.world, won);
         this._sitKey = null;
         this._refresh(game, false);

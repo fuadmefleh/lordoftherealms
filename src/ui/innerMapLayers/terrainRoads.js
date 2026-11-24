@@ -10,7 +10,7 @@ import { furnitureGlyph } from '../icons.js';
 import { engraveGlyph } from '../mapInk.js';
 import { sheetScale } from '../sheetScale.js';
 import { tintedWallSheet } from '../wallTint.js';
-import { CAP, asIds, daylight, wallSides, drawOuterWall, drawInnerWall, shadeFloor, drawWallDecor, drawTableDecor, drawSoot, drawBroken, drawColdFire, fireOut } from '../interiorDress.js';
+import { CAP, asIds, daylight, wallSides, drawOuterWall, drawInnerWall, shadeFloor, drawWallDecor, drawTableDecor, drawSoot, drawBroken, drawColdFire, fireOut, drawWares } from '../interiorDress.js';
 import { drawKerbs } from '../pavingEdges.js';
 import { drawLaneGround, drawLaneTufts } from '../laneEdges.js';
 import { drawTilledSoil } from '../tilledSoil.js';
@@ -538,7 +538,8 @@ Object.assign(InnerMapRenderer, {
             const cell = cellOf(fl.c), kf = this._sheetScale(fl.img);
             ctx.drawImage(fl.img, cell[0] * kf, cell[1] * kf, 32 * kf, 32 * kf, dx, dy, sz, sz);
         };
-        const light = daylight(InnerMap.timeOfDay);
+        // (a cellar is dark at every hour: its torches and candles burn — ui/interiorLight.js)
+        const light = tile._cellar ? 0 : daylight(InnerMap.timeOfDay);
 
         if (isWall) {
             const mat = art.walls[tile._wallMaterial] || art.walls[art.defaultWall];
@@ -565,7 +566,10 @@ Object.assign(InnerMapRenderer, {
         // (a piece with its own look keeps it at its size: the poor's wooden tub, tub_wood_2x1)
         const pieceArt = piece && ((furniture.art && art.furniture[`${furniture.art}_${piece.w}x${piece.h}`]) || art.furniture[`${furniture.type}_${piece.w}x${piece.h}`]);
         // (a piece may name its own look: coal in a sack, `art: 'sack_coal'`)
+        // (a shop's shelf by what its market holds: emptied, its wares drawn on its boards — world/innerMap/shopStock.js)
+        const stock = furniture && tile._stock;
         const furnArt = furniture && (pieceArt
+            || (stock && stock.bare && art.furniture[stock.bare])
             || (furniture.art && art.furniture[furniture.art])
             // (a candelabra put out: its candles without flame, world/innerMap/interiorState.js lit false)
             || (furniture.lit === false && art.furniture[`${furniture.type}_unlit`])
@@ -600,7 +604,7 @@ Object.assign(InnerMapRenderer, {
         const onTop = (box, ids, top) => {
             if (!ids.length || !art.decor) return;
             // (candles burn when lit — tile._decorLit — or after dark when nobody says: as ui/interiorLight.js)
-            const lit = tile._decorLit === true || (tile._decorLit == null && daylight(InnerMap.timeOfDay) < 0.35);
+            const lit = tile._decorLit === true || (tile._decorLit == null && light < 0.35);
             const shown = lit ? ids : ids.map(id => ((id === 'candles' || id === 'candle') && art.decor.candles_unlit ? 'candles_unlit' : id));
             drawTableDecor(ctx, art.decor, shown, box, top, sz, getImg, scale, hash);
         };
@@ -633,7 +637,10 @@ Object.assign(InnerMapRenderer, {
             // (a hearth let die: tile._furniture.lit false)
             if (c.fire && fireOut(parts)) drawColdFire(ctx, pbox, c.fire, sz, hash);
             if (broken && !c.flat) drawBroken(ctx, furnImg.img, c, k, pbox, sz, hash);
-            onTop({ x: bx, y: by, w: dw, h: dh }, ids, c.top);
+            // (a shop's wares on it — its head tile's, world/innerMap/shopStock.js — else what the plan laid there)
+            const head = at(1 - piece.w, 1 - piece.h);
+            if (head && head._stock) drawWares(ctx, art.decor, head._stock, { x: bx, y: by, w: dw, h: dh }, sz, getImg, scale, hash);
+            else onTop({ x: bx, y: by, w: dw, h: dh }, ids, c.top);
             return true;
         }
         if (furnImg) {
@@ -671,7 +678,9 @@ Object.assign(InnerMapRenderer, {
             if (fc.fire && furniture.lit === false) drawColdFire(ctx, box, fc.fire, sz, hash);
             // (broken: tile._furniture.broken — a rug or straw lying flat is only worn, not broken)
             if (furniture.broken && !furnArt.flat) drawBroken(ctx, fimg, fc, kf, box, sz, hash);
-            onTop(box, asIds(tile._decor), furnArt.top);
+            // (a shop's shelf or barrel shows its wares, not the plan's decor)
+            if (stock) drawWares(ctx, art.decor, stock, box, sz, getImg, scale, hash);
+            else onTop(box, asIds(tile._decor), furnArt.top);
         } else if (furniture) {
             // A piece with no sprite yet: its glyph cut into a dark plate
             const pad = sz * 0.14;
@@ -680,6 +689,10 @@ Object.assign(InnerMapRenderer, {
             if (furniture.broken) { ctx.fillStyle = 'rgba(20, 12, 8, 0.4)'; ctx.fillRect(dx + pad, dy + pad, sz - pad * 2, sz - pad * 2); }
             const glyph = sz >= 16 && furnitureGlyph(furniture);
             if (glyph) engraveGlyph(ctx, glyph, dx + sz / 2, dy + sz / 2, sz * 0.62);
+        } else if (tile._decor) {
+            // What lies on the bare floor (a cellar's straw, spilt grain, a damp patch: world/innerMap/floors.js
+            // _dressCellar): at the tile's foot, as an authored room's (ui/innerMapLayers/authoredInterior.js)
+            onTop({ x: dx, y: dy, w: sz, h: sz }, asIds(tile._decor), [0.18, 0.55, 0.82, 0.98]);
         }
         return true;
     },
@@ -733,7 +746,13 @@ Object.assign(InnerMapRenderer, {
         };
 
         // Draw layers bottom-to-top: floor → furniture → walls → overlay
-        if (drawCell(ct.floor))     drew = true;
+        // (an inner wall with no wall sprite: the game's own drawn wall over the floor sprite —
+        // ui/innerMapLayers/authoredInterior.js, world/innerMap/authoredInterior.js)
+        const inner = tile._innerWall && !ct.walls && this._authoredInnerWall
+            ? this._authoredInnerWall(ctx, tile, dx, dy, sz, () => { if (!drawCell(ct.floor)) { ctx.fillStyle = '#2a2a2a'; ctx.fillRect(dx, dy, sz, sz); } })
+            : null;
+        if (inner) drew = true;
+        else if (drawCell(ct.floor)) drew = true;
         if (drawCell(ct.furniture)) drew = true;
         if (drawCell(ct.walls))     drew = true;
         if (drawCell(ct.overlay))   drew = true;
@@ -745,22 +764,26 @@ Object.assign(InnerMapRenderer, {
         }
 
         // Subtle tile grid
-        ctx.strokeStyle = 'rgba(0,0,0,0.06)';
-        ctx.lineWidth = 0.5;
-        ctx.strokeRect(dx, dy, sz, sz);
+        if (!inner) {
+            ctx.strokeStyle = 'rgba(0,0,0,0.06)';
+            ctx.lineWidth = 0.5;
+            ctx.strokeRect(dx, dy, sz, sz);
+        }
 
         // Render furniture meta on top (if present and tile has custom furniture)
         const furniture = tile._furniture;
-        // A piece the player set down on a sprite floor, or the stairs (world/innerMap/floors.js): its drawn art
-        if (furniture && (furniture._piece || furniture._stairs) && this._interiorArt && this._interiorArt.furniture) {
-            const fa = this._interiorArt.furniture[furniture.type];
-            const fImg = fa && this._getSheetByPath(fa.sheet);
-            if (fImg) {
-                const kf = this._sheetScale(fImg);
-                ctx.drawImage(fImg, fa.sx * kf, fa.sy * kf, (fa.sw || 32) * kf, (fa.sh || 32) * kf, dx, dy, sz, sz);
+        // A piece the player set down on a sprite floor, the stairs (world/innerMap/floors.js), or an
+        // authored piece with no sprite of its own: its drawn art, and what lies on it
+        const spriteless = furniture && !ct.furniture && !ct.walls && !ct.overlay && !tile.customObject && !tile.customObjectPart;
+        if (furniture && (furniture._piece || furniture._stairs || spriteless) && this._authoredFurniture) {
+            const piece = this._authoredFurniture(ctx, tile, dx, dy, sz);
+            if (piece) {
+                if (this._authoredDecor) this._authoredDecor(ctx, tile, dx, dy, sz, null, piece);
                 return;
             }
         }
+        // What lies on it and hangs on it (tile._decor, tile._wallDecor: ui/innerMapLayers/authoredInterior.js)
+        if (this._authoredDecor && (tile._decor || tile._wallDecor)) this._authoredDecor(ctx, tile, dx, dy, sz, inner ? inner.face : null, null);
         if (furniture) {
             // Mark what the piece is (pieces with no glyph are left to their sprite)
             const glyph = sz >= 16 && furniture.icon && furnitureGlyph(furniture);

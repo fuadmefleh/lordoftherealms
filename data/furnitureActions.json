@@ -96,11 +96,58 @@
         "notYours": "It's the household's washstand, not yours.",
         "text": "You splash your face and scrub your hands at the basin."
     },
+    "_broken": "A broken piece (furniture.broken: wrecked in a raid or a fire, world/innerMap/interiorState.js) is no bed, seat, fire or bench any more: every action but those in 'allow' is greyed out with its type's words (byType), else 'text'. Furniture can't be mended yet.",
+    "broken": {
+        "allow": ["look_inside", "store", "shop", "buy_shelf", "pray", "give_alms"],
+        "text": "The {what} is broken: no use to anyone until it is mended.",
+        "byType": {
+            "bed": "The bed is broken: its frame has given way and the slats lie on the floor. There's no sleeping in it.",
+            "bed_1x2": "The bed is broken: its frame has given way and the slats lie on the floor. There's no sleeping in it.",
+            "chair": "The chair is broken: a leg snapped off. It won't take your weight.",
+            "stool": "The stool is broken: it won't take your weight.",
+            "bench": "The bench is broken: split along its length, it won't take your weight.",
+            "pew": "The pew is broken: split along its length, it won't take your weight.",
+            "table": "The table is broken: it stands askew on a snapped leg.",
+            "desk": "The desk is broken: it stands askew on a snapped leg.",
+            "fireplace": "The hearth is broken: its stones are cracked and fallen in.",
+            "oven": "The oven is broken: its dome has cracked through.",
+            "tub": "The tub is broken: its staves have sprung, and it won't hold water.",
+            "washstand": "The washstand is broken: its basin lies cracked.",
+            "workbench": "The workbench is broken: there's nothing true left to work on.",
+            "loom": "The loom is broken: its frame is smashed and its warp cut.",
+            "spinning_wheel": "The spinning wheel is broken: its spokes are snapped.",
+            "cradle": "The cradle is broken: no child should lie in it."
+        }
+    },
     "bathe_tub": {
         "hours": 1,
         "effects": { "hygiene": 55, "comfort": 15, "energy": 4, "fun": 4 },
         "clothes": 70,
         "notYours": "It's the household's bathtub, not yours.",
         "text": "You fill the tub and soak until the water goes cold."
+    },
+    "_guests": "Being welcome under someone else's roof (player/guests.js; asked in the talk: ui/npcDialog/guests.js). Their beds and washstand are yours to use without a trespass where the household takes you in unasked: your parents' house (Born to a Family), your kin's (a family tie in your relationships, unless estranged below kinMin), a friend's (relationship score from friendMin, or their street regard from friendDisposition) — or where they have asked you to stay the night. A stranger says yes by their regard (0-100): certainly from yesFrom, never under askFrom, a roll between. A lord of a seat by regard plus your renown (1 point per lordRenownPer, up to lordRenownMax) and lordTitle for holding a title, yes from lordYesFrom. regard: what each call does to their regard. visit/meal: hours at it and needs met (a meal is portion units of food from the household's own larder: systems/townTrade.js serveGuest; a bare larder gives the thin meal). stay.nights: how long a night's welcome lasts.",
+    "guests": {
+        "kinMin": -20, "friendMin": 40, "friendDisposition": 80,
+        "askFrom": 55, "yesFrom": 72,
+        "lordYesFrom": 65, "lordRenownPer": 8, "lordRenownMax": 25, "lordTitle": 15,
+        "regard": { "visit": 3, "meal": 4, "stay": 2, "refused": -1 },
+        "visit": { "hours": 1, "effects": { "social": 12, "fun": 4, "comfort": 3 } },
+        "meal": { "hours": 1, "portion": 0.5, "effects": { "hunger": 35, "social": 10, "comfort": 4 }, "thin": { "hunger": 10, "social": 8 } },
+        "stay": { "nights": 1 },
+        "lines": {
+            "parents": "This is your home. Your bed is where it always was.",
+            "kin": "You never need ask. Family sleeps under this roof.",
+            "friend": "You needn't ask, friend. Stay as long as you like.",
+            "visitYes": "Come by whenever you like. The door's on the latch.",
+            "visitHere": "You sit a while with {who} and the talk runs on.",
+            "mealYes": "Sit down, there's enough for one more.",
+            "mealThin": "There's little enough in the house, but you're welcome to share it.",
+            "stayYes": "There's a bed for you tonight. Don't mind the snoring.",
+            "lordYes": "{who} will have a bed made up for you. You are the house's guest tonight.",
+            "no": "I'd rather not. Find yourself a room at the inn.",
+            "lordNo": "My lord keeps no lodging for passing strangers.",
+            "notHome": "We've no house in this town to ask you into."
+        }
     }
 }

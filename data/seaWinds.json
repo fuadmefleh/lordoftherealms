@@ -1,0 +1,96 @@
+{
+    "_doc": "Wind and the dangers of the coast at sea (world/seaWinds.js, systems/seaPassage.js). Off in hand-made worlds with no generationParams unless world.seaWinds is true.",
+    "winds": {
+        "_doc": "The prevailing winds by latitude, as Terrain._climate12 has them for the rain: trades blowing west and toward the equator (|latitude| under trades.to), westerlies blowing east and poleward (to westerlies.to), polar easterlies past that; a calm doldrums belt at the equator and slack horse latitudes where the trades meet the westerlies (edgeFade). angleN / angleS: the way the wind blows TOWARD in degrees (0 east, 90 north, 180 west) in the northern / southern half. The bands follow the sun north in the northern summer by seasonShift (|latitude| units, the year's 120 days: the sun furthest north on day 45). Trades and westerlies blow harder in their hemisphere's winter by winterBoost. Day by day the wind veers up to `wander` degrees and its strength from strengthLo to strengthHi of the band's, smooth over `scale` hexes and `days` days.",
+        "enabled": true,
+        "seasonShift": 0.07,
+        "doldrums": 0.05,
+        "edgeFade": 0.06,
+        "scale": 11,
+        "days": 2.5,
+        "bands": [
+            { "id": "trades", "to": 0.3, "angleN": 200, "angleS": 160, "strength": 0.7, "wander": 25, "strengthLo": 0.7, "strengthHi": 1.15, "winterBoost": 0.25, "name": "the trade wind" },
+            { "id": "westerlies", "to": 0.66, "angleN": 20, "angleS": 340, "strength": 0.72, "wander": 70, "strengthLo": 0.4, "strengthHi": 1.3, "winterBoost": 0.3, "name": "the westerlies" },
+            { "id": "polar", "to": 1, "angleN": 200, "angleS": 160, "strength": 0.55, "wander": 45, "strengthLo": 0.5, "strengthHi": 1.2, "winterBoost": 0.15, "name": "the polar easterlies" }
+        ],
+        "doldrumsStrength": 0.18,
+        "doldrumsWander": 180
+    },
+    "sailing": {
+        "_doc": "Point of sail: a ship's speed times this by the angle between her heading and the way the wind blows (0 running before it, 90 a beam reach, 180 dead into it — tacking), by rig. In light airs every point drifts toward `calm` (fully felt from `fullAt` strength up). An oared ship rows `oars` of her way whatever the wind. In a fjord the wind between the walls is fickle: `fjordWind` whatever the heading. rigs: by ship type (default `defaultRig`); draft scales the coast's dangers (a rowboat floats over what tears a galleon).",
+        "calm": 0.4,
+        "fullAt": 0.5,
+        "fjordWind": 0.7,
+        "points": {
+            "square": [[0, 1.0], [45, 1.12], [90, 1.15], [120, 0.85], [150, 0.5], [180, 0.35]],
+            "fore": [[0, 0.92], [45, 1.1], [90, 1.3], [120, 1.15], [150, 0.75], [180, 0.5]],
+            "oars": [[0, 1.0], [90, 1.0], [180, 1.0]]
+        },
+        "defaultRig": { "rig": "square", "oars": 0, "draft": 1 },
+        "rigs": {
+            "rowboat": { "rig": "oars", "oars": 1, "draft": 0.2 },
+            "fishing_vessel": { "rig": "fore", "oars": 0, "draft": 0.45 },
+            "sloop": { "rig": "fore", "oars": 0, "draft": 0.6 },
+            "cog": { "rig": "square", "oars": 0, "draft": 1 },
+            "caravel": { "rig": "fore", "oars": 0, "draft": 0.8 },
+            "war_galley": { "rig": "square", "oars": 0.55, "draft": 0.7 },
+            "galleon": { "rig": "square", "oars": 0, "draft": 1.3 }
+        }
+    },
+    "storms": {
+        "_doc": "Storms that cross the sea over days. Born on the open sea (ocean / deep ocean) in their belts and seasons — hurricanes in the trade-wind belt in late summer, gales in the westerlies in winter — from a hash of the world seed and the day (no RNG drawn: the same world has the same storms, and a captain can read them coming). `slots` chances a day per `perArea` hexes of map; each carried by the prevailing wind `speed` hexes a day (hurricanes turning poleward as they age: recurve), `radius` hexes across their worst, growing and dying over `life` days, weakening by landDecay a day over land. danger = intensity, falling off to the edge; ships inside are caught as in a storm (Ships._stormAtSea).",
+        "enabled": true,
+        "perArea": 3200,
+        "tries": 5,
+        "maxLife": 9,
+        "belts": [
+            { "kind": "hurricane", "from": 0.08, "to": 0.3, "chance": 0.09, "peakDay": 60, "offSeason": 0.15, "life": [4, 8], "radius": [2, 4], "intensity": [0.9, 1.5], "speed": [1, 2.2], "recurve": 0.18, "label": "hurricane" },
+            { "kind": "gale", "from": 0.36, "to": 0.72, "chance": 0.12, "peakDay": 105, "offSeason": 0.25, "life": [3, 6], "radius": [2, 3], "intensity": [0.7, 1.15], "speed": [1.5, 3], "recurve": 0, "label": "gale" }
+        ],
+        "landDecay": 0.45,
+        "dieBelow": 0.3,
+        "sightRadius": 7,
+        "names": ["the Grey Widow", "the Black Mare", "the Salt Hag", "the Long Howl", "the Iron Gale", "the Drowner", "the Old Man's Breath", "the White Squall", "the Gannet's Wrath", "the Shroud", "the Wrecker", "the Mother of Waves", "the Lantern-Snuffer", "the Hollow Wind", "the Red Tide Storm", "the Weeping Gale"]
+    },
+    "coast": {
+        "_doc": "The dangers of the new coast to a ship under way (systems/seaPassage.js). Per hex sailed through: risk (daylight, cautious) × atSpeed (the leg made at better than speedAt of the ship's speed, or under 'press on' orders) × night (sailed in the dark, no lighthouse in reach: lit) × draft; a pilot whose waters it is takes pilot of it, a chart of the hex (Cartography: a map carried or the draft) chart of it. reef: tile._reef; shoal: open water by a skerry (tile._skerry) or a delta's flats; bar: the mouth of a river (river or great, Rivers.band) or a delta (tile._delta / riverDistributary); fjord: tile._fjord (also slow: fjordWind). Cautious orders: hazard water costs cautiousSlow more and the ship lies to at night before an unpiloted, unlit hazard. The route planner avoids unpiloted hazards by `avoid` leagues-equivalent each, storms by stormAvoid.",
+        "hazards": {
+            "reef": { "risk": 0.05, "atSpeed": 3, "night": 6, "hull": [10, 26], "crewLost": 0.3, "cargoLost": 0.4, "delay": 1, "avoid": 3.5, "icon": "⚠️", "name": "reef" },
+            "shoal": { "risk": 0.035, "atSpeed": 2, "night": 4, "hull": [2, 6], "crewLost": 0, "cargoLost": 0, "delay": 0, "avoid": 1.2, "icon": "🏝️", "name": "shoals" },
+            "bar": { "risk": 0.09, "atSpeed": 1.6, "night": 3, "hull": [1, 5], "crewLost": 0, "cargoLost": 0, "delay": 0, "avoid": 0.6, "icon": "🏞️", "name": "river bar", "slow": 1.2 },
+            "fjord": { "risk": 0.012, "atSpeed": 2, "night": 5, "hull": [4, 10], "crewLost": 0.1, "cargoLost": 0, "delay": 0, "avoid": 0.3, "icon": "🏔️", "name": "fjord rocks" }
+        },
+        "speedAt": 1.12,
+        "pilot": 0.1,
+        "chart": 0.5,
+        "lit": 1.4,
+        "cautiousSlow": 1.4,
+        "stormAvoid": 4,
+        "daylight": { "base": 0.5, "season": 0.18, "min": 0.3, "max": 0.72 }
+    },
+    "pilots": {
+        "_doc": "A local pilot hired at a port (systems/seaPassage.js hirePilot): his fee into the port's purse, by the town's size; he knows the waters within `radius` hexes of his port and takes the ship through them (risk × coast.pilot, and the planner no longer steers wide of them); aboard for the next voyage (put ashore at its end) or `days` days. Ports with a lighthouse send a pilot cutter out to a ship making for them: a harbour pilot for the last cutterReach hexes, `cutterDue` × the port's fee, taken from the purse if it holds it.",
+        "byType": {
+            "village": { "fee": 8, "radius": 5 },
+            "town": { "fee": 15, "radius": 7 },
+            "city": { "fee": 26, "radius": 9 },
+            "capital": { "fee": 34, "radius": 10 }
+        },
+        "days": 30,
+        "cutterReach": 4,
+        "cutterDue": 0.5,
+        "names": ["Old Tam", "Ewan Saltbeard", "Mother Grell", "Bram Lead-and-Line", "Hob the Sounder", "Aske Fennick", "Morwen Tidewife", "Jory Pellow", "Sib Gannet", "Walt Harrow", "Nan Quayle", "Dace Mollock", "Ivo Brine", "Kit Rennard", "Hal Sheerwater", "Petra Lowe"]
+    },
+    "lighthouses": {
+        "_doc": "Lighthouses at the major ports (capitals and cities on the water) and the player's own Lighthouse buildings (lighthouse_building): within `radius` hexes the night is no darker than day for the coast's dangers (coast.lit), and their ports send pilot cutters. Drawn on the world map (ui/renderer/seaWeather.js).",
+        "byType": { "capital": 5, "city": 4 },
+        "playerRadius": 4
+    },
+    "display": {
+        "_doc": "The world map (ui/renderer/seaWeather.js): the wind arrow by the player's ship, storms drawn as turning cloud over charted sea, lighthouse beams after dusk.",
+        "enabled": true,
+        "storms": true,
+        "lights": true,
+        "arrow": true
+    }
+}

@@ -1783,6 +1783,7 @@ export const SettlementMarket = {
         };
         for (const link of links) {
             link.val = 0;
+            link.bigQ = 0;
             if (!(link.factor > 0)) continue;
             const a = link.a, b = link.b;
             if (turn !== null && link.slot !== undefined && link.slot !== turn) continue;
@@ -1892,6 +1893,8 @@ export const SettlementMarket = {
                 // (valAB / valBA: the coin the importer paid the exporter today, for the money supply's books)
                 const coinPaid = emb ? 0 : coinPay;
                 if (aExports) { movedA += qty; gAB += g; valAB += coinPaid; } else { movedB += qty; gBA += g; valBA += coinPaid; }
+                // (the biggest lot of the turn on the link: systems/barges.js shows it on the river)
+                if (qty > link.bigQ) { link.bigQ = qty; link.bigI = i; link.bigAB = aExports; }
                 // (an embodied lot pays its duty as the caravan's border toll instead)
                 if (dutyPaid > 0) { if (aExports) paidAB += dutyPaid; else paidBA += dutyPaid; }
                 valLink += qty * base * se;

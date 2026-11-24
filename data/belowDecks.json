@@ -1,0 +1,44 @@
+{
+    "_doc": "Below decks (systems/belowDecks.js plans it, world/innerMap/belowDecks.js lays it, ui/innerMapBelowDecks.js runs it). The rooms under the deck, bow to stern: crew berths (hammocks), the galley, the hold (the ladder up to the hatch), the captain's cabin — sized by the hull (her crewRequired and cargoCapacity). An open boat (crew at or below openBoatCrew) has none; a small one (crew at or below smallCrew) a hold and a cuddy, the stove among the hammocks. The hold shows her cargo: each good as crates, barrels or sacks (cargoKinds; crate otherwise), in proportion to how full she is. meals: the hours the off-watch hands eat in the galley (half the mess each half hour); the cook keeps the galley from cookHours[0] to cookHours[1]; the navigator works the charts in the cabin in chartHours. maxExtras: the most of the hands beyond the deck's roster shown below.",
+    "openBoatCrew": 1,
+    "smallCrew": 6,
+    "holdOnlyCrew": 2,
+    "maxExtras": 14,
+    "meals": [[6, 7, "breakfast"], [12, 13, "dinner"], [18, 19, "supper"]],
+    "cookHours": [5, 20],
+    "chartHours": [[8, 11], [14, 17]],
+    "sickShare": 0.2,
+    "maxSick": 6,
+    "cargoKinds": {
+        "barrel": ["wine", "ale", "beer", "mead", "oil", "olive_oil", "preserved_fish", "fish", "salt_fish", "honey", "water", "spirits", "rum", "pitch", "tar", "whale_oil", "dye", "ink", "vinegar", "cider"],
+        "sack": ["grain", "wheat", "barley", "oats", "rye", "flour", "food", "bread", "salt", "spices", "pepper", "wool", "cotton", "sugar", "coffee", "tea", "beans", "rice", "hops", "coal", "hemp", "flax", "herbs"]
+    },
+    "pile": { "crate": "crate_stack", "barrel": "barrel_rack", "sack": "sack_pile" },
+    "rooms": {
+        "berths": { "name": "Crew Berths", "icon": "🛏️" },
+        "galley": { "name": "The Galley", "icon": "🍲" },
+        "hold": { "name": "The Hold", "icon": "📦" },
+        "cabin": { "name": "The Captain's Cabin", "icon": "🧭" }
+    },
+    "acts": {
+        "sleep": { "label": "Asleep in a hammock", "icon": "💤", "anim": "idle" },
+        "sick": { "label": "Sick in a hammock", "icon": "🤒", "anim": "idle" },
+        "tend": { "label": "Tending the sick", "icon": "⚕️", "anim": "idle" },
+        "eat": { "label": "At mess", "icon": "🍲", "anim": "idle" },
+        "cook": { "label": "At the galley stove", "icon": "🔥", "anim": "idle" },
+        "charts": { "label": "Working the reckoning", "icon": "🧭", "anim": "idle" },
+        "stow": { "label": "Seeing to the stowage", "icon": "📦", "anim": "idle" },
+        "mend": { "label": "Mending clothes", "icon": "🧵", "anim": "idle" },
+        "dice": { "label": "Dicing off watch", "icon": "🎲", "anim": "idle" }
+    },
+    "chatter": {
+        "eat": ["Pass the biscuit — mind the weevils.", "Salt pork again.", "Cook's outdone himself. Never thought I'd say it.", "Eat up, the watch is called soon."],
+        "cook": ["Out of my galley unless you're carrying water.", "Stove's drawing well today.", "Who's been at the dried peas?"],
+        "charts": ["By my reckoning we're making better than four knots.", "The log line says one thing, the stars another.", "Mind the chart, Captain — the ink's wet."],
+        "tend": ["Keep him drinking. The fever breaks or he does.", "Lime juice, if we had any.", "Don't crowd them. They need air."],
+        "sick": ["Water... is there water?", "I'll be up for my watch, Captain. Honest.", "Never been so cold."],
+        "stow": ["Shifted in the night, this lot.", "Somebody's been at the casks.", "Tight as she'll go."],
+        "mend": ["Third patch on these breeches.", "Needle and palm — the sailor's other trade.", "Below's the only dry place on her."],
+        "dice": ["Your throw.", "That's my grog ration you're betting.", "Bones never lie. Men do."]
+    }
+}

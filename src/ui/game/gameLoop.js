@@ -18,8 +18,12 @@ import { InnerMapReactions } from '../innerMapReactions.js';
 import { InnerMapJail } from '../innerMapJail.js';
 import { InnerMapZones } from '../innerMapZones.js';
 import { InnerMapDeck } from '../innerMapDeck.js';
+import { InnerMapBelowDecks } from '../innerMapBelowDecks.js';
+import { InnerMapSeaFight } from '../innerMapSeaFight.js';
 import { InnerMapAnimals } from '../innerMapAnimals.js';
 import { Swimming } from '../../player/swimming.js';
+import { Running } from '../../player/running.js';
+import { FpsCounter } from '../fpsCounter.js';
 import { OceanCurrents } from '../../world/oceanCurrents.js';
 import { InnerMapKeys } from '../innerMapKeys.js';
 import { InnerMapNight } from '../innerMapNight.js';
@@ -49,6 +53,7 @@ import { InnerMapOverheard } from '../innerMapOverheard.js';
 import { InnerMapRiverDrift } from '../innerMapRiverDrift.js';
 import { InnerMapFishTraps } from '../innerMapFishTraps.js';
 import { setWellsGame } from '../innerMapLayers/wells.js';
+import { InnerMapPort } from '../innerMapPort.js';
 import { InnerMapHandBuild } from '../innerMapHandBuild.js';
 import { InnerMapTorchlight } from '../innerMapTorchlight.js';
 import { InnerMapHiding } from '../innerMapHiding.js';
@@ -78,6 +83,8 @@ export function gameLoop(timestamp, loopId) {
 
     const deltaTime = Math.min((timestamp - this.lastTime) / 1000, 0.1);
     this.lastTime = timestamp;
+    // The FPS readout, from the raw frame time (ui/fpsCounter.js; F3 or Settings)
+    FpsCounter.tick(timestamp);
     // Practised-skill level-ups queued by the systems (ui/skillUps.js)
     announceSkillUps(this, timestamp);
     // Action points spent pass the day's hours; the hours left cap the points (ui/game/dayClock.js)
@@ -93,6 +100,8 @@ export function gameLoop(timestamp, loopId) {
     InnerMapRiverDrift.update(this, InnerMap.active ? deltaTime * (_driftSpeed === 3 ? 4 : _driftSpeed) : deltaTime);
     // Your fish traps on this street map: brought up to the hour, a poacher seen off (ui/innerMapFishTraps.js)
     if (InnerMap.active) InnerMapFishTraps.update(this);
+    // The harbour and the river at work on this street map: who is where this hour (ui/innerMapPort.js)
+    if (InnerMap.active) InnerMapPort.update(this);
     // The foul wells marked on the street map read this game's world (ui/innerMapLayers/wells.js)
     if (InnerMap.active) setWellsGame(this);
     // Building by hand: the mode kept to the open air, the work's chain (ui/innerMapHandBuild.js)
@@ -532,6 +541,10 @@ export function gameLoop(timestamp, loopId) {
         InnerMapDiving.update(simDelta, this);
         // Aboard ship: the crew, the sea's events, boarders (ui/innerMapDeck.js)
         InnerMapDeck.update(simDelta, this);
+        // Below decks: who is where at the hour, the hands' talk (ui/innerMapBelowDecks.js)
+        InnerMapBelowDecks.update(simDelta, this);
+        // A sea fight under sail around the deck (ui/innerMapSeaFight.js)
+        InnerMapSeaFight.update(simDelta, this);
         // A battle on the field: its own clock (paused / 1× / 2× / 4×), not the day's (ui/innerMapBattle.js)
         InnerMapBattle.update(deltaTime, this);
         // The realm's household guard walking behind you (ui/innerMapEscort.js)
@@ -557,6 +570,7 @@ export function gameLoop(timestamp, loopId) {
         InnerMapRenderer.render(this.renderer.ctx, this.canvas, this.innerMapCamera, deltaTime);
         InnerMapTasks.render(this.renderer.ctx, this.innerMapCamera, this.canvas);
         InnerMapDeck.renderHud(this.renderer.ctx, this.innerMapCamera, this.canvas);
+        InnerMapSeaFight.renderHud(this.renderer.ctx, this.innerMapCamera, this.canvas);
         // A door's wipe / a fade when the place changed this frame (ui/screenTransition.js)
         ScreenTransition.update(this, InnerMap, deltaTime);
         ScreenTransition.draw(this.renderer.ctx, this.canvas);
@@ -630,6 +644,10 @@ export function gameLoop(timestamp, loopId) {
         const moved = this.player.stepAlongPath(this.world, deltaTime);
         // Turned back at a town's gate shut against the plague (player/core/movement.js; ui/innerMapPlague.js)
         if (this.player.turnedAway) InnerMapPlague.turnedAway(this);
+        // At the helm she struck the coast: a reef, shoals, a bar, fjord rocks (systems/seaPassage.js helmHex)
+        if (this.player.seaNotes && this.player.seaNotes.length) {
+            for (const n of this.player.seaNotes.splice(0)) this.ui.showNotification(`${n.icon} Struck!`, n.text, 'warning');
+        }
         if (moved) {
             // The miles build Endurance: a level-up told (player/endurance.js)
             InnerMapClimbing.flushSkillUps(this);
@@ -777,6 +795,12 @@ export function setupInputHandlers() {
         this.handleDoubleClick(p.x, p.y);
     });
 
+    // Hold Shift to run on the street map (world/innerMap/movement.js reads InnerMap._runHeld)
+    const setRun = (e) => { InnerMap._runHeld = !!e.shiftKey; };
+    window.addEventListener('keydown', setRun, true);
+    window.addEventListener('keyup', setRun, true);
+    window.addEventListener('blur', () => { InnerMap._runHeld = false; });
+
     // Keyboard shortcut: M to cycle map modes
     window.addEventListener('keydown', (e) => {
         const tag = e.target && e.target.tagName;
@@ -787,6 +811,15 @@ export function setupInputHandlers() {
         if (InnerMapBattle.active && InnerMap.active && InnerMapBattle.key(this, e)) return;
         // Riding a pass in the lists: SPACE strikes (ui/innerMapTournament.js)
         if (InnerMap.active && InnerMapTournament.key(this, e)) return;
+        // FPS counter: F3 (ui/fpsCounter.js), remembered in the settings
+        if (e.key === 'F3') {
+            e.preventDefault();
+            const on = FpsCounter.toggle();
+            const st = this.ui.loadSettings();
+            st.showFps = on;
+            this.ui.saveSettings(st);
+            return;
+        }
         // Cheats panel: ` or F9
         if (e.key === '`' || e.key === 'F9') {
             e.preventDefault();
@@ -1324,6 +1357,14 @@ function _riverEdgeStep(game) {
 function _swimStep(game) {
     const player = game.player;
     if (!player) return;
+    // A tile run on foot tires you; spent, you're winded and walk till you've got your breath (player/running.js)
+    if (InnerMap._lastStepRan) {
+        InnerMap._lastStepRan = false;
+        Running.step(player);
+    }
+    const winded = Running.winded(player, InnerMap._winded);
+    if (winded && !InnerMap._winded && InnerMap._runHeld) game.ui.showNotification('😓 Winded', 'You are too spent to run. Walk a while, or rest.', 'warning');
+    InnerMap._winded = winded;
     if (!InnerMap.isPlayerSwimming()) {
         const strokes = Swimming.ashore(player);
         if (strokes && strokes > 3) game.ui.showNotification('🏖️ Ashore', 'You haul yourself out of the water, dripping.', 'info');

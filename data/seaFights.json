@@ -1,0 +1,42 @@
+{
+    "_comment": "Sea fights on the water (systems/seaFights.js) and royal squadrons on the world map (world/navySquadrons.js). Any key left out keeps the code's default.",
+    "fight": {
+        "maxTime": 300,
+        "speedPerKnot": 0.1,
+        "reload": 7,
+        "damageScale": 2.2,
+        "rakeMult": 1.8,
+        "keepRange": 5,
+        "escapeRange": 24,
+        "start": { "distance": 16, "spread": 4 },
+        "shot": {
+            "round": { "range": 7, "hull": 0.7, "rig": 0.1, "crew": 0.2 },
+            "chain": { "range": 5, "hull": 0.15, "rig": 0.7, "crew": 0.15 },
+            "grape": { "range": 4, "hull": 0.1, "rig": 0.1, "crew": 0.8 }
+        },
+        "grapple": { "range": 1.6, "speedDiff": 0.5, "chance": 0.3, "every": 1 },
+        "navy": { "perShip": 20, "maxShips": 4 }
+    },
+    "squadrons": {
+        "minStrength": 8,
+        "blockadeShare": 0.6,
+        "maxBlockadedPorts": 3,
+        "perPatrol": 30,
+        "maxPatrols": 3,
+        "perShip": 12,
+        "patrolReach": 7,
+        "patrolSpeed": 2,
+        "slip": {
+            "base": 0.3,
+            "night": 0.25,
+            "weather": { "fog": 0.2, "storm": 0.15, "blizzard": 0.15, "rain": 0.1, "snow": 0.08, "cloudy": 0.04 },
+            "speed": 0.05,
+            "stealth": 0.03,
+            "shipStealth": 0.05,
+            "perShip": 0.04,
+            "closed": 0.12,
+            "min": 0.05,
+            "max": 0.9
+        }
+    }
+}

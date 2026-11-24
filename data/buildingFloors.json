@@ -7,6 +7,7 @@
     ],
     "townCraft": { "village": 2, "town": 3, "city": 4, "capital": 4, "_default": 2 },
     "maxFloors": {
+        "ship_below": 1,
         "house": 2, "manor": 3, "tavern": 2, "inn": 3, "hotel": 4, "guest_house": 2, "roadhouse": 2,
         "town_hall": 3, "guildhall": 3, "bank": 3, "library": 3, "post_house": 2, "mint": 2,
         "guard_tower": 4, "barracks": 2, "warehouse": 2, "granary": 2, "mill": 2, "barn": 2, "stable": 2, "farm": 2,
@@ -81,10 +82,81 @@
             { "type": "table", "icon": "💺", "name": "Table", "count": 1 },
             { "type": "chest", "icon": "🧳", "name": "Chest", "count": 1 },
             { "type": "fireplace", "icon": "🔥", "name": "Hearth", "count": 1 }
+        ] },
+        "ale_cellar": { "name": "Ale Cellar", "floor": "stone_floor", "wall": "stone", "wallColor": "#5a5a5a", "furniture": [
+            { "type": "barrel", "icon": "🛢️", "name": "Ale Cask", "count": 4, "perArea": 0.24, "max": 30 },
+            { "type": "barrel_rack", "icon": "🛢️", "name": "Cask Rack", "count": 2, "perArea": 0.035, "max": 5 },
+            { "type": "crate", "icon": "📦", "name": "Crates", "count": 2, "perArea": 0.05, "max": 6 },
+            { "type": "sack", "icon": "🌾", "name": "Malt Sacks", "count": 2, "perArea": 0.03, "max": 4 },
+            { "type": "candle", "icon": "🕯️", "name": "Candle", "count": 1, "passable": true }
+        ] },
+        "wine_cellar": { "name": "Wine Cellar", "floor": "stone_floor", "wall": "stone", "wallColor": "#5a5a5a", "furniture": [
+            { "type": "barrel_rack", "icon": "🍷", "name": "Wine Rack", "count": 3, "perArea": 0.04, "max": 6 },
+            { "type": "barrel", "icon": "🛢️", "name": "Wine Cask", "count": 2, "perArea": 0.22, "max": 34 },
+            { "type": "shelf", "icon": "🗄️", "name": "Bottle Shelves", "count": 1, "perArea": 0.015, "max": 3 },
+            { "type": "crate", "icon": "📦", "name": "Stores", "count": 2, "perArea": 0.04, "max": 5 },
+            { "type": "sack", "icon": "🌾", "name": "Flour Sacks", "count": 1 },
+            { "type": "candle", "icon": "🕯️", "name": "Candle", "count": 1, "passable": true }
+        ] },
+        "store_cellar": { "name": "Store Cellar", "floor": "stone_floor", "wall": "stone", "wallColor": "#5a5a5a", "furniture": [
+            { "type": "crate", "icon": "📦", "name": "Crates", "count": 3, "perArea": 0.14, "max": 16 },
+            { "type": "crate_stack", "icon": "📦", "name": "Stacked Crates", "count": 1, "perArea": 0.025, "max": 3 },
+            { "type": "sack", "icon": "🌾", "name": "Sacks", "count": 2, "perArea": 0.05, "max": 6 },
+            { "type": "sack_pile", "icon": "🌾", "name": "Grain Sacks", "count": 1 },
+            { "type": "barrel", "icon": "🛢️", "name": "Barrel", "count": 2, "perArea": 0.07, "max": 8 },
+            { "type": "shelf", "icon": "🗄️", "name": "Store Shelves", "count": 1, "perArea": 0.015, "max": 2 }
+        ] },
+        "vault": { "name": "Vault", "floor": "stone_floor", "wall": "dark_stone", "wallColor": "#4a4a4a", "furniture": [
+            { "type": "chest", "icon": "📦", "name": "Strongbox", "count": 3, "perArea": 0.04, "max": 5 },
+            { "type": "shelf", "icon": "🗄️", "name": "Ledger Shelves", "count": 1, "perArea": 0.015, "max": 2 },
+            { "type": "crate", "icon": "📦", "name": "Sealed Crates", "count": 1, "perArea": 0.1, "max": 9 },
+            { "type": "desk", "icon": "🖋️", "name": "Counting Desk", "count": 1 },
+            { "type": "candle", "icon": "🕯️", "name": "Candle", "count": 1, "passable": true }
+        ] },
+        "root_cellar": { "name": "Root Cellar", "floor": "dirt_floor", "wall": "stone", "wallColor": "#5a5248", "furniture": [
+            { "type": "sack", "icon": "🌾", "name": "Root Sacks", "count": 2, "perArea": 0.08, "max": 7 },
+            { "type": "barrel", "icon": "🛢️", "name": "Pickling Barrel", "count": 2, "perArea": 0.03, "max": 3 },
+            { "type": "shelf", "icon": "🗄️", "name": "Preserves Shelf", "count": 1 },
+            { "type": "basket", "icon": "🧺", "name": "Basket", "count": 1, "perArea": 0.02, "max": 3 }
         ] }
+    },
+    "_cellarPieces": "A cellar room's furniture may say `perArea` (pieces a floor tile) and `max`: past `count`, that many more are set down in the cellar's rows by its size (world/innerMap/floors.js _planFloor) — in their rows or not at all.",
+    "_cellarDress": "A cellar's own look over its plan (world/innerMap/floors.js _dressCellar), by its room kind over `_default` (each key whole): torch.cover — the most tiles of floor (as the light spreads) any walkable tile may lie from a torch or candle; wall torches are hung, fewest first, until none does (torch.max at most), then candle stands on the floor where no wall is near enough (stand.cover, stand.max); cobweb.chance — of each top corner of the back wall; on the bare floor (tile._decor): grain.chance by the `near` sacks (grain_spill), straw.chance by the `near` casks and crates (straw_loose), puddle.chance on the `floors` (a damp patch).",
+    "cellarDress": {
+        "_default": {
+            "torch": { "cover": 4, "max": 8 },
+            "stand": { "cover": 3, "max": 3, "name": "Candle Stand" },
+            "cobweb": { "chance": 0.7 },
+            "grain": { "chance": 0.35, "near": ["sack", "sack_pile"] },
+            "straw": { "chance": 0.16, "near": ["barrel", "barrel_rack", "crate", "crate_stack", "sack"] },
+            "puddle": { "chance": 0.04, "floors": ["stone_floor", "dirt_floor"] }
+        },
+        "wine_cellar": {
+            "grain": { "chance": 0.2, "near": ["sack"] },
+            "straw": { "chance": 0.14, "near": ["barrel", "barrel_rack", "crate"] }
+        },
+        "vault": {
+            "cobweb": { "chance": 0.35 },
+            "grain": { "chance": 0 },
+            "straw": { "chance": 0 },
+            "puddle": { "chance": 0.02, "floors": ["stone_floor"] }
+        },
+        "root_cellar": {
+            "straw": { "chance": 0.35, "near": ["barrel", "sack", "basket", "shelf"] },
+            "puddle": { "chance": 0.06, "floors": ["stone_floor", "dirt_floor"] }
+        }
+    },
+    "_cellars": "The cellar under a building, by its type (world/innerMap/floors.js cellarOf): a room kind of `rooms`, or { kind, tiers, chance } — only of those wealth tiers, and only that share of them (by a hash of the place). Reached by the cellar steps on the ground floor; planned by data/interiorPlans.json `floors`.",
+    "cellars": {
+        "tavern": "ale_cellar", "inn": "ale_cellar", "roadhouse": "ale_cellar", "hotel": "wine_cellar",
+        "manor": "wine_cellar", "guildhall": "store_cellar", "bank": "vault", "mint": "vault",
+        "bakery": "store_cellar", "apothecary": "store_cellar", "blacksmith": "store_cellar", "warehouse": "store_cellar",
+        "house": { "kind": "root_cellar", "tiers": ["rich"], "chance": 0.6 },
+        "guest_house": { "kind": "root_cellar", "tiers": ["mid", "rich"], "chance": 0.5 }
     },
     "stairs": {
         "up": { "type": "stairs", "icon": "🔼", "name": "Stairs Up" },
-        "down": { "type": "stairs_down", "icon": "🔽", "name": "Stairs Down" }
+        "down": { "type": "stairs_down", "icon": "🔽", "name": "Stairs Down" },
+        "cellar": { "name": "Cellar Steps", "upName": "Steps Up" }
     }
 }

@@ -19,6 +19,8 @@ import { Technology } from '../../systems/technology.js';
 import { Housing } from '../../systems/housing.js';
 import { Ships } from '../../systems/ships.js';
 import { RiverBoats } from '../../systems/riverBoats.js';
+import { SeaPassage } from '../../systems/seaPassage.js';
+import { Ports } from '../../systems/ports.js';
 import { PlayerMilitary } from '../playerMilitary.js';
 import { Plague } from '../../systems/plague.js';
 import { DataLoader } from '../../core/dataLoader.js';
@@ -149,7 +151,13 @@ export const PlayerMovementMethods = {
         if (world && this._onRiverBoat()) return RiverBoats.legFactor(world, this, fromQ, fromR, toQ, toR);
         if (!this.boardedShip || !world) return 1;
         const dir = OceanCurrents.sideTo(Hex.neighbors(fromQ, fromR), toQ, toR, world.width);
-        return dir < 0 ? 1 : OceanCurrents.sailFactor(world, toQ, toR, dir);
+        if (dir < 0) return 1;
+        // The wind as well as the current, by her point of sail and rig (systems/seaPassage.js)
+        if (SeaPassage.active(world)) {
+            const ship = Ships.getShipById(this, this.boardedShip);
+            return SeaPassage.leg(world, { player: this, ship, orders: 'press' }, fromQ, fromR, toQ, toR).cost;
+        }
+        return OceanCurrents.sailFactor(world, toQ, toR, dir);
     },
 
     /**
@@ -196,7 +204,10 @@ export const PlayerMovementMethods = {
     /** Extra days on foot to get across the river on (tq, tr) coming from (fq, fr), by its size (0 afloat). */
     _riverCrossDays(world, fq, fr, tq, tr) {
         if (!world || this.boardedShip || this._onRiverBoat() || !Number.isFinite(fq)) return 0;
-        const x = Rivers.crossExtra(world, fq, fr, tq, tr, Rivers.crossesAsHost(this) ? 'host' : 'player');
+        const host = Rivers.crossesAsHost(this);
+        let x = Rivers.crossExtra(world, fq, fr, tq, tr, host ? 'host' : 'player');
+        // (a ferry plies there and you can pay the fare: its share and the wait, systems/ports.js)
+        if (x > 0) { const leg = Ports.ferryLeg(world, this, fq, fr, tq, tr, host); if (leg) x = leg.extra; }
         return x > 0 ? x * Infrastructure.riverCrossFactor(this) : 0;
     },
 
@@ -606,11 +617,18 @@ export const PlayerMovementMethods = {
             Endurance.walked(this, 'hex', 1);
             // Water on the way: a river, a lake, a town's clean well slakes you and fills the skins (player/thirst.js)
             Thirst.passHex(this, world, currentTile);
+            // At the helm: a reef, a shoal, a river bar or fjord rocks under her keel (systems/seaPassage.js)
+            if (this.boardedShip) {
+                const struck = SeaPassage.helmHex(Ships, this, world, this.prevQ, this.prevR, this.q, this.r);
+                if (struck) (this.seaNotes || (this.seaNotes = [])).push(struck);
+            }
 
             // A toll gate or a ferry on the road (systems/publicWorks.js)
             // (a river boat pays a town's mill weir and bridge instead: systems/riverBoats.js)
             if (this._onRiverBoat()) RiverBoats.passHex(world, this, this.q, this.r);
             else if (currentTile && (currentTile.tollGate || currentTile.roadCross === 'ferry')) PublicWorks.playerCrossing(world, this, currentTile);
+            // ...and the ferryman's fare at a great river's ferry (world/ferries.js, systems/ports.js)
+            if (!this._onRiverBoat()) Ports.ferryStep(world, this, this.prevQ, this.prevR, this.q, this.r, Rivers.crossesAsHost(this));
 
             // Reveal area
             this.revealArea(world, 4);

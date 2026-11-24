@@ -126,14 +126,23 @@ const topLevel = [
     'shipHulls',
     'commissions',
     'deckLife',
+    // Below decks (berths, galley, hold, cabin) and the ships' officers (systems/belowDecks.js, systems/shipOfficers.js)
+    'belowDecks',
+    'shipOfficers',
+    // Sea fights under sail and royal squadrons on the map (systems/seaFights.js, world/navySquadrons.js)
+    'seaFights',
     'animals',
     'swimming',
+    'running',
+    'pixelIcons',
     'diving',
     'practiceSkills',
     'wrecks',
     'furniture',
     // Interiors planned by rules: sizes, rooms, placement, decor (world/innerMap/interiorPlanner.js)
     'interiorPlans',
+    // A shop's real stock on its shelves, counters and barrels (world/innerMap/shopStock.js)
+    'shopStock',
     // The player's own house, lived in: rooms, servants, guests, larder (player/household.js)
     'household',
     'crops',
@@ -167,6 +176,8 @@ const topLevel = [
     'itemSprites',
     // The set of the sea (world/oceanCurrents.js)
     'currents',
+    // Wind by latitude and season, storms crossing the sea, the coast's dangers, pilots and lighthouses (world/seaWinds.js, systems/seaPassage.js)
+    'seaWinds',
     // History written into the land: sited ruins, pass forts, old mines, old roads (world/landHistory.js, terrainGen 17)
     'landHistory',
     'marketStalls',
@@ -249,7 +260,9 @@ const topLevel = [
     // The names of the land and the water, drawn like an atlas (world/geoNames.js, ui/renderer/geoLabels.js)
     'geography',
     // Interiors by the hour, the season and what has happened (world/innerMap/interiorState.js)
-    'interiorState'
+    'interiorState',
+    // Ports as places, ferries and the working boats: harbourmaster and dues, the slip, careening, the fishing fleet, ferries, barges (systems/ports.js, world/ferries.js, systems/barges.js)
+    'ports'
 ];
 
 const merged = {};

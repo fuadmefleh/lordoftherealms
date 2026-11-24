@@ -5,6 +5,7 @@
 import { InnerMap } from '../../world/innerMap.js';
 import { Hotbar } from '../hotbar.js';
 import { FurnitureActions } from '../../player/furnitureActions.js';
+import { Guests } from '../../player/guests.js';
 import { NpcDisposition } from '../../systems/npcDisposition.js';
 import { FOOD_ITEMS } from './data.js';
 import { _advanceTime, _showSleepModal } from './logic.js';
@@ -30,12 +31,17 @@ export function homeStores() {
     return out;
 }
 
-/** Has the household asked the player to stay? (a building flag, or the player's list of houses that have) */
+/**
+ * May the player sleep and wash here as the household's guest? An authored flag on the
+ * building (b.permitted: a custom building's), a night they were asked to stay
+ * (player.guestAt, player/guests.js), or a house that takes them in unasked — their
+ * parents', their kin's, a friend's (Guests.welcomeIn over the household that lives there).
+ */
 function _permitted(game, b, worldQ, worldR) {
     if (!b) return false;
-    if (b.permitted || b.guestOf || b.hostsPlayer) return true;
-    const list = game.player && game.player.guestAt;
-    return Array.isArray(list) && list.includes(`${worldQ},${worldR}|${b.type}@${b.q},${b.r}`);
+    if (b.permitted) return true;
+    const residents = InnerMap.householdOf ? InnerMap.householdOf(b) : [];
+    return Guests.mayStay(game.player, game.world, { key: Guests.key(worldQ, worldR, b), residents, building: b, worldQ, worldR }).ok;
 }
 
 /** The ctx player/furnitureActions.js reads, for the piece at (q, r). */

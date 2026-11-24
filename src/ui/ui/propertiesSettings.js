@@ -3,6 +3,8 @@ import { icon } from '../icons.js';
 import { UI } from './core.js';
 import { applyUiScale, UI_SCALE_OPTIONS } from '../uiScale.js';
 import { ScreenTransition } from '../screenTransition.js';
+import { FpsCounter } from '../fpsCounter.js';
+import { PixelIcons } from '../pixelIcons.js';
 import { RealmIntel } from '../../systems/realmIntel.js';
 import { ORE_KEY } from '../renderer/oreMap.js';
 import { LlmClient } from '../../systems/llmClient.js';
@@ -970,6 +972,11 @@ Object.assign(UI.prototype, {
         // The fade / door wipe in and out of buildings and towns (ui/screenTransition.js)
         ScreenTransition.configure({ enabled: settings.screenTransitions !== false });
 
+        // FPS counter (ui/fpsCounter.js; F3 toggles it too)
+        FpsCounter.setEnabled(!!settings.showFps);
+        // Pixel icons in place of emoji (ui/pixelIcons.js)
+        PixelIcons.setEnabled(settings.pixelIcons !== false);
+
         // Minimap
         const minimap = document.getElementById('minimapCanvas');
         if (minimap) {
@@ -1236,6 +1243,20 @@ Object.assign(UI.prototype, {
                     <label>Screen Transitions<br><span style="font-size:10px;color:var(--text-secondary);">A short fade or door wipe going in and out of buildings and towns</span></label>
                     <label class="gs-toggle">
                         <input type="checkbox" id="gsScreenTransitions" ${s.screenTransitions !== false ? 'checked' : ''}>
+                        <span class="gs-toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="gs-row">
+                    <label>Show FPS Counter<br><span style="font-size:10px;color:var(--text-secondary);">Frames a second in the corner (F3 toggles it)</span></label>
+                    <label class="gs-toggle">
+                        <input type="checkbox" id="gsShowFps" ${s.showFps ? 'checked' : ''}>
+                        <span class="gs-toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="gs-row">
+                    <label>Pixel Icons<br><span style="font-size:10px;color:var(--text-secondary);">Hand-made pixel icons in place of emoji (off: the emoji)</span></label>
+                    <label class="gs-toggle">
+                        <input type="checkbox" id="gsPixelIcons" ${s.pixelIcons !== false ? 'checked' : ''}>
                         <span class="gs-toggle-slider"></span>
                     </label>
                 </div>
@@ -1647,6 +1668,8 @@ Object.assign(UI.prototype, {
             showDayCounter: getChecked('gsShowDayCounter'),
             screenTransitions: getChecked('gsScreenTransitions'),
             showMinimap: getChecked('gsShowMinimap'),
+            showFps: getChecked('gsShowFps'),
+            pixelIcons: getChecked('gsPixelIcons'),
             confirmEndDay: getChecked('gsConfirmEndDay'),
             autoUpkeep: getVal('gsAutoUpkeep') || 'full',
             morningBrief: getChecked('gsMorningBrief'),
@@ -1725,6 +1748,8 @@ Object.assign(UI, {
             maxZoom: 1.5,
             showDayCounter: true,
             showMinimap: true,
+            showFps: false,
+            pixelIcons: true,
             screenTransitions: true,
             confirmEndDay: false,
             autoUpkeep: 'full',

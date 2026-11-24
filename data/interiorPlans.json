@@ -59,7 +59,33 @@
     "household": {
         "types": ["house", "farm"], "adultAge": 14, "infantAge": 2, "leanFrom": 2, "leanTo": 7, "childrenPerBed": 2, "maxBeds": 6, "maxCradles": 2,
         "childBed": { "type": "bed", "name": "Children's Bed", "icon": "🛏️" },
-        "childBedPoor": { "type": "bed", "name": "Straw Pallet", "icon": "🛌", "art": "straw", "noJoin": true }
+        "childBedPoor": { "type": "bed", "name": "Straw Pallet", "icon": "🛌", "art": "straw", "noJoin": true },
+        "_servants": "Beds that are not the family's (world/innerMap/householdRooms.js): those in servantRooms (or named in servantBedNames) are the servants' cots — the house's servants (one living in: world/innerMap/townWork.js _liveInService, a grown servant with no spouse or children of their own, serving a house of liveInTypes) sleep there, a bedroll where there's no cot; apartRooms (guest rooms, a dormitory, a sergeant's room, or a floor of that room kind) are left to callers and lodgers.",
+        "servantRooms": ["servants"], "servantBedNames": ["Servant's Cot"], "apartRooms": ["guest", "dormitory", "sergeant"], "liveInTypes": ["manor", "house"]
+    },
+    "_cellarTrips": "Down to the cellar and back (world/innerMap/cellarTrips.js): a building's owner, its staff and the servants living in go down now and then to fetch what's kept there. Each slotMinutes a keeper may make a trip (chance by the cellar's room kind, data/buildingFloors.json cellars) of minutes long, within hours, never abed or at a meal; coming up, they carry what they fetched (carry, by cellar kind) for carrySecs. Never notTypes or notJobs.",
+    "cellarTrips": {
+        "enabled": true, "hours": [6, 23], "slotMinutes": 30, "minutes": [8, 15],
+        "chance": { "ale_cellar": 0.5, "wine_cellar": 0.3, "store_cellar": 0.35, "root_cellar": 0.2, "vault": 0.15, "_default": 0.3 },
+        "notJobs": ["noble", "guard", "priest", "beggar"], "notTypes": ["child", "traveler", "guard", "noble", "priest", "beggar"],
+        "carrySecs": 6,
+        "carry": {
+            "ale_cellar": { "icon": "🍺", "label": "up from the cellar with a jug of ale" },
+            "wine_cellar": { "icon": "🍷", "label": "up from the cellar with a bottle" },
+            "store_cellar": { "icon": "📦", "label": "up from the cellar with stores" },
+            "root_cellar": { "icon": "🥕", "label": "up from the cellar with roots" },
+            "vault": { "icon": "💰", "label": "up from the vault" },
+            "_default": { "icon": "📦", "label": "up from the cellar" }
+        },
+        "going": { "icon": "🔽", "label": "going down to the cellar" }
+    },
+    "_householdLife": "The household in its own rooms (world/innerMap/householdRooms.js): by night each in their own bed (a couple side by side in one, the children paired in the children's beds, a babe in its cradle — the babe stays in it by day too); awake at home off work, the day's hearth-keeper (one grown one, by the day) tends the fire, a babe's parents mind the cradle, the children keep by the cradle, else childLikes. What they are seen doing there: hearth, cradleParent, cradleChild, inCradle.",
+    "householdLife": {
+        "hearth": { "icon": "🔥", "label": "tending the fire", "anim": "idle", "duration": [8, 14] },
+        "cradleParent": { "icon": "👶", "label": "minding the baby", "anim": "idle", "duration": [8, 14] },
+        "cradleChild": { "icon": "👶", "label": "by the cradle", "anim": "idle", "duration": [5, 9] },
+        "inCradle": { "icon": "👶", "label": "in the cradle" },
+        "childLikes": ["rug", "fireplace", "table"]
     },
     "_trades": "What a house's people do (townsfolk occupations, data/townJobs.json; else their npc type) shows in it: each trade's pieces (placed first, in the main room, each with the decor on it given as 'decor'), its things on the furniture ('items', twice as likely as any other) and on the walls ('wall': its first hung once for certain, all in the main room's pool). _types: the building types it applies to; _max: trades shown per house.",
     "trades": {
@@ -105,6 +131,112 @@
         "Religious": { "extras": [{ "type": "candle", "name": "Votive Candle", "icon": "🕯️", "passable": true, "chance": 0.7 }], "items": ["books", "candles"], "wall": ["tapestry", "banner"] },
         "Arcane":    { "extras": [{ "type": "bookshelf", "name": "Bookshelf", "icon": "📚", "chance": 0.5, "tiers": ["mid", "rich"] }], "items": ["books", "bottles", "papers", "candles"], "wall": ["map", "shelf", "clock"] },
         "Maritime":  { "extras": [{ "type": "basket", "name": "Net Basket", "chance": 0.6 }, { "type": "barrel", "name": "Salt Barrel", "icon": "🛢️", "chance": 0.4 }], "items": ["bowls", "bottles"], "wall": ["map", "hanging_pots", "shelf"] }
+    },
+    "_records": "The insides of buildings kept once visited (world/interiorRecords.js, world/innerMap/persistInteriors.js): at most maxKept buildings in a world, the longest unvisited let go (planned afresh on the next visit).",
+    "records": { "maxKept": 400 },
+    "_floors": "The floors above the ground and the cellars under it (world/innerMap/floors.js _planFloor), planned like the ground floor: the ground floor's footprint and walls, entered by the stairs (kept clear, in the main room), no front door. Keyed by the room kind of data/buildingFloors.json (upperRooms, cellars), or '<type>.<kind>' for one type's own; each over `_upper` (every floor above) or `_cellar` (every cellar: no windows). The room's furniture (buildingFloors rooms, a household's beds counted in) are its required pieces, `take`n into rooms as on the ground floor; `extras`, `items`, `wall`, `place` as for types.",
+    "floors": {
+        "_upper": { "main": { "items": ["candles", "cloth"], "wall": ["shelf", "painting", "curtains"] } },
+        "_cellar": {
+            "place": { "barrel": "stacks", "crate": "stacks", "sack": "stacks", "crate_stack": "stacks", "sack_pile": "stacks", "barrel_rack": "wall", "shelf": "wall", "chest": "back", "basket": "corner", "desk": "wall" },
+            "main": { "windows": false, "items": ["bottles", "pots", "herbs"], "wall": ["shelf", "hanging_herbs"] }
+        },
+        "bedchamber": {
+            "main": { "name": "Bedchamber", "items": ["candles", "cloth"], "wall": ["curtains", "shelf", "mirror", "painting"],
+                "extras": [{ "type": "washstand", "chance": 0.4, "tiers": ["mid", "rich"] }, { "type": "wardrobe", "tiers": ["rich"], "chance": 0.6 }] },
+            "rooms": [
+                { "id": "children", "name": "Children's Room", "shape": "side", "width": [2, 3], "tiers": ["mid", "rich"],
+                    "take": ["bed:Children's Bed", "cradle"], "items": ["cloth"], "wall": ["shelf", "curtains"],
+                    "extras": [{ "type": "bed", "name": "Bed", "icon": "🛏️", "household": true, "chance": 0.7 }, { "type": "chest", "name": "Toy Chest", "icon": "🧸", "chance": 0.4 }] },
+                { "id": "solar", "name": "Solar", "shape": "corner", "end": "any", "width": [3, 4], "depth": [2, 3], "tiers": ["rich"],
+                    "items": ["books", "papers", "flowers"], "wall": ["painting", "tapestry", "map"],
+                    "extras": [{ "type": "chair", "count": [1, 2] }, { "type": "desk", "name": "Writing Desk", "icon": "🖋️" }, { "type": "spinning_wheel", "chance": 0.4, "place": "wall" }] },
+                { "id": "servants", "name": "Servants' Room", "shape": "corner", "end": "any", "width": [2, 3], "depth": [2, 2], "tiers": ["rich"],
+                    "items": ["cloth"], "wall": ["shelf"],
+                    "extras": [{ "type": "bed", "name": "Servant's Cot", "icon": "🛌", "art": "straw", "noJoin": true }, { "type": "chest", "name": "Servant's Box", "icon": "🧳", "chance": 0.6 }] }
+            ]
+        },
+        "manor.bedchamber": {
+            "main": { "name": "Upper Hall", "items": ["candles", "flowers"], "wall": ["painting", "tapestry", "banner", "clock"],
+                "extras": [{ "type": "chair", "count": [1, 2] }, { "type": "plant", "tiers": ["rich"], "chance": 0.6 }] },
+            "rooms": [
+                { "id": "bedchamber", "name": "Bedchamber", "shape": "corner", "end": "any", "width": [3, 4], "depth": [3, 4],
+                    "take": ["bed", "chest", "bucket"], "items": ["candles", "cloth", "flowers"], "wall": ["curtains", "painting", "mirror", "tapestry"],
+                    "extras": [{ "type": "wardrobe", "chance": 0.7 }, { "type": "washstand", "chance": 0.5 }] },
+                { "id": "solar", "name": "Solar", "shape": "corner", "end": "any", "width": [3, 4], "depth": [3, 3], "tiers": ["mid", "rich"],
+                    "items": ["books", "papers", "flowers", "candles"], "wall": ["painting", "tapestry", "map", "clock"],
+                    "extras": [{ "type": "chair", "count": [2, 3] }, { "type": "desk", "name": "Writing Desk", "icon": "🖋️" }, { "type": "bookshelf", "name": "Bookshelf", "icon": "📚" }, { "type": "spinning_wheel", "chance": 0.4, "place": "wall" }] },
+                { "id": "servants", "name": "Servants' Room", "shape": "corner", "end": "any", "width": [2, 3], "depth": [2, 3], "tiers": ["mid", "rich"],
+                    "items": ["cloth"], "wall": ["shelf"],
+                    "extras": [{ "type": "bed", "name": "Servant's Cot", "icon": "🛌", "art": "straw", "noJoin": true, "count": [1, 2] }, { "type": "chest", "name": "Servant's Box", "icon": "🧳" }] }
+            ]
+        },
+        "gallery": { "main": { "name": "Long Gallery", "items": ["books", "flowers", "candles"], "wall": ["painting", "tapestry", "banner", "mirror"] } },
+        "guest_rooms": {
+            "main": { "name": "Landing", "items": ["candles"], "wall": ["torch", "painting", "shelf"], "extras": [{ "type": "chair", "chance": 0.4 }] },
+            "rooms": [
+                { "id": "guest", "name": "Guest Room", "shape": "side", "width": [3, 4], "split": { "poor": [2, 2], "mid": [2, 3], "rich": [2, 3] },
+                    "take": ["bed", "chest", "bucket"], "items": ["candles", "cloth"], "wall": ["curtains", "shelf", "mirror", "painting"],
+                    "extras": [{ "type": "washstand", "chance": 0.4, "tiers": ["mid", "rich"] }] }
+            ]
+        },
+        "offices": {
+            "main": { "name": "Clerks' Room", "items": ["papers", "books"], "wall": ["map", "shelf", "clock"] },
+            "rooms": [
+                { "id": "master", "name": "Master's Office", "shape": "corner", "end": "back", "width": [3, 4], "depth": [2, 3],
+                    "take": ["chest:Strongbox"], "items": ["papers", "coins", "books"], "wall": ["map", "painting", "clock"],
+                    "extras": [{ "type": "desk", "name": "Master's Desk", "icon": "🖋️" }, { "type": "chair" }] }
+            ]
+        },
+        "archive": { "main": { "name": "Archive", "items": ["papers", "books"], "wall": ["map", "shelf"] } },
+        "dormitory": {
+            "main": { "name": "Dormitory", "items": ["mugs"], "wall": ["weapon_rack", "torch", "banner"] },
+            "rooms": [
+                { "id": "sergeant", "name": "Sergeant's Room", "shape": "corner", "end": "back", "width": [3, 3], "depth": [2, 3],
+                    "items": ["papers"], "wall": ["map", "weapon_rack"],
+                    "extras": [{ "type": "bed", "name": "Sergeant's Bed", "icon": "🛏️" }, { "type": "chest", "name": "Footlocker", "icon": "🧳" }] }
+            ]
+        },
+        "watch_room": { "main": { "name": "Watch Room", "items": ["mugs", "papers"], "wall": ["weapon_rack", "torch", "map"] } },
+        "lookout": { "main": { "name": "Lookout", "windows": true, "wall": ["torch", "banner"] } },
+        "loft": { "place": { "sack": "aisles", "crate": "aisles", "barrel": "corner" }, "main": { "name": "Loft", "items": [], "wall": ["hanging_herbs"] } },
+        "quarters": {
+            "main": { "name": "Living Quarters", "items": ["plates", "bread", "candles"], "wall": ["shelf", "hanging_pots", "curtains"] },
+            "rooms": [
+                { "id": "sleeping", "name": "Sleeping Room", "shape": "side", "width": [2, 3], "tiers": ["mid", "rich"],
+                    "take": ["bed", "chest"], "items": ["candles"], "wall": ["curtains", "shelf"] }
+            ]
+        },
+        "ale_cellar": {
+            "main": { "name": "Ale Cellar" },
+            "rooms": [
+                { "id": "cold_store", "name": "Cold Store", "shape": "corner", "end": "any", "width": [3, 4], "depth": [2, 3], "windows": false,
+                    "take": ["sack"], "items": ["herbs", "pots"], "wall": ["hanging_herbs", "shelf"],
+                    "extras": [{ "type": "sack_pile", "name": "Salt Sacks", "icon": "🧂", "count": [1, 2], "fill": true }, { "type": "shelf", "name": "Cheese Shelf", "icon": "🧀" }, { "type": "basket", "chance": 0.5 }] }
+            ]
+        },
+        "wine_cellar": {
+            "main": { "name": "Wine Cellar" },
+            "rooms": [
+                { "id": "wine_vault", "name": "Wine Vault", "shape": "corner", "end": "back", "width": [3, 4], "depth": [2, 3], "windows": false,
+                    "take": ["barrel_rack"], "items": ["bottles"], "wall": ["torch"] }
+            ]
+        },
+        "store_cellar": {
+            "main": { "name": "Store Cellar" },
+            "rooms": [
+                { "id": "grain_store", "name": "Grain Store", "shape": "corner", "end": "any", "width": [3, 4], "depth": [2, 3], "windows": false,
+                    "take": ["sack", "sack_pile"], "items": [], "wall": [] }
+            ]
+        },
+        "vault": {
+            "main": { "name": "Vault", "items": ["coins", "papers"], "wall": [] },
+            "rooms": [
+                { "id": "strongroom", "name": "Strongroom", "shape": "corner", "end": "back", "width": [3, 4], "depth": [2, 3], "windows": false,
+                    "take": ["chest"], "items": ["coins"], "wall": [] }
+            ]
+        },
+        "root_cellar": { "main": { "name": "Root Cellar", "items": ["herbs", "pots"], "wall": ["hanging_herbs", "shelf"] }, "place": { "basket": "stacks" } }
     },
     "types": {
         "house": {

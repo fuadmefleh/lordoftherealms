@@ -464,6 +464,8 @@ Object.assign(InnerMap, {
         if (this._updateTownScenes) this._updateTownScenes(deltaTime);
         // Inside: the fires, candles, shutters and tables as the hour turns (world/innerMap/interiorState.js)
         if (this._insideBuilding && this._interiorStateTick) this._interiorStateTick();
+        // The staff down to the cellar for ale, wine or stores, and back up (world/innerMap/cellarTrips.js)
+        if (this._insideBuilding && this._updateCellarTrips) this._updateCellarTrips(deltaTime);
         if (this.npcs.length === 0) return;
         // The town's woodcutters at their trees (world/innerMap/townWoodcutters.js)
         if (!this._insideBuilding && this._updateTownChopping) this._updateTownChopping(deltaTime);

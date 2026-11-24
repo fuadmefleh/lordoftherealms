@@ -26,6 +26,8 @@ export function containerContext(game, furnitureType, q, r) {
     const b = InnerMap._insideBuilding || null;
     return {
         worldQ: wt.q, worldR: wt.r, q, r, furnitureType,
+        // (upstairs and the cellar keep their boxes apart from the ground floor's: systems/containers.js key)
+        floor: b ? (InnerMap._floor || 0) : 0,
         building: b ? { type: b.type, q: b.q, r: b.r, name: b.name, isPlayerOwned: b.isPlayerOwned, isPlayerProperty: b.isPlayerProperty } : null,
         inSettlement: !!settlement,
         kingdom: (settlement && settlement.kingdom) || (wTile && wTile.kingdom) || null,

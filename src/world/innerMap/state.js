@@ -77,6 +77,9 @@ Object.assign(InnerMap, {
 
     // Is the player currently walking?
     _playerSpeed: 4.0,
+    _runHeld: false, // Shift held (ui/game/gameLoop.js): run on foot, canter on horseback
+    _winded: false, // too spent to run (player/running.js); set each step by ui/game/gameLoop.js
+    _lastStepRan: false, // the last tile was run on foot (charged by ui/game/gameLoop.js)
 
     // On horseback on the street map: the walk this many times as quick (0: on foot; ui/innerMapPets.js)
     _rideSpeed: 0,

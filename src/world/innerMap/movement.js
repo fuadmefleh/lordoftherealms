@@ -475,6 +475,13 @@ Object.assign(InnerMap, {
         return dr >= 0 ? 2 : 0; // DOWN : UP
     },
 
+    /** How much faster than a walk Shift makes you go (data/running.json runPace; 1.8 when unset). */
+    runPace() {
+        const g = DataLoader._gamedata;
+        const v = Number(g && g.running && g.running.runPace);
+        return v > 0 ? v : 1.8;
+    },
+
     /**
      * Tick the player walking animation. Called each frame.
      * Returns null while walking, or { moved, encounter } on arrival / each step.
@@ -513,7 +520,9 @@ Object.assign(InnerMap, {
         const haul = !row && !inWater && this._boatCarried ? (this._boatCarrySpeed > 0 ? this._boatCarrySpeed : 0.5) : 1;
         // (your horse through a ford at a careful walk, or swimming you over deep water — ui/innerMapHorseSwim.js sets _horsePace)
         const horse = !row && this._horsePace ? this._horsePace(next, inWater) : 0;
-        this._playerMoveProgress += deltaTime * this._playerSpeed * (row ? row : inWater ? (horse > 0 ? horse : this.swimConfig().speed * (this._swimSpeedBonus || 1) * under) : pace * ride * skate * mud * haul * (horse > 0 ? horse : 1));
+        // (Shift held and not winded: a run on foot, a canter on horseback — not swimming, rowing, hauling a boat or pulled to a horse's careful pace)
+        const run = this._runHeld && !this._winded && !row && !inWater && !this._boatCarried && !(horse > 0) ? this.runPace() : 1;
+        this._playerMoveProgress += deltaTime * this._playerSpeed * (row ? row : inWater ? (horse > 0 ? horse : this.swimConfig().speed * (this._swimSpeedBonus || 1) * under) : pace * ride * skate * mud * haul * run * (horse > 0 ? horse : 1));
 
         if (this._playerMoveProgress >= 1.0) {
             this._playerMoveProgress = 0;
@@ -534,6 +543,8 @@ Object.assign(InnerMap, {
             this._playerPrevQ = this.playerInnerQ;
             this._playerPrevR = this.playerInnerR;
             this.playerInnerQ = step.q;
+            // (a tile run on foot tires you: ui/game/gameLoop.js charges it, player/running.js)
+            this._lastStepRan = run > 1 && ride === 1;
             this.playerInnerR = step.r;
             this._playerPathIndex++;
 

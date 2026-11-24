@@ -12,6 +12,8 @@ import { Ships } from '../../systems/ships.js';
 import { InnerMapDeck } from '../innerMapDeck.js';
 import { esc, lede, chips, card, rowList } from './uiKit.js';
 import { Water } from '../../systems/water.js';
+import { SeaPassage } from '../../systems/seaPassage.js';
+import { BlockadeRunning } from '../../systems/blockadeRunning.js';
 
 /**
  * Sail on by itself after a quiet day — not while the captain is on deck,
@@ -39,6 +41,31 @@ function shipChips(ship, withFood = true) {
         ['🙂', 'Morale', Ships.getMorale(ship)],
         ['🔧', 'Hull', `${ship.condition}%`],
     ]);
+}
+
+/** The sea about her: wind and point of sail, current, pilot, the coast ahead, storms in sight (systems/seaPassage.js). */
+function seaCard(game) {
+    const sea = SeaPassage.voyageView(Ships, game.player, game.world);
+    if (!sea) return '';
+    const rows = [];
+    if (sea.wind) {
+        const pct = Math.round((sea.factor - 1) * 100);
+        rows.push(`🌬️ ${esc(sea.wind)} — ${esc(sea.point)} <span style="color:${pct >= 0 ? '#9fc88a' : '#c98a6a'};">(${pct >= 0 ? '+' : ''}${pct}% way)</span>`);
+    }
+    if (sea.current) rows.push(`🌊 ${esc(sea.current)}`);
+    rows.push(sea.pilot
+        ? `🧭 ${esc(sea.pilot.name)} of ${esc(sea.pilot.port)}${sea.pilot.harbour ? ' (harbour pilot)' : ''} — ${sea.pilot.here ? 'in his own waters' : `knows ${sea.pilot.radius} leagues about ${esc(sea.pilot.port)}`}`
+        : '🧭 No pilot aboard');
+    if (sea.lit) rows.push(`🗼 In the light of ${esc(sea.lit)}`);
+    const seen = new Set();
+    for (const h of sea.ahead) {
+        if (seen.has(h.kind)) continue;
+        seen.add(h.kind);
+        rows.push(`${h.icon} ${esc(h.name)} ahead${h.covered ? ' — the pilot knows them' : h.charted ? ' — charted' : ' — unpiloted'}`);
+    }
+    for (const t of sea.storms) rows.push(`🌀 ${esc(t)}`);
+    const html = rows.map(r => `<div style="font-size:11px;padding:2px 0;">${r}</div>`).join('');
+    return card(html, { icon: '🌬️', title: 'The Sea' });
 }
 
 function logLines(entries) {
@@ -107,7 +134,17 @@ export function beginVoyage(game, shipId, destQ, destR, destName, victualDays = 
 export function onVoyageDay(game, day) {
     if (!day) return;
     // On deck: the morning comes on deck instead (landfall leaves the deck, then shows here)
-    if (InnerMapDeck.onVoyageDay(game, day)) return;
+    const onDeck = InnerMapDeck.onVoyageDay(game, day);
+    // A blockade across the harbour mouth: run it, be searched, fight or turn back (systems/blockadeRunning.js)
+    if (day.blockade && Ships.getVoyage(game.player)) {
+        const st = BlockadeRunning.start(game.player, game.world);
+        if (st) {
+            clearTimer(game);
+            ActionMenu.showScene(game, 'blockade', st);
+            return;
+        }
+    }
+    if (onDeck) return;
     if (game.renderer && game.camera && ActionMenu._centerCameraOnPlayer) ActionMenu._centerCameraOnPlayer(game);
     if (day.arrived) {
         if (typeof game.onPlayerArrived === 'function') game.onPlayerArrived();
@@ -148,7 +185,8 @@ function showVoyagePanel(game, day, outcome = null) {
     let html = '<div style="font-size:12px;">';
     let where = `<b>${esc(ship.name)}</b> bound for <b>${esc(v.destName)}</b>`;
     if (active) {
-        const left = Ships.voyageDays(player, ship, Math.max(1, v.route.length - v.step));
+        const left = day && Number.isFinite(day.daysLeft) ? day.daysLeft
+            : SeaPassage.routeDays(game.world, { player, ship, orders: SeaPassage.orders(v) }, { q: v.fromQ, r: v.fromR }, v.route, v.step, Ships.getSailingSpeed(player, ship));
         where += `: day ${v.day} at sea, about ${left} day${left === 1 ? '' : 's'} to go.`;
     }
     html += lede(where);
@@ -158,6 +196,7 @@ function showVoyagePanel(game, day, outcome = null) {
     html += card(logLines(today) || '<div style="font-size:11px;color:var(--text-secondary);">Fair winds.</div>', { icon: '📜', title: 'Today' });
 
     if (outcome) html += card(`${outcome.icon || ''} ${esc(outcome.text)}`, { tone: 'gold' });
+    if (active) html += seaCard(game);
 
     const on = (call) => `onclick="window.${call}"`;
     if (event) {
@@ -171,6 +210,10 @@ function showVoyagePanel(game, day, outcome = null) {
         html += rowList([
             { icon: '⛵', name: auto ? 'Sailing on…' : 'Sail on', desc: 'Another day at sea', tone: 'gold', attrs: on('_voyageSailOn()') },
             { icon: '⚓', name: 'Heave to', desc: 'Stop the voyage here and take the helm yourself', attrs: on('_voyageHeaveTo()') },
+            // Orders through foul water (systems/seaPassage.js)
+            SeaPassage.orders(v) === 'press'
+                ? { icon: '🐢', name: 'Go carefully', desc: 'Shorten sail in foul water; lie to at night rather than run a reef blind (now: pressing on)', attrs: on("_voyageOrders('cautious')") }
+                : { icon: '💨', name: 'Press on', desc: 'All sail, day and night: quicker, but reefs and bars are struck at speed and in the dark (now: going carefully)', attrs: on("_voyageOrders('press')") },
         ]);
     } else {
         html += rowList([{ icon: '↩️', name: 'Close', attrs: on('_voyageClose()') }]);
@@ -180,6 +223,12 @@ function showVoyagePanel(game, day, outcome = null) {
     game.ui.showCustomPanel('🧭 Voyage', html);
     window._voyageSailOn = () => sailOn(game);
     window._voyageHeaveTo = () => heaveTo(game);
+    window._voyageOrders = (mode) => {
+        clearTimer(game);
+        const res = SeaPassage.setOrders(Ships, player, mode);
+        game.ui.showNotification('🧭 Orders', res.message, res.success ? 'info' : 'error');
+        showVoyagePanel(game, null);
+    };
     window._voyageClose = () => { clearTimer(game); game.ui.hideCustomPanel(); };
     window._voyageChoose = (choiceId) => {
         clearTimer(game);

@@ -98,6 +98,20 @@ Object.assign(InnerMap, {
 
     // ──────────── PLACES ────────────
 
+    /**
+     * Does this servant live in at the house they serve? Grown, with no spouse or children
+     * of their own, the house one that keeps its servants (data/interiorPlans.json
+     * household.liveInTypes: a manor, a gentleman's house), not the player's.
+     */
+    _liveInService(npc, job, house) {
+        if (!house || house.isPlayerOwned || house.isPlayerProperty || npc.type === 'child') return false;
+        const P = (DataLoader._gamedata && DataLoader._gamedata.interiorPlans) || {};
+        const types = ((P.household || {}).liveInTypes) || ['manor', 'house'];
+        if (!types.includes(String(house.type || '').replace(/^player_/, ''))) return false;
+        const p = job.p;
+        return p.spouse == null && npc.spouseId == null && !_arr(p.kids).length && !_arr(npc.childIds).length;
+    },
+
     /** After homes and work are given out (townLife._assignHomesAndWork): each to their trade's place. */
     _assignJobPlaces() {
         const blds = this._townBuildings().filter(b => !b.isPlayerOwned);
@@ -109,6 +123,7 @@ Object.assign(InnerMap, {
         for (const npc of this.npcs || []) {
             const job = this._jobOf(npc);
             npc.job = job ? job.j.id : null;
+            npc._liveIn = false;
             if (!job) continue;
             npc.roleTitle = TownJobs.title(job.p) || npc.roleTitle;
             // The player's people work at the player's house
@@ -124,6 +139,9 @@ Object.assign(InnerMap, {
             const boss = job.j.master != null ? byPerson.get(job.j.master) : null;
             if (boss && (job.o.employer === 'noble' || job.o.employer === 'innkeeper')) {
                 npc._work = (job.o.employer === 'noble' ? boss._home : boss._work) || npc._work;
+                // (one in service with no spouse or children of their own lives in: they sleep in
+                // the servants' cots of the house they serve — world/innerMap/householdRooms.js)
+                if (job.o.employer === 'noble' && this._liveInService(npc, job, boss._home)) { npc._home = boss._home; npc._liveIn = true; }
                 if (npc._work) continue;
             }
             const kinds = _arr(job.o.workplaces).filter(t => byType[t] && byType[t].length && t !== 'house');
@@ -581,6 +599,9 @@ Object.assign(InnerMap, {
         const job = this._jobOf(npc);
         const b = npc._work;
         if (job && b && npc._insideBuildingQ === b.q && npc._insideBuildingR === b.r && _arr(job.o.furniture).length) return job.o.furniture;
+        // (at home, off work: the day's hearth-keeper to the fire, a babe's parents and the children to the cradle — householdRooms.js)
+        const hh = this._householdLikes ? this._householdLikes(npc) : null;
+        if (hh) return hh;
         return null;
     },
 
@@ -614,7 +635,7 @@ Object.assign(InnerMap, {
                 && !(this.npcs || []).some(o => o.q === q && o.r === r && o.state !== 'walking');
         };
         const spots = this.getFurnitureSpots();
-        for (const f of spots.filter(x => x.type === 'fireplace')) {
+        for (const f of spots.filter(x => x.type === 'fireplace' && this._npcCanUseAt(x.q, x.r))) {
             for (const [dq, dr] of [[0, 1], [-1, 1], [1, 1], [-1, 0], [1, 0], [0, 2], [-1, 2], [1, 2]]) {
                 const q = f.q + dq, r = f.r + dr;
                 if (free(q, r)) return { q, r, at: { q: f.q, r: f.r }, face: _dirTo(f.q - q, f.r - r), hearth: true };
@@ -646,7 +667,8 @@ Object.assign(InnerMap, {
         if (!npc._mealSeat) {
             const used = new Set((this.npcs || []).filter(o => o !== npc && o._mealSeat).map(o => `${o._mealSeat.q},${o._mealSeat.r}`));
             // (a big household: past the table's stools, the rest draw a stool up to the hearth, else by the wall)
-            const seat = this._tableSeats().find(s => !used.has(`${s.q},${s.r}`)) || this._overflowSeat(used);
+            // (never at a table broken in a raid or a fire: world/furnitureUsable.js)
+            const seat = this._tableSeats().find(s => !used.has(`${s.q},${s.r}`) && this._npcCanUseAt(s.at.q, s.at.r)) || this._overflowSeat(used);
             if (!seat) { npc._meal = null; return false; }
             npc._mealSeat = seat;
             npc.activity = null;

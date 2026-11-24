@@ -887,7 +887,7 @@ Object.assign(ActionMenu, {
     /**
      * Show trade menu
      */
-    showTradeMenu(game, tile, section = null, stall = null) {
+    showTradeMenu(game, tile, section = null, stall = null, focus = null) {
         // A town that doesn't use coin yet barters (world/barter.js): one table, goods for goods
         if (tile && tile.settlement && Barter.active(game.world, tile.settlement)) return ActionMenu.showBarterTable(game, tile);
         // Buy or Sell: the one asked for, else the one last shown (a purchase re-renders the window)
@@ -899,7 +899,12 @@ Object.assign(ActionMenu, {
         if (!ST) stall = null;
         // (a keeper you haggled past their patience will not serve you again today: player/haggling.js)
         if (stall && stall.keeper && ActionMenu.haggleRefusal && ActionMenu.haggleRefusal(game, stall)) return;
-        const goods = ST ? Trading.stallGoods(tile.settlement, tile, game.world, stall.trade) : Trading.getAvailableGoods(tile.settlement, tile, game.world);
+        let goods = ST ? Trading.stallGoods(tile.settlement, tile, game.world, stall.trade) : Trading.getAvailableGoods(tile.settlement, tile, game.world);
+        // A shop's shelf or barrel (world/innerMap/shopStock.js): the market's goods, only those on it
+        if (focus && Array.isArray(focus.goods)) {
+            const want = new Set(focus.goods);
+            goods = goods.filter(g => want.has(g.id));
+        } else focus = null;
         const playerGold = game.player.gold || 0;
         const settlementName = tile.settlement?.name || 'Market';
         const settlementType = tile.settlement?.type || 'village';
@@ -1164,7 +1169,9 @@ Object.assign(ActionMenu, {
             }
             html += '</div></div>';
         }
-        if (!hasBuyGoods) {
+        if (!hasBuyGoods && focus) {
+            html += '<div class="trade-empty">The shelf is bare: the market has none of it today.</div>';
+        } else if (!hasBuyGoods) {
             html += ST ? `<div class="trade-empty">Nothing on the stall today: the market is out of what a ${ST.name.toLowerCase()} sells.</div>`
                 : '<div class="trade-empty">No goods available at this market.</div>';
         }
@@ -1215,6 +1222,20 @@ Object.assign(ActionMenu, {
                 });
             }
             game.ui.showCustomPanel(title, html);
+        } else if (focus) {
+            // The shelf's own window: its goods, and the way to the town's whole market
+            const title = `🛒 ${focus.title || 'Shelf'} — ${settlementName}`;
+            if (game.ui && typeof game.ui.setPanelNav === 'function') {
+                game.ui.setPanelNav({
+                    id: 'shelf', title, active: tab,
+                    items: [
+                        { key: 'buy', label: '🛒 Buy', run: () => ActionMenu.showTradeMenu(game, tile, 'buy', null, focus) },
+                        { key: 'sell', label: '💰 Sell', run: () => ActionMenu.showTradeMenu(game, tile, 'sell', null, focus) },
+                        { key: 'market', label: '🏪 The Market', title: `Everything the market of ${settlementName} holds`, run: () => ActionMenu.showTradeMenu(game, tile, tab) },
+                    ],
+                });
+            }
+            game.ui.showCustomPanel(title, html);
         } else {
             setMarketNav(game, tile, tab);
             game.ui.showCustomPanel(`🏪 Trade — ${settlementName}`, html);
@@ -1243,7 +1264,9 @@ Object.assign(ActionMenu, {
                             }
                         }
                         game.ui.updateStats(game.player, game.world);
-                        ActionMenu.showTradeMenu(game, tile, null, stall);
+                        // (the shelf bought from shows what is left on it)
+                        if (focus && typeof focus.onBought === 'function') focus.onBought();
+                        ActionMenu.showTradeMenu(game, tile, null, stall, focus);
                     } else {
                         game.ui.showNotification('Cannot Buy', result.reason, 'error');
                     }
@@ -1264,7 +1287,9 @@ Object.assign(ActionMenu, {
                         game.player.learnAboutKingdom(tile.settlement.kingdom, 'economy');
                     }
                     game.ui.updateStats(game.player, game.world);
-                    ActionMenu.showTradeMenu(game, tile, null, stall);
+                    // (selling restocks the market: the shelf too)
+                    if (focus && typeof focus.onBought === 'function') focus.onBought();
+                    ActionMenu.showTradeMenu(game, tile, null, stall, focus);
                 } else {
                     game.ui.showNotification('Cannot Sell', result.reason, 'error');
                 }

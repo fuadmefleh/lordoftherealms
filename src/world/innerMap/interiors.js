@@ -972,18 +972,26 @@ Object.assign(InnerMap, {
         // Get or generate interior
         const interiorKey = `${this.currentWorldTile.q},${this.currentWorldTile.r}_${building.type}_${building.q}_${building.r}`;
         const isJail = !!(building._jail || building.type === 'jail');
+        // (the session's interiors are of this world; a building visited before laid back as it
+        // was kept — world/innerMap/persistInteriors.js)
+        const world = (game && game.world) || null;
+        const keeps = !!(world && this.keepsInterior && this.keepsInterior(building));
+        if (world && this._interiorCacheFor) this._interiorCacheFor(world);
         let interior = isJail ? null : this._interiorCache[interiorKey];
+        if (!interior && keeps && this._restoreInterior(world, interiorKey)) interior = this._interiorCache[interiorKey];
         if (!interior) {
             interior = this._generateInterior(building, interiorKey);
             // The jail is built fresh for each stay (its cell door opens on release)
             if (!isJail) this._interiorCache[interiorKey] = interior;
         }
 
-        // Its floors, and the stairs up from this one (world/innerMap/floors.js)
+        // Its floors, and the stairs up from this one and down to its cellar (world/innerMap/floors.js)
         if (this._prepareFloors) this._prepareFloors(interior, building, interiorKey, game);
 
         // Apply interior state
         this._insideBuilding = building;
+        // (every floor built and kept on the first visit: world/innerMap/persistInteriors.js)
+        if (keeps) this._noteInteriorVisit(world, interiorKey, building);
         this.tiles = interior.tiles;
         this.width = interior.width;
         this.height = interior.height;
@@ -1046,6 +1054,8 @@ Object.assign(InnerMap, {
         const building = this._insideBuilding;
         // (the hour's layer taken off: the cached interior is the plan again — world/innerMap/interiorState.js)
         if (this._clearInteriorState) this._clearInteriorState();
+        // (what changed inside written back to the world's records — world/innerMap/persistInteriors.js)
+        if (this._flushInteriorOnExit && game && game.world) this._flushInteriorOnExit(game.world, this._floorKey);
 
         // Interior NPCs drop whatever they were doing in here
         for (const npc of this.npcs) {
@@ -1084,6 +1094,8 @@ Object.assign(InnerMap, {
         this._floor = 0;
         this._floorCount = 1;
         this._floorInteriors = null;
+        this._hasCellar = false;
+        this._cellarKind = undefined;
 
         // Cancel any walk/interaction state
         this.cancelPlayerWalk();
@@ -1158,6 +1170,8 @@ Object.assign(InnerMap, {
         if (building && (building._jail || building.type === 'jail') && this._generateJailInterior) return this._generateJailInterior();
         // A way underground: a cave, a drift or a shaft (world/innerMap/mines.js)
         if (building && building._underground && this._generateUnderground) return this._generateUnderground(building);
+        // Below decks on your ship: berths, galley, hold, cabin (world/innerMap/belowDecks.js)
+        if (building && building._shipBelow && this._generateBelowDecks) return this._generateBelowDecks(building);
         // The castle: gatehouse, courtyard and keep (world/innerMap/seats.js)
         if (building && String(building.type).replace(/^player_/, '') === 'castle' && this._generateCastleInterior) return this._generateCastleInterior(building);
         // ── Try linked custom interior first (by building def ID) ──
@@ -1452,7 +1466,8 @@ Object.assign(InnerMap, {
                     building: null,
                     _isInterior: true,
                     _interiorBuildingType: building.type,
-                    _furniture: hasFurn ? meta.furniture : null,
+                    // (its own copy: the hour's layer and the player's doings mark the piece, never the design)
+                    _furniture: hasFurn ? { ...meta.furniture } : null,
                     _isDoor: isDoor,
                     // Sides no one can cross (core/tileSides.js): set per tile
                     // and by the floor brush's edge slots
@@ -1521,6 +1536,13 @@ Object.assign(InnerMap, {
             }
         }
 
-        return { tiles, width: w, height: h };
+        // Its inner walls, doorways, decor, wall decor and windows, its rooms and its door, as a
+        // planned interior has them (world/innerMap/authoredInterior.js): the same dressing, light
+        // and hour's layer then work in it
+        const dressed = this._dressAuthoredInterior ? this._dressAuthoredInterior(tiles, w, h, def, building) : null;
+        if (!dressed) return { tiles, width: w, height: h };
+        const out = { tiles, width: w, height: h, rooms: dressed.rooms, _authored: def.id || true };
+        if (dressed.door) out.door = dressed.door;
+        return out;
     },
 });

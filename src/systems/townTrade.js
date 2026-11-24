@@ -1456,6 +1456,34 @@ export const TownTrade = {
         return { key, H, hh };
     },
 
+    /**
+     * A guest at a household's table (player/guests.js: sharing a meal): up to
+     * `portion` units of its food (the larder's food goods, the fullest first)
+     * eaten, booked as eaten so not a unit is lost. → { units, goods: { g: n } }
+     * (units 0 when the larder holds no food, or the town keeps no trade).
+     */
+    serveGuest(s, p, day, portion = 0.5) {
+        const out = { units: 0, goods: {} };
+        const pan = TownTrade.pantryOf(s, p, day);
+        if (!pan || !pan.H || !(portion > 0)) return out;
+        const st = TownTrade.state(s, day);
+        const L = pan.H.l;
+        const foods = TownTrade.rates(s).filter(r => r.group === 'food').map(r => r.g)
+            .filter(g => _num(L[g]) > 0).sort((a, b) => _num(L[b]) - _num(L[a]) || (a < b ? -1 : 1));
+        let left = portion;
+        for (const g of foods) {
+            if (!(left > 0.0001)) break;
+            const take = Math.min(_num(L[g]), left);
+            TownTrade._sink(st, 'eaten', g, take);
+            TownTrade._setL(st, L, g, _num(L[g]) - take);
+            out.goods[g] = take;
+            out.units += take;
+            left -= take;
+        }
+        out.units = Math.round(out.units * 1000) / 1000;
+        return out;
+    },
+
     /** Goods back into a household's pantry (stolen goods recovered by the watch). → units */
     toPantry(s, key, g, n) {
         const st = s && _obj(s.townTrade);

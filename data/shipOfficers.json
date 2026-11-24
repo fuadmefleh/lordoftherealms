@@ -1,0 +1,60 @@
+{
+    "_doc": "Ship's officers (systems/shipOfficers.js). Four posts, each filled by promoting one of the ship's named hands (systems/deckLife.js roster). An officer has a skill (from the hand's aptitude for the post, growing with days at sea and fights won) and a loyalty (pay, arrears, rations, grog, floggings, victories and defeats, praise and reprimands, the crew's morale). Their bonuses (posts.<id>.bonuses: the most the post gives, at skill 100 and full heart) are read through ShipOfficers.bonus(ship, kind). minCrew: the crew the ship must need (crewRequired) to carry the post. Loyalty below sulkAt halves an officer's bonus; below desertAt in port, they may go ashore for good.",
+    "posts": {
+        "navigator": {
+            "title": "navigator", "icon": "🧭", "pay": 4, "minCrew": 4,
+            "aptitude": { "helmsman": 20, "mate": 12, "lookout": 8 },
+            "bonuses": { "speed": 0.15, "routeSafety": 0.35 },
+            "desc": "Keeps the reckoning and the charts: a quicker passage, and a safer one through shoals and storms."
+        },
+        "gunner": {
+            "title": "master gunner", "icon": "💥", "pay": 3, "minCrew": 6,
+            "aptitude": { "carpenter": 15, "topman": 8, "deckhand": 4 },
+            "bonuses": { "gunnery": 0.3 },
+            "desc": "Lays the guns and drills their crews: truer broadsides."
+        },
+        "bosun": {
+            "title": "bosun", "icon": "📯", "pay": 3, "minCrew": 4,
+            "aptitude": { "bosun": 22, "carpenter": 10, "mate": 6 },
+            "bonuses": { "morale": 0.6, "repair": 0.6 },
+            "desc": "Drives the hands and keeps the rigging and hull in repair: steadier spirits, running repairs at sea."
+        },
+        "surgeon": {
+            "title": "surgeon", "icon": "⚕️", "pay": 4, "minCrew": 8,
+            "aptitude": { "cook": 14, "mate": 6 },
+            "bonuses": { "sickness": 0.45, "wounds": 0.4 },
+            "desc": "Physics the sick and dresses the wounded: shorter outbreaks, more men saved after a fight."
+        }
+    },
+    "aptitudeBase": [15, 55],
+    "loyaltyBase": [45, 70],
+    "skill": { "max": 95, "perDayAtSea": 0.12, "perVictory": 1.5 },
+    "loyalty": {
+        "paid": 0.4,
+        "unpaid": -6,
+        "perArrearsDay": -1,
+        "hungry": -2,
+        "grog": 1,
+        "victory": 6,
+        "defeat": -4,
+        "moraleTarget": { "base": 25, "perMorale": 0.55 },
+        "drift": 1,
+        "praise": 4,
+        "praiseEvery": 7,
+        "reprimand": -6,
+        "reprimandLifts": 3,
+        "promoted": 12,
+        "flogging": { "bosun": 1, "gunner": 0, "navigator": -1, "surgeon": -3 },
+        "floggingSpree": { "count": 3, "days": 7, "loss": -3 },
+        "sulkAt": 30,
+        "desertAt": 18,
+        "desertChance": 0.35,
+        "fullHeartAt": 50
+    },
+    "discipline": {
+        "flogMorale": -3,
+        "promoteMorale": 2,
+        "dismissMorale": -2
+    },
+    "logbook": { "voyages": 8 }
+}

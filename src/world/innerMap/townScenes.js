@@ -702,7 +702,8 @@ Object.assign(InnerMap, {
     /** The interior's stations (for the staff), seats (for the patrons) and the bard's stage. */
     _sceneInteriorSetup(b, kind) {
         const { K } = kind;
-        const spots = this.getFurnitureSpots();
+        // (no station or seat at a piece broken in a raid or a fire: world/furnitureUsable.js)
+        const spots = this.getFurnitureSpots().filter(s => !this._npcCanUseAt || this._npcCanUseAt(s.q, s.r));
         const taken = new Set();
         const key = (q, r) => `${q},${r}`;
         const stations = [];

@@ -47,7 +47,7 @@ const _tiersOk = (e, tier) => !Array.isArray(e.tiers) || e.tiers.includes(tier);
 
 // The order pieces go down in: the room's anchors first (the altar, the bar, the pews, the
 // hearth and the beds), the tables in the open, then what fills in round them
-const PRIORITY = { far: 0, bar: 1, rows: 2, back: 3, centre: 4, aisles: 5, side: 6, wall: 6, corner: 7, foot: 8, near: 8, behind: 8, ends: 9, aisle: 9, any: 10 };
+const PRIORITY = { far: 0, bar: 1, rows: 2, back: 3, centre: 4, aisles: 5, stacks: 5, side: 6, wall: 6, corner: 7, foot: 8, near: 8, behind: 8, ends: 9, aisle: 9, any: 10 };
 // Tall pieces against a wall hide what would hang on it
 const TALL = new Set(['bookshelf', 'shelf', 'cupboard', 'wardrobe', 'rack', 'barrel_rack', 'crate_stack', 'stairs']);
 // (each design's front read once: def id → its exterior)
@@ -122,8 +122,9 @@ Object.assign(InnerMap, {
         let household = null;
         const H = P.household || {};
         const npcs = Array.isArray(this.npcs) ? this.npcs : [];
+        // (a servant living in sleeps in the servants' cots, not one of the family's beds: householdRooms.js)
         const here = npcs.filter(n => n && n._home && n._home.q === building.q && n._home.r === building.r
-            && n.type !== 'traveler' && n.state !== 'dead' && n.state !== 'gone' && !n.departing);
+            && n.type !== 'traveler' && n.state !== 'dead' && n.state !== 'gone' && !n.departing && !n._liveIn);
         if (here.length && (H.types || ['house', 'farm']).includes(type) && !building.isPlayerOwned && !building.isPlayerProperty) {
             const adultAge = _num(H.adultAge, 14), infantAge = _num(H.infantAge, 2);
             const ids = new Set(here.map(n => n.id));
@@ -243,14 +244,22 @@ Object.assign(InnerMap, {
      * Plan a building's interior. → { tiles, width, height, rooms, info } or null (no plan
      * data: the caller lays the old fixed layout). `look` is _interiorLook's; `ownDef` the
      * building's custom def (its footprint leans the size).
+     *
+     * A floor above the ground or a cellar under it (floors.js) is planned the same way with
+     * `opts`: { size: [W, H] (the ground floor's), entry: { q, r } (the stairs it is reached
+     * by: no front door, the way in kept clear and in the main room), plan (its plan spec:
+     * data/interiorPlans.json `floors`), pieces ([{ f, count }]: its required pieces, the
+     * floor's room of data/buildingFloors.json), floorId, upper | cellar }.
      */
-    _planInterior(building, seedKey, baseLayout, look, ownDef = null, who = null) {
+    _planInterior(building, seedKey, baseLayout, look, ownDef = null, who = null, opts = {}) {
         const P = this._planData();
         if (!P || !P.types) return null;
         const bare = String((building && building.type) || '').replace(/^player_/, '');
         const planType = this.INTERIOR_LAYOUTS[bare] ? bare : 'house';
-        const T = P.types[planType];
+        const T = opts.plan || P.types[planType];
         if (!T) return null;
+        const entry = opts.entry || null;
+        const below = !!(opts.upper || opts.cellar);
         const tier = look.tier || 'mid';
         const rng = _rng(`${seedKey}|plan`);
         const ex = (who && who.exterior) || null;
@@ -260,7 +269,10 @@ Object.assign(InnerMap, {
         // type's range about its tier, so its pieces fit); else the tier's range, leaning ──
         const size = _byTier(T.size, tier) || [[baseLayout.width, baseLayout.width], [baseLayout.height, baseLayout.height]];
         let W, H;
-        if (ex) {
+        if (Array.isArray(opts.size)) {
+            W = Math.max(5, _num(opts.size[0], 5));
+            H = Math.max(5, _num(opts.size[1], 5));
+        } else if (ex) {
             const all = ['poor', 'mid', 'rich'].map(t => _byTier(T.size, t)).filter(Boolean);
             const span = (i, lean) => {
                 const lo0 = Math.min(...all.map(s => _num(Array.isArray(s[i]) ? s[i][0] : s[i])));
@@ -288,13 +300,20 @@ Object.assign(InnerMap, {
             const m = Math.max(1, Math.min(_num(X.doorMargin, 2), Math.floor((W - 3) / 2)));
             doorQ = Math.max(m, Math.min(W - 1 - m, 1 + Math.round(ex.doorFrac * (W - 2) - 0.5)));
         }
+        // (a floor reached by its stairs: the stairs stand for the door, in the main room)
+        if (entry) doorQ = entry.q;
+        const startQ = entry ? entry.q : doorQ, startR = entry ? entry.r : H - 1;
+        // (no inner wall on the stairs or the landing round them)
+        const noCarve = new Set();
+        if (entry) { noCarve.add(`${entry.q},${entry.r}`); for (const [dq, dr] of D4) noCarve.add(`${entry.q + dq},${entry.r + dr}`); }
+        if (entry && opts.landing) for (const dq of [-1, 1]) for (const dr of [-1, 1]) noCarve.add(`${entry.q + dq},${entry.r + dr}`);
 
         // ── The shell, then its rooms carved off the main room ──
         const grid = [];
         for (let r = 0; r < H; r++) {
             grid[r] = [];
             for (let q = 0; q < W; q++) {
-                const door = r === H - 1 && q === doorQ;
+                const door = !entry && r === H - 1 && q === doorQ;
                 const wall = !door && (r === 0 || q === 0 || q === W - 1 || r === H - 1);
                 grid[r][q] = { wall, door, inner: false, doorway: false, room: wall || door ? -1 : 0 };
             }
@@ -304,9 +323,10 @@ Object.assign(InnerMap, {
         const snapshot = () => grid.map(row => row.map(c => ({ ...c })));
         const restore = (snap) => { for (let r = 0; r < H; r++) for (let q = 0; q < W; q++) grid[r][q] = snap[r][q]; };
         const mainFloor = (q, r) => { const c = grid[r] && grid[r][q]; return !!(c && !c.wall && !c.door && c.room === 0 && !c.doorway); };
+        const carvable = (q, r) => mainFloor(q, r) && !noCarve.has(`${q},${r}`);
         const setWall = (q, r) => Object.assign(grid[r][q], { wall: true, inner: true, room: -1, doorway: false });
         const connected = () => {
-            const seen = new Set([`${doorQ},${H - 1}`]), queue = [[doorQ, H - 1]];
+            const seen = new Set([`${startQ},${startR}`]), queue = [[startQ, startR]];
             while (queue.length) {
                 const [q, r] = queue.shift();
                 for (const [dq, dr] of D4) {
@@ -335,7 +355,7 @@ Object.assign(InnerMap, {
             const cols = side === 'left' ? [1, sw] : [W - 1 - sw, W - 2];
             const wallCol = side === 'left' ? sw + 1 : W - 2 - sw;
             if (side === 'left' ? wallCol > doorQ - 2 : wallCol < doorQ + 2) return false;
-            for (let r = 1; r <= H - 2; r++) for (let q = Math.min(cols[0], wallCol); q <= Math.max(cols[1], wallCol); q++) if (!mainFloor(q, r)) return false;
+            for (let r = 1; r <= H - 2; r++) for (let q = Math.min(cols[0], wallCol); q <= Math.max(cols[1], wallCol); q++) if (!carvable(q, r)) return false;
             const rowsAvail = H - 2;
             let n = k;
             while (n > 1 && (rowsAvail - (n - 1)) / n < 3) n--;
@@ -360,13 +380,14 @@ Object.assign(InnerMap, {
         const carveCorner = (side, end, cw, cd, base) => {
             const cols = side === 'left' ? [1, cw] : [W - 1 - cw, W - 2];
             const wallCol = side === 'left' ? cw + 1 : W - 2 - cw;
-            if (side === 'left' ? wallCol > doorQ - 2 : wallCol < doorQ + 2) return false;
+            // (the door's column kept to the main room; a floor reached by its stairs keeps only the landing: noCarve)
+            if (!entry && (side === 'left' ? wallCol > doorQ - 2 : wallCol < doorQ + 2)) return false;
             const rows = end === 'front' ? [H - 1 - cd, H - 2] : [1, cd];
             const wallRow = end === 'front' ? H - 2 - cd : cd + 1;
             if (wallRow <= 1 || wallRow >= H - 2) return false;
             const qa = Math.min(cols[0], wallCol), qb = Math.max(cols[1], wallCol);
             const ra = Math.min(rows[0], wallRow), rb = Math.max(rows[1], wallRow);
-            for (let r = ra; r <= rb; r++) for (let q = qa; q <= qb; q++) if (!mainFloor(q, r)) return false;
+            for (let r = ra; r <= rb; r++) for (let q = qa; q <= qb; q++) if (!carvable(q, r)) return false;
             for (let r = ra; r <= rb; r++) setWall(wallCol, r);
             for (let q = qa; q <= qb; q++) setWall(q, wallRow);
             const idx = rooms.length;
@@ -386,13 +407,18 @@ Object.assign(InnerMap, {
             const minW = Array.isArray(spec.width) ? Math.min(...spec.width) : wantW;
             const k = Math.max(1, _pickRange(rng, _byTier(spec.split, tier) || 1));
             const depth = _pickRange(rng, spec.depth || [2, 3]);
+            // (a corner room at either end: 'any')
+            const ends = spec.end === 'any' ? _shuffle(['back', 'front'], rng) : [spec.end === 'front' ? 'front' : 'back'];
             let done = false;
             for (const side of sides) {
-                for (let sw = wantW; sw >= Math.max(2, minW) && !done; sw--) {
-                    const snap = snapshot(), before = rooms.length;
-                    const ok = spec.shape === 'corner' ? carveCorner(side, spec.end === 'front' ? 'front' : 'back', sw, depth, spec) : carveSide(side, sw, k, spec);
-                    if (ok && connected()) done = true;
-                    else { restore(snap); rooms.length = before; }
+                for (const end of ends) {
+                    for (let sw = wantW; sw >= Math.max(2, minW) && !done; sw--) {
+                        const snap = snapshot(), before = rooms.length;
+                        const ok = spec.shape === 'corner' ? carveCorner(side, end, sw, depth, spec) : carveSide(side, sw, k, spec);
+                        if (ok && connected()) done = true;
+                        else { restore(snap); rooms.length = before; }
+                    }
+                    if (done || spec.shape !== 'corner') break;
                 }
                 if (done) break;
             }
@@ -400,8 +426,8 @@ Object.assign(InnerMap, {
 
         // ── The tiles ──
         // (a hut, hovel, croft or longhouse of an older age keeps an earth floor where its tier allows: exterior.styles)
-        let floorId = look.floor;
-        const styleLook = ex && ex.style && (X.styles || {})[ex.style];
+        let floorId = opts.floorId && this.INTERIOR_FLOORS[opts.floorId] ? opts.floorId : look.floor;
+        const styleLook = !below && ex && ex.style && (X.styles || {})[ex.style];
         if (styleLook && styleLook.floor && look.kind === 'home' && !(styleLook.tiers && !styleLook.tiers.includes(tier)) && this.INTERIOR_FLOORS[styleLook.floor]) floorId = styleLook.floor;
         const floorDef = this.INTERIOR_FLOORS[floorId] || this.INTERIOR_FLOORS.wood_floor;
         const ctx = { floor: floorId, floorDef, wall: look.wall, wallColor: baseLayout.wallColor, tint: look.tint, buildingType: building.type };
@@ -427,7 +453,9 @@ Object.assign(InnerMap, {
             tiles[r][q]._roomId = rooms[ri].id;
         }
         // The way in kept clear: the door, the tile inside it, each doorway and the tiles either side
-        const reserved = new Set([`${doorQ},${H - 1}`, `${doorQ},${H - 2}`]);
+        const reserved = entry ? new Set(noCarve) : new Set([`${doorQ},${H - 1}`, `${doorQ},${H - 2}`]);
+        // (a cellar's landing: the whole square round the steps kept clear, opts.landing)
+        if (entry && opts.landing) for (let dr = -1; dr <= 1; dr++) for (let dq = -1; dq <= 1; dq++) reserved.add(`${entry.q + dq},${entry.r + dr}`);
         for (let r = 0; r < H; r++) for (let q = 0; q < W; q++) {
             if (!grid[r][q].doorway) continue;
             reserved.add(`${q},${r}`);
@@ -435,7 +463,7 @@ Object.assign(InnerMap, {
         }
 
         // ── What goes in each room: the type's required pieces, then each room's extras ──
-        const groups = this._requiredPieces(baseLayout);
+        const groups = Array.isArray(opts.pieces) ? opts.pieces.map(g => ({ f: { ...g.f }, count: Math.max(0, _num(g.count, 1)) })) : this._requiredPieces(baseLayout);
         const baseArea = Math.max(1, (baseLayout.width - 2) * (baseLayout.height - 2));
         const area = (W - 2) * (H - 2);
         for (const g of groups) {
@@ -471,6 +499,7 @@ Object.assign(InnerMap, {
                 ...(e.art ? { art: e.art } : {}),
                 ...(e.noJoin ? { noJoin: true } : {}),
                 ...(e.decor ? { decor: e.decor } : {}),
+                ...(e.fill ? { _fill: true } : {}),
             };
         };
         const addExtras = (list, ri, req = false) => {
@@ -487,7 +516,7 @@ Object.assign(InnerMap, {
         };
         rooms.forEach((rm, ri) => addExtras(rm.spec.extras, ri));
         // Its people's trades, worked at home: the cobbler's bench, the weaver's loom (trades)
-        const trades = ((who && who.trades) || []).map(id => ({ id, ...((P.trades || {})[id] || {}) }));
+        const trades = (below ? [] : (who && who.trades) || []).map(id => ({ id, ...((P.trades || {})[id] || {}) }));
         for (const tr of trades) {
             const ri = tr.room ? Math.max(0, rooms.findIndex(rm => rm.spec && rm.spec.id === tr.room)) : 0;
             // (they come first in their room: unshifted, so a crowded house drops a stool before the loom)
@@ -498,11 +527,11 @@ Object.assign(InnerMap, {
         }
         // Its culture's own things about the house: the north's furs, the south's rugs and lamps (cultures)
         const cult = (who && who.culture && (P.cultures || {})[who.culture]) || null;
-        if (cult && look.kind !== 'work') addExtras(cult.extras, 0);
+        if (cult && look.kind !== 'work' && !below) addExtras(cult.extras, 0);
         // A bed for each of the household (household): one for a couple, one for each other
         // grown one, the children two to a bed (on straw in a poor house), a cradle for each
         // infant — upstairs where the house has a floor of bedchambers (floors.js), else here
-        if (hh && !this._householdUpstairs(building, who)) {
+        if (hh && !below && !this._householdUpstairs(building, who)) {
             const beds = this._householdBeds(hh, tier);
             const bedRoom = units.findIndex(list => list.some(u => u.type === 'bed'));
             const ri = bedRoom >= 0 ? bedRoom : 0;
@@ -516,7 +545,7 @@ Object.assign(InnerMap, {
         for (let ri = 0; ri < units.length; ri++) units[ri] = this._furnishByTier(units[ri], look.tier, look.kind);
 
         // ── Setting the pieces down ──
-        const placer = this._interiorPlacer({ tiles, W, H, doorQ, roomOf, cellsOf, reserved, rng });
+        const placer = this._interiorPlacer({ tiles, W, H, doorQ, roomOf, cellsOf, reserved, rng, start: { q: startQ, r: startR }, hasDoor: !entry });
         const order = [];
         for (let ri = 1; ri < rooms.length; ri++) order.push(ri);
         order.push(0);
@@ -558,9 +587,9 @@ Object.assign(InnerMap, {
         }
         return {
             tiles, width: W, height: H,
-            door: { q: doorQ, r: H - 1 },
+            door: entry ? null : { q: doorQ, r: H - 1 },
             rooms: rooms.map((rm, i) => ({ id: rm.id, name: rm.name, cells: cellsOf[i].length })),
-            info: { rooms, roomOf, tier, look, rng, P, who, doorQ, trades, cult },
+            info: { rooms, roomOf, tier, look, rng, P, who, doorQ: entry ? null : doorQ, trades, cult, upper: !!opts.upper, cellar: !!opts.cellar },
         };
     },
 
@@ -599,7 +628,7 @@ Object.assign(InnerMap, {
      * every walkable tile is still reached from the door and every piece still has a
      * reachable side to be used from.
      */
-    _interiorPlacer({ tiles, W, H, doorQ, roomOf, cellsOf, reserved, rng }) {
+    _interiorPlacer({ tiles, W, H, doorQ, roomOf, cellsOf, reserved, rng, start = null, hasDoor = true }) {
         const self = this;
         const F = (q, r) => (tiles[r] && tiles[r][q]) || null;
         const K = (q, r) => `${q},${r}`;
@@ -619,7 +648,7 @@ Object.assign(InnerMap, {
         const reach = () => {
             seenAt.fill(0);
             let head = 0, tail = 0;
-            const s0 = (H - 1) * W + doorQ;
+            const s0 = start ? start.r * W + start.q : (H - 1) * W + doorQ;
             seenAt[s0] = 1; queueAt[tail++] = s0;
             while (head < tail) {
                 const i = queueAt[head++], q = i % W, r = (i - q) / W;
@@ -710,6 +739,44 @@ Object.assign(InnerMap, {
             };
         };
         const jitter = (list, score) => list.map(c => ({ c, s: score(c) + rng() * 0.9 })).sort((a, b) => a.s - b.s).map(x => x.c);
+        // A room's stack rows (the 'stacks' rule), worked out once a room so every piece keeps to them
+        const stacks = new Map();
+        const stackPlan = (ri, gap0) => {
+            if (stacks.has(ri)) return stacks.get(ri);
+            const b = bounds(ri);
+            const gap = Math.max(3, Math.round(gap0));
+            const midQ = (b.x0 + b.x1) / 2;
+            const aisleQ = doorQ >= b.x0 && doorQ <= b.x1 ? doorQ : Math.round(midQ);
+            // (the cross aisle at the end away from the steps; and every `gap` columns from it)
+            const endQ = aisleQ <= midQ ? b.x1 : b.x0;
+            const cross = new Set([aisleQ, endQ]);
+            for (let q = endQ; q >= b.x0 && q <= b.x1; q += endQ === b.x1 ? -gap : gap) cross.add(q);
+            const rows = [];
+            for (let r = b.y0; r <= b.y1; r++) {
+                const k = r - b.y0;
+                if (k > 0 && k % 3 === 1) continue;
+                // (the lower of a double row can't stand against the front wall: nothing to reach it from)
+                if (k > 0 && k % 3 === 0 && r === b.y1) continue;
+                rows.push(r);
+            }
+            const inRoom = new Set(cellsOf[ri].map(([q, r]) => K(q, r)));
+            const cells = [];
+            for (const r of rows) {
+                const line = [];
+                for (let q = b.x0; q <= b.x1; q++) {
+                    if (!inRoom.has(K(q, r))) continue;
+                    // (the back row runs the wall's length; the double rows break at the cross aisles)
+                    if (r !== b.y0 && cross.has(q)) continue;
+                    line.push([q, r]);
+                }
+                // (the far end of a row first, toward the steps last)
+                line.sort((a, z) => Math.abs(z[0] - aisleQ) - Math.abs(a[0] - aisleQ));
+                cells.push(...line);
+            }
+            const S = { cells, rows, cross };
+            stacks.set(ri, S);
+            return S;
+        };
         /** Head tiles for a rule, in the order to try them. */
         const candidates = (rule, arg, ri, span) => {
             const cs = cellsOf[ri];
@@ -717,7 +784,7 @@ Object.assign(InnerMap, {
             const wallN = ([q, r]) => isWall(q, r - 1) && !F(q, r - 1)?._isDoor;
             const wallW = ([q, r]) => isWall(q - 1, r), wallE = ([q, r]) => isWall(q + span[0], r);
             // (the front wall too, away from the door)
-            const wallS = ([q, r]) => (r + span[1] === H - 1 ? Math.abs(q - doorQ) > 1 : isWall(q, r + span[1]));
+            const wallS = ([q, r]) => (r + span[1] === H - 1 ? (!hasDoor || Math.abs(q - doorQ) > 1) : isWall(q, r + span[1]));
             const c0 = centroid(ri);
             switch (rule) {
             case 'back': return _shuffle(cs.filter(wallN), rng);
@@ -784,6 +851,13 @@ Object.assign(InnerMap, {
                 }
                 return out;
             }
+            case 'stacks': {
+                // A cellar's casks, crates and sacks in rows across it, filled from the back: the
+                // row against the back wall, then double rows between walkways; cross aisles kept
+                // open down the steps' column, at the far end and every `arg` columns between
+                const S = stackPlan(ri, _num(arg, 5));
+                return S.cells;
+            }
             case 'aisle': {
                 const b = bounds(ri);
                 return cs.filter(([q, r]) => q === doorQ && r > b.y0 + 1 && r < H - 2).sort((a, z) => a[1] - z[1]);
@@ -812,13 +886,14 @@ Object.assign(InnerMap, {
                 for (const [q, r] of candidates('aisle', null, ri, [1, 1])) if (tryAt(u, ri, q, r, [1, 1])) any = true;
                 if (any) return true;
             }
-            const chain = rule === 'centre' ? ['centre', 'centreLoose', 'wall', 'any'] : [rule, 'wall', 'any'];
+            // (a piece filling out a cellar's rows — _fill — goes in its rows or not at all)
+            const chain = u._fill ? [rule] : rule === 'centre' ? ['centre', 'centreLoose', 'wall', 'any'] : [rule, 'wall', 'any'];
             // (at its full size anywhere the rules allow before a tile's piece)
             const span = spanOf(u);
             const spans = span ? [span, [1, 1]] : [[1, 1]];
             for (const sp of spans) for (const step of chain) if (tryRule(u, ri, step, step === rule ? arg : null, sp)) return true;
             // A required piece crowded out of its room stands in the main room
-            if (u.req && ri !== 0) for (const sp of spans) for (const step of ['wall', 'any']) if (tryRule({ ...u, room: 0 }, 0, step, null, sp)) return true;
+            if (u.req && !u._fill && ri !== 0) for (const sp of spans) for (const step of ['wall', 'any']) if (tryRule({ ...u, room: 0 }, 0, step, null, sp)) return true;
             return false;
         };
         /** A counter run (the bar, the tellers'): along a row near the back, its end against a side wall, room behind for the keeper. */
@@ -922,7 +997,7 @@ Object.assign(InnerMap, {
             if (f.type === 'table' || f.type === 'bar') pool = (spec.items && spec.items.length ? spec.items : own).slice();
             else if (f.type === 'desk' || f.type === 'workbench') pool = own.concat((spec.items || []).filter(x => x === 'papers' || x === 'books' || x === 'tools' || x === 'herbs' || x === 'coins'));
             else pool = own.concat(spec.items || []);
-            if (!work && f.type !== 'workbench') pool = pool.concat(TD.items || []);
+            if (!work && !info.cellar && f.type !== 'workbench') pool = pool.concat(TD.items || []);
             // (the house's trade and its culture leave their things about: twice as likely as any one other)
             if (f.type !== 'bar') pool = pool.concat(tradeItems, tradeItems, cultItems);
             const id = pick(pool.filter(x => items.has(x)));
@@ -944,8 +1019,11 @@ Object.assign(InnerMap, {
         const hang = (t, id, face) => { if (walls.has(id)) { t._wallDecor = id; t._wallDecorFace = face; } };
         const glaze = (spec) => (curtainsOk(spec) && rng() < _num(TD.curtains, 0) ? 'curtains' : 'window');
         const windowed = new Set();
+        // (a cellar is underground: no windows at all; a floor above has its front's upper ones)
+        const cellar = !!info.cellar, upper = !!info.upper;
+        const frontWins = cellar || !ex ? [] : upper ? (ex.upper || []) : (ex.front || []);
         // Windows along the back wall (a front with none — a hovel's — has few at the back too)
-        let backLeft = ex && !ex.front.length ? Math.max(0, _num(X.blindBackMax, 1)) : Infinity;
+        let backLeft = cellar ? 0 : ex && !frontWins.length ? Math.max(0, _num(X.blindBackMax, 1)) : Infinity;
         for (let q = 1; q < w - 1 && backLeft > 0; q++) {
             const t = tiles[0][q];
             if (t.baseTerrain !== 'wall' || (q + off) % gap !== 0) continue;
@@ -957,8 +1035,9 @@ Object.assign(InnerMap, {
             backLeft--;
         }
         // Windows in the front wall where the street front has them (either side of the door)
-        if (ex && ex.front.length) {
-            const doorQ = info.doorQ != null ? info.doorQ : Math.floor(w / 2);
+        if (frontWins.length) {
+            // (upstairs there is no door in the front wall to keep off)
+            const doorQ = upper ? -9 : info.doorQ != null ? info.doorQ : Math.floor(w / 2);
             const fits = (q) => {
                 const t = F(q, h - 1), inside = F(q, h - 2);
                 // (in the wall, off the door's frame, not where an inner wall meets the front, not beside another)
@@ -968,13 +1047,13 @@ Object.assign(InnerMap, {
                 const rm = roomAt([q, h - 2]);
                 return rm && rm.spec.windows !== false ? rm : null;
             };
-            for (const f of ex.front) {
+            for (const f of frontWins) {
                 const at = Math.max(1, Math.min(w - 2, 1 + Math.round(f * (w - 2) - 0.5)));
                 const side = f < ex.doorFrac ? -1 : 1;
                 // (where the facade has it, else the nearest good stretch of wall on the window's own side of the door)
                 for (const d of [0, 1, -1, 2, -2]) {
                     const q = at + d;
-                    if ((q - doorQ) * side <= 0) continue;
+                    if (!upper && (q - doorQ) * side <= 0) continue;
                     const rm = fits(q);
                     if (!rm) continue;
                     hang(F(q, h - 1), glaze(rm.spec), 'up');
@@ -984,7 +1063,7 @@ Object.assign(InnerMap, {
             }
         }
         // A side window for a room the back and front walls miss (none through a party wall)
-        if (!(ex && ex.party)) {
+        if (!(ex && ex.party) && !cellar) {
             rooms.forEach((rm, ri) => {
                 if (windowed.has(rm) || rm.spec.windows === false || ri === 0) return;
                 const side = [];
@@ -1029,7 +1108,8 @@ Object.assign(InnerMap, {
             const rm = roomAt(fc.at);
             if (!rm || near(q, r) || rng() >= _num(TD.wallChance, 0.2) * wallK) continue;
             const pool = (rm.spec.wall || []).filter(x => x !== 'window' && x !== 'curtains');
-            if (!work) pool.push(...(TD.wall || []));
+            // (no finery hung in a cellar: its own torches, shelves and herbs)
+            if (!work && !info.cellar) pool.push(...(TD.wall || []));
             if (rm === rooms[0]) pool.push(...tradeWall);
             pool.push(...cultWall.filter(x => x !== 'window' && x !== 'curtains'));
             const id = pick(pool);

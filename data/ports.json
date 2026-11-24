@@ -1,0 +1,45 @@
+{
+    "_doc": "Ports as places and the working boats (systems/ports.js, world/ferries.js, systems/barges.js; drawn by ui/innerMapPort.js + ui/innerMapLayers/portLife.js on the street map and ui/renderer/waterTraffic.js on the world map). harbour: berths by town size, the harbour dues the harbourmaster takes when one of your ships makes port (per cargo hold, per hand of crew, × the town's size; lighters' fee when every berth is taken: roadsMult; nothing in a port of your own realm or holding). yard: a ship on the slip goes up stage by stage (share = the share of the build days), each day drawing its stage's timber, planks, pitch, rope and sailcloth from the town's market (goods per 100 gold of the ship's base cost, a share a day) — none to be had and the work waits, up to maxStall of the build days. careen: hull repair over days, the ship out of service: a beach careening anywhere with shipwrights, a dry dock in the cities (or a port with your shipyard); rate = hull % a day, costShare of the instant repair bill, goods per 10 hull %. fishing: the boats of a port's fishers (one per fisher, or boatsBySize without a roster), out at dawn and back in the afternoon; a storm or the ice keeps them in, and the market's fish falls by the days lost (marketDynamics crew hook). ferries: across the great rivers near towns (range, spacing; share of the crossing's cost on foot / as a host / an army; fare; timetable hours) and over the straits between port towns on different landmasses (maxWater hexes; fare; a day's crossing). barges: the river links' trade drawn as barges with what really moved (render only).",
+    "harbour": {
+        "berths": { "village": 2, "town": 4, "city": 7, "capital": 10 },
+        "dues": { "perCargo": 0.12, "perCrew": 0.35, "min": 2, "max": 60, "roadsMult": 1.5 },
+        "sizeMult": { "village": 0.6, "town": 1, "city": 1.3, "capital": 1.6 },
+        "traderBerths": 1,
+        "masterJobs": ["merchant", "fisher", "carter", "labourer"]
+    },
+    "yard": {
+        "stages": [
+            { "id": "keel", "name": "Keel laid", "share": 0.12, "goods": { "wood": 1.6 } },
+            { "id": "frames", "name": "Frames raised", "share": 0.28, "goods": { "wood": 2.2, "iron": 0.2 } },
+            { "id": "planked", "name": "Planked", "share": 0.3, "goods": { "planks": 3.0, "resin": 0.4 } },
+            { "id": "decked", "name": "Decked and caulked", "share": 0.16, "goods": { "planks": 1.2, "resin": 0.5 } },
+            { "id": "rigged", "name": "Masted and rigged", "share": 0.14, "goods": { "rope": 1.2, "linen": 1.0 } }
+        ],
+        "maxStall": 0.5,
+        "townBuild": { "every": 70, "days": 50, "minSize": "town" }
+    },
+    "careen": {
+        "beach": { "name": "Careened on the beach", "rate": 6, "costShare": 0.55 },
+        "dock": { "name": "In the dry dock", "rate": 15, "costShare": 0.8, "towns": ["city", "capital"] },
+        "goods": { "planks": 0.4, "resin": 0.3 },
+        "minDamage": 3
+    },
+    "fishing": {
+        "boatsBySize": { "village": 2, "town": 3, "city": 4, "capital": 5 },
+        "maxBoats": 6,
+        "out": [5, 7],
+        "back": [14, 17],
+        "stayIn": ["storm", "blizzard"]
+    },
+    "ferries": {
+        "range": 3,
+        "spacing": 6,
+        "share": { "player": 0.12, "host": 0.45, "army": 0.5 },
+        "fare": { "river": 2, "great": 3, "host": 1 },
+        "timetable": { "village": [7, 12, 17], "town": [6, 9, 12, 15, 18], "city": [6, 8, 10, 12, 14, 16, 18, 20], "capital": [6, 8, 10, 12, 14, 16, 18, 20] },
+        "strait": { "maxWater": 3, "fare": 14, "perHex": 4, "days": 1, "minSize": "village", "perTown": 2 },
+        "ferrymen": ["Old Tam", "Hob the ferryman", "Wat Oarsby", "Jory Pole", "Edda Rope", "Cuthbert Ferris", "Ned Crossing", "Mother Wake", "Alric Tidewater", "Gil Bargeman"]
+    },
+    "barges": { "minQty": 1, "maxShown": 40, "hexesPerDay": 3 },
+    "masters": ["Osric Tallow", "Agnes Quay", "Bertram Moorside", "Hild Saltmarsh", "Godric Anchorby", "Maud Tideway", "Ranulf Strand", "Wenna Harbour", "Piers Lading", "Jocelyn Wharf"]
+}

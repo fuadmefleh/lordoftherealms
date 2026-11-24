@@ -24,11 +24,13 @@ import { RiverFlotsam } from '../../systems/riverFlotsam.js';
 import { RiverNets } from '../../systems/riverNets.js';
 import { FishTraps } from '../../systems/fishTraps.js';
 import { RiverLife } from '../../systems/riverLife.js';
+import { Ports } from '../../systems/ports.js';
 import { OceanCurrents } from '../../world/oceanCurrents.js';
 import { Crops } from '../../systems/crops.js';
 import { AnimalCompanions } from '../../systems/animalCompanions.js';
 import { Delves } from '../../systems/delves.js';
 import { Ailments } from '../../systems/ailments.js';
+import { ShipOfficers } from '../../systems/shipOfficers.js';
 import { TownProps } from '../../world/townProps.js';
 import { Underworld } from '../../systems/underworld.js';
 import { Gangs } from '../../systems/gangs.js';
@@ -482,6 +484,8 @@ export function endDay() {
             if (typeof Ships !== 'undefined') {
                 // Capture ship statuses before processing
                 const shipsBefore = (this.player.ships || []).map(s => ({ id: s.id, status: s.status, name: s.name, buildDaysLeft: s.buildDaysLeft, travelDaysLeft: s.travelDaysLeft }));
+                // The shipwrights draw the day's timber for the ships on the slip — or wait for it (systems/ports.js)
+                for (const n of Ports.yardDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
                 const shipDay = Ships.processDaily(this.player, this.world);
                 // A voyage under way: its day goes to the voyage panel once the day is done
                 this._voyageDay = (shipDay && shipDay.voyage) || null;
@@ -524,7 +528,13 @@ export function endDay() {
                         this.ui.showNotification('⚓ Ship Arrived', `${after.name} has arrived at ${after.dockedAt}.`, 'info');
                     }
                 }
+                // The ships' officers: their pay, loyalty, desertion, the bosun's and surgeon's work (systems/shipOfficers.js)
+                const officersDay = ShipOfficers.processDay(this.player, this.world, shipDay);
+                for (const n of officersDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             }
+
+            // The harbours: dues at a ship's arrival, what you owe, careened hulls, cargo over the quay (systems/ports.js)
+            for (const n of Ports.processDay(this.world, this.player).notices.slice(0, 4)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
             // Standing trade lines: caravans and ships going round their stops,
             // buying and selling by the player's rules (player/tradeLines.js)

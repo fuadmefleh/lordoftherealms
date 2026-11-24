@@ -74,6 +74,8 @@ export const ObjectActions = {
         const fa = FurnitureActions.offers(furnitureType, building, opts.furniture || null);
         const plus = keys => {
             const out = [...keys];
+            // A shop's piece with its market's wares on it: buy them here (world/innerMap/shopStock.js)
+            if (opts.stock && opts.stock.goods && opts.stock.goods.length && !out.includes('buy_shelf')) out.unshift('buy_shelf');
             for (const k of fa.add) if (!out.includes(k) && OBJECT_ACTIONS[k]) out.push(k);
             // A room taken here tonight: its bed is yours to sleep in
             if (furnitureType === 'bed' && !out.includes('sleep') && opts.player
@@ -96,7 +98,8 @@ export const ObjectActions = {
 
     /** Context menu items for a piece of furniture at (q, r). */
     buildFurnitureMenuItems(game, furniture, building, q, r) {
-        const actions = this.getFurnitureActionKeys(furniture.type, building, { furniture, player: game.player, world: game.world });
+        const stock = InnerMap.shopStockAt && q != null ? InnerMap.shopStockAt(q, r) : null;
+        const actions = this.getFurnitureActionKeys(furniture.type, building, { furniture, player: game.player, world: game.world, stock });
         if (!actions.length) return [];
         // (restBonus: a bed of the player's own makes for better sleep — world/innerMap/furnishing.js)
         return this.buildMenuItems(game, { name: furniture.name, icon: furniture.icon, actions, furnitureType: furniture.type, restBonus: furniture.restBonus, furniture }, q, r);
@@ -119,6 +122,14 @@ export const ObjectActions = {
                 if (!action.condition(game)) {
                     disabled = true;
                     disabledReason = action.conditionFail || 'Not available';
+                }
+            }
+            // A broken piece can't be sat on, slept in or worked at (player/furnitureActions.js usable)
+            if (!disabled && objDef.furniture) {
+                const u = FurnitureActions.usable(action.key, objDef.furniture);
+                if (!u.ok) {
+                    disabled = true;
+                    disabledReason = u.reason;
                 }
             }
             // A furniture rule (player/furnitureActions.js): may you, here, and why not
@@ -171,6 +182,13 @@ export const ObjectActions = {
                 return;
             }
         }
+        if (objDef && objDef.furniture) {
+            const u = FurnitureActions.usable(actionKey, objDef.furniture);
+            if (!u.ok) {
+                game.ui.showNotification(`${actionDef.icon} ${actionDef.label}`, u.reason, 'error');
+                return;
+            }
+        }
         if (typeof actionDef.check === 'function') {
             const c = actionDef.check(game, objDef, anchorQ, anchorR) || { ok: true };
             if (!c.ok) {
@@ -179,6 +197,20 @@ export const ObjectActions = {
             }
         }
 
+        // A shop's shelf, counter or barrel: the market's buy window on what lies on it, the
+        // shelf dressed again after a purchase (world/innerMap/shopStock.js)
+        if (actionKey === 'buy_shelf') {
+            const stock = InnerMap.shopStockAt ? InnerMap.shopStockAt(anchorQ, anchorR) : null;
+            const tile = _settlementTile(game);
+            if (tile && stock) {
+                ActionMenu.showTradeMenu(game, tile, 'buy', null, {
+                    goods: stock.goods.map(g => g.id),
+                    title: objDef.name || 'Shelf',
+                    onBought: () => { if (InnerMap._dressShopStock) InnerMap._dressShopStock(InnerMap._insideBuilding, true); },
+                });
+            }
+            return;
+        }
         // A market stall is one trader: its own wares and its keeper's trade (world/innerMap/stalls.js)
         if (actionKey === 'shop' && anchorQ != null && InnerMap.stallAt) {
             const stall = InnerMap.stallAt(anchorQ, anchorR);

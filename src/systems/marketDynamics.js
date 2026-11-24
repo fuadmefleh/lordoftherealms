@@ -45,6 +45,8 @@ import { Climate } from '../world/climate.js';
 import { PriceAnchors } from '../world/priceAnchors.js';
 // (the townsfolk's own trading: producers keep back their wares at the market turn)
 import { TownTrade } from './townTrade.js';
+import { Ports } from './ports.js';
+import { Barges } from './barges.js';
 
 const _key = (q, r) => `${q},${r}`;
 /** Days a settlement's production profile holds before it is worked out again. */
@@ -141,7 +143,8 @@ export const MarketDynamics = {
                 goodsMult: 1 + Economy.holdingFx(live, 'goods'),
                 worksMult: besieged.has(_key(s.q, s.r)) ? 0 : 1,
                 // (its named townsfolk at their trades: systems/townJobs.js; null for a town without a roster)
-                crew: TownJobs.crew(live, world, day),
+                // (...and the port's fishing boats kept in by storms and ice: systems/ports.js fishCrew)
+                crew: Ports.fishCrew(TownJobs.crew(live, world, day), world, live, s.q, s.r, day, span || (Number.isFinite(day) ? k : 1)),
                 // (its named producers' wares kept back: systems/townTrade.js; null without a roster)
                 withhold: TownTrade.withhold(live, world, day, span || (Number.isFinite(day) ? k : 1)),
             });
@@ -165,6 +168,8 @@ export const MarketDynamics = {
         // (goods for goods where a town barters: a world begun before coin, world/barter.js)
         const fo = Barter.flowOpts(world);
         const flow = SettlementMarket.flows(links, bases, day, span ? { ...(fo || {}), span } : fo);
+        // The river links' trade on the water as barges (systems/barges.js: what moved, drawn on the world map)
+        Barges.afterFlows(world, links, day);
         // The duties the day's trade paid go to the crowns (systems/tradePolicy.js)
         flow.duties = TradePolicy.collect(world, links);
         // Tolls over the public works, and the roads' traffic (systems/publicWorks.js)
@@ -502,6 +507,8 @@ export const MarketDynamics = {
                 // fr0: the distance's friction; the roads' state sets the day's (world/transport.js applyLink)
                 a, b, dist: d, sea, road, river, routes: nRoutes, friction, fr0: friction, base, capacity: base, factor: 1,
                 perish: 0, loss: 0, toll: 0, tolls: null, val: 0, closed: false, _speed: 1, rate: 1, keep: 1, _tf: NaN,
+                // (the turn's biggest lot: what the barges carry on a river link, systems/barges.js)
+                bigQ: 0, bigI: -1, bigAB: true,
                 slot: SettlementMarket.slot(a.q + b.q, a.r + b.r),
                 // Crown tariffs read and paid on the link (systems/tradePolicy.js; laid out here so every link keeps one shape)
                 dutyAB: null, dutyBA: null, impAB: 1, impBA: 1, paidAB: 0, paidBA: 0, valAB: 0, valBA: 0, _tp: null, _tpA: null, _tpB: null, _tpF: 1,

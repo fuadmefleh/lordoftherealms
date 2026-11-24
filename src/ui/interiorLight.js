@@ -58,6 +58,8 @@ export const DEFAULTS = {
     flicker: 0.07,
     steps: 20,
     player: { radius: 70, strength: 0.16, color: [1, 0.78, 0.5] },
+    // (a cellar: no daylight at any hour, its torches always burning — this its ambient)
+    cellar: [0.2, 0.2, 0.24],
 };
 
 const WINDOW_IDS = new Set(['window', 'windows', 'curtains']);
@@ -70,6 +72,12 @@ export function lightConfig(art) {
     for (const k of ['window', 'candle', 'torch', 'player']) out[k] = { ...DEFAULTS[k], ...(L[k] || {}) };
     out.fires = { ...DEFAULTS.fires, ...(L.fires || {}) };
     return out;
+}
+
+/** Is this room a cellar (world/innerMap/floors.js marks its tiles _cellar)? Underground: dark at every hour. */
+export function isCellar(tiles) {
+    const row = tiles && tiles[0];
+    return !!(row && row[0] && row[0]._cellar);
 }
 
 const passable = (t) => !!t && (t.baseTerrain !== 'wall' || !!t._doorway);
@@ -170,8 +178,11 @@ export function interiorLightMap(tiles, hour, opts = {}) {
     const H = tiles.length, W = H ? tiles[0].length : 0;
     const N = W * H;
     const at = (q, r) => (q >= 0 && r >= 0 && q < W && r < H ? tiles[r][q] : null);
-    const d = daylight(hour);
-    const night = d < 0.5;
+    // (a cellar: no daylight, its torches and candles lit at every hour)
+    const under = opts.cellar != null ? !!opts.cellar : isCellar(tiles);
+    const d = under ? 0 : daylight(hour);
+    const night = under || d < 0.5;
+    const dark = under && cfg.cellar ? cfg.cellar : cfg.night;
     const sources = opts.sources || collectLightSources(tiles, art, cfg);
 
     // ── corners: the share of open floor about each tile ──
@@ -305,7 +316,7 @@ export function interiorLightMap(tiles, hour, opts = {}) {
     for (let i0 = 0; i0 < N; i0++) {
         const v = vig2[i0], wv = win[i0] * d;
         for (let c = 0; c < 3; c++) {
-            const amb = (cfg.night[c] + (cfg.day[c] - cfg.night[c]) * d) * v;
+            const amb = (dark[c] + (cfg.day[c] - dark[c]) * d) * v;
             const f = fire[i0 * 3 + c];
             mul[i0 * 3 + c] = Math.min(1, amb + wv * cfg.window.mul[c] + f * cfg.fireMul);
             add[i0 * 3 + c] = wv * cfg.window.add[c];
@@ -385,8 +396,9 @@ export const InteriorLight = {
             if (sig !== this._srcSig) { this._srcSig = sig; this._key = ''; }
             this._sources = src;
         }
-        const d = daylight(hour);
-        const night = d < 0.5;
+        const under = isCellar(tiles);
+        const d = under ? 0 : daylight(hour);
+        const night = under || d < 0.5;
         let key = `${Math.round(d * cfg.steps)}|${night ? 1 : 0}|`;
         for (const s of this._sources) key += stateCode(s);
         if (key !== this._key || !this.map) {

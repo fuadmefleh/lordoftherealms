@@ -5,6 +5,7 @@ import { Pirates } from '../../systems/pirates.js';
 import { esc, lede, bullets, chips, purse, sectionHead, kv, card, actRow, rowList, price, BTN_GOLD, BTN_PLAIN, BTN_DARK, BTN_RED } from './uiKit.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, InnerMap, KingdomNavy, Discovery } from './_imports.js';
 import { Names } from '../../core/names.js';
+import { SeaPassage } from '../../systems/seaPassage.js';
 
 // The action menu's voice (ui/actionMenu/uiKit.js): muted notes, the one
 // full-width button a panel ends on, small stat tags inside a row, a thin bar
@@ -1173,6 +1174,21 @@ Object.assign(ActionMenu, {
         let html = lede(`🧭 Voyage in <b>${ship.name}</b>. Each day at sea is a day: ${Utils.formatGold(costPerDay)}g upkeep and wages, ${Math.round(perDay * 10) / 10} provisions eaten, and whatever the sea sends.`);
         html += chips([['⚓', '', `${speed}/day`], ['🍞', '', food === Infinity ? '—' : `${food}d`]]);
 
+        // The pilot: one of this port's, who knows its reefs, bars and shoals (systems/seaPassage.js)
+        const pilotAboard = SeaPassage.pilotFor(ship, game.world);
+        const pilotOffer = !atHelm && ship.status === 'docked' && ship.q === player.q && ship.r === player.r ? SeaPassage.pilotOffer(game.world, ship.q, ship.r) : null;
+        if (pilotAboard) {
+            html += rowList([{ icon: '🧭', name: `${esc(pilotAboard.name)} of ${esc(pilotAboard.port)} is aboard`, desc: `Knows the waters ${pilotAboard.radius} leagues about ${esc(pilotAboard.port)}: reefs, bars and shoals there are no danger to her` }], 'Pilot');
+        } else if (pilotOffer) {
+            html += rowList([{
+                icon: '🧭', name: `Hire ${esc(pilotOffer.name)}, a pilot of ${esc(pilotOffer.port)}`,
+                desc: `Knows every reef, bar and shoal within ${pilotOffer.radius} leagues; aboard for the voyage`,
+                side: `${Utils.formatGold(pilotOffer.fee)}g`, tone: 'gold', attrs: `onclick="window._hirePilot('${ship.id}')"`,
+            }], 'Pilot');
+        }
+        // The way by the wind, the current and the coast, to every port at once
+        const plan = SeaPassage.planFrom(Ships, game.world, { q: fromQ, r: fromR }, { player, ship, maxNodes: Ships._getVoyageSettings().maxRouteNodes });
+
         if (routes.length === 0) {
             html += `<div style="${MUTED} padding:8px 0;">No port can be reached by sea from here.</div>`;
         }
@@ -1195,7 +1211,7 @@ Object.assign(ActionMenu, {
 
         const routeRows = [];
         for (const dest of routes) {
-            const days = Ships.voyageDays(player, ship, dest.distance);
+            const days = plan.daysTo(dest.q, dest.r, speed) || Ships.voyageDays(player, ship, dest.distance);
             const short = food !== Infinity && food < days + 1;
             const need = Ships.provisionsNeeded(ship, days + 2, { player });
             const safeName = dest.name.replace(/'/g, "\\'");
@@ -1223,6 +1239,12 @@ Object.assign(ActionMenu, {
         window._game = game;
         window._tile = tile;
 
+        window._hirePilot = (sid) => {
+            const res = SeaPassage.hirePilot(Ships, player, game.world, sid);
+            game.ui.showNotification('🧭 Pilot', res.message, res.success ? 'success' : 'error');
+            game.ui.updateStats(player, game.world);
+            ActionMenu._showSailToMenu(game, tile, sid);
+        };
         window._doSailTo = (sid, dq, dr, dname, victualDays) => {
             game.ui.hideCustomPanel();
             beginVoyage(game, sid, dq, dr, dname, victualDays);

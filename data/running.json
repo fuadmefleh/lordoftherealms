@@ -1,0 +1,8 @@
+{
+    "_doc": "Running on the street map: hold Shift (ui/game/gameLoop.js → InnerMap._runHeld; world/innerMap/movement.js). runPace: how much faster than a walk. Each tile run on foot costs energyPerTile energy (cut by the Endurance perk, player/endurance.js) and earns xpPerTile Endurance XP; riding costs you nothing. Below windedBelow energy you are winded and can only walk until you are back above recoverAbove.",
+    "runPace": 1.8,
+    "energyPerTile": 0.35,
+    "xpPerTile": 0.05,
+    "windedBelow": 12,
+    "recoverAbove": 25
+}

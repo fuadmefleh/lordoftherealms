@@ -65,7 +65,7 @@ const DEFAULTS = {
     rakeArc: 30,                 // within this of her bow or stern: raking
     rakeMult: 1.8,
     reload: 7,                   // seconds for a full crew
-    hit: { base: 0.85, range: 0.45, night: 0.15, fog: 0.2, storm: 0.12, skill: 0.02 },
+    hit: { base: 0.85, range: 0.45, night: 0.15, fog: 0.2, storm: 0.12, skill: 0.02, officer: 0.6 },
     damageScale: 2.2,
     toughness: { base: 30, armor: 4, guns: 2 },
     strike: {
@@ -77,6 +77,13 @@ const DEFAULTS = {
         flagHull: 6,             // your flagship strikes (you are beaten) at this hull
     },
     grapple: { range: 1.6, speedDiff: 0.5, chance: 0.3, every: 1 },
+    // hand to hand when nobody is watching: (crew + guns × guns) × drill × hull, to the power `exponent`;
+    // the side boarded fights from its own deck (× defend); merchant crews are no fighters (× kind)
+    boarding: { guns: 0.5, exponent: 2, defend: 1, kind: { own: 1, merchant: 1, pirate: 1, navy: 1 } },
+    // when the enemy and the sailing master lash on: board at boardAt odds, or a hurt ship (hull < 45) at boardHurt;
+    // pirates any time after 15 s at pirateBoardAt, prey under 70 hull at pirateBoardHurt; cruel ones dare cruelNerve more;
+    // a ship tries to rake only when she turns at least rakeHandiness as quick as her target
+    ai: { boardAt: 0.62, boardHurt: 0.4, pirateBoardAt: 0.5, pirateBoardHurt: 0.4, cruelNerve: 0.1, rakeHandiness: 0.9 },
     escapeRange: 24,
     start: { distance: 16, spread: 4 },
     keepRange: 5,
@@ -192,18 +199,9 @@ export const SeaFights = {
         const flag = Ships.getShipById(player, player.boardedShip);
         if (!flag) return out;
         const drill = 1 + Technology.getEffectTotal(player, 'navalCombatBonus');
-        const fromShip = (ship, i, flagship) => {
-            const st = Ships.getShipEffectiveStats(ship);
-            return {
-                id: `p${i}`, side: 'player', name: ship.name, typeId: ship.typeId, flagship, shipId: ship.id,
-                guns: st.combatStrength * drill, armor: st.armor, crew: Ships.getCrew(ship), crew0: st.crewRequired,
-                knots: flagship ? Ships.getSailingSpeed(player, ship) : st.speed * Ships.getCrewSpeedFactor(ship),
-                drill: Ships.getCrewCombatFactor(ship, player), hull: _num(ship.condition, 100),
-                // her master gunner's eye (systems/shipOfficers.js)
-                gunnery: flagship ? ShipOfficers.bonus(ship, 'gunnery', world) : 0,
-            };
-        };
+        const fromShip = (ship, i, flagship) => SeaFights.shipSpec(player, world, ship, { i, flagship, aboard: flagship, drill });
         out.push(fromShip(flag, 0, true));
+        out[0].skill = Math.max(0, _num(player.skills && player.skills.combat)); // (your own eye along the guns)
         const W = (world && world.width) || 0;
         const near = (q, r) => typeof q === 'number' && typeof r === 'number'
             && (W ? Hex.wrappingOffsetDistance(q, r, player.q, player.r, W) : Hex.offsetDistance(q, r, player.q, player.r)) <= 1;
@@ -225,6 +223,26 @@ export const SeaFights = {
             }
         }
         return out;
+    },
+
+    /**
+     * One of your ships as a spec for _spec. opts: { i, flagship, aboard
+     * (you at her helm: your own seamanship sets her speed), drill }. A ship
+     * fighting without you (interception of a ship sailing alone) is her own
+     * flagship.
+     */
+    shipSpec(player, world, ship, opts = {}) {
+        const st = Ships.getShipEffectiveStats(ship);
+        const drill = opts.drill != null ? opts.drill : 1 + Technology.getEffectTotal(player, 'navalCombatBonus');
+        const flagship = opts.flagship !== false;
+        return {
+            id: `p${_num(opts.i, 0)}`, side: 'player', name: ship.name, typeId: ship.typeId, flagship, shipId: ship.id,
+            guns: st.combatStrength * drill, armor: st.armor, crew: Ships.getCrew(ship), crew0: st.crewRequired,
+            knots: opts.aboard ? Ships.getSailingSpeed(player, ship) : st.speed * Ships.getCrewSpeedFactor(ship),
+            drill: Ships.getCrewCombatFactor(ship, player), hull: _num(ship.condition, 100),
+            // her master gunner's eye (systems/shipOfficers.js)
+            gunnery: flagship ? ShipOfficers.bonus(ship, 'gunnery', world) : 0,
+        };
     },
 
     /** A pirate / hunter / merchant from the phased scene (systems/pirates.js state.enemy) as ships. */
@@ -274,8 +292,9 @@ export const SeaFights = {
         const seed = (opts.seed != null ? opts.seed : Utils.randInt(1, 2147483646)) >>> 0;
         const f = { seed, n: 0, t: 0, acc: 0, ships: [], log: [], events: [], outcome: null, squadronOrder: 'follow', auto: false, context: opts.context || null };
         f.night = !!opts.night;
-        // the flagship's master gunner lays your guns (playerSide: ShipOfficers 'gunnery')
-        f.gunnery = _num(playerSpecs[0] && playerSpecs[0].gunnery);
+        // the captain's eye (his combat skill) and the flagship's master gunner (playerSide: ShipOfficers 'gunnery', a fraction)
+        f.gunnery = _num(playerSpecs[0] && playerSpecs[0].skill);
+        f.officerGunnery = _num(playerSpecs[0] && playerSpecs[0].gunnery);
         f.weather = opts.weather || 'clear';
         f.wind = { dir: SeaFights._r(f) * Math.PI * 2, strength: f.weather === 'storm' ? 1 : 0.6 };
         const bearing = Math.PI + (SeaFights._r(f) - 0.5) * Math.PI * 1.4; // they come up ahead, or on either beam
@@ -428,21 +447,26 @@ export const SeaFights = {
         const t = SeaFights._targetOf(f, s);
         if (!t) return 'hold';
         const ratio = SeaFights.power(s) / Math.max(0.1, SeaFights.power(t));
-        const crewEdge = s.crew / Math.max(1, t.crew);
+        const A = C.ai;
+        // the odds of carrying her deck if she lashed on now (her crew on her own deck)
+        const board = SeaFights.boardOdds(s, t);
         const kind = s.kind || (s.side === 'player' ? 'navy' : 'pirate');
         if (kind === 'merchant') return 'flee';
+        // only a ship as handy as her prey tries to cross its bow; a slow-turning one lays her broadside alongside
+        const handy = s.turn >= t.turn * A.rakeHandiness;
         // A ship running from you is chased down and boarded, not stood off from
         const running = t.kind === 'merchant' || t._aiPick === 'flee' || t.order === 'flee';
-        if (running && ratio >= 0.6) return SeaFights._dist(s, t) > 3 ? 'close' : 'grapple';
+        if (running && ratio >= 0.6 && board >= A.boardHurt) return SeaFights._dist(s, t) > 3 ? 'close' : 'grapple';
         if (kind === 'pirate') {
             if (s.hull < 35 && s.temperament !== 'cruel' && ratio < 0.8) return 'flee';
-            if ((crewEdge >= 1.5 && f.t > 15) || t.hull < 70 || t.rigging < 60) return 'grapple';
-            return ratio >= 0.8 ? 'rake' : 'broadside';
+            const nerve = s.temperament === 'cruel' ? A.cruelNerve : 0;
+            if ((board >= A.pirateBoardAt - nerve && f.t > 15) || ((t.hull < 70 || t.rigging < 60) && board >= A.pirateBoardHurt - nerve)) return 'grapple';
+            return ratio >= 0.8 && handy ? 'rake' : 'broadside';
         }
-        // navy, hunters, the squadron, the sailing master
+        // navy, hunters, the squadron, the sailing master: board a beaten ship, or one they can surely carry
         if (s.hull < C.strike.navyHull + 8 && ratio < 0.7) return 'flee';
-        if (t.hull < 45 || t.struck || (crewEdge >= 1.4 && ratio >= 1)) return 'grapple';
-        return SeaFights._dist(s, t) > C.keepRange + 3 ? 'close' : (ratio >= 1.2 ? 'rake' : 'broadside');
+        if (t.struck || board >= A.boardAt || (t.hull < 45 && board >= A.boardHurt)) return 'grapple';
+        return SeaFights._dist(s, t) > C.keepRange + 3 ? 'close' : (ratio >= 1.2 && handy ? 'rake' : 'broadside');
     },
 
     /** Where `s` wants to head and how fast (share of its best) for its order. */
@@ -568,6 +592,8 @@ export const SeaFights = {
         if (f.weather === 'fog') p -= H.fog;
         if (f.weather === 'storm') p -= H.storm;
         if (s.side === 'player' && f.gunnery) p += f.gunnery * H.skill;
+        // (the master gunner lays your flagship's guns truer)
+        if (s.side === 'player' && s.flagship && f.officerGunnery) p *= 1 + f.officerGunnery * _num(H.officer, 0.6);
         const hitShare = _clamp(p + (SeaFights._r(f) - 0.5) * 0.4, 0, 1);
         // Across her bow or stern: a rake
         const theirOff = SeaFights._offBow(best, s);
@@ -623,7 +649,7 @@ export const SeaFights = {
             return;
         }
         // Two other ships lashed together: the crews decide it
-        const won = SeaFights._rollBoarding(f, s, t);
+        const won = SeaFights._rollBoarding(f, s, t); // (t boarded: on her own deck)
         const loser = won ? t : s;
         const winner = won ? s : t;
         s.grappled = null; t.grappled = null;
@@ -632,10 +658,25 @@ export const SeaFights = {
         winner.crew = Math.max(1, winner.crew - Math.ceil(loser.crew * 0.3));
     },
 
-    /** Hand to hand by the crews (no one watching): true when `a` carries `b`. */
+    /** The odds of `a` carrying `b`'s deck by boarding her now (0..1). */
+    boardOdds(a, b) {
+        const pa = SeaFights._boardPower(a, false);
+        const pb = SeaFights._boardPower(b, true);
+        return pa / (pa + pb);
+    },
+
+    /** A ship's weight in a hand-to-hand fight (config boarding). */
+    _boardPower(s, defending) {
+        const B = SeaFights.config().boarding;
+        const kind = _num((B.kind || {})[s.kind || (s.side === 'player' ? 'own' : 'pirate')], 1);
+        const base = (s.crew + s.guns * _num(B.guns, 0.5)) * s.drill * (0.6 + 0.4 * s.hull / 100) * kind * (s.struck ? 0.3 : 1) * (defending ? _num(B.defend, 1) : 1);
+        return Math.max(0.1, base) ** _num(B.exponent, 2);
+    },
+
+    /** Hand to hand by the crews (no one watching): true when `a` (who boarded) carries `b` (on her own deck). */
     _rollBoarding(f, a, b) {
-        const pa = Math.max(0.1, (a.crew + a.guns * 0.5) * a.drill * (0.6 + 0.4 * a.hull / 100)) ** 2;
-        const pb = Math.max(0.1, (b.crew + b.guns * 0.5) * b.drill * (0.6 + 0.4 * b.hull / 100) * (b.struck ? 0.3 : 1)) ** 2;
+        const pa = SeaFights._boardPower(a, false);
+        const pb = SeaFights._boardPower(b, true);
         return SeaFights._r(f) < _clamp(pa / (pa + pb), 0.05, 0.95);
     },
 
@@ -726,7 +767,13 @@ export const SeaFights = {
             if (thinks && s._ai <= 0) {
                 s._ai = C.aiEvery;
                 s._aiPick = SeaFights._aiOrder(f, s);
-                if (s.side === 'enemy') s.shot = s._aiPick === 'grapple' && SeaFights._targetOf(f, s) && SeaFights._dist(s, SeaFights._targetOf(f, s)) < 4 ? 'grape' : (s.kind === 'merchant' ? 'chain' : 'round');
+                // (grape to clear her deck before lashing on, or when she comes alongside to board you; the
+                // sailing master's side loads as the enemy does)
+                if (s.side === 'enemy' || f.auto) {
+                    const t = SeaFights._targetOf(f, s);
+                    const close = t && SeaFights._dist(s, t) < 4 && (s._aiPick === 'grapple' || t._aiPick === 'grapple');
+                    s.shot = close ? 'grape' : (s.kind === 'merchant' ? 'chain' : 'round');
+                }
             }
         }
         for (const s of f.ships) SeaFights._sail(f, s, dt);
@@ -801,7 +848,8 @@ export const SeaFights = {
         if (!o || o.kind !== 'boarding') return o;
         const F = SeaFights.flagship(f);
         const e = SeaFights.ship(f, o.enemyId);
-        if (won === null || won === undefined) won = F && e ? SeaFights._rollBoarding(f, F, e) : false;
+        // (whoever lashed on boards; the other fights from her own deck)
+        if (won === null || won === undefined) won = F && e ? (o.by === 'enemy' ? !SeaFights._rollBoarding(f, e, F) : SeaFights._rollBoarding(f, F, e)) : false;
         if (F) F.grappled = null;
         if (e) e.grappled = null;
         if (won) {

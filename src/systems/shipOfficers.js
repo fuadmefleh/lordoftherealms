@@ -451,7 +451,9 @@ export const ShipOfficers = {
         // Battles today: the sea's interceptions, a boarding settled at the day's end, and what other systems noted
         const battles = {};
         const addBattle = (id, won) => { (battles[id] = battles[id] || []).push(!!won); };
-        for (const ic of (shipDay && shipDay.interceptions) || []) addBattle(ic.shipId, ic.won);
+        // (an interception still awaiting the captain, or fought out as a sea fight — SeaFights.applyToFleet noted it —
+        // or settled without a shot, is no battle here: systems/seaInterception.js)
+        for (const ic of (shipDay && shipDay.interceptions) || []) if (!ic.pending && !ic.fought && ic.won != null && ic.outcome !== 'fled' && ic.outcome !== 'struck') addBattle(ic.shipId, ic.won);
         const vb = shipDay && shipDay.voyage && shipDay.voyage.autoBoarding;
         if (vb && vb.success && shipDay.voyage.shipId != null) addBattle(shipDay.voyage.shipId, vb.won);
 

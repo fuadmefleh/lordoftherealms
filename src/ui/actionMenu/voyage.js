@@ -14,6 +14,7 @@ import { esc, lede, chips, card, rowList } from './uiKit.js';
 import { Water } from '../../systems/water.js';
 import { SeaPassage } from '../../systems/seaPassage.js';
 import { BlockadeRunning } from '../../systems/blockadeRunning.js';
+import { SeaInterception } from '../../systems/seaInterception.js';
 
 /**
  * Sail on by itself after a quiet day — not while the captain is on deck,
@@ -141,6 +142,15 @@ export function onVoyageDay(game, day) {
         if (st) {
             clearTimer(game);
             ActionMenu.showScene(game, 'blockade', st);
+            return;
+        }
+    }
+    // A patrol has brought her to: fight, flee or strike (systems/seaInterception.js)
+    if (day.intercept && SeaInterception.pending(game.player)) {
+        const st = SeaInterception.start(game.player, game.world);
+        if (st) {
+            clearTimer(game);
+            ActionMenu.showScene(game, 'intercept', st);
             return;
         }
     }

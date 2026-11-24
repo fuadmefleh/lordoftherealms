@@ -1,21 +1,24 @@
 {
-    "_comment": "Sea fights on the water (systems/seaFights.js) and royal squadrons on the world map (world/navySquadrons.js). Any key left out keeps the code's default.",
+    "_comment": "Sea fights on the water (systems/seaFights.js) and royal squadrons on the world map (world/navySquadrons.js). Any key left out keeps the code's default. fight.boarding: hand to hand when nobody is watching — (crew + guns x guns) x drill x hull, to the power exponent; the ship boarded fights from her own deck (x defend); kind multiplies by who she is (own = your ships, merchant, pirate, navy). fight.ai: the enemy and the sailing master board at boardAt odds, a hurt ship (hull < 45) at boardHurt; pirates after 15 s at pirateBoardAt, a prey under 70 hull at pirateBoardHurt, cruel ones dare cruelNerve more; a ship tries to rake only when she turns at least rakeHandiness as quick as her target. fight.hit.officer: the master gunner's bonus (a fraction) times this raises the flagship's hit chance. fight.navy: a royal squadron of strength S sails as round(S / perShip) ships (1..maxShips). Balanced 2026-11-24 by an auto-resolve probe over ship types, crews, gunners, pirates, merchants, hunters, patrols and blockades (TODO.md). squadrons.intercept: the odds a hostile PATROL brings your ship to when its day's water comes within reach of her day's path (NavySquadrons.catchChance): base, less perHex off its track, more perShip of sail on the picket, less by night (share of the run in the dark), by the slip.weather and slip.stealth / shipStealth terms, per knot faster (speed), and peace (a realm hostile to you but not at war); clamped min..max (systems/seaInterception.js).",
     "fight": {
-        "maxTime": 300,
+        "maxTime": 180,
         "speedPerKnot": 0.1,
         "reload": 7,
-        "damageScale": 2.2,
+        "damageScale": 2.6,
         "rakeMult": 1.8,
         "keepRange": 5,
-        "escapeRange": 24,
-        "start": { "distance": 16, "spread": 4 },
+        "escapeRange": 17,
+        "start": {"distance": 16, "spread": 4},
         "shot": {
-            "round": { "range": 7, "hull": 0.7, "rig": 0.1, "crew": 0.2 },
-            "chain": { "range": 5, "hull": 0.15, "rig": 0.7, "crew": 0.15 },
-            "grape": { "range": 4, "hull": 0.1, "rig": 0.1, "crew": 0.8 }
+            "round": {"range": 7, "hull": 0.7, "rig": 0.1, "crew": 0.2},
+            "chain": {"range": 5, "hull": 0.15, "rig": 0.7, "crew": 0.15},
+            "grape": {"range": 4, "hull": 0.1, "rig": 0.1, "crew": 0.8}
         },
-        "grapple": { "range": 1.6, "speedDiff": 0.5, "chance": 0.3, "every": 1 },
-        "navy": { "perShip": 20, "maxShips": 4 }
+        "grapple": {"range": 1.6, "speedDiff": 0.5, "chance": 0.2, "every": 1},
+        "navy": {"perShip": 30, "maxShips": 4},
+        "strike": {"chance": 0.45},
+        "boarding": {"defend": 1.25, "kind": {"own": 1, "merchant": 0.55, "pirate": 1.1, "navy": 1.05}, "exponent": 2.5},
+        "ai": {"boardAt": 0.62, "boardHurt": 0.58, "pirateBoardAt": 0.5, "pirateBoardHurt": 0.4, "cruelNerve": 0.1, "rakeHandiness": 0.9}
     },
     "squadrons": {
         "minStrength": 8,
@@ -29,7 +32,7 @@
         "slip": {
             "base": 0.3,
             "night": 0.25,
-            "weather": { "fog": 0.2, "storm": 0.15, "blizzard": 0.15, "rain": 0.1, "snow": 0.08, "cloudy": 0.04 },
+            "weather": {"fog": 0.2, "storm": 0.15, "blizzard": 0.15, "rain": 0.1, "snow": 0.08, "cloudy": 0.04},
             "speed": 0.05,
             "stealth": 0.03,
             "shipStealth": 0.05,
@@ -37,6 +40,7 @@
             "closed": 0.12,
             "min": 0.05,
             "max": 0.9
-        }
+        },
+        "intercept": {"reach": 2, "base": 0.5, "perHex": 0.15, "perShip": 0.05, "night": 0.2, "speed": 0.05, "peace": 0.2, "min": 0.03, "max": 0.85}
     }
 }

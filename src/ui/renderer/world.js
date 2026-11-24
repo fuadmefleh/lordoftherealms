@@ -9,6 +9,9 @@ import { resetCanvasTransform } from '../hiDpi.js';
 import { drawIcon } from '../icons.js';
 import { fontPx, readableFont, inkText, drawMapText } from '../mapInk.js';
 
+// Open water drawn seamless (renderSpriteHex): the sea's own art, not a lake's
+const OPEN_SEA = new Set(['ocean', 'deep_ocean', 'sea', 'coast']);
+
 Object.assign(Renderer.prototype, {
     /**
      * Main render loop call
@@ -770,7 +773,18 @@ Object.assign(Renderer.prototype, {
             // A lake is drawn with a shore: the land around it, and its water rounded off
             // toward the land and running on into the water beside it (renderLakeHex)
             if (tile.terrain && tile.terrain.id === 'lake' && this.world) this.renderLakeHex(ctx, tile, sprite, corners, cx, cy, size, drawX, drawY, targetWidth, targetHeight);
-            else ctx.drawImage(sprite, drawX, drawY, targetWidth, targetHeight);
+            else if (tile.terrain && OPEN_SEA.has(tile.terrain.id)) {
+                // The sea: its art drawn a little larger and clipped to the hex, so the rim painted
+                // round the tile's edge falls outside and open water shows no grid of hex outlines
+                const BIG = 1.16, mx = cx, my = cy + 0.134 * size;
+                ctx.save();
+                ctx.beginPath();
+                corners.forEach((c, i) => (i ? ctx.lineTo(c.x, c.y) : ctx.moveTo(c.x, c.y)));
+                ctx.closePath();
+                ctx.clip();
+                ctx.drawImage(sprite, mx - (mx - drawX) * BIG, my - (my - drawY) * BIG, targetWidth * BIG, targetHeight * BIG);
+                ctx.restore();
+            } else ctx.drawImage(sprite, drawX, drawY, targetWidth, targetHeight);
         }
 
         // River first, then the road (or bridge) over it, so a road

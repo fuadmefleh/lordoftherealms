@@ -632,7 +632,7 @@ export const InnerMapDeck = {
 
     /** Pirates come alongside and over the rail (voyage.boarding, or a sea fight's grapple). */
     _startBoarding(game, fresh, sea = null) {
-        const b = sea ? { enemy: sea.enemy } : Ships.getBoarding(game.player);
+        const b = sea ? { enemy: sea.enemy, crewKind: sea.crewKind } : Ships.getBoarding(game.player);
         if (!b || this._fight) return;
         const party = DeckLife.boardingParty(b);
         InnerMap._layPirateHull(sea && sea.hullId ? sea.hullId : (b.enemy >= 22 ? 'hull_brig' : 'hull_sloop'));
@@ -642,14 +642,14 @@ export const InnerMapDeck = {
             // A fair fight: no crime in cutting down a boarder, and one beaten low goes over the side
             n._taskFoe = { onYield: () => this._boarderDown(game, n, 'goes over the side') };
             n._struckPlayerFirst = true;
-            n._skillRole = 'pirate'; // sea-rovers' blades and fists (systems/combatSkills.js)
+            n._skillRole = 'pirate'; // sea-rovers' blades and fists — a king's marines fight as well (systems/combatSkills.js)
         }
         for (const n of this._crew()) n._deckHp = DeckLife.crewHp();
         this._fight = { boarders, blowTimer: 0, started: _now(), onEnd: sea ? sea.onEnd : null };
         this._sitKey = null;
         this._refresh(game, false);
         if (fresh || boarders.length) {
-            game.ui.showNotification('🏴‍☠️ Boarders!', `${sea && sea.lead ? `${sea.lead} ` : ''}${boarders.length} of them come over the rail, steel out. Fight beside your crew — click a boarder to attack — or strike your colours at the helm.`, 'error');
+            game.ui.showNotification(party.kind === 'pirate' ? '🏴‍☠️ Boarders!' : '⚔️ Boarders!', `${sea && sea.lead ? `${sea.lead} ` : ''}${boarders.length} of them come over the rail, steel out. Fight beside your crew — click a boarder to attack — or strike your colours at the helm.`, 'error');
         }
     },
 

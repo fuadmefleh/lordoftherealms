@@ -2,7 +2,8 @@
 // blockades (systems/blockadeRunning.js): blockade squadrons on station off
 // the enemy's ports, patrols out and back on their routes day by day, a
 // voyage bound into a held port lying off it, and the run past — by night,
-// weather, speed and stealth — or the search, the catch, the fight.
+// weather, speed and stealth — or the search, the catch, the fight; and the
+// patrols that bring your ships to at sea (systems/seaInterception.js).
 
 import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest';
 import { DataLoader } from '../core/dataLoader.js';
@@ -12,6 +13,7 @@ import { NavySquadrons } from '../world/navySquadrons.js';
 import { KingdomNavy } from '../world/kingdomNavy.js';
 import { Ships } from '../systems/ships.js';
 import { BlockadeRunning } from '../systems/blockadeRunning.js';
+import { SeaInterception } from '../systems/seaInterception.js';
 import { SeaFights } from '../systems/seaFights.js';
 import { Technology } from '../systems/technology.js';
 
@@ -290,5 +292,103 @@ describe('running the blockade', () => {
         for (let i = 0; i < 5 && Ships.getVoyage(p); i++) { world.day++; Ships.processDaily(p, world); }
         expect(s.status).toBe('docked');
         expect(s.dockedAt).toBe('Brenhaven');
+    });
+});
+
+describe('patrols intercept your ships', () => {
+    /** A's patrol at sea, and a ship of yours (A at war with you) on its water today. */
+    function onPatrol({ aboard = true, war = true } = {}) {
+        const { world, a, b } = makeWorld({ blockade: false });
+        NavySquadrons.reset(world);
+        const sq = NavySquadrons.list(world).find(s => s.kind === 'patrol' && s.kingdomId === 'A');
+        const s = ship({ q: sq.q, r: sq.r, status: 'anchored' });
+        const p = captain(s, { boardedShip: aboard ? s.id : null, realmWars: war ? { wars: { A: { score: 0 } } } : null, reputation: war ? {} : { A: -80 } });
+        return { world, a, b, s, p, sq };
+    }
+
+    it('a patrol sweeps water along its route each day; a path across it finds it, one far off does not', () => {
+        const { world, sq } = onPatrol();
+        expect(sq.swept.length).toBeGreaterThanOrEqual(1);
+        expect(sq.swept.some(h => h.q === sq.q && h.r === sq.r)).toBe(true);
+        expect(NavySquadrons.patrolsAlong(world, [{ q: sq.q, r: sq.r }])[0]).toMatchObject({ distance: 0 });
+        expect(NavySquadrons.patrolsAlong(world, [{ q: 30, r: 18 }])).toEqual([]);
+    });
+
+    it('the odds of being brought to: worse at war, close by, past many sail; better in fog, by dark, in a fast quiet ship', () => {
+        const base = { distance: 0, ships: 2, speed: 5, squadronSpeed: 5, war: true };
+        const c = NavySquadrons.catchChance(base).chance;
+        expect(NavySquadrons.catchChance({ ...base, war: false }).chance).toBeLessThan(c);
+        expect(NavySquadrons.catchChance({ ...base, distance: 2 }).chance).toBeLessThan(c);
+        expect(NavySquadrons.catchChance({ ...base, ships: 5 }).chance).toBeGreaterThan(c);
+        expect(NavySquadrons.catchChance({ ...base, weather: 'fog' }).chance).toBeLessThan(c);
+        expect(NavySquadrons.catchChance({ ...base, night: 1 }).chance).toBeLessThan(c);
+        expect(NavySquadrons.catchChance({ ...base, speed: 9, stealth: 4, shipStealth: 1 }).chance).toBeLessThan(c);
+    });
+
+    it('no hostility, no interception: a realm at peace with you lets her be', () => {
+        const env = onPatrol({ war: false });
+        env.p.reputation = {};
+        vi.spyOn(Utils, 'random').mockReturnValue(0);
+        expect(Ships._interceptShips(env.p, env.world)).toEqual([]);
+    });
+
+    it('aboard, she is held on the voyage\'s day: the scene offers fight under sail, at once, flee and strike', () => {
+        const { world, s, p, sq } = onPatrol();
+        vi.spyOn(Utils, 'random').mockReturnValue(0);
+        const reports = Ships._interceptShips(p, world, { shipId: s.id, path: [{ q: sq.q, r: sq.r }] });
+        vi.restoreAllMocks();
+        expect(reports[0]).toMatchObject({ pending: true, kingdomId: 'A', stance: 'war' });
+        // held, she is not stopped twice in a day
+        expect(Ships._interceptShips(p, world)).toEqual([]);
+        const st = SeaInterception.start(p, world);
+        const v = SeaInterception.view(p, world, st);
+        expect(v.options.map(o => o.id)).toEqual(['fight_sail', 'fight', 'flee', 'strike']);
+        expect(v.options.find(o => o.id === 'flee').chance).toBeGreaterThan(0);
+    });
+
+    it('struck at war: half the cargo and a fine; the ship goes on', () => {
+        const { world, a, s, p, sq } = onPatrol();
+        SeaInterception.hold(p, world, s, sq, 'war');
+        const gold = p.gold;
+        const res = SeaInterception.act(p, world, SeaInterception.start(p, world), 'strike');
+        expect(res.done).toBe(true);
+        expect(s.cargo.silk).toBe(5);
+        expect(p.gold).toBeLessThan(gold);
+        expect(a.treasury).toBeGreaterThan(100000);
+        expect(s.intercept).toBeNull();
+    });
+
+    it('outsailed: away clear, the hold untouched; failing, the choice narrows to fight or strike', () => {
+        const env = onPatrol();
+        SeaInterception.hold(env.p, env.world, env.s, env.sq, 'war');
+        vi.spyOn(Utils, 'random').mockReturnValue(0.999);
+        const miss = SeaInterception.act(env.p, env.world, SeaInterception.start(env.p, env.world), 'flee');
+        expect(miss.state.fled).toBe(true);
+        expect(SeaInterception.view(env.p, env.world, miss.state).options.map(o => o.id)).toEqual(['fight_sail', 'fight', 'strike']);
+        vi.restoreAllMocks();
+        const again = onPatrol();
+        SeaInterception.hold(again.p, again.world, again.s, again.sq, 'war');
+        vi.spyOn(Utils, 'random').mockReturnValue(0);
+        const ok = SeaInterception.act(again.p, again.world, SeaInterception.start(again.p, again.world), 'flee');
+        expect(ok.report.outcome).toBe('fled');
+        expect(again.s.cargo.silk).toBe(10);
+    });
+
+    it('fought at once, the fight is sailed out and settled', () => {
+        const { world, s, p, sq } = onPatrol();
+        SeaInterception.hold(p, world, s, sq, 'war');
+        const res = SeaInterception.act(p, world, SeaInterception.start(p, world), 'fight');
+        expect(res.done).toBe(true);
+        expect(res.report.fought).toBe(true);
+        expect(['victory', 'defeat', 'drawn']).toContain(res.report.outcome);
+        expect(s.intercept).toBeNull();
+    });
+
+    it('left undecided, her master settles it the next day', () => {
+        const { world, s, p, sq } = onPatrol();
+        SeaInterception.hold(p, world, s, sq, 'war');
+        world.day++;
+        const out = Ships.processDaily(p, world);
+        expect(out.interceptions.some(ic => ic.shipId === s.id && !ic.pending)).toBe(true);
     });
 });

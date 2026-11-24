@@ -14,6 +14,7 @@ import { SeaStorms } from '../world/seaWinds.js';
 import { LegendaryArtifacts } from './legendaryArtifacts.js';
 import { Infrastructure } from './infrastructure.js';
 import { KingdomNavy } from '../world/kingdomNavy.js';
+import { NavySquadrons } from '../world/navySquadrons.js';
 import { Economy } from '../world/economy.js';
 import { MoneySupply } from '../world/moneySupply.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
@@ -22,6 +23,7 @@ import { Climate } from '../world/climate.js';
 import { Underworld } from './underworld.js';
 import { Ailments } from './ailments.js';
 import { VoyageMethods } from './shipVoyages.js';
+import { SeaInterception } from './seaInterception.js';
 import { PriceKnowledge } from './priceKnowledge.js';
 import { LossBook } from './lossBook.js';
 import { Ledger } from './ledger.js';
@@ -1847,12 +1849,23 @@ export const Ships = {
             }
         }
 
+        // An interception left undecided yesterday: her master decides (systems/seaInterception.js)
+        const interceptions = [];
+        for (const ship of ships) {
+            if (ship.intercept && (ship.intercept.day || 0) < ((world && world.day) || 0)) {
+                const rep = SeaInterception.masterDecides(player, world, ship);
+                if (rep) interceptions.push(rep);
+            }
+        }
+
         // The player's voyage sails on (systems/shipVoyages.js)
         const voyageShip = this.getVoyageShip(player);
         const voyage = this._voyageDay(player, world, voyageShip ? storms[voyageShip.id] || null : null);
 
-        // Hostile royal fleets stop ships sailing near their ports
-        const interceptions = this._interceptShips(player, world);
+        // Hostile royal patrols on the map stop ships whose way crosses their water
+        interceptions.push(...this._interceptShips(player, world, voyage));
+        const held = voyage && interceptions.find(ic => ic.pending && ic.shipId === voyage.shipId);
+        if (held) voyage.intercept = held;
 
         // Crews away from port eat from the hold
         const provisions = this._feedCrews(player, world);
@@ -1938,60 +1951,76 @@ export const Ships = {
     },
 
     /**
-     * Each ship under way or at anchor within intercept.radius of a hostile
-     * realm's port may be stopped by a detachment of its fleet. The ship's own
-     * strength (hull, crew and the galley escort) decides the fight.
+     * The water a ship sailed through today: the voyage's day's path for the
+     * ship on a voyage (shipVoyages _voyageDay → out.path), else where she
+     * lies (and where she is bound, a ship moving on her own).
+     */
+    _dayPath(player, ship, voyage = null) {
+        if (voyage && voyage.shipId === ship.id && Array.isArray(voyage.path) && voyage.path.length) return voyage.path;
+        const pos = this._shipPosition(player, ship);
+        const out = typeof pos.q === 'number' ? [pos] : [];
+        if (ship.status === 'moving' && typeof ship.destQ === 'number') out.push({ q: ship.destQ, r: ship.destR });
+        return out;
+    },
+
+    /**
+     * Each ship under way or at anchor whose day's path crosses the water a
+     * hostile patrol squadron swept today (world/navySquadrons.js
+     * patrolsAlong) may be brought to — by NavySquadrons.catchChance:
+     * closeness, sail on the picket, the dark, weather, her speed against
+     * theirs, stealth. No patrol near, no interception. The ship you are
+     * aboard is held for your choice (systems/seaInterception.js: fight,
+     * flee, strike — a { pending } report); a ship sailing without you is
+     * settled by her master at once. Consorts in company with your ship
+     * sail in her fight.
      * @returns {object[]} one report per interception
      */
-    _interceptShips(player, world) {
+    _interceptShips(player, world, voyage = null) {
         const reports = [];
-        if (!world || !Array.isArray(world.kingdoms) || typeof world.getKingdom !== 'function') return reports;
-        const I = KingdomNavy.CONFIG.intercept;
-        for (const ship of player.ships || []) {
-            if (!['at_sea', 'anchored', 'moving'].includes(ship.status)) continue;
+        if (!world || !Array.isArray(world.kingdoms) || typeof world.getKingdom !== 'function' || typeof world.getTile !== 'function') return reports;
+        const ships = (player.ships || []).filter(s => ['at_sea', 'anchored', 'moving'].includes(s.status) && !s.intercept);
+        // the ship you stand aboard first: her squadron fights with her
+        ships.sort((a, b) => (b.id === player.boardedShip ? 1 : 0) - (a.id === player.boardedShip ? 1 : 0));
+        let flagHeld = null;
+        const W = world.width || 0;
+        for (const ship of ships) {
+            if (ship.voyage && ship.voyage.blockade) continue; // lying off a blockade (systems/blockadeRunning.js)
             const pos = this._shipPosition(player, ship);
-            if (typeof pos.q !== 'number') continue;
-            const hostile = KingdomNavy.fleetsNear(world, pos.q, pos.r)
-                .map(f => ({ ...f, stance: this.fleetHostility(player, world, f.kingdom) }))
-                .find(f => f.stance);
-            if (!hostile) continue;
-            if (Utils.random() >= (hostile.stance === 'war' ? I.warChance : I.peaceChance)) continue;
-            reports.push(this._fightInterception(player, world, ship, hostile.kingdom, hostile.stance));
+            if (flagHeld && typeof pos.q === 'number'
+                && (W ? Hex.wrappingOffsetDistance(pos.q, pos.r, flagHeld.q, flagHeld.r, W) : Hex.offsetDistance(pos.q, pos.r, flagHeld.q, flagHeld.r)) <= 1) continue;
+            const path = this._dayPath(player, ship, voyage);
+            if (!path.length) continue;
+            const near = NavySquadrons.patrolsAlong(world, path)
+                .map(n => ({ ...n, stance: this.fleetHostility(player, world, world.getKingdom(n.squadron.kingdomId)) }))
+                .filter(n => n.stance);
+            if (!near.length) continue;
+            const { squadron, distance, stance } = near[0];
+            const fx = this.getShipEffectiveStats(ship).effects || {};
+            const aboard = player.boardedShip === ship.id;
+            const pressOn = !!(ship.voyage && ship.voyage.orders === 'press');
+            const odds = NavySquadrons.catchChance({
+                distance, ships: squadron.ships, night: pressOn ? 0.5 : 0,
+                weather: this._weatherAt(world, pos.q, pos.r),
+                speed: aboard ? this.getSailingSpeed(player, ship) : (this.getShipEffectiveStats(ship).speed || 3) * this.getCrewSpeedFactor(ship),
+                squadronSpeed: squadron.speed,
+                stealth: aboard ? ((player.skills && player.skills.stealth) || 0) : 0, shipStealth: fx.stealthBonus || 0,
+                war: stance === 'war',
+            });
+            if (Utils.random() >= odds.chance) continue;
+            const rep = SeaInterception.hold(player, world, ship, squadron, stance, odds.chance);
+            if (aboard) {
+                reports.push(rep);
+                flagHeld = pos;
+            } else {
+                reports.push(SeaInterception.masterDecides(player, world, ship) || rep);
+            }
         }
         return reports;
     },
 
-    _fightInterception(player, world, ship, kingdom, stance) {
-        const I = KingdomNavy.CONFIG.intercept;
-        const detachment = KingdomNavy.detachment(kingdom);
-        const own = this._getShipCombatStrength(ship, player);
-        const won = own * Utils.randFloat(0.8, 1.2) > detachment * Utils.randFloat(0.8, 1.2);
-        const toll = this._crewAfterBattle(ship, won);
-        const report = { shipId: ship.id, name: ship.name, kingdomId: kingdom.id, kingdomName: kingdom.name, stance, won, detachment, strength: own, damage: 0, seized: {} };
-        if (won) {
-            kingdom.navy.strength = Math.max(0, (kingdom.navy.strength || 0) - Math.ceil(detachment * I.fleetLoss));
-            report.damage = this.mitigateHullDamage(ship, Utils.randInt(1, 4));
-            ship.condition = Math.max(5, (ship.condition || 100) - report.damage);
-            player.renown = (player.renown || 0) + I.renown;
-            const war = player.realmWars && player.realmWars.wars && player.realmWars.wars[kingdom.id];
-            if (war) war.score = (war.score || 0) + I.warScore;
-            report.text = `${ship.name} beat off a ${kingdom.name} squadron (strength ${detachment}) near their waters. +${I.renown} renown${war ? `, +${I.warScore} war score` : ''}.${toll.text}`;
-        } else {
-            report.damage = this.mitigateHullDamage(ship, Utils.randInt(8, 20));
-            const condBefore = ship.condition || 100;
-            ship.condition = Math.max(5, condBefore - report.damage);
-            for (const [good, qty] of Object.entries(ship.cargo || {})) {
-                const taken = Math.floor(qty * I.cargoSeized);
-                if (taken <= 0) continue;
-                ship.cargo[good] -= taken;
-                if (ship.cargo[good] <= 0) delete ship.cargo[good];
-                report.seized[good] = taken;
-            }
-            this._reportSeaLoss(player, world, ship, condBefore - ship.condition, report.seized, `seized by a ${kingdom.name} squadron`);
-            const seized = Object.entries(report.seized).map(([g, n]) => `${n} ${g}`).join(', ');
-            report.text = `A ${kingdom.name} squadron (strength ${detachment}) ran down ${ship.name}: hull -${report.damage}%${seized ? `, seized ${seized}` : ''}.${toll.text}`;
-        }
-        return report;
+    _weatherAt(world, q, r) {
+        const w = world && world.weather && typeof world.weather.getWeather === 'function' && typeof q === 'number' ? world.weather.getWeather(q, r) : null;
+        return (w && w.type) || 'clear';
     },
 
     /**

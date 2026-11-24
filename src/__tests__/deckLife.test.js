@@ -260,6 +260,11 @@ describe('events on deck', () => {
         const party = DeckLife.boardingParty(Ships.getBoarding(p));
         expect(party.count).toBeGreaterThanOrEqual(DeckLife.config().boarding.min);
         expect(party.count).toBeLessThanOrEqual(DeckLife.config().boarding.max);
+        // pirates come over as pirates; a royal squadron's crew as marines and seamen
+        expect(DeckLife.config().boarding.names).toContain(party.names[0]);
+        const navy = DeckLife.boardingParty({ enemy: 20, crewKind: 'navy' });
+        expect(navy.kind).toBe('navy');
+        for (const n of navy.names) expect(DeckLife.config().boarding.names).not.toContain(n);
         // beaten off on deck: the win block (gold) applies
         const gold = p.gold;
         const out = Ships.finishBoarding(p, w, true);

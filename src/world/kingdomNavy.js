@@ -23,7 +23,7 @@
 //    comes from its ports, the attacker storms a blockaded port more easily
 //    (KingdomAI.simulateBattle), and its port markets pay worse or close
 //    (Ships.getPortMarket).
-//  • Hostile fleets intercept the player's ships near their ports (Ships.processDaily).
+//  • Hostile patrol squadrons intercept the player's ships at sea (Ships.processDaily -> systems/seaInterception.js).
 //
 // Every roll here is a deterministic hash of the day and the realms involved
 // — no Utils draws — so the daily world simulation's random stream (and
@@ -63,16 +63,17 @@ const CONFIG = {
         loserLoss: 0.2,
         winnerLoss: 0.08,
     },
+    // Stopping the player's ships at sea: the patrol squadrons on the map do it
+    // (world/navySquadrons.js patrolsAlong / catchChance; systems/seaInterception.js)
     intercept: {
-        radius: 3,             // hexes from a hostile port
-        peaceChance: 0.04,     // daily chance a hostile (not warring) realm's fleet stops a ship
-        warChance: 0.12,       // ...and one at war with the player or the player's liege
+        radius: 3,             // hexes from a port at which a fleet counts as near (fleetsNear)
         hostileReputation: -50,
         detachmentShare: 0.3,  // share of the fleet that sails out
         minDetachment: 6,
         maxDetachment: 60,
         fleetLoss: 0.5,        // share of a beaten detachment that is lost
-        cargoSeized: 0.3,      // share of each good in the hold taken by a victorious fleet
+        cargoSeized: 0.3,      // share of each good in the hold taken from a ship beaten or struck (a hostile realm)
+        warCargoSeized: 0.5,   // ...and by a realm at war with you
         renown: 2,
         warScore: 10,          // war score against a realm the player is fighting
     },
@@ -377,7 +378,7 @@ export const KingdomNavy = {
         return out.sort((x, y) => x.distance - y.distance);
     },
 
-    /** Strength of the detachment a fleet sends after a ship. */
+    /** Strength of the detachment a fleet could send out (the patrol squadrons are what sail: world/navySquadrons.js). */
     detachment(kingdom) {
         const I = CONFIG.intercept;
         return Utils.clamp(Math.round(((kingdom.navy && kingdom.navy.strength) || 0) * I.detachmentShare), I.minDetachment, I.maxDetachment);

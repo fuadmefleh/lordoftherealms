@@ -85,6 +85,30 @@ describe('war lifecycle', () => {
         expect(a.wars).not.toContain('B');
     });
 
+    it('either side of a war can take the field, by its share of the armies — not the realm listed first', () => {
+        const { world, a, b } = makeWorld();
+        // Even armies: both sides attack about half the time
+        const count = (ka, kb, n = 2000) => {
+            let first = 0;
+            for (let i = 0; i < n; i++) if (KingdomAI.battleInitiative(ka, kb)[0] === ka) first++;
+            return first / n;
+        };
+        expect(count(a, b)).toBeGreaterThan(0.45);
+        expect(count(a, b)).toBeLessThan(0.55);
+        // A far stronger realm presses most battles, but never all (WAR.initiative)
+        b.military = 5000;
+        const [lo, hi] = KingdomAI.WAR.initiative;
+        expect(count(b, a)).toBeGreaterThan(hi - 0.05);
+        expect(count(a, b)).toBeGreaterThan(lo - 0.05);
+        expect(count(a, b)).toBeLessThan(lo + 0.05);
+        // ...and the war's battles go both ways: the realm late in world.kingdoms
+        // (B) wins ground off the first one when it is the stronger
+        KingdomAI.startWar(a, b, world);
+        let guard = 0;
+        while (a.isAlive && (b.wars || []).includes('A') && guard++ < 400) KingdomAI.processWars(world);
+        expect(b.territory.length).toBeGreaterThan(6);
+    });
+
     it('armies rebuild over time instead of resetting every day', () => {
         const { world, a } = makeWorld();
         KingdomAI.updateMilitary(a, world);

@@ -141,6 +141,7 @@ import { Plague } from '../../systems/plague.js';
 import { Climate } from '../../world/climate.js';
 import { RealmTimeline } from '../../systems/realmTimeline.js';
 import { onVoyageDay } from '../actionMenu/voyage.js';
+import { SeaInterception } from '../../systems/seaInterception.js';
 import { showMorningBrief, updateCounselBadge } from '../actionMenu/counsel.js';
 import { showDayBanner } from '../dayBanner.js';
 import { settleScene } from '../actionMenu/choiceScenes.js';
@@ -510,10 +511,14 @@ export function endDay() {
                 }
                 // The fleet's day will soon run the purse dry (Ships._leanPurse: lay a ship up, or sell her)
                 if (shipDay && shipDay.leanPurse) this.ui.showNotification('⚓ The Fleet Eats Your Purse', shipDay.leanPurse.text, 'warning');
-                // Royal fleets stop ships near hostile ports
+                // Hostile patrols on the map stop ships at sea (systems/seaInterception.js); the ship you
+                // are aboard waits on your choice (the 'intercept' scene, after the day)
                 for (const ic of (shipDay && shipDay.interceptions) || []) {
-                    this.ui.showNotification(ic.won ? '⚓ Squadron Beaten Off' : '⚓ Ship Intercepted', ic.text, ic.won ? 'success' : 'error');
+                    if (ic.pending) continue;
+                    const good = ic.won || ic.outcome === 'fled';
+                    this.ui.showNotification(ic.won ? '⚓ Squadron Beaten Off' : ic.outcome === 'fled' ? '💨 Outran a Squadron' : '⚓ Ship Intercepted', ic.text, good ? 'success' : ic.outcome === 'drawn' ? 'warning' : 'error');
                 }
+                this._interceptHeld = ((shipDay && shipDay.interceptions) || []).some(ic => ic.pending);
                 for (const d of (crewDay && crewDay.deserted) || []) {
                     this.ui.showNotification('👥 Desertion',
                         `${d.count} sailor${d.count === 1 ? '' : 's'} deserted the ${d.name} — morale had collapsed.`, 'error');
@@ -1639,6 +1644,11 @@ export function endDay() {
                 const voyageDay = this._voyageDay;
                 this._voyageDay = null;
                 setTimeout(() => onVoyageDay(this, voyageDay), 0);
+            } else if (this._interceptHeld && !skipping) {
+                // Aboard, off a voyage: a patrol has brought her to (systems/seaInterception.js)
+                this._interceptHeld = false;
+                const st = SeaInterception.start(this.player, this.world);
+                if (st) setTimeout(() => ActionMenu.showScene(this, 'intercept', st), 0);
             }
         } catch (e) {
             console.error("Error ending day:", e);

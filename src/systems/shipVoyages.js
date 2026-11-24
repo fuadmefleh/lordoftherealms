@@ -514,8 +514,11 @@ export const VoyageMethods = {
         // A navigator reads the wind and the set and makes more of the day (systems/shipOfficers.js)
         if (hexes > 0) hexes *= 1 + ShipOfficers.bonus(ship, 'speed', world);
         const stepBefore = v.step; // (a blockade's hold measures the day's way from here)
+        const startPos = { q: player.q, r: player.r };
         const run = hexes > 0 ? SeaPassage.sailDay(this, player, world, ship, hexes) : { moved: 0, strikes: [] };
         out.moved = run.moved;
+        // The water she sailed through today: where a patrol may have her (Ships._interceptShips)
+        out.path = [startPos, ...v.route.slice(stepBefore, v.step).map(([q, r]) => ({ q, r }))];
         out.strikes = run.strikes;
         if (run.wind) out.wind = { text: SeaWinds.describe(run.wind), point: SeaWinds.pointName(run.point), factor: Math.round(run.mult * 100) / 100 };
         if (run.cutter) this._voyageLog(ship, '🚣', run.cutter, world);
@@ -629,7 +632,8 @@ export const VoyageMethods = {
         for (const ic of day.interceptions || []) {
             if (ic.shipId !== id) continue;
             notable = true;
-            this._voyageLog(ship, '⚓', ic.text, world);
+            // (a settled interception wrote its own line: systems/seaInterception.js)
+            if (ic.pending) this._voyageLog(ship, '⚓', ic.text, world);
         }
         for (const p of day.provisions || []) {
             if (p.shipId !== id) continue;

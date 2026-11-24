@@ -2,7 +2,7 @@
  * Kingdom navies: realms with ports keep a fleet paid from the treasury,
  * fleets fight for the sea in kingdom wars, a blockade cuts the blockaded
  * realm's income, helps storm its ports and spoils its port markets, hostile
- * fleets intercept the player's ships, and a sworn player can lend galleys
+ * patrols intercept the player's ships, and a sworn player can lend galleys
  * to the liege's fleet. Also: the training event and turncoat mercenaries
  * respect kingdom.militaryCap.
  */
@@ -14,6 +14,9 @@ import { KingdomNavy } from '../world/kingdomNavy.js';
 import { KingdomAI } from '../world/kingdomAI.js';
 import { WorldEvents } from '../world/worldEvents.js';
 import { Ships } from '../systems/ships.js';
+import { NavySquadrons } from '../world/navySquadrons.js';
+import { SeaInterception } from '../systems/seaInterception.js';
+import { SeaFights } from '../systems/seaFights.js';
 import { SaveLoad } from '../systems/saveLoad.js';
 import { RealmPolitics } from '../player/realmPolitics.js';
 import { PlayerMilitary } from '../player/playerMilitary.js';
@@ -268,40 +271,86 @@ describe('interception at sea', () => {
         expect(KingdomNavy.fleetsNear(world, 6, 0)).toEqual([]);
     });
 
-    it('a ship that loses is damaged and has cargo seized; one that wins thins the fleet', () => {
-        Utils.setRng(() => 0); // every check passes; equal rolls on both sides
-        const { world, ship, p } = hostileSea();
-        const reports = Ships._interceptShips(p, world);
-        Utils.resetRng();
-        expect(reports).toHaveLength(1);
-        expect(reports[0].won).toBe(false);
-        expect(ship.condition).toBeLessThan(100);
-        expect(ship.cargo.spices).toBe(7);
+    /** Put the ship on the water of B's patrol today (what intercepts her). */
+    function onPatrol(env) {
+        NavySquadrons.reset(env.world);
+        const sq = NavySquadrons.list(env.world).find(s => s.kind === 'patrol' && s.kingdomId === 'B');
+        expect(sq).toBeTruthy();
+        env.ship.q = sq.q; env.ship.r = sq.r;
+        env.p.q = sq.q; env.p.r = sq.r;
+        return sq;
+    }
 
-        // A galley escort and a full crew turn the fight
-        const strong = hostileSea({ army: [galley(), galley(), galley(), galley(), galley(), galley()] });
-        strong.ship.typeId = 'galleon';
-        const before = strong.b.navy.strength;
+    /** Utils.random: the first draw `first`, every later one `rest`. */
+    function rolls(first, rest) {
+        let n = 0;
+        Utils.setRng(() => (n++ === 0 ? first : rest));
+    }
+
+    it('no patrol on her water, no interception — however near their port', () => {
+        const env = hostileSea();
+        NavySquadrons.reset(env.world);
+        const patrols = NavySquadrons.list(env.world).filter(s => s.kind === 'patrol');
+        // somewhere on the sea no patrol sweeps within reach
+        const far = [...Array(20).keys()].map(q => ({ q, r: 0 })).find(h => !NavySquadrons.patrolsAlong(env.world, [h]).length);
+        expect(patrols.length).toBeGreaterThan(0);
+        expect(far).toBeTruthy();
+        env.ship.q = far.q;
         Utils.setRng(() => 0);
-        const win = Ships._interceptShips(strong.p, strong.world);
+        const reports = Ships._interceptShips(env.p, env.world);
         Utils.resetRng();
-        expect(win[0].won).toBe(true);
-        expect(strong.b.navy.strength).toBeLessThan(before);
-        expect(strong.p.renown).toBe(KingdomNavy.CONFIG.intercept.renown);
+        expect(reports).toEqual([]);
     });
 
-    it('escorts and crew raise the odds over many encounters', () => {
-        const wins = (army, crew) => {
+    it('a ship sailing alone, outgunned, strikes to the patrol: cargo seized, no fight', () => {
+        const env = hostileSea();
+        onPatrol(env);
+        rolls(0, 0.99); // brought to; her master cannot outrun them
+        const reports = Ships._interceptShips(env.p, env.world);
+        Utils.resetRng();
+        expect(reports).toHaveLength(1);
+        expect(reports[0]).toMatchObject({ outcome: 'struck', won: false, kingdomId: 'B' });
+        expect(reports[0].pending).toBeFalsy();
+        expect(env.ship.cargo.spices).toBe(7);
+        expect(env.ship.intercept).toBeNull();
+    });
+
+    it('aboard, the patrol holds her for your choice; beaten off, it thins the fleet', () => {
+        const env = hostileSea({ boardedShip: 'ship_1' });
+        onPatrol(env);
+        Utils.setRng(() => 0);
+        const reports = Ships._interceptShips(env.p, env.world);
+        Utils.resetRng();
+        expect(reports[0]).toMatchObject({ pending: true, kingdomId: 'B' });
+        expect(SeaInterception.pending(env.p)).toBeTruthy();
+        const st = SeaInterception.start(env.p, env.world);
+        const before = env.b.navy.strength;
+        const f = SeaFights.create(SeaFights.playerSide(env.p, env.world), SeaInterception.enemySpecs(env.world, st), { seed: 5 });
+        f.outcome = { kind: 'victory' };
+        const res = SeaInterception.settleFight(env.p, env.world, st, f);
+        expect(res.done).toBe(true);
+        expect(env.b.navy.strength).toBeLessThan(before);
+        expect(env.p.renown).toBe(KingdomNavy.CONFIG.intercept.renown);
+        expect(env.ship.cargo.spices).toBe(10);
+        expect(SeaInterception.pending(env.p)).toBeNull();
+    });
+
+    it('escorts and crew raise the odds of beating a patrol off over many fights', () => {
+        const wins = (army, typeId, crew) => {
             let w = 0;
-            for (let i = 0; i < 200; i++) {
-                const env = hostileSea({ army: army() });
+            for (let i = 0; i < 40; i++) {
+                const env = hostileSea({ boardedShip: 'ship_1', army: army() });
+                env.ship.typeId = typeId;
                 env.ship.crew = crew;
-                if (Ships._fightInterception(env.p, env.world, env.ship, env.b, 'hostile').won) w++;
+                const sq = onPatrol(env);
+                SeaInterception.hold(env.p, env.world, env.ship, sq, 'hostile');
+                const res = SeaInterception.fightNow(env.p, env.world, SeaInterception.start(env.p, env.world));
+                if (res.report && res.report.outcome === 'victory') w++;
             }
             return w;
         };
-        const bare = wins(() => [], 4);
-        const escorted = wins(() => [galley(), galley()], 20);
+        const bare = wins(() => [], 'sloop', 4);
+        const escorted = wins(() => [galley(), galley(), galley()], 'galleon', 60);
         expect(escorted).toBeGreaterThan(bare);
     });
 

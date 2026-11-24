@@ -761,6 +761,12 @@ export const KingdomAI = {
         lastStand: 1.5,
         capitulate: 0.8,
         capitulateTribute: 0.4,
+        // Who carries the fight to whom in a battle: each side by its share of
+        // the two armies, never less than initiative[0] nor more than [1]. (Only
+        // the side on the attack can take ground; the war used to make the realm
+        // listed first in world.kingdoms the attacker in every battle, so the
+        // realms late in the list could only ever lose towns — 2026-11-24.)
+        initiative: [0.25, 0.75],
     },
 
     _day(world) { return (world && world.day) || 0; },
@@ -1181,6 +1187,19 @@ export const KingdomAI = {
     },
 
     /**
+     * Which side takes the field as attacker in a war's battle: either realm,
+     * with a chance by its share of the two armies (clamped to WAR.initiative),
+     * so both sides of a war can win ground. Draws one RNG. → [attacker, defender]
+     */
+    battleInitiative(a, b) {
+        const [lo, hi] = KingdomAI.WAR.initiative;
+        const ma = Math.max(0, a.military || 0);
+        const mb = Math.max(0, b.military || 0);
+        const p = Utils.clamp(ma + mb > 0 ? ma / (ma + mb) : 0.5, lo, hi);
+        return Utils.random() < p ? [a, b] : [b, a];
+    },
+
+    /**
      * Process warfare between kingdoms
      */
     processWars(world) {
@@ -1201,7 +1220,8 @@ export const KingdomAI = {
                 // Pitched battles every few days, not every day — and fewer
                 // when snow, storms or heat bog down the campaign
                 if (Utils.random() < KingdomAI.WAR.battleChance * KingdomAI.campaignWeather(kingdom, enemy, world)) {
-                    KingdomAI.simulateBattle(kingdom, enemy, world);
+                    const [att, def] = KingdomAI.battleInitiative(kingdom, enemy);
+                    KingdomAI.simulateBattle(att, def, world);
                 }
                 // The fleets fight for the sea; the stronger blockades the other's ports
                 if (kingdom.isAlive && enemy.isAlive && kingdom.wars.includes(enemy.id)) {

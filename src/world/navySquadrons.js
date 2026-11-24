@@ -20,6 +20,12 @@
 //
 // slipChance() is the pure odds of a ship running past a blockade, by
 // night, weather, speed and stealth (systems/blockadeRunning.js uses it).
+// A patrol is what stops a ship at sea: each patrol's `swept` water (the
+// hexes of its route it sailed through today) is matched against the
+// ship's own day's path (patrolsAlong), and catchChance() is the odds of
+// its lookouts having her — the slip odds' weather and stealth, closeness,
+// sail on the picket line, her speed against theirs (systems/ships.js
+// _interceptShips, systems/seaInterception.js).
 //
 // Explicit params, no globals, no RNG.
 
@@ -52,6 +58,17 @@ const DEFAULTS = {
         max: 0.9,
     },
     squadronSpeed: { blockade: 5, patrol: 5 },
+    intercept: {
+        reach: 2,            // hexes from a patrol's swept water at which its lookouts can have a ship
+        base: 0.5,           // the odds of a patrol bringing to a ship on its own water
+        perHex: 0.15,        // ...less per hex she passes off its track
+        perShip: 0.05,       // ...more per sail beyond the first (a wider net)
+        night: 0.2,          // ...less sailing on through the dark (all night = 1)
+        speed: 0.05,         // ...less per knot she is faster than the squadron
+        peace: 0.2,          // ...less from a realm not at war with you (merely hostile)
+        min: 0.03,
+        max: 0.85,
+    },
 };
 
 const _caches = new WeakMap();
@@ -264,11 +281,19 @@ export const NavySquadrons = {
                 const step = day * C.patrolSpeed + (_hash(id) % Math.max(1, route.length * 2));
                 const at = route[_pingPong(step, route.length)];
                 const per = rest / routes.length;
+                // the water it sailed through today: yesterday's place to today's
+                const swept = [];
+                const seenSw = new Set();
+                for (let b = C.patrolSpeed; b >= 0; b--) {
+                    const h = route[_pingPong(step - b, route.length)];
+                    const hk = _key(h.q, h.r);
+                    if (!seenSw.has(hk)) { seenSw.add(hk); swept.push({ q: h.q, r: h.r }); }
+                }
                 out.push({
                     id, kind: 'patrol', kingdomId: k.id, kingdomName: k.name, color: k.color || '#8fb8ea',
                     q: at.q, r: at.r, strength: Math.round(per), ships: NavySquadrons.shipsFor(per),
                     speed: C.squadronSpeed.patrol,
-                    name: `${k.name}'s ${['home', 'coast', 'channel'][i] || 'sea'} squadron`, route,
+                    name: `${k.name}'s ${['home', 'coast', 'channel'][i] || 'sea'} squadron`, route, swept,
                 });
             }
         }
@@ -291,6 +316,57 @@ export const NavySquadrons = {
             if (d <= radius) out.push({ squadron: s, distance: d });
         }
         return out.sort((a, b) => a.distance - b.distance);
+    },
+
+    /**
+     * Patrol squadrons whose water today (their `swept` hexes) comes within
+     * `reach` hexes of a ship's day's path ([{ q, r }]), nearest first:
+     * [{ squadron, distance }]. Blockades keep their station (holdsShip).
+     */
+    patrolsAlong(world, path, reach = NavySquadrons.config().intercept.reach) {
+        const cells = (path || []).filter(h => h && typeof h.q === 'number' && typeof h.r === 'number');
+        if (!world || !cells.length) return [];
+        const W = world.width || 0;
+        const dist = (a, b) => (W ? Hex.wrappingOffsetDistance(a.q, a.r, b.q, b.r, W) : Hex.offsetDistance(a.q, a.r, b.q, b.r));
+        const out = [];
+        for (const s of NavySquadrons.list(world)) {
+            if (s.kind !== 'patrol') continue;
+            let best = Infinity;
+            for (const w of s.swept && s.swept.length ? s.swept : [{ q: s.q, r: s.r }]) {
+                for (const c of cells) best = Math.min(best, dist(c, w));
+                if (best === 0) break;
+            }
+            if (best <= reach) out.push({ squadron: s, distance: best });
+        }
+        return out.sort((a, b) => a.distance - b.distance);
+    },
+
+    /**
+     * The odds a patrol brings a ship to (0..1), pure:
+     * { distance, night (0..1 of the day's run in the dark), weather, speed,
+     *   squadronSpeed, stealth, shipStealth, ships, war }. The weather and
+     * stealth terms are slipChance's. → { chance, parts: [{ label, value }] }
+     */
+    catchChance(o = {}) {
+        const C = NavySquadrons.config();
+        const I = C.intercept;
+        const S = C.slip;
+        const parts = [{ label: 'Their lookouts', value: I.base }];
+        const d = Math.max(0, Number(o.distance) || 0);
+        if (d) parts.push({ label: `${d} league${d === 1 ? '' : 's'} off their track`, value: -d * I.perHex });
+        const extra = Math.max(0, (Number(o.ships) || 1) - 1);
+        if (extra) parts.push({ label: `${o.ships} sail on the picket`, value: extra * I.perShip });
+        const night = Math.max(0, Math.min(1, Number(o.night) || 0));
+        if (night) parts.push({ label: 'Running on in the dark', value: -night * I.night });
+        const wx = o.weather && S.weather[o.weather];
+        if (wx) parts.push({ label: o.weather === 'fog' ? 'Fog' : `The ${o.weather}`, value: -wx });
+        const knots = (Number(o.speed) || 0) - (Number(o.squadronSpeed) || 0);
+        if (knots) parts.push({ label: knots > 0 ? 'Your speed' : 'Their speed', value: -knots * I.speed });
+        if (o.stealth) parts.push({ label: 'Your stealth', value: -o.stealth * S.stealth });
+        if (o.shipStealth) parts.push({ label: 'A quiet ship', value: -o.shipStealth * S.shipStealth });
+        if (!o.war) parts.push({ label: 'Not at war', value: -I.peace });
+        const raw = parts.reduce((a, p) => a + p.value, 0);
+        return { chance: Math.max(I.min, Math.min(I.max, raw)), parts };
     },
 
     /**

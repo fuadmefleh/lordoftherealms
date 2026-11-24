@@ -29,6 +29,8 @@ import { CoinCensus } from '../../systems/coinCensus.js';
 import { MoneySupply } from '../../world/moneySupply.js';
 import { Relationships } from '../../systems/relationships.js';
 import { Ships } from '../../systems/ships.js';
+import { SeaInterception } from '../../systems/seaInterception.js';
+import { BlockadeRunning } from '../../systems/blockadeRunning.js';
 import { RealmWars } from '../../systems/realmWars.js';
 import { RivalHouses } from '../../systems/rivalHouses.js';
 import { Landings } from '../../systems/landings.js';
@@ -1087,9 +1089,40 @@ function discoveries(game, stats) {
     }
 }
 
+/**
+ * Answer the sea's holds on the ship aboard: a patrol that has brought her to
+ * (systems/seaInterception.js — outsail them when the odds are fair, fight
+ * when she is a match, else strike) and a blockade she lies off
+ * (systems/blockadeRunning.js — run it by dark, else turn back).
+ */
+function seaHolds(game, stats) {
+    const { player, world } = game;
+    let st = SeaInterception.pending(player) ? SeaInterception.start(player, world) : null;
+    for (let i = 0; st && i < 3; i++) {
+        const view = SeaInterception.view(player, world, st);
+        if (!view) break;
+        const flee = view.options.find(o => o.id === 'flee');
+        const ship = Ships.getShipById(player, st.shipId);
+        const own = ship ? Ships._getShipCombatStrength(ship, player) : 0;
+        const pick = flee && flee.chance >= 0.45 ? 'flee' : own >= st.strength * 0.7 ? 'fight' : 'strike';
+        const out = SeaInterception.act(player, world, st, pick);
+        count(stats, `intercept_${pick}`);
+        st = out && out.state ? out.state : null;
+    }
+    let bl = BlockadeRunning.pending(player) ? BlockadeRunning.start(player, world) : null;
+    for (let i = 0; bl && i < 3; i++) {
+        const pick = bl.phase === 'caught' ? 'strike' : (BlockadeRunning.odds(player, world, bl, true).chance >= 0.4 ? 'run_night' : 'turn_back');
+        const out = BlockadeRunning.act(player, world, bl, pick);
+        count(stats, `blockade_${pick}`);
+        bl = out && out.state ? out.state : null;
+    }
+}
+
 /** A day at sea on a voyage: answer any event, sometimes heave to. */
 function voyageDay(game, stats) {
     const { player, world } = game;
+    seaHolds(game, stats);
+    if (!Ships.getVoyage(player)) return;
     if (player.needs && player.needs.hunger < 60 && player.getFoodCount() > 0) player.eatMeal();
     const ev = Ships.describeVoyageEvent(player);
     if (ev) {
@@ -2616,6 +2649,7 @@ export function botDay(game, stats) {
         return;
     }
     if (player.boardedShip) {
+        seaHolds(game, stats);
         discoveries(game, stats);
         // Out at sea after an expedition: search the waters before heading in
         if (Ships.isWaterTile(world.getTile(player.q, player.r)) && Utils.random() < 0.5) {

@@ -18,11 +18,12 @@
 // (InnerMapDeck.startSeaBoarding: the enemy hull laid alongside, her crew
 // over the rail); its end goes back to the fight. When the fight is over
 // it hands back to the scene it came from — the pirates' phased scene
-// (Pirates' victory, defeat, aftermath) or the blockade scene — through the
-// scene's '__fought' choice (ui/actionMenu/seaScenes.js, blockadeScenes.js).
+// (Pirates' victory, defeat, aftermath), the blockade scene or a patrol's
+// interception — through the scene's '__fought' choice (ui/actionMenu/
+// seaScenes.js, blockadeScenes.js).
 // Leaving the deck, or the day ending, sails it out by the dice.
 //
-// begin(game, { kind: 'pirates' | 'blockade', state }) from those scenes;
+// begin(game, { kind: 'pirates' | 'blockade' | 'intercept', state }) from those scenes;
 // update(dt, game) and renderHud from ui/game/gameLoop.js; abandon(game)
 // from exitInnerMap. Not merged into anything; Math.random only for smoke.
 
@@ -36,8 +37,12 @@ import { CustomObjects } from '../world/customObjects.js';
 import { ShipHulls } from '../world/shipHulls.js';
 import { SeaFights } from '../systems/seaFights.js';
 import { BlockadeRunning } from '../systems/blockadeRunning.js';
+import { SeaInterception } from '../systems/seaInterception.js';
 import { Ships } from '../systems/ships.js';
 import { drawMapText } from './mapInk.js';
+
+// Fights begun from a naval scene: its enemy line and its own settling (the pirates' scene is 'sea')
+const NAVAL = { blockade: BlockadeRunning, intercept: SeaInterception };
 import { audioManager } from '../systems/audio.js';
 
 const BTN = 'padding:6px 9px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;';
@@ -81,7 +86,7 @@ export const InnerMapSeaFight = {
     },
 
     /**
-     * Start a sea fight on the water. ctx: { kind: 'pirates'|'blockade', state }.
+     * Start a sea fight on the water. ctx: { kind: 'pirates'|'blockade'|'intercept', state }.
      * Goes on deck first if need be; where the deck can't be had (in port,
      * no ship), the fight is sailed out at once.
      */
@@ -95,7 +100,7 @@ export const InnerMapSeaFight = {
             try { await game.enterInnerMap(p.q, p.r); } catch (err) { console.warn('[SeaFight] could not go on deck', err); }
         }
         const specs = SeaFights.playerSide(p, game.world);
-        const enemy = ctx.kind === 'blockade' ? BlockadeRunning.enemySpecs(game.world, ctx.state) : SeaFights.enemyFromPirates(ctx.state.enemy || {});
+        const enemy = NAVAL[ctx.kind] ? NAVAL[ctx.kind].enemySpecs(game.world, ctx.state) : SeaFights.enemyFromPirates(ctx.state.enemy || {});
         const hour = InnerMap.timeOfDay;
         const night = ctx.state && ctx.state.night ? true : (typeof hour === 'number' ? hour >= 20 || hour < 6 : false);
         const weather = (InnerMap.weather && InnerMap.weather.type) || 'clear';
@@ -230,9 +235,10 @@ export const InnerMapSeaFight = {
         const o = f.outcome;
         const foe = SeaFights.ship(f, o.enemyId);
         this._boarding = true;
-        InnerMapDeck.situationOverride = { kind: 'boarding', scene: 'pirates' };
+        InnerMapDeck.situationOverride = { kind: 'boarding', scene: foe && foe.kind === 'navy' ? 'navy' : 'pirates' };
         const ok = InnerMapDeck.startSeaBoarding(game, {
             enemy: SeaFights.boardingStrength(f, o.enemyId),
+            crewKind: foe && foe.kind ? foe.kind : 'pirate',
             hullId: foe ? _hullOf(foe) : 'hull_sloop',
             title: foe ? foe.name : 'Boarders',
             lead: o.by === 'player' ? `You lash on to ${foe ? foe.name : 'her'} and her crew meet yours at the rail.` : `${foe ? foe.name : 'She'} grapples and her crew come over the rail.`,
@@ -290,10 +296,10 @@ export const InnerMapSeaFight = {
         this._camBefore = null;
         const p = game.player;
         const w = game.world;
-        const res = ctx.kind === 'blockade' ? BlockadeRunning.settleFight(p, w, ctx.state, f) : SeaFights.settlePirates(p, w, ctx.state, f);
+        const res = NAVAL[ctx.kind] ? NAVAL[ctx.kind].settleFight(p, w, ctx.state, f) : SeaFights.settlePirates(p, w, ctx.state, f);
         if (game.ui && typeof game.ui.updateStats === 'function') game.ui.updateStats(p, w);
         // Back into the scene it came from: its '__fought' choice shows what came of it
-        const kind = ctx.kind === 'blockade' ? 'blockade' : 'sea';
+        const kind = NAVAL[ctx.kind] ? ctx.kind : 'sea';
         game._scene = { kind, state: { ...ctx.state, _fought: res } };
         if (quiet && !res.state) {
             game._scene = null;

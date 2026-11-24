@@ -91,6 +91,10 @@
         "boarderHit": [3, 9],
         "blowSecs": 1.1,
         "names": ["Cutthroat", "Boarder", "Corsair", "Buccaneer", "Sea Dog", "Rover"],
+        "namesByKind": {
+            "navy": ["Marine", "Bosun's Mate", "Able Seaman", "Sergeant of Marines", "Gunner's Mate", "Midshipman"],
+            "merchant": ["Deckhand", "Mate", "Cooper", "Sailmaker", "Cook", "Ship's Boy"]
+        },
         "lines": ["Grapnels! They're coming over the side!", "Their blood or ours, lads!", "Give 'em steel!"]
     },
     "landSighted": { "morale": 2, "callout": "LAND HO!" }

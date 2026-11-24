@@ -343,9 +343,13 @@ export const DeckLife = {
         const B = this.config().boarding;
         const enemy = _num(boarding && boarding.enemy, 15);
         const count = Math.max(_num(B.min, 2), Math.min(_num(B.max, 7), Math.round(enemy / Math.max(1, _num(B.perStrength, 5)))));
+        // (who comes over the rail: pirates by default; a royal squadron's marines and seamen,
+        // a merchant's hands — boarding.namesByKind)
+        const kind = (boarding && boarding.crewKind) || 'pirate';
+        const pool = (B.namesByKind && B.namesByKind[kind]) || B.names;
         const names = [];
-        for (let i = 0; i < count; i++) names.push(B.names[i % B.names.length] || 'Boarder');
-        return { count, hp: _num(B.hp, 70), names };
+        for (let i = 0; i < count; i++) names.push(pool[i % pool.length] || 'Boarder');
+        return { count, hp: _num(B.hp, 70), names, kind };
     },
 
     /** A hand's blow against a boarder: steadier with a full, willing crew (and a captain who knows the sea). */

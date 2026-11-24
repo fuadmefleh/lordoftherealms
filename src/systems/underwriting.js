@@ -55,6 +55,7 @@ import { WEATHER_EFFECTS } from '../world/weather.js';
 import { Harvests } from '../world/harvests.js';
 import { Economy } from '../world/economy.js';
 import { KingdomNavy } from '../world/kingdomNavy.js';
+import { NavySquadrons } from '../world/navySquadrons.js';
 import { Finance } from './finance.js';
 import { Ships } from './ships.js';
 import { MerchantHouses } from './merchantHouses.js';
@@ -417,17 +418,18 @@ export const Underwriting = {
                 loss += ev * (_num(K.eventHullShare, 0.15) * Underwriting.hullLossValue(ship, _num(K.eventHullPct, 11))
                     + _num(K.eventCargoShare, 0.05) * _num(K.eventCargoLoss, 0.22) * cargo);
             }
-            // Squadrons of a hostile crown near her
+            // A hostile crown's patrol on her water (world/navySquadrons.js: what intercepts her)
             if (world && Number.isFinite(pos.q) && typeof world.getKingdom === 'function') {
-                const fleet = KingdomNavy.fleetsNear(world, pos.q, pos.r)
-                    .map(f => ({ ...f, stance: Ships.fleetHostility(player, world, f.kingdom) }))
+                const fleet = NavySquadrons.patrolsAlong(world, [pos])
+                    .map(f => ({ ...f, stance: Ships.fleetHostility(player, world, world.getKingdom(f.squadron.kingdomId)) }))
                     .find(f => f.stance);
                 if (fleet) {
                     const own = Math.max(1, _num(Ships._getShipCombatStrength(ship, player), 1));
-                    const det = Math.max(1, _num(KingdomNavy.detachment(fleet.kingdom), 1));
+                    const det = Math.max(1, _num(fleet.squadron.strength, 1));
                     const lose = _clamp(det / (det + own) * 2 * _num(K.loseFightChance, 0.5), 0.05, 0.95);
-                    const chance = fleet.stance === 'war' ? _num(I.warChance, 0.12) : _num(I.peaceChance, 0.04);
-                    loss += chance * lose * (Underwriting.hullLossValue(ship, _num(K.interceptHullPct, 14)) + _num(I.cargoSeized, 0.3) * cargo);
+                    const chance = NavySquadrons.catchChance({ distance: fleet.distance, ships: fleet.squadron.ships, war: fleet.stance === 'war' }).chance;
+                    const seized = fleet.stance === 'war' ? _num(I.warCargoSeized, 0.5) : _num(I.cargoSeized, 0.3);
+                    loss += chance * lose * (Underwriting.hullLossValue(ship, _num(K.interceptHullPct, 14)) + seized * cargo);
                 }
                 const blockade = Ships.getPortBlockade && Ships.getPortBlockade(world, pos.q, pos.r);
                 if (blockade) loss += _num(K.blockadeExtra, 0.002) * (hull + cargo);

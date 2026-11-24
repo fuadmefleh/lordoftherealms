@@ -4221,7 +4221,7 @@ Tunables live in `data/ships.json` → `settings.provisions`.
 
 ### Voyages
 
-From **Board Ship** at a port, **🧭 Voyage to a Port** lists every port your ship can reach **by sea** (a route over open water; a port on another sea isn't listed), with the distance in leagues, the days it will take, and what the days will cost. A voyage takes **real days**: each day the ship sails her speed in hexes (her crew and fittings count) along the route, and a full day passes: wages, upkeep, rations, morale, the weather and storms (a storm **halves** the day's run), interception by hostile royal fleets, and sickness aboard. Nothing is paid up front.
+From **Board Ship** at a port, **🧭 Voyage to a Port** lists every port your ship can reach **by sea** (a route over open water; a port on another sea isn't listed), with the distance in leagues, the days it will take, and what the days will cost. A voyage takes **real days**: each day the ship sails her speed in hexes (her crew and fittings count) along the route, and a full day passes: wages, upkeep, rations, morale, the weather and storms (a storm **halves** the day's run), interception by hostile royal patrols, and sickness aboard. Nothing is paid up front.
 
 After each day the **voyage panel** shows the ship's log, the provisions left, morale, crew and hull. A quiet day sails on by itself. On a day worth stopping for (a storm, a fight, hunger, desertion, or an event at sea) you choose:
 
@@ -4459,6 +4459,8 @@ Each squadron shows 1–3 ships by its size. The hex panel names it, with its sh
 - **Seen**, you can fight, try to outsail them, or strike. If you strike, they take 30% of every good (50% and a fine at war, paid into the realm's treasury) and send you off.
 - **Beat the squadron off** and you go through: +3 renown, +12 war score if you are at war with them, and their fleet loses half the squadron's strength, which may break the blockade.
 - **Run into a shut harbour** and you may trade there for 10 days, and buyers pay a runner's price (1.4×).
+
+**Brought to by a patrol.** The royal **patrol squadrons** you see on the map are what stop your ships at sea (`systems/seaInterception.js`). Each day a patrol of a realm **at war** with you or your liege, or one that **hates** you (reputation −50 or worse), may bring to any of your ships whose day's course passes within **2 leagues** of the water it swept that day; no patrol near, no interception. Their odds start at 50%, less 15% a league off their track, plus 5% for each sail beyond the first; pressing on through the night takes 10% off, fog 20%, a storm 15%, rain 10%; each knot you are faster than them 5%, your stealth and a quiet ship as for a blockade; a realm merely hostile (not at war) is 20% less keen (5% to 85%). Aboard, the ship is held and you choose: **fight them under sail** (the sea fight on the water), **fight it out at once**, **outsail them** (35%, +8% a knot faster than them), or **strike** — they take 30% of every good (50% and a fine at war) and let you go. Beat them off: +2 renown, +10 war score at war, and the realm's fleet loses half the squadron. Leave it undecided past the day, or be caught in a ship sailing without you, and her master decides: runs if he can, fights if she is a match, strikes if not.
 
 ### Uncharted Lands
 

@@ -65,6 +65,13 @@ const DEFAULTS = {
     corruption: { officesSale: 0.12 },
     crisis: { offices: { days: 20 }, land: { days: 120, share: 0.3 } },
     eventLoss: { basisDays: 0 },
+    privy: { enabled: true, rate: 0.15 },
+};
+
+/** The levy's terms when data/throne.json `config.ruling` leaves one out (CrownBooks.privyQuote). */
+export const LEVY_DEFAULTS = {
+    levyReserve: 500, levyCap: 150, levyReserveDays: 5, levyStability: [25, 75], levySurplusShare: 0.75, levyDeficitShare: 0.25,
+    levyChestDays: 60, levyWarChestDays: 120, levyChestCoin: 0.25, levyBelowChest: 0.25,
 };
 
 function _merge(base, over) {
@@ -201,6 +208,13 @@ export const CrownBooks = {
         return placed;
     },
 
+    /** The levy's terms (data/throne.json config.ruling over LEVY_DEFAULTS): read by the AI rulers' privy purse. */
+    levyTerms() {
+        const th = DataLoader.throne || (DataLoader.get && DataLoader.get('throne')) || null;
+        const ru = th && th.config && _obj(th.config.ruling);
+        return { ...LEVY_DEFAULTS, ...(ru || {}) };
+    },
+
     /** Today's books so far, or yesterday's closed ones. */
     lines(kingdom, which = 'last') {
         const f = kingdom && _obj(kingdom.fisc);
@@ -236,6 +250,77 @@ export const CrownBooks = {
         if (f && f.avg && _num(f.avg.n) > 0) return Math.max(0, _num(f.avg.exp) - _num(f.avg.purse));
         const last = CrownBooks.lines(kingdom, 'last');
         return Math.max(0, CrownBooks.expense(last) - _num(last.purse));
+    },
+
+    /**
+     * A ruler's privy purse out of the crown's chests today, and why — the one
+     * rule for every crown: the player's royal levy (systems/throne.js
+     * levyQuote) and an AI ruler's own draw (systems/fiscal.js _privyPurse).
+     * `rate` is the tax policy's share of the crown's taxes and dues; `R` the
+     * levy's terms (data/throne.json ruling: levyStability, levySurplusShare,
+     * levyDeficitShare, levyReserve/levyReserveDays, levyChestDays /
+     * levyWarChestDays / levyBelowChest, levyCap). The ruler takes `rate` of the
+     * revenue, scaled by the realm's stability, never more than a share of what
+     * the revenue leaves over the upkeep, and never below the reserve. Until the
+     * chests hold the war chest (levyChestDays of upkeep, levyWarChestDays at
+     * war) only part of it: levyBelowChest at the reserve, rising to all of it
+     * at the war chest — so a crown builds its chest before its ruler's purse
+     * (before 2026-11-25 the player's realm sat on 3–5k for 20 years while the
+     * levy took 7k a year, and no AI crown paid one at all).
+     * opts.revenue / opts.upkeep stand in when the books are off; opts.coin is
+     * the realm's coin in circulation (the war chest is at most levyChestCoin of it).
+     * → { levy, base, rate, stability, stabilityMult, revenue, upkeep, surplus,
+     *     reserve, chest, chestMult, war, cap, limit } with limit one of
+     *     'rate' | 'stability' | 'surplus' | 'chest' | 'reserve' | 'cap'.
+     */
+    privyQuote(kingdom, rate, terms = null, opts = null) {
+        const R = { ...LEVY_DEFAULTS, ...(terms || {}) };
+        const cap = _num(R.levyCap, 150);
+        const out = { levy: 0, base: 0, rate: _num(rate), stability: 0, stabilityMult: 0, revenue: 0, upkeep: 0, surplus: 0, reserve: 0, chest: 0, chestMult: 1, war: false, deeper: false, coinCapped: false, cap, limit: 'rate' };
+        if (!kingdom) return out;
+        const treasury = _num(kingdom.treasury);
+        if (opts && opts.revenue != null && Number.isFinite(opts.revenue)) {
+            out.revenue = _num(opts.revenue);
+            out.upkeep = _num(opts.upkeep);
+        } else {
+            out.revenue = CrownBooks.lastRevenue(kingdom);
+            out.upkeep = CrownBooks.upkeep(kingdom);
+        }
+        out.surplus = out.revenue - out.upkeep;
+        out.stability = typeof kingdom.stability === 'number' ? kingdom.stability : 60;
+        const [lo, hi] = Array.isArray(R.levyStability) ? R.levyStability : [25, 75];
+        out.stabilityMult = _clamp((out.stability - lo) / Math.max(1, hi - lo), 0, 1);
+        out.base = Math.max(0, out.revenue) * out.rate;
+        out.reserve = Math.max(_num(R.levyReserve), Math.round(out.upkeep * _num(R.levyReserveDays)));
+        out.war = Array.isArray(kingdom.wars) && kingdom.wars.length > 0;
+        const chestDays = _num(out.war ? R.levyWarChestDays : R.levyChestDays);
+        // (or levyChestCoin of the realm's coin in circulation when that is less, opts.coin:
+        // the treasurers' largesse spends the chests down past the like line — Fiscal._largesse)
+        const coin = _num(opts && opts.coin);
+        let chest = out.upkeep * chestDays;
+        if (coin > 0 && _num(R.levyChestCoin) > 0) chest = Math.min(chest, coin * _num(R.levyChestCoin));
+        out.chest = Math.max(out.reserve, Math.round(chest));
+        // (whether the war made it deeper: not when the realm's coin caps it either way)
+        const coinCap = coin > 0 && _num(R.levyChestCoin) > 0 ? coin * _num(R.levyChestCoin) : Infinity;
+        out.coinCapped = out.upkeep * chestDays > coinCap;
+        out.deeper = out.war && out.chest > Math.max(out.reserve, Math.round(Math.min(out.upkeep * _num(R.levyChestDays), coinCap)));
+        if (out.chest > out.reserve && treasury < out.chest) {
+            const below = _clamp(_num(R.levyBelowChest, 0.25), 0, 1);
+            const t = _clamp((treasury - out.reserve) / (out.chest - out.reserve), 0, 1);
+            out.chestMult = below + (1 - below) * t;
+        }
+        const surplusShare = R.levySurplusShare == null ? 1 : _num(R.levySurplusShare);
+        let v = out.base;
+        const step = (id, x) => { if (x < v) { v = x; out.limit = id; } };
+        step('stability', out.base * out.stabilityMult);
+        // (the ruler's purse is a first charge on the revenue: a crown in
+        // deficit still pays a little of it, levyDeficitShare of the base)
+        step('surplus', Math.max(Math.max(0, out.surplus) * surplusShare, out.base * out.stabilityMult * _num(R.levyDeficitShare)));
+        if (out.chestMult < 1) step('chest', v * out.chestMult);
+        step('reserve', treasury - out.reserve);
+        step('cap', cap);
+        out.levy = Math.max(0, Math.floor(v));
+        return out;
     },
 
     /** What the crown's taxes and dues leave over its upkeep a day (negative: a deficit). */

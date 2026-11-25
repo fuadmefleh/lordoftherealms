@@ -57,7 +57,7 @@ function run(seed) {
         maxSameFoe = Math.max(maxSameFoe, top);
         for (const p of st.past) {
             const r = seen.get(p.id);
-            if (r && r.outcome == null) Object.assign(r, { outcome: p.outcome, to: p.to, members: (p.members || []).length, gained: (p.gained || []).length });
+            if (r && r.outcome == null) Object.assign(r, { outcome: p.outcome, to: p.to, members: (p.members || []).length, gained: (p.gained || []).length, endedBy: p.endedBy || p.outcome, term: p.terms ? p.terms.how : null, offers: (p.offers || []).map(o => `${o.how}${o.accepted ? '+' : '-'}${o.urgent ? '!' : ''}`).join(' ') });
         }
     }
     const wars = [...seen.values()];
@@ -67,12 +67,12 @@ function run(seed) {
     return {
         seed, years: YEARS, ms: Date.now() - t0,
         called: wars.length, fought: fought.length,
-        outcomes: tally('outcome'), casus: tally('casus'),
+        outcomes: tally('outcome'), endedBy: tally('endedBy'), termsTaken: wars.reduce((o, w) => { if (w.term) o[w.term] = (o[w.term] || 0) + 1; return o; }, {}), pleas: wars.filter(w => /!/.test(w.offers || '')).length, casus: tally('casus'),
         daysMedian: lens.length ? lens[Math.floor(lens.length / 2)] : null,
         daysMin: lens[0] || null, daysMax: lens[lens.length - 1] || null,
         towns: fought.reduce((s, w) => s + (w.gained || 0), 0),
         overlapDays, maxSameFoe, joint: wars.filter(w => w.joint).length,
-        list: wars.map(w => `y${Math.floor(w.called / 120)} ${w.see} vs ${w.target} (${w.casus}): ${w.outcome || 'open'} ${w.to ? w.to - w.called : '-'}d, ${w.members || 0} crowns, ${w.gained || 0} towns${w.joint ? `, joint +${w.joint}` : ''}`),
+        list: wars.map(w => `y${Math.floor(w.called / 120)} ${w.see} vs ${w.target} (${w.casus}): ${w.outcome || 'open'} ${w.to ? w.to - w.called : '-'}d, ${w.members || 0} crowns, ${w.gained || 0} towns${w.joint ? `, joint +${w.joint}` : ''}${w.endedBy && w.endedBy !== w.outcome ? ` [${w.endedBy}]` : ''}${w.term ? ` term ${w.term}` : ''}${w.offers ? ` offers ${w.offers}` : ''}`),
     };
 }
 

@@ -93,20 +93,49 @@ Object.assign(Characters, {
     serialize(kingdom) {
         if (!kingdom.characterData) return null;
         const data = kingdom.characterData;
-        return {
+        // One person, one record: a child who inherited (or wed in) is still in
+        // the children's list as the ruler (or spouse) too — written once, as
+        // the ruler, and a place-mark left in the list (childRefs) for the load
+        let children = data.children;
+        let childRefs = null;
+        if (Array.isArray(data.children)) {
+            children = [];
+            data.children.forEach((c, i) => {
+                const as = c && c === data.ruler ? 'ruler' : c && c === data.spouse ? 'spouse' : null;
+                if (as) (childRefs || (childRefs = [])).push({ i, as });
+                else children.push(c);
+            });
+        }
+        const out = {
             dynasty: data.dynasty,
             ruler: data.ruler,
             spouse: data.spouse,
-            children: data.children,
+            children,
             advisors: data.advisors,
         };
+        if (childRefs) out.childRefs = childRefs;
+        return out;
     },
 
     /**
-     * Restore character data from save
+     * Restore character data from save: the ruler (or spouse) put back in the
+     * children's list where they stood, the same record (an older save that
+     * wrote them twice: the copy in the list swapped for the ruler's own).
      */
     deserialize(kingdom, savedData) {
         if (!savedData) return;
+        const refs = Array.isArray(savedData.childRefs) ? savedData.childRefs : null;
+        delete savedData.childRefs;
+        if (Array.isArray(savedData.children)) {
+            const same = (c, p) => c && p && c !== p && c.id != null && c.id === p.id;
+            savedData.children = savedData.children.map(c => (same(c, savedData.ruler) ? savedData.ruler : same(c, savedData.spouse) ? savedData.spouse : c));
+            if (refs) {
+                for (const r of refs.slice().sort((a, b) => a.i - b.i)) {
+                    const who = savedData[r.as];
+                    if (who && !savedData.children.includes(who)) savedData.children.splice(Math.min(r.i, savedData.children.length), 0, who);
+                }
+            }
+        }
         kingdom.characterData = savedData;
     },
 });

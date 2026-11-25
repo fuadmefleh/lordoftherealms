@@ -25,6 +25,7 @@ import { TownMarks } from './townMarks.js';
 import { WaterSources } from './waterSources.js';
 import { TownSiting } from './townSiting.js';
 import { WarStakes } from './warStakes.js';
+import { Revanche } from './revanche.js';
 
 const _fy = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
 /** The distant years' survey of each realm's recruiting ground (updateMilitary): kingdom → { world, day, … }. */
@@ -614,11 +615,15 @@ export const KingdomAI = {
         if (otherKingdoms.length === 0) return;
 
         // Find kingdoms with poor relations (but not one whose stakes it still dreads: world/warStakes.js)
-        const enemies = otherKingdoms.filter(k => (kingdom.relations[k.id] || 0) < -30 && !WarStakes.fears(kingdom, k.id, world.day));
+        // (a realm that holds towns this one lost is a just foe: the grudge runs warmer — world/revanche.js)
+        const claim = (k) => Revanche.claimOn(world, kingdom, k);
+        const enemies = otherKingdoms.filter(k => (kingdom.relations[k.id] || 0) < -30 + Revanche.grudge(claim(k)) && !WarStakes.fears(kingdom, k.id, world.day));
         if (enemies.length === 0) return;
 
         // A realm whose cartographers have charted a rival marches on it first
-        const target = Utils.randPick(KingdomAtlas.preferCharted(kingdom, enemies));
+        // ...and one that holds its lost towns before any other (the same one draw)
+        const holders = enemies.filter(k => claim(k) > 0);
+        const target = Utils.randPick(KingdomAtlas.preferCharted(kingdom, holders.length ? holders : enemies));
 
         // Only declare war if we're stronger or desperate. The lord's war
         // appetite (ambition, domination, honor) shifts how strong is enough.
@@ -636,10 +641,15 @@ export const KingdomAI = {
         // ...and a realm whose bread is dear has little stomach for a war (world/economyIndex.js; 1 until measured)
         const confidence = (1 + (season - 1) * 0.5) * EconomyIndex.warConfidence(world, kingdom);
         const reckless = KingdomAI.personalityValue(kingdom, 'recklessChance') * season;
-        if (ourStrength * confidence > theirStrength * warRatio || Utils.random() < reckless) {
+        // (to win back its own towns a court marches at a lesser strength: world/revanche.js)
+        const ease = Revanche.ease(claim(target));
+        if (ourStrength * confidence > theirStrength * warRatio * (1 - ease) || Utils.random() < reckless) {
             KingdomAI.startWar(kingdom, target, world);
+            const lost = Revanche.claimedFrom(world, kingdom, target)[0];
             world.events.push({
-                text: `⚔️ ${kingdom.name} has declared war on ${target.name}!`,
+                text: lost
+                    ? `⚔️ ${kingdom.name} has declared war on ${target.name} to win back ${lost.rec.name}!`
+                    : `⚔️ ${kingdom.name} has declared war on ${target.name}!`,
                 type: 'military'
             });
         }
@@ -723,6 +733,14 @@ export const KingdomAI = {
                 const shift = (v) => { kingdom.relations[other.id] = Utils.clamp((kingdom.relations[other.id] || 0) + v, -100, 100); };
                 if (!allied && !atWar && near && ratio > (A.envyRatio || 1.2)) {
                     shift((A.envy || -2) + (ambitious ? (A.ambitionEnvy || -1) : 0));
+                }
+                // A realm that holds towns it lost: its court's regard sours a little each week,
+                // the more the heavier the claim (never below the floor: world/revanche.js)
+                if (!atWar && !allied && Array.isArray(kingdom.lostTowns) && kingdom.lostTowns.length) {
+                    const sour = Revanche.sour(Revanche.claimOn(world, kingdom, other));
+                    const floor = Revanche.config().sourFloor;
+                    const now = kingdom.relations[other.id] || 0;
+                    if (sour < 0 && now > floor) kingdom.relations[other.id] = Math.max(floor, now + sour);
                 }
                 if (!atWar && ratio > 1 && rel > (A.bandwagonRelations || 20) && (pid === 'peaceful' || pid === 'mercantile')) {
                     shift(A.bandwagon || 2);
@@ -909,8 +927,10 @@ export const KingdomAI = {
         if (!target.wars.includes(kingdom.id)) target.wars.push(kingdom.id);
         if (kingdom.warState) delete kingdom.warState[target.id];
         if (target.warState) delete target.warState[kingdom.id];
-        KingdomAI._warState(kingdom, target.id, world);
+        const ws = KingdomAI._warState(kingdom, target.id, world);
         KingdomAI._warState(target, kingdom.id, world);
+        // A war on the holder of towns it lost is a reclaim war: won once they are retaken (world/revanche.js)
+        if (Revanche.claimOn(world, kingdom, target) > 0) ws.reclaim = true;
         if (!kingdom.relations) kingdom.relations = {};
         if (!target.relations) target.relations = {};
         kingdom.relations[target.id] = -100;
@@ -933,6 +953,8 @@ export const KingdomAI = {
             a.restUntil = Math.max(a.restUntil || 0, day + rest);
             b.restUntil = Math.max(b.restUntil || 0, day + rest);
         }
+        // (which side fought to win back its towns: the victor's peace may return one, below)
+        const reclaimOf = { [a.id]: !!(a.warState && a.warState[b.id] && a.warState[b.id].reclaim), [b.id]: !!(b.warState && b.warState[a.id] && b.warState[a.id].reclaim) };
         a.wars = (a.wars || []).filter(id => id !== b.id);
         b.wars = (b.wars || []).filter(id => id !== a.id);
         if (a.warState) delete a.warState[b.id];
@@ -960,6 +982,8 @@ export const KingdomAI = {
             victor.treasury = (victor.treasury || 0) + tribute;
             // The loser raises it from its people; the victor spends it: coin crosses the border (world/moneySupply.js)
             if (tribute > 0 && world) MoneySupply.transfer(world, loser.id, victor.id, tribute, 'tribute');
+            // The peace may return a town the victor lost to the loser (world/revanche.js)
+            if (world && opts.returnTown !== false) KingdomAI.peaceReturn(victor, loser, world, reclaimOf[victor.id]);
         }
         // Recent war outcomes (the player's share of a liege's victory reads these)
         if (world) {
@@ -1032,6 +1056,18 @@ export const KingdomAI = {
      */
     _capitulates(attacker, defender, world) {
         const W = KingdomAI.WAR;
+        // A realm a holy war is waged on sends to the see first (systems/holyWars.js sets
+        // defender.holyPlea and answers it the same day): the gates stay shut while its
+        // envoys ride. Once a war — refused, it capitulates as any realm would.
+        const plea = defender && defender.holyPlea;
+        if (plea && !plea.refused && Array.isArray(plea.foes) && plea.foes.includes(attacker.id)) {
+            const day = KingdomAI._day(world);
+            if (plea.asked == null) {
+                plea.asked = day;
+                if (Array.isArray(world.events)) world.events.push({ text: `🕊️ Besieged in its last town, ${defender.name} sends envoys to the Church to sue for terms.`, type: 'diplomatic' });
+            }
+            if (plea.asked === day) return true;
+        }
         const chance = Utils.clamp(W.capitulate * (1 - LordInfluence.lean(attacker, 'ambition') * 0.3 + LordInfluence.lean(attacker, 'honor') * 0.2), 0, 0.9);
         if (!(chance > 0) || Utils.random() >= chance) return false;
         const town = (KingdomAI._settlementsOf(defender, world)[0] || {}).settlement;
@@ -1188,6 +1224,9 @@ export const KingdomAI = {
             taken.add(`${q},${h.r}`);
         }
         occupier.territory = occupier.territory.filter(t => !taken.has(`${t.q},${t.r}`));
+        // (the occupier remembers the town it lost; the risen crown has it back: world/revanche.js)
+        Revanche.record(world, occupier, fallen, tile.settlement, sq, sr);
+        Revanche.regained(world, fallen, sq, sr);
         tile.settlement.kingdom = fallen.id;
         delete tile.settlement.formerKingdom;
         fallen.population = tile.settlement.population || 0;
@@ -1279,7 +1318,11 @@ export const KingdomAI = {
                     * (1 + recruiting * Economy.effectScale('armyRegen'))
                     * Math.max(0.2, 1 + KingdomBonuses.get(kingdom, 'militaryRegen')));
                 kingdom.military = cur;
-                Kingdom.recruitTroops(kingdom, (target - cur) * regen);
+                // (at least a man a day: recruitTroops takes whole men, and a share of a gap
+                // under 1/regen men — 25 at the usual pace — floored to none, so every army
+                // stood that far short of its cap for good: a tenth of a small realm's, seed
+                // 202's home army 324 of 373 for years)
+                Kingdom.recruitTroops(kingdom, Math.max(1, (target - cur) * regen));
             } else {
                 kingdom.military = Math.floor(cur + (target - cur) * KingdomAI.WAR.demob);
             }
@@ -1590,13 +1633,94 @@ export const KingdomAI = {
         out.taken = true;
         // A captured settlement changes hands (and remembers its old crown)
         if (tile.settlement && tile.settlement.kingdom === defender.id) {
+            // (the loser remembers it — who took it, when, its seat or not: world/revanche.js)
+            Revanche.record(world, defender, attacker, tile.settlement, q, r);
             tile.settlement.kingdom = attacker.id;
             if (!tile.settlement.formerKingdom) tile.settlement.formerKingdom = defender.id;
             war.gains += 2; // towns count for more toward the war goal
-            world.events.push({ text: `🏰 ${attacker.name} captures ${tile.settlement.name} from ${defender.name}!`, type: 'military' });
+            // (the towns a crown took lately: a conqueror's might, as the lords' 'conquest'
+            // memories are the player's — systems/coalitions.js realmPower)
+            KingdomAI.noteConquest(attacker, defender, world);
+            // A town of its own won back: it counts double, and a reclaim war is won
+            // once every town it claimed of the defender is home
+            const back = Revanche.regained(world, attacker, q, r);
+            if (back) {
+                war.gains += 3;
+                if (war.reclaim && !Revanche.claimedFrom(world, attacker, defender).length) war.gains = Math.max(war.gains, war.goal);
+                out.reclaimed = true;
+            }
+            world.events.push({ text: back ? `🏰 ${attacker.name} wins back ${tile.settlement.name} from ${defender.name}!` : `🏰 ${attacker.name} captures ${tile.settlement.name} from ${defender.name}!`, type: 'military' });
             out.town = tile.settlement;
         }
         return out;
+    },
+
+    /**
+     * Book a town taken on the conqueror's record (kingdom.conquests: [{ d, from }],
+     * the last 720 days, at most 24): read by the leagues against an overmighty
+     * realm (systems/coalitions.js). Draws no RNG.
+     */
+    noteConquest(attacker, defender, world) {
+        if (!attacker) return;
+        const day = KingdomAI._day(world);
+        const list = Array.isArray(attacker.conquests) ? attacker.conquests.filter(e => e && day - (Number(e.d) || 0) <= 720) : [];
+        list.push({ d: day, from: defender ? defender.id : null });
+        if (list.length > 24) list.splice(0, list.length - 24);
+        attacker.conquests = list;
+    },
+
+    /** Towns a realm has taken in the last `days` days (kingdom.conquests). */
+    conquestsOf(kingdom, world, days = 360) {
+        const day = KingdomAI._day(world);
+        return (Array.isArray(kingdom && kingdom.conquests) ? kingdom.conquests : []).filter(e => e && day - (Number(e.d) || 0) <= days).length;
+    },
+
+    /**
+     * The victor's peace returns a town it lost to the loser (world/revanche.js):
+     * the heaviest it claims of the loser's, never the loser's last; certain
+     * after a reclaim war (reclaimReturn), else by a hashed peaceReturn roll.
+     * Draws no RNG. → the settlement returned, or null.
+     */
+    peaceReturn(victor, loser, world, reclaimWar = false) {
+        if (!victor || !loser || !victor.isAlive || !loser.isAlive || !world || typeof world.getTile !== 'function') return null;
+        const claimed = Revanche.claimedFrom(world, victor, loser);
+        if (!claimed.length) return null;
+        const towns = KingdomAI._settlementsOf(loser, world);
+        if (towns.length < 2) return null;
+        const pick = claimed.find(c => towns.some(t => t.q === c.rec.q && t.r === c.rec.r));
+        if (!pick || !Revanche.peaceRolls(world, victor, loser, reclaimWar)) return null;
+        const s = KingdomAI.cedeTown(loser, victor, world, pick.rec.q, pick.rec.r);
+        if (s && Array.isArray(world.events)) world.events.push({ text: `📜 By the terms of the peace, ${loser.name} returns ${s.name} to ${victor.name}.`, type: 'diplomatic' });
+        return s;
+    },
+
+    /**
+     * A town (and the open land about it the giver holds) passes by treaty from
+     * `from` to `to`: no battle, no war goal. The giver remembers it
+     * (world/revanche.js); its court moves if it was the seat. Draws no RNG.
+     * → the settlement, or null.
+     */
+    cedeTown(from, to, world, q, r) {
+        const tile = world.getTile(q, r);
+        if (!tile || !tile.settlement || tile.settlement.kingdom !== from.id) return null;
+        const s = tile.settlement;
+        Revanche.record(world, from, to, s, q, r);
+        Revanche.regained(world, to, q, r);
+        const moved = new Set();
+        for (const h of [{ q, r }, ...Hex.neighbors(q, r)]) {
+            const hq = Hex.wrapQ(h.q, world.width);
+            const t = world.getTile(hq, h.r);
+            if (!t || t.kingdom !== from.id) continue;
+            if (t !== tile && t.settlement) continue;
+            t.kingdom = to.id;
+            moved.add(`${hq},${h.r}`);
+            if (!(to.territory || []).some(p => p.q === hq && p.r === h.r)) (to.territory = to.territory || []).push({ q: hq, r: h.r });
+        }
+        from.territory = (from.territory || []).filter(t => !moved.has(`${t.q},${t.r}`));
+        s.kingdom = to.id;
+        if (!s.formerKingdom) s.formerKingdom = from.id;
+        KingdomAI.afterTownLoss(from, to, world);
+        return s;
     },
 
     /** A realm falls only when its last town does; a lost capital moves. */

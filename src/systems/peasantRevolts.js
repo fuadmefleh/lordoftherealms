@@ -58,6 +58,7 @@ import { Interrupts } from '../core/interrupts.js';
 import { WorldUnit } from '../world/units.js';
 import { Economy } from '../world/economy.js';
 import { Estates } from '../world/estates.js';
+import { Revanche } from '../world/revanche.js';
 import { Coinage } from '../world/coinage.js';
 import { Harvests } from '../world/harvests.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
@@ -243,7 +244,7 @@ export const PeasantRevolts = {
 
     _context(world, player) {
         const day = _day(world);
-        const ctx = { player, day, ruledId: null, holdings: new Set(), butcher: 0, decline: 0, ruled: null, rebelEvents: new Set() };
+        const ctx = { player, day, ruledId: null, holdings: new Set(), butcher: 0, decline: 0, ruled: null, rebelEvents: new Set(), oldCrowns: Revanche.townIndex(world) };
         // A 'Peasant Rebellion' world event in a town (world/worldEvents.js, born of a realm's collapse) stirs it hard
         for (const ev of Array.isArray(world && world.activeEvents) ? world.activeEvents : []) {
             if (ev && ev.id === 'rebellion' && ev.q != null) ctx.rebelEvents.add(_key(ev.q, ev.r));
@@ -357,6 +358,11 @@ export const PeasantRevolts = {
             v += Math.max(0, _num(U.happinessAt, 40) - _num(s.happiness, 50)) * _num(U.perHappiness, 0.35);
             if (lord.kind === 'player' && lord.role === 'holding' && _obj(s.holding)) v += _num(s.holding.unrest) * _num(U.perHoldingUnrest, 0.25);
             add('unrest', v);
+        }
+        // The old crown: a town another living realm lost and still claims remembers it (world/revanche.js)
+        {
+            const oc = (ctx.oldCrowns || Revanche.townIndex(world)).get(key);
+            if (oc && !(s.kingdom != null && String(s.kingdom) === String(oc.kingdomId))) add('oldCrown', oc.w * _num((P.oldCrown || {}).per, 4));
         }
         // Agitators (a 'rebellion' world event)
         {

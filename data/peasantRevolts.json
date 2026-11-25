@@ -22,6 +22,7 @@
         "unrest": { "label": "Unrest", "icon": "😠", "stabilityAt": 45, "perStability": 0.45, "happinessAt": 40, "perHappiness": 0.35, "perHoldingUnrest": 0.25, "cap": 25 },
         "spark": { "label": "Agitators", "icon": "📣", "halfYears": 0.5, "cap": 20 },
         "wounds": { "label": "Old wounds", "icon": "🕯️", "cap": 30 },
+        "oldCrown": { "label": "The old crown", "icon": "🏴", "per": 4, "cap": 12, "_doc": "a town a living realm lost and still claims (world/revanche.js): its people remember the old crown, per x the claim weight" },
         "relief": { "label": "Bread and charters", "icon": "📜" }
     },
     "spark": { "_doc": "a 'rebellion' political event (world/worldEvents.js) in a town: agitators stir it (settlement.revoltSpark), fading by half every pressure.spark.halfYears. event: while a timed 'Peasant Rebellion' world event (a realm's collapse) runs in the town.", "amount": 15, "event": 25 },
@@ -46,7 +47,7 @@
         "sound_coin": { "label": "honest coin", "icon": "⚖️", "taxCut": 0.1, "relief": 14, "reliefYears": 10 },
         "charter": { "label": "a charter of freedoms", "icon": "📜", "taxCut": 0.1, "relief": 20, "reliefYears": 60 }
     },
-    "causeDemand": { "tax": "lower_tax", "hunger": "bread", "coin": "sound_coin", "cruelty": "steward", "plague": "bread", "levy": "lower_tax", "decline": "charter", "unrest": "charter", "spark": "charter", "wounds": "charter" },
+    "causeDemand": { "tax": "lower_tax", "hunger": "bread", "coin": "sound_coin", "cruelty": "steward", "plague": "bread", "levy": "lower_tax", "decline": "charter", "unrest": "charter", "spark": "charter", "wounds": "charter", "oldCrown": "charter" },
     "charterAt": 82,
     "player": {
         "_doc": "what the lord of the land can do (the realm's ruler, or the lord of a holding). Meeting the demands: the lords call you weak (each vassal's favour, Prestige). A parley: a chance by your diplomacy, charisma and renown against their anger; failing it, they grow bolder and will not talk again. Buying off the leader: perMan gold a man, paid to the leader (spent in their town); they go home or a new leader rises angrier. The royal host: the realm's army at royalShare against them. After a rising is crushed, its fate is yours: mercy, the leader hanged, the ringleaders hanged, or the leader taken.",

@@ -78,14 +78,16 @@ Object.assign(InnerMapRenderer, {
         }
         const M = V.master;
         // (a real townsperson keeps the post — drawn and clicked with the street's people,
-        // innerMapPort.js _keepMaster — so only his name over him while he stands there)
+        // innerMapPort.js _keepMaster — so only his staff in his hand and his name over him
+        // while he stands there, drawn just after him)
         if (M && M.npc) {
             const n = M.npc;
-            if (camera.zoom >= 0.8 && n.q === Math.floor(M.x) && n.r === Math.floor(M.y) && n.state !== 'walking' && _seen(M.x, M.y)) {
+            if (n.q === Math.floor(M.x) && n.r === Math.floor(M.y) && n.state !== 'walking' && n.harbourmaster && _seen(M.x, M.y)) {
                 items.push({ sortY: M.y * T + 1, zLayer: 2, sortX: M.x, draw: () => {
                     const p = P(M.x, M.y);
                     ctx.save();
-                    this._portLabel(ctx, p.x, p.y - cs * 1.45, `${M.name} · ${n.roleTitle || 'harbourmaster'}`, art);
+                    this._drawStaff(ctx, p, cs, art, n.facing === InnerMapCharacters.DIR_LEFT ? -1 : 1, !!(InnerMapCharacters.isReady() && n.preset));
+                    if (camera.zoom >= 0.8) this._portLabel(ctx, p.x, p.y - cs * 1.45, `${M.name} · ${n.roleTitle || 'harbourmaster'}`, art);
                     ctx.restore();
                 } });
             }
@@ -410,9 +412,7 @@ Object.assign(InnerMapRenderer, {
             ctx.fillStyle = WOOD.plankHi;
             ctx.fillRect(p.x - s * 12, hand - s * 7, s * 24, s * 2.5);
         } else if (carry === 'staff') {
-            ctx.strokeStyle = '#3a2a18';
-            ctx.lineWidth = Math.max(1, s * 1.5);
-            ctx.beginPath(); ctx.moveTo(p.x + s * 7 * side, feetY); ctx.lineTo(p.x + s * 7 * side, head - s * 3); ctx.stroke();
+            this._drawStaff(ctx, p, cs, art, side, drawn);
         } else if (carry === 'adze' || carry === 'adzeDown') {
             ctx.strokeStyle = '#3a2a18';
             ctx.lineWidth = Math.max(1, s * 1.5);
@@ -421,6 +421,21 @@ Object.assign(InnerMapRenderer, {
             ctx.fillStyle = '#8a8a8a';
             ctx.fillRect(p.x + s * (up ? 5 : 10), hand + s * (up ? -14 : 2), s * 4, s * 2.5);
         }
+    },
+
+    /** The harbourmaster's staff, upright at his side (side −1 when he faces left); sprite: drawn over a character sprite. */
+    _drawStaff(ctx, p, cs, art, side = 1, sprite = true) {
+        const s = cs / 32;
+        const feetY = p.y + s * 7;
+        const head = sprite ? feetY - cs * 0.98 : p.y - s * 17;
+        // (in his fist: the sprite's hand hangs about 5½ of its 32 pixels out from the middle)
+        const x = p.x + s * (sprite ? 5.5 : 7) * side;
+        ctx.strokeStyle = '#3a2a18';
+        ctx.lineWidth = Math.max(1, s * 1.5);
+        ctx.beginPath(); ctx.moveTo(x, feetY); ctx.lineTo(x, head - s * 3); ctx.stroke();
+        // (a brass knob atop it: the post's mark)
+        ctx.fillStyle = '#c9a24a';
+        ctx.beginPath(); ctx.arc(x, head - s * 3, Math.max(1, s * 1.6), 0, Math.PI * 2); ctx.fill();
     },
 
     /** The stand-in before the character sheets load: head, coat, legs. */

@@ -300,6 +300,8 @@ const WORLD_DAY = [
     { sys: 'LastCrisis', run: (w) => LastCrisis.processDay(w, null) },
     // The sees call their holy wars and cast out rulers; the player's cross and bans wait (systems/holyWars.js)
     { sys: 'HolyWars', run: (w) => HolyWars.processDay(w, null) },
+    // Leagues against an overmighty AI realm form, march and break; the league against the House waits, its ultimatum extended by the days missed (systems/coalitions.js)
+    { sys: 'Coalitions', run: (w) => Coalitions.processDay(w, null) },
     // Great old realms sag under their own weight; the player's strains wait (systems/realmDecline.js)
     { sys: 'RealmDecline', run: (w) => RealmDecline.processDay(w, null) },
     // The commons rise and the realms meet them by their lords' lights; a rising against the empty throne is the realm's (systems/peasantRevolts.js)
@@ -371,7 +373,6 @@ const WORLD_DAY_SKIPPED = {
     Parentage: "player-held: a child player's parents' roof",
     BackRooms: "player-held: the player's taverns' back rooms",
     Landings: "player-held: reavers on the player's coastal holdings",
-    Coalitions: 'player-held: the league against the House (its ultimatum is extended by the days missed)',
     RivalAgents: "player-held: rival Houses' agents against the House",
     HighCrowns: 'player-held: the far crowns in union and their viceroys (Throne.passCrown hands them back to their old lines)',
     Atrocities: "player-held: the player's infamy and hostages",

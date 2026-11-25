@@ -460,6 +460,8 @@ export const SaveLoad = {
             // The sees of the faiths, their holy wars and bans (systems/holyWars.js); the inquisitors on their rounds
             // (systems/inquisition.js; each town's fear travels with it: settlement.inquisition)
             holyWars: HolyWars.serialize(world),
+            // Leagues sworn against an overmighty AI realm (systems/coalitions.js; the player's own ride on the player)
+            realmLeagues: Coalitions.serializeRealms(world),
             inquisition: Inquisition.serialize(world),
             // Regions and seas named after Houses (systems/namedLegacy.js; codes ride on kingdom.laws, renamed towns on their tiles)
             namedLegacy: NamedLegacy.serialize(world),
@@ -626,7 +628,11 @@ export const SaveLoad = {
                 // The Church's regard: a ruler cast out, a holy war answered or refused (systems/holyWars.js)
                 'church',
                 // Two crowns on one head: its personal union with another AI realm (systems/realmUnions.js)
-                'personalUnion']),
+                'personalUnion',
+                // The towns it took lately (KingdomAI.noteConquest: the leagues against an overmighty realm)
+                'conquests',
+                // The towns it lost, and to whom: its claims to win them back (world/revanche.js)
+                'lostTowns']),
             // A realm born after world generation (founded by the player, or risen at the
             // Dawn of Man) isn't regenerated from the seed: keep what made it
             ...(k.createdByPlayer || k.dawnBorn ? {
@@ -1154,6 +1160,7 @@ export const SaveLoad = {
             Object.assign(kingdom, savedKingdom);
             // (a union the save does not hold is not kept from the world loaded over: systems/realmUnions.js)
             if (savedKingdom && !savedKingdom.personalUnion) delete kingdom.personalUnion;
+            if (savedKingdom && !savedKingdom.lostTowns) delete kingdom.lostTowns;
             // Saves from before royal fleets: counted afresh (half the cap) on the next day
             KingdomNavy.ensure(kingdom);
 
@@ -1262,6 +1269,8 @@ export const SaveLoad = {
         Damnatio.restoreState(saveData.damnatio, world);
         // The sees and their holy wars, the inquisitors (older saves: none — the sees are raised on the next week)
         HolyWars.restore(saveData.holyWars, world);
+        // The leagues against AI realms (older saves: none sworn yet)
+        Coalitions.restoreRealms(saveData.realmLeagues, world);
         Inquisition.restore(saveData.inquisition, world);
         // The named regions and seas (older saves: none)
         NamedLegacy.restore(saveData.namedLegacy, world);

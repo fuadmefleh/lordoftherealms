@@ -8,6 +8,7 @@
 // route through data-am-act → ActionMenu.treasuryAct.
 import { ActionMenu } from './_ref.js';
 import { Fiscal } from '../../systems/fiscal.js';
+import { Throne } from '../../systems/throne.js';
 import { CrownBooks } from '../../world/crownBooks.js';
 import { RealmArms } from '../../world/realmArms.js';
 import { BTN_GOLD, BTN_PLAIN, BTN_DIM, panelTabs, intelBadge, closedBooks, lede, bullets, chips, purse, sectionHead, card, rowList } from './uiKit.js';
@@ -57,7 +58,7 @@ function sparkline(hist, col = 1, w = 120, h = 24) {
     return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="vertical-align:middle;"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.5"/></svg>`;
 }
 
-const g0 = (v) => Utils.formatGold(v || 0);
+const g0 = (v) => Utils.formatGold(Math.round(v || 0));
 const lvl = (id) => { const L = Fiscal.config().levels[id] || {}; return `${L.icon || ''} ${L.label || id}`; };
 
 function realmFor(game) {
@@ -124,19 +125,19 @@ function budgetTab(game) {
         intelBadge(why) || null,
     ]);
     html += `<div class="pk-card"><span style="${NOTE}">Taxes: land ${lvl(b.rates.land)} · hearth ${lvl(b.rates.poll)} · excise ${lvl(b.rates.excise)} · army ${esc((Fiscal.config().army.levels[b.armyPay] || {}).label || b.armyPay)} · court ${esc((Fiscal.config().court.levels[b.courtLevel] || {}).label || b.courtLevel)}</span><br>`;
-    html += `<span style="${NOTE}">The people's burden ${Math.round((b.burden || 0) * 100)}% (15% is the customary due) · stability ${b.stability >= 0 ? '+' : ''}${b.stability} from taxes and pay${whyIcon(stabilityWhy(Causes.stability(k, world)), 'The realm’s stability: why?')} · corruption ${Math.round(b.corruption * 100)}% · crown estates ${Math.round(b.demesne * 100)}% of the land's gold`;
+    html += `<span style="${NOTE}">The people's burden ${Math.round((b.burden || 0) * 100)}% (15% is the customary due) · stability ${Math.round(b.stability) >= 0 ? '+' : ''}${Math.round(b.stability)} from taxes and pay${whyIcon(stabilityWhy(Causes.stability(k, world)), 'The realm’s stability: why?')} · corruption ${Math.round(b.corruption * 100)}% · crown estates ${Math.round(b.demesne * 100)}% of the land's gold`;
     if (b.arrearsDays > 0) html += ` · <span style="color:${BAD};">soldiers unpaid ${b.arrearsDays} days (${g0(b.arrears.army)}g owed), the army at ${Math.round(b.armyFactor * 100)}%</span>`;
-    if (b.deficitWeeks > 0) html += ` · <span style="color:${WARN};">${b.deficitWeeks} week(s) in deficit</span>`;
+    if (b.deficitWeeks > 0) html += ` · <span style="color:${WARN};">${b.deficitWeeks} week${b.deficitWeeks === 1 ? '' : 's'} in deficit</span>`;
     // The armoury (world/realmArms.js): how well the army is armed, and what it lacks
     const arm = RealmArms.summary(k);
     if (arm) {
-        const short = Object.entries(arm.deficits).filter(([, n]) => n > 0).map(([slot, n]) => `${n} ${{ main: 'weapons', ranged: 'bows', off: 'shields', head: 'helms', body: 'harness', ammo: 'arrows' }[slot] || slot}`);
+        const short = Object.entries(arm.deficits).filter(([, n]) => n > 0).map(([slot, n]) => `${n} ${{ main: 'weapons', ranged: 'bows', off: 'shields', head: 'helms', body: 'harness', ammo: 'arrows', feet: 'pairs of boots', hands: 'pairs of gloves', legs: 'leg harness' }[slot] || slot}`);
         html += `<br><span style="color:#cbbf9f;">⚔️ The army fights at <b>${Math.round(arm.factor * 100)}%</b> of its worth by its arms${short.length ? ` · short of ${esc(short.join(', '))}` : ' · fully armed'} · ${g0(arm.stats.spent)}g spent on arms in all</span>`;
     }
     html += '</span></div>';
     html += sectionHead('Revenue and spending') + linesTable(b);
     const S = b.stats || {};
-    const tally = [['revenue', 'taxes and dues taken', 'g'], ['expense', 'spent', 'g'], ['revolts', 'tax revolts', ''], ['farmsSold', 'tax farms sold', ''],
+    const tally = [['revenue', 'taxes and dues taken', 'g'], ['expense', 'spent', 'g'], ['privy', 'drawn by the ruler\'s privy purse', 'g'], ['revolts', 'tax revolts', ''], ['farmsSold', 'tax farms sold', ''],
         ['officesSold', 'offices sold', ''], ['landSold', 'crown estates sold', ''], ['deserted', 'soldiers deserted', '']]
         .filter(([key]) => (S[key] || 0) > 0).map(([key, label, unit]) => `${g0(S[key])}${unit} ${label}`);
     if (tally.length) html += `<div style="${NOTE} margin-top:6px;">The crown's books, all told: ${tally.join(' · ')}.</div>`;
@@ -252,6 +253,26 @@ function coinSection(game, ruled) {
     return html;
 }
 
+/**
+ * The royal levy against the chests (Throne.levyQuote → CrownBooks.privyQuote):
+ * the reserve the treasury never dips under, the war chest it builds before
+ * the ruler's purse, and what the levy takes today.
+ */
+function levyCard(game, ruled) {
+    const { player, world } = game;
+    const q = Throne.levyQuote(player, world, ruled);
+    const have = Math.max(0, ruled.treasury || 0);
+    const full = q.chest > 0 ? Math.min(1, have / q.chest) : 1;
+    const bar = `<span style="display:inline-block; width:120px; height:7px; background:#3a3326; border-radius:3px; vertical-align:middle;"><span style="display:block; width:${Math.round(full * 100)}%; height:100%; background:${full >= 1 ? GOOD : WARN}; border-radius:3px;"></span></span>`;
+    let html = `<div class="pk-card"><b style="color:#ffe9a8;">The royal levy</b> <span style="${NOTE}">to your purse today <b style="color:#ffcf6a;">${g0(q.levy)}g</b> · ${Math.round(q.rate * 100)}% of ${g0(q.revenue)}g of dues a day</span><br>`;
+    html += `<span style="${NOTE}">War chest ${bar} ${g0(have)}g of ${g0(q.chest)}g${q.deeper ? ' (deeper at war)' : q.coinCapped ? ` (capped by the coin about in the realm${q.war ? ', so no deeper at war' : ''})` : ''} · reserve ${g0(q.reserve)}g, never touched</span><br>`;
+    const why = q.limit === 'reserve' ? `The treasury is down to its reserve: the levy takes nothing past it, and only what lies over ${g0(q.reserve)}g until the chests fill.`
+        : full >= 1 ? 'The chest is full: the levy takes its whole share of what the dues leave over the upkeep.'
+        : `Until the chest is full the levy takes ${Math.round(q.chestMult * 100)}% of its share, rising as it fills: the crown builds its war chest before your purse. Every crown's ruler draws by this rule.`;
+    html += `<span style="${NOTE}">${why} A light tax policy takes less.</span></div>`;
+    return html;
+}
+
 function crownTab(game) {
     const { world, player } = game;
     const { ruled } = realmFor(game);
@@ -261,11 +282,12 @@ function crownTab(game) {
     let html = lede('Set each tax, the army\'s pay and the court. Heavy taxes fill the chests and drive the poor to lighter realms; light ones starve the army.');
     html += chips([
         ['⚖️', 'Burden', `${Math.round((b.burden || 0) * 100)}%`],
-        ['🏛️', 'Stability', `${b.stability >= 0 ? '+' : ''}${b.stability}`],
+        ['🏛️', 'Stability from taxes', `${Math.round(b.stability) >= 0 ? '+' : ''}${Math.round(b.stability)}`],
         { icon: '💰', label: 'Last week', value: `<span style="color:${GOOD};">+${g0(CrownBooks.revenue(b.week))}g</span> / <span style="color:${BAD};">−${g0(CrownBooks.expense(b.week))}g</span>` },
         ['⏳', 'In hand', `${b.reserveDays} days`],
     ]);
-    html += `<div style="${NOTE} margin-bottom:8px;">The <b>burden</b> is what the people feel (welfare, migration, tax revolts); <b>stability</b> is the realm's.</div>`;
+    html += `<div style="${NOTE} margin-bottom:8px;">The <b>burden</b> is what the people feel (welfare, migration, tax revolts); <b>stability from taxes</b> is how much they add to or take from the realm's stability.</div>`;
+    html += levyCard(game, ruled);
     const tipOf = (blurb, fx) => [blurb, fx].filter(Boolean).join(' ');
     html += sectionHead('Taxes, pay and court');
     // Levers the ruler has not set are kept by the treasurers' review (Fiscal._review)

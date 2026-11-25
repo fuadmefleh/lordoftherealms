@@ -17,6 +17,18 @@ function _btn(label, act, arg, enabled = true, extra = '', title = '') {
     return `<button data-am-act="siegeAct" data-am-args='${args}' ${enabled ? '' : 'disabled'} title="${_esc(title)}" style="${BTN}${extra}${enabled ? '' : 'opacity:0.45;cursor:not-allowed;'}">${label}</button>`;
 }
 
+/**
+ * The besieged town's stores in words: how long they last at the pace they are eaten
+ * (stores are counted in days of full rations; a port the sea still feeds eats them slower).
+ */
+function _storesText(stores, left, eat) {
+    const full = Math.round(stores);
+    if (left == null) return `Stores: ${full} days of food, none eaten`;
+    const rate = Math.round(eat * 100) / 100;
+    const pace = rate < 1 ? ` (${full} days at full rations, eaten at ${rate === 0.5 ? 'half' : `${Math.round(rate * 100)}%`} pace)` : rate > 1 ? ` (${full} days at full rations, eaten ${rate}× as fast)` : '';
+    return `Stores last ${left} more day${left === 1 ? '' : 's'}${pace}`;
+}
+
 function _bar(value, max, color) {
     const pct = Math.max(0, Math.min(100, max > 0 ? value / max * 100 : 0));
     return `<div style="height:6px;background:rgba(255,255,255,0.1);border-radius:3px;margin:2px 0 6px;"><div style="width:${pct}%;height:100%;background:${color};border-radius:3px;"></div></div>`;
@@ -49,13 +61,13 @@ export function siegePanelHtml(player, info) {
     html += `<div>Strength <strong>${info.army}</strong> · ${info.supply.units} companies</div>`;
     html += `<div>Morale ${Math.round(s.campMorale)}</div>${_bar(s.campMorale, 100, '#4fc3f7')}`;
     html += `<div>Food: needs ${info.supply.need}/day, foraged ${info.supply.forage}, packs ${info.supply.packs}</div>`;
-    html += `<div style="${MUTED}">${info.campDaysLeft == null ? 'The land feeds the camp for now.' : `Packs last ~${info.campDaysLeft} day(s).`}${s.hungryDays ? ` <span style="color:#e57373;">Hungry ${s.hungryDays} day(s)!</span>` : ''}</div>`;
-    if (s.campSick > 0) html += `<div style="color:#e57373;">🤒 Sickness in the camp (${s.campSick} day(s))</div>`;
+    html += `<div style="${MUTED}">${info.campDaysLeft == null ? 'The land feeds the camp for now.' : `Packs last ~${info.campDaysLeft} day${info.campDaysLeft === 1 ? '' : 's'}.`}${s.hungryDays ? ` <span style="color:#e57373;">Hungry ${s.hungryDays} day${s.hungryDays === 1 ? '' : 's'}!</span>` : ''}</div>`;
+    if (s.campSick > 0) html += `<div style="color:#e57373;">🤒 Sickness in the camp (${s.campSick} day${s.campSick === 1 ? '' : 's'})</div>`;
     html += '</div>';
     html += `<div style="${CARD}flex:1;margin:0;"><div style="color:#e74c3c;font-weight:bold;margin-bottom:4px;">🏰 ${_esc(s.name)}</div>`;
     html += `<div>Garrison <strong>${Math.round(s.garrison)}</strong> · storm defence <strong>${info.defense}</strong></div>`;
     html += `<div>Morale ${Math.round(s.morale)}</div>${_bar(s.morale, 100, '#e74c3c')}`;
-    html += `<div>Stores ${Math.round(s.stores)} days${info.storesDaysLeft != null ? ` (−${Math.round(info.eatsPerDay * 100) / 100}/day)` : ''}</div>${_bar(s.stores, s.storesStart, '#f1c40f')}`;
+    html += `<div>${_storesText(s.stores, info.storesDaysLeft, info.eatsPerDay)}</div>${_bar(s.stores, s.storesStart, '#f1c40f')}`;
     html += `<div>Walls ${s.walls > 0 ? `+${pct(s.walls)} at ${Math.round(s.wallHp)}% → +${pct(info.effectiveWalls)}` : 'none'}</div>`;
     if (s.port) html += `<div style="${MUTED}">${info.navalBlockade ? '⛵ The harbour is blockaded — no food by sea.' : '⛵ Ships still bring food by sea (stores fall at half pace). Galleys or a blockading fleet would close the port.'}</div>`;
     if (s.townSick) html += `<div style="color:#e57373;">🤒 Disease rages inside the walls</div>`;

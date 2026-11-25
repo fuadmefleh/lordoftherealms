@@ -62,10 +62,26 @@
 //              (house.rivals) with a feud floor — which drives schemes and
 //              rival agents (systems/schemes.js, systems/rivalAgents.js).
 //
-// Only the player is ever its target: with no player (world-only sims, the
-// interregnum) nothing runs. No shared RNG is drawn: the few rolls are hashes
+//   EVERY REALM  the same rule for a dominant AI crown (processRealms, since
+//              2026-11-25): its might reckoned as a crown's is in the player's
+//              power (the crown and its towns by its might over the other
+//              crowns' average, a title, the towns it took in the last year),
+//              each AI neighbour's fear and envy of it by the same threat
+//              terms (its regard of it standing in for the lord's memory and
+//              the player's name), the same formAt, brewWeeks, joinAt,
+//              members, ultimatum, resolve and cooldowns. The target answers
+//              as the playtest bot answers the player's leagues: it bows (its
+//              dynasty's prestige, keeping prestigeKeep), pays from chests
+//              that keep reserveDays of spending (into the members' chests),
+//              buys members out, or fights. At most realms.maxActive at a
+//              time and realms.worldGap days between them: rare. The player's
+//              realm is never a member (its court acts by the player). State
+//              on world.realmLeagues (saved).
+//
+// The player's league runs only with a player; the leagues against AI realms
+// run with or without one. No shared RNG is drawn: the few rolls are hashes
 // and KingdomAI.startWar runs on its own stream. State on player.coalitions
-// (saved). Content: data/coalitions.json.
+// and world.realmLeagues (saved). Content: data/coalitions.json.
 
 import { DataLoader } from '../core/dataLoader.js';
 import { Utils } from '../core/utils.js';
@@ -91,6 +107,8 @@ import { Names } from '../core/names.js';
 import { HighCrowns } from './highCrowns.js';
 // (a crown that rules by a written code is respected: slower to be banded against — systems/namedLegacy.js)
 import { NamedLegacy } from './namedLegacy.js';
+import { MoneySupply } from '../world/moneySupply.js';
+import { CrownBooks } from '../world/crownBooks.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -135,6 +153,14 @@ const DEFAULTS = {
         renownPer: 10, renownCap: 25, conquest: 12, conquestDays: 360, conquestCap: 48,
     },
     proximity: { near: 8, far: 40, floor: 0.25, noHoldings: 0.5 },
+    // Leagues against an overmighty AI realm (Coalitions.processRealms): the same power,
+    // threat, formAt, brewWeeks, joinAt, members, ultimatum, resolve and cooldowns as the
+    // player's; at most maxActive at a time, worldGap days between any two.
+    realms: {
+        enabled: true, maxActive: 1, worldGap: 360, reserveDays: 5, keepPurse: 500, prestigeKeep: 60,
+        // (the target's answer: fight with the odds its might over the members' gives, between fightLo and fightHi, x its personality's war; else the cheapest concession it can bear)
+        answer: { fightLo: 0.5, fightHi: 1.3, yieldMinTowns: 3, yieldBack: true },
+    },
     threat: {
         fear: 0.55, envy: 0.35, ambitionEnvy: 0.5, fearShare: 0.6, envyShare: 0.5,
         grudge: 0.8, goodwill: 0.5, vendetta: 0.6, badRep: 0.25, goodRep: 0.3, feud: 0.3, allied: 0.5,
@@ -152,7 +178,8 @@ const DEFAULTS = {
     chill: { leader: 25, member: 15 },
     relationsFloor: -40,
     embargoLevy: 0.25,
-    concession: { goldBase: 400, goldPerPower: 12, goldPerMember: 150, prestigeBase: 25, prestigePerMember: 5, goldShame: 10 },
+    // (the gold asked is capped by the target's means, the player's and an AI crown's alike: revenueShare of a year's income + chestShare of its chests, at least floor)
+    concession: { goldBase: 400, goldPerPower: 12, goldPerMember: 150, prestigeBase: 25, prestigePerMember: 5, goldShame: 10, means: { yearDays: 120, revenueShare: 0.25, chestShare: 0.3, floor: 150 } },
     buyoff: { goldBase: 250, perMilitary: 0.5, perThreat: 8, reputation: 10, resolve: -10, marriageDowry: 0 },
     cede: { resolve: -15, reputation: 15 },
     vendetta: { rivalAt: 15, maxRivals: 5, feudPerWeight: 1.5 },
@@ -451,7 +478,11 @@ export const Coalitions = {
     processDay(world, player, opts = {}) {
         const out = { notices: [], formed: null, activated: null, ended: null };
         const C = Coalitions.config();
-        if (!world || !player || C.enabled === false || !Array.isArray(world.kingdoms)) return out;
+        if (!world || C.enabled === false || !Array.isArray(world.kingdoms)) return out;
+        // (every realm can face a league, not the player alone: Coalitions.processRealms —
+        // it runs with no one alive too, in the afterlife's world day)
+        Coalitions.processRealms(world, player);
+        if (!player) return out;
         if (player.interregnum) return out;
         const st = Coalitions.state(player);
         const day = _day(world);
@@ -645,13 +676,57 @@ export const Coalitions = {
 
     /** What the league asks to stand down: { gold, prestige }. */
     concessionQuote(player, world, o = {}) {
-        const K = Coalitions.config().concession;
         const c = Coalitions.active(player);
         const power = o.power != null ? o.power : _num(c && c.lastPower);
         const members = o.members != null ? o.members : Coalitions.members(player).length;
+        return Coalitions.terms(power, members, Coalitions.means(world, { player }));
+    },
+
+    /**
+     * What a target can bear, by one rule for the player and an AI crown:
+     * { revenue (a day's income), chests }. An AI crown: its taxes and dues a
+     * day (CrownBooks.lastRevenue) and its treasury. The player: the operating
+     * income of the last 30 days a day (Ledger) and the purse, with the crown
+     * they rule's revenue and chests besides (a league is paid from those too).
+     */
+    means(world, { player = null, kingdom = null } = {}) {
+        let revenue = 0;
+        let chests = 0;
+        if (kingdom) {
+            revenue += CrownBooks.lastRevenue(kingdom);
+            chests += Math.max(0, _num(kingdom.treasury));
+        }
+        if (player) {
+            const rows = Array.isArray(player.financeHistory) ? player.financeHistory.filter(r => r && _num(r.day) > _day(world) - 30) : [];
+            if (rows.length) {
+                const st = Ledger.statement(player, world, 30);
+                revenue += Math.max(0, st.op.income.reduce((s, l) => s + _num(l.amount), 0)) / rows.length;
+            }
+            chests += Math.max(0, _num(player.gold));
+            const realm = KingdomAI.playerRealm(world);
+            if (realm && realm !== kingdom) {
+                revenue += CrownBooks.lastRevenue(realm);
+                chests += Math.max(0, _num(realm.treasury));
+            }
+        }
+        return { revenue: _r1(revenue), chests: Math.round(chests) };
+    },
+
+    /**
+     * A league's terms, one rule for every target: { gold, prestige, asked, cap }.
+     * Asked: goldBase + goldPerPower × power + goldPerMember × members; the gold
+     * is that capped by the target's means (means.revenueShare of a year's
+     * revenue + means.chestShare of its chests), never below means.floor.
+     */
+    terms(power, members, means = null) {
+        const K = Coalitions.config().concession;
+        const M = _obj(K.means) || {};
+        const asked = Math.round(_num(K.goldBase) + _num(power) * _num(K.goldPerPower) + _num(members) * _num(K.goldPerMember));
+        const cap = means ? Math.round(_num(means.revenue) * _num(M.yearDays, 120) * _num(M.revenueShare, 0.25) + _num(means.chests) * _num(M.chestShare, 0.3)) : Infinity;
         return {
-            gold: Math.round(_num(K.goldBase) + power * _num(K.goldPerPower) + members * _num(K.goldPerMember)),
-            prestige: Math.round(_num(K.prestigeBase) + members * _num(K.prestigePerMember)),
+            gold: Math.max(Math.min(asked, _num(M.floor, 150)), Math.min(asked, cap)),
+            prestige: Math.round(_num(K.prestigeBase) + _num(members) * _num(K.prestigePerMember)),
+            asked, cap: Number.isFinite(cap) ? cap : null,
         };
     },
 
@@ -1002,15 +1077,28 @@ export const Coalitions = {
         if (currency === 'prestige') {
             if (!player.house || !House.spend(player.house, q.prestige, `bowed to ${c.name}`, day)) return { success: false, reason: `You need ${q.prestige} Prestige.` };
         } else {
-            if (_num(player.gold) < q.gold) return { success: false, reason: `You need ${Utils.formatGold(q.gold)} gold.` };
-            player.gold = _num(player.gold) - q.gold;
-            Ledger.record(player, 'coalitionTerms', -q.gold);
+            // (the purse first, then the chests of the crown the player rules: the terms were set by both)
+            const realm = KingdomAI.playerRealm(world);
+            const chests = realm ? Math.max(0, Math.floor(_num(realm.treasury))) : 0;
+            if (_num(player.gold) + chests < q.gold) return { success: false, reason: `You need ${Utils.formatGold(q.gold)} gold${realm ? ' between your purse and the crown\'s chests' : ''}.` };
+            const fromPurse = Math.min(q.gold, Math.max(0, Math.floor(_num(player.gold))));
+            const fromChests = q.gold - fromPurse;
+            player.gold = _num(player.gold) - fromPurse;
+            if (fromPurse > 0) Ledger.record(player, 'coalitionTerms', -fromPurse);
+            if (fromChests > 0) realm.treasury = _num(realm.treasury) - fromChests;
             // Paying off a league is a humiliation all the same
             if (player.house) House.spend(player.house, Math.min(_num(player.house.prestige), _num(C.concession.goldShame, 10)), `paid off ${c.name}`, day);
             // (every coin of it into the members' chests: the last takes the odd coin)
             const takers = Coalitions.members(player).map(m => world.getKingdom(m.kingdomId)).filter(k => k && k.isAlive !== false);
             const share = Math.floor(q.gold / Math.max(1, takers.length));
-            takers.forEach((k, i) => { k.treasury = _num(k.treasury) + (i === takers.length - 1 ? q.gold - share * (takers.length - 1) : share); });
+            let chestLeft = fromChests;
+            takers.forEach((k, i) => {
+                const a = i === takers.length - 1 ? q.gold - share * (takers.length - 1) : share;
+                k.treasury = _num(k.treasury) + a;
+                const fromCrown = i === takers.length - 1 ? chestLeft : Math.min(chestLeft, Math.round(a * fromChests / Math.max(1, q.gold)));
+                chestLeft -= fromCrown;
+                if (fromCrown > 0) MoneySupply.transfer(world, realm.id, k.id, fromCrown, 'tribute');
+            });
             if (!takers.length) Economy.payNearest(world, player.q, player.r, q.gold);
         }
         for (const m of Coalitions.members(player)) NPCLords.rememberRealm(world, m.kingdomId, 'tribute_paid', { note: c.name });
@@ -1156,6 +1244,446 @@ export const Coalitions = {
     },
 
     // ──────────── THE VIEW ────────────
+
+    // ──────────── LEAGUES AGAINST AN AI REALM ────────────
+
+    _realmsBlank() {
+        return { active: [], pressure: {}, cooldown: {}, lastEnd: -1e9, nextId: 1, history: [], stats: { formed: 0, appeased: 0, bowed: 0, paid: 0, yielded: 0, humbled: 0, broken: 0, boughtOff: 0, defied: 0 } };
+    },
+
+    /** world.realmLeagues, created or backfilled. */
+    realmsState(world) {
+        if (!world) return null;
+        if (!_obj(world.realmLeagues)) world.realmLeagues = Coalitions._realmsBlank();
+        const st = world.realmLeagues;
+        const blank = Coalitions._realmsBlank();
+        if (!Array.isArray(st.active)) st.active = [];
+        if (!_obj(st.pressure)) st.pressure = {};
+        if (!_obj(st.cooldown)) st.cooldown = {};
+        if (!Array.isArray(st.history)) st.history = [];
+        if (!Number.isFinite(st.nextId)) st.nextId = 1;
+        if (!Number.isFinite(st.lastEnd)) st.lastEnd = -1e9;
+        st.stats = { ...blank.stats, ...(_obj(st.stats) || {}) };
+        return st;
+    },
+
+    serializeRealms(world) {
+        return world && world.realmLeagues ? JSON.parse(JSON.stringify(world.realmLeagues)) : null;
+    },
+
+    restoreRealms(saved, world) {
+        if (!world) return;
+        world.realmLeagues = _obj(saved) ? JSON.parse(JSON.stringify(saved)) : null;
+        Coalitions.realmsState(world);
+    },
+
+    /** The league standing against an AI realm now, or null. */
+    leagueAgainst(world, kingdomId) {
+        const st = world && _obj(world.realmLeagues);
+        return st && Array.isArray(st.active) ? st.active.find(l => l && String(l.targetId) === String(kingdomId)) || null : null;
+    },
+
+    /** A realm the leagues against AI realms leave alone: the player's crown, a far crown they wear. */
+    _playerHeld(world, player, k) {
+        if (!k) return true;
+        if (KingdomAI.isPlayerRuled(k)) return true;
+        return !!(player && HighCrowns.unionCrown(player, k.id));
+    },
+
+    /**
+     * An AI realm's might by the crown terms of the player's power():
+     * { score, parts: { crown, title, conquests } }. The crown and its towns
+     * weigh by its might over the other crowns' average (crownMightFloor ..
+     * crownMightCap); a ruler's title; the towns it took in conquestDays.
+     */
+    realmPower(world, k) {
+        const P = Coalitions.config().power;
+        const parts = { crown: 0, title: 0, conquests: 0 };
+        if (!world || !k || !k.isAlive) return { score: 0, parts };
+        const towns = typeof world.getSettlementsOf === 'function' ? world.getSettlementsOf(k.id).length : 0;
+        const others = (world.kingdoms || []).filter(o => o && o.isAlive && o !== k);
+        const avg = others.length ? others.reduce((s, o) => s + KingdomAI._might(o), 0) / others.length : 0;
+        const share = avg > 0 ? Utils.clamp(KingdomAI._might(k) / avg, _num(P.crownMightFloor, 0.25), _num(P.crownMightCap, 1.5)) : 1;
+        parts.crown = (_num(P.crown) + towns * _num(P.crownTown)) * share;
+        parts.title = _num(P.title);
+        parts.conquests = Math.min(_num(P.conquestCap), KingdomAI.conquestsOf(k, world, _num(P.conquestDays, 360)) * _num(P.conquest));
+        for (const key of Object.keys(parts)) parts[key] = _r1(parts[key]);
+        return { score: _r1(parts.crown + parts.title + parts.conquests), parts };
+    },
+
+    /** Where an AI realm's power stands: its capital and towns. */
+    _realmPoints(world, k) {
+        const out = [];
+        if (k.capital) out.push({ q: k.capital.q, r: k.capital.r });
+        if (typeof world.getSettlementsOf === 'function') for (const s of world.getSettlementsOf(k.id)) out.push({ q: s.q, r: s.r });
+        return out;
+    },
+
+    /**
+     * One AI realm's regard for another, overmighty one, by the threat terms
+     * of assess(): fear (power at its door), envy (an ambitious lord's the
+     * more), its regard (relations) standing for the grudge and goodwill of
+     * the player's name and the lord's memory, halved for an ally. Pure.
+     */
+    assessRealm(world, kingdom, target, power, points) {
+        const T = Coalitions.config().threat;
+        const out = { kingdomId: kingdom.id, name: kingdom.name, fear: 0, envy: 0, grudge: 0, hostility: 0, prox: 0 };
+        if (!kingdom.isAlive || kingdom === target) return out;
+        const pers = _obj((T.personality || {})[KingdomAI.personalityId(kingdom)]) || {};
+        const P = _num(power && power.score);
+        const prox = Coalitions.proximity(world, kingdom, points, null);
+        out.prox = prox;
+        out.fear = _clamp(P * prox * _num(T.fear) * _num(pers.fear, 1), 0, 100);
+        const ambition = Math.max(0, LordInfluence.lean(kingdom, 'ambition'));
+        out.envy = _clamp(P * _num(T.envy) * _num(pers.envy, 1) * (1 + ambition * _num(T.ambitionEnvy)) * (0.5 + 0.5 * prox), 0, 100);
+        const rel = _num(kingdom.relations && kingdom.relations[target.id]);
+        out.grudge = Math.max(0, -rel) * _num(T.badRep) - Math.max(0, rel) * _num(T.goodRep);
+        let h = out.fear * _num(T.fearShare) + out.envy * _num(T.envyShare) + out.grudge;
+        if (Array.isArray(kingdom.allies) && kingdom.allies.includes(target.id)) h *= _num(T.allied, 0.5);
+        out.hostility = Math.round(_clamp(h, 0, 100));
+        return out;
+    },
+
+    /**
+     * The leagues against AI realms, daily (the week's work on the cadence):
+     * forming ones answered on their deadline, standing ones ticked, new ones
+     * sworn against a realm past formAt for brewWeeks. Runs with or without a
+     * player. → notices (word of the leagues, for a player to hear).
+     */
+    processRealms(world, player = null) {
+        const C = Coalitions.config();
+        const RC = _obj(C.realms) || {};
+        const out = [];
+        if (!world || C.enabled === false || RC.enabled === false || !Array.isArray(world.kingdoms)) return out;
+        const day = _day(world);
+        const st = world.realmLeagues ? Coalitions.realmsState(world) : null;
+        // (a forming league acts on its own deadline)
+        if (st) for (const L of st.active.slice()) if (L.stage === 'forming' && day >= _num(L.dueDay)) Coalitions._realmAnswer(world, player, L, out);
+        const cad = Math.max(1, _num(C.cadence, 7));
+        if (day <= 0 || (day + _num(C.offset)) % cad !== 0) return out;
+        Coalitions._realmsWeek(world, player, out);
+        return out;
+    },
+
+    _realmsWeek(world, player, out) {
+        const C = Coalitions.config();
+        const RC = _obj(C.realms) || {};
+        const st = Coalitions.realmsState(world);
+        const day = _day(world);
+        const alive = world.kingdoms.filter(k => k && k.isAlive);
+        for (const L of st.active.slice()) Coalitions._realmTick(world, player, L, out);
+        const form = _num(C.formAt, 140);
+        for (const t of alive) {
+            if (Coalitions._playerHeld(world, player, t)) { delete st.pressure[t.id]; continue; }
+            const power = Coalitions.realmPower(world, t);
+            if (power.score >= form) st.pressure[t.id] = _num(st.pressure[t.id]) + 1;
+            else if (st.pressure[t.id]) {
+                st.pressure[t.id] = Math.max(0, st.pressure[t.id] - 1);
+                if (!st.pressure[t.id]) delete st.pressure[t.id];
+            }
+            if (_num(st.pressure[t.id]) < _num(C.brewWeeks, 2)) continue;
+            if (st.active.length >= _num(RC.maxActive, 1) || day - _num(st.lastEnd, -1e9) < _num(RC.worldGap, 360)) continue;
+            if (day < _num(st.cooldown[t.id]) || Coalitions.leagueAgainst(world, t.id)) continue;
+            const points = Coalitions._realmPoints(world, t);
+            const hostile = alive
+                .filter(k => k !== t && !Coalitions._playerHeld(world, player, k) && !Coalitions.leagueAgainst(world, k.id)
+                    && KingdomAI.unionPartner(k, world) !== t)
+                .map(k => Coalitions.assessRealm(world, k, t, power, points))
+                .filter(a => a.hostility >= _num(C.joinAt))
+                .sort((a, b) => b.hostility - a.hostility);
+            if (hostile.length < _num(C.minMembers, 2)) continue;
+            Coalitions._realmForm(world, t, power, hostile, out);
+        }
+    },
+
+    _realmForm(world, t, power, hostile, out) {
+        const C = Coalitions.config();
+        const st = Coalitions.realmsState(world);
+        const day = _day(world);
+        const might = (k) => _num(k.military) + _num(k.population) * 0.1;
+        const pool = hostile.slice(0, Math.max(_num(C.minMembers, 2), _num(C.maxMembers, 4)))
+            .map(a => ({ a, k: world.getKingdom(a.kingdomId) })).filter(x => x.k && x.k.isAlive);
+        if (pool.length < _num(C.minMembers, 2)) return null;
+        const leader = pool.slice().sort((x, y) => (y.a.hostility * might(y.k)) - (x.a.hostility * might(x.k)))[0];
+        const names = Array.isArray(C.names) && C.names.length ? C.names : DEFAULTS.names;
+        const id = st.nextId++;
+        const name = _fill(names[Math.floor(_roll(`realm-league:${_seed(world)}:${id}:${leader.k.id}`) * names.length) % names.length], { place: Coalitions._place(world, leader.k) });
+        const cb = power.parts.conquests >= _num(C.power.conquest, 12) ? 'conquest' : 'crown';
+        const casusBelli = cb === 'conquest' ? `To win back the towns ${t.name} tore from its neighbours.` : `To check the overmighty ${t.name} before it swallows them all.`;
+        const members = {};
+        for (const { a, k } of pool) {
+            members[k.id] = { kingdomId: k.id, name: k.name, joined: day, hostility: a.hostility, leader: k === leader.k, war: false, prior: (k.wars || []).includes(t.id), left: false, why: null };
+        }
+        const R = C.resolve;
+        const L = {
+            id, name, targetId: t.id, targetName: t.name, leaderId: leader.k.id, leaderName: leader.k.name, cb, casusBelli,
+            stage: 'forming', formed: day, dueDay: day + _num(C.ultimatumDays, 14),
+            powerAtForm: power.score, lastPower: power.score,
+            resolve: Math.min(_num(R.max, 100), _r1(_num(R.start) + pool.reduce((sum, { k }) => sum + _num(R.perMember) * Coalitions.warWill(k), 0))),
+            members, bought: [], log: [],
+            // (the player's rule: capped by its means)
+            terms: Coalitions.terms(power.score, pool.length, Coalitions.means(world, { kingdom: t })),
+        };
+        st.active.push(L);
+        delete st.pressure[t.id];
+        st.stats.formed++;
+        const list = pool.map(x => x.k.name).join(', ');
+        Coalitions._log(L, day, `${name} is sworn at the court of ${Names.realm(leader.k.name)} against ${t.name}: ${list}. ${casusBelli}`);
+        const text = `⚜️ ${name} is sworn against ${Names.realm(t.name)}: ${list}. Their terms: ${Utils.formatGold(L.terms.gold)} gold within ${_num(C.ultimatumDays, 14)} days, or war.`;
+        if (Array.isArray(world.events)) world.events.push({ text, type: 'diplomatic', category: 'POLITICAL', kingdom: t.id });
+        out.push({ icon: '⚜️', title: `${name} Is Sworn`, text, type: 'info' });
+        return L;
+    },
+
+    /** What an AI crown's chests may spare: what they hold over realms.reserveDays of spending (at least keepPurse). */
+    _chestSpare(k) {
+        const RC = _obj(Coalitions.config().realms) || {};
+        const f = k && _obj(k.fisc);
+        const exp = Math.max(1, _num(f && f.avg && f.avg.exp, 0) || 1);
+        return _num(k && k.treasury) - Math.max(_num(RC.keepPurse, 500), exp * _num(RC.reserveDays, 30));
+    },
+
+    /** The AI realm's own dynasty (world/characters: its prestige grows with each child born), or null. */
+    _dynasty(k) {
+        const d = k && k.characterData && _obj(k.characterData.dynasty);
+        return d && Number.isFinite(d.prestige) ? d : null;
+    },
+
+    /** Coin out of a crown's chests into the members' chests, split evenly (the last takes the odd coin). → the gold paid */
+    _payMembers(world, payer, takers, amount) {
+        const gold = Math.floor(Math.min(_num(amount), Math.max(0, _num(payer.treasury))));
+        if (!(gold > 0) || !takers.length) return 0;
+        payer.treasury = _num(payer.treasury) - gold;
+        const share = Math.floor(gold / takers.length);
+        takers.forEach((k, i) => {
+            const a = i === takers.length - 1 ? gold - share * (takers.length - 1) : share;
+            k.treasury = _num(k.treasury) + a;
+            MoneySupply.transfer(world, payer.id, k.id, a, 'tribute');
+        });
+        return gold;
+    },
+
+    _realmMembers(L) {
+        return L ? Object.values(L.members || {}).filter(m => !m.left) : [];
+    },
+
+    /**
+     * The target answers the league's terms on the deadline. It weighs its
+     * might (KingdomAI._might) against the members': at fightLo of theirs or
+     * less it will not fight, at fightHi or more it surely does, between by a
+     * hash roll (× its personality's war). Not fighting, it makes the
+     * cheapest concession it can bear: it bows (its dynasty's prestige,
+     * keeping prestigeKeep in hand), pays from chests that keep reserveDays
+     * of spending, or yields a disputed border town (one a member lost to it,
+     * else the one nearest the leader, with yieldMinTowns towns or more).
+     * With none it can bear, it fights. → L.answer: bowed | paid | yielded | defied
+     */
+    _realmAnswer(world, player, L, out) {
+        const C = Coalitions.config();
+        const RC = _obj(C.realms) || {};
+        const A = _obj(RC.answer) || {};
+        const st = Coalitions.realmsState(world);
+        const t = world.getKingdom(L.targetId);
+        if (!t || !t.isAlive) { Coalitions._realmEnd(world, L, 'broken', `${L.targetName} has fallen`, out); return; }
+        const day = _day(world);
+        const dyn = Coalitions._dynasty(t);
+        const takers = Coalitions._realmMembers(L).map(m => world.getKingdom(m.kingdomId)).filter(k => k && k.isAlive);
+        const theirs = takers.reduce((s, k) => s + KingdomAI._might(k), 0);
+        const ratio = theirs > 0 ? KingdomAI._might(t) / theirs : 9;
+        const lo = _num(A.fightLo, 0.5);
+        const hi = Math.max(lo + 0.01, _num(A.fightHi, 1.3));
+        const pers = _obj(((C.threat || {}).personality || {})[KingdomAI.personalityId(t)]) || {};
+        const will = _clamp(((ratio - lo) / (hi - lo)) * _num(pers.war, 1), 0, 1);
+        const roll = _roll(`realm-league-answer:${_seed(world)}:${L.id}:${t.id}`);
+        L.weighed = { ratio: Math.round(ratio * 100) / 100, will: Math.round(will * 100) / 100, spare: Math.round(Coalitions._chestSpare(t)), chests: Math.round(_num(t.treasury)), revenue: Math.round(CrownBooks.lastRevenue(t)), upkeep: Math.round(_num(t.fisc && t.fisc.avg && t.fisc.avg.exp)), prestige: dyn ? Math.round(dyn.prestige) : null };
+        if (roll >= will && takers.length) {
+            if (dyn && L.terms.prestige > 0 && dyn.prestige >= L.terms.prestige + _num(RC.prestigeKeep, 60)) {
+                dyn.prestige -= L.terms.prestige;
+                L.answer = 'bowed';
+                for (const k of takers) NPCLords.rememberRealm(world, k.id, 'tribute_paid', { note: L.name });
+                st.stats.bowed++;
+                Coalitions._log(L, day, `${t.name} bows before ${L.name}.`);
+                Coalitions._realmEnd(world, L, 'appeased', `${t.name} bowed before it`, out);
+                return;
+            }
+            if (L.terms.gold > 0 && Coalitions._chestSpare(t) >= L.terms.gold) {
+                Coalitions._payMembers(world, t, takers, L.terms.gold);
+                L.answer = 'paid';
+                for (const k of takers) NPCLords.rememberRealm(world, k.id, 'tribute_paid', { note: L.name });
+                if (dyn) dyn.prestige = Math.max(0, dyn.prestige - _num(C.concession.goldShame, 10));
+                st.stats.paid = _num(st.stats.paid) + 1;
+                Coalitions._log(L, day, `${t.name} pays ${L.name} ${Utils.formatGold(L.terms.gold)} gold.`);
+                Coalitions._realmEnd(world, L, 'appeased', `${t.name} paid its terms`, out);
+                return;
+            }
+            const y = Coalitions._realmYieldTown(world, L, t, takers);
+            if (y) {
+                L.answer = 'yielded';
+                L.yielded = { town: y.town, to: y.to.name };
+                for (const k of takers) NPCLords.rememberRealm(world, k.id, 'tribute_paid', { note: L.name });
+                if (dyn) dyn.prestige = Math.max(0, dyn.prestige - _num(C.concession.goldShame, 10));
+                st.stats.yielded = _num(st.stats.yielded) + 1;
+                Coalitions._log(L, day, `${t.name} yields ${y.town} to ${y.to.name} to satisfy ${L.name}.`);
+                const text = `🏳️ ${t.name} yields ${y.town} to ${Names.realm(y.to.name)} rather than face ${L.name}.`;
+                if (Array.isArray(world.events)) world.events.push({ text, type: 'diplomatic', category: 'POLITICAL', kingdom: t.id });
+                Coalitions._realmEnd(world, L, 'appeased', `${t.name} yielded ${y.town}`, out);
+                return;
+            }
+        }
+        st.stats.defied++;
+        L.answer = 'defied';
+        Coalitions._realmActivate(world, L, out);
+    },
+
+    /**
+     * The border town an AI target would yield a league: one a member held
+     * before it (settlement.formerKingdom), back to that member; else, with
+     * yieldMinTowns towns or more, its town nearest a member's capital. Never
+     * its capital. Hands it over (KingdomAI.takeTile, on its own stream). → { town, to } or null
+     */
+    _realmYieldTown(world, L, t, takers) {
+        const A = _obj((Coalitions.config().realms || {}).answer) || {};
+        const towns = typeof world.getSettlementsOf === 'function' ? world.getSettlementsOf(t.id) : [];
+        const isCap = (s) => t.capital && s.q === t.capital.q && s.r === t.capital.r;
+        const open = towns.filter(s => !isCap(s));
+        if (!open.length) return null;
+        const ids = new Set(takers.map(k => k.id));
+        let pick = null;
+        if (A.yieldBack !== false) {
+            for (const s of open) {
+                const st = s.settlement || (world.getTile && (world.getTile(s.q, s.r) || {}).settlement) || s;
+                if (st && st.formerKingdom != null && ids.has(st.formerKingdom)) { pick = { s, to: takers.find(k => k.id === st.formerKingdom) }; break; }
+            }
+        }
+        if (!pick && towns.length >= _num(A.yieldMinTowns, 3)) {
+            for (const s of open) {
+                for (const k of takers) {
+                    if (!k.capital) continue;
+                    const d = Hex.wrappingOffsetDistance(k.capital.q, k.capital.r, s.q, s.r, world.width || 0);
+                    if (!pick || d < pick.d) pick = { s, to: k, d };
+                }
+            }
+        }
+        if (!pick || !pick.to) return null;
+        const to = pick.to;
+        const hadWar = !!(to.warState && to.warState[t.id]);
+        let r = null;
+        Utils.withRng(Utils.seededRandom((Utils.hashStr(`realm-league-yield:${_seed(world)}:${L.id}`) >>> 0) % 233279 + 1), () => {
+            r = KingdomAI.takeTile(to, t, world, pick.s.q, pick.s.r);
+        });
+        // (a yielded town is no war's gain: no war state is left behind between realms at peace)
+        if (!hadWar && to.warState && !(to.wars || []).includes(t.id)) delete to.warState[t.id];
+        if (!r || !r.taken) return null;
+        if (r.town) KingdomAI.afterTownLoss(t, to, world);
+        return { town: r.town ? r.town.name : 'a border town', to };
+    },
+    /** The league marches: each member goes to war with the target, under the limits every aggressor keeps (a league allowed one more). */
+    _realmActivate(world, L, out) {
+        const t = world.getKingdom(L.targetId);
+        const day = _day(world);
+        L.stage = 'active';
+        L.activeDay = day;
+        const declared = [];
+        for (const m of Coalitions._realmMembers(L)) {
+            const k = world.getKingdom(m.kingdomId);
+            if (!k || !k.isAlive || !t) continue;
+            if ((k.wars || []).includes(t.id)) { m.war = true; m.prior = true; continue; }
+            if (KingdomAI.mayOpenWar(k, t, world, { rested: false, founding: false, beset: false, maxOn: KingdomAI.WAR.maxWarsOn + 1 }) && (k.wars || []).length < 3) {
+                Utils.withRng(Utils.seededRandom((Utils.hashStr(`realm-league-war:${_seed(world)}:${k.id}:${t.id}:${day}`) >>> 0) % 233279 + 1),
+                    () => KingdomAI.startWar(k, t, world));
+                if ((k.wars || []).includes(t.id)) { m.war = true; m.warDay = day; declared.push(k.name); }
+            }
+        }
+        const text = `⚔️ ${L.name} marches on ${Names.realm(L.targetName)}${declared.length ? `: war from ${declared.join(', ')}` : ''}.`;
+        Coalitions._log(L, day, text);
+        if (Array.isArray(world.events)) world.events.push({ text, type: 'military', category: 'POLITICAL', kingdom: L.targetId });
+        out.push({ icon: '⚔️', title: `${L.name} Marches`, text, type: 'info' });
+        // (no member could open a war: the league comes to nothing)
+        if (!Coalitions._realmMembers(L).some(m => m.war)) Coalitions._realmEnd(world, L, 'broken', 'none of its members could march', out);
+    },
+
+    /** A league against an AI realm, weekly: members whose war is over leave, the target buys the mightiest out, resolve wears, it ends. */
+    _realmTick(world, player, L, out) {
+        const C = Coalitions.config();
+        const R = C.resolve;
+        const day = _day(world);
+        const t = world.getKingdom(L.targetId);
+        if (!t || !t.isAlive || Coalitions._playerHeld(world, player, t)) { Coalitions._realmEnd(world, L, 'broken', `${L.targetName} is no longer its quarry`, out); return; }
+        if (L.stage !== 'active') return;
+        const power = Coalitions.realmPower(world, t);
+        L.lastPower = power.score;
+        for (const m of Coalitions._realmMembers(L)) {
+            const k = world.getKingdom(m.kingdomId);
+            if (!k || !k.isAlive) { Coalitions._realmLeave(world, L, m, 'its crown has fallen'); L.resolve += _num(R.memberLost); continue; }
+            if (m.war && !(k.wars || []).includes(t.id)) {
+                const beaten = (world.warHistory || []).some(h => h && h.victor === t.id && ((h.a === k.id && h.b === t.id) || (h.a === t.id && h.b === k.id)) && _num(h.day, day) >= _num(L.activeDay));
+                Coalitions._realmLeave(world, L, m, beaten ? `humbled in the field by ${t.name}` : `its war with ${t.name} is over`);
+                L.resolve += beaten ? _num(R.memberHumbled) : _num(R.memberLost);
+                continue;
+            }
+            if (k.relations) k.relations[t.id] = Math.min(_num(k.relations[t.id]), _num(C.relationsFloor, -40));
+        }
+        // The target buys the mightiest member it can afford out of the league (the bot's way with the player's)
+        const B = C.buyoff;
+        const left = Coalitions._realmMembers(L).map(m => ({ m, k: world.getKingdom(m.kingdomId) })).filter(x => x.k && x.k.isAlive)
+            .sort((a, b) => _num(b.k.military) - _num(a.k.military));
+        for (const { m, k } of left) {
+            const price = Math.round((_num(B.goldBase) + _num(k.military) * _num(B.perMilitary) + _num(m.hostility) * _num(B.perThreat)) * (m.leader ? 1.5 : 1));
+            if (!(price > 0) || Coalitions._chestSpare(t) < price) continue;
+            Coalitions._payMembers(world, t, [k], price);
+            Coalitions._realmLeave(world, L, m, `bought out by ${t.name}`, { endWar: true });
+            L.bought.push(k.id);
+            L.resolve += _num(B.resolve, -10);
+            Coalitions.realmsState(world).stats.boughtOff++;
+            break;
+        }
+        L.resolve += _num(R.weekly);
+        const grew = power.score - _num(L.powerSeen, L.powerAtForm);
+        if (grew > 0) L.resolve += grew * _num(R.powerGrowth);
+        L.powerSeen = Math.max(_num(L.powerSeen, L.powerAtForm), power.score);
+        L.resolve = _r1(_clamp(L.resolve, -100, _num(R.max, 100)));
+        const n = Coalitions._realmMembers(L).length;
+        if (power.score < _num(C.formAt, 140) * _num(C.dissolvePowerShare, 0.6)) Coalitions._realmEnd(world, L, 'humbled', `${t.name} no longer towers over them`, out);
+        else if (n < _num(C.minMembers, 2)) Coalitions._realmEnd(world, L, 'broken', n ? `only ${Coalitions._realmMembers(L)[0].name} is left in it` : 'its members are gone', out);
+        else if (L.resolve <= 0) Coalitions._realmEnd(world, L, 'broken', 'its members have lost heart', out);
+    },
+
+    _realmLeave(world, L, m, why, opts = {}) {
+        if (!m || m.left) return;
+        m.left = true;
+        m.why = why;
+        m.leftDay = _day(world);
+        const k = world.getKingdom(m.kingdomId);
+        const t = world.getKingdom(L.targetId);
+        // (the league's war ends with its leaving; a member's own older war runs on)
+        if (opts.endWar && k && t && m.war && !m.prior && (k.wars || []).includes(t.id) && !KingdomAI.isSworn(k, t, world)) {
+            KingdomAI.endWar(k, t, world, { text: `🕊️ ${k.name} makes peace with ${Names.realm(t.name)} and leaves ${L.name}.` });
+        }
+        Coalitions._log(L, _day(world), `${m.name} leaves ${L.name}: ${why}.`);
+    },
+
+    /** The league against an AI realm disbands; the wars it started end with it. how: 'appeased' | 'humbled' | 'broken'. */
+    _realmEnd(world, L, how, why, out) {
+        const C = Coalitions.config();
+        const st = Coalitions.realmsState(world);
+        const day = _day(world);
+        for (const m of Coalitions._realmMembers(L)) Coalitions._realmLeave(world, L, m, how === 'appeased' ? 'the terms were met' : 'the league disbands', { endWar: true });
+        L.stage = 'ended';
+        L.ended = day;
+        L.how = how;
+        st.active = st.active.filter(x => x !== L);
+        st.history.unshift({
+            id: L.id, name: L.name, targetId: L.targetId, targetName: L.targetName, leaderName: L.leaderName, cb: L.cb,
+            members: Object.values(L.members).map(m => m.name), formed: L.formed, activeDay: Number.isFinite(L.activeDay) ? L.activeDay : null, ended: day, how, why, answer: L.answer || null, bought: (L.bought || []).length, terms: L.terms ? { gold: L.terms.gold, asked: L.terms.asked, prestige: L.terms.prestige } : null, weighed: L.weighed || null, yielded: L.yielded || null,
+        });
+        if (st.history.length > 12) st.history.length = 12;
+        st.cooldown[L.targetId] = day + _num((C.cooldown || {})[how], 240);
+        st.lastEnd = day;
+        st.stats[how] = _num(st.stats[how]) + 1;
+        const text = how === 'appeased' ? `🕊️ ${L.name} stands down: ${why}.` : how === 'humbled' ? `🕊️ ${L.name} disbands: ${why}.` : `${L.name} breaks apart: ${why}.`;
+        if (Array.isArray(world.events)) world.events.push({ text, type: 'diplomatic', category: 'POLITICAL', kingdom: L.targetId });
+        if (out) out.push({ icon: '🕊️', title: `${L.name} Ends`, text, type: 'info' });
+    },
 
     /**
      * Everything the Threats panel shows: { power, concern, form, realms[],

@@ -17,9 +17,12 @@
 //             first, at the town's price: the treasury pays the town's purse
 //             (booked on the crown's 'arms' line). Never more than a share of
 //             a town's stock at once, never past the treasury's reserve.
-//             A slot none of its own towns can sell is imported: bought from
-//             the nearest friendly or free towns at their price plus the
-//             carriage (imports.markup), paid into that town's purse
+//             Each lot is bought where it is cheapest with the carriage: its
+//             own towns, or the nearest friendly or free towns abroad at their
+//             price plus the carriage (imports.markup + perHex × the hexes
+//             from its nearest town), paid into that town's purse. Its own
+//             smiths keep the trade while they are within homeMargin of the
+//             best price abroad (a crown feeds its own forges first)
 //   wear      pieces wear out, faster at war: this is the realm's draw on its
 //             towns' arms (the old war-demand multiplier on the markets is gone)
 //   battle    the fallen's arms are lost; the side holding the field gathers
@@ -334,21 +337,27 @@ export const RealmArms = {
         if (!towns.length) return out;
         const def = RealmArms.deficits(kingdom);
         const share = _clamp(_num(C.marketShare, 0.5), 0, 1);
-        // Imports (realms.imports): a slot none of its own towns can sell is bought
-        // abroad, from friendly and free towns near its own, at the town's price
-        // plus the carriage (markup), paid into that town's purse
+        // Imports (realms.imports): a lot is bought abroad, from friendly and free
+        // towns near its own, when it is cheaper there with the carriage (markup +
+        // perHex × the distance) by more than homeMargin than at home — or its own
+        // towns sell none of it — at the town's price plus the carriage, paid into
+        // that town's purse. The same rule for every crown, great or small.
         const I = _obj(C.imports) || {};
+        const imports = I.enabled !== false && !!_obj(C.imports);
         let abroad = null;
         const importShare = _clamp(_num(I.marketShare, 0.25), 0, 1);
-        const markup = 1 + Math.max(0, _num(I.markup, 0.3));
+        const markup = Math.max(0, _num(I.markup, 0.3));
+        const perHex = Math.max(0, _num(I.perHex, 0));
+        const homeMargin = _clamp(_num(I.homeMargin, 0), 0, 0.9);
         // (abroad, at most the share of what a town's stall held when the buyers came: `taken` this round)
         const taken = new Map();
-        const pick = (list, goods, sh, mult) => {
+        const pick = (list, goods, sh, far) => {
             let best = null;
             for (const t of list) {
+                const mult = far ? 1 + markup + perHex * _num(t.d) : 1;
                 for (const id of goods) {
                     if (!SettlementMarket.tracks(id)) continue;
-                    const was = mult > 1 ? _num(taken.get(t.s) && taken.get(t.s)[id]) : 0;
+                    const was = far ? _num(taken.get(t.s) && taken.get(t.s)[id]) : 0;
                     const can = Math.floor((SettlementMarket.stock(t.s, id) + was) * sh + 1e-9) - was;
                     if (!(can >= 1)) continue;
                     const good = RealmArms._good(id);
@@ -356,7 +365,7 @@ export const RealmArms = {
                     const price = Math.max(1, Economy.marketPrice(good, t.s, t.tile, world) * mult);
                     // (the cheapest for the worth it gives: price / tier)
                     const v = price / Math.max(0.1, _num(C.tier[id], 1));
-                    if (!best || v < best.v) best = { t, id, price, can, v, imported: mult > 1 };
+                    if (!best || v < best.v) best = { t, id, price, can, v, imported: far };
                 }
             }
             return best;
@@ -376,10 +385,11 @@ export const RealmArms = {
             // (ammo is bought by the sheaf: a few dozen at a time)
             const lot = slot === 'ammo' ? 24 : 4;
             for (let guard = 0; want > 0 && budget >= 1 && guard < 60; guard++) {
-                let best = pick(towns, goods, share, 1);
-                if (!best && I.enabled !== false && _obj(C.imports)) {
+                let best = pick(towns, goods, share, false);
+                if (imports) {
                     if (!abroad) abroad = RealmArms._importTowns(kingdom, world, towns);
-                    best = pick(abroad, goods, importShare, markup);
+                    const far = abroad.length ? pick(abroad, goods, importShare, true) : null;
+                    if (far && (!best || far.v < best.v * (1 - homeMargin))) best = far;
                 }
                 if (!best) break;
                 const n = Math.min(want, best.can, lot, Math.floor(budget / best.price));

@@ -497,7 +497,7 @@ function milTraceYear(game, seed, year) {
     const h = Throne.ruledKingdom(game.player, w);
     const ais = w.kingdoms.filter(k => k && k.isAlive && (!h || k.id !== h.id)).length || 1;
     const towns = (kid) => w.getSettlementViews().filter(s => s.kingdom === kid && s.type !== 'village').length;
-    const books = (k) => { const f = k.fisc || {}; return `${k.id} pop ${Math.round(k.population)} towns ${towns(k.id)} mil ${Math.round(k.military)} cap ${k.militaryCap} af ${r2(CrownBooks.armyFactor(k))} pay ${f.armyPay} arr ${f.arrearsDays} lvl ${f.level} treas ${Math.round(k.treasury)} stab ${Math.round(k.stability)} wars ${(k.wars || []).length} coin ${(() => { const R = MoneySupply.realm(w, k.id); return R ? Math.round(R.coin || 0) : '-'; })()} levy ${Math.round((Throne.state(game.player).ruling || {}).levyTotal || 0)} corr ${r2(f.corruption || 0)} mult ${r2(f.mult || 0)} farms ${w.getSettlementViews().filter(v => { const t = w.getTile(v.q, v.r); return t && t.settlement && t.settlement.kingdom === k.id && t.settlement.taxFarm; }).length} st ${JSON.stringify(f.stats || {})}`; };
+    const books = (k) => { const f = k.fisc || {}; return `${k.id} pop ${Math.round(k.population)} towns ${towns(k.id)} mil ${Math.round(k.military)} cap ${k.militaryCap} away ${JSON.stringify(k.menAway || {})} af ${r2(CrownBooks.armyFactor(k))} pay ${f.armyPay} arr ${f.arrearsDays} lvl ${f.level} treas ${Math.round(k.treasury)} stab ${Math.round(k.stability)} wars ${(k.wars || []).length} coin ${(() => { const R = MoneySupply.realm(w, k.id); return R ? Math.round(R.coin || 0) : '-'; })()} levy ${Math.round((Throne.state(game.player).ruling || {}).levyTotal || 0)} corr ${r2(f.corruption || 0)} mult ${r2(f.mult || 0)} farms ${w.getSettlementViews().filter(v => { const t = w.getTile(v.q, v.r); return t && t.settlement && t.settlement.kingdom === k.id && t.settlement.taxFarm; }).length} st ${JSON.stringify(f.stats || {})}`; };
     out(`  [${seed}] MT y${year} HOME ${h ? books(h) : '-'}`);
     if (h) {
         const R = MoneySupply.realm(w, h.id) || {};
@@ -591,6 +591,13 @@ function milTraceYear(game, seed, year) {
         const foes = {};
         for (const k of alive) foes[k.id] = `${alive.filter(o => o !== k && ((o.relations || {})[k.id] || 0) < -30).length}f/${(k.allies || []).length}a`;
         out(`  [${seed}] MT y${year} foes ${JSON.stringify(foes)}`);
+    }
+    // the holy wars of the world: on foot (target, towns taken, resolve) and ended (outcome, terms)
+    {
+        const hw = w.holyWars || {};
+        const live = (hw.wars || []).map(x => `${x.target}:${x.phase}/g${(x.gained || []).length}/r${Math.round(x.resolve || 0)}/m${(x.members || []).length}${x.termsTried ? `/tried${x.termsTried}` : ''}`);
+        const past = (hw.past || []).map(x => `${x.target}:${x.outcome}${x.terms ? `(${x.terms.how}${x.terms.paid ? ` ${Math.round(x.terms.paid)}g` : ''})` : ''}@y${Math.round(((x.to || 0) / Y) * 10) / 10}`);
+        out(`  [${seed}] MT y${year} HOLY live [${live.join(' ')}] past [${past.join(' ')}]`);
     }
     T.declOn = {};
     T.mil = {}; T.pop = {}; T.gold = {}; T.war = {}; T.rel = {}; T.wd = {};

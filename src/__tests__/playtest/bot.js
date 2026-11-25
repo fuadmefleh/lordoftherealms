@@ -1226,9 +1226,17 @@ function throne(game, stats) {
         const k = Throne.ruledKingdom(player, world);
         if (k && Utils.random() < 0.1) {
             const stab = typeof k.stability === 'number' ? k.stability : 60;
-            const tax = stab < 45 ? 'light' : stab > 70 ? 'standard' : st.ruling.policies.tax === 'heavy' ? 'standard' : st.ruling.policies.tax;
+            // (at war or with the chests short of the war chest, standard: the light policy
+            // also cuts the crown's own taxes a tenth, more than the 7% of the dues it spares
+            // the chests in levy — and the levy already backs off until the chest is built,
+            // Throne.levyQuote 'chest'. Light only where the realm is restless.)
+            const lq = Throne.levyQuote(player, world, k);
+            const pressed = (k.wars || []).length > 0 || (k.treasury || 0) < lq.chest;
+            const tax = stab < 45 ? 'light' : stab > 70 || pressed ? 'standard' : st.ruling.policies.tax === 'heavy' ? 'standard' : st.ruling.policies.tax;
+            if (lq.limit === 'chest') count(stats, 'levyHeldForChest');
             if (tax !== st.ruling.policies.tax && Throne.setPolicy(player, world, 'tax', tax).success) count(stats, 'policiesSet');
-            const short = Throne.levyQuote(player, world, k).limit === 'surplus' || (k.wars || []).length > 1;
+            // (the upkeep eating the dues: what the 'surplus' limit was before the war chest's came after it)
+            const short = Math.max(0, lq.surplus) * (Throne.config().ruling.levySurplusShare ?? 0.75) < lq.base * lq.stabilityMult || (k.wars || []).length > 1;
             const stance = short ? 'peace' : 'defensive';
             if (stance !== st.ruling.policies.stance && Throne.setPolicy(player, world, 'stance', stance).success) count(stats, 'policiesSet');
             if (Utils.random() < 0.2) {
@@ -1327,6 +1335,8 @@ function royalCourt(game, stats) {
         else if (Kingship.concede(player, world, f.faction.id).success) count(stats, 'factionsConceded');
     }
     if (ruled && world.day % 7 === 2) foreignAffairs(game, stats, ruled);
+    if (ruled && world.day % 7 === 2) holyWarTerms(game, stats, ruled);
+    if (ruled && world.day % 7 === 2) reclaimWeek(game, stats, ruled);
     if (court.revolt && Utils.random() < 0.05 && Kingship.parley(player, world).success) count(stats, 'revoltParleys');
     if (Utils.random() < 0.03 && Kingship.holdFeast(player, world).success) count(stats, 'royalFeasts');
     const unhappy = court.vassals.find(v => !v.rebel && v.opinion < -20);
@@ -1391,6 +1401,60 @@ function foreignAffairs(game, stats, k) {
             if (Kingship.revokeEdict(player, world, id).success) { count(stats, 'edictsRepealed'); game.lastRepeal = world.day; }
             break;
         }
+    }
+}
+
+/**
+ * Revanche (world/revanche.js): the realm goes back for a town it lost — its
+ * old seat above all — when it is strong enough: at peace, a season since its
+ * last war, its ranks refilled, its chests a month deep and its people settled,
+ * and its might (the realm's and the bot's own host) at least `need` times the
+ * holder's — less the heavier the claim (a lost capital about 1.05×, a town 1.35×). The
+ * war is a reclaim war (Throne.declareRealmWar): won once the town is back.
+ * Draws no RNG.
+ */
+function reclaimWeek(game, stats, k) {
+    const { player, world } = game;
+    if ((k.wars || []).length || Throne.state(player).civilWar) { game.lastRealmWarDay = world.day; return; }
+    if (world.day - (game.lastRealmWarDay || -1e9) < 120) return;
+    if ((k.military || 0) < 0.85 * (k.militaryCap || 0) || (k.stability || 0) < 45 || Fiscal.reserveDays(k) < 30) return;
+    const might = (o) => (o.military || 0) + (o.population || 0) * 0.1;
+    const ours = might(k) + PlayerMilitary.getArmyStrength(player);
+    const open = new Map(Throne.diplomacyTargets(player, world).filter(d => !d.atWar && !d.allied && !d.truce && d.claim > 0).map(d => [String(d.kingdom.id), d]));
+    for (const t of Throne.lostTowns(player, world)) {
+        const d = open.get(String(t.holderId));
+        if (!d || (d.kingdom.wars || []).length >= 2) continue;
+        const need = Math.max(1, 1.5 - 0.15 * d.claim);
+        if (ours < might(d.kingdom) * need) continue;
+        if (Throne.declareRealmWar(player, world, d.kingdom.id).success) {
+            count(stats, t.capital ? 'reclaimCapitalWars' : 'reclaimWars');
+            game.lastRealmWarDay = world.day;
+        }
+        return;
+    }
+}
+
+/**
+ * A holy war against the bot's realm (sworn: envoys can't end it) is ended on
+ * terms when it goes badly — a town lost, or the crusaders' hosts outweighing
+ * ours: the holy site if it is the cause, a penance the chests can bear (half
+ * of them, the purse topping up), the see's rite or tolerance, a town (with
+ * three or more), as an AI crown would (HolyWars._aiTerms).
+ */
+function holyWarTerms(game, stats, k) {
+    const { player, world } = game;
+    for (const { war, terms } of HolyWars.termsFor(player, world)) {
+        const crusaders = war.members.reduce((t, id) => t + ((world.getKingdom(id) || {}).military || 0), 0);
+        const ours = (k.military || 0) + PlayerMilitary.getArmyStrength(player);
+        if (!(war.gained.length > 0 || crusaders > ours * 1.2)) continue;
+        const ok = terms.filter(o => o.ok);
+        const spare = Math.max(0, k.treasury || 0) * 0.5 + Math.max(0, (player.gold || 0) - 300);
+        const towns = world.getSettlementViews().filter(s => s.kingdom === k.id).length;
+        const pick = ok.find(o => o.how === 'yieldSite') || ok.find(o => (o.how === 'indemnity' || o.how === 'submit') && o.cost <= spare)
+            || ok.find(o => o.how === 'rite' || o.how === 'tolerate') || ok.find(o => o.how === 'yield' && towns >= 3);
+        if (!pick) continue;
+        const r = HolyWars.offerTerms(player, world, war.id, pick.how);
+        if (r.success) count(stats, r.accepted ? `holyTerms_${pick.how}` : 'holyTermsRefused');
     }
 }
 

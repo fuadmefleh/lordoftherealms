@@ -293,6 +293,202 @@ describe('Coalitions — a league sworn, at war, and split', () => {
     });
 });
 
+describe('Coalitions — a league against an overmighty AI realm', () => {
+    /** One AI realm made dominant: a vast army, towns taken lately, its neighbours sour on it. */
+    function dominant(game) {
+        const { world } = game;
+        const t = world.kingdoms.filter(k => k.isAlive && k.capital)
+            .sort((a, b) => world.getSettlementsOf(b.id).length - world.getSettlementsOf(a.id).length)[0];
+        t.military = 200000;
+        t.conquests = [1, 2, 3, 4].map(i => ({ d: world.day, from: null, i }));
+        for (const k of world.kingdoms) {
+            if (k === t || !k.isAlive) continue;
+            k.relations = k.relations || {};
+            k.relations[t.id] = -100;
+            k.truces = {};
+            k.wars = (k.wars || []).filter(id => id !== t.id);
+            k.restUntil = 0;
+        }
+        t.wars = [];
+        t.truces = {};
+        t.declaredOnDay = null;
+        return t;
+    }
+
+    // (a small test world's biggest realm holds few towns: the mark is set just under its might,
+    // the rule itself the player's — Coalitions.config().formAt)
+    let formAt;
+    beforeAll(() => { formAt = Coalitions.config().formAt; });
+    afterAll(() => { Coalitions.config().formAt = formAt; });
+    function lowerMark(world, t) {
+        Coalitions.config().formAt = Math.min(formAt, Math.floor(Coalitions.realmPower(world, t).score) - 1);
+    }
+
+    /** Two weekly reckonings with no one alive: the league is sworn. */
+    function swear(game) {
+        const { world } = game;
+        const t = dominant(game);
+        lowerMark(world, t);
+        const d2 = weekDay(weekDay(world.day + 1) + 1);
+        while (world.day < d2) { world.day++; Coalitions.processDay(world, null); }
+        return t;
+    }
+
+    it('the same might that brings a league on the player brings one on a dominant AI realm, with no one alive', () => {
+        const game = newGame(SEED);
+        const { world } = game;
+        const t = swear(game);
+        expect(Coalitions.realmPower(world, t).score).toBeGreaterThanOrEqual(Coalitions.config().formAt);
+        const L = Coalitions.leagueAgainst(world, t.id);
+        expect(L).toBeTruthy();
+        expect(L.stage).toBe('forming');
+        expect(Coalitions._realmMembers(L).length).toBeGreaterThanOrEqual(Coalitions.config().minMembers);
+        expect(Object.keys(L.members)).not.toContain(String(t.id));
+        expect(L.terms.gold).toBeGreaterThan(0);
+        // (the player's own league is not touched)
+        expect(Coalitions.active(game.player)).toBeNull();
+        // only one at a time in the world
+        expect(Coalitions.realmsState(world).active.length).toBe(1);
+    });
+
+    it('a realm that cannot pay or bow is marched on by every member; the league ends its wars when it breaks', () => {
+        const game = newGame(SEED);
+        const { world } = game;
+        const t = swear(game);
+        const L = Coalitions.leagueAgainst(world, t.id);
+        t.treasury = 0;
+        if (t.characterData && t.characterData.dynasty) t.characterData.dynasty.prestige = 0;
+        while (world.day < L.dueDay) { world.day++; Coalitions.processDay(world, null); }
+        expect(L.stage).toBe('active');
+        expect(L.answer).toBe('defied');
+        // (its host outweighs theirs: it fights whatever its means)
+        expect(L.weighed.ratio).toBeGreaterThan(Coalitions.config().realms.answer.fightHi);
+        const marching = Coalitions._realmMembers(L).filter(m => m.war);
+        expect(marching.length).toBeGreaterThan(0);
+        for (const m of marching) expect(world.getKingdom(m.kingdomId).wars).toContain(t.id);
+        // its resolve spent, it breaks and its wars end
+        L.resolve = 0.5;
+        const d = weekDay(world.day + 1);
+        while (world.day < d) { world.day++; Coalitions.processDay(world, null); }
+        expect(Coalitions.leagueAgainst(world, t.id)).toBeNull();
+        for (const m of marching) if (!m.prior) expect(world.getKingdom(m.kingdomId).wars || []).not.toContain(t.id);
+        const st = Coalitions.realmsState(world);
+        expect(st.history[0].targetId).toBe(t.id);
+        expect(st.cooldown[t.id]).toBeGreaterThan(world.day);
+    });
+
+    it('a rich realm pays its terms into the members\' chests and the league stands down; the coin is conserved', () => {
+        const game = newGame(SEED);
+        const { world } = game;
+        const t = swear(game);
+        const L = Coalitions.leagueAgainst(world, t.id);
+        if (t.characterData && t.characterData.dynasty) t.characterData.dynasty.prestige = 0;
+        t.treasury = 1e6;
+        // (no match for the members in the field now: it will not fight)
+        t.military = 0;
+        t.population = 0;
+        const takers = Coalitions._realmMembers(L).map(m => world.getKingdom(m.kingdomId));
+        const sum = () => t.treasury + takers.reduce((s, k) => s + k.treasury, 0);
+        const before = sum();
+        const theirs = takers.reduce((s, k) => s + k.treasury, 0);
+        while (world.day < L.dueDay) { world.day++; Coalitions.processRealms(world, null); }
+        expect(Coalitions.leagueAgainst(world, t.id)).toBeNull();
+        expect(Coalitions.realmsState(world).history[0].how).toBe('appeased');
+        expect(takers.reduce((s, k) => s + k.treasury, 0) - theirs).toBe(L.terms.gold);
+        expect(sum()).toBeCloseTo(before, 6);
+        for (const k of takers) expect(k.wars || []).not.toContain(t.id);
+    });
+
+    it('the terms follow the target\'s means, by one rule for an AI crown and the player', () => {
+        const K = Coalitions.config().concession;
+        const asked = Coalitions.terms(150, 3).gold;
+        expect(asked).toBe(K.goldBase + 150 * K.goldPerPower + 3 * K.goldPerMember);
+        // a poor target: revenueShare of a year's revenue + chestShare of its chests
+        const poor = Coalitions.terms(150, 3, { revenue: 10, chests: 1000 });
+        expect(poor.gold).toBe(Math.round(10 * K.means.yearDays * K.means.revenueShare + 1000 * K.means.chestShare));
+        expect(poor.gold).toBeLessThan(asked);
+        expect(poor.asked).toBe(asked);
+        // a rich one is asked the full price; a beggar never less than the floor
+        expect(Coalitions.terms(150, 3, { revenue: 1000, chests: 1e5 }).gold).toBe(asked);
+        expect(Coalitions.terms(150, 3, { revenue: 0, chests: 0 }).gold).toBe(K.means.floor);
+        // The player's quote: the same rule on the purse (and income, and a ruled crown's books)
+        const game = newGame(SEED);
+        const { world, player } = game;
+        player.gold = 2000;
+        const m = Coalitions.means(world, { player });
+        expect(m.chests).toBeGreaterThanOrEqual(2000);
+        expect(Coalitions.concessionQuote(player, world, { power: 150, members: 3 }).gold).toBe(Coalitions.terms(150, 3, m).gold);
+        // An AI league's: the target crown's revenue and chests
+        const t = swear(game);
+        const L = Coalitions.leagueAgainst(world, t.id);
+        expect(L.terms.gold).toBe(Coalitions.terms(L.powerAtForm, Coalitions._realmMembers(L).length, Coalitions.means(world, { kingdom: t })).gold);
+        expect(L.terms.gold).toBeLessThanOrEqual(L.terms.asked);
+    });
+
+    /** Sworn against a realm with no host to speak of (it will not fight), its prestige and chests as given. */
+    function weakTarget(game, { prestige = 0, treasury = 0 } = {}) {
+        const { world } = game;
+        const t = swear(game);
+        const L = Coalitions.leagueAgainst(world, t.id);
+        t.military = 0;
+        t.population = 0;
+        t.treasury = treasury;
+        t.fisc = null;
+        t.characterData = t.characterData || {};
+        t.characterData.dynasty = { ...(t.characterData.dynasty || {}), prestige };
+        return { t, L };
+    }
+
+    it('a weak realm with prestige to spare bows; with neither prestige nor coin it yields a border town a member held before', () => {
+        const game = newGame(SEED);
+        const { world } = game;
+        const { t, L } = weakTarget(game, { prestige: 500 });
+        while (world.day < L.dueDay) { world.day++; Coalitions.processRealms(world, null); }
+        expect(L.answer).toBe('bowed');
+        expect(t.characterData.dynasty.prestige).toBe(500 - L.terms.prestige);
+        expect(Coalitions.realmsState(world).history[0].how).toBe('appeased');
+        for (const m of Object.values(L.members)) expect(world.getKingdom(m.kingdomId).wars || []).not.toContain(t.id);
+
+        const g2 = newGame(SEED);
+        const w2 = g2.world;
+        const b = weakTarget(g2);
+        const member = w2.getKingdom(Coalitions._realmMembers(b.L).find(m => !m.leader).kingdomId);
+        const towns = KingdomAI._settlementsOf(b.t, w2).filter(s => !(s.q === b.t.capital.q && s.r === b.t.capital.r));
+        expect(towns.length).toBeGreaterThan(0);
+        const disputed = towns[towns.length - 1];
+        for (const s of towns) s.settlement.formerKingdom = null;
+        disputed.settlement.formerKingdom = member.id;
+        const n0 = KingdomAI._settlementsOf(b.t, w2).length;
+        while (w2.day < b.L.dueDay) { w2.day++; Coalitions.processRealms(w2, null); }
+        expect(b.L.answer).toBe('yielded');
+        expect(w2.getTile(disputed.q, disputed.r).kingdom).toBe(member.id);
+        expect(disputed.settlement.kingdom).toBe(member.id);
+        expect(KingdomAI._settlementsOf(b.t, w2).length).toBe(n0 - 1);
+        expect(b.t.capital).toBeTruthy();
+        // (no war between them for it, nor a war's book left behind)
+        expect(member.wars || []).not.toContain(b.t.id);
+        expect(Coalitions.realmsState(w2).stats.yielded).toBe(1);
+    });
+
+    it('never targets the player\'s realm (its league is the player\'s own), and survives a save', () => {
+        const game = newGame(SEED);
+        const { world } = game;
+        const t = dominant(game);
+        lowerMark(world, t);
+        t.crown = { ...(t.crown || {}), playerRuled: true };
+        const d2 = weekDay(weekDay(world.day + 1) + 1);
+        while (world.day < d2) { world.day++; Coalitions.processRealms(world, null); }
+        expect(Coalitions.leagueAgainst(world, t.id)).toBeNull();
+        delete t.crown.playerRuled;
+        const d3 = weekDay(weekDay(world.day + 1) + 1);
+        while (world.day < d3) { world.day++; Coalitions.processRealms(world, null); }
+        expect(Coalitions.leagueAgainst(world, t.id)).toBeTruthy();
+        const back = roundTrip(game);
+        expect(Coalitions.leagueAgainst(back.world, t.id)).toBeTruthy();
+        expect(back.world.getKingdom(t.id).conquests.length).toBe(4);
+    });
+});
+
 describe('Vendettas — grudges across generations', () => {
     it('a dying lord swears his blood feud to his heir nearly whole; lesser memories halve', () => {
         const game = newGame(SEED);

@@ -175,6 +175,17 @@
             },
             "ignored": "You never wrote back to {from}."
         },
+        "reclaim_urged": {
+            "_doc": "Sent by CourtLetters' daily tick itself (weight 0: never drawn from the pool) when the realm the player rules remembers a town it lost (world/revanche.js) and outweighs its holder (data/kingship.json config.revanche.urge). March declares a reclaim war (Throne.declareRealmWar); silence costs nothing.",
+            "icon": "🏰", "weight": 0, "expiry": 30,
+            "subject": "{town} still flies the banner of {holder}",
+            "body": "{from} writes: {town}, {what}, has flown the banner of {holder} since {since}. The lords say the realm is strong enough now to take it back, and the people there have not forgotten their old crown. A word from you, and the host marches.",
+            "choices": {
+                "march": { "label": "Declare war on {holder} to reclaim {town}", "tooltip": "A reclaim war: won once the town is back; a victory's peace returns it.", "result": "The banners go up: the realm marches on {holder} to win back {town}." },
+                "wait": { "label": "Not yet", "tooltip": "The realm waits. The claim fades with the years.", "result": "You tell {from} the time is not yet." }
+            },
+            "ignored": "{from}'s letter about {town} lies unanswered."
+        },
         "child_hostage": {
             "icon": "⛓️", "urgent": true, "weight": 8, "expiry": 10, "ransom": [100, 600], "ransomShare": 0.05, "heldPrestige": 8, "heldReputation": -10, "riskDays": 20,
             "subject": "{child} is afraid",

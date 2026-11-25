@@ -119,6 +119,14 @@ describe('river ferries', () => {
         expect(res.text).toContain(f.ferryman);
         expect(res.text).toContain(`${f.fare}g`);
         expect(res.extra).toBeLessThan(res.wade);
+        // ...in the time the road really takes: a bridging reduction shortens it (Infrastructure.riverCrossFactor)
+        p.gold = 50;
+        p.patronage = { fx: { riverCross: 0.5 } };
+        const road = p._riverCrossDays(w, f.q, 5, f.q, 6);
+        const half = Ports.ferryStep(w, p, f.q, 5, f.q, 6);
+        expect(half.extra).toBeCloseTo(res.extra * 0.5, 6);
+        expect(half.extra).toBeCloseTo(road, 6);
+        delete p.patronage;
         // ...and nothing going along the river or on dry land
         expect(Ports.ferryStep(w, p, f.q - 1, 6, f.q, 6)).toBe(null);
         expect(Ports.ferryStep(w, p, 3, 3, 3, 4)).toBe(null);

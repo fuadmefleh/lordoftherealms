@@ -184,6 +184,14 @@ const DEFAULTS = {
     cross: { musterDays: 100, musterRange: 3, serveDays: 40, frontRange: 5, lesserKeep: 0, graveKeep: 0.4, butcherKeep: 0.5, perfidyKeep: 0.6, karma: 12, standing: 18, prestige: 70, reputation: 8, takeStanding: 4, broken: { standing: -25, karma: -10, prestige: 40, grievance: 30 } },
     ban: { banAt: 100, decay: 0.03, atWarSeat: 12, lowPiety: 4, pietyFloor: 15, tolerance: 1.5, stab: -12, vassal: -25, relWeekly: -2, relFloor: -60, allianceBreak: 0.08, pietyWeekly: -0.6, standing: -30, repWeekly: -1, repFloor: -40, price: { base: 400, treasuryShare: 0.12, purseShare: 0.15, max: 6000 }, penanceShare: 0.4, penancePrestige: 30, liftStanding: 10, aiPenanceWeeks: [16, 60], counterPope: 0.04 },
     knight: { title: 'Knight of the Cross', honourFame: 12, servedDeed: 0.5, rival: { chance: 0.3, outfitShare: 0.08, outfitMin: 40, outfitCap: 400, renown: 15, standing: 10, death: 0.06, defeatRenown: -5, guardsLost: 1 } },
+    terms: {
+        enabled: true, afterWeeks: 4, afterWeeksLosing: 1, cooldownDays: 60, crusaderShare: 0.3, riteStability: 8,
+        indemnity: { base: 600, perTown: 250, treasuryShare: 0.2, min: 200, max: 12000 },
+        pressure: { base: 0.6, gained: 1.2, resolve: 0.5, elapsed: -0.5, min: 0.35, max: 2.2 },
+        accept: { indemnity: 0.45, yieldSite: 0.95, yield: 0.65, rite: 0.8, submit: 0.85, tolerate: 0.55, perLostResolve: 0.006, perElapsed: 0.3, perGained: -0.35, min: 0.1, max: 0.97 },
+        humbled: { stab: -4, vassal: -6, days: 240, piety: 2 },
+        ai: { everyWeeks: 2, losingRatio: 1.2, treasuryShare: 0.5, devout: 75, yieldMinTowns: 3, plea: true, urgentShare: 0.9 },
+    },
     text: {},
 };
 
@@ -195,7 +203,8 @@ export const HolyWars = {
     config() {
         const d = _obj(DataLoader._gamedata && DataLoader._gamedata.holyWars) || {};
         const C = { ...DEFAULTS, ...d };
-        for (const k of ['see', 'call', 'answer', 'war', 'cross', 'ban', 'knight', 'text']) C[k] = { ...DEFAULTS[k], ...(_obj(d[k]) || {}) };
+        for (const k of ['see', 'call', 'answer', 'war', 'cross', 'ban', 'knight', 'terms', 'text']) C[k] = { ...DEFAULTS[k], ...(_obj(d[k]) || {}) };
+        for (const k of ['indemnity', 'pressure', 'accept', 'humbled', 'ai']) C.terms[k] = { ...DEFAULTS.terms[k], ...(_obj(d.terms && d.terms[k]) || {}) };
         C.knight.rival = { ...DEFAULTS.knight.rival, ...(_obj(d.knight && d.knight.rival) || {}) };
         C.call.casus = { ...DEFAULTS.call.casus, ...(_obj(d.call && d.call.casus) || {}) };
         C.cross.broken = { ...DEFAULTS.cross.broken, ...(_obj(d.cross && d.cross.broken) || {}) };
@@ -636,6 +645,7 @@ export const HolyWars = {
     _realmsWeek(world, player, day) {
         const A = HolyWars.config().answer;
         const B = HolyWars.config().ban;
+        const H = HolyWars.config().terms.humbled || {};
         for (const k of world.kingdoms || []) {
             if (!_alive(k) || !k.religion) continue;
             const ch = _obj(k.church) || {};
@@ -663,9 +673,11 @@ export const HolyWars = {
             }
             if (_num(ch.refusedUntil) > day) { stab += _num(A.stabRefuse, -6); vassal += _num(A.vassalRefuse, -12); }
             if (_num(ch.answeredUntil) > day) { stab += _num(A.stabAnswer, 4); vassal += _num(A.vassalAnswer, 8); }
+            // (a crown that bought or bargained its way out of a holy war: its lords grumble a while)
+            if (_num(ch.humbledUntil) > day) { stab += _num(H.stab, -4); vassal += _num(H.vassal, -6); }
             if (stab || vassal || b || k.church) {
                 k.church = { ...ch, stab, vassal, banned: !!b };
-                if (!stab && !vassal && !b && !(ch.refusedUntil > day) && !(ch.answeredUntil > day)) delete k.church;
+                if (!stab && !vassal && !b && !(ch.refusedUntil > day) && !(ch.answeredUntil > day) && !(ch.humbledUntil > day)) delete k.church;
             }
         }
         // The player cast out: the faithful realms think the less of them
@@ -983,7 +995,7 @@ export const HolyWars = {
             war.members = war.members.filter(x => x !== id);
             war.resolve = _num(war.resolve) + _num(C.memberOut, -20);
         }
-        if (yielded) return HolyWars._end(world, player, war, 'victory', out);
+        if (yielded) { war.endedBy = 'capitulation'; return HolyWars._end(world, player, war, 'victory', out); }
         if (war.phase === 'war' && !war.members.length) return HolyWars._end(world, player, war, 'defeat', out);
         if (!war.members.length) return null;
         // Towns of the foe now flying a crusader's banner
@@ -1012,6 +1024,312 @@ export const HolyWars = {
         return Math.max(1, Math.min(n || 1, Math.max(_num(C.victoryTowns, 2), Math.ceil(n * _num(C.victoryShare, 0)))));
     },
 
+    // ──────────── TERMS: THE FOE'S WAYS OUT ────────────
+
+    /**
+     * Where a holy war stands, as the see weighs terms: the share of the towns
+     * it needs already taken (gained), the share of its term run (elapsed), its
+     * resolve, and the pressure on the price (more while the crusaders win,
+     * less as their resolve and the term wear out).
+     */
+    termsState(world, war) {
+        const T = HolyWars.config().terms;
+        const day = _day(world);
+        const start = _num(war.answerBy, war.called);
+        const gained = _clamp(_arr(war.gained).length / Math.max(1, HolyWars.townsToWin(war)), 0, 1.5);
+        const elapsed = _clamp((day - start) / Math.max(1, _num(war.until) - start), 0, 1);
+        const resolve = _clamp(_num(war.resolve, 100), 0, 100);
+        const P = T.pressure;
+        const pressure = _clamp(_num(P.base, 0.6) + gained * _num(P.gained, 1.2) + (resolve / 100) * _num(P.resolve, 0.5) + elapsed * _num(P.elapsed, -0.5), _num(P.min, 0.35), _num(P.max, 2.2));
+        return { gained, elapsed, resolve, pressure: _r2(pressure), weeks: Math.floor((day - start) / 7) };
+    },
+
+    /** The indemnity the see asks of the foe: base + its towns + a share of its chests, × the war's pressure. */
+    indemnity(world, war, k) {
+        const I = HolyWars.config().terms.indemnity;
+        const raw = _num(I.base, 600) + _arr(war.towns0).length * _num(I.perTown, 250) + Math.max(0, _num(k && k.treasury)) * _num(I.treasuryShare, 0.2);
+        return Math.round(_clamp(raw * HolyWars.termsState(world, war).pressure, _num(I.min, 200), _num(I.max, 12000)));
+    },
+
+    /** The chance the see takes a term (`how`) now. */
+    termsChance(world, war, how) {
+        const A = HolyWars.config().terms.accept;
+        const s = HolyWars.termsState(world, war);
+        // (a yielded holy site is the war's very aim: the see takes it as a victory)
+        if (how === 'yieldSite') return _clamp(_num(A.yieldSite, 0.95), 0, 1);
+        const base = _num(A[how], 0.5);
+        // (towns given up are what the crusaders fight for: their gains don't harden the see against them)
+        const gained = how === 'yield' ? 0 : s.gained * _num(A.perGained, -0.35);
+        return _r2(_clamp(base + (100 - s.resolve) * _num(A.perLostResolve, 0.006) + s.elapsed * _num(A.perElapsed, 0.3) + gained, _num(A.min, 0.1), _num(A.max, 0.97)));
+    },
+
+    /** The crusader a yielded town goes to: the member crown nearest it (the strongest on a tie). */
+    _receiver(world, war, at) {
+        let best = null;
+        for (const id of war.members) {
+            const m = _kingdom(world, id);
+            if (!_alive(m)) continue;
+            const d = m.capital ? _dist(world, m.capital, at) : 999;
+            if (!best || d < best.d || (d === best.d && _num(m.military) > _num(best.m.military))) best = { m, d };
+        }
+        return best ? best.m : null;
+    },
+
+    /** The town the foe would yield: a non-capital town of its own nearest the crusaders. */
+    _yieldTown(world, war, k) {
+        const towns = _townsOf(world, k).filter(s => !(k.capital && s.q === k.capital.q && s.r === k.capital.r));
+        let best = null;
+        for (const s of towns) {
+            const m = HolyWars._receiver(world, war, s);
+            if (!m) continue;
+            const d = m.capital ? _dist(world, m.capital, s) : 999;
+            if (!best || d < best.d) best = { s, m, d };
+        }
+        return best;
+    },
+
+    /**
+     * The terms the foe of a holy war may offer the see: [{ how, ok, reason,
+     * cost, chance, label, desc, town? }]. Any realm a holy war is waged
+     * against, the player's or an AI crown's:
+     *   indemnity  a penance in coin from its chests into the see's coffers
+     *   yieldSite  the contested holy site handed to the crusaders
+     *   yield      a border town handed to the nearest crusader crown
+     *   rite       a heretic realm takes the see's rite
+     *   submit     a ruler under the ban submits: penance, the ban lifted
+     *   tolerate   an infidel crown suffers the faithful to worship (heresy law: tolerance)
+     * The price and the see's will to hear them follow the war (termsState).
+     */
+    terms(world, war, k, purse = 0, mode = {}) {
+        const T = HolyWars.config().terms;
+        if (!war || !k || war.target !== k.id || T.enabled === false) return [];
+        const see = HolyWars.see(world, war.seeKey);
+        if (!see) return [];
+        const day = _day(world);
+        const s = HolyWars.termsState(world, war);
+        const opts = [];
+        let wait = null;
+        if (war.byPlayer) wait = `${war.head} called this war himself: only his word ends it.`;
+        else if ((war.phase !== 'war' && !mode.urgent) || !war.members.length) wait = 'The crusaders have not yet taken the field: there is no one to treat with.';
+        // (the see hears terms sooner from a foe already losing towns, and at once from one besieged in its last)
+        else if (!mode.urgent && s.weeks < HolyWars.termsAfterWeeks(war)) wait = `${war.head} hears no terms in the war's first ${HolyWars.termsAfterWeeks(war)} weeks.`;
+        else if (!mode.urgent && _num(war.termsAfter) > day) wait = `${war.head} refused your last terms: no envoy is heard before day ${war.termsAfter}.`;
+        const chests = Math.max(0, _num(k.treasury)) + Math.max(0, _num(purse));
+        const add = (how, extra) => {
+            const o = { how, chance: HolyWars.termsChance(world, war, how), cost: 0, ok: true, reason: null, ...extra };
+            if (wait) { o.ok = false; o.reason = wait; }
+            if (o.ok && o.cost > 0 && chests < o.cost) { o.ok = false; o.reason = `The see asks ${Utils.formatGold(o.cost)} gold.`; }
+            opts.push(o);
+        };
+        const price = HolyWars.indemnity(world, war, k);
+        add('indemnity', { cost: price, label: 'Pay a penance to the see', desc: `${Utils.formatGold(price)} gold from the chests into the coffers of ${see.town || 'the see'}` });
+        // The holy site itself, when it is the cause and still in the foe's hands
+        const siteTile = war.casus === 'holySite' && war.site && world.getTile ? world.getTile(war.site.q, war.site.r) : null;
+        const siteOurs = !!(siteTile && siteTile.holySite && siteTile.kingdom === k.id);
+        const siteIsCapital = !!(siteTile && k.capital && siteTile.q === k.capital.q && siteTile.r === k.capital.r);
+        if (siteOurs && !siteIsCapital && !(siteTile.settlement && _townsOf(world, k).length <= 1)) {
+            add('yieldSite', { label: `Yield the ${war.site.name}`, desc: 'Hand the holy site to the crusaders: the war\'s very aim' });
+        }
+        const town = HolyWars._yieldTown(world, war, k);
+        if (town) add('yield', { label: `Yield ${town.s.name}`, desc: `Hand the town to ${Names.realm(town.m.name)}`, town: town.s.name });
+        if (war.casus === 'heretic' && k.religion && k.religion.faithId === see.faithId && _rite(k) !== see.rite) {
+            add('rite', { label: 'Take the see\'s rite', desc: `Your realm keeps the rite of ${HolyWars.headLabel(see)}: the clergy grumble, the lords\' oaths waver` });
+        }
+        if (see.bans[k.id]) {
+            const pen = Math.round(HolyWars.banPrice(world, null, see, k.id) * _num(HolyWars.config().ban.penanceShare, 0.4));
+            add('submit', { cost: pen, label: 'Submit to the see', desc: `The ruler's penance (${Utils.formatGold(pen)} gold): the ban lifted, the war ended` });
+        }
+        if ((war.casus === 'infidel' || war.casus === 'holySite') && k.religion && k.religion.faithId !== see.faithId && Laws.value(world, k.id, 'heresy') !== 'tolerance') {
+            add('tolerate', { label: 'Tolerate the faithful', desc: 'Proclaim tolerance (the heresy law): the see\'s faithful worship freely in your realm; your own clergy will not thank you' });
+        }
+        return opts;
+    },
+
+    /**
+     * The foe offers the see a term (the player's crown or an AI's). The see
+     * weighs it (termsChance, a hash roll); refused, no envoy is heard for
+     * cooldownDays. Taken: the cost paid, the concession made, the war ended
+     * on terms. `purse`: the player's purse tops up the chests. → { success, accepted, text }
+     */
+    _offer(world, player, war, k, how, out, opts = {}) {
+        const T = HolyWars.config().terms;
+        const o = HolyWars.terms(world, war, k, opts.purse ? _num(player && player.gold) : 0, { urgent: !!opts.urgent }).find(x => x.how === how);
+        if (!o) return { success: false, reason: 'The see will not hear such terms.' };
+        if (!o.ok) return { success: false, reason: o.reason };
+        const see = HolyWars.see(world, war.seeKey);
+        const day = _day(world);
+        war.termsTried = _num(war.termsTried) + 1;
+        const realm = Names.realm(k.name, true);
+        const accepted = _u(world, `terms|${war.id}|${how}|${day}|${war.termsTried}`) < o.chance;
+        if (!Array.isArray(war.offers)) war.offers = [];
+        war.offers.push({ day, how, accepted, ...(opts.urgent ? { urgent: true } : {}) });
+        if (war.offers.length > 12) war.offers.splice(0, war.offers.length - 12);
+        if (!accepted) {
+            war.termsAfter = day + _num(T.cooldownDays, 60);
+            const text = HolyWars.text('termsRefused', { head: war.head, realm: Names.realm(k.name), terms: o.label.charAt(0).toLowerCase() + o.label.slice(1) });
+            HolyWars._log(world, { kind: 'termsRefused', war: war.id, key: war.seeKey, realm: k.id, text });
+            if (Array.isArray(world.events)) world.events.push({ text: `✋ ${text}`, type: 'religious', category: 'religious', kingdom: k.id });
+            return { success: true, accepted: false, text };
+        }
+        // The cost: the crown's chests, then (the player's) purse
+        let paid = 0;
+        if (o.cost > 0) {
+            const fromChests = Math.min(o.cost, Math.max(0, _num(k.treasury)));
+            k.treasury = _r2(_num(k.treasury) - fromChests);
+            HolyWars.deposit(world, player, see, fromChests, k.id);
+            paid += fromChests;
+            const rest = _r2(o.cost - fromChests);
+            if (rest > 0 && opts.purse && player) {
+                player.gold = _r2(_num(player.gold) - rest);
+                Ledger.record(player, 'holyWar', -rest);
+                HolyWars.deposit(world, player, see, rest, null);
+                paid += rest;
+            }
+            // The see shares the penance with the crowns that fought: their spoils, from its coffers
+            const share = _clamp(_num(T.crusaderShare, 0.3), 0, 1);
+            const members = war.members.map(id => _kingdom(world, id)).filter(_alive);
+            const pot = HolyWars.playerHeads(player, see) ? 0 : HolyWars.withdraw(world, see, paid * share);
+            const men = members.reduce((t, m) => t + Math.max(1, _num(m.military)), 0);
+            let left = pot;
+            members.forEach((m, i) => {
+                const part = i === members.length - 1 ? left : _r2(pot * Math.max(1, _num(m.military)) / Math.max(1, men));
+                left = _r2(left - part);
+                if (!(part > 0)) return;
+                m.treasury = _r2(_num(m.treasury) + part);
+                if (see.kingdomId !== m.id) MoneySupply.transfer(world, see.kingdomId, m.id, part, 'church');
+            });
+        }
+        // The concession
+        let what = o.label.charAt(0).toLowerCase() + o.label.slice(1);
+        if (how === 'indemnity' || how === 'submit') what = `paid ${Utils.formatGold(paid)} gold in penance to ${see.town || 'the see'}`;
+        if (how === 'submit' && see.bans[k.id]) HolyWars._lift(world, player, see, k.id, ', its ruler having submitted', out);
+        if (how === 'yieldSite' || how === 'yield') {
+            const at = how === 'yieldSite' ? { q: war.site.q, r: war.site.r } : (_townsOf(world, k).find(s => s.name === o.town) || null);
+            const m = at ? HolyWars._receiver(world, war, at) : null;
+            if (!at || !m) return { success: false, reason: 'There is no crusader to hand it to.' };
+            let taken = false;
+            Utils.withRng(_rng(world, `yield|${war.id}`), () => {
+                const r = KingdomAI.takeTile(m, k, world, at.q, at.r);
+                taken = !!(r && r.taken);
+                if (!taken) return;
+                const tile = world.getTile(at.q, at.r);
+                if (tile && tile.holySite) {
+                    tile.holySite.controller = m.id;
+                    if (k.religion) k.religion.holySites = _arr(k.religion.holySites).filter(h => !(h.q === at.q && h.r === at.r));
+                    if (m.religion) { if (!Array.isArray(m.religion.holySites)) m.religion.holySites = []; if (!m.religion.holySites.some(h => h.q === at.q && h.r === at.r)) m.religion.holySites.push({ q: at.q, r: at.r }); }
+                }
+                if (r.town) KingdomAI.afterTownLoss(k, m, world);
+            });
+            if (!taken) return { success: false, reason: 'That ground is not the realm\'s to yield.' };
+            what = how === 'yieldSite' ? `yielded the ${war.site.name} to ${Names.realm(m.name)}` : `yielded ${o.town} to ${Names.realm(m.name)}`;
+        }
+        if (how === 'rite' && k.religion) {
+            if (see.rite === 'orthodox') delete k.religion.rite; else k.religion.rite = see.rite;
+            k.stability = _clamp(_num(k.stability, 50) - _num(T.riteStability, 8), 0, 100);
+            what = `took the rite of ${HolyWars.headLabel(see)}`;
+        }
+        if (how === 'tolerate') {
+            Laws.proclaim(world, k, 'heresy', 'tolerance', { why: `terms with ${war.head}` });
+            what = 'proclaimed tolerance for the faithful';
+        }
+        // Humbled: a while of grumbling at court
+        k.church = { ...(_obj(k.church) || {}), humbledUntil: day + _num(T.humbled && T.humbled.days, 240) };
+        if (k.religion && how !== 'tolerate') k.religion.piety = _clamp(_num(k.religion.piety, 50) + _num(T.humbled && T.humbled.piety, 2), 0, 100);
+        war.termsMade = { how, what, paid, day, realm: k.id };
+        HolyWars._end(world, player, war, 'terms', out);
+        return { success: true, accepted: true, text: HolyWars.text('termsWorld', { realm, what, head: war.head }), paid };
+    },
+
+    /** The holy wars against the realm the player rules, with their terms. → [{ war, terms }] */
+    termsFor(player, world) {
+        const k = _ruled(player, world);
+        if (!k) return [];
+        return HolyWars.against(world, k.id).map(war => ({ war, terms: HolyWars.terms(world, war, k, _num(player.gold)), state: HolyWars.termsState(world, war) }));
+    },
+
+    /** The player's crown offers the see terms in a holy war against it. */
+    offerTerms(player, world, warId, how) {
+        const war = HolyWars.war(world, Number(warId));
+        const k = _ruled(player, world);
+        if (!war || !k || war.target !== k.id) return { success: false, reason: 'No holy war is waged against your realm.' };
+        const out = { notices: [] };
+        const res = HolyWars._offer(world, player, war, k, how, out, { purse: true });
+        if (res.success && res.accepted && player.house) {
+            House._chronicle(player.house, world, `${Names.realm(k.name, true)} made terms with ${war.head} to end ${war.name}: it ${war.termsMade.what}.`, ['war', 'faith']);
+            HolyWars._plog(player, world, res.text);
+        }
+        return res;
+    },
+
+    /** The weeks into a holy war before the see hears terms: afterWeeks, afterWeeksLosing once a town of the foe's has fallen to the crusaders. */
+    termsAfterWeeks(war) {
+        const T = HolyWars.config().terms;
+        return _arr(war && war.gained).length > 0 ? Math.min(_num(T.afterWeeks, 4), _num(T.afterWeeksLosing, 1)) : _num(T.afterWeeks, 4);
+    },
+
+    /**
+     * An AI crown losing a holy war seeks terms: losing means a town taken
+     * (then every week) or the crusaders' hosts outweighing its own by
+     * losingRatio (every ai.everyWeeks). It offers the cheapest it can bear:
+     * the holy site; a penance its chests pay with treasuryShare to spare; the
+     * rite or tolerance (a devout realm last); a border town (with three towns
+     * or more). Besieged in its last town (opts.urgent: KingdomAI._capitulates
+     * held the gates for its plea, defender.holyPlea) it sues at once, whatever
+     * the weeks or a refusal, and would give urgentShare of its chests; if the
+     * see refuses that, it capitulates as any realm would. → the term taken, or null
+     */
+    _aiTerms(world, player, war, day, out, opts = {}) {
+        const T = HolyWars.config().terms;
+        const AI = T.ai || {};
+        const k = _kingdom(world, war.target);
+        const urgent = !!opts.urgent;
+        // (besieged, it sues even while the call is still out: its first crusaders are at its gates)
+        if (!_alive(k) || (war.phase !== 'war' && !urgent) || war.byPlayer) return null;
+        if (player && _ruled(player, world) === k) return null;
+        const lostTowns = _arr(war.gained).length > 0;
+        if (!urgent && !lostTowns && Math.floor(day / 7) % Math.max(1, _num(AI.everyWeeks, 2)) !== 0) return null;
+        const ours = war.members.reduce((s, id) => s + _num((_kingdom(world, id) || {}).military), 0);
+        const losing = urgent || lostTowns || ours > _num(k.military) * _num(AI.losingRatio, 1.2);
+        if (!losing) return null;
+        const opt = HolyWars.terms(world, war, k, 0, { urgent }).filter(o => o.ok);
+        if (!opt.length) return null;
+        const towns = _townsOf(world, k).length;
+        const piety = _num(k.religion && k.religion.piety, 50);
+        const spare = Math.max(0, _num(k.treasury)) * (urgent ? _num(AI.urgentShare, 0.9) : _num(AI.treasuryShare, 0.5));
+        const pick = opt.find(o => o.how === 'yieldSite')
+            || opt.find(o => o.how === 'indemnity' && o.cost <= spare)
+            || opt.find(o => o.how === 'submit' && o.cost <= spare * 1.5)
+            || opt.find(o => (o.how === 'rite' || o.how === 'tolerate') && (urgent || piety < _num(AI.devout, 75)))
+            || opt.find(o => o.how === 'yield' && towns >= _num(AI.yieldMinTowns, 3))
+            || opt.find(o => o.how === 'rite' || o.how === 'tolerate');
+        if (!pick) return null;
+        const res = HolyWars._offer(world, player, war, k, pick.how, out, { urgent });
+        if (res.success && res.accepted && player && out) {
+            const mine = _ruled(player, world);
+            if ((mine && war.answered.includes(mine.id)) || HolyWars._playerFaith(player) === war.faithId) out.notices.push({ icon: '🕊️', title: 'Terms Made', text: res.text, type: 'info' });
+        }
+        return res.success && res.accepted ? pick.how : null;
+    },
+
+    /** Pleas from AI foes besieged in their last town (KingdomAI._capitulates held their gates): the see answers them the same day. */
+    _pleas(world, player, day, out) {
+        const st = HolyWars.state(world);
+        const AI = HolyWars.config().terms.ai || {};
+        const mine = _ruled(player, world);
+        for (const war of st.wars.slice()) {
+            const k = _kingdom(world, war.target);
+            if (!_alive(k) || k === mine || war.byPlayer || AI.plea === false || !war.members.length) continue;
+            // (the plea it will send when besieged in its last town, from the day a crusader is at
+            // war with it, the call still out or not: read by KingdomAI._capitulates)
+            let p = _obj(k.holyPlea);
+            if (!p || p.war !== war.id) p = k.holyPlea = { war: war.id, foes: war.members.slice(), asked: null };
+            else if (!p.refused) p.foes = war.members.slice();
+            if (p.asked == null || p.refused) continue;
+            const how = HolyWars._aiTerms(world, player, war, day, out, { urgent: true });
+            // (refused, or nothing it could offer: the next assault takes its capitulation)
+            if (!how && st.wars.includes(war)) p.refused = true;
+        }
+    },
     /** The holy war ends: peace through the realms' machinery, the record, the crusaders' reward. */
     _end(world, player, war, outcome, out) {
         const C = HolyWars.config();
@@ -1020,6 +1338,8 @@ export const HolyWars = {
         const target = _kingdom(world, war.target);
         const see = HolyWars.see(world, war.seeKey);
         const win = outcome === 'victory';
+        const terms = outcome === 'terms' ? (war.termsMade || { what: 'made its peace' }) : null;
+        if (target && _obj(target.holyPlea) && target.holyPlea.war === war.id) delete target.holyPlea;
         if (_alive(target)) {
             for (const id of war.members) {
                 const m = _kingdom(world, id);
@@ -1027,12 +1347,14 @@ export const HolyWars = {
                 // (the oath is spent: the war may end)
                 if (m.warState && m.warState[target.id]) m.warState[target.id].sworn = 0;
                 if (target.warState && target.warState[m.id]) target.warState[m.id].sworn = 0;
-                KingdomAI.endWar(m, target, world, { victor: win ? m : target, tribute: _num(C.war.tribute, 0.25), text: win ? `🕊️ ${target.name} submits to ${m.name} and the faith.` : `🕊️ ${m.name} goes home from the holy war against ${target.name}.` });
+                // (on terms: the see has its price; a truce, no tribute besides)
+                if (terms) KingdomAI.endWar(m, target, world, { text: `🕊️ ${Names.realm(target.name, true)} makes terms with the Church; ${Names.realm(m.name)} goes home from the holy war.` });
+                else KingdomAI.endWar(m, target, world, { victor: win ? m : target, tribute: _num(C.war.tribute, 0.25), text: win ? `🕊️ ${target.name} submits to ${m.name} and the faith.` : `🕊️ ${m.name} goes home from the holy war against ${target.name}.` });
             }
         }
         for (const id of war.answered) {
             const m = _kingdom(world, id);
-            if (_alive(m) && m.religion) m.religion.piety = _clamp(_num(m.religion.piety, 50) + (win ? _num(C.war.victoryPiety, 8) : _num(C.war.defeatPiety, -8)), 0, 100);
+            if (_alive(m) && m.religion) m.religion.piety = _clamp(_num(m.religion.piety, 50) + (win ? _num(C.war.victoryPiety, 8) : terms ? Math.round(_num(C.war.victoryPiety, 8) / 2) : _num(C.war.defeatPiety, -8)), 0, 100);
         }
         // A vanquished heretic returns to the see's rite; a ruler under the ban submits
         if (win && _alive(target) && see) {
@@ -1045,11 +1367,12 @@ export const HolyWars = {
         const memberNames = war.answered.map(id => (_kingdom(world, id) || {}).name).filter(Boolean);
         const text = outcome === 'unanswered'
             ? HolyWars.text('unanswered', { head: war.head, target: Names.realm(war.targetName) })
-            : HolyWars.text(win ? 'victory' : 'defeat', { target: Names.realm(war.targetName), gains });
-        st.past.unshift({ id: war.id, name: war.name, seeKey: war.seeKey, faithId: war.faithId, head: war.head, target: war.target, targetName: war.targetName, casus: war.casus, site: war.site, from: war.called, to: day, outcome, members: memberNames, gained: war.gained.slice(), crusaders: war.crusaders.slice(), subsidies: war.subsidies });
+            : terms ? HolyWars.text('terms', { target: Names.realm(war.targetName), what: terms.what, gains })
+                : HolyWars.text(win ? 'victory' : 'defeat', { target: Names.realm(war.targetName), gains });
+        st.past.unshift({ id: war.id, name: war.name, seeKey: war.seeKey, faithId: war.faithId, head: war.head, target: war.target, targetName: war.targetName, casus: war.casus, site: war.site, from: war.called, to: day, outcome, members: memberNames, gained: war.gained.slice(), crusaders: war.crusaders.slice(), subsidies: war.subsidies, endedBy: war.endedBy || (outcome === 'terms' ? 'terms' : outcome === 'victory' && !_alive(target) ? 'fallen' : null), offers: _arr(war.offers).slice(-6), ...(terms ? { terms: { how: terms.how, what: terms.what, paid: _num(terms.paid) } } : {}) });
         if (st.past.length > 40) st.past.length = 40;
         HolyWars._log(world, { kind: 'end', war: war.id, key: war.seeKey, outcome, text });
-        if (Array.isArray(world.events)) world.events.push({ text: `${win ? '✝️' : '🏳️'} ${text}`, type: 'military', category: 'MILITARY' });
+        if (Array.isArray(world.events)) world.events.push({ text: `${win ? '✝️' : terms ? '🕊️' : '🏳️'} ${text}`, type: 'military', category: 'MILITARY' });
         st.wars = st.wars.filter(w => w !== war);
         if (see) see.nextCall = day + Math.round(_range(world, `gap|${war.id}`, C.call.gapYears, [4, 8]) * YEAR);
         // The rulers who fought it to the end hailed Knights of the Cross; the rival Houses come home
@@ -1063,7 +1386,8 @@ export const HolyWars = {
                 House.award(player.house, _num(C.answer.victoryPrestige, 60), 'holy war won', day);
                 House._chronicle(player.house, world, `${Names.realm(mine.name, true)} fought in ${war.name}, won${gains}.`, ['war', 'faith', 'crusade']);
             }
-            if (mine && mine.id === war.target && player.house) House._chronicle(player.house, world, `${war.name} against ${Names.realm(mine.name)} ended in ${win ? 'defeat for the realm' : 'the crusaders going home'}${gains}.`, ['war', 'faith']);
+            if (mine && war.answered.includes(mine.id) && terms && player.house) House._chronicle(player.house, world, `${war.name}, fought by ${Names.realm(mine.name)}, ended on terms: ${Names.realm(war.targetName)} ${terms.what}.`, ['war', 'faith', 'crusade']);
+            if (mine && mine.id === war.target && player.house && !terms) House._chronicle(player.house, world, `${war.name} against ${Names.realm(mine.name)} ended in ${win ? 'defeat for the realm' : 'the crusaders going home'}${gains}.`, ['war', 'faith']);
             if (p.cross && p.cross.warId === war.id) {
                 if (p.cross.arrived != null && outcome !== 'unanswered') HolyWars._fulfil(world, player, war, out);
                 else HolyWars._release(world, player, war, out);
@@ -1075,7 +1399,7 @@ export const HolyWars = {
             // Served under the cross in a holy war won: a Knight of the Cross
             if (win && _arr(p.served).includes(war.id)) HolyWars._knightPlayer(world, player, war, out);
             const touched = (mine && (war.answered.includes(mine.id) || mine.id === war.target)) || war.crusaders.includes(player.name || 'you') || HolyWars._playerFaith(player) === war.faithId;
-            if (touched && out) out.notices.push({ icon: win ? '✝️' : '🏳️', title: win ? 'The Holy War Won' : outcome === 'unanswered' ? 'The Call Unanswered' : 'The Holy War Lost', text, type: win ? 'success' : 'info' });
+            if (touched && out) out.notices.push({ icon: win ? '✝️' : terms ? '🕊️' : '🏳️', title: win ? 'The Holy War Won' : terms ? 'The Holy War Ended on Terms' : outcome === 'unanswered' ? 'The Call Unanswered' : 'The Holy War Lost', text, type: win || (terms && mine && mine.id === war.target) ? 'success' : 'info' });
         }
         return outcome;
     },
@@ -1538,6 +1862,7 @@ export const HolyWars = {
         const st = HolyWars.state(world);
         const day = _day(world);
         if (player) HolyWars._crossDay(world, player, day, out);
+        HolyWars._pleas(world, player, day, out);
         if (((day % 7) + 7) % 7 !== _num(C.weekDay, 3) % 7) return out;
         // (a rival's vow for a war that ended while no one lived to see it)
         if (player) for (const r of RivalHouses.rivals(player)) if (r && r.cross && !st.wars.some(w => w.id === r.cross.warId)) r.cross = null;
@@ -1550,6 +1875,8 @@ export const HolyWars = {
         for (const war of st.wars.slice()) {
             if (war.phase === 'call') HolyWars._callWeek(world, player, war, day, out);
             if (st.wars.includes(war)) HolyWars._warWeek(world, player, war, day, out);
+            // (a crown losing it seeks terms)
+            if (st.wars.includes(war)) HolyWars._aiTerms(world, player, war, day, out);
         }
         for (const see of Object.values(st.sees)) HolyWars._aiCalls(world, player, see, day, out);
         HolyWars._realmsWeek(world, player, day);
@@ -1569,7 +1896,7 @@ export const HolyWars = {
             const lines = st.log.filter(e => e.war === h.id).map(e => e.text).filter(Boolean);
             const name = String(h.name || 'a holy war');
             out.push({
-                id: `age_holy${h.id}`, kind: 'holyWar', icon: h.outcome === 'victory' ? '✝️' : '🏳️',
+                id: `age_holy${h.id}`, kind: 'holyWar', icon: h.outcome === 'victory' ? '✝️' : h.outcome === 'terms' ? '🕊️' : '🏳️',
                 title: `${name.charAt(0).toUpperCase() + name.slice(1)}, years ${yr(h.from)}–${yr(h.to)}`,
                 fromYear: yr(h.from), toYear: yr(h.to), live: false, outcome: h.outcome,
                 paragraphs: [{ year: yr(h.from), text: `In the year ${yr(h.from)}, ${lines.slice(0, 6).map((t, i) => (i === 0 ? t.charAt(0).toLowerCase() + t.slice(1) : t)).join(' ')}${h.members.length ? ` The crowns of ${h.members.join(', ')} took the cross${h.crusaders.length ? `, and with them ${h.crusaders.join(', ')}` : ''}.` : ''}` }],
@@ -1588,6 +1915,7 @@ export const HolyWars = {
             sees: Object.values(st.sees),
             wars: st.wars.slice(), past: st.past.slice(0, 8),
             invitations: HolyWars.invitations(player, world),
+            against: HolyWars.termsFor(player, world),
             cross: HolyWars.pstate(player).cross, crossOptions: HolyWars.crossOptions(player, world),
             bans: HolyWars.playerBans(player, world),
             p: HolyWars.pstate(player),

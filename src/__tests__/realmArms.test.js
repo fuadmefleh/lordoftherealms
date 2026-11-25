@@ -86,7 +86,12 @@ describe('the crowns\' armouries', () => {
         k.treasury = 50000;
         const t0 = k.treasury, g0 = townsGold(k, world), s0 = townsStock(k, world, ['weapons', 'spear']);
         const lineBefore = CrownBooks.state(k).day.arms || 0;
-        const r = RealmArms.buy(k, world);
+        // (no town abroad cheaper: this one is about its own markets)
+        const I = RealmArms.config().imports;
+        const was = I.enabled;
+        I.enabled = false;
+        let r;
+        try { r = RealmArms.buy(k, world); } finally { I.enabled = was; }
         expect(r.cost).toBeGreaterThan(0);
         const got = (r.bought.weapons || 0) + (r.bought.spear || 0);
         expect(got).toBeGreaterThan(0);
@@ -143,6 +148,55 @@ describe('the crowns\' armouries', () => {
             for (const id of body) k.armoury.stock[id] = 0;
             k.wars = [far.s.kingdom];
             expect(RealmArms._importTowns(k, world, RealmArms._towns(k, world)).some(t => t.s === far.s)).toBe(false);
+        }
+    });
+
+    it('each lot is bought where it is cheapest with the carriage: its own smiths at wartime prices lose the trade abroad, but keep it within the margin', () => {
+        const { k, world } = realmGame();
+        RealmArms.state(k);
+        k.treasury = 1e6;
+        k.wars = [];
+        const own = RealmArms._towns(k, world);
+        const abroad = RealmArms._importTowns(k, world, own);
+        expect(abroad.length).toBeGreaterThan(0);
+        const far = abroad[0];
+        const I = RealmArms.config().imports;
+        const carriage = 1 + I.markup + I.perHex * far.d;
+        // (its own towns have weapons; so has the town abroad)
+        for (const t of own) SettlementMarket.add(t.s, 'weapons', 20);
+        SettlementMarket.add(far.s, 'weapons', 40);
+        Economy.initSettlement(far.s);
+        const ownSet = new Set(own.map(t => t.s));
+        const buyAt = (home, foreign) => {
+            const spy = vi.spyOn(Economy, 'marketPrice').mockImplementation((good, s) => (ownSet.has(s) ? home : s === far.s ? foreign : 1e6));
+            try {
+                k.armoury.stock.weapons = 0;
+                k.armoury.stock.spear = 0;
+                const g0 = far.s.economy.gold;
+                const homeStock0 = own.reduce((a, t) => a + SettlementMarket.stock(t.s, 'weapons'), 0);
+                const r = RealmArms.buy(k, world);
+                return { r, farGot: far.s.economy.gold - g0, homeTook: homeStock0 - own.reduce((a, t) => a + SettlementMarket.stock(t.s, 'weapons'), 0) };
+            } finally { spy.mockRestore(); }
+        };
+        // Wartime prices at home (48g), 17g abroad: the crown buys abroad, paying that town its price and the carriage
+        const stall = (id) => SettlementMarket.stock(far.s, id);
+        const share = Math.floor(stall('weapons') * I.marketShare) + Math.floor(stall('spear') * I.marketShare);
+        const a = buyAt(48, 17);
+        expect(a.r.imported).toBeGreaterThan(0);
+        expect(a.farGot).toBeCloseTo(a.r.imported * 17 * carriage, 0);
+        // (abroad, never more than its share of the town's stall at once: the rest at home)
+        expect(a.r.imported).toBeLessThanOrEqual(share);
+        expect(a.homeTook).toBeGreaterThan(0);
+        // Close prices: its own smiths keep the trade (within homeMargin of the best abroad with the carriage)
+        const b = buyAt(20, (20 / carriage) * (1 - I.homeMargin / 2));
+        expect(b.r.imported || 0).toBe(0);
+        expect(b.homeTook).toBeGreaterThan(0);
+        // At war with that realm: none of its towns sells to the crown, however cheap
+        if (far.s.kingdom != null) {
+            k.wars = [far.s.kingdom];
+            const c = buyAt(48, 1);
+            expect(c.farGot).toBe(0);
+            k.wars = [];
         }
     });
 

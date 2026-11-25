@@ -22,6 +22,18 @@ function _esc(s) {
 const _days = (n) => `${n} day${n === 1 ? '' : 's'}`;
 const _cap = (t) => { const x = String(t == null ? '' : t); return x.charAt(0).toUpperCase() + x.slice(1); };
 
+/**
+ * The besieged town's stores in words: how long they last at the pace they are eaten
+ * (stores are counted in days of full rations; a port the sea still feeds eats them slower).
+ */
+function _storesText(stores, left, eat) {
+    const full = Math.round(stores);
+    if (left == null) return `Stores: ${full} days of food, none eaten`;
+    const rate = Math.round(eat * 100) / 100;
+    const pace = rate < 1 ? ` (${full} days at full rations, eaten at ${rate === 0.5 ? 'half' : `${Math.round(rate * 100)}%`} pace)` : rate > 1 ? ` (${full} days at full rations, eaten ${rate}× as fast)` : '';
+    return `Stores last ${left} more day${left === 1 ? '' : 's'}${pace}`;
+}
+
 function _bar(value, max, color) {
     const pct = Math.max(0, Math.min(100, max > 0 ? value / max * 100 : 0));
     return `<div style="height:6px;background:rgba(255,255,255,0.1);border-radius:3px;margin:2px 0 6px;"><div style="width:${pct}%;height:100%;background:${color};border-radius:3px;"></div></div>`;
@@ -40,7 +52,7 @@ function siegeCardHtml(player, d) {
     html += `<div style="color:#4fc3f7;font-weight:bold;">🛡️ Defenders</div>`;
     html += `<div>Garrison <strong>${Math.round(s.garrison)}</strong> · storm defence <strong>${d.defense}</strong></div>`;
     html += `<div>Morale ${Math.round(s.morale)}</div>${_bar(s.morale, 100, '#4fc3f7')}`;
-    html += `<div>Stores ${Math.round(s.stores)} day(s)${d.storesDaysLeft != null ? ` · −${d.eatsPerDay}/day` : ''}</div>${_bar(s.stores, s.storesStart, '#f1c40f')}`;
+    html += `<div>${_storesText(s.stores, d.storesDaysLeft, d.eatsPerDay)}</div>${_bar(s.stores, s.storesStart, '#f1c40f')}`;
     html += `<div>Walls ${s.walls > 0 ? `+${Math.round(s.walls * 100)}% at ${Math.round(s.wallHp)}%` : 'none'}</div>`;
     html += `<div style="${MUTED}">Commanded by ${_esc(d.commander.name)}${d.commander.governor ? ` (martial ${d.commander.martial})` : ''}</div>`;
     if (s.townSick) html += '<div style="color:#e57373;">🤒 Disease inside the walls</div>';

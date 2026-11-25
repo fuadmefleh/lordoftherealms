@@ -46,6 +46,15 @@
         "penanceShare": 0.4, "penancePrestige": 30, "liftStanding": 10,
         "aiPenanceWeeks": [16, 60], "counterPope": 0.04
     },
+    "terms": {
+        "_doc": "The foe's ways out of a holy war (sworn: no envoys end it). From afterWeeks into the war (afterWeeksLosing once a town of its has fallen to the crusaders), the target crown (the player's, or an AI's when losing: a town taken, or the crusaders' hosts outweighing its own by ai.losingRatio; it tries every ai.everyWeeks) may offer the see terms: an INDEMNITY (a penance in coin, its chests into the see's coffers: (indemnity.base + perTown x the towns it held when called + treasuryShare of its chests) x pressure, between min and max; the see passes crusaderShare of it on to the crusader crowns, by their hosts), YIELD the contested holy site (yieldSite) or a border town (to the nearest crusader crown; never the capital), take the see's RITE (a heretic realm; riteStability lost), SUBMIT (a ruler under the ban: the ban's penance, the ban lifted), or TOLERATE the faithful (an infidel crown: the heresy law set to tolerance, which its own see dislikes). pressure = base + gained x (towns taken / towns to win) + resolve x (the war's resolve / 100) + elapsed x (share of its term run), clamped. The see takes a term at accept[how] + (100 - resolve) x perLostResolve + elapsed x perElapsed + gained x perGained (not for a town yielded), clamped (a yielded holy site: yieldSite); a refusal bars envoys cooldownDays. Taken: the war ends on terms (a truce, no tribute), the crown humbled (stability and vassals' regard for humbled.days). The AI offers the holy site first, then a penance its chests can bear (treasuryShare to spare), the rite or tolerance (a realm under ai.devout piety), a town (with yieldMinTowns towns), else the rite or tolerance. Besieged in its last town (KingdomAI._capitulates reads kingdom.holyPlea, set weekly while the war runs; ai.plea), an AI target sues the see before capitulating: the gates hold that day and the see hears it at once, whatever the weeks or a refusal, the crown giving up to urgentShare of its chests; refused (once a war), it capitulates as any realm would. Each offer is kept on the war (offers: day, how, accepted, urgent) and the record (past[].offers, terms.how, endedBy). A war called by a High Priest player ends only by his word.",
+        "enabled": true, "afterWeeks": 4, "afterWeeksLosing": 1, "cooldownDays": 60, "crusaderShare": 0.3, "riteStability": 8,
+        "indemnity": { "base": 600, "perTown": 250, "treasuryShare": 0.2, "min": 200, "max": 12000 },
+        "pressure": { "base": 0.6, "gained": 1.2, "resolve": 0.5, "elapsed": -0.5, "min": 0.35, "max": 2.2 },
+        "accept": { "indemnity": 0.45, "yieldSite": 0.95, "yield": 0.65, "rite": 0.8, "submit": 0.85, "tolerate": 0.55, "perLostResolve": 0.006, "perElapsed": 0.3, "perGained": -0.35, "min": 0.1, "max": 0.97 },
+        "humbled": { "stab": -4, "vassal": -6, "days": 240, "piety": 2 },
+        "ai": { "everyWeeks": 2, "losingRatio": 1.2, "treasuryShare": 0.5, "devout": 75, "yieldMinTowns": 3, "plea": true, "urgentShare": 0.9 }
+    },
     "knight": {
         "_doc": "Crusaders' honours. Whoever takes the cross and fights a holy war to victory is hailed `title`: the player (a vow fulfilled in a war won: the House's honour with honourFame fame, every faithful ruler's memory 'crusader', the foe's 'crusaded_against'; a vow fulfilled in a war lost still earns the crusading rulers' memory at servedDeed of the deed's weight), the rulers whose crowns were still in the field at the victory, and the heads of rival Houses who rode with their realm's host. rival: when a realm answers, each rival House seated in it takes the cross at chance × (0.6 + martial/10, more if proud, less if homebound), paying outfitShare of its purse (outfitMin..outfitCap) into its seat town; won → renown and standing with the crusading crowns; lost → renown and guards lost; death: the chance the head falls on crusade.",
         "title": "Knight of the Cross", "honourFame": 12, "servedDeed": 0.5,
@@ -66,6 +75,9 @@
         "unanswered": "No crown answered the call of {head} against {target}; the holy war came to nothing.",
         "victory": "The holy war against {target} ends in victory for the faithful{gains}.",
         "defeat": "The holy war against {target} fails: the crusaders go home{gains}.",
+        "terms": "The holy war against {target} ends on terms: it {what}{gains}.",
+        "termsWorld": "{realm} has made terms with {head}: it {what}, and the crusaders are going home.",
+        "termsRefused": "{head} turns away the envoys of {realm}, who offered to {terms}: the holy war goes on.",
         "casus": {
             "holySite": "the {site} is in the hands of {holder}",
             "heretic": "{target} keeps a heretic rite",

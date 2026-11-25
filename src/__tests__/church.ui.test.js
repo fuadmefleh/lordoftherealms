@@ -89,6 +89,33 @@ describe('the Church panel', () => {
         expect(see.bans.k2).toBeUndefined();
     });
 
+    it('a holy war against your realm: the terms the see may hear, offered from the panel', () => {
+        const { game, world, player, ks, panels } = makeGame();
+        const see = HolyWars.see(world, 'solaris|orthodox');
+        HolyWars._ban(world, player, see, 'k2', 'defying the Church', { notices: [] });
+        const war = HolyWars.call(world, player, see, ks[1], 'excommunicate', null);
+        expect(war.members).toContain('k1');
+        // (into the field, past the weeks the see hears no terms)
+        for (let i = 0; i < 90; i++) { world.day++; HolyWars.processDay(world, player); }
+        expect(war.phase).toBe('war');
+        ActionMenu.showChurch(game);
+        let h = panels[panels.length - 1].h;
+        expect(h).toContain('Terms to offer the see');
+        expect(h).toContain('Pay a penance to the see');
+        expect(h).toContain('Submit to the see');
+        expect(clean(h)).toBe(true);
+        // (the see takes it)
+        const T = JSON.parse(JSON.stringify(DataLoader._gamedata.holyWars.terms));
+        DataLoader._gamedata.holyWars.terms.accept = { ...T.accept, min: 1, max: 1 };
+        try { ActionMenu.churchAct(game, 'terms', war.id, 'submit'); } finally { DataLoader._gamedata.holyWars.terms = T; }
+        expect(HolyWars.state(world).wars).not.toContain(war);
+        expect(see.bans.k2).toBeUndefined();
+        expect(ks[1].wars).not.toContain('k1');
+        h = panels[panels.length - 1].h;
+        expect(h).not.toContain('Terms to offer the see');
+        expect(clean(h)).toBe(true);
+    });
+
     it('shows a Knight of the Cross his honour', async () => {
         const { game, world, player, panels } = makeGame();
         HolyWars._knightPlayer(world, player, { id: 9, name: 'the Holy War against Kharn', faithId: 'solaris', target: 'k3' }, { notices: [] });

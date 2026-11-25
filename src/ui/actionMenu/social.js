@@ -19,6 +19,7 @@ import { Fratricide } from '../../systems/fratricide.js';
 import { CadaverSynod } from '../../systems/cadaverSynod.js';
 import { Damnatio } from '../../systems/damnatio.js';
 import { HolyWars } from '../../systems/holyWars.js';
+import { Names } from '../../core/names.js';
 import { ConversationScene } from '../conversationScene.js';
 import { NpcPortrait } from '../npcPortrait.js';
 import { openPersonScene, personSprite } from './peopleScene.js';
@@ -750,7 +751,8 @@ Object.assign(ActionMenu, {
                 const summons = player.inquisition && player.inquisition.summons;
                 const cross = player.holyWars && player.holyWars.cross;
                 const calls = HolyWars.invitations(player, game.world).length;
-                against.push({ icon: '⛪', name: 'The Church', desc: summons ? `Summoned by ${summons.name} to ${summons.town}` : banned ? 'You are cast out of the faith' : cross ? `Under the cross against ${cross.targetName}` : calls ? 'The Church calls your crown to a holy war' : 'Holy wars, the cross, the ban, the inquisition', act: 'showChurch', side: summons ? 'summoned' : banned ? 'banned' : calls ? 'called' : cross ? 'vow' : '', tone: summons || banned ? 'bad' : calls || cross ? 'gold' : '' });
+                const holy = HolyWars.termsFor(player, game.world).length;
+                against.push({ icon: '⛪', name: 'The Church', desc: summons ? `Summoned by ${summons.name} to ${summons.town}` : holy ? 'A holy war against your realm: terms to offer the see' : banned ? 'You are cast out of the faith' : cross ? `Under the cross against ${Names.realm(cross.targetName)}` : calls ? 'The Church calls your crown to a holy war' : 'Holy wars, the cross, the ban, the inquisition', act: 'showChurch', side: summons ? 'summoned' : holy ? 'holy war' : banned ? 'banned' : calls ? 'called' : cross ? 'vow' : '', tone: summons || holy || banned ? 'bad' : calls || cross ? 'gold' : '' });
             }
             // The crowns' charge sheets, bounty hunters, the orphans growing up (ui/actionMenu/wanted.js)
             {

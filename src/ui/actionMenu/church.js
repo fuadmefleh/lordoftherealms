@@ -1,7 +1,9 @@
 // ActionMenu — ⛪ The Church (Dynasty → Against you → The Church): the see of
 // your faith and its head, the holy wars called and fought (answer a call for
 // your crown, take the cross, your vow's road), the bans on you and the ways
-// out of them (penance, payment, a counter-pope), the inquisitor in your town
+// out of them (penance, payment, a counter-pope), a holy war against your
+// realm and the terms the see may hear (a penance, a town or the holy site
+// yielded, the see's rite, submission, tolerance), the inquisitor in your town
 // (host, bribe, obstruct, expel; a summons to answer) and those abroad; and,
 // for a High Priest, the head's own acts: call a holy war, cast out or pardon a
 // ruler, send an inquisitor. Logic: systems/holyWars.js, systems/inquisition.js.
@@ -78,6 +80,21 @@ Object.assign(ActionMenu, {
             });
             const body = `<div style="color:#cfc3a5; margin-bottom:6px;">Cast out on day ${b.ban.since}${b.ban.reason ? ` for ${esc(b.ban.reason)}` : ''}. ${b.who === 'player' ? 'The clergy will not know you; the faithful realms think the less of you each week.' : 'Your lords\' oaths loosen and the faithful crowns turn from you.'}</div>${rowList(rows, 'The ways back')}`;
             html += card(body, { icon: '🔔', title: b.who === 'player' ? 'You are excommunicated' : `${esc(_realmName(world, b.who, true))} lies under the ban`, side: esc(_faithName(b.see.faithId)), tone: 'bad' });
+        }
+
+        // Holy wars against your realm, and the terms the see might hear (HolyWars.terms)
+        const TERM_ICON = { indemnity: '💰', yieldSite: '⛪', yield: '🏰', rite: '📿', submit: '🙇', tolerate: '🕯️' };
+        for (const { war: w, terms, state } of v.against) {
+            const body = chips([
+                ['⚔️', 'Crusaders', `${w.members.length} crown${w.members.length === 1 ? '' : 's'}`, 'bad'],
+                ['🏰', 'Towns lost', `${w.gained.length} / ${HolyWars.townsToWin(w)}`, w.gained.length ? 'bad' : ''],
+                ['🔥', 'Their resolve', `${Math.round(state.resolve)}`],
+                ['⏳', 'Sworn until', `day ${w.until}`],
+            ]) + `<div style="color:#cfc3a5; margin-bottom:6px;">${esc((CASUS[w.casus] || [])[1] || 'A holy war')}. The crusaders will not hear envoys: the war is sworn. ${esc(w.head)} may hear terms — dearer while they win, cheaper as their resolve and the term run out.</div>`
+                + rowList(terms.map(o => (o.ok
+                    ? { icon: TERM_ICON[o.how] || '🕊️', name: esc(o.label), desc: `${esc(o.desc)} · ~${Math.round(o.chance * 100)}% the see accepts`, side: o.cost ? price(o.cost, true) : '', act: 'churchAct', args: ['terms', w.id, o.how] }
+                    : { icon: TERM_ICON[o.how] || '🕊️', name: esc(o.label), off: true, why: esc(o.reason || 'Not now.'), side: o.cost ? price(o.cost, false) : '' })), 'Terms to offer the see');
+            html += card(body, { icon: '⚔️', title: esc(w.name.charAt(0).toUpperCase() + w.name.slice(1)), side: w.phase === 'call' ? `called · by day ${w.answerBy}` : 'at war', tone: 'bad' });
         }
 
         // Calls to your crown
@@ -169,7 +186,7 @@ Object.assign(ActionMenu, {
 
         // The record
         const rec = [];
-        for (const h of v.past.slice(0, 5)) rec.push({ icon: h.outcome === 'victory' ? '✝️' : '🏳️', name: esc(h.name.charAt(0).toUpperCase() + h.name.slice(1)), desc: esc(`${h.outcome === 'unanswered' ? 'unanswered' : h.outcome}${h.gained.length ? ` · ${h.gained.slice(0, 3).join(', ')} taken` : ''}`), side: `day ${h.to}` });
+        for (const h of v.past.slice(0, 5)) rec.push({ icon: h.outcome === 'victory' ? '✝️' : h.outcome === 'terms' ? '🕊️' : '🏳️', name: esc(h.name.charAt(0).toUpperCase() + h.name.slice(1)), desc: esc(`${h.outcome === 'terms' ? `on terms: ${(h.terms && h.terms.what) || 'peace made'}` : h.outcome}${h.gained.length ? ` · ${h.gained.slice(0, 3).join(', ')} taken` : ''}`), side: `day ${h.to}` });
         for (const r of iv.p.record.slice(0, 3)) rec.push({ icon: '⚖️', name: `Before ${esc(r.inq)} at ${esc(r.town)}`, desc: esc(VERDICT[r.verdict] || r.verdict), side: `day ${r.day}` });
         for (const x of v.p.past.slice(0, 3)) rec.push({ icon: x.how === 'broken' ? '💔' : '✝️', name: esc(x.name), desc: x.how === 'fulfilled' ? 'Vow fulfilled' : x.how === 'broken' ? 'Vow broken' : 'Released from the vow', side: `day ${x.done}` });
         if (rec.length) html += rowList(rec, 'On record');
@@ -184,6 +201,7 @@ Object.assign(ActionMenu, {
         let res;
         if (action === 'answer') res = Inquisition.answerSummons(player, world, a);
         else if (action === 'absolve') res = HolyWars.seekAbsolution(player, world, a, b, c);
+        else if (action === 'terms') res = HolyWars.offerTerms(player, world, Number(a), b);
         else if (action === 'answer_call') res = HolyWars.answer(player, world, Number(a), !!Number(b));
         else if (action === 'cross') res = HolyWars.takeCross(player, world, Number(a));
         else if (action === 'inq') res = Inquisition.act(player, world, Number(a), b);

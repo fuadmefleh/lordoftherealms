@@ -38,8 +38,8 @@
         "cowedDays": 20, "grudge": 2, "warScore": 5, "renown": 0
     },
     "blind": {
-        "_doc": "Basil II: every captive blinded, one in leaderEvery left one eye to lead the column home. The column walks to its capital at speed hexes a day (shown on the map); when it comes in, the realm loses heart for dismayDays: its armies' morale −dismay (KingdomAI._moraleBonus), it sends no new war hosts against you, its stability −stability, its war will (your war score +warScore). Every faith hates you (allFaiths standing), every realm's regard otherRep. A one-eyed leader may become your nemesis.",
-        "minMen": 10, "leaderEvery": 100, "speed": 3, "dismayDays": 120, "dismay": 0.15, "stability": 8,
+        "_doc": "Basil II: every captive blinded, one in leaderEvery left one eye to lead the column home. The column walks to its capital at speed hexes a day (blind men led by a few: slow; shown on the map; home within straggleDays whatever the road); when it comes in, the realm loses heart for dismayDays: its armies' morale −dismay (KingdomAI._moraleBonus), it sends no new war hosts against you, its stability −stability, its war will (your war score +warScore). Every faith hates you (allFaiths standing), every realm's regard otherRep. A one-eyed leader may become your nemesis.",
+        "minMen": 10, "leaderEvery": 100, "speed": 1.5, "straggleDays": 240, "dismayDays": 120, "dismay": 0.15, "stability": 8,
         "butcher": 30, "perfidy": 4, "karma": -30, "deeds": { "cruelty": 5, "dread": 4 },
         "rep": -40, "otherRep": -10, "faith": 12, "allFaiths": 8,
         "lordDeed": "pow_blinded", "othersDeed": "pow_blinded_heard", "gossip": "prisoners_blinded",

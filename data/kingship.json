@@ -131,6 +131,32 @@
       "bandwagon": 2,
       "_reciprocity": "the player's court sends no envoys; its regard for a realm at peace with it moves this much a week toward that realm's regard for it",
       "reciprocity": 3
+    },
+
+    "revanche": {
+      "_doc": "world/revanche.js: every realm remembers the towns it lost (kingdom.lostTowns). A claim weighs townWeight a town, capitalWeight the seat it lost, conqueredShare of that for a town it had itself conquered; it halves every halfLifeYears (capitalHalfLifeYears for a seat) and is forgotten under minWeight. maxClaim caps the claim on one realm.",
+      "enabled": true,
+      "townWeight": 1,
+      "capitalWeight": 3,
+      "conqueredShare": 0.35,
+      "halfLifeYears": 12,
+      "capitalHalfLifeYears": 40,
+      "minWeight": 0.1,
+      "maxRecords": 16,
+      "maxClaim": 4,
+      "_war": "KingdomAI.considerWar: the claimant's grudge threshold (-30) rises by grudgePer a unit of claim (to grudgeCap); it marches at (1 - ease) of the strength it would want, ease easePer a unit (to maxEase); a holder of its towns is picked before any other foe. Weekly its regard of the holder sours by sourPer a unit (to sourCap), never below sourFloor.",
+      "grudgePer": 8,
+      "grudgeCap": 20,
+      "easePer": 0.08,
+      "maxEase": 0.25,
+      "sourPer": 1,
+      "sourCap": 3,
+      "sourFloor": -60,
+      "_peace": "KingdomAI.endWar: the victor's peace returns the heaviest town it claims of the loser's (never the loser's last) — always after a reclaim war (reclaimReturn), else with peaceReturn.",
+      "peaceReturn": 0.4,
+      "reclaimReturn": 1,
+      "_urge": "CourtLetters 'reclaim_urged': the player's lords urge a war to win back a town claimed at minWeight or more, from a realm the realm outweighs ratio times, once every everyDays a holder.",
+      "urge": { "minWeight": 0.8, "everyDays": 360, "ratio": 1.1, "expiry": 30 }
     }
   },
 

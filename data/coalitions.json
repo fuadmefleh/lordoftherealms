@@ -38,6 +38,8 @@
         "minMembers": 2,
         "maxMembers": 4,
         "ultimatumDays": 14,
+        "_realms": "2026-11-25: leagues against an overmighty AI realm (Coalitions.processRealms), by the same power (the crown terms: crown + crownTown x towns by its might share, title, conquest x towns it took in conquestDays), threat, formAt, brewWeeks, joinAt, members, ultimatum, resolve, concession, buyoff and cooldowns as the player's. The target weighs its might against the members' (answer: at fightLo of theirs or less it never fights, at fightHi or more it always does, between by a hash roll x its personality's war). Not fighting, it bows if its dynasty's prestige keeps prestigeKeep after the terms, pays if its chests keep reserveDays of spending (at least keepPurse) after them, or yields a border town (one a member held before it, back to that member; else, with yieldMinTowns towns, its town nearest a member's capital; never the capital); with none of these, or fighting, it is marched on; at war it buys out the mightiest member it can afford weekly. At most maxActive in the world, worldGap days between any two. The player's realm is never a member nor a target.",
+        "realms": { "enabled": true, "maxActive": 1, "worldGap": 360, "reserveDays": 5, "keepPurse": 500, "prestigeKeep": 60, "answer": { "fightLo": 0.5, "fightHi": 1.3, "yieldMinTowns": 3, "yieldBack": true } },
         "resolve": {
             "start": 50, "perMember": 10, "weekly": -3, "max": 100,
             "memberLost": -12, "memberHumbled": -20, "hostBroken": -4, "holdingTaken": 3,
@@ -49,7 +51,8 @@
         "chill": { "leader": 25, "member": 15 },
         "relationsFloor": -40,
         "embargoLevy": 0.25,
-        "concession": { "goldBase": 400, "goldPerPower": 12, "goldPerMember": 150, "prestigeBase": 25, "prestigePerMember": 5, "goldShame": 10 },
+        "_concession": "2026-11-25: the gold asked (goldBase + goldPerPower x power + goldPerMember x members) is capped by the target's means, one rule for the player and an AI crown (Coalitions.terms / means): means.revenueShare of a year (yearDays) of its revenue + means.chestShare of its chests, never below means.floor. An AI crown: CrownBooks.lastRevenue and its treasury. The player: the last 30 days' operating income (Ledger) and the purse, plus the revenue and chests of the crown they rule (the player pays from the purse, then those chests).",
+        "concession": { "goldBase": 400, "goldPerPower": 12, "goldPerMember": 150, "prestigeBase": 25, "prestigePerMember": 5, "goldShame": 10, "means": { "yearDays": 120, "revenueShare": 0.25, "chestShare": 0.3, "floor": 150 } },
         "buyoff": { "goldBase": 250, "perMilitary": 0.5, "perThreat": 8, "reputation": 10, "resolve": -10, "marriageDowry": 0 },
         "cede": { "resolve": -15, "reputation": 15 },
         "vendetta": { "rivalAt": 15, "maxRivals": 5, "feudPerWeight": 1.5 },

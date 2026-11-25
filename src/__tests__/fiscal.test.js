@@ -152,11 +152,15 @@ describe('the books', () => {
         const N = Fiscal.config().npc;
         const keepLg = N.largesseShare;
         N.largesseShare = 0;
+        // ...nor the ruler's privy purse (spent in the capital: Fiscal._privyPurse)
+        const P = Fiscal.config().privy;
+        P.enabled = false;
         try {
             fiscalDay(game);
         } finally {
             Object.assign(C, keep);
             N.largesseShare = keepLg;
+            P.enabled = true;
             k.military = mil;
         }
         const purse1 = towns.reduce((s, t) => s + t.economy.gold, 0);
@@ -172,7 +176,10 @@ describe('the books', () => {
         const game = world40();
         const k = bigRealm(game.world);
         const f = CrownBooks.state(k);
+        // (no tax farm's squeeze on the town: its burden is the crown's own)
+        unfarm(game.world, k);
         const town = townsOf(game.world, k)[0];
+        delete town.charter;
         const dues = (level) => {
             for (const l of ['land', 'poll', 'excise']) f.rates[l] = level;
             town.economy.fyProd = 10;
@@ -429,6 +436,45 @@ describe('the ruler\'s purse', () => {
             expect(k.fisc.last.works > 0, `held ${hold}`).toBe(!hold);
             expect(Math.abs(moneyTotal(game) - before)).toBeLessThan(towns.length * 0.02 + 1);
         }
+    }, 120000);
+});
+
+describe('an AI ruler\'s privy purse', () => {
+    it('is drawn by the player\'s levy rule and spent in the capital, never for a realm the player rules', () => {
+        const game = world40();
+        const { world, player } = game;
+        const k = bigRealm(world);
+        const f = CrownBooks.state(k);
+        f.avg = { ...f.avg, rev: 600, exp: 100, purse: 0, n: 30 };
+        k.stability = 80;
+        k.wars = [];
+        const capital = world.getTile(k.capital.q, k.capital.r).settlement;
+        const terms = CrownBooks.levyTerms();
+        // a full chest: the whole share (the standard policy's)
+        k.treasury = 100 * terms.levyChestDays + 5000;
+        const q = CrownBooks.privyQuote(k, Fiscal.config().privy.rate, terms, { coin: Fiscal.realmCoin(world, k) });
+        expect(q.levy).toBeGreaterThan(0);
+        const t0 = k.treasury, c0 = capital.economy.gold, p0 = f.day.purse || 0;
+        const paid = Fiscal._privyPurse(world, player, k, f);
+        expect(paid).toBe(q.levy);
+        expect(k.treasury).toBeCloseTo(t0 - paid, 2);
+        expect(capital.economy.gold).toBeCloseTo(c0 + paid, 2);
+        expect(f.day.purse - p0).toBeCloseTo(paid, 2);
+        expect(f.stats.privy).toBeGreaterThanOrEqual(paid);
+        // short of the war chest: less
+        k.treasury = Math.max(terms.levyReserve, 100 * terms.levyReserveDays) + 600;
+        expect(Fiscal._privyPurse(world, player, k, f)).toBeLessThan(paid);
+        // the realm the player rules pays the levy instead (systems/throne.js), and a far crown of the player's union its own
+        player.throne = player.throne || {};
+        player.throne.ruling = { kingdomId: k.id, policies: { tax: 'standard', stance: 'defensive', faith: 'devout' } };
+        k.treasury = 100 * terms.levyChestDays + 5000;
+        unfarm(world, k);
+        const before = f.stats.privy;
+        fiscalDay(game);
+        expect(k.fisc.stats.privy).toBe(before);
+        player.throne.ruling = null;
+        player.highCrowns = { crowns: { [k.id]: { kingdomId: k.id } } };
+        expect(Fiscal._privyPurse(world, player, k, CrownBooks.state(k))).toBe(0);
     }, 120000);
 });
 

@@ -509,7 +509,15 @@ Object.assign(UI.prototype, {
                     <div class="info-row">
                         <span class="info-label">Name</span>
                         <span class="info-value">${lord.name}</span>
-                    </div>
+                    </div>${(() => {
+                        // (a junior realm in personal union: its monarch reigns from the senior crown; a royal keeps the court)
+                        const pu = kingdom.personalUnion;
+                        if (!pu || pu.role !== 'junior') return '';
+                        const seat = this.game && this.game.world && this.game.world.getKingdom ? this.game.world.getKingdom(pu.partnerId) : null;
+                        let rows = seat ? `<div class="info-row"><span class="info-label">Reigns from</span><span class="info-value">${Names.realm(seat.name, true)}</span></div>` : '';
+                        if (pu.resident && pu.resident.name) rows += `<div class="info-row"><span class="info-label">At court</span><span class="info-value">${pu.resident.name} (${pu.resident.role || 'consort'})</span></div>`;
+                        return rows;
+                    })()}
                     <div class="info-row">
                         <span class="info-label">Age</span>
                         <span class="info-value">${lord.age} years</span>

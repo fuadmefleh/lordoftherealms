@@ -288,7 +288,7 @@ function _realmTab(game) {
     const { player, world } = game;
     const s = Kingship.realmStats(player, world);
     const k = s.kingdom;
-    let html = lede(`👑 <b>${_esc(k.ruler)}</b> — ${_esc(k.name)}${s.wars.length ? ` · at war with ${s.wars.map(_esc).join(', ')}` : ''}${s.allies.length ? ` · allied with ${s.allies.map(_esc).join(', ')}` : ''}`);
+    let html = lede(`👑 <b>${_esc(k.ruler)}</b> — ${_esc(k.name)}${s.wars.length ? ` · at war with ${s.wars.map(n => _esc(Names.realm(n))).join(', ')}` : ''}${s.allies.length ? ` · allied with ${s.allies.map(n => _esc(Names.realm(n))).join(', ')}` : ''}`);
     html += chips([
         { icon: '🏦', label: 'Treasury', value: `${Utils.formatGold(s.treasury)}g`, cls: 'gold' },
         ['⚔️', 'Army', s.military],

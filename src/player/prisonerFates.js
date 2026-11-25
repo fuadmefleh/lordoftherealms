@@ -1316,11 +1316,20 @@ export const PrisonerFates = {
             const d = _dist(world, c.q, c.r, c.toQ, c.toR);
             const k = _kingdom(world, c.kingdomId);
             // (a road that will not bring them in: they straggle home within a season all the same)
-            if (d > _num(B.speed, 3) && k && day - _num(c.day) < 120) {
-                const line = Hex.lineDraw(c.q, c.r, c.toQ, c.toR);
-                const next = line[Math.min(line.length - 1, _num(B.speed, 3))] || { q: c.toQ, r: c.toR };
-                if (next.q === c.q && next.r === c.r) { c.q = c.toQ; c.r = c.toR; } else { c.q = next.q; c.r = next.r; }
-                continue;
+            // (blind men led by a few one-eyed ones: a hex or two a day — speed may be a
+            // fraction, the part-hexes carried over in c.walked)
+            const speed = Math.max(0.1, _num(B.speed, 1.5));
+            if (d > 0 && k && day - _num(c.day) < _num(B.straggleDays, 240)) {
+                c.walked = _num(c.walked) + speed;
+                const steps = Math.floor(c.walked + 1e-9);
+                c.walked -= steps;
+                if (steps <= 0) continue;
+                if (d > steps) {
+                    const line = Hex.lineDraw(c.q, c.r, c.toQ, c.toR);
+                    const next = line[Math.min(line.length - 1, steps)] || { q: c.toQ, r: c.toR };
+                    if (next.q === c.q && next.r === c.r) { c.q = c.toQ; c.r = c.toR; } else { c.q = next.q; c.r = next.r; }
+                    continue;
+                }
             }
             ws.columns = ws.columns.filter(x => x !== c);
             if (!k) continue;

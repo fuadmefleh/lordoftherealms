@@ -406,6 +406,42 @@ describe('Ruling a realm', () => {
         expect(Throne.proposePeace(player, world, foe.id).success).toBe(true);
     });
 
+    it('the levy builds the war chest first: part of it below the chest, all of it once full, deeper at war', () => {
+        // (2026-11-25: the levy took its whole share from any treasury over 5 days of upkeep,
+        // and a ruled realm kept 3-5k for twenty years)
+        const world = makeWorld();
+        const { player, k } = crowned(world);
+        const R = Throne.config().ruling;
+        const books = CrownBooks.state(k);
+        books.avg = { rev: 600, exp: 100, purse: 0, n: 5 };
+        k.stability = 80;
+        k.wars = [];
+        const full = Math.floor(600 * Throne.levyRate(player));
+        const chest = 100 * R.levyChestDays;
+        k.treasury = chest + 10;
+        expect(Throne.levyQuote(player, world, k)).toMatchObject({ levy: full, limit: 'rate', chest, chestMult: 1 });
+        // halfway between the reserve and the chest: levyBelowChest and half the rest
+        const reserve = Math.max(R.levyReserve, 100 * R.levyReserveDays);
+        k.treasury = (reserve + chest) / 2;
+        const half = Throne.levyQuote(player, world, k);
+        expect(half.limit).toBe('chest');
+        expect(half.chestMult).toBeCloseTo(R.levyBelowChest + (1 - R.levyBelowChest) / 2, 5);
+        expect(half.levy).toBe(Math.floor(full * half.chestMult));
+        // at war the chest is deeper: a treasury full at peace is short of it
+        k.treasury = chest + 10;
+        k.wars = [world.kingdoms.find(o => o !== k).id];
+        const war = Throne.levyQuote(player, world, k);
+        expect(war.chest).toBe(100 * R.levyWarChestDays);
+        expect(war.limit).toBe('chest');
+        expect(war.levy).toBeLessThan(full);
+        // the day's levy is what the quote says
+        k.wars = [];
+        k.treasury = (reserve + chest) / 2;
+        const gold = player.gold;
+        Throne.processDaily(player, world);
+        expect(player.gold - gold).toBe(half.levy);
+    });
+
     it('the player\'s stand-in on the throne never dies of NPC old age', () => {
         const world = makeWorld();
         const { k } = crowned(world);

@@ -510,6 +510,8 @@ describe('a letter asking you to take the cross', () => {
 describe('how often and how long', () => {
     it('towns win a holy war only once enough have fallen and it has run its minimum days', () => {
         const { world, ks, tiles } = makeWorld();
+        // (the beaten foe would sue for terms once its towns fall: holyWarTerms.test.js)
+        DataLoader._gamedata.holyWars.terms = { ...DataLoader._gamedata.holyWars.terms, enabled: false };
         week(world, null, 2);
         const sun = HolyWars.see(world, 'solaris|orthodox');
         const war = HolyWars.call(world, null, sun, ks[3], 'infidel', null);

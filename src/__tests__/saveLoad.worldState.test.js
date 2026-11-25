@@ -150,6 +150,30 @@ describe('save/load keeps world state', () => {
         expect(back.terrain.id).toBe(Terrain.TYPES.GRASSLAND.id);
         expect(back.resource).toBe(null);
     });
+
+    it('a child who inherited is one person: written once, and the ruler is still among the children after a load', () => {
+        const game = newGame(4248);
+        const k = game.world.kingdoms.find(x => x.characterData && x.characterData.ruler && Array.isArray(x.characterData.children));
+        expect(k).toBeTruthy();
+        const cd = k.characterData;
+        // (the eldest child crowned: the same record as ruler and in the children's list)
+        cd.children.unshift(cd.ruler);
+        let saved = null;
+        const g2 = reload(game, (data) => { saved = JSON.parse(JSON.stringify(data.world.kingdoms.find(x => x.id === k.id).characterData)); });
+        expect(saved.children.some(c => c.id === cd.ruler.id)).toBe(false);
+        const cd2 = g2.world.getKingdom(k.id).characterData;
+        expect(cd2.children[0]).toBe(cd2.ruler);
+        expect(cd2.children.length).toBe(cd.children.length);
+        // An older save that wrote the ruler twice: the copy in the list is the ruler's own record
+        const g3 = reload(game, (data) => {
+            const c = data.world.kingdoms.find(x => x.id === k.id).characterData;
+            c.children = [JSON.parse(JSON.stringify(c.ruler)), ...c.children];
+            delete c.childRefs;
+        });
+        const cd3 = g3.world.getKingdom(k.id).characterData;
+        expect(cd3.children[0]).toBe(cd3.ruler);
+        cd.children.shift();
+    });
 });
 
 describe('deterministic ids', () => {

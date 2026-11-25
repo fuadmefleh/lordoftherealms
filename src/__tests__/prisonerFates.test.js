@@ -6,6 +6,7 @@
 import { describe, it, expect, beforeAll, beforeEach, afterEach } from 'vitest';
 import { DataLoader } from '../core/dataLoader.js';
 import { Utils } from '../core/utils.js';
+import { Hex } from '../core/hex.js';
 import { PrisonerFates } from '../player/prisonerFates.js';
 import { PlayerMilitary } from '../player/playerMilitary.js';
 import { FieldBattle } from '../player/fieldBattle.js';
@@ -321,8 +322,14 @@ describe('PrisonerFates — the men', () => {
         expect(col).toBeTruthy();
         expect(col.men).toBe(40);
         const before = KingdomAI._moraleBonus(k1, world);
+        // (blind men led by a few: a hex or two a day, not a host's march)
+        const at0 = { q: col.q, r: col.r };
+        const far = Hex.wrappingDistance(at0.q, at0.r, col.toQ, col.toR, world.width);
         let days = 0;
-        while (WarStakes.columns(world).length && days < 40) { world.day++; days++; PrisonerFates.processDay(world, player); }
+        for (let i = 0; i < 3 && WarStakes.columns(world).length; i++) { world.day++; days++; PrisonerFates.processDay(world, player); }
+        if (WarStakes.columns(world).length) expect(Hex.wrappingDistance(at0.q, at0.r, col.q, col.r, world.width)).toBeLessThanOrEqual(5);
+        else expect(far).toBeLessThanOrEqual(5);
+        while (WarStakes.columns(world).length && days < 120) { world.day++; days++; PrisonerFates.processDay(world, player); }
         expect(days).toBeGreaterThan(1);
         expect(WarStakes.dismay(k1, world.day)).toBeGreaterThan(0);
         expect(KingdomAI._moraleBonus(k1, world)).toBeLessThan(before);

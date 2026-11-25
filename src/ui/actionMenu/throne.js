@@ -10,6 +10,7 @@ import { Names } from '../../core/names.js';
 import { Utils } from '../../core/utils.js';
 import { HighCrowns } from '../../systems/highCrowns.js';
 import { RealmUnions } from '../../systems/realmUnions.js';
+import { HolyWars } from '../../systems/holyWars.js';
 
 /** " · 👑 in personal union with X" for a realm whose crown is shared (systems/realmUnions.js). */
 function _unionTag(world, k) {
@@ -74,10 +75,11 @@ export function crownRuleHtml(game) {
         rate: 'the tax policy',
         stability: `the realm's unrest (only ${Math.round(lq.stabilityMult * 100)}% of the dues reach you)`,
         surplus: lq.surplus > 0 ? `the crown's upkeep (only ${Utils.formatGold(lq.surplus)}g a day is left over the army, court and works)` : `the crown's deficit (its upkeep ${Utils.formatGold(lq.upkeep)}g a day outruns its ${Utils.formatGold(lq.revenue)}g of revenue)`,
+        chest: `the war chest (the treasury holds ${Utils.formatGold(Math.round(ruled.treasury || 0))}g of the ${Utils.formatGold(lq.chest)}g it builds first${lq.deeper ? ', deeper at war' : ''}: only ${Math.round(lq.chestMult * 100)}% of the levy is drawn until it is full)`,
         reserve: `the treasury's reserve (it keeps ${Utils.formatGold(lq.reserve)}g, ${cfg.ruling.levyReserveDays || 0} days of upkeep)`,
         cap: `the customary cap of ${Utils.formatGold(lq.cap)}g a day`,
     };
-    let html = `<div style="${MUTED} margin:4px 0;">Ruling since day ${r.since}${r.founded ? ', the realm founded by your hand' : ''}. Today's levy to your purse: <b style="color:#ffcf6a;">${Utils.formatGold(lq.levy)}g</b> (${Math.round(lq.rate * 100)}% of ${Utils.formatGold(lq.revenue)}g in daily dues), held down by ${LIMIT[lq.limit] || lq.limit}. ${Utils.formatGold(r.levyTotal || 0)}g levied so far.</div>`;
+    let html = `<div style="${MUTED} margin:4px 0;">Ruling since day ${r.since}${r.founded ? ', the realm founded by your hand' : ''}. Today's levy to your purse: <b style="color:#ffcf6a;">${Utils.formatGold(lq.levy)}g</b> (${Math.round(lq.rate * 100)}% of ${Utils.formatGold(Math.round(lq.revenue))}g in daily dues), held down by ${LIMIT[lq.limit] || lq.limit}. ${Utils.formatGold(r.levyTotal || 0)}g levied so far.</div>`;
 
     // The crown's policies: the one in force marked, the others a click away
     for (const axis of Throne.POLICY_AXES) {
@@ -96,10 +98,20 @@ export function crownRuleHtml(game) {
     // Diplomacy: a row a realm; its choices one click in (bindCrownRule's realm())
     html += rowList(Throne.diplomacyTargets(player, world).map(d => ({
         icon: d.atWar ? '⚔️' : d.allied ? '🤝' : '🏰', name: _esc(d.kingdom.name),
-        desc: `${d.atWar ? 'At war' : d.allied ? 'Allied' : d.truce ? 'Under truce' : `Relations ${d.relations}`} · army ${Math.floor(d.kingdom.military || 0)}${_unionTag(world, d.kingdom)}`,
+        desc: `${d.atWar ? 'At war' : d.allied ? 'Allied' : d.truce ? 'Under truce' : `Relations ${d.relations}`} · army ${Math.floor(d.kingdom.military || 0)}${_unionTag(world, d.kingdom)}${d.reclaim && d.reclaim.length ? ` · 🏰 holds our ${_esc(d.reclaim.map(x => x.name).slice(0, 2).join(', '))}` : ''}`,
         tone: d.atWar ? 'bad' : d.allied ? 'good' : '', side: '›',
         attrs: `onclick="window._throne.realm('${d.kingdom.id}')"`,
     })), 'Diplomacy');
+    // The towns the realm lost and remembers: each a casus belli on its holder (world/revanche.js)
+    const lost = Throne.lostTowns(player, world);
+    if (lost.length) {
+        html += rowList(lost.map(t => ({
+            icon: t.capital ? '👑' : '🏘️', name: _esc(t.name),
+            desc: `${t.capital ? 'Our old seat' : t.native ? 'Our town' : 'A town we had won'}, lost to ${_esc(t.byName || 'a foe')} in year ${Math.floor((t.day || 0) / 120) + 1}; held by ${_esc(t.holderName)} · claim ${t.label}`,
+            side: 'Reclaim ›', tone: t.w >= 1 ? 'bad' : '',
+            attrs: `onclick="window._throne.realm('${t.holderId}')"`,
+        })), 'Towns lost');
+    }
     html += rowList([{ icon: '👑', name: 'Abdicate', desc: 'Lay down the crown', attrs: 'onclick="window._throne.abdicate()"', tone: 'bad' }]);
     return html;
 }
@@ -116,18 +128,25 @@ export function bindCrownRule(game, reopen) {
         gift: (id) => result('🎁 Royal Gifts', Throne.sendRoyalGifts(player, world, id)),
         abdicate: () => result('👑 Abdication', Throne.abdicate(player, world)),
         back: reopen,
+        church: () => ActionMenu.showChurch(game),
         // One realm's choices: peace while at war; else war, alliance, gifts
         realm: (id) => {
             const d = Throne.diplomacyTargets(player, world).find(x => String(x.kingdom.id) === String(id));
             const ruled = Throne.ruledKingdom(player, world);
             if (!d || !ruled) return;
             const cfg = Throne.config();
-            const rows = d.atWar
+            // (a holy war against the realm: sworn, no envoys — its terms go to the see)
+            const holy = d.atWar ? HolyWars.against(world, ruled.id).find(w => w.members.includes(d.kingdom.id)) : null;
+            const rows = holy
+                ? [{ icon: '⛪', name: 'Offer the see terms', desc: `${_esc(Names.realm(d.kingdom.name, true))} fights in ${_esc(holy.name)}, sworn: it hears no envoys. ${_esc(holy.head)} may hear terms: a penance, a town, the rite or tolerance`, side: '›', attrs: 'onclick="window._throne.church()"' }]
+                : d.atWar
                 ? [{ icon: '🕊️', name: 'Propose peace', desc: `~${Math.round(Throne.peaceChance(player, world, d.kingdom.id) * 100)}% they accept`, attrs: `onclick="window._throne.peace('${id}')"` }]
                 : [
                     { icon: '🎁', name: 'Send royal gifts', desc: 'Warm their court toward yours', side: price(cfg.ruling.giftCost, (ruled.treasury || 0) >= cfg.ruling.giftCost), off: (ruled.treasury || 0) < cfg.ruling.giftCost, why: `The treasury lacks ${Utils.formatGold(cfg.ruling.giftCost)}g`, attrs: `onclick="window._throne.gift('${id}')"` },
                     { icon: '🤝', name: 'Propose an alliance', desc: `Needs relations of ${cfg.ruling.allianceMinRelations}+`, off: d.allied || d.relations < cfg.ruling.allianceMinRelations, why: d.allied ? 'Already allied' : `Relations ${d.relations}; they need ${cfg.ruling.allianceMinRelations}+`, attrs: `onclick="window._throne.ally('${id}')"` },
-                    { icon: '⚔️', name: 'Declare war', desc: `Their towns become your war goal${RealmUnions.partnerOf(world, d.kingdom) ? `; ${_esc(Names.realm(RealmUnions.partnerOf(world, d.kingdom).name))}, its other crown, will join them` : ''}`, tone: 'bad', off: d.allied || !!d.truce, why: d.allied ? 'You are allied' : 'A truce holds', attrs: `onclick="window._throne.war('${id}')"` },
+                    d.reclaim && d.reclaim.length
+                        ? { icon: '🏰', name: `Declare war to reclaim ${_esc(d.reclaim.map(x => x.name).slice(0, 2).join(' and '))}`, desc: `Casus belli: Reclaim. Take ${d.reclaim.length > 1 ? 'them' : 'it'} back and the war is won; win the war and the peace returns ${d.reclaim.length > 1 ? 'one' : 'it'}${RealmUnions.partnerOf(world, d.kingdom) ? `; ${_esc(Names.realm(RealmUnions.partnerOf(world, d.kingdom).name))}, its other crown, will join them` : ''}`, tone: 'bad', off: d.allied || !!d.truce, why: d.allied ? 'You are allied' : 'A truce holds', attrs: `onclick="window._throne.war('${id}')"` }
+                        : { icon: '⚔️', name: 'Declare war', desc: `Their towns become your war goal${RealmUnions.partnerOf(world, d.kingdom) ? `; ${_esc(Names.realm(RealmUnions.partnerOf(world, d.kingdom).name))}, its other crown, will join them` : ''}`, tone: 'bad', off: d.allied || !!d.truce, why: d.allied ? 'You are allied' : 'A truce holds', attrs: `onclick="window._throne.war('${id}')"` },
                 ];
             rows.push({ icon: '←', name: 'Back to the realm', attrs: 'onclick="window._throne.back()"' });
             const un = RealmUnions.describe(world, d.kingdom);

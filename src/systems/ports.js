@@ -56,6 +56,7 @@ import { Ledger } from './ledger.js';
 import { Townsfolk } from './townsfolk.js';
 import { TownJobs } from './townJobs.js';
 import { Technology } from './technology.js';
+import { Infrastructure } from './infrastructure.js';
 import { Ships } from './ships.js';
 
 const WATER_IDS = new Set(['ocean', 'deep_ocean', 'coast', 'sea', 'lake']);
@@ -704,10 +705,20 @@ export const Ports = {
         }
         player.lastFerry = { id: leg.ferry.id, day: _day(world), fare: leg.fare, ferryman: leg.ferry.ferryman, town: leg.ferry.town.name };
         // (told as you come ashore: player/core/movement.js queues it, ui/game/gameLoop.js shows it)
-        const span = (d) => (d < 1 ? `${Math.max(1, Math.round(d * 24))} hour${Math.round(d * 24) === 1 ? '' : 's'}` : `${Math.round(d * 10) / 10} day${d === 1 ? '' : 's'}`);
+        // (the time as the road takes it: bridging craft and a Grand Bridge's wardens shorten
+        // every crossing — Infrastructure.riverCrossFactor, as player/core/movement.js counts it)
+        const factor = Infrastructure.riverCrossFactor(player);
+        const extra = leg.extra * factor;
+        const wade = leg.wade * factor;
+        const span = (d) => {
+            const h = Math.max(1, Math.round(d * 24));
+            if (d < 1) return `${h} hour${h === 1 ? '' : 's'}`;
+            const n = Math.round(d * 10) / 10;
+            return `${n} day${n === 1 ? '' : 's'}`;
+        };
         const text = `${leg.ferry.ferryman} takes you over the great river on the ferry${leg.fare > 0 ? ` for ${leg.fare}g, to ${leg.ferry.town.name}'s purse` : ' and asks nothing for it'}. `
-            + `With the wait for the boat it is about ${span(leg.extra)}; wading across would have been ${span(leg.wade)}.`;
-        return { paid: leg.fare, ferry: leg.ferry, extra: leg.extra, wade: leg.wade, text };
+            + `With the wait for the boat it took ${span(extra)}; wading across would have taken ${span(wade)}.`;
+        return { paid: leg.fare, ferry: leg.ferry, extra, wade, text };
     },
 
     /** The strait ferries from where the player stands: [{ ferry, to, fare, ok, reason }] */

@@ -419,13 +419,25 @@ export const RealmUnions = {
         }
         RealmUnions._bind(world, v);
         const text = RealmUnions._text(opts.textKey || 'formed', RealmUnions._vars(v, { consort: consortName, ...(opts.vars || {}), resident: consortName }), `👑 ${senior.name} and ${junior.name} are joined in personal union.`);
-        junior.ruler = senior.ruler;
+        RealmUnions._crownJunior(junior, senior.ruler);
         st.history.push({ id, senior: { id: senior.id, name: senior.name }, junior: { id: junior.id, name: junior.name }, monarch: senior.ruler, consort: consortName, from: day, to: null, how: opts.how || 'marriage', end: null, monarchs: [senior.ruler] });
         if (st.history.length > C.historyCap) st.history.splice(0, st.history.length - C.historyCap);
         RealmUnions._tell(world, opts.player || null, v, text, out, { icon: '👑', title: 'Two Crowns, One Head', type: 'info', interrupt: true });
         RealmUnions._timeline(world, senior, 'timelineFormed', RealmUnions._vars(v));
         out.formed.push(id);
         return junior.personalUnion;
+    },
+
+    /**
+     * The name a junior realm shows for its ruler: its monarch's (or, the
+     * union ended, its own crowned resident's) — on the realm and on its lord
+     * (kingdom.lord: the realm's details panel, letters), so the lord named
+     * there is the one crowned, as Characters.syncRulerName keeps elsewhere.
+     */
+    _crownJunior(junior, name) {
+        if (!junior || !name) return;
+        junior.ruler = name;
+        if (junior.lord) junior.lord.name = name;
     },
 
     /** Allied, at peace, a standing truce and warm regard (kept daily). */
@@ -455,7 +467,7 @@ export const RealmUnions = {
             KingdomAI.endWar(senior, junior, world, { text: `🕊️ ${senior.name} and ${junior.name}, one crown, make peace with each other.` });
         }
         RealmUnions._bind(world, v);
-        if (senior.ruler && junior.ruler !== senior.ruler) junior.ruler = senior.ruler;
+        if (senior.ruler) RealmUnions._crownJunior(junior, senior.ruler);
         const vars = RealmUnions._vars(v);
         // The senior's peace binds the junior
         const now = new Set(_arr(senior.wars).map(String));
@@ -543,7 +555,7 @@ export const RealmUnions = {
             if (Laws.value(world, junior.id, 'crownAbroad') === 'native') { RealmUnions._end(world, player, v, 'law', out); return true; }
             if (ss.type !== 'heir' || ss.crisis) { RealmUnions._end(world, player, v, 'stranger', out); return true; }
             u.monarch = senior.ruler;
-            junior.ruler = senior.ruler;
+            RealmUnions._crownJunior(junior, senior.ruler);
             RealmUnions._tell(world, player, v, RealmUnions._text('inherited', RealmUnions._vars(v), ''), out, { icon: '👑', title: 'The Union Holds', type: 'info', minor: true });
             const hh = RealmUnions.state(world).history.find(x => x && x.id === u.id);
             RealmUnions._noteHistory(world, u, { monarch: senior.ruler, monarchs: _arr(hh && hh.monarchs).concat([senior.ruler]) });
@@ -561,7 +573,7 @@ export const RealmUnions = {
                     // The junior's heir by blood is the monarch: the crown follows, a stand-in keeps the court
                     ab.settled = _day(world);
                     u.resident = res ? { id: res.id, name: resName, role: 'regent' } : null;
-                    junior.ruler = senior.ruler;
+                    RealmUnions._crownJunior(junior, senior.ruler);
                     RealmUnions._tell(world, player, v, RealmUnions._text('viceroy', vars, ''), out, { icon: '👑', title: 'The Union Holds', type: 'info', minor: true });
                     return false;
                 }
@@ -575,7 +587,7 @@ export const RealmUnions = {
             else holds = _hash01(world, `cousin:${u.id}:${jDay}`) < C.cousinYields; // (a regent or cousin yields to the blood, or seizes it)
             if (!holds) { RealmUnions._end(world, player, v, 'native', out, { resident: resName }); return true; }
             u.resident = res ? { id: res.id, name: resName, role: 'regent' } : null;
-            junior.ruler = senior.ruler;
+            RealmUnions._crownJunior(junior, senior.ruler);
             RealmUnions._tell(world, player, v, RealmUnions._text('viceroy', vars, ''), out, { icon: '👑', title: 'The Union Holds', type: 'info', minor: true });
         }
         return false;
@@ -615,7 +627,7 @@ export const RealmUnions = {
             lastWars: _arr(senior.wars).slice(),
         };
         if (!RealmUnions._playerHeld(senior)) Characters.syncRulerName(senior);
-        junior.ruler = senior.ruler;
+        RealmUnions._crownJunior(junior, senior.ruler);
         const nv = { senior, junior, u: junior.personalUnion };
         RealmUnions._bind(world, nv);
         const st = RealmUnions.state(world);
@@ -666,7 +678,7 @@ export const RealmUnions = {
         RealmUnions._refuse(world, res && res.id, RealmUnions._ruler(senior) && RealmUnions._ruler(senior).id);
         const pend = junior && junior.lastSuccession && _obj(junior.lastSuccession.abroad);
         if (res && res.standIn && !(pend && pend.settled == null)) delete res.standIn;
-        if (junior && junior.isAlive && res && !RealmUnions._playerHeld(junior)) junior.ruler = Characters.getDisplayName(res, junior);
+        if (junior && junior.isAlive && res && !RealmUnions._playerHeld(junior)) RealmUnions._crownJunior(junior, Characters.getDisplayName(res, junior));
         const vars = RealmUnions._vars({ senior, junior, u }, { resident: opts.resident || (junior && junior.ruler) || '', fallen: opts.fallen || '', taken: opts.taken || '' });
         const key = { parted: 'partedConsort', stranger: 'partedStranger', native: 'partedNative', law: 'partedLaw', revolt: 'revolt', fallen: 'fallen', player: 'player' }[how] || 'partedNative';
         const text = opts.text || RealmUnions._text(key, vars, `💔 The union of ${vars.seniorRealm} and ${vars.juniorRealm} is ended.`);

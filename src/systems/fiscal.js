@@ -454,6 +454,8 @@ export const Fiscal = {
         // npc.ruledLargesseAbove days / ruledLargesseCoin of the realm's coin — unless the
         // ruler holds the works in hand, f.manual.works: before 2026-11-24 its chests sat on
         // twice the coin its towns held, and the towns' purses ran dry under light taxes)
+        // (an AI ruler's privy purse, by the rule of the player's levy: Fiscal._privyPurse)
+        if (!ruled) Fiscal._privyPurse(world, player, k, f);
         if (!ruled) Fiscal._largesse(world, k, f, towns.length ? towns : [], Fiscal._dailyLargesse());
         else if (C.npc.ruledLargesse !== false && !(_obj(f.manual) && f.manual.works)) {
             Fiscal._largesse(world, k, f, towns.length ? towns : [], Fiscal._dailyLargesse(), { above: C.npc.ruledLargesseAbove, coin: C.npc.ruledLargesseCoin });
@@ -644,6 +646,34 @@ export const Fiscal = {
         k.treasury = _r2(_num(k.treasury) - placed);
         CrownBooks.note(k, 'works', placed);
         MoneySupply.note(world, k.id, placed, 'fisc');
+        return placed;
+    },
+
+    /**
+     * An AI ruler's privy purse (data/fiscal.json `privy`): drawn daily out of
+     * the crown's chests by the player's royal levy's own rule
+     * (CrownBooks.privyQuote with the levy's terms, at privy.rate — the
+     * standard policy's share): a share of the taxes and dues, scaled by the
+     * realm's stability, out of what they leave over the upkeep, the war chest
+     * built first. An AI ruler keeps no purse of his own, so his household
+     * spends it in the capital the same day (CrownBooks.spendAtCapital — the
+     * jewellers, huntsmen, cooks and almoners paid live there), booked on the
+     * 'purse' line. Not for the realm the player rules or a far crown of the
+     * player's union (systems/highCrowns.js levies those). → the coin spent.
+     */
+    _privyPurse(world, player, k, f) {
+        const P = _obj(Fiscal.config().privy);
+        if (!P || P.enabled === false || !k || !f) return 0;
+        const union = player && _obj(player.highCrowns) && _obj(player.highCrowns.crowns);
+        if (union && _obj(union[k.id])) return 0;
+        const q = CrownBooks.privyQuote(k, _num(P.rate, 0.15), CrownBooks.levyTerms(), { coin: Fiscal.realmCoin(world, k) });
+        if (!(q.levy > 0)) return 0;
+        const placed = CrownBooks.spendAtCapital(world, k, q.levy);
+        if (!(placed > 0)) return 0;
+        k.treasury = _r2(_num(k.treasury) - placed);
+        CrownBooks.note(k, 'purse', placed);
+        MoneySupply.note(world, k.id, placed, 'fisc');
+        f.stats.privy = _r2(_num(f.stats.privy) + placed);
         return placed;
     },
 

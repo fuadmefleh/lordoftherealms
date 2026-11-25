@@ -16,6 +16,7 @@ import { SettlementMarket } from '../../world/settlementMarket.js';
 import { NPCLords } from '../../world/npcLords.js';
 import { RealmArms } from '../../world/realmArms.js';
 import { KingdomAI } from '../../world/kingdomAI.js';
+import { Revanche } from '../../world/revanche.js';
 import { Difficulty } from '../../core/difficulty.js';
 import { DataLoader } from '../../core/dataLoader.js';
 import { Ledger } from '../../systems/ledger.js';
@@ -748,6 +749,10 @@ Object.assign(PlayerMilitary, {
             if (previousKingdom) {
                 const oldKingdom = world.getKingdom(previousKingdom);
                 if (oldKingdom) {
+                    // (it remembers the town it lost, and to whom; a liege's town won back is home: world/revanche.js)
+                    const liege = player.allegiance ? world.getKingdom(player.allegiance) : null;
+                    Revanche.record(world, oldKingdom, liege, settlement, tile.q, tile.r);
+                    if (liege) Revanche.regained(world, liege, tile.q, tile.r);
                     // Remove from kingdom territory
                     oldKingdom.territory = oldKingdom.territory.filter(t =>
                         t.q !== tile.q || t.r !== tile.r

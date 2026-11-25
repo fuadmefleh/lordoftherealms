@@ -31,6 +31,7 @@ import { Hex } from '../core/hex.js';
 import { DataLoader } from '../core/dataLoader.js';
 import { Kingdom } from '../world/kingdom.js';
 import { KingdomAI } from '../world/kingdomAI.js';
+import { Revanche } from '../world/revanche.js';
 import { KingdomNavy } from '../world/kingdomNavy.js';
 import { CrownBooks } from '../world/crownBooks.js';
 import { NPCLords } from '../world/npcLords.js';
@@ -89,6 +90,7 @@ const DEFAULT_CONFIG = {
     },
     ruling: {
         levyReserve: 500, levyCap: 150, levyReserveDays: 5, levyStability: [25, 75], levySurplusShare: 0.75, levyDeficitShare: 0.25,
+        levyChestDays: 60, levyWarChestDays: 120, levyChestCoin: 0.25, levyBelowChest: 0.25,
         peaceCooldownDays: 10, peaceBaseChance: 0.35, allianceMinRelations: 40,
         giftCost: 300, giftRelations: 10, peaceSeekChance: 0.05,
     },
@@ -1205,6 +1207,23 @@ export const Throne = {
             atWar: (k.wars || []).includes(o.id),
             allied: (k.allies || []).includes(o.id),
             truce: KingdomAI.hasTruce(k, o, world),
+            // Towns of ours it holds, remembered: a casus belli to win them back (world/revanche.js)
+            claim: Math.round(Revanche.claimOn(world, k, o) * 100) / 100,
+            reclaim: Revanche.claimedFrom(world, k, o).map(c => ({ name: c.rec.name, capital: !!c.rec.capital, w: Math.round(c.w * 100) / 100 })),
+        }));
+    },
+
+    /**
+     * The towns the ruled realm lost and remembers (world/revanche.js):
+     * [{ name, q, r, capital, native, day, byName, holderId, holderName, w, label }],
+     * heaviest claim first — the forgotten and the won back left out.
+     */
+    lostTowns(player, world) {
+        const k = Throne.ruledKingdom(player, world);
+        if (!k) return [];
+        return Revanche.claims(world, k).map(c => ({
+            name: c.rec.name, q: c.rec.q, r: c.rec.r, capital: !!c.rec.capital, native: c.rec.native !== false, day: c.rec.day,
+            byName: c.rec.byName, holderId: c.holder.id, holderName: c.holder.name, w: Math.round(c.w * 100) / 100, label: Revanche.label(c.w),
         }));
     },
 
@@ -1216,9 +1235,12 @@ export const Throne = {
         if ((k.allies || []).includes(t.id)) return { success: false, reason: `${t.name} is your ally.` };
         if (KingdomAI.hasTruce(k, t, world)) return { success: false, reason: `A truce with ${t.name} still holds.` };
         KingdomAI.startWar(k, t, world);
-        if (Array.isArray(world.events)) world.events.push({ text: `⚔️ ${k.name} has declared war on ${t.name}!`, type: 'military' });
-        Throne._log(player, world, `⚔️ By your command, ${k.name} declares war on ${t.name}.`);
-        return { success: true, message: `${k.name} marches on ${t.name}.` };
+        // (a war on the holder of our lost towns is a reclaim war: KingdomAI.startWar, world/revanche.js)
+        const lost = Revanche.claimedFrom(world, k, t).map(c => c.rec.name);
+        const why = lost.length ? ` to win back ${lost.slice(0, 3).join(', ')}` : '';
+        if (Array.isArray(world.events)) world.events.push({ text: `⚔️ ${k.name} has declared war on ${t.name}${why}!`, type: 'military' });
+        Throne._log(player, world, `⚔️ By your command, ${k.name} declares war on ${t.name}${why}.`);
+        return { success: true, reclaim: lost.length > 0, message: lost.length ? `${k.name} marches on ${t.name}${why}. Take them, and the war is won; win it, and the peace returns one.` : `${k.name} marches on ${t.name}.` };
     },
 
     peaceChance(player, world, enemyId) {
@@ -1238,18 +1260,19 @@ export const Throne = {
         const k = Throne.ruledKingdom(player, world);
         const e = Throne._kingdom(world, enemyId);
         if (!k || !e) return { success: false, reason: 'No such realm.' };
-        if (!(k.wars || []).includes(e.id)) return { success: false, reason: `You are not at war with ${e.name}.` };
+        const E = Names.realm(e.name, true);
+        if (!(k.wars || []).includes(e.id)) return { success: false, reason: `You are not at war with ${Names.realm(e.name)}.` };
         const r = Throne.state(player).ruling;
-        if ((r.peaceCooldown[e.id] || 0) > world.day) return { success: false, reason: `${e.name} will not hear your envoys until day ${r.peaceCooldown[e.id]}.` };
+        if ((r.peaceCooldown[e.id] || 0) > world.day) return { success: false, reason: `${E} will not hear your envoys until day ${r.peaceCooldown[e.id]}.` };
         // (the last crisis's holy war or pretender's war: fought out, or bought off on the Age panel)
-        if (KingdomAI.isSworn && KingdomAI.isSworn(k, e, world)) return { success: false, reason: `${e.name} has sworn this war against your House: it will not hear envoys. Beat it, or buy it out (Dynasty → The Age).` };
+        if (KingdomAI.isSworn && KingdomAI.isSworn(k, e, world)) return { success: false, reason: `${E} has sworn this war against your realm: it hears no envoys. Win it, or buy your way out (a holy war: offer the see terms under Dynasty → Against you → The Church; the last crisis: Dynasty → Against you → The Age).` };
         if (Utils.random() < Throne.peaceChance(player, world, enemyId)) {
-            KingdomAI.endWar(k, e, world, { text: `🕊️ ${k.name} and ${e.name} make peace.` });
-            Throne._log(player, world, `🕊️ ${k.name} makes peace with ${e.name}.`);
-            return { success: true, message: `${e.name} accepts your peace. A truce now holds.` };
+            KingdomAI.endWar(k, e, world, { text: `🕊️ ${Names.realm(k.name, true)} and ${Names.realm(e.name)} make peace.` });
+            Throne._log(player, world, `🕊️ ${Names.realm(k.name, true)} makes peace with ${Names.realm(e.name)}.`);
+            return { success: true, message: `${E} accepts your peace. A truce now holds.` };
         }
         r.peaceCooldown[e.id] = world.day + R.peaceCooldownDays;
-        return { success: true, failed: true, message: `${e.name} refuses your envoys.` };
+        return { success: true, failed: true, message: `${E} refuses your envoys.` };
     },
 
     proposeAlliance(player, world, targetId) {
@@ -1406,49 +1429,38 @@ export const Throne = {
 
     /**
      * Today's royal levy, and why it is what it is: { levy, base, rate,
-     * stability, stabilityMult, revenue, upkeep, surplus, reserve, cap, limit }.
+     * stability, stabilityMult, revenue, upkeep, surplus, reserve, chest,
+     * chestMult, war, cap, limit } — CrownBooks.privyQuote, the rule an AI
+     * ruler's privy purse follows too (systems/fiscal.js _privyPurse).
      * The ruler takes the tax policy's share of the crown's taxes and dues
      * (systems/fiscal.js), scaled by the realm's stability (a restless realm
      * hides its coin from the collectors), never more than a share of what the
      * revenue leaves over the crown's upkeep (army, court, works, debt, the
      * dole; a crown in deficit still pays levyDeficitShare of it, the purse
      * being a first charge), and never below the reserve the treasury keeps
-     * for that upkeep (levyReserveDays of it, at least levyReserve).
+     * for that upkeep (levyReserveDays of it, at least levyReserve); until the
+     * chests hold the war chest (levyChestDays of upkeep, levyWarChestDays at
+     * war, at most levyChestCoin of the realm's coin) only part of it.
      * The coin is the treasury's, which the towns' taxes filled. limit names
-     * what held it down: 'rate' | 'stability' | 'surplus' | 'reserve' | 'cap'.
+     * what held it down: 'rate' | 'stability' | 'surplus' | 'chest' | 'reserve' | 'cap'.
      */
     levyQuote(player, world, kingdom = null) {
         const R = Throne.config().ruling;
         const k = kingdom || Throne.ruledKingdom(player, world);
-        const out = { levy: 0, base: 0, rate: Throne.levyRate(player), stability: 0, stabilityMult: 0, revenue: 0, upkeep: 0, surplus: 0, reserve: 0, cap: R.levyCap, limit: 'rate' };
-        if (!k) return out;
-        const treasury = k.treasury || 0;
+        const rate = Throne.levyRate(player);
+        if (!k) return CrownBooks.privyQuote(null, rate, R);
+        const coin = Throne._realmCoin(world, k);
+        if (CrownBooks.enabled()) return CrownBooks.privyQuote(k, rate, R, { coin });
         const r = Throne.state(player).ruling;
-        if (CrownBooks.enabled()) {
-            out.revenue = CrownBooks.lastRevenue(k);
-            out.upkeep = CrownBooks.upkeep(k);
-        } else {
-            out.revenue = r && typeof r.lastTreasury === 'number' ? Math.max(0, treasury - r.lastTreasury) : 0;
-            out.upkeep = 0;
-        }
-        out.surplus = out.revenue - out.upkeep;
-        out.stability = typeof k.stability === 'number' ? k.stability : 60;
-        const [lo, hi] = Array.isArray(R.levyStability) ? R.levyStability : [25, 75];
-        out.stabilityMult = Utils.clamp((out.stability - lo) / Math.max(1, hi - lo), 0, 1);
-        out.base = Math.max(0, out.revenue) * out.rate;
-        out.reserve = Math.max(R.levyReserve, Math.round(out.upkeep * (R.levyReserveDays || 0)));
-        const lims = [
-            ['stability', out.base * out.stabilityMult],
-            // (the ruler's purse is a first charge on the revenue: a crown in
-            // deficit still pays a little of it, levyDeficitShare of the base)
-            ['surplus', Math.max(Math.max(0, out.surplus) * (R.levySurplusShare == null ? 1 : R.levySurplusShare), out.base * out.stabilityMult * (R.levyDeficitShare || 0))],
-            ['reserve', treasury - out.reserve],
-            ['cap', R.levyCap],
-        ];
-        let v = out.base;
-        for (const [id, x] of lims) if (x < v) { v = x; out.limit = id; }
-        out.levy = Math.max(0, Math.floor(v));
-        return out;
+        const revenue = r && typeof r.lastTreasury === 'number' ? Math.max(0, (k.treasury || 0) - r.lastTreasury) : 0;
+        return CrownBooks.privyQuote(k, rate, R, { revenue, upkeep: 0, coin });
+    },
+
+    /** The coin in circulation in a realm (world/moneySupply.js, last counted), 0 when not counted. */
+    _realmCoin(world, k) {
+        if (!k || !world || !MoneySupply.enabled()) return 0;
+        const M = MoneySupply.realm(world, k.id);
+        return M && M.counted ? Math.max(0, Number(M.coin) || 0) : 0;
     },
 
     _tickRuling(player, world, out) {

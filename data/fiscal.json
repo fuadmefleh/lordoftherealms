@@ -67,6 +67,9 @@
         "coinLow": 0.12, "coinHigh": 0.25, "coinFlush": 0.5, "largesseCoin": 0.25
     },
 
+    "_privy": "2026-11-25: an AI ruler draws a privy purse out of the crown's chests by the very rule of the player's royal levy (CrownBooks.privyQuote with data/throne.json ruling: rate of the taxes and dues, scaled by stability, out of the surplus, the war chest first). An AI ruler keeps no purse of his own, so his household spends it the same day in the capital (jewels, hunts, feasts, alms: the capital town's purse), booked on the crown's 'purse' line. Not for the realm the player rules, nor a far crown of the player's union (their levy is the player's). rate: the standard tax policy's levy share.",
+    "privy": { "enabled": true, "rate": 0.15 },
+
     "_reserve": "2026-11-17: the royal bank is the crown's reserve (Fiscal._reserve, weekly). Drawn when the chests hold under drawBelow days of spending (warDrawBelow at war) or the soldiers or clerks go unpaid: what is short of drawTo days plus the arrears, at most drawShare of the vault a week, never below keep x the vault's mark. The mark: markDays of spending, at most markCoin of the realm's coin in circulation. Surplus laid by past layBy days of spending (or layByCoin of the realm's coin, whichever is less) at layByShare a week of it, up to the mark; a vault past releaseAt x its mark lets releaseShare a week of the excess back into the chests (where the largesse spends it into the towns). Both chests are counted by the census; each move is booked on the books' reserve line.",
     "reserve": { "enabled": true, "drawBelow": 7, "warDrawBelow": 20, "drawTo": 25, "drawShare": 0.1, "keep": 0.2, "markDays": 60, "markCoin": 0.15, "layBy": 30, "layByCoin": 0.2, "layByShare": 0.2, "releaseAt": 1.5, "releaseShare": 0.05 },
 

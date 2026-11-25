@@ -56,8 +56,9 @@ describe('realm unions — forming', () => {
         expect(a.personalUnion.role).toBe('senior');
         expect(b.personalUnion.role).toBe('junior');
         expect(b.personalUnion.resident.role).toBe('consort');
-        // One ruler: the junior reads the monarch's name
+        // One ruler: the junior reads the monarch's name (its lord too: the realm's details panel)
         expect(b.ruler).toBe(a.ruler);
+        expect(b.lord.name).toBe(a.ruler);
         expect(a.wars).not.toContain('k2');
         expect(a.allies).toContain('k2');
         expect(b.allies).toContain('k1');
@@ -187,6 +188,7 @@ describe('realm unions — breaking', () => {
         RealmUnions.processDay(world, null);
         expect(b.personalUnion).toBeDefined();
         expect(b.ruler).toBe('King Gerold');
+        expect(b.lord.name).toBe('King Gerold');
         // ...but a stranger to the blood on the senior throne ends it
         world.day += 30;
         a.characterData.ruler = royal('ch', 'Hugo', 'male');

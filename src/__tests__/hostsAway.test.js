@@ -131,3 +131,42 @@ describe('the other field hosts', () => {
         expect(Object.keys(k.menAway || {})).toHaveLength(0);
     });
 });
+
+describe('a realm that loses its capital keeps an army of the people it has left', () => {
+    // (2026-11-25, seed 202 run 0: the home army "never refilled" at ~300-360 with 10-12 towns
+    // for decades. Traced: a stronger neighbour took the capital, 5,300 of the realm's 8,300
+    // people, in a ten-day war in year 4; its other towns were hamlets of 30-150. The cap is
+    // the realm's people (KingdomAI.updateMilitary), the only men away were a guard of 10-48,
+    // and the ranks stood at 85-97% of the cap all along: no stale booking, the same rule as
+    // any AI realm's. What was wrong: the ranks never closed the last 1/regen men of the gap
+    // (a share of it floored to no one) — 25-55 men, a tenth of a small realm's army.)
+    it('the cap falls with the people lost and the ranks refill to it, less only the men away', () => {
+        const game = newGame(202);
+        const { world } = game;
+        const k = world.kingdoms.filter(x => x.isAlive && x.capital)
+            .sort((a, b) => world.getSettlementsOf(b.id).length - world.getSettlementsOf(a.id).length)[0];
+        const foe = world.kingdoms.find(x => x.isAlive && x !== k);
+        const settle = () => { KingdomAI.updateEconomy(k, world); KingdomAI.updateMilitary(k, world); };
+        settle();
+        const cap0 = k.militaryCap;
+        expect(cap0).toBeGreaterThan(0);
+        const seat = world.getTile(k.capital.q, k.capital.r).settlement;
+        const share = seat.population / k.population;
+        KingdomAI.takeTile(foe, k, world, k.capital.q, k.capital.r);
+        KingdomAI.afterTownLoss(k, foe, world);
+        // (the town taken is booked on the conqueror's record: the leagues against an overmighty realm read it)
+        expect(KingdomAI.conquestsOf(foe, world, 360)).toBe(1);
+        settle();
+        // (the people went with the town, and the cap with them)
+        expect(k.militaryCap).toBeLessThan(cap0 * (1 - share * 0.8));
+        // the ranks refill to the new cap less a guard drawn out of them, and no further
+        k.military = Math.floor(k.militaryCap * 0.3);
+        for (let d = 0; d < 400; d++) {
+            world.day++;
+            Kingdom.setMenAway(k, 'guard', 20, world.day);
+            KingdomAI.updateMilitary(k, world);
+        }
+        expect(k.military).toBeGreaterThanOrEqual(k.militaryCap - 20 - 2);
+        expect(k.military).toBeLessThanOrEqual(k.militaryCap - 20);
+    }, 120000);
+});

@@ -45,6 +45,7 @@ import { DataLoader } from '../core/dataLoader.js';
 import { Utils } from '../core/utils.js';
 import { NPCLords } from '../world/npcLords.js';
 import { KingdomAI } from '../world/kingdomAI.js';
+import { Revanche } from '../world/revanche.js';
 import { House } from './house.js';
 import { Heirs } from './heirs.js';
 import { Titles } from './titles.js';
@@ -523,6 +524,7 @@ export const CourtLetters = {
         this._loans(world, player, out);
         this._promises(world, player, out);
         this._pending(world, player, out);
+        this._reclaimUrge(world, player, out);
 
         // Perhaps a new letter
         if (st.nextDay == null) st.nextDay = Math.max(day, cfg.firstDay) + Utils.randInt(0, cfg.gap[1]);
@@ -545,6 +547,41 @@ export const CourtLetters = {
         out.arrived.push(letter);
         const silence = this.lapseCosts(world, player, letter).lines;
         out.notices.push({ icon: '✉️', title: 'A Letter Arrives', text: `${letter.from.name}: ${letter.subject}. Read it in Journal → Letters (answer within ${letter.expires - day} days${silence.length ? `; silence would cost ${silence.slice(0, 2).join(', ')}` : ''}).`, type: 'info' });
+    },
+
+    /**
+     * The player's lords urge a war to win back a town the realm lost
+     * (world/revanche.js; data/kingship.json config.revanche.urge): a claim of
+     * urge.minWeight or more on a realm at peace with ours that ours outweighs
+     * urge.ratio times, once every urge.everyDays a holder. Draws no RNG.
+     */
+    _reclaimUrge(world, player, out) {
+        const k = Throne.ruledKingdom(player, world);
+        if (!k || (k.wars || []).length) return;
+        const U = Revanche.config().urge;
+        const st = this.state(player);
+        const day = _day(world);
+        const might = (x) => _num(x.military) + _num(x.population) * 0.1;
+        const pick = Revanche.claims(world, k).find(c => c.w >= _num(U.minWeight, 0.8)
+            && !(k.allies || []).includes(c.holder.id) && !KingdomAI.hasTruce(k, c.holder, world)
+            && might(k) >= might(c.holder) * _num(U.ratio, 1.1)
+            && !(st.lastFrom[`reclaim:${c.holder.id}`] != null && day - st.lastFrom[`reclaim:${c.holder.id}`] < _num(U.everyDays, 360))
+            && !st.inbox.some(l => l.kind === 'reclaim_urged'));
+        if (!pick) return;
+        const K = this.kind('reclaim_urged') || {};
+        const from = { type: 'court', kingdomId: k.id, name: `The lords of ${Names.realm(k.name)}` };
+        const vars = {
+            from: from.name, realm: k.name, town: pick.rec.name, holder: Names.realm(pick.holder.name),
+            what: pick.rec.capital ? 'our old seat' : pick.rec.native === false ? 'a town we once won' : 'a town of the realm',
+            since: `year ${Math.floor(_num(pick.rec.day) / Revanche.YEAR) + 1}`,
+        };
+        const letter = this.deliver(player, {
+            id: 0, kind: 'reclaim_urged', day, expires: day + _num(U.expiry, _num(K.expiry, 30)),
+            from, key: `reclaim:${pick.holder.id}`, vars, data: { targetId: pick.holder.id, q: pick.rec.q, r: pick.rec.r },
+            subject: _fill(K.subject, vars), body: _fill(K.body, vars), read: false,
+        }, world);
+        out.arrived.push(letter);
+        out.notices.push({ icon: '🏰', title: 'The Lords Urge a Reckoning', text: `${letter.subject}. Read it in Journal → Letters.`, type: 'info' });
     },
 
     _archive(player, letter, outcome, text, extra = null) {
@@ -630,7 +667,7 @@ export const CourtLetters = {
         if (letter.kind === 'child_hostage') { out.special = 'hostage'; out.lines.push(`${letter.vars.child || 'your child'} is left to the mercy of ${letter.vars.realm || 'that court'}`); return out; }
         if (letter.kind === 'loan_default') { out.special = 'writeoff'; out.lines.push(`the debt of ${_num(letter.data.amount)} gold is written off`); return out; }
         if (letter.kind === 'coalition_ultimatum') { out.special = 'league'; out.lines.push('the league marches on its own day'); return out; }
-        if (letter.kind === 'family_report') { out.special = 'none'; return out; }
+        if (letter.kind === 'family_report' || letter.kind === 'reclaim_urged') { out.special = 'none'; return out; }
         const spec = K.lapse || { deed: 'letter_ignored' };
         const s = this.senderScale(world, player, letter);
         out.scale = s.scale;
@@ -895,6 +932,15 @@ export const CourtLetters = {
                     if (!o || !o.ok) { ok = false; why = o ? o.reason : 'That holy war is over.'; }
                     break;
                 }
+                case 'reclaim_urged:march': {
+                    const ruled = Throne.ruledKingdom(player, world);
+                    const t = world.getKingdom ? world.getKingdom(letter.data.targetId) : null;
+                    if (!ruled || !t || t.isAlive === false) { ok = false; why = 'That realm is gone.'; }
+                    else if ((ruled.wars || []).includes(t.id)) { ok = false; why = `You are already at war with ${t.name}.`; }
+                    else if ((ruled.allies || []).includes(t.id)) { ok = false; why = `${t.name} is your ally.`; }
+                    else if (KingdomAI.hasTruce(ruled, t, world)) { ok = false; why = `A truce with ${t.name} still holds.`; }
+                    break;
+                }
                 case 'spouse_plea:terms':
                     if (!RealmWars.atWarWith(player, letter.from.kingdomId)) continue; // only for your own war
                     needGold(amount);
@@ -1128,6 +1174,14 @@ export const CourtLetters = {
             }
             // A child's account (systems/heirAgency.js): a reply warms the court they wrote of
             case 'family_report:reply': this._rep(player, kid, 1); break;
+            // The lords' counsel to win back a lost town (world/revanche.js): a reclaim war
+            case 'reclaim_urged:march': {
+                const r = Throne.declareRealmWar(player, world, letter.data.targetId);
+                if (!r.success) return r;
+                lines.push(r.message);
+                break;
+            }
+            case 'reclaim_urged:wait': break;
             case 'child_hostage:trust':
                 remember('trusted_kin');
                 this._risk(world, player, letter, true);

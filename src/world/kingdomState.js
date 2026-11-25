@@ -434,8 +434,12 @@ export const KingdomStability = {
         if (kingdom.scandal && Number.isFinite(kingdom.scandal.stab)) t += add('Court scandal', kingdom.scandal.stab);
         // A great old realm sagging under its own weight (systems/realmDecline.js → kingdom.decline.stab)
         if (kingdom.decline && Number.isFinite(kingdom.decline.stab)) t += add('Weight of greatness', kingdom.decline.stab);
+        // The junior crown of a personal union: its lords' temper under an absent king (systems/realmUnions.js → kingdom.personalUnion.stab)
+        if (kingdom.personalUnion && Number.isFinite(kingdom.personalUnion.stab)) t += add('Absent king (personal union)', kingdom.personalUnion.stab);
         // Its villages burned and fields fired by enemy harriers (systems/harrying.js → kingdom.harried.stab; halved while the crown answers)
         if (kingdom.harried && Number.isFinite(kingdom.harried.stab)) t += add('Countryside harried', kingdom.harried.stab);
+        // The Church: a ruler under the ban, a holy war answered or refused (systems/holyWars.js → kingdom.church.stab)
+        if (kingdom.church && Number.isFinite(kingdom.church.stab)) t += add(kingdom.church.banned ? 'Under the ban of the Church' : 'The Church', kingdom.church.stab);
         if (kingdom.religion && typeof kingdom.religion.unity === 'number') {
             t += add('Faith unity', (kingdom.religion.unity - 50) * 0.1);
         }

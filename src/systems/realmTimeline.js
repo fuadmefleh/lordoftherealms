@@ -280,6 +280,17 @@ export const RealmTimeline = {
         return grid;
     },
 
+    /**
+     * Another system files a dated deed (a union of crowns: systems/realmUnions.js).
+     * Only while the Timeline records (it has a base); draws no RNG.
+     */
+    note(world, kind, q, r, text, weight = 0) {
+        const st = world && _obj(world.timeline);
+        if (!st || !st.base || !text) return false;
+        RealmTimeline._event(st, _num(world.day), String(kind || 'crown'), q, r, text, weight);
+        return true;
+    },
+
     _event(st, day, kind, q, r, text, weight = 0) {
         st.events.push([day, kind, Number.isFinite(q) ? q : null, Number.isFinite(r) ? r : null, String(text || ''), weight, 1]);
     },

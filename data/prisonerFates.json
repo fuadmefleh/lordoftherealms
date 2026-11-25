@@ -2,7 +2,8 @@
     "_note": "The fate of prisoners after a battle (player/prisonerFates.js). Days are game days (120 to a year, ~10 to a month). Every coin moves between real purses: a ransom out of the captive's realm treasury into yours, a sale out of the buying crown's treasury, your own men bought back out of your purse into theirs.",
     "capture": {
         "_doc": "A beaten band of men (types) leaves captives: the survivors (enemyRemaining, or survivors × the one-shot battle's strength) × share (routShare when they broke). A foe who fought to the death (noQuarter) leaves lastStandShare. men = strength × menPerStrength. Fewer than minStrength: no captives. Knights from a realm's host: one per knightPer strength from knightFrom, at most maxKnights (the dungeon's prisoner of war taken the same day counts among them).",
-        "types": ["war_host", "patrol", "road_patrol", "raider", "pirate", "mercenary", "smuggler"],
+        "_sources": "Besides a world unit beaten in the field (PlayerMilitary.attackUnit): a stormed outlaw lair (OutlawLairs.assault: its men, not beasts), a stormed or sacked town's garrison ('garrison', systems/sieges.js), boarders beaten off your deck ('pirate', Ships.finishBoarding), a realm's ship carried by your boarders ('navy', BlockadeRunning / SeaInterception). Those systems leave a record (world/warStakes.js yieldUp) that PrisonerFates.collect makes a column of. A rebel host broken in the field is its rising's to judge (systems/peasantRevolts.js aftermath): its column offers that judgement, or service.",
+        "types": ["war_host", "patrol", "road_patrol", "raider", "pirate", "mercenary", "smuggler", "garrison", "navy"],
         "outlawTypes": ["raider", "pirate", "mercenary", "smuggler"],
         "share": 0.4, "routShare": 0.6, "lastStandShare": 0.08, "survivors": 0.4,
         "menPerStrength": 2, "minStrength": 3,
@@ -25,7 +26,8 @@
         "replyDays": 3, "distPer": 12, "payDays": 4, "dueDays": 30,
         "greedBase": 1.3, "greedPerAmbition": 0.05, "honourPer": 0.03, "treasuryShare": 0.35,
         "pressCut": 0.2, "maxRounds": 3, "sale": 0.6, "saleTreasuryShare": 0.25, "saleRep": -8,
-        "rotAfter": 120, "rotChance": 0.04, "deathRep": -10
+        "rotAfter": 120, "rotChance": 0.04, "deathRep": -10, "saleHouseFeud": 20,
+        "_house": "A knight or lord of a rival House's blood (data/interrogation.json pow.house): his House answers with his crown, its purse paying first (the cap is what both can spare); sold, the House's feud +saleHouseFeud; dead or maimed in your keeping, a blood feud."
     },
     "slaughter": {
         "_doc": "Cut down where they stand. The dead are lost to their realm. Their realm (and for outlaws, the outlaws) fight to the death against you for noQuarterDays: they do not rout (a phased battle breaks them only at noRoutShare of their strength), fight with moraleBonus, and leave almost no captives. Atrocity marks (butcher, perfidy: a broken surrender), karma, cruelty and dread, regard with them and the others, the lords' memory, the realm's faith, gossip, your lords' fear.",
@@ -52,9 +54,11 @@
         "cowedDays": 60, "grudge": 3, "warScore": 15, "renown": 30
     },
     "outlaws": {
-        "_doc": "Bandits, raiders, pirates and sellswords with no realm. Hanged by the road's law: renown, the nearest realm's regard +hangRep, the nearest town's thieves cowed (gallowsFear, fearDays), and outlaws fight harder against you (noQuarterDays/2). Cut down without a rope: karma and cruelty. Released: mercy, karma; some go back to the road. Impaled: the stakes and the tale, no realm's war deterred. There is no penal labour (the mines, the galleys) to send them to yet.",
+        "_doc": "Bandits, raiders, pirates and sellswords with no realm. Hanged by the road's law: renown, the nearest realm's regard +hangRep, the nearest town's thieves cowed (gallowsFear, fearDays), and outlaws fight harder against you (noQuarterDays/2). Cut down without a rope: karma and cruelty. Released: mercy, karma; freedShare of their strength rides again as a real band (a raider, or a pirate if taken at sea) freedDays later a few hexes off, leaving you be for freedSpareDays (fewer than freedMin: they scatter). Service: the rest who are not taken on go back to the road the same way. Impaled: the stakes and the tale. Any of your stakes deter outlaws as they deter war hosts: a raider or pirate within impale.deterRadius may turn away each day (stakeTurnBack x freshness, a line of impaled outlaws x stakeOutlawMult) and ride off from the posts for stakeShunDays, hunting neither you nor the caravans (world/units.js).",
         "hangRep": 2, "hangRenown": 2, "fearDays": 45, "fearMult": 0.6, "slayKarma": -5, "releaseKarma": 3,
-        "impaleKarma": -10, "impaleButcher": 15, "impaleRenown": 15
+        "impaleKarma": -10, "impaleButcher": 15, "impaleRenown": 15,
+        "freedShare": 0.6, "freedMin": 4, "freedDays": [8, 20], "freedSpareDays": 60,
+        "stakeTurnBack": 0.6, "stakeOutlawMult": 1.5, "stakeShunDays": 5
     },
     "yourMen": {
         "_doc": "Beaten by a realm, some of your fallen were taken alive (taken of the casualties, at least 1). Their lord decides (a hash pick weighted by his traits and by what you did to his men: reciprocity): ransom (ask perUnit a man's company, out of your purse into its treasury, by dueDays or they serve in its army), release (home in releaseDays), service (its military takes them), slaughter or blind (lost, and your men want vengeance on that realm for vengeanceDays: +vengeancePower).",

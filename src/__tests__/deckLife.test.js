@@ -270,6 +270,9 @@ describe('events on deck', () => {
         const out = Ships.finishBoarding(p, w, true);
         expect(out.won).toBe(true);
         expect(p.gold).toBeGreaterThan(gold);
+        // the boarders left on your deck yield (world/warStakes.js → player/prisonerFates.js)
+        expect(out.yielded).toBe(true);
+        expect(w.prisonerFates.yielded.some(y => y.source === 'boarding' && y.sea && y.unitType === 'pirate')).toBe(true);
         expect(Ships.getBoarding(p)).toBeNull();
         expect(Ships.finishBoarding(p, w, true).success).toBe(false);
     });

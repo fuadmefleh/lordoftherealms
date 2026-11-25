@@ -31,6 +31,7 @@
         "raid": { "heat": 50, "label": "cut down by raiders" },
         "battle": { "heat": 40, "label": "slain in a fight on the road" },
         "captive": { "heat": 65, "label": "dead in captivity" },
+        "maimed": { "heat": 45, "label": "maimed in captivity" },
         "assassinated": { "heat": 70, "label": "assassinated" },
         "selfDefence": { "heat": 15, "label": "killed when they struck at their foe" }
     },

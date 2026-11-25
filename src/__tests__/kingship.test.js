@@ -166,6 +166,37 @@ describe('The royal council', () => {
         expect(Kingship.opinion(player, world, v).parts.some(p => p.label === 'A seat on the council')).toBe(true);
     });
 
+    it('a marshal and the ruler\'s own generalship give the realm\'s battles what an AI lord would', () => {
+        const { world, player, k } = crowned();
+        // (the ruler no soldier: no generalship of their own)
+        player.skills.combat = 0;
+        player.skills.leadership = 0;
+        for (const o of Kingship.OFFICES) Kingship.dismiss(player, world, o);
+        Kingship.refresh(player, world);
+        const bare = { war: KingdomBonuses.get(k, 'warBonus'), def: KingdomBonuses.get(k, 'defense') };
+        expect(Kingship.battleEffect(player, world).marshal).toBe(null);
+        expect(Kingship.rulerCommand(player).warBonus).toBe(0);
+        // A marshal of 14, loyalty 60 (factor 1): +18% battle, ~+20% defence
+        const lord = Kingship.candidates(player, world, 'marshal').find(c => c.kind === 'vassal');
+        const v = Kingship.vassal(player, lord.id);
+        v.skills.martial = 14;
+        v.opinion = 20;
+        v.rebel = false;
+        expect(Kingship.appoint(player, world, 'marshal', 'vassal', lord.id).success).toBe(true);
+        const be = Kingship.battleEffect(player, world).marshal;
+        expect(be.warBonus).toBeCloseTo(0.013 * 14, 3);
+        expect(be.defense).toBeCloseTo(0.014 * 14, 3);
+        expect(KingdomBonuses.get(k, 'warBonus') - bare.war).toBeCloseTo(be.warBonus, 2);
+        expect(KingdomBonuses.get(k, 'defense') - bare.def).toBeCloseTo(be.defense, 2);
+        // ...and a soldier king leads it himself (martial 4 + 1.6 × 6 ≈ 14 → 8 over the mark)
+        player.skills.leadership = 6;
+        Kingship.refresh(player, world);
+        const rc = Kingship.rulerCommand(player);
+        expect(rc.martial).toBe(14);
+        expect(rc.warBonus).toBeCloseTo(0.08, 3);
+        expect(KingdomBonuses.get(k, 'warBonus') - bare.war).toBeCloseTo(be.warBonus + rc.warBonus, 2);
+    });
+
     it('a chancellor improves the odds of peace; a high priest draws the faith together', () => {
         const { world, player, k, court } = crowned();
         const enemy = world.kingdoms.find(o => o !== k && o.isAlive);
@@ -527,15 +558,41 @@ describe('The kingdom AI and a player-ruled realm', () => {
             o.military = 5000;
             o.wars = [];
             o.capital = { ...k.capital };
+            // (through considerWar, as on any realm — the player's crown has no war roll of its own)
             for (let d = 0; d < 7 * 40 && !declared; d++) {
                 world.day++;
-                KingdomAI.considerPlayerRealm(o, world);
+                KingdomAI.considerWar(o, world);
                 declared = o.wars.includes(k.id);
+                if (!declared) o.wars = [];
             }
             if (declared) break;
         }
         expect(declared).toBe(true);
-        expect(world.events.some(e => /marches on|war of conquest/.test(e.text))).toBe(true);
+        expect(world.events.some(e => /declared war on/.test(e.text))).toBe(true);
+    });
+
+    it('a weak crown tempts its neighbours as a weak AI realm does, and no sooner', () => {
+        const { world, k } = crowned();
+        const o = world.kingdoms.find(x => x !== k && x.isAlive);
+        const ai = world.kingdoms.find(x => x !== k && x !== o && x.isAlive);
+        for (const t of [k, ai]) { t.military = 1000; t.population = 0; t.wars = []; t.stability = 20; t.crown = { ...(t.crown || {}) }; }
+        o.military = 800; o.population = 0;
+        o.allies = []; o.wars = [];
+        o.relations[k.id] = -80;
+        o.relations[ai.id] = -80;
+        world.day = 5000;
+        // (the same verdict on each, the AI realm and the player's: a weak realm needs only weakRatio of the strength)
+        const verdict = (t) => {
+            o.wars = []; t.wars = []; delete t.declaredOnDay;
+            for (const x of world.kingdoms) if (x !== o && x !== t) o.relations[x.id] = 50;
+            o.relations[t.id] = -80;
+            Utils.setSeed(77);
+            KingdomAI.considerWar(o, world);
+            return o.wars.includes(t.id);
+        };
+        const onCrown = verdict(k);
+        expect(onCrown).toBe(true);
+        expect(verdict(ai)).toBe(onCrown);
     });
 
     it('a mighty crown is envied by its neighbours', () => {
@@ -547,6 +604,21 @@ describe('The kingdom AI and a player-ruled realm', () => {
         o.relations[k.id] = 0;
         for (let d = 0; d < 70; d++) { world.day++; KingdomAI.considerPlayerRealm(o, world); }
         expect(o.relations[k.id]).toBeLessThan(0);
+    });
+
+    it('the crown\'s own regard of a realm at peace follows that realm\'s regard of it, so old foes can ally again', () => {
+        const { world, k } = crowned();
+        const o = world.kingdoms.find(x => x !== k && x.isAlive);
+        o.allies = []; o.wars = []; k.wars = [];
+        o.relations[k.id] = 60;
+        k.relations[o.id] = -40; // (what a war leaves)
+        for (let d = 0; d < 7 * 40; d++) { world.day++; KingdomAI.considerPlayerRealm(o, world); }
+        expect(k.relations[o.id]).toBeGreaterThanOrEqual(Math.min(60, o.relations[k.id]));
+        // ...but not while they are at war
+        k.relations[o.id] = -100;
+        o.wars = [k.id]; k.wars = [o.id];
+        for (let d = 0; d < 7 * 4; d++) { world.day++; KingdomAI.considerPlayerRealm(o, world); }
+        expect(k.relations[o.id]).toBe(-100);
     });
 });
 

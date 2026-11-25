@@ -55,6 +55,7 @@ import { Townsfolk } from '../systems/townsfolk.js';
 import { Court } from '../systems/court.js';
 import { RivalHouses } from '../systems/rivalHouses.js';
 import { Devotion } from '../systems/devotion.js';
+import { Immurement } from '../systems/immurement.js';
 import { Upbringing } from '../systems/upbringing.js';
 import { OddJobs } from './oddJobs.js';
 import { Trading } from './playerEconomy.js';
@@ -815,7 +816,9 @@ export const Household = {
         home.guests = home.guests.filter(x => x !== g);
         const hall = Household.quality(home, 'hall');
         const clean = _num(home.clean, 80) >= _num(C.cleanliness.dirtyBelow, 40);
-        const good = !early && !g.hungry && clean && hall >= 0.3;
+        // (a night in a haunted house: some guests will not stay another, systems/immurement.js)
+        const haunted = !early && !g.hungry && Immurement.unsettles(world, Household._settlement(world, home), g.id);
+        const good = !early && !g.hungry && clean && hall >= 0.3 && !haunted;
         const name = g.name[0].toUpperCase() + g.name.slice(1);
         const rel = g.refId.startsWith('npc:') ? player.relationships && player.relationships[g.refId.slice(4)] : null;
         const rival = g.refId.startsWith('rival:') ? RivalHouses.rivals(player).find(r => `rival:${r.kingdomId != null ? r.kingdomId : r.name}` === g.refId) : null;
@@ -840,6 +843,7 @@ export const Household = {
             }
         }
         const why = g.hungry ? _fill(_pick(C.bareLines, _rng(world, g.id)), { guest: name })
+            : haunted ? `${name} would not sleep another night under your roof: something walks the passage after dark, and weeps behind the cellar wall.`
             : !clean ? `${name} found the house dirty and said so.`
                 : hall < 0.3 ? `${name} found the hall a poor, bare place.` : `${name} leaves sooner than they meant to.`;
         Household._note(home, world, why);
@@ -883,7 +887,8 @@ export const Household = {
             for (const g of home.guests.slice()) Household._depart(player, world, home, g, true, out);
         } else if (Household.room(home, 'hall') || !C.guests.needHall) {
             const invited = home.invited != null && day - home.invited <= 2;
-            const chance = invited ? 0.9 : _num(C.guests.chancePerDay);
+            // (a house with a soul in its walls draws fewer guests: systems/immurement.js)
+            const chance = (invited ? 0.9 : _num(C.guests.chancePerDay)) * Immurement.guestArrival(town);
             if (home.guests.length < _num(C.guests.maxAtOnce, 3) && rnd() < chance) {
                 if (Household._arrive(player, world, home, rnd, out)) home.invited = null;
             }
@@ -965,6 +970,8 @@ export const Household = {
                 dm += _num(M.unpaid);
             }
             dm += fed ? _num(M.fed) : _num(M.hungry);
+            // The house is haunted: the servants hear it at night (systems/immurement.js)
+            dm += Immurement.servantDread(town);
             if (s.role === 'maid' && rooms > 3 * Math.max(1, maids)) dm += _num(M.overworked);
             if (def.needs && Household.quality(home, def.needs) >= 0.5) dm += _num(M.goodRoom);
             if (def.needs && !Household.room(home, def.needs)) dm += _num(M.overworked) * 0.5;

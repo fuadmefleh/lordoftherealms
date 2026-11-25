@@ -46,6 +46,8 @@ import { Water } from '../../systems/water.js';
 import { Executions } from '../../systems/executions.js';
 import { Gibbets } from '../../systems/gibbets.js';
 import { PenalLabour } from '../../systems/penalLabour.js';
+import { HolyWars } from '../../systems/holyWars.js';
+import { Inquisition } from '../../systems/inquisition.js';
 import { Annals } from '../../systems/annals.js';
 import { LawCouncil } from '../../systems/lawCouncil.js';
 import { PlayerWorks } from '../../player/playerWorks.js';
@@ -95,6 +97,7 @@ import { RealmWars } from '../../systems/realmWars.js';
 import { Throne } from '../../systems/throne.js';
 import { Kingship } from '../../systems/kingship.js';
 import { HighCrowns } from '../../systems/highCrowns.js';
+import { RealmUnions } from '../../systems/realmUnions.js';
 import { CrownSuccession } from '../../systems/crownSuccession.js';
 import { Espionage } from '../../systems/espionage.js';
 import { Gossip } from '../../systems/gossip.js';
@@ -631,6 +634,9 @@ function _endDay(game) {
     mark(game, 'Coalitions.processDay');
     RivalAgents.processDay(world, player);
     mark(game, 'RivalAgents.processDay');
+    // Two AI crowns on one head (systems/realmUnions.js)
+    RealmUnions.processDay(world, player);
+    mark(game, 'RealmUnions.processDay');
     Throne.processDaily(player, world, { armyStrength: PlayerMilitary.getArmyStrength(player) });
     mark(game, 'Throne.processDaily');
     Kingship.processDay(world, player);
@@ -658,6 +664,9 @@ function _endDay(game) {
     // Penal labour: convicts at the player's mines and oars, the crown's gangs, the realms' courts (systems/penalLabour.js)
     PenalLabour.processDay(world, player);
     mark(game, 'PenalLabour.processDay');
+    // The inquisition on its rounds (systems/inquisition.js)
+    game.inquisitionDay = Inquisition.processDay(world, player);
+    mark(game, 'Inquisition.processDay');
     game.holdingsDay = Holdings.processDay(player, world);
     mark(game, 'Holdings.processDay');
     game.stewardsDay = Stewards.processDay(world, player);
@@ -746,6 +755,9 @@ function _endDay(game) {
     mark(game, 'Crises.processDay');
     game.lastCrisisDay = LastCrisis.processDay(world, player);
     mark(game, 'LastCrisis.processDay');
+    // The sees of the faiths: holy wars, the cross, the ban (systems/holyWars.js)
+    game.holyWarsDay = HolyWars.processDay(world, player);
+    mark(game, 'HolyWars.processDay');
     if (game.endgame) {
         RealmDecline.processDay(world, player);
         mark(game, 'RealmDecline.processDay');
@@ -870,7 +882,8 @@ export function roundTrip(game) {
  * (ui/actionMenu/social.js showDeathScreen): the designated heir — else the
  * eldest own child of age, else a sibling — takes up the mantle (Relationships.succeedAsHeir); with no
  * heir, a new life as someone else in the world (Afterlife.becomeStranger),
- * which replaces game.player. Returns { how: 'heir'|'cadet'|'stranger'|null, name }.
+ * which replaces game.player. An heir under age reigns under a regent. Returns
+ * { how: 'heir'|'regency'|'cadet'|'stranger'|null, name }.
  */
 export function carryOn(game, cause) {
     const { world } = game;
@@ -881,6 +894,16 @@ export function carryOn(game, cause) {
         const heir = heirs.find(h => h.id === old.heir) || heirs[0];
         const res = Relationships.succeedAsHeir(old, heir.id, world, { cause });
         if (res.success) return { how: 'heir', name: old.name };
+    }
+    // An heir under age reigns under a regent (systems/regency.js), as the death screen offers
+    // (social.js _succeedViaRegency): the eldest living child of the ruler's own. (Before
+    // 2026-11-24 the harness skipped them, and a king of 33 with young children was
+    // followed by a stranger — the crown lost to the House at every early death.)
+    const minor = Afterlife.futureHeirs(old).map(f => f.child).filter(c => !c.isSibling)
+        .sort((a, b) => (b.age || 0) - (a.age || 0));
+    for (const c of [minor.find(h => h.id === old.heir), ...minor].filter(Boolean)) {
+        const res = Relationships.succeedAsHeir(old, c.id, world, { cause, regency: true });
+        if (res.success) return { how: 'regency', name: old.name };
     }
     // No heir of the main line: the nearest cadet branch's head (systems/cadetBranches.js)
     const branch = CadetBranches.heirLine(old)[0];

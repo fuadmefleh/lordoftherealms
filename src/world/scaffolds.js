@@ -23,7 +23,7 @@ import { TownMarks, markHash } from './townMarks.js';
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 
 /** The prop for each manner of death. */
-const PROPS = { hang: 'ex_gallows', quarter: 'ex_gallows', behead: 'ex_block', burn: 'ex_stake' };
+const PROPS = { hang: 'ex_gallows', quarter: 'ex_gallows', behead: 'ex_block', burn: 'ex_stake', flay: 'ex_gallows' };
 
 export const Scaffolds = {
     PROPS,

@@ -115,6 +115,10 @@ describe('river ferries', () => {
         expect(p.gold).toBe(50 - f.fare);
         expect(w.getTile(13, 4).settlement.economy.gold).toBe(purse + f.fare);
         expect(p.lastFerry.ferryman).toBe(f.ferryman);
+        // ...and told: the ferryman, the fare, the time saved on the wade
+        expect(res.text).toContain(f.ferryman);
+        expect(res.text).toContain(`${f.fare}g`);
+        expect(res.extra).toBeLessThan(res.wade);
         // ...and nothing going along the river or on dry land
         expect(Ports.ferryStep(w, p, f.q - 1, 6, f.q, 6)).toBe(null);
         expect(Ports.ferryStep(w, p, 3, 3, 3, 4)).toBe(null);
@@ -520,6 +524,54 @@ describe('the harbour on screen', () => {
         expect(html).toContain('careened for repair');
         expect(html).toContain('afloat in');
         expect(html).not.toMatch(/(⚓|🛠️) careened</u);
+    }, 120000);
+
+    it('the harbourmaster keeps his post as one of the street\'s people, and talks harbour business', async () => {
+        const { InnerMap } = await import('../world/innerMap.js');
+        const { InnerMapPort } = await import('../ui/innerMapPort.js');
+        const { _harbourChoices } = await import('../ui/npcDialog/harbour.js');
+        const { dialogState } = await import('../ui/npcDialog/shared.js');
+        const w = portWorld();
+        const s = w.getTile(5, 5).settlement;
+        const keep = { npcs: InnerMap.npcs, make: InnerMap._makeNpc };
+        InnerMap.npcs = [{ id: 0, type: 'villager', name: 'Ada', q: 1, r: 1, state: 'idle' }];
+        InnerMap._makeNpc = (type, id) => ({ id, type, name: 'X', q: 0, r: 0, state: 'idle' });
+        try {
+            const m = Ports.master(w, s);
+            const sc = { post: { q: 7, r: 8 } };
+            const npc = InnerMapPort._keepMaster(w, s, sc, { q: 5, r: 5 }, m, true);
+            expect(npc.harbourmaster).toBe(true);
+            expect(npc.fullName).toBe(m.name);
+            expect([npc.q, npc.r]).toEqual([7, 8]);
+            expect(npc._doorPost).toEqual({ q: 7, r: 8, face: 2 });
+            expect(npc.id).toBe(1);
+            // the same man the next frame, not another; off duty at night
+            expect(InnerMapPort._keepMaster(w, s, sc, { q: 5, r: 5 }, m, false)).toBe(npc);
+            expect(InnerMap.npcs.length).toBe(2);
+            expect(npc._doorPost).toBe(null);
+            // talking to him: the Harbour panel, the ships in, paying what's in his book
+            Ports.state(s).owed = 30;
+            const panels = [];
+            const player = { q: 5, r: 5, gold: 100, army: [], ships: [sloop()] };
+            const game = { player, world: w, ui: { showCustomPanel: (t, h) => panels.push({ t: String(t), h: String(h) }), showNotification() {}, hideCustomPanel() {}, updateStats() {} } };
+            Object.assign(dialogState, { _game: game, _npc: npc, _lines: [], _lineIndex: 0 });
+            const ch = _harbourChoices();
+            const labels = ch.map(c => c.label);
+            expect(labels).toContain('The harbour\'s business.');
+            expect(labels).toContain('What ships are in?');
+            ch.find(c => c.label === 'What ships are in?').onPick();
+            expect(dialogState._lines[dialogState._lines.length - 1].text).toMatch(/berth/);
+            ch.find(c => /what I owe you/.test(c.label)).onPick();
+            expect(player.gold).toBe(70);
+            expect(Ports.state(s).owed).toBe(0);
+            // (anyone else has nothing of the harbour to say)
+            dialogState._npc = InnerMap.npcs[0];
+            expect(_harbourChoices()).toEqual([]);
+        } finally {
+            InnerMap.npcs = keep.npcs;
+            InnerMap._makeNpc = keep.make;
+            Object.assign(dialogState, { _game: null, _npc: null, _lines: [], _lineIndex: 0 });
+        }
     }, 120000);
 
     it('the street map finds the pier, its foot, the moorings and the slip from the cells', async () => {

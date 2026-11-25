@@ -21,6 +21,8 @@ import { WarStakes } from '../../world/warStakes.js';
 import { Utils } from '../../core/utils.js';
 import { lede, chips, card, rowList, price, esc } from './uiKit.js';
 
+const _cap = (t) => (t ? String(t).charAt(0).toUpperCase() + String(t).slice(1) : t);
+
 const STAGE_WORD = { asked: 'Their answer is on the road', agreed: 'Agreed: the coin is coming', offered: 'They offer less', refused: 'They will not pay', broken: 'They defaulted' };
 
 registerScene('captives', {
@@ -45,14 +47,14 @@ function _talkRows(game) {
     for (const w of Interrogation.state(player).pows) {
         if (!w || w.condemned) continue;
         const t = w.talks;
-        const head = `${esc(w.name)} of ${esc(w.realm)}`;
+        const head = `${esc(w.name)} of ${esc(w.realm)}${w.houseName ? ` (${esc(w.houseName)}'s blood)` : ''}`;
         if (!t || ['refused', 'broken'].includes(t.stage)) {
             const fair = PrisonerFates.askFor(world, w, 'fair');
             rows.push({ icon: '💰', name: `Ask a fair ransom for ${head}`, desc: `${t ? `${STAGE_WORD[t.stage]} before. ` : ''}A herald rides to their crown`, side: price(fair, true), act: 'captivesAct', args: ['talks', w.id, 'fair'] });
             rows.push({ icon: '💰', name: `Ask a high ransom for ${head}`, desc: 'More than they would like: expect a counter-offer', side: price(PrisonerFates.askFor(world, w, 'high'), true), act: 'captivesAct', args: ['talks', w.id, 'high'] });
             rows.push({ icon: '💰', name: `Ask a ruinous ransom for ${head}`, desc: 'A price to bleed their treasury, or none at all', side: price(PrisonerFates.askFor(world, w, 'ruinous'), true), act: 'captivesAct', args: ['talks', w.id, 'ruinous'], tone: 'warn' });
             for (const b of PrisonerFates.buyers(player, world, w).slice(0, 2)) {
-                rows.push({ icon: '⚖️', name: `Sell ${esc(w.name)} to ${esc(b.realm)}`, desc: `${b.atWar ? 'At war with his realm' : 'No friend of his realm'}: out of its treasury. ${esc(w.realm)} will not forget it`, side: price(b.price, true), act: 'captivesAct', args: ['sell', w.id, b.kingdomId], tone: 'bad' });
+                rows.push({ icon: '⚖️', name: `Sell ${esc(w.name)} to ${esc(b.realm)}`, desc: `${b.atWar ? 'At war with his realm' : 'No friend of his realm'}: out of its treasury. ${esc(_cap(w.realm))} will not forget it`, side: price(b.price, true), act: 'captivesAct', args: ['sell', w.id, b.kingdomId], tone: 'bad' });
             }
             continue;
         }
@@ -67,6 +69,19 @@ function _talkRows(game) {
 }
 
 Object.assign(ActionMenu, {
+    /**
+     * Men who yielded away from a field battle (a stormed lair, a breach, a
+     * deck: world/warStakes.js yieldUp) made a column now (PrisonerFates.collect),
+     * and the row to decide their fate — '' when none yielded. For the panels
+     * that report those deeds.
+     */
+    captivesRowHtml(game) {
+        const col = PrisonerFates.collect(game.player, game.world) || PrisonerFates.pending(game.player);
+        if (!col || col.day !== ((game.world && game.world.day) || 0)) return '';
+        const who = col.rebel ? `${col.men} rebels` : col.outlaw ? `${col.men} of the ${esc(col.name)}` : `${col.men} men of ${esc(col.realm)}`;
+        return rowList([{ icon: '⛓️', name: 'Decide the fate of the captives', desc: `${who} throw down their arms ${esc(PrisonerFates._where(col))}`, act: 'showCaptivesScene', tone: 'gold', side: '›' }]);
+    },
+
     /** The column awaiting your word, as a choice scene. */
     showCaptivesScene(game) {
         if (!PrisonerFates.pending(game.player)) { ActionMenu.showCaptives(game); return; }
@@ -90,7 +105,7 @@ Object.assign(ActionMenu, {
         if (flash) html += card(esc(flash), { icon: '🛡️', title: 'Prisoners of war' });
         const col = st.pending;
         if (col) {
-            html += rowList([{ icon: '⛓️', name: `Decide the fate of ${col.men} ${col.outlaw ? `of the ${esc(col.name)}` : `men of ${esc(col.realm)}`}`, desc: 'They kneel and wait for your word', side: '›', act: 'showCaptivesScene', tone: 'gold' }], '⛓️ Awaiting your word');
+            html += rowList([{ icon: '⛓️', name: `Decide the fate of ${col.men} ${col.rebel ? `rebels of ${esc(col.rebel.leader)}'s rising` : col.outlaw ? `of the ${esc(col.name)}` : `men of ${esc(col.realm)}`}`, desc: 'They kneel and wait for your word', side: '›', act: 'showCaptivesScene', tone: 'gold' }], '⛓️ Awaiting your word');
         }
         const talks = _talkRows(game);
         if (talks.length) html += rowList(talks, '💰 Men of rank in your dungeon');

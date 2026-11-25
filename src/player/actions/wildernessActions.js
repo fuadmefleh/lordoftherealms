@@ -36,6 +36,9 @@ import { Utils } from '../../core/utils.js';
 import { Executions } from '../../systems/executions.js';
 import { Gibbets } from '../../systems/gibbets.js';
 import { PrisonerFates } from '../prisonerFates.js';
+import { Decimation } from '../decimation.js';
+import { Immurement } from '../../systems/immurement.js';
+import { Flaying } from '../../systems/flaying.js';
 
 export function addWildernessActions(actions, player, tile, world) {
     // The tongues you speak and the one spoken here; lessons and interpreters in town (systems/languages.js)
@@ -602,6 +605,14 @@ export function addWildernessActions(actions, player, tile, world) {
     // The dead in your hands, the dead on show, your war trophies (systems/gibbets.js)
     if (tile.settlement && (Gibbets.bodies(player, world).length || Gibbets.trophies(player).length || Gibbets.standingAt(world, tile.q != null ? tile.q : player.q, tile.r != null ? tile.r : player.r).length || Gibbets.all(world).some(x => x.d.by && x.d.by.kind === 'player'))) {
         actions.push({ type: 'gibbets', label: 'The dead & trophies', icon: '💀', description: 'Heads over the gate, the gibbet at the crossroads, the bodies in your hands, war trophies and their envoys' });
+    }
+    // The companies that broke await your word: decimate them? (player/decimation.js)
+    if (Decimation.hasBusiness(player, world)) {
+        actions.push({ type: 'decimate', label: 'The companies that broke', icon: '🎲', description: 'They ran. Draw lots, and every tenth man is beaten to death by his comrades; or let it go' });
+    }
+    // Dark deeds of the castle: the walled-up and the ghosts, the flayed skins and the dread they keep (systems/immurement.js, flaying.js)
+    if (tile.settlement && (Immurement.ghosts(tile.settlement).length || (Immurement.targets(player, world).length && Immurement.seats(player, world).some(s => s.here)) || (player.immurement && player.immurement.secrets && player.immurement.secrets.length) || Flaying.skins(player, world).length)) {
+        actions.push({ type: 'grim_deeds', label: 'Behind the castle walls', icon: '🧱', description: 'Wall someone up alive in the cellars; the ghosts in the walls; the skins on the gate and the judge\'s chair' });
     }
     // A realm's execution in this town today: join the crowd (systems/executions.js)
     if (tile.settlement && Executions.crowdsAt(world, tile.q != null ? tile.q : player.q, tile.r != null ? tile.r : player.r).length) {

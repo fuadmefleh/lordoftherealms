@@ -58,7 +58,7 @@ const AMX_COURT_TYPES = new Set([
     'view_title_status', 'resign_title', 'collect_tax', 'request_bounty', 'capture_fugitive',
     'hold_council', 'espionage_menu', 'manage_spies', 'hold_court', 'rivals_here', 'hall_of_heroes',
     'patronage', 'manage_dynasty', 'treasury', 'host_feast', 'hold_tournament', 'host_festival',
-    'meet_courier', 'maiming', 'dungeon', 'executions', 'scaffold_crowd', 'gibbets', 'captives'
+    'meet_courier', 'maiming', 'dungeon', 'executions', 'scaffold_crowd', 'gibbets', 'captives', 'grim_deeds'
 ]);
 const AMX_DISTRICTS = {
     hearth:    { icon: '🏕️', label: 'Hearth', hint: 'Rest, food, body and the road' },
@@ -108,10 +108,10 @@ const AMX_GROUPS = {
         { id: 'titles', icon: '📜', label: 'Titles', types: ['seek_title', 'view_title_status', 'resign_title'] },
         { id: 'house', icon: '🏰', label: 'House & Rivals', types: ['manage_dynasty', 'rivals_here', 'meet_rival_house', 'request_meeting', 'hall_of_heroes', 'patronage', 'meet_courier'] },
         { id: 'feasts', icon: '🎉', label: 'Feasts & Works of Fame', types: ['host_feast', 'hold_tournament', 'host_festival', 'fund_restoration', 'great_works'] },
-        { id: 'intrigue', icon: '🗝️', label: 'Intrigue & the Law', types: ['espionage_menu', 'manage_spies', 'request_bounty', 'capture_fugitive', 'maiming', 'dungeon', 'executions', 'scaffold_crowd', 'gibbets', 'captives'] },
+        { id: 'intrigue', icon: '🗝️', label: 'Intrigue & the Law', types: ['espionage_menu', 'manage_spies', 'request_bounty', 'capture_fugitive', 'maiming', 'dungeon', 'executions', 'scaffold_crowd', 'gibbets', 'captives', 'grim_deeds'] },
     ],
     arms: [
-        { id: 'army', icon: '🛡️', label: 'The Army', types: ['recruit', 'army_command', 'household_guard', 'train_combat', 'arms_armour', 'reforge_artifact'] },
+        { id: 'army', icon: '🛡️', label: 'The Army', types: ['recruit', 'army_command', 'household_guard', 'train_combat', 'arms_armour', 'reforge_artifact', 'decimate'] },
         { id: 'fight', icon: '⚔️', label: 'Fight', types: ['attack_unit', 'attack_settlement', 'siege_camp', 'dark_deeds', 'harry', 'capture_criminal', 'outlaw_lair'] },
         { id: 'sea', icon: '⚓', label: 'At Sea', types: ['hunt_pirates', 'commit_piracy', 'raid_haven', 'landing_party', 'sea_rovers'] },
     ],
@@ -306,7 +306,7 @@ Object.assign(ActionMenu, {
             servitude_buy_freedom: 'servitude',
             seek_title: 'social', view_title_status: 'social', resign_title: 'social',
             collect_tax: 'social', request_bounty: 'social', capture_fugitive: 'social',
-            maiming: 'social', maim_aids: 'social', dungeon: 'social', captives: 'social', executions: 'social', scaffold_crowd: 'social',
+            maiming: 'social', maim_aids: 'social', dungeon: 'social', captives: 'social', executions: 'social', scaffold_crowd: 'social', grim_deeds: 'social', decimate: 'military',
             bless_settlement: 'social', hold_council: 'social',
             espionage_menu: 'social', manage_spies: 'social',
             hold_court: 'social', manage_holding: 'frontier',
@@ -1551,6 +1551,10 @@ Object.assign(ActionMenu, {
                 break;
             case 'gibbets':
                 ActionMenu.showGibbets(game);
+                break;
+            case 'grim_deeds':
+            case 'decimate':
+                ActionMenu.showGrimDeeds(game);
                 break;
             case 'scaffold_crowd':
                 ActionMenu.showScaffoldCrowd(game);

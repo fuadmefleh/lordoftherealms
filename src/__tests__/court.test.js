@@ -453,3 +453,52 @@ describe('panels', () => {
         expect(p.regency.regent.id).toBe(b.id);
     });
 });
+
+describe('the House\'s people live on their purses (Court.spendPurses)', () => {
+    function townWorld() {
+        const town = { name: 'Ashford', type: 'town', kingdom: 'k1', population: 400, economy: { gold: 100 } };
+        const world = makeWorld();
+        world.getTile = (q, r) => (q === 5 && r === 5 ? { q, r, settlement: town } : null);
+        world.getSettlementViews = () => [{ q: 5, r: 5, kingdom: 'k1', name: 'Ashford', population: 400 }];
+        return { world, town };
+    }
+
+    it('spends a week\'s keep and a share of what is past the reserve in the home town, once a week; no coin is made or lost', () => {
+        const { world, town } = townWorld();
+        const p = makePlayer(world);
+        const npc = known(p, world);
+        Object.assign(npc, { settlementQ: 5, settlementR: 5, purse: 1060 });
+        const S = Court.config().spending;
+        const before = npc.purse + town.economy.gold;
+        let spent = 0;
+        for (let d = 0; d < S.every; d++) { world.day = 100 + d; spent += Court.spendPurses(p, world); }
+        const want = S.keepPerDay * S.every + (1060 - S.reserve) * S.share;
+        expect(spent).toBeCloseTo(want, 2);
+        expect(npc.purse).toBeCloseTo(1060 - want, 2);
+        expect(npc.purse + town.economy.gold).toBeCloseTo(before, 2);
+    });
+
+    it('a courtier\'s stipends no longer pile up: after a season at court the purse sits near the reserve', () => {
+        const { world, town } = townWorld();
+        const p = makePlayer(world);
+        p.gold = 100000;
+        const npc = known(p, world, { traits: ['loyal'] }, 90);
+        Object.assign(npc, { settlementQ: 5, settlementR: 5 });
+        expect(Court.join(p, world, npc.id, { stipend: 8, free: true }).success).toBe(true);
+        const town0 = town.economy.gold;
+        for (let d = 0; d < 120; d++) { world.day = 100 + d; Court.processDay(p, world); }
+        // (960g of stipends: the reserve kept, a week's pay at most in hand, the rest spent at home)
+        expect(npc.purse).toBeLessThan(Court.config().spending.reserve + 8 * 14);
+        expect(town.economy.gold - town0).toBeGreaterThan(700);
+    });
+
+    it('leaves a companion in the travel party to spend on the road (Companions._spend)', () => {
+        const { world } = townWorld();
+        const p = makePlayer(world);
+        const npc = known(p, world);
+        Object.assign(npc, { settlementQ: 5, settlementR: 5, purse: 900 });
+        p.travelParty = [npc.id];
+        for (let d = 0; d < 14; d++) { world.day = 100 + d; Court.spendPurses(p, world); }
+        expect(npc.purse).toBe(900);
+    });
+});

@@ -1,0 +1,19 @@
+{
+    "_doc": "DECIMATION (player/decimation.js). THE BROKEN: when your army routs (FieldBattle: battle.sim.routed 'player'; the one-shot combat's moraleBreak 'player') or your commissioned host is beaten (Generalship.settleBattle), the men who ran wait on your word for windowDays (player.decimation.broken). DECIMATE: they draw lots and every tenth man is beaten to death by his comrades. Your own army: a tenth of the companies (units) that fought, at least one when there were minUnits or more; their kit goes back into your stores (the comrades strip the dead). A host: a tenth of its men, lost to the realm's army. STEEL: for steel.days the army that saw it breaks less: the morale-break chance x steel.breakMult (PlayerMilitary._checkMoraleBreak, FieldBattle._routCheck read Decimation.breakMult); a host's morale for battle + steel.hostMorale. HATRED: hate.gain (0..100), fading hate.decayPerDay a day; while above hate.desertAt men slip away: each week a company deserts with chance hate.desertPerWeek x hate/100 (its kit gone with it, sold on the road); a host loses hate.hostDesert x hate/100 of its men a week; your companions' approval and a host's lieutenants' loyalty drop at the deed (companionApproval, lieutenantLoyalty). The name: Atrocities 'decimate' (karma, the butcher's name, regard, decimation_heard), the gossip 'decimation', Traits cruelty/dread, the House chronicle. AI: when a realm's lines break (world.routFeed from KingdomAI.simulateBattle), its lord decimates them (ai.chance, x ai.cruel for cruel/ruthless/tyrant lords): kingdom.military loses ai.share x ai.tenth of its men; kingdom.decimation { until, breakMult, hate } (KingdomAI._checkMoraleBreak reads breakMult; its stability falls ai.stability; while the hate lasts its army bleeds ai.desert of its men a week).",
+    "enabled": true,
+    "windowDays": 20,
+    "tenth": 10,
+    "minUnits": 3,
+    "steel": { "days": 240, "breakMult": 0.4, "hostMorale": 12 },
+    "hate": { "gain": 45, "max": 100, "decayPerDay": 0.25, "desertAt": 20, "desertPerWeek": 0.35, "hostDesert": 0.02 },
+    "companionApproval": -6,
+    "lieutenantLoyalty": -12,
+    "ai": { "chance": 0.12, "cruel": 3, "traits": ["cruel", "ruthless", "tyrant"], "share": 0.3, "tenth": 0.1, "days": 240, "breakMult": 0.45, "stability": -4, "hateDays": 180, "desert": 0.004 },
+    "lines": {
+        "broken": ["Your men broke and ran before {foe}. The captains wait to hear what you will do with the companies that fled."],
+        "done": ["The companies that broke draw lots. Every tenth man is beaten to death with clubs by the men beside him; the lot falls on {dead}. No one will run again; no one will forget it either.", "Lots are drawn in silence, and fall on {dead}: every tenth man beaten to death by their own comrades while the army watches. The rest will stand next time. They will also remember who gave the order."],
+        "spared": ["You let it go. The men who ran will fight again, or run again."],
+        "desert": ["{unit} slipped away from the camp in the night. The men have not forgiven the lots."],
+        "aiDone": ["🎲 {ruler} of {realm} has the companies that broke decimated: every tenth man beaten to death by his comrades."]
+    }
+}

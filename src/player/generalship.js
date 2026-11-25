@@ -70,6 +70,8 @@ import { TownMarks } from '../world/townMarks.js';
 import { Names } from '../core/names.js';
 import { PlayerCoin } from './playerCoin.js';
 import { Water } from '../systems/water.js';
+import { EatingTheDead } from '../systems/eatingTheDead.js';
+import { Decimation } from './decimation.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 // A rival at court may be a lady: the texts written of 'him' read of 'her'
@@ -338,7 +340,8 @@ export const Generalship = {
         let q = 1 + _num((player.skills || {}).leadership) * _num(B.perLeadership, 0.04);
         for (const lt of c.lieutenants || []) q += _num(lt.skill) * _num(B.perLieutenantSkill, 0.012) + _num((L[lt.trait] || {}).battle);
         q *= 1 + _num(c.veterancy) * _num(B.veteranBonus, 0.35);
-        q *= 0.5 + Utils.clamp(_num(c.morale), 0, 100) / 100;
+        // (a decimated host stands: player/decimation.js)
+        q *= 0.5 + Utils.clamp(_num(c.morale) + Decimation.hostMorale(player), 0, 100) / 100;
         if (_num(c.supplies) <= 0 && Generalship._consuming(c, null)) q *= _num(B.supplyless, 0.75);
         return Math.max(0.2, q);
     },
@@ -609,6 +612,8 @@ export const Generalship = {
                 c.lieutenants = c.lieutenants.filter(lt => lt !== fallen);
             }
             res.message = `Defeat. ${spec.enemy.kingdomName} throws back the host: ${hostLost} of your men fall${retinueLost ? `, and ${retinueLost} of your own retinue` : ''}.${fallen ? ` Your lieutenant ${fallen.name} is among the dead.` : ''}`;
+            // The companies that ran wait on your word: decimate them? (player/decimation.js)
+            if (spec.kind === 'field') Decimation.noteBroken(player, world, { kind: 'host', foe: spec.enemy.kingdomName });
         }
         // Into the House chronicle (the Annals and the illustrated book): the field, its foe and outcome
         // (a won assault is chronicled as the town is taken, Generalship._capture)
@@ -736,8 +741,13 @@ export const Generalship = {
         // Hunger inside the walls: the town eats its granary down, faster with the roads cut
         if (s.economy) s.economy.food = Math.max(0, _num(s.economy.food) * 0.93 - _num(s.population) * 0.002);
         const starving = s.economy && _num(s.economy.food) <= 1;
+        // Starving, the garrison may eat its dead and hold on for weeks (systems/eatingTheDead.js)
+        const ateWasNew = !(sg.dead && sg.dead.times);
+        const holding = EatingTheDead.generalDay(world, sg, s, !!starving);
+        if (holding && ateWasNew && sg.dead && sg.dead.times) out.notices.push({ icon: '🦴', title: 'They Eat Their Dead', text: `Deserters from ${sg.name} say the garrison is eating its dead. The town will hold longer than anyone thought.`, type: 'warning' });
+        const hunger = holding ? _num(EatingTheDead.config().ai.generalSlow, 0.5) : starving ? 2 : 1;
         const ratio = Utils.clamp(Generalship.power(player, c) / Math.max(1, sg.garrison * sg.walls), 0.3, _num(S.maxRatio, 3));
-        sg.progress = _num(sg.progress) + _num(S.progressPerDay, 9) * ratio * (starving ? 2 : 1) * (_num(c.supplies) > 0 ? 1 : 0.5);
+        sg.progress = _num(sg.progress) + _num(S.progressPerDay, 9) * ratio * hunger * (_num(c.supplies) > 0 ? 1 : 0.5);
         if (sg.progress >= _num(S.surrenderAt, 100)) {
             const taken = Generalship._capture(player, world, c, 'surrendered');
             out.notices.push({ icon: '🏳️', title: 'Town Surrenders', text: taken.message, type: 'success' });

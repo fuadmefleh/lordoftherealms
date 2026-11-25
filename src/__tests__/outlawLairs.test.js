@@ -22,6 +22,7 @@ import { Holdings } from '../systems/holdings.js';
 import { Counsel } from '../systems/counsel.js';
 import { Deeds } from '../systems/deeds.js';
 import { SaveLoad } from '../systems/saveLoad.js';
+import { PrisonerFates } from '../player/prisonerFates.js';
 import { loadData, newGame, endDay, roundTrip } from './playtest/harness.js';
 import { botDay } from './playtest/bot.js';
 
@@ -345,6 +346,30 @@ describe('the player\'s dealings', () => {
         if (lair.kingdomId != null) expect(p.reputation[lair.kingdomId]).toBeGreaterThan(0);
         expect(OutlawLairs.state(p).stats.clearedByPlayer).toBe(1);
         expect(OutlawLairs.state(p).history.some(h => h.kind === 'cleared' && h.own)).toBe(true);
+    });
+
+    it('a stormed lair of men leaves its survivors to your word (player/prisonerFates.js); beasts yield none', () => {
+        const { w, p, lair } = lairNextTo();
+        lair.known = true;
+        lair.kind = 'bandit_camp';
+        lair.strength = 60;
+        army(p, 30, 20);
+        Utils.setSeed(5);
+        const res = OutlawLairs.assault(p, w, lair.id);
+        expect(res.cleared).toBe(true);
+        expect(res.yielded).toBe(true);
+        const col = PrisonerFates.collect(p, w);
+        expect(col).toBeTruthy();
+        expect(col.outlaw).toBe(true);
+        expect(col.source).toBe('lair');
+        expect(col.place).toBe(lair.name);
+        // a beast den: nothing kneels
+        const b = lairNextTo(4243);
+        b.lair.known = true;
+        b.lair.kind = 'beast_den';
+        army(b.p, 30, 20);
+        const res2 = OutlawLairs.assault(b.p, b.w, b.lair.id);
+        expect(res2.yielded).toBeFalsy();
     });
 
     it('cannot storm without an army, and a lost stage ends the assault and emboldens the lair', () => {

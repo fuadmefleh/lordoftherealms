@@ -23,6 +23,8 @@ import { HighCrowns } from '../highCrowns.js';
 // (the war for the crown at the seat's passing: systems/crownSuccession.js; run time only)
 import { CrownSuccession } from '../crownSuccession.js';
 import { MaimMarks } from '../maimMarks.js';
+// (the law of fratricide: the new ruler's brothers condemned or caged at the succession, systems/fratricide.js; run time only)
+import { Fratricide } from '../fratricide.js';
 
 Object.assign(Relationships, {
     // ────────────────────────────────────────────────────────────────────
@@ -283,6 +285,8 @@ Object.assign(Relationships, {
             birthDay: world ? world.day : 0,
             isAlive: true,
             traits,
+            // (the other parent: whose son he is, when mothers scheme under the law of fratricide — systems/fratricide.js)
+            otherParentId: spouse && spouse.id != null ? spouse.id : null,
 
             // Inherited base stats (blend of parents + random)
             strength: Math.floor(((player.strength || 5) + Utils.randInt(3, 7)) / 2),
@@ -683,6 +687,8 @@ Object.assign(Relationships, {
         // New lifespan
         player.maxLifespan = Utils.randInt(settings.playerMaxLifespan.min, settings.playerMaxLifespan.max);
 
+        // (the late ruler's widow: the mother of the brothers the law of fratricide condemns, systems/fratricide.js)
+        const widowId = player.spouse || null;
         // Keep dynasty, clear personal relationships
         player.spouse = null;
         player.marriageDay = null;
@@ -752,6 +758,8 @@ Object.assign(Relationships, {
         // A child on the throne reigns under a regent (systems/regency.js)
         player.regency = null;
         const regency = minorReign ? Regency.begin(player, world, regent) : null;
+        // ...and the brothers: the law of fratricide condemns them, the cage shuts them up — no claim rises from them (systems/fratricide.js)
+        const fratricide = Fratricide.onSuccession(player, world, crownCtx, { widowId });
         // ...and the crown: the claimants weigh the heir's standing, and one may rise (systems/crownSuccession.js)
         const crown = crownCtx ? CrownSuccession.onSuccession(player, world, crownCtx, { house: houseResult }) : null;
         if (player.house) {
@@ -794,6 +802,7 @@ Object.assign(Relationships, {
             inheritance,
             highCrowns,
             crown,
+            fratricide,
         };
     },
 

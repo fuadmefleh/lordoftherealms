@@ -190,7 +190,7 @@ export const Harrying = {
         if (!s || !A) return 'There is nothing to harry here.';
         const day = _day(world);
         const ago = Harrying.since(s, act, day);
-        if (ago != null && ago < _num(C.cooldownDays, 60)) return `Already done here ${ago} day(s) ago: nothing left of it for ${_num(C.cooldownDays, 60) - ago} more.`;
+        if (ago != null && ago < _num(C.cooldownDays, 60)) return `Already done here ${ago > 0 ? `${ago} day(s) ago` : 'today'}: nothing left of it for ${_num(C.cooldownDays, 60) - ago} more.`;
         const pop = _num(s.population);
         if (act === 'mill') {
             if (!SettlementMarket.hasTrade(s, 'mill')) return `${s.name} grinds no corn of its own.`;

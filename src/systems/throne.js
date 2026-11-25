@@ -49,6 +49,9 @@ import { MoneySupply } from '../world/moneySupply.js';
 import { HighCrowns } from './highCrowns.js';
 // (the loser of a succession crisis blinded: systems/maiming.js; run time only)
 import { Maiming } from './maiming.js';
+// (the law of fratricide quells a brother's crisis; a synod's taint feeds one: systems/fratricide.js, systems/cadaverSynod.js; run time only)
+import { Fratricide } from './fratricide.js';
+import { CadaverSynod } from './cadaverSynod.js';
 
 // Code defaults (data/throne.json → config overrides them key by key).
 const DEFAULT_CONFIG = {
@@ -104,7 +107,7 @@ const FALLBACK_POLICIES = {
 };
 const HISTORY_CAP = 40;
 // 'blood': a birthright the player started with (player/scenarios.js Origins)
-const CLAIM_SOURCES = ['marriage', 'forged', 'office', 'conquest', 'purchased', 'blood'];
+const CLAIM_SOURCES = ['marriage', 'forged', 'office', 'conquest', 'purchased', 'blood', 'annulled'];
 
 /** Deterministic noise in [-1, 1] from a string (no RNG draws). */
 function _noise(key) {
@@ -563,9 +566,12 @@ export const Throne = {
             if (Throne.ruledKingdom(player, world) === k) continue;
             if (HighCrowns.unionCrown(player, k.id)) continue;
             if (st.civilWar && st.civilWar.kingdomId === k.id) continue;
+            // (the heir's brothers strangled or caged on the day: no brother can rise — systems/fratricide.js)
+            if (!succ.crisis && Fratricide.quellsCrisis(world, k, succ)) continue;
             const cause = Throne._crisisCause(succ, cfg);
             const stability = typeof k.stability === 'number' ? k.stability : 60;
-            const chance = Utils.clamp((cfg.crisis.chance[cause] || 0) * (1 + (50 - stability) / 100), 0, 1);
+            // (a king of the line tried by synod: the heir's right in doubt — systems/cadaverSynod.js)
+            const chance = Utils.clamp((cfg.crisis.chance[cause] || 0) * (1 + (50 - stability) / 100) * CadaverSynod.crisisMult(world, k), 0, 1);
             if (Utils.random() < chance) {
                 const c = Throne.startCrisis(player, world, k, cause, succ.heirName || k.ruler);
                 if (c) out.crises.push(c);

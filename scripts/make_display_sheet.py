@@ -270,10 +270,78 @@ def gallows(stage):
     return im
 
 
+HIDE = {'fresh': [(128, 40, 36, 255), (168, 72, 62, 255), (198, 108, 92, 255)],
+        'rotting': [(86, 58, 38, 255), (118, 84, 56, 255), (146, 110, 76, 255)],
+        'bones': [(84, 72, 58, 255), (108, 94, 76, 255), (128, 114, 94, 255)]}
+
+
+def hide_shape(y):
+    """Half-width of a flayed skin hung by its wrists at row y (0 = the crossbar), or None outside it."""
+    if y < 0:
+        return None
+    if y < 3:
+        return 11  # the arms, stretched along the bar to the cords
+    if y < 5:
+        return 7
+    if y < 24:
+        return 6 if 6 <= y <= 14 else 5  # the trunk, a little wider at the chest
+    if y < 38:
+        return 6  # the legs, apart
+    return None
+
+
+def skin(stage):
+    """A traitor's skin on a frame by the gate (systems/flaying.js): raw and red, dried to leather, then in tatters."""
+    im = Image.new('RGBA', (32, 96), (0, 0, 0, 0))
+    pole(im, 15, 10, 94)
+    # the crossbar the skin hangs from
+    for x in range(3, 30):
+        px(im, x, 11, WOOD[2])
+        px(im, x, 12, WOOD[1])
+        px(im, x, 13, WOOD[0])
+    d = ImageDraw.Draw(im)
+    for (x, y, rw) in ((10, 91, 3), (20, 91, 3), (14, 93, 4)):
+        d.ellipse((x - rw, y - 2, x + rw, y + 2), fill=(108, 104, 96, 255))
+    pal = HIDE[stage]
+    cx, top = 16, 14
+    for yy in range(0, 38):
+        w = hide_shape(yy)
+        if w is None:
+            continue
+        for x in range(-w, w + 1):
+            if yy >= 24 and abs(x) <= 1:
+                continue  # between the legs
+            if stage == 'bones' and ((x * 3 + yy * 5) % 13 == 0 or (yy > 30 and (x + yy) % 4 == 0) or (yy > 33 and abs(x) > 3)):
+                continue  # rents and holes
+            c = pal[2] if x < -w + 2 else pal[0] if x > w - 2 else pal[1]
+            if stage != 'fresh' and (x * 7 + yy * 3) % 11 == 0:
+                c = pal[0]  # wrinkles of the dried hide
+            px(im, cx + x, top + yy, c)
+    # the empty face at the top, a fold of the scalp with its hair
+    for x in range(-2, 3):
+        px(im, cx + x, top - 1, pal[1] if stage != 'bones' else pal[0])
+        px(im, cx + x, top - 2, HAIR['fresh'] if stage == 'fresh' else HAIR['rotting'])
+    for ex in (-1, 1):
+        px(im, cx + ex, top + 1, INK)  # the eyeholes
+    # the cords at the wrists
+    for x in (cx - 12, cx + 12):
+        px(im, x, top, (190, 170, 120, 255))
+        px(im, x, top - 1, (190, 170, 120, 255))
+    if stage == 'fresh':
+        for (x, y0, y1) in ((cx - 3, top + 24, top + 50), (cx + 4, top + 22, top + 44), (cx, top + 20, top + 30)):
+            for y in range(y0, y1):
+                if y % 4 != 1:
+                    px(im, x, y, BLOOD)
+        crow(im, cx + 6, top - 4)
+    elif stage == 'rotting':
+        crow(im, cx - 10, top - 3)
+    return outline(im)
+
+
 def main():
     os.makedirs(SRC, exist_ok=True)
     made = []
-    for kind, fn in (('spike', spike), ('gibbet', gibbet), ('gallows', gallows)):
+    for kind, fn in (('spike', spike), ('gibbet', gibbet), ('gallows', gallows), ('skin', skin)):
         for st in STAGES:
             im = fn(st)
             name = f'display_{kind}_{st}'

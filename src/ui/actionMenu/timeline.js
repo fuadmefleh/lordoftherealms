@@ -12,6 +12,8 @@
 // Dynasty panel's chronicle lines open it at their day.
 import { ActionMenu } from './_ref.js';
 import { RealmTimeline } from '../../systems/realmTimeline.js';
+// (a House wiped from the world is struck from the record: systems/damnatio.js)
+import { Damnatio } from '../../systems/damnatio.js';
 import { Seasons } from '../../world/seasons.js';
 import { lede, chips, rowList, sectionHead, esc, BTN_PLAIN, BTN_GOLD } from './uiKit.js';
 
@@ -102,7 +104,7 @@ function _legendHtml(world, st, grid, day) {
 function _happenings(world, st, win) {
     const C = RealmTimeline.config();
     const I = C.icons;
-    const out = RealmTimeline.eventsBetween(st, win.since, win.to).map(e => ({ day: e.day, icon: I[e.kind] || '•', text: e.text, q: e.q, r: e.r }));
+    const out = RealmTimeline.eventsBetween(st, win.since, win.to).filter(e => !Damnatio.hides(world, e.text)).map(e => ({ day: e.day, icon: I[e.kind] || '•', text: e.text, q: e.q, r: e.r }));
     for (const w of st.wars) {
         const a = RealmTimeline.realmAt(st, w[0], w[2]), b = RealmTimeline.realmAt(st, w[1], w[2]);
         if (!a || !b) continue;
@@ -255,7 +257,7 @@ function _drawMap(game, view, st, pts, grid, win) {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     for (const e of RealmTimeline.eventsBetween(st, win.from, win.to)) {
-        if (!Number.isFinite(e.q) || !Number.isFinite(e.r)) continue;
+        if (!Number.isFinite(e.q) || !Number.isFinite(e.r) || Damnatio.hides(world, e.text)) continue;
         const x = _hx(e.q, e.r, px) + px / 2, y = e.r * px + px / 2;
         ctx.globalAlpha = e.day > win.since ? 1 : 0.45;
         ctx.fillText(I[e.kind] || '•', x, y);

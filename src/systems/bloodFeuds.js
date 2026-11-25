@@ -387,7 +387,8 @@ export const BloodFeuds = {
         f.heat = Math.min(100, _r1(f.heat + heat));
         f.last = day;
         const vars = { dead: dead.name, how: def.label || 'killed', victims: BloodFeuds.sideName(spec.victim), killers: BloodFeuds.sideName(spec.killer), a: BloodFeuds.sideName(f.sides[0]), b: BloodFeuds.sideName(f.sides[1]) };
-        const text = isNew
+        // (spec.line: the caller's own words — blood owed for a maiming, where no one lies dead)
+        const text = spec.line ? _fill(spec.line, vars) : isNew
             ? _fill(BloodFeuds._text(spec.killer.kind === 'player' ? 'bornYou' : 'born', '{dead} lies dead, and the {victims} swear vengeance on {killers}.'), vars)
             : _fill(BloodFeuds._text('flare', 'Fresh blood: {dead}. The feud burns hotter.'), vars);
         BloodFeuds._note(world, f, isNew ? 'born' : 'flare', text);

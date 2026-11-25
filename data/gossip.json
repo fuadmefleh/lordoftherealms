@@ -220,9 +220,54 @@
             "spreadChance": 0.95,
             "description": "{perpetrator} put out the eyes of {victim} near {location} and sent them home led by the one-eyed"
         },
+        "flaying": {
+            "label": "A Flaying",
+            "icon": "🩸",
+            "deed": true,
+            "localRenown": false,
+            "baseSeverity": 70,
+            "credibility": 0.9,
+            "decayDays": 300,
+            "spreadChance": 0.85,
+            "description": "{perpetrator} had {victim} flayed alive at {location}"
+        },
+        "immured": {
+            "label": "Walled Up Alive",
+            "icon": "🧱",
+            "deed": true,
+            "localRenown": false,
+            "baseSeverity": 65,
+            "credibility": 0.65,
+            "decayDays": 400,
+            "spreadChance": 0.7,
+            "_note": "systems/immurement.js: the servants' talk of {victim} bricked into the castle wall. Nobody saw it: a lower credibility.",
+            "description": "the servants of {location} swear {perpetrator} had {victim} bricked up alive in the castle wall"
+        },
+        "decimation": {
+            "label": "A Decimation",
+            "icon": "🎲",
+            "deed": true,
+            "localRenown": false,
+            "baseSeverity": 45,
+            "credibility": 0.85,
+            "decayDays": 240,
+            "spreadChance": 0.7,
+            "description": "{perpetrator} made a company that broke near {location} draw lots, and had every tenth man beaten to death by the rest"
+        },
+        "ate_dead": {
+            "label": "They Ate Their Dead",
+            "icon": "🦴",
+            "deed": true,
+            "localRenown": false,
+            "baseSeverity": 40,
+            "credibility": 0.8,
+            "decayDays": 500,
+            "spreadChance": 0.8,
+            "description": "the starving garrison {perpetrator} left in {location} ate its own dead rather than open the gates"
+        },
         "prisoners_impaled": {
             "label": "A Forest of Stakes",
-            "icon": "🪵",
+            "icon": "🩸",
             "deed": true,
             "localRenown": false,
             "baseSeverity": 90,

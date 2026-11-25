@@ -75,6 +75,9 @@ import { Upbringing } from './upbringing.js';
 import { CourtLetters } from './courtLetters.js';
 import { Ledger } from './ledger.js';
 import { LlmProse } from './llmProse.js';
+// (a steward condemned for corruption, to hang or be flayed; the dread a flayed skin leaves: run time only)
+import { Executions } from './executions.js';
+import { Flaying } from './flaying.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -905,6 +908,8 @@ export const Stewards = {
         const st = Stewards.state(player);
         st.stats.punished++;
         const guilty = !!s.caught;
+        // To the scaffold: condemned for robbing the purse, to hang or be flayed (systems/executions.js, systems/flaying.js)
+        if (kind === 'scaffold') return Stewards._toScaffold(player, world, seat, office, s, guilty);
         if (!guilty) {
             // Tyranny: every other steward hears of it
             for (const { office: o } of Stewards.offices(player, world)) if (o !== office) o.loyaltyMod = _num(o.loyaltyMod) + P.innocentLoyalty;
@@ -931,6 +936,49 @@ export const Stewards = {
         if (s.bribe) s.bribe = null;
         Stewards._refreshFx(player, world, seat, office);
         return { success: true, text: `${office.name} is fined${seized ? ` ${Utils.formatGold(seized)} gold` : ''} and kept on, sullen and afraid.` };
+    },
+
+    /**
+     * A steward sent to the scaffold for corruption: stripped of office, what is in their
+     * pocket seized, and put on the list of the condemned (systems/executions.js) to hang
+     * or be flayed (systems/flaying.js: a skin over the judge's chair). Without proof it is
+     * a tyrant's act, and every other steward hears of it.
+     */
+    _toScaffold(player, world, seat, office, s, guilty) {
+        if (office.kind === 'family') return { success: false, reason: 'Your own blood: the scaffold is not for them here.' };
+        const P = Stewards.config().punish;
+        const st = Stewards.state(player);
+        const npc = Stewards._npc(player, office.id);
+        const name = office.name;
+        const kid = seat.kingdom ? seat.kingdom.id : (seat.settlement ? seat.settlement.kingdom : null);
+        const entry = Executions.condemn(player, world, {
+            kind: 'other', id: `steward:${office.id}`, name, gender: npc && npc.gender === 'female' ? 'female' : 'male', rank: office.kind === 'courtier' ? 'noble' : 'commoner',
+            q: seat.q != null ? seat.q : (seat.settlement ? seat.settlement.q : null), r: seat.r != null ? seat.r : (seat.settlement ? seat.settlement.r : null),
+            kingdomId: kid, popularity: guilty ? -10 : 5,
+        }, { crime: 'corruption', crimeLabel: `robbing the purse of ${seat.place}`, source: 'steward', ref: office.id, guilty: guilty ? true : null, quiet: true });
+        if (!entry) return { success: false, reason: 'They cannot be brought to the scaffold.' };
+        entry.ref.npcId = office.id;
+        const seized = Math.floor(Stewards._fromPocket(player, world, seat, Math.floor(_num(s.pocket))));
+        if (seized > 0) { player.gold += seized; Ledger.record(player, 'stewardAudits', seized); s.pocket = 0; st.stats.recovered += seized; }
+        Stewards._vacate(player, world, seat, office, 'condemned', null);
+        if (!guilty) {
+            for (const { office: o } of Stewards.offices(player, world)) o.loyaltyMod = _num(o.loyaltyMod) + P.innocentLoyalty * 2;
+            player.renown = Math.max(0, _num(player.renown) + P.innocentRenown);
+        }
+        const text = `${name} is dragged from ${seat.place} to the cells to await the scaffold${seized ? `; ${seized} gold seized` : ''}.${guilty ? '' : ' Nothing was proven: your other stewards look to their own necks.'}`;
+        Stewards._log(player, world, text);
+        if (player.house) House._chronicle(player.house, world, text, ['stewards', 'justice']);
+        return { success: true, text, entry };
+    },
+
+    /** One of yours put to death on the scaffold (systems/executions.js, kind 'other', source 'steward'): the person dies. */
+    onExecuted(player, world, e, cause) {
+        const id = e && e.ref ? (e.ref.npcId != null ? e.ref.npcId : e.refId) : null;
+        const npc = id != null ? Stewards._npc(player, id) : null;
+        if (!npc || npc.isAlive === false) return;
+        npc.isAlive = false;
+        npc.deathDay = _day(world);
+        npc.deathCause = cause || 'the scaffold';
     },
 
     /** Answer a proposal from a steward (a marriage into the House). */
@@ -1110,8 +1158,9 @@ export const Stewards = {
                 office.unpaid = paid < wage ? _num(office.unpaid) + 1 : 0;
             }
         }
-        // Fear of being found out fades
-        s.fear = Math.max(0, _num(s.fear) - _num(E.fearDecay));
+        // Fear of being found out fades — but not below the dread of a flayed predecessor's skin
+        // over the judge's chair or on the gate (systems/flaying.js)
+        s.fear = Math.max(0, _num(s.fear) - _num(E.fearDecay), Flaying.stewardDread(player, world));
 
         // How much they keep back
         let skim = 0;

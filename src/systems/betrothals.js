@@ -1242,8 +1242,9 @@ export const Betrothals = {
 // (kingdom.allies, read by KingdomAI.considerWar). A royal promised so is no
 // suitor for the player's children (Betrothals.suitors) nor a royal match
 // (Throne.royalMatchCandidates). Hash rolls only.
-// (There is no personal union between AI realms in the code — systems/highCrowns.js
-// is the player's alone — so a royal wedding binds two crowns by alliance, not union.)
+// A royal wedding binds two crowns by alliance; should both of the wed come to
+// their thrones, the crowns may come to one head in personal union, as the lesser
+// realm's law on the crown abroad allows (systems/realmUnions.js).
 
 function _royals(k) {
     return ((k && k.characterData && k.characterData.children) || []).filter(c => c && c.isAlive !== false);

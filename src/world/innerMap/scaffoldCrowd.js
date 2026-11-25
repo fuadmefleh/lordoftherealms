@@ -69,7 +69,7 @@ Object.assign(InnerMap, {
         npc.idleTimer = theDay ? 25 : 8;
         npc.activity = { type: 'scene', icon: '💀', label: theDay ? `Come to see ${sc.name || 'the condemned'} die` : 'Gawking at the scaffold', anim: 'emotes', _scene: true };
         if (this._sceneNear && this._sceneNear(npc.q, npc.r) && this._sceneSay && _hs('say', sc.id, day, who, Math.floor(h * 4)) < (theDay ? 0.25 : 0.15)) {
-            const pool = theDay ? (sc.method === 'burn' || sc.method === 'quarter' ? [...C.cruel, ...C.lines] : C.lines) : C.gawk;
+            const pool = theDay ? (sc.method === 'burn' || sc.method === 'quarter' || sc.method === 'flay' ? [...C.cruel, ...C.lines] : C.lines) : C.gawk;
             const line = pool.length ? pool[Math.floor(_hs('line', sc.id, who, day, Math.floor(h * 4)) * pool.length) % pool.length] : null;
             if (line) this._sceneSay(npc, String(line).replace(/\{name\}/g, sc.name || 'the condemned'), 0, 3.4);
         }

@@ -114,7 +114,9 @@
             ],
             "fortify": 1.15,
             "leaderStrength": 10,
-            "stageLoss": 0.45
+            "stageLoss": 0.45,
+            "yieldShare": 0.4,
+            "_yieldDoc": "Stormed: the survivors of every stage (their strengths summed x yieldShare) throw down their arms and are left for your word (player/prisonerFates.js, which takes its own share of them as captives). Beasts yield nothing."
         },
         "strike": {
             "ap": 4,

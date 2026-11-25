@@ -151,6 +151,8 @@
         "reserveBase": 300,
         "reservePerMan": 0.8,
         "marketShare": 0.5,
+        "_imports": "a slot none of the crown's own towns can sell (a small realm, a long war) is bought abroad: from the nearest `towns` market towns within `range` hexes of one of its own, of a realm it is not at war with and regards at minRelations or better (or of no realm), at most marketShare of a town's stock at a time, at the town's price x (1 + markup) for the carriage, paid into that town's purse. Coin leaves the realm; nothing is made from nothing",
+        "imports": { "enabled": true, "range": 20, "towns": 6, "minRelations": -30, "marketShare": 0.25, "markup": 0.3 },
         "keep": 1.25,
         "sellShare": 0.6,
         "start": 1,

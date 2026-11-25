@@ -160,6 +160,26 @@ describe('Gibbets — the bodies and the display', () => {
         const gal = laid.find(x => x.id === 'd2');
         expect(tiles[gal.r][gal.q].customObject.defId).toBe('gb_gallows_fresh');
     });
+
+    it('by the gate of a walled town: never just behind the wall, which would hide all but its top', () => {
+        // A walled box (rows 5..25, cols 8..32), its south gate where the road crosses row 25
+        const tiles = Array.from({ length: 30 }, (_, r) => Array.from({ length: 40 }, (_, q) => {
+            const onBox = (r === 5 || r === 25) ? (q >= 8 && q <= 32) : ((q === 8 || q === 32) && r > 5 && r < 25);
+            const isRoad = q === 20 || r === 15;
+            const t = { q, r, explored: true, visible: true, isRoad, subTerrain: { id: isRoad ? 'cobble' : 'grass', passable: true } };
+            if (onBox && !isRoad) { t._townWall = 'stone'; t.subTerrain.passable = false; }
+            return t;
+        }));
+        tiles._townWalls = { kind: 'stone', material: 'stone', box: { q0: 8, q1: 32, r0: 5, r1: 25 }, gates: 4, open: 0 };
+        const s = { name: 'Ashford', displays: [1, 2, 3, 4].map(i => ({ id: `d${i}`, kind: 'skin', day: 100, name: `Man ${i}`, by: { kind: 'player' } })) };
+        const laid = DeadDisplays.lay(tiles, s, 103, { center: { q: 20, r: 15 } });
+        expect(laid.length).toBeGreaterThan(0);
+        const def = CustomObjects.getDef('gb_skin_fresh');
+        const rows = 1 + Math.max(...(def.tiles || [{ localRow: 0 }]).map(t => t.localRow || 0));
+        for (const d of laid) {
+            for (let k = 0; k <= rows + 3; k++) expect(tiles[d.r + k] && tiles[d.r + k][d.q] && tiles[d.r + k][d.q]._townWall, `${d.id} at ${d.q},${d.r}`).toBeFalsy();
+        }
+    });
 });
 
 describe('Gibbets — what it does while it stands', () => {

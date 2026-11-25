@@ -41,10 +41,13 @@ import { LlmProse } from './llmProse.js';
 const _autoMemo = new WeakMap();
 import { Crises } from './crises.js';
 import { LastCrisis } from './lastCrisis.js';
+import { HolyWars } from './holyWars.js';
 import { Climate } from '../world/climate.js';
 import { Names } from '../core/names.js';
 // (the House's code, names on the map, founding tale and last chapters: systems/namedLegacy.js)
 import { NamedLegacy } from './namedLegacy.js';
+// (the names struck from the record: systems/damnatio.js; run time only)
+import { Damnatio } from './damnatio.js';
 
 const DEFAULTS = {
     minWeight: 4, minEvents: 4, maxEventsPerChapter: 40, maxEventsPerYear: 6, quietGapYears: 3,
@@ -252,6 +255,8 @@ export const Annals = {
         const name = _firstName(reign.name);
         const out = [];
         const add = (day, text, tags, battle = null) => {
+            // (a House wiped from the world is struck from the record: systems/damnatio.js)
+            if (Damnatio.hides(world, text)) return;
             let t = _clean(text);
             for (const [re, to] of _arr(C.rewrites)) {
                 const m = new RegExp(re).exec(t);
@@ -757,7 +762,7 @@ export const Annals = {
             // The age's crises the House lived through, each a chapter of its own (systems/crises.js)
             // ...and the climate's eras: little ice ages, droughts, warm ages (world/climate.js)
             // ...and the last crisis of the age, with the Golden or Dark Age it brought (systems/lastCrisis.js)
-            ages: [...Crises.annalChapters(world, _num(house.foundedDay)), ...Climate.annalChapters(world, _num(house.foundedDay)), ...LastCrisis.annalChapters(world, _num(house.foundedDay))]
+            ages: [...Crises.annalChapters(world, _num(house.foundedDay)), ...Climate.annalChapters(world, _num(house.foundedDay)), ...LastCrisis.annalChapters(world, _num(house.foundedDay)), ...HolyWars.annalChapters(world, _num(house.foundedDay))]
                 .sort((a, b) => _num(a.fromYear) - _num(b.fromYear)),
             day: _num(world && world.day),
         };

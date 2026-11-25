@@ -45,6 +45,7 @@ import { Pirates } from './pirates.js';
 import { Technology } from './technology.js';
 import { Quests } from './quests.js';
 import { ShipOfficers } from './shipOfficers.js';
+import { WarStakes } from '../world/warStakes.js';
 
 const DEFAULTS = {
     step: 0.25,                  // seconds a step
@@ -866,6 +867,21 @@ export const SeaFights = {
     },
 
     // ──────────── AFTERWARDS ────────────
+
+    /**
+     * A realm's ship carried by your boarders: her crew left alive yield to
+     * you (world/warStakes.js yieldUp → player/prisonerFates.js collect).
+     * o: { kingdomId, name, q, r }. Pirates' crews have their own aftermath
+     * (systems/pirates.js aftermath_crew). → the record, or null.
+     */
+    boardedYield(world, f, o = {}) {
+        const out = f && f.outcome;
+        if (!world || !out || out.kind !== 'victory' || !out.boarded || o.kingdomId == null) return null;
+        const e = SeaFights.ship(f, out.enemyId);
+        const crew = e ? _num(e.crew) : 0;
+        if (crew <= 0) return null;
+        return WarStakes.yieldUp(world, { source: 'sea', kingdomId: o.kingdomId, outlaw: false, unitType: 'navy', name: o.name || (e && e.name) || 'the enemy crew', q: o.q, r: o.r, strength: crew * 0.5, sea: true, place: e && e.name });
+    },
 
     /**
      * Write the fight back to your ships and galleys: hulls, crews, ships

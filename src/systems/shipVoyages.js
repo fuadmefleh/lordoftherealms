@@ -39,6 +39,7 @@ import { SeaPassage } from './seaPassage.js';
 import { ShipOfficers } from './shipOfficers.js';
 import { SeaWinds, SeaStorms } from '../world/seaWinds.js';
 import { NavySquadrons } from '../world/navySquadrons.js';
+import { WarStakes } from '../world/warStakes.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 
@@ -795,9 +796,15 @@ export const VoyageMethods = {
         }
         const lines = [];
         this._settleVoyageFight(player, world, ship, b.fight || {}, !!won, lines, 1);
+        // Boarders beaten off: the ones left on your deck throw down their cutlasses (player/prisonerFates.js takes them up)
+        let yielded = false;
+        if (won && world) {
+            const at = { q: typeof ship.q === 'number' ? ship.q : player.q, r: typeof ship.r === 'number' ? ship.r : player.r };
+            yielded = !!WarStakes.yieldUp(world, { source: 'boarding', kingdomId: null, outlaw: true, unitType: 'pirate', name: 'Sea-Raiders', q: at.q, r: at.r, strength: _num(b.enemy, 15) * 0.5, sea: true, place: ship.name || 'your deck' });
+        }
         const text = lines.join(' ');
         this._voyageLog(ship, won ? '⚔️' : '🏴‍☠️', `${won ? 'Boarders beaten off' : 'Boarded and beaten'}. ${text}`, world);
-        return { success: true, won: !!won, auto, icon: b.icon || '🏴‍☠️', title: b.title || 'Boarders', text };
+        return { success: true, won: !!won, auto, icon: b.icon || '🏴‍☠️', title: b.title || 'Boarders', text, yielded };
     },
 
     /**

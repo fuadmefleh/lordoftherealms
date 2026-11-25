@@ -52,6 +52,7 @@ import { WorldUnit } from '../world/units.js';
 import { LordInfluence } from '../world/kingdomState.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
 import { Dawn } from '../world/dawn.js';
+import { WarStakes } from '../world/warStakes.js';
 import { PlayerMilitary } from '../player/playerMilitary.js';
 import { House } from './house.js';
 import { Traits } from './traits.js';
@@ -1142,6 +1143,15 @@ export const OutlawLairs = {
             }
             // The defenders of this stage are dead or fled
             lair.strength = Math.max(0, _num(lair.strength) - enemy * _num(A.stageLoss, 0.45));
+        }
+        // The beaten who throw down their arms (men, not beasts): a column of captives
+        // for player/prisonerFates.js to take up (world/warStakes.js yieldUp)
+        const kd = OutlawLairs.kind(lair.kind) || {};
+        if (kd.parley) {
+            const survivors = res.stages.reduce((t, s) => t + _num(s.enemy), 0) * _num(A.yieldShare, 0.4);
+            const party = kd.party || {};
+            const name = String(party.name || '{leader}\'s Band').replace('{leader}', lair.leader.name).replace('{lair}', lair.name);
+            if (WarStakes.yieldUp(world, { source: 'lair', kingdomId: null, outlaw: true, unitType: party.type === 'raider' || !party.type ? 'raider' : party.type, name, q: lair.q, r: lair.r, strength: survivors, lairId: lair.id, place: lair.name })) res.yielded = true;
         }
         lair.leader.slain = true;
         lair.leader.slainBy = 'player';

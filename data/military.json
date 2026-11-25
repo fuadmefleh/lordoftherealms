@@ -367,7 +367,7 @@
     "largeArmy": 6,
     "largeArmySpeed": 1.2,
     "sap": { "days": 10, "fortificationSpeed": 1.5, "counterChance": 0.06, "counterSetback": 3, "breach": 60 },
-    "storm": { "apCost": 8, "extraLoss": 0.12, "starvingDefense": 0.8, "sickDefense": 0.85, "moraleFloor": 0.55, "garrisonLoss": 0.1, "failReputation": -10 },
+    "storm": { "apCost": 8, "extraLoss": 0.12, "starvingDefense": 0.8, "sickDefense": 0.85, "moraleFloor": 0.55, "garrisonLoss": 0.1, "failReputation": -10, "yieldShare": 0.35 },
     "terms": {
       "apCost": 2, "cooldown": 3,
       "surrender": { "base": -0.25 },

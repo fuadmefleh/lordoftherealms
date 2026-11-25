@@ -646,7 +646,8 @@ export function gameLoop(timestamp, loopId) {
         if (this.player.turnedAway) InnerMapPlague.turnedAway(this);
         // At the helm she struck the coast: a reef, shoals, a bar, fjord rocks (systems/seaPassage.js helmHex)
         if (this.player.seaNotes && this.player.seaNotes.length) {
-            for (const n of this.player.seaNotes.splice(0)) this.ui.showNotification(`${n.icon} Struck!`, n.text, 'warning');
+            // (and the ferryman's crossing of a great river: systems/ports.js ferryStep)
+            for (const n of this.player.seaNotes.splice(0)) this.ui.showNotification(`${n.icon} ${n.title || 'Struck!'}`, n.text, n.type || 'warning');
         }
         if (moved) {
             // The miles build Endurance: a level-up told (player/endurance.js)

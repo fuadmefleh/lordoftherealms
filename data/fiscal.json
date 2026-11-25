@@ -61,6 +61,8 @@
         "unrestAt": 35, "revoltDays": 60, "halfPayDays": 4, "ruledMaxTax": "heavy",
         "_largesse": "2026-11: an NPC crown spends largesseShare a week (paid daily, as the taxes come in daily) of what its chests hold past largesseAbove days of its spending (or largesseCoin of its realm's coin, below) into its towns (works: by people and where the court and garrisons lie), so a crown whose taxes outrun its upkeep does not sit on the realm's coin while its towns run dry (Fiscal._largesse).",
         "largesseAbove": 90, "largesseShare": 0.5,
+        "_ruledLargesse": "2026-11-24: the realm the player rules spends its surplus into its towns too (its treasurers, unless the ruler holds the works in hand: fisc.manual.works), past ruledLargesseAbove days of its spending or ruledLargesseCoin of its realm's coin, whichever is less (a deeper war chest than an NPC crown's). Before, its chests held twice the coin of its towns, whose purses ran dry under light taxes.",
+        "ruledLargesse": true, "ruledLargesseAbove": 120, "ruledLargesseCoin": 0.5,
         "_coinShares": "2026-11: the chests are also reckoned against the realm's own coin in circulation (Fiscal.reserveStand): holding coinLow of it they are never low (no tax rise for a thin reserve), past coinHigh they are high (a step down, a lavish court), past coinFlush flush; largesse begins past largesseCoin of it when that is less than largesseAbove days. A crown spends more in a year than its realm holds, so by days alone it taxed the towns dry before it felt full (the coin of a 4-realm world fell by half in 240 days).",
         "coinLow": 0.12, "coinHigh": 0.25, "coinFlush": 0.5, "largesseCoin": 0.25
     },

@@ -67,6 +67,8 @@ import { RealmArms } from '../world/realmArms.js';
 import { TownMemory } from './townMemory.js';
 import { Atrocities } from './atrocities.js';
 import { Interrogation } from './interrogation.js';
+import { WarStakes } from '../world/warStakes.js';
+import { EatingTheDead } from './eatingTheDead.js';
 
 const STANCES = ['blockade', 'works', 'sap'];
 const TERMS = ['surrender', 'ransom', 'tribute'];
@@ -114,7 +116,7 @@ const DEFAULTS = {
     largeArmy: 6,
     largeArmySpeed: 1.2,
     sap: { days: 10, fortificationSpeed: 1.5, counterChance: 0.06, counterSetback: 3, breach: 60 },
-    storm: { apCost: 8, extraLoss: 0.12, starvingDefense: 0.8, sickDefense: 0.85, moraleFloor: 0.55, garrisonLoss: 0.1, failReputation: -10 },
+    storm: { apCost: 8, extraLoss: 0.12, starvingDefense: 0.8, sickDefense: 0.85, moraleFloor: 0.55, garrisonLoss: 0.1, failReputation: -10, yieldShare: 0.35 },
     terms: {
         apCost: 2, cooldown: 3,
         surrender: { base: -0.25 }, ransom: { base: 0.05, perPop: 1.2 }, tribute: { base: 0, upfront: 0.3, weekly: 0.2, weeks: 4 },
@@ -999,6 +1001,11 @@ export const Sieges = {
         const M = C.defenderMorale;
         const D = C.townDisease;
         s.stores = Math.max(0, Math.round((s.stores - Sieges.consumption(player, world, s)) * 100) / 100);
+        // Starving, the garrison may eat its dead and hold on for weeks (systems/eatingTheDead.js)
+        EatingTheDead.siegeDay(world, s, settlement, {
+            kingdomId: s.kingdomId, lastStand: s.lastStand, log: (t) => Sieges._log(s, world, t),
+            notice: (title, text, type) => out.notices.push({ title, text, type }),
+        });
         const starving = s.stores <= 0;
         let dm = -M.daily - (s.stance === 'blockade' ? M.blockadeDaily : 0);
         if (starving) {
@@ -1218,6 +1225,8 @@ export const Sieges = {
         const pow = surrender ? null : Interrogation.takePrisoners(player, world, { kingdomId: powKid, strength: Math.max(_num(s.garrisonStart), _num(s.garrison), 30), how: `at ${s.name}`, siege: true });
         const powNote = pow ? ` ${pow.name} of ${pow.realm} is taken in its fall: your prisoner now (🔗 The Dungeon).` : '';
         if (pow) result.prisonerTaken = powNote.trim();
+        // The garrison that yields in the breach: a column of captives (player/prisonerFates.js; its men of rank among them)
+        if (!surrender) Sieges._garrisonYields(world, s, powKid, result);
         PlayerMilitary.conquerSettlement(player, settlement, tile, world, result, opts);
         if (surrender) {
             Traits.recordDeeds(player, { mercy: 2, honesty: 1 });
@@ -1228,11 +1237,26 @@ export const Sieges = {
                 : `${s.name} is taken by storm. ${result.newOwner ? `It now belongs to ${result.newOwner}.` : ''}`.trim() + powNote);
     },
 
+    /**
+     * A town stormed: the garrison's survivors who yield (result.enemyRemaining,
+     * else storm.yieldShare of the garrison) are left for the player's word
+     * (world/warStakes.js yieldUp → player/prisonerFates.js collect).
+     */
+    _garrisonYields(world, s, kingdomId, result) {
+        if (kingdomId == null || !s) return null;
+        const C = Sieges.config();
+        const left = result && result.enemyRemaining != null ? _num(result.enemyRemaining) : _num(s.garrison) * _num(C.storm.yieldShare, 0.35);
+        const rec = WarStakes.yieldUp(world, { source: 'siege', kingdomId, outlaw: false, unitType: 'garrison', name: `Garrison of ${s.name}`, q: s.q, r: s.r, strength: left, place: s.name });
+        if (rec && result) result.yielded = true;
+        return rec;
+    },
+
     /** Loot the town and leave it burning. */
     _sack(player, world, s, tile, result) {
         const K = Sieges.config().sack;
         const settlement = tile.settlement;
         if (s.revolt) Kingship.onRebelSeatTaken(player, world, s.q, s.r);
+        else if (!s.civilWar) Sieges._garrisonYields(world, s, s.kingdomId != null ? s.kingdomId : settlement.kingdom, result);
         Atrocities.noteTaken(player, world, s, 'sack');
         // (out of the town's purse, as much as is in it: no coin from nowhere)
         const want = Math.floor(_num(settlement.population) * Utils.randFloat(K.plunder[0], K.plunder[1]));

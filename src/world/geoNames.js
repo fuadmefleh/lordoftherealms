@@ -9,9 +9,11 @@
 //   river   — a river's main stem from spring to mouth, and its big
 //             tributaries, by how many river hexes run into it (riverDir)
 //   lake    — connected lake hexes
-//   sea     — the open water, cut into basins (the water far from land,
-//             split into pieces of about seaChunk hexes, every sea hex
-//             going to the nearest), an ocean when large
+//   sea     — a connected body of open water (coast, ocean and deep ocean
+//             alike) is one sea, an ocean when large (or round the map's
+//             edge), lettered in several places; only an arm behind a
+//             strait (a basin whose mouth is narrow) is a sea or gulf of
+//             its own, and water cut off from the rest is its own sea/lake
 //   bay     — an inlet: sea hexes well away from any basin (a bay, a gulf
 //             when large, a sound or fjord when long and narrow)
 //   forest / desert / marsh — connected woodland, desert and swamp
@@ -373,9 +375,10 @@ export const GeoNames = {
     },
 
     /**
-     * The sea: basins of open water (far from land), each big one cut into
-     * pieces, every sea hex going to the nearest piece; then the inlets, the
-     * sea hexes a good way from any basin.
+     * The sea: basins of open water (far from land), every sea hex going to
+     * the nearest, gathered per body of water into one sea (an ocean when
+     * great) save the arms behind a strait; then the inlets, the sea hexes a
+     * good way from any basin.
      */
     _seas(ctx) {
         const { N, nbr, ids } = ctx;
@@ -396,49 +399,19 @@ export const GeoNames = {
         }
         // (a world of only water: every hex is open)
         for (let i = 0; i < N; i++) if (dl[i] < 0) dl[i] = 999;
+        // the bodies of water: every connected run of sea hexes, whatever its depth
+        // (coast, ocean and deep ocean are one water: a body is never split by depth)
+        const bodyOf = new Int32Array(N).fill(-1);
+        const bodies = GeoNames._components(ctx, isSea);
+        bodies.forEach((b, k) => { for (const i of b.tiles) bodyOf[i] = k; });
+        // the basins: the open water of each body (far from land), each piece whole
         const basinOf = new Int32Array(N).fill(-1);
         const basins = [];
-        const chunk = GeoNames.size('seaChunk', 420);
         for (const comp of GeoNames._components(ctx, (i) => isSea(i) && dl[i] >= openDist)) {
             if (comp.tiles.length < GeoNames.size('minBasin', 10)) continue;
-            // cut a big basin into pieces: seeds far apart (the next is the hex farthest from all so far)
-            const n = Math.max(1, Math.round(comp.tiles.length / chunk));
-            const inComp = new Set(comp.tiles);
-            const walk = (seeds) => {
-                const d = new Map(), own = new Map();
-                const qq = [];
-                seeds.forEach((s, k) => { d.set(s, 0); own.set(s, k); qq.push(s); });
-                for (let p = 0; p < qq.length; p++) {
-                    const i = qq[p];
-                    for (let k = 0; k < 6; k++) {
-                        const j = nbr[i * 6 + k];
-                        if (j < 0 || !inComp.has(j) || d.has(j)) continue;
-                        d.set(j, d.get(i) + 1);
-                        own.set(j, own.get(i));
-                        qq.push(j);
-                    }
-                }
-                return { d, own };
-            };
-            const seeds = [comp.tiles[0]];
-            for (let k = 1; k < n; k++) {
-                const { d } = walk(seeds);
-                let far = -1, fd = -1;
-                for (const i of comp.tiles) { const v = d.get(i); if (v > fd) { fd = v; far = i; } }
-                if (far < 0 || fd < 4) break;
-                seeds.push(far);
-            }
-            // (the first seed is the far end from the map's first hex, not the first hex itself)
-            if (seeds.length > 1) {
-                const { d } = walk([seeds[1]]);
-                let far = seeds[0], fd = -1;
-                for (const i of comp.tiles) { const v = d.get(i); if (v > fd) { fd = v; far = i; } }
-                seeds[0] = far;
-            }
-            const { own } = walk(seeds);
-            const base = basins.length;
-            seeds.forEach(() => basins.push([]));
-            for (const i of comp.tiles) { const b = base + own.get(i); basinOf[i] = b; basins[b].push(i); }
+            const b = basins.length;
+            basins.push(comp.tiles.slice());
+            for (const i of comp.tiles) basinOf[i] = b;
         }
         // every other sea hex to its nearest basin, counting the steps
         const steps = new Int32Array(N).fill(-1);
@@ -478,12 +451,29 @@ export const GeoNames = {
             const open = comp.tiles.some(i => steps[i] >= 0);
             bays.push({ tiles: tl, uq, open });
         }
+        // the seas: each body's basins (and the water round them) are one sea — an
+        // ocean when the body is great — save a basin that opens on the rest only
+        // through a strait (a sea of its own: an enclosed sea or a gulf)
+        const groups = GeoNames._seaGroups(ctx, basins, basinOf, bodyOf);
+        const oceanAt = GeoNames.size('ocean', 700);
+        const oceanEdge = GeoNames.size('oceanEdge', 250);
+        const touchesEdge = (b) => b.tiles.some(i => i < ctx.W || i >= N - ctx.W);
         // the basins first (so a bay over a basin's hexes is found under it at the hex)
-        for (const b of basins) {
-            if (!b.length) continue;
-            const comp = GeoNames._unwrap(ctx, b);
+        for (const g of groups) {
+            const comp = GeoNames._unwrap(ctx, g.tiles);
+            const body = bodies[g.body];
             const f = GeoNames._feature(ctx, 'sea', comp, {}, dl);
-            if (b.length >= GeoNames.size('ocean', 700)) f.sub = 'ocean';
+            if (g.enclosed) {
+                f.strait = true;
+                // (water behind a strait: an ocean of its own when it is one — two oceans
+                // meeting at a narrows — a sea of its own when large, else a gulf)
+                if (f.size >= oceanAt) f.sub = 'ocean';
+                else if (f.size < GeoNames.size('enclosedSea', 150)) { f.kind = 'bay'; f.sub = 'gulf'; f.key = `bay:${f.key.split(':')[1]}`; }
+            } else if (body.tiles.length >= oceanAt || (body.tiles.length >= oceanEdge && touchesEdge(body))) {
+                f.sub = 'ocean';
+            }
+            // (a great water is lettered in several places, the one name in each)
+            if (f.kind === 'sea') f.anchors = GeoNames._seaSpots(ctx, f, dl);
             f._basin = true;
         }
         const seaFeatures = ctx.features.filter(f => f._basin);
@@ -496,6 +486,130 @@ export const GeoNames = {
             GeoNames._mark(ctx, 'water', f);
         }
         for (const f of seaFeatures) GeoNames._mark(ctx, 'water', f);
+    },
+
+    /**
+     * The basins (each grown over the sea hexes nearest it) gathered into
+     * seas: [{ tiles, body, enclosed }]. A small basin joins the neighbour it
+     * shares most shore with; then a basin (or such a gathering) whose only
+     * ways to the rest of its body are narrow — its mouth, the hexes touching
+     * another basin, no wider than a strait — is a sea of its own (enclosed);
+     * every other basin of a body is one sea with the body's biggest. When in
+     * doubt, one sea.
+     */
+    _seaGroups(ctx, basins, basinOf, bodyOf) {
+        const { N, nbr } = ctx;
+        const n = basins.length;
+        const parent = Array.from({ length: n }, (_, k) => k);
+        const find = (k) => { while (parent[k] !== k) { parent[k] = parent[parent[k]]; k = parent[k]; } return k; };
+        const size = (k) => { let s = 0; for (let b = 0; b < n; b++) if (find(b) === k) s += basins[b].length; return s; };
+        // the mouths between the gatherings: per gathering, the hexes of it beside another (by which)
+        const mouths = () => {
+            const m = new Map();
+            for (let i = 0; i < N; i++) {
+                const a = basinOf[i];
+                if (a < 0) continue;
+                const ga = find(a);
+                for (let k = 0; k < 6; k++) {
+                    const j = nbr[i * 6 + k];
+                    if (j < 0 || basinOf[j] < 0) continue;
+                    const gb = find(basinOf[j]);
+                    if (gb === ga) continue;
+                    if (!m.has(ga)) m.set(ga, new Map());
+                    const per = m.get(ga);
+                    if (!per.has(gb)) per.set(gb, new Set());
+                    per.get(gb).add(i);
+                }
+            }
+            return m;
+        };
+        // (the small basins first: each into the neighbour it touches most, the smallest first)
+        const minEnclosed = GeoNames.size('enclosedMin', 60);
+        for (let guard = 0; guard < n; guard++) {
+            const m = mouths();
+            let pick = -1, ps = Infinity;
+            for (const [g, per] of m) {
+                if (!per.size) continue;
+                const s = size(g);
+                if (s < minEnclosed && (s < ps || (s === ps && g < pick))) { pick = g; ps = s; }
+            }
+            if (pick < 0) break;
+            let to = -1, tc = -1;
+            for (const [g, set] of m.get(pick)) if (set.size > tc || (set.size === tc && g < to)) { to = g; tc = set.size; }
+            parent[pick] = to;
+        }
+        // the enclosed: narrow-mouthed, and not the body's biggest
+        const m = mouths();
+        const roots = [...new Set(Array.from({ length: n }, (_, k) => find(k)))].filter(g => basins.some((b, k) => b.length && find(k) === g));
+        const sizes = new Map(roots.map(g => [g, size(g)]));
+        const bodyOfG = (g) => bodyOf[basins[g][0]];
+        const biggest = new Map();
+        for (const g of roots) {
+            const b = bodyOfG(g);
+            const cur = biggest.get(b);
+            if (cur == null || sizes.get(g) > sizes.get(cur) || (sizes.get(g) === sizes.get(cur) && g < cur)) biggest.set(b, g);
+        }
+        const strait = GeoNames.size('straitMouth', 6);
+        const enclosed = new Set();
+        for (const g of roots) {
+            if (biggest.get(bodyOfG(g)) === g || !m.has(g)) continue;
+            const s = sizes.get(g);
+            if (s < minEnclosed) continue;
+            let mouth = 0;
+            for (const set of m.get(g).values()) mouth += set.size;
+            if (mouth <= Math.min(strait, Math.max(3, 0.5 * Math.sqrt(s)))) enclosed.add(g);
+        }
+        // every other gathering of a body with its biggest
+        for (const g of roots) if (!enclosed.has(g)) parent[g] = find(biggest.get(bodyOfG(g)));
+        const out = new Map();
+        for (let k = 0; k < n; k++) {
+            if (!basins[k].length) continue;
+            const g = find(k);
+            if (!out.has(g)) out.set(g, { tiles: [], body: bodyOf[basins[k][0]], enclosed: enclosed.has(g), lo: Infinity });
+            const o = out.get(g);
+            for (const i of basins[k]) { o.tiles.push(i); if (i < o.lo) o.lo = i; }
+        }
+        // (in map order, so the same world always gives the same seas)
+        return [...out.values()].sort((a, b) => a.lo - b.lo);
+    },
+
+    /**
+     * Where a great water's name is written: its label hex, and then the most
+     * open hexes far from every spot so far (one about every seaSpotGap hex
+     * widths, at most seaSpots), so an ocean round the world is named across it.
+     */
+    _seaSpots(ctx, f, open) {
+        const W = ctx.W;
+        const gap = GeoNames.size('seaSpotGap', 19);
+        const most = GeoNames.size('seaSpots', 16);
+        const pos = (i) => GeoNames._pos(ctx, i, i % W);
+        const spot = (i) => { const p = pos(i); return { x: p.x, y: p.y, angle: 0, tile: i }; };
+        const spots = [spot(f.anchor)];
+        // (only the open water, a little in from the map's top and bottom: a name is not
+        // written in a bay's mouth, nor half off the world)
+        const H = ctx.H;
+        const cand = f.tiles.filter(i => open[i] >= 3 && i >= 2 * W && i < (H - 2) * W);
+        // (rows count for more than columns: a screen of the map is wider than it is tall)
+        const dist = (a, b) => {
+            let dx = Math.abs(a.x - b.x);
+            dx = Math.min(dx, W - dx);
+            return Math.hypot(dx, 1.6 * (a.y - b.y));
+        };
+        while (spots.length < most) {
+            let best = -1, bs = -Infinity;
+            for (const i of cand) {
+                const p = pos(i);
+                let d = Infinity;
+                for (const s of spots) d = Math.min(d, dist(p, s));
+                if (d < gap) continue;
+                // (far enough off is far enough: past that, the more open water)
+                const score = Math.min(d, gap * 1.25) + Math.min(4, open[i]);
+                if (score > bs || (score === bs && i < best)) { bs = score; best = i; }
+            }
+            if (best < 0) break;
+            spots.push(spot(best));
+        }
+        return spots;
     },
 
     /** A set of hexes as a component with unwrapped columns (a walk from the first, then any left over as they are). */

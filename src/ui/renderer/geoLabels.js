@@ -82,14 +82,15 @@ Object.assign(Renderer.prototype, {
             if (alpha <= 0) continue;
             // (the great names step back when close in: they are for the wide view)
             if ((f.kind === 'sea' || f.kind === 'range') && z > 1.15) alpha *= Math.max(0.45, 1 - (z - 1.15) * 1.2);
-            // (a sea named after a House is lettered by renderNamedPlaces)
-            if (f.kind === 'sea' || f.kind === 'bay') {
-                const named = NamedLegacy.placeAt(world, f.anchor % W, (f.anchor / W) | 0);
-                if (named) continue;
-            }
-            const spots = f.kind === 'river' && Array.isArray(f.anchors) && f.anchors.length
+            // (a river along its course, a great sea or ocean in several places across it)
+            let spots = (f.kind === 'river' || f.kind === 'sea') && Array.isArray(f.anchors) && f.anchors.length
                 ? f.anchors.map(a => ({ x: a.x, y: a.y, angle: a.angle, tile: a.tile }))
                 : [{ x: f.x, y: f.y, angle: f.angle, tile: f.anchor }];
+            // (where the water is named after a House, renderNamedPlaces letters it)
+            if (f.kind === 'sea' || f.kind === 'bay') {
+                spots = spots.filter(s => !NamedLegacy.placeAt(world, s.tile % W, (s.tile / W) | 0));
+                if (!spots.length) continue;
+            }
             const text0 = GeoNames.bare(f.name);
             const text = S.caps ? text0.toUpperCase() : text0;
             const sizeK = f.kind === 'river' ? Math.log2(Math.max(2, f.size)) / 5 : Math.log10(Math.max(10, f.size)) / 2;

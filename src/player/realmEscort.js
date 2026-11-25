@@ -43,6 +43,7 @@
 import { DataLoader } from '../core/dataLoader.js';
 import { Economy } from '../world/economy.js';
 import { CrownBooks } from '../world/crownBooks.js';
+import { Kingdom } from '../world/kingdom.js';
 import { RealmArms } from '../world/realmArms.js';
 import { Estates } from '../world/estates.js';
 import { Throne } from '../systems/throne.js';
@@ -202,22 +203,42 @@ export const RealmEscort = {
      * Arm a company out of the realm's armoury: a piece for each slot of its
      * kit (data/arms.json troops.kits) the stock holds, a quiver for a bowman.
      * A slot the armoury cannot fill stays empty (he fights the worse for it).
+     * The company takes only its men's share, as a host marching out does
+     * (RealmArms.detach): a slot the armoury holds for `fill` of the army's
+     * need gives the company its piece only while fill x its kits (strength /
+     * menPerKit) comes to half a piece or more, its arrows by the same fill —
+     * the guard is not dressed in the last pieces of a bare army.
      */
     _armFromArmoury(kingdom, unit) {
         const spec = Arms.kitSpec(unit.type);
         if (!kingdom) return;
         const stock = RealmArms.state(kingdom).stock;
+        const C = RealmArms.config();
+        const need = RealmArms.need(kingdom);
+        const held = RealmArms.held(kingdom);
+        const kits = Math.max(0, _num(unit.strength, 10)) / Math.max(1, _num(C.menPerKit, 10));
+        const fillOf = (rs) => {
+            const of = rs === 'ammo' ? need.ammo : (rs in need.slots ? need.slots[rs] : need.kits);
+            return of > 0 ? _num(held[rs] && held[rs].n) / of : 1;
+        };
         if (spec) {
             const kit = { g: {}, cond: 100 };
             for (const [slot, s] of Object.entries(spec.slots || {})) {
                 const id = RealmEscort._takePiece(stock, Array.isArray(s.classes) ? s.classes : [], slot);
-                if (id) kit[slot] = id;
+                if (!id) continue;
+                const rs = C.slotOf[id];
+                // (its share of a scarce slot is under half a piece: the piece stays in the armoury)
+                if (rs && fillOf(rs) * kits < 0.5) {
+                    stock[id] = _r2(_num(stock[id]) + 1);
+                    continue;
+                }
+                kit[slot] = id;
             }
             unit.kit = kit;
         }
         const good = Arms.ammoGood(unit);
         if (good) {
-            const want = Arms.quiverOf(unit).quiver;
+            const want = Math.floor(Arms.quiverOf(unit).quiver * _clamp(fillOf('ammo'), 0, 1));
             const got = Math.min(want, Math.floor(_num(stock[good])));
             stock[good] = _r2(_num(stock[good]) - got);
             unit.ammo = got;
@@ -400,17 +421,26 @@ export const RealmEscort = {
         st.past.unshift({ kingdomId: g.kingdomId, kingdomName: g.kingdomName, rank: g.rank, since: g.since, ended: _day(world), why, record: { ...g.record } });
         if (st.past.length > 8) st.past.length = 8;
         st.guard = null;
+        if (k) Kingdom.setMenAway(k, 'guard', 0);
         if (why === 'home') st.home[g.kingdomId] = _day(world) + _num((RealmEscort.config().sendHome || {}).days, 60);
         // A guard that starved or went unpaid until the last man slipped away is
         // not sent again the next morning, drawn afresh from the army and armed
         // out of the armoury at the crown's cost (asked for, it still comes)
         else if (why === 'deserted') st.home[g.kingdomId] = _day(world) + _num((RealmEscort.config().deserted || {}).days, 45);
+        // ...nor one cut down to the last man: the realm does not strip its army of
+        // another guard's men and kits the next morning (asked for, it still comes)
+        // (the crown's own guard is mustered again within days: cut.crownDays)
+        else if (why === 'cut') {
+            const CU = RealmEscort.config().cut || {};
+            st.home[g.kingdomId] = _day(world) + (g.rank === 'crown' ? _num(CU.crownDays, 5) : _num(CU.days, 30));
+        }
         const R = RealmEscort.rankDef(g.rank) || {};
         const text = {
             title: `You hold no rank in ${RealmEscort.realmName(g)} now: its ${R.label || 'guard'} rides home to the realm's army.`,
             exile: `Exiled from ${RealmEscort.realmName(g)}, you lose its ${R.label || 'guard'}: the men ride home.`,
             turned: `You have turned against ${RealmEscort.realmName(g)}: its ${R.label || 'guard'} will not ride with you, and goes home.`,
             fallen: `${RealmEscort.realmName(g, true)} is no more: its ${R.label || 'guard'} scatters.`,
+            cut: `The ${R.label || 'guard'} of ${RealmEscort.realmName(g)} has been cut down to the last man.`,
             home: `You send the ${R.label || 'guard'} of ${RealmEscort.realmName(g)} home: ${home} men ride back to the realm's army.`,
             deserted: `The last of the ${R.label || 'guard'} of ${RealmEscort.realmName(g)} has slipped away, unpaid.`,
             another: `The ${R.label || 'guard'} of ${RealmEscort.realmName(g)} rides home: another realm's men ride with you now.`,
@@ -654,9 +684,12 @@ export const RealmEscort = {
         }
         g.men = now;
         if (!now) {
-            RealmEscort.end(player, world, 'fallen', out);
+            RealmEscort.end(player, world, 'cut', out);
             return out;
         }
+        // The guard's men are the realm's soldiers still: its recruiters fill the
+        // army to its cap less them (world/kingdom.js menAway)
+        if (k) Kingdom.setMenAway(k, 'guard', now, day);
 
         // A lost company replaced now and then, while the realm can spare it and the treasury pays
         const RF = C.refill || {};

@@ -1,0 +1,22 @@
+{
+    "_doc": "Putting a dead enemy on trial (systems/cadaverSynod.js, after the Cadaver Synod of 897). The dead are kept as tombs: every AI king who dies (Characters.handleSuccession → kingdom.lastSuccession, buried at his capital) and every rival House head (RivalHouses._succeed, buried in the House's crypt at its seat). A ruler whose realm holds the town of a tomb may dig the dead man up and try him before a synod: the crown pays cost gold from its treasury into the town's purse (diggers, clerks, the bishops' keep). Sentences: 'river' (the full synod: stripped of his vestments, the three fingers that swore his oaths cut off, the body thrown in the river; his grave goods come to you) and 'unhallowed' (stripped and reburied in unhallowed ground: scale × the outrage and the effect). Effects: on a king whose dynasty still rules his realm — his acts annulled, the heir's right in doubt: the realm's stability, its regard for your realm, a claim on its throne for you (Throne source 'annulled', added up to claimCap), a taint that makes its next succession crisis likelier (crisisMult for taintYears); on the old royal line of the realm you rule, its pretender's claim is cut by pretenderCut (CrownSuccession reads annulled). On a rival House head — the House's feud, its standing at every court halved, a remembered deed, a nemesis. The faith is outraged: your clergy standing, karma, your own realm's stability, every realm's regard, more in realms of the dead man's faith. AI rulers do it too: a cruel, wrathful, paranoid or zealous crown that holds the tomb of an enemy king (relations below aiHostileBelow, or his realm fallen) tries him now and then (aiYearly).",
+    "cost": 300,
+    "minDeadDays": 30,
+    "goods": 3,
+    "sentences": {
+        "river": { "label": "Cut off his fingers and throw him in the river", "scale": 1, "goods": true },
+        "unhallowed": { "label": "Strip him and rebury him in unhallowed ground", "scale": 0.5, "goods": false }
+    },
+    "heir": { "stability": 12, "relations": 40, "claim": 15, "claimCap": 30, "taintYears": 20, "crisisMult": 2, "pretenderCut": 0.5 },
+    "lord": { "feud": 35, "standingMult": 0.5, "memory": -30, "nemesisScore": 65 },
+    "outrage": { "faith": -12, "karma": -15, "ownStability": 4, "reputationAll": 4, "sameFaith": 8 },
+    "tombsCap": 120,
+    "ai": { "yearly": 0.15, "traits": ["cruel", "wrathful", "paranoid", "devout"], "hostileBelow": -40 },
+    "lines": {
+        "synodRiver": "{ruler} had {name} dug up from his tomb in {town}, robed in his vestments and seated on a throne before a synod of the bishops of {realm}. A deacon answered for the corpse. Found guilty of every charge, he was stripped, the three fingers of his right hand that swore his oaths were cut off, and the body was dragged through the streets and thrown into the river.",
+        "synodUnhallowed": "{ruler} had {name} dug up from his tomb in {town} and tried before a synod of the bishops of {realm}. Found guilty, he was stripped of his vestments and buried again in unhallowed ground, outside the walls.",
+        "annulled": "Every act of {name} is declared void: the rule of {heir} in {realm} is called into question.",
+        "lordShamed": "{house} is shamed before every court: the heads after {name} hold their place by a thief's leave.",
+        "aiSynod": "{ruler} of {realm} had {name}, late of {dead}, dug up and tried before a synod; the body was thrown into the river. {dead} rages."
+    }
+}

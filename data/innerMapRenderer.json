@@ -782,6 +782,98 @@
                 "Clothing/Masculine, Thin/Torso/Shirt 04 - T-shirt/Brown",
                 "Hair/Short 05 - Natural/Gray"
             ]
+        },
+        "male_harbourmaster": {
+            "layers": [
+                "Body/Body 02 - Masculine, Thin/Tan",
+                "Head/Head 03 - Elderly/Tan",
+                "Clothing/Masculine, Thin/Legs/Pants 04 - Cuffed Pants/Navy",
+                "Clothing/Masculine, Thin/Feet/Shoes 02 - Boots/Black",
+                "Clothing/Masculine, Thin/Torso/Shirt 07 - Buttoned Longsleeve Shirt/Navy",
+                "Clothing/Masculine, Thin/Torso 2/Sweater 01 - Cardigan/Midnight",
+                "Hair/Short 06 - Balding/Gray",
+                "Hair/Facial Hair 07 - Medium Beard/Gray",
+                "Head Accessories/Cap 01 - Leather/Leather"
+            ]
+        },
+        "female_harbourmaster": {
+            "layers": [
+                "Body/Body 01 - Feminine, Thin/Peach",
+                "Head/Head 01 - Feminine/Peach",
+                "Clothing/Feminine, Thin/Legs/Pants 04 - Cuffed Pants/Navy",
+                "Clothing/Feminine, Thin/Feet/Shoes 02 - Boots/Black",
+                "Clothing/Feminine, Thin/Torso/Shirt 07 - Buttoned Longsleeve Shirt/Navy",
+                "Clothing/Feminine, Thin/Torso 2/Sweater 01 - Cardigan/Midnight",
+                "Hair/Medium 04 - Bangs & Bun/Gray",
+                "Head Accessories/Cap 01 - Leather/Leather"
+            ]
+        },
+        "male_docker_1": {
+            "layers": [
+                "Body/Body 02 - Masculine, Thin/Tan",
+                "Head/Head 02 - Masculine/Tan",
+                "Clothing/Masculine, Thin/Legs/Pants 04 - Cuffed Pants/Charcoal",
+                "Clothing/Masculine, Thin/Feet/Shoes 02 - Boots/Brown",
+                "Clothing/Masculine, Thin/Torso/Shirt 04 - T-shirt/Linen",
+                "Clothing/Masculine, Thin/Torso 2/Accessory 01 - Suspenders/Brown",
+                "Hair/Short 01 - Buzzcut/Brown",
+                "Hair/Facial Hair 06 - Trimmed Beard/Brown"
+            ]
+        },
+        "male_docker_2": {
+            "layers": [
+                "Body/Body 02 - Masculine, Thin/Bronze",
+                "Head/Head 02 - Masculine/Bronze",
+                "Clothing/Masculine, Thin/Legs/Pants 03 - Pants/Brown",
+                "Clothing/Masculine, Thin/Feet/Shoes 02 - Boots/Brown",
+                "Clothing/Masculine, Thin/Torso/Shirt 05 - V-neck T-shirt/Gray",
+                "Hair/Short 05 - Natural/Black"
+            ]
+        },
+        "male_docker_3": {
+            "layers": [
+                "Body/Body 02 - Masculine, Thin/Peach",
+                "Head/Head 02 - Masculine/Peach",
+                "Clothing/Masculine, Thin/Legs/Pants 04 - Cuffed Pants/Navy",
+                "Clothing/Masculine, Thin/Feet/Shoes 02 - Boots/Brown",
+                "Clothing/Masculine, Thin/Torso/Shirt 08 - Buttoned T-shirt/Sky",
+                "Hair/Short 04 - Cowlick/Chestnut",
+                "Hair/Facial Hair 07 - Medium Beard/Chestnut",
+                "Head Accessories/Cap 01 - Leather/Leather"
+            ]
+        },
+        "male_docker_4": {
+            "layers": [
+                "Body/Body 02 - Masculine, Thin/Coffee",
+                "Head/Head 02 - Masculine/Coffee",
+                "Clothing/Masculine, Thin/Legs/Pants 03 - Pants/Charcoal",
+                "Clothing/Masculine, Thin/Feet/Shoes 02 - Boots/Brown",
+                "Clothing/Masculine, Thin/Torso/Shirt 04 - T-shirt/Gray",
+                "Clothing/Masculine, Thin/Torso 2/Accessory 01 - Suspenders/Black",
+                "Hair/Short 01 - Buzzcut/Black"
+            ]
+        },
+        "male_docker_5": {
+            "layers": [
+                "Body/Body 02 - Masculine, Thin/Ivory",
+                "Head/Head 02 - Masculine/Ivory",
+                "Clothing/Masculine, Thin/Legs/Pants 04 - Cuffed Pants/Brown",
+                "Clothing/Masculine, Thin/Feet/Shoes 02 - Boots/Brown",
+                "Clothing/Masculine, Thin/Torso/Shirt 01 - Longsleeve Shirt/White",
+                "Hair/Short 03 - Curly/Red",
+                "Hair/Facial Hair 01 - Walrus Mustache/Red"
+            ]
+        },
+        "female_docker_1": {
+            "layers": [
+                "Body/Body 01 - Feminine, Thin/Tan",
+                "Head/Head 01 - Feminine/Tan",
+                "Clothing/Feminine, Thin/Legs/Pants 04 - Cuffed Pants/Charcoal",
+                "Clothing/Feminine, Thin/Feet/Shoes 02 - Boots/Brown",
+                "Clothing/Feminine, Thin/Torso/Shirt 04 - T-shirt/Linen",
+                "Clothing/Feminine, Thin/Torso 2/Accessory 01 - Suspenders/Brown",
+                "Hair/Medium 04 - Bangs & Bun/Brown"
+            ]
         }
     },
 
@@ -796,7 +888,9 @@
         "noble":          ["male_noble", "female_noble"],
         "child":          ["male_light_1", "female_light_1", "male_tan_1", "female_bronze_1"],
         "traveler":       ["male_dark_1", "male_tan_1", "female_bronze_1"],
-        "beggar":         ["male_beggar"]
+        "beggar":         ["male_beggar"],
+        "harbourmaster":  ["male_harbourmaster", "female_harbourmaster"],
+        "docker":         ["male_docker_1", "male_docker_2", "male_docker_3", "male_docker_4", "male_docker_5", "female_docker_1"]
     },
 
     "childLooks": {

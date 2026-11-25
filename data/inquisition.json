@@ -1,0 +1,150 @@
+{
+    "_doc": "The inquisition (systems/inquisition.js; the panel ui/actionMenu/church.js). Inquisitors are persistent people commissioned by a see (systems/holyWars.js) to a realm of the faith whose heresy law (data/laws.json heresy) admits them. They ride town to town, hold hearings, try the townsfolk, give penances, seize the condemned's purses (into the see's coffers: coin moved, never minted), hand the obstinate to the stake (systems/executions.js, where the law is the Holy Office) and break the realm's heresies. A town under a hearing grows afraid (its happiness), informers multiply, people flee to other realms. The player may be summoned, and may host, bribe, obstruct or (where they rule) expel an inquisitor. Every roll is a hash of the world seed.",
+    "enabled": true,
+    "maxInquisitors": 6,
+    "perRealm": 1,
+    "spawn": {
+        "_doc": "Weekly, a realm of the faith with no inquisitor gets one with chance base + heresy strength × perHeresy + its piety × perPiety (+ playerFaith when the player's own faith is preached there); commissions last years.",
+        "base": 0.006,
+        "perHeresy": 0.0015,
+        "perPiety": 0.0001,
+        "playerFaith": 0.02,
+        "years": [
+            4,
+            9
+        ],
+        "age": [
+            34,
+            58
+        ],
+        "lifespan": [
+            60,
+            78
+        ],
+        "commission": 150
+    },
+    "travel": {
+        "hexPerDay": 4,
+        "restDays": [
+            3,
+            8
+        ],
+        "revisitDays": 360,
+        "maxTowns": 14
+    },
+    "hearing": {
+        "_doc": "A hearing runs days days; each day tries a townsperson with chance tryChance. Guilt = base + heresy strength × perHeresy + informers × perInformer; acquitted by (1 − guilt); of the guilty, burned with burnShare × zeal (only under the Holy Office and a faith that burns), else penanced (fineShare of their purse) or (seizeShare × greed) their whole purse seized. A conviction knocks heresyHit off the realm's strongest heresy. A town whose people the game has not yet met (no roll of townsfolk) is tried in the round: the condemned's goods are drawn from the town's purse (abstractFine × the town's wealth, at most abstractMax), a burning takes one from its people.",
+        "days": [
+            6,
+            12
+        ],
+        "tryChance": 0.55,
+        "base": 0.25,
+        "perHeresy": 0.006,
+        "perInformer": 0.02,
+        "burnShare": 0.25,
+        "fineShare": 0.3,
+        "seizeShare": 0.4,
+        "heresyHit": 3,
+        "pietyPerConviction": 0.3,
+        "jailDays": 60,
+        "minAge": 16,
+        "burnDays": 2,
+        "abstractFine": 0.004,
+        "abstractMax": 60
+    },
+    "town": {
+        "_doc": "fear rises fearPerDay a day of a hearing (fearBurn on a burning), decays fearDecay a day after; mood = −fear × moodPerFear (read by the town's happiness). Informers: one in informerChance a day; flee: a fleeShare of the people a day of a hearing while fear ≥ fleeAt (moved to the nearest town of another realm), and a named townsperson now and then.",
+        "fearPerDay": 4,
+        "fearBurn": 12,
+        "fearDecay": 0.6,
+        "fearMax": 100,
+        "moodPerFear": 0.12,
+        "informerChance": 0.35,
+        "informerMax": 12,
+        "fleeAt": 25,
+        "fleeShare": 0.002,
+        "folkFlee": 0.15
+    },
+    "keep": {
+        "_doc": "The inquisitor's keep a day, from the see's coffers into the town he sits in; he spends spendShare of his own purse a week there.",
+        "daily": 2,
+        "spendShare": 0.2
+    },
+    "suspicion": {
+        "_doc": "How suspect the player is to an inquisitor (0..100): their creed (none, foreign, their own founded faith), their standing with his faith, their deeds (a soul sold, the profane, obstruction, refused bribes), the informers of the town; less for hosting him, Prestige. summonAt: summoned to answer; within dueDays.",
+        "noCreed": 20,
+        "foreign": 40,
+        "own": 55,
+        "same": 0,
+        "perStanding": -0.35,
+        "soulPact": 25,
+        "obstructed": 15,
+        "bribeRefused": 25,
+        "perInformer": 2,
+        "hosted": -25,
+        "perPrestige": -0.01,
+        "banned": 30,
+        "summonAt": 50,
+        "dueDays": 7
+    },
+    "player": {
+        "_doc": "host: hostCost into the town's purse (the feast for his retinue), his favour for a year; bribe: bribeBase + bribePerZeal × zeal, taken with chance greed × (1 − zeal × 0.6); obstruct: the hearing shortened by obstructDays, convictions halved; caught with chance obstructCaught × informers; expel (a town or realm you rule): the see's grievance, standing and piety. A hearing for the player: guilt = (suspicion − 50) / 15 + zeal − standing / 40; acquitted, penance (penanceShare of the purse), confiscation (confiscateShare), or (suspicion ≥ relapseAt under the Holy Office) handed to the secular arm: arrested for heresy and tried.",
+        "hostCost": 120,
+        "hostDays": 360,
+        "bribeBase": 200,
+        "bribePerZeal": 500,
+        "obstructDays": 3,
+        "obstructCaught": 0.06,
+        "obstructKarma": 2,
+        "expelGrievance": 40,
+        "expelStanding": -15,
+        "expelPiety": -5,
+        "penanceShare": 0.08,
+        "confiscateShare": 0.3,
+        "relapseAt": 80,
+        "recantStanding": -12,
+        "recantShare": 0.05,
+        "recantPrestige": 15,
+        "fleeBounty": 300,
+        "fleeGrievance": 25,
+        "heresyBounty": 500
+    },
+    "names": {
+        "male": [
+            "Bernard",
+            "Conrad",
+            "Dominic",
+            "Guy",
+            "Jacques",
+            "Nicholas",
+            "Peter",
+            "Raymond",
+            "Robert",
+            "Tomas",
+            "Anselm",
+            "Hugo"
+        ],
+        "female": [
+            "Agnes",
+            "Beatrix",
+            "Cecilia",
+            "Hildegard",
+            "Margery",
+            "Ursula"
+        ],
+        "brother": "Brother",
+        "sister": "Sister"
+    },
+    "text": {
+        "arrive": "{inq}, inquisitor of {faith}, rides into {town} and summons the town to a hearing.",
+        "burned": "{name} of {town}, convicted of heresy by {inq}, is handed to the secular arm for burning.",
+        "summons": "{inq} summons you to answer for your faith at {town} by day {due}. Stand before the hearing, recant, or flee.",
+        "acquitted": "{inq} finds no heresy in you. You walk out of the hearing a faithful soul.",
+        "penance": "{inq} imposes a penance: {gold}g in alms to the Church, and your name on the hearing's roll.",
+        "confiscated": "{inq} finds you suspect of heresy: {gold}g of your goods are seized for the Church.",
+        "relapsed": "{inq} finds you an obstinate heretic and hands you over to the secular arm.",
+        "fled": "You did not answer the summons of {inq}. The crown of {realm} posts a warrant for heresy.",
+        "expelled": "You expel {inq} from your lands. The see will hear of it."
+    }
+}

@@ -18,6 +18,7 @@ import { Causes } from '../../player/causes.js';
 import { whyIcon, stabilityWhy } from '../whyPopover.js';
 import { HouseQuests } from '../../systems/houseQuests.js';
 import { PenalLabour } from '../../systems/penalLabour.js';
+import { HolyWars } from '../../systems/holyWars.js';
 import { houseQuestsHtml } from '../houseQuestsPanel.js';
 import { PlayerInventory, Utils, ActionMenu, Religion, Economy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, Titles, KingdomBonuses, KingdomStability, Treasures, KingdomAI, KingdomNavy } from './_imports.js';
 
@@ -55,7 +56,7 @@ Object.assign(UI.prototype, {
                 <div class="cs-avatar">👤</div>
                 <div class="cs-who">
                     <div class="cs-name">${esc(player.name)}</div>
-                    <div class="cs-title">${esc(player.title || '')}</div>
+                    <div class="cs-title">${esc([player.title, HolyWars.styleOf(player)].filter(Boolean).join(' · '))}</div>
                 </div>
                 <button class="cs-deeds" data-ui-act="_openDeeds" data-ui-args='[]'>🏅 Deeds &amp; Records</button>
             </div>`;
@@ -93,6 +94,14 @@ Object.assign(UI.prototype, {
         }
         if (marks.length) {
             html += '<div class="cs-marks">' + marks.map(([ic, label, value, color]) => `<div class="info-row" style="color:${color};"><span class="info-label">${ic} ${label}</span><span class="info-value">${value}</span></div>`).join('') + '</div>';
+        }
+
+        // A crusader's honour (systems/holyWars.js: a vow fulfilled in a holy war won)
+        const cross = HolyWars.knightOf(player);
+        if (cross) {
+            html += '<div class="info-section-title">Honours</div>';
+            html += `<div class="info-row"><span class="info-label">✝️ Title</span><span class="info-value" style="color:#ffd700;">${esc(HolyWars.styleOf(player))}</span></div>`;
+            html += `<div class="info-row"><span class="info-label">⚔️ Won in</span><span class="info-value">${esc(cross.last || cross.war || 'a holy war')}</span></div>`;
         }
 
         if (player.currentTitle && typeof Titles !== 'undefined') {

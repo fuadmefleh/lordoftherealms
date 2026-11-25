@@ -393,11 +393,12 @@ Object.assign(PlayerMilitary, {
         return Math.max(0.45, Math.min(1.2, morale));
     },
 
-    _checkMoraleBreak(ownStrength, enemyStrength, moraleValue) {
+    /** Does a side break? mult scales the chance (a decimated army's steel: player/decimation.js breakMult). */
+    _checkMoraleBreak(ownStrength, enemyStrength, moraleValue, mult = 1) {
         const outnumberedRatio = enemyStrength / Math.max(1, ownStrength);
         if (outnumberedRatio < 1.8) return false;
         const chance = Math.max(0.05, Math.min(0.75, (outnumberedRatio - 1.6) * 0.45 + (1 - moraleValue) * 0.6));
-        return Utils.random() < chance;
+        return Utils.random() < chance * (Number.isFinite(mult) ? mult : 1);
     },
 
     _getSettlementComposition(settlement, tile) {

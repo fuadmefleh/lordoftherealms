@@ -764,7 +764,10 @@ export const PitFights = {
             if (paid < _num(C.price, 3)) { Economy.payTown(s, paid); break; }
             Economy.payTown(s, paid);
             const r = _stream(_seed(world), PitRing.key(s), day, 'cock', pit.stats.cocks || 0, n);
-            pit.cocks.push({ id: `c${day}_${n}_${pit.cocks.length}`, name: _pick(_arr(C.names), r()) || 'a bird', vigour: Math.round(_span(C.vigour, r()) * 100) / 100, wins: 0, owner: null, bought: day });
+            // (a name no bird in the pen already answers to: no "Copper against Copper")
+            const taken = new Set(pit.cocks.map(c => c.name));
+            const free = _arr(C.names).filter(x => !taken.has(x));
+            pit.cocks.push({ id: `c${day}_${n}_${pit.cocks.length}`, name: _pick(free.length ? free : _arr(C.names), r()) || 'a bird', vigour: Math.round(_span(C.vigour, r()) * 100) / 100, wins: 0, owner: null, bought: day });
         }
         const mine = pit.cocks.filter(c => c.owner === 'player' && c.entered === day);
         const house = pit.cocks.filter(c => !c.owner);
@@ -1097,7 +1100,9 @@ export const PitFights = {
         Economy.payTown(s, price);
         Ledger.record(player, 'gambling', -price);
         const r = _stream(_seed(world), PitRing.key(s), day, 'mycock', mine.length, _num(pit.stats.cocks));
-        const cock = { id: `pc${day}_${pit.cocks.length}`, name: _pick(_arr(C.names), r()) || 'your bird', vigour: Math.round(_span(C.vigour, r()) * 100) / 100, wins: 0, owner: 'player', bought: day, entered: card ? day : null };
+        const taken = new Set(pit.cocks.map(c => c.name));
+        const free = _arr(C.names).filter(x => !taken.has(x));
+        const cock = { id: `pc${day}_${pit.cocks.length}`, name: _pick(free.length ? free : _arr(C.names), r()) || 'your bird', vigour: Math.round(_span(C.vigour, r()) * 100) / 100, wins: 0, owner: 'player', bought: day, entered: card ? day : null };
         pit.cocks.push(cock);
         if (card) { const b = card.bouts.find(x => x.kind === 'cocks'); if (b && !b.result) { b.a = null; b.b = null; b.book = null; } }
         PitFights._sin(player, world, s);

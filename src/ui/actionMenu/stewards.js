@@ -18,9 +18,9 @@ const skills = (o) => `stew ${o.stewardship} · mart ${o.martial} · intr ${o.in
 // The House's record with its stewards (Stewards.state.stats), shown in the dispatches view
 const RECORD = [
     ['appointed', '✍️', 'Appointed'], ['recalled', '🚪', 'Recalled'], ['resigned', '📜', 'Resigned'], ['died', '🕯️', 'Died in office'],
-    ['rewarded', '🎖️', 'Rewarded'], ['punished', '⚖️', 'Punished'], ['audits', '🔎', 'Audits'], ['caught', '🫳', 'Caught'],
+    ['rewarded', '🎖️', 'Rewarded'], ['punished', '⚖️', 'Punished'], ['audits', '🔎', 'Audits'], ['caught', '✋', 'Caught'],
     ['recovered', '💰', 'Recovered', 'g'], ['excelled', '🌟', 'Good deeds'], ['abuses', '😠', 'Complaints'], ['worksStarted', '🏗️', 'Works begun'],
-    ['bribed', '🪙', "Took a rival's bribe"], ['refusedBribes', '🛡️', 'Refused bribes'], ['risings', '🔥', 'Risings'], ['defections', '🏳️', 'Defections'],
+    ['bribed', '💰', "Took a rival's bribe"], ['refusedBribes', '🛡️', 'Refused bribes'], ['risings', '🔥', 'Risings'], ['defections', '🏳️', 'Defections'],
     ['marriages', '💍', 'Married into the House'], ['servedHeirs', '👑', 'Served on under an heir'],
 ];
 const recordChips = (stats) => RECORD.filter(([k]) => (stats[k] || 0) > 0).map(([k, icon, label, unit]) => [icon, label, `${Math.round(stats[k])}${unit || ''}`]);
@@ -57,6 +57,7 @@ Object.assign(ActionMenu, {
                 { icon: '🎖️', name: 'Honour them before the court', desc: 'Costs House Prestige; loyalty, and standing in their seat', act: 'stewardsAct', args: ['reward', seat.id, 'honour'], side: '4 ⭐' },
                 { icon: '⚖️', name: 'Fine them', desc: o.caught ? 'Take back everything they took. Kept on, sullen and afraid.' : 'Nothing is proven: your other stewards will call it tyranny', act: 'stewardsAct', args: ['punish', seat.id, 'fine'], side: '›', tone: o.caught ? 'warn' : 'bad' },
                 { icon: '⛓️', name: 'Strip them of office in disgrace', desc: o.caught ? 'Justice seen to be done' : 'Without proof, a tyrant\'s act', act: 'stewardsAct', args: ['punish', seat.id, 'disgrace'], side: '›', tone: 'bad' },
+                o.kind !== 'family' ? { icon: '🩸', name: 'To the scaffold for robbing the purse', desc: o.caught ? 'To hang, or be flayed and the skin stretched over the judge\'s chair for the next one to sit on (The Scaffold)' : 'Nothing is proven: every steward you have will fear for their neck, and hate you for it', act: 'stewardsAct', args: ['punish', seat.id, 'scaffold'], side: '›', tone: 'bad' } : null,
                 { icon: '🚪', name: 'Recall them', desc: o.power >= 60 && o.loyalty < 30 ? 'Strong and disloyal: they may refuse' : 'They step down', act: 'stewardsAct', args: ['recall', seat.id], side: '›', tone: 'bad' },
                 back,
             );
@@ -154,6 +155,7 @@ Object.assign(ActionMenu, {
             case 'punish': {
                 const res = Stewards.punish(player, world, a, b);
                 say(res, '⚖️ Punishment', 'warning');
+                if (b === 'scaffold' && res && res.success) return ActionMenu.showExecutions(game, res.text);
                 return ActionMenu.showStewards(game, b === 'disgrace' ? null : 'seat', b === 'disgrace' ? null : a);
             }
             case 'recall': say(Stewards.recall(player, world, a), '🚪 Recalled', 'info'); return ActionMenu.showStewards(game);

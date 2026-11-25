@@ -350,6 +350,8 @@ export const BlockadeRunning = {
             const war = player.realmWars && player.realmWars.wars && player.realmWars.wars[state.kingdomId];
             if (war) war.score = _num(war.score) + C.warScore;
             Traits.recordDeed(player, 'valor', 1);
+            // (a ship of theirs carried by boarding: her crew yield to you, player/prisonerFates.js)
+            SeaFights.boardedYield(world, f, { kingdomId: state.kingdomId, name: `${state.kingdomName || 'The squadron'}'s sailors`, q: typeof ship.q === 'number' ? ship.q : player.q, r: typeof ship.r === 'number' ? ship.r : player.r });
             const res = BlockadeRunning._through(player, world, state, ship, `⚔️ You beat the squadron off (${SeaFights.summary(f) || 'they gave way'}). +${C.renown} renown${war ? `, +${C.warScore} war score` : ''}; ${state.kingdomName}'s fleet is the weaker by ${loss}.`);
             return { ...res, log };
         }

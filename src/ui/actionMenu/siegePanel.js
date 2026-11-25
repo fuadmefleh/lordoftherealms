@@ -60,6 +60,7 @@ export function siegePanelHtml(player, info) {
     if (s.port) html += `<div style="${MUTED}">${info.navalBlockade ? '⛵ The harbour is blockaded — no food by sea.' : '⛵ Ships still bring food by sea (stores fall at half pace). Galleys or a blockading fleet would close the port.'}</div>`;
     if (s.townSick) html += `<div style="color:#e57373;">🤒 Disease rages inside the walls</div>`;
     if (s.stores <= 0) html += `<div style="color:#e57373;">The town is starving.</div>`;
+    if (s.dead && s.dead.times) html += `<div style="color:#e57373;">🦴 They are eating their dead: the town holds on.</div>`;
     if (s.lastStand > 0) html += `<div style="color:#e57373;">⚔️ They expect no quarter from you: no surrender, a fight to the last.</div>`;
     html += '</div></div>';
     html += `<div style="${MUTED}margin-bottom:8px;">Odds if you storm now: ${ratio >= 2 ? 'overwhelming' : ratio >= 1.3 ? 'favourable' : ratio >= 0.8 ? 'even' : ratio >= 0.5 ? 'poor' : 'hopeless'} (${info.army} vs ${info.defense}).</div>`;

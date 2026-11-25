@@ -47,6 +47,8 @@ function crowned(seed = 31, opts = {}) {
     const k = biggest(world);
     Throne._takeThrone(player, world, k);
     k.treasury = 5000;
+    // (the brothers live by the realm's law: under fratricide or the cage no brother rises — systems/fratricide.js)
+    k.laws = { ...(k.laws || {}), succession: 'mercy' };
     Kingship.processDay(world, player);
     player.gold = 20000;
     player.house.prestige = opts.prestige != null ? opts.prestige : 100;

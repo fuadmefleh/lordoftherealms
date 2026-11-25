@@ -86,9 +86,16 @@ import { Inheritance } from './inheritance.js';
 import { Ledger } from './ledger.js';
 import { LlmProse } from './llmProse.js';
 import { HighCrowns } from './highCrowns.js';
+// (a foreign backer in personal union brings its other crown's men: systems/realmUnions.js)
+import { RealmUnions } from './realmUnions.js';
 import { NamedLegacy } from './namedLegacy.js';
 // (a child blinded, slit-nosed or gelded can never sit the seat: systems/maimMarks.js)
 import { MaimMarks } from './maimMarks.js';
+// (brothers condemned or caged by the law of fratricide raise no claim; one spared does: systems/fratricide.js; run time only)
+import { Fratricide } from './fratricide.js';
+// (an old line whose king a synod condemned, or whose name was wiped from the world: systems/cadaverSynod.js, systems/damnatio.js; run time only)
+import { CadaverSynod } from './cadaverSynod.js';
+import { Damnatio } from './damnatio.js';
 
 const DEFAULTS = {
     riseBase: 15, riseDivisor: 80, riseMax: 0.9, minLordShare: 0.15,
@@ -300,6 +307,7 @@ export const CrownSuccession = {
                 exiled: !!(c.crownSuccession && (c.crownSuccession.exiled || c.crownSuccession.renounced)),
                 abroad: CrownSuccession._wedAbroad(c, k.id), wedToLord: CrownSuccession._wedToLord(c),
                 grudge: !!(c.crownSuccession && c.crownSuccession.grudge),
+                spared: Fratricide.isSpared(c), barred: Fratricide.barsClaim(c),
                 ambitious: (c.traits || []).some(t => (t && (t.id || t)) === 'ambitious'),
                 turned: !!(c.upbringing && c.upbringing.turned), unfit: !!(c.kin && c.kin.unfit) || !!MaimMarks.barsRule(c),
                 elder: !c.isSibling && _num(c.age) > _num(child.age),
@@ -336,6 +344,9 @@ export const CrownSuccession = {
         const prep = CrownSuccession.prep(player, k.id);
         const day = _day(world);
         if (prep.brokenUntil && prep.brokenUntil > day) return null;
+        // (its last sons gone and its name struck from the world: systems/damnatio.js)
+        if (Damnatio.lineEnded(world, k.id)) return null;
+        if (prep.pretender && (prep.pretender.dead || prep.pretender.gelded)) prep.pretender = null;
         // The eldest grown child of the old line still at court, else a kinsman (kept, so he has one name)
         const royal = Array.isArray(data.children)
             ? data.children.filter(c => c && c.isAlive !== false && _num(c.age) >= 16).sort((a, b) => _num(b.age) - _num(a.age))[0] : null;
@@ -378,6 +389,8 @@ export const CrownSuccession = {
             // (a younger child given a far crown of their own reigns there: systems/highCrowns.js)
             const live = (player.children || []).find(c => c.id === s.id);
             if (live && live.crownedIn) continue;
+            // (condemned to the bowstring or shut in the cage: no claim — systems/fratricide.js)
+            if (s.barred || (live && Fratricide.barsClaim(live))) continue;
             const info = CrownSuccession.kindInfo('brother');
             const parts = [];
             const mult = s.uncle ? _num(B.uncleMult, 0.6) : 1;
@@ -388,6 +401,7 @@ export const CrownSuccession = {
             if (s.turned) CrownSuccession._part(parts, 'Turned against the House', _num(B.turned));
             if (s.wedToLord) CrownSuccession._part(parts, `Wed into the house of ${s.wedToLord}`, _num(B.wedToLord));
             if (s.grudge) CrownSuccession._part(parts, 'Stood down once, and remembers', _num(B.grudge));
+            if (s.spared) CrownSuccession._part(parts, 'Spared from the bowstring, the law broken for him', _num(Fratricide.config().plot.claimBonus, 12));
             if ((ctx.aggrieved || []).includes(s.id)) CrownSuccession._part(parts, 'Denied a far crown', _num(B.aggrieved));
             const base = parts.reduce((x, p) => x + p.value, 0);
             if (s.purse > 0 && base > 0) {
@@ -440,6 +454,11 @@ export const CrownSuccession = {
             const parts = [];
             CrownSuccession._part(parts, `The old line of ${line.dynasty}`, _num(P.base));
             CrownSuccession._part(parts, `${Math.floor(line.yearsHeld)} years of your House's rule`, -line.yearsHeld * _num(P.decayPerYear));
+            // (a king of the line condemned by synod: its blood declared bastard — systems/cadaverSynod.js)
+            if (CadaverSynod.annulled(world, k.id, line.dynasty)) {
+                const base = parts.reduce((x, p) => x + p.value, 0);
+                CrownSuccession._part(parts, 'Its king condemned by synod, its blood declared bastard', -Math.max(0, base) * _num(CadaverSynod.config().heir.pretenderCut, 0.5));
+            }
             if (line.quiet) {
                 const base = parts.reduce((x, p) => x + p.value, 0);
                 CrownSuccession._part(parts, 'Pensioned and quiet', -Math.max(0, base) * (1 - _num(P.quietMult, 0.4)));
@@ -758,6 +777,16 @@ export const CrownSuccession = {
                 backer.military = Math.max(0, _num(backer.military) - men);
                 rv.strength += men;
                 foreign = { kingdomId: backer.id, name: backer.name, men };
+            }
+            // A backer in personal union is one crown with its partner: its other realm sends men too (systems/realmUnions.js)
+            const partner = RealmUnions.partnerOf(world, backer);
+            if (partner && partner.id !== k.id && !RealmUnions._playerHeld(partner)) {
+                const more = Math.round(Math.min(_num(W.foreignMax), _num(partner.military) * _num(W.foreignShare)));
+                if (more > 0) {
+                    partner.military = Math.max(0, _num(partner.military) - more);
+                    rv.strength += more;
+                    foreign = { kingdomId: backer.id, name: `${backer.name} and ${partner.name}`, men: (foreign ? foreign.men : 0) + more, union: partner.id };
+                }
             }
         }
         rv.succession = {

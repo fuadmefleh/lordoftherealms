@@ -9,6 +9,13 @@ import { chips, purse, sectionHead, card, actRow, rowList, price, BTN_GOLD, BTN_
 import { Names } from '../../core/names.js';
 import { Utils } from '../../core/utils.js';
 import { HighCrowns } from '../../systems/highCrowns.js';
+import { RealmUnions } from '../../systems/realmUnions.js';
+
+/** " · 👑 in personal union with X" for a realm whose crown is shared (systems/realmUnions.js). */
+function _unionTag(world, k) {
+    const un = RealmUnions.describe(world, k);
+    return un ? ` · 👑 ${_esc(un.label)}` : '';
+}
 
 const MUTED = 'color: #9d937c; font-size: 11px;';
 const AP = { battle: 2 };
@@ -89,7 +96,7 @@ export function crownRuleHtml(game) {
     // Diplomacy: a row a realm; its choices one click in (bindCrownRule's realm())
     html += rowList(Throne.diplomacyTargets(player, world).map(d => ({
         icon: d.atWar ? '⚔️' : d.allied ? '🤝' : '🏰', name: _esc(d.kingdom.name),
-        desc: `${d.atWar ? 'At war' : d.allied ? 'Allied' : d.truce ? 'Under truce' : `Relations ${d.relations}`} · army ${Math.floor(d.kingdom.military || 0)}`,
+        desc: `${d.atWar ? 'At war' : d.allied ? 'Allied' : d.truce ? 'Under truce' : `Relations ${d.relations}`} · army ${Math.floor(d.kingdom.military || 0)}${_unionTag(world, d.kingdom)}`,
         tone: d.atWar ? 'bad' : d.allied ? 'good' : '', side: '›',
         attrs: `onclick="window._throne.realm('${d.kingdom.id}')"`,
     })), 'Diplomacy');
@@ -120,7 +127,7 @@ export function bindCrownRule(game, reopen) {
                 : [
                     { icon: '🎁', name: 'Send royal gifts', desc: 'Warm their court toward yours', side: price(cfg.ruling.giftCost, (ruled.treasury || 0) >= cfg.ruling.giftCost), off: (ruled.treasury || 0) < cfg.ruling.giftCost, why: `The treasury lacks ${Utils.formatGold(cfg.ruling.giftCost)}g`, attrs: `onclick="window._throne.gift('${id}')"` },
                     { icon: '🤝', name: 'Propose an alliance', desc: `Needs relations of ${cfg.ruling.allianceMinRelations}+`, off: d.allied || d.relations < cfg.ruling.allianceMinRelations, why: d.allied ? 'Already allied' : `Relations ${d.relations}; they need ${cfg.ruling.allianceMinRelations}+`, attrs: `onclick="window._throne.ally('${id}')"` },
-                    { icon: '⚔️', name: 'Declare war', desc: 'Their towns become your war goal', tone: 'bad', off: d.allied || !!d.truce, why: d.allied ? 'You are allied' : 'A truce holds', attrs: `onclick="window._throne.war('${id}')"` },
+                    { icon: '⚔️', name: 'Declare war', desc: `Their towns become your war goal${RealmUnions.partnerOf(world, d.kingdom) ? `; ${_esc(RealmUnions.partnerOf(world, d.kingdom).name)}, its other crown, will join them` : ''}`, tone: 'bad', off: d.allied || !!d.truce, why: d.allied ? 'You are allied' : 'A truce holds', attrs: `onclick="window._throne.war('${id}')"` },
                 ];
             rows.push({ icon: '←', name: 'Back to the realm', attrs: 'onclick="window._throne.back()"' });
             const html = '<div style="font-size:12px;">' + chips([
@@ -252,7 +259,7 @@ Object.assign(ActionMenu, {
             for (const k of Throne.claimableKingdoms(player, world)) {
                 const exiled = Throne.isExiledFrom(player, world, k.id);
                 const royals = Throne.royalMatchCandidates(world, k.id);
-                const desc = `${_esc(k.ruler || '')} · reputation ${Math.round((player.reputation && player.reputation[k.id]) || 0)}`;
+                const desc = `${_esc(k.ruler || '')} · reputation ${Math.round((player.reputation && player.reputation[k.id]) || 0)}${_unionTag(world, k)}`;
                 if (exiled) {
                     seek.push(actRow({ icon: '🏰', name: _esc(k.name), desc, note: '<span style="color:#e0846a;">exiled</span>' }));
                     continue;

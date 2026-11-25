@@ -13,6 +13,7 @@ import { Seasons } from './seasons.js';
 import { MountainBarriers } from './mountainBarriers.js';
 import { TownSiting } from './townSiting.js';
 import { Ferries } from './ferries.js';
+import { WarStakes } from './warStakes.js';
 
 export class WorldUnit {
     constructor(type, q, r, targetQ = null, targetR = null) {
@@ -511,12 +512,60 @@ export class WorldUnit {
     }
 
     /**
+     * Raiders and pirates near the player's stakes (world/warStakes.js; the
+     * captives impaled, player/prisonerFates.js): a band within the stakes'
+     * deterRadius may turn away (stakeTurnBack × how fresh, impaled outlaws
+     * weigh stakeOutlawMult more), riding off away from the posts for
+     * stakeShunDays — it hunts neither the player nor the caravans meanwhile.
+     * A hash roll (no shared dice); no stakes, no cost. → true while it shuns.
+     */
+    _shunStakes(world) {
+        if (!world) return false;
+        const day = Number(world.day) || 0;
+        if (this.shunUntil != null && day < this.shunUntil && this.shunQ != null) {
+            this.targetQ = this.shunQ;
+            this.targetR = this.shunR;
+            return true;
+        }
+        const gd = DataLoader._gamedata && DataLoader._gamedata.prisonerFates;
+        const I = (gd && gd.impale) || {};
+        const U = (gd && gd.outlaws) || {};
+        const radius = Number(I.deterRadius) || 6;
+        const near = WarStakes.dreadNear(world, this.q, this.r, radius, { outlawMult: Number(U.stakeOutlawMult) || 1.5 });
+        if (!near) return false;
+        const p = (Number(U.stakeTurnBack) || 0.6) * near.fresh;
+        const seed = (world.generationParams && world.generationParams.seed) || 0;
+        const roll = ((Utils.hashStr(`${seed}|stakes|${this.id}|${day}`) >>> 0) % 100000) / 100000;
+        if (roll >= p) return false;
+        // Away from the posts, past the reach of them
+        const w = world.width || 0;
+        let dq = this.q - near.q;
+        if (w && dq > w / 2) dq -= w;
+        if (w && dq < -w / 2) dq += w;
+        let dr = this.r - near.r;
+        if (!dq && !dr) dq = 1;
+        const scale = (radius + 3) / Math.max(1, Math.max(Math.abs(dq), Math.abs(dr)));
+        const tq = Math.round(this.q + dq * scale);
+        const tr = Math.max(0, Math.min((world.height || 1e9) - 1, Math.round(this.r + dr * scale)));
+        this.shunQ = w ? Hex.wrapQ(tq, w) : tq;
+        this.shunR = tr;
+        this.shunUntil = day + (Number(U.stakeShunDays) || 5);
+        this.stakesTurned = (Number(this.stakesTurned) || 0) + 1;
+        this.targetQ = this.shunQ;
+        this.targetR = this.shunR;
+        this.path = [];
+        return true;
+    }
+
+    /**
      * Raider logic: Look for caravans to rob or the player to attack
      */
     updateRaider(world, player = null) {
         const currentTile = world.getTile(this.q, this.r);
         const regionId = currentTile ? currentTile.regionId : null;
         const isShip = this.type === 'pirate';
+        // A forest of the player's stakes in reach (world/warStakes.js): the band turns away from it today
+        const shun = (this.type === 'raider' || this.type === 'pirate') && this._shunStakes(world);
 
         // --- Check for player in range (priority target) ---
         // `player` is injected by the caller (World.processUnits ← Game.endDay);
@@ -530,7 +579,7 @@ export class WorldUnit {
         const sparing = this.sparedUntilDay != null && (world.day || 0) < this.sparedUntilDay;
         // Nor one inside a town, or a village under a crown's protection
         const inHaven = !!player && WorldUnit.isSafeHaven(world, player.q, player.r);
-        if (player && !player.indenturedServitude && !inSanctuary && !inHaven && !this.sparesPlayer && !sparing) {
+        if (!shun && player && !player.indenturedServitude && !inSanctuary && !inHaven && !this.sparesPlayer && !sparing) {
             const playerDist = Hex.wrappingDistance(this.q, this.r, player.q, player.r, world.width);
             // A lair's raiding party bound for a town only waylays travellers on its path (pursuitRange)
             const detectionRange = Number.isFinite(this.pursuitRange) ? this.pursuitRange : (isShip ? 6 : 5);
@@ -576,7 +625,7 @@ export class WorldUnit {
         }
 
         // --- Original target logic: hunt caravans/ships ---
-        if (!this._pursuingPlayer) {
+        if (!shun && !this._pursuingPlayer) {
             const target = world.units.find(u => {
                 if (u.type !== 'caravan' && u.type !== 'ship') return false;
                 if (Hex.wrappingDistance(this.q, this.r, u.q, u.r, world.width) >= 8) return false;

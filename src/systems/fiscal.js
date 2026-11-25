@@ -450,7 +450,14 @@ export const Fiscal = {
         if (f.arrearsDays === 21) Fiscal._record(world, st, { kind: 'mutiny', kingdomId: k.id, kingdom: k.name, amount: Math.round(f.arrears.army) });
         // (an NPC crown's surplus goes back daily, as the collectors take it daily: spent
         // weekly, the chests carried half a week's taxes over the line — a third of the realm's coin)
+        // (the realm the player rules too, by its treasurers, with a deeper war chest kept —
+        // npc.ruledLargesseAbove days / ruledLargesseCoin of the realm's coin — unless the
+        // ruler holds the works in hand, f.manual.works: before 2026-11-24 its chests sat on
+        // twice the coin its towns held, and the towns' purses ran dry under light taxes)
         if (!ruled) Fiscal._largesse(world, k, f, towns.length ? towns : [], Fiscal._dailyLargesse());
+        else if (C.npc.ruledLargesse !== false && !(_obj(f.manual) && f.manual.works)) {
+            Fiscal._largesse(world, k, f, towns.length ? towns : [], Fiscal._dailyLargesse(), { above: C.npc.ruledLargesseAbove, coin: C.npc.ruledLargesseCoin });
+        }
         Fiscal._closeDay(k, f);
     },
 
@@ -617,16 +624,16 @@ export const Fiscal = {
      * ran dry; with the year's misfortunes reckoned on its revenue
      * (CrownBooks.lossBasis) nothing else brought a hoard back. → the coin spent.
      */
-    _largesse(world, k, f, towns, shareOverride = null) {
+    _largesse(world, k, f, towns, shareOverride = null, lines = null) {
         const N = Fiscal.config().npc;
-        const above = _num(N.largesseAbove);
+        const above = _num(lines && lines.above != null ? lines.above : N.largesseAbove);
         const share = _clamp(_num(shareOverride != null ? shareOverride : N.largesseShare), 0, 1);
         if (!(above > 0) || !(share > 0) || !towns.length) return 0;
         const exp = Math.max(1, _num(f.avg && f.avg.exp));
         // (past largesseCoin of the realm's coin in circulation, whichever is less: a
         // crown spending more in a year than its realm holds must not sit on months of it)
         const coin = Fiscal.realmCoin(world, k);
-        const lc = _num(N.largesseCoin);
+        const lc = _num(lines && lines.coin != null ? lines.coin : N.largesseCoin);
         const line = coin > 0 && lc > 0 ? Math.min(above * exp, lc * coin) : above * exp;
         const excess = _num(k.treasury) - line;
         if (!(excess > 1)) return 0;

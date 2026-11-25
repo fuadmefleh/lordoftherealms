@@ -20,6 +20,7 @@ import { _witchChoices } from './witchcraft.js';
 import { _heartChoices } from './hearts.js';
 // (their work, your service, the church: systems/townJobs.js, systems/townWorship.js)
 import { _workChoices } from './work.js';
+import { _harbourChoices } from './harbour.js';
 import { _guestChoices } from './guests.js';
 import { _darkChoices } from './darkDeeds.js';
 import { _feudChoices } from './bloodFeud.js';
@@ -448,6 +449,8 @@ export function _renderChoices(box) {
         for (const c of _heartChoices()) choices.push(c);
         // Their work; work in your service; the church (ui/npcDialog/work.js)
         for (const c of _workChoices()) choices.push(c);
+        // The harbourmaster at his post: dues, berths, ships in, hands, the ferry (ui/npcDialog/harbour.js)
+        for (const c of _harbourChoices()) choices.push(c);
         // Calling on them at home: a visit, their table, a bed for the night (ui/npcDialog/guests.js)
         for (const c of _guestChoices()) choices.push(c);
         // The town's school: how it fares, a gift to it, a poor child's schooling paid (systems/townSchool.js)

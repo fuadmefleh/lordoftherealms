@@ -32,6 +32,8 @@ import { Ships } from '../systems/ships.js';
 import { Ferries } from '../world/ferries.js';
 import { DayClock } from './game/dayClock.js';
 import { InnerMapRiverDrift } from './innerMapRiverDrift.js';
+import { InnerMapCharacters } from './innerMapCharacters.js';
+import { Townsfolk } from '../systems/townsfolk.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const DIRS = { N: [0, -1], S: [0, 1], E: [1, 0], W: [-1, 0] };
@@ -197,6 +199,67 @@ export const InnerMapPort = {
         this.view = view;
     },
 
+    /**
+     * The harbourmaster as one of the street's own people (InnerMap.npcs): the
+     * townsperson Ports.master names — already walking the town, or brought
+     * out when the roster left him off the map — with the harbourmaster's
+     * look, keeping his post at the pier's foot by day (townLife's _doorPost)
+     * and going home at night. Clicking him talks to him (ui/npcDialog/harbour.js:
+     * dues, berths, ships, hands, the ferry). → the NPC, or null
+     */
+    _keepMaster(world, s, sc, hex, m, onDuty) {
+        const npcs = InnerMap.npcs;
+        if (!Array.isArray(npcs) || !sc.post || !m) return null;
+        const pid = m.person ? m.person.id : null;
+        const mine = (n) => n && (pid != null ? (n._person && n._person.id === pid) : n._harbourmasterOf === `${hex.q},${hex.r}`);
+        // (a new harbourmaster — the old one dead or gone — hands the post over)
+        for (const n of npcs) {
+            if (n && n.harbourmaster && !mine(n)) { n.harbourmaster = false; n._doorPost = null; n.preset = null; n._hmLook = false; }
+        }
+        const dead = (n) => n.state === 'dead' || n.state === 'gone';
+        let npc = npcs.find(n => mine(n) && !dead(n)) || null;
+        if (!npc) {
+            if (npcs.some(n => mine(n))) return null; // (lying dead in the street: no one keeps the post today)
+            // A hash-seeded rng (nothing drawn from the game's RNG for a picture's sake)
+            let seed = Math.floor(_h(`hm:${hex.q},${hex.r}:${pid}`) * 4294967295) || 1;
+            const rng = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
+            const id = npcs.reduce((x, n) => Math.max(x, n && Number.isFinite(n.id) ? n.id : -1), -1) + 1;
+            npc = typeof InnerMap._makeNpc === 'function' ? InnerMap._makeNpc('merchant', id, rng) : null;
+            if (!npc) return null;
+            if (m.person && s.folk) Townsfolk.dress(npc, m.person, s.folk, world);
+            else { npc.name = m.name.split(' ')[0]; npc.fullName = m.name; npc.gender = 'male'; npc._harbourmasterOf = `${hex.q},${hex.r}`; }
+            if (!InnerMap.NPC_TYPES || !InnerMap.NPC_TYPES[npc.type]) npc.type = 'merchant';
+            npc.q = npc.prevQ = npc.targetQ = sc.post.q;
+            npc.r = npc.prevR = npc.targetR = sc.post.r;
+            npc.path = null;
+            npc.state = 'idle';
+            npc.facing = 2;
+            npc.idleTimer = 20 + rng() * 20;
+            npcs.push(npc);
+        } else if (!npc.harbourmaster && onDuty && npc.state !== 'dialog' && !npc._fight && !npc._carried && !npc._downed && npc.state !== 'unconscious') {
+            // (first seen at this hour: already at his post, not walking there from across town)
+            npc.q = npc.prevQ = npc.targetQ = sc.post.q;
+            npc.r = npc.prevR = npc.targetR = sc.post.r;
+            npc.path = null;
+            npc.moveProgress = 0;
+            npc.state = 'idle';
+            npc.currentBuilding = null;
+            npc.facing = 2;
+            npc.idleTimer = 20;
+        }
+        // the harbourmaster's coat and hat (data/innerMapRenderer.json npcAppearanceMap.harbourmaster)
+        if (!npc._hmLook) {
+            try {
+                const look = InnerMapCharacters.isReady() ? InnerMapCharacters.getPresetForNPC('harbourmaster', npc.id, npc.gender) : null;
+                if (look) { npc.preset = look; npc._hmLook = true; }
+            } catch (e) { /* (the sprites not loaded yet: asked again next frame) */ }
+        }
+        npc.harbourmaster = true;
+        npc.roleTitle = npc.gender === 'female' ? 'harbourmistress' : 'harbourmaster';
+        npc._doorPost = onDuty ? { q: sc.post.q, r: sc.post.r, face: 2 } : null;
+        return npc;
+    },
+
     _harbour(world, player, s, sc, hex, hour, day, view) {
         const T = { x: sc.tip.q + 0.5, y: sc.tip.r + 0.5 };
         const B = { x: sc.base.q + 0.5, y: sc.base.r + 0.5 };
@@ -216,7 +279,9 @@ export const InnerMapPort = {
         // ── The harbourmaster ──
         if (sc.post) {
             const m = this._memo('master', () => Ports.master(world, s, day));
-            if (hour >= 6 && hour < 20) view.master = { x: sc.post.q + 0.5, y: sc.post.r + 0.5, name: m ? m.name : 'the harbourmaster' };
+            const onDuty = hour >= 6 && hour < 20;
+            const npc = this._keepMaster(world, s, sc, hex, m, onDuty);
+            if (onDuty) view.master = { x: sc.post.q + 0.5, y: sc.post.r + 0.5, name: m ? m.name : 'the harbourmaster', id: m ? m.id : `hm${hex.q},${hex.r}`, gender: m && m.person ? m.person.gender : null, npc };
         }
         // ── The quay: crates, dockers ──
         const work = this._memo('work', () => Ports.dockWork(world, player, hex.q, hex.r)) || { yours: 0, trade: 0, ships: 0 };
@@ -242,7 +307,9 @@ export const InnerMapPort = {
             const p = _lerp(store, end, f);
             // (half carry ashore — unloading — half carry out to the ships)
             const ashore = i % 2 === 0;
-            view.dockers.push({ x: p.x + sc.along.x * ((i % 3) - 1) * 0.6, y: p.y + sc.along.y * ((i % 3) - 1) * 0.6, carry: ashore ? !go : go, i, walk: now * 6 + i });
+            view.dockers.push({ x: p.x + sc.along.x * ((i % 3) - 1) * 0.6, y: p.y + sc.along.y * ((i % 3) - 1) * 0.6, carry: ashore ? !go : go, i, walk: now * 6 + i,
+                // (which way he faces: out along the pier, or back to the store)
+                fx: go ? end.x - store.x : store.x - end.x, fy: go ? end.y - store.y : store.y - end.y, seed: Math.floor(_h(`dks${hex.q},${hex.r},${i}`) * 99991) });
         }
         // ── The fishing boats ──
         const fl = this._memo('fleet', () => Ports.fleet(world, hex.q, hex.r, day));

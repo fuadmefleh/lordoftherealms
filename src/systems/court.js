@@ -38,6 +38,7 @@ import { Ledger } from './ledger.js';
 import { House } from './house.js';
 import { Relationships } from './relationships.js';
 import { Townsfolk } from './townsfolk.js';
+import { Economy } from '../world/economy.js';
 
 const SKILLS = ['commerce', 'combat', 'diplomacy', 'stealth', 'leadership'];
 
@@ -65,6 +66,8 @@ const DEFAULTS = {
     dismissScore: -5, skillCap: 8, jitterMin: -1, jitterMax: 2,
     occupationSkills: { default: { commerce: 1, diplomacy: 1 } },
     traitSkills: {},
+    // The House's people live on their purses (Court.spendPurses)
+    spending: { every: 7, keepPerDay: 1.5, reserve: 60, share: 0.5 },
 };
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
@@ -428,6 +431,8 @@ export const Court = {
     processDay(player, world) {
         const out = { notices: [] };
         const house = player && player.house;
+        // (the House's people spend what they are paid, court or none)
+        if (house) Court.spendPurses(player, world);
         if (!house || !Array.isArray(house.court) || !house.court.length) return out;
         const cfg = Court.config();
         const day = _day(world);
@@ -470,6 +475,40 @@ export const Court = {
         const rng = Utils.seededRandom(((Utils.hashStr(`${_seed(world)}|court|${day}`) >>> 0) % 233279) + 1);
         Utils.withRng(rng, () => Court._week(player, world, out));
         return out;
+    },
+
+    /**
+     * The House's people live on their purses (config.spending), each on their
+     * own day of the week (a hash of the id): a week's keep and `share` of what
+     * is past their reserve, spent in their home town (Economy.payNearest at
+     * settlementQ/R — the coin goes to its purse; with no town keeping coin it
+     * stays). Courtiers' stipends, stewards' and governors' wages and whatever
+     * else the House's acquaintances (Relationships NPCs) are paid; the
+     * companions in the travel party spend theirs on the road
+     * (Companions._spend). Draws no RNG. → the coin spent
+     */
+    spendPurses(player, world) {
+        const S = _obj(Court.config().spending);
+        if (!S || !world || typeof world.getSettlementViews !== 'function') return 0;
+        const npcs = Array.isArray(Relationships._npcs) && Relationships._npcs.length ? Relationships._npcs
+            : Array.isArray(player && player._relationshipNpcs) ? player._relationshipNpcs : [];
+        if (!npcs.length) return 0;
+        const every = Math.max(1, Math.floor(_num(S.every, 7)));
+        const day = _day(world);
+        const party = new Set(Array.isArray(player.travelParty) ? player.travelParty : []);
+        let spent = 0;
+        for (const npc of npcs) {
+            if (!npc || npc.isAlive === false || npc.dead || !(_num(npc.purse) > 0) || party.has(npc.id)) continue;
+            if (((Utils.hashStr(`purse:${npc.id}`) >>> 0) + day) % every !== 0) continue;
+            const q = npc.settlementQ, r = npc.settlementR;
+            if (!Number.isFinite(q) || !Number.isFinite(r)) continue;
+            const want = _num(S.keepPerDay) * every + Math.max(0, _num(npc.purse) - _num(S.reserve)) * Utils.clamp(_num(S.share), 0, 1);
+            const a = Math.floor(Math.min(_num(npc.purse), want) * 100) / 100;
+            if (!(a > 0) || !Economy.payNearest(world, q, r, a)) continue;
+            npc.purse = Math.round((_num(npc.purse) - a) * 100) / 100;
+            spent += a;
+        }
+        return Math.round(spent * 100) / 100;
     },
 
     _isRegent(player, npcId) {

@@ -67,6 +67,8 @@ import { Underworld } from './underworld.js';
 import { Kingship } from './kingship.js';
 import { RealmWars } from './realmWars.js';
 import { Interrogation } from './interrogation.js';
+// (a flayed skin on the gate or the judge's chair: run time only)
+import { Flaying } from './flaying.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -220,6 +222,7 @@ export const Gibbets = {
             kingdomId: o.kingdomId != null ? o.kingdomId : null, crime: o.crime || null, rebel: !!o.rebel, traitor: !!o.traitor,
             kin: _obj(o.kin) ? { q: o.kin.q, r: o.kin.r, pid: o.kin.pid } : null, house: _obj(o.house) ? { id: o.house.id, name: o.house.name || null } : null,
             headless: !!o.headless, trophies: [], day, until: day + _num(C.bodyDays, 20),
+            ...(o.flayed ? { flayed: true } : {}), ...(o.corrupt ? { corrupt: true } : {}),
         };
         body.great = Gibbets.isGreat(body.rank);
         st.bodies.push(body);
@@ -246,6 +249,8 @@ export const Gibbets = {
                 source: h.source === 'revolt' ? 'rebel' : 'executed', how: `put to death in ${h.place || 'the square'}`, q: h.q, r: h.r,
                 kingdomId: h.victimKingdomId != null ? h.victimKingdomId : h.kingdomId, crime: h.crimeLabel || null,
                 rebel: h.source === 'revolt' || h.crime === 'rebellion', traitor: !!crime.treason, kin: h.folkRef || null, house,
+                // (flayed on the scaffold: the skin is yours to hang, systems/flaying.js)
+                flayed: h.method === 'flay', corrupt: !!crime.corruption,
             });
             if (b) out.push(b);
         }
@@ -282,6 +287,7 @@ export const Gibbets = {
         return Object.entries(C.kinds).map(([id, k]) => {
             let why = '';
             if (!places.length) why = 'You hold no seat where it could be set up';
+            else if (k.flayedOnly && !body.flayed) why = 'Only a flayed body leaves a skin';
             else if (k.needsHead && body.headless) why = 'The head is gone';
             return { id, label: k.label, icon: k.icon, desc: k.desc || '', ok: !why, why };
         });
@@ -313,8 +319,11 @@ export const Gibbets = {
         const d = Gibbets.raise(world, s, {
             kind: kindId, name: b.name, gender: b.gender, rank: b.rank, rebel: b.rebel || b.traitor, crime: b.crime,
             by: { kind: 'player', id: player.name || 'you', name: player.name || 'you' }, kin: b.kin, house: b.house, victimKingdomId: b.kingdomId,
+            flayed: !!b.flayed,
         }, player);
         if (kindId === 'spike') b.headless = true;
+        // A skin hung: the stewards of the realm take note, the court and the faith recoil (systems/flaying.js)
+        if (kindId === 'skin' || kindId === 'chair') Flaying.onSkinHung(player, world, s, d, b);
         Gibbets._dropBody(player, b);
         const st = Gibbets.state(player);
         st.stats.displayed++;
@@ -420,10 +429,18 @@ export const Gibbets = {
             rank: rec.rank || 'commoner', rebel: !!rec.rebel, crime: rec.crime || null, by: rec.by || { kind: 'realm', id: s.kingdom, name: 'the crown' },
             kin: _obj(rec.kin) || null, house: _obj(rec.house) || null, victimKingdomId: rec.victimKingdomId != null ? rec.victimKingdomId : s.kingdom,
         };
+        // (a tanned skin outlasts a body: data kinds.*.lasts stretches its stages)
+        const lasts = _num(rec.lasts, _num((C.kinds[d.kind] || {}).lasts, 0));
+        if (lasts > 0 && lasts !== 1) d.lasts = lasts;
+        if (rec.flayed) d.flayed = true;
         s.displays.push(d);
         // (a town keeps only so many: the oldest falls when more go up)
         const max = _num(C.maxPerTown, 8);
-        if (s.displays.length > max) s.displays.splice(0, s.displays.length - max);
+        // (the skin over the judge's chair is indoors, and kept: the oldest out of doors goes first)
+        while (s.displays.length > max) {
+            const i = s.displays.findIndex(x => !(C.kinds[x.kind] || {}).indoors);
+            s.displays.splice(i >= 0 ? i : 0, 1);
+        }
         const key = _key(s.q, s.r);
         if (s.q != null && !w.towns.includes(key)) w.towns.push(key);
         // The town sours at the sight

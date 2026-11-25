@@ -79,6 +79,11 @@ const DEFAULTS = {
     // Harrying the countryside in war (systems/harrying.js, player/harrying.js): burning, firing the fields, driving the herds — and the peasants put to the sword
     harry: { butcher: 2, karma: -3, reputation: -8 },
     slaughter: { butcher: 20, karma: -18, reputation: -20 },
+    // Walled up alive (systems/immurement.js: branded when the servants talk), a company decimated
+    // (player/decimation.js), a starving garrison that ate its dead (systems/eatingTheDead.js)
+    immure: { butcher: 18, karma: -15, reputation: -12 },
+    decimate: { butcher: 10, karma: -10, reputation: -4 },
+    ateDead: { butcher: 6, karma: -8, reputation: -6 },
     marks: {}, chronicle: {}, events: {}, lines: {},
 };
 
@@ -581,7 +586,7 @@ export const Atrocities = {
         const day = _day(world);
         const kid = opts.kingdomId != null ? opts.kingdomId : (settlement && settlement.kingdom) || null;
         const by = Atrocities._by(player);
-        const vars = { town: settlement ? settlement.name : 'the town', by, n: _num(opts.n), illness: opts.illness || 'plague' };
+        const vars = { town: settlement ? settlement.name : 'the town', by, n: _num(opts.n), illness: opts.illness || 'plague', ...(_obj(opts.vars) || {}) };
         const max = _num(C.infamy.max, 300);
         st.butcher = Math.min(max, st.butcher + _num(K.butcher));
         st.perfidy = Math.min(max, st.perfidy + _num(K.perfidy));

@@ -104,6 +104,11 @@ Object.assign(Renderer.prototype, {
         // Mines, quarries, sheep runs around the towns and their deposits (world/hinterland.js) —
         // under the route and the player, since the site's badge sits mid-hex
         this.renderHinterland(ctx);
+        // Villages and fields burned by harriers in war (systems/harrying.js), then captives on stakes
+        // along the roads and blinded columns walking home (renderer/warStakes.js): under the path,
+        // the player and the units, which often stand on the very hex
+        this.renderHarried(ctx);
+        this.renderWarStakes(ctx);
 
         // Render path preview
         if (this.player && this.player.path) {
@@ -161,10 +166,6 @@ Object.assign(Renderer.prototype, {
         this.renderQuestMarkers(ctx);
         // Your holdings under siege (systems/holdingSieges.js)
         this.renderHoldingSieges(ctx);
-        // Captives on stakes along the roads, blinded columns walking home (renderer/warStakes.js)
-        this.renderWarStakes(ctx);
-        // Villages and fields burned by harriers in war (systems/harrying.js)
-        this.renderHarried(ctx);
 
         // Royal squadrons at sea: blockades on station, patrols (renderer/navySquadrons.js)
         this.renderNavySquadrons(ctx);

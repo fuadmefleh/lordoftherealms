@@ -25,6 +25,7 @@ import { PlayerCoin } from '../playerCoin.js';
 import { Thirst } from '../thirst.js';
 import { PrisonerFates } from '../prisonerFates.js';
 import { PenalLabour } from '../../systems/penalLabour.js';
+import { Decimation } from '../decimation.js';
 import { Utils, Technology, House, Quests, RealmWars, Throne, PlayerEffects, Housing, Culture, PlayerReligion, PlayerInventory, WorldEvents, WEATHER_EFFECTS, Economy, Arms } from './_imports.js';
 
 Object.assign(PlayerMilitary, {
@@ -113,9 +114,12 @@ Object.assign(PlayerMilitary, {
         enemyPower *= specials.enemyMult;
 
         let moraleBreak = null;
-        if (PlayerMilitary._checkMoraleBreak(playerStrength, enemyStrength, playerMorale)) {
+        // (a decimated army breaks less: player/decimation.js)
+        if (PlayerMilitary._checkMoraleBreak(playerStrength, enemyStrength, playerMorale, Decimation.breakMult(player))) {
             moraleBreak = 'player';
             Traits.recordDeed(player, 'cowardice', 2); // the army broke and ran
+            // The companies that ran wait on your word: decimate them? (player/decimation.js)
+            if (theatre !== 'sea') Decimation.noteBroken(player, context.world || null, { kind: 'army', foe: enemyName });
             playerPower *= 0.55;
             enemyPower *= 1.12;
         } else if (specials.commanderSlain || (!context.enemyNoRout && PlayerMilitary._checkMoraleBreak(enemyStrength, playerStrength, enemyMorale))) {
@@ -154,7 +158,10 @@ Object.assign(PlayerMilitary, {
         // Only units that took the field can fall (galleys stay out of land battles)
         const fighting = () => player.army.filter(u => PlayerMilitary._theatreParticipant(u, theatre));
         const casualtyCount = Math.ceil(fighting().length * casualtyRate);
-        const { casualties, woundedUnits } = PlayerMilitary._applyCasualties(player, theatre, casualtyCount);
+        const { casualties, woundedUnits, fallen } = PlayerMilitary._applyCasualties(player, theatre, casualtyCount);
+        // A realm's guard companies that fell on a field you held: some of their kit gathered
+        // back into its armoury, as every realm's army gathers its own (world/realmArms.js recoverOwn)
+        if (victory && theatre !== 'sea') PlayerMilitary._gatherGuardKits(fallen, context.world);
         // The bowmen loosed their arrows (the fallen took theirs with them); a won field gives some back
         const quivers = Arms.spendQuivers(player, { units: fighting(), victory });
 
@@ -222,6 +229,7 @@ Object.assign(PlayerMilitary, {
         // Surgery: each would-be casualty may be carried off wounded instead
         const woundedChance = Technology.getEffectTotal(player, 'woundedRecoveryBonus');
         const woundedUnits = [];
+        const fallen = [];
         let casualties = 0;
         for (let i = 0; i < count; i++) {
             const candidates = fighting();
@@ -234,6 +242,7 @@ Object.assign(PlayerMilitary, {
                 continue;
             }
             casualties++;
+            fallen.push(unit);
             // The fallen are remembered — Resurrection can call them back
             PlayerReligion.recordFallenUnit(player, unit);
         }
@@ -243,7 +252,29 @@ Object.assign(PlayerMilitary, {
             Arms.wearKits(player);
             Arms.wearFromBattle(player);
         }
-        return { casualties, woundedUnits };
+        return { casualties, woundedUnits, fallen };
+    },
+
+    /**
+     * The fallen companies of a realm's household guard (unit.realmGuard, armed out of
+     * its armoury) on a field their side held: recoverOwn of each piece of their kit
+     * gathered back into the realm's armoury — the rule every realm's army fights by
+     * (RealmArms.battle). The rest are lost with the dead. → pieces gathered
+     */
+    _gatherGuardKits(fallen, world) {
+        if (!Array.isArray(fallen) || !fallen.length || !world || typeof world.getKingdom !== 'function') return 0;
+        const share = Math.max(0, Math.min(1, Number(RealmArms.config().recoverOwn) || 0));
+        if (!(share > 0)) return 0;
+        let n = 0;
+        for (const u of fallen) {
+            if (!u || u.realmGuard == null || !u.kit || typeof u.kit !== 'object') continue;
+            const k = world.getKingdom(u.realmGuard);
+            if (!k || k.isAlive === false) continue;
+            const goods = {};
+            for (const slot of Arms.SLOTS) if (Arms.item(u.kit[slot])) goods[u.kit[slot]] = (goods[u.kit[slot]] || 0) + 1;
+            n += RealmArms._addTo(k, goods, share);
+        }
+        return n;
     },
 
     /**
@@ -1102,7 +1133,7 @@ Object.assign(PlayerMilitary, {
             renownChange,
             inventoryLoot,
             lootLeftBehind,
-            ...(fates.column ? { captives: { id: fates.column.id, men: fates.column.men, outlaw: fates.column.outlaw, realm: fates.column.realm } } : {}),
+            ...(fates.column ? { captives: { id: fates.column.id, men: fates.column.men, outlaw: fates.column.outlaw, realm: fates.column.realm, rebel: !!fates.column.rebel } } : {}),
             ...(fates.oathText ? { oathBroken: fates.oathText } : {}),
             ...(fates.takenText ? { menTaken: fates.takenText } : {}),
         };

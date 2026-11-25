@@ -18,6 +18,15 @@
 //   EG_TRACE=1 / EG_DUMP=day / EG_VERBOSE=1   the purse's month; the towns' food that day; a starved life's last days
 //   EG_CLAIMS=0 / EG_PROGRESS=0               grow mode without pressing claims for far crowns / without royal progresses
 //   EG_OUT=dir           also write <dir>/eg_<map>_<mode>_<seed>.json (the yearly rows and events)
+//   EG_RUN=n             a second run of the same seed: the bot's own steps (botDay, growWeek,
+//                        claimWeek, prepWeek) draw from a stream salted by n, the world's day
+//                        from the seed's (the same map and realms, a different life); 0/unset as before
+//   EG_MILTRACE=1        each year, who moved the home realm's soldiers, people, treasury and
+//                        towns (setters on kingdom.military / treasury, settlement.population /
+//                        kingdom, tallied by caller) beside the AI realms' average; its wars (who
+//                        declared, battles won and lost), every realm's regard for it, its coin by
+//                        holder (CoinCensus), its towns' purses and the court NPCs' purses (slow: ~3x)
+//   EG_DAYLOG=from-to    the bot's day, step by step, between those days (where, fed, headed, counted)
 //
 // Each run prints one line a year (dominance, the reckoning, the four strains,
 // crowns, ms/day) and a summary: the last crisis (when, kind, outcome), when
@@ -63,6 +72,12 @@ import { CrownBooks } from '../world/crownBooks.js';
 import { Thirst } from '../player/thirst.js';
 import { Maiming } from '../systems/maiming.js';
 import { PeasantRevolts } from '../systems/peasantRevolts.js';
+import { MoneySupply } from '../world/moneySupply.js';
+import { Fiscal } from '../systems/fiscal.js';
+import { CoinCensus } from '../systems/coinCensus.js';
+import { RealmArms } from '../world/realmArms.js';
+import { KingdomBonuses, LordInfluence } from '../world/kingdomState.js';
+import { KingdomAtlas } from '../world/kingdomAtlas.js';
 
 const ENV = (typeof process !== 'undefined' && process.env) || {};
 const ON = !!ENV.EG_SOAK;
@@ -78,6 +93,7 @@ const MAPS = {
 const ORIGIN = ENV.EG_ORIGIN || 'monarch';
 const MODE = ENV.EG_MODE || 'grow';
 const PREP = ENV.EG_PREP || 'alt';
+const RUN = Math.floor(Number(ENV.EG_RUN) || 0);
 const STRAINS = ['graft', 'drift', 'soft', 'entrench'];
 
 let logSpy;
@@ -137,12 +153,21 @@ function growWeek(game, stats) {
             stats.progresses = (stats.progresses || 0) + 1;
         }
     }
-    // One war at a time, on a realm we outweigh
-    if ((home.wars || []).length === 0 && world.day % 28 === 3) {
-        const ours = (home.military || 0) + armyStrength;
-        const prey = world.kingdoms.filter(k => k && k.isAlive && k.id !== home.id && !(home.allies || []).includes(k.id)
-            && !KingdomAI.hasTruce(home, k, world) && !HighCrowns.unionCrown(player, k.id) && (k.military || 0) * 1.3 < ours)
-            .sort((a, b) => (a.military || 0) - (b.military || 0))[0];
+    // One war at a time, on a near realm we clearly outweigh, from a realm ready for it: its
+    // ranks refilled, its chests a month deep, its people settled, no claim's war afoot, and a
+    // season since its last war. (Before 2026-11-24 it marched every fourth week on any realm
+    // whose army was a little smaller, counting neither its people — what refills an army —
+    // nor the walls it must storm: its realm was at war two days in three, and bled.)
+    const free = (home.wars || []).length === 0 && !Throne.state(player).civilWar;
+    if (!free) game.lastWarDay = world.day;
+    if (free && world.day % 28 === 3 && world.day - (game.lastWarDay || 0) >= 120) {
+        const might = (k) => (k.military || 0) + (k.population || 0) * 0.1;
+        const ready = (home.military || 0) >= 0.85 * (home.militaryCap || 0) && (home.stability || 0) >= 45 && Fiscal.reserveDays(home) >= 30;
+        const ours = might(home) + armyStrength;
+        const near = (k) => home.capital && k.capital && Hex.wrappingDistance(home.capital.q, home.capital.r, k.capital.q, k.capital.r, world.width) <= 28;
+        const prey = ready ? world.kingdoms.filter(k => k && k.isAlive && k.id !== home.id && !(home.allies || []).includes(k.id) && near(k)
+            && !KingdomAI.hasTruce(home, k, world) && !HighCrowns.unionCrown(player, k.id) && might(k) * 1.6 < ours && (k.wars || []).length < 2)
+            .sort((a, b) => might(a) - might(b))[0] : null;
         if (prey && Throne.declareRealmWar(player, world, prey.id).success) stats.warsDeclared = (stats.warsDeclared || 0) + 1;
     }
 }
@@ -273,6 +298,296 @@ Maiming.roadMaim = function (player, world, attacker, how) {
     return r;
 };
 
+// EG_MILTRACE=1: who moves each realm's soldiers (kingdom.military) and people
+// (settlement.population), tallied by caller over each year — the home realm
+// beside the AI realms' average — and the realms' books at each year's end
+const _frame = (l) => {
+    const m = /at (?:(\S+) )?\(?(?:.*[\\/])?([^\\/]+?):(\d+):\d+\)?$/.exec(String(l || '').trim());
+    return m ? `${m[1] || '?'}@${m[2]}:${m[3]}` : String(l || '').trim();
+};
+const _who = () => { const s = new Error().stack.split('\n'); return `${_frame(s[3])} < ${_frame(s[4])}`; };
+let _mtGame = null;
+function _mtPatch() {
+    if (KingdomAI._mtPatched) return;
+    KingdomAI._mtPatched = true;
+    const homeId = () => { const g = _mtGame; const h = g && Throne.ruledKingdom(g.player, g.world); return h ? h.id : null; };
+    const tally = (key, n = 1) => { const T = _mtGame && _mtGame._milT; if (T) T.war[key] = (T.war[key] || 0) + n; };
+    const sw = KingdomAI.startWar;
+    KingdomAI.startWar = function (a, b, world) {
+        const h = homeId();
+        // every realm's new wars by target (the home realm's rate beside an AI realm's)
+        if (h != null && !(a.wars || []).includes(b.id)) {
+            const T = _mtGame && _mtGame._milT;
+            if (T) {
+                if (!T.declOn) T.declOn = {};
+                const f = _frame(new Error().stack.split('\n')[2]).replace(/^Object\./, '').replace(/@.*$/, '');
+                const e = T.declOn[b.id] || (T.declOn[b.id] = { n: 0 });
+                e.n++;
+                e[f] = (e[f] || 0) + 1;
+            }
+        }
+        if (h != null && (a.id === h || b.id === h) && !(a.wars || []).includes(b.id)) {
+            tally(`${a.id === h ? 'homeDeclared' : 'declaredOnHome'} ${_frame(new Error().stack.split('\n')[2])}`);
+            tally(`war vs ${a.id === h ? b.id : a.id}`);
+        }
+        return sw.call(KingdomAI, a, b, world);
+    };
+    const ew = KingdomAI.endWar;
+    KingdomAI.endWar = function (a, b, world, opts = {}) {
+        const h = homeId();
+        if (h != null && (a.id === h || b.id === h)) tally(`end ${opts.victor ? (opts.victor.id === h ? 'homeWon' : 'homeLost') : 'white'}${opts.tribute ? ' capit' : ''}`);
+        return ew.call(KingdomAI, a, b, world, opts);
+    };
+    const sb = KingdomAI.simulateBattle;
+    KingdomAI.simulateBattle = function (att, def, world) {
+        const h = homeId();
+        const side = h == null ? null : att.id === h ? 'att' : def.id === h ? 'def' : null;
+        if (!side) { tally('aiBattles'); return sb.call(KingdomAI, att, def, world); }
+        const ma = att.military, md = def.military;
+        // the battle's multipliers, home beside its foe (summed; the year's line divides by the count)
+        {
+            const T = _mtGame._milT;
+            const hk = side === 'att' ? att : def;
+            const fk = side === 'att' ? def : att;
+            const f = (k, o) => ({
+                arms: RealmArms.factor(k), cmd: KingdomAI.fieldCommandMult(k, world), morale: KingdomAI._moraleBonus(k, world),
+                war: 1 + KingdomBonuses.get(k, 'warBonus'), defense: KingdomBonuses.get(k, 'defense') + LordInfluence.mod(k, 'defense'),
+                atlas: KingdomAtlas.campaignMultiplier(k, o.id), appetite: LordInfluence.warAppetite(k),
+            });
+            const bf = T.bf || (T.bf = { n: 0, home: {}, foe: {} });
+            bf.n++;
+            for (const [who, k, o] of [['home', hk, fk], ['foe', fk, hk]]) for (const [key, v] of Object.entries(f(k, o))) bf[who][key] = (bf[who][key] || 0) + (Number(v) || 0);
+        }
+        const r = sb.call(KingdomAI, att, def, world);
+        // (the attacker keeps ≥95% of its men when it wins, ≤85% when it loses)
+        const attWon = ma > 0 ? att.military / ma > 0.9 : false;
+        const won = side === 'att' ? attWon : !attWon;
+        tally(`battle ${side} ${won ? 'won' : 'lost'}`);
+        tally(`battle ratio x100 ${side}`, Math.round(100 * (side === 'att' ? ma / Math.max(1, md) : md / Math.max(1, ma))));
+        return r;
+    };
+    const dw = Throne.declareRealmWar;
+    Throne.declareRealmWar = function (...args) { const r = dw.apply(Throne, args); if (r && r.success) tally('bot growWeek declares'); return r; };
+}
+function milTraceHook(game) {
+    _mtGame = game;
+    _mtPatch();
+    const T = game._milT || (game._milT = { mil: {}, pop: {}, war: {} });
+    if (!T.war) T.war = {};
+    const hk = Throne.ruledKingdom(game.player, game.world);
+    // (the home armoury's body armour, by who moves it: a Proxy on its stock — the slot most often short)
+    if (hk) {
+        const a = RealmArms.state(hk);
+        if (!game._armProxied) game._armProxied = new WeakSet();
+        if (!game._armProxied.has(a.stock)) {
+            const body = new Set((RealmArms.config().slots || {}).body || []);
+            const raw = a.stock;
+            a.stock = new Proxy(raw, {
+                set(t, key, v) {
+                    if (body.has(key)) {
+                        const d = (Number(v) || 0) - (Number(t[key]) || 0);
+                        if (d && Number.isFinite(d)) { if (!T.armBody) T.armBody = {}; const kk = `${d > 0 ? '+' : '-'} ${_who()}`; T.armBody[kk] = (T.armBody[kk] || 0) + d; }
+                    }
+                    t[key] = v;
+                    return true;
+                },
+            });
+            game._armProxied.add(a.stock);
+        }
+    }
+    // (every realm's regard for the home realm, by who moves it: a Proxy on each relations book)
+    if (!T.rel) T.rel = {};
+    if (!game._relProxied) game._relProxied = new WeakSet();
+    for (const k of game.world.kingdoms || []) {
+        if (!k || !k.relations || game._relProxied.has(k.relations)) continue;
+        const book = new Proxy(k.relations, {
+            set(o, key, nv) {
+                const h = Throne.ruledKingdom(game.player, game.world);
+                if (h && String(key) === String(h.id) && k.id !== h.id) {
+                    const d = (Number(nv) || 0) - (Number(o[key]) || 0);
+                    if (d) { const w = _who(); T.rel[w] = (T.rel[w] || 0) + d; }
+                }
+                o[key] = nv;
+                return true;
+            },
+        });
+        game._relProxied.add(book);
+        k.relations = book;
+    }
+    if (!T.wd) T.wd = {};
+    for (const k of game.world.kingdoms || []) if (k && k.isAlive && (k.wars || []).length) T.wd[k.id] = (T.wd[k.id] || 0) + 1;
+    if (hk && (hk.wars || []).length) T.war.homeWarDays = (T.war.homeWarDays || 0) + 1;
+    if (hk && (hk.wars || []).length > 1) T.war.homeMultiWarDays = (T.war.homeMultiWarDays || 0) + 1;
+    const w = game.world;
+    const home = () => { const h = Throne.ruledKingdom(game.player, game.world); return h ? h.id : null; };
+    const side = (kid) => (kid != null && kid === home() ? 'home' : 'ai');
+    const add = (bag, key, d) => { bag[key] = (bag[key] || 0) + d; };
+    for (const k of w.kingdoms || []) {
+        if (!k || Object.prototype.hasOwnProperty.call(k, '_milHook')) continue;
+        let v = k.military;
+        Object.defineProperty(k, '_milHook', { value: true, enumerable: false });
+        Object.defineProperty(k, 'military', {
+            enumerable: true, configurable: true,
+            get() { return v; },
+            set(nv) {
+                const d = (Number(nv) || 0) - (Number(v) || 0);
+                if (d && Number.isFinite(d)) add(T.mil[side(k.id)] || (T.mil[side(k.id)] = {}), _who(), d);
+                v = nv;
+            },
+        });
+        let tv = k.treasury;
+        Object.defineProperty(k, 'treasury', {
+            enumerable: true, configurable: true,
+            get() { return tv; },
+            set(nv) {
+                const d = (Number(nv) || 0) - (Number(tv) || 0);
+                if (d && Number.isFinite(d)) { if (!T.gold) T.gold = {}; add(T.gold[side(k.id)] || (T.gold[side(k.id)] = {}), _who(), d); }
+                tv = nv;
+            },
+        });
+    }
+    if (w.day % 30 !== 0 && game._milPopHooked) return;
+    game._milPopHooked = true;
+    for (let r = 0; r < w.height; r++) {
+        for (let q = 0; q < w.width; q++) {
+            const t = w.tiles[r] && w.tiles[r][q];
+            const s = t && t.settlement;
+            if (!s || Object.prototype.hasOwnProperty.call(s, '_popHook')) continue;
+            let v = s.population;
+            Object.defineProperty(s, '_popHook', { value: true, enumerable: false });
+            Object.defineProperty(s, 'population', {
+                enumerable: true, configurable: true,
+                get() { return v; },
+                set(nv) {
+                    const d = (Number(nv) || 0) - (Number(v) || 0);
+                    if (d && Number.isFinite(d)) add(T.pop[side(s.kingdom)] || (T.pop[side(s.kingdom)] = {}), _who(), d);
+                    v = nv;
+                },
+            });
+            // (a town changing hands: who handed it over, and its people)
+            let kv = s.kingdom;
+            Object.defineProperty(s, 'kingdom', {
+                enumerable: true, configurable: true,
+                get() { return kv; },
+                set(nv) {
+                    const h = home();
+                    if (h != null && nv !== kv && (kv === h || nv === h)) {
+                        if (!T.towns) T.towns = {};
+                        const key = `${kv === h ? 'LOST' : 'GAINED'} ${_who()}`;
+                        T.towns[key] = (T.towns[key] || 0) + Math.round(Number(v) || 0);
+                    }
+                    kv = nv;
+                },
+            });
+        }
+    }
+}
+function milTraceYear(game, seed, year) {
+    const T = game._milT;
+    if (!T) return;
+    const w = game.world;
+    const h = Throne.ruledKingdom(game.player, w);
+    const ais = w.kingdoms.filter(k => k && k.isAlive && (!h || k.id !== h.id)).length || 1;
+    const towns = (kid) => w.getSettlementViews().filter(s => s.kingdom === kid && s.type !== 'village').length;
+    const books = (k) => { const f = k.fisc || {}; return `${k.id} pop ${Math.round(k.population)} towns ${towns(k.id)} mil ${Math.round(k.military)} cap ${k.militaryCap} af ${r2(CrownBooks.armyFactor(k))} pay ${f.armyPay} arr ${f.arrearsDays} lvl ${f.level} treas ${Math.round(k.treasury)} stab ${Math.round(k.stability)} wars ${(k.wars || []).length} coin ${(() => { const R = MoneySupply.realm(w, k.id); return R ? Math.round(R.coin || 0) : '-'; })()} levy ${Math.round((Throne.state(game.player).ruling || {}).levyTotal || 0)} corr ${r2(f.corruption || 0)} mult ${r2(f.mult || 0)} farms ${w.getSettlementViews().filter(v => { const t = w.getTile(v.q, v.r); return t && t.settlement && t.settlement.kingdom === k.id && t.settlement.taxFarm; }).length} st ${JSON.stringify(f.stats || {})}`; };
+    out(`  [${seed}] MT y${year} HOME ${h ? books(h) : '-'}`);
+    if (h) {
+        const R = MoneySupply.realm(w, h.id) || {};
+        out(`  [${seed}] MT y${year} HOMECOIN ${JSON.stringify(Object.fromEntries(['coin', 'level', 'towns', 'folk', 'held', 'coffers', 'banks', 'purse', 'pop'].map(x => [x, Math.round((R[x] || 0) * 100) / 100])))}`);
+        try {
+            const cc = CoinCensus.count(w, game.player);
+            const fmt = (o) => Object.entries(o || {}).filter(([, x]) => x >= 1).map(([a, x]) => `${a}:${Math.round(x)}`).join(' ');
+            out(`  [${seed}] MT y${year} HOLDERS home ${fmt(cc.get(h.id))}`);
+            for (const k of w.kingdoms) if (k && k.isAlive && k !== h) out(`  [${seed}] MT y${year} HOLDERS ${k.id} ${fmt(cc.get(k.id))}`);
+            const npcs = Array.isArray(Relationships._npcs) && Relationships._npcs.length ? Relationships._npcs : (game.player._relationshipNpcs || []);
+            const top = npcs.filter(n => n && n.isAlive !== false && !n.dead && n.purse > 0).sort((a, b) => b.purse - a.purse).slice(0, 8);
+            out(`  [${seed}] MT y${year} NPCPURSES n${npcs.length} ${top.map(n => `${n.name}|${n.occupation || n.role || '-'}|${n.courtOffice || n.office || n.relationshipType || n.relation || '-'}|k${n.kingdomId}|${Math.round(n.purse)}`).join('  ')}`);
+            if (!game._purseHooked) game._purseHooked = new WeakSet();
+            for (const n of npcs) {
+                if (!n || game._purseHooked.has(n)) continue;
+                game._purseHooked.add(n);
+                let pv = n.purse;
+                Object.defineProperty(n, 'purse', {
+                    enumerable: true, configurable: true,
+                    get() { return pv; },
+                    set(nv) { const d = (Number(nv) || 0) - (Number(pv) || 0); if (d && Number.isFinite(d)) { if (!game._milT.npcPurse) game._milT.npcPurse = {}; const k = `${d > 0 ? '+' : '-'} ${_who()}`; game._milT.npcPurse[k] = (game._milT.npcPurse[k] || 0) + d; } pv = nv; },
+                });
+            }
+            out(`  [${seed}] MT y${year} NPCPURSE moves ${Object.entries(game._milT.npcPurse || {}).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1])).slice(0, 14).map(([k, v]) => `${Math.round(v)} ${k}`).join(' | ')}`);
+            game._milT.npcPurse = {};
+        } catch (e) { out(`holders: ${e.message}`); }
+        const f = h.fisc || {};
+        for (const v of w.getSettlementViews()) {
+            const t = w.getTile(v.q, v.r);
+            const s = t && t.settlement;
+            if (!s || s.kingdom !== h.id) continue;
+            const key = `${v.q},${v.r}`;
+            out(`  [${seed}] MT y${year}   town ${s.name} ${s.type} pop ${Math.round(s.population)} purse ${Math.round((s.economy || {}).gold || 0)} due/d ${r2((f.towns || {})[key] || 0)} happy ${Math.round(s.happiness || 0)} revolt ${s.taxRevolt > w.day ? 'Y' : '-'} pf ${s.provinceFx ? JSON.stringify(s.provinceFx).slice(0, 80) : '-'} farm ${s.taxFarm ? 'Y' : '-'} dmg ${r2(s.damage || 0)}`);
+        }
+    }
+    for (const k of w.kingdoms) if (k && k.isAlive && k !== h) out(`  [${seed}] MT y${year}   ai ${books(k)}`);
+    for (const kind of ['mil', 'pop', 'gold']) {
+        for (const sd of ['home', 'ai']) {
+            const bag = (T[kind] || {})[sd] || {};
+            const div = sd === 'ai' ? ais : 1;
+            const top = Object.entries(bag).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1])).slice(0, 14)
+                .map(([k, v]) => `${Math.round(v / div)} ${k}`);
+            const net = Math.round(Object.values(bag).reduce((a, b) => a + b, 0) / div);
+            out(`  [${seed}] MT y${year} ${kind} ${sd}${sd === 'ai' ? '/realm' : ''} net ${net}:\n      ${top.join('\n      ')}`);
+        }
+    }
+    out(`  [${seed}] MT y${year} war ${JSON.stringify(T.war)}`);
+    if (h) {
+        const others = w.kingdoms.filter(k => k && k.isAlive && k !== h);
+        const toHome = others.map(k => Math.round((k.relations || {})[h.id] || 0));
+        const amongAi = [];
+        for (const a of others) for (const b of others) if (a !== b) amongAi.push((a.relations || {})[b.id] || 0);
+        out(`  [${seed}] MT y${year} rel toHome [${toHome.join(',')}] avgAI-AI ${Math.round(amongAi.reduce((s, v) => s + v, 0) / Math.max(1, amongAi.length))}`);
+        out(`  [${seed}] MT y${year} rel moves: ${Object.entries(T.rel || {}).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1])).slice(0, 12).map(([k, v]) => `${Math.round(v)} ${k}`).join(' | ')}`);
+    }
+    out(`  [${seed}] MT y${year} townsMoved ${JSON.stringify(T.towns || {})}`);
+    T.towns = {};
+    out(`  [${seed}] MT y${year} warDays ${JSON.stringify(T.wd || {})}`);
+    out(`  [${seed}] MT y${year} declOn ${JSON.stringify(T.declOn || {})}`);
+    if (T.bf && T.bf.n) {
+        const avg = (o) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, Math.round(100 * v / T.bf.n) / 100]));
+        out(`  [${seed}] MT y${year} battleFactors n${T.bf.n} home ${JSON.stringify(avg(T.bf.home))} foe ${JSON.stringify(avg(T.bf.foe))}`);
+    }
+    T.bf = null;
+    // the armouries: the home realm's beside the AI realms' (factor, men, kits held vs needed, coin spent, pieces bought / lost / stripped)
+    {
+        const arm = (k) => {
+            const a = k.armoury || {};
+            const st = a.stats || {};
+            const prev = (T.armPrev || (T.armPrev = {}))[k.id] || {};
+            const d = (x) => Math.round((st[x] || 0) - (prev[x] || 0));
+            T.armPrev[k.id] = { ...st };
+            const need = RealmArms.need(k);
+            const held = RealmArms.held(k);
+            return `${k.id}:f${RealmArms.factor(k)} men${Math.round(k.military || 0)} towns${towns(k.id)} treas${Math.round(k.treasury || 0)} body${Math.round(held.body.n)}/${Math.round(need.kits)} spent${d('spent')} bought${d('bought')} lost${d('lost')} strip${d('stripped')} worn${d('worn')} imp${d('imported')} short${JSON.stringify(Object.fromEntries(Object.entries(RealmArms.deficits(k)).filter(([, v]) => v > 0)))}`;
+        };
+        const ai = w.kingdoms.filter(k => k && k.isAlive && k !== h);
+        out(`  [${seed}] MT y${year} ARMS home ${h ? arm(h) : '-'} | ai ${ai.map(arm).join(' ')}`);
+        out(`  [${seed}] MT y${year} ARMSBODY ${Object.entries(T.armBody || {}).sort((x, y) => Math.abs(y[1]) - Math.abs(x[1])).slice(0, 12).map(([k, v]) => `${Math.round(v)} ${k}`).join(' | ')}`);
+        T.armBody = {};
+        if (h) {
+            const m = Kingship.councillor(game.player, w, 'marshal');
+            const be = Kingship.battleEffect(game.player, w);
+            out(`  [${seed}] MT y${year} MARSHAL ${m ? `${m.name} (${m.kind}) comp ${m.competence} loy ${m.loyalty} war +${r2(be.marshal.warBonus)} def +${r2(be.marshal.defense)}` : 'vacant'} | ruler martial ${be.ruler.martial} war +${r2(be.ruler.warBonus)} def +${r2(be.ruler.defense)}`);
+        }
+    }
+    // each realm's foes (realms whose regard of it is under considerWar's −30) and allies, to set the
+    // home realm's wars beside an AI realm's in the same plight
+    {
+        const alive = w.kingdoms.filter(k => k && k.isAlive);
+        const foes = {};
+        for (const k of alive) foes[k.id] = `${alive.filter(o => o !== k && ((o.relations || {})[k.id] || 0) < -30).length}f/${(k.allies || []).length}a`;
+        out(`  [${seed}] MT y${year} foes ${JSON.stringify(foes)}`);
+    }
+    T.declOn = {};
+    T.mil = {}; T.pop = {}; T.gold = {}; T.war = {}; T.rel = {}; T.wd = {};
+}
+
 function runOne(seed) {
     const gen = MAPS[MAP] || {};
     let game = newGame(seed, gen);
@@ -282,6 +597,7 @@ function runOne(seed) {
     // EG_TIMING=1: ms a day by step (harness mark()); the endgame's share is in the summary
     if (ENV.EG_TIMING) game.timing = {};
     Scenarios.apply(game.player, game.world, { origin: ORIGIN });
+    { const h0 = Throne.ruledKingdom(game.player, game.world); game.realm0 = h0 ? h0.id : null; }
     const stats = {};
     const rows = [];
     const events = [];
@@ -295,15 +611,31 @@ function runOne(seed) {
     const probes = [];
     const hist = [];
     const realmsAtStart = game.world.kingdoms.filter(k => k && k.isAlive).length;
+    // (EG_RUN: the bot's steps on their own salted stream — Utils.withRng puts the world's back)
+    const botRng = RUN ? Utils.seededRandom(seed * 7919 + RUN * 104729) : null;
+    const asBot = (fn) => (botRng ? Utils.withRng(botRng, fn) : fn());
     let t0 = performance.now();
     let msYear = [];
     for (let i = 0; i < YEARS * Y; i++) {
         const { world } = game;
-        botDay(game, stats);
+        if (ENV.EG_MILTRACE) milTraceHook(game);
+        // EG_DAYLOG=from-to: the bot's day, step by step (where, fed, headed, what it counted)
+        const dl = ENV.EG_DAYLOG ? ENV.EG_DAYLOG.split('-').map(Number) : null;
+        const logDay = dl && world.day >= dl[0] && world.day <= dl[1];
+        const st0 = logDay ? { ...stats } : null;
+        asBot(() => botDay(game, stats));
+        if (logDay) {
+            const p = game.player;
+            const t = world.getTile(p.q, p.r);
+            const moved = Object.keys(stats).filter(k => stats[k] !== st0[k]).map(k => `${k}+${Math.round((stats[k] || 0) - (st0[k] || 0))}`).join(',');
+            out(`  [${seed}] DAY d${world.day} @${p.q},${p.r}${t && t.settlement ? `(${t.settlement.type} ${t.settlement.name})` : ''} f${p.getFoodCount()} g${Math.round(p.gold)} h${Math.round(p.health)} dest ${game.dest ? `${game.dest.q},${game.dest.r}${game.dest.court ? 'C' : ''}` : '-'} head ${game.headingTo ? `${game.headingTo.q},${game.headingTo.r}` : '-'} cw ${Throne.state(p).civilWar ? 'Y' : '-'} prog ${game.progress ? game.progress.kingdomId : '-'} army ${(p.army || []).length} | ${moved}`);
+        }
         if (world.day % 7 === 3) {
-            if (MODE === 'grow') growWeek(game, stats);
-            if (MODE === 'grow' && ENV.EG_CLAIMS !== '0') claimWeek(game, stats);
-            if (prepared(game)) prepWeek(game, stats);
+            asBot(() => {
+                if (MODE === 'grow') growWeek(game, stats);
+                if (MODE === 'grow' && ENV.EG_CLAIMS !== '0') claimWeek(game, stats);
+                if (prepared(game)) prepWeek(game, stats);
+            });
         }
         const res = endDay(game);
         const player = game.player;
@@ -425,6 +757,14 @@ function runOne(seed) {
                 strains, crowns: crowns.length, sep, emperor: HighCrowns.isEmperor(p), crisis: Crises.active(w) ? (Crises.state(w).active.kind || 'yes') : null,
                 aiDecl: aiDecl.length ? `${Math.min(...aiDecl)}-${Math.max(...aiDecl)}` : '', stab: home ? Math.round(home.stability) : null,
                 mil: home ? Math.round(home.military) : null,
+                // (the realm the run began in, crowned or not — a life lost with no heir loses the
+                // crown, not the realm: its towns and soldiers are counted on)
+                realm0: (() => {
+                    const k0 = game.realm0 != null ? w.getKingdom(game.realm0) : null;
+                    if (!k0) return null;
+                    const views = w.getSettlementViews().filter(v => v.kingdom === k0.id);
+                    return { alive: k0.isAlive !== false, towns: views.length, pop: Math.round(views.reduce((a, v) => a + (v.population || 0), 0)), mil: Math.round(k0.military || 0), ruled: !!home && home.id === k0.id };
+                })(),
                 gold: Math.round(p.gold || 0), army: Math.round(PlayerMilitary.getArmyStrength(p)), prestige: Math.round(House.getPrestige(p)), age: Math.round(p.age || 0),
                 lead: m.lead, rivalTowns: m.rivalTowns, power: Math.round(m.power || 0),
                 pressure: rd ? Object.fromEntries(STRAINS.map(id => [id, Math.round(rd.pressure[id] || 0)])) : null,
@@ -436,6 +776,7 @@ function runOne(seed) {
                 })() : null,
             };
             rows.push(row);
+            if (ENV.EG_MILTRACE) milTraceYear(game, seed, year);
             out(`[${seed}] y${year} ${row.ms}ms realms ${row.realms} ${row.home || '-'} r${reignY} towns ${row.towns} (rival ${row.rivalTowns}, lead ${row.lead}) ts ${row.townShare} ms ${row.mightShare} prog ${row.prog}${row.dom ? ' DOM' : ''} held ${row.held}/${row.need} ${row.phase} | ${strains ? STRAINS.map(id => `${id[0]}${strains[id]}/${row.pressure[id]}`).join(' ') : '-'} stab ${row.stab} | crowns ${row.crowns}${sep.length ? ` sep ${sep.join(',')}` : ''}${row.emperor ? ' EMP' : ''}${row.crisis ? ` crisis:${row.crisis}` : ''} ai ${row.aiDecl} | ${row.gold}g army ${row.army} pr ${row.prestige} age ${row.age}`);
             if (year % 5 === 0) {
                 const pr = probeSuccession(game);
@@ -469,7 +810,7 @@ function runOne(seed) {
     if (ENV.EG_OUT) {
         try {
             fs.mkdirSync(ENV.EG_OUT, { recursive: true });
-            fs.writeFileSync(path.join(ENV.EG_OUT, `eg_${MAP}_${MODE}_${ORIGIN}_${PREP}_${seed}.json`), JSON.stringify({ summary, rows, events, probes }, null, 1));
+            fs.writeFileSync(path.join(ENV.EG_OUT, `eg_${MAP}_${MODE}_${ORIGIN}_${PREP}_${seed}${RUN ? `_r${RUN}` : ''}.json`), JSON.stringify({ summary, rows, events, probes }, null, 1));
         } catch (e) { out(`(could not write: ${e.message})`); }
     }
     return summary;

@@ -98,6 +98,8 @@ import { RealmWars } from './realmWars.js';
 import { LlmProse } from './llmProse.js';
 // Each far crown's own royal court (council, edicts, vassals, revolts: systems/kingship.js; run time only)
 import { Kingship } from './kingship.js';
+// (a crown worn by an AI king abroad, in personal union, is not offered to the player: systems/realmUnions.js)
+import { RealmUnions } from './realmUnions.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -438,6 +440,8 @@ export const HighCrowns = {
             if (!st.seenInit || _num(succ.day) <= _num(st.seenSucc[k.id])) { st.seenSucc[k.id] = Math.max(_num(st.seenSucc[k.id]), _num(succ.day)); continue; }
             st.seenSucc[k.id] = _num(succ.day);
             if ((home && home.id === k.id) || HighCrowns.unionCrown(player, k.id) || st.offers[k.id]) continue;
+            // (a crown that passed to an AI king abroad in personal union is not the council's to offer: systems/realmUnions.js)
+            if (RealmUnions.partnerOf(world, k)) continue;
             if (player.throne && player.throne.civilWar && player.throne.civilWar.kingdomId === k.id) continue;
             const claim = Math.min(100, HighCrowns._bloodClaim(player, k.id));
             if (claim < _num(I.minClaim)) continue;

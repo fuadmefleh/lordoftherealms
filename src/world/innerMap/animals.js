@@ -473,7 +473,8 @@ Object.assign(InnerMap, {
     /**
      * The fenced pens of a map: the ground shut in behind each gate (flood-filled
      * from the gate's sides) that holds no crop. [{ gateQ, gateR, cells: ['q,r'] }].
-     * A field is fenced too, but its cells are soil (_fieldSoil): no beasts in the wheat.
+     * A field is fenced too, but its cells are soil (_fieldSoil): no beasts in the wheat;
+     * and the fighting pit's ring (_pitFloor) keeps no flock.
      */
     findPens(tiles, maxCells = 160) {
         const H = tiles.length, W = H ? tiles[0].length : 0;
@@ -494,7 +495,8 @@ Object.assign(InnerMap, {
                     while (stack.length) {
                         const [cq, cr] = stack.pop();
                         cells.push(`${cq},${cr}`);
-                        if (tiles[cr][cq]._fieldSoil) crops = true;
+                        // (nor the fighting pit's sand: a ring, not a pen — world/pitRing.js)
+                        if (tiles[cr][cq]._fieldSoil || tiles[cr][cq]._pitFloor) crops = true;
                         if (cells.length > maxCells || cq <= 0 || cr <= 0 || cq >= W - 1 || cr >= H - 1) { open = true; break; }
                         for (const [ex, ey] of SIDES) {
                             const nq = cq + ex, nr = cr + ey, k = `${nq},${nr}`;

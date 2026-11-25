@@ -18,6 +18,11 @@ function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
+/** A law's description for the player: the data's pointers to the code ('(systems/x.js: ...)') left out. */
+function lawDesc(law) {
+    return String((law && law.desc) || '').replace(/\((?:systems|player|world)\/[\w/]+\.js:\s*/g, '(').replace(/\s*\((?:systems|player|world)\/[\w/]+\.js\)/g, '');
+}
+
 /** The realm the player stands in (a town's crown, or whoever holds the land). */
 function hereKingdom(game) {
     const { player, world } = game;
@@ -39,6 +44,8 @@ function forYou(game, k, lawId, option) {
     // (what the courts would do to your body, or with your years: systems/penalLabour.js)
     if (lawId === 'corporal') return option.id === 'iron' ? 'Convicted here, you may be flogged at the post, or have the court\'s letter burned into your cheek for life.' : option.id === 'lash' ? 'Convicted here of a lesser crime, you may be flogged at the post instead of the cells.' : 'The courts here pillory, but take no lash and no iron to you.';
     if (lawId === 'penalLabour') return option.id === 'oars' ? 'Convicted here of a grave crime, you may be sent to the crown\'s mines or chained to its galleys\' oars.' : option.id === 'mines' ? 'Convicted here of a grave crime, you may be sent to the crown\'s mines.' : 'The courts here send no one to hard labour.';
+    // (the heir's brothers at the accession: systems/fratricide.js)
+    if (lawId === 'succession') return option.id === 'fratricide' ? "When this crown passes, the new ruler's brothers are strangled: no brother rises for it, and every mother at court schemes for her son." : option.id === 'cage' ? "When this crown passes, the new ruler's brothers are shut up in the palace for life." : 'The brothers of a new ruler here keep their lives, and their claims.';
     if (lawId === 'vice') {
         // The town's own ordinance on top of the realm's (Laws.gambling)
         const tile = world.getTile(player.q, player.r);
@@ -82,11 +89,11 @@ function hereTab(game) {
         return {
             icon: law.icon,
             name: esc(law.name),
-            desc: esc(option && option.desc ? option.desc : law.desc),
+            desc: esc(option && option.desc ? option.desc : lawDesc(law)),
             note: you ? `<b>For you:</b> ${esc(you)}` : '',
             side: `${esc(option ? option.label : '—')}${set ? '' : '<br><small style="color:#8f8a7e;">old custom</small>'}`,
             tone: 'gold',
-            title: law.desc,
+            title: lawDesc(law),
         };
     }));
     return html;
@@ -134,7 +141,7 @@ function crownTab(game) {
                 act: 'lawsAct', args: ['enact', law.id, o.id],
             };
         });
-        const head = `<div style="font-size:11px; color:#9d937c; margin-bottom:2px;">${esc(law.desc)}${last != null ? ` · last changed on day ${last}` : ''}</div>`;
+        const head = `<div style="font-size:11px; color:#9d937c; margin-bottom:2px;">${esc(lawDesc(law))}${last != null ? ` · last changed on day ${last}` : ''}</div>`;
         html += card(head + rowList(rows), { icon: law.icon, title: esc(law.name), side: esc(option ? option.label : '—'), tone: 'gold' });
     }
     const hist = (k.laws && Array.isArray(k.laws.history)) ? k.laws.history.slice(-6).reverse() : [];

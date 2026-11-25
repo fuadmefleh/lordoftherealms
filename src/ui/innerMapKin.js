@@ -306,11 +306,13 @@ export const InnerMapKin = {
     _grey(npc, world, folk, day) {
         const shade = TownFamily.greyShade(world, folk, npc._person, day);
         if (!shade) return;
-        if (!npc.preset) npc.preset = InnerMapCharacters.getPresetForNPC(npc.type, npc.id, npc.gender);
+        // (the harbourmaster greys in his own coat: ui/innerMapPort.js _keepMaster)
+        const look = npc.harbourmaster ? 'harbourmaster' : npc.type;
+        if (!npc.preset) npc.preset = InnerMapCharacters.getPresetForNPC(look, npc.id, npc.gender);
         const cur = String(npc.preset || '');
         if (cur.startsWith('player:')) return;
         // (their look as the current era would dress it — refitted when the era turns)
-        const base = InnerMapCharacters.getPresetForNPC(npc.type, npc.id, npc.gender) || cur;
+        const base = InnerMapCharacters.getPresetForNPC(look, npc.id, npc.gender) || cur;
         const want = this.agedPreset(base, shade);
         if (!want || cur === want) return;
         const pend = this._aged.get(npc.id);

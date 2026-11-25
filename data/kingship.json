@@ -46,7 +46,9 @@
       "devotedBonus": 3,
       "vassalLoyaltyFromOpinion": 0.5,
       "embezzleLoyalty": 25,
-      "embezzleShare": 0.002
+      "embezzleShare": 0.002,
+      "_rulerCommand": "the ruler at the head of the host (home realm only): per point of martial (1-20, from combat/leadership) above `from`, this much battle (warBonus) and defence",
+      "rulerCommand": { "from": 6, "warPer": 0.01, "defensePer": 0.005 }
     },
 
     "edictRules": { "maxEdicts": 4, "chancellorExtraAt": 12, "defaultPassCost": 150, "revokeFactionShare": 0.5 },
@@ -122,16 +124,13 @@
       "envyRatio": 1.2,
       "envy": -2,
       "ambitionEnvy": -1,
-      "warRelations": -20,
-      "warRatio": 0.9,
-      "weakWarRatio": 0.6,
-      "weakStability": 35,
-      "warChance": 0.25,
       "balanceRatio": 1.3,
       "balanceChance": 0.2,
       "balanceMinRelations": 10,
       "bandwagonRelations": 20,
-      "bandwagon": 2
+      "bandwagon": 2,
+      "_reciprocity": "the player's court sends no envoys; its regard for a realm at peace with it moves this much a week toward that realm's regard for it",
+      "reciprocity": 3
     }
   },
 
@@ -145,8 +144,9 @@
     "marshal": {
       "label": "Marshal", "icon": "⚔️", "skill": "martial",
       "childSkill": "combat", "childStat": "strength", "occupations": ["general", "knight", "guard", "hunter"],
-      "mods": { "militaryRegen": 0.05, "military": 0.006 },
-      "blurb": "The royal host: armies rebuild faster and the realm keeps a larger one."
+      "mods": { "militaryRegen": 0.05, "military": 0.006, "warBonus": 0.013, "defense": 0.014 },
+      "_battle": "warBonus/defense per point of competence: a marshal of 14 at loyalty 60 is about +18% in battle and +20% holding a town, as an AI realm's warlike lord gives it; an empty office leaves the host to its captains",
+      "blurb": "The royal host: armies rebuild faster, the realm keeps a larger one, and fights harder in the field and on the walls."
     },
     "steward": {
       "label": "Steward", "icon": "💰", "skill": "stewardship",

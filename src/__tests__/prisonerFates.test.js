@@ -344,6 +344,15 @@ function Nemesis_grudge(player) {
 }
 
 describe('PrisonerFates — a forest of stakes', () => {
+    it('stakes go up by the road, never on the town\'s own hex', () => {
+        const { world } = makeWorld();
+        const player = makePlayer();
+        // (beaten in a town: Varnhold at 10,2)
+        const tiles = PrisonerFates._stakeTiles(player, world, 10, 2, 5);
+        expect(tiles.length).toBeGreaterThan(0);
+        for (const t of tiles) expect(world.getTile(t.q, t.r).settlement, `${t.q},${t.r}`).toBeFalsy();
+    });
+
     it('stakes along the road into your realm: hosts turn back, crowns dread a war, your lords are cowed, and it rots', () => {
         tune({ impale: { turnBack: 1 } });
         const { world, k1, k2 } = makeWorld();

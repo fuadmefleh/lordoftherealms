@@ -175,7 +175,11 @@ export const SeaInterception = {
         const o = f.outcome || { kind: 'escaped' };
         Ships._setMorale(ship, Ships.getMorale(ship) + (o.kind === 'victory' ? 6 : o.kind === 'defeat' ? -12 : -2));
         let rep;
-        if (o.kind === 'victory') rep = SeaInterception._resolve(player, world, state, ship, 'victory', `⚔️ The ${ship.name} beat off ${state.name} (${SeaFights.summary(f) || 'they gave way'}).`);
+        if (o.kind === 'victory') {
+            rep = SeaInterception._resolve(player, world, state, ship, 'victory', `⚔️ The ${ship.name} beat off ${state.name} (${SeaFights.summary(f) || 'they gave way'}).`);
+            // (a ship of the patrol carried by boarding with you aboard: her crew yield to you, player/prisonerFates.js)
+            if (player.boardedShip === ship.id) SeaFights.boardedYield(world, f, { kingdomId: state.kingdomId, name: `${state.kingdomName || 'The patrol'}'s sailors`, q: typeof ship.q === 'number' ? ship.q : player.q, r: typeof ship.r === 'number' ? ship.r : player.r });
+        }
         else if (o.kind === 'defeat') rep = SeaInterception._resolve(player, world, state, ship, 'defeat', o.how === 'boarded' ? 'Their boarders carried her deck.' : 'Shot to pieces, she struck.');
         else rep = SeaInterception._resolve(player, world, state, ship, 'drawn', o.how === 'drawn' ? `The ${ship.name} and the squadron draw off, both the worse for it.` : `The ${ship.name} draws away from their guns.`);
         rep.fought = true;

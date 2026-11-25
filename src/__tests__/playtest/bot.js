@@ -92,6 +92,8 @@ import { Commissions } from '../../systems/commissions.js';
 import { Stewards } from '../../systems/stewards.js';
 import { travelTo as harnessTravelTo } from './harness.js';
 import { HouseQuests } from '../../systems/houseQuests.js';
+import { HolyWars } from '../../systems/holyWars.js';
+import { CourtLetters } from '../../systems/courtLetters.js';
 import { Devotion } from '../../systems/devotion.js';
 import { Plague } from '../../systems/plague.js';
 import { Household } from '../../player/household.js';
@@ -382,6 +384,16 @@ function settlementTiles(world) {
 // (from the player, only places it can get to from here: on foot, those on its own landmass —
 // a town over the sea is no use to a walker, and asking for the way there only fails)
 // (and not one whose plague-shut gates turned it back these ten days, while there are others)
+/** The nearest town (by road) whose stalls have bread enough, or null: a starving life's last walk. */
+function marketNear(game) {
+    const { player, world } = game;
+    const stocked = settlementTiles(world).filter(t => {
+        const tile = world.getTile(t.q, t.r);
+        return tile && tile.settlement && stallFood(tile.settlement) >= STALL_ENOUGH;
+    });
+    return nearest(world, player, stocked, 1)[0] || null;
+}
+
 function nearest(world, from, list, n = 6) {
     const reach = from && typeof from._overlandReachable === 'function' ? (t) => from._overlandReachable(t.q, t.r, world) : null;
     const shut = from && _shut.get(from);
@@ -448,11 +460,17 @@ function sellGoods(game, tile, stats) {
     const { player, world } = game;
     const held = PriceKnowledge.state(player).pnl.held;
     const crowded = PlayerInventory.getUsedSlots(player) > PlayerInventory.getCapacity(player) * 0.75;
-    for (const [id, qty] of Object.entries({ ...player.inventory })) {
+    for (const [id, held0] of Object.entries({ ...player.inventory })) {
+        let qty = held0;
         if (FOOD.includes(id) || !(qty > 0) || id === 'gold') continue;
         // Bullion bought for a mint is carried there (chooseDestination), not sold in passing
         if (BULLION.includes(id) && !crowded && player.gold >= 300) continue;
-        if (FOOD_FALLBACK.includes(id) && player.getFoodCount() <= 10) continue;
+        // (food beyond the packs' keep only: the whole lot went at once, and a king left a
+        // village with 97 days' food down to 10 starved on the road home — seed 101 2026-11-24)
+        if (FOOD_FALLBACK.includes(id)) {
+            qty = Math.min(qty, player.getFoodCount() - LARDER * 2);
+            if (!(qty > 0)) continue;
+        }
         if (Treasures.info(id) && Utils.random() < 0.5) continue;
         // Goods bought to trade are held until a market pays what they cost
         // (the price book's average cost), unless the purse is running dry or the packs fill
@@ -1220,10 +1238,17 @@ function royalCourt(game, stats) {
     const { player, world } = game;
     const court = Kingship.court(player);
     if (!court || !court.initialized) return;
-    for (const office of Kingship.OFFICES) {
+    // (the Marshal first: the host fights by him — Kingship.battleEffect)
+    for (const office of ['marshal', ...Kingship.OFFICES.filter(o => o !== 'marshal')]) {
         if (court.council[office]) continue;
         const best = Kingship.candidates(player, world, office).find(c => !c.office);
         if (best && Kingship.appoint(player, world, office, best.kind, best.id).success) count(stats, 'councilAppointed');
+    }
+    // ...and a far better soldier than the sitting Marshal takes his place
+    const marshal = Kingship.councillor(player, world, 'marshal');
+    if (marshal && world.day % 30 === 0) {
+        const better = Kingship.candidates(player, world, 'marshal').find(c => !c.office && c.score >= marshal.competence * Kingship._loyaltyFactor(marshal.loyalty) + 4);
+        if (better && Kingship.appoint(player, world, 'marshal', better.kind, better.id).success) count(stats, 'marshalReplaced');
     }
     // The crown's books (systems/fiscal.js): the ruler leaves taxes, the court and
     // the army's pay to the treasurers (Fiscal._review reviews the ruled realm as it
@@ -1248,7 +1273,9 @@ function royalCourt(game, stats) {
     }
     // (edicts only from a treasury with a cushion: their upkeep is the crown's, every day)
     const realm = Throne.ruledKingdom(player, world);
-    if (Utils.random() < 0.1 && realm && (realm.treasury || 0) > Throne.levyQuote(player, world, realm).reserve * 2) {
+    // (and from chests a season deep: passed on a thin cushion and repealed when it ran out, the
+    // edicts came and went a hundred times a run, the factions stirred by each)
+    if (Utils.random() < 0.1 && realm && (realm.treasury || 0) > Throne.levyQuote(player, world, realm).reserve * 2 && Fiscal.reserveDays(realm) >= 45) {
         const open = Object.keys(Kingship.edicts()).filter(id => Kingship.canPass(player, world, id).ok);
         if (open.length && Kingship.passEdict(player, world, Utils.randPick(open)).success) count(stats, 'edictsPassed');
     }
@@ -1258,10 +1285,72 @@ function royalCourt(game, stats) {
         if (res.success) count(stats, 'factionLeadersArrested');
         else if (Kingship.concede(player, world, f.faction.id).success) count(stats, 'factionsConceded');
     }
+    if (ruled && world.day % 7 === 2) foreignAffairs(game, stats, ruled);
     if (court.revolt && Utils.random() < 0.05 && Kingship.parley(player, world).success) count(stats, 'revoltParleys');
     if (Utils.random() < 0.03 && Kingship.holdFeast(player, world).success) count(stats, 'royalFeasts');
     const unhappy = court.vassals.find(v => !v.rebel && v.opinion < -20);
     if (unhappy && Utils.random() < 0.05 && Kingship.grantGold(player, world, unhappy.id).success) count(stats, 'vassalGrants');
+}
+
+/**
+ * The crown's foreign affairs, weekly, as a careful ruler keeps them (the
+ * levers are the ruler's alone: a ruled realm's court sends no envoys of its
+ * own — KingdomAI.considerDiplomacy — and signs no alliance unbidden):
+ *  - a war going badly (the enemy's host outweighs ours) is ended by envoys
+ *    (Throne.proposePeace, its own odds and cooldown);
+ *  - a neighbour that hates us and is not yet at war is sent gifts when the
+ *    chests can spare them (Throne.sendRoyalGifts) — every war leaves the
+ *    enemy's regard at −40, below where a court marches again (KingdomAI
+ *    considerWar: −30), so a crown that never mends fences fights the same
+ *    realms over and over;
+ *  - a realm warm enough is made an ally (Throne.proposeAlliance; allies are
+ *    never marched on);
+ *  - the edicts are repealed when the chests run low (their upkeep is daily).
+ * (Before 2026-11-24 the bot did none of this: its realm was at war two days
+ * in three, against the AI realms' one in five.)
+ */
+function foreignAffairs(game, stats, k) {
+    const { player, world } = game;
+    const others = world.kingdoms.filter(o => o && o.isAlive && o.id !== k.id);
+    const ours = Math.max(1, k.military || 0) + PlayerMilitary.getArmyStrength(player);
+    // Sue for peace in a war going badly (never a sworn one: Throne.proposePeace refuses it)
+    for (const eid of (k.wars || []).slice()) {
+        const e = others.find(o => o.id === eid);
+        if (!e || (e.military || 0) < ours * 1.1) continue;
+        const r = Throne.proposePeace(player, world, eid);
+        if (r.success) count(stats, r.failed ? 'peaceRefused' : 'peaceMade');
+    }
+    const reserve = Fiscal.reserveDays(k);
+    // Gifts to the most hostile neighbour at peace (its own regard of us is what moves its court)
+    // (to a neighbour strong enough to be a danger: gifts cost less than a war)
+    const giftCost = Throne.config().ruling.giftCost || 300;
+    if (reserve >= 20 && (k.treasury || 0) >= giftCost * 4) {
+        const might = (o) => (o.military || 0) + (o.population || 0) * 0.1;
+        const near = (o) => k.capital && o.capital && Hex.wrappingDistance(k.capital.q, k.capital.r, o.capital.q, o.capital.r, world.width) <= 28;
+        const foe = others.filter(o => near(o) && !(k.wars || []).includes(o.id) && ((o.relations || {})[k.id] || 0) < -25 && might(o) >= might(k) * 0.6)
+            .sort((a, b) => ((a.relations || {})[k.id] || 0) - ((b.relations || {})[k.id] || 0))[0];
+        if (foe && Throne.sendRoyalGifts(player, world, foe.id).success) count(stats, 'royalGifts');
+    }
+    // An ally where the regard runs warm both ways (two at most)
+    // (a realm weaker than its neighbours on average takes every friend it can get, up to four:
+    // allies never march on each other, and the AI realms, allied six and eight deep among
+    // themselves, left the small realm outside every pact the one they marched on)
+    const mightOf = (o) => (o.military || 0) + (o.population || 0) * 0.1;
+    const avgMight = others.length ? others.reduce((t, o) => t + mightOf(o), 0) / others.length : 0;
+    if ((k.allies || []).length < (mightOf(k) < avgMight ? 4 : 2)) {
+        const min = Throne.config().ruling.allianceMinRelations || 40;
+        const friend = others.find(o => !(k.wars || []).includes(o.id) && !(k.allies || []).includes(o.id)
+            && Math.min((k.relations || {})[o.id] || 0, (o.relations || {})[k.id] || 0) >= min);
+        if (friend && Throne.proposeAlliance(player, world, friend.id).success) count(stats, 'alliancesMade');
+    }
+    // The edicts cost the crown daily: repealed when the chests run low
+    const court = Kingship.court(player);
+    if (court && reserve < 15 && world.day - (game.lastRepeal || -1e9) >= 30) {
+        for (const id of Object.keys(court.edicts || {})) {
+            if (Kingship.revokeEdict(player, world, id).success) { count(stats, 'edictsRepealed'); game.lastRepeal = world.day; }
+            break;
+        }
+    }
 }
 
 function treasures(game, stats) {
@@ -1863,14 +1952,18 @@ function fight(game, stats) {
  */
 export function prisonersDay(game, stats) {
     const { player, world } = game;
+    // Men who yielded away from a field (a stormed lair, a breach, a deck: world/warStakes.js yieldUp)
+    const fresh = PrisonerFates.collect(player, world);
+    if (fresh) count(stats, `captivesFrom_${fresh.source || 'field'}`);
     const col = PrisonerFates.pending(player);
     if (col) {
         if (!col.oathDone) PrisonerFates.decideOathBreakers(player, world, true);
         if (PrisonerFates.pending(player) && !col.noblesDone) PrisonerFates.decideNobles(player, world, 'ransom');
         if (PrisonerFates.pending(player)) {
             const x = Utils.random();
-            const fate = col.outlaw ? (x < 0.7 ? 'hang' : x < 0.85 ? 'service' : 'release')
-                : (x < 0.5 ? 'oath' : x < 0.8 ? 'service' : x < 0.98 ? 'release' : 'slaughter');
+            const fate = col.rebel ? (x < 0.45 ? 'mercy' : x < 0.75 ? 'hang_leader' : x < 0.9 ? 'imprison' : 'service')
+                : col.outlaw ? (x < 0.7 ? 'hang' : x < 0.85 ? 'service' : 'release')
+                    : (x < 0.5 ? 'oath' : x < 0.8 ? 'service' : x < 0.98 ? 'release' : 'slaughter');
             const r = PrisonerFates.decide(player, world, fate);
             count(stats, r.success ? `captives_${fate}` : 'captivesFailed');
         }
@@ -1899,6 +1992,8 @@ function outlaws(game, stats) {
         if (!lair.scouted) OutlawLairs.scout(player, world, lair.id);
         const res = OutlawLairs.assault(player, world, lair.id);
         if (res.success) count(stats, res.cleared ? 'lairsCleared' : 'lairAssaultsFailed');
+        // (the lair's survivors who yield: the fate of prisoners)
+        if (res.yielded) prisonersDay(game, stats);
         return;
     }
     const kind = OutlawLairs.kind(lair.kind) || {};
@@ -2159,7 +2254,9 @@ function keepCourt(game, stats) {
     const left = player.getFoodCount();
     if (left <= 4 && !sells && !Delves.active(player) && !Sieges.active(player)) {
         const days = tripDays(game, seat.q, seat.r);
-        if (days != null && days <= left + 3 && (!home || Household.rations(home) >= 2 || player.gold >= 30)) {
+        // (only while the packs last the road: at left + 3 a king set out on four days' food
+        // for a court seven days off and starved three hexes short — seed 101 2026-11-24)
+        if (days != null && days <= left && (!home || Household.rations(home) >= 2 || player.gold >= 30)) {
             game.dest = { q: seat.q, r: seat.r, court: true };
             game.headingTo = { q: seat.q, r: seat.r, day: world.day };
             travelTo(game, seat.q, seat.r);
@@ -2596,6 +2693,45 @@ export function bloodFeuds(game, stats) {
  * unable to pay, declined to their face), and once a week the bot rides to the
  * nearest one within 16 hexes when it can pay, or when it has waited two months.
  */
+/**
+ * The Church's wars (systems/holyWars.js), as a player of the faith might
+ * meet them: a crowned bot answers most calls to its crown (on the call's
+ * last fortnight, refusing the rest); now and then — fed, hale and not broke,
+ * the muster within a few weeks' road — it takes the cross, rides to the
+ * muster and keeps near the front until the vow is served. A crusade letter
+ * (systems/courtLetters.js crusade_call) is answered the same way.
+ */
+export function holyWarDay(game, stats) {
+    const { player, world } = game;
+    // The crown's answer, in the call's last fortnight
+    for (const w of HolyWars.invitations(player, world)) {
+        if (w.answerBy - world.day > 14) continue;
+        const yes = Utils.random() < 0.7;
+        if (HolyWars.answer(player, world, w.id, yes).success) count(stats, yes ? 'holyWarAnswered' : 'holyWarRefused');
+    }
+    const p = HolyWars.pstate(player);
+    const c = p.cross;
+    if (!c) {
+        if (world.day % 7 !== 5) return;
+        const fit = player.health >= 70 && player.getFoodCount() >= 8 && player.gold >= 120;
+        const opt = fit ? HolyWars.crossOptions(player, world).find(o => o.ok) : null;
+        const muster = opt ? HolyWars.musterOf(world, opt.war) : null;
+        if (!muster || Hex.wrappingDistance(player.q, player.r, muster.q, muster.r, world.width) > 30) return;
+        // (a letter asking for it, or the bot's own zeal now and then)
+        const letter = CourtLetters.open(player).find(l => l.kind === 'crusade_call' && l.data && l.data.warId === opt.war.id);
+        if (!letter && Utils.random() >= 0.35) return;
+        const res = letter ? CourtLetters.answer(player, world, letter.id, 'take') : HolyWars.takeCross(player, world, opt.war.id);
+        if (res.success) count(stats, letter ? 'crossTakenByLetter' : 'crossTaken');
+        return;
+    }
+    // Under the cross: to the muster, then keep near it until the vow is served
+    const C = HolyWars.config().cross;
+    const d = Hex.wrappingDistance(player.q, player.r, c.muster.q, c.muster.r, world.width);
+    if (c.arrived == null ? d > C.musterRange : d > C.frontRange) {
+        if (travelTo(game, c.muster.q, c.muster.r)) count(stats, 'crusadeMarches');
+    } else if (c.arrived != null) count(stats, 'crusadeDaysServed');
+}
+
 function houseBusiness(game, stats) {
     const { player, world } = game;
     const open = HouseQuests.open(player);
@@ -2797,6 +2933,10 @@ export function botDay(game, stats) {
             return;
         }
     }
+    // Thirsty, the skins dry and no water here: to water first, whatever the day's errand —
+    // the detour ran only on a journey, and a king whose road was shut stood four days on
+    // one hex and died of thirst (seed 101, 2026-11-24)
+    if (!Sieges.active(player) && waterDetour(game)) { count(stats, 'waterFirst'); return; }
     if (player.indenturedServitude) {
         if (player.indenturedServitude.canBuyFreedom && player.gold >= player.indenturedServitude.freedomCost) {
             PlayerMilitary.buyFreedom(player, world);
@@ -2822,6 +2962,7 @@ export function botDay(game, stats) {
     stockUp(game, stats);
     delveTrek(game, stats);
     if (world.day > 150 && !player.boardedShip && !Ships.getVoyage(player)) houseBusiness(game, stats);
+    if (!player.boardedShip && !Ships.getVoyage(player)) holyWarDay(game, stats);
     if (!player.boardedShip && !Ships.getVoyage(player)) scaffoldDay(game, stats);
     // (captives taken on the road yesterday, ransom talks, your men held)
     prisonersDay(game, stats);
@@ -2908,7 +3049,13 @@ export function botDay(game, stats) {
     const foodless = game.foodlessAt || (game.foodlessAt = {});
     const stocked = (t) => !(world.day - (foodless[`${t.q},${t.r}`] ?? -1e9) < 20);
     let cantBuy = false;
-    if (player.getFoodCount() <= 4 && player.gold >= 30 && !player.boardedShip) {
+    // (on campaign for a crown — a claim's civil war, its villages picked bare — the packs are
+    // filled sooner: a king in the field at four days' food starved between bare villages)
+    // (and so in a dearth — a town found bare these thirty days: the next is likely bare too,
+    // and lives with 2,000 gold starved walking between a bare town and the hex beside it)
+    const dearth = world.day - (game.lastBareDay ?? -1e9) < 30;
+    const foodRunAt = Throne.state(player).civilWar || dearth ? 8 : 4;
+    if (player.getFoodCount() <= foodRunAt && player.gold >= 30 && !player.boardedShip) {
         const at = world.getTile(player.q, player.r);
         if (at && at.settlement) {
             booked(game, 'buyFood', () => buyFood(game, at, stats));
@@ -2916,11 +3063,18 @@ export function botDay(game, stats) {
             // (bare: no bread or grain on its stalls at all — a town the bot merely can't
             // afford more of is not bare, and walking off from it on a thin purse kills)
             const bare = stallFood(at.settlement) < STALL_ENOUGH;
-            if (before <= 4 && bare) {
+            if (bare) game.lastBareDay = world.day;
+            if (before <= foodRunAt && bare) {
                 // (nothing on the stalls here: with a few days' food left, walk on to the
                 // next town that had some, rather than sit in a bare town until it is gone)
                 foodless[`${player.q},${player.r}`] = world.day;
-                const next = before >= 1 ? nearest(world, player, settlementTiles(world).filter(stocked), 1)[0] : null;
+                // (a market with bread on its stalls first, when the packs reach it: in a dearth the
+                // nearest town not yet tried is bare too, and a king of 24 towns with 9,000 gold
+                // walked from one bare town to the next until he starved — seed 303 2026-11-24)
+                const mk = before >= 1 ? marketNear(game) : null;
+                const mkDays = mk ? tripDays(game, mk.q, mk.r) : null;
+                const next = mk && mkDays != null && mkDays <= before + 2 ? mk
+                    : before >= 1 ? nearest(world, player, settlementTiles(world).filter(stocked), 1)[0] : null;
                 // (in days on the road, not hexes: a hill hex is a day and a half, a highland two)
                 const days = next ? tripDays(game, next.q, next.r) : null;
                 if (next && days != null && days <= before + 2) {
@@ -2939,8 +3093,27 @@ export function botDay(game, stats) {
                 foodless[`${player.q},${player.r}`] = world.day;
                 cantBuy = true;
             }
+            // The last meal gone in a bare town: off to the nearest market with bread, however
+            // far, rather than forage about it until it kills
+            if (cantBuy && before <= 1 && bare) {
+                const m = marketNear(game);
+                if (m) {
+                    game.dest = { q: m.q, r: m.r };
+                    game.headingTo = { q: m.q, r: m.r, day: world.day };
+                    travelTo(game, m.q, m.r);
+                    const now = world.getTile(player.q, player.r);
+                    if (now && now.settlement) booked(game, 'buyFood', () => buyFood(game, now, stats));
+                    count(stats, 'starvingToMarket');
+                    return;
+                }
+            }
         } else {
-            let town = stick(game, nearest(world, player, settlementTiles(world).filter(stocked), 6));
+            // (a market with bread on its stalls first, when one is a short walk: a bare village
+            // nearer is no help to empty packs)
+            // (seed 303 2026-11-24: in every season, not only on campaign — see the bare-town run above)
+            const market = marketNear(game);
+            let town = market && (tripDays(game, market.q, market.r) ?? 99) <= player.getFoodCount() + 2 ? market
+                : stick(game, nearest(world, player, settlementTiles(world).filter(stocked), 6));
             // (the packs at their last meals and the town days further off than they and a few
             // hungry days last: forage or hunt the day here instead — a starving walker's day
             // shrinks to a fraction of a hex, and lives died on the way, a little nearer each day)
@@ -2950,6 +3123,10 @@ export function botDay(game, stats) {
                 // (not one found bare these last days: back to an empty market starved lives)
                 const any = nearest(world, player, settlementTiles(world).filter(t => !(world.day - (foodless[`${t.q},${t.r}`] ?? -1e9) < 5)), 1)[0];
                 town = any && (tripDays(game, any.q, any.r) ?? 99) <= left + 3 ? any : null;
+                // (but once the packs are empty and hunger bites, staying is death: walk for the
+                // nearest market with bread on its stalls, however far — a king with 5,000g starved
+                // foraging a day from a bare village, seed 101 2026-11-24)
+                if (!town && left === 0 && ((player.starvationDays || 0) >= 1 || (player.health || 0) < 95)) { town = marketNear(game); if (town) count(stats, 'starvingToMarket'); }
                 if (!town) count(stats, 'foragedShort');
             }
             if (!town) cantBuy = true;

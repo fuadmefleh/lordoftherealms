@@ -953,6 +953,12 @@ export const Taxation = {
         return typeof v === 'number' && isFinite(v) ? v : 0;
     },
 
+    /** The fear of an inquisition's hearing (systems/inquisition.js → settlement.inquisition.mood, ≤ 0). */
+    inquisitionMood(settlement) {
+        const v = settlement && settlement.inquisition && settlement.inquisition.mood;
+        return typeof v === 'number' && isFinite(v) ? v : 0;
+    },
+
     /** Mood points a town's memory adds: pride in its statues, grief for its dead (systems/townMemory.js → settlement.memory.mood). */
     memoryMood(settlement) {
         const v = settlement && settlement.memory && settlement.memory.mood;
@@ -993,7 +999,7 @@ export const Taxation = {
         // Taverns, temples and squares in a developed holding lift the mood
         const holdingMood = Taxation.holdingFx(settlement, 'happiness');
         // Great works and donated art (systems/patronage.js → settlement.patronage)
-        const target = Math.max(0, Math.min(100, 50 + taxPolicy.happinessBonus * 1.5 + peoplesMood + holdingMood + Taxation.patronageMood(settlement) + Taxation.memoryMood(settlement)));
+        const target = Math.max(0, Math.min(100, 50 + taxPolicy.happinessBonus * 1.5 + peoplesMood + holdingMood + Taxation.patronageMood(settlement) + Taxation.memoryMood(settlement) + Taxation.inquisitionMood(settlement)));
         const happiness = Taxation.getHappiness(settlement);
         settlement.happiness = Math.max(0, Math.min(100, happiness + (target - happiness) * 0.25));
         entry.happiness = Math.round(settlement.happiness);

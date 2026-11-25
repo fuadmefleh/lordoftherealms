@@ -92,6 +92,8 @@ import { Executions } from './executions.js';
 import { PeasantRevolts } from './peasantRevolts.js';
 import { RealmWars } from './realmWars.js';
 import { Ledger } from './ledger.js';
+// (a rival House's kinsman killed or maimed in your keeping: blood owed; run time only)
+import { BloodFeuds } from './bloodFeuds.js';
 
 /** The scaffold (systems/executions.js), when it is enabled. */
 function _executions() {
@@ -584,6 +586,8 @@ export const Interrogation = {
                 if (MaimMarks && typeof MaimMarks.mark === 'function' && !MaimMarks.whyNot(h.body, step.mark)) {
                     MaimMarks.mark(h.body, step.mark, { day, by: Interrogation._by(player), why: 'the question' });
                     parts.push(`The iron leaves its mark on ${w.his} face for life.`);
+                    // (a rival House's kinsman marked for life: blood owed, systems/bloodFeuds.js)
+                    if (h.kind === 'pow' && h.pow && Interrogation.powBlood(player, world, h.pow, 'maimed', { maimed: true, what: 'the iron' })) parts.push(`${h.pow.houseName} will want blood for it.`);
                 }
             } catch (e) { /* no marks */ }
         }
@@ -749,6 +753,8 @@ export const Interrogation = {
             player.reputation[h.pow.kingdomId] = _num(player.reputation[h.pow.kingdomId]) + _num(P.deathRep, -12);
             try { NPCLords.rememberRealm(world, h.pow.kingdomId, 'torture', { note: h.name }); } catch (e) { /* no lord */ }
             if (player.house) House._chronicle(player.house, world, `${h.name} of ${h.pow.realm}, a prisoner of war, died under the question.`, ['cruelty', 'war']);
+            // A kinsman of a rival House: blood owed (systems/bloodFeuds.js)
+            if (Interrogation.powBlood(player, world, h.pow, 'captive')) return `${h.pow.houseName} will want blood for ${h.name}; no ransom comes for the dead.`;
             return `${h.pow.realm} will not forget that a ${h.pow.title.toLowerCase()} of theirs died in your keeping; no ransom comes for the dead.`;
         }
         if (h.kind === 'bounty' && h.bounty) {
@@ -1146,6 +1152,8 @@ export const Interrogation = {
         const title = { lord: 'Lord', knight: 'Ser', captain: 'Captain' }[rank];
         const name = `${title} ${Interrogation._powName(world, kid, key)}`;
         const w = { id: st.nextPow++, name, title: { lord: 'A lord', knight: 'A knight', captain: 'A captain' }[rank], rank, gender: 'male', kingdomId: kid, realm: Names.realm(k.name), day, how: o.how || 'in the field', offered: null, grumbled: 0 };
+        // A kinsman of the rival House seated in that realm? (systems/rivalHouses.js)
+        Interrogation._linkHouse(player, world, w, key);
         st.pows.push(w);
         Interrogation._log(st, day, `${name} of ${w.realm} taken ${w.how}.`);
         if (player.house) House._chronicle(player.house, world, `${Interrogation._by(player)} took ${name} of ${w.realm} prisoner ${w.how}.`, ['war']);
@@ -1162,30 +1170,177 @@ export const Interrogation = {
         return Interrogation.state(player).pows.find(x => String(x.id) === String(id)) || null;
     },
 
-    /** What their crown would pay to have them home (out of its treasury). */
+    // ── A prisoner of war of a rival House's blood ──────────
+
+    /**
+     * A lord or knight taken from a realm where a rival House (house.rivals[k],
+     * systems/rivalHouses.js) is seated may be of its blood: a hash roll by
+     * rank (pow.house). He takes the House's name, the House hears of it (its
+     * feud, its memory), and from then on the House answers for him — its
+     * purse pays toward his ransom, and his death or maiming in your keeping
+     * is blood owed (powBlood → systems/bloodFeuds.js).
+     */
+    _linkHouse(player, world, w, key) {
+        const H = (Interrogation.config().pow || {}).house || {};
+        const rival = RivalHouses.rival(player, w.kingdomId);
+        if (!rival || rival.cadet || !rival.head || rival.extinct) return null;
+        const p = _num(H[w.rank]);
+        if (!(p > 0) || _roll(world, `${key}|house`) >= p) return null;
+        const sur = RivalHouses.surname(rival);
+        const parts = String(w.name).split(' ');
+        const title = parts[0];
+        const first = parts[1] || 'Edmund';
+        w.name = `${title} ${first} ${sur}`;
+        w.houseKid = rival.kingdomId;
+        w.houseName = rival.name;
+        w.kin = _roll(world, `${key}|kin`) < 0.5 ? 'brother' : 'cousin';
+        try {
+            House.accrueRivalFeud(player, world, rival.kingdomId, _num(H.capturedFeud, 8), `${w.name} taken prisoner`);
+            RivalHouses.remember(rival, world, 'captured', first);
+            RivalHouses._note(rival, world, `${w.name}, the head's ${w.kin}, was taken prisoner by ${Interrogation._by(player)}.`, 'attacked');
+        } catch (e) { /* no House */ }
+        return rival;
+    },
+
+    /** The rival House a prisoner of war is of (still standing), or null. */
+    powHouse(player, w) {
+        if (!w || w.houseKid == null) return null;
+        const r = RivalHouses.rival(player, w.houseKid);
+        return r && !r.extinct ? r : null;
+    },
+
+    /**
+     * Blood spilt on a House's kinsman in your keeping: dead (how: a
+     * data/bloodFeuds.json kind — 'captive', 'beheaded', 'battle') or maimed
+     * (opts.maimed). A blood feud with the House (BloodFeuds), its feud score
+     * and its memory. Once for a death, once for a maiming. → the feud, or null.
+     */
+    powBlood(player, world, w, how = 'captive', opts = {}) {
+        const rival = Interrogation.powHouse(player, w);
+        if (!rival || !player || !world) return null;
+        const H = (Interrogation.config().pow || {}).house || {};
+        const day = _day(world);
+        const first = String(w.name).split(' ')[1] || w.name;
+        let f = null;
+        if (opts.maimed) {
+            if (w.houseMaimed != null) return null;
+            w.houseMaimed = day;
+            try {
+                f = BloodFeuds.killing(world, {
+                    player, victim: BloodFeuds.houseSide(rival), killer: BloodFeuds.playerSide(player),
+                    dead: { name: w.name, rank: 'houseKin' }, killerName: player.name || 'you', how: 'maimed', byPlayer: true,
+                    line: `${w.name} of ${rival.name} was maimed in your keeping${opts.what ? ` (${opts.what})` : ''}. ${rival.name} swears blood vengeance on you and yours.`,
+                });
+            } catch (e) { f = null; }
+            try {
+                House.accrueRivalFeud(player, world, rival.kingdomId, _num(H.maimFeud, 40), `${w.name} maimed in your keeping`);
+                RivalHouses.remember(rival, world, 'maimedKin', first);
+                RivalHouses._note(rival, world, `${w.name} was maimed in your keeping.`, 'attacked');
+            } catch (e) { /* no House */ }
+            return f;
+        }
+        if (w.houseBlood) return null;
+        w.houseBlood = day;
+        try { f = BloodFeuds.onHouseBlood(world, player, rival, w.name, how, false); } catch (e) { f = null; }
+        try {
+            House.accrueRivalFeud(player, world, rival.kingdomId, _num(H.deathFeud, 60), `${w.name} dead in your keeping`);
+            RivalHouses.remember(rival, world, 'diedCaptive', first);
+            RivalHouses._note(rival, world, `${w.name} died a prisoner of ${Interrogation._by(player)}.`, 'bereaved');
+            rival.truceUntil = null;
+        } catch (e) { /* no House */ }
+        return f;
+    },
+
+    /** A House kinsman sent home: ransomed (paid) or freely (released). */
+    _powHouseHome(player, world, w, paid) {
+        const rival = Interrogation.powHouse(player, w);
+        if (!rival) return;
+        const H = (Interrogation.config().pow || {}).house || {};
+        const first = String(w.name).split(' ')[1] || w.name;
+        try {
+            if (paid) RivalHouses.remember(rival, world, 'ransomedKin', first);
+            else {
+                RivalHouses.remember(rival, world, 'releasedKin', first);
+                House.accrueRivalFeud(player, world, rival.kingdomId, -_num(H.releaseFeud, 10), `${w.name} sent home unransomed`);
+            }
+        } catch (e) { /* no House */ }
+    },
+
+    /**
+     * What each purse would put toward a prisoner's ransom of `want`: his
+     * House's (at most pow.house.purseShare of it, first) and his crown's (at
+     * most treasuryShare of its treasury). → { house, crown, total, rival, k }
+     */
+    ransomPurses(player, world, w, want, treasuryShare = null) {
+        const P = Interrogation.config().pow;
+        const H = P.house || {};
+        const k = world && typeof world.getKingdom === 'function' ? world.getKingdom(w.kingdomId) : null;
+        const crownOk = !!(k && k.isAlive !== false);
+        const rival = Interrogation.powHouse(player, w);
+        const need = Math.max(0, Math.floor(_num(want)));
+        const house = rival ? Math.max(0, Math.min(need, Math.floor(_num(rival.gold) * _num(H.purseShare, 0.4)))) : 0;
+        const crown = crownOk ? Math.max(0, Math.min(need - house, Math.floor(_num(k.treasury) * _num(treasuryShare, _num(P.treasuryShare, 0.3))))) : 0;
+        return { house, crown, total: house + crown, rival, k: crownOk ? k : null };
+    },
+
+    /**
+     * Pay `amount` of a ransom into your purse: out of his House's purse
+     * first (as far as it will go), the rest out of his crown's treasury —
+     * coin moved purse to purse, never struck. → { paid, house, crown }
+     */
+    payRansom(player, world, w, amount, ledgerKey = 'ransoms') {
+        const rival = Interrogation.powHouse(player, w);
+        const k = world && typeof world.getKingdom === 'function' ? world.getKingdom(w.kingdomId) : null;
+        let left = Math.max(0, Math.floor(_num(amount)));
+        let house = 0;
+        if (rival && left > 0) {
+            house = Math.max(0, Math.min(left, Math.floor(_num(rival.gold))));
+            rival.gold = Utils.cents(_num(rival.gold) - house);
+            left -= house;
+        }
+        let crown = 0;
+        if (k && k.isAlive !== false && left > 0) {
+            crown = Math.max(0, Math.min(left, Math.floor(_num(k.treasury))));
+            k.treasury = _num(k.treasury) - crown;
+        }
+        const paid = house + crown;
+        if (paid > 0) {
+            player.gold = Utils.cents(_num(player.gold) + paid);
+            try { Ledger.record(player, ledgerKey, paid); } catch (e) { /* no ledger */ }
+        }
+        return { paid, house, crown };
+    },
+
+    /** Who paid, in words: "House Varr pays 120 out of its purse and Varn 80 out of its treasury". */
+    paidWords(w, p) {
+        const parts = [];
+        if (p.house > 0) parts.push(`${w.houseName || 'his House'} pays ${Utils.formatGold(p.house)} gold out of its purse`);
+        if (p.crown > 0) parts.push(`${parts.length ? w.realm : _cap(w.realm)} ${parts.length ? '' : 'pays '}${Utils.formatGold(p.crown)} gold out of its treasury`);
+        return parts.join(' and ') || 'Nothing is paid';
+    },
+
+    /** What his House and crown would pay to have him home. */
     powRansom(player, world, w) {
         const P = Interrogation.config().pow;
         const k = world && typeof world.getKingdom === 'function' ? world.getKingdom(w.kingdomId) : null;
         if (!k || k.isAlive === false) return 0;
         const base = _num((P.ransom || {})[w.rank], { lord: 500, knight: 200, captain: 80 }[w.rank] || 100);
         const hurt = MaimMarks.any(w) ? _num(P.maimedShare, 0.6) : 1;
-        return Math.max(0, Math.floor(Math.min(base * hurt, _num(k.treasury) * _num(P.treasuryShare, 0.3))));
+        return Interrogation.ransomPurses(player, world, w, base * hurt).total;
     },
 
-    /** Their crown pays out of its treasury into your purse, and they ride home. */
+    /** His House (if a rival's kinsman) and his crown pay into your purse, and he rides home. */
     ransomPow(player, world, id) {
         const w = Interrogation._pow(player, id);
         if (!w) return { success: false, reason: 'You hold no such prisoner.' };
-        const paid = Interrogation.powRansom(player, world, w);
-        if (!(paid > 0)) return { success: false, reason: `${w.realm} has nothing in its treasury to pay.` };
-        const k = world.getKingdom(w.kingdomId);
-        k.treasury = _num(k.treasury) - paid;
-        player.gold = Utils.cents(_num(player.gold) + paid);
-        try { Ledger.record(player, 'ransoms', paid); } catch (e) { /* no ledger */ }
+        const want = Interrogation.powRansom(player, world, w);
+        if (!(want > 0)) return { success: false, reason: `${_cap(w.realm)} has nothing in its treasury to pay.` };
+        const p = Interrogation.payRansom(player, world, w, want, 'ransoms');
+        Interrogation._powHouseHome(player, world, w, true);
         Interrogation._powGone(player, w);
-        const text = `${w.realm} pays ${Utils.formatGold(paid)} gold out of its treasury, and ${w.name} rides home.`;
+        const text = `${Interrogation.paidWords(w, p)}, and ${w.name} rides home.`;
         Interrogation._log(Interrogation.state(player), _day(world), text);
-        return { success: true, paid, text };
+        return { success: true, paid: p.paid, text };
     },
 
     /** Send them home for nothing: the realm thinks better of you. */
@@ -1196,6 +1351,7 @@ export const Interrogation = {
         const sub = Interrogation.state(player).subjects[`pow:${w.id}`];
         const hurt = MaimMarks.any(w) || !!(sub && sub.tortured);
         Interrogation._powGone(player, w);
+        if (!hurt) Interrogation._powHouseHome(player, world, w, false);
         if (!player.reputation) player.reputation = {};
         if (!hurt) {
             player.reputation[w.kingdomId] = _num(player.reputation[w.kingdomId]) + _num(P.releaseRep, 6);
@@ -1219,7 +1375,7 @@ export const Interrogation = {
         } catch (e) { entry = null; }
         if (!entry) return { success: false, reason: `${w.name} cannot be brought to the scaffold now.` };
         w.condemned = _day(world);
-        return { success: true, text: `${w.name} waits on the scaffold's list for your word (⚖️ The Scaffold). ${w.realm} will hear of it.` };
+        return { success: true, text: `${w.name} waits on the scaffold's list for your word (⚖️ The Scaffold). ${_cap(w.realm)} will hear of it.` };
     },
 
     /** Weekly: the realm wants its men back (a ransom offered, regard lost while you keep them); the scaffold's word. */
@@ -1236,7 +1392,12 @@ export const Interrogation = {
             if (w.condemned) {
                 let f = null;
                 try { f = Executions.fateOf(player, 'pow', w.id); } catch (e) { f = null; }
-                if (f && !f.waiting) Interrogation._powGone(player, w);
+                if (f && !f.waiting) {
+                    // The scaffold's work on a rival House's kinsman: blood owed (systems/bloodFeuds.js)
+                    if (f.outcome === 'executed') Interrogation.powBlood(player, world, w, ({ behead: 'beheaded', burn: 'burned', quarter: 'quartered' })[f.method] || 'captive');
+                    else if (f.outcome === 'spared' && f.mercy === 'maim') Interrogation.powBlood(player, world, w, 'maimed', { maimed: true, what: 'the knife' });
+                    Interrogation._powGone(player, w);
+                }
                 continue;
             }
             const held = day - _num(w.day);
@@ -1244,7 +1405,7 @@ export const Interrogation = {
             if (held >= _num(P.offerAfter, 21) && !w.offered && !w.talks) {
                 const amount = Interrogation.powRansom(player, world, w);
                 w.offered = day;
-                if (amount > 0) out.notices.push({ icon: '💰', title: `A Ransom for ${w.name}`, text: `${w.realm} will pay ${Utils.formatGold(amount)} gold out of its treasury to have ${w.name} home (🔗 The Dungeon).`, type: 'info' });
+                if (amount > 0) out.notices.push({ icon: '💰', title: `A Ransom for ${w.name}`, text: `${_cap(w.realm)} will pay ${Utils.formatGold(amount)} gold out of its treasury to have ${w.name} home (🔗 The Dungeon).`, type: 'info' });
             }
             // (every month you keep him, his realm thinks a little worse of you)
             if (held > 0 && held % 28 < 7 && _num(w.grumbled) < _num(P.grumbleCap, 12)) {
@@ -1291,10 +1452,10 @@ export const Interrogation = {
             player.reputation[t.kingdomId] = _num(player.reputation[t.kingdomId]) + _num(S.rep, -8);
             try { NPCLords.rememberRealm(world, t.kingdomId, 'spy_confessed', { note: t.name }); } catch (e) { /* no lord */ }
             try { House.accrueRivalFeud(player, world, t.kingdomId, _num(S.feud, 8), `${t.name} confessed`); } catch (e) { /* no House */ }
-            const text = `${realm} put ${t.name}, your spy, to the question, and ${t.name} talked.${blown.length ? ` Your ${blown.length === 1 ? 'mission' : `${blown.length} missions`} against ${realm} ${blown.length === 1 ? 'is' : 'are'} blown; your agents come home.` : ''}${taken ? ` ${taken.name}, hidden in ${realm}, was taken too.` : ''} The crown knows your hand in it now (${_num(S.rep, -8)} regard).`;
+            const text = `${_cap(realm)} put ${t.name}, your spy, to the question, and ${t.name} talked.${blown.length ? ` Your ${blown.length === 1 ? 'mission' : `${blown.length} missions`} against ${realm} ${blown.length === 1 ? 'is' : 'are'} blown; your agents come home.` : ''}${taken ? ` ${taken.name}, hidden in ${realm}, was taken too.` : ''} The crown knows your hand in it now (${_num(S.rep, -8)} regard).`;
             st.spiesDone.unshift({ day, name: t.name, realm });
             if (st.spiesDone.length > 10) st.spiesDone.length = 10;
-            Interrogation._log(st, day, `${realm} tortured ${t.name}, your spy.`);
+            Interrogation._log(st, day, `${_cap(realm)} tortured ${t.name}, your spy.`);
             out.notices.push({ icon: '🕵️', title: `${t.name} Talked`, text, type: 'error' });
         }
     },

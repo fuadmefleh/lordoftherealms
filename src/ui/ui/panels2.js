@@ -4,6 +4,7 @@ import { Cultures } from '../../world/cultures.js';
 import { Languages } from '../../systems/languages.js';
 import { Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, KingdomBonuses, KingdomAtlas } from './_imports.js';
 import { Names } from '../../core/names.js';
+import { RealmUnions } from '../../systems/realmUnions.js';
 
 Object.assign(UI.prototype, {
     /**
@@ -348,6 +349,11 @@ Object.assign(UI.prototype, {
                         <span class="info-label">Ruler</span>
                         <span class="info-value">${knows('ruler') ? kingdom.ruler : '<span style="color:#95a5a6;font-style:italic;">Unknown</span>'}</span>
                     </div>
+                    ${(() => {
+                        // Two crowns on one head (systems/realmUnions.js)
+                        const un = knows('ruler') ? RealmUnions.describe(this.game.world, kingdom) : null;
+                        return un ? `<div class="info-row"><span class="info-label">Union</span><span class="info-value" style="font-size:11px;">👑 ${un.label}</span></div>` : '';
+                    })()}
             `;
 
             if (knows('ruler') && lord) {
@@ -476,6 +482,11 @@ Object.assign(UI.prototype, {
                         <span class="info-label">Ruler</span>
                         <span class="info-value" style="color: var(--gold);">${knows('ruler') ? kingdom.ruler : '<span style=color:#666>Unknown</span>'}</span>
                     </div>
+                    ${(() => {
+                        // Two crowns on one head (systems/realmUnions.js)
+                        const un = knows('ruler') ? RealmUnions.describe(this.game.world, kingdom) : null;
+                        return un ? `<div class="info-row"><span class="info-label">Personal union</span><span class="info-value" style="font-size:12px;">👑 ${un.text}</span></div>` : '';
+                    })()}
                     <div class="info-row">
                         <span class="info-label">Status</span>
                         <span class="info-value" style="color: ${kingdom.isAlive ? '#2ecc71' : '#e74c3c'};">${kingdom.isAlive ? 'Active' : 'Fallen'}</span>

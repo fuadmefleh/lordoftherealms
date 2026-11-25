@@ -39,6 +39,19 @@
             },
             "ignored": "Your silence on {child}'s match was taken as a refusal in {realm}."
         },
+        "crusade_call": {
+            "_doc": "A ruler whose crown has answered a holy war (systems/holyWars.js) writes to a soul of the faith free to take the cross. A Knight of the Cross gets bodyKnight.",
+            "icon": "✝️", "weight": 5, "expiry": 12,
+            "lapse": { "deed": "crusade_declined", "withdraw": 120, "lost": "that court asks no more of you for this war" },
+            "subject": "The cross against {target}",
+            "body": "{from} writes that {realm} has taken up the cross against {target}, at the call of {head}. The host musters; every sword of the faith is wanted. Will you take the cross and ride with us?",
+            "bodyKnight": "{from} writes to you as one crusader to another: {realm} has taken up the cross against {target}, at the call of {head}. A Knight of the Cross at the muster would put heart in the host. Will you ride with us again?",
+            "choices": {
+                "take": { "label": "Take the cross", "tooltip": "A vow: reach the muster within its days and serve at the front. Remission of sins, the Church's keeping of your lands, and — if the war is won — the name of Knight of the Cross.", "result": "You take the cross against {target}." },
+                "decline": { "label": "Decline", "tooltip": "A small slight to the lord.", "result": "You send your regrets: not this crusade." }
+            },
+            "ignored": "{from}'s letter asking you to take the cross went unanswered."
+        },
         "feast_invite": {
             "icon": "🍖", "weight": 4, "expiry": 8, "minOpinion": 0, "cost": [30, 70], "renown": 2, "reputation": 4,
             "lapse": { "deed": "feast_snubbed", "reputation": -2, "withdraw": 60, "lost": "no more invitations to that hall for a while" },

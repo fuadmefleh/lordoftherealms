@@ -5,7 +5,8 @@
     "sizes": {
         "range": 10, "river": 14, "tributary": 18, "lake": 3, "bay": 6, "gulf": 30,
         "forest": 30, "desert": 18, "marsh": 7, "island": 4, "archipelago": 3,
-        "seaChunk": 420, "ocean": 700, "minBasin": 10, "openDist": 3, "inletSteps": 3,
+        "ocean": 700, "oceanEdge": 250, "minBasin": 10, "openDist": 3, "inletSteps": 3,
+        "enclosedMin": 60, "enclosedSea": 150, "straitMouth": 6, "seaSpotGap": 19, "seaSpots": 16,
         "islandMax": 90, "isleGap": 3, "riverLabelEvery": 16, "soundRatio": 3
     },
     "zoom": {

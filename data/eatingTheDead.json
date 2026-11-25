@@ -1,0 +1,29 @@
+{
+    "_doc": "EATING THE DEAD IN A SIEGE (systems/eatingTheDead.js). A starving garrison (stores at nothing for at least minStarvingDays, a garrison of at least minGarrison) can eat its dead. THE DEAD counted: the garrison it has lost since the siege began, and the townsfolk dead of hunger and sickness (dead x townDeadShare). STORES: + base + dead x perDead days of food, at most max (x 0.5 a second time, never a third). THE GARRISON: morale x moraleKeep the day it starts (the horror), a sickness chance (sick: bad meat, the town's disease); the starving loss stops while it lasts. THE TOWN is never the same: settlement.ateDead { day, by, epithet } (the epithet picked from epithets: what the realms call it after), a TownMemory atrocity mark (grief x long), its happiness happiness at once, its townsfolk marked (p.ateDead: their annals) and the survivors of the garrison remember; the realm's faith frowns (faith: the town's realm's stability / your standing with that faith). WHO: the AI garrison you besiege (systems/sieges.js) does it of itself (ai.chance a day once it may, x ai.cruel with a cruel lord, x ai.noQuarter when your name says no quarter); a crown's town your commissioned host besieges (player/generalship.js) — its surrender slowed by ai.generalSlow; your own besieged holding (systems/holdingSieges.js): you order it from the siege panel (Holdings Under Siege), or forbid it — else its governor may do it on his own (governor.chance a day after governor.afterDays starving, x ai.cruel with a cruel or ruthless governor). For yours: Atrocities 'ateDead' (karma, the butcher's name a little, every realm's regard, ate_dead_heard, the chronicle, the news), faithStanding with the realm's faith, the town's loyalty (holding happiness) loyalty.",
+    "enabled": true,
+    "minStarvingDays": 3,
+    "minGarrison": 8,
+    "townDeadShare": 0.5,
+    "base": 10,
+    "perDead": 0.12,
+    "max": 45,
+    "secondMult": 0.5,
+    "moraleKeep": 0.85,
+    "sick": 0.35,
+    "happiness": -12,
+    "grief": -10,
+    "griefLong": 10,
+    "faithStanding": 6,
+    "realmStability": -3,
+    "loyalty": -10,
+    "ai": { "chance": 0.08, "cruel": 2, "noQuarter": 2.5, "generalSlow": 0.5, "generalDays": 25 },
+    "governor": { "afterDays": 6, "chance": 0.05, "cruel": 2 },
+    "epithets": ["the Hungry", "of the Long Table", "the Gnawed", "of the Last Larder", "Bone-Gate", "the Grim Feast"],
+    "lines": {
+        "ai": ["Smoke rises from inside {town} at odd hours, and the men on the walls no longer look starved. Your scouts say they are eating their dead.", "Deserters from {town} tell of the garrison's dead carried to the kitchens. The town will hold out longer than anyone thought."],
+        "yours": ["Inside {town} the garrison carries its dead to the kitchens. It will hold for {days} days more. No one who lives through it will ever eat meat again without remembering."],
+        "governor": ["{governor} could not watch them starve any longer: the garrison of {town} has eaten its dead. It will hold {days} days more. You were not asked."],
+        "forbid": ["You send word into {town}: no man is to touch the dead. They will starve with clean hands."],
+        "name": ["Ever after, the towns around call it {town} {epithet}."]
+    }
+}

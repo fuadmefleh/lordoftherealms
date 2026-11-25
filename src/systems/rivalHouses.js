@@ -85,6 +85,8 @@ import { Brands } from '../world/brands.js';
 import { MaimMarks } from './maimMarks.js';
 // (blood spilt on the road: the rival House's blood feud with yours, systems/bloodFeuds.js; run time only)
 import { BloodFeuds } from './bloodFeuds.js';
+// (a dead head laid in his tomb, for a synod to find: systems/cadaverSynod.js; run time only)
+import { CadaverSynod } from './cadaverSynod.js';
 // (run time only: a child of theirs taken when their retinue is beaten)
 import { RivalCaptives } from './rivalCaptives.js';
 
@@ -1586,6 +1588,12 @@ export const RivalHouses = {
         const kin = heir || capHeir;
         const text = `${opts.deposed ? `${oldName}, maimed in your keeping, is set aside.` : `${oldName} dies at ${old.age}.`} ${kin ? `${old.gender === 'female' ? 'Her' : 'His'} ${kin.gender === 'female' ? 'daughter' : 'son'}` : 'A cousin,'} ${newName}${kin ? '' : ','} now heads ${rival.name}${capHeir ? ', from your keeping' : ''}.`;
         this._note(rival, world, text, 'bereaved');
+        // The dead head is laid in the House's crypt at its seat — where a synod may one day dig him up (systems/cadaverSynod.js)
+        if (!opts.deposed && rival.seat) {
+            try {
+                CadaverSynod.bury(world, { kind: 'lord', name: oldName, dynasty: String(rival.name || '').replace(/^House\s+/i, ''), house: rival.name, kingdomId: rival.kingdomId, q: rival.seat.q, r: rival.seat.r, town: rival.seat.name || null, heir: newName });
+            } catch (e) { /* no tomb */ }
+        }
         const unit = this.retinueOf(world, rival);
         if (unit) unit.name = `${newName}'s Retinue`;
         if (player && player.house) House._chronicle(player.house, world, text, ['rival', 'death']);
@@ -2389,6 +2397,9 @@ export const RivalHouses = {
             estates: lands.map(e => e.name), landValue: Math.round(this.landValue(world, rival)),
             kingdomId: rival.kingdomId, house: rival.name, role: rival.role || null, name: this.headName(rival), age: h.age, gender: h.gender,
             traits: (h.traits || []).map(t => C.traits[t]).filter(Boolean),
+            // (a crusader's honour, systems/holyWars.js; and the cross they have taken now)
+            knight: h.crossKnight ? (h.crossKnight.title || 'Knight of the Cross') : null,
+            cross: rival.cross ? rival.cross.target : null,
             skills: { diplomacy: h.diplomacy, stewardship: h.stewardship, intrigue: h.intrigue, martial: _num(h.martial, 5) },
             spouse: h.spouse ? h.spouse.firstName : null,
             children: h.children.map(c => ({ name: c.firstName, age: c.age, gender: c.gender, wed: c.wed || null, maimed: MaimMarks.tag(c) || null, held: !!c.captiveOf, heir: this.heirOf(rival, { any: true }) === c })),

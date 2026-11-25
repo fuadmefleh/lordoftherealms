@@ -301,7 +301,14 @@ export const Coalitions = {
         const realm = KingdomAI.playerRealm(world);
         if (realm) {
             const towns = typeof world.getSettlementsOf === 'function' ? world.getSettlementsOf(realm.id).length : 0;
-            parts.crown = _num(P.crown) + towns * _num(P.crownTown);
+            // (weighed by the realm's might beside the other crowns': a crown is no threat for
+            // being a crown — a small realm half as mighty as its neighbours weighs half; before
+            // 2026-11-24 any crown of eight towns read as overmighty, and a realm with a tenth of
+            // the world's towns drew a league's three wars at once every year or two)
+            const others = (world.kingdoms || []).filter(k => k && k.isAlive && k !== realm);
+            const avg = others.length ? others.reduce((s, k) => s + KingdomAI._might(k), 0) / others.length : 0;
+            const share = avg > 0 ? Utils.clamp(KingdomAI._might(realm) / avg, _num(P.crownMightFloor, 0.25), _num(P.crownMightCap, 1.5)) : 1;
+            parts.crown = (_num(P.crown) + towns * _num(P.crownTown)) * share;
         }
         // Far crowns worn in personal union, and a high crown proclaimed (systems/highCrowns.js)
         parts.crown += HighCrowns.coalitionPower(player, world, P);
@@ -694,7 +701,9 @@ export const Coalitions = {
         }
         // A crown the player rules: a war between the realms and an embargo
         if (realm && realm !== k) {
-            if (!(k.wars || []).includes(realm.id) && !KingdomAI.hasTruce(k, realm, world) && (k.wars || []).length < 3) {
+            // (the limits every aggressor keeps — the truce, the wars the crown already fights:
+            // KingdomAI.mayOpenWar — a league allowed one more than a lone realm)
+            if (!(k.wars || []).includes(realm.id) && KingdomAI.mayOpenWar(k, realm, world, { rested: false, founding: false, beset: false, maxOn: KingdomAI.WAR.maxWarsOn + 1 }) && (k.wars || []).length < 3) {
                 Utils.withRng(Utils.seededRandom((Utils.hashStr(`coalition-war:${_seed(world)}:${k.id}:${day}`) >>> 0) % 233279 + 1),
                     () => KingdomAI.startWar(k, realm, world));
                 if (Array.isArray(world.events)) world.events.push({ text: `⚔️ ${k.name} marches on ${realm.name} for ${c.name}!`, type: 'military', kingdom: realm.id });

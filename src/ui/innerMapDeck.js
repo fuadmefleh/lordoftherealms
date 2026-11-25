@@ -696,6 +696,8 @@ export const InnerMapDeck = {
         if (won) for (const n of crew.slice(0, 5)) InnerMapReactions.bark(n, 'Huzzah!', 3);
         game.ui.showNotification(won ? '⚔️ Boarders Beaten Off' : '🏴‍☠️ Boarded and Beaten', `${lead ? `${lead} ` : ''}${res.text}`, won ? 'success' : 'error');
         game.ui.updateStats(game.player, game.world);
+        // The boarders left alive on your deck throw down their cutlasses: their fate is yours (player/prisonerFates.js)
+        if (res.yielded && ActionMenu.captivesRowHtml(game)) { ActionMenu.showCaptivesScene(game); return; }
         this.showHelm(game, { icon: won ? '⚔️' : '🏴‍☠️', text: `${lead ? `${lead} ` : ''}${res.text}` });
     },
 

@@ -2314,7 +2314,7 @@ Every arms recipe makes more than its stuff is worth at base price; a Fine piece
 
 **Arrows and bolts.** Bowmen shoot arrows, crossbowmen bolts (`data/arms.json` ammo; a scout issued a bow shoots too). Each carries a quiver: an Archer 16 arrows, a Longbowman 20, a Crossbowman 12 bolts. Every battle — the quick battle, the phased field battle and the battlefield you command on the ground — looses them: 8 arrows an archer (10 a longbowman, 6 bolts a crossbowman), or, on the battlefield, 0.4 a man for every volley his company actually looses. A won field gives back 30% of what was loosed (picked up off the ground, into your packs). **A bowman short of a battle's worth fights at 35%** (and on the battlefield a company whose quivers are empty looses only scrounged shafts, at 35%); the Arms & Armour panel shows each kind's quivers and how many are short. **Resupply**: every day your baggage hands out arrows and bolts from your packs to the quivers that want them, and again after every battle; *Fill the quivers from your packs* does it at once, and in a town *Buy for the quivers* buys the rest from its stock at its price. A recruit bowman is issued his quiver like his kit (your packs first, then the town's stalls; the recruit menu shows it); an archer who came to you before quivers were counted brings his own, once. Make your own: **Arrows** (wood, 2 feathers and an iron or stone head → 10 or 6; eagle feathers → 16) and **Crossbow bolts** (wood + iron → 10) at a workbench. Hunting: a bow shoots arrows, a **crossbow bolts** — the hunt takes up the bow you have missiles for.
 
-**The realms' armies are armed with real arms** (`world/realmArms.js`). Each crown keeps an **armoury** — the same goods its towns make: munition swords and spears, bows and crossbows, shields, helms, gambesons, leather and mail, and the arrows and bolts for its archers. Its army (in men) needs a kit per ten men: a weapon for the foot and horse, a bow for its archers, a shield for the foot, a helm and a harness for every man, and a quiver for each archer kit. Every three days the crown **buys what it lacks out of its own towns' market stock** — the cheapest good for its worth first, never more than half a town's stock at once, at the town's price, **paid from the treasury into the town's purse** (the Treasury panel's *Arms & armour* line) — spending at most 12% of what the treasury holds above its reserve (300 gold + 0.8 a man). So raising men, replacing the fallen and arming for war all draw on the towns' armourers, and a realm's arms are only as good as its towns' iron, hides and timber. The pieces wear out (0.06% a day, 0.4% a day at war). **In a pitched battle** each side loses the arms of its fallen; the side holding the field gathers 35% of its own back and strips 30% of the beaten's; both loose their arrows (8 an archer kit) and the victor picks a quarter of its own up. **An under-armed realm fights weaker**: its battle power is multiplied by its arms factor — 1 for an army fully kitted in common iron, up to 1.45 in mail and steel, down to 0.6 for a levy with nothing but its own knives; archers without arrows count as sticks. A war host a crown sends against you takes its share of the armoury (and its arrows) with it — its strength is its men as armed — brings home what survives, and leaves it all on the field when you break it; besiegers carry theirs into the siege lines. A conquered realm's arsenals fall to its conqueror; a rising arms itself out of its own town's stalls. A demobilised army's surplus (past 125% of its need) is sold back to the realm's town that holds least of it, at 60% of its price, as far as that town's purse pays. A 720-day run on three seeds kept 10, 9 and 10 of the ten realms alive, their arms factor averaging 0.85–0.96 (a broke realm can sit at the 0.6 floor), the crowns spending about 450–650 gold a day between them on arms, the towns' arms stocks dipping in the first months and then recovering, and their prices within about 25% of the norm (arrows the dearest, up to 40% in a warlike world).
+**The realms' armies are armed with real arms** (`world/realmArms.js`). Each crown keeps an **armoury** — the same goods its towns make: munition swords and spears, bows and crossbows, shields, helms, gambesons, leather and mail, and the arrows and bolts for its archers. Its army (in men) needs a kit per ten men: a weapon for the foot and horse, a bow for its archers, a shield for the foot, a helm and a harness for every man, and a quiver for each archer kit. Every three days the crown **buys what it lacks out of its own towns' market stock** — the cheapest good for its worth first, never more than half a town's stock at once, at the town's price, **paid from the treasury into the town's purse** (the Treasury panel's *Arms & armour* line) — spending at most 12% of what the treasury holds above its reserve (300 gold + 0.8 a man). **A slot none of its own towns can sell is imported**: bought from the six nearest market towns within 20 hexes of its own, of a realm it is not at war with (nor regards below −30) or of no realm, at most a quarter of a town's stock at a time, at that town's price plus 30% for the carriage, paid into that town's purse (the coin leaves the realm). A small realm in a long war is no longer stripped bare by its few towns' stalls. So raising men, replacing the fallen and arming for war all draw on the towns' armourers, and a realm's arms are only as good as its towns' iron, hides and timber. The pieces wear out (0.06% a day, 0.4% a day at war). **In a pitched battle** each side loses the arms of its fallen; the side holding the field gathers 35% of its own back and strips 30% of the beaten's; both loose their arrows (8 an archer kit) and the victor picks a quarter of its own up. **An under-armed realm fights weaker**: its battle power is multiplied by its arms factor — 1 for an army fully kitted in common iron, up to 1.45 in mail and steel, down to 0.6 for a levy with nothing but its own knives; archers without arrows count as sticks. A war host a crown sends against you takes its share of the armoury (and its arrows) with it — its strength is its men as armed — brings home what survives, and leaves it all on the field when you break it; besiegers carry theirs into the siege lines. A conquered realm's arsenals fall to its conqueror; a rising arms itself out of its own town's stalls. A demobilised army's surplus (past 125% of its need) is sold back to the realm's town that holds least of it, at 60% of its price, as far as that town's purse pays. A 720-day run on three seeds kept 10, 9 and 10 of the ten realms alive, their arms factor averaging 0.85–0.96 (a broke realm can sit at the 0.6 floor), the crowns spending about 450–650 gold a day between them on arms, the towns' arms stocks dipping in the first months and then recovering, and their prices within about 25% of the norm (arrows the dearest, up to 40% in a warlike world).
 
 **Rival Houses ride in harness.** A rival House's retinue — four household men and its hired guards — each wants a soldier's kit. When the retinue stands in a town the House buys what its men lack from the town's stalls (the cheapest of each slot), from its own purse into the town's, never below its reserve. Its strength (on the road, waylaying you, when you fall on it) is its men **as armed**: hired guards come bare until their kits are bought. The kits wear out (1% a week); a retinue beaten off in an ambush loses its fallen guards' arms and some of the rest, and one you scatter drops 30% of its arms on the road — both into your packs. The head fights a duel in the House's best blade and harness (a steel longsword and mail make him a harder man to cut). The House's panel shows its men's arms and how well armed they are; the renderers have the retinue's best piece of each slot (`RivalHouses.kitView(rival)`).
 
@@ -3237,6 +3237,106 @@ Heresies can emerge within faiths, reducing unity and stability. There are 11 he
 
 **Denounce Heresy** (2 AP) appears in any town whose kingdom has an active heresy. Your sermon knocks 6 + 1.5×faith + 0.5×charisma (+0–4) off the strongest heresy's strength. Drive it to zero and the heresy is suppressed: the kingdom regains 5 piety and you earn +5 reputation there, +5 karma and +5 renown. Suppressions count toward the Heresy Hunter quest and achievement.
 
+### The Church: Sees, Holy Wars and the Ban
+
+Every faith the realms keep has a **see**, and so does each rite of a faith split by a schism (the head of the other rite is its **counter-pope**). Open **Dynasty → Against you → ⛪ The Church**. (`systems/holyWars.js`, `data/holyWars.json`.)
+
+**The see.** Its seat is the capital of the faith's chief realm (the most holy sites of the faith, then piety). Its **head** is a named pontiff ("Clement IV, Hierarch of the Sun") who was raised in his late forties to sixties and dies in his late sixties to eighties. A new head is raised at once, and he may lift his predecessor's bans (40% each). If you are a **High Priest** of the faith, you are its head. The see's **coffers** are real coin: each faithful crown tithes 0.15% of its chests a week (at most 40g), and penances, absolutions and the inquisition's seizures go into them too. Past 3,000g, 6% of the surplus is spent into the seat's town each week, and the see subsidises the crowns that answer its holy wars. A see you head keeps its coin in your purse.
+
+**Holy wars.** Holy wars are rare: a few a century in the whole world. After any see calls one, no other see calls for 12–22 years, and each see waits 6–12 years after its own last war (and about 300 days into a new world at the earliest). Militant faiths call more often. Before calling, a head sounds out the crowns: if they would not fight for a cause (their summed will to answer under 0.35), it waits a year. A realm that was the target of a holy war in the last 30 years counts a tenth as much as a cause, so one realm is not the world's target every decade. The causes:
+
+| Cause | Weight | When |
+|---|---|---|
+| A holy site of the faith held by another faith or rite | 3 | The holder is the target |
+| A ruler under the ban for a year or more | 2.5 | |
+| A realm of the faith keeping the other rite (heresy) | 2 | Only after a schism |
+| An infidel at enmity with the faithful | 0.6 | Relations −30 or worse, or at war with one of them; only for a faith with any militancy |
+
+At most two holy wars run in the world at once, one per see, and a realm is the target of only one at a time. **Joint crusades:** while one see is calling its holy war, another see with a cause of its own against the same foe may (60%, decided once) bless that war instead of calling its own. Its faithful crowns are summoned to the same war, its seat answers at once, and its crowns draw their subsidy from their own see. In most worlds each faith has only a realm or two, so this is how holy wars become coalitions. Every faithful crown except the target is **called** and has 40 days to answer. The see's own realm answers at once if it can. Each AI crown weighs its piety, its faith's militancy, its lord's honour, the wars it already fights (none at two wars), how far away it is, and an alliance with the target. A crown that **answers** goes to war with the target through the ordinary war machinery, sworn for the war's term (2–4 years after the call; the lords' peace and war-weariness cannot end it). It makes peace with fellow crusaders first and draws a subsidy (a quarter of the coffers, at most 2,500g). It gains 6 piety and +4 stability and +8 with its lords for 240 days. A crown that **refuses** loses 6 piety, 6 stability and 12 with its lords for 240 days, and the see's grievance against it rises by 35.
+
+A holy war is **won** at once when the holy site is retaken, the target falls, or it capitulates to a crusader with its last town about to fall. Taking towns also wins it, but only once a third of the target's towns (at least two, at most all it had) are taken **and** the war has run 180 days since the call closed. A holy war is a campaign, not a raid. It is **lost** when every crusader has gone home. At the end of its term (or when its resolve runs out: it wears down 1.2 a week, half again as fast while the foe's army outweighs the crusaders', and drops 20 for each crown that leaves), it counts as won if any town was taken. Every crusader then makes peace: the victors take a quarter of the loser's chests in tribute, or pay it if they lost. A vanquished heretic realm returns to the see's rite, and a ruler under the ban submits. The war goes into the **Annals** as an age of its own, with the crowns that took the cross and the towns they took.
+
+**Your crown and the call.** If you rule a realm of the faith, the call comes to you ("The Church calls your crown"): **answer** (your realm goes to war at once; +6 standing with the faith, +25 Prestige, +60 more if it is won) or **refuse** (−10 standing, the stability and lords' penalties above). If you never answer, it counts as a refusal. If a holy war is called against your realm, the crusaders come at you as any realm at war does.
+
+**Taking the cross.** Anyone keeping the faith can take the cross while a holy war is called or fought, unless they are cast out or it is against their own realm. The vow is to reach the **muster** (the crusaders' town nearest the foe's capital) within 100 days, within 3 hexes of it, and then **serve 40 days** within 5 hexes of the muster or the foe's towns. While you are under the cross, the crowns of the faith do not threaten your lands with ultimatums. At the muster you go to war with the foe yourself (its war hosts march on your holdings, and you can fight them in the field) until the holy war ends.
+- **Fulfilled**: **remission of sins**. In every realm of the faith, the lesser charges on the crowns' sheets are wiped and the grave ones cut to 40%. Your butcher's name falls by half and your perjurer's to 60%. You also get +12 karma, +18 standing, +8 name in the faith's realms and +70 Prestige, and a crusade on your record.
+- **Released**: the war ended before you reached the muster. No penalty.
+- **Broken**: you never reached the muster. −25 standing, −10 karma, −40 Prestige, and the see's grievance against you rises by 30.
+
+When you fulfil your vow, the rulers of the crowns that answered remember it (half the weight of a 'crusader' deed in their memory of you).
+
+**Knight of the Cross.** If you fulfil your vow in a holy war that is then **won**, the faithful hail you **Knight of the Cross**. The title shows under your name on the character sheet, in its Honours section and on the Church panel. A second crusade won makes it "(twice)". It also goes into the House's honours (+12 fame, listed with the House's other honours) and the House chronicle. Every ruler of the faith remembers you as a crusader (+12 opinion, slow to fade). The ruler of the realm you rode against remembers it too (−14). The honour belongs to you, not to the House: your heir does not inherit it. AI rulers whose crowns are still in the field when a holy war is won are hailed the same way, and their audience shows it.
+
+**Rival Houses take the cross.** When a realm answers a call, each rival House seated in it may send its head on crusade. The chance is about 30%, higher for a martial or proud head and lower for a homebound one. The House pays to ride: 8% of its purse (40–400g), spent in its seat town. If the war is won, the head comes home a Knight of the Cross, with +15 renown and +10 standing at the courts of the crusading crowns. If it is lost, the House loses 5 renown and a guard. Either way the head may fall on crusade (6%), and the House passes to the heir. The rival's card in the Rival Houses panel shows the title, or the cross they are under.
+
+**A letter asking you to take the cross.** While a holy war of your faith is called or fought and you are free to take the cross, a ruler whose crown has answered may write to you ("The cross against …", Journal → Letters). You can **take the cross** from the letter or **decline**, which is a small slight. If you leave it unanswered, the lord remembers the cross you would not take. A Knight of the Cross is written to as one.
+
+**The ban (excommunication).** The see keeps a grievance against each ruler of the faith and against you. It decays 3% a week and grows from:
+- making war on the see's own realm: +12 a week
+- a faithless realm (piety under 15): +4 a week
+- tolerating heresy (the heresy law at Tolerance): +1.5 a week
+- refusing a call: +35
+- expelling an inquisitor: +40
+- fleeing the inquisition's summons: +25
+- a bribe an inquisitor refused: +15
+- a broken crusader vow: +30
+
+At 100 an AI head casts the ruler out. Under the ban:
+
+| Effect | Realm | You |
+|---|---|---|
+| Stability | −12 (the realm's stability target: rebellions follow) | |
+| Lords' regard | −25 for the crown cast out (a ruler's vassals: factions, ultimatums, revolts) | |
+| The faithful | relations −2 a week toward −60, alliances broken (8% a week each) | name −1 a week in the faith's realms toward −40 |
+| Faith | piety −0.6 a week | standing −30 at once |
+
+**Lifting the ban.**
+- **Penance** at the see's seat, before the head: 40% of the price in alms and 30 Prestige of shame.
+- **A gift to the see**: the price, which is 400g plus 15% of your purse, plus half of 12% of your crown's chests when the ban is on your realm, at most 6,000g. It comes from the crown's chests first.
+- **Turning to the counter-pope**, where a schism split the faith: the other rite calls the ban void, but the old rite's faithful think the worse of you, and a realm that turns changes its rite.
+
+AI crowns do penance after 16–60 weeks if their chests hold half again the price, or turn to a counter-pope (4% a week).
+
+**As High Priest** you speak for the see yourself: call a holy war on any realm the faith has a cause against, cast out or pardon a ruler of the faith, and send an inquisitor into a realm of the faith (150g commission). The AI head's automatic calls, bans and inquisitors stop while you head the see.
+
+### The Inquisition
+
+A see sends **inquisitors** into the realms of its faith. They are persistent people ("Brother Bernard", "Sister Agnes"), aged 34–58 when commissioned for 4–9 years, each with a **zeal** and a **greed**. A realm's **Heresy** law decides whether they come (`systems/inquisition.js`, `data/inquisition.json`):
+
+| Heresy law | Inquisitors | Fires | Other |
+|---|---|---|---|
+| Tolerance | Not admitted (those there leave) | — | The see's grievance +1.5 a week |
+| The bishops' courts | Admitted | No | Penances, seizures and 60 days in the cells |
+| The Holy Office | Welcome | Yes, where the faith burns | −1 stability on adoption |
+
+Each week a realm that admits them, with no inquisitor of its own, gets one with a small chance. The chance grows with its heresies' strength and its piety, and more if your own faith is preached there. At most 6 ride at once. His commission (150g) and his keep (2g a day) come out of the see's coffers into the towns he sits in.
+
+**The round.** He rides town to town in his realm, the great towns and those where a strange faith is preached first, at 4 hexes a day. He holds a **hearing** of 6–12 days, rests 3–8 days, and rides on. He visits each town at most once a year.
+
+**Hearings.** On about half the days of a hearing, a real townsperson of the town (16 or older) is tried. The odds of guilt rise with the realm's heresy, the town's informers and your faith's hold on the town. The guilty are:
+- given a **penance**: 30% of their purse to the see
+- or have their **whole purse seized** (more often with a greedy inquisitor) and go to the cells
+- or, under the Holy Office and a faith that burns, are **handed to the secular arm**: a burning is proclaimed two days on and carried out on the town's scaffold like the realms' own executions. That brings the crowd, the kin's blood feud with the crown, and a martyr's shrine if the condemned was innocent.
+
+Every coin seized moves from a townsperson's purse into the see's coffers. In a town whose people you have not met yet, the condemned's goods come out of the town's purse instead (0.4% of it, at most 60g). Each conviction knocks 3 off the realm's strongest heresy (stamping it out when it reaches 0) and adds 0.3 piety. The town's annals tell of the condemned and those who fled.
+
+**A town under a hearing.** Its **fear** rises about 2–6 a day (with his zeal), plus 12 for a burning, and fades by 0.6 a day afterwards. Fear lowers its happiness by 0.12 per point of fear. **Informers** multiply; they report on you too. Past 25 fear, 0.2% of the people **flee** each day to the nearest town of another realm (moved, not lost), and now and then a named townsperson leaves the roll.
+
+**You and the inquisitor.** In his town (or one you rule) he weighs your **suspicion** (0–100). It is raised by keeping no faith (+20), a stranger's faith (+40) or your own founded faith (+55), poor standing with his faith, a soul sold (+25), a hearing you obstructed (+15 each), a bribe he refused (+25), the town's informers (+2 each) and being under the ban (+30). It is lowered by hosting him (−25) and your Prestige. At 50 you are **summoned** to answer within 7 days:
+- **Stand before the hearing.** The odds you are found suspect show on the panel. The verdicts:
+  - acquitted (+3 standing and his favour)
+  - a penance (8% of your purse)
+  - confiscation (30%)
+  - relapsed: at 80+ suspicion under the Holy Office you are handed to the secular arm. 30% of your purse is seized, the crown posts a grave **heresy** warrant (500g), and you are arrested and **tried** for heresy by the realm's court.
+- **Recant**: abjure on your knees. 5% of your purse, −12 standing, −15 Prestige, no verdict.
+- **Flee**: don't come. The crown posts a grave heresy warrant (300g), and the see's grievance rises by 25.
+
+What you can do about an inquisitor in your town:
+- **Host** him: 120g into the town, his favour for a year (−25 suspicion) and +3 standing.
+- **Bribe** him: 200g + 500g × zeal into his own purse. He takes it with odds of greed × (1 − 0.6 × zeal), and then the hearing ends and he rides on. A zealot refuses: +25 suspicion for a year and +15 to the see's grievance.
+- **Obstruct** a hearing: it ends 3 days sooner and half as many are tried. +2 karma and the town less afraid, but each of the town's informers adds 6% that you are seen and summoned at once.
+- **Expel** him from a town or realm you rule. From your realm he leaves the realm; from your town he may not hold a hearing there for two years. The see's grievance rises by 40, and you lose 15 standing and the realm 5 piety.
+
 ### Kingdom Temples
 
 Pious lords fund chapels, monasteries and cathedrals. Besides piety, gold and scholarship, each adds half its unity bonus to the realm's faith unity (chapel +1.5, monastery +2.5, cathedral +5; at most +15). Unity feeds kingdom stability.
@@ -4139,6 +4239,16 @@ A name given under the question is grounds enough for the law: a townsperson nam
 
 Beat a band of men in battle (a realm's war host or patrol; raiders, pirates, sellswords or smugglers with no realm) and some of them yield: the survivors × 40% (60% when they broke and ran), two men a strength point. The battle report shows **⛓️ N men yield to you** and a row, **Decide the fate of the captives**. Walk away and your captains settle it at the end of the next day: the men of rank are offered back for a fair ransom, a realm's men go home on their oath, outlaws hang. The scene, and everything after it, is also under **🛡️ Prisoners of war** (Intrigue & the Law, and a row in 🔗 The Dungeon). Tuning: `data/prisonerFates.json`.
 
+**Not only in the field.** Men yield to you wherever you beat them:
+
+- **A stormed outlaw lair** (bandits, smugglers, deserters, cultists; beasts yield nothing): the survivors of the three stages (their strengths summed × 40%) are left for your word. The lair's result shows a row, *Decide the fate of the captives*; the scene says they knelt *among the ruins of* the lair.
+- **A stormed or sacked town**: the garrison's survivors who yield *in the breach* (35% of the garrison), a realm's column with its men of rank (the prisoner of war taken in the town's fall is one of them). A town that surrenders on terms has safe conduct: no column.
+- **Boarders beaten off your deck** (a voyage's pirates, fought hand to hand): half their strength yields *on the deck*, as outlaws.
+- **A realm's ship carried by your boarders** (running a blockade, or a patrol that intercepts you while you are aboard): half her surviving crew yields, a realm's column (no blinding at sea). A pirate crew beaten at sea keeps its own aftermath (ransom the captain, hand them to the crown, press them, let them go).
+- **A rebel host broken in the field**: the commons who rose kneel as a column, and their fate is **the rising's own judgement**: 🕊️ Mercy, 💀 Hang the leader, ⚰️ Hang the ringleaders, ⛓️ Take the leader (to your dungeon), or 🛡️ **press them into your service** (militia turncoats on low loyalty who may slip away; the leader taken in chains). Walk away and the captains show mercy. Judge the rising in its own panel instead and the column is gone with it. A rising against another's crown is that lord's to judge.
+
+A surrender no panel took up (a fight sailed out by the sailing master, for one) waits for you at the day's end (*Captives Await Your Word*); your captains decide it the next day.
+
 **Oath-breakers first.** Men you once sent home on their oath and who came against you again are found out among the captives. Hang them by right (no stain of cruelty) or let them share the others' fate.
 
 **The men of rank.** A realm's column of 15 strength or more has its captains, knights or a lord (one, plus one per 50 strength, at most 4); they lie in your Dungeon. **Ransom them**, keep them in the dungeon, or let them share the men's fate (a lord's death is remembered as a highborn execution). Ransom is **talks over days**:
@@ -4147,6 +4257,15 @@ Beat a band of men in battle (a realm's war host or patrol; raiders, pirates, se
 - Their crown will pay up to about 1.3× the fair price (more for an ambitious or honourable lord), and never more than 35% of its treasury. At or under that: agreed, and the coin rides in four days later, **out of their treasury into your purse**. If the treasury is short it pays what it has and the rest later; still unpaid 30 days after you opened the talks, it has defaulted.
 - Over that: they offer what they will pay. Take it, or **press** for more (each press asks 20% less). After three rounds they refuse.
 - Refused or defaulted, the knight stays in your dungeon. After 120 days there he may die in the dark (4% a month): no ransom comes for the dead, his realm's regard falls by 10 and its lord remembers it. Or **sell him** to a crown at war with his realm (or no friend of it): 60% of the fair price, out of the buyer's treasury (at most a quarter of it). His realm's regard falls by 8 and its lord remembers it.
+
+**A rival House's blood.** Where one of your rival Houses is seated in the realm you beat, a lord you take is of its blood more often than not (60%; a knight 20%): he bears the House's name (*Lord Edric Varr*, the head's brother or cousin), the scene says so, and the House hears of it (its feud with you rises, it remembers). From then on **his House answers for him with his crown**:
+
+- His ransom is paid **out of the House's purse first** (up to 40% of it), the rest out of his crown's treasury; the price they will meet is what both can spare together, so a poor crown with a rich House can still buy him back. The coin moves from their purses into yours. The dungeon's own *ransom* row draws on the House the same way. Ransomed, the House remembers it; sent home for nothing, it thinks the better of you (feud −10).
+- Sold to a hostile crown: the House's feud +20.
+- **Dead in your keeping** (under the question, rotting in your cells, on the scaffold, or cut down or impaled with the men whose fate he shared): **a blood feud with his House** (Dynasty → Blood Feuds), its feud +60, and it remembers him dead in your hands.
+- **Maimed** (the iron under the question, the knife instead of the scaffold, blinded with his men): a blood feud too, its feud +40.
+
+Tuning: `data/interrogation.json` `pow.house`.
 
 **The men.** A realm's men:
 
@@ -4159,7 +4278,11 @@ Beat a band of men in battle (a realm's war host or patrol; raiders, pirates, se
 | 👁️ Blind them and send them home | (10 men or more, not at sea.) Basil II: one in a hundred is left an eye to lead the rest. **The column walks home on the world map** (3 hexes a day, toward their capital). When it comes in, the realm **loses heart for 120 days**: its armies fight with −15% morale against everyone, it sends no new war hosts against you, its stability falls by 8. **Every faith hates you** (your standing falls with all of them), butcher +30, karma −30, regard −40 with them and −10 with every realm, renown +12 (a tale), gossip in every capital, your lords cowed for 40 days, +25 war score. A one-eyed captain who led them home may become your nemesis. |
 | ☠️ Impale them along the road | (6 men or more.) Vlad: stakes on six hexes of the road from the field **into your realm** (toward your crown's capital, else your nearest holding, else your liege's capital), drawn on the world map with the crows over them, and **rotting over 90 days** (gone 45 days after). While they stand, and the fresher the more: a war host within 6 hexes may **turn back** (35% a day × freshness; its men go home), a crown whose target lies within 6 hexes may **not march at all** (60% × freshness), and the victims' realm and every realm whose capital is within 30 hexes **will not open a war of conquest on your realm** while the stakes are fresh. Your name becomes a tale: renown +30, butcher +40 (a dreaded name opens purses: ransoms and tribute come easier), gossip in every capital, regard −45 with them and −8 with every realm, every faith a little colder, karma −35, and **your own lords fear you more than the enemy**: cowed 60 days (no factions), a grudge each. |
 
-**Outlaws** (bandits, raiders, pirates, sellswords, smugglers) have no realm and no ransom. **Hang them by the road**: renown +2, the nearest realm's regard +2, the nearest town's thieves cowed for 45 days (as after the scaffold), but outlaws fight to the last against you for 120 days. Or take them into service (militia, loyalty 15), let them go (karma +3; some go back to the road), cut them down (karma −5, outlaws fight to the last for 240 days), or impale them (renown +15, butcher +15, karma −10: a tale, but no realm's war is deterred). There is no penal labour (the mines, the galleys) to send them to yet.
+**Outlaws** (bandits, raiders, pirates, sellswords, smugglers) have no realm and no ransom. **Hang them by the road**: renown +2, the nearest realm's regard +2, the nearest town's thieves cowed for 45 days (as after the scaffold), but outlaws fight to the last against you for 120 days. Or take them into service (militia, loyalty 15; the rest go back to the road), let them go (karma +3), cut them down (karma −5, outlaws fight to the last for 240 days), or impale them (renown +15, butcher +15, karma −10: a tale, but no realm's war is deterred). There is no penal labour (the mines, the galleys) to send them to yet.
+
+**Outlaws you let go ride again.** 8 to 20 days later a band of them (60% of the column's strength; a handful too few just scatter) is back on the map a few hexes off, a real raider band, or a pirate ship if they were taken at sea, under the same name. For the mercy they leave you be for 60 days; after that they are outlaws like any others. *Old Faces on the Road* tells you when.
+
+**The stakes scare outlaws too.** Any stakes of yours (realm men or outlaws) deter raiders and pirates as they deter war hosts: a band within 6 hexes of a fresh line may turn away each day (60% × how fresh; a line of impaled outlaws counts half again as much) and ride off away from the posts for 5 days, hunting neither you nor the caravans.
 
 **Your men in their hands.** Beaten by a realm, about a third of your fallen were taken alive (at least a company). Their lord decides, by his temper and by **what you did to his men**: a greedy lord asks a ransom (40 gold a company, out of your purse into his treasury, within 30 days, or they serve in his army; buy them back under 🛡️ Prisoners of war), an honourable one sends them home within a week, a cruel one may cut them down or blind them. If you slaughtered, blinded or impaled his men, he is far likelier to do the same, and never sends them home free; if you spared his, he is likelier to spare yours. Your men killed or blinded want blood: +6% in battle against that realm for 120 days.
 
@@ -4370,6 +4493,137 @@ From a great body you can take a **skull cup** (which takes the head: no spike a
   - send the envoys away. Their hatred grows, and an unanswered offer counts as a refusal.
 
   Now and then their agents steal it back. It is then held in their capital, and you can go after it like any lost heirloom.
+
+## Flaying: the Skin on the Gate and the Judge's Chair
+
+A traitor, or an official who robbed the purse he was set over, can be **flayed alive** on your scaffold. Open **⚖️ The scaffold**, pick the condemned, and choose **🩸 Flayed alive** as the manner of death. It is allowed only for treason (treason, rebellion, plotting, spying) and for **corruption**.
+
+### Sending a steward to the scaffold
+
+In **🏛️ Stewards**, open a steward's seat and choose **🩸 To the scaffold for robbing the purse**. The steward is stripped of office, whatever is in their pocket is seized, and they go on the scaffold's list, condemned for corruption. You still choose the manner there: the rope, or flaying.
+
+If the steward was caught with a hand in the chest (by an audit), justice is seen to be done. If nothing was proven, every other steward you have fears for their neck and likes you the less. Your own children cannot be sent there.
+
+### The scaffold's part
+
+A flaying is the cruellest death the scaffold offers. The crowd is horrified, the town loses happiness and you lose karma. The clergy frown, your name for cruelty and dread grows, and every realm's lords hear of it. The town keeps a long grief, marked in its history. Every steward of yours likes you a little less. The lords of your court bear a grudge, unless the flayed man was one of them and a proven traitor.
+
+An official flayed for corruption in a realm you rule also cuts the crown's **corruption** by almost half, which means less of its revenue leaks away before it reaches the chests.
+
+### The skin
+
+The flayed body comes into your hands like any other (**💀 The dead & trophies**). Besides the spike, the gibbet and the gallows you can now:
+
+- **Hang the skin on a frame by the gate.** It stands on the street map, raw at first, then dried to leather, then in tatters, for about three years. Thieves and the commons fear it more than a head, and the town sours more.
+- **Stretch it over the judge's chair.** The skin is tanned and kept indoors in the hall of justice for decades: new-tanned, then darkened with years, then cracked and old. It is not seen on the street, but every steward knows it is there.
+
+### The next steward thinks twice
+
+While a skin of yours stands, **every steward and governor you appoint keeps a floor of fear** of being found out, and steals that much less. A skin over a judge's chair gives about 60% at first, and a skin on a gate about 30%. They fade as the skin ages and add up when there are several. A fresh flaying of an official for corruption adds more, fading over about four years. **🧱 Behind the castle walls** shows the dread your stewards are in.
+
+### The realms flay too
+
+A cruel crown flays now and then. When its books leak, the victim is a crooked treasurer and its corruption falls. Otherwise it is a traitor. The skin goes up by its capital's gate, the realm's stability dips, and the news goes round.
+
+## Walled Up Alive
+
+No scaffold, no crowd. A door in the cellar, masons paid twice their wage, and a course of stones laid by lantern light.
+
+### Who, and where
+
+- **One of the condemned** awaiting your word on the scaffold's list whose crime is **treason, heresy or the shame of the House**. The condemned's own page has a **🧱 Or in secret** row.
+- **Your own wife or husband**, the "disgraced" spouse. No court and no proof are needed.
+
+It is done in the castle, keep or manor house of a **seat you rule**, and you must be standing there. Open **🧱 Behind the castle walls** (Intrigue & the Law).
+
+### Unseen
+
+The victim simply vanishes. A townsperson is gone and their kin get no word. A spouse is "on pilgrimage". There is no crowd, no chronicle and no news. You take the cruelty, the deceit and the karma at once, but not yet the name.
+
+### The servants talk
+
+The deed is a secret you keep, and **🧱 Behind the castle walls** lists what the walls hold. After a fortnight, every week the servants may talk. They are likelier to talk when your own household lives in that house, and much likelier after you have asked a priest to lay the ghost, because the priest asks whose ghost it is. When they talk, the whole weight falls at once:
+
+- your name as a butcher;
+- every realm's regard, and the lords' memory (the victim's own realm swears a vendetta);
+- the gossip (*the servants swear…*);
+- the town's grief, marked in its history;
+- the House chronicle;
+- a townsperson's kin learn it was murder, which can start a blood feud;
+- a spouse's House remembers a kinsman slain.
+
+### Haunted for generations
+
+The house is **haunted**. The ghost walks at full strength at first, and harder if the victim was innocent or your spouse. Its strength halves about every fifty years. While it walks:
+
+- **The servants leave.** Your household's servants in that town lose a little heart every night they hear it. Unless you pay and feed them well, they give notice.
+- **Guests are unsettled.** Fewer guests come, and many will not sleep another night under your roof. Their stay ends badly: no Prestige, opinion lost.
+- **The town sours** a little every month.
+- **The apparition.** On a night you spend in a haunted seat of yours you may wake to weeping behind the cellar wall. Your comfort and rest suffer.
+
+You can lay it:
+
+- **A priest's rite** (about 240 gold, paid into the town's purse for the priest, the chandler and the poor-box). The ghost is quieter for years. The priest asks whose spirit it is, which makes the servants likelier to talk.
+- **Break open the wall** and bury the bones (about 60 gold to the masons). The haunting ends, and the whole town knows what was there.
+
+You find other lords' ghosts too: a town whose castle is haunted tells you so the first night you stay there.
+
+### The realms wall up their traitors
+
+A cruel or suspicious crown walls up a traitor at its capital now and then. Its castle is haunted after. Some months later its servants' talk reaches the news, and its stability dips.
+
+## Decimation
+
+A company that broke draws lots, and every tenth man is beaten to death by his comrades.
+
+### The companies that broke
+
+When **your army routs** (the field breaks, or your lines break in a fight) or the **host you command** in a realm's army is beaten in the field, the men who ran wait on your word for about 20 days. You are told, and **🎲 The companies that broke** appears among the army's actions. It also shows in **🧱 Behind the castle walls**.
+
+- **Decimate them.** For your own army, a tenth of the companies (at least one, from three companies up) is chosen by lot and beaten to death. Their comrades strip the dead, so the kit goes back into your stores. For a host, a tenth of its men die, lost to the realm's army.
+- **Let it go.** The men who ran will fight again, or run again.
+
+### Steel and hatred
+
+- **Steel.** For about two years the army that saw it breaks far less: the chance that your lines break is cut to 40%. A decimated host fights with higher morale.
+- **Hatred.** The men hate you for it, and the hatred fades slowly. While it is high, companies slip away from camp in the night, and a host bleeds deserters. Your companions think less of you, and a host's lieutenants lose loyalty.
+- **The name.** Karma, the butcher's name, a little regard in every realm, the gossip and the House chronicle.
+
+### The realms decimate their own
+
+When a realm's lines break in its wars, its lord may decimate them. A cruel, ruthless or tyrant lord is much likelier to. Its army loses men and breaks less for a while. Its stability falls, and for some months its army bleeds deserters. The news reports it.
+
+## Eating the Dead in a Siege
+
+When a besieged town has eaten the last of its stores and still will not open its gates, the dead are carried to the kitchens.
+
+### When
+
+The garrison must have starved for at least three days, with enough men left to hold the walls and enough dead to eat. It can happen twice in a siege, the second time giving half as much, and never a third time.
+
+### What it buys
+
+The garrison counts its dead (the soldiers it lost and the townsfolk dead of hunger and sickness) and holds on for **10 to 45 days more**. The garrison's heart sinks, and the bad meat may bring the flux.
+
+### What it costs: the town's name
+
+The town is never the same:
+
+- **Its name.** The realms call it after the siege: *Ashford the Hungry*, *of the Long Table*, *Bone-Gate*…
+- **Its memory.** A grief marked in its history that lasts for generations.
+- **Its happiness** drops at once.
+- **Its people.** Every survivor carries it, and the town's annals record it.
+- **Its faith and realm.** The realm's stability dips (for the AI's towns). For your own, your standing with the faith falls and the holding's loyalty drops.
+
+### Who does it
+
+- **A town you besiege.** The AI garrison decides for itself. It is likelier under a cruel lord, and much likelier when your name promises no quarter. Your siege panel says when they are eating their dead, and the town holds weeks longer than you planned.
+- **A town your commissioned host besieges.** Its surrender comes more slowly for weeks.
+- **Your own besieged holding.** In **🏰 Holdings Under Siege**, a starving holding has two choices:
+  - **🦴 Order them to eat their dead.** It holds weeks more. You carry the name: karma, the butcher's name, every realm's regard, the gossip, the chronicle and the news.
+  - **✋ Forbid them to touch the dead.** They starve with clean hands.
+
+  If you do neither, a starving governor may do it on his own after about a week, and a cruel or ruthless one sooner. You were not asked, but the town is yours, and so is its new name.
 
 ## 15. Ships & Naval
 
@@ -5125,10 +5379,12 @@ A crown is a realm to govern, not just a title. Open **🏛️ Royal Court** (an
 | Office | Competence from | Per point of competence |
 |--------|-----------------|-------------------------|
 | 📜 Chancellor | diplomacy (a child's diplomacy and charisma) | +2% diplomacy, +1% relations, +1% peace odds; at 12+ the court can enforce one more edict |
-| ⚔️ Marshal | martial (a child's combat and strength) | +5% army regrowth, +0.6% army size; a holding of yours that comes under siege gets +1.5% garrison and +0.5 morale (× his loyalty factor) |
+| ⚔️ Marshal | martial (a child's combat and strength) | +5% army regrowth, +0.6% army size, +1.3% battle power and +1.4% defence in the realm's battles (a marshal of 14 is about +18% / +20%, what an AI realm's warlike or wary lord gives it; an empty office leaves the host without); a holding of yours that comes under siege gets +1.5% garrison and +0.5 morale (× his loyalty factor) |
 | 💰 Steward | stewardship (a child's commerce and intelligence) | +1.2% treasury income, +0.5% construction; a holding of yours that comes under siege starts with +1.5% food stores (× loyalty factor). Below 25 loyalty the steward skims. |
 | 🗝️ Spymaster | intrigue (a child's stealth and intelligence) | +2% intrigue (fewer peasant rebellions), +1.2% a day to reveal each hidden faction (3% with no spymaster) |
 | 🙏 High Priest | learning, +5 if Pious (a child's diplomacy and faith) | +1.5% faith, and faith unity rises toward 50 + 2.5 × competence |
+
+**You at the head of the host.** Your own generalship counts too: per point of martial skill (4 + 1.6 × your best of combat and leadership, 1–20) above 6, +1% battle power and +0.5% defence in the realm's battles (a soldier king of 20 adds +14% / +7%). The Royal Court's council tab shows the marshal's and your own share in a line under the Marshal's office. With both, your realm fights as an AI realm with a warlike lord does; with no marshal and no soldier on the throne, it fights at its bare worth.
 
 A companion's competence is 7, +6 if their trade suits the office (a priest as High Priest, a knight as Marshal, a merchant as Steward…), +3 if devoted. One person holds one office. A lord on the council thinks better of you (+15); an ambitious lord (7+) resents family or companions in the great offices (−5).
 
@@ -5217,6 +5473,58 @@ A crown does not pass by itself. When you rule a realm and the seat passes — y
 
 **The interregnum.** While you wait out the years, the contest waits too. On your return each empty year weighs −6 against the heir, and after **5 years** a claimant of strength 30+ who rises has already taken the throne: the crown is lost, and you come back with a blood claim of 55.
 
+#### The Law of Fratricide: the Bowstring and the Cage
+
+Every realm has a law on what becomes of a new ruler's brothers, **The Brothers of the Heir** (the `succession` law in the Laws panel; `systems/fratricide.js`, `data/fratricide.json`). Most realms let them live; about one in eight keeps the bowstring by old custom, and a few the cage. A ruler may change it by proclamation like any law (the bowstring costs −3 stability more, the cage −1).
+
+| Law | When the seat passes |
+|-----|----------------------|
+| Mercy for the brothers | Nothing is done to them. Any of them 16+ may rise for the crown (see above). |
+| 🔒 The cage | The new ruler's brothers are shut up in a wing of the palace for life: no claim, no voice, alive. |
+| 🪢 The law of fratricide | The new ruler's brothers (the late ruler's other sons, infants with the men; not his own uncles, nor sisters) are **condemned**. None of them can rise for the crown. |
+
+**Your heir under the bowstring.** On the day your heir takes the seat, the brothers are condemned and the mutes wait **3 days** for your word. Open **Dynasty → The Bowstring**: give the word now, or **spare** a brother. Sparing breaks the law: −4 stability, −10 Prestige, −6 opinion with every lord of the royal court, +6 karma. When the days run out the rest are strangled with a silken bowstring (−3 karma each; the realm steadies by +1 each, up to +3; a portion set aside for them comes home to your purse). The family tree is a stump: they die there "strangled with the bowstring". Their mother, the late ruler's widow, swears herself your nemesis.
+
+**The spared.** A spared brother of 16+ may plot (6% a year, +8% if ambitious, +5% with a grudge or turned). Your spymaster catches it about half the time (+25% with a spymaster named): then give him the bowstring after all, or send him abroad under guard. Uncaught, he flees in the night and becomes your nemesis. Strangling a spared brother who had not plotted costs karma: the court learns your mercy was a loan. At the next succession a spared uncle stands as a claimant with +12 strength ("spared from the bowstring, the law broken for him").
+
+**The mothers.** While you rule under the law of fratricide, every mother of a son who is not the heir knows hers must die when another reigns. Each month there is a 2.5% chance she begins to scheme (×1.6 if she is ambitious, ×1.3 once the heir is crowned in life; a mother of the heir himself only ×0.3, for a favourite). Some 40–120 days later the cup is offered to the heir: it kills him 55% of the time; otherwise the boy sickens and the cup is traced to her women. Each day the scheme may come to light (1.2%, +1.5% with a spymaster); then **guard the boy** (60g for guards and a taster, paid into the town's purse: the cup is caught) or **send her from court** (her love for you −30, her son's bond −8). Children now remember their other parent, so the sons of a first wife and a second are two camps. Under mercy or the cage no mother schemes.
+
+**The other realms.** An AI realm under the bowstring strangles the brothers of every heir who takes its throne (under the cage, shuts them up), and no succession crisis can come of a brother. A cruel, paranoid or wrathful ruler who came to the throne through a crisis proclaims the bowstring 40% of the time; a just or devout one under it may repeal it. In the bowstring realms the harems poison a younger son now and then (6% a year where there are two sons). All of it is listed under *The bowstrings of the world*.
+
+#### The Synod of the Dead (the Cadaver Synod)
+
+In 897 a pope had his predecessor dug up, robed, seated on a throne and tried; the three fingers that had blessed were cut off and the body thrown in the Tiber. You may do the same (**Dynasty → The Synod of the Dead**; `systems/cadaverSynod.js`, `data/cadaverSynod.json`).
+
+**The tombs.** Every AI king who dies is laid in a tomb at his capital, and every rival House head in his House's crypt at its seat. A tomb is within your reach when it lies in a town of the realm you rule (or one you hold) — take the town, and the tomb is yours — and its dead has been cold 30 days. You will not try your own blood.
+
+**The synod** costs the crown **300g** from the treasury, paid into the town's purse (diggers, clerks, the bishops' keep). A deacon answers for the corpse; he is always found guilty. Two sentences:
+
+| Sentence | Effect |
+|----------|--------|
+| 🌊 Cut off his fingers and throw him in the river | Everything below in full; his grave goods (3) come to your packs |
+| 🪦 Strip him and rebury him in unhallowed ground | Half of everything; no goods |
+
+**His heirs.** A king whose dynasty still rules his realm: every act of his is void and his heir's rule in doubt — the realm's stability −12, its regard for your realm −40 (yours for it −20), a claim on its throne for you (**A line annulled by synod**: +15, up to 30, in Claims & Crowns), and for 20 years its next succession is **twice as likely** to fall into a crisis. A king of the **old line of your own realm**: its blood is declared bastard, and the old line's pretender loses half his strength at your successions. A rival **House head**: the House's feud +35, its favour at every court halved, a deed it remembers, a nemesis.
+
+**The faith** is outraged: your standing with your own faith −12, karma −15, your realm's stability −4, −4 regard in every realm and −8 more in realms of the dead man's faith. It is written in the chronicle.
+
+**AI crowns** do it too: once a year a cruel, wrathful, paranoid or devout crown that holds the tomb of an enemy king (relations below −40, or his realm fallen) may try him (15%): his heirs' realm loses 12 stability and its regard, and its succession is tainted.
+
+#### Wipe Their Name (damnatio memoriae)
+
+A House you have destroyed can be made never to have been (**Dynasty → Wipe Their Name**; `systems/damnatio.js`, `data/damnatio.json`). Which Houses: the **old royal line of the realm you rule**, if your House took the crown rather than founded it, and the dynasty of any **fallen realm whose old capital** now lies in your realm. Only a crown can do it. Four acts, each paid from the treasury into the capital's market (masons, clerks, hangmen):
+
+| Act | Cost | What it does |
+|-----|------|--------------|
+| 🪦 Deface their tombs | 250g, −8 karma, −6 faith standing | Every tomb of the dynasty is broken and emptied: no synod can try its dead |
+| 🔥 Burn their chronicles | 150g, −4 karma | From then on every line naming the House is struck from the Annals (and the chronicle book) and the Timeline; their kings' law code loses its name |
+| 🏷️ Rename their towns | 120g + 120g a town, +2 stability | The old seat of a fallen realm and every town of your realm bearing their name get new names; towns of another culture resent it |
+| 🗡️ Kill or geld their last sons | 100g, −10 karma, −4 a son | Every son of the line within reach, and the old line's pretender: **killed**, or **gelded** and sent to a monastery. The old line's claim on your crown ends |
+
+With all four done the House is **erased**: +30 Prestige, the butcher's name, −6 regard in every realm. **Unless someone remembers**: a gelded son still alive, a daughter of the House, or (35%) a monk who hid a copy of the chronicle or a child smuggled out by a nurse. Some 6–25 years later the one who remembers writes the chronicle out again and cries the name in the market: the name is **restored** — the Annals and the Timeline show it again, the code takes back its name, the old line's claim returns (a smuggled child grown is its pretender), and the restorer swears himself your nemesis. You may hire blades to **silence** the one who remembers first (200g, 60%; a failed attempt warns them, and the name returns 3 years sooner). If they die first, the name dies with them.
+
+**AI conquerors** do it too: a cruel, wrathful or paranoid ruler who holds a fallen realm's old capital wipes its dynasty out in one stroke (35%): its sons killed, its tombs broken, its books burnt, its old capital renamed. Half the time someone remembers, and may restore the name.
+
 #### Founding your own kingdom
 
 Instead of taking a throne, you may make one. Hold **3+ settlements** (your colonies, including towns you conquered while unsworn) and have **50+ Prestige**, then use **Form Kingdom** (6 AP) at one of them. It costs 25 Prestige and earns +50 when the realm is proclaimed. The new kingdom is a full kingdom: its capital is that settlement, its land is your settlements and the free (or old liege's) land around them, and it has an army of max(80, 7% of its people), a treasury of max(800, 20% of your gold), a royal council, the faith of its seat, a fleet if it has ports, and the traits Orderly and Mercantile. Seceding from your liege costs −25 reputation with them and −3 karma, and they start out hostile. You rule it exactly as above.
@@ -5270,6 +5578,42 @@ With no crown yet, an offered crown becomes your seat.
 **At your death: whole or partitioned.** Choose in life (High Crowns → The crowns at your death):
 - **Keep the crowns whole** (the default): your heir wears them all. Each far realm tests the new ruler (**+12** discontent, +10 more for a child heir); every viceroy's loyalty falls 8; the grown younger children are **passed over** — they remember it, and may rise against the heir in a contested succession.
 - **Partition**: each far crown, oldest first, goes to a grown younger child (16+) of the House, eldest first. They rule it as kin: allied to your heir, relations 60+. A crown with no child to take it stays with the heir. If only one crown is left, the high title lapses.
+
+#### Personal unions between the other realms
+
+The AI realms can come to share a ruler too. (`systems/realmUnions.js`, `data/realmUnions.json`.)
+
+**How two crowns come to one head.** It happens when the ruling kings or queens of two realms are married to each other. That can be a royal match of two heirs who both later took their thrones, or two crowned rulers married off by their envoys. The smaller realm (less land, then the smaller army) must also allow it under the law of **The Crown Abroad** (a new law in every realm's Laws panel):
+- **The blood rules** (6 realms in 10 by custom): the crowns join.
+- **A native crown**: its lords will have no king abroad. The two spouses reign apart, as allies.
+
+**One ruler, two realms.** The larger realm is the **senior crown**, and its ruler is the **monarch** of both. The junior realm's ruler reads as the monarch everywhere (realm panels, the Timeline's reigns). Its own royal, the consort and later a regent, keeps its court, shown in the realm panel as *Royal at court*. Each realm keeps its own **laws, treasury, lords and army**. They share one **foreign policy**:
+- They never war on each other and stay allied.
+- The junior realm declares no war of its own.
+- Each joins the other's wars, unless it holds a truce with the enemy.
+- When the senior crown makes peace, the junior lays down its arms too.
+- Any realm deciding whether to march on either one counts both armies together. Declaring war on one (as a ruling player) brings the other in; the Diplomacy list warns you.
+- A pretender backed by a realm in union gets men from both of its crowns.
+- A council never offers you a junior crown at its succession.
+
+**The absent king.** The junior realm's lords resent being ruled from abroad. Their **temper** (0–100) rises each week:
+- +0.3 for the king's absence;
+- +0.2 if the monarch's culture is foreign, +0.12 if his faith is;
+- +0.08 for each war the realm is fighting;
+- +0.2 while the realm is troubled (stability under 35);
+- −0.2 while the consort queen or king still lives at home.
+
+Once a year the monarch may keep court there for a season (−12). The temper costs the junior realm **2 stability, plus 0.08 for each point of temper** (shown in *Why?* as *Absent king*). It also lowers the realm's regard for the senior crown. At temper 100 the lords may **rise** (12% a week), crown a ruler of their own and break the union. If the senior crown's army is much the stronger, it may march to take the realm back.
+
+**Successions.** A union lasts only as long as the blood and the law allow:
+- **The monarch dies while the consort lives:** the junior crown stays with the consort, who reigns in their own right, and the realms part as friends.
+- **The consort dies first:** under *The blood rules*, the crown passes to the monarch and a regent keeps the junior court. A regent or a cousin of the line usually yields (6 times in 10); otherwise he seizes the crown. A native heir of the junior line takes his own crown, unless he is also the monarch's child.
+- **The monarch dies with an heir of his blood:** the junior crown passes to that heir. If the senior throne goes to a regent or to a stranger, the junior lords crown their own ruler.
+- **Other endings:** the law changing to *A native crown*, either realm falling, or **you** taking either throne.
+
+**Where you see it.** In the realm and kingdom panels (*Union*: *ruled from …* / *also wears the crown of …*, and the lords' mood), the allies list (*One crown*), your Diplomacy and Seek-a-claim lists, the news, the Timeline and Almanac, and a notification when a union forms or breaks. If you are a subject of either realm, it also goes into your House chronicle and stops a time skip.
+
+How rare it is: in a headless world, about one union a century.
 
 ---
 
@@ -6336,7 +6680,7 @@ What you do with your children while you live pays off when one of them succeeds
 - **The children of the match.** Each year of a promised match a child may be born (30% a year, up to 4, while the mother is 16–42); you hear of it, and the House Chronicle and Family Tree record it.
   - *They took your name:* the children are of your House. They stand in the Family Tree under their parent, and when that parent inherits the seat, they come to it as the new ruler's own children.
   - *Your child went to them:* the children are of the other House. When your child inherits, they stay behind. A rival House's grandchild cools the feud by 5. When your child's spouse becomes the head of that House, the grandchildren become its children and heirs. A **royal line** with your blood in it gives your House a **claim by blood** on that throne: 12 while a grandchild lives, 25 once one is the crown's eldest child (its heir), 40 if one is crowned. When your child's royal spouse is crowned, their children join the crown's line of succession. A claim by blood is one a falling royal line's council honours (High Crowns).
-- **The crowns among themselves.** Each year two realms at peace that are allied, or think well of each other (relations 20 both ways), may promise their royal children to each other (20% a year; aged up to 15, at most 6 years apart). While the promise stands, neither marches on the other, and their relations warm by 1 a week, to 50. A war between them breaks it (−15 relations). At 16 the two wed, and the realms stand **allied**. A royal promised so is no match for your children. (A royal wedding binds two crowns by alliance, not by a personal union: only your House holds crowns in union.)
+- **The crowns among themselves.** Each year two realms at peace that are allied, or think well of each other (relations 20 both ways), may promise their royal children to each other (20% a year; aged up to 15, at most 6 years apart). While the promise stands, neither marches on the other, and their relations warm by 1 a week, to 50. A war between them breaks it (−15 relations). At 16 the two wed, and the realms stand **allied**. A royal promised so is no match for your children. (A royal wedding binds two crowns by alliance. Should both of the wed come to their thrones, the crowns may come to one head in a **personal union**, as the lesser realm's law on the crown abroad allows: see High Crowns → *Personal unions between the other realms*.)
 - **Offers.** Now and then (about once in twenty months, never closer than 240 days) a rival House on good terms (feud 30 or less), a crown that thinks well of you (standing 15) or one of your lords proposes a match, at a fifth off their price. It stands 45 days.
 
 **Commissions for a grown child.** A grown child at home can take one commission with real stakes:

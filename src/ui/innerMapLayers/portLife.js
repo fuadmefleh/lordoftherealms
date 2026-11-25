@@ -1,7 +1,8 @@
 // InnerMapRenderer — the harbour and the river at work (mixed in via
 // Object.assign; who is where: ui/innerMapPort.js view). Drawn over the
 // living water and under the sprites (innerMapRenderer.js, after the fish
-// traps), in plain canvas strokes — cheap, no sheets:
+// traps), the hulls in plain canvas strokes, the people in the town's own character
+// sprites (docker / harbourmaster presets, data/innerMapRenderer.json):
 //   the slip      trestles and a keel, then ribs going up, planking over
 //                 them, the deck, a mast with its yard; poles of scaffold and
 //                 a shipwright or two at work by day
@@ -16,10 +17,18 @@
 import { InnerMapRenderer } from '../innerMapRenderer.js';
 import { InnerMap } from '../../world/innerMap.js';
 import { InnerMapPort } from '../innerMapPort.js';
+import { InnerMapCharacters } from '../innerMapCharacters.js';
 
 const WOOD = { keel: '#4a2f18', rib: '#7a5230', plank: '#8b6236', plankHi: '#a77a4a', deck: '#b08a58', mast: '#5a3a1e', sail: '#d9cfb4', sailDark: '#a89a78', rope: '#3b2a18', pole: '#6b4a26' };
 const PEOPLE = ['#6b4a3a', '#4a5a6b', '#7a6a3a', '#5a4a6a', '#3a5a4a', '#6a3a3a', '#4a4a4a'];
 const SKIN = '#d9b48c';
+
+// A name's stable number in [0, 1) (which look a person wears)
+const _hash = (str) => {
+    let h = 2166136261;
+    for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 16777619);
+    return (h >>> 0) / 4294967296;
+};
 
 const _seen = (q, r) => {
     const t = InnerMap.getTile(Math.floor(q), Math.floor(r));
@@ -41,16 +50,55 @@ Object.assign(InnerMapRenderer, {
         for (const c of V.careened) if (_seen(c.x, c.y)) this._drawCareened(ctx, P, c, cs, art, now);
         for (const b of V.boats) if (_seen(b.x, b.y)) this._drawBoat(ctx, P(b.x, b.y), b.dir, b.heading, b.sail, cs, art, now + b.i, b.fish);
         if (V.quay && _seen(V.quay.x, V.quay.y)) this._drawQuayGoods(ctx, P, V, cs, art);
-        for (const d of V.dockers) if (_seen(d.x, d.y)) this._drawPerson(ctx, P(d.x, d.y), cs, art, PEOPLE[d.i % PEOPLE.length], d.carry ? 'crate' : null, d.walk);
-        if (V.master && _seen(V.master.x, V.master.y)) {
-            const p = P(V.master.x, V.master.y);
-            this._drawPerson(ctx, p, cs, art, '#2f3f5f', 'staff', 0, true);
-            if (camera.zoom >= 0.8) this._portLabel(ctx, p.x, p.y - cs * 0.95, `${V.master.name} · harbourmaster`, art);
-        }
         for (const p of V.punts) if (_seen(p.x, p.y)) this._drawPunt(ctx, P(p.x, p.y), p.fx, p.fy, cs, art, now + p.i * 1.3);
         for (const b of V.barges) if (_seen(b.x, b.y)) this._drawBarge(ctx, P(b.x, b.y), b.fx, b.fy, cs, art, now, b, camera.zoom);
         if (V.ferry && _seen(V.ferry.pos.x, V.ferry.pos.y)) this._drawFerry(ctx, P, V.ferry, cs, art, now, camera.zoom);
         ctx.restore();
+    },
+
+    /**
+     * The dockers and the harbourmaster join the depth-sorted pass (innerMapLayers/entities.js)
+     * — drawn over the pier they walk on, behind or before the townsfolk by where they stand.
+     */
+    _portLifeItems(items, ctx, camera) {
+        if (!InnerMap.active || InnerMap._insideBuilding || InnerMap._underwater) return;
+        const V = InnerMapPort.view;
+        if (!V) return;
+        const T = this.TILE_SIZE;
+        const cs = T * camera.zoom;
+        const art = Math.max(1, cs / 32);
+        const now = this._waterFxNow ? this._waterFxNow() : performance.now() / 1000;
+        const P = (x, y) => camera.worldToScreenFast(x * T, y * T);
+        for (const d of V.dockers) {
+            if (!_seen(d.x, d.y)) continue;
+            items.push({ sortY: d.y * T, zLayer: 2, sortX: d.x, draw: () => {
+                const dir = InnerMapCharacters.getDirection(d.fx || 0, d.fy || 0);
+                this._drawPerson(ctx, P(d.x, d.y), cs, art, PEOPLE[d.i % PEOPLE.length], d.carry ? 'crate' : null, d.walk, false, { type: 'docker', seed: d.seed != null ? d.seed : d.i, anim: 'walk', dir, t: now + d.i * 0.31 });
+            } });
+        }
+        const M = V.master;
+        // (a real townsperson keeps the post — drawn and clicked with the street's people,
+        // innerMapPort.js _keepMaster — so only his name over him while he stands there)
+        if (M && M.npc) {
+            const n = M.npc;
+            if (camera.zoom >= 0.8 && n.q === Math.floor(M.x) && n.r === Math.floor(M.y) && n.state !== 'walking' && _seen(M.x, M.y)) {
+                items.push({ sortY: M.y * T + 1, zLayer: 2, sortX: M.x, draw: () => {
+                    const p = P(M.x, M.y);
+                    ctx.save();
+                    this._portLabel(ctx, p.x, p.y - cs * 1.45, `${M.name} · ${n.roleTitle || 'harbourmaster'}`, art);
+                    ctx.restore();
+                } });
+            }
+        } else if (M && _seen(M.x, M.y)) {
+            items.push({ sortY: M.y * T, zLayer: 2, sortX: M.x, draw: () => {
+                const p = P(M.x, M.y);
+                ctx.save();
+                const seed = Math.floor(_hash(String(M.id || M.name)) * 99991);
+                this._drawPerson(ctx, p, cs, art, '#2f3f5f', 'staff', 0, true, { type: 'harbourmaster', seed, gender: M.gender, anim: 'idle', dir: InnerMapCharacters.DIR_DOWN, t: now });
+                if (camera.zoom >= 0.8) this._portLabel(ctx, p.x, p.y - cs * 1.45, `${M.name} · harbourmaster`, art);
+                ctx.restore();
+            } });
+        }
     },
 
     _portLabel(ctx, x, y, text, art) {
@@ -184,11 +232,11 @@ Object.assign(InnerMapRenderer, {
         if (s.working) {
             const swing = Math.sin(now * 5);
             const p1 = { x: c.x + ox + ax * L * 0.2 - s.out.x * B * 1.5, y: c.y + oy + ay * L * 0.2 - s.out.y * B * 1.5 };
-            this._drawPerson(ctx, p1, cs, art, '#5a4030', swing > 0 ? 'adze' : 'adzeDown', 0);
+            this._drawPerson(ctx, p1, cs, art, '#5a4030', swing > 0 ? 'adze' : 'adzeDown', 0, false, { type: 'docker', seed: 7919, anim: 'idle', dir: InnerMapCharacters.DIR_UP, t: now });
             const walk = (now * 0.08) % 1;
             const f = walk < 0.5 ? walk * 2 : (1 - walk) * 2;
             const p2 = { x: c.x + ox + ax * L * (f - 0.5) - s.out.x * B * 2.2, y: c.y + oy + ay * L * (f - 0.5) - s.out.y * B * 2.2 };
-            this._drawPerson(ctx, p2, cs, art, '#4a3a2a', 'plank', now * 6);
+            this._drawPerson(ctx, p2, cs, art, '#4a3a2a', 'plank', now * 6, false, { type: 'docker', seed: 15838, anim: 'walk', dir: InnerMapCharacters.DIR_RIGHT, t: now });
         }
         if (s.waiting && this._portLabel) this._portLabel(ctx, c.x + ox, c.y + oy - B * 1.6, 'waiting for timber', art);
     },
@@ -254,7 +302,7 @@ Object.assign(InnerMapRenderer, {
             const k = (now * 0.5) % 1;
             ctx.beginPath(); ctx.arc(fx + art * 3 * k, fy - art * (6 + 14 * k), art * (2 + 3 * k), 0, Math.PI * 2); ctx.fill();
             const swing = Math.sin(now * 4);
-            this._drawPerson(ctx, { x: p.x + ox - c.out.x * B * 1.6, y: p.y + oy - c.out.y * B * 1.6 }, cs, art, '#4a3a2a', swing > 0 ? 'adze' : 'adzeDown', 0);
+            this._drawPerson(ctx, { x: p.x + ox - c.out.x * B * 1.6, y: p.y + oy - c.out.y * B * 1.6 }, cs, art, '#4a3a2a', swing > 0 ? 'adze' : 'adzeDown', 0, false, { type: 'docker', seed: 23757, anim: 'idle', dir: InnerMapCharacters.DIR_UP, t: now });
         }
     },
 
@@ -333,9 +381,50 @@ Object.assign(InnerMapRenderer, {
         }
     },
 
-    /** A small figure: head, body, a crate or plank or staff carried */
-    _drawPerson(ctx, p, cs, art, coat, carry = null, walk = 0, hat = false) {
+    /**
+     * A person at the harbour: the town's own character sprites (data/innerMapRenderer.json
+     * presets 'docker', 'harbourmaster'), with what he carries drawn in his hands — a crate
+     * on the shoulder, a plank, the harbourmaster's staff, a shipwright's adze. Until the
+     * sheets are loaded, a plain painted figure stands in.
+     */
+    _drawPerson(ctx, p, cs, art, coat, carry = null, walk = 0, hat = false, look = null) {
         const s = cs / 32;
+        const feetY = p.y + s * 7;
+        const preset = look ? InnerMapCharacters.getPresetForNPC(look.type, look.seed, look.gender || null) : null;
+        const cw = cs * 1.2, ch = cs * 1.8;
+        const drawn = !!(preset && InnerMapCharacters.drawCharacter(ctx, preset, look.anim || 'idle', look.dir != null ? look.dir : InnerMapCharacters.DIR_DOWN, look.t || 0, p.x - cw / 2, feetY - ch + cs * 0.3, cw, ch));
+        if (!drawn) this._drawPlainPerson(ctx, p, s, coat, walk, hat);
+        // the sprite's head stands about 1.1 tiles over its feet; the hands about half a tile
+        const head = drawn ? feetY - cs * 0.98 : p.y - s * 17;
+        const hand = drawn ? feetY - cs * 0.5 : p.y - s * 8;
+        const side = drawn && look && look.dir === InnerMapCharacters.DIR_LEFT ? -1 : 1;
+        if (carry === 'crate') {
+            const w = s * 12, h = s * 8;
+            ctx.fillStyle = '#9a7444';
+            ctx.fillRect(p.x - w / 2, head - h, w, h);
+            ctx.strokeStyle = '#4a3018';
+            ctx.lineWidth = Math.max(1, art * 0.7);
+            ctx.strokeRect(p.x - w / 2, head - h, w, h);
+            ctx.beginPath(); ctx.moveTo(p.x - w / 2, head - h); ctx.lineTo(p.x + w / 2, head); ctx.stroke();
+        } else if (carry === 'plank') {
+            ctx.fillStyle = WOOD.plankHi;
+            ctx.fillRect(p.x - s * 12, hand - s * 7, s * 24, s * 2.5);
+        } else if (carry === 'staff') {
+            ctx.strokeStyle = '#3a2a18';
+            ctx.lineWidth = Math.max(1, s * 1.5);
+            ctx.beginPath(); ctx.moveTo(p.x + s * 7 * side, feetY); ctx.lineTo(p.x + s * 7 * side, head - s * 3); ctx.stroke();
+        } else if (carry === 'adze' || carry === 'adzeDown') {
+            ctx.strokeStyle = '#3a2a18';
+            ctx.lineWidth = Math.max(1, s * 1.5);
+            const up = carry === 'adze';
+            ctx.beginPath(); ctx.moveTo(p.x + s * 4, hand); ctx.lineTo(p.x + s * (up ? 7 : 11), hand + s * (up ? -12 : 4)); ctx.stroke();
+            ctx.fillStyle = '#8a8a8a';
+            ctx.fillRect(p.x + s * (up ? 5 : 10), hand + s * (up ? -14 : 2), s * 4, s * 2.5);
+        }
+    },
+
+    /** The stand-in before the character sheets load: head, coat, legs. */
+    _drawPlainPerson(ctx, p, s, coat, walk, hat) {
         const step = walk ? Math.sin(walk) * s * 2 : 0;
         ctx.fillStyle = 'rgba(0,0,0,0.25)';
         ctx.beginPath(); ctx.ellipse(p.x, p.y + s * 6, s * 6, s * 2.5, 0, 0, Math.PI * 2); ctx.fill();
@@ -347,27 +436,6 @@ Object.assign(InnerMapRenderer, {
         ctx.fillStyle = SKIN;
         ctx.beginPath(); ctx.arc(p.x, p.y - s * 13, s * 3.4, 0, Math.PI * 2); ctx.fill();
         if (hat) { ctx.fillStyle = '#1e2a3e'; ctx.fillRect(p.x - s * 4.5, p.y - s * 17, s * 9, s * 2.2); ctx.fillRect(p.x - s * 3, p.y - s * 19.5, s * 6, s * 3); }
-        if (carry === 'crate') {
-            ctx.fillStyle = '#9a7444';
-            ctx.fillRect(p.x - s * 5, p.y - s * 21, s * 10, s * 7);
-            ctx.strokeStyle = '#4a3018';
-            ctx.lineWidth = Math.max(1, art * 0.7);
-            ctx.strokeRect(p.x - s * 5, p.y - s * 21, s * 10, s * 7);
-        } else if (carry === 'plank') {
-            ctx.fillStyle = WOOD.plankHi;
-            ctx.fillRect(p.x - s * 12, p.y - s * 12, s * 24, s * 2.5);
-        } else if (carry === 'staff') {
-            ctx.strokeStyle = '#3a2a18';
-            ctx.lineWidth = Math.max(1, s * 1.5);
-            ctx.beginPath(); ctx.moveTo(p.x + s * 5, p.y + s * 6); ctx.lineTo(p.x + s * 5, p.y - s * 18); ctx.stroke();
-        } else if (carry === 'adze' || carry === 'adzeDown') {
-            ctx.strokeStyle = '#3a2a18';
-            ctx.lineWidth = Math.max(1, s * 1.5);
-            const up = carry === 'adze';
-            ctx.beginPath(); ctx.moveTo(p.x + s * 3, p.y - s * 8); ctx.lineTo(p.x + s * (up ? 6 : 10), p.y - s * (up ? 20 : 4)); ctx.stroke();
-            ctx.fillStyle = '#8a8a8a';
-            ctx.fillRect(p.x + s * (up ? 4 : 9), p.y - s * (up ? 22 : 6), s * 4, s * 2.5);
-        }
     },
 
     /** A fisherman's punt on the river, his rod out over the water */
@@ -446,7 +514,7 @@ Object.assign(InnerMapRenderer, {
         for (let i = -2; i <= 2; i++) { ctx.beginPath(); ctx.moveTo(i * L * 0.2, -B / 2); ctx.lineTo(i * L * 0.2, B / 2); ctx.stroke(); }
         ctx.strokeRect(-L / 2, -B / 2, L, B);
         ctx.restore();
-        this._drawPerson(ctx, { x: p.x, y: p.y }, cs, art, '#3a4a3a', 'staff', 0);
+        this._drawPerson(ctx, { x: p.x, y: p.y }, cs, art, '#3a4a3a', 'staff', 0, false, { type: 'docker', seed: Math.floor(_hash(String(f.ferryman)) * 99991), anim: 'idle', dir: InnerMapCharacters.DIR_DOWN, t });
         if (zoom >= 0.8) this._portLabel(ctx, p.x, p.y - cs * 1.0, `${f.ferryman}'s ferry · ${f.fare}g${f.next != null ? ` · next ${String(Math.floor(f.next)).padStart(2, '0')}:00` : ''}`, art);
     },
 });

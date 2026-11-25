@@ -81,6 +81,8 @@
             "taxFarms": { "name": "Tax farms collected", "group": "state", "desc": "What your tax farms collected from their towns, less your collectors' fee." },
             "taxFarmBids": { "name": "Tax farms bought (and bids returned)", "group": "capital", "kind": "cap", "desc": "Bids for tax farms paid (or returned when outbid): capital." },
             "faith": { "name": "Faith", "group": "state" },
+            "holyWar": { "name": "The Church: absolution and penance", "group": "state", "desc": "Gold paid to a see to lift its ban, or in penance at its seat." },
+            "inquisition": { "name": "The inquisition: penances, seizures, hospitality", "group": "state", "desc": "Penances and confiscations at an inquisitor's hearing, the feast for his retinue." },
             "culture": { "name": "Culture", "group": "state" },
             "diplomacy": { "name": "Tribute & diplomacy", "group": "state" },
             "informants": { "name": "Informants", "group": "state" },

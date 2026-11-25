@@ -182,7 +182,7 @@ export function openLordAudience(game, unitId) {
     state.scene = ConversationScene.open({
         variant: 'royal',
         name: lord.name,
-        subtitle: `Ruler of <span style="color:${kingdom.color || '#4fc3f7'}">${kingdom.name}</span> · age ${lord.age}${MaimMarks.tag(lord) ? ` · ${MaimMarks.tag(lord)}` : ''}`,
+        subtitle: `Ruler of <span style="color:${kingdom.color || '#4fc3f7'}">${kingdom.name}</span> · age ${lord.age}${lord.crossKnight ? ` · ✝️ ${lord.crossKnight.title || 'Knight of the Cross'}` : ''}${MaimMarks.tag(lord) ? ` · ${MaimMarks.tag(lord)}` : ''}`,
         where: `${place} · Day ${world.day || 1}`,
         icon: '👑', badge: '👑',
         // (what the ruler's body lost shows on the bust: ui/maimLook.js)

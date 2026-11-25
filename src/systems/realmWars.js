@@ -125,6 +125,12 @@ export const RealmWars = {
         return Math.max(0, -rep + ((rival && rival.feud) || 0) - memory) * Difficulty.mult(player, 'hostility');
     },
 
+    /** Does the cross the player took shield their lands from this crown (a realm of the faith, not the holy war's foe)? */
+    churchShields(player, kingdom) {
+        const c = player && player.holyWars && player.holyWars.cross;
+        return !!(c && kingdom && kingdom.religion && kingdom.religion.faithId === c.faithId && kingdom.id !== c.target);
+    },
+
     /** Everything a war host can march on: properties and colonies. */
     holdings(player, world) {
         const out = [];
@@ -603,6 +609,8 @@ export const RealmWars = {
                 if (!k.isAlive || k.id === player.allegiance) continue;
                 if (s.wars[k.id] || s.ultimatums[k.id]) continue;
                 if ((s.truces[k.id] || 0) > day) continue;
+                // Under the cross: the crowns of the faith keep a crusader's lands (systems/holyWars.js player.holyWars.cross)
+                if (RealmWars.churchShields(player, k)) continue;
                 const h = RealmWars.hostility(player, k, day);
                 if (h < CONFIG.hostilityThreshold) continue;
                 if (Utils.random() < (h - 60) / 200) {

@@ -50,13 +50,16 @@
         "desertion": { "label": "desertion", "crowd": -6, "severity": 2 },
         "enmity": { "label": "the enmity of their House", "crowd": -15, "severity": 1 },
         "your_word": { "label": "what you charge them with", "crowd": -12, "severity": 2 },
+        "corruption": { "label": "robbing the purse they were set over", "crowd": 20, "severity": 3, "corruption": true },
+        "adultery": { "label": "adultery and the shame of the House", "crowd": -10, "severity": 2, "disgrace": true },
         "default": { "label": "their crimes", "crowd": 0, "severity": 2 }
     },
     "methods": {
         "behead": { "label": "The axe", "icon": "🪓", "desc": "A clean death on the block, as the highborn are owed.", "highbornOnly": true, "fear": 1, "cruelty": 0.5, "horror": 0, "memory": "beheaded", "cause": "the headsman's axe" },
         "hang": { "label": "The rope", "icon": "💀", "desc": "The gallows in the square, the common death.", "fear": 1, "cruelty": 0.8, "horror": 0, "highbornHorror": -6, "memory": "hanged", "cause": "the gallows" },
         "burn": { "label": "The stake", "icon": "🔥", "desc": "Burned alive for heresy, where the faith allows it.", "crimes": ["heresy"], "faith": { "harsh": true, "mild": true }, "fear": 2.2, "cruelty": 3, "horror": -25, "cruel": true, "memory": "burned", "cause": "the stake", "clergy": { "mild": 2 } },
-        "quarter": { "label": "Drawn and quartered", "icon": "🐎", "desc": "Hanged, drawn and quartered, the death for treason.", "crimes": ["treason"], "fear": 2.6, "cruelty": 4, "horror": -30, "cruel": true, "memory": "quartered", "cause": "drawing and quartering" }
+        "quarter": { "label": "Drawn and quartered", "icon": "🐎", "desc": "Hanged, drawn and quartered, the death for treason.", "crimes": ["treason"], "fear": 2.6, "cruelty": 4, "horror": -30, "cruel": true, "memory": "quartered", "cause": "drawing and quartering" },
+        "flay": { "label": "Flayed alive", "icon": "🩸", "desc": "Skinned alive on the scaffold, the death for a traitor or an official who robbed the purse he was set over. The skin is yours to hang on the gate or stretch over the judge's chair.", "crimes": ["treason", "corruption"], "crimesWhy": "Only for treason or an official's corruption.", "faith": { "harsh": true, "mild": true }, "fear": 3, "cruelty": 5, "horror": -38, "cruel": true, "memory": "flayed", "cause": "flaying", "clergy": { "mild": 3, "harsh": 1 } }
     },
     "mercies": {
         "pardon": { "label": "Pardon", "icon": "🕊️", "desc": "Let them go, before the crowd. Mercy, or weakness, as the crowd takes it." },
@@ -79,7 +82,8 @@
             "behead": { "prestige": 1 },
             "hang": {},
             "burn": { "happiness": -2, "karma": -3 },
-            "quarter": { "happiness": -3, "karma": -4, "stability": 1 }
+            "quarter": { "happiness": -3, "karma": -4, "stability": 1 },
+            "flay": { "happiness": -5, "karma": -6, "stability": 1 }
         },
         "treasonDone": { "stability": 2, "prestige": 3 },
         "innocent": { "karma": -6 },

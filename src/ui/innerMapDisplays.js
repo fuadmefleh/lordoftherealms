@@ -31,7 +31,7 @@ export const InnerMapDisplays = {
         const age = day - (d.day || 0);
         const out = [
             { type: 'disabled', label: `${k.icon || '💀'} ${d.name}${d.crime ? `, for ${d.crime}` : ''}: ${k.short || 'on show'}, ${who}` },
-            { type: 'disabled', label: `🪰 ${DeadDisplays.stage(d, day).label}: ${age} day${age === 1 ? '' : 's'} up${Gibbets.deterrence(game.world.getTile(player.q, player.r).settlement, day) < 1 ? ' · the town\'s thieves keep their heads down' : ''}` },
+            { type: 'disabled', label: `⏳ ${DeadDisplays.stage(d, day).label}: ${age} day${age === 1 ? '' : 's'} up${Gibbets.deterrence(game.world.getTile(player.q, player.r).settlement, day) < 1 ? ' · the town\'s thieves keep their heads down' : ''}` },
         ];
         out.push({
             type: 'action', action: 'gibbet_down', label: 'Cut It Down', icon: '🪓', displayId: d.id, anchorQ: q, anchorR: r,

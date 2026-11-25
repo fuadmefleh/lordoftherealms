@@ -9,6 +9,7 @@ import { Causes } from '../../player/causes.js';
 import { whyIcon, stabilityWhy } from '../whyPopover.js';
 import { Fame } from '../../systems/fame.js';
 import { Kingship } from '../../systems/kingship.js';
+import { RealmUnions } from '../../systems/realmUnions.js';
 import { Pirates } from '../../systems/pirates.js';
 import { NavySquadrons } from '../../world/navySquadrons.js';
 import { Construction } from '../../systems/construction.js';
@@ -952,7 +953,7 @@ Object.assign(UI.prototype, {
                                 <span class="kingdom-dot" style="color:${ally.color}; background:${ally.color}"></span>
                                 ${ally.name.replace('Kingdom of ', '').replace('Khanate of ', '').replace('Theocracy of ', '').replace('Republic of ', '')}
                             </span>
-                            <span class="info-value" style="color:#27ae60">🤝 Allied</span>
+                            <span class="info-value" style="color:#27ae60">${RealmUnions.together(kingdom, ally) ? '👑 One crown (personal union)' : '🤝 Allied'}</span>
                         </div>
                     `;
                 }
@@ -986,8 +987,10 @@ Object.assign(UI.prototype, {
                     </div>`;
                 };
 
+                // (the junior crown of a personal union: its own royal keeps the court for the king abroad — systems/realmUnions.js)
+                const unionRole = (RealmUnions.describe(this.game.world, kingdom) || {});
                 lordHtml = `
-                    <div class="info-section-title">👑 Ruler</div>
+                    <div class="info-section-title">👑 ${unionRole.role === 'junior' ? `Royal at court (${unionRole.residentRole})` : 'Ruler'}</div>
                     <div class="info-row">
                         <span class="info-label">Name</span>
                         <span class="info-value">${Characters.getFullName(ruler)}</span>
@@ -1176,6 +1179,11 @@ Object.assign(UI.prototype, {
                 <span class="info-label">Ruler</span>
                 <span class="info-value">${knows('ruler') ? kingdom.ruler : '<span style="color:#666;">Unknown</span>'}</span>
             </div>
+            ${(() => {
+                // Two crowns on one head (systems/realmUnions.js)
+                const un = knows('ruler') ? RealmUnions.describe(this.game.world, kingdom) : null;
+                return un ? `<div class="info-row"><span class="info-label">Union</span><span class="info-value" style="font-size: 11px; color: var(--gold);" title="${un.text.replace(/"/g, '&quot;')}">👑 ${un.role === 'junior' ? `Ruled from ${un.partnerName}` : `Also wears the crown of ${un.partnerName}`}${un.role === 'junior' ? ` · lords ${un.mood}` : ''}</span></div>` : '';
+            })()}
             <div class="info-row">
                 <span class="info-label">Culture</span>
                 <span class="info-value">${knows('peoples') ? kingdom.culture : '<span style="color:#666;">Unknown</span>'}</span>

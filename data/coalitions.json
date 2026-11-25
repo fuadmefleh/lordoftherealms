@@ -7,7 +7,7 @@
         "difficultyScale": 1,
         "power": {
             "town": 12, "property": 1.5, "propertyCap": 30,
-            "crown": 40, "crownTown": 4, "title": 8,
+            "crown": 40, "crownTown": 4, "_crownMight": "the crown and its towns weigh by the realm's might over the other crowns' average, between crownMightFloor and crownMightCap", "crownMightFloor": 0.25, "crownMightCap": 1.5, "title": 8,
             "armyPer": 25, "armyCap": 60,
             "worthPer": 1500, "worthCap": 50,
             "prestigePer": 8, "prestigeCap": 40,

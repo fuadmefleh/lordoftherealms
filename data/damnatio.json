@@ -1,0 +1,37 @@
+{
+    "_doc": "Wiping a House's name from the world (systems/damnatio.js, damnatio memoriae). A House you have destroyed: the dynasty of a fallen realm whose old capital your realm now holds, or the old royal line of the realm you rule (CrownSuccession.oldLine). Four acts, each paid out of the crown's treasury into the capital's market (masons, clerks, the hangmen): deface its TOMBS (its dead can no longer be tried; the faith is outraged), burn its CHRONICLES (from then on its name is struck from the Annals, the Timeline and its kings' law codes), rename its TOWNS (its old seat and every town bearing its name: towns of another culture resent it), and kill or geld its last SONS (its pretender's claim ends). With all four done the House is ERASED: Prestige, infamy, every realm's regard. Unless a survivor remembers: a gelded son, a daughter, or by chance (hiddenChance) a monk who hid a copy of the chronicle or a child smuggled out. The rememberer restores the name some years later (restoreYears) unless silenced (silence: hired blades, a chance), and swears himself your nemesis; the old line's claim returns. AI conquerors erase fallen dynasties too (a cruel, wrathful or paranoid ruler who holds the old capital; aiChance), and their survivors restore names the same way.",
+    "acts": {
+        "tombs": { "label": "Deface their tombs", "icon": "⚰️", "gold": 250, "karma": -8, "faith": -6, "stability": 1 },
+        "chronicles": { "label": "Burn their chronicles", "icon": "🔥", "gold": 150, "karma": -4, "faith": -2, "stability": 0 },
+        "towns": { "label": "Rename their towns", "icon": "🏷️", "gold": 120, "goldPerTown": 120, "karma": -2, "faith": 0, "stability": 2 },
+        "sons": { "label": "Kill or geld their last sons", "icon": "🗡️", "gold": 100, "karma": -10, "karmaPer": -4, "faith": -4, "stability": 0 }
+    },
+    "erased": { "prestige": 30, "butcher": 25, "reputationAll": 6 },
+    "hiddenChance": 0.35,
+    "restoreYears": [6, 25],
+    "silence": { "gold": 200, "chance": 0.6, "karma": -6, "failYears": -3, "nemesisScore": 60 },
+    "restore": { "nemesisScore": 75 },
+    "ai": { "chance": 0.35, "traits": ["cruel", "wrathful", "paranoid"], "rememberChance": 0.5 },
+    "townForms": ["{root}sburg", "{root}ton", "{root}stead", "{root}'s Hold", "New {root}", "{root}gard"],
+    "neutralRoots": ["King", "Crown", "Bright", "Victor", "Stone", "Iron"],
+    "hiddenKinds": {
+        "monk": { "label": "a monk of {town} who hid a copy of the chronicle", "gender": "male" },
+        "child": { "label": "a child of the House smuggled out by a nurse", "gender": "male" }
+    },
+    "lines": {
+        "tombs": "By order of {ruler}, the tombs of {house} were broken open, their effigies defaced and their bones thrown out.",
+        "chronicles": "{ruler} had the chronicles of {house} burnt in the square: its charters, its genealogies, its kings' names struck from every roll.",
+        "towns": "{ruler} gave new names to the towns of {house}: {list}.",
+        "townsNone": "{ruler} decreed that no town should bear the name of {house} again.",
+        "sonsKill": "The last sons of {house} were put to death: {list}.",
+        "sonsGeld": "The last sons of {house} were gelded and sent to a monastery: {list}.",
+        "sonsNone": "No son of {house} was left to be found.",
+        "erased": "{house} is no more: its tombs broken, its books ashes, its towns renamed, its sons gone. It is as if it had never been.",
+        "remembers": "But {who} remembers.",
+        "silenced": "The one who remembered {house}, {who}, was found and silenced.",
+        "silenceFailed": "The blades sent after {who} came back empty-handed. {who} is warned, and runs.",
+        "forgotten": "{who}, the last who remembered {house}, is dead. Its name dies with them.",
+        "restored": "{who}, who remembered, has written out the chronicle of {house} again and cried its name in the market of {town}. The name is restored.",
+        "aiErased": "{ruler} of {realm} has wiped {house} from the world: its tombs broken, its books burnt, {town} renamed {newName}."
+    }
+}

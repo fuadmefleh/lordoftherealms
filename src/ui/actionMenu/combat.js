@@ -293,8 +293,9 @@ Object.assign(ActionMenu, {
                 if (r.success === false) { game.ui.showNotification('🏰 Siege', r.reason, 'error'); return; }
                 _rollBattleWound(game, r);
                 game.ui.updateStats(player, world);
+                // (the garrison who yield in the breach: their fate is yours, player/prisonerFates.js)
                 game.ui.showCustomPanel(storm ? (r.victory ? '⚔️ The Walls Are Carried' : '⚔️ Assault Repelled') : (r.victory ? '🚩 Relief Host Broken' : '🚩 Driven Off'),
-                    siegeResultHtml(r, battleExtrasHtml(r), !!Sieges.active(player)));
+                    (r.yielded ? ActionMenu.captivesRowHtml(game) : '') + siegeResultHtml(r, battleExtrasHtml(r), !!Sieges.active(player)));
             };
             InnerMapBattle.start(game, {
                 ...fight, layout: storm ? 'assault' : null,
@@ -329,7 +330,7 @@ Object.assign(ActionMenu, {
             return;
         }
         game.ui.updateStats(player, world);
-        const html = siegeResultHtml(result, battleExtrasHtml(result), !!Sieges.active(player));
+        const html = (result.yielded ? ActionMenu.captivesRowHtml(game) : '') + siegeResultHtml(result, battleExtrasHtml(result), !!Sieges.active(player));
         game.ui.showCustomPanel(title, html);
     },
 

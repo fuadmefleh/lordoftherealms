@@ -150,6 +150,30 @@
         "grief": -12,
         "griefLong": 4
     },
+    "immure": {
+        "_doc": "Someone walled up alive in your castle (systems/immurement.js), branded when the servants' talk gets out (not at the deed: nobody saw it). Every realm hears of it, faintly.",
+        "butcher": 18, "perfidy": 0, "karma": -15,
+        "deeds": { "cruelty": 4, "dread": 2, "deceit": 1 },
+        "reputation": -12, "otherReputation": -3, "severity": 3,
+        "lordDeed": "immured", "othersDeed": "immured_heard", "gossip": "immured",
+        "grief": -5, "griefLong": 8
+    },
+    "decimate": {
+        "_doc": "A company that broke in battle decimated on your order (player/decimation.js): every tenth man beaten to death by his comrades. Your own men's blood, not a town's: no mark, but the talk and the name.",
+        "butcher": 10, "perfidy": 0, "karma": -10,
+        "deeds": { "cruelty": 3, "dread": 3 },
+        "reputation": -4, "otherReputation": -1, "severity": 2,
+        "lordDeed": null, "othersDeed": "decimation_heard", "gossip": null,
+        "grief": 0, "griefLong": 1
+    },
+    "ateDead": {
+        "_doc": "Your starving garrison ate its dead (systems/eatingTheDead.js): the town held months longer, but its name is never the same. A long grief in the town; every realm hears of it.",
+        "butcher": 6, "perfidy": 0, "karma": -8,
+        "deeds": { "cruelty": 1, "dread": 2 },
+        "reputation": -6, "otherReputation": -3, "severity": 1,
+        "lordDeed": null, "othersDeed": "ate_dead_heard", "gossip": "ate_dead",
+        "grief": -10, "griefLong": 10
+    },
     "marks": {
         "salt": "The fields of {town} were sown with salt {when} by {by}.",
         "hostages": "{n} hostages of {town} were hanged before its walls {when} by {by}.",
@@ -157,7 +181,10 @@
         "massacre": "{town} opened its gates to {by} {when} and was put to the sword; {n} were killed.",
         "wells": "The wells of {town} were fouled with carcasses {when} by {by}'s soldiers.",
         "harry": "The farms of {town} were burned and its fields fired {when} by {by}'s riders.",
-        "slaughter": "{n} peasants of {town} were cut down in the fields {when} by {by}'s soldiers."
+        "slaughter": "{n} peasants of {town} were cut down in the fields {when} by {by}'s soldiers.",
+        "immure": "A living soul was bricked up in the walls of {town}'s castle {when} by {by}. The servants still will not go down that passage after dark.",
+        "decimate": "{by}'s soldiers beat every tenth man of a company to death {when}.",
+        "ateDead": "{when} the starving garrison of {town} ate its dead rather than open the gates. They call it {epithet} still."
     },
     "chronicle": {
         "salt": "Sowed the fields of {town} with salt.",
@@ -166,7 +193,10 @@
         "massacre": "Put {town} to the sword after it had surrendered.",
         "wells": "Fouled the wells of {town} with carcasses.",
         "harry": "Harried the countryside of {town}: farms burned, fields fired.",
-        "slaughter": "Put {n} peasants of {town} to the sword in a harrying."
+        "slaughter": "Put {n} peasants of {town} to the sword in a harrying.",
+        "immure": "The servants of {town} talk: {by} had someone walled up alive in the castle.",
+        "decimate": "Decimated a company that broke: every tenth man beaten to death by his comrades.",
+        "ateDead": "The garrison of {town}, starving under siege, ate its dead to hold out."
     },
     "events": {
         "salt": "🧂 {by} sows the fields of {town} with salt.",
@@ -175,7 +205,10 @@
         "massacre": "⚰️ {by} puts {town} to the sword after it surrendered!",
         "wells": "🐀 {by} fouls the wells of besieged {town} with carcasses.",
         "harry": "🔥 {by} harries the countryside of {town}.",
-        "slaughter": "⚰️ {by}'s soldiers cut down {n} peasants of {town}."
+        "slaughter": "⚰️ {by}'s soldiers cut down {n} peasants of {town}.",
+        "immure": "🧱 The servants of {town} whisper that {by} walled someone up alive in the castle.",
+        "decimate": "🎲 {by} decimates a company that broke: every tenth man beaten to death by his comrades.",
+        "ateDead": "🦴 The starving garrison of {town} has eaten its dead rather than surrender."
     },
     "lines": {
         "salt": "Your men drag the salt across the furrows of {town}. Nothing will grow there for years.",

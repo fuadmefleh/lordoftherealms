@@ -45,6 +45,8 @@ function headCard(v, rival = null) {
     // (the heir, one you hold captive, one maimed: systems/rivalCaptives.js)
     const kids = v.children.map(c => `${esc(c.name)} (${c.age}${c.wed ? `, wed${c.wed !== 'another House' ? ` to your ${esc(c.wed)}` : ''}` : ''}${c.heir ? ', the heir' : ''}${c.held ? ', your captive' : ''}${c.maimed ? `, ${esc(c.maimed)}` : ''})`);
     facts.push(`💍 ${v.spouse ? `Married to ${esc(v.spouse)}` : 'Unmarried'}${kids.length ? ` · children: ${kids.join(', ')}` : ' · no children'}`);
+    if (v.knight) facts.push(`✝️ ${esc(v.knight)}`);
+    if (v.cross) facts.push(`✝️ Under the cross against ${esc(v.cross)}`);
     if (v.allies.length) facts.push(`🤝 Stands allied with ${v.allies.map(esc).join(', ')}`);
     if (v.enemies.length) facts.push(`💢 At odds with ${v.enemies.map(esc).join(', ')}`);
     if (v.favourite.length) facts.push(`👑 Favourite at the court of ${v.favourite.map(esc).join(', ')}`);

@@ -177,7 +177,8 @@
     "office":   { "label": "Royal office", "icon": "🏛️" },
     "conquest": { "label": "Conquest of the capital", "icon": "⚔️" },
     "purchased":{ "label": "Heralds and genealogists", "icon": "🛡️" },
-    "blood":    { "label": "Birthright", "icon": "🔴" }
+    "blood":    { "label": "Birthright", "icon": "🔴" },
+    "annulled": { "label": "A line annulled by synod", "icon": "⚰️" }
   },
 
   "crisisCauses": {

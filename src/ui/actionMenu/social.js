@@ -14,6 +14,11 @@ import { CrownSuccession } from '../../systems/crownSuccession.js';
 import { Court } from '../../systems/court.js';
 import { Regency } from '../../systems/regency.js';
 import { BloodFeuds } from '../../systems/bloodFeuds.js';
+import { Laws } from '../../systems/laws.js';
+import { Fratricide } from '../../systems/fratricide.js';
+import { CadaverSynod } from '../../systems/cadaverSynod.js';
+import { Damnatio } from '../../systems/damnatio.js';
+import { HolyWars } from '../../systems/holyWars.js';
 import { ConversationScene } from '../conversationScene.js';
 import { NpcPortrait } from '../npcPortrait.js';
 import { openPersonScene, personSprite } from './peopleScene.js';
@@ -739,6 +744,14 @@ Object.assign(ActionMenu, {
                 const owing = bf.filter(f => f.owes !== BloodFeuds.playerIndex(f));
                 against.push({ icon: '⚔️', name: 'Blood Feuds', desc: bf.length ? bf.map(f => f.sides[1 - BloodFeuds.playerIndex(f)].name).slice(0, 3).join(', ') : 'Blood owed, the blood price, matches, judgement', act: 'showBloodFeuds', side: bf.length ? String(bf.length) : '', tone: owing.length ? 'bad' : bf.length ? 'gold' : '' });
             }
+            // The Church: holy wars, the cross, a ban on you, an inquisitor's summons (ui/actionMenu/church.js)
+            {
+                const banned = HolyWars.playerBans(player, game.world).length;
+                const summons = player.inquisition && player.inquisition.summons;
+                const cross = player.holyWars && player.holyWars.cross;
+                const calls = HolyWars.invitations(player, game.world).length;
+                against.push({ icon: '⛪', name: 'The Church', desc: summons ? `Summoned by ${summons.name} to ${summons.town}` : banned ? 'You are cast out of the faith' : cross ? `Under the cross against ${cross.targetName}` : calls ? 'The Church calls your crown to a holy war' : 'Holy wars, the cross, the ban, the inquisition', act: 'showChurch', side: summons ? 'summoned' : banned ? 'banned' : calls ? 'called' : cross ? 'vow' : '', tone: summons || banned ? 'bad' : calls || cross ? 'gold' : '' });
+            }
             // The crowns' charge sheets, bounty hunters, the orphans growing up (ui/actionMenu/wanted.js)
             {
                 const wr = Object.values((player.wanted && player.wanted.realms) || {});
@@ -768,6 +781,25 @@ Object.assign(ActionMenu, {
             against.push({ icon: '🌋', name: 'The Age', desc: lcLive ? (lc.phase === 'omens' ? 'Omens of the last crisis gather against your House' : 'The last crisis of the age is upon you') : crisis ? crisis.name.charAt(0).toUpperCase() + crisis.name.slice(1) : lcGathering ? `The great crises of the world · the reckoning gathers (${Math.round(50 + 50 * Math.min(1, lc.held / lc.need))}%)` : 'The great crises of the world', act: 'showCrisesPanel', side: lcLive || crisis ? 'crisis' : '', tone: lcLive || crisis ? 'bad' : lcGathering ? 'warn' : '' });
         }
         html += rowList(against, 'Against you');
+
+        // The crown's dark work on the blood: the bowstring, the synod of the dead, the name wiped out
+        // (ui/actionMenu/fratricide.js, cadaverSynod.js, damnatio.js)
+        {
+            const dark = [];
+            const ruled = Laws.ruled(player, game.world);
+            const fs = player.fratricide;
+            const pend = Fratricide.condemned(player).length;
+            const plots = fs ? (fs.schemes || []).filter(x => x.revealed && !x.ended).length + (fs.spared || []).filter(x => x.plotted).length : 0;
+            if (ruled || pend || (fs && ((fs.spared || []).length || (fs.history || []).length))) {
+                const law = ruled ? Fratricide.law(game.world, ruled.id) : null;
+                dark.push({ icon: '➰', name: 'The Bowstring', desc: pend ? `${pend} brother${pend === 1 ? '' : 's'} wait for your word` : law === 'fratricide' ? 'The law of fratricide: only one son will live' : law === 'cage' ? 'The cage: your brothers shut up for life' : "The law on the heir's brothers", act: 'showFratricide', side: pend ? 'waiting' : plots ? String(plots) : '', tone: pend || plots ? 'bad' : '' });
+            }
+            const tombs = CadaverSynod.view(player, game.world).reach.length;
+            if (ruled || tombs) dark.push({ icon: '⚰️', name: 'The Synod of the Dead', desc: tombs ? `${tombs} dead enem${tombs === 1 ? 'y lies' : 'ies lie'} within your reach` : 'Dig up a dead enemy and try him', act: 'showCadaverSynod', side: tombs ? String(tombs) : '' });
+            const wipe = Damnatio.candidates(player, game.world).length;
+            if (ruled || wipe) dark.push({ icon: '🔥', name: 'Wipe Their Name', desc: wipe ? `${wipe} House${wipe === 1 ? '' : 's'} you have broken` : 'Erase a House you have destroyed', act: 'showDamnatio', side: wipe ? String(wipe) : '' });
+            if (dark.length) html += rowList(dark, "The crown's dark work");
+        }
 
         // The record: the House's story and the world's, each told one way
         html += rowList(record, 'The record');

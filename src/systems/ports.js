@@ -703,7 +703,11 @@ export const Ports = {
             Ledger.record(player, 'roadTolls', -leg.fare);
         }
         player.lastFerry = { id: leg.ferry.id, day: _day(world), fare: leg.fare, ferryman: leg.ferry.ferryman, town: leg.ferry.town.name };
-        return { paid: leg.fare, ferry: leg.ferry };
+        // (told as you come ashore: player/core/movement.js queues it, ui/game/gameLoop.js shows it)
+        const span = (d) => (d < 1 ? `${Math.max(1, Math.round(d * 24))} hour${Math.round(d * 24) === 1 ? '' : 's'}` : `${Math.round(d * 10) / 10} day${d === 1 ? '' : 's'}`);
+        const text = `${leg.ferry.ferryman} takes you over the great river on the ferry${leg.fare > 0 ? ` for ${leg.fare}g, to ${leg.ferry.town.name}'s purse` : ' and asks nothing for it'}. `
+            + `With the wait for the boat it is about ${span(leg.extra)}; wading across would have been ${span(leg.wade)}.`;
+        return { paid: leg.fare, ferry: leg.ferry, extra: leg.extra, wade: leg.wade, text };
     },
 
     /** The strait ferries from where the player stands: [{ ferry, to, fare, ok, reason }] */

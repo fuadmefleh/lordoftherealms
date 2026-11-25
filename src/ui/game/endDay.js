@@ -40,6 +40,9 @@ import { Stewards } from '../../systems/stewards.js';
 import { Rivals } from '../../systems/rivals.js';
 import { Nemesis } from '../../systems/nemesis.js';
 import { BloodFeuds } from '../../systems/bloodFeuds.js';
+import { Fratricide } from '../../systems/fratricide.js';
+import { CadaverSynod } from '../../systems/cadaverSynod.js';
+import { Damnatio } from '../../systems/damnatio.js';
 import { Bonds } from '../../systems/bonds.js';
 import { Wanted } from '../../systems/wanted.js';
 import { Trials } from '../../player/trials.js';
@@ -51,6 +54,7 @@ import { HouseQuests } from '../../systems/houseQuests.js';
 import { Upbringing } from '../../systems/upbringing.js';
 import { HeirAgency } from '../../systems/heirAgency.js';
 import { Betrothals, CrownMatches } from '../../systems/betrothals.js';
+import { RealmUnions } from '../../systems/realmUnions.js';
 import { Raising } from '../../systems/raising.js';
 import { HeirPaths } from '../../systems/heirPaths.js';
 import { Regency } from '../../systems/regency.js';
@@ -95,6 +99,11 @@ import { Maiming } from '../../systems/maiming.js';
 import { Executions } from '../../systems/executions.js';
 import { Gibbets } from '../../systems/gibbets.js';
 import { PenalLabour } from '../../systems/penalLabour.js';
+import { Flaying } from '../../systems/flaying.js';
+import { Immurement } from '../../systems/immurement.js';
+import { Decimation } from '../../player/decimation.js';
+import { HolyWars } from '../../systems/holyWars.js';
+import { Inquisition } from '../../systems/inquisition.js';
 import { Interrogation } from '../../systems/interrogation.js';
 import { HoldingSieges } from '../../systems/holdingSieges.js';
 import { Discovery } from '../../systems/discovery.js';
@@ -613,6 +622,8 @@ export function endDay() {
                 for (const n of Betrothals.processDay(this.player, this.world).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
                 // The crowns promise their royal children to each other: truces, alliances at the wedding (systems/betrothals.js)
                 CrownMatches.processDay(this.world);
+                // Two AI crowns on one head: unions formed by those weddings and successions, kept and broken (systems/realmUnions.js)
+                for (const n of RealmUnions.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
                 // Time together, tutors' wages, wards at court, the coming-of-age summary (systems/raising.js)
                 for (const n of Raising.processDay(this.player, this.world).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
                 // Formative paths, hostages and their terms, wards kept as leverage (systems/heirPaths.js)
@@ -769,6 +780,12 @@ export function endDay() {
             for (const n of Nemesis.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             // Blood feuds — families, Houses and crowns owing each other (and you) blood; avengers, wergild, the generations (systems/bloodFeuds.js)
             for (const n of BloodFeuds.processDay(this.world, this.player).notices.slice(0, 3)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            // The law of fratricide — the bowstring at the accession, the spared who plot, the mothers' schemes; AI realms' bowstrings and harems (systems/fratricide.js)
+            for (const n of Fratricide.processDay(this.world, this.player).notices.slice(0, 3)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            // The tombs of dead kings and House heads; hard crowns put an enemy's corpse on trial (systems/cadaverSynod.js)
+            for (const n of CadaverSynod.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            // Houses wiped from the world: AI conquerors' damnatio, those who remember, names restored (systems/damnatio.js)
+            for (const n of Damnatio.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             // Wanted: each realm's long charge sheet, posters, bounty hunters on your trail, orphans who grow into avengers (systems/wanted.js)
             for (const n of Wanted.processDay(this.world, this.player).notices.slice(0, 3)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             // Profane crimes: fake relics found out, a desecrated House's grudge held and passed on (systems/profaneCrimes.js)
@@ -953,6 +970,14 @@ export function endDay() {
             for (const n of Gibbets.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             // Penal labour — your convicts at the mines and oars, the crown's gangs, the realms' courts' lash and iron (systems/penalLabour.js)
             for (const n of PenalLabour.processDay(this.world, this.player).notices.slice(0, 3)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            // Flaying — the realms' crowns flay their crooked officials and traitors (systems/flaying.js)
+            for (const n of Flaying.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            // The walled-up dead — the servants' talk, the haunted houses, the night's apparitions (systems/immurement.js)
+            for (const n of Immurement.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            // Decimation — steel and hatred in a decimated army, deserters; the realms decimate their own (player/decimation.js)
+            for (const n of Decimation.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            // The inquisition: inquisitors on their rounds, hearings, burnings, the player summoned (systems/inquisition.js)
+            for (const n of Inquisition.processDay(this.world, this.player).notices.slice(0, 3)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             // The dungeon — an innocent you condemned found innocent; a rival House puts your hostage child to the question (systems/interrogation.js)
             for (const n of Interrogation.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
@@ -1171,6 +1196,8 @@ export function endDay() {
             for (const n of Crises.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             // The last crisis of the age: the reckoning of a House grown too great (systems/lastCrisis.js)
             for (const n of LastCrisis.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            // The sees of the faiths: holy wars called and fought, the cross, excommunication (systems/holyWars.js)
+            for (const n of HolyWars.processDay(this.world, this.player).notices.slice(0, 4)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             // The weight of greatness: great old realms rot from within (systems/realmDecline.js)
             for (const n of RealmDecline.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             // The commons rise: grievances, risings, rebel hosts burning estates (systems/peasantRevolts.js)

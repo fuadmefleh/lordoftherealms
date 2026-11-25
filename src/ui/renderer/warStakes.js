@@ -44,13 +44,20 @@ function _stakes(ctx, x, y, s, fresh, seed) {
 }
 
 function _column(ctx, x, y, s) {
-    ctx.fillStyle = 'rgba(176,170,160,0.95)';
-    ctx.strokeStyle = 'rgba(60,56,52,0.9)';
-    ctx.lineWidth = Math.max(1, s * 0.05);
+    // (drawn larger than a stake grove, outlined: grey figures vanish on grass and forest otherwise)
+    s *= 1.7;
+    ctx.fillStyle = 'rgba(196,190,178,0.98)';
+    ctx.strokeStyle = 'rgba(30,28,26,0.95)';
+    ctx.lineWidth = Math.max(1, s * 0.035);
     for (let i = 0; i < 4; i++) {
         const px = x + (i - 1.5) * s * 0.3, py = y + (i % 2) * s * 0.06;
-        ctx.beginPath(); ctx.arc(px, py - s * 0.32, s * 0.08, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(px, py - s * 0.32, s * 0.08, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
         ctx.fillRect(px - s * 0.06, py - s * 0.24, s * 0.12, s * 0.3);
+        ctx.strokeRect(px - s * 0.06, py - s * 0.24, s * 0.12, s * 0.3);
+        // (a dark band across the eyes)
+        ctx.fillStyle = 'rgba(70,20,18,0.95)';
+        ctx.fillRect(px - s * 0.08, py - s * 0.35, s * 0.16, s * 0.04);
+        ctx.fillStyle = 'rgba(196,190,178,0.98)';
         // (each with a hand on the shoulder of the man ahead)
         if (i > 0) { ctx.beginPath(); ctx.moveTo(px - s * 0.05, py - s * 0.18); ctx.lineTo(px - s * 0.25, py - s * 0.2); ctx.stroke(); }
     }
@@ -84,13 +91,16 @@ Object.assign(Renderer.prototype, {
             for (let i = 0; i < tiles.length; i++) {
                 const p = onScreen(tiles[i].q, tiles[i].r);
                 if (!p) continue;
-                if (!first) first = p;
+                // (the label on a hex of open road: a town's own name would crowd it out)
+                const t = world.getTile(tiles[i].q, tiles[i].r);
+                if (!first || (first.town && !(t && t.settlement))) first = { x: p.x, y: p.y, town: !!(t && t.settlement) };
                 _stakes(ctx, p.x, p.y, ss, fresh, (st.id || 1) + i);
             }
             ctx.globalAlpha = 1;
             if (first && z > 0.5) {
-                const label = st.byPlayer ? `A forest of stakes · ${st.men} of ${st.realm}` : `Stakes of ${st.by || 'a realm'}`;
-                this.addLabel(label, first.x, first.y + size * 0.5, 3, {
+                // (short: a long label beside a town is crowded out by the town's name)
+                const label = st.byPlayer ? `${st.men} on stakes` : `Stakes of ${st.by || 'a realm'}`;
+                this.addLabel(label, first.x, first.y + (first.town ? size * 0.5 + 34 : size * 0.5), 3, {
                     font: `600 ${Math.max(8, 10 * z)}px 'Inter', sans-serif`,
                     fillStyle: fresh > 0 ? '#e08a7a' : '#b8aa98',
                     shadowColor: 'rgba(0,0,0,0.75)', textAlign: 'center', textBaseline: 'top',
@@ -102,7 +112,9 @@ Object.assign(Renderer.prototype, {
             if (!p) continue;
             _column(ctx, p.x, p.y + size * 0.1, ss);
             if (z > 0.5) {
-                this.addLabel(`The blinded of ${c.realm} · ${c.men}`, p.x, p.y + size * 0.5, 3, {
+                // (set out from a town: below its name, not on it)
+                const ct = world.getTile(c.q, c.r);
+                this.addLabel(`${c.men} blinded men`, p.x, p.y + (ct && ct.settlement ? size * 0.5 + 34 : size * 0.5), 3, {
                     font: `600 ${Math.max(8, 10 * z)}px 'Inter', sans-serif`,
                     fillStyle: '#cfc8bc', shadowColor: 'rgba(0,0,0,0.75)', textAlign: 'center', textBaseline: 'top',
                 });

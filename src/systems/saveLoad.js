@@ -55,11 +55,20 @@ import { HandBuilding } from '../world/handBuilding.js';
 import { RiverLife } from './riverLife.js';
 import { LlmProse } from './llmProse.js';
 import { Crises } from './crises.js';
+import { RealmUnions } from './realmUnions.js';
 import { BloodFeuds } from './bloodFeuds.js';
+// The law of fratricide, the Cadaver Synod's tombs, Houses wiped from the world (systems/fratricide.js, cadaverSynod.js, damnatio.js)
+import { Fratricide } from './fratricide.js';
+import { CadaverSynod } from './cadaverSynod.js';
+import { Damnatio } from './damnatio.js';
+import { HolyWars } from './holyWars.js';
+import { Inquisition } from './inquisition.js';
 import { LastCrisis } from './lastCrisis.js';
 import { Executions } from './executions.js';
 import { Gibbets } from './gibbets.js';
 import { PenalLabour } from './penalLabour.js';
+import { Flaying } from './flaying.js';
+import { Immurement } from './immurement.js';
 import { PeasantRevolts } from './peasantRevolts.js';
 import { GreatWorks } from './greatWorks.js';
 import { NamedLegacy } from './namedLegacy.js';
@@ -438,8 +447,20 @@ export const SaveLoad = {
             riverLife: RiverLife.serialize(world),
             // The age-defining crises: the one running and those on record (systems/crises.js)
             crises: Crises.serialize(world),
+            // Personal unions between the AI realms on record, the marriages a law refused (systems/realmUnions.js)
+            realmUnions: RealmUnions.serialize(world),
             // Blood feuds between families, Houses, the crowns and yours (systems/bloodFeuds.js)
             bloodFeuds: BloodFeuds.serialize(world),
+            // The AI realms' bowstrings and harems seen (systems/fratricide.js)
+            fratricide: Fratricide.serializeWorld(world),
+            // The tombs of dead kings and House heads, and the synods held over them (systems/cadaverSynod.js)
+            cadaverSynod: CadaverSynod.serialize(world),
+            // Houses wiped from the world, and those who remember them (systems/damnatio.js)
+            damnatio: Damnatio.serialize(world),
+            // The sees of the faiths, their holy wars and bans (systems/holyWars.js); the inquisitors on their rounds
+            // (systems/inquisition.js; each town's fear travels with it: settlement.inquisition)
+            holyWars: HolyWars.serialize(world),
+            inquisition: Inquisition.serialize(world),
             // Regions and seas named after Houses (systems/namedLegacy.js; codes ride on kingdom.laws, renamed towns on their tiles)
             namedLegacy: NamedLegacy.serialize(world),
             // The names of the ranges, rivers, seas... as first given, so a town founded later renames none (world/geoNames.js)
@@ -454,6 +475,10 @@ export const SaveLoad = {
             prisonerFates: world.prisonerFates ? JSON.parse(JSON.stringify(world.prisonerFates)) : null,
             // The crown's convict gangs at its mines and oars, and the courts' tally (systems/penalLabour.js)
             penal: PenalLabour.serialize(world),
+            // The realms' flayings (systems/flaying.js; the skins travel with their towns)
+            flaying: Flaying.serialize(world),
+            // The haunted towns, the realms' walled-up dead (systems/immurement.js; the ghosts travel with their towns)
+            immurement: Immurement.serialize(world),
             // The commons' grievances town by town, the risings afoot, burned fields growing back (systems/peasantRevolts.js)
             peasantRevolts: PeasantRevolts.serialize(world),
             // The climate's eras begun and their chronicle (world/climate.js)
@@ -554,6 +579,9 @@ export const SaveLoad = {
             // War lifecycle (goals, truces) and persistent armies
             warState: k.warState || {},
             truces: k.truces || {},
+            // war weariness and the last war declared on it (KingdomAI.mayOpenWar)
+            restUntil: k.restUntil || 0,
+            declaredOnDay: k.declaredOnDay != null ? k.declaredOnDay : null,
             militaryCap: k.militaryCap,
             _militaryInit: !!k._militaryInit,
             conqueredBy: k.conqueredBy || null,
@@ -592,7 +620,13 @@ export const SaveLoad = {
                 // How far a great old realm has sagged under its own weight (systems/realmDecline.js)
                 'decline',
                 // A blinded army come home, men sworn to the player, the stakes it dreads (world/warStakes.js)
-                'captivity']),
+                'captivity',
+                // Its broken companies decimated: steel and hatred in the ranks (player/decimation.js)
+                'decimation',
+                // The Church's regard: a ruler cast out, a holy war answered or refused (systems/holyWars.js)
+                'church',
+                // Two crowns on one head: its personal union with another AI realm (systems/realmUnions.js)
+                'personalUnion']),
             // A realm born after world generation (founded by the player, or risen at the
             // Dawn of Man) isn't regenerated from the seed: keep what made it
             ...(k.createdByPlayer || k.dawnBorn ? {
@@ -625,6 +659,8 @@ export const SaveLoad = {
         'highCrowns',
         // The war for the crown at the seat's passing: preparation per crown, contests on record, breakaway realms (systems/crownSuccession.js)
         'crownSuccession',
+        // The law of fratricide: brothers awaiting the bowstring, the spared, the mothers' schemes (systems/fratricide.js)
+        'fratricide',
         // The body's losses (a hand, an eye…) and the aids worn; the maimings done and their record (systems/maimMarks.js, maiming.js)
         'maimed', 'maiming',
         // The condemned awaiting your word, and the scaffold's record (systems/executions.js)
@@ -633,10 +669,19 @@ export const SaveLoad = {
         'gibbets',
         // Convicts at your mines, ships and galleys; your own stripes and terms served (systems/penalLabour.js)
         'penal',
+        // The flayed and the skins you hung; the dread they keep (systems/flaying.js)
+        'flaying',
+        // Those you walled up and the servants' talk not yet out (systems/immurement.js)
+        'immurement',
+        // Companies that broke awaiting your word, the steel and the hatred in the ranks (player/decimation.js)
+        'decimation',
         // The dungeon: prisoners' sessions, the names they gave, what they told of the Houses (systems/interrogation.js)
         'interrogation',
         // The fate of prisoners: a column awaiting your word, oaths, your men held, no quarter, the record (player/prisonerFates.js)
         'prisonerFates',
+        // The cross taken, vows kept and broken, crusades served (systems/holyWars.js); the inquisition's summons,
+        // its favour and the hearings stood (systems/inquisition.js)
+        'holyWars', 'inquisition',
         // Where the player has begged lately, and what it brought (player/begging.js)
         'begging',
         // The household guard's standing order: defend against anyone, the watch too (ui/innerMapEscort.js)
@@ -1107,6 +1152,8 @@ export const SaveLoad = {
             const kingdom = world.kingdoms[i];
 
             Object.assign(kingdom, savedKingdom);
+            // (a union the save does not hold is not kept from the world loaded over: systems/realmUnions.js)
+            if (savedKingdom && !savedKingdom.personalUnion) delete kingdom.personalUnion;
             // Saves from before royal fleets: counted afresh (half the cap) on the next day
             KingdomNavy.ensure(kingdom);
 
@@ -1205,8 +1252,17 @@ export const SaveLoad = {
         LlmProse.restore(saveData.prose, world);
         // The crises (older saves: none yet; the first is scheduled on the next day)
         Crises.restore(saveData.crises, world);
+        // The unions on record (older saves: none; the realms' own records ride on the kingdoms)
+        RealmUnions.restore(saveData.realmUnions, world);
         // The blood feuds (older saves: none sworn yet)
         BloodFeuds.restore(saveData.bloodFeuds, world);
+        // The bowstrings, the tombs and the struck names (older saves: none)
+        Fratricide.restoreWorld(saveData.fratricide, world);
+        CadaverSynod.restore(saveData.cadaverSynod, world);
+        Damnatio.restoreState(saveData.damnatio, world);
+        // The sees and their holy wars, the inquisitors (older saves: none — the sees are raised on the next week)
+        HolyWars.restore(saveData.holyWars, world);
+        Inquisition.restore(saveData.inquisition, world);
         // The named regions and seas (older saves: none)
         NamedLegacy.restore(saveData.namedLegacy, world);
         GeoNames.restore(saveData.geography, world);
@@ -1220,6 +1276,11 @@ export const SaveLoad = {
         world.prisonerFates = saveData.prisonerFates ? JSON.parse(JSON.stringify(saveData.prisonerFates)) : undefined;
         if (world.prisonerFates) WarStakes.state(world);
         world.captivesFeed = [];
+        // The realms' broken lines feed the decimation inbox again (player/decimation.js)
+        world.routFeed = [];
+        // The realms' flayings, the haunted towns (older saves: none)
+        Flaying.restore(saveData.flaying, world);
+        Immurement.restore(saveData.immurement, world);
         // The crown's convict gangs (older saves: none)
         PenalLabour.restore(saveData.penal, world);
         // The commons' grievances and risings (older saves: none — grievance gathers from the next week)

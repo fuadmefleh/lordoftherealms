@@ -164,6 +164,12 @@ export const CoinCensus = {
             }
         }
 
+        // The sees' coffers, at their seat (systems/holyWars.js); the inquisitors' purses where they ride (systems/inquisition.js)
+        const hw = _obj(world.holyWars);
+        if (hw && _obj(hw.sees)) for (const see of Object.values(hw.sees)) if (see && _pos(see.coffers) > 0) add(see.kingdomId, 'coffers', see.coffers);
+        const iq = _obj(world.inquisition);
+        if (iq && Array.isArray(iq.list)) for (const i of iq.list) if (i && _pos(i.purse) > 0) add(_realmAt(world, i.q, i.r), 'court', i.purse);
+
         // Public works' budgets, with their paymaster at the site (systems/publicWorks.js)
         const tr = _obj(world.transport);
         if (tr && Array.isArray(tr.works)) for (const w of tr.works) if (w && _pos(w.budget) > 0) add(_realmAt(world, w.tq, w.tr), 'coffers', w.budget);
@@ -292,6 +298,11 @@ export const CoinCensus = {
         if (post && Array.isArray(post.couriers)) for (const c of post.couriers) if (c) fn(c, 'cash', 'couriers');
         const est = _obj(world.estates);
         if (est && _obj(est.holders)) for (const h of Object.values(est.holders)) if (h && h.kind !== 'player') fn(h, 'purse', 'coffers');
+        // (the sees' coffers and the inquisitors' purses: systems/holyWars.js, systems/inquisition.js)
+        const hw = _obj(world.holyWars);
+        if (hw && _obj(hw.sees)) for (const see of Object.values(hw.sees)) if (see && typeof see.coffers === 'number') fn(see, 'coffers', 'coffers');
+        const iq = _obj(world.inquisition);
+        if (iq && Array.isArray(iq.list)) for (const i of iq.list) if (i && typeof i.purse === 'number') fn(i, 'purse', 'court');
         const tr = _obj(world.transport);
         if (tr && Array.isArray(tr.works)) for (const w of tr.works) if (w && typeof w.budget === 'number') fn(w, 'budget', 'coffers');
         // (a unit just destroyed still carries its coin until the day's turn takes it off the

@@ -110,5 +110,13 @@ export default defineConfig({
     // Most suites load gamedata.json in beforeAll; under a busy CPU that can
     // exceed the 10s default and skip the whole file.
     hookTimeout: 30000,
+    // Transformed modules kept on disk between runs (node_modules/.experimental-vitest-cache),
+    // keyed by path + content + config. Importing DataLoader pulls ~415 modules and the whole
+    // ActionMenu ~760 (20 MB of source); with no cache every run transforms them all again
+    // (actionMenu.structure ~60 s on a busy CPU, ~14 s warm). Spread over the graph, not one
+    // hot module: the per-module transform is the cost. Delete that folder if it misbehaves.
+    experimental: {
+      fsModuleCache: true,
+    },
   },
 });

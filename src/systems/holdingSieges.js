@@ -64,6 +64,7 @@ import { Pressure } from './pressure.js';
 import { NpcMemory } from './npcMemory.js';
 import { Names } from '../core/names.js';
 import { Water } from './water.js';
+import { EatingTheDead } from './eatingTheDead.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _day = (world) => (world && world.day) || 0;
@@ -369,7 +370,28 @@ export const HoldingSieges = {
             canSally: day >= siege.nextSallyDay,
             peacePrice: k && war && !war.civilWar ? RealmWars.peacePrice(player, k) : null,
             supply: HoldingSieges.supplyOptions(player, world, siege),
+            // Starving: eat the dead, or forbid it (systems/eatingTheDead.js)
+            eatDead: EatingTheDead.canEat(siege, settlement),
+            eatDeadDays: EatingTheDead.gainOf(siege, settlement),
+            eatDeadForbid: !!EatingTheDead.rec(siege).forbid,
+            ateDead: EatingTheDead.rec(siege).times,
         };
+    },
+
+    /** Order the starving garrison to eat its dead (systems/eatingTheDead.js). */
+    eatDead(player, world, key) {
+        const s = HoldingSieges._get(player, key);
+        if (!s) return { success: false, reason: 'That holding is not under siege.' };
+        const res = EatingTheDead.order(player, world, s, HoldingSieges._settlement(world, s));
+        if (res.success) HoldingSieges._log(s, world, `On your order the garrison of ${s.name} eats its dead (+${res.days} days).`);
+        return res;
+    },
+
+    /** Forbid it, or leave it to the governor again. */
+    forbidEatDead(player, world, key) {
+        const s = HoldingSieges._get(player, key);
+        if (!s) return { success: false, reason: 'That holding is not under siege.' };
+        return EatingTheDead.forbid(player, world, s, HoldingSieges._settlement(world, s), !EatingTheDead.rec(s).forbid);
     },
 
     // ── The siege begins ────────────────────────────────────────
@@ -745,8 +767,10 @@ export const HoldingSieges = {
         const M = C.morale;
         const D = C.disease;
         s.stores = Math.max(0, Math.round((s.stores - HoldingSieges.consumption(world, s)) * 100) / 100);
-        const starving = s.stores <= 0;
         const c = HoldingSieges.commander(settlement);
+        // Starving: unless you forbade it, the governor may have the garrison eat its dead (systems/eatingTheDead.js)
+        if (EatingTheDead.holdingDay(world, player, s, settlement, c && c.governor ? c.name : null, out)) HoldingSieges._log(s, world, `The garrison of ${s.name} eats its dead.`);
+        const starving = s.stores <= 0;
         let dm = -M.daily + c.martial * M.martialDaily;
         if (starving) {
             dm -= M.starving;

@@ -386,6 +386,8 @@ export const Kingship = {
             const seat = v.seat && Number.isFinite(v.seat.q) ? Harrying.seatPenalty(world, v.seat.q, v.seat.r) : 0;
             t += add('The countryside burns', -(_num(k.harried.lords) + seat * (k.harried.answered ? 0.5 : 1)));
         }
+        // The Church: the crown cast out (oaths loosen), a holy war answered or refused (systems/holyWars.js → kingdom.church.vassal)
+        if (k && k.church && Number.isFinite(k.church.vassal) && k.church.vassal) t += add(k.church.banned ? 'The crown cast out of the faith' : 'The Church', k.church.vassal);
         return { target: Utils.clamp(Math.round(t), -100, 100), parts };
     },
 
@@ -1311,6 +1313,36 @@ export const Kingship = {
         Throne.syncCrowns(player, world);
     },
 
+    /**
+     * The ruler's own generalship (data/kingship.json council.rulerCommand): per point
+     * of martial skill (Throne._playerSkill of combat/leadership, 1-20) above `from`,
+     * warBonus and defense on the realm's battles. → { martial, warBonus, defense }
+     */
+    rulerCommand(player) {
+        const out = { martial: 0, warBonus: 0, defense: 0 };
+        if (!player || _far(player)) return out;
+        const R = (Kingship.config().council || {}).rulerCommand || {};
+        out.martial = Throne._playerSkill(player, ['combat', 'leadership']);
+        const over = Math.max(0, out.martial - _num(R.from));
+        out.warBonus = Math.round(over * _num(R.warPer) * 1000) / 1000;
+        out.defense = Math.round(over * _num(R.defensePer) * 1000) / 1000;
+        return out;
+    },
+
+    /**
+     * What the Marshal and the ruler give the realm's battles (the Council tab's
+     * line): { marshal: { warBonus, defense } | null, ruler: rulerCommand }.
+     */
+    battleEffect(player, world) {
+        const ruler = Kingship.rulerCommand(player);
+        const p = Kingship.councillor(player, world, 'marshal');
+        if (!p) return { marshal: null, ruler };
+        const def = Kingship.offices().marshal || {};
+        const f = Kingship._loyaltyFactor(p.loyalty);
+        const m = def.mods || {};
+        return { marshal: { warBonus: _num(m.warBonus) * p.competence * f, defense: _num(m.defense) * p.competence * f }, ruler };
+    },
+
     computeMods(player, world) {
         const court = Kingship.court(player);
         const k = Kingship._realm(player, world);
@@ -1328,6 +1360,12 @@ export const Kingship = {
             if (def.peaceChance) peace += def.peaceChance * p.competence * f;
             if (o === 'steward' && p.loyalty < _num(C.embezzleLoyalty)) add('treasury', -(_num(C.embezzleLoyalty) - p.loyalty) * _num(C.embezzleShare));
         }
+        // The ruler at the head of the host (KingdomAI.simulateBattle reads warBonus and
+        // defense, as it reads an AI realm's warlike lord): the home crown only, a far
+        // crown's king is not in the field
+        const rc = Kingship.rulerCommand(player);
+        add('warBonus', rc.warBonus);
+        add('defense', rc.defense);
         // Edicts' effects outside the kingdom AI (roads, charters, rival houses,
         // holdings' walls), published on kingdom.crown.effects by Throne.syncCrowns
         // and read through KingdomBonuses.crownEffect

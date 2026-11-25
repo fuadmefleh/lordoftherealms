@@ -43,7 +43,12 @@
         "_doc": "Prisoners of war (Interrogation.takePrisoners): after you beat a realm's host in the field (player/fieldBattle.js) or take one of its towns by storm (systems/sieges.js; a surrender has safe conduct). Chance = chance + strength × perStrength (+ siegeBonus), at most maxChance, a hash roll; a lord from a host of lordAt or more (lordChance), a knight from knightAt, else a captain. ransom by rank out of the realm's treasury (at most treasuryShare of it; × maimedShare when maimed). After offerAfter days the realm offers it. Each month you keep one, that realm's regard −monthlyRep (up to grumbleCap). Released whole: +releaseRep and the lords' memory gift. Dead in your keeping: deathRep and lordMemory torture.",
         "minStrength": 20, "chance": 0.35, "perStrength": 0.0025, "siegeBonus": 0.15, "maxChance": 0.7, "lordAt": 90, "lordChance": 0.5, "knightAt": 40,
         "ransom": { "lord": 500, "knight": 200, "captain": 80 }, "treasuryShare": 0.3, "maimedShare": 0.6,
-        "offerAfter": 21, "monthlyRep": 2, "grumbleCap": 12, "releaseRep": 6, "deathRep": -12
+        "offerAfter": 21, "monthlyRep": 2, "grumbleCap": 12, "releaseRep": 6, "deathRep": -12,
+        "house": {
+            "_doc": "A lord or knight taken from a realm where a rival House is seated (house.rivals[k], systems/rivalHouses.js) is of its blood with chance by rank (a hash roll): he takes its name, the House's feud +capturedFeud and its memory 'captured'. His ransom is paid out of the House's purse first (at most purseShare of it), the rest out of his crown's treasury. Sent home whole for nothing: feud -releaseFeud, memory 'releasedKin'; ransomed: 'ransomedKin'. Dead in your keeping (the question, the dungeon, the scaffold, cut down with the men): a blood feud with the House (systems/bloodFeuds.js), feud +deathFeud, memory 'diedCaptive'. Maimed (the iron, the knife, blinded with the men): a blood feud ('maimed'), feud +maimFeud, memory 'maimedKin'.",
+            "lord": 0.6, "knight": 0.2, "captain": 0,
+            "capturedFeud": 8, "purseShare": 0.4, "releaseFeud": 10, "deathFeud": 60, "maimFeud": 40
+        }
     },
     "spies": {
         "_doc": "Your spies taken abroad (systems/espionage/missions.js pushes them onto player.espionage.takenSpies): afterDays later, chance that crown puts them to the question and they talk: every mission of yours against it is blown (the spies come home idle), secondChance another of your spies placed in that realm is taken, regard rep, the lords' memory spy_confessed, a rival House of that realm +feud.",

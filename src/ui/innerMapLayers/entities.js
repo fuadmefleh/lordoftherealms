@@ -1582,6 +1582,9 @@ Object.assign(InnerMapRenderer, {
             InnerMapHiding.wrapPlayerDraw(items[items.length - 1], ctx, px, py, ds);
         }
 
+        // The quay's people — dockers, the harbourmaster — among the street's, so the pier is under their feet (innerMapLayers/portLife.js)
+        if (this._portLifeItems) this._portLifeItems(items, ctx, camera);
+
         // ── Phase 5: Sort by Y and draw ─────────────────────────────────────────
         // Primary: Y position (bottom of origin row)
         // Then: zLayer (objects=1 < characters=2)

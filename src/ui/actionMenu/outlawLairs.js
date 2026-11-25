@@ -161,7 +161,8 @@ Object.assign(ActionMenu, {
                     game.ui.showNotification('⛓️ Captured', 'Your army broken, you are dragged off in chains by the outlaws.', 'error');
                     return;
                 }
-                ActionMenu.showOutlawLairs(game, id, _resultHtml(res));
+                // (the stormed lair's survivors who yield: their fate is yours, player/prisonerFates.js)
+                ActionMenu.showOutlawLairs(game, id, _resultHtml(res) + (res.yielded ? ActionMenu.captivesRowHtml(game) : ''));
             },
         };
         game.ui.showCustomPanel('🏕️ Outlaw Lairs', html);

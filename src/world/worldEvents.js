@@ -686,7 +686,10 @@ export const WorldEvents = {
             if (ev.startedWar && ev.kingdomId && ev.partnerKingdomId && world.getKingdom) {
                 const a = world.getKingdom(ev.kingdomId);
                 const b = world.getKingdom(ev.partnerKingdomId);
-                if (a && b && (a.wars || []).includes(b.id)) {
+                // (a war since sworn — a holy war taken up, a pretender's war: KingdomAI.isSworn — is
+                // no longer the event's to end; it is fought out by its own verdict)
+                const sworn = (x, y) => { const s = x.warState && x.warState[y.id]; return !!(s && s.sworn > (world.day || 0)); };
+                if (a && b && (a.wars || []).includes(b.id) && !sworn(a, b) && !sworn(b, a)) {
                     a.wars = a.wars.filter(id => id !== b.id);
                     b.wars = (b.wars || []).filter(id => id !== a.id);
                     if (a.relations) a.relations[b.id] = Math.max(a.relations[b.id] || 0, -40);

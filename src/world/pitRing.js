@@ -126,25 +126,30 @@ export const PitRing = {
         const ow = IN_W + 2, oh = IN_H + 2;
         const at = PitRing._target(tiles, opts);
         const key = PitRing.key(settlement);
-        let best = null;
-        for (let r = Math.max(2, at.r - 16); r <= Math.min(H - oh - 2, at.r + 14); r++) {
-            for (let q = Math.max(2, at.q - 18); q <= Math.min(W - ow - 2, at.q + 18); q++) {
-                const d = Math.hypot(q + ow / 2 - at.q, r + oh / 2 - at.r);
-                if (best && d > best.s) continue;
-                let ok = true;
-                // (the ring and a pace of ground round it: the crowd stands there)
-                for (let y = r - 1; y <= r + oh && ok; y++) {
-                    for (let x = q - 1; x <= q + ow && ok; x++) {
-                        const t = tiles[y] && tiles[y][x];
-                        const edge = y === r - 1 || y === r + oh || x === q - 1 || x === q + ow;
-                        if (edge ? !(t && t.subTerrain && t.subTerrain.passable && !(t.customBuilding || t.customBuildingPart)) : !_free(t)) ok = false;
+        // (the nearest ground to the tavern; in a crowded town, farther out rather than no ring at all)
+        const search = (dq, dUp, dDown) => {
+            let best = null;
+            for (let r = Math.max(2, at.r - dUp); r <= Math.min(H - oh - 2, at.r + dDown); r++) {
+                for (let q = Math.max(2, at.q - dq); q <= Math.min(W - ow - 2, at.q + dq); q++) {
+                    const d = Math.hypot(q + ow / 2 - at.q, r + oh / 2 - at.r);
+                    if (best && d > best.s) continue;
+                    let ok = true;
+                    // (the ring and a pace of ground round it: the crowd stands there)
+                    for (let y = r - 1; y <= r + oh && ok; y++) {
+                        for (let x = q - 1; x <= q + ow && ok; x++) {
+                            const t = tiles[y] && tiles[y][x];
+                            const edge = y === r - 1 || y === r + oh || x === q - 1 || x === q + ow;
+                            if (edge ? !(t && t.subTerrain && t.subTerrain.passable && !(t.customBuilding || t.customBuildingPart)) : !_free(t)) ok = false;
+                        }
                     }
+                    if (!ok) continue;
+                    const s = d + _h(key, q, r) * 1.5;
+                    if (!best || s < best.s) best = { q, r, s };
                 }
-                if (!ok) continue;
-                const s = d + _h(key, q, r) * 1.5;
-                if (!best || s < best.s) best = { q, r, s };
             }
-        }
+            return best;
+        };
+        const best = search(18, 16, 14) || search(40, 40, 40);
         if (!best) return null;
         const { q, r } = best;
         const gate = { q: q + Math.floor(ow / 2), r: r + oh - 1 };

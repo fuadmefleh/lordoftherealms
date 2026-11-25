@@ -148,7 +148,7 @@ Object.assign(ActionMenu, {
             if (r.commanderBody) rep += `<div>💀 ${esc(r.commanderBody)}</div>`;
             // The captives, oath-breakers found out, your own men taken (player/prisonerFates.js)
             if (r.oathBroken) rep += `<div style="color:#f0b35a;">🕊️ ${esc(r.oathBroken)}</div>`;
-            if (r.captives) rep += `<div>⛓️ ${esc(r.captives.outlaw ? `${r.captives.men} of them yield to you.` : `${r.captives.men} men of ${r.captives.realm} yield to you.`)} Their fate is your word.</div>`;
+            if (r.captives) rep += `<div>⛓️ ${esc(r.captives.rebel ? `${r.captives.men} of the rebels throw down their scythes.` : r.captives.outlaw ? `${r.captives.men} of them yield to you.` : `${r.captives.men} men of ${r.captives.realm} yield to you.`)} Their fate is your word.</div>`;
             if (r.menTaken) rep += `<div style="color:#e0846a;">⛓️ ${esc(r.menTaken)}</div>`;
             if (b.reportText && r.prisonerTaken) rep += `<div>🔗 ${esc(r.prisonerTaken)}</div>`;
             else {
@@ -167,8 +167,8 @@ Object.assign(ActionMenu, {
             html += card(rep, { tone: r.withdrew ? 'warn' : r.victory ? 'good' : 'bad' });
             const col = PrisonerFates.pending(game.player);
             html += col && r.captives && col.id === r.captives.id
-                ? rowList([{ icon: '⛓️', name: 'Decide the fate of the captives', desc: `${col.men} ${col.outlaw ? 'outlaws' : `men of ${esc(col.realm)}`} kneel before you`, act: 'showCaptivesScene', tone: 'gold', side: '›' },
-                    { icon: '➡️', name: 'Continue', desc: 'Leave it to your captains: home on their oath (outlaws hang) at the end of the day', act: 'closePanelAndRefresh' }])
+                ? rowList([{ icon: '⛓️', name: 'Decide the fate of the captives', desc: `${col.men} ${col.rebel ? 'rebels' : col.outlaw ? 'outlaws' : `men of ${esc(col.realm)}`} kneel before you`, act: 'showCaptivesScene', tone: 'gold', side: '›' },
+                    { icon: '➡️', name: 'Continue', desc: col.rebel ? 'Leave it to your captains: the commons go home with mercy at the end of the day' : 'Leave it to your captains: home on their oath (outlaws hang) at the end of the day', act: 'closePanelAndRefresh' }])
                 : CONTINUE;
         }
         html += '</div>';

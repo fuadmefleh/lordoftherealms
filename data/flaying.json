@@ -1,0 +1,22 @@
+{
+    "_doc": "FLAYING (systems/flaying.js). A traitor or an official who robbed the purse he was set over can be flayed alive on the scaffold (data/executions.json methods.flay: crimes treason/corruption; the crowd, the clergy's frown, the butcher's name and the lords' memory come from the scaffold). A steward caught with a hand in the chest is sent there from the Stewards panel (Stewards.punish 'scaffold'). THE SKIN is a body in your hands (systems/gibbets.js, flayed): hang it on a frame by the gate (gibbets kinds.skin, a street-map prop that dries to leather over years) or have it tanned and stretched over the judge's chair (kinds.chair, indoors, lasting decades). DREAD: every steward and governor of yours keeps at least stewardDread() of fear while a skin of yours stands (Stewards._week: their skim x (1 - fear)): chair.dread x the stage's weight for each chair, gate.dread x weight for each gate skin, combined as 1 - product of (1 - each), plus fresh.dread fading over fresh.days after an official was flayed for corruption; capped at max. CORRUPTION: flaying an official of a crown you rule cuts the crown's corruption (CrownBooks fisc.corruption x (1 - corruptionCut): the revenue it leaked). OUTRAGE: each steward's loyalty stewardLoyalty; the lords of your court, if the flayed was not one of theirs proven a traitor, take courtGrudge; the town remembers (a TownMemory atrocity mark, townGrief for townLong x its span). AI: a cruel crown (ai.traits) flays now and then (ai.chance a week): a corrupt official when its books leak (corruption above ai.corruptionAt: cut by ai.cut), else a traitor; the skin goes up at its capital's gate (Gibbets.raise), its stability ai.stability, the world's news.",
+    "enabled": true,
+    "chair": { "dread": 0.6 },
+    "gate": { "dread": 0.3 },
+    "fresh": { "days": 480, "dread": 0.3 },
+    "max": 0.9,
+    "corruptionCut": 0.45,
+    "stewardLoyalty": -4,
+    "courtGrudge": 4,
+    "townGrief": -6,
+    "townLong": 4,
+    "ai": { "everyDays": 7, "chance": 0.01, "traits": ["cruel"], "corruptionAt": 0.12, "cut": 0.45, "stability": -2, "keep": 30 },
+    "lines": {
+        "flayedCorrupt": ["The skin is yours: stretch it over the judge's chair and the next steward will sit on the last.", "They say the screaming was heard across the river. Every clerk who keeps your books heard of it by nightfall."],
+        "flayedTraitor": ["The skin is yours to hang by the gate.", "What is left of a traitor's hide waits on your word: the gate, or the judge's chair."],
+        "chair": ["{name}'s skin is tanned and stretched over the judge's chair at {town}. Whoever sits there next sits on the last."],
+        "gate": ["{name}'s skin is stretched on a frame by the gate of {town}. Carters lower their eyes as they pass under it."],
+        "aiCorrupt": ["🩸 {ruler} of {realm} has a crooked treasurer flayed alive in {town}; the skin hangs by the gate."],
+        "aiTraitor": ["🩸 {ruler} of {realm} has the traitor {name} flayed alive in {town}; the skin hangs by the gate."]
+    }
+}

@@ -429,8 +429,8 @@ Object.assign(InnerMapRenderer, {
             const _attackVerb = _objAttackVerbs[customObjDef.objectType] || 'Attack';
             const _objHpTile = (objAnchorQ != null) ? InnerMap.getTile(objAnchorQ, objAnchorR) : null;
             const _objHp = (_objHpTile && _objHpTile.customObject && _objHpTile.customObject.currentHealthPct != null) ? _objHpTile.customObject.currentHealthPct : 100;
-            // (not a field: there is nothing there to strike)
-            if (!(customObjDef.tags || []).includes('field') && !_isGate && !_chopped) menuItems.push({ type: 'action', action: 'attack_object', label: `${_attackVerb} ${customObjDef.name || 'Object'}`, icon: '🗡️', desc: `HP: ${Math.ceil(_objHp)}%`, customObjDef, objAnchorQ, objAnchorR });
+            // (not a field: there is nothing there to strike; nor the dead on show: "Cut It Down" takes them, with what it costs)
+            if (!(customObjDef.tags || []).includes('field') && !_isGate && !_chopped && !InnerMapDisplays.isDisplayDef(customObjDef)) menuItems.push({ type: 'action', action: 'attack_object', label: `${_attackVerb} ${customObjDef.name || 'Object'}`, icon: '🗡️', desc: `HP: ${Math.ceil(_objHp)}%`, customObjDef, objAnchorQ, objAnchorR });
         }
 
         // Built-in overlay interactions removed (editor-authored objects only)

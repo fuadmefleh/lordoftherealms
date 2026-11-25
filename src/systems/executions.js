@@ -85,6 +85,9 @@ import { Raising } from './raising.js';
 import { Laws } from './laws.js';
 // (a crown's hanging the kin deem unjust: their blood feud with the royal house, systems/bloodFeuds.js; run time only)
 import { BloodFeuds } from './bloodFeuds.js';
+// (flayed alive: the skin, the stewards' fear, the crown's corruption cut — systems/flaying.js; run time only)
+import { Flaying } from './flaying.js';
+import { Stewards } from './stewards.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -481,7 +484,7 @@ export const Executions = {
         return Object.entries(C.methods).map(([id, m]) => {
             let why = '';
             if (m.highbornOnly && !high) why = 'The axe is for the highborn.';
-            else if (Array.isArray(m.crimes) && !m.crimes.some(f => crime[f])) why = `Not for ${e.crimeLabel}: ${m.crimes.includes('heresy') ? 'only heresy' : 'only treason'}.`;
+            else if (Array.isArray(m.crimes) && !m.crimes.some(f => crime[f])) why = m.crimesWhy ? `Not for ${e.crimeLabel}. ${m.crimesWhy}` : `Not for ${e.crimeLabel}: ${m.crimes.includes('heresy') ? 'only heresy' : 'only treason'}.`;
             else if (m.faith && !m.faith[stance]) why = `The faith of this realm forbids it (it holds the body ${stance === 'sacred' ? 'sacred' : 'its own'}).`;
             return { id, label: m.label, icon: m.icon, desc: m.desc, ok: !why, why, cruel: !!m.cruel };
         });
@@ -735,9 +738,14 @@ export const Executions = {
             }
         }
         // The talk of the towns
-        try { Gossip.spreadDeed(player, world, method === 'burn' ? 'burning' : method === 'quarter' ? 'quartering' : 'execution', { q: place.q, r: place.r, location: place.name, kingdom: kid, victim: e.name }); } catch (err) { /* no gossip */ }
+        try { Gossip.spreadDeed(player, world, method === 'burn' ? 'burning' : method === 'quarter' ? 'quartering' : method === 'flay' ? 'flaying' : 'execution', { q: place.q, r: place.r, location: place.name, kingdom: kid, victim: e.name }); } catch (err) { /* no gossip */ }
         // The body: what dies, and who will want blood for it
-        const extra = Executions._deathOf(player, world, e, res, m, place, c);
+        let extra = Executions._deathOf(player, world, e, res, m, place, c);
+        // Flayed: the officials take note, the faith recoils; the skin is yours to hang (systems/flaying.js)
+        if (method === 'flay') {
+            const fl = Flaying.onFlayed(player, world, e, place);
+            if (fl) extra = `${extra ? `${extra} ` : ''}${fl}`;
+        }
         // The record
         st.stats.executed++;
         st.stats.byMethod[method] = _num(st.stats.byMethod[method]) + 1;
@@ -811,6 +819,8 @@ export const Executions = {
             return `${rival ? `${rival.name} is your blood enemy now.` : ''}${breach ? ` ${breach}` : ''}`.trim();
         }
         e.gone = true;
+        // A steward of yours condemned for corruption (systems/stewards.js): the person dies
+        if (e.source === 'steward') { try { Stewards.onExecuted(player, world, e, m.cause || 'the scaffold'); } catch (err) { /* no steward */ } }
         return '';
     },
 
@@ -1194,6 +1204,36 @@ export const Executions = {
             if (w.public.length > _num(A.keep, 30)) w.public.splice(0, w.public.length - _num(A.keep, 30));
             if (player && player.q === e.q && player.r === e.r) out.notices.push({ icon: '📜', title: 'A Death Proclaimed', text: `The criers of ${s.name}: on day ${e.day}, ${e.name} dies by ${String((Executions.config().methods[method] || {}).label || method).toLowerCase()} for ${e.crimeLabel}. The whole town will be there.`, type: 'info' });
         }
+    },
+
+    /**
+     * A court of another order hands one of the townsfolk over to the secular arm
+     * (the inquisition's obstinate heretic, systems/inquisition.js): the death is
+     * proclaimed `days` on and carried out as the realms' own are (_aiResolve: the
+     * crowd, the kin's feud, a martyr's shrine for the innocent).
+     * o { q, r, kingdomId, pid, crime, method, guilty, days, by } → the entry, or null.
+     */
+    handOver(world, o = {}) {
+        const w = Executions.worldState(world);
+        const s = _settlementAt(world, o.q, o.r);
+        const p = s && s.folk ? Townsfolk.get(s.folk, o.pid) : null;
+        if (!w || !s || !p || p.died != null) return null;
+        const day = _day(world);
+        const crime = o.crime || 'heresy';
+        const cd = Executions.crimeDef(crime);
+        const method = o.method || 'burn';
+        const high = p.role === 'noble';
+        const e = {
+            id: w.nextId++, q: o.q, r: o.r, town: s.name, kingdomId: o.kingdomId != null ? o.kingdomId : s.kingdom, day: day + Math.max(1, _num(o.days, 2)), pid: p.id, name: Townsfolk.name(p),
+            gender: p.gender === 'female' ? 'female' : 'male', crime, crimeLabel: cd.label, method, highborn: high, guilty: o.guilty !== false,
+            popularity: Executions._folkPopularity(s.folk, p, high ? 'noble' : 'commoner'), resolved: false, by: o.by || null,
+        };
+        p.jailedUntil = e.day + 1;
+        Executions._raise(world, { q: e.q, r: e.r }, { id: 'a' + e.id, from: day, day: e.day, method, name: e.name });
+        w.public.push(e);
+        const keep = _num((Executions.config().ai || {}).keep, 30);
+        if (w.public.length > keep) w.public.splice(0, w.public.length - keep);
+        return e;
     },
 
     /** The realms' deaths due today (unless the player watched one already). */

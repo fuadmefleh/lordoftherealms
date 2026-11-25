@@ -39,7 +39,12 @@ const PROPS = {
     spike: { fresh: 'gb_spike_fresh', rotting: 'gb_spike_rotting', bones: 'gb_spike_bones' },
     gibbet: { fresh: 'gb_gibbet_fresh', rotting: 'gb_gibbet_rotting', bones: 'gb_gibbet_bones' },
     gallows: { fresh: 'gb_gallows_fresh', rotting: 'gb_gallows_rotting', bones: 'gb_gallows_bones' },
+    // A flayed traitor's skin on a frame by the gate (systems/flaying.js): raw, dried to leather, in tatters
+    skin: { fresh: 'gb_skin_fresh', rotting: 'gb_skin_rotting', bones: 'gb_skin_bones' },
 };
+
+/** Displays kept indoors (a skin stretched over the judge's chair): standing, but not laid on the street map. */
+const INDOORS = new Set(['chair']);
 
 /** At most this many displays are laid on one town's street map (the rest stand off the map's edge). */
 const MAX_LAID = 8;
@@ -60,8 +65,11 @@ export const DeadDisplays = {
         const S = DeadDisplays.stages();
         const last = _num(S[S.length - 1].until, 300) * _num(d.lasts, 1);
         if (age > last) return null;
+        // (a kind may name its own stages: a flayed skin is raw, then leather, then tatters)
+        const g = DataLoader._gamedata && DataLoader._gamedata.gibbets;
+        const own = g && g.kinds && g.kinds[d.kind] && g.kinds[d.kind].stageLabels;
         for (let i = 0; i < S.length; i++) {
-            if (age <= _num(S[i].until) * _num(d.lasts, 1)) return { id: S[i].id, label: S[i].label || S[i].id, age, i, share: age / Math.max(1, last) };
+            if (age <= _num(S[i].until) * _num(d.lasts, 1)) return { id: S[i].id, label: (own && own[S[i].id]) || S[i].label || S[i].id, age, i, share: age / Math.max(1, last) };
         }
         return null;
     },
@@ -75,14 +83,14 @@ export const DeadDisplays = {
     /** The prop id a display shows on `day` (null once fallen). */
     propOf(d, day) {
         const st = DeadDisplays.stage(d, day);
-        if (!st) return null;
+        if (!st || INDOORS.has(d.kind)) return null;
         const k = PROPS[d.kind] || PROPS.spike;
         return k[st.id] || k.bones;
     },
 
     /** Part of the street map's cache key: '' when nothing stands. */
     stamp(settlement, day) {
-        const up = DeadDisplays.standing(settlement, day);
+        const up = DeadDisplays.standing(settlement, day).filter(d => !INDOORS.has(d.kind));
         if (!up.length) return '';
         return '|dd:' + up.slice(0, MAX_LAID).map(d => `${d.id}${DeadDisplays.stage(d, day).id[0]}`).join(',');
     },
@@ -93,7 +101,7 @@ export const DeadDisplays = {
      */
     lay(tiles, settlement, day, opts = {}) {
         if (!tiles || !tiles.length || !tiles[0]) return [];
-        const up = DeadDisplays.standing(settlement, day).slice(0, MAX_LAID);
+        const up = DeadDisplays.standing(settlement, day).filter(d => !INDOORS.has(d.kind)).slice(0, MAX_LAID);
         const out = [];
         if (!up.length) return out;
         const W = tiles[0].length, H = tiles.length;
@@ -192,8 +200,17 @@ export const DeadDisplays = {
             }
         });
         spots.sort((a, b) => a.s - b.s);
+        // (not just behind a town wall: the wall, drawn in front, would hide all but the top of it)
+        const cells = (def && Array.isArray(def.tiles) && def.tiles.length) ? def.tiles : [{ localCol: 0, localRow: 0 }];
+        const dw = 1 + Math.max(...cells.map(c => c.localCol || 0));
+        const dh = 1 + Math.max(...cells.map(c => c.localRow || 0));
+        const behindWall = (q, r) => {
+            for (let k = 0; k <= dh + 3; k++) for (let dq = 0; dq < dw; dq++) if (tiles[r + k] && tiles[r + k][q + dq] && tiles[r + k][q + dq]._townWall) return true;
+            return false;
+        };
         for (const onRoad of [false, true]) {
             for (const { q, r } of spots) {
+                if (behindWall(q, r)) continue;
                 if (TownMarks._blocksDoor(tiles, def, q, r)) continue;
                 if (TownProps.place(tiles, def, q, r, { onRoad, ignoreReserved: true })) return { q, r };
             }

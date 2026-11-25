@@ -76,12 +76,14 @@ const EXPECTED_KEYS = [
     // The dungeon: prisoners put to the question (ui/actionMenu/interrogation.js): +3
     'showDungeon', 'showDungeonPrisoner', 'dungeonAct',
     // The fate of prisoners: the captives scene, ransoms, oaths, stakes (ui/actionMenu/prisonerFates.js): +3
-    'showCaptivesScene', 'showCaptives', 'captivesAct',
+    'showCaptivesScene', 'showCaptives', 'captivesAct', 'captivesRowHtml',
     // The scaffold: public executions (ui/actionMenu/executions.js): +5
     'showExecutions', 'showCondemned', 'executionsAct', 'showScaffoldCrowd', 'scaffoldCrowdAct', 'showScaffoldHere',
     // The dead on show and war trophies (ui/actionMenu/gibbets.js): +2
     'showGibbets', 'gibbetsAct',
-    'showCrisesPanel', 'crisisAct', 'showNemesisPanel', 'nemesisAct', 'showBloodFeuds', 'bloodFeudAct', 'showAbdication', 'abdicationAct', 'showNamedLegacy', 'namedLegacyAct', '_estateHtml', 'annalsScribeFor', 'clearAnnalsScribe',
+    // Behind the castle walls: decimation, walling up, the flayed (ui/actionMenu/grimDeeds.js): +2
+    'showGrimDeeds', 'grimDeedsAct',
+    'showCrisesPanel', 'crisisAct', 'showNemesisPanel', 'nemesisAct', 'showBloodFeuds', 'bloodFeudAct', 'showChurch', 'churchAct', 'showAbdication', 'abdicationAct', 'showNamedLegacy', 'namedLegacyAct', '_estateHtml', 'annalsScribeFor', 'clearAnnalsScribe',
     'showSickness', 'sicknessAct',
     // Water: thirst, the skins, the town's wells (ui/actionMenu/water.js)
     'showWater', 'waterAct',
@@ -231,6 +233,8 @@ const EXPECTED_KEYS = [
     'tradeWithIndigenous', 'visitHolySite',
     // Matches & Betrothals (ui/actionMenu/matches.js)
     'showMatchesPanel', 'showMatchSeek', 'showMatchTerms', 'matchesDo',
+    // The Bowstring, the Synod of the Dead, Wipe Their Name (ui/actionMenu/fratricide.js, cadaverSynod.js, damnatio.js): +6
+    'showFratricide', 'fratricideAct', 'showCadaverSynod', 'cadaverSynodAct', 'showDamnatio', 'damnatioAct',
 ];
 
 let ActionMenu;
@@ -241,7 +245,7 @@ beforeAll(async () => {
         await DataLoader.initializeAll();
     }
     ({ ActionMenu } = await import('../ui/actionMenu.js'));
-});
+}, 120000); // ~760 modules: ~10 s with vitest's fs module cache warm, a minute cold on a busy CPU
 
 describe('ActionMenu split — structural equivalence', () => {
     it('exposes exactly the original set of members', () => {
@@ -250,7 +254,7 @@ describe('ActionMenu split — structural equivalence', () => {
     });
 
     it('has 461 members', () => {
-        expect(Object.keys(ActionMenu)).toHaveLength(537); // (+2 harrying, ui/actionMenu/harrying.js; +3 prisoners of war, ui/actionMenu/prisonerFates.js; +4 the pit, ui/actionMenu/pitFights.js; +2 blood feuds, ui/actionMenu/bloodFeuds.js; +2 the dead & trophies, ui/actionMenu/gibbets.js; +1 showScaffoldHere; +2 the harbour, ui/actionMenu/harbour.js; +1 rivalSeizeAct; +2 water, ui/actionMenu/water.js; +3 the dungeon, ui/actionMenu/interrogation.js; +5 the scaffold, ui/actionMenu/executions.js; +2 risings, ui/actionMenu/peasantRevolts.js; +4 matches & betrothals, ui/actionMenu/matches.js; +1 rivalCaptiveAct; +6 maiming, ui/actionMenu/maiming.js; +6 haggling, ui/actionMenu/haggle.js; +1 lastCrisisAct; +2 namedLegacy; +2 highCrowns)
+        expect(Object.keys(ActionMenu)).toHaveLength(548); // (+2 the Church, ui/actionMenu/church.js; +2 behind the castle walls, ui/actionMenu/grimDeeds.js; +6 the bowstring, the synod of the dead, wipe their name; +1 captivesRowHtml, ui/actionMenu/prisonerFates.js; +2 harrying, ui/actionMenu/harrying.js; +3 prisoners of war, ui/actionMenu/prisonerFates.js; +4 the pit, ui/actionMenu/pitFights.js; +2 blood feuds, ui/actionMenu/bloodFeuds.js; +2 the dead & trophies, ui/actionMenu/gibbets.js; +1 showScaffoldHere; +2 the harbour, ui/actionMenu/harbour.js; +1 rivalSeizeAct; +2 water, ui/actionMenu/water.js; +3 the dungeon, ui/actionMenu/interrogation.js; +5 the scaffold, ui/actionMenu/executions.js; +2 risings, ui/actionMenu/peasantRevolts.js; +4 matches & betrothals, ui/actionMenu/matches.js; +1 rivalCaptiveAct; +6 maiming, ui/actionMenu/maiming.js; +6 haggling, ui/actionMenu/haggle.js; +1 lastCrisisAct; +2 namedLegacy; +2 highCrowns)
     });
 
     it('every member except the known data props is a function', () => {

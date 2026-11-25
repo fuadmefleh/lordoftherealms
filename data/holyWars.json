@@ -1,0 +1,86 @@
+{
+    "_doc": "Holy wars and excommunication (systems/holyWars.js; the panel ui/actionMenu/church.js). Each faith (and each rite of a faith split by a schism, systems/crises.js) has a see: a head (an NPC pontiff who ages and dies, or the player as High Priest, player/scenarios.js), a seat in the capital of its chief realm and coffers of real coin (the faithful crowns' tithes, penances, the inquisition's seizures; spent back into the seat's town past `reserve`, and in subsidies to crusaders). The head calls holy wars (call), rulers answer or refuse (answer), anyone of the faith may take the cross (cross); the head bans rulers (ban). Every roll is a hash of the world seed.",
+    "enabled": true,
+    "weekDay": 3,
+    "see": {
+        "_doc": "headAge: the age a head is raised at (years); lifespan: the age he dies at; titheShare of each faithful crown's treasury a week to the see (at most titheCap); past `reserve` the coffers spend spendShare a week into the seat's town; liftOnNewHead: the chance a new head lifts each of his predecessor's bans.",
+        "headAge": [46, 64], "lifespan": [66, 84], "titheShare": 0.0015, "titheCap": 40, "reserve": 3000, "spendShare": 0.06, "liftOnNewHead": 0.4,
+        "names": ["Clement", "Innocent", "Gregory", "Urban", "Benedict", "Celestine", "Honorius", "Boniface", "Paschal", "Leo", "Sixtus", "Lucius", "Adrian", "Alexander", "Anastasius", "Callixtus", "Eugene", "Felix", "Sergius", "Victor"],
+        "femaleNames": ["Agathe", "Benedicta", "Clementia", "Honoria", "Innocentia", "Leonie", "Seraphine", "Theodora"],
+        "titles": {
+            "solaris": "Hierarch of the Sun", "tidemother": "Voice of the Tides", "earthroot": "Keeper of the Root", "ironfaith": "Forgemaster of the Creed", "starseers": "First Seer",
+            "stoneheart": "Warden of the Pact", "serpentway": "the Coiled Sage", "arcanum": "Archmagister of the Orthodoxy", "stormfather": "Thunder-Priest", "dunewalkers": "Guide of the Dunes", "dreamweavers": "Weaver of Dreams",
+            "default": "Patriarch"
+        },
+        "reformedTitle": "Reformed {title}"
+    },
+    "call": {
+        "_doc": "Each see weighs a call every everyWeeks: chance × (1 + militancy × militancyMult) once gapYears have passed since its last, and worldGapYears since any see's last call (the world's holy wars come years apart: a few a century, tuned by the HW_CENTURY probe, src/__tests__/holyWars.century.test.js); at most maxActive holy wars in the world. A head sounds out the crowns first: a cause whose support (the sum of the AI crowns' will to answer) is under minSupport waits noSupportYears. A foe fought in a holy war within foeRestYears weighs foeRestMult as a cause. A foe is the target of one holy war at a time: a see with its own cause against a foe another see is calling against may (jointChance, once a war) join that call instead — a joint crusade, its crowns summoned too. answerDays to answer; the war is sworn for warYears. casus weights: a holy site of the faith held by others, a heretic rite, a ruler under the ban (banYears at least), an infidel neighbour (only for a faith with militancy ≥ infidelMinMilitancy). The see subsidises each crown that answers with subsidyShare of its coffers (at most subsidyCap).",
+        "everyWeeks": 4, "chance": 0.05, "militancyMult": 0.35, "gapYears": [6, 12], "worldGapYears": [12, 22], "minSupport": 0.35, "noSupportYears": 1, "foeRestYears": 30, "foeRestMult": 0.1, "jointChance": 0.6, "firstAfterDays": 300, "maxActive": 2, "answerDays": 40, "warYears": [2, 4],
+        "casus": { "holySite": 3, "heretic": 2, "excommunicate": 2.5, "infidel": 0.6 }, "infidelMinMilitancy": 1, "infidelRelation": -30, "banYears": 1,
+        "subsidyShare": 0.25, "subsidyCap": 2500
+    },
+    "answer": {
+        "_doc": "An AI crown's will to answer: base + piety × perPiety + militancy × perMilitancy + honour × honour − (wars it already fights) × atWar, × nearness (1 − capital distance / farDistance, at least farFloor). A crown fighting maxWars wars refuses, and so does one under a truce with the foe, or when the foe already fights maxOnFoe wars (the limits every aggressor keeps: KingdomAI.mayOpenWar). Answering: piety, stability (stabAnswer for stabDays), the vassals' regard; refusing: piety, stability, the vassals' regard, the see's grievance (refuseGrievance).",
+        "base": 0.25, "perPiety": 0.006, "perMilitancy": 0.08, "honour": 0.06, "atWar": 0.2, "maxWars": 2, "maxOnFoe": 3, "farDistance": 70, "farFloor": 0.25,
+        "pietyAnswer": 6, "pietyRefuse": -6, "stabAnswer": 4, "stabRefuse": -6, "stabDays": 240, "vassalAnswer": 8, "vassalRefuse": -12,
+        "refuseGrievance": 35, "standingAnswer": 6, "standingRefuse": -10, "prestigeAnswer": 25, "victoryPrestige": 60
+    },
+    "war": {
+        "_doc": "A holy war's resolve wears weekly (× outweighed while the foe's army outweighs the crusaders'), drops by memberOut for each crown that leaves it, and ends it at 0 or at its sworn term. The holy site retaken or the foe fallen wins it at once; towns win it once victoryShare of the foe's towns (at least victoryTowns, at most all it had) are taken and the war has run minDays since the call closed. At its term or its resolve spent, any town taken counts as a victory. Victors gain victoryPiety; the vanquished realm of a heretic rite returns to the see's rite.",
+        "resolve": 100, "weekly": -1.2, "outweighed": 1.5, "memberOut": -20, "victoryTowns": 2, "victoryShare": 0.34, "minDays": 180, "victoryPiety": 8, "defeatPiety": -8, "tribute": 0.25
+    },
+    "cross": {
+        "_doc": "Taking the cross: reach the muster (a crusader crown's town nearest the foe) within musterDays (within musterRange hexes), then serve serveDays within frontRange hexes of the foe's towns or the muster. Fulfilled: remission (charges in the faith's realms × lesserKeep / graveKeep, the butcher's and the perjurer's name × butcherKeep / perfidyKeep), karma, standing, Prestige. While under the cross, the crowns of the faith do not threaten your lands. Broken: standing, karma, Prestige lost and the see's grievance.",
+        "musterDays": 100, "musterRange": 3, "serveDays": 40, "frontRange": 5,
+        "lesserKeep": 0, "graveKeep": 0.4, "butcherKeep": 0.5, "perfidyKeep": 0.6, "karma": 12, "standing": 18, "prestige": 70, "reputation": 8,
+        "takeStanding": 4,
+        "broken": { "standing": -25, "karma": -10, "prestige": 40, "grievance": 30 }
+    },
+    "ban": {
+        "_doc": "The see's grievance against a ruler (or the player) gathers — warring on the see's own realm (atWarSeat a week), a faithless crown (lowPiety below pietyFloor a week), refusing a call, expelling an inquisitor, fleeing its summons, a broken vow — and decays decay a week; at banAt the head bans him. Under the ban: the realm's stability (stab), the vassals' regard (vassal), relations with the faithful (relWeekly to relFloor), alliances with them broken (allianceBreak a week), piety (pietyWeekly); the player's standing with the faith (standing, once) and name in its realms (repWeekly to repFloor). Lifted by penance (at the see's seat: penanceShare of the price and penancePrestige), payment (the price: base + treasuryShare of the crown's chests, or purseShare of the player's), or by turning to a counter-pope where a schism split the faith. AI crowns do penance after aiPenanceWeeks, or turn to the counter-pope (counterPope a week).",
+        "banAt": 100, "decay": 0.03, "atWarSeat": 12, "lowPiety": 4, "pietyFloor": 15, "tolerance": 1.5,
+        "stab": -12, "vassal": -25, "relWeekly": -2, "relFloor": -60, "allianceBreak": 0.08, "pietyWeekly": -0.6,
+        "standing": -30, "repWeekly": -1, "repFloor": -40,
+        "price": { "base": 400, "treasuryShare": 0.12, "purseShare": 0.15, "max": 6000 },
+        "penanceShare": 0.4, "penancePrestige": 30, "liftStanding": 10,
+        "aiPenanceWeeks": [16, 60], "counterPope": 0.04
+    },
+    "knight": {
+        "_doc": "Crusaders' honours. Whoever takes the cross and fights a holy war to victory is hailed `title`: the player (a vow fulfilled in a war won: the House's honour with honourFame fame, every faithful ruler's memory 'crusader', the foe's 'crusaded_against'; a vow fulfilled in a war lost still earns the crusading rulers' memory at servedDeed of the deed's weight), the rulers whose crowns were still in the field at the victory, and the heads of rival Houses who rode with their realm's host. rival: when a realm answers, each rival House seated in it takes the cross at chance × (0.6 + martial/10, more if proud, less if homebound), paying outfitShare of its purse (outfitMin..outfitCap) into its seat town; won → renown and standing with the crusading crowns; lost → renown and guards lost; death: the chance the head falls on crusade.",
+        "title": "Knight of the Cross", "honourFame": 12, "servedDeed": 0.5,
+        "rival": { "chance": 0.3, "outfitShare": 0.08, "outfitMin": 40, "outfitCap": 400, "renown": 15, "standing": 10, "death": 0.06, "defeatRenown": -5, "guardsLost": 1 }
+    },
+    "text": {
+        "knighted": "The holy war is won and you rode in it: the faithful hail you {title}. Their rulers will not forget {war}; neither will the vanquished.",
+        "knightedWorld": "{lord} of {realm} comes home from the holy war hailed {title}.",
+        "rivalCross": "{name} takes the cross with the host of {realm} against {target}.",
+        "rivalKnighted": "{name} comes home from {war} hailed {title}.",
+        "rivalFell": "{name} fell in {war} and did not come home.",
+        "callWorld": "{icon} {head} calls a holy war against {target}: {casus}. The faithful crowns are summoned to the cross.",
+        "callPlayer": "{head} calls the faithful to a holy war against {target} — {casus}. Every crown of the faith must answer within {days} days; any soul of the faith may take the cross.",
+        "callYou": "{head} calls a holy war against your realm, {target}: {casus}. The crowns of the faith are summoned against you.",
+        "joined": "{realm} takes up the cross against {target}.",
+        "joint": "{head} blesses the holy war {other} has called against {target}, and summons his own faithful to it: a joint crusade.",
+        "refused": "{realm} refuses the call to the holy war.",
+        "unanswered": "No crown answered the call of {head} against {target}; the holy war came to nothing.",
+        "victory": "The holy war against {target} ends in victory for the faithful{gains}.",
+        "defeat": "The holy war against {target} fails: the crusaders go home{gains}.",
+        "casus": {
+            "holySite": "the {site} is in the hands of {holder}",
+            "heretic": "{target} keeps a heretic rite",
+            "excommunicate": "its ruler lies under the ban of the faith",
+            "infidel": "the infidel at the gates of the faithful"
+        },
+        "banWorld": "{head} casts the ruler of {realm} out of the faith{why}.",
+        "banYou": "{head} has cast you out of {faith}{why}. The faithful are released from their oaths to you; the clergy will not know you.",
+        "liftWorld": "{head} lifts the ban on {realm}{how}.",
+        "counterPope": "{realm} turns from {head} to the {other}, and calls his ban void.",
+        "headDies": "{old} is dead. The see of {faith} raises {new}.",
+        "crossTaken": "You take the cross against {target}. Muster at {town} by day {by}; the Church keeps your lands while you are gone.",
+        "mustered": "You reach the muster at {town}. You are at war with {target} until the holy war ends.",
+        "fulfilled": "Your vow is fulfilled. The Church grants you remission of your sins: {remit}.",
+        "released": "The holy war against {target} ended before you reached the muster. The Church releases you from your vow.",
+        "broken": "You never reached the muster at {town}. Your vow against {target} is broken."
+    }
+}

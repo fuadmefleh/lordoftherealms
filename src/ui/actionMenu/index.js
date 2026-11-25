@@ -74,6 +74,14 @@ import './peasantRevolts.js';
 import './nemesis.js';
 // Blood Feuds: families, Houses and crowns owing blood; wergild, matches, judgement (systems/bloodFeuds.js)
 import './bloodFeuds.js';
+// The Bowstring: the law of fratricide, brothers spared or strangled, mothers' schemes (systems/fratricide.js)
+import './fratricide.js';
+// The Synod of the Dead: a dead enemy dug up and tried (systems/cadaverSynod.js)
+import './cadaverSynod.js';
+// Wipe Their Name: a destroyed House's tombs, chronicles, towns and sons (systems/damnatio.js)
+import './damnatio.js';
+// The Church: holy wars, the cross, excommunication, the inquisition (systems/holyWars.js, systems/inquisition.js)
+import './church.js';
 // Friends & Bonds: sworn kin, drinking companions, mentors, protégés (systems/bonds.js)
 import './bonds.js';
 // Your Crimes & Enemies: charge sheets, bounty hunters, blood debts (systems/wanted.js)
@@ -103,6 +111,8 @@ import './maiming.js';
 import './executions.js';
 // The dead on show and war trophies (systems/gibbets.js)
 import './gibbets.js';
+// Decimation, walling up alive and its ghosts, flayed skins (player/decimation.js, systems/immurement.js, systems/flaying.js)
+import './grimDeeds.js';
 // The dungeon: prisoners put to the question (systems/interrogation.js)
 import './interrogation.js';
 // The fate of prisoners after a battle: the captives scene, ransoms, oaths, stakes (player/prisonerFates.js)

@@ -22,7 +22,7 @@ Object.assign(Renderer.prototype, {
             const [q, r] = key.split(',').map(Number);
             const tile = world.getTile(q, r);
             if (!tile || !tile.explored || !tile.settlement) continue;
-            const up = DeadDisplays.standing(tile.settlement, day);
+            const up = DeadDisplays.standing(tile.settlement, day).filter(d => d.kind !== 'chair'); // (the skin over a judge's chair is indoors)
             if (!up.length) continue;
             const pos = this.getHexPixelPos(q, r);
             const sc = this.camera.worldToScreen(pos.x, pos.y);

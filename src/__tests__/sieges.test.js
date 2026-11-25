@@ -360,6 +360,11 @@ describe('Sieges — works, mines and storms', () => {
         expect(res.conquered).toBe(true);
         expect(res.outcome.outcome).toBe('captured');
         expect(settlement.colony && settlement.colony.isPlayerColony).toBe(true);
+        // the garrison that yields in the breach is left for your word (player/prisonerFates.js)
+        expect(res.yielded).toBe(true);
+        const y = world.prisonerFates.yielded.find(r => r.source === 'siege');
+        expect(y && y.unitType).toBe('garrison');
+        expect(y.place).toBe(settlement.name);
     });
 
     it('a sworn lord hands the stormed town to the liege', () => {

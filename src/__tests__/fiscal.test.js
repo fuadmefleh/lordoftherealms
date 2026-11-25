@@ -409,6 +409,27 @@ describe('the ruler\'s purse', () => {
         expect(b.rates.land).toBe('heavy');
         expect(Fiscal.realmTable(world).length).toBe(world.kingdoms.filter(x => x.isAlive).length);
     }, 120000);
+
+    it('the treasurers spend a ruled realm\'s surplus into its towns too, unless the ruler holds the works', () => {
+        // (before 2026-11-24 a ruled realm's chests sat on twice its towns' coin, and the
+        // towns' purses — what the taxes come out of — ran dry)
+        for (const hold of [false, true]) {
+            const game = world40();
+            const { world, player } = game;
+            const k = bigRealm(world);
+            player.throne = player.throne || {};
+            player.throne.ruling = { kingdomId: k.id, policies: { tax: 'standard', stance: 'defensive', faith: 'devout' } };
+            unfarm(world, k);
+            const f = CrownBooks.state(k);
+            if (hold) f.manual = { ...(f.manual || {}), works: true };
+            const towns = townsOf(world, k);
+            k.treasury = 500000;
+            const before = moneyTotal(game);
+            fiscalDay(game);
+            expect(k.fisc.last.works > 0, `held ${hold}`).toBe(!hold);
+            expect(Math.abs(moneyTotal(game) - before)).toBeLessThan(towns.length * 0.02 + 1);
+        }
+    }, 120000);
 });
 
 describe('saving', () => {

@@ -30,6 +30,16 @@
 //                every capital, your own lords cowed. Outlaws: HANG (the road's
 //                law: the nearest town's thieves cowed), service, release, cut
 //                down, impale.
+//   ELSEWHERE    men yield away from a field battle too: a stormed lair, a
+//                stormed town's garrison, boarders beaten off your deck, a
+//                realm's ship carried by boarding — those systems leave a
+//                surrender on world/warStakes.js (yieldUp) and collect() makes
+//                a column of it. A broken rebel host's column is the rising's
+//                own judgement (systems/peasantRevolts.js aftermath) or service.
+//                Outlaws let go ride again as a real band (world.prisonerFates
+//                .freed → a WorldUnit). A lord of a rival House's blood
+//                (Interrogation._linkHouse): his House pays toward his ransom
+//                out of its purse, and his death or maiming is a blood feud.
 //   YOUR MEN     beaten by a realm, some of your fallen are taken alive; its
 //                lord decides their fate (his traits, and what you did to his
 //                men): a ransom out of your purse, home in a week, into his
@@ -70,6 +80,8 @@ import { Kingship } from '../systems/kingship.js';
 import { RealmWars } from '../systems/realmWars.js';
 import { Nemesis } from '../systems/nemesis.js';
 import { Ledger } from '../systems/ledger.js';
+import { PeasantRevolts } from '../systems/peasantRevolts.js';
+import { WorldUnit } from '../world/units.js';
 import { PlayerMilitary } from './playerMilitary/_ref.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
@@ -111,6 +123,15 @@ function _lordTraits(k) {
 
 const REALM_FATES = ['service', 'oath', 'release', 'slaughter', 'blind', 'impale'];
 const OUTLAW_FATES = ['hang', 'service', 'release', 'slaughter', 'impale'];
+// A rebel host broken in the field: the rising's own judgement (systems/peasantRevolts.js aftermath), or pressed into your army
+const REBEL_FATES = ['mercy', 'hang_leader', 'hang_ringleaders', 'imprison', 'service'];
+const REBEL_HINTS = {
+    mercy: 'Home to their fields, and the grievance cools a little. Mercy is remembered',
+    hang_leader: 'The leader hangs (or goes to the scaffold); the rest go home afraid for a few years, then resentful',
+    hang_ringleaders: 'A dozen hang. Fear for years; martyrs after',
+    imprison: 'The leader into your dungeon to question or judge later; the rest go home',
+    service: 'The able-bodied pressed into your army as militia (they may slip away); the leader in chains',
+};
 
 const FATE_TEXT = {
     service: { icon: '🛡️', label: 'Take them into your service', hint: 'Real companies in your army, on low loyalty: they may desert home, more so near their realm or at war with it' },
@@ -119,7 +140,7 @@ const FATE_TEXT = {
     slaughter: { icon: '⚔️', label: 'Cut them down', hint: 'No quarter. Their kin will fight to the death against you for months; broken faith; the lords remember' },
     blind: { icon: '👁️', label: 'Blind them and send them home', hint: 'One in a hundred keeps an eye to lead them. The realm that sees the column loses heart; every faith hates you' },
     impale: { icon: '☠️', label: 'Impale them along the road', hint: 'A forest of stakes on the road into your realm. Invaders may turn back; your name a tale everywhere; your own lords fear you' },
-    hang: { icon: '🪢', label: 'Hang them by the road', hint: 'The road\'s law: the nearest town\'s thieves are cowed; outlaws fight harder against you a while' },
+    hang: { icon: '💀', label: 'Hang them by the road', hint: 'The road\'s law: the nearest town\'s thieves are cowed; outlaws fight harder against you a while' },
 };
 
 let _cfg = null;
@@ -128,6 +149,7 @@ let _cfgSrc;
 export const PrisonerFates = {
     REALM_FATES,
     OUTLAW_FATES,
+    REBEL_FATES,
     FATE_TEXT,
 
     config() {
@@ -258,6 +280,11 @@ export const PrisonerFates = {
     afterBattle(player, world, unit, result) {
         const out = { column: null, oathText: null, takenText: null };
         if (!player || !world || !unit || !result || result.noArmy || result.withdrew) return out;
+        // A rebel host broken (PeasantRevolts.onHostDefeated ran first): its men's fate is the rising's judgement
+        if (unit.peasantRevoltId != null) {
+            if (result.victory) out.column = PrisonerFates._rebelColumn(player, world, unit, result);
+            return out;
+        }
         const kind = PrisonerFates.kindOf(unit, world);
         if (!kind) return out;
         const breakers = _num(unit.oathBreakers);
@@ -291,6 +318,7 @@ export const PrisonerFates = {
             unitType: unit.type, men, strength, nobles: [], noblesDone: true, nobleShare: 0,
             oathBreakers: 0, oathDone: true,
             sea: result.theatre === 'sea',
+            source: opts.source || 'field', place: opts.place || null, lairId: opts.lairId != null ? opts.lairId : null,
         };
         // The men of rank: the dungeon's prisoner taken today (FieldBattle.finish) and more, by the host's size
         if (k && Interrogation.enabled()) {
@@ -313,6 +341,62 @@ export const PrisonerFates = {
         return col;
     },
 
+    /**
+     * Men who yielded away from a field battle (world/warStakes.js yieldUp): a
+     * stormed lair, a stormed town's garrison, boarders beaten off, a navy ship
+     * carried by boarding. Each becomes a column (an earlier one is settled by
+     * your captains first, as in the field). Called right after the deed (the
+     * panels), and at the day's end (processDay). → the newest column, or null.
+     */
+    collect(player, world) {
+        if (!player || !world) return null;
+        let col = null;
+        for (const rec of WarStakes.takeYielded(world)) {
+            const unit = { type: rec.unitType, kingdomId: rec.outlaw ? null : rec.kingdomId, name: rec.name, q: rec.q, r: rec.r, strength: rec.strength };
+            const result = { victory: true, enemyRemaining: rec.strength, theatre: rec.sea ? 'sea' : 'land' };
+            const c = PrisonerFates.capture(player, world, unit, result, { source: rec.source, place: rec.place, lairId: rec.lairId });
+            if (c) col = c;
+        }
+        return col;
+    },
+
+    /**
+     * A rebel host broken in the field: the commons who threw down their
+     * scythes. Their fate is the rising's own judgement (systems/peasantRevolts.js
+     * aftermath — mercy, the leader hanged, the ringleaders, the leader taken)
+     * or pressed into your army. Only a rising the player judges (against you,
+     * or a host you broke yourself); one against another's crown is its lord's
+     * to judge. → the column, or null.
+     */
+    _rebelColumn(player, world, unit, result) {
+        const C = PrisonerFates.config().capture;
+        const ps = player.peasantRevolts;
+        const am = ps && ps.aftermath;
+        if (!am || String(am.rvId) !== String(unit.peasantRevoltId) || !am.rv) return null;
+        const st = PrisonerFates.state(player);
+        const survivors = result.enemyRemaining != null ? _num(result.enemyRemaining) : _num(result.enemyStrength, _num(unit.strength)) * _num(C.survivors, 0.4);
+        const routed = result.tactics && result.tactics.moraleBreak === 'enemy';
+        const strength = Math.round(Math.max(0, survivors) * (routed ? _num(C.routShare, 0.6) : _num(C.share, 0.4)));
+        if (strength < _num(C.minStrength, 3)) return null;
+        if (st.pending) PrisonerFates.settleDefault(player, world);
+        const rv = am.rv;
+        const col = {
+            id: st.nextId++, day: _day(world), q: _num(unit.q, _num(player.q)), r: _num(unit.r, _num(player.r)), kingdomId: null, realm: null,
+            outlaw: false, rebel: { rvId: am.rvId, leader: (rv.leader && rv.leader.name) || 'their leader', town: (rv.townNames || [])[0] || null, kingdomId: rv.kingdomId != null ? rv.kingdomId : null },
+            name: unit.name || 'rebels', unitType: unit.type, men: Math.max(1, Math.round(strength * _num(C.menPerStrength, 2))), strength,
+            nobles: [], noblesDone: true, nobleShare: 0, oathBreakers: 0, oathDone: true, sea: false, source: 'rebels', place: null, lairId: null,
+        };
+        st.pending = col;
+        st.stats.columns++;
+        return col;
+    },
+
+    /** Is the rising this column came from already judged elsewhere (its own panel)? */
+    _rebelLive(player, col) {
+        const am = col && col.rebel && player && player.peasantRevolts && player.peasantRevolts.aftermath;
+        return !!(am && String(am.rvId) === String(col.rebel.rvId));
+    },
+
     pending(player) {
         return player && player.prisonerFates && player.prisonerFates.pending ? player.prisonerFates.pending : null;
     },
@@ -327,6 +411,15 @@ export const PrisonerFates = {
     options(player, world, col = null) {
         col = col || PrisonerFates.pending(player);
         if (!col) return [];
+        if (col.rebel) {
+            const A = PeasantRevolts.config().aftermath || {};
+            const live = PrisonerFates._rebelLive(player, col);
+            return REBEL_FATES.map(id => {
+                const a = id === 'service' ? { icon: '🛡️', label: 'Press them into your service' } : (A[id] || {});
+                const can = live || id === 'mercy' || id === 'service';
+                return { id, icon: a.icon || '⛓️', label: a.label || id, hint: REBEL_HINTS[id] || '', can, reason: can ? '' : 'The rising has been judged already', isDefault: id === PrisonerFates.defaultFate(col) };
+            });
+        }
         const B = PrisonerFates.config().blind;
         const I = PrisonerFates.config().impale;
         const ids = col.outlaw ? OUTLAW_FATES : REALM_FATES;
@@ -342,7 +435,7 @@ export const PrisonerFates = {
         });
     },
 
-    defaultFate(col) { return col && col.outlaw ? 'hang' : 'oath'; },
+    defaultFate(col) { return col && col.rebel ? 'mercy' : col && col.outlaw ? 'hang' : 'oath'; },
 
     /** The knights' fate: 'ransom' (talks opened for each) | 'dungeon' | 'share' (their lot is the men's). */
     decideNobles(player, world, choice) {
@@ -355,13 +448,15 @@ export const PrisonerFates = {
             for (const w of nobles) { const r = PrisonerFates.openTalks(player, world, w.id, 'fair'); if (r.success) asked.push(w.name); }
             text = asked.length ? `Heralds ride to ${col.realm} with your price for ${asked.join(', ')}.` : 'No herald could be sent.';
         } else if (choice === 'share') {
+            // (a rival House's kinsman among them answers to his House for what is done to the men)
+            col.houseKin = nobles.filter(w => w.houseKid != null).map(w => ({ id: w.id, name: w.name, rank: w.rank, kingdomId: w.kingdomId, realm: w.realm, houseKid: w.houseKid, houseName: w.houseName }));
             for (const w of nobles) Interrogation._powGone(player, w);
             col.nobleShare = nobles.length;
             text = `${_plural(nobles.length, 'man of rank', 'men of rank')} will share the fate of the men.`;
         } else {
-            text = `${nobles.map(w => w.name).join(', ')} go down to your dungeon.`;
+            text = `${nobles.map(w => w.name).join(', ')} ${nobles.length === 1 ? 'goes' : 'go'} down to your dungeon.`;
         }
-        for (const w of nobles) delete w.column;
+        // (w.column stays set: a knight already claimed by a column is never claimed again by a later one the same day)
         col.noblesDone = true;
         return { success: true, text };
     },
@@ -397,11 +492,13 @@ export const PrisonerFates = {
         // Knights not yet decided: the captains offer them back for a fair ransom
         if (!col.noblesDone) PrisonerFates.decideNobles(player, world, 'ransom');
         col.oathDone = true;
-        const text = PrisonerFates[`_${fate}`](player, world, col);
+        let text = col.rebel ? PrisonerFates._rebelFate(player, world, col, fate) : PrisonerFates[`_${fate}`](player, world, col);
+        const kin = PrisonerFates._houseKinFate(player, world, col, fate);
+        if (kin) text = `${text} ${kin}`;
         st.pending = null;
         if (col.kingdomId != null) st.wrongs[col.kingdomId] = { fate, day: _day(world) };
-        PrisonerFates._history(player, world, fate, text, { realm: col.realm || 'outlaws', men: col.men });
-        return { success: true, text, fate };
+        PrisonerFates._history(player, world, fate, text, { realm: col.realm || (col.rebel ? 'rebels' : 'outlaws'), men: col.men, source: col.source || 'field' });
+        return { success: true, text, fate, icon: opt.icon, label: opt.label };
     },
 
     /** Walked away from: the captains' merciful default (the oath; outlaws hang). */
@@ -426,24 +523,141 @@ export const PrisonerFates = {
     _service(player, world, col) {
         const S = PrisonerFates.config().service;
         const st = PrisonerFates.state(player);
-        const def = PlayerMilitary.getUnitDef(col.outlaw ? S.outlawUnit || 'militia' : S.unitType || 'soldier') || PlayerMilitary.getUnitDef('militia');
+        const lawless = !!(col.outlaw || col.rebel);
+        const def = PlayerMilitary.getUnitDef(lawless ? S.outlawUnit || 'militia' : S.unitType || 'soldier') || PlayerMilitary.getUnitDef('militia');
         const per = Math.max(1, _num(def && def.strength, 5));
         const n = def ? Math.min(_num(S.maxUnits, 6), Math.max(col.strength * _num(S.share, 0.5) >= per / 2 ? 1 : 0, Math.floor(col.strength * _num(S.share, 0.5) / per))) : 0;
         if (!player.army) player.army = [];
         for (let i = 0; i < n; i++) {
             const u = PlayerMilitary.makeArmyUnit(def);
-            u.name = `${col.outlaw ? 'Turned outlaws' : `Turncoats of ${col.realm}`}`;
-            u.turncoat = { kingdomId: col.kingdomId, realm: col.realm, outlaw: !!col.outlaw, loyalty: _num(col.outlaw ? S.outlawLoyalty : S.loyalty, 25), day: _day(world) };
+            u.name = col.rebel ? `Pressed men of ${col.rebel.leader}'s rising` : col.outlaw ? 'Turned outlaws' : `Turncoats of ${col.realm}`;
+            u.turncoat = { kingdomId: col.kingdomId, realm: col.realm, outlaw: lawless, rebel: !!col.rebel, loyalty: _num(lawless ? S.outlawLoyalty : S.loyalty, 25), day: _day(world) };
             player.army.push(u);
         }
         st.stats.served += n;
-        // The rest walk home disarmed
+        // The rest walk home disarmed (outlaws: back to the road, a band again before long)
         const rest = Math.max(0, col.strength - n * per);
-        if (!col.outlaw) PrisonerFates._homeTo(world, col, rest);
-        if (col.nobleShare && !col.outlaw) PrisonerFates._noblesHome(player, world, col);
+        if (!lawless) PrisonerFates._homeTo(world, col, rest);
+        else if (col.outlaw && rest > 0) PrisonerFates._freeBand(player, world, col, rest);
+        if (col.nobleShare && !lawless) PrisonerFates._noblesHome(player, world, col);
+        const who = col.rebel ? 'the rebels' : col.outlaw ? 'the outlaws' : `${col.realm}'s men`;
         return n
-            ? `${_plural(n, 'company', 'companies')} of ${col.outlaw ? 'the outlaws' : `${col.realm}'s men`} take your pay${rest > 0 ? '; the rest are stripped and sent off' : ''}. Watch them: they are not yours yet.`
+            ? `${_plural(n, 'company', 'companies')} of ${who} take your pay${rest > 0 ? (col.rebel ? '; the rest go home to their fields' : '; the rest are stripped and sent off') : ''}. Watch them: they are not yours yet.`
             : 'None of them is fit to serve; they are stripped and sent off.';
+    },
+
+    /** A rebel column's fate: the rising's judgement (PeasantRevolts.act), or pressed into service. */
+    _rebelFate(player, world, col, fate) {
+        const st = PrisonerFates.state(player);
+        const live = PrisonerFates._rebelLive(player, col);
+        const A = PeasantRevolts.config().aftermath || {};
+        let text;
+        if (fate === 'service') {
+            text = PrisonerFates._service(player, world, col);
+            if (live) {
+                const r = PeasantRevolts.act(player, world, 'imprison');
+                if (r && r.success) text = `${text} ${r.text}`;
+            }
+        } else if (live) {
+            const r = PeasantRevolts.act(player, world, fate);
+            text = (r && r.text) || 'It is done.';
+        } else {
+            text = `The rising of ${col.rebel.leader} is judged already; the ${col.men} men are sent home to their fields.`;
+        }
+        if (fate === 'mercy' || fate === 'imprison' || (!live && fate !== 'service')) st.stats.released += col.men;
+        else if (fate.startsWith('hang')) st.stats.hanged += Math.min(col.men, Math.max(1, _num((A[fate] || {}).hanged, 1)));
+        return text;
+    },
+
+    /**
+     * The men of rank who shared the men's fate, a rival House's kinsmen among
+     * them (decideNobles 'share'): cut down or impaled, his House owes you
+     * blood; blinded, maimed; sent home, his House thinks the better of you.
+     */
+    _houseKinFate(player, world, col, fate) {
+        const kin = Array.isArray(col.houseKin) ? col.houseKin : [];
+        if (!kin.length) return '';
+        const names = [];
+        for (const w of kin) {
+            if (fate === 'slaughter' || fate === 'impale') {
+                if (Interrogation.powBlood(player, world, w, 'murdered')) names.push(w.houseName);
+            } else if (fate === 'blind') {
+                if (Interrogation.powBlood(player, world, w, 'maimed', { maimed: true, what: 'blinded' })) names.push(w.houseName);
+            } else {
+                Interrogation._powHouseHome(player, world, w, false);
+            }
+        }
+        col.houseKin = [];
+        const uniq = [...new Set(names)];
+        return uniq.length ? `${uniq.join(' and ')} will want blood for ${kin.map(w => w.name).join(', ')}.` : '';
+    },
+
+    /**
+     * Outlaws you let go walk off — and, some days later, a band of them rides
+     * again (a world unit, world/units.js): world.prisonerFates.freed until due.
+     * They leave you be a while (sparedUntilDay) for the mercy. → the record, or null.
+     */
+    _freeBand(player, world, col, strength) {
+        const U = PrisonerFates.config().outlaws;
+        const day = _day(world);
+        const s = Math.round(_num(strength) * _num(U.freedShare, 0.6));
+        if (s < _num(U.freedMin, 4)) return null;
+        const ws = WarStakes.state(world);
+        const [d0, d1] = Array.isArray(U.freedDays) ? U.freedDays : [8, 20];
+        const due = day + d0 + Math.floor(_roll(world, `freed|${col.id}|${day}`) * Math.max(1, d1 - d0 + 1));
+        const rec = {
+            id: ws.nextId++, due, q: col.q, r: col.r, type: col.unitType === 'pirate' || col.sea ? 'pirate' : 'raider', strength: s,
+            name: col.name || 'Freed Outlaws', by: PrisonerFates._by(player), byPlayer: !!player, spareDays: _num(U.freedSpareDays, 60), day,
+        };
+        ws.freed.push(rec);
+        return rec;
+    },
+
+    /** A spot for a freed band to reappear: a few hexes off, on land for raiders, at sea for pirates. */
+    _freeSpot(world, f) {
+        const water = (t) => !!(t && t.terrain && /ocean|sea|lake|water|coast/.test(String(t.terrain.id || '')));
+        const ok = (t) => !!t && t.terrain && (f.type === 'pirate' ? water(t) : (t.terrain.passable !== false && !water(t) && !t.settlement));
+        const w = (world && world.width) || 0;
+        for (let ring = 3; ring <= 6; ring++) {
+            const k = (_roll(world, `spot|${f.id}|${ring}`) * 6) | 0;
+            for (let i = 0; i < 6; i++) {
+                const dir = Hex.DIRECTIONS[(k + i) % 6];
+                const q = w ? Hex.wrapQ(f.q + dir.q * ring, w) : f.q + dir.q * ring;
+                const r = f.r + dir.r * ring;
+                if (world.height && (r < 0 || r >= world.height)) continue;
+                const t = typeof world.getTile === 'function' ? world.getTile(q, r) : null;
+                if (ok(t)) return { q, r };
+            }
+        }
+        return { q: f.q, r: f.r };
+    },
+
+    /** The freed bands whose day has come ride again. */
+    _freedDay(world, player, out) {
+        const ws = world.prisonerFates;
+        if (!ws || !Array.isArray(ws.freed) || !ws.freed.length) return;
+        const day = _day(world);
+        const due = ws.freed.filter(f => _num(f.due) <= day);
+        if (!due.length) return;
+        ws.freed = ws.freed.filter(f => _num(f.due) > day);
+        if (!Array.isArray(world.units)) world.units = [];
+        for (const f of due) {
+            const at = PrisonerFates._freeSpot(world, f);
+            // (its own seeded stream: the band's id and age roll no one else's dice)
+            const unit = Utils.withRng(Utils.seededRandom(Utils.hashStr(`${_seed(world)}|freed|${f.id}`)), () => new WorldUnit(f.type, at.q, at.r));
+            unit.id = `freed_${f.id}_${day}`;
+            unit.name = f.name;
+            unit.strength = Math.max(1, Math.round(_num(f.strength)));
+            unit.population = Math.max(3, Math.round(unit.strength * 1.5));
+            if (!unit.inventory) unit.inventory = {};
+            unit.freedBy = f.by;
+            unit.sparedUntilDay = day + _num(f.spareDays, 60);
+            world.units.push(unit);
+            if (Array.isArray(world.events)) world.events.push({ text: `${f.name}, let go by ${f.by}, ride${f.type === 'pirate' ? ' the sea' : ' the roads'} again.`, type: 'military', day });
+            if (player && f.byPlayer && out) {
+                out.notices.push({ icon: f.type === 'pirate' ? '🏴‍☠️' : '🗡️', title: 'Old Faces on the Road', text: `${f.name}, whom you let go, are ${f.type === 'pirate' ? 'at sea' : 'on the road'} again near (${at.q}, ${at.r}): ${unit.strength} strong. For the mercy, they leave you be until day ${unit.sparedUntilDay}.`, type: 'warning' });
+            }
+        }
     },
 
     _noblesHome(player, world, col) {
@@ -470,7 +684,7 @@ export const PrisonerFates = {
         PrisonerFates._noblesHome(player, world, col);
         st.stats.sworn += col.men;
         if (player.house) House._chronicle(player.house, world, `${PrisonerFates._by(player)} sent ${col.men} men of ${col.realm} home on their oath not to bear arms against ${player.name || 'them'} again.`, ['war', 'mercy']);
-        return `${col.men} men of ${col.realm} swear on their swords and their gods never to bear arms against you, and walk home. ${col.realm} thinks the better of you (+${_num(O.rep, 6)}).`;
+        return `${col.men} men of ${col.realm} swear on their swords and their gods never to bear arms against you, and walk home. ${_cap(col.realm)} thinks the better of you (+${_num(O.rep, 6)}).`;
     },
 
     _release(player, world, col) {
@@ -481,7 +695,9 @@ export const PrisonerFates = {
         if (col.outlaw) {
             player.karma = _num(player.karma) + _num(U.releaseKarma, 3);
             try { Traits.recordDeed(player, 'mercy', 1); } catch (e) { /* no traits */ }
-            return `You let ${col.men} of the ${col.name} go with their lives. Some will go back to the road.`;
+            // (and they do: a band of them rides again within weeks, a real band on the map)
+            const band = PrisonerFates._freeBand(player, world, col, col.strength);
+            return `You let ${col.men} of the ${col.name} go with their lives.${band ? ' Some will go back to the road, and remember who spared them.' : ''}`;
         }
         PrisonerFates._homeTo(world, col, col.strength);
         if (!player.reputation) player.reputation = {};
@@ -529,7 +745,7 @@ export const PrisonerFates = {
             return `${col.men} of the ${col.name} are cut down where they knelt. The outlaws of these roads will not yield to you again.`;
         }
         PrisonerFates._brand(player, world, 'slaughter', col);
-        return `${col.men} men of ${col.realm} are cut down where they knelt. ${col.realm} will give you no quarter now: its men will fight to the last.`;
+        return `${col.men} men of ${col.realm} are cut down where they knelt. ${_cap(col.realm)} will give you no quarter now: its men will fight to the last.`;
     },
 
     _blind(player, world, col) {
@@ -571,11 +787,13 @@ export const PrisonerFates = {
         const to = PrisonerFates._homeward(player, world, q, r);
         const ok = (t) => {
             const tile = world && typeof world.getTile === 'function' ? world.getTile(t.q, t.r) : null;
-            return !tile || !tile.terrain || tile.terrain.passable !== false;
+            // (by the road, not in the town itself: that hex is the town's)
+            return !tile || ((!tile.terrain || tile.terrain.passable !== false) && !tile.settlement);
         };
         let pts = [];
         if (to && (to.q !== q || to.r !== r)) pts = Hex.lineDraw(q, r, to.q, to.r).slice(0, n + 4).filter(ok);
         if (pts.length < Math.min(n, 2)) pts = [{ q, r }, ...Hex.neighbors(q, r)].filter(ok);
+        if (!pts.length) pts = [{ q, r }];
         return pts.slice(0, Math.max(1, n)).map(t => ({ q: t.q, r: t.r }));
     },
 
@@ -610,7 +828,8 @@ export const PrisonerFates = {
             const near2 = k === victims || (k.capital && _dist(world, k.capital.q, k.capital.r, col.q, col.r) <= _num(I.fearRadius, 30));
             if (near2) { const c = WarStakes.captivity(k); c.fearOf.player = Math.max(_num(c.fearOf.player), until); }
         }
-        return `${col.men} men of ${col.realm} are set on stakes along ${place}, into your realm. Any army that comes that way will walk between them.`;
+        const into = PrisonerFates._homeward(player, world, col.q, col.r) ? ', into your realm' : '';
+        return `${col.men} men of ${col.realm} are set on stakes along ${place}${into}. Any army that comes that way will walk between them.`;
     },
 
     // ── The marks every cruelty leaves ──────────────────────────
@@ -738,15 +957,20 @@ export const PrisonerFates = {
             for (const other of world.kingdoms || []) if (other && other !== k && other.isAlive !== false) player.reputation[other.id] = _num(player.reputation[other.id]) + Math.round(_num(O.brokenRep, 4) / 2);
         }
         const realm = k ? Names.realm(k.name) : 'their realm';
-        const text = `Among the ${unit.name || 'enemy'} were ${n} men you sent home on their oath. ${realm} broke its word, and every court will hear of it.`;
-        if (player.house) House._chronicle(player.house, world, `${realm} sent against ${PrisonerFates._by(player)} ${n} men who had sworn never to bear arms against ${player.name || 'them'} again.`, ['war', 'betrayal']);
+        const text = `Among the ${unit.name || 'enemy'} were ${n} men you sent home on their oath. ${_cap(realm)} broke its word, and every court will hear of it.`;
+        if (player.house) House._chronicle(player.house, world, `${_cap(realm)} sent against ${PrisonerFates._by(player)} ${n} men who had sworn never to bear arms against ${player.name || 'them'} again.`, ['war', 'betrayal']);
         PrisonerFates._history(player, world, 'oath_broken', text, { realm, men: n });
         return text;
     },
 
     // ── Ransom talks for the men of rank ───────────────────────
 
-    _talksCap(world, w) {
+    /**
+     * The most his people will pay: base × the lord's greed, at most what his
+     * House's purse (a rival House's kinsman, Interrogation.ransomPurses) and
+     * his crown's treasury (treasuryShare) can spare together.
+     */
+    _talksCap(player, world, w) {
         const R = PrisonerFates.config().ransom;
         const P = Interrogation.config().pow;
         const k = _kingdom(world, w.kingdomId);
@@ -754,7 +978,7 @@ export const PrisonerFates = {
         const base = _num((P.ransom || {})[w.rank], { lord: 500, knight: 200, captain: 80 }[w.rank] || 100);
         const lord = k.lord || {};
         const greed = _num(R.greedBase, 1.3) + (_num(lord.ambition, 5) - 5) * _num(R.greedPerAmbition, 0.05) + (_num(lord.honor, 5) - 5) * _num(R.honourPer, 0.03);
-        return Math.max(0, Math.floor(Math.min(base * Math.max(0.5, greed), _num(k.treasury) * _num(R.treasuryShare, 0.35))));
+        return Math.max(0, Interrogation.ransomPurses(player, world, w, base * Math.max(0.5, greed), _num(R.treasuryShare, 0.35)).total);
     },
 
     /** The price named for a knight at `askKey` (fair | high | ruinous). */
@@ -777,7 +1001,7 @@ export const PrisonerFates = {
         const R = PrisonerFates.config().ransom;
         const w = Interrogation._pow(player, powId);
         if (!w) return { success: false, reason: 'You hold no such prisoner.' };
-        if (!_kingdom(world, w.kingdomId)) return { success: false, reason: `${w.realm} is no more.` };
+        if (!_kingdom(world, w.kingdomId)) return { success: false, reason: `${_cap(w.realm)} is no more.` };
         if (w.talks && ['asked', 'agreed'].includes(w.talks.stage)) return { success: false, reason: 'Talks are under way.' };
         const day = _day(world);
         const ask = PrisonerFates.askFor(world, w, askKey);
@@ -806,7 +1030,7 @@ export const PrisonerFates = {
         t.rounds = _num(t.rounds) + 1;
         if (t.rounds >= _num(R.maxRounds, 3)) {
             t.stage = 'refused';
-            return { success: true, text: `${w.realm} will haggle no more: ${w.name} is yours to keep.` };
+            return { success: true, text: `${_cap(w.realm)} will haggle no more: ${w.name} is yours to keep.` };
         }
         t.ask = Math.max(t.offer + 1, Math.round(t.ask * (1 - _num(R.pressCut, 0.2))));
         t.stage = 'asked';
@@ -849,10 +1073,13 @@ export const PrisonerFates = {
         player.reputation[w.kingdomId] = _num(player.reputation[w.kingdomId]) + _num(R.saleRep, -8);
         player.reputation[b.kingdomId] = _num(player.reputation[b.kingdomId]) + 2;
         try { NPCLords.rememberRealm(world, w.kingdomId, 'pow_sold', { note: w.name }); } catch (e) { /* no lord */ }
+        // (a rival House's kinsman sold like a horse: his House will not forgive it soon)
+        const rival = Interrogation.powHouse(player, w);
+        if (rival) { try { House.accrueRivalFeud(player, world, rival.kingdomId, _num(R.saleHouseFeud, 20), `${w.name} sold to ${b.realm}`); } catch (e) { /* no House */ } }
         const st = PrisonerFates.state(player);
         st.stats.sold++;
         st.stats.ransomGold += b.price;
-        const text = `${b.realm} pays ${Utils.formatGold(b.price)} gold out of its treasury for ${w.name} of ${w.realm}. ${w.realm} will not forget it.`;
+        const text = `${_cap(b.realm)} pays ${Utils.formatGold(b.price)} gold out of its treasury for ${w.name} of ${w.realm}. ${_cap(w.realm)} will not forget it.`;
         PrisonerFates._history(player, world, 'sold', text, { realm: w.realm });
         if (player.house) House._chronicle(player.house, world, `${PrisonerFates._by(player)} sold ${w.name} of ${w.realm} to ${b.realm}.`, ['war']);
         return { success: true, text, paid: b.price };
@@ -873,45 +1100,47 @@ export const PrisonerFates = {
             if (!t) continue;
             const k = _kingdom(world, w.kingdomId);
             if (!k) { t.stage = 'refused'; continue; }
+            // (a rival House's kinsman: his House answers with his crown, and pays first out of its purse)
+            const who = w.houseName && Interrogation.powHouse(player, w) ? `${w.houseName} and ${w.realm}` : w.realm;
             if (t.stage === 'asked' && day >= _num(t.replyDay)) {
-                const cap = PrisonerFates._talksCap(world, w);
+                const cap = PrisonerFates._talksCap(player, world, w);
                 if (cap <= 0) {
                     t.stage = 'refused';
-                    out.notices.push({ icon: '💰', title: `No Ransom for ${w.name}`, text: `${w.realm} sends word it has nothing to pay. ${w.name} stays in your dungeon (🛡️ Prisoners of War).`, type: 'warning' });
+                    out.notices.push({ icon: '💰', title: `No Ransom for ${w.name}`, text: `${who} send${who === w.realm ? 's' : ''} word there is nothing to pay. ${w.name} stays in your dungeon (🛡️ Prisoners of War).`, type: 'warning' });
                 } else if (t.ask <= cap) {
                     t.stage = 'agreed';
                     t.payDay = day + _num(R.payDays, 4);
-                    out.notices.push({ icon: '💰', title: `${w.realm} Agrees`, text: `${w.realm} will pay ${Utils.formatGold(t.ask)} gold for ${w.name}. The coin is on its way.`, type: 'success' });
+                    out.notices.push({ icon: '💰', title: `${_cap(w.realm)} Agrees`, text: `${who} will pay ${Utils.formatGold(t.ask)} gold for ${w.name}. The coin is on its way.`, type: 'success' });
                 } else {
                     t.stage = 'offered';
                     t.offer = cap;
-                    out.notices.push({ icon: '💰', title: `An Offer for ${w.name}`, text: `${w.realm} will not pay ${Utils.formatGold(t.ask)}, but offers ${Utils.formatGold(cap)} gold (🛡️ Prisoners of War).`, type: 'info' });
+                    out.notices.push({ icon: '💰', title: `An Offer for ${w.name}`, text: `${who} will not pay ${Utils.formatGold(t.ask)}, but offer${who === w.realm ? 's' : ''} ${Utils.formatGold(cap)} gold (🛡️ Prisoners of War).`, type: 'info' });
                 }
             } else if (t.stage === 'agreed' && day >= _num(t.payDay)) {
                 const owed = Math.max(0, _num(t.ask) - _num(t.paid));
-                const pay = Math.max(0, Math.min(owed, Math.floor(_num(k.treasury))));
-                if (pay > 0) {
-                    k.treasury = _num(k.treasury) - pay;
-                    player.gold = Utils.cents(_num(player.gold) + pay);
-                    t.paid = _num(t.paid) + pay;
-                    st.stats.ransomGold += pay;
-                    try { Ledger.record(player, 'warRansoms', pay); } catch (e) { /* no ledger */ }
+                // Out of his House's purse first, then his crown's treasury: purse to purse
+                const p = Interrogation.payRansom(player, world, w, owed, 'warRansoms');
+                if (p.paid > 0) {
+                    t.paid = _num(t.paid) + p.paid;
+                    t.paidHouse = _num(t.paidHouse) + p.house;
+                    st.stats.ransomGold += p.paid;
                 }
                 if (_num(t.paid) >= _num(t.ask)) {
+                    Interrogation._powHouseHome(player, world, w, true);
                     Interrogation._powGone(player, w);
                     st.stats.ransomed++;
-                    const text = `${w.realm} pays ${Utils.formatGold(t.paid)} gold out of its treasury, and ${w.name} rides home.`;
+                    const text = `${Interrogation.paidWords(w, { house: _num(t.paidHouse), crown: _num(t.paid) - _num(t.paidHouse) })}, and ${w.name} rides home.`;
                     PrisonerFates._history(player, world, 'ransomed', text, { realm: w.realm });
                     out.notices.push({ icon: '💰', title: `${w.name} Ransomed`, text, type: 'success' });
                 } else if (day >= _num(t.due)) {
                     t.stage = 'broken';
-                    out.notices.push({ icon: '💰', title: `${w.realm} Defaults`, text: `${w.realm} paid ${Utils.formatGold(t.paid)} of ${Utils.formatGold(t.ask)} and can pay no more. ${w.name} stays in your dungeon, to rot or to be sold (🛡️ Prisoners of War).`, type: 'warning' });
+                    out.notices.push({ icon: '💰', title: `${_cap(w.realm)} Defaults`, text: `${_cap(w.realm)} paid ${Utils.formatGold(t.paid)} of ${Utils.formatGold(t.ask)} and can pay no more. ${w.name} stays in your dungeon, to rot or to be sold (🛡️ Prisoners of War).`, type: 'warning' });
                 } else {
                     t.payDay = day + _num(R.payDays, 4);
                 }
             } else if (t.stage === 'offered' && day >= _num(t.due)) {
                 t.stage = 'refused';
-                out.notices.push({ icon: '💰', title: `${w.realm} Withdraws`, text: `Unanswered, ${w.realm} withdraws its offer for ${w.name}.`, type: 'info' });
+                out.notices.push({ icon: '💰', title: `${_cap(w.realm)} Withdraws`, text: `Unanswered, ${w.realm} withdraws its offer for ${w.name}.`, type: 'info' });
             }
         }
     },
@@ -933,7 +1162,9 @@ export const PrisonerFates = {
             const text = `${w.name} of ${w.realm} dies in your dungeon after ${day - _num(w.day)} days in the dark. No ransom comes for the dead.`;
             PrisonerFates._history(player, world, 'rotted', text, { realm: w.realm });
             if (player.house) House._chronicle(player.house, world, text, ['war', 'cruelty']);
-            out.notices.push({ icon: '⛓️', title: 'Dead in the Dungeon', text, type: 'warning' });
+            // (a rival House's kinsman dead in your cells: blood owed, systems/bloodFeuds.js)
+            const blood = Interrogation.powBlood(player, world, w, 'captive');
+            out.notices.push({ icon: '⛓️', title: 'Dead in the Dungeon', text: blood ? `${text} ${w.houseName} will want blood for him.` : text, type: 'warning' });
         }
     },
 
@@ -1012,11 +1243,11 @@ export const PrisonerFates = {
             h.ask = n * _num(Y.perUnit, 40);
             h.due = day + _num(Y.dueDays, 30);
             st.held.push(h);
-            text = `${_plural(n, 'company', 'companies')} of your fallen were taken alive. ${realm} asks ${Utils.formatGold(h.ask)} gold to send them back by day ${h.due} (🛡️ Prisoners of War).`;
+            text = `${_plural(n, 'company', 'companies')} of your fallen were taken alive. ${_cap(realm)} asks ${Utils.formatGold(h.ask)} gold to send them back by day ${h.due} (🛡️ Prisoners of War).`;
         } else if (fate === 'release') {
             h.returnDay = day + _num(Y.releaseDays, 7);
             st.held.push(h);
-            text = `${_plural(n, 'company', 'companies')} of your fallen were taken alive. ${realm} will send them home, unransomed.`;
+            text = `${_plural(n, 'company', 'companies')} of your fallen were taken alive. ${_cap(realm)} will send them home, unransomed.`;
         } else if (fate === 'service') {
             k.military = _num(k.military) + n * 10;
             st.stats.menLost += n;
@@ -1025,8 +1256,8 @@ export const PrisonerFates = {
             st.vengeance[kid] = day + _num(Y.vengeanceDays, 120);
             st.stats.menLost += n;
             text = fate === 'blind'
-                ? `${realm} put out the eyes of ${_plural(n, 'company', 'companies')} of your men taken alive and sent them back to you, led by the hand. Your men want blood.`
-                : `${realm} cut down ${_plural(n, 'company', 'companies')} of your men who had yielded. Your soldiers will remember it in the next battle.`;
+                ? `${_cap(realm)} put out the eyes of ${_plural(n, 'company', 'companies')} of your men taken alive and sent them back to you, led by the hand. Your men want blood.`
+                : `${_cap(realm)} cut down ${_plural(n, 'company', 'companies')} of your men who had yielded. Your soldiers will remember it in the next battle.`;
             if (player.house) House._chronicle(player.house, world, text, ['war']);
         }
         PrisonerFates._history(player, world, `yours_${fate}`, text, { realm, men: n });
@@ -1065,7 +1296,7 @@ export const PrisonerFates = {
             if (h.fate === 'release' && day >= _num(h.returnDay)) {
                 PrisonerFates._returnMen(player, h);
                 st.held = st.held.filter(x => x !== h);
-                out.notices.push({ icon: '🕊️', title: 'Your Men Come Home', text: `${h.realm} sends ${_plural(h.units, 'company', 'companies')} of your men back to you, unransomed.`, type: 'success' });
+                out.notices.push({ icon: '🕊️', title: 'Your Men Come Home', text: `${_cap(h.realm)} sends ${_plural(h.units, 'company', 'companies')} of your men back to you, unransomed.`, type: 'success' });
             } else if (h.fate === 'ransom' && (day > _num(h.due) || !k)) {
                 st.held = st.held.filter(x => x !== h);
                 if (k) k.military = _num(k.military) + h.units * 10;
@@ -1184,14 +1415,22 @@ export const PrisonerFates = {
         if (world.prisonerFates) {
             PrisonerFates._columnsDay(world, player, out);
             PrisonerFates._stakesDay(world);
+            PrisonerFates._freedDay(world, player, out);
         }
         const day = _day(world);
         for (const k of world.kingdoms || []) {
             const c = k && k.captivity;
             if (c && Array.isArray(c.oathBound) && c.oathBound.length) c.oathBound = c.oathBound.filter(o => _num(o.until) > day);
         }
+        // Men who yielded today away from a field (a lair, a breach, a deck) and not yet taken up by a panel
+        const fresh = player ? PrisonerFates.collect(player, world) : null;
+        if (fresh) out.notices.push({ icon: '⛓️', title: 'Captives Await Your Word', text: `${fresh.outlaw ? `${fresh.men} of the ${fresh.name}` : `${fresh.men} men of ${fresh.realm}`} who yielded ${PrisonerFates._where(fresh)} kneel and wait (🛡️ Prisoners of War). Give no word and your captains decide tomorrow.`, type: 'info' });
+        // (no one alive to take them: they slip away)
+        if (!player && world.prisonerFates && Array.isArray(world.prisonerFates.yielded)) world.prisonerFates.yielded.length = 0;
         if (!player || !player.prisonerFates) return out;
         const st = PrisonerFates.state(player);
+        // (a rising judged in its own panel meanwhile: the rebels' column is gone with it)
+        if (st.pending && st.pending.rebel && !PrisonerFates._rebelLive(player, st.pending)) st.pending = null;
         if (st.pending && _num(st.pending.day) < day) {
             const col = st.pending;
             const r = PrisonerFates.settleDefault(player, world);
@@ -1217,12 +1456,21 @@ export const PrisonerFates = {
 
     // ── The choice scene (ui/actionMenu/prisonerFates.js registers it) ──
 
+    /** Where they yielded, in words: "on the field", "on the deck", "in the breach at Eskby", "among the ruins of Blackwood Camp". */
+    _where(col) {
+        if (!col) return 'on the field';
+        if (col.source === 'siege') return `in the breach${col.place ? ` at ${col.place}` : ''}`;
+        if (col.source === 'lair') return `among the ruins of ${col.place || 'their lair'}`;
+        if (col.sea || col.source === 'sea' || col.source === 'boarding') return 'on the deck';
+        return 'on the field';
+    },
+
     /** The scene's view: the oath-breakers, the knights, then the men. */
     view(player, world) {
         const col = PrisonerFates.pending(player);
         if (!col) return null;
-        const who = col.outlaw ? `${col.men} of the ${col.name}` : `${col.men} men of ${col.realm}`;
-        const stats = [`⛓️ ${col.men} captives`, col.outlaw ? '🗡️ Outlaws' : `🏰 ${col.realm}`];
+        const who = col.rebel ? `${col.men} of the commons who rose with ${col.rebel.leader}` : col.outlaw ? `${col.men} of the ${col.name}` : `${col.men} men of ${col.realm}`;
+        const stats = [`⛓️ ${col.men} captives`, col.rebel ? '🔥 Rebels' : col.outlaw ? '🗡️ Outlaws' : `🏰 ${_cap(col.realm)}`];
         const spirit = PrisonerFates.foeSpirit(player, world, { type: col.unitType, kingdomId: col.kingdomId });
         if (spirit.noRout) stats.push('⚔️ They expect no quarter');
         if (!col.oathDone) {
@@ -1230,7 +1478,7 @@ export const PrisonerFates = {
                 icon: '🕊️', title: 'Oath-Breakers', stats,
                 text: `${_plural(col.oathBreakers, 'man', 'men')} among the captives swore to you once never to bear arms against you again. By any law of war, their lives are yours.`,
                 options: [
-                    { id: 'oath_hang', icon: '🪢', label: 'Hang the oath-breakers', hint: 'By right: no one calls it cruelty', chance: null, odds: false, can: true, isDefault: true },
+                    { id: 'oath_hang', icon: '💀', label: 'Hang the oath-breakers', hint: 'By right: no one calls it cruelty', chance: null, odds: false, can: true, isDefault: true },
                     { id: 'oath_spare', icon: '🤝', label: 'Let them stand with the rest', hint: 'Their fate is the others\'', chance: null, odds: false, can: true },
                 ],
             };
@@ -1238,9 +1486,11 @@ export const PrisonerFates = {
         if (!col.noblesDone) {
             const nobles = PrisonerFates._nobles(player, col);
             const worth = nobles.reduce((t, w) => t + PrisonerFates.askFor(world, w, 'fair'), 0);
+            const kin = nobles.filter(w => w.houseName);
+            const kinText = kin.length ? ` ${kin.map(w => `${w.name} is of ${w.houseName}'s blood, the head's ${w.kin || 'kinsman'}: his House will pay toward him out of its purse, and will owe you blood if he dies or is maimed in your hands.`).join(' ')}` : '';
             return {
                 icon: '🛡️', title: 'The Men of Rank', stats,
-                text: `Among ${who}: ${nobles.map(w => w.name).join(', ')}. Their crown would pay to have them back; your dungeon will hold them meanwhile.`,
+                text: `Among ${who}: ${nobles.map(w => w.name).join(', ')}. Their crown would pay to have them back; your dungeon will hold them meanwhile.${kinText}`,
                 options: [
                     { id: 'nobles_ransom', icon: '💰', label: 'Ransom them', hint: `Heralds to ${col.realm} with a fair price (about ${Utils.formatGold(worth)} gold in all): their answer comes in days, out of their treasury`, chance: null, odds: false, can: true, isDefault: true },
                     { id: 'nobles_dungeon', icon: '🔗', label: 'To the dungeon', hint: 'Hold them: question them, ransom them later, or let them rot', chance: null, odds: false, can: true },
@@ -1250,9 +1500,9 @@ export const PrisonerFates = {
         }
         return {
             icon: '⛓️', title: 'The Fate of the Captives', stats,
-            text: `${_cap(who)} knelt and gave up their arms${col.sea ? ' on the deck' : ' on the field'}. What becomes of them is your word.`,
+            text: `${_cap(who)} knelt and gave up their arms ${PrisonerFates._where(col)}. What becomes of them is your word.`,
             options: PrisonerFates.options(player, world, col).map(o => ({ ...o, chance: null, odds: false })),
-            footer: 'Walk away and your captains send them home on their oath (outlaws hang) at the day\'s end.',
+            footer: col.rebel ? 'Walk away and your captains send the commons home with mercy at the day\'s end.' : 'Walk away and your captains send them home on their oath (outlaws hang) at the day\'s end.',
         };
     },
 
@@ -1266,6 +1516,7 @@ export const PrisonerFates = {
         const log = [...((state && state.log) || []), r.text];
         if (PrisonerFates.pending(player)) return { state: { ...(state || {}), log }, notification: null };
         const cruel = ['slaughter', 'blind', 'impale'].includes(r.fate);
-        return { notification: { title: `${(FATE_TEXT[r.fate] || { icon: '⛓️' }).icon} ${r.fate ? _cap(FATE_TEXT[r.fate] ? FATE_TEXT[r.fate].label : 'Done') : 'Done'}`, body: r.text, type: cruel ? 'warning' : 'success' }, log: log.slice(0, -1) };
+        const cruel2 = cruel || r.fate === 'hang_ringleaders';
+        return { notification: { title: `${r.icon || (FATE_TEXT[r.fate] || { icon: '⛓️' }).icon} ${r.label ? _cap(r.label) : 'Done'}`, body: r.text, type: cruel2 ? 'warning' : 'success' }, log: log.slice(0, -1) };
     },
 };

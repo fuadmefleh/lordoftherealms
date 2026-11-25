@@ -59,6 +59,7 @@ import { Mail } from './mail.js';
 import { Coalitions } from './coalitions.js';
 import { LlmProse } from './llmProse.js';
 import { Names } from '../core/names.js';
+import { HolyWars } from './holyWars.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _day = world => (world && Number.isFinite(world.day) ? world.day : 0);
@@ -295,6 +296,17 @@ export const CourtLetters = {
                 }
                 break;
             }
+            case 'crusade_call': {
+                // A crown that answered a holy war asks a soul of the faith free to take the cross (systems/holyWars.js)
+                for (const o of HolyWars.crossOptions(player, world)) {
+                    if (!o.ok) continue;
+                    for (const id of o.war.members.length ? o.war.members : o.war.answered) {
+                        const k = peaceful.find(x => x.id === id);
+                        if (k && k.lord) out.push({ ...lordCtx(k), key: `crusade:${o.war.id}:${k.id}`, war: o.war });
+                    }
+                }
+                break;
+            }
             case 'loan_request': {
                 const st = this.state(player);
                 const amount = Math.round(Utils.clamp(_num(player.gold) * _num(K.share, 0.15), _num(K.min, 100), _num(K.max, 2000)));
@@ -399,6 +411,10 @@ export const CourtLetters = {
             case 'loan_default':
                 data.amount = ctx.amount; vars.amount = ctx.amount; data.loanId = ctx.loanId;
                 break;
+            case 'crusade_call':
+                data.warId = ctx.war.id;
+                vars.target = Names.realm(ctx.war.targetName); vars.war = ctx.war.name; vars.head = ctx.war.head || 'the head of the faith';
+                break;
             case 'rival_truce':
             case 'rival_marriage':
                 vars.feudCut = _num(K.feudCut);
@@ -435,7 +451,8 @@ export const CourtLetters = {
         return {
             id: 0, kind: kindId, day, expires: day + _num(K.expiry, 10),
             from: ctx.from, key: ctx.key, vars, data,
-            subject: _fill(K.subject, vars), body: _fill(K.body, vars), read: false,
+            // (a Knight of the Cross is written to as one: systems/holyWars.js)
+            subject: _fill(K.subject, vars), body: _fill(K.bodyKnight && HolyWars.knightOf(player) ? K.bodyKnight : K.body, vars), read: false,
         };
     },
 
@@ -873,6 +890,11 @@ export const CourtLetters = {
                 case 'call_to_arms:ride':
                     if (!player.army || !player.army.length) { ok = false; why = 'You have no army to ride with.'; }
                     break;
+                case 'crusade_call:take': {
+                    const o = HolyWars.crossOptions(player, world).find(x => x.war.id === letter.data.warId);
+                    if (!o || !o.ok) { ok = false; why = o ? o.reason : 'That holy war is over.'; }
+                    break;
+                }
                 case 'spouse_plea:terms':
                     if (!RealmWars.atWarWith(player, letter.from.kingdomId)) continue; // only for your own war
                     needGold(amount);
@@ -926,6 +948,13 @@ export const CourtLetters = {
                 break;
             }
             case 'office_offer:decline': remember('office_refused'); break;
+            case 'crusade_call:take': {
+                const r = HolyWars.takeCross(player, world, letter.data.warId);
+                if (!r.success) return { success: false, reason: r.reason };
+                lines.push(r.text);
+                break;
+            }
+            case 'crusade_call:decline': remember('crusade_declined'); break;
             case 'marriage_proposal:accept': {
                 const r = Heirs.marryForAlliance(player, world, letter.data.childId, kid, { dowry: 0, minReputation: -100, deed: 'match_accepted' });
                 if (!r.success) return { success: false, reason: r.reason };

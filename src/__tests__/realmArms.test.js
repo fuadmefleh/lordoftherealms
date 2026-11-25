@@ -112,6 +112,40 @@ describe('the crowns\' armouries', () => {
         });
     });
 
+    it('a slot its own towns cannot sell is imported from a friendly neighbour at the carriage markup, paid into that town; never from a foe', () => {
+        const { k, world } = realmGame();
+        RealmArms.state(k);
+        const body = RealmArms.config().slots.body;
+        // (its own stalls bare of body armour; the arsenal short of it)
+        for (const t of RealmArms._towns(k, world)) for (const id of body) SettlementMarket.take(t.s, id, SettlementMarket.stock(t.s, id));
+        for (const id of body) k.armoury.stock[id] = 0;
+        k.treasury = 1e6;
+        k.wars = [];
+        const abroad = RealmArms._importTowns(k, world, RealmArms._towns(k, world));
+        expect(abroad.length).toBeGreaterThan(0);
+        // (a foreign town with gambesons to sell)
+        const far = abroad[0];
+        SettlementMarket.add(far.s, 'gambeson', 40);
+        Economy.initSettlement(far.s);
+        const g0 = far.s.economy.gold;
+        const stock0 = SettlementMarket.stock(far.s, 'gambeson');
+        const r = RealmArms.buy(k, world);
+        expect(r.imported).toBeGreaterThan(0);
+        expect(RealmArms.held(k).body.n).toBeGreaterThan(0);
+        const took = stock0 - SettlementMarket.stock(far.s, 'gambeson');
+        expect(took).toBeGreaterThan(0);
+        expect(took).toBeLessThanOrEqual(Math.floor(stock0 * RealmArms.config().imports.marketShare));
+        // (paid at its price plus the carriage, into its purse)
+        const price = Economy.marketPrice(RealmArms._good('gambeson'), far.s, far.tile, world);
+        expect(far.s.economy.gold - g0).toBeGreaterThan(took * price);
+        // At war with that realm: its towns sell the crown nothing
+        if (far.s.kingdom != null) {
+            for (const id of body) k.armoury.stock[id] = 0;
+            k.wars = [far.s.kingdom];
+            expect(RealmArms._importTowns(k, world, RealmArms._towns(k, world)).some(t => t.s === far.s)).toBe(false);
+        }
+    });
+
     it('a battle: the fallen\'s arms are lost, the victor gathers some and strips the beaten; arrows are loosed', () => {
         const { world } = realmGame();
         const [a, b] = world.kingdoms.filter(x => x.isAlive);

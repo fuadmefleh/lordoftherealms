@@ -1,0 +1,36 @@
+{
+    "_doc": "The law of fratricide and the cage (systems/fratricide.js; the law itself is laws.succession in data/laws.json). On the player's succession under fratricide the new ruler's brothers (the late ruler's other sons; not his own uncles) are condemned and wait graceDays for the word; any may be spared at the cost in spare; the rest are strangled when the days run out (or at once, by the word). Under the cage they are shut up for life. A spared brother may plot (plot: a yearly chance; revealed by the spymaster's watch, else he flees abroad and swears himself your nemesis). While the player rules under fratricide, every mother of a son who is not the heir may scheme for her son to be the one who lives (mothers: a monthly chance, a strike some days later; revealed by a daily chance; guard the boy for guardCost gold, paid into the town's purse, or send the mother from court). AI realms under fratricide strangle the brothers of every heir who takes the throne (no succession crisis can come of a brother); a cruel, paranoid or wrathful ruler who came to the throne through a crisis may proclaim the law; a just or devout ruler may repeal it; the harems of fratricide realms poison a son now and then.",
+    "graceDays": 3,
+    "spare": { "stability": 4, "prestige": 10, "opinion": 6, "karma": 6 },
+    "strangle": { "karma": -3, "stabilityPer": 1, "stabilityCap": 3, "widowNemesis": 55, "earlyKarma": -2 },
+    "cage": { "karma": -1 },
+    "plot": { "minAge": 16, "yearly": 0.06, "ambitious": 0.08, "grudge": 0.05, "revealBase": 0.45, "revealSpymaster": 0.25, "nemesisScore": 70, "claimBonus": 12 },
+    "mothers": {
+        "monthly": 0.025, "sameMother": 0.3, "ambitious": 1.6, "crowned": 1.3,
+        "leadMin": 40, "leadMax": 120, "revealDaily": 0.012, "revealSpymaster": 0.015,
+        "success": 0.55, "guardCost": 60, "banishAffection": -30, "banishBond": -8, "exposedAffection": -20
+    },
+    "ai": { "adoptOnCrisis": 0.4, "adoptTraits": ["cruel", "paranoid", "wrathful"], "repealTraits": ["just_ruler", "devout"], "repealChance": 0.12, "haremYearly": 0.06, "haremMinSons": 2 },
+    "logCap": 40,
+    "lines": {
+        "pending": "The mutes wait outside the brothers' doors with the silken bowstring. By the law of {realm}, {names} must die before {days} days are out, unless you spare them.",
+        "strangled": "By the law of {realm}, the brothers of {ruler} were strangled with a silken bowstring: {names}.",
+        "strangledOne": "By the law of {realm}, {name}, brother of {ruler}, was strangled with a silken bowstring.",
+        "caged": "By the law of {realm}, the brothers of {ruler} were shut up in the cage for life: {names}.",
+        "spared": "{ruler} spared {poss} brother {name} from the bowstring, against the law of {realm}. The lords mutter that the crown is weak.",
+        "plotRevealed": "{name}, whom you spared from the bowstring, has been plotting with lords of {realm}. Your spymaster has the letters.",
+        "plotFled": "{name}, whom you spared from the bowstring, has fled the realm in the night. He swears he will come back for the crown.",
+        "exiled": "{name} was sent abroad under guard, never to return to {realm}.",
+        "motherHatched": "{mother} schemes for her son {forName} to be the one who lives.",
+        "motherRevealed": "Your spymaster brings word: {mother} means to poison {againstName}, so that {forName} may live and reign.",
+        "motherPoisoned": "{againstName} died of a sudden fever. Men whisper the name of {mother}.",
+        "motherFailed": "{againstName} sickened, and lived. The cup was traced to {mother}'s women.",
+        "motherFoiled": "The guards you set on {againstName} caught {mother}'s servant with the cup.",
+        "motherBanished": "{mother} was sent from court for scheming against {againstName}.",
+        "aiStrangled": "By the law of fratricide, {ruler} of {realm} had {n} brother{s} strangled on the day of the accession.",
+        "aiCaged": "{ruler} of {realm} shut {n} brother{s} up in the cage on the day of the accession.",
+        "aiAdopt": "{ruler} of {realm}, who came to the throne through blood, proclaims the law of fratricide.",
+        "aiRepeal": "{ruler} of {realm} repeals the law of fratricide: the brothers of the heir shall live.",
+        "aiHarem": "A son of {ruler} of {realm}, {name}, died of poison. The court whispers that his brother's mother had it done."
+    }
+}

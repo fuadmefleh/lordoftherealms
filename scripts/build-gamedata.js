@@ -89,6 +89,8 @@ const topLevel = [
     'coalitions',
     // Many crowns on one head: personal union, viceroys, the high crown (systems/highCrowns.js)
     'highCrowns',
+    // Personal unions between the AI realms: two crowns on one head (systems/realmUnions.js)
+    'realmUnions',
     'crises',
     // The last crisis of the age (systems/lastCrisis.js)
     'lastCrisis',
@@ -117,6 +119,14 @@ const topLevel = [
     'pitFights',
     // Lesser punishments and penal labour: the lash, the pillory, the iron, the mines and the oar (systems/penalLabour.js)
     'penalLabour',
+    // Flaying: a traitor's skin on the gate, a corrupt judge's over his chair (systems/flaying.js)
+    'flaying',
+    // Walled up alive, and the castle haunted for generations (systems/immurement.js)
+    'immurement',
+    // Decimation of a company that broke (player/decimation.js)
+    'decimation',
+    // A starving garrison eats its dead (systems/eatingTheDead.js)
+    'eatingTheDead',
     // The dungeon: putting prisoners to the question (systems/interrogation.js)
     'interrogation',
     'realmIntel',
@@ -231,6 +241,14 @@ const topLevel = [
     'nemesis',
     // Blood feuds and blood money: wergild tariffs, avengers, feuds among the world's own (systems/bloodFeuds.js)
     'bloodFeuds',
+    // The law of fratricide: the bowstring, the cage, the spared, the mothers' schemes (systems/fratricide.js)
+    'fratricide',
+    // Putting a dead enemy on trial: tombs, the synod, its sentences (systems/cadaverSynod.js)
+    'cadaverSynod',
+    // Wiping a House's name from the world: tombs, chronicles, towns, sons; those who remember (systems/damnatio.js)
+    'damnatio',
+    // Holy wars, the sees of the faiths, excommunication (systems/holyWars.js); the inquisition (systems/inquisition.js)
+    'holyWars', 'inquisition',
     // Friends & Bonds: sworn kin, drinking companions, mentors, protégés (systems/bonds.js)
     'bonds',
     // Personal quests from the House's own history (systems/houseQuests.js)

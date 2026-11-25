@@ -628,7 +628,10 @@ export const PlayerMovementMethods = {
             if (this._onRiverBoat()) RiverBoats.passHex(world, this, this.q, this.r);
             else if (currentTile && (currentTile.tollGate || currentTile.roadCross === 'ferry')) PublicWorks.playerCrossing(world, this, currentTile);
             // ...and the ferryman's fare at a great river's ferry (world/ferries.js, systems/ports.js)
-            if (!this._onRiverBoat()) Ports.ferryStep(world, this, this.prevQ, this.prevR, this.q, this.r, Rivers.crossesAsHost(this));
+            if (!this._onRiverBoat()) {
+                const ferried = Ports.ferryStep(world, this, this.prevQ, this.prevR, this.q, this.r, Rivers.crossesAsHost(this));
+                if (ferried && ferried.text) (this.seaNotes || (this.seaNotes = [])).push({ icon: '⛴️', title: 'The Ferry', text: ferried.text, type: 'info' });
+            }
 
             // Reveal area
             this.revealArea(world, 4);

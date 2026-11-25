@@ -14,6 +14,20 @@
 //   kingdom.captivity            { dismay: { until, m }, oathBound: [{ id, men,
 //                                until }], fearOf: { player | kid: until } }
 //                                (saved with the kingdom, systems/saveLoad.js)
+//   world.prisonerFates.yielded  [{ source, kingdomId, outlaw, unitType, name,
+//                                q, r, strength, sea, day, ... }] men who
+//                                yielded to the player away from a field
+//                                battle — a stormed lair (systems/outlawLairs.js),
+//                                a stormed town's garrison (systems/sieges.js),
+//                                boarders beaten off or a navy ship carried by
+//                                boarding (systems/shipVoyages.js, blockadeRunning,
+//                                seaInterception) — left for player/prisonerFates.js
+//                                (collect) to make a column of. The bridge that
+//                                lets those systems hand captives up without
+//                                importing the player layer.
+//   world.prisonerFates.freed    [{ due, q, r, type, strength, name, by }]
+//                                outlaws you let go: back on the road as a real
+//                                band (a world unit) on `due`.
 //
 // Pure reads and tiny writes, no randomness, no globals.
 
@@ -29,8 +43,59 @@ export const WarStakes = {
         const w = world.prisonerFates && typeof world.prisonerFates === 'object' ? world.prisonerFates : (world.prisonerFates = {});
         if (!Array.isArray(w.stakes)) w.stakes = [];
         if (!Array.isArray(w.columns)) w.columns = [];
+        if (!Array.isArray(w.yielded)) w.yielded = [];
+        if (!Array.isArray(w.freed)) w.freed = [];
         if (!Number.isFinite(w.nextId)) w.nextId = 1;
         return w;
+    },
+
+    /**
+     * Men who yielded to the player outside a field battle: a record for
+     * player/prisonerFates.js to make a column of (collect). rec: { source,
+     * kingdomId (null: outlaws), unitType, name, q, r, strength (the survivors'
+     * strength), sea }. At most a handful wait (the newest kept). → the record.
+     */
+    yieldUp(world, rec) {
+        if (!world || !rec || !(_num(rec.strength) > 0)) return null;
+        const w = WarStakes.state(world);
+        const r = { day: _day(world), ...rec, strength: Math.round(_num(rec.strength)) };
+        w.yielded.push(r);
+        if (w.yielded.length > 6) w.yielded.splice(0, w.yielded.length - 6);
+        return r;
+    },
+
+    /** The waiting surrenders, taken off the list (oldest first). */
+    takeYielded(world) {
+        const w = world && world.prisonerFates;
+        if (!w || !Array.isArray(w.yielded) || !w.yielded.length) return [];
+        return w.yielded.splice(0, w.yielded.length);
+    },
+
+    /**
+     * The freshest of the player's stakes within `radius` of (q, r), with the
+     * nearest of its posts: { fresh, q, r } or null. Outlaws read it
+     * (world/units.js updateRaider): a band will not ride past a forest of
+     * stakes. opts.outlawMult weighs a line of impaled outlaws heavier.
+     */
+    dreadNear(world, q, r, radius, opts = {}) {
+        const list = WarStakes.stakes(world);
+        if (!list.length) return null;
+        const day = _day(world);
+        const width = (world && world.width) || 0;
+        let best = null;
+        for (const s of list) {
+            if (!s.byPlayer) continue;
+            const f0 = WarStakes.fresh(s, day);
+            if (f0 <= 0) continue;
+            const f = Math.min(1, f0 * (s.realm === 'outlaws' ? _num(opts.outlawMult, 1) : 1));
+            const pts = Array.isArray(s.tiles) && s.tiles.length ? s.tiles : [{ q: s.q, r: s.r }];
+            for (const t of pts) {
+                const d = Hex.wrappingDistance(q, r, t.q, t.r, width);
+                if (d > radius) continue;
+                if (!best || f > best.fresh || (f === best.fresh && d < best.d)) best = { fresh: f, q: t.q, r: t.r, d };
+            }
+        }
+        return best;
     },
 
     /** The stakes standing (rotting ones too), or []. */

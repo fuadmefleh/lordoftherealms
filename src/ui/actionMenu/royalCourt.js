@@ -59,6 +59,14 @@ function _councilTab(player, world) {
         const def = offices[o] || {};
         const cur = Kingship.councillor(player, world, o);
         let body = def.blurb ? `<div style="${MUTED}">${_esc(def.blurb)}</div>` : '';
+        if (o === 'marshal') {
+            // In battle: the marshal's and the ruler's own generalship (Kingship.battleEffect)
+            const be = Kingship.battleEffect(player, world);
+            const pc = v => _sign(Math.round(v * 100));
+            const parts = [be.marshal ? `marshal ${pc(be.marshal.warBonus)}% attack, ${pc(be.marshal.defense)}% defence` : 'no marshal: the host fights without one'];
+            if (be.ruler.warBonus > 0) parts.push(`your own command ${pc(be.ruler.warBonus)}% attack, ${pc(be.ruler.defense)}% defence`);
+            body += `<div style="${MUTED}">⚔️ In battle: ${_esc(parts.join('; '))}.</div>`;
+        }
         if (cur) {
             body += rowList([actRow({
                 icon: '💺', name: _esc(cur.name),

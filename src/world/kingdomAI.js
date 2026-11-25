@@ -599,13 +599,14 @@ export const KingdomAI = {
         if (crown && crown.playerRuled && !(crown.policies && crown.policies.stance === 'aggressive')) return;
         // ...and so does a realm the player wears in personal union, ruled by a viceroy (systems/highCrowns.js)
         if (crown && crown.union && !(crown.policies && crown.policies.stance === 'aggressive')) return;
+        // ...and the junior crown of a personal union between AI realms: its king abroad
+        // speaks for it, and it joins his wars (systems/realmUnions.js)
+        if (kingdom.personalUnion && kingdom.personalUnion.role === 'junior' && KingdomAI.unionPartner(kingdom, world)) return;
         const otherKingdoms = world.kingdoms.filter(k =>
             k.isAlive &&
             k.id !== kingdom.id &&
             !kingdom.allies.includes(k.id) &&
-            !kingdom.wars.includes(k.id) &&
-            !KingdomAI.hasTruce(kingdom, k, world) &&
-            !KingdomAI.foundingPeace(kingdom, k, world)
+            KingdomAI.mayOpenWar(kingdom, k, world)
         );
         // A realm already fighting two wars doesn't open a third
         if (kingdom.wars.length >= 2) return;
@@ -621,8 +622,10 @@ export const KingdomAI = {
 
         // Only declare war if we're stronger or desperate. The lord's war
         // appetite (ambition, domination, honor) shifts how strong is enough.
-        const ourStrength = (kingdom.military + kingdom.population * 0.1) * LordInfluence.warAppetite(kingdom);
-        const theirStrength = target.military + target.population * 0.1;
+        // (two crowns in personal union fight as one: each weighed with its partner's host)
+        const ourStrength = KingdomAI.unionMight(kingdom, world) * LordInfluence.warAppetite(kingdom);
+        // (a realm in revolt, civil war or disorder tempts its neighbours sooner)
+        const theirStrength = KingdomAI.unionMight(target, world) * (KingdomAI.isWeak(target) ? KingdomAI.WAR.weakRatio : 1);
 
         // A militaristic realm marches only when it is at least as strong
         // and seldom gambles; others accept 80% and take a 10% gamble
@@ -640,6 +643,24 @@ export const KingdomAI = {
                 type: 'military'
             });
         }
+    },
+
+    /**
+     * The realm's partner in a personal union between AI realms (kingdom.personalUnion,
+     * kept by systems/realmUnions.js), alive, or null.
+     */
+    unionPartner(kingdom, world) {
+        const u = kingdom && kingdom.personalUnion;
+        if (!u || u.partnerId == null || !world) return null;
+        const p = (world.kingdoms || []).find(k => k && String(k.id) === String(u.partnerId));
+        return p && p.isAlive && p.personalUnion && String(p.personalUnion.partnerId) === String(kingdom.id) ? p : null;
+    },
+
+    /** A realm's army plus a tenth of its people, with its union partner's (they fight as one). */
+    unionMight(kingdom, world) {
+        const own = (kingdom.military || 0) + (kingdom.population || 0) * 0.1;
+        const p = KingdomAI.unionPartner(kingdom, world);
+        return p ? own + (p.military || 0) + (p.population || 0) * 0.1 : own;
     },
 
     /** Does the player sit this realm's throne (kingdom.crown, systems/throne.js)? */
@@ -662,9 +683,9 @@ export const KingdomAI = {
      *  - envy: a stronger crown nearby sours relations (more so for an ambitious lord);
      *  - bandwagoning: weaker peaceful or mercantile realms on good terms warm to it;
      *  - balancing: when it is the mightiest realm, wary realms ally against it;
-     *  - conquest: a hostile neighbour marches on it when strong enough — and
-     *    sooner when it is weak (a revolt, a civil war, low stability).
-     * Draws no RNG unless the player rules a realm and it is this realm's day.
+     *  - reciprocity: its own court's regard follows its neighbours' regard of it.
+     * Its wars come through considerWar, as on any realm. Draws no RNG unless
+     * the player rules a realm and it is this realm's day.
      */
     considerPlayerRealm(kingdom, world) {
         const realm = KingdomAI.playerRealm(world);
@@ -676,7 +697,6 @@ export const KingdomAI = {
         if (!kingdom.relations) kingdom.relations = {};
         if (!realm.relations) realm.relations = {};
         const rel = kingdom.relations[realm.id] || 0;
-        const ours = KingdomAI._might(kingdom) * LordInfluence.warAppetite(kingdom);
         const theirs = KingdomAI._might(realm);
         const ratio = theirs / Math.max(1, KingdomAI._might(kingdom));
         const near = kingdom.capital && realm.capital
@@ -709,20 +729,24 @@ export const KingdomAI = {
                 world.events.push({ text: `🤝 ${kingdom.name} and ${partner.name} ally against the might of ${realm.name}.`, type: 'diplomatic' });
             }
         }
-        // Wars of conquest against the player's crown (not while its stakes stand fresh on the road: world/warStakes.js)
-        if (WarStakes.fears(kingdom, 'player', world.day)) return;
-        if (atWar || allied || !near || KingdomAI.hasTruce(kingdom, realm, world) || (kingdom.wars || []).length >= 2) return;
-        if ((kingdom.relations[realm.id] || 0) >= (A.warRelations || -20)) return;
-        const crown = realm.crown || {};
-        const weak = !!crown.revolt || !!crown.civilWar || (typeof realm.stability === 'number' && realm.stability < (A.weakStability || 35));
-        const need = weak ? (A.weakWarRatio || 0.6) : (A.warRatio || 0.9);
-        if (ours > theirs * need && Utils.random() < (A.warChance || 0.25)) {
-            KingdomAI.startWar(kingdom, realm, world);
-            world.events.push({
-                text: weak ? `⚔️ Scenting weakness, ${kingdom.name} marches on ${realm.name}!` : `⚔️ ${kingdom.name} declares a war of conquest on ${realm.name}!`,
-                type: 'military', kingdom: realm.id,
-            });
+        // The player's court sends no envoys of its own, but its regard for a realm at peace
+        // with it follows that realm's regard for it, a little a week (data/kingship.json
+        // config.ai.reciprocity). (Before 2026-11-24 it never moved: every war left the
+        // player's realm at −40 to its foe for good, below the warmth an alliance asks of both
+        // sides — Throne.proposeAlliance — so it could never ally with a realm it had once
+        // fought, while the AI realms mended their quarrels by envoy and allied among
+        // themselves, and the one realm left outside every alliance drew most of the wars.)
+        if (!atWar) {
+            const mine = realm.relations[kingdom.id] || 0;
+            const step = A.reciprocity != null ? A.reciprocity : 3;
+            const back = kingdom.relations[realm.id] || 0;
+            if (step > 0 && mine !== back) realm.relations[kingdom.id] = mine < back ? Math.min(back, mine + step) : Math.max(back, mine - step);
         }
+        // (No war of its own on the player's crown here: its wars come through considerWar, as
+        // on any realm, under the same limits — KingdomAI.mayOpenWar — and a weak crown tempts
+        // its neighbours there as a weak AI realm does, WAR.weakRatio. Before 2026-11-24 this
+        // was a second weekly roll for war on the player's realm alone, at a laxer grudge (−20)
+        // and a laxer strength (0.9, 0.6 when weak) than any AI realm was held to.)
     },
 
     /**
@@ -769,6 +793,29 @@ export const KingdomAI = {
         // listed first in world.kingdoms the attacker in every battle, so the
         // realms late in the list could only ever lose towns — 2026-11-24.)
         initiative: [0.25, 0.75],
+        // Limits every aggressor keeps, the AI's realms and the player's alike
+        // (mayOpenWar): a realm already fighting maxWarsOn wars is not set upon by
+        // a fresh one (a crusade may bring one more); and a realm whose war has
+        // just ended does not open another for restDays, plus restPerWarDay for
+        // each day the war ran (up to restMax) — war weariness. (Before
+        // 2026-11-24 a small realm of a disliked faith had three to five wars a
+        // year declared on it, two and three at once, and was gone by year 20.)
+        maxWarsOn: 2,
+        // ...and a realm a fresh war was declared on in the last besetDays is let be
+        // by its other neighbours' courts a while (they wait to see how it goes): the
+        // ordinary wars of considerWar, not a crusade, a league or a crisis
+        besetDays: 90,
+        restDays: 45,
+        restPerWarDay: 0.5,
+        restMax: 180,
+        // A realm in revolt, in civil war or of low stability tempts its
+        // neighbours: they march at this share of the strength they'd want
+        weakStability: 35,
+        weakRatio: 0.67,
+        // A war won sates the victor: its regard for the loser rises to at least
+        // this (above considerWar's −30 grudge), so it does not march again the
+        // day the truce runs out; its envoys sour it again in their own time
+        sated: -10,
     },
 
     _day(world) { return (world && world.day) || 0; },
@@ -793,6 +840,35 @@ export const KingdomAI = {
         return !!until && until > KingdomAI._day(world);
     },
 
+    /**
+     * May `kingdom` open a fresh war on `target`? The limits every aggressor
+     * keeps (WAR.maxWarsOn, the truce, the founding peace, war weariness:
+     * kingdom.restUntil, set by endWar). opts: { maxOn (wars the target may
+     * already fight), rested: false to ignore the aggressor's weariness,
+     * founding: false to ignore the founding peace, beset: false to ignore a
+     * war declared on the target of late (target.declaredOnDay, WAR.besetDays) }.
+     * Draws no RNG.
+     */
+    mayOpenWar(kingdom, target, world, opts = {}) {
+        const W = KingdomAI.WAR;
+        if (!kingdom || !target || kingdom === target || !target.isAlive) return false;
+        if ((kingdom.wars || []).includes(target.id)) return false;
+        // (two crowns on one head never war on each other: systems/realmUnions.js)
+        if (KingdomAI.unionPartner(kingdom, world) === target) return false;
+        if (KingdomAI.hasTruce(kingdom, target, world)) return false;
+        if (opts.founding !== false && KingdomAI.foundingPeace(kingdom, target, world)) return false;
+        if (opts.rested !== false && (kingdom.restUntil || 0) > KingdomAI._day(world)) return false;
+        if (opts.beset !== false && target.declaredOnDay != null && KingdomAI._day(world) - target.declaredOnDay < W.besetDays) return false;
+        const maxOn = opts.maxOn != null ? opts.maxOn : W.maxWarsOn;
+        return (target.wars || []).filter(id => id !== kingdom.id).length < maxOn;
+    },
+
+    /** Is a realm weak enough to tempt its neighbours (a revolt, a civil war, low stability)? */
+    isWeak(kingdom) {
+        const crown = (kingdom && kingdom.crown) || {};
+        return !!crown.revolt || !!crown.civilWar || (typeof kingdom.stability === 'number' && kingdom.stability < KingdomAI.WAR.weakStability);
+    },
+
     /** Per-enemy war bookkeeping, created on first use (wars started anywhere). */
     _warState(kingdom, enemyId, world) {
         if (!kingdom.warState) kingdom.warState = {};
@@ -805,7 +881,10 @@ export const KingdomAI = {
 
     /** Declare war between two kingdoms with fresh war goals. */
     startWar(kingdom, target, world) {
-        if (!kingdom.wars.includes(target.id)) kingdom.wars.push(target.id);
+        if (!kingdom.wars.includes(target.id)) {
+            kingdom.wars.push(target.id);
+            target.declaredOnDay = KingdomAI._day(world);
+        }
         if (!target.wars.includes(kingdom.id)) target.wars.push(kingdom.id);
         if (kingdom.warState) delete kingdom.warState[target.id];
         if (target.warState) delete target.warState[kingdom.id];
@@ -822,6 +901,17 @@ export const KingdomAI = {
      * loser's treasury. opts: { victor, text }.
      */
     endWar(a, b, world, opts = {}) {
+        // War weariness: neither opens a fresh war for a while, the longer the war the longer
+        {
+            const W = KingdomAI.WAR;
+            const day = KingdomAI._day(world);
+            const s1 = a.warState && a.warState[b.id];
+            const s2 = b.warState && b.warState[a.id];
+            const since = Math.min(s1 && s1.since != null ? s1.since : day, s2 && s2.since != null ? s2.since : day);
+            const rest = Math.round(W.restDays + Math.min(W.restMax, Math.max(0, day - since) * W.restPerWarDay));
+            a.restUntil = Math.max(a.restUntil || 0, day + rest);
+            b.restUntil = Math.max(b.restUntil || 0, day + rest);
+        }
         a.wars = (a.wars || []).filter(id => id !== b.id);
         b.wars = (b.wars || []).filter(id => id !== a.id);
         if (a.warState) delete a.warState[b.id];
@@ -843,6 +933,7 @@ export const KingdomAI = {
         const victor = opts.victor || null;
         if (victor) {
             const loser = victor === a ? b : a;
+            victor.relations[loser.id] = Math.max(victor.relations[loser.id] || 0, KingdomAI.WAR.sated);
             tribute = Math.floor(Math.max(0, loser.treasury || 0) * (opts.tribute != null ? opts.tribute : KingdomAI.WAR.tribute));
             loser.treasury = (loser.treasury || 0) - tribute;
             victor.treasury = (victor.treasury || 0) + tribute;
@@ -1148,6 +1239,9 @@ export const KingdomAI = {
         // time, so battle losses matter, and shed men fast when land is lost
         const cap = Math.floor(military);
         kingdom.militaryCap = cap;
+        // (its men serving away — a household guard drawn out of the army, world/kingdom.js
+        // menAway — are its soldiers still: the ranks are filled to the cap less them)
+        const target = Math.max(0, cap - Math.floor(Kingdom.menAway(kingdom, KingdomAI._day(world))));
         // (`days`: the distant years — the ranks refill or thin a day at a time on one survey)
         for (let d = 0; d < n; d++) {
         if (!kingdom._militaryInit) {
@@ -1155,7 +1249,7 @@ export const KingdomAI = {
             kingdom._militaryInit = true;
         } else {
             const cur = Math.floor(kingdom.military || 0);
-            if (cap > cur) {
+            if (target > cur) {
                 // Recruitment refills the ranks, never past what the realm
                 // supports; good recruiting ground and drilled militaristic
                 // realms refill them faster
@@ -1164,11 +1258,11 @@ export const KingdomAI = {
                     * (1 + recruiting * Economy.effectScale('armyRegen'))
                     * Math.max(0.2, 1 + KingdomBonuses.get(kingdom, 'militaryRegen')));
                 kingdom.military = cur;
-                Kingdom.recruitTroops(kingdom, (cap - cur) * regen);
+                Kingdom.recruitTroops(kingdom, (target - cur) * regen);
             } else {
-                kingdom.military = Math.floor(cur + (cap - cur) * KingdomAI.WAR.demob);
+                kingdom.military = Math.floor(cur + (target - cur) * KingdomAI.WAR.demob);
             }
-            if (attrition > 0 && kingdom.military > cap) kingdom.military = cap;
+            if (attrition > 0 && kingdom.military > target) kingdom.military = target;
         }
         }
         // Arm the men it keeps: kits bought from its own towns' stock, worn out,
@@ -1315,11 +1409,18 @@ export const KingdomAI = {
             - WarStakes.dismay(kingdom, world && world.day);
     },
 
-    _checkMoraleBreak(ownStrength, enemyStrength, moraleValue) {
+    /** Does a side break? mult scales the chance (a decimated army's steel: kingdom.decimation, _breakMult). */
+    _checkMoraleBreak(ownStrength, enemyStrength, moraleValue, mult = 1) {
         const ratio = enemyStrength / Math.max(1, ownStrength);
         if (ratio < 1.8) return false;
         const chance = Math.max(0.06, Math.min(0.72, (ratio - 1.6) * 0.42 + (1 - moraleValue) * 0.55));
-        return Utils.random() < chance;
+        return Utils.random() < chance * (Number.isFinite(mult) ? mult : 1);
+    },
+
+    /** A realm that decimated its broken companies breaks less for a while (player/decimation.js writes kingdom.decimation). */
+    _breakMult(kingdom, world) {
+        const d = kingdom && kingdom.decimation;
+        return d && typeof d === 'object' && (d.until || 0) > ((world && world.day) || 0) && Number.isFinite(d.breakMult) ? d.breakMult : 1;
     },
 
     /**
@@ -1387,11 +1488,11 @@ export const KingdomAI = {
         }
 
         let moraleBreak = null;
-        if (KingdomAI._checkMoraleBreak(attacker.military, defender.military, attackerMorale)) {
+        if (KingdomAI._checkMoraleBreak(attacker.military, defender.military, attackerMorale, KingdomAI._breakMult(attacker, world))) {
             moraleBreak = attacker.id;
             attackPower *= 0.55;
             defensePower *= 1.12;
-        } else if (KingdomAI._checkMoraleBreak(defender.military, attacker.military, defenderMorale)) {
+        } else if (KingdomAI._checkMoraleBreak(defender.military, attacker.military, defenderMorale, KingdomAI._breakMult(defender, world))) {
             moraleBreak = defender.id;
             defensePower *= 0.55;
             attackPower *= 1.12;
@@ -1403,6 +1504,8 @@ export const KingdomAI = {
                 text: `😨 ${fleeingName}'s lines broke under pressure and began to flee!`,
                 type: 'military'
             });
+            // Its lord may decimate the companies that ran (player/decimation.js reads the inbox)
+            if (Array.isArray(world.routFeed) && world.routFeed.length < 40) world.routFeed.push({ day: world.day, kingdomId: moraleBreak, foe: moraleBreak === attacker.id ? defender.id : attacker.id });
         }
 
         // The general in the field hears how the day went (player/generalship.js reads the log)

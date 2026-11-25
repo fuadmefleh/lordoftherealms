@@ -14,6 +14,7 @@
 //                      crowd, the deaths and punishments the realm's law allows.
 import { ActionMenu } from './_ref.js';
 import { Executions } from '../../systems/executions.js';
+import { Immurement } from '../../systems/immurement.js';
 import { lede, chips, card, rowList, price, esc } from './uiKit.js';
 
 const KIND_WORD = { captive: 'In your cellar', bounty: 'Taken for a bounty', vassal: 'Lords of your court', rival: 'Blood of the rival Houses' };
@@ -82,7 +83,7 @@ Object.assign(ActionMenu, {
         }
         if (st.history.length) {
             html += rowList(st.history.slice(0, 10).map(h => ({
-                icon: h.outcome === 'executed' ? '💀' : h.outcome === 'spared' ? '🕊️' : h.outcome === 'rescued' ? '🏃' : h.outcome === 'rope' ? '🙏' : '💢',
+                icon: h.outcome === 'executed' ? '💀' : h.outcome === 'spared' ? '🕊️' : h.outcome === 'rescued' ? '🏃' : h.outcome === 'rope' ? '🙏' : h.outcome === 'immured' ? '🧱' : '💢',
                 name: esc(h.name), desc: esc(`${h.outcome === 'executed' ? ((Executions.config().methods[h.method] || {}).label || h.method) : h.outcome === 'spared' ? ((Executions.config().mercies[h.mercy] || {}).label || 'spared') : h.outcome}${h.place ? ` · ${h.place}` : ''} · day ${h.day}`),
                 note: h.words ? esc(`“${h.words}”`) : '', side: h.crowd ? `${h.crowd} watched` : '', tone: h.outcome === 'executed' && h.guilty === false ? 'bad' : '',
             })), '📜 What the scaffold has seen');
@@ -119,6 +120,16 @@ Object.assign(ActionMenu, {
                 }
             }
             html += rowList(rows, '💀 The manner of it');
+        }
+        // Or no scaffold at all: the cellars, and a course of stones (systems/immurement.js)
+        const wall = Immurement.targets(player, world).find(t => t.kind === 'condemned' && String(t.id) === String(e.id));
+        if (wall) {
+            const here = Immurement.seats(player, world).find(s => s.here);
+            html += rowList([{
+                icon: '🧱', name: esc(here ? `Wall ${e.gender === 'female' ? 'her' : 'him'} up alive in ${here.walls} of ${here.name}` : 'Wall them up alive in your castle'),
+                desc: 'No crowd, no last words, no chronicle. The servants will talk in time, and the house will be haunted for generations.',
+                off: !here, why: 'Stand in one of your seats to see to it yourself', tone: 'bad', act: 'grimDeedsAct', args: ['immure', 'condemned', e.id],
+            }], '🧱 Or in secret');
         }
         html += rowList(Executions.mercies(player, world, e).map(m => ({
             icon: m.icon, name: esc(m.label), desc: esc(m.desc), off: !m.ok, why: esc(m.why), tone: 'good', act: 'executionsAct', args: ['spare', e.id, m.id],
@@ -203,7 +214,7 @@ Object.assign(ActionMenu, {
         const law = [];
         if (at.punishment) law.push({ icon: '⚖️', name: `Punishment: ${esc(at.punishment.label)}`, desc: esc(at.punishment.desc || '') });
         if (at.mutilation) law.push({ icon: '✋', name: `Mutilation: ${esc(at.mutilation.label)}`, desc: esc(at.mutilation.desc || '') });
-        if (at.fear < 1) law.push({ icon: '🫣', name: 'The thieves are cowed', desc: `A death here not long ago: the town's thieves try their luck ${Math.round((1 - at.fear) * 100)}% less often` });
+        if (at.fear < 1) law.push({ icon: '😨', name: 'The thieves are cowed', desc: `A death here not long ago: the town's thieves try their luck ${Math.round((1 - at.fear) * 100)}% less often` });
         if (at.cult) law.push({ icon: '🕯️', name: esc(`The shrine of ${at.cult.name}`), desc: esc(`A martyr of the scaffold, prayed to in ${at.cult.town || 'town'}: the next crowd here will be sullen`) });
         if (law.length) html += rowList(law, '📜 The law here');
         if (Executions.canJudge(player, world)) html += rowList([{ icon: '⚖️', name: 'Your Scaffold', desc: 'The condemned awaiting your word, and those in your power', act: 'showExecutions', side: '›', tone: 'gold' }]);

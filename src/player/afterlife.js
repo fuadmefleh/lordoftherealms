@@ -49,6 +49,7 @@ import { Relationships } from '../systems/relationships.js';
 import { Upbringing } from '../systems/upbringing.js';
 import { HeirAgency } from '../systems/heirAgency.js';
 import { Betrothals, CrownMatches } from '../systems/betrothals.js';
+import { RealmUnions } from '../systems/realmUnions.js';
 import { Raising } from '../systems/raising.js';
 import { HeirPaths } from '../systems/heirPaths.js';
 import { Legacy } from '../systems/legacy.js';
@@ -101,6 +102,11 @@ import { Executions } from '../systems/executions.js';
 import { Gibbets } from '../systems/gibbets.js';
 import { PrisonerFates } from './prisonerFates.js';
 import { PenalLabour } from '../systems/penalLabour.js';
+import { Flaying } from '../systems/flaying.js';
+import { Immurement } from '../systems/immurement.js';
+import { Decimation } from './decimation.js';
+import { HolyWars } from '../systems/holyWars.js';
+import { Inquisition } from '../systems/inquisition.js';
 import { NamedLegacy } from '../systems/namedLegacy.js';
 import { LandMarket } from '../systems/landMarket.js';
 import { PuttingOut } from '../systems/puttingOut.js';
@@ -130,6 +136,9 @@ import { Cultures } from '../world/cultures.js';
 import { Languages } from '../systems/languages.js';
 import { Crises } from '../systems/crises.js';
 import { BloodFeuds } from '../systems/bloodFeuds.js';
+import { Fratricide } from '../systems/fratricide.js';
+import { CadaverSynod } from '../systems/cadaverSynod.js';
+import { Damnatio } from '../systems/damnatio.js';
 import { LastCrisis } from '../systems/lastCrisis.js';
 import { RealmDecline } from '../systems/realmDecline.js';
 import { PeasantRevolts } from '../systems/peasantRevolts.js';
@@ -184,6 +193,8 @@ const WORLD_DAY = [
     { sys: 'Townsfolk', run: (w) => Townsfolk.processDay(w, null) },
     // The crowns' promises of their royal children to each other (systems/betrothals.js)
     { sys: 'CrownMatches', run: (w) => CrownMatches.processDay(w) },
+    // Two AI crowns on one head: unions formed, kept and broken (systems/realmUnions.js)
+    { sys: 'RealmUnions', run: (w) => RealmUnions.processDay(w, null) },
     { sys: 'NpcMemory', run: (w) => NpcMemory.processDay(w, null) },
     // (endDay.js runs IllnessPlayer: its towns' half is Illness.processDay)
     { sys: 'IllnessPlayer', run: (w) => Illness.processDay(w, null) },
@@ -242,6 +253,12 @@ const WORLD_DAY = [
     { sys: 'PrisonerFates', run: (w) => PrisonerFates.processDay(w, null) },
     // The realms' courts flog, brand and send their convicts to the mines and the oars; the crown's gangs work (the House's own wait: systems/penalLabour.js)
     { sys: 'PenalLabour', run: (w) => PenalLabour.processDay(w, null) },
+    // The realms flay their crooked officials, wall up their traitors, decimate their broken companies; the hauntings fade (systems/flaying.js, immurement.js, player/decimation.js)
+    { sys: 'Flaying', run: (w) => Flaying.processDay(w, null) },
+    { sys: 'Immurement', run: (w) => Immurement.processDay(w, null) },
+    { sys: 'Decimation', run: (w) => Decimation.processDay(w, null) },
+    // The inquisitors ride on with no one alive (systems/inquisition.js)
+    { sys: 'Inquisition', run: (w) => Inquisition.processDay(w, null) },
     // The jurists finish their codes, codes steady their realms, resentful towns take back their names (systems/namedLegacy.js)
     { sys: 'NamedLegacy', run: (w) => NamedLegacy.processDay(w, null) },
     { sys: 'Concessions', run: (w) => Concessions.processDay(w, null) },
@@ -273,8 +290,16 @@ const WORLD_DAY = [
     { sys: 'Crises', run: (w) => Crises.processDay(w, null) },
     // Townsfolk families feud on, kill and settle with no one alive; the House's own feuds wait for the heir (systems/bloodFeuds.js)
     { sys: 'BloodFeuds', run: (w) => BloodFeuds.processDay(w, null) },
+    // The AI realms' bowstrings and harems; the player's brothers wait for the heir (systems/fratricide.js)
+    { sys: 'Fratricide', run: (w) => Fratricide.processDay(w, null) },
+    // Dead kings laid in their tombs, and hard crowns trying them (systems/cadaverSynod.js)
+    { sys: 'CadaverSynod', run: (w) => CadaverSynod.processDay(w, null) },
+    // AI conquerors wipe out fallen dynasties; those who remember restore them (systems/damnatio.js)
+    { sys: 'Damnatio', run: (w) => Damnatio.processDay(w, null) },
     // The last crisis of the age plays on (the reckoning does not gather with no one alive; systems/lastCrisis.js)
     { sys: 'LastCrisis', run: (w) => LastCrisis.processDay(w, null) },
+    // The sees call their holy wars and cast out rulers; the player's cross and bans wait (systems/holyWars.js)
+    { sys: 'HolyWars', run: (w) => HolyWars.processDay(w, null) },
     // Great old realms sag under their own weight; the player's strains wait (systems/realmDecline.js)
     { sys: 'RealmDecline', run: (w) => RealmDecline.processDay(w, null) },
     // The commons rise and the realms meet them by their lords' lights; a rising against the empty throne is the realm's (systems/peasantRevolts.js)

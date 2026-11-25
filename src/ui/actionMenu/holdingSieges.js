@@ -41,6 +41,7 @@ function siegeCardHtml(player, d) {
     html += `<div style="${MUTED}">Commanded by ${_esc(d.commander.name)}${d.commander.governor ? ` (martial ${d.commander.martial})` : ''}</div>`;
     if (s.townSick) html += '<div style="color:#e57373;">🤒 Disease inside the walls</div>';
     if (s.stores <= 0) html += '<div style="color:#e57373;">The town is starving.</div>';
+    if (d.ateDead) html += '<div style="color:#e57373;">🦴 The garrison has eaten its dead.</div>';
     html += '</div>';
     // The besiegers
     html += '<div style="flex:1;">';
@@ -83,6 +84,10 @@ function siegeCardHtml(player, d) {
         d.peacePrice != null ? { icon: '🕊️', name: 'Buy peace', desc: 'End the whole war; every siege it brought is lifted', side: price(d.peacePrice, gold >= d.peacePrice),
             off: gold < d.peacePrice, why: `Needs ${Utils.formatGold(d.peacePrice)}g`, ...go('peace') } : null,
         { icon: '🏳️', name: 'Let it fall', desc: 'Order the gates opened. The town goes to the enemy', tone: 'bad', ...go('yield') },
+        // Starving: the dead to the kitchens, or clean hands (systems/eatingTheDead.js)
+        s.stores <= 0 || d.ateDead ? { icon: '🦴', name: 'Order them to eat their dead', desc: `About ${d.eatDeadDays} days more. The town will never be the same, nor its name; the faith will not forgive it`,
+            off: !d.eatDead.ok, why: _esc(d.eatDead.why), tone: 'bad', ...go('eatDead') } : null,
+        s.stores <= 0 ? { icon: d.eatDeadForbid ? '🕊️' : '✋', name: d.eatDeadForbid ? 'Leave it to the governor' : 'Forbid them to touch the dead', desc: d.eatDeadForbid ? 'You have forbidden it: they starve with clean hands' : 'Left alone, a starving governor may do it on his own', ...go('forbidEat') } : null,
     ];
     html += rowList(rows, 'What you can do');
 
@@ -167,6 +172,12 @@ Object.assign(ActionMenu, {
         } else if (act === 'peace') {
             res = RealmWars.sueForPeace(player, world, siege.kingdomId);
             if (res.success) game.ui.showNotification('🕊️ Peace Bought', `The war with ${siege.kingdomName} is over. −${Utils.formatGold(res.cost)} gold.`, 'success');
+        } else if (act === 'eatDead') {
+            res = HoldingSieges.eatDead(player, world, key);
+            if (res.success) game.ui.showNotification('🦴 They Eat Their Dead', res.text, 'warning');
+        } else if (act === 'forbidEat') {
+            res = HoldingSieges.forbidEatDead(player, world, key);
+            if (res.success) game.ui.showNotification('🦴 The Dead', res.text, 'info');
         } else if (act === 'yield') {
             res = HoldingSieges.yieldHolding(player, world, key);
             if (res.success) game.ui.showNotification('🏴 Holding Yielded', res.text || `${siege.name} is lost.`, 'error');

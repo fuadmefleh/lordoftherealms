@@ -53,6 +53,7 @@ import { House } from '../systems/house.js';
 import { Interrogation } from '../systems/interrogation.js';
 import { Gibbets } from '../systems/gibbets.js';
 import { PrisonerFates } from './prisonerFates.js';
+import { Decimation } from './decimation.js';
 
 const DEFAULTS = {
     phases: [
@@ -195,6 +196,8 @@ export const FieldBattle = {
             enemyMoraleBonus: (ctx.enemyMoraleBonus || 0) - (specials.commanderSlain ? 0.2 : 0) + spirit.moraleBonus,
             // They fight to the last man: no rout until all but a remnant are down (PrisonerFates.foeSpirit)
             noRout: spirit.noRout,
+            // A decimated army breaks less (player/decimation.js)
+            breakMult: Decimation.breakMult(player),
             spiritText: spirit.text || '',
             pMult,
             eMult,
@@ -359,7 +362,7 @@ export const FieldBattle = {
             if (PlayerMilitary._checkMoraleBreak(sim.eStr, sim.pStr, eMorale)) return 'enemy';
         } else {
             const pMorale = PlayerMilitary._moraleValue(sim.pStr, sim.eStr, battle.leadership);
-            if (PlayerMilitary._checkMoraleBreak(sim.pStr, sim.eStr, pMorale)) return 'player';
+            if (PlayerMilitary._checkMoraleBreak(sim.pStr, sim.eStr, pMorale, battle.breakMult != null ? battle.breakMult : 1)) return 'player';
         }
         return null;
     },
@@ -570,7 +573,11 @@ export const FieldBattle = {
         if (!withdrew) Bonds.onBattle(player, world, victory, battle.enemyName);
         // The realm's household guard riding with you: its morale and loyalty (player/realmEscort.js)
         if (!withdrew && battle.theatre !== 'sea') RealmEscort.afterBattle(player, victory);
-        if (battle.sim.routed === 'player') Traits.recordDeed(player, 'cowardice', 2); // the army broke and ran
+        if (battle.sim.routed === 'player') {
+            Traits.recordDeed(player, 'cowardice', 2); // the army broke and ran
+            // The companies that ran wait on your word: decimate them? (player/decimation.js)
+            if (battle.theatre !== 'sea') Decimation.noteBroken(player, world, { kind: 'army', foe: battle.enemyName });
+        }
         // The bowmen loosed their arrows and bolts (on the battlefield, the volleys each company
         // loosed: battle.volleys, player/battlefield.js); a won field gives some back (systems/arms.js)
         const quivers = Arms.spendQuivers(player, {

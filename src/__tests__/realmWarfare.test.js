@@ -234,3 +234,59 @@ describe('the player in the wars of the realm', () => {
         expect(PlayerEffects.liegeTradeModifier(player(), 'B')).toBe(0);
     });
 });
+
+describe('the limits every aggressor keeps (KingdomAI.mayOpenWar)', () => {
+    function threeRealms() {
+        const { world, a, b } = makeWorld();
+        const c = kingdom('C');
+        const d = kingdom('D');
+        world.kingdoms.push(c, d);
+        world.getKingdom = (id) => world.kingdoms.find(k => k.id === id) || null;
+        world.day = 1000; // past the founding peace
+        return { world, a, b, c, d };
+    }
+
+    it('a realm already fighting maxWarsOn wars is not set upon by a third', () => {
+        const { world, a, b, c, d } = threeRealms();
+        expect(KingdomAI.mayOpenWar(a, b, world)).toBe(true);
+        KingdomAI.startWar(c, b, world);
+        world.day += KingdomAI.WAR.besetDays;
+        KingdomAI.startWar(d, b, world);
+        world.day += KingdomAI.WAR.besetDays;
+        expect(b.wars).toHaveLength(KingdomAI.WAR.maxWarsOn);
+        expect(KingdomAI.mayOpenWar(a, b, world)).toBe(false);
+        // (a crusade or a league may bring one more)
+        expect(KingdomAI.mayOpenWar(a, b, world, { maxOn: KingdomAI.WAR.maxWarsOn + 1 })).toBe(true);
+    });
+
+    it('a war declared of late keeps the other courts back a while', () => {
+        const { world, a, b, c } = threeRealms();
+        KingdomAI.startWar(c, b, world);
+        expect(KingdomAI.mayOpenWar(a, b, world)).toBe(false);
+        world.day += KingdomAI.WAR.besetDays;
+        expect(KingdomAI.mayOpenWar(a, b, world)).toBe(true);
+    });
+
+    it('war weariness: a realm whose war just ended does not open another at once, the longer the war the longer', () => {
+        const { world, a, b, c } = threeRealms();
+        KingdomAI.startWar(a, b, world);
+        world.day += 200;
+        KingdomAI.endWar(a, b, world);
+        const W = KingdomAI.WAR;
+        expect(a.restUntil).toBe(world.day + Math.round(W.restDays + Math.min(W.restMax, 200 * W.restPerWarDay)));
+        expect(KingdomAI.mayOpenWar(a, c, world)).toBe(false);
+        expect(KingdomAI.mayOpenWar(a, c, world, { rested: false })).toBe(true);
+        world.day = a.restUntil;
+        expect(KingdomAI.mayOpenWar(a, c, world)).toBe(true);
+        // (the truce with the old foe still holds)
+        expect(KingdomAI.mayOpenWar(a, b, world)).toBe(false);
+    });
+
+    it('a war won sates the victor: its regard for the loser no longer calls for war', () => {
+        const { world, a, b } = threeRealms();
+        KingdomAI.startWar(a, b, world);
+        KingdomAI.endWar(a, b, world, { victor: a });
+        expect(a.relations[b.id]).toBe(KingdomAI.WAR.sated);
+        expect(b.relations[a.id]).toBe(-40);
+    });
+});

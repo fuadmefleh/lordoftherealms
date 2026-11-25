@@ -314,6 +314,39 @@ export const Kingdom = {
     },
 
     /**
+     * Men of the realm's army serving away from it — drawn out of
+     * kingdom.military into a lord's or the crown's household guard
+     * (player/realmEscort.js) — are its soldiers still: the realm supports
+     * `militaryCap` men wherever they serve, so its recruiters fill the ranks
+     * only to the cap less these. Booked by whoever holds them as
+     * kingdom.menAway = { key: { n, day } }; a booking not renewed since the
+     * day before is stale (the guard ended, its holder died) and counts
+     * nothing. Draws no RNG.
+     */
+    menAway(kingdom, day) {
+        const a = kingdom && kingdom.menAway;
+        if (!a || typeof a !== 'object') return 0;
+        let n = 0;
+        for (const v of Object.values(a)) {
+            if (!v || !(Number(v.n) > 0)) continue;
+            if (Number.isFinite(day) && Number.isFinite(v.day) && day - v.day > 1) continue;
+            n += Number(v.n);
+        }
+        return n;
+    },
+
+    /** Book (or with n 0 clear) `n` men of the realm away under `key` on `day`. */
+    setMenAway(kingdom, key, n, day) {
+        if (!kingdom) return;
+        if (!(Number(n) > 0)) {
+            if (kingdom.menAway) delete kingdom.menAway[key];
+            return;
+        }
+        if (!kingdom.menAway || typeof kingdom.menAway !== 'object') kingdom.menAway = {};
+        kingdom.menAway[key] = { n: Math.floor(Number(n)), day: Number(day) || 0 };
+    },
+
+    /**
      * Raise up to `amount` new troops, respecting `kingdom.militaryCap` (what
      * the realm can support, set daily by KingdomAI.updateMilitary). With no
      * cap computed yet, all of them join. Never shrinks an over-cap army —

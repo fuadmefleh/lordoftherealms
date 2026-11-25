@@ -104,7 +104,7 @@ describe('No crown, no court', () => {
         expect(b).toBe(a);
         expect(Kingship.court(player)).toBe(null);
         // ...and the kingdom AI's regard for a player realm draws nothing either
-        const c = drawAfter(() => { for (const k of world.kingdoms) KingdomAI.considerPlayerRealm(k, world); });
+        const c = drawAfter(() => { for (const k of world.kingdoms) KingdomAI.considerNeighbours(k, world); });
         expect(c).toBe(a);
     });
 });
@@ -602,8 +602,27 @@ describe('The kingdom AI and a player-ruled realm', () => {
         o.allies = []; o.wars = [];
         k.military = 100000;
         o.relations[k.id] = 0;
-        for (let d = 0; d < 70; d++) { world.day++; KingdomAI.considerPlayerRealm(o, world); }
+        for (let d = 0; d < 70; d++) { world.day++; KingdomAI.considerNeighbours(o, world); }
         expect(o.relations[k.id]).toBeLessThan(0);
+    });
+
+    it('...and a mighty AI realm by the same measure: the envy is no handicap of the player\'s crown alone', () => {
+        const { world, k } = crowned();
+        const [o, ai] = world.kingdoms.filter(x => x !== k && x.isAlive);
+        for (const x of [k, ai]) { x.military = 100000; x.population = 0; x.allies = []; x.wars = []; x.capital = { ...o.capital }; }
+        o.allies = []; o.wars = [];
+        o.military = 1000; o.population = 0;
+        o.relations[k.id] = 0;
+        o.relations[ai.id] = 0;
+        for (let d = 0; d < 70; d++) { world.day++; KingdomAI.considerNeighbours(o, world); }
+        expect(o.relations[ai.id]).toBeLessThan(0);
+        expect(o.relations[ai.id]).toBe(o.relations[k.id]);
+        // (the player's own court is moved by no envy: its regard is the ruler's, following reciprocity)
+        k.relations[o.id] = 0;
+        o.military = 1e7;
+        o.relations[k.id] = 0;
+        for (let d = 0; d < 70; d++) { world.day++; KingdomAI.considerNeighbours(k, world); }
+        expect(k.relations[o.id]).toBe(0);
     });
 
     it('the crown\'s own regard of a realm at peace follows that realm\'s regard of it, so old foes can ally again', () => {
@@ -612,12 +631,12 @@ describe('The kingdom AI and a player-ruled realm', () => {
         o.allies = []; o.wars = []; k.wars = [];
         o.relations[k.id] = 60;
         k.relations[o.id] = -40; // (what a war leaves)
-        for (let d = 0; d < 7 * 40; d++) { world.day++; KingdomAI.considerPlayerRealm(o, world); }
+        for (let d = 0; d < 7 * 40; d++) { world.day++; KingdomAI.considerNeighbours(o, world); }
         expect(k.relations[o.id]).toBeGreaterThanOrEqual(Math.min(60, o.relations[k.id]));
         // ...but not while they are at war
         k.relations[o.id] = -100;
         o.wars = [k.id]; k.wars = [o.id];
-        for (let d = 0; d < 7 * 4; d++) { world.day++; KingdomAI.considerPlayerRealm(o, world); }
+        for (let d = 0; d < 7 * 4; d++) { world.day++; KingdomAI.considerNeighbours(o, world); }
         expect(k.relations[o.id]).toBe(-100);
     });
 });

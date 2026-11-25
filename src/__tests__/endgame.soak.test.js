@@ -226,6 +226,14 @@ function claimWeek(game, stats) {
             }
         }
     }
+    // (the banners only from a realm at peace and ready for a war: ranks near full, a fortnight's
+    // spending in the chests, its people settled — the claim's civil war is a war, and its guard
+    // fights it. Before 2026-11-25 the bot raised them whenever the claim allowed, its own realm
+    // at war or bled white: a seed-303 king fought a far crown's loyalists while a holy war took
+    // his own capital.)
+    const notReady = (home.wars || []).length ? 'atWar' : (home.military || 0) < 0.8 * (home.militaryCap || 0) ? 'ranks'
+        : (home.stability || 0) < 45 ? 'unrest' : Fiscal.reserveDays(home) < 15 ? 'chests' : null;
+    if (notReady) { stats[`pressNo_home_${notReady}`] = (stats[`pressNo_home_${notReady}`] || 0) + 1; return; }
     const strength = PlayerMilitary.getArmyStrength(player);
     const can = Throne.canPress(player, world, k.id, { armyStrength: strength });
     if (!can.ok) {

@@ -98,6 +98,8 @@ import { Devotion } from '../../systems/devotion.js';
 import { Plague } from '../../systems/plague.js';
 import { Household } from '../../player/household.js';
 import { HighCrowns } from '../../systems/highCrowns.js';
+import { Coalitions } from '../../systems/coalitions.js';
+import { House } from '../../systems/house.js';
 import { MEAL_HUNGER } from '../../player/core/needs.js';
 
 const FOOD = ['grain', 'bread'];
@@ -1209,7 +1211,12 @@ function throne(game, stats) {
                 { world, terrainId: t && t.terrain && t.terrain.id });
             if (!battle.reason && Throne.recordThroneBattle(player, world, battle.victory).success) count(stats, 'throneBattles');
         }
-        return;
+        // (a crowned ruler pressing a claim abroad still rules at home: its realm's wars, peace,
+        // council and taxes. Before 2026-11-25 the claim's civil war returned here, and a seed-303
+        // king fought a far crown's loyalists for a year and a half while a neighbour's war on his
+        // own realm ran on unanswered by any envoy, and took his capital.)
+        if (!st.ruling) return;
+        count(stats, 'ruledInCivilWar');
     }
     if (st.ruling) {
         // Rule like a sensible monarch: light taxes while the realm is restless
@@ -1384,6 +1391,33 @@ function foreignAffairs(game, stats, k) {
             if (Kingship.revokeEdict(player, world, id).success) { count(stats, 'edictsRepealed'); game.lastRepeal = world.day; }
             break;
         }
+    }
+}
+
+/**
+ * A league sworn against the House (systems/coalitions.js), answered as a careful
+ * player answers it: its terms met while they are cheap — bowed to with Prestige
+ * (a cushion kept), or paid in gold from a purse that can spare it — rather than
+ * three and four wars at once; once it marches, its members bought out one by one
+ * while the purse allows, the mightiest first. (Before 2026-11-25 the bot read no
+ * league's letter: every one was defied by silence, and a seed-202 realm of three
+ * towns had four wars declared on it in a season.)
+ */
+function coalitionAnswer(game, stats) {
+    const { player, world } = game;
+    const c = Coalitions.active(player);
+    if (!c || world.day % 3 !== 0) return;
+    const prestige = player.house ? House.getPrestige(player) : 0;
+    const q = c.stage === 'forming' && c.terms ? { gold: c.terms.gold || 0, prestige: c.terms.prestige || 0 } : Coalitions.concessionQuote(player, world);
+    if (q.prestige > 0 && prestige >= q.prestige + 60 && Coalitions.concede(player, world, 'prestige').success) { count(stats, 'leagueBowed'); return; }
+    if (q.gold > 0 && (player.gold || 0) >= q.gold + 500 && Coalitions.concede(player, world, 'gold').success) { count(stats, 'leaguePaid'); return; }
+    if (c.stage !== 'active') return;
+    const members = Coalitions.members(player)
+        .map(m => ({ m, k: world.getKingdom(m.kingdomId) })).filter(x => x.k && x.k.isAlive)
+        .sort((a, b) => (b.k.military || 0) - (a.k.military || 0));
+    for (const { m } of members) {
+        const price = Coalitions.buyOffPrice(player, world, m.kingdomId);
+        if (price > 0 && (player.gold || 0) >= price + 500 && Coalitions.splitMember(player, world, m.kingdomId, 'gold').success) { count(stats, 'leagueMemberBought'); return; }
     }
 }
 
@@ -3117,6 +3151,19 @@ export function botDay(game, stats) {
             if (RealmWars.payTribute(player, world, u.kingdomId).success) count(stats, 'tributesPaid');
         } else count(stats, 'ultimatumDaysUnpaid');
     }
+    // A crowned ruler rules every day, wherever the day finds it and however thin its own purse:
+    // the realm's wars, envoys, council and taxes are its court's, paid from the treasury
+    // (Throne.proposePeace, Kingship.appoint, Fiscal: none asks the ruler to stand at court).
+    // (Before 2026-11-25 this came at the end of the day's errands, after a dozen early returns —
+    // the poor wanderer's day labour, a sick bed, a voyage, a committed road — so a ruler whose
+    // purse sat under its persona's poorBelow, a saver's 2500 with no soldiers of its own, never
+    // sent an envoy to end a war going badly; seed-303 and -202 realms bled out so.)
+    coalitionAnswer(game, stats);
+    const ruler = !!Throne.ruledKingdom(player, world);
+    if (ruler) {
+        if (player.gold < poorBelow(game) && !(player.army || []).length) count(stats, 'ruledWhilePoor');
+        booked(game, 'throne', () => throne(game, stats));
+    }
     // The quest board: once settled in (past the short soak's horizon, whose
     // runs stay as they were), take the first offer each week while there's room
     if (world.day > 150 && world.day % 7 === 0 && player.quests && player.quests.active.length < 3 && (player.quests.available || []).length) {
@@ -3549,7 +3596,7 @@ export function botDay(game, stats) {
     if (booked(game, 'harry', () => harry(game, stats))) return;
     booked(game, 'court', () => court(game, stats));
     booked(game, 'stewards', () => stewards(game, stats));
-    booked(game, 'throne', () => throne(game, stats));
+    if (!ruler) booked(game, 'throne', () => throne(game, stats));
     booked(game, 'treasures', () => treasures(game, stats));
     settlementBusiness(game, stats);
     booked(game, 'delve', () => delve(game, stats));

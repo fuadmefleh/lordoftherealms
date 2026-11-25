@@ -135,9 +135,9 @@ export const KingdomAI = {
                 KingdomAI.considerWar(kingdom, world);
             }
 
-            // A realm ruled by the player is a real power: rivals, balancing
-            // alliances and wars of conquest (no RNG draws unless one exists)
-            KingdomAI.considerPlayerRealm(kingdom, world);
+            // Its regard for its neighbours, weekly: envy of the mighty, bandwagoning,
+            // balancing alliances — for every realm alike, the player's or not (no RNG draws)
+            KingdomAI.considerNeighbours(kingdom, world);
         }
 
         // Update military strength
@@ -679,68 +679,89 @@ export const KingdomAI = {
     },
 
     /**
-     * Weekly regard for the player's realm (data/kingship.json → config.ai):
+     * Weekly regard among the realms (data/kingship.json → config.ai), every
+     * crown's for every other, whoever rules it:
      *  - envy: a stronger crown nearby sours relations (more so for an ambitious lord);
      *  - bandwagoning: weaker peaceful or mercantile realms on good terms warm to it;
-     *  - balancing: when it is the mightiest realm, wary realms ally against it;
-     *  - reciprocity: its own court's regard follows its neighbours' regard of it.
-     * Its wars come through considerWar, as on any realm. Draws no RNG unless
-     * the player rules a realm and it is this realm's day.
+     *  - balancing: against the mightiest realm, wary realms ally with each other;
+     *  - reciprocity: the player's court sends no envoys, so its regard for a realm
+     *    follows that realm's regard for it.
+     * Wars come through considerWar, as on any realm. Draws no RNG (the
+     * balancing alliance rolls on a hash of the day and the pair).
+     * (Before 2026-11-25 this ran for the player's realm alone: AI crowns envied
+     * only it, never a mighty AI neighbour, and a seed-101 home realm took −7,000
+     * of regard from envy in 40 years while the AI realms' regard of each other
+     * climbed to +70; it drew three and four times the wars of any AI realm.)
      */
-    considerPlayerRealm(kingdom, world) {
-        const realm = KingdomAI.playerRealm(world);
-        if (!realm || realm === kingdom || !kingdom.isAlive) return;
+    considerNeighbours(kingdom, world) {
+        if (!kingdom || !kingdom.isAlive || !Array.isArray(world.kingdoms)) return;
         const A = (DataLoader.kingship && DataLoader.kingship.config && DataLoader.kingship.config.ai) || {};
         const cadence = A.cadence || 7;
         const idx = world.kingdoms.indexOf(kingdom);
         if (((world.day || 0) + idx) % cadence !== 0) return;
         if (!kingdom.relations) kingdom.relations = {};
-        if (!realm.relations) realm.relations = {};
-        const rel = kingdom.relations[realm.id] || 0;
-        const theirs = KingdomAI._might(realm);
-        const ratio = theirs / Math.max(1, KingdomAI._might(kingdom));
-        const near = kingdom.capital && realm.capital
-            && Hex.wrappingDistance(kingdom.capital.q, kingdom.capital.r, realm.capital.q, realm.capital.r, world.width) <= (A.nearCapitals || 28);
-        const allied = (kingdom.allies || []).includes(realm.id);
-        const atWar = (kingdom.wars || []).includes(realm.id);
-        const shift = (v) => { kingdom.relations[realm.id] = Utils.clamp((kingdom.relations[realm.id] || 0) + v, -100, 100); };
-
-        if (!allied && !atWar && near && ratio > (A.envyRatio || 1.2)) {
-            shift((A.envy || -2) + (LordInfluence.lean(kingdom, 'ambition') > 0 ? (A.ambitionEnvy || -1) : 0));
-        }
+        const alive = world.kingdoms.filter(k => k && k.isAlive);
+        if (alive.length < 2) return;
+        const ownMight = Math.max(1, KingdomAI._might(kingdom));
+        const mightiest = Math.max(...alive.map(KingdomAI._might));
         const pid = KingdomAI.personalityId(kingdom);
-        if (!atWar && ratio > 1 && rel > (A.bandwagonRelations || 20) && (pid === 'peaceful' || pid === 'mercantile')) {
-            shift(A.bandwagon || 2);
-        }
-        // Balance of power: ally with a like-minded realm against the mightiest crown
-        if (!allied && rel < 0 && theirs >= Math.max(...world.kingdoms.filter(k => k.isAlive).map(KingdomAI._might))
-            && ratio > (A.balanceRatio || 1.3)) {
-            const partner = world.kingdoms
-                .filter(k => k.isAlive && k !== kingdom && k !== realm && !(kingdom.allies || []).includes(k.id)
-                    && !(kingdom.wars || []).includes(k.id) && (k.relations && (k.relations[realm.id] || 0) < 0)
-                    && (kingdom.relations[k.id] || 0) >= (A.balanceMinRelations || 10))
-                .sort((a, b) => (kingdom.relations[b.id] || 0) - (kingdom.relations[a.id] || 0))[0];
-            if (partner && Utils.random() < (A.balanceChance || 0.2)) {
-                kingdom.allies.push(partner.id);
-                partner.allies.push(kingdom.id);
-                kingdom.relations[partner.id] = Math.max(kingdom.relations[partner.id] || 0, 60);
-                if (!partner.relations) partner.relations = {};
-                partner.relations[kingdom.id] = Math.max(partner.relations[kingdom.id] || 0, 60);
-                world.events.push({ text: `🤝 ${kingdom.name} and ${partner.name} ally against the might of ${realm.name}.`, type: 'diplomatic' });
+        const ambitious = LordInfluence.lean(kingdom, 'ambition') > 0;
+        // (the player's own court: its regard is the ruler's, moved only by reciprocity below)
+        const ruled = KingdomAI.isPlayerRuled(kingdom);
+        let balanced = false;
+        for (const other of alive) {
+            if (other === kingdom) continue;
+            if (!other.relations) other.relations = {};
+            const rel = kingdom.relations[other.id] || 0;
+            const theirs = KingdomAI._might(other);
+            const ratio = theirs / ownMight;
+            const allied = (kingdom.allies || []).includes(other.id);
+            const atWar = (kingdom.wars || []).includes(other.id);
+            if (!ruled) {
+                const near = kingdom.capital && other.capital
+                    && Hex.wrappingDistance(kingdom.capital.q, kingdom.capital.r, other.capital.q, other.capital.r, world.width) <= (A.nearCapitals || 28);
+                const shift = (v) => { kingdom.relations[other.id] = Utils.clamp((kingdom.relations[other.id] || 0) + v, -100, 100); };
+                if (!allied && !atWar && near && ratio > (A.envyRatio || 1.2)) {
+                    shift((A.envy || -2) + (ambitious ? (A.ambitionEnvy || -1) : 0));
+                }
+                if (!atWar && ratio > 1 && rel > (A.bandwagonRelations || 20) && (pid === 'peaceful' || pid === 'mercantile')) {
+                    shift(A.bandwagon || 2);
+                }
+                // Balance of power: ally with a like-minded realm against the mightiest crown
+                // (an alliance with the player's realm is signed by its ruler in person)
+                if (!balanced && !allied && rel < 0 && theirs >= mightiest && ratio > (A.balanceRatio || 1.3)) {
+                    balanced = true;
+                    const partner = alive
+                        .filter(k => k !== kingdom && k !== other && !KingdomAI.isPlayerRuled(k) && !(kingdom.allies || []).includes(k.id)
+                            && !(kingdom.wars || []).includes(k.id) && (k.relations && (k.relations[other.id] || 0) < 0)
+                            && (kingdom.relations[k.id] || 0) >= (A.balanceMinRelations || 10))
+                        .sort((a, b) => (kingdom.relations[b.id] || 0) - (kingdom.relations[a.id] || 0))[0];
+                    const roll = ((Utils.hashStr(`balance:${world.day || 0}:${kingdom.id}:${other.id}`) >>> 0) % 10000) / 10000;
+                    if (partner && roll < (A.balanceChance || 0.2)) {
+                        if (!Array.isArray(kingdom.allies)) kingdom.allies = [];
+                        if (!Array.isArray(partner.allies)) partner.allies = [];
+                        kingdom.allies.push(partner.id);
+                        partner.allies.push(kingdom.id);
+                        kingdom.relations[partner.id] = Math.max(kingdom.relations[partner.id] || 0, 60);
+                        if (!partner.relations) partner.relations = {};
+                        partner.relations[kingdom.id] = Math.max(partner.relations[kingdom.id] || 0, 60);
+                        if (Array.isArray(world.events)) world.events.push({ text: `🤝 ${kingdom.name} and ${partner.name} ally against the might of ${other.name}.`, type: 'diplomatic' });
+                    }
+                }
             }
-        }
-        // The player's court sends no envoys of its own, but its regard for a realm at peace
-        // with it follows that realm's regard for it, a little a week (data/kingship.json
-        // config.ai.reciprocity). (Before 2026-11-24 it never moved: every war left the
-        // player's realm at −40 to its foe for good, below the warmth an alliance asks of both
-        // sides — Throne.proposeAlliance — so it could never ally with a realm it had once
-        // fought, while the AI realms mended their quarrels by envoy and allied among
-        // themselves, and the one realm left outside every alliance drew most of the wars.)
-        if (!atWar) {
-            const mine = realm.relations[kingdom.id] || 0;
-            const step = A.reciprocity != null ? A.reciprocity : 3;
-            const back = kingdom.relations[realm.id] || 0;
-            if (step > 0 && mine !== back) realm.relations[kingdom.id] = mine < back ? Math.min(back, mine + step) : Math.max(back, mine - step);
+            // The player's court sends no envoys of its own, but its regard for a realm at peace
+            // with it follows that realm's regard for it, a little a week (data/kingship.json
+            // config.ai.reciprocity). (Before 2026-11-24 it never moved: every war left the
+            // player's realm at −40 to its foe for good, below the warmth an alliance asks of both
+            // sides — Throne.proposeAlliance — so it could never ally with a realm it had once
+            // fought, while the AI realms mended their quarrels by envoy and allied among
+            // themselves, and the one realm left outside every alliance drew most of the wars.)
+            if (KingdomAI.isPlayerRuled(other) && !atWar) {
+                const mine = other.relations[kingdom.id] || 0;
+                const step = A.reciprocity != null ? A.reciprocity : 3;
+                const back = kingdom.relations[other.id] || 0;
+                if (step > 0 && mine !== back) other.relations[kingdom.id] = mine < back ? Math.min(back, mine + step) : Math.max(back, mine - step);
+            }
         }
         // (No war of its own on the player's crown here: its wars come through considerWar, as
         // on any realm, under the same limits — KingdomAI.mayOpenWar — and a weak crown tempts

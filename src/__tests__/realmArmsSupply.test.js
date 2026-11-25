@@ -51,7 +51,7 @@ describe('a realm at peace keeps its army in shields and helms', () => {
         const { world, player } = game;
         // A world at peace: no realm opens a war, the wars of the start are ended
         vi.spyOn(KingdomAI, 'considerWar').mockImplementation(() => {});
-        vi.spyOn(KingdomAI, 'considerPlayerRealm').mockImplementation(() => {});
+        vi.spyOn(KingdomAI, 'considerNeighbours').mockImplementation(() => {});
         for (const k of world.kingdoms) if (k) k.wars = [];
         // A few days for the markets to open and the armies to settle
         for (let d = 0; d < 8; d++) day(world, player);

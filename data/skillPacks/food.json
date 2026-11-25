@@ -27,7 +27,20 @@
                 "bigger": { "levels": [0, 4, 8, 12, 16, 20, 25, 30, 35, 40], "text": "{a}% more chance of a bigger fish", "show": "{v}% chance of a bigger fish" },
                 "junk": { "levels": [0, 10, 20, 30, 40, 45, 50, 55, 60, 70], "text": "{a}% less weed and old boots", "show": "{v}% less junk" },
                 "casts": { "levels": [0, 0, 0, 0, 1, 1, 1, 1, 2, 2], "text": "+{d} casts a day", "show": "+{v} casts a day" },
-                "deepReach": { "levels": [0, 0, 0, 0, 0, 1, 1, 1, 1, 1], "text": "your line now reaches deep water from any sea shore", "show": "deep water from any sea shore" }
+                "deepReach": { "levels": [0, 0, 0, 0, 0, 1, 1, 1, 1, 1], "text": "your line now reaches deep water from any sea shore", "show": "deep water from any sea shore" },
+                "reach": { "levels": [0, 0, 0, 0, 1, 1, 1, 2, 2, 2], "text": "+{d} tile to your cast", "show": "+{v} tiles to your cast" }
+            },
+            "_tackle": "Rods (player/fishingRods.js; the casting on the street map: ui/mapTasks/wildTasks.js). The best rod in the packs is used (the longest reach, then the finer); with none you cut a pole by the water (noRod) and cast baseReach tiles. Cast reach = baseReach + the rod's reach + the Fishing reach perk, at most maxReach. Each rod adds bites (% more bites) and land (% more fish landed), and wears: wearPerCast a cast, wearPerLost more when a hooked fish breaks away; at its durability it breaks and is gone (the next rod in the packs takes over). longCast: a float that lands `offshore` tiles or more out from dry land fishes one depth deeper (shallow to mid; mid to deep only for an angler with the deepReach perk). Rods are goods (data/playerEconomy.json), made by the carpenter (data/markets.json recipes rodmaker / reel_rodmaker / cane_rodmaker) and at a craft bench (data/crafting.json), sold at the woodworker's and chandler's stalls.",
+            "tackle": {
+                "baseReach": 3, "maxReach": 8,
+                "noRod": { "name": "cut pole" },
+                "wearPerCast": 1, "wearPerLost": 1,
+                "longCast": { "offshore": 5 },
+                "rods": {
+                    "ash_rod": { "name": "ash rod", "reach": 1, "bites": 2, "land": 3, "durability": 80 },
+                    "greenheart_rod": { "name": "greenheart rod", "reach": 2, "bites": 4, "land": 6, "durability": 160 },
+                    "master_rod": { "name": "split-cane master's rod", "reach": 4, "bites": 6, "land": 10, "durability": 260 }
+                }
             },
             "bigger": { "small_fish": "fish", "fish": "large_fish", "crab": "lobster" },
             "rarityWeights": { "junk": 15, "common": 40, "uncommon": 25, "rare": 10, "legendary": 2, "luckRare": 0.5, "luckLegendary": 0.4 },

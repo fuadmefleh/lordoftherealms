@@ -299,8 +299,21 @@ Object.assign(InnerMap, {
         if (t._wet && !(t.subTerrain && t.subTerrain.passable)) return 'water';
         if (t.paving || t._pave || t._bridge || t._pier || t._deck || t._isInterior) return 'street';
         if (t.isRoad) return 'road';
-        if (t._townSoil || t._fieldSoil || t.baseTerrain === 'dirt' || t._wet) return 'soft';
+        if (t._wet || this._bareEarth(t)) return 'soft';
         return 'open';
+    },
+
+    /**
+     * Is this cell bare earth to look at — where rain makes mud: an unpaved road, trodden
+     * or tilled soil, dirt with no grass grown over it. (A town's grass is a detail layer
+     * painted over a dirt base, so the base alone says nothing: grass is not mud.)
+     */
+    _bareEarth(t) {
+        if (!t || t._wet || t._iced || t.paving || t._pave || t._isInterior || t.building || t.customBuilding || t.customBuildingPart) return false;
+        if (t.isRoad || t._townSoil || t._fieldSoil) return true;
+        if (t.baseTerrain !== 'dirt') return false;
+        const d = t.terrainDetail || t.grassOverlay;
+        return !(d && (d.layer || d.fillCategory || 'grass') === 'grass');
     },
 
     /** × speed over (q, r) today (cart: a cart's wheels). 1 off the map or indoors. */

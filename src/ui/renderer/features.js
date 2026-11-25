@@ -2,6 +2,7 @@
 import { Renderer, HEX_FACE_DY } from './core.js';
 import { Hex, Religion, Economy, Infrastructure, Hinterland, Estates } from './_imports.js';
 import { drawIcon } from '../icons.js';
+import { Hospitality } from '../../systems/hospitality.js';
 
 // A colony founded in play keeps camp until this many souls (world/innerMap/camp.js CAMP_OUTGROWN)
 const CAMP_OUTGROWN = 150;
@@ -173,90 +174,88 @@ Object.assign(Renderer.prototype, {
         const world = this.world;
         const size = this.hexSize;
 
-        for (let r = 0; r < world.height; r++) {
-            for (let q = 0; q < world.width; q++) {
-                const tile = world.tiles[r][q];
-                if (!tile.settlement || !tile.explored) continue;
+        // (only the hexes in view: a scan of every tile of the world, each frame, cost milliseconds)
+        this.forEachTileInView(50, (tile, q, r) => {
+            if (!tile.settlement || !tile.explored) return;
 
-                const pos = this.getHexPixelPos(q, r);
-                const screen = this.camera.worldToScreen(pos.x, pos.y);
-                const renderSize = size * this.camera.zoom;
+            const pos = this.getHexPixelPos(q, r);
+            const screen = this.camera.worldToScreen(pos.x, pos.y);
+            const renderSize = size * this.camera.zoom;
 
-                if (screen.x < -50 || screen.x > this.canvas.width + 50) continue;
-                if (screen.y < -50 || screen.y > this.canvas.height + 50) continue;
+            if (screen.x < -50 || screen.x > this.canvas.width + 50) return;
+            if (screen.y < -50 || screen.y > this.canvas.height + 50) return;
 
-                const settlement = tile.settlement;
-                let imageName = '', labelSize = 10;
-                // A camp of tents still (as its street map: world/innerMap/camp.js _isDawnVillage)
-                const camp = _campOf(settlement);
+            const settlement = tile.settlement;
+            let imageName = '', labelSize = 10;
+            // A camp of tents still (as its street map: world/innerMap/camp.js _isDawnVillage)
+            const camp = _campOf(settlement);
 
-                switch (settlement.type) {
-                    case 'capital':
-                        // The walled city once its castle stands; before the castle age, a great
-                        // town about its lord's hall (world/castles.js)
-                        imageName = settlement.castle === false ? 'village03.png' : 'walledCity.png';
-                        labelSize = 13;
-                        break;
-                    case 'town':
-                        const townVariants = ['village00.png', 'village01.png', 'village02.png', 'village03.png'];
-                        imageName = townVariants[(q + r) % townVariants.length];
-                        labelSize = 11;
-                        break;
-                    case 'village':
-                        const villageVariants = ['villageSmall00.png', 'villageSmall01.png', 'villageSmall02.png', 'villageSmall03.png'];
-                        imageName = villageVariants[(q + r) % villageVariants.length];
-                        labelSize = 10;
-                        break;
-                    default:
-                        labelSize = 9;
-                }
-                if (camp) imageName = camp === 'hide' ? 'campHide00.png' : 'campCanvas00.png';
-
-                // Draw Sprite
-                const sprite = this.tileSprites.get(imageName);
-                if (sprite) {
-                    // One hex wide, laid on the hex like its terrain tile; the
-                    // tiers keep their relative size from the art itself
-                    ctx.globalAlpha = 1.0;
-                    this.drawPlaceSprite(ctx, sprite, screen.x, screen.y, renderSize);
-                } else {
-                    // Fallback to a glyph if the sprite failed to load
-                    this.drawMapMarker(ctx, settlement.type === 'capital' ? 'castle' : 'house',
-                        screen.x, screen.y + renderSize * HEX_FACE_DY, Math.max(11, renderSize * 0.42));
-                }
-
-                // Draw name label
-                if (this.camera.zoom > 0.4) {
-                    const fsize = Math.max(labelSize, labelSize * 1.2 * this.camera.zoom);
-                    const font = `700 ${fsize}px 'Cinzel', serif`;
-                    
-                    // Add to label queue with priority based on settlement type
-                    let priority = 5; // Default
-                    if (settlement.type === 'capital') priority = 9;
-                    else if (settlement.type === 'town') priority = 7;
-                    else if (settlement.type === 'village') priority = 5;
-
-                    this.addLabel(
-                        settlement.name,
-                        screen.x,
-                        screen.y + renderSize * 0.45,
-                        priority,
-                        {
-                            font: font,
-                            fillStyle: settlement.type === 'capital' ? '#ffe9a8' : '#f4efe4',
-                            shadowColor: 'rgba(0,0,0,0.9)',
-                            textAlign: 'center',
-                            textBaseline: 'top',
-                            // A banner tinted by the owning realm (drawLabelPlaque in renderer/world.js)
-                            plaque: {
-                                accent: (tile.kingdom && this.world.getKingdom(tile.kingdom)?.color) || 'rgba(160,160,160,0.6)',
-                                capital: settlement.type === 'capital',
-                            },
-                        }
-                    );
-                }
+            switch (settlement.type) {
+                case 'capital':
+                    // The walled city once its castle stands; before the castle age, a great
+                    // town about its lord's hall (world/castles.js)
+                    imageName = settlement.castle === false ? 'village03.png' : 'walledCity.png';
+                    labelSize = 13;
+                    break;
+                case 'town':
+                    const townVariants = ['village00.png', 'village01.png', 'village02.png', 'village03.png'];
+                    imageName = townVariants[(q + r) % townVariants.length];
+                    labelSize = 11;
+                    break;
+                case 'village':
+                    const villageVariants = ['villageSmall00.png', 'villageSmall01.png', 'villageSmall02.png', 'villageSmall03.png'];
+                    imageName = villageVariants[(q + r) % villageVariants.length];
+                    labelSize = 10;
+                    break;
+                default:
+                    labelSize = 9;
             }
-        }
+            if (camp) imageName = camp === 'hide' ? 'campHide00.png' : 'campCanvas00.png';
+
+            // Draw Sprite
+            const sprite = this.tileSprites.get(imageName);
+            if (sprite) {
+                // One hex wide, laid on the hex like its terrain tile; the
+                // tiers keep their relative size from the art itself
+                ctx.globalAlpha = 1.0;
+                this.drawPlaceSprite(ctx, sprite, screen.x, screen.y, renderSize);
+            } else {
+                // Fallback to a glyph if the sprite failed to load
+                this.drawMapMarker(ctx, settlement.type === 'capital' ? 'castle' : 'house',
+                    screen.x, screen.y + renderSize * HEX_FACE_DY, Math.max(11, renderSize * 0.42));
+            }
+
+            // Draw name label
+            if (this.camera.zoom > 0.4) {
+                const fsize = Math.max(labelSize, labelSize * 1.2 * this.camera.zoom);
+                const font = `700 ${fsize}px 'Cinzel', serif`;
+                
+                // Add to label queue with priority based on settlement type
+                let priority = 5; // Default
+                if (settlement.type === 'capital') priority = 9;
+                else if (settlement.type === 'town') priority = 7;
+                else if (settlement.type === 'village') priority = 5;
+
+                this.addLabel(
+                    settlement.name,
+                    screen.x,
+                    screen.y + renderSize * 0.45,
+                    priority,
+                    {
+                        font: font,
+                        fillStyle: settlement.type === 'capital' ? '#ffe9a8' : '#f4efe4',
+                        shadowColor: 'rgba(0,0,0,0.9)',
+                        textAlign: 'center',
+                        textBaseline: 'top',
+                        // A banner tinted by the owning realm (drawLabelPlaque in renderer/world.js)
+                        plaque: {
+                            accent: (tile.kingdom && this.world.getKingdom(tile.kingdom)?.color) || 'rgba(160,160,160,0.6)',
+                            capital: settlement.type === 'capital',
+                        },
+                    }
+                );
+            }
+        });
     },
 
     /**
@@ -266,77 +265,75 @@ Object.assign(Renderer.prototype, {
         const world = this.world;
         const size = this.hexSize;
 
-        for (let r = 0; r < world.height; r++) {
-            for (let q = 0; q < world.width; q++) {
-                const tile = world.tiles[r][q];
-                if (!tile.improvement || !tile.explored) continue;
+        // (only the hexes in view: a scan of every tile of the world, each frame, cost milliseconds)
+        this.forEachTileInView(50, (tile, q, r) => {
+            if (!tile.improvement || !tile.explored) return;
 
-                const pos = this.getHexPixelPos(q, r);
-                const screen = this.camera.worldToScreen(pos.x, pos.y);
-                const renderSize = size * this.camera.zoom;
+            const pos = this.getHexPixelPos(q, r);
+            const screen = this.camera.worldToScreen(pos.x, pos.y);
+            const renderSize = size * this.camera.zoom;
 
-                if (screen.x < -50 || screen.x > this.canvas.width + 50) continue;
-                if (screen.y < -50 || screen.y > this.canvas.height + 50) continue;
+            if (screen.x < -50 || screen.x > this.canvas.width + 50) return;
+            if (screen.y < -50 || screen.y > this.canvas.height + 50) return;
 
-                const poi = tile.improvement;
-                let imageName = '';
+            const poi = tile.improvement;
+            let imageName = '';
 
-                switch (poi.type) {
-                    case 'ruins':
-                        if (tile.terrain.id === 'desert') imageName = 'desertRuins00.png';
-                        else if (tile.terrain.id === 'forest') imageName = 'castleRuinForest.png';
-                        else if (tile.terrain.id === 'swamp') imageName = 'castleRuinMarsh.png';
-                        else if (tile.terrain.id.includes('mountain')) imageName = 'templeRuins.png';
-                        else imageName = 'castleRuinDirt.png';
-                        break;
-                    case 'oasis':
-                        imageName = (q + r) % 2 === 0 ? 'oasis00.png' : 'hexDesertDunesOasis00.png';
-                        break;
-                    case 'cave':
-                        if (tile.terrain.id.includes('volcano')) imageName = 'volcanoCave.png';
-                        else imageName = (q + r) % 2 === 0 ? 'hexMountainCave00.png' : 'hexMountainCave01.png';
-                        break;
-                    case 'monument':
-                        imageName = (q + r) % 2 === 0 ? 'obelisk00.png' : 'standingStones.png';
-                        break;
-                    case 'shrine':
-                        imageName = (q + r) % 2 === 0 ? 'hexDirtTemple00.png' : 'standingStonesMossy.png';
-                        break;
-                }
-
-                // Draw Sprite
-                const sprite = this.tileSprites.get(imageName);
-                if (sprite) {
-                    ctx.globalAlpha = 1.0;
-                    this.drawPlaceSprite(ctx, sprite, screen.x, screen.y, renderSize);
-                } else {
-                    // Fallback to a glyph marker
-                    ctx.globalAlpha = 1.0;
-                    this.drawMapMarker(ctx, poi.icon || poi.type, screen.x, screen.y + renderSize * HEX_FACE_DY, Math.max(10, renderSize * 0.36));
-                }
-
-                // Draw name label for POIs
-                if (this.camera.zoom > 0.7) {
-                    const fsize = Math.max(9, 10 * this.camera.zoom);
-                    const font = `700 ${fsize}px 'Cinzel', serif`;
-                    
-                    // Add to label queue with medium priority
-                    this.addLabel(
-                        tile.improvement.name,
-                        screen.x,
-                        screen.y + renderSize * 0.35,
-                        4, // POIs have priority 4
-                        {
-                            font: font,
-                            fillStyle: '#ffffff',
-                            shadowColor: 'rgba(0,0,0,0.9)',
-                            textAlign: 'center',
-                            textBaseline: 'top'
-                        }
-                    );
-                }
+            switch (poi.type) {
+                case 'ruins':
+                    if (tile.terrain.id === 'desert') imageName = 'desertRuins00.png';
+                    else if (tile.terrain.id === 'forest') imageName = 'castleRuinForest.png';
+                    else if (tile.terrain.id === 'swamp') imageName = 'castleRuinMarsh.png';
+                    else if (tile.terrain.id.includes('mountain')) imageName = 'templeRuins.png';
+                    else imageName = 'castleRuinDirt.png';
+                    break;
+                case 'oasis':
+                    imageName = (q + r) % 2 === 0 ? 'oasis00.png' : 'hexDesertDunesOasis00.png';
+                    break;
+                case 'cave':
+                    if (tile.terrain.id.includes('volcano')) imageName = 'volcanoCave.png';
+                    else imageName = (q + r) % 2 === 0 ? 'hexMountainCave00.png' : 'hexMountainCave01.png';
+                    break;
+                case 'monument':
+                    imageName = (q + r) % 2 === 0 ? 'obelisk00.png' : 'standingStones.png';
+                    break;
+                case 'shrine':
+                    imageName = (q + r) % 2 === 0 ? 'hexDirtTemple00.png' : 'standingStonesMossy.png';
+                    break;
             }
-        }
+
+            // Draw Sprite
+            const sprite = this.tileSprites.get(imageName);
+            if (sprite) {
+                ctx.globalAlpha = 1.0;
+                this.drawPlaceSprite(ctx, sprite, screen.x, screen.y, renderSize);
+            } else {
+                // Fallback to a glyph marker
+                ctx.globalAlpha = 1.0;
+                this.drawMapMarker(ctx, poi.icon || poi.type, screen.x, screen.y + renderSize * HEX_FACE_DY, Math.max(10, renderSize * 0.36));
+            }
+
+            // Draw name label for POIs
+            if (this.camera.zoom > 0.7) {
+                const fsize = Math.max(9, 10 * this.camera.zoom);
+                const font = `700 ${fsize}px 'Cinzel', serif`;
+                
+                // Add to label queue with medium priority
+                this.addLabel(
+                    tile.improvement.name,
+                    screen.x,
+                    screen.y + renderSize * 0.35,
+                    4, // POIs have priority 4
+                    {
+                        font: font,
+                        fillStyle: '#ffffff',
+                        shadowColor: 'rgba(0,0,0,0.9)',
+                        textAlign: 'center',
+                        textBaseline: 'top'
+                    }
+                );
+            }
+        });
     },
 
     /**
@@ -383,11 +380,10 @@ Object.assign(Renderer.prototype, {
             if (!it.variants.length) continue;
             const variant = it.variants[((it.q * 7 + it.r * 13) >>> 0) % it.variants.length];
             ctx.save();
-            if (it.dim) {
-                ctx.globalAlpha = 0.6;
-                ctx.filter = 'grayscale(0.85)';
-            }
-            this.drawSpriteVariant(ctx, variant, it.s.x, it.s.y, rs);
+            // (a worked-out or unfinished site greyed: its sprite greyed once and kept, not a
+            // canvas filter on every draw, which costs a pass of its own each frame)
+            if (it.dim) ctx.globalAlpha = 0.6;
+            this.drawSpriteVariant(ctx, variant, it.s.x, it.s.y, rs, it.dim);
             ctx.restore();
         }
     },
@@ -398,14 +394,15 @@ Object.assign(Renderer.prototype, {
      * (sx, sy). Layers sit by their bottom-centre at (x, y) hex radii from the
      * centre at the settlements' scale × s; full hex tiles are centred like a town.
      */
-    drawSpriteVariant(ctx, variant, sx, sy, rs) {
+    drawSpriteVariant(ctx, variant, sx, sy, rs, grey = false) {
         const layers = Array.isArray(variant) ? variant : [variant];
         // The settlements' scale: a 256-wide hex-tile frame spans one hex
         const unit = rs * HEX_W / 256;
         for (const raw of layers) {
             const L = typeof raw === 'string' ? { img: raw } : raw;
-            const sprite = L && L.img ? this.lazySprite(L.img) : null;
-            if (!sprite) continue;
+            const loaded = L && L.img ? this.lazySprite(L.img) : null;
+            if (!loaded) continue;
+            const sprite = grey ? this.greySprite(loaded) : loaded;
             if (sprite.height >= 300 && L.y == null) {
                 // A full hex-tile frame: laid on the hex like a town
                 this.drawPlaceSprite(ctx, sprite, sx + (L.x || 0) * rs, sy, rs, (L.s || 1) * sprite.width / 256);
@@ -417,6 +414,32 @@ Object.assign(Renderer.prototype, {
             const y = sy + (L.y != null ? L.y : 0.5) * rs - h;
             ctx.drawImage(sprite, x, y, w, h);
         }
+    },
+
+    /**
+     * A sprite greyed as ctx.filter 'grayscale(0.85)' greys it, drawn once into a
+     * canvas of its own size and kept (the image itself where there is no canvas).
+     */
+    greySprite(img) {
+        if (!this._greySprites) this._greySprites = new WeakMap();
+        let c = this._greySprites.get(img);
+        if (c) return c;
+        c = img;
+        try {
+            if (typeof document !== 'undefined' && img.width && img.height) {
+                const cv = document.createElement('canvas');
+                cv.width = img.width;
+                cv.height = img.height;
+                const g = cv.getContext('2d');
+                if (g && 'filter' in g) {
+                    g.filter = 'grayscale(0.85)';
+                    g.drawImage(img, 0, 0);
+                    c = cv;
+                }
+            }
+        } catch { c = img; }
+        this._greySprites.set(img, c);
+        return c;
     },
 
     /** A sprite under assets/tiles/ by its path, loaded on first use (null until it has). */
@@ -438,88 +461,86 @@ Object.assign(Renderer.prototype, {
         const world = this.world;
         const size = this.hexSize;
 
-        for (let r = 0; r < world.height; r++) {
-            for (let q = 0; q < world.width; q++) {
-                const tile = world.tiles[r][q];
-                if (!tile.explored) continue;
-                const hasHoly = !!tile.holySite;
-                const hasCultural = !!tile.culturalBuilding;
-                if (!hasHoly && !hasCultural) continue;
+        // (only the hexes in view: a scan of every tile of the world, each frame, cost milliseconds)
+        this.forEachTileInView(60, (tile, q, r) => {
+            if (!tile.explored) return;
+            const hasHoly = !!tile.holySite;
+            const hasCultural = !!tile.culturalBuilding;
+            if (!hasHoly && !hasCultural) return;
 
-                const pos = this.getHexPixelPos(q, r);
-                const screen = this.camera.worldToScreen(pos.x, pos.y);
-                const renderSize = size * this.camera.zoom;
+            const pos = this.getHexPixelPos(q, r);
+            const screen = this.camera.worldToScreen(pos.x, pos.y);
+            const renderSize = size * this.camera.zoom;
 
-                if (screen.x < -60 || screen.x > this.canvas.width + 60) continue;
-                if (screen.y < -60 || screen.y > this.canvas.height + 60) continue;
+            if (screen.x < -60 || screen.x > this.canvas.width + 60) return;
+            if (screen.y < -60 || screen.y > this.canvas.height + 60) return;
 
-                if (hasHoly) {
-                    const site = tile.holySite;
-                    // Glow effect for holy sites
-                    ctx.save();
-                    ctx.shadowColor = '#f5c542';
-                    ctx.shadowBlur = renderSize * 0.6;
-                    ctx.globalAlpha = 0.6;
-                    ctx.beginPath();
-                    ctx.arc(screen.x, screen.y + renderSize * HEX_FACE_DY, renderSize * 0.4, 0, Math.PI * 2);
-                    ctx.fillStyle = '#f5c542';
-                    ctx.fill();
-                    ctx.restore();
+            if (hasHoly) {
+                const site = tile.holySite;
+                // Glow effect for holy sites
+                ctx.save();
+                ctx.shadowColor = '#f5c542';
+                ctx.shadowBlur = renderSize * 0.6;
+                ctx.globalAlpha = 0.6;
+                ctx.beginPath();
+                ctx.arc(screen.x, screen.y + renderSize * HEX_FACE_DY, renderSize * 0.4, 0, Math.PI * 2);
+                ctx.fillStyle = '#f5c542';
+                ctx.fill();
+                ctx.restore();
 
-                    // The site's glyph on a gold-rimmed plate
-                    ctx.globalAlpha = 1.0;
-                    this.drawMapMarker(ctx, site.icon, screen.x, screen.y + renderSize * HEX_FACE_DY, Math.max(11, renderSize * 0.4),
-                        { rim: '#f5c542', color: '#ffe08a' });
+                // The site's glyph on a gold-rimmed plate
+                ctx.globalAlpha = 1.0;
+                this.drawMapMarker(ctx, site.icon, screen.x, screen.y + renderSize * HEX_FACE_DY, Math.max(11, renderSize * 0.4),
+                    { rim: '#f5c542', color: '#ffe08a' });
 
-                    // Label
-                    if (this.camera.zoom > 0.5) {
-                        const fsize = Math.max(9, 10 * this.camera.zoom);
-                        const font = `700 ${fsize}px 'Cinzel', serif`;
-                        
-                        // Add to label queue with high priority
-                        this.addLabel(
-                            site.name,
-                            screen.x,
-                            screen.y + renderSize * 0.4,
-                            8, // Holy sites have high priority
-                            {
-                                font: font,
-                                fillStyle: '#f5c542',
-                                shadowColor: 'rgba(0,0,0,0.9)',
-                                textAlign: 'center',
-                                textBaseline: 'top'
-                            }
-                        );
-                    }
-                }
-
-                if (hasCultural) {
-                    const building = tile.culturalBuilding;
-                    ctx.globalAlpha = 1.0;
-                    this.drawMapMarker(ctx, building.icon, screen.x, screen.y + renderSize * HEX_FACE_DY, Math.max(10, renderSize * 0.34));
-
-                    if (this.camera.zoom > 0.7) {
-                        const fsize = Math.max(8, 9 * this.camera.zoom);
-                        const font = `700 ${fsize}px 'Cinzel', serif`;
-                        
-                        // Add to label queue with low priority
-                        this.addLabel(
-                            building.name,
-                            screen.x,
-                            screen.y + renderSize * 0.35,
-                            3, // Cultural buildings have lower priority
-                            {
-                                font: font,
-                                fillStyle: '#ffffff',
-                                shadowColor: 'rgba(0,0,0,0.9)',
-                                textAlign: 'center',
-                                textBaseline: 'top'
-                            }
-                        );
-                    }
+                // Label
+                if (this.camera.zoom > 0.5) {
+                    const fsize = Math.max(9, 10 * this.camera.zoom);
+                    const font = `700 ${fsize}px 'Cinzel', serif`;
+                    
+                    // Add to label queue with high priority
+                    this.addLabel(
+                        site.name,
+                        screen.x,
+                        screen.y + renderSize * 0.4,
+                        8, // Holy sites have high priority
+                        {
+                            font: font,
+                            fillStyle: '#f5c542',
+                            shadowColor: 'rgba(0,0,0,0.9)',
+                            textAlign: 'center',
+                            textBaseline: 'top'
+                        }
+                    );
                 }
             }
-        }
+
+            if (hasCultural) {
+                const building = tile.culturalBuilding;
+                ctx.globalAlpha = 1.0;
+                this.drawMapMarker(ctx, building.icon, screen.x, screen.y + renderSize * HEX_FACE_DY, Math.max(10, renderSize * 0.34));
+
+                if (this.camera.zoom > 0.7) {
+                    const fsize = Math.max(8, 9 * this.camera.zoom);
+                    const font = `700 ${fsize}px 'Cinzel', serif`;
+                    
+                    // Add to label queue with low priority
+                    this.addLabel(
+                        building.name,
+                        screen.x,
+                        screen.y + renderSize * 0.35,
+                        3, // Cultural buildings have lower priority
+                        {
+                            font: font,
+                            fillStyle: '#ffffff',
+                            shadowColor: 'rgba(0,0,0,0.9)',
+                            textAlign: 'center',
+                            textBaseline: 'top'
+                        }
+                    );
+                }
+            }
+        });
     },
 
     /**
@@ -579,158 +600,156 @@ Object.assign(Renderer.prototype, {
         const world = this.world;
         const size = this.hexSize;
 
-        for (let r = 0; r < world.height; r++) {
-            for (let q = 0; q < world.width; q++) {
-                const tile = world.tiles[r][q];
-                if (!tile.infrastructure || !tile.explored) continue;
+        // (only the hexes in view: a scan of every tile of the world, each frame, cost milliseconds)
+        this.forEachTileInView(100, (tile, q, r) => {
+            if (!tile.infrastructure || !tile.explored) return;
 
-                const pos = this.getHexPixelPos(q, r);
-                const screen = this.camera.worldToScreen(pos.x, pos.y);
-                const renderSize = size * this.camera.zoom;
+            const pos = this.getHexPixelPos(q, r);
+            const screen = this.camera.worldToScreen(pos.x, pos.y);
+            const renderSize = size * this.camera.zoom;
 
-                // Culling
-                if (screen.x < -100 || screen.x > this.canvas.width + 100) continue;
-                if (screen.y < -100 || screen.y > this.canvas.height + 100) continue;
+            // Culling
+            if (screen.x < -100 || screen.x > this.canvas.width + 100) return;
+            if (screen.y < -100 || screen.y > this.canvas.height + 100) return;
 
-                const infra = tile.infrastructure;
-                const isUnderConstruction = infra.underConstruction;
-                // A finished road is a real road hex: the world's road/bridge
-                // sprites draw it (renderer/assets.js), like every other road
-                if (!isUnderConstruction && tile.hasRoad && (infra.id === 'dirt_road' || infra.id === 'stone_road')) continue;
+            const infra = tile.infrastructure;
+            const isUnderConstruction = infra.underConstruction;
+            // A finished road is a real road hex: the world's road/bridge
+            // sprites draw it (renderer/assets.js), like every other road
+            if (!isUnderConstruction && tile.hasRoad && (infra.id === 'dirt_road' || infra.id === 'stone_road')) return;
 
-                // Dim infrastructure that is still under construction
-                if (isUnderConstruction) {
-                    ctx.globalAlpha = 0.4;
-                }
+            // Dim infrastructure that is still under construction
+            if (isUnderConstruction) {
+                ctx.globalAlpha = 0.4;
+            }
 
-                if (infra.id === 'dirt_road' || infra.id === 'stone_road') {
-                    // Draw road segments to neighbors that also have roads
-                    const neighbors = Hex.neighbors(q, r);
-                    ctx.strokeStyle = infra.renderColor || '#8B7355';
-                    ctx.lineWidth = (infra.renderWidth || 2) * this.camera.zoom;
-                    ctx.lineCap = 'round';
+            if (infra.id === 'dirt_road' || infra.id === 'stone_road') {
+                // Draw road segments to neighbors that also have roads
+                const neighbors = Hex.neighbors(q, r);
+                ctx.strokeStyle = infra.renderColor || '#8B7355';
+                ctx.lineWidth = (infra.renderWidth || 2) * this.camera.zoom;
+                ctx.lineCap = 'round';
 
-                    let hasConnection = false;
-                    for (const n of neighbors) {
-                        const wq = Hex.wrapQ(n.q, world.width);
-                        const wr = n.r;
-                        if (wr < 0 || wr >= world.height) continue;
+                let hasConnection = false;
+                for (const n of neighbors) {
+                    const wq = Hex.wrapQ(n.q, world.width);
+                    const wr = n.r;
+                    if (wr < 0 || wr >= world.height) continue;
 
-                        const nTile = world.getTile(wq, wr);
-                        if (!nTile || !nTile.infrastructure) continue;
-                        if (!['dirt_road', 'stone_road', 'bridge'].includes(nTile.infrastructure.id)) continue;
+                    const nTile = world.getTile(wq, wr);
+                    if (!nTile || !nTile.infrastructure) continue;
+                    if (!['dirt_road', 'stone_road', 'bridge'].includes(nTile.infrastructure.id)) continue;
 
-                        const nPos = this.getHexPixelPos(wq, wr);
-                        const nScreen = this.camera.worldToScreen(nPos.x, nPos.y);
+                    const nPos = this.getHexPixelPos(wq, wr);
+                    const nScreen = this.camera.worldToScreen(nPos.x, nPos.y);
 
-                        ctx.beginPath();
-                        ctx.moveTo(screen.x, screen.y);
-                        ctx.lineTo(nScreen.x, nScreen.y);
-                        ctx.stroke();
-                        hasConnection = true;
-                    }
-
-                    // Draw center dot if no connections (standalone road tile)
-                    if (!hasConnection) {
-                        ctx.beginPath();
-                        ctx.arc(screen.x, screen.y, renderSize * 0.15, 0, Math.PI * 2);
-                        ctx.fillStyle = infra.renderColor || '#8B7355';
-                        ctx.fill();
-                    }
-
-                    // Dotted line pattern for dirt roads
-                    if (infra.id === 'dirt_road') {
-                        ctx.setLineDash([]);
-                    }
-                } else if (infra.id === 'bridge') {
-                    // The bridge's glyph
-                    this.drawMapMarker(ctx, 'bridge', screen.x, screen.y - renderSize * 0.1, Math.max(10, renderSize * 0.32));
-                } else if (infra.id === 'jetty') {
-                    // Timber landing stage reaching out toward the water
-                    let water = null;
-                    for (const n of Hex.neighbors(q, r)) {
-                        const wq = Hex.wrapQ(n.q, world.width);
-                        if (n.r < 0 || n.r >= world.height) continue;
-                        const nTile = world.getTile(wq, n.r);
-                        if (nTile && Infrastructure.COAST_WATER.includes(nTile.terrain.id)) { water = { q: wq, r: n.r }; break; }
-                    }
-                    if (water) {
-                        const wPos = this.getHexPixelPos(water.q, water.r);
-                        const wScreen = this.camera.worldToScreen(wPos.x, wPos.y);
-                        const ex = screen.x + (wScreen.x - screen.x) * 0.55;
-                        const ey = screen.y + (wScreen.y - screen.y) * 0.55;
-                        ctx.strokeStyle = infra.renderColor || '#C8A165';
-                        ctx.lineWidth = Math.max(3, renderSize * 0.16);
-                        ctx.lineCap = 'butt';
-                        ctx.beginPath();
-                        ctx.moveTo(screen.x, screen.y);
-                        ctx.lineTo(ex, ey);
-                        ctx.stroke();
-                    }
-                    this.drawMapMarker(ctx, 'anchor', screen.x, screen.y, Math.max(9, renderSize * 0.26));
-                } else if (infra.id === 'irrigation_channel') {
-                    // Draw irrigation - blue wavy lines
-                    ctx.strokeStyle = infra.renderColor || '#4FC3F7';
-                    ctx.lineWidth = (infra.renderWidth || 2) * this.camera.zoom;
-                    ctx.globalAlpha = 0.7;
-
-                    // Draw a small water channel pattern
-                    const s = renderSize * 0.3;
                     ctx.beginPath();
-                    ctx.moveTo(screen.x - s, screen.y + renderSize * 0.25);
-                    ctx.quadraticCurveTo(screen.x - s * 0.5, screen.y + renderSize * 0.15, screen.x, screen.y + renderSize * 0.25);
-                    ctx.quadraticCurveTo(screen.x + s * 0.5, screen.y + renderSize * 0.35, screen.x + s, screen.y + renderSize * 0.25);
+                    ctx.moveTo(screen.x, screen.y);
+                    ctx.lineTo(nScreen.x, nScreen.y);
                     ctx.stroke();
-                    ctx.globalAlpha = 1.0;
-
-                    // Small label
-                    if (this.camera.zoom > 0.8) {
-                        drawIcon(ctx, 'droplet', screen.x, screen.y + renderSize * 0.45, Math.max(12, renderSize * 0.32), '#7fd3f7');
-                    }
+                    hasConnection = true;
                 }
 
-                // Reset alpha after construction dimming
-                if (isUnderConstruction) {
-                    ctx.globalAlpha = 1.0;
-                    // Draw construction indicator
-                    this.drawMapMarker(ctx, 'hammer', screen.x, screen.y - renderSize * 0.3, Math.max(9, renderSize * 0.26));
-                    // ...and how far the work has come (systems/construction.js: workDone of constructionDaysTotal)
-                    const cTot = infra.constructionDaysTotal || 0;
-                    const cDone = Number.isFinite(infra.workDone) ? infra.workDone : cTot - (infra.constructionDaysLeft || 0);
-                    const cPct = cTot > 0 ? Math.max(0, Math.min(1, cDone / cTot)) : 0;
-                    const bw = renderSize * 0.6, bh = Math.max(2, renderSize * 0.06);
-                    const bx = screen.x - bw / 2, by = screen.y - renderSize * 0.1;
-                    ctx.fillStyle = 'rgba(0,0,0,0.6)';
-                    ctx.fillRect(bx - 1, by - 1, bw + 2, bh + 2);
-                    ctx.fillStyle = '#f0b35a';
-                    ctx.fillRect(bx, by, bw * cPct, bh);
+                // Draw center dot if no connections (standalone road tile)
+                if (!hasConnection) {
+                    ctx.beginPath();
+                    ctx.arc(screen.x, screen.y, renderSize * 0.15, 0, Math.PI * 2);
+                    ctx.fillStyle = infra.renderColor || '#8B7355';
+                    ctx.fill();
                 }
 
-                // Draw infrastructure name label at higher zoom
-                if (this.camera.zoom > 1.0) {
-                    const fsize = Math.max(8, 9 * this.camera.zoom);
-                    const font = `${fsize}px 'Cinzel', serif`;
-                    
-                    // Add to label queue with low priority
-                    const labelText = isUnderConstruction
-                        ? `${infra.name} (${infra.constructionDaysLeft} work-days)`
-                        : infra.name;
-                    this.addLabel(
-                        labelText,
-                        screen.x,
-                        screen.y + renderSize * 0.55,
-                        2, // Infrastructure has priority 2
-                        {
-                            font: font,
-                            fillStyle: infra.renderColor || '#ccc',
-                            shadowColor: 'rgba(0,0,0,0.7)',
-                            textAlign: 'center',
-                            textBaseline: 'top'
-                        }
-                    );
+                // Dotted line pattern for dirt roads
+                if (infra.id === 'dirt_road') {
+                    ctx.setLineDash([]);
+                }
+            } else if (infra.id === 'bridge') {
+                // The bridge's glyph
+                this.drawMapMarker(ctx, 'bridge', screen.x, screen.y - renderSize * 0.1, Math.max(10, renderSize * 0.32));
+            } else if (infra.id === 'jetty') {
+                // Timber landing stage reaching out toward the water
+                let water = null;
+                for (const n of Hex.neighbors(q, r)) {
+                    const wq = Hex.wrapQ(n.q, world.width);
+                    if (n.r < 0 || n.r >= world.height) continue;
+                    const nTile = world.getTile(wq, n.r);
+                    if (nTile && Infrastructure.COAST_WATER.includes(nTile.terrain.id)) { water = { q: wq, r: n.r }; break; }
+                }
+                if (water) {
+                    const wPos = this.getHexPixelPos(water.q, water.r);
+                    const wScreen = this.camera.worldToScreen(wPos.x, wPos.y);
+                    const ex = screen.x + (wScreen.x - screen.x) * 0.55;
+                    const ey = screen.y + (wScreen.y - screen.y) * 0.55;
+                    ctx.strokeStyle = infra.renderColor || '#C8A165';
+                    ctx.lineWidth = Math.max(3, renderSize * 0.16);
+                    ctx.lineCap = 'butt';
+                    ctx.beginPath();
+                    ctx.moveTo(screen.x, screen.y);
+                    ctx.lineTo(ex, ey);
+                    ctx.stroke();
+                }
+                this.drawMapMarker(ctx, 'anchor', screen.x, screen.y, Math.max(9, renderSize * 0.26));
+            } else if (infra.id === 'irrigation_channel') {
+                // Draw irrigation - blue wavy lines
+                ctx.strokeStyle = infra.renderColor || '#4FC3F7';
+                ctx.lineWidth = (infra.renderWidth || 2) * this.camera.zoom;
+                ctx.globalAlpha = 0.7;
+
+                // Draw a small water channel pattern
+                const s = renderSize * 0.3;
+                ctx.beginPath();
+                ctx.moveTo(screen.x - s, screen.y + renderSize * 0.25);
+                ctx.quadraticCurveTo(screen.x - s * 0.5, screen.y + renderSize * 0.15, screen.x, screen.y + renderSize * 0.25);
+                ctx.quadraticCurveTo(screen.x + s * 0.5, screen.y + renderSize * 0.35, screen.x + s, screen.y + renderSize * 0.25);
+                ctx.stroke();
+                ctx.globalAlpha = 1.0;
+
+                // Small label
+                if (this.camera.zoom > 0.8) {
+                    drawIcon(ctx, 'droplet', screen.x, screen.y + renderSize * 0.45, Math.max(12, renderSize * 0.32), '#7fd3f7');
                 }
             }
-        }
+
+            // Reset alpha after construction dimming
+            if (isUnderConstruction) {
+                ctx.globalAlpha = 1.0;
+                // Draw construction indicator
+                this.drawMapMarker(ctx, 'hammer', screen.x, screen.y - renderSize * 0.3, Math.max(9, renderSize * 0.26));
+                // ...and how far the work has come (systems/construction.js: workDone of constructionDaysTotal)
+                const cTot = infra.constructionDaysTotal || 0;
+                const cDone = Number.isFinite(infra.workDone) ? infra.workDone : cTot - (infra.constructionDaysLeft || 0);
+                const cPct = cTot > 0 ? Math.max(0, Math.min(1, cDone / cTot)) : 0;
+                const bw = renderSize * 0.6, bh = Math.max(2, renderSize * 0.06);
+                const bx = screen.x - bw / 2, by = screen.y - renderSize * 0.1;
+                ctx.fillStyle = 'rgba(0,0,0,0.6)';
+                ctx.fillRect(bx - 1, by - 1, bw + 2, bh + 2);
+                ctx.fillStyle = '#f0b35a';
+                ctx.fillRect(bx, by, bw * cPct, bh);
+            }
+
+            // Draw infrastructure name label at higher zoom
+            if (this.camera.zoom > 1.0) {
+                const fsize = Math.max(8, 9 * this.camera.zoom);
+                const font = `${fsize}px 'Cinzel', serif`;
+                
+                // Add to label queue with low priority
+                const labelText = isUnderConstruction
+                    ? `${infra.name} (${infra.constructionDaysLeft} work-days)`
+                    : infra.name;
+                this.addLabel(
+                    labelText,
+                    screen.x,
+                    screen.y + renderSize * 0.55,
+                    2, // Infrastructure has priority 2
+                    {
+                        font: font,
+                        fillStyle: infra.renderColor || '#ccc',
+                        shadowColor: 'rgba(0,0,0,0.7)',
+                        textAlign: 'center',
+                        textBaseline: 'top'
+                    }
+                );
+            }
+        });
     },
 
     /**
@@ -740,101 +759,99 @@ Object.assign(Renderer.prototype, {
         const world = this.world;
         const size = this.hexSize;
 
-        for (let r = 0; r < world.height; r++) {
-            for (let q = 0; q < world.width; q++) {
-                const tile = world.tiles[r][q];
-                if (!tile.explored) continue;
-                const structure = tile.playerProperty || tile.religiousBuilding;
-                if (!structure) continue;
+        // (only the hexes in view: a scan of every tile of the world, each frame, cost milliseconds)
+        this.forEachTileInView(100, (tile, q, r) => {
+            if (!tile.explored) return;
+            const structure = tile.playerProperty || tile.religiousBuilding;
+            if (!structure) return;
 
-                const pos = this.getHexPixelPos(q, r);
-                const screen = this.camera.worldToScreen(pos.x, pos.y);
-                const renderSize = size * this.camera.zoom;
+            const pos = this.getHexPixelPos(q, r);
+            const screen = this.camera.worldToScreen(pos.x, pos.y);
+            const renderSize = size * this.camera.zoom;
 
-                if (screen.x < -100 || screen.x > this.canvas.width + 100) continue;
-                if (screen.y < -100 || screen.y > this.canvas.height + 100) continue;
+            if (screen.x < -100 || screen.x > this.canvas.width + 100) return;
+            if (screen.y < -100 || screen.y > this.canvas.height + 100) return;
 
-                let imageName = '';
+            let imageName = '';
 
-                // If there's a settlement, don't draw the structure sprite on top of it
-                // Instead, maybe we could draw a small indicator badge, but for now just skip the sprite
-                if (tile.settlement) {
-                    // Do nothing, let the settlement sprite be the main visual
-                } else if (tile.playerProperty) {
-                    switch (tile.playerProperty.type) {
-                        case 'farm':
-                            const farmVars = ['farm00.png', 'farm01.png', 'farm02.png', 'farm03.png'];
-                            imageName = farmVars[(q + r) % farmVars.length];
-                            break;
-                        case 'mine':
-                            const mineVars = ['mine00.png', 'mine01.png', 'mine02.png', 'mine03.png'];
-                            imageName = mineVars[(q + r) % mineVars.length];
-                            break;
-                        case 'workshop': imageName = 'smithy.png'; break;
-                        case 'trading_post': imageName = 'inn.png'; break;
-                        case 'logging_camp':
-                            const loggingVars = ['forester_hut00.png', 'forester_hut01.png', 'forester_hut02.png'];
-                            imageName = loggingVars[(q + r) % loggingVars.length];
-                            break;
-                        case 'pasture': imageName = 'buildings/pasture00_sheep.png'; break;
-                        case 'grain_mill':
-                        case 'windmill_building':
-                        case 'water_mill_building': imageName = 'buildings/windmill00.png'; break;
-                        case 'cattle_ranch': imageName = 'buildings/corral00_cows.png'; break;
-                        case 'horse_ranch': imageName = 'buildings/corral01.png'; break;
-                        case 'hunting_lodge':
-                        case 'forager_hut': imageName = `buildings/foresterHut0${(q + r) % 3}.png`; break;
-                        case 'clay_pit': imageName = 'buildings/clayPit00.png'; break;
-                        case 'scriptorium': imageName = 'buildings/scriptorium00.png'; break;
-                        case 'apothecary': imageName = 'buildings/alchemistsLab00.png'; break;
-                        case 'fletcher': imageName = 'buildings/archeryRange00.png'; break;
-                        case 'bakery':
-                        case 'smokehouse':
-                        case 'butcher': imageName = 'buildings/cookhouse00.png'; break;
-                        case 'forge':
-                        case 'blacksmith': imageName = 'smithy.png'; break;
-                        case 'brewery':
-                        case 'tavern': imageName = 'inn.png'; break;
-                    }
-                } else if (tile.religiousBuilding) {
-                    switch (tile.religiousBuilding.type) {
-                        case 'shrine': imageName = 'standingStones.png'; break;
-                        case 'temple': imageName = 'temple.png'; break;
-                        case 'monastery': imageName = 'elvenLodge.png'; break;
-                    }
+            // If there's a settlement, don't draw the structure sprite on top of it
+            // Instead, maybe we could draw a small indicator badge, but for now just skip the sprite
+            if (tile.settlement) {
+                // Do nothing, let the settlement sprite be the main visual
+            } else if (tile.playerProperty) {
+                switch (tile.playerProperty.type) {
+                    case 'farm':
+                        const farmVars = ['farm00.png', 'farm01.png', 'farm02.png', 'farm03.png'];
+                        imageName = farmVars[(q + r) % farmVars.length];
+                        break;
+                    case 'mine':
+                        const mineVars = ['mine00.png', 'mine01.png', 'mine02.png', 'mine03.png'];
+                        imageName = mineVars[(q + r) % mineVars.length];
+                        break;
+                    case 'workshop': imageName = 'smithy.png'; break;
+                    case 'trading_post': imageName = 'inn.png'; break;
+                    case 'logging_camp':
+                        const loggingVars = ['forester_hut00.png', 'forester_hut01.png', 'forester_hut02.png'];
+                        imageName = loggingVars[(q + r) % loggingVars.length];
+                        break;
+                    case 'pasture': imageName = 'buildings/pasture00_sheep.png'; break;
+                    case 'grain_mill':
+                    case 'windmill_building':
+                    case 'water_mill_building': imageName = 'buildings/windmill00.png'; break;
+                    case 'cattle_ranch': imageName = 'buildings/corral00_cows.png'; break;
+                    case 'horse_ranch': imageName = 'buildings/corral01.png'; break;
+                    case 'hunting_lodge':
+                    case 'forager_hut': imageName = `buildings/foresterHut0${(q + r) % 3}.png`; break;
+                    case 'clay_pit': imageName = 'buildings/clayPit00.png'; break;
+                    case 'scriptorium': imageName = 'buildings/scriptorium00.png'; break;
+                    case 'apothecary': imageName = 'buildings/alchemistsLab00.png'; break;
+                    case 'fletcher': imageName = 'buildings/archeryRange00.png'; break;
+                    case 'bakery':
+                    case 'smokehouse':
+                    case 'butcher': imageName = 'buildings/cookhouse00.png'; break;
+                    case 'forge':
+                    case 'blacksmith': imageName = 'smithy.png'; break;
+                    case 'brewery':
+                    case 'tavern': imageName = 'inn.png'; break;
                 }
-
-                const sprite = this.tileSprites.get(imageName);
-                if (sprite) {
-                    ctx.globalAlpha = 1.0;
-                    this.drawPlaceSprite(ctx, sprite, screen.x, screen.y, renderSize);
-                } else {
-                    // Fallback glyph marker
-                    this.drawMapMarker(ctx, structure.icon || 'house', screen.x, screen.y + renderSize * HEX_FACE_DY, Math.max(10, renderSize * 0.36));
-                }
-
-                // Draw name label
-                if (this.camera.zoom > 0.6) {
-                    const fsize = Math.max(9, 10 * this.camera.zoom);
-                    const font = `600 ${fsize}px 'Cinzel', serif`;
-                    
-                    // Add to label queue with low priority
-                    this.addLabel(
-                        structure.name,
-                        screen.x,
-                        screen.y + renderSize * 0.4,
-                        3, // Built structures have priority 3
-                        {
-                            font: font,
-                            fillStyle: '#ffffff',
-                            shadowColor: 'rgba(0,0,0,0.8)',
-                            textAlign: 'center',
-                            textBaseline: 'top'
-                        }
-                    );
+            } else if (tile.religiousBuilding) {
+                switch (tile.religiousBuilding.type) {
+                    case 'shrine': imageName = 'standingStones.png'; break;
+                    case 'temple': imageName = 'temple.png'; break;
+                    case 'monastery': imageName = 'elvenLodge.png'; break;
                 }
             }
-        }
+
+            const sprite = this.tileSprites.get(imageName);
+            if (sprite) {
+                ctx.globalAlpha = 1.0;
+                this.drawPlaceSprite(ctx, sprite, screen.x, screen.y, renderSize);
+            } else {
+                // Fallback glyph marker
+                this.drawMapMarker(ctx, structure.icon || 'house', screen.x, screen.y + renderSize * HEX_FACE_DY, Math.max(10, renderSize * 0.36));
+            }
+
+            // Draw name label
+            if (this.camera.zoom > 0.6) {
+                const fsize = Math.max(9, 10 * this.camera.zoom);
+                const font = `600 ${fsize}px 'Cinzel', serif`;
+                
+                // Add to label queue with low priority
+                this.addLabel(
+                    structure.name,
+                    screen.x,
+                    screen.y + renderSize * 0.4,
+                    3, // Built structures have priority 3
+                    {
+                        font: font,
+                        fillStyle: '#ffffff',
+                        shadowColor: 'rgba(0,0,0,0.8)',
+                        textAlign: 'center',
+                        textBaseline: 'top'
+                    }
+                );
+            }
+        });
     },
 
     /**
@@ -845,35 +862,44 @@ Object.assign(Renderer.prototype, {
 
         const world = this.world;
         const size = this.hexSize;
-        // Hexes already showing a building of their own (rural sites, estate farms)
-        const built = new Set();
-        for (const s of Hinterland.sites(world)) built.add(`${s.q},${s.r}`);
-        if (Estates.enabled()) for (const f of Estates.fieldHexes(world)) built.add(`${f.q},${f.r}`);
-
-        for (let r = 0; r < world.height; r++) {
-            for (let q = 0; q < world.width; q++) {
-                const tile = world.tiles[r][q];
-                if (!tile.resource || !tile.visible) continue; // Resources only visible when in LOS
-
-                const pos = this.getHexPixelPos(q, r);
-                const screen = this.camera.worldToScreen(pos.x, pos.y);
-                const renderSize = size * this.camera.zoom;
-
-                if (screen.x < -50 || screen.x > this.canvas.width + 50) continue;
-                if (screen.y < -50 || screen.y > this.canvas.height + 50) continue;
-
-                // The resource's glyph on a small struck plate, in the middle of
-                // the hex's face — or down in its corner when a town, site or
-                // building already stands there, so it doesn't cover it
-                const occupied = tile.settlement || tile.improvement || tile.playerProperty || tile.religiousBuilding
-                    || tile.holySite || tile.culturalBuilding || built.has(`${q},${r}`);
-                const px = screen.x + (occupied ? renderSize * 0.35 : 0);
-                const py = screen.y + renderSize * (occupied ? 0.35 : HEX_FACE_DY);
-                // (the metals share glyphs: copper, silver and gold are told apart by their tint)
-                const tint = ORE_TINT[tile.resource.id];
-                this.drawMapMarker(ctx, tile.resource.icon || 'satchel', px, py, Math.max(10, renderSize * 0.27), tint ? { color: tint } : undefined);
-            }
+        // Hexes already showing a building of their own (rural sites, estate farms, roadhouses)
+        // (kept while the lists are the same: rebuilt only when a site, a farm or a roadhouse comes or goes)
+        const W = world.width;
+        const sites = Hinterland.sites(world);
+        const fields = Estates.enabled() ? Estates.fieldHexes(world) : null;
+        const inns = Hospitality.enabled() ? Hospitality._waysideSites(world) : null;
+        let bh = this._builtHexes;
+        if (!bh || bh.world !== world || bh.sites !== sites || bh.ns !== sites.length || bh.fields !== fields || bh.nf !== (fields ? fields.length : 0) || bh.inns !== inns || bh.ni !== (inns ? inns.length : 0)) {
+            const set = new Set();
+            for (const s of sites) set.add(s.r * W + s.q);
+            if (fields) for (const f of fields) set.add(f.r * W + f.q);
+            if (inns) for (const s of inns) set.add(s.r * W + s.q);
+            bh = this._builtHexes = { world, sites, ns: sites.length, fields, nf: fields ? fields.length : 0, inns, ni: inns ? inns.length : 0, set };
         }
+        const built = bh.set;
+
+        // (only the hexes in view: a scan of every tile of the world, each frame, cost milliseconds)
+        this.forEachTileInView(50, (tile, q, r) => {
+            if (!tile.resource || !tile.visible) return; // Resources only visible when in LOS
+
+            const pos = this.getHexPixelPos(q, r);
+            const screen = this.camera.worldToScreen(pos.x, pos.y);
+            const renderSize = size * this.camera.zoom;
+
+            if (screen.x < -50 || screen.x > this.canvas.width + 50) return;
+            if (screen.y < -50 || screen.y > this.canvas.height + 50) return;
+
+            // The resource's glyph on a small struck plate, in the middle of
+            // the hex's face — or down in its corner when a town, site or
+            // building already stands there, so it doesn't cover it
+            const occupied = tile.settlement || tile.improvement || tile.playerProperty || tile.religiousBuilding
+                || tile.holySite || tile.culturalBuilding || built.has(r * W + q);
+            const px = screen.x + (occupied ? renderSize * 0.35 : 0);
+            const py = screen.y + renderSize * (occupied ? 0.35 : HEX_FACE_DY);
+            // (the metals share glyphs: copper, silver and gold are told apart by their tint)
+            const tint = ORE_TINT[tile.resource.id];
+            this.drawMapMarker(ctx, tile.resource.icon || 'satchel', px, py, Math.max(10, renderSize * 0.27), tint ? { color: tint } : undefined);
+        });
     },
 
     /**
@@ -1059,6 +1085,25 @@ Object.assign(Renderer.prototype, {
     /**
      * Render reachable hex highlights
      */
+    /**
+     * A Map keyed "q,r" as a flat [q, r, value, ...], parsed once per map (the
+     * reachable hexes are a new Map each time they change), not every frame.
+     */
+    _keyedCoords(map) {
+        if (!this._keyedCoordsCache) this._keyedCoordsCache = new WeakMap();
+        let e = this._keyedCoordsCache.get(map);
+        if (!e || e.size !== map.size) {
+            const list = [];
+            for (const [key, v] of map) {
+                const [q, r] = String(key).split(',').map(Number);
+                list.push(q, r, v);
+            }
+            e = { size: map.size, list };
+            this._keyedCoordsCache.set(map, e);
+        }
+        return e.list;
+    },
+
     renderReachableHexes(ctx) {
         if (!this.reachableHexes) return;
 
@@ -1076,8 +1121,9 @@ Object.assign(Renderer.prototype, {
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.font = `bold ${Math.max(9, Math.round(0.34 * s))}px sans-serif`;
-            for (const [key, d] of later) {
-                const [q, r] = key.split(',').map(Number);
+            const L = this._keyedCoords(later);
+            for (let i = 0; i < L.length; i += 3) {
+                const q = L[i], r = L[i + 1], d = L[i + 2];
                 const pos = this.getHexPixelPos(q, r);
                 const sc = this.camera.worldToScreen(pos.x, pos.y);
                 if (sc.x < -50 || sc.x > this.canvas.width + 50 || sc.y < -50 || sc.y > this.canvas.height + 50) continue;
@@ -1104,8 +1150,9 @@ Object.assign(Renderer.prototype, {
             ctx.restore();
         }
 
-        for (const [key] of this.reachableHexes) {
-            const [q, r] = key.split(',').map(Number);
+        const R = this._keyedCoords(this.reachableHexes);
+        for (let i = 0; i < R.length; i += 3) {
+            const q = R[i], r = R[i + 1];
             const pos = this.getHexPixelPos(q, r);
             const screen = this.camera.worldToScreen(pos.x, pos.y);
             const s = size * this.camera.zoom;

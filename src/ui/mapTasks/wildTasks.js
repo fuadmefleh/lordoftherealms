@@ -40,6 +40,7 @@ import { WildTasks as Rules } from '../../systems/wildTasks.js';
 import { Foraging, Hunting } from '../../player/foraging.js';
 import { HuntingBow } from '../../player/huntingBow.js';
 import { FoodSkills } from '../../systems/foodSkills.js';
+import { FishingRods } from '../../player/fishingRods.js';
 import { drawMapMarker } from '../mapInk.js';
 import { FishFed } from '../fishFed.js';
 
@@ -148,21 +149,24 @@ function _spawnNpc(type, at, rng, name) {
 // ──────────────────────────────────────────────
 
 /**
- * Put a line in at `spot`. `onBite(struck)` gets true (struck in time),
- * false (too slow) or null (nothing bit); `onLeave()` when you walk off.
+ * Put a line in at `spot`. `onBite(struck, line)` gets true (struck in time),
+ * false (too slow) or null (nothing bit), and the line (its float `to`, how
+ * far `offshore` it lay); `onLeave()` when you walk off.
  */
 // Open water a float can sit on (not the wet, walkable shore at its edge)
 const _isWater = (t) => !!(t && (t._sea || (t.subTerrain && /water/.test(t.subTerrain.id || '')) || (t._wet && t.subTerrain && !t.subTerrain.passable)));
 // Any water you might choose to fish (Fish Here is offered on the wet shore too)
 const _isWet = (t) => !!(t && (t._wet || _isWater(t)));
-/** How far out a line is cast (tiles). */
-const CAST_REACH = 3;
+/** How far out a line is cast (tiles): the task's reach (player/fishingRods.js), else a cut pole's. */
+const _reach = (ctx) => Math.max(1, _num(ctx && ctx.reach, FishingRods.cfg().baseReach));
+const _within = (t, me, reach) => !!t && Math.max(Math.abs(t.q - me.q), Math.abs(t.r - me.r)) <= reach;
 
-/** The water tile nearest a point (within 4), or null. */
-function _nearestWater(me) {
+/** The water tile nearest a point (within `radius`, at least 4), or null. */
+function _nearestWater(me, radius = 4) {
+    const R = Math.max(4, Math.round(radius));
     let best = Infinity, at = null;
-    for (let dr = -4; dr <= 4; dr++) {
-        for (let dq = -4; dq <= 4; dq++) {
+    for (let dr = -R; dr <= R; dr++) {
+        for (let dq = -R; dq <= R; dq++) {
             if (!_isWater(InnerMap.getTile(me.q + dq, me.r + dr))) continue;
             const d = Math.abs(dq) + Math.abs(dr);
             if (d && d < best) { best = d; at = { q: me.q + dq, r: me.r + dr }; }
@@ -171,24 +175,44 @@ function _nearestWater(me) {
     return at;
 }
 
+/** How far a water tile lies out from dry land (tiles, up to `max`): 0 on the wet shore. */
+function _offshore(at, max = 9) {
+    if (!at || !_isWater(InnerMap.getTile(at.q, at.r))) return 0;
+    for (let d = 1; d <= max; d++) {
+        for (let dr = -d; dr <= d; dr++) {
+            for (let dq = -d; dq <= d; dq++) {
+                if (Math.max(Math.abs(dq), Math.abs(dr)) !== d) continue;
+                const t = InnerMap.getTile(at.q + dq, at.r + dr);
+                if (t && !_isWater(t)) return d - 1;
+            }
+        }
+    }
+    return max;
+}
+
 /**
  * Where the float lands: the water you chose (Fish Here on that tile) when
- * it is within a cast, else out past the nearest water, one to CAST_REACH
- * tiles from the bank, as far as the water goes that way.
+ * it is within your reach, else out past the nearest water toward it, from
+ * half your reach to all of it from where you stand, as far as the water
+ * goes that way.
  */
 function _castTo(ctx) {
     const me = _me();
+    const reach = _reach(ctx);
     const t = ctx.castTarget;
-    if (t && Math.max(Math.abs(t.q - me.q), Math.abs(t.r - me.r)) <= CAST_REACH && _isWet(InnerMap.getTile(t.q, t.r))) return { q: t.q, r: t.r };
-    const w = _nearestWater(me);
+    if (_within(t, me, reach) && _isWet(InnerMap.getTile(t.q, t.r))) return { q: t.q, r: t.r };
+    const w = _nearestWater(me, reach);
     if (!w) return null;
     const dq = Math.sign(w.q - me.q), dr = Math.sign(w.r - me.r);
-    const want = 1 + Math.floor(ctx.rng() * CAST_REACH);
-    let to = w;
-    for (let k = 1; k <= CAST_REACH; k++) {
+    const want = Math.max(1, reach - Math.floor(ctx.rng() * Math.ceil(reach / 2)));
+    let to = w, wet = false;
+    for (let k = 1; k <= reach; k++) {
         const n = { q: me.q + dq * k, r: me.r + dr * k };
-        if (k > want || !_isWater(InnerMap.getTile(n.q, n.r))) { if (k > 1) break; continue; }
-        to = n;
+        if (_isWater(InnerMap.getTile(n.q, n.r))) {
+            to = n;
+            wet = true;
+            if (k >= want) break;
+        } else if (wet || k > want) break;
     }
     return to;
 }
@@ -211,7 +235,7 @@ function _rodPose(ctx, dt) {
     if (ctx.rodFrom !== key) {
         ctx.rodFrom = key;
         const t = ctx.castTarget;
-        ctx.rodToward = t && Math.max(Math.abs(t.q - me.q), Math.abs(t.r - me.r)) <= CAST_REACH ? t : _nearestWater(me);
+        ctx.rodToward = _within(t, me, _reach(ctx)) ? t : _nearestWater(me, _reach(ctx));
     }
     const toward = (L && L.to) || ctx.rodToward;
     const bobber = L && L.to ? { q: L.to.q, r: L.to.r, bite: L.state === 'bite' } : null;
@@ -222,7 +246,8 @@ function _castLine(ctx, spot, luck, onBite, onLeave, skill = null) {
     const c = Rules.cfg('fish');
     const mark = ctx.mark(spot, { glyph: c.glyph || 'fish', label: c.waiting, passive: true, line: true });
     // skill: the angler's edge (systems/foodSkills.js fishing): more bites, longer to strike
-    ctx.line = { spot, to: _castTo(ctx), mark, state: 'wait', t: _between(ctx.rng, c.wait || [1.5, 4], 2.5), luck, onBite, onLeave, skill };
+    const to = _castTo(ctx);
+    ctx.line = { spot, to, offshore: _offshore(to, FishingRods.cfg().maxReach + 1), mark, state: 'wait', t: _between(ctx.rng, c.wait || [1.5, 4], 2.5), luck, onBite, onLeave, skill };
 }
 
 function _endLine(ctx) {
@@ -257,19 +282,19 @@ function _lineTick(ctx, dt) {
         } else {
             _endLine(ctx);
             ctx.note(c.quiet);
-            L.onBite(null);
+            L.onBite(null, L);
         }
     } else if (L.state === 'bite') {
         _endLine(ctx);
         ctx.note(c.late);
-        L.onBite(false);
+        L.onBite(false, L);
     }
 }
 
 function _lineButtons(ctx) {
     const L = ctx.line;
     if (!L || L.state !== 'bite') return [];
-    return [{ label: Rules.cfg('fish').strike, hot: true, act: () => { if (ctx.line === L) { _endLine(ctx); L.onBite(true); } } }];
+    return [{ label: Rules.cfg('fish').strike, hot: true, act: () => { if (ctx.line === L) { _endLine(ctx); L.onBite(true, L); } } }];
 }
 
 // ──────────────────────────────────────────────
@@ -624,19 +649,22 @@ export const WildTaskRunner = {
     // ── Fishing ──
 
     /**
-     * o: { player, casts, rollFish() → fish, waterDir? {x, y}, spots?, target? {q, r} (the water to cast into) }.
-     * onDone(catches, { casts, snapped }) at the end (or on giving up, with
-     * what you have); onDone(null) when it couldn't start. The fishing level
-     * (systems/foodSkills.js) gives more bites, longer to strike, more landed.
+     * o: { player, casts, rollFish({ offshore, to }) → fish, waterDir? {x, y}, spots?, target? {q, r} (the water to cast into) }.
+     * onDone(catches, { casts, snapped, broke: [rod names] }) at the end (or on
+     * giving up, with what you have); onDone(null) when it couldn't start. The
+     * fishing level (systems/foodSkills.js) gives more bites, longer to strike,
+     * more landed; the rod in hand (player/fishingRods.js) a little more of
+     * each and the reach of the cast (a long one, far out, fishes deeper:
+     * rollFish gets how far offshore the float lay). Each cast wears the rod.
      */
     fish(game, o, onDone) {
         const c = Rules.cfg('fish');
         const player = o.player;
         const luck = _num(player.luck, 5);
         const str = _num(player.strength, 5);
-        const skill = FoodSkills.fishing(player);
+        let skill = FishingRods.angler(player);
         const catches = [];
-        const tally = { casts: 0, snapped: 0 };
+        const tally = { casts: 0, snapped: 0, broke: [] };
         const custom = {
             setup(ctx) {
                 const w = _wild(ctx);
@@ -650,6 +678,7 @@ export const WildTaskRunner = {
                 ctx.fishSpots = MapTasks.pickSpread(water, Math.max(1, _num(c.spots, 2)), ctx.rng, 6);
                 // The water you chose to fish (Fish Here): the float lands there
                 ctx.castTarget = o.target ? { q: o.target.q, r: o.target.r } : null;
+                ctx.reach = skill.reach;
                 ctx.total = Math.max(1, _num(o.casts, 3));
                 ctx.si = 0;
                 ctx.here = 0;
@@ -662,19 +691,30 @@ export const WildTaskRunner = {
                 ctx.mark(spot, { glyph: c.glyph || 'fish', label: c.cast, work: _num(c.castSeconds, 1), cast: true, onDone: () => this._cast(ctx, spot) });
             },
             _cast(ctx, spot) {
-                _castLine(ctx, spot, luck, (bite) => {
+                _castLine(ctx, spot, luck, (bite, line) => {
                     ctx.done++;
                     ctx.here++;
                     tally.casts++;
+                    let lost = false;
                     if (bite === true) {
-                        const f = o.rollFish();
+                        const f = o.rollFish({ offshore: _num(line && line.offshore), to: line && line.to });
                         if (f.rarity === 'junk' || ctx.rng() < Math.min(0.98, Rules.landChance(f.fight, str) + skill.land)) {
                             catches.push(f);
                             ctx.note(fmt(c.caught, { icon: f.icon, name: f.bigger ? `${f.label} (a big one!)` : f.label }));
                         } else {
+                            lost = true;
                             tally.snapped++;
                             ctx.note(fmt(c.snapped, { name: f.label }));
                         }
+                    }
+                    // The cast wears the rod in hand; a broken one gives way to the next (or a cut pole)
+                    const worn = FishingRods.wear(player, { lost });
+                    if (worn.broke) {
+                        tally.broke.push(worn.name);
+                        skill = FishingRods.angler(player);
+                        ctx.reach = skill.reach;
+                        ctx.rodFrom = null;
+                        ctx.note(fmt(c.rodBroke || 'Your {rod} breaks! You fish on with your {next}.', { rod: worn.name, next: worn.nextName }));
                     }
                     if (ctx.here >= _num(c.castsPerSpot, 2) && ctx.fishSpots.length > 1 && ctx.done < ctx.total) {
                         ctx.si++;
@@ -1071,3 +1111,6 @@ export const WildTaskRunner = {
         }, () => { _release(npc); onDone(null); });
     },
 };
+
+/** Where a line goes, for the specs: castTo(ctx { reach, rng, castTarget? }), offshore(at), nearestWater(me, radius). */
+export const CastLines = { castTo: _castTo, offshore: _offshore, nearestWater: _nearestWater };

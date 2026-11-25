@@ -28,6 +28,10 @@ function makePuffs() {
     return puffs;
 }
 
+// A hex's neighbours by row parity (renderHexGrid's offset grid), made once rather than per hex per frame
+const NB_EVEN = [[-1, 0], [1, 0], [0, -1], [1, -1], [0, 1], [1, 1]];
+const NB_ODD = [[-1, 0], [1, 0], [-1, -1], [0, -1], [-1, 1], [0, 1]];
+
 const hash01 = (q, r) => {
     let h = Math.imul(q, 374761393) + Math.imul(r, 668265263);
     h = Math.imul(h ^ (h >>> 13), 1274126177);
@@ -70,8 +74,7 @@ Object.assign(Renderer.prototype, {
         const world = this.world;
         const even = (r & 1) === 0;
         // Even rows sit half a hex right (see renderHexGrid), so their diagonal neighbours lean right
-        const d = even ? [[-1, 0], [1, 0], [0, -1], [1, -1], [0, 1], [1, 1]]
-            : [[-1, 0], [1, 0], [-1, -1], [0, -1], [-1, 1], [0, 1]];
+        const d = even ? NB_EVEN : NB_ODD;
         for (const [dq, dr] of d) {
             const nr = r + dr;
             if (nr < 0 || nr >= world.height) continue;

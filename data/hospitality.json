@@ -88,7 +88,13 @@
             "chance": 0.35,
             "minFromTown": 2,
             "spacing": 4,
-            "max": 40
+            "max": 40,
+            "_sprites": "How a roadhouse is drawn on its hex on the world map (ui/renderer/overlays.js renderRoadhouseBuildings): variants in the format of data/hinterland.json sprites (layers of { img, x, y, s } under assets/tiles/, x/y the image's bottom-centre in hex radii, s = 1 the settlements' scale), one picked per hex by a hash. The renderer shifts (and may mirror) the group so its buildings stand clear of the road and any river through the hex, inside it; keep a variant compact (about a hex radius wide) so it fits beside a road.",
+            "sprites": [
+                [{ "img": "buildings/barnWood00.png", "x": 0.2, "y": 0.1, "s": 0.75 }, { "img": "pop_center_images/house06.png", "x": -0.1, "y": 0.3 }, { "img": "pop_center_images/sign00.png", "x": 0.3, "y": 0.4, "s": 0.5 }],
+                [{ "img": "buildings/barn00.png", "x": -0.24, "y": 0.1, "s": 0.75 }, { "img": "pop_center_images/house08.png", "x": 0.08, "y": 0.3 }, { "img": "pop_center_images/sign00.png", "x": -0.34, "y": 0.4, "s": 0.5 }],
+                [{ "img": "pop_center_images/house09.png", "x": -0.04, "y": 0.26 }, { "img": "buildings/barnWood00.png", "x": 0.3, "y": 0.36, "s": 0.62 }, { "img": "pop_center_images/sign00.png", "x": -0.38, "y": 0.4, "s": 0.5 }]
+            ]
         },
         "npc": {
             "priceStep": 0.05,
@@ -130,7 +136,17 @@
                 "regular": { "weight": 2, "rep": 2, "nights": 15, "rate": 0.8, "text": "A wool merchant swears {house} is the best bed between here and the coast, and books a room for the season ({gold} gold up front)." }
             }
         },
-        "maxNews": 20
+        "maxNews": 20,
+        "roomLocks": {
+            "_doc": "Locked rooms (systems/roomLocks.js, world/innerMap/guestRooms.js). kinds: the houses whose rooms are let. rooms: the planner's room ids (data/interiorPlans.json, a split room's _1, _2… dropped) that are locked — 'guest' (let to guests, numbered No. 1… on the ground floor, No. 21… on the 2nd floor, No. 31… on the 3rd: perFloor) or 'staff' (the keeper's: the kitchen); every other room stays open. keyTiers: bookings that come with a room key; tierRooms: the rooms a tier's key prefers. A picked door stays open the rest of the day, unless the keeper finds it open when you leave (relock: the chance). Caught at a door: thrown out and barred for banDays [min, max] days. Lock difficulties: data/skillPacks/social.json lockpicking.locks.roomDoors.",
+            "kinds": ["inn", "hotel", "guest_house", "roadhouse"],
+            "rooms": { "guest": "guest", "suite": "guest", "kitchen": "staff" },
+            "keyTiers": ["private", "suite"],
+            "tierRooms": { "suite": ["suite"], "private": ["guest"] },
+            "perFloor": 10,
+            "relock": 0.35,
+            "banDays": [4, 10]
+        }
     },
     "names": {
         "guest_house": {

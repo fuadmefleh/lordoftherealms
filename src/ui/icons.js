@@ -582,7 +582,7 @@ const EMOJI_GLYPHS = {
 const MAP_GLYPHS = {
     '🌲': 'tree', '🌳': 'oak', '🌴': 'island', '🍂': 'oak', '🌿': 'wheat', '⛰': 'mountain', '🏔': 'mountain', '🗻': 'mountain',
     '🏜': 'sun', '❄': 'snowflake', '⛏': 'ore', '✨': 'nugget', '🔶': 'ore', '🥇': 'ingot', '🥈': 'ingot',
-    '⚫': 'coal', '🛢': 'barrel', '🧂': 'salt', '🌶': 'spice', '🐄': 'cow', '🐑': 'sheep', '🐴': 'horseshoe', '🐎': 'horseshoe',
+    '⚫': 'coal', '🛢': 'barrel', '🍷': 'tankard', '🧂': 'salt', '🌶': 'spice', '🐄': 'cow', '🐑': 'sheep', '🐴': 'horseshoe', '🐎': 'horseshoe',
     '🏇': 'horseshoe', '🧱': 'brick', '🎣': 'fish', '🐟': 'fish', '🌾': 'wheat', '💎': 'gem', '💰': 'coins',
     '🏚': 'ruin', '🗿': 'stones', '⛲': 'droplet', '🔭': 'spyglass', '⚱': 'urn', '🦴': 'bone', '⛈': 'storm', '🏝': 'island',
     '🌕': 'moon', '🔴': 'orb', '🏫': 'book', '🎓': 'book', '🗽': 'obelisk', '🏟': 'tower', '🌉': 'bridge', '🌊': 'wave',

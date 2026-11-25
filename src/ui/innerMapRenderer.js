@@ -669,6 +669,8 @@ export const InnerMapRenderer = {
         this._renderGround(ctx, camera);
         // Building lots: stakes, cord and a sign (world/innerMap/lots.js)
         if (this._renderLotLayer) this._renderLotLayer(ctx, camera);
+        // An inn's let rooms: doors shut and locked to you, yours ajar, their numbers (innerMapLayers/roomDoors.js)
+        if (this._renderRoomDoors) this._renderRoomDoors(ctx, camera);
 
         // ── Layer 1.5: Ground overlays (water / ice / waterfall — flat tiles) ──
         this._renderGroundOverlays(ctx, camera);

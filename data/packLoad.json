@@ -41,7 +41,7 @@
 
         "clothes": 2, "boots": 3, "wool_cloak": 4, "fur_coat": 6, "fine_garments": 2,
 
-        "tools": 8, "steel_tools": 8, "waterskin": 1, "candles": 0.5, "fishing_net": 6, "fish_trap": 5, "fishing_spear": 4,
+        "tools": 8, "steel_tools": 8, "waterskin": 1, "candles": 0.5, "fishing_net": 6, "fish_trap": 5, "fishing_spear": 4, "ash_rod": 2, "greenheart_rod": 3, "master_rod": 2.5,
         "bone_skates": 2, "iron_skates": 3, "treasure_map": 0, "book": 2, "rare_book": 2, "compass": 0.5, "torch": 1, "lantern": 2,
         "barrel": 15, "saddle": 15, "whetstone": 1, "handcart": 0, "horse_cart": 0,
 

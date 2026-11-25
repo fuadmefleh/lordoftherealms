@@ -5,6 +5,47 @@ import { Hex, Religion, Economy, Infrastructure } from './_imports.js';
 // Open water a painted river (no flow direction) runs out into
 const RIVER_WATER_IDS = new Set(['ocean', 'deep_ocean', 'lake', 'sea', 'coast']);
 
+// getTileImage's variant lists, made once (a fresh array for every hex, every frame, before)
+const TV = {
+    none: [],
+    oceanCalm: ['ocean/hexOceanCalm00.png', 'ocean/hexOceanCalm01.png', 'ocean/hexOceanCalm02.png', 'ocean/hexOceanCalm03.png'],
+    reef: ['ocean/hexReef00.png', 'ocean/hexReef01.png', 'ocean/hexReef02.png', 'ocean/hexReef03.png'],
+    fjord: ['cold/hexFjord00.png', 'cold/hexFjord01.png', 'cold/hexFjord02.png', 'cold/hexFjord03.png'],
+    skerry: ['cold/hexSkerry00.png', 'cold/hexSkerry01.png'],
+    islandRocky: ['ocean/hexIslandRocky00.png', 'ocean/hexIslandRocky01.png'],
+    islandSandy: ['ocean/hexIslandSandy00.png', 'ocean/hexIslandSandy01.png', 'ocean/hexIslandRocky00.png', 'ocean/hexIslandRocky01.png'],
+    lake: ['ocean/hexLake00.png', 'ocean/hexLake01.png', 'ocean/hexLake02.png', 'ocean/hexLake03.png'],
+    shingle: ['temperate/hexShingle00.png', 'temperate/hexShingle01.png', 'temperate/hexShingle02.png', 'temperate/hexShingle03.png'],
+    sandPalms: ['tropics_wetlands/hexSandPalms00.png', 'tropics_wetlands/hexSandPalms01.png', 'tropics_wetlands/hexSandPalms02.png', 'tropics_wetlands/hexSandPalms03.png'],
+    sand: ['tropics_wetlands/hexSand00.png', 'tropics_wetlands/hexSand01.png', 'tropics_wetlands/hexSand02.png', 'tropics_wetlands/hexSand03.png'],
+    dirt: ['hexDirt01.png', 'hexDirt02.png'],
+    plains: ['hexPlains01.png', 'hexPlains02.png', 'hexPlains03.png'],
+    forestBroadleaf: ['hexForestBroadleaf01.png', 'hexForestBroadleaf02.png', 'hexForestBroadleaf03.png'],
+    mountainSnow: ['cold/hexMountainSnow00.png', 'cold/hexMountainSnow01.png', 'cold/hexMountainSnow02.png', 'cold/hexMountainSnow03.png'],
+    mountain: ['hexMountain01.png', 'hexMountain02.png', 'hexMountain03.png'],
+    hillsColdSnowCovered: ['cold/hexHillsColdSnowCovered00.png', 'cold/hexHillsColdSnowCovered01.png', 'cold/hexHillsColdSnowCovered02.png', 'cold/hexHillsColdSnowCovered03.png'],
+    hillsCold: ['cold/hexHillsCold00.png', 'cold/hexHillsCold01.png', 'cold/hexHillsCold02.png', 'cold/hexHillsCold03.png'],
+    hills: ['hexHills01.png', 'hexHills02.png', 'hexHills03.png'],
+    highlands: ['hexHighlands01.png', 'hexHighlands02.png', 'hexHighlands03.png'],
+    swamp: ['tropics_wetlands/hexSwamp00.png', 'tropics_wetlands/hexSwamp01.png', 'tropics_wetlands/hexSwamp02.png', 'tropics_wetlands/hexSwamp03.png'],
+    wetlands: ['tropics_wetlands/hexWetlands00.png', 'tropics_wetlands/hexWetlands01.png', 'tropics_wetlands/hexWetlands02.png', 'tropics_wetlands/hexWetlands03.png'],
+    snowField: ['cold/hexSnowField00.png', 'cold/hexSnowField01.png', 'cold/hexSnowField02.png', 'cold/hexSnowField03.png'],
+    plainsCold: ['cold/hexPlainsCold00.png', 'cold/hexPlainsCold01.png', 'cold/hexPlainsCold02.png', 'cold/hexPlainsCold03.png'],
+    scrublands: ['hexScrublands01.png', 'hexScrublands02.png', 'hexScrublands03.png'],
+    glacierPeak: ['cold/hexGlacierPeak00.png', 'cold/hexGlacierPeak01.png'],
+    glacier: ['cold/hexGlacier00.png', 'cold/hexGlacier01.png', 'cold/hexGlacier02.png', 'cold/hexGlacier03.png'],
+    canyon: ['desert/hexCanyon00.png', 'desert/hexCanyon01.png', 'desert/hexCanyon02.png'],
+    badlands: ['desert/hexBadlands00.png', 'desert/hexBadlands01.png', 'desert/hexBadlands02.png', 'desert/hexBadlands03.png'],
+    volcano: ['volcanic/hexVolcano00.png', 'volcanic/hexVolcano01.png'],
+    ashPlains: ['volcanic/hexAshPlains00.png', 'volcanic/hexAshPlains01.png', 'volcanic/hexAshPlains02.png', 'volcanic/hexAshPlains03.png'],
+    pineSnow: ['cold/hexForestPine00.png', 'cold/hexForestPine01.png', 'cold/hexForestPine02.png', 'cold/hexForestPine03.png', 'cold/hexForestPineSnowCovered00.png', 'cold/hexForestPineSnowCovered01.png'],
+    pine: ['cold/hexForestPine00.png', 'cold/hexForestPine01.png', 'cold/hexForestPine02.png', 'cold/hexForestPine03.png'],
+    broadleafWoods: ['hexForestBroadleaf01.png', 'hexForestBroadleaf02.png', 'hexForestBroadleaf03.png', 'hexWoodlands01.png', 'hexWoodlands02.png', 'hexWoodlands03.png'],
+    dunesRed: ['hexDesertDunes01.png', 'hexDesertDunes02.png', 'hexDesertDunes03.png', 'hexDesertRedForest00.png'],
+    dunes: ['hexDesertDunes01.png', 'hexDesertDunes02.png', 'hexDesertDunes03.png'],
+};
+for (const k of Object.keys(TV)) Object.freeze(TV[k]);
+
 Object.assign(Renderer.prototype, {
     /**
      * Load all terrain assets
@@ -348,66 +389,66 @@ Object.assign(Renderer.prototype, {
         // Simple hash for deterministic random
         const hash = (tile.q * 73856093 ^ tile.r * 19349663) % 100;
 
-        let variants = [];
+        let variants = TV.none;
         let isAnimatedWater = false;
 
         // Map terrain ID to image variants
         switch (tile.terrain.id) {
             case 'deep_ocean':
                 // Strictly dark, calm water from the ocean folder
-                variants = ['ocean/hexOceanCalm00.png', 'ocean/hexOceanCalm01.png', 'ocean/hexOceanCalm02.png', 'ocean/hexOceanCalm03.png'];
+                variants = TV.oceanCalm;
                 isAnimatedWater = true;
                 break;
             case 'ocean':
                 // Standard ocean variants from the ocean folder (an atoll's reef: terrainGen 17)
                 variants = tile._reef
-                    ? ['ocean/hexReef00.png', 'ocean/hexReef01.png', 'ocean/hexReef02.png', 'ocean/hexReef03.png']
-                    : ['ocean/hexOceanCalm00.png', 'ocean/hexOceanCalm01.png', 'ocean/hexOceanCalm02.png', 'ocean/hexOceanCalm03.png'];
+                    ? TV.reef
+                    : TV.oceanCalm;
                 isAnimatedWater = true;
                 break;
             case 'sea':
             case 'coast':
                 // Lighter ocean variants for shallower water; a fjord's deep cold water between its cliffs
                 variants = tile._fjord
-                    ? ['cold/hexFjord00.png', 'cold/hexFjord01.png', 'cold/hexFjord02.png', 'cold/hexFjord03.png']
+                    ? TV.fjord
                     // (terrainGen 17: warm coral shallows, world/landscapes17.js)
-                    : tile._reef ? ['ocean/hexReef00.png', 'ocean/hexReef01.png', 'ocean/hexReef02.png', 'ocean/hexReef03.png']
-                        : ['ocean/hexOceanCalm00.png', 'ocean/hexOceanCalm01.png', 'ocean/hexOceanCalm02.png', 'ocean/hexOceanCalm03.png'];
+                    : tile._reef ? TV.reef
+                        : TV.oceanCalm;
                 isAnimatedWater = true;
                 break;
             case 'island':
                 // Islands also use ocean folder assets; a skerry is bare rock (in cold seas, cold
                 // water and lichen), never a sandy palm isle
                 // (and no palm isle in a cold sea: any island there is rock)
-                if ((tile.temperature ?? 0.5) < 0.45) variants = ['cold/hexSkerry00.png', 'cold/hexSkerry01.png'];
-                else if (tile._skerry || (tile.temperature ?? 0.5) < 0.55) variants = ['ocean/hexIslandRocky00.png', 'ocean/hexIslandRocky01.png'];
-                else variants = ['ocean/hexIslandSandy00.png', 'ocean/hexIslandSandy01.png', 'ocean/hexIslandRocky00.png', 'ocean/hexIslandRocky01.png'];
+                if ((tile.temperature ?? 0.5) < 0.45) variants = TV.skerry;
+                else if (tile._skerry || (tile.temperature ?? 0.5) < 0.55) variants = TV.islandRocky;
+                else variants = TV.islandSandy;
                 break;
             case 'lake':
                 // Lake uses ocean folder variants specifically for lakes
-                variants = ['ocean/hexLake00.png', 'ocean/hexLake01.png', 'ocean/hexLake02.png', 'ocean/hexLake03.png'];
+                variants = TV.lake;
                 isAnimatedWater = true;
                 break;
             case 'beach':
                 // Temperate shores: cool shingle and dune grass, no palms
                 if ((tile.temperature ?? 0.7) < 0.6) {
-                    variants = ['temperate/hexShingle00.png', 'temperate/hexShingle01.png', 'temperate/hexShingle02.png', 'temperate/hexShingle03.png'];
+                    variants = TV.shingle;
                     break;
                 }
                 // Warm shores: a mix of plain sand and palms
                 if (hash % 3 === 0) {
-                    variants = ['tropics_wetlands/hexSandPalms00.png', 'tropics_wetlands/hexSandPalms01.png', 'tropics_wetlands/hexSandPalms02.png', 'tropics_wetlands/hexSandPalms03.png'];
+                    variants = TV.sandPalms;
                 } else {
-                    variants = ['tropics_wetlands/hexSand00.png', 'tropics_wetlands/hexSand01.png', 'tropics_wetlands/hexSand02.png', 'tropics_wetlands/hexSand03.png'];
+                    variants = TV.sand;
                 }
                 break;
             case 'plains':
                 // Mix of regular plains and "dirt" variants for interest?
-                if (hash < 10) variants = ['hexDirt01.png', 'hexDirt02.png'];
-                else variants = ['hexPlains01.png', 'hexPlains02.png', 'hexPlains03.png'];
+                if (hash < 10) variants = TV.dirt;
+                else variants = TV.plains;
                 break;
             case 'grassland':
-                variants = ['hexPlains01.png', 'hexPlains02.png', 'hexPlains03.png'];
+                variants = TV.plains;
                 break;
             case 'forest':
             case 'dense_forest':
@@ -418,78 +459,73 @@ Object.assign(Renderer.prototype, {
             case 'boreal_forest':
                 if (tile.temperature < 0.45 || tile.terrain.id === 'boreal_forest') {
                     // Pine / Cold forest
-                    variants = ['cold/hexForestPine00.png', 'cold/hexForestPine01.png', 'cold/hexForestPine02.png', 'cold/hexForestPine03.png'];
-                    if (tile.temperature < 0.2) {
-                        variants.push('cold/hexForestPineSnowCovered00.png', 'cold/hexForestPineSnowCovered01.png');
-                    }
+                    variants = tile.temperature < 0.2 ? TV.pineSnow : TV.pine;
                 } else if (tile.terrain.id === 'tropical_rainforest') {
                     // Jungle-ish? Use broadleaf for now, maybe add more variation
-                    variants = ['hexForestBroadleaf01.png', 'hexForestBroadleaf02.png', 'hexForestBroadleaf03.png'];
+                    variants = TV.forestBroadleaf;
                 } else {
                     // Broadleaf
-                    variants = ['hexForestBroadleaf01.png', 'hexForestBroadleaf02.png', 'hexForestBroadleaf03.png'];
-                    if (tile.terrain.id === 'woodland' || hash < 30) variants.push('hexWoodlands01.png', 'hexWoodlands02.png', 'hexWoodlands03.png');
+                    variants = (tile.terrain.id === 'woodland' || hash < 30) ? TV.broadleafWoods : TV.forestBroadleaf;
                 }
                 break;
             case 'desert':
-                variants = ['hexDesertDunes01.png', 'hexDesertDunes02.png', 'hexDesertDunes03.png'];
-                if (hash < 10) variants.push('hexDesertRedForest00.png');
+                variants = hash < 10 ? TV.dunesRed : TV.dunes;
                 break;
             case 'mountain':
             case 'snow_peak':
                 if (tile.temperature < 0.5 || tile.terrain.id === 'snow_peak') {
-                    variants = ['cold/hexMountainSnow00.png', 'cold/hexMountainSnow01.png', 'cold/hexMountainSnow02.png', 'cold/hexMountainSnow03.png'];
+                    variants = TV.mountainSnow;
                 } else {
-                    variants = ['hexMountain01.png', 'hexMountain02.png', 'hexMountain03.png'];
+                    variants = TV.mountain;
                 }
                 break;
             case 'hills':
                 if (tile.temperature < 0.2) {
-                    variants = ['cold/hexHillsColdSnowCovered00.png', 'cold/hexHillsColdSnowCovered01.png', 'cold/hexHillsColdSnowCovered02.png', 'cold/hexHillsColdSnowCovered03.png'];
+                    variants = TV.hillsColdSnowCovered;
                 } else if (tile.temperature < 0.4) {
-                    variants = ['cold/hexHillsCold00.png', 'cold/hexHillsCold01.png', 'cold/hexHillsCold02.png', 'cold/hexHillsCold03.png'];
+                    variants = TV.hillsCold;
                 } else {
-                    variants = ['hexHills01.png', 'hexHills02.png', 'hexHills03.png'];
+                    variants = TV.hills;
                 }
                 break;
             case 'highlands':
-                variants = ['hexHighlands01.png', 'hexHighlands02.png', 'hexHighlands03.png'];
+                variants = TV.highlands;
                 break;
             case 'swamp':
                 // Use new wetlands assets mixed with old marsh for variety? Or just new ones?
                 // Let's use the new high quality ones
-                variants = ['tropics_wetlands/hexSwamp00.png', 'tropics_wetlands/hexSwamp01.png', 'tropics_wetlands/hexSwamp02.png', 'tropics_wetlands/hexSwamp03.png'];
+                variants = TV.swamp;
                 if (hash % 2 === 0) {
-                    variants = ['tropics_wetlands/hexWetlands00.png', 'tropics_wetlands/hexWetlands01.png', 'tropics_wetlands/hexWetlands02.png', 'tropics_wetlands/hexWetlands03.png'];
+                    variants = TV.wetlands;
                 }
                 break;
             case 'snow':
             case 'ice':
-                variants = ['cold/hexSnowField00.png', 'cold/hexSnowField01.png', 'cold/hexSnowField02.png', 'cold/hexSnowField03.png'];
+                variants = TV.snowField;
                 break;
             case 'tundra':
-                variants = ['cold/hexPlainsCold00.png', 'cold/hexPlainsCold01.png', 'cold/hexPlainsCold02.png', 'cold/hexPlainsCold03.png'];
+                variants = TV.plainsCold;
                 break;
             case 'savanna':
-                variants = ['hexScrublands01.png', 'hexScrublands02.png', 'hexScrublands03.png'];
+                variants = TV.scrublands;
                 break;
             // ── terrainGen 17 landscapes (world/landscapes17.js; art: scripts/terrain_art/landscape_tiles.py) ──
             case 'glacier':
                 // an ice-capped peak where the land stands high, a crevassed ice field in the cold valleys
                 variants = (tile.elevation ?? 0.9) >= 0.88
-                    ? ['cold/hexGlacierPeak00.png', 'cold/hexGlacierPeak01.png']
-                    : ['cold/hexGlacier00.png', 'cold/hexGlacier01.png', 'cold/hexGlacier02.png', 'cold/hexGlacier03.png'];
+                    ? TV.glacierPeak
+                    : TV.glacier;
                 break;
             case 'badlands':
                 variants = tile._canyon
-                    ? ['desert/hexCanyon00.png', 'desert/hexCanyon01.png', 'desert/hexCanyon02.png']
-                    : ['desert/hexBadlands00.png', 'desert/hexBadlands01.png', 'desert/hexBadlands02.png', 'desert/hexBadlands03.png'];
+                    ? TV.canyon
+                    : TV.badlands;
                 break;
             case 'volcano':
-                variants = ['volcanic/hexVolcano00.png', 'volcanic/hexVolcano01.png'];
+                variants = TV.volcano;
                 break;
             case 'ash_plains':
-                variants = ['volcanic/hexAshPlains00.png', 'volcanic/hexAshPlains01.png', 'volcanic/hexAshPlains02.png', 'volcanic/hexAshPlains03.png'];
+                variants = TV.ashPlains;
                 break;
             default:
                 return null;

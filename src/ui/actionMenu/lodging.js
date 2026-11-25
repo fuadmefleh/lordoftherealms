@@ -103,7 +103,11 @@ Object.assign(ActionMenu, {
         let html = '';
         if (v.underConstruction) return `${html}<div style="color:#d8c89f;">The builders are still at work. No guests yet.</div>`;
         if (q.full) html += '<div style="color:#e0a080; margin:4px 0;">"Full up tonight, I\'m afraid — unless you\'ll pay for the best we have."</div>';
-        if (q.bookedHere) html += `<div style="color:#9fd89f; margin:4px 0;">You have ${esc((Hospitality.tier(player.lodging.tier) || {}).name || 'a room').toLowerCase()} here tonight.</div>`;
+        if (q.bannedUntil) html += `<div style="color:#e08080; margin:4px 0;">"You've a nerve, showing your face here." You are barred from the house for ${q.bannedUntil - world.day} more days.</div>`;
+        if (q.bookedHere) {
+            const room = player.lodging.room;
+            html += `<div style="color:#9fd89f; margin:4px 0;">You have ${esc((Hospitality.tier(player.lodging.tier) || {}).name || 'a room').toLowerCase()} here tonight.${room && room.no != null ? ` 🗝️ Your key: <b>No. ${room.no}</b>${room.floor ? ' (upstairs)' : ''}.` : ''}</div>`;
+        }
         else if (q.booked) html += `<div style="color:#d8c89f; margin:4px 0;">You already have a bed for tonight at ${esc(player.lodging.name)}.</div>`;
         html += '<div style="font-weight:bold; margin-top:8px;">Rooms for the night</div>';
         for (const t of q.tiers) {

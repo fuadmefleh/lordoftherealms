@@ -1,6 +1,6 @@
 // Renderer — overlays methods.
 import { Renderer, HEX_FACE_DY } from './core.js';
-import { Hex, Religion, Economy, Infrastructure, WorldUnit, Hinterland } from './_imports.js';
+import { Hex, Religion, Economy, Infrastructure, WorldUnit, Hinterland, Estates } from './_imports.js';
 import { drawGlyph, drawIcon } from '../icons.js';
 import { NpcPortrait } from '../npcPortrait.js';
 import { drawMapMarker, drawMarkerPlate, fontPx, readableFont } from '../mapInk.js';
@@ -620,8 +620,133 @@ Object.assign(Renderer.prototype, {
     },
 
     /**
-     * Roadhouses on the open road (systems/hospitality.js): a bed on a small
-     * plate where the hex is explored, the house's name when zoomed in.
+     * Where a roadhouse's buildings stand on its hex: the variant (a hash of
+     * the hex), maybe mirrored, and the group's shift in hex radii, chosen so
+     * the buildings' ground stands clear of the road and the river crossing
+     * the hex (each a line from the centre to the edge it leaves by) and
+     * inside the hex, as near the centre as that allows; set back behind the
+     * road on a tie. Worked out once per site, when its sprites have loaded,
+     * and kept (null until then).
+     */
+    _roadhouseLayout(site, tile) {
+        if (!this._rhLayouts || this._rhLayoutsWorld !== this.world) {
+            this._rhLayouts = new Map();
+            this._rhLayoutsWorld = this.world;
+        }
+        const key = site.q * 100003 + site.r;
+        let L = this._rhLayouts.get(key);
+        if (L && L.links === tile.roadLinks) return L;
+        const variants = Hospitality.config().wayside.sprites;
+        if (!Array.isArray(variants) || !variants.length) {
+            L = { variant: null, ox: 0, oy: 0, links: tile.roadLinks };
+            this._rhLayouts.set(key, L);
+            return L;
+        }
+        const base = variants[((site.q * 7 + site.r * 13) >>> 0) % variants.length];
+        const layers = (Array.isArray(base) ? base : [base]).map(raw => (typeof raw === 'string' ? { img: raw } : raw));
+        // Each building's ground: the lower part of its image, in hex radii
+        const px = Math.sqrt(3) / 256;
+        const boxes = [];
+        for (const l of layers) {
+            const img = l.img ? this.lazySprite(l.img) : null;
+            if (!img) return null;
+            const w = img.width * px * (l.s || 1), h = img.height * px * (l.s || 1);
+            const y = l.y != null ? l.y : 0.5;
+            // (a small prop — the sign — may stand on the verge, just not in the middle of the road)
+            boxes.push({ x: l.x || 0, w: w * 0.45, y0: y - h * 0.4, y1: y, prop: w < 0.3 });
+        }
+        // The road's and river's lines out of the hex, sampled as points
+        const world = this.world;
+        const nb = Hex.neighbors(site.q, site.r);
+        const c = this.getHexPixelPos(site.q, site.r);
+        const pts = [];
+        const addDirs = (dirs) => {
+            for (const i of dirs) {
+                const p = this.getHexPixelPos(nb[i].q, nb[i].r);
+                const dx = p.x - c.x, dy = p.y - c.y, d = Math.hypot(dx, dy) || 1;
+                for (let k = 0; k <= 8; k++) pts.push((dx / d) * 0.9 * k / 8, (dy / d) * 0.9 * k / 8);
+            }
+        };
+        if (this.roadDirections) addDirs(this.roadDirections(tile, site.q, site.r, world.width, world.height));
+        if (tile.hasRiver && this.riverDirections) addDirs(this.riverDirections(tile, site.q, site.r, world.width, world.height));
+        let best = null, bestScore = -Infinity;
+        for (const m of [1, -1]) {
+            for (let oy = -0.55; oy <= 0.451; oy += 0.05) {
+                for (let ox = -0.5; ox <= 0.501; ox += 0.05) {
+                    let clear = 1, propClear = 1, out = 0;
+                    for (const b of boxes) {
+                        const x0 = m * b.x + ox - b.w, x1 = m * b.x + ox + b.w, y0 = b.y0 + oy, y1 = b.y1 + oy;
+                        for (let k = 0; k < pts.length; k += 2) {
+                            const ex = Math.max(x0 - pts[k], 0, pts[k] - x1), ey = Math.max(y0 - pts[k + 1], 0, pts[k + 1] - y1);
+                            const d = Math.hypot(ex, ey);
+                            if (b.prop) { if (d < propClear) propClear = d; } else if (d < clear) clear = d;
+                        }
+                        out = Math.max(out, Math.hypot(Math.max(Math.abs(x0), Math.abs(x1)), y1) - 0.84, Math.hypot(Math.max(Math.abs(x0), Math.abs(x1)), y0) - 0.84);
+                    }
+                    const score = Math.min(clear, 0.14) * 3 - (propClear < 0.03 ? 0.1 : 0) - Math.max(0, out) * 4 - Math.hypot(ox, oy) * 0.25 - (oy > 0 ? 0.08 : 0) - (m < 0 ? 0.005 : 0);
+                    if (score > bestScore) { bestScore = score; best = { m, ox, oy }; }
+                }
+            }
+        }
+        const variant = best.m > 0 ? layers : layers.map(l => ({ ...l, x: -(l.x || 0) }));
+        L = { variant, ox: best.ox, oy: best.oy, links: tile.roadLinks };
+        this._rhLayouts.set(key, L);
+        return L;
+    },
+
+    /**
+     * May a roadhouse's buildings be drawn on this hex? Not where the hex
+     * already shows a building (the player's, a shrine, a rural site, an
+     * estate's farm, a ruin or other place of note): there it keeps its marker.
+     * Asked again once a day (kept as day * 2 + answer, per hex).
+     */
+    _roadhouseDrawn(tile, q, r) {
+        if (!tile) return false;
+        const world = this.world, day = world.day || 0;
+        if (!this._rhDrawn || this._rhDrawnWorld !== world) {
+            this._rhDrawn = new Map();
+            this._rhDrawnWorld = world;
+        }
+        const key = q * 100003 + r;
+        const memo = this._rhDrawn.get(key);
+        if (memo !== undefined && Math.floor(memo / 2) === day) return memo % 2 === 1;
+        const ok = !(tile.settlement || tile.playerProperty || tile.religiousBuilding || tile.improvement || tile.holySite || tile.culturalBuilding)
+            && !Hinterland.siteAt(world, q, r)
+            && !(Estates.enabled() && Estates.fieldAt(world, q, r));
+        this._rhDrawn.set(key, day * 2 + (ok ? 1 : 0));
+        return ok;
+    },
+
+    /**
+     * Roadhouses on the open road (systems/hospitality.js), drawn as buildings
+     * at the settlements' scale (variants in data/hospitality.json
+     * config.wayside.sprites): a timbered house, a stable or barn, the inn's
+     * hanging sign, set to the side of the road. Called with the rural sites,
+     * beneath the towns, the path and the units.
+     */
+    renderRoadhouseBuildings(ctx) {
+        if (!this.world || !Hospitality.enabled()) return;
+        const sites = Hospitality._waysideSites(this.world);
+        if (!sites.length) return;
+        const rs = this.hexSize * this.camera.zoom;
+        const pad = rs * 1.5;
+        const cw = this.canvas.width, ch = this.canvas.height;
+        for (const site of sites) {
+            const tile = this.world.getTile(site.q, site.r);
+            if (!tile || !tile.explored) continue;
+            const pos = this.getHexPixelPos(site.q, site.r);
+            const s = this.camera.worldToScreen(pos.x, pos.y);
+            if (s.x < -pad || s.x > cw + pad || s.y < -pad || s.y > ch + pad) continue;
+            if (!this._roadhouseDrawn(tile, site.q, site.r)) continue;
+            const L = this._roadhouseLayout(site, tile);
+            if (L && L.variant) this.drawSpriteVariant(ctx, L.variant, s.x + L.ox * rs, s.y + L.oy * rs, rs);
+        }
+    },
+
+    /**
+     * Roadhouses' names when zoomed in, under the buildings; a bed on a small
+     * plate only where no building is drawn (the hex is the player's, or a
+     * rural site's, or its sprites are still loading or none are given).
      */
     renderRoadhouses(ctx) {
         if (!this.world || !Hospitality.enabled()) return;
@@ -630,6 +755,7 @@ Object.assign(Renderer.prototype, {
         const sites = Hospitality._waysideSites(this.world);
         if (!sites.length) return;
         const size = this.hexSize * z;
+        const pl = this.player;
         ctx.save();
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -638,13 +764,18 @@ Object.assign(Renderer.prototype, {
             if (!tile || !tile.explored) continue;
             const pos = this.getHexPixelPos(site.q, site.r);
             const s = this.camera.worldToScreen(pos.x, pos.y);
-            if (s.x < -40 || s.x > this.canvas.width + 40 || s.y < -40 || s.y > this.canvas.height + 40) continue;
-            this.drawMapMarker(ctx, 'bed', s.x - size * 0.32, s.y - size * 0.32, Math.max(8, size * 0.22), { rim: 'rgba(214, 170, 100, 0.85)', color: '#f2e2c4' });
+            if (s.x < -60 || s.x > this.canvas.width + 60 || s.y < -60 || s.y > this.canvas.height + 60) continue;
+            const drawn = this._roadhouseDrawn(tile, site.q, site.r);
+            const L = drawn ? this._roadhouseLayout(site, tile) : null;
+            if (!drawn || !L || !L.variant) {
+                this.drawMapMarker(ctx, 'bed', s.x - size * 0.32, s.y - size * 0.32, Math.max(8, size * 0.22), { rim: 'rgba(214, 170, 100, 0.85)', color: '#f2e2c4' });
+            }
             // (no name under it while the player stands there: it ran into the player's own label)
-            const pl = this.player;
             if (z > 1.1 && !(pl && pl.q === site.q && pl.r === site.r)) {
                 const h = Hospitality.roadhouseAt(this.world, site.q, site.r);
-                if (h) this.drawMapText(ctx, h.name, s.x, s.y + size * 0.7, { size: 9.5 * z, weight: 500, family: 'body', color: 'rgba(235, 215, 180, 0.95)' });
+                const lx = s.x + (L ? L.ox * size : 0);
+                const ly = s.y + (L ? Math.max(0.2, L.oy + 0.58) : 0.7) * size;
+                if (h) this.drawMapText(ctx, h.name, lx, ly, { size: 9.5 * z, weight: 500, family: 'body', color: 'rgba(235, 215, 180, 0.95)' });
             }
         }
         ctx.restore();

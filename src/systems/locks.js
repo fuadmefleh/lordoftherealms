@@ -11,7 +11,9 @@
 // period (player.containerLoot[key].picked, saved with the player).
 //
 // A lord's seat with nobody at home and no guard on the door is barred
-// (world/innerMap/seats.js); its door has a lock too (locks.doors).
+// (world/innerMap/seats.js); its door has a lock too (locks.doors). The let
+// rooms of inns, hotels, guest houses and roadhouses are locked to all but
+// the guest who holds the key (systems/roomLocks.js; locks.roomDoors).
 //
 // pick(): one attempt — the chance from Lockpicking's level and the lock's
 // difficulty (beyond the reach perk you won't try), minutes spent, XP either
@@ -56,6 +58,7 @@ export const Locks = {
             default: Array.isArray(L.default) ? L.default : [2, 4, 0.4],
             byBuilding: L.byBuilding || {},
             doors: L.doors || {},
+            roomDoors: L.roomDoors || {},
             names: Array.isArray(L.names) ? L.names : [],
         };
     },
@@ -104,6 +107,18 @@ export const Locks = {
     doorLock(building) {
         const d = _num(Locks.cfg().doors[_bType(building)], 0);
         return d > 0 ? { difficulty: d, name: Locks.lockName(d) } : null;
+    },
+
+    /**
+     * The lock on a let room's door in a house of hospitality (systems/roomLocks.js):
+     * by the house's kind (locks.roomDoors), a staff door (the kitchen) `staff` steps harder.
+     */
+    roomDoorLock(kind, doorKind = 'guest') {
+        const R = Locks.cfg().roomDoors;
+        const base = _num(R[String(kind || '').replace(/^player_/, '')], _num(R._default, 2));
+        if (base <= 0) return null;
+        const d = Math.max(1, Math.min(10, base + (doorKind === 'staff' ? _num(R.staff, 1) : 0)));
+        return { difficulty: d, name: Locks.lockName(d) };
     },
 
     /** The hardest lock the player will try. */

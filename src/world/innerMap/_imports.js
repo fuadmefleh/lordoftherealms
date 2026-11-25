@@ -12,6 +12,7 @@ export { NpcFamily } from '../../systems/npcFamily.js';
 export { Townsfolk } from '../../systems/townsfolk.js';
 export { PracticeSkills } from '../../systems/practiceSkills.js';
 export { Hospitality } from '../../systems/hospitality.js';
+export { RoomLocks } from '../../systems/roomLocks.js';
 export { Cultures } from '../cultures.js';
 export { SettlementWealth } from '../settlementWealth.js';
 export { TownProps } from '../townProps.js';

@@ -59,6 +59,8 @@ Object.assign(InnerMap, {
     /** May the player step onto this tile: dry land, or water they can swim in (under the water: only that). */
     _playerMayEnter(tile, q, r) {
         if (!tile) return false;
+        // A let room's door locked to you (world/innerMap/guestRooms.js)
+        if (tile._doorway && this._roomLockBlocks && this._roomLockBlocks(tile)) return false;
         if (this._underwater) return this.isDivable(q, r);
         // In your rowboat: water only, deep or the shallows it grounds in (ui/innerMapRowboat.js)
         if (this._aboardBoat) return this.isSwimmable(q, r);

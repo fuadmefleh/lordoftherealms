@@ -131,13 +131,14 @@ Object.assign(Renderer.prototype, {
         ctx.setLineDash([]);
 
         // ── Fishing boats off the towns; punts on the rivers ──
-        const views = typeof world.getSettlementViews === 'function' ? world.getSettlementViews() : [];
-        for (const s of views) {
-            if (!s || !seen(s.q, s.r)) continue;
-            const c = scr(s.q, s.r);
-            if (off(c)) continue;
-            const fl = this._townFleet(world, s);
-            if (!fl || fl.kept || !fl.spots.length) continue;
+        // (the towns in view only: getSettlementViews rescans every tile of the world outside a
+        // day's simulation, and did so here each frame)
+        this.forEachTileInView(60, (tile, q, r) => {
+            if (!tile.settlement || !tile.explored) return;
+            const c = scr(q, r);
+            if (off(c)) return;
+            const fl = this._townFleet(world, { q, r });
+            if (!fl || fl.kept || !fl.spots.length) return;
             for (let i = 0; i < fl.boats; i++) {
                 const sp = fl.spots[i % fl.spots.length];
                 if (!seen(sp.q, sp.r)) continue;
@@ -147,7 +148,7 @@ Object.assign(Renderer.prototype, {
                 if (fl.river) this._wtPunt(ctx, p.x + jx * 0.5, p.y + jy * 0.5, size, t + i);
                 else this._wtSail(ctx, p.x + jx, p.y + jy, size * 0.7, '#8a5a3a', t + i);
             }
-        }
+        });
 
         // ── Barges with the river trade ──
         const day = world.day || 0;

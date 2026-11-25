@@ -173,6 +173,11 @@ export class Minimap {
 
     /** Match the backing store to the canvas's displayed size. */
     _syncResolution() {
+        // (looked at four times a second, not every frame: reading the box forces the page's
+        // layout when the HUD has changed, a stall on the frame's main thread)
+        const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+        if (this._backing && this._syncAt != null && now - this._syncAt < 250) return;
+        this._syncAt = now;
         const rect = this.canvas.getBoundingClientRect();
         if (!rect.width || !rect.height) {
             if (!this._backing) {

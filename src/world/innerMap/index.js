@@ -48,6 +48,8 @@ import './householdRooms.js';
 import './cellarTrips.js';
 import './encounters.js';
 import './hospitality.js';
+// The let rooms of an inn behind their locked doors (systems/roomLocks.js)
+import './guestRooms.js';
 import './camp.js';
 import './harbour.js';
 import './deckLife.js';

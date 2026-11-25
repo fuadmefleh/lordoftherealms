@@ -190,8 +190,8 @@
             "work": "prop", "workplaces": ["carpenter", "sawmill", "lumber_yard", "workshop"], "hours": "day",
             "props": ["tp_sawhorse", "tp_lumber", "tp_logs"], "activity": { "icon": "🔨", "label": "At the joinery", "anim": "slash", "tool": "hammer", "swing": 0.75, "sound": "anvil" },
             "furniture": ["table", "crate", "anvil"],
-            "goods": ["planks", "joinery", "barrel", "grave_cross", "bow", "arrows", "bolts", "crossbow", "shield"],
-            "recipes": ["sawyer", "joiner", "grave_carver", "bowyer", "crossbowyer", "fletcher", "bolter", "shieldwright"],
+            "goods": ["planks", "joinery", "barrel", "grave_cross", "bow", "arrows", "bolts", "crossbow", "shield", "ash_rod", "greenheart_rod", "master_rod"],
+            "recipes": ["sawyer", "joiner", "grave_carver", "bowyer", "crossbowyer", "fletcher", "bolter", "shieldwright", "rodmaker", "reel_rodmaker", "cane_rodmaker"],
             "floor": 0.5, "elasticity": 0.45, "wage": 0.48, "pay": "sales",
             "say": ["Carpenter. Beams, doors, barrels, a coffin now and then — wood's wood.", "I work the timber the woodcutters bring in."],
             "barks": ["Measure twice…", "Pass me that plank."]

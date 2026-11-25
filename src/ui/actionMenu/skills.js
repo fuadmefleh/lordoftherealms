@@ -9,6 +9,7 @@ import { DuelPanel } from './duel.js';
 import { DevotionPanel } from './devotion.js';
 import { WildTaskRunner } from '../mapTasks/wildTasks.js';
 import { FoodSkills } from '../../systems/foodSkills.js';
+import { FishingRods } from '../../player/fishingRods.js';
 import { PracticeSkills } from '../../systems/practiceSkills.js';
 import { PerformTasks } from '../mapTasks/performTasks.js';
 import { SocialSkills } from '../../systems/socialSkills.js';
@@ -423,8 +424,10 @@ Object.assign(ActionMenu, {
         const player = game.player;
         const luckStat = player.luck || 5;
         // The fishing level (systems/foodSkills.js, data/skillPacks/food.json): more
-        // bites, bigger fish, less junk, more casts, deep-water fish and deep water
-        const angler = FoodSkills.fishing(player);
+        // bites, bigger fish, less junk, more casts, deep-water fish and deep water;
+        // the rod in hand (player/fishingRods.js) a little more, and the reach of the cast
+        const angler = FishingRods.angler(player);
+        const reachText = FishingRods.describe(player);
 
         // Determine fishing spot quality
         const nearbyTiles = Hex.neighbors(tile.q, tile.r).map(n => game.world.getTile(n.q, n.r)).filter(Boolean);
@@ -442,9 +445,15 @@ Object.assign(ActionMenu, {
         if (isCoast || deepWater) depths.push({ id: 'mid', label: '🌊 Mid Waters', desc: `Moderate fish, decent value${more('mid')}`, color: '#3498db' });
         if (deepWater) depths.push({ id: 'deep', label: '🌀 Deep Waters', desc: `Rare fish, bigger fight${!deepSea ? ' · your long casts reach it' : ''}${more('deep')}`, color: '#2c3e50' });
 
-        // The fish by depth and rarity: data/skillPacks/food.json (skills.fishing.catches)
-        const rollFish = (depth) => FoodSkills.rollFish(player, depth, Math.random, luckStat)
+        // The fish by depth and rarity: data/skillPacks/food.json (skills.fishing.catches);
+        // a float cast far out from the bank fishes one band deeper (player/fishingRods.js castDepth)
+        const rollFish = (depth, cast) => FoodSkills.rollFish(player, FishingRods.castDepth(player, depth, cast && cast.offshore), Math.random, luckStat)
             || { name: 'seaweed', label: 'Seaweed', icon: '🌿', value: 1, rarity: 'junk', color: '#666', fight: 0 };
+        // A rod broken in the day's casting, told
+        const brokeNote = (tally) => {
+            const broke = (tally && tally.broke) || [];
+            if (broke.length) game.ui.showNotification('🎣 Rod Broken', `Your ${broke.join(' and ')} broke today. ${FishingRods.describe(player).replace(/^your/, 'Your')} now.`, 'warning');
+        };
 
         // A level-up, announced
         const announce = (up) => { if (up) game.ui.showNotification(`${up.icon} ${up.name} Improved`, up.text, 'success'); };
@@ -455,18 +464,19 @@ Object.assign(ActionMenu, {
         // From the town map: "Fish Here" on the water you see — straight to the cast,
         // from the bank by that water, with the catch of its depth (ui/innerMapUI.js)
         if (opts.spots && opts.depth && WildTaskRunner.inWorld(game)) {
-            WildTaskRunner.fish(game, { player, casts: maxCasts, rollFish: () => rollFish(opts.depth), spots: opts.spots, target: opts.target, biteBonus: opts.biteBonus || 0 }, (catches, tally) => {
+            WildTaskRunner.fish(game, { player, casts: maxCasts, rollFish: (cast) => rollFish(opts.depth, cast), spots: opts.spots, target: opts.target, biteBonus: opts.biteBonus || 0 }, (catches, tally) => {
                 if (catches === null) { game.ui.showNotification('🎣 Fishing', 'You can\'t get a line in the water from here.', 'warning'); return; }
                 const up = FoodSkills.fishXp(player, { ...(tally || {}), catches });
                 game.ui.showCustomPanel('🎣 Fishing', `<div style="max-width: 500px;">${ActionMenu._renderFishingResults(catches, player, up)}</div>`);
                 announce(up);
+                brokeNote(tally);
                 game.ui.updateStats(player, game.world);
             });
             return;
         }
 
         let html = '<div style="max-width: 500px;">';
-        html += lede('Choose where to cast your line.');
+        html += lede(`Choose where to cast your line. ${reachText.replace(/^your/, 'Your')}.`);
         html += rowList(depths.map(d => ({
             icon: d.label.split(' ')[0],
             name: d.label.split(' ').slice(1).join(' '),
@@ -521,16 +531,17 @@ Object.assign(ActionMenu, {
             WildTaskRunner.choose(game, {
                 title: '🎣 Fishing',
                 icon: '🎣',
-                description: `Cast your line into the ${depthId === 'deep' ? 'deep waters' : depthId === 'mid' ? 'mid waters' : 'shallows'}.`,
+                description: `Cast your line into the ${depthId === 'deep' ? 'deep waters' : depthId === 'mid' ? 'mid waters' : 'shallows'}: ${reachText}.`,
                 baseText: '1-2 basic catches',
                 onQuick: quick,
                 onGo: () => {
-                    WildTaskRunner.fish(game, { player, casts: maxCasts, rollFish: () => rollFish(depthId), waterDir }, (catches, tally) => {
+                    WildTaskRunner.fish(game, { player, casts: maxCasts, rollFish: (cast) => rollFish(depthId, cast), waterDir }, (catches, tally) => {
                         if (catches === null) { quick(); return; }
                         // The day's catch into the packs (as the old reel game did); the casts and catch teach fishing
                         const up = FoodSkills.fishXp(player, { ...(tally || {}), catches });
                         game.ui.showCustomPanel('🎣 Fishing', `<div style="max-width: 500px;">${ActionMenu._renderFishingResults(catches, player, up)}</div>`);
                         announce(up);
+                        brokeNote(tally);
                         game.ui.updateStats(player, game.world);
                     });
                 },

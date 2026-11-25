@@ -107,7 +107,7 @@ export const FoodSkills = {
 
     // ── Fishing ──────────────────────────────────────
 
-    /** The angler's edge: { level, bites (0..1 added), window (s), land (0..1 added), bigger (0..1), junk (0..1 less), casts, deepReach } */
+    /** The angler's edge: { level, bites (0..1 added), window (s), land (0..1 added), bigger (0..1), junk (0..1 less), casts, deepReach, reach (tiles) } */
     fishing(player) {
         const P = (k) => FoodSkills.perk(player, 'fishing', k);
         return {
@@ -119,6 +119,8 @@ export const FoodSkills = {
             junk: Math.min(0.95, P('junk') / 100),
             casts: Math.max(0, Math.round(P('casts'))),
             deepReach: P('deepReach') > 0,
+            // tiles added to the cast (the rods: player/fishingRods.js)
+            reach: Math.max(0, Math.round(P('reach'))),
         };
     },
 

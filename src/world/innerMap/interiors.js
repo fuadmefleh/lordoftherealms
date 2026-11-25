@@ -949,6 +949,11 @@ Object.assign(InnerMap, {
             this._entryRefused = { ok: false, text: 'You can\'t get a rowboat through the door: set her down by the water first.' };
             return false;
         }
+        // A house of hospitality that has thrown you out keeps its door shut to you (world/innerMap/guestRooms.js)
+        if (!opts.force && this._lodgingRefusal) {
+            const no = this._lodgingRefusal(building, game);
+            if (no) { this._entryRefused = no; return false; }
+        }
         // A lord's seat: barred when nobody's home, its guards say who goes in (world/innerMap/seats.js)
         let seatVerdict = null;
         if (!opts.force && this.isSeat && this.isSeat(building)) {
@@ -1018,6 +1023,8 @@ Object.assign(InnerMap, {
         if (String(building.type).replace(/^player_/, '') === 'castle' && this._populateCastle) this._populateCastle(building);
         // The player's own household: its rooms, servants and guests (world/innerMap/household.js)
         if (this._householdArrive) this._householdArrive(game);
+        // An inn's let rooms behind their locked doors, your key to yours (world/innerMap/guestRooms.js)
+        if (this._guestRoomsArrive) this._guestRoomsArrive(game);
 
         // Walking into the gaol free: its prisoners behind their bars, the gaoler about (world/innerMap/jail.js)
         if (isJail && !building._jail && this._visitJail) this._visitJail(building);
@@ -1088,6 +1095,8 @@ Object.assign(InnerMap, {
         // Any NPCs that were shown in the interior go back to inside_building state
         // (they'll eventually exit on their own timer from outerNpcs)
 
+        // (an inn's keeper on their rounds: a picked door found open is locked again — world/innerMap/guestRooms.js)
+        if (this._guestRoomsLeave) this._guestRoomsLeave(game);
         this._insideBuilding = null;
         this._outerMapState = null;
         this._seatVisit = null;

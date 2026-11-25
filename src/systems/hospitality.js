@@ -33,6 +33,11 @@
 // laundry, a valet, fine dining. Fame's free room and meal (systems/fame.js)
 // hold at the NPC houses as at the tavern.
 //
+// Inside, the let rooms are locked (systems/roomLocks.js): a private room or
+// a suite comes with its key (player.lodging.room, handed back in the
+// morning), the rest can be picked; caught at it, the keeper throws you out
+// and bars the house for some days (player.innBans — quote refuses you).
+//
 // All rolls are hashes of the world seed, the day and the house (no draws on
 // the shared RNG). World / player are passed in; no import-time effects.
 // Content and tuning in data/hospitality.json.
@@ -668,12 +673,15 @@ export const Hospitality = {
         const bookedHere = booked && player.lodging.id === v.id;
         // A full house still lets its best room — the suite at a hotel, the private room at an inn
         const best = v.tiers[v.tiers.length - 1];
+        // Thrown out for trying the rooms' locks (systems/roomLocks.js): not welcome till the ban runs out
+        const banned = v.owner === 'npc' && player && player.innBans && player.innBans[v.id] > _day(world) ? player.innBans[v.id] : null;
         const tiers = v.tiers.map(t => {
             const T = this.tier(t) || {};
             const price = freeRoom ? 0 : Math.round(this.roomPrice(world, player, v, t) * brand.mult);
             let reason = null;
             if (v.underConstruction) reason = 'Still being built';
             else if (brand.refuses) reason = 'They take no branded guests';
+            else if (banned) reason = `You are barred from the house (${banned - _day(world)} more days)`;
             else if (booked) reason = 'You already have a bed for tonight';
             else if (full && t !== best) reason = 'No vacancy tonight';
             else if (gold < price) reason = `Need ${Utils.formatGold(price)} gold`;
@@ -686,13 +694,14 @@ export const Hospitality = {
             let reason = null;
             if (v.underConstruction) reason = 'Still being built';
             else if (brand.refuses) reason = 'They serve no branded guests';
+            else if (banned) reason = 'You are barred from the house';
             else if (S.morning && !bookedHere) reason = 'For guests staying the night';
             else if (S.needsMount && !(player && player.mount)) reason = 'You have no horse';
             else if (S.morning && player.lodging && (player.lodging.services || []).includes(sid)) reason = 'Already arranged';
             else if (gold < price) reason = `Need ${Utils.formatGold(price)} gold`;
             return { id: sid, name: S.name || sid, icon: S.icon || '🛎️', price, free: price === 0, ok: !reason, reason, morning: !!S.morning };
         });
-        return { house: v, tiers, services, freeRoom, full, booked, bookedHere };
+        return { house: v, tiers, services, freeRoom, full, booked, bookedHere, bannedUntil: banned };
     },
 
     /**
@@ -717,9 +726,13 @@ export const Hospitality = {
         // A little of the comfort at once — the rest when you wake
         if (player.modifyNeed) player.modifyNeed('comfort', 6);
         const T = this.tier(tierId) || {};
-        const text = q.freeRoom ? `${v.keeper} will hear nothing of payment: ${T.name ? T.name.toLowerCase() : 'a room'} at ${v.name}, on the house.`
+        // A private room or a suite comes with its key: the door is locked to everyone else (systems/roomLocks.js)
+        const keyTiers = ((this.data().config || {}).roomLocks || {}).keyTiers || ['private', 'suite'];
+        const key = v.owner !== 'player' && keyTiers.includes(tierId) ? ' The keeper hands you the key to your room: the other rooms are kept locked.' : '';
+        const text0 = q.freeRoom ? `${v.keeper} will hear nothing of payment: ${T.name ? T.name.toLowerCase() : 'a room'} at ${v.name}, on the house.`
             : v.owner === 'player' ? `You take ${T.name ? T.name.toLowerCase() : 'a room'} in your own ${this.kind(v.kind).noun}.`
                 : `You take ${T.name ? T.name.toLowerCase() : 'a room'} at ${v.name} for ${Utils.formatGold(t.price)} gold.`;
+        const text = `${text0}${key}`;
         return { ok: true, text, cost: t.price };
     },
 
@@ -792,7 +805,9 @@ export const Hospitality = {
             player.movementRemaining = _num(player.movementRemaining) + _num(S.movement, 1);
             parts.push('your horse fed, groomed and eager');
         }
-        notices.push({ icon: '🛏️', title: 'A Good Night', text: `${parts.join(', ')}.`, type: 'success' });
+        // (the room's key goes back with the booking: systems/roomLocks.js)
+        const keyBack = L.room && L.room.no != null && !L.own ? ` You hand back the key of No. ${L.room.no}.` : '';
+        notices.push({ icon: '🛏️', title: 'A Good Night', text: `${parts.join(', ')}.${keyBack}`, type: 'success' });
         // A bunk in the common room: a lighter purse some mornings
         const theft = _num(T.theft) * (K.wayside ? 1.4 : 1) * Math.max(0.2, 1 - 0.12 * (_num(L.stars, 2) - 1));
         if (!L.own && theft > 0 && _u(`${_seed(world)}|${_day(world)}|${L.id}|theft`) < theft && _num(player.gold) > 0) {
@@ -1057,6 +1072,9 @@ export const Hospitality = {
         if (player) {
             notices.push(...this._morning(world, player));
             if (player.valet && !(_num(player.valet.day, -1) >= _day(world))) player.valet = null;
+            // Yesterday's picked room doors locked again; bans that have run out lifted (systems/roomLocks.js)
+            if (player.pickedDoors) for (const [k, d] of Object.entries(player.pickedDoors)) if (d !== _day(world)) delete player.pickedDoors[k];
+            if (player.innBans) for (const [k, until] of Object.entries(player.innBans)) if (!(until > _day(world))) delete player.innBans[k];
             for (const ref of player.properties || []) {
                 if (!this.isKind(ref.type)) continue;
                 const p = this._playerPropsAt(world, ref.q, ref.r).find(x => x.type === ref.type);

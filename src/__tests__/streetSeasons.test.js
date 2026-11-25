@@ -289,3 +289,17 @@ describe('drawing the season (a recording canvas)', () => {
         expect(b.calls.fillRect).toBeGreaterThan(50);
     });
 });
+
+describe('mud lies on bare earth only', () => {
+    it('an unpaved road, a field, bare dirt go to mud; a town\'s grass (a grass layer over a dirt base) and paving do not', () => {
+        const sub = { id: 'grass', passable: true };
+        const grass = { baseTerrain: 'dirt', subTerrain: sub, terrainDetail: { sheetPath: 'x.png', layer: 'grass' } };
+        expect(InnerMap._bareEarth({ isRoad: true, baseTerrain: 'dirt', subTerrain: sub })).toBe(true);
+        expect(InnerMap._bareEarth({ _fieldSoil: true, baseTerrain: 'dirt', subTerrain: sub })).toBe(true);
+        expect(InnerMap._bareEarth({ baseTerrain: 'dirt', subTerrain: sub })).toBe(true);
+        expect(InnerMap._bareEarth(grass)).toBe(false);
+        expect(InnerMap._bareEarth({ isRoad: true, paving: { sheetPath: 'c.png' }, subTerrain: sub })).toBe(false);
+        expect(InnerMap._groundKind(grass)).toBe('open');
+        expect(InnerMap._groundKind({ baseTerrain: 'dirt', subTerrain: sub })).toBe('soft');
+    });
+});

@@ -37,6 +37,7 @@ import { InnerMapPlague } from './innerMapPlague.js';
 import { InnerMapScavengers } from './innerMapScavengers.js';
 import { InnerMapBrawls } from './innerMapBrawls.js';
 import { InnerMapLocks } from './innerMapLocks.js';
+import { InnerMapRoomLocks } from './innerMapRoomLocks.js';
 import { InnerMapDeck } from './innerMapDeck.js';
 import { InnerMapBelowDecks } from './innerMapBelowDecks.js';
 import { InnerMapAnimals } from './innerMapAnimals.js';
@@ -66,6 +67,7 @@ import { NpcDisposition } from '../systems/npcDisposition.js';
 import { Townsfolk } from '../systems/townsfolk.js';
 import { PracticeSkills } from '../systems/practiceSkills.js';
 import { Gathering } from '../player/gathering.js';
+import { FishingRods } from '../player/fishingRods.js';
 import { _dispositionLabel } from './npcDialog/helpers.js';
 import { drawGlyph, buildingGlyph, pictureIcon } from './icons.js';
 import { uiZoom } from './uiScale.js';
@@ -532,6 +534,10 @@ Object.assign(InnerMapRenderer, {
                     menuItems.push({ type: 'action', action: 'take_stairs', label: up ? 'Climb the Stairs' : 'Go Downstairs', icon: up ? '⬆️' : '⬇️', desc: `To ${InnerMap.floorLabel(to)}${room ? ` (${room.name})` : ''}`, stairsTo: to });
                 }
 
+                // A let room's door at an inn: whose it is, a knock, its lock (ui/innerMapRoomLocks.js)
+                const roomDoorItems = InnerMapRoomLocks.menuItems(game, tile, q, r);
+                menuItems.push(...roomDoorItems);
+
                 // Door = exit
                 if (tile._isDoor) {
                     menuItems.push({ type: 'action', action: 'exit_building', label: 'Exit Building', icon: '🚪', desc: 'Step back outside' });
@@ -550,7 +556,7 @@ Object.assign(InnerMapRenderer, {
                     menuItems.push({ type: 'action', action: 'interact_furniture', label: `Inspect ${tile._furniture.name}`, icon: '🔍', desc: isBox ? 'See what it holds, and take (or steal) it' : `Examine the ${tile._furniture.name}`, _furniture: tile._furniture, objAnchorQ: q, objAnchorR: r });
                 }
 
-                if (!isPlayerHere && tile.subTerrain.passable) {
+                if (!isPlayerHere && tile.subTerrain.passable && !(roomDoorItems.length && InnerMap._roomLockBlocks(tile))) {
                     menuItems.push({ type: 'action', action: 'move_here', label: 'Move Here', icon: '🚶', desc: 'Walk to this spot' });
                 }
 
@@ -583,7 +589,7 @@ Object.assign(InnerMapRenderer, {
                 menuItems.push(...InnerMapRoadWalk.menuItems(game, tile, q, r));
                 // Water: cast a line into it, from the bank (or pier, bridge or deck) beside it
                 if ((tile._wet || tile._sea) && !/frozen|ice/.test(tile.subTerrain.id || '')) {
-                    menuItems.push({ type: 'action', action: 'fish_here', label: 'Fish Here', icon: '🎣', desc: tile._deep ? 'Deep water: bigger fish, and a harder fight' : 'Cast a line from the bank' });
+                    menuItems.push({ type: 'action', action: 'fish_here', label: 'Fish Here', icon: '🎣', desc: `${tile._deep ? 'Deep water: bigger fish, and a harder fight' : 'Cast a line from the bank'} · ${FishingRods.describe(game.player)}` });
                 }
                 // Fresh water: drink from it, fill your skins (ui/innerMapWater.js; the sea is salt)
                 menuItems.push(...InnerMapWater.waterItems(game, tile, q, r));
@@ -1150,6 +1156,7 @@ Object.assign(InnerMapRenderer, {
         if (/^scaffold_/.test(action) && InnerMapScaffold.handle(game, item)) return;
         if (/^gibbet_/.test(action) && InnerMapDisplays.handle(game, item)) return;
         if (/^pit_/.test(action) && InnerMapPit.handle(game, item)) return;
+        if (/^roomlock_/.test(action) && InnerMapRoomLocks.handle(game, item)) return;
         if (action === 'lock_door' && InnerMapLocks.handle(game, item, q, r, it => this._handleContextAction(game, it, q, r))) return;
         if (/^dive_/.test(action) && InnerMapDiving.handle(game, item, q, r)) return;
         if (/^climb_/.test(action) && InnerMapClimbing.handle(game, item, q, r)) return;
@@ -1492,7 +1499,7 @@ Object.assign(InnerMapRenderer, {
                 }
                 // Dry ground to stand on: not the shallows, a ford or the water itself
                 const dryBank = (t) => !!(t && t.subTerrain.passable && !t._wet && !t._sea && !t.building && !t.customObjectPart);
-                const REACH = 3; // how far a line is cast
+                const REACH = FishingRods.reach(game.player); // how far a line is cast (the rod and the Fishing skill)
                 // In your rowboat: cast from where you sit (ui/innerMapRowboat.js)
                 let bank = InnerMapRowboat.castFrom(q, r, REACH);
                 if (!bank && InnerMap._aboardBoat) { game.ui.showNotification('🎣 Fishing', 'Row within a cast of it first.', 'warning'); break; }

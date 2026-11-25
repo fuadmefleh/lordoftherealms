@@ -11,6 +11,8 @@ import { fontPx, readableFont, inkText, drawMapText } from '../mapInk.js';
 
 // Open water drawn seamless (renderSpriteHex): the sea's own art, not a lake's
 const OPEN_SEA = new Set(['ocean', 'deep_ocean', 'sea', 'coast']);
+// ...drawn this much larger than the hex and clipped to it, so its painted rim falls outside
+const SEA_BIG = 1.16;
 
 Object.assign(Renderer.prototype, {
     /**
@@ -61,6 +63,8 @@ Object.assign(Renderer.prototype, {
 
         // Mines, quarries, ranches and the estates' farms about the towns, as buildings (beneath the towns)
         this.renderRuralSites(ctx);
+        // Roadhouses on the open road, as buildings beside it (systems/hospitality.js; their names later)
+        this.renderRoadhouseBuildings(ctx);
 
         // Faint old roads between ruins and passes (renderer/oldRoads.js, terrainGen 17)
         this.renderOldRoads(ctx);
@@ -309,12 +313,14 @@ Object.assign(Renderer.prototype, {
 
         // Render labels that don't overlap with higher priority ones
         for (const label of this.labels) {
-            const bounds = this.getLabelBounds(ctx, label);
-            
+            // (the box renderGeoLabels measured this frame, when it did)
+            const bounds = label._bounds || this.getLabelBounds(ctx, label);
+
             // Check if this label overlaps with any already rendered label
+            // (the boxes compared as they are: no copies of every pair, each frame)
             let overlaps = false;
             for (const rendered of renderedLabels) {
-                if (this.labelsOverlap({ ...label, ...bounds }, { ...rendered, ...rendered.bounds })) {
+                if (this.labelsOverlap(bounds, rendered.bounds)) {
                     overlaps = true;
                     break;
                 }
@@ -333,7 +339,7 @@ Object.assign(Renderer.prototype, {
                     label.style.plaque ? 'rgba(6, 8, 12, 0.75)' : null);
 
                 // Save this label as rendered
-                renderedLabels.push({ ...label, bounds });
+                renderedLabels.push({ bounds });
             }
         }
 
@@ -407,6 +413,46 @@ Object.assign(Renderer.prototype, {
         const px = q * hexWidth + ((r % 2 === 0) ? hexWidth / 2 : 0);
         const py = r * rowHeight;
         return { x: px, y: py };
+    },
+
+    /**
+     * fn(tile, q, r) for every tile whose grid point may lie within `pad`
+     * screen px of the view, row by row and left to right on screen; q is the
+     * wrapped column, each tile at most once. A superset of what is on screen
+     * (callers keep their own exact cull), so the map's passes walk the few
+     * hundred hexes in view rather than every tile of the world each frame.
+     */
+    forEachTileInView(pad, fn) {
+        const world = this.world;
+        const W = world.width, H = world.height;
+        if (!(W > 0) || !(H > 0)) return;
+        // (a camera that can't say what it sees, as in the tests' stand-ins: every tile)
+        if (typeof this.camera.getVisibleBounds !== 'function') {
+            for (let r = 0; r < H; r++) {
+                const row = world.tiles[r];
+                if (row) for (let q = 0; q < W; q++) if (row[q]) fn(row[q], q, r);
+            }
+            return;
+        }
+        const b = this.camera.getVisibleBounds();
+        const hexWidth = Math.sqrt(3) * this.hexSize;
+        const rowHeight = hexWidth * 0.75;
+        const padW = pad / (this.camera.zoom || 1) + hexWidth;
+        const minR = Math.max(0, Math.floor((b.top - padW) / rowHeight));
+        const maxR = Math.min(H - 1, Math.ceil((b.bottom + padW) / rowHeight));
+        for (let r = minR; r <= maxR; r++) {
+            const row = world.tiles[r];
+            if (!row) continue;
+            const offsetX = (r % 2 === 0) ? hexWidth / 2 : 0;
+            let q0 = Math.floor((b.left - padW - offsetX) / hexWidth);
+            let q1 = Math.ceil((b.right + padW - offsetX) / hexWidth);
+            if (q1 - q0 + 1 >= W) { q0 = 0; q1 = W - 1; }
+            for (let q = q0; q <= q1; q++) {
+                const wq = ((q % W) + W) % W;
+                const tile = row[wq];
+                if (tile) fn(tile, wq, r);
+            }
+        }
     },
 
     /**
@@ -536,10 +582,11 @@ Object.assign(Renderer.prototype, {
         if (!faces || !faces.length) return;
         ctx.save();
         ctx.beginPath();
+        // (no closePath: fill() closes every subpath itself, and closePath on a path of
+        // thousands of faces cost more than the rest of the terrain pass)
         for (const c of faces) {
             ctx.moveTo(c[0].x, c[0].y);
             for (let i = 1; i < 6; i++) ctx.lineTo(c[i].x, c[i].y);
-            ctx.closePath();
         }
         ctx.fillStyle = 'rgba(10, 14, 23, 0.55)'; // dark blue-black
         ctx.fill('nonzero');
@@ -726,6 +773,47 @@ Object.assign(Renderer.prototype, {
     },
 
     /**
+     * A sea sprite as renderSpriteHex lays it: the art SEA_BIG times larger about
+     * the face's centre, clipped to the face, in a canvas of the sprite's size
+     * (the tile frame, so it is drawn with the same rectangle as the sprite).
+     * Made once per sprite; null where there is no canvas.
+     */
+    _seaFace(sprite) {
+        if (!this._seaFaces) this._seaFaces = new WeakMap();
+        let c = this._seaFaces.get(sprite);
+        if (c !== undefined) return c;
+        c = null;
+        try {
+            const w = sprite.width, h = sprite.height;
+            if (typeof document !== 'undefined' && w > 0 && h > 0) {
+                const cv = document.createElement('canvas');
+                cv.width = w;
+                cv.height = h;
+                const g = cv.getContext('2d');
+                if (g && typeof g.clip === 'function') {
+                    // the frame at scale 1: drawX = 0, drawY = 0 (renderSpriteHex's cover fit)
+                    const size = Math.min(w / Math.sqrt(3), h / 2);
+                    const cx = w / 2, cy = h - size, sX = 0.866 * size;
+                    g.beginPath();
+                    g.moveTo(cx, cy - 0.732 * size);
+                    g.lineTo(cx + sX, cy - 0.299 * size);
+                    g.lineTo(cx + sX, cy + 0.567 * size);
+                    g.lineTo(cx, cy + size);
+                    g.lineTo(cx - sX, cy + 0.567 * size);
+                    g.lineTo(cx - sX, cy - 0.299 * size);
+                    g.closePath();
+                    g.clip();
+                    const mx = cx, my = cy + 0.134 * size;
+                    g.drawImage(sprite, mx - mx * SEA_BIG, my - my * SEA_BIG, w * SEA_BIG, h * SEA_BIG);
+                    c = cv;
+                }
+            }
+        } catch { c = null; }
+        this._seaFaces.set(sprite, c);
+        return c;
+    },
+
+    /**
      * Render a hex with a PNG sprite (clipped to hex shape)
      */
     renderSpriteHex(ctx, cx, cy, size, sprite, tile, overlaySprite = null, roadSprite = null) {
@@ -733,18 +821,29 @@ Object.assign(Renderer.prototype, {
         // 0.75·√3·size apart), bottom point at cy + size. Exact, so neighbouring
         // faces share edges and translucent overlays neither overlap nor gap.
         const sX = 0.866 * size;
-        const corners = [
+        // (the topographic, Currents & Rivers and Ore maps leave the tile art off:
+        // renderer/topography.js, flowMap.js and oreMap.js paint the face)
+        const topo = this.mapMode === 'topo';
+        const flow = this.mapMode === 'flow';
+        const ores = this.mapMode === 'ores';
+        const bare = topo || flow || ores;
+        const terrainId = tile.terrain && tile.terrain.id;
+        const lake = !!(sprite && !bare && terrainId === 'lake' && this.world);
+        const sea = !!(sprite && !bare && !lake && OPEN_SEA.has(terrainId));
+        // Anything drawn over the face, clipped to it: a realm's tint, a map mode's colour.
+        // Most hexes have none, and then no clip is set (a path and a clip per hex, for
+        // nothing, was a good part of the terrain pass)
+        const tint = !!(this.showTerritories && tile.kingdom && tile.visible && this.mapMode === 'normal');
+        const overlay = tint || bare || this.mapMode !== 'normal';
+        // (the face's corners only where something needs them)
+        const corners = (overlay || lake || sea || (!tile.visible && this._fogFaces)) ? [
             { x: cx,       y: cy - 0.732 * size },
             { x: cx + sX,  y: cy - 0.299 * size },
             { x: cx + sX,  y: cy + 0.567 * size },
             { x: cx,       y: cy + 1.000 * size },
             { x: cx - sX,  y: cy + 0.567 * size },
             { x: cx - sX,  y: cy - 0.299 * size },
-        ];
-
-        ctx.save();
-
-
+        ] : null;
 
         // Draw sprite (Unclipped to allow overlap)
         const hexWidth = Math.sqrt(3) * size;
@@ -771,27 +870,32 @@ Object.assign(Renderer.prototype, {
         // Fog of war: this face is darkened with the others after all the terrain (renderFogFaces)
         if (!tile.visible && this._fogFaces) this._fogFaces.push(corners);
 
-        // (the topographic, Currents & Rivers and Ore maps leave the tile art off:
-        // renderer/topography.js, flowMap.js and oreMap.js paint the face)
-        const topo = this.mapMode === 'topo';
-        const flow = this.mapMode === 'flow';
-        const ores = this.mapMode === 'ores';
-        const bare = topo || flow || ores;
         if (sprite && !bare) {
             // A lake is drawn with a shore: the land around it, and its water rounded off
             // toward the land and running on into the water beside it (renderLakeHex)
-            if (tile.terrain && tile.terrain.id === 'lake' && this.world) this.renderLakeHex(ctx, tile, sprite, corners, cx, cy, size, drawX, drawY, targetWidth, targetHeight);
-            else if (tile.terrain && OPEN_SEA.has(tile.terrain.id)) {
+            // (in a save of its own: the shore's strokes set the line style)
+            if (lake) {
+                ctx.save();
+                this.renderLakeHex(ctx, tile, sprite, corners, cx, cy, size, drawX, drawY, targetWidth, targetHeight);
+                ctx.restore();
+            }
+            else if (sea) {
                 // The sea: its art drawn a little larger and clipped to the hex, so the rim painted
                 // round the tile's edge falls outside and open water shows no grid of hex outlines
-                const BIG = 1.16, mx = cx, my = cy + 0.134 * size;
-                ctx.save();
-                ctx.beginPath();
-                corners.forEach((c, i) => (i ? ctx.lineTo(c.x, c.y) : ctx.moveTo(c.x, c.y)));
-                ctx.closePath();
-                ctx.clip();
-                ctx.drawImage(sprite, mx - (mx - drawX) * BIG, my - (my - drawY) * BIG, targetWidth * BIG, targetHeight * BIG);
-                ctx.restore();
+                // (cut once into a canvas of the sprite's own size and kept: a clip per sea hex, each
+                // frame, cost more than the drawing; the old way stays where there is no canvas)
+                const face = this._seaFace(sprite);
+                if (face) ctx.drawImage(face, drawX, drawY, targetWidth, targetHeight);
+                else {
+                    const BIG = SEA_BIG, mx = cx, my = cy + 0.134 * size;
+                    ctx.save();
+                    ctx.beginPath();
+                    corners.forEach((c, i) => (i ? ctx.lineTo(c.x, c.y) : ctx.moveTo(c.x, c.y)));
+                    ctx.closePath();
+                    ctx.clip();
+                    ctx.drawImage(sprite, mx - (mx - drawX) * BIG, my - (my - drawY) * BIG, targetWidth * BIG, targetHeight * BIG);
+                    ctx.restore();
+                }
             } else ctx.drawImage(sprite, drawX, drawY, targetWidth, targetHeight);
         }
 
@@ -805,6 +909,9 @@ Object.assign(Renderer.prototype, {
         if (roadSprite && !bare) {
             ctx.drawImage(roadSprite, drawX, drawY, targetWidth, targetHeight);
         }
+
+        if (!overlay) return;
+        ctx.save();
 
         // Clip to hex shape for overlays
         ctx.beginPath();

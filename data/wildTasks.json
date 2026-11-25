@@ -95,6 +95,7 @@
         "quiet": "Nothing biting… the water is quiet.",
         "late": "Too slow! It got away.",
         "snapped": "The line snapped! The {name} got away.",
+        "rodBroke": "Your {rod} breaks in your hands! You fish on with your {next}.",
         "caught": "Caught: {icon} {name}!",
         "shy": "The fish here have gone shy. Try along the bank.",
         "left": "You reel in and walk off.",

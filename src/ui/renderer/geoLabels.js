@@ -66,10 +66,19 @@ Object.assign(Renderer.prototype, {
         // the town names (and the rest of the queued labels) are kept clear of
         const boxes = [];
         for (const l of this.labels || []) {
-            try { boxes.push(this.getLabelBounds(ctx, l)); } catch { /* a label without a style */ }
+            // (kept on the label: renderLabels places it by the same box, unmeasured again)
+            try { const b = this.getLabelBounds(ctx, l); l._bounds = b; boxes.push(b); } catch { /* a label without a style */ }
         }
         const placed = [];
-        const order = features.slice().sort((a, b) => (STYLE[b.kind] ? STYLE[b.kind].prio : 0) - (STYLE[a.kind] ? STYLE[a.kind].prio : 0) || b.size - a.size);
+        // (the order sorted once for this list of features, not each frame)
+        let oc = this._geoOrder;
+        if (!oc || oc.features !== features || oc.n !== features.length) {
+            oc = this._geoOrder = {
+                features, n: features.length,
+                order: features.slice().sort((a, b) => (STYLE[b.kind] ? STYLE[b.kind].prio : 0) - (STYLE[a.kind] ? STYLE[a.kind].prio : 0) || b.size - a.size),
+            };
+        }
+        const order = oc.order;
         ctx.save();
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';

@@ -25,6 +25,7 @@
 
 import { InnerMapRenderer } from '../innerMapRenderer.js';
 import { InnerMap } from '../../world/innerMap.js';
+import { hh, blob, run, dot, placeIn, puddle, rut } from './groundMarks.js';
 
 const ICE_SHEET = 'assets/lpc/Terrain/terrain_winter_ice.png';
 const SEASON_SHEET = /assets\/lpc\/Terrain\/terrain_(spring|summer|autumn|winter)\.png$/;
@@ -62,8 +63,8 @@ export function roofLayers(def) {
     _roofOf.set(def, res);
     return res;
 }
-const SNOW = '#eef3f8', SNOW_SHADE = '#c3d1df', SNOW_OLD = '#dfe5ea';
-const MUD = 'rgba(72, 50, 30, ', MUD_DARK = '#4d4438';
+const SNOW = '#eef3f8', SNOW_SHADE = '#c3d1df', SNOW_GRAIN = 'rgba(240, 245, 250, 0.85)';
+const MUD = 'rgba(72, 50, 30, ';
 
 // The footprints: a ring of [x, y, born, dir, kind] (kind 0 snow, 1 mud)
 const PRINTS = 260;
@@ -74,14 +75,6 @@ const PRINT_LIFE = 50;   // seconds on the ambient clock
 const FADE = 8;
 const PRINT_SNOW = Array.from({ length: FADE + 1 }, (_, i) => `rgba(120, 145, 175, ${(0.55 * i / FADE).toFixed(3)})`);
 const PRINT_MUD = Array.from({ length: FADE + 1 }, (_, i) => `rgba(48, 32, 18, ${(0.5 * i / FADE).toFixed(3)})`);
-
-/** Integer hash → 0..1. */
-function hh(q, r, k) {
-    let h = (Math.imul(q | 0, 374761393) + Math.imul(r | 0, 668265263) + Math.imul(k | 0, 1274126177)) | 0;
-    h = Math.imul(h ^ (h >>> 13), 1103515245);
-    h ^= h >>> 16;
-    return (h >>> 0) / 4294967296;
-}
 
 function _canvas(w, h) {
     if (typeof document === 'undefined') return null;
@@ -99,10 +92,19 @@ function _snowGround(t) {
 function _street(t) {
     return !!(t && (t.isRoad || t.paving || t._pave) && !t._wet);
 }
-/** Soft ground that goes to mud: an unpaved road, trodden soil, bare earth, a field. */
+/** Bare earth that goes to mud: an unpaved road, tilled or trodden soil, never grass (world/innerMap/streetSeasons.js). */
 function _soft(t) {
-    return !!(t && !t._wet && !t._iced && !t.paving && !t._pave && !t._isInterior && !t.building && !t.customBuilding && !t.customBuildingPart
-        && (t.isRoad || t._townSoil || t._fieldSoil || t.baseTerrain === 'dirt'));
+    return !!(InnerMap._bareEarth && InnerMap._bareEarth(t));
+}
+/**
+ * Is this cell in the shade of something standing by it (where snow lingers longest)?
+ * The north side of a house or wall (the cell above it), or beside a fence, a stack, a tree.
+ */
+function _shaded(at, q, r) {
+    const house = n => !!(n && (n.building || n.customBuilding || n.customBuildingPart));
+    // (a town's field is a prop too, but lies flat: no shade)
+    const stands = n => !!(n && (n.customObject || n.customObjectPart) && !n._fieldSoil);
+    return house(at(q, r + 1)) || house(at(q, r + 2)) || stands(at(q, r + 1)) || stands(at(q - 1, r)) || stands(at(q + 1, r));
 }
 
 Object.assign(InnerMapRenderer, {
@@ -181,9 +183,13 @@ Object.assign(InnerMapRenderer, {
         const wetStreets = ss.raining || slush > 0.2;
         const at = (q, r) => (tiles[r] ? tiles[r][q] : null);
         // (the colours worked out once a pass, not a cell)
-        const dustWash = dust > 0.4 ? `rgba(236, 242, 248, ${((dust - 0.4) * 0.9).toFixed(3)})` : null;
-        const mudFill = MUD + (0.16 + mud * 0.3).toFixed(3) + ')';
-        const rutFill = MUD + Math.min(0.7, 0.25 + mud * 0.4).toFixed(3) + ')';
+        const mudRim = MUD + (0.14 + mud * 0.16).toFixed(3) + ')';
+        const mudCore = 'rgba(40, 26, 14, ' + (0.16 + mud * 0.22).toFixed(3) + ')';
+        const mudShine = 'rgba(196, 190, 172, ' + (0.12 + mud * 0.18).toFixed(3) + ')';
+        const mudShare = 0.12 + mud * 0.4;
+        const rutFill = 'rgba(52, 34, 18, ' + Math.min(0.34, 0.1 + mud * 0.24).toFixed(3) + ')';
+        const rutLip = 'rgba(214, 184, 136, ' + Math.min(0.26, 0.06 + mud * 0.18).toFixed(3) + ')';
+        const slushFill = ss.winterLook ? 'rgba(150, 140, 128, 0.32)' : 'rgba(60, 70, 80, 0.2)';
         // Thin ice: one soft wash for the whole view (a cell a pixel, scaled up smoothly), so a
         // patch of thin ice fades into the solid round it instead of standing as squares
         const wash = this._thinIceWash(tiles);
@@ -207,8 +213,6 @@ Object.assign(InnerMapRenderer, {
                 const t = row[q];
                 if (!t || !t.explored || t._isInterior) continue;
                 const x = Math.floor(ox + (q - qMin) * ds);
-                // (a wash is laid edge to edge, not overlapped: a translucent overlap would show the grid)
-                const cw = Math.floor(ox + (q + 1 - qMin) * ds) - x, ch = Math.floor(oy + (r + 1 - rMin) * ds) - y;
 
                 // ── Ice: thin ice darker and cracked; the hole where it broke ──
                 if (t._iced === 1) {
@@ -234,56 +238,72 @@ Object.assign(InnerMapRenderer, {
                 }
                 // ── Slush trodden on the streets, puddles on the paving in the rain ──
                 if (_street(t) && (wetStreets || (ss.winterLook && ss.snowing))) {
-                    const n = 1 + Math.floor(hh(q, r, 3) * 3);
-                    ctx.fillStyle = ss.winterLook ? 'rgba(150, 140, 128, 0.35)' : 'rgba(60, 70, 80, 0.22)';
-                    for (let i = 0; i < n; i++) {
-                        ctx.fillRect(x + Math.floor(hh(q, r, 10 + i) * (ds - 3 * p)), y + Math.floor(hh(q, r, 20 + i) * (ds - 2 * p)), p * (2 + (i & 1)), p);
+                    if (hh(q, r, 3) < 0.45) {
+                        const w = 4 + Math.floor(hh(q, r, 10) * 6), h = 2 + Math.floor(hh(q, r, 11) * 2);
+                        const [cx, cy] = placeIn(w, h, q, r, 12);
+                        ctx.fillStyle = slushFill;
+                        blob(ctx, x, y, px, cx, cy, w, h, q, r, 13);
                     }
-                    if ((t.paving || t._pave) && ss.raining && hh(q, r, 4) < 0.18) this._ssPuddle(ctx, x, y, ds, p, q, r, 0.7);
+                    if ((t.paving || t._pave) && ss.raining && hh(q, r, 4) < 0.18) this._ssPuddle(ctx, x, y, px, q, r, 0.7);
                 }
 
-                // ── Snow dusting the ground not yet white, or lying on in the thaw ──
+                // ── Snow lying on in patches: a dusting not yet white, or what the thaw has left in the shade ──
                 if (dust > 0 && _snowGround(t)) {
-                    if (dustWash) {
-                        ctx.fillStyle = dustWash;
-                        ctx.fillRect(x, y, cw, ch);
+                    const shade = _shaded(at, q, r);
+                    // (a few patches about the place, most of them in the lee of walls and fences)
+                    const share = (thaw ? dust * (shade ? 0.7 : 0.12) : dust * (shade ? 0.6 : 0.14)) * (t._fieldSoil ? 0.6 : 1);
+                    if (hh(q, r, 40) < share) {
+                        const big = shade ? 1.25 : 1;
+                        const w = Math.round((4 + hh(q, r, 41) * 5 + dust * 3) * big), h = Math.max(2, Math.round(w * (0.4 + hh(q, r, 42) * 0.15)));
+                        // (in the shade: tucked against the foot of what casts it)
+                        const ww = Math.round(w * 1.4) + 1;
+                        const [cx, cy] = shade ? [1 + ww / 2 + hh(q, r, 43) * Math.max(0, 30 - ww), 29 - h / 2 - hh(q, r, 44) * 5] : placeIn(ww, h + 2, q, r, 43);
+                        this._ssSnowPatch(ctx, x, y, px, cx, cy, w, h, q, r, thaw);
                     }
-                    const n = 4;
-                    for (let i = 0; i < n; i++) {
-                        if (hh(q, r, 40 + i) >= dust * 0.8) continue;
-                        const w = (2 + Math.floor(hh(q, r, 50 + i) * 4)) * p, h = (1 + Math.floor(hh(q, r, 60 + i) * 2)) * p;
-                        const bx = x + Math.floor(hh(q, r, 70 + i) * Math.max(1, ds - w)), by = y + Math.floor(hh(q, r, 80 + i) * Math.max(1, ds - h - p));
-                        ctx.fillStyle = thaw ? SNOW_OLD : SNOW;
-                        ctx.fillRect(bx, by, w, h);
-                        ctx.fillRect(bx + p, by - p, Math.max(p, w - 2 * p), p);
-                        ctx.fillStyle = SNOW_SHADE;
-                        ctx.fillRect(bx + p, by + h, Math.max(p, w - 2 * p), Math.max(1, Math.round(p / 2)));
+                    // the dusting's grains: single pixels caught in the grass
+                    if (!thaw && dust > 0.2) {
+                        ctx.fillStyle = SNOW_GRAIN;
+                        const n = Math.floor(dust * 9 * (0.3 + hh(q, r, 45) * 0.7));
+                        for (let i = 0; i < n; i++) dot(ctx, x, y, px, Math.floor(hh(q, r, 46 + i) * 30) + 1, Math.floor(hh(q, r, 56 + i) * 30) + 1);
                     }
-                    if (thaw && slush > 0.05 && hh(q, r, 5) < slush * 0.25) this._ssPuddle(ctx, x, y, ds, p, q, r, 0.8);
+                    // meltwater standing on the bare earth (never a pool on the grass)
+                    if (thaw && slush > 0.05 && _soft(t) && hh(q, r, 5) < slush * 0.2) this._ssPuddle(ctx, x, y, px, q, r, 0.8);
                 }
 
-                // ── Mud on the soft ground after rain: dark patches, ruts, puddles ──
+                // ── Mud on the bare earth after rain: dark wet patches, the wheels' ruts, puddles ──
                 if (mud > 0 && _soft(t)) {
-                    ctx.fillStyle = mudFill;
-                    const n = 1 + Math.floor(mud * 4);
-                    for (let i = 0; i < n; i++) {
-                        const w = (3 + Math.floor(hh(q, r, 90 + i) * 5)) * p, h = (2 + Math.floor(hh(q, r, 100 + i) * 3)) * p;
-                        ctx.fillRect(x + Math.floor(hh(q, r, 110 + i) * Math.max(1, ds - w)), y + Math.floor(hh(q, r, 120 + i) * Math.max(1, ds - h)), w, h);
+                    if (hh(q, r, 90) < mudShare) {
+                        const w = Math.round(8 + hh(q, r, 91) * 10 + mud * 4), h = Math.max(3, Math.round(w * (0.36 + hh(q, r, 92) * 0.16)));
+                        const [cx, cy] = placeIn(Math.round(w * 1.35) + 1, h + 1, q, r, 93);
+                        // the wet ground spreading off one side, the core darker where it lies deepest
+                        const side = hh(q, r, 97) < 0.5 ? -1 : 1;
+                        ctx.fillStyle = mudRim;
+                        blob(ctx, x, y, px, cx, cy, w, h, q, r, 94, cx + side * w * 0.38, cy + (hh(q, r, 98) - 0.5) * h * 0.6, Math.round(w * 0.5), Math.max(2, h - 1));
+                        ctx.fillStyle = mudCore;
+                        blob(ctx, x, y, px, cx + (hh(q, r, 95) - 0.5) * 2, cy, Math.max(3, w - 5), Math.max(2, h - 2), q, r, 96);
+                        if (mud > 0.5) { ctx.fillStyle = mudShine; run(ctx, x, y, px, cx - w * 0.15, Math.round(cy - h / 2) + 1, Math.max(2, Math.round(w * 0.22))); }
                     }
-                    if (t.isRoad) {
-                        // Ruts along the road's run (the wheels' two tracks)
-                        const ew = _street(at(q - 1, r)) || _street(at(q + 1, r));
-                        const ns = _street(at(q, r - 1)) || _street(at(q, r + 1));
-                        ctx.fillStyle = rutFill;
-                        if (ew && (!ns || hh(q, r, 6) < 0.5)) {
-                            ctx.fillRect(x, y + Math.floor(ds * 0.3), sz, p);
-                            ctx.fillRect(x, y + Math.floor(ds * 0.68), sz, p);
-                        } else if (ns) {
-                            ctx.fillRect(x + Math.floor(ds * 0.3), y, p, sz);
-                            ctx.fillRect(x + Math.floor(ds * 0.68), y, p, sz);
+                    if (t.isRoad && mud > 0.3) {
+                        // The wheels' two ruts along the road's run (one apiece on a road two cells wide)
+                        // (only down a lane one or two cells wide: never criss-crossing a square or a yard)
+                        const roadAt = (dq, dr) => { const n = at(q + dq, r + dr); return !!(n && n.isRoad && !n._wet); };
+                        const laneOf = (horiz) => {
+                            const runs = horiz ? roadAt(-1, 0) || roadAt(1, 0) : roadAt(0, -1) || roadAt(0, 1);
+                            const lo = horiz ? roadAt(0, -1) : roadAt(-1, 0), hi = horiz ? roadAt(0, 1) : roadAt(1, 0);
+                            if (!runs || (lo && hi)) return 0;
+                            if (hi) return horiz ? (roadAt(0, 2) ? 0 : 2) : (roadAt(2, 0) ? 0 : 2);
+                            if (lo) return horiz ? (roadAt(0, -2) ? 0 : 3) : (roadAt(-2, 0) ? 0 : 3);
+                            return 1;
+                        };
+                        const ewL = laneOf(true), nsL = laneOf(false);
+                        if ((ewL > 0) !== (nsL > 0)) {
+                            const along = ewL > 0, kind = ewL || nsL;
+                            // one cell wide: both wheels; two: the one wheel nearer the middle of the road
+                            if (kind === 1) { rut(ctx, x, y, px, q, r, along, 10, 3, rutFill, rutLip); rut(ctx, x, y, px, q, r, along, 21, 8, rutFill, rutLip); }
+                            else rut(ctx, x, y, px, q, r, along, kind === 2 ? 24 : 7, kind === 2 ? 3 : 8, rutFill, rutLip);
                         }
                     }
-                    if (mud >= puddlesAt && hh(q, r, 7) < (mud - 0.35) * 0.5) this._ssPuddle(ctx, x, y, ds, p, q, r, 1);
+                    if (mud >= puddlesAt && hh(q, r, 7) < (mud - 0.35) * 0.3) this._ssPuddle(ctx, x, y, px, q, r, 1);
                 }
 
                 // ── Autumn leaves lying ──
@@ -322,9 +342,9 @@ Object.assign(InnerMapRenderer, {
 
     /** The hole broken through the ice: dark water ringed with jagged white edges. */
     _ssHoleRim(ctx, x, y, ds, p, q, r, at) {
+        // (the open water darker, a rounded hole, not a square)
         ctx.fillStyle = 'rgba(8, 26, 40, 0.35)';
-        const m = Math.round(ds * 0.12);
-        ctx.fillRect(x + m, y + m, Math.ceil(ds) - 2 * m, Math.ceil(ds) - 2 * m);
+        blob(ctx, x, y, ds / 32, 16, 16, 26, 22, q, r, 77);
         const n = Math.max(3, Math.round(ds / p));
         for (let i = 0; i < n; i++) {
             const k = i * p;
@@ -361,19 +381,29 @@ Object.assign(InnerMapRenderer, {
         }
     },
 
-    /** A puddle: dark water, the sky's glint on its near edge. */
-    _ssPuddle(ctx, x, y, ds, p, q, r, alpha) {
-        const w = (5 + Math.floor(hh(q, r, 400) * 5)) * p, h = (2 + Math.floor(hh(q, r, 401) * 2)) * p;
-        const bx = x + Math.floor(hh(q, r, 402) * Math.max(1, ds - w)), by = y + Math.floor(hh(q, r, 403) * Math.max(1, ds - h - p));
+    /** A puddle: a rounded pool of dark water in a muddy rim, the sky's glint along its far edge. */
+    _ssPuddle(ctx, x, y, px, q, r, alpha) {
+        const w = 7 + Math.floor(hh(q, r, 400) * 8), h = Math.max(3, Math.round(w * (0.4 + hh(q, r, 401) * 0.12)));
+        const [cx, cy] = placeIn(Math.round(w * 1.4) + 2, h + 2, q, r, 402);
         ctx.globalAlpha = alpha;
-        ctx.fillStyle = MUD_DARK;
-        ctx.fillRect(bx + p, by, w - 2 * p, h);
-        ctx.fillRect(bx, by + p, w, Math.max(p, h - 2 * p));
-        ctx.fillStyle = 'rgba(150, 175, 195, 0.8)';
-        ctx.fillRect(bx + p, by + p, Math.max(p, Math.floor(w / 2)), Math.max(1, p >> 1));
-        ctx.fillStyle = 'rgba(110, 130, 150, 0.6)';
-        ctx.fillRect(bx + 2 * p, by + 2 * p, Math.max(p, Math.floor(w / 4)), Math.max(1, p >> 1));
+        puddle(ctx, x, y, px, cx, cy, w, h, q, r, 'rgba(46, 32, 18, 0.34)', 'rgba(54, 68, 86, 0.74)', 'rgba(28, 34, 42, 0.5)', 'rgba(200, 218, 232, 0.8)');
         ctx.globalAlpha = 1;
+    },
+
+    /** A patch of snow lying on: rounded, its foot in shadow, a bright crust on top (old and greyer in the thaw). */
+    _ssSnowPatch(ctx, x, y, px, cx, cy, w, h, q, r, old) {
+        // a smaller lobe off one shoulder, so no patch is a plain oval
+        const side = hh(q, r, 510) < 0.5 ? -1 : 1;
+        const lw = Math.max(2, Math.round(w * 0.5)), lh = Math.max(2, h - 1);
+        const lx = cx + side * w * 0.42, ly = cy - h * 0.25;
+        ctx.fillStyle = old ? 'rgba(120, 136, 150, 0.32)' : 'rgba(150, 170, 190, 0.42)';
+        blob(ctx, x, y, px, cx, cy + 1, w, h, q, r, 501, lx, ly + 1, lw, lh);
+        ctx.fillStyle = old ? 'rgba(222, 228, 232, 0.88)' : SNOW;
+        blob(ctx, x, y, px, cx, cy, w, h, q, r, 501, lx, ly, lw, lh);
+        if (w >= 6) {
+            ctx.fillStyle = old ? 'rgba(246, 249, 252, 0.9)' : '#ffffff';
+            run(ctx, x, y, px, cx - w * 0.3, Math.round(cy - h / 2), Math.max(1, Math.round(w * 0.3)));
+        }
     },
 
     // ══════════════════════════════════════════════

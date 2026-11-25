@@ -28,6 +28,7 @@
 import { InnerMapRenderer } from '../innerMapRenderer.js';
 import { InnerMap } from '../../world/innerMap.js';
 import { StreetWeather } from '../../world/streetWeather.js';
+import { hh, blob, run, dot, placeIn, puddle } from './groundMarks.js';
 
 const MAX_DROPS = 400;
 const MAX_FLAKES = 360;
@@ -47,13 +48,6 @@ function _mulberry(seed) {
 }
 const _rand = _mulberry(0x5eed1234);
 
-/** Integer hash → 0..1. */
-function hh(q, r, k) {
-    let h = (Math.imul(q | 0, 374761393) + Math.imul(r | 0, 668265263) + Math.imul(k | 0, 1274126177)) | 0;
-    h = Math.imul(h ^ (h >>> 13), 1103515245);
-    h ^= h >>> 16;
-    return (h >>> 0) / 4294967296;
-}
 const _num = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
 const _frac = x => x - Math.floor(x);
 
@@ -161,7 +155,8 @@ Object.assign(InnerMapRenderer, {
                 if (_isBuildingCell(t) || t._wet || t.customObject || t.customObjectPart) continue;
                 if (t.subTerrain && t.subTerrain.passable === false) continue;
                 const paved = !!(t.paving || t._pave);
-                const soft = !paved && (t.isRoad || t._townSoil || t._fieldSoil || t.baseTerrain === 'dirt');
+                // (bare earth only: a town's grass lies over a dirt base and is not mud)
+                const soft = !paved && !!(InnerMap._bareEarth && InnerMap._bareEarth(t));
                 const moist = _num(t.moisture, 0.5);
                 // Puddles: the roads and the soft ground, more in the low wet places; the paving's few hollows
                 const pShare = paved ? 0.06 : soft ? 0.09 + moist * 0.12 : (moist > 0.62 ? 0.03 : 0);
@@ -218,38 +213,34 @@ Object.assign(InnerMapRenderer, {
             ctx.fillRect(0, 0, cw, ch);
         }
 
-        // ── The fresh mud: dark, wet patches with a shine ──
+        // ── The fresh mud: dark, wet patches with a shine (rounded pixel blobs: groundMarks.js) ──
+        const px = ds / 32;
         const ssMud = InnerMap._ss ? _num(InnerMap._ss.mud, 0) : 0;
         const mud = Math.max(sw.mud, ssMud * 0.6);
         if (mud > 0.1 && !frozen) {
             const G = cells.gloss;
-            const a = Math.min(0.34, 0.08 + mud * 0.22);
-            ctx.fillStyle = MUD(a);
+            ctx.fillStyle = MUD(Math.min(0.26, 0.06 + mud * 0.16));
             const i0 = G.start[Math.max(0, rMin)], i1 = G.start[Math.min(rMax + 1, G.start.length - 1)];
             for (let i = i0; i < i1; i++) {
                 const q = G.q[i];
                 if (q < qMin || q > qMax || G.k[i] > mud + 0.25) continue;
                 const r = G.r[i];
                 const s = camera.worldToScreenFast(q * T, r * T);
-                // an irregular patch (a wide middle and a narrower top and foot, corners cut), never a square
-                const w = Math.floor(ds * (0.32 + G.k[i] * 0.3)), h = Math.max(2 * p, Math.floor(w * (0.38 + hh(q, r, 7) * 0.2)));
-                const x = Math.floor(s.x + (ds - w) * (0.15 + hh(q, r, 3) * 0.7)), y = Math.floor(s.y + (ds - h) * (0.2 + hh(q, r, 4) * 0.6));
-                const inset = Math.max(p, Math.floor(w * 0.18));
-                ctx.fillRect(x, y + p, w, Math.max(p, h - 2 * p));
-                ctx.fillRect(x + inset, y, w - 2 * inset, h);
-                // a lobe off to one side
-                const lw = Math.floor(w * 0.45), lx = hh(q, r, 8) < 0.5 ? x - Math.floor(lw * 0.4) : x + w - Math.floor(lw * 0.6);
-                ctx.fillRect(lx, y + Math.floor(h * 0.3), lw, Math.max(p, Math.floor(h * 0.5)));
+                const w = Math.round(9 + G.k[i] * 9), h = Math.max(3, Math.round(w * (0.38 + hh(q, r, 7) * 0.16)));
+                const [cx, cy] = placeIn(w, h, q, r, 3);
+                blob(ctx, Math.floor(s.x), Math.floor(s.y), px, cx, cy, w, h, q, r, 8);
             }
             // the shine: the sky on the wet mud, glinting as you move
-            ctx.fillStyle = sw.sun > 0.4 ? 'rgba(235, 228, 205, 0.5)' : 'rgba(170, 180, 190, 0.38)';
+            ctx.fillStyle = sw.sun > 0.4 ? 'rgba(235, 228, 205, 0.45)' : 'rgba(170, 180, 190, 0.34)';
             for (let i = i0; i < i1; i++) {
                 const q = G.q[i];
                 if (q < qMin || q > qMax || G.k[i] > mud) continue;
                 const r = G.r[i];
                 if (Math.sin(now * 1.3 + G.k[i] * 40) < 0.1) continue;
                 const s = camera.worldToScreenFast(q * T, r * T);
-                ctx.fillRect(Math.floor(s.x + ds * (0.2 + hh(q, r, 5) * 0.5)), Math.floor(s.y + ds * (0.25 + hh(q, r, 6) * 0.4)), 2 * p, p);
+                const w = Math.round(9 + G.k[i] * 9), h = Math.max(3, Math.round(w * (0.38 + hh(q, r, 7) * 0.16)));
+                const [cx, cy] = placeIn(w, h, q, r, 3);
+                run(ctx, Math.floor(s.x), Math.floor(s.y), px, cx - w * 0.2, Math.round(cy - h / 2) + 1, Math.max(2, Math.round(w * 0.25)));
             }
         }
 
@@ -258,8 +249,10 @@ Object.assign(InnerMapRenderer, {
         if (lvl > 0.06) {
             const P = cells.puddles;
             const i0 = P.start[Math.max(0, rMin)], i1 = P.start[Math.min(rMax + 1, P.start.length - 1)];
-            const dark = frozen ? 'rgba(170, 196, 214, 0.85)' : 'rgba(46, 52, 60, 0.78)';
-            const sky = frozen ? 'rgba(240, 250, 255, 0.85)' : sw.sun > 0.4 ? 'rgba(190, 215, 235, 0.85)' : 'rgba(128, 146, 164, 0.75)';
+            const rim = frozen ? null : 'rgba(58, 42, 26, 0.3)';
+            const dark = frozen ? 'rgba(170, 196, 214, 0.85)' : sw.sun > 0.4 ? 'rgba(64, 84, 104, 0.76)' : 'rgba(54, 66, 80, 0.76)';
+            const shade = frozen ? 'rgba(120, 150, 172, 0.6)' : 'rgba(40, 48, 58, 0.55)';
+            const sky = frozen ? 'rgba(240, 250, 255, 0.85)' : sw.sun > 0.4 ? 'rgba(214, 232, 245, 0.88)' : 'rgba(160, 178, 194, 0.8)';
             for (let i = i0; i < i1; i++) {
                 const q = P.q[i];
                 if (q < qMin || q > qMax) continue;
@@ -270,22 +263,20 @@ Object.assign(InnerMapRenderer, {
                 if (!t || !t.explored) continue;
                 const size = Math.min(1, 0.3 + (lvl - th) / 0.35);
                 const s = camera.worldToScreenFast(q * T, r * T);
-                const w = Math.max(3 * p, Math.round(ds * (0.35 + hh(q, r, 11) * 0.3) * size));
-                const h = Math.max(2 * p, Math.round(w * (0.42 + hh(q, r, 12) * 0.15)));
-                const x = Math.floor(s.x + (ds - w) * (0.2 + hh(q, r, 13) * 0.6)), y = Math.floor(s.y + (ds - h) * (0.25 + hh(q, r, 14) * 0.5));
-                ctx.fillStyle = dark;
-                ctx.fillRect(x + p, y, w - 2 * p, h);
-                ctx.fillRect(x, y + p, w, Math.max(p, h - 2 * p));
-                ctx.fillStyle = sky;
-                ctx.fillRect(x + p, y + p, Math.max(p, Math.floor(w * 0.45)), Math.max(1, p >> 1) || 1);
-                // rain rings in the puddle
-                if (sw.rain > 0 && !frozen) {
+                const x = Math.floor(s.x), y = Math.floor(s.y);
+                const w = Math.max(4, Math.round((10 + hh(q, r, 11) * 9) * size));
+                const h = Math.max(3, Math.round(w * (0.42 + hh(q, r, 12) * 0.12)));
+                const [cx, cy] = placeIn(Math.round(w * 1.4) + 2, h + 2, q, r, 13);
+                puddle(ctx, x, y, px, cx, cy, w, h, q, r, rim, dark, shade, sky);
+                // rain rings in the puddle: a little pixel oval widening and fading
+                if (sw.rain > 0 && !frozen && w >= 7) {
                     const u = _frac(now * (0.9 + sw.rain * 1.4) + hh(q, r, 15));
-                    const k = Math.ceil((1 - u) * STEPS);
-                    ctx.strokeStyle = RING_COL[k];
-                    ctx.lineWidth = Math.max(1, p >> 1);
-                    const rw = Math.max(1, w * 0.18 * (0.3 + u)), rh = rw * 0.5;
-                    ctx.strokeRect(Math.floor(x + w * (0.3 + hh(q, r, 16) * 0.4) - rw), Math.floor(y + h * 0.5 - rh), Math.ceil(rw * 2), Math.max(1, Math.ceil(rh * 2)));
+                    ctx.fillStyle = RING_COL[Math.ceil((1 - u) * STEPS)];
+                    const rw = Math.max(1, Math.round(w * 0.22 * (0.4 + u))), rc = Math.round(cx + (hh(q, r, 16) - 0.5) * w * 0.3), rr = Math.round(cy);
+                    run(ctx, x, y, px, rc - rw + 1, rr - 1, Math.max(1, 2 * rw - 1));
+                    run(ctx, x, y, px, rc - rw + 1, rr + 1, Math.max(1, 2 * rw - 1));
+                    dot(ctx, x, y, px, rc - rw, rr);
+                    dot(ctx, x, y, px, rc + rw, rr);
                 }
             }
         }

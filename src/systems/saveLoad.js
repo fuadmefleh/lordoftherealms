@@ -790,6 +790,8 @@ export const SaveLoad = {
         // (inn, camp) and the last one slept (systems/hospitality.js, player/core/lifecycle.js;
         // _lastRestType is read by ailments.js, worldEvents.js and firstSteps.js)
         'lodging', '_restTypeOverride', '_lastRestType',
+        // Let room doors picked today, and the houses that have thrown you out until a day (systems/roomLocks.js)
+        'pickedDoors', 'innBans',
         // The houses that have asked you in (keys read by ui/objectActions/furniture.js) and how long each welcome holds (player/guests.js)
         'guestAt', 'guestStays',
         // What the day's spare hours go on, and what they went on last (player/standingOrders.js)

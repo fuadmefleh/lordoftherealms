@@ -771,6 +771,8 @@ Object.assign(InnerMap, {
                 if (avoid && ni !== endIdx && avoid.has(ni)) ng += AVOID_PATH_COST;
                 if (parked && ni !== endIdx && parked.has(ni)) continue;
                 if (lists && lists.has(ni)) continue;
+                // (the player's: not through a let room's door locked to them — world/innerMap/guestRooms.js)
+                if (levels && tile._doorway && this._guestDoorMap && this._roomLockBlocks(tile)) continue;
                 // Blocked tile sides (interior floor edges, see core/tileSides.js)
                 if ((tile.blockedSides || tiles[cr][cq].blockedSides) &&
                     stepBlockedBySides(tiles[cr][cq].blockedSides, tile.blockedSides, dq[d], dr[d])) continue;

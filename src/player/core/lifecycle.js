@@ -15,6 +15,7 @@ import { Ships } from '../../systems/ships.js';
 import { DawnBirth } from '../dawnBirth.js';
 import { Parentage } from '../parentage.js';
 import { Household } from '../household.js';
+import { RealmEscort } from '../realmEscort.js';
 import { HeirArrival } from '../heirArrival.js';
 import { Endurance } from '../endurance.js';
 import { DataLoader } from '../../core/dataLoader.js';
@@ -84,9 +85,10 @@ export const PlayerLifecycleMethods = {
             this.starvationDays = 0;
             this.modifyNeed('hunger', DAILY_RATION_HUNGER);
         } else if (!(this.getFoodCount && this.getFoodCount() > 0) && world && !this.jailState && !this.indenturedServitude
-            && (Household.tableMeal(this, world) || Household.royalTable(this, world))) {
+            && (Household.tableMeal(this, world) || Household.royalTable(this, world) || RealmEscort.messMeal(this, world))) {
             // (the packs empty, supper from the larder at home — player/household.js —
-            // or, at a palace the crown keeps, from the royal kitchens: Household.royalTable)
+            // or, at a palace the crown keeps, from the royal kitchens: Household.royalTable —
+            // or, on the road with a realm's guard, from the bread it carries: RealmEscort.messMeal)
             this.starvationDays = 0;
             this.modifyNeed('hunger', DAILY_RATION_HUNGER);
         } else if (this.consumeFood()) {

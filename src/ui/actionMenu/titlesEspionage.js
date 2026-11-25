@@ -2,6 +2,8 @@
 import { ActionMenu } from './_ref.js';
 import { startTaxRound } from './dutyScenes.js';
 import { RealmIntel } from '../../systems/realmIntel.js';
+import { RealmUnions } from '../../systems/realmUnions.js';
+import { Names } from '../../core/names.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader } from './_imports.js';
 import { lede, chips, purse, sectionHead, kv, card, actRow, rowList, price, BTN_GOLD, BTN_PLAIN, BTN_DARK, BTN_RED, BTN_OFF } from './uiKit.js';
 
@@ -393,9 +395,14 @@ Object.assign(ActionMenu, {
             html += `<div style="${MUTED}">No valid war targets at this time.</div>`;
         } else {
             // A mandate in hand: declare; else put it to the vote first
+            // (a realm in personal union brings its other crown into the war: systems/realmUnions.js)
+            const other = (target) => {
+                const p = RealmUnions.partnerOf(game.world, game.world.getKingdom ? game.world.getKingdom(target.id) : null);
+                return p ? `; ${Names.realm(p.name)}, its other crown, will join them` : '';
+            };
             html += rowList(targets.map(target => (Councils.hasWarMandate(player, game.world, target.id)
-                ? { icon: '⚔️', name: `Declare war on ${target.name}`, desc: 'The council has granted a war mandate', tone: 'bad', act: 'councilDeclareWar', args: [target.id] }
-                : { icon: '🗳️', name: `Put war on ${target.name} to the vote`, desc: 'A war mandate lets you declare it', act: 'councilVoteWar', args: [target.id] })));
+                ? { icon: '⚔️', name: `Declare war on ${target.name}`, desc: `The council has granted a war mandate${other(target)}`, tone: 'bad', act: 'councilDeclareWar', args: [target.id] }
+                : { icon: '🗳️', name: `Put war on ${target.name} to the vote`, desc: `A war mandate lets you declare it${other(target)}`, act: 'councilVoteWar', args: [target.id] })));
         }
 
         if (summary.history && summary.history.length) {

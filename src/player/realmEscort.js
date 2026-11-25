@@ -594,6 +594,29 @@ export const RealmEscort = {
         return take;
     },
 
+    /**
+     * The guard's mess feeds the lord it rides with (player/core/lifecycle.js
+     * endDay, after the House's larder and the royal table): the packs empty,
+     * a ration (supply.liegeRation) out of the bread the guard carries — bread
+     * the crown bought from a town's granary (_feed), so it comes from real
+     * stock and was paid for. A king riding out with his guard starved in a
+     * bare village with 2,500 gold in the purse while the guard beside him ate
+     * (the 40-year endgame soak, seed 101, 2026-11-25). → { kingdomId, took } or null.
+     */
+    messMeal(player, world) {
+        if (!player || !world || !RealmEscort.enabled()) return null;
+        const S = RealmEscort.config().supply || {};
+        if (S.liegeEats === false) return null;
+        const g = RealmEscort.guard(player);
+        if (!g || !(RealmEscort.men(player, g.kingdomId) > 0)) return null;
+        const took = _num(S.liegeRation, 0.5);
+        if (!(took > 0) || _num(g.supplies) < took) return null;
+        g.supplies = _r2(_num(g.supplies) - took);
+        g.record = _obj(g.record) || {};
+        g.record.liegeMeals = _num(g.record.liegeMeals) + 1;
+        return { kingdomId: g.kingdomId, took };
+    },
+
     /** Unpaid or starving men slip away: the last companies first, their arms with them. → men gone */
     _desert(player, g, share) {
         const units = RealmEscort.units(player, g.kingdomId);

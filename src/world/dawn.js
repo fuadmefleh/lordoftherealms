@@ -828,7 +828,7 @@ export const Dawn = {
         kingdom.lord = NPCLords.generateLord(kingdom);
         if (Characters && typeof Characters.generateRoyalFamily === 'function') {
             kingdom.characterData = Characters.generateRoyalFamily(kingdom, world);
-            kingdom.ruler = Characters.getDisplayName(kingdom.characterData.ruler, kingdom);
+            Characters.syncRulerName(kingdom);
         }
         world.kingdoms.push(kingdom);
         if (typeof world.invalidateSettlements === 'function') world.invalidateSettlements();

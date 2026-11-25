@@ -46,7 +46,7 @@ Object.assign(ActionMenu, {
             html += card(chips([
                 ['✝️', 'Title', esc(HolyWars.styleOf(player)), 'gold'],
                 ['⚔️', 'Won in', esc(v.knight.last || v.knight.war || 'a holy war')],
-                ['🛡️', 'Crusades served', String(v.p.crusades || 1)],
+                ['🛡️', 'Crusades served', String(Math.max(Number(v.p.crusades) || 0, Number(v.knight.wars) || 1))],
             ]) + '<div style="color:#cfc3a5;">The faithful rulers remember the crusader; the realms you rode against remember too.</div>', { icon: '✝️', title: esc(v.knight.title || HolyWars.knightTitle()), tone: 'gold' });
         }
 

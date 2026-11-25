@@ -11,12 +11,16 @@ import { Sieges } from '../../systems/sieges.js';
 import { lede, card, rowList, price, more } from './uiKit.js';
 import { InnerMapBattle } from '../innerMapBattle.js';
 import { Utils } from '../../core/utils.js';
+import { Names } from '../../core/names.js';
 
 const MUTED = 'color:var(--text-secondary);font-size:11px;';
 
 function _esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 }
+
+const _days = (n) => `${n} day${n === 1 ? '' : 's'}`;
+const _cap = (t) => { const x = String(t == null ? '' : t); return x.charAt(0).toUpperCase() + x.slice(1); };
 
 function _bar(value, max, color) {
     const pct = Math.max(0, Math.min(100, max > 0 ? value / max * 100 : 0));
@@ -28,7 +32,7 @@ function siegeCardHtml(player, d) {
     const s = d.siege;
     const k = s.key;
     let html = '';
-    html += `<div style="${MUTED}margin-bottom:6px;">Besieged by ${_esc(s.hostName)} of ${_esc(s.kingdomName)}${s.port ? (d.enemyFleet ? ' · ⛵ their fleet closes the harbour' : ' · ⛵ ships still bring food (stores fall at half pace)') : ''}</div>`;
+    html += `<div style="${MUTED}margin-bottom:6px;">Besieged by ${_esc(s.hostName)} of ${_esc(Names.realm(s.kingdomName))}${s.port ? (d.enemyFleet ? ' · ⛵ their fleet closes the harbour' : ' · ⛵ ships still bring food (stores fall at half pace)') : ''}</div>`;
 
     html += '<div style="display:flex;gap:8px;">';
     // The defenders
@@ -68,26 +72,27 @@ function siegeCardHtml(player, d) {
     const routes = d.supply;
     const rows = [
         { icon: '⚔️', name: 'Relieve it', desc: `Your army ${army} against ${Math.round(s.besiegers)}; the garrison sallies to help if its heart is in it`,
-            off: !d.canRelieve, why: `March your army to ${_esc(s.name)} (${d.distance === Infinity ? '?' : d.distance} hexes away) to fight the host there`, tone: 'bad', ...go('relieve') },
-        { icon: '🐫', name: `Caravan: ${food} food`, desc: `${routes.caravan.days} days · ${Math.round(routes.caravan.catch * 100)}% risk of capture · ${d.foodPerDay} food feeds the town a day`,
+            off: !d.canRelieve, why: army <= 0 ? 'You have no army to relieve it with' : player.boardedShip ? 'Come ashore first'
+                : `March your army to ${_esc(s.name)} (${d.distance === Infinity ? '?' : d.distance} hexes away) to fight the host there`, tone: 'bad', ...go('relieve') },
+        { icon: '🐫', name: `Caravan: ${food} food`, desc: `${_days(routes.caravan.days)} · ${Math.round(routes.caravan.catch * 100)}% risk of capture · ${d.foodPerDay} food feeds the town a day`,
             off: food <= 0, why: 'You carry no food to send', ...go('supply', `caravan:${food}:0`) },
-        { icon: '🐫', name: 'Caravan: 300 gold', desc: `${routes.caravan.days} days · hires men inside the walls and lifts their spirits`, side: price(300, gold >= 300),
+        { icon: '🐫', name: 'Caravan: 300 gold', desc: `${_days(routes.caravan.days)} · hires men inside the walls and lifts their spirits`, side: price(300, gold >= 300),
             off: gold < 300, why: 'Needs 300g', ...go('supply', 'caravan:0:300') },
-        s.port ? { icon: '⛵', name: `Ship: ${food} food + 200 gold`, desc: `${routes.ship.days} days · ${Math.round(routes.ship.catch * 100)}% risk · runs the blockade by sea`, side: price(200, gold >= 200),
+        s.port ? { icon: '⛵', name: `Ship: ${food} food + 200 gold`, desc: `${_days(routes.ship.days)} · ${Math.round(routes.ship.catch * 100)}% risk · runs the blockade by sea`, side: price(200, gold >= 200),
             off: !(routes.ship.can && gold >= 200), why: _esc(routes.ship.reason || 'Needs 200g'), ...go('supply', `ship:${food}:200`) } : null,
-        { icon: '🗡️', name: 'Order a sally', desc: `${_esc(d.commander.name)} leads part of the garrison against the lines`,
+        { icon: '🗡️', name: 'Order a sally', desc: `${_esc(_cap(d.commander.name))} leads part of the garrison against the lines`,
             off: !d.canSally, why: `Not again until day ${s.nextSallyDay}`, ...go('sally') },
         { icon: '🤝', name: 'Governor\'s terms', desc: `${Math.round(d.termsChance * 100)}% they take your gold and march away; a refusal disheartens the town`, side: price(d.termsPrice, gold >= d.termsPrice),
             off: !(d.canParley && gold >= d.termsPrice), why: d.canParley ? `Needs ${Utils.formatGold(d.termsPrice)}g` : `They won't parley again until day ${s.nextParleyDay}`, ...go('terms') },
-        { icon: '💰', name: `Pay ${_esc(s.kingdomName)} to lift it`, desc: 'The host marches home; the war goes on', side: price(d.buyOffPrice, gold >= d.buyOffPrice),
+        { icon: '💰', name: `Pay ${_esc(Names.realm(s.kingdomName))} to lift it`, desc: 'The host marches home; the war goes on', side: price(d.buyOffPrice, gold >= d.buyOffPrice),
             off: gold < d.buyOffPrice, why: `Needs ${Utils.formatGold(d.buyOffPrice)}g`, ...go('buyoff') },
         d.peacePrice != null ? { icon: '🕊️', name: 'Buy peace', desc: 'End the whole war; every siege it brought is lifted', side: price(d.peacePrice, gold >= d.peacePrice),
             off: gold < d.peacePrice, why: `Needs ${Utils.formatGold(d.peacePrice)}g`, ...go('peace') } : null,
         { icon: '🏳️', name: 'Let it fall', desc: 'Order the gates opened. The town goes to the enemy', tone: 'bad', ...go('yield') },
         // Starving: the dead to the kitchens, or clean hands (systems/eatingTheDead.js)
-        s.stores <= 0 || d.ateDead ? { icon: '🦴', name: 'Order them to eat their dead', desc: `About ${d.eatDeadDays} days more. The town will never be the same, nor its name; the faith will not forgive it`,
+        s.stores <= 0 ? { icon: '🦴', name: 'Order them to eat their dead', desc: `About ${d.eatDeadDays} days more. The town will never be the same, nor its name; the faith will not forgive it`,
             off: !d.eatDead.ok, why: _esc(d.eatDead.why), tone: 'bad', ...go('eatDead') } : null,
-        s.stores <= 0 ? { icon: d.eatDeadForbid ? '🕊️' : '✋', name: d.eatDeadForbid ? 'Leave it to the governor' : 'Forbid them to touch the dead', desc: d.eatDeadForbid ? 'You have forbidden it: they starve with clean hands' : 'Left alone, a starving governor may do it on his own', ...go('forbidEat') } : null,
+        s.stores <= 0 ? { icon: d.eatDeadForbid ? '🕊️' : '✋', name: d.eatDeadForbid ? 'Leave it to the governor' : 'Forbid them to touch the dead', desc: d.eatDeadForbid ? 'You have forbidden it: they starve with clean hands' : `Left alone, a starving ${d.commander.governor ? 'governor' : 'captain'} may do it on his own`, ...go('forbidEat') } : null,
     ];
     html += rowList(rows, 'What you can do');
 

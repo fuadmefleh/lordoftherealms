@@ -211,7 +211,7 @@
             "props": ["tp_anvil"], "activity": { "icon": "🔨", "label": "Hammering at the anvil", "anim": "slash", "tool": "hammer", "swing": 0.9, "sound": "anvil" },
             "furniture": ["anvil", "forge", "rack"],
             "goods": ["tools", "weapons", "bronze", "steel", "chainmail", "helmet", "spear", "fishing_spear"],
-            "recipes": ["smithy", "forge", "armoury", "founder", "helmsmith", "spearmaker", "steelworks", "mailer"],
+            "recipes": ["smithy", "forge", "armoury", "founder", "helmsmith", "helm_forge", "spearmaker", "steelworks", "mailer"],
             "floor": 0.28, "elasticity": 0.55, "wage": 0.55, "pay": "sales",
             "say": ["I keep the forge. Horseshoes, nails, ploughshares — and a blade, if you've the coin.", "Smith. If it's iron in {town}, it passed my anvil."],
             "barks": ["Another horseshoe…", "Mind the sparks!", "Hot iron waits for no one."]

@@ -413,7 +413,7 @@ export const CourtLetters = {
                 break;
             case 'crusade_call':
                 data.warId = ctx.war.id;
-                vars.target = Names.realm(ctx.war.targetName); vars.war = ctx.war.name; vars.head = ctx.war.head || 'the head of the faith';
+                vars.target = Names.realm(ctx.war.targetName); vars.war = ctx.war.name; vars.realm = Names.realm(vars.realm); vars.head = ctx.war.head || 'the head of the faith';
                 break;
             case 'rival_truce':
             case 'rival_marriage':
@@ -951,7 +951,9 @@ export const CourtLetters = {
             case 'crusade_call:take': {
                 const r = HolyWars.takeCross(player, world, letter.data.warId);
                 if (!r.success) return { success: false, reason: r.reason };
-                lines.push(r.text);
+                // (the letter's own result already says you take the cross: only the muster is news)
+                const muster = String(r.text || '').replace(/^You take the cross[^.]*\.\s*/, '');
+                if (muster) lines.push(muster);
                 break;
             }
             case 'crusade_call:decline': remember('crusade_declined'); break;

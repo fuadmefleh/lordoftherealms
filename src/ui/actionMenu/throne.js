@@ -127,13 +127,14 @@ export function bindCrownRule(game, reopen) {
                 : [
                     { icon: '🎁', name: 'Send royal gifts', desc: 'Warm their court toward yours', side: price(cfg.ruling.giftCost, (ruled.treasury || 0) >= cfg.ruling.giftCost), off: (ruled.treasury || 0) < cfg.ruling.giftCost, why: `The treasury lacks ${Utils.formatGold(cfg.ruling.giftCost)}g`, attrs: `onclick="window._throne.gift('${id}')"` },
                     { icon: '🤝', name: 'Propose an alliance', desc: `Needs relations of ${cfg.ruling.allianceMinRelations}+`, off: d.allied || d.relations < cfg.ruling.allianceMinRelations, why: d.allied ? 'Already allied' : `Relations ${d.relations}; they need ${cfg.ruling.allianceMinRelations}+`, attrs: `onclick="window._throne.ally('${id}')"` },
-                    { icon: '⚔️', name: 'Declare war', desc: `Their towns become your war goal${RealmUnions.partnerOf(world, d.kingdom) ? `; ${_esc(RealmUnions.partnerOf(world, d.kingdom).name)}, its other crown, will join them` : ''}`, tone: 'bad', off: d.allied || !!d.truce, why: d.allied ? 'You are allied' : 'A truce holds', attrs: `onclick="window._throne.war('${id}')"` },
+                    { icon: '⚔️', name: 'Declare war', desc: `Their towns become your war goal${RealmUnions.partnerOf(world, d.kingdom) ? `; ${_esc(Names.realm(RealmUnions.partnerOf(world, d.kingdom).name))}, its other crown, will join them` : ''}`, tone: 'bad', off: d.allied || !!d.truce, why: d.allied ? 'You are allied' : 'A truce holds', attrs: `onclick="window._throne.war('${id}')"` },
                 ];
             rows.push({ icon: '←', name: 'Back to the realm', attrs: 'onclick="window._throne.back()"' });
+            const un = RealmUnions.describe(world, d.kingdom);
             const html = '<div style="font-size:12px;">' + chips([
                 ['🤝', 'Relations', d.relations], ['⚔️', 'Army', Math.floor(d.kingdom.military || 0)],
                 d.atWar ? { icon: '⚔️', label: 'At war', value: '' } : d.allied ? ['🤝', 'Allied', ''] : d.truce ? ['🕊️', 'Truce', ''] : null,
-            ]) + rowList(rows) + '</div>';
+            ]) + (un ? `<div style="${MUTED}margin:4px 0;">👑 ${_esc(un.text)}</div>` : '') + rowList(rows) + '</div>';
             game.ui.showCustomPanel(`🏰 ${d.kingdom.name}`, html);
         },
     });
@@ -159,7 +160,7 @@ Object.assign(ActionMenu, {
         const ruled = Throne.ruledKingdom(player, world);
         if (ruled) {
             html += rowList([{
-                icon: '👑', name: `You rule ${_esc(ruled.name)}`,
+                icon: '👑', name: `You rule ${_esc(Names.realm(ruled.name))}`,
                 desc: 'Policies, diplomacy, the council, edicts and vassals: all in the Royal Court',
                 attrs: 'onclick="window._throne.court()"', side: '›', tone: 'gold',
             }]);

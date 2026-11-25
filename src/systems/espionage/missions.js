@@ -670,10 +670,15 @@ Object.assign(Espionage, {
                     if (kingdom.lord) NPCLords.rememberDeed(world, kingdom.lord, 'kin_slain', { note: oldRulerName });
                     BloodFeuds.onLordBlood(world, player, kingdom, oldRulerName, 'assassinated', true);
                     // Generate new ruler (succession)
-                    if (typeof Characters !== 'undefined') {
+                    // (the royal house's own succession: the heir of the records takes the throne,
+                    // and the name shown follows the record — Characters.handleSuccession)
+                    const rec = kingdom.characterData && kingdom.characterData.ruler;
+                    if (rec && rec.isAlive !== false && !rec.isPlayer && world) {
+                        Characters.handleSuccession(kingdom, world);
+                    } else if (!kingdom.characterData) {
                         const newRuler = Characters.generateCharacter({ culture: kingdom.culture, isRuler: true });
-                        kingdom.ruler = `${newRuler.firstName} ${newRuler.dynasty}`;
-                        kingdom.characterData = newRuler;
+                        kingdom.ruler = Characters.getDisplayName(newRuler, kingdom);
+                        if (kingdom.lord) kingdom.lord.name = kingdom.ruler;
                     } else {
                         kingdom.ruler = 'New Ruler';
                     }

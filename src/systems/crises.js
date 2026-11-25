@@ -778,7 +778,7 @@ export const Crises = {
                 k.lord = NPCLords.generateLord(k);
                 if (Characters && typeof Characters.generateRoyalFamily === 'function') {
                     k.characterData = Characters.generateRoyalFamily(k, world);
-                    k.ruler = Characters.getDisplayName(k.characterData.ruler, k);
+                    Characters.syncRulerName(k);
                 }
                 KingdomNavy.ensure(k);
             }

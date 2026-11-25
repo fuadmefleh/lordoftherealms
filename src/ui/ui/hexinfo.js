@@ -10,6 +10,7 @@ import { whyIcon, stabilityWhy } from '../whyPopover.js';
 import { Fame } from '../../systems/fame.js';
 import { Kingship } from '../../systems/kingship.js';
 import { RealmUnions } from '../../systems/realmUnions.js';
+import { Names } from '../../core/names.js';
 import { Pirates } from '../../systems/pirates.js';
 import { NavySquadrons } from '../../world/navySquadrons.js';
 import { Construction } from '../../systems/construction.js';
@@ -1043,6 +1044,22 @@ Object.assign(UI.prototype, {
                             <span class="info-value">${cd.spouse.culture}${cd.spouse.culture !== kingdom.culture ? ' (Foreign)' : ''}</span>
                         </div>
                     `;
+                } else if (unionRole.partner) {
+                    // (a personal union: the spouse is the royal of the other crown)
+                    const pr = RealmUnions._ruler(unionRole.partner);
+                    if (pr && ruler.spouseId != null && ruler.spouseId === pr.id) {
+                        lordHtml += `
+                        <div class="info-section-title">💒 Consort</div>
+                        <div class="info-row">
+                            <span class="info-label">Name</span>
+                            <span class="info-value">${Characters.getFullName(pr)}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Reigns in</span>
+                            <span class="info-value">${unionRole.partner.name}</span>
+                        </div>
+                    `;
+                    }
                 }
 
                 // Children (heirs)
@@ -1182,7 +1199,7 @@ Object.assign(UI.prototype, {
             ${(() => {
                 // Two crowns on one head (systems/realmUnions.js)
                 const un = knows('ruler') ? RealmUnions.describe(this.game.world, kingdom) : null;
-                return un ? `<div class="info-row"><span class="info-label">Union</span><span class="info-value" style="font-size: 11px; color: var(--gold);" title="${un.text.replace(/"/g, '&quot;')}">👑 ${un.role === 'junior' ? `Ruled from ${un.partnerName}` : `Also wears the crown of ${un.partnerName}`}${un.role === 'junior' ? ` · lords ${un.mood}` : ''}</span></div>` : '';
+                return un ? `<div class="info-row"><span class="info-label">Union</span><span class="info-value" style="font-size: 11px; color: var(--gold);" title="${un.text.replace(/"/g, '&quot;')}">👑 ${un.role === 'junior' ? `Ruled from ${Names.realm(un.partnerName)}` : `Also wears the crown of ${Names.realm(un.partnerName)}`}${un.role === 'junior' ? ` · lords ${un.mood}` : ''}</span></div>` : '';
             })()}
             <div class="info-row">
                 <span class="info-label">Culture</span>

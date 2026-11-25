@@ -633,6 +633,7 @@ export const HoldingSieges = {
         war.lastHostDay = _day(world);
         if (!Array.isArray(world.units)) world.units = [];
         RealmWars._spawnUnit(world, kingdom, rec);
+        RealmWars.bookHosts(player, world);
         return rec;
     },
 

@@ -65,6 +65,7 @@ import { DataLoader } from '../core/dataLoader.js';
 import { Names } from '../core/names.js';
 import { Interrupts } from '../core/interrupts.js';
 import { NPCLords } from '../world/npcLords.js';
+import { Characters } from '../world/characters.js';
 import { Economy } from '../world/economy.js';
 import { MoneySupply } from '../world/moneySupply.js';
 import { Estates } from '../world/estates.js';
@@ -1318,6 +1319,7 @@ export const CrownMatches = {
             if (!b || !cb || _num(ca.age) < 16 || _num(cb.age) < 16) continue;
             delete ca.betrothedTo;
             delete cb.betrothedTo;
+            if (!Characters.canWed(ca, cb)) continue; // (a promise the world's rule will not keep is let go)
             ca.spouseId = cb.id;
             cb.spouseId = ca.id;
             ca.wedTo = b.id;
@@ -1341,7 +1343,7 @@ export const CrownMatches = {
                 if (!allied && Math.min(_num(a.relations && a.relations[b.id]), _num(b.relations && b.relations[a.id])) < C.tieMin) continue;
                 if (Betrothals._roll(world, `crowns:${a.id}:${b.id}:${day}`) >= C.chance) continue;
                 const ca = free(a)[0];
-                const cb = ca && free(b).find(c => c.gender && c.gender !== ca.gender && Math.abs(_num(c.age) - _num(ca.age)) <= C.ageGap);
+                const cb = ca && free(b).find(c => Characters.canWed(ca, c) && Math.abs(_num(c.age) - _num(ca.age)) <= C.ageGap);
                 if (!ca || !cb) continue;
                 ca.betrothedTo = { kingdomId: b.id, royalId: cb.id, name: cb.firstName, day };
                 cb.betrothedTo = { kingdomId: a.id, royalId: ca.id, name: ca.firstName, day };

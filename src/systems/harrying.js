@@ -56,6 +56,7 @@ import { Harvests } from '../world/harvests.js';
 import { Estates } from '../world/estates.js';
 import { Seasons } from '../world/seasons.js';
 import { CrownBooks } from '../world/crownBooks.js';
+import { Kingdom } from '../world/kingdom.js';
 import { TownMemory } from './townMemory.js';
 import { Townsfolk } from './townsfolk.js';
 import { Livestock } from './livestock.js';
@@ -547,6 +548,7 @@ export const Harrying = {
             strength, chest, start: day, until: day + _num(P.days, 30), tq: pq, tr: pr,
         };
         st.hosts.push(rec);
+        Harrying._bookHosts(world, st, day);
         st.stats.hostsSent++;
         r.lastHost = day;
         Harrying._spawn(world, k, rec);
@@ -613,6 +615,13 @@ export const Harrying = {
             unit.destroyed = true;
         }
         if (k && k.isAlive !== false) k.military = _num(k.military) + Math.round(_num(unit ? unit.strength : rec.strength) * share);
+    },
+
+    /** The pursuit hosts out are drawn from their realms' armies: booked away (world/kingdom.js menAway) at their live strength. */
+    _bookHosts(world, st, day) {
+        const totals = {};
+        for (const h of st.hosts) if (h && h.kid != null) totals[h.kid] = (totals[h.kid] || 0) + Math.max(0, _num(h.strength));
+        Kingdom.bookHosts(world, 'pursuit', totals, day);
     },
 
     _hostsDay(world, player, st, day, out) {
@@ -883,6 +892,7 @@ export const Harrying = {
             Harrying._aiWeek(world, player, st, day, out, ownKid);
             Harrying._reckonRealms(world);
         }
+        Harrying._bookHosts(world, st, day);
         return out;
     },
 

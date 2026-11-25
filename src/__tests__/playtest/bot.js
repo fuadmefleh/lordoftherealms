@@ -227,18 +227,40 @@ function waterDetour(game) {
     const { player, world } = game;
     if (player.boardedShip != null || !Thirst.on(player)) return false;
     if (Thirst.level(player) >= 35 || Thirst.held(player) >= 1 || Thirst.sourceHere(player, world)) return false;
-    let best = null;
-    for (let dr = -4; dr <= 4; dr++) {
-        for (let dq = -4; dq <= 4; dq++) {
-            const tq = Hex.wrapQ(player.q + dq, world.width), tr = player.r + dr;
-            const src = Water.sourceAt(world, tq, tr);
-            if (!src || src.foul) continue;
-            const d = Hex.wrappingDistance(player.q, player.r, tq, tr, world.width);
-            if (!best || d < best.d) best = { q: tq, r: tr, d };
+    const w = world.width;
+    // (held to once chosen, and by days on the road, not hexes: a king mid-way across a long hex,
+    // skins dry, set out each morning for the nearest water by hex count by another road — the way
+    // made thrown away (Player.moveTo) — never got off the hex and died of thirst; seed 101 run 1)
+    const held = game._waterTo;
+    let best = held && world.day - held.day <= 6 && (player.q !== held.q || player.r !== held.r)
+        && (() => { const s = Water.sourceAt(world, held.q, held.r); return s && !s.foul; })() ? held : null;
+    if (!best) {
+        const cand = [];
+        for (let dr = -4; dr <= 4; dr++) {
+            for (let dq = -4; dq <= 4; dq++) {
+                const tq = Hex.wrapQ(player.q + dq, w), tr = player.r + dr;
+                const src = Water.sourceAt(world, tq, tr);
+                if (!src || src.foul) continue;
+                cand.push({ q: tq, r: tr, d: Hex.wrappingDistance(player.q, player.r, tq, tr, w) });
+            }
         }
+        cand.sort((a, b) => a.d - b.d);
+        for (const c of cand.slice(0, 6)) {
+            const days = tripDays(game, c.q, c.r);
+            if (days == null) continue;
+            if (!best || days < best.days) best = { ...c, days };
+        }
+        if (!best) best = cand[0] || null;
+        if (best) game._waterTo = { q: best.q, r: best.r, day: world.day };
     }
     if (!best) return false;
     count(game._roadStats || (game._roadStats = {}), 'waterDetour');
+    // (a hex being crossed toward it is crossed first)
+    const c = typeof player.crossingStatus === 'function' ? player.crossingStatus(world) : null;
+    if (c && (c.q !== best.q || c.r !== best.r) && Hex.wrappingDistance(c.q, c.r, best.q, best.r, w) < Hex.wrappingDistance(player.q, player.r, best.q, best.r, w)) {
+        harnessTravelTo(game, c.q, c.r);
+        if (player.q !== c.q || player.r !== c.r) return true;
+    }
     harnessTravelTo(game, best.q, best.r);
     return true;
 }
@@ -387,11 +409,23 @@ function settlementTiles(world) {
 /** The nearest town (by road) whose stalls have bread enough, or null: a starving life's last walk. */
 function marketNear(game) {
     const { player, world } = game;
+    // Held to once chosen, while not reached and its stalls still have something: picked afresh
+    // each morning, a starving emperor with 10,000 gold was sent to a different market five days
+    // running from one bare village (31,25, 29,18, 26,18...), set out from mid-hex by another road
+    // each time (the way made thrown away), and never left it (seed 101 run 1, 2026-11-25)
+    const held = game._market;
+    if (held && world.day - held.day <= 15 && (player.q !== held.q || player.r !== held.r)) {
+        const tile = world.getTile(held.q, held.r);
+        if (tile && tile.settlement && stallFood(tile.settlement) >= 1) return { q: held.q, r: held.r };
+    }
+    game._market = null;
     const stocked = settlementTiles(world).filter(t => {
         const tile = world.getTile(t.q, t.r);
         return tile && tile.settlement && stallFood(tile.settlement) >= STALL_ENOUGH;
     });
-    return nearest(world, player, stocked, 1)[0] || null;
+    const m = nearest(world, player, stocked, 1)[0] || null;
+    if (m) game._market = { q: m.q, r: m.r, day: world.day };
+    return m;
 }
 
 function nearest(world, from, list, n = 6) {
@@ -2237,7 +2271,7 @@ function keepCourt(game, stats) {
         if (days != null && days <= left0 + 3) {
             const from = `${player.q},${player.r}`;
             game.dest = { q: seat.q, r: seat.r, court: true };
-            game.headingTo = { q: seat.q, r: seat.r, day: world.day };
+            game.headingTo = { q: seat.q, r: seat.r, day: world.day, court: true };
             travelTo(game, seat.q, seat.r);
             if (`${player.q},${player.r}` !== from || player.crossing) {
                 count(stats, 'poorToCourt');
@@ -2258,7 +2292,7 @@ function keepCourt(game, stats) {
         // for a court seven days off and starved three hexes short — seed 101 2026-11-24)
         if (days != null && days <= left && (!home || Household.rations(home) >= 2 || player.gold >= 30)) {
             game.dest = { q: seat.q, r: seat.r, court: true };
-            game.headingTo = { q: seat.q, r: seat.r, day: world.day };
+            game.headingTo = { q: seat.q, r: seat.r, day: world.day, court: true };
             travelTo(game, seat.q, seat.r);
             count(stats, 'homeToCourt');
             const now = world.getTile(player.q, player.r);
@@ -2270,9 +2304,18 @@ function keepCourt(game, stats) {
 }
 
 function chooseDestination(game) {
+    // (a ruler under this life's purse mark is walked home to court by keepCourt's poorToCourt the
+    // morning after any step away: so it does not step away — the wander and the walk home undid
+    // each other daily, a king going a hex out of his capital and back for weeks on end)
+    const seat = royalSeat(game);
+    const { player } = game;
+    if (seat && !seat.progress && player.gold < poorBelow(game)) {
+        if (player.q === seat.q && player.r === seat.r) return null;
+        const d = tripDays(game, seat.q, seat.r);
+        if (d != null && d <= player.getFoodCount() + 3) return { q: seat.q, r: seat.r, court: true };
+    }
     const dest = pickDestination(game);
     // (a ruler keeps within a few days of the seat: back to court from a road that strays)
-    const seat = royalSeat(game);
     if (seat && dest && Hex.wrappingDistance(seat.q, seat.r, dest.q, dest.r, game.world.width) > COURT_TETHER
         && (game.player.q !== seat.q || game.player.r !== seat.r)) return { q: seat.q, r: seat.r, court: true };
     return dest;
@@ -2903,8 +2946,130 @@ function delveTrek(game, stats) {
     if (site) { game.dest = site; game.trek = { ...site, day: world.day }; count(stats, 'delveTreks'); }
 }
 
+/**
+ * The stuck-detector. Errands each pick a way of their own (a ruler's
+ * poorToCourt steps toward the court, the poor-life's town errand walks back
+ * to the nearest town), and on some days each undoes the other: a seed-202
+ * king (EG_RUN=1) walked between Camelford and the next hex for ~40 days, a
+ * step toward the court and a step back, until he begged, starved and died.
+ *
+ * Each morning's hex is kept (game._trail). Going back and forth over two or
+ * three hexes for ten days without getting anywhere is oscillation: the bot
+ * then commits to one goal (game.commit) — the court when the packs carry it
+ * there (the royal kitchens feed a ruler at his seat), else the nearest market
+ * with bread, else the town it is in — and that errand alone owns the day's
+ * road until it is reached, or 30 days pass, or there is plainly no way.
+ * Arrived, it stays a few days (a stay commit) before the day's errands take
+ * over again; each relapse holds it longer.
+ */
+const TRAIL_DAYS = 10;
+function noteTrail(game) {
+    const { player, world } = game;
+    const t = game._trail || (game._trail = []);
+    t.push(`${player.q},${player.r}`);
+    if (t.length > TRAIL_DAYS) t.shift();
+    if (game.commit || t.length < TRAIL_DAYS || player.boardedShip || Ships.getVoyage(player)) return false;
+    if (Sieges.active(player) || Delves.active(player)) return false;
+    const distinct = new Set(t).size;
+    let moves = 0;
+    for (let i = 1; i < t.length; i++) if (t[i] !== t[i - 1]) moves++;
+    // (ten mornings on two or three hexes, moving on most of them: walked back and forth)
+    return distinct <= 3 && moves >= 6;
+}
+
+function chooseCommit(game) {
+    const { player, world } = game;
+    const food = player.getFoodCount();
+    const seat = royalSeat(game);
+    const relapse = (game._commits || 0);
+    const stay = 4 + 3 * Math.min(4, relapse);
+    if (seat && !seat.progress) {
+        const d = tripDays(game, seat.q, seat.r);
+        if (d === 0) return { q: seat.q, r: seat.r, why: 'court', stay };
+        if (d != null && d <= food + 1) return { q: seat.q, r: seat.r, why: 'court', stay };
+    }
+    const m = marketNear(game);
+    const md = m ? tripDays(game, m.q, m.r) : null;
+    if (m && md != null && md <= food + 3) return { q: m.q, r: m.r, why: 'market', stay };
+    const here = world.getTile(player.q, player.r);
+    if (here && here.settlement) return { q: player.q, r: player.r, why: 'here', stay };
+    const town = nearest(world, player, settlementTiles(world), 1)[0];
+    return town ? { q: town.q, r: town.r, why: 'town', stay } : null;
+}
+
+/** The committed errand's day: → true when it owned the day (botDay returns). */
+function commitDay(game, stats) {
+    const { player, world } = game;
+    const c = game.commit;
+    if (!c) return false;
+    if (world.day > c.until || player.jailState || player.boardedShip || Ships.getVoyage(player) || Sieges.active(player)) {
+        game.commit = null;
+        count(stats, 'commitExpired');
+        return false;
+    }
+    const here = world.getTile(player.q, player.r);
+    // (the day's business that takes no road goes on: captives, the bench, the court, the stewards)
+    const eat = () => {
+        if (player.needs && player.needs.hunger < 60 && player.getFoodCount() > 0) player.eatMeal();
+        prisonersDay(game, stats);
+        judgeDay(game, stats);
+        booked(game, 'court', () => court(game, stats));
+        booked(game, 'stewards', () => stewards(game, stats));
+    };
+    if (player.q === c.q && player.r === c.r) {
+        if (c.arrived == null) { c.arrived = world.day; count(stats, `commitReached_${c.why}`); }
+        if (world.day - c.arrived >= c.stay) {
+            game.commit = null;
+            game._trail = [];
+            return false;
+        }
+        // (no bread here and none for the packs, away from the royal kitchens: held no longer)
+        if (c.why !== 'court' && player.getFoodCount() <= 1 && (!here || !here.settlement || stallFood(here.settlement) < STALL_ENOUGH)) {
+            game.commit = null;
+            game._trail = [];
+            count(stats, 'commitBare');
+            return false;
+        }
+        // Held here: the day's work and bread, the town's business, no road
+        if (here && here.settlement) {
+            if (player.gold < poorBelow(game) && (player.actionPoints || 0) >= JOB_AP) booked(game, 'labour', () => dayLabour(game, here, stats));
+            if (player.getFoodCount() < LARDER) booked(game, 'buyFood', () => buyFood(game, here, stats));
+            settlementBusiness(game, stats);
+        }
+        eat();
+        count(stats, 'commitHeldDays');
+        return true;
+    }
+    const from = `${player.q},${player.r}`;
+    game.dest = { q: c.q, r: c.r, court: c.why === 'court' };
+    game.headingTo = { q: c.q, r: c.r, day: world.day, court: c.why === 'court' };
+    travelTo(game, c.q, c.r);
+    const now = world.getTile(player.q, player.r);
+    if (now && now.settlement) booked(game, 'buyFood', () => buyFood(game, now, stats));
+    eat();
+    if (`${player.q},${player.r}` === from && !player.crossing) {
+        c.still = (c.still || 0) + 1;
+        if (c.still >= 3) { game.commit = null; game.dest = null; count(stats, 'commitNoWay'); return false; }
+    } else c.still = 0;
+    count(stats, 'commitDays');
+    return true;
+}
+
 export function botDay(game, stats) {
     const { player, world } = game;
+    if (noteTrail(game)) {
+        const c = chooseCommit(game);
+        if (c) {
+            game.commit = { ...c, day: world.day, until: world.day + 30 };
+            // (relapses hold it longer; a quarter-year clear of them and the count starts again)
+            if (world.day - (game._commitDay ?? -1e9) > 90) game._commits = 0;
+            game._commits = (game._commits || 0) + 1;
+            game._commitDay = world.day;
+            count(stats, 'oscillationCaught');
+            count(stats, `commit_${c.why}`);
+            if (typeof process !== 'undefined' && process.env.EG_VERBOSE) process.stdout.write(`  OSCILLATION d${world.day} trail ${game._trail.join(' ')} → ${c.why} ${c.q},${c.r} (f${player.getFoodCount()} g${Math.round(player.gold)})\n`);
+        }
+    }
     // The House's unfinished business told since yesterday (systems/houseQuests.js), counted by kind
     const hqSeen = game._hqSeen || (game._hqSeen = new Set());
     for (const q of HouseQuests.open(player)) {
@@ -2960,6 +3125,8 @@ export function botDay(game, stats) {
     begIfBroke(game, stats);
     // (a town that sells bread: the packs topped up before any road)
     stockUp(game, stats);
+    // (caught going back and forth: the one committed errand owns the day's road)
+    if (commitDay(game, stats)) return;
     delveTrek(game, stats);
     if (world.day > 150 && !player.boardedShip && !Ships.getVoyage(player)) houseBusiness(game, stats);
     if (!player.boardedShip && !Ships.getVoyage(player)) holyWarDay(game, stats);
@@ -3053,6 +3220,13 @@ export function botDay(game, stats) {
     // filled sooner: a king in the field at four days' food starved between bare villages)
     // (and so in a dearth — a town found bare these thirty days: the next is likely bare too,
     // and lives with 2,000 gold starved walking between a bare town and the hex beside it)
+    // (standing in a bare town is a dearth seen, whatever the packs hold: a king sat five days in a
+    // bare village on 7 days' bread — stayedUnfed, the road out longer than the packs — and only set
+    // out for a market once they were empty; seed 101 run 1, 2026-11-25)
+    {
+        const at0 = world.getTile(player.q, player.r);
+        if (at0 && at0.settlement && !player.boardedShip && stallFood(at0.settlement) < STALL_ENOUGH) game.lastBareDay = world.day;
+    }
     const dearth = world.day - (game.lastBareDay ?? -1e9) < 30;
     const foodRunAt = Throne.state(player).civilWar || dearth ? 8 : 4;
     if (player.getFoodCount() <= foodRunAt && player.gold >= 30 && !player.boardedShip) {
@@ -3349,6 +3523,14 @@ export function botDay(game, stats) {
         // (the packs too light for the road to it: the nearest town, broke or not, bread first)
         if (town && near[0] && town !== near[0] && !fedFor(game, town.q, town.r)) town = near[0];
         town = stick(game, near, town);
+        // (a ruler on the road home to court — keepCourt's poorToCourt — holds to it while the packs
+        // carry it there: the nearest town is behind, and the two errands walked a seed-202 king
+        // back and forth a hex out of Camelford for forty days until he starved)
+        const hc = game.headingTo;
+        if (hc && hc.court && world.day - hc.day <= 10 && (player.q !== hc.q || player.r !== hc.r)) {
+            const cd = tripDays(game, hc.q, hc.r);
+            if (cd != null && cd <= player.getFoodCount() + 1) { town = { q: hc.q, r: hc.r }; count(stats, 'poorHeldToCourt'); }
+        }
         if (town) {
             const from = `${player.q},${player.r}`;
             const fresh = (player.movementRemaining || 0) > 0;

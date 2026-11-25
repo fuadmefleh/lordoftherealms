@@ -636,8 +636,7 @@ export const Throne = {
             if (!data.dynasty.members.includes(character.id)) data.dynasty.members.push(character.id);
             data.dynasty.bloodline.push(character.id);
         }
-        kingdom.ruler = Characters.getDisplayName(character, kingdom);
-        if (kingdom.lord) kingdom.lord.name = kingdom.ruler;
+        Characters.syncRulerName(kingdom);
     },
 
     _resolveCrisis(player, world, crisis, out) {

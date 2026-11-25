@@ -45,6 +45,7 @@
 
 import { DataLoader } from '../core/dataLoader.js';
 import { CrownBooks } from '../world/crownBooks.js';
+import { Kingdom } from '../world/kingdom.js';
 import { Utils } from '../core/utils.js';
 import { Hex } from '../core/hex.js';
 import { PlayerInventory } from '../core/inventory.js';
@@ -512,6 +513,7 @@ export const OutlawLairs = {
             OutlawLairs._maybeExpedition(world, st, lair);
         }
         OutlawLairs._expeditions(world, player, st, units, out);
+        OutlawLairs._bookWardens(world, st);
         OutlawLairs._realmEvents(world, st);
         OutlawLairs._forgetEnded(st, day, world);
         return out;
@@ -929,9 +931,18 @@ export const OutlawLairs = {
         unit.targetR = lair.r;
         world.units.push(unit);
         st.expeditions.push({ lairId: lair.id, kingdomId: kingdom.id, unitId: unit.id, strength, startDay: day });
+        OutlawLairs._bookWardens(world, st);
         st.stats.expeditions++;
         OutlawLairs._log(lair, world, `${kingdom.name} sent wardens against the lair.`);
         if (Array.isArray(world.events)) world.events.push({ text: `${kingdom.name} sends wardens against the outlaws of ${lair.name}.`, type: 'military' });
+    },
+
+    /** The wardens out against the lairs are drawn from their realms' armies: booked away (world/kingdom.js menAway). */
+    _bookWardens(world, st) {
+        const menPer = Math.max(1, _num((OutlawLairs.config().expedition || {}).menPer, 5));
+        const totals = {};
+        for (const x of st.expeditions || []) if (x && x.kingdomId != null) totals[x.kingdomId] = (totals[x.kingdomId] || 0) + Math.max(0, _num(x.strength)) * menPer;
+        Kingdom.bookHosts(world, 'wardens', totals, _day(world));
     },
 
     _expeditions(world, player, st, units, out) {

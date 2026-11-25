@@ -226,6 +226,22 @@ export const WorldEvents = {
             case 'succession':
                 // a crown the player wears (home or far) passes only by the player's own death (no extra draw)
                 if (kingdom.characterData && kingdom.characterData.ruler && kingdom.characterData.ruler.isPlayer) return null;
+                // A realm with a royal house: its rulers die and are succeeded by
+                // the family records (world/characters), never by a name made up
+                // here — the court only settles who is heir presumptive.
+                if (kingdom.characterData && kingdom.characterData.ruler) {
+                    const kids = (kingdom.characterData.children || []).filter(c => c && c.isAlive !== false && c !== kingdom.characterData.ruler);
+                    const eldest = kids.sort((a, b) => (b.age || 0) - (a.age || 0))[0];
+                    WorldEvents._nudgeStability(kingdom, eldest ? 2 : -2);
+                    return {
+                        category: WorldEvents.CATEGORIES.POLITICAL,
+                        text: eldest
+                            ? `${kingdom.name}: ${kingdom.ruler} names ${[eldest.firstName, eldest.dynasty].filter(Boolean).join(' ')} heir before the assembled court.`
+                            : `${kingdom.name}: ${kingdom.ruler} has no child to name heir, and the court whispers of the succession.`,
+                        kingdom: kingdom.id,
+                        impact: eldest ? 'neutral' : 'negative',
+                    };
+                }
                 const oldRuler = kingdom.ruler;
                 kingdom.ruler = Kingdom.generateRulerName(kingdom.culture);
                 return {

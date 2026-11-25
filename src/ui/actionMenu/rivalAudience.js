@@ -109,7 +109,7 @@ export function openRivalAudience(game, unitId) {
     state.scene = ConversationScene.open({
         variant: 'royal',
         name: RivalHouses.headName(rival),
-        subtitle: `Head of ${esc(rival.name)}${rival.role ? `, ${esc(rival.role)}` : ''} · age ${rival.head.age}${rival.seat ? ` · seat at ${esc(rival.seat.name)}` : ''}${MaimMarks.tag(rival.head) ? ` · ${esc(MaimMarks.tag(rival.head))}` : ''}`,
+        subtitle: `Head of ${esc(rival.name)}${rival.role ? `, ${esc(rival.role)}` : ''} · age ${rival.head.age}${rival.seat ? ` · seat at ${esc(rival.seat.name)}` : ''}${rival.head.crossKnight ? ` · ✝️ ${esc(rival.head.crossKnight.title || 'Knight of the Cross')}` : ''}${MaimMarks.tag(rival.head) ? ` · ${esc(MaimMarks.tag(rival.head))}` : ''}`,
         where: `${place} · Day ${world.day || 1}`,
         icon: '🏰', badge: '🏰',
         // (what the head's body lost shows on the bust: ui/maimLook.js)

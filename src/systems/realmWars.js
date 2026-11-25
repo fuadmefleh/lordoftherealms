@@ -25,6 +25,7 @@ import { Economy } from '../world/economy.js';
 import { MoneySupply } from '../world/moneySupply.js';
 import { CrownBooks } from '../world/crownBooks.js';
 import { RealmArms } from '../world/realmArms.js';
+import { Kingdom } from '../world/kingdom.js';
 import { House } from './house.js';
 import { NPCLords } from '../world/npcLords.js';
 import { Technology } from './technology.js';
@@ -411,7 +412,25 @@ export const RealmWars = {
         war.hosts.push(rec);
         war.lastHostDay = world.day;
         RealmWars._spawnUnit(world, kingdom, rec);
+        RealmWars.bookHosts(player, world);
         return rec;
+    },
+
+    /**
+     * The men out in the realms' war hosts (marching, or camped before a
+     * holding: systems/holdingSieges.js keeps rec.strength) are booked away
+     * from their realm's army (world/kingdom.js menAway), so its recruiters
+     * fill the ranks only to the cap less them: a host is drawn from the
+     * realm's army, not raised on top of it. Read live each day, so the
+     * fallen are never counted back. Draws no RNG.
+     */
+    bookHosts(player, world) {
+        const s = player && player.realmWars;
+        const totals = {};
+        for (const war of Object.values((s && s.wars) || {})) {
+            for (const h of war.hosts || []) totals[war.kingdomId] = (totals[war.kingdomId] || 0) + Math.max(0, Number(h.strength) || 0);
+        }
+        Kingdom.bookHosts(world, 'warHosts', totals, world.day || 0);
     },
 
     /** Called by PlayerMilitary.attackUnit when the player destroys a host. */
@@ -595,6 +614,7 @@ export const RealmWars = {
             if (!kingdom || !kingdom.isAlive) { out.ended.push(RealmWars.endWar(player, world, war.kingdomId, 'fallen')); continue; }
             RealmWars._tickWar(player, world, kingdom, war, out);
         }
+        RealmWars.bookHosts(player, world);
 
         for (const u of Object.values(s.ultimatums)) {
             const kingdom = world.kingdoms.find(k => k.id === u.kingdomId);

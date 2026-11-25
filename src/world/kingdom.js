@@ -347,6 +347,21 @@ export const Kingdom = {
     },
 
     /**
+     * Book every realm's men out in the field under one `key` (a system's
+     * hosts: war hosts, relief hosts, pursuits, wardens): totals = { kingdomId:
+     * men }, read live off the hosts each day, so the dead never come back;
+     * a realm with none out under the key has its booking cleared. Draws no RNG.
+     */
+    bookHosts(world, key, totals, day) {
+        if (!world || !Array.isArray(world.kingdoms)) return;
+        for (const k of world.kingdoms) {
+            if (!k) continue;
+            const n = totals ? Number(totals[k.id]) || 0 : 0;
+            if (n > 0 || (k.menAway && k.menAway[key])) Kingdom.setMenAway(k, key, n, day);
+        }
+    },
+
+    /**
      * Raise up to `amount` new troops, respecting `kingdom.militaryCap` (what
      * the realm can support, set daily by KingdomAI.updateMilitary). With no
      * cap computed yet, all of them join. Never shrinks an over-cap army —

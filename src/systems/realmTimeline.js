@@ -43,6 +43,7 @@
 
 import { DataLoader } from '../core/dataLoader.js';
 import { Hex } from '../core/hex.js';
+import { Names } from '../core/names.js';
 import { Seasons } from '../world/seasons.js';
 import { Climate } from '../world/climate.js';
 import { ChronicleMaps } from './chronicleMaps.js';
@@ -307,9 +308,9 @@ export const RealmTimeline = {
             const last = rec.m[rec.m.length - 1];
             const name = String(k.name || 'A realm'), color = String(k.color || '#8a7a5a'), ruler = String(k.ruler || '');
             if (last[1] !== name || last[2] !== color || last[3] !== ruler) {
-                if (last[3] && ruler && last[3] !== ruler && k.isAlive !== false) {
+                if (last[3] && ruler && last[3] !== ruler && k.isAlive !== false && !RealmTimeline._unionShift(world, k, day)) {
                     const cap = _obj(k.capital);
-                    RealmTimeline._event(st, day, 'succession', cap ? cap.q : null, cap ? cap.r : null, _fill(T.succession, { ruler, old: last[3], realm: name }));
+                    RealmTimeline._event(st, day, 'succession', cap ? cap.q : null, cap ? cap.r : null, _fill(T.succession, { ruler, old: last[3], realm: Names.realm(name) }));
                 }
                 if (last[0] === day) rec.m[rec.m.length - 1] = [day, name, color, ruler];
                 else rec.m.push([day, name, color, ruler]);
@@ -325,6 +326,14 @@ export const RealmTimeline = {
                 RealmTimeline._event(st, day, 'rise', cap ? cap.q : null, cap ? cap.r : null, _fill(T.rise, { realm: name }));
             }
         }
+    },
+
+    /** The ruler's name changed because two crowns were joined or parted today (systems/realmUnions.js): not a succession. */
+    _unionShift(world, k, day) {
+        const u = _obj(k.personalUnion);
+        if (u && u.role === 'junior' && _num(u.since, -9) >= day - 1) return true;
+        const h = _obj(world.realmUnions) && world.realmUnions.history;
+        return Array.isArray(h) && h.some(x => x && x.junior && String(x.junior.id) === String(k.id) && x.to != null && x.to >= day - 1);
     },
 
     _warsDaily(world, st, cache, day) {
@@ -472,7 +481,7 @@ export const RealmTimeline = {
             const k = typeof world.getKingdom === 'function' ? world.getKingdom(kid) : null;
             const cap = k && _obj(k.capital);
             RealmTimeline._event(st, day, 'crown', cap ? cap.q : null, cap ? cap.r : null,
-                _fill(crown != null ? T.crownWon : T.crownLost, { who: name, realm: (k && k.name) || 'the realm' }), 40);
+                _fill(crown != null ? T.crownWon : T.crownLost, { who: name, realm: k && k.name ? Names.realm(k.name) : 'the realm' }), 40);
         }
         st.seen.crown = crown;
     },

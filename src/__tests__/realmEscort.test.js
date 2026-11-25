@@ -241,6 +241,31 @@ describe('the advanced starts\' guards are the escort', () => {
         expect(PlayerMilitary.getUpkeepCost(p)).toBe(0);
     });
 
+    it('a king on the road with empty packs eats from the bread his guard carries, not from nothing', () => {
+        const g = newGame(61);
+        g.player.age = 30;
+        Scenarios.apply(g.player, g.world, { origin: 'monarch' });
+        const p = g.player;
+        const w = g.world;
+        const guard = RealmEscort.guard(p);
+        expect(guard).toBeTruthy();
+        // Out in the country, away from any palace or larder, nothing in the packs
+        const t = w.tiles.flat().find(x => x && !x.settlement && x.terrain && x.terrain.passable);
+        p.q = t.q; p.r = t.r;
+        p.inventory = {};
+        guard.supplies = 2;
+        p.starvationDays = 0;
+        p.endDay(w);
+        expect(p.starvationDays).toBe(0);
+        expect(guard.supplies).toBeCloseTo(2 - RealmEscort.config().supply.liegeRation, 2);
+        expect(guard.record.liegeMeals).toBe(1);
+        // The guard's bread gone too: the king goes hungry like anyone
+        guard.supplies = 0;
+        p.inventory = {};
+        p.endDay(w);
+        expect(p.starvationDays).toBe(1);
+    });
+
     it('the Great Lord\'s household knights are the realm\'s', () => {
         const g = newGame(62);
         Scenarios.apply(g.player, g.world, { origin: 'great_lord' });

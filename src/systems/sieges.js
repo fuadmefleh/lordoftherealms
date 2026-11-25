@@ -64,6 +64,7 @@ import { Gossip } from './gossip.js';
 import { PlayerMilitary } from '../player/playerMilitary.js';
 import { WorldUnit } from '../world/units.js';
 import { RealmArms } from '../world/realmArms.js';
+import { Kingdom } from '../world/kingdom.js';
 import { TownMemory } from './townMemory.js';
 import { Atrocities } from './atrocities.js';
 import { Interrogation } from './interrogation.js';
@@ -561,6 +562,7 @@ export const Sieges = {
                     arriveDay: day + days, arrived: false, arrivedDay: null,
                 };
                 Sieges._spawnRelief(world, s);
+                Sieges._bookRelief(world, player);
                 s.morale = Utils.clamp(s.morale + C.defenderMorale.reliefBonus, 0, 100);
             }
         }
@@ -916,12 +918,26 @@ export const Sieges = {
     // ── The daily tick ──────────────────────────────────────────
 
     /**
+     * A relief host marching on the player's siege is drawn from its realm's
+     * army: booked away from it (world/kingdom.js menAway) while it is out,
+     * at its live strength, so the realm recruits only to its cap less it.
+     */
+    _bookRelief(world, player) {
+        const s = player && player.sieges && player.sieges.active;
+        const rel = s && s.relief;
+        const totals = {};
+        if (rel && rel.kingdomId != null) totals[rel.kingdomId] = Math.max(0, _num(rel.strength));
+        Kingdom.bookHosts(world, 'relief', totals, _day(world));
+    },
+
+    /**
      * Advance tribute and the siege one day. Draws no randomness unless a
      * siege is in progress. Returns { notices: [{ title, text, type }], ended, battle }.
      */
     processDay(world, player) {
         const out = { notices: [], ended: null, battle: null };
         if (!player || !world || !player.sieges) return out;
+        Sieges._bookRelief(world, player);
         Sieges._tributeDay(player, world, out);
         const s = player.sieges.active;
         if (!s) return out;

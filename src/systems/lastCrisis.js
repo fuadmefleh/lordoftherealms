@@ -737,11 +737,15 @@ export const LastCrisis = {
             k.lord = NPCLords.generateLord(k);
             if (Characters && typeof Characters.generateRoyalFamily === 'function') {
                 k.characterData = Characters.generateRoyalFamily(k, world);
-                if (!opts.ruler) k.ruler = Characters.getDisplayName(k.characterData.ruler, k);
+                if (!opts.ruler) Characters.syncRulerName(k);
             }
             KingdomNavy.ensure(k);
         });
-        if (opts.ruler) { k.ruler = opts.ruler; if (k.lord) k.lord.name = opts.ruler; }
+        if (opts.ruler) {
+            // (the pretender is the new house's ruler in the records too: name and record in step)
+            const rec = k.characterData && k.characterData.ruler;
+            if (rec) { rec.firstName = opts.ruler; rec.dynasty = ''; Characters.syncRulerName(k); } else { k.ruler = opts.ruler; if (k.lord) k.lord.name = opts.ruler; }
+        }
         if (typeof world.invalidateSettlements === 'function') world.invalidateSettlements();
         return k;
     },

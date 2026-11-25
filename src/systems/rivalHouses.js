@@ -1949,7 +1949,10 @@ export const RivalHouses = {
         const h = rival.head;
         const p = h.persona || this._persona(rival, h);
         const who = h.gender === 'female' ? 'woman' : 'man';
-        return `a ${p.build} ${who} of ${h.age}, ${p.hair}, with ${p.feature}`;
+        // (no beard on a lady: the persona's hair is drawn without regard to it)
+        const hair = h.gender === 'female' && /beard|moustache/.test(String(p.hair || ''))
+            ? (h.age >= 55 ? 'white-haired' : h.age >= 35 ? 'greying at the temples' : 'dark-haired') : p.hair;
+        return `a ${p.build} ${who} of ${h.age}, ${hair}, with ${p.feature}`;
     },
 
     /** Word of their honour, as far as the player has seen it. */

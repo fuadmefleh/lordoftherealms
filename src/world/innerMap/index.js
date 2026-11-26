@@ -26,6 +26,8 @@ import './townScenes.js';
 import './scaffoldCrowd.js';
 // The crowd at the town's fighting pit on its fight nights (world/pitRing.js, systems/pitFights.js)
 import './pitCrowd.js';
+// The realm's affairs in the streets: figures brought to town, a besieged or hungry town keeping in (systems/townWorld.js)
+import './townWorld.js';
 import './townCourting.js';
 import './townTrading.js';
 import './townSickness.js';
@@ -56,6 +58,8 @@ import './deckLife.js';
 import './belowDecks.js';
 import './water.js';
 import './mills.js';
+// The player's properties out in the country, where their trade puts them (data/lots.json wildSites)
+import './propertySites.js';
 import './swimming.js';
 import './currents.js';
 import './animals.js';

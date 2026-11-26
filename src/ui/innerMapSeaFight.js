@@ -197,7 +197,19 @@ export const InnerMapSeaFight = {
                     this._fx.push({ kind: miss ? 'splash' : 'splinter', x: to.x + ox, y: to.y + oy, t: 0, life: miss ? 0.9 : 0.6, delay: 0.25 + i * 0.07 });
                 }
                 const near = from.flagship || to.flagship;
-                try { audioManager.playSFX(near ? 'thunder' : 'thunder_far'); } catch { /* sound is best-effort */ }
+                // the guns going off down her side, then the shot striking home or throwing up the sea
+                // (recorded cannon: systems/audio/samples.js; thunder stands in while they load)
+                try {
+                    const far = near ? 1 : 0.45;
+                    const guns = audioManager.sampleReady && audioManager.sampleReady('cannon_fire');
+                    if (!guns) audioManager.playSFX(near ? 'thunder' : 'thunder_far');
+                    for (let i = 0; i < Math.min(n, 4); i++) audioManager.playSFX('cannon_fire', { gain: far * (0.65 + 0.35 * Math.random()), delay: i * 0.09 + Math.random() * 0.05, lowpass: near ? undefined : 1500 });
+                    const toUs = !!to.flagship;
+                    for (let i = 0; i < Math.min(n, 3); i++) {
+                        const miss = i >= hits;
+                        audioManager.playSFX(miss ? 'cannon_miss' : 'cannon_hit', { gain: (toUs ? 1 : 0.4) * (miss ? 0.8 : 1), delay: 0.45 + i * 0.12 + Math.random() * 0.06, lowpass: toUs ? undefined : 1800 });
+                    }
+                } catch { /* sound is best-effort */ }
                 if (to.flagship && e.hull + e.rig > 0.5) {
                     const T = InnerMapRenderer.TILE_SIZE;
                     const L = InnerMap._deck;

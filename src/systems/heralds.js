@@ -27,6 +27,7 @@
 // template is chosen by a hash of the proclamation's id.
 
 import { DataLoader } from '../core/dataLoader.js';
+import { Names } from '../core/names.js';
 import { Hex } from '../core/hex.js';
 import { EconomyIndex } from '../world/economyIndex.js';
 import { Fashions } from '../world/fashions.js';
@@ -72,6 +73,8 @@ const ENGROSS_KINDS = { engross: 'grain_engrossed', edict: 'engrossing_edict' };
 // The AI crowns' laws (world.lawNews.history, systems/lawCouncil.js): a record's kind is its proclamation (law_<law>_<option>)
 
 const _num = v => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
+// The template tokens that carry a realm's name (given "the" in the sentence)
+const REALM_TOKENS = new Set(['kingdom', 'other', 'target']);
 const _day = world => (world && Number.isFinite(world.day) ? world.day : 0);
 
 function _hashInt(str) {
@@ -251,6 +254,23 @@ export const Heralds = {
         for (const x of Heralds._engrossRecords(world)) st.seen[x.key] = x.day;
         for (const x of Heralds._lawRecords(world)) st.seen[x.key] = x.day;
         for (const x of Heralds._crisisRecords(world)) st.seen[x.key] = x.day;
+        for (const x of Heralds._holyRecords(world)) st.seen[x.key] = x.day;
+        for (const x of Heralds._unionRecords(world)) st.seen[x.key] = x.day;
+    },
+
+    /** Holy wars called (world.holyWars.log 'call', systems/holyWars.js). */
+    _holyRecords(world) {
+        const t = world && world.holyWars;
+        const wars = t ? [...(Array.isArray(t.wars) ? t.wars : []), ...(Array.isArray(t.past) ? t.past : [])] : [];
+        return (t && Array.isArray(t.log) ? t.log : []).filter(h => h && h.kind === 'call' && h.war != null)
+            .map(h => ({ key: `hw:${h.war}`, day: _num(h.day), h, war: wars.find(w => w && w.id === h.war) || null, see: t.sees && h.key ? t.sees[h.key] : null }));
+    },
+
+    /** Two crowns joined on one head (world.realmUnions.history, systems/realmUnions.js). */
+    _unionRecords(world) {
+        const t = world && world.realmUnions;
+        return (t && Array.isArray(t.history) ? t.history : []).filter(h => h && h.id != null && h.senior && h.junior)
+            .map(h => ({ key: `un:${h.id}`, day: _num(h.from), h }));
     },
 
     /** The age's crises: invasions, great plagues, schisms, famines, gold rushes (world.crises.news, systems/crises.js). */
@@ -369,7 +389,14 @@ export const Heralds = {
         if (!templates.length) return null;
         const id = st.nextId++;
         const raw = templates[_hashInt(`${kind}:${id}:${_day(world)}`) % templates.length];
-        const text = String(raw).replace(/\{(\w+)\}/g, (m, k) => (tokens[k] != null ? tokens[k] : m));
+        // Realm names read as they would in a sentence: "against the Kingdom of Valdoria",
+        // "The Kingdom of Valdoria rises…" at the head of one (core/names.js)
+        const text = String(raw).replace(/\{(\w+)\}/g, (m, k, at, s) => {
+            if (tokens[k] == null) return m;
+            if (!REALM_TOKENS.has(k)) return tokens[k];
+            const head = at === 0 || /[.!?:]\s*$/.test(s.slice(0, at));
+            return Names.realm(tokens[k], head);
+        });
         const p = {
             id, kind, day: _day(world), text,
             q: at && at.q != null ? at.q : null, r: at && at.r != null ? at.r : null,
@@ -587,6 +614,20 @@ export const Heralds = {
             st.seen[x.key] = x.day;
             const h = x.h;
             Heralds._proclaim(st, world, h.kind, { text: h.text || '' }, { q: h.q, r: h.r }, { kingdomId: h.kingdomId != null ? h.kingdomId : null });
+        }
+
+        // A holy war called, and two crowns joined on one head (systems/holyWars.js, systems/realmUnions.js)
+        for (const x of Heralds._holyRecords(world).filter(fresh)) {
+            st.seen[x.key] = x.day;
+            const w = x.war;
+            const at = x.see && Number.isFinite(x.see.q) ? { q: x.see.q, r: x.see.r } : (w ? Heralds._capital(world, _kingdom(world, w.target)) : null);
+            Heralds._proclaim(st, world, 'holy_war', { head: (w && w.head) || 'the Church', target: (w && w.targetName) || 'the infidel' }, at, { kingdomId: w ? w.target : null });
+        }
+        for (const x of Heralds._unionRecords(world).filter(fresh)) {
+            st.seen[x.key] = x.day;
+            const h = x.h;
+            const sk = _kingdom(world, h.senior.id);
+            Heralds._proclaim(st, world, 'union', { monarch: h.monarch || 'the king', kingdom: h.senior.name, other: h.junior.name }, Heralds._capital(world, sk), { kingdomId: h.senior.id });
         }
 
         // The fields: a harvest failing or a bumper one, a blight, the harvest in

@@ -35,6 +35,8 @@
             "tradeLines": { "name": "Trade lines: margins", "group": "trade", "desc": "What your standing trade lines' sales made over what their goods cost (player/tradeLines.js)." },
             "tradeLineWages": { "name": "Trade lines: drovers' wages", "group": "labour" },
             "tradeLineHire": { "name": "Trade lines: wagons hired", "group": "trade" },
+            "distribution": { "name": "Distribution: sales", "group": "enterprise", "desc": "What your properties' output fetched at the markets your distribution plans send it to (player/distribution.js)." },
+            "carriage": { "name": "Distribution: carriage", "group": "enterprise", "desc": "The carters hired to take your properties' output where your distribution plans send it." },
             "contracts": { "name": "Mercenary contracts", "group": "labour" },
             "forwardPenalties": { "name": "Forfeits on broken contracts", "group": "trade" },
             "seaTrade": { "name": "Sea trade (cash)", "group": "trade" },

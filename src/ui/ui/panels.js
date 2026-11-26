@@ -20,7 +20,7 @@ import { HouseQuests } from '../../systems/houseQuests.js';
 import { PenalLabour } from '../../systems/penalLabour.js';
 import { HolyWars } from '../../systems/holyWars.js';
 import { houseQuestsHtml } from '../houseQuestsPanel.js';
-import { PlayerInventory, Utils, ActionMenu, Religion, Economy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, Titles, KingdomBonuses, KingdomStability, Treasures, KingdomAI, KingdomNavy } from './_imports.js';
+import { PlayerInventory, Utils, ActionMenu, Religion, Economy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, Titles, KingdomBonuses, KingdomStability, Treasures, KingdomAI, KingdomNavy, PlayerEconomy } from './_imports.js';
 
 Object.assign(UI.prototype, {
     /**
@@ -1146,12 +1146,16 @@ Object.assign(UI.prototype, {
                     ? Object.entries(c.goods).filter(([, n]) => n > 0)
                         .map(([g, n]) => `${n} ${g.replace(/_/g, ' ')}`).join(', ')
                     : c.goods;
+                const selling = c.status === 'selling';
+                const home = c.status === 'returning';
                 jobs.push({
                     icon: '🐫',
-                    name: `Caravan to ${c.to || c.destination || 'unknown'}`,
-                    detail: `Carrying ${cargo || 'goods'} — Expected profit: ${c.expectedProfit != null ? Utils.formatGold(c.expectedProfit) : '?'}g`,
-                    status: `${daysLeft} day(s) in transit`,
-                    statusColor: '#f39c12',
+                    name: home ? `Caravan home to ${c.to || c.from}` : selling ? `Caravan at ${c.to}` : `Caravan to ${c.to || c.destination || 'unknown'}`,
+                    detail: c.goods && typeof c.goods === 'object'
+                        ? PlayerEconomy.caravanStatusText(c)
+                        : `Carrying ${cargo || 'goods'} — Expected profit: ${c.expectedProfit != null ? Utils.formatGold(c.expectedProfit) : '?'}g`,
+                    status: selling ? `waiting for coin, ${c.waitLeft || 0} day(s) left` : `${daysLeft} day(s) ${home ? 'from home' : 'in transit'}`,
+                    statusColor: selling || home ? '#e0a060' : '#f39c12',
                     location: null,
                 });
             }

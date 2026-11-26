@@ -47,6 +47,7 @@ import { InnerMapBrawls } from '../innerMapBrawls.js';
 import { InnerMapCourting } from '../innerMapCourting.js';
 import { InnerMapSickness } from '../innerMapSickness.js';
 import { InnerMapPlague } from '../innerMapPlague.js';
+import { InnerMapTownWorld } from '../innerMapTownWorld.js';
 import { InnerMapRites } from '../innerMapRites.js';
 import { InnerMapKin } from '../innerMapKin.js';
 import { InnerMapOverheard } from '../innerMapOverheard.js';
@@ -61,6 +62,7 @@ import { isRiverSwim, riverRunsOn, riverCarriesOut, riverEntryCell } from '../in
 import { InnerMapSeasons } from '../innerMapSeasons.js';
 import { InnerMapWeather } from '../innerMapWeather.js';
 import { InteriorAmbience } from '../innerMapInteriorSound.js';
+import { Soundscape } from '../soundscape.js';
 import { ScreenTransition } from '../screenTransition.js';
 
 // Blows at a tree or a rock land harder with Woodcutting / Mining (player/gathering.js): the
@@ -119,6 +121,9 @@ export function gameLoop(timestamp, loopId) {
     // The room's sound indoors, the street ducked meanwhile; silent outside, paused, in the settings
     // (ui/innerMapInteriorSound.js)
     InteriorAmbience.update(this, deltaTime);
+    // What the world sounds like here: the music's mood, the ambience beds by place, hour, season and
+    // weather, footsteps by the ground underfoot, doors, blows (ui/soundscape.js)
+    Soundscape.update(this, deltaTime);
 
     // What people wear follows the world's year (world/eraWardrobe.js: a no-op unless it changed)
     InnerMapCharacters.setYear(this.world ? this.world.year : null);
@@ -497,7 +502,7 @@ export function gameLoop(timestamp, loopId) {
         // The town scenes' sounds: the smith's anvil, the church bell (world/innerMap/townScenes.js)
         if (InnerMap._sceneSounds && InnerMap._sceneSounds.length) {
             for (const snd of InnerMap._sceneSounds.splice(0)) {
-                try { audioManager.playSFX(snd.kind); } catch { /* sound is best-effort */ }
+                try { audioManager.playSFX(snd.kind, snd.q != null ? { q: snd.q, r: snd.r, far: 26 } : null); } catch { /* sound is best-effort */ }
             }
         }
         // The deer graze, wander and bolt (world/innerMap/animals.js)
@@ -523,6 +528,8 @@ export function gameLoop(timestamp, loopId) {
         InnerMapSickness.update(simDelta, this);
         // A plague town: empty streets, boarded doors, masked healers, herb fires, the open grave (ui/innerMapPlague.js)
         InnerMapPlague.update(simDelta, this);
+        // The realm's affairs in the streets: soldiers, the muster, the siege fires, crusaders, the preacher, banners (ui/innerMapTownWorld.js)
+        InnerMapTownWorld.update(simDelta, this);
         // Children at play and at school, the old greying in the sun (ui/innerMapKin.js)
         InnerMapKin.update(simDelta, this);
         // Townsfolk talking about the player within earshot (ui/innerMapOverheard.js)

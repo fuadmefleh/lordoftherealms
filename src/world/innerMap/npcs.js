@@ -306,6 +306,8 @@ Object.assign(InnerMap, {
 
         // Shuttered against the plague (ui/innerMapPlague.js lists them, systems/plague.js shopShut)
         if (this._plagueShops && this._plagueShops.has(`${building.q},${building.r}`)) actions = ['closed'];
+        // A temple shut under the Church's ban (ui/innerMapTownWorld.js, systems/holyWars.js)
+        if (this._shutDoors && this._shutDoors.has(`${building.q},${building.r}`)) actions = ['closed'];
 
         return actions;
     },

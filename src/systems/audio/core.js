@@ -3,10 +3,10 @@
 import {  } from './_imports.js';
 
 // ============================================
-// AUDIO — Procedural ambient music & SFX
-// Uses Web Audio API to generate atmospheric
-// medieval-fantasy soundscapes without any
-// external audio files.
+// AUDIO — recorded music, ambience beds and SFX
+// (assets/audio/: audio/samples.js, beds.js, music.js),
+// with the procedural Web Audio soundscapes kept as
+// the fallback (and the sounds no file covers).
 // ============================================
 
 export class AudioManager {
@@ -23,6 +23,8 @@ export class AudioManager {
         this.sfxVolume = 0.7;
         this.ambienceVolume = 0.4;
         this.muted = false;
+        this.recordedSound = true;     // the recordings under assets/audio/ (false: synthesized only)
+        this.listener = null;          // { q, r } on the street map (ui/soundscape.js)
 
         // State
         this.currentScene = 'none';    // title | explore | town | combat | night | ocean

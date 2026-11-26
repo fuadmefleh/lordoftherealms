@@ -33,6 +33,7 @@ import { InnerMapTorchlight } from '../innerMapTorchlight.js';
 import { InnerMapHiding } from '../innerMapHiding.js';
 import { InnerMapSickness } from '../innerMapSickness.js';
 import { InnerMapPlague } from '../innerMapPlague.js';
+import { InnerMapTownWorld } from '../innerMapTownWorld.js';
 import { InnerMapRites } from '../innerMapRites.js';
 import { glyphFor } from '../icons.js';
 import { SpriteSnow } from '../spriteSnow.js';
@@ -969,8 +970,14 @@ Object.assign(InnerMapRenderer, {
                         const propRef = tile._propertyRef || null, propInfo = propRef ? tile.buildingInfo : null;
                         items.push({ sortY, zLayer: 1, sortH: bldgH, sortX: q, draw() {
                             self._drawCustomBuilding(ctx, camera, def, cq, cr, ds, ruin, self._siteProgress(propRef), wear, spire);
-                            if (propInfo && camera.zoom > 0.4) self._drawBuildingLabel(ctx, camera, propInfo, cq, cr + (def.bounds ? def.bounds.minRow : -2));
                         }});
+                        // (its name over the roof, drawn after the moving parts so a windmill's sails never hide it)
+                        if (propInfo) {
+                            const at = self._propertyLabelAt(def, tile, cq, cr);
+                            items.push({ sortY: sortY + 0.5, zLayer: 1, sortH: bldgH, sortX: q, draw() {
+                                if (camera.zoom > 0.4) self._drawBuildingLabel(ctx, camera, propInfo, at.q, at.r);
+                            }});
+                        }
                     }
                 }
             }
@@ -1264,6 +1271,8 @@ Object.assign(InnerMapRenderer, {
                         if (pale) ctx.filter = nRef._sick.abed ? 'saturate(0.35) brightness(1.08) sepia(0.25)' : 'saturate(0.6) brightness(1.05) sepia(0.15)';
                         InnerMapCharacters.drawCharacter(ctx, nRef.preset, nAnim, nDir, bodyTime, cx, cy, cw, ch);
                         if (pale) ctx.filter = 'none';
+                        // (the cross on a crusader's tabard, the preacher's cross-staff, the crier's handbell: ui/innerMapTownWorld.js)
+                        if (InnerMapTownWorld.wantsOverlay(nRef)) InnerMapTownWorld.drawOverlay(ctx, nRef, cx, cy, cw, ch, nDir, nAnim, now);
                         if (chopP != null) InnerMapFelling.drawAxe(ctx, sx, sy, ds, nDir, chopP, false, chopTool);
                         if (swingP != null) InnerMapFelling.drawAxe(ctx, sx, sy, ds, nDir, swingP, false, swingRec.tool);
                         // on the way out to the tree, the axe over the shoulder
@@ -1313,6 +1322,8 @@ Object.assign(InnerMapRenderer, {
         InnerMapSickness.collect(items, ctx, camera, T);
         // ── The plague's boards, covered stalls, the open grave, barriers at a shut gate (ui/innerMapPlague.js) ──
         InnerMapPlague.collect(items, ctx, camera, T);
+        // ── The crowns' banners, a temple shut under the ban, a famine's bare stalls (ui/innerMapTownWorld.js) ──
+        InnerMapTownWorld.collect(items, ctx, camera, T);
         // ── A bier on its bearers' shoulders (ui/innerMapRites.js) ──
         InnerMapRites.collect(items, ctx, camera, T);
         // ── Phase 3c: The player's crops (ui/innerMapFarming.js) ──

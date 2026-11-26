@@ -343,7 +343,7 @@ Object.assign(UI.prototype, {
                         </div>
                         <div class="info-row">
                             <span class="info-label">Production</span>
-                            <span class="info-value">${prop.productionRate}/day (${prop.produces})</span>
+                            <span class="info-value">${(() => { const s = this.game && PlayerEconomy.outputSummary(this.game.world, this.game.player, prop, tile); return s ? `${s.rate}/day now` : `${prop.productionRate}/day`; })()} (${prop.produces})</span>
                         </div>
                         <div class="info-row">
                             <span class="info-label">Storage</span>

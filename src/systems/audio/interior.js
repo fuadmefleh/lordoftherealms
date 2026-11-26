@@ -37,6 +37,33 @@ function _rng(seed) {
 }
 const _clamp01 = (v) => Math.max(0, Math.min(1, Number(v) || 0));
 
+// The rooms a recording plays (audio/beds.js, the 'indoor' group): the bed, how loud from the
+// spec's layers, and the synthesized layers it stands in for (silenced while it plays)
+const RECORDED_ROOM = {
+    tavern: { bed: 'tavern', level: (L) => Math.max(_clamp01(L.chatter), _clamp01(L.crowd)), replaces: ['chatter', 'crowd'] },
+    market: { bed: 'market', level: (L) => Math.max(_clamp01(L.chatter), _clamp01(L.crowd)), replaces: ['chatter', 'crowd'] },
+    hall: { bed: 'hall_murmur', level: (L) => _clamp01(L.chatter * 1.6), replaces: ['chatter'] },
+    house: { bed: 'hall_murmur', level: (L) => _clamp01(L.chatter * 2), replaces: ['chatter'] },
+    // (the church: the congregation's hush, and the choir's plainchant while a service is sung)
+    church: { bed: 'hall_murmur', level: (L) => _clamp01(L.chatter * 1.5), replaces: ['chatter'], also: { choir: (L) => _clamp01(L.choir) } },
+    cave: { bed: 'dungeon', level: (L) => _clamp01(L.drip * 0.9), replaces: [] },
+    cell: { bed: 'dungeon', level: (L) => _clamp01(L.drip * 0.8), replaces: [] },
+};
+
+/** The recorded bed for a room's spec → { beds: { name: level }, replaces: [layers] } (pure). */
+export function recordedRoomBeds(spec) {
+    const R = spec && RECORDED_ROOM[spec.kind];
+    if (!R) return { beds: {}, replaces: [] };
+    const L = spec.layers || {};
+    const lv = Math.round(R.level(L) * 100) / 100;
+    const beds = lv > 0 ? { [R.bed]: lv } : {};
+    for (const [bed, fn] of Object.entries(R.also || {})) {
+        const v = Math.round(fn(L) * 100) / 100;
+        if (v > 0) beds[bed] = v;
+    }
+    return { beds, replaces: R.replaces };
+}
+
 function _normalize(data, peak = 0.9) {
     let m = 0;
     for (let i = 0; i < data.length; i++) { const a = Math.abs(data[i]); if (a > m) m = a; }
@@ -107,7 +134,8 @@ export function synthRumble(data, sampleRate, rnd) {
 Object.assign(AudioManager.prototype, {
     /**
      * Play the room the player is in, or (null) fade it out and stop it.
-     * spec: { kind, layers: { room, chatter, crowd, fire, forge, hum, drip } 0..1, echo 0..1, duck }
+     * spec: { kind, layers: { room, chatter, crowd, fire, forge, hum, drip, choir } 0..1, echo 0..1, duck }
+     * (choir has no synthesized layer: it is the recorded bed alone, audio/beds.js 'indoor')
      */
     setInteriorAmbience(spec) {
         try {
@@ -117,14 +145,24 @@ Object.assign(AudioManager.prototype, {
             if (!spec) {
                 if (I) this._stopInterior(I);
                 this._setIndoorDuck(false);
+                if (typeof this.setAmbienceBeds === 'function') this.setAmbienceBeds({}, { group: 'indoor' });
                 return true;
             }
             if (!ctx || typeof ctx.createBufferSource !== 'function' || !(this.masterGain || this.ambienceGain)) return false;
             if (!I) I = this._interior = this._startInterior(ctx);
             const now = ctx.currentTime;
             const L = spec.layers || {};
+            // A recording of the room (the tavern's crowd, the market's hubbub, a cave's dark) when
+            // the recordings are on: its synthesized layers fall silent (audio/beds.js 'indoor')
+            const rec = recordedRoomBeds(spec);
+            let replaced = null;
+            if (typeof this.recordedOn === 'function' && this.recordedOn()) {
+                const bed = (RECORDED_ROOM[spec.kind] && RECORDED_ROOM[spec.kind].bed) || Object.keys(rec.beds)[0];
+                if (bed && !this.sampleFailed('bed_' + bed)) replaced = new Set(rec.replaces);
+                this.setAmbienceBeds(rec.beds, { group: 'indoor' });
+            }
             for (const name of Object.keys(LAYER_GAIN)) {
-                const lv = _clamp01(L[name]);
+                const lv = replaced && replaced.has(name) ? 0 : _clamp01(L[name]);
                 let layer = I.layers[name];
                 if (!layer && lv <= 0.01) continue;
                 if (!layer) layer = I.layers[name] = this._interiorLayer(I, name);
@@ -144,7 +182,8 @@ Object.assign(AudioManager.prototype, {
             this._syncInteriorBus();
             this._setIndoorDuck(spec.duck !== false);
             return true;
-        } catch (_) {
+        } catch (e) {
+            this._interiorError = e;   // (QA)
             return true;   // (sound is best-effort: not asked again)
         }
     },
@@ -169,7 +208,8 @@ Object.assign(AudioManager.prototype, {
             const lv = (n) => (I.layers[n] ? I.layers[n].level : 0);
             const fire = Math.max(lv('fire'), lv('forge') * 0.5);
             if (fire > 0 && I.rnd() < 0.7 * fire * step) this._intPop(I, fire);
-            const talk = lv('chatter');
+            // (the room's talk as asked, though a recording may be playing it: the mugs still clink)
+            const talk = Math.max(lv('chatter'), _clamp01(I.spec && I.spec.layers && I.spec.layers.chatter));
             if (talk > 0.2 && I.kind === 'tavern' && I.rnd() < 0.55 * talk * step) this._intClink(I, talk);
             if (I.drip > 0 && I.rnd() < 0.35 * I.drip * step) this._intDrip(I, I.drip);
         } catch (_) { /* sound is best-effort */ }

@@ -39,17 +39,18 @@ const frac = x => x - Math.floor(x);
 Object.assign(Renderer.prototype, {
     /** The current of (wq, r) and where its streaks lie, cached per world. */
     _currentCell(world, wq, r) {
-        if (this._curCacheWorld !== world || this._curCacheCfg !== OceanCurrents.config()) {
-            this._curCacheWorld = world;
-            this._curCacheCfg = OceanCurrents.config();
-            this._curCache = new Map();
+        if (this._curCellsWorld !== world || this._curCellsCfg !== OceanCurrents.config()) {
+            this._curCellsWorld = world;
+            this._curCellsCfg = OceanCurrents.config();
+            // (an array by hex: a Map lookup per sea hex, each frame, showed in the profile)
+            this._curCells = new Array((world.width || 1) * (world.height || 1));
         }
         const key = r * (world.width || 1) + wq;
-        let c = this._curCache.get(key);
+        let c = this._curCells[key];
         if (c === undefined) {
             const cur = OceanCurrents.at(world, wq, r);
             c = cur && cur.strength > 0.02 ? { cur, seeds: [0, 1, 2, 3, 4].map(i => [rnd(wq, r, i), rnd(wq, r, i + 7), rnd(wq, r, i + 13)]) } : null;
-            this._curCache.set(key, c);
+            this._curCells[key] = c;
         }
         return c;
     },
@@ -92,8 +93,10 @@ Object.assign(Renderer.prototype, {
                 const cell = this._currentCell(world, wq, r);
                 if (!cell) continue;
                 const { cur, seeds } = cell;
-                const pos = this.getHexPixelPos(q, r);
-                const c = this.camera.worldToScreen(pos.x, pos.y);
+                const c = this.camera.worldToScreenFast
+                    ? this.camera.worldToScreenFast(q * hexWidth + offsetX, r * rowHeight)
+                    : this.camera.worldToScreen(q * hexWidth + offsetX, r * rowHeight);
+                const cx = c.x;
                 const cy = c.y + 0.13 * s;
                 const n = Math.max(1, Math.min(seeds.length, Math.round((D.streaks || 3) * (0.4 + cur.strength))));
                 const speed = (D.speed || 0.22) * (0.4 + cur.strength);
@@ -105,7 +108,7 @@ Object.assign(Renderer.prototype, {
                     const p = frac(ph + t * speed);
                     const along = (p - 0.5) * 1.3 * s;
                     const across = (a - 0.5) * 1.1 * s;
-                    const x0 = c.x + cur.x * along - cur.y * across;
+                    const x0 = cx + cur.x * along - cur.y * across;
                     const y0 = cy + cur.y * along + cur.x * across * 0.6;
                     const l = len * (0.6 + 0.6 * b) * (0.5 + cur.strength * 0.7);
                     // fades in and out over its run

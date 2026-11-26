@@ -12,6 +12,7 @@ import { LlmProse } from '../../systems/llmProse.js';
 import { Nemesis } from '../../systems/nemesis.js';
 import { Crises } from '../../systems/crises.js';
 import { NpcMemory } from '../../systems/npcMemory.js';
+import { Distribution } from '../../player/distribution.js';
 import { Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, House, NpcBrain } from './_imports.js';
 
 /** The AI Brain status line, from NpcBrain.status(). */
@@ -193,6 +194,12 @@ Object.assign(UI.prototype, {
 
         // ── Owned Properties (farms, mines, etc.) ─────────────
         html += `<h4 style="margin-top:12px;">🏗️ Properties & Businesses <span style="font-size:12px;font-weight:400;color:var(--text-secondary);">(${properties.length})</span></h4>`;
+        // Distribution plans and the goods on the road (player/distribution.js; ui/actionMenu/distribution.js)
+        {
+            const plans = Distribution.plans(player);
+            const road = Distribution.inTransit(player).reduce((a, c) => a + c.qty, 0);
+            html += `<button data-am-act="showDistribution" style="width:100%; margin:0 0 10px; padding:8px; background:rgba(245,197,66,0.12); border:1px solid rgba(245,197,66,0.5); color:#ffe08a; border-radius:4px; cursor:pointer; font-weight:bold;">🚚 Distribution: ${plans.length} plan${plans.length === 1 ? '' : 's'}${road ? ` · ${road} goods on the road` : ''}</button>`;
+        }
 
         if (properties.length === 0) {
             html += '<div style="font-size:12px;color:var(--text-secondary);padding:8px;">You haven\'t built any farms, mines, or workshops yet.</div>';
@@ -210,7 +217,8 @@ Object.assign(UI.prototype, {
                 html += `<div style="font-size:11px;color:var(--text-secondary);margin-top:2px;">📍 (${prop.q}, ${prop.r}) ${statusLabel}</div>`;
                 if (prop.produces) {
                     const storage = prop.storage || 0;
-                    html += `<div style="font-size:11px;margin-top:2px;">📦 ${prop.produces}: ${storage} stored · +${prop.productionRate || 0}/day</div>`;
+                    const sum = PlayerEconomy.outputSummary(world, player, prop);
+                    html += `<div style="font-size:11px;margin-top:2px;">📦 ${prop.produces}: ${storage} stored · ${sum ? sum.line : `+${prop.productionRate || 0}/day`}</div>`;
                 }
                 html += `</div>`;
                 html += `<div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;">`;
@@ -1340,6 +1348,13 @@ Object.assign(UI.prototype, {
                         <span class="gs-toggle-slider"></span>
                     </label>
                 </div>
+                <div class="gs-row" title="Recorded music, ambience and sound effects (assets/audio/). Off: the older synthesized sounds.">
+                    <label>Recorded Sounds &amp; Music</label>
+                    <label class="gs-toggle">
+                        <input type="checkbox" id="gsAudioRecorded" ${(typeof audioManager === 'undefined' || audioManager.recordedSound !== false) ? 'checked' : ''}>
+                        <span class="gs-toggle-slider"></span>
+                    </label>
+                </div>
             </div>
 
             <!-- Data Management -->
@@ -1707,6 +1722,9 @@ Object.assign(UI.prototype, {
             const shouldMute = getChecked('gsAudioMute');
             if (shouldMute !== audioManager.muted) {
                 audioManager.toggleMute();
+            }
+            if (typeof audioManager.setRecordedSound === 'function' && document.getElementById('gsAudioRecorded')) {
+                audioManager.setRecordedSound(getChecked('gsAudioRecorded'));
             }
             // Update mute button appearance
             const btn = document.getElementById('btnAudioToggle');

@@ -329,6 +329,117 @@ Object.assign(PlayerEconomy, {
     },
 
     /**
+     * What a producing property turns out a day, factor by factor — the one
+     * reckoning both the day's production (produceGoods) and the panels use, so
+     * the number shown is the number made. No side effects.
+     * → { amount (before the season), season (today's multiplier, 1 when the
+     *    property has no seasonal curve), seasonal, perDay (today's estimate),
+     *    resBonus, factors: [{ label, mult }] (each factor ≠ 1, in order) }
+     */
+    outputFactors(world, player, tile, property) {
+        const def = PlayerEconomy.getPropertyDef(property.type);
+        const factors = [];
+        const note = (label, mult) => { if (Number.isFinite(mult) && Math.abs(mult - 1) > 1e-6) factors.push({ label, mult }); return mult; };
+        let amount = property.productionRate || 0;
+
+        // Resource Bonus for Logging Camp
+        if (property.type === 'logging_camp' && tile.resource && tile.resource.id === 'timber') {
+            amount *= note('Timber on the hex', 1.5);
+        }
+
+        // Coal-fired forges, herds beside ranches and dairies, oil for
+        // chandlers (data/economy.json propertyResourceBonuses). Recipe
+        // buildings get it on their output instead (produceGoods).
+        const resBonus = Economy.propertyResourceBonus(world, tile, property.type).bonus;
+        const isRecipe = PlayerEconomy.isRecipeBuilding(property.type);
+        if (resBonus > 0 && !isRecipe) amount *= note('Local resource', 1 + resBonus);
+
+        // The beasts kept there (systems/livestock.js): a Pasture's flock, a
+        // Dairy's milkers, a Ranch's cattle, a Horse Ranch's mares make its
+        // output (1 at its target head); a farm's horses and pigs lift its harvest
+        amount *= note('Livestock', Livestock.workFactor(world, player, tile, property) * Livestock.draftFactor(world, player, tile, property));
+
+        // Level bonus (10% per level)
+        amount *= note(`Level ${property.level || 1}`, 1 + ((property.level || 1) - 1) * 0.1);
+
+        // Commerce skill bonus (5% per level)
+        amount *= note('Commerce skill', 1 + ((player.skills && player.skills.commerce) || 0) * 0.05);
+
+        // Technology production bonus
+        if (typeof Technology !== 'undefined') {
+            const techBonus = Technology.getProductionBonus(player, property.type);
+            if (techBonus > 0) amount *= note('Technology', 1 + techBonus);
+        }
+
+        // Infrastructure irrigation bonus (for farms/irrigated farms)
+        if (typeof Infrastructure !== 'undefined' && (property.type === 'farm' || property.type === 'irrigated_farm')) {
+            const irrigBonus = Infrastructure.getIrrigationBonus(tile);
+            if (irrigBonus > 0) amount *= note('Irrigation', 1 + irrigBonus);
+        }
+
+        // Timed world events: droughts/harvests hit farms, gold rushes boost mines.
+        // A Granary within a hex adds +20% and halves bad-harvest losses.
+        if (def && def.category === 'farming') {
+            const granary = Technology.hasBuildingNear(player, world, 'granary', tile.q, tile.r, 1);
+            let farmMod = WorldEvents.getModifier(world, 'farmProduction', tile);
+            // Today's weather: rain waters the fields, snow and heat wither them
+            // (irrigation shields crops from heat waves)
+            if (world.weather) {
+                const wx = world.weather.getWeather(tile.q, tile.r);
+                const irrigated = wx.type === 'heatwave' && Infrastructure.getIrrigationBonus(tile) > 0;
+                if (!irrigated) farmMod += WEATHER_EFFECTS[wx.type]?.farmProduction || 0;
+            }
+            if (granary && farmMod < 0) farmMod /= 2;
+            amount *= note(granary ? 'Weather, events and granary' : 'Weather and events', Math.max(0, 1 + farmMod + (granary ? 0.2 : 0)));
+        }
+        if (property.type === 'mine' || property.type === 'quarry') amount *= note('Events', Math.max(0, 1 + WorldEvents.getModifier(world, 'mineProduction', tile)));
+
+        // Water-wheel bonus for mills built on a river
+        if (def && def.riverBonus && tile.hasRiver) amount *= note('Water-wheel', 1 + def.riverBonus);
+
+        // Prosperity miracle and a House Steward
+        amount *= note('Steward and blessings', PlayerEffects.propertyIncomeMultiplier(player));
+        // Only as many hands as the nearest town can spare (world/townLabour.js),
+        // and a mine's or quarry's convict gang on top (systems/penalLabour.js)
+        amount *= note('Hands the town can spare', PenalLabour.mineStaffing(property, TownLabour.staffing(property.hire)));
+        // Bountiful Harvest miracle
+        if (def && def.category === 'farming') amount *= note('Bountiful Harvest', PlayerEffects.farmProductionMultiplier(player));
+
+        // The year's harvest in its region, its soil and rotation (world/harvests.js),
+        // and the agricultural year's curve (world/seasons.js: yearly mean 1)
+        const seasonal = !!Seasons.propertyCurve(property.type);
+        let season = 1;
+        if (seasonal) {
+            amount *= note("This year's harvest", Harvests.propertyFactor(world, tile, property));
+            season = Seasons.propertyMultiplier(property.type, Seasons.today(world));
+            const today = Seasons.today(world);
+            note(today != null ? `${Seasons.seasonOf(today)} in the farm's year` : 'Season', season);
+        }
+        return { amount, season, seasonal, perDay: amount * season, resBonus, factors };
+    },
+
+    /**
+     * The panels' words for a property's output (outputFactors), so they show what
+     * it really makes: → { rate ('≈2.4'), now, yearly, last, line (now · over the
+     * year · yesterday), why ('base 5 × Level 3 ×1.20 × …') } or null.
+     */
+    outputSummary(world, player, prop, tile = null) {
+        if (!world || !player || !prop || !prop.produces || !prop.productionRate) return null;
+        // (a tile's own property record carries no q/r: the caller passes its tile)
+        if (!tile && Number.isFinite(prop.q) && Number.isFinite(prop.r) && world.getTile) tile = world.getTile(prop.q, prop.r);
+        if (!tile) return null;
+        // (the tile's own record, as produceGoods reads it: player.properties may hold a copy)
+        prop = PlayerEconomy.findPropertyAt(tile, prop.type) || prop;
+        const o = PlayerEconomy.outputFactors(world, player, tile, prop);
+        const fmt = v => (v >= 10 ? String(Math.round(v)) : (Math.round(v * 10) / 10).toFixed(1).replace(/\.0$/, ''));
+        const parts = [`≈${fmt(o.perDay)}/day now`];
+        if (o.seasonal && Math.abs(o.season - 1) > 0.05) parts.push(`~${fmt(o.amount)}/day over the year`);
+        if (Number.isFinite(prop.lastOutput)) parts.push(`${prop.lastOutput} made yesterday${prop.wastedToday > 0 ? ` (${prop.wastedToday} lost: storage full)` : ''}`);
+        const why = [`base ${prop.productionRate}`, ...o.factors.map(f => `${f.label} ×${f.mult.toFixed(2)}`)].join(' · ');
+        return { rate: `≈${fmt(o.perDay)}`, now: o.perDay, yearly: o.amount, last: prop.lastOutput, line: parts.join(' · '), why };
+    },
+
+    /**
      * Produce goods from all properties
      */
     produceGoods(player, world) {
@@ -436,79 +547,16 @@ Object.assign(PlayerEconomy, {
 
             if (!property.produces) continue; // Trading posts don't produce
 
-            // Calculate production
-            let amount = property.productionRate;
-
-            // Resource Bonus for Logging Camp
-            if (property.type === 'logging_camp' && tile.resource && tile.resource.id === 'timber') {
-                amount *= 1.5; // 50% bonus for timber resource
-            }
-
-            // Coal-fired forges, herds beside ranches and dairies, oil for
-            // chandlers (data/economy.json propertyResourceBonuses). Recipe
-            // buildings get it on their output below.
-            const resBonus = Economy.propertyResourceBonus(world, tile, property.type).bonus;
-            const isRecipe = PlayerEconomy.isRecipeBuilding(property.type);
-            if (resBonus > 0 && !isRecipe) amount *= 1 + resBonus;
-
-            // The beasts kept there (systems/livestock.js): a Pasture's flock, a
-            // Dairy's milkers, a Ranch's cattle, a Horse Ranch's mares make its
-            // output (1 at its target head); a farm's horses and pigs lift its harvest
-            amount *= Livestock.workFactor(world, player, tile, property) * Livestock.draftFactor(world, player, tile, property);
-
-            // Level bonus (10% per level)
-            amount *= (1 + (property.level - 1) * 0.1);
-
-            // Commerce skill bonus (5% per level)
-            amount *= (1 + player.skills.commerce * 0.05);
-
-            // Technology production bonus
-            if (typeof Technology !== 'undefined') {
-                const techBonus = Technology.getProductionBonus(player, property.type);
-                if (techBonus > 0) amount *= (1 + techBonus);
-            }
-
-            // Infrastructure irrigation bonus (for farms/irrigated farms)
-            if (typeof Infrastructure !== 'undefined' && (property.type === 'farm' || property.type === 'irrigated_farm')) {
-                const irrigBonus = Infrastructure.getIrrigationBonus(tile);
-                if (irrigBonus > 0) amount *= (1 + irrigBonus);
-            }
-
-            // Timed world events: droughts/harvests hit farms, gold rushes boost mines.
-            // A Granary within a hex adds +20% and halves bad-harvest losses.
-            if (def && def.category === 'farming') {
-                const granary = Technology.hasBuildingNear(player, world, 'granary', tile.q, tile.r, 1);
-                let farmMod = WorldEvents.getModifier(world, 'farmProduction', tile);
-                // Today's weather: rain waters the fields, snow and heat wither them
-                // (irrigation shields crops from heat waves)
-                if (world.weather) {
-                    const wx = world.weather.getWeather(tile.q, tile.r);
-                    const irrigated = wx.type === 'heatwave' && Infrastructure.getIrrigationBonus(tile) > 0;
-                    if (!irrigated) farmMod += WEATHER_EFFECTS[wx.type]?.farmProduction || 0;
-                }
-                if (granary && farmMod < 0) farmMod /= 2;
-                amount *= Math.max(0, 1 + farmMod + (granary ? 0.2 : 0));
-            }
-            if (property.type === 'mine' || property.type === 'quarry') amount *= Math.max(0, 1 + WorldEvents.getModifier(world, 'mineProduction', tile));
-
-            // Water-wheel bonus for mills built on a river
-            if (def && def.riverBonus && tile.hasRiver) amount *= (1 + def.riverBonus);
-
-            // Prosperity miracle and a House Steward
-            amount *= PlayerEffects.propertyIncomeMultiplier(player);
-            // Only as many hands as the nearest town can spare (world/townLabour.js),
-            // and a mine's or quarry's convict gang on top (systems/penalLabour.js)
-            amount *= PenalLabour.mineStaffing(property, TownLabour.staffing(property.hire));
-            // Bountiful Harvest miracle
-            if (def && def.category === 'farming') amount *= PlayerEffects.farmProductionMultiplier(player);
+            // Calculate production (the same factors the panels show: outputFactors)
+            const out = PlayerEconomy.outputFactors(world, player, tile, property);
+            let amount = out.amount;
+            const resBonus = out.resBonus;
 
             // The agricultural year (world/seasons.js): farms sow in spring and
             // reap in autumn, herds, orchards, lodges and fleets have their own
             // curves. Yearly mean 1; fractions carry over so totals hold.
-            if (Seasons.propertyCurve(property.type)) {
-                // ...and the year's harvest in its region, its soil and rotation set its size (world/harvests.js)
-                amount *= Harvests.propertyFactor(world, tile, property);
-                amount = amount * Seasons.propertyMultiplier(property.type, Seasons.today(world)) + (property.seasonCarry || 0);
+            if (out.seasonal) {
+                amount = amount * out.season + (property.seasonCarry || 0);
                 const whole = Math.floor(amount);
                 property.seasonCarry = Math.round((amount - whole) * 1000) / 1000;
                 amount = whole;
@@ -589,6 +637,11 @@ Object.assign(PlayerEconomy, {
                 property.wastedToday = producedAmount - stored;
                 producedAmount = stored;
             }
+            // (what was actually put by today, for the panels and the day's
+            // distribution plan: player/distribution.js)
+            property.lastOutput = Math.max(0, producedAmount || 0);
+            property.lastGood = producedGood;
+            property.outputDay = world.day;
             if (producedAmount > 0) {
                 property.storage = (property.storage || 0) + producedAmount;
                 production[producedGood] = (production[producedGood] || 0) + producedAmount;
@@ -598,7 +651,8 @@ Object.assign(PlayerEconomy, {
             property.daysOwned++;
 
             // Auto sell if enabled (simple logic)
-            if (property.autoSell && property.storage > 0 && producedAmount > 0) {
+            // (a distribution plan says where the output goes instead: player/distribution.js)
+            if (property.autoSell && !property.distPlan && property.storage > 0 && producedAmount > 0) {
                 const sellAmount = property.storage;
                 // ... same as before
                 const goodType = producedGood.toUpperCase();

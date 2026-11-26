@@ -843,6 +843,8 @@ export const Chatter = {
         const heraldTokens = ['ruler', 'kingdom', 'other', 'saga', 'title', 'leader', 'place', 'by', 'days', 'bank', 'purity', 'holder', 'level',
             // caravans lost on the road (systems/merchantCaravans.js)
             'good', 'carrier', 'from', 'house',
+            // a holy war called, two crowns joined (systems/heralds.js)
+            'head', 'target', 'monarch',
             // market fairs, dearths and gluts (systems/marketFairs.js)
             'fair', 'pct',
             // refugees, strikes and booms (systems/labour.js)

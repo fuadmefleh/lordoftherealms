@@ -1,0 +1,318 @@
+{
+    "_doc": "The world's big systems seen on the street map of the town the player stands in (systems/townWorld.js derives what shows from the state; ui/innerMapTownWorld.js draws and walks it). Counts are capped per town size; every pick is a hash, never the shared RNG.",
+    "enabled": true,
+    "war": {
+        "_doc": "billet: soldiers of the realm quartered in town while it is at war (inns, then houses). drill: the hours they drill on the square. musterTents: tents of a host gathering outside the walls. frontHexes: a foe's land this near makes the town a front town; woundedDays: a battle remembered this fresh near it (world/townMarks.js cairn) brings the wounded to the temple. stay.threat: the share kept indoors when a foe's front (a war of crowns fought in KingdomAI's battles: world/kingdomAI.js noteFront) threatens the town. train: the muster's supply wagons (ui/innerMapCarts.js convoys) - a train of `wagons`, `gap` seconds apart, every `every` seconds in town in its hours, each unloading unloadSecs at the camp while `haulers` of the host carry its sacks to the stores. drillBeat: the drill's cycle in seconds - on guard, the thrust on the sergeant's call at `thrust`, recover at `recover`, a step (forward, then back) at `step` for stepLen.",
+        "billet": {
+            "village": 2,
+            "town": 4,
+            "city": 6,
+            "capital": 8
+        },
+        "drill": [
+            [
+                7,
+                9
+            ],
+            [
+                15,
+                17
+            ]
+        ],
+        "musterTents": 6,
+        "musterMen": 6,
+        "frontHexes": 5,
+        "woundedDays": 40,
+        "wounded": {
+            "village": 2,
+            "town": 3,
+            "city": 4,
+            "capital": 4
+        },
+        "siegeFires": 6,
+        "stay": {
+            "siege": 0.55,
+            "threat": 0.2,
+            "war": 0.08
+        },
+        "train": {
+            "every": 80,
+            "firstAfter": 6,
+            "wagons": 3,
+            "gap": 7,
+            "unloadSecs": 32,
+            "hours": [
+                6,
+                19
+            ],
+            "haulers": 2
+        },
+        "drillBeat": {
+            "cycle": 6.4,
+            "thrust": 1.2,
+            "recover": 2.1,
+            "step": 3.8,
+            "stepLen": 0.9
+        }
+    },
+    "holy": {
+        "_doc": "crusaders: men with the cross passing through a town within routeHexes of the muster (more at the muster itself). preachHours: when the preacher calls for the cross in the square while a call is open. surcoat: the crusaders' shirt colour (LPC), cross: the cross drawn on it.",
+        "crusaders": 3,
+        "musterCrusaders": 5,
+        "routeHexes": 8,
+        "preachHours": [
+            8,
+            18
+        ],
+        "cross": "#b3262e",
+        "surcoat": "White"
+    },
+    "conquered": {
+        "_doc": "A town taken from another crown (world/revanche.js kingdom.lostTowns) within days: the new crown's garrison at its gates and seat, and its people grumbling of the old crown.",
+        "days": 360,
+        "garrison": {
+            "village": 2,
+            "town": 3,
+            "city": 4,
+            "capital": 5
+        }
+    },
+    "famine": {
+        "beggars": {
+            "village": 1,
+            "town": 2,
+            "city": 3,
+            "capital": 3
+        },
+        "stalls": 0.6,
+        "stay": 0.3,
+        "_doc": "Famine on the realm or the age's famine over the town's region: beggars at the church and market; a share of stalls bare (where the era has stalls); and in every era a bread line of townsfolk at the bakery's door (else the granary's, the market's, the square's), empty baskets and crates about the square, the granary barred with a guard at its door; `stay` the share of folk kept indoors.",
+        "breadLine": {
+            "village": 3,
+            "town": 4,
+            "city": 6,
+            "capital": 6
+        },
+        "baskets": {
+            "village": 2,
+            "town": 3,
+            "city": 5,
+            "capital": 5
+        }
+    },
+    "news": {
+        "days": 6,
+        "max": 4
+    },
+    "grumble": {
+        "every": [
+            10,
+            18
+        ],
+        "radius": 9,
+        "perVisit": 8
+    },
+    "approach": {
+        "_doc": "Someone walks up to the player on the street: a messenger with a letter come in the last letterDays, a petitioner when petitions wait and the player holds the town, a beggar in hard times. At most one a day, a hash roll of the day and the town against chance; they wait waitSecs and go.",
+        "chance": 0.55,
+        "afterSecs": 12,
+        "letterDays": 3,
+        "waitSecs": 45,
+        "beggarGold": 30
+    },
+    "names": {
+        "soldier": "Soldier of {realm}",
+        "garrison": "{realm} garrison",
+        "crusader": "Crusader",
+        "preacher": "Preacher of the Cross",
+        "inquisitor": "{name}",
+        "clerk": "Clerk of the Holy Office",
+        "wounded": "Wounded soldier",
+        "beggar": "Beggar",
+        "messenger": "Messenger",
+        "petitioner": "Petitioner",
+        "teamster": "Teamster of the host",
+        "queue": "Hungry townsfolk",
+        "granary_guard": "Granary guard",
+        "sergeant": "Sergeant of {realm}"
+    },
+    "lines": {
+        "drill": [
+            "Shields up!",
+            "Step! Step!",
+            "Hold the line!",
+            "Again! Thrust!",
+            "Close up there!"
+        ],
+        "billet": [
+            "They say we march within the week.",
+            "Ale's thin and the bed's thinner.",
+            "Pay's late again.",
+            "Keep your daughters in, mother, we're decent lads."
+        ],
+        "muster": [
+            "Form up by the standards!",
+            "Rations at the wagons!",
+            "The host gathers: {foe} will hear of it."
+        ],
+        "wounded": [
+            "Water... please.",
+            "The surgeon took the leg below the knee.",
+            "We held them at the ford. Most of us.",
+            "Pray for the lads still out there."
+        ],
+        "siege": [
+            "They've ringed the walls with fires.",
+            "Bread's half a ration now.",
+            "Keep off the walls: their crossbows reach."
+        ],
+        "crusader": [
+            "God wills it!",
+            "To {target}, and the cross!",
+            "We muster at {muster}."
+        ],
+        "preacher": [
+            "Take up the cross! {head} calls the faithful against {target}!",
+            "Every sin forgiven to the one who takes the vow!",
+            "{target} defiles what is holy. Will you stand by?",
+            "Come, take the cross, and be counted among the blessed!"
+        ],
+        "inquisitor": [
+            "The Holy Office sits. Let the faithful speak what they know.",
+            "Who among you has heard heresy spoken?",
+            "Come forward and confess, and be spared the fire."
+        ],
+        "clerk": [
+            "Name? Parish?",
+            "Write it down. Every word.",
+            "Next!"
+        ],
+        "grumble_conquered": [
+            "It was better under {old}.",
+            "{new} taxes the very air.",
+            "My brother died at the walls. For what?",
+            "They hung {old}'s banner in the midden.",
+            "{old} will come back for us. You'll see.",
+            "Mind your tongue: the {new} garrison listens."
+        ],
+        "grumble_famine": [
+            "No bread at the baker's again.",
+            "We boiled the last of the seed corn.",
+            "The children cry all night with hunger.",
+            "There's grain in the lord's barn, you mark me."
+        ],
+        "grumble_siege": [
+            "How long can the walls hold?",
+            "I can see their fires from my window.",
+            "The well's still sweet, thank God."
+        ],
+        "grumble_war": [
+            "They took my son for the levy.",
+            "War with {foe}. Again.",
+            "The soldiers drink the tavern dry."
+        ],
+        "grumble_ban": [
+            "The temple's shut. No masses, no weddings, no burials.",
+            "The Church has cast out {realm}. God help us.",
+            "My child goes unbaptised for the crown's sins."
+        ],
+        "famine_beggar": [
+            "A crust, for pity's sake!",
+            "Anything... anything to eat!",
+            "Spare a coin for bread?"
+        ],
+        "messenger": [
+            "A letter for you, {title}!",
+            "{title}! I've ridden hard with this."
+        ],
+        "petitioner": [
+            "{title}, a word, I beg you: will you hear my case?",
+            "Justice, {title}! Hear me!"
+        ],
+        "beggar": [
+            "Spare a coin, {title}? These are hungry days.",
+            "Alms, {title}, for the love of God."
+        ],
+        "bread_line": [
+            "Is there bread today?",
+            "I've stood here since before dawn.",
+            "Not a loaf left, they say.",
+            "Don't push! Wait your turn!",
+            "Open up! Our children are hungry!",
+            "Half a loaf for a day's wage. Robbery."
+        ],
+        "granary_guard": [
+            "Stand back! The granary's shut by order.",
+            "No grain today. Move along.",
+            "Lord's orders: not a sack leaves.",
+            "Back, I said!"
+        ],
+        "teamster": [
+            "Stores for the host!",
+            "Whoa! Where do you want these?",
+            "Bread, salt pork and arrows. Sign for it.",
+            "Mind the wheel!"
+        ],
+        "hauler": [
+            "Another sack for the stores.",
+            "Heavy as sin, this.",
+            "Stack it with the rest!"
+        ],
+        "grumble_threat": [
+            "They say {foe}'s army is three days off.",
+            "My cousin fled here from the border. They burn everything.",
+            "If {foe} comes, will the walls hold?",
+            "Bury the silver, I say."
+        ]
+    },
+    "looks": {
+        "_doc": "LPC layer recipes (assets/lpc/Characters) of the figures that are not the realm's soldiers (those wear the battlefield's looks in the realm's livery: data/military.json battlefield.looks).",
+        "preacher": [
+            "Body/Body 02 - Masculine, Thin/Tan",
+            "Head/Head 03 - Elderly/Tan",
+            "Clothing/Masculine, Thin/Legs/Pants 01 - Hose/Brown",
+            "Clothing/Masculine, Thin/Torso/Shirt 01 - Longsleeve Shirt/Umber",
+            "Hair/Short 06 - Balding/Gray"
+        ],
+        "inquisitor": [
+            "Body/Body 02 - Masculine, Thin/Ivory",
+            "Head/Head 03 - Elderly/Ivory",
+            "Clothing/Masculine, Thin/Legs/Pants 03 - Pants/Black",
+            "Clothing/Masculine, Thin/Torso/Shirt 01 - Longsleeve Shirt/Black",
+            "Hair/Short 06 - Balding/Silver"
+        ],
+        "clerk": [
+            "Body/Body 02 - Masculine, Thin/Peach",
+            "Head/Head 02 - Masculine/Peach",
+            "Clothing/Masculine, Thin/Legs/Pants 01 - Hose/Charcoal",
+            "Clothing/Masculine, Thin/Torso/Shirt 01 - Longsleeve Shirt/Gray",
+            "Hair/Short 02 - Parted/Black"
+        ],
+        "messenger": [
+            "Body/Body 02 - Masculine, Thin/Honey",
+            "Head/Head 02 - Masculine/Honey",
+            "Clothing/Masculine, Thin/Legs/Pants 02 - Leggings/Brown",
+            "Clothing/Masculine, Thin/Torso/Shirt 07 - Buttoned Longsleeve Shirt/Teal",
+            "Hair/Short 03 - Curly/Chestnut",
+            "Head Accessories/Cap 01 - Leather/Leather"
+        ]
+    },
+    "liveryColours": {
+        "_doc": "The banner colour of a realm's livery (data/military.json battlefield.looks.liveries: the shirt its soldiers wear), so its banners, its soldiers and its battles agree.",
+        "Wine": "#7d2430",
+        "Forest": "#2f6236",
+        "Mustard": "#c59b2a",
+        "Plum": "#5d2d60",
+        "Teal": "#2a7d7b",
+        "Black": "#2a2a2e",
+        "Navy": "#2a3b6e"
+    },
+    "drillCalls": {
+        "_doc": "The sergeant's calls on the drill's beats (TownWorld.drillBeat).",
+        "ready": "Ready!",
+        "thrust": "Thrust!",
+        "recover": "Recover!",
+        "step": "Step!",
+        "back": "Back!"
+    }
+}

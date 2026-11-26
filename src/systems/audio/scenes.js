@@ -1,6 +1,7 @@
 // AudioManager — scenes methods.
 import { AudioManager } from './core.js';
 import {  } from './_imports.js';
+import { moodOfScene } from './music.js';
 
 Object.assign(AudioManager.prototype, {
     // ── Initialisation ──────────────────────────
@@ -33,6 +34,8 @@ Object.assign(AudioManager.prototype, {
             this.ambienceGain.connect(this.masterGain);
 
             this.initialized = true;
+            // the small recorded sounds fetched now, ready before they're first wanted (audio/samples.js)
+            if (typeof this.preloadCoreSamples === 'function') this.preloadCoreSamples();
         } catch (e) {
             console.warn('AudioManager: Web Audio API not available', e);
         }
@@ -119,6 +122,21 @@ Object.assign(AudioManager.prototype, {
         if (!this.initialized) this.init();
         if (!this.ctx) return;
         if (scene === this.currentScene && this.isPlaying) return;
+
+        // Recorded music (audio/music.js): the scene names its mood. In a game the soundscape
+        // (ui/soundscape.js) owns the mood — by place, hour and fight — so a scene change only
+        // reaches the music on the title screen or when the soundscape isn't running.
+        if (typeof this.recordedMusicOn === 'function' && this.recordedMusicOn() && !(this._music && this._music.fallback)) {
+            this._resume();
+            if (this.musicNodes.length || this.ambienceNodes.length) this._stopMusic();
+            this.currentScene = scene;
+            this.isPlaying = scene !== 'none';
+            const owned = this._moodOwnerAt && Date.now() - this._moodOwnerAt < 1500;
+            // (a band falling on you on the road: the soundscape hears of it here, and holds the battle a while)
+            if (scene === 'combat') this._battleUntil = Date.now() + 25000;
+            if (!owned || scene === 'title' || scene === 'none' || scene === 'combat') this.setMusicMood(moodOfScene(scene));
+            return;
+        }
 
         this._resume();
         this._stopMusic();

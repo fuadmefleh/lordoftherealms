@@ -1254,6 +1254,9 @@ export function endDay() {
                 this.minimap.invalidate();
             }
 
+            // Distribution plans: the week's arrivals rolled up, robberies and returns at once (player/distribution.js)
+            for (const n of ((playerResults.distribution && playerResults.distribution.notices) || []).slice(0, 4)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+
             // Show player production notifications
             if (playerResults.production && Object.keys(playerResults.production).length > 0) {
                 let msg = 'Produced: ';
@@ -1312,7 +1315,17 @@ export function endDay() {
                 if (caravan.status === 'lost') {
                     this.ui.showNotification('Caravan Lost', caravan.message || `${caravan.from} → ${caravan.to} was lost on the road.`, 'error');
                 } else if (caravan.status === 'smuggling_caught') {
-                    this.ui.showNotification('Smuggling Intercepted', `${caravan.from} → ${caravan.to}: +${caravan.finalProfit} gold after confiscation`, 'default');
+                    this.ui.showNotification('Smuggling Intercepted', caravan.message || `${caravan.from} → ${caravan.to}: +${caravan.finalProfit} gold after confiscation`, 'default');
+                } else if (caravan.status === 'selling') {
+                    this.ui.showNotification('🐫 Caravan Waits for Coin', caravan.message, 'warning');
+                } else if (caravan.status === 'onward') {
+                    this.ui.showNotification('🐫 Caravan Goes On', caravan.message, 'info');
+                } else if (caravan.status === 'returning') {
+                    this.ui.showNotification('🐫 Caravan Turns Home', caravan.message, 'warning');
+                } else if (caravan.status === 'returned') {
+                    this.ui.showNotification('🐫 Caravan Home', caravan.message, 'info');
+                } else if (caravan.message) {
+                    this.ui.showNotification('Caravan Arrived!', caravan.message, 'success');
                 } else {
                     this.ui.showNotification('Caravan Arrived!', `${caravan.from} → ${caravan.to}: +${Utils.formatGold(caravan.finalProfit)} gold`, 'success');
                 }

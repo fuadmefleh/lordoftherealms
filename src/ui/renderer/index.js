@@ -4,8 +4,10 @@
 import { Renderer } from './core.js';
 import './assets.js';
 import './world.js';
+import './terrainCache.js';
 import './features.js';
 import './overlays.js';
+import './markerCache.js';
 import './tradeMap.js';
 import './topography.js';
 import './flowMap.js';

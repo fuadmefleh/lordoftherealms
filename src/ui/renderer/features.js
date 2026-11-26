@@ -350,13 +350,19 @@ Object.assign(Renderer.prototype, {
         const rs = this.hexSize * this.camera.zoom;
         const pad = rs * 2;
         const items = [];
+        // (off screen told first, without a point made for it: most of the world's sites are)
+        const cam = this.camera;
+        const fast = typeof cam.worldToScreenFast === 'function';
+        const hexW = Math.sqrt(3) * this.hexSize, rowH = hexW * 0.75;
+        const cw = this.canvas.width, ch = this.canvas.height;
         const visible = (q, r) => {
+            const px = q * hexW + ((r % 2 === 0) ? hexW / 2 : 0), py = r * rowH;
+            const p = fast ? cam.worldToScreenFast(px, py) : cam.worldToScreen(px, py);
+            if (p.x < -pad || p.x > cw + pad || p.y < -pad || p.y > ch + pad) return null;
+            const x = p.x, y = p.y;
             const tile = world.getTile(q, r);
             if (!tile || !tile.explored || tile.settlement || tile.playerProperty || tile.religiousBuilding) return null;
-            const pos = this.getHexPixelPos(q, r);
-            const s = this.camera.worldToScreen(pos.x, pos.y);
-            if (s.x < -pad || s.x > this.canvas.width + pad || s.y < -pad || s.y > this.canvas.height + pad) return null;
-            return s;
+            return { x, y };
         };
         for (const site of Hinterland.sites(world)) {
             const k = Hinterland.kind(site.kind);
@@ -1104,6 +1110,33 @@ Object.assign(Renderer.prototype, {
         return e.list;
     },
 
+    /**
+     * fn(x, y, value) for each hex of a flat [q, r, value, ...] list whose grid point is on
+     * screen (within pad px), at its screen point: camera.worldToScreen's sum, worked without
+     * a point made per hex (a reach of days runs to thousands of hexes, most off screen).
+     */
+    _eachHexOnScreen(list, pad, fn) {
+        const cam = this.camera;
+        const z = cam.zoom;
+        const hexW = Math.sqrt(3) * this.hexSize, rowH = hexW * 0.75;
+        const cx = this.canvas.width / 2, cy = this.canvas.height / 2;
+        const xMin = -pad, xMax = this.canvas.width + pad, yMin = -pad, yMax = this.canvas.height + pad;
+        const wpw = cam.worldPixelWidth, half = wpw / 2;
+        for (let i = 0; i < list.length; i += 3) {
+            const q = list[i], r = list[i + 1];
+            const y = cy + (r * rowH - cam.y) * z;
+            if (y < yMin || y > yMax) continue;
+            let dx = q * hexW + ((r % 2 === 0) ? hexW / 2 : 0) - cam.x;
+            if (wpw > 0) {
+                if (dx > half) dx -= wpw;
+                if (dx < -half) dx += wpw;
+            }
+            const x = cx + dx * z;
+            if (x < xMin || x > xMax) continue;
+            fn(x, y, list[i + 2]);
+        }
+    },
+
     renderReachableHexes(ctx) {
         if (!this.reachableHexes) return;
 
@@ -1122,59 +1155,63 @@ Object.assign(Renderer.prototype, {
             ctx.textBaseline = 'middle';
             ctx.font = `bold ${Math.max(9, Math.round(0.34 * s))}px sans-serif`;
             const L = this._keyedCoords(later);
-            for (let i = 0; i < L.length; i += 3) {
-                const q = L[i], r = L[i + 1], d = L[i + 2];
-                const pos = this.getHexPixelPos(q, r);
-                const sc = this.camera.worldToScreen(pos.x, pos.y);
-                if (sc.x < -50 || sc.x > this.canvas.width + 50 || sc.y < -50 || sc.y > this.canvas.height + 50) continue;
-                const X = 0.866 * s;
-                ctx.beginPath();
-                ctx.moveTo(sc.x, sc.y - 0.732 * s);
-                ctx.lineTo(sc.x + X, sc.y - 0.305 * s);
-                ctx.lineTo(sc.x + X, sc.y + 0.567 * s);
-                ctx.lineTo(sc.x, sc.y + 1.000 * s);
-                ctx.lineTo(sc.x - X, sc.y + 0.567 * s);
-                ctx.lineTo(sc.x - X, sc.y - 0.305 * s);
+            // One path per wash (tomorrow's, the days after), then the counts' discs and
+            // numbers over them: the faces never overlap, so this is the hex-by-hex drawing
+            // in a few fills (a fill per hex cost the map a millisecond with a long reach)
+            const X = 0.866 * s;
+            const face = (x, y) => {
+                ctx.moveTo(x, y - 0.732 * s);
+                ctx.lineTo(x + X, y - 0.305 * s);
+                ctx.lineTo(x + X, y + 0.567 * s);
+                ctx.lineTo(x, y + 1.000 * s);
+                ctx.lineTo(x - X, y + 0.567 * s);
+                ctx.lineTo(x - X, y - 0.305 * s);
                 ctx.closePath();
-                ctx.fillStyle = `rgba(245, 197, 66, ${Math.max(0.03, pulse * (d === 1 ? 0.45 : 0.22))})`;
-                ctx.fill();
-                if (s >= 14) {
-                    ctx.fillStyle = 'rgba(16, 20, 32, 0.55)';
-                    ctx.beginPath();
-                    ctx.arc(sc.x, sc.y + 0.13 * s, 0.24 * s, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.fillStyle = '#ffe9a8';
-                    ctx.fillText(String(d + 1), sc.x, sc.y + 0.14 * s);
+            };
+            const shown = [];
+            this._eachHexOnScreen(L, 50, (x, y, d) => shown.push(x, y, d));
+            for (const near of [true, false]) {
+                ctx.beginPath();
+                let any = false;
+                for (let i = 0; i < shown.length; i += 3) {
+                    if ((shown[i + 2] === 1) !== near) continue;
+                    face(shown[i], shown[i + 1]);
+                    any = true;
                 }
+                if (!any) continue;
+                ctx.fillStyle = `rgba(245, 197, 66, ${Math.max(0.03, pulse * (near ? 0.45 : 0.22))})`;
+                ctx.fill();
+            }
+            if (s >= 14 && shown.length) {
+                ctx.fillStyle = 'rgba(16, 20, 32, 0.55)';
+                ctx.beginPath();
+                for (let i = 0; i < shown.length; i += 3) {
+                    ctx.moveTo(shown[i] + 0.24 * s, shown[i + 1] + 0.13 * s);
+                    ctx.arc(shown[i], shown[i + 1] + 0.13 * s, 0.24 * s, 0, Math.PI * 2);
+                }
+                ctx.fill();
+                ctx.fillStyle = '#ffe9a8';
+                for (let i = 0; i < shown.length; i += 3) ctx.fillText(String(shown[i + 2] + 1), shown[i], shown[i + 1] + 0.14 * s);
             }
             ctx.restore();
         }
 
         const R = this._keyedCoords(this.reachableHexes);
-        for (let i = 0; i < R.length; i += 3) {
-            const q = R[i], r = R[i + 1];
-            const pos = this.getHexPixelPos(q, r);
-            const screen = this.camera.worldToScreen(pos.x, pos.y);
-            const s = size * this.camera.zoom;
-
-            if (screen.x < -50 || screen.x > this.canvas.width + 50) continue;
-            if (screen.y < -50 || screen.y > this.canvas.height + 50) continue;
-
-            const x = screen.x, y = screen.y;
-            const X = 0.866 * s;
-            const corners = [
-                { x: x,     y: y - 0.732 * s },
-                { x: x + X, y: y - 0.305 * s },
-                { x: x + X, y: y + 0.567 * s },
-                { x: x,     y: y + 1.000 * s },
-                { x: x - X, y: y + 0.567 * s },
-                { x: x - X, y: y - 0.305 * s },
-            ];
-            ctx.beginPath();
-            ctx.moveTo(corners[0].x, corners[0].y);
-            for (let i = 1; i < 6; i++) ctx.lineTo(corners[i].x, corners[i].y);
+        const s = size * this.camera.zoom;
+        const X = 0.866 * s;
+        ctx.beginPath();
+        let any = false;
+        this._eachHexOnScreen(R, 50, (x, y) => {
+            ctx.moveTo(x, y - 0.732 * s);
+            ctx.lineTo(x + X, y - 0.305 * s);
+            ctx.lineTo(x + X, y + 0.567 * s);
+            ctx.lineTo(x, y + 1.000 * s);
+            ctx.lineTo(x - X, y + 0.567 * s);
+            ctx.lineTo(x - X, y - 0.305 * s);
             ctx.closePath();
-
+            any = true;
+        });
+        if (any) {
             ctx.fillStyle = `rgba(245, 197, 66, ${pulse})`;
             ctx.fill();
         }

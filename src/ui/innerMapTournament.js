@@ -60,6 +60,7 @@ import { InnerMapReactions } from './innerMapReactions.js';
 import { DuelPanel } from './actionMenu/duel.js';
 import { esc, lede, chips, rowList, purse, price } from './actionMenu/uiKit.js';
 import { drawMapText } from './mapInk.js';
+import { Soundscape } from './soundscape.js';
 
 const BOUT_NAMES = ['Opening bout', 'Semi-final', 'The final'];
 const T_PX = 32;
@@ -905,6 +906,9 @@ export const InnerMapTournament = {
         if (kind !== 'groan') this._cheerUntil = t + 2.2;
         const crowd = L.crowd || [];
         if (!crowd.length) return;
+        // (heard too: the crowd's roar about the lists, a cheer when it's earned — ui/soundscape.js)
+        const mid = crowd.reduce((a, c) => ({ q: a.q + _num(c.q) / crowd.length, r: a.r + _num(c.r) / crowd.length }), { q: 0, r: 0 });
+        Soundscape.crowd('lists', { q: mid.q, r: mid.r, ttl: 14, level: kind === 'groan' ? 0.45 : 0.75, cheer: kind === 'groan' ? 0 : kind === 'unhorsed' ? 1.2 : 0.85 });
         for (let k = 0; k < 3; k++) {
             const u = Lists.hash(kind, Math.floor(t * 10), k);
             const c = crowd[Math.floor(u * crowd.length)];

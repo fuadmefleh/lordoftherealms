@@ -1,0 +1,19 @@
+{
+    "_doc": "Distribution plans (player/distribution.js): a standing order per producing property saying where each day's output goes. shares: up to maxShares destinations with a percent each (summing to 100 or less); the rest goes to the rest destination (default: stay in the property's store). Whole units only: each destination's fraction of a unit is carried day to day (largest remainder), so a 10% share of 3 a day still gets its 0.3 a day over time. Same hex: moved at once, no carriage. Otherwise the units gather in the store (still counted against its room) until the plan's batch rule sends them: daily, when a share has gathered `minLoad` (default; the player sets N), or weekly. Hired carters take each consignment: days = the way by land (Infrastructure.routeDays: roads quicker, rough ground slower) x carriage.slow, at least 1; a way longer than carriage.maxDays, or none by land, cannot be sent. Carriage, paid on setting out from your purse to the carters' home town (the source's town; a return trip: the town it waits in): minFee + loads x hexes x perLoadHex x ground, where loads = the goods' weight (data/packLoad.json) / loadLb, and ground = the way's days / (hexes x open land's days a hex), held within [roadMin, groundMax] (roads make it cheaper, mountains dearer); a canal between two towns (world/transport.js) x canal. A border crossed: the realm entered takes tolls.rate of the goods' worth (its crown's trade policy may raise or waive it: systems/tradePolicy.js) into its treasury; an export ban keeps the goods home. Robbery: chance = robbery.scale x the danger of the way (systems/couriers.js routeDanger: raiders, outlaw lairs, war), at most robbery.max; what is taken goes to the nearest outlaw lair's hoard (else the fences of the nearest town's market). A market share is sold on arrival into the town's stock, paid out of its purse at its price curve, never a unit under sale.floorShare x the good's base price (a crown's import duty and the guild's toll inside it), booked as 'distribution' takings. A destination that cannot take it all (a full store, a recipe changed, a market without coin) keeps the rest waiting there waitDays, tried every day (a market sells down to floor 0 on the last day); then the carters bring it back (carriage paid again) into the source's store, any it cannot hold sold at the source's town, any still left with its merchants (a loss). Arrivals and sales are rolled into one notice every noticeEvery days; robberies and returns are told at once.",
+    "config": {
+        "maxPlans": 30,
+        "maxShares": 6,
+        "minLoad": 20,
+        "weeklyDays": 7,
+        "waitDays": 7,
+        "marketRange": 40,
+        "marketList": 16,
+        "routeDays": 30,
+        "noticeEvery": 7,
+        "logCap": 40,
+        "carriage": { "loadLb": 500, "perLoadHex": 1.2, "minFee": 2, "slow": 1.25, "roadMin": 0.5, "groundMax": 2, "canal": 0.5, "maxDays": 40 },
+        "tolls": { "rate": 0.03, "min": 1 },
+        "robbery": { "scale": 0.25, "max": 0.3 },
+        "sale": { "floorShare": 0.4 }
+    }
+}

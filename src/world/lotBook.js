@@ -110,6 +110,19 @@ export const LotBook = {
         return list.includes('house') ? list.slice() : [...list, 'house'];
     },
 
+    /**
+     * Where a property out in the country stands (data/lots.json wildSites):
+     * { site, dry?, kinds, dryKinds?, props, field?, trees?, small?, big? } —
+     * kinds its building types best first, else its propertyKinds.
+     */
+    wildSite(propType) {
+        const m = this.config().wildSites || {};
+        const t = String(propType || '').toLowerCase();
+        const s = (m[t] && typeof m[t] === 'object' ? m[t] : null) || (m.default && typeof m.default === 'object' ? m.default : null) || { site: 'road' };
+        const kinds = Array.isArray(s.kinds) && s.kinds.length ? s.kinds.slice() : this.propertyKinds(t).filter(k => k !== 'house');
+        return { ...s, site: s.site || 'road', kinds, props: Array.isArray(s.props) ? s.props.slice() : [] };
+    },
+
     /** The town's lot ids (as last seen on its map, else as its type plans them) with their size. */
     knownLots(settlement) {
         const book = settlement && settlement.lotBook;

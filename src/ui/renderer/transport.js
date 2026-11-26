@@ -9,6 +9,44 @@ import { Renderer } from './core.js';
 import { Transport } from '../../world/transport.js';
 
 Object.assign(Renderer.prototype, {
+    /**
+     * A road segment's hexes (its towns' at the ends) and their box in world pixels, kept
+     * while its path is the same; offView(camera, w, h, pad) is true when no hex of it can
+     * be within pad screen px of the view (the world wraps east-west: the box is measured
+     * the short way round from the camera, and one across the seam is never ruled out).
+     */
+    _segGeom(world, seg) {
+        if (!this._segGeoms || this._segGeomsWorld !== world) { this._segGeoms = new WeakMap(); this._segGeomsWorld = world; }
+        let g = this._segGeoms.get(seg);
+        if (g && g.path === seg.path && g.n === seg.path.length && g.a === seg.a && g.b === seg.b) return g;
+        const pts = [seg.a];
+        for (const i of seg.path) pts.push(Transport.hexOf(world, i));
+        pts.push(seg.b);
+        let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+        for (const p of pts) {
+            const w = this.getHexPixelPos(p.q, p.r);
+            if (w.x < x0) x0 = w.x;
+            if (w.x > x1) x1 = w.x;
+            if (w.y < y0) y0 = w.y;
+            if (w.y > y1) y1 = w.y;
+        }
+        const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, hw = (x1 - x0) / 2, hh = (y1 - y0) / 2;
+        g = {
+            path: seg.path, n: seg.path.length, a: seg.a, b: seg.b, pts,
+            offView(cam, w, h, pad) {
+                const z = cam.zoom || 1;
+                const wpw = cam.worldPixelWidth;
+                if (wpw > 0 && hw * 2 >= wpw / 2) return false;
+                let dx = cx - cam.x;
+                if (wpw > 0) dx = ((dx % wpw) + wpw * 1.5) % wpw - wpw / 2;
+                const mx = (w / 2 + pad) / z + hw, my = (h / 2 + pad) / z + hh;
+                return Math.abs(dx) > mx || Math.abs(cy - cam.y) > my;
+            },
+        };
+        this._segGeoms.set(seg, g);
+        return g;
+    },
+
     renderRoadState(ctx) {
         const world = this.world;
         if (!world || !world.transport) return;
@@ -30,9 +68,11 @@ Object.assign(Renderer.prototype, {
             const tier = Transport.tier(st.t);
             // The plain road in good repair is the road sprite already
             if (band === 'good' && st.t === 'road' && !st.toll && (st.x === 'bridge' || !st.x)) continue;
-            const pts = [seg.a];
-            for (const i of seg.path) pts.push(Transport.hexOf(world, i));
-            pts.push(seg.b);
+            // (its hexes and the box round them in world pixels, kept per segment: most of the
+            // realm's roads are off screen, and mapping every one of them each frame cost the map)
+            const gm = this._segGeom(world, seg);
+            if (gm.offView(this.camera, W, H, 80)) continue;
+            const pts = gm.pts;
             const sp = pts.map(p => scr(p.q, p.r));
             if (sp.every(off)) continue;
             const explored = (p) => { const t = world.getTile(p.q, p.r); return !!(t && t.explored); };

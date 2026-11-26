@@ -24,6 +24,7 @@ import { Technology } from '../../systems/technology.js';
 import { PlayerEffects } from '../playerEffects.js';
 import { Culture } from '../../systems/culture.js';
 import { PlayerEconomy } from '../playerEconomy.js';
+import { Distribution } from '../distribution.js';
 import { PlayerMilitary } from '../playerMilitary.js';
 import { PlayerReligion } from '../playerReligion.js';
 import { Quests } from '../../systems/quests.js';
@@ -450,6 +451,9 @@ export const PlayerActions = {
 
         // Produce goods from properties
         results.production = PlayerEconomy.produceGoods(player, world);
+        // ...and where each plan sends it: shares to other properties, stores,
+        // holdings and markets, by hired carters (player/distribution.js)
+        results.distribution = Distribution.processDay(world, player);
 
         // Collect faith income
         results.faithIncome = PlayerReligion.collectFaithIncome(player, world);

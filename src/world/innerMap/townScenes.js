@@ -358,6 +358,8 @@ Object.assign(InnerMap, {
         const A = this.townArea();
         const list = this._townBuildings().filter(b => types.includes(b.type));
         if (!list.length) return null;
+        // (a temple shut under the Church's ban holds no service: world/innerMap/townWorld.js)
+        if (this._shutDoors && list.some(b => this._shutDoors.has(`${b.q},${b.r}`))) return null;
         return A ? list.sort((a, b) => Math.hypot(a.q - A.center.q, a.r - A.center.r) - Math.hypot(b.q - A.center.q, b.r - A.center.r))[0] : list[0];
     },
 
@@ -538,7 +540,9 @@ Object.assign(InnerMap, {
                 npc.facing = 2;
                 npc.idleTimer = _span(C.crier.stay || [24, 34], u);
                 if (!near) return;
-                const news = S.news.length ? S.news : _arr(C.crier.fallback).map(l => this._sceneFill(l));
+                // (the proclamations that have reached the town come first: ui/innerMapTownWorld.js sets _townCry from systems/heralds.js)
+                const cry = Array.isArray(this._townCry) && this._townCry.length ? this._townCry : null;
+                const news = cry || (S.news.length ? S.news : _arr(C.crier.fallback).map(l => this._sceneFill(l)));
                 const lines = [this._scenePickLine(C.crier.open, 'cry'), ...news.slice(0, 2), this._scenePickLine(C.crier.close, 'cry')];
                 lines.forEach((l, i) => l && this._sceneSay(npc, this._sceneFill(l), i * 4200, 4));
                 return;

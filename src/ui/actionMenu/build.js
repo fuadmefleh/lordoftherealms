@@ -129,7 +129,8 @@ Object.assign(ActionMenu, {
         if (Hospitality.isKind(prop.id)) return '🛏️ Guests from the travellers';
         if (prop.id === 'trading_post') return '🐪 Attracts merchants';
         if (!prop.produces) return 'Special';
-        return `${goodName(prop.produces)}${prop.productionRate ? ` · ${prop.productionRate}/day` : ''}`;
+        // (the base rate: the season, the hands the town can spare, the harvest and the level move it)
+        return `${goodName(prop.produces)}${prop.productionRate ? ` · base ${prop.productionRate}/day` : ''}`;
     },
 
     /**

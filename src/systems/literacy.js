@@ -595,21 +595,25 @@ export const Literacy = {
         const E = Literacy.config().endow;
         const need = _obj(E.materials) || {};
         const fromPacks = {}, toBuy = {};
-        let cost = 0, short = null;
+        let cost = 0, short = null, shortInfo = null;
         for (const [id, n] of Object.entries(need)) {
             const have = Math.max(0, Math.floor(_num(player && player.inventory && player.inventory[id])));
             const take = Math.min(have, n);
             if (take > 0) fromPacks[id] = take;
             const buy = n - take;
             if (buy > 0) {
-                if (SettlementMarket.stock(settlement, id) + 1e-9 < buy) { short = short || id; continue; }
+                const market = Math.max(0, Math.floor(SettlementMarket.stock(settlement, id) + 1e-9));
+                if (market < buy) {
+                    if (!short) { short = id; shortInfo = { id, need: n, have, market }; }
+                    continue;
+                }
                 let k = 1;
                 try { k = SettlementMarket.scarcity(settlement, id); } catch { k = 1; }
                 cost += Math.max(1, Math.round(Math.max(1, PlayerInventory.goodValue(id) || 1) * (Number.isFinite(k) ? k : 1))) * buy;
                 toBuy[id] = buy;
             }
         }
-        return { fromPacks, toBuy, cost: Math.ceil(cost), short };
+        return { fromPacks, toBuy, cost: Math.ceil(cost), short, shortInfo };
     },
 
     /** May the player endow a school here? → { ok, reason?, cost, goodsCost, total, materials, candidates, wage, fund } */
@@ -626,7 +630,14 @@ export const Literacy = {
         const mats = Literacy._materials(player, settlement);
         const res = { ...out, candidates, materials: mats, goodsCost: mats.cost, total: cost + mats.cost };
         if (!candidates.length) return { ...res, reason: 'No one in the town is lettered enough to keep a school.' };
-        if (mats.short) return { ...res, reason: `Neither your packs nor ${settlement.name || 'the town'}'s market have the ${mats.short} to build it.` };
+        if (mats.short) {
+            // Say how many, where they stand now, and where to get them (data/literacy.json endow.whereToGet)
+            const s = mats.shortInfo || { id: mats.short, need: 0, have: 0, market: 0 };
+            const hint = (_obj(E.whereToGet) || {})[s.id] || {};
+            const name = hint.name || s.id;
+            const where = hint.where || '';
+            return { ...res, reason: `The school needs ${s.need} ${name}: you carry ${s.have} and ${settlement.name || 'the town'}'s market has ${s.market}, so ${Math.max(0, s.need - s.have - s.market)} more are wanted.${where ? ` ${where}` : ''}` };
+        }
         if (_num(player.gold) < res.total) return { ...res, reason: `Endowing a school costs ${Utils.formatGold(res.total)}g with its materials.` };
         return { ...res, ok: true };
     },

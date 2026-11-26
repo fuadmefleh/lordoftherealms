@@ -672,12 +672,18 @@ Object.assign(InnerMap, {
         if (millOpts && this._millByWater) {
             this._millByWater(tiles, worldTile, worldQ, worldR, { ...millOpts, riverPath: river && river.path });
         }
+        // (the river's course, for a mill the player builds here later: its wheel turns with the stream)
+        if (river && river.path) tiles._riverPath = river.path;
+        // --- The player's properties out in the country, each where its trade puts it: a mill on the
+        // riverbank, a farm by its fenced field, a camp at the woods' edge… (world/innerMap/propertySites.js;
+        // hash-placed: draws nothing from rng). Those at a rock face wait for the crags, below ---
+        let unsited = [];
+        if (!worldTile.settlement && this._sitePlayerProperties) {
+            unsited = this._sitePlayerProperties(tiles, worldTile, worldQ, worldR, { phase: 'land', riverPath: river && river.path });
+        }
         if (this._dressWater) this._dressWater(tiles, worldQ, worldR);
         // (a town's walls joined anew where the water broke them, a tower at each end: world/townWalls.js)
         if (tiles._townWalls) TownWalls.finish(tiles);
-
-        // --- Player property placement ---
-        this._placePlayerProperties(tiles, worldTile, rng);
 
         // --- A roadhouse on an open road (systems/hospitality.js; hash-placed: draws nothing from rng) ---
         this._placeRoadhouse(tiles, worldTile, worldQ, worldR, game && game.world);
@@ -687,6 +693,11 @@ Object.assign(InnerMap, {
         // hash-placed: draws nothing from rng) ---
         // (worlds since terrainGen 9: bigger, in tiers, with caves — the world's generationParams say)
         if (this._layCliffs) this._layCliffs(tiles, worldTile, worldQ, worldR, game && game.world ? game.world.generationParams : null);
+        // --- A mine or quarry against the rock face; and any property no design fitted, as its old sprite ---
+        if (!worldTile.settlement && this._sitePlayerProperties) {
+            unsited = unsited.concat(this._sitePlayerProperties(tiles, worldTile, worldQ, worldR, { phase: 'rock' }));
+        }
+        if (unsited.length || !this._sitePlayerProperties) this._placePlayerProperties(tiles, worldTile, rng, this._sitePlayerProperties ? unsited : null);
 
         // --- Scatter custom editor-authored objects on terrain ---
         if (typeof CustomObjects !== 'undefined' && CustomObjects.isLoaded() && CustomObjects.hasAnyBindings()) {

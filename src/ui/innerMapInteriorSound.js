@@ -111,7 +111,7 @@ export function interiorAmbienceSpec(ctx) {
     const fireAt = nearestFire(c.tiles, c.playerQ, c.playerR);
     // a fire is louder the nearer you stand to it
     const fireNear = fireAt ? 0.35 + 0.65 * Math.max(0, 1 - fireAt.dist / 12) : 0;
-    const L = { room: 1, chatter: 0, crowd: 0, fire: fireNear, forge: 0, hum: 0, drip: 0 };
+    const L = { room: 1, chatter: 0, crowd: 0, fire: fireNear, forge: 0, hum: 0, drip: 0, choir: 0 };
     let echo = 0;
     switch (kind) {
         case 'tavern': {
@@ -125,6 +125,9 @@ export function interiorAmbienceSpec(ctx) {
             const night = hour >= 21 || hour < 5;
             L.hum = night ? 0.7 : 1;
             L.chatter = occ >= 3 ? Math.min(0.25, occ / 30) : 0;   // a hushed murmur, at a service
+            // the choir's plainchant while a service is sung (c.service: townScenes serviceAt),
+            // the hum and the murmur under it
+            if (c.service) { L.choir = 0.9; L.hum *= 0.5; L.chatter *= 0.5; }
             L.room = 0.6;
             echo = 0.85;
             break;
@@ -196,8 +199,8 @@ export const InteriorAmbience = {
         this._lastUpdate = _now();
         const b = InnerMap.active ? InnerMap._insideBuilding : null;
         const paused = !!(game && game.timeSpeed === 0);
-        const menu = this._menuOpen();
-        if (!b || paused || menu) {
+        // (the settings menu looked for only indoors: a search of the page, every frame, on the world map too)
+        if (!b || paused || this._menuOpen()) {
             this._apply(null);
             return;
         }
@@ -213,12 +216,22 @@ export const InteriorAmbience = {
                 hour: typeof InnerMap._sceneClock === 'function' ? InnerMap._sceneClock() : InnerMap.timeOfDay,
                 playerQ: InnerMap.playerInnerQ,
                 playerR: InnerMap.playerInnerR,
+                service: this._serviceSung(b),
             });
             this._apply(spec);
         }
         if (this._applied) {
             try { if (typeof this.audio.interiorTick === 'function') this.audio.interiorTick(dt); } catch { /* sound is best-effort */ }
         }
+    },
+
+    /** A service sung now in this church (world/innerMap/townScenes.js serviceAt, past its bell's lead). */
+    _serviceSung(b) {
+        try {
+            if (interiorSoundKind(b) !== 'church' || typeof InnerMap.serviceAt !== 'function') return false;
+            const sv = InnerMap.serviceAt(undefined, undefined, false);
+            return !!(sv && sv.begun);
+        } catch { return false; }
     },
 
     /** Silence it now (leaving the game, a new game). */

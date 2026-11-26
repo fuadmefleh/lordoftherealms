@@ -33,6 +33,8 @@ import './skills.js';
 import './social.js';
 import './houseShips.js';
 import './tradeLines.js';
+// Distribution plans: where a property's output goes (player/distribution.js)
+import './distribution.js';
 import './riverLife.js';
 // The harbour: harbourmaster, dues, the slip, careening, the fishing fleet, ferries (systems/ports.js)
 import './harbour.js';

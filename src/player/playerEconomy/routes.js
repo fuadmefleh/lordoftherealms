@@ -1,9 +1,8 @@
 // PlayerEconomy — routes members.
 import { PlayerEconomy } from './_ref.js';
 import { Trading } from './trading.js';
-import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, Economy } from './_imports.js';
+import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure } from './_imports.js';
 import { TradePolicy } from '../../systems/tradePolicy.js';
-import { Difficulty } from '../../core/difficulty.js';
 import { PlayerCoin } from '../playerCoin.js';
 
 Object.assign(PlayerEconomy, {
@@ -211,17 +210,10 @@ Object.assign(PlayerEconomy, {
         const goods = { [route.goodId]: route.quantity };
         const dist = Hex.wrappingDistance(route.fromPos.q, route.fromPos.r, route.toPos.q, route.toPos.r, world.width);
 
-        let expectedProfit = 0;
-        const good = Object.values(PlayerEconomy.GOODS).find(g => g.id === route.goodId);
-        if (good) {
-            let unitPrice = good.basePrice * (1 + dist * 0.05);
-            const sizeMultiplier = { village: 0.8, town: 1.0, city: 1.2, capital: 1.5 };
-            unitPrice *= sizeMultiplier[toTile.settlement.type] || 1.0;
-            // Markets near gems, spices, salt, horses or oil draw more buyers
-            unitPrice *= Economy.caravanProfitMultiplier(world, toTile.settlement);
-            unitPrice *= Difficulty.mult(player, 'sellPrice'); // the difficulty (1 on Normal)
-            expectedProfit = Math.floor(unitPrice * route.quantity);
-        }
+        // What the destination's merchants can pay for the load today (the
+        // same reckoning as the sale on arrival, capped by their purse)
+        const preview = PlayerEconomy.caravanPreview(player, world, route.fromPos, toTile, goods, PlayerEconomy.caravanPreviewLots(player, goods));
+        const expectedProfit = preview.payable || 0;
 
         PlayerCoin.pay(world, player, dispatchCost, PlayerEconomy._routeHome(world, route), 'caravans');
         // The goods' bookings by realm travel with them (customs on arrival)
@@ -239,6 +231,8 @@ Object.assign(PlayerEconomy, {
             distance: dist,
             goods,
             expectedProfit,
+            fee: dispatchCost,
+            findBuyer: route.findBuyer != null ? !!route.findBuyer : player.caravanFindBuyer !== false,
             daysRemaining: Math.max(1, Math.ceil(dist / 2)),
             status: 'traveling',
             routeId: route.id,
@@ -273,7 +267,9 @@ Object.assign(PlayerEconomy, {
         for (const route of allRoutes) {
             if (route.activeCaravanId) {
                 const unitAlive = world.units.some(u => u.id === route.activeCaravanId && !u.destroyed);
-                if (!unitAlive) route.activeCaravanId = null;
+                // (a caravan of the route still waiting for coin, going on to a buyer or coming home holds it)
+                const busy = (player.caravans || []).some(c => c.routeId === route.id && c.status !== 'lost' && c.status !== 'completed');
+                if (!unitAlive && !busy) route.activeCaravanId = null;
             }
 
             if (route.nextDispatchIn > 0) route.nextDispatchIn--;

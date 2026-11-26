@@ -13,6 +13,8 @@ import { Locks } from '../systems/locks.js';
 import { SocialSkills } from '../systems/socialSkills.js';
 import { NpcDisposition } from '../systems/npcDisposition.js';
 import { containerContext, theftScene } from './objectActions/contents.js';
+import { audioManager } from '../systems/audio.js';
+const _snd = (kind, o) => { try { audioManager.playSFX(kind, o); } catch { /* sound is best-effort */ } };
 
 const _awake = n => n && n.state !== 'unconscious' && n.state !== 'gone' && n.state !== 'dead' && !n.dead && !n._knockedOut;
 
@@ -51,6 +53,7 @@ export const InnerMapLocks = {
         const go = () => {
             if (!_barred(game, building)) return;
             game.ui.showNotification('🗝️ At the Lock', `You kneel at the door of ${building.name} and set to work…`, 'info');
+            _snd('lockpick');
             setTimeout(() => InnerMapLocks._finish(game, building, enter), 1400);
         };
         const res = InnerMap.approachAndThen(q, r, go);
@@ -74,6 +77,7 @@ export const InnerMapLocks = {
             game.ui.showNotification('🚨 Heard at the Door', res.text, 'error');
         } else {
             game.ui.showNotification(res.ok ? '🔓 The Lock Gives' : '🔒 The Lock Holds', res.text, res.ok ? 'success' : 'warning');
+            _snd(res.ok ? 'unlock' : 'lock_click');
         }
         game.ui.updateStats(player, game.world);
         if (res.ok) {

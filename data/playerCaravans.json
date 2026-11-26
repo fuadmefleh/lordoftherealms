@@ -1,0 +1,10 @@
+{
+    "_doc": "The player's caravans (player/playerEconomy/caravans.js, caravanSales.js): goods sent from the packs, a property's store or a standing trade route to a market. The town pays out of its purse (world/economy.js), unit by unit at its stock's price curve (world/settlementMarket.js) times the caravan's premium (the haul, the market's size and draw, a road the whole way, the route's standing, commerce, difficulty, trade techs, events); only the units it pays for change hands and join its stock. What it cannot pay for stays on the wagons: the caravan waits there up to waitDays, selling as the purse refills, then goes on to the nearest town within onwardRange hexes whose purse covers at least onwardMinShare of the rest's worth (when the player allows it: 'find a buyer nearby', on by default), else carries the rest back home (into the property's store, else the packs), robbed on the way like the way out. The hire, paid on setting out to the carters' home town as wages: fee.base + hexes x (fee.perHex + fee.perLoadHex x loads), loads = the goods' weight (data/packLoad.json) / fee.loadLb. maxRange: the farthest a caravan is sent, in hexes. Standing routes keep their own charter and dispatch fee (routes.js).",
+    "config": {
+        "waitDays": 5,
+        "onwardRange": 8,
+        "onwardMinShare": 0.25,
+        "maxRange": 20,
+        "fee": { "base": 30, "perHex": 3, "perLoadHex": 3, "loadLb": 500 }
+    }
+}

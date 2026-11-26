@@ -116,6 +116,13 @@ export function _setupAudioControls() {
     document.addEventListener('click', startTitleMusic);
     document.addEventListener('keydown', startTitleMusic);
 
+    // A soft click under the buttons and menu rows (the recording only: no synthesized click on every press)
+    document.addEventListener('click', (e) => {
+        const el = e.target && e.target.closest ? e.target.closest('button, .btn, [data-am-act], .am-row, .act-row') : null;
+        if (!el || el.disabled) return;
+        try { if (audioManager.recordedOn()) audioManager.playSample('ui_click', { gain: 0.8 }); } catch { /* sound is best-effort */ }
+    }, true);
+
     // Periodically update scene label
     setInterval(() => {
         const label = document.getElementById('audioSceneLabel');

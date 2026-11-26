@@ -227,7 +227,10 @@ Object.assign(InnerMapRenderer, {
 
             if (b.type === 'custom') {
                 this._drawCustomBuilding(ctx, camera, b.def, b.q, b.r, ds, b.tile.customBuilding && b.tile.customBuilding.ruin, this._siteProgress(b.tile._propertyRef), (b.tile.customBuilding && b.tile.customBuilding.wear) || 0, (b.tile.customBuilding && b.tile.customBuilding.spire) || null);
-                if (b.tile._propertyRef && b.tile.buildingInfo && camera.zoom > 0.4) this._drawBuildingLabel(ctx, camera, b.tile.buildingInfo, b.q, b.r + (b.def.bounds ? b.def.bounds.minRow : -2));
+                if (b.tile._propertyRef && b.tile.buildingInfo && camera.zoom > 0.4) {
+                    const at = this._propertyLabelAt(b.def, b.tile, b.q, b.r);
+                    this._drawBuildingLabel(ctx, camera, b.tile.buildingInfo, at.q, at.r);
+                }
                 continue;
             }
 
@@ -583,6 +586,18 @@ Object.assign(InnerMapRenderer, {
                 }
             }
         }
+    },
+
+    /**
+     * Where a property's name sits over its tile-composed building (tile coords, for
+     * _drawBuildingLabel): over the middle of its roof, and higher over a mill with no
+     * water at its walls, where sails turn on the roof (innerMapLayers/ambient.js).
+     */
+    _propertyLabelAt(def, tile, q, r) {
+        const b = def && def.bounds;
+        if (!b) return { q, r: r - 2 };
+        const sails = def.buildingType === 'mill' && !(tile && tile.customBuilding && tile.customBuilding.wheel);
+        return { q: q + (b.minCol + b.maxCol) / 2, r: r + b.minRow - (sails ? 1.4 : 0) };
     },
 
     /** How far a property's building has come (0..1), or null when it stands finished (or is none). */

@@ -16,6 +16,7 @@ import { Renderer, HEX_FACE_DY } from './core.js';
 import { GeoNames } from '../../world/geoNames.js';
 import { NamedLegacy } from '../../systems/namedLegacy.js';
 import { textPx } from '../mapInk.js';
+import { textWidth } from '../textMeasure.js';
 
 const FONT = "Georgia, 'Palatino Linotype', 'Book Antiqua', 'Times New Roman', serif";
 
@@ -72,13 +73,34 @@ Object.assign(Renderer.prototype, {
         const placed = [];
         // (the order sorted once for this list of features, not each frame)
         let oc = this._geoOrder;
-        if (!oc || oc.features !== features || oc.n !== features.length) {
+        if (!oc || oc.features !== features || oc.n !== features.length || !oc.prep) {
             oc = this._geoOrder = {
                 features, n: features.length,
                 order: features.slice().sort((a, b) => (STYLE[b.kind] ? STYLE[b.kind].prio : 0) - (STYLE[a.kind] ? STYLE[a.kind].prio : 0) || b.size - a.size),
+                // (each feature's lettering and spots, worked out once with the order)
+                prep: new Map(),
             };
         }
         const order = oc.order;
+        const prepOf = (f) => {
+            let p = oc.prep.get(f);
+            if (p && p.name === f.name) return p;
+            const S = STYLE[f.kind];
+            const text0 = GeoNames.bare(f.name);
+            p = {
+                name: f.name,
+                text: S && S.caps ? text0.toUpperCase() : text0,
+                sizeK: f.kind === 'river' ? Math.log2(Math.max(2, f.size)) / 5 : Math.log10(Math.max(10, f.size)) / 2,
+                // (level unless the feature runs one way: a long range, a winding river)
+                elongated: f.kind === 'river' || f.length / Math.max(1, f.width) >= 1.6,
+                // (a river along its course, a great sea or ocean in several places across it)
+                spots: (f.kind === 'river' || f.kind === 'sea') && Array.isArray(f.anchors) && f.anchors.length
+                    ? f.anchors.map(a => ({ x: a.x, y: a.y, angle: a.angle, tile: a.tile }))
+                    : [{ x: f.x, y: f.y, angle: f.angle, tile: f.anchor }],
+            };
+            oc.prep.set(f, p);
+            return p;
+        };
         ctx.save();
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -91,21 +113,17 @@ Object.assign(Renderer.prototype, {
             if (alpha <= 0) continue;
             // (the great names step back when close in: they are for the wide view)
             if ((f.kind === 'sea' || f.kind === 'range') && z > 1.15) alpha *= Math.max(0.45, 1 - (z - 1.15) * 1.2);
-            // (a river along its course, a great sea or ocean in several places across it)
-            let spots = (f.kind === 'river' || f.kind === 'sea') && Array.isArray(f.anchors) && f.anchors.length
-                ? f.anchors.map(a => ({ x: a.x, y: a.y, angle: a.angle, tile: a.tile }))
-                : [{ x: f.x, y: f.y, angle: f.angle, tile: f.anchor }];
+            const P = prepOf(f);
+            let spots = P.spots;
             // (where the water is named after a House, renderNamedPlaces letters it)
             if (f.kind === 'sea' || f.kind === 'bay') {
                 spots = spots.filter(s => !NamedLegacy.placeAt(world, s.tile % W, (s.tile / W) | 0));
                 if (!spots.length) continue;
             }
-            const text0 = GeoNames.bare(f.name);
-            const text = S.caps ? text0.toUpperCase() : text0;
-            const sizeK = f.kind === 'river' ? Math.log2(Math.max(2, f.size)) / 5 : Math.log10(Math.max(10, f.size)) / 2;
+            const text = P.text;
+            const sizeK = P.sizeK;
             let px = textPx((S.px + S.grow * sizeK * 2) * (0.78 + 0.3 * Math.min(1.5, z)), 10);
-            // (level unless the feature runs one way: a long range, a winding river)
-            const elongated = f.kind === 'river' || f.length / Math.max(1, f.width) >= 1.6;
+            const elongated = P.elongated;
             let drawn = 0;
             for (const spot of spots) {
                 if (f.kind === 'river' && drawn >= 3) break;
@@ -116,17 +134,16 @@ Object.assign(Renderer.prototype, {
                     const s = this.camera.worldToScreen(wx, spot.y * hexW);
                     const sx = s.x, sy = s.y + faceDy * z;
                     if (sx < -400 || sx > cw + 400 || sy < -100 || sy > ch + 100) continue;
-                    ctx.font = `italic ${S.caps ? 600 : 500} ${px}px ${FONT}`;
-                    if (spacingOk) ctx.letterSpacing = `${(S.spacing * px).toFixed(1)}px`;
-                    let tw = ctx.measureText(text).width + (spacingOk ? 0 : text.length * S.spacing * px);
+                    // (the width remembered by font and text: ui/textMeasure.js; the font is set
+                    // below for the names drawn)
+                    let tw = textWidth(ctx, `italic ${S.caps ? 600 : 500} ${px}px ${FONT}`, text, spacingOk ? `${(S.spacing * px).toFixed(1)}px` : null)
+                        + (spacingOk ? 0 : text.length * S.spacing * px);
                     // (no wider than the feature, by much: shrink, to the floor)
                     const span = (f.kind === 'river' ? 10 : Math.max(3, f.length)) * hexW * z * 1.25;
                     if (f.kind !== 'sea' && tw > span && px > 10.5) {
                         const npx = Math.max(10, px * span / tw);
                         tw *= npx / px;
                         px = npx;
-                        ctx.font = `italic ${S.caps ? 600 : 500} ${px}px ${FONT}`;
-                        if (spacingOk) ctx.letterSpacing = `${(S.spacing * px).toFixed(1)}px`;
                     }
                     const box = (cx, cy) => {
                         const hw = tw / 2, hh = px * 0.62;
@@ -146,6 +163,8 @@ Object.assign(Renderer.prototype, {
                     if (!at) continue;
                     placed.push(at.b);
                     drawn++;
+                    ctx.font = `italic ${S.caps ? 600 : 500} ${px}px ${FONT}`;
+                    if (spacingOk) ctx.letterSpacing = `${(S.spacing * px).toFixed(1)}px`;
                     const [r, g, bl] = S.color;
                     ctx.save();
                     ctx.translate(at.cx, at.cy);

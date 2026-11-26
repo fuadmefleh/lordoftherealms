@@ -15,6 +15,8 @@ import { ParentsGuard } from '../parentsGuard.js';
 import { PeopleCrimes } from '../../systems/peopleCrimes.js';
 import { NightSight } from '../../systems/nightSight.js';
 import { Utils } from '../../core/utils.js';
+import { audioManager } from '../../systems/audio.js';
+const _snd = (kind, o) => { try { audioManager.playSFX(kind, o); } catch { /* sound is best-effort */ } };
 
 const MODAL_ID = 'objActionModal';
 
@@ -117,6 +119,8 @@ export function showContentsModal(game, objDef, anchorQ, anchorR) {
     const furnitureType = (objDef && (objDef.furnitureType || objDef.type)) || 'chest';
     const ctx = containerContext(game, furnitureType, anchorQ, anchorR);
     const access = Containers.access(ctx);
+    // the lid, the drawer, the door of it (systems/audio)
+    _snd(/chest|trunk|coffer|strongbox|box|crate/i.test(String(furnitureType)) ? 'chest_open' : 'creak', { gain: 0.8 });
     if (access === 'own') { _showStoreModal(game, objDef, anchorQ, anchorR); return; }
 
     _removeModal(MODAL_ID);
@@ -194,6 +198,7 @@ export function showContentsModal(game, objDef, anchorQ, anchorR) {
     window._containerPick = () => {
         if (picking) return;
         picking = true;
+        _snd('lockpick');
         render();
         setTimeout(() => {
             picking = false;
@@ -202,6 +207,7 @@ export function showContentsModal(game, objDef, anchorQ, anchorR) {
             const scene = theftScene(game, ctx);
             ctx.ownerName = scene.ownerName;
             const res = Locks.pickBox(player, game.world, ctx, scene);
+            _snd(res.ok ? 'unlock' : 'lock_click');
             if (res.minutes && typeof InnerMap.passHours === 'function') InnerMap.passHours(res.minutes / 60);
             lastMsg = { text: res.text, bad: !res.ok };
             if (res.noticed) {
@@ -227,6 +233,7 @@ export function showContentsModal(game, objDef, anchorQ, anchorR) {
             ? Containers.steal(player, game.world, ctx, goodId, qty, scene)
             : Containers.take(player, game.world, ctx, goodId, qty);
         lastMsg = { text: res.text, bad: !res.ok };
+        if (res.ok && goodId === 'gold') _snd('coins');
         if (theftAftermath(game, res, scene)) { modal.remove(); return; }
         game.ui.updateStats(player, game.world);
         Hotbar.refresh();

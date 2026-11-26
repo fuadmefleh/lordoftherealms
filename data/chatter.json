@@ -28,7 +28,7 @@
             "cap": 24
         },
         "priority": {
-            "coronation": 9, "realm_fallen": 10, "realm_restored": 8, "peace": 7, "war": 6,
+            "coronation": 9, "holy_war": 8, "union": 7, "realm_fallen": 10, "realm_restored": 8, "peace": 7, "war": 6,
             "saga_end": 6, "revolt": 8, "revolt_end": 7, "rebellion": 5, "discovery": 5,
             "siege_won": 6, "siege_lost": 7, "wonder": 7, "wonder_begun": 4, "lair_cleared": 5, "lair_risen": 5,
             "atrocity_salt": 6, "atrocity_hostages": 7, "atrocity_plague": 7, "atrocity_massacre": 9,
@@ -49,7 +49,7 @@
             "underwriter_failed": 5, "great_claim": 3, "insured_catastrophe": 4, "bourse_mania": 4, "bourse_crash": 6, "bourse_panic": 4
         },
         "icons": {
-            "coronation": "👑", "realm_fallen": "🏴", "realm_restored": "🚩", "peace": "🕊️", "war": "⚔️",
+            "coronation": "👑", "holy_war": "✝️", "union": "💍", "realm_fallen": "🏴", "realm_restored": "🚩", "peace": "🕊️", "war": "⚔️",
             "saga_end": "📜", "revolt": "🔥", "revolt_end": "🛡️", "rebellion": "🔥", "discovery": "🗺️",
             "siege_won": "🏰", "siege_lost": "🏳️", "wonder": "🏛️", "wonder_begun": "🏗️", "lair_cleared": "🛡️", "lair_risen": "🏕️",
             "atrocity_salt": "🧂", "atrocity_hostages": "💀", "atrocity_plague": "☠️", "atrocity_massacre": "⚔️",
@@ -323,6 +323,14 @@
                 "Hear ye! {kingdom} and {other} have made peace. Let the swords be sheathed and the roads reopen.",
                 "By treaty sealed: the war between {kingdom} and {other} is ended.",
                 "Peace between {kingdom} and {other}! The levies march home before the frost."
+            ],
+            "holy_war": [
+                "Hear ye! {head} calls the faithful to take the cross against {target}!",
+                "A holy war! {head} summons every true believer against {target}!"
+            ],
+            "union": [
+                "Two crowns on one head! {monarch} of {kingdom} now wears the crown of {other}!",
+                "{kingdom} and {other} are joined: {monarch} rules them both!"
             ],
             "war": [
                 "Hear ye! {kingdom} and {other} are at war. Every able man to his lord's banner!",

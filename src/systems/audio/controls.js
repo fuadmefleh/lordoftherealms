@@ -1,6 +1,7 @@
 // AudioManager — controls methods.
 import { AudioManager } from './core.js';
 import {  } from './_imports.js';
+import { moodOfScene } from './music.js';
 
 Object.assign(AudioManager.prototype, {
     // ── Volume & Mute Controls ──────────────────
@@ -102,6 +103,7 @@ Object.assign(AudioManager.prototype, {
                 sfxVolume: this.sfxVolume,
                 ambienceVolume: this.ambienceVolume,
                 muted: this.muted,
+                recordedSound: this.recordedSound !== false,
             }));
         } catch (_) { /* ignore */ }
     },
@@ -116,12 +118,38 @@ Object.assign(AudioManager.prototype, {
                 this.sfxVolume = prefs.sfxVolume ?? 0.7;
                 this.ambienceVolume = prefs.ambienceVolume ?? 0.4;
                 this.muted = prefs.muted ?? false;
+                this.recordedSound = prefs.recordedSound ?? true;
             }
         } catch (_) { /* ignore */ }
     },
 
+    /**
+     * Recorded sound on or off (Settings → Sound). Off: the music and ambience recordings stop
+     * and the synthesized scene music and sounds play as before; on: the recordings come back.
+     */
+    setRecordedSound(on) {
+        on = !!on;
+        if ((this.recordedSound !== false) === on) return;
+        this.recordedSound = on;
+        this._savePreferences();
+        if (!this.ctx) return;
+        const scene = this.currentScene;
+        if (!on) {
+            this.stopRecordedMusic();
+            this.stopAmbienceBeds();
+            if (this._rainWant) { const w = this._rainWant; this._rainWant = null; this.setRain(w.level, w.muffled); }
+            if (scene && scene !== 'none') { this.isPlaying = false; this.currentScene = 'none'; this.setScene(scene); }
+        } else {
+            this._stopMusic();
+            if (this._rain) this._setRainSynth(0);
+            if (scene && scene !== 'none') this.setMusicMood(moodOfScene(scene));
+        }
+    },
+
     /** Clean up everything */
     destroy() {
+        this.stopRecordedMusic();
+        this.stopAmbienceBeds();
         this._stopMusic();
         this.setInteriorAmbience(null);
         if (this.ctx) {

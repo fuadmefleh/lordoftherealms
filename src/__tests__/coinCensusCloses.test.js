@@ -26,6 +26,8 @@ import { World } from '../world/world.js';
 import { WorldUnit } from '../world/units.js';
 import { MerchantHouses } from '../systems/merchantHouses.js';
 import { LandMarket } from '../systems/landMarket.js';
+import { PublicWorks } from '../systems/publicWorks.js';
+import { Transport } from '../world/transport.js';
 import { loadData, newGame, endDay } from './playtest/harness.js';
 
 let logSpy, warnSpy;
@@ -147,6 +149,42 @@ describe('the coin census closes over a run', () => {
             expect(Math.abs(unbooked)).toBeLessThan(5);
         }, 300000);
     }
+
+    it('seed 101: a public work funded with thousands spends at its pace, its books close, and so does the census', () => {
+        let w = null, held = 0, after = 0;
+        const { unbooked } = closure(101, 40, (game, i) => {
+            const { world, player } = game;
+            if (i === 8) {
+                // (the player's thousands are real coin: drawn out of the towns' purses)
+                let need = 8000;
+                for (const v of world.getSettlementViews()) {
+                    if (!(need > 0)) break;
+                    const s = world.getTile(v.q, v.r).settlement;
+                    const got = Economy.drawTown(s, Math.min(need, Math.max(0, (s.economy && s.economy.gold) - 200)));
+                    player.gold += got; need -= got;
+                }
+                for (const v of world.getSettlementViews()) {
+                    const r = PublicWorks.commission(world, player, 'harbour', `${v.q},${v.r}`, { by: 'player' });
+                    if (r.success) { w = r.work; break; }
+                }
+                if (!w) {
+                    for (const seg of Transport.segments(world)) {
+                        const r = PublicWorks.commission(world, player, 'upgrade_road', seg.key, { by: 'player' });
+                        if (r.success) { w = r.work; break; }
+                    }
+                }
+                // (the budget nearly gone: topped up with what finishing it wants)
+                if (w) { const b = w.budget - 1; player.gold += b; w.budget = 1; w.book.funded -= b; PublicWorks.fund(world, player, w.id); held = w.budget; }
+            }
+            if (i === 9 && w) after = w.budget;
+        });
+        expect(w).not.toBe(null);
+        expect(held).toBeGreaterThan(100);
+        // (one day of it: a day's wages and materials, not the budget)
+        expect(after / held).toBeGreaterThan(0.9);
+        expect(w.book.funded).toBeCloseTo(w.spent + w.book.refunded + w.budget, 1);
+        expect(Math.abs(unbooked)).toBeLessThan(5);
+    }, 300000);
 
     it("seed 303, five years: the census closes, and the landholders' coffers and merchant capital level off", () => {
         const coffers = (g) => {

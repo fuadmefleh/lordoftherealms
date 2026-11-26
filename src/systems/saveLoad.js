@@ -1003,6 +1003,8 @@ export const SaveLoad = {
             // Standing trade and supply lines: stops, rules, cargo, ledgers (player/tradeLines.js;
             // a caravan's wagons on the road are a world unit, a ship line's hold is the ship's)
             tradeLines: player.tradeLines ? JSON.parse(JSON.stringify(player.tradeLines)) : null,
+            // Distribution plans per property, goods on the road with the carters (player/distribution.js)
+            distribution: player.distribution ? JSON.parse(JSON.stringify(player.distribution)) : null,
             // Rival adventurers: the cast, their attitude/memory, news, partner, race (systems/rivals.js)
             rivals: Rivals.serialize(player),
             // Court scandals and whisper campaigns: live tales, what the player knows of them, the record (systems/whispers.js)

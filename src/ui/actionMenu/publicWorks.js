@@ -39,7 +39,7 @@ function workButtons(game, kind, target, ruled) {
     const budget = Math.ceil(q.cost * (1 + (Transport.config().build.budgetPad || 0.15)));
     const can = (player.gold || 0) >= budget;
     const tip = `${q.workName}: ${goodsLine(q.goods)} (~${Utils.formatGold(q.goodsCost)}g) and ${q.hands} hands × ${q.days} days (~${Utils.formatGold(q.wages)}g)`;
-    let html = `<div style="${NOTE}">${q.icon} <b>${esc(q.workName)}</b> · ~${Utils.formatGold(q.cost)}g · ${q.days} days · ${goodsLine(q.goods)}</div><div>`;
+    let html = `<div style="${NOTE}">${q.icon} <b>${esc(q.workName)}</b> · ~${Utils.formatGold(q.cost)}g · ${q.days} days (~${Utils.formatGold(Math.ceil(q.cost / Math.max(1, q.days)))}g a day, drawn from its budget as it builds) · ${goodsLine(q.goods)}</div><div>`;
     html += act(`Fund (${Utils.formatGold(budget)}g)`, ['commission', kind, target, false], can, can ? tip : `You need ${Utils.formatGold(budget)}g`);
     if (q.tollable) {
         const est = kind !== 'canal' ? PublicWorks.tollEstimate(world, player, kind, target) : null;
@@ -104,6 +104,34 @@ function greatWorksHtml(game, town) {
     return html ? `<div style="margin-top:6px;"><b>Great works</b></div>${html}` : '';
 }
 
+const g1 = (v) => Utils.formatGold(Math.round((v || 0) * 10) / 10);
+
+/** A work's books: where its money went (wages to which town, what materials from whom), its burn and how long its budget lasts. */
+function booksHtml(game, w, live) {
+    const { world } = game;
+    const b = w.book || {};
+    const goods = Object.entries(b.goods || {});
+    const goodsGold = goods.reduce((s, [, e]) => s + (e.gold || 0), 0);
+    const towns = Object.entries(b.towns || {}).sort((x, y) => y[1] - x[1]);
+    let html = `<div style="${NOTE}">Funded ${Utils.formatGold(b.funded != null ? b.funded : (w.spent || 0) + (w.budget || 0))}g · spent ${Utils.formatGold(w.spent)}g${live ? ` · <b>budget left ${Utils.formatGold(w.budget)}g</b>` : ''}${b.refunded ? ` · returned ${Utils.formatGold(b.refunded)}g` : ''}${w.toll ? ` · tolls earned ${Utils.formatGold(w.tollIncome)}g` : ''}</div>`;
+    if (b.wages || goods.length) {
+        html += `<div style="${NOTE}">Where it went: wages ${g1(b.wages)}g${goods.length ? ` · materials ${g1(goodsGold)}g (${goods.map(([g, e]) => `${Math.round(e.n * 10) / 10} ${esc(g)} for ${g1(e.gold)}g`).join(', ')})` : ''}${towns.length ? ` · paid into ${towns.slice(0, 3).map(([t, v]) => `${esc(t)} ${g1(v)}g`).join(', ')}` : ''}</div>`;
+    }
+    if (live) {
+        const o = PublicWorks.outlook(world, w);
+        const lasts = o.lastsDays == null ? '' : o.covers ? ` · the budget covers it (what is not spent comes back)` : ` · <span style="color:#d08a3a;">the budget lasts about ${o.lastsDays} days</span>`;
+        html += `<div style="${NOTE}">Spends ~${g1(o.burn)}g a day (a full day: wages ${g1(o.wageDay)}g for ${w.hands} hands, materials ~${g1(o.goodsDay)}g) · ~${o.daysLeft} days of work left, ~${Utils.formatGold(Math.round(o.toFinish))}g more to finish${lasts}</div>`;
+    }
+    const days = (b.days || []).slice(-3).reverse();
+    for (const r of days) {
+        const parts = [];
+        if (r.wages) parts.push(`wages ${g1(r.wages)}g to ${esc(r.wageTown || 'the town')} (${r.hands || w.hands} hands)`);
+        for (const x of r.goods || []) parts.push(`${Math.round(x.n * 100) / 100} ${esc(x.g)} at ${g1(x.n > 0 ? x.gold / x.n : 0)}g from ${esc(x.from)}`);
+        if (parts.length) html += `<div style="${NOTE} padding-left:8px;">Day ${r.d}: ${parts.join(' · ')}</div>`;
+    }
+    return html;
+}
+
 function myWorksHtml(game) {
     const { world } = game;
     const list = PublicWorks.playerWorks(world).filter(w => w.status !== 'abandoned').slice(-10).reverse();
@@ -114,8 +142,17 @@ function myWorksHtml(game) {
         const live = w.status === 'building' || w.status === 'stalled';
         const why = w.stall === 'funds' ? '<span style="color:#e74c3c;">stalled: funds</span>' : w.stall === 'materials' ? '<span style="color:#d08a3a;">waiting for materials</span>' : w.stall === 'slow' ? 'materials short' : '';
         html += `<div style="${CARD}"><div>${w.icon || '🏗️'} <b>${esc(w.name)}</b> · ${live ? `${pct}%` : w.status === 'done' ? `finished day ${w.done}` : w.status}${why ? ` · ${why}` : ''}</div>`;
-        html += `<div style="${NOTE}">Spent ${Utils.formatGold(w.spent)}g${live ? ` · budget left ${Utils.formatGold(w.budget)}g` : ''}${w.toll ? ` · tolls earned ${Utils.formatGold(w.tollIncome)}g` : ''}</div>`;
-        if (live) html += `<div>${act('Add funds', ['fund', w.id])}${act('Abandon', ['abandon', w.id])}</div>`;
+        html += booksHtml(game, w, live);
+        if (live) {
+            const room = PublicWorks.fundRoom(world, w);
+            const gold = Math.floor(game.player.gold || 0);
+            let btns = '';
+            if (room > 0) {
+                btns += act(`Add what is left (${Utils.formatGold(room)}g)`, ['fund', w.id, room], gold >= room, gold >= room ? 'What finishing it still wants at today\'s prices, with the reserve, less the budget it holds' : `You need ${Utils.formatGold(room)}g`);
+                for (const a of [100, 500, 1000, 5000]) if (a < room) btns += act(`+${Utils.formatGold(a)}g`, ['fund', w.id, a], gold >= a, gold >= a ? '' : `You need ${Utils.formatGold(a)}g`);
+            } else btns += `<button disabled style="${BTN_DIM}" title="The budget covers what is left; what is not spent comes back to you">Fully funded</button>`;
+            html += `<div>${btns}${act('Abandon', ['abandon', w.id], true, 'What is left of the budget comes back; what was built is lost')}</div>`;
+        }
         html += '</div>';
     }
     return html;
@@ -158,7 +195,7 @@ Object.assign(ActionMenu, {
         let res = null;
         if (op === 'commission') res = PublicWorks.commission(world, player, a, b, { by: 'player', toll: !!c });
         else if (op === 'crown') res = PublicWorks.commission(world, player, a, b, { asRuler: true, toll: !!c });
-        else if (op === 'fund') res = PublicWorks.fund(world, player, a);
+        else if (op === 'fund') res = PublicWorks.fund(world, player, a, b != null ? Number(b) : null);
         else if (op === 'abandon') res = PublicWorks.abandon(world, player, a);
         if (res) game.ui.showNotification('🛣️ Public Works', res.message, res.success ? 'success' : 'error');
         if (game.ui.updateStats) game.ui.updateStats(player, world);

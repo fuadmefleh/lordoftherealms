@@ -1,5 +1,11 @@
 // AudioManager — sfx methods.
 import { AudioManager } from './core.js';
+import { SFX_SAMPLES } from './samples.js';
+
+// The kinds the synthesizer can play (a recording stands in for some: samples.js SFX_SAMPLES)
+const SYNTH_SFX = new Set(['click', 'success', 'error', 'notify', 'turn', 'gold', 'combat_hit', 'level_up', 'build', 'sail',
+    'forge_perfect', 'forge_charge', 'chop', 'tree_creak', 'tree_thud', 'pick', 'rock_break', 'anvil', 'bell', 'handbell',
+    'muffled_cry', 'ice_crack', 'ice_break', 'ice_thump', 'thunder', 'thunder_far']);
 import {  } from './_imports.js';
 
 Object.assign(AudioManager.prototype, {
@@ -158,10 +164,22 @@ Object.assign(AudioManager.prototype, {
      * Play a short UI sound effect.
      * @param {'click'|'success'|'error'|'notify'|'turn'|'gold'|'combat_hit'|'level_up'|'build'|'sail'|'forge_perfect'|'forge_charge'} type
      */
-    playSFX(type) {
+    playSFX(type, opts = null) {
         if (!this.initialized) this.init();
         if (!this.ctx || this.muted) return;
         this._resume();
+
+        // A recording of it, when there is one (audio/samples.js SFX_SAMPLES): as loud as it is
+        // near when it has a place on the street map (opts { q, r }: the listener's distance)
+        const key = SFX_SAMPLES[type];
+        if (key && this.recordedOn()) {
+            const place = this._placeGain(opts);
+            if (place <= 0.02) return;   // (too far off to hear)
+            const gain = place * (opts && Number.isFinite(opts.gain) ? opts.gain : 1);
+            if (this.playSample(key, { ...(opts || {}), gain })) return;
+            // (not decoded yet: the synthesized sound stands in this once — kinds without one wait for the file)
+            if (!SYNTH_SFX.has(type) || place < 0.35) return;
+        }
 
         switch (type) {
             case 'click':         this._sfxClick(); break;
@@ -576,6 +594,23 @@ Object.assign(AudioManager.prototype, {
      * as asked (false: no audio yet, ask again later).
      */
     setRain(level, muffled = false) {
+        const lv = Math.max(0, Math.min(1, Number(level) || 0));
+        this._rainWant = { level: lv, muffled: !!muffled };
+        // the recorded rain (audio/beds.js: rain_light / rain_heavy in the outdoor beds) when it's in
+        try {
+            if (this._rainBedsOn && this._rainBedsOn()) {
+                if (this._rain) this._setRainSynth(0);
+                const G = this._bedGroup('outdoor');
+                if (!G) return lv <= 0.02;
+                this._applyBeds(G);
+                return true;
+            }
+        } catch (_) { /* best-effort: the synthesized hiss below */ }
+        return this._setRainSynth(lv, muffled);
+    },
+
+    /** The synthesized rain (no recordings, or they failed). */
+    _setRainSynth(level, muffled = false) {
         try {
             const lv = Math.max(0, Math.min(1, Number(level) || 0));
             const ctx = this.ctx;

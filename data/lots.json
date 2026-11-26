@@ -23,7 +23,7 @@
         "builds": ["house", "house", "house", "bakery", "warehouse", "blacksmith", "stable"],
         "buyers": ["Master Wendel", "Goodwife Tansy", "Hamund the Cooper", "Dame Isolde", "Master Corwin", "Old Bram", "Widow Maud", "Jory the Mason"]
     },
-    "_propertyKinds": "A property the player builds in a town stands on a lot of theirs (systems/lots.js claimLotForProperty: a bare lot they hold, else a free lot bought at its price), raised as a tile-composed building of the first of these kinds (CustomBuildings buildingType) that fits the lot, a house at the last (world/innerMap/lots.js). While it is being built it shows as a building site. Properties out in the wilds keep their world-map icons.",
+    "_propertyKinds": "A property the player builds in a town stands on a lot of theirs (systems/lots.js claimLotForProperty: a bare lot they hold, else a free lot bought at its price), raised as a tile-composed building of the first of these kinds (CustomBuildings buildingType) that fits the lot, a house at the last (world/innerMap/lots.js). While it is being built it shows as a building site. Properties out in the country stand where their trade would put them (wildSites, below).",
     "propertyKinds": {
         "farm": ["farm", "barn"],
         "pasture": ["barn", "stable"],
@@ -77,5 +77,31 @@
         "forager_hut": ["barn"],
         "watchtower": ["guard_tower"],
         "default": ["warehouse"]
+    },
+    "_wildSites": "A property out in the country (no town on its hex) stands where its trade would put it, found on the hex's own map (world/innerMap/propertySites.js; hash-placed, the same each visit): site water = a mill on the riverbank, a gable wall against the stream and its wheel in a race along that wall's foot (with no river or lake it is built as `dry` says: windmill = on open ground well away from the water, sails turning on its roof); shore = against the water's edge; forest = in a clearing at the woods' edge; rock = against a crag's rock face (else on the stoniest ground); field = with a fenced field of `field` crops beside it; orchard = with a fenced orchard of `trees`; paddock = with a fenced paddock and its hay (big: a larger one); road = by the road, else near where the traveller comes in. kinds: the building types (CustomBuildings buildingType, 'farmstead' a farmhouse) it is built as, best first, else data/lots.json propertyKinds; props: what stands about its yard (data/townProps.json).",
+    "wildSites": {
+        "grain_mill": { "site": "water", "dry": "windmill", "kinds": ["mill"], "props": ["tp_sacks", "tp_sack"] },
+        "water_mill_building": { "site": "water", "dry": "windmill", "kinds": ["mill"], "props": ["tp_sacks", "tp_sack"] },
+        "sawmill": { "site": "water", "dry": "forest", "kinds": ["mill"], "dryKinds": ["warehouse", "barn"], "props": ["tp_logs", "tp_lumber", "tp_sawhorse"] },
+        "fishing_wharf": { "site": "shore", "kinds": ["warehouse", "barn"], "props": ["tp_barrels", "tp_crate_stack", "tp_basket"] },
+        "salt_pans": { "site": "shore", "kinds": ["warehouse"], "props": ["tp_sacks", "tp_barrel"] },
+        "logging_camp": { "site": "forest", "kinds": ["warehouse", "barn"], "props": ["tp_logs", "tp_lumber", "tp_sawhorse", "tp_firewood_big"] },
+        "hunting_lodge": { "site": "forest", "kinds": ["stable", "barn"], "props": ["tp_firewood", "tp_barrel"] },
+        "forager_hut": { "site": "forest", "kinds": ["barn", "warehouse"], "props": ["tp_basket", "tp_sacks"] },
+        "pitch_works": { "site": "forest", "kinds": ["warehouse"], "props": ["tp_barrels", "tp_firewood_big"] },
+        "mine": { "site": "rock", "kinds": ["warehouse", "barn"], "props": ["tp_rock_ore", "tp_rock_rubble", "tp_crate"] },
+        "quarry": { "site": "rock", "kinds": ["warehouse", "barn"], "props": ["tp_rock_slab", "tp_rock_rubble", "tp_rock_split"] },
+        "clay_pit": { "site": "rock", "kinds": ["warehouse"], "props": ["tp_rock_pebbles", "tp_crate_small"] },
+        "farm": { "site": "field", "kinds": ["farmstead", "farm", "barn"], "field": ["wheat", "wheat", "veg"], "props": ["tp_haystack", "tp_sheaf"] },
+        "hemp_farm": { "site": "field", "kinds": ["farmstead", "farm", "barn"], "field": ["greens"], "props": ["tp_sheaf"] },
+        "irrigated_farm": { "site": "field", "kinds": ["farmstead", "farm", "barn"], "field": ["veg", "wheat"], "props": ["tp_water_barrel"] },
+        "herb_garden": { "site": "field", "kinds": ["farm", "farmstead"], "field": ["greens", "veg"], "small": true, "props": ["tp_basket"] },
+        "apiary": { "site": "field", "kinds": ["farm", "farmstead"], "field": ["greens"], "small": true, "props": ["tp_basket"] },
+        "orchard": { "site": "orchard", "kinds": ["farmstead", "farm", "barn"], "trees": ["tp_tree_apple", "tp_tree_pear", "tp_tree_cherry"], "props": ["tp_basket"] },
+        "pasture": { "site": "paddock", "kinds": ["stable", "barn"], "props": ["tp_hay_green", "tp_hay_gold"] },
+        "dairy": { "site": "paddock", "kinds": ["barn", "farmstead"], "props": ["tp_bucket", "tp_hay_green"] },
+        "cattle_ranch": { "site": "paddock", "big": true, "kinds": ["stable", "barn"], "props": ["tp_hay_gold", "tp_haystack", "tp_water_barrel"] },
+        "horse_ranch": { "site": "paddock", "big": true, "kinds": ["stable", "barn"], "props": ["tp_hay_green", "tp_water_barrel"] },
+        "default": { "site": "road", "props": ["tp_barrel", "tp_crate"] }
     }
 }

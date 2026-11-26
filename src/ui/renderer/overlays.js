@@ -3,13 +3,14 @@ import { Renderer, HEX_FACE_DY } from './core.js';
 import { Hex, Religion, Economy, Infrastructure, WorldUnit, Hinterland, Estates } from './_imports.js';
 import { drawGlyph, drawIcon } from '../icons.js';
 import { NpcPortrait } from '../npcPortrait.js';
-import { drawMapMarker, drawMarkerPlate, fontPx, readableFont } from '../mapInk.js';
+import { drawMarkerPlate, fontPx, readableFont } from '../mapInk.js';
 import { Quests } from '../../systems/quests.js';
 import { Pirates } from '../../systems/pirates.js';
 import { Hospitality } from '../../systems/hospitality.js';
 import { RealmIntel } from '../../systems/realmIntel.js';
 import { NamedLegacy } from '../../systems/namedLegacy.js';
 import { Harrying } from '../../systems/harrying.js';
+import { KingdomAI } from '../../world/kingdomAI.js';
 
 /** Each unit type's glyph on its map token (ui/icons.js); unknown types keep their emoji. */
 const UNIT_GLYPHS = {
@@ -799,11 +800,12 @@ Object.assign(Renderer.prototype, {
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         for (const site of st.sites) {
-            const tile = this.world.getTile(site.q, site.r);
-            if (!tile || !tile.explored) continue;
+            // (off screen told first: most of the world's sites are)
             const pos = this.getHexPixelPos(site.q, site.r);
             const s = this.camera.worldToScreen(pos.x, pos.y);
             if (s.x < -40 || s.x > this.canvas.width + 40 || s.y < -40 || s.y > this.canvas.height + 40) continue;
+            const tile = this.world.getTile(site.q, site.r);
+            if (!tile || !tile.explored) continue;
             const k = Hinterland.kind(site.kind);
             if (!k) continue;
             // In the middle of the hex's face, over the site's own building —
@@ -878,6 +880,53 @@ Object.assign(Renderer.prototype, {
     },
 
     /**
+     * The fronts of the wars between crowns (world/kingdomAI.js noteFront): a
+     * town besieged gets a thin red ring and crossed swords, one threatened
+     * the swords alone — on hexes the player has seen, not the player's own
+     * holdings (renderHoldingSieges has those).
+     */
+    renderWarFronts(ctx) {
+        const world = this.world;
+        if (!world || !Array.isArray(world.kingdoms)) return;
+        const own = this.player && this.player.realmWars && this.player.realmWars.besieged;
+        const z = this.camera.zoom;
+        const size = this.hexSize * z;
+        let saved = false;
+        for (const k of world.kingdoms) {
+            if (!k || k.isAlive === false || !k.warState || !Array.isArray(k.wars)) continue;
+            for (const id of k.wars) {
+                const f = KingdomAI.frontOf(k, id, world);
+                if (!f) continue;
+                const tile = world.getTile(f.q, f.r);
+                if (!tile || !tile.explored || (own && own[`${f.q},${f.r}`])) continue;
+                const pos = this.getHexPixelPos(f.q, f.r);
+                const p = this.camera.worldToScreen(pos.x, pos.y);
+                if (p.x < -60 || p.x > this.canvas.width + 60 || p.y < -60 || p.y > this.canvas.height + 60) continue;
+                if (!saved) { ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; saved = true; }
+                ctx.globalAlpha = f.siege ? 0.85 : 0.7;
+                if (f.siege) {
+                    ctx.strokeStyle = 'rgba(214, 72, 56, 0.85)';
+                    ctx.lineWidth = Math.max(2, 2.5 * z);
+                    if (ctx.setLineDash) ctx.setLineDash([4 * z, 4 * z]);
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, size * 0.78, 0, Math.PI * 2);
+                    ctx.stroke();
+                    if (ctx.setLineDash) ctx.setLineDash([]);
+                }
+                const r = Math.max(6, size * (f.siege ? 0.24 : 0.2));
+                this.drawMarkerPlate(ctx, p.x + size * 0.45, p.y - size * 0.45, r, f.siege ? '#d6483a' : '#d08a3a');
+                drawIcon(ctx, 'swords', p.x + size * 0.45, p.y - size * 0.45, r * 1.25, f.siege ? '#ff9a88' : '#ffc27a', 2);
+                if (z > 0.8) {
+                    this.drawMapText(ctx, `${f.siege ? 'Besieged by' : 'Threatened by'} ${k.name}`, p.x, p.y - size * 0.95, {
+                        size: 10 * z, color: f.siege ? 'rgba(255, 180, 160, 0.95)' : 'rgba(255, 210, 160, 0.9)',
+                    });
+                }
+            }
+        }
+        if (saved) ctx.restore();
+    },
+
+    /**
      * Towns harried in war (systems/harrying.js): an ash-dark wash over the hex
      * (burnt fields and houses, fading as they are rebuilt and regrow), a
      * smouldering fire marker while the houses are still in ashes. Only the
@@ -924,14 +973,7 @@ Object.assign(Renderer.prototype, {
         ctx.restore();
     },
 
-    /**
-     * A map marker: the struck plate with a glyph on it. `icon` is a glyph name
-     * or an emoji from data (ui/icons.js glyphFor maps it).
-     * opts: rim (plate rim colour), color (glyph colour).
-     */
-    drawMapMarker(ctx, icon, x, y, r, opts = {}) {
-        drawMapMarker(ctx, icon, x, y, r, opts);
-    },
+    // (drawMapMarker, the map's markers kept as pictures: renderer/markerCache.js)
 
     /**
      * The player's character bust (their chosen look) clipped into the disc of

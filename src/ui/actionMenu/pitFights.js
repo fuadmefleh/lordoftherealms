@@ -16,6 +16,7 @@ import { PlayerEffects } from '../../player/playerEffects.js';
 import { DuelPanel } from './duel.js';
 import { esc, lede, chips, card, rowList, price, purse, more, bullets } from './uiKit.js';
 import { Utils } from '../../core/utils.js';
+import { Soundscape } from '../soundscape.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 const _cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
@@ -260,6 +261,8 @@ Object.assign(ActionMenu, {
             case 'bet': res = PitFights.bet(player, world, s, a, b, c); break;
             case 'watch': {
                 res = PitFights.watch(player, world, s);
+                // the pit's crowd roaring at the bouts (ui/soundscape.js)
+                if (res.success && !res.already) Soundscape.crowd('pit', { ttl: 20, level: 0.8, cheer: true });
                 if (res.success) {
                     const lines = (res.bets || []).map(x => x.text);
                     res.text = res.raid ? res.raid.text : `${res.already ? 'The bouts are over.' : 'You watched the bouts from the rail.'}${lines.length ? ` ${lines.join(' ')}` : ''}`;
@@ -275,11 +278,13 @@ Object.assign(ActionMenu, {
                 const me = Duels.fromPlayer(player, { mods: PlayerEffects.duelModifiers(player) });
                 const setup = PitFights.selfBout(player, world, s, a, me);
                 if (!setup.success) { res = setup; break; }
+                Soundscape.crowd('pit', { ttl: 90, level: 0.7, cheer: 0.8 });
                 DuelPanel.open(game, {
                     ...setup.duel,
                     continueLabel: 'Out of the pit',
                     onFinish: (outcome) => {
                         const r = PitFights.selfSettle(player, world, s, outcome);
+                        Soundscape.crowd('pit', { ttl: 12, level: 0.8, cheer: 1.1 });
                         if (game.ui.updateStats) game.ui.updateStats(player, world);
                         if (r.died) {
                             if (game.ui.hideCustomPanel) game.ui.hideCustomPanel();

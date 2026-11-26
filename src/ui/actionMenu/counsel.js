@@ -186,29 +186,57 @@ function _itemRow(item) {
 }
 
 const _badgeScanAt = new WeakMap();
+// How often the badge re-reads the matters afresh (ms), and the re-read waiting for an idle moment
+const BADGE_FRESH_MS = 2500;
+let _badgeIdle = null;
+
+const _idle = (fn) => {
+    if (typeof requestIdleCallback === 'function') return requestIdleCallback(fn, { timeout: 1500 });
+    return setTimeout(fn, 0);
+};
+
+/** Put the count on the badge (only what changed: a write restyles the top bar). */
+function _paintBadge(el, s) {
+    const n = s ? s.threats.length : 0;
+    const worst = n ? s.threats[0].severity : 'info';
+    const text = n > 9 ? '9+' : String(n);
+    const display = n > 0 ? 'inline-block' : 'none';
+    const bg = worst === 'critical' ? '#c0392b' : '#b7791f';
+    if (el.textContent !== text) el.textContent = text;
+    if (el._shown !== display) { el._shown = display; el.style.display = display; }
+    if (el._bg !== bg) { el._bg = bg; el.style.background = bg; }
+}
 
 /** Refresh the threat-count badge on the Counsel top tab (called from updateStats). */
 export function updateCounselBadge(game) {
     if (typeof document === 'undefined' || !game || !game.player) return;
     const el = document.getElementById('counselBadge');
     if (!el) return;
-    let n = 0;
-    let worst = 'info';
+    let s = null;
     try {
         // The day memo goes stale as soon as the player acts; re-read (light rules
-        // only) at most once a second so the badge follows what just happened.
+        // only) every couple of seconds so the badge follows what just happened —
+        // when the page is next idle, not in the frame being drawn (a fresh read is
+        // milliseconds, and the HUD refreshing twice a second hitched the map)
+        const player = game.player;
         const now = Date.now();
-        const fresh = !(now - (_badgeScanAt.get(game.player) || 0) < 1000);
-        if (fresh) _badgeScanAt.set(game.player, now);
-        const s = Counsel.scan(game.player, game.world, { fresh });
-        n = s.threats.length;
-        if (n) worst = s.threats[0].severity;
+        if (!(now - (_badgeScanAt.get(player) || 0) < BADGE_FRESH_MS) && !_badgeIdle) {
+            _badgeScanAt.set(player, now);
+            _badgeIdle = _idle(() => {
+                _badgeIdle = null;
+                try {
+                    if (game.player !== player) return;
+                    const fresh = Counsel.scan(player, game.world, { fresh: true });
+                    const b = document.getElementById('counselBadge');
+                    if (b) _paintBadge(b, fresh);
+                } catch { /* the badge keeps its count */ }
+            });
+        }
+        s = Counsel.scan(player, game.world, { fresh: false });
     } catch (e) {
-        n = 0;
+        s = null;
     }
-    el.textContent = n > 9 ? '9+' : String(n);
-    el.style.display = n > 0 ? 'inline-block' : 'none';
-    el.style.background = worst === 'critical' ? '#c0392b' : '#b7791f';
+    _paintBadge(el, s);
 }
 
 /** The morning brief: one notification with the top three items (new days only). */

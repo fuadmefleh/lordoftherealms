@@ -108,7 +108,7 @@ describe('systems o–r move real coin', () => {
         const st = Transport.state(g.world);
         const w = {
             id: 'pwT', kind: 'repair', name: 'Test Works', owner: 'player', payer: 'player', kid: t.settlement.kingdom,
-            status: 'stalled', stall: 'funds', est: 300, budget: 0, spent: 0, days: 10, daysDone: 0, hands: 4,
+            status: 'stalled', stall: 'funds', est: 300, budget: 0, spent: 0, days: 30, daysDone: 0, hands: 40,
             need: {}, got: {}, tq: t.q, tr: t.r, q: t.q, r: t.r,
         };
         st.works.push(w);

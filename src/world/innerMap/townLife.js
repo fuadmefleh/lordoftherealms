@@ -402,6 +402,8 @@ Object.assign(InnerMap, {
         if (npc._rite) { npc.state = 'idle'; npc.idleTimer = 3; return true; }
         // The sick abed at home, the healer's round, a frightened town, mourners (world/innerMap/townSickness.js)
         if (this._sickPick && this._sickPick(npc, period)) return true;
+        // The realm's affairs: the figures they brought to town, a besieged or hungry town keeping in (world/innerMap/townWorld.js)
+        if (this._townWorldPick && this._townWorldPick(npc, period)) return true;
 
         // A guard: the night watch walks by night and sleeps by day's end; the day watch the reverse
         npc._awaiting = null;

@@ -22,7 +22,14 @@
 // short market slows the work while its price climbs — and hires land hands
 // in the site town (systems/labour.js reads Transport.handsAt), paid the
 // town's land wage. Materials short of the labour stall it; winter halves
-// the pace. The player's budget is paid up front and what is left refunded.
+// the pace; waiting on materials, only a skeleton crew is paid (idleWage).
+// The player's budget is put up front and held by the work's paymaster: it
+// is drawn down day by day at the work's pace (the day's wages, the day's
+// materials), never past what the work still needs — Add funds takes at most
+// what is left to do, with the reserve — and what is left is refunded on
+// completion or abandonment. Each work keeps its books (w.book: funded,
+// refunded, wages, goods and towns paid, its last fortnight day by day) and
+// PublicWorks.outlook gives its burn rate and how long its budget lasts.
 //
 // Tolls: NPC trade over a tolled work pays its rate on the value carried
 // (afterFlows, taken out of the two towns' trade income — a transfer, never
@@ -74,6 +81,8 @@ const _r2 = (v) => Utils.cents(v);
 const _day = (world) => (world && Number.isFinite(world.day) ? world.day : 0);
 const ROAD_WORKS = ['repair', 'upgrade_road', 'upgrade_highway', 'bridge'];
 const TRAFFIC_DAYS = 28;
+// (a work's books keep its last fortnight day by day: the panel's "where the money went")
+const BOOK_DAYS = 14;
 
 function _kingdom(world, id) {
     if (!world || id == null) return null;
@@ -292,24 +301,126 @@ export const PublicWorks = {
             status: 'building', started: day, done: null, days: q.days, daysDone: 0, hands: q.hands,
             need: { ...q.goods }, got: Object.fromEntries(Object.keys(q.goods).map(g => [g, 0])),
             est: q.cost, spent: 0, budget, tollIncome: 0, stall: null,
+            book: { funded: budget, refunded: 0, wages: 0, goods: {}, towns: {}, days: [] },
             tq: site.q, tr: site.r, aq: alt ? alt.q : null, ar: alt ? alt.r : null, q: q.q, r: q.r,
         };
         st.works.push(w);
         return { success: true, message: `${q.name} begun: about ${q.days} days, ${q.hands} hands hired in ${site.s ? site.s.name : 'the town'}.`, work: w, quote: q };
     },
 
-    /** Put more gold into a stalled work of the player's (about what is left to do). */
-    fund(world, player, workId) {
+    /**
+     * Put more gold into a work of the player's. `amount` (optional): the sum
+     * to add; by default what finishing it still wants beyond the budget held.
+     * Never more than that (with the reserve, budgetPad): a work holds no coin
+     * it cannot spend. → { success, message, amount }
+     */
+    fund(world, player, workId, amount = null) {
         const st = Transport.state(world);
         const w = st.works.find(x => x && x.id === workId);
         if (!w || w.owner !== 'player' || (w.status !== 'building' && w.status !== 'stalled')) return { success: false, message: 'No such work of yours under way.' };
-        const left = Math.max(20, Math.ceil(w.est * Math.max(0.1, 1 - PublicWorks.progress(w)) * 0.6));
-        if (_num(player.gold) < left) return { success: false, message: `You need ${Utils.formatGold(left)}g.` };
-        player.gold -= left;
-        w.budget = _num(w.budget) + left;
-        Ledger.record(player, 'publicWorks', -left);
-        if (w.stall === 'funds') { w.stall = null; w.status = 'building'; }
-        return { success: true, message: `${Utils.formatGold(left)}g more for the ${w.name}.` };
+        const room = PublicWorks.fundRoom(world, w);
+        if (!(room > 0)) return { success: false, message: `The budget (${Utils.formatGold(w.budget)}g) already covers what is left to do; what is not spent comes back to you.` };
+        let add = amount == null ? room : Math.min(Math.ceil(_num(amount)), room);
+        if (!(add > 0)) return { success: false, message: 'Put in something.' };
+        if (_num(player.gold) < add) {
+            if (amount != null) return { success: false, message: `You need ${Utils.formatGold(add)}g.` };
+            add = Math.floor(_num(player.gold));
+            if (!(add > 0)) return { success: false, message: `You need ${Utils.formatGold(room)}g.` };
+        }
+        player.gold = _r2(_num(player.gold) - add);
+        w.budget = _r2(_num(w.budget) + add);
+        PublicWorks._book(w).funded = _r2(_num(PublicWorks._book(w).funded) + add);
+        Ledger.record(player, 'publicWorks', -add);
+        if (w.stall === 'funds') { w.stall = null; w.status = 'building'; w._noted = null; }
+        const o = PublicWorks.outlook(world, w);
+        const lasts = o.lastsDays != null ? ` At ~${Utils.formatGold(o.burn)}g a day it lasts about ${o.lastsDays} days.` : '';
+        return { success: true, amount: add, message: `${Utils.formatGold(add)}g more for the ${w.name} (budget ${Utils.formatGold(w.budget)}g).${lasts}` };
+    },
+
+    /** The most a player's work will take into its budget now: what is left to do, with the reserve, less what it holds. */
+    fundRoom(world, w) {
+        const o = PublicWorks.outlook(world, w);
+        const pad = 1 + _num(Transport.config().build.budgetPad, 0.15);
+        return Math.max(0, Math.ceil(o.toFinish * pad - _num(w.budget)));
+    },
+
+    // ── The works' books ──────────────────────────────────
+
+    /** A work's books: funded, refunded, totals by wages / good / town, and the last BOOK_DAYS days. */
+    _book(w) {
+        if (!_obj(w.book)) w.book = { funded: _num(w.budget) + _num(w.spent), refunded: 0, wages: 0, goods: {}, towns: {}, days: [] };
+        const b = w.book;
+        if (!_obj(b.goods)) b.goods = {};
+        if (!_obj(b.towns)) b.towns = {};
+        if (!Array.isArray(b.days)) b.days = [];
+        return b;
+    },
+
+    /** Today's line of a work's books (made on its first payment of the day). */
+    _bookDay(w, day) {
+        const b = PublicWorks._book(w);
+        let row = b.days[b.days.length - 1];
+        if (!row || row.d !== day) {
+            row = { d: day, wages: 0, hands: 0, wageTown: null, goods: [] };
+            b.days.push(row);
+            if (b.days.length > BOOK_DAYS) b.days.splice(0, b.days.length - BOOK_DAYS);
+        }
+        return row;
+    },
+
+    /** Note a payment in the work's books: 'wages' (to the site town) or 'goods' (n of g at price, from town). */
+    _note(w, day, what, amount, town, g = null, n = 0) {
+        const a = _r2(amount);
+        if (!(a > 0)) return;
+        const b = PublicWorks._book(w);
+        const row = PublicWorks._bookDay(w, day);
+        const tn = (town && town.name) || 'the nearest town';
+        b.towns[tn] = _r2(_num(b.towns[tn]) + a);
+        if (what === 'wages') {
+            b.wages = _r2(_num(b.wages) + a);
+            row.wages = _r2(row.wages + a);
+            row.hands = _num(w.hands);
+            row.wageTown = tn;
+        } else {
+            const e = b.goods[g] || (b.goods[g] = { n: 0, gold: 0 });
+            e.n = _r2(e.n + n);
+            e.gold = _r2(e.gold + a);
+            const same = row.goods.find(x => x.g === g && x.from === tn);
+            if (same) { same.n = _r2(same.n + n); same.gold = _r2(same.gold + a); } else row.goods.push({ g, n: _r2(n), gold: a, from: tn });
+        }
+    },
+
+    /**
+     * What a work still wants and how fast it spends: { toFinish (gold to finish at
+     * today's prices and wages), daily (a full day's pay and materials at its pace),
+     * burn (gold a day over its last days, else daily), lastsDays (the budget at that
+     * burn, null for a crown's work), daysLeft (days of work left) }.
+     */
+    outlook(world, w) {
+        const B = Transport.config().build;
+        const site = _town(world, w.tq, w.tr);
+        const edict = PublicWorks._edict(world, w.kid);
+        const pace = Math.max(1, _num(w.days));
+        const wage = PublicWorks._wage(site) * _num(w.hands) * _num(B.wageMult, 1) * edict;
+        let goodsLeft = 0, goodsDay = 0;
+        for (const [g, n] of Object.entries(w.need || {})) {
+            const left = Math.max(0, _num(n) - _num(w.got && w.got[g]));
+            const sc = site && SettlementMarket.tracks(g) ? SettlementMarket.scarcity(site, g) : 1;
+            const p = _basePrice(g) * sc * edict;
+            goodsLeft += left * p;
+            goodsDay += Math.min(left, _num(n) / pace) * p;
+        }
+        const daysLeft = Math.max(0, Math.ceil(pace - _num(w.daysDone) - 1e-9));
+        const toFinish = _r2(goodsLeft + wage * daysLeft);
+        const daily = _r2(wage + goodsDay);
+        const rows = (_obj(w.book) && Array.isArray(w.book.days) ? w.book.days : []).slice(-7);
+        const spentRows = rows.reduce((s, r) => s + _num(r.wages) + (r.goods || []).reduce((a, x) => a + _num(x.gold), 0), 0);
+        const burn = rows.length >= 3 ? _r2(spentRows / rows.length) : daily;
+        const lastsDays = w.payer === 'player' && burn > 0 ? Math.floor(_num(w.budget) / burn) : null;
+        // (covers: the budget holds what finishing it wants at today's prices — the materials
+        // are bought a little ahead of the work, so the first days burn faster than the average)
+        const covers = w.payer === 'player' ? _num(w.budget) >= toFinish : null;
+        return { toFinish, daily, burn, lastsDays, covers, daysLeft, wageDay: _r2(wage), goodsDay: _r2(goodsDay) };
     },
 
     /** Abandon a work of the player's: what is left of the budget comes back, what was built is lost. */
@@ -339,17 +450,22 @@ export const PublicWorks = {
     _returnBudget(world, w) {
         const back = _r2(Math.max(0, _num(w.budget)));
         w.budget = 0;
+        if (back > 0) { const b = PublicWorks._book(w); b.refunded = _r2(_num(b.refunded) + back); }
         return back;
     },
 
-    /** Spend from the work's payer into `town`'s purse (the seller, the hands); false when it can't. */
-    _pay(world, player, w, amount, town = null) {
+    /**
+     * Spend from the work's payer into `town`'s purse (the seller, the hands);
+     * false when it can't. `note`: { what: 'wages' | 'goods', g, n, day } for the work's books.
+     */
+    _pay(world, player, w, amount, town = null, note = null) {
         if (!(amount > 0)) return true;
         if (w.payer === 'player') {
             if (_num(w.budget) + 1e-9 < amount) return false;
             const before = _num(w.budget);
             w.budget = _r2(before - amount);
-            _payTownOr(world, town, w.tq, w.tr, before - w.budget);
+            amount = _r2(before - w.budget);
+            _payTownOr(world, town, w.tq, w.tr, amount);
         } else {
             const k = _kingdom(world, w.owner);
             if (!k || k.isAlive === false) return false;
@@ -360,6 +476,7 @@ export const PublicWorks = {
             _payTownOr(world, town, w.tq, w.tr, amount);
         }
         w.spent = _r2(_num(w.spent) + amount);
+        if (note) PublicWorks._note(w, note.day, note.what, amount, town || _town(world, w.tq, w.tr), note.g, note.n);
         return true;
     },
 
@@ -391,7 +508,7 @@ export const PublicWorks = {
                 const take = Math.min(want, avail);
                 if (!(take > 0.01)) continue;
                 const price = _basePrice(g) * SettlementMarket.scarcity(town, g) * edict;
-                if (!PublicWorks._pay(world, player, w, take * price, town)) { w.stall = 'funds'; break; }
+                if (!PublicWorks._pay(world, player, w, take * price, town, { what: 'goods', g, n: take, day })) { w.stall = 'funds'; break; }
                 SettlementMarket.take(town, g, take);
                 w.got[g] = _r2(_num(w.got[g]) + take);
                 want -= take;
@@ -407,8 +524,9 @@ export const PublicWorks = {
         const wage = PublicWorks._wage(site) * w.hands * _num(B.wageMult, 1) * edict;
         const matF = PublicWorks.progress({ ...w, days: 0 });
         const ahead = _num(w.daysDone) / Math.max(1, w.days) > matF + 0.15;
-        const pay = ahead ? wage * 0.5 : wage;
-        if (!PublicWorks._pay(world, player, w, pay, site)) {
+        // (waiting on materials, most hands are laid off: a skeleton crew keeps the yard)
+        const pay = ahead ? wage * Math.max(0, Math.min(1, _num(B.idleWage, 0.25))) : wage;
+        if (!PublicWorks._pay(world, player, w, pay, site, { what: 'wages', day })) {
             w.status = 'stalled';
             w.stall = 'funds';
             PublicWorks._stallNote(w, out, 'the hands want their wages');

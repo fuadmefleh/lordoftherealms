@@ -6,6 +6,7 @@ import './routes.js';
 import './auctions.js';
 import './property.js';
 import './caravans.js';
+import './caravanSales.js';
 import { Trading } from './trading.js';
 
 export { PlayerEconomy, Trading };

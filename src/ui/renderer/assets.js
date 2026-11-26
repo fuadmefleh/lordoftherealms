@@ -371,8 +371,14 @@ Object.assign(Renderer.prototype, {
         return new Promise((resolve, reject) => {
             const img = new Image();
             img.onload = () => {
-                this.tileSprites.set(id, img);
-                resolve(img);
+                // Decoded off the main thread before it is first drawn: the first frame to draw a
+                // sprite otherwise decodes it there and then (the map's first seconds hitched on it)
+                const ready = () => {
+                    this.tileSprites.set(id, img);
+                    resolve(img);
+                };
+                if (typeof img.decode === 'function') img.decode().then(ready, ready);
+                else ready();
             };
             img.onerror = () => {
                 console.warn(`Failed to load image: ${src}`);

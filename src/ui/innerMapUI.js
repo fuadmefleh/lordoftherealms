@@ -34,6 +34,7 @@ import { InnerMapJail } from './innerMapJail.js';
 import { InnerMapLots } from './innerMapLots.js';
 import { InnerMapGraves } from './innerMapGraves.js';
 import { InnerMapPlague } from './innerMapPlague.js';
+import { InnerMapTownWorld } from './innerMapTownWorld.js';
 import { InnerMapScavengers } from './innerMapScavengers.js';
 import { InnerMapBrawls } from './innerMapBrawls.js';
 import { InnerMapLocks } from './innerMapLocks.js';
@@ -485,6 +486,8 @@ Object.assign(InnerMapRenderer, {
                 const maimTag = MaimMarks.tag(npc._person || npc);
                 menuItems.push({ type: 'person', npc, role: `${npc.roleTitle || npcDef.name || npc.type}${maimTag ? ` · ${maimTag}` : ''}`, hpDesc, asleep: !!npc._asleep });
             }
+            // The crier's news, the preacher's call, the Holy Office, a soldier's word, someone come to you (ui/innerMapTownWorld.js)
+            menuItems.push(...InnerMapTownWorld.personItems(game, standing));
             // A grave robber or a looter at it: stop them (ui/innerMapScavengers.js)
             menuItems.push(...InnerMapScavengers.menuItems(game, standing));
             // A fight between townsfolk: cheer, bet, break it up, join a side (ui/innerMapBrawls.js)
@@ -1088,6 +1091,7 @@ Object.assign(InnerMapRenderer, {
         if (/^(lot|vacancy)_/.test(item.action || '') && InnerMapLots.handle(game, item)) return;
         if (/^grave_/.test(item.action || '') && InnerMapGraves.handle(game, item)) return;
         if (/^plague_/.test(item.action || '') && InnerMapPlague.handle(game, item)) return;
+        if (/^tw_/.test(item.action || '') && InnerMapTownWorld.handle(game, item)) return;
         if (/^scav_/.test(item.action || '') && InnerMapScavengers.handle(game, item)) return;
         if (/^brawl_/.test(item.action || '') && InnerMapBrawls.handle(game, item)) return;
         if (/^furnish_/.test(item.action || '') && InnerMapFurnish.handle(game, item)) return;

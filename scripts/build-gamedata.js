@@ -223,6 +223,8 @@ const topLevel = [
     'inventory',
     // Standing trade and supply lines run by a caravan or a ship (player/tradeLines.js)
     'tradeLines',
+    // Distribution plans: where a property's output goes, by hired carters (player/distribution.js)
+    'distribution',
     // The Hall of Houses' unlocks, kept across games (systems/metaLegacy.js)
     'metaLegacy',
     'chronicleBook',
@@ -249,6 +251,8 @@ const topLevel = [
     'damnatio',
     // Holy wars, the sees of the faiths, excommunication (systems/holyWars.js); the inquisition (systems/inquisition.js)
     'holyWars', 'inquisition',
+    // The realm's affairs seen in a town's streets (systems/townWorld.js, ui/innerMapTownWorld.js)
+    'townWorld',
     // Friends & Bonds: sworn kin, drinking companions, mentors, protégés (systems/bonds.js)
     'bonds',
     // Personal quests from the House's own history (systems/houseQuests.js)
@@ -294,7 +298,9 @@ const topLevel = [
     // Ports as places, ferries and the working boats: harbourmaster and dues, the slip, careening, the fishing fleet, ferries, barges (systems/ports.js, world/ferries.js, systems/barges.js)
     'ports',
     // River size in play: brooks, rivers, great rivers; crossing costs, natural fords, boats by river size (world/rivers.js)
-    'rivers'
+    'rivers',
+    // The player's caravans: waiting for coin, going on to a buyer or home, the hire by load and way (player/playerEconomy/caravanSales.js)
+    'playerCaravans'
 ];
 
 const merged = {};

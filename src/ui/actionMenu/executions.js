@@ -16,6 +16,7 @@ import { ActionMenu } from './_ref.js';
 import { Executions } from '../../systems/executions.js';
 import { Immurement } from '../../systems/immurement.js';
 import { lede, chips, card, rowList, price, esc } from './uiKit.js';
+import { Soundscape } from '../soundscape.js';
 
 const KIND_WORD = { captive: 'In your cellar', bounty: 'Taken for a bounty', vassal: 'Lords of your court', rival: 'Blood of the rival Houses' };
 const BACK = (act, args = null) => `<button data-am-act="${act}"${args ? ` data-am-args='${esc(JSON.stringify(args))}'` : ''} style="width:100%;padding:8px;margin-top:10px;background:#444;border:1px solid #666;border-radius:6px;color:#eee;cursor:pointer;">Back</button>`;
@@ -175,6 +176,8 @@ Object.assign(ActionMenu, {
     scaffoldCrowdAct(game, pubId, how, from = null) {
         const r = Executions.attend(game.player, game.world, pubId, how);
         if (!r.success) { game.ui.showNotification('💀 The Scaffold', r.reason || 'Not today.', 'error'); return; }
+        // the crowd about the scaffold, and its roar at the end (ui/soundscape.js)
+        Soundscape.crowd('scaffold', { ttl: 25, level: 0.75, cheer: how === 'mercy' ? 0 : 1.1, delay: 2.5 });
         game.ui.updateStats(game.player, game.world);
         if (from === 'here') ActionMenu.showScaffoldHere(game, r.text);
         else ActionMenu.showScaffoldCrowd(game, r.text);

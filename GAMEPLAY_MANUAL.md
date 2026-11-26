@@ -2124,6 +2124,17 @@ Base production is modified by several factors:
 - **Storage:** each producing property holds **100 goods per level**. Output beyond that is lost, so collect, ship, or auto-sell regularly. The **Granary Construction** technology enlarges every store by 50%. The property panel shows `stored / capacity` and warns when goods are being lost.
 - **Administrative overhead:** running up to **6 properties** is free. Each one beyond that adds **+3% upkeep to all properties** (max +60%). The **Writing** technology halves this overhead.
 
+### Distribution: Where the Output Goes
+
+A producing property's panel has a **🚚 Distribution** section (`player/distribution.js`, data `data/distribution.json`): a standing plan that splits each day's output by **shares**, e.g. 10% to a store-room, 50% to a rope walk, the rest sold at a market.
+
+- **Shares:** up to 6 destinations, each a whole percent; together at most 100%. **The rest** goes to its own destination (by default it stays in the property's store). Units are whole: each share's fraction of a unit is carried over day to day, so 10% of 3 a day still comes to 3 every 10 days. Only new output is shared out; what was stored before the plan stays.
+- **Destinations:** another of your properties that works the good (a workshop's input store, if its recipe takes it; a tavern's beer and liquor), a store-room you rent, the larder of a home (food only), a town you hold (its granary or stores), a **market** town within 40 hexes you have seen (sold there), or keep.
+- **Carters:** on the same hex goods move at once. Otherwise they gather in the store (still taking its room) until the plan's **batching** sends them: *daily*, *by the load* (when a share has N gathered, default 20) or *weekly*. Hired carters take each consignment: days = the way by land (roads quicker) × 1.25. **Carriage** is paid when it sets out, to the carters' home town (the property's town): 2g + loads × hexes × 1.2g × the ground (a load is 500 lb of goods by their weight; roads halve it at best, mountains double it; a canal halves it again). Small daily lots pay the 2g minimum each time, so gathering a load first is cheaper.
+- **On the way:** a border crossed costs the entered realm's **toll** (3% of the goods' worth, or its import tariff, waived by a treaty) into its treasury; an **export ban** keeps the goods home. Robbers may take a consignment on a dangerous way (raiders, outlaw lairs, war: up to 30%); what they take goes to the nearest outlaw lair's hoard.
+- **Arrival:** delivered into the destination's store. A **sale** is paid out of the market town's purse at its price curve, never a unit under 40% of the good's base price, into its stock, with the crown's import duty and the guild's toll inside it (booked as *Distribution: sales*). A market whose price is already under that floor, or a full store, or a workshop on another recipe: the goods **wait in the source's store** (the panel says why). If the destination fills while they are on the road, they **wait there 7 days** (tried daily; a market sells at any price on the last day), then the carters bring them back (carriage again) into the source's store; any it cannot hold are sold at its town, any still unsold left with its merchants (a loss).
+- **Auto-sell** is set aside while a plan runs. Arrivals and sales are told in one notice a week; robberies and returns at once. **My Properties** has a 🚚 Distribution button: every plan, the goods on the road and waiting, sales, carriage and tolls.
+
 ### Upgrading Properties
 
 Upgrade cost = base cost × 0.5 × (current level + 1). Each level adds +10% production. Maximum level is 5.
@@ -2328,12 +2339,14 @@ For the artists and renderers, every piece names its sprite: `weaponClass` (dagg
 
 Dispatch a caravan to sell goods at a distant settlement for higher prices.
 
-- **Cost**: 200g to dispatch.
+- **Hire**: 30g + 3g a hex + 3g a hex for each 500 lb of load (20 hemp 9 hexes: about 60g; a heavy wagonload of grain 15 hexes: a few hundred). Paid when it sets out, to the town it sets out from, as the carters' wages (`data/playerCaravans.json`).
 - **Speed**: 2 tiles per day.
 - **Max Distance**: 20 tiles.
-- **Revenue**: what the destination market pays for the goods, × (1 + distance × 0.01) × settlement multiplier × (1 + Commerce × 0.05). The destination pays 70% of what each unit is worth there as the load lands in its stores, so a big load of something the town already has plenty of fetches less a unit (see [Town Markets](#town-markets-stock-scarcity-and-trade)). The goods then join the town's stock.
+- **Revenue**: what the destination market pays for the goods, × (1 + distance × 0.01) × settlement multiplier × (1 + Commerce × 0.05). The destination pays 70% of what each unit is worth there as the load lands in its stores, so a big load of something the town already has plenty of fetches less a unit (see [Town Markets](#town-markets-stock-scarcity-and-trade)).
+- **Only what the town can pay for.** The merchants pay out of the town's purse, unit by unit, the crown's import duty inside it. A unit changes hands (and joins the town's stock) only when it is paid for. What the purse can't cover stays on the wagons: the caravan **waits in the town up to 5 days**, selling more as the purse refills. Then, if **Find a buyer nearby** is on (the default; toggle it in the property's Logistics section), it goes on to the nearest town within 8 hexes whose merchants can pay for at least a quarter of the rest. Otherwise it **carries the rest back home**: into the property's store it came from (as far as there is room), else into your packs (what they can't hold is sold at home). The way back takes days and can be robbed like the way out. The notices say what sold, for how much, what is still waiting and where it is going ("Thornfield's merchants had only 51g: 7 hemp sold, 13 wait for coin"), and the Jobs panel shows each caravan waiting, going on or coming home.
+- **Before you send it.** The destination list in a property's Logistics section shows each market's purse ("merchants hold ~370g"), how many units it can pay for, the hire and the **net** (what they can pay, less the hire), best net first. A red net means the hire costs more than they can pay; the dispatch notice repeats the terms.
 
-Settlement multipliers: Village and Town (1.0×), City (1.1×), Capital (1.2×). The profit is in **carrying goods from where they're plentiful to where they're short**. Between two markets at par, a long haul to a capital about breaks even after the 200g hire. Luxuries or ironware hauled 10–20 hexes from a glut to a shortage repay 20–60%. A real dearth (bread or fish to a starving capital) can pay several times the cost, until your loads fill it.
+Settlement multipliers: Village and Town (1.0×), City (1.1×), Capital (1.2×). The profit is in **carrying goods from where they're plentiful to where they're short**. Between two markets at par, a long haul to a capital about breaks even after the hire. Luxuries or ironware hauled 10–20 hexes from a glut to a shortage repay 20–60%. A real dearth (bread or fish to a starving capital) can pay several times the cost, until your loads fill it.
 
 Caravans appear as physical units on the map and can be raided by bandits or enemy forces.
 
@@ -2354,7 +2367,7 @@ Routes auto-dispatch when goods are available, based on a configurable frequency
 
 **Prosperity**: Routes gain prosperity with each successful delivery (+4% profit per level, max level 6).
 
-**Smuggling Risk**: Chance of being caught depends on distance, stealth skill, and protection level. Getting caught means confiscation of 35–55% of profits, fines, −2 karma, and −4 reputation.
+**Smuggling Risk**: Chance of being caught depends on distance, stealth skill, and protection level. Getting caught means the guards seize 35–55% of the load (the town's watch sells it into the town's stock), a fine of 40% of its worth into the town's purse, −2 karma, and −4 reputation. A route caravan sells, waits, goes on or comes home like a one-off caravan, and the route sends no new one until it is done.
 
 Every smuggling run raises **heat** with the destination's crown (more if intercepted — see [The Underworld](#the-underworld)). Running goods into a **blockaded** realm pays half again as much (more if its port is sealed by enemy fleets) but adds 15% to the catch chance; the **lean season** adds another 15% to the take.
 
@@ -3538,8 +3551,9 @@ Prices between towns on good roads draw together: measured over three seeds, a g
 | Canal | 5 stone + 2 wood + 0.4 iron a hex | 120 × 3 a hex (min 20) | link friction ×0.33 | 5% |
 | Harbour works | 40 stone, 30 wood, 4 iron | 60 × 30 days | the port's sea links ×0.8 | — |
 
-- **Goods and labour are real.** A work buys its stone, timber and iron from its town's market, and from the town at the road's other end, at the going price. It takes at most 30% of a stock a day, so a bare market slows the work while its price climbs. It hires land hands in the town at the local wage, which tightens the labour market and lifts wages (see [Labour](#labour-classes-and-migration)). Materials short of the labour stall it, with the hands idle on half pay. Winter halves the pace of all works but repairs.
-- **Paying for it.** As an investor you put up the estimate plus a 15% reserve. Work draws on it, the rest comes back when it is finished, and **Add funds** restarts a work that ran dry. **Abandon** returns what is left. A ruler can order works in their own realm from the treasury instead.
+- **Goods and labour are real.** A work buys its stone, timber and iron from its town's market, and from the town at the road's other end, at the going price. It takes at most 30% of a stock a day, so a bare market slows the work while its price climbs. It hires land hands in the town at the local wage, which tightens the labour market and lifts wages (see [Labour](#labour-classes-and-migration)). Materials short of the labour hold it up; most hands are laid off then, and a skeleton crew is paid a quarter of the day's wages (`idleWage`). Winter halves the pace of all works but repairs.
+- **Paying for it.** As an investor you put up the estimate plus a 15% reserve. That budget is held for the work and drawn down day by day at its pace: the day's wages go to the site town, and the day's stone and timber are bought from the markets as the work needs them. A canal of about 2,700g spends some 20–25g a day over its 150 days, not the budget in a day. Whatever is left comes back to you when the work is finished or abandoned. **Add funds** puts in a sum you choose (+100 / +500 / +1,000 / +5,000, or *Add what is left*), up to what finishing the work still needs at today's prices plus the reserve, less what the budget already holds. A fully funded work takes no more. A work whose money runs out stalls until you add funds. A ruler can order works in their own realm from the treasury instead.
+- **Where the money went.** Under *Your works* each work shows what was funded, spent and returned. It shows the spending split into wages and materials (how many of each good, for how much), which towns were paid, and its last three days line by line (*Day 41: wages 16g to Brill (40 hands) · 0.3 stone at 4.1g from Brill …*). It also shows the daily spend, the days of work left, what finishing will cost, and whether the budget covers it or how many days it lasts. The quote before you fund shows the daily cost too. Putting gold into a budget is booked in the Ledger under *Public works funded (and refunds)* on the day you put it in. It moves to the work's paymaster, so the ledger line is not spending.
 - **Tolls.** A highway, bridge or canal you fund can be a toll work. NPC trade over it pays the toll rate on the value carried, out of the towns' trade income: a transfer, never new money. Merchant caravans pay at the gate, and travellers pay a fee to cross. Your tolls are booked in the Ledger as *Road tolls*. On another crown's land the crown takes 25% of them. You pay tolls on works you don't own, and none on your own.
 - **The crowns build too.** On its weekly turn a crown with the money (and no missed payments, a debt ratio under 0.5) rebuilds washed-out bridges and repairs ruined roads. At peace and with welfare at least 0.35, it also paves its busiest road (at most one every 120 days), builds harbour works at its great ports, and now and then digs a canal between two towns no good road joins. Mercantile crowns build sooner, aggressive ones later. Crowns in debt toll their new highways.
 
@@ -6138,7 +6152,7 @@ The world talks about itself. What townsfolk say depends on what is going on aro
 
 You hear it when greeted (hostile folk keep their own greetings), when you ask **"What news?"** (mostly the world's news, never the same line twice), and as an **overheard remark** when you arrive in a town where something is happening (at most once per town every 3 days; Settings → Overheard Town Talk). With the local LLM voice on, the same facts are handed to the model; the written lines stay the default.
 
-**Heralds.** A coronation, a realm falling or rising again, a war declared, a peace made, a saga's end, a revolt or peasant rebellion, a new land named on the charts, or a siege won or broken is proclaimed where it happened. The news travels 8 hexes a day; every town it reaches knows it (townsfolk repeat it, and it is pinned to the tavern notice board) and when it reaches you, you get a dismissible notice. At most one a day, with two quiet days between (the gravest news — a coronation, a fallen realm — always gets through). News of your own doings is talked about but not cried at you. Proclamations are forgotten after 40 days. Settings → Heralds' Proclamations turns the notices off.
+**Heralds.** A coronation, a realm falling or rising again, a war declared, a peace made, a saga's end, a revolt or peasant rebellion, a new land named on the charts, a siege won or broken, a holy war called or two crowns joined in a union is proclaimed where it happened. The news travels 8 hexes a day; every town it reaches knows it (townsfolk repeat it, and it is pinned to the tavern notice board) and when it reaches you, you get a dismissible notice. At most one a day, with two quiet days between (the gravest news — a coronation, a fallen realm — always gets through). News of your own doings is talked about but not cried at you. Proclamations are forgotten after 40 days. Settings → Heralds' Proclamations turns the notices off.
 
 **Your deeds spread.** Sacking a town, feeding a starving town from your treasury (the Empty Granaries petition), pardoning a criminal at court, or winning a duel against a rival adventurer starts a rumour where it happened. It spreads from town to town like any rumour and fades over 40–90 days, but it is talk, not a crime: no bounty, no reputation loss, no hostile guards. Townsfolk who have heard it mention it, and **Listen for Gossip** at a tavern repeats it as *Talk of Your Deeds*.
 
@@ -6158,6 +6172,19 @@ You hear it when greeted (hostile folk keep their own greetings), when you ask *
 A rumour that only costs you reputation in a realm (the first time it reaches one of its towns at severity 10+) now says so: *Your Name Suffers*, with the loss.
 
 The same murder can bring a bounty in one town and a shrug in the next. At the tavern's **Whispering Corner** you can pay a bard (35g) to **sing down** a crime rumour in that town. Its telling there becomes *Sung down* (×0.3, and you aren't named), and that version spreads onward like any other.
+
+### The Realm in the Streets
+
+The realm's great affairs show on the street map of the town you stand in, read from the world as it is (nothing extra is saved; `systems/townWorld.js`, data/townWorld.json):
+
+- **Who rules.** The crown's banner (in its livery, the colours its soldiers and battles wear) stands on poles at every road in and before the seat. A realm in a personal union's junior place flies both crowns' banners. A town taken from another crown in the last year has the new crown's garrison at its gates and seat, and its people grumble within earshot about the old crown ("It was better under…").
+- **War.** While the town's realm is at war, soldiers in its livery are billeted at the inns and houses, drill in ranks on the square from 7 to 9 and 15 to 17, and sleep indoors at night. The drill keeps time: the ranks stand on guard, thrust together on the sergeant's call ("Thrust!"), recover, and step a pace forward ("Step!") and, the next time, back ("Back!"), the sergeant standing off their flank calling each beat (a 6.4-second cycle). Where the realm's host gathers (its war host on or beside the town; else the realm's town nearest its front against the foe, or nearest the foe's seat) a muster camp stands outside the walls: a commander's pavilion, rows of tents, fires, a pile of sacks for its stores, its men about the fires. Its supply train comes in from the road at the edge of the map: three wagons a few seconds apart, every 80 seconds or so from 6 to 19, each driven up beside the stores, unloaded for about 30 seconds while two of the host carry sacks to the pile, then driven back down the road. A besieged town (a foe's host before it, your holding under siege, your liege's siege you serve in, or another crown's siege in a war between crowns) sees the siege lines' fires and tents ringing it beyond the walls, and more than half its people keep indoors. A town by the front (the foe's land within 5 hexes) or by a fresh battle cairn has wounded soldiers sitting by the temple door, on crutches and bandaged.
+- **Wars between crowns.** The realms' own wars are fought as battles with no hosts on the map, so each war keeps a **front**: after every battle, the defender's town nearest the field (within 4 hexes) is the town it threatens, and it is **besieged** when the battle was at its walls or won within 2 hexes (a rout of the attackers lifts the siege). A front no battle has renewed in 30 days goes cold; it ends when the town falls or the war ends. A besieged town shows the siege as above; a threatened one has a fifth of its people keeping indoors and talks of the foe coming ("Bury the silver, I say."). The attacker's host musters in its town nearest the front. On the world map a besieged town you have seen has a dashed red ring and crossed swords, a threatened one amber swords, with "Besieged by …" or "Threatened by …" over it when zoomed in.
+- **The cross.** While a holy war's call is open to the realm, a preacher with a cross-staff calls for the cross in the square (8 to 18); **Hear the Preacher Out** opens the Church, where you take the cross. Crusaders in white surcoats with the red cross (on the chest, the back, or the shoulder side-on) walk in at one gate, stop in the square and leave by another on their way to the muster; at the muster itself they camp outside the walls. An inquisitor sitting a hearing stands in the square with two clerks; **Before the Holy Office** opens his options.
+- **Hard times.** In a famine the stalls stand bare under a cloth (their keepers at home), the bakery is barred, beggars sit at the church and the market, and fewer people are out. In every era, stalls or none: a bread line of hungry townsfolk (3 in a village, 4 in a town, 6 in a city) queues at the barred bakery's door (else the granary's, else the market's), its head calling out now and then; the granary and warehouse are barred with a guard at the door ("Lord's orders: not a sack leaves."); and empty baskets and an open, empty crate lie about the square. A realm under the Church's ban has its temple's doors planked shut: no services, no entry.
+- **Proclamations.** The town crier cries what the heralds have brought to the town in the last days (wars, peace, coronations, a fallen realm, and now holy wars called and unions formed), ringing his handbell; **Ask for the News** repeats it all in a panel.
+- **People come to you.** Now and then (at most once a day) someone walks up to you in the street: a messenger with a letter that came in the last 3 days (**Take the Letter**), a petitioner when petitions wait and you hold the town (**Hear the Petitioner**), or in hard times a beggar (**Give a Coin**: the coin goes into the town's purse).
+- Soldiers, crusaders and the wounded answer **Ask … the News** with a line of their own. Their numbers are capped by the town's size.
 
 ### Townsfolk at Work: Trades, Wages and Service
 
@@ -8173,6 +8200,8 @@ Every town buries its own (`data/graves.json`; `systems/graveyards.js`). In a wo
 
 A town with a river, a lake shore or the sea near it keeps its **mill** on the water (worlds made with the current generator). The mill stands on the bank with one gable wall against the water, a mill race runs along that wall, and its waterwheel turns in the race with the stream and throws up spray. A town with no water nearby keeps its mill at the edge of town, and sails turn on its roof instead.
 
+Your own properties out in the country (a hex with no town) stand where their trade would put them when you walk the hex: a mill on the riverbank with its wheel in the stream (or, on a hex with no river, lake or sea, a windmill on open high ground with its sails turning), a fishing wharf or salt pans against the water's edge, a logging camp, hunting lodge or pitch works in a clearing at the woods' edge, a mine, quarry or clay pit against a crag's rock face, a farm beside its fenced field, an orchard beside its fenced rows of fruit trees, a pasture or ranch beside its fenced paddock, and a workshop, tavern or other trade by the road or near where you come in. Each is a full-size building of its kind with its name over the roof; walk in at its door or click it to manage it. Several on one hex each keep their own ground, and they stand in the same places every visit.
+
 **The graves are real.** A townsperson who dies (see *Living townsfolk*) is buried with their name, birth and death years, and cause of death. The marker suits their station:
 
 | Station | From | Marker | Coffin | Lease the family wants |
@@ -9119,6 +9148,48 @@ When a season turns, your steward reports what your doings changed in the world 
 The report opens by itself at the season's turn. At sea it comes as a notice instead. Turn the popup off with **Settings → Season's Reckoning**. Every report stays under **Journal → Season's Reckoning**, with the season so far and the last few seasons. The record (`player.reckoning`) is saved. An older save starts its first season when it is loaded. It never changes the game or rolls dice.
 
 ---
+
+### Sound & Music
+
+The game plays recorded music, ambience and sound effects (all CC0 or public domain, with one
+CC BY owl recording; credits in `assets/audio/CREDITS.md`). Sound starts on your first click.
+
+- **Music** follows where you are: the road, a town, the court (inside a castle, keep, palace
+  or manor), the night (out of doors after dark, on the street map and on the world map alike:
+  the world map keeps the same day clock, moved on by the hours your travel and work take), and
+  battle (a fight on the
+  street map, or a band falling on you on the road). A track plays through, then the music rests
+  for a minute or two before the next, so most of the time you hear the world itself. Changes of
+  mood fade across.
+- **Ambience** crossfades by place, hour, season and weather: birdsong by day (most in spring,
+  little in winter), crickets and an owl at night (none in winter; on the world map too), the
+  forest's own sound,
+  wind on the hills and mountains and in a gale, the surf near the sea or a river, the sea and a
+  creaking hull aboard ship, rain from a drizzle to a downpour with thunder after the lightning,
+  the murmur of a town's streets by day, the market's hubbub near the stalls while it's open, a
+  tavern's noise spilling out of its door of an evening, the smith's hammer near the forge, a
+  cart's wheels rumbling past, horses snorting by the stables, the choir's plainchant heard
+  through a church's walls while a service is sung. Indoors the street is heard muffled through
+  the walls and the room plays its own sound: the tavern's crowd and mugs, the market hall, a
+  hall's or a church's murmur, the choir in a church at its service hours, a cave's dark and its
+  drips.
+- **The realm in the streets**: soldiers at drill on the square tramp and stamp and answer
+  their sergeant's shout; a preacher calling for the cross is heard as a sermon's murmur about
+  him; a muster camp outside the walls has its hubbub and clinking kit; the town crier rings his
+  handbell as he cries the news. A crowd roars at a hanging you watch, along the lists of a
+  tournament (cheering a good pass, groaning at a bad one) and around the fighting pit.
+- **Sound effects**: footsteps timed to your walk on the street map, by the ground underfoot
+  (cobbles, wooden floors, grass, dirt, mud, leaves, snow, the shallows of a ford; none
+  rowing); hoofbeats on horseback (a walk, a quicker doubled trot with the run held, dulled on
+  soft ground) and while you ride across the world map; doors as you go in and out; a knock; the lock being picked and giving
+  (or not); coins when you buy and sell; a chest's lid; blades meeting in a fight; the bow
+  loosed; the fishing line cast, a bite's splash and the reel; the axe, the anvil, the church
+  bell; the guns of a sea fight going off down a ship's side, the shot striking home or
+  throwing up the sea; a page turned on opening your letters; quiet clicks and chimes for the
+  interface.
+- **Settings → Sound**: master, music, ambience and effects volumes and Mute All, as before.
+  **Recorded Sounds & Music** off goes back to the older synthesized music and sounds (they also
+  stand in for any file that fails to load).
 
 ## 31. Tips & Strategies
 

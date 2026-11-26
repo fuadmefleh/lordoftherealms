@@ -17,6 +17,8 @@ import { RoomLocks } from '../systems/roomLocks.js';
 import { SocialSkills } from '../systems/socialSkills.js';
 import { NpcDisposition } from '../systems/npcDisposition.js';
 import { containerContext, theftScene } from './objectActions/contents.js';
+import { audioManager } from '../systems/audio.js';
+const _snd = (kind, o) => { try { audioManager.playSFX(kind, o); } catch { /* sound is best-effort */ } };
 
 const _asleep = n => !!(n && (n._asleep || n.state === 'sleeping' || (n.activity && n.activity.type === 'bed')));
 const _out = n => ({ name: n.fullName || n.name || 'a guest', asleep: _asleep(n) });
@@ -72,6 +74,7 @@ export const InnerMapRoomLocks = {
         const run = item.action === 'roomlock_pick'
             ? () => {
                 game.ui.showNotification('🗝️ At the Lock', `You crouch at the door of ${_roomName(door)} and set to work…`, 'info');
+                _snd('lockpick');
                 setTimeout(() => InnerMapRoomLocks._finishPick(game, door), 1200);
             }
             : () => InnerMapRoomLocks._knock(game, door);
@@ -94,6 +97,8 @@ export const InnerMapRoomLocks = {
 
     _knock(game, door) {
         const res = RoomLocks.knock(game.player, game.world, door, InnerMap.guestRoomOccupants(door).map(_out));
+        _snd('knock');
+        _snd('knock', { delay: 0.28, gain: 0.85 });
         game.ui.showNotification('✊ A Knock', res.text, 'info');
     },
 
@@ -121,6 +126,7 @@ export const InnerMapRoomLocks = {
             return;
         }
         game.ui.showNotification(res.ok ? '🔓 The Lock Gives' : '🔒 The Lock Holds', res.text, res.ok ? 'success' : 'warning');
+        _snd(res.ok ? 'unlock' : 'lock_click');
         game.ui.updateStats(player, game.world);
     },
 };

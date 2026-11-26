@@ -9,6 +9,7 @@
 // systems/couriers.js and world/npcLords.js (memory); buttons route through
 // data-am-act → ActionMenu.lettersAct.
 import { ActionMenu } from './_ref.js';
+import { audioManager } from '../../systems/audio.js';
 import { NPCLords } from './_imports.js';
 import { CourtLetters } from '../../systems/courtLetters.js';
 import { Mail } from '../../systems/mail.js';
@@ -468,6 +469,8 @@ function postTab(game) {
 Object.assign(ActionMenu, {
     /** Journal → Letters: the inbox, writing, letters in transit, the post, answered letters, debts & promises, what lords remember. */
     showLetters(game, message = null) {
+        // a page turned (systems/audio)
+        try { audioManager.playSFX('page', { gain: 0.8 }); } catch { /* sound is best-effort */ }
         const player = game.player;
         const world = game.world;
         const v = CourtLetters.view(player, world);

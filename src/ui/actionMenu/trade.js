@@ -1,5 +1,7 @@
 // ActionMenu — trade methods (split from the original monolith).
 import { ActionMenu } from './_ref.js';
+import { audioManager } from '../../systems/audio.js';
+const _snd = (kind, o) => { try { audioManager.playSFX(kind, o); } catch { /* sound is best-effort */ } };
 import { PlayerCoin } from '../../player/playerCoin.js';
 import { peopleLine } from './labour.js';
 import { Guilds } from '../../systems/guilds.js';
@@ -29,6 +31,7 @@ import { NpcShops } from '../../systems/npcShops.js';
 import { worksCard } from './worksUI.js';
 import { Construction } from '../../systems/construction.js';
 import { Mints } from '../../systems/mints.js';
+import { distributionSection } from './distribution.js';
 
 /**
  * The market's tab bar: Buy and Sell here, and the town's other trade views
@@ -225,8 +228,11 @@ Object.assign(ActionMenu, {
                 if (recipe) {
                     const outputGood = PlayerEconomy.GOODS[recipe.output.toUpperCase()];
                     productionText = `${outputGood ? outputGood.name : recipe.output}`;
-                    // Rate is tricky for workshop, maybe just show base rate
-                    prodRateText = `${prop.productionRate * prop.level}`;
+                    // Up to this much output a day while its inputs last (the same reckoning
+                    // as the day's production; whole recipe runs only)
+                    const sum = PlayerEconomy.outputSummary(game.world, game.player, prop, tile);
+                    prodRateText = sum ? `up to ${sum.rate.replace('≈', '')}` : `${prop.productionRate || 0}`;
+                    if (sum && Number.isFinite(prop.lastOutput)) productionText += ` <span style="font-size:11px; color:#9d937c;">· ${prop.lastOutput} made yesterday</span>`;
                 }
             }
         } else if (prop.type === 'tavern') {
@@ -241,7 +247,15 @@ Object.assign(ActionMenu, {
             const goodKey = (prop.produces || '').toUpperCase();
             const good = PlayerEconomy.GOODS[goodKey];
             productionText = good ? good.name : (prop.produces || 'Nothing');
-            prodRateText = `${prop.productionRate * prop.level}`;
+            // What it really makes (the same reckoning as the day's production)
+            const sum = PlayerEconomy.outputSummary(game.world, game.player, prop, tile);
+            if (sum) {
+                prodRateText = sum.rate;
+                productionText += `<div style="font-size:11px; color:#9d937c; margin-top:2px;">${sum.line}</div>`
+                    + `<div style="font-size:10.5px; color:#857c68; margin-top:1px;">${sum.why}</div>`;
+            } else {
+                prodRateText = `${prop.productionRate || 0}`;
+            }
         }
 
         // Render menu
@@ -342,6 +356,9 @@ Object.assign(ActionMenu, {
             side: `<span style="font-weight:700; color:${prop.autoSell ? '#8fd18a' : '#9d937c'};">${prop.autoSell ? 'ENABLED' : 'DISABLED'}</span>`,
         });
         html += rowList(opRows, 'Operations');
+
+        // Where the output goes: shares to your works, stores, holdings and markets (player/distribution.js)
+        if (prop.type !== 'tavern' && !Hospitality.isKind(prop.type)) html += distributionSection(game, tile, prop);
 
         // Workshop Specific Section: Recipe Selector & Input
         if (isWorkshop) {
@@ -484,8 +501,18 @@ Object.assign(ActionMenu, {
         }], 'Expansion & Upgrades');
 
         // Caravan Logistics Section
-        html += sectionHead('Logistics Network <span style="float:right; letter-spacing:0.5px; text-transform:none; color:#ffcf6a;">Cost: 200g/caravan</span>');
-        html += lede('Hire a caravan to transport your stored goods directly to a market for max profit.');
+        html += sectionHead('Logistics Network <span style="float:right; letter-spacing:0.5px; text-transform:none; color:#ffcf6a;">Hire by load and distance</span>');
+        html += lede('Hire a caravan to carry your stored goods to a market. A town pays only what its merchants hold: what they cannot pay for waits for coin, then goes on or comes home.');
+        {
+            const on = game.player.caravanFindBuyer !== false;
+            html += rowList([{
+                icon: on ? '🧭' : '🏠',
+                name: `Find a buyer nearby: <b style="color:${on ? '#8fd18a' : '#e0a060'};">${on ? 'On' : 'Off'}</b>`,
+                desc: on ? `If the market cannot pay for it all, the caravan waits up to ${PlayerEconomy.caravanConfig().waitDays} days, then tries the nearest town that can, before coming home.` : `If the market cannot pay for it all, the caravan waits up to ${PlayerEconomy.caravanConfig().waitDays} days, then brings the rest home.`,
+                attrs: 'onclick="window.toggleCaravanFindBuyer()"',
+                side: '<span style="color:#9d937c; font-size:11px;">Toggle ›</span>',
+            }]);
+        }
         html += `<div id="caravanDestinations" class="pk-rows" style="max-height:220px; overflow-y:auto;">
                     ${ActionMenu.getLogisticsDestinationsHtml(game, tile)}
                 </div>`;
@@ -647,12 +674,21 @@ Object.assign(ActionMenu, {
             const result = PlayerEconomy.startStorageCaravan(game.player, tile, toObject, game.world);
 
             if (result.success) {
-                game.ui.showNotification('Caravan Dispatched', `Transporting goods to ${toObject.name}`, 'success');
+                const pv = result.preview;
+                const terms = pv
+                    ? ` Hire ${Utils.formatGold(result.cost)}g; their merchants hold ${pv.purseText}, can pay ~${Utils.formatGold(pv.payable)}g: net ${pv.net >= 0 ? '+' : '−'}${Utils.formatGold(Math.abs(pv.net))}g.${pv.warnings.length ? ' ' + pv.warnings.join(' ') : ''}`
+                    : ` Hire ${Utils.formatGold(result.cost)}g.`;
+                game.ui.showNotification('Caravan Dispatched', `Transporting goods to ${toObject.name}.${terms}`, pv && (pv.net < 0 || pv.sellable < pv.units) ? 'warning' : 'success');
                 game.ui.updateStats(game.player, game.world);
                 ActionMenu.showManagePropertyMenu(game, tile); // Refresh
             } else {
                 game.ui.showNotification('Logistics Error', result.reason, 'error');
             }
+        };
+
+        window.toggleCaravanFindBuyer = () => {
+            game.player.caravanFindBuyer = game.player.caravanFindBuyer === false;
+            ActionMenu.showManagePropertyMenu(game, tile); // Refresh
         };
 
         window.selectRecipe = (recipeId) => {
@@ -806,44 +842,49 @@ Object.assign(ActionMenu, {
         const settlements = game.world.getAllSettlements();
         let html = '';
         let count = 0;
+        const qty = tile.playerProperty.storage;
+        const goods = { [good.id]: qty };
+        const lots = {};
+        TradePolicy.book(lots, tile, good.id, qty);
+        const maxRange = PlayerEconomy.caravanConfig().maxRange;
 
-        // Sort by distance
-        settlements.sort((a, b) => {
-            const da = Hex.wrappingDistance(tile.q, tile.r, a.q, a.r, game.world.width);
-            const db = Hex.wrappingDistance(tile.q, tile.r, b.q, b.r, game.world.width);
-            return da - db;
-        });
-
+        // The real picture at each market in range: what its merchants can pay
+        // for the load (their purse caps it), the hire, the net. Best net first.
+        const rows = [];
         for (const s of settlements) {
             const dist = Hex.wrappingDistance(tile.q, tile.r, s.q, s.r, game.world.width);
+            // Filter: max range, don't show current tile if it's a settlement
+            if (!(dist > 0 && dist <= maxRange)) continue;
+            const pv = PlayerEconomy.caravanPreview(game.player, game.world, tile, s, goods, lots);
+            if (!pv.ok) continue;
+            rows.push({ s, dist, pv });
+        }
+        rows.sort((a, b) => (b.pv.net - a.pv.net) || (a.dist - b.dist));
 
-            // Filter: max range 20, don't show current tile if it's a settlement
-            if (dist > 0 && dist <= 20) {
-                let multiplier = 1.0;
-                if (s.type === 'capital') multiplier = 1.5;
-                else if (s.type === 'city') multiplier = 1.2;
+        for (const { s, dist, pv } of rows) {
+            const basePrice = MarketDynamics.getPrice(good.id, s.q, s.r, game.world);
+            const trend = MarketDynamics.getPriceTrend(good.id, s.q, s.r, game.world);
 
-                const basePrice = MarketDynamics.getPrice(good.id, s.q, s.r, game.world);
-                const trend = MarketDynamics.getPriceTrend(good.id, s.q, s.r, game.world);
+            let trendIcon = '→︎'; // plain text arrows: the emoji ones are blue boxes
+            let trendColor = '#999';
+            if (trend === 'rising') { trendIcon = '↗︎'; trendColor = '#2ecc71'; }
+            else if (trend === 'falling') { trendIcon = '↘︎'; trendColor = '#e74c3c'; }
 
-                let trendIcon = '→︎'; // plain text arrows: the emoji ones are blue boxes
-                let trendColor = '#999';
-                if (trend === 'rising') { trendIcon = '↗︎'; trendColor = '#2ecc71'; }
-                else if (trend === 'falling') { trendIcon = '↘︎'; trendColor = '#e74c3c'; }
-
-                // Estimate value (base calculation + commerce skill)
-                const commerceBonus = 1 + (game.player.skills.commerce * 0.05);
-                const estValue = Math.floor(basePrice * (1 + dist * 0.05) * multiplier * tile.playerProperty.storage * commerceBonus);
-
-                html += actRow({
-                    icon: '🐫',
-                    name: `${s.name} <span style="font-size:10px; color:#9d937c; font-weight:normal;">(${s.type})</span>`,
-                    desc: `📏 ${dist} hexes · <span style="color:${trendColor};" title="Market Trend">${trendIcon} ${Utils.formatGold(basePrice)}g/unit</span>`,
-                    attrs: `onclick="window.sendStorageCaravan(${s.q}, ${s.r})"`,
-                    side: `<span style="color:#8fd18a;">💰 ~${Utils.formatGold(estValue)}g</span> <span style="color:#9d937c; font-size:11px;">Send ›</span>`,
-                });
-                count++;
-            }
+            const short = pv.sellable < pv.units;
+            const netColor = pv.net < 0 ? '#e74c3c' : (short ? '#f0b35a' : '#8fd18a');
+            const shortLine = short
+                ? ` · <span style="color:#f0b35a;">${pv.sellable > 0 ? `pays for ${pv.sellable} of ${pv.units}` : 'no coin for any'}</span>`
+                : '';
+            html += actRow({
+                icon: '🐫',
+                name: `${s.name} <span style="font-size:10px; color:#9d937c; font-weight:normal;">(${s.type})</span>`,
+                desc: `📏 ${dist} hex${dist === 1 ? '' : 'es'}, ${pv.days}d · <span style="color:${trendColor};" title="Market Trend">${trendIcon} ${Utils.formatGold(basePrice)}g/unit</span> · merchants hold ${pv.purseText}${shortLine} · hire ${Utils.formatGold(pv.fee)}g`,
+                note: pv.net < 0 ? `<span style="color:#e74c3c;">⚠ ${pv.warnings[pv.warnings.length - 1]}</span>` : '',
+                title: [`Worth ~${Utils.formatGold(pv.value)}g there; they can pay ~${Utils.formatGold(pv.payable)}g. Hire ${Utils.formatGold(pv.fee)}g. Net ${pv.net >= 0 ? '+' : '−'}${Utils.formatGold(Math.abs(pv.net))}g.`, ...pv.warnings].join(' '),
+                attrs: `onclick="window.sendStorageCaravan(${s.q}, ${s.r})"`,
+                side: `<span style="color:${netColor};" title="What they can pay, less the hire">💰 ${pv.net >= 0 ? '+' : '−'}${Utils.formatGold(Math.abs(pv.net))}g net</span> <span style="color:#9d937c; font-size:11px;">Send ›</span>`,
+            });
+            count++;
         }
 
         // Add the player's processing buildings (workshops, mills, bakeries, ...)
@@ -1260,6 +1301,7 @@ Object.assign(ActionMenu, {
                     if (!ActionMenu.commitPendingAP(game)) return;
                     const result = Trading.buyGoods(game.player, good, qty, tile.settlement, grade);
                     if (result.success) {
+                        _snd('coins');
                         game.ui.showNotification('Purchase Complete', `Bought ${qty}x ${gName}${good.name} for ${Utils.formatGold(result.spent)} gold`, 'success');
                         if (tile.settlement.kingdom) {
                             game.player.learnAboutKingdom(tile.settlement.kingdom, 'economy');
@@ -1289,6 +1331,7 @@ Object.assign(ActionMenu, {
                 const result = stall ? Trading.sellToStall(game.player, stall.trade, goodId, qty, tile.settlement, game.world, grade)
                     : Trading.sellGoods(game.player, goodId, qty, tile.settlement, game.world, grade);
                 if (result.success) {
+                    _snd('coins');
                     const good = PlayerEconomy.GOODS[goodId.toUpperCase()];
                     game.ui.showNotification('Sale Complete', `Sold ${qty}x ${gName}${good.name} for ${Utils.formatGold(result.earned)} gold`, 'success');
                     if (tile.settlement.kingdom) {
@@ -1509,6 +1552,7 @@ Object.assign(ActionMenu, {
                 }
                 // The units out of the trader's real stock, the coin to whose goods they were
                 const res = NpcShops.buy(game.player, game.world, shopTown, npc, itemId, qty, price);
+                if (res.ok) _snd('coins');
                 if (!res.ok) {
                     game.ui.showNotification('No Sale', res.reason || 'They have none of that left.', 'error');
                     ActionMenu.showNpcTradeMenu(game, npc);
@@ -1536,6 +1580,7 @@ Object.assign(ActionMenu, {
                 const res = NpcShops.sell(game.player, game.world, shopTown, npc, goodId, qty,
                     (q) => Math.floor(unitBase * q * Crafting.saleMult(game.player, goodId, q)),
                     { take: (q) => Crafting.takeForSale(game.player, goodId, q) });
+                if (res.ok) _snd('coins');
                 if (!res.ok) {
                     game.ui.showNotification('No Sale', res.reason || 'They will not buy that.', 'error');
                     return;

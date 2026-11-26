@@ -832,6 +832,11 @@ export const KingdomAI = {
         // listed first in world.kingdoms the attacker in every battle, so the
         // realms late in the list could only ever lose towns — 2026-11-24.)
         initiative: [0.25, 0.75],
+        // The front (noteFront): a battle within frontReach hexes of a foe's town
+        // threatens it; one fought at its walls, or won within two hexes, lays
+        // siege to it. A front no battle has renewed in frontDays is cold.
+        frontReach: 4,
+        frontDays: 30,
         // Limits every aggressor keeps, the AI's realms and the player's alike
         // (mayOpenWar): a realm already fighting maxWarsOn wars is not set upon by
         // a fresh one (a crusade may bring one more); and a realm whose war has
@@ -1612,7 +1617,58 @@ export const KingdomAI = {
                 const loser = won ? defender : attacker;
                 world.captivesFeed.push({ day: world.day, victor: (won ? attacker : defender).id, loser: loser.id, q: frontline.q, r: frontline.r, lost: Math.max(0, menBefore[loser.id] - loser.military) });
             }
+            // Which of the defender's towns the fighting threatens or besieges (the streets show it)
+            KingdomAI.noteFront(attacker, defender, world, frontline.q, frontline.r, won, moraleBreak === attacker.id);
         }
+    },
+
+    /**
+     * The front of a war, for the streets and the map to show (systems/townWorld.js,
+     * renderer overlays): attacker.warState[defender].front = { q, r, name, since,
+     * last, siege } — the defender's town the battle at (q, r) threatened, besieged
+     * when fought at its walls or won within two hexes of it; a rout of the attacker
+     * lifts the siege, the town's fall ends the front. Kept on the warState (saved
+     * with it, gone with the war). Draws no RNG, and never makes a warState.
+     */
+    noteFront(attacker, defender, world, q, r, won, routed = false) {
+        const ws = attacker && attacker.warState && defender ? attacker.warState[defender.id] : null;
+        if (!ws || !world || typeof world.getTile !== 'function') return null;
+        const W = KingdomAI.WAR;
+        const day = KingdomAI._day(world);
+        const reach = Number.isFinite(W.frontReach) ? W.frontReach : 4;
+        // (a town that fell is no longer a front)
+        const old = ws.front;
+        if (old) {
+            const t = world.getTile(old.q, old.r);
+            if (!t || !t.settlement || t.settlement.kingdom !== defender.id) ws.front = null;
+        }
+        let best = null, bd = Infinity;
+        for (const t of defender.territory || []) {
+            const tile = world.getTile(t.q, t.r);
+            if (!tile || !tile.settlement || tile.settlement.kingdom !== defender.id) continue;
+            const d = Hex.wrappingOffsetDistance(q, r, t.q, t.r, world.width || 0);
+            if (d < bd || (d === bd && best && (t.q * 1000 + t.r) < (best.q * 1000 + best.r))) { bd = d; best = { q: t.q, r: t.r, name: tile.settlement.name }; }
+        }
+        if (!best || bd > reach) return ws.front || null;
+        const same = ws.front && ws.front.q === best.q && ws.front.r === best.r;
+        const f = same ? ws.front : { q: best.q, r: best.r, name: best.name, since: day, last: day, siege: false };
+        f.last = day;
+        if (routed) f.siege = false;
+        else if (bd === 0 || (won && bd <= 2)) f.siege = true;
+        ws.front = f;
+        return f;
+    },
+
+    /** attacker's front against defender, still warm (renewed within frontDays), or null. */
+    frontOf(attacker, defenderId, world) {
+        const f = attacker && attacker.warState && defenderId != null ? (attacker.warState[defenderId] || {}).front : null;
+        if (!f || !Number.isFinite(f.q)) return null;
+        if (!(attacker.wars || []).some(id => String(id) === String(defenderId))) return null;
+        const days = Number.isFinite(KingdomAI.WAR.frontDays) ? KingdomAI.WAR.frontDays : 30;
+        if (KingdomAI._day(world) - (Number(f.last) || 0) > days) return null;
+        // (the town still the defender's: one taken since is no front)
+        const t = world && typeof world.getTile === 'function' ? world.getTile(f.q, f.r) : null;
+        return t && t.settlement && String(t.settlement.kingdom) === String(defenderId) ? f : null;
     },
 
     /**

@@ -19,6 +19,10 @@
 //     (systems/merchantCaravans.js, a trade_caravan on world.units): its
 //     wagon is loaded at the market, porters bringing the sacks, the merchant
 //     at the horse's head; then it rolls out by the nearest gate and is gone;
+//   - a convoy (startConvoy): a wagon driven in from the map's edge by one
+//     another system brought (the muster's supply train: ui/innerMapTownWorld.js),
+//     to a spot where it stands unloading a while, then back the way it came
+//     and gone;
 //   - the player: a handcart of their own (the market good `handcart`, bought
 //     at a woodworker's stall or made at the bench) stands beside them on
 //     every street map; any cart standing with no one at it may be taken by
@@ -240,6 +244,8 @@ export const InnerMapCarts = {
     _canDrive(n) {
         if (!n || n.state === 'gone' || n._dialogFrozen || n._fight || n._rite || n._wedding || n._mourning || n._carried) return false;
         if (n.type === 'guard' || n.type === 'child' || n._behindCounter || n.departing || n._cartDriver || n._onCart) return false;
+        // (the figures the realm's affairs brought to town are theirs to walk: ui/innerMapTownWorld.js)
+        if (n._tw) return false;
         if (n._sick && n._sick.abed) return false;
         return n.state === 'idle' || n.state === 'walking';
     },
@@ -296,7 +302,7 @@ export const InnerMapCarts = {
             this._freeDriver(c);
             c.parked = true;
             c.path = null;
-            if (c.job === 'caravan') this._remove(c);
+            if (c.job === 'caravan' || c.job === 'convoy') this._remove(c);
             else InnerMap._cartsChanged();
             return;
         }
@@ -406,6 +412,7 @@ export const InnerMapCarts = {
         if (c.job === 'carter') return this._carterArrived(c, game, gaveUp);
         if (c.job === 'plague') return this._plagueArrived(c, game, gaveUp);
         if (c.job === 'caravan') return this._caravanArrived(c, game, gaveUp);
+        if (c.job === 'convoy') return this._convoyArrived(c, game, gaveUp);
         this._freeDriver(c);
         c.parked = true;
         InnerMap._cartsChanged();
@@ -415,6 +422,7 @@ export const InnerMapCarts = {
         if (c.job === 'plague') return this._plagueNext(c, game);
         if (c.job === 'carter') return this._carterHome(c);
         if (c.job === 'caravan') return this._caravanLeave(c, game);
+        if (c.job === 'convoy') return this._convoyLeave(c, game);
         return null;
     },
 
@@ -763,6 +771,79 @@ export const InnerMapCarts = {
             const n = who[Math.floor(this._roll(c.id, 'who') * who.length) % who.length];
             this._say(n, Carts.line((K.lines || {}).load, `${c.id}|${this._n++}`, { good: c.unit.good }));
         }
+    },
+
+    // ──────────── A CONVOY (driven in, unloaded, driven out) ────────────
+
+    /**
+     * A wagon driven in by `o.driver` (an NPC already on the street map) from near
+     * `o.at` (the map's edge) to `o.to`, where it stands `o.unloadSecs` (c.phase
+     * 'unload'), then back to where it came in and gone, the driver with it.
+     * o: { at, to, driver, label, outLabel, unloadSecs, kind }. → the cart, or null
+     * (no room for it, no way there, carts off, or the street not yet dealt).
+     */
+    startConvoy(o) {
+        if (!o || !o.driver || !o.at || !o.to || !Carts.on() || this._tiles !== InnerMap.tiles || InnerMap._insideBuilding) return null;
+        const spot = this._wagonSpot(o.at);
+        if (!spot) return null;
+        const d = o.driver;
+        d.q = d.prevQ = d.targetQ = spot.lead.q;
+        d.r = d.prevR = d.targetR = spot.lead.r;
+        const c = this._add(o.kind || 'wagon', spot.trail, { owner: 'host', facing: spot.facing, job: 'convoy', variant: 'loaded' });
+        c.convoy = { from: { q: spot.lead.q, r: spot.lead.r }, unloadSecs: _num(o.unloadSecs, 20), outLabel: o.outLabel || 'Driving the wagon away' };
+        this._takeHandles(c, d, o.label || 'Driving a wagon in');
+        d.facing = spot.facing;
+        c.phase = 'in';
+        if (!this._routeOnWheels(c, o.to)) { this._remove(c); return null; }
+        return c;
+    },
+
+    /**
+     * A convoy's route over ground its wheels can take (no stile, doorstep or prop
+     * a walker steps past): the pathfinder told to keep off the rest, once per leg;
+     * else the walkers' route, as other carts take.
+     */
+    _routeOnWheels(c, to) {
+        const keep = InnerMap._cartParkedIdx;
+        const tiles = InnerMap.tiles;
+        const W = InnerMap._cartsW || InnerMap.width;
+        const set = new Set(keep || []);
+        set.w = W;
+        for (let r = 0; r < tiles.length; r++) {
+            const row = tiles[r];
+            for (let q = 0; q < row.length; q++) {
+                const t = row[q];
+                if (t && t.subTerrain && t.subTerrain.passable && !InnerMap._cartGround(q, r)) set.add(r * W + q);
+            }
+        }
+        InnerMap._cartParkedIdx = set;
+        let ok = false;
+        try { ok = this._routeTo(c, to); } finally { InnerMap._cartParkedIdx = keep; }
+        return ok || this._routeTo(c, to);
+    },
+
+    _convoyArrived(c, game, gaveUp) {
+        if (c.phase === 'in') {
+            // (there, or as near as it got: it unloads where it stands)
+            c.phase = 'unload';
+            c.stopT = c.convoy.unloadSecs;
+            InnerMap._cartsChanged();
+            return;
+        }
+        if (c.phase === 'unload') return;
+        // Out by the way it came in, and on down the road
+        const d = c.driver;
+        this._freeDriver(c);
+        if (d) d.state = 'gone';
+        this._remove(c);
+    },
+
+    _convoyLeave(c, game) {
+        const d = c.driver;
+        if (!d) { this._remove(c); return; }
+        c.phase = 'out';
+        if (d.activity) d.activity.label = c.convoy.outLabel;
+        if (!this._routeOnWheels(c, c.convoy.from)) this._convoyArrived(c, game, true);
     },
 
     // ──────────── THE PLAYER AT THE HANDLES ────────────

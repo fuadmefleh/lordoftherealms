@@ -8,6 +8,8 @@ import { drawHoverCoords } from '../hoverCoords.js';
 import { resetCanvasTransform } from '../hiDpi.js';
 import { drawIcon } from '../icons.js';
 import { fontPx, readableFont, inkText, drawMapText } from '../mapInk.js';
+import { TILE_SIG_UNSEEN } from './terrainCache.js';
+import { textWidth } from '../textMeasure.js';
 
 // Open water drawn seamless (renderSpriteHex): the sea's own art, not a lake's
 const OPEN_SEA = new Set(['ocean', 'deep_ocean', 'sea', 'coast']);
@@ -170,6 +172,8 @@ Object.assign(Renderer.prototype, {
         this.renderQuestMarkers(ctx);
         // Your holdings under siege (systems/holdingSieges.js)
         this.renderHoldingSieges(ctx);
+        // ...and the fronts of the wars between crowns (world/kingdomAI.js noteFront)
+        this.renderWarFronts(ctx);
 
         // Royal squadrons at sea: blockades on station, patrols (renderer/navySquadrons.js)
         this.renderNavySquadrons(ctx);
@@ -247,13 +251,12 @@ Object.assign(Renderer.prototype, {
      * Measure and get bounds for a label
      */
     getLabelBounds(ctx, label) {
-        ctx.font = label.style.font;
-        const metrics = ctx.measureText(label.text);
+        // (the width remembered by font and text: ui/textMeasure.js)
+        const textW = textWidth(ctx, label.style.font, label.text);
         // The font's pixel size (a leading weight like "700 13px" is not the size)
-        const m = /(\d+(?:\.\d+)?)px/.exec(label.style.font);
-        const height = m ? parseFloat(m[1]) : 12;
+        const height = fontPx(label.style.font) || 12;
         const pad = label.style.plaque ? height * 0.6 : height * 0.15;
-        const width = metrics.width + pad * 2;
+        const width = textW + pad * 2;
         const top = label.style.textBaseline === 'top' ? label.y - pad * 0.4 : label.y - height / 2 - pad * 0.4;
 
         return {
@@ -456,17 +459,47 @@ Object.assign(Renderer.prototype, {
     },
 
     /**
-     * Render the hex grid terrain
+     * Render the hex grid terrain. While the view holds its zoom the terrain is kept in a
+     * canvas of its own and only copied here, panned by whole pixels with the newly bared
+     * edge drawn (renderer/terrainCache.js); while zooming, and in the map modes, it is
+     * drawn hex by hex as before.
      */
     renderHexGrid(ctx) {
-        const bounds = this.camera.getVisibleBounds();
+        if (this.drawTerrainCached && this.drawTerrainCached(ctx)) return;
+        this._terrainPass(ctx, null);
+        this.renderFogFaces(ctx);
+    },
+
+    /**
+     * The terrain pass: each explored hex's art (with its river, road or bridge) row by
+     * row onto `ctx`, the frontier noted and the faces out of sight gathered for
+     * renderFogFaces. `v` null: the map as the camera sees it. Else a view of its own
+     * (renderer/terrainCache.js): { ox, oy, z } the world point at the canvas centre and
+     * the zoom, [x0, x1) × [y0, y1) the screen box to cover, `sigs` the tile signatures
+     * noted (`changed` set when one differs from the last noted), `frontierOnly` to note
+     * only the frontier (the camera's view, nothing drawn).
+     */
+    _terrainPass(ctx, v, frontierOnly = false) {
+        const cam = this.camera;
         const world = this.world;
         const size = this.hexSize;
         const hexWidth = Math.sqrt(3) * size;
         const hexHeight = 2 * size;
         const rowHeight = hexWidth * 0.75;
+        const zoom = v ? v.z : cam.zoom;
+        const cw = this.canvas.width, ch = this.canvas.height;
+        const halfW = cw / 2, halfH = ch / 2;
+        const ox = v ? v.ox : cam.x, oy = v ? v.oy : cam.y;
+        const x0 = v ? v.x0 : 0, x1 = v ? v.x1 : cw;
+        const y0 = v ? v.y0 : 0, y1 = v ? v.y1 : ch;
+        const wpw = cam.worldPixelWidth;
+        const sigs = v && v.sigs;
+        const W = world.width;
 
-        // Determine visible bounds in Offset Grid (Row/Col)
+        // The world box in view (camera.getVisibleBounds, for a box of the canvas)
+        let bounds;
+        if (v) bounds = { left: ox + (x0 - halfW) / zoom, right: ox + (x1 - halfW) / zoom, top: oy + (y0 - halfH) / zoom, bottom: oy + (y1 - halfH) / zoom };
+        else bounds = cam.getVisibleBounds();
 
         // Approximate visible range
         const padding = 2;
@@ -475,49 +508,54 @@ Object.assign(Renderer.prototype, {
 
         const minR = Math.max(0, startRow);
         const maxR = Math.min(world.height - 1, endRow);
-        this._frontier = [];
+        if (!v || frontierOnly) this._frontier = [];
         // Faces of explored hexes out of sight: darkened in one pass after all the terrain
-        this._fogFaces = [];
+        if (!frontierOnly) this._fogFaces = [];
+        const cullX = hexWidth * zoom, cullY = hexHeight * zoom;
+        const renderSize = size * zoom;
 
         for (let r = minR; r <= maxR; r++) {
             // Apply Even-row offset (C# logic: y % 2 == 0 -> offset)
             const offsetX = (r % 2 === 0) ? hexWidth / 2 : 0;
 
-            const startCol = Math.floor((bounds.left - offsetX) / hexWidth) - padding;
-            const endCol = Math.ceil((bounds.right - offsetX) / hexWidth) + padding;
-
-            const minQ = startCol;
-            const maxQ = endCol;
+            const minQ = Math.floor((bounds.left - offsetX) / hexWidth) - padding;
+            const maxQ = Math.ceil((bounds.right - offsetX) / hexWidth) + padding;
+            const row = world.tiles[r];
 
             for (let q = minQ; q <= maxQ; q++) {
                 // Handle wrapping
-                const wq = Hex.wrapQ(q, world.width);
-                const tile = world.tiles[r][wq];
+                const wq = Hex.wrapQ(q, W);
+                const tile = row[wq];
+                if (sigs) {
+                    const s = this._tileSig(tile), i = r * W + wq;
+                    if (sigs[i] !== s) {
+                        if (sigs[i] !== TILE_SIG_UNSEEN) v.changed = true;
+                        sigs[i] = s;
+                    }
+                }
+
+                // q is column (x), r is row (y); on screen as camera.worldToScreen puts it
+                const px = q * hexWidth + offsetX;
+                const py = r * rowHeight;
+                let dx = px - ox;
+                if (wpw > 0) {
+                    if (dx > wpw / 2) dx -= wpw;
+                    if (dx < -wpw / 2) dx += wpw;
+                }
+                const sx = halfW + dx * zoom;
+                const sy = halfH + (py - oy) * zoom;
+
+                // Cull if off-screen (extra check)
+                if (sx < x0 - cullX || sx > x1 + cullX) continue;
+                if (sy < y0 - cullY || sy > y1 + cullY) continue;
 
                 if (!tile.explored) {
                     // FOW: nothing is drawn here — the cloud sea beneath shows through,
                     // and frontier hexes get a bank of cloud over the edge (renderer/fog.js)
-                    const fpx = q * hexWidth + offsetX;
-                    const fpy = r * rowHeight;
-                    const fscreen = this.camera.worldToScreen(fpx, fpy);
-                    if (fscreen.x < -hexWidth * this.camera.zoom || fscreen.x > this.canvas.width + hexWidth * this.camera.zoom) continue;
-                    if (fscreen.y < -hexHeight * this.camera.zoom || fscreen.y > this.canvas.height + hexHeight * this.camera.zoom) continue;
-                    this.noteFrontierHex(q, r, wq, fscreen.x, fscreen.y);
+                    if (!v || frontierOnly) this.noteFrontierHex(q, r, wq, sx, sy);
                     continue;
                 }
-
-                // Calculate Pixel Position using Offset Logic
-                // q is column (x), r is row (y)
-                const px = q * hexWidth + offsetX;
-                const py = r * rowHeight;
-
-                const screen = this.camera.worldToScreen(px, py);
-
-                // Cull if off-screen (extra check)
-                if (screen.x < -hexWidth * this.camera.zoom || screen.x > this.canvas.width + hexWidth * this.camera.zoom) continue;
-                if (screen.y < -hexHeight * this.camera.zoom || screen.y > this.canvas.height + hexHeight * this.camera.zoom) continue;
-
-                const renderSize = size * this.camera.zoom;
+                if (frontierOnly) continue;
 
                 // Check if we have a PNG sprite for this terrain
                 const imgName = this.getTileImage(tile);
@@ -538,15 +576,15 @@ Object.assign(Renderer.prototype, {
                 }
 
                 const sprite = imgName ? this.tileSprites.get(imgName) : null;
-                
+
                 // Check for bridge first (road + river overlap)
                 const bridgeImgName = this.getBridgeImage(tile, q, r, world.width, world.height);
                 const bridgeSprite = bridgeImgName ? this.tileSprites.get(bridgeImgName) : null;
-                
+
                 // If we have a bridge, use it instead of separate river and road
                 let riverSprite = null;
                 let roadSprite = null;
-                
+
                 // The river is always drawn; a bridge (road and bridge
                 // only) goes over it in place of the plain road
                 const riverImgName = this.getRiverImage(tile, q, r, world.width, world.height);
@@ -558,11 +596,10 @@ Object.assign(Renderer.prototype, {
                 }
 
                 if (sprite || riverSprite || roadSprite) {
-                    this.renderSpriteHex(ctx, screen.x, screen.y, renderSize, sprite, tile, riverSprite, roadSprite);
+                    this.renderSpriteHex(ctx, sx, sy, renderSize, sprite, tile, riverSprite, roadSprite);
                 }
             }
         }
-        this.renderFogFaces(ctx);
     },
 
     /**

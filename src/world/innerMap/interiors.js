@@ -103,7 +103,8 @@ Object.assign(InnerMap, {
         }
 
         // ── The town's fields grown to the day (world/townProps.js) ──
-        if (hasSettlement) TownProps.growFields(this.tiles, this.worldDay);
+        // (and the fields of the player's farms out in the country: world/innerMap/propertySites.js)
+        if (hasSettlement || this.tiles._propertyPlots) TownProps.growFields(this.tiles, this.worldDay);
         // ── Its fences joined at the corners (a town laid out before fences joined comes right on entry) ──
         if (hasSettlement) TownProps.joinFences(this.tiles);
         // ── What the player built here by hand: sites, fences, gates, sheds… (world/innerMap/handBuilding.js; before the gates) ──

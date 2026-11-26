@@ -167,7 +167,8 @@ describe('trade policy reaches the player\'s caravans and routes', () => {
         TradePolicy.realm(kb).imp.wares = 0.3;
         const gold0 = player.gold;
         const run = runCaravan(g, { tools: 10 });
-        expect(player.gold).toBe(gold0 - 200 + run.done.finalProfit);
+        // (the hire scales with the load and the way: data/playerCaravans.json)
+        expect(player.gold).toBe(gold0 - run.cost + run.done.finalProfit);
         expect(run.done.finalProfit).toBeGreaterThanOrEqual(0);
     });
 });

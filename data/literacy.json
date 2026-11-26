@@ -50,6 +50,11 @@
     "endow": {
         "cost": 400,
         "materials": { "planks": 20, "stone": 15 },
+        "_whereToGet": "Told the player when a material is short (systems/literacy.js endowTerms): its name and where it comes from.",
+        "whereToGet": {
+            "planks": { "name": "sawn planks", "where": "Saw them yourself at any anvil (Craft → Saw Planks: 2 wood make 3), buy them at a town's woodworker (towns and cities have sawyers, villages don't), or build a Sawmill." },
+            "stone": { "name": "stone", "where": "Buy it at a market that has it, or build a Quarry." }
+        },
         "endowShare": 0.4,
         "wage": 8,
         "fund": 4,

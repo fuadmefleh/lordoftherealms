@@ -43,6 +43,8 @@ import { FoodSkills } from '../../systems/foodSkills.js';
 import { FishingRods } from '../../player/fishingRods.js';
 import { drawMapMarker } from '../mapInk.js';
 import { FishFed } from '../fishFed.js';
+import { audioManager } from '../../systems/audio.js';
+const _snd = (kind, o) => { try { audioManager.playSFX(kind, o); } catch { /* sound is best-effort */ } };
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _me = () => ({ q: InnerMap.playerInnerQ, r: InnerMap.playerInnerR });
@@ -248,6 +250,8 @@ function _castLine(ctx, spot, luck, onBite, onLeave, skill = null) {
     // skill: the angler's edge (systems/foodSkills.js fishing): more bites, longer to strike
     const to = _castTo(ctx);
     ctx.line = { spot, to, offshore: _offshore(to, FishingRods.cfg().maxReach + 1), mark, state: 'wait', t: _between(ctx.rng, c.wait || [1.5, 4], 2.5), luck, onBite, onLeave, skill };
+    // the line whistling out and the float landing (systems/audio)
+    _snd('fish_cast', to ? { q: to.q, r: to.r, near: 6, far: 20 } : null);
 }
 
 function _endLine(ctx) {
@@ -279,6 +283,7 @@ function _lineTick(ctx, dt) {
             L.mark.glyph = c.biteGlyph || 'warning';
             L.mark.label = c.bite;
             ctx.note(c.bite);
+            _snd('fish_splash', L.to ? { q: L.to.q, r: L.to.r, near: 6, far: 20, gain: 0.8 } : { gain: 0.8 });
         } else {
             _endLine(ctx);
             ctx.note(c.quiet);
@@ -294,7 +299,7 @@ function _lineTick(ctx, dt) {
 function _lineButtons(ctx) {
     const L = ctx.line;
     if (!L || L.state !== 'bite') return [];
-    return [{ label: Rules.cfg('fish').strike, hot: true, act: () => { if (ctx.line === L) { _endLine(ctx); L.onBite(true, L); } } }];
+    return [{ label: Rules.cfg('fish').strike, hot: true, act: () => { if (ctx.line === L) { _snd('fish_reel'); _endLine(ctx); L.onBite(true, L); } } }];
 }
 
 // ──────────────────────────────────────────────
@@ -562,6 +567,7 @@ export const WildTaskRunner = {
                 const d = Rules.dist(ctx.beast, me);
                 const sp = (ctx.animal && ctx.animal.species) || species || name;
                 const r = HuntingBow.loose(player, { dist: d, alert: ctx.st.alert, species: sp, wounded: shooting.wounded, embedded: shooting.embedded });
+                _snd(r && r.weapon && /crossbow/i.test(String(r.weapon.id || r.weapon)) ? 'crossbow_loose' : 'bow_loose');
                 if (!r.ok) { ctx.note(r.reason); return; }
                 shooting.shots++;
                 if (r.levelUp) ctx.note(`${r.levelUp.icon || '🏹'} ${r.levelUp.name || 'Archery'}: ${r.levelUp.text || 'improved'}`);

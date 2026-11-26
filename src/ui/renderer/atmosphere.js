@@ -65,6 +65,23 @@ Object.assign(Renderer.prototype, {
         ctx.restore();
     },
 
+    /**
+     * Today's weather type at (wq, r), kept for the day: the weather is the day's (world/weather.js
+     * getWeather, a field of noise worked out per hex), and working it out for every hex in view,
+     * every frame, cost the map a millisecond.
+     */
+    _weatherTypeAt(world, wq, r) {
+        const W = world.width;
+        let c = this._wxCache;
+        if (!c || c.world !== world || c.day !== world.day || c.weather !== world.weather || c.types.length !== W * world.height) {
+            c = this._wxCache = { world, day: world.day, weather: world.weather, types: new Array(W * world.height) };
+        }
+        const i = r * W + wq;
+        let t = c.types[i];
+        if (t === undefined) t = c.types[i] = world.weather.getWeather(wq, r).type;
+        return t;
+    },
+
     /** Falling rain, drifting snow and lightning over the charted land. */
     renderWeather(ctx) {
         const world = this.world;
@@ -92,8 +109,8 @@ Object.assign(Renderer.prototype, {
                 const wq = Hex.wrapQ(q, world.width);
                 // The uncharted world is cloud already — weather shows on known land
                 if (!world.tiles[r][wq].explored) continue;
-                const weather = world.weather.getWeather(wq, r);
-                const type = weather.type;
+                // (today's weather of a hex, worked out once a day: renderer/atmosphere.js _weatherTypeAt)
+                const type = this._weatherTypeAt(world, wq, r);
                 if (type !== 'rain' && type !== 'storm' && type !== 'snow' && type !== 'blizzard') continue;
 
                 const pos = this.getHexPixelPos(q, r);

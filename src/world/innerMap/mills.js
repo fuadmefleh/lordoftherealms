@@ -88,13 +88,24 @@ Object.assign(InnerMap, {
             const tier = SettlementWealth.buildingTier(opts.wealth, { ring: 'edge', landmark: true, key: `mill:${worldQ},${worldR}` });
             spot.def = CustomBuildings.tierVariant(spot.def, tier);
         }
+        this._raiseMill(tiles, spot, opts.riverPath);
+        return { q: spot.q, r: spot.r, side: spot.side, moved: !!old, built: !old };
+    },
+
+    /**
+     * Stand a mill on the bank _millSpot found: the building, the race along its
+     * wall's foot with the water drawn afresh, the wheel's wall and the stream's
+     * way past it on the anchor (customBuilding.wheel), the trees kept back.
+     * (The town's mill, and the player's own out in the country: propertySites.js.)
+     */
+    _raiseMill(tiles, spot, riverPath = null) {
         this._standBuilding(tiles, spot.def, spot.q, spot.r);
         // The mill race along its wall, and the water drawn afresh with it
         if (this._markWet && this._stampWater) {
             if (spot.race.length) this._markWet(tiles, spot.race, spot.kind);
             this._stampRace(tiles, spot);
         }
-        tiles[spot.r][spot.q].customBuilding.wheel = { side: spot.side, flow: this._millFlow(spot, opts.riverPath) };
+        tiles[spot.r][spot.q].customBuilding.wheel = { side: spot.side, flow: this._millFlow(spot, riverPath) };
         // Keep the wild trees back from its walls and its wheel
         const { minCol, maxCol, minRow } = spot.def.bounds;
         for (let r = spot.r + minRow - 1; r <= spot.r + 2; r++) {
@@ -103,7 +114,6 @@ Object.assign(InnerMap, {
                 if (t && !t._wet) t._townCleared = true;
             }
         }
-        return { q: spot.q, r: spot.r, side: spot.side, moved: !!old, built: !old };
     },
 
     /** The mills a town of this culture would build: its own, else the common ones in its materials */
@@ -121,8 +131,9 @@ Object.assign(InnerMap, {
      * land, and the foot of one gable wall in the water — the cell beside its
      * bottom corner wet, and the water running on two cells out from the wall.
      * Nearer the town and its streets is better; a river better than still water.
+     * `keepOut(q, r)`, if given, names cells it may not stand, race or step on.
      */
-    _millSpot(tiles, defs, worldQ, worldR) {
+    _millSpot(tiles, defs, worldQ, worldR, keepOut = null) {
         const H = tiles.length, W = tiles[0].length;
         const cq = Math.floor(W / 2), cr = Math.floor(H / 2);
         // How far each cell is from a street (Chebyshev, capped)
@@ -162,7 +173,7 @@ Object.assign(InnerMap, {
                         // Its footprint on open ground (a cell clear of other buildings round it)
                         let ok = true;
                         for (const m of def.meta) {
-                            if (!_isGround(at(q + m.q, r + m.r))) { ok = false; break; }
+                            if (!_isGround(at(q + m.q, r + m.r)) || (keepOut && keepOut(q + m.q, r + m.r))) { ok = false; break; }
                         }
                         if (!ok) continue;
                         for (let rr = r + minRow - 1; rr <= foot + 1 && ok; rr++) {
@@ -179,7 +190,7 @@ Object.assign(InnerMap, {
                             for (let k = 0; k <= 2; k++) {
                                 const t = at(col + k * side, rr);
                                 if (_isWater(t)) continue;
-                                if (!t || t._wet || !_isGround(t) || t.q < 1 || t.r < 1 || t.q >= W - 1 || t.r >= H - 1) { ok = false; break; }
+                                if (!t || t._wet || !_isGround(t) || t.q < 1 || t.r < 1 || t.q >= W - 1 || t.r >= H - 1 || (keepOut && keepOut(t.q, t.r))) { ok = false; break; }
                                 race.push([col + k * side, rr]);
                             }
                         }
@@ -187,6 +198,7 @@ Object.assign(InnerMap, {
                         // The door onto dry ground, and a step beyond it
                         const d1 = at(q + door.q, r + door.r + 1), d2 = at(q + door.q, r + door.r + 2);
                         if (!d1 || !d2 || d1._wet || d2._wet || d1.customBuilding || d1.customBuildingPart || d1.customObject || d1.customObjectPart) continue;
+                        if (keepOut && (keepOut(q + door.q, r + door.r + 1) || keepOut(q + door.q, r + door.r + 2))) continue;
                         const kind = (w0 && w0._waterKind) || 'sea';
                         let score = (KIND_COST[kind] != null ? KIND_COST[kind] : 6)
                             + roadDist[(r + door.r + 1) * W + q + door.q] * 0.8

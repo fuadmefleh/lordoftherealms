@@ -295,14 +295,15 @@ Object.assign(InnerMap, {
     },
 
     /**
-     * Place player-built properties on the inner map tiles.
-     * Each property gets a building sprite on a suitable tile.
+     * Place player-built properties on the inner map tiles as whole sprites: the
+     * old way, now only for a property (`only`) no tile-composed design fitted
+     * out in the country (world/innerMap/propertySites.js stands the rest).
      */
-    _placePlayerProperties(tiles, worldTile, rng) {
+    _placePlayerProperties(tiles, worldTile, rng, only = null) {
         const properties = worldTile.playerProperties || [];
-        const allProps = [...properties];
+        const allProps = Array.isArray(only) ? [...only] : [...properties];
         // Include single playerProperty if not already in array
-        if (worldTile.playerProperty && !allProps.includes(worldTile.playerProperty)) {
+        if (!Array.isArray(only) && worldTile.playerProperty && !allProps.includes(worldTile.playerProperty)) {
             allProps.push(worldTile.playerProperty);
         }
         if (allProps.length === 0) return;
@@ -374,6 +375,15 @@ Object.assign(InnerMap, {
                 if (tile._wet) continue;
                 // Lots are for whoever buys them (world/innerMap/lots.js)
                 if (tile._lot) continue;
+                // Never over a tile-composed building, a property's yard, a fence or a field (its 3×3 footprint)
+                let clear = true;
+                for (let dq = -1; dq <= 1 && clear; dq++) {
+                    for (let dr = -2; dr <= 0; dr++) {
+                        const f = tiles[r + dr] && tiles[r + dr][q + dq];
+                        if (!f || f.building || f.customBuilding || f.customBuildingPart || f.customObject || f.customObjectPart || f._propSite || f._wet) { clear = false; break; }
+                    }
+                }
+                if (!clear) continue;
 
                 const dist = Math.abs(q - centerQ) + Math.abs(r - centerR);
                 candidates.push({ q, r, dist });
@@ -420,6 +430,21 @@ Object.assign(InnerMap, {
                 this._addPropertyBuildings();
             }
             return;
+        }
+        // Out in the country: stood where its trade puts it on the map already made, else (no design
+        // fitting) as the old sprite below; a map not yet made stands it on entering (propertySites.js)
+        const dimsW = this._getInnerMapDimensions(worldTile);
+        const cachedW = this._cache[`${worldQ},${worldR}_${dimsW.width}x${dimsW.height}`];
+        if (this._sitePlayerProperties) {
+            // (where it was ordered from on the map is no matter: its trade decides)
+            this._pendingPropertyPosition = null;
+            if (!cachedW) return;
+            const left = [...this._sitePlayerProperties(cachedW, worldTile, worldQ, worldR, { phase: 'all' })];
+            if (!left.includes(property)) {
+                if (this.active && !this._insideBuilding && this.currentWorldTile
+                    && this.currentWorldTile.q === worldQ && this.currentWorldTile.r === worldR) this._addPropertyBuildings();
+                return;
+            }
         }
         // Create a seeded RNG for property placement
         const propCount = (worldTile.playerProperties ? worldTile.playerProperties.length : 0);
@@ -514,10 +539,9 @@ Object.assign(InnerMap, {
             const tile = this.tiles[prop.innerR] && this.tiles[prop.innerR][prop.innerQ];
             if (!tile) continue;
 
-            // (a property on a town lot is always a building: one of no listed type is managed as any other)
+            // (a property of no listed type — a mill, a bakery, an orchard… — is managed as any other)
             const def = this.PROPERTY_BUILDING_DEFS[prop.type]
-                || (prop.lotId ? { name: prop.name || 'Property', icon: prop.icon || '🏠', actions: ['manage_property', 'collect_goods'] } : null);
-            if (!def) continue;
+                || { name: prop.name || 'Property', icon: prop.icon || '🏠', actions: ['manage_property', 'collect_goods'] };
 
             // Skip if already in buildings list
             const exists = this.buildings.find(b => b.q === prop.innerQ && b.r === prop.innerR);
@@ -535,10 +559,10 @@ Object.assign(InnerMap, {
                 isPlayerProperty: true,
                 propertyRef: prop,
             };
-            // Stood on its lot as a tile-composed building: its design's interior, its lot
-            if (prop.lotId && tile.customBuilding) {
+            // Stood as a tile-composed building (on its lot, or out in the country): its design's interior, its lot
+            if (tile.customBuilding) {
                 bldg._customDefId = tile.customBuilding.defId;
-                bldg.lotId = prop.lotId;
+                if (prop.lotId) bldg.lotId = prop.lotId;
             }
 
             tile.buildingInfo = bldg;
